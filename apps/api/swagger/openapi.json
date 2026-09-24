@@ -4166,7 +4166,7 @@
                                   "driverVersion",
                                   "detectedAt"
                                 ],
-                                "description": "GPUs the console observed running inside this lease's containers, as distinct from the models its group requested on chain. Absent until the console has looked, and for a lease it cannot look inside."
+                                "description": "GPUs the console observed running inside this lease's containers, as distinct from the models its group requested. Absent until the console has looked, and for a lease it cannot look inside."
                               },
                               "status": {
                                 "type": "object",
@@ -4430,7 +4430,7 @@
                             },
                             "manifestVersion": {
                               "type": "string",
-                              "description": "Base64 of the manifest version this deployment commits on chain. Deliberately not a hash of the `sdl` above."
+                              "description": "Base64 of the manifest version the console recorded for this deployment. Deliberately not a hash of the `sdl` above."
                             }
                           },
                           "required": [
@@ -4780,7 +4780,7 @@
                                   "driverVersion",
                                   "detectedAt"
                                 ],
-                                "description": "GPUs the console observed running inside this lease's containers, as distinct from the models its group requested on chain. Absent until the console has looked, and for a lease it cannot look inside."
+                                "description": "GPUs the console observed running inside this lease's containers, as distinct from the models its group requested. Absent until the console has looked, and for a lease it cannot look inside."
                               },
                               "status": {
                                 "type": "object",
@@ -5045,7 +5045,7 @@
             }
           },
           "422": {
-            "description": "The SDL changes the groups, compute resources, replica counts or globally exposed ports the deployment was created with, which only a new deployment can take: `code` is `deployment_resources_changed`, and nothing is recorded, broadcast or sent to a provider",
+            "description": "The SDL changes the groups, compute resources, replica counts or globally exposed ports the deployment was created with, which only a new deployment can take: `code` is `deployment_resources_changed`, and nothing is recorded, no deployment update is sent and no provider is contacted",
             "content": {
               "application/json": {
                 "schema": {
@@ -5078,7 +5078,7 @@
       },
       "patch": {
         "summary": "Patch a deployment",
-        "description": "Patches the SDL the console stored for this deployment, or renames the deployment, or both; the SDL is never accepted from the request. Only the services named are touched. A `name` on its own touches no definition, so it renames a deployment the console holds no SDL for and neither broadcasts nor pushes a manifest. Such a rename also reports every lease `status` as null, because it asks no provider for one. A patched environment variable is re-appended to its service's env list, so the order shown by GET may differ afterwards. A replaced secret takes effect when the deployment is next updated on chain, not in the workload already running. The definition is recorded before the chain transaction is broadcast, so a broadcast that fails leaves the console describing a manifest version the chain never saw. Re-sending the identical request repairs that: it recomputes the same manifest version, is accepted rather than refused, and goes on to broadcast and push the manifest.",
+        "description": "Patches the SDL the console stored for this deployment, or renames the deployment, or both; the SDL is never accepted from the request. Only the services named are touched. A `name` on its own touches no definition, so it renames a deployment the console holds no SDL for and sends neither a deployment update nor a manifest. Such a rename also reports every lease `status` as null, because it asks no provider for one. A patched environment variable is re-appended to its service's env list, so the order shown by GET may differ afterwards. A replaced secret takes effect through the deployment update this patch sends, not in the workload already running. The definition is recorded before the deployment update is sent, so an update that fails leaves the console describing a manifest version the deployment was never updated to. Re-sending the identical request repairs that: it recomputes the same manifest version, is accepted rather than refused, and goes on to send the update and push the manifest. A seal bound to the SDL is the exception: the first attempt replaced the SDL it was sealed against, so the same `sealedSecrets` answer 403 until the same values are sealed against the SDL GET now returns.",
         "operationId": "patchDeployment",
         "tags": [
           "Deployments"
@@ -5179,7 +5179,7 @@
                                     "type": "integer",
                                     "minimum": 1,
                                     "maximum": 65535,
-                                    "description": "Moves the port the endpoint is reached on. Refused when it would change the endpoint's kind on chain (a public TCP endpoint moving onto or off port 80), onto a port another endpoint of the service uses, and on an endpoint reached through a leased IP."
+                                    "description": "Moves the port the endpoint is reached on. Refused when it would change the endpoint's kind (a public TCP endpoint moving onto or off port 80), onto a port another endpoint of the service uses, and on an endpoint reached through a leased IP."
                                   },
                                   "accept": {
                                     "type": "array",
@@ -5265,7 +5265,7 @@
                         "type": "string",
                         "minLength": 1,
                         "maxLength": 256,
-                        "description": "Renames the deployment. Supplied on its own it is the only patch that touches no definition, so it works on a deployment the console holds no SDL for and neither broadcasts nor pushes a manifest."
+                        "description": "Renames the deployment. Supplied on its own it is the only patch that touches no definition, so it works on a deployment the console holds no SDL for and sends neither a deployment update nor a manifest."
                       },
                       "sealedSecrets": {
                         "type": "string",
@@ -5494,7 +5494,7 @@
                                   "driverVersion",
                                   "detectedAt"
                                 ],
-                                "description": "GPUs the console observed running inside this lease's containers, as distinct from the models its group requested on chain. Absent until the console has looked, and for a lease it cannot look inside."
+                                "description": "GPUs the console observed running inside this lease's containers, as distinct from the models its group requested. Absent until the console has looked, and for a lease it cannot look inside."
                               },
                               "status": {
                                 "type": "object",
@@ -5750,7 +5750,7 @@
                         },
                         "manifestVersion": {
                           "type": "string",
-                          "description": "Base64 manifest version this patch recorded and committed on chain. Absent for a rename, which records none."
+                          "description": "Base64 manifest version this patch recorded, which the deployment is now on. Absent for a rename, which records none."
                         }
                       },
                       "required": [
@@ -5769,7 +5769,37 @@
             }
           },
           "400": {
-            "description": "The patch names a service, port or volume the stored SDL does not declare, supplies a secret name it does not reference, leaves a reference with no value, moves a container port onto one the service already exposes, or moves a port in a way that would change its endpoint kind on chain",
+            "description": "The patch names a service, port or volume the stored SDL does not declare, supplies a secret name it does not reference, leaves a reference with no value, moves a container port onto one the service already exposes, or moves a port in a way that would change its endpoint kind",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "type": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "code",
+                    "type"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The `sealedSecrets` value was sealed for a different user, or bound to a different SDL than the one the console stores for this deployment, as a seal made before an earlier patch of it was recorded is",
             "content": {
               "application/json": {
                 "schema": {
@@ -5799,7 +5829,7 @@
             }
           },
           "404": {
-            "description": "No SDL is recorded for this deployment, so there is nothing to patch. A rename answers this only when the chain holds no such deployment for the caller, since it needs no recorded SDL",
+            "description": "No SDL is recorded for this deployment, so there is nothing to patch. A rename answers this only when the caller has no such deployment, since it needs no recorded SDL",
             "content": {
               "application/json": {
                 "schema": {
@@ -5859,7 +5889,7 @@
             }
           },
           "422": {
-            "description": "The SDL recorded for this deployment no longer declares the groups, compute resources, replica counts or globally exposed ports the deployment holds on chain, as a full-SDL update can leave it: `code` is `deployment_resources_changed`, and nothing is recorded, broadcast or sent to a provider",
+            "description": "The SDL recorded for this deployment no longer declares the groups, compute resources, replica counts or globally exposed ports the deployment holds, as a full-SDL update can leave it: `code` is `deployment_resources_changed`, and nothing is recorded, no deployment update is sent and no provider is contacted",
             "content": {
               "application/json": {
                 "schema": {
@@ -5976,7 +6006,7 @@
               },
               "minItems": 1,
               "maxItems": 100,
-              "description": "Deployment sequence numbers to resolve names for, repeated once per deployment, at most 100 per request. Written without leading zeros, as the chain reports them."
+              "description": "Deployment sequence numbers to resolve names for, repeated once per deployment, at most 100 per request. Written without leading zeros, as the other deployment endpoints return them."
             },
             "required": true,
             "name": "dseq",
@@ -6350,7 +6380,7 @@
                 "false"
               ],
               "default": "false",
-              "description": "Newest deployment first when true, rather than the chain's own oldest-first order."
+              "description": "Newest deployment first when true, rather than the default oldest-first order."
             },
             "required": false,
             "name": "reverse",
@@ -6602,7 +6632,7 @@
                                         "driverVersion",
                                         "detectedAt"
                                       ],
-                                      "description": "GPUs the console observed running inside this lease's containers, as distinct from the models its group requested on chain. Absent until the console has looked, and for a lease it cannot look inside."
+                                      "description": "GPUs the console observed running inside this lease's containers, as distinct from the models its group requested. Absent until the console has looked, and for a lease it cannot look inside."
                                     }
                                   },
                                   "required": [
@@ -7062,7 +7092,7 @@
                                     "created_at"
                                   ]
                                 },
-                                "description": "The resource groups the deployment declares on chain, as the chain describes them."
+                                "description": "The resource groups the deployment declares, as recorded for it rather than as its SDL spells them."
                               },
                               "settings": {
                                 "type": "object",
@@ -7086,7 +7116,7 @@
                                   },
                                   "closed": {
                                     "type": "boolean",
-                                    "description": "The console's own bookkeeping, which can trail the chain. `deployment.state` is what the chain says."
+                                    "description": "The console's own bookkeeping, which can trail `deployment.state`. Trust `deployment.state` when the two disagree."
                                   }
                                 },
                                 "required": [
@@ -7114,7 +7144,7 @@
                             "total": {
                               "type": "number",
                               "nullable": true,
-                              "description": "Deployments the owner holds in this state, counted from the console's chain index, so it can trail the chain by a block. Null when that index cannot answer, which leaves the count unknown rather than understated; page on `hasMore` regardless."
+                              "description": "Deployments the owner holds in this state, counted from the console's own index, so it can briefly lag behind the list itself. Null when that index cannot answer, which leaves the count unknown rather than understated; page on `hasMore` regardless."
                             },
                             "skip": {
                               "type": "number"
@@ -7124,7 +7154,7 @@
                             },
                             "hasMore": {
                               "type": "boolean",
-                              "description": "Whether the chain offered a cursor to a further page."
+                              "description": "Whether a further page exists."
                             }
                           },
                           "required": [
@@ -7466,7 +7496,7 @@
                                   "driverVersion",
                                   "detectedAt"
                                 ],
-                                "description": "GPUs the console observed running inside this lease's containers, as distinct from the models its group requested on chain. Absent until the console has looked, and for a lease it cannot look inside."
+                                "description": "GPUs the console observed running inside this lease's containers, as distinct from the models its group requested. Absent until the console has looked, and for a lease it cannot look inside."
                               },
                               "status": {
                                 "type": "object",
@@ -9930,7 +9960,7 @@
     "/v1/leases": {
       "post": {
         "summary": "Create leases and send manifest",
-        "description": "Creates the leases on chain, then sends each provider its manifest. If a provider refuses the manifest once its lease exists, the error carries code `manifest_not_delivered` and the status the provider path produced. Send the same request again to retry the manifest, or close the deployment to stop paying for it.",
+        "description": "Creates the leases, then sends each provider its manifest. If a provider refuses the manifest once its lease exists, the error carries code `manifest_not_delivered` and the status the provider path produced. Send the same request again to retry the manifest, or close the deployment to stop paying for it.",
         "operationId": "createLease",
         "tags": [
           "Leases"
@@ -10195,7 +10225,7 @@
                                   "driverVersion",
                                   "detectedAt"
                                 ],
-                                "description": "GPUs the console observed running inside this lease's containers, as distinct from the models its group requested on chain. Absent until the console has looked, and for a lease it cannot look inside."
+                                "description": "GPUs the console observed running inside this lease's containers, as distinct from the models its group requested. Absent until the console has looked, and for a lease it cannot look inside."
                               },
                               "status": {
                                 "type": "object",
@@ -18911,21 +18941,22 @@
     },
     "/v1/blockchain-status": {
       "get": {
-        "summary": "Get blockchain reachability status",
+        "summary": "Get Akash Network reachability status",
         "tags": [
-          "Chain"
+          "Network"
         ],
         "security": [],
         "responses": {
           "200": {
-            "description": "Returns blockchain reachability status",
+            "description": "Returns whether the Akash Network is reachable",
             "content": {
               "application/json": {
                 "schema": {
                   "type": "object",
                   "properties": {
                     "isBlockchainReachable": {
-                      "type": "boolean"
+                      "type": "boolean",
+                      "description": "Whether the console can reach the Akash Network right now."
                     }
                   },
                   "required": [
@@ -19847,7 +19878,7 @@
             "name": "type",
             "required": false,
             "in": "query",
-            "description": "Chain message type, used in conjunction with dseq to filter alerts liked to a specific deployment",
+            "description": "Matches the alert's `params.type` (not its top-level `type`), such as `DEPLOYMENT_CLOSED`. Used with `dseq` to filter the alerts linked to a specific deployment.",
             "schema": {
               "type": "string"
             }

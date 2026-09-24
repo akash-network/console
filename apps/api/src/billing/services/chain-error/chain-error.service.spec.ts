@@ -183,6 +183,27 @@ describe(ChainErrorService.name, () => {
       expect(appErr.message).toBe("Failed to create deployment: Unit price exceeds the maximum allowed by the network");
     });
 
+    it("returns 400 for a currency mismatch in coin arithmetic", async () => {
+      const { service } = setup();
+      const err = new Error("Query failed with (111222): rpc error: code = Unknown desc = recovered: invalid coin denominations; uact, uakt");
+
+      const appErr = await service.toAppError(err, encodeMessages);
+      expect(appErr).toBeInstanceOf(BadRequest);
+      expect(appErr.message).toBe("Currencies do not match");
+    });
+
+    it("returns 400 for a currency mismatch in coin arithmetic with message prefix", async () => {
+      const { service } = setup();
+      const err = new Error(
+        "Query failed with (6): rpc error: code = Unknown desc = failed to execute message; message index: 0: recovered: invalid coin denominations; uact, uakt"
+      );
+      const messages: EncodeObject[] = [{ typeUrl: "/akash.deployment.v1beta4.MsgCreateDeployment", value: {} }];
+
+      const appErr = await service.toAppError(err, messages);
+      expect(appErr).toBeInstanceOf(BadRequest);
+      expect(appErr.message).toBe("Failed to create deployment: Currencies do not match");
+    });
+
     it("returns 400 for account closed error", async () => {
       const { service } = setup();
       const err = new Error(

@@ -24,7 +24,7 @@ const createLeaseRoute = createRoute({
   path: "/v1/leases",
   summary: "Create leases and send manifest",
   description:
-    "Creates the leases on chain, then sends each provider its manifest. If a provider refuses the manifest once its lease exists, the error carries code `manifest_not_delivered` and the status the provider path produced. Send the same request again to retry the manifest, or close the deployment to stop paying for it.",
+    "Creates the leases, then sends each provider its manifest. If a provider refuses the manifest once its lease exists, the error carries code `manifest_not_delivered` and the status the provider path produced. Send the same request again to retry the manifest, or close the deployment to stop paying for it.",
   operationId: "createLease",
   tags: ["Leases"],
   security: SECURITY_BEARER_OR_API_KEY,

@@ -315,7 +315,7 @@ export class ManagedSignerService {
         !hasDeploymentMessage ? Promise.resolve(userWallet.deploymentAllowance) : this.balancesService.retrieveDeploymentLimit(userWallet)
       ]);
 
-      assert(feeAllowance > 0, 402, "Not enough funds to cover the transaction fee");
+      assert(feeAllowance > 0, 402, "Not enough funds to cover the fee for this request");
 
       if (hasDeploymentMessage && isInsufficient(deploymentAllowance, requiredDeposit)) {
         const reloadScheduled = await this.#scheduleReloadForInsufficientBalance(userWallet);

@@ -37,7 +37,7 @@ const TRIAL_GATED_SDL = new ApiError(
   { message: "Invalid SDL: rtx4090 not available on free trial: Add funds to unlock GPU access" },
   "PUT /v1/deployments/{dseq} → 400"
 );
-const UNTITLED_OUT_OF_CREDITS = new ApiError(402, { message: "Not enough funds to cover the transaction fee" }, "PUT /v1/deployments/{dseq} → 402");
+const UNTITLED_OUT_OF_CREDITS = new ApiError(402, { message: "Not enough funds to cover the fee for this request" }, "PUT /v1/deployments/{dseq} → 402");
 const STALE_PROVIDER_MESSAGE =
   "Your update was accepted, but the provider has not picked it up yet. Wait a minute and try again. If it keeps failing, change any other value (such as an environment variable) along with your change so the provider receives a fresh update, or contact support.";
 const STALE_PROVIDER_VERSION = new ApiError(
@@ -730,7 +730,7 @@ describe(ManifestUpdate.name, () => {
 
     const [element] = handles.enqueueSnackbar.mock.calls[0];
     expect(element.props.title).toBe("Add credits to continue");
-    expect(element.props.subTitle.props.message).toBe("Not enough funds to cover the transaction fee");
+    expect(element.props.subTitle.props.message).toBe("Not enough funds to cover the fee for this request");
   });
 
   it("dismisses the add credits snackbar once the user acts on it", async () => {

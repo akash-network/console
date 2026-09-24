@@ -27,7 +27,7 @@ const DetectedLeaseGpusSchema = z
   })
   .openapi({
     description:
-      "GPUs the console observed running inside this lease's containers, as distinct from the models its group requested on chain. Absent until the console has looked, and for a lease it cannot look inside."
+      "GPUs the console observed running inside this lease's containers, as distinct from the models its group requested. Absent until the console has looked, and for a lease it cannot look inside."
   });
 
 const DeploymentLeaseSchema = z.object({
@@ -125,7 +125,7 @@ const ListedDeploymentSettingsSchema = z.object({
     description: "When the runtime limit expires, or null for a limit no lease has anchored yet."
   }),
   closed: z.boolean().openapi({
-    description: "The console's own bookkeeping, which can trail the chain. `deployment.state` is what the chain says."
+    description: "The console's own bookkeeping, which can trail `deployment.state`. Trust `deployment.state` when the two disagree."
   })
 });
 
@@ -133,7 +133,7 @@ const DeploymentLeaseListItemSchema = DeploymentResponseSchema.extend({
   leases: z.array(DeploymentLeaseSchema.omit({ status: true })),
   name: DeploymentNameResponseSchema,
   groups: DeploymentInfoSchema.shape.groups.openapi({
-    description: "The resource groups the deployment declares on chain, as the chain describes them."
+    description: "The resource groups the deployment declares, as recorded for it rather than as its SDL spells them."
   }),
   settings: ListedDeploymentSettingsSchema.nullable().openapi({
     description: "What the console holds about this deployment, or null when it holds nothing."
@@ -145,7 +145,7 @@ const ConsoleSettingsSchema = z.object({
     description: "The SDL the console stored for this deployment. Re-serialized YAML, so not byte-identical to the submitted document."
   }),
   manifestVersion: z.string().openapi({
-    description: "Base64 of the manifest version this deployment commits on chain. Deliberately not a hash of the `sdl` above."
+    description: "Base64 of the manifest version the console recorded for this deployment. Deliberately not a hash of the `sdl` above."
   })
 });
 
@@ -301,7 +301,7 @@ const PatchExposeSchema = z
     }),
     as: PortNumberSchema.openapi({
       description:
-        "Moves the port the endpoint is reached on. Refused when it would change the endpoint's kind on chain (a public TCP endpoint moving onto or off port 80), onto a port another endpoint of the service uses, and on an endpoint reached through a leased IP."
+        "Moves the port the endpoint is reached on. Refused when it would change the endpoint's kind (a public TCP endpoint moving onto or off port 80), onto a port another endpoint of the service uses, and on an endpoint reached through a leased IP."
     }),
     accept: z.array(z.string()).openapi({
       description:
@@ -372,7 +372,7 @@ export const PatchDeploymentRequestSchema = z.object({
         }),
       name: DeploymentNameSchema.optional().openapi({
         description:
-          "Renames the deployment. Supplied on its own it is the only patch that touches no definition, so it works on a deployment the console holds no SDL for and neither broadcasts nor pushes a manifest."
+          "Renames the deployment. Supplied on its own it is the only patch that touches no definition, so it works on a deployment the console holds no SDL for and sends neither a deployment update nor a manifest."
       }),
       sealedSecrets: SealedSecretsSchema.optional().openapi({
         description:
@@ -390,7 +390,7 @@ export const PatchDeploymentResponseSchema = z.object({
   data: DeploymentResponseSchema.extend({
     name: DeploymentNameResponseSchema,
     manifestVersion: z.string().optional().openapi({
-      description: "Base64 manifest version this patch recorded and committed on chain. Absent for a rename, which records none."
+      description: "Base64 manifest version this patch recorded, which the deployment is now on. Absent for a rename, which records none."
     })
   })
 });
@@ -409,7 +409,7 @@ export const ListDeploymentsQuerySchema = z.object({
     .default("false")
     .transform(value => value === "true")
     .openapi({
-      description: "Newest deployment first when true, rather than the chain's own oldest-first order."
+      description: "Newest deployment first when true, rather than the default oldest-first order."
     }),
   search: z
     .string()
@@ -443,11 +443,11 @@ export const ListDeploymentsResponseSchema = z.object({
     pagination: z.object({
       total: z.number().nullable().openapi({
         description:
-          "Deployments the owner holds in this state, counted from the console's chain index, so it can trail the chain by a block. Null when that index cannot answer, which leaves the count unknown rather than understated; page on `hasMore` regardless."
+          "Deployments the owner holds in this state, counted from the console's own index, so it can briefly lag behind the list itself. Null when that index cannot answer, which leaves the count unknown rather than understated; page on `hasMore` regardless."
       }),
       skip: z.number(),
       limit: z.number(),
-      hasMore: z.boolean().openapi({ description: "Whether the chain offered a cursor to a further page." })
+      hasMore: z.boolean().openapi({ description: "Whether a further page exists." })
     })
   })
 });
@@ -469,7 +469,7 @@ const RepeatedDseqSchema = z.preprocess(
 
 export const GetDeploymentNamesQuerySchema = z.object({
   dseq: RepeatedDseqSchema.openapi({
-    description: `Deployment sequence numbers to resolve names for, repeated once per deployment, at most ${MAX_DEPLOYMENT_NAMES_PER_REQUEST} per request. Written without leading zeros, as the chain reports them.`
+    description: `Deployment sequence numbers to resolve names for, repeated once per deployment, at most ${MAX_DEPLOYMENT_NAMES_PER_REQUEST} per request. Written without leading zeros, as the other deployment endpoints return them.`
   })
 });
 

@@ -40,7 +40,7 @@ export class ChainErrorService {
     },
     "invalid coin denominations": {
       code: 400,
-      message: "Invalid coin denominations"
+      message: "Currencies do not match"
     },
     "invalid gpu attributes": {
       code: 400,

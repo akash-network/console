@@ -72,7 +72,7 @@ describe(ManagedSignerService.name, () => {
         retrieveAndCalcFeeLimit: vi.fn().mockResolvedValue(0)
       });
 
-      await expect(service.executeDerivedDecodedTxByUserId("user-123", [])).rejects.toThrow("Not enough funds to cover the transaction fee");
+      await expect(service.executeDerivedDecodedTxByUserId("user-123", [])).rejects.toThrow("Not enough funds to cover the fee for this request");
     });
 
     it("throws 402 error when userWallet has no deployment allowance for deployment message", async () => {
@@ -281,8 +281,8 @@ describe(ManagedSignerService.name, () => {
     it("does not cache a refusal for a missing fee allowance", async () => {
       const { service, balancesService } = setupForCreate({ deploymentLimit: 5000000, retrieveAndCalcFeeLimit: vi.fn().mockResolvedValue(0) });
 
-      await expect(service.executeDerivedDecodedTxByUserId("user-123", [createDeploymentMessage(500000)])).rejects.toThrow("transaction fee");
-      await expect(service.executeDerivedDecodedTxByUserId("user-123", [createDeploymentMessage(500000)])).rejects.toThrow("transaction fee");
+      await expect(service.executeDerivedDecodedTxByUserId("user-123", [createDeploymentMessage(500000)])).rejects.toThrow("fee for this request");
+      await expect(service.executeDerivedDecodedTxByUserId("user-123", [createDeploymentMessage(500000)])).rejects.toThrow("fee for this request");
 
       expect(balancesService.retrieveDeploymentLimit).toHaveBeenCalledTimes(2);
     });

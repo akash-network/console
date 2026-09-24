@@ -281,7 +281,7 @@ const updateRoute = createRoute({
     },
     422: {
       description:
-        "The SDL changes the groups, compute resources, replica counts or globally exposed ports the deployment was created with, which only a new deployment can take: `code` is `deployment_resources_changed`, and nothing is recorded, broadcast or sent to a provider",
+        "The SDL changes the groups, compute resources, replica counts or globally exposed ports the deployment was created with, which only a new deployment can take: `code` is `deployment_resources_changed`, and nothing is recorded, no deployment update is sent and no provider is contacted",
       content: {
         "application/json": {
           schema: ErrorResponseSchema
@@ -302,7 +302,7 @@ const patchRoute = createRoute({
   path: "/v1/deployments/{dseq}",
   summary: "Patch a deployment",
   description:
-    "Patches the SDL the console stored for this deployment, or renames the deployment, or both; the SDL is never accepted from the request. Only the services named are touched. A `name` on its own touches no definition, so it renames a deployment the console holds no SDL for and neither broadcasts nor pushes a manifest. Such a rename also reports every lease `status` as null, because it asks no provider for one. A patched environment variable is re-appended to its service's env list, so the order shown by GET may differ afterwards. A replaced secret takes effect when the deployment is next updated on chain, not in the workload already running. The definition is recorded before the chain transaction is broadcast, so a broadcast that fails leaves the console describing a manifest version the chain never saw. Re-sending the identical request repairs that: it recomputes the same manifest version, is accepted rather than refused, and goes on to broadcast and push the manifest.",
+    "Patches the SDL the console stored for this deployment, or renames the deployment, or both; the SDL is never accepted from the request. Only the services named are touched. A `name` on its own touches no definition, so it renames a deployment the console holds no SDL for and sends neither a deployment update nor a manifest. Such a rename also reports every lease `status` as null, because it asks no provider for one. A patched environment variable is re-appended to its service's env list, so the order shown by GET may differ afterwards. A replaced secret takes effect through the deployment update this patch sends, not in the workload already running. The definition is recorded before the deployment update is sent, so an update that fails leaves the console describing a manifest version the deployment was never updated to. Re-sending the identical request repairs that: it recomputes the same manifest version, is accepted rather than refused, and goes on to send the update and push the manifest. A seal bound to the SDL is the exception: the first attempt replaced the SDL it was sealed against, so the same `sealedSecrets` answer 403 until the same values are sealed against the SDL GET now returns.",
   operationId: "patchDeployment",
   tags: ["Deployments"],
   security: SECURITY_BEARER_OR_API_KEY,
@@ -329,7 +329,16 @@ const patchRoute = createRoute({
     },
     400: {
       description:
-        "The patch names a service, port or volume the stored SDL does not declare, supplies a secret name it does not reference, leaves a reference with no value, moves a container port onto one the service already exposes, or moves a port in a way that would change its endpoint kind on chain",
+        "The patch names a service, port or volume the stored SDL does not declare, supplies a secret name it does not reference, leaves a reference with no value, moves a container port onto one the service already exposes, or moves a port in a way that would change its endpoint kind",
+      content: {
+        "application/json": {
+          schema: ErrorResponseSchema
+        }
+      }
+    },
+    403: {
+      description:
+        "The `sealedSecrets` value was sealed for a different user, or bound to a different SDL than the one the console stores for this deployment, as a seal made before an earlier patch of it was recorded is",
       content: {
         "application/json": {
           schema: ErrorResponseSchema
@@ -338,7 +347,7 @@ const patchRoute = createRoute({
     },
     404: {
       description:
-        "No SDL is recorded for this deployment, so there is nothing to patch. A rename answers this only when the chain holds no such deployment for the caller, since it needs no recorded SDL",
+        "No SDL is recorded for this deployment, so there is nothing to patch. A rename answers this only when the caller has no such deployment, since it needs no recorded SDL",
       content: {
         "application/json": {
           schema: ErrorResponseSchema
@@ -356,7 +365,7 @@ const patchRoute = createRoute({
     },
     422: {
       description:
-        "The SDL recorded for this deployment no longer declares the groups, compute resources, replica counts or globally exposed ports the deployment holds on chain, as a full-SDL update can leave it: `code` is `deployment_resources_changed`, and nothing is recorded, broadcast or sent to a provider",
+        "The SDL recorded for this deployment no longer declares the groups, compute resources, replica counts or globally exposed ports the deployment holds, as a full-SDL update can leave it: `code` is `deployment_resources_changed`, and nothing is recorded, no deployment update is sent and no provider is contacted",
       content: {
         "application/json": {
           schema: ErrorResponseSchema
