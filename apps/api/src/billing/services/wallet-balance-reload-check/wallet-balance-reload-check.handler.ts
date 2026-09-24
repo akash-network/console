@@ -19,6 +19,7 @@ import { WalletReloadJobService } from "@src/billing/services/wallet-reload-job/
 import { JobHandler, JobMeta, JobPayload, type JobPermissions } from "@src/core";
 import type { Require } from "@src/core/types/require.type";
 import { DeploymentRepository } from "@src/deployment/repositories/deployment/deployment.repository";
+import { DeploymentConfigService } from "@src/deployment/services/deployment-config/deployment-config.service";
 import { DrainingDeploymentService } from "@src/deployment/services/draining-deployment/draining-deployment.service";
 import { isPayingUser, PayingUser } from "../paying-user/paying-user";
 import { WalletBalanceReloadCheckInstrumentationService } from "./wallet-balance-reload-check-instrumentation.service";
@@ -75,7 +76,8 @@ export class WalletBalanceReloadCheckHandler implements JobHandler<WalletBalance
     private readonly drainingDeploymentService: DrainingDeploymentService,
     private readonly deploymentRepository: DeploymentRepository,
     private readonly instrumentationService: WalletBalanceReloadCheckInstrumentationService,
-    private readonly autoReloadPauseService: AutoReloadPauseService
+    private readonly autoReloadPauseService: AutoReloadPauseService,
+    private readonly deploymentConfig: DeploymentConfigService
   ) {}
 
   requiresPermission(): JobPermissions {
@@ -248,7 +250,7 @@ export class WalletBalanceReloadCheckHandler implements JobHandler<WalletBalance
 
   async #tryToReloadOnPredictedSpend(resources: ReloadContext): Promise<ReloadOutcome> {
     const mode = resources.walletSetting.autoReloadMode;
-    const reloadTargetDate = addMilliseconds(new Date(), this.#RELOAD_COVERAGE_PERIOD_IN_MS);
+    const reloadTargetDate = addMilliseconds(new Date(), this.#getCoveragePeriodInMs(resources.triggeredByDeployment));
     const costUntilTargetDateInDenom = await this.drainingDeploymentService.calculateAllDeploymentCostUntilDate(resources.wallet.address, reloadTargetDate);
     const costUntilTargetDateInFiat = await this.balancesService.toFiatAmount(costUntilTargetDateInDenom);
     const threshold = this.balancesService.ensure2floatingDigits(this.#MIN_COVERAGE_PERCENTAGE * costUntilTargetDateInFiat);
@@ -293,6 +295,11 @@ export class WalletBalanceReloadCheckHandler implements JobHandler<WalletBalance
       projectedCost: costUntilTargetDateInFiat,
       logContext: log
     });
+  }
+
+  /** A deployment-triggered check runs seconds after initial funding filled the escrow, so pricing a week there charges for a lease that may live an hour. */
+  #getCoveragePeriodInMs(triggeredByDeployment: boolean): number {
+    return triggeredByDeployment ? this.deploymentConfig.get("AUTO_TOP_UP_TARGET_RUNWAY_IN_H") * millisecondsInHour : this.#RELOAD_COVERAGE_PERIOD_IN_MS;
   }
 
   /** A failed charge keeps the claim, so a declining card re-attempts when the window reopens instead of on every spend event (CON-927). */

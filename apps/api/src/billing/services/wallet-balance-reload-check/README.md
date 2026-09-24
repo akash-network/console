@@ -109,6 +109,7 @@ The charge uses a job-scoped idempotency key (`WalletBalanceReloadCheck.<jobId>`
 This is the pre-CON-717 behavior, kept as a supported mode by CON-884. It predicts upcoming spend instead of comparing against a fixed threshold:
 
 1. **Calculate** the unfunded cost to keep all auto-top-up deployments running for the next 7 days (`RELOAD_COVERAGE_PERIOD_IN_MS`), excluding the portion already covered by escrow.
+   A check enqueued by initial deployment funding (`triggeredByDeployment`) covers only the escrow target runway (`AUTO_TOP_UP_TARGET_RUNWAY_IN_H`, 48h by default) instead of 7 days: it runs seconds after that funding filled the escrow, so a lease funded to its runway charges nothing at start and a lease the balance could only part-fund is charged up to the runway. The weekly sizing applies from the next check on.
 2. **Compare** the balance against 25% of that projection (`MIN_COVERAGE_PERCENTAGE`). Reload when `balance < 0.25 * costUntilTargetDate` (~1.75 days of coverage remaining).
 3. **Claim** the charge window — the same rate limit and decline handling as threshold mode (see "Charge rate limit" above). A lost claim defers the reload to the window reopen.
 4. **Charge** `max(costUntilTargetDate - balance, $20)`.
