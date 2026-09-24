@@ -36,7 +36,7 @@ type Props = {
 };
 
 /** Registry hosts offered for private image credentials. */
-const supportedHosts = [
+export const supportedHosts = [
   { id: "docker.io", label: "Docker Hub" },
   { id: "ghcr.io", label: "GitHub Container Registry" },
   { id: "pkg.dev", label: "Google Artifact Registry" },

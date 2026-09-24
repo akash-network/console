@@ -14,6 +14,8 @@ export interface DeploymentDefinition {
   sdl: string | undefined;
   name: string | undefined;
   source: DeploymentDefinitionSource;
+  /** Present only beside the api's own copy, being the version that copy was recorded under and the one a patch of it is guarded on. */
+  manifestVersion?: string;
 }
 
 const USABLE_SOURCES: readonly DeploymentDefinitionSource[] = ["api", "local"];
@@ -58,12 +60,13 @@ export function useDeploymentDefinition(
   const isResolving = !!dseq && query.isLoading;
   const consoleSettings = query.data?.consoleSettings;
   const apiSdl = consoleSettings?.sdl;
+  const recordedManifestVersion = consoleSettings?.manifestVersion;
   /**
    * The console is told about an update through its own endpoint, which the update tab does not call: it signs and
    * ships the manifest itself. So a recorded SDL can describe a manifest version the chain has already moved past,
    * and serving it would present a superseded document as authoritative and re-ship it on the next update.
    */
-  const isApiCopyOnChain = !!consoleSettings?.manifestVersion && consoleSettings.manifestVersion === query.data?.deployment?.hash;
+  const isApiCopyOnChain = !!recordedManifestVersion && recordedManifestVersion === query.data?.deployment?.hash;
   const localSdl = deploymentLocalStorage.get(address, dseq)?.manifest;
   const name = dependencies.useResolvedDeploymentName(dseq);
   /** Nothing resolves a reference with the feature off, so the api's copy is only preferred over this browser's while it is on. */
@@ -72,8 +75,8 @@ export function useDeploymentDefinition(
   return useMemo(() => {
     const isApiCopyUsable = acceptReferences ? isStoredSdlRedeployable : isStoredSdlSelfContained;
     if (isResolving) return { sdl: undefined, name, source: "resolving" };
-    if (apiSdl && isApiCopyOnChain && isApiCopyUsable(apiSdl)) return { sdl: apiSdl, name, source: "api" };
+    if (apiSdl && isApiCopyOnChain && isApiCopyUsable(apiSdl)) return { sdl: apiSdl, name, source: "api", manifestVersion: recordedManifestVersion };
     if (localSdl) return { sdl: localSdl, name, source: "local" };
     return { sdl: apiSdl, name, source: "absent" };
-  }, [isResolving, apiSdl, isApiCopyOnChain, acceptReferences, localSdl, name]);
+  }, [isResolving, apiSdl, recordedManifestVersion, isApiCopyOnChain, acceptReferences, localSdl, name]);
 }

@@ -1028,8 +1028,32 @@ describe(useDeploymentFlow.name, () => {
         expect(createLease.mutate).toHaveBeenCalledWith({ manifest: "M2", leases: [{ dseq: "555", gseq: 1, oseq: 3, provider: "akash1a" }] }, expect.anything())
       );
       expect(servicesPatchBetween).toHaveBeenCalledWith("sdl-a", "sdl-b");
-      expect(patchDeployment.mutate).toHaveBeenCalledWith({ dseq: "555", data: { services: { web: { env: { FOO: "bar" } } } } }, expect.anything());
+      expect(patchDeployment.mutate).toHaveBeenCalledWith(
+        { dseq: "555", data: { services: { web: { env: { FOO: "bar" } } }, sealedSecrets: "SEALED" } },
+        expect.anything()
+      );
       expect(updateDeployment.mutate).not.toHaveBeenCalled();
+    });
+
+    it("seals an empty set beside an edit that types no secret, so the api keeps the plain variables it writes readable", async () => {
+      const createDeployment = mockMutation(vi.fn((_i, o) => o.onSuccess({ data: { dseq: "555", manifest: "M1" } })));
+      const patchDeployment = mockMutation(vi.fn((_i, o) => o.onSuccess({})));
+      const { result, sealSdlSecrets } = renderFlow({
+        secretsEnabled: true,
+        createDeployment,
+        patchDeployment,
+        createLease: mockMutation(),
+        manifestFromSdl: () => "M2",
+        servicesPatchBetween: vi.fn(() => ({ web: { env: { FOO: "bar" } } }))
+      });
+
+      act(() => result.current.actions.requestQuotes("sdl-a"));
+      await waitFor(() => expect(result.current.phase).toBe("quoting"));
+      act(() => result.current.actions.selectProvider("placement-1", "akash1a/555/1/3"));
+      act(() => result.current.actions.deploy("sdl-b"));
+
+      await waitFor(() => expect(patchDeployment.mutate).toHaveBeenCalled());
+      expect(sealSdlSecrets).toHaveBeenLastCalledWith({ context: SEAL_CONTEXT, secrets: {} });
     });
 
     it("seals the typed secret values into the patch without binding them to an SDL", async () => {
@@ -1051,6 +1075,7 @@ describe(useDeploymentFlow.name, () => {
       act(() => result.current.actions.deploy("sdl-b", { secrets: { API_KEY: "x" } }));
 
       await waitFor(() => expect(patchDeployment.mutate).toHaveBeenCalledWith({ dseq: "555", data: { sealedSecrets: "SEALED" } }, expect.anything()));
+      expect(patchDeployment.mutate.mock.calls[0][0].data).not.toHaveProperty("services");
       expect(sealSdlSecrets).toHaveBeenLastCalledWith({ context: SEAL_CONTEXT, secrets: { API_KEY: "x" } });
       expect(createLease.mutate).toHaveBeenCalled();
     });
@@ -1173,7 +1198,10 @@ describe(useDeploymentFlow.name, () => {
       act(() => result.current.actions.deploy("SDL_CONTENT"));
 
       await waitFor(() =>
-        expect(patchDeployment.mutate).toHaveBeenCalledWith({ dseq: "555", data: { services: { web: { image: "nginx:2" } } } }, expect.anything())
+        expect(patchDeployment.mutate).toHaveBeenCalledWith(
+          { dseq: "555", data: { services: { web: { image: "nginx:2" } }, sealedSecrets: "SEALED" } },
+          expect.anything()
+        )
       );
       expect(getDeployment.mutateAsync).toHaveBeenCalledWith({ dseq: "555" });
       expect(servicesPatchBetween).toHaveBeenCalledWith("stored-sdl", "SDL_CONTENT");

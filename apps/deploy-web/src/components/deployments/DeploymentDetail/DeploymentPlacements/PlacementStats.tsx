@@ -1,6 +1,11 @@
 import type { FC, ReactNode } from "react";
 import { cn } from "@akashnetwork/ui/utils";
 
+import type { LeaseDto } from "@src/types/deployment";
+import { roundDecimal } from "@src/utils/mathHelpers";
+import { formatByteSize } from "@src/utils/unitUtils";
+import { GpuLabel, type GpuLabelProps } from "./GpuLabel";
+
 export interface PlacementStat {
   label: string;
   value: ReactNode;
@@ -16,3 +21,16 @@ export const PlacementStats: FC<{ stats: PlacementStat[]; variant?: "compact" | 
     ))}
   </div>
 );
+
+export function buildPlacementStats(lease: LeaseDto, serviceCount: number, gpu: Omit<GpuLabelProps, "gpuAmount">): PlacementStat[] {
+  const stats: PlacementStat[] = [
+    { label: "vCPU", value: roundDecimal(lease.cpuAmount, 2) },
+    { label: "Memory", value: formatByteSize(lease.memoryAmount) },
+    { label: "Storage", value: formatByteSize(lease.storageAmount) }
+  ];
+  if (lease.gpuAmount && lease.gpuAmount > 0) {
+    stats.push({ label: "GPU", value: <GpuLabel gpuAmount={lease.gpuAmount} {...gpu} /> });
+  }
+  stats.push({ label: "Services", value: serviceCount });
+  return stats;
+}

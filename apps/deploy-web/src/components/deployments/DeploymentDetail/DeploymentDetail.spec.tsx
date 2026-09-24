@@ -5,6 +5,7 @@ import { mock } from "vitest-mock-extended";
 import type { DeploymentDefinition } from "@src/hooks/useDeploymentDefinition/useDeploymentDefinition";
 import type { DeploymentDto, DetectedGpusByLease, DetectedLeaseGpus, LeaseDto } from "@src/types/deployment";
 import type { ApiProviderList } from "@src/types/provider";
+import type { DeploymentUpdateProps } from "./DeploymentUpdate/DeploymentUpdate";
 import { DEPENDENCIES, DeploymentDetail } from "./DeploymentDetail";
 
 import { render, screen } from "@testing-library/react";
@@ -176,6 +177,78 @@ describe("DeploymentDetail", () => {
     expect(router.replace).not.toHaveBeenCalled();
   });
 
+  it("orders the tabs with Update right after Details", () => {
+    setup();
+
+    expect(screen.getAllByRole("tab").map(tab => tab.textContent)).toEqual(["Details", "Update", "Logs", "Events", "Shell", "Settings"]);
+  });
+
+  describe("when the structured update editor is on", () => {
+    it("opens the structured editor on the Update tab, with the raw editor as its fallback", () => {
+      const { DeploymentUpdate } = setup({ tab: "UPDATE", isUpdateEditorEnabled: true });
+
+      expect(screen.getByText("structured-update")).toBeInTheDocument();
+      render(<>{DeploymentUpdate.mock.calls[0][0].fallback}</>);
+      expect(screen.getByText("manifest-update")).toBeInTheDocument();
+    });
+
+    it("hands the editor the definition the page resolved", () => {
+      const { DeploymentUpdate } = setup({
+        tab: "UPDATE",
+        isUpdateEditorEnabled: true,
+        definition: { sdl: "version: '2.0'", source: "api", manifestVersion: "cmVjb3JkZWQ=" }
+      });
+
+      expect(DeploymentUpdate.mock.calls[0][0].definition).toMatchObject({ sdl: "version: '2.0'", source: "api", manifestVersion: "cmVjb3JkZWQ=" });
+    });
+
+    it("offers the editor a redeploy of the resolved definition", () => {
+      const { DeploymentUpdate, redeploy } = setup({ tab: "UPDATE", isUpdateEditorEnabled: true, definition: { sdl: "version: '2.0'", source: "api" } });
+
+      DeploymentUpdate.mock.calls[0][0].onRedeploy?.();
+
+      expect(redeploy).toHaveBeenCalledWith(expect.objectContaining({ sdl: "version: '2.0'" }));
+    });
+
+    it("hands the editor the providers the page loaded", () => {
+      const { DeploymentUpdate } = setup({ tab: "UPDATE", isUpdateEditorEnabled: true });
+
+      expect(DeploymentUpdate.mock.calls[0][0].providers.map(provider => provider.owner)).toEqual(["akash1provider"]);
+    });
+
+    it("hands the editor no providers until they load", () => {
+      const { DeploymentUpdate } = setup({ tab: "UPDATE", isUpdateEditorEnabled: true, providers: undefined });
+
+      expect(DeploymentUpdate.mock.calls[0][0].providers).toEqual([]);
+    });
+
+    it("tells the editor while the gpus the console read are still loading", () => {
+      const { DeploymentUpdate } = setup({ tab: "UPDATE", isUpdateEditorEnabled: true, isLoadingDetectedGpus: true });
+
+      expect(DeploymentUpdate.mock.calls[0][0].isLoadingDetectedGpus).toBe(true);
+    });
+
+    it("keeps the raw editor off the page while the structured editor renders", () => {
+      setup({ tab: "UPDATE", isUpdateEditorEnabled: true });
+
+      expect(screen.queryByText("manifest-update")).not.toBeInTheDocument();
+    });
+  });
+
+  it("reloads the deployment once the raw editor closes", async () => {
+    const { refetchDeployment } = setup({ tab: "UPDATE" });
+
+    await userEvent.click(screen.getByRole("button", { name: "close-manifest-editor" }));
+
+    expect(refetchDeployment).toHaveBeenCalled();
+  });
+
+  it("keeps the raw editor on the Update tab while the structured editor is off", () => {
+    const { DeploymentUpdate } = setup({ tab: "UPDATE", isUpdateEditorEnabled: false });
+
+    expect(screen.getByText("manifest-update")).toBeInTheDocument();
+    expect(DeploymentUpdate).not.toHaveBeenCalled();
+  });
   it("joins the gpus the console read onto the lease they were read from, even when they arrive after the leases", () => {
     const { DeploymentDetailHeader, rerenderWithDetectedGpus } = setup({ leases: [gpuLease()] });
 
@@ -218,12 +291,15 @@ describe("DeploymentDetail", () => {
     tab?: string;
     leaseState?: string;
     definition?: Partial<DeploymentDefinition>;
+    isUpdateEditorEnabled?: boolean;
+    providers?: ApiProviderList[];
     detectedGpus?: DetectedGpusByLease;
     isLoadingDetectedGpus?: boolean;
   }) {
     const deployment = input && "deployment" in input ? input.deployment : mock<DeploymentDto>({ dseq: "1786440078202", state: "active", groups: [] });
     const leases = input && "leases" in input ? input.leases : [mock<LeaseDto>({ id: "1", provider: "akash1provider", state: input?.leaseState ?? "active" })];
-    const providers = [mock<ApiProviderList>({ owner: "akash1provider" })];
+    const providers = input && "providers" in input ? input.providers : [mock<ApiProviderList>({ owner: "akash1provider" })];
+    const refetchDeployment = vi.fn();
 
     const analyticsService = mock<ReturnType<typeof DEPENDENCIES.useServices>["analyticsService"]>();
     const router = mock<ReturnType<typeof DEPENDENCIES.useRouter>>();
@@ -237,7 +313,12 @@ describe("DeploymentDetail", () => {
     const searchParams = new URLSearchParams(input?.tab ? `tab=${input.tab}` : "");
     const useSearchParams: typeof DEPENDENCIES.useSearchParams = () => searchParams as unknown as ReturnType<typeof DEPENDENCIES.useSearchParams>;
     const useDeploymentDetail: typeof DEPENDENCIES.useDeploymentDetail = () =>
-      mock<ReturnType<typeof DEPENDENCIES.useDeploymentDetail>>({ data: deployment, isFetching: false, error: input?.error ?? null });
+      mock<ReturnType<typeof DEPENDENCIES.useDeploymentDetail>>({
+        data: deployment,
+        isFetching: false,
+        error: input?.error ?? null,
+        refetch: refetchDeployment
+      });
     const leaseList = mock<ReturnType<typeof DEPENDENCIES.useDeploymentLeaseList>>({
       data: leases,
       isLoading: false,
@@ -268,6 +349,8 @@ describe("DeploymentDetail", () => {
       </div>
     ));
     const DeploymentSettings = vi.fn(() => <div>settings</div>);
+    const DeploymentUpdate = vi.fn((_props: DeploymentUpdateProps) => <div>structured-update</div>);
+    const useFlag: typeof DEPENDENCIES.useFlag = flag => flag === "ui_deployment_update_editor" && !!input?.isUpdateEditorEnabled;
 
     const dependencies = MockComponents(DEPENDENCIES, {
       useServices,
@@ -286,7 +369,9 @@ describe("DeploymentDetail", () => {
       DeploymentLogs,
       DeploymentLeaseShell,
       ManifestUpdate,
-      DeploymentSettings
+      DeploymentSettings,
+      DeploymentUpdate,
+      useFlag
     });
     const { rerender } = render(<DeploymentDetail dseq="1786440078202" dependencies={dependencies} />);
 
@@ -295,6 +380,8 @@ describe("DeploymentDetail", () => {
       analyticsService,
       redeploy,
       ManifestUpdate,
+      DeploymentUpdate,
+      refetchDeployment,
       DeploymentDetailHeader,
       DeploymentPlacements,
       rerenderWithDetectedGpus(next: DetectedGpusByLease) {

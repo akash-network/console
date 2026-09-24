@@ -28,6 +28,27 @@ describe(useDeploymentDefinition.name, () => {
     expect(result.current.sdl).toBe(API_SDL);
   });
 
+  it("carries the manifest version the api recorded beside its copy, so a patch can be guarded on it", async () => {
+    const { result } = setup({ apiSdl: API_SDL, chainManifestVersion: "recorded-version" });
+
+    await vi.waitFor(() => expect(result.current.source).toBe("api"));
+    expect(result.current.manifestVersion).toBe("recorded-version");
+  });
+
+  it("carries no manifest version beside this browser's copy, which the api never recorded", async () => {
+    const { result } = setup({ apiSdl: API_SDL, recordedManifestVersion: "version-1", chainManifestVersion: "version-2", localSdl: LOCAL_SDL });
+
+    await vi.waitFor(() => expect(result.current.source).toBe("local"));
+    expect(result.current.manifestVersion).toBeUndefined();
+  });
+
+  it("carries no manifest version beside an absent definition", async () => {
+    const { result } = setup({ apiSdl: API_SDL, recordedManifestVersion: "version-1", chainManifestVersion: "version-2" });
+
+    await vi.waitFor(() => expect(result.current.source).toBe("absent"));
+    expect(result.current.manifestVersion).toBeUndefined();
+  });
+
   it("reports resolving until the api answers, so no caller shows the local copy first", () => {
     const { result } = setup({ apiSdl: API_SDL, localSdl: LOCAL_SDL });
 

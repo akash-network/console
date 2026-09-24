@@ -667,9 +667,9 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
         updateDeployment.mutate({ dseq: activeDseq, data: { sdl } }, { onSuccess: sendManifestAndLease, onError: failDeploy });
       }
 
-      function submitPatch(services: ServicesPatch | undefined, sealedSecrets: string | undefined, canResealOnce: boolean) {
+      function submitPatch(services: ServicesPatch | undefined, sealedSecrets: string, canResealOnce: boolean) {
         patchDeployment.mutate(
-          { dseq: activeDseq, data: { ...(services === undefined ? {} : { services }), ...(sealedSecrets === undefined ? {} : { sealedSecrets }) } },
+          { dseq: activeDseq, data: { ...(services === undefined ? {} : { services }), sealedSecrets } },
           {
             onSuccess: sendManifestAndLease,
             onError: function resealOrFail(cause: unknown) {
@@ -709,10 +709,8 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
 
         if (services === undefined && !hasTypedSecrets) {
           sendManifestAndLease();
-        } else if (hasTypedSecrets) {
-          await sealAndPatch(services, true);
         } else {
-          submitPatch(services, undefined, false);
+          await sealAndPatch(services, true);
         }
       }
 
