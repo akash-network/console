@@ -281,7 +281,7 @@ const updateRoute = createRoute({
     },
     422: {
       description:
-        "The SDL changes the groups, compute resources, replica counts or globally exposed ports the deployment was created with, which only a new deployment can take: `code` is `deployment_resources_changed`, and nothing is recorded, broadcast or sent to a provider",
+        "The SDL changes the groups, compute resources, replica counts or globally exposed ports the deployment was created with, which only a new deployment can take: `code` is `deployment_resources_changed`, and nothing is recorded, no deployment update is sent and no provider is contacted",
       content: {
         "application/json": {
           schema: ErrorResponseSchema
@@ -356,7 +356,7 @@ const patchRoute = createRoute({
     },
     422: {
       description:
-        "The SDL recorded for this deployment no longer declares the groups, compute resources, replica counts or globally exposed ports the deployment holds on chain, as a full-SDL update can leave it: `code` is `deployment_resources_changed`, and nothing is recorded, broadcast or sent to a provider",
+        "The SDL recorded for this deployment no longer declares the groups, compute resources, replica counts or globally exposed ports the deployment holds, as a full-SDL update can leave it: `code` is `deployment_resources_changed`, and nothing is recorded, no deployment update is sent and no provider is contacted",
       content: {
         "application/json": {
           schema: ErrorResponseSchema
