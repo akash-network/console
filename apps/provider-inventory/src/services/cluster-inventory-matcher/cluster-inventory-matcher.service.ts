@@ -138,50 +138,33 @@ export class ClusterInventoryMatcherService {
     };
   }
 
+  /** The provider keeps one alternative per model, the last in key order, and holds later replicas to the matched model with only the memory and interface the order asked for. */
   #tryAdjustGPU(node: NodeState, requestedUnits: bigint, gpuSpecs: ParsedGPUAttributes[]): { ok: boolean; resolved?: ParsedGPUAttributes } {
     if (!node.gpu?.info || node.gpu.info.length === 0) return GPU_CHECK_FAIL;
 
-    if (gpuSpecs.length === 0) {
-      const first = node.gpu.info[0];
-      return this.#tryAdjustGPU(node, requestedUnits, [
-        {
-          vendor: first.vendor,
-          model: first.name,
-          ram: first.memorySize || null,
-          interface: first.interface || null
-        }
-      ]);
-    }
-
+    const specsByModel = indexSpecsByModel(gpuSpecs);
     let remaining = Number(requestedUnits);
-    let pinnedSpec: ParsedGPUAttributes | undefined;
 
     for (const info of node.gpu.info) {
-      if (pinnedSpec) {
-        if (!matchesGPU(pinnedSpec, info)) continue;
-      } else {
-        const attr = gpuSpecs.find(spec => matchesGPU(spec, info));
-        if (!attr) continue;
-
-        pinnedSpec = {
-          vendor: info.vendor,
-          model: info.name,
-          ram: info.memorySize || null,
-          interface: info.interface || null
-        };
-      }
+      const spec = specsByModel.get(modelKey(info.vendor, info.name)) ?? specsByModel.get(modelKey(info.vendor, "*"));
+      if (!spec || !matchesGPU(spec, info)) continue;
 
       remaining--;
-      if (remaining === 0) break;
+      if (remaining === 0) {
+        return { ok: true, resolved: { vendor: info.vendor, model: info.name, ram: spec.ram, interface: spec.interface } };
+      }
     }
 
-    if (remaining > 0) return GPU_CHECK_FAIL;
-
-    return {
-      ok: true,
-      resolved: pinnedSpec!
-    };
+    return GPU_CHECK_FAIL;
   }
+}
+
+function indexSpecsByModel(gpuSpecs: ParsedGPUAttributes[]): Map<string, ParsedGPUAttributes> {
+  return new Map(gpuSpecs.map(spec => [modelKey(spec.vendor, spec.model), spec]));
+}
+
+function modelKey(vendor: string, model: string): string {
+  return `${vendor}/${model}`;
 }
 
 /** What a provider declares about itself on chain, standing in for inventory a node has not reported. */
