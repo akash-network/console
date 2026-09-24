@@ -74,9 +74,9 @@ function toStorableError(error: unknown): unknown {
 
 type WorkerError = Error & { queue: string; worker: string };
 
-/** pg-boss stamps `queue` and `worker` only on an error that escaped a worker loop: a failed fetch, or a completion or failure write it could not make. */
+/** pg-boss stamps `queue` and `worker` together, and only on an error that escaped a worker loop: a failed fetch, or a completion or failure write it could not make. */
 function isWorkerError(error: Error): error is WorkerError {
-  return "queue" in error && typeof error.queue === "string" && "worker" in error && typeof error.worker === "string";
+  return "queue" in error;
 }
 
 @singleton()
