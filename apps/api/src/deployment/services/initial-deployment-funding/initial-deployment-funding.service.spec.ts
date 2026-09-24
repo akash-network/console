@@ -647,6 +647,7 @@ describe(InitialDeploymentFundingService.name, () => {
       runtimeEndingNotifiedFor: null,
       providerUnreachableNotifiedFor: null,
       detectedGpus: null,
+      offeredGpus: null,
       createdAt: new Date("2026-08-20T00:00:00.000Z").toISOString(),
       updatedAt: new Date("2026-08-20T00:00:00.000Z").toISOString(),
       ...overrides

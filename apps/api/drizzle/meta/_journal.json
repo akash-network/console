@@ -435,6 +435,13 @@
       "when": 1790289627630,
       "tag": "0061_deployment_settings_detected_gpus",
       "breakpoints": true
+    },
+    {
+      "idx": 62,
+      "version": "7",
+      "when": 1790290514841,
+      "tag": "0062_deployment_settings_offered_gpus",
+      "breakpoints": true
     }
   ]
 }

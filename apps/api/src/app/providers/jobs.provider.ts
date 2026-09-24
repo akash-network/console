@@ -10,6 +10,7 @@ import { DeleteUnbackedDeploymentSettingHandler } from "@src/deployment/services
 import { DetectLeaseGpusHandler } from "@src/deployment/services/detect-lease-gpus/detect-lease-gpus.handler";
 import { ReconcileManagedTxHandler } from "@src/deployment/services/reconcile-managed-tx/reconcile-managed-tx.handler";
 import { RecordDeploymentSettingHandler } from "@src/deployment/services/record-deployment-setting/record-deployment-setting.handler";
+import { RecordLeaseGpuOffersHandler } from "@src/deployment/services/record-lease-gpu-offers/record-lease-gpu-offers.handler";
 import { NotificationHandler } from "@src/notifications/services/notification-handler/notification.handler";
 import { BlockEmailDomainOfWalletHandler } from "@src/workload-abuse/services/block-email-domain-of-wallet/block-email-domain-of-wallet.handler";
 import { EnforceTrialAbuseHandler } from "@src/workload-abuse/services/enforce-trial-abuse/enforce-trial-abuse.handler";
@@ -51,6 +52,7 @@ export async function startJobQueues(): Promise<void> {
     container.resolve(ReconcileManagedTxHandler),
     container.resolve(ProbeTrialDeploymentHandler),
     container.resolve(DetectLeaseGpusHandler),
+    container.resolve(RecordLeaseGpuOffersHandler),
     container.resolve(ManagedDeploymentLeaseCreatedHandler),
     container.resolve(EnforceTrialAbuseHandler),
     container.resolve(LockBlockedDomainWalletHandler),

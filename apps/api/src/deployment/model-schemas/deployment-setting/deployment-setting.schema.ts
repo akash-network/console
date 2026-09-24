@@ -28,6 +28,25 @@ export type LeaseGpuReading = {
   detectedAt: string;
 };
 
+export type GpuOfferAttribute = { key: string; value: string };
+
+/** One gpu resource unit of the bid a lease was created from, kept raw so a new offer format needs a parser change rather than another chain read. */
+export type OfferedGpuResource = {
+  resourceId: number;
+  replicas: number;
+  unitsPerReplica: number;
+  attributes: GpuOfferAttribute[];
+};
+
+export type LeaseGpuOffer = {
+  gseq: number;
+  oseq: number;
+  provider: string;
+  bseq: number;
+  resources: OfferedGpuResource[];
+  recordedAt: string;
+};
+
 export const DeploymentSettings = pgTable(
   "deployment_settings",
   {
@@ -54,6 +73,8 @@ export const DeploymentSettings = pgTable(
     providerUnreachableNotifiedFor: timestamp("provider_unreachable_notified_for", { withTimezone: true }),
     /** Null until the probe has read a lease, so an unread deployment is never mistaken for one running no gpu. */
     detectedGpus: jsonb("detected_gpus").$type<LeaseGpuReading[]>(),
+    /** Null until the winning bid of a gpu lease has been read, so an unrecorded deployment is never mistaken for one offered no gpu. */
+    offeredGpus: jsonb("offered_gpus").$type<LeaseGpuOffer[]>(),
     createdAt: timestamp("created_at").defaultNow(),
     updatedAt: timestamp("updated_at").defaultNow()
   },

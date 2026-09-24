@@ -15,7 +15,16 @@ const OWNER = "akash1owner";
 type LiveManaged = Awaited<ReturnType<DeploymentSettingRepository["findLiveManagedDeployments"]>>[number];
 
 function liveManaged(overrides: Partial<LiveManaged> = {}): LiveManaged {
-  return { userId: "user-1", dseq: TARGET.dseq, walletId: TARGET.walletId, address: OWNER, createdAt: new Date(), hasDetectedGpus: false, ...overrides };
+  return {
+    userId: "user-1",
+    dseq: TARGET.dseq,
+    walletId: TARGET.walletId,
+    address: OWNER,
+    createdAt: new Date(),
+    hasDetectedGpus: false,
+    hasOfferedGpus: false,
+    ...overrides
+  };
 }
 
 describe(LeaseGpuDetectionJobService.name, () => {

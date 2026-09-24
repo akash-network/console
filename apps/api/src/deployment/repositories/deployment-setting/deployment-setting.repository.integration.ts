@@ -17,6 +17,7 @@ import { DeploymentSettingRepository } from "./deployment-setting.repository";
 
 import { createAkashAddress } from "@test/seeders/akash-address.seeder";
 import { seedDeploymentSetting } from "@test/seeders/db/deployment-setting.seeder";
+import { createLeaseGpuOffer } from "@test/seeders/lease-gpu-offer.seeder";
 import { createLeaseGpuReading } from "@test/seeders/lease-gpu-reading.seeder";
 
 const COOLDOWN_MINUTES = 60;
@@ -933,7 +934,79 @@ describe(DeploymentSettingRepository.name, () => {
     });
   });
 
+  describe("mergeGpuOffers", () => {
+    it("stores the first offers of a deployment never recorded", async () => {
+      const { deploymentSettingRepository, user, readGpuOffers } = await setup();
+      const dseq = newDseq();
+      const offer = createLeaseGpuOffer();
+      await seedDeploymentSetting({ userId: user.id, dseq });
+
+      await expect(deploymentSettingRepository.mergeGpuOffers({ userId: user.id, dseq, offers: [offer] })).resolves.toBe(true);
+
+      await expect(readGpuOffers(user.id, dseq)).resolves.toEqual([offer]);
+    });
+
+    it("replaces the offer of a lease recorded again and keeps every other lease's", async () => {
+      const { deploymentSettingRepository, user, readGpuOffers } = await setup();
+      const dseq = newDseq();
+      const first = createLeaseGpuOffer({ provider: "akash1provider", gseq: 1 });
+      const second = createLeaseGpuOffer({ provider: "akash1provider", gseq: 2 });
+      const firstAgain = createLeaseGpuOffer({ provider: "akash1provider", gseq: 1, recordedAt: "2026-09-26T10:00:00.000Z" });
+      await seedDeploymentSetting({ userId: user.id, dseq, offeredGpus: [first, second] });
+
+      await deploymentSettingRepository.mergeGpuOffers({ userId: user.id, dseq, offers: [firstAgain] });
+
+      await expect(readGpuOffers(user.id, dseq)).resolves.toEqual([second, firstAgain]);
+    });
+
+    it("leaves the probe's readings of the same row as they were", async () => {
+      const { deploymentSettingRepository, user, readGpuReadings } = await setup();
+      const dseq = newDseq();
+      const reading = createLeaseGpuReading();
+      await seedDeploymentSetting({ userId: user.id, dseq, detectedGpus: [reading] });
+
+      await deploymentSettingRepository.mergeGpuOffers({ userId: user.id, dseq, offers: [createLeaseGpuOffer()] });
+
+      await expect(readGpuReadings(user.id, dseq)).resolves.toEqual([reading]);
+    });
+
+    it("reports a deployment the console holds no row for, rather than creating one", async () => {
+      const { deploymentSettingRepository, user } = await setup();
+
+      await expect(deploymentSettingRepository.mergeGpuOffers({ userId: user.id, dseq: newDseq(), offers: [createLeaseGpuOffer()] })).resolves.toBe(false);
+    });
+
+    it("keeps both the offers and the readings when the two writers land on the row at once", async () => {
+      const { deploymentSettingRepository, user, readGpuOffers, readGpuReadings } = await setup();
+      const dseq = newDseq();
+      const offer = createLeaseGpuOffer();
+      const reading = createLeaseGpuReading();
+      await seedDeploymentSetting({ userId: user.id, dseq });
+
+      await Promise.all([
+        deploymentSettingRepository.mergeGpuOffers({ userId: user.id, dseq, offers: [offer] }),
+        deploymentSettingRepository.mergeGpuReadings({ userId: user.id, dseq, readings: [reading] })
+      ]);
+
+      await expect(readGpuOffers(user.id, dseq)).resolves.toEqual([offer]);
+      await expect(readGpuReadings(user.id, dseq)).resolves.toEqual([reading]);
+    });
+  });
+
   describe("findLiveManagedDeployments", () => {
+    it("says which candidates already have their bid offers recorded", async () => {
+      const { deploymentSettingRepository, user } = await setup();
+      const recorded = newDseq();
+      const unrecorded = newDseq();
+      await seedDeploymentSetting({ userId: user.id, dseq: recorded, offeredGpus: [createLeaseGpuOffer()] });
+      await seedDeploymentSetting({ userId: user.id, dseq: unrecorded });
+
+      const deployments = await deploymentSettingRepository.findLiveManagedDeployments({ maxAgeHours: 1 });
+
+      const seeded = deployments.filter(deployment => deployment.userId === user.id && [recorded, unrecorded].includes(deployment.dseq));
+      expect(Object.fromEntries(seeded.map(deployment => [deployment.dseq, deployment.hasOfferedGpus]))).toEqual({ [recorded]: true, [unrecorded]: false });
+    });
+
     it("says which candidates the probe has already read", async () => {
       const { deploymentSettingRepository, user } = await setup();
       const read = newDseq();
@@ -1692,6 +1765,15 @@ describe(DeploymentSettingRepository.name, () => {
       return row.detectedGpus;
     }
 
+    async function readGpuOffers(userId: string, dseq: string) {
+      const [row] = await db
+        .select({ offeredGpus: deploymentSettingsTable.offeredGpus })
+        .from(deploymentSettingsTable)
+        .where(and(eq(deploymentSettingsTable.userId, userId), eq(deploymentSettingsTable.dseq, dseq)));
+
+      return row.offeredGpus;
+    }
+
     async function readSettingDseq(id: string) {
       const [row] = await db.select({ dseq: deploymentSettingsTable.dseq }).from(deploymentSettingsTable).where(eq(deploymentSettingsTable.id, id));
 
@@ -1807,6 +1889,7 @@ describe(DeploymentSettingRepository.name, () => {
       abilityFor,
       createDefinition,
       readDefinition,
+      readGpuOffers,
       readGpuReadings,
       readSettingDseq,
       createSetting,

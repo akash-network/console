@@ -107,7 +107,7 @@ program
 
 program
   .command("detect-lease-gpus")
-  .description("Schedule a gpu read for every live managed gpu deployment that has none pending")
+  .description("Schedule a bid offer record and a gpu read for every live managed gpu deployment that has none pending")
   .option("-d, --dry-run", "Log which deployments would be read without enqueuing", false)
   .action(async (options, command) => {
     await executeCliHandler(command.name(), async () => {
