@@ -99,7 +99,7 @@ describe("GpuCard trial gate", () => {
   });
 
   function availableModel(name: string, providerCount = 1): AvailableGpuVendor["models"][number] {
-    return { name, memory: ["80Gi"], interface: ["sxm"], providerCount };
+    return { name, memory: ["80Gi"], interface: ["sxm"], providerCount, variants: [] };
   }
 
   function setup(input: {

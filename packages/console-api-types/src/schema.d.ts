@@ -9792,7 +9792,7 @@ export interface operations {
         content: {
           "application/json": {
             /**
-             * @description Regions advertised by at least one online provider
+             * @description Regions declared by at least one online provider and signed by the Console auditor
              * @example [
              *       "eu-west",
              *       "na-us-west"
@@ -9800,7 +9800,7 @@ export interface operations {
              */
             regions: string[];
             /**
-             * @description Online providers advertising each region, keyed by region
+             * @description Audited online providers in each region, keyed by region
              * @example {
              *       "eu-west": 2,
              *       "na-us-west": 5
@@ -9809,7 +9809,7 @@ export interface operations {
             regionProviderCounts: {
               [key: string]: number;
             };
-            /** @description GPUs that online providers have free capacity for, grouped by vendor */
+            /** @description GPUs that audited online providers have free capacity for and would bid on, grouped by vendor */
             gpus: {
               /**
                * @description Vendor as it appears in an SDL GPU attribute
@@ -9823,24 +9823,42 @@ export interface operations {
                  */
                 name: string;
                 /**
-                 * @description Memory sizes this model is available with
+                 * @description Memory sizes a provider would bid on with the interface left unpinned
                  * @example [
                  *       "40Gi"
                  *     ]
                  */
                 memory: string[];
                 /**
-                 * @description Interfaces this model is available with
+                 * @description Interfaces a provider would bid on with the memory left unpinned
                  * @example [
                  *       "pcie"
                  *     ]
                  */
                 interface: string[];
                 /**
-                 * @description Online providers with free capacity on a node holding this model
+                 * @description Audited providers with free capacity that would bid on this model with memory and interface unpinned
                  * @example 3
                  */
                 providerCount: number;
+                /** @description Every memory and interface combination at least one provider would bid on, the model alone included */
+                variants: {
+                  /**
+                   * @description Memory size the SDL pins, or null to leave it unpinned
+                   * @example 80Gi
+                   */
+                  memory: string | null;
+                  /**
+                   * @description Interface the SDL pins, or null to leave it unpinned
+                   * @example sxm
+                   */
+                  interface: string | null;
+                  /**
+                   * @description Audited providers with free capacity that advertise this exact GPU key
+                   * @example 2
+                   */
+                  providerCount: number;
+                }[];
               }[];
             }[];
           };

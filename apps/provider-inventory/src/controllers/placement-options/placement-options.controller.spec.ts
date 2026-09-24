@@ -21,12 +21,19 @@ describe(PlacementOptionsController.name, () => {
 
   it("answers with the available gpus grouped by vendor", async () => {
     const { controller } = setup({
-      availableGpus: [{ owner: "akash1provider", vendor: "nvidia", model: "a100", memory: "80Gi", interface: "sxm" }]
+      availableGpus: [
+        { owner: "akash1provider", vendor: "nvidia", model: "a100", memory: "80Gi", interface: "sxm", advertisedGpuKeys: ["vendor/nvidia/model/a100"] }
+      ]
     });
 
     const options = await controller.getPlacementOptions();
 
-    expect(options.gpus).toEqual([{ vendor: "nvidia", models: [{ name: "a100", memory: ["80Gi"], interface: ["sxm"], providerCount: 1 }] }]);
+    expect(options.gpus).toEqual([
+      {
+        vendor: "nvidia",
+        models: [{ name: "a100", memory: [], interface: [], providerCount: 1, variants: [{ memory: null, interface: null, providerCount: 1 }] }]
+      }
+    ]);
   });
 
   it("answers with no options when no provider is online", async () => {
