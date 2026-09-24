@@ -166,7 +166,8 @@ describe("RegionSelect", () => {
     const useProviderRegions: typeof DEPENDENCIES.useProviderRegions = () => regionsQuery;
 
     const placementOptions =
-      input.availableRegions && ({ regions: input.availableRegions, regionProviderCounts: input.regionProviderCounts, gpus: [] } as PlacementOptions);
+      input.availableRegions &&
+      Object.assign(mock<PlacementOptions>(), { regions: input.availableRegions, regionProviderCounts: input.regionProviderCounts, gpus: [] });
     const placementOptionsQuery = Object.assign(mock<ReturnType<typeof DEPENDENCIES.usePlacementOptions>>(), { data: placementOptions });
     const usePlacementOptions: typeof DEPENDENCIES.usePlacementOptions = () => placementOptionsQuery;
 
