@@ -1,9 +1,10 @@
 import type { ParsedGPUAttributes } from "@src/mappers/gpu-attribute-parser/gpu-attribute-parser";
 import type { GroupSpecJSON } from "@src/mappers/groupspec-mapper/groupspec-mapper";
-import type { RequestedResourceUnit, RequestedStorage } from "@src/types/inventory";
+import type { RequestedResourceUnit, RequestedStorage, ResourceAttribute } from "@src/types/inventory";
 
 interface UnitFilters {
   gpuTokens: string[];
+  gpuCapabilities: { keyPattern: string; value: string }[];
   persistentClasses: string[];
 }
 
@@ -69,6 +70,7 @@ export function aggregateCriteria(resourceUnits: RequestedResourceUnit[], requir
 
     units.push({
       gpuTokens: collectGpuTokens(unit.resources.gpu),
+      gpuCapabilities: collectGpuCapabilities(unit.resources.gpu),
       persistentClasses: collectPersistentStorageTokens(unit.resources.storage)
     });
   }
@@ -120,6 +122,18 @@ function collectGpuTokens(gpu: { units: bigint; attributes: ParsedGPUAttributes[
     if (!tokens.includes(token)) tokens.push(token);
   }
   return tokens;
+}
+
+/** The bid engine reads an order's GPU key as a path pattern over the provider's advertised `capabilities/gpu/...` keys, where only a trailing `*` is a wildcard and it never crosses a `/`. */
+function collectGpuCapabilities(gpu: { units: bigint; capabilities: ResourceAttribute[] }): UnitFilters["gpuCapabilities"] {
+  if (gpu.units === 0n) return [];
+  return gpu.capabilities.map(capability => ({ keyPattern: toAdvertisedGpuKeyPattern(capability.key), value: capability.value }));
+}
+
+function toAdvertisedGpuKeyPattern(key: string): string {
+  const spansLastSegment = key.endsWith("*");
+  const literal = spansLastSegment ? key.slice(0, -1) : key;
+  return `^capabilities/gpu/${escapeRegex(literal)}${spansLastSegment ? "[^/]*" : ""}$`;
 }
 
 function collectPersistentStorageTokens(storage: RequestedStorage[]): string[] {

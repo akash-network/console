@@ -50,7 +50,12 @@ export interface ResourceAttribute {
 
 export interface RequestedResources {
   cpu: { units: bigint; arch: CpuArch | null };
-  gpu: { units: bigint; attributes: ParsedGPUAttributes[] };
+  gpu: {
+    units: bigint;
+    attributes: ParsedGPUAttributes[];
+    /** The order's GPU attributes as sent, which a bidding provider must advertise verbatim under `capabilities/gpu/`. */
+    capabilities: ResourceAttribute[];
+  };
   memory: { quantity: bigint };
   storage: RequestedStorage[];
   endpoints: Array<{
