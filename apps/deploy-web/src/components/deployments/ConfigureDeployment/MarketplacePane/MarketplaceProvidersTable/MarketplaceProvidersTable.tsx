@@ -28,6 +28,14 @@ const HEALTHY_UPTIME: ProviderUptime = { percent: 1, buckets: [] };
  * providers arrive. Provider (`hostUri`) is intentionally absent: it absorbs whatever width is left over.
  */
 const COLUMN_WIDTH_CLASS: Record<string, string | undefined> = {
+  location: "w-[20%]",
+  uptime: "w-[22%]",
+  cost: "w-[16%]",
+  status: "w-[18%]"
+};
+
+/** Region, Uptime and status give up width to the GPU column so Provider keeps its share. */
+const COLUMN_WIDTH_CLASS_WITH_GPU: Record<string, string | undefined> = {
   location: "w-[15%]",
   uptime: "w-[16%]",
   gpu: "w-[15%]",
@@ -75,6 +83,7 @@ export const MarketplaceProvidersTable: FC<Props> = ({
   /** Cost only makes sense once bids arrive: a submitted bid is priced and a closed/expired one keeps its last price, but a screened-only candidate has none. */
   const showCost = providers.some(provider => !!provider.price);
   const showGpu = providers.some(provider => !!provider.gpus?.length);
+  const columnWidthClass = showGpu ? COLUMN_WIDTH_CLASS_WITH_GPU : COLUMN_WIDTH_CLASS;
   const columns = useMemo(
     () =>
       buildColumns(uptimeByOwner, { selectedBidId, onSelect, isSelectable, showCost, showGpu, showStatus: isMerged, gpuCount, showProviderLink, gpuVendors }),
@@ -127,7 +136,7 @@ export const MarketplaceProvidersTable: FC<Props> = ({
           {table.getHeaderGroups().map(headerGroup => (
             <TableRow key={headerGroup.id} className="bg-muted/40 hover:bg-muted/40">
               {headerGroup.headers.map(header => (
-                <TableHead key={header.id} className={cn("h-10 pl-4 pr-2", COLUMN_WIDTH_CLASS[header.column.id])}>
+                <TableHead key={header.id} className={cn("h-10 pl-4 pr-2", columnWidthClass[header.column.id])}>
                   {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
                 </TableHead>
               ))}
