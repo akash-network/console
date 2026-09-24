@@ -10,6 +10,8 @@ type Table = ApiPgTables["WorkloadAbuseDetections"];
 export type WorkloadAbuseDetectionInput = Partial<Table["$inferInsert"]>;
 export type WorkloadAbuseDetectionOutput = Table["$inferSelect"];
 
+const CONFIRMED_VERDICTS: Array<WorkloadAbuseDetectionOutput["verdict"]> = ["hard", "behavioural"];
+
 @singleton()
 export class WorkloadAbuseDetectionRepository extends BaseRepository<Table, WorkloadAbuseDetectionInput, WorkloadAbuseDetectionOutput> {
   constructor(
@@ -28,7 +30,7 @@ export class WorkloadAbuseDetectionRepository extends BaseRepository<Table, Work
     return await this.cursor
       .selectDistinct({ walletId: this.table.walletId, dseq: this.table.dseq })
       .from(this.table)
-      .where(and(inArray(this.table.verdict, ["hard", "behavioural"]), gt(this.table.createdAt, since)));
+      .where(and(inArray(this.table.verdict, CONFIRMED_VERDICTS), gt(this.table.createdAt, since)));
   }
 
   /** One detection per wallet, since the wipe covers the whole wallet whichever of its detections re-queues it. */
@@ -39,7 +41,7 @@ export class WorkloadAbuseDetectionRepository extends BaseRepository<Table, Work
       .innerJoin(UserWallets, eq(UserWallets.id, this.table.walletId))
       .where(
         and(
-          eq(this.table.verdict, "hard"),
+          inArray(this.table.verdict, CONFIRMED_VERDICTS),
           inArray(this.table.action, ["enforcing", "enforcement_failed"]),
           lt(this.table.updatedAt, updatedBefore),
           eq(UserWallets.isTrialing, true),
@@ -54,6 +56,6 @@ export class WorkloadAbuseDetectionRepository extends BaseRepository<Table, Work
     await this.cursor
       .update(this.table)
       .set({ action: "enforced", enforcementError: null, updatedAt: new Date() })
-      .where(and(eq(this.table.walletId, walletId), eq(this.table.verdict, "hard"), ne(this.table.action, "enforced")));
+      .where(and(eq(this.table.walletId, walletId), inArray(this.table.verdict, CONFIRMED_VERDICTS), ne(this.table.action, "enforced")));
   }
 }

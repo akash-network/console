@@ -3,7 +3,10 @@ import { mock } from "vitest-mock-extended";
 
 import type { UserWalletRepository } from "@src/billing/repositories";
 import type { CreateLogger, JobQueueService } from "@src/core";
-import type { WorkloadAbuseDetectionRepository } from "@src/workload-abuse/repositories/workload-abuse-detection/workload-abuse-detection.repository";
+import type {
+  WorkloadAbuseDetectionOutput,
+  WorkloadAbuseDetectionRepository
+} from "@src/workload-abuse/repositories/workload-abuse-detection/workload-abuse-detection.repository";
 import { BlockEmailDomainOfWallet } from "@src/workload-abuse/services/block-email-domain-of-wallet/block-email-domain-of-wallet.handler";
 import type { EnforcementOutcome, TrialAbuseEnforcementService } from "@src/workload-abuse/services/trial-abuse-enforcement/trial-abuse-enforcement.service";
 import type { WorkloadAbuseInstrumentationService } from "@src/workload-abuse/services/workload-abuse-instrumentation/workload-abuse-instrumentation.service";
@@ -35,6 +38,23 @@ describe(EnforceTrialAbuseHandler.name, () => {
     expect(jobQueueService.enqueue).toHaveBeenCalledWith(new BlockEmailDomainOfWallet({ walletId: PAYLOAD.walletId }), {
       singletonKey: "blockEmailDomainOfWallet.42"
     });
+  });
+
+  it("keeps the wipe of a wallet confirmed by repeated behaviour to that wallet", async () => {
+    const { handler, enforcementService, jobQueueService } = setup({ wallet: createUserWallet({ isTrialing: true }), verdict: "behavioural" });
+
+    await handler.handle(PAYLOAD);
+
+    expect(enforcementService.enforce).toHaveBeenCalled();
+    expect(jobQueueService.enqueue).not.toHaveBeenCalled();
+  });
+
+  it("leaves the email domain alone when the detection it was given no longer exists", async () => {
+    const { handler, jobQueueService } = setup({ wallet: createUserWallet({ isTrialing: true }), verdict: null });
+
+    await handler.handle(PAYLOAD);
+
+    expect(jobQueueService.enqueue).not.toHaveBeenCalled();
   });
 
   it("leaves the email domain alone when the wipe was skipped because the wallet paid", async () => {
@@ -74,6 +94,18 @@ describe(EnforceTrialAbuseHandler.name, () => {
     });
   });
 
+  it("settles a locked wallet confirmed by repeated behaviour without resuming a domain block", async () => {
+    const { handler, detectionRepository, jobQueueService } = setup({
+      wallet: createUserWallet({ isTrialing: false, abuseLockedAt: new Date() }),
+      verdict: "behavioural"
+    });
+
+    await handler.handle(PAYLOAD);
+
+    expect(detectionRepository.markWalletEnforced).toHaveBeenCalledWith(PAYLOAD.walletId);
+    expect(jobQueueService.enqueue).not.toHaveBeenCalled();
+  });
+
   it("leaves a wallet that has since paid alone", async () => {
     const { handler, enforcementService, jobQueueService, logger } = setup({ wallet: createUserWallet({ isTrialing: false }) });
 
@@ -100,10 +132,16 @@ describe(EnforceTrialAbuseHandler.name, () => {
     expect(handler.requiresPermission()).toEqual([]);
   });
 
-  function setup(input: { wallet: ReturnType<typeof createUserWallet> | null; enforcementOutcome?: EnforcementOutcome | null }) {
+  function setup(input: {
+    wallet: ReturnType<typeof createUserWallet> | null;
+    enforcementOutcome?: EnforcementOutcome | null;
+    verdict?: WorkloadAbuseDetectionOutput["verdict"] | null;
+  }) {
     const userWalletRepository = mock<UserWalletRepository>();
     userWalletRepository.findById.mockResolvedValue(input.wallet ?? undefined);
     const detectionRepository = mock<WorkloadAbuseDetectionRepository>();
+    const verdict = input.verdict === undefined ? "hard" : input.verdict;
+    detectionRepository.findById.mockResolvedValue(verdict ? mock<WorkloadAbuseDetectionOutput>({ id: PAYLOAD.detectionId, verdict }) : undefined);
     const enforcementService = mock<TrialAbuseEnforcementService>({
       enforce: vi.fn().mockResolvedValue(input.enforcementOutcome === undefined ? WIPED : input.enforcementOutcome)
     });
