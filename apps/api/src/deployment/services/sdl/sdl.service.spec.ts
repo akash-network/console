@@ -462,6 +462,23 @@ deployment:
 
 describe(SdlService.name, () => {
   describe("generateManifest", () => {
+    it("rejects a memory size given without a unit instead of throwing", async () => {
+      const { result } = await setup({ sdl: VALID_SDL.replace("size: 512Mi", 'size: "1073741824"') });
+
+      expect(result).toEqual({
+        ok: false,
+        value: [
+          {
+            schemaPath: "",
+            instancePath: "/profiles/compute",
+            keyword: "size",
+            params: {},
+            message: 'memory or storage size "1073741824" must be a number with a unit, such as 512Mi or 1Gi'
+          }
+        ]
+      });
+    });
+
     it("parses SDL containing template variables without throwing", async () => {
       const { result } = await setup({ sdl: SDL_WITH_VARS });
 
