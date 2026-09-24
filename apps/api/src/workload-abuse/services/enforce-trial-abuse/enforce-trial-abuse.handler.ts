@@ -69,7 +69,7 @@ export class EnforceTrialAbuseHandler implements JobHandler<EnforceTrialAbuse> {
       this.logger.info({ event: "TRIAL_WORKLOAD_ABUSE_ENFORCEMENT_SKIPPED", reason: "ALREADY_LOCKED", ...context, userId: wallet.userId });
       await this.detectionRepository.markWalletEnforced(walletId);
       this.instrumentation.recordEnforcement("skipped");
-      await this.#queueDomainBlockForSignatureMatch(walletId, detectionId);
+      await this.#queueDomainBlockForSignatureMatch(walletId);
       return;
     }
 
@@ -82,7 +82,7 @@ export class EnforceTrialAbuseHandler implements JobHandler<EnforceTrialAbuse> {
     const outcome = await this.enforcementService.enforce({ wallet, detectionId });
 
     if (outcome) {
-      await this.#queueDomainBlockForSignatureMatch(walletId, detectionId);
+      await this.#queueDomainBlockForSignatureMatch(walletId);
     }
   }
 
@@ -91,10 +91,10 @@ export class EnforceTrialAbuseHandler implements JobHandler<EnforceTrialAbuse> {
    * Also queued from the already-locked branch, which is where a run interrupted between the wipe and this
    * enqueue lands when the queue retries it.
    */
-  async #queueDomainBlockForSignatureMatch(walletId: number, detectionId: string): Promise<void> {
-    const detection = await this.detectionRepository.findById(detectionId);
+  async #queueDomainBlockForSignatureMatch(walletId: number): Promise<void> {
+    const signatureMatch = await this.detectionRepository.findOneBy({ walletId, verdict: "hard" });
 
-    if (detection?.verdict !== "hard") return;
+    if (!signatureMatch) return;
 
     await this.jobQueueService.enqueue(new BlockEmailDomainOfWallet({ walletId }), { singletonKey: blockEmailDomainOfWalletKeyFor(walletId) });
   }

@@ -40,20 +40,20 @@ describe(EnforceTrialAbuseHandler.name, () => {
     });
   });
 
-  it("keeps the wipe of a wallet confirmed by repeated behaviour to that wallet", async () => {
-    const { handler, enforcementService, jobQueueService } = setup({ wallet: createUserWallet({ isTrialing: true }), verdict: "behavioural" });
+  it("looks for a signature match across every detection of the wallet, not only the one that triggered the wipe", async () => {
+    const { handler, detectionRepository } = setup({ wallet: createUserWallet({ isTrialing: true }) });
+
+    await handler.handle(PAYLOAD);
+
+    expect(detectionRepository.findOneBy).toHaveBeenCalledWith({ walletId: PAYLOAD.walletId, verdict: "hard" });
+  });
+
+  it("keeps the wipe to the wallet when none of its detections matched a signature", async () => {
+    const { handler, enforcementService, jobQueueService } = setup({ wallet: createUserWallet({ isTrialing: true }), signatureMatch: false });
 
     await handler.handle(PAYLOAD);
 
     expect(enforcementService.enforce).toHaveBeenCalled();
-    expect(jobQueueService.enqueue).not.toHaveBeenCalled();
-  });
-
-  it("leaves the email domain alone when the detection it was given no longer exists", async () => {
-    const { handler, jobQueueService } = setup({ wallet: createUserWallet({ isTrialing: true }), verdict: null });
-
-    await handler.handle(PAYLOAD);
-
     expect(jobQueueService.enqueue).not.toHaveBeenCalled();
   });
 
@@ -94,10 +94,10 @@ describe(EnforceTrialAbuseHandler.name, () => {
     });
   });
 
-  it("settles a locked wallet confirmed by repeated behaviour without resuming a domain block", async () => {
+  it("settles a locked wallet none of whose detections matched a signature without resuming a domain block", async () => {
     const { handler, detectionRepository, jobQueueService } = setup({
       wallet: createUserWallet({ isTrialing: false, abuseLockedAt: new Date() }),
-      verdict: "behavioural"
+      signatureMatch: false
     });
 
     await handler.handle(PAYLOAD);
@@ -132,16 +132,13 @@ describe(EnforceTrialAbuseHandler.name, () => {
     expect(handler.requiresPermission()).toEqual([]);
   });
 
-  function setup(input: {
-    wallet: ReturnType<typeof createUserWallet> | null;
-    enforcementOutcome?: EnforcementOutcome | null;
-    verdict?: WorkloadAbuseDetectionOutput["verdict"] | null;
-  }) {
+  function setup(input: { wallet: ReturnType<typeof createUserWallet> | null; enforcementOutcome?: EnforcementOutcome | null; signatureMatch?: boolean }) {
     const userWalletRepository = mock<UserWalletRepository>();
     userWalletRepository.findById.mockResolvedValue(input.wallet ?? undefined);
     const detectionRepository = mock<WorkloadAbuseDetectionRepository>();
-    const verdict = input.verdict === undefined ? "hard" : input.verdict;
-    detectionRepository.findById.mockResolvedValue(verdict ? mock<WorkloadAbuseDetectionOutput>({ id: PAYLOAD.detectionId, verdict }) : undefined);
+    detectionRepository.findOneBy.mockResolvedValue(
+      input.signatureMatch === false ? undefined : mock<WorkloadAbuseDetectionOutput>({ walletId: PAYLOAD.walletId, verdict: "hard" })
+    );
     const enforcementService = mock<TrialAbuseEnforcementService>({
       enforce: vi.fn().mockResolvedValue(input.enforcementOutcome === undefined ? WIPED : input.enforcementOutcome)
     });
