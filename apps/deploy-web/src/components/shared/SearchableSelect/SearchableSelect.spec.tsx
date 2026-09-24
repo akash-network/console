@@ -5,7 +5,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { SearchableSelectOption } from "./SearchableSelect";
 import { filterOptions, SearchableSelect } from "./SearchableSelect";
 
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 const OPTIONS: SearchableSelectOption[] = [
@@ -121,9 +121,65 @@ describe("SearchableSelect", () => {
     expect(screen.getByRole("combobox", { name: "Region" })).toBeDisabled();
   });
 
+  it("describes an option with its hint", async () => {
+    const { user } = setup({ options: [{ value: "eu-west", label: "eu-west", hint: "3 providers" }] });
+
+    await user.click(screen.getByRole("combobox", { name: "Region" }));
+
+    expect(await screen.findByRole("option", { name: "eu-west" })).toHaveAccessibleDescription("3 providers");
+  });
+
+  describe("unavailable options", () => {
+    it("lists them after the other options under an Unavailable heading", async () => {
+      const { user } = setup({ unavailableOptions: [{ value: "as-east", label: "as-east" }] });
+
+      await user.click(screen.getByRole("combobox", { name: "Region" }));
+      const unavailable = within(await screen.findByRole("group", { name: "Unavailable" }));
+
+      expect(unavailable.getByRole("option", { name: "as-east" })).toHaveAttribute("aria-disabled", "true");
+      expect(screen.getAllByRole("option").map(option => option.textContent)).toEqual(["eu-west", "eu-central", "na-us-west", "as-east"]);
+    });
+
+    it("does not let one be picked", async () => {
+      const { user, onChange } = setup({ unavailableOptions: [{ value: "as-east", label: "as-east" }] });
+
+      await user.click(screen.getByRole("combobox", { name: "Region" }));
+      await user.click(await screen.findByRole("option", { name: "as-east" }));
+
+      expect(onChange).not.toHaveBeenCalled();
+    });
+
+    it("filters them with the search box and leaves the heading out when none match", async () => {
+      const { user } = setup({ unavailableOptions: [{ value: "as-east", label: "as-east" }] });
+
+      await user.click(screen.getByRole("combobox", { name: "Region" }));
+      await user.type(await screen.findByRole("combobox", { name: "Search regions" }), "eu");
+
+      expect(screen.getByRole("option", { name: "eu-west" })).toBeInTheDocument();
+      expect(screen.queryByRole("option", { name: "as-east" })).not.toBeInTheDocument();
+      expect(screen.queryByRole("group", { name: "Unavailable" })).not.toBeInTheDocument();
+    });
+
+    it("shows the not-found message only when neither list matches the search", async () => {
+      const { user } = setup({ unavailableOptions: [{ value: "as-east", label: "as-east" }] });
+
+      await user.click(screen.getByRole("combobox", { name: "Region" }));
+      const input = await screen.findByRole("combobox", { name: "Search regions" });
+
+      await user.type(input, "as");
+      expect(screen.getByRole("option", { name: "as-east" })).toBeInTheDocument();
+      expect(screen.queryByText("No regions found.")).not.toBeInTheDocument();
+
+      await user.clear(input);
+      await user.type(input, "zzz");
+      expect(screen.getByText("No regions found.")).toBeInTheDocument();
+    });
+  });
+
   function setup(input: {
     value?: string;
     options?: SearchableSelectOption[];
+    unavailableOptions?: SearchableSelectOption[];
     emptyOption?: { value: string; label: string; disabled?: boolean };
     placeholder?: string;
     disabled?: boolean;
@@ -140,6 +196,7 @@ describe("SearchableSelect", () => {
             setValue(next);
           }}
           options={input.options ?? OPTIONS}
+          unavailableOptions={input.unavailableOptions}
           ariaLabel="Region"
           searchLabel="Search regions"
           searchPlaceholder="Search regions..."

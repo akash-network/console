@@ -95,3 +95,8 @@ export const providerDisplayName = (provider: { organization?: string | null; ho
     return provider.owner;
   }
 };
+
+export function formatProviderCount(count: number | undefined): string | undefined {
+  if (count === undefined) return undefined;
+  return `${count} ${count === 1 ? "provider" : "providers"}`;
+}

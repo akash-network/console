@@ -1,6 +1,6 @@
 import type { FC, ReactNode } from "react";
-import { useState } from "react";
-import { Button, Command, CommandInput, CommandItem, CommandList, Popover, PopoverContent, PopoverTrigger } from "@akashnetwork/ui/components";
+import { useId, useState } from "react";
+import { Button, Command, CommandGroup, CommandInput, CommandItem, CommandList, Popover, PopoverContent, PopoverTrigger } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
 import { NavArrowDown } from "iconoir-react";
 
@@ -8,6 +8,8 @@ export type SearchableSelectOption = {
   value: string;
   /** Rendered in the option row; may include trailing adornments (e.g. a lock icon). */
   label: ReactNode;
+  /** Secondary text at the end of the row, announced as the option's description rather than its name. */
+  hint?: ReactNode;
   /** Renders the row non-selectable and `aria-disabled`. */
   disabled?: boolean;
   /** Extra terms matched by the search box in addition to `value`. */
@@ -26,6 +28,8 @@ type Props = {
   value: string;
   onChange: (value: string) => void;
   options: SearchableSelectOption[];
+  /** Listed after `options` under an "Unavailable" heading, searchable but never selectable. */
+  unavailableOptions?: SearchableSelectOption[];
   /** Accessible name of the trigger (which exposes `role="combobox"`). */
   ariaLabel: string;
   /** Accessible name of the search box inside the popover. */
@@ -56,6 +60,7 @@ export const SearchableSelect: FC<Props> = ({
   value,
   onChange,
   options,
+  unavailableOptions = [],
   ariaLabel,
   searchLabel,
   searchPlaceholder,
@@ -70,6 +75,7 @@ export const SearchableSelect: FC<Props> = ({
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
   const filteredOptions = filterOptions(options, search);
+  const filteredUnavailableOptions = filterOptions(unavailableOptions, search);
 
   function closeAndResetSearch(nextOpen: boolean) {
     setOpen(nextOpen);
@@ -118,22 +124,44 @@ export const SearchableSelect: FC<Props> = ({
               </CommandItem>
             )}
             {filteredOptions.map(option => (
-              <CommandItem
-                key={option.value}
-                value={option.value}
-                disabled={option.disabled}
-                onSelect={function selectOption() {
-                  selectValue(option.value);
-                }}
-              >
-                {option.label}
-              </CommandItem>
+              <SearchableSelectItem key={option.value} option={option} onSelect={selectValue} />
             ))}
-            {search && filteredOptions.length === 0 && <p className="py-6 text-center text-sm text-muted-foreground">{notFoundMessage}</p>}
+            {filteredUnavailableOptions.length > 0 && (
+              <CommandGroup heading="Unavailable" className="p-0">
+                {filteredUnavailableOptions.map(option => (
+                  <SearchableSelectItem key={option.value} option={{ ...option, disabled: true }} onSelect={selectValue} />
+                ))}
+              </CommandGroup>
+            )}
+            {search && filteredOptions.length === 0 && filteredUnavailableOptions.length === 0 && (
+              <p className="py-6 text-center text-sm text-muted-foreground">{notFoundMessage}</p>
+            )}
           </CommandList>
         </Command>
       </PopoverContent>
     </Popover>
+  );
+};
+
+const SearchableSelectItem: FC<{ option: SearchableSelectOption; onSelect: (value: string) => void }> = ({ option, onSelect }) => {
+  const hintId = useId();
+
+  return (
+    <CommandItem
+      value={option.value}
+      disabled={option.disabled}
+      aria-describedby={option.hint ? hintId : undefined}
+      onSelect={function selectOption() {
+        onSelect(option.value);
+      }}
+    >
+      {option.label}
+      {option.hint && (
+        <span id={hintId} aria-hidden="true" className="ml-auto shrink-0 pl-2 text-xs text-muted-foreground">
+          {option.hint}
+        </span>
+      )}
+    </CommandItem>
   );
 };
 
