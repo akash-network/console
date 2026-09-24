@@ -30,6 +30,8 @@ export const CHAIN_DB = Symbol("CHAIN_DB") as InjectionToken<Sequelize>;
 
 pg.defaults.parseInt8 = true;
 const EMPTY_ARRAY = Object.freeze([]);
+/** node-postgres fails the in-flight query with this when the peer closes the socket without a Postgres error. */
+const CONNECTION_DROPPED_MID_QUERY = /Connection terminated unexpectedly/;
 container.register(CHAIN_DB, {
   useFactory: instancePerContainerCachingFactory(c => {
     const logger = c.resolve(SEQUELIZE_LOGGER);
@@ -53,6 +55,10 @@ container.register(CHAIN_DB, {
         idle: config.get("SEQUELIZE_POOL_IDLE"),
         acquire: config.get("SEQUELIZE_POOL_ACQUIRE"),
         evict: config.get("SEQUELIZE_POOL_EVICT")
+      },
+      retry: {
+        max: config.get("SEQUELIZE_QUERY_MAX_ATTEMPTS"),
+        match: [CONNECTION_DROPPED_MID_QUERY]
       }
     });
     c.resolve(DisposableRegistry).register({ dispose: () => sequelize.close() });
