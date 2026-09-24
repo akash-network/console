@@ -1,8 +1,9 @@
+import { LoggerService } from "@akashnetwork/logging";
 import { addMinutes, addSeconds, secondsToMilliseconds } from "date-fns";
 import { sql } from "drizzle-orm";
 import { PgBoss, type Queue as PgBossQueue } from "pg-boss";
 import { container } from "tsyringe";
-import { afterAll, describe, expect, it, vi } from "vitest";
+import { afterAll, describe, expect, it, onTestFinished, vi } from "vitest";
 
 import type { ApiPgDatabase } from "@src/core";
 import { type EnqueueOptions, type Job, JOB_NAME, type JobHandler, JobQueueService, PG_BOSS_TOKEN, POSTGRES_DB } from "@src/core";
@@ -240,6 +241,24 @@ describe(JobQueueService.name, () => {
     const waiting = await jobQueue.hasWaitingSingleton({ name: "waiting-retry", singletonKey, notDueBefore: new Date(0) });
 
     expect(waiting).toBe(true);
+  });
+
+  it("logs a job failure pg-boss could not write under JOB_QUEUE_WORKER_ERROR and leaves the job active", async () => {
+    const failureWithLoneSurrogate = new Error("handler failed with \ud800, which Postgres refuses inside jsonb");
+    const { jobQueue, handler, enqueue, findJob } = await setup({ queueName: "unrecordable", handle: vi.fn().mockRejectedValue(failureWithLoneSurrogate) });
+    const logError = vi.spyOn(LoggerService.prototype, "error");
+    onTestFinished(() => logError.mockRestore());
+    await jobQueue.registerHandlers([handler]);
+    await enqueue();
+
+    await jobQueue.startWorkers({ concurrency: 1, pollingIntervalSeconds: 0.5 });
+
+    await vi.waitFor(
+      () =>
+        expect(logError).toHaveBeenCalledWith(expect.objectContaining({ event: "JOB_QUEUE_WORKER_ERROR", queue: "unrecordable", worker: expect.any(String) })),
+      { timeout: 20_000, interval: 250 }
+    );
+    expect((await findJob()).state).toBe("active");
   });
 
   function waitForJobState(findJob: () => Promise<JobRow>, state: string) {

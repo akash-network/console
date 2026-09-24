@@ -804,25 +804,24 @@ describe(JobQueueService.name, () => {
       expect(logger.info).toHaveBeenCalledWith({ event: "JOB_QUEUE_STARTED" });
     });
 
-    it("handles PgBoss errors", async () => {
+    it("logs an error pg-boss raised outside a worker loop under JOB_QUEUE_ERROR", async () => {
       const { service, pgBoss, logger } = setup();
-      const mockError = new Error("PgBoss connection failed");
-
-      let errorHandler: (error: Error) => void;
-      vi.spyOn(pgBoss, "on").mockImplementation(((event: string, handler: unknown) => {
-        if (event === "error") {
-          errorHandler = handler as (error: Error) => void;
-        }
-        return pgBoss;
-      }) as PgBoss["on"]);
+      const poolError = new Error("Connection terminated unexpectedly");
 
       await service.setup();
-      errorHandler!(mockError);
+      errorHandlerRegisteredOn(pgBoss)(poolError);
 
-      expect(logger.error).toHaveBeenCalledWith({
-        event: "JOB_QUEUE_ERROR",
-        error: mockError
-      });
+      expect(logger.error).toHaveBeenCalledWith({ event: "JOB_QUEUE_ERROR", error: poolError });
+    });
+
+    it("logs an error that escaped a worker loop under JOB_QUEUE_WORKER_ERROR with its queue and worker", async () => {
+      const { service, pgBoss, logger } = setup();
+      const workerError = Object.assign(new Error("write refused (Queue: test, Worker: worker-1)"), { queue: "test", worker: "worker-1" });
+
+      await service.setup();
+      errorHandlerRegisteredOn(pgBoss)(workerError);
+
+      expect(logger.error).toHaveBeenCalledWith({ event: "JOB_QUEUE_WORKER_ERROR", queue: "test", worker: "worker-1", error: workerError });
     });
   });
 
@@ -855,6 +854,12 @@ describe(JobQueueService.name, () => {
   it("obliges every handler to declare the permissions its execution needs", () => {
     expectTypeOf<JobHandler<TestJob>["requiresPermission"]>().toBeFunction();
   });
+
+  function errorHandlerRegisteredOn(pgBoss: PgBoss): (error: Error) => void {
+    const registration = vi.mocked(pgBoss.on).mock.calls.find(([event]) => event === "error");
+    if (!registration) throw new Error("setup() registered no pg-boss error handler");
+    return registration[1] as (error: Error) => void;
+  }
 
   function setup(input?: { pgBoss?: PgBoss; postgresDbUri?: string; queues?: QueueResult[] }) {
     const mocks = {

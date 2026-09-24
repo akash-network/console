@@ -72,6 +72,13 @@ function toStorableError(error: unknown): unknown {
   return storable;
 }
 
+type WorkerError = Error & { queue: string; worker: string };
+
+/** pg-boss stamps `queue` and `worker` only on an error that escaped a worker loop: a failed fetch, or a completion or failure write it could not make. */
+function isWorkerError(error: Error): error is WorkerError {
+  return "queue" in error && typeof error.queue === "string" && "worker" in error && typeof error.worker === "string";
+}
+
 @singleton()
 export class JobQueueService implements Disposable {
   private readonly pgBoss: PgBoss;
@@ -477,6 +484,10 @@ export class JobQueueService implements Disposable {
   async setup(): Promise<void> {
     this.logger.info({ event: "JOB_QUEUE_STARTING" });
     this.pgBoss.on("error", error => {
+      if (isWorkerError(error)) {
+        this.logger.error({ event: "JOB_QUEUE_WORKER_ERROR", queue: error.queue, worker: error.worker, error });
+        return;
+      }
       this.logger.error({ event: "JOB_QUEUE_ERROR", error });
     });
     await this.pgBoss.start();
