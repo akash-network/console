@@ -221,7 +221,7 @@ describe(DeploymentUpdate.name, () => {
     });
 
     it("holds the gpu model's place while the reading loads", () => {
-      setup({ leases: [leaseWithDetectedH100s(), leaseOn("edge-eu", "akash1eu")], isLoadingDetectedGpus: true });
+      setup({ leases: [leaseWithDetectedH100s(), leaseOn("edge-eu", "akash1eu")], isLoadingLeaseGpus: true });
 
       expect(within(placementCard("edge-us")).getByTestId("gpu-model-skeleton")).toBeInTheDocument();
     });
@@ -843,7 +843,7 @@ describe(DeploymentUpdate.name, () => {
       sdlRefusal?: string | null;
       secretsUnreadable?: boolean;
       leases?: LeaseDto[] | null;
-      isLoadingDetectedGpus?: boolean;
+      isLoadingLeaseGpus?: boolean;
     } = {}
   ) {
     const submit = vi.fn();
@@ -877,7 +877,7 @@ describe(DeploymentUpdate.name, () => {
         deployment={deployment}
         leases={leases}
         providers={providers}
-        isLoadingDetectedGpus={input.isLoadingDetectedGpus}
+        isLoadingLeaseGpus={input.isLoadingLeaseGpus}
         definition={definition}
         onUpdated={onUpdated}
         onRedeploy={onRedeploy}

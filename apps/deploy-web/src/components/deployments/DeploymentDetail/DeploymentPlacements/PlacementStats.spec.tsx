@@ -20,11 +20,11 @@ describe(buildPlacementStats.name, () => {
 
   it("labels the lease's gpus before the service count when it holds some", () => {
     const lease = mock<LeaseDto>({ cpuAmount: 1, memoryAmount: 1024 ** 3, storageAmount: 1024 ** 3, gpuAmount: 2 });
-    const detected = [{ displayName: "A100", count: 2 }];
+    const resolved = [{ displayName: "A100", count: 2 }];
 
-    const stats = buildPlacementStats(lease, 1, { models: ["a100"], detected, isLoading: true });
+    const stats = buildPlacementStats(lease, 1, { models: ["a100"], resolved, isLoading: true });
 
     expect(stats.map(stat => stat.label)).toEqual(["vCPU", "Memory", "Storage", "GPU", "Services"]);
-    expect(stats[3]).toEqual({ label: "GPU", value: <GpuLabel gpuAmount={2} models={["a100"]} detected={detected} isLoading /> });
+    expect(stats[3]).toEqual({ label: "GPU", value: <GpuLabel gpuAmount={2} models={["a100"]} resolved={resolved} isLoading /> });
   });
 });

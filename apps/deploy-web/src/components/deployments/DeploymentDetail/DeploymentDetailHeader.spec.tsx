@@ -259,7 +259,7 @@ describe(DeploymentDetailHeader.name, () => {
   });
 
   it("holds the gpu model's place while the reading loads", () => {
-    setup({ gpuAmount: 1, isLoadingDetectedGpus: true });
+    setup({ gpuAmount: 1, isLoadingLeaseGpus: true });
 
     expect(screen.getByTestId("gpu-model-skeleton")).toBeInTheDocument();
   });
@@ -314,7 +314,7 @@ describe(DeploymentDetailHeader.name, () => {
     providers?: ApiProviderList[];
     gpuAmount?: number;
     groups?: DeploymentGroup[];
-    isLoadingDetectedGpus?: boolean;
+    isLoadingLeaseGpus?: boolean;
     dependencies?: Partial<typeof DEPENDENCIES>;
   }) {
     const changeDeploymentName = vi.fn();
@@ -380,7 +380,7 @@ describe(DeploymentDetailHeader.name, () => {
         deployment={deployment}
         leases={leases}
         providers={providers}
-        isLoadingDetectedGpus={input.isLoadingDetectedGpus}
+        isLoadingLeaseGpus={input.isLoadingLeaseGpus}
         dependencies={dependencies}
       />
     );

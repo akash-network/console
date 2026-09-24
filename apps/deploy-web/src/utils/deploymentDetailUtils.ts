@@ -3,8 +3,8 @@ import type {
   DeploymentGroup,
   DeploymentResource_V2,
   DeploymentResource_V3,
-  DetectedLeaseGpus,
   LeaseDto,
+  LeaseGpus,
   ListDeploymentsItem,
   ListedDeploymentDto,
   RpcDeployment,
@@ -70,7 +70,7 @@ export function listedDeploymentToDto(item: ListDeploymentsItem): ListedDeployme
     ...deploymentToDto(item as RpcDeployment),
     name: item.name,
     leases: item.leases.map(lease =>
-      leaseToDto({ lease: lease as RpcLease["lease"], detectedGpus: lease.detectedGpus }, item as Pick<RpcDeployment, "groups">)
+      leaseToDto({ lease: lease as RpcLease["lease"], detectedGpus: lease.detectedGpus, offeredGpus: lease.offeredGpus }, item as Pick<RpcDeployment, "groups">)
     ),
     settings: item.settings
   };
@@ -92,7 +92,7 @@ export const getStorageAmount = (resource: DeploymentResource_V2 | DeploymentRes
   return storage;
 };
 
-export function leaseToDto(lease: Pick<RpcLease, "lease"> & { detectedGpus?: DetectedLeaseGpus }, deployment: Pick<RpcDeployment, "groups">): LeaseDto {
+export function leaseToDto(lease: Pick<RpcLease, "lease"> & LeaseGpus, deployment: Pick<RpcDeployment, "groups">): LeaseDto {
   const group = deployment ? deployment.groups.filter(g => g.id.gseq === lease.lease.id.gseq)[0] : ({} as DeploymentGroup);
   return {
     id: lease.lease.id.dseq + lease.lease.id.gseq + lease.lease.id.oseq,
@@ -104,6 +104,7 @@ export function leaseToDto(lease: Pick<RpcLease, "lease"> & { detectedGpus?: Det
     state: lease.lease.state,
     price: lease.lease.price,
     detectedGpus: lease.detectedGpus,
+    offeredGpus: lease.offeredGpus,
     cpuAmount: deployment ? deploymentGroupResourceSum(group, r => parseInt(r.cpu.units.val) / 1000) : undefined,
     gpuAmount: deployment ? deploymentGroupResourceSum(group, r => parseInt(r.gpu?.units?.val || "0")) : undefined,
     memoryAmount: deployment ? deploymentGroupResourceSum(group, r => parseInt(r.memory.quantity.val)) : undefined,

@@ -271,8 +271,13 @@ export type ListDeploymentsItem = paths["/v1/deployments"]["get"]["responses"][2
 /** What the console observed running inside a lease's containers, as distinct from the model its group requested on chain. */
 export type DetectedLeaseGpus = NonNullable<ListDeploymentsItem["leases"][number]["detectedGpus"]>;
 
+/** What the provider offered for a lease in the bid it was created from, which is what an `Any model` request resolves to. */
+export type OfferedLeaseGpus = NonNullable<ListDeploymentsItem["leases"][number]["offeredGpus"]>;
+
+export type LeaseGpus = Pick<LeaseDto, "detectedGpus" | "offeredGpus">;
+
 /** Keyed `gseq/oseq/provider`, the only identity a chain lease and a console lease share. */
-export type DetectedGpusByLease = Partial<Record<string, DetectedLeaseGpus>>;
+export type LeaseGpusByLease = Partial<Record<string, LeaseGpus>>;
 
 /** What the console records about a deployment, as a list shows it. Absent for one the console holds no record of. */
 export type ListedDeploymentSettings = ListDeploymentsItem["settings"];
@@ -307,6 +312,8 @@ export interface LeaseDto {
   group?: DeploymentGroup;
   /** Present only where the console has looked inside and found a gpu; absent is "not looked", never "no gpu". */
   detectedGpus?: DetectedLeaseGpus;
+  /** Present only where the console recorded the lease's bid; absent is "not recorded", never "no gpu". */
+  offeredGpus?: OfferedLeaseGpus;
   reason?: string;
   closedOn?: string;
   reclamation?: {

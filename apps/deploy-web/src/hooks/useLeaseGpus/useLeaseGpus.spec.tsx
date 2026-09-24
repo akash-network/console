@@ -5,8 +5,8 @@ import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { LeaseDto } from "@src/types/deployment";
-import type { DEPENDENCIES } from "./useDetectedLeaseGpus";
-import { leaseGpuKeyOf, useDetectedLeaseGpus, withDetectedGpus } from "./useDetectedLeaseGpus";
+import type { DEPENDENCIES } from "./useLeaseGpus";
+import { leaseGpuKeyOf, useLeaseGpus, withLeaseGpus } from "./useLeaseGpus";
 
 import { act } from "@testing-library/react";
 import { type RenderAppHookOptions, setupQuery } from "@tests/unit/query-client";
@@ -19,13 +19,32 @@ const DETECTED = {
   driverVersion: "550.54.15",
   detectedAt: "2026-09-21T10:00:00.000Z"
 };
+const OFFERED = {
+  gpus: [{ vendor: "nvidia", model: "a100", displayName: "A100", ram: "80Gi", interface: "sxm", count: 8 }],
+  recordedAt: "2026-09-21T09:00:00.000Z"
+};
 
-describe(useDetectedLeaseGpus.name, () => {
+describe(useLeaseGpus.name, () => {
   it("keys what it read by the identity a chain lease and a console lease share", async () => {
     const { result } = setup({ leases: [{ id: { gseq: 1, oseq: 2, provider: PROVIDER }, detectedGpus: DETECTED }] });
 
     await vi.waitFor(() => expect(Object.keys(result.current.byLease)).toHaveLength(1));
-    expect(result.current.byLease[`1/2/${PROVIDER}`]).toEqual(DETECTED);
+    expect(result.current.byLease[`1/2/${PROVIDER}`]).toEqual({ detectedGpus: DETECTED });
+  });
+
+  it("holds what the lease's bid offered next to what the console read", async () => {
+    const { result } = setup({ leases: [{ id: { gseq: 1, oseq: 2, provider: PROVIDER }, detectedGpus: DETECTED, offeredGpus: OFFERED }] });
+
+    await vi.waitFor(() => expect(Object.keys(result.current.byLease)).toHaveLength(1));
+    expect(result.current.byLease[`1/2/${PROVIDER}`]).toEqual({ detectedGpus: DETECTED, offeredGpus: OFFERED });
+  });
+
+  it("holds an offer alone for a lease the console has not looked inside, without a blank reading beside it", async () => {
+    const { result } = setup({ leases: [{ id: { gseq: 1, oseq: 2, provider: PROVIDER }, offeredGpus: OFFERED }] });
+
+    await vi.waitFor(() => expect(Object.keys(result.current.byLease)).toHaveLength(1));
+    expect(result.current.byLease[`1/2/${PROVIDER}`]).toEqual({ offeredGpus: OFFERED });
+    expect(result.current.byLease[`1/2/${PROVIDER}`]).not.toHaveProperty("detectedGpus");
   });
 
   it("asks for the deployment it was given", async () => {
@@ -34,12 +53,12 @@ describe(useDetectedLeaseGpus.name, () => {
     await vi.waitFor(() => expect(getDeployment).toHaveBeenCalledWith({ dseq: "12345" }));
   });
 
-  it("keys only the leases the console has looked inside", async () => {
+  it("keys only the leases the console recorded something for", async () => {
     const { result } = setup({
       leases: [{ id: { gseq: 1, oseq: 1, provider: PROVIDER } }, { id: { gseq: 1, oseq: 2, provider: PROVIDER }, detectedGpus: DETECTED }]
     });
 
-    await vi.waitFor(() => expect(result.current.byLease[leaseGpuKeyOf({ gseq: 1, oseq: 2, provider: PROVIDER })]).toEqual(DETECTED));
+    await vi.waitFor(() => expect(result.current.byLease[leaseGpuKeyOf({ gseq: 1, oseq: 2, provider: PROVIDER })]).toEqual({ detectedGpus: DETECTED }));
     expect(Object.keys(result.current.byLease)).toEqual([leaseGpuKeyOf({ gseq: 1, oseq: 2, provider: PROVIDER })]);
   });
 
@@ -65,7 +84,7 @@ describe(useDetectedLeaseGpus.name, () => {
     expect(result.current.byLease).toBe(first);
   });
 
-  it("holds nothing for a lease the console has not looked inside", async () => {
+  it("holds nothing for a lease the console recorded nothing for", async () => {
     const { result, getDeployment } = setup({ leases: [{ id: { gseq: 1, oseq: 2, provider: PROVIDER } }] });
 
     await vi.waitFor(() => expect(getDeployment).toHaveBeenCalled());
@@ -93,7 +112,7 @@ describe(useDetectedLeaseGpus.name, () => {
   });
 
   function setup(input: {
-    leases?: Array<{ id: { gseq: number; oseq: number; provider: string }; detectedGpus?: typeof DETECTED }>;
+    leases?: Array<{ id: { gseq: number; oseq: number; provider: string }; detectedGpus?: typeof DETECTED; offeredGpus?: typeof OFFERED }>;
     apiError?: Error;
     dseq?: string | null;
   }) {
@@ -108,7 +127,7 @@ describe(useDetectedLeaseGpus.name, () => {
     const services = { api } satisfies Partial<ReturnType<typeof DEPENDENCIES.useServices>>;
     const useServices: typeof DEPENDENCIES.useServices = () => services as unknown as ReturnType<typeof DEPENDENCIES.useServices>;
 
-    const { result, rerender } = setupQuery(() => useDetectedLeaseGpus(input.dseq === undefined ? "12345" : input.dseq, { useServices }), {
+    const { result, rerender } = setupQuery(() => useLeaseGpus(input.dseq === undefined ? "12345" : input.dseq, { useServices }), {
       services: { api: () => api, queryClient: () => queryClient }
     });
 
@@ -116,25 +135,26 @@ describe(useDetectedLeaseGpus.name, () => {
   }
 });
 
-describe(withDetectedGpus.name, () => {
-  it("joins what was read onto the lease it was read from", () => {
+describe(withLeaseGpus.name, () => {
+  it("joins what was recorded onto the lease it was recorded for", () => {
     const leases = [lease(1), lease(2)];
 
-    const joined = withDetectedGpus(leases, { [leaseGpuKeyOf(leases[0])]: DETECTED });
+    const joined = withLeaseGpus(leases, { [leaseGpuKeyOf(leases[0])]: { detectedGpus: DETECTED, offeredGpus: OFFERED } });
 
     expect(joined?.[0].detectedGpus).toEqual(DETECTED);
+    expect(joined?.[0].offeredGpus).toEqual(OFFERED);
     expect(joined?.[1]).toBe(leases[1]);
   });
 
-  it("returns the leases untouched when nothing was read", () => {
+  it("returns the leases untouched when nothing was recorded", () => {
     const leases = [lease(1)];
 
-    expect(withDetectedGpus(leases, {})).toBe(leases);
+    expect(withLeaseGpus(leases, {})).toBe(leases);
   });
 
   it("carries an absent lease list through as it found it", () => {
-    expect(withDetectedGpus(undefined, { "1/1/x": DETECTED })).toBeUndefined();
-    expect(withDetectedGpus(null, { "1/1/x": DETECTED })).toBeNull();
+    expect(withLeaseGpus(undefined, { "1/1/x": { detectedGpus: DETECTED } })).toBeUndefined();
+    expect(withLeaseGpus(null, { "1/1/x": { detectedGpus: DETECTED } })).toBeNull();
   });
 
   function lease(gseq: number): LeaseDto {

@@ -6,7 +6,7 @@ import { MapPin, NavArrowRight, Server } from "iconoir-react";
 import type { LeaseDto } from "@src/types/deployment";
 import type { ApiProviderList } from "@src/types/provider";
 import { providerDisplayName } from "@src/utils/providerUtils";
-import { foldDetectedGpus, getPlacementGpuModels, getProviderRegion } from "../DeploymentPlacements/placementModel";
+import { getPlacementGpuModels, getProviderRegion, resolveLeaseGpus } from "../DeploymentPlacements/placementModel";
 import { buildPlacementStats, PlacementStats } from "../DeploymentPlacements/PlacementStats";
 import { UpdateServiceSection } from "./UpdateServiceSection";
 
@@ -23,10 +23,10 @@ export interface UpdatePlacementCardProps {
   provider?: ApiProviderList;
   services: UpdatePlacementService[];
   locked: boolean;
-  isLoadingDetectedGpus?: boolean;
+  isLoadingLeaseGpus?: boolean;
 }
 
-export const UpdatePlacementCard: FC<UpdatePlacementCardProps> = ({ position, name, lease, provider, services, locked, isLoadingDetectedGpus }) => {
+export const UpdatePlacementCard: FC<UpdatePlacementCardProps> = ({ position, name, lease, provider, services, locked, isLoadingLeaseGpus }) => {
   const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(() => new Set());
   const region = getProviderRegion(provider);
   const providerName = provider ? providerDisplayName(provider) : undefined;
@@ -78,8 +78,8 @@ export const UpdatePlacementCard: FC<UpdatePlacementCardProps> = ({ position, na
             <PlacementStats
               stats={buildPlacementStats(lease, services.length, {
                 models: getPlacementGpuModels(lease.group),
-                detected: foldDetectedGpus(lease.detectedGpus),
-                isLoading: isLoadingDetectedGpus
+                resolved: resolveLeaseGpus(lease),
+                isLoading: isLoadingLeaseGpus
               })}
             />
           </div>
