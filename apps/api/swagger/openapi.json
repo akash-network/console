@@ -19403,6 +19403,17 @@
                         "na-us-west"
                       ]
                     },
+                    "regionProviderCounts": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "integer"
+                      },
+                      "description": "Online providers advertising each region, keyed by region",
+                      "example": {
+                        "eu-west": 2,
+                        "na-us-west": 5
+                      }
+                    },
                     "gpus": {
                       "type": "array",
                       "items": {
@@ -19442,12 +19453,18 @@
                                   "example": [
                                     "PCIe"
                                   ]
+                                },
+                                "providerCount": {
+                                  "type": "integer",
+                                  "description": "Online providers with free capacity on a node holding this model",
+                                  "example": 3
                                 }
                               },
                               "required": [
                                 "name",
                                 "memory",
-                                "interface"
+                                "interface",
+                                "providerCount"
                               ]
                             }
                           }
@@ -19462,6 +19479,7 @@
                   },
                   "required": [
                     "regions",
+                    "regionProviderCounts",
                     "gpus"
                   ]
                 }

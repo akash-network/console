@@ -19,19 +19,30 @@ describe(PlacementOptionsRepository.name, () => {
   });
 
   describe("findOnlineRegions", () => {
-    it("returns each region an online provider advertises, once, sorted", async () => {
+    it("counts the online providers advertising each region, sorted by region", async () => {
       await seed({ owner: "akash1a", region: "eu-west" });
       await seed({ owner: "akash1b", region: "eu-west" });
       await seed({ owner: "akash1c", region: "as-east" });
 
-      expect(await repository.findOnlineRegions()).toEqual(["as-east", "eu-west"]);
+      expect(await repository.findOnlineRegions()).toEqual([
+        { region: "as-east", providerCount: 1 },
+        { region: "eu-west", providerCount: 2 }
+      ]);
     });
 
     it("leaves out regions whose only providers are offline", async () => {
       await seed({ owner: "akash1online", region: "eu-west" });
       await seed({ owner: "akash1offline", region: "sa-brazil", isOnline: false });
 
-      expect(await repository.findOnlineRegions()).toEqual(["eu-west"]);
+      expect(await repository.findOnlineRegions()).toEqual([{ region: "eu-west", providerCount: 1 }]);
+    });
+
+    it("counts only the providers of a region that are online", async () => {
+      await seed({ owner: "akash1online", region: "eu-west" });
+      await seed({ owner: "akash1offline", region: "eu-west", isOnline: false });
+      await seed({ owner: "akash1neverUp", region: "eu-west", isOnlineSince: null });
+
+      expect(await repository.findOnlineRegions()).toEqual([{ region: "eu-west", providerCount: 1 }]);
     });
 
     it("leaves out a provider marked online that never came up", async () => {
@@ -47,14 +58,14 @@ describe(PlacementOptionsRepository.name, () => {
         signedAttributes: [{ key: "location-region", value: "na-us-east" }]
       });
 
-      expect(await repository.findOnlineRegions()).toEqual(["na-us-east"]);
+      expect(await repository.findOnlineRegions()).toEqual([{ region: "na-us-east", providerCount: 1 }]);
     });
 
     it("leaves out providers that advertise no region", async () => {
       await seed({ owner: "akash1regionless", selfAttributes: [{ key: "organization", value: "akash" }] });
       await seed({ owner: "akash1placed", region: "eu-west" });
 
-      expect(await repository.findOnlineRegions()).toEqual(["eu-west"]);
+      expect(await repository.findOnlineRegions()).toEqual([{ region: "eu-west", providerCount: 1 }]);
     });
   });
 
@@ -67,8 +78,22 @@ describe(PlacementOptionsRepository.name, () => {
       });
 
       expect(await repository.findAvailableGpus()).toEqual([
-        { vendor: "nvidia", model: "a100", memory: "40Gi", interface: "pcie" },
-        { vendor: "nvidia", model: "h100", memory: "80Gi", interface: "pcie" }
+        { owner: "akash1gpu", vendor: "nvidia", model: "a100", memory: "40Gi", interface: "pcie" },
+        { owner: "akash1gpu", vendor: "nvidia", model: "h100", memory: "80Gi", interface: "pcie" }
+      ]);
+    });
+
+    it("reports a gpu once for each provider offering it", async () => {
+      await seed({
+        owner: "akash1first",
+        maxNodeFreeGpu: 4n,
+        nodes: [node({ info: [gpuInfo({ name: "a100" })] }), node({ info: [gpuInfo({ name: "a100" })] })]
+      });
+      await seed({ owner: "akash1second", maxNodeFreeGpu: 4n, nodes: [node({ info: [gpuInfo({ name: "a100" })] })] });
+
+      expect(await repository.findAvailableGpus()).toEqual([
+        { owner: "akash1first", vendor: "nvidia", model: "a100", memory: "40Gi", interface: "pcie" },
+        { owner: "akash1second", vendor: "nvidia", model: "a100", memory: "40Gi", interface: "pcie" }
       ]);
     });
 
@@ -122,7 +147,7 @@ describe(PlacementOptionsRepository.name, () => {
     it("reports a memory size or interface the provider left blank as blank", async () => {
       await seed({ owner: "akash1blank", maxNodeFreeGpu: 4n, nodes: [node({ info: [gpuInfo({ name: "a100", memorySize: "", interface: "" })] })] });
 
-      expect(await repository.findAvailableGpus()).toEqual([{ vendor: "nvidia", model: "a100", memory: "", interface: "" }]);
+      expect(await repository.findAvailableGpus()).toEqual([{ owner: "akash1blank", vendor: "nvidia", model: "a100", memory: "", interface: "" }]);
     });
   });
 

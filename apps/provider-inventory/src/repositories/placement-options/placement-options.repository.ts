@@ -6,7 +6,13 @@ import { type Database, PG_CLIENT } from "@src/providers/postgres.provider";
 
 const TABLE = getTableName(providerInventory);
 
+export interface OnlineRegion {
+  region: string;
+  providerCount: number;
+}
+
 export interface AvailableGpu {
+  owner: string;
   vendor: string;
   model: string;
   memory: string;
@@ -24,22 +30,24 @@ export class PlacementOptionsRepository {
     this.#sql = sql;
   }
 
-  async findOnlineRegions(): Promise<string[]> {
+  async findOnlineRegions(): Promise<OnlineRegion[]> {
     const sql = this.#sql;
-    const rows = await sql<Array<{ region: string | null }>>`
-      SELECT DISTINCT COALESCE(
-        (SELECT a->>'value' FROM jsonb_array_elements(${sql(providerInventory.signedAttributes.name)}) AS a WHERE a->>'key' = 'location-region' LIMIT 1),
-        (SELECT a->>'value' FROM jsonb_array_elements(${sql(providerInventory.selfAttributes.name)}) AS a WHERE a->>'key' = 'location-region' LIMIT 1)
-      ) AS region
-      FROM ${sql(TABLE)}
-      WHERE ${sql(providerInventory.isOnline.name)} = true
-        AND ${sql(providerInventory.isOnlineSince.name)} IS NOT NULL
+    return await sql<OnlineRegion[]>`
+      WITH online_providers AS (
+        SELECT COALESCE(
+          (SELECT a->>'value' FROM jsonb_array_elements(${sql(providerInventory.signedAttributes.name)}) AS a WHERE a->>'key' = 'location-region' LIMIT 1),
+          (SELECT a->>'value' FROM jsonb_array_elements(${sql(providerInventory.selfAttributes.name)}) AS a WHERE a->>'key' = 'location-region' LIMIT 1)
+        ) AS region
+        FROM ${sql(TABLE)}
+        WHERE ${sql(providerInventory.isOnline.name)} = true
+          AND ${sql(providerInventory.isOnlineSince.name)} IS NOT NULL
+      )
+      SELECT region, COUNT(*)::int AS "providerCount"
+      FROM online_providers
+      WHERE COALESCE(region, '') <> ''
+      GROUP BY region
+      ORDER BY region
     `;
-
-    return rows
-      .map(row => row.region)
-      .filter((region): region is string => !!region)
-      .sort();
   }
 
   /** Filtered on a node's free GPU capacity rather than on which of its GPUs are free, because the inventory does not say which units are free. */
@@ -48,6 +56,7 @@ export class PlacementOptionsRepository {
     return await sql<AvailableGpu[]>`
       WITH gpu_nodes AS (
         SELECT
+          ${sql(providerInventory.owner.name)} AS owner,
           node -> 'gpu' -> 'quantity' AS quantity,
           node -> 'gpu' -> 'info' AS info
         FROM ${sql(TABLE)}
@@ -59,7 +68,7 @@ export class PlacementOptionsRepository {
           AND ${sql(providerInventory.maxNodeFreeGpu.name)} > 0
       ),
       free_gpu_nodes AS (
-        SELECT info
+        SELECT owner, info
         FROM gpu_nodes
         WHERE jsonb_typeof(quantity -> 'allocatable') = 'number'
           AND (
@@ -68,6 +77,7 @@ export class PlacementOptionsRepository {
           )
       )
       SELECT DISTINCT
+        owner,
         gpu ->> 'vendor' AS vendor,
         gpu ->> 'name' AS model,
         COALESCE(gpu ->> 'memorySize', '') AS memory,
@@ -78,7 +88,7 @@ export class PlacementOptionsRepository {
       ) AS gpu
       WHERE COALESCE(gpu ->> 'vendor', '') <> ''
         AND COALESCE(gpu ->> 'name', '') <> ''
-      ORDER BY vendor, model, memory, "interface"
+      ORDER BY vendor, model, memory, "interface", owner
     `;
   }
 }

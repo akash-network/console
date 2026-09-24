@@ -86,7 +86,7 @@ describe(narrowGpuVendorsToAvailable.name, () => {
   });
 
   function model(name: string, memory: string[], gpuInterface: string[]): AvailableGpuVendor["models"][number] {
-    return { name, memory, interface: gpuInterface };
+    return { name, memory, interface: gpuInterface, providerCount: 1 };
   }
 });
 

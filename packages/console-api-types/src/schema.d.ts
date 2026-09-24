@@ -9799,6 +9799,16 @@ export interface operations {
              *     ]
              */
             regions: string[];
+            /**
+             * @description Online providers advertising each region, keyed by region
+             * @example {
+             *       "eu-west": 2,
+             *       "na-us-west": 5
+             *     }
+             */
+            regionProviderCounts: {
+              [key: string]: number;
+            };
             /** @description GPUs that online providers have free capacity for, grouped by vendor */
             gpus: {
               /**
@@ -9826,6 +9836,11 @@ export interface operations {
                  *     ]
                  */
                 interface: string[];
+                /**
+                 * @description Online providers with free capacity on a node holding this model
+                 * @example 3
+                 */
+                providerCount: number;
               }[];
             }[];
           };
