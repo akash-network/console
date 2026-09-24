@@ -99,15 +99,15 @@ export class SigningClientService {
         }
 
         try {
-          const { txHash, expiresAt } = await withSpan("SigningClientService.signAndBroadcast", async () => {
+          const { broadcast, expiresAt } = await withSpan("SigningClientService.signAndBroadcast", async () => {
             const signedTx = await this.#client.signUnordered(messages, { granter: options?.fee?.granter, gas });
-            return { txHash: await this.#broadcast(signedTx), expiresAt: readExpiry(signedTx) };
+            return { broadcast: await this.#broadcast(signedTx), expiresAt: readExpiry(signedTx) };
           });
 
-          const foundTx = await this.#pollTx(txHash, deadline);
+          const foundTx = await this.#pollTx(broadcast, deadline);
 
           if (!foundTx) {
-            throw this.#txNotIncludedError(txHash, expiresAt);
+            throw this.#txNotIncludedError(broadcast.txHash, expiresAt);
           }
 
           prevResult = foundTx;
@@ -202,11 +202,11 @@ export class SigningClientService {
   }
 
   /** Only a {@link BroadcastTxError} proves the node refused the tx; any other failure here can carry an already-accepted tx. */
-  async #broadcast(signedTx: TxRaw): Promise<string> {
+  async #broadcast(signedTx: TxRaw): Promise<Broadcast> {
     const txBytes = TxRaw.encode(signedTx).finish();
 
     try {
-      return await this.#client.broadcastTxSync(txBytes);
+      return { txHash: await this.#client.broadcastTxSync(txBytes), txBytes, isAnswered: true };
     } catch (error: unknown) {
       if (error instanceof BroadcastTxError) {
         throw error;
@@ -215,12 +215,12 @@ export class SigningClientService {
       const txHash = deriveTxHash(txBytes);
 
       if (error instanceof Error && error.message.toLowerCase().includes("tx already exists in cache")) {
-        return txHash;
+        return { txHash, txBytes, isAnswered: true };
       }
 
       if (isRetriableTransportError(error)) {
         this.#logger.warn({ event: "SIGN_AND_BROADCAST_BROADCAST_UNANSWERED", txHash, error });
-        return txHash;
+        return { txHash, txBytes, isAnswered: false };
       }
 
       throw this.#undecidedOutcomeError(txHash, { error });
@@ -228,12 +228,15 @@ export class SigningClientService {
   }
 
   /** Stops on a wall clock rather than an attempt count, so a slow `getTx` spends the window instead of running the poll past the deadline. */
-  async #pollTx(hash: string, deadline: number): Promise<IndexedTx | null> {
+  async #pollTx(broadcast: Broadcast, deadline: number): Promise<IndexedTx | null> {
+    const hash = broadcast.txHash;
+
     if (Date.now() >= deadline) {
       throw this.#undecidedOutcomeError(hash, { reason: "no budget left to poll" });
     }
 
     const pollUntil = Math.min(deadline, Date.now() + this.#ttlMs * TX_RECOVERY_WINDOW_FACTOR);
+    let isAnswered = broadcast.isAnswered;
 
     try {
       for (let attempt = 0; ; attempt++) {
@@ -249,10 +252,27 @@ export class SigningClientService {
           return null;
         }
 
+        if (!isAnswered) {
+          isAnswered = await this.#resend(broadcast);
+        }
+
         await delay(TX_RECOVERY_POLL_INTERVAL_MS);
       }
     } catch (error: unknown) {
       throw this.#undecidedOutcomeError(hash, { error });
+    }
+  }
+
+  /** Safe to repeat because the chain executes a signed tx at most once; resolves whether the node has now answered. */
+  async #resend({ txHash, txBytes }: Broadcast): Promise<boolean> {
+    try {
+      await this.#client.broadcastTxSync(txBytes);
+      this.#logger.info({ event: "SIGN_AND_BROADCAST_RESENT", txHash });
+      return true;
+    } catch (error: unknown) {
+      const isAnswered = !isRetriableTransportError(error);
+      this.#logger.warn({ event: isAnswered ? "SIGN_AND_BROADCAST_RESEND_REFUSED" : "SIGN_AND_BROADCAST_RESEND_UNANSWERED", txHash, error });
+      return isAnswered;
     }
   }
 }
@@ -274,6 +294,12 @@ function readExpiry(signedTx: TxRaw): Date | undefined {
 interface OutOfGasInfo {
   gasWanted: number;
   gasUsed: number;
+}
+
+interface Broadcast {
+  txHash: string;
+  txBytes: Uint8Array;
+  isAnswered: boolean;
 }
 
 function isIndexedTx(value: unknown): value is IndexedTx {

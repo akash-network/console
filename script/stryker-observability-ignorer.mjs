@@ -30,6 +30,7 @@ function isObservabilityCall(node) {
 
 function propertyName({ property, computed }) {
   if (property.type === "StringLiteral") return property.value;
+  if (property.type === "PrivateName") return property.id.name;
 
   return !computed && property.type === "Identifier" ? property.name : "";
 }
