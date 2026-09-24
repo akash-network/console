@@ -21,7 +21,8 @@ export function narrowGpuVendorsToAvailable(catalog: GpuVendor[] | undefined, av
           displayName: catalogModel?.displayName,
           memory: availableModel.memory.length ? availableModel.memory : catalogModel?.memory ?? [],
           interface: availableModel.interface.length ? availableModel.interface : catalogModel?.interface ?? [],
-          providerCount: availableModel.providerCount
+          providerCount: availableModel.providerCount,
+          variants: availableModel.variants?.length ? availableModel.variants : undefined
         };
       })
     };
@@ -67,6 +68,22 @@ function withPinnedModel(models: GpuModel[], pinned: PinnedGpu): GpuModel[] {
   else merged[index] = entry;
 
   return merged;
+}
+
+/** A provider bids only on the exact GPU key the SDL builds, so a pinned interface limits the memory sizes to those advertised with it. */
+export function listGpuMemoryOptions(model: GpuModel | undefined, pinned: PinnedGpu): string[] {
+  const offered = model?.variants
+    ? model.variants.flatMap(variant => (variant.memory !== null && variant.interface === (pinned.interface || null) ? [variant.memory] : []))
+    : model?.memory ?? [];
+  return withPinnedValue(offered, pinned.memory);
+}
+
+/** A provider bids only on the exact GPU key the SDL builds, so a pinned memory size limits the interfaces to those advertised with it. */
+export function listGpuInterfaceOptions(model: GpuModel | undefined, pinned: PinnedGpu): string[] {
+  const offered = model?.variants
+    ? model.variants.flatMap(variant => (variant.interface !== null && variant.memory === (pinned.memory || null) ? [variant.interface] : []))
+    : model?.interface ?? [];
+  return withPinnedValue(offered, pinned.interface);
 }
 
 function withPinnedValue(values: string[], pinned: string | null | undefined): string[] {

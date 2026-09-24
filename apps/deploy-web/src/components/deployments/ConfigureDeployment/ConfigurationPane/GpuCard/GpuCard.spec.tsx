@@ -484,6 +484,93 @@ describe(GpuCard.name, () => {
       expect(screen.queryByRole("option", { name: "pcie" })).not.toBeInTheDocument();
     });
 
+    it("offers only the interfaces a provider advertises with the memory size just pinned", async () => {
+      const { user } = setup({
+        hasGpu: true,
+        gpuModels: [{ vendor: "nvidia", name: "h100", memory: "", interface: "" }],
+        availableGpus: [
+          {
+            vendor: "nvidia",
+            models: [
+              {
+                ...availableModel("h100", ["80Gi"], ["sxm", "pcie"]),
+                variants: [
+                  { memory: null, interface: null, providerCount: 3 },
+                  { memory: "80Gi", interface: null, providerCount: 3 },
+                  { memory: null, interface: "sxm", providerCount: 3 },
+                  { memory: null, interface: "pcie", providerCount: 1 },
+                  { memory: "80Gi", interface: "pcie", providerCount: 1 }
+                ]
+              }
+            ]
+          }
+        ]
+      });
+
+      await user.click(screen.getByRole("combobox", { name: "GPU memory" }));
+      await user.click(await screen.findByRole("option", { name: "80Gi" }));
+      await user.click(screen.getByRole("combobox", { name: "GPU interface" }));
+
+      expect(await screen.findByRole("option", { name: "pcie" })).toBeInTheDocument();
+      expect(screen.queryByRole("option", { name: "sxm" })).not.toBeInTheDocument();
+    });
+
+    it("offers only the memory sizes a provider advertises with the interface just pinned", async () => {
+      const { user } = setup({
+        hasGpu: true,
+        gpuModels: [{ vendor: "nvidia", name: "a100", memory: "", interface: "" }],
+        availableGpus: [
+          {
+            vendor: "nvidia",
+            models: [
+              {
+                ...availableModel("a100", ["40Gi", "80Gi"], ["sxm"]),
+                variants: [
+                  { memory: null, interface: null, providerCount: 2 },
+                  { memory: "40Gi", interface: null, providerCount: 1 },
+                  { memory: "80Gi", interface: null, providerCount: 1 },
+                  { memory: null, interface: "sxm", providerCount: 1 },
+                  { memory: "80Gi", interface: "sxm", providerCount: 1 }
+                ]
+              }
+            ]
+          }
+        ]
+      });
+
+      await user.click(screen.getByRole("combobox", { name: "GPU interface" }));
+      await user.click(await screen.findByRole("option", { name: "sxm" }));
+      await user.click(screen.getByRole("combobox", { name: "GPU memory" }));
+
+      expect(await screen.findByRole("option", { name: "80Gi" })).toBeInTheDocument();
+      expect(screen.queryByRole("option", { name: "40Gi" })).not.toBeInTheDocument();
+    });
+
+    it("keeps showing a pinned memory size and interface that no provider advertises together", () => {
+      setup({
+        hasGpu: true,
+        gpuModels: [{ vendor: "nvidia", name: "h100", memory: "80Gi", interface: "sxm" }],
+        availableGpus: [
+          {
+            vendor: "nvidia",
+            models: [
+              {
+                ...availableModel("h100", ["80Gi"], ["sxm"]),
+                variants: [
+                  { memory: null, interface: null, providerCount: 1 },
+                  { memory: "80Gi", interface: null, providerCount: 1 },
+                  { memory: null, interface: "sxm", providerCount: 1 }
+                ]
+              }
+            ]
+          }
+        ]
+      });
+
+      expect(screen.getByRole("combobox", { name: "GPU memory" })).toHaveTextContent("80Gi");
+      expect(screen.getByRole("combobox", { name: "GPU interface" })).toHaveTextContent("sxm");
+    });
+
     it("drops the vendor step while one vendor is available and still writes that vendor", () => {
       const { getValues } = setup({ hasGpu: true, availableGpus: [{ vendor: "nvidia", models: [availableModel("t4")] }] });
 
@@ -595,7 +682,11 @@ describe(GpuCard.name, () => {
   });
 
   function availableModel(name: string, memory = ["80Gi"], gpuInterface = ["sxm"], providerCount = 1): AvailableGpuVendor["models"][number] {
-    return { name, memory, interface: gpuInterface, providerCount, variants: [] };
+    return { name, memory, interface: gpuInterface, providerCount, variants: everyVariant(memory, gpuInterface, providerCount) };
+  }
+
+  function everyVariant(memory: string[], gpuInterface: string[], providerCount: number) {
+    return [null, ...memory].flatMap(size => [null, ...gpuInterface].map(option => ({ memory: size, interface: option, providerCount })));
   }
 
   const StubGpuModelFields: typeof DEPENDENCIES.GpuModelFields = ({ gpuIndex }) => <div role="group" aria-label={`GPU ${gpuIndex + 1}`} />;

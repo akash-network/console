@@ -13,4 +13,12 @@ export interface GpuModel {
   interface: string[];
   /** Online providers with free capacity for the model, set only on models narrowed to what providers offer. */
   providerCount?: number;
+  /** Memory and interface combinations some provider would bid on, set only on models narrowed to what providers offer. */
+  variants?: GpuVariant[];
+}
+
+export interface GpuVariant {
+  memory: string | null;
+  interface: string | null;
+  providerCount: number;
 }
