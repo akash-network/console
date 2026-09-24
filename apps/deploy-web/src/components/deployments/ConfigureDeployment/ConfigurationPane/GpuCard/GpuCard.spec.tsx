@@ -122,6 +122,15 @@ describe(GpuCard.name, () => {
     expect(getValues().services[0].profile.gpuModels?.[0]).toEqual({ vendor: "nvidia", name: "t4", memory: "", interface: "" });
   });
 
+  it("keeps a pinned memory and interface when the same model is picked again", async () => {
+    const { getValues, user } = setup({ hasGpu: true, gpuModels: [{ vendor: "nvidia", name: "a100", memory: "40Gi", interface: "pcie" }] });
+
+    await user.click(screen.getByRole("combobox", { name: "GPU model" }));
+    await user.click(await screen.findByRole("option", { name: "a100" }));
+
+    expect(getValues().services[0].profile.gpuModels?.[0]).toEqual({ vendor: "nvidia", name: "a100", memory: "40Gi", interface: "pcie" });
+  });
+
   it("resets model, memory, and interface when the vendor changes", async () => {
     const { getValues, user } = setup({ hasGpu: true, gpuModels: [{ vendor: "nvidia", name: "a100", memory: "40Gi", interface: "pcie" }] });
 

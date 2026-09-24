@@ -200,16 +200,7 @@ type GpuModelFieldsProps = {
   dependencies?: typeof DEPENDENCIES;
 };
 
-/**
- * A single GPU collection: vendor, model, memory and interface selects. Picking
- * a vendor or a model resets the downstream selections, and memory and interface
- * stay disabled until a model is picked.
- *
- * While the GPU model catalog is loading a spinner replaces the selects, and a
- * failed fetch shows a short retryless message, so the model/memory/interface
- * selects never sit permanently dead with no explanation (matching the legacy
- * GPU control's "Loading GPU models…" affordance).
- */
+/** A spinner or error message stands in for the selects while the GPU catalog loads or fails, so they never sit disabled without explanation. */
 function GpuModelFields({
   serviceIndex,
   gpuIndex,
@@ -280,6 +271,9 @@ function GpuModelFields({
   /** A provider bids only on a GPU key it advertises verbatim, so memory and interface stay unpinned until the user asks for them. */
   const selectModel = useCallback(
     (value: string) => {
+      if (value === name.field.value) {
+        return;
+      }
       name.field.onChange(value);
       memory.field.onChange("");
       gpuInterface.field.onChange("");
