@@ -45,6 +45,15 @@ describe(WorkloadAbuseDetectionRepository.name, () => {
       expect(actions).toEqual(["enforced", "enforced", "detected", "detected"]);
       expect(otherWalletId).not.toBe(walletId);
     });
+
+    it("settles a detection confirmed by repeated behaviour alongside the rest", async () => {
+      const { repository, walletId, createDetection } = await setup();
+      const behavioural = await createDetection({ dseq: "1", verdict: "behavioural", action: "enforcing" });
+
+      await repository.markWalletEnforced(walletId);
+
+      expect((await repository.findById(behavioural.id))?.action).toBe("enforced");
+    });
   });
 
   async function setup() {

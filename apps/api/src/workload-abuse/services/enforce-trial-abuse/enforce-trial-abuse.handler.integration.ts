@@ -83,6 +83,43 @@ describe(EnforceTrialAbuseHandler.name, () => {
     expect(await findDomainBlockJob()).toMatchObject({ data: { walletId: wallet.id, version: 1 } });
   });
 
+  it("wipes a wallet confirmed by repeated behaviour, settles its detection and keeps the wipe to that wallet", async () => {
+    const { handler, wallet, detection, findWallet, findDetection, findDomainBlockJob } = await setup({ openDseqs: ["11"], verdict: "behavioural" });
+
+    await handler.handle({ walletId: wallet.id, detectionId: detection.id, version: 1 });
+
+    expect((await findWallet())?.abuseLockedAt).toBeInstanceOf(Date);
+    expect((await findDetection(detection.id))?.action).toBe("enforced");
+    expect(await findDomainBlockJob()).toBeUndefined();
+  });
+
+  it("settles a detection confirmed by repeated behaviour on a wallet already locked without resuming a domain block", async () => {
+    const { handler, wallet, detection, findDetection, findDomainBlockJob } = await setup({ abuseLockedAt: new Date(), verdict: "behavioural" });
+
+    await handler.handle({ walletId: wallet.id, detectionId: detection.id, version: 1 });
+
+    expect((await findDetection(detection.id))?.action).toBe("enforced");
+    expect(await findDomainBlockJob()).toBeUndefined();
+  });
+
+  it("queues the domain block of a wallet that also matched a signature when repeated behaviour triggered its wipe", async () => {
+    const { handler, wallet, detection, createDetection, findDomainBlockJob } = await setup({ openDseqs: ["11", "22"], verdict: "behavioural" });
+    await createDetection("22", "hard");
+
+    await handler.handle({ walletId: wallet.id, detectionId: detection.id, version: 1 });
+
+    expect(await findDomainBlockJob()).toMatchObject({ data: { walletId: wallet.id, version: 1 } });
+  });
+
+  it("resumes the domain block of a locked wallet that also matched a signature when its job names repeated behaviour", async () => {
+    const { handler, wallet, detection, createDetection, findDomainBlockJob } = await setup({ abuseLockedAt: new Date(), verdict: "behavioural" });
+    await createDetection("22", "hard");
+
+    await handler.handle({ walletId: wallet.id, detectionId: detection.id, version: 1 });
+
+    expect(await findDomainBlockJob()).toMatchObject({ data: { walletId: wallet.id, version: 1 } });
+  });
+
   it("leaves a wallet that has since paid alone", async () => {
     const { handler, wallet, detection, close, executeFundingTx, findWallet, findDetection } = await setup({ isTrialing: false });
 
@@ -124,7 +161,9 @@ describe(EnforceTrialAbuseHandler.name, () => {
     expect((await findProbeJob("11"))?.state).toBe("created");
   });
 
-  async function setup(input: { isTrialing?: boolean; abuseLockedAt?: Date; openDseqs?: string[]; revokeError?: Error } = {}) {
+  async function setup(
+    input: { isTrialing?: boolean; abuseLockedAt?: Date; openDseqs?: string[]; revokeError?: Error; verdict?: "hard" | "behavioural" } = {}
+  ) {
     const { enqueue, startWorkers } = await jobWorkers();
     const userWalletRepository = container.resolve(UserWalletRepository);
     const detectionRepository = container.resolve(WorkloadAbuseDetectionRepository);
@@ -136,13 +175,13 @@ describe(EnforceTrialAbuseHandler.name, () => {
       abuseLockedReason: input.abuseLockedAt ? ABUSE_LOCK_REASON : null
     });
 
-    async function createDetection(dseq: string) {
+    async function createDetection(dseq: string, verdict: "hard" | "behavioural" = input.verdict ?? "hard") {
       return await detectionRepository.create({
         userId: user.id,
         walletId: wallet.id,
         dseq,
         provider: createAkashAddress(),
-        verdict: "hard",
+        verdict,
         probeStatus: "probed",
         signals: [],
         evidenceExcerpt: "",

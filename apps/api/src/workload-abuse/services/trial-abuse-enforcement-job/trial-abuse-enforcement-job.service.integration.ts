@@ -42,6 +42,15 @@ describe(TrialAbuseEnforcementJobService.name, () => {
     expect(await findEnforcementJob(done.walletId)).toBeUndefined();
   });
 
+  it("queues the wipe again for a stalled detection confirmed by repeated behaviour", async () => {
+    const { reconcile, seedDetection, findEnforcementJob } = await setup({ mode: "enforce" });
+    const stalled = await seedDetection({ action: "enforcement_failed", minutesAgo: STALLED_MINUTES_AGO, verdict: "behavioural" });
+
+    await reconcile();
+
+    expect(await findEnforcementJob(stalled.walletId)).toMatchObject({ state: "created", data: { walletId: stalled.walletId, detectionId: stalled.id } });
+  });
+
   it("leaves a wallet that has paid or is already locked alone", async () => {
     const { reconcile, seedDetection, findEnforcementJob } = await setup({ mode: "enforce" });
     const paid = await seedDetection({ action: "enforcement_failed", minutesAgo: STALLED_MINUTES_AGO, wallet: { isTrialing: false } });
@@ -100,6 +109,7 @@ describe(TrialAbuseEnforcementJobService.name, () => {
       minutesAgo: number;
       walletId?: number;
       wallet?: { isTrialing?: boolean; abuseLockedAt?: Date; abuseLockedReason?: string };
+      verdict?: "hard" | "behavioural";
     }) {
       const seeded = detection.walletId ? undefined : await seedUserWithWallet({ isTrialing: true, ...detection.wallet });
       const walletId = detection.walletId ?? seeded!.wallet.id;
@@ -110,7 +120,7 @@ describe(TrialAbuseEnforcementJobService.name, () => {
         walletId,
         dseq: String(Date.now()),
         provider: createAkashAddress(),
-        verdict: "hard",
+        verdict: detection.verdict ?? "hard",
         probeStatus: "probed",
         signals: [],
         evidenceExcerpt: "",
