@@ -75,6 +75,12 @@ describe(narrowGpuVendorsToAvailable.name, () => {
     expect(narrowed?.[0].models[0]).toEqual({ name: "b200", displayName: undefined, memory: ["180Gi"], interface: ["sxm"], providerCount: 1 });
   });
 
+  it("offers a model the catalog does not list with nothing to pick when providers report no memory or interface", () => {
+    const narrowed = narrowGpuVendorsToAvailable(CATALOG, [{ vendor: "nvidia", models: [model("b200", [], [])] }]);
+
+    expect(narrowed?.[0].models[0]).toMatchObject({ memory: [], interface: [] });
+  });
+
   it("falls back to the catalog memory and interface when providers report none", () => {
     const narrowed = narrowGpuVendorsToAvailable(CATALOG, [{ vendor: "nvidia", models: [model("a100", [], [])] }]);
 
@@ -128,6 +134,19 @@ describe(findUnavailableGpuModels.name, () => {
 
   it("leaves out a pinned model a provider offers", () => {
     expect(findUnavailableGpuModels(CATALOG, AVAILABLE, { vendor: "nvidia", name: "t4" }).map(model => model.name)).toEqual(["a100"]);
+  });
+
+  it("looks only at what providers offer for the pinned vendor", () => {
+    const available: AvailableGpuVendor[] = [
+      ...AVAILABLE,
+      { vendor: "amd", models: [{ name: "mi300", memory: ["192Gi"], interface: ["pcie"], providerCount: 1 }] }
+    ];
+
+    expect(findUnavailableGpuModels(CATALOG, available, { vendor: "amd" })).toEqual([]);
+  });
+
+  it("lists a pinned model of a vendor the catalog does not know", () => {
+    expect(findUnavailableGpuModels(CATALOG, AVAILABLE, { vendor: "intel", name: "gaudi2" })).toEqual([{ name: "gaudi2", memory: [], interface: [] }]);
   });
 
   it("lists nothing while availability is absent or empty", () => {

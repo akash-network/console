@@ -371,6 +371,55 @@ describe(GpuCard.name, () => {
       expect(screen.queryByText("No models found.")).not.toBeInTheDocument();
     });
 
+    it("finds an unavailable model by its display name", async () => {
+      const { user } = setup({
+        hasGpu: true,
+        vendors: [
+          {
+            name: "nvidia",
+            models: [
+              { name: "rtx4090", displayName: "RTX 4090", memory: ["24Gi"], interface: ["pcie"] },
+              { name: "t4", displayName: "T4", memory: ["16Gi"], interface: ["pcie"] }
+            ]
+          }
+        ],
+        availableGpus: [{ vendor: "nvidia", models: [availableModel("t4", ["16Gi"], ["pcie"])] }]
+      });
+
+      await user.click(screen.getByRole("combobox", { name: "GPU model" }));
+      await user.type(await screen.findByRole("combobox", { name: "Search GPU models" }), "RTX 40");
+
+      expect(screen.getByRole("option", { name: "RTX 4090" })).toHaveAttribute("aria-disabled", "true");
+    });
+
+    it("lists the offered and unavailable models of the vendor the entry switches to", async () => {
+      const { user } = setup({
+        hasGpu: true,
+        availableGpus: [
+          { vendor: "nvidia", models: [availableModel("t4", ["16Gi"], ["pcie"])] },
+          { vendor: "amd", models: [availableModel("mi300", ["192Gi"], ["pcie"], 2)] }
+        ]
+      });
+
+      await user.click(screen.getByRole("combobox", { name: "GPU vendor" }));
+      await user.click(await screen.findByRole("option", { name: "amd" }));
+      await user.click(screen.getByRole("combobox", { name: "GPU model" }));
+
+      expect(await screen.findByRole("option", { name: "mi300" })).toHaveAccessibleDescription("2 providers");
+      expect(screen.queryByRole("option", { name: "t4" })).not.toBeInTheDocument();
+      expect(screen.queryByRole("group", { name: "Unavailable" })).not.toBeInTheDocument();
+    });
+
+    it("disables the model picker while the vendor has no model to list", () => {
+      setup({
+        hasGpu: true,
+        gpuModels: [{ vendor: "intel", name: "", memory: "", interface: "" }],
+        availableGpus: [{ vendor: "nvidia", models: [availableModel("t4")] }]
+      });
+
+      expect(screen.getByRole("combobox", { name: "GPU model" })).toBeDisabled();
+    });
+
     it("lists a pinned model nobody offers as unavailable while the card still shows it", async () => {
       const { user } = setup({
         hasGpu: true,
