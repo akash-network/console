@@ -319,6 +319,17 @@ describe(GpuCard.name, () => {
     expect(analyticsService.track).toHaveBeenCalledWith("configure_gpu_type_selected", { category: "deployments", model: "t4", vendor: "nvidia" });
   });
 
+  it("tracks the model with the vendor the entry switched to", async () => {
+    const { analyticsService, user } = setup({ hasGpu: true, gpuModels: [{ vendor: "nvidia", name: "", memory: "", interface: "" }] });
+
+    await user.click(screen.getByRole("combobox", { name: "GPU vendor" }));
+    await user.click(await screen.findByRole("option", { name: "amd" }));
+    await user.click(screen.getByRole("combobox", { name: "GPU model" }));
+    await user.click(await screen.findByRole("option", { name: "mi300" }));
+
+    expect(analyticsService.track).toHaveBeenCalledWith("configure_gpu_type_selected", { category: "deployments", model: "mi300", vendor: "amd" });
+  });
+
   it("tracks a GPU count change", async () => {
     const { analyticsService, user } = setup({ hasGpu: true, gpu: 1 });
 

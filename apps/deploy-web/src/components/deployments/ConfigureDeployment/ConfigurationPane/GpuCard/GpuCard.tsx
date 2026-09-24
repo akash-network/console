@@ -281,13 +281,13 @@ function GpuModelFields({
   const selectModel = useCallback(
     (value: string) => {
       name.field.onChange(value);
-      setValue(`${basePath}.memory`, "", { shouldValidate: true, shouldDirty: true });
-      setValue(`${basePath}.interface`, "", { shouldValidate: true, shouldDirty: true });
+      memory.field.onChange("");
+      gpuInterface.field.onChange("");
       if (value) {
         analyticsService.track("configure_gpu_type_selected", { category: "deployments", model: value, vendor: vendor.field.value });
       }
     },
-    [name.field, setValue, basePath, analyticsService, vendor.field.value]
+    [name.field, memory.field, gpuInterface.field, analyticsService, vendor.field.value]
   );
 
   /**
