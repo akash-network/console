@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { PlacementOffer } from "@src/queries/usePlacementOffers";
+import type { GpuVendor } from "@src/types/gpu";
 import { MarketplaceProvidersTable } from "./MarketplaceProvidersTable";
 
 import { render, screen, within } from "@testing-library/react";
@@ -169,6 +170,40 @@ describe(MarketplaceProvidersTable.name, () => {
     setup({ providers: [submittedOffer({ owner: "akash1a", bidId: "akash1a/1/1/1" })], gpuCount: 0 });
     expect(screen.getByText("/month")).toBeInTheDocument();
     expect(screen.queryByText("/hr")).not.toBeInTheDocument();
+  });
+
+  it("shows the gpu model each provider bid with by its catalog display name", () => {
+    setup({
+      providers: [submittedOffer({ owner: "akash1a", bidId: "akash1a/1/1/1", gpus: [{ vendor: "nvidia", model: "rtx4090" }] })],
+      gpuVendors: [{ name: "nvidia", models: [{ name: "rtx4090", displayName: "RTX 4090", memory: [], interface: [] }] }]
+    });
+    expect(screen.getByRole("button", { name: /GPU/ })).toBeInTheDocument();
+    expect(screen.getByText("RTX 4090")).toBeInTheDocument();
+  });
+
+  it("shows the upper-cased gpu model when the catalog has no display name for it", () => {
+    setup({ providers: [submittedOffer({ owner: "akash1a", bidId: "akash1a/1/1/1", gpus: [{ vendor: "nvidia", model: "h100" }] })] });
+    expect(screen.getByText("H100")).toBeInTheDocument();
+  });
+
+  it("hides the GPU column when no bid carries a gpu model", () => {
+    setup({ providers: [submittedOffer({ owner: "akash1a", bidId: "akash1a/1/1/1", gpus: [] })] });
+    expect(screen.queryByRole("button", { name: /GPU/ })).not.toBeInTheDocument();
+  });
+
+  it("sorts the bidding rows by gpu model when the GPU header is toggled ascending", async () => {
+    setup({
+      providers: [
+        submittedOffer({ owner: "akash1a", bidId: "akash1a/1/1/1", hostUri: "https://rtx.example:8443", gpus: [{ vendor: "nvidia", model: "rtx4090" }] }),
+        submittedOffer({ owner: "akash1b", bidId: "akash1b/1/1/1", hostUri: "https://a100.example:8443", gpus: [{ vendor: "nvidia", model: "a100" }] })
+      ]
+    });
+
+    await userEvent.click(screen.getByRole("button", { name: /GPU/ }));
+
+    const rows = screen.getAllByRole("row");
+    expect(within(rows[1]).getByText("a100.example")).toBeInTheDocument();
+    expect(within(rows[2]).getByText("rtx.example")).toBeInTheDocument();
   });
 
   it("shows only Provider, Region, and Uptime while every offer is still searching", () => {
@@ -352,6 +387,7 @@ describe(MarketplaceProvidersTable.name, () => {
     gpuCount?: number;
     showProviderLink?: boolean;
     emptyMessage?: string;
+    gpuVendors?: GpuVendor[];
   }) {
     const onSelect = vi.fn();
     const user = userEvent.setup();
@@ -370,6 +406,7 @@ describe(MarketplaceProvidersTable.name, () => {
               gpuCount={input.gpuCount}
               showProviderLink={input.showProviderLink ?? true}
               emptyMessage={input.emptyMessage}
+              gpuVendors={input.gpuVendors}
             />
           </TooltipProvider>
         </IntlProvider>

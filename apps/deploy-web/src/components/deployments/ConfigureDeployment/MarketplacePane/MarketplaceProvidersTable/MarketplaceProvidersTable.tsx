@@ -7,7 +7,8 @@ import { createColumnHelper, flexRender, getCoreRowModel, getSortedRowModel, use
 import { ArrowDown, ArrowUp, ChevronsUpDown } from "lucide-react";
 
 import { CostRate } from "@src/components/shared/CostRate";
-import type { PlacementOffer } from "@src/queries/usePlacementOffers";
+import type { OfferedGpu, PlacementOffer } from "@src/queries/usePlacementOffers";
+import type { GpuVendor } from "@src/types/gpu";
 import { providerDisplayName } from "@src/utils/providerUtils";
 import type { ProviderUptime } from "./ProviderUptimeCell/deriveProviderUptime";
 import { useProvidersUptime } from "./ProviderUptimeCell/deriveProviderUptime";
@@ -16,8 +17,7 @@ import { MarketplaceProviderCell } from "./MarketplaceProviderCell";
 
 const columnHelper = createColumnHelper<PlacementOffer>();
 
-/** Shown when a provider has no region attribute, and as the cost placeholder for a row with no price. */
-const NO_REGION = "—";
+const EMPTY_CELL = "—";
 
 /** Fallback uptime for a provider missing from the derived map; treated as fully healthy. */
 const HEALTHY_UPTIME: ProviderUptime = { percent: 1, buckets: [] };
@@ -28,10 +28,11 @@ const HEALTHY_UPTIME: ProviderUptime = { percent: 1, buckets: [] };
  * providers arrive. Provider (`hostUri`) is intentionally absent: it absorbs whatever width is left over.
  */
 const COLUMN_WIDTH_CLASS: Record<string, string | undefined> = {
-  location: "w-[20%]",
-  uptime: "w-[22%]",
+  location: "w-[15%]",
+  uptime: "w-[16%]",
+  gpu: "w-[15%]",
   cost: "w-[16%]",
-  status: "w-[18%]"
+  status: "w-[14%]"
 };
 
 interface Props {
@@ -47,6 +48,8 @@ interface Props {
   gpuCount?: number;
   /** Whether provider names link to their detail pages. */
   showProviderLink: boolean;
+  /** GPU catalog supplying display names for offered models; the raw model name is shown upper-cased until it loads. */
+  gpuVendors?: GpuVendor[];
   /** Replaces the generic no-provider text when the spec asks for something specific enough to name, e.g. a CPU architecture. */
   emptyMessage?: string;
 }
@@ -61,7 +64,8 @@ export const MarketplaceProvidersTable: FC<Props> = ({
   isSelectable = true,
   gpuCount = 0,
   showProviderLink,
-  emptyMessage
+  emptyMessage,
+  gpuVendors
 }) => {
   const [sorting, setSorting] = useState<SortingState>([]);
 
@@ -70,9 +74,11 @@ export const MarketplaceProvidersTable: FC<Props> = ({
   const isMerged = providers.some(provider => provider.offerState !== "searching");
   /** Cost only makes sense once bids arrive: a submitted bid is priced and a closed/expired one keeps its last price, but a screened-only candidate has none. */
   const showCost = providers.some(provider => !!provider.price);
+  const showGpu = providers.some(provider => !!provider.gpus?.length);
   const columns = useMemo(
-    () => buildColumns(uptimeByOwner, { selectedBidId, onSelect, isSelectable, showCost, showStatus: isMerged, gpuCount, showProviderLink }),
-    [uptimeByOwner, selectedBidId, onSelect, isSelectable, showCost, isMerged, gpuCount, showProviderLink]
+    () =>
+      buildColumns(uptimeByOwner, { selectedBidId, onSelect, isSelectable, showCost, showGpu, showStatus: isMerged, gpuCount, showProviderLink, gpuVendors }),
+    [uptimeByOwner, selectedBidId, onSelect, isSelectable, showCost, showGpu, isMerged, gpuCount, showProviderLink, gpuVendors]
   );
 
   const table = useReactTable({
@@ -241,9 +247,11 @@ function buildColumns(
     onSelect?: (bidId: string) => void;
     isSelectable: boolean;
     showCost: boolean;
+    showGpu: boolean;
     showStatus: boolean;
     gpuCount: number;
     showProviderLink: boolean;
+    gpuVendors?: GpuVendor[];
   }
 ) {
   return [
@@ -254,13 +262,30 @@ function buildColumns(
     }),
     columnHelper.accessor("location", {
       header: ({ column }) => <SortableHeader column={column} title="Region" />,
-      cell: info => info.getValue() ?? NO_REGION
+      cell: info => info.getValue() ?? EMPTY_CELL
     }),
     columnHelper.accessor(provider => (uptimeByOwner.get(provider.owner) ?? HEALTHY_UPTIME).percent, {
       id: "uptime",
       header: ({ column }) => <SortableHeader column={column} title="Uptime (7D)" />,
       cell: info => <ProviderUptimeCell uptime={uptimeByOwner.get(info.row.original.owner) ?? HEALTHY_UPTIME} />
     }),
+    ...(selection.showGpu
+      ? [
+          columnHelper.accessor(provider => formatOfferedGpus(provider.gpus ?? [], selection.gpuVendors), {
+            id: "gpu",
+            header: ({ column }) => <SortableHeader column={column} title="GPU" />,
+            cell: info => {
+              const label = info.getValue();
+              if (!label) return <span className="text-muted-foreground">{EMPTY_CELL}</span>;
+              return (
+                <span className="block truncate" title={label}>
+                  {label}
+                </span>
+              );
+            }
+          })
+        ]
+      : []),
     ...(selection.showCost
       ? [
           columnHelper.accessor(provider => (provider.price ? Number(provider.price.amount) : 0), {
@@ -268,7 +293,7 @@ function buildColumns(
             header: ({ column }) => <SortableHeader column={column} title="Cost" />,
             cell: ({ row }) => {
               const { price } = row.original;
-              if (!price) return <span className="text-muted-foreground">{NO_REGION}</span>;
+              if (!price) return <span className="text-muted-foreground">{EMPTY_CELL}</span>;
               return <CostRate perBlockUDenom={price.amount} denom={price.denom} gpuCount={selection.gpuCount} />;
             }
           })
@@ -302,4 +327,13 @@ function buildColumns(
         ]
       : [])
   ];
+}
+
+function formatOfferedGpus(gpus: OfferedGpu[], gpuVendors: GpuVendor[] | undefined): string {
+  return gpus.map(gpu => findGpuDisplayName(gpu, gpuVendors) ?? gpu.model.toUpperCase()).join(", ");
+}
+
+function findGpuDisplayName(gpu: OfferedGpu, gpuVendors: GpuVendor[] | undefined): string | undefined {
+  const vendor = gpuVendors?.find(candidate => candidate.name === gpu.vendor);
+  return vendor?.models.find(model => model.name === gpu.model)?.displayName;
 }
