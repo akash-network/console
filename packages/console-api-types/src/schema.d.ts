@@ -8108,6 +8108,25 @@ export interface operations {
                   /** Format: date-time */
                   detectedAt: string;
                 };
+                /** @description GPUs the provider offered for this lease in the bid it was created from, which is what an `Any model` request resolves to. Absent until the console has recorded the bid, and for a lease whose deployment the console does not manage. */
+                offeredGpus?: {
+                  gpus: {
+                    /** @description Vendor key the provider offered, e.g. `nvidia`. */
+                    vendor: string;
+                    /** @description SDL model key the provider offered, e.g. `a100`. */
+                    model: string;
+                    /** @description Marketing-correct label for the model, e.g. `A100`. */
+                    displayName: string;
+                    /** @description Per-card memory, e.g. `80Gi`, when the offer names it. Providers name it only when the SDL asked for it. */
+                    ram: string | null;
+                    /** @description `sxm` or `pcie` when the offer names it. Providers name it only when the SDL asked for it. */
+                    interface: string | null;
+                    /** @description Cards of this model offered across every replica, identical ones folded into one entry. */
+                    count: number;
+                  }[];
+                  /** Format: date-time */
+                  recordedAt: string;
+                };
                 status: {
                   forwarded_ports: {
                     [key: string]: {
@@ -8270,6 +8289,25 @@ export interface operations {
                   driverVersion: string | null;
                   /** Format: date-time */
                   detectedAt: string;
+                };
+                /** @description GPUs the provider offered for this lease in the bid it was created from, which is what an `Any model` request resolves to. Absent until the console has recorded the bid, and for a lease whose deployment the console does not manage. */
+                offeredGpus?: {
+                  gpus: {
+                    /** @description Vendor key the provider offered, e.g. `nvidia`. */
+                    vendor: string;
+                    /** @description SDL model key the provider offered, e.g. `a100`. */
+                    model: string;
+                    /** @description Marketing-correct label for the model, e.g. `A100`. */
+                    displayName: string;
+                    /** @description Per-card memory, e.g. `80Gi`, when the offer names it. Providers name it only when the SDL asked for it. */
+                    ram: string | null;
+                    /** @description `sxm` or `pcie` when the offer names it. Providers name it only when the SDL asked for it. */
+                    interface: string | null;
+                    /** @description Cards of this model offered across every replica, identical ones folded into one entry. */
+                    count: number;
+                  }[];
+                  /** Format: date-time */
+                  recordedAt: string;
                 };
                 status: {
                   forwarded_ports: {
@@ -8568,6 +8606,25 @@ export interface operations {
                   /** Format: date-time */
                   detectedAt: string;
                 };
+                /** @description GPUs the provider offered for this lease in the bid it was created from, which is what an `Any model` request resolves to. Absent until the console has recorded the bid, and for a lease whose deployment the console does not manage. */
+                offeredGpus?: {
+                  gpus: {
+                    /** @description Vendor key the provider offered, e.g. `nvidia`. */
+                    vendor: string;
+                    /** @description SDL model key the provider offered, e.g. `a100`. */
+                    model: string;
+                    /** @description Marketing-correct label for the model, e.g. `A100`. */
+                    displayName: string;
+                    /** @description Per-card memory, e.g. `80Gi`, when the offer names it. Providers name it only when the SDL asked for it. */
+                    ram: string | null;
+                    /** @description `sxm` or `pcie` when the offer names it. Providers name it only when the SDL asked for it. */
+                    interface: string | null;
+                    /** @description Cards of this model offered across every replica, identical ones folded into one entry. */
+                    count: number;
+                  }[];
+                  /** Format: date-time */
+                  recordedAt: string;
+                };
                 status: {
                   forwarded_ports: {
                     [key: string]: {
@@ -8828,6 +8885,25 @@ export interface operations {
                     driverVersion: string | null;
                     /** Format: date-time */
                     detectedAt: string;
+                  };
+                  /** @description GPUs the provider offered for this lease in the bid it was created from, which is what an `Any model` request resolves to. Absent until the console has recorded the bid, and for a lease whose deployment the console does not manage. */
+                  offeredGpus?: {
+                    gpus: {
+                      /** @description Vendor key the provider offered, e.g. `nvidia`. */
+                      vendor: string;
+                      /** @description SDL model key the provider offered, e.g. `a100`. */
+                      model: string;
+                      /** @description Marketing-correct label for the model, e.g. `A100`. */
+                      displayName: string;
+                      /** @description Per-card memory, e.g. `80Gi`, when the offer names it. Providers name it only when the SDL asked for it. */
+                      ram: string | null;
+                      /** @description `sxm` or `pcie` when the offer names it. Providers name it only when the SDL asked for it. */
+                      interface: string | null;
+                      /** @description Cards of this model offered across every replica, identical ones folded into one entry. */
+                      count: number;
+                    }[];
+                    /** Format: date-time */
+                    recordedAt: string;
                   };
                 }[];
                 escrow_account: {
@@ -9196,6 +9272,25 @@ export interface operations {
                   /** Format: date-time */
                   detectedAt: string;
                 };
+                /** @description GPUs the provider offered for this lease in the bid it was created from, which is what an `Any model` request resolves to. Absent until the console has recorded the bid, and for a lease whose deployment the console does not manage. */
+                offeredGpus?: {
+                  gpus: {
+                    /** @description Vendor key the provider offered, e.g. `nvidia`. */
+                    vendor: string;
+                    /** @description SDL model key the provider offered, e.g. `a100`. */
+                    model: string;
+                    /** @description Marketing-correct label for the model, e.g. `A100`. */
+                    displayName: string;
+                    /** @description Per-card memory, e.g. `80Gi`, when the offer names it. Providers name it only when the SDL asked for it. */
+                    ram: string | null;
+                    /** @description `sxm` or `pcie` when the offer names it. Providers name it only when the SDL asked for it. */
+                    interface: string | null;
+                    /** @description Cards of this model offered across every replica, identical ones folded into one entry. */
+                    count: number;
+                  }[];
+                  /** Format: date-time */
+                  recordedAt: string;
+                };
                 status: {
                   forwarded_ports: {
                     [key: string]: {
@@ -9522,6 +9617,25 @@ export interface operations {
                   driverVersion: string | null;
                   /** Format: date-time */
                   detectedAt: string;
+                };
+                /** @description GPUs the provider offered for this lease in the bid it was created from, which is what an `Any model` request resolves to. Absent until the console has recorded the bid, and for a lease whose deployment the console does not manage. */
+                offeredGpus?: {
+                  gpus: {
+                    /** @description Vendor key the provider offered, e.g. `nvidia`. */
+                    vendor: string;
+                    /** @description SDL model key the provider offered, e.g. `a100`. */
+                    model: string;
+                    /** @description Marketing-correct label for the model, e.g. `A100`. */
+                    displayName: string;
+                    /** @description Per-card memory, e.g. `80Gi`, when the offer names it. Providers name it only when the SDL asked for it. */
+                    ram: string | null;
+                    /** @description `sxm` or `pcie` when the offer names it. Providers name it only when the SDL asked for it. */
+                    interface: string | null;
+                    /** @description Cards of this model offered across every replica, identical ones folded into one entry. */
+                    count: number;
+                  }[];
+                  /** Format: date-time */
+                  recordedAt: string;
                 };
                 status: {
                   forwarded_ports: {

@@ -30,6 +30,28 @@ const DetectedLeaseGpusSchema = z
       "GPUs the console observed running inside this lease's containers, as distinct from the models its group requested. Absent until the console has looked, and for a lease it cannot look inside."
   });
 
+const OfferedGpuSchema = z.object({
+  vendor: z.string().openapi({ description: "Vendor key the provider offered, e.g. `nvidia`." }),
+  model: z.string().openapi({ description: "SDL model key the provider offered, e.g. `a100`." }),
+  displayName: z.string().openapi({ description: "Marketing-correct label for the model, e.g. `A100`." }),
+  ram: z
+    .string()
+    .nullable()
+    .openapi({ description: "Per-card memory, e.g. `80Gi`, when the offer names it. Providers name it only when the SDL asked for it." }),
+  interface: z.string().nullable().openapi({ description: "`sxm` or `pcie` when the offer names it. Providers name it only when the SDL asked for it." }),
+  count: z.number().int().positive().openapi({ description: "Cards of this model offered across every replica, identical ones folded into one entry." })
+});
+
+const OfferedLeaseGpusSchema = z
+  .object({
+    gpus: z.array(OfferedGpuSchema),
+    recordedAt: z.string().datetime()
+  })
+  .openapi({
+    description:
+      "GPUs the provider offered for this lease in the bid it was created from, which is what an `Any model` request resolves to. Absent until the console has recorded the bid, and for a lease whose deployment the console does not manage."
+  });
+
 const DeploymentLeaseSchema = z.object({
   id: z.object({
     owner: z.string(),
@@ -60,6 +82,7 @@ const DeploymentLeaseSchema = z.object({
         "Present only on a lease its provider has flagged for reclamation. `deadline` is unix seconds; `reason` is a `lease_closed_reason_*` enum name."
     }),
   detectedGpus: DetectedLeaseGpusSchema.optional(),
+  offeredGpus: OfferedLeaseGpusSchema.optional(),
   status: z.nullable(LeaseStatusResponseSchema)
 });
 

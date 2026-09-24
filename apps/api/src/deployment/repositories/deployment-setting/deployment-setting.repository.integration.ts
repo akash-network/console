@@ -798,64 +798,64 @@ describe(DeploymentSettingRepository.name, () => {
     });
   });
 
-  describe("findGpuReadings", () => {
-    it("reads the gpu readings of a whole page in one query, keyed by dseq", async () => {
+  describe("findLeaseGpus", () => {
+    it("reads the gpu readings and offers of a whole page in one query, keyed by dseq", async () => {
       const { deploymentSettingRepository, user, abilityFor } = await setup();
       const read = newDseq();
-      const alsoRead = newDseq();
+      const offered = newDseq();
       const reading = createLeaseGpuReading();
-      const otherReading = createLeaseGpuReading({ service: "worker" });
+      const offer = createLeaseGpuOffer();
       await seedDeploymentSetting({ userId: user.id, dseq: read, detectedGpus: [reading] });
-      await seedDeploymentSetting({ userId: user.id, dseq: alsoRead, detectedGpus: [otherReading] });
+      await seedDeploymentSetting({ userId: user.id, dseq: offered, offeredGpus: [offer] });
 
-      const readings = await deploymentSettingRepository.accessibleBy(abilityFor(user), "read").findGpuReadings({ userId: user.id, dseqs: [read, alsoRead] });
+      const stored = await deploymentSettingRepository.accessibleBy(abilityFor(user), "read").findLeaseGpus({ userId: user.id, dseqs: [read, offered] });
 
-      expect(readings).toEqual(
+      expect(stored).toEqual(
         new Map([
-          [read, [reading]],
-          [alsoRead, [otherReading]]
+          [read, { readings: [reading], offers: [] }],
+          [offered, { readings: [], offers: [offer] }]
         ])
       );
     });
 
-    it("leaves a deployment the probe never read out of the result", async () => {
+    it("leaves a deployment with neither readings nor offers out of the result", async () => {
       const { deploymentSettingRepository, user, abilityFor } = await setup();
-      const unread = newDseq();
-      await seedDeploymentSetting({ userId: user.id, dseq: unread });
+      const unrecorded = newDseq();
+      await seedDeploymentSetting({ userId: user.id, dseq: unrecorded });
 
-      const readings = await deploymentSettingRepository.accessibleBy(abilityFor(user), "read").findGpuReadings({ userId: user.id, dseqs: [unread] });
+      const stored = await deploymentSettingRepository.accessibleBy(abilityFor(user), "read").findLeaseGpus({ userId: user.id, dseqs: [unrecorded] });
 
-      expect(readings.has(unread)).toBe(false);
+      expect(stored.has(unrecorded)).toBe(false);
     });
 
-    it("refuses to read the readings of another user holding the same dseq", async () => {
+    it("refuses to read what another user holding the same dseq has recorded", async () => {
       const { deploymentSettingRepository, user, trialUser, abilityFor } = await setup();
       const dseq = newDseq();
       const reading = createLeaseGpuReading();
       await seedDeploymentSetting({ userId: user.id, dseq, detectedGpus: [reading] });
-      await seedDeploymentSetting({ userId: trialUser.id, dseq, detectedGpus: [createLeaseGpuReading({ service: "someone-else" })] });
+      await seedDeploymentSetting({ userId: trialUser.id, dseq, offeredGpus: [createLeaseGpuOffer()] });
 
-      const readings = await deploymentSettingRepository.accessibleBy(abilityFor(user), "read").findGpuReadings({ userId: user.id, dseqs: [dseq] });
+      const stored = await deploymentSettingRepository.accessibleBy(abilityFor(user), "read").findLeaseGpus({ userId: user.id, dseqs: [dseq] });
 
-      expect(readings.get(dseq)).toEqual([reading]);
+      expect(stored.get(dseq)).toEqual({ readings: [reading], offers: [] });
     });
 
     it("reads nothing for a deployment the caller's ability excludes", async () => {
       const { deploymentSettingRepository, user, trialUser, abilityFor } = await setup();
       const dseq = newDseq();
-      await seedDeploymentSetting({ userId: user.id, dseq, detectedGpus: [createLeaseGpuReading()] });
+      await seedDeploymentSetting({ userId: user.id, dseq, detectedGpus: [createLeaseGpuReading()], offeredGpus: [createLeaseGpuOffer()] });
 
-      const readings = await deploymentSettingRepository.accessibleBy(abilityFor(trialUser), "read").findGpuReadings({ userId: user.id, dseqs: [dseq] });
+      const stored = await deploymentSettingRepository.accessibleBy(abilityFor(trialUser), "read").findLeaseGpus({ userId: user.id, dseqs: [dseq] });
 
-      expect(readings.size).toBe(0);
+      expect(stored.size).toBe(0);
     });
 
     it("issues no query at all for a page with no deployments on it", async () => {
       const { deploymentSettingRepository, user, abilityFor } = await setup();
 
-      const readings = await deploymentSettingRepository.accessibleBy(abilityFor(user), "read").findGpuReadings({ userId: user.id, dseqs: [] });
+      const stored = await deploymentSettingRepository.accessibleBy(abilityFor(user), "read").findLeaseGpus({ userId: user.id, dseqs: [] });
 
-      expect(readings.size).toBe(0);
+      expect(stored.size).toBe(0);
     });
   });
 

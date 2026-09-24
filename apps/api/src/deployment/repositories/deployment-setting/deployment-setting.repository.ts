@@ -65,6 +65,8 @@ export type DeploymentStoredSecrets = {
 /** A user's stored secrets token with the deployment it is bound to, which re-sealing it under another key has to name. */
 export type DeploymentStoredSecretsOfUser = DeploymentStoredSecrets & { dseq: string };
 
+export type StoredLeaseGpus = { readings: LeaseGpuReading[]; offers: LeaseGpuOffer[] };
+
 export type LiveManagedDeployment = {
   userId: string;
   dseq: string;
@@ -173,18 +175,22 @@ export class DeploymentSettingRepository extends BaseRepository<Table, Deploymen
     return new Map(rows.map(({ dseq, ...setting }) => [dseq, setting]));
   }
 
-  /** Keyed by dseq and absent for a deployment never read, under the same double scoping as {@link findNamesByDseqs}. */
-  async findGpuReadings({ userId, dseqs }: { userId: string; dseqs: string[] }): Promise<Map<string, LeaseGpuReading[]>> {
+  /** Keyed by dseq and absent for a deployment with neither recorded, under the same double scoping as {@link findNamesByDseqs}. */
+  async findLeaseGpus({ userId, dseqs }: { userId: string; dseqs: string[] }): Promise<Map<string, StoredLeaseGpus>> {
     if (dseqs.length === 0) {
       return new Map();
     }
 
     const rows = await this.cursor
-      .select({ dseq: this.table.dseq, detectedGpus: this.table.detectedGpus })
+      .select({ dseq: this.table.dseq, detectedGpus: this.table.detectedGpus, offeredGpus: this.table.offeredGpus })
       .from(this.table)
-      .where(this.whereAccessibleBy(and(eq(this.table.userId, userId), inArray(this.table.dseq, dseqs), isNotNull(this.table.detectedGpus))));
+      .where(
+        this.whereAccessibleBy(
+          and(eq(this.table.userId, userId), inArray(this.table.dseq, dseqs), or(isNotNull(this.table.detectedGpus), isNotNull(this.table.offeredGpus)))
+        )
+      );
 
-    return new Map(rows.map(row => [row.dseq, row.detectedGpus ?? []]));
+    return new Map(rows.map(row => [row.dseq, { readings: row.detectedGpus ?? [], offers: row.offeredGpus ?? [] }]));
   }
 
   /** Merges under a row lock so a reading lands on what is stored now, and returns false when the deployment has no row to hold it. */

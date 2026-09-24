@@ -33,7 +33,7 @@ import {
 import { DeploymentRepository } from "@src/deployment/repositories/deployment/deployment.repository";
 import { DeploymentSettingRepository, type ListedDeploymentSetting } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
 import { FallbackLeaseReaderService } from "@src/deployment/services/fallback-lease-reader/fallback-lease-reader.service";
-import { type DetectedGpusByLease, leaseGpuKeyOf, LeaseGpuService } from "@src/deployment/services/lease-gpu/lease-gpu.service";
+import { leaseGpuKeyOf, type LeaseGpusByLease, LeaseGpuService } from "@src/deployment/services/lease-gpu/lease-gpu.service";
 import type { OnChainGroupSpec } from "@src/deployment/utils/changed-group-resources/changed-group-resources";
 import { ProviderService } from "@src/provider/services/provider/provider.service";
 import { ProviderList } from "@src/types/provider";
@@ -84,13 +84,13 @@ export class DeploymentReaderService {
 
   public async findByUserIdAndDseq(userId: string, dseq: string): Promise<GetDeploymentResponse["data"]> {
     const wallet = await this.walletReaderService.getWalletByUserId(userId);
-    const [deployment, recorded, detectedGpus] = await Promise.all([
+    const [deployment, recorded, leaseGpus] = await Promise.all([
       this.findByWalletAndDseq(wallet, dseq),
       this.findRecorded(userId, dseq),
       this.leaseGpuService.findForDeployments({ userId, dseqs: [dseq] })
     ]);
 
-    return { ...deployment, ...recorded, leases: withDetectedGpus(deployment.leases, detectedGpus.get(dseq)) };
+    return { ...deployment, ...recorded, leases: withLeaseGpus(deployment.leases, leaseGpus.get(dseq)) };
   }
 
   /**
@@ -262,7 +262,7 @@ export class DeploymentReaderService {
       ? await this.#findMatchingPage({ owner, userId: query.userId, state, skip, limit, reverse, search })
       : await this.#findPage({ owner, userId: query.userId, state, skip, limit, reverse });
 
-    const [{ results: leaseResults }, settings, detectedGpus] = await Promise.all([
+    const [{ results: leaseResults }, settings, leaseGpus] = await Promise.all([
       PromisePool.withConcurrency(100)
         .for(page)
         .useCorrespondingResults()
@@ -280,9 +280,9 @@ export class DeploymentReaderService {
       return {
         deployment: deployment.deployment,
         groups: deployment.groups,
-        leases: withDetectedGpus(
+        leases: withLeaseGpus(
           this.#fetchedLeasesAt(leaseResults, index).map(({ lease }) => lease),
-          detectedGpus.get(deployment.deployment.id.dseq)
+          leaseGpus.get(deployment.deployment.id.dseq)
         ),
         escrow_account: deployment.escrow_account,
         name: recorded?.name ?? null,
@@ -675,13 +675,9 @@ function toListedSettings(setting: ListedDeploymentSetting) {
   return { ...setting, runtimeEndsAt: setting.runtimeEndsAt?.toISOString() ?? null };
 }
 
-/** A lease the console has never looked inside carries no `detectedGpus` at all, rather than an empty one that would read as "no gpu". */
-function withDetectedGpus<T extends { id: { gseq: number; oseq: number; provider: string } }>(leases: T[], byLease: DetectedGpusByLease | undefined): T[] {
+/** A lease the console recorded nothing for carries neither field at all, rather than an empty one that would read as "no gpu". */
+function withLeaseGpus<T extends { id: { gseq: number; oseq: number; provider: string } }>(leases: T[], byLease: LeaseGpusByLease | undefined): T[] {
   if (!byLease?.size) return leases;
 
-  return leases.map(lease => {
-    const detectedGpus = byLease.get(leaseGpuKeyOf(lease.id));
-
-    return detectedGpus ? { ...lease, detectedGpus } : lease;
-  });
+  return leases.map(lease => ({ ...lease, ...byLease.get(leaseGpuKeyOf(lease.id)) }));
 }

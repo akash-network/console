@@ -47,6 +47,7 @@ import {
   createDeploymentInfoSeed
 } from "@test/seeders/deployment-info.seeder";
 import { createManyLeaseApiResponses } from "@test/seeders/lease-api-response.seeder";
+import { createLeaseGpuOffer } from "@test/seeders/lease-gpu-offer.seeder";
 import { createLeaseGpuReading } from "@test/seeders/lease-gpu-reading.seeder";
 import { createLeaseStatus } from "@test/seeders/lease-status.seeder";
 import { createProvider } from "@test/seeders/provider.seeder";
@@ -340,6 +341,45 @@ describe("Deployments API", () => {
         detectedAt: expect.any(String)
       });
       expect(unread).not.toHaveProperty("detectedGpus");
+    });
+
+    it("returns the gpus the lease's bid offered for the lease it was recorded for", async () => {
+      const dseq = faker.string.numeric({ length: 8, allowLeadingZeros: false });
+      const { userApiKeySecret, user, wallets } = await mockPersistedUser();
+      const { leases } = await setupDeploymentInfoMock(wallets, dseq);
+      const { id } = leases[0].lease;
+      await seedDeploymentSetting({
+        userId: user.id,
+        dseq,
+        offeredGpus: [
+          createLeaseGpuOffer({
+            gseq: id.gseq,
+            oseq: id.oseq,
+            provider: id.provider,
+            bseq: id.bseq,
+            resources: [
+              { resourceId: 1, replicas: 1, unitsPerReplica: 8, attributes: [{ key: "vendor/nvidia/model/a100/ram/80Gi/interface/sxm", value: "true" }] }
+            ]
+          })
+        ]
+      });
+
+      const response = await app.request(`/v1/deployments/${dseq}`, {
+        method: "GET",
+        headers: new Headers({ "Content-Type": "application/json", "x-api-key": userApiKeySecret })
+      });
+
+      expect(response.status).toBe(200);
+      const result = (await response.json()) as { data: { leases: Array<{ id: { provider: string }; offeredGpus?: unknown }> } };
+      const recorded = result.data.leases.find(lease => lease.id.provider === id.provider);
+      const unrecorded = result.data.leases.find(lease => lease.id.provider !== id.provider);
+
+      expect(recorded?.offeredGpus).toEqual({
+        gpus: [{ vendor: "nvidia", model: "a100", displayName: "A100", ram: "80Gi", interface: "sxm", count: 8 }],
+        recordedAt: expect.any(String)
+      });
+      expect(recorded).not.toHaveProperty("detectedGpus");
+      expect(unrecorded).not.toHaveProperty("offeredGpus");
     });
 
     it("does not return another user's gpu readings", async () => {

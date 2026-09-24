@@ -18,7 +18,7 @@ import {
   UNKNOWN_DB_PLACEHOLDER
 } from "@src/deployment/services/fallback-deployment-reader/fallback-deployment-reader.service";
 import type { FallbackLeaseReaderService } from "@src/deployment/services/fallback-lease-reader/fallback-lease-reader.service";
-import type { DetectedGpusByLease, LeaseGpuService } from "@src/deployment/services/lease-gpu/lease-gpu.service";
+import type { LeaseGpusByLease, LeaseGpuService } from "@src/deployment/services/lease-gpu/lease-gpu.service";
 import type { MessageService } from "@src/deployment/services/message-service/message.service";
 import type { ProviderService } from "@src/provider/services/provider/provider.service";
 import { DeploymentReaderService, MAX_SEARCHABLE_DEPLOYMENTS } from "./deployment-reader.service";
@@ -38,25 +38,42 @@ describe(DeploymentReaderService.name, () => {
       expect(result.consoleSettings).toEqual({ sdl: "version: '2.0'", manifestVersion: "BAUG" });
     });
 
-    it("attaches the gpus the console read to the lease it read them from", async () => {
+    it("attaches the gpus the console read and the gpus the lease's bid offered to the lease they describe", async () => {
       const lease = createLeaseApiResponse({ dseq: "12345", state: "active" });
       const { id } = lease.lease;
-      const detected = { services: [{ service: "web", gpus: [] }], driverVersion: "550.54.15", detectedAt: "2026-09-21T10:00:00.000Z" };
+      const detectedGpus = { services: [{ service: "web", gpus: [] }], driverVersion: "550.54.15", detectedAt: "2026-09-21T10:00:00.000Z" };
+      const offeredGpus = { gpus: [], recordedAt: "2026-09-21T09:00:00.000Z" };
       const { service, wallet } = setup({
         leases: [lease],
-        detectedGpus: new Map([["12345", new Map([[`${id.gseq}/${id.oseq}/${id.provider}`, detected]])]])
+        leaseGpus: new Map([["12345", new Map([[`${id.gseq}/${id.oseq}/${id.provider}`, { detectedGpus, offeredGpus }]])]])
       });
 
       const result = await service.findByUserIdAndDseq(wallet.userId, "12345");
 
-      expect(result.leases[0]).toMatchObject({ detectedGpus: detected });
+      expect(result.leases[0]).toMatchObject({ detectedGpus, offeredGpus });
     });
 
-    it("leaves a lease the console has never looked inside without the field at all", async () => {
+    it("leaves a lease the console recorded nothing for without either field at all", async () => {
       const { service, wallet } = setup({ leases: [createLeaseApiResponse({ dseq: "12345", state: "active" })] });
 
       const result = await service.findByUserIdAndDseq(wallet.userId, "12345");
 
+      expect(result.leases[0]).not.toHaveProperty("detectedGpus");
+      expect(result.leases[0]).not.toHaveProperty("offeredGpus");
+    });
+
+    it("attaches an offer alone to a lease the probe has not read", async () => {
+      const lease = createLeaseApiResponse({ dseq: "12345", state: "active" });
+      const { id } = lease.lease;
+      const offeredGpus = { gpus: [], recordedAt: "2026-09-21T09:00:00.000Z" };
+      const { service, wallet } = setup({
+        leases: [lease],
+        leaseGpus: new Map([["12345", new Map([[`${id.gseq}/${id.oseq}/${id.provider}`, { offeredGpus }]])]])
+      });
+
+      const result = await service.findByUserIdAndDseq(wallet.userId, "12345");
+
+      expect(result.leases[0]).toMatchObject({ offeredGpus });
       expect(result.leases[0]).not.toHaveProperty("detectedGpus");
     });
 
@@ -925,7 +942,7 @@ describe(DeploymentReaderService.name, () => {
       nextKey?: string | null;
       chainTotal?: string;
       deploymentCount?: number;
-      detectedGpus?: Map<string, DetectedGpusByLease>;
+      leaseGpus?: Map<string, LeaseGpusByLease>;
     } = {}
   ) {
     const defaultWallet = createUserWallet() as WalletInitialized;
@@ -1002,7 +1019,7 @@ describe(DeploymentReaderService.name, () => {
     });
     const authService = mock<AuthService>({ ability: mock<AuthService["ability"]>() });
     const leaseGpuService = mock<LeaseGpuService>();
-    leaseGpuService.findForDeployments.mockResolvedValue(input.detectedGpus ?? new Map());
+    leaseGpuService.findForDeployments.mockResolvedValue(input.leaseGpus ?? new Map());
     const createLogger = vi.fn<CreateLogger>(() => mocks.logger);
 
     const service = new DeploymentReaderService(

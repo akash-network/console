@@ -2,7 +2,7 @@ import type { Bid } from "@akashnetwork/http-sdk";
 import { describe, expect, it } from "vitest";
 
 import type { LeaseGpuOffer } from "@src/deployment/model-schemas";
-import { isBidOf, mergeLeaseGpuOffers, toLeaseGpuOffer } from "./lease-gpu-offers";
+import { isBidOf, mergeLeaseGpuOffers, readOfferedGpus, toLeaseGpuOffer } from "./lease-gpu-offers";
 
 import { createBid } from "@test/seeders/bid.seeder";
 
@@ -116,6 +116,80 @@ describe("lease gpu offers", () => {
         siblingBid,
         recordedAgain
       ]);
+    });
+  });
+
+  describe(readOfferedGpus.name, () => {
+    it("names the model, memory and interface an offer carries, counting every card of every replica", () => {
+      const read = readOfferedGpus(offer({ resources: [{ resourceId: 1, replicas: 2, unitsPerReplica: 8, attributes: [A100_SXM] }] }));
+
+      expect(read).toEqual([{ vendor: "nvidia", model: "a100", ram: "80Gi", interface: "sxm", count: 16 }]);
+    });
+
+    it("leaves memory and interface unknown when the provider named only the model", () => {
+      const read = readOfferedGpus(offer({ resources: [{ resourceId: 1, replicas: 1, unitsPerReplica: 1, attributes: [RTX_4060_TI] }] }));
+
+      expect(read).toEqual([{ vendor: "nvidia", model: "rtx4060ti", ram: null, interface: null, count: 1 }]);
+    });
+
+    it("folds services offered the same model into one entry", () => {
+      const read = readOfferedGpus(
+        offer({
+          resources: [
+            { resourceId: 1, replicas: 1, unitsPerReplica: 1, attributes: [RTX_4060_TI] },
+            { resourceId: 2, replicas: 2, unitsPerReplica: 1, attributes: [RTX_4060_TI] }
+          ]
+        })
+      );
+
+      expect(read).toEqual([{ vendor: "nvidia", model: "rtx4060ti", ram: null, interface: null, count: 3 }]);
+    });
+
+    it("keeps services offered different models apart", () => {
+      const read = readOfferedGpus(
+        offer({
+          resources: [
+            { resourceId: 1, replicas: 1, unitsPerReplica: 8, attributes: [A100_SXM] },
+            { resourceId: 2, replicas: 1, unitsPerReplica: 1, attributes: [RTX_4060_TI] }
+          ]
+        })
+      );
+
+      expect(read.map(gpu => [gpu.model, gpu.count])).toEqual([
+        ["a100", 8],
+        ["rtx4060ti", 1]
+      ]);
+    });
+
+    it("keeps the same model on different memory or interfaces apart", () => {
+      const read = readOfferedGpus(
+        offer({
+          resources: [
+            { resourceId: 1, replicas: 1, unitsPerReplica: 1, attributes: [{ key: "vendor/nvidia/model/a100/ram/80Gi/interface/sxm", value: "true" }] },
+            { resourceId: 2, replicas: 1, unitsPerReplica: 1, attributes: [{ key: "vendor/nvidia/model/a100/ram/40Gi/interface/sxm", value: "true" }] },
+            { resourceId: 3, replicas: 1, unitsPerReplica: 1, attributes: [{ key: "vendor/nvidia/model/a100/ram/80Gi/interface/pcie", value: "true" }] }
+          ]
+        })
+      );
+
+      expect(read.map(gpu => `${gpu.ram}/${gpu.interface}`)).toEqual(["80Gi/sxm", "40Gi/sxm", "80Gi/pcie"]);
+    });
+
+    it("leaves out a service whose offer names several models, since it cannot say how the cards split between them", () => {
+      const read = readOfferedGpus(offer({ resources: [{ resourceId: 1, replicas: 1, unitsPerReplica: 4, attributes: [A100_SXM, RTX_4060_TI] }] }));
+
+      expect(read).toEqual([]);
+    });
+
+    it.each([
+      { case: "an attribute not set to true", attribute: { key: "vendor/nvidia/model/a100", value: "false" } },
+      { case: "a key naming no vendor", attribute: { key: "model/a100", value: "true" } },
+      { case: "a key naming no model", attribute: { key: "vendor/nvidia", value: "true" } },
+      { case: "a wildcard model", attribute: { key: "vendor/nvidia/model/*", value: "true" } }
+    ])("names no model from $case", ({ attribute }) => {
+      const read = readOfferedGpus(offer({ resources: [{ resourceId: 1, replicas: 1, unitsPerReplica: 1, attributes: [attribute] }] }));
+
+      expect(read).toEqual([]);
     });
   });
 
