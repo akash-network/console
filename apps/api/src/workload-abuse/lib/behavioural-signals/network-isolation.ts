@@ -3,6 +3,8 @@ import { BEHAVIOURAL_SIGNALS, type BehaviouralFinding, type BehaviouralSignalPar
 
 type EstablishedConnection = ProbeEvidenceNetShape["connections"][number];
 
+const MAX_NON_RELAY_ENDPOINTS = 1;
+
 export function evaluateNetworkIsolation(snapshot: ProbeEvidenceSnapshot, params: BehaviouralSignalParams): BehaviouralFinding | null {
   const netShape = snapshot.netShape;
 
@@ -14,10 +16,15 @@ export function evaluateNetworkIsolation(snapshot: ProbeEvidenceSnapshot, params
   if (inbound.length > 0) return null;
 
   const relayOutbound = netShape.connections.filter(connection => isRelayEndpoint(connection, params.relayEndpoints));
+  const nonRelayOutbound = netShape.connections.filter(connection => !isRelayEndpoint(connection, params.relayEndpoints));
 
-  if (relayOutbound.length < netShape.connections.length) return null;
+  if (countDistinctEndpoints(nonRelayOutbound) > MAX_NON_RELAY_ENDPOINTS) return null;
 
   return { signal: BEHAVIOURAL_SIGNALS.networkIsolated, detail: { excludedRelay: relayOutbound.length, listenPorts: netShape.listenPorts.length } };
+}
+
+function countDistinctEndpoints(connections: EstablishedConnection[]): number {
+  return new Set(connections.map(connection => `${normalizeHost(connection.remoteIp)}/${connection.remotePort}`)).size;
 }
 
 function isRelayEndpoint(connection: EstablishedConnection, relayEndpoints: string[]): boolean {

@@ -15,7 +15,7 @@ import { BehaviouralSignalReplayService } from "./behavioural-signal-replay.serv
 import { mockConfigService } from "@test/mocks/config-service.mock";
 
 describe(BehaviouralSignalReplayService.name, () => {
-  it("flags the accelerator-bound shape that carries nothing on disk and talks to nobody", async () => {
+  it("flags the accelerator-bound shape that carries nothing large on disk and talks to nobody", async () => {
     const { service } = setup();
 
     const summary = await service.replay({ bundledFixtures: true });
@@ -23,6 +23,22 @@ describe(BehaviouralSignalReplayService.name, () => {
     expect(summary.deployments).toContainEqual({
       source: "fixture",
       label: "accelerator-bound-no-artifacts",
+      probes: 3,
+      accelFires: 3,
+      networkFires: 3,
+      candidateProbes: 3,
+      longestAgreement: 3
+    });
+  });
+
+  it("flags the accelerator-bound shape that carries nothing large on disk and holds a single conversation", async () => {
+    const { service } = setup();
+
+    const summary = await service.replay({ bundledFixtures: true });
+
+    expect(summary.deployments).toContainEqual({
+      source: "fixture",
+      label: "accelerator-bound-single-upstream",
       probes: 3,
       accelFires: 3,
       networkFires: 3,
@@ -64,9 +80,9 @@ describe(BehaviouralSignalReplayService.name, () => {
     const summary = await service.replay({ bundledFixtures: true });
 
     expect(summary.wouldEnforce).toEqual([
-      { agreementProbes: 1, deployments: 1 },
-      { agreementProbes: 2, deployments: 1 },
-      { agreementProbes: 3, deployments: 1 },
+      { agreementProbes: 1, deployments: 2 },
+      { agreementProbes: 2, deployments: 2 },
+      { agreementProbes: 3, deployments: 2 },
       { agreementProbes: 5, deployments: 0 }
     ]);
   });
@@ -76,9 +92,9 @@ describe(BehaviouralSignalReplayService.name, () => {
 
     const summary = await service.replay({ bundledFixtures: true });
 
-    expect(summary.sensitivity).toContainEqual({ accelMinVramMb: 1_024, artifactMinMb: 256, candidateDeployments: 1 });
-    expect(summary.sensitivity).toContainEqual({ accelMinVramMb: 1_024, artifactMinMb: 512, candidateDeployments: 1 });
-    expect(summary.sensitivity).toContainEqual({ accelMinVramMb: 2_048, artifactMinMb: 128, candidateDeployments: 1 });
+    expect(summary.sensitivity).toContainEqual({ accelMinVramMb: 1_024, artifactMinMb: 256, candidateDeployments: 2 });
+    expect(summary.sensitivity).toContainEqual({ accelMinVramMb: 1_024, artifactMinMb: 512, candidateDeployments: 2 });
+    expect(summary.sensitivity).toContainEqual({ accelMinVramMb: 2_048, artifactMinMb: 128, candidateDeployments: 2 });
   });
 
   it("groups recorded evidence by deployment and service", async () => {

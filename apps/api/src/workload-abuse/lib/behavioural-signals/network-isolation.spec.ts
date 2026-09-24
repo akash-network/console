@@ -64,10 +64,85 @@ describe("evaluateNetworkIsolation", () => {
     expect(evaluateNetworkIsolation(snapshot, params)).toBeNull();
   });
 
-  it("stays silent when an outbound connection goes somewhere other than a relay", () => {
+  it("fires when a single endpoint outside the relays is the only conversation", () => {
     const { snapshot, params } = setup({
-      netShape: { listenPorts: [22], connections: [{ localPort: 41_234, remoteIp: "198.51.100.4", remotePort: 3_333, count: 1, state: "established" }] },
+      netShape: { listenPorts: [22], connections: [{ localPort: 41_234, remoteIp: "198.51.100.4", remotePort: 443, count: 1, state: "established" }] },
       relayEndpoints: ["10.0.0.7"]
+    });
+
+    expect(evaluateNetworkIsolation(snapshot, params)).toEqual({
+      signal: "network_isolated",
+      detail: { excludedRelay: 0, listenPorts: 1 }
+    });
+  });
+
+  it("counts several sockets to the same endpoint as one conversation", () => {
+    const { snapshot, params } = setup({
+      netShape: {
+        listenPorts: [22],
+        connections: [
+          { localPort: 41_234, remoteIp: "198.51.100.4", remotePort: 443, count: 1, state: "established" },
+          { localPort: 41_236, remoteIp: "198.51.100.4", remotePort: 443, count: 2, state: "established" }
+        ]
+      }
+    });
+
+    expect(evaluateNetworkIsolation(snapshot, params)).not.toBeNull();
+  });
+
+  it("fires when a relay connection sits alongside a single endpoint outside the relays", () => {
+    const { snapshot, params } = setup({
+      netShape: {
+        listenPorts: [22],
+        connections: [
+          { localPort: 41_234, remoteIp: "10.0.0.7", remotePort: 443, count: 1, state: "established" },
+          { localPort: 41_236, remoteIp: "198.51.100.4", remotePort: 443, count: 1, state: "established" }
+        ]
+      },
+      relayEndpoints: ["10.0.0.7"]
+    });
+
+    expect(evaluateNetworkIsolation(snapshot, params)?.detail).toEqual({ excludedRelay: 1, listenPorts: 1 });
+  });
+
+  it("stays silent when connections reach two endpoints outside the relays", () => {
+    const { snapshot, params } = setup({
+      netShape: {
+        listenPorts: [22],
+        connections: [
+          { localPort: 41_234, remoteIp: "198.51.100.4", remotePort: 443, count: 1, state: "established" },
+          { localPort: 41_236, remoteIp: "203.0.113.30", remotePort: 443, count: 1, state: "established" }
+        ]
+      },
+      relayEndpoints: ["10.0.0.7"]
+    });
+
+    expect(evaluateNetworkIsolation(snapshot, params)).toBeNull();
+  });
+
+  it("treats another port on the same address as another endpoint", () => {
+    const { snapshot, params } = setup({
+      netShape: {
+        listenPorts: [22],
+        connections: [
+          { localPort: 41_234, remoteIp: "198.51.100.4", remotePort: 443, count: 1, state: "established" },
+          { localPort: 41_236, remoteIp: "198.51.100.4", remotePort: 8_443, count: 1, state: "established" }
+        ]
+      }
+    });
+
+    expect(evaluateNetworkIsolation(snapshot, params)).toBeNull();
+  });
+
+  it("stays silent when the second endpoint outside the relays is still connecting", () => {
+    const { snapshot, params } = setup({
+      netShape: {
+        listenPorts: [22],
+        connections: [
+          { localPort: 41_234, remoteIp: "198.51.100.4", remotePort: 443, count: 1, state: "established" },
+          { localPort: 41_236, remoteIp: "203.0.113.30", remotePort: 443, count: 1, state: "connecting" }
+        ]
+      }
     });
 
     expect(evaluateNetworkIsolation(snapshot, params)).toBeNull();

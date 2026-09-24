@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import acceleratorBoundNoArtifacts from "./accelerator-bound-no-artifacts.json";
+import acceleratorBoundSingleUpstream from "./accelerator-bound-single-upstream.json";
 import cpuOnlyWorkload from "./cpu-only-workload.json";
 import idleShellHost from "./idle-shell-host.json";
 import inferenceWithWeights from "./inference-with-weights.json";
@@ -40,6 +41,7 @@ export function parseReplayFixture(contents: unknown): BehaviouralReplayFixture 
 
 export const BUNDLED_REPLAY_FIXTURES: BehaviouralReplayFixture[] = [
   acceleratorBoundNoArtifacts,
+  acceleratorBoundSingleUpstream,
   inferenceWithWeights,
   idleShellHost,
   packagedRuntime,
