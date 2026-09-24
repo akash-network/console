@@ -3,7 +3,7 @@ import { inject, singleton } from "tsyringe";
 
 import { providerInventory } from "@src/model-schemas/provider-inventory/provider-inventory.schema";
 import { type Database, PG_CLIENT } from "@src/providers/postgres.provider";
-import type { ClusterState, RequestedResourceUnit } from "@src/types/inventory";
+import type { ClusterState, RequestedResourceUnit, ResourceAttribute } from "@src/types/inventory";
 import { aggregateCriteria, type BidScreeningCriteria, type PlacementRequirements } from "./bid-screening.aggregator";
 // TODO(Issue 5): move auditor allowlist into configuration and accept it as a request input.
 export const AUDITOR = "akash1365yvmc4s7awdyj3n2sav7xfx76adc6dnmlx63";
@@ -22,6 +22,9 @@ export interface BidScreeningCandidate {
 }
 
 const TABLE = getTableName(providerInventory);
+
+/** The chain SDK groups storage capabilities by the segment after `capabilities/storage/` and skips any key with more or fewer segments. */
+const STORAGE_CAPABILITY_KEY = "^capabilities/storage/[^/]*/[^/]*$";
 
 @singleton()
 export class BidScreeningRepository {
@@ -135,6 +138,10 @@ export class BidScreeningRepository {
       if (unit.persistentClasses.length > 0) {
         conditions.push(AND, sql`${sql(providerInventory.storageClasses.name)} @> ${unit.persistentClasses}::text[]`);
       }
+
+      for (const volume of unit.storageCapabilities) {
+        conditions.push(AND, this.#advertisesStorageGroup(volume));
+      }
     }
 
     if (criteria.attributes.length > 0) {
@@ -144,15 +151,23 @@ export class BidScreeningRepository {
     for (const glob of criteria.globAttributes) {
       conditions.push(
         AND,
-        sql`EXISTS (SELECT 1 FROM jsonb_array_elements(${sql(providerInventory.selfAttributes.name)}) AS sa WHERE sa->>'key' ~* ${glob.keyPattern} AND sa->>'value' = ${glob.value})`
+        sql`EXISTS (SELECT 1 FROM jsonb_array_elements(${sql(providerInventory.selfAttributes.name)}) AS sa WHERE sa->>'key' ~ ${glob.keyPattern} AND sa->>'value' = ${glob.value})`
       );
     }
 
     if (criteria.signedBy.allOf.length > 0) {
       conditions.push(AND, sql`${sql(providerInventory.auditedBy.name)} @> ${criteria.signedBy.allOf}::text[]`);
+      for (const auditor of criteria.signedBy.allOf) {
+        for (const signed of this.#signedRequirementAttributes(auditor, criteria)) {
+          conditions.push(AND, signed);
+        }
+      }
     }
     if (criteria.signedBy.anyOf.length > 0) {
       conditions.push(AND, sql`${sql(providerInventory.auditedBy.name)} && ${criteria.signedBy.anyOf}::text[]`);
+      if (criteria.attributes.length > 0 || criteria.globAttributes.length > 0) {
+        conditions.push(AND, this.#signedByAnyAuditor(criteria.signedBy.anyOf, criteria));
+      }
     }
 
     return conditions;
@@ -161,12 +176,60 @@ export class BidScreeningRepository {
   /** Mirrors the bid engine's MatchResourcesRequirements, which declines an order whose GPU key no advertised capability matches, whatever the hardware says. */
   #advertisesAnyGpuCapability(capabilities: BidScreeningCriteria["units"][number]["gpuCapabilities"]) {
     const sql = this.#sql;
-    const OR = sql`OR`;
-    const alternatives = capabilities.flatMap((capability, index) => [
-      ...(index === 0 ? [] : [OR]),
-      sql`(sa->>'key' ~ ${capability.keyPattern} AND sa->>'value' = ${capability.value})`
-    ]);
+    const alternatives = joinWith(
+      sql`OR`,
+      capabilities.map(capability => sql`(sa->>'key' ~ ${capability.keyPattern} AND sa->>'value' = ${capability.value})`)
+    );
 
     return sql`EXISTS (SELECT 1 FROM jsonb_array_elements(${sql(providerInventory.selfAttributes.name)}) AS sa WHERE ${alternatives})`;
   }
+
+  /** Mirrors MatchResourcesRequirements for a volume with attributes: one advertised `capabilities/storage/<group>/<key>` group must carry every one of them. */
+  #advertisesStorageGroup(volume: ResourceAttribute[]) {
+    const sql = this.#sql;
+    const requirements = joinWith(
+      sql`AND`,
+      volume.map(attribute => sql`bool_or(split_part(sa->>'key', '/', 4) = ${attribute.key} AND sa->>'value' = ${attribute.value})`)
+    );
+
+    return sql`EXISTS (
+      SELECT 1 FROM jsonb_array_elements(${sql(providerInventory.selfAttributes.name)}) AS sa
+      WHERE sa->>'key' ~ ${STORAGE_CAPABILITY_KEY}
+      GROUP BY split_part(sa->>'key', '/', 3)
+      HAVING ${requirements}
+    )`;
+  }
+
+  #signedByAnyAuditor(auditors: string[], criteria: BidScreeningCriteria) {
+    const sql = this.#sql;
+    const signedByEach = auditors.map(auditor =>
+      joinWith(sql`AND`, [sql`${auditor} = ANY(${sql(providerInventory.auditedBy.name)})`, ...this.#signedRequirementAttributes(auditor, criteria)])
+    );
+
+    return sql`(${joinWith(
+      sql`OR`,
+      signedByEach.map(signed => sql`(${signed})`)
+    )})`;
+  }
+
+  /** Mirrors MatchRequirements, which declines an order unless the auditor signed every placement attribute it asks for, not just audited the provider. */
+  #signedRequirementAttributes(auditor: string, criteria: BidScreeningCriteria) {
+    const sql = this.#sql;
+    const signedAttributes = sql(providerInventory.signedAttributes.name);
+
+    return [
+      ...criteria.attributes.map(
+        attribute =>
+          sql`EXISTS (SELECT 1 FROM jsonb_array_elements(${signedAttributes}) AS signed WHERE signed->>'auditor' = ${auditor} AND signed->>'key' = ${attribute.key} AND signed->>'value' = ${attribute.value})`
+      ),
+      ...criteria.globAttributes.map(
+        glob =>
+          sql`EXISTS (SELECT 1 FROM jsonb_array_elements(${signedAttributes}) AS signed WHERE signed->>'auditor' = ${auditor} AND signed->>'key' ~ ${glob.keyPattern} AND signed->>'value' = ${glob.value})`
+      )
+    ];
+  }
+}
+
+function joinWith<T>(separator: T, fragments: T[]): T[] {
+  return fragments.flatMap((fragment, index) => (index === 0 ? [fragment] : [separator, fragment]));
 }

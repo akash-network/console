@@ -25,7 +25,11 @@ describe(mapGroupSpecToResourceUnits.name, () => {
       {
         name: "default",
         quantity: 5368709120n,
-        attributes: { persistent: false, class: "ephemeral", classification: "ephemeral" }
+        attributes: { persistent: false, class: "ephemeral", classification: "ephemeral" },
+        capabilities: [
+          { key: "persistent", value: "false" },
+          { key: "class", value: "ephemeral" }
+        ]
       }
     ]);
   });

@@ -294,8 +294,8 @@ describe(aggregateCriteria.name, () => {
     it("emits a per-unit filter slot for each unit in this slice", () => {
       const c = aggregateCriteria([makeUnit({}), makeUnit({})], makeRequirements());
       expect(c.units).toEqual([
-        { gpuTokens: [], gpuCapabilities: [], persistentClasses: [] },
-        { gpuTokens: [], gpuCapabilities: [], persistentClasses: [] }
+        { gpuTokens: [], gpuCapabilities: [], persistentClasses: [], storageCapabilities: [] },
+        { gpuTokens: [], gpuCapabilities: [], persistentClasses: [], storageCapabilities: [] }
       ]);
     });
 
@@ -476,6 +476,39 @@ describe(aggregateCriteria.name, () => {
       expect(c.units[0].gpuCapabilities).toEqual([]);
     });
   });
+
+  describe("storage capabilities", () => {
+    it("collects the attributes of every volume that declares any", () => {
+      const persistent = [
+        { key: "class", value: "beta3" },
+        { key: "persistent", value: "true" }
+      ];
+      const ram = [
+        { key: "class", value: "ram" },
+        { key: "persistent", value: "false" }
+      ];
+
+      const c = aggregateCriteria(
+        [
+          makeUnit({
+            storage: [
+              { name: "data", quantity: 1000n, attributes: persistent },
+              { name: "shm", quantity: 100n, attributes: ram }
+            ]
+          })
+        ],
+        makeRequirements()
+      );
+
+      expect(c.units[0].storageCapabilities).toEqual([persistent, ram]);
+    });
+
+    it("skips a volume without attributes, which the bid engine does not check", () => {
+      const c = aggregateCriteria([makeUnit({ storage: [{ name: "scratch", quantity: 500n, attributes: [] }] })], makeRequirements());
+
+      expect(c.units[0].storageCapabilities).toEqual([]);
+    });
+  });
 });
 
 function makeUnit(input: {
@@ -494,7 +527,12 @@ function makeUnit(input: {
       cpu: { units: input.cpu ?? 0n, arch: null },
       memory: { quantity: input.memory ?? 0n },
       gpu: { units: input.gpu ?? 0n, attributes: parseGPUAttributes(input.gpuAttributes ?? []), capabilities: input.gpuAttributes ?? [] },
-      storage: (input.storage ?? []).map(s => ({ name: s.name, quantity: s.quantity, attributes: parseStorageAttributes(s.attributes) })),
+      storage: (input.storage ?? []).map(s => ({
+        name: s.name,
+        quantity: s.quantity,
+        attributes: parseStorageAttributes(s.attributes),
+        capabilities: s.attributes
+      })),
       endpoints: input.endpoints ?? []
     }
   };

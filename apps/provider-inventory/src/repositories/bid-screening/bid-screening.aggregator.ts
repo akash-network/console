@@ -6,6 +6,7 @@ interface UnitFilters {
   gpuTokens: string[];
   gpuCapabilities: { keyPattern: string; value: string }[];
   persistentClasses: string[];
+  storageCapabilities: ResourceAttribute[][];
 }
 
 export interface BidScreeningCriteria {
@@ -71,7 +72,8 @@ export function aggregateCriteria(resourceUnits: RequestedResourceUnit[], requir
     units.push({
       gpuTokens: collectGpuTokens(unit.resources.gpu),
       gpuCapabilities: collectGpuCapabilities(unit.resources.gpu),
-      persistentClasses: collectPersistentStorageTokens(unit.resources.storage)
+      persistentClasses: collectPersistentStorageTokens(unit.resources.storage),
+      storageCapabilities: unit.resources.storage.map(vol => vol.capabilities).filter(capabilities => capabilities.length > 0)
     });
   }
 

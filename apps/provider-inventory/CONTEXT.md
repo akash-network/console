@@ -120,7 +120,7 @@ A cold-boot-only step that runs after the **`is_online_since` startup ritual** a
 _Avoid_: warm boot, online preflight, warm-start
 
 **prefilter**:
-The SQL stage that narrows the provider set on cluster aggregates and per-node max-free dimensions, plus the gates a provider's bid engine checks before it looks at hardware: placement attributes, auditor signatures, and an advertised `capabilities/gpu/...` key matching the order's GPU attribute. Intentionally lossy — false positives flow through to the **bin-packer**; false negatives are bugs. One round-trip, one row per candidate, JSONB carries the bin-packer payload.
+The SQL stage that narrows the provider set on cluster aggregates and per-node max-free dimensions, plus the gates a provider's bid engine checks before it looks at hardware: placement attributes, the auditor's signature on each of them, an advertised `capabilities/gpu/...` key matching the order's GPU attribute, and an advertised `capabilities/storage/<group>/...` group carrying each volume's attributes. Intentionally lossy — false positives flow through to the **bin-packer**; false negatives are bugs. One round-trip, one row per candidate, JSONB carries the bin-packer payload.
 
 **bin-packer**:
 The JS algorithm in `cluster-inventory-matcher.service.ts` that places replicas onto nodes greedily and decides whether the cluster can host the **GroupSpec**. The strict check.
