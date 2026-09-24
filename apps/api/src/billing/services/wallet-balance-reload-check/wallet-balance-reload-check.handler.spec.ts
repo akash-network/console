@@ -14,11 +14,13 @@ import type { StripeTransactionService } from "@src/billing/services/stripe-tran
 import type { WalletReloadJobService } from "@src/billing/services/wallet-reload-job/wallet-reload-job.service";
 import type { JobMeta } from "@src/core";
 import type { DeploymentRepository } from "@src/deployment/repositories/deployment/deployment.repository";
+import type { DeploymentConfigService } from "@src/deployment/services/deployment-config/deployment-config.service";
 import type { DrainingDeploymentService } from "@src/deployment/services/draining-deployment/draining-deployment.service";
 import type { JobPayload } from "../../../core";
 import { WalletBalanceReloadCheckHandler } from "./wallet-balance-reload-check.handler";
 import type { WalletBalanceReloadCheckInstrumentationService } from "./wallet-balance-reload-check-instrumentation.service";
 
+import { mockConfigService } from "@test/mocks/config-service.mock";
 import { generateMergedPaymentMethod as generatePaymentMethod } from "@test/seeders/payment-method.seeder";
 import { createUser } from "@test/seeders/user.seeder";
 import { createUserWallet } from "@test/seeders/user-wallet.seeder";
@@ -91,6 +93,16 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
           })
         })
       );
+    });
+
+    it("covers only the escrow runway when a deployment triggered the check", async () => {
+      const { handler, drainingDeploymentService, job, jobMeta } = setup({ triggeredByDeployment: true, autoTopUpTargetRunwayInHours: 48 });
+
+      await handler.handle(job, jobMeta);
+
+      const expectedTargetDate = addMilliseconds(new Date(), 48 * millisecondsInHour);
+      const reloadTargetDate = drainingDeploymentService.calculateAllDeploymentCostUntilDate.mock.calls[0][1];
+      expect(reloadTargetDate.getTime()).toBeCloseTo(expectedTargetDate.getTime(), -3);
     });
 
     it("triggers reload with minimum amount when needed amount is below minimum", async () => {
@@ -895,6 +907,7 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
     autoReloadMode?: "prediction" | "threshold";
     activeDeploymentCount?: number;
     triggeredByDeployment?: boolean;
+    autoTopUpTargetRunwayInHours?: number;
     chargeClaimWon?: boolean;
     chargeRequiresAction?: boolean;
     secondsUntilWindowReopen?: number;
@@ -947,6 +960,7 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
     );
     const autoReloadPauseService = mock<AutoReloadPauseService>();
     autoReloadPauseService.calculateChargeCooldownMinutes.mockReturnValue(input?.chargeCooldownMinutes ?? 60);
+    const deploymentConfig = mockConfigService<DeploymentConfigService>({ AUTO_TOP_UP_TARGET_RUNWAY_IN_H: input?.autoTopUpTargetRunwayInHours ?? 48 });
     const balancesService = mock<BalancesService>({
       ensure2floatingDigits: vi.fn().mockImplementation((amount: number) => amount)
     });
@@ -1000,11 +1014,13 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
       drainingDeploymentService,
       deploymentRepository,
       instrumentationService,
-      autoReloadPauseService
+      autoReloadPauseService,
+      deploymentConfig
     );
 
     return {
       handler,
+      deploymentConfig,
       walletSettingRepository,
       balancesService,
       walletReloadJobService,
