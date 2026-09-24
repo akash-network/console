@@ -1154,6 +1154,26 @@ describe("Deployments API", () => {
       expect(result.message).toContain("Invalid SDL");
     });
 
+    it("returns 400 naming the value when the SDL gives a memory size without a unit", async () => {
+      const { userApiKeySecret } = await mockUser();
+      const yml = fs.readFileSync(path.resolve(__dirname, "../mocks/hello-world-sdl.yml"), "utf8").replace("size: 512Mi", 'size: "1073741824"');
+
+      const response = await app.request("/v1/deployments", {
+        method: "POST",
+        body: JSON.stringify({
+          data: {
+            sdl: yml,
+            deposit: 5.5
+          }
+        }),
+        headers: new Headers({ "Content-Type": "application/json", "x-api-key": userApiKeySecret })
+      });
+
+      expect(response.status).toBe(400);
+      const result = (await response.json()) as { message: string };
+      expect(result.message).toBe('Invalid SDL: memory or storage size "1073741824" must be a number with a unit, such as 512Mi or 1Gi');
+    });
+
     it("creates a deployment without a deposit", async () => {
       const { userApiKeySecret } = await mockPersistedUser();
       const yml = fs.readFileSync(path.resolve(__dirname, "../mocks/hello-world-sdl.yml"), "utf8");
