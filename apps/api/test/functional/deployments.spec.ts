@@ -40,7 +40,12 @@ import { createAkashAddress } from "@test/seeders/akash-address.seeder";
 import { createApiKey } from "@test/seeders/api-key.seeder";
 import { seedLeaseGpu } from "@test/seeders/db/lease-gpu.seeder";
 import { createDeployment } from "@test/seeders/deployment.seeder";
-import { createDeploymentInfoErrorSeed, createDeploymentInfoGroupSeed, createDeploymentInfoSeed } from "@test/seeders/deployment-info.seeder";
+import {
+  createDeploymentInfoErrorSeed,
+  createDeploymentInfoGroupSeed,
+  createDeploymentInfoGroupsFromSdl,
+  createDeploymentInfoSeed
+} from "@test/seeders/deployment-info.seeder";
 import { createManyLeaseApiResponses } from "@test/seeders/lease-api-response.seeder";
 import { createLeaseStatus } from "@test/seeders/lease-status.seeder";
 import { createProvider } from "@test/seeders/provider.seeder";
@@ -48,6 +53,7 @@ import { createUser } from "@test/seeders/user.seeder";
 import { createUserWallet } from "@test/seeders/user-wallet.seeder";
 
 const OVERSIZED_FILLER = "z".repeat(4096);
+const HELLO_WORLD_SDL = fs.readFileSync(path.resolve(__dirname, "../mocks/hello-world-sdl.yml"), "utf8");
 const CLIENT_MANIFEST = '{"client":"supplied"}';
 
 registerFakeSdlSecretsKms();
@@ -184,7 +190,8 @@ describe("Deployments API", () => {
       deploymentInfo ||
       createDeploymentInfoSeed({
         owner: address!,
-        dseq
+        dseq,
+        groups: createDeploymentInfoGroupsFromSdl({ sdl: HELLO_WORLD_SDL, owner: address!, dseq })
       });
 
     nock(container.resolve(CORE_CONFIG).REST_API_NODE_URL)
@@ -1717,6 +1724,26 @@ describe("Deployments API", () => {
       });
     });
 
+    it("refuses an sdl that changes the deployment's resources, recording and broadcasting nothing", async () => {
+      const { userApiKeySecret, user, wallets } = await mockPersistedUser();
+      const dseq = "1234";
+      await setupDeploymentInfoMock(wallets, dseq);
+      const deploymentSettingRepository = container.resolve(DeploymentSettingRepository);
+      await deploymentSettingRepository.upsertDefinition({ userId: user.id, dseq, sdl: HELLO_WORLD_SDL, manifestVersion: "BAUG" });
+      const broadcast = vi.spyOn(signerService, "executeDerivedDecodedTxByUserId");
+
+      const response = await app.request(`/v1/deployments/${dseq}`, {
+        method: "PUT",
+        body: JSON.stringify({ data: { sdl: HELLO_WORLD_SDL.replace("units: 0.5", "units: 1") } }),
+        headers: new Headers({ "Content-Type": "application/json", "x-api-key": userApiKeySecret })
+      });
+
+      expect(response.status).toBe(422);
+      expect(await response.json()).toMatchObject({ code: "deployment_resources_changed", message: expect.stringContaining('group "dcloud"') });
+      expect(broadcast).not.toHaveBeenCalled();
+      expect(await deploymentSettingRepository.findOneBy({ userId: user.id, dseq })).toMatchObject({ sdl: HELLO_WORLD_SDL, manifestVersion: "BAUG" });
+    });
+
     it("renames the deployment", async () => {
       const { user, setting } = await update({ recordedName: "web", name: "renamed" });
 
@@ -1772,7 +1799,7 @@ describe("Deployments API", () => {
       const { userApiKeySecret } = await mockUser();
       const dseq = "1234";
 
-      vi.spyOn(deploymentReaderService, "findByWalletAndDseqWithoutProviderStatus").mockRejectedValueOnce(new NotFound("Deployment not found"));
+      vi.spyOn(deploymentReaderService, "findWithGroupSpecsByWalletAndDseq").mockRejectedValueOnce(new NotFound("Deployment not found"));
 
       const yml = fs.readFileSync(path.resolve(__dirname, "../mocks/hello-world-sdl.yml"), "utf8");
 

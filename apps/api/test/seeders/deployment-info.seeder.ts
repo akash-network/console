@@ -1,3 +1,5 @@
+import { generateManifest, type SDLInput, yaml } from "@akashnetwork/chain-sdk";
+import { Endpoint_Kind, type GroupSpec } from "@akashnetwork/chain-sdk/private-types/akash.v1beta4";
 import type { DeploymentInfo } from "@akashnetwork/http-sdk";
 import { faker } from "@faker-js/faker";
 
@@ -63,6 +65,49 @@ export function createDeploymentInfoGroupSeed(input: DeploymentInfoGroupSeederIn
       ]
     },
     created_at: "1"
+  };
+}
+
+/** The groups the chain holds for a deployment created from this SDL, in the shape its REST API describes them. */
+export function createDeploymentInfoGroupsFromSdl(input: { sdl: string; owner?: string; dseq?: string }): DeploymentInfo["groups"] {
+  const { sdl, owner = createAkashAddress(), dseq = faker.string.numeric({ length: 8, allowLeadingZeros: false }) } = input;
+  const result = generateManifest(yaml.raw<SDLInput>(sdl));
+
+  if (!result.ok) {
+    throw new Error(`Cannot derive groups from an invalid SDL: ${result.value.map(error => error.message).join(", ")}`);
+  }
+
+  return result.value.groupSpecs.map((spec, index) => ({
+    id: { owner, dseq, gseq: index + 1 },
+    state: "open",
+    group_spec: toOnChainGroupSpec(spec),
+    created_at: "1"
+  }));
+}
+
+function toOnChainGroupSpec(spec: GroupSpec): DeploymentInfo["groups"][number]["group_spec"] {
+  return {
+    name: spec.name,
+    requirements: {
+      signed_by: { all_of: spec.requirements?.signedBy?.allOf ?? [], any_of: spec.requirements?.signedBy?.anyOf ?? [] },
+      attributes: spec.requirements?.attributes ?? []
+    },
+    resources: spec.resources.map(({ resource, count, price }) => {
+      const { id, cpu, memory, storage, gpu, endpoints } = resource!;
+
+      return {
+        resource: {
+          id,
+          cpu: { units: { val: String(cpu!.units!.val) }, attributes: cpu!.attributes },
+          memory: { quantity: { val: String(memory!.quantity!.val) }, attributes: memory!.attributes },
+          storage: storage.map(volume => ({ name: volume.name, quantity: { val: String(volume.quantity!.val) }, attributes: volume.attributes })),
+          gpu: { units: { val: String(gpu!.units!.val) }, attributes: gpu!.attributes },
+          endpoints: endpoints.map(endpoint => ({ kind: Endpoint_Kind[endpoint.kind], sequence_number: endpoint.sequenceNumber }))
+        },
+        count,
+        price: { denom: price!.denom, amount: price!.amount }
+      };
+    })
   };
 }
 

@@ -28,6 +28,7 @@ import type { SdlSecretsService } from "@src/deployment/services/sdl-secrets/sdl
 import { SdlSecretsDerivationService } from "@src/deployment/services/sdl-secrets-derivation/sdl-secrets-derivation.service";
 import type { SdlSecretsInheritanceService } from "@src/deployment/services/sdl-secrets-inheritance/sdl-secrets-inheritance.service";
 import type { SdlSecrets } from "@src/deployment/services/sdl-secrets-unsealer/sdl-secrets-unsealer.service";
+import type { OnChainGroupSpec } from "@src/deployment/utils/changed-group-resources/changed-group-resources";
 import type { ProviderService } from "@src/provider/services/provider/provider.service";
 import { SECRET_UNREADABLE_ERROR_MESSAGE } from "@src/secret/config/secret-at-rest.config";
 import type { TrialWorkloadProbeJobService } from "@src/workload-abuse/services/trial-workload-probe-job/trial-workload-probe-job.service";
@@ -37,6 +38,7 @@ import type { StaleManagedDeploymentsCleanerService } from "../stale-managed-dep
 import { DeploymentWriterService } from "./deployment-writer.service";
 
 import { mockConfigService } from "@test/mocks/config-service.mock";
+import { createDeploymentInfoGroupSeed } from "@test/seeders/deployment-info.seeder";
 
 const ALIASED_FILLER = "x".repeat(4096);
 const ENV_VALUE = faker.string.alphanumeric(24);
@@ -1205,7 +1207,9 @@ describe(DeploymentWriterService.name, () => {
       const { service, signerService, deploymentReaderService } = setup();
       const closeError = new Error("close boom");
       signerService.executeDecodedTxByUserWallet.mockRejectedValue(closeError);
-      deploymentReaderService.findByWalletAndDseqWithoutProviderStatus.mockResolvedValueOnce(deploymentData).mockRejectedValueOnce(new Error("indexer unavailable"));
+      deploymentReaderService.findByWalletAndDseqWithoutProviderStatus
+        .mockResolvedValueOnce(deploymentData)
+        .mockRejectedValueOnce(new Error("indexer unavailable"));
 
       await expect(service.close(wallet, "100")).rejects.toBe(closeError);
     });
@@ -1258,7 +1262,7 @@ describe(DeploymentWriterService.name, () => {
 
       await service.updateByUserIdAndDseq("user-1", "100", { sdl: "valid-sdl" });
 
-      expect(deploymentReaderService.findByWalletAndDseqWithoutProviderStatus).toHaveBeenCalledWith(expect.anything(), "100");
+      expect(deploymentReaderService.findWithGroupSpecsByWalletAndDseq).toHaveBeenCalledWith(expect.anything(), "100");
       expect(deploymentReaderService.findByWalletAndDseq).toHaveBeenCalledTimes(1);
     });
 
@@ -1268,7 +1272,7 @@ describe(DeploymentWriterService.name, () => {
         ...deploymentData,
         deployment: { ...deploymentData.deployment, hash: "stale-hash" }
       };
-      deploymentReaderService.findByWalletAndDseqWithoutProviderStatus.mockResolvedValue(staleDeployment);
+      deploymentReaderService.findWithGroupSpecsByWalletAndDseq.mockResolvedValue({ deployment: staleDeployment, groupSpecs: null });
       const updateMsg = { typeUrl: "/update", value: MsgUpdateDeployment.fromPartial({}) };
       rpcMessageService.getUpdateDeploymentMsg.mockReturnValue(updateMsg);
 
@@ -1400,7 +1404,7 @@ describe(DeploymentWriterService.name, () => {
           { ...deploymentData.leases[0], id: { ...deploymentData.leases[0].id, provider: "provider-1" } }
         ]
       };
-      deploymentReaderService.findByWalletAndDseqWithoutProviderStatus.mockResolvedValue(deploymentWithMultipleLeases);
+      deploymentReaderService.findWithGroupSpecsByWalletAndDseq.mockResolvedValue({ deployment: deploymentWithMultipleLeases, groupSpecs: null });
       providerService.toProviderAuth.mockResolvedValue({ type: "jwt", token: "test-token" });
 
       await service.updateByUserIdAndDseq("user-1", "100", { sdl: "valid-sdl" });
@@ -1446,11 +1450,37 @@ describe(DeploymentWriterService.name, () => {
 
     it("seals only after everything that could still refuse the update has run", async () => {
       const { service, sdlSecretsService, deploymentReaderService } = setup();
-      deploymentReaderService.findByWalletAndDseqWithoutProviderStatus.mockRejectedValue(new NotFound("Deployment not found"));
+      deploymentReaderService.findWithGroupSpecsByWalletAndDseq.mockRejectedValue(new NotFound("Deployment not found"));
 
       await expect(service.updateByUserIdAndDseq("user-1", "100", { sdl: SDL_WITH_SECRETS })).rejects.toMatchObject({ status: 404 });
 
       expect(sdlSecretsService.sealForStorage).not.toHaveBeenCalled();
+    });
+
+    it("refuses an sdl that changes the deployment's resources before sealing, recording or broadcasting anything", async () => {
+      const { service, sdlSecretsService, deploymentSettingRepository, signerService, providerService } = setup({
+        onChainGroupSpecs: [createDeploymentInfoGroupSeed({ name: "dcloud" }).group_spec]
+      });
+
+      await expect(service.updateByUserIdAndDseq("user-1", "100", { sdl: SDL_WITH_SECRETS })).rejects.toMatchObject({
+        status: 422,
+        errorCode: "deployment_resources_changed",
+        message: expect.stringContaining('group "resolved-group"')
+      });
+
+      expect(sdlSecretsService.sealForStorage).not.toHaveBeenCalled();
+      expect(deploymentSettingRepository.upsertDefinition).not.toHaveBeenCalled();
+      expect(signerService.executeDerivedDecodedTxByUserId).not.toHaveBeenCalled();
+      expect(providerService.sendManifest).not.toHaveBeenCalled();
+    });
+
+    it("updates a deployment the chain could not describe, leaving the resources to the provider", async () => {
+      const { service, deploymentSettingRepository, providerService } = setup({ onChainGroupSpecs: null });
+
+      await service.updateByUserIdAndDseq("user-1", "100", { sdl: SDL_WITH_SECRETS });
+
+      expect(deploymentSettingRepository.upsertDefinition).toHaveBeenCalledTimes(1);
+      expect(providerService.sendManifest).toHaveBeenCalledTimes(1);
     });
 
     it("records nothing and sends no manifest for an update it cannot seal", async () => {
@@ -1977,6 +2007,23 @@ describe(DeploymentWriterService.name, () => {
         ).rejects.toThrow();
         expect(providerService.sendManifest).not.toHaveBeenCalled();
       });
+
+      it("writes nothing when the stored sdl no longer declares the resources the deployment holds on chain", async () => {
+        const { service, ability, sdlSecretsService, deploymentSettingRepository, signerService, providerService } = setup({
+          chainHash: "SOMETHING_ELSE",
+          onChainGroupSpecs: [createDeploymentInfoGroupSeed({ name: "dcloud" }).group_spec]
+        });
+
+        await expect(service.patchByUserIdAndDseq("user-1", "1234", { services: { web: { image: "x" } } }, ability)).rejects.toMatchObject({
+          status: 422,
+          errorCode: "deployment_resources_changed",
+          message: expect.stringContaining('group "dcloud"')
+        });
+        expect(sdlSecretsService.sealForStorage).not.toHaveBeenCalled();
+        expect(deploymentSettingRepository.replaceDefinitionIfVersionMatches).not.toHaveBeenCalled();
+        expect(signerService.executeDerivedDecodedTxByUserId).not.toHaveBeenCalled();
+        expect(providerService.sendManifest).not.toHaveBeenCalled();
+      });
     });
 
     describe("stored state the console cannot read or store back", () => {
@@ -2053,7 +2100,7 @@ describe(DeploymentWriterService.name, () => {
 
         await service.patchByUserIdAndDseq("user-1", "1234", { services: { web: { image: "x" } } }, ability);
 
-        expect(deploymentReaderService.findByWalletAndDseqWithoutProviderStatus).toHaveBeenCalledWith(expect.anything(), "1234");
+        expect(deploymentReaderService.findWithGroupSpecsByWalletAndDseq).toHaveBeenCalledWith(expect.anything(), "1234");
         expect(deploymentReaderService.findByWalletAndDseq).toHaveBeenCalledTimes(1);
       });
 
@@ -2324,6 +2371,7 @@ describe(DeploymentWriterService.name, () => {
       providers?: string[];
       openStoredError?: Error;
       isTrialing?: boolean;
+      onChainGroupSpecs?: OnChainGroupSpec[];
     }) {
       const manifestVersion = new Uint8Array([1, 2, 3]);
       const storedToken = input?.storedToken === undefined ? STORED_TOKEN : input.storedToken;
@@ -2357,10 +2405,11 @@ describe(DeploymentWriterService.name, () => {
       };
       deploymentReaderService.findByWalletAndDseq.mockResolvedValue(chainDeployment);
       deploymentReaderService.findByWalletAndDseqWithoutProviderStatus.mockResolvedValue(chainDeployment);
+      deploymentReaderService.findWithGroupSpecsByWalletAndDseq.mockResolvedValue({ deployment: chainDeployment, groupSpecs: input?.onChainGroupSpecs ?? [] });
 
       const resolved: GenerateResolvedManifestResult = input?.resolveErrors
         ? { ok: false, value: input.resolveErrors }
-        : { ok: true, value: { manifestVersion, manifest: mock<SdlManifest>({ groups: [] }) } };
+        : { ok: true, value: { manifestVersion, manifest: mock<SdlManifest>({ groups: [], groupSpecs: [] }) } };
       const sdlService = mock<SdlService>();
       sdlService.generateResolvedManifest.mockResolvedValue(resolved);
 
@@ -2447,6 +2496,7 @@ describe(DeploymentWriterService.name, () => {
     sourceSetting?: DeploymentSettingsOutput;
     isTrialing?: boolean;
     serviceNames?: string[];
+    onChainGroupSpecs?: OnChainGroupSpec[] | null;
   }) {
     const signerService = mock<ManagedSignerService>();
     const rpcMessageService = mock<RpcMessageService>();
@@ -2519,6 +2569,11 @@ describe(DeploymentWriterService.name, () => {
     } as any);
     deploymentReaderService.findByWalletAndDseq.mockResolvedValue(deploymentData);
     deploymentReaderService.findByWalletAndDseqWithoutProviderStatus.mockResolvedValue(deploymentData);
+    const unchangedGroupSpecs = [{ ...createDeploymentInfoGroupSeed({ name: "resolved-group" }).group_spec, resources: [] }];
+    deploymentReaderService.findWithGroupSpecsByWalletAndDseq.mockResolvedValue({
+      deployment: deploymentData,
+      groupSpecs: input?.onChainGroupSpecs === undefined ? unchangedGroupSpecs : input.onChainGroupSpecs
+    });
 
     const service = new DeploymentWriterService(
       signerService,

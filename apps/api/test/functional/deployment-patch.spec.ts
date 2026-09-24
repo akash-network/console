@@ -33,7 +33,7 @@ import { registerFakeSdlSecretsKms, SDL_SECRETS_KID, warmSealingKeyAsBootWould }
 import { createAkashAddress } from "@test/seeders/akash-address.seeder";
 import { createApiKey } from "@test/seeders/api-key.seeder";
 import { createDeployment } from "@test/seeders/deployment.seeder";
-import { createDeploymentInfoSeed } from "@test/seeders/deployment-info.seeder";
+import { createDeploymentInfoGroupsFromSdl, createDeploymentInfoSeed } from "@test/seeders/deployment-info.seeder";
 import { createManyLeaseApiResponses } from "@test/seeders/lease-api-response.seeder";
 import { createLeaseStatus } from "@test/seeders/lease-status.seeder";
 import { createUser } from "@test/seeders/user.seeder";
@@ -762,9 +762,13 @@ describe("PATCH /v1/deployments/{dseq}", () => {
     return env.flatMap(entry => entry.match(/ac-secret:\/\/([A-Za-z_][A-Za-z0-9_]*)/)?.slice(1) ?? []);
   }
 
-  async function mockChain(address: string) {
+  async function mockChain(address: string, sdl: string) {
     const restUrl = container.resolve(CORE_CONFIG).REST_API_NODE_URL;
-    const info = createDeploymentInfoSeed({ owner: address, dseq: DSEQ });
+    const info = createDeploymentInfoSeed({
+      owner: address,
+      dseq: DSEQ,
+      groups: createDeploymentInfoGroupsFromSdl({ sdl, owner: address, dseq: DSEQ })
+    });
     const leases = createManyLeaseApiResponses(1, { owner: address, dseq: DSEQ, state: "active" });
 
     nock(restUrl).persist().get(`/akash/deployment/${deploymentVersion}/deployments/info?id.owner=${address}&id.dseq=${DSEQ}`).reply(200, info);
@@ -810,7 +814,7 @@ describe("PATCH /v1/deployments/{dseq}", () => {
     const sdl = storedSdl(env, undefined, input.expose);
     const secrets = input.secrets ?? Object.fromEntries(referencedNamesIn(env).map(name => [name, randomUUID()]));
 
-    await mockChain(address);
+    await mockChain(address, sdl);
 
     if (input.record !== false) {
       const sealedSecrets = await container.resolve(ExecutionContextService).runWithContext(async () => {

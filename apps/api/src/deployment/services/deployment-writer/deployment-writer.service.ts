@@ -1,5 +1,6 @@
 import type { SDLInput, ValidationError } from "@akashnetwork/chain-sdk";
 import { manifestToSortedJSON } from "@akashnetwork/chain-sdk";
+import type { GroupSpec } from "@akashnetwork/chain-sdk/private-types/akash.v1beta4";
 import type { AnyAbility } from "@casl/ability";
 import { addMinutes } from "date-fns";
 import { HTTPException } from "hono/http-exception";
@@ -36,6 +37,7 @@ import { SdlSecretsService, unreferencedNameError } from "@src/deployment/servic
 import { SdlSecretsDerivationService } from "@src/deployment/services/sdl-secrets-derivation/sdl-secrets-derivation.service";
 import { SdlSecretsInheritanceService } from "@src/deployment/services/sdl-secrets-inheritance/sdl-secrets-inheritance.service";
 import type { SdlSecrets } from "@src/deployment/services/sdl-secrets-unsealer/sdl-secrets-unsealer.service";
+import { findGroupWithChangedResources, type OnChainGroupSpec } from "@src/deployment/utils/changed-group-resources/changed-group-resources";
 import { deriveDeploymentName } from "@src/deployment/utils/deployment-name/deployment-name";
 import type { StorableSdl, StoredSdlPosition, StoredSdlRefusal } from "@src/deployment/utils/sdl-for-storage/sdl-for-storage";
 import { parseSdlForStorage, sdlForStorage } from "@src/deployment/utils/sdl-for-storage/sdl-for-storage";
@@ -53,6 +55,9 @@ const STORED_SDL_UNREADABLE_ERROR_CODE = "stored_sdl_unreadable";
 
 /** A seal made against a retired key also answers a bare 409, and only this one is cured by reloading the definition rather than resealing. */
 const DEFINITION_CHANGED_ERROR_CODE = "deployment_definition_changed";
+
+/** Lets a client tell an SDL that needs a new deployment from one that is merely invalid. */
+const RESOURCES_CHANGED_ERROR_CODE = "deployment_resources_changed";
 
 /** A deployment the console never recorded an SDL for has nothing to patch, and the SDL is deliberately not accepted from the request. */
 const NOT_PATCHABLE_MESSAGE = "This deployment has no SDL recorded by the console, so there is nothing to patch";
@@ -393,7 +398,8 @@ export class DeploymentWriterService {
     const { sdl, derived } = this.#storedSdlOf(input.sdl, "every-value-sealed", dseq);
 
     const { manifestVersion, manifest } = await this.#resolveSdl(input.sdl, { isTrialing: !!wallet.isTrialing });
-    const deployment = await this.deploymentReaderService.findByWalletAndDseqWithoutProviderStatus(wallet, dseq);
+    const { deployment, groupSpecs } = await this.deploymentReaderService.findWithGroupSpecsByWalletAndDseq(wallet, dseq);
+    this.#assertResourcesUnchanged(manifest.groupSpecs, groupSpecs);
     const sealedSecrets = await this.sdlSecretsService.sealForStorage({ userId: wallet.userId, dseq, secrets: derived });
 
     await this.recordDefinition({ userId: wallet.userId, dseq, sdl, manifestVersion, sealedSecrets, name: input.name });
@@ -445,7 +451,8 @@ export class DeploymentWriterService {
     const merged = this.#mergeAndPrune({ held, supplied, derived }, document);
 
     const { manifestVersion, manifest } = await this.#resolveSdl(patchedSdl, { secrets: merged, isTrialing: !!wallet.isTrialing });
-    const deployment = await this.deploymentReaderService.findByWalletAndDseqWithoutProviderStatus(wallet, dseq);
+    const { deployment, groupSpecs } = await this.deploymentReaderService.findWithGroupSpecsByWalletAndDseq(wallet, dseq);
+    this.#assertResourcesUnchanged(manifest.groupSpecs, groupSpecs);
 
     const recordedVersion = Buffer.from(manifestVersion).toString("base64");
     const sealedSecrets = await this.sdlSecretsService.sealForStorage({ userId, dseq, secrets: merged });
@@ -633,6 +640,19 @@ export class DeploymentWriterService {
     }
 
     return received.value;
+  }
+
+  /** The provider refuses such a manifest only after the definition is recorded and broadcast, and a deployment the chain could not describe is left to it. */
+  #assertResourcesUnchanged(submitted: GroupSpec[], onChain: OnChainGroupSpec[] | null): void {
+    const changedGroup = onChain && findGroupWithChangedResources(submitted, onChain);
+
+    if (changedGroup) {
+      throw createError(
+        422,
+        `The SDL changes the resources of group "${changedGroup}". An update cannot change a deployment's groups, compute resources, replica counts or globally exposed ports, so create a new deployment for this SDL instead`,
+        { errorCode: RESOURCES_CHANGED_ERROR_CODE }
+      );
+    }
   }
 
   #rejectInvalidSdl(errors: ValidationError[]) {

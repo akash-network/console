@@ -13,7 +13,10 @@ import type {
   DeploymentSettingsOutput,
   ListedDeploymentSetting
 } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
-import type { FallbackDeploymentReaderService } from "@src/deployment/services/fallback-deployment-reader/fallback-deployment-reader.service";
+import {
+  type FallbackDeploymentReaderService,
+  UNKNOWN_DB_PLACEHOLDER
+} from "@src/deployment/services/fallback-deployment-reader/fallback-deployment-reader.service";
 import type { FallbackLeaseReaderService } from "@src/deployment/services/fallback-lease-reader/fallback-lease-reader.service";
 import type { DetectedGpusByLease, LeaseGpuService } from "@src/deployment/services/lease-gpu/lease-gpu.service";
 import type { MessageService } from "@src/deployment/services/message-service/message.service";
@@ -167,6 +170,35 @@ describe(DeploymentReaderService.name, () => {
       deploymentHttpService.findByOwnerAndDseq.mockResolvedValue({ code: 5, message: "deployment not found", details: [] });
 
       await expect(service.findByWalletAndDseqWithoutProviderStatus(wallet, "12345")).rejects.toMatchObject({ status: 404 });
+    });
+  });
+
+  describe("findWithGroupSpecsByWalletAndDseq", () => {
+    it("returns the group specs the chain holds beside the deployment", async () => {
+      const wallet = createUserWallet() as WalletInitialized;
+      const dseq = "12345";
+      const group = createDeploymentInfoGroupSeed({ owner: wallet.address, dseq, name: "dcloud" });
+      const { service, deploymentHttpService } = setup();
+      deploymentHttpService.findByOwnerAndDseq.mockResolvedValue(createDeploymentInfoSeed({ owner: wallet.address, dseq, groups: [group] }));
+
+      const result = await service.findWithGroupSpecsByWalletAndDseq(wallet, dseq);
+
+      expect(result.groupSpecs).toEqual([group.group_spec]);
+      expect(result.deployment.deployment.id).toEqual({ owner: wallet.address, dseq });
+    });
+
+    it("returns no group specs when only the database fallback answered", async () => {
+      const wallet = createUserWallet() as WalletInitialized;
+      const dseq = "12345";
+      const rebuilt = createDeploymentInfoGroupSeed({ owner: wallet.address, dseq, name: UNKNOWN_DB_PLACEHOLDER });
+      const { service, deploymentHttpService } = setup({
+        fallbackDeploymentInfo: createDeploymentInfoSeed({ owner: wallet.address, dseq, version: UNKNOWN_DB_PLACEHOLDER, groups: [rebuilt] })
+      });
+      deploymentHttpService.findByOwnerAndDseq.mockRejectedValue(createNetworkError("ECONNRESET"));
+
+      const result = await service.findWithGroupSpecsByWalletAndDseq(wallet, dseq);
+
+      expect(result.groupSpecs).toBeNull();
     });
   });
 
