@@ -9,7 +9,7 @@ import type { GpuVendor } from "@src/types/gpu";
 import { defaultServiceWithPlacement } from "@src/utils/sdl/data";
 import { DEPENDENCIES, GpuCard } from "./GpuCard";
 
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 const GPU_VENDORS: GpuVendor[] = [
@@ -72,13 +72,34 @@ describe("GpuCard trial gate", () => {
     const user = setup({ isBlockedModel: (_vendor, model) => model === "h100", availableGpus: [{ vendor: "nvidia", models: [availableModel("h100")] }] });
 
     await user.click(screen.getByRole("combobox", { name: "GPU model" }));
+    const unavailable = within(await screen.findByRole("group", { name: "Unavailable" }));
 
-    expect(await screen.findByRole("option", { name: /h100/ })).toHaveAttribute("aria-disabled", "true");
-    expect(screen.queryByRole("option", { name: /t4/ })).not.toBeInTheDocument();
+    expect(screen.getByRole("option", { name: /h100/ })).toHaveAttribute("aria-disabled", "true");
+    expect(unavailable.getByRole("option", { name: "t4" })).toHaveAttribute("aria-disabled", "true");
   });
 
-  function availableModel(name: string): AvailableGpuVendor["models"][number] {
-    return { name, memory: ["80Gi"], interface: ["sxm"], providerCount: 1 };
+  it("keeps a blocked model's lock alongside its provider count", async () => {
+    const user = setup({
+      isBlockedModel: (_vendor, model) => model === "h100",
+      availableGpus: [{ vendor: "nvidia", models: [availableModel("h100", 2), availableModel("t4")] }]
+    });
+
+    await user.click(screen.getByRole("combobox", { name: "GPU model" }));
+    const blockedOption = await screen.findByRole("option", { name: /h100/ });
+
+    expect(blockedOption).toHaveAttribute("aria-disabled", "true");
+    expect(blockedOption).toHaveAccessibleDescription("2 providers");
+    expect(within(blockedOption).getByLabelText("Requires credits")).toBeInTheDocument();
+  });
+
+  it("shows no unlock CTA when the only blocked model is one nobody offers", () => {
+    setup({ isBlockedModel: (_vendor, model) => model === "h100", availableGpus: [{ vendor: "nvidia", models: [availableModel("t4")] }] });
+
+    expect(screen.queryByRole("button", { name: /unlock/i })).not.toBeInTheDocument();
+  });
+
+  function availableModel(name: string, providerCount = 1): AvailableGpuVendor["models"][number] {
+    return { name, memory: ["80Gi"], interface: ["sxm"], providerCount };
   }
 
   function setup(input: {

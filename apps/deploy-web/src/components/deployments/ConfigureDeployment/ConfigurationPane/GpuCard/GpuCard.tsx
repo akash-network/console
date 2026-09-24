@@ -22,11 +22,13 @@ import { GpuIcon, LockIcon, PlusIcon, TrashIcon, XIcon } from "lucide-react";
 import { SearchableSelect } from "@src/components/shared/SearchableSelect/SearchableSelect";
 import { useServices } from "@src/context/ServicesProvider";
 import { useGpuModels } from "@src/queries/useGpuQuery";
+import type { AvailableGpuVendor } from "@src/queries/usePlacementOptions";
 import { usePlacementOptions } from "@src/queries/usePlacementOptions";
 import type { SdlBuilderFormValuesType } from "@src/types";
 import type { GpuVendor } from "@src/types/gpu";
-import { gpuVendors as fallbackVendors, narrowGpuVendorsToAvailable, prioritizeGpuModels, withPinnedGpu } from "@src/utils/akash/gpu";
+import { findUnavailableGpuModels, gpuVendors as fallbackVendors, narrowGpuVendorsToAvailable, prioritizeGpuModels, withPinnedGpu } from "@src/utils/akash/gpu";
 import { validationConfig } from "@src/utils/akash/units";
+import { formatProviderCount } from "@src/utils/providerUtils";
 import { defaultGpuModel } from "@src/utils/sdl/data";
 import { gpuTooltip } from "../cardTooltips";
 import { SELECT_TRUNCATE_VALUE } from "../selectStyles";
@@ -111,6 +113,8 @@ export const GpuCard: FC<Props> = ({ serviceIndex, locked = false, isBlockedMode
               serviceIndex={serviceIndex}
               gpuIndex={index}
               gpuVendors={availableVendors}
+              gpuCatalog={gpuModels}
+              availableGpus={placementOptions?.gpus}
               isLoading={isLoadingModels}
               isError={isModelsError && !availableVendors}
               isBlockedModel={isBlockedModel}
@@ -182,6 +186,8 @@ type GpuModelFieldsProps = {
   serviceIndex: number;
   gpuIndex: number;
   gpuVendors: GpuVendor[] | undefined;
+  gpuCatalog?: GpuVendor[];
+  availableGpus?: AvailableGpuVendor[];
   isLoading?: boolean;
   isError?: boolean;
   /** Returns whether a `vendor`/`model` is blocked for the current (trial) user; blocked models lock in the picker. */
@@ -209,6 +215,8 @@ function GpuModelFields({
   serviceIndex,
   gpuIndex,
   gpuVendors,
+  gpuCatalog,
+  availableGpus,
   isLoading,
   isError,
   isBlockedModel,
@@ -247,6 +255,15 @@ function GpuModelFields({
   /** The vendor question has a single answer while one vendor is available, so the step only appears when this entry needs it. */
   const showVendor = vendorOptions.length !== 1 || vendor.field.value !== vendorOptions[0].value;
   const models = useMemo(() => offeredVendors?.find(v => v.name === vendor.field.value)?.models ?? [], [offeredVendors, vendor.field.value]);
+  const unavailableModels = useMemo(
+    () => findUnavailableGpuModels(gpuCatalog, availableGpus, { vendor: vendor.field.value, name: name.field.value }),
+    [gpuCatalog, availableGpus, vendor.field.value, name.field.value]
+  );
+  const selectableModels = useMemo(
+    () => models.filter(model => !unavailableModels.some(unavailableModel => unavailableModel.name === model.name)),
+    [models, unavailableModels]
+  );
+  const listedModels = useMemo(() => [...selectableModels, ...unavailableModels], [selectableModels, unavailableModels]);
   const selectedModel = useMemo(() => models.find(m => m.name === name.field.value), [models, name.field.value]);
   const memorySizes = selectedModel?.memory ?? [];
   const interfaces = selectedModel?.interface ?? [];
@@ -298,13 +315,14 @@ function GpuModelFields({
 
   const modelOptions = useMemo(
     () =>
-      prioritizeGpuModels(models).map(model => {
+      prioritizeGpuModels(selectableModels).map(model => {
         const blocked = isBlockedModel(vendor.field.value, model.name);
         const label = model.displayName ?? model.name;
         return {
           value: model.name,
           disabled: blocked,
           keywords: [label],
+          hint: formatProviderCount(model.providerCount),
           label: (
             <span className="flex items-center gap-1.5">
               {label}
@@ -313,7 +331,16 @@ function GpuModelFields({
           )
         };
       }),
-    [models, isBlockedModel, vendor.field.value]
+    [selectableModels, isBlockedModel, vendor.field.value]
+  );
+
+  const unavailableModelOptions = useMemo(
+    () =>
+      prioritizeGpuModels(unavailableModels).map(model => {
+        const label = model.displayName ?? model.name;
+        return { value: model.name, keywords: [label], label };
+      }),
+    [unavailableModels]
   );
 
   return (
@@ -363,6 +390,7 @@ function GpuModelFields({
                 value={name.field.value || ""}
                 onChange={selectModel}
                 options={modelOptions}
+                unavailableOptions={unavailableModelOptions}
                 ariaLabel="GPU model"
                 searchLabel="Search GPU models"
                 searchPlaceholder="Search models..."
@@ -379,8 +407,8 @@ function GpuModelFields({
                     "Any model"
                   )
                 }}
-                renderValue={modelName => models.find(model => model.name === modelName)?.displayName ?? modelName}
-                disabled={locked || models.length === 0}
+                renderValue={modelName => listedModels.find(model => model.name === modelName)?.displayName ?? modelName}
+                disabled={locked || listedModels.length === 0}
                 triggerClassName="h-9"
               />
             </FieldContent>
@@ -429,7 +457,7 @@ function GpuModelFields({
             </FieldContent>
           </Field>
 
-          {models.some(model => isBlockedModel(vendor.field.value, model.name)) && <UnlockGpusButton onUnlock={onUnlock} />}
+          {selectableModels.some(model => isBlockedModel(vendor.field.value, model.name)) && <UnlockGpusButton onUnlock={onUnlock} />}
         </>
       )}
     </div>
