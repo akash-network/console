@@ -1,7 +1,7 @@
 import type { BalanceHttpService } from "@akashnetwork/http-sdk";
 import type { EncodeObject } from "@cosmjs/proto-signing";
 import { AxiosError, AxiosHeaders } from "axios";
-import { BadGateway, BadRequest, PaymentRequired, ServiceUnavailable } from "http-errors";
+import { BadGateway, BadRequest, InternalServerError, PaymentRequired, ServiceUnavailable } from "http-errors";
 import type { Mock } from "vitest";
 import { describe, expect, it } from "vitest";
 import type { MockProxy } from "vitest-mock-extended";
@@ -250,6 +250,8 @@ describe(ChainErrorService.name, () => {
 
       const appErr = await service.toAppError(err, encodeMessages);
       expect(appErr).toBeInstanceOf(BadGateway);
+      expect(appErr.message).toBe("Service temporarily unavailable");
+      expect(appErr).toMatchObject({ originalError: err });
     });
 
     it("returns upstream 5xx status from cause", async () => {
@@ -265,6 +267,24 @@ describe(ChainErrorService.name, () => {
 
       const appErr = await service.toAppError(err, encodeMessages);
       expect(appErr).toBeInstanceOf(ServiceUnavailable);
+      expect(appErr.message).toBe("Service temporarily unavailable");
+    });
+
+    it("returns an upstream 500 without the signer's own text, keeping it on the original error", async () => {
+      const { service } = setup();
+      const axiosError = new AxiosError("Request failed", "ERR_BAD_RESPONSE", undefined, undefined, {
+        status: 500,
+        data: {},
+        statusText: "Internal Server Error",
+        headers: {},
+        config: { headers: new AxiosHeaders() }
+      });
+      const err = new Error("Failed to simulate transaction: no gas info returned", { cause: axiosError });
+
+      const appErr = await service.toAppError(err, encodeMessages);
+      expect(appErr).toBeInstanceOf(InternalServerError);
+      expect(appErr.message).toBe("Service temporarily unavailable");
+      expect(appErr).toMatchObject({ originalError: err });
     });
 
     it("returns original error when cause is an AxiosError with 4xx status", async () => {
@@ -298,6 +318,7 @@ describe(ChainErrorService.name, () => {
       const appErr = await service.toAppError(err, encodeMessages);
       expect(appErr).toBeInstanceOf(ServiceUnavailable);
       expect(appErr.message).toBe("Service temporarily unavailable");
+      expect(appErr).toMatchObject({ originalError: err });
     });
 
     it("returns a 503 naming no host when the signer host does not resolve", async () => {
