@@ -64,6 +64,25 @@ describe(usePlacementOffers.name, () => {
     expect(result.current.offers).toEqual([expect.objectContaining({ owner: "akash1aaa", gpus: [{ vendor: "nvidia", model: "rtx4090" }] })]);
   });
 
+  it("skips a bid gpu attribute that names no model", () => {
+    const { result } = setup({
+      phase: "quoting",
+      dseq: "100",
+      screened: [polaris()],
+      bids: [
+        {
+          bid: {
+            state: "open",
+            price: { amount: "1900", denom: "uakt" },
+            id: { provider: "akash1aaa", dseq: "100", gseq: 1, oseq: 1 },
+            resources_offer: [gpuResourceOffer("vendor/nvidia"), gpuResourceOffer("vendor/nvidia/model/*"), gpuResourceOffer("vendor/nvidia/model/h100")]
+          }
+        }
+      ]
+    });
+    expect(result.current.offers).toEqual([expect.objectContaining({ owner: "akash1aaa", gpus: [{ vendor: "nvidia", model: "h100" }] })]);
+  });
+
   it("keeps showing the screened candidates while quoting until the first bid arrives", () => {
     const { result } = setup({ phase: "quoting", dseq: "100", screened: [polaris()], bids: [] });
     expect(result.current.offers).toEqual([expect.objectContaining({ owner: "akash1aaa", offerState: "searching", bidId: undefined, price: undefined })]);

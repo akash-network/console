@@ -110,8 +110,13 @@ function toSearchingOffer(provider: ScreenedProvider): PlacementOffer {
 }
 
 function getOfferedGpus(entry: BidEntry): OfferedGpu[] {
-  const gpus = entry.bid.resources_offer.flatMap(offer => getGpusFromAttributes(offer.resources.gpu.attributes));
+  const gpus = entry.bid.resources_offer.flatMap(offer => getGpusFromAttributes(offer.resources.gpu.attributes)).filter(isNamedGpu);
   return [...new Map(gpus.map(gpu => [`${gpu.vendor}/${gpu.model}`, gpu])).values()];
+}
+
+/** Bid attributes are provider-written, so a key may lack a model segment or carry a wildcard. */
+function isNamedGpu(gpu: OfferedGpu): boolean {
+  return !!gpu.model && gpu.model !== "*";
 }
 
 /** The best bid per provider address: an open bid always wins over a closed one so a re-bidding provider stays selectable. */
