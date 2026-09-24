@@ -4,7 +4,7 @@ import { faker } from "@faker-js/faker";
 import { eq } from "drizzle-orm";
 import { CompactEncrypt } from "jose";
 import nock from "nock";
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { container } from "tsyringe";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
@@ -408,6 +408,32 @@ describe("PATCH /v1/deployments/{dseq}", () => {
 
       expect(await manifestVersionOf(retry)).toBe(applied);
     });
+
+    it("answers 403 to a re-sent seal bound to the SDL the first attempt replaced", async () => {
+      const { apiKey, user, sdl } = await setup({ secrets: { s0_e0: randomUUID(), s0_e1: randomUUID() } });
+      const boundSeal = await sealFor(user, { s0_e0: randomUUID() }, sdl);
+      vi.mocked(signerService.executeDerivedDecodedTxByUserId).mockRejectedValueOnce(new Error("update failed"));
+      await patch(apiKey, { services: { web: { image: "nginx:1.27" } } }, boundSeal);
+
+      const retry = await patch(apiKey, { services: { web: { image: "nginx:1.27" } } }, boundSeal);
+
+      expect(retry.status).toBe(403);
+      expect(((await retry.json()) as { message: string }).message).toBe("Sealed secrets are bound to a different SDL");
+    });
+
+    it("accepts the re-sent patch once the same values are sealed against the SDL it now stores", async () => {
+      const { apiKey, user, sdl } = await setup({ secrets: { s0_e0: randomUUID(), s0_e1: randomUUID() } });
+      const rotated = randomUUID();
+      vi.mocked(signerService.executeDerivedDecodedTxByUserId).mockRejectedValueOnce(new Error("update failed"));
+      await patch(apiKey, { services: { web: { image: "nginx:1.27" } } }, await sealFor(user, { s0_e0: rotated }, sdl));
+      const applied = (await settingOf(user))!.manifestVersion;
+
+      const resealed = await sealFor(user, { s0_e0: rotated }, (await settingOf(user))!.sdl!);
+      const retry = await patch(apiKey, { services: { web: { image: "nginx:1.27" } } }, resealed);
+
+      expect(retry.status).toBe(200);
+      expect(await manifestVersionOf(retry)).toBe(applied);
+    });
   });
 
   describe("a key the deployment does not have", () => {
@@ -738,14 +764,15 @@ describe("PATCH /v1/deployments/{dseq}", () => {
     return tampered;
   }
 
-  async function sealFor(user: UserOutput, secrets: Record<string, string>) {
+  async function sealFor(user: UserOutput, secrets: Record<string, string>, boundTo?: string) {
     return await new CompactEncrypt(new TextEncoder().encode(JSON.stringify(secrets)))
       .setProtectedHeader({
         alg: SDL_SECRETS_SEAL_ALGORITHM,
         enc: SDL_SECRETS_CONTENT_ENCRYPTION,
         kid: SDL_SECRETS_KID,
         sub: user.id,
-        exp: Math.floor(Date.now() / 1000) + 300
+        exp: Math.floor(Date.now() / 1000) + 300,
+        ...(boundTo === undefined ? {} : { sdlHash: createHash("sha256").update(boundTo, "utf8").digest("base64url") })
       })
       .encrypt(publicKey);
   }
