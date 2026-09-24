@@ -37,6 +37,21 @@ describe(mapToGpuVendorOptions.name, () => {
     ]);
   });
 
+  it("serves an interface the way an SDL spells it", () => {
+    const options = mapToGpuVendorOptions([gpu({ model: "h100", interface: "SXM5" }), gpu({ model: "rtx4090", interface: "PCIe" })]);
+
+    expect(options[0].models.map(model => [model.name, model.interface])).toEqual([
+      ["h100", ["sxm"]],
+      ["rtx4090", ["pcie"]]
+    ]);
+  });
+
+  it("lists every sxm revision a model ships with as the one sxm interface", () => {
+    const options = mapToGpuVendorOptions([gpu({ model: "a100", interface: "SXM4" }), gpu({ model: "a100", interface: "sxm5" })]);
+
+    expect(options[0].models[0].interface).toEqual(["sxm"]);
+  });
+
   it("leaves out memory sizes and interfaces the provider did not report", () => {
     const options = mapToGpuVendorOptions([gpu({ model: "h100", memory: "", interface: "" })]);
 
