@@ -1,7 +1,7 @@
 import type { BalanceHttpService } from "@akashnetwork/http-sdk";
 import type { EncodeObject } from "@cosmjs/proto-signing";
 import { AxiosError, AxiosHeaders } from "axios";
-import { BadGateway, BadRequest, InternalServerError, PaymentRequired, ServiceUnavailable } from "http-errors";
+import { BadGateway, BadRequest, Forbidden, InternalServerError, PaymentRequired, ServiceUnavailable } from "http-errors";
 import type { Mock } from "vitest";
 import { describe, expect, it } from "vitest";
 import type { MockProxy } from "vitest-mock-extended";
@@ -362,6 +362,85 @@ describe(ChainErrorService.name, () => {
     });
   });
 
+  describe("exposeSignerRefusal", () => {
+    it("answers a signer refusal with the signer's status and reason", () => {
+      const { service } = setup();
+      const err = createSignerError(
+        403,
+        "Message /akash.escrow.v1.MsgAccountDeposit may not be signed by this wallet: acts on behalf of akash1other, not akash1self"
+      );
+
+      const exposedErr = service.exposeSignerRefusal(err);
+
+      expect(exposedErr).toBeInstanceOf(Forbidden);
+      expect(exposedErr).toMatchObject({ message: err.message, originalError: err });
+    });
+
+    it("answers a transaction the signer rejects as invalid with 400 and the signer's reason", () => {
+      const { service } = setup();
+      const err = createSignerError(400, "Failed to simulate transaction: out of gas in location: ReadFlat");
+
+      const exposedErr = service.exposeSignerRefusal(err);
+
+      expect(exposedErr).toBeInstanceOf(BadRequest);
+      expect(exposedErr).toMatchObject({ message: err.message });
+    });
+
+    it.each([
+      { status: 401, reason: "Invalid or missing API key" },
+      { status: 404, reason: "Not Found" }
+    ])("leaves a signer $status about our own configuration untouched", ({ status, reason }) => {
+      const { service } = setup();
+      const err = createSignerError(status, reason);
+
+      expect(service.exposeSignerRefusal(err)).toBe(err);
+    });
+
+    it("leaves a request the signer never answered untouched", () => {
+      const { service } = setup();
+      const err = new Error("socket hang up", { cause: new AxiosError("socket hang up", "ECONNRESET") });
+
+      expect(service.exposeSignerRefusal(err)).toBe(err);
+    });
+
+    it("leaves an error that did not come from the signer untouched", () => {
+      const { service } = setup();
+      const err = new Error("tx ABC123 failed on-chain with code 5");
+
+      expect(service.exposeSignerRefusal(err)).toBe(err);
+    });
+
+    it("leaves a transaction outcome untouched", () => {
+      const { service } = setup();
+      const undecidedErr = new TxOutcomeUnknownError("ABC123");
+      const notIncludedErr = new TxNotIncludedError("ABC123");
+
+      expect(service.exposeSignerRefusal(undecidedErr)).toBe(undecidedErr);
+      expect(service.exposeSignerRefusal(notIncludedErr)).toBe(notIncludedErr);
+    });
+
+    it("leaves a signer answer already mapped from a known chain error untouched", async () => {
+      const { service } = setup();
+      const mappedErr = await service.toAppError(
+        createSignerError(
+          400,
+          "Query failed with (6): rpc error: code = Unknown desc = group dcloud: error: invalid unit price (10000000 > 12000000uact fails)"
+        ),
+        []
+      );
+
+      expect(service.exposeSignerRefusal(mappedErr)).toBe(mappedErr);
+      expect(mappedErr).toMatchObject({ status: 400, message: "Unit price exceeds the maximum allowed by the network" });
+    });
+
+    it("leaves a value that is not an error untouched, even one carrying a signer refusal", () => {
+      const { service } = setup();
+      const value = { message: "may not be signed by this wallet", cause: createSignerError(403, "may not be signed by this wallet").cause };
+
+      expect(service.exposeSignerRefusal(value)).toBe(value);
+    });
+  });
+
   describe("isDeploymentClosedError", () => {
     it("returns true for a raw chain account closed message", () => {
       const { service } = setup();
@@ -516,6 +595,18 @@ describe(ChainErrorService.name, () => {
       expect(service.isFeeGrantRefusedError({ message: FEE_GRANT_NOT_FOUND })).toBe(false);
     });
   });
+
+  function createSignerError(status: number, message: string) {
+    const axiosError = new AxiosError(`Request failed with status code ${status}`, undefined, undefined, undefined, {
+      status,
+      data: { message },
+      statusText: "",
+      headers: {},
+      config: { headers: new AxiosHeaders() }
+    });
+
+    return new Error(message, { cause: axiosError });
+  }
 
   function setup(): {
     balanceHttpService: MockProxy<BalanceHttpService>;
