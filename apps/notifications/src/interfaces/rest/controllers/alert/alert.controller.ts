@@ -1,4 +1,4 @@
-import { BadRequestException, Body, Controller, Delete, Get, NotFoundException, Param, Patch, Post, Query } from "@nestjs/common";
+import { BadRequestException, Body, Controller, Delete, Get, NotFoundException, Param, ParseUUIDPipe, Patch, Post, Query } from "@nestjs/common";
 import { ApiQuery } from "@nestjs/swagger";
 import { createZodDto } from "nestjs-zod";
 import { Err, Ok, Result } from "ts-results";
@@ -49,7 +49,7 @@ export class AlertController {
   @ValidateHttp({
     200: { schema: AlertOutputResponse, description: "Returns the requested alert by id" }
   })
-  async getAlert(@Param("id") id: string): Promise<Result<AlertOutputResponse, NotFoundException>> {
+  async getAlert(@Param("id", new ParseUUIDPipe()) id: string): Promise<Result<AlertOutputResponse, NotFoundException>> {
     const alert = await this.alertRepository.accessibleBy(this.authService.ability, "read").findOneById(id);
     return this.toResponse(alert);
   }
@@ -91,7 +91,10 @@ export class AlertController {
   @ValidateHttp({
     200: { schema: AlertOutputResponse, description: "Returns the updated alert" }
   })
-  async updateAlert(@Param("id") id: string, @Body() { data }: AlertPatchInput): Promise<Result<AlertOutputResponse, NotFoundException | BadRequestException>> {
+  async updateAlert(
+    @Param("id", new ParseUUIDPipe()) id: string,
+    @Body() { data }: AlertPatchInput
+  ): Promise<Result<AlertOutputResponse, NotFoundException | BadRequestException>> {
     if (data.notificationChannelId) {
       await this.assertOwnsNotificationChannel(data.notificationChannelId);
     }
@@ -108,7 +111,7 @@ export class AlertController {
   @ValidateHttp({
     200: { schema: AlertOutputResponse, description: "Returns the deleted alert" }
   })
-  async deleteAlert(@Param("id") id: string): Promise<Result<AlertOutputResponse, NotFoundException>> {
+  async deleteAlert(@Param("id", new ParseUUIDPipe()) id: string): Promise<Result<AlertOutputResponse, NotFoundException>> {
     const alert = await this.alertRepository.accessibleBy(this.authService.ability, "delete").deleteOneById(id);
     return this.toResponse(alert);
   }

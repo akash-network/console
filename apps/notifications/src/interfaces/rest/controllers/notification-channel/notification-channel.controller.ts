@@ -1,4 +1,4 @@
-import { BadRequestException, Body, Controller, Delete, Get, HttpCode, NotFoundException, Param, Patch, Post, Query } from "@nestjs/common";
+import { BadRequestException, Body, Controller, Delete, Get, HttpCode, NotFoundException, Param, ParseUUIDPipe, Patch, Post, Query } from "@nestjs/common";
 import { ApiNoContentResponse, ApiQuery } from "@nestjs/swagger";
 import { createZodDto } from "nestjs-zod";
 import { Err, Ok, Result } from "ts-results";
@@ -100,7 +100,7 @@ export class NotificationChannelController {
       description: "Returns 404 if the notification channel is not found"
     }
   })
-  async getNotificationChannel(@Param("id") id: string): Promise<Result<NotificationChannelOutputResponse, NotFoundException>> {
+  async getNotificationChannel(@Param("id", new ParseUUIDPipe()) id: string): Promise<Result<NotificationChannelOutputResponse, NotFoundException>> {
     const notificationChannel = await this.notificationChannelRepository.accessibleBy(this.authService.ability, "read").findById(id);
     return this.toResponse(notificationChannel);
   }
@@ -136,7 +136,7 @@ export class NotificationChannelController {
     404: { schema: NotFoundErrorResponse, description: "Returns 404 if the notification channel is not found" }
   })
   async updateNotificationChannel(
-    @Param("id") id: string,
+    @Param("id", new ParseUUIDPipe()) id: string,
     @Body() { data }: NotificationChannelPatchInput
   ): Promise<Result<NotificationChannelOutputResponse, NotFoundException>> {
     const notificationChannel = await this.notificationChannelRepository.accessibleBy(this.authService.ability, "update").updateById(id, data);
@@ -148,7 +148,9 @@ export class NotificationChannelController {
     200: { schema: NotificationChannelOutput, description: "Returns the deleted notification channel" },
     404: { schema: NotFoundErrorResponse, description: "Returns 404 if the notification channel is not found" }
   })
-  async deleteNotificationChannel(@Param("id") id: string): Promise<Result<NotificationChannelOutputResponse, NotFoundException | BadRequestException>> {
+  async deleteNotificationChannel(
+    @Param("id", new ParseUUIDPipe()) id: string
+  ): Promise<Result<NotificationChannelOutputResponse, NotFoundException | BadRequestException>> {
     const count = await this.alertRepository.countActiveByNotificationChannelId(id);
     if (count > 0) {
       return Err(new BadRequestException("Cannot delete notification channel with alerts"));
