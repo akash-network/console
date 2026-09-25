@@ -172,6 +172,45 @@ describe(useDeploymentDefinition.name, () => {
     });
   });
 
+  describe("whether the console holds a definition of its own", () => {
+    it("says it holds one beside the copy it serves", async () => {
+      const { result } = setup({ apiSdl: API_SDL });
+
+      await vi.waitFor(() => expect(result.current.source).toBe("api"));
+      expect(result.current.isRecordedByConsole).toBe(true);
+    });
+
+    it("says it holds one even when this browser's copy is served instead", async () => {
+      const { result } = setup({ apiSdl: API_SDL, recordedManifestVersion: "version-1", chainManifestVersion: "version-2", localSdl: LOCAL_SDL });
+
+      await vi.waitFor(() => expect(result.current.source).toBe("local"));
+      expect(result.current.isRecordedByConsole).toBe(true);
+    });
+
+    it.each([
+      ["this browser holds a copy", LOCAL_SDL],
+      ["nothing holds a copy", undefined]
+    ])("says it holds none when %s", async (_case, localSdl) => {
+      const { result } = setup({ apiSdl: null, localSdl });
+
+      await vi.waitFor(() => expect(result.current.source).not.toBe("resolving"));
+      expect(result.current.isRecordedByConsole).toBe(false);
+    });
+
+    it("leaves it unknown while the api answers", () => {
+      const { result } = setup({ apiSdl: null });
+
+      expect(result.current.isRecordedByConsole).toBeUndefined();
+    });
+
+    it("leaves it unknown when the api could not be asked", async () => {
+      const { result } = setup({ apiError: new ApiError(404, {}, "GET /v1/deployments/{dseq} → 404"), localSdl: LOCAL_SDL });
+
+      await vi.waitFor(() => expect(result.current.source).toBe("local"));
+      expect(result.current.isRecordedByConsole).toBeUndefined();
+    });
+  });
+
   it("asks the api for nothing when there is no dseq", () => {
     const { getDeployment, result } = setup({ dseq: null, localSdl: LOCAL_SDL });
 

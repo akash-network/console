@@ -15,6 +15,13 @@ const IMPORTED_STATE: ImportedDeploymentState = { values: mock<SdlBuilderFormVal
 describe(ImportSdlDialog.name, () => {
   afterEach(() => vi.unstubAllGlobals());
 
+  it("names itself and explains the import in the words the caller gives", () => {
+    setup({ title: "Import this deployment's SDL", description: "Paste the SDL this deployment was created with." });
+
+    expect(screen.getByRole("dialog", { name: "Import this deployment's SDL" })).toBeInTheDocument();
+    expect(screen.getByText("Paste the SDL this deployment was created with.")).toBeInTheDocument();
+  });
+
   it("disables Import while the editor is empty", () => {
     setup({});
 
@@ -206,7 +213,7 @@ describe(ImportSdlDialog.name, () => {
     return new File(["a".repeat(512 * 1024 + 1)], "huge.yaml", { type: "application/x-yaml" });
   }
 
-  function setup(input: { importResult?: () => ImportedDeploymentState }) {
+  function setup(input: { importResult?: () => ImportedDeploymentState; title?: string; description?: string }) {
     const onClose = vi.fn();
     const onImport = vi.fn();
     const importDeploymentState = vi.fn(input.importResult ?? (() => IMPORTED_STATE));
@@ -237,7 +244,15 @@ describe(ImportSdlDialog.name, () => {
       </label>
     );
 
-    render(<ImportSdlDialog onClose={onClose} onImport={onImport} dependencies={{ SDLEditor, FileButton, importDeploymentState }} />);
+    render(
+      <ImportSdlDialog
+        onClose={onClose}
+        onImport={onImport}
+        title={input.title}
+        description={input.description}
+        dependencies={{ SDLEditor, FileButton, importDeploymentState }}
+      />
+    );
 
     return { onClose, onImport, importDeploymentState };
   }

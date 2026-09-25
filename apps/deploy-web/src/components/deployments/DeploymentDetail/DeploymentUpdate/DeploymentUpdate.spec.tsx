@@ -7,6 +7,7 @@ import type { DeploymentDefinition } from "@src/hooks/useDeploymentDefinition/us
 import type { SdlBuilderFormValuesType } from "@src/types";
 import type { DeploymentDto, DeploymentGroup, LeaseDto } from "@src/types/deployment";
 import type { ApiProviderList } from "@src/types/provider";
+import type { DefinitionImportProps } from "./DefinitionImport";
 import { DEPENDENCIES, DeploymentUpdate } from "./DeploymentUpdate";
 import type { DeploymentUpdateFormValues } from "./deploymentUpdateFormSchema";
 import type { DeploymentUpdateSubmitInput } from "./useDeploymentUpdateSubmit";
@@ -728,6 +729,39 @@ describe(DeploymentUpdate.name, () => {
     });
   });
 
+  describe("a deployment the console holds no definition for", () => {
+    it("offers to import one, handing over this browser's copy", () => {
+      const { DefinitionImport } = setup({ definition: { source: "local", manifestVersion: undefined, isRecordedByConsole: false } });
+
+      expect(screen.getByText("definition-import")).toBeInTheDocument();
+      expect(DefinitionImport.mock.calls[0][0]).toMatchObject({ browserSdl: STORED_SDL, deployment: expect.objectContaining({ dseq: "1234" }) });
+      expect(screen.queryByText("raw-editor")).not.toBeInTheDocument();
+    });
+
+    it("offers to import one with nothing to start from when no copy exists", () => {
+      const { DefinitionImport } = setup({ definition: { source: "absent", sdl: undefined, manifestVersion: undefined, isRecordedByConsole: false } });
+
+      expect(DefinitionImport.mock.calls[0][0]).toMatchObject({ browserSdl: undefined });
+    });
+
+    it("tells the page once a definition is imported", () => {
+      const { DefinitionImport, onUpdated } = setup({
+        definition: { source: "absent", sdl: undefined, manifestVersion: undefined, isRecordedByConsole: false }
+      });
+
+      DefinitionImport.mock.calls[0][0].onImported();
+
+      expect(onUpdated).toHaveBeenCalled();
+    });
+
+    it("keeps the raw editor for a definition the console holds but cannot use here", () => {
+      setup({ definition: { source: "local", manifestVersion: undefined, isRecordedByConsole: true } });
+
+      expect(screen.getByText("raw-editor")).toBeInTheDocument();
+      expect(screen.queryByText("definition-import")).not.toBeInTheDocument();
+    });
+  });
+
   describe("a deployment it cannot update", () => {
     it("shows a closed deployment read-only and offers a redeploy instead", async () => {
       const { onRedeploy } = setup({ deploymentState: "closed" });
@@ -856,6 +890,7 @@ describe(DeploymentUpdate.name, () => {
     const onRedeploy = vi.fn();
     const onRedeployWithNewSecrets = vi.fn();
     const RawEditor = vi.fn(() => <div>raw-editor</div>);
+    const DefinitionImport = vi.fn((_props: DefinitionImportProps) => <div>definition-import</div>);
     const deployment = mock<DeploymentDto>({ dseq: "1234", state: input.deploymentState ?? "active" });
     const leases = input.leases === undefined ? [leaseOn("edge-us", "akash1us"), leaseOn("edge-eu", "akash1eu")] : input.leases;
     const providers = [
@@ -883,7 +918,7 @@ describe(DeploymentUpdate.name, () => {
         onRedeploy={onRedeploy}
         onRedeployWithNewSecrets={onRedeployWithNewSecrets}
         fallback={<RawEditor />}
-        dependencies={{ ...DEPENDENCIES, useDeploymentUpdateSubmit }}
+        dependencies={{ ...DEPENDENCIES, useDeploymentUpdateSubmit, DefinitionImport }}
       />
     );
     const { rerender } = render(tabFor(definitionOf({})), { wrapper: TooltipProvider });
@@ -899,6 +934,7 @@ describe(DeploymentUpdate.name, () => {
       onUpdated,
       onRedeploy,
       onRedeployWithNewSecrets,
+      DefinitionImport,
       showDefinition,
       submitInput,
       rawEditorRenders: () => RawEditor.mock.calls.length
