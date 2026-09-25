@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { TooltipProvider } from "@akashnetwork/ui/components";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
@@ -754,6 +755,14 @@ describe(DeploymentUpdate.name, () => {
       expect(onUpdated).toHaveBeenCalled();
     });
 
+    it("starts the import over when the page moves to another deployment", () => {
+      const { showDeployment } = setup({ definition: { source: "local", manifestVersion: undefined, isRecordedByConsole: false } });
+
+      showDeployment("5678");
+
+      expect(screen.getByText("import started for 5678")).toBeInTheDocument();
+    });
+
     it("keeps the raw editor for a definition the console holds but cannot use here", () => {
       setup({ definition: { source: "local", manifestVersion: undefined, isRecordedByConsole: true } });
 
@@ -890,7 +899,7 @@ describe(DeploymentUpdate.name, () => {
     const onRedeploy = vi.fn();
     const onRedeployWithNewSecrets = vi.fn();
     const RawEditor = vi.fn(() => <div>raw-editor</div>);
-    const DefinitionImport = vi.fn((_props: DefinitionImportProps) => <div>definition-import</div>);
+    const DefinitionImport = vi.fn(DefinitionImportDouble);
     const deployment = mock<DeploymentDto>({ dseq: "1234", state: input.deploymentState ?? "active" });
     const leases = input.leases === undefined ? [leaseOn("edge-us", "akash1us"), leaseOn("edge-eu", "akash1eu")] : input.leases;
     const providers = [
@@ -907,9 +916,9 @@ describe(DeploymentUpdate.name, () => {
       ...overrides
     });
 
-    const tabFor = (definition: DeploymentDefinition) => (
+    const tabFor = (definition: DeploymentDefinition, shownDeployment = deployment) => (
       <DeploymentUpdate
-        deployment={deployment}
+        deployment={shownDeployment}
         leases={leases}
         providers={providers}
         isLoadingDetectedGpus={input.isLoadingDetectedGpus}
@@ -924,6 +933,7 @@ describe(DeploymentUpdate.name, () => {
     const { rerender } = render(tabFor(definitionOf({})), { wrapper: TooltipProvider });
 
     const showDefinition = (overrides: Partial<DeploymentDefinition>) => rerender(tabFor(definitionOf(overrides)));
+    const showDeployment = (dseq: string) => rerender(tabFor(definitionOf({}), mock<DeploymentDto>({ dseq, state: deployment.state })));
     const submitInput = () => {
       if (!capturedSubmitInput) throw new Error("the submit hook was never called");
       return capturedSubmitInput;
@@ -936,8 +946,19 @@ describe(DeploymentUpdate.name, () => {
       onRedeployWithNewSecrets,
       DefinitionImport,
       showDefinition,
+      showDeployment,
       submitInput,
       rawEditorRenders: () => RawEditor.mock.calls.length
     };
+  }
+
+  function DefinitionImportDouble({ deployment }: DefinitionImportProps) {
+    const [dseqWhenMounted] = useState(deployment.dseq);
+    return (
+      <>
+        <div>definition-import</div>
+        <div>import started for {dseqWhenMounted}</div>
+      </>
+    );
   }
 });

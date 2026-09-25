@@ -56,6 +56,16 @@ services:
       password: registry-password
 `;
 
+const SDL_WITH_REFERENCED_CREDENTIALS = `version: "2.0"
+services:
+  api:
+    image: ghcr.io/acme/api:3.0.0
+    credentials:
+      host: ghcr.io
+      username: ac-secret://REGISTRY_USERNAME
+      password: ac-secret://REGISTRY_PASSWORD
+`;
+
 describe(DefinitionImport.name, () => {
   describe("with this browser's copy of the definition", () => {
     it("offers to save it straight away, saying where it came from", () => {
@@ -146,6 +156,18 @@ describe(DefinitionImport.name, () => {
 
       expect(record.mock.calls[0][0].secrets).toMatchObject({ REGISTRY_USERNAME: "acme-bot", REGISTRY_PASSWORD: "registry-password" });
     });
+
+    it("asks for a value for each secret a registry credential refers to, and holds the save until each has one", async () => {
+      const { record } = setup({ importedSdl: SDL_WITH_REFERENCED_CREDENTIALS });
+      await chooseTheImportedSdl();
+
+      await userEvent.type(screen.getByLabelText("Registry username value"), "acme-bot");
+      expect(screen.getByRole("button", { name: "Save to my account" })).toBeDisabled();
+      await userEvent.type(screen.getByLabelText("Registry password value"), "registry-password");
+      await userEvent.click(screen.getByRole("button", { name: "Save to my account" }));
+
+      expect(record.mock.calls[0][0].secrets).toEqual({ REGISTRY_USERNAME: "acme-bot", REGISTRY_PASSWORD: "registry-password" });
+    });
   });
 
   describe("an sdl that does not match what the deployment runs", () => {
@@ -164,6 +186,42 @@ describe(DefinitionImport.name, () => {
 
       expect(screen.getByText(/doesn't match what the deployment ran/)).toBeInTheDocument();
       expect(screen.queryByRole("button", { name: "Apply as update" })).not.toBeInTheDocument();
+    });
+
+    it("offers the update only once every secret the sdl refers to has a value", async () => {
+      setup({ browserSdl: IMPORTED_SDL, mismatch: true });
+
+      expect(screen.getByRole("button", { name: "Apply as update" })).toBeDisabled();
+      await userEvent.type(screen.getByLabelText("API_TOKEN value"), "token-value");
+
+      expect(screen.getByRole("button", { name: "Apply as update" })).toBeEnabled();
+    });
+  });
+
+  describe("the api's verdict on the sdl last sent", () => {
+    it("is dropped once another sdl is chosen", async () => {
+      const { clearRefusals } = setup({ browserSdl: BROWSER_SDL, mismatch: true });
+
+      await userEvent.click(screen.getByRole("button", { name: "Choose another SDL" }));
+      await userEvent.click(screen.getByRole("button", { name: "import-the-sdl" }));
+
+      expect(clearRefusals).toHaveBeenCalled();
+    });
+
+    it("is dropped once a secret's value changes", async () => {
+      const { clearRefusals } = setup({ browserSdl: IMPORTED_SDL, mismatch: true });
+
+      await userEvent.type(screen.getByLabelText("API_TOKEN value"), "t");
+
+      expect(clearRefusals).toHaveBeenCalled();
+    });
+
+    it("is dropped once a variable is switched", async () => {
+      const { clearRefusals } = setup({ browserSdl: BROWSER_SDL, refusal: "Invalid SDL" });
+
+      await userEvent.click(screen.getByRole("switch", { name: "Keep DATABASE_PASSWORD secret" }));
+
+      expect(clearRefusals).toHaveBeenCalled();
     });
   });
 
@@ -200,10 +258,12 @@ describe(DefinitionImport.name, () => {
   ) {
     const record = vi.fn();
     const applyAsUpdate = vi.fn();
+    const clearRefusals = vi.fn();
     const onImported = vi.fn();
     const useDefinitionImport: typeof DEPENDENCIES.useDefinitionImport = () => ({
       record,
       applyAsUpdate,
+      clearRefusals,
       isSaving: input.isSaving ?? false,
       mismatch: input.mismatch ?? false,
       refusal: input.refusal ?? null
@@ -223,6 +283,6 @@ describe(DefinitionImport.name, () => {
       />
     );
 
-    return { record, applyAsUpdate, onImported };
+    return { record, applyAsUpdate, clearRefusals, onImported };
   }
 });

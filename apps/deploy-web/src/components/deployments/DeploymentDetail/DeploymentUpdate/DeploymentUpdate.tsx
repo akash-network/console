@@ -135,7 +135,7 @@ export const DeploymentUpdate: FC<DeploymentUpdateProps> = ({
   );
 
   if (seed.kind === "importable") {
-    return <d.DefinitionImport deployment={deployment} browserSdl={seed.browserSdl} onImported={onUpdated} />;
+    return <d.DefinitionImport key={deployment.dseq} deployment={deployment} browserSdl={seed.browserSdl} onImported={onUpdated} />;
   }
 
   if (seed.kind === "unavailable" || seed.kind === "unreadable") {

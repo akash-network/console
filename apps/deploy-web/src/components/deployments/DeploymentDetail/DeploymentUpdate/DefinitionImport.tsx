@@ -5,8 +5,14 @@ import { Alert, Button, Input, Switch } from "@akashnetwork/ui/components";
 
 import { ImportSdlDialog } from "@src/components/deployments/ConfigureDeployment/SdlImportExport/ImportSdlDialog";
 import type { DeploymentDto } from "@src/types/deployment";
-import type { ImportableService } from "@src/utils/sdl/recordableDefinition";
-import { importableServicesOf, recordableDefinitionOf, secretVariableKey, suggestedSecretVariablesOf } from "@src/utils/sdl/recordableDefinition";
+import type { ImportableCredential, ImportableService } from "@src/utils/sdl/recordableDefinition";
+import {
+  importableServicesOf,
+  recordableDefinitionOf,
+  referenceNamesOf,
+  secretVariableKey,
+  suggestedSecretVariablesOf
+} from "@src/utils/sdl/recordableDefinition";
 import { DeploymentTabHeader } from "../DeploymentTabHeader";
 import { useDefinitionImport } from "./useDefinitionImport";
 
@@ -28,6 +34,7 @@ const INTRO_BY_ORIGIN: Record<CandidateOrigin | "none", string> = {
 };
 const SECRETS_HINT = "Switch on the variables that hold secrets. Their values are encrypted and never shown again, while the rest stay readable.";
 const MISSING_REFERENCES_HINT = "This SDL refers to secrets the console doesn't hold. Enter their values to save it.";
+const CREDENTIAL_LABELS: Record<ImportableCredential["field"], string> = { username: "Registry username", password: "Registry password" };
 
 export interface DefinitionImportProps {
   deployment: DeploymentDto;
@@ -44,14 +51,13 @@ export const DefinitionImport: FC<DefinitionImportProps> = ({ deployment, browse
   const [secretVariables, setSecretVariables] = useState<ReadonlySet<string>>(() => suggestedSecretVariablesOf(services));
   const [referenceValues, setReferenceValues] = useState<Record<string, string>>({});
   const [isChoosing, setIsChoosing] = useState(false);
-  const { record, applyAsUpdate, isSaving, mismatch, refusal } = d.useDefinitionImport({ dseq: deployment.dseq, onImported });
+  const { record, applyAsUpdate, clearRefusals, isSaving, mismatch, refusal } = d.useDefinitionImport({ dseq: deployment.dseq, onImported });
   const isClosed = deployment.state !== "active";
-  const referenceNames = [
-    ...new Set(services.flatMap(service => service.variables.flatMap(variable => (variable.referenceName ? [variable.referenceName] : []))))
-  ];
-  const isMissingReferenceValue = referenceNames.some(name => !referenceValues[name]);
+  const referenceNames = referenceNamesOf(services);
+  const canSend = !isSaving && referenceNames.every(name => !!referenceValues[name]);
 
   function review(sdl: string) {
+    clearRefusals();
     setCandidate({ sdl, origin: "import" });
     setSecretVariables(suggestedSecretVariablesOf(importableServicesOf(sdl)));
     setReferenceValues({});
@@ -59,12 +65,18 @@ export const DefinitionImport: FC<DefinitionImportProps> = ({ deployment, browse
   }
 
   function toggleSecret(key: string, isSecret: boolean) {
+    clearRefusals();
     setSecretVariables(current => {
       const next = new Set(current);
       if (isSecret) next.add(key);
       else next.delete(key);
       return next;
     });
+  }
+
+  function enterReferenceValue(name: string, value: string) {
+    clearRefusals();
+    setReferenceValues(current => ({ ...current, [name]: value }));
   }
 
   function definitionOf(sdl: string) {
@@ -96,7 +108,7 @@ export const DefinitionImport: FC<DefinitionImportProps> = ({ deployment, browse
                 referenceValues={referenceValues}
                 locked={isSaving}
                 onToggleSecret={toggleSecret}
-                onReferenceValueChange={(name, value) => setReferenceValues(current => ({ ...current, [name]: value }))}
+                onReferenceValueChange={enterReferenceValue}
               />
             ))}
 
@@ -111,7 +123,7 @@ export const DefinitionImport: FC<DefinitionImportProps> = ({ deployment, browse
                 </span>
                 {!isClosed && (
                   <div>
-                    <Button type="button" variant="outline" size="sm" disabled={isSaving} onClick={() => applyAsUpdate(definitionOf(candidate.sdl))}>
+                    <Button type="button" variant="outline" size="sm" disabled={!canSend} onClick={() => applyAsUpdate(definitionOf(candidate.sdl))}>
                       Apply as update
                     </Button>
                   </div>
@@ -123,7 +135,7 @@ export const DefinitionImport: FC<DefinitionImportProps> = ({ deployment, browse
               <Button type="button" variant="outline" disabled={isSaving} onClick={() => setIsChoosing(true)}>
                 Choose another SDL
               </Button>
-              <Button type="button" disabled={isSaving || isMissingReferenceValue} onClick={() => record(definitionOf(candidate.sdl))}>
+              <Button type="button" disabled={!canSend} onClick={() => record(definitionOf(candidate.sdl))}>
                 {isSaving ? "Saving…" : "Save to my account"}
               </Button>
             </div>
@@ -170,20 +182,16 @@ const ServiceReview: FC<ServiceReviewProps> = ({ service, secretVariables, refer
 
     {service.variables.map(variable => {
       const key = secretVariableKey(service.name, variable.key);
+      const { referenceName } = variable;
       return (
         <div key={variable.key} className="flex items-center gap-3">
           <span className="min-w-0 flex-1 truncate font-mono text-sm">{variable.key}</span>
-          {variable.referenceName ? (
-            <Input
-              aria-label={`${variable.key} value`}
-              type="password"
-              autoComplete="new-password"
-              placeholder="Enter the secret's value"
-              value={referenceValues[variable.referenceName] ?? ""}
-              disabled={locked}
-              onChange={event => onReferenceValueChange(variable.referenceName as string, event.target.value)}
-              inputClassName="h-9"
-              className="flex-[2]"
+          {referenceName ? (
+            <ReferenceValueInput
+              label={`${variable.key} value`}
+              value={referenceValues[referenceName] ?? ""}
+              locked={locked}
+              onChange={value => onReferenceValueChange(referenceName, value)}
             />
           ) : (
             <label className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -200,6 +208,41 @@ const ServiceReview: FC<ServiceReviewProps> = ({ service, secretVariables, refer
       );
     })}
 
-    {service.hasCredentials && <p className="text-xs text-muted-foreground">Registry credentials are always saved as secrets.</p>}
+    {service.credentials.map(({ field, referenceName }) =>
+      referenceName ? (
+        <div key={field} className="flex items-center gap-3">
+          <span className="min-w-0 flex-1 truncate text-sm">{CREDENTIAL_LABELS[field]}</span>
+          <ReferenceValueInput
+            label={`${CREDENTIAL_LABELS[field]} value`}
+            value={referenceValues[referenceName] ?? ""}
+            locked={locked}
+            onChange={value => onReferenceValueChange(referenceName, value)}
+          />
+        </div>
+      ) : null
+    )}
+
+    {service.credentials.length > 0 && <p className="text-xs text-muted-foreground">Registry credentials are always saved as secrets.</p>}
   </section>
+);
+
+interface ReferenceValueInputProps {
+  label: string;
+  value: string;
+  locked: boolean;
+  onChange: (value: string) => void;
+}
+
+const ReferenceValueInput: FC<ReferenceValueInputProps> = ({ label, value, locked, onChange }) => (
+  <Input
+    aria-label={label}
+    type="password"
+    autoComplete="new-password"
+    placeholder="Enter the secret's value"
+    value={value}
+    disabled={locked}
+    onChange={event => onChange(event.target.value)}
+    inputClassName="h-9"
+    className="flex-[2]"
+  />
 );

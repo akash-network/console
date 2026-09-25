@@ -1,7 +1,7 @@
 import yaml from "js-yaml";
 import { describe, expect, it } from "vitest";
 
-import { importableServicesOf, recordableDefinitionOf, secretVariableKey, suggestedSecretVariablesOf } from "./recordableDefinition";
+import { importableServicesOf, recordableDefinitionOf, referenceNamesOf, secretVariableKey, suggestedSecretVariablesOf } from "./recordableDefinition";
 
 const SDL = `version: "2.0"
 services:
@@ -71,6 +71,22 @@ services:
       - LOG_LEVEL=debug
 `;
 
+const SDL_WITH_REFERENCED_CREDENTIALS = `version: "2.0"
+services:
+  web:
+    image: ghcr.io/acme/web:1.2.0
+    env:
+      - API_TOKEN=ac-secret://API_TOKEN
+    credentials:
+      host: ghcr.io
+      username: ac-secret://REGISTRY_USERNAME
+      password: ac-secret://REGISTRY_PASSWORD
+  worker:
+    image: ghcr.io/acme/worker:1.2.0
+    env:
+      - API_TOKEN=ac-secret://API_TOKEN
+`;
+
 const SDL_SHARING_AN_ENV_LIST = `version: "2.0"
 services:
   web:
@@ -93,7 +109,10 @@ describe("recordableDefinition", () => {
             { key: "DATABASE_PASSWORD", referenceName: null },
             { key: "LOG_LEVEL", referenceName: null }
           ],
-          hasCredentials: true
+          credentials: [
+            { field: "username", referenceName: null },
+            { field: "password", referenceName: null }
+          ]
         },
         {
           name: "worker",
@@ -102,13 +121,28 @@ describe("recordableDefinition", () => {
             { key: "API_TOKEN", referenceName: "API_TOKEN" },
             { key: "MY-VAR.NAME", referenceName: null }
           ],
-          hasCredentials: false
+          credentials: []
         }
+      ]);
+    });
+
+    it("names the reference each registry credential already carries", () => {
+      const [web] = importableServicesOf(SDL_WITH_REFERENCED_CREDENTIALS);
+
+      expect(web.credentials).toEqual([
+        { field: "username", referenceName: "REGISTRY_USERNAME" },
+        { field: "password", referenceName: "REGISTRY_PASSWORD" }
       ]);
     });
 
     it("lists nothing for a document that is not yaml", () => {
       expect(importableServicesOf("services: [not, a, map")).toEqual([]);
+    });
+  });
+
+  describe(referenceNamesOf.name, () => {
+    it("names every reference the variables and registry credentials carry, once each", () => {
+      expect(referenceNamesOf(importableServicesOf(SDL_WITH_REFERENCED_CREDENTIALS))).toEqual(["API_TOKEN", "REGISTRY_USERNAME", "REGISTRY_PASSWORD"]);
     });
   });
 
@@ -172,6 +206,20 @@ describe("recordableDefinition", () => {
 
       expect(envOf(result.sdl, "worker")).toContain("API_TOKEN=ac-secret://API_TOKEN");
       expect(result.secrets).toMatchObject({ API_TOKEN: "token-value" });
+    });
+
+    it("keeps the references registry credentials already carry and hands back the values given for them", () => {
+      const result = recordableDefinitionOf(SDL_WITH_REFERENCED_CREDENTIALS, {
+        secretVariables: new Set(),
+        referenceValues: { API_TOKEN: "token-value", REGISTRY_USERNAME: "acme-bot", REGISTRY_PASSWORD: "registry-password" }
+      });
+
+      expect(servicesOf(result.sdl).web.credentials).toEqual({
+        host: "ghcr.io",
+        username: "ac-secret://REGISTRY_USERNAME",
+        password: "ac-secret://REGISTRY_PASSWORD"
+      });
+      expect(result.secrets).toEqual({ API_TOKEN: "token-value", REGISTRY_USERNAME: "acme-bot", REGISTRY_PASSWORD: "registry-password" });
     });
 
     it("seals a variable two services share through an anchor once, for both", () => {

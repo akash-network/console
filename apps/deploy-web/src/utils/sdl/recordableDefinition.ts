@@ -17,11 +17,16 @@ export interface ImportableVariable {
   referenceName: string | null;
 }
 
+export interface ImportableCredential {
+  field: (typeof CREDENTIAL_FIELDS)[number]["field"];
+  referenceName: string | null;
+}
+
 export interface ImportableService {
   name: string;
   image: string | undefined;
   variables: ImportableVariable[];
-  hasCredentials: boolean;
+  credentials: ImportableCredential[];
 }
 
 export interface RecordableDefinitionChoices {
@@ -59,8 +64,16 @@ export function importableServicesOf(sdl: string): ImportableService[] {
     name,
     image: typeof service.image === "string" ? service.image : undefined,
     variables: uniqueByKey(assignmentsOf(service.env).map(({ key, value }) => ({ key, referenceName: secretNameOf(value) }))),
-    hasCredentials: CREDENTIAL_FIELDS.some(({ field }) => typeof credentialsOf(service)?.[field] === "string")
+    credentials: CREDENTIAL_FIELDS.flatMap(({ field }) => {
+      const value = credentialsOf(service)?.[field];
+      return typeof value === "string" ? [{ field, referenceName: secretNameOf(value) }] : [];
+    })
   }));
+}
+
+export function referenceNamesOf(services: ImportableService[]): string[] {
+  const entries = services.flatMap(service => [...service.variables, ...service.credentials]);
+  return [...new Set(entries.flatMap(({ referenceName }) => (referenceName ? [referenceName] : [])))];
 }
 
 export function suggestedSecretVariablesOf(services: ImportableService[]): Set<string> {

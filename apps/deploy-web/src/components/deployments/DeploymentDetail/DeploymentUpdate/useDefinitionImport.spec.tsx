@@ -177,6 +177,26 @@ describe(useDefinitionImport.name, () => {
     });
   });
 
+  describe("clearRefusals", () => {
+    it("drops a mismatch", async () => {
+      const { result } = setup({ createOutcomes: [MISMATCH] });
+      await act(() => result.current.record(DEFINITION));
+
+      act(() => result.current.clearRefusals());
+
+      expect(result.current.mismatch).toBe(false);
+    });
+
+    it("drops a refusal", async () => {
+      const { result } = setup({ createOutcomes: [MISSING_VALUE] });
+      await act(() => result.current.record(DEFINITION));
+
+      act(() => result.current.clearRefusals());
+
+      expect(result.current.refusal).toBeNull();
+    });
+  });
+
   function snackbarTitled(title: string) {
     return expect.objectContaining({ props: expect.objectContaining({ title }) });
   }

@@ -79,6 +79,11 @@ export function useDefinitionImport({ dseq, onImported }: DefinitionImportInput,
     setRefusal(null);
   }
 
+  function clearRefusals() {
+    setMismatch(false);
+    setRefusal(null);
+  }
+
   /** Awaited rather than given per-call callbacks, which react-query drops once the tab unmounts mid-save. */
   async function record(definition: RecordableDefinition) {
     startSaving();
@@ -168,5 +173,5 @@ export function useDefinitionImport({ dseq, onImported }: DefinitionImportInput,
     });
   }
 
-  return { record, applyAsUpdate, isSaving, mismatch, refusal };
+  return { record, applyAsUpdate, clearRefusals, isSaving, mismatch, refusal };
 }
