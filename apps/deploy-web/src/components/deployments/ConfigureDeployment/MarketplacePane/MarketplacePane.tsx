@@ -1,6 +1,7 @@
 import type { FC } from "react";
 
 import { useIsOnboarded } from "@src/hooks/useIsOnboarded";
+import { useGpuModels } from "@src/queries/useGpuQuery";
 import { usePlacementOffers } from "@src/queries/usePlacementOffers";
 import { useDeploymentCpuArch, useDeploymentGpuCount } from "../DeploymentResourceSummary/useDeploymentResourceSummary";
 import type { DeploymentFlowPhase } from "../useDeploymentFlow/useDeploymentFlow";
@@ -15,7 +16,8 @@ export const DEPENDENCIES = {
   ProviderSearchInput,
   useDeploymentGpuCount,
   useDeploymentCpuArch,
-  useIsOnboarded
+  useIsOnboarded,
+  useGpuModels
 };
 
 interface Props {
@@ -48,6 +50,7 @@ export const MarketplacePane: FC<Props> = ({
   const requestedCpuArch = d.useDeploymentCpuArch(selectedPlacementId);
   /** Provider names link out only once the user is onboarded: the route gate bounces a not-yet-onboarded user back into the funnel, so the link would dead-end. */
   const showProviderLink = d.useIsOnboarded();
+  const { data: gpuVendors } = d.useGpuModels();
 
   return (
     <section aria-labelledby="configure-marketplace-pane-heading" className="flex h-full min-h-0 flex-col">
@@ -83,6 +86,7 @@ export const MarketplacePane: FC<Props> = ({
             isSelectable={phase === "quoting"}
             gpuCount={gpuCount}
             showProviderLink={showProviderLink}
+            gpuVendors={gpuVendors}
             emptyMessage={requestedCpuArch ? `No ${requestedCpuArch} providers matched this configuration.` : undefined}
           />
         )}

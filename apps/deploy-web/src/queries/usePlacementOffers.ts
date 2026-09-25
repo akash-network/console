@@ -6,15 +6,20 @@ import type { ScreenedProvider } from "@src/queries/useScreenedProviders";
 import { useScreenedProviders } from "@src/queries/useScreenedProviders";
 import type { ApiProviderList } from "@src/types/provider";
 import { formatBidId } from "@src/utils/bids/bidId";
+import { getGpusFromAttributes } from "@src/utils/deploymentUtils";
 import { getPlacementGseq } from "@src/utils/sdl/placementGseq";
 
 export type OfferState = "searching" | "submitted" | "closed" | "unavailable";
+
+export type OfferedGpu = ReturnType<typeof getGpusFromAttributes>[number];
 
 /** A screened provider annotated with its on-chain bid status. Extends ScreenedProvider so the marketplace table keeps its existing columns/uptime/sorting. */
 export interface PlacementOffer extends ScreenedProvider {
   offerState: OfferState;
   bidId?: string;
   price?: { amount: string; denom: string };
+  /** The GPU models the provider bid with, which names the concrete model when the spec accepts any. */
+  gpus?: OfferedGpu[];
 }
 
 /** One deployment bid from listBids, derived from the query result so it can't drift from the SDK's bid shape (matches the sibling quote hooks). */
@@ -81,9 +86,10 @@ export function usePlacementOffers(
       return mergedOwners(screened.providers, bidByOwner).map(function toMergedOffer(owner): PlacementOffer {
         const meta = screenedByOwner.get(owner) ?? providerListToOffer(owner, providersByOwner.get(owner));
         const entry = bidByOwner.get(owner);
-        if (entry?.bid.state === "open") return { ...meta, offerState: "submitted", bidId: formatBidId(entry.bid.id), price: entry.bid.price };
-        if (entry) return { ...meta, offerState: "closed", bidId: undefined, price: entry.bid.price };
-        return { ...meta, offerState: "unavailable", bidId: undefined, price: undefined };
+        if (entry?.bid.state === "open")
+          return { ...meta, offerState: "submitted", bidId: formatBidId(entry.bid.id), price: entry.bid.price, gpus: getOfferedGpus(entry) };
+        if (entry) return { ...meta, offerState: "closed", bidId: undefined, price: entry.bid.price, gpus: getOfferedGpus(entry) };
+        return { ...meta, offerState: "unavailable", bidId: undefined, price: undefined, gpus: undefined };
       });
     },
     [isScreening, screened.providers, screenedByOwner, bidsQuery.data, gseq, providersByOwner]
@@ -100,7 +106,17 @@ export function usePlacementOffers(
 
 /** A screened provider as a not-yet-bid offer — shown while screening and before this placement's first bid. */
 function toSearchingOffer(provider: ScreenedProvider): PlacementOffer {
-  return { ...provider, offerState: "searching", bidId: undefined, price: undefined };
+  return { ...provider, offerState: "searching", bidId: undefined, price: undefined, gpus: undefined };
+}
+
+function getOfferedGpus(entry: BidEntry): OfferedGpu[] {
+  const gpus = entry.bid.resources_offer.flatMap(offer => getGpusFromAttributes(offer.resources.gpu.attributes)).filter(isNamedGpu);
+  return [...new Map(gpus.map(gpu => [`${gpu.vendor}/${gpu.model}`, gpu])).values()];
+}
+
+/** Bid attributes are provider-written, so a key may lack a model segment or carry a wildcard. */
+function isNamedGpu(gpu: OfferedGpu): boolean {
+  return !!gpu.model && gpu.model !== "*";
 }
 
 /** The best bid per provider address: an open bid always wins over a closed one so a re-bidding provider stays selectable. */

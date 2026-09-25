@@ -1,6 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
+import { mock } from "vitest-mock-extended";
 
 import type { PlacementOffer } from "@src/queries/usePlacementOffers";
+import type { GpuVendor } from "@src/types/gpu";
 import type { DeploymentFlowPhase } from "../useDeploymentFlow/useDeploymentFlow";
 import { ProviderSearchInput } from "./ProviderSearchInput/ProviderSearchInput";
 import type { DEPENDENCIES } from "./MarketplacePane";
@@ -40,6 +42,13 @@ describe(MarketplacePane.name, () => {
     const { MarketplaceProvidersTable } = setup({ gpuCount: 0, offers: [buildOffer()] });
 
     expect(MarketplaceProvidersTable).toHaveBeenCalledWith(expect.objectContaining({ gpuCount: 0 }), expect.anything());
+  });
+
+  it("passes the gpu catalog to the table so offered models read by their display names", () => {
+    const gpuVendors: GpuVendor[] = [{ name: "nvidia", models: [{ name: "rtx4090", displayName: "RTX 4090", memory: [], interface: [] }] }];
+    const { MarketplaceProvidersTable } = setup({ gpuVendors, offers: [buildOffer()] });
+
+    expect(MarketplaceProvidersTable).toHaveBeenCalledWith(expect.objectContaining({ gpuVendors }), expect.anything());
   });
 
   it("hides provider links from the table until the user is onboarded", () => {
@@ -153,6 +162,7 @@ describe(MarketplacePane.name, () => {
       gpuCount?: number;
       requestedCpuArch?: "amd64" | "arm64";
       isOnboarded?: boolean;
+      gpuVendors?: GpuVendor[];
       selectedPlacementId?: string;
       selectedBidId?: string;
       onSelectProvider?: (placementId: string, bidId: string) => void;
@@ -185,7 +195,8 @@ describe(MarketplacePane.name, () => {
       ProviderSearchInput,
       useDeploymentGpuCount,
       useDeploymentCpuArch,
-      useIsOnboarded: () => input.isOnboarded ?? true
+      useIsOnboarded: () => input.isOnboarded ?? true,
+      useGpuModels: () => Object.assign(mock<ReturnType<typeof DEPENDENCIES.useGpuModels>>(), { data: input.gpuVendors })
     };
     const user = userEvent.setup();
 

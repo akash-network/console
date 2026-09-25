@@ -26,6 +26,63 @@ describe(usePlacementOffers.name, () => {
     ]);
   });
 
+  it("names the gpu model a provider bid with", () => {
+    const { result } = setup({
+      phase: "quoting",
+      dseq: "100",
+      screened: [polaris()],
+      bids: [
+        {
+          bid: {
+            state: "open",
+            price: { amount: "1900", denom: "uakt" },
+            id: { provider: "akash1aaa", dseq: "100", gseq: 1, oseq: 1 },
+            resources_offer: [gpuResourceOffer("vendor/nvidia/model/h100/ram/80Gi")]
+          }
+        }
+      ]
+    });
+    expect(result.current.offers).toEqual([expect.objectContaining({ owner: "akash1aaa", gpus: [{ vendor: "nvidia", model: "h100" }] })]);
+  });
+
+  it("lists a gpu model once when a bid offers it across several resources", () => {
+    const { result } = setup({
+      phase: "quoting",
+      dseq: "100",
+      screened: [polaris()],
+      bids: [
+        {
+          bid: {
+            state: "closed",
+            price: { amount: "1900", denom: "uakt" },
+            id: { provider: "akash1aaa", dseq: "100", gseq: 1, oseq: 1 },
+            resources_offer: [gpuResourceOffer("vendor/nvidia/model/rtx4090"), gpuResourceOffer("vendor/nvidia/model/rtx4090")]
+          }
+        }
+      ]
+    });
+    expect(result.current.offers).toEqual([expect.objectContaining({ owner: "akash1aaa", gpus: [{ vendor: "nvidia", model: "rtx4090" }] })]);
+  });
+
+  it("skips a bid gpu attribute that names no model", () => {
+    const { result } = setup({
+      phase: "quoting",
+      dseq: "100",
+      screened: [polaris()],
+      bids: [
+        {
+          bid: {
+            state: "open",
+            price: { amount: "1900", denom: "uakt" },
+            id: { provider: "akash1aaa", dseq: "100", gseq: 1, oseq: 1 },
+            resources_offer: [gpuResourceOffer("vendor/nvidia"), gpuResourceOffer("vendor/nvidia/model/*"), gpuResourceOffer("vendor/nvidia/model/h100")]
+          }
+        }
+      ]
+    });
+    expect(result.current.offers).toEqual([expect.objectContaining({ owner: "akash1aaa", gpus: [{ vendor: "nvidia", model: "h100" }] })]);
+  });
+
   it("keeps showing the screened candidates while quoting until the first bid arrives", () => {
     const { result } = setup({ phase: "quoting", dseq: "100", screened: [polaris()], bids: [] });
     expect(result.current.offers).toEqual([expect.objectContaining({ owner: "akash1aaa", offerState: "searching", bidId: undefined, price: undefined })]);
@@ -238,6 +295,10 @@ describe(usePlacementOffers.name, () => {
     return mock<ScreenedProvider>({ owner: "akash1aaa", organization: "Polaris", location: "us-east" });
   }
 
+  function gpuResourceOffer(attributeKey: string) {
+    return { resources: { gpu: { attributes: [{ key: attributeKey, value: "true" }] } } };
+  }
+
   function setup(input: {
     phase: "configuring" | "quoting";
     dseq?: string;
@@ -247,13 +308,21 @@ describe(usePlacementOffers.name, () => {
     providerList?: Array<Partial<ApiProviderList> & { owner: string }>;
     bidsLoading?: boolean;
     bidsError?: boolean;
-    bids?: Array<{ bid: { state: string; price: { amount: string; denom: string }; id: { provider: string; dseq: string; gseq: number; oseq: number } } }>;
+    bids?: Array<{
+      bid: {
+        state: string;
+        price: { amount: string; denom: string };
+        id: { provider: string; dseq: string; gseq: number; oseq: number };
+        resources_offer?: Array<ReturnType<typeof gpuResourceOffer>>;
+      };
+    }>;
   }) {
+    const bids = (input.bids ?? []).map(entry => ({ ...entry, bid: { resources_offer: [], ...entry.bid } }));
     const useScreenedProviders = vi.fn(() => ({ providers: input.screened, isLoading: false, isError: false, isInvalid: input.screenedInvalid ?? false }));
     const useProviderList = vi.fn(() => ({ data: input.providerList ?? [], isLoading: false, isError: false }));
     const dependencies: typeof DEPENDENCIES = {
       useScreenedProviders: useScreenedProviders as never,
-      useListBids: (() => ({ data: { data: input.bids ?? [] }, isLoading: input.bidsLoading ?? false, isError: input.bidsError ?? false })) as never,
+      useListBids: (() => ({ data: { data: bids }, isLoading: input.bidsLoading ?? false, isError: input.bidsError ?? false })) as never,
       useProviderList: useProviderList as never,
       getPlacementGseq: (() => input.placementGseq) as never
     };
