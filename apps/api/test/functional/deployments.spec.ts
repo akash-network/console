@@ -38,7 +38,7 @@ import { deploymentVersion, marketVersion } from "@src/utils/constants";
 import { registerFakeSdlSecretsKms, warmSealingKeyAsBootWould } from "@test/mocks/sdl-secrets-kms.mock";
 import { createAkashAddress } from "@test/seeders/akash-address.seeder";
 import { createApiKey } from "@test/seeders/api-key.seeder";
-import { seedLeaseGpu } from "@test/seeders/db/lease-gpu.seeder";
+import { seedDeploymentSetting } from "@test/seeders/db/deployment-setting.seeder";
 import { createDeployment } from "@test/seeders/deployment.seeder";
 import {
   createDeploymentInfoErrorSeed,
@@ -47,6 +47,7 @@ import {
   createDeploymentInfoSeed
 } from "@test/seeders/deployment-info.seeder";
 import { createManyLeaseApiResponses } from "@test/seeders/lease-api-response.seeder";
+import { createLeaseGpuReading } from "@test/seeders/lease-gpu-reading.seeder";
 import { createLeaseStatus } from "@test/seeders/lease-status.seeder";
 import { createProvider } from "@test/seeders/provider.seeder";
 import { createUser } from "@test/seeders/user.seeder";
@@ -321,7 +322,7 @@ describe("Deployments API", () => {
       const { userApiKeySecret, user, wallets } = await mockPersistedUser();
       const { leases } = await setupDeploymentInfoMock(wallets, dseq);
       const { id } = leases[0].lease;
-      await seedLeaseGpu({ userId: user.id, dseq, gseq: id.gseq, oseq: id.oseq, provider: id.provider });
+      await seedDeploymentSetting({ userId: user.id, dseq, detectedGpus: [createLeaseGpuReading({ gseq: id.gseq, oseq: id.oseq, provider: id.provider })] });
 
       const response = await app.request(`/v1/deployments/${dseq}`, {
         method: "GET",
@@ -347,7 +348,11 @@ describe("Deployments API", () => {
       const { leases } = await setupDeploymentInfoMock(wallets, dseq);
       const other = await mockPersistedUser();
       const { id } = leases[0].lease;
-      await seedLeaseGpu({ userId: other.user.id, dseq, gseq: id.gseq, oseq: id.oseq, provider: id.provider });
+      await seedDeploymentSetting({
+        userId: other.user.id,
+        dseq,
+        detectedGpus: [createLeaseGpuReading({ gseq: id.gseq, oseq: id.oseq, provider: id.provider })]
+      });
 
       const response = await app.request(`/v1/deployments/${dseq}`, {
         method: "GET",

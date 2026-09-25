@@ -2,7 +2,8 @@ import { inject, singleton } from "tsyringe";
 
 import { AuthService } from "@src/auth/services/auth.service";
 import { type CreateLogger, LOGGER_FACTORY } from "@src/core";
-import { type LeaseGpuOutput, LeaseGpuRepository } from "@src/deployment/repositories/lease-gpu/lease-gpu.repository";
+import type { LeaseGpuReading } from "@src/deployment/model-schemas";
+import { DeploymentSettingRepository } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
 import { resolveGpuModel } from "@src/gpu/lib/gpu-model-resolver/gpu-model-resolver";
 import { GpuCatalogService } from "@src/gpu/services/gpu-catalog/gpu-catalog.service";
 import { GpuFormattingService } from "@src/gpu/services/gpu-formatting/gpu-formatting.service";
@@ -32,16 +33,14 @@ export function leaseGpuKeyOf(lease: { gseq: number; oseq: number; provider: str
   return `${lease.gseq}/${lease.oseq}/${lease.provider}`;
 }
 
-function groupByDeploymentAndLease(rows: LeaseGpuOutput[]): Map<string, Map<string, LeaseGpuOutput[]>> {
-  const grouped = new Map<string, Map<string, LeaseGpuOutput[]>>();
+function groupByLease(readings: LeaseGpuReading[]): Map<string, LeaseGpuReading[]> {
+  const byLease = new Map<string, LeaseGpuReading[]>();
 
-  for (const row of rows) {
-    const byLease = grouped.get(row.dseq) ?? new Map<string, LeaseGpuOutput[]>();
-    grouped.set(row.dseq, byLease);
-    byLease.set(leaseGpuKeyOf(row), [...(byLease.get(leaseGpuKeyOf(row)) ?? []), row]);
+  for (const reading of readings) {
+    byLease.set(leaseGpuKeyOf(reading), [...(byLease.get(leaseGpuKeyOf(reading)) ?? []), reading]);
   }
 
-  return grouped;
+  return byLease;
 }
 
 /** Turns the raw readings a probe stored into what a deployment read serves, resolving the model catalog once per request. */
@@ -50,7 +49,7 @@ export class LeaseGpuService {
   private readonly logger: ReturnType<CreateLogger>;
 
   constructor(
-    private readonly leaseGpuRepository: LeaseGpuRepository,
+    private readonly deploymentSettingRepository: DeploymentSettingRepository,
     private readonly gpuCatalogService: GpuCatalogService,
     private readonly gpuFormattingService: GpuFormattingService,
     private readonly authService: AuthService,
@@ -72,33 +71,33 @@ export class LeaseGpuService {
   async #findForDeployments({ userId, dseqs }: { userId: string; dseqs: string[] }): Promise<Map<string, DetectedGpusByLease>> {
     if (!dseqs.length) return new Map();
 
-    const rows = await this.leaseGpuRepository.accessibleBy(this.authService.ability, "read").findForDeployments({ userId, dseqs });
-    if (!rows.length) return new Map();
+    const readingsByDeployment = await this.deploymentSettingRepository.accessibleBy(this.authService.ability, "read").findGpuReadings({ userId, dseqs });
+    if (!readingsByDeployment.size) return new Map();
 
     const index = await this.gpuCatalogService.getIndex();
     const byDeployment = new Map<string, DetectedGpusByLease>();
 
-    for (const [dseq, rowsByLease] of groupByDeploymentAndLease(rows)) {
-      byDeployment.set(dseq, new Map([...rowsByLease].map(([key, leaseRows]) => [key, this.#summarize(leaseRows, index)])));
+    for (const [dseq, readings] of readingsByDeployment) {
+      byDeployment.set(dseq, new Map([...groupByLease(readings)].map(([key, leaseReadings]) => [key, this.#summarize(leaseReadings, index)])));
     }
 
     return byDeployment;
   }
 
-  /** Reports when the lease was last read, since its services are read one at a time and the rows come back in no particular order. */
-  #summarize(leaseRows: LeaseGpuOutput[], index: Awaited<ReturnType<GpuCatalogService["getIndex"]>>): DetectedLeaseGpus {
-    const newestFirst = [...leaseRows].sort((a, b) => b.detectedAt.getTime() - a.detectedAt.getTime());
-    const byService = [...leaseRows].sort((a, b) => a.service.localeCompare(b.service));
+  /** Reports when the lease was last read, since its services are read one at a time and stored in no particular order. */
+  #summarize(leaseReadings: LeaseGpuReading[], index: Awaited<ReturnType<GpuCatalogService["getIndex"]>>): DetectedLeaseGpus {
+    const newestFirst = [...leaseReadings].sort((a, b) => Date.parse(b.detectedAt) - Date.parse(a.detectedAt));
+    const byService = [...leaseReadings].sort((a, b) => a.service.localeCompare(b.service));
 
     return {
-      services: byService.map(row => ({ service: row.service, gpus: this.#resolve(row, index) })),
-      driverVersion: newestFirst.find(row => row.driverVersion)?.driverVersion ?? null,
-      detectedAt: newestFirst[0].detectedAt.toISOString()
+      services: byService.map(reading => ({ service: reading.service, gpus: this.#resolve(reading, index) })),
+      driverVersion: newestFirst.find(reading => reading.driverVersion)?.driverVersion ?? null,
+      detectedAt: newestFirst[0].detectedAt
     };
   }
 
-  #resolve(row: LeaseGpuOutput, index: Awaited<ReturnType<GpuCatalogService["getIndex"]>>): DetectedGpu[] {
-    return row.gpus.map(gpu => {
+  #resolve(reading: LeaseGpuReading, index: Awaited<ReturnType<GpuCatalogService["getIndex"]>>): DetectedGpu[] {
+    return reading.gpus.map(gpu => {
       const resolved = resolveGpuModel(gpu, index);
 
       return {

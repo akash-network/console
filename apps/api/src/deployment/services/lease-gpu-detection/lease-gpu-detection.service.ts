@@ -6,8 +6,8 @@ import type { WalletInitialized } from "@src/billing/repositories";
 import { type CreateLogger, LOGGER_FACTORY } from "@src/core";
 import { type GpuProbeReading, mergeGpuProbeReadings } from "@src/deployment/lib/gpu-probe-output/gpu-probe-output";
 import { findGpuServices } from "@src/deployment/lib/sdl-gpu-services/sdl-gpu-services";
+import type { LeaseGpuReading } from "@src/deployment/model-schemas";
 import { DeploymentSettingRepository } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
-import type { LeaseGpuInsert } from "@src/deployment/repositories/lease-gpu/lease-gpu.repository";
 import { DeploymentConfigService } from "@src/deployment/services/deployment-config/deployment-config.service";
 import { LeaseGpuProbeService, type LeaseGpuProbeTarget } from "@src/deployment/services/lease-gpu-probe/lease-gpu-probe.service";
 import { SdlService } from "@src/deployment/services/sdl/sdl.service";
@@ -21,14 +21,14 @@ export type LeaseGpuDetectionStatus = "read" | "no_gpu_declared" | "no_live_leas
 
 export type LeaseGpuDetectionReport = {
   status: LeaseGpuDetectionStatus;
-  rows: LeaseGpuInsert[];
+  readings: LeaseGpuReading[];
   /** Every service worth reading answered, so there is nothing left to come back for. */
   complete: boolean;
 };
 
-type LeaseRead = { rows: LeaseGpuInsert[]; complete: boolean };
+type LeaseRead = { readings: LeaseGpuReading[]; complete: boolean };
 
-const CHAIN_UNAVAILABLE: LeaseGpuDetectionReport = { status: "chain_unavailable", rows: [], complete: false };
+const CHAIN_UNAVAILABLE: LeaseGpuDetectionReport = { status: "chain_unavailable", readings: [], complete: false };
 
 /** A placement that asks for a gpu, and the sequence of the group that carries it. */
 type GpuPlacement = { gseq: number; name: string };
@@ -58,12 +58,12 @@ export class LeaseGpuDetectionService {
     const placements = await this.#findGpuPlacements(input.wallet.address, input.dseq);
 
     if (!placements) return CHAIN_UNAVAILABLE;
-    if (placements.size === 0) return { status: "no_gpu_declared", rows: [], complete: true };
+    if (placements.size === 0) return { status: "no_gpu_declared", readings: [], complete: true };
 
     const leases = await this.#findLiveGpuLeases(input.wallet.address, input.dseq, placements);
 
     if (!leases) return CHAIN_UNAVAILABLE;
-    if (leases.length === 0) return { status: "no_live_lease", rows: [], complete: false };
+    if (leases.length === 0) return { status: "no_live_lease", readings: [], complete: false };
 
     const sdl = await this.#findStoredSdl(input.wallet.userId, input.dseq);
     const reads: LeaseRead[] = [];
@@ -72,8 +72,8 @@ export class LeaseGpuDetectionService {
       reads.push(await this.#readLease({ wallet: input.wallet, lease, placement: placements.get(lease.lease.id.gseq), sdl }));
     }
 
-    const rows = reads.flatMap(read => read.rows);
-    return { status: rows.length > 0 ? "read" : "nothing_readable", rows, complete: reads.every(read => read.complete) };
+    const readings = reads.flatMap(read => read.readings);
+    return { status: readings.length > 0 ? "read" : "nothing_readable", readings, complete: reads.every(read => read.complete) };
   }
 
   /** Null when the chain did not answer, which must not read as a deployment that asks for no gpu, since that ends the reads for good. */
@@ -136,17 +136,17 @@ export class LeaseGpuDetectionService {
 
     if (!provider) {
       this.logger.warn({ event: "LEASE_GPU_DETECTION_PROVIDER_UNKNOWN", dseq, provider: providerAddress });
-      return { rows: [], complete: false };
+      return { readings: [], complete: false };
     }
 
     const auth = await this.#authorize(input.wallet.id, providerAddress);
     const running = await this.#findRunningServices(providerAddress, dseq, gseq, oseq, auth);
 
-    if (!running?.length) return { rows: [], complete: false };
+    if (!running?.length) return { readings: [], complete: false };
 
     const gpuServices = this.#selectGpuServices(running, input.sdl, input.placement, dseq);
     const services = this.#dropServicesPastReplicaCap(gpuServices, dseq);
-    const rows: LeaseGpuInsert[] = [];
+    const readings: LeaseGpuReading[] = [];
 
     for (const service of services) {
       const reading = await this.#readService({
@@ -156,20 +156,19 @@ export class LeaseGpuDetectionService {
       });
       if (!reading) continue;
 
-      rows.push({
-        userId: input.wallet.userId,
-        dseq,
+      readings.push({
         gseq,
         oseq,
         provider: providerAddress,
         service: service.name,
         gpus: reading.gpus,
         driverVersion: reading.driverVersion,
-        source: reading.source
+        source: reading.source,
+        detectedAt: new Date().toISOString()
       });
     }
 
-    return { rows, complete: gpuServices.length > 0 && rows.length === services.length };
+    return { readings, complete: gpuServices.length > 0 && readings.length === services.length };
   }
 
   /** Every pod or none, since a service read in part lists fewer cards than it runs; stopping at the first unread pod spares the rest a session. */

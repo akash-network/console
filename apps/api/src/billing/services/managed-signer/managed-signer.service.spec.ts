@@ -27,7 +27,6 @@ import type { CreateLogger } from "@src/core";
 import type { DomainEventsService } from "@src/core/services/domain-events/domain-events.service";
 import type { FeatureFlagValue } from "@src/core/services/feature-flags/feature-flags";
 import type { DeploymentSettingRepository } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
-import type { LeaseGpuRepository } from "@src/deployment/repositories/lease-gpu/lease-gpu.repository";
 import { RecordDeploymentSetting } from "@src/deployment/services/record-deployment-setting/record-deployment-setting.handler";
 import type { UserOutput, UserRepository } from "@src/user/repositories";
 import { createAkashAddress } from "../../../../test/seeders";
@@ -637,24 +636,6 @@ describe(ManagedSignerService.name, () => {
       await service.executeDerivedDecodedTxByUserId("user-123", [closeMessageFor(123)]);
 
       expect(deploymentSettingRepository.markClosed).toHaveBeenCalledWith({ userId: "user-123", dseq: "123" });
-    });
-
-    it("drops the gpus recorded for a deployment it just closed, so nothing outlives what it describes", async () => {
-      const { service, leaseGpuRepository } = setupForClose();
-
-      await service.executeDerivedDecodedTxByUserId("user-123", [closeMessageFor(123)]);
-
-      expect(leaseGpuRepository.deleteForDeployment).toHaveBeenCalledWith({ userId: "user-123", dseq: "123" });
-    });
-
-    it("drops no gpus when the close reverted on chain", async () => {
-      const { service, leaseGpuRepository } = setupForClose({
-        signAndBroadcastWithDerivedWallet: vi.fn().mockResolvedValue({ code: 11, hash: "tx-hash", rawLog: "out of gas" })
-      });
-
-      await expect(service.executeDerivedDecodedTxByUserId("user-123", [closeMessageFor(123)])).rejects.toThrow();
-
-      expect(leaseGpuRepository.deleteForDeployment).not.toHaveBeenCalled();
     });
 
     it("records every deployment one transaction closes", async () => {
@@ -1452,7 +1433,6 @@ describe(ManagedSignerService.name, () => {
       deploymentSettingRepository: mock<DeploymentSettingRepository>({
         markClosed: input?.markClosed ?? vi.fn()
       }),
-      leaseGpuRepository: mock<LeaseGpuRepository>(),
       logger: mock<ReturnType<CreateLogger>>({
         error: vi.fn(),
         warn: vi.fn(),
@@ -1482,7 +1462,6 @@ describe(ManagedSignerService.name, () => {
       mocks.managedUserWalletService,
       mocks.trialActivationJobService,
       mocks.deploymentSettingRepository,
-      mocks.leaseGpuRepository,
       new DeploymentDepositRefusalCache(mocks.billingConfigService),
       createLogger
     );

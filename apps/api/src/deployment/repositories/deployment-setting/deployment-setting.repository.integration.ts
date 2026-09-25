@@ -16,6 +16,8 @@ import { UserRepository } from "@src/user/repositories";
 import { DeploymentSettingRepository } from "./deployment-setting.repository";
 
 import { createAkashAddress } from "@test/seeders/akash-address.seeder";
+import { seedDeploymentSetting } from "@test/seeders/db/deployment-setting.seeder";
+import { createLeaseGpuReading } from "@test/seeders/lease-gpu-reading.seeder";
 
 const COOLDOWN_MINUTES = 60;
 const SDL = "version: '2.0'";
@@ -794,6 +796,158 @@ describe(DeploymentSettingRepository.name, () => {
     });
   });
 
+  describe("findGpuReadings", () => {
+    it("reads the gpu readings of a whole page in one query, keyed by dseq", async () => {
+      const { deploymentSettingRepository, user, abilityFor } = await setup();
+      const read = newDseq();
+      const alsoRead = newDseq();
+      const reading = createLeaseGpuReading();
+      const otherReading = createLeaseGpuReading({ service: "worker" });
+      await seedDeploymentSetting({ userId: user.id, dseq: read, detectedGpus: [reading] });
+      await seedDeploymentSetting({ userId: user.id, dseq: alsoRead, detectedGpus: [otherReading] });
+
+      const readings = await deploymentSettingRepository.accessibleBy(abilityFor(user), "read").findGpuReadings({ userId: user.id, dseqs: [read, alsoRead] });
+
+      expect(readings).toEqual(
+        new Map([
+          [read, [reading]],
+          [alsoRead, [otherReading]]
+        ])
+      );
+    });
+
+    it("leaves a deployment the probe never read out of the result", async () => {
+      const { deploymentSettingRepository, user, abilityFor } = await setup();
+      const unread = newDseq();
+      await seedDeploymentSetting({ userId: user.id, dseq: unread });
+
+      const readings = await deploymentSettingRepository.accessibleBy(abilityFor(user), "read").findGpuReadings({ userId: user.id, dseqs: [unread] });
+
+      expect(readings.has(unread)).toBe(false);
+    });
+
+    it("refuses to read the readings of another user holding the same dseq", async () => {
+      const { deploymentSettingRepository, user, trialUser, abilityFor } = await setup();
+      const dseq = newDseq();
+      const reading = createLeaseGpuReading();
+      await seedDeploymentSetting({ userId: user.id, dseq, detectedGpus: [reading] });
+      await seedDeploymentSetting({ userId: trialUser.id, dseq, detectedGpus: [createLeaseGpuReading({ service: "someone-else" })] });
+
+      const readings = await deploymentSettingRepository.accessibleBy(abilityFor(user), "read").findGpuReadings({ userId: user.id, dseqs: [dseq] });
+
+      expect(readings.get(dseq)).toEqual([reading]);
+    });
+
+    it("reads nothing for a deployment the caller's ability excludes", async () => {
+      const { deploymentSettingRepository, user, trialUser, abilityFor } = await setup();
+      const dseq = newDseq();
+      await seedDeploymentSetting({ userId: user.id, dseq, detectedGpus: [createLeaseGpuReading()] });
+
+      const readings = await deploymentSettingRepository.accessibleBy(abilityFor(trialUser), "read").findGpuReadings({ userId: user.id, dseqs: [dseq] });
+
+      expect(readings.size).toBe(0);
+    });
+
+    it("issues no query at all for a page with no deployments on it", async () => {
+      const { deploymentSettingRepository, user, abilityFor } = await setup();
+
+      const readings = await deploymentSettingRepository.accessibleBy(abilityFor(user), "read").findGpuReadings({ userId: user.id, dseqs: [] });
+
+      expect(readings.size).toBe(0);
+    });
+  });
+
+  describe("mergeGpuReadings", () => {
+    it("stores the first readings of a deployment the probe never read", async () => {
+      const { deploymentSettingRepository, user, readGpuReadings } = await setup();
+      const dseq = newDseq();
+      const reading = createLeaseGpuReading();
+      await seedDeploymentSetting({ userId: user.id, dseq });
+
+      await expect(deploymentSettingRepository.mergeGpuReadings({ userId: user.id, dseq, readings: [reading] })).resolves.toBe(true);
+
+      await expect(readGpuReadings(user.id, dseq)).resolves.toEqual([reading]);
+    });
+
+    it("replaces a service read again and keeps every other service it was not given", async () => {
+      const { deploymentSettingRepository, user, readGpuReadings } = await setup();
+      const dseq = newDseq();
+      const web = createLeaseGpuReading({ provider: "akash1provider", service: "web" });
+      const worker = createLeaseGpuReading({ provider: "akash1provider", service: "worker" });
+      const rereadWeb = createLeaseGpuReading({ provider: "akash1provider", service: "web", driverVersion: "565.57.01" });
+      await seedDeploymentSetting({ userId: user.id, dseq, detectedGpus: [web, worker] });
+
+      await deploymentSettingRepository.mergeGpuReadings({ userId: user.id, dseq, readings: [rereadWeb] });
+
+      await expect(readGpuReadings(user.id, dseq)).resolves.toEqual([worker, rereadWeb]);
+    });
+
+    it("leaves every other column of the row as it was", async () => {
+      const { deploymentSettingRepository, user, readDefinition } = await setup();
+      const dseq = newDseq();
+      await deploymentSettingRepository.upsertDefinition({ userId: user.id, dseq, sdl: SDL, manifestVersion: "BAUG" });
+
+      await deploymentSettingRepository.mergeGpuReadings({ userId: user.id, dseq, readings: [createLeaseGpuReading()] });
+
+      await expect(readDefinition(dseq)).resolves.toEqual({ sdl: SDL, manifestVersion: "BAUG", sealedSecrets: null });
+    });
+
+    it("writes nothing to another user holding the same dseq", async () => {
+      const { deploymentSettingRepository, user, trialUser, readGpuReadings } = await setup();
+      const dseq = newDseq();
+      await seedDeploymentSetting({ userId: user.id, dseq });
+      await seedDeploymentSetting({ userId: trialUser.id, dseq });
+
+      await deploymentSettingRepository.mergeGpuReadings({ userId: user.id, dseq, readings: [createLeaseGpuReading()] });
+
+      await expect(readGpuReadings(trialUser.id, dseq)).resolves.toBeNull();
+    });
+
+    it("reports a deployment the console holds no row for, rather than creating one", async () => {
+      const { deploymentSettingRepository, user, db, deploymentSettingsTable } = await setup();
+      const dseq = newDseq();
+
+      await expect(deploymentSettingRepository.mergeGpuReadings({ userId: user.id, dseq, readings: [createLeaseGpuReading()] })).resolves.toBe(false);
+
+      const rows = await db
+        .select({ id: deploymentSettingsTable.id })
+        .from(deploymentSettingsTable)
+        .where(and(eq(deploymentSettingsTable.userId, user.id), eq(deploymentSettingsTable.dseq, dseq)));
+      expect(rows).toEqual([]);
+    });
+
+    it("keeps both writers' readings when two land on the same row at once", async () => {
+      const { deploymentSettingRepository, user, readGpuReadings } = await setup();
+      const dseq = newDseq();
+      const web = createLeaseGpuReading({ service: "web" });
+      const worker = createLeaseGpuReading({ service: "worker" });
+      await seedDeploymentSetting({ userId: user.id, dseq });
+
+      await Promise.all([
+        deploymentSettingRepository.mergeGpuReadings({ userId: user.id, dseq, readings: [web] }),
+        deploymentSettingRepository.mergeGpuReadings({ userId: user.id, dseq, readings: [worker] })
+      ]);
+
+      const stored = await readGpuReadings(user.id, dseq);
+      expect(stored?.map(reading => reading.service).sort()).toEqual(["web", "worker"]);
+    });
+  });
+
+  describe("findLiveManagedDeployments", () => {
+    it("says which candidates the probe has already read", async () => {
+      const { deploymentSettingRepository, user } = await setup();
+      const read = newDseq();
+      const unread = newDseq();
+      await seedDeploymentSetting({ userId: user.id, dseq: read, detectedGpus: [createLeaseGpuReading()] });
+      await seedDeploymentSetting({ userId: user.id, dseq: unread });
+
+      const deployments = await deploymentSettingRepository.findLiveManagedDeployments({ maxAgeHours: 1 });
+
+      const seeded = deployments.filter(deployment => deployment.userId === user.id && [read, unread].includes(deployment.dseq));
+      expect(Object.fromEntries(seeded.map(deployment => [deployment.dseq, deployment.hasDetectedGpus]))).toEqual({ [read]: true, [unread]: false });
+    });
+  });
+
   describe("findAutoTopUpDeploymentsByOwnerIteratively", () => {
     it("gathers every deployment of an owner into a single yield", async () => {
       const { createSetting, wallet, findAutoTopUpOwners } = await setup();
@@ -1529,6 +1683,15 @@ describe(DeploymentSettingRepository.name, () => {
       return row;
     }
 
+    async function readGpuReadings(userId: string, dseq: string) {
+      const [row] = await db
+        .select({ detectedGpus: deploymentSettingsTable.detectedGpus })
+        .from(deploymentSettingsTable)
+        .where(and(eq(deploymentSettingsTable.userId, userId), eq(deploymentSettingsTable.dseq, dseq)));
+
+      return row.detectedGpus;
+    }
+
     async function readSettingDseq(id: string) {
       const [row] = await db.select({ dseq: deploymentSettingsTable.dseq }).from(deploymentSettingsTable).where(eq(deploymentSettingsTable.id, id));
 
@@ -1644,6 +1807,7 @@ describe(DeploymentSettingRepository.name, () => {
       abilityFor,
       createDefinition,
       readDefinition,
+      readGpuReadings,
       readSettingDseq,
       createSetting,
       createSettingWithSecrets,

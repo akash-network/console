@@ -3,9 +3,8 @@ import { inject, singleton } from "tsyringe";
 
 import { type CreateLogger, type Job, JOB_NAME, JobQueueService, LOGGER_FACTORY } from "@src/core";
 import type { DryRunOptions } from "@src/core/types/console";
-import { DeploymentSettingRepository } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
+import { DeploymentSettingRepository, type LiveManagedDeployment } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
 import { LeaseRepository } from "@src/deployment/repositories/lease/lease.repository";
-import { LeaseGpuRepository } from "@src/deployment/repositories/lease-gpu/lease-gpu.repository";
 import { DeploymentConfigService } from "@src/deployment/services/deployment-config/deployment-config.service";
 
 export class DetectLeaseGpus implements Job {
@@ -43,7 +42,6 @@ export class LeaseGpuDetectionJobService {
     private readonly jobQueueService: JobQueueService,
     private readonly deploymentSettingRepository: DeploymentSettingRepository,
     private readonly leaseRepository: LeaseRepository,
-    private readonly leaseGpuRepository: LeaseGpuRepository,
     private readonly config: DeploymentConfigService,
     @inject(LOGGER_FACTORY) createLogger: CreateLogger
   ) {
@@ -108,6 +106,11 @@ export class LeaseGpuDetectionJobService {
         continue;
       }
 
+      if (candidate.hasDetectedGpus) {
+        counts.alreadyRead++;
+        continue;
+      }
+
       try {
         await this.#reconcileCandidate(candidate, { dryRun, counts });
       } catch (error) {
@@ -116,20 +119,12 @@ export class LeaseGpuDetectionJobService {
       }
     }
 
-    if (!dryRun) await this.leaseGpuRepository.deleteForClosedDeployments();
-
     this.logger.info({ event: "LEASE_GPU_DETECTION_RECONCILED", dryRun, candidates: candidates.length, ...counts });
 
     return counts;
   }
 
-  async #reconcileCandidate(candidate: DetectLeaseGpusTarget & { userId: string }, { dryRun, counts }: { dryRun: boolean; counts: ReconcileCounts }) {
-    const read = await this.leaseGpuRepository.findForDeployments({ userId: candidate.userId, dseqs: [candidate.dseq] });
-    if (read.length) {
-      counts.alreadyRead++;
-      return;
-    }
-
+  async #reconcileCandidate(candidate: LiveManagedDeployment, { dryRun, counts }: { dryRun: boolean; counts: ReconcileCounts }) {
     if (!dryRun) await this.#schedule({ walletId: candidate.walletId, dseq: candidate.dseq, attempt: 1, leaseCreatedAt: new Date().toISOString() });
     counts.scheduled++;
   }
