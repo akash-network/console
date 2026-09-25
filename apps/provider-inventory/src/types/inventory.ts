@@ -41,6 +41,8 @@ export interface RequestedStorage {
   name: string;
   quantity: bigint;
   attributes: ParsedStorageAttributes;
+  /** The volume's attributes as sent, which a bidding provider must advertise together under one `capabilities/storage/<group>/` prefix. */
+  capabilities: ResourceAttribute[];
 }
 
 export interface ResourceAttribute {

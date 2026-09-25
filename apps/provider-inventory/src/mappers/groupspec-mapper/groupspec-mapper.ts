@@ -28,7 +28,8 @@ export function mapGroupSpecToResourceUnits(request: Omit<GroupSpecJSON, "name">
           (s): RequestedStorage => ({
             name: s.name,
             quantity: s.quantity.val,
-            attributes: parseStorageAttributes(s.attributes ?? [])
+            attributes: parseStorageAttributes(s.attributes ?? []),
+            capabilities: s.attributes ?? []
           })
         ),
         // GroupSpecJSON kind is of type string, not enum. It's enum for gRPC response/request. So, can safely cast here.

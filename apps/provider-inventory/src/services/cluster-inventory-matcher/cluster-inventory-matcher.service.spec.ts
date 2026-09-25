@@ -1332,7 +1332,7 @@ function buildResourceUnit(input: {
       cpu: { units: input.cpu, arch: parseCPUAttributes(input.cpuAttributes ?? []).arch },
       gpu: { units: input.gpuUnits ?? 0n, attributes: parseGPUAttributes(input.gpuAttributes ?? []), capabilities: input.gpuAttributes ?? [] },
       memory: { quantity: input.memory },
-      storage: input.storage.map(s => ({ name: s.name, quantity: s.quantity, attributes: parseStorageAttributes(s.attributes) })),
+      storage: input.storage.map(s => ({ name: s.name, quantity: s.quantity, attributes: parseStorageAttributes(s.attributes), capabilities: s.attributes })),
       endpoints: []
     },
     count: input.count

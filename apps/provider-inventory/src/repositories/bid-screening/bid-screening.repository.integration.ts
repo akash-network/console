@@ -50,12 +50,14 @@ describe(BidScreeningRepository.name, () => {
       await seed({
         owner: "akash1tightOnMemory",
         totalAvailableMemory: effectivePerReplica - 1n,
-        maxNodeFreeMemory: effectivePerReplica - 1n
+        maxNodeFreeMemory: effectivePerReplica - 1n,
+        selfAttributes: advertisedStorage(["ram"])
       });
       await seed({
         owner: "akash1fits",
         totalAvailableMemory: effectivePerReplica,
-        maxNodeFreeMemory: effectivePerReplica
+        maxNodeFreeMemory: effectivePerReplica,
+        selfAttributes: advertisedStorage(["ram"])
       });
 
       const rows = await repository.findCandidates(
@@ -91,6 +93,78 @@ describe(BidScreeningRepository.name, () => {
       const rows = await repository.findCandidates([unit({})], requirements({ signedBy: { allOf: [], anyOf: ["aud-a", "aud-b"] } }));
 
       expect(owners(rows)).toEqual(["akash1a"]);
+    });
+
+    it("requires an allOf auditor to have signed each requested placement attribute", async () => {
+      await seed({
+        owner: "akash1signed",
+        auditedBy: ["aud-a"],
+        selfAttributes: [{ key: "location-region", value: "us-east" }],
+        signedAttributes: [{ key: "location-region", value: "us-east", auditor: "aud-a" }]
+      });
+      await seed({
+        owner: "akash1staleSignature",
+        auditedBy: ["aud-a"],
+        selfAttributes: [{ key: "location-region", value: "us-east" }],
+        signedAttributes: [{ key: "location-region", value: "us-west", auditor: "aud-a" }]
+      });
+
+      const rows = await repository.findCandidates(
+        [unit({})],
+        requirements({ signedBy: { allOf: ["aud-a"], anyOf: [] }, attributes: [{ key: "location-region", value: "us-east" }] })
+      );
+
+      expect(owners(rows)).toEqual(["akash1signed"]);
+    });
+
+    it("accepts an anyOf auditor only when that same auditor signed the requested attributes", async () => {
+      await seed({
+        owner: "akash1signedByB",
+        auditedBy: ["aud-a", "aud-b"],
+        selfAttributes: [{ key: "location-region", value: "us-east" }],
+        signedAttributes: [
+          { key: "location-region", value: "us-west", auditor: "aud-a" },
+          { key: "location-region", value: "us-east", auditor: "aud-b" }
+        ]
+      });
+      await seed({
+        owner: "akash1signedElsewhere",
+        auditedBy: ["aud-a"],
+        selfAttributes: [{ key: "location-region", value: "us-east" }],
+        signedAttributes: [
+          { key: "location-region", value: "us-west", auditor: "aud-a" },
+          { key: "location-region", value: "us-east", auditor: "aud-c" }
+        ]
+      });
+
+      const rows = await repository.findCandidates(
+        [unit({})],
+        requirements({ signedBy: { allOf: [], anyOf: ["aud-a", "aud-b"] }, attributes: [{ key: "location-region", value: "us-east" }] })
+      );
+
+      expect(owners(rows)).toEqual(["akash1signedByB"]);
+    });
+
+    it("matches a glob placement attribute against the auditor's signed keys", async () => {
+      await seed({
+        owner: "akash1leaf",
+        auditedBy: ["aud-a"],
+        selfAttributes: [{ key: "host/gpu", value: "true" }],
+        signedAttributes: [{ key: "host/gpu", value: "true", auditor: "aud-a" }]
+      });
+      await seed({
+        owner: "akash1nested",
+        auditedBy: ["aud-a"],
+        selfAttributes: [{ key: "host/gpu", value: "true" }],
+        signedAttributes: [{ key: "host/gpu/foo", value: "true", auditor: "aud-a" }]
+      });
+
+      const rows = await repository.findCandidates(
+        [unit({})],
+        requirements({ signedBy: { allOf: ["aud-a"], anyOf: [] }, attributes: [{ key: "host/*", value: "true" }] })
+      );
+
+      expect(owners(rows)).toEqual(["akash1leaf"]);
     });
 
     it("omits the clause entirely when signedBy is empty", async () => {
@@ -150,6 +224,14 @@ describe(BidScreeningRepository.name, () => {
       );
 
       expect(owners(rows)).toEqual(["akash1both"]);
+    });
+
+    it("matches glob keys case-sensitively", async () => {
+      await seed({ owner: "akash1upper", selfAttributes: [{ key: "Host/gpu", value: "true" }] });
+
+      const rows = await repository.findCandidates([unit({})], requirements({ attributes: [{ key: "host/*", value: "true" }] }));
+
+      expect(rows).toEqual([]);
     });
 
     it("compares values case-sensitively", async () => {
@@ -545,12 +627,14 @@ describe(BidScreeningRepository.name, () => {
       await seed({
         owner: "akash1beta2",
         storageClasses: ["beta2"],
-        totalAvailablePersistent: 10_000n
+        totalAvailablePersistent: 10_000n,
+        selfAttributes: advertisedStorage(["beta2"])
       });
       await seed({
         owner: "akash1beta3",
         storageClasses: ["beta3"],
-        totalAvailablePersistent: 10_000n
+        totalAvailablePersistent: 10_000n,
+        selfAttributes: advertisedStorage(["beta3"])
       });
 
       const rows = await repository.findCandidates([unit({ storage: [persistentVolume("data", 1_000n, "beta2")] })], requirements());
@@ -562,17 +646,20 @@ describe(BidScreeningRepository.name, () => {
       await seed({
         owner: "akash1beta2Only",
         storageClasses: ["beta2"],
-        totalAvailablePersistent: 10_000n
+        totalAvailablePersistent: 10_000n,
+        selfAttributes: advertisedStorage(["beta2"])
       });
       await seed({
         owner: "akash1beta3Only",
         storageClasses: ["beta3"],
-        totalAvailablePersistent: 10_000n
+        totalAvailablePersistent: 10_000n,
+        selfAttributes: advertisedStorage(["beta3"])
       });
       await seed({
         owner: "akash1both",
         storageClasses: ["beta2", "beta3"],
-        totalAvailablePersistent: 10_000n
+        totalAvailablePersistent: 10_000n,
+        selfAttributes: advertisedStorage(["beta2", "beta3"])
       });
 
       const rows = await repository.findCandidates(
@@ -600,7 +687,8 @@ describe(BidScreeningRepository.name, () => {
       await seed({
         owner: "akash1beta2",
         storageClasses: ["beta2"],
-        totalAvailablePersistent: 10_000n
+        totalAvailablePersistent: 10_000n,
+        selfAttributes: advertisedStorage(["beta2"])
       });
       await seed({
         owner: "akash1noStorage",
@@ -614,6 +702,67 @@ describe(BidScreeningRepository.name, () => {
       );
 
       expect(owners(rows)).toEqual(["akash1beta2"]);
+    });
+  });
+
+  describe("advertised storage capability filter", () => {
+    it("excludes a provider that does not advertise the volume's class, whatever its cluster reports", async () => {
+      await seed({ owner: "akash1unadvertised", storageClasses: ["beta3"], totalAvailablePersistent: 10_000n });
+      await seed({ owner: "akash1advertised", storageClasses: ["beta3"], totalAvailablePersistent: 10_000n, selfAttributes: advertisedStorage(["beta3"]) });
+
+      const rows = await repository.findCandidates([unit({ storage: [persistentVolume("data", 1_000n, "beta3")] })], requirements());
+
+      expect(owners(rows)).toEqual(["akash1advertised"]);
+    });
+
+    it("requires the class and the persistence to be advertised in the same group", async () => {
+      await seed({
+        owner: "akash1split",
+        storageClasses: ["beta3"],
+        totalAvailablePersistent: 10_000n,
+        selfAttributes: [
+          { key: "capabilities/storage/1/class", value: "beta3" },
+          { key: "capabilities/storage/1/persistent", value: "false" },
+          { key: "capabilities/storage/2/class", value: "beta2" },
+          { key: "capabilities/storage/2/persistent", value: "true" }
+        ]
+      });
+
+      const rows = await repository.findCandidates([unit({ storage: [persistentVolume("data", 1_000n, "beta3")] })], requirements());
+
+      expect(rows).toEqual([]);
+    });
+
+    it("requires a RAM volume's class to be advertised", async () => {
+      await seed({ owner: "akash1noRam", selfAttributes: advertisedStorage(["beta3"]) });
+      await seed({ owner: "akash1ram", selfAttributes: advertisedStorage(["beta3", "ram"]) });
+
+      const rows = await repository.findCandidates([unit({ storage: [ramVolume("shm", 100n)] })], requirements());
+
+      expect(owners(rows)).toEqual(["akash1ram"]);
+    });
+
+    it("ignores storage keys that do not name a group", async () => {
+      await seed({
+        owner: "akash1ungrouped",
+        selfAttributes: [
+          { key: "capabilities/storage/class", value: "ram" },
+          { key: "capabilities/storage/persistent", value: "false" }
+        ]
+      });
+
+      const rows = await repository.findCandidates([unit({ storage: [ramVolume("shm", 100n)] })], requirements());
+
+      expect(rows).toEqual([]);
+    });
+
+    it("requires a group for every volume on the unit", async () => {
+      await seed({ owner: "akash1persistentOnly", storageClasses: ["beta3"], totalAvailablePersistent: 10_000n, selfAttributes: advertisedStorage(["beta3"]) });
+      await seed({ owner: "akash1both", storageClasses: ["beta3"], totalAvailablePersistent: 10_000n, selfAttributes: advertisedStorage(["beta3", "ram"]) });
+
+      const rows = await repository.findCandidates([unit({ storage: [persistentVolume("data", 1_000n, "beta3"), ramVolume("shm", 100n)] })], requirements());
+
+      expect(owners(rows)).toEqual(["akash1both"]);
     });
   });
 
@@ -877,7 +1026,12 @@ function unit(input: {
       cpu: { units: input.cpu ?? 0n, arch: null },
       memory: { quantity: input.memory ?? 0n },
       gpu: { units: input.gpu ?? 0n, attributes: parseGPUAttributes(input.gpuAttributes ?? []), capabilities: input.gpuAttributes ?? [] },
-      storage: (input.storage ?? []).map(s => ({ name: s.name, quantity: s.quantity, attributes: parseStorageAttributes(s.attributes) })),
+      storage: (input.storage ?? []).map(s => ({
+        name: s.name,
+        quantity: s.quantity,
+        attributes: parseStorageAttributes(s.attributes),
+        capabilities: s.attributes
+      })),
       endpoints: input.endpoints ?? []
     }
   };
@@ -888,6 +1042,24 @@ function advertisedGpus(gpuModels: string[]): ResourceAttribute[] {
     const [vendor, model] = token.split("/");
     return { key: model ? `capabilities/gpu/vendor/${vendor}/model/${model}` : `capabilities/gpu/vendor/${vendor}`, value: "true" };
   });
+}
+
+function advertisedStorage(storageClasses: string[]): ResourceAttribute[] {
+  return storageClasses.flatMap((storageClass, index) => [
+    { key: `capabilities/storage/${index + 1}/class`, value: storageClass },
+    { key: `capabilities/storage/${index + 1}/persistent`, value: String(storageClass !== "ram") }
+  ]);
+}
+
+function ramVolume(name: string, quantity: bigint): RawStorageVolume {
+  return {
+    name,
+    quantity,
+    attributes: [
+      { key: "class", value: "ram" },
+      { key: "persistent", value: "false" }
+    ]
+  };
 }
 
 function leasedIp(sequenceNumber: number): { kind: string; sequenceNumber: number } {
