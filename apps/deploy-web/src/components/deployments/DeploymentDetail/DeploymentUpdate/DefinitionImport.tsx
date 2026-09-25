@@ -5,7 +5,7 @@ import { Alert, Button, Input, Switch } from "@akashnetwork/ui/components";
 
 import { ImportSdlDialog } from "@src/components/deployments/ConfigureDeployment/SdlImportExport/ImportSdlDialog";
 import type { DeploymentDto } from "@src/types/deployment";
-import type { ImportableCredential, ImportableService } from "@src/utils/sdl/recordableDefinition";
+import type { ImportableService } from "@src/utils/sdl/recordableDefinition";
 import {
   importableServicesOf,
   recordableDefinitionOf,
@@ -32,9 +32,8 @@ const INTRO_BY_ORIGIN: Record<CandidateOrigin | "none", string> = {
   import: "Check the configuration below, then save it to your account.",
   none: "The console doesn't hold this deployment's configuration, so it can't be updated here yet. Upload or paste the SDL it was created with to save it to your account."
 };
-const SECRETS_HINT = "Switch on the variables that hold secrets. Their values are encrypted and never shown again, while the rest stay readable.";
+const SEALING_HINT = "Switch on the variables that hold secrets. Their values are encrypted and never shown again, while the rest stay readable.";
 const MISSING_REFERENCES_HINT = "This SDL refers to secrets the console doesn't hold. Enter their values to save it.";
-const CREDENTIAL_LABELS: Record<ImportableCredential["field"], string> = { username: "Registry username", password: "Registry password" };
 
 export interface DefinitionImportProps {
   deployment: DeploymentDto;
@@ -97,7 +96,7 @@ export const DefinitionImport: FC<DefinitionImportProps> = ({ deployment, browse
 
         {candidate ? (
           <>
-            <p className="text-sm text-muted-foreground">{SECRETS_HINT}</p>
+            <p className="text-sm text-muted-foreground">{SEALING_HINT}</p>
             {referenceNames.length > 0 && <p className="text-sm text-muted-foreground">{MISSING_REFERENCES_HINT}</p>}
 
             {services.map(service => (
@@ -211,9 +210,9 @@ const ServiceReview: FC<ServiceReviewProps> = ({ service, secretVariables, refer
     {service.credentials.map(({ field, referenceName }) =>
       referenceName ? (
         <div key={field} className="flex items-center gap-3">
-          <span className="min-w-0 flex-1 truncate text-sm">{CREDENTIAL_LABELS[field]}</span>
+          <span className="min-w-0 flex-1 truncate text-sm">Registry {field}</span>
           <ReferenceValueInput
-            label={`${CREDENTIAL_LABELS[field]} value`}
+            label={`Registry ${field} value`}
             value={referenceValues[referenceName] ?? ""}
             locked={locked}
             onChange={value => onReferenceValueChange(referenceName, value)}
