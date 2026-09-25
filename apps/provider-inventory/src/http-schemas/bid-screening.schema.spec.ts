@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { BidScreeningRequestSchema } from "./bid-screening.schema";
+import { BidScreeningRequestSchema, MAX_PLACEMENT_ATTRIBUTES, MAX_SIGNED_BY_AUDITORS } from "./bid-screening.schema";
 
 describe("BidScreeningRequestSchema", () => {
   it("accepts a request that declares no CPU attributes", () => {
@@ -46,6 +46,56 @@ describe("BidScreeningRequestSchema", () => {
       expect.objectContaining({ message: 'Duplicate CPU attribute "arch": a resource asks for one architecture' })
     );
   });
+
+  it.each(["allOf", "anyOf"] as const)("accepts %s auditors up to the cap", list => {
+    const result = BidScreeningRequestSchema.safeParse(
+      buildRequestWithRequirements({ signedBy: { [list]: buildAuditors(MAX_SIGNED_BY_AUDITORS) }, attributes: [] })
+    );
+
+    expect(result.success).toBe(true);
+  });
+
+  it.each(["allOf", "anyOf"] as const)("rejects %s auditors beyond the cap", list => {
+    const result = BidScreeningRequestSchema.safeParse(
+      buildRequestWithRequirements({ signedBy: { [list]: buildAuditors(MAX_SIGNED_BY_AUDITORS + 1) }, attributes: [] })
+    );
+
+    expect(result.success).toBe(false);
+    expect((result as { error: { issues: unknown[] } }).error.issues).toContainEqual(
+      expect.objectContaining({ code: "too_big", path: ["requirements", "signedBy", list] })
+    );
+  });
+
+  it("accepts placement attributes up to the cap", () => {
+    const result = BidScreeningRequestSchema.safeParse(
+      buildRequestWithRequirements({ signedBy: {}, attributes: buildPlacementAttributes(MAX_PLACEMENT_ATTRIBUTES) })
+    );
+
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects placement attributes beyond the cap", () => {
+    const result = BidScreeningRequestSchema.safeParse(
+      buildRequestWithRequirements({ signedBy: {}, attributes: buildPlacementAttributes(MAX_PLACEMENT_ATTRIBUTES + 1) })
+    );
+
+    expect(result.success).toBe(false);
+    expect((result as { error: { issues: unknown[] } }).error.issues).toContainEqual(
+      expect.objectContaining({ code: "too_big", path: ["requirements", "attributes"] })
+    );
+  });
+
+  function buildAuditors(count: number) {
+    return Array.from({ length: count }, (_, index) => `akash1auditor${index}`);
+  }
+
+  function buildPlacementAttributes(count: number) {
+    return Array.from({ length: count }, (_, index) => ({ key: `region${index}`, value: "us-west" }));
+  }
+
+  function buildRequestWithRequirements(requirements: { signedBy: { allOf?: string[]; anyOf?: string[] }; attributes: { key: string; value: string }[] }) {
+    return { ...buildRequest(), requirements };
+  }
 
   function buildRequest(cpuAttributes?: { key: string; value: string }[]) {
     return {

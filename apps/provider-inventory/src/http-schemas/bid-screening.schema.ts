@@ -110,14 +110,18 @@ const ResourceUnitSchema = z.object({
   price: PriceSchema
 });
 
+/** Screening builds one subquery per required auditor per placement attribute, so both lists stay capped on this public route. */
+export const MAX_SIGNED_BY_AUDITORS = 16;
+export const MAX_PLACEMENT_ATTRIBUTES = 32;
+
 const SignedBySchema = z.object({
-  allOf: z.array(z.string()).default([]),
-  anyOf: z.array(z.string()).default([])
+  allOf: z.array(z.string()).max(MAX_SIGNED_BY_AUDITORS).default([]),
+  anyOf: z.array(z.string()).max(MAX_SIGNED_BY_AUDITORS).default([])
 });
 
 const RequirementsSchema = z.object({
   signedBy: SignedBySchema.default({}),
-  attributes: z.array(AttributeSchema).default([])
+  attributes: z.array(AttributeSchema).max(MAX_PLACEMENT_ATTRIBUTES).default([])
 });
 
 /**
