@@ -100,7 +100,7 @@ describe(narrowGpuVendorsToAvailable.name, () => {
   });
 
   function model(name: string, memory: string[], gpuInterface: string[], providerCount = 1): AvailableGpuVendor["models"][number] {
-    return { name, memory, interface: gpuInterface, providerCount };
+    return { name, memory, interface: gpuInterface, providerCount, variants: [] };
   }
 });
 
@@ -116,7 +116,9 @@ describe(findUnavailableGpuModels.name, () => {
     },
     { name: "amd", displayName: "AMD", models: [{ name: "mi300", memory: ["192Gi"], interface: ["pcie"] }] }
   ];
-  const AVAILABLE: AvailableGpuVendor[] = [{ vendor: "nvidia", models: [{ name: "t4", memory: ["16Gi"], interface: ["pcie"], providerCount: 2 }] }];
+  const AVAILABLE: AvailableGpuVendor[] = [
+    { vendor: "nvidia", models: [{ name: "t4", memory: ["16Gi"], interface: ["pcie"], providerCount: 2, variants: [] }] }
+  ];
 
   it("lists the catalog models of the vendor that no provider offers", () => {
     expect(findUnavailableGpuModels(CATALOG, AVAILABLE, { vendor: "nvidia" })).toEqual([CATALOG[0].models[0]]);
@@ -139,7 +141,7 @@ describe(findUnavailableGpuModels.name, () => {
   it("looks only at what providers offer for the pinned vendor", () => {
     const available: AvailableGpuVendor[] = [
       ...AVAILABLE,
-      { vendor: "amd", models: [{ name: "mi300", memory: ["192Gi"], interface: ["pcie"], providerCount: 1 }] }
+      { vendor: "amd", models: [{ name: "mi300", memory: ["192Gi"], interface: ["pcie"], providerCount: 1, variants: [] }] }
     ];
 
     expect(findUnavailableGpuModels(CATALOG, available, { vendor: "amd" })).toEqual([]);

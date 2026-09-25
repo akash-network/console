@@ -19428,7 +19428,7 @@
                       "items": {
                         "type": "string"
                       },
-                      "description": "Regions advertised by at least one online provider",
+                      "description": "Regions declared by at least one online provider and signed by the Console auditor",
                       "example": [
                         "eu-west",
                         "na-us-west"
@@ -19439,7 +19439,7 @@
                       "additionalProperties": {
                         "type": "integer"
                       },
-                      "description": "Online providers advertising each region, keyed by region",
+                      "description": "Audited online providers in each region, keyed by region",
                       "example": {
                         "eu-west": 2,
                         "na-us-west": 5
@@ -19470,7 +19470,7 @@
                                   "items": {
                                     "type": "string"
                                   },
-                                  "description": "Memory sizes this model is available with",
+                                  "description": "Memory sizes a provider would bid on with the interface left unpinned",
                                   "example": [
                                     "40Gi"
                                   ]
@@ -19480,22 +19480,54 @@
                                   "items": {
                                     "type": "string"
                                   },
-                                  "description": "Interfaces this model is available with",
+                                  "description": "Interfaces a provider would bid on with the memory left unpinned",
                                   "example": [
                                     "pcie"
                                   ]
                                 },
                                 "providerCount": {
                                   "type": "integer",
-                                  "description": "Online providers with free capacity on a node holding this model",
+                                  "description": "Audited providers with free capacity that would bid on this model with memory and interface unpinned",
                                   "example": 3
+                                },
+                                "variants": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "memory": {
+                                        "type": "string",
+                                        "nullable": true,
+                                        "description": "Memory size the SDL pins, or null to leave it unpinned",
+                                        "example": "80Gi"
+                                      },
+                                      "interface": {
+                                        "type": "string",
+                                        "nullable": true,
+                                        "description": "Interface the SDL pins, or null to leave it unpinned",
+                                        "example": "sxm"
+                                      },
+                                      "providerCount": {
+                                        "type": "integer",
+                                        "description": "Audited providers with free capacity that advertise this exact GPU key",
+                                        "example": 2
+                                      }
+                                    },
+                                    "required": [
+                                      "memory",
+                                      "interface",
+                                      "providerCount"
+                                    ]
+                                  },
+                                  "description": "Every memory and interface combination at least one provider would bid on, the model alone included"
                                 }
                               },
                               "required": [
                                 "name",
                                 "memory",
                                 "interface",
-                                "providerCount"
+                                "providerCount",
+                                "variants"
                               ]
                             }
                           }
@@ -19505,7 +19537,7 @@
                           "models"
                         ]
                       },
-                      "description": "GPUs that online providers have free capacity for, grouped by vendor"
+                      "description": "GPUs that audited online providers have free capacity for and would bid on, grouped by vendor"
                     }
                   },
                   "required": [

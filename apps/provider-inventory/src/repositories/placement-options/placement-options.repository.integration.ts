@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 
 import { providerInventory } from "@src/model-schemas/provider-inventory/provider-inventory.schema";
 import { DRIZZLE_DB } from "@src/providers/drizzle.provider";
+import { AUDITOR } from "@src/repositories/bid-screening/bid-screening.repository";
 import type { ClusterState, GpuInfo, NodeState } from "@src/types/inventory";
 import { PlacementOptionsRepository } from "./placement-options.repository";
 
@@ -51,14 +52,32 @@ describe(PlacementOptionsRepository.name, () => {
       expect(await repository.findOnlineRegions()).toEqual([]);
     });
 
-    it("prefers the signed region over the self-declared one", async () => {
+    it("leaves out a provider whose signed region differs from the one it declares", async () => {
       await seed({
-        owner: "akash1audited",
+        owner: "akash1stale",
         selfAttributes: [{ key: "location-region", value: "eu-west" }],
-        signedAttributes: [{ key: "location-region", value: "na-us-east" }]
+        signedAttributes: [{ key: "location-region", value: "na-us-east", auditor: AUDITOR }]
       });
 
-      expect(await repository.findOnlineRegions()).toEqual([{ region: "na-us-east", providerCount: 1 }]);
+      expect(await repository.findOnlineRegions()).toEqual([]);
+    });
+
+    it("leaves out a region only another auditor signed", async () => {
+      await seed({
+        owner: "akash1otherAuditor",
+        auditedBy: [AUDITOR, "akash1otherauditor"],
+        selfAttributes: [{ key: "location-region", value: "eu-west" }],
+        signedAttributes: [{ key: "location-region", value: "eu-west", auditor: "akash1otherauditor" }]
+      });
+
+      expect(await repository.findOnlineRegions()).toEqual([]);
+    });
+
+    it("leaves out providers the Console auditor has not audited", async () => {
+      await seed({ owner: "akash1audited", region: "eu-west" });
+      await seed({ owner: "akash1unaudited", region: "eu-west", auditedBy: [] });
+
+      expect(await repository.findOnlineRegions()).toEqual([{ region: "eu-west", providerCount: 1 }]);
     });
 
     it("leaves out providers that advertise no region", async () => {
@@ -78,8 +97,8 @@ describe(PlacementOptionsRepository.name, () => {
       });
 
       expect(await repository.findAvailableGpus()).toEqual([
-        { owner: "akash1gpu", vendor: "nvidia", model: "a100", memory: "40Gi", interface: "pcie" },
-        { owner: "akash1gpu", vendor: "nvidia", model: "h100", memory: "80Gi", interface: "pcie" }
+        { owner: "akash1gpu", vendor: "nvidia", model: "a100", memory: "40Gi", interface: "pcie", advertisedGpuKeys: [] },
+        { owner: "akash1gpu", vendor: "nvidia", model: "h100", memory: "80Gi", interface: "pcie", advertisedGpuKeys: [] }
       ]);
     });
 
@@ -92,8 +111,8 @@ describe(PlacementOptionsRepository.name, () => {
       await seed({ owner: "akash1second", maxNodeFreeGpu: 4n, nodes: [node({ info: [gpuInfo({ name: "a100" })] })] });
 
       expect(await repository.findAvailableGpus()).toEqual([
-        { owner: "akash1first", vendor: "nvidia", model: "a100", memory: "40Gi", interface: "pcie" },
-        { owner: "akash1second", vendor: "nvidia", model: "a100", memory: "40Gi", interface: "pcie" }
+        { owner: "akash1first", vendor: "nvidia", model: "a100", memory: "40Gi", interface: "pcie", advertisedGpuKeys: [] },
+        { owner: "akash1second", vendor: "nvidia", model: "a100", memory: "40Gi", interface: "pcie", advertisedGpuKeys: [] }
       ]);
     });
 
@@ -147,7 +166,34 @@ describe(PlacementOptionsRepository.name, () => {
     it("reports a memory size or interface the provider left blank as blank", async () => {
       await seed({ owner: "akash1blank", maxNodeFreeGpu: 4n, nodes: [node({ info: [gpuInfo({ name: "a100", memorySize: "", interface: "" })] })] });
 
-      expect(await repository.findAvailableGpus()).toEqual([{ owner: "akash1blank", vendor: "nvidia", model: "a100", memory: "", interface: "" }]);
+      expect(await repository.findAvailableGpus()).toEqual([
+        { owner: "akash1blank", vendor: "nvidia", model: "a100", memory: "", interface: "", advertisedGpuKeys: [] }
+      ]);
+    });
+
+    it("returns the gpu keys the provider advertises as true, without their capability prefix", async () => {
+      await seed({
+        owner: "akash1advertiser",
+        maxNodeFreeGpu: 4n,
+        selfAttributes: [
+          { key: "capabilities/gpu/vendor/nvidia/model/h100/ram/80Gi", value: "true" },
+          { key: "capabilities/gpu/vendor/nvidia/model/h100", value: "true" },
+          { key: "capabilities/gpu/vendor/nvidia/model/a100", value: "false" },
+          { key: "capabilities/storage/1/class", value: "beta3" },
+          { key: "location-region", value: "eu-west" }
+        ],
+        nodes: [node({ info: [gpuInfo({ name: "h100" })] })]
+      });
+
+      expect((await repository.findAvailableGpus()).map(gpu => gpu.advertisedGpuKeys)).toEqual([
+        ["vendor/nvidia/model/h100", "vendor/nvidia/model/h100/ram/80Gi"]
+      ]);
+    });
+
+    it("leaves out gpus of a provider the Console auditor has not audited", async () => {
+      await seed({ owner: "akash1unaudited", auditedBy: [], maxNodeFreeGpu: 4n, nodes: [node({ info: [gpuInfo({ name: "a100" })] })] });
+
+      expect(await repository.findAvailableGpus()).toEqual([]);
     });
   });
 
@@ -179,11 +225,13 @@ describe(PlacementOptionsRepository.name, () => {
     isOnlineSince?: Date | null;
     region?: string;
     selfAttributes?: Array<{ key: string; value: string }>;
-    signedAttributes?: Array<{ key: string; value: string }>;
+    signedAttributes?: Array<{ key: string; value: string; auditor: string }>;
+    auditedBy?: string[];
     maxNodeFreeGpu?: bigint;
     nodes?: NodeState[];
   }): Promise<void> {
     const inventory: ClusterState = { nodes: input.nodes ?? [], storage: {} };
+    const regionAttributes = input.region ? [{ key: "location-region", value: input.region }] : [];
 
     await db.insert(providerInventory).values({
       owner: input.owner,
@@ -191,8 +239,9 @@ describe(PlacementOptionsRepository.name, () => {
       isOnline: input.isOnline ?? true,
       isOnlineSince: input.isOnlineSince === undefined ? new Date() : input.isOnlineSince,
       maxNodeFreeGpu: input.maxNodeFreeGpu ?? 0n,
-      selfAttributes: input.selfAttributes ?? (input.region ? [{ key: "location-region", value: input.region }] : []),
-      signedAttributes: input.signedAttributes ?? [],
+      selfAttributes: input.selfAttributes ?? regionAttributes,
+      signedAttributes: input.signedAttributes ?? regionAttributes.map(attribute => ({ ...attribute, auditor: AUDITOR })),
+      auditedBy: input.auditedBy ?? [AUDITOR],
       inventory
     });
   }

@@ -17,7 +17,12 @@ describe("Placement options API", () => {
       const options = {
         regions: ["eu-west", "na-us-west"],
         regionProviderCounts: { "eu-west": 2, "na-us-west": 5 },
-        gpus: [{ vendor: "nvidia", models: [{ name: "a100", memory: ["80Gi"], interface: ["sxm"], providerCount: 3 }] }]
+        gpus: [
+          {
+            vendor: "nvidia",
+            models: [{ name: "a100", memory: ["80Gi"], interface: ["sxm"], providerCount: 3, variants: [{ memory: null, interface: null, providerCount: 3 }] }]
+          }
+        ]
       };
       nock(PROVIDER_INVENTORY_API_URL).get("/v1/placement-options").reply(200, options);
 

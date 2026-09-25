@@ -11949,14 +11949,14 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                 "schema": {
                   "properties": {
                     "gpus": {
-                      "description": "GPUs that online providers have free capacity for, grouped by vendor",
+                      "description": "GPUs that audited online providers have free capacity for and would bid on, grouped by vendor",
                       "items": {
                         "properties": {
                           "models": {
                             "items": {
                               "properties": {
                                 "interface": {
-                                  "description": "Interfaces this model is available with",
+                                  "description": "Interfaces a provider would bid on with the memory left unpinned",
                                   "example": [
                                     "pcie",
                                   ],
@@ -11966,7 +11966,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                                   "type": "array",
                                 },
                                 "memory": {
-                                  "description": "Memory sizes this model is available with",
+                                  "description": "Memory sizes a provider would bid on with the interface left unpinned",
                                   "example": [
                                     "40Gi",
                                   ],
@@ -11981,9 +11981,40 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                                   "type": "string",
                                 },
                                 "providerCount": {
-                                  "description": "Online providers with free capacity on a node holding this model",
+                                  "description": "Audited providers with free capacity that would bid on this model with memory and interface unpinned",
                                   "example": 3,
                                   "type": "integer",
+                                },
+                                "variants": {
+                                  "description": "Every memory and interface combination at least one provider would bid on, the model alone included",
+                                  "items": {
+                                    "properties": {
+                                      "interface": {
+                                        "description": "Interface the SDL pins, or null to leave it unpinned",
+                                        "example": "sxm",
+                                        "nullable": true,
+                                        "type": "string",
+                                      },
+                                      "memory": {
+                                        "description": "Memory size the SDL pins, or null to leave it unpinned",
+                                        "example": "80Gi",
+                                        "nullable": true,
+                                        "type": "string",
+                                      },
+                                      "providerCount": {
+                                        "description": "Audited providers with free capacity that advertise this exact GPU key",
+                                        "example": 2,
+                                        "type": "integer",
+                                      },
+                                    },
+                                    "required": [
+                                      "memory",
+                                      "interface",
+                                      "providerCount",
+                                    ],
+                                    "type": "object",
+                                  },
+                                  "type": "array",
                                 },
                               },
                               "required": [
@@ -11991,6 +12022,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                                 "memory",
                                 "interface",
                                 "providerCount",
+                                "variants",
                               ],
                               "type": "object",
                             },
@@ -12014,7 +12046,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                       "additionalProperties": {
                         "type": "integer",
                       },
-                      "description": "Online providers advertising each region, keyed by region",
+                      "description": "Audited online providers in each region, keyed by region",
                       "example": {
                         "eu-west": 2,
                         "na-us-west": 5,
@@ -12022,7 +12054,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                       "type": "object",
                     },
                     "regions": {
-                      "description": "Regions advertised by at least one online provider",
+                      "description": "Regions declared by at least one online provider and signed by the Console auditor",
                       "example": [
                         "eu-west",
                         "na-us-west",
