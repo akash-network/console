@@ -1,5 +1,5 @@
 "use client";
-import type { FC } from "react";
+import type { FC, ReactNode } from "react";
 import { useCallback, useRef, useState } from "react";
 import {
   Alert,
@@ -26,9 +26,19 @@ const MAX_SDL_FILE_BYTES = 512 * 1024;
 // eslint-disable-next-line akash/dependencies-component-or-hook
 export const DEPENDENCIES = { SDLEditor, FileButton, importDeploymentState };
 
-type Props = {
+type ImportMeta = { method: "paste" | "file" };
+
+type ImportTarget =
+  | { onImport: (state: ImportedDeploymentState, meta: ImportMeta) => void }
+  | {
+      /** The sdl as written, checked only by the editor's sdl validation, for a caller that has no use for a form it may not fit. */
+      onImportSdl: (sdl: string, meta: ImportMeta) => void;
+    };
+
+type Props = ImportTarget & {
   onClose: () => void;
-  onImport: (state: ImportedDeploymentState, meta: { method: "paste" | "file" }) => void;
+  title?: string;
+  description?: ReactNode;
   dependencies?: typeof DEPENDENCIES;
 };
 
@@ -37,7 +47,7 @@ type Props = {
  * populates the same editor. The single "Import" action is the only validate/apply path — uploading a file
  * never bypasses it. A failed import shows an inline message and leaves the parent form untouched.
  */
-export const ImportSdlDialog: FC<Props> = ({ onClose, onImport, dependencies: d = DEPENDENCIES }) => {
+export const ImportSdlDialog: FC<Props> = ({ onClose, title = "Import Config", description, dependencies: d = DEPENDENCIES, ...target }) => {
   const { resolvedTheme } = useTheme();
   const [text, setText] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -85,9 +95,15 @@ export const ImportSdlDialog: FC<Props> = ({ onClose, onImport, dependencies: d 
   }
 
   function handleImport() {
+    const meta: ImportMeta = { method: untouchedUploadedFileRef.current ? "file" : "paste" };
+
+    if ("onImportSdl" in target) {
+      target.onImportSdl(text, meta);
+      return;
+    }
+
     try {
-      const state = d.importDeploymentState(text);
-      onImport(state, { method: untouchedUploadedFileRef.current ? "file" : "paste" });
+      target.onImport(d.importDeploymentState(text), meta);
     } catch (err) {
       setError(describeImportError(err));
     }
@@ -97,9 +113,9 @@ export const ImportSdlDialog: FC<Props> = ({ onClose, onImport, dependencies: d 
     <DialogV2 open onOpenChange={isOpen => (!isOpen ? onClose() : undefined)}>
       <DialogV2Content className="flex h-[600px] max-h-[85vh] max-w-3xl flex-col">
         <DialogV2Header>
-          <DialogV2Title>Import Config</DialogV2Title>
+          <DialogV2Title>{title}</DialogV2Title>
           <DialogV2Description>
-            Paste your config below or upload a file. Importing replaces your current configuration.{" "}
+            {description ?? "Paste your config below or upload a file. Importing replaces your current configuration."}{" "}
             <a href="https://akash.network/docs/developers/deployment/akash-sdl/" target="_blank" rel="noopener" className="text-primary underline">
               View the SDL reference
             </a>

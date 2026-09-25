@@ -14,12 +14,13 @@ import type { DeploymentDto, LeaseDto } from "@src/types/deployment";
 import type { ApiProviderList } from "@src/types/provider";
 import { getPlacementName } from "../DeploymentPlacements/placementModel";
 import { DeploymentTabHeader } from "../DeploymentTabHeader";
+import { DefinitionImport } from "./DefinitionImport";
 import type { DeploymentUpdateFormValues } from "./deploymentUpdateFormSchema";
 import { DeploymentUpdateFormSchema } from "./deploymentUpdateFormSchema";
 import { UpdatePlacementCard } from "./UpdatePlacementCard";
 import { useDeploymentUpdateSubmit } from "./useDeploymentUpdateSubmit";
 
-export const DEPENDENCIES = { useDeploymentUpdateSubmit };
+export const DEPENDENCIES = { useDeploymentUpdateSubmit, DefinitionImport };
 
 const UNAVAILABLE_NOTICE =
   "The console has no up-to-date copy of this deployment's configuration, so it can only be updated as raw SDL here. Once it holds one, this tab shows each service's settings instead.";
@@ -30,6 +31,7 @@ const SECRETS_UNREADABLE_NOTICE =
 
 type DeploymentUpdateSeed =
   | { kind: "resolving" }
+  | { kind: "importable"; browserSdl: string | undefined }
   | { kind: "unavailable" }
   | { kind: "unreadable" }
   | { kind: "ready"; values: SdlBuilderFormValuesType; manifestVersion: string };
@@ -39,6 +41,7 @@ type ReadySeed = Extract<DeploymentUpdateSeed, { kind: "ready" }>;
 /** Only the api's own copy can be patched, since the patch is applied to the document it stores and guarded on the version it recorded. */
 function seedOf(definition: DeploymentDefinition): DeploymentUpdateSeed {
   if (definition.source === "resolving") return { kind: "resolving" };
+  if (definition.isRecordedByConsole === false) return { kind: "importable", browserSdl: definition.source === "local" ? definition.sdl : undefined };
   if (definition.source !== "api" || !definition.sdl || !definition.manifestVersion) return { kind: "unavailable" };
 
   try {
@@ -130,6 +133,10 @@ export const DeploymentUpdate: FC<DeploymentUpdateProps> = ({
     },
     [seed, form]
   );
+
+  if (seed.kind === "importable") {
+    return <d.DefinitionImport key={deployment.dseq} deployment={deployment} browserSdl={seed.browserSdl} onImported={onUpdated} />;
+  }
 
   if (seed.kind === "unavailable" || seed.kind === "unreadable") {
     return (
