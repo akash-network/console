@@ -14,6 +14,7 @@ import { CORE_CONFIG } from "@src/core";
 import { app } from "@src/rest-app";
 import { certVersion, deploymentVersion } from "@src/utils/constants";
 
+import { createAkashAddress } from "@test/seeders/akash-address.seeder";
 import { createDeploymentGrantResponseSeed } from "@test/seeders/deployment-grant-response.seeder";
 import { createDeploymentListResponseSeed } from "@test/seeders/deployment-list-response.seeder";
 import { createFeeAllowanceResponse } from "@test/seeders/fee-allowance-response.seeder";
@@ -180,6 +181,20 @@ describe("Tx Sign", () => {
       expect(res.status).toBe(502);
       expect(await res.json()).toMatchObject({ error: "TxNotIncludedError", code: "tx_not_included" });
     });
+
+    it("responds with 403 Forbidden and the signer's reason when the signer refuses a message the caller supplied", async () => {
+      const signerRefusal = `Message /akash.cert.v1.MsgCreateCertificate may not be signed by this wallet: acts on behalf of ${createAkashAddress()}, not ${createAkashAddress()}`;
+      const { user, token, wallet } = await setup({ signerRefusal });
+
+      const res = await app.request("/v1/tx", {
+        method: "POST",
+        body: await createMessagePayload(user.id, wallet.address),
+        headers: { "Content-Type": "application/json", authorization: `Bearer ${token}` }
+      });
+
+      expect(res.status).toBe(403);
+      expect(await res.json()).toMatchObject({ error: "ForbiddenError", code: "forbidden", message: signerRefusal });
+    });
   });
 
   async function createMessagePayload(userId: string, address: string) {
@@ -248,7 +263,12 @@ describe("Tx Sign", () => {
     });
   }
 
-  async function setup(input?: { deploymentAllowance?: number; blockchainError?: string; signerOutcome?: { status: number; outcome: string } }) {
+  async function setup(input?: {
+    deploymentAllowance?: number;
+    blockchainError?: string;
+    signerOutcome?: { status: number; outcome: string };
+    signerRefusal?: string;
+  }) {
     const txSignerNock = nock(container.resolve(BILLING_CONFIG).TX_SIGNER_BASE_URL);
 
     txSignerNock
@@ -292,6 +312,13 @@ describe("Tx Sign", () => {
       txSignerNock.persist().post("/v1/tx/derived").reply(500, {
         code: 1,
         message: input.blockchainError
+      });
+    } else if (input?.signerRefusal) {
+      txSignerNock.persist().post("/v1/tx/derived").reply(403, {
+        error: "ForbiddenError",
+        message: input.signerRefusal,
+        code: "forbidden",
+        type: "client_error"
       });
     } else {
       txSignerNock

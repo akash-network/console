@@ -37,6 +37,10 @@ import { TrialValidationService } from "../trial-validation/trial-validation.ser
 
 type StringifiedEncodeObject = Omit<EncodeObject, "value"> & { value: string };
 
+type ExecuteTxOptions = {
+  suppliedByCaller?: boolean;
+};
+
 const SPENDING_TXS = [MsgCreateDeployment, MsgAccountDeposit];
 
 const INSUFFICIENT_DEPOSIT_BALANCE_MESSAGE = "Not enough balance to cover the deployment deposit. Add credits or turn on auto recharge to continue.";
@@ -93,20 +97,21 @@ export class ManagedSignerService {
 
   async executeDerivedEncodedTxByUserId(userId: UserWalletOutput["userId"], messages: StringifiedEncodeObject[]) {
     const decoded = this.decodeMessages(messages);
-    return await this.executeDerivedDecodedTxByUserId(userId, decoded);
+    return await this.executeDerivedDecodedTxByUserId(userId, decoded, { suppliedByCaller: true });
   }
 
   @Trace()
   async executeDerivedDecodedTxByUserId(
     userId: UserWalletOutput["userId"],
-    messages: EncodeObject[]
+    messages: EncodeObject[],
+    options?: ExecuteTxOptions
   ): Promise<{
     code: number;
     hash: string;
     transactionHash: string;
     rawLog: string;
   }> {
-    return this.executeDecodedTxByUserWallet(await this.#findSigningWallet(userId), messages);
+    return this.executeDecodedTxByUserWallet(await this.#findSigningWallet(userId), messages, options);
   }
 
   /** Every refusal the broadcast would raise before signing, for a caller that must not record anything a refusal would strand. */
@@ -127,7 +132,8 @@ export class ManagedSignerService {
   @Trace()
   async executeDecodedTxByUserWallet(
     userWallet: UserWalletOutput,
-    messages: EncodeObject[]
+    messages: EncodeObject[],
+    options?: ExecuteTxOptions
   ): Promise<{
     code: number;
     hash: string;
@@ -151,7 +157,7 @@ export class ManagedSignerService {
       }
     } catch (error) {
       await this.#scheduleReloadOnPaymentRequired(error, userWallet);
-      throw error;
+      throw options?.suppliedByCaller ? this.chainErrorService.exposeSignerRefusal(error) : error;
     }
 
     await this.#recordClosedDeployments(userWallet, messages);

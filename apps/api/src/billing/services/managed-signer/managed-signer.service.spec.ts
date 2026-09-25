@@ -843,6 +843,21 @@ describe(ManagedSignerService.name, () => {
       expect(chainErrorService.toAppError).toHaveBeenCalledWith(chainError, messages);
     });
 
+    it("keeps a signer refusal of messages it built itself as the signer's own error", async () => {
+      const wallet = createUserWallet({ userId: "user-123", feeAllowance: 100 });
+      const signerRefusal = new Error(
+        "Message /akash.market.v1beta5.MsgCreateLease may not be signed by this wallet: acts on behalf of akash1other, not akash1self"
+      );
+
+      const { service } = setup({
+        findOneByUserId: vi.fn().mockResolvedValue(wallet),
+        signAndBroadcastWithDerivedWallet: vi.fn().mockRejectedValue(signerRefusal),
+        exposeSignerRefusal: vi.fn().mockReturnValue(createError(403, signerRefusal.message))
+      });
+
+      await expect(service.executeDerivedDecodedTxByUserId("user-123", [leaseMessageFor(123)])).rejects.toBe(signerRefusal);
+    });
+
     it("uses current user when userId matches auth currentUser", async () => {
       const currentUser = createUser({ userId: "user-123" });
       const wallet = createUserWallet({ userId: "user-123", feeAllowance: 100 });
@@ -1248,6 +1263,47 @@ describe(ManagedSignerService.name, () => {
       expect(txManagerService.signAndBroadcastWithDerivedWallet).not.toHaveBeenCalled();
     });
 
+    it("exposes a signer refusal of the caller's messages to the caller", async () => {
+      const wallet = createUserWallet({ userId: "user-123", feeAllowance: 100 });
+      const signerRefusal = new Error(
+        "Message /akash.escrow.v1.MsgAccountDeposit may not be signed by this wallet: acts on behalf of akash1other, not akash1self"
+      );
+      const exposedRefusal = createError(403, signerRefusal.message);
+      const depositMessage = {
+        typeUrl: MsgAccountDeposit.$type,
+        value: Buffer.from(JSON.stringify({ signer: wallet.address })).toString("base64")
+      };
+
+      const { service, chainErrorService } = setup({
+        findOneByUserId: vi.fn().mockResolvedValue(wallet),
+        signAndBroadcastWithDerivedWallet: vi.fn().mockRejectedValue(signerRefusal),
+        exposeSignerRefusal: vi.fn().mockReturnValue(exposedRefusal),
+        decode: vi.fn().mockReturnValue({ signer: wallet.address })
+      });
+
+      await expect(service.executeDerivedEncodedTxByUserId("user-123", [depositMessage])).rejects.toBe(exposedRefusal);
+      expect(chainErrorService.exposeSignerRefusal).toHaveBeenCalledWith(signerRefusal);
+    });
+
+    it("keeps a signer refusal of the fee refill it runs before broadcasting as the signer's own error", async () => {
+      const wallet = createUserWallet({ userId: "user-123" });
+      const refillRefusal = new Error("Message /cosmos.feegrant.v1beta1.MsgGrantAllowance may not be signed by this wallet: denom uact is not grantable");
+      const closeMessage = {
+        typeUrl: MsgCloseDeployment.$type,
+        value: Buffer.from(JSON.stringify({ id: { dseq: "123", owner: wallet.address } })).toString("base64")
+      };
+
+      const { service, managedUserWalletService } = setup({
+        findOneByUserId: vi.fn().mockResolvedValue(wallet),
+        retrieveAndCalcFeeLimit: vi.fn().mockResolvedValue(0),
+        exposeSignerRefusal: vi.fn().mockReturnValue(createError(403, refillRefusal.message)),
+        decode: vi.fn().mockReturnValue({ id: { dseq: "123", owner: wallet.address } })
+      });
+      managedUserWalletService.refillWalletFees.mockRejectedValue(refillRefusal);
+
+      await expect(service.executeDerivedEncodedTxByUserId("user-123", [closeMessage])).rejects.toBe(refillRefusal);
+    });
+
     it("throws 400 with message index and typeUrl when a message fails to decode", async () => {
       const decodeError = new Error("illegal tag: field no 0 wire type 7");
       const badMessage = {
@@ -1396,6 +1452,7 @@ describe(ManagedSignerService.name, () => {
     retrieveDeploymentLimit?: BalancesService["retrieveDeploymentLimit"];
     publish?: DomainEventsService["publish"];
     transformChainError?: ChainErrorService["toAppError"];
+    exposeSignerRefusal?: ChainErrorService["exposeSignerRefusal"];
     hasLeases?: LeaseHttpService["hasLeases"];
     scheduleImmediate?: WalletReloadJobService["scheduleImmediate"];
     markClosed?: DeploymentSettingRepository["markClosed"];
@@ -1419,7 +1476,8 @@ describe(ManagedSignerService.name, () => {
         ability: createMongoAbility<MongoAbility>()
       }),
       chainErrorService: mock<ChainErrorService>({
-        toAppError: input?.transformChainError ?? vi.fn(async e => e)
+        toAppError: input?.transformChainError ?? vi.fn(async e => e),
+        exposeSignerRefusal: input?.exposeSignerRefusal ?? vi.fn(e => e)
       }),
       anonymousValidateService: mock<TrialValidationService>({
         validateLeaseProvidersAuditors: input?.validateLeaseProvidersAuditors ?? vi.fn()
