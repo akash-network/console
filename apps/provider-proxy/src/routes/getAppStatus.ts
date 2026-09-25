@@ -29,40 +29,13 @@ export const statusRoute = createRoute({
 });
 
 export async function getAppStatus(ctx: AppContext): Promise<TypedResponse<z.infer<typeof AppStatus>, 200>> {
-  const webSocketStats = ctx.get("container").wsStats.getItems();
-  const openClientWebSocketCount = webSocketStats.filter(x => !x.isClosed()).length;
-  const totalRequestCount = webSocketStats.reduce((a, b) => a + b.getStats().totalStats.count, 0);
-  const totalTransferred = webSocketStats.reduce((a, b) => a + b.getStats().totalStats.data, 0);
-
-  const logStreaming = webSocketStats
-    .map(s => s.getStats().usageStats["StreamLogs"])
-    .reduce((a, b) => ({ count: a.count + b.count, data: a.data + b.data }), {
-      count: 0,
-      data: 0
-    });
-  const logDownload = webSocketStats
-    .map(s => s.getStats().usageStats["DownloadLogs"])
-    .reduce((a, b) => ({ count: a.count + b.count, data: a.data + b.data }), {
-      count: 0,
-      data: 0
-    });
-  const eventStreaming = webSocketStats
-    .map(s => s.getStats().usageStats["StreamEvents"])
-    .reduce((a, b) => ({ count: a.count + b.count, data: a.data + b.data }), {
-      count: 0,
-      data: 0
-    });
-  const shell = webSocketStats
-    .map(s => s.getStats().usageStats["Shell"])
-    .reduce((a, b) => ({ count: a.count + b.count, data: a.data + b.data }), {
-      count: 0,
-      data: 0
-    });
+  const { openClientWebSocketCount, usageStats, totalStats } = ctx.get("container").wsStats.getStats();
+  const { StreamLogs: logStreaming, DownloadLogs: logDownload, StreamEvents: eventStreaming, Shell: shell } = usageStats;
 
   return ctx.json({
     openClientWebSocketCount,
-    totalRequestCount,
-    totalTransferred: humanFileSize(totalTransferred),
+    totalRequestCount: totalStats.count,
+    totalTransferred: humanFileSize(totalStats.data),
     logStreaming: `${logStreaming.count} (${humanFileSize(logStreaming.data)})`,
     logDownload: `${logDownload.count} (${humanFileSize(logDownload.data)})`,
     eventStreaming: `${eventStreaming.count} (${humanFileSize(eventStreaming.data)})`,

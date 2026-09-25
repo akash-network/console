@@ -1,80 +1,37 @@
 import { randomUUID } from "node:crypto";
 
 export class WebsocketStats {
-  private items: ClientWebSocketStats[] = [];
-
-  create(): ClientWebSocketStats {
-    const item = new ClientWebSocketStats(randomUUID());
-    this.items.push(item);
-
-    if (this.items.length > 100_000) {
-      this.items = this.items.slice(-5000);
+  private readonly aggregates: WebsocketAggregates = {
+    openClientWebSocketCount: 0,
+    usageStats: {
+      StreamLogs: { count: 0, data: 0 },
+      StreamEvents: { count: 0, data: 0 },
+      Shell: { count: 0, data: 0 },
+      DownloadLogs: { count: 0, data: 0 },
+      Unknown: { count: 0, data: 0 }
     }
-
-    return item;
-  }
-
-  getItems(): ReadonlyArray<ClientWebSocketStats> {
-    return this.items;
-  }
-}
-
-export class ClientWebSocketStats {
-  readonly id: string;
-  private openedOn: Date;
-  private closedOn?: Date;
-  private usage: WebSocketUsage = "Unknown";
-
-  private usageStats: Record<WebSocketUsage, { count: number; data: number }> = {
-    StreamLogs: { count: 0, data: 0 },
-    StreamEvents: { count: 0, data: 0 },
-    Shell: { count: 0, data: 0 },
-    DownloadLogs: { count: 0, data: 0 },
-    Unknown: { count: 0, data: 0 }
   };
 
-  constructor(id: string) {
-    this.id = id;
-    this.openedOn = new Date();
-  }
-
-  setUsage(usage: WebSocketUsage): void {
-    this.usage = usage;
-
-    if (usage !== "Unknown") {
-      this.usageStats[usage].count += 1;
-    }
-  }
-
-  logDataTransfer(dataTransferred: number): void {
-    this.usageStats[this.usage].data += dataTransferred;
-  }
-
-  close(): void {
-    this.closedOn = new Date();
-  }
-
-  isClosed(): boolean {
-    return !!this.closedOn;
+  create(): ClientWebSocketStats {
+    this.aggregates.openClientWebSocketCount += 1;
+    return new ClientWebSocketStats(randomUUID(), this.aggregates);
   }
 
   getStats(): {
-    id: string;
-    openedOn: Date;
-    closedOn: Date | undefined;
-    usageStats: Record<WebSocketUsage, { count: number; data: number }>;
-    totalStats: { count: number; data: number };
+    openClientWebSocketCount: number;
+    usageStats: Readonly<Record<WebSocketUsage, Readonly<UsageStats>>>;
+    totalStats: UsageStats;
   } {
+    const { openClientWebSocketCount, usageStats } = this.aggregates;
+
     return {
-      id: this.id,
-      openedOn: this.openedOn,
-      closedOn: this.closedOn,
-      usageStats: this.usageStats,
-      totalStats: (Object.keys(this.usageStats) as WebSocketUsage[]).reduce(
+      openClientWebSocketCount,
+      usageStats,
+      totalStats: (Object.keys(usageStats) as WebSocketUsage[]).reduce(
         (s, n) => {
           return {
-            count: s.count + this.usageStats[n].count,
-            data: s.data + this.usageStats[n].data
+            count: s.count + usageStats[n].count,
+            data: s.data + usageStats[n].data
           };
         },
         { count: 0, data: 0 }
@@ -82,5 +39,48 @@ export class ClientWebSocketStats {
     };
   }
 }
+
+export class ClientWebSocketStats {
+  readonly id: string;
+  private usage: WebSocketUsage = "Unknown";
+  private closed = false;
+
+  constructor(
+    id: string,
+    private readonly aggregates: WebsocketAggregates
+  ) {
+    this.id = id;
+  }
+
+  setUsage(usage: WebSocketUsage): void {
+    this.usage = usage;
+
+    if (usage !== "Unknown") {
+      this.aggregates.usageStats[usage].count += 1;
+    }
+  }
+
+  logDataTransfer(dataTransferred: number): void {
+    this.aggregates.usageStats[this.usage].data += dataTransferred;
+  }
+
+  close(): void {
+    if (this.closed) return;
+
+    this.closed = true;
+    this.aggregates.openClientWebSocketCount -= 1;
+  }
+
+  isClosed(): boolean {
+    return this.closed;
+  }
+}
+
+interface WebsocketAggregates {
+  openClientWebSocketCount: number;
+  usageStats: Record<WebSocketUsage, UsageStats>;
+}
+
+type UsageStats = { count: number; data: number };
 
 export type WebSocketUsage = "StreamLogs" | "StreamEvents" | "Shell" | "DownloadLogs" | "Unknown";
