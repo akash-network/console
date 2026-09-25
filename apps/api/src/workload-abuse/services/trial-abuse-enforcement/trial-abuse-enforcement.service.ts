@@ -8,6 +8,7 @@ import { ManagedSignerService } from "@src/billing/services/managed-signer/manag
 import { RpcMessageService } from "@src/billing/services/rpc-message-service/rpc-message.service";
 import { TxManagerService } from "@src/billing/services/tx-manager/tx-manager.service";
 import { type CreateLogger, LOGGER_FACTORY, TxService } from "@src/core";
+import { AnalyticsService } from "@src/core/services/analytics/analytics.service";
 import { DeploymentWriterService } from "@src/deployment/services/deployment-writer/deployment-writer.service";
 import { sanitizeEvidenceText } from "@src/workload-abuse/lib/evidence-scanner/evidence-scanner";
 import { WorkloadAbuseDetectionRepository } from "@src/workload-abuse/repositories/workload-abuse-detection/workload-abuse-detection.repository";
@@ -51,6 +52,7 @@ export class TrialAbuseEnforcementService {
     private readonly probeJobService: TrialWorkloadProbeJobService,
     private readonly instrumentation: WorkloadAbuseInstrumentationService,
     private readonly txService: TxService,
+    private readonly analyticsService: AnalyticsService,
     @inject(LOGGER_FACTORY) createLogger: CreateLogger
   ) {
     this.logger = createLogger({ context: TrialAbuseEnforcementService.name });
@@ -101,7 +103,13 @@ export class TrialAbuseEnforcementService {
 
   /** The wipe without the detection bookkeeping, for a wallet caught by its email domain rather than by its own workload. */
   async wipeTrialWallet(wallet: WalletInitialized, reason: AbuseLockReason): Promise<EnforcementOutcome | null> {
-    return await this.txService.transaction(() => this.#wipeUnlessPaid(wallet, reason));
+    const outcome = await this.txService.transaction(() => this.#wipeUnlessPaid(wallet, reason));
+
+    if (outcome) {
+      this.analyticsService.track(wallet.userId, "account_restricted", { reason });
+    }
+
+    return outcome;
   }
 
   /** findStalledEnforcements re-queues a detection left in enforcing, so a record that cannot be written is worth a log rather than the failure it was recording. */

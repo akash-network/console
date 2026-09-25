@@ -149,6 +149,7 @@ export class RefillService {
       if (!(await this.userWalletRepository.clearAbuseLock(userWallet.id))) return;
 
       this.logger.info({ event: "WALLET_ABUSE_LOCK_CLEARED", walletId: userWallet.id, userId: userWallet.userId });
+      this.analyticsService.track(userWallet.userId, "account_restriction_lifted", { lifted_by: "payment" });
     } catch (error) {
       this.logger.error({ event: "WALLET_ABUSE_LOCK_CLEAR_FAILED", walletId: userWallet.id, userId: userWallet.userId, error });
     }

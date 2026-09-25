@@ -56,7 +56,7 @@ describe(RefillService.name, () => {
     });
 
     it("asks to clear the abuse lock on every payment, so a lock applied after the wallet was read is still cleared", async () => {
-      const { service, userWalletRepository, walletInitializerService, balancesService, logger } = setup();
+      const { service, userWalletRepository, walletInitializerService, balancesService, analyticsService, logger } = setup();
       const unlockedWallet = createInitializedUserWallet({ userId, abuseLockedAt: null, abuseLockedReason: null });
       walletInitializerService.ensureWallet.mockResolvedValue(unlockedWallet);
       userWalletRepository.claimActivation.mockResolvedValue(undefined);
@@ -67,10 +67,11 @@ describe(RefillService.name, () => {
 
       expect(userWalletRepository.clearAbuseLock).toHaveBeenCalledWith(unlockedWallet.id);
       expect(logger.info).toHaveBeenCalledWith({ event: "WALLET_ABUSE_LOCK_CLEARED", walletId: unlockedWallet.id, userId: unlockedWallet.userId });
+      expect(analyticsService.track).toHaveBeenCalledWith(unlockedWallet.userId, "account_restriction_lifted", { lifted_by: "payment" });
     });
 
     it("does not report a cleared lock when the wallet held none", async () => {
-      const { service, userWalletRepository, walletInitializerService, balancesService, logger } = setup();
+      const { service, userWalletRepository, walletInitializerService, balancesService, analyticsService, logger } = setup();
       walletInitializerService.ensureWallet.mockResolvedValue(createInitializedUserWallet({ userId }));
       userWalletRepository.claimActivation.mockResolvedValue(undefined);
       balancesService.retrieveDeploymentLimit.mockResolvedValue(0);
@@ -79,6 +80,7 @@ describe(RefillService.name, () => {
       await service.topUpWallet(amountUsd, userId);
 
       expect(logger.info).not.toHaveBeenCalledWith(expect.objectContaining({ event: "WALLET_ABUSE_LOCK_CLEARED" }));
+      expect(analyticsService.track).not.toHaveBeenCalledWith(userId, "account_restriction_lifted", expect.anything());
     });
 
     it("settles the payment even when clearing the abuse lock fails", async () => {

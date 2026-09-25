@@ -8,6 +8,7 @@ import type { ManagedSignerService } from "@src/billing/services/managed-signer/
 import type { RpcMessageService } from "@src/billing/services/rpc-message-service/rpc-message.service";
 import type { TxManagerService } from "@src/billing/services/tx-manager/tx-manager.service";
 import type { CreateLogger, TxService } from "@src/core";
+import type { AnalyticsService } from "@src/core/services/analytics/analytics.service";
 import type { DeploymentWriterService } from "@src/deployment/services/deployment-writer/deployment-writer.service";
 import type { WorkloadAbuseDetectionRepository } from "@src/workload-abuse/repositories/workload-abuse-detection/workload-abuse-detection.repository";
 import type { TrialWorkloadProbeJobService } from "@src/workload-abuse/services/trial-workload-probe-job/trial-workload-probe-job.service";
@@ -24,7 +25,7 @@ const REVOKE_FEE = mock<ReturnType<RpcMessageService["getRevokeAllowanceMsg"]>>(
 
 describe(TrialAbuseEnforcementService.name, () => {
   it("revokes the deposit grant, closes every open deployment, revokes the fee grant, locks the wallet, then cancels its probes, in that order", async () => {
-    const { service, wallet, calls, userWalletRepository, detectionRepository, instrumentation } = setup({ openDseqs: ["11", "22"] });
+    const { service, wallet, calls, userWalletRepository, detectionRepository, instrumentation, analyticsService } = setup({ openDseqs: ["11", "22"] });
 
     const outcome = await service.enforce({ wallet, detectionId: DETECTION_ID });
 
@@ -38,6 +39,7 @@ describe(TrialAbuseEnforcementService.name, () => {
     });
     expect(detectionRepository.markWalletEnforced).toHaveBeenCalledWith(wallet.id);
     expect(instrumentation.recordEnforcement).toHaveBeenCalledWith("enforced");
+    expect(analyticsService.track).toHaveBeenCalledWith(wallet.userId, "account_restricted", { reason: ABUSE_LOCK_REASON });
   });
 
   it("does not count a wipe that landed as failed when the bookkeeping after the lock throws", async () => {
@@ -134,7 +136,7 @@ describe(TrialAbuseEnforcementService.name, () => {
   });
 
   it("leaves the wallet untouched and keeps its probes scheduled when a revoke fails for another reason", async () => {
-    const { service, wallet, signerService, userWalletRepository, deploymentWriterService, probeJobService } = setup({ openDseqs: ["11"] });
+    const { service, wallet, signerService, userWalletRepository, deploymentWriterService, probeJobService, analyticsService } = setup({ openDseqs: ["11"] });
     signerService.executeFundingTx.mockRejectedValueOnce(new Error("account sequence mismatch"));
 
     await expect(service.enforce({ wallet, detectionId: DETECTION_ID })).rejects.toThrow("account sequence mismatch");
@@ -142,15 +144,17 @@ describe(TrialAbuseEnforcementService.name, () => {
     expect(deploymentWriterService.close).not.toHaveBeenCalled();
     expect(userWalletRepository.lockForAbuse).not.toHaveBeenCalled();
     expect(probeJobService.cancelForWallet).not.toHaveBeenCalled();
+    expect(analyticsService.track).not.toHaveBeenCalled();
   });
 
   describe("wipeTrialWallet", () => {
     it("locks the wallet with the reason it was given, without touching the detection ledger", async () => {
-      const { service, wallet, userWalletRepository, detectionRepository, instrumentation } = setup({ openDseqs: ["11"] });
+      const { service, wallet, userWalletRepository, detectionRepository, instrumentation, analyticsService } = setup({ openDseqs: ["11"] });
 
       const outcome = await service.wipeTrialWallet(wallet, BLOCKED_DOMAIN_LOCK_REASON);
 
       expect(userWalletRepository.lockForAbuse).toHaveBeenCalledWith(wallet.id, BLOCKED_DOMAIN_LOCK_REASON);
+      expect(analyticsService.track).toHaveBeenCalledWith(wallet.userId, "account_restricted", { reason: BLOCKED_DOMAIN_LOCK_REASON });
       expect(outcome).toEqual({ depositGrantRevoked: true, feeGrantRevoked: true, closedDseqs: ["11"] });
       expect(detectionRepository.updateById).not.toHaveBeenCalled();
       expect(detectionRepository.markWalletEnforced).not.toHaveBeenCalled();
@@ -158,11 +162,12 @@ describe(TrialAbuseEnforcementService.name, () => {
     });
 
     it("leaves a wallet that paid under the row lock alone", async () => {
-      const { service, wallet, userWalletRepository } = setup({ openDseqs: [], paidUnderLock: true });
+      const { service, wallet, userWalletRepository, analyticsService } = setup({ openDseqs: [], paidUnderLock: true });
 
       await expect(service.wipeTrialWallet(wallet, BLOCKED_DOMAIN_LOCK_REASON)).resolves.toBeNull();
 
       expect(userWalletRepository.lockForAbuse).not.toHaveBeenCalled();
+      expect(analyticsService.track).not.toHaveBeenCalled();
     });
 
     it("closes a deployment the chain holds open without any lease, before the fee grant that pays for the close goes", async () => {
@@ -228,6 +233,7 @@ describe(TrialAbuseEnforcementService.name, () => {
       return 0;
     });
     const instrumentation = mock<WorkloadAbuseInstrumentationService>();
+    const analyticsService = mock<AnalyticsService>();
     const logger = mock<ReturnType<CreateLogger>>();
     const createLogger = vi.fn<CreateLogger>(() => logger);
 
@@ -244,6 +250,7 @@ describe(TrialAbuseEnforcementService.name, () => {
       probeJobService,
       instrumentation,
       txService,
+      analyticsService,
       createLogger
     );
 
@@ -259,6 +266,7 @@ describe(TrialAbuseEnforcementService.name, () => {
       detectionRepository,
       probeJobService,
       instrumentation,
+      analyticsService,
       logger
     };
   }
