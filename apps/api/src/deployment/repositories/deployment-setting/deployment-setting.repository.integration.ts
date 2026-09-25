@@ -1,3 +1,4 @@
+import { ForbiddenError } from "@casl/ability";
 import { faker } from "@faker-js/faker";
 import { hoursToMilliseconds } from "date-fns";
 import { and, eq, sql } from "drizzle-orm";
@@ -1557,6 +1558,142 @@ describe(DeploymentSettingRepository.name, () => {
 
       expect(await deploymentSettingRepository.findOneBy({ userId: user.id, dseq })).toMatchObject({ name: "renamed" });
       expect(await deploymentSettingRepository.findOneBy({ userId: trialUser.id, dseq })).toMatchObject({ name: "not yours" });
+    });
+  });
+
+  describe("recordDefinitionIfAbsent", () => {
+    it("records the definition of a running deployment the console holds no row for, funded like any other", async () => {
+      const { deploymentSettingRepository, user, sealedToken } = await setup();
+      const dseq = newDseq();
+
+      const recorded = await deploymentSettingRepository.recordDefinitionIfAbsent({
+        userId: user.id,
+        dseq,
+        sdl: SDL,
+        manifestVersion: "AAAA",
+        sealedSecrets: sealedToken,
+        closed: false
+      });
+
+      expect(recorded).toEqual(expect.any(String));
+      expect(await deploymentSettingRepository.findOneBy({ userId: user.id, dseq })).toMatchObject({
+        sdl: SDL,
+        manifestVersion: "AAAA",
+        sealedSecrets: sealedToken,
+        closed: false,
+        autoTopUpEnabled: true
+      });
+    });
+
+    it("records a closed deployment on a row marked closed, with funding off", async () => {
+      const { deploymentSettingRepository, user } = await setup();
+      const dseq = newDseq();
+
+      await deploymentSettingRepository.recordDefinitionIfAbsent({
+        userId: user.id,
+        dseq,
+        sdl: SDL,
+        manifestVersion: "AAAA",
+        sealedSecrets: null,
+        closed: true
+      });
+
+      expect(await deploymentSettingRepository.findOneBy({ userId: user.id, dseq })).toMatchObject({ sdl: SDL, closed: true, autoTopUpEnabled: false });
+    });
+
+    it("fills a row that holds no definition, keeping every choice its writer made", async () => {
+      const { deploymentSettingRepository, user, sealedToken } = await setup();
+      const dseq = newDseq();
+      await deploymentSettingRepository.create({ userId: user.id, dseq, autoTopUpEnabled: false, name: "web" });
+
+      const recorded = await deploymentSettingRepository.recordDefinitionIfAbsent({
+        userId: user.id,
+        dseq,
+        sdl: SDL,
+        manifestVersion: "AAAA",
+        sealedSecrets: sealedToken,
+        closed: true
+      });
+
+      expect(recorded).toEqual(expect.any(String));
+      expect(await deploymentSettingRepository.findOneBy({ userId: user.id, dseq })).toMatchObject({
+        sdl: SDL,
+        manifestVersion: "AAAA",
+        sealedSecrets: sealedToken,
+        name: "web",
+        autoTopUpEnabled: false,
+        closed: false
+      });
+    });
+
+    it("leaves a row that already holds a definition untouched, recording nothing", async () => {
+      const { deploymentSettingRepository, user, readDefinition, sealedToken, otherSealedToken } = await setup();
+      const dseq = newDseq();
+      await deploymentSettingRepository.upsertDefinition({
+        userId: user.id,
+        dseq,
+        sdl: "version: '2.1'",
+        manifestVersion: "BBBB",
+        sealedSecrets: otherSealedToken
+      });
+      const before = await readDefinition(dseq);
+
+      const recorded = await deploymentSettingRepository.recordDefinitionIfAbsent({
+        userId: user.id,
+        dseq,
+        sdl: SDL,
+        manifestVersion: "AAAA",
+        sealedSecrets: sealedToken,
+        closed: false
+      });
+
+      expect(recorded).toBeUndefined();
+      expect(await readDefinition(dseq)).toEqual(before);
+    });
+
+    it("records only the caller's own row when another user holds the same dseq", async () => {
+      const { deploymentSettingRepository, user, trialUser } = await setup();
+      const dseq = newDseq();
+      await deploymentSettingRepository.upsertDefinition({ userId: trialUser.id, dseq, sdl: "version: '2.1'", manifestVersion: "BBBB" });
+
+      await deploymentSettingRepository.recordDefinitionIfAbsent({
+        userId: user.id,
+        dseq,
+        sdl: SDL,
+        manifestVersion: "AAAA",
+        sealedSecrets: null,
+        closed: false
+      });
+
+      expect(await deploymentSettingRepository.findOneBy({ userId: user.id, dseq })).toMatchObject({ sdl: SDL, manifestVersion: "AAAA" });
+      expect(await deploymentSettingRepository.findOneBy({ userId: trialUser.id, dseq })).toMatchObject({ sdl: "version: '2.1'", manifestVersion: "BBBB" });
+    });
+
+    it("writes nothing through an ability that does not cover the caller's rows", async () => {
+      const { deploymentSettingRepository, user, userRepository, abilityFor } = await setup();
+      const dseq = newDseq();
+      const otherUser = await userRepository.create({ userId: faker.string.uuid() });
+
+      await expect(
+        deploymentSettingRepository
+          .accessibleBy(abilityFor(otherUser), "update")
+          .recordDefinitionIfAbsent({ userId: user.id, dseq, sdl: SDL, manifestVersion: "AAAA", sealedSecrets: null, closed: false })
+      ).rejects.toBeInstanceOf(ForbiddenError);
+
+      expect(await deploymentSettingRepository.findOneBy({ userId: user.id, dseq })).toBeUndefined();
+    });
+
+    it("records through the caller's own ability", async () => {
+      const { deploymentSettingRepository, user, abilityFor } = await setup();
+      const dseq = newDseq();
+      await deploymentSettingRepository.create({ userId: user.id, dseq, autoTopUpEnabled: true });
+
+      const recorded = await deploymentSettingRepository
+        .accessibleBy(abilityFor(user), "update")
+        .recordDefinitionIfAbsent({ userId: user.id, dseq, sdl: SDL, manifestVersion: "AAAA", sealedSecrets: null, closed: false });
+
+      expect(recorded).toEqual(expect.any(String));
+      expect(await deploymentSettingRepository.findOneBy({ userId: user.id, dseq })).toMatchObject({ sdl: SDL, manifestVersion: "AAAA" });
     });
   });
 

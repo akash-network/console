@@ -7,6 +7,8 @@ import { AuthService, Protected } from "@src/auth/services/auth.service";
 import type { ListDeploymentsQuery } from "@src/deployment/http-schemas/deployment.schema";
 import {
   CloseDeploymentResponse,
+  CreateDeploymentDefinitionRequest,
+  CreateDeploymentDefinitionResponse,
   CreateDeploymentRequest,
   CreateDeploymentResponse,
   DepositDeploymentRequest,
@@ -80,6 +82,12 @@ export class DeploymentController {
   @Protected([{ action: "sign", subject: "UserWallet" }])
   async patch(dseq: string, input: PatchDeploymentRequest["data"]): Promise<PatchDeploymentResponse> {
     const result = await this.deploymentWriterService.patchByUserIdAndDseq(this.authService.currentUser.id, dseq, input, this.authService.ability);
+    return { data: result };
+  }
+
+  @Protected([{ action: "sign", subject: "UserWallet" }])
+  async createDefinition(dseq: string, input: CreateDeploymentDefinitionRequest["data"]): Promise<CreateDeploymentDefinitionResponse> {
+    const result = await this.deploymentWriterService.recordDefinitionByUserIdAndDseq(this.authService.currentUser.id, dseq, input, this.authService.ability);
     return { data: result };
   }
 

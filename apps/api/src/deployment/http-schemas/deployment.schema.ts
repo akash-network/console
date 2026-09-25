@@ -239,6 +239,10 @@ export const UpdateDeploymentRequestSchema = z.object({
     name: DeploymentNameSchema.optional().openapi({
       description:
         "Renames the deployment. Omitting it keeps the name the deployment already carries, unlike the rest of the definition this endpoint replaces wholesale."
+    }),
+    sealedSecrets: SealedSecretsSchema.optional().openapi({
+      description:
+        "Compact JWE sealing a flat name-to-value map of the secrets this SDL references, as on create. It replaces every value the deployment stored. Its presence also says which values are secret, as on create: an update carrying a seal stores its env values as submitted, while one carrying none seals every one of them."
     })
   })
 });
@@ -393,6 +397,18 @@ export const PatchDeploymentResponseSchema = z.object({
       description: "Base64 manifest version this patch recorded, which the deployment is now on. Absent for a rename, which records none."
     })
   })
+});
+
+export const CreateDeploymentDefinitionParamsSchema = z.object({
+  dseq: DseqSchema.describe("Deployment sequence number")
+});
+
+export const CreateDeploymentDefinitionRequestSchema = z.object({
+  data: CreateDeploymentRequestSchema.shape.data.pick({ sdl: true, sealedSecrets: true })
+});
+
+export const CreateDeploymentDefinitionResponseSchema = z.object({
+  data: ConsoleSettingsSchema
 });
 
 export const deploymentListMaxLimit = 100;
@@ -611,6 +627,8 @@ export type UpdateDeploymentRequest = z.infer<typeof UpdateDeploymentRequestSche
 export type PatchService = z.infer<typeof PatchServiceSchema>;
 export type PatchDeploymentRequest = z.infer<typeof PatchDeploymentRequestSchema>;
 export type PatchDeploymentResponse = z.infer<typeof PatchDeploymentResponseSchema>;
+export type CreateDeploymentDefinitionRequest = z.infer<typeof CreateDeploymentDefinitionRequestSchema>;
+export type CreateDeploymentDefinitionResponse = z.infer<typeof CreateDeploymentDefinitionResponseSchema>;
 export type UpdateDeploymentResponse = z.infer<typeof UpdateDeploymentResponseSchema>;
 export type ListWithResourcesParams = z.infer<typeof ListWithResourcesParamsSchema>;
 export type ListWithResourcesQuery = z.infer<typeof ListWithResourcesQuerySchema>;

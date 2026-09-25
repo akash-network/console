@@ -141,6 +141,14 @@ export const operations = {
       hasBody: false
     },
     depositDeployment: { path: "/v1/deposit-deployment", method: "post", operationId: "depositDeployment", pathParams: [], queryParams: [], hasBody: true },
+    createDeploymentDefinition: {
+      path: "/v1/deployments/{dseq}/definition",
+      method: "post",
+      operationId: "createDeploymentDefinition",
+      pathParams: ["dseq"],
+      queryParams: [],
+      hasBody: true
+    },
     getSDLSecretsContext: {
       path: "/v1/sdl-secrets-context",
       method: "get",

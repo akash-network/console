@@ -612,6 +612,37 @@ export class DeploymentSettingRepository extends BaseRepository<Table, Deploymen
     return row;
   }
 
+  /** Guarded in its own conflict clause, so a definition another request recorded first is never replaced, and a row created without one keeps every other choice its writer made. */
+  async recordDefinitionIfAbsent({
+    userId,
+    dseq,
+    sdl,
+    manifestVersion,
+    sealedSecrets,
+    closed
+  }: {
+    userId: string;
+    dseq: string;
+    sdl: string;
+    manifestVersion: string;
+    sealedSecrets: string | null;
+    closed: boolean;
+  }): Promise<string | undefined> {
+    this.ability?.throwUnlessCanExecute({ userId, dseq });
+
+    const [row] = await this.cursor
+      .insert(this.table)
+      .values({ userId, dseq, autoTopUpEnabled: closed ? false : AUTO_TOP_UP_ENABLED_BY_DEFAULT, closed, sdl, manifestVersion, sealedSecrets })
+      .onConflictDoUpdate({
+        target: [this.table.dseq, this.table.userId],
+        set: { sdl, manifestVersion, sealedSecrets, updatedAt: sql`now()` },
+        setWhere: this.whereAccessibleBy(isNull(this.table.sdl))
+      })
+      .returning({ id: this.table.id });
+
+    return row?.id;
+  }
+
   /** A row already carrying the version this write computes is that write's own output, so a guarded retry succeeds rather than conflicting: `manifestVersion` hashes the resolved manifest, and equal versions mean equal effective state down to the secret values. */
   #versionGuard(expectedManifestVersion: string | undefined, manifestVersion: string) {
     if (expectedManifestVersion === undefined) return [];
