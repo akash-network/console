@@ -3,7 +3,7 @@ import type { FC } from "react";
 import { Fragment } from "react";
 import { CustomNoDivTooltip, Skeleton } from "@akashnetwork/ui/components";
 
-import { describeGpus, type DetectedGpuSummary, formatGpuLabel, NO_GPU_LABEL } from "./placementModel";
+import { describeGpus, formatGpuLabel, type GpuSummary, NO_GPU_LABEL } from "./placementModel";
 
 /** CustomNoDivTooltip, so the truncating span stays the trigger rather than a wrapper around it. */
 export const DEPENDENCIES = {
@@ -13,13 +13,13 @@ export const DEPENDENCIES = {
 export interface GpuLabelProps {
   gpuAmount: number;
   models: string[];
-  detected?: DetectedGpuSummary[];
+  resolved?: GpuSummary[];
   isLoading?: boolean;
   dependencies?: typeof DEPENDENCIES;
 }
 
-export const GpuLabel: FC<GpuLabelProps> = ({ gpuAmount, models, detected, isLoading = false, dependencies: d = DEPENDENCIES }) => {
-  const gpus = describeGpus(gpuAmount, models, detected);
+export const GpuLabel: FC<GpuLabelProps> = ({ gpuAmount, models, resolved, isLoading = false, dependencies: d = DEPENDENCIES }) => {
+  const gpus = describeGpus(gpuAmount, models, resolved);
 
   if (!gpus.length) return <>{NO_GPU_LABEL}</>;
 
@@ -33,7 +33,7 @@ export const GpuLabel: FC<GpuLabelProps> = ({ gpuAmount, models, detected, isLoa
   }
 
   return (
-    <d.CustomTooltip title={formatGpuLabel(gpuAmount, models, detected)} className="p-3">
+    <d.CustomTooltip title={formatGpuLabel(gpuAmount, models, resolved)} className="p-3">
       <span className="block max-w-44 truncate" tabIndex={0}>
         {gpus.map(({ count, model }, index) => (
           <Fragment key={`${model}-${index}`}>

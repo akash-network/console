@@ -7,7 +7,7 @@ import { cn } from "@akashnetwork/ui/utils";
 import type { DeploymentDto } from "@src/types/deployment";
 import { roundDecimal } from "@src/utils/mathHelpers";
 import { formatByteSize } from "@src/utils/unitUtils";
-import { type DetectedGpuSummary, formatGpuLabel, getDeploymentGpuModels } from "../DeploymentDetail/DeploymentPlacements/placementModel";
+import { formatGpuLabel, getDeploymentGpuModels, type GpuSummary } from "../DeploymentDetail/DeploymentPlacements/placementModel";
 
 /** Column widths fit the widest value each spec can hold at this font size, so every row's specs land on the same x-positions. */
 const LAYOUT_CLASSES = {
@@ -25,7 +25,7 @@ export const DEPENDENCIES = {
 export interface DeploymentSpecSummaryProps {
   deployment: Pick<DeploymentDto, "cpuAmount" | "gpuAmount" | "memoryAmount" | "storageAmount" | "groups">;
   /** Its own prop rather than part of the deployment, because rows render this from places that hold no leases. */
-  detectedGpus?: DetectedGpuSummary[];
+  resolvedGpus?: GpuSummary[];
   layout?: DeploymentSpecLayout;
   className?: string;
   dependencies?: typeof DEPENDENCIES;
@@ -33,7 +33,7 @@ export interface DeploymentSpecSummaryProps {
 
 export const DeploymentSpecSummary: FC<DeploymentSpecSummaryProps> = ({
   deployment,
-  detectedGpus,
+  resolvedGpus,
   layout = "inline",
   className,
   dependencies: d = DEPENDENCIES
@@ -50,7 +50,7 @@ export const DeploymentSpecSummary: FC<DeploymentSpecSummaryProps> = ({
         <Spec
           label="GPU"
           icon={<MdDeveloperBoard />}
-          value={formatGpuLabel(deployment.gpuAmount ?? 0, getDeploymentGpuModels(deployment.groups), detectedGpus)}
+          value={formatGpuLabel(deployment.gpuAmount ?? 0, getDeploymentGpuModels(deployment.groups), resolvedGpus)}
           className={layoutClasses.spec}
           dependencies={d}
         />

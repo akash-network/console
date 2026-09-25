@@ -28,10 +28,10 @@ import { formatByteSize } from "@src/utils/unitUtils";
 import { GpuLabel } from "./DeploymentPlacements/GpuLabel";
 import {
   countPlacementServices,
-  foldDetectedGpusOfLeases,
   getDeploymentGpuModels,
   parseManifestServices,
-  parseServicesByPlacement
+  parseServicesByPlacement,
+  resolveDeploymentGpus
 } from "./DeploymentPlacements/placementModel";
 import { DeploymentVisitControl } from "./DeploymentVisitControl/DeploymentVisitControl";
 import { DeploymentStatusBadge } from "./DeploymentStatusBadge";
@@ -65,7 +65,7 @@ export interface DeploymentDetailHeaderProps {
   deployment: DeploymentDto;
   leases: LeaseDto[] | null | undefined;
   providers: ApiProviderList[];
-  isLoadingDetectedGpus?: boolean;
+  isLoadingLeaseGpus?: boolean;
   dependencies?: typeof DEPENDENCIES;
 }
 
@@ -73,7 +73,7 @@ export const DeploymentDetailHeader: FC<DeploymentDetailHeaderProps> = ({
   deployment,
   leases,
   providers,
-  isLoadingDetectedGpus = false,
+  isLoadingLeaseGpus = false,
   dependencies: d = DEPENDENCIES
 }) => {
   const { changeDeploymentName } = d.useLocalNotes();
@@ -175,8 +175,8 @@ export const DeploymentDetailHeader: FC<DeploymentDetailHeaderProps> = ({
               <GpuLabel
                 gpuAmount={deployment.gpuAmount ?? 0}
                 models={getDeploymentGpuModels(deployment.groups)}
-                detected={foldDetectedGpusOfLeases(leases)}
-                isLoading={isLoadingDetectedGpus}
+                resolved={resolveDeploymentGpus(leases)}
+                isLoading={isLoadingLeaseGpus}
               />
             </SummaryItem>
             <SummaryItem label="vCPU">{roundDecimal(deployment.cpuAmount, 2)}</SummaryItem>

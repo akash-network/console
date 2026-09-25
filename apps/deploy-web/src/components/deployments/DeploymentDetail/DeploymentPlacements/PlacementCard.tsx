@@ -19,7 +19,7 @@ import { DownloadAttestationEvidence } from "../../DownloadAttestationEvidence";
 import { ReclamationCard } from "../../ReclamationCard/ReclamationCard";
 import { StatusBadge } from "../DeploymentStatusBadge";
 import type { ManifestServiceDetail } from "./placementModel";
-import { foldDetectedGpus, getPlacementGpuModels, getPlacementName, getProviderRegion } from "./placementModel";
+import { getPlacementGpuModels, getPlacementName, getProviderRegion, resolveLeaseGpus } from "./placementModel";
 import { PlacementServiceRow } from "./PlacementServiceRow";
 import { buildPlacementStats, PlacementStats } from "./PlacementStats";
 
@@ -39,7 +39,7 @@ export interface PlacementCardProps {
   manifestServices: Record<string, ManifestServiceDetail>;
   placementServices?: Record<string, ManifestServiceDetail>;
   dseq: string;
-  isLoadingDetectedGpus?: boolean;
+  isLoadingLeaseGpus?: boolean;
   onClosed: () => void;
   dependencies?: typeof DEPENDENCIES;
 }
@@ -51,7 +51,7 @@ export const PlacementCard: FC<PlacementCardProps> = ({
   manifestServices,
   placementServices,
   dseq,
-  isLoadingDetectedGpus = false,
+  isLoadingLeaseGpus = false,
   onClosed,
   dependencies: d = DEPENDENCIES
 }) => {
@@ -72,7 +72,7 @@ export const PlacementCard: FC<PlacementCardProps> = ({
   const name = getPlacementName(lease.group, index);
   const region = getProviderRegion(provider);
   const gpuModels = getPlacementGpuModels(lease.group);
-  const detectedGpus = foldDetectedGpus(lease.detectedGpus);
+  const resolvedGpus = resolveLeaseGpus(lease);
   const services = placementServices ?? manifestServices;
   const serviceNames = leaseStatus ? Object.keys(leaseStatus.services) : Object.keys(services);
   const providerName = provider ? providerDisplayName(provider) : undefined;
@@ -126,7 +126,7 @@ export const PlacementCard: FC<PlacementCardProps> = ({
         </div>
         <div className="lg:shrink-0">
           <PlacementStats
-            stats={buildPlacementStats(lease, serviceNames.length, { models: gpuModels, detected: detectedGpus, isLoading: isLoadingDetectedGpus })}
+            stats={buildPlacementStats(lease, serviceNames.length, { models: gpuModels, resolved: resolvedGpus, isLoading: isLoadingLeaseGpus })}
           />
         </div>
       </div>

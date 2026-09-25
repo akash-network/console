@@ -2,7 +2,7 @@ import { TooltipProvider } from "@akashnetwork/ui/components";
 import { describe, expect, it, vi } from "vitest";
 
 import { DEPENDENCIES, GpuLabel } from "./GpuLabel";
-import type { DetectedGpuSummary } from "./placementModel";
+import type { GpuSummary } from "./placementModel";
 
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -12,7 +12,7 @@ describe(GpuLabel.name, () => {
     const { container } = setup({
       gpuAmount: 3,
       models: ["*"],
-      detected: [
+      resolved: [
         { displayName: "H100", count: 2 },
         { displayName: "L40S", count: 1 }
       ]
@@ -56,7 +56,7 @@ describe(GpuLabel.name, () => {
     expect(container).toHaveTextContent(/^—$/);
   });
 
-  function setup(input: { gpuAmount: number; models: string[]; detected?: DetectedGpuSummary[]; isLoading?: boolean; dependencies?: typeof DEPENDENCIES }) {
+  function setup(input: { gpuAmount: number; models: string[]; resolved?: GpuSummary[]; isLoading?: boolean; dependencies?: typeof DEPENDENCIES }) {
     const CustomTooltip = vi.fn<typeof DEPENDENCIES.CustomTooltip>(({ children }) => <>{children}</>);
     const { container } = render(
       <TooltipProvider>

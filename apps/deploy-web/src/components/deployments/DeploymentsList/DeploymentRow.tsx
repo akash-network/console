@@ -8,7 +8,7 @@ import Link from "next/link";
 import type { ListedDeploymentDto } from "@src/types/deployment";
 import type { ApiProviderList } from "@src/types/provider";
 import { UrlService } from "@src/utils/urlUtils";
-import { foldDetectedGpusOfLeases } from "../DeploymentDetail/DeploymentPlacements/placementModel";
+import { resolveDeploymentGpus } from "../DeploymentDetail/DeploymentPlacements/placementModel";
 import { DeploymentStatusBadge } from "../DeploymentDetail/DeploymentStatusBadge";
 import { DeploymentActionsMenu } from "./DeploymentActionsMenu";
 import { DeploymentBadges } from "./DeploymentBadges";
@@ -80,7 +80,7 @@ export const DeploymentRow: FC<DeploymentRowProps> = ({
           />
         </TableCell>
         <TableCell>
-          <d.DeploymentSpecSummary deployment={deployment} detectedGpus={foldDetectedGpusOfLeases(deployment.leases)} layout="columns" />
+          <d.DeploymentSpecSummary deployment={deployment} resolvedGpus={resolveDeploymentGpus(deployment.leases)} layout="columns" />
         </TableCell>
         <TableCell className={CONTROLS_CELL}>
           <div className="flex items-center justify-end gap-1">

@@ -34,9 +34,9 @@ describe(DeploymentPlacements.name, () => {
 
   it("tells each card while the gpus the console read are still loading", () => {
     const PlacementCard = vi.fn((_props: PlacementCardProps) => <div>placement-card</div>);
-    setup({ leases: [buildLease("a")], isLoadingDetectedGpus: true, dependencies: { PlacementCard } });
+    setup({ leases: [buildLease("a")], isLoadingLeaseGpus: true, dependencies: { PlacementCard } });
 
-    expect(PlacementCard.mock.calls[0][0]).toEqual(expect.objectContaining({ isLoadingDetectedGpus: true }));
+    expect(PlacementCard.mock.calls[0][0]).toEqual(expect.objectContaining({ isLoadingLeaseGpus: true }));
   });
 
   it("summarizes placement and service counts from the manifest", () => {
@@ -75,7 +75,7 @@ describe(DeploymentPlacements.name, () => {
     leases: LeaseDto[];
     providers?: ApiProviderList[];
     deploymentManifest?: string;
-    isLoadingDetectedGpus?: boolean;
+    isLoadingLeaseGpus?: boolean;
     dependencies?: Partial<typeof DEPENDENCIES>;
   }) {
     return render(
@@ -84,7 +84,7 @@ describe(DeploymentPlacements.name, () => {
         providers={input.providers ?? []}
         deploymentManifest={input.deploymentManifest ?? ""}
         dseq="123"
-        isLoadingDetectedGpus={input.isLoadingDetectedGpus}
+        isLoadingLeaseGpus={input.isLoadingLeaseGpus}
         onClosed={vi.fn()}
         dependencies={MockComponents(DEPENDENCIES, input.dependencies)}
       />

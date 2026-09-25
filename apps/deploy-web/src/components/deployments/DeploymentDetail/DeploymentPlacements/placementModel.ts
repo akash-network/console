@@ -2,7 +2,7 @@ import yaml from "js-yaml";
 import get from "lodash/get";
 
 import type { LeaseServiceStatus } from "@src/queries/useLeaseQuery";
-import type { DeploymentGroup, DetectedLeaseGpus, LeaseDto } from "@src/types/deployment";
+import type { DeploymentGroup, DetectedLeaseGpus, LeaseDto, OfferedLeaseGpus } from "@src/types/deployment";
 import { getGpusFromAttributes } from "@src/utils/deploymentUtils";
 import { isLeaseLive } from "@src/utils/leaseUtils";
 import { parseSvcCommand } from "@src/utils/sdl/sdlImport";
@@ -147,7 +147,7 @@ export function getDeploymentGpuModels(groups: DeploymentGroup[] | undefined): s
   return Array.from(new Set((groups ?? []).flatMap(group => getPlacementGpuModels(group))));
 }
 
-export interface DetectedGpuSummary {
+export interface GpuSummary {
   displayName: string;
   count: number;
 }
@@ -159,43 +159,57 @@ export interface GpuCount {
   model: string | null;
 }
 
-/** What the console saw once its reading accounts for every gpu asked for, since a partial one would understate it; otherwise the named models asked for under one count. */
-export function describeGpus(gpuAmount: number, models: string[], detected?: DetectedGpuSummary[]): GpuCount[] {
+/** What the console resolved once it accounts for every gpu asked for, since a partial one would understate it; otherwise the named models asked for under one count. */
+export function describeGpus(gpuAmount: number, models: string[], resolved?: GpuSummary[]): GpuCount[] {
   if (!gpuAmount) return [];
-  if (detected?.reduce((total, gpu) => total + gpu.count, 0) === gpuAmount) {
-    return detected.map(({ displayName, count }) => ({ count, model: displayName }));
+  if (resolved && totalOf(resolved) === gpuAmount) {
+    return resolved.map(({ displayName, count }) => ({ count, model: displayName }));
   }
 
   const names = models.filter(isNamedGpuModel).map(model => model.toUpperCase());
   return [{ count: gpuAmount, model: names.length > 0 ? names.join(" / ") : null }];
 }
 
-export function formatGpuLabel(gpuAmount: number, models: string[], detected?: DetectedGpuSummary[]): string {
-  const gpus = describeGpus(gpuAmount, models, detected);
+export function formatGpuLabel(gpuAmount: number, models: string[], resolved?: GpuSummary[]): string {
+  const gpus = describeGpus(gpuAmount, models, resolved);
   if (!gpus.length) return NO_GPU_LABEL;
 
   return gpus.map(({ count, model }) => (model ? `${count}\u00d7 ${model}` : String(count))).join(", ");
 }
 
-/** Identical cards across a lease's services are one entry, because a lease reports each of its services separately. */
-export function foldDetectedGpus(detected: DetectedLeaseGpus | undefined): DetectedGpuSummary[] {
-  return foldByDisplayName(gpusOf(detected));
+type LeaseGpus = Pick<LeaseDto, "gpuAmount" | "detectedGpus" | "offeredGpus">;
+
+/** The probe's reading when it accounts for every gpu the lease holds, else the provider's offer when that does, since either one partial would understate what the lease runs. */
+export function resolveLeaseGpus(lease: LeaseGpus): GpuSummary[] {
+  const candidates = [foldByDisplayName(detectedGpusOf(lease.detectedGpus)), foldByDisplayName(offeredGpusOf(lease.offeredGpus))];
+
+  return candidates.find(gpus => totalOf(gpus) === lease.gpuAmount) ?? [];
 }
 
-/** What a whole deployment is running now, counting live leases only, since a lease that was replaced keeps the reading it had. */
-export function foldDetectedGpusOfLeases(leases: Array<Pick<LeaseDto, "state" | "detectedGpus">> | null | undefined): DetectedGpuSummary[] {
-  return foldByDisplayName(leases?.filter(isLeaseLive).flatMap(lease => gpusOf(lease.detectedGpus)) ?? []);
+/** What a whole deployment is running now, counting live leases only, since a lease that was replaced keeps what was recorded for it. */
+export function resolveDeploymentGpus(leases: Array<Pick<LeaseDto, "state"> & LeaseGpus> | null | undefined): GpuSummary[] {
+  return foldByDisplayName(leases?.filter(isLeaseLive).flatMap(resolveLeaseGpus) ?? []);
 }
 
 /** Reads the cards out only where the reading is actually one, since a lease carries this field from the api rather than from the chain. */
-function gpusOf(detected: DetectedLeaseGpus | undefined): DetectedGpuSummary[] {
+function detectedGpusOf(detected: DetectedLeaseGpus | undefined): GpuSummary[] {
   if (!Array.isArray(detected?.services)) return [];
 
   return detected.services.flatMap(service => service.gpus);
 }
 
-function foldByDisplayName(gpus: Array<{ displayName: string; count: number }>): DetectedGpuSummary[] {
-  const folded = new Map<string, DetectedGpuSummary>();
+function offeredGpusOf(offered: OfferedLeaseGpus | undefined): GpuSummary[] {
+  if (!Array.isArray(offered?.gpus)) return [];
+
+  return offered.gpus;
+}
+
+function totalOf(gpus: GpuSummary[]): number {
+  return gpus.reduce((total, gpu) => total + gpu.count, 0);
+}
+
+function foldByDisplayName(gpus: GpuSummary[]): GpuSummary[] {
+  const folded = new Map<string, GpuSummary>();
 
   for (const gpu of gpus) {
     const existing = folded.get(gpu.displayName);
