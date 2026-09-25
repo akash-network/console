@@ -252,15 +252,18 @@ export class DeploymentWriterService {
     name?: string;
   }): Promise<string> {
     const { manifestVersion, ...rest } = input;
+    const { sdl, sealedSecrets, ...loggable } = rest;
 
+    return await this.#reportingPersistenceFailure({ ...loggable, hasSealedSecrets: !!sealedSecrets }, () =>
+      this.deploymentSettingRepository.upsertDefinition({ ...rest, manifestVersion: Buffer.from(manifestVersion).toString("base64") })
+    );
+  }
+
+  async #reportingPersistenceFailure<T>(context: { userId: string; dseq: string; hasSealedSecrets: boolean }, write: () => Promise<T>): Promise<T> {
     try {
-      return await this.deploymentSettingRepository.upsertDefinition({
-        ...rest,
-        manifestVersion: Buffer.from(manifestVersion).toString("base64")
-      });
+      return await write();
     } catch (error) {
-      const { sdl, sealedSecrets, ...loggable } = rest;
-      this.logger.error({ event: "DEPLOYMENT_DEFINITION_PERSISTENCE_FAILED", ...loggable, hasSealedSecrets: !!sealedSecrets, error });
+      this.logger.error({ event: "DEPLOYMENT_DEFINITION_PERSISTENCE_FAILED", ...context, error });
       throw error;
     }
   }
@@ -531,9 +534,11 @@ export class DeploymentWriterService {
 
     const sealedSecrets = await this.sdlSecretsService.sealForStorage({ userId, dseq, secrets: stored });
     const closed = deployment.deployment.state === "closed";
-    const recorded = await this.deploymentSettingRepository
-      .accessibleBy(ability, "update")
-      .recordDefinitionIfAbsent({ userId, dseq, sdl, manifestVersion: recordedVersion, sealedSecrets, closed });
+    const recorded = await this.#reportingPersistenceFailure({ userId, dseq, hasSealedSecrets: !!sealedSecrets }, () =>
+      this.deploymentSettingRepository
+        .accessibleBy(ability, "update")
+        .recordDefinitionIfAbsent({ userId, dseq, sdl, manifestVersion: recordedVersion, sealedSecrets, closed })
+    );
 
     if (!recorded) {
       throw this.#rejectHeldDefinition();

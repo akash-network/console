@@ -2751,6 +2751,22 @@ describe(DeploymentWriterService.name, () => {
       expect(deploymentReaderService.findByWalletAndDseqWithoutProviderStatus).not.toHaveBeenCalled();
     });
 
+    it("says whether a token was written rather than what it was when persistence fails", async () => {
+      const { service, scopedSettingRepository, logger, ability } = setup({
+        sourceSetting: undefined,
+        manifestVersion: COMMITTED_VERSION,
+        sealedSecrets: SEALED_TOKEN
+      });
+      scopedSettingRepository.recordDefinitionIfAbsent.mockRejectedValue(new Error("write failed"));
+
+      await expect(service.recordDefinitionByUserIdAndDseq("user-1", "100", { sdl: SDL_WITH_SECRETS }, ability)).rejects.toThrow("write failed");
+
+      expect(logger.error).toHaveBeenCalledWith(
+        expect.objectContaining({ event: "DEPLOYMENT_DEFINITION_PERSISTENCE_FAILED", userId: "user-1", dseq: "100", hasSealedSecrets: true })
+      );
+      expect(loggedTextOf(logger)).not.toContain(SEALED_TOKEN);
+    });
+
     it("logs what it recorded without the sdl or any value", async () => {
       const { service, logger, ability } = setup({ sourceSetting: undefined, manifestVersion: COMMITTED_VERSION });
 
