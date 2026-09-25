@@ -26,7 +26,15 @@ import type { AvailableGpuVendor } from "@src/queries/usePlacementOptions";
 import { usePlacementOptions } from "@src/queries/usePlacementOptions";
 import type { SdlBuilderFormValuesType } from "@src/types";
 import type { GpuVendor } from "@src/types/gpu";
-import { findUnavailableGpuModels, gpuVendors as fallbackVendors, narrowGpuVendorsToAvailable, prioritizeGpuModels, withPinnedGpu } from "@src/utils/akash/gpu";
+import {
+  findUnavailableGpuModels,
+  gpuVendors as fallbackVendors,
+  listGpuInterfaceOptions,
+  listGpuMemoryOptions,
+  narrowGpuVendorsToAvailable,
+  prioritizeGpuModels,
+  withPinnedGpu
+} from "@src/utils/akash/gpu";
 import { validationConfig } from "@src/utils/akash/units";
 import { formatProviderCount } from "@src/utils/providerUtils";
 import { defaultGpuModel } from "@src/utils/sdl/data";
@@ -255,8 +263,14 @@ function GpuModelFields({
   );
   const listedModels = useMemo(() => [...selectableModels, ...unavailableModels], [selectableModels, unavailableModels]);
   const selectedModel = useMemo(() => models.find(m => m.name === name.field.value), [models, name.field.value]);
-  const memorySizes = selectedModel?.memory ?? [];
-  const interfaces = selectedModel?.interface ?? [];
+  const memorySizes = useMemo(
+    () => listGpuMemoryOptions(selectedModel, { memory: memory.field.value, interface: gpuInterface.field.value }),
+    [selectedModel, memory.field.value, gpuInterface.field.value]
+  );
+  const interfaces = useMemo(
+    () => listGpuInterfaceOptions(selectedModel, { memory: memory.field.value, interface: gpuInterface.field.value }),
+    [selectedModel, memory.field.value, gpuInterface.field.value]
+  );
 
   const selectGpuVendor = useCallback(
     (value: string) => {

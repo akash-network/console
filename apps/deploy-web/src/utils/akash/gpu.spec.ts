@@ -2,7 +2,15 @@ import { describe, expect, it } from "vitest";
 
 import type { AvailableGpuVendor } from "@src/queries/usePlacementOptions";
 import type { GpuVendor } from "@src/types/gpu";
-import { findUnavailableGpuModels, narrowGpuVendorsToAvailable, prioritizeGpuModels, withPinnedGpu } from "./gpu";
+import type { GpuModel } from "@src/types/gpu";
+import {
+  findUnavailableGpuModels,
+  listGpuInterfaceOptions,
+  listGpuMemoryOptions,
+  narrowGpuVendorsToAvailable,
+  prioritizeGpuModels,
+  withPinnedGpu
+} from "./gpu";
 
 describe("prioritizeGpuModels", () => {
   it("floats prioritized models to the top in priority order", () => {
@@ -85,6 +93,31 @@ describe(narrowGpuVendorsToAvailable.name, () => {
     const narrowed = narrowGpuVendorsToAvailable(CATALOG, [{ vendor: "nvidia", models: [model("a100", [], [])] }]);
 
     expect(narrowed?.[0].models[0]).toMatchObject({ memory: ["40Gi", "80Gi"], interface: ["pcie", "sxm"] });
+  });
+
+  it("carries the memory and interface combinations providers would bid on", () => {
+    const variants = [
+      { memory: null, interface: null, providerCount: 2 },
+      { memory: "80Gi", interface: "sxm", providerCount: 1 }
+    ];
+
+    const narrowed = narrowGpuVendorsToAvailable(CATALOG, [{ vendor: "nvidia", models: [{ ...model("a100", [], []), variants }] }]);
+
+    expect(narrowed?.[0].models[0].variants).toEqual(variants);
+  });
+
+  it("reads an availability answer from before combinations were served as having none", () => {
+    const answerWithoutVariants = { name: "a100", memory: ["80Gi"], interface: ["sxm"], providerCount: 1 } as AvailableGpuVendor["models"][number];
+
+    const narrowed = narrowGpuVendorsToAvailable(CATALOG, [{ vendor: "nvidia", models: [answerWithoutVariants] }]);
+
+    expect(narrowed?.[0].models[0]).toMatchObject({ memory: ["80Gi"], interface: ["sxm"], variants: undefined });
+  });
+
+  it("leaves the combinations out of an availability answer that has none", () => {
+    const narrowed = narrowGpuVendorsToAvailable(CATALOG, [{ vendor: "nvidia", models: [model("a100", ["80Gi"], ["sxm"])] }]);
+
+    expect(narrowed?.[0].models[0].variants).toBeUndefined();
   });
 
   it("leaves the catalog untouched when availability is absent", () => {
@@ -211,5 +244,72 @@ describe(withPinnedGpu.name, () => {
 
   it("reports no list when there is none to merge into", () => {
     expect(withPinnedGpu(undefined, { vendor: "amd", name: "mi300" })).toBeUndefined();
+  });
+});
+
+describe(listGpuMemoryOptions.name, () => {
+  const H100: GpuModel = {
+    name: "h100",
+    memory: ["80Gi", "94Gi"],
+    interface: ["sxm", "pcie"],
+    variants: [
+      { memory: null, interface: null, providerCount: 3 },
+      { memory: "80Gi", interface: null, providerCount: 3 },
+      { memory: null, interface: "sxm", providerCount: 3 },
+      { memory: "94Gi", interface: "pcie", providerCount: 1 }
+    ]
+  };
+
+  it("lists the memory sizes a provider advertises with the interface left unpinned", () => {
+    expect(listGpuMemoryOptions(H100, {})).toEqual(["80Gi"]);
+  });
+
+  it("lists the memory sizes a provider advertises together with the pinned interface", () => {
+    expect(listGpuMemoryOptions(H100, { interface: "pcie" })).toEqual(["94Gi"]);
+  });
+
+  it("keeps the pinned memory size listed when no provider advertises it with the pinned interface", () => {
+    expect(listGpuMemoryOptions(H100, { memory: "80Gi", interface: "sxm" })).toEqual(["80Gi"]);
+  });
+
+  it("falls back to the model's memory sizes when it carries no combinations", () => {
+    expect(listGpuMemoryOptions({ name: "t4", memory: ["16Gi"], interface: ["pcie"] }, { interface: "pcie" })).toEqual(["16Gi"]);
+  });
+
+  it("lists only the pinned memory size while no model is picked", () => {
+    expect(listGpuMemoryOptions(undefined, { memory: "80Gi" })).toEqual(["80Gi"]);
+  });
+});
+
+describe(listGpuInterfaceOptions.name, () => {
+  const A100: GpuModel = {
+    name: "a100",
+    memory: ["40Gi", "80Gi"],
+    interface: ["pcie", "sxm"],
+    variants: [
+      { memory: null, interface: null, providerCount: 2 },
+      { memory: null, interface: "pcie", providerCount: 2 },
+      { memory: "80Gi", interface: "sxm", providerCount: 1 }
+    ]
+  };
+
+  it("lists the interfaces a provider advertises with the memory size left unpinned", () => {
+    expect(listGpuInterfaceOptions(A100, {})).toEqual(["pcie"]);
+  });
+
+  it("lists the interfaces a provider advertises together with the pinned memory size", () => {
+    expect(listGpuInterfaceOptions(A100, { memory: "80Gi" })).toEqual(["sxm"]);
+  });
+
+  it("keeps the pinned interface listed when no provider advertises it with the pinned memory size", () => {
+    expect(listGpuInterfaceOptions(A100, { memory: "40Gi", interface: "pcie" })).toEqual(["pcie"]);
+  });
+
+  it("falls back to the model's interfaces when it carries no combinations", () => {
+    expect(listGpuInterfaceOptions({ name: "t4", memory: ["16Gi"], interface: ["pcie"] }, { memory: "16Gi" })).toEqual(["pcie"]);
+  });
+
+  it("lists only the pinned interface while no model is picked", () => {
+    expect(listGpuInterfaceOptions(undefined, { interface: "sxm" })).toEqual(["sxm"]);
   });
 });
