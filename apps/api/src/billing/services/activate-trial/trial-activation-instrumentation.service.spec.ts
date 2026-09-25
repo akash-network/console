@@ -17,6 +17,7 @@ import { mock } from "vitest-mock-extended";
 
 import { TRIAL_BLOCKED_DOMAIN_MESSAGE } from "@src/billing/services/wallet-initializer/wallet-initializer.service";
 import type { MetricsService } from "@src/core";
+import type { AnalyticsService } from "@src/core/services/analytics/analytics.service";
 import { TrialActivationInstrumentationService } from "./trial-activation-instrumentation.service";
 
 describe(TrialActivationInstrumentationService.name, () => {
@@ -62,14 +63,15 @@ describe(TrialActivationInstrumentationService.name, () => {
   });
 
   describe("recordActivated", () => {
-    it("records the activation latency and logs the event", () => {
-      const { service, activationLatency } = setup();
+    it("records the activation latency, logs the event and reports the trial start", () => {
+      const { service, activationLatency, analyticsService } = setup();
       const userId = faker.string.uuid();
 
       service.recordActivated(userId, 9000);
 
       expect(activationLatency.record).toHaveBeenCalledWith(9000);
       expect(mockLogger.info).toHaveBeenCalledWith(expect.objectContaining({ event: "TRIAL_ACTIVATED", userId, latencyMs: 9000 }));
+      expect(analyticsService.track).toHaveBeenCalledWith(userId, "trial_started", { activation_latency_ms: 9000 });
     });
   });
 
@@ -83,8 +85,10 @@ describe(TrialActivationInstrumentationService.name, () => {
     metricsService.createCounter.mockReturnValue(jobCompletions);
     metricsService.createHistogram.mockReturnValueOnce(jobDuration).mockReturnValueOnce(activationLatency);
 
-    const service = new TrialActivationInstrumentationService(metricsService);
+    const analyticsService = mock<AnalyticsService>();
 
-    return { service, jobCompletions, jobDuration, activationLatency };
+    const service = new TrialActivationInstrumentationService(metricsService, analyticsService);
+
+    return { service, jobCompletions, jobDuration, activationLatency, analyticsService };
   }
 });

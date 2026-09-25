@@ -9,7 +9,10 @@ type AnalyticsEvent =
   | "balance_refund"
   | "first_purchase_bonus_granted"
   | "auto_recharge_enabled"
-  | "auto_recharge_disabled";
+  | "auto_recharge_disabled"
+  | "trial_started"
+  | "account_restricted"
+  | "account_restriction_lifted";
 
 @singleton()
 export class AnalyticsService {

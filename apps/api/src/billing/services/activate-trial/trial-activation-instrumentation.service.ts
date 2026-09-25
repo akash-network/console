@@ -4,6 +4,7 @@ import { isHttpError } from "http-errors";
 import { singleton } from "tsyringe";
 
 import { MetricsService } from "@src/core";
+import { AnalyticsService } from "@src/core/services/analytics/analytics.service";
 import type { UserOutput } from "@src/user/repositories";
 
 /**
@@ -31,7 +32,10 @@ export class TrialActivationInstrumentationService {
 
   private readonly logger = createOtelLogger({ context: "TrialActivation" });
 
-  constructor(private readonly metricsService: MetricsService) {
+  constructor(
+    private readonly metricsService: MetricsService,
+    private readonly analyticsService: AnalyticsService
+  ) {
     this.meter = this.metricsService.getMeter("trial-activation", "1.0.0");
 
     this.jobCompletions = this.metricsService.createCounter(this.meter, "trial_activation_job_completions_total", {
@@ -65,5 +69,6 @@ export class TrialActivationInstrumentationService {
   recordActivated(userId: UserOutput["id"], latencyMs: number): void {
     this.activationLatency.record(latencyMs);
     this.logger.info({ event: "TRIAL_ACTIVATED", userId, latencyMs });
+    this.analyticsService.track(userId, "trial_started", { activation_latency_ms: latencyMs });
   }
 }
