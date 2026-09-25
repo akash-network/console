@@ -73,7 +73,8 @@ describe(StripeTransactionService.name, () => {
           cardBrand: "visa",
           paymentMethodType: "card",
           transactionId: internalTransaction.id,
-          source: "payment_intent"
+          source: "payment_intent",
+          isAutoRecharge: false
         }
       });
       expect(domainEventsService.publish).toHaveBeenCalledWith(expect.objectContaining({ name: FundDrainingDeploymentsCommand.name, data: toppedUpWallet }), {
@@ -232,6 +233,7 @@ describe(StripeTransactionService.name, () => {
           paymentMethodType: undefined,
           transactionId: internalTransaction.id,
           source: "payment_intent",
+          isAutoRecharge: false,
           bonusAmountCents: bonusAmount
         }
       });
@@ -268,8 +270,8 @@ describe(StripeTransactionService.name, () => {
       expect(outcome.bonusGrant).toBeUndefined();
     });
 
-    it("returns the auto recharge when the payment intent carries the auto_recharge marker", async () => {
-      const { service, userRepository, stripeTransactionRepository } = setup();
+    it("returns the auto recharge and reports the top-up as automatic when the payment intent carries the auto_recharge marker", async () => {
+      const { service, userRepository, stripeTransactionRepository, refillService } = setup();
       const mockUser = createTestUser();
       const amount = 5000;
       const internalTransaction = generateDatabaseStripeTransaction({ id: "tx-auto", type: "payment_intent", status: "created", amount });
@@ -289,6 +291,10 @@ describe(StripeTransactionService.name, () => {
       );
 
       expect(outcome.autoRecharge).toEqual({ userId: mockUser.id, transactionId: internalTransaction.id, amountCents: amount });
+      expect(refillService.topUpWallet).toHaveBeenCalledWith(amount, mockUser.id, {
+        endTrial: undefined,
+        payment: expect.objectContaining({ transactionId: internalTransaction.id, isAutoRecharge: true })
+      });
     });
 
     it("does not return an auto recharge when the transaction was already settled", async () => {
@@ -398,7 +404,8 @@ describe(StripeTransactionService.name, () => {
           cardBrand: "mastercard",
           paymentMethodType: undefined,
           transactionId: internalTransaction.id,
-          source: "coupon_claim"
+          source: "coupon_claim",
+          isAutoRecharge: false
         }
       });
     });
@@ -478,7 +485,8 @@ describe(StripeTransactionService.name, () => {
           cardBrand: undefined,
           paymentMethodType: undefined,
           transactionId: internalTransaction.id,
-          source: "coupon_claim"
+          source: "coupon_claim",
+          isAutoRecharge: false
         }
       });
     });
@@ -511,7 +519,8 @@ describe(StripeTransactionService.name, () => {
           cardBrand: undefined,
           paymentMethodType: undefined,
           transactionId: transaction.id,
-          source: "manual_credit"
+          source: "manual_credit",
+          isAutoRecharge: false
         }
       });
     });
@@ -547,7 +556,8 @@ describe(StripeTransactionService.name, () => {
           cardBrand: undefined,
           paymentMethodType: undefined,
           transactionId: pendingTransaction.id,
-          source: "manual_credit"
+          source: "manual_credit",
+          isAutoRecharge: false
         }
       });
       expect(stripeTransactionRepository.updateById).toHaveBeenCalledTimes(1);

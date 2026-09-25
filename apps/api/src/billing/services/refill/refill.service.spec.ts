@@ -112,6 +112,7 @@ describe(RefillService.name, () => {
           paymentMethodType: "card",
           transactionId: "tx-123",
           source: "payment_intent",
+          isAutoRecharge: true,
           bonusAmountCents: 10
         }
       });
@@ -124,6 +125,7 @@ describe(RefillService.name, () => {
         payment_method_type: "card",
         transaction_id: "tx-123",
         source: "payment_intent",
+        auto_recharge: true,
         bonus_amount_cents: 10
       });
     });

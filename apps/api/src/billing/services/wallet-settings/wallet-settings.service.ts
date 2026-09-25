@@ -10,6 +10,7 @@ import { WalletReloadJobService } from "@src/billing/services/wallet-reload-job/
 import { WithTransaction } from "@src/core";
 import { type CreateLogger, LOGGER_FACTORY } from "@src/core/providers/logging.provider";
 import { isUniqueViolation } from "@src/core/repositories/base.repository";
+import { AnalyticsService } from "@src/core/services/analytics/analytics.service";
 import { UserOutput, UserRepository } from "@src/user/repositories";
 
 /**
@@ -39,6 +40,7 @@ export class WalletSettingService {
     private readonly paymentMethodService: PaymentMethodService,
     private readonly authService: AuthService,
     private readonly walletReloadJobService: WalletReloadJobService,
+    private readonly analyticsService: AnalyticsService,
     @inject(LOGGER_FACTORY) createLogger: CreateLogger
   ) {
     this.logger = createLogger({ context: WalletSettingService.name });
@@ -61,6 +63,7 @@ export class WalletSettingService {
     }
 
     await this.#arrangeSchedule(mutationResult.prev, mutationResult.next);
+    this.#trackAutoReloadToggle(mutationResult.prev, mutationResult.next!);
 
     return this.#toDomainSetting(mutationResult.next!);
   }
@@ -77,6 +80,26 @@ export class WalletSettingService {
     await this.walletReloadJobService.cancelCreatedByUserId(userId);
     await this.walletReloadJobService.scheduleCreditsLowCheck(userId, { withCleanup: true });
     this.logger.info({ event: "AUTO_RELOAD_DISABLED", reason: "DEFAULT_PAYMENT_METHOD_REMOVED", userId });
+    this.analyticsService.track(userId, "auto_recharge_disabled", { disabled_by: "console", reason: "default_payment_method_removed" });
+  }
+
+  #trackAutoReloadToggle(prev: WalletSettingOutput | undefined, next: WalletSettingOutput) {
+    if (Boolean(prev?.autoReloadEnabled) === next.autoReloadEnabled) {
+      return;
+    }
+
+    if (!next.autoReloadEnabled) {
+      this.analyticsService.track(next.userId, "auto_recharge_disabled", { disabled_by: "user" });
+      return;
+    }
+
+    this.analyticsService.track(next.userId, "auto_recharge_enabled", {
+      mode: next.autoReloadMode,
+      ...(next.autoReloadMode === "threshold" && {
+        threshold_usd: centsToUsd(next.autoReloadThreshold),
+        amount_usd: centsToUsd(next.autoReloadAmount)
+      })
+    });
   }
 
   async #update(userId: UserOutput["id"], settings: WalletSettingInput): Promise<{ prev?: WalletSettingOutput; next?: WalletSettingOutput }> {
