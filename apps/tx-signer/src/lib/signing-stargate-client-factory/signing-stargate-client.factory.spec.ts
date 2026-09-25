@@ -10,6 +10,7 @@ import { mock } from "vitest-mock-extended";
 
 import { createAkashAddress } from "../../../test/seeders";
 import type { Wallet } from "../wallet/wallet";
+import { MessageExecutionFailedError } from "./message-execution-failed.error";
 import type { UnorderedTxSignConfig } from "./signing-stargate-client.factory";
 import { createSigningStargateClientFactory, SigningStargateWithUnorderedSupportClient, simulateBudgetMs } from "./signing-stargate-client.factory";
 import { SimulationExpiredError } from "./simulation-expired.error";
@@ -172,6 +173,36 @@ describe(SigningStargateWithUnorderedSupportClient.name, () => {
     expect(abciQuery).toHaveBeenCalledTimes(1);
   });
 
+  it("reports a message the chain failed to execute in simulation as a failed message execution in the chain's own words", async () => {
+    const { client, abciQuery } = setup({ simulateRejection: { code: 6, log: failedMessageExecutionLog() } });
+
+    const signing = client.signUnordered(createMessages());
+
+    await expect(signing).rejects.toBeInstanceOf(MessageExecutionFailedError);
+    await expect(signing).rejects.toHaveProperty("message", `Query failed with (6): ${failedMessageExecutionLog()}`);
+    expect(abciQuery).toHaveBeenCalledTimes(1);
+  });
+
+  it("leaves a simulation refused for its account sequence as the node reported it", async () => {
+    const { client, abciQuery } = setup({ simulateRejection: { code: 6, log: sequenceMismatchLog() } });
+
+    const signing = client.signUnordered(createMessages());
+
+    await expect(signing).rejects.not.toBeInstanceOf(MessageExecutionFailedError);
+    await expect(signing).rejects.toHaveProperty("message", `Query failed with (6): ${sequenceMismatchLog()}`);
+    expect(abciQuery).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([
+    { failure: "a timeout", error: new DOMException("The operation was aborted due to timeout", "TimeoutError") },
+    { failure: "an unreachable node", error: new Error("Bad status on response: 503") }
+  ])("surfaces $failure on every gas simulation attempt untouched", async ({ error }) => {
+    const { client, abciQuery } = setup({ simulateFailures: Array.from({ length: 4 }, () => error) });
+
+    await expect(client.signUnordered(createMessages())).rejects.toBe(error);
+    expect(abciQuery).toHaveBeenCalledTimes(4);
+  });
+
   it("fetches chain id and account data only once across concurrent signs", async () => {
     const { client, wallet, getChainId, getAccount } = setup();
 
@@ -194,12 +225,27 @@ describe(SigningStargateWithUnorderedSupportClient.name, () => {
     return new Error("Query failed with (6): rpc error: code = Unknown desc = tx timeout with gas used: '0': unknown request");
   }
 
+  function failedMessageExecutionLog() {
+    return "rpc error: code = Unknown desc = failed to execute message; message index: 0: account not found [cosmos/cosmos-sdk@v0.53.6/baseapp/baseapp.go:1052] with gas used: '34881': unknown request";
+  }
+
+  function sequenceMismatchLog() {
+    return "rpc error: code = Unknown desc = account sequence mismatch, expected 15533, got 15532: incorrect account sequence [cosmos/cosmos-sdk@v0.53.3/x/auth/ante/sigverify.go:364] with gas used: '19186': unknown request";
+  }
+
   function decodeSimulatedTimeoutTimestamp(data: Uint8Array) {
     const txBytes = SimulateRequest.decode(data).txBytes;
     return TxBody.decode(TxRaw.decode(txBytes).bodyBytes).timeoutTimestamp!.getTime();
   }
 
-  function setup(input?: { ttlMs?: number; gasUsed?: number; gasMultiplier?: number; onSimulate?: () => void; simulateFailures?: Error[] }) {
+  function setup(input?: {
+    ttlMs?: number;
+    gasUsed?: number;
+    gasMultiplier?: number;
+    onSimulate?: () => void;
+    simulateFailures?: Error[];
+    simulateRejection?: { code: number; log: string };
+  }) {
     const address = createAkashAddress();
     const accountNumber = faker.number.int({ min: 1, max: 1000 });
     const gasUsed = input?.gasUsed ?? 2000;
@@ -237,6 +283,10 @@ describe(SigningStargateWithUnorderedSupportClient.name, () => {
 
       const failure = simulateFailures.shift();
       if (failure) throw failure;
+
+      if (input?.simulateRejection) {
+        return { ...input.simulateRejection, value: new Uint8Array(), height: 1 };
+      }
 
       return {
         code: 0,

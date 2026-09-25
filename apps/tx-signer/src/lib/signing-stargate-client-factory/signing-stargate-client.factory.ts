@@ -19,6 +19,7 @@ import type { Wallet } from "@src/lib/wallet/wallet";
 import { memoizeAsync } from "../../caching/helpers/helpers";
 import { isRetriableTransportError } from "../retriable-transport-error/retriable-transport-error";
 import { RetryingRpcClient } from "../retrying-rpc-client/retrying-rpc-client";
+import { MessageExecutionFailedError } from "./message-execution-failed.error";
 import { SimulationExpiredError } from "./simulation-expired.error";
 
 const MEMO = "akash console";
@@ -29,6 +30,8 @@ const DEFAULT_SIMULATE_INITIAL_DELAY_MS = 200;
 const DEFAULT_SIMULATE_MAX_DELAY_MS = 2_000;
 
 const EXPIRED_TX_LOG_RE = /tx timeout/i;
+
+const FAILED_MESSAGE_EXECUTION_RE = /Query failed with \(\d+\): .*failed to execute message/;
 
 export interface SimulateRetryConfig {
   /** Retries allowed after the first attempt, matching cockatiel's own reading of the name. */
@@ -188,7 +191,7 @@ export class SigningStargateWithUnorderedSupportClient extends SigningStargateCl
       try {
         return await this.#simulateRawTx(this.#encodeSimulationTx(messages, pubkey));
       } catch (error) {
-        throw this.#isExpiryRejection(error) ? new SimulationExpiredError(this.#signConfig.ttlMs, error) : error;
+        throw this.#classifySimulationFailure(error);
       }
     });
 
@@ -203,8 +206,20 @@ export class SigningStargateWithUnorderedSupportClient extends SigningStargateCl
     return TxRaw.encode(TxRaw.fromPartial({ bodyBytes, authInfoBytes, signatures: [new Uint8Array()] })).finish();
   }
 
+  #classifySimulationFailure(error: unknown): unknown {
+    if (this.#isExpiryRejection(error)) {
+      return new SimulationExpiredError(this.#signConfig.ttlMs, error);
+    }
+
+    return this.#isMessageExecutionFailure(error) ? new MessageExecutionFailedError(error) : error;
+  }
+
   #isExpiryRejection(error: unknown): boolean {
     return error instanceof Error && EXPIRED_TX_LOG_RE.test(error.message);
+  }
+
+  #isMessageExecutionFailure(error: unknown): error is Error {
+    return error instanceof Error && FAILED_MESSAGE_EXECUTION_RE.test(error.message);
   }
 }
 

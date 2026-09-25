@@ -129,6 +129,22 @@ describe(TxController.name, () => {
     expect(body).not.toMatch(/tx timeout/);
   });
 
+  it("answers 400 with the chain's own message and broadcasts nothing when the chain fails to execute a message in simulation", async () => {
+    const log =
+      "rpc error: code = Unknown desc = failed to execute message; message index: 0: account not found [cosmos/cosmos-sdk@v0.53.6/baseapp/baseapp.go:1052] with gas used: '34881': unknown request";
+    const { getBroadcastedTxs } = mockRpcNode({ simulateRejection: { code: 6, log } });
+
+    const res = await app.request("/v1/tx/derived", {
+      method: "POST",
+      body: JSON.stringify({ data: { derivationIndex: DERIVATION_INDEX, messages: await buildDerivedMessages() } }),
+      headers: authorizedHeaders()
+    });
+
+    expect(res.status).toBe(400);
+    expect(await res.json()).toEqual({ error: "BadRequestError", message: `Query failed with (6): ${log}`, code: "bad_request", type: "client_error" });
+    expect(getBroadcastedTxs()).toHaveLength(0);
+  });
+
   it("rejects a tx request that carries no API key", async () => {
     const res = await app.request("/v1/tx/derived", {
       method: "POST",
@@ -274,7 +290,16 @@ describe(TxController.name, () => {
   }
 
   function mockRpcNode(
-    input: { chainId?: string; accountNumber?: number; sequence?: number; gasUsed?: number; height?: number; txHash?: string; failSimulateTimes?: number } = {}
+    input: {
+      chainId?: string;
+      accountNumber?: number;
+      sequence?: number;
+      gasUsed?: number;
+      height?: number;
+      txHash?: string;
+      failSimulateTimes?: number;
+      simulateRejection?: { code: number; log: string };
+    } = {}
   ) {
     const chainId = input.chainId ?? "sandbox-01";
     const accountNumber = input.accountNumber ?? 42;
@@ -338,6 +363,13 @@ describe(TxController.name, () => {
             }
           };
         case "abci_query": {
+          if (isSimulate(request) && input.simulateRejection) {
+            return {
+              ...base,
+              result: { response: { ...input.simulateRejection, info: "", index: "0", value: "", height: String(height), codespace: "sdk" } }
+            };
+          }
+
           const value = isSimulate(request) ? simulateValue : accountValue;
           return { ...base, result: { response: { code: 0, log: "", info: "", index: "0", value, height: String(height), codespace: "" } } };
         }
