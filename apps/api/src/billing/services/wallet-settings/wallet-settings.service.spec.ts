@@ -173,6 +173,16 @@ describe(WalletSettingService.name, () => {
       expect(analyticsService.track).not.toHaveBeenCalled();
     });
 
+    it("locks the setting row the current user can read", async () => {
+      const { user, walletSetting, walletSettingRepository, service } = setup();
+      walletSettingRepository.updateById.mockResolvedValue(walletSetting as never);
+
+      await service.upsertWalletSetting(user.id, { autoReloadAmount: 100 });
+
+      expect(walletSettingRepository.accessibleBy).toHaveBeenCalledWith(expect.anything(), "read");
+      expect(walletSettingRepository.findOneByAndLock).toHaveBeenCalledWith({ userId: user.id });
+    });
+
     it("checks the default payment method before locking the setting row", async () => {
       const { user, walletSetting, walletSettingRepository, paymentMethodService, service } = setup();
       walletSettingRepository.findOneByAndLock.mockResolvedValue({ ...walletSetting, autoReloadEnabled: false });
@@ -180,7 +190,6 @@ describe(WalletSettingService.name, () => {
 
       await service.upsertWalletSetting(user.id, { autoReloadEnabled: true });
 
-      expect(walletSettingRepository.findOneByAndLock).toHaveBeenCalledWith({ userId: user.id });
       expect(paymentMethodService.getDefaultPaymentMethod.mock.invocationCallOrder[0]).toBeLessThan(
         walletSettingRepository.findOneByAndLock.mock.invocationCallOrder[0]
       );
