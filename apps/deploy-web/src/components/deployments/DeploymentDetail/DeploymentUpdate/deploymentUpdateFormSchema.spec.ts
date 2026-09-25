@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
 
 import { importDeploymentState } from "@src/components/deployments/ConfigureDeployment/importDeploymentState/importDeploymentState";
-import type { SdlBuilderFormValuesType } from "@src/types";
 import { SdlBuilderFormValuesSchema } from "@src/types";
+import type { DeploymentUpdateFormValues } from "./deploymentUpdateFormSchema";
 import { DeploymentUpdateFormSchema } from "./deploymentUpdateFormSchema";
+
+const KEPT_PASSWORD = "ac-secret://REGISTRY_PASSWORD";
 
 const SDL_THE_CREATE_FORM_WOULD_REFUSE = `
 version: "2.0"
@@ -104,28 +106,69 @@ describe("DeploymentUpdateFormSchema", () => {
     expect(issuesOf(values)).toEqual([]);
   });
 
-  it("accepts a kept registry password the create form would refuse, since the password cannot be changed here", () => {
+  it("passes a kept registry password on untouched, whose value is a reference", () => {
+    const { values } = setup();
+    values.services[0].hasCredentials = true;
+    values.services[0].credentials = { host: "ghcr.io", username: "acme", password: KEPT_PASSWORD };
+
+    expect(DeploymentUpdateFormSchema.parse(values).services[0].credentials).toEqual({ host: "ghcr.io", username: "acme", password: KEPT_PASSWORD });
+  });
+
+  it("refuses a typed registry password shorter than the create form accepts", () => {
     const { values } = setup();
     values.services[0].hasCredentials = true;
     values.services[0].credentials = { host: "ghcr.io", username: "acme", password: "abc" };
+
+    expect(issuesOf(values)).toEqual([{ path: "services.0.credentials.password", message: "Password must be at least 6 characters." }]);
+  });
+
+  it("refuses a registry left without a username", () => {
+    const { values } = setup();
+    values.services[0].hasCredentials = true;
+    values.services[0].credentials = { host: "ghcr.io", username: "", password: KEPT_PASSWORD };
+
+    expect(issuesOf(values)).toEqual([{ path: "services.0.credentials.username", message: "Username is required." }]);
+  });
+
+  it("refuses a replacement for a kept registry password shorter than the create form accepts", () => {
+    const { values } = setup();
+    values.services[0].hasCredentials = true;
+    values.services[0].credentials = { host: "ghcr.io", username: "acme", password: KEPT_PASSWORD };
+    values.secretValues = { REGISTRY_PASSWORD: "abc" };
+
+    expect(issuesOf(values)).toEqual([{ path: "secretValues.REGISTRY_PASSWORD", message: "Password must be at least 6 characters." }]);
+  });
+
+  it("accepts a replacement box left blank, which keeps the stored value", () => {
+    const { values } = setup();
+    values.services[0].hasCredentials = true;
+    values.services[0].credentials = { host: "ghcr.io", username: "acme", password: KEPT_PASSWORD };
+    values.secretValues = { REGISTRY_PASSWORD: "", API_TOKEN: "" };
 
     expect(issuesOf(values)).toEqual([]);
   });
 
-  it("passes the kept registry password on untouched", () => {
+  it("refuses a secret added without a value", () => {
     const { values } = setup();
-    values.services[0].hasCredentials = true;
-    values.services[0].credentials = { host: "ghcr.io", username: "acme", password: "abc" };
+    values.services[0].env = [...(values.services[0].env ?? []), { id: "new", key: "STRIPE_KEY", value: "", isSecret: true }];
 
-    expect(DeploymentUpdateFormSchema.parse(values).services[0].credentials).toEqual({ host: "ghcr.io", username: "acme", password: "abc" });
+    expect(issuesOf(values)).toEqual([{ path: "services.0.env.2.value", message: "Enter a value for this secret." }]);
   });
 
-  function issuesOf(values: SdlBuilderFormValuesType) {
+  it("passes the replacements on untouched", () => {
+    const { values } = setup();
+    values.secretValues = { API_TOKEN: "rotated" };
+
+    expect(DeploymentUpdateFormSchema.parse(values)).toMatchObject({ secretValues: { API_TOKEN: "rotated" } });
+  });
+
+  function issuesOf(values: DeploymentUpdateFormValues) {
     const result = DeploymentUpdateFormSchema.safeParse(values);
     return result.success ? [] : result.error.issues.map(issue => ({ path: issue.path.join("."), message: issue.message }));
   }
 
   function setup() {
-    return { values: importDeploymentState(SDL_THE_CREATE_FORM_WOULD_REFUSE).values };
+    const values: DeploymentUpdateFormValues = importDeploymentState(SDL_THE_CREATE_FORM_WOULD_REFUSE).values;
+    return { values };
   }
 });

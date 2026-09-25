@@ -8,12 +8,13 @@ import { supportedHosts } from "@src/components/deployments/ConfigureDeployment/
 import type { SdlBuilderFormValuesType } from "@src/types";
 import { CUSTOM_HOST_ID } from "@src/types";
 import { normalizeDockerImage } from "@src/utils/sdl/normalizeDockerImage";
-import { isSdlReference } from "@src/utils/sdl/sdlSecrets";
+import { secretNameOf } from "@src/utils/sdl/sdlSecrets";
 import { isVmImage } from "@src/utils/sdl/vmImages";
+import type { DeploymentUpdateFormValues } from "./deploymentUpdateFormSchema";
 import { UpdateSectionRule } from "./UpdateSectionRule";
 
-const KEPT_CREDENTIAL_PLACEHOLDER = "Kept from your deployment";
-const PUBLIC_IMAGE_NOTE = "This service pulls a public image. Adding registry credentials to a running deployment is not available yet.";
+const PUBLIC_IMAGE_NOTE = "This service pulls a public image.";
+const DEFAULT_REGISTRY_HOST = "docker.io";
 const KNOWN_REGISTRY_HOSTS = supportedHosts.filter(host => host.id !== CUSTOM_HOST_ID);
 
 export interface UpdateImageSectionProps {
@@ -23,11 +24,16 @@ export interface UpdateImageSectionProps {
 
 /** A managed VM image is read-only, because the SSH bootstrap it runs is what the deployment was created around. */
 export const UpdateImageSection: FC<UpdateImageSectionProps> = ({ serviceIndex, locked }) => {
-  const { control } = useFormContext<SdlBuilderFormValuesType>();
+  const { control, setValue } = useFormContext<SdlBuilderFormValuesType>();
   const image = useController({ control, name: `services.${serviceIndex}.image` });
   const hasCredentials = useWatch({ control, name: `services.${serviceIndex}.hasCredentials` });
   const isVm = isVmImage(image.field.value ?? "");
   const inputId = `update-image-${serviceIndex}`;
+
+  function startUsingPrivateRegistry() {
+    setValue(`services.${serviceIndex}.hasCredentials`, true, { shouldDirty: true });
+    setValue(`services.${serviceIndex}.credentials`, { host: DEFAULT_REGISTRY_HOST, username: "", password: "" }, { shouldDirty: true });
+  }
 
   return (
     <div className="flex flex-col gap-3">
@@ -56,7 +62,12 @@ export const UpdateImageSection: FC<UpdateImageSectionProps> = ({ serviceIndex, 
             {hasCredentials ? (
               <RegistryCredentials serviceIndex={serviceIndex} locked={locked} />
             ) : (
-              <p className="text-sm text-muted-foreground">{PUBLIC_IMAGE_NOTE}</p>
+              <div className="flex flex-wrap items-center gap-3">
+                <p className="text-sm text-muted-foreground">{PUBLIC_IMAGE_NOTE}</p>
+                <Button type="button" variant="outline" size="sm" disabled={locked} onClick={startUsingPrivateRegistry}>
+                  Add registry credentials
+                </Button>
+              </div>
             )}
           </CollapsibleContent>
         </Collapsible>
@@ -65,13 +76,15 @@ export const UpdateImageSection: FC<UpdateImageSectionProps> = ({ serviceIndex, 
   );
 };
 
-/** The password is always a kept secret here, and so is a username sealed at create; replacing either is secret editing, which comes separately. */
+/** A half the deployment keeps as a secret is replaced through a box keyed by its name, so the reference in the credentials never changes under it. */
 const RegistryCredentials: FC<{ serviceIndex: number; locked: boolean }> = ({ serviceIndex, locked }) => {
-  const { control, setValue } = useFormContext<SdlBuilderFormValuesType>();
+  const { control, setValue } = useFormContext<DeploymentUpdateFormValues>();
   const basePath = `services.${serviceIndex}.credentials` as const;
   const host = useController({ control, name: `${basePath}.host` });
-  const username = useController({ control, name: `${basePath}.username` });
-  const isUsernameKept = isSdlReference(username.field.value ?? "");
+  const username = useWatch({ control, name: `${basePath}.username` }) ?? "";
+  const password = useWatch({ control, name: `${basePath}.password` }) ?? "";
+  const keptUsernameName = secretNameOf(username);
+  const keptPasswordName = secretNameOf(password);
   const hostListId = `update-registry-hosts-${serviceIndex}`;
 
   function stopUsingPrivateRegistry() {
@@ -102,30 +115,13 @@ const RegistryCredentials: FC<{ serviceIndex: number; locked: boolean }> = ({ se
           </datalist>
           {host.fieldState.error && <p className="text-xs text-destructive">{host.fieldState.error.message}</p>}
         </div>
-        <div className="flex flex-col gap-1">
-          <Input
-            label="Username"
-            aria-label="Registry username"
-            value={isUsernameKept ? "" : username.field.value ?? ""}
-            placeholder={isUsernameKept ? KEPT_CREDENTIAL_PLACEHOLDER : undefined}
-            disabled={isUsernameKept}
-            onChange={username.field.onChange}
-            onBlur={username.field.onBlur}
-            inputClassName="h-10"
-          />
-        </div>
-        <div className="flex flex-col gap-1">
-          <Input
-            label="Password"
-            aria-label="Registry password"
-            type="password"
-            value=""
-            placeholder={KEPT_CREDENTIAL_PLACEHOLDER}
-            disabled
-            readOnly
-            inputClassName="h-10"
-          />
-        </div>
+        <CredentialField label="Username" name={keptUsernameName ? `secretValues.${keptUsernameName}` : `${basePath}.username`} isKept={!!keptUsernameName} />
+        <CredentialField
+          label="Password"
+          name={keptPasswordName ? `secretValues.${keptPasswordName}` : `${basePath}.password`}
+          isKept={!!keptPasswordName}
+          isMasked
+        />
       </div>
       <div>
         <Button type="button" variant="outline" size="sm" onClick={stopUsingPrivateRegistry}>
@@ -133,5 +129,35 @@ const RegistryCredentials: FC<{ serviceIndex: number; locked: boolean }> = ({ se
         </Button>
       </div>
     </fieldset>
+  );
+};
+
+interface CredentialFieldProps {
+  label: "Username" | "Password";
+  name: `secretValues.${string}` | `services.${number}.credentials.${"username" | "password"}`;
+  isKept: boolean;
+  isMasked?: boolean;
+}
+
+const CredentialField: FC<CredentialFieldProps> = ({ label, name, isKept, isMasked }) => {
+  const { control } = useFormContext<DeploymentUpdateFormValues>();
+  const field = useController({ control, name });
+
+  return (
+    <div className="flex flex-col gap-1">
+      <Input
+        label={label}
+        aria-label={`Registry ${label.toLowerCase()}`}
+        type={isMasked ? "password" : "text"}
+        autoComplete={isMasked ? "new-password" : "off"}
+        value={field.field.value ?? ""}
+        placeholder={isKept ? "Kept from your deployment" : undefined}
+        onChange={field.field.onChange}
+        onBlur={field.field.onBlur}
+        error={!!field.fieldState.error}
+        inputClassName="h-10"
+      />
+      {field.fieldState.error && <p className="text-xs text-destructive">{field.fieldState.error.message}</p>}
+    </div>
   );
 };

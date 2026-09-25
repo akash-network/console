@@ -8,6 +8,7 @@ import type { SdlBuilderFormValuesType } from "@src/types";
 import type { DeploymentDto, DeploymentGroup, LeaseDto } from "@src/types/deployment";
 import type { ApiProviderList } from "@src/types/provider";
 import { DEPENDENCIES, DeploymentUpdate } from "./DeploymentUpdate";
+import type { DeploymentUpdateFormValues } from "./deploymentUpdateFormSchema";
 import type { DeploymentUpdateSubmitInput } from "./useDeploymentUpdateSubmit";
 
 import { act, render, screen, within } from "@testing-library/react";
@@ -501,15 +502,45 @@ describe(DeploymentUpdate.name, () => {
       expect(value).toHaveAttribute("type", "text");
     });
 
-    it("shows a kept secret by name, with no value to read or type", async () => {
+    it("shows a kept secret by name, with an empty box for a new value", async () => {
       setup();
       await openTab("web", /Vars & secrets/);
 
       const web = serviceSection("web");
       expect(within(web).getByLabelText("Secret 1 name")).toHaveValue("API_TOKEN");
       expect(within(web).getByLabelText("Secret 1 name")).toHaveAttribute("readonly");
-      expect(within(web).getByLabelText("API_TOKEN value")).toBeDisabled();
+      expect(within(web).getByLabelText("API_TOKEN value")).toBeEnabled();
+      expect(within(web).getByLabelText("API_TOKEN value")).toHaveValue("");
       expect(within(web).getByLabelText("API_TOKEN value")).toHaveAttribute("placeholder", "Enter new value to update");
+    });
+
+    it("offers no way to read or copy a secret", async () => {
+      setup();
+      await openTab("web", /Vars & secrets/);
+
+      const web = serviceSection("web");
+      expect(within(web).getByLabelText("API_TOKEN value")).toHaveAttribute("type", "password");
+      expect(within(web).queryByRole("button", { name: "Show API_TOKEN value" })).not.toBeInTheDocument();
+      expect(within(web).queryByRole("button", { name: "Copy API_TOKEN value" })).not.toBeInTheDocument();
+    });
+
+    it("sends a new value typed for a kept secret under the name its reference carries", async () => {
+      const { submit } = setup();
+      await openTab("web", /Vars & secrets/);
+
+      await userEvent.type(within(serviceSection("web")).getByLabelText("API_TOKEN value"), "rotated-token");
+      await userEvent.click(updateButton());
+
+      const [, current] = submit.mock.calls[0] as [SdlBuilderFormValuesType, DeploymentUpdateFormValues];
+      expect(current.secretValues).toEqual({ API_TOKEN: "rotated-token" });
+      expect(serviceIn(current, "web").env).toContainEqual(expect.objectContaining({ key: "API_TOKEN", value: "ac-secret://API_TOKEN" }));
+    });
+
+    it("says a new value takes effect only once the update is applied", async () => {
+      setup();
+      await openTab("web", /Vars & secrets/);
+
+      expect(within(serviceSection("web")).getByText(/takes effect when you update the deployment/)).toBeInTheDocument();
     });
 
     it("changes and removes a variable", async () => {
@@ -537,11 +568,15 @@ describe(DeploymentUpdate.name, () => {
       expect(submit).not.toHaveBeenCalled();
     });
 
-    it("keeps a secret's removal for when secrets can be edited, since nothing here could add it back", async () => {
-      setup();
+    it("removes a secret", async () => {
+      const { submit } = setup();
       await openTab("web", /Vars & secrets/);
 
-      expect(within(serviceSection("web")).getByRole("button", { name: "Remove API_TOKEN" })).toBeDisabled();
+      await userEvent.click(within(serviceSection("web")).getByRole("button", { name: "Remove API_TOKEN" }));
+      await userEvent.click(updateButton());
+
+      const [, current] = submit.mock.calls[0] as [SdlBuilderFormValuesType, SdlBuilderFormValuesType];
+      expect(serviceIn(current, "web").env?.map(variable => variable.key)).toEqual(["MODE"]);
     });
 
     it("adds a variable from the Add menu", async () => {
@@ -559,13 +594,33 @@ describe(DeploymentUpdate.name, () => {
       expect(serviceIn(current, "web").env).toContainEqual(expect.objectContaining({ key: "LOG_LEVEL", value: "debug" }));
     });
 
-    it("offers no way to add a secret yet", async () => {
-      setup();
+    it("adds a secret from the Add menu", async () => {
+      const { submit } = setup();
       await openTab("web", /Vars & secrets/);
+      const web = serviceSection("web");
 
-      await userEvent.click(within(serviceSection("web")).getByRole("button", { name: "Add" }));
+      await userEvent.click(within(web).getByRole("button", { name: "Add" }));
+      await userEvent.click(screen.getByRole("menuitem", { name: /Secret/ }));
+      await userEvent.type(within(web).getByLabelText("Secret 2 name"), "STRIPE_KEY");
+      await userEvent.type(within(web).getByLabelText("STRIPE_KEY value"), "sk-live-value");
+      await userEvent.click(updateButton());
 
-      expect(screen.getByRole("menuitem", { name: /Secret/ })).toHaveAttribute("aria-disabled", "true");
+      const [, current] = submit.mock.calls[0] as [SdlBuilderFormValuesType, SdlBuilderFormValuesType];
+      expect(serviceIn(current, "web").env).toContainEqual(expect.objectContaining({ key: "STRIPE_KEY", value: "sk-live-value", isSecret: true }));
+    });
+
+    it("refuses a secret added without a value, and sends nothing", async () => {
+      const { submit } = setup();
+      await openTab("web", /Vars & secrets/);
+      const web = serviceSection("web");
+
+      await userEvent.click(within(web).getByRole("button", { name: "Add" }));
+      await userEvent.click(screen.getByRole("menuitem", { name: /Secret/ }));
+      await userEvent.type(within(web).getByLabelText("Secret 2 name"), "STRIPE_KEY");
+      await userEvent.click(updateButton());
+
+      expect(await within(web).findByText("Enter a value for this secret.")).toBeInTheDocument();
+      expect(submit).not.toHaveBeenCalled();
     });
   });
 
@@ -604,9 +659,22 @@ describe(DeploymentUpdate.name, () => {
 
       const web = serviceSection("web");
       expect(within(web).getByLabelText("Registry host")).toHaveValue("ghcr.io");
-      expect(within(web).getByLabelText("Registry username")).toBeDisabled();
+      expect(within(web).getByLabelText("Registry username")).toHaveValue("");
       expect(within(web).getByLabelText("Registry username")).toHaveAttribute("placeholder", "Kept from your deployment");
-      expect(within(web).getByLabelText("Registry password")).toBeDisabled();
+      expect(within(web).getByLabelText("Registry password")).toHaveValue("");
+      expect(within(web).getByLabelText("Registry password")).toHaveAttribute("type", "password");
+    });
+
+    it("sends a new registry password under the name its kept reference carries", async () => {
+      const { submit } = setup();
+      await userEvent.click(within(serviceSection("web")).getByRole("button", { name: /Private registry/ }));
+
+      await userEvent.type(within(serviceSection("web")).getByLabelText("Registry password"), "new-registry-password");
+      await userEvent.click(updateButton());
+
+      const [, current] = submit.mock.calls[0] as [SdlBuilderFormValuesType, DeploymentUpdateFormValues];
+      expect(current.secretValues).toEqual({ REGISTRY_PASSWORD: "new-registry-password" });
+      expect(serviceIn(current, "web").credentials).toMatchObject({ password: "ac-secret://REGISTRY_PASSWORD" });
     });
 
     it("stops pulling from a private registry", async () => {
@@ -620,12 +688,43 @@ describe(DeploymentUpdate.name, () => {
       expect(serviceIn(current, "web")).toMatchObject({ hasCredentials: false, credentials: undefined });
     });
 
-    it("says a public image has no registry to change yet", async () => {
-      setup();
-
+    it("adds registry credentials to a service that pulls a public image", async () => {
+      const { submit } = setup();
       await userEvent.click(within(serviceSection("worker")).getByRole("button", { name: /Private registry/ }));
+      const worker = serviceSection("worker");
 
-      expect(within(serviceSection("worker")).getByText(/pulls a public image/)).toBeInTheDocument();
+      await userEvent.click(within(worker).getByRole("button", { name: "Add registry credentials" }));
+      await userEvent.clear(within(worker).getByLabelText("Registry host"));
+      await userEvent.type(within(worker).getByLabelText("Registry host"), "ghcr.io");
+      await userEvent.type(within(worker).getByLabelText("Registry username"), "robot");
+      await userEvent.type(within(worker).getByLabelText("Registry password"), "robot-password");
+      await userEvent.click(updateButton());
+
+      const [, current] = submit.mock.calls[0] as [SdlBuilderFormValuesType, SdlBuilderFormValuesType];
+      expect(serviceIn(current, "worker")).toMatchObject({
+        hasCredentials: true,
+        credentials: { host: "ghcr.io", username: "robot", password: "robot-password" }
+      });
+    });
+  });
+
+  describe("a deployment whose stored secrets the console can no longer read", () => {
+    it("explains it and holds back the update, even with an edit to send", async () => {
+      setup({ secretsUnreadable: true });
+
+      await userEvent.type(within(serviceSection("web")).getByLabelText("Image"), "-next");
+
+      expect(screen.getByText(/can no longer read this deployment's stored secrets/)).toBeInTheDocument();
+      expect(updateButton()).toBeDisabled();
+    });
+
+    it("offers a redeploy that asks for the secret values again", async () => {
+      const { onRedeployWithNewSecrets, onRedeploy } = setup({ secretsUnreadable: true });
+
+      await userEvent.click(screen.getByRole("button", { name: "Redeploy and enter secrets" }));
+
+      expect(onRedeployWithNewSecrets).toHaveBeenCalled();
+      expect(onRedeploy).not.toHaveBeenCalled();
     });
   });
 
@@ -742,6 +841,7 @@ describe(DeploymentUpdate.name, () => {
       deploymentState?: string;
       isUpdating?: boolean;
       sdlRefusal?: string | null;
+      secretsUnreadable?: boolean;
       leases?: LeaseDto[] | null;
       isLoadingDetectedGpus?: boolean;
     } = {}
@@ -750,10 +850,11 @@ describe(DeploymentUpdate.name, () => {
     let capturedSubmitInput: DeploymentUpdateSubmitInput | undefined;
     const useDeploymentUpdateSubmit: typeof DEPENDENCIES.useDeploymentUpdateSubmit = submitInput => {
       capturedSubmitInput = submitInput;
-      return { submit, isUpdating: input.isUpdating ?? false, sdlRefusal: input.sdlRefusal ?? null };
+      return { submit, isUpdating: input.isUpdating ?? false, sdlRefusal: input.sdlRefusal ?? null, secretsUnreadable: input.secretsUnreadable ?? false };
     };
     const onUpdated = vi.fn();
     const onRedeploy = vi.fn();
+    const onRedeployWithNewSecrets = vi.fn();
     const RawEditor = vi.fn(() => <div>raw-editor</div>);
     const deployment = mock<DeploymentDto>({ dseq: "1234", state: input.deploymentState ?? "active" });
     const leases = input.leases === undefined ? [leaseOn("edge-us", "akash1us"), leaseOn("edge-eu", "akash1eu")] : input.leases;
@@ -780,6 +881,7 @@ describe(DeploymentUpdate.name, () => {
         definition={definition}
         onUpdated={onUpdated}
         onRedeploy={onRedeploy}
+        onRedeployWithNewSecrets={onRedeployWithNewSecrets}
         fallback={<RawEditor />}
         dependencies={{ ...DEPENDENCIES, useDeploymentUpdateSubmit }}
       />
@@ -792,6 +894,14 @@ describe(DeploymentUpdate.name, () => {
       return capturedSubmitInput;
     };
 
-    return { submit, onUpdated, onRedeploy, showDefinition, submitInput, rawEditorRenders: () => RawEditor.mock.calls.length };
+    return {
+      submit,
+      onUpdated,
+      onRedeploy,
+      onRedeployWithNewSecrets,
+      showDefinition,
+      submitInput,
+      rawEditorRenders: () => RawEditor.mock.calls.length
+    };
   }
 });

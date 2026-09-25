@@ -20,6 +20,7 @@ services:
     image: nginx:1.25
     env:
       - MODE=dev
+      - API_TOKEN=ac-secret://API_TOKEN
     expose:
       - port: 80
         as: 80
@@ -63,6 +64,11 @@ const STALE_SEAL = new ApiError(409, { message: "The sealing key is no longer cu
 const BAD_SDL = new ApiError(400, { message: "Invalid SDL: the image is not a valid reference" }, "PATCH /v1/deployments/{dseq} → 400");
 const OUT_OF_CREDITS = new ApiError(402, { message: "Insufficient balance: top up to keep deploying" }, "PATCH /v1/deployments/{dseq} → 402");
 const SERVER_FAILURE = new ApiError(500, { message: "The SDL recorded for this deployment cannot be read" }, "PATCH /v1/deployments/{dseq} → 500");
+const SECRETS_UNREADABLE = new ApiError(
+  500,
+  { message: "Unable to read stored secrets", code: "stored_secrets_unreadable" },
+  "PATCH /v1/deployments/{dseq} → 500"
+);
 
 describe(useDeploymentUpdateSubmit.name, () => {
   it("sends nothing and says so when nothing changed", async () => {
@@ -79,6 +85,75 @@ describe(useDeploymentUpdateSubmit.name, () => {
 
     expect(result.current.isUpdating).toBe(false);
     expect(result.current.sdlRefusal).toBeNull();
+    expect(result.current.secretsUnreadable).toBe(false);
+  });
+
+  describe("when a secret changes", () => {
+    it("seals only the replaced value and names no service when nothing else changed", async () => {
+      const { result, patchMutate, sealSdlSecrets, seed } = setup();
+
+      act(() => result.current.submit(seed, { ...structuredClone(seed), secretValues: { API_TOKEN: "rotated-token" } }));
+
+      await waitFor(() => expect(patchMutate).toHaveBeenCalled());
+      expect(patchMutate).toHaveBeenCalledWith({ dseq: DSEQ, data: { sealedSecrets: SEAL, ifManifestVersion: RECORDED_VERSION } });
+      expect(sealSdlSecrets).toHaveBeenCalledWith({ context: expect.anything(), secrets: { API_TOKEN: "rotated-token" } });
+    });
+
+    it("keeps a typed value out of the patch body", async () => {
+      const { result, patchMutate, seed } = setup();
+      const current = withSecretAdded(seed, "STRIPE_KEY", "sk-live-value");
+
+      act(() => result.current.submit(seed, current));
+
+      await waitFor(() => expect(patchMutate).toHaveBeenCalled());
+      expect(JSON.stringify(patchMutate.mock.calls[0][0])).not.toContain("sk-live-value");
+      expect(patchMutate).toHaveBeenCalledWith(
+        expect.objectContaining({ data: expect.objectContaining({ services: { web: { env: { STRIPE_KEY: "ac-secret://STRIPE_KEY" } } } }) })
+      );
+    });
+
+    it("hands the landed values back with every typed secret standing as its reference", async () => {
+      const { result, onUpdated, seed } = setup();
+
+      act(() => result.current.submit(seed, { ...withSecretAdded(seed, "STRIPE_KEY", "sk-live-value"), secretValues: { API_TOKEN: "rotated-token" } }));
+
+      await waitFor(() => expect(onUpdated).toHaveBeenCalled());
+      const [{ values }] = onUpdated.mock.calls[0];
+      expect(values.services[0].env).toContainEqual(expect.objectContaining({ key: "STRIPE_KEY", value: "ac-secret://STRIPE_KEY" }));
+      expect(JSON.stringify(values)).not.toContain("sk-live-value");
+      expect(JSON.stringify(values)).not.toContain("rotated-token");
+    });
+
+    it("sends nothing when the only replacement box was left blank", async () => {
+      const { result, patchMutate, enqueueSnackbar, seed } = setup();
+
+      act(() => result.current.submit(seed, { ...structuredClone(seed), secretValues: { API_TOKEN: "" } }));
+
+      expect(patchMutate).not.toHaveBeenCalled();
+      expect(enqueueSnackbar).toHaveBeenCalledWith(snackbarTitled("Nothing to update"), expect.objectContaining({ variant: "info" }));
+    });
+  });
+
+  describe("when the console can no longer read the deployment's stored secrets", () => {
+    it("reports it for the form to explain, instead of a snackbar", async () => {
+      const { result, enqueueSnackbar, seed } = setup({ patchOutcome: SECRETS_UNREADABLE });
+
+      act(() => result.current.submit(seed, withImage(seed, "nginx:1.27")));
+
+      await waitFor(() => expect(result.current.secretsUnreadable).toBe(true));
+      expect(enqueueSnackbar).not.toHaveBeenCalled();
+      expect(result.current.isUpdating).toBe(false);
+    });
+
+    it("sends the patch once, without resealing", async () => {
+      const { result, patchMutate, sealSdlSecrets, seed } = setup({ patchOutcome: SECRETS_UNREADABLE });
+
+      act(() => result.current.submit(seed, withImage(seed, "nginx:1.27")));
+
+      await waitFor(() => expect(result.current.secretsUnreadable).toBe(true));
+      expect(patchMutate).toHaveBeenCalledTimes(1);
+      expect(sealSdlSecrets).toHaveBeenCalledTimes(1);
+    });
   });
 
   it("patches only what changed, sealed and guarded on the version the form was seeded from", async () => {
@@ -404,6 +479,12 @@ describe(useDeploymentUpdateSubmit.name, () => {
   function withImage(values: SdlBuilderFormValuesType, image: string): SdlBuilderFormValuesType {
     const edited = structuredClone(values);
     edited.services[0].image = image;
+    return edited;
+  }
+
+  function withSecretAdded(values: SdlBuilderFormValuesType, key: string, value: string): SdlBuilderFormValuesType {
+    const edited = structuredClone(values);
+    edited.services[0].env = [...(edited.services[0].env ?? []), { id: "new-secret", key, value, isSecret: true }];
     return edited;
   }
 

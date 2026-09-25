@@ -149,6 +149,11 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq, dependencies
     analyticsService.track("redeploy_btn_clk", "Amplitude");
   }
 
+  function redeployWithNewSecrets() {
+    redeploy({ sdl: definition.sdl, name: definition.name });
+    analyticsService.track("redeploy_btn_clk", "Amplitude");
+  }
+
   const manifestUpdate = deployment && (
     <d.ManifestUpdate
       editedManifest={editedManifest as string}
@@ -247,6 +252,7 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq, dependencies
                       definition={definition}
                       onUpdated={loadDeploymentDetail}
                       onRedeploy={isUsableDeploymentDefinition(definition) ? redeployFromResolvedDefinition : undefined}
+                      onRedeployWithNewSecrets={isUsableDeploymentDefinition(definition) ? redeployWithNewSecrets : undefined}
                       fallback={manifestUpdate}
                     />
                   ) : (

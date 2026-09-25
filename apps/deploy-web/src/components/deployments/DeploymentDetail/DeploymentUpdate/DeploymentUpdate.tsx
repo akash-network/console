@@ -14,6 +14,7 @@ import type { DeploymentDto, LeaseDto } from "@src/types/deployment";
 import type { ApiProviderList } from "@src/types/provider";
 import { getPlacementName } from "../DeploymentPlacements/placementModel";
 import { DeploymentTabHeader } from "../DeploymentTabHeader";
+import type { DeploymentUpdateFormValues } from "./deploymentUpdateFormSchema";
 import { DeploymentUpdateFormSchema } from "./deploymentUpdateFormSchema";
 import { UpdatePlacementCard } from "./UpdatePlacementCard";
 import { useDeploymentUpdateSubmit } from "./useDeploymentUpdateSubmit";
@@ -24,6 +25,8 @@ const UNAVAILABLE_NOTICE =
   "The console has no up-to-date copy of this deployment's configuration, so it can only be updated as raw SDL here. Once it holds one, this tab shows each service's settings instead.";
 const UNREADABLE_NOTICE = "The configuration the console stored could not be read into the form, so it is shown as raw SDL.";
 const CLOSED_NOTICE = "This deployment is closed, so its configuration can only be reused in a new deployment.";
+const SECRETS_UNREADABLE_NOTICE =
+  "The console can no longer read this deployment's stored secrets, so this deployment can't be updated. Redeploy it and enter the secret values again. The current deployment keeps running until you close it.";
 
 type DeploymentUpdateSeed =
   | { kind: "resolving" }
@@ -53,6 +56,8 @@ export interface DeploymentUpdateProps {
   definition: DeploymentDefinition;
   onUpdated: () => void;
   onRedeploy?: () => void;
+  /** A redeploy that starts without the stored secrets, for when the console can no longer read them. */
+  onRedeployWithNewSecrets?: () => void;
   /** The raw editor, still the only way to update a deployment whose configuration the console holds no usable copy of. */
   fallback: ReactNode;
   dependencies?: typeof DEPENDENCIES;
@@ -66,6 +71,7 @@ export const DeploymentUpdate: FC<DeploymentUpdateProps> = ({
   definition,
   onUpdated,
   onRedeploy,
+  onRedeployWithNewSecrets,
   fallback,
   dependencies: d = DEPENDENCIES
 }) => {
@@ -78,13 +84,13 @@ export const DeploymentUpdate: FC<DeploymentUpdateProps> = ({
   latestSeed.current = seed;
   const heldVersion = useRef(baseline?.manifestVersion);
   heldVersion.current = baseline?.manifestVersion;
-  const form = useForm<SdlBuilderFormValuesType>({
+  const form = useForm<DeploymentUpdateFormValues>({
     defaultValues: baseline?.values,
     mode: "onTouched",
     resolver: zodResolver(DeploymentUpdateFormSchema)
   });
   const { isDirty } = form.formState;
-  const { submit, isUpdating, sdlRefusal } = d.useDeploymentUpdateSubmit({
+  const { submit, isUpdating, sdlRefusal, secretsUnreadable } = d.useDeploymentUpdateSubmit({
     dseq: deployment.dseq,
     manifestVersion: baseline?.manifestVersion,
     onUpdated: function takeTheLandedUpdateAsTheBaseline(update) {
@@ -183,6 +189,17 @@ export const DeploymentUpdate: FC<DeploymentUpdateProps> = ({
 
         {sdlRefusal && <Alert variant="destructive">{sdlRefusal}</Alert>}
 
+        {secretsUnreadable && !isClosed && (
+          <Alert variant="destructive" className="flex flex-wrap items-center justify-between gap-3">
+            <span>{SECRETS_UNREADABLE_NOTICE}</span>
+            {onRedeployWithNewSecrets && (
+              <Button type="button" variant="outline" size="sm" onClick={onRedeployWithNewSecrets}>
+                Redeploy and enter secrets
+              </Button>
+            )}
+          </Alert>
+        )}
+
         <div className="sticky bottom-0 flex flex-wrap items-center justify-end gap-2 border-t bg-muted/95 py-4 backdrop-blur">
           {isClosed ? (
             <>
@@ -198,7 +215,7 @@ export const DeploymentUpdate: FC<DeploymentUpdateProps> = ({
               <Button type="button" variant="outline" disabled={!isDirty || isUpdating || isReloading} onClick={() => form.reset(baseline.values)}>
                 Discard changes
               </Button>
-              <Button type="submit" disabled={!isDirty || isUpdating || isReloading}>
+              <Button type="submit" disabled={!isDirty || isUpdating || isReloading || secretsUnreadable}>
                 {isUpdating ? "Updating…" : "Update deployment"}
               </Button>
             </>
