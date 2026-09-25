@@ -1,13 +1,17 @@
 import { generateMock } from "@anatine/zod-mock";
 import { faker } from "@faker-js/faker";
+import type { INestApplication } from "@nestjs/common";
 import type { TestingModule } from "@nestjs/testing";
 import { Test } from "@nestjs/testing";
+import request from "supertest";
 import { Ok } from "ts-results";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, onTestFinished } from "vitest";
 import type { MockProxy } from "vitest-mock-extended";
 import { mock } from "vitest-mock-extended";
 
 import { LoggerService } from "@src/common/services/logger/logger.service";
+import { HttpExceptionFilter } from "@src/interfaces/rest/filters/http-exception/http-exception.filter";
+import { HttpResultInterceptor } from "@src/interfaces/rest/interceptors/http-result/http-result.interceptor";
 import { AuthService } from "@src/interfaces/rest/services/auth/auth.service";
 import { AlertRepository } from "@src/modules/alert/repositories/alert/alert.repository";
 import type { NotificationChannelOutput } from "@src/modules/notifications/repositories/notification-channel/notification-channel.repository";
@@ -119,6 +123,30 @@ describe(AlertController.name, () => {
       expect(alertRepository.updateById).toHaveBeenCalledWith(id, { conditions });
       expect(result).toEqual(Ok({ data: output }));
     });
+
+    it("answers 400 without updating the alert when the id is not a uuid", async () => {
+      const { app, alertRepository } = await setup();
+
+      const res = await request(app.getHttpServer())
+        .patch("/v1/alerts/..%2fhealth")
+        .send({ data: { enabled: false } });
+
+      expect(res.status).toBe(400);
+      expect(res.body.message).toBe("Validation failed (uuid is expected)");
+      expect(alertRepository.updateById).not.toHaveBeenCalled();
+    });
+
+    it("updates the alert by a uuid id and answers 404 when none matches", async () => {
+      const { app, alertRepository } = await setup();
+      const id = faker.string.uuid();
+
+      const res = await request(app.getHttpServer())
+        .patch(`/v1/alerts/${id}`)
+        .send({ data: { enabled: false } });
+
+      expect(res.status).toBe(404);
+      expect(alertRepository.updateById).toHaveBeenCalledWith(id, { enabled: false });
+    });
   });
 
   describe("getAlert", () => {
@@ -147,6 +175,26 @@ describe(AlertController.name, () => {
         err: true,
         val: expect.objectContaining({ message: "Alert not found" })
       });
+      expect(alertRepository.findOneById).toHaveBeenCalledWith(id);
+    });
+
+    it("answers 400 without reading the alert when the id is not a uuid", async () => {
+      const { app, alertRepository } = await setup();
+
+      const res = await request(app.getHttpServer()).get("/v1/alerts/..%2fhealth");
+
+      expect(res.status).toBe(400);
+      expect(res.body.message).toBe("Validation failed (uuid is expected)");
+      expect(alertRepository.findOneById).not.toHaveBeenCalled();
+    });
+
+    it("reads the alert by a uuid id and answers 404 when none matches", async () => {
+      const { app, alertRepository } = await setup();
+      const id = faker.string.uuid();
+
+      const res = await request(app.getHttpServer()).get(`/v1/alerts/${id}`);
+
+      expect(res.status).toBe(404);
       expect(alertRepository.findOneById).toHaveBeenCalledWith(id);
     });
   });
@@ -179,10 +227,31 @@ describe(AlertController.name, () => {
       });
       expect(alertRepository.deleteOneById).toHaveBeenCalledWith(id);
     });
+
+    it("answers 400 without deleting the alert when the id is not a uuid", async () => {
+      const { app, alertRepository } = await setup();
+
+      const res = await request(app.getHttpServer()).delete("/v1/alerts/..%2fhealth");
+
+      expect(res.status).toBe(400);
+      expect(res.body.message).toBe("Validation failed (uuid is expected)");
+      expect(alertRepository.deleteOneById).not.toHaveBeenCalled();
+    });
+
+    it("deletes the alert by a uuid id and answers 404 when none matches", async () => {
+      const { app, alertRepository } = await setup();
+      const id = faker.string.uuid();
+
+      const res = await request(app.getHttpServer()).delete(`/v1/alerts/${id}`);
+
+      expect(res.status).toBe(404);
+      expect(alertRepository.deleteOneById).toHaveBeenCalledWith(id);
+    });
   });
 
   async function setup(): Promise<{
     controller: AlertController;
+    app: INestApplication;
     alertRepository: MockProxy<AlertRepository>;
     notificationChannelRepository: MockProxy<NotificationChannelRepository>;
     userId: string;
@@ -210,8 +279,16 @@ describe(AlertController.name, () => {
     notificationChannelRepository.accessibleBy.mockReturnValue(notificationChannelRepository);
     notificationChannelRepository.findById.mockResolvedValue(mock<NotificationChannelOutput>());
 
+    const app = module.createNestApplication();
+    app.enableVersioning();
+    app.useGlobalInterceptors(new HttpResultInterceptor());
+    app.useGlobalFilters(new HttpExceptionFilter(module.get(LoggerService)));
+    await app.init();
+    onTestFinished(() => app.close());
+
     return {
       controller: module.get(AlertController),
+      app,
       userId,
       alertRepository,
       notificationChannelRepository

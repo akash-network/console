@@ -25,6 +25,25 @@ describe("Contact Points CRUD", () => {
     await app.close();
   });
 
+  it("answers 400 to notification channel ids that are not uuids", async () => {
+    const { app } = await setup();
+    const server = app.getHttpServer();
+    const userId = faker.string.uuid();
+
+    const responses = [
+      await request(server).get("/v1/notification-channels/..%2fhealth").set("x-user-id", userId),
+      await request(server)
+        .patch("/v1/notification-channels/..%2fhealth")
+        .set("x-user-id", userId)
+        .send({ data: { name: "renamed channel" } }),
+      await request(server).delete("/v1/notification-channels/..%2fhealth").set("x-user-id", userId)
+    ];
+
+    expect(responses.map(res => res.status)).toEqual([400, 400, 400]);
+
+    await app.close();
+  });
+
   async function shouldCreate(app: INestApplication): Promise<NotificationChannelMeta> {
     const input = generateMock(notificationChannelCreateInputSchema);
     const userId = faker.string.uuid();

@@ -38,6 +38,26 @@ describe("Alerts CRUD", () => {
     await app.close();
   });
 
+  it("answers 400 to alert ids that are not uuids", async () => {
+    const { app, userId } = await setup();
+    const server = app.getHttpServer();
+
+    const responses = [
+      await request(server).get("/v1/alerts/xyz").set("x-user-id", userId),
+      await request(server).get("/v1/alerts/..%2fhealth").set("x-user-id", userId),
+      await request(server).get("/v1/alerts/%2e%2e%2fhealth").set("x-user-id", userId),
+      await request(server)
+        .patch("/v1/alerts/..%2fhealth")
+        .set("x-user-id", userId)
+        .send({ data: { enabled: false } }),
+      await request(server).delete("/v1/alerts/..%2fhealth").set("x-user-id", userId)
+    ];
+
+    expect(responses.map(res => res.status)).toEqual([400, 400, 400, 400, 400]);
+
+    await app.close();
+  });
+
   async function prepareAlert(userId: string, notificationChannelId: string, app: INestApplication): Promise<AlertOutputMeta> {
     const repository = app.get(AlertRepository);
     const { params, ...input } = generateMock(chainMessageCreateInputSchema);

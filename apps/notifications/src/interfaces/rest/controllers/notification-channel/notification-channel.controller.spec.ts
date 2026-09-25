@@ -1,12 +1,16 @@
 import { generateMock } from "@anatine/zod-mock";
 import { faker } from "@faker-js/faker";
+import type { INestApplication } from "@nestjs/common";
 import type { TestingModule } from "@nestjs/testing";
 import { Test } from "@nestjs/testing";
+import request from "supertest";
 import { Ok } from "ts-results";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, onTestFinished } from "vitest";
 import type { MockProxy } from "vitest-mock-extended";
 
 import { LoggerService } from "@src/common/services/logger/logger.service";
+import { HttpExceptionFilter } from "@src/interfaces/rest/filters/http-exception/http-exception.filter";
+import { HttpResultInterceptor } from "@src/interfaces/rest/interceptors/http-result/http-result.interceptor";
 import { AuthService } from "@src/interfaces/rest/services/auth/auth.service";
 import { AlertRepository } from "@src/modules/alert/repositories/alert/alert.repository";
 import { NotificationChannelRepository } from "@src/modules/notifications/repositories/notification-channel/notification-channel.repository";
@@ -68,6 +72,30 @@ describe(NotificationChannelController.name, () => {
       });
       expect(notificationChannelRepository.updateById).toHaveBeenCalledWith(id, input);
     });
+
+    it("answers 400 without updating the notification channel when the id is not a uuid", async () => {
+      const { app, notificationChannelRepository } = await setup();
+
+      const res = await request(app.getHttpServer())
+        .patch("/v1/notification-channels/..%2fhealth")
+        .send({ data: { name: "renamed channel" } });
+
+      expect(res.status).toBe(400);
+      expect(res.body.message).toBe("Validation failed (uuid is expected)");
+      expect(notificationChannelRepository.updateById).not.toHaveBeenCalled();
+    });
+
+    it("updates the notification channel by a uuid id and answers 404 when none matches", async () => {
+      const { app, notificationChannelRepository } = await setup();
+      const id = faker.string.uuid();
+
+      const res = await request(app.getHttpServer())
+        .patch(`/v1/notification-channels/${id}`)
+        .send({ data: { name: "renamed channel" } });
+
+      expect(res.status).toBe(404);
+      expect(notificationChannelRepository.updateById).toHaveBeenCalledWith(id, { name: "renamed channel" });
+    });
   });
 
   describe("getNotificationChannel", () => {
@@ -96,6 +124,26 @@ describe(NotificationChannelController.name, () => {
           message: "Notification channel not found"
         })
       });
+      expect(notificationChannelRepository.findById).toHaveBeenCalledWith(id);
+    });
+
+    it("answers 400 without reading the notification channel when the id is not a uuid", async () => {
+      const { app, notificationChannelRepository } = await setup();
+
+      const res = await request(app.getHttpServer()).get("/v1/notification-channels/..%2fhealth");
+
+      expect(res.status).toBe(400);
+      expect(res.body.message).toBe("Validation failed (uuid is expected)");
+      expect(notificationChannelRepository.findById).not.toHaveBeenCalled();
+    });
+
+    it("reads the notification channel by a uuid id and answers 404 when none matches", async () => {
+      const { app, notificationChannelRepository } = await setup();
+      const id = faker.string.uuid();
+
+      const res = await request(app.getHttpServer()).get(`/v1/notification-channels/${id}`);
+
+      expect(res.status).toBe(404);
       expect(notificationChannelRepository.findById).toHaveBeenCalledWith(id);
     });
   });
@@ -144,6 +192,29 @@ describe(NotificationChannelController.name, () => {
       });
       expect(notificationChannelRepository.deleteSafelyById).not.toHaveBeenCalled();
     });
+
+    it("answers 400 without counting its alerts or deleting the notification channel when the id is not a uuid", async () => {
+      const { app, notificationChannelRepository, alertRepository } = await setup();
+
+      const res = await request(app.getHttpServer()).delete("/v1/notification-channels/..%2fhealth");
+
+      expect(res.status).toBe(400);
+      expect(res.body.message).toBe("Validation failed (uuid is expected)");
+      expect(alertRepository.countActiveByNotificationChannelId).not.toHaveBeenCalled();
+      expect(notificationChannelRepository.deleteSafelyById).not.toHaveBeenCalled();
+    });
+
+    it("deletes the notification channel by a uuid id and answers 404 when none matches", async () => {
+      const { app, notificationChannelRepository, alertRepository } = await setup();
+      const id = faker.string.uuid();
+      alertRepository.countActiveByNotificationChannelId.mockResolvedValue(0);
+
+      const res = await request(app.getHttpServer()).delete(`/v1/notification-channels/${id}`);
+
+      expect(res.status).toBe(404);
+      expect(alertRepository.countActiveByNotificationChannelId).toHaveBeenCalledWith(id);
+      expect(notificationChannelRepository.deleteSafelyById).toHaveBeenCalledWith(id);
+    });
   });
 
   describe("createDefaultNotificationChannel", () => {
@@ -162,6 +233,7 @@ describe(NotificationChannelController.name, () => {
 
   async function setup(): Promise<{
     controller: NotificationChannelController;
+    app: INestApplication;
     notificationChannelRepository: MockProxy<NotificationChannelRepository>;
     alertRepository: MockProxy<AlertRepository>;
     userId: string;
@@ -185,8 +257,16 @@ describe(NotificationChannelController.name, () => {
     const notificationChannelRepository = module.get<MockProxy<NotificationChannelRepository>>(NotificationChannelRepository);
     notificationChannelRepository.accessibleBy.mockReturnValue(notificationChannelRepository);
 
+    const app = module.createNestApplication();
+    app.enableVersioning();
+    app.useGlobalInterceptors(new HttpResultInterceptor());
+    app.useGlobalFilters(new HttpExceptionFilter(module.get(LoggerService)));
+    await app.init();
+    onTestFinished(() => app.close());
+
     return {
       controller: module.get(NotificationChannelController),
+      app,
       notificationChannelRepository,
       alertRepository: module.get<MockProxy<AlertRepository>>(AlertRepository),
       userId
