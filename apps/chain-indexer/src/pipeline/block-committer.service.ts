@@ -1,5 +1,4 @@
 import { and, between, inArray, isNull, sql } from "drizzle-orm";
-import chunk from "lodash/chunk";
 import { inject, singleton } from "tsyringe";
 
 import type { AkashBlockChanges } from "@src/akash/akash-changes";
@@ -12,10 +11,8 @@ import { ActMigrationService } from "@src/bme/act-migration.service";
 import type { BmeBlockChanges } from "@src/bme/bme-deriver";
 import { collectBmeAddresses, deriveBmeChanges } from "@src/bme/bme-deriver";
 import { BmeWriter } from "@src/bme/bme-writer.service";
-import { INSERT_CHUNK_SIZE } from "@src/db/insert-chunk-size";
-import { insertChunked } from "@src/db/insert-chunked";
-import { AccountTxs, Blocks, IndexerState, MessageDeadLetters, Messages, MessageTypes, Transactions } from "@src/db/schema";
-import { sqlExcluded } from "@src/db/sql-excluded";
+import { BulkInserter } from "@src/db/bulk-inserter.service";
+import { AccountTxs, Blocks, MessageDeadLetters, Messages, MessageTypes, Transactions } from "@src/db/schema";
 import { GovWriter } from "@src/gov/gov-writer.service";
 import { NetworkStatsWriter } from "@src/network/network-stats-writer.service";
 import { AccountInterner, requireAccountId } from "@src/pipeline/balance/account-interner.service";
@@ -26,6 +23,7 @@ import { deriveBalanceChanges } from "@src/pipeline/balance/balance-deriver";
 import type { ResolvedBalanceChange } from "@src/pipeline/balance/balance-writer.service";
 import { BalanceWriter } from "@src/pipeline/balance/balance-writer.service";
 import { buildModuleAddressRegistry } from "@src/pipeline/balance/module-address-registry";
+import { advanceCheckpoint } from "@src/pipeline/checkpoint";
 import type { DecodedBlock, MessageDecodeFailure } from "@src/pipeline/decoded-block";
 import type { ChainDatabase, ChainTransaction } from "@src/providers/db.provider";
 import { CHAIN_DB } from "@src/providers/db.provider";
@@ -50,6 +48,7 @@ function messageCoordKey(row: { height: number; txIndex: number; index: number }
 @singleton()
 export class BlockCommitterService {
   readonly #db: ChainDatabase;
+  readonly #bulkInserter: BulkInserter;
   readonly #interner: AccountInterner;
   readonly #balanceWriter: BalanceWriter;
   readonly #govWriter: GovWriter;
@@ -64,6 +63,7 @@ export class BlockCommitterService {
 
   constructor(
     @inject(CHAIN_DB) db: ChainDatabase,
+    @inject(BulkInserter) bulkInserter: BulkInserter,
     @inject(AccountInterner) interner: AccountInterner,
     @inject(BalanceWriter) balanceWriter: BalanceWriter,
     @inject(GovWriter) govWriter: GovWriter,
@@ -75,6 +75,7 @@ export class BlockCommitterService {
     @inject(LoggerService) logger: LoggerService
   ) {
     this.#db = db;
+    this.#bulkInserter = bulkInserter;
     this.#interner = interner;
     this.#balanceWriter = balanceWriter;
     this.#govWriter = govWriter;
@@ -170,13 +171,13 @@ export class BlockCommitterService {
     const lastHeight = blocks[blocks.length - 1].height;
 
     const { persistedDeadLetters, migrationOutcome } = await this.#db.transaction(async tx => {
-      await insertChunked(tx, Blocks, blockRows);
-      await insertChunked(tx, Transactions, transactionRows);
+      await this.#bulkInserter.insert(tx, Blocks, blockRows);
+      await this.#bulkInserter.insert(tx, Transactions, transactionRows);
       await this.#upsertMessages(tx, messageRows);
       const persisted = await this.#replaceDeadLetters(tx, blocks[0].height, lastHeight, deadLetteredMessages, typeIds);
 
       await this.#balanceWriter.write(tx, balanceIntents);
-      await insertChunked(tx, AccountTxs, accountTxRows);
+      await this.#bulkInserter.insert(tx, AccountTxs, accountTxRows);
       await this.#govWriter.writeForBlocks(tx, blocks, accountIds);
       const { networkDeltas } = await this.#akashWriter.write(tx, akashChanges, accountIds);
       await this.#providerWriter.write(tx, akashChanges, accountIds);
@@ -185,13 +186,7 @@ export class BlockCommitterService {
 
       const outcome = await this.#actMigration.applySegment(tx, segment);
 
-      await tx
-        .insert(IndexerState)
-        .values({ stream: options.stream, lastHeight, updatedAt: new Date() })
-        .onConflictDoUpdate({
-          target: IndexerState.stream,
-          set: { lastHeight: sql`GREATEST(${IndexerState.lastHeight}, EXCLUDED.last_height)`, updatedAt: new Date() }
-        });
+      await advanceCheckpoint(tx, options.stream, lastHeight);
 
       return { persistedDeadLetters: persisted, migrationOutcome: outcome };
     });
@@ -241,7 +236,7 @@ export class BlockCommitterService {
     const nullKeys = new Set(nullBodies.map(row => messageCoordKey(row)));
     const persisted = deadLetteredMessages.filter(message => nullKeys.has(messageCoordKey(message)));
 
-    await insertChunked(
+    await this.#bulkInserter.insert(
       tx,
       MessageDeadLetters,
       persisted.map(message => ({
@@ -263,16 +258,9 @@ export class BlockCommitterService {
    * while normal re-commits stay write-free.
    */
   async #upsertMessages(tx: ChainTransaction, rows: (typeof Messages.$inferInsert)[]): Promise<void> {
-    for (const rowChunk of chunk(rows, INSERT_CHUNK_SIZE)) {
-      await tx
-        .insert(Messages)
-        .values(rowChunk)
-        .onConflictDoUpdate({
-          target: [Messages.height, Messages.txIndex, Messages.index],
-          set: { body: sqlExcluded("body") },
-          setWhere: sql`${Messages.body} IS NULL AND excluded.body IS NOT NULL`
-        });
-    }
+    await this.#bulkInserter.insert(tx, Messages, rows, {
+      onConflict: sql`ON CONFLICT (height, tx_index, index) DO UPDATE SET body = excluded.body WHERE ${Messages.body} IS NULL AND excluded.body IS NOT NULL`
+    });
   }
 
   /** The checkpoint advances to the batch's last height, which is only correct when the batch has no gaps or reordering. */

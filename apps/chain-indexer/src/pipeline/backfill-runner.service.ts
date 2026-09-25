@@ -2,14 +2,19 @@ import { eq } from "drizzle-orm";
 import { inject, singleton } from "tsyringe";
 
 import { ArchiveBlockSource } from "@src/archive/archive-block-source";
+import type { RawBlockRecord } from "@src/archive/archive-layout";
+import { CHUNK_SIZE } from "@src/archive/archive-layout";
 import { BlockArchiveService } from "@src/archive/block-archive.service";
 import type { EnvConfig } from "@src/config/env.config";
+import { DeferredIndexService } from "@src/db/deferred-index.service";
 import { Blocks, IndexerState } from "@src/db/schema";
+import { GenesisImportService } from "@src/genesis/genesis-import.service";
 import { retryWithBackoff } from "@src/lib/retry-with-backoff/retry-with-backoff";
 import { planBackfill } from "@src/pipeline/backfill-planner";
 import { BlockCommitterService } from "@src/pipeline/block-committer.service";
 import { BlockDecoderService } from "@src/pipeline/block-decoder.service";
 import { ChainContinuityError } from "@src/pipeline/chain-continuity-error";
+import { advanceCheckpoint } from "@src/pipeline/checkpoint";
 import type { DecodedBlock } from "@src/pipeline/decoded-block";
 import { RunnerInterruptedError } from "@src/pipeline/runner-interrupted-error";
 import { retryTransient } from "@src/pipeline/transient-retry";
@@ -22,6 +27,12 @@ import { RpcClientPool } from "@src/rpc/rpc-client-pool.service";
 const FETCH_RETRY_MAX_ATTEMPTS = 5;
 const FETCH_RETRY_BASE_MS = 1_000;
 
+interface BackfillProgress {
+  blocksCommitted: number;
+  transactionsCommitted: number;
+  lastCommittedHeight: number;
+}
+
 @singleton()
 export class BackfillRunnerService {
   readonly #db: ChainDatabase;
@@ -29,6 +40,8 @@ export class BackfillRunnerService {
   readonly #decoder: BlockDecoderService;
   readonly #committer: BlockCommitterService;
   readonly #archive: BlockArchiveService;
+  readonly #deferredIndexes: DeferredIndexService;
+  readonly #genesisImport: GenesisImportService;
   readonly #config: EnvConfig;
   readonly #logger: LoggerService;
 
@@ -41,6 +54,8 @@ export class BackfillRunnerService {
     @inject(BlockDecoderService) decoder: BlockDecoderService,
     @inject(BlockCommitterService) committer: BlockCommitterService,
     @inject(BlockArchiveService) archive: BlockArchiveService,
+    @inject(DeferredIndexService) deferredIndexes: DeferredIndexService,
+    @inject(GenesisImportService) genesisImport: GenesisImportService,
     @inject(APP_CONFIG) config: EnvConfig,
     @inject(LoggerService) logger: LoggerService
   ) {
@@ -49,6 +64,8 @@ export class BackfillRunnerService {
     this.#decoder = decoder;
     this.#committer = committer;
     this.#archive = archive;
+    this.#deferredIndexes = deferredIndexes;
+    this.#genesisImport = genesisImport;
     this.#config = config;
     this.#logger = logger;
     this.#logger.setContext("BACKFILL");
@@ -82,8 +99,12 @@ export class BackfillRunnerService {
       throw new Error("BACKFILL_FROM_HEIGHT and BACKFILL_TO_HEIGHT are required for the backfill role");
     }
 
-    const stream = `backfill:${fromHeight}-${toHeight}`;
+    const archiveOnly = this.#config.BACKFILL_ARCHIVE_ONLY;
+    const stream = `${archiveOnly ? "archive" : "backfill"}:${fromHeight}-${toHeight}`;
     const replay = this.#config.BACKFILL_REPLAY;
+    if (!archiveOnly) {
+      await this.#applyIndexDeferral();
+    }
     const [checkpointHeight, tipHeight] = await Promise.all([
       this.#retryTransient(() => this.#getCheckpointHeight(stream), { event: "BACKFILL_CHECKPOINT_READ_RETRY" }),
       this.#retryTransient(() => this.#pool.getTipHeight(), { event: "BACKFILL_TIP_FETCH_RETRY" })
@@ -100,10 +121,6 @@ export class BackfillRunnerService {
       return true;
     }
 
-    await this.#seedContinuityHash(plan.startHeight, !replay && checkpointHeight !== null);
-    this.#logger.info({ event: "BACKFILL_STARTED", network: this.#config.NETWORK, stream, startHeight: plan.startHeight, endHeight: plan.endHeight, replay });
-    this.#archive.logState();
-
     const source = new ArchiveBlockSource({
       archive: this.#archive,
       pool: this.#pool,
@@ -112,15 +129,102 @@ export class BackfillRunnerService {
       endHeight: plan.endHeight
     });
 
+    if (archiveOnly) {
+      this.#logger.info({ event: "ARCHIVE_BUILD_STARTED", network: this.#config.NETWORK, stream, startHeight: plan.startHeight, endHeight: plan.endHeight });
+      this.#archive.logState();
+      return await this.#archiveRange(plan.startHeight, plan.endHeight, stream, source);
+    }
+
+    if (this.#config.GENESIS_IMPORT && checkpointHeight === null) {
+      await this.#genesisImport.ensureSeeded(fromHeight);
+    }
+    await this.#seedContinuityHash(plan.startHeight, !replay && checkpointHeight !== null);
+    this.#logger.info({ event: "BACKFILL_STARTED", network: this.#config.NETWORK, stream, startHeight: plan.startHeight, endHeight: plan.endHeight, replay });
+    this.#archive.logState();
+
     return await this.#backfillRange(plan.startHeight, plan.endHeight, stream, source);
   }
 
   /**
-   * Fetches up to BACKFILL_CONCURRENCY blocks in parallel while consuming heights strictly in
-   * order, so batches handed to the committer are contiguous and ordered by construction.
-   * Prefetched promises get a no-op catch at insertion: a rejection settling before the loop
-   * reaches its height would otherwise crash the process as an unhandled rejection; the real
-   * rejection still surfaces when the loop awaits that height.
+   * Fetches raw blocks into the archive without decoding or committing them, so several Jobs over
+   * disjoint ranges can build the archive in parallel against different RPC nodes before one ordered
+   * backfill fills the database from it. The checkpoint advances only at chunk boundaries (and the
+   * range end), where the source has flushed every block it handed out, so a crash can never leave a
+   * checkpointed height that was only buffered. Only the raw parent-hash chain is verified here; the
+   * archive-fed backfill re-verifies every decoded block.
+   */
+  async #archiveRange(startHeight: number, endHeight: number, stream: string, source: ArchiveBlockSource): Promise<boolean> {
+    const startedAt = Date.now();
+    const inflight = new Map<number, Promise<RawBlockRecord>>();
+    let fetchHead = startHeight;
+    let lastCheckpointedHeight = startHeight - 1;
+    let lastRawHash: string | null = null;
+
+    const fillFetchWindow = () => {
+      while (fetchHead <= endHeight && inflight.size < this.#config.BACKFILL_CONCURRENCY) {
+        const height = fetchHead;
+        const prefetched = this.#fetchRecord(height, source);
+        prefetched.catch(() => undefined);
+        inflight.set(height, prefetched);
+        fetchHead++;
+      }
+    };
+
+    try {
+      for (let height = startHeight; height <= endHeight && !this.#stopped; height++) {
+        fillFetchWindow();
+        const record = await inflight.get(height)!;
+        inflight.delete(height);
+
+        this.#verifyRawContinuity(record, lastRawHash);
+        lastRawHash = record.block.block_id.hash;
+        fillFetchWindow();
+
+        if (height % CHUNK_SIZE === CHUNK_SIZE - 1 || height === endHeight) {
+          await this.#retryTransient(() => advanceCheckpoint(this.#db, stream, height), { event: "ARCHIVE_CHECKPOINT_RETRY", height });
+          lastCheckpointedHeight = height;
+          this.#logger.info({ event: "ARCHIVE_BUILD_PROGRESS", height, endHeight });
+        }
+      }
+    } finally {
+      await Promise.allSettled([...inflight.values()]);
+    }
+
+    if (lastCheckpointedHeight < endHeight) {
+      return false;
+    }
+
+    const blocksArchived = endHeight - startHeight + 1;
+    const durationMs = Date.now() - startedAt;
+    this.#logger.info({
+      event: "ARCHIVE_BUILD_COMPLETED",
+      stream,
+      startHeight,
+      endHeight,
+      blocksArchived,
+      durationMs,
+      blocksPerSecond: durationMs > 0 ? Math.round((blocksArchived / durationMs) * 1_000 * 100) / 100 : blocksArchived
+    });
+
+    return true;
+  }
+
+  #verifyRawContinuity(record: RawBlockRecord, lastRawHash: string | null): void {
+    const parentHash = record.block.block.header.last_block_id?.hash;
+
+    if (lastRawHash && parentHash && parentHash.toLowerCase() !== lastRawHash.toLowerCase()) {
+      this.#logger.error({ event: "ARCHIVE_CONTINUITY_BROKEN", height: record.height, expectedParentHash: lastRawHash, actualParentHash: parentHash });
+      throw new ChainContinuityError(`Parent hash mismatch at height ${record.height}; halting backfill`);
+    }
+  }
+
+  /**
+   * Two-stage pipeline: up to BACKFILL_CONCURRENCY blocks are fetched and decoded in parallel while
+   * heights are consumed strictly in order, and each full batch commits detached so the next batch
+   * is assembled while it lands. At most one commit is in flight, since batch N+1's writes depend on
+   * batch N being committed. Prefetch and commit promises get a no-op catch at creation: a rejection
+   * settling before the loop awaits it would otherwise crash the process as an unhandled rejection;
+   * the real rejection still surfaces when the loop awaits it.
    *
    * Returns whether the whole range committed. Completion is tracked by the last committed height
    * rather than the stopped flag, so a shutdown landing during the final commit still reports the
@@ -129,11 +233,11 @@ export class BackfillRunnerService {
   async #backfillRange(startHeight: number, endHeight: number, stream: string, source: ArchiveBlockSource): Promise<boolean> {
     const startedAt = Date.now();
     const inflight = new Map<number, Promise<DecodedBlock>>();
+    const progress: BackfillProgress = { blocksCommitted: 0, transactionsCommitted: 0, lastCommittedHeight: startHeight - 1 };
     let fetchHead = startHeight;
-    let blocksCommitted = 0;
-    let transactionsCommitted = 0;
-    let lastCommittedHeight = startHeight - 1;
     let batch: DecodedBlock[] = [];
+    let pendingCommit: Promise<void> | null = null;
+    let commitFailed = false;
 
     const fillFetchWindow = () => {
       while (fetchHead <= endHeight && inflight.size < this.#config.BACKFILL_CONCURRENCY) {
@@ -145,8 +249,16 @@ export class BackfillRunnerService {
       }
     };
 
+    const commitDetached = (blocks: DecodedBlock[]) => {
+      const commit = this.#commitBatch(blocks, endHeight, stream, progress);
+      commit.catch(() => {
+        commitFailed = true;
+      });
+      return commit;
+    };
+
     try {
-      for (let height = startHeight; height <= endHeight && !this.#stopped; height++) {
+      for (let height = startHeight; height <= endHeight && !this.#stopped && !commitFailed; height++) {
         fillFetchWindow();
         const decoded = await inflight.get(height)!;
         inflight.delete(height);
@@ -157,20 +269,22 @@ export class BackfillRunnerService {
         fillFetchWindow();
 
         if (batch.length >= this.#config.BACKFILL_BATCH_SIZE || height === endHeight) {
-          const currentBatch = batch;
-          await this.#retryTransient(() => this.#committer.commitBatch(currentBatch, { stream }), { event: "BACKFILL_COMMIT_RETRY", height });
-          blocksCommitted += batch.length;
-          transactionsCommitted += batch.reduce((sum, block) => sum + block.transactions.length, 0);
-          lastCommittedHeight = height;
+          if (pendingCommit) {
+            await pendingCommit;
+          }
+          pendingCommit = commitDetached(batch);
           batch = [];
-          this.#logger.info({ event: "BACKFILL_PROGRESS", height, endHeight, blocksCommitted });
         }
       }
+
+      if (pendingCommit) {
+        await pendingCommit;
+      }
     } finally {
-      await Promise.allSettled([...inflight.values()]);
+      await Promise.allSettled([...inflight.values(), pendingCommit]);
     }
 
-    if (lastCommittedHeight < endHeight) {
+    if (progress.lastCommittedHeight < endHeight) {
       return false;
     }
 
@@ -180,13 +294,31 @@ export class BackfillRunnerService {
       stream,
       startHeight,
       endHeight,
-      blocksCommitted,
-      transactionsCommitted,
+      blocksCommitted: progress.blocksCommitted,
+      transactionsCommitted: progress.transactionsCommitted,
       durationMs,
-      blocksPerSecond: durationMs > 0 ? Math.round((blocksCommitted / durationMs) * 1_000 * 100) / 100 : blocksCommitted
+      blocksPerSecond: durationMs > 0 ? Math.round((progress.blocksCommitted / durationMs) * 1_000 * 100) / 100 : progress.blocksCommitted
     });
 
     return true;
+  }
+
+  async #commitBatch(blocks: DecodedBlock[], endHeight: number, stream: string, progress: BackfillProgress): Promise<void> {
+    const height = blocks[blocks.length - 1].height;
+    await this.#retryTransient(() => this.#committer.commitBatch(blocks, { stream }), { event: "BACKFILL_COMMIT_RETRY", height });
+    progress.blocksCommitted += blocks.length;
+    progress.transactionsCommitted += blocks.reduce((sum, block) => sum + block.transactions.length, 0);
+    progress.lastCommittedHeight = height;
+    this.#logger.info({ event: "BACKFILL_PROGRESS", height, endHeight, blocksCommitted: progress.blocksCommitted });
+  }
+
+  /** A run with the flag drops (or keeps dropped) the deferrable indexes; a run without it rebuilds whatever an earlier run left deferred, so a heavy multi-range backfill pays for the indexes once. */
+  async #applyIndexDeferral(): Promise<void> {
+    if (this.#config.BACKFILL_DEFER_INDEXES) {
+      await this.#deferredIndexes.defer();
+      return;
+    }
+    await this.#deferredIndexes.restore();
   }
 
   /** Retriable steps (checkpoint reads, tip fetches, idempotent batch commits) survive transient blips instead of failing the whole multi-hour Job; fatal errors propagate. */
@@ -194,20 +326,19 @@ export class BackfillRunnerService {
     return await retryTransient(operation, { isStopped: () => this.#stopped, logger: this.#logger, logContext });
   }
 
-  /** A pool AggregateError means every RPC endpoint already failed once, so retries back off before another full sweep. */
   async #fetchAndDecode(height: number, source: ArchiveBlockSource): Promise<DecodedBlock> {
-    return await retryWithBackoff(
-      async () => {
-        const record = await source.getRecord(height);
-        return this.#decoder.decode(record.block, record.block_results);
-      },
-      {
-        maxAttempts: FETCH_RETRY_MAX_ATTEMPTS,
-        baseDelayMs: FETCH_RETRY_BASE_MS,
-        shouldRethrow: () => this.#stopped,
-        onRetry: (error, attempt, delayMs) => this.#logger.warn({ event: "BACKFILL_FETCH_RETRY", height, attempt, delayMs, error })
-      }
-    );
+    const record = await this.#fetchRecord(height, source);
+    return this.#decoder.decode(record.block, record.block_results);
+  }
+
+  /** A pool AggregateError means every RPC endpoint already failed once, so retries back off before another full sweep. */
+  async #fetchRecord(height: number, source: ArchiveBlockSource): Promise<RawBlockRecord> {
+    return await retryWithBackoff(() => source.getRecord(height), {
+      maxAttempts: FETCH_RETRY_MAX_ATTEMPTS,
+      baseDelayMs: FETCH_RETRY_BASE_MS,
+      shouldRethrow: () => this.#stopped,
+      onRetry: (error, attempt, delayMs) => this.#logger.warn({ event: "BACKFILL_FETCH_RETRY", height, attempt, delayMs, error })
+    });
   }
 
   #verifyContinuity(block: DecodedBlock): void {

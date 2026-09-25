@@ -1,7 +1,8 @@
 import { and, desc, inArray, lt, sql } from "drizzle-orm";
 import chunk from "lodash/chunk";
-import { singleton } from "tsyringe";
+import { inject, singleton } from "tsyringe";
 
+import { BulkInserter } from "@src/db/bulk-inserter.service";
 import { INSERT_CHUNK_SIZE } from "@src/db/insert-chunk-size";
 import { AccountBalances, BalanceChanges } from "@src/db/schema";
 import type { BalanceReason } from "@src/pipeline/balance/reason-classifier";
@@ -19,6 +20,12 @@ export interface ResolvedBalanceChange {
   eventIndex: number;
 }
 
+type InsertedChange = {
+  accountId: number;
+  denom: string;
+  delta: string;
+};
+
 const keyOf = (accountId: number, denom: string) => `${accountId}:${denom}`;
 
 /**
@@ -31,6 +38,12 @@ const keyOf = (accountId: number, denom: string) => `${accountId}:${denom}`;
  */
 @singleton()
 export class BalanceWriter {
+  readonly #bulkInserter: BulkInserter;
+
+  constructor(@inject(BulkInserter) bulkInserter: BulkInserter) {
+    this.#bulkInserter = bulkInserter;
+  }
+
   async write(tx: ChainTransaction, intents: ResolvedBalanceChange[]): Promise<void> {
     if (intents.length === 0) {
       return;
@@ -104,26 +117,14 @@ export class BalanceWriter {
     });
   }
 
-  async #insertChanges(
-    tx: ChainTransaction,
-    changeRows: (typeof BalanceChanges.$inferInsert)[]
-  ): Promise<{ accountId: number; denom: string; delta: string }[]> {
-    const inserted: { accountId: number; denom: string; delta: string }[] = [];
-
-    for (const rowChunk of chunk(changeRows, INSERT_CHUNK_SIZE)) {
-      const returned = await tx
-        .insert(BalanceChanges)
-        .values(rowChunk)
-        .onConflictDoNothing()
-        .returning({ accountId: BalanceChanges.accountId, denom: BalanceChanges.denom, delta: BalanceChanges.delta });
-      inserted.push(...returned);
-    }
-
-    return inserted;
+  async #insertChanges(tx: ChainTransaction, changeRows: (typeof BalanceChanges.$inferInsert)[]): Promise<InsertedChange[]> {
+    return await this.#bulkInserter.insert<typeof BalanceChanges, InsertedChange>(tx, BalanceChanges, changeRows, {
+      returning: sql`account_id AS "accountId", denom, delta`
+    });
   }
 
   /** Advances the current balance only by the rows actually inserted, summed per account+denom, so overlapping writers apply each delta exactly once. */
-  async #applyNetDeltas(tx: ChainTransaction, inserted: { accountId: number; denom: string; delta: string }[]): Promise<void> {
+  async #applyNetDeltas(tx: ChainTransaction, inserted: InsertedChange[]): Promise<void> {
     const netByKey = new Map<string, { accountId: number; denom: string; amount: bigint }>();
     for (const row of inserted) {
       const key = keyOf(row.accountId, row.denom);
@@ -139,14 +140,8 @@ export class BalanceWriter {
       .sort((a, b) => a.accountId - b.accountId || a.denom.localeCompare(b.denom))
       .map(entry => ({ accountId: entry.accountId, denom: entry.denom, amount: entry.amount.toString() }));
 
-    for (const rowChunk of chunk(balanceRows, INSERT_CHUNK_SIZE)) {
-      await tx
-        .insert(AccountBalances)
-        .values(rowChunk)
-        .onConflictDoUpdate({
-          target: [AccountBalances.accountId, AccountBalances.denom],
-          set: { amount: sql`${AccountBalances.amount} + EXCLUDED.amount` }
-        });
-    }
+    await this.#bulkInserter.insert(tx, AccountBalances, balanceRows, {
+      onConflict: sql`ON CONFLICT (account_id, denom) DO UPDATE SET amount = ${AccountBalances.amount} + EXCLUDED.amount`
+    });
   }
 }

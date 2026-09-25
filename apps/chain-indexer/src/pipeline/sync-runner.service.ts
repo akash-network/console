@@ -5,6 +5,7 @@ import { inject, singleton } from "tsyringe";
 import { fetchRawBlock } from "@src/archive/archive-layout";
 import { BlockArchiveService } from "@src/archive/block-archive.service";
 import type { EnvConfig } from "@src/config/env.config";
+import { DeferredIndexService } from "@src/db/deferred-index.service";
 import { Blocks, IndexerState } from "@src/db/schema";
 import { GenesisImportService } from "@src/genesis/genesis-import.service";
 import { BlockCommitterService, SYNC_STREAM } from "@src/pipeline/block-committer.service";
@@ -30,6 +31,7 @@ export class SyncRunnerService {
   readonly #archive: BlockArchiveService;
   readonly #genesisImport: GenesisImportService;
   readonly #stakingSnapshot: StakingSnapshotService;
+  readonly #deferredIndexes: DeferredIndexService;
   readonly #config: EnvConfig;
   readonly #logger: LoggerService;
 
@@ -45,6 +47,7 @@ export class SyncRunnerService {
     @inject(BlockArchiveService) archive: BlockArchiveService,
     @inject(GenesisImportService) genesisImport: GenesisImportService,
     @inject(StakingSnapshotService) stakingSnapshot: StakingSnapshotService,
+    @inject(DeferredIndexService) deferredIndexes: DeferredIndexService,
     @inject(APP_CONFIG) config: EnvConfig,
     @inject(LoggerService) logger: LoggerService
   ) {
@@ -55,6 +58,7 @@ export class SyncRunnerService {
     this.#archive = archive;
     this.#genesisImport = genesisImport;
     this.#stakingSnapshot = stakingSnapshot;
+    this.#deferredIndexes = deferredIndexes;
     this.#config = config;
     this.#logger = logger;
     this.#logger.setContext("SYNC");
@@ -77,6 +81,7 @@ export class SyncRunnerService {
   }
 
   async #run(): Promise<void> {
+    await this.#deferredIndexes.restore();
     const { height, resumed } = await this.#resolveStartHeight();
 
     if (this.#config.GENESIS_IMPORT) {
@@ -186,20 +191,22 @@ export class SyncRunnerService {
     }
   }
 
-  /** `resumed` distinguishes continuing from an existing sync checkpoint from a fresh forward start, which gates whether the one-time genesis seed runs. */
+  /**
+   * `resumed` distinguishes continuing from an existing sync checkpoint from a fresh forward start, which
+   * gates whether the one-time genesis seed runs. Either way the parent-hash chain is seeded from the block
+   * just below the start when the database has it, so a sync taking over from a backfill verifies its
+   * first block against the backfill's last one.
+   */
   async #resolveStartHeight(): Promise<{ height: number; resumed: boolean }> {
     const [state] = await this.#db.select().from(IndexerState).where(eq(IndexerState.stream, SYNC_STREAM));
+    const height = state ? state.lastHeight + 1 : this.#config.SYNC_START_HEIGHT ?? (await this.#pool.getTipHeight());
 
-    if (state) {
-      const [checkpointBlock] = await this.#db.select().from(Blocks).where(eq(Blocks.height, state.lastHeight));
-      this.#lastHash = checkpointBlock?.hash ?? null;
-      return { height: state.lastHeight + 1, resumed: true };
-    }
+    const [previousBlock] = await this.#db
+      .select()
+      .from(Blocks)
+      .where(eq(Blocks.height, height - 1));
+    this.#lastHash = previousBlock?.hash ?? null;
 
-    if (this.#config.SYNC_START_HEIGHT) {
-      return { height: this.#config.SYNC_START_HEIGHT, resumed: false };
-    }
-
-    return { height: await this.#pool.getTipHeight(), resumed: false };
+    return { height, resumed: state !== undefined };
   }
 }

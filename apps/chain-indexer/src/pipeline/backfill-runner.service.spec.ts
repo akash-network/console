@@ -5,7 +5,10 @@ import { mock } from "vitest-mock-extended";
 import type { RawBlockRecord } from "@src/archive/archive-layout";
 import type { BlockArchiveService } from "@src/archive/block-archive.service";
 import { envSchema } from "@src/config/env.config";
+import type { DeferredIndexService } from "@src/db/deferred-index.service";
 import { Blocks, IndexerState } from "@src/db/schema";
+import type { GenesisImportService } from "@src/genesis/genesis-import.service";
+import { GenesisMidChainError } from "@src/genesis/genesis-mid-chain-error";
 import { BackfillRunnerService } from "@src/pipeline/backfill-runner.service";
 import type { BlockCommitterService } from "@src/pipeline/block-committer.service";
 import type { BlockDecoderService } from "@src/pipeline/block-decoder.service";
@@ -151,6 +154,188 @@ describe(BackfillRunnerService.name, () => {
     expect(logger.info).toHaveBeenCalledWith(expect.objectContaining({ event: "BACKFILL_COMPLETED" }));
   });
 
+  it("assembles the next batch while the previous batch is still committing", async () => {
+    const { runner, committer, pool } = setup({ fromHeight: 1, toHeight: 8, batchSize: 4, concurrency: 2 });
+    let releaseFirstCommit!: () => void;
+    committer.commitBatch.mockImplementationOnce(
+      () =>
+        new Promise<void>(resolve => {
+          releaseFirstCommit = resolve;
+        })
+    );
+
+    const started = runner.start();
+    await vi.waitFor(() => expect(pool.getBlock).toHaveBeenCalledWith(8));
+
+    expect(committer.commitBatch).toHaveBeenCalledTimes(1);
+    releaseFirstCommit();
+    await started;
+    expect(committedHeights(committer)).toEqual([
+      [1, 2, 3, 4],
+      [5, 6, 7, 8]
+    ]);
+  });
+
+  it("fails the run without committing later batches when a detached commit keeps failing", async () => {
+    vi.useFakeTimers();
+
+    try {
+      const { runner, committer, logger } = setup({ fromHeight: 1, toHeight: 12, batchSize: 4, concurrency: 2 });
+      committer.commitBatch.mockImplementation(async blocks => {
+        if (blocks[0].height === 1) {
+          throw new Error("db down");
+        }
+      });
+
+      const started = runner.start();
+      started.catch(() => undefined);
+      await vi.runAllTimersAsync();
+
+      await expect(started).rejects.toThrow("db down");
+      expect(committedHeights(committer).filter(heights => heights[0] !== 1)).toEqual([]);
+      expect(logger.info).not.toHaveBeenCalledWith(expect.objectContaining({ event: "BACKFILL_COMPLETED" }));
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  describe("when BACKFILL_DEFER_INDEXES is on", () => {
+    it("drops the deferrable indexes before the first commit and leaves them deferred at the end", async () => {
+      const { runner, committer, deferredIndexes } = setup({ fromHeight: 1, toHeight: 2, deferIndexes: true });
+      deferredIndexes.defer.mockResolvedValue(["transactions_hash_idx"]);
+
+      await runner.start();
+
+      expect(deferredIndexes.defer.mock.invocationCallOrder[0]).toBeLessThan(committer.commitBatch.mock.invocationCallOrder[0]);
+      expect(deferredIndexes.restore).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("when BACKFILL_DEFER_INDEXES is off", () => {
+    it("restores previously deferred indexes before the first commit", async () => {
+      const { runner, committer, deferredIndexes } = setup({ fromHeight: 1, toHeight: 2 });
+      deferredIndexes.restore.mockResolvedValue(["transactions_hash_idx"]);
+
+      await runner.start();
+
+      expect(deferredIndexes.restore.mock.invocationCallOrder[0]).toBeLessThan(committer.commitBatch.mock.invocationCallOrder[0]);
+      expect(deferredIndexes.defer).not.toHaveBeenCalled();
+    });
+
+    it("restores deferred indexes even when the range is already complete", async () => {
+      const { runner, deferredIndexes } = setup({ fromHeight: 1, toHeight: 5, checkpointHeight: 5 });
+
+      await runner.start();
+
+      expect(deferredIndexes.restore).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe("genesis import", () => {
+    it("seeds genesis at the range start before the first commit when enabled on a fresh run", async () => {
+      const { runner, committer, genesisImport } = setup({ fromHeight: 1, toHeight: 3, genesisImportEnabled: true });
+
+      await runner.start();
+
+      expect(genesisImport.ensureSeeded).toHaveBeenCalledWith(1);
+      expect(genesisImport.ensureSeeded.mock.invocationCallOrder[0]).toBeLessThan(committer.commitBatch.mock.invocationCallOrder[0]);
+    });
+
+    it("does not seed genesis when resuming from a checkpoint", async () => {
+      const { runner, genesisImport } = setup({
+        fromHeight: 1,
+        toHeight: 5,
+        checkpointHeight: 3,
+        seedBlock: { height: 3, hash: heightHash(3) },
+        genesisImportEnabled: true
+      });
+
+      await runner.start();
+
+      expect(genesisImport.ensureSeeded).not.toHaveBeenCalled();
+    });
+
+    it("does not seed genesis for an archive-only run", async () => {
+      const { runner, genesisImport } = setup({ fromHeight: 1, toHeight: 2, archiveEnabled: true, archiveOnly: true, genesisImportEnabled: true });
+
+      await runner.start();
+
+      expect(genesisImport.ensureSeeded).not.toHaveBeenCalled();
+    });
+
+    it("does not seed genesis when the import is disabled", async () => {
+      const { runner, genesisImport } = setup({ fromHeight: 1, toHeight: 2 });
+
+      await runner.start();
+
+      expect(genesisImport.ensureSeeded).not.toHaveBeenCalled();
+    });
+
+    it("halts before fetching when the genesis guard rejects the range start", async () => {
+      const { runner, pool, committer, genesisImport } = setup({ fromHeight: 500, toHeight: 502, genesisImportEnabled: true });
+      genesisImport.ensureSeeded.mockRejectedValue(new GenesisMidChainError("mid-chain"));
+
+      await expect(runner.start()).rejects.toBeInstanceOf(GenesisMidChainError);
+      expect(pool.getBlock).not.toHaveBeenCalled();
+      expect(committer.commitBatch).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("when BACKFILL_ARCHIVE_ONLY is on", () => {
+    it("archives the range from rpc without decoding or committing", async () => {
+      const { runner, committer, decoder, archive } = setup({ fromHeight: 1_000, toHeight: 1_999, tipHeight: 10_000, archiveEnabled: true, archiveOnly: true });
+
+      await runner.start();
+
+      expect(archive.putChunkIfAbsent).toHaveBeenCalledTimes(1);
+      expect(decoder.decode).not.toHaveBeenCalled();
+      expect(committer.commitBatch).not.toHaveBeenCalled();
+    });
+
+    it("checkpoints progress under the archive stream and reports completion", async () => {
+      const { runner, checkpointUpserts, logger } = setup({ fromHeight: 1_000, toHeight: 1_999, tipHeight: 10_000, archiveEnabled: true, archiveOnly: true });
+
+      await runner.start();
+
+      expect(checkpointUpserts.at(-1)).toEqual({ table: IndexerState, rows: expect.objectContaining({ stream: "archive:1000-1999", lastHeight: 1_999 }) });
+      expect(logger.info).toHaveBeenCalledWith(
+        expect.objectContaining({ event: "ARCHIVE_BUILD_COMPLETED", stream: "archive:1000-1999", blocksArchived: 1_000 })
+      );
+    });
+
+    it("resumes from the archive checkpoint without refetching archived heights", async () => {
+      const { runner, pool } = setup({
+        fromHeight: 1_000,
+        toHeight: 1_999,
+        tipHeight: 10_000,
+        archiveEnabled: true,
+        archiveOnly: true,
+        checkpointHeight: 1_499
+      });
+
+      await runner.start();
+
+      expect(pool.getBlock).not.toHaveBeenCalledWith(1_000);
+      expect(pool.getBlock).toHaveBeenCalledWith(1_500);
+    });
+
+    it("halts before checkpointing when the raw parent-hash chain breaks", async () => {
+      const { runner, checkpointUpserts } = setup({ fromHeight: 1, toHeight: 5, archiveEnabled: true, archiveOnly: true, brokenParentAtHeight: 3 });
+
+      await expect(runner.start()).rejects.toThrow("Parent hash mismatch at height 3; halting backfill");
+      expect(checkpointUpserts).toEqual([]);
+    });
+
+    it("neither defers nor restores indexes", async () => {
+      const { runner, deferredIndexes } = setup({ fromHeight: 1, toHeight: 2, archiveEnabled: true, archiveOnly: true, deferIndexes: true });
+
+      await runner.start();
+
+      expect(deferredIndexes.defer).not.toHaveBeenCalled();
+      expect(deferredIndexes.restore).not.toHaveBeenCalled();
+    });
+  });
+
   describe("when the archive is enabled", () => {
     it("serves an archived range without rpc fetches or archive writes", async () => {
       const { runner, committer, pool, archive } = setup({ fromHeight: 1_000, toHeight: 1_999, tipHeight: 10_000, archiveEnabled: true });
@@ -216,6 +401,9 @@ describe(BackfillRunnerService.name, () => {
     brokenParentAtHeight?: number;
     txCountPerBlock?: number;
     archiveEnabled?: boolean;
+    archiveOnly?: boolean;
+    deferIndexes?: boolean;
+    genesisImportEnabled?: boolean;
   }) {
     const config = envSchema.parse({
       POSTGRES_DB_URI: "postgres://unit:unit@localhost:5432/unit",
@@ -224,9 +412,13 @@ describe(BackfillRunnerService.name, () => {
       BACKFILL_TO_HEIGHT: String(input.toHeight),
       BACKFILL_BATCH_SIZE: String(input.batchSize ?? 200),
       BACKFILL_CONCURRENCY: String(input.concurrency ?? 10),
+      BACKFILL_DEFER_INDEXES: input.deferIndexes ? "true" : "false",
+      BACKFILL_ARCHIVE_ONLY: input.archiveOnly ? "true" : "false",
+      GENESIS_IMPORT: input.genesisImportEnabled ? "true" : "false",
       ARCHIVE_BUCKET: input.archiveEnabled ? "raw-blocks" : ""
     });
 
+    const checkpointUpserts: Array<{ table: unknown; rows: unknown }> = [];
     const dbFake = {
       select: () => ({
         from: (table: unknown) => ({
@@ -238,6 +430,14 @@ describe(BackfillRunnerService.name, () => {
               return Promise.resolve([input.seedBlock]);
             }
             return Promise.resolve([]);
+          }
+        })
+      }),
+      insert: (table: unknown) => ({
+        values: (rows: unknown) => ({
+          onConflictDoUpdate: () => {
+            checkpointUpserts.push({ table, rows });
+            return Promise.resolve();
           }
         })
       })
@@ -261,7 +461,11 @@ describe(BackfillRunnerService.name, () => {
         await delay(fetchDelayMs);
       }
       activeFetches--;
-      return { block: { header: { height: String(height) } } } as RpcBlockResult;
+      const parentHash = input.brokenParentAtHeight === height ? "deadbeef" : heightHash(height - 1).toString("hex");
+      return {
+        block_id: { hash: heightHash(height).toString("hex") },
+        block: { header: { height: String(height), last_block_id: { hash: parentHash } } }
+      } as RpcBlockResult;
     });
     pool.getBlockResults.mockResolvedValue({ height: "0", txs_results: null });
 
@@ -286,10 +490,36 @@ describe(BackfillRunnerService.name, () => {
     archive.deleteStagedBlocks.mockResolvedValue(undefined);
 
     const logger = mock<LoggerService>();
+    const deferredIndexes = mock<DeferredIndexService>();
+    deferredIndexes.defer.mockResolvedValue([]);
+    deferredIndexes.restore.mockResolvedValue([]);
+    const genesisImport = mock<GenesisImportService>();
+    genesisImport.ensureSeeded.mockResolvedValue(undefined);
 
-    const runner = new BackfillRunnerService(dbFake as unknown as ChainDatabase, pool, decoder, committer, archive, config, logger);
+    const runner = new BackfillRunnerService(
+      dbFake as unknown as ChainDatabase,
+      pool,
+      decoder,
+      committer,
+      archive,
+      deferredIndexes,
+      genesisImport,
+      config,
+      logger
+    );
 
-    return { runner, committer, pool, archive, logger, maxObservedConcurrency: () => maxActiveFetches };
+    return {
+      runner,
+      committer,
+      decoder,
+      pool,
+      archive,
+      deferredIndexes,
+      genesisImport,
+      logger,
+      checkpointUpserts,
+      maxObservedConcurrency: () => maxActiveFetches
+    };
   }
 
   function committedHeights(committer: { commitBatch: { mock: { calls: unknown[][] } } }) {

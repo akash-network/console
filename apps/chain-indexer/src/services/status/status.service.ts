@@ -2,6 +2,7 @@ import { count, eq } from "drizzle-orm";
 import { inject, singleton } from "tsyringe";
 
 import type { EnvConfig } from "@src/config/env.config";
+import { DeferredIndexService } from "@src/db/deferred-index.service";
 import { IndexerState, MessageDeadLetters, MessageTypes } from "@src/db/schema";
 import type { StatusResponse } from "@src/http-schemas/status.schema";
 import { APP_CONFIG } from "@src/providers/app-config.provider";
@@ -11,15 +12,21 @@ import { CHAIN_DB } from "@src/providers/db.provider";
 @singleton()
 export class StatusService {
   readonly #db: ChainDatabase;
+  readonly #deferredIndexes: DeferredIndexService;
   readonly #config: EnvConfig;
 
-  constructor(@inject(CHAIN_DB) db: ChainDatabase, @inject(APP_CONFIG) config: EnvConfig) {
+  constructor(@inject(CHAIN_DB) db: ChainDatabase, @inject(DeferredIndexService) deferredIndexes: DeferredIndexService, @inject(APP_CONFIG) config: EnvConfig) {
     this.#db = db;
+    this.#deferredIndexes = deferredIndexes;
     this.#config = config;
   }
 
   async getStatus(): Promise<StatusResponse> {
-    const [checkpoints, deadLetters] = await Promise.all([this.#db.select().from(IndexerState), this.#countDeadLettersByType()]);
+    const [checkpoints, deadLetters, deferredIndexes] = await Promise.all([
+      this.#db.select().from(IndexerState),
+      this.#countDeadLettersByType(),
+      this.#deferredIndexes.listDeferred()
+    ]);
 
     return {
       data: {
@@ -33,7 +40,8 @@ export class StatusService {
         deadLetters: {
           total: deadLetters.reduce((total, row) => total + row.count, 0),
           byType: deadLetters
-        }
+        },
+        deferredIndexes
       }
     };
   }

@@ -42,23 +42,24 @@ export class GenesisImportService {
 
   /**
    * Seeds genesis state exactly once, before the first block. Rejects a fresh balance-tracking start
-   * whose start height is not the network's genesis height, so balances can never begin mid-chain.
-   * Safe to call on every fresh start: the marker row makes a repeat run a no-op, and the whole seed
-   * commits in one transaction so a crash mid-seed rolls back and retries cleanly.
+   * whose start height is not the network's genesis height, so balances can never begin mid-chain;
+   * once the marker exists any start height is accepted, so a database filled by backfill Jobs can
+   * hand off to sync with the flag still on. The whole seed commits in one transaction so a crash
+   * mid-seed rolls back and retries cleanly.
    */
   async ensureSeeded(startHeight: number): Promise<void> {
-    const genesis = await this.#source.fetchGenesis();
-
-    if (startHeight !== genesis.initialHeight) {
-      throw new GenesisMidChainError(
-        `Balance tracking must start at genesis height ${genesis.initialHeight}, but the effective start height is ${startHeight}. Set SYNC_START_HEIGHT=${genesis.initialHeight} to index from genesis.`
-      );
-    }
-
     const marker = await this.#findMarker();
     if (marker) {
       this.#logger.info({ event: "GENESIS_ALREADY_SEEDED", height: marker.lastHeight });
       return;
+    }
+
+    const genesis = await this.#source.fetchGenesis();
+
+    if (startHeight !== genesis.initialHeight) {
+      throw new GenesisMidChainError(
+        `Balance tracking must start at genesis height ${genesis.initialHeight}, but the effective start height is ${startHeight}. Start the first sync or backfill at height ${genesis.initialHeight}.`
+      );
     }
 
     if (genesis.unknownAccountTypes.length > 0) {

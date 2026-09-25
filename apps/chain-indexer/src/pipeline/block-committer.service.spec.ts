@@ -8,6 +8,7 @@ import type { NetworkBlockDelta } from "@src/akash/network-delta";
 import type { ProviderWriter } from "@src/akash/provider-writer.service";
 import type { ActMigrationSegment, ActMigrationService } from "@src/bme/act-migration.service";
 import type { BmeWriter } from "@src/bme/bme-writer.service";
+import type { BulkInserter, BulkInsertOptions } from "@src/db/bulk-inserter.service";
 import { AccountTxs, Blocks, IndexerState, MessageDeadLetters, Messages, MessageTypes } from "@src/db/schema";
 import type { GovWriter } from "@src/gov/gov-writer.service";
 import type { NetworkStatsWriter } from "@src/network/network-stats-writer.service";
@@ -100,15 +101,15 @@ describe(BlockCommitterService.name, () => {
       expect(new PgDialect().sqlToQuery(checkpointSet.lastHeight).sql).toBe('GREATEST("indexer_state"."last_height", EXCLUDED.last_height)');
     });
 
-    it("splits large row sets into multiple inserts within the same transaction", async () => {
-      const { committer, insertedRows } = setup({ selectResults: [[{ id: 7, type: MSG_SEND }]] });
+    it("bulk-inserts a large message set as one statement within the transaction", async () => {
+      const { committer, bulkInserts } = setup({ selectResults: [[{ id: 7, type: MSG_SEND }]] });
       const manyMessages = Array.from({ length: 2_001 }, () => MSG_SEND);
 
       await committer.commitBatch([buildBlock(manyMessages, 10)], { stream: "backfill:10-10" });
 
-      const messageInserts = insertedRows.filter(call => call.table === Messages);
-      expect(messageInserts).toHaveLength(2);
-      expect(messageInserts.map(call => (call.rows as unknown[]).length)).toEqual([2_000, 1]);
+      const messageInserts = bulkInserts.filter(call => call.table === Messages);
+      expect(messageInserts).toHaveLength(1);
+      expect(messageInserts[0].rows).toHaveLength(2_001);
     });
   });
 
@@ -218,13 +219,14 @@ describe(BlockCommitterService.name, () => {
     });
 
     it("heals null message bodies on conflict without touching decoded ones", async () => {
-      const { committer, conflictUpdates } = setup({ selectResults: [[{ id: 7, type: MSG_SEND }]] });
+      const { committer, bulkInserts } = setup({ selectResults: [[{ id: 7, type: MSG_SEND }]] });
 
       await committer.commit(buildBlock([MSG_SEND]));
 
-      const messagesUpsert = conflictUpdates.find(call => call.table === Messages);
-      expect(new PgDialect().sqlToQuery(messagesUpsert?.config.set.body as SQL).sql).toBe("excluded.body");
-      expect(new PgDialect().sqlToQuery(messagesUpsert?.config.setWhere as SQL).sql).toBe('"cosmos"."messages"."body" IS NULL AND excluded.body IS NOT NULL');
+      const messagesInsert = bulkInserts.find(call => call.table === Messages);
+      expect(new PgDialect().sqlToQuery(messagesInsert?.options?.onConflict as SQL).sql).toBe(
+        'ON CONFLICT (height, tx_index, index) DO UPDATE SET body = excluded.body WHERE "cosmos"."messages"."body" IS NULL AND excluded.body IS NOT NULL'
+      );
     });
   });
 
@@ -356,8 +358,19 @@ describe(BlockCommitterService.name, () => {
   }) {
     const selectResults = [...(input?.selectResults ?? [[]])];
     const insertedRows: Array<{ table: unknown; rows: unknown }> = [];
+    const bulkInserts: Array<{ table: unknown; rows: unknown[]; options?: BulkInsertOptions }> = [];
     const conflictUpdates: Array<{ table: unknown; config: { set: Record<string, unknown>; setWhere?: unknown } }> = [];
     const deletions: Array<{ table: unknown; where: unknown }> = [];
+
+    const bulkInserter = mock<BulkInserter>();
+    bulkInserter.insert.mockImplementation(async (_tx, table, rows, options) => {
+      if (rows.length === 0) {
+        return [];
+      }
+      insertedRows.push({ table, rows });
+      bulkInserts.push({ table, rows, options });
+      return [];
+    });
 
     const dbFake = {
       select: () => ({
@@ -409,6 +422,7 @@ describe(BlockCommitterService.name, () => {
     const logger = mock<LoggerService>();
     const committer = new BlockCommitterService(
       dbFake as unknown as ChainDatabase,
+      bulkInserter,
       interner,
       balanceWriter,
       govWriter,
@@ -422,6 +436,7 @@ describe(BlockCommitterService.name, () => {
     return {
       committer,
       insertedRows,
+      bulkInserts,
       conflictUpdates,
       deletions,
       interner,

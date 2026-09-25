@@ -9,7 +9,7 @@ INDEXER_ROLE = sync | backfill | api | jobs
 NETWORK      = mainnet | sandbox | testnet
 ```
 
-Currently implemented: `sync` (live tail with per-block atomic commits and a parent-hash continuity check), `backfill` (historical catch-up over an explicit height range), and a minimal `api` (healthz + status). `jobs` exits with `ROLE_NOT_IMPLEMENTED`.
+Currently implemented: `sync` (live tail with per-block atomic commits and a parent-hash continuity check), `backfill` (historical catch-up over an explicit height range, or an archive-only pass that fills the raw block archive), and a minimal `api` (healthz + status). `jobs` exits with `ROLE_NOT_IMPLEMENTED`. The full mainnet procedure lives in [docs/mainnet-backfill-runbook.md](docs/mainnet-backfill-runbook.md).
 
 ## Scope
 
@@ -56,7 +56,16 @@ BACKFILL_FROM_HEIGHT=100000
 BACKFILL_TO_HEIGHT=200000
 ```
 
-Blocks are fetched from RPC in parallel (`BACKFILL_CONCURRENCY`, default 10) and committed strictly in order in batches of `BACKFILL_BATCH_SIZE` blocks (default 200), each batch in one Postgres transaction together with the checkpoint advance. Progress is checkpointed per range under the `indexer_state` stream `backfill:{from}-{to}`, so killing and restarting the job resumes at the checkpoint without gaps or duplicates, and re-running a completed range exits 0 immediately. Changing the range creates a fresh checkpoint row. All inserts are natural-keyed and conflict-ignoring, so a backfill can run against the same database as live sync, and a duplicate backfill pod on the same range is harmless.
+Blocks are fetched from RPC in parallel (`BACKFILL_CONCURRENCY`, default 10) and committed strictly in order in batches of `BACKFILL_BATCH_SIZE` blocks (default 200), each batch in one Postgres transaction together with the checkpoint advance. The next batch is fetched and decoded while the previous one commits, and the high-volume tables (blocks, transactions, messages, balance changes, account activity) are written as one `unnest` statement per table. Progress is checkpointed per range under the `indexer_state` stream `backfill:{from}-{to}`, so killing and restarting the job resumes at the checkpoint without gaps or duplicates, and re-running a completed range exits 0 immediately. Changing the range creates a fresh checkpoint row. All inserts are natural-keyed and conflict-ignoring, so a backfill can run against the same database as live sync, and a duplicate backfill pod on the same range is harmless.
+
+With `GENESIS_IMPORT=true`, a fresh range starting at the genesis height seeds genesis before its first block, exactly as the sync role does; a range that starts elsewhere on an empty database is rejected. Once the genesis marker exists the flag can stay on for every later range and for the sync that takes over.
+
+Two flags shape a full mainnet rebuild:
+
+- `BACKFILL_ARCHIVE_ONLY=true` fetches the range into the raw block archive and commits nothing to the database (only an `archive:{from}-{to}` checkpoint, advanced at chunk boundaries). Because nothing is ordered, any number of these Jobs can run at once over disjoint ranges against different RPC nodes, which is how the one RPC-sourced pass over the chain is parallelized. Requires `ARCHIVE_BUCKET`.
+- `BACKFILL_DEFER_INDEXES=true` drops the secondary indexes no writer consults (`transactions_hash_idx`, `messages_type_id_idx`, the deployment, lease and BME lookup indexes) before the run and leaves them dropped, recording their definitions in `indexer_deferred_indexes`. The first run without the flag, any backfill or the sync role, recreates them before doing anything else, so consecutive heavy ranges pay for the indexes once and no index can be forgotten. `GET /v1/status` lists whatever is still deferred.
+
+A sync that starts fresh at a height the backfill reached seeds its parent-hash check from the block just below, so the handoff is verified like every other block.
 
 ## Proto type catalog and dead letters
 
@@ -102,6 +111,8 @@ Object keys are namespaced by the chain id reported by RPC `/status` (e.g. `sand
 npm test
 npm run lint -- --quiet
 ```
+
+`npm test` runs the unit project and the integration project. Integration specs (`*.integration.ts`) create a migrated database per spec file on the Postgres at `POSTGRES_URI` (default `postgres://postgres:password@localhost:5432`); `npm run test:ci-setup` starts one with Docker when there is no local server.
 
 ## Schema changes
 

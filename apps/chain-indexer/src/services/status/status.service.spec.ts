@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
+import { mock } from "vitest-mock-extended";
 
 import { envSchema } from "@src/config/env.config";
+import type { DeferredIndexService } from "@src/db/deferred-index.service";
 import { IndexerState } from "@src/db/schema";
 import { StatusResponseSchema } from "@src/http-schemas/status.schema";
 import type { ChainDatabase } from "@src/providers/db.provider";
@@ -37,11 +39,22 @@ describe(StatusService.name, () => {
     const status = await service.getStatus();
 
     expect(status.data.deadLetters).toEqual({ total: 0, byType: [] });
+    expect(status.data.deferredIndexes).toEqual([]);
+  });
+
+  it("lists the indexes a backfill left deferred", async () => {
+    const { service } = setup({ checkpoints: [], deadLetterCounts: [], deferredIndexes: ["messages_type_id_idx", "transactions_hash_idx"] });
+
+    const status = await service.getStatus();
+
+    expect(status.data.deferredIndexes).toEqual(["messages_type_id_idx", "transactions_hash_idx"]);
+    expect(StatusResponseSchema.parse(status)).toEqual(status);
   });
 
   function setup(input: {
     checkpoints: Array<{ stream: string; lastHeight: number; updatedAt: Date }>;
     deadLetterCounts: Array<{ type: string; count: number }>;
+    deferredIndexes?: string[];
   }) {
     const dbFake = {
       select: () => ({
@@ -51,9 +64,11 @@ describe(StatusService.name, () => {
           })
       })
     };
+    const deferredIndexService = mock<DeferredIndexService>();
+    deferredIndexService.listDeferred.mockResolvedValue(input.deferredIndexes ?? []);
 
     const config = envSchema.parse({ POSTGRES_DB_URI: "postgres://unit:unit@localhost:5432/unit" });
-    const service = new StatusService(dbFake as unknown as ChainDatabase, config);
+    const service = new StatusService(dbFake as unknown as ChainDatabase, deferredIndexService, config);
     return { service };
   }
 });

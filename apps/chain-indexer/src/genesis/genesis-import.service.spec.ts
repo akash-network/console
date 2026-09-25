@@ -31,6 +31,13 @@ describe(GenesisImportService.name, () => {
     expect(stakingSeeder.seed).not.toHaveBeenCalled();
   });
 
+  it("accepts a start above the genesis height once the marker exists, so a backfilled database can keep the flag on", async () => {
+    const { service, accountSeeder } = setup({ existingMarker: true });
+
+    await expect(service.ensureSeeded(500)).resolves.toBeUndefined();
+    expect(accountSeeder.intern).not.toHaveBeenCalled();
+  });
+
   it("seeds all modules in one transaction and claims the marker at the genesis height", async () => {
     const { service, accountSeeder, bankSeeder, stakingSeeder, markerInserts } = setup();
 

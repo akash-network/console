@@ -19,7 +19,8 @@ export const StatusResponseSchema = z.object({
           count: z.number()
         })
       )
-    })
+    }),
+    deferredIndexes: z.array(z.string())
   })
 });
 
