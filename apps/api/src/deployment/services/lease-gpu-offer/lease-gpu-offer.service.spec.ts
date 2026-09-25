@@ -34,6 +34,14 @@ describe(LeaseGpuOfferService.name, () => {
     });
   });
 
+  it("asks for the leased bids only, so a deployment's lost and closed bids cannot crowd them out of the page", async () => {
+    const { service, bidHttpService } = setup({});
+
+    await service.findOffers({ owner: OWNER, dseq: DSEQ });
+
+    expect(bidHttpService.list).toHaveBeenCalledWith(OWNER, DSEQ, { state: "active" });
+  });
+
   it("takes the offer of the leased bid rather than a sibling bid the same provider placed on the order", async () => {
     const sibling = gpuBid({ provider: "akash1provider", bseq: 0, attributes: [{ key: "vendor/nvidia/model/h100", value: "true" }] });
     const leased = gpuBid({ provider: "akash1provider", bseq: 1 });
