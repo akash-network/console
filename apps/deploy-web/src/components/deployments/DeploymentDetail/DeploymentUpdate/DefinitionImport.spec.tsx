@@ -66,6 +66,15 @@ services:
       password: ac-secret://REGISTRY_PASSWORD
 `;
 
+const SDL_REPEATING_A_VARIABLE = `version: "2.0"
+services:
+  api:
+    image: ghcr.io/acme/api:3.0.0
+    env:
+      - API_TOKEN=plain-token
+      - API_TOKEN=ac-secret://API_TOKEN
+`;
+
 describe(DefinitionImport.name, () => {
   describe("with this browser's copy of the definition", () => {
     it("offers to save it straight away, saying where it came from", () => {
@@ -168,6 +177,17 @@ describe(DefinitionImport.name, () => {
 
       expect(record.mock.calls[0][0].secrets).toEqual({ REGISTRY_USERNAME: "acme-bot", REGISTRY_PASSWORD: "registry-password" });
     });
+  });
+
+  it("asks for the value of a reference a repeated variable carries", async () => {
+    const { record } = setup({ importedSdl: SDL_REPEATING_A_VARIABLE });
+    await chooseTheImportedSdl();
+
+    expect(screen.getByRole("button", { name: "Save to my account" })).toBeDisabled();
+    await userEvent.type(screen.getByLabelText("API_TOKEN value"), "token-value");
+    await userEvent.click(screen.getByRole("button", { name: "Save to my account" }));
+
+    expect(record.mock.calls[0][0].secrets).toMatchObject({ API_TOKEN: "token-value" });
   });
 
   describe("an sdl that does not match what the deployment runs", () => {

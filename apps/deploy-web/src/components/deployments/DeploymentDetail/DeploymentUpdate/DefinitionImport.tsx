@@ -184,7 +184,7 @@ const ServiceReview: FC<ServiceReviewProps> = ({ service, secretVariables, refer
       const key = secretVariableKey(service.name, variable.key);
       const { referenceName } = variable;
       return (
-        <div key={variable.key} className="flex items-center gap-3">
+        <div key={`${variable.key}=${referenceName ?? ""}`} className="flex items-center gap-3">
           <span className="min-w-0 flex-1 truncate font-mono text-sm">{variable.key}</span>
           {referenceName ? (
             <ReferenceValueInput

@@ -63,7 +63,7 @@ export function importableServicesOf(sdl: string): ImportableService[] {
   return Object.entries(servicesOf(parse(sdl))).map(([name, service]) => ({
     name,
     image: typeof service.image === "string" ? service.image : undefined,
-    variables: uniqueByKey(assignmentsOf(service.env).map(({ key, value }) => ({ key, referenceName: secretNameOf(value) }))),
+    variables: uniqueByKeyAndReference(assignmentsOf(service.env).map(({ key, value }) => ({ key, referenceName: secretNameOf(value) }))),
     credentials: CREDENTIAL_FIELDS.flatMap(({ field }) => {
       const value = credentialsOf(service)?.[field];
       return typeof value === "string" ? [{ field, referenceName: secretNameOf(value) }] : [];
@@ -168,8 +168,10 @@ function assignmentOf(entry: unknown): { key: string; value: string } | null {
   return separatorAt === -1 ? null : { key: entry.slice(0, separatorAt), value: entry.slice(separatorAt + 1) };
 }
 
-function uniqueByKey(variables: ImportableVariable[]): ImportableVariable[] {
-  return variables.filter((variable, index) => variables.findIndex(candidate => candidate.key === variable.key) === index);
+function uniqueByKeyAndReference(variables: ImportableVariable[]): ImportableVariable[] {
+  return variables.filter(
+    (variable, index) => variables.findIndex(candidate => candidate.key === variable.key && candidate.referenceName === variable.referenceName) === index
+  );
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

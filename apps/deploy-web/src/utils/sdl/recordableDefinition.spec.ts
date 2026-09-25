@@ -87,6 +87,17 @@ services:
       - API_TOKEN=ac-secret://API_TOKEN
 `;
 
+const SDL_REPEATING_A_VARIABLE = `version: "2.0"
+services:
+  web:
+    image: nginx:1.25
+    env:
+      - API_TOKEN=plain-token
+      - API_TOKEN=ac-secret://API_TOKEN
+      - LOG_LEVEL=debug
+      - LOG_LEVEL=info
+`;
+
 const SDL_SHARING_AN_ENV_LIST = `version: "2.0"
 services:
   web:
@@ -132,6 +143,16 @@ describe("recordableDefinition", () => {
       expect(web.credentials).toEqual([
         { field: "username", referenceName: "REGISTRY_USERNAME" },
         { field: "password", referenceName: "REGISTRY_PASSWORD" }
+      ]);
+    });
+
+    it("lists a repeated variable once for each reference it carries, so no reference goes without a value", () => {
+      const [web] = importableServicesOf(SDL_REPEATING_A_VARIABLE);
+
+      expect(web.variables).toEqual([
+        { key: "API_TOKEN", referenceName: null },
+        { key: "API_TOKEN", referenceName: "API_TOKEN" },
+        { key: "LOG_LEVEL", referenceName: null }
       ]);
     });
 
