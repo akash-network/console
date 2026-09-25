@@ -1,4 +1,4 @@
-import { and, between, inArray, isNull, sql } from "drizzle-orm";
+import { and, between, eq, inArray, isNull, sql } from "drizzle-orm";
 import { inject, singleton } from "tsyringe";
 
 import type { AkashBlockChanges } from "@src/akash/akash-changes";
@@ -12,7 +12,7 @@ import type { BmeBlockChanges } from "@src/bme/bme-deriver";
 import { collectBmeAddresses, deriveBmeChanges } from "@src/bme/bme-deriver";
 import { BmeWriter } from "@src/bme/bme-writer.service";
 import { BulkInserter } from "@src/db/bulk-inserter.service";
-import { AccountTxs, Blocks, MessageDeadLetters, Messages, MessageTypes, Transactions } from "@src/db/schema";
+import { AccountTxs, Blocks, IndexerState, MessageDeadLetters, Messages, MessageTypes, Transactions } from "@src/db/schema";
 import { GovWriter } from "@src/gov/gov-writer.service";
 import { NetworkStatsWriter } from "@src/network/network-stats-writer.service";
 import { AccountInterner, requireAccountId } from "@src/pipeline/balance/account-interner.service";
@@ -25,11 +25,34 @@ import { BalanceWriter } from "@src/pipeline/balance/balance-writer.service";
 import { buildModuleAddressRegistry } from "@src/pipeline/balance/module-address-registry";
 import { advanceCheckpoint } from "@src/pipeline/checkpoint";
 import type { DecodedBlock, MessageDecodeFailure } from "@src/pipeline/decoded-block";
+import { readModulesUnderReplay } from "@src/pipeline/module-replay/replay-markers";
+import type { ReplayableModule } from "@src/pipeline/modules";
+import { REPLAY_HANDOFF_LOCK_KEY } from "@src/pipeline/modules";
 import type { ChainDatabase, ChainTransaction } from "@src/providers/db.provider";
 import { CHAIN_DB } from "@src/providers/db.provider";
 import { LoggerService } from "@src/providers/logging.provider";
 
 export const SYNC_STREAM = "sync";
+
+export interface CommitOptions {
+  stream: string;
+  /** Restricts the commit to these modules' writers (a module replay); the core tables and every other module are untouched. */
+  modules?: ReadonlySet<ReplayableModule>;
+  /** A module replay's final batch: under the handoff lock, the replay marker comes off when sync's checkpoint is exactly the batch end. */
+  handoff?: boolean;
+}
+
+export interface CommitResult {
+  /** Modules a full commit left to an in-progress replay. */
+  modulesSkipped: ReplayableModule[];
+  handoffCompleted: boolean;
+}
+
+interface SegmentOutcome extends CommitResult {
+  persistedDeadLetters: ReadonlyArray<{ typeUrl: string }>;
+  migrationOutcome: ActMigrationOutcome | null;
+  akashWritten: boolean;
+}
 
 function countByTypeUrl(messages: ReadonlyArray<{ typeUrl: string }>): Record<string, number> {
   const counts: Record<string, number> = {};
@@ -88,8 +111,8 @@ export class BlockCommitterService {
     this.#logger.setContext("COMMITTER");
   }
 
-  async commit(block: DecodedBlock): Promise<void> {
-    await this.commitBatch([block], { stream: SYNC_STREAM });
+  async commit(block: DecodedBlock): Promise<CommitResult> {
+    return await this.commitBatch([block], { stream: SYNC_STREAM });
   }
 
   /**
@@ -101,21 +124,39 @@ export class BlockCommitterService {
    * A pending ACT denom migration splits the batch at its trigger block: the conversion commits in
    * the same transaction as that block, so later blocks' settlements run against converted state.
    */
-  async commitBatch(blocks: DecodedBlock[], options: { stream: string }): Promise<void> {
+  async commitBatch(blocks: DecodedBlock[], options: CommitOptions): Promise<CommitResult> {
     if (blocks.length === 0) {
-      return;
+      return { modulesSkipped: [], handoffCompleted: false };
     }
 
     this.#verifyContiguous(blocks);
 
-    for (const segment of await this.#actMigration.segment(blocks)) {
-      const outcome = await this.#commitSegment(segment.blocks, options, segment);
-      this.#actMigration.markCommitted(segment, outcome);
+    const replayModules = options.modules ?? null;
+    const akashExpected = replayModules ? replayModules.has("akash") : !(await this.#modulesUnderReplay(this.#db)).includes("akash");
+    const segments = akashExpected ? await this.#actMigration.segment(blocks) : null;
+    const groups = segments ? segments.map(segment => segment.blocks) : [blocks];
+
+    let result: CommitResult = { modulesSkipped: [], handoffCompleted: false };
+    for (const [index, group] of groups.entries()) {
+      const segment = segments?.[index] ?? null;
+      const outcome = await this.#commitSegment(group, options, segment, replayModules);
+      if (segment && outcome.akashWritten) {
+        this.#actMigration.markCommitted(segment, outcome.migrationOutcome);
+      }
+      result = { modulesSkipped: outcome.modulesSkipped, handoffCompleted: outcome.handoffCompleted };
     }
+
+    return result;
   }
 
-  async #commitSegment(blocks: DecodedBlock[], options: { stream: string }, segment: ActMigrationSegment): Promise<ActMigrationOutcome | null> {
-    const typeIds = await this.#internMessageTypes(blocks);
+  async #commitSegment(
+    blocks: DecodedBlock[],
+    options: CommitOptions,
+    segment: ActMigrationSegment | null,
+    replayModules: ReadonlySet<ReplayableModule> | null
+  ): Promise<SegmentOutcome> {
+    const includeCore = replayModules === null;
+    const typeIds = includeCore ? await this.#internMessageTypes(blocks) : new Map<string, number>();
 
     const blockRows = blocks.map(block => ({
       height: block.height,
@@ -170,39 +211,93 @@ export class BlockCommitterService {
 
     const lastHeight = blocks[blocks.length - 1].height;
 
-    const { persistedDeadLetters, migrationOutcome } = await this.#db.transaction(async tx => {
-      await this.#bulkInserter.insert(tx, Blocks, blockRows);
-      await this.#bulkInserter.insert(tx, Transactions, transactionRows);
-      await this.#upsertMessages(tx, messageRows);
-      const persisted = await this.#replaceDeadLetters(tx, blocks[0].height, lastHeight, deadLetteredMessages, typeIds);
+    const outcome = await this.#db.transaction(async tx => {
+      if (includeCore || options.handoff) {
+        await tx.execute(sql.raw(`SELECT pg_advisory_xact_lock(${REPLAY_HANDOFF_LOCK_KEY})`));
+      }
+      const modulesSkipped = includeCore ? await this.#modulesUnderReplay(tx) : [];
+      const writes = (module: ReplayableModule) => (replayModules ? replayModules.has(module) : !modulesSkipped.includes(module));
+      if (writes("akash") && includeCore && segment === null) {
+        throw new Error(`Module replay handoff raced the commit of ${blocks[0].height}-${lastHeight}; retrying`);
+      }
 
-      await this.#balanceWriter.write(tx, balanceIntents);
-      await this.#bulkInserter.insert(tx, AccountTxs, accountTxRows);
-      await this.#govWriter.writeForBlocks(tx, blocks, accountIds);
-      const { networkDeltas } = await this.#akashWriter.write(tx, akashChanges, accountIds);
-      await this.#providerWriter.write(tx, akashChanges, accountIds);
-      await this.#bmeWriter.write(tx, bmeChanges, accountIds);
-      await this.#networkStatsWriter.write(tx, blocks, networkDeltas);
+      let persisted: ReadonlyArray<(typeof deadLetteredMessages)[number]> = [];
+      if (includeCore) {
+        await this.#bulkInserter.insert(tx, Blocks, blockRows);
+        await this.#bulkInserter.insert(tx, Transactions, transactionRows);
+        await this.#upsertMessages(tx, messageRows);
+        persisted = await this.#replaceDeadLetters(tx, blocks[0].height, lastHeight, deadLetteredMessages, typeIds);
+      }
 
-      const outcome = await this.#actMigration.applySegment(tx, segment);
+      if (writes("balance")) {
+        await this.#balanceWriter.write(tx, balanceIntents);
+        await this.#bulkInserter.insert(tx, AccountTxs, accountTxRows);
+      }
+      if (writes("gov")) {
+        await this.#govWriter.writeForBlocks(tx, blocks, accountIds);
+      }
 
-      await advanceCheckpoint(tx, options.stream, lastHeight);
+      let migrationOutcome: ActMigrationOutcome | null = null;
+      const akashWritten = writes("akash");
+      if (akashWritten) {
+        const { networkDeltas } = await this.#akashWriter.write(tx, akashChanges, accountIds);
+        await this.#networkStatsWriter.write(tx, blocks, networkDeltas);
+        migrationOutcome = segment ? await this.#actMigration.applySegment(tx, segment) : null;
+      }
+      if (writes("provider")) {
+        await this.#providerWriter.write(tx, akashChanges, accountIds);
+      }
+      if (writes("bme")) {
+        await this.#bmeWriter.write(tx, bmeChanges, accountIds);
+      }
 
-      return { persistedDeadLetters: persisted, migrationOutcome: outcome };
+      const handoffCompleted = options.handoff ? await this.#completeHandoffIfCaughtUp(tx, options.stream, lastHeight) : false;
+      if (!handoffCompleted) {
+        await advanceCheckpoint(tx, options.stream, lastHeight);
+      }
+
+      return { persistedDeadLetters: persisted, migrationOutcome, akashWritten, modulesSkipped, handoffCompleted };
     });
 
-    if (persistedDeadLetters.length > 0) {
+    if (outcome.persistedDeadLetters.length > 0) {
       this.#logger.error({
         event: "MESSAGES_DEAD_LETTERED",
         stream: options.stream,
-        count: persistedDeadLetters.length,
-        byType: countByTypeUrl(persistedDeadLetters),
+        count: outcome.persistedDeadLetters.length,
+        byType: countByTypeUrl(outcome.persistedDeadLetters),
         fromHeight: blocks[0].height,
         toHeight: lastHeight
       });
     }
 
-    return migrationOutcome;
+    return outcome;
+  }
+
+  /** A replay that already stands at the sync checkpoint has nothing left to commit; this takes the lock and hands off if that is still true. */
+  async handoffWithoutBlocks(stream: string, lastReplayedHeight: number): Promise<boolean> {
+    return await this.#db.transaction(async tx => {
+      await tx.execute(sql.raw(`SELECT pg_advisory_xact_lock(${REPLAY_HANDOFF_LOCK_KEY})`));
+      return await this.#completeHandoffIfCaughtUp(tx, stream, lastReplayedHeight);
+    });
+  }
+
+  /**
+   * The replay marker comes off only when sync's checkpoint is exactly this batch's end (or sync never
+   * ran), which holds for the whole transaction because sync's next commit is waiting on the handoff
+   * lock: every block below the checkpoint carries the replay's rows and every block above will carry
+   * sync's, with no gap and no overlap.
+   */
+  async #completeHandoffIfCaughtUp(tx: ChainTransaction, stream: string, lastHeight: number): Promise<boolean> {
+    const [sync] = await tx.select().from(IndexerState).where(eq(IndexerState.stream, SYNC_STREAM));
+    if (sync && sync.lastHeight !== lastHeight) {
+      return false;
+    }
+    await tx.delete(IndexerState).where(eq(IndexerState.stream, stream));
+    return true;
+  }
+
+  async #modulesUnderReplay(executor: ChainDatabase | ChainTransaction): Promise<ReplayableModule[]> {
+    return await readModulesUnderReplay(executor);
   }
 
   /**

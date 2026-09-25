@@ -16,12 +16,15 @@ import type { AccountInterner } from "@src/pipeline/balance/account-interner.ser
 import type { BalanceWriter } from "@src/pipeline/balance/balance-writer.service";
 import { BlockCommitterService } from "@src/pipeline/block-committer.service";
 import type { DecodedBlock, DecodedEvent, MessageDecodeFailure } from "@src/pipeline/decoded-block";
+import type { ReplayableModule } from "@src/pipeline/modules";
+import { REPLAY_HANDOFF_LOCK_KEY } from "@src/pipeline/modules";
 import type { ChainDatabase } from "@src/providers/db.provider";
 import type { LoggerService } from "@src/providers/logging.provider";
 
 const MSG_SEND = "/cosmos.bank.v1beta1.MsgSend";
 const BALANCE_WRITE = Symbol("balance_write");
 const ACT_MIGRATION_APPLY = Symbol("act_migration_apply");
+const HANDOFF_LOCK = Symbol("handoff_lock");
 
 describe(BlockCommitterService.name, () => {
   it("reuses ids of message types that already exist instead of inserting them", async () => {
@@ -351,16 +354,150 @@ describe(BlockCommitterService.name, () => {
     });
   });
 
+  describe("module replay coordination", () => {
+    it("takes the handoff lock before writing anything in a full commit", async () => {
+      const { committer, executed, insertedRows } = setup({ selectResults: [[{ id: 7, type: MSG_SEND }]] });
+
+      await committer.commit(buildBlock([MSG_SEND]));
+
+      expect(renderSql(executed[0]).sql).toBe(`SELECT pg_advisory_xact_lock(${REPLAY_HANDOFF_LOCK_KEY})`);
+      const order = insertedRows.map(call => call.table);
+      expect(order.indexOf(HANDOFF_LOCK)).toBeLessThan(order.indexOf(Blocks));
+    });
+
+    it("skips the writers of modules under replay and reports them", async () => {
+      const { committer, providerWriter, bmeWriter, akashWriter, balanceWriter, govWriter, networkStatsWriter } = setup({
+        selectResults: [[{ id: 7, type: MSG_SEND }]],
+        replayMarkers: ["provider", "bme"]
+      });
+
+      const result = await committer.commit(buildBlock([MSG_SEND], 10, { signerAddresses: ["akash1signer"] }));
+
+      expect(result.modulesSkipped).toEqual(["bme", "provider"]);
+      expect(providerWriter.write).not.toHaveBeenCalled();
+      expect(bmeWriter.write).not.toHaveBeenCalled();
+      expect(akashWriter.write).toHaveBeenCalledTimes(1);
+      expect(balanceWriter.write).toHaveBeenCalledTimes(1);
+      expect(govWriter.writeForBlocks).toHaveBeenCalledTimes(1);
+      expect(networkStatsWriter.write).toHaveBeenCalledTimes(1);
+    });
+
+    it("skips the network aggregates and the act migration together with the akash module", async () => {
+      const { committer, actMigration, akashWriter, networkStatsWriter } = setup({ selectResults: [[{ id: 7, type: MSG_SEND }]], replayMarkers: ["akash"] });
+
+      await committer.commit(buildBlock([MSG_SEND]));
+
+      expect(akashWriter.write).not.toHaveBeenCalled();
+      expect(networkStatsWriter.write).not.toHaveBeenCalled();
+      expect(actMigration.segment).not.toHaveBeenCalled();
+      expect(actMigration.applySegment).not.toHaveBeenCalled();
+    });
+
+    it("commits only the selected module for a replay stream and leaves the core tables and other modules alone", async () => {
+      const { committer, insertedRows, govWriter, balanceWriter, akashWriter, providerWriter, bmeWriter, interner } = setup({
+        selectResults: [[{ id: 7, type: MSG_SEND }]]
+      });
+
+      const result = await committer.commitBatch([buildBlock([MSG_SEND], 10, { signerAddresses: ["akash1voter"] })], {
+        stream: "replay:gov",
+        modules: new Set(["gov"])
+      });
+
+      expect(govWriter.writeForBlocks).toHaveBeenCalledTimes(1);
+      expect(interner.resolve).toHaveBeenCalledTimes(1);
+      expect(balanceWriter.write).not.toHaveBeenCalled();
+      expect(akashWriter.write).not.toHaveBeenCalled();
+      expect(providerWriter.write).not.toHaveBeenCalled();
+      expect(bmeWriter.write).not.toHaveBeenCalled();
+      expect(insertedRows.map(call => call.table)).toEqual([IndexerState]);
+      expect(insertedRows[0].rows).toEqual(expect.objectContaining({ stream: "replay:gov", lastHeight: 10 }));
+      expect(result).toEqual({ modulesSkipped: [], handoffCompleted: false });
+    });
+
+    it("completes the handoff under the lock when the sync checkpoint is exactly the batch end", async () => {
+      const { committer, executed, deletions, insertedRows } = setup({ selectResults: [[{ id: 7, type: MSG_SEND }]], syncCheckpoint: 12 });
+
+      const result = await committer.commitBatch([buildBlock([MSG_SEND], 10), buildBlock([MSG_SEND], 11), buildBlock([MSG_SEND], 12)], {
+        stream: "replay:gov",
+        modules: new Set(["gov"]),
+        handoff: true
+      });
+
+      expect(result.handoffCompleted).toBe(true);
+      expect(renderSql(executed[0]).sql).toBe(`SELECT pg_advisory_xact_lock(${REPLAY_HANDOFF_LOCK_KEY})`);
+      expect(deletions).toHaveLength(1);
+      expect(deletions[0].table).toBe(IndexerState);
+      expect(renderSql(deletions[0].where as SQL).params).toEqual(["replay:gov"]);
+      expect(insertedRows.find(call => call.table === IndexerState)).toBeUndefined();
+    });
+
+    it("keeps the replay marker and advances its checkpoint when sync moved past the batch end", async () => {
+      const { committer, deletions, insertedRows } = setup({ selectResults: [[{ id: 7, type: MSG_SEND }]], syncCheckpoint: 15 });
+
+      const result = await committer.commitBatch([buildBlock([MSG_SEND], 10), buildBlock([MSG_SEND], 11), buildBlock([MSG_SEND], 12)], {
+        stream: "replay:gov",
+        modules: new Set(["gov"]),
+        handoff: true
+      });
+
+      expect(result.handoffCompleted).toBe(false);
+      expect(deletions).toEqual([]);
+      expect(insertedRows.find(call => call.table === IndexerState)?.rows).toEqual(expect.objectContaining({ stream: "replay:gov", lastHeight: 12 }));
+    });
+
+    it("removes the marker without blocks when sync sits exactly at the replayed height", async () => {
+      const { committer, executed, deletions } = setup({ syncCheckpoint: 20 });
+
+      expect(await committer.handoffWithoutBlocks("replay:bme", 20)).toBe(true);
+      expect(renderSql(executed[0]).sql).toBe(`SELECT pg_advisory_xact_lock(${REPLAY_HANDOFF_LOCK_KEY})`);
+      expect(deletions).toHaveLength(1);
+    });
+
+    it("keeps the marker without blocks when sync has moved past the replayed height", async () => {
+      const { committer, deletions } = setup({ syncCheckpoint: 21 });
+
+      expect(await committer.handoffWithoutBlocks("replay:bme", 20)).toBe(false);
+      expect(deletions).toEqual([]);
+    });
+
+    it("completes the handoff without a sync checkpoint when no sync has ever run", async () => {
+      const { committer, deletions } = setup({ selectResults: [[{ id: 7, type: MSG_SEND }]] });
+
+      const result = await committer.commitBatch([buildBlock([MSG_SEND], 10)], { stream: "replay:gov", modules: new Set(["gov"]), handoff: true });
+
+      expect(result.handoffCompleted).toBe(true);
+      expect(deletions).toHaveLength(1);
+    });
+  });
+
+  function renderSql(query: unknown) {
+    return new PgDialect().sqlToQuery(query as SQL);
+  }
+
   function setup(input?: {
     selectResults?: Array<Array<{ id: number; type: string }>>;
     insertReturning?: Array<{ id: number; type: string }>;
     messagesWithNullBody?: Array<{ height: number; txIndex: number; index: number }>;
+    replayMarkers?: ReplayableModule[];
+    syncCheckpoint?: number;
   }) {
     const selectResults = [...(input?.selectResults ?? [[]])];
     const insertedRows: Array<{ table: unknown; rows: unknown }> = [];
     const bulkInserts: Array<{ table: unknown; rows: unknown[]; options?: BulkInsertOptions }> = [];
     const conflictUpdates: Array<{ table: unknown; config: { set: Record<string, unknown>; setWhere?: unknown } }> = [];
     const deletions: Array<{ table: unknown; where: unknown }> = [];
+    const executed: unknown[] = [];
+
+    const selectIndexerState = (where: unknown) => {
+      const { params } = renderSql(where);
+      if (params.includes("replay:%")) {
+        return (input?.replayMarkers ?? []).map(module => ({ stream: `replay:${module}`, lastHeight: 9, updatedAt: new Date() }));
+      }
+      if (params.includes("sync") && input?.syncCheckpoint !== undefined) {
+        return [{ stream: "sync", lastHeight: input.syncCheckpoint, updatedAt: new Date() }];
+      }
+      return [];
+    };
 
     const bulkInserter = mock<BulkInserter>();
     bulkInserter.insert.mockImplementation(async (_tx, table, rows, options) => {
@@ -375,9 +512,19 @@ describe(BlockCommitterService.name, () => {
     const dbFake = {
       select: () => ({
         from: (table: unknown) => ({
-          where: () => Promise.resolve(table === Messages ? input?.messagesWithNullBody ?? [] : selectResults.shift() ?? [])
+          where: (where: unknown) => {
+            if (table === IndexerState) {
+              return Promise.resolve(selectIndexerState(where));
+            }
+            return Promise.resolve(table === Messages ? input?.messagesWithNullBody ?? [] : selectResults.shift() ?? []);
+          }
         })
       }),
+      execute: (query: unknown) => {
+        executed.push(query);
+        insertedRows.push({ table: HANDOFF_LOCK, rows: [] });
+        return Promise.resolve([]);
+      },
       insert: (table: unknown) => ({
         values: (rows: unknown) => {
           insertedRows.push({ table, rows });
@@ -439,6 +586,7 @@ describe(BlockCommitterService.name, () => {
       bulkInserts,
       conflictUpdates,
       deletions,
+      executed,
       interner,
       balanceWriter,
       govWriter,

@@ -8,6 +8,7 @@ import { container } from "tsyringe";
 import { createApp } from "@src/app";
 import { envSchema } from "@src/config/env.config";
 import { BackfillRunnerService } from "@src/pipeline/backfill-runner.service";
+import { ModuleReplayRunnerService } from "@src/pipeline/module-replay/module-replay-runner.service";
 import { RunnerInterruptedError } from "@src/pipeline/runner-interrupted-error";
 import { SyncRunnerService } from "@src/pipeline/sync-runner.service";
 import { migrateDb } from "@src/providers/db.provider";
@@ -33,7 +34,8 @@ export async function bootstrap(): Promise<void> {
       return;
     }
     case "backfill": {
-      await runRunnerBehindServer(() => container.resolve(BackfillRunnerService), "BACKFILL_FATAL", logger, port);
+      const resolveRunner = () => (config.get("BACKFILL_MODULE") ? container.resolve(ModuleReplayRunnerService) : container.resolve(BackfillRunnerService));
+      await runRunnerBehindServer(resolveRunner, "BACKFILL_FATAL", logger, port);
       return;
     }
     case "api": {

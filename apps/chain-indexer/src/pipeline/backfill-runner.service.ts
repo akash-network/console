@@ -16,6 +16,8 @@ import { BlockDecoderService } from "@src/pipeline/block-decoder.service";
 import { ChainContinuityError } from "@src/pipeline/chain-continuity-error";
 import { advanceCheckpoint } from "@src/pipeline/checkpoint";
 import type { DecodedBlock } from "@src/pipeline/decoded-block";
+import { readModulesUnderReplay } from "@src/pipeline/module-replay/replay-markers";
+import { runRangePipeline } from "@src/pipeline/range-pipeline";
 import { RunnerInterruptedError } from "@src/pipeline/runner-interrupted-error";
 import { retryTransient } from "@src/pipeline/transient-retry";
 import { APP_CONFIG } from "@src/providers/app-config.provider";
@@ -26,12 +28,6 @@ import { RpcClientPool } from "@src/rpc/rpc-client-pool.service";
 
 const FETCH_RETRY_MAX_ATTEMPTS = 5;
 const FETCH_RETRY_BASE_MS = 1_000;
-
-interface BackfillProgress {
-  blocksCommitted: number;
-  transactionsCommitted: number;
-  lastCommittedHeight: number;
-}
 
 @singleton()
 export class BackfillRunnerService {
@@ -104,8 +100,11 @@ export class BackfillRunnerService {
     const replay = this.#config.BACKFILL_REPLAY;
     /** A run with the flag drops (or keeps dropped) the deferrable indexes; a run without it rebuilds whatever an earlier run left deferred, so a heavy multi-range backfill pays for the indexes once. */
     const deferIndexes = !archiveOnly && this.#config.BACKFILL_DEFER_INDEXES;
-    if (!archiveOnly && !deferIndexes) {
-      await this.#deferredIndexes.restore();
+    if (!archiveOnly) {
+      await this.#refuseDuringModuleReplay();
+      if (!deferIndexes) {
+        await this.#deferredIndexes.restore();
+      }
     }
     const [checkpointHeight, tipHeight] = await Promise.all([
       this.#retryTransient(() => this.#getCheckpointHeight(stream), { event: "BACKFILL_CHECKPOINT_READ_RETRY" }),
@@ -224,73 +223,29 @@ export class BackfillRunnerService {
     }
   }
 
-  /**
-   * Two-stage pipeline: up to BACKFILL_CONCURRENCY blocks are fetched and decoded in parallel while
-   * heights are consumed strictly in order, and each full batch commits detached so the next batch
-   * is assembled while it lands. At most one commit is in flight, since batch N+1's writes depend on
-   * batch N being committed. Prefetch and commit promises get a no-op catch at creation: a rejection
-   * settling before the loop awaits it would otherwise crash the process as an unhandled rejection;
-   * the real rejection still surfaces when the loop awaits it.
-   *
-   * Returns whether the whole range committed. Completion is tracked by the last committed height
-   * rather than the stopped flag, so a shutdown landing during the final commit still reports the
-   * range as done instead of failing the Job for a spurious retry.
-   */
+  /** Returns whether the whole range committed; a stop mid-range leaves the checkpoint at the last committed batch for the next attempt. */
   async #backfillRange(startHeight: number, endHeight: number, stream: string, source: ArchiveBlockSource): Promise<boolean> {
     const startedAt = Date.now();
-    const inflight = new Map<number, Promise<DecodedBlock>>();
-    const progress: BackfillProgress = { blocksCommitted: 0, transactionsCommitted: 0, lastCommittedHeight: startHeight - 1 };
-    let fetchHead = startHeight;
-    let batch: DecodedBlock[] = [];
-    let pendingCommit: Promise<void> | null = null;
-    let commitFailed = false;
+    let blocksCommitted = 0;
 
-    const fillFetchWindow = () => {
-      while (fetchHead <= endHeight && inflight.size < this.#config.BACKFILL_CONCURRENCY) {
-        const height = fetchHead;
-        const prefetched = this.#fetchAndDecode(height, source);
-        prefetched.catch(() => undefined);
-        inflight.set(height, prefetched);
-        fetchHead++;
-      }
-    };
-
-    const commitDetached = (blocks: DecodedBlock[]) => {
-      const commit = this.#commitBatch(blocks, endHeight, stream, progress);
-      commit.catch(() => {
-        commitFailed = true;
-      });
-      return commit;
-    };
-
-    try {
-      for (let height = startHeight; height <= endHeight && !this.#stopped && !commitFailed; height++) {
-        fillFetchWindow();
-        const decoded = await inflight.get(height)!;
-        inflight.delete(height);
-
-        this.#verifyContinuity(decoded);
-        this.#lastHash = decoded.hash;
-        batch.push(decoded);
-        fillFetchWindow();
-
-        if (batch.length >= this.#config.BACKFILL_BATCH_SIZE || height === endHeight) {
-          if (pendingCommit) {
-            await pendingCommit;
-          }
-          pendingCommit = commitDetached(batch);
-          batch = [];
-        }
-      }
-
-      if (pendingCommit) {
-        await pendingCommit;
-      }
-    } catch (error) {
-      throw await this.#preferCommitFailure(error, pendingCommit);
-    } finally {
-      await Promise.allSettled([...inflight.values(), pendingCommit]);
-    }
+    const progress = await runRangePipeline({
+      startHeight,
+      endHeight,
+      concurrency: this.#config.BACKFILL_CONCURRENCY,
+      batchSize: this.#config.BACKFILL_BATCH_SIZE,
+      fetch: height => this.#fetchAndDecode(height, source),
+      inspect: block => {
+        this.#verifyContinuity(block);
+        this.#lastHash = block.hash;
+      },
+      commit: async blocks => {
+        const height = blocks[blocks.length - 1].height;
+        await this.#commitOrReport(blocks, stream, height);
+        blocksCommitted += blocks.length;
+        this.#logger.info({ event: "BACKFILL_PROGRESS", height, endHeight, blocksCommitted });
+      },
+      isStopped: () => this.#stopped
+    });
 
     if (progress.lastCommittedHeight < endHeight) {
       return false;
@@ -311,26 +266,22 @@ export class BackfillRunnerService {
     return true;
   }
 
-  async #commitBatch(blocks: DecodedBlock[], endHeight: number, stream: string, progress: BackfillProgress): Promise<void> {
-    const height = blocks[blocks.length - 1].height;
-    await this.#retryTransient(() => this.#committer.commitBatch(blocks, { stream }), { event: "BACKFILL_COMMIT_RETRY", height });
-    progress.blocksCommitted += blocks.length;
-    progress.transactionsCommitted += blocks.reduce((sum, block) => sum + block.transactions.length, 0);
-    progress.lastCommittedHeight = height;
-    this.#logger.info({ event: "BACKFILL_PROGRESS", height, endHeight, blocksCommitted: progress.blocksCommitted });
+  /** A full backfill would skip the module a replay owns for every block it commits and leave those heights without the module's rows once the replay hands off. */
+  async #refuseDuringModuleReplay(): Promise<void> {
+    const underReplay = await readModulesUnderReplay(this.#db);
+    if (underReplay.length > 0) {
+      throw new Error(`A module replay is in progress (${underReplay.join(", ")}); a full backfill cannot run until it hands off`);
+    }
   }
 
-  /** A detached commit that is still rejecting when a later step throws is the real cause, so it is reported and thrown instead of the error that merely followed it. */
-  async #preferCommitFailure(error: unknown, pendingCommit: Promise<void> | null): Promise<unknown> {
-    if (!pendingCommit) {
-      return error;
+  /** Logged here because the pipeline reports the commit failure as the run's cause even when a later block's error surfaced first. */
+  async #commitOrReport(blocks: DecodedBlock[], stream: string, height: number): Promise<void> {
+    try {
+      await this.#retryTransient(() => this.#committer.commitBatch(blocks, { stream }), { event: "BACKFILL_COMMIT_RETRY", height });
+    } catch (error) {
+      this.#logger.error({ event: "BACKFILL_COMMIT_FAILED", height, error });
+      throw error;
     }
-    const [commit] = await Promise.allSettled([pendingCommit]);
-    if (commit.status !== "rejected" || commit.reason === error) {
-      return error;
-    }
-    this.#logger.error({ event: "BACKFILL_COMMIT_FAILED", error: commit.reason, followedBy: error });
-    return commit.reason;
   }
 
   /** Retriable steps (checkpoint reads, tip fetches, idempotent batch commits) survive transient blips instead of failing the whole multi-hour Job; fatal errors propagate. */

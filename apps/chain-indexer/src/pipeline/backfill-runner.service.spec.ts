@@ -1,3 +1,5 @@
+import type { SQL } from "drizzle-orm";
+import { PgDialect } from "drizzle-orm/pg-core";
 import { setTimeout as delay } from "node:timers/promises";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
@@ -13,6 +15,7 @@ import { BackfillRunnerService } from "@src/pipeline/backfill-runner.service";
 import type { BlockCommitterService } from "@src/pipeline/block-committer.service";
 import type { BlockDecoderService } from "@src/pipeline/block-decoder.service";
 import type { DecodedBlock } from "@src/pipeline/decoded-block";
+import type { ReplayableModule } from "@src/pipeline/modules";
 import { RunnerInterruptedError } from "@src/pipeline/runner-interrupted-error";
 import type { ChainDatabase } from "@src/providers/db.provider";
 import type { LoggerService } from "@src/providers/logging.provider";
@@ -268,6 +271,14 @@ describe(BackfillRunnerService.name, () => {
     });
   });
 
+  it("refuses to start while a module replay is in progress", async () => {
+    const { runner, pool, committer } = setup({ fromHeight: 1, toHeight: 2, replayMarkers: ["gov"] });
+
+    await expect(runner.start()).rejects.toThrow("module replay is in progress");
+    expect(pool.getBlock).not.toHaveBeenCalled();
+    expect(committer.commitBatch).not.toHaveBeenCalled();
+  });
+
   describe("genesis import", () => {
     it("seeds genesis at the range start before the first commit when enabled on a fresh run", async () => {
       const { runner, committer, genesisImport } = setup({ fromHeight: 1, toHeight: 3, genesisImportEnabled: true });
@@ -441,6 +452,7 @@ describe(BackfillRunnerService.name, () => {
     archiveOnly?: boolean;
     deferIndexes?: boolean;
     genesisImportEnabled?: boolean;
+    replayMarkers?: ReplayableModule[];
   }) {
     const config = envSchema.parse({
       POSTGRES_DB_URI: "postgres://unit:unit@localhost:5432/unit",
@@ -459,7 +471,10 @@ describe(BackfillRunnerService.name, () => {
     const dbFake = {
       select: () => ({
         from: (table: unknown) => ({
-          where: () => {
+          where: (where: unknown) => {
+            if (table === IndexerState && new PgDialect().sqlToQuery(where as SQL).params.includes("replay:%")) {
+              return Promise.resolve((input.replayMarkers ?? []).map(module => ({ stream: `replay:${module}`, lastHeight: 1 })));
+            }
             if (table === IndexerState && input.checkpointHeight !== undefined) {
               return Promise.resolve([{ stream: `backfill:${input.fromHeight}-${input.toHeight}`, lastHeight: input.checkpointHeight }]);
             }
