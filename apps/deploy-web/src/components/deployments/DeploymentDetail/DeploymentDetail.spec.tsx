@@ -210,6 +210,19 @@ describe("DeploymentDetail", () => {
       expect(redeploy).toHaveBeenCalledWith(expect.objectContaining({ sdl: "version: '2.0'" }));
     });
 
+    it("offers the editor a redeploy that leaves the stored secrets behind, for when they can no longer be read", () => {
+      const { DeploymentUpdate, redeploy, analyticsService } = setup({
+        tab: "UPDATE",
+        isUpdateEditorEnabled: true,
+        definition: { sdl: "version: '2.0'", source: "api", name: "My Storefront" }
+      });
+
+      DeploymentUpdate.mock.calls[0][0].onRedeployWithNewSecrets?.();
+
+      expect(redeploy).toHaveBeenCalledWith({ sdl: "version: '2.0'", name: "My Storefront" });
+      expect(analyticsService.track).toHaveBeenCalledWith("redeploy_btn_clk", "Amplitude");
+    });
+
     it("hands the editor the providers the page loaded", () => {
       const { DeploymentUpdate } = setup({ tab: "UPDATE", isUpdateEditorEnabled: true });
 

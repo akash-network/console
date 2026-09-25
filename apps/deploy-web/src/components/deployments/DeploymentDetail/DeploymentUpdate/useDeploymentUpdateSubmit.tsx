@@ -9,7 +9,6 @@ import { useServices } from "@src/context/ServicesProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { useBalances } from "@src/queries/useBalancesQuery";
 import type { SdlBuilderFormValuesType } from "@src/types";
-import type { ServicesPatch } from "@src/utils/sdl/sdlServicesPatch";
 import { isEmptyServicesPatch } from "@src/utils/sdl/sdlServicesPatch";
 import { sealSdlSecrets } from "@src/utils/sdl/sealSdlSecrets";
 import {
@@ -21,7 +20,9 @@ import {
   STALE_PROVIDER_VERSION_FALLBACK_MESSAGE,
   UPDATE_FAILURE_MESSAGE
 } from "@src/utils/updateDeploymentFailure";
-import { servicesPatchOf } from "./deploymentUpdatePatch";
+import type { DeploymentUpdateFormValues } from "./deploymentUpdateFormSchema";
+import type { SealedDeploymentUpdate } from "./deploymentUpdatePatch";
+import { sealedUpdateOf } from "./deploymentUpdatePatch";
 
 export const DEPENDENCIES = {
   Snackbar,
@@ -36,6 +37,7 @@ export const DEPENDENCIES = {
 
 const HTTP_CONFLICT = 409;
 const DEFINITION_CHANGED_ERROR_CODE = "deployment_definition_changed";
+const STORED_SECRETS_UNREADABLE_ERROR_CODE = "stored_secrets_unreadable";
 const NOTHING_TO_UPDATE_MESSAGE = "Nothing has changed since this deployment was loaded.";
 const DEFINITION_CHANGED_MESSAGE = "This deployment was updated elsewhere, so the form now shows its current configuration. Make your changes again.";
 const DEFINITION_RELOAD_FAILED_MESSAGE =
@@ -53,6 +55,11 @@ export interface DeploymentUpdateSubmitInput {
   onUpdated: (update: LandedDeploymentUpdate) => void;
   onDefinitionChanged: () => void;
   onDefinitionReloadFailed: () => void;
+}
+
+/** Permanent, and never cured by a retry: the api keeps a token it cannot open untouched rather than overwrite it. */
+function isStoredSecretsUnreadable(cause: unknown): boolean {
+  return isApiError(cause) && extractApiErrorCode(cause) === STORED_SECRETS_UNREADABLE_ERROR_CODE;
 }
 
 function isDefinitionChanged(cause: unknown): boolean {
@@ -78,32 +85,34 @@ export function useDeploymentUpdateSubmit(
   const patchDeployment = api.v1.patchDeployment.useMutation();
   const [isUpdating, setIsUpdating] = useState(false);
   const [sdlRefusal, setSdlRefusal] = useState<string | null>(null);
+  const [secretsUnreadable, setSecretsUnreadable] = useState(false);
 
   function refetchDefinition() {
     queryClient.invalidateQueries({ queryKey: api.v1.getDeployment.getKey({ dseq }) });
   }
 
-  async function sealNothing(): Promise<string> {
+  async function seal(secrets: SealedDeploymentUpdate["secrets"]): Promise<string> {
     const context = await getSdlSecretsContext.mutateAsync();
-    return await d.sealSdlSecrets({ context: context.data, secrets: {} });
+    return await d.sealSdlSecrets({ context: context.data, secrets });
   }
 
   /** Awaited rather than given per-call callbacks, which react-query drops once the tab unmounts mid-update. */
-  async function sealAndPatch(services: ServicesPatch, current: SdlBuilderFormValuesType, canResealOnce: boolean) {
+  async function sealAndPatch(update: SealedDeploymentUpdate, canResealOnce: boolean) {
     let response: Awaited<ReturnType<typeof patchDeployment.mutateAsync>>;
     try {
-      const sealedSecrets = await sealNothing();
-      response = await patchDeployment.mutateAsync({ dseq, data: { services, sealedSecrets, ifManifestVersion: manifestVersion } });
+      const sealedSecrets = await seal(update.secrets);
+      const services = isEmptyServicesPatch(update.services) ? {} : { services: update.services };
+      response = await patchDeployment.mutateAsync({ dseq, data: { ...services, sealedSecrets, ifManifestVersion: manifestVersion } });
     } catch (cause) {
       if (canResealOnce && isStaleSeal(cause)) {
-        await sealAndPatch(services, current, false);
+        await sealAndPatch(update, false);
         return;
       }
       reportFailure(cause);
       return;
     }
 
-    completeUpdate(current, response.data.manifestVersion);
+    completeUpdate(update.values, response.data.manifestVersion);
   }
 
   function completeUpdate(values: SdlBuilderFormValuesType, manifestVersion: string | undefined) {
@@ -137,6 +146,11 @@ export function useDeploymentUpdateSubmit(
 
   function reportFailure(cause: unknown) {
     setIsUpdating(false);
+
+    if (isStoredSecretsUnreadable(cause)) {
+      setSecretsUnreadable(true);
+      return;
+    }
 
     if (isDefinitionChanged(cause)) {
       void reloadTheChangedDefinition();
@@ -194,17 +208,17 @@ export function useDeploymentUpdateSubmit(
     );
   }
 
-  function submit(seed: SdlBuilderFormValuesType, current: SdlBuilderFormValuesType) {
-    const services = servicesPatchOf(seed, current);
-    if (isEmptyServicesPatch(services)) {
+  function submit(seed: SdlBuilderFormValuesType, current: DeploymentUpdateFormValues) {
+    const update = sealedUpdateOf(seed, current);
+    if (isEmptyServicesPatch(update.services) && Object.keys(update.secrets).length === 0) {
       enqueueSnackbar(<d.Snackbar title="Nothing to update" subTitle={NOTHING_TO_UPDATE_MESSAGE} iconVariant="info" />, { variant: "info" });
       return;
     }
 
     setSdlRefusal(null);
     setIsUpdating(true);
-    void sealAndPatch(services, current, true);
+    void sealAndPatch(update, true);
   }
 
-  return { submit, isUpdating, sdlRefusal };
+  return { submit, isUpdating, sdlRefusal, secretsUnreadable };
 }
