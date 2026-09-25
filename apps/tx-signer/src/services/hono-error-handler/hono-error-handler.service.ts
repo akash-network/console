@@ -1,9 +1,10 @@
 import { createOtelLogger } from "@akashnetwork/logging/otel";
 import { HTTPException } from "hono/http-exception";
-import { isHttpError } from "http-errors";
+import { BadRequest, isHttpError } from "http-errors";
 import { inject, singleton } from "tsyringe";
 import { ZodError } from "zod";
 
+import { MessageExecutionFailedError } from "@src/lib/signing-stargate-client-factory/message-execution-failed.error";
 import { ChainErrorService } from "@src/services/chain-error/chain-error.service";
 import type { AppContext } from "@src/types/app-context";
 
@@ -18,6 +19,10 @@ export class HonoErrorHandlerService {
   async handle(error: unknown, c: AppContext): Promise<Response> {
     this.logger.error(error);
 
+    return this.respond(error, c);
+  }
+
+  private respond(error: unknown, c: AppContext): Response {
     if (error instanceof HTTPException) {
       return c.json(
         {
@@ -70,6 +75,10 @@ export class HonoErrorHandlerService {
           { status: chainErrorStatus }
         );
       }
+    }
+
+    if (error instanceof MessageExecutionFailedError) {
+      return this.respond(new BadRequest(error.message), c);
     }
 
     const message = error instanceof Error ? error.message : "Internal server error";
