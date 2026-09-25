@@ -265,6 +265,49 @@ describe(ManifestUpdate.name, () => {
     });
   });
 
+  describe("when the secrets feature is on", () => {
+    it("keeps no copy of an accepted update in this browser", async () => {
+      const handles = setup({ secretsEnabled: true, editedManifest: "version: '2.0'", wallet: { address: "akash1abc" } });
+
+      await clickUpdate(handles);
+      await succeed(handles);
+
+      expect(handles.deploymentLocalStorage.update).not.toHaveBeenCalled();
+      expect(handles.queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: ["getDeployment", "123"] });
+    });
+
+    it("keeps no copy of an update the provider has yet to apply in this browser", async () => {
+      const handles = setup({ secretsEnabled: true, editedManifest: "version: '2.0'", wallet: { address: "akash1abc" } });
+
+      await clickUpdate(handles);
+      await fail(handles, STALE_PROVIDER_VERSION);
+
+      expect(handles.deploymentLocalStorage.update).not.toHaveBeenCalled();
+      expect(handles.queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: ["getDeployment", "123"] });
+    });
+
+    it("compares no copy against the chain and renders no local-versus-chain warning", async () => {
+      const { dependencies } = setup({
+        secretsEnabled: true,
+        definition: { sdl: "version: '2.0'", source: "local" },
+        deployment: { dseq: "123", state: "active", hash: "on-chain-hash" },
+        dependencies: { deploymentData: mock<typeof DEPENDENCIES.deploymentData>({ getManifestVersion: vi.fn().mockResolvedValue("a-different-hash") }) }
+      });
+
+      await waitFor(() => expect(dependencies.SDLEditor).toHaveBeenCalled());
+
+      expect(dependencies.deploymentData.getManifestVersion).not.toHaveBeenCalled();
+      expect(dependencies.WarningCircle).not.toHaveBeenCalled();
+    });
+
+    it("still seeds the editor from a copy this browser recorded before the api held one", async () => {
+      const onManifestChange = vi.fn();
+      setup({ secretsEnabled: true, onManifestChange, definition: { sdl: "version: '2.0' # recorded-in-this-browser", source: "local" } });
+
+      await waitFor(() => expect(onManifestChange).toHaveBeenCalledWith("version: '2.0' # recorded-in-this-browser"));
+    });
+  });
+
   describe("a definition whose secret values the api withheld", () => {
     it("displays it unchanged and says the values are withheld", async () => {
       const onManifestChange = vi.fn();
@@ -1010,6 +1053,7 @@ describe(ManifestUpdate.name, () => {
     onRedeploy?: () => void;
     wallet?: Partial<{ address: string; signAndBroadcastTx: ContextType["signAndBroadcastTx"] }>;
     definition?: Partial<DeploymentDefinition>;
+    secretsEnabled?: boolean;
     dependencies?: Partial<typeof DEPENDENCIES>;
   }) {
     const providerProxy = mock<ProviderProxyService>();
@@ -1055,6 +1099,8 @@ describe(ManifestUpdate.name, () => {
     const queryClient = mock<ReturnType<typeof DEPENDENCIES.useQueryClient>>();
     const useQueryClient: typeof DEPENDENCIES.useQueryClient = () => queryClient;
 
+    const useFlag: typeof DEPENDENCIES.useFlag = () => input?.secretsEnabled ?? false;
+
     const dependencies = MockComponents(DEPENDENCIES, {
       DeploymentTabHeader: vi.fn(({ actions, children }) => (
         <>
@@ -1068,6 +1114,7 @@ describe(ManifestUpdate.name, () => {
       useBlockchainStatus,
       useDeploymentDefinition,
       useQueryClient,
+      useFlag,
       deploymentData: mock<typeof DEPENDENCIES.deploymentData>({
         getManifestVersion: vi.fn().mockResolvedValue("test-version")
       }),

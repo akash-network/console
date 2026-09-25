@@ -16,6 +16,7 @@ import { useServices } from "@src/context/ServicesProvider";
 import { useWallet as useWalletOriginal } from "@src/context/WalletProvider";
 import type { DeploymentDefinition } from "@src/hooks/useDeploymentDefinition/useDeploymentDefinition";
 import { useDeploymentDefinition as useDeploymentDefinitionOriginal } from "@src/hooks/useDeploymentDefinition/useDeploymentDefinition";
+import { useFlag as useFlagOriginal } from "@src/hooks/useFlag";
 import { useBalances as useBalancesOriginal } from "@src/queries/useBalancesQuery";
 import type { DeploymentDto } from "@src/types/deployment";
 import { deploymentData as deploymentDataOriginal } from "@src/utils/deploymentData";
@@ -50,6 +51,7 @@ export const DEPENDENCIES = {
   useSnackbar: useSnackbarOriginal,
   useBlockchainStatus: useBlockchainStatusOriginal,
   useDeploymentDefinition: useDeploymentDefinitionOriginal,
+  useFlag: useFlagOriginal,
   useQueryClient: useQueryClientOriginal,
   // eslint-disable-next-line akash/dependencies-component-or-hook
   deploymentData: deploymentDataOriginal
@@ -99,6 +101,8 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({
   const { enqueueSnackbar, closeSnackbar } = d.useSnackbar();
   const { isBlockchainDown } = d.useBlockchainStatus();
   const definition = d.useDeploymentDefinition(deployment.dseq);
+  /** Once creates are sealed the console's stored copy is the one every browser reads, so this browser neither keeps a copy of its own nor holds a version to compare. */
+  const keepsBrowserCopy = !d.useFlag("ui_deployment_secrets");
   const queryClient = d.useQueryClient();
   const seededDseq = useRef<string | undefined>(undefined);
   const seededSdl = useRef("");
@@ -153,7 +157,7 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({
 
       const { sdl } = definition;
 
-      if (!sdl || !needsChainVersionCheck(definition)) {
+      if (!sdl || !keepsBrowserCopy || !needsChainVersionCheck(definition)) {
         setDeploymentVersion(null);
         return;
       }
@@ -169,7 +173,7 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({
 
       readVersionOfResolvedCopy();
     },
-    [isResolvingDefinition, definition.sdl, definition.source]
+    [isResolvingDefinition, definition.sdl, definition.source, keepsBrowserCopy]
   );
 
   function handleManifestChange(value: string) {
@@ -218,6 +222,8 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({
 
   /** A full or corrupted browser storage must not turn an update the api already accepted into a reported failure. */
   function cacheSubmittedManifest({ dseq, sdl: manifest }: SubmittedUpdate) {
+    if (!keepsBrowserCopy) return;
+
     try {
       deploymentLocalStorage.update(address, dseq, { manifest });
     } catch (error) {

@@ -845,6 +845,33 @@ describe(useDeploymentFlow.name, () => {
   });
 
   describe("when the secrets feature is on", () => {
+    it("keeps no copy of the created SDL in this browser, since the sealed create leaves the api's copy complete", async () => {
+      const createDeployment = mockMutation();
+      createDeployment.mutate.mockImplementation((_i, o) => o.onSuccess({ data: { dseq: "555", manifest: "M" } }));
+      const { result, deploymentLocalStorage } = renderFlow({ createDeployment, secretsEnabled: true });
+
+      act(() => result.current.actions.requestQuotes("SDL_AT_CREATE"));
+
+      await waitFor(() => expect(createDeployment.mutate).toHaveBeenCalled());
+      expect(deploymentLocalStorage.update).not.toHaveBeenCalled();
+    });
+
+    it("keeps no copy of the deployed SDL in this browser once the lease is created", async () => {
+      const createDeployment = mockMutation();
+      createDeployment.mutate.mockImplementation((_i, o) => o.onSuccess({ data: { dseq: "555", manifest: "M" } }));
+      const createLease = mockMutation();
+      createLease.mutate.mockImplementation((_i, o) => o.onSuccess(deployedResult("akash1owner")));
+      const { result, deploymentLocalStorage } = renderFlow({ createDeployment, createLease, secretsEnabled: true });
+
+      act(() => result.current.actions.requestQuotes("SDL_CONTENT"));
+      await waitFor(() => expect(createDeployment.mutate).toHaveBeenCalled());
+      act(() => result.current.actions.selectProvider("placement-1", "akash1a/555/1/3"));
+      act(() => result.current.actions.deploy("SDL_CONTENT"));
+
+      expect(createLease.mutate).toHaveBeenCalled();
+      expect(deploymentLocalStorage.update).not.toHaveBeenCalled();
+    });
+
     it("seals the typed secrets to the fetched context and sends the seal with the create", async () => {
       const createMutate = vi.fn((_args, { onSuccess }) => onSuccess({ data: { dseq: "999", manifest: "m" } }));
       const { result, sealSdlSecrets } = setup({ secretsEnabled: true, createMutate });
