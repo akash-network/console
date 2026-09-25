@@ -7391,6 +7391,64 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                                       ],
                                       "type": "object",
                                     },
+                                    "offeredGpus": {
+                                      "description": "GPUs the provider offered for this lease in the bid it was created from, which is what an \`Any model\` request resolves to. Absent until the console has recorded the bid, and for a lease whose deployment the console does not manage.",
+                                      "properties": {
+                                        "gpus": {
+                                          "items": {
+                                            "properties": {
+                                              "count": {
+                                                "description": "Cards of this model offered across every replica, identical ones folded into one entry.",
+                                                "exclusiveMinimum": true,
+                                                "minimum": 0,
+                                                "type": "integer",
+                                              },
+                                              "displayName": {
+                                                "description": "Marketing-correct label for the model, e.g. \`A100\`.",
+                                                "type": "string",
+                                              },
+                                              "interface": {
+                                                "description": "\`sxm\` or \`pcie\` when the offer names it. Providers name it only when the SDL asked for it.",
+                                                "nullable": true,
+                                                "type": "string",
+                                              },
+                                              "model": {
+                                                "description": "SDL model key the provider offered, e.g. \`a100\`.",
+                                                "type": "string",
+                                              },
+                                              "ram": {
+                                                "description": "Per-card memory, e.g. \`80Gi\`, when the offer names it. Providers name it only when the SDL asked for it.",
+                                                "nullable": true,
+                                                "type": "string",
+                                              },
+                                              "vendor": {
+                                                "description": "Vendor key the provider offered, e.g. \`nvidia\`.",
+                                                "type": "string",
+                                              },
+                                            },
+                                            "required": [
+                                              "vendor",
+                                              "model",
+                                              "displayName",
+                                              "ram",
+                                              "interface",
+                                              "count",
+                                            ],
+                                            "type": "object",
+                                          },
+                                          "type": "array",
+                                        },
+                                        "recordedAt": {
+                                          "format": "date-time",
+                                          "type": "string",
+                                        },
+                                      },
+                                      "required": [
+                                        "gpus",
+                                        "recordedAt",
+                                      ],
+                                      "type": "object",
+                                    },
                                     "price": {
                                       "properties": {
                                         "amount": {
@@ -8257,6 +8315,64 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                                 ],
                                 "type": "object",
                               },
+                              "offeredGpus": {
+                                "description": "GPUs the provider offered for this lease in the bid it was created from, which is what an \`Any model\` request resolves to. Absent until the console has recorded the bid, and for a lease whose deployment the console does not manage.",
+                                "properties": {
+                                  "gpus": {
+                                    "items": {
+                                      "properties": {
+                                        "count": {
+                                          "description": "Cards of this model offered across every replica, identical ones folded into one entry.",
+                                          "exclusiveMinimum": true,
+                                          "minimum": 0,
+                                          "type": "integer",
+                                        },
+                                        "displayName": {
+                                          "description": "Marketing-correct label for the model, e.g. \`A100\`.",
+                                          "type": "string",
+                                        },
+                                        "interface": {
+                                          "description": "\`sxm\` or \`pcie\` when the offer names it. Providers name it only when the SDL asked for it.",
+                                          "nullable": true,
+                                          "type": "string",
+                                        },
+                                        "model": {
+                                          "description": "SDL model key the provider offered, e.g. \`a100\`.",
+                                          "type": "string",
+                                        },
+                                        "ram": {
+                                          "description": "Per-card memory, e.g. \`80Gi\`, when the offer names it. Providers name it only when the SDL asked for it.",
+                                          "nullable": true,
+                                          "type": "string",
+                                        },
+                                        "vendor": {
+                                          "description": "Vendor key the provider offered, e.g. \`nvidia\`.",
+                                          "type": "string",
+                                        },
+                                      },
+                                      "required": [
+                                        "vendor",
+                                        "model",
+                                        "displayName",
+                                        "ram",
+                                        "interface",
+                                        "count",
+                                      ],
+                                      "type": "object",
+                                    },
+                                    "type": "array",
+                                  },
+                                  "recordedAt": {
+                                    "format": "date-time",
+                                    "type": "string",
+                                  },
+                                },
+                                "required": [
+                                  "gpus",
+                                  "recordedAt",
+                                ],
+                                "type": "object",
+                              },
                               "price": {
                                 "properties": {
                                   "amount": {
@@ -8945,6 +9061,64 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                                   "oseq",
                                   "provider",
                                   "bseq",
+                                ],
+                                "type": "object",
+                              },
+                              "offeredGpus": {
+                                "description": "GPUs the provider offered for this lease in the bid it was created from, which is what an \`Any model\` request resolves to. Absent until the console has recorded the bid, and for a lease whose deployment the console does not manage.",
+                                "properties": {
+                                  "gpus": {
+                                    "items": {
+                                      "properties": {
+                                        "count": {
+                                          "description": "Cards of this model offered across every replica, identical ones folded into one entry.",
+                                          "exclusiveMinimum": true,
+                                          "minimum": 0,
+                                          "type": "integer",
+                                        },
+                                        "displayName": {
+                                          "description": "Marketing-correct label for the model, e.g. \`A100\`.",
+                                          "type": "string",
+                                        },
+                                        "interface": {
+                                          "description": "\`sxm\` or \`pcie\` when the offer names it. Providers name it only when the SDL asked for it.",
+                                          "nullable": true,
+                                          "type": "string",
+                                        },
+                                        "model": {
+                                          "description": "SDL model key the provider offered, e.g. \`a100\`.",
+                                          "type": "string",
+                                        },
+                                        "ram": {
+                                          "description": "Per-card memory, e.g. \`80Gi\`, when the offer names it. Providers name it only when the SDL asked for it.",
+                                          "nullable": true,
+                                          "type": "string",
+                                        },
+                                        "vendor": {
+                                          "description": "Vendor key the provider offered, e.g. \`nvidia\`.",
+                                          "type": "string",
+                                        },
+                                      },
+                                      "required": [
+                                        "vendor",
+                                        "model",
+                                        "displayName",
+                                        "ram",
+                                        "interface",
+                                        "count",
+                                      ],
+                                      "type": "object",
+                                    },
+                                    "type": "array",
+                                  },
+                                  "recordedAt": {
+                                    "format": "date-time",
+                                    "type": "string",
+                                  },
+                                },
+                                "required": [
+                                  "gpus",
+                                  "recordedAt",
                                 ],
                                 "type": "object",
                               },
@@ -9702,6 +9876,64 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                                   "oseq",
                                   "provider",
                                   "bseq",
+                                ],
+                                "type": "object",
+                              },
+                              "offeredGpus": {
+                                "description": "GPUs the provider offered for this lease in the bid it was created from, which is what an \`Any model\` request resolves to. Absent until the console has recorded the bid, and for a lease whose deployment the console does not manage.",
+                                "properties": {
+                                  "gpus": {
+                                    "items": {
+                                      "properties": {
+                                        "count": {
+                                          "description": "Cards of this model offered across every replica, identical ones folded into one entry.",
+                                          "exclusiveMinimum": true,
+                                          "minimum": 0,
+                                          "type": "integer",
+                                        },
+                                        "displayName": {
+                                          "description": "Marketing-correct label for the model, e.g. \`A100\`.",
+                                          "type": "string",
+                                        },
+                                        "interface": {
+                                          "description": "\`sxm\` or \`pcie\` when the offer names it. Providers name it only when the SDL asked for it.",
+                                          "nullable": true,
+                                          "type": "string",
+                                        },
+                                        "model": {
+                                          "description": "SDL model key the provider offered, e.g. \`a100\`.",
+                                          "type": "string",
+                                        },
+                                        "ram": {
+                                          "description": "Per-card memory, e.g. \`80Gi\`, when the offer names it. Providers name it only when the SDL asked for it.",
+                                          "nullable": true,
+                                          "type": "string",
+                                        },
+                                        "vendor": {
+                                          "description": "Vendor key the provider offered, e.g. \`nvidia\`.",
+                                          "type": "string",
+                                        },
+                                      },
+                                      "required": [
+                                        "vendor",
+                                        "model",
+                                        "displayName",
+                                        "ram",
+                                        "interface",
+                                        "count",
+                                      ],
+                                      "type": "object",
+                                    },
+                                    "type": "array",
+                                  },
+                                  "recordedAt": {
+                                    "format": "date-time",
+                                    "type": "string",
+                                  },
+                                },
+                                "required": [
+                                  "gpus",
+                                  "recordedAt",
                                 ],
                                 "type": "object",
                               },
@@ -10650,6 +10882,64 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                                   "oseq",
                                   "provider",
                                   "bseq",
+                                ],
+                                "type": "object",
+                              },
+                              "offeredGpus": {
+                                "description": "GPUs the provider offered for this lease in the bid it was created from, which is what an \`Any model\` request resolves to. Absent until the console has recorded the bid, and for a lease whose deployment the console does not manage.",
+                                "properties": {
+                                  "gpus": {
+                                    "items": {
+                                      "properties": {
+                                        "count": {
+                                          "description": "Cards of this model offered across every replica, identical ones folded into one entry.",
+                                          "exclusiveMinimum": true,
+                                          "minimum": 0,
+                                          "type": "integer",
+                                        },
+                                        "displayName": {
+                                          "description": "Marketing-correct label for the model, e.g. \`A100\`.",
+                                          "type": "string",
+                                        },
+                                        "interface": {
+                                          "description": "\`sxm\` or \`pcie\` when the offer names it. Providers name it only when the SDL asked for it.",
+                                          "nullable": true,
+                                          "type": "string",
+                                        },
+                                        "model": {
+                                          "description": "SDL model key the provider offered, e.g. \`a100\`.",
+                                          "type": "string",
+                                        },
+                                        "ram": {
+                                          "description": "Per-card memory, e.g. \`80Gi\`, when the offer names it. Providers name it only when the SDL asked for it.",
+                                          "nullable": true,
+                                          "type": "string",
+                                        },
+                                        "vendor": {
+                                          "description": "Vendor key the provider offered, e.g. \`nvidia\`.",
+                                          "type": "string",
+                                        },
+                                      },
+                                      "required": [
+                                        "vendor",
+                                        "model",
+                                        "displayName",
+                                        "ram",
+                                        "interface",
+                                        "count",
+                                      ],
+                                      "type": "object",
+                                    },
+                                    "type": "array",
+                                  },
+                                  "recordedAt": {
+                                    "format": "date-time",
+                                    "type": "string",
+                                  },
+                                },
+                                "required": [
+                                  "gpus",
+                                  "recordedAt",
                                 ],
                                 "type": "object",
                               },
@@ -11712,6 +12002,64 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                                   "oseq",
                                   "provider",
                                   "bseq",
+                                ],
+                                "type": "object",
+                              },
+                              "offeredGpus": {
+                                "description": "GPUs the provider offered for this lease in the bid it was created from, which is what an \`Any model\` request resolves to. Absent until the console has recorded the bid, and for a lease whose deployment the console does not manage.",
+                                "properties": {
+                                  "gpus": {
+                                    "items": {
+                                      "properties": {
+                                        "count": {
+                                          "description": "Cards of this model offered across every replica, identical ones folded into one entry.",
+                                          "exclusiveMinimum": true,
+                                          "minimum": 0,
+                                          "type": "integer",
+                                        },
+                                        "displayName": {
+                                          "description": "Marketing-correct label for the model, e.g. \`A100\`.",
+                                          "type": "string",
+                                        },
+                                        "interface": {
+                                          "description": "\`sxm\` or \`pcie\` when the offer names it. Providers name it only when the SDL asked for it.",
+                                          "nullable": true,
+                                          "type": "string",
+                                        },
+                                        "model": {
+                                          "description": "SDL model key the provider offered, e.g. \`a100\`.",
+                                          "type": "string",
+                                        },
+                                        "ram": {
+                                          "description": "Per-card memory, e.g. \`80Gi\`, when the offer names it. Providers name it only when the SDL asked for it.",
+                                          "nullable": true,
+                                          "type": "string",
+                                        },
+                                        "vendor": {
+                                          "description": "Vendor key the provider offered, e.g. \`nvidia\`.",
+                                          "type": "string",
+                                        },
+                                      },
+                                      "required": [
+                                        "vendor",
+                                        "model",
+                                        "displayName",
+                                        "ram",
+                                        "interface",
+                                        "count",
+                                      ],
+                                      "type": "object",
+                                    },
+                                    "type": "array",
+                                  },
+                                  "recordedAt": {
+                                    "format": "date-time",
+                                    "type": "string",
+                                  },
+                                },
+                                "required": [
+                                  "gpus",
+                                  "recordedAt",
                                 ],
                                 "type": "object",
                               },
