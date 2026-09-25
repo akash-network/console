@@ -342,7 +342,7 @@ describe(ClusterInventoryMatcherService.name, () => {
       expect(service.match(cluster, units).matched).toBe(false);
     });
 
-    it("pins to first GPU type when no GPU specs provided", () => {
+    it("rejects a GPU request that names no GPU attributes", () => {
       const service = new ClusterInventoryMatcherService();
       const cluster = makeCluster([
         {
@@ -362,7 +362,7 @@ describe(ClusterInventoryMatcherService.name, () => {
         gpuAttributes: []
       });
 
-      expect(service.match(cluster, units).matched).toBe(true);
+      expect(service.match(cluster, units).matched).toBe(false);
     });
 
     it("fails GPU request when node has no GPU info", () => {
@@ -388,7 +388,7 @@ describe(ClusterInventoryMatcherService.name, () => {
       expect(service.match(cluster, units).matched).toBe(false);
     });
 
-    it("rejects wildcard request for 2 GPUs when node has mixed RAM variants of the same model", () => {
+    it("places 2 GPUs of one model on a node mixing its memory sizes when the request names no memory", () => {
       const service = new ClusterInventoryMatcherService();
       const cluster = makeCluster([
         {
@@ -411,10 +411,10 @@ describe(ClusterInventoryMatcherService.name, () => {
         gpuAttributes: [{ key: "vendor/nvidia/model/a100", value: "true" }]
       });
 
-      expect(service.match(cluster, units).matched).toBe(false);
+      expect(service.match(cluster, units).matched).toBe(true);
     });
 
-    it("rejects wildcard request for 2 GPUs when node has mixed interfaces of the same model", () => {
+    it("places 2 GPUs of one model on a node mixing its interfaces when the request names no interface", () => {
       const service = new ClusterInventoryMatcherService();
       const cluster = makeCluster([
         {
@@ -437,7 +437,7 @@ describe(ClusterInventoryMatcherService.name, () => {
         gpuAttributes: [{ key: "vendor/nvidia/model/a100", value: "true" }]
       });
 
-      expect(service.match(cluster, units).matched).toBe(false);
+      expect(service.match(cluster, units).matched).toBe(true);
     });
 
     it("matches wildcard request for 2 GPUs when node has identical SKUs", () => {
@@ -461,6 +461,132 @@ describe(ClusterInventoryMatcherService.name, () => {
         count: 1,
         gpuUnits: 2n,
         gpuAttributes: [{ key: "vendor/nvidia/model/a100", value: "true" }]
+      });
+
+      expect(service.match(cluster, units).matched).toBe(true);
+    });
+    it("looks the requested model up case-sensitively, as the provider does", () => {
+      const service = new ClusterInventoryMatcherService();
+      const cluster = makeCluster([
+        {
+          cpu: 16000n,
+          memory: 34359738368n,
+          ephemeral: 107374182400n,
+          gpuCount: 1n,
+          gpuInfo: [{ vendor: "nvidia", name: "a100", modelId: "20b5", interface: "PCIe", memorySize: "80Gi" }]
+        }
+      ]);
+      const units = makeResourceUnits({
+        cpu: 1000n,
+        memory: 1073741824n,
+        ephemeral: 5368709120n,
+        count: 1,
+        gpuUnits: 1n,
+        gpuAttributes: [{ key: "vendor/nvidia/model/A100", value: "true" }]
+      });
+
+      expect(service.match(cluster, units).matched).toBe(false);
+    });
+
+    it("keeps only the last alternative a request lists for a model", () => {
+      const service = new ClusterInventoryMatcherService();
+      const cluster = makeCluster([
+        {
+          cpu: 16000n,
+          memory: 34359738368n,
+          ephemeral: 107374182400n,
+          gpuCount: 1n,
+          gpuInfo: [{ vendor: "nvidia", name: "a100", modelId: "20b0", interface: "PCIe", memorySize: "40Gi" }]
+        }
+      ]);
+      const units = makeResourceUnits({
+        cpu: 1000n,
+        memory: 1073741824n,
+        ephemeral: 5368709120n,
+        count: 1,
+        gpuUnits: 1n,
+        gpuAttributes: [
+          { key: "vendor/nvidia/model/a100/ram/40Gi", value: "true" },
+          { key: "vendor/nvidia/model/a100/ram/80Gi", value: "true" }
+        ]
+      });
+
+      expect(service.match(cluster, units).matched).toBe(false);
+    });
+
+    it("holds a model to its own alternative rather than a wildcard alongside it", () => {
+      const service = new ClusterInventoryMatcherService();
+      const cluster = makeCluster([
+        {
+          cpu: 16000n,
+          memory: 34359738368n,
+          ephemeral: 107374182400n,
+          gpuCount: 1n,
+          gpuInfo: [{ vendor: "nvidia", name: "a100", modelId: "20b0", interface: "PCIe", memorySize: "40Gi" }]
+        }
+      ]);
+      const units = makeResourceUnits({
+        cpu: 1000n,
+        memory: 1073741824n,
+        ephemeral: 5368709120n,
+        count: 1,
+        gpuUnits: 1n,
+        gpuAttributes: [
+          { key: "vendor/nvidia/model/*", value: "true" },
+          { key: "vendor/nvidia/model/a100/ram/80Gi", value: "true" }
+        ]
+      });
+
+      expect(service.match(cluster, units).matched).toBe(false);
+    });
+
+    it("applies a wildcard alternative to a model no other alternative names", () => {
+      const service = new ClusterInventoryMatcherService();
+      const cluster = makeCluster([
+        {
+          cpu: 16000n,
+          memory: 34359738368n,
+          ephemeral: 107374182400n,
+          gpuCount: 1n,
+          gpuInfo: [{ vendor: "nvidia", name: "h100", modelId: "2330", interface: "SXM5", memorySize: "80Gi" }]
+        }
+      ]);
+      const units = makeResourceUnits({
+        cpu: 1000n,
+        memory: 1073741824n,
+        ephemeral: 5368709120n,
+        count: 1,
+        gpuUnits: 1n,
+        gpuAttributes: [
+          { key: "vendor/nvidia/model/*", value: "true" },
+          { key: "vendor/nvidia/model/a100/ram/80Gi", value: "true" }
+        ]
+      });
+
+      expect(service.match(cluster, units).matched).toBe(true);
+    });
+
+    it("counts GPUs of different models toward one replica under a wildcard", () => {
+      const service = new ClusterInventoryMatcherService();
+      const cluster = makeCluster([
+        {
+          cpu: 16000n,
+          memory: 34359738368n,
+          ephemeral: 107374182400n,
+          gpuCount: 2n,
+          gpuInfo: [
+            { vendor: "nvidia", name: "a100", modelId: "20b5", interface: "PCIe", memorySize: "80Gi" },
+            { vendor: "nvidia", name: "v100", modelId: "1db4", interface: "PCIe", memorySize: "32Gi" }
+          ]
+        }
+      ]);
+      const units = makeResourceUnits({
+        cpu: 1000n,
+        memory: 1073741824n,
+        ephemeral: 5368709120n,
+        count: 1,
+        gpuUnits: 2n,
+        gpuAttributes: [{ key: "vendor/nvidia/model/*", value: "true" }]
       });
 
       expect(service.match(cluster, units).matched).toBe(true);
@@ -637,7 +763,7 @@ describe(ClusterInventoryMatcherService.name, () => {
       expect(service.match(cluster, units).matched).toBe(false);
     });
 
-    it("fails when a later replica on another node has a different RAM size than the first (wildcard)", () => {
+    it("places a later replica on a node holding the same model with another memory size when the request names no memory", () => {
       const service = new ClusterInventoryMatcherService();
       const cluster = makeCluster([
         {
@@ -662,6 +788,35 @@ describe(ClusterInventoryMatcherService.name, () => {
         count: 2,
         gpuUnits: 1n,
         gpuAttributes: [{ key: "vendor/nvidia/model/a100", value: "true" }]
+      });
+
+      expect(service.match(cluster, units).matched).toBe(true);
+    });
+    it("holds later replicas to the memory size the request names", () => {
+      const service = new ClusterInventoryMatcherService();
+      const cluster = makeCluster([
+        {
+          cpu: 16000n,
+          memory: 34359738368n,
+          ephemeral: 107374182400n,
+          gpuCount: 1n,
+          gpuInfo: [{ vendor: "nvidia", name: "a100", modelId: "20b5", interface: "PCIe", memorySize: "80Gi" }]
+        },
+        {
+          cpu: 16000n,
+          memory: 34359738368n,
+          ephemeral: 107374182400n,
+          gpuCount: 1n,
+          gpuInfo: [{ vendor: "nvidia", name: "a100", modelId: "20b0", interface: "PCIe", memorySize: "40Gi" }]
+        }
+      ]);
+      const units = makeResourceUnits({
+        cpu: 1000n,
+        memory: 1073741824n,
+        ephemeral: 5368709120n,
+        count: 2,
+        gpuUnits: 1n,
+        gpuAttributes: [{ key: "vendor/nvidia/model/a100/ram/80Gi", value: "true" }]
       });
 
       expect(service.match(cluster, units).matched).toBe(false);

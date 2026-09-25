@@ -138,6 +138,11 @@ node.
   invalid requests). The physical GPU's interface is normalized for comparison: all `sxm*` variants
   (`sxm2`, `sxm3`, `SXM4`, …) collapse to `sxm`. A user request of `interface/sxm` matches a
   physical GPU reported as `sxm4`. The normalization is one-sided (hardware side only).
+- A request may list several alternatives. When two name the same model, only the last in key
+  order counts, so `a100/ram/40Gi` next to `a100/ram/80Gi` leaves only the 80Gi one. A wildcard
+  alternative covers only the models no other alternative names.
+- Every physical GPU on the node that satisfies its model's alternative counts toward the replica,
+  so a wildcard request for 2 GPUs can take one A100 and one V100 from the same node.
 
 When a matching set of physical GPUs is found, scheduler params are emitted: `vendor`, `model`,
 and `runtimeClass = "nvidia"` (for NVIDIA GPUs).
@@ -153,6 +158,8 @@ Examples — node has `2× NVIDIA A100 PCIe 80Gi`:
 - ❌ **Skip node:** `vendor/amd/model/mi300` on an NVIDIA-only node → skip node.
 - ❌ **Skip node:** `vendor/nvidia/model/a100/ram/40Gi` against an 80Gi A100 → skip node.
 - ❌ **Skip node:** `vendor/nvidia/model/a100/interface/sxm` against a PCIe A100 → skip node.
+- ❌ **Skip node:** `vendor/nvidia/model/*` next to `vendor/nvidia/model/a100/ram/40Gi` against an
+  80Gi A100 → the A100's own alternative decides, not the wildcard → skip node.
 - ❌ **Skip node:** Request 4× A100 on a node with only 2× A100 → skip node (continues to next
   node; if no other node has 4 matching A100s → `ErrInsufficientCapacity`).
 - ❌ **Skip node:** Request 1× GPU on a node where `gpu.available == 0`, even if its info list has
