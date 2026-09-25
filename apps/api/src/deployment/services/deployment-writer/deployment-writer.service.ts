@@ -401,8 +401,8 @@ export class DeploymentWriterService {
   /**
    * An update resubmits the whole SDL, so what it stores replaces the definition wholesale — the token
    * included, rather than left to survive from the create the way it did before this could write one.
-   * Sealing runs after everything that can still refuse the request, so a 404 on the deployment or a
-   * reference with no value spends no key-service call.
+   * Sealing for storage runs after everything that can still refuse the request. A seal the request
+   * carries is opened before that, as on create, because its values resolve the references a 400 is decided on.
    */
   public async updateByUserIdAndDseq(userId: string, dseq: string, input: UpdateDeploymentRequest["data"]): Promise<DeploymentResponse> {
     this.logger.warn({ event: "DEPRECATED_UPDATE_DEPLOYMENT_ENDPOINT_USED", userId, dseq });
@@ -521,12 +521,13 @@ export class DeploymentWriterService {
     await this.#assertNoDefinitionRecorded({ userId, dseq }, ability);
 
     const wallet = await this.walletReaderService.getWalletByUserId(userId);
+    const deployment = await this.deploymentReaderService.findByWalletAndDseqWithoutProviderStatus(wallet, dseq);
+    const runningVersion = this.#runningVersionOf(deployment);
     const supplied = await this.#receiveSecrets(input, {});
     const stored = this.#storedSecretsOf({ inherited: {}, supplied, derived }, storedDocument);
     const { manifestVersion } = await this.#resolveSdl(input.sdl, { secrets: supplied });
-    const deployment = await this.deploymentReaderService.findByWalletAndDseqWithoutProviderStatus(wallet, dseq);
     const recordedVersion = Buffer.from(manifestVersion).toString("base64");
-    this.#assertDescribesWhatRuns(recordedVersion, deployment, { userId, dseq });
+    this.#assertIsRunningVersion(recordedVersion, runningVersion, { userId, dseq });
 
     const sealedSecrets = await this.sdlSecretsService.sealForStorage({ userId, dseq, secrets: stored });
     const closed = deployment.deployment.state === "closed";
@@ -556,12 +557,16 @@ export class DeploymentWriterService {
   }
 
   /** The database fallback describes a deployment without the version it runs, which cannot tell a matching definition from any other. */
-  #assertDescribesWhatRuns(recordedVersion: string, deployment: DeploymentResponse, key: { userId: string; dseq: string }): void {
+  #runningVersionOf(deployment: DeploymentResponse): string {
     if (deployment.deployment.hash === UNKNOWN_DB_PLACEHOLDER) {
       throw createError(503, "The version this deployment runs could not be read, please retry");
     }
 
-    if (recordedVersion !== deployment.deployment.hash) {
+    return deployment.deployment.hash;
+  }
+
+  #assertIsRunningVersion(recordedVersion: string, runningVersion: string, key: { userId: string; dseq: string }): void {
+    if (recordedVersion !== runningVersion) {
       this.logger.info({ event: "DEPLOYMENT_DEFINITION_MISMATCHED", ...key });
 
       throw createError(422, "This SDL does not describe what the deployment is running, so it was not recorded. Update the deployment to apply it instead", {

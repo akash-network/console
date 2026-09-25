@@ -2715,13 +2715,30 @@ describe(DeploymentWriterService.name, () => {
       });
     });
 
-    it("answers 404 for a deployment the caller does not hold, sealing nothing", async () => {
+    it("answers 404 for a deployment the caller does not hold before opening the seal it carries", async () => {
       const { service, deploymentReaderService, sdlSecretsService, ability } = setup({ sourceSetting: undefined, manifestVersion: COMMITTED_VERSION });
       deploymentReaderService.findByWalletAndDseqWithoutProviderStatus.mockRejectedValue(new NotFound("Deployment not found"));
 
-      await expect(service.recordDefinitionByUserIdAndDseq("user-1", "100", { sdl: SDL_WITH_SECRETS }, ability)).rejects.toMatchObject({ status: 404 });
+      await expect(
+        service.recordDefinitionByUserIdAndDseq("user-1", "100", { sdl: SDL_WITH_SECRETS, sealedSecrets: CLIENT_SEAL }, ability)
+      ).rejects.toMatchObject({
+        status: 404
+      });
 
+      expect(sdlSecretsService.receive).not.toHaveBeenCalled();
       expect(sdlSecretsService.sealForStorage).not.toHaveBeenCalled();
+    });
+
+    it("answers 503 for a deployment only the database fallback describes before opening the seal it carries", async () => {
+      const { service, sdlSecretsService, ability } = setup({ sourceSetting: undefined, manifestVersion: COMMITTED_VERSION, onChainHash: "unknown_value" });
+
+      await expect(
+        service.recordDefinitionByUserIdAndDseq("user-1", "100", { sdl: SDL_WITH_SECRETS, sealedSecrets: CLIENT_SEAL }, ability)
+      ).rejects.toMatchObject({
+        status: 503
+      });
+
+      expect(sdlSecretsService.receive).not.toHaveBeenCalled();
     });
 
     it("refuses an sdl that is not yaml before reading the chain", async () => {
