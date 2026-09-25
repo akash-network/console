@@ -98,6 +98,18 @@ describe(mapGroupSpecToResourceUnits.name, () => {
     expect(units[0].resources.storage[0].attributes).toEqual({ persistent: true, class: "beta2", classification: "persistent" });
   });
 
+  it("carries no capability when no GPU attributes are declared", () => {
+    const { units } = setup({});
+
+    expect(units[0].resources.gpu.capabilities).toEqual([]);
+  });
+
+  it("carries the GPU attributes through as the capabilities a provider must advertise", () => {
+    const { units } = setup({ gpuAttributes: [{ key: "vendor/nvidia/model/a100/ram/80Gi/interface/pcie", value: "true" }] });
+
+    expect(units[0].resources.gpu.capabilities).toEqual([{ key: "vendor/nvidia/model/a100/ram/80Gi/interface/pcie", value: "true" }]);
+  });
+
   it("parses a fully-specified GPU spec with vendor/model/ram/interface", () => {
     const { units } = setup({
       gpuAttributes: [{ key: "vendor/nvidia/model/a100/ram/80Gi/interface/pcie", value: "true" }]

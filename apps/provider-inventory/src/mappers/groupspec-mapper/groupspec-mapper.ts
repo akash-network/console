@@ -18,7 +18,8 @@ export function mapGroupSpecToResourceUnits(request: Omit<GroupSpecJSON, "name">
         },
         gpu: {
           units: resource.gpu.units.val,
-          attributes: parseGPUAttributes(resource.gpu.attributes ?? [])
+          attributes: parseGPUAttributes(resource.gpu.attributes ?? []),
+          capabilities: resource.gpu.attributes ?? []
         },
         memory: {
           quantity: resource.memory.quantity.val

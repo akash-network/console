@@ -128,6 +128,10 @@ export class BidScreeningRepository {
         conditions.push(AND, sql`${sql(providerInventory.gpuModels.name)} && ${unit.gpuTokens}::text[]`);
       }
 
+      if (unit.gpuCapabilities.length > 0) {
+        conditions.push(AND, this.#advertisesAnyGpuCapability(unit.gpuCapabilities));
+      }
+
       if (unit.persistentClasses.length > 0) {
         conditions.push(AND, sql`${sql(providerInventory.storageClasses.name)} @> ${unit.persistentClasses}::text[]`);
       }
@@ -152,5 +156,17 @@ export class BidScreeningRepository {
     }
 
     return conditions;
+  }
+
+  /** Mirrors the bid engine's MatchResourcesRequirements, which declines an order whose GPU key no advertised capability matches, whatever the hardware says. */
+  #advertisesAnyGpuCapability(capabilities: BidScreeningCriteria["units"][number]["gpuCapabilities"]) {
+    const sql = this.#sql;
+    const OR = sql`OR`;
+    const alternatives = capabilities.flatMap((capability, index) => [
+      ...(index === 0 ? [] : [OR]),
+      sql`(sa->>'key' ~ ${capability.keyPattern} AND sa->>'value' = ${capability.value})`
+    ]);
+
+    return sql`EXISTS (SELECT 1 FROM jsonb_array_elements(${sql(providerInventory.selfAttributes.name)}) AS sa WHERE ${alternatives})`;
   }
 }

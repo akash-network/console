@@ -294,8 +294,8 @@ describe(aggregateCriteria.name, () => {
     it("emits a per-unit filter slot for each unit in this slice", () => {
       const c = aggregateCriteria([makeUnit({}), makeUnit({})], makeRequirements());
       expect(c.units).toEqual([
-        { gpuTokens: [], persistentClasses: [] },
-        { gpuTokens: [], persistentClasses: [] }
+        { gpuTokens: [], gpuCapabilities: [], persistentClasses: [] },
+        { gpuTokens: [], gpuCapabilities: [], persistentClasses: [] }
       ]);
     });
 
@@ -447,6 +447,35 @@ describe(aggregateCriteria.name, () => {
       expect(c.units[1].persistentClasses).toEqual([]);
     });
   });
+
+  describe("gpu capabilities", () => {
+    it("anchors each GPU attribute to the advertised capability key", () => {
+      const c = aggregateCriteria(
+        [makeUnit({ gpu: 1n, gpuAttributes: [{ key: "vendor/nvidia/model/rtx4000ada/ram/20Gi/interface/pcie", value: "true" }] })],
+        makeRequirements()
+      );
+
+      expect(c.units[0].gpuCapabilities).toEqual([{ keyPattern: "^capabilities/gpu/vendor/nvidia/model/rtx4000ada/ram/20Gi/interface/pcie$", value: "true" }]);
+    });
+
+    it("lets a trailing * span a single segment", () => {
+      const c = aggregateCriteria([makeUnit({ gpu: 1n, gpuAttributes: [{ key: "vendor/nvidia/model/*", value: "true" }] })], makeRequirements());
+
+      expect(c.units[0].gpuCapabilities).toEqual([{ keyPattern: "^capabilities/gpu/vendor/nvidia/model/[^/]*$", value: "true" }]);
+    });
+
+    it("escapes regex characters in the key", () => {
+      const c = aggregateCriteria([makeUnit({ gpu: 1n, gpuAttributes: [{ key: "vendor/nvidia/model/rtx4000.ada", value: "true" }] })], makeRequirements());
+
+      expect(c.units[0].gpuCapabilities).toEqual([{ keyPattern: "^capabilities/gpu/vendor/nvidia/model/rtx4000\\.ada$", value: "true" }]);
+    });
+
+    it("collects no capability for a unit that requests no GPU", () => {
+      const c = aggregateCriteria([makeUnit({ gpu: 0n, gpuAttributes: [{ key: "vendor/nvidia/model/a100", value: "true" }] })], makeRequirements());
+
+      expect(c.units[0].gpuCapabilities).toEqual([]);
+    });
+  });
 });
 
 function makeUnit(input: {
@@ -464,7 +493,7 @@ function makeUnit(input: {
     resources: {
       cpu: { units: input.cpu ?? 0n, arch: null },
       memory: { quantity: input.memory ?? 0n },
-      gpu: { units: input.gpu ?? 0n, attributes: parseGPUAttributes(input.gpuAttributes ?? []) },
+      gpu: { units: input.gpu ?? 0n, attributes: parseGPUAttributes(input.gpuAttributes ?? []), capabilities: input.gpuAttributes ?? [] },
       storage: (input.storage ?? []).map(s => ({ name: s.name, quantity: s.quantity, attributes: parseStorageAttributes(s.attributes) })),
       endpoints: input.endpoints ?? []
     }

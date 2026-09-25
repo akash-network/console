@@ -294,8 +294,20 @@ describe(BidScreeningRepository.name, () => {
 
   describe("gpu_models filter", () => {
     it("vendor-only request matches mixed-model providers via the vendor token", async () => {
-      await seed({ owner: "akash1nvidiaA100", gpuModels: ["nvidia", "nvidia/a100"], totalAvailableGpu: 8n, maxNodeFreeGpu: 8n });
-      await seed({ owner: "akash1nvidiaH100", gpuModels: ["nvidia", "nvidia/h100"], totalAvailableGpu: 8n, maxNodeFreeGpu: 8n });
+      await seed({
+        owner: "akash1nvidiaA100",
+        gpuModels: ["nvidia", "nvidia/a100"],
+        selfAttributes: advertisedGpus(["nvidia", "nvidia/a100"]),
+        totalAvailableGpu: 8n,
+        maxNodeFreeGpu: 8n
+      });
+      await seed({
+        owner: "akash1nvidiaH100",
+        gpuModels: ["nvidia", "nvidia/h100"],
+        selfAttributes: advertisedGpus(["nvidia", "nvidia/h100"]),
+        totalAvailableGpu: 8n,
+        maxNodeFreeGpu: 8n
+      });
 
       const rows = await repository.findCandidates([unit({ gpu: 1n, gpuAttributes: [{ key: "vendor/nvidia", value: "true" }] })], requirements());
 
@@ -303,8 +315,20 @@ describe(BidScreeningRepository.name, () => {
     });
 
     it("vendor-only request excludes wrong-vendor providers", async () => {
-      await seed({ owner: "akash1nvidia", gpuModels: ["nvidia", "nvidia/a100"], totalAvailableGpu: 8n, maxNodeFreeGpu: 8n });
-      await seed({ owner: "akash1amd", gpuModels: ["amd", "amd/mi300x"], totalAvailableGpu: 8n, maxNodeFreeGpu: 8n });
+      await seed({
+        owner: "akash1nvidia",
+        gpuModels: ["nvidia", "nvidia/a100"],
+        selfAttributes: advertisedGpus(["nvidia", "nvidia/a100"]),
+        totalAvailableGpu: 8n,
+        maxNodeFreeGpu: 8n
+      });
+      await seed({
+        owner: "akash1amd",
+        gpuModels: ["amd", "amd/mi300x"],
+        selfAttributes: advertisedGpus(["amd", "amd/mi300x"]),
+        totalAvailableGpu: 8n,
+        maxNodeFreeGpu: 8n
+      });
 
       const rows = await repository.findCandidates([unit({ gpu: 1n, gpuAttributes: [{ key: "vendor/nvidia", value: "true" }] })], requirements());
 
@@ -312,9 +336,27 @@ describe(BidScreeningRepository.name, () => {
     });
 
     it("treats multiple GPU attributes on one unit as OR alternatives via overlap", async () => {
-      await seed({ owner: "akash1nvidia", gpuModels: ["nvidia", "nvidia/a100"], totalAvailableGpu: 8n, maxNodeFreeGpu: 8n });
-      await seed({ owner: "akash1amd", gpuModels: ["amd", "amd/mi300x"], totalAvailableGpu: 8n, maxNodeFreeGpu: 8n });
-      await seed({ owner: "akash1intel", gpuModels: ["intel", "intel/gaudi3"], totalAvailableGpu: 8n, maxNodeFreeGpu: 8n });
+      await seed({
+        owner: "akash1nvidia",
+        gpuModels: ["nvidia", "nvidia/a100"],
+        selfAttributes: advertisedGpus(["nvidia", "nvidia/a100"]),
+        totalAvailableGpu: 8n,
+        maxNodeFreeGpu: 8n
+      });
+      await seed({
+        owner: "akash1amd",
+        gpuModels: ["amd", "amd/mi300x"],
+        selfAttributes: advertisedGpus(["amd", "amd/mi300x"]),
+        totalAvailableGpu: 8n,
+        maxNodeFreeGpu: 8n
+      });
+      await seed({
+        owner: "akash1intel",
+        gpuModels: ["intel", "intel/gaudi3"],
+        selfAttributes: advertisedGpus(["intel", "intel/gaudi3"]),
+        totalAvailableGpu: 8n,
+        maxNodeFreeGpu: 8n
+      });
 
       const rows = await repository.findCandidates(
         [
@@ -333,10 +375,17 @@ describe(BidScreeningRepository.name, () => {
     });
 
     it("emits a separate clause per non-empty unit and ANDs them, so providers must cover divergent GPU needs", async () => {
-      await seed({ owner: "akash1nvidiaOnly", gpuModels: ["nvidia", "nvidia/a100"], totalAvailableGpu: 8n, maxNodeFreeGpu: 8n });
+      await seed({
+        owner: "akash1nvidiaOnly",
+        gpuModels: ["nvidia", "nvidia/a100"],
+        selfAttributes: advertisedGpus(["nvidia", "nvidia/a100"]),
+        totalAvailableGpu: 8n,
+        maxNodeFreeGpu: 8n
+      });
       await seed({
         owner: "akash1mixed",
         gpuModels: ["nvidia", "nvidia/a100", "amd", "amd/mi300x"],
+        selfAttributes: advertisedGpus(["nvidia", "nvidia/a100", "amd", "amd/mi300x"]),
         totalAvailableGpu: 8n,
         maxNodeFreeGpu: 8n
       });
@@ -354,11 +403,140 @@ describe(BidScreeningRepository.name, () => {
 
     it("omits the clause for units without GPU requirements, so no-GPU providers stay in the result", async () => {
       await seed({ owner: "akash1noGpu", gpuModels: [] });
-      await seed({ owner: "akash1withGpu", gpuModels: ["nvidia", "nvidia/a100"], totalAvailableGpu: 8n, maxNodeFreeGpu: 8n });
+      await seed({
+        owner: "akash1withGpu",
+        gpuModels: ["nvidia", "nvidia/a100"],
+        selfAttributes: advertisedGpus(["nvidia", "nvidia/a100"]),
+        totalAvailableGpu: 8n,
+        maxNodeFreeGpu: 8n
+      });
 
       const rows = await repository.findCandidates([unit({})], requirements());
 
       expect(owners(rows)).toEqual(["akash1noGpu", "akash1withGpu"]);
+    });
+  });
+
+  describe("advertised gpu capability filter", () => {
+    it("excludes a provider whose advertised model differs from the requested one even when its hardware matches", async () => {
+      await seed({
+        owner: "akash1rtx4000",
+        gpuModels: ["nvidia", "nvidia/rtx4000ada"],
+        selfAttributes: [{ key: "capabilities/gpu/vendor/nvidia/model/rtx4000", value: "true" }],
+        totalAvailableGpu: 4n,
+        maxNodeFreeGpu: 4n
+      });
+
+      const rows = await repository.findCandidates(
+        [unit({ gpu: 1n, gpuAttributes: [{ key: "vendor/nvidia/model/rtx4000ada", value: "true" }] })],
+        requirements()
+      );
+
+      expect(owners(rows)).toEqual([]);
+    });
+
+    it("keeps a provider that advertises the requested key", async () => {
+      await seed({
+        owner: "akash1advertised",
+        gpuModels: ["nvidia", "nvidia/rtx4000ada"],
+        selfAttributes: [{ key: "capabilities/gpu/vendor/nvidia/model/rtx4000ada", value: "true" }],
+        totalAvailableGpu: 4n,
+        maxNodeFreeGpu: 4n
+      });
+
+      const rows = await repository.findCandidates(
+        [unit({ gpu: 1n, gpuAttributes: [{ key: "vendor/nvidia/model/rtx4000ada", value: "true" }] })],
+        requirements()
+      );
+
+      expect(owners(rows)).toEqual(["akash1advertised"]);
+    });
+
+    it("lets a trailing * on the request span one advertised segment", async () => {
+      await seed({
+        owner: "akash1model",
+        gpuModels: ["nvidia", "nvidia/rtx4000"],
+        selfAttributes: [{ key: "capabilities/gpu/vendor/nvidia/model/rtx4000", value: "true" }],
+        totalAvailableGpu: 4n,
+        maxNodeFreeGpu: 4n
+      });
+      await seed({
+        owner: "akash1pinnedOnly",
+        gpuModels: ["nvidia", "nvidia/rtx4000"],
+        selfAttributes: [{ key: "capabilities/gpu/vendor/nvidia/model/rtx4000/ram/20Gi", value: "true" }],
+        totalAvailableGpu: 4n,
+        maxNodeFreeGpu: 4n
+      });
+
+      const rows = await repository.findCandidates([unit({ gpu: 1n, gpuAttributes: [{ key: "vendor/nvidia/model/*", value: "true" }] })], requirements());
+
+      expect(owners(rows)).toEqual(["akash1model"]);
+    });
+
+    it("requires the advertised segments in the requested order", async () => {
+      await seed({
+        owner: "akash1ramFirst",
+        gpuModels: ["nvidia", "nvidia/h100"],
+        selfAttributes: [{ key: "capabilities/gpu/vendor/nvidia/model/h100/ram/80Gi/interface/sxm", value: "true" }],
+        totalAvailableGpu: 8n,
+        maxNodeFreeGpu: 8n
+      });
+      await seed({
+        owner: "akash1interfaceFirst",
+        gpuModels: ["nvidia", "nvidia/h100"],
+        selfAttributes: [{ key: "capabilities/gpu/vendor/nvidia/model/h100/interface/sxm/ram/80Gi", value: "true" }],
+        totalAvailableGpu: 8n,
+        maxNodeFreeGpu: 8n
+      });
+
+      const rows = await repository.findCandidates(
+        [unit({ gpu: 1n, gpuAttributes: [{ key: "vendor/nvidia/model/h100/ram/80Gi/interface/sxm", value: "true" }] })],
+        requirements()
+      );
+
+      expect(owners(rows)).toEqual(["akash1ramFirst"]);
+    });
+
+    it("requires the advertised value to equal the requested one", async () => {
+      await seed({
+        owner: "akash1disabled",
+        gpuModels: ["nvidia", "nvidia/rtx4000ada"],
+        selfAttributes: [{ key: "capabilities/gpu/vendor/nvidia/model/rtx4000ada", value: "false" }],
+        totalAvailableGpu: 4n,
+        maxNodeFreeGpu: 4n
+      });
+
+      const rows = await repository.findCandidates(
+        [unit({ gpu: 1n, gpuAttributes: [{ key: "vendor/nvidia/model/rtx4000ada", value: "true" }] })],
+        requirements()
+      );
+
+      expect(owners(rows)).toEqual([]);
+    });
+
+    it("accepts a provider advertising any one of the unit's GPU alternatives", async () => {
+      await seed({
+        owner: "akash1a100",
+        gpuModels: ["nvidia", "nvidia/a100"],
+        selfAttributes: [{ key: "capabilities/gpu/vendor/nvidia/model/a100", value: "true" }],
+        totalAvailableGpu: 8n,
+        maxNodeFreeGpu: 8n
+      });
+
+      const rows = await repository.findCandidates(
+        [
+          unit({
+            gpu: 1n,
+            gpuAttributes: [
+              { key: "vendor/nvidia/model/rtx4000ada", value: "true" },
+              { key: "vendor/nvidia/model/a100", value: "true" }
+            ]
+          })
+        ],
+        requirements()
+      );
+
+      expect(owners(rows)).toEqual(["akash1a100"]);
     });
   });
 
@@ -698,11 +876,18 @@ function unit(input: {
     resources: {
       cpu: { units: input.cpu ?? 0n, arch: null },
       memory: { quantity: input.memory ?? 0n },
-      gpu: { units: input.gpu ?? 0n, attributes: parseGPUAttributes(input.gpuAttributes ?? []) },
+      gpu: { units: input.gpu ?? 0n, attributes: parseGPUAttributes(input.gpuAttributes ?? []), capabilities: input.gpuAttributes ?? [] },
       storage: (input.storage ?? []).map(s => ({ name: s.name, quantity: s.quantity, attributes: parseStorageAttributes(s.attributes) })),
       endpoints: input.endpoints ?? []
     }
   };
+}
+
+function advertisedGpus(gpuModels: string[]): ResourceAttribute[] {
+  return gpuModels.map(token => {
+    const [vendor, model] = token.split("/");
+    return { key: model ? `capabilities/gpu/vendor/${vendor}/model/${model}` : `capabilities/gpu/vendor/${vendor}`, value: "true" };
+  });
 }
 
 function leasedIp(sequenceNumber: number): { kind: string; sequenceNumber: number } {
