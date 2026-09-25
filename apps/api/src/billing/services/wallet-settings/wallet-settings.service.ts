@@ -7,7 +7,7 @@ import { centsToUsd, usdToCents } from "@src/billing/lib/currency/currency";
 import { UserWalletRepository, type WalletSettingOutput, WalletSettingRepository } from "@src/billing/repositories";
 import { PaymentMethodService } from "@src/billing/services/payment-method/payment-method.service";
 import { WalletReloadJobService } from "@src/billing/services/wallet-reload-job/wallet-reload-job.service";
-import { WithTransaction } from "@src/core";
+import { TxService } from "@src/core";
 import { type CreateLogger, LOGGER_FACTORY } from "@src/core/providers/logging.provider";
 import { isUniqueViolation } from "@src/core/repositories/base.repository";
 import { AnalyticsService } from "@src/core/services/analytics/analytics.service";
@@ -41,6 +41,7 @@ export class WalletSettingService {
     private readonly authService: AuthService,
     private readonly walletReloadJobService: WalletReloadJobService,
     private readonly analyticsService: AnalyticsService,
+    private readonly txService: TxService,
     @inject(LOGGER_FACTORY) createLogger: CreateLogger
   ) {
     this.logger = createLogger({ context: WalletSettingService.name });
@@ -54,10 +55,14 @@ export class WalletSettingService {
     return setting && this.#toDomainSetting(setting);
   }
 
-  @WithTransaction()
+  /** Validates before the transaction opens, so the Stripe lookup never holds a connection or the row lock that auto-charge claims wait on. */
   async upsertWalletSetting(userId: UserOutput["id"], input: WalletSettingInput): Promise<WalletSettingOutput> {
     await this.#validate({ next: input, userId });
 
+    return await this.txService.transaction(() => this.#saveWalletSetting(userId, input));
+  }
+
+  async #saveWalletSetting(userId: UserOutput["id"], input: WalletSettingInput): Promise<WalletSettingOutput> {
     let mutationResult = await this.#update(userId, input);
 
     if (!mutationResult.next) {
@@ -104,7 +109,6 @@ export class WalletSettingService {
     });
   }
 
-  /** The row lock also stalls auto-charge claims, so keep the Stripe lookup in #validate outside it. */
   async #update(userId: UserOutput["id"], settings: WalletSettingInput): Promise<{ prev?: WalletSettingOutput; next?: WalletSettingOutput }> {
     const { ability } = this.authService;
 

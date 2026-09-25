@@ -13,6 +13,7 @@ import { UserWalletRepository, type WalletSettingOutput, WalletSettingRepository
 import type { PaymentMethodService } from "@src/billing/services/payment-method/payment-method.service";
 import { type PaymentMethod } from "@src/billing/services/payment-method/payment-method.service";
 import type { WalletReloadJobService } from "@src/billing/services/wallet-reload-job/wallet-reload-job.service";
+import { TxService } from "@src/core";
 import type { CreateLogger } from "@src/core/providers/logging.provider";
 import type { AnalyticsService } from "@src/core/services/analytics/analytics.service";
 import { UserRepository } from "@src/user/repositories";
@@ -354,6 +355,8 @@ describe(WalletSettingService.name, () => {
     const walletReloadJobService = mock<WalletReloadJobService>({
       scheduleForWalletSetting: vi.fn().mockResolvedValue(jobId)
     });
+    const txService = mock<TxService>();
+    txService.transaction.mockImplementation(async cb => await cb());
     const logger = mock<ReturnType<CreateLogger>>();
     const createLogger = vi.fn<CreateLogger>(() => logger);
     const service = new WalletSettingService(
@@ -364,6 +367,7 @@ describe(WalletSettingService.name, () => {
       authService,
       walletReloadJobService,
       mock<AnalyticsService>(),
+      txService,
       createLogger
     );
 
@@ -406,6 +410,7 @@ describe(WalletSettingService.name, () => {
       authService,
       walletReloadJobService,
       analyticsService,
+      container.resolve(TxService),
       vi.fn<CreateLogger>(() => mock<ReturnType<CreateLogger>>())
     );
 

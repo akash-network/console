@@ -7,6 +7,7 @@ import type { AuthService } from "@src/auth/services/auth.service";
 import type { UserWalletRepository, WalletSettingRepository } from "@src/billing/repositories";
 import type { PaymentMethod, PaymentMethodService } from "@src/billing/services/payment-method/payment-method.service";
 import type { WalletReloadJobService } from "@src/billing/services/wallet-reload-job/wallet-reload-job.service";
+import type { TxService } from "@src/core";
 import type { CreateLogger } from "@src/core/providers/logging.provider";
 import type { AnalyticsService } from "@src/core/services/analytics/analytics.service";
 import type { UserRepository } from "@src/user/repositories";
@@ -183,25 +184,23 @@ describe(WalletSettingService.name, () => {
       expect(walletSettingRepository.findOneByAndLock).toHaveBeenCalledWith({ userId: user.id });
     });
 
-    it("checks the default payment method before locking the setting row", async () => {
-      const { user, walletSetting, walletSettingRepository, paymentMethodService, service } = setup();
+    it("checks the default payment method before opening the transaction", async () => {
+      const { user, walletSetting, walletSettingRepository, paymentMethodService, txService, service } = setup();
       walletSettingRepository.findOneByAndLock.mockResolvedValue({ ...walletSetting, autoReloadEnabled: false });
       walletSettingRepository.updateById.mockResolvedValue({ ...walletSetting, autoReloadEnabled: true } as never);
 
       await service.upsertWalletSetting(user.id, { autoReloadEnabled: true });
 
-      expect(paymentMethodService.getDefaultPaymentMethod.mock.invocationCallOrder[0]).toBeLessThan(
-        walletSettingRepository.findOneByAndLock.mock.invocationCallOrder[0]
-      );
+      expect(paymentMethodService.getDefaultPaymentMethod.mock.invocationCallOrder[0]).toBeLessThan(txService.transaction.mock.invocationCallOrder[0]);
     });
 
-    it("leaves the setting row unlocked when enabling without a default payment method", async () => {
-      const { user, walletSettingRepository, paymentMethodService, service } = setup();
+    it("opens no transaction when enabling without a default payment method", async () => {
+      const { user, paymentMethodService, txService, service } = setup();
       paymentMethodService.getDefaultPaymentMethod.mockResolvedValue(undefined);
 
       await expect(service.upsertWalletSetting(user.id, { autoReloadEnabled: true })).rejects.toThrow("Default payment method is required");
 
-      expect(walletSettingRepository.findOneByAndLock).not.toHaveBeenCalled();
+      expect(txService.transaction).not.toHaveBeenCalled();
     });
   });
 
@@ -261,6 +260,8 @@ describe(WalletSettingService.name, () => {
       scheduleForWalletSetting: vi.fn().mockResolvedValue(jobId)
     });
     const analyticsService = mock<AnalyticsService>();
+    const txService = mock<TxService>();
+    txService.transaction.mockImplementation(async cb => await cb());
     const logger = mock<ReturnType<CreateLogger>>();
     const createLogger = vi.fn<CreateLogger>(() => logger);
     const service = new WalletSettingService(
@@ -271,6 +272,7 @@ describe(WalletSettingService.name, () => {
       authService,
       walletReloadJobService,
       analyticsService,
+      txService,
       createLogger
     );
 
@@ -283,6 +285,7 @@ describe(WalletSettingService.name, () => {
       paymentMethodService,
       walletReloadJobService,
       analyticsService,
+      txService,
       jobId,
       service,
       createLogger
