@@ -56,6 +56,8 @@ export class WalletSettingService {
 
   @WithTransaction()
   async upsertWalletSetting(userId: UserOutput["id"], input: WalletSettingInput): Promise<WalletSettingOutput> {
+    await this.#validate({ next: input, userId });
+
     let mutationResult = await this.#update(userId, input);
 
     if (!mutationResult.next) {
@@ -102,16 +104,16 @@ export class WalletSettingService {
     });
   }
 
+  /** The row lock also stalls auto-charge claims, so keep the Stripe lookup in #validate outside it. */
   async #update(userId: UserOutput["id"], settings: WalletSettingInput): Promise<{ prev?: WalletSettingOutput; next?: WalletSettingOutput }> {
     const { ability } = this.authService;
 
-    const prev = await this.walletSettingRepository.accessibleBy(ability, "read").findByUserId(userId);
+    const prev = await this.walletSettingRepository.accessibleBy(ability, "read").findOneByAndLock({ userId });
 
     if (!prev) {
       return {};
     }
 
-    await this.#validate({ next: settings, userId });
     const next = await this.walletSettingRepository
       .accessibleBy(ability, "update")
       .updateById(prev.id, { ...this.#toStoredSettings(settings), ...liftDeclinePause(prev) }, { returning: true });
@@ -124,8 +126,6 @@ export class WalletSettingService {
   }
 
   async #create(userId: UserOutput["id"], settings: WalletSettingInput): Promise<{ prev?: WalletSettingOutput; next: WalletSettingOutput }> {
-    await this.#validate({ next: settings, userId });
-
     const userWallet = await this.userWalletRepository.findOneByUserId(userId);
 
     assert(userWallet, 404, "UserWallet Not Found");
