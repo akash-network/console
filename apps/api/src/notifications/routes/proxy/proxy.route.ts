@@ -1,9 +1,11 @@
 import { Hono } from "hono";
+import { bodyLimit } from "hono/body-limit";
 import assert from "http-assert";
 import { container } from "tsyringe";
 
 import { AuthService } from "@src/auth/services/auth.service";
 import { UserWalletRepository } from "@src/billing/repositories";
+import { DEFAULT_BODY_LIMIT_BYTES } from "@src/core/config/body-limit.config";
 import type { FeatureFlagValue } from "@src/core/services/feature-flags/feature-flags";
 import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
 import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
@@ -62,16 +64,18 @@ const proxyRouteIfEnabled = (featureFlag: FeatureFlagValue) => {
   };
 };
 
-notificationsApiProxy.all("/v1/notification-channels/*", proxyRoute);
-notificationsApiProxy.all("/v1/notification-channels", proxyRoute);
+const limitBody = bodyLimit({ maxSize: DEFAULT_BODY_LIMIT_BYTES });
+
+notificationsApiProxy.all("/v1/notification-channels/*", limitBody, proxyRoute);
+notificationsApiProxy.all("/v1/notification-channels", limitBody, proxyRoute);
 
 notificationsApiProxy.get("/v1/alerts", proxyRoute);
-notificationsApiProxy.post("/v1/alerts", proxyRouteIfEnabled(FeatureFlags.NOTIFICATIONS_ALERT_CREATE));
+notificationsApiProxy.post("/v1/alerts", limitBody, proxyRouteIfEnabled(FeatureFlags.NOTIFICATIONS_ALERT_CREATE));
 notificationsApiProxy.get("/v1/alerts/*", proxyRoute);
-notificationsApiProxy.delete("/v1/alerts/*", proxyRoute);
-notificationsApiProxy.patch("/v1/alerts/*", proxyRouteIfEnabled(FeatureFlags.NOTIFICATIONS_ALERT_UPDATE));
+notificationsApiProxy.delete("/v1/alerts/*", limitBody, proxyRoute);
+notificationsApiProxy.patch("/v1/alerts/*", limitBody, proxyRouteIfEnabled(FeatureFlags.NOTIFICATIONS_ALERT_UPDATE));
 
-notificationsApiProxy.all("/v1/deployment-alerts/*", proxyRoute);
-notificationsApiProxy.all("/v1/deployment-alerts", proxyRoute);
+notificationsApiProxy.all("/v1/deployment-alerts/*", limitBody, proxyRoute);
+notificationsApiProxy.all("/v1/deployment-alerts", limitBody, proxyRoute);
 
 export { notificationsApiProxy };
