@@ -460,6 +460,14 @@ deployment:
       count: 1
 `;
 
+const SDL_DEPLOYING_AN_UNDECLARED_SERVICE = `${VALID_SDL}  ghost:\n    westcoast:\n      profile: web\n      count: 1\n`;
+
+const WESTCOAST_PLACEMENT = "    westcoast:\n      pricing:\n        web:\n          denom: uakt\n          amount: 1000\n";
+
+const AUDITOR = "akash1365yvmc4s7awdyj3n2sav7xfx76adc6dnmlx63";
+
+const OTHER_AUDITOR = "akash1another7awdyj3n2sav7xfx76adc6dnmlx64";
+
 describe(SdlService.name, () => {
   describe("generateManifest", () => {
     it("rejects a memory size given without a unit instead of throwing", async () => {
@@ -477,6 +485,76 @@ describe(SdlService.name, () => {
           }
         ]
       });
+    });
+
+    it("rejects a storage size given without a unit instead of throwing", async () => {
+      const { result } = await setup({ sdl: VALID_SDL.replace("size: 1Gi", 'size: "1073741824"') });
+
+      expect(result).toEqual({
+        ok: false,
+        value: [
+          {
+            schemaPath: "",
+            instancePath: "/profiles/compute",
+            keyword: "size",
+            params: {},
+            message: 'memory or storage size "1073741824" must be a number with a unit, such as 512Mi or 1Gi'
+          }
+        ]
+      });
+    });
+
+    it("builds a storage size given with a unit into the bytes it names", async () => {
+      const { result } = await setup({ sdl: VALID_SDL });
+
+      const [storage] = getGroupSpec(result, "westcoast").resources[0].resource!.storage;
+      expect(storage.quantity?.val).toBe(1073741824n);
+    });
+
+    it("rejects gpu units the manifest cannot carry in the manifest generator's own words instead of throwing", async () => {
+      const { result } = await setup({ sdl: SDL_WITH_GPU("nvidia", "rtx-4090").replace("units: 1\n", "units: 1.5\n") });
+
+      expect(result).toEqual({
+        ok: false,
+        value: [{ schemaPath: "", instancePath: "", keyword: "manifest", params: {}, message: expect.stringContaining("1.5") }]
+      });
+    });
+
+    it("rejects a deployment of a service the sdl does not declare instead of failing once the manifest is read", async () => {
+      const { result } = await setup({ sdl: SDL_DEPLOYING_AN_UNDECLARED_SERVICE });
+
+      expect(result).toMatchObject({ ok: false, value: [expect.objectContaining({ keyword: "manifest", message: expect.any(String) })] });
+    });
+
+    it("lets a placement given as a plain value reach the manifest generator's refusal instead of failing while adding auditors", async () => {
+      const { result } = await setup({ sdl: VALID_SDL.replace(WESTCOAST_PLACEMENT, "    westcoast: anywhere\n"), allowedAuditors: [AUDITOR] });
+
+      expect(result).toMatchObject({ ok: false, value: [expect.objectContaining({ instancePath: "/profiles/placement/westcoast" })] });
+    });
+
+    it("lets a placement given no value reach the manifest generator's refusal instead of failing while adding auditors", async () => {
+      const { result } = await setup({ sdl: VALID_SDL.replace(WESTCOAST_PLACEMENT, "    westcoast:\n"), allowedAuditors: [AUDITOR] });
+
+      expect(result).toMatchObject({ ok: false, value: [expect.objectContaining({ instancePath: "/profiles/placement/westcoast" })] });
+    });
+
+    it("lets a signedBy given as a plain value reach the manifest generator's refusal instead of failing while adding auditors", async () => {
+      const sdl = SDL_WITH_AUDITOR(OTHER_AUDITOR).replace(
+        `      signedBy:\n        anyOf:\n          - ${OTHER_AUDITOR}\n`,
+        `      signedBy: ${OTHER_AUDITOR}\n`
+      );
+
+      const { result } = await setup({ sdl, allowedAuditors: [AUDITOR] });
+
+      expect(result).toMatchObject({ ok: false, value: [expect.objectContaining({ instancePath: "/profiles/placement/westcoast/signedBy" })] });
+    });
+
+    it("lets an anyOf given as a plain value reach the manifest generator's refusal instead of failing while adding auditors", async () => {
+      const sdl = SDL_WITH_AUDITOR(OTHER_AUDITOR).replace(`        anyOf:\n          - ${OTHER_AUDITOR}\n`, `        anyOf: ${OTHER_AUDITOR}\n`);
+
+      const { result } = await setup({ sdl, allowedAuditors: [AUDITOR] });
+
+      expect(result).toMatchObject({ ok: false, value: [expect.objectContaining({ instancePath: "/profiles/placement/westcoast/signedBy/anyOf" })] });
     });
 
     it("parses SDL containing template variables without throwing", async () => {
@@ -896,6 +974,37 @@ describe(SdlService.name, () => {
 
       expect(result.ok).toBe(false);
     });
+
+    it("returns the manifest generator's refusal for a storage size given without a unit instead of throwing", async () => {
+      const { service } = await setup();
+
+      const result = await service.generateResolvedManifest({ sdl: VALID_SDL.replace("size: 1Gi", 'size: "1073741824"'), secrets: {} });
+
+      expect(errorsOf(result)).toEqual([
+        expect.objectContaining({ message: 'memory or storage size "1073741824" must be a number with a unit, such as 512Mi or 1Gi' })
+      ]);
+    });
+
+    it("returns errors rather than throwing for a manifest the generator fails on only once it is read", async () => {
+      const { service } = await setup();
+
+      const result = await service.generateResolvedManifest({ sdl: SDL_DEPLOYING_AN_UNDECLARED_SERVICE, secrets: {} });
+
+      expect(errorsOf(result)).toEqual([expect.objectContaining({ keyword: "manifest" })]);
+    });
+
+    it("lets a failure of its own through rather than reporting the sdl as invalid", async () => {
+      const { service, sdlReferenceService } = await setup();
+      const failure = new Error("secret store unreachable");
+      sdlReferenceService.register({
+        kind: "probe",
+        resolve: () => {
+          throw failure;
+        }
+      });
+
+      await expect(service.generateResolvedManifest({ sdl: SDL_WITH_ENV("TOKEN=ac-probe://TOKEN"), secrets: {} })).rejects.toBe(failure);
+    });
   });
 
   async function setup(input?: {
@@ -926,10 +1035,11 @@ describe(SdlService.name, () => {
         : vi.fn().mockResolvedValue({ price: input?.aktToUsdRate ?? 1 })
     });
     const createLogger: CreateLogger = () => mock<ReturnType<CreateLogger>>();
-    const service = new SdlService(config, blockedGpuService, new SdlReferenceService(), denomExchangeService, createLogger);
+    const sdlReferenceService = new SdlReferenceService();
+    const service = new SdlService(config, blockedGpuService, sdlReferenceService, denomExchangeService, createLogger);
     const result = await service.generateManifest(input?.sdl ?? VALID_SDL, { isTrialing: input?.isTrialing });
 
-    return { service, result, denomExchangeService };
+    return { service, result, denomExchangeService, sdlReferenceService };
   }
 
   function getGroupSpec(result: Awaited<ReturnType<SdlService["generateManifest"]>>, placementName: string) {

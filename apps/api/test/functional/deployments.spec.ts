@@ -1219,6 +1219,38 @@ describe("Deployments API", () => {
       expect(result.message).toBe('Invalid SDL: memory or storage size "1073741824" must be a number with a unit, such as 512Mi or 1Gi');
     });
 
+    it("returns 400 naming the value, recording and broadcasting nothing, when the SDL gives a storage size without a unit", async () => {
+      const { user, userApiKeySecret } = await mockPersistedUser();
+
+      const response = await app.request("/v1/deployments", {
+        method: "POST",
+        body: JSON.stringify({ data: { sdl: HELLO_WORLD_SDL.replace("- size: 512Mi", '- size: "1073741824"') } }),
+        headers: new Headers({ "Content-Type": "application/json", "x-api-key": userApiKeySecret })
+      });
+
+      expect(response.status).toBe(400);
+      expect(await response.json()).toMatchObject({
+        message: 'Invalid SDL: memory or storage size "1073741824" must be a number with a unit, such as 512Mi or 1Gi'
+      });
+      expect(await container.resolve(DeploymentSettingRepository).findOneBy({ userId: user.id })).toBeUndefined();
+      expect(signerService.executeDerivedDecodedTxByUserId).not.toHaveBeenCalled();
+    });
+
+    it("returns 400 rather than failing, recording and broadcasting nothing, when the SDL deploys a service it does not declare", async () => {
+      const { user, userApiKeySecret } = await mockPersistedUser();
+
+      const response = await app.request("/v1/deployments", {
+        method: "POST",
+        body: JSON.stringify({ data: { sdl: `${HELLO_WORLD_SDL}  ghost:\n    dcloud:\n      profile: web\n      count: 1\n` } }),
+        headers: new Headers({ "Content-Type": "application/json", "x-api-key": userApiKeySecret })
+      });
+
+      expect(response.status).toBe(400);
+      expect(await response.json()).toMatchObject({ code: "bad_request", message: expect.stringMatching(/^Invalid SDL: \S/) });
+      expect(await container.resolve(DeploymentSettingRepository).findOneBy({ userId: user.id })).toBeUndefined();
+      expect(signerService.executeDerivedDecodedTxByUserId).not.toHaveBeenCalled();
+    });
+
     it("creates a deployment without a deposit", async () => {
       const { userApiKeySecret } = await mockPersistedUser();
       const yml = fs.readFileSync(path.resolve(__dirname, "../mocks/hello-world-sdl.yml"), "utf8");
@@ -1806,6 +1838,28 @@ describe("Deployments API", () => {
       expect(response.status).toBe(422);
       expect(await response.json()).toMatchObject({ code: "deployment_resources_changed", message: expect.stringContaining('group "dcloud"') });
       expect(broadcast).not.toHaveBeenCalled();
+      expect(await deploymentSettingRepository.findOneBy({ userId: user.id, dseq })).toMatchObject({ sdl: HELLO_WORLD_SDL, manifestVersion: "BAUG" });
+    });
+
+    it("refuses an sdl giving a storage size without a unit, recording, broadcasting and sending nothing", async () => {
+      const { userApiKeySecret, user, wallets } = await mockPersistedUser();
+      const dseq = "1234";
+      await setupDeploymentInfoMock(wallets, dseq);
+      const deploymentSettingRepository = container.resolve(DeploymentSettingRepository);
+      await deploymentSettingRepository.upsertDefinition({ userId: user.id, dseq, sdl: HELLO_WORLD_SDL, manifestVersion: "BAUG" });
+
+      const response = await app.request(`/v1/deployments/${dseq}`, {
+        method: "PUT",
+        body: JSON.stringify({ data: { sdl: HELLO_WORLD_SDL.replace("- size: 512Mi", '- size: "1073741824"') } }),
+        headers: new Headers({ "Content-Type": "application/json", "x-api-key": userApiKeySecret })
+      });
+
+      expect(response.status).toBe(400);
+      expect(await response.json()).toMatchObject({
+        message: 'Invalid SDL: memory or storage size "1073741824" must be a number with a unit, such as 512Mi or 1Gi'
+      });
+      expect(signerService.executeDerivedDecodedTxByUserId).not.toHaveBeenCalled();
+      expect(providerService.sendManifest).not.toHaveBeenCalled();
       expect(await deploymentSettingRepository.findOneBy({ userId: user.id, dseq })).toMatchObject({ sdl: HELLO_WORLD_SDL, manifestVersion: "BAUG" });
     });
 

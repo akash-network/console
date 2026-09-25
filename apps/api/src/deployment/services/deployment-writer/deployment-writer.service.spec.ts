@@ -323,6 +323,29 @@ describe(DeploymentWriterService.name, () => {
       expect(signerService.executeDerivedDecodedTxByUserId).not.toHaveBeenCalled();
     });
 
+    it("answers 400 in the manifest generator's words before reclaiming, sealing, recording or broadcasting anything", async () => {
+      const { service, sdlService, staleDeploymentsCleaner, sdlSecretsService, deploymentSettingRepository, signerService } = setup({ isTrialing: true });
+      const refusal = 'memory or storage size "1073741824" must be a number with a unit, such as 512Mi or 1Gi';
+      sdlService.generateResolvedManifest.mockResolvedValue({ ok: false, value: [mock<ValidationError>({ message: refusal })] });
+
+      await expect(service.create({ userId: "user-1", sdl: "valid-sdl" })).rejects.toMatchObject({ status: 400, message: `Invalid SDL: ${refusal}` });
+
+      expect(staleDeploymentsCleaner.cleanUpForWallet).not.toHaveBeenCalled();
+      expect(sdlSecretsService.sealForStorage).not.toHaveBeenCalled();
+      expect(deploymentSettingRepository.upsertDefinition).not.toHaveBeenCalled();
+      expect(signerService.executeDerivedDecodedTxByUserId).not.toHaveBeenCalled();
+    });
+
+    it("lets a failure to build the manifest that is not about the sdl through unchanged rather than answering 400", async () => {
+      const { service, sdlService, signerService } = setup();
+      const failure = new Error("secret store unreachable");
+      sdlService.generateResolvedManifest.mockRejectedValue(failure);
+
+      await expect(service.create({ userId: "user-1", sdl: "valid-sdl" })).rejects.toBe(failure);
+
+      expect(signerService.executeDerivedDecodedTxByUserId).not.toHaveBeenCalled();
+    });
+
     it("forwards the reclamation block to getCreateDeploymentMsg when the SDL declares it", async () => {
       const { service, sdlService, rpcMessageService } = setup();
       const reclamation = DeploymentReclamation.fromPartial({ minWindow: { seconds: 86400 } });

@@ -12,7 +12,7 @@ import type { SdlSecrets } from "@src/deployment/services/sdl-secrets-unsealer/s
 import { sdlRequestsGpuInterconnect } from "@src/deployment/utils/gpu-interconnect/gpu-interconnect";
 import { findTrialResourceViolation } from "@src/deployment/utils/group-resources/group-resources";
 import { restatePricesInGrantDenom } from "@src/deployment/utils/price-denom/price-denom";
-import { generateManifestReportingInvalidSizes } from "@src/deployment/utils/sdl-sizes/sdl-sizes";
+import { generateManifestReportingBuildFailures } from "@src/deployment/utils/sdl-manifest/sdl-manifest";
 
 export type SdlParseResult = { ok: true; value: SDLInput } | { ok: false; value: ValidationError[] };
 export type SdlManifest = Extract<GenerateManifestResult, { ok: true }>["value"];
@@ -26,6 +26,17 @@ export type GenerateResolvedManifestResult = { ok: true; value: ResolvedSdl } | 
 
 /** DenomExchangeService already reports a missing rate as 0, so a lookup that throws is rejected by the same guard rather than escaping as a 500. */
 const UNAVAILABLE_AKT_TO_USD_RATE = 0;
+
+type SdlPlacementProfile = SDLInput["profiles"]["placement"][string];
+
+/** Auditors are added before the document is validated, so a profile they cannot be added to is left for the manifest generator to refuse by name. */
+function canTakeAuditors(profile: SdlPlacementProfile): boolean {
+  if (typeof profile !== "object" || profile === null) return false;
+
+  const signedBy = profile.signedBy ?? {};
+
+  return typeof signedBy === "object" && Array.isArray(signedBy.anyOf ?? []);
+}
 
 @singleton()
 export class SdlService {
@@ -152,7 +163,7 @@ export class SdlService {
       }
     }
 
-    const result = generateManifestReportingInvalidSizes(potentiallyInvalidSDL);
+    const result = generateManifestReportingBuildFailures(potentiallyInvalidSDL);
     if (!result.ok) return result;
 
     if (options.isTrialing) {
@@ -198,7 +209,7 @@ export class SdlService {
 
   #appendAuditorRequirement(placement: SDLInput["profiles"]["placement"], allowedAuditors: string[]): void {
     for (const value of Object.values(placement)) {
-      if (!value) continue;
+      if (!canTakeAuditors(value)) continue;
 
       for (const auditor of allowedAuditors) {
         if (!value.signedBy?.anyOf || !value.signedBy.anyOf.includes(auditor)) {
