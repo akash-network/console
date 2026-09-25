@@ -895,7 +895,52 @@ describe(DeploymentReaderService.name, () => {
         })
       );
     });
+
+    it("reports the leases of every page the chain hands back, not only the first", async () => {
+      const wallet = createUserWallet() as WalletInitialized;
+      const { service } = setup({
+        wallet,
+        listedDseqs: ["100", "200"],
+        leasePages: [
+          { leases: [createLeaseApiResponse({ owner: wallet.address, dseq: "100", gseq: 1, oseq: 1 })], nextKey: "second-page" },
+          { leases: [createLeaseApiResponse({ owner: wallet.address, dseq: "200", gseq: 1, oseq: 1 })], nextKey: null }
+        ]
+      });
+
+      const result = await service.listWithResources({ address: wallet.address, status: "active" });
+
+      expect(result.results.map(({ dseq, leases }) => ({ dseq, leases: leases.map(({ id }) => id) }))).toEqual([
+        { dseq: "100", leases: ["10011"] },
+        { dseq: "200", leases: ["20011"] }
+      ]);
+    });
+
+    it("asks the chain for the next page of leases with the cursor it handed back", async () => {
+      const wallet = createUserWallet() as WalletInitialized;
+      const { service, leaseHttpService } = setup({
+        wallet,
+        leasePages: [
+          { leases: [], nextKey: "second-page" },
+          { leases: [], nextKey: null }
+        ]
+      });
+
+      await service.listWithResources({ address: wallet.address, status: "active" });
+
+      expect(leaseHttpService.list.mock.calls).toEqual([
+        [{ owner: wallet.address, state: "active", pagination: { limit: 1000 } }],
+        [{ owner: wallet.address, state: "active", pagination: { key: "second-page", limit: 1000 } }]
+      ]);
+    });
   });
+
+  function readLeasePages(pages: { leases: ReturnType<typeof createLeaseApiResponse>[]; nextKey: string | null }[]) {
+    return vi.fn().mockImplementation(async ({ pagination }: { pagination?: { key?: string } }) => {
+      const requested = pagination?.key ? pages.findIndex(({ nextKey }) => nextKey === pagination.key) + 1 : 0;
+      const { leases, nextKey } = pages[requested] ?? pages[pages.length - 1];
+      return { leases, pagination: { next_key: nextKey, total: String(leases.length) } };
+    });
+  }
 
   function createSearchPage(owner: string, dseqs: string[], nextKey: string | null): DeploymentListResponse {
     return {
@@ -933,6 +978,7 @@ describe(DeploymentReaderService.name, () => {
       fallbackDeploymentList?: ReturnType<typeof createDeploymentListResponseSeed>;
       fallbackLeases?: ReturnType<typeof createLeaseApiResponse>[];
       leases?: ReturnType<typeof createLeaseApiResponse>[];
+      leasePages?: { leases: ReturnType<typeof createLeaseApiResponse>[]; nextKey: string | null }[];
       recorded?: (Pick<DeploymentSettingsOutput, "sdl" | "manifestVersion"> & { name?: string | null }) | null;
       listedDseqs?: string[];
       names?: Record<string, string | null>;
@@ -957,6 +1003,7 @@ describe(DeploymentReaderService.name, () => {
 
     const mocks = {
       providerService: mock<ProviderService>({
+        getProviderList: vi.fn().mockResolvedValue([]),
         getLeaseStatus: vi.fn().mockResolvedValue(null),
         toProviderAuth: vi.fn().mockResolvedValue({ type: "jwt", token: "test" })
       }),
@@ -976,12 +1023,14 @@ describe(DeploymentReaderService.name, () => {
         findAll: vi.fn().mockResolvedValue(input.fallbackDeploymentList ?? defaultDeploymentList)
       }),
       leaseHttpService: mock<LeaseHttpService>({
-        list: input.listedDseqs
-          ? vi.fn().mockImplementation(async ({ dseq }: { dseq?: string }) => ({
-              leases: dseq ? [createLeaseApiResponse({ owner: wallet.address, dseq })] : [],
-              pagination: { next_key: null, total: dseq ? "1" : "0" }
-            }))
-          : vi.fn().mockResolvedValue({ leases: input.leases ?? [], pagination: { next_key: null, total: String(input.leases?.length ?? 0) } })
+        list: input.leasePages
+          ? readLeasePages(input.leasePages)
+          : input.listedDseqs
+            ? vi.fn().mockImplementation(async ({ dseq }: { dseq?: string }) => ({
+                leases: dseq ? [createLeaseApiResponse({ owner: wallet.address, dseq })] : [],
+                pagination: { next_key: null, total: dseq ? "1" : "0" }
+              }))
+            : vi.fn().mockResolvedValue({ leases: input.leases ?? [], pagination: { next_key: null, total: String(input.leases?.length ?? 0) } })
       }),
       fallbackLeaseReaderService: mock<FallbackLeaseReaderService>({
         list: vi.fn().mockResolvedValue({

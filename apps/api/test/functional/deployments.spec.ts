@@ -253,12 +253,8 @@ describe("Deployments API", () => {
       });
     nock(container.resolve(CORE_CONFIG).REST_API_NODE_URL)
       .persist()
-      .get(`/akash/market/${marketVersion}/leases/list?filters.owner=${address}&filters.state=active`)
-      .reply(200, { leases });
-    nock(container.resolve(CORE_CONFIG).REST_API_NODE_URL)
-      .persist()
-      .get(`/akash/market/${marketVersion}/leases/list?filters.owner=${address}&filters.state=active`)
-      .reply(200, { leases });
+      .get(`/akash/market/${marketVersion}/leases/list?filters.owner=${address}&filters.state=active&pagination.limit=1000`)
+      .reply(200, { leases, pagination: { next_key: null, total: String(leases.length) } });
 
     return { deploymentInfo: defaultDeploymentInfo, leases };
   }
