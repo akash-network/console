@@ -16,6 +16,8 @@ import { type CreateLogger, JOB_NAME, JobQueueService, LOGGER_FACTORY, TxService
 import { SDL_MAX_LENGTH } from "@src/deployment/config/sdl.config";
 import {
   assignsAnyServiceField,
+  CreateDeploymentDefinitionRequest,
+  CreateDeploymentDefinitionResponse,
   CreateDeploymentRequest,
   CreateDeploymentResponse,
   DeploymentResponse,
@@ -46,6 +48,7 @@ import { denomToUdenom } from "@src/utils/math";
 import { TrialWorkloadProbeJobService } from "@src/workload-abuse/services/trial-workload-probe-job/trial-workload-probe-job.service";
 import { DeploymentConfigService } from "../deployment-config/deployment-config.service";
 import { DeploymentReaderService } from "../deployment-reader/deployment-reader.service";
+import { UNKNOWN_DB_PLACEHOLDER } from "../fallback-deployment-reader/fallback-deployment-reader.service";
 import { StaleManagedDeploymentsCleanerService } from "../stale-managed-deployments-cleaner/stale-managed-deployments-cleaner.service";
 
 const SECRET_REFERENCE_KIND = "secret";
@@ -62,12 +65,22 @@ const RESOURCES_CHANGED_ERROR_CODE = "deployment_resources_changed";
 /** A deployment the console never recorded an SDL for has nothing to patch, and the SDL is deliberately not accepted from the request. */
 const NOT_PATCHABLE_MESSAGE = "This deployment has no SDL recorded by the console, so there is nothing to patch";
 
+/** Recording never replaces a held definition, whose stored token may carry values the caller cannot resupply. */
+const DEFINITION_EXISTS_ERROR_CODE = "deployment_definition_exists";
+
+/** Lets a client offer the update route for a definition that does not describe what the deployment runs. */
+const DEFINITION_MISMATCH_ERROR_CODE = "deployment_definition_mismatch";
+
 /** What becomes of the values a submitted document carries in the clear. There is no longer a way to say "dropped": every writer can seal, so a value is never lost to be safe. */
 type StoredSdlValues =
   /** Every one of them is sealed and referenced, because nothing in the request said which are secret. */
   | "every-value-sealed"
   /** Only a registry credential is, a seal having already said which of the rest are secret. */
   | "only-credentials-sealed";
+
+function storedValuesFor(input: { sealedSecrets?: string }): StoredSdlValues {
+  return input.sealedSecrets ? "only-credentials-sealed" : "every-value-sealed";
+}
 
 /**
  * A 400 by default, so every caller that submitted the document keeps answering exactly as it did, while a
@@ -122,7 +135,7 @@ export class DeploymentWriterService {
   /** The dseq is minted once everything that can refuse the submitted document has run, because the token written below names it and a client sealing beforehand cannot; a refusal that needs the resolved document — a sealed registry password below the schema's minimum, say — can only come after it, and spends a dseq nothing is written under. */
   public async create(input: CreateDeploymentRequest["data"] & { userId: string }): Promise<CreateDeploymentResponse["data"]> {
     /** SDL for storage ONLY, and the values taken out of it. Never stands in for the submitted document anywhere a hash is taken. */
-    const { sdl, storedDocument, derived } = this.#storedSdlOf(input.sdl, input.sealedSecrets ? "only-credentials-sealed" : "every-value-sealed");
+    const { sdl, storedDocument, derived } = this.#storedSdlOf(input.sdl, storedValuesFor(input));
 
     const wallet = await this.walletReaderService.getWalletByUserId(input.userId);
     const depositInDollars = this.deploymentConfig.get("DEPLOYMENT_DEFAULT_DEPOSIT");
@@ -395,12 +408,14 @@ export class DeploymentWriterService {
     this.logger.warn({ event: "DEPRECATED_UPDATE_DEPLOYMENT_ENDPOINT_USED", userId, dseq });
 
     const wallet = await this.walletReaderService.getWalletByUserId(userId);
-    const { sdl, derived } = this.#storedSdlOf(input.sdl, "every-value-sealed", dseq);
+    const { sdl, storedDocument, derived } = this.#storedSdlOf(input.sdl, storedValuesFor(input), dseq);
+    const supplied = input.sealedSecrets ? await this.#receiveSecrets(input, {}) : {};
+    const stored = this.#storedSecretsOf({ inherited: {}, supplied, derived }, storedDocument);
 
-    const { manifestVersion, manifest } = await this.#resolveSdl(input.sdl, { isTrialing: !!wallet.isTrialing });
+    const { manifestVersion, manifest } = await this.#resolveSdl(input.sdl, { secrets: supplied, isTrialing: !!wallet.isTrialing });
     const { deployment, groupSpecs } = await this.deploymentReaderService.findWithGroupSpecsByWalletAndDseq(wallet, dseq);
     this.#assertResourcesUnchanged(manifest.groupSpecs, groupSpecs);
-    const sealedSecrets = await this.sdlSecretsService.sealForStorage({ userId: wallet.userId, dseq, secrets: derived });
+    const sealedSecrets = await this.sdlSecretsService.sealForStorage({ userId: wallet.userId, dseq, secrets: stored });
 
     await this.recordDefinition({ userId: wallet.userId, dseq, sdl, manifestVersion, sealedSecrets, name: input.name });
 
@@ -493,6 +508,66 @@ export class DeploymentWriterService {
     const updatedDeployment = await this.deploymentReaderService.findByWalletAndDseq(wallet, dseq);
 
     return { ...updatedDeployment, name: recorded.name, manifestVersion: recordedVersion };
+  }
+
+  /** Sends no deployment update and no manifest, so only a definition resolving to the version the deployment already runs is recorded. */
+  public async recordDefinitionByUserIdAndDseq(
+    userId: string,
+    dseq: string,
+    input: CreateDeploymentDefinitionRequest["data"],
+    ability: AnyAbility
+  ): Promise<CreateDeploymentDefinitionResponse["data"]> {
+    const { sdl, storedDocument, derived } = this.#storedSdlOf(input.sdl, storedValuesFor(input), dseq);
+    await this.#assertNoDefinitionRecorded({ userId, dseq }, ability);
+
+    const wallet = await this.walletReaderService.getWalletByUserId(userId);
+    const supplied = await this.#receiveSecrets(input, {});
+    const stored = this.#storedSecretsOf({ inherited: {}, supplied, derived }, storedDocument);
+    const { manifestVersion } = await this.#resolveSdl(input.sdl, { secrets: supplied });
+    const deployment = await this.deploymentReaderService.findByWalletAndDseqWithoutProviderStatus(wallet, dseq);
+    const recordedVersion = Buffer.from(manifestVersion).toString("base64");
+    this.#assertDescribesWhatRuns(recordedVersion, deployment, { userId, dseq });
+
+    const sealedSecrets = await this.sdlSecretsService.sealForStorage({ userId, dseq, secrets: stored });
+    const closed = deployment.deployment.state === "closed";
+    const recorded = await this.deploymentSettingRepository
+      .accessibleBy(ability, "update")
+      .recordDefinitionIfAbsent({ userId, dseq, sdl, manifestVersion: recordedVersion, sealedSecrets, closed });
+
+    if (!recorded) {
+      throw this.#rejectHeldDefinition();
+    }
+
+    this.logger.info({ event: "DEPLOYMENT_DEFINITION_RECORDED", userId, dseq, secretCount: Object.keys(stored).length, closed });
+
+    return { sdl, manifestVersion: recordedVersion };
+  }
+
+  async #assertNoDefinitionRecorded(key: { userId: string; dseq: string }, ability: AnyAbility): Promise<void> {
+    const setting = await this.deploymentSettingRepository.accessibleBy(ability, "read").findOneBy(key);
+
+    if (setting?.sdl) {
+      throw this.#rejectHeldDefinition();
+    }
+  }
+
+  #rejectHeldDefinition() {
+    return createError(409, "The console already holds a definition for this deployment", { errorCode: DEFINITION_EXISTS_ERROR_CODE });
+  }
+
+  /** The database fallback describes a deployment without the version it runs, which cannot tell a matching definition from any other. */
+  #assertDescribesWhatRuns(recordedVersion: string, deployment: DeploymentResponse, key: { userId: string; dseq: string }): void {
+    if (deployment.deployment.hash === UNKNOWN_DB_PLACEHOLDER) {
+      throw createError(503, "The version this deployment runs could not be read, please retry");
+    }
+
+    if (recordedVersion !== deployment.deployment.hash) {
+      this.logger.info({ event: "DEPLOYMENT_DEFINITION_MISMATCHED", ...key });
+
+      throw createError(422, "This SDL does not describe what the deployment is running, so it was not recorded. Update the deployment to apply it instead", {
+        errorCode: DEFINITION_MISMATCH_ERROR_CODE
+      });
+    }
   }
 
   /** The probe is a backstopped extra, so failing to reschedule it must not fail an update the chain and the providers have already taken. */
@@ -626,7 +701,7 @@ export class DeploymentWriterService {
   }
 
   /** Reports through the same channel every other reference mistake uses, so a missing value reads identically whether the intake or substitution found it. */
-  async #receiveSecrets(input: CreateDeploymentRequest["data"], inherited: SdlSecrets): Promise<SdlSecrets> {
+  async #receiveSecrets(input: Pick<CreateDeploymentRequest["data"], "sdl" | "sealedSecrets">, inherited: SdlSecrets): Promise<SdlSecrets> {
     const parsed = this.sdlService.parse(input.sdl);
 
     if (!parsed.ok) {

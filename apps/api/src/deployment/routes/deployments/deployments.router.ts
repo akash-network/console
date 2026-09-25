@@ -9,6 +9,9 @@ import { DeploymentController } from "@src/deployment/controllers/deployment/dep
 import {
   CloseDeploymentParamsSchema,
   CloseDeploymentResponseSchema,
+  CreateDeploymentDefinitionParamsSchema,
+  CreateDeploymentDefinitionRequestSchema,
+  CreateDeploymentDefinitionResponseSchema,
   CreateDeploymentRequestSchema,
   CreateDeploymentResponseSchema,
   DepositDeploymentRequestSchema,
@@ -260,6 +263,8 @@ const updateRoute = createRoute({
   deprecated: true,
   tags: ["Deployments"],
   security: SECURITY_BEARER_OR_API_KEY,
+  /** Sized like the create route, because an update may carry a seal and the default allowance would shadow the stated secret limits. */
+  bodyLimit: { maxSize: CREATE_DEPLOYMENT_BODY_LIMIT_BYTES },
   request: {
     params: CloseDeploymentParamsSchema,
     body: {
@@ -279,9 +284,42 @@ const updateRoute = createRoute({
         }
       }
     },
+    400: {
+      description:
+        "The SDL is not valid or leaves a secret reference with no value from `sealedSecrets`, or the `sealedSecrets` value supplies a name no service references or is malformed, tampered with, expired or not a flat object of string values",
+      content: {
+        "application/json": {
+          schema: ErrorResponseSchema
+        }
+      }
+    },
+    403: {
+      description: "The `sealedSecrets` value was sealed for a different user, or bound to a different SDL than the one submitted",
+      content: {
+        "application/json": {
+          schema: ErrorResponseSchema
+        }
+      }
+    },
+    409: {
+      description: "The `sealedSecrets` value was sealed to a key the console no longer holds. Refetch `GET /v1/sdl-secrets-context` and seal again",
+      content: {
+        "application/json": {
+          schema: ErrorResponseSchema
+        }
+      }
+    },
     422: {
       description:
         "The SDL changes the groups, compute resources, replica counts or globally exposed ports the deployment was created with, which only a new deployment can take: `code` is `deployment_resources_changed`, and nothing is recorded, no deployment update is sent and no provider is contacted",
+      content: {
+        "application/json": {
+          schema: ErrorResponseSchema
+        }
+      }
+    },
+    503: {
+      description: "The key management service is temporarily unreachable. Transient and worth retrying",
       content: {
         "application/json": {
           schema: ErrorResponseSchema
@@ -396,6 +434,96 @@ deploymentsRouter.openapi(patchRoute, async function routePatchDeployment(c) {
   const { data } = c.req.valid("json");
   const result = await container.resolve(DeploymentController).patch(dseq, data);
   return c.json(result, 200);
+});
+
+const createDefinitionRoute = createRoute({
+  method: "post",
+  path: "/v1/deployments/{dseq}/definition",
+  summary: "Record the definition of a deployment the console holds none for",
+  description:
+    "Records the SDL of a deployment the console holds no definition for, such as one created before the console recorded definitions or created outside it. The SDL and its sealed secrets are taken as on create, and the secrets are stored the same way. The SDL is recorded only if it resolves to the manifest version the deployment already runs, so recording sends no deployment update and no manifest, and a closed deployment can be given its definition too. Afterwards the deployment reads back and takes patches like any other. To apply an SDL that differs from what the deployment runs, update the deployment with it instead.",
+  operationId: "createDeploymentDefinition",
+  tags: ["Deployments"],
+  security: SECURITY_BEARER_OR_API_KEY,
+  /** Sized like the create route, because a definition may carry a seal and the default allowance would shadow the stated secret limits. */
+  bodyLimit: { maxSize: CREATE_DEPLOYMENT_BODY_LIMIT_BYTES },
+  request: {
+    params: CreateDeploymentDefinitionParamsSchema,
+    body: {
+      content: {
+        "application/json": {
+          schema: CreateDeploymentDefinitionRequestSchema
+        }
+      }
+    }
+  },
+  responses: {
+    201: {
+      description: "The definition was recorded, as GET /v1/deployments/{dseq} now returns it",
+      content: {
+        "application/json": {
+          schema: CreateDeploymentDefinitionResponseSchema
+        }
+      }
+    },
+    400: {
+      description:
+        "The SDL is not valid, leaves a secret reference with no value from `sealedSecrets`, supplies a name no service references, or carries a `sealedSecrets` value that is malformed, tampered with, expired or not a flat object of string values",
+      content: {
+        "application/json": {
+          schema: ErrorResponseSchema
+        }
+      }
+    },
+    403: {
+      description: "The `sealedSecrets` value was sealed for a different user, or bound to a different SDL than the one submitted",
+      content: {
+        "application/json": {
+          schema: ErrorResponseSchema
+        }
+      }
+    },
+    404: {
+      description: "No deployment of yours matches `dseq`",
+      content: {
+        "application/json": {
+          schema: ErrorResponseSchema
+        }
+      }
+    },
+    409: {
+      description:
+        "With `code` `deployment_definition_exists`, the console already holds a definition for this deployment, which this route never replaces: patch it instead. Without a code, the `sealedSecrets` value was sealed to a key the console no longer holds, so refetch `GET /v1/sdl-secrets-context` and seal again",
+      content: {
+        "application/json": {
+          schema: ErrorResponseSchema
+        }
+      }
+    },
+    422: {
+      description:
+        "The SDL does not resolve to the manifest version the deployment runs: `code` is `deployment_definition_mismatch`, and nothing is recorded. Update the deployment to apply it instead",
+      content: {
+        "application/json": {
+          schema: ErrorResponseSchema
+        }
+      }
+    },
+    503: {
+      description: "The key management service, or the version the deployment runs, could not be read. Transient and worth retrying",
+      content: {
+        "application/json": {
+          schema: ErrorResponseSchema
+        }
+      }
+    }
+  }
+});
+deploymentsRouter.openapi(createDefinitionRoute, async function routeCreateDeploymentDefinition(c) {
+  const { dseq } = c.req.valid("param");
+  const { data } = c.req.valid("json");
+  const result = await container.resolve(DeploymentController).createDefinition(dseq, data);
+  return c.json(result, 201);
 });
 
 const listRoute = createRoute({
