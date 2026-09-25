@@ -98,6 +98,14 @@ services:
       - LOG_LEVEL=info
 `;
 
+const SDL_REFERRING_TO_A_BUILT_IN_NAME = `version: "2.0"
+services:
+  web:
+    image: nginx:1.25
+    env:
+      - FORMATTER=ac-secret://toString
+`;
+
 const SDL_SHARING_AN_ENV_LIST = `version: "2.0"
 services:
   web:
@@ -175,13 +183,13 @@ describe("recordableDefinition", () => {
 
   describe(recordableDefinitionOf.name, () => {
     it("hands back the sdl verbatim when nothing in it is to be sealed", () => {
-      const result = recordableDefinitionOf(SDL_WITHOUT_SECRETS, { secretVariables: new Set(), referenceValues: {} });
+      const result = recordableDefinitionOf(SDL_WITHOUT_SECRETS, { secretVariables: new Set(), referenceValues: new Map() });
 
       expect(result).toEqual({ sdl: SDL_WITHOUT_SECRETS, secrets: {} });
     });
 
     it("stands a reference in for each variable marked secret and hands its value back under that name", () => {
-      const result = recordableDefinitionOf(SDL, { secretVariables: new Set([secretVariableKey("web", "DATABASE_PASSWORD")]), referenceValues: {} });
+      const result = recordableDefinitionOf(SDL, { secretVariables: new Set([secretVariableKey("web", "DATABASE_PASSWORD")]), referenceValues: new Map() });
 
       expect(envOf(result.sdl, "web")).toContain("DATABASE_PASSWORD=ac-secret://DATABASE_PASSWORD");
       expect(result.secrets).toMatchObject({ DATABASE_PASSWORD: "hunter2hunter2" });
@@ -189,13 +197,13 @@ describe("recordableDefinition", () => {
     });
 
     it("leaves a variable that is not marked, and one inheriting from the host, as they were", () => {
-      const result = recordableDefinitionOf(SDL, { secretVariables: new Set([secretVariableKey("web", "DATABASE_PASSWORD")]), referenceValues: {} });
+      const result = recordableDefinitionOf(SDL, { secretVariables: new Set([secretVariableKey("web", "DATABASE_PASSWORD")]), referenceValues: new Map() });
 
       expect(envOf(result.sdl, "web")).toEqual(expect.arrayContaining(["LOG_LEVEL=debug", "SSH_HOST_KEY"]));
     });
 
     it("seals registry credentials typed in the clear, whatever is marked", () => {
-      const result = recordableDefinitionOf(SDL, { secretVariables: new Set(), referenceValues: {} });
+      const result = recordableDefinitionOf(SDL, { secretVariables: new Set(), referenceValues: new Map() });
 
       expect(servicesOf(result.sdl).web.credentials).toEqual({
         host: "ghcr.io",
@@ -208,7 +216,7 @@ describe("recordableDefinition", () => {
     it("mints a name no reference in the sdl already stands on", () => {
       const result = recordableDefinitionOf(SDL.replace("LOG_LEVEL=debug", "API_TOKEN=plain-token"), {
         secretVariables: new Set([secretVariableKey("web", "API_TOKEN")]),
-        referenceValues: {}
+        referenceValues: new Map()
       });
 
       expect(envOf(result.sdl, "web")).toContain("API_TOKEN=ac-secret://API_TOKEN_2");
@@ -216,14 +224,14 @@ describe("recordableDefinition", () => {
     });
 
     it("derives a valid secret name from a variable name a secret name cannot spell", () => {
-      const result = recordableDefinitionOf(SDL, { secretVariables: new Set([secretVariableKey("worker", "MY-VAR.NAME")]), referenceValues: {} });
+      const result = recordableDefinitionOf(SDL, { secretVariables: new Set([secretVariableKey("worker", "MY-VAR.NAME")]), referenceValues: new Map() });
 
       expect(envOf(result.sdl, "worker")).toContain("MY-VAR.NAME=ac-secret://MY_VAR_NAME");
       expect(result.secrets).toMatchObject({ MY_VAR_NAME: "some-value" });
     });
 
     it("keeps a reference the sdl already carries and hands back the value given for it", () => {
-      const result = recordableDefinitionOf(SDL, { secretVariables: new Set(), referenceValues: { API_TOKEN: "token-value" } });
+      const result = recordableDefinitionOf(SDL, { secretVariables: new Set(), referenceValues: new Map([["API_TOKEN", "token-value"]]) });
 
       expect(envOf(result.sdl, "worker")).toContain("API_TOKEN=ac-secret://API_TOKEN");
       expect(result.secrets).toMatchObject({ API_TOKEN: "token-value" });
@@ -232,7 +240,11 @@ describe("recordableDefinition", () => {
     it("keeps the references registry credentials already carry and hands back the values given for them", () => {
       const result = recordableDefinitionOf(SDL_WITH_REFERENCED_CREDENTIALS, {
         secretVariables: new Set(),
-        referenceValues: { API_TOKEN: "token-value", REGISTRY_USERNAME: "acme-bot", REGISTRY_PASSWORD: "registry-password" }
+        referenceValues: new Map([
+          ["API_TOKEN", "token-value"],
+          ["REGISTRY_USERNAME", "acme-bot"],
+          ["REGISTRY_PASSWORD", "registry-password"]
+        ])
       });
 
       expect(servicesOf(result.sdl).web.credentials).toEqual({
@@ -243,10 +255,16 @@ describe("recordableDefinition", () => {
       expect(result.secrets).toEqual({ API_TOKEN: "token-value", REGISTRY_USERNAME: "acme-bot", REGISTRY_PASSWORD: "registry-password" });
     });
 
+    it("hands back no value for a reference named like an object built-in that was given none", () => {
+      const result = recordableDefinitionOf(SDL_REFERRING_TO_A_BUILT_IN_NAME, { secretVariables: new Set(), referenceValues: new Map() });
+
+      expect(result.secrets).toEqual({});
+    });
+
     it("seals a variable two services share through an anchor once, for both", () => {
       const result = recordableDefinitionOf(SDL_SHARING_AN_ENV_LIST, {
         secretVariables: new Set([secretVariableKey("web", "DATABASE_URL")]),
-        referenceValues: {}
+        referenceValues: new Map()
       });
 
       expect(envOf(result.sdl, "web")).toEqual(["DATABASE_URL=ac-secret://DATABASE_URL"]);
@@ -257,7 +275,7 @@ describe("recordableDefinition", () => {
     it("resolves back to the very document it was given, so the version it hashes to is unchanged", () => {
       const result = recordableDefinitionOf(SDL, {
         secretVariables: new Set([secretVariableKey("web", "DATABASE_PASSWORD"), secretVariableKey("worker", "MY-VAR.NAME")]),
-        referenceValues: { API_TOKEN: "token-value" }
+        referenceValues: new Map([["API_TOKEN", "token-value"]])
       });
 
       expect(resolved(result.sdl, result.secrets)).toEqual(resolved(SDL, { API_TOKEN: "token-value" }));

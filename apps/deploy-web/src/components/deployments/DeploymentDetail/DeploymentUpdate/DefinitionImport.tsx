@@ -48,18 +48,18 @@ export const DefinitionImport: FC<DefinitionImportProps> = ({ deployment, browse
   const [candidate, setCandidate] = useState<Candidate | null>(browserSdl ? { sdl: browserSdl, origin: "browser" } : null);
   const services = useMemo(() => (candidate ? importableServicesOf(candidate.sdl) : []), [candidate]);
   const [secretVariables, setSecretVariables] = useState<ReadonlySet<string>>(() => suggestedSecretVariablesOf(services));
-  const [referenceValues, setReferenceValues] = useState<Record<string, string>>({});
+  const [referenceValues, setReferenceValues] = useState<ReadonlyMap<string, string>>(() => new Map());
   const [isChoosing, setIsChoosing] = useState(false);
   const { record, applyAsUpdate, clearRefusals, isSaving, mismatch, refusal } = d.useDefinitionImport({ dseq: deployment.dseq, onImported });
   const isClosed = deployment.state !== "active";
   const referenceNames = referenceNamesOf(services);
-  const canSend = !isSaving && referenceNames.every(name => !!referenceValues[name]);
+  const canSend = !isSaving && referenceNames.every(name => !!referenceValues.get(name));
 
   function review(sdl: string) {
     clearRefusals();
     setCandidate({ sdl, origin: "import" });
     setSecretVariables(suggestedSecretVariablesOf(importableServicesOf(sdl)));
-    setReferenceValues({});
+    setReferenceValues(new Map());
     setIsChoosing(false);
   }
 
@@ -75,7 +75,7 @@ export const DefinitionImport: FC<DefinitionImportProps> = ({ deployment, browse
 
   function enterReferenceValue(name: string, value: string) {
     clearRefusals();
-    setReferenceValues(current => ({ ...current, [name]: value }));
+    setReferenceValues(current => new Map(current).set(name, value));
   }
 
   function definitionOf(sdl: string) {
@@ -153,7 +153,7 @@ export const DefinitionImport: FC<DefinitionImportProps> = ({ deployment, browse
           title="Import this deployment's SDL"
           description="Paste the SDL this deployment was created with, or upload the file."
           onClose={() => setIsChoosing(false)}
-          onImport={state => review(state.sdl)}
+          onImportSdl={sdl => review(sdl)}
         />
       )}
     </div>
@@ -163,7 +163,7 @@ export const DefinitionImport: FC<DefinitionImportProps> = ({ deployment, browse
 interface ServiceReviewProps {
   service: ImportableService;
   secretVariables: ReadonlySet<string>;
-  referenceValues: Record<string, string>;
+  referenceValues: ReadonlyMap<string, string>;
   locked: boolean;
   onToggleSecret: (key: string, isSecret: boolean) => void;
   onReferenceValueChange: (name: string, value: string) => void;
@@ -188,7 +188,7 @@ const ServiceReview: FC<ServiceReviewProps> = ({ service, secretVariables, refer
           {referenceName ? (
             <ReferenceValueInput
               label={`${variable.key} value`}
-              value={referenceValues[referenceName] ?? ""}
+              value={referenceValues.get(referenceName) ?? ""}
               locked={locked}
               onChange={value => onReferenceValueChange(referenceName, value)}
             />
@@ -213,7 +213,7 @@ const ServiceReview: FC<ServiceReviewProps> = ({ service, secretVariables, refer
           <span className="min-w-0 flex-1 truncate text-sm">Registry {field}</span>
           <ReferenceValueInput
             label={`Registry ${field} value`}
-            value={referenceValues[referenceName] ?? ""}
+            value={referenceValues.get(referenceName) ?? ""}
             locked={locked}
             onChange={value => onReferenceValueChange(referenceName, value)}
           />

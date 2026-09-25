@@ -115,8 +115,8 @@ describe(SdlImportExport.name, () => {
     const saveAs = vi.fn<(data: Blob, filename: string) => void>();
     const copyTextToClipboard = vi.fn<(text: string) => Promise<boolean>>().mockResolvedValue(input.canCopy ?? true);
 
-    const ImportSdlDialog: typeof DEPENDENCIES.ImportSdlDialog = ({ onImport: onDialogImport }) => (
-      <button type="button" onClick={() => onDialogImport(IMPORTED_STATE, { method: "file" })}>
+    const ImportSdlDialog: typeof DEPENDENCIES.ImportSdlDialog = props => (
+      <button type="button" onClick={() => "onImport" in props && props.onImport(IMPORTED_STATE, { method: "file" })}>
         trigger import
       </button>
     );

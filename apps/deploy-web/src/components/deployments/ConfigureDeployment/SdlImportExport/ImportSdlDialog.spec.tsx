@@ -38,6 +38,16 @@ describe(ImportSdlDialog.name, () => {
     expect(onImport).toHaveBeenCalledWith(IMPORTED_STATE, { method: "paste" });
   });
 
+  it("hands a caller that wants only the sdl the text as written, without reading it into the form", async () => {
+    const { onImportSdl, importDeploymentState } = setup({ takesSdlAsWritten: true });
+
+    await userEvent.type(screen.getByLabelText("SDL editor"), "some: sdl");
+    await userEvent.click(screen.getByRole("button", { name: "Import" }));
+
+    expect(onImportSdl).toHaveBeenCalledWith("some: sdl", { method: "paste" });
+    expect(importDeploymentState).not.toHaveBeenCalled();
+  });
+
   it("disables Import while the editor reports validation errors", async () => {
     setup({});
 
@@ -213,9 +223,10 @@ describe(ImportSdlDialog.name, () => {
     return new File(["a".repeat(512 * 1024 + 1)], "huge.yaml", { type: "application/x-yaml" });
   }
 
-  function setup(input: { importResult?: () => ImportedDeploymentState; title?: string; description?: string }) {
+  function setup(input: { importResult?: () => ImportedDeploymentState; title?: string; description?: string; takesSdlAsWritten?: boolean }) {
     const onClose = vi.fn();
     const onImport = vi.fn();
+    const onImportSdl = vi.fn();
     const importDeploymentState = vi.fn(input.importResult ?? (() => IMPORTED_STATE));
 
     const SDLEditor = (({
@@ -247,13 +258,13 @@ describe(ImportSdlDialog.name, () => {
     render(
       <ImportSdlDialog
         onClose={onClose}
-        onImport={onImport}
+        {...(input.takesSdlAsWritten ? { onImportSdl } : { onImport })}
         title={input.title}
         description={input.description}
         dependencies={{ SDLEditor, FileButton, importDeploymentState }}
       />
     );
 
-    return { onClose, onImport, importDeploymentState };
+    return { onClose, onImport, onImportSdl, importDeploymentState };
   }
 });

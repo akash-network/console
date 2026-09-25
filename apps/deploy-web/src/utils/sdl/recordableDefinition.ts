@@ -33,7 +33,7 @@ export interface RecordableDefinitionChoices {
   /** Keyed by `secretVariableKey`. */
   secretVariables: ReadonlySet<string>;
   /** Values for the references the sdl already carries, keyed by the name each carries. */
-  referenceValues: Readonly<Record<string, string>>;
+  referenceValues: ReadonlyMap<string, string>;
 }
 
 export interface RecordableDefinition {
@@ -123,7 +123,7 @@ export function recordableDefinitionOf(sdl: string, choices: RecordableDefinitio
   });
 
   taken.forEach(name => {
-    const value = choices.referenceValues[name];
+    const value = choices.referenceValues.get(name);
     if (value && !Object.hasOwn(secrets, name)) secrets[name] = value;
   });
 

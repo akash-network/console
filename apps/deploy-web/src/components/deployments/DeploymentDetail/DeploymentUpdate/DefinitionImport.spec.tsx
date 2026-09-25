@@ -1,7 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
-import type { ImportedDeploymentState } from "@src/components/deployments/ConfigureDeployment/importDeploymentState/importDeploymentState";
 import type { DeploymentDto } from "@src/types/deployment";
 import { DefinitionImport, DEPENDENCIES } from "./DefinitionImport";
 
@@ -73,6 +72,14 @@ services:
     env:
       - API_TOKEN=plain-token
       - API_TOKEN=ac-secret://API_TOKEN
+`;
+
+const SDL_REFERRING_TO_A_BUILT_IN_NAME = `version: "2.0"
+services:
+  api:
+    image: ghcr.io/acme/api:3.0.0
+    env:
+      - FORMATTER=ac-secret://toString
 `;
 
 describe(DefinitionImport.name, () => {
@@ -164,6 +171,18 @@ describe(DefinitionImport.name, () => {
       await userEvent.click(screen.getByRole("button", { name: "Save to my account" }));
 
       expect(record.mock.calls[0][0].secrets).toMatchObject({ REGISTRY_USERNAME: "acme-bot", REGISTRY_PASSWORD: "registry-password" });
+    });
+
+    it("holds the save for a secret named like an object built-in until it has a value", async () => {
+      const { record } = setup({ importedSdl: SDL_REFERRING_TO_A_BUILT_IN_NAME });
+      await chooseTheImportedSdl();
+
+      expect(screen.getByLabelText("FORMATTER value")).toHaveValue("");
+      expect(screen.getByRole("button", { name: "Save to my account" })).toBeDisabled();
+      await userEvent.type(screen.getByLabelText("FORMATTER value"), "json");
+      await userEvent.click(screen.getByRole("button", { name: "Save to my account" }));
+
+      expect(record.mock.calls[0][0].secrets).toEqual({ toString: "json" });
     });
 
     it("asks for a value for each secret a registry credential refers to, and holds the save until each has one", async () => {
@@ -288,8 +307,8 @@ describe(DefinitionImport.name, () => {
       mismatch: input.mismatch ?? false,
       refusal: input.refusal ?? null
     });
-    const ImportSdlDialog: typeof DEPENDENCIES.ImportSdlDialog = ({ onImport }) => (
-      <button type="button" onClick={() => onImport(mock<ImportedDeploymentState>({ sdl: input.importedSdl ?? IMPORTED_SDL }), { method: "paste" })}>
+    const ImportSdlDialog: typeof DEPENDENCIES.ImportSdlDialog = props => (
+      <button type="button" onClick={() => "onImportSdl" in props && props.onImportSdl(input.importedSdl ?? IMPORTED_SDL, { method: "paste" })}>
         import-the-sdl
       </button>
     );
