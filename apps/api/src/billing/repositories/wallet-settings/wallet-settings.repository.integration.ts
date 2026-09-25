@@ -10,6 +10,7 @@ import type { ChargeClaimAttempt } from "./wallet-settings.repository";
 import { WalletSettingRepository } from "./wallet-settings.repository";
 
 import { createAkashAddress } from "@test/seeders/akash-address.seeder";
+import { seedUserWithWallet } from "@test/seeders/db/user-with-wallet.seeder";
 
 const COOLDOWN_MINUTES = 60;
 const NO_COOLDOWN = 0;
@@ -20,6 +21,27 @@ function reopenSecondsOf(attempt: ChargeClaimAttempt) {
 }
 
 describe(WalletSettingRepository.name, () => {
+  describe("createUnlessExists", () => {
+    it("creates the setting when the wallet has none", async () => {
+      const { walletSettingRepository } = await setup();
+      const { user, wallet } = await seedUserWithWallet();
+
+      const created = await walletSettingRepository.createUnlessExists({ userId: user.id, walletId: wallet.id, autoReloadEnabled: true });
+
+      expect(created).toMatchObject({ userId: user.id, walletId: wallet.id, autoReloadEnabled: true });
+    });
+
+    it("leaves the existing setting untouched when the wallet already has one", async () => {
+      const { walletSettingRepository, userId, walletId, readSetting } = await setup();
+      const before = await readSetting();
+
+      const created = await walletSettingRepository.createUnlessExists({ userId, walletId, autoReloadEnabled: !before.autoReloadEnabled });
+
+      expect(created).toBeUndefined();
+      expect(await readSetting()).toEqual(before);
+    });
+  });
+
   describe("claimForCharge", () => {
     it("awards a claim to exactly one caller across concurrent attempts", async () => {
       const { walletSettingRepository, settingId } = await setup();
@@ -208,6 +230,8 @@ describe(WalletSettingRepository.name, () => {
 
     return {
       walletSettingRepository,
+      userId: user.id,
+      walletId: wallet.id,
       settingId: setting.id,
       backdateLastAutoChargeAt,
       claim,

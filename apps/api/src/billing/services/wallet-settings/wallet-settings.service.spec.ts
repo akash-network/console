@@ -136,7 +136,7 @@ describe(WalletSettingService.name, () => {
     it("reports Auto Recharge turned on when the first saved setting enables it", async () => {
       const { user, walletSetting, walletSettingRepository, analyticsService, service } = setup();
       walletSettingRepository.findOneByAndLock.mockResolvedValue(undefined);
-      walletSettingRepository.create.mockResolvedValue({ ...walletSetting, autoReloadEnabled: true, autoReloadMode: "prediction" });
+      walletSettingRepository.createUnlessExists.mockResolvedValue({ ...walletSetting, autoReloadEnabled: true, autoReloadMode: "prediction" });
 
       await service.upsertWalletSetting(user.id, { autoReloadEnabled: true, autoReloadMode: "prediction" });
 
@@ -172,6 +172,40 @@ describe(WalletSettingService.name, () => {
       await service.upsertWalletSetting(user.id, { autoReloadEnabled: true, autoReloadAmount: 100 });
 
       expect(analyticsService.track).not.toHaveBeenCalled();
+    });
+
+    it("creates the first setting on the user's wallet", async () => {
+      const { user, userWallet, walletSetting, walletSettingRepository, service } = setup();
+      walletSettingRepository.findOneByAndLock.mockResolvedValue(undefined);
+      walletSettingRepository.createUnlessExists.mockResolvedValue({ ...walletSetting, autoReloadEnabled: true });
+
+      await service.upsertWalletSetting(user.id, { autoReloadEnabled: true });
+
+      expect(walletSettingRepository.accessibleBy).toHaveBeenCalledWith(expect.anything(), "create");
+      expect(walletSettingRepository.createUnlessExists).toHaveBeenCalledWith({ userId: user.id, walletId: userWallet.id, autoReloadEnabled: true });
+      expect(walletSettingRepository.updateById).not.toHaveBeenCalled();
+    });
+
+    it("updates the setting another save created first", async () => {
+      const { user, walletSetting, walletSettingRepository, analyticsService, service } = setup();
+      const createdByOtherSave = { ...walletSetting, autoReloadEnabled: true };
+      walletSettingRepository.findOneByAndLock.mockResolvedValueOnce(undefined).mockResolvedValueOnce(createdByOtherSave);
+      walletSettingRepository.createUnlessExists.mockResolvedValue(undefined);
+      walletSettingRepository.updateById.mockResolvedValue(createdByOtherSave as never);
+
+      const saved = await service.upsertWalletSetting(user.id, { autoReloadEnabled: true });
+
+      expect(saved.autoReloadEnabled).toBe(true);
+      expect(walletSettingRepository.updateById).toHaveBeenCalledWith(createdByOtherSave.id, { autoReloadEnabled: true }, { returning: true });
+      expect(analyticsService.track).not.toHaveBeenCalled();
+    });
+
+    it("fails when the setting another save created cannot be read back", async () => {
+      const { user, walletSettingRepository, service } = setup();
+      walletSettingRepository.findOneByAndLock.mockResolvedValue(undefined);
+      walletSettingRepository.createUnlessExists.mockResolvedValue(undefined);
+
+      await expect(service.upsertWalletSetting(user.id, { autoReloadEnabled: false })).rejects.toThrow("Failed to create a wallet setting");
     });
 
     it("locks the setting row the current user can read", async () => {
