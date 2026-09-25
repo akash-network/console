@@ -14,6 +14,9 @@ export type OfferedGpuModel = {
 
 type NamedGpuModel = Omit<OfferedGpuModel, "count">;
 
+/** A provider writes these attributes unchecked, so a segment longer than any real catalog key is read as naming nothing rather than served verbatim. */
+const MAX_ATTRIBUTE_SEGMENT_LENGTH = 48;
+
 /** Matched on every field of the id, bid sequence included, so a provider's sibling bids on one order can never stand in for the one that was leased. */
 export function isBidOf(bid: Bid, leaseId: BidId): boolean {
   const { id } = bid.bid;
@@ -81,5 +84,7 @@ function nameGpuModel({ key, value }: GpuOfferAttribute): NamedGpuModel | null {
 }
 
 function segmentOf(key: string, name: string): string | null {
-  return new RegExp(`(?:^|/)${name}/([^/]+)`).exec(key)?.[1] ?? null;
+  const segment = new RegExp(`(?:^|/)${name}/([^/]+)`).exec(key)?.[1];
+
+  return segment && segment.length <= MAX_ATTRIBUTE_SEGMENT_LENGTH ? segment : null;
 }

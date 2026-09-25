@@ -181,6 +181,37 @@ describe("lease gpu offers", () => {
       expect(read).toEqual([]);
     });
 
+    it("names no model from a model segment longer than any real one, rather than serving it verbatim", () => {
+      const read = readOfferedGpus(
+        offer({
+          resources: [{ resourceId: 1, replicas: 1, unitsPerReplica: 1, attributes: [{ key: `vendor/nvidia/model/${"x".repeat(49)}`, value: "true" }] }]
+        })
+      );
+
+      expect(read).toEqual([]);
+    });
+
+    it("keeps a model segment as long as the longest one it accepts", () => {
+      const model = "x".repeat(48);
+      const read = readOfferedGpus(
+        offer({ resources: [{ resourceId: 1, replicas: 1, unitsPerReplica: 1, attributes: [{ key: `vendor/nvidia/model/${model}`, value: "true" }] }] })
+      );
+
+      expect(read.map(gpu => gpu.model)).toEqual([model]);
+    });
+
+    it("reads an overlong memory segment as unknown and still names the model", () => {
+      const read = readOfferedGpus(
+        offer({
+          resources: [
+            { resourceId: 1, replicas: 1, unitsPerReplica: 1, attributes: [{ key: `vendor/nvidia/model/a100/ram/${"9".repeat(49)}`, value: "true" }] }
+          ]
+        })
+      );
+
+      expect(read).toEqual([{ vendor: "nvidia", model: "a100", ram: null, interface: null, count: 1 }]);
+    });
+
     it.each([
       { case: "an attribute not set to true", attribute: { key: "vendor/nvidia/model/a100", value: "false" } },
       { case: "a key naming no vendor", attribute: { key: "model/a100", value: "true" } },
