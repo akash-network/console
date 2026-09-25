@@ -34,6 +34,7 @@ type DeploymentSettingWithEstimatedTopUpAmount = Omit<
   | "name"
   | "runtimeEndsAt"
   | "detectedGpus"
+  | "offeredGpus"
 > & {
   estimatedTopUpAmount: number;
   topUpFrequencyMs: number;
@@ -322,8 +323,8 @@ export class DeploymentSettingService {
    * out of the API payload. So do `sdl`, `sealedSecrets` and `manifestVersion`: they are what the console remembers a
    * deployment by, not something it hands back, and the response schema is types only — whatever this returns is
    * what ships. `sealedSecrets` is ciphertext rather than a value, but it is the one field here no response has any
-   * reason to carry, so it is dropped by the same rule rather than by a weaker one. `detectedGpus` is served on the
-   * deployment read, next to the lease it describes.
+   * reason to carry, so it is dropped by the same rule rather than by a weaker one. `detectedGpus` and `offeredGpus` are
+   * served on the deployment read, next to the lease they describe.
    */
   async withEstimatedTopUpAmount(params: DeploymentSettingsOutput): Promise<DeploymentSettingWithEstimatedTopUpAmount>;
   async withEstimatedTopUpAmount(params: undefined): Promise<undefined>;
@@ -342,6 +343,7 @@ export class DeploymentSettingService {
       name,
       runtimeEndsAt,
       detectedGpus,
+      offeredGpus,
       ...rest
     } = params;
     const setting = { ...rest, runtimeEndsAt: runtimeEndsAt?.toISOString() ?? null };

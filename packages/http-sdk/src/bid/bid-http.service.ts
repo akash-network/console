@@ -107,8 +107,11 @@ export class BidHttpService {
     this.#httpClient = httpClient;
   }
 
-  public async list(owner: string, dseq: string): Promise<Bid[]> {
-    const response = await this.#httpClient.get<RestAkashBidListResponse>(`/akash/market/v1beta5/bids/list?filters.owner=${owner}&filters.dseq=${dseq}`);
+  public async list(owner: string, dseq: string, filters: { state?: Bid["bid"]["state"] } = {}): Promise<Bid[]> {
+    const stateFilter = filters.state ? `&filters.state=${filters.state}` : "";
+    const response = await this.#httpClient.get<RestAkashBidListResponse>(
+      `/akash/market/v1beta5/bids/list?filters.owner=${owner}&filters.dseq=${dseq}${stateFilter}`
+    );
 
     return response.data.bids;
   }

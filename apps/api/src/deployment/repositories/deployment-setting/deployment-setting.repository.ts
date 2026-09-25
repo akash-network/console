@@ -6,8 +6,9 @@ import { assertBatchSize } from "@src/core/lib/batch-size/batch-size";
 import { type ApiPgDatabase, type ApiPgTables, InjectPg, InjectPgTable } from "@src/core/providers";
 import { type AbilityParams, BaseRepository } from "@src/core/repositories/base.repository";
 import { TxService } from "@src/core/services";
+import { mergeLeaseGpuOffers } from "@src/deployment/lib/lease-gpu-offers/lease-gpu-offers";
 import { mergeLeaseGpuReadings } from "@src/deployment/lib/lease-gpu-readings/lease-gpu-readings";
-import type { LeaseGpuReading } from "@src/deployment/model-schemas";
+import type { LeaseGpuOffer, LeaseGpuReading } from "@src/deployment/model-schemas";
 import { Users } from "@src/user/model-schemas";
 
 type Table = ApiPgTables["DeploymentSettings"];
@@ -71,6 +72,7 @@ export type LiveManagedDeployment = {
   address: string;
   createdAt: Date;
   hasDetectedGpus: boolean;
+  hasOfferedGpus: boolean;
 };
 
 export type LiveTrialDeployment = {
@@ -199,6 +201,26 @@ export class DeploymentSettingRepository extends BaseRepository<Table, Deploymen
       await tx
         .update(this.table)
         .set({ detectedGpus: mergeLeaseGpuReadings(row.detectedGpus ?? [], readings), updatedAt: sql`now()` })
+        .where(ofDeployment);
+
+      return true;
+    });
+  }
+
+  /** Merges under a row lock like {@link mergeGpuReadings}, and returns false when the deployment has no row to hold the offers. */
+  async mergeGpuOffers({ userId, dseq, offers }: { userId: string; dseq: string; offers: LeaseGpuOffer[] }): Promise<boolean> {
+    const ofDeployment = and(eq(this.table.userId, userId), eq(this.table.dseq, dseq));
+
+    return await this.ensureTransaction(async tx => {
+      const [row] = await tx.select({ offeredGpus: this.table.offeredGpus }).from(this.table).where(ofDeployment).for("update");
+
+      if (!row) {
+        return false;
+      }
+
+      await tx
+        .update(this.table)
+        .set({ offeredGpus: mergeLeaseGpuOffers(row.offeredGpus ?? [], offers), updatedAt: sql`now()` })
         .where(ofDeployment);
 
       return true;
@@ -396,7 +418,8 @@ export class DeploymentSettingRepository extends BaseRepository<Table, Deploymen
         walletId: UserWallets.id,
         address: UserWallets.address,
         createdAt: this.table.createdAt,
-        hasDetectedGpus: sql<boolean>`${this.table.detectedGpus} is not null`
+        hasDetectedGpus: sql<boolean>`${this.table.detectedGpus} is not null`,
+        hasOfferedGpus: sql<boolean>`${this.table.offeredGpus} is not null`
       })
       .from(this.table)
       .innerJoin(UserWallets, eq(UserWallets.userId, this.table.userId))
