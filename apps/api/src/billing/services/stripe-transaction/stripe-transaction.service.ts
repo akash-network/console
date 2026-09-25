@@ -478,6 +478,7 @@ export class StripeTransactionService {
     userId: string;
     eventDescription: string;
     endTrial?: boolean;
+    isAutoRecharge: boolean;
   }): Promise<{ settled: boolean; bonusAmount: number; toppedUpWallet?: ToppedUpWallet }> {
     const transaction = await this.stripeTransactionRepository.findOneByAndLock({ id: params.transactionId });
 
@@ -522,6 +523,7 @@ export class StripeTransactionService {
         paymentMethodType: params.paymentMethodType,
         transactionId: transaction.id,
         source: transaction.type,
+        isAutoRecharge: params.isAutoRecharge,
         ...(bonusAmount > 0 ? { bonusAmountCents: bonusAmount } : {})
       }
     });
@@ -685,7 +687,8 @@ export class StripeTransactionService {
       paymentAmount: params.paymentAmount,
       userId: user.id,
       eventDescription: params.eventDescription,
-      endTrial: params.endTrial
+      endTrial: params.endTrial,
+      isAutoRecharge: params.isAutoRecharge
     });
 
     if (toppedUpWallet) {

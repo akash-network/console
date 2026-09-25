@@ -11,6 +11,7 @@ import type { PaymentMethodService } from "@src/billing/services/payment-method/
 import { type PaymentMethod } from "@src/billing/services/payment-method/payment-method.service";
 import type { WalletReloadJobService } from "@src/billing/services/wallet-reload-job/wallet-reload-job.service";
 import type { CreateLogger } from "@src/core/providers/logging.provider";
+import type { AnalyticsService } from "@src/core/services/analytics/analytics.service";
 import type { UserRepository } from "@src/user/repositories";
 import { WalletSettingService } from "./wallet-settings.service";
 
@@ -341,6 +342,7 @@ describe(WalletSettingService.name, () => {
       paymentMethodService,
       authService,
       walletReloadJobService,
+      mock<AnalyticsService>(),
       createLogger
     );
 
