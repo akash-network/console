@@ -37,7 +37,10 @@ export const NetworkDaySchema = z.object({
   active: ActiveResourcesSchema,
   totalSpent: SpentByDenomSchema,
   dailySpent: SpentByDenomSchema,
-  dailyUsdSpent: z.string().nullable()
+  dailyUsdSpent: z.string().nullable(),
+  totalUsdSpent: z.string().openapi({
+    description: "Cumulative USD spend through this day's close; a day without an AKT price counts its stablecoin spend only"
+  })
 });
 
 export const GetNetworkStatsResponseSchema = z.object({
@@ -49,6 +52,9 @@ export const GetNetworkStatsResponseSchema = z.object({
     activeProviderCount: z.number(),
     active: ActiveResourcesSchema,
     totalSpent: SpentByDenomSchema,
+    totalUsdSpent: z.string().openapi({
+      description: "Cumulative USD spend as of the aggregation height: the closed days plus the open day priced at its own AKT close"
+    }),
     daily: z.array(NetworkDaySchema)
   })
 });

@@ -102,6 +102,7 @@ describe("Chain indexer delegation", () => {
             activeProviderCount: 5,
             active: { cpuUnits: 4000, gpuUnits: 2, memoryBytes: 8192, ephemeralStorageBytes: 4000, persistentStorageBytes: 96 },
             totalSpent: { uakt: "5000.000000000000000000", uusdc: "200", uact: "100" },
+            totalUsdSpent: "12.500000000000000000",
             daily: []
           }
         });
@@ -117,6 +118,7 @@ describe("Chain indexer delegation", () => {
         totalLeaseCount: 1000,
         totalUAktSpent: 5000,
         totalUActSpent: 300,
+        totalUUsdSpent: 12_500_000,
         activeStorage: 4096
       });
       expect(body.compare.height).toBe(5457211);

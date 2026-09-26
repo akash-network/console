@@ -1,6 +1,18 @@
 import { describe, expect, it } from "vitest";
 
-import { DEC_ONE, decCeilInt, decFromInt, decFromString, decMul, decMulInt, decQuo, decToString, decTruncateInt, minBigInt } from "@src/akash/dec";
+import {
+  DEC_ONE,
+  decCeilInt,
+  decFromInt,
+  decFromString,
+  decMul,
+  decMulInt,
+  decQuo,
+  decToFixedString,
+  decToString,
+  decTruncateInt,
+  minBigInt
+} from "@src/akash/dec";
 
 describe("dec", () => {
   describe("decFromString", () => {
@@ -39,6 +51,14 @@ describe("dec", () => {
 
     it("keeps full 18-digit precision", () => {
       expect(decToString(1n)).toBe("0.000000000000000001");
+    });
+  });
+
+  describe("decToFixedString", () => {
+    it("pads the fraction to 18 digits like postgres numeric(38,18) output", () => {
+      expect(decToFixedString(decFromString("1.5"))).toBe("1.500000000000000000");
+      expect(decToFixedString(0n)).toBe("0.000000000000000000");
+      expect(decToFixedString(decFromString("-0.25"))).toBe("-0.250000000000000000");
     });
   });
 

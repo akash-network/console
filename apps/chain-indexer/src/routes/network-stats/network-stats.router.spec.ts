@@ -44,6 +44,7 @@ describe("networkStatsRouter", () => {
       activeProviderCount: 0,
       active: { cpuUnits: 0, gpuUnits: 0, memoryBytes: 0, ephemeralStorageBytes: 0, persistentStorageBytes: 0 },
       totalSpent: { uakt: "0", uusdc: "0", uact: "0" },
+      totalUsdSpent: "0",
       daily: []
     };
   }
