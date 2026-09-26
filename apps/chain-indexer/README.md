@@ -160,7 +160,7 @@ Every step claims an `indexer_state` marker (`act-migration:upgrade`, `act-migra
 | `GET /v1/addresses/{address}/transactions/{skip}/{limit}`  | `chain_indexer_address_transactions` | `GET /v1/addresses/{address}/transactions` |
 | `GET /v1/dashboard-data` (`now` and `compare` blocks only) | `chain_indexer_dashboard_stats`      | `GET /v1/network-stats`                    |
 
-The adapters in `apps/api/src/chain-indexer` reduce this indexer's responses to the legacy shapes. Three things differ in content, not shape, and have to be accepted before a flag is flipped: address history lists transactions where the address only received coins (the legacy endpoint did not), the memo, error log and per-message amounts are not stored here yet and come back empty (see CON-835), and the dashboard's USD totals are not exposed here yet and come back as zero. The dashboard's `compare` block is the day close nearest to 24 hours before the latest block rather than the first block after that instant.
+The adapters in `apps/api/src/chain-indexer` reduce this indexer's responses to the legacy shapes. Four things differ in content, not shape, and have to be accepted before a flag is flipped: address history lists transactions where the address only received coins (the legacy endpoint did not); `isReceiver` is set per transaction rather than per message, since this indexer records an address's roles per transaction; the memo, error log and per-message amounts are not stored here yet and come back empty (see CON-835); and the dashboard's USD totals are not exposed here yet and come back as zero (CON-1018). The dashboard's `compare` block is the day close nearest to 24 hours before the latest block rather than the first block after that instant.
 
 ## Parity
 
