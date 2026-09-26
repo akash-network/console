@@ -144,6 +144,15 @@ describe(AuthInterceptor.name, () => {
       expect(observedAuthMethods).toEqual(["api_key"]);
     });
 
+    it("records api_key for a request rejected for carrying both an API key and a bearer token", async () => {
+      const { callInterceptor, observedAuthMethods } = setup({ bearer: "Bearer some-token", apiKey: "some-api-key" });
+
+      const response = await callInterceptor();
+
+      expect(response.status).toBe(400);
+      expect(observedAuthMethods).toEqual(["api_key"]);
+    });
+
     it("records none for a request without credentials", async () => {
       const { callInterceptor, observedAuthMethods, requestSpan } = setup();
 

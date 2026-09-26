@@ -25,8 +25,8 @@ const LAST_USER_ACTIVITY_ENTRY_BYTES = 128;
 type AuthMethod = "bearer" | "api_key" | "none";
 
 function authMethodOf(credentials: { bearer?: string; apiKey?: string }): AuthMethod {
-  if (credentials.bearer) return "bearer";
   if (credentials.apiKey) return "api_key";
+  if (credentials.bearer) return "bearer";
   return "none";
 }
 
@@ -61,11 +61,11 @@ export class AuthInterceptor implements HonoInterceptor {
         const bearer = c.req.header("authorization");
         const apiKey = c.req.header("x-api-key");
 
+        this.#recordAuthMethod(c, requestSpan, authMethodOf({ bearer, apiKey }));
+
         if (bearer && apiKey) {
           throw new BadRequest("Authorization and X-Api-Key headers are mutually exclusive");
         }
-
-        this.#recordAuthMethod(c, requestSpan, authMethodOf({ bearer, apiKey }));
 
         let userId: string | null | undefined;
         if (bearer) {
