@@ -85,6 +85,13 @@
       "when": 1790376917795,
       "tag": "0011_bitter_praxagora",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1790381553758,
+      "tag": "0012_sour_rumiko_fujikawa",
+      "breakpoints": true
     }
   ]
 }

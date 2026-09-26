@@ -8,6 +8,7 @@ import { container } from "tsyringe";
 import { createApp } from "@src/app";
 import type { EnvConfig } from "@src/config/env.config";
 import { envSchema } from "@src/config/env.config";
+import { JobsRunnerService } from "@src/jobs/jobs-runner.service";
 import { BackfillRunnerService } from "@src/pipeline/backfill-runner.service";
 import { ModuleReplayRunnerService } from "@src/pipeline/module-replay/module-replay-runner.service";
 import { RunnerInterruptedError } from "@src/pipeline/runner-interrupted-error";
@@ -41,6 +42,10 @@ export async function bootstrap(): Promise<void> {
     }
     case "api": {
       await startServer(createApp(role), logger, process, { port });
+      return;
+    }
+    case "jobs": {
+      await runRunnerBehindServer(role, () => container.resolve(JobsRunnerService), "JOBS_FATAL", logger, port);
       return;
     }
     default: {

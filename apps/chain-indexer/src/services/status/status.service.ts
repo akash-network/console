@@ -3,7 +3,7 @@ import { inject, singleton } from "tsyringe";
 
 import type { EnvConfig } from "@src/config/env.config";
 import { DeferredIndexService } from "@src/db/deferred-index.service";
-import { IndexerState, MessageDeadLetters, MessageTypes } from "@src/db/schema";
+import { IndexerState, JobRuns, MessageDeadLetters, MessageTypes } from "@src/db/schema";
 import type { StatusResponse } from "@src/http-schemas/status.schema";
 import { APP_CONFIG } from "@src/providers/app-config.provider";
 import type { ChainDatabase } from "@src/providers/db.provider";
@@ -22,10 +22,11 @@ export class StatusService {
   }
 
   async getStatus(): Promise<StatusResponse> {
-    const [checkpoints, deadLetters, deferredIndexes] = await Promise.all([
+    const [checkpoints, deadLetters, deferredIndexes, jobRuns] = await Promise.all([
       this.#db.select().from(IndexerState),
       this.#countDeadLettersByType(),
-      this.#deferredIndexes.listDeferred()
+      this.#deferredIndexes.listDeferred(),
+      this.#db.select().from(JobRuns).orderBy(JobRuns.name)
     ]);
 
     return {
@@ -41,7 +42,16 @@ export class StatusService {
           total: deadLetters.reduce((total, row) => total + row.count, 0),
           byType: deadLetters
         },
-        deferredIndexes
+        deferredIndexes,
+        jobs: jobRuns.map(run => ({
+          name: run.name,
+          lastStartedAt: run.lastStartedAt.toISOString(),
+          lastFinishedAt: run.lastFinishedAt?.toISOString() ?? null,
+          lastStatus: run.lastStatus,
+          lastError: run.lastError,
+          successCount: run.successCount,
+          failureCount: run.failureCount
+        }))
       }
     };
   }
