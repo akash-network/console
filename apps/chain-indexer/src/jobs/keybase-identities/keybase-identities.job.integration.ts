@@ -25,20 +25,21 @@ describe(KeybaseIdentitiesJob.name, () => {
       { operatorAddress: "akashvaloper1found", keybaseUsername: "alice", keybaseAvatarUrl: "https://keybase.io/alice.png" },
       { operatorAddress: "akashvaloper1invalid", keybaseUsername: null, keybaseAvatarUrl: null },
       { operatorAddress: "akashvaloper1none", keybaseUsername: null, keybaseAvatarUrl: null },
+      { operatorAddress: "akashvaloper1stale", keybaseUsername: null, keybaseAvatarUrl: null },
       { operatorAddress: "akashvaloper1unknown", keybaseUsername: null, keybaseAvatarUrl: null }
     ]);
     expect(fetch).toHaveBeenCalledTimes(2);
     expect(fetch).toHaveBeenCalledWith("https://keybase.test/_/api/1.0/user/lookup.json?key_suffix=ABCDEF0123456789&fields=basics,pictures", expect.anything());
   });
 
-  it("reports how many lookups were skipped or failed without failing the run", async () => {
+  it("reports how many identities resolved, were cleared or were skipped without failing the run", async () => {
     const { job, logger } = await setup();
 
     await job.run(new AbortController().signal);
 
     expect(logger.warn).toHaveBeenCalledWith(expect.objectContaining({ event: "KEYBASE_IDENTITY_INVALID", operatorAddress: "akashvaloper1invalid" }));
     expect(logger.info).toHaveBeenLastCalledWith(
-      expect.objectContaining({ event: "KEYBASE_IDENTITIES_SYNCED", validators: 3, resolved: 1, unresolved: 1, invalid: 1 })
+      expect.objectContaining({ event: "KEYBASE_IDENTITIES_SYNCED", validators: 4, resolved: 1, unresolved: 0, invalid: 1, cleared: 2 })
     );
   });
 
@@ -49,7 +50,8 @@ describe(KeybaseIdentitiesJob.name, () => {
       { operatorAddress: "akashvaloper1found", identity: "ABCDEF0123456789" },
       { operatorAddress: "akashvaloper1unknown", identity: "0000000000000000" },
       { operatorAddress: "akashvaloper1invalid", identity: "not-a-key" },
-      { operatorAddress: "akashvaloper1none", identity: null }
+      { operatorAddress: "akashvaloper1none", identity: null },
+      { operatorAddress: "akashvaloper1stale", identity: null, keybaseUsername: "bob", keybaseAvatarUrl: "https://keybase.io/bob.png" }
     ]);
 
     const fetch = vi.fn<Fetch>(async input => {

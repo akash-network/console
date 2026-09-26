@@ -23,6 +23,8 @@ const OBSERVER_TIMEOUT_MS = 30_000;
 interface ScheduledJob {
   definition: JobDefinition;
   running: Promise<void> | null;
+  /** The job body itself, which may outlive its timeout; the slot stays taken until it settles so two runs never overlap. */
+  inFlight: Promise<void> | null;
   controller: AbortController | null;
 }
 
@@ -46,7 +48,7 @@ export class JobScheduler {
     if (this.#jobs.has(definition.name)) {
       throw new Error(`Job "${definition.name}" is already registered`);
     }
-    this.#jobs.set(definition.name, { definition, running: null, controller: null });
+    this.#jobs.set(definition.name, { definition, running: null, inFlight: null, controller: null });
   }
 
   start(): void {
@@ -76,7 +78,7 @@ export class JobScheduler {
   }
 
   #tick(job: ScheduledJob): void {
-    if (job.running) {
+    if (job.running || job.inFlight) {
       this.#logger.warn({ event: "JOB_TICK_SKIPPED", job: job.definition.name });
       return;
     }
@@ -96,8 +98,20 @@ export class JobScheduler {
     const timeout = setTimeout(() => controller.abort(new Error(`Job "${definition.name}" timed out after ${definition.timeoutMs} ms`)), definition.timeoutMs);
     const abortion = rejectOnAbort(controller.signal);
 
+    const body = definition.run(controller.signal);
+    const settled = body.then(
+      () => undefined,
+      () => undefined
+    );
+    job.inFlight = settled;
+    void settled.then(() => {
+      if (job.inFlight === settled) {
+        job.inFlight = null;
+      }
+    });
+
     try {
-      await Promise.race([abortion, definition.run(controller.signal)]);
+      await Promise.race([abortion, body]);
       await this.#notify(definition.name, () => this.#observer.onSuccess(definition.name, Date.now() - startedAt));
     } catch (error) {
       await this.#notify(definition.name, () => this.#observer.onFailure(definition.name, Date.now() - startedAt, error));

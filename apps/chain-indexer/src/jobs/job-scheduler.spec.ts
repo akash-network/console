@@ -175,6 +175,26 @@ describe(JobScheduler.name, () => {
     }
   });
 
+  it("keeps the slot occupied by a timed-out run until that run settles", async () => {
+    vi.useFakeTimers();
+    try {
+      const { scheduler, run, logger, finishRun } = setup({ intervalMs: 1_000, runAtStart: true, timeoutMs: 500, ignoresAbort: true });
+
+      scheduler.start();
+      await vi.advanceTimersByTimeAsync(1_100);
+      expect(run).toHaveBeenCalledTimes(1);
+      expect(logger.warn).toHaveBeenCalledWith(expect.objectContaining({ event: "JOB_TICK_SKIPPED", job: "price-history" }));
+
+      finishRun();
+      await vi.advanceTimersByTimeAsync(1_000);
+      expect(run).toHaveBeenCalledTimes(2);
+      finishRun();
+      await scheduler.stop();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("rejects registering the same job twice", () => {
     const { scheduler } = setup({ intervalMs: 1_000 });
 
@@ -201,10 +221,25 @@ describe(JobScheduler.name, () => {
     }
   });
 
-  function setup(input: { intervalMs: number; runAtStart?: boolean; runDurationMs?: number; timeoutMs?: number; failWith?: Error; hangs?: boolean }) {
+  function setup(input: {
+    intervalMs: number;
+    runAtStart?: boolean;
+    runDurationMs?: number;
+    timeoutMs?: number;
+    failWith?: Error;
+    hangs?: boolean;
+    ignoresAbort?: boolean;
+  }) {
     const signals: AbortSignal[] = [];
+    let finishRun = () => undefined as void;
     const run = vi.fn(async (signal: AbortSignal) => {
       signals.push(signal);
+      if (input.ignoresAbort) {
+        await new Promise<void>(resolve => {
+          finishRun = resolve;
+        });
+        return;
+      }
       if (input.hangs) {
         await new Promise<void>(resolve => signal.addEventListener("abort", () => resolve()));
         return;
@@ -225,6 +260,6 @@ describe(JobScheduler.name, () => {
     const scheduler = new JobScheduler(observer, logger);
     scheduler.register({ name: "price-history", intervalMs: input.intervalMs, timeoutMs: input.timeoutMs ?? 10_000, runAtStart: input.runAtStart, run });
 
-    return { scheduler, run, observer, logger, signals };
+    return { scheduler, run, observer, logger, signals, finishRun: () => finishRun() };
   }
 });
