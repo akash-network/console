@@ -20,6 +20,16 @@ describe(AddressController.name, () => {
       expect(transactionService.getTransactionsByAddress).not.toHaveBeenCalled();
     });
 
+    it("falls back to the legacy indexer when chain-indexer fails while the endpoint is delegated", async () => {
+      const { controller, chainIndexerTransactions, transactionService, legacy } = setup({ delegated: true });
+      chainIndexerTransactions.getTransactionsByAddress.mockRejectedValue(new Error("chain-indexer unavailable"));
+
+      const result = await controller.getTransactions({ address: "akash1a", skip: 10, limit: 5 });
+
+      expect(result).toBe(legacy);
+      expect(transactionService.getTransactionsByAddress).toHaveBeenCalledWith("akash1a", 10, 5);
+    });
+
     it("serves the page from the legacy indexer when the endpoint is not delegated", async () => {
       const { controller, chainIndexerTransactions, transactionService, legacy } = setup({ delegated: false });
 
