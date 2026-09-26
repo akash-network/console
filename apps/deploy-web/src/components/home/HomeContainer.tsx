@@ -56,7 +56,7 @@ export function HomeContainer({ dependencies: d = DEPENDENCIES }: Props) {
   const { balance: walletBalance, isLoading: isLoadingBalances } = d.useWalletBalance();
   const { data: leases, isFetching: isLoadingLeases, refetch: getLeases } = d.useAllLeases(address, { enabled: false, state: LIVE_LEASE_STATES });
   const liveLeaseProviderAddresses = useMemo(() => leases?.filter(isLeaseLive).map(lease => lease.provider) ?? [], [leases]);
-  const providerLookup = d.useProvidersByAddresses(liveLeaseProviderAddresses);
+  const { data: providers, isFetching: isLoadingProviders, isLoading: isResolvingProviders } = d.useProvidersByAddresses(liveLeaseProviderAddresses);
 
   useEffect(() => {
     if (address) {
@@ -73,7 +73,7 @@ export function HomeContainer({ dependencies: d = DEPENDENCIES }: Props) {
   return (
     <d.Layout
       containerClassName="flex h-full flex-col justify-between"
-      isLoading={isLoadingDeployments || isLoadingBalances || providerLookup.isFetching || isLoadingLeases}
+      isLoading={isLoadingDeployments || isLoadingBalances || isLoadingProviders || isLoadingLeases}
     >
       <div>
         <div className="mb-6">
@@ -85,7 +85,7 @@ export function HomeContainer({ dependencies: d = DEPENDENCIES }: Props) {
             walletBalance={walletBalance}
             activeDeployments={activeDeployments}
             leases={leases}
-            providers={providerLookup.isLoading ? undefined : providerLookup.data}
+            providers={isResolvingProviders ? undefined : providers}
           />
         )}
       </div>

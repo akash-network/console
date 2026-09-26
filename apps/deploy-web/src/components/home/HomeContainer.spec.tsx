@@ -41,6 +41,20 @@ describe(HomeContainer.name, () => {
     expect(useProvidersByAddresses).toHaveBeenLastCalledWith(["akash1running", "akash1reclaiming"]);
   });
 
+  it("looks up no provider before the leases arrive", () => {
+    const { useProvidersByAddresses } = setup({ address: "akash1owner", leasesUnresolved: true });
+
+    expect(useProvidersByAddresses).toHaveBeenLastCalledWith([]);
+  });
+
+  it("looks up the providers of leases that arrive after the first render", () => {
+    const { useProvidersByAddresses, rerenderWith } = setup({ address: "akash1owner", leases: [] });
+
+    rerenderWith({ leases: [mock<LeaseDto>({ dseq: "1", state: "active", provider: "akash1running" })] });
+
+    expect(useProvidersByAddresses).toHaveBeenLastCalledWith(["akash1running"]);
+  });
+
   it("hands YourAccount no providers while they are still being looked up", () => {
     const leases = [mock<LeaseDto>({ dseq: "1", state: "active", provider: "akash1running" })];
     const { YourAccount } = setup({ address: "akash1owner", leases, isLookingUpProviders: true });
@@ -94,6 +108,7 @@ describe(HomeContainer.name, () => {
     input: {
       address?: string;
       leases?: LeaseDto[];
+      leasesUnresolved?: boolean;
       providers?: ApiProviderList[];
       isLookingUpProviders?: boolean;
       deployments?: DeploymentDto[];
@@ -109,7 +124,7 @@ describe(HomeContainer.name, () => {
     const providerLookup = { data: input.providers ?? [], isLoading: !!input.isLookingUpProviders, isFetching: !!input.isLookingUpProviders };
     const useProvidersByAddresses = vi.fn((_addresses: readonly string[]) => providerLookup);
     const useDeploymentList = mockQueryHook<typeof DEPENDENCIES.useDeploymentList>(input.deploymentsUnresolved ? undefined : input.deployments ?? []);
-    const useAllLeases = mockQueryHook<typeof DEPENDENCIES.useAllLeases>(input.leases ?? []);
+    const useAllLeases = mockQueryHook<typeof DEPENDENCIES.useAllLeases>(input.leasesUnresolved ? undefined : input.leases ?? []);
     const YourAccount = vi.fn(() => <div>your account</div>);
 
     const dependencies = MockComponents(DEPENDENCIES, {
@@ -129,8 +144,9 @@ describe(HomeContainer.name, () => {
       useDeploymentNames,
       useProvidersByAddresses,
       YourAccount,
-      rerenderWith(next: { deployments: DeploymentDto[] }) {
-        useDeploymentList.setData(next.deployments);
+      rerenderWith(next: { deployments?: DeploymentDto[]; leases?: LeaseDto[] }) {
+        if (next.deployments) useDeploymentList.setData(next.deployments);
+        if (next.leases) useAllLeases.setData(next.leases);
         rerender(<HomeContainer dependencies={dependencies} />);
       }
     };
