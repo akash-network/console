@@ -21,6 +21,51 @@ The RPC pass is the one that cannot be tuned from this side: 28.8M blocks at 20 
 - The mainnet genesis file on a volume reachable by the phase-2 Job (`GENESIS_FILE`). Fetching 11 MB through `/genesis_chunked` works too, but the file is simpler to reason about. Its `chain_id` must be `akashnet-2`.
 - The chain tip at the start (`curl <rpc>/status | jq .result.sync_info.latest_block_height`). Call it `TIP`.
 
+## Running on Kubernetes
+
+The `chain-indexer` chart in `akash-network/helm-charts` deploys the long-running roles from one image, `ghcr.io/akash-network/console-chain-indexer`: a `sync` Deployment (one replica, recreated rather than rolled), an `api` Deployment behind the `chain-indexer-<chain>-api` service on port 3000, and a `jobs` Deployment. It sets `DRIZZLE_MIGRATIONS_FOLDER=./dist/drizzle`, where the image keeps the migrations. Secrets come from the Doppler project `chain-indexer`:
+
+| Doppler config            | Used by    | Keys                                                                                                         |
+| ------------------------- | ---------- | ------------------------------------------------------------------------------------------------------------ |
+| `<namespace>-<chain>`     | sync, jobs | `POSTGRES_DB_URI` for the writer role, plus `RPC_NODE_ENDPOINTS`, `ARCHIVE_BUCKET` and a GCS key when needed |
+| `<namespace>-<chain>_api` | api        | `POSTGRES_DB_URI` for a read-only role, `SERVER_ORIGIN`                                                      |
+
+The archive uses Application Default Credentials. Outside GKE, store a service account key (JSON) under a key of the writer config and set the chart's `archive.credentialsKey` to that key's name. The sync pod then mounts it and points `GOOGLE_APPLICATION_CREDENTIALS` at it.
+
+The backfill Jobs of phases 1, 2 and 5 are not part of the chart, because each one is a one-off with its own range. Run them from the same image, reusing the chart's ConfigMap and writer secret, one Job name per range:
+
+```yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: chain-indexer-mainnet-archive-1-4999999
+spec:
+  parallelism: 1
+  backoffLimit: 100
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: backfill
+          image: ghcr.io/akash-network/console-chain-indexer:<version the sync role runs>
+          envFrom:
+            - secretRef:
+                name: chain-indexer-mainnet-secret
+            - configMapRef:
+                name: chain-indexer-mainnet-config
+          env:
+            - name: INDEXER_ROLE
+              value: backfill
+            - name: BACKFILL_ARCHIVE_ONLY
+              value: "true"
+            - name: BACKFILL_FROM_HEIGHT
+              value: "1"
+            - name: BACKFILL_TO_HEIGHT
+              value: "4999999"
+```
+
+Mount the GCS key the same way as the sync pod when the Job reads or writes the archive.
+
 ## Phase 1: build the archive in parallel
 
 Every Job runs the backfill role with `BACKFILL_ARCHIVE_ONLY=true` over a disjoint range. Nothing is written to the database except an `archive:<from>-<to>` checkpoint, so the Jobs are independent and the ranges can be sized to the nodes available. Align ranges to 1,000-block chunk boundaries (`from` a multiple of 1,000, `to` one less than a multiple of 1,000) so no chunk straddles two Jobs; a straddled chunk is still correct, it just gets staged as singles and compacted later.

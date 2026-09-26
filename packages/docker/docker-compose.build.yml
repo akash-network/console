@@ -36,6 +36,15 @@ services:
       args:
         WORKSPACE: apps/indexer
 
+  chain-indexer:
+    image: ${CHAIN_INDEXER_REPO:-console-chain-indexer}:${CHAIN_INDEXER_TAG:-latest}
+    build:
+      context: ../..
+      dockerfile: packages/docker/Dockerfile.node
+      target: production
+      args:
+        WORKSPACE: apps/chain-indexer
+
   provider-inventory:
     image: ${PROVIDER_INVENTORY_REPO:-console-provider-inventory}:${PROVIDER_INVENTORY_TAG:-latest}
     build:
