@@ -1,4 +1,4 @@
-import { applyDefaults } from "@akashnetwork/dev-config/tsup-plugins.ts";
+import { applyDefaults, copyDrizzlePlugin } from "@akashnetwork/dev-config/tsup-plugins.ts";
 import { fileURLToPath } from "node:url";
 import { defineConfig } from "tsup";
 
@@ -23,6 +23,7 @@ export default defineConfig(async overrideOptions =>
     target: tsconfig.compilerOptions.target,
     tsconfig: "tsconfig.build.json",
     external: ["pino-pretty"],
+    plugins: [...(isProduction ? [copyDrizzlePlugin] : [])],
     onSuccess: overrideOptions.watch && !isProduction ? "npm run prod" : undefined,
     ...overrideOptions
   })
