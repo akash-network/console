@@ -16,6 +16,7 @@ import { useServices } from "@src/context/ServicesProvider";
 import { useWallet as useWalletOriginal } from "@src/context/WalletProvider";
 import type { DeploymentDefinition } from "@src/hooks/useDeploymentDefinition/useDeploymentDefinition";
 import { useDeploymentDefinition as useDeploymentDefinitionOriginal } from "@src/hooks/useDeploymentDefinition/useDeploymentDefinition";
+import { useFlag as useFlagOriginal } from "@src/hooks/useFlag";
 import { useBalances as useBalancesOriginal } from "@src/queries/useBalancesQuery";
 import type { DeploymentDto } from "@src/types/deployment";
 import { deploymentData as deploymentDataOriginal } from "@src/utils/deploymentData";
@@ -50,6 +51,7 @@ export const DEPENDENCIES = {
   useSnackbar: useSnackbarOriginal,
   useBlockchainStatus: useBlockchainStatusOriginal,
   useDeploymentDefinition: useDeploymentDefinitionOriginal,
+  useFlag: useFlagOriginal,
   useQueryClient: useQueryClientOriginal,
   // eslint-disable-next-line akash/dependencies-component-or-hook
   deploymentData: deploymentDataOriginal
@@ -99,6 +101,10 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({
   const { enqueueSnackbar, closeSnackbar } = d.useSnackbar();
   const { isBlockchainDown } = d.useBlockchainStatus();
   const definition = d.useDeploymentDefinition(deployment.dseq);
+  const isSecretsEnabled = d.useFlag("ui_deployment_secrets");
+  const isUpdateEditorEnabled = d.useFlag("ui_deployment_update_editor");
+  /** The api seals every value of the unsealed update this tab sends, so the browser copy stays until sealed creates and the structured tab are both on and this tab is only a fallback. */
+  const keepsBrowserCopy = !isSecretsEnabled || !isUpdateEditorEnabled;
   const queryClient = d.useQueryClient();
   const seededDseq = useRef<string | undefined>(undefined);
   const seededSdl = useRef("");
@@ -218,6 +224,8 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({
 
   /** A full or corrupted browser storage must not turn an update the api already accepted into a reported failure. */
   function cacheSubmittedManifest({ dseq, sdl: manifest }: SubmittedUpdate) {
+    if (!keepsBrowserCopy) return;
+
     try {
       deploymentLocalStorage.update(address, dseq, { manifest });
     } catch (error) {
