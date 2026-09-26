@@ -42,7 +42,7 @@ The checkpoint height should advance as blocks land in `cosmos.blocks`, `cosmos.
 
 ## Public API
 
-`INDEXER_ROLE=api` serves a stateless, read-only REST API over the indexed data, documented at `GET /v1/doc` (OpenAPI 3.0). Any number of replicas can run; none of them writes. The first endpoints target the worst offenders of the legacy API:
+`INDEXER_ROLE=api` serves a stateless, read-only REST API over the indexed data, documented at `GET /v1/doc` (OpenAPI 3.0). Any number of replicas can run; none of them writes. The query routes are mounted on the api role only; a sync, backfill or jobs process serves just `/healthz` and `/v1/status`, so a heavy query can never land on the writer's connection pool. The first endpoints target the worst offenders of the legacy API:
 
 | Endpoint                                                   | Serves                                                                                               |
 | ---------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |

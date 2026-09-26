@@ -41,6 +41,6 @@ describe("addressTransactionsRouter", () => {
   function setup() {
     const addressTransactions = mock<AddressTransactionsService>();
     container.registerInstance(AddressTransactionsService, addressTransactions);
-    return { app: createApp(), addressTransactions };
+    return { app: createApp("api"), addressTransactions };
   }
 });

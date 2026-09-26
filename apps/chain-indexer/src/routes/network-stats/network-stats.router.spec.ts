@@ -32,7 +32,7 @@ describe("networkStatsRouter", () => {
   function setup() {
     const networkStats = mock<NetworkStatsService>();
     container.registerInstance(NetworkStatsService, networkStats);
-    return { app: createApp(), networkStats };
+    return { app: createApp("api"), networkStats };
   }
 
   function buildStats(): GetNetworkStatsResponse["data"] {

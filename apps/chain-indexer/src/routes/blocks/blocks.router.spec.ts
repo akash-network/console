@@ -52,7 +52,7 @@ describe("blocksRouter", () => {
   function setup() {
     const blockQuery = mock<BlockQueryService>();
     container.registerInstance(BlockQueryService, blockQuery);
-    return { app: createApp(), blockQuery };
+    return { app: createApp("api"), blockQuery };
   }
 
   function buildSummary(height: number): BlockSummary {
