@@ -1,4 +1,4 @@
-import { and, count, desc, eq, isNull, lte } from "drizzle-orm";
+import { and, count, desc, eq, gt, isNull, lte, or } from "drizzle-orm";
 import { inject, singleton } from "tsyringe";
 
 import { decFromString, decToString } from "@src/akash/dec";
@@ -7,6 +7,11 @@ import { NetworkRollups, NetworkState, Providers } from "@src/db/schema";
 import { DayCloseUsdService } from "@src/network/day-close-usd.service";
 import type { ChainTransaction } from "@src/providers/db.provider";
 import { LoggerService } from "@src/providers/logging.provider";
+
+/** While the provider module is under replay its table is being rebuilt, so the last known count is carried instead of counting rows that are not there yet. */
+export interface NetworkWriteOptions {
+  providerCountFrozen?: boolean;
+}
 
 export interface NetworkBlockRef {
   height: number;
@@ -60,7 +65,7 @@ export class NetworkStatsWriter {
     this.#logger.setContext("NETWORK_STATS");
   }
 
-  async write(tx: ChainTransaction, blocks: NetworkBlockRef[], deltas: NetworkBlockDelta[]): Promise<void> {
+  async write(tx: ChainTransaction, blocks: NetworkBlockRef[], deltas: NetworkBlockDelta[], options: NetworkWriteOptions = {}): Promise<void> {
     if (blocks.length === 0) {
       return;
     }
@@ -75,7 +80,7 @@ export class NetworkStatsWriter {
         continue;
       }
       if (utcDay(block.datetime) > utcDay(state.lastAggregatedAt)) {
-        await this.#closeDay(tx, state);
+        await this.#closeDay(tx, state, options);
       }
       const delta = deltaByHeight.get(block.height);
       if (delta) {
@@ -90,7 +95,9 @@ export class NetworkStatsWriter {
       return;
     }
 
-    state.activeProviderCount = await this.#countProviders(tx);
+    if (!options.providerCountFrozen) {
+      state.activeProviderCount = await this.#countProviders(tx);
+    }
     await this.#flushState(tx, state);
   }
 
@@ -140,7 +147,7 @@ export class NetworkStatsWriter {
   }
 
   /** The closing day's snapshot is the state as of the last aggregated block, which may belong to a previous batch. */
-  async #closeDay(tx: ChainTransaction, state: RunningNetworkState): Promise<void> {
+  async #closeDay(tx: ChainTransaction, state: RunningNetworkState, options: NetworkWriteOptions): Promise<void> {
     const date = utcDay(state.lastAggregatedAt);
     const [previous] = await tx.select().from(NetworkRollups).orderBy(desc(NetworkRollups.date)).limit(1);
     const previousTotals = {
@@ -159,7 +166,7 @@ export class NetworkStatsWriter {
         activeLeaseCount: state.activeLeaseCount,
         totalLeaseCount: state.totalLeaseCount,
         dailyLeaseCount: state.totalLeaseCount - previousTotals.totalLeaseCount,
-        activeProviderCount: await this.#countProviders(tx, state.lastAggregatedHeight),
+        activeProviderCount: options.providerCountFrozen ? state.activeProviderCount : await this.#countProviders(tx, state.lastAggregatedHeight),
         activeCpuUnits: state.activeCpuUnits,
         activeGpuUnits: state.activeGpuUnits,
         activeMemoryBytes: state.activeMemoryBytes,
@@ -181,7 +188,11 @@ export class NetworkStatsWriter {
     const [row] = await tx
       .select({ value: count() })
       .from(Providers)
-      .where(atHeight === undefined ? isNull(Providers.deletedHeight) : and(isNull(Providers.deletedHeight), lte(Providers.createdHeight, atHeight)));
+      .where(
+        atHeight === undefined
+          ? isNull(Providers.deletedHeight)
+          : and(lte(Providers.createdHeight, atHeight), or(isNull(Providers.deletedHeight), gt(Providers.deletedHeight, atHeight)))
+      );
     return row.value;
   }
 

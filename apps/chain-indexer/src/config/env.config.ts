@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { REPLAYABLE_MODULES } from "@src/pipeline/modules";
+
 /** Treats an empty string as absent so `VAR=` lines in env files don't fail coerced-number validation. */
 const emptyStringAsUndefined = (value: unknown) => (value === "" ? undefined : value);
 
@@ -60,6 +62,14 @@ const rawEnvSchema = z.object({
    * ordered backfill fills the database from it.
    */
   BACKFILL_ARCHIVE_ONLY: z.preprocess(emptyStringAsUndefined, z.enum(["true", "false"]).default("false")).transform(value => value === "true"),
+  /**
+   * Turns the run into a module replay: only this module's writers run, under the `replay:<module>` stream,
+   * while live sync leaves the module to the replay and takes it back at the handoff. BACKFILL_TO_HEIGHT is
+   * then optional; a replay without it catches up to the sync checkpoint and hands off there.
+   */
+  BACKFILL_MODULE: z.preprocess(emptyStringAsUndefined, z.enum(REPLAYABLE_MODULES).optional()),
+  /** Truncates the module's tables before a module replay starts, so the rewrite is from scratch rather than layered over existing rows. */
+  BACKFILL_RESET_MODULE: z.preprocess(emptyStringAsUndefined, z.enum(["true", "false"]).default("false")).transform(value => value === "true"),
   /** GCS bucket for the raw block archive. Unset disables archiving entirely (sync skips appends, backfill reads straight from RPC). */
   ARCHIVE_BUCKET: z.preprocess(emptyStringAsUndefined, z.string().optional()),
   /**
@@ -84,7 +94,8 @@ export const envSchema = rawEnvSchema.superRefine((env, ctx) => {
     return;
   }
 
-  (["BACKFILL_FROM_HEIGHT", "BACKFILL_TO_HEIGHT"] as const).forEach(key => {
+  const requiredHeights = env.BACKFILL_MODULE ? (["BACKFILL_FROM_HEIGHT"] as const) : (["BACKFILL_FROM_HEIGHT", "BACKFILL_TO_HEIGHT"] as const);
+  requiredHeights.forEach(key => {
     if (env[key] === undefined) {
       ctx.addIssue({ code: z.ZodIssueCode.custom, path: [key], message: 'Required when INDEXER_ROLE is "backfill"' });
     }
@@ -96,6 +107,22 @@ export const envSchema = rawEnvSchema.superRefine((env, ctx) => {
 
   if (env.BACKFILL_ARCHIVE_ONLY && !env.ARCHIVE_BUCKET) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["ARCHIVE_BUCKET"], message: "ARCHIVE_BUCKET is required when BACKFILL_ARCHIVE_ONLY is true" });
+  }
+
+  if (env.BACKFILL_ARCHIVE_ONLY && env.BACKFILL_MODULE) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["BACKFILL_MODULE"], message: "BACKFILL_MODULE cannot be combined with BACKFILL_ARCHIVE_ONLY" });
+  }
+
+  if (env.BACKFILL_RESET_MODULE && !env.BACKFILL_MODULE) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["BACKFILL_RESET_MODULE"], message: "BACKFILL_RESET_MODULE requires BACKFILL_MODULE" });
+  }
+
+  if (env.BACKFILL_RESET_MODULE && env.BACKFILL_MODULE === "balance" && !env.GENESIS_IMPORT) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["GENESIS_IMPORT"],
+      message: "GENESIS_IMPORT must be true to reset the balance module, since the reset drops the genesis seed rows"
+    });
   }
 });
 

@@ -128,6 +128,17 @@ akash query provider list --count-total --limit 1 -o json | jq -r .pagination.to
 
 Record the checkpoint height, the three results and the phase timings with the run. The parity CLI (L-15) automates these checks and adds the endpoint-level diffs; until it lands, this is the gate.
 
+## Phase 5: replaying one module later
+
+When a handler is fixed or a module gains a derived table after the cutover, replay just that module while sync keeps running:
+
+1. Deploy the fixed version to the sync role first, so every block from now on carries the new rows.
+2. Run one Job with `BACKFILL_MODULE=<module>`, `BACKFILL_RESET_MODULE=true` and `BACKFILL_FROM_HEIGHT` at the module's first height (1 for `akash`, `balance` with `GENESIS_IMPORT=true`, `provider`, `bme`; the first proposal's height is enough for `gov`). Leave `BACKFILL_TO_HEIGHT` unset: the replay hands off at the sync checkpoint.
+3. Watch `REPLAY_STARTED`, then `REPLAY_PROGRESS` climbing to the head, then `REPLAY_COMPLETED` with `handoffHeight`. Sync's own `SYNC_PROGRESS` keeps ticking throughout; a full commit only skips the module under replay.
+4. Verify with the parity gate for that module (the `reconcile` CLI for `balance`, the entity counts for `akash` and `provider`).
+
+A killed replay Job resumes from its `replay:<module>` checkpoint on the next attempt. Never delete that row by hand: while it exists sync has skipped the module for every block it committed, and only the replay reaching the handoff fills those heights. A plain backfill refuses to start while a replay is in progress for the same reason.
+
 ## Troubleshooting
 
 - `CHAIN_CONTINUITY_BROKEN` or `ARCHIVE_CONTINUITY_BROKEN`: a node served a block that does not chain. Check the height on a second node; if the archived copy is the bad one, delete `akashnet-2/chunks/<range>.ndjson.zst` (or the staged single) and re-run phase 1 for that range before resuming.

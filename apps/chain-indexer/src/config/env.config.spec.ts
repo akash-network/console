@@ -80,6 +80,52 @@ describe("envSchema", () => {
       );
     });
 
+    it("lets a module replay omit BACKFILL_TO_HEIGHT", () => {
+      const config = setup({ INDEXER_ROLE: "backfill", BACKFILL_FROM_HEIGHT: "1", BACKFILL_MODULE: "provider", BACKFILL_RESET_MODULE: "true" });
+
+      expect(config.BACKFILL_MODULE).toBe("provider");
+      expect(config.BACKFILL_RESET_MODULE).toBe(true);
+      expect(config.BACKFILL_TO_HEIGHT).toBeUndefined();
+    });
+
+    it("still requires BACKFILL_FROM_HEIGHT for a module replay", () => {
+      expect(() => setup({ INDEXER_ROLE: "backfill", BACKFILL_MODULE: "provider" })).toThrow(/BACKFILL_FROM_HEIGHT/);
+    });
+
+    it("rejects an unknown module", () => {
+      expect(() => setup({ INDEXER_ROLE: "backfill", BACKFILL_FROM_HEIGHT: "1", BACKFILL_MODULE: "staking" })).toThrow();
+    });
+
+    it("rejects a module reset without a module", () => {
+      expect(() => setup({ INDEXER_ROLE: "backfill", BACKFILL_FROM_HEIGHT: "1", BACKFILL_TO_HEIGHT: "2", BACKFILL_RESET_MODULE: "true" })).toThrow(
+        "BACKFILL_RESET_MODULE requires BACKFILL_MODULE"
+      );
+    });
+
+    it("requires GENESIS_IMPORT to reset the balance module", () => {
+      expect(() => setup({ INDEXER_ROLE: "backfill", BACKFILL_FROM_HEIGHT: "1", BACKFILL_MODULE: "balance", BACKFILL_RESET_MODULE: "true" })).toThrow(
+        "GENESIS_IMPORT must be true to reset the balance module"
+      );
+    });
+
+    it("lets a balance reset run with the genesis import on", () => {
+      const config = setup({
+        INDEXER_ROLE: "backfill",
+        BACKFILL_FROM_HEIGHT: "1",
+        BACKFILL_MODULE: "balance",
+        BACKFILL_RESET_MODULE: "true",
+        GENESIS_IMPORT: "true"
+      });
+
+      expect(config.GENESIS_IMPORT).toBe(true);
+    });
+
+    it("rejects a module replay combined with an archive-only run", () => {
+      expect(() =>
+        setup({ INDEXER_ROLE: "backfill", BACKFILL_FROM_HEIGHT: "1", BACKFILL_MODULE: "gov", BACKFILL_ARCHIVE_ONLY: "true", ARCHIVE_BUCKET: "raw-blocks" })
+      ).toThrow("BACKFILL_MODULE cannot be combined with BACKFILL_ARCHIVE_ONLY");
+    });
+
     it("parses an archive-only run with a bucket", () => {
       const config = setup({
         INDEXER_ROLE: "backfill",

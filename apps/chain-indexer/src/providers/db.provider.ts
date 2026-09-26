@@ -22,7 +22,7 @@ container.register(CHAIN_DB, {
 });
 
 /** Arbitrary but fixed application-wide key serializing migrateDb() across concurrently starting processes; drizzle's migrator has no locking of its own. */
-const MIGRATION_LOCK_KEY = 7_431_000;
+export const MIGRATION_LOCK_KEY = 7_431_000;
 
 export async function migrateDb(): Promise<void> {
   const config = container.resolve(APP_CONFIG);

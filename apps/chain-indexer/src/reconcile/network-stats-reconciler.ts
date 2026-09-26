@@ -4,6 +4,7 @@ import { inject, singleton } from "tsyringe";
 import { decFromString } from "@src/akash/dec";
 import { IndexerState, Leases, NetworkRollups, NetworkState, Providers } from "@src/db/schema";
 import { SYNC_STREAM } from "@src/pipeline/block-committer.service";
+import { readModulesUnderReplay } from "@src/pipeline/module-replay/replay-markers";
 import type { ChainDatabase, ChainTransaction } from "@src/providers/db.provider";
 import { CHAIN_DB } from "@src/providers/db.provider";
 import { LoggerService } from "@src/providers/logging.provider";
@@ -68,6 +69,11 @@ export class NetworkStatsReconciler {
   }
 
   async #collectMismatches(tx: ChainTransaction, rollupSampleSize: number): Promise<Mismatch[] | undefined> {
+    if ((await readModulesUnderReplay(tx)).includes("akash")) {
+      this.#logger.warn({ event: "NETWORK_RECONCILE_MODULE_UNDER_REPLAY", module: "akash" });
+      return undefined;
+    }
+
     const [state] = await tx.select().from(NetworkState);
     if (!state) {
       const { totalLeaseCount } = await this.#leaseAggregates(tx);

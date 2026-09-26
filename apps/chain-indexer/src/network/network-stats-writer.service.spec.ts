@@ -1,9 +1,11 @@
+import type { SQL } from "drizzle-orm";
+import { PgDialect } from "drizzle-orm/pg-core";
 import { describe, expect, it } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import { decFromInt, decToString } from "@src/akash/dec";
 import type { NetworkBlockDelta } from "@src/akash/network-delta";
-import { NetworkRollups, NetworkState } from "@src/db/schema";
+import { NetworkRollups, NetworkState, Providers } from "@src/db/schema";
 import type { DayCloseUsdService } from "@src/network/day-close-usd.service";
 import { NetworkStatsWriter } from "@src/network/network-stats-writer.service";
 import type { ChainTransaction } from "@src/providers/db.provider";
@@ -149,6 +151,25 @@ describe(NetworkStatsWriter.name, () => {
     ]);
   });
 
+  it("carries the provider count forward while the provider module is under replay", async () => {
+    const { writer, tx, updates, inserts } = setup({ stateRow: stateRow({ lastAggregatedHeight: 100, activeProviderCount: 4 }), providerCounts: [9, 9] });
+
+    await writer.write(tx, [block(101, "2026-08-14T00:00:01Z")], [], { providerCountFrozen: true });
+
+    expect(updates[0]).toEqual(expect.objectContaining({ activeProviderCount: 4 }));
+    expect(inserts.find(insert => insert.table === NetworkRollups)?.rows[0]).toEqual(expect.objectContaining({ activeProviderCount: 4 }));
+  });
+
+  it("counts the providers open at the closing height, keeping ones deleted only later", async () => {
+    const { writer, tx, conditions } = setup({ stateRow: stateRow({ lastAggregatedHeight: 100 }), providerCounts: [4, 5] });
+
+    await writer.write(tx, [block(101, "2026-08-14T00:00:01Z")], []);
+
+    const [dayClose] = conditions.filter(condition => condition.table === Providers).map(condition => renderSql(condition.where).sql);
+    expect(dayClose).toMatch(/created_height" <= \$\d/);
+    expect(dayClose).toMatch(/deleted_height" is null or .*deleted_height" > \$\d/);
+  });
+
   it("does nothing beyond locking when every block is at or below the watermark", async () => {
     const { writer, tx, inserts, updates, dayCloseUsd } = setup({ stateRow: stateRow({ lastAggregatedHeight: 200 }) });
 
@@ -159,8 +180,13 @@ describe(NetworkStatsWriter.name, () => {
     expect(dayCloseUsd.recompute).not.toHaveBeenCalled();
   });
 
+  function renderSql(query: unknown) {
+    return new PgDialect().sqlToQuery(query as SQL);
+  }
+
   function setup(input?: { stateRow?: Record<string, unknown>; rollups?: Record<string, unknown>[]; providerCounts?: number[] }) {
     const inserts: { table: unknown; rows: Record<string, unknown>[] }[] = [];
+    const conditions: { table: unknown; where: unknown }[] = [];
     const updates: Record<string, unknown>[] = [];
     const stateRows: Record<string, unknown>[] = input?.stateRow ? [input.stateRow] : [];
     const rollupRows: Record<string, unknown>[] = [...(input?.rollups ?? [])];
@@ -178,7 +204,10 @@ describe(NetworkStatsWriter.name, () => {
 
     const selectChain = (table: unknown) => {
       const chain = {
-        where: () => chain,
+        where: (where: unknown) => {
+          conditions.push({ table, where });
+          return chain;
+        },
         orderBy: () => chain,
         limit: () => chain,
         for: () => chain,
@@ -214,7 +243,7 @@ describe(NetworkStatsWriter.name, () => {
     const dayCloseUsd = mock<DayCloseUsdService>();
     const logger = mock<LoggerService>();
     const writer = new NetworkStatsWriter(dayCloseUsd, logger);
-    return { writer, tx: tx as unknown as ChainTransaction, inserts, updates, dayCloseUsd, logger };
+    return { writer, tx: tx as unknown as ChainTransaction, inserts, updates, conditions, dayCloseUsd, logger };
   }
 
   function block(height: number, datetime: string) {

@@ -4,6 +4,7 @@ import { inject, singleton } from "tsyringe";
 import { AccountBalances, Accounts, IndexerState } from "@src/db/schema";
 import type { CoinAmount } from "@src/pipeline/balance/coin-amount";
 import { SYNC_STREAM } from "@src/pipeline/block-committer.service";
+import { readModulesUnderReplay } from "@src/pipeline/module-replay/replay-markers";
 import type { ChainDatabase, ChainTransaction } from "@src/providers/db.provider";
 import { CHAIN_DB } from "@src/providers/db.provider";
 import { LoggerService } from "@src/providers/logging.provider";
@@ -58,6 +59,10 @@ export class ReconcileService {
       this.#logger.warn({ event: "RECONCILE_NO_CHECKPOINT" });
       return false;
     }
+    if (snapshot.underReplay) {
+      this.#logger.warn({ event: "RECONCILE_MODULE_UNDER_REPLAY", module: "balance", height: snapshot.height });
+      return false;
+    }
 
     const { height, balances } = snapshot;
     const sampled = this.#sample(balances, sampleSize);
@@ -90,12 +95,14 @@ export class ReconcileService {
    * both in a single transaction, so reading them as two independent SELECTs could straddle a commit — stale height
    * against post-commit balances — and flag spurious mismatches on any account touched by that block.
    */
-  async #readSnapshot(): Promise<{ height: number; balances: AccountBalance[] } | undefined> {
+  /** While a balance replay owns the ledger, the sync checkpoint no longer means the balances are complete to that height, so there is nothing to compare yet. */
+  async #readSnapshot(): Promise<{ height: number; underReplay: true } | { height: number; underReplay: false; balances: AccountBalance[] } | undefined> {
     return this.#db.transaction(
       async tx => {
         const height = await this.#readCheckpointHeight(tx);
         if (height === undefined) return undefined;
-        return { height, balances: await this.#readLedgerBalances(tx) };
+        if ((await readModulesUnderReplay(tx)).includes("balance")) return { height, underReplay: true as const };
+        return { height, underReplay: false as const, balances: await this.#readLedgerBalances(tx) };
       },
       { isolationLevel: "repeatable read", accessMode: "read only" }
     );

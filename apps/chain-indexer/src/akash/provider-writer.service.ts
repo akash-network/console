@@ -20,7 +20,7 @@ import { LoggerService } from "@src/providers/logging.provider";
  * hazard, and sparse audit traffic makes it near-free in steady state. Shares Postgres's advisory-lock
  * namespace with MIGRATION_LOCK_KEY (db.provider.ts), so the value must stay distinct from it.
  */
-const AUDIT_SIGNATURE_LOCK_KEY = 7_431_001;
+export const AUDIT_SIGNATURE_LOCK_KEY = 7_431_001;
 
 interface ProviderBlockChanges {
   height: number;

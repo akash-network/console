@@ -1,3 +1,5 @@
+import type { SQL } from "drizzle-orm";
+import { PgDialect } from "drizzle-orm/pg-core";
 import { describe, expect, it } from "vitest";
 import { mock } from "vitest-mock-extended";
 
@@ -13,6 +15,15 @@ describe(NetworkStatsReconciler.name, () => {
     await expect(service.reconcile()).resolves.toBe(true);
 
     expect(logger.info).toHaveBeenCalledWith(expect.objectContaining({ event: "NETWORK_RECONCILE_OK", mismatches: 0 }));
+    expect(logger.error).not.toHaveBeenCalled();
+  });
+
+  it("returns false without comparing while the akash module is under replay", async () => {
+    const { service, logger } = setup({ underReplay: ["akash"] });
+
+    await expect(service.reconcile()).resolves.toBe(false);
+
+    expect(logger.warn).toHaveBeenCalledWith(expect.objectContaining({ event: "NETWORK_RECONCILE_MODULE_UNDER_REPLAY", module: "akash" }));
     expect(logger.error).not.toHaveBeenCalled();
   });
 
@@ -99,12 +110,16 @@ describe(NetworkStatsReconciler.name, () => {
     providerCount?: number;
     checkpoint?: number;
     rollups?: Record<string, unknown>[];
+    underReplay?: string[];
   }) {
     const leaseAggQueue = [...(input.leaseAggregates ?? [leaseAggregates({})])];
 
-    const resolveRows = (table: unknown, grouped: boolean): unknown[] => {
+    const resolveRows = (table: unknown, grouped: boolean, condition: unknown): unknown[] => {
       if (table === NetworkState) {
         return input.stateRow === null ? [] : [input.stateRow ?? stateRow({})];
+      }
+      if (table === IndexerState && new PgDialect().sqlToQuery(condition as SQL).params.includes("replay:%")) {
+        return (input.underReplay ?? []).map(module => ({ stream: `replay:${module}`, lastHeight: 1 }));
       }
       if (table === IndexerState) {
         return [{ stream: "sync", lastHeight: input.checkpoint ?? 100 }];
@@ -123,8 +138,12 @@ describe(NetworkStatsReconciler.name, () => {
 
     const makeChain = (table: unknown) => {
       let grouped = false;
+      let condition: unknown;
       const chain = {
-        where: () => chain,
+        where: (where: unknown) => {
+          condition = where;
+          return chain;
+        },
         orderBy: () => chain,
         limit: () => chain,
         groupBy: () => {
@@ -132,7 +151,7 @@ describe(NetworkStatsReconciler.name, () => {
           return chain;
         },
         then: (resolve: (rows: unknown[]) => unknown, reject?: (error: unknown) => unknown) =>
-          Promise.resolve(resolveRows(table, grouped)).then(resolve, reject)
+          Promise.resolve(resolveRows(table, grouped, condition)).then(resolve, reject)
       };
       return chain;
     };
