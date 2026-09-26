@@ -1,8 +1,9 @@
-import React, { useCallback } from "react";
+import React, { useCallback, useState } from "react";
 import { usePopup } from "@akashnetwork/ui/context";
 
 import { usePaymentMethodsQuery, usePaymentMutations, useWalletSettingsQuery } from "@src/queries";
-import type { PaymentMethodsViewProps } from "../PaymentMethodsView/PaymentMethodsView";
+import { handleStripeError } from "@src/utils/stripeErrorHandler";
+import type { PaymentMethodOperationError, PaymentMethodsViewProps } from "../PaymentMethodsView/PaymentMethodsView";
 
 const DEPENDENCIES = {
   usePaymentMethodsQuery,
@@ -22,10 +23,14 @@ export const PaymentMethodsContainer: React.FC<PaymentMethodsContainerProps> = (
   const isAutoReloadEnabled = walletSettings?.autoReloadEnabled ?? isWalletSettingsLoading;
   const paymentMutations = d.usePaymentMutations();
   const { confirm } = d.usePopup();
+  const [operationError, setOperationError] = useState<PaymentMethodOperationError | null>(null);
 
   const onSetPaymentMethodAsDefault = useCallback(
     (id: string) => {
-      paymentMutations.setPaymentMethodAsDefault.mutate(id);
+      setOperationError(null);
+      paymentMutations.setPaymentMethodAsDefault.mutate(id, {
+        onError: error => setOperationError({ title: "Couldn't set default payment method", ...handleStripeError(error) })
+      });
     },
     [paymentMutations.setPaymentMethodAsDefault]
   );
@@ -52,10 +57,15 @@ export const PaymentMethodsContainer: React.FC<PaymentMethodsContainerProps> = (
         return;
       }
 
-      paymentMutations.removePaymentMethod.mutate(id);
+      setOperationError(null);
+      paymentMutations.removePaymentMethod.mutate(id, {
+        onError: error => setOperationError({ title: "Couldn't remove payment method", ...handleStripeError(error) })
+      });
     },
     [confirm, paymentMethods, isAutoReloadEnabled, paymentMutations.removePaymentMethod]
   );
+
+  const dismissOperationError = useCallback(() => setOperationError(null), []);
 
   const isInProgress =
     isLoadingPaymentMethods ||
@@ -69,6 +79,8 @@ export const PaymentMethodsContainer: React.FC<PaymentMethodsContainerProps> = (
         data: paymentMethods || [],
         onSetPaymentMethodAsDefault,
         onRemovePaymentMethod,
+        operationError,
+        onDismissOperationError: dismissOperationError,
         isLoadingPaymentMethods,
         isInProgress
       })}

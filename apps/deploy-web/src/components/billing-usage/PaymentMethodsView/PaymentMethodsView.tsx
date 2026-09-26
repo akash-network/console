@@ -1,14 +1,18 @@
 import React from "react";
 import type { PaymentMethod } from "@akashnetwork/http-sdk";
-import { Button, Card, CardContent, CardHeader, Skeleton } from "@akashnetwork/ui/components";
-import { Plus } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle, Button, Card, CardContent, CardHeader, Skeleton } from "@akashnetwork/ui/components";
+import { Plus, X } from "lucide-react";
 
 import { useBillingActions } from "@src/components/billing-usage/BillingActionsProvider/BillingActionsProvider";
+import type { StripeErrorInfo } from "@src/utils/stripeErrorHandler";
 import { PaymentMethodsRow } from "./PaymentMethodsRow";
 
 export const DEPENDENCIES = {
   useBillingActions,
   PaymentMethodsRow,
+  Alert,
+  AlertTitle,
+  AlertDescription,
   Card,
   CardHeader,
   CardContent,
@@ -16,10 +20,14 @@ export const DEPENDENCIES = {
   Button
 };
 
+export type PaymentMethodOperationError = StripeErrorInfo & { title: string };
+
 export type PaymentMethodsViewProps = {
   data: PaymentMethod[];
   onSetPaymentMethodAsDefault: (id: string) => void;
   onRemovePaymentMethod: (id: string) => Promise<void> | void;
+  operationError: PaymentMethodOperationError | null;
+  onDismissOperationError: () => void;
   isLoadingPaymentMethods: boolean;
   isInProgress: boolean;
   dependencies?: typeof DEPENDENCIES;
@@ -29,6 +37,8 @@ export const PaymentMethodsView: React.FC<PaymentMethodsViewProps> = ({
   data,
   onSetPaymentMethodAsDefault,
   onRemovePaymentMethod,
+  operationError,
+  onDismissOperationError,
   isLoadingPaymentMethods,
   isInProgress,
   dependencies: d = DEPENDENCIES
@@ -48,6 +58,20 @@ export const PaymentMethodsView: React.FC<PaymentMethodsViewProps> = ({
         </d.Button>
       </d.CardHeader>
       <d.CardContent>
+        {operationError && (
+          <d.Alert variant="destructive" className="mb-2 flex items-start gap-3 p-4">
+            <div className="min-w-0 flex-1">
+              <d.AlertTitle>{operationError.title}</d.AlertTitle>
+              <d.AlertDescription>
+                <span className="block">{operationError.message}</span>
+                {operationError.userAction && <span className="mt-1 block">{operationError.userAction}</span>}
+              </d.AlertDescription>
+            </div>
+            <d.Button onClick={onDismissOperationError} size="icon" variant="ghost" className="h-6 w-6 shrink-0" aria-label="Dismiss error">
+              <X className="h-4 w-4" />
+            </d.Button>
+          </d.Alert>
+        )}
         {isLoadingPaymentMethods ? (
           <div className="divide-y">
             {Array.from({ length: 2 }).map((_, index) => (

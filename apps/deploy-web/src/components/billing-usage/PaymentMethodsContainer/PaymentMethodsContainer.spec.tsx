@@ -8,9 +8,11 @@ import type { usePaymentMethodsQuery, usePaymentMutations, useWalletSettingsQuer
 import type { PaymentMethodsViewProps } from "../PaymentMethodsView/PaymentMethodsView";
 import { PaymentMethodsContainer } from "./PaymentMethodsContainer";
 
-import { render } from "@testing-library/react";
+import { act, render } from "@testing-library/react";
 import { createMockPaymentMethod } from "@tests/seeders/payment";
 import { createContainerTestingChildCapturer } from "@tests/unit/container-testing-child-capturer";
+
+type MutateWithCallbacks = (id: string, options?: { onError?: (error: unknown) => void }) => void;
 
 describe(PaymentMethodsContainer.name, () => {
   it("renders payment methods data", async () => {
@@ -35,7 +37,7 @@ describe(PaymentMethodsContainer.name, () => {
 
     child.onSetPaymentMethodAsDefault(paymentMethodId);
 
-    expect(mockSetPaymentMethodAsDefault.mutate).toHaveBeenCalledWith(paymentMethodId);
+    expect(mockSetPaymentMethodAsDefault.mutate).toHaveBeenCalledWith(paymentMethodId, expect.anything());
   });
 
   it("calls removePaymentMethod mutation when the removal is confirmed", async () => {
@@ -44,7 +46,7 @@ describe(PaymentMethodsContainer.name, () => {
 
     await child.onRemovePaymentMethod(paymentMethodId);
 
-    expect(mockRemovePaymentMethod.mutate).toHaveBeenCalledWith(paymentMethodId);
+    expect(mockRemovePaymentMethod.mutate).toHaveBeenCalledWith(paymentMethodId, expect.anything());
   });
 
   it("does not remove the payment method when the confirmation is cancelled", async () => {
@@ -99,7 +101,7 @@ describe(PaymentMethodsContainer.name, () => {
     await child.onRemovePaymentMethod("pm_default");
 
     expect(mockConfirm).toHaveBeenCalledWith(expect.objectContaining({ title: "Remove default payment method?" }));
-    expect(mockRemovePaymentMethod.mutate).toHaveBeenCalledWith("pm_default");
+    expect(mockRemovePaymentMethod.mutate).toHaveBeenCalledWith("pm_default", expect.anything());
   });
 
   it("shows the plain removal confirmation for a non-default payment method while auto reload is enabled", async () => {
@@ -135,6 +137,78 @@ describe(PaymentMethodsContainer.name, () => {
     expect(mockConfirm).toHaveBeenCalledWith(expect.objectContaining({ title: "Remove default payment method?" }));
   });
 
+  it("starts without an operation error", async () => {
+    const { child } = await setup();
+
+    expect(child.operationError).toBeNull();
+  });
+
+  it("explains why the removal failed when removing a payment method is rejected", async () => {
+    const { child, childCapturer, mockRemovePaymentMethod } = await setup();
+    mockRemovePaymentMethod.mutate.mockImplementation((_id, options) =>
+      options?.onError?.({ response: { status: 403, data: { code: "forbidden", message: "Payment method does not belong to the user" } } })
+    );
+
+    await act(() => child.onRemovePaymentMethod("pm_123456"));
+
+    const { operationError } = await childCapturer.awaitChild(props => props.operationError !== null);
+    expect(operationError).toEqual({
+      title: "Couldn't remove payment method",
+      message: "You don't have permission to perform this action.",
+      userAction: "Contact support if you believe this is an error."
+    });
+  });
+
+  it("surfaces the api message for an uncatalogued removal failure", async () => {
+    const { child, childCapturer, mockRemovePaymentMethod } = await setup();
+    mockRemovePaymentMethod.mutate.mockImplementation((_id, options) =>
+      options?.onError?.({ response: { status: 500, data: { code: "unknown_error", message: "Payment account not properly configured. Please contact support." } } })
+    );
+
+    await act(() => child.onRemovePaymentMethod("pm_123456"));
+
+    const { operationError } = await childCapturer.awaitChild(props => props.operationError !== null);
+    expect(operationError?.message).toBe("Payment account not properly configured. Please contact support.");
+  });
+
+  it("explains the failure when setting the default payment method is rejected", async () => {
+    const { child, childCapturer, mockSetPaymentMethodAsDefault } = await setup();
+    mockSetPaymentMethodAsDefault.mutate.mockImplementation((_id, options) => options?.onError?.(new Error("Network Error")));
+
+    act(() => child.onSetPaymentMethodAsDefault("pm_123456"));
+
+    const { operationError } = await childCapturer.awaitChild(props => props.operationError !== null);
+    expect(operationError).toEqual({
+      title: "Couldn't set default payment method",
+      message: "An unexpected error occurred. Please try again.",
+      userAction: "Try again or contact support if the problem persists."
+    });
+  });
+
+  it("clears the operation error when it is dismissed", async () => {
+    const { child, childCapturer, mockRemovePaymentMethod } = await setup();
+    mockRemovePaymentMethod.mutate.mockImplementation((_id, options) => options?.onError?.(new Error("Network Error")));
+    await act(() => child.onRemovePaymentMethod("pm_123456"));
+    const childWithError = await childCapturer.awaitChild(props => props.operationError !== null);
+
+    act(() => childWithError.onDismissOperationError());
+
+    const dismissedChild = await childCapturer.awaitChild(props => props.operationError === null);
+    expect(dismissedChild.operationError).toBeNull();
+  });
+
+  it("clears the previous operation error when another operation starts", async () => {
+    const { child, childCapturer, mockRemovePaymentMethod } = await setup();
+    mockRemovePaymentMethod.mutate.mockImplementationOnce((_id, options) => options?.onError?.(new Error("Network Error")));
+    await act(() => child.onRemovePaymentMethod("pm_123456"));
+    const childWithError = await childCapturer.awaitChild(props => props.operationError !== null);
+
+    act(() => childWithError.onSetPaymentMethodAsDefault("pm_123456"));
+
+    const retriedChild = await childCapturer.awaitChild(props => props.operationError === null);
+    expect(retriedChild.operationError).toBeNull();
+  });
+
   async function setup(
     overrides: Partial<{
       paymentMethods: PaymentMethod[] | undefined;
@@ -155,11 +229,11 @@ describe(PaymentMethodsContainer.name, () => {
     const isRemovePaymentMethodPending = overrides.isRemovePaymentMethodPending ?? false;
 
     const mockSetPaymentMethodAsDefault = {
-      mutate: vi.fn(),
+      mutate: vi.fn<MutateWithCallbacks>(),
       isPending: isSetPaymentMethodAsDefaultPending
     };
     const mockRemovePaymentMethod = {
-      mutate: vi.fn(),
+      mutate: vi.fn<MutateWithCallbacks>(),
       isPending: isRemovePaymentMethodPending
     };
 
