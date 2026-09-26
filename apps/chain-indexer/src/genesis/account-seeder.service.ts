@@ -1,3 +1,4 @@
+import { inArray } from "drizzle-orm";
 import chunk from "lodash/chunk";
 import { singleton } from "tsyringe";
 
@@ -8,11 +9,7 @@ import type { ChainTransaction } from "@src/providers/db.provider";
 
 @singleton()
 export class AccountSeeder {
-  /**
-   * Interns every address that appears in genesis — auth accounts, balance holders, and delegators —
-   * and returns the address→id map the other seeders reference. Genesis runs before block 1 against an
-   * empty accounts table, so `returning()` yields the full mapping without a follow-up select.
-   */
+  /** Accounts are shared by every module and never reset, so a reseed after a balance reset must look up the ids the insert did not return. */
   async intern(tx: ChainTransaction, genesis: ParsedGenesis): Promise<Map<string, number>> {
     const accountByAddress = new Map(genesis.accounts.map(account => [account.address, account]));
 
@@ -35,6 +32,12 @@ export class AccountSeeder {
     for (const rowChunk of chunk(rows, INSERT_CHUNK_SIZE)) {
       const inserted = await tx.insert(Accounts).values(rowChunk).onConflictDoNothing().returning({ id: Accounts.id, address: Accounts.address });
       inserted.forEach(row => idByAddress.set(row.address, row.id));
+    }
+
+    const existing = [...addresses].filter(address => !idByAddress.has(address));
+    for (const addressChunk of chunk(existing, INSERT_CHUNK_SIZE)) {
+      const found = await tx.select({ id: Accounts.id, address: Accounts.address }).from(Accounts).where(inArray(Accounts.address, addressChunk));
+      found.forEach(row => idByAddress.set(row.address, row.id));
     }
 
     return idByAddress;
