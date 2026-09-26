@@ -91,6 +91,12 @@ describe("csp", () => {
       expect(imgSrc).toContain("https://console-cdn.akash.network");
     });
 
+    it("allows ibc asset logos served from the chain registry", () => {
+      const { imgSrc } = setup({});
+
+      expect(imgSrc).toContain("https://raw.githubusercontent.com");
+    });
+
     it("adds Sentry CSP reporting directives when a Sentry DSN is configured", () => {
       const { reportUri, reportTo } = setup({ sentryDsn: "https://publicKey@o877251.ingest.sentry.io/4504" });
 

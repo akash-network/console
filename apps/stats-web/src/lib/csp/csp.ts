@@ -12,6 +12,8 @@ const FIXED_VENDOR_CONNECT_ORIGINS = ["https://www.googletagmanager.com", "https
 
 const CONSOLE_CDN_ORIGIN = "https://console-cdn.akash.network";
 
+const CHAIN_REGISTRY_ASSET_LOGO_ORIGIN = "https://raw.githubusercontent.com";
+
 export interface ContentSecurityPolicyInput {
   apiBaseUrl?: string;
   mainnetApiUrl?: string;
@@ -96,7 +98,7 @@ export function buildContentSecurityPolicy(nonce: string, input: ContentSecurity
     "form-action 'self'",
     `script-src ${scriptSrc.join(" ")}`,
     "style-src 'self' 'unsafe-inline'",
-    `img-src 'self' data: blob: https://www.google-analytics.com https://www.googletagmanager.com ${CONSOLE_CDN_ORIGIN}`,
+    `img-src 'self' data: blob: https://www.google-analytics.com https://www.googletagmanager.com ${CONSOLE_CDN_ORIGIN} ${CHAIN_REGISTRY_ASSET_LOGO_ORIGIN}`,
     "font-src 'self' data:",
     `connect-src ${connectSrc.join(" ")}`,
     "worker-src 'self' blob:",
