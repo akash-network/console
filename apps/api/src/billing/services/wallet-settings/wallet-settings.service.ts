@@ -7,9 +7,8 @@ import { centsToUsd, usdToCents } from "@src/billing/lib/currency/currency";
 import { UserWalletRepository, type WalletSettingOutput, WalletSettingRepository } from "@src/billing/repositories";
 import { PaymentMethodService } from "@src/billing/services/payment-method/payment-method.service";
 import { WalletReloadJobService } from "@src/billing/services/wallet-reload-job/wallet-reload-job.service";
-import { WithTransaction } from "@src/core";
+import { TxService } from "@src/core";
 import { type CreateLogger, LOGGER_FACTORY } from "@src/core/providers/logging.provider";
-import { isUniqueViolation } from "@src/core/repositories/base.repository";
 import { AnalyticsService } from "@src/core/services/analytics/analytics.service";
 import { UserOutput, UserRepository } from "@src/user/repositories";
 
@@ -41,6 +40,7 @@ export class WalletSettingService {
     private readonly authService: AuthService,
     private readonly walletReloadJobService: WalletReloadJobService,
     private readonly analyticsService: AnalyticsService,
+    private readonly txService: TxService,
     @inject(LOGGER_FACTORY) createLogger: CreateLogger
   ) {
     this.logger = createLogger({ context: WalletSettingService.name });
@@ -54,8 +54,14 @@ export class WalletSettingService {
     return setting && this.#toDomainSetting(setting);
   }
 
-  @WithTransaction()
+  /** Validates before the transaction opens, so the Stripe lookup never holds a connection or the row lock that auto-charge claims wait on. */
   async upsertWalletSetting(userId: UserOutput["id"], input: WalletSettingInput): Promise<WalletSettingOutput> {
+    await this.#validate({ next: input, userId });
+
+    return await this.txService.transaction(() => this.#saveWalletSetting(userId, input));
+  }
+
+  async #saveWalletSetting(userId: UserOutput["id"], input: WalletSettingInput): Promise<WalletSettingOutput> {
     let mutationResult = await this.#update(userId, input);
 
     if (!mutationResult.next) {
@@ -102,16 +108,16 @@ export class WalletSettingService {
     });
   }
 
+  /** Holds the setting row until the save commits, so an overlapping save waits and compares against this one's result. */
   async #update(userId: UserOutput["id"], settings: WalletSettingInput): Promise<{ prev?: WalletSettingOutput; next?: WalletSettingOutput }> {
     const { ability } = this.authService;
 
-    const prev = await this.walletSettingRepository.accessibleBy(ability, "read").findByUserId(userId);
+    const prev = await this.walletSettingRepository.accessibleBy(ability, "read").findOneByAndLock({ userId });
 
     if (!prev) {
       return {};
     }
 
-    await this.#validate({ next: settings, userId });
     const next = await this.walletSettingRepository
       .accessibleBy(ability, "update")
       .updateById(prev.id, { ...this.#toStoredSettings(settings), ...liftDeclinePause(prev) }, { returning: true });
@@ -124,33 +130,28 @@ export class WalletSettingService {
   }
 
   async #create(userId: UserOutput["id"], settings: WalletSettingInput): Promise<{ prev?: WalletSettingOutput; next: WalletSettingOutput }> {
-    await this.#validate({ next: settings, userId });
-
     const userWallet = await this.userWalletRepository.findOneByUserId(userId);
 
     assert(userWallet, 404, "UserWallet Not Found");
 
-    try {
-      return {
-        next: await this.walletSettingRepository.accessibleBy(this.authService.ability, "create").create({
-          userId,
-          walletId: userWallet.id,
-          ...this.#toStoredSettings(settings)
-        })
-      };
-    } catch (error: unknown) {
-      if (isUniqueViolation(error)) {
-        const updatedSettingRetried = await this.#update(userId, settings);
+    const created = await this.walletSettingRepository.accessibleBy(this.authService.ability, "create").createUnlessExists({
+      userId,
+      walletId: userWallet.id,
+      ...this.#toStoredSettings(settings)
+    });
 
-        assert(updatedSettingRetried.next, 500, "Failed to create a wallet setting");
-
-        return {
-          prev: updatedSettingRetried.prev,
-          next: updatedSettingRetried.next
-        };
-      }
-      throw error;
+    if (created) {
+      return { next: created };
     }
+
+    const updatedSettingRetried = await this.#update(userId, settings);
+
+    assert(updatedSettingRetried.next, 500, "Failed to create a wallet setting");
+
+    return {
+      prev: updatedSettingRetried.prev,
+      next: updatedSettingRetried.next
+    };
   }
 
   async #validate({ next, userId }: { next: WalletSettingInput; userId: string }) {

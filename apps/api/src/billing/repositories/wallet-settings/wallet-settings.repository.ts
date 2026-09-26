@@ -48,6 +48,14 @@ export class WalletSettingRepository extends BaseRepository<Table, WalletSetting
     return this.findOneBy({ userId });
   }
 
+  /** Returns nothing when the wallet already has a setting, because a failed insert would abort the caller's transaction. */
+  async createUnlessExists(input: DbWalletSettingInput): Promise<WalletSettingOutput | undefined> {
+    this.ability?.throwUnlessCanExecute(input);
+    const [created] = await this.cursor.insert(this.table).values(input).onConflictDoNothing({ target: this.table.walletId }).returning();
+
+    return created && this.toOutput(created);
+  }
+
   async findInternalByUserIdWithRelations(userId: WalletSettingOutput["userId"]) {
     const walletSetting = await this.cursor.query.WalletSetting.findFirst({
       where: this.whereAccessibleBy(eq(this.table.userId, userId)),

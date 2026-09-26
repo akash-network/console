@@ -7,6 +7,7 @@ import type { AuthService } from "@src/auth/services/auth.service";
 import type { UserWalletRepository, WalletSettingRepository } from "@src/billing/repositories";
 import type { PaymentMethod, PaymentMethodService } from "@src/billing/services/payment-method/payment-method.service";
 import type { WalletReloadJobService } from "@src/billing/services/wallet-reload-job/wallet-reload-job.service";
+import type { TxService } from "@src/core";
 import type { CreateLogger } from "@src/core/providers/logging.provider";
 import type { AnalyticsService } from "@src/core/services/analytics/analytics.service";
 import type { UserRepository } from "@src/user/repositories";
@@ -27,7 +28,7 @@ describe(WalletSettingService.name, () => {
         walletId: walletSetting.walletId,
         autoReloadEnabled: true
       });
-      walletSettingRepository.findByUserId.mockResolvedValue(disabledSetting);
+      walletSettingRepository.findOneByAndLock.mockResolvedValue(disabledSetting);
       walletSettingRepository.updateById.mockResolvedValue(enabledSetting as never);
       walletReloadJobService.scheduleForWalletSetting.mockResolvedValue(jobId);
 
@@ -51,7 +52,7 @@ describe(WalletSettingService.name, () => {
     it("lifts a decline pause and reopens the charge window when the settings are saved", async () => {
       const { user, walletSetting, walletSettingRepository, service } = setup();
       const pausedSetting = { ...walletSetting, autoReloadEnabled: true, autoReloadPausedAt: new Date(), autoReloadFailureCount: 4 };
-      walletSettingRepository.findByUserId.mockResolvedValue(pausedSetting);
+      walletSettingRepository.findOneByAndLock.mockResolvedValue(pausedSetting);
       walletSettingRepository.updateById.mockResolvedValue({ ...pausedSetting, autoReloadPausedAt: null, autoReloadFailureCount: 0 } as never);
 
       await service.upsertWalletSetting(user.id, { autoReloadEnabled: true, autoReloadAmount: 100 });
@@ -66,7 +67,7 @@ describe(WalletSettingService.name, () => {
     it("schedules a check after lifting a pause even when no setting changed", async () => {
       const { user, walletSetting, walletSettingRepository, walletReloadJobService, service } = setup();
       const pausedSetting = { ...walletSetting, autoReloadEnabled: true, autoReloadPausedAt: new Date() };
-      walletSettingRepository.findByUserId.mockResolvedValue(pausedSetting);
+      walletSettingRepository.findOneByAndLock.mockResolvedValue(pausedSetting);
       walletSettingRepository.updateById.mockResolvedValue({ ...pausedSetting, autoReloadPausedAt: null } as never);
 
       await service.upsertWalletSetting(user.id, { autoReloadEnabled: true });
@@ -77,7 +78,7 @@ describe(WalletSettingService.name, () => {
     it("clears the credits-low latch the pause left behind", async () => {
       const { user, walletSetting, walletSettingRepository, walletReloadJobService, userWalletRepository, service } = setup();
       const pausedSetting = { ...walletSetting, autoReloadEnabled: true, autoReloadPausedAt: new Date() };
-      walletSettingRepository.findByUserId.mockResolvedValue(pausedSetting);
+      walletSettingRepository.findOneByAndLock.mockResolvedValue(pausedSetting);
       walletSettingRepository.updateById.mockResolvedValue({ ...pausedSetting, autoReloadPausedAt: null } as never);
 
       await service.upsertWalletSetting(user.id, { autoReloadEnabled: true });
@@ -93,7 +94,7 @@ describe(WalletSettingService.name, () => {
     it("leaves the charge window alone when the wallet was never paused", async () => {
       const { user, walletSetting, walletSettingRepository, service } = setup();
       const enabledSetting = { ...walletSetting, autoReloadEnabled: true, autoReloadPausedAt: null };
-      walletSettingRepository.findByUserId.mockResolvedValue(enabledSetting);
+      walletSettingRepository.findOneByAndLock.mockResolvedValue(enabledSetting);
       walletSettingRepository.updateById.mockResolvedValue(enabledSetting as never);
 
       await service.upsertWalletSetting(user.id, { autoReloadEnabled: true, autoReloadAmount: 100 });
@@ -107,7 +108,7 @@ describe(WalletSettingService.name, () => {
       const { user, walletSetting, walletSettingRepository, walletReloadJobService, service } = setup();
       const enabledSetting = { ...walletSetting, autoReloadEnabled: true };
       const disabledSetting = { ...walletSetting, autoReloadEnabled: false };
-      walletSettingRepository.findByUserId.mockResolvedValue(enabledSetting);
+      walletSettingRepository.findOneByAndLock.mockResolvedValue(enabledSetting);
       walletSettingRepository.updateById.mockResolvedValue(disabledSetting as never);
 
       await service.upsertWalletSetting(user.id, { autoReloadEnabled: false });
@@ -118,7 +119,7 @@ describe(WalletSettingService.name, () => {
 
     it("reports Auto Recharge turned on with the threshold and amount of a threshold rule", async () => {
       const { user, walletSetting, walletSettingRepository, analyticsService, service } = setup();
-      walletSettingRepository.findByUserId.mockResolvedValue({ ...walletSetting, autoReloadEnabled: false });
+      walletSettingRepository.findOneByAndLock.mockResolvedValue({ ...walletSetting, autoReloadEnabled: false });
       walletSettingRepository.updateById.mockResolvedValue({
         ...walletSetting,
         autoReloadEnabled: true,
@@ -134,8 +135,8 @@ describe(WalletSettingService.name, () => {
 
     it("reports Auto Recharge turned on when the first saved setting enables it", async () => {
       const { user, walletSetting, walletSettingRepository, analyticsService, service } = setup();
-      walletSettingRepository.findByUserId.mockResolvedValue(undefined);
-      walletSettingRepository.create.mockResolvedValue({ ...walletSetting, autoReloadEnabled: true, autoReloadMode: "prediction" });
+      walletSettingRepository.findOneByAndLock.mockResolvedValue(undefined);
+      walletSettingRepository.createUnlessExists.mockResolvedValue({ ...walletSetting, autoReloadEnabled: true, autoReloadMode: "prediction" });
 
       await service.upsertWalletSetting(user.id, { autoReloadEnabled: true, autoReloadMode: "prediction" });
 
@@ -144,7 +145,7 @@ describe(WalletSettingService.name, () => {
 
     it("reports Auto Recharge turned on in prediction mode without the threshold rule it ignores", async () => {
       const { user, walletSetting, walletSettingRepository, analyticsService, service } = setup();
-      walletSettingRepository.findByUserId.mockResolvedValue({ ...walletSetting, autoReloadEnabled: false });
+      walletSettingRepository.findOneByAndLock.mockResolvedValue({ ...walletSetting, autoReloadEnabled: false });
       walletSettingRepository.updateById.mockResolvedValue({ ...walletSetting, autoReloadEnabled: true, autoReloadMode: "prediction" } as never);
 
       await service.upsertWalletSetting(user.id, { autoReloadEnabled: true, autoReloadMode: "prediction" });
@@ -154,7 +155,7 @@ describe(WalletSettingService.name, () => {
 
     it("reports Auto Recharge turned off by the user", async () => {
       const { user, walletSetting, walletSettingRepository, analyticsService, service } = setup();
-      walletSettingRepository.findByUserId.mockResolvedValue({ ...walletSetting, autoReloadEnabled: true });
+      walletSettingRepository.findOneByAndLock.mockResolvedValue({ ...walletSetting, autoReloadEnabled: true });
       walletSettingRepository.updateById.mockResolvedValue({ ...walletSetting, autoReloadEnabled: false } as never);
 
       await service.upsertWalletSetting(user.id, { autoReloadEnabled: false });
@@ -165,12 +166,75 @@ describe(WalletSettingService.name, () => {
     it("reports nothing when saved settings keep Auto Recharge on", async () => {
       const { user, walletSetting, walletSettingRepository, analyticsService, service } = setup();
       const enabledSetting = { ...walletSetting, autoReloadEnabled: true };
-      walletSettingRepository.findByUserId.mockResolvedValue(enabledSetting);
+      walletSettingRepository.findOneByAndLock.mockResolvedValue(enabledSetting);
       walletSettingRepository.updateById.mockResolvedValue(enabledSetting as never);
 
       await service.upsertWalletSetting(user.id, { autoReloadEnabled: true, autoReloadAmount: 100 });
 
       expect(analyticsService.track).not.toHaveBeenCalled();
+    });
+
+    it("creates the first setting on the user's wallet", async () => {
+      const { user, userWallet, walletSetting, walletSettingRepository, service } = setup();
+      walletSettingRepository.findOneByAndLock.mockResolvedValue(undefined);
+      walletSettingRepository.createUnlessExists.mockResolvedValue({ ...walletSetting, autoReloadEnabled: true });
+
+      await service.upsertWalletSetting(user.id, { autoReloadEnabled: true });
+
+      expect(walletSettingRepository.accessibleBy).toHaveBeenCalledWith(expect.anything(), "create");
+      expect(walletSettingRepository.createUnlessExists).toHaveBeenCalledWith({ userId: user.id, walletId: userWallet.id, autoReloadEnabled: true });
+      expect(walletSettingRepository.updateById).not.toHaveBeenCalled();
+    });
+
+    it("updates the setting another save created first", async () => {
+      const { user, walletSetting, walletSettingRepository, analyticsService, service } = setup();
+      const createdByOtherSave = { ...walletSetting, autoReloadEnabled: true };
+      walletSettingRepository.findOneByAndLock.mockResolvedValueOnce(undefined).mockResolvedValueOnce(createdByOtherSave);
+      walletSettingRepository.createUnlessExists.mockResolvedValue(undefined);
+      walletSettingRepository.updateById.mockResolvedValue(createdByOtherSave as never);
+
+      const saved = await service.upsertWalletSetting(user.id, { autoReloadEnabled: true });
+
+      expect(saved.autoReloadEnabled).toBe(true);
+      expect(walletSettingRepository.updateById).toHaveBeenCalledWith(createdByOtherSave.id, { autoReloadEnabled: true }, { returning: true });
+      expect(analyticsService.track).not.toHaveBeenCalled();
+    });
+
+    it("fails when the setting another save created cannot be read back", async () => {
+      const { user, walletSettingRepository, service } = setup();
+      walletSettingRepository.findOneByAndLock.mockResolvedValue(undefined);
+      walletSettingRepository.createUnlessExists.mockResolvedValue(undefined);
+
+      await expect(service.upsertWalletSetting(user.id, { autoReloadEnabled: false })).rejects.toThrow("Failed to create a wallet setting");
+    });
+
+    it("locks the setting row the current user can read", async () => {
+      const { user, walletSetting, walletSettingRepository, service } = setup();
+      walletSettingRepository.updateById.mockResolvedValue(walletSetting as never);
+
+      await service.upsertWalletSetting(user.id, { autoReloadAmount: 100 });
+
+      expect(walletSettingRepository.accessibleBy).toHaveBeenCalledWith(expect.anything(), "read");
+      expect(walletSettingRepository.findOneByAndLock).toHaveBeenCalledWith({ userId: user.id });
+    });
+
+    it("checks the default payment method before opening the transaction", async () => {
+      const { user, walletSetting, walletSettingRepository, paymentMethodService, txService, service } = setup();
+      walletSettingRepository.findOneByAndLock.mockResolvedValue({ ...walletSetting, autoReloadEnabled: false });
+      walletSettingRepository.updateById.mockResolvedValue({ ...walletSetting, autoReloadEnabled: true } as never);
+
+      await service.upsertWalletSetting(user.id, { autoReloadEnabled: true });
+
+      expect(paymentMethodService.getDefaultPaymentMethod.mock.invocationCallOrder[0]).toBeLessThan(txService.transaction.mock.invocationCallOrder[0]);
+    });
+
+    it("opens no transaction when enabling without a default payment method", async () => {
+      const { user, paymentMethodService, txService, service } = setup();
+      paymentMethodService.getDefaultPaymentMethod.mockResolvedValue(undefined);
+
+      await expect(service.upsertWalletSetting(user.id, { autoReloadEnabled: true })).rejects.toThrow("Default payment method is required");
+
+      expect(txService.transaction).not.toHaveBeenCalled();
     });
   });
 
@@ -219,6 +283,7 @@ describe(WalletSettingService.name, () => {
     });
     const walletSetting = generateWalletSetting({ userId: user.id });
     walletSettingRepository.findByUserId.mockResolvedValue(walletSetting);
+    walletSettingRepository.findOneByAndLock.mockResolvedValue(walletSetting);
     const ability = createMongoAbility();
     const authService = mock<AuthService>({
       currentUser: user,
@@ -229,6 +294,8 @@ describe(WalletSettingService.name, () => {
       scheduleForWalletSetting: vi.fn().mockResolvedValue(jobId)
     });
     const analyticsService = mock<AnalyticsService>();
+    const txService = mock<TxService>();
+    txService.transaction.mockImplementation(async cb => await cb());
     const logger = mock<ReturnType<CreateLogger>>();
     const createLogger = vi.fn<CreateLogger>(() => logger);
     const service = new WalletSettingService(
@@ -239,6 +306,7 @@ describe(WalletSettingService.name, () => {
       authService,
       walletReloadJobService,
       analyticsService,
+      txService,
       createLogger
     );
 
@@ -248,8 +316,10 @@ describe(WalletSettingService.name, () => {
       walletSetting,
       walletSettingRepository,
       userWalletRepository,
+      paymentMethodService,
       walletReloadJobService,
       analyticsService,
+      txService,
       jobId,
       service,
       createLogger
