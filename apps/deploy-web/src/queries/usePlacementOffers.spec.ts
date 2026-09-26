@@ -141,6 +141,27 @@ describe(usePlacementOffers.name, () => {
     expect(useProvidersByAddresses).toHaveBeenLastCalledWith(["akash1new"], { enabled: true });
   });
 
+  it("looks up a bidder that was never screened once its bid arrives in a later poll", () => {
+    const { result, useProvidersByAddresses, rerenderWithBids } = setup({
+      phase: "quoting",
+      dseq: "100",
+      screened: [],
+      providerList: [{ owner: "akash1late", organization: "Latecomer", hostUri: "https://late.example:8443" }],
+      bids: [{ bid: { state: "open", price: { amount: "1900", denom: "uakt" }, id: { provider: "akash1early", dseq: "100", gseq: 1, oseq: 1 } } }]
+    });
+
+    rerenderWithBids([
+      { bid: { state: "open", price: { amount: "1900", denom: "uakt" }, id: { provider: "akash1early", dseq: "100", gseq: 1, oseq: 1 } } },
+      { bid: { state: "open", price: { amount: "2100", denom: "uakt" }, id: { provider: "akash1late", dseq: "100", gseq: 1, oseq: 1 } } }
+    ]);
+
+    expect(useProvidersByAddresses).toHaveBeenLastCalledWith(["akash1early", "akash1late"], { enabled: true });
+    expect(result.current.offers).toEqual([
+      expect.objectContaining({ owner: "akash1early", organization: null, offerState: "submitted" }),
+      expect.objectContaining({ owner: "akash1late", organization: "Latecomer", offerState: "submitted" })
+    ]);
+  });
+
   it("keeps a non-bidding screened candidate as an unavailable offer once bids arrive", () => {
     const { result } = setup({
       phase: "quoting",
@@ -327,7 +348,8 @@ describe(usePlacementOffers.name, () => {
       };
     }>;
   }) {
-    const bids = (input.bids ?? []).map(entry => ({ ...entry, bid: { resources_offer: [], ...entry.bid } }));
+    const withOffers = (entries: NonNullable<typeof input.bids>) => entries.map(entry => ({ ...entry, bid: { resources_offer: [], ...entry.bid } }));
+    let bids = withOffers(input.bids ?? []);
     const useScreenedProviders = vi.fn(() => ({ providers: input.screened, isLoading: false, isError: false, isInvalid: input.screenedInvalid ?? false }));
     const providers = (input.providerList ?? []) as ApiProviderList[];
     const useProvidersByAddresses = vi.fn((_addresses: readonly string[], _options?: { enabled?: boolean }) => ({
@@ -337,13 +359,25 @@ describe(usePlacementOffers.name, () => {
     }));
     const dependencies: typeof DEPENDENCIES = {
       useScreenedProviders: useScreenedProviders as never,
-      useListBids: (() => ({ data: { data: bids }, isLoading: input.bidsLoading ?? false, isError: input.bidsError ?? false })) as never,
+      useListBids: (() => ({
+        data: input.bidsLoading ? undefined : { data: bids },
+        isLoading: input.bidsLoading ?? false,
+        isError: input.bidsError ?? false
+      })) as never,
       useProvidersByAddresses,
       getPlacementGseq: (() => input.placementGseq) as never
     };
     const view = renderHook(() =>
       usePlacementOffers({ phase: input.phase, dseq: input.dseq, sdl: "sdl", placementName: "placement-1", region: "us-east" }, dependencies)
     );
-    return { ...view, useScreenedProviders, useProvidersByAddresses };
+    return {
+      ...view,
+      useScreenedProviders,
+      useProvidersByAddresses,
+      rerenderWithBids(next: NonNullable<typeof input.bids>) {
+        bids = withOffers(next);
+        view.rerender();
+      }
+    };
   }
 });

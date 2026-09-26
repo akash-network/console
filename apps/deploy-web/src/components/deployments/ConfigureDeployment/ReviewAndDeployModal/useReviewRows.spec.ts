@@ -60,13 +60,35 @@ describe("useReviewRows", () => {
     expect(useProvidersByAddresses).toHaveBeenLastCalledWith(["akash1a"]);
   });
 
+  it("follows a selection changed after the first render", () => {
+    const { result, useProvidersByAddresses, rerenderWithSelections } = setup({
+      placements: [mock<PlacementType>({ id: "p1", name: "placement-1" })],
+      selections: { p1: "akash1a/55/1/2" },
+      bids: [],
+      providers: [mock<ApiProviderList>({ owner: "akash1b", organization: "Beta", hostUri: "" })]
+    });
+
+    rerenderWithSelections({ p1: "akash1b/55/1/2" });
+
+    expect(useProvidersByAddresses).toHaveBeenLastCalledWith(["akash1b"]);
+    expect(result.current.rows).toEqual([expect.objectContaining({ providerName: "Beta" })]);
+  });
+
   function setup(input: { placements: PlacementType[]; selections: Record<string, string>; bids: BidEntry[]; providers: ApiProviderList[] }) {
     const useProvidersByAddresses = vi.fn((_addresses: readonly string[]) => ({ data: input.providers, isLoading: false, isFetching: false }));
     const dependencies: typeof DEPENDENCIES = {
       useListBids: () => mock<ReturnType<typeof DEPENDENCIES.useListBids>>({ data: { data: input.bids } }),
       useProvidersByAddresses
     };
-    const view = renderHook(() => useReviewRows({ dseq: "55", placements: input.placements, selections: input.selections }, dependencies));
-    return { ...view, useProvidersByAddresses };
+    const view = renderHook(({ selections }) => useReviewRows({ dseq: "55", placements: input.placements, selections }, dependencies), {
+      initialProps: { selections: input.selections }
+    });
+    return {
+      ...view,
+      useProvidersByAddresses,
+      rerenderWithSelections(selections: Record<string, string>) {
+        view.rerender({ selections });
+      }
+    };
   }
 });
