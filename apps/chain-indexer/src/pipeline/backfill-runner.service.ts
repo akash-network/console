@@ -102,6 +102,7 @@ export class BackfillRunnerService {
     const archiveOnly = this.#config.BACKFILL_ARCHIVE_ONLY;
     const stream = `${archiveOnly ? "archive" : "backfill"}:${fromHeight}-${toHeight}`;
     const replay = this.#config.BACKFILL_REPLAY;
+    /** A run with the flag drops (or keeps dropped) the deferrable indexes; a run without it rebuilds whatever an earlier run left deferred, so a heavy multi-range backfill pays for the indexes once. */
     const deferIndexes = !archiveOnly && this.#config.BACKFILL_DEFER_INDEXES;
     if (!archiveOnly && !deferIndexes) {
       await this.#deferredIndexes.restore();
@@ -319,7 +320,6 @@ export class BackfillRunnerService {
     this.#logger.info({ event: "BACKFILL_PROGRESS", height, endHeight, blocksCommitted: progress.blocksCommitted });
   }
 
-  /** A run with the flag drops (or keeps dropped) the deferrable indexes; a run without it rebuilds whatever an earlier run left deferred, so a heavy multi-range backfill pays for the indexes once. */
   /** A detached commit that is still rejecting when a later step throws is the real cause, so it is reported and thrown instead of the error that merely followed it. */
   async #preferCommitFailure(error: unknown, pendingCommit: Promise<void> | null): Promise<unknown> {
     if (!pendingCommit) {

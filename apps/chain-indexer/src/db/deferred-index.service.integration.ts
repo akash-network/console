@@ -45,6 +45,17 @@ describe(DeferredIndexService.name, () => {
     expect(await service.listDeferred()).toEqual([]);
   });
 
+  it("restores once when two processes restore at the same time", async () => {
+    const { service, db } = await setup();
+    const before = await indexNames(db);
+    await service.defer();
+
+    await Promise.all([service.restore(), service.restore()]);
+
+    expect(await indexNames(db)).toEqual(before);
+    expect(await service.listDeferred()).toEqual([]);
+  });
+
   it("is a no-op when nothing is deferred or when called twice", async () => {
     const { service } = await setup();
 

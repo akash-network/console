@@ -11,6 +11,9 @@ import { LoggerService } from "@src/providers/logging.provider";
  * upserts depend on them, and `balance_changes_account_denom_height_idx` stays because the ledger
  * seeks through it for every batch's running-balance baseline.
  */
+/** Overlapping pods of one writer role both restore at boot; CREATE INDEX IF NOT EXISTS is not atomic across sessions, so the two are serialized. Distinct from the other advisory-lock keys of this app. */
+export const INDEX_DEFERRAL_LOCK_KEY = 7_431_003;
+
 export const DEFERRABLE_INDEXES: ReadonlyArray<{ schema: string; name: string }> = [
   { schema: "cosmos", name: "transactions_hash_idx" },
   { schema: "cosmos", name: "messages_type_id_idx" },
@@ -54,6 +57,7 @@ export class DeferredIndexService {
     }
 
     await this.#db.transaction(async tx => {
+      await tx.execute(sql.raw(`SELECT pg_advisory_xact_lock(${INDEX_DEFERRAL_LOCK_KEY})`));
       await tx
         .insert(IndexerDeferredIndexes)
         .values(present.map(index => ({ name: index.name, definition: index.definition, deferredAt: new Date() })))
@@ -69,17 +73,20 @@ export class DeferredIndexService {
   }
 
   async restore(): Promise<string[]> {
-    const deferred = await this.#db.select().from(IndexerDeferredIndexes).orderBy(IndexerDeferredIndexes.name);
+    return this.#db.transaction(async tx => {
+      await tx.execute(sql.raw(`SELECT pg_advisory_xact_lock(${INDEX_DEFERRAL_LOCK_KEY})`));
+      const deferred = await tx.select().from(IndexerDeferredIndexes).orderBy(IndexerDeferredIndexes.name);
 
-    for (const index of deferred) {
-      const startedAt = Date.now();
-      this.#logger.info({ event: "INDEX_RESTORING", index: index.name });
-      await this.#db.execute(sql.raw(asIdempotentCreate(index.definition)));
-      await this.#db.delete(IndexerDeferredIndexes).where(eq(IndexerDeferredIndexes.name, index.name));
-      this.#logger.info({ event: "INDEX_RESTORED", index: index.name, durationMs: Date.now() - startedAt });
-    }
+      for (const index of deferred) {
+        const startedAt = Date.now();
+        this.#logger.info({ event: "INDEX_RESTORING", index: index.name });
+        await tx.execute(sql.raw(asIdempotentCreate(index.definition)));
+        await tx.delete(IndexerDeferredIndexes).where(eq(IndexerDeferredIndexes.name, index.name));
+        this.#logger.info({ event: "INDEX_RESTORED", index: index.name, durationMs: Date.now() - startedAt });
+      }
 
-    return deferred.map(index => index.name);
+      return deferred.map(index => index.name);
+    });
   }
 
   async listDeferred(): Promise<string[]> {
