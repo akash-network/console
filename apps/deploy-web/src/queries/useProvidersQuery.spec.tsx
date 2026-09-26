@@ -1,9 +1,12 @@
+import type { AxiosInstance } from "axios";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { ProviderLookupService } from "@src/services/provider-lookup/provider-lookup.service";
-import type { ApiProviderList } from "@src/types/provider";
-import { useProvidersByAddresses } from "./useProvidersQuery";
+import type { ApiProviderList, ApiProviderLocation } from "@src/types/provider";
+import { ApiUrlService } from "@src/utils/apiUtils";
+import type { ProviderSearchPage, ProviderSearchParams } from "./useProvidersQuery";
+import { useProviderLocations, useProvidersByAddresses, useProviderSearch } from "./useProvidersQuery";
 
 import { setupQuery } from "@tests/unit/query-client";
 
@@ -76,4 +79,61 @@ describe(useProvidersByAddresses.name, () => {
       }
     };
   }
+});
+
+describe(useProviderSearch.name, () => {
+  it("asks the provider search for the page, naming the addresses in one comma-separated value", async () => {
+    const page: ProviderSearchPage = { providers: [], pagination: { total: 0, skip: 10, limit: 10, hasMore: false } };
+    const { result, httpClient } = setup({
+      params: { sort: "gpus-desc", online: true, addresses: ["akash1first", "akash1second"], skip: 10, limit: 10 },
+      page
+    });
+
+    await vi.waitFor(() => expect(result.current.isSuccess).toBe(true));
+
+    expect(result.current.data).toEqual(page);
+    expect(httpClient.get).toHaveBeenCalledExactlyOnceWith(ApiUrlService.providerSearch(), {
+      params: { sort: "gpus-desc", online: true, addresses: "akash1first,akash1second", skip: 10, limit: 10 }
+    });
+  });
+
+  it("names no address when the search is not limited to any", async () => {
+    const { result, httpClient } = setup({ params: { sort: "active-leases-desc", skip: 0, limit: 10 } });
+
+    await vi.waitFor(() => expect(result.current.isSuccess).toBe(true));
+
+    expect(httpClient.get).toHaveBeenCalledWith(ApiUrlService.providerSearch(), {
+      params: { sort: "active-leases-desc", addresses: undefined, skip: 0, limit: 10 }
+    });
+  });
+
+  it("searches nothing while disabled", () => {
+    const { httpClient } = setup({ params: { sort: "active-leases-desc", skip: 0, limit: 10 }, enabled: false });
+
+    expect(httpClient.get).not.toHaveBeenCalled();
+  });
+
+  function setup(input: { params: ProviderSearchParams; page?: ProviderSearchPage; enabled?: boolean }) {
+    const httpClient = mock<AxiosInstance>();
+    httpClient.get.mockResolvedValue({ data: { data: input.page ?? { providers: [], pagination: { total: 0, skip: 0, limit: 10, hasMore: false } } } });
+    const view = setupQuery(() => useProviderSearch(input.params, { enabled: input.enabled }), {
+      services: { publicConsoleApiHttpClient: () => httpClient }
+    });
+
+    return { ...view, httpClient };
+  }
+});
+
+describe(useProviderLocations.name, () => {
+  it("answers where each online provider is", async () => {
+    const locations = [mock<ApiProviderLocation>({ owner: "akash1first" })];
+    const httpClient = mock<AxiosInstance>();
+    httpClient.get.mockResolvedValue({ data: { data: locations } });
+
+    const { result } = setupQuery(() => useProviderLocations(), { services: { publicConsoleApiHttpClient: () => httpClient } });
+
+    await vi.waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(result.current.data).toEqual(locations);
+    expect(httpClient.get).toHaveBeenCalledExactlyOnceWith(ApiUrlService.providerLocations());
+  });
 });
