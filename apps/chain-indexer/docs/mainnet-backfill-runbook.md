@@ -101,6 +101,8 @@ ARCHIVE_BUCKET=<bucket>
 
 `GENESIS_IMPORT=true` is accepted because the genesis marker already exists. The sync seeds its parent-hash check from block `TIP`, so the first live block is verified against the last backfilled one (`CHAIN_CONTINUITY_BROKEN` halts it otherwise). Enable the staking snapshot as usual; it reconciles validators and delegations once sync reaches the tip.
 
+Watch `indexer_sync_lag_seconds` fall to around one block time as sync catches up from the fill to the tip, and alert on it from then on (see the README's sync metrics section).
+
 Then start the jobs role and seed the price history the rollups' USD depends on, since CoinGecko serves only the last year:
 
 ```

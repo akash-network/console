@@ -9,6 +9,7 @@ import type { GenesisImportService } from "@src/genesis/genesis-import.service";
 import type { BlockCommitterService } from "@src/pipeline/block-committer.service";
 import type { BlockDecoderService } from "@src/pipeline/block-decoder.service";
 import type { DecodedBlock } from "@src/pipeline/decoded-block";
+import type { SyncLagMetrics } from "@src/pipeline/sync-lag-metrics";
 import { SyncRunnerService } from "@src/pipeline/sync-runner.service";
 import type { ChainDatabase } from "@src/providers/db.provider";
 import type { LoggerService } from "@src/providers/logging.provider";
@@ -28,6 +29,26 @@ describe(SyncRunnerService.name, () => {
       block: expect.objectContaining({ block: expect.objectContaining({ header: expect.objectContaining({ height: "2" }) }) }),
       block_results: expect.objectContaining({ height: "2" })
     });
+  });
+
+  it("records the chain tip and every committed block for the lag metrics", async () => {
+    const { runner, lag } = setup({ tipHeight: 2 });
+
+    await runner.start();
+
+    expect(lag.recordTip).toHaveBeenCalledWith(2);
+    expect(lag.recordCommitted.mock.calls).toEqual([
+      [1, new Date("2026-08-12T00:00:00Z")],
+      [2, new Date("2026-08-12T00:00:00Z")]
+    ]);
+  });
+
+  it("records the checkpoint block at startup so a sync that never commits still reports its lag", async () => {
+    const { runner, lag } = setup({ tipHeight: 11, checkpointHeight: 10 });
+
+    await runner.start();
+
+    expect(lag.recordCommitted.mock.calls[0]).toEqual([10, new Date("2026-08-11T23:59:54Z")]);
   });
 
   it("archives a block before committing it", async () => {
@@ -245,10 +266,12 @@ describe(SyncRunnerService.name, () => {
               return Promise.resolve([{ stream: "sync", lastHeight: input.checkpointHeight }]);
             }
             if (table === Blocks && input.checkpointHeight != null) {
-              return Promise.resolve([{ height: input.checkpointHeight, hash: Buffer.from(`hash-${input.checkpointHeight}`) }]);
+              return Promise.resolve([
+                { height: input.checkpointHeight, hash: Buffer.from(`hash-${input.checkpointHeight}`), datetime: new Date("2026-08-11T23:59:54Z") }
+              ]);
             }
             if (table === Blocks && input.previousBlockHash) {
-              return Promise.resolve([{ height: startHeight - 1, hash: input.previousBlockHash }]);
+              return Promise.resolve([{ height: startHeight - 1, hash: input.previousBlockHash, datetime: new Date("2026-08-11T23:59:54Z") }]);
             }
             return Promise.resolve([]);
           }
@@ -281,6 +304,7 @@ describe(SyncRunnerService.name, () => {
     const deferredIndexes = mock<DeferredIndexService>();
     deferredIndexes.restore.mockResolvedValue([]);
     const logger = mock<LoggerService>();
+    const lag = mock<SyncLagMetrics>();
     const runner = new SyncRunnerService(
       dbFake as unknown as ChainDatabase,
       pool,
@@ -290,6 +314,7 @@ describe(SyncRunnerService.name, () => {
       genesisImport,
       stakingSnapshot,
       deferredIndexes,
+      lag,
       config,
       logger
     );
@@ -306,7 +331,7 @@ describe(SyncRunnerService.name, () => {
       });
     }
 
-    return { runner, archive, committer, genesisImport, stakingSnapshot, deferredIndexes, logger, pool };
+    return { runner, archive, committer, genesisImport, stakingSnapshot, deferredIndexes, logger, pool, lag };
   }
 
   function buildDecodedBlock(height: number, brokenParent = false): DecodedBlock {
