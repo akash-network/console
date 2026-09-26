@@ -6,7 +6,7 @@ import { useServices } from "@src/context/ServicesProvider";
 import type { DeployPhase, DeployPhaseId, DeployProgressState } from "@src/hooks/useAutoDeploymentFlow/deployPhases";
 import { PHASE_ORDER, useDeployPhaseProgress } from "@src/hooks/useAutoDeploymentFlow/deployPhases";
 import { BID_POLL_INTERVAL } from "@src/queries/useListBids";
-import { useFirstReachableProvider, useProviderList } from "@src/queries/useProvidersQuery";
+import { useFirstReachableProvider, useProvidersByAddresses } from "@src/queries/useProvidersQuery";
 import type { ApiProviderList } from "@src/types/provider";
 import { formatBidId, parseBidId } from "@src/utils/bids/bidId";
 import { DeploymentGroups } from "@src/utils/deploymentData/helpers";
@@ -76,7 +76,7 @@ function getRequiredGseqs(sdl: string): number[] {
 
 export const DEPENDENCIES = {
   useServices,
-  useProviderList,
+  useProvidersByAddresses,
   useFirstReachableProvider,
   useQuoteExpiry,
   // eslint-disable-next-line akash/dependencies-component-or-hook
@@ -94,7 +94,7 @@ export const DEPENDENCIES = {
  * only once every placement has a provider. The underlying flow owns URL resume, multi-lease, the pre-lease
  * `updateDeployment` reconcile, SDL caching, and the deploy-success redirect — the auto flow inherits all of it for free.
  *
- * On top of the flow it keeps the auto-only concerns: per-group reachability selection (`listBids` + `useProviderList` +
+ * On top of the flow it keeps the auto-only concerns: per-group reachability selection (`listBids` + `useProvidersByAddresses` +
  * `useFirstReachableProvider`), trial gating, reconstructing a selection from each already-leased group (the
  * `ResumeDeploymentGuard` resolves the deployment's leases upfront and passes them in via `resumeLeases`, so the
  * idempotent server create-lease re-sends the manifest), the phased progress-bar animation, and the matched-provider
@@ -147,9 +147,12 @@ export function useAutoDeploymentFlow({ sdl, resumeLeases = [], flow }: Options,
   const openBids =
     flow.phase === "quoting" && matchingGseq !== undefined ? flow.bids.filter(bid => bid.bid.state === "open" && bid.bid.id.gseq === matchingGseq) : [];
 
-  const { data: providers } = dependencies.useProviderList({ enabled: flow.phase === "quoting" });
+  const { data: providers } = dependencies.useProvidersByAddresses(
+    openBids.map(bid => bid.bid.id.provider),
+    { enabled: flow.phase === "quoting" }
+  );
   const candidateProviders = openBids
-    .map(bid => providers?.find(provider => provider.owner === bid.bid.id.provider))
+    .map(bid => providers.find(provider => provider.owner === bid.bid.id.provider))
     .filter((provider): provider is ApiProviderList => !!provider);
 
   /** Keyed per placement, not per candidate list: bids keep arriving mid-probe and a candidate-derived key would restart it. */

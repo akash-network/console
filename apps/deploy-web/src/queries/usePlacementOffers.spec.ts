@@ -108,13 +108,12 @@ describe(usePlacementOffers.name, () => {
     ]);
   });
 
-  it("leaves a bid offer's screened fields empty when neither the provider list nor the address lookup knows the provider", () => {
+  it("leaves a bid offer's screened fields empty until the bidder's provider is looked up", () => {
     const { result } = setup({
       phase: "quoting",
       dseq: "100",
       screened: [],
       providerList: [],
-      addressLookup: [],
       bids: [{ bid: { state: "open", price: { amount: "1900", denom: "uakt" }, id: { provider: "akash1zzz", dseq: "100", gseq: 1, oseq: 1 } } }]
     });
     expect(result.current.offers).toEqual([
@@ -122,71 +121,24 @@ describe(usePlacementOffers.name, () => {
     ]);
   });
 
-  it("fills a bidder the provider list leaves out from a lookup by its own address", () => {
-    const { result } = setup({
-      phase: "quoting",
-      dseq: "100",
-      screened: [],
-      providerList: [{ owner: "akash1aaa", organization: "Polaris", hostUri: "https://a.example:8443", locationRegion: "us-west", isAudited: true }],
-      addressLookup: [{ owner: "akash1sib", organization: "Polaris", hostUri: "https://a.example:8443", locationRegion: "us-west", isAudited: true }],
-      bids: [{ bid: { state: "open", price: { amount: "1900", denom: "uakt" }, id: { provider: "akash1sib", dseq: "100", gseq: 1, oseq: 1 } } }]
-    });
-    expect(result.current.offers).toEqual([
-      expect.objectContaining({
-        owner: "akash1sib",
-        organization: "Polaris",
-        hostUri: "https://a.example:8443",
-        location: "us-west",
-        isAudited: true,
-        offerState: "submitted"
-      })
-    ]);
+  it("looks up no provider while screening", () => {
+    const { useProvidersByAddresses } = setup({ phase: "configuring", screened: [polaris()] });
+    expect(useProvidersByAddresses).toHaveBeenLastCalledWith([], { enabled: false });
   });
 
-  it("looks up by address only the bidders that are neither screened nor in the provider list", () => {
-    const { useProvidersByAddress } = setup({
+  it("looks up only the bidders of this placement that were never screened", () => {
+    const { useProvidersByAddresses } = setup({
       phase: "quoting",
       dseq: "100",
+      placementGseq: 1,
       screened: [polaris()],
-      providerList: [{ owner: "akash1new", organization: "Newcomer" }],
       bids: [
         { bid: { state: "open", price: { amount: "1900", denom: "uakt" }, id: { provider: "akash1aaa", dseq: "100", gseq: 1, oseq: 1 } } },
-        { bid: { state: "open", price: { amount: "2500", denom: "uakt" }, id: { provider: "akash1new", dseq: "100", gseq: 1, oseq: 1 } } },
-        { bid: { state: "open", price: { amount: "2700", denom: "uakt" }, id: { provider: "akash1sib", dseq: "100", gseq: 1, oseq: 1 } } }
+        { bid: { state: "open", price: { amount: "2100", denom: "uakt" }, id: { provider: "akash1new", dseq: "100", gseq: 1, oseq: 1 } } },
+        { bid: { state: "open", price: { amount: "2300", denom: "uakt" }, id: { provider: "akash1other", dseq: "100", gseq: 2, oseq: 1 } } }
       ]
     });
-    expect(useProvidersByAddress).toHaveBeenLastCalledWith(["akash1sib"]);
-  });
-
-  it("waits for the provider list before looking bidders up by address", () => {
-    const { useProvidersByAddress } = setup({
-      phase: "quoting",
-      dseq: "100",
-      screened: [],
-      providerListLoading: true,
-      bids: [{ bid: { state: "open", price: { amount: "1900", denom: "uakt" }, id: { provider: "akash1sib", dseq: "100", gseq: 1, oseq: 1 } } }]
-    });
-    expect(useProvidersByAddress).toHaveBeenLastCalledWith([]);
-  });
-
-  it("does not look bidders up by address while screening", () => {
-    const { useProvidersByAddress } = setup({
-      phase: "configuring",
-      dseq: "100",
-      screened: [],
-      bids: [{ bid: { state: "open", price: { amount: "1900", denom: "uakt" }, id: { provider: "akash1sib", dseq: "100", gseq: 1, oseq: 1 } } }]
-    });
-    expect(useProvidersByAddress).toHaveBeenLastCalledWith([]);
-  });
-
-  it("does not fetch the provider list while screening", () => {
-    const { useProviderList } = setup({ phase: "configuring", screened: [polaris()] });
-    expect(useProviderList).toHaveBeenCalledWith(expect.objectContaining({ enabled: false }));
-  });
-
-  it("fetches the provider list once not screening", () => {
-    const { useProviderList } = setup({ phase: "quoting", dseq: "100", screened: [polaris()], bids: [] });
-    expect(useProviderList).toHaveBeenCalledWith(expect.objectContaining({ enabled: true }));
+    expect(useProvidersByAddresses).toHaveBeenLastCalledWith(["akash1new"], { enabled: true });
   });
 
   it("keeps a non-bidding screened candidate as an unavailable offer once bids arrive", () => {
@@ -364,8 +316,6 @@ describe(usePlacementOffers.name, () => {
     screenedInvalid?: boolean;
     placementGseq?: number;
     providerList?: Array<Partial<ApiProviderList> & { owner: string }>;
-    providerListLoading?: boolean;
-    addressLookup?: Array<Partial<ApiProviderList> & { owner: string }>;
     bidsLoading?: boolean;
     bidsError?: boolean;
     bids?: Array<{
@@ -379,20 +329,21 @@ describe(usePlacementOffers.name, () => {
   }) {
     const bids = (input.bids ?? []).map(entry => ({ ...entry, bid: { resources_offer: [], ...entry.bid } }));
     const useScreenedProviders = vi.fn(() => ({ providers: input.screened, isLoading: false, isError: false, isInvalid: input.screenedInvalid ?? false }));
-    const providerList = input.providerListLoading ? undefined : (input.providerList ?? []);
-    const useProviderList = vi.fn(() => ({ data: providerList, isLoading: input.providerListLoading ?? false, isError: false }));
-    const addressLookup = input.addressLookup ?? [];
-    const useProvidersByAddress = vi.fn((_addresses: string[]) => addressLookup);
+    const providers = (input.providerList ?? []) as ApiProviderList[];
+    const useProvidersByAddresses = vi.fn((_addresses: readonly string[], _options?: { enabled?: boolean }) => ({
+      data: providers,
+      isLoading: false,
+      isFetching: false
+    }));
     const dependencies: typeof DEPENDENCIES = {
       useScreenedProviders: useScreenedProviders as never,
       useListBids: (() => ({ data: { data: bids }, isLoading: input.bidsLoading ?? false, isError: input.bidsError ?? false })) as never,
-      useProviderList: useProviderList as never,
-      useProvidersByAddress: useProvidersByAddress as never,
+      useProvidersByAddresses,
       getPlacementGseq: (() => input.placementGseq) as never
     };
     const view = renderHook(() =>
       usePlacementOffers({ phase: input.phase, dseq: input.dseq, sdl: "sdl", placementName: "placement-1", region: "us-east" }, dependencies)
     );
-    return { ...view, useScreenedProviders, useProviderList, useProvidersByAddress };
+    return { ...view, useScreenedProviders, useProvidersByAddresses };
   }
 });

@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 
 import { useListBids } from "@src/queries/useListBids";
-import { useProviderList } from "@src/queries/useProvidersQuery";
+import { useProvidersByAddresses } from "@src/queries/useProvidersQuery";
 import type { PlacementType } from "@src/types";
 import { type BidId, parseBidId } from "@src/utils/bids/bidId";
 import { providerDisplayName } from "@src/utils/providerUtils";
@@ -14,7 +14,7 @@ export interface ReviewRow {
   price?: { amount: string; denom: string };
 }
 
-export const DEPENDENCIES = { useListBids, useProviderList };
+export const DEPENDENCIES = { useListBids, useProvidersByAddresses };
 
 interface Input {
   dseq: string | null;
@@ -25,11 +25,15 @@ interface Input {
 /** Joins the per-placement selection (a bid id) to its live bid (price) and provider record (name) to drive the review modal. */
 export function useReviewRows({ dseq, placements, selections }: Input, dependencies: typeof DEPENDENCIES = DEPENDENCIES) {
   const bidsQuery = dependencies.useListBids(dseq);
-  const providerListQuery = dependencies.useProviderList({ enabled: true });
+  const selectedProviderAddresses = useMemo(
+    () => placements.filter(placement => selections[placement.id]).map(placement => parseBidId(selections[placement.id]).provider),
+    [placements, selections]
+  );
+  const selectedProviders = dependencies.useProvidersByAddresses(selectedProviderAddresses);
 
   return useMemo(() => {
     const bids = bidsQuery.data?.data ?? [];
-    const providersByOwner = new Map((providerListQuery.data ?? []).map(p => [p.owner, p]));
+    const providersByOwner = new Map(selectedProviders.data.map(p => [p.owner, p]));
 
     const rows: ReviewRow[] = placements
       .filter(placement => selections[placement.id])
@@ -48,7 +52,7 @@ export function useReviewRows({ dseq, placements, selections }: Input, dependenc
       });
 
     return { rows, pricedCount: rows.filter(r => !!r.price).length, totalCount: placements.length };
-  }, [bidsQuery.data, providerListQuery.data, placements, selections]);
+  }, [bidsQuery.data, selectedProviders.data, placements, selections]);
 }
 
 /** A `listBids` result entry. */

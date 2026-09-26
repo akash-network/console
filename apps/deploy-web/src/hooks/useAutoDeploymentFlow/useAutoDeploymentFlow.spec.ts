@@ -506,9 +506,9 @@ describe(useAutoDeploymentFlow.name, () => {
 
     const publicConsoleApiHttpClient = { get: vi.fn().mockResolvedValue({ data: providers }) };
 
-    // `useProviderList` is stubbed to hand back the candidate providers directly; the real `useFirstReachableProvider` runs
+    // `useProvidersByAddresses` is stubbed to hand back the candidate providers directly; the real `useFirstReachableProvider` runs
     // against the stubbed provider-proxy so reachability outcomes (reachable vs. unreachable) drive the autopilot for real.
-    const useProviderList: typeof DEPENDENCIES.useProviderList = (() => ({ data: providers })) as never;
+    const useProvidersByAddresses: typeof DEPENDENCIES.useProvidersByAddresses = () => ({ data: providers, isLoading: false, isFetching: false });
 
     // Stubbed group resolution so tests declare the placement count directly rather than crafting valid multi-group SDL.
     const getRequiredGseqs: typeof DEPENDENCIES.getRequiredGseqs = () => input?.requiredGseqs ?? [1];
@@ -533,7 +533,7 @@ describe(useAutoDeploymentFlow.name, () => {
           },
           {
             useServices,
-            useProviderList,
+            useProvidersByAddresses,
             useFirstReachableProvider,
             useQuoteExpiry,
             getRequiredGseqs,
