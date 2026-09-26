@@ -192,6 +192,18 @@ describe("Addresses API", () => {
       ]);
     });
 
+    it("attaches the provider of each lease", async () => {
+      const { address, provider } = await setup();
+
+      const response = await app.request(`/v1/addresses/${address}/deployments/0/10?status=active`);
+
+      const result = (await response.json()) as ListWithResourcesResponse;
+      expect(result.results.flatMap(({ leases }) => leases.map(lease => lease.provider))).toEqual([
+        expect.objectContaining({ address: provider.owner, hostUri: provider.hostUri }),
+        expect.objectContaining({ address: provider.owner, hostUri: provider.hostUri })
+      ]);
+    });
+
     it("returns 400 when address is not a valid akash address", async () => {
       await setup();
 
@@ -592,6 +604,7 @@ describe("Addresses API", () => {
 
     return {
       address,
+      provider,
       validators,
       transactions
     };
