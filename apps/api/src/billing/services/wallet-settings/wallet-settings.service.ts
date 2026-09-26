@@ -108,6 +108,7 @@ export class WalletSettingService {
     });
   }
 
+  /** Holds the setting row until the save commits, so an overlapping save waits and compares against this one's result. */
   async #update(userId: UserOutput["id"], settings: WalletSettingInput): Promise<{ prev?: WalletSettingOutput; next?: WalletSettingOutput }> {
     const { ability } = this.authService;
 
