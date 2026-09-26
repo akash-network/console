@@ -129,6 +129,33 @@ describe(HttpCheck.name, () => {
     ]);
   });
 
+  it("reports one address the api role does not serve without losing the other addresses' results", async () => {
+    const { check } = setup({
+      addresses: ["akash1a", "akash1b"],
+      legacyOverrides: { [`${LEGACY}/v1/addresses/akash1b/transactions/0/2`]: { count: 0, results: [] } },
+      v2Overrides: { [`${V2}/v1/addresses/akash1b/transactions?skip=0&limit=2`]: { status: 400, body: { error: "invalid address" } } }
+    });
+
+    const result = await check.run();
+
+    expect(result.status).toBe("fail");
+    expect(result.summary).toContain("address-transactions: 2 addresses compared, 1 difference");
+    expect(result.mismatches).toEqual([{ subject: "address akash1b", expected: { status: 200 }, actual: { status: 400 } }]);
+  });
+
+  it("counts an address neither side serves as not comparable", async () => {
+    const { check } = setup({
+      addresses: ["akash1a", "akash1b"],
+      legacyOverrides: { [`${LEGACY}/v1/addresses/akash1b/transactions/0/2`]: { status: 404, body: {} } },
+      v2Overrides: { [`${V2}/v1/addresses/akash1b/transactions?skip=0&limit=2`]: { status: 404, body: {} } }
+    });
+
+    const result = await check.run();
+
+    expect(result.status).toBe("pass");
+    expect(result.summary).toContain("address-transactions: 1 address agrees, 1 not comparable");
+  });
+
   it("fails when the aligned address totals differ", async () => {
     const { check } = setup({
       addresses: ["akash1a"],

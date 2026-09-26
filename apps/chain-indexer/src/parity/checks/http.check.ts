@@ -110,24 +110,38 @@ export class HttpCheck implements ParityCheck {
     const mismatches: Mismatch[] = [];
     let notComparable = 0;
     for (const address of addresses) {
-      const [legacy, v2] = await Promise.all([
-        this.#legacy(`/v1/addresses/${address}/transactions/0/${sampleLimit}`),
-        this.#v2(`/v1/addresses/${address}/transactions?skip=0&limit=${sampleLimit}`)
-      ]);
-      const aligned = alignOnNewestSharedHeight(normalizeLegacyAddressTransactions(legacy.body), normalizeV2AddressTransactions(v2.body));
-      if (aligned === undefined) {
+      const comparison = await this.#compareAddress(address, sampleLimit);
+      if (comparison === undefined) {
         notComparable++;
         continue;
       }
-      mismatches.push(...compareAddressHistory(`address ${address}`, aligned.legacy, aligned.v2));
+      mismatches.push(...comparison);
     }
     const summary = agreement(addresses.length - notComparable, "address", "addresses", mismatches.length);
     return {
       name,
-      summary: notComparable === 0 ? summary : `${summary}, ${notComparable} not comparable (tip gap wider than the page)`,
+      summary: notComparable === 0 ? summary : `${summary}, ${notComparable} not comparable`,
       skipped: notComparable === addresses.length,
       mismatches
     };
+  }
+
+  /** Undefined means the address could not be compared (neither side serves it, or the pages share no height); anything else about one address stays on its own line. */
+  async #compareAddress(address: string, sampleLimit: number): Promise<Mismatch[] | undefined> {
+    const subject = `address ${address}`;
+    const [legacy, v2] = await Promise.all([
+      this.#legacy(`/v1/addresses/${address}/transactions/0/${sampleLimit}`),
+      this.#v2(`/v1/addresses/${address}/transactions?skip=0&limit=${sampleLimit}`)
+    ]);
+    if (legacy.status !== 200 || v2.status !== 200) {
+      return legacy.status === v2.status ? undefined : [{ subject, expected: { status: legacy.status }, actual: { status: v2.status } }];
+    }
+    try {
+      const aligned = alignOnNewestSharedHeight(normalizeLegacyAddressTransactions(legacy.body), normalizeV2AddressTransactions(v2.body));
+      return aligned === undefined ? undefined : compareAddressHistory(subject, aligned.legacy, aligned.v2);
+    } catch (error) {
+      return [{ subject, expected: "responses in the documented shape", actual: error instanceof Error ? error.message : String(error) }];
+    }
   }
 
   async #networkStats(): Promise<Part> {
