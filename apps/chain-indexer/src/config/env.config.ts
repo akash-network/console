@@ -116,6 +116,14 @@ export const envSchema = rawEnvSchema.superRefine((env, ctx) => {
   if (env.BACKFILL_RESET_MODULE && !env.BACKFILL_MODULE) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["BACKFILL_RESET_MODULE"], message: "BACKFILL_RESET_MODULE requires BACKFILL_MODULE" });
   }
+
+  if (env.BACKFILL_RESET_MODULE && env.BACKFILL_MODULE === "balance" && !env.GENESIS_IMPORT) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["GENESIS_IMPORT"],
+      message: "GENESIS_IMPORT must be true to reset the balance module, since the reset drops the genesis seed rows"
+    });
+  }
 });
 
 export type EnvConfig = z.infer<typeof envSchema>;

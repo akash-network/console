@@ -1,5 +1,7 @@
 import { toBase64 } from "@cosmjs/encoding";
 import { QueryAllBalancesResponse, QueryTotalSupplyResponse } from "cosmjs-types/cosmos/bank/v1beta1/query";
+import type { SQL } from "drizzle-orm";
+import { PgDialect } from "drizzle-orm/pg-core";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
@@ -23,6 +25,20 @@ describe(ReconcileService.name, () => {
 
     await expect(service.reconcile()).resolves.toBe(true);
     expect(abciQuery.mock.calls.every(call => call[2] === 100)).toBe(true);
+  });
+
+  it("returns false without querying the chain while the balance module is under replay", async () => {
+    const { service, abciQuery, logger } = setup({
+      checkpoint: 100,
+      balanceRows: [{ address: "akash1a", denom: "uakt", amount: "100" }],
+      chainBalances: { akash1a: [coin("uakt", "100")] },
+      chainSupply: [coin("uakt", "100")],
+      underReplay: ["balance"]
+    });
+
+    await expect(service.reconcile()).resolves.toBe(false);
+    expect(abciQuery).not.toHaveBeenCalled();
+    expect(logger.warn).toHaveBeenCalledWith(expect.objectContaining({ event: "RECONCILE_MODULE_UNDER_REPLAY", module: "balance" }));
   });
 
   it("returns false when a sampled account balance disagrees with the chain", async () => {
@@ -65,7 +81,7 @@ describe(ReconcileService.name, () => {
     expect(abciQuery).not.toHaveBeenCalled();
   });
 
-  it("reads the checkpoint height and ledger balances from one repeatable-read snapshot", async () => {
+  it("reads the checkpoint height, the replay markers and the ledger balances from one repeatable-read snapshot", async () => {
     const { service, transaction, baseSelect, txSelect } = setup({
       checkpoint: 100,
       balanceRows: [{ address: "akash1a", denom: "uakt", amount: "100" }],
@@ -77,7 +93,7 @@ describe(ReconcileService.name, () => {
 
     expect(transaction).toHaveBeenCalledWith(expect.any(Function), { isolationLevel: "repeatable read", accessMode: "read only" });
     expect(baseSelect).not.toHaveBeenCalled();
-    expect(txSelect).toHaveBeenCalledTimes(2);
+    expect(txSelect).toHaveBeenCalledTimes(3);
   });
 
   it("caps concurrent balance queries instead of issuing them one at a time", async () => {
@@ -96,11 +112,19 @@ describe(ReconcileService.name, () => {
     balanceRows: { address: string; denom: string; amount: string }[];
     chainBalances: Record<string, { denom: string; amount: string }[]>;
     chainSupply: { denom: string; amount: string }[];
+    underReplay?: string[];
   }) {
     const buildSelect = () => ({
       from: (table: unknown) => {
         if (table === IndexerState) {
-          return { where: () => Promise.resolve(input.checkpoint === undefined ? [] : [{ lastHeight: input.checkpoint }]) };
+          return {
+            where: (condition: unknown) => {
+              if (new PgDialect().sqlToQuery(condition as SQL).params.includes("replay:%")) {
+                return Promise.resolve((input.underReplay ?? []).map(module => ({ stream: `replay:${module}`, lastHeight: 1 })));
+              }
+              return Promise.resolve(input.checkpoint === undefined ? [] : [{ lastHeight: input.checkpoint }]);
+            }
+          };
         }
         return { innerJoin: () => Promise.resolve(input.balanceRows) };
       }
@@ -126,7 +150,8 @@ describe(ReconcileService.name, () => {
       return { value: toBase64(QueryTotalSupplyResponse.encode({ supply: input.chainSupply, pagination: undefined }).finish()) };
     });
 
-    const service = new ReconcileService(dbFake as unknown as ChainDatabase, rpc, mock<LoggerService>());
-    return { service, abciQuery: rpc.abciQuery, transaction, baseSelect, txSelect, maxInFlight: () => maxInFlight };
+    const logger = mock<LoggerService>();
+    const service = new ReconcileService(dbFake as unknown as ChainDatabase, rpc, logger);
+    return { service, abciQuery: rpc.abciQuery, transaction, baseSelect, txSelect, logger, maxInFlight: () => maxInFlight };
   }
 });

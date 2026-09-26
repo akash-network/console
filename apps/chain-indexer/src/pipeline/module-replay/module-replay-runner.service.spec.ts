@@ -98,6 +98,35 @@ describe(ModuleReplayRunnerService.name, () => {
     ]);
   });
 
+  it("follows the sync checkpoint when sync starts during a fixed-end replay", async () => {
+    const { runner, commits, logger } = setup({
+      module: "provider",
+      fromHeight: 1,
+      toHeight: 4,
+      batchSize: 2,
+      syncCheckpoints: [undefined, undefined, 6],
+      handoffResults: [false, true]
+    });
+
+    await runner.start();
+
+    expect(commits.map(commit => [commit.heights, commit.options.handoff ?? false])).toEqual([
+      [[1, 2], false],
+      [[3, 4], true],
+      [[5, 6], true]
+    ]);
+    expect(logger.info).toHaveBeenCalledWith(expect.objectContaining({ event: "REPLAY_COMPLETED", module: "provider", handoffHeight: 6 }));
+  });
+
+  it("retries a refused handoff without blocks after the poll interval", async () => {
+    const { runner, committer } = setup({ module: "bme", fromHeight: 1, marker: 10, syncCheckpoints: [10] });
+    committer.handoffWithoutBlocks.mockResolvedValueOnce(false).mockResolvedValueOnce(true);
+
+    await runner.start();
+
+    expect(committer.handoffWithoutBlocks).toHaveBeenCalledTimes(2);
+  });
+
   it("hands off without blocks when the replay already stands at the sync checkpoint", async () => {
     const { runner, committer, pool } = setup({ module: "bme", fromHeight: 1, marker: 10, syncCheckpoints: [10] });
 
@@ -137,7 +166,7 @@ describe(ModuleReplayRunnerService.name, () => {
     batchSize?: number;
     reset?: boolean;
     marker?: number;
-    syncCheckpoints?: number[];
+    syncCheckpoints?: (number | undefined)[];
     handoffResults?: boolean[];
     genesisImportEnabled?: boolean;
   }) {
@@ -150,7 +179,8 @@ describe(ModuleReplayRunnerService.name, () => {
       BACKFILL_BATCH_SIZE: String(input.batchSize ?? 200),
       BACKFILL_CONCURRENCY: "4",
       BACKFILL_RESET_MODULE: input.reset ? "true" : "false",
-      GENESIS_IMPORT: input.genesisImportEnabled ? "true" : "false"
+      GENESIS_IMPORT: input.genesisImportEnabled ? "true" : "false",
+      SYNC_POLL_INTERVAL_MS: "1"
     });
 
     const executed: unknown[] = [];

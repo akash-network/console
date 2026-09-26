@@ -1,4 +1,5 @@
 import { eq, sql } from "drizzle-orm";
+import { setTimeout as delay } from "node:timers/promises";
 import { inject, singleton } from "tsyringe";
 
 import { ArchiveBlockSource } from "@src/archive/archive-block-source";
@@ -124,8 +125,8 @@ export class ModuleReplayRunnerService {
     this.#archive.logState();
 
     while (!this.#stopped) {
-      const target = fixedEnd ?? (await this.#readCheckpoint(SYNC_STREAM));
-      if (target === null) {
+      const target = (await this.#readCheckpoint(SYNC_STREAM)) ?? fixedEnd;
+      if (target === undefined) {
         throw new Error("The sync checkpoint disappeared during the module replay");
       }
 
@@ -134,6 +135,7 @@ export class ModuleReplayRunnerService {
           this.#logCompleted(module, fromHeight, cursor - 1);
           return true;
         }
+        await delay(this.#config.SYNC_POLL_INTERVAL_MS);
         continue;
       }
 

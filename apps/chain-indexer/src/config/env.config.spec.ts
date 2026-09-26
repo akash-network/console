@@ -102,6 +102,24 @@ describe("envSchema", () => {
       );
     });
 
+    it("requires GENESIS_IMPORT to reset the balance module", () => {
+      expect(() => setup({ INDEXER_ROLE: "backfill", BACKFILL_FROM_HEIGHT: "1", BACKFILL_MODULE: "balance", BACKFILL_RESET_MODULE: "true" })).toThrow(
+        "GENESIS_IMPORT must be true to reset the balance module"
+      );
+    });
+
+    it("lets a balance reset run with the genesis import on", () => {
+      const config = setup({
+        INDEXER_ROLE: "backfill",
+        BACKFILL_FROM_HEIGHT: "1",
+        BACKFILL_MODULE: "balance",
+        BACKFILL_RESET_MODULE: "true",
+        GENESIS_IMPORT: "true"
+      });
+
+      expect(config.GENESIS_IMPORT).toBe(true);
+    });
+
     it("rejects a module replay combined with an archive-only run", () => {
       expect(() =>
         setup({ INDEXER_ROLE: "backfill", BACKFILL_FROM_HEIGHT: "1", BACKFILL_MODULE: "gov", BACKFILL_ARCHIVE_ONLY: "true", ARCHIVE_BUCKET: "raw-blocks" })

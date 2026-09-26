@@ -20,5 +20,5 @@ export function moduleOfReplayStream(stream: string): ReplayableModule | null {
 
 export const REPLAY_STREAM_PATTERN = `${REPLAY_STREAM_PREFIX}%`;
 
-/** Arbitrary but fixed application-wide key that serializes a module replay's start and handoff against every full commit; distinct from the migration lock. */
-export const REPLAY_HANDOFF_LOCK_KEY = 7_431_001;
+/** Arbitrary but fixed application-wide key that serializes a module replay's start and handoff against every full commit; distinct from the migration and audit-signature locks. */
+export const REPLAY_HANDOFF_LOCK_KEY = 7_431_002;
