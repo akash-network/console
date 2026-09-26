@@ -3,6 +3,7 @@ import type { Logger } from "drizzle-orm";
 import { format } from "sql-formatter";
 
 import type { CreateLogger } from "../../types";
+import { redactQueryParams } from "../../utils/redact-query-params/redact-query-params";
 
 interface PostgresLoggerServiceOptions {
   orm?: "drizzle" | "sequelize";
@@ -21,10 +22,7 @@ export class PostgresLoggerService implements Logger {
   }
 
   logQuery(query: string, params: unknown[]): void {
-    const stringifiedParams = [];
-    for (const param of params) {
-      stringifiedParams.push(stringifyParam(param));
-    }
+    const redactedParams = redactQueryParams(params);
     let formatted = query;
     let isFormatted = false;
     if (this.#useFormat) {
@@ -34,7 +32,7 @@ export class PostgresLoggerService implements Logger {
           paramTypes: {
             numbered: ["$"]
           },
-          params: ["", ...stringifiedParams]
+          params: ["", ...redactedParams]
         });
         isFormatted = true;
       } catch {
@@ -43,7 +41,7 @@ export class PostgresLoggerService implements Logger {
     }
 
     if (!isFormatted) {
-      formatted = `${formatted} -- params: ${stringifiedParams.join(", ")}`;
+      formatted = `${formatted} -- params: ${redactedParams.join(", ")}`;
     }
 
     this.#logger.debug(formatted);
@@ -51,16 +49,5 @@ export class PostgresLoggerService implements Logger {
 
   logNotice(message: unknown): void {
     this.#logger.warn(message);
-  }
-}
-
-function stringifyParam(param: unknown): string {
-  if (typeof param === "bigint") {
-    return param.toString();
-  }
-  try {
-    return JSON.stringify(param) ?? "null";
-  } catch {
-    return String(param);
   }
 }
