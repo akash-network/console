@@ -45,7 +45,7 @@ export async function bootstrap(): Promise<void> {
       return;
     }
     case "jobs": {
-      await runRunnerBehindServer(() => container.resolve(JobsRunnerService), "JOBS_FATAL", logger, port);
+      await runRunnerBehindServer(role, () => container.resolve(JobsRunnerService), "JOBS_FATAL", logger, port);
       return;
     }
     default: {

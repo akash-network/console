@@ -109,6 +109,47 @@ describe(JobScheduler.name, () => {
     }
   });
 
+  it("keeps scheduling when the observer itself fails to record an outcome", async () => {
+    vi.useFakeTimers();
+    try {
+      const { scheduler, run, observer, logger } = setup({ intervalMs: 1_000, runAtStart: true, failWith: new Error("coingecko down") });
+      observer.onFailure.mockRejectedValue(new Error("job_runs write failed"));
+
+      scheduler.start();
+      await vi.advanceTimersByTimeAsync(1_000);
+      await scheduler.stop();
+
+      expect(run).toHaveBeenCalledTimes(2);
+      expect(logger.error).toHaveBeenCalledWith(
+        expect.objectContaining({ event: "JOB_OBSERVER_FAILED", job: "price-history", error: expect.objectContaining({ message: "job_runs write failed" }) })
+      );
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("aborts a run still in flight after the stop grace instead of waiting for its timeout", async () => {
+    vi.useFakeTimers();
+    try {
+      const { scheduler, observer, signals } = setup({ intervalMs: 60_000, runAtStart: true, timeoutMs: 300_000, hangs: true });
+
+      scheduler.start();
+      await vi.advanceTimersByTimeAsync(10);
+      const stopping = scheduler.stop();
+      await vi.advanceTimersByTimeAsync(10_000);
+      await stopping;
+
+      expect(signals[0].aborted).toBe(true);
+      expect(observer.onFailure).toHaveBeenCalledWith(
+        "price-history",
+        expect.any(Number),
+        expect.objectContaining({ message: expect.stringMatching(/stopped/) })
+      );
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("rejects registering the same job twice", () => {
     const { scheduler } = setup({ intervalMs: 1_000 });
 

@@ -22,7 +22,7 @@ interface KeybaseLookupResponse {
   them?: Array<{ basics?: { username?: string }; pictures?: { primary?: { url?: string } } }>;
 }
 
-/** Resolves each validator's Keybase identity to a username and avatar; a lookup that fails is logged and retried on the next run, not fatal. */
+/** Resolves each validator's Keybase identity to a username and avatar; a lookup or write that fails is logged and retried on the next run, not fatal. */
 @singleton()
 export class KeybaseIdentitiesJob {
   readonly #db: ChainDatabase;
@@ -73,10 +73,15 @@ export class KeybaseIdentitiesJob {
       return "unresolved";
     }
 
-    await this.#db
-      .update(Validators)
-      .set({ keybaseUsername: user.basics?.username ?? null, keybaseAvatarUrl: user.pictures?.primary?.url ?? null })
-      .where(eq(Validators.operatorAddress, operatorAddress));
+    try {
+      await this.#db
+        .update(Validators)
+        .set({ keybaseUsername: user.basics?.username ?? null, keybaseAvatarUrl: user.pictures?.primary?.url ?? null })
+        .where(eq(Validators.operatorAddress, operatorAddress));
+    } catch (error) {
+      this.#logger.warn({ event: "KEYBASE_UPDATE_FAILED", operatorAddress, error });
+      return "unresolved";
+    }
     return "resolved";
   }
 

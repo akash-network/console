@@ -14,9 +14,13 @@ export interface JobRunObserver {
   onFailure(name: string, durationMs: number, error: unknown): Promise<void> | void;
 }
 
+/** Shorter than the usual 30 s Kubernetes termination grace, so an aborted run is still recorded before the process is killed. */
+const STOP_GRACE_MS = 10_000;
+
 interface ScheduledJob {
   definition: JobDefinition;
   running: Promise<void> | null;
+  controller: AbortController | null;
 }
 
 /**
@@ -39,7 +43,7 @@ export class JobScheduler {
     if (this.#jobs.has(definition.name)) {
       throw new Error(`Job "${definition.name}" is already registered`);
     }
-    this.#jobs.set(definition.name, { definition, running: null });
+    this.#jobs.set(definition.name, { definition, running: null, controller: null });
   }
 
   start(): void {
@@ -51,11 +55,21 @@ export class JobScheduler {
     }
   }
 
+  /** In-flight runs get a short grace to finish, then are aborted, so a shutdown ends within the pod's termination window instead of the job's timeout. */
   async stop(): Promise<void> {
     for (const timer of this.#timers.splice(0)) {
       clearInterval(timer);
     }
-    await Promise.allSettled([...this.#jobs.values()].map(job => job.running));
+    const abortInFlight = setTimeout(() => {
+      for (const job of this.#jobs.values()) {
+        job.controller?.abort(new Error(`Job "${job.definition.name}" stopped by scheduler shutdown`));
+      }
+    }, STOP_GRACE_MS);
+    try {
+      await Promise.allSettled([...this.#jobs.values()].map(job => job.running));
+    } finally {
+      clearTimeout(abortInFlight);
+    }
   }
 
   #tick(job: ScheduledJob): void {
@@ -63,26 +77,38 @@ export class JobScheduler {
       this.#logger.warn({ event: "JOB_TICK_SKIPPED", job: job.definition.name });
       return;
     }
-    job.running = this.#run(job.definition).finally(() => {
+    job.running = this.#run(job).finally(() => {
       job.running = null;
+      job.controller = null;
     });
   }
 
-  async #run(definition: JobDefinition): Promise<void> {
+  async #run(job: ScheduledJob): Promise<void> {
+    const { definition } = job;
     const startedAt = Date.now();
-    await this.#observer.onStart(definition.name);
+    await this.#notify(definition.name, () => this.#observer.onStart(definition.name));
 
     const controller = new AbortController();
+    job.controller = controller;
     const timeout = setTimeout(() => controller.abort(new Error(`Job "${definition.name}" timed out after ${definition.timeoutMs} ms`)), definition.timeoutMs);
     const abortion = rejectOnAbort(controller.signal);
 
     try {
       await Promise.race([abortion, definition.run(controller.signal)]);
-      await this.#observer.onSuccess(definition.name, Date.now() - startedAt);
+      await this.#notify(definition.name, () => this.#observer.onSuccess(definition.name, Date.now() - startedAt));
     } catch (error) {
-      await this.#observer.onFailure(definition.name, Date.now() - startedAt, error);
+      await this.#notify(definition.name, () => this.#observer.onFailure(definition.name, Date.now() - startedAt, error));
     } finally {
       clearTimeout(timeout);
+    }
+  }
+
+  /** An observer that fails (its own database write, say) must cost one record, never the scheduler's promise that nothing is thrown. */
+  async #notify(name: string, record: () => Promise<void> | void): Promise<void> {
+    try {
+      await record();
+    } catch (error) {
+      this.#logger.error({ event: "JOB_OBSERVER_FAILED", job: name, error });
     }
   }
 }
