@@ -160,6 +160,7 @@ export const operations = {
     createLease: { path: "/v1/leases", method: "post", operationId: "createLease", pathParams: [], queryParams: [], hasBody: true },
     listApiKeys: { path: "/v1/api-keys", method: "get", operationId: "listApiKeys", pathParams: [], queryParams: [], hasBody: false },
     listBids: { path: "/v1/bids", method: "get", operationId: "listBids", pathParams: [], queryParams: ["dseq"], hasBody: false },
+    listProviders: { path: "/v1/providers", method: "get", operationId: "listProviders", pathParams: [], queryParams: ["scope", "addresses"], hasBody: false },
     listGpuPrices: { path: "/v1/gpu-prices", method: "get", operationId: "listGpuPrices", pathParams: [], queryParams: [], hasBody: false },
     screenProviders: { path: "/v1/bid-screening", method: "post", operationId: "screenProviders", pathParams: [], queryParams: [], hasBody: true },
     listPlacementOptions: {

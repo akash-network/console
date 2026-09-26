@@ -1,5 +1,5 @@
 import type { QueryKey, UseQueryOptions, UseQueryResult } from "@tanstack/react-query";
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 
 import { useServices } from "@src/context/ServicesProvider";
 import { useScopedFetchProviderUrl } from "@src/hooks/useScopedFetchProviderUrl";
@@ -147,6 +147,16 @@ export function useProviderList(options = {}) {
     queryFn: () => publicConsoleApiHttpClient.get<ApiProviderList[]>(ApiUrlService.providerList()).then(response => response.data),
     ...options
   });
+}
+
+/** Mirrors the api's MAX_ADDRESSES, which refuses a lookup naming more providers than this. */
+export const MAX_PROVIDERS_PER_ADDRESS_LOOKUP = 20;
+
+/** Unlike the provider list, which keeps one wallet per host, this answers every wallet it is asked about. */
+export function useProvidersByAddress(addresses: string[]) {
+  const { api } = useServices();
+  const lookup = [...new Set(addresses)].sort().slice(0, MAX_PROVIDERS_PER_ADDRESS_LOOKUP).join(",");
+  return api.v1.listProviders.useQuery({ addresses: lookup }, { enabled: lookup !== "", placeholderData: keepPreviousData });
 }
 
 export function useProviderRegions(options = {}) {
