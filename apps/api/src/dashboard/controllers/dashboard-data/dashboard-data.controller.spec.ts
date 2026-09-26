@@ -22,6 +22,17 @@ describe(DashboardDataController.name, () => {
     expect(statsService.getDashboardData).not.toHaveBeenCalled();
   });
 
+  it("falls back to the legacy indexer when chain-indexer fails while the endpoint is delegated", async () => {
+    const { controller, statsService, chainIndexerStats } = setup({ delegated: true });
+    chainIndexerStats.getDashboardData.mockRejectedValue(new Error("chain-indexer unavailable"));
+
+    const result = await controller.getDashboardData();
+
+    expect(result.now.height).toBe(1000);
+    expect(result.compare.height).toBe(900);
+    expect(statsService.getDashboardData).toHaveBeenCalledOnce();
+  });
+
   it("serves the now and compare blocks from the legacy indexer when the endpoint is not delegated", async () => {
     const { controller, statsService, chainIndexerStats } = setup({ delegated: false });
 

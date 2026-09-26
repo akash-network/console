@@ -10,6 +10,7 @@ import { DashboardDataResponseSchema } from "@src/dashboard/http-schemas/dashboa
 import { app, initDb } from "@src/rest-app";
 
 import { createAkashAddress } from "@test/seeders/akash-address.seeder";
+import { createAkashBlock } from "@test/seeders/akash-block.seeder";
 
 const CHAIN_INDEXER_URL = "http://chain-indexer.test";
 
@@ -88,6 +89,12 @@ describe("Chain indexer delegation", () => {
   });
 
   describe("GET /v1/dashboard-data", () => {
+    const LEGACY_HEIGHT = 4_242;
+
+    beforeAll(async () => {
+      await createAkashBlock({ height: LEGACY_HEIGHT, datetime: new Date(), isProcessed: true, totalUUsdSpent: 10 });
+    });
+
     it("serves the now and compare blocks from chain-indexer while the flag is on", async () => {
       setup({ flagOn: true });
       nock(CHAIN_INDEXER_URL)
@@ -130,8 +137,21 @@ describe("Chain indexer delegation", () => {
 
       expect(response.status).toBe(200);
       const body = await response.json();
-      expect(body.now.height).toBe(0);
+      expect(body.now.height).toBe(LEGACY_HEIGHT);
       expect(chainIndexer.isDone()).toBe(false);
+    });
+
+    it("falls back to the legacy indexer when chain-indexer fails while the flag is on", async () => {
+      setup({ flagOn: true });
+      const chainIndexer = nock(CHAIN_INDEXER_URL).get("/v1/network-stats").query(true).reply(503);
+
+      const response = await app.request("/v1/dashboard-data");
+
+      expect(response.status).toBe(200);
+      const body = await response.json();
+      expect(body.now.height).toBe(LEGACY_HEIGHT);
+      expect(body.compare.height).toBe(LEGACY_HEIGHT);
+      expect(chainIndexer.isDone()).toBe(true);
     });
   });
 
