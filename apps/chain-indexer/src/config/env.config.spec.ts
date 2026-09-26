@@ -66,6 +66,31 @@ describe("envSchema", () => {
     it("rejects a non-boolean BACKFILL_REPLAY", () => {
       expect(() => setup({ INDEXER_ROLE: "backfill", BACKFILL_FROM_HEIGHT: "100", BACKFILL_TO_HEIGHT: "200", BACKFILL_REPLAY: "yes" })).toThrow();
     });
+
+    it("defaults BACKFILL_DEFER_INDEXES and BACKFILL_ARCHIVE_ONLY to false", () => {
+      const config = setup({ INDEXER_ROLE: "backfill", BACKFILL_FROM_HEIGHT: "100", BACKFILL_TO_HEIGHT: "200" });
+
+      expect(config.BACKFILL_DEFER_INDEXES).toBe(false);
+      expect(config.BACKFILL_ARCHIVE_ONLY).toBe(false);
+    });
+
+    it("requires an archive bucket for an archive-only run", () => {
+      expect(() => setup({ INDEXER_ROLE: "backfill", BACKFILL_FROM_HEIGHT: "100", BACKFILL_TO_HEIGHT: "200", BACKFILL_ARCHIVE_ONLY: "true" })).toThrow(
+        "ARCHIVE_BUCKET is required when BACKFILL_ARCHIVE_ONLY is true"
+      );
+    });
+
+    it("parses an archive-only run with a bucket", () => {
+      const config = setup({
+        INDEXER_ROLE: "backfill",
+        BACKFILL_FROM_HEIGHT: "100",
+        BACKFILL_TO_HEIGHT: "200",
+        BACKFILL_ARCHIVE_ONLY: "true",
+        ARCHIVE_BUCKET: "raw-blocks"
+      });
+
+      expect(config.BACKFILL_ARCHIVE_ONLY).toBe(true);
+    });
   });
 
   it("treats an empty ARCHIVE_BUCKET as absent", () => {

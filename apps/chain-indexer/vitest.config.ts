@@ -28,6 +28,16 @@ export default defineConfig({
           include: ["src/**/*.spec.ts"],
           setupFiles: ["./test/setup-unit-env.ts", "./test/setup-unit-tests.ts"]
         }
+      },
+      {
+        extends: true,
+        test: {
+          name: "integration",
+          include: ["src/**/*.integration.ts"],
+          setupFiles: ["./test/setup-integration-env.ts"],
+          testTimeout: 60_000,
+          hookTimeout: 30_000
+        }
       }
     ]
   }

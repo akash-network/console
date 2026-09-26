@@ -16,8 +16,11 @@
     "prod": "node --enable-source-maps --require ./dist/instrumentation.js ./dist/server.js",
     "reconcile": "npm run build && node --enable-source-maps ./dist/reconcile.js",
     "start": "tsup --watch",
-    "test": "vitest run --project unit",
-    "test:cov": "vitest run --project unit --coverage",
+    "test": "vitest run --project unit --project integration",
+    "test:ci-setup": "dc up -d --wait --wait-timeout 60 db",
+    "test:ci-teardown": "dc down",
+    "test:cov": "vitest run --project unit --project integration --coverage",
+    "test:integration": "vitest run --project integration",
     "test:unit": "vitest run --project unit"
   },
   "dependencies": {

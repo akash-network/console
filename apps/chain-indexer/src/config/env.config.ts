@@ -48,6 +48,18 @@ const rawEnvSchema = z.object({
    * healed dead letters; already-decoded rows are left untouched.
    */
   BACKFILL_REPLAY: z.preprocess(emptyStringAsUndefined, z.enum(["true", "false"]).default("false")).transform(value => value === "true"),
+  /**
+   * Drops the secondary indexes no writer needs before the run and leaves them dropped, so a multi-range
+   * mainnet backfill builds them once: the first run without this flag (any backfill or the sync role)
+   * recreates them before doing anything else.
+   */
+  BACKFILL_DEFER_INDEXES: z.preprocess(emptyStringAsUndefined, z.enum(["true", "false"]).default("false")).transform(value => value === "true"),
+  /**
+   * Fetches the range into the raw block archive without decoding or committing anything, so several
+   * Jobs over disjoint ranges can build the archive in parallel against different RPC nodes before one
+   * ordered backfill fills the database from it.
+   */
+  BACKFILL_ARCHIVE_ONLY: z.preprocess(emptyStringAsUndefined, z.enum(["true", "false"]).default("false")).transform(value => value === "true"),
   /** GCS bucket for the raw block archive. Unset disables archiving entirely (sync skips appends, backfill reads straight from RPC). */
   ARCHIVE_BUCKET: z.preprocess(emptyStringAsUndefined, z.string().optional()),
   /**
@@ -80,6 +92,10 @@ export const envSchema = rawEnvSchema.superRefine((env, ctx) => {
 
   if (env.BACKFILL_FROM_HEIGHT !== undefined && env.BACKFILL_TO_HEIGHT !== undefined && env.BACKFILL_FROM_HEIGHT > env.BACKFILL_TO_HEIGHT) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["BACKFILL_FROM_HEIGHT"], message: "BACKFILL_FROM_HEIGHT must be <= BACKFILL_TO_HEIGHT" });
+  }
+
+  if (env.BACKFILL_ARCHIVE_ONLY && !env.ARCHIVE_BUCKET) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["ARCHIVE_BUCKET"], message: "ARCHIVE_BUCKET is required when BACKFILL_ARCHIVE_ONLY is true" });
   }
 });
 

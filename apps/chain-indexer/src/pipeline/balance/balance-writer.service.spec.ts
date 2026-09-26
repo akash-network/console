@@ -1,8 +1,10 @@
 import type { SQL } from "drizzle-orm";
 import { PgDialect } from "drizzle-orm/pg-core";
 import { describe, expect, it } from "vitest";
+import { mock } from "vitest-mock-extended";
 
-import { AccountBalances, BalanceChanges } from "@src/db/schema";
+import type { BulkInserter } from "@src/db/bulk-inserter.service";
+import { BalanceChanges } from "@src/db/schema";
 import type { ResolvedBalanceChange } from "@src/pipeline/balance/balance-writer.service";
 import { BalanceWriter } from "@src/pipeline/balance/balance-writer.service";
 import type { ChainTransaction } from "@src/providers/db.provider";
@@ -49,7 +51,9 @@ describe(BalanceWriter.name, () => {
     await writer.write(tx, [change({ accountId: 1, delta: 50n, eventIndex: 0 }), change({ accountId: 1, delta: -30n, eventIndex: 1 })]);
 
     expect(balanceUpserts()).toEqual([{ accountId: 1, denom: "uakt", amount: "20" }]);
-    expect(new PgDialect().sqlToQuery(conflictSet()!.amount).sql).toBe('"cosmos"."account_balances"."amount" + EXCLUDED.amount');
+    expect(new PgDialect().sqlToQuery(conflictSet()!).sql).toBe(
+      'ON CONFLICT (account_id, denom) DO UPDATE SET amount = "cosmos"."account_balances"."amount" + EXCLUDED.amount'
+    );
   });
 
   it("applies zero deltas when a re-commit inserts no new rows", async () => {
@@ -120,7 +124,7 @@ describe(BalanceWriter.name, () => {
     const balanceChangeInserts: Record<string, unknown>[] = [];
     const balanceBalanceUpserts: Record<string, unknown>[] = [];
     const baselineByChunk = [...(input?.baselineByChunk ?? [])];
-    let conflictSet: { amount: SQL } | undefined;
+    let conflictSet: SQL | undefined;
     let calls = 0;
     let baselineSelects = 0;
 
@@ -135,29 +139,23 @@ describe(BalanceWriter.name, () => {
             }
           })
         })
-      }),
-      insert: (table: unknown) => ({
-        values: (rows: Record<string, unknown>[]) => {
-          calls++;
-          if (table === BalanceChanges) {
-            balanceChangeInserts.push(...rows);
-          } else if (table === AccountBalances) {
-            balanceBalanceUpserts.push(...rows);
-          }
-          return {
-            onConflictDoNothing: () => ({
-              returning: () => Promise.resolve(input?.insertReturning ?? rows.map(row => ({ accountId: row.accountId, denom: row.denom, delta: row.delta })))
-            }),
-            onConflictDoUpdate: (config: { set: { amount: SQL } }) => {
-              conflictSet = config.set;
-              return Promise.resolve();
-            }
-          };
-        }
       })
     };
 
-    const writer = new BalanceWriter();
+    const bulkInserter = mock<BulkInserter>();
+    bulkInserter.insert.mockImplementation(async (_tx, table, rows, options) => {
+      calls++;
+      const inserted = rows as Record<string, unknown>[];
+      if (table === BalanceChanges) {
+        balanceChangeInserts.push(...inserted);
+        return input?.insertReturning ?? inserted.map(row => ({ accountId: row.accountId, denom: row.denom, delta: row.delta }));
+      }
+      balanceBalanceUpserts.push(...inserted);
+      conflictSet = options?.onConflict as SQL;
+      return [];
+    });
+
+    const writer = new BalanceWriter(bulkInserter);
     return {
       writer,
       tx: txFake as unknown as ChainTransaction,

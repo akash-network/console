@@ -102,6 +102,13 @@ export const IndexerState = pgTable("indexer_state", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull()
 });
 
+/** Secondary indexes dropped for a heavy backfill, kept until a run without `BACKFILL_DEFER_INDEXES` recreates them from `definition`. */
+export const IndexerDeferredIndexes = pgTable("indexer_deferred_indexes", {
+  name: text("name").primaryKey(),
+  definition: text("definition").notNull(),
+  deferredAt: timestamp("deferred_at", { withTimezone: true }).notNull()
+});
+
 /**
  * Why an address change happened. Only `genesis` is written today (L-3); the ongoing per-block
  * reasons (transfer/fee/staking/...) land with the balance ledger in L-4. New values are added via

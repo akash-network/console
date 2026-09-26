@@ -3,6 +3,7 @@ import { mock } from "vitest-mock-extended";
 
 import type { BlockArchiveService } from "@src/archive/block-archive.service";
 import { envSchema } from "@src/config/env.config";
+import type { DeferredIndexService } from "@src/db/deferred-index.service";
 import { Blocks, IndexerState } from "@src/db/schema";
 import type { GenesisImportService } from "@src/genesis/genesis-import.service";
 import type { BlockCommitterService } from "@src/pipeline/block-committer.service";
@@ -43,6 +44,15 @@ describe(SyncRunnerService.name, () => {
     await runner.start();
 
     expect(archive.logState).toHaveBeenCalledTimes(1);
+  });
+
+  it("restores indexes a backfill left deferred before committing any block", async () => {
+    const { runner, committer, deferredIndexes } = setup({ tipHeight: 1 });
+    deferredIndexes.restore.mockResolvedValue(["transactions_hash_idx"]);
+
+    await runner.start();
+
+    expect(deferredIndexes.restore.mock.invocationCallOrder[0]).toBeLessThan(committer.commit.mock.invocationCallOrder[0]);
   });
 
   it("rejects after exhausting retries when the archive stays unavailable and never commits", async () => {
@@ -136,6 +146,23 @@ describe(SyncRunnerService.name, () => {
     });
   });
 
+  describe("fresh start above a backfilled range", () => {
+    it("verifies the first block against the block a backfill left just below the start height", async () => {
+      const { runner, committer } = setup({ tipHeight: 1_000, startHeight: 1_000, previousBlockHash: Buffer.from("hash-999"), brokenParentAtHeight: 1_000 });
+
+      await expect(runner.start()).rejects.toThrow("Parent hash mismatch at height 1000; halting sync");
+      expect(committer.commit).not.toHaveBeenCalled();
+    });
+
+    it("commits the first block when it chains onto the backfilled block below it", async () => {
+      const { runner, committer } = setup({ tipHeight: 1_000, startHeight: 1_000, previousBlockHash: Buffer.from("hash-999") });
+
+      await runner.start();
+
+      expect(committer.commit).toHaveBeenCalledTimes(1);
+    });
+  });
+
   describe("staking snapshot", () => {
     it("snapshots at the observed tip after catching up, not only once ahead of the tip", async () => {
       const { runner, stakingSnapshot, committer } = setup({ tipHeight: 3, stopOn: "snapshot" });
@@ -193,14 +220,18 @@ describe(SyncRunnerService.name, () => {
     genesisImportEnabled?: boolean;
     checkpointHeight?: number;
     omitStartHeight?: boolean;
+    startHeight?: number;
+    previousBlockHash?: Buffer;
+    brokenParentAtHeight?: number;
     stopOn?: "commit" | "snapshot";
     pollIntervalMs?: number;
   }) {
     const archiveEnabled = input.archiveEnabled ?? true;
     const stopOn = input.stopOn ?? "commit";
+    const startHeight = input.startHeight ?? 1;
     const config = envSchema.parse({
       POSTGRES_DB_URI: "postgres://unit:unit@localhost:5432/unit",
-      ...(input.omitStartHeight ? {} : { SYNC_START_HEIGHT: "1" }),
+      ...(input.omitStartHeight ? {} : { SYNC_START_HEIGHT: String(startHeight) }),
       ARCHIVE_BUCKET: archiveEnabled ? "raw-blocks" : "",
       ...(input.genesisImportEnabled ? { GENESIS_IMPORT: "true" } : {}),
       ...(input.pollIntervalMs !== undefined ? { SYNC_POLL_INTERVAL_MS: String(input.pollIntervalMs) } : {})
@@ -216,6 +247,9 @@ describe(SyncRunnerService.name, () => {
             if (table === Blocks && input.checkpointHeight != null) {
               return Promise.resolve([{ height: input.checkpointHeight, hash: Buffer.from(`hash-${input.checkpointHeight}`) }]);
             }
+            if (table === Blocks && input.previousBlockHash) {
+              return Promise.resolve([{ height: startHeight - 1, hash: input.previousBlockHash }]);
+            }
             return Promise.resolve([]);
           }
         })
@@ -228,7 +262,10 @@ describe(SyncRunnerService.name, () => {
     pool.getBlockResults.mockImplementation(async height => ({ height: String(height), txs_results: null }));
 
     const decoder = mock<BlockDecoderService>();
-    decoder.decode.mockImplementation(block => buildDecodedBlock(parseInt(block.block.header.height)));
+    decoder.decode.mockImplementation(block => {
+      const height = parseInt(block.block.header.height);
+      return buildDecodedBlock(height, input.brokenParentAtHeight === height);
+    });
 
     const archive = mock<BlockArchiveService>();
     archive.isEnabled.mockReturnValue(archiveEnabled);
@@ -241,8 +278,21 @@ describe(SyncRunnerService.name, () => {
     const committer = mock<BlockCommitterService>();
     const genesisImport = mock<GenesisImportService>();
     const stakingSnapshot = mock<StakingSnapshotService>();
+    const deferredIndexes = mock<DeferredIndexService>();
+    deferredIndexes.restore.mockResolvedValue([]);
     const logger = mock<LoggerService>();
-    const runner = new SyncRunnerService(dbFake as unknown as ChainDatabase, pool, decoder, committer, archive, genesisImport, stakingSnapshot, config, logger);
+    const runner = new SyncRunnerService(
+      dbFake as unknown as ChainDatabase,
+      pool,
+      decoder,
+      committer,
+      archive,
+      genesisImport,
+      stakingSnapshot,
+      deferredIndexes,
+      config,
+      logger
+    );
     if (stopOn === "commit") {
       committer.commit.mockImplementation(async decoded => {
         if (decoded.height >= input.tipHeight) {
@@ -256,15 +306,15 @@ describe(SyncRunnerService.name, () => {
       });
     }
 
-    return { runner, archive, committer, genesisImport, stakingSnapshot, logger, pool };
+    return { runner, archive, committer, genesisImport, stakingSnapshot, deferredIndexes, logger, pool };
   }
 
-  function buildDecodedBlock(height: number): DecodedBlock {
+  function buildDecodedBlock(height: number, brokenParent = false): DecodedBlock {
     return {
       height,
       datetime: new Date("2026-08-12T00:00:00Z"),
       hash: Buffer.from(`hash-${height}`),
-      parentHash: height > 1 ? Buffer.from(`hash-${height - 1}`) : null,
+      parentHash: brokenParent ? Buffer.from("bogus") : height > 1 ? Buffer.from(`hash-${height - 1}`) : null,
       proposerAddress: "PROPOSER",
       transactions: []
     };
