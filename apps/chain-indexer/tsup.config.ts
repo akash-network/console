@@ -14,6 +14,7 @@ export default defineConfig(async overrideOptions =>
     entry: {
       server: "./src/server.ts",
       reconcile: "./src/reconcile/reconcile.ts",
+      parity: "./src/parity/parity.ts",
       "recompute-usd": "./src/network/recompute-usd.ts",
       "swagger-gen": "./src/swagger-gen.ts",
       "seed-legacy-prices": "./src/jobs/legacy-price-seed/seed-legacy-prices.ts",
