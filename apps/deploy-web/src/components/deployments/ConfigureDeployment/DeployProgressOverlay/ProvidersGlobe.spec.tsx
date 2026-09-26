@@ -1,39 +1,42 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
-import type { ApiProviderList } from "@src/types/provider";
+import type { ApiProviderLocation } from "@src/types/provider";
 import type { DEPENDENCIES } from "./ProvidersGlobe";
 import { ProvidersGlobe } from "./ProvidersGlobe";
 
 import { render } from "@testing-library/react";
 import { ComponentMock } from "@tests/unit/mocks";
 
-type ProviderListResult = ReturnType<typeof DEPENDENCIES.useProviderList>;
+type ProviderLocationsResult = ReturnType<typeof DEPENDENCIES.useProviderLocations>;
 
 describe(ProvidersGlobe.name, () => {
   afterEach(() => {
     vi.restoreAllMocks();
   });
 
-  it("renders an online-provider marker for every online provider when none is focused", () => {
+  it("renders a marker for every located provider when none is focused", () => {
     const Globe = vi.fn(ComponentMock);
     setup({
       providers: [
-        createProvider({ owner: "p1", name: "Provider One", ipLat: "10", ipLon: "20", isOnline: true }),
-        createProvider({ owner: "p2", name: "Provider Two", ipLat: "30", ipLon: "40", isOnline: false })
+        createProvider({ owner: "p1", name: "Provider One", ipLat: "10", ipLon: "20" }),
+        createProvider({ owner: "p2", name: "Provider Two", ipLat: "30", ipLon: "40" })
       ],
       dependencies: { Globe }
     });
 
-    expect(Globe.mock.calls[0][0].markers).toEqual([{ id: "p1", label: "Provider One", lat: 10, lng: 20 }]);
+    expect(Globe.mock.calls[0][0].markers).toEqual([
+      { id: "p1", label: "Provider One", lat: 10, lng: 20 },
+      { id: "p2", label: "Provider Two", lat: 30, lng: 40 }
+    ]);
   });
 
   it("skips providers with non-finite coordinates", () => {
     const Globe = vi.fn(ComponentMock);
     setup({
       providers: [
-        createProvider({ owner: "p1", name: "Bad", ipLat: "not-a-number", ipLon: "20", isOnline: true }),
-        createProvider({ owner: "p2", name: "Good", ipLat: "5", ipLon: "6", isOnline: true })
+        createProvider({ owner: "p1", name: "Bad", ipLat: "not-a-number", ipLon: "20" }),
+        createProvider({ owner: "p2", name: "Good", ipLat: "5", ipLon: "6" })
       ],
       dependencies: { Globe }
     });
@@ -46,8 +49,8 @@ describe(ProvidersGlobe.name, () => {
     setup({
       focusedProviderAddress: "p2",
       providers: [
-        createProvider({ owner: "p1", name: "Provider One", ipLat: "10", ipLon: "20", isOnline: true }),
-        createProvider({ owner: "p2", name: "Provider Two", ipLat: "30", ipLon: "40", isOnline: true })
+        createProvider({ owner: "p1", name: "Provider One", ipLat: "10", ipLon: "20" }),
+        createProvider({ owner: "p2", name: "Provider Two", ipLat: "30", ipLon: "40" })
       ],
       dependencies: { Globe }
     });
@@ -66,11 +69,11 @@ describe(ProvidersGlobe.name, () => {
     expect(props.focusedMarker).toBeNull();
   });
 
-  it("does not focus on a focused address that is absent from the provider list", () => {
+  it("does not focus on a focused address that is absent from the provider locations", () => {
     const Globe = vi.fn(ComponentMock);
     setup({
       focusedProviderAddress: "missing",
-      providers: [createProvider({ owner: "p1", name: "Provider One", ipLat: "10", ipLon: "20", isOnline: true })],
+      providers: [createProvider({ owner: "p1", name: "Provider One", ipLat: "10", ipLon: "20" })],
       dependencies: { Globe }
     });
 
@@ -80,7 +83,7 @@ describe(ProvidersGlobe.name, () => {
   it("uses the provider hostUri as the marker label when the name is null", () => {
     const Globe = vi.fn(ComponentMock);
     setup({
-      providers: [createProvider({ owner: "p1", name: null, hostUri: "https://provider.example", ipLat: "1", ipLon: "2", isOnline: true })],
+      providers: [createProvider({ owner: "p1", name: null, hostUri: "https://provider.example", ipLat: "1", ipLon: "2" })],
       dependencies: { Globe }
     });
 
@@ -110,32 +113,31 @@ describe(ProvidersGlobe.name, () => {
     });
   });
 
-  function createProvider(overrides: Partial<ApiProviderList>): ApiProviderList {
-    return mock<ApiProviderList>({
+  function createProvider(overrides: Partial<ApiProviderLocation>): ApiProviderLocation {
+    return mock<ApiProviderLocation>({
       owner: "owner",
       name: "Provider",
       hostUri: "https://provider",
       ipLat: "0",
       ipLon: "0",
-      isOnline: true,
       ...overrides
     });
   }
 
   function setup(input: {
     focusedProviderAddress?: string | null;
-    providers?: ApiProviderList[];
+    providers?: ApiProviderLocation[];
     theme?: string;
     dependencies?: Partial<typeof DEPENDENCIES>;
   }) {
-    const useProviderList: typeof DEPENDENCIES.useProviderList = () =>
-      mock<ProviderListResult>({ data: "providers" in input ? input.providers : [] }) as ProviderListResult;
+    const useProviderLocations: typeof DEPENDENCIES.useProviderLocations = () =>
+      mock<ProviderLocationsResult>({ data: "providers" in input ? input.providers : [] }) as ProviderLocationsResult;
     const useTheme: typeof DEPENDENCIES.useTheme = () => input.theme ?? "light";
 
     return render(
       <ProvidersGlobe
         focusedProviderAddress={input.focusedProviderAddress}
-        dependencies={{ useProviderList, useTheme, Globe: vi.fn(ComponentMock), ...input.dependencies }}
+        dependencies={{ useProviderLocations, useTheme, Globe: vi.fn(ComponentMock), ...input.dependencies }}
       />
     );
   }

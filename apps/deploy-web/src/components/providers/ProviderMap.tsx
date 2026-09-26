@@ -6,13 +6,13 @@ import { Button, CustomNoDivTooltip } from "@akashnetwork/ui/components";
 import { Minus, Plus, Restart } from "iconoir-react";
 import Link from "next/link";
 
-import type { ApiProviderList } from "@src/types/provider";
+import type { ApiProviderLocation } from "@src/types/provider";
 import { UrlService } from "@src/utils/urlUtils";
 
 type Props = {
   initialZoom?: number;
   initialCoordinates?: Point;
-  providers: ApiProviderList[];
+  providers: ApiProviderLocation[];
 };
 
 const minZoom = 1;
@@ -20,7 +20,6 @@ const maxZoom = 8;
 
 export const ProviderMap: React.FunctionComponent<Props> = ({ providers, initialZoom = minZoom, initialCoordinates = [0, 0] }) => {
   const [dotSize, setDotSize] = useState({ r: 5, w: 1 });
-  const activeProviders = providers.filter(x => x.isOnline);
   const [position, setPosition] = useState({ coordinates: initialCoordinates, zoom: initialZoom });
   const isInitialPosition =
     position.coordinates[0] === initialCoordinates[0] && position.coordinates[1] === initialCoordinates[1] && position.zoom === initialZoom;
@@ -111,7 +110,7 @@ export const ProviderMap: React.FunctionComponent<Props> = ({ providers, initial
               ))
             }
           </Geographies>
-          {activeProviders.map(({ owner, name, ipLon, ipLat, ipRegion, ipCountryCode }) => {
+          {providers.map(({ owner, name, ipLon, ipLat, ipRegion, ipCountryCode }) => {
             return (
               <Link key={owner} href={UrlService.providerDetail(owner)}>
                 <Marker coordinates={[parseFloat(ipLon), parseFloat(ipLat)]}>
