@@ -9,6 +9,7 @@ import { PROXY_API_BASE_URL, withUserToken } from "../auth/auth/interceptors";
 import { createChildContainer } from "../container/createContainer";
 import { DeploymentNameBackfillService } from "../deployment-name-backfill/deployment-name-backfill.service";
 import { DeploymentStorageService } from "../deployment-storage/deployment-storage.service";
+import { ProviderLookupService } from "../provider-lookup/provider-lookup.service";
 import { createSessionExpiryFetch } from "../session-expiry-notifier/session-expiry-notifier.service";
 import { createAppRootContainer } from "./app-di-container";
 
@@ -29,6 +30,8 @@ export const services = createChildContainer(rootContainer, {
     }),
   /** TODO: https://github.com/akash-network/console/issues/1720 */
   publicConsoleApiHttpClient: () => services.applyAxiosInterceptors(services.createAxios()),
+  providerLookup: () =>
+    new ProviderLookupService(services.publicConsoleApiHttpClient, () => services.apiUrlService.getBaseApiUrlFor(services.networkStore.selectedNetworkId)),
   fallbackChainApiHttpClient: () =>
     services.applyAxiosInterceptors(services.createAxios(), {
       request: [

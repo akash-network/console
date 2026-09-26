@@ -5,12 +5,15 @@ import { mock } from "vitest-mock-extended";
 import type { AnalyticsService } from "@src/services/analytics/analytics.service";
 import sdlStore from "@src/store/sdlStore";
 import type { TemplateCreation } from "@src/types";
-import type { ListedDeploymentDto } from "@src/types/deployment";
+import type { LeaseDto, ListedDeploymentDto } from "@src/types/deployment";
+import type { ApiProviderList } from "@src/types/provider";
 import type { DeploymentsListSource, DeploymentsListSourceInput } from "./useApiDeploymentsListSource";
 import { DEFAULT_PAGE_SIZE, DEPENDENCIES, useDeploymentsListModel } from "./useDeploymentsListModel";
 
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { TestContainerProvider } from "@tests/unit/TestContainerProvider";
+
+const NO_PROVIDERS: ApiProviderList[] = [];
 
 describe(useDeploymentsListModel.name, () => {
   it("asks the source for the first active page at the default size while nobody is searching", () => {
@@ -690,6 +693,26 @@ describe(useDeploymentsListModel.name, () => {
     });
   });
 
+  describe("providers", () => {
+    it("looks up only the providers of the live leases on the page", () => {
+      const { useProvidersByAddresses } = setup({
+        active: [
+          deployment("100", "active", [lease("akash1running", "active"), lease("akash1gone", "closed")]),
+          deployment("200", "active", [lease("akash1reclaiming", "reclaiming")])
+        ]
+      });
+
+      expect(useProvidersByAddresses).toHaveBeenLastCalledWith(["akash1running", "akash1reclaiming"]);
+    });
+
+    it("hands the rows the providers the lookup resolved", () => {
+      const provider = mock<ApiProviderList>({ owner: "akash1running" });
+      const { result } = setup({ active: [deployment("100", "active", [lease("akash1running", "active")])], providers: [provider] });
+
+      expect(result.current.providers).toEqual([provider]);
+    });
+  });
+
   it("clears any staged SDL when a new deployment is started", () => {
     const { result, store } = setup({ active: [deployment("100")] });
     store.set(sdlStore.deploySdl, mock<TemplateCreation>());
@@ -699,8 +722,12 @@ describe(useDeploymentsListModel.name, () => {
     expect(store.get(sdlStore.deploySdl)).toBeNull();
   });
 
-  function deployment(dseq: string, state = "active") {
-    return mock<ListedDeploymentDto>({ dseq, state });
+  function deployment(dseq: string, state = "active", leases: LeaseDto[] = []) {
+    return mock<ListedDeploymentDto>({ dseq, state, leases });
+  }
+
+  function lease(provider: string, state: string) {
+    return mock<LeaseDto>({ provider, state });
   }
 
   function closedDeployments(count: number) {
@@ -725,6 +752,7 @@ describe(useDeploymentsListModel.name, () => {
     appliedSearch?: string;
     isSearchTooBroad?: boolean;
     isArchiveSearchTooBroad?: boolean;
+    providers?: ApiProviderList[];
   };
 
   function setup(input: Input) {
@@ -768,13 +796,13 @@ describe(useDeploymentsListModel.name, () => {
         hasWallet: true,
         signAndBroadcastTx
       });
-    const useProviderList: typeof DEPENDENCIES.useProviderList = () => mock<ReturnType<typeof DEPENDENCIES.useProviderList>>({ data: [], isFetching: false });
+    const useProvidersByAddresses = vi.fn(() => ({ data: current.providers ?? NO_PROVIDERS, isLoading: false, isFetching: false }));
     const useManagedDeploymentConfirm: typeof DEPENDENCIES.useManagedDeploymentConfirm = () =>
       mock<ReturnType<typeof DEPENDENCIES.useManagedDeploymentConfirm>>({ closeDeploymentConfirm });
 
     const dependencies: typeof DEPENDENCIES = {
       useWallet,
-      useProviderList,
+      useProvidersByAddresses,
       useManagedDeploymentConfirm,
       useListSelection: DEPENDENCIES.useListSelection,
       useDeploymentsListSource
@@ -800,7 +828,8 @@ describe(useDeploymentsListModel.name, () => {
       closeDeploymentConfirm,
       signAndBroadcastTx,
       analyticsService,
-      useDeploymentsListSource
+      useDeploymentsListSource,
+      useProvidersByAddresses
     };
   }
 });

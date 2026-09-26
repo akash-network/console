@@ -17,7 +17,7 @@ import { useLeaseGpus, withLeaseGpus } from "@src/hooks/useLeaseGpus/useLeaseGpu
 import { useRedeploy } from "@src/hooks/useRedeploy/useRedeploy";
 import { useDeploymentDetail } from "@src/queries/useDeploymentQuery";
 import { useDeploymentLeaseList } from "@src/queries/useLeaseQuery";
-import { useProviderList } from "@src/queries/useProvidersQuery";
+import { useProvidersByAddresses } from "@src/queries/useProvidersQuery";
 import { isLeaseLive } from "@src/utils/leaseUtils";
 import { UrlService } from "@src/utils/urlUtils";
 import Layout from "../../layout/Layout";
@@ -42,7 +42,7 @@ export const DEPENDENCIES = {
   useDeploymentDetail,
   useDeploymentLeaseList,
   useLeaseGpus,
-  useProviderList,
+  useProvidersByAddresses,
   NextSeo,
   Layout,
   ReclamationBanner,
@@ -101,7 +101,8 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq, dependencies
   /** The chain does not know what is running inside a lease, so what the console read is joined on here once for every view below. */
   const { byLease: leaseGpus, isLoading: isLoadingLeaseGpus } = d.useLeaseGpus(dseq);
   const leases = useMemo(() => withLeaseGpus(chainLeases, leaseGpus), [chainLeases, leaseGpus]);
-  const { data: providers, isFetching: isLoadingProviders, refetch: getProviders } = d.useProviderList();
+  const leaseProviderAddresses = useMemo(() => leases?.map(lease => lease.provider) ?? [], [leases]);
+  const { data: providers, isFetching: isLoadingProviders } = d.useProvidersByAddresses(leaseProviderAddresses);
 
   const definition = d.useDeploymentDefinition(dseq, { acceptReferences: true });
   const deploymentManifest = definition.sdl || "";
@@ -114,9 +115,8 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq, dependencies
   useEffect(() => {
     if (deployment) {
       getLeases();
-      getProviders();
     }
-  }, [deployment, getLeases, getProviders]);
+  }, [deployment, getLeases]);
 
   useEffect(
     function redirectWhenInProgressWithoutLease() {
@@ -201,7 +201,7 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq, dependencies
       {!showsPageSkeleton && deployment && isLeasesLoaded && (
         <>
           <div className={PAGE_BAND}>
-            <d.DeploymentDetailHeader deployment={deployment} leases={leases} providers={providers || []} isLoadingLeaseGpus={isLoadingLeaseGpus} />
+            <d.DeploymentDetailHeader deployment={deployment} leases={leases} providers={providers} isLoadingLeaseGpus={isLoadingLeaseGpus} />
 
             <d.ReclamationBanner leases={leases} dseq={dseq} className="mb-6" />
           </div>
@@ -229,7 +229,7 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq, dependencies
                   ) : (
                     <d.DeploymentPlacements
                       leases={leases || []}
-                      providers={providers || []}
+                      providers={providers}
                       deploymentManifest={deploymentManifest}
                       dseq={dseq}
                       isLoadingLeaseGpus={isLoadingLeaseGpus}
@@ -247,7 +247,7 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq, dependencies
                     <d.DeploymentUpdate
                       deployment={deployment}
                       leases={leases}
-                      providers={providers || []}
+                      providers={providers}
                       isLoadingLeaseGpus={isLoadingLeaseGpus}
                       definition={definition}
                       onUpdated={loadDeploymentDetail}
