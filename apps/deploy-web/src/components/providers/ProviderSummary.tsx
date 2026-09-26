@@ -8,7 +8,7 @@ import { Uptime } from "@src/components/providers/Uptime";
 import { FavoriteButton } from "@src/components/shared/FavoriteButton";
 import { LabelValue } from "@src/components/shared/LabelValue";
 import { StatusPill } from "@src/components/shared/StatusPill";
-import type { ApiProviderList, ClientProviderDetailWithStatus } from "@src/types/provider";
+import type { ClientProviderDetailWithStatus } from "@src/types/provider";
 import { ProviderMap } from "./ProviderMap";
 
 type Props = {
@@ -65,11 +65,7 @@ export const ProviderSummary: React.FunctionComponent<Props> = ({ provider }) =>
           </div>
           {provider.isOnline && (
             <div className="h-full flex-shrink-0 basis-full lg:basis-2/5">
-              <ProviderMap
-                providers={[provider as ApiProviderList]}
-                initialZoom={5}
-                initialCoordinates={[parseFloat(provider.ipLon), parseFloat(provider.ipLat)]}
-              />
+              <ProviderMap providers={[provider]} initialZoom={5} initialCoordinates={[parseFloat(provider.ipLon), parseFloat(provider.ipLat)]} />
             </div>
           )}
         </div>
