@@ -82,6 +82,10 @@ const rawEnvSchema = z.object({
   MESSAGE_BODY_MAX_BYTES: z.number({ coerce: true }).int().positive().default(65_536),
   /** How many of the highest-balance accounts `npm run reconcile` checks against the chain. Unset defers to the service default. */
   RECONCILE_SAMPLE_SIZE: z.preprocess(emptyStringAsUndefined, z.number({ coerce: true }).int().positive().optional()),
+  /** Public origin of the api role, advertised as the server in the OpenAPI document; unset lists no server. */
+  SERVER_ORIGIN: z.preprocess(emptyStringAsUndefined, z.string().url().optional()),
+  /** Server-side bound on any single query the api role runs; the api serves read-only, so a slow query only ever costs its own request. */
+  API_STATEMENT_TIMEOUT_MS: z.number({ coerce: true }).int().positive().default(30_000),
   DRIZZLE_MIGRATIONS_FOLDER: z.string().default("./drizzle"),
   LOG_LEVEL: z.enum(["fatal", "error", "warn", "info", "debug", "trace"]).optional().default("info"),
   STD_OUT_LOG_FORMAT: z.enum(["json", "pretty"]).optional().default("json"),

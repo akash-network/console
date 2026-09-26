@@ -6,6 +6,7 @@ import { createOtelLogger } from "@akashnetwork/logging/otel";
 import { container } from "tsyringe";
 
 import { createApp } from "@src/app";
+import type { EnvConfig } from "@src/config/env.config";
 import { envSchema } from "@src/config/env.config";
 import { BackfillRunnerService } from "@src/pipeline/backfill-runner.service";
 import { ModuleReplayRunnerService } from "@src/pipeline/module-replay/module-replay-runner.service";
@@ -30,17 +31,16 @@ export async function bootstrap(): Promise<void> {
 
   switch (role) {
     case "sync": {
-      await runRunnerBehindServer(() => container.resolve(SyncRunnerService), "SYNC_FATAL", logger, port);
+      await runRunnerBehindServer(role, () => container.resolve(SyncRunnerService), "SYNC_FATAL", logger, port);
       return;
     }
     case "backfill": {
       const resolveRunner = () => (config.get("BACKFILL_MODULE") ? container.resolve(ModuleReplayRunnerService) : container.resolve(BackfillRunnerService));
-      await runRunnerBehindServer(resolveRunner, "BACKFILL_FATAL", logger, port);
+      await runRunnerBehindServer(role, resolveRunner, "BACKFILL_FATAL", logger, port);
       return;
     }
     case "api": {
-      await migrateDb();
-      await startServer(createApp(), logger, process, { port });
+      await startServer(createApp(role), logger, process, { port });
       return;
     }
     default: {
@@ -71,9 +71,15 @@ function validateConfig(logger: LoggerService): boolean {
  * (`RunnerInterruptedError`, e.g. SIGTERM mid-backfill) also exits non-zero so a K8s Job is retried
  * and resumes from its checkpoint rather than being marked Complete with the range unfinished.
  */
-async function runRunnerBehindServer(resolveRunner: () => { start(): Promise<void> }, fatalEvent: string, logger: LoggerService, port: number): Promise<void> {
+async function runRunnerBehindServer(
+  role: EnvConfig["INDEXER_ROLE"],
+  resolveRunner: () => { start(): Promise<void> },
+  fatalEvent: string,
+  logger: LoggerService,
+  port: number
+): Promise<void> {
   await migrateDb();
-  const server = await startServer(createApp(), logger, process, { port });
+  const server = await startServer(createApp(role), logger, process, { port });
 
   try {
     await resolveRunner().start();
