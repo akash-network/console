@@ -207,11 +207,11 @@ describe("DeploymentDetail", () => {
   });
 
   it("reloads the leases whenever the deployment reloads", () => {
-    const { leaseList, rerenderWith } = setup();
+    const { refetchLeases, rerenderWith } = setup();
 
     rerenderWith({ deployment: mock<DeploymentDto>({ dseq: "1786440078202", state: "active", groups: [] }) });
 
-    expect(leaseList.refetch).toHaveBeenCalledTimes(2);
+    expect(refetchLeases).toHaveBeenCalledTimes(2);
   });
 
   it("orders the tabs with Update right after Details", () => {
@@ -370,7 +370,9 @@ describe("DeploymentDetail", () => {
         error: input?.error ?? null,
         refetch: refetchDeployment
       });
+    const refetchLeases = vi.fn();
     const leaseList = mock<ReturnType<typeof DEPENDENCIES.useDeploymentLeaseList>>({
+      refetch: refetchLeases,
       data: leases,
       isLoading: false,
       isSuccess: input?.isLeasesLoaded ?? true,
@@ -434,14 +436,14 @@ describe("DeploymentDetail", () => {
       DeploymentDetailHeader,
       DeploymentPlacements,
       useProvidersByAddresses,
-      leaseList,
+      refetchLeases,
       rerenderWithLeaseGpus(next: LeaseGpusByLease) {
         leaseGpus = next;
         rerender(<DeploymentDetail dseq="1786440078202" dependencies={dependencies} />);
       },
       rerenderWith(next: { deployment?: DeploymentDto; leases?: LeaseDto[] }) {
         currentDeployment = next.deployment ?? currentDeployment;
-        leaseList.data = next.leases ?? leaseList.data;
+        if (next.leases) Object.assign(leaseList, { data: next.leases });
         rerender(<DeploymentDetail dseq="1786440078202" dependencies={dependencies} />);
       }
     };
