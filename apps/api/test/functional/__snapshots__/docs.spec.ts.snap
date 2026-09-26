@@ -15235,6 +15235,76 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
         ],
       },
     },
+    "/v1/provider-locations": {
+      "get": {
+        "description": "Locates every online provider by its IP address, for drawing providers on a map without loading the full provider list.",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "items": {
+                        "properties": {
+                          "hostUri": {
+                            "type": "string",
+                          },
+                          "ipCountryCode": {
+                            "nullable": true,
+                            "type": "string",
+                          },
+                          "ipLat": {
+                            "nullable": true,
+                            "type": "string",
+                          },
+                          "ipLon": {
+                            "nullable": true,
+                            "type": "string",
+                          },
+                          "ipRegion": {
+                            "nullable": true,
+                            "type": "string",
+                          },
+                          "name": {
+                            "nullable": true,
+                            "type": "string",
+                          },
+                          "owner": {
+                            "type": "string",
+                          },
+                        },
+                        "required": [
+                          "owner",
+                          "name",
+                          "hostUri",
+                          "ipRegion",
+                          "ipCountryCode",
+                          "ipLat",
+                          "ipLon",
+                        ],
+                        "type": "object",
+                      },
+                      "type": "array",
+                    },
+                  },
+                  "required": [
+                    "data",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "Returns the location of every online provider",
+          },
+        },
+        "security": [],
+        "summary": "Get where each online provider is.",
+        "tags": [
+          "Providers",
+        ],
+      },
+    },
     "/v1/provider-regions": {
       "get": {
         "responses": {
@@ -15276,6 +15346,584 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
         },
         "security": [],
         "summary": "Get a list of provider regions",
+        "tags": [
+          "Providers",
+        ],
+      },
+    },
+    "/v1/provider-search": {
+      "get": {
+        "description": "Filters and sorts every provider on the network, then answers the requested page along with how many providers matched.",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "search",
+            "required": false,
+            "schema": {
+              "description": "Case-insensitive substring matched against each provider's host URI and address.",
+              "maxLength": 200,
+              "type": "string",
+            },
+          },
+          {
+            "in": "query",
+            "name": "online",
+            "required": false,
+            "schema": {
+              "description": "Only online providers when true, only offline ones when false, both when omitted.",
+              "enum": [
+                "true",
+                "false",
+              ],
+              "type": "string",
+            },
+          },
+          {
+            "in": "query",
+            "name": "audited",
+            "required": false,
+            "schema": {
+              "description": "Only audited providers when true, only unaudited ones when false, both when omitted.",
+              "enum": [
+                "true",
+                "false",
+              ],
+              "type": "string",
+            },
+          },
+          {
+            "in": "query",
+            "name": "addresses",
+            "required": false,
+            "schema": {
+              "description": "Comma-separated provider addresses the search is limited to, at most 100.",
+              "type": "string",
+            },
+          },
+          {
+            "in": "query",
+            "name": "sort",
+            "required": false,
+            "schema": {
+              "default": "active-leases-desc",
+              "description": "\`active-leases-*\` orders by the provider's active lease count, \`wallet-leases-desc\` and \`wallet-active-leases-desc\` by how many leases \`walletAddress\` holds on it, and \`gpus-desc\` by its GPU count across available, pending and active ones.",
+              "enum": [
+                "active-leases-desc",
+                "active-leases-asc",
+                "wallet-leases-desc",
+                "wallet-active-leases-desc",
+                "gpus-desc",
+              ],
+              "type": "string",
+            },
+          },
+          {
+            "in": "query",
+            "name": "walletAddress",
+            "required": false,
+            "schema": {
+              "description": "The wallet whose leases the \`wallet-leases-desc\` and \`wallet-active-leases-desc\` sorts count. Required by those sorts.",
+              "type": "string",
+            },
+          },
+          {
+            "in": "query",
+            "name": "skip",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "description": "Matching providers to skip before the page begins.",
+              "minimum": 0,
+              "nullable": true,
+              "type": "integer",
+            },
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 100,
+              "description": "Providers per page, at most 100.",
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer",
+            },
+          },
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "properties": {
+                        "pagination": {
+                          "properties": {
+                            "hasMore": {
+                              "description": "Whether a further page exists.",
+                              "type": "boolean",
+                            },
+                            "limit": {
+                              "type": "number",
+                            },
+                            "skip": {
+                              "type": "number",
+                            },
+                            "total": {
+                              "description": "Providers matching the filters.",
+                              "type": "number",
+                            },
+                          },
+                          "required": [
+                            "total",
+                            "skip",
+                            "limit",
+                            "hasMore",
+                          ],
+                          "type": "object",
+                        },
+                        "providers": {
+                          "items": {
+                            "properties": {
+                              "akashVersion": {
+                                "type": "string",
+                              },
+                              "attributes": {
+                                "items": {
+                                  "properties": {
+                                    "auditedBy": {
+                                      "items": {
+                                        "type": "string",
+                                      },
+                                      "type": "array",
+                                    },
+                                    "key": {
+                                      "type": "string",
+                                    },
+                                    "value": {
+                                      "type": "string",
+                                    },
+                                  },
+                                  "required": [
+                                    "key",
+                                    "value",
+                                    "auditedBy",
+                                  ],
+                                  "type": "object",
+                                },
+                                "type": "array",
+                              },
+                              "city": {
+                                "nullable": true,
+                                "type": "string",
+                              },
+                              "cosmosSdkVersion": {
+                                "type": "string",
+                              },
+                              "country": {
+                                "nullable": true,
+                                "type": "string",
+                              },
+                              "createdHeight": {
+                                "type": "number",
+                              },
+                              "deploymentCount": {
+                                "nullable": true,
+                                "type": "number",
+                              },
+                              "email": {
+                                "nullable": true,
+                                "type": "string",
+                              },
+                              "featEndpointCustomDomain": {
+                                "type": "boolean",
+                              },
+                              "featEndpointIp": {
+                                "type": "boolean",
+                              },
+                              "featPersistentStorage": {
+                                "type": "boolean",
+                              },
+                              "featPersistentStorageType": {
+                                "items": {
+                                  "type": "string",
+                                },
+                                "nullable": true,
+                                "type": "array",
+                              },
+                              "gpuModels": {
+                                "items": {
+                                  "properties": {
+                                    "interface": {
+                                      "type": "string",
+                                    },
+                                    "model": {
+                                      "type": "string",
+                                    },
+                                    "ram": {
+                                      "type": "string",
+                                    },
+                                    "vendor": {
+                                      "type": "string",
+                                    },
+                                  },
+                                  "required": [
+                                    "vendor",
+                                    "model",
+                                    "ram",
+                                    "interface",
+                                  ],
+                                  "type": "object",
+                                },
+                                "type": "array",
+                              },
+                              "hardwareCpu": {
+                                "nullable": true,
+                                "type": "string",
+                              },
+                              "hardwareCpuArch": {
+                                "nullable": true,
+                                "type": "string",
+                              },
+                              "hardwareDisk": {
+                                "items": {
+                                  "type": "string",
+                                },
+                                "nullable": true,
+                                "type": "array",
+                              },
+                              "hardwareGpuModels": {
+                                "items": {
+                                  "type": "string",
+                                },
+                                "nullable": true,
+                                "type": "array",
+                              },
+                              "hardwareGpuVendor": {
+                                "nullable": true,
+                                "type": "string",
+                              },
+                              "hardwareMemory": {
+                                "nullable": true,
+                                "type": "string",
+                              },
+                              "host": {
+                                "nullable": true,
+                                "type": "string",
+                              },
+                              "hostUri": {
+                                "type": "string",
+                              },
+                              "hostingProvider": {
+                                "nullable": true,
+                                "type": "string",
+                              },
+                              "ipCountry": {
+                                "nullable": true,
+                                "type": "string",
+                              },
+                              "ipCountryCode": {
+                                "nullable": true,
+                                "type": "string",
+                              },
+                              "ipLat": {
+                                "nullable": true,
+                                "type": "string",
+                              },
+                              "ipLon": {
+                                "nullable": true,
+                                "type": "string",
+                              },
+                              "ipRegion": {
+                                "nullable": true,
+                                "type": "string",
+                              },
+                              "ipRegionCode": {
+                                "nullable": true,
+                                "type": "string",
+                              },
+                              "isAudited": {
+                                "type": "boolean",
+                              },
+                              "isOnline": {
+                                "type": "boolean",
+                              },
+                              "isValidVersion": {
+                                "type": "boolean",
+                              },
+                              "lastCheckDate": {
+                                "nullable": true,
+                                "type": "string",
+                              },
+                              "lastOnlineDate": {
+                                "nullable": true,
+                                "type": "string",
+                              },
+                              "leaseCount": {
+                                "nullable": true,
+                                "type": "number",
+                              },
+                              "locationRegion": {
+                                "nullable": true,
+                                "type": "string",
+                              },
+                              "locationType": {
+                                "nullable": true,
+                                "type": "string",
+                              },
+                              "name": {
+                                "nullable": true,
+                                "type": "string",
+                              },
+                              "networkProvider": {
+                                "nullable": true,
+                                "type": "string",
+                              },
+                              "networkSpeedDown": {
+                                "type": "number",
+                              },
+                              "networkSpeedUp": {
+                                "type": "number",
+                              },
+                              "organization": {
+                                "nullable": true,
+                                "type": "string",
+                              },
+                              "owner": {
+                                "type": "string",
+                              },
+                              "stats": {
+                                "properties": {
+                                  "cpu": {
+                                    "properties": {
+                                      "active": {
+                                        "type": "number",
+                                      },
+                                      "available": {
+                                        "type": "number",
+                                      },
+                                      "pending": {
+                                        "type": "number",
+                                      },
+                                    },
+                                    "required": [
+                                      "active",
+                                      "available",
+                                      "pending",
+                                    ],
+                                    "type": "object",
+                                  },
+                                  "gpu": {
+                                    "properties": {
+                                      "active": {
+                                        "type": "number",
+                                      },
+                                      "available": {
+                                        "type": "number",
+                                      },
+                                      "pending": {
+                                        "type": "number",
+                                      },
+                                    },
+                                    "required": [
+                                      "active",
+                                      "available",
+                                      "pending",
+                                    ],
+                                    "type": "object",
+                                  },
+                                  "memory": {
+                                    "properties": {
+                                      "active": {
+                                        "type": "number",
+                                      },
+                                      "available": {
+                                        "type": "number",
+                                      },
+                                      "pending": {
+                                        "type": "number",
+                                      },
+                                    },
+                                    "required": [
+                                      "active",
+                                      "available",
+                                      "pending",
+                                    ],
+                                    "type": "object",
+                                  },
+                                  "storage": {
+                                    "properties": {
+                                      "ephemeral": {
+                                        "properties": {
+                                          "active": {
+                                            "type": "number",
+                                          },
+                                          "available": {
+                                            "type": "number",
+                                          },
+                                          "pending": {
+                                            "type": "number",
+                                          },
+                                        },
+                                        "required": [
+                                          "active",
+                                          "available",
+                                          "pending",
+                                        ],
+                                        "type": "object",
+                                      },
+                                      "persistent": {
+                                        "properties": {
+                                          "active": {
+                                            "type": "number",
+                                          },
+                                          "available": {
+                                            "type": "number",
+                                          },
+                                          "pending": {
+                                            "type": "number",
+                                          },
+                                        },
+                                        "required": [
+                                          "active",
+                                          "available",
+                                          "pending",
+                                        ],
+                                        "type": "object",
+                                      },
+                                    },
+                                    "required": [
+                                      "ephemeral",
+                                      "persistent",
+                                    ],
+                                    "type": "object",
+                                  },
+                                },
+                                "required": [
+                                  "cpu",
+                                  "gpu",
+                                  "memory",
+                                  "storage",
+                                ],
+                                "type": "object",
+                              },
+                              "statusPage": {
+                                "nullable": true,
+                                "type": "string",
+                              },
+                              "tier": {
+                                "nullable": true,
+                                "type": "string",
+                              },
+                              "timezone": {
+                                "nullable": true,
+                                "type": "string",
+                              },
+                              "uptime1d": {
+                                "nullable": true,
+                                "type": "number",
+                              },
+                              "uptime30d": {
+                                "nullable": true,
+                                "type": "number",
+                              },
+                              "uptime7d": {
+                                "nullable": true,
+                                "type": "number",
+                              },
+                              "website": {
+                                "nullable": true,
+                                "type": "string",
+                              },
+                              "workloadSupportChia": {
+                                "type": "boolean",
+                              },
+                              "workloadSupportChiaCapabilities": {
+                                "items": {
+                                  "type": "string",
+                                },
+                                "nullable": true,
+                                "type": "array",
+                              },
+                            },
+                            "required": [
+                              "owner",
+                              "name",
+                              "hostUri",
+                              "createdHeight",
+                              "cosmosSdkVersion",
+                              "akashVersion",
+                              "ipRegion",
+                              "ipRegionCode",
+                              "ipCountry",
+                              "ipCountryCode",
+                              "ipLat",
+                              "ipLon",
+                              "uptime1d",
+                              "uptime7d",
+                              "uptime30d",
+                              "isValidVersion",
+                              "isOnline",
+                              "lastOnlineDate",
+                              "isAudited",
+                              "stats",
+                              "gpuModels",
+                              "attributes",
+                              "host",
+                              "organization",
+                              "statusPage",
+                              "locationRegion",
+                              "country",
+                              "city",
+                              "timezone",
+                              "locationType",
+                              "hostingProvider",
+                              "hardwareCpu",
+                              "hardwareCpuArch",
+                              "hardwareGpuVendor",
+                              "hardwareGpuModels",
+                              "hardwareDisk",
+                              "featPersistentStorage",
+                              "featPersistentStorageType",
+                              "hardwareMemory",
+                              "networkProvider",
+                              "networkSpeedDown",
+                              "networkSpeedUp",
+                              "tier",
+                              "featEndpointCustomDomain",
+                              "workloadSupportChia",
+                              "workloadSupportChiaCapabilities",
+                              "featEndpointIp",
+                            ],
+                            "type": "object",
+                          },
+                          "type": "array",
+                        },
+                      },
+                      "required": [
+                        "providers",
+                        "pagination",
+                      ],
+                      "type": "object",
+                    },
+                  },
+                  "required": [
+                    "data",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "Returns a page of the providers matching the search",
+          },
+          "400": {
+            "description": "Invalid search parameters",
+          },
+        },
+        "security": [],
+        "summary": "Search providers, one page at a time.",
         "tags": [
           "Providers",
         ],
@@ -15567,6 +16215,121 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                       "owner": {
                         "type": "string",
                       },
+                      "stats": {
+                        "properties": {
+                          "cpu": {
+                            "properties": {
+                              "active": {
+                                "type": "number",
+                              },
+                              "available": {
+                                "type": "number",
+                              },
+                              "pending": {
+                                "type": "number",
+                              },
+                            },
+                            "required": [
+                              "active",
+                              "available",
+                              "pending",
+                            ],
+                            "type": "object",
+                          },
+                          "gpu": {
+                            "properties": {
+                              "active": {
+                                "type": "number",
+                              },
+                              "available": {
+                                "type": "number",
+                              },
+                              "pending": {
+                                "type": "number",
+                              },
+                            },
+                            "required": [
+                              "active",
+                              "available",
+                              "pending",
+                            ],
+                            "type": "object",
+                          },
+                          "memory": {
+                            "properties": {
+                              "active": {
+                                "type": "number",
+                              },
+                              "available": {
+                                "type": "number",
+                              },
+                              "pending": {
+                                "type": "number",
+                              },
+                            },
+                            "required": [
+                              "active",
+                              "available",
+                              "pending",
+                            ],
+                            "type": "object",
+                          },
+                          "storage": {
+                            "properties": {
+                              "ephemeral": {
+                                "properties": {
+                                  "active": {
+                                    "type": "number",
+                                  },
+                                  "available": {
+                                    "type": "number",
+                                  },
+                                  "pending": {
+                                    "type": "number",
+                                  },
+                                },
+                                "required": [
+                                  "active",
+                                  "available",
+                                  "pending",
+                                ],
+                                "type": "object",
+                              },
+                              "persistent": {
+                                "properties": {
+                                  "active": {
+                                    "type": "number",
+                                  },
+                                  "available": {
+                                    "type": "number",
+                                  },
+                                  "pending": {
+                                    "type": "number",
+                                  },
+                                },
+                                "required": [
+                                  "active",
+                                  "available",
+                                  "pending",
+                                ],
+                                "type": "object",
+                              },
+                            },
+                            "required": [
+                              "ephemeral",
+                              "persistent",
+                            ],
+                            "type": "object",
+                          },
+                        },
+                        "required": [
+                          "cpu",
+                          "gpu",
+                          "memory",
+                          "storage",
+                        ],
+                        "type": "object",
+                      },
                       "statusPage": {
                         "nullable": true,
                         "type": "string",
@@ -15626,6 +16389,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                       "isOnline",
                       "lastOnlineDate",
                       "isAudited",
+                      "stats",
                       "gpuModels",
                       "attributes",
                       "host",

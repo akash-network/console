@@ -11,8 +11,11 @@ import {
   ProviderActiveLeasesGraphDataResponseSchema,
   ProviderListQuerySchema,
   ProviderListResponseSchema,
+  ProviderLocationsResponseSchema,
   ProviderParamsSchema,
-  ProviderResponseSchema
+  ProviderResponseSchema,
+  ProviderSearchQuerySchema,
+  ProviderSearchResponseSchema
 } from "@src/provider/http-schemas/provider.schema";
 
 export const providersRouter = new OpenApiHonoHandler();
@@ -53,6 +56,60 @@ providersRouter.openapi(providerListRoute, async function routeListProviders(c) 
     status: 200,
     headers: { "Content-Type": "application/json" }
   }) as unknown as TypedResponse<ProviderListResponse, 200, "json">;
+});
+
+const providerSearchRoute = createRoute({
+  method: "get",
+  path: "/v1/provider-search",
+  summary: "Search providers, one page at a time.",
+  description: "Filters and sorts every provider on the network, then answers the requested page along with how many providers matched.",
+  tags: ["Providers"],
+  security: SECURITY_NONE,
+  cache: { maxAge: 60, staleWhileRevalidate: 120 },
+  request: {
+    query: ProviderSearchQuerySchema
+  },
+  responses: {
+    200: {
+      description: "Returns a page of the providers matching the search",
+      content: {
+        "application/json": {
+          schema: ProviderSearchResponseSchema
+        }
+      }
+    },
+    400: {
+      description: "Invalid search parameters"
+    }
+  }
+});
+
+providersRouter.openapi(providerSearchRoute, async function routeSearchProviders(c) {
+  return c.json(await container.resolve(ProviderController).searchProviders(c.req.valid("query")), 200);
+});
+
+const providerLocationsRoute = createRoute({
+  method: "get",
+  path: "/v1/provider-locations",
+  summary: "Get where each online provider is.",
+  description: "Locates every online provider by its IP address, for drawing providers on a map without loading the full provider list.",
+  tags: ["Providers"],
+  security: SECURITY_NONE,
+  cache: { maxAge: 60, staleWhileRevalidate: 120 },
+  responses: {
+    200: {
+      description: "Returns the location of every online provider",
+      content: {
+        "application/json": {
+          schema: ProviderLocationsResponseSchema
+        }
+      }
+    }
+  }
+});
+
+providersRouter.openapi(providerLocationsRoute, async function routeListProviderLocations(c) {
+  return c.json(await container.resolve(ProviderController).findProviderLocations(), 200);
 });
 
 const providerRoute = createRoute({
