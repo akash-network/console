@@ -153,7 +153,7 @@ Every step claims an `indexer_state` marker (`act-migration:upgrade`, `act-migra
 
 ## Delegation from the legacy API
 
-`apps/api` keeps serving its legacy chain endpoints unchanged while, one endpoint at a time, the data behind them comes from this indexer. Each endpoint has its own Unleash flag, so a cutover is a flag flip and a rollback is the same flip back; the legacy path stays in place until decommission. `apps/api` needs `CHAIN_INDEXER_API_BASE_URL` pointing at an api role; without it every flag is ignored.
+`apps/api` keeps serving its legacy chain endpoints unchanged while, one endpoint at a time, the data behind them comes from this indexer. Each endpoint has its own Unleash flag, so a cutover is a flag flip and a rollback is the same flip back; the legacy path stays in place until decommission. `apps/api` needs `CHAIN_INDEXER_API_BASE_URL` pointing at an api role; without it every flag is ignored, and a malformed value fails its boot. A delegated request gives up after `CHAIN_INDEXER_REQUEST_TIMEOUT_MS` (10 s by default), so an unresponsive api role fails the request instead of hanging it.
 
 | Legacy endpoint                                            | Flag                                 | Served from                                |
 | ---------------------------------------------------------- | ------------------------------------ | ------------------------------------------ |

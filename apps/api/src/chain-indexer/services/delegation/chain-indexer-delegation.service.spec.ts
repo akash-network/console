@@ -35,7 +35,7 @@ describe(ChainIndexerDelegationService.name, () => {
   });
 
   function setup(input: { baseUrl: string | undefined; flagsOn: boolean }) {
-    const config: ChainIndexerConfig = { CHAIN_INDEXER_API_BASE_URL: input.baseUrl };
+    const config: ChainIndexerConfig = { CHAIN_INDEXER_API_BASE_URL: input.baseUrl, CHAIN_INDEXER_REQUEST_TIMEOUT_MS: 10_000 };
     const featureFlags = mock<FeatureFlagsService>({ isEnabled: vi.fn(() => input.flagsOn) });
     const service = new ChainIndexerDelegationService(config, featureFlags);
     return { service, featureFlags };

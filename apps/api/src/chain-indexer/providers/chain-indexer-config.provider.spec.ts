@@ -19,11 +19,11 @@ describe(createChainIndexerConfigInitializer.name, () => {
     expect(config().CHAIN_INDEXER_API_BASE_URL).toBeUndefined();
   });
 
-  it("starts with a valid url", async () => {
+  it("starts with a valid url and a default request timeout", async () => {
     const { startUp, config } = setup({ CHAIN_INDEXER_API_BASE_URL: "https://chain-indexer.internal" });
 
     await expect(startUp()).resolves.toBeUndefined();
-    expect(config().CHAIN_INDEXER_API_BASE_URL).toBe("https://chain-indexer.internal");
+    expect(config()).toEqual({ CHAIN_INDEXER_API_BASE_URL: "https://chain-indexer.internal", CHAIN_INDEXER_REQUEST_TIMEOUT_MS: 10_000 });
   });
 
   function setup(env: Record<string, string>) {

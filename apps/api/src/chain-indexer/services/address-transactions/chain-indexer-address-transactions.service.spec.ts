@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { mockDeep } from "vitest-mock-extended";
 
+import type { ChainIndexerConfig } from "@src/chain-indexer/config/env.config";
 import type { ChainIndexerApiClient } from "@src/chain-indexer/providers/chain-indexer-api.provider";
 import { ChainIndexerAddressTransactionsService } from "@src/chain-indexer/services/address-transactions/chain-indexer-address-transactions.service";
 
@@ -99,18 +100,32 @@ describe(ChainIndexerAddressTransactionsService.name, () => {
     expect(result.results[0].fee).toBe(500);
   });
 
-  it("passes the page through to the api role", async () => {
+  it("passes the page through to the api role with a request deadline", async () => {
     const { service, api } = setup({ data: { total: 0, transactions: [] } });
 
     await service.getTransactionsByAddress("akash1a", 40, 20);
 
-    expect(api.v1.listAddressTransactions).toHaveBeenCalledWith({ address: "akash1a", skip: 40, limit: 20 });
+    expect(api.v1.listAddressTransactions).toHaveBeenCalledWith({ address: "akash1a", skip: 40, limit: 20 }, { signal: expect.any(AbortSignal) });
   });
 
-  function setup(response: ListAddressTransactionsResponse) {
+  it("aborts the request once the configured timeout elapses", async () => {
+    const { service, api } = setup({ data: { total: 0, transactions: [] } }, { timeoutMs: 1 });
+
+    await service.getTransactionsByAddress("akash1a", 0, 20);
+    await new Promise(resolve => setTimeout(resolve, 20));
+
+    const [, options] = api.v1.listAddressTransactions.mock.calls[0];
+    expect(options?.signal?.aborted).toBe(true);
+  });
+
+  function setup(response: ListAddressTransactionsResponse, input: { timeoutMs?: number } = {}) {
     const api = mockDeep<ChainIndexerApiClient>();
     api.v1.listAddressTransactions.mockResolvedValue(response);
-    const service = new ChainIndexerAddressTransactionsService(api);
+    const config: ChainIndexerConfig = {
+      CHAIN_INDEXER_API_BASE_URL: "https://chain-indexer.test",
+      CHAIN_INDEXER_REQUEST_TIMEOUT_MS: input.timeoutMs ?? 10_000
+    };
+    const service = new ChainIndexerAddressTransactionsService(api, config);
     return { service, api };
   }
 });

@@ -3,6 +3,7 @@ import { container } from "tsyringe";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
 import { GetAddressTransactionsResponseSchema } from "@src/address/http-schemas/address.schema";
+import { envSchema } from "@src/chain-indexer/config/env.config";
 import { CHAIN_INDEXER_CONFIG } from "@src/chain-indexer/providers/chain-indexer-config.provider";
 import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import { DashboardDataResponseSchema } from "@src/dashboard/http-schemas/dashboard-data/dashboard-data.schema";
@@ -12,7 +13,7 @@ import { createAkashAddress } from "@test/seeders/akash-address.seeder";
 
 const CHAIN_INDEXER_URL = "http://chain-indexer.test";
 
-container.register(CHAIN_INDEXER_CONFIG, { useValue: { CHAIN_INDEXER_API_BASE_URL: CHAIN_INDEXER_URL } });
+container.register(CHAIN_INDEXER_CONFIG, { useValue: envSchema.parse({ CHAIN_INDEXER_API_BASE_URL: CHAIN_INDEXER_URL }) });
 
 describe("Chain indexer delegation", () => {
   beforeAll(async () => {

@@ -1,8 +1,10 @@
 import { inject, singleton } from "tsyringe";
 
 import type { GetAddressTransactionsResponse } from "@src/address/http-schemas/address.schema";
+import type { ChainIndexerConfig } from "@src/chain-indexer/config/env.config";
 import type { ChainIndexerApiClient } from "@src/chain-indexer/providers/chain-indexer-api.provider";
 import { CHAIN_INDEXER_API_CLIENT } from "@src/chain-indexer/providers/chain-indexer-api.provider";
+import { CHAIN_INDEXER_CONFIG } from "@src/chain-indexer/providers/chain-indexer-config.provider";
 
 type ChainIndexerTransaction = Awaited<ReturnType<ChainIndexerApiClient["v1"]["listAddressTransactions"]>>["data"]["transactions"][number];
 
@@ -10,13 +12,18 @@ type ChainIndexerTransaction = Awaited<ReturnType<ChainIndexerApiClient["v1"]["l
 @singleton()
 export class ChainIndexerAddressTransactionsService {
   readonly #api: ChainIndexerApiClient;
+  readonly #config: ChainIndexerConfig;
 
-  constructor(@inject(CHAIN_INDEXER_API_CLIENT) api: ChainIndexerApiClient) {
+  constructor(@inject(CHAIN_INDEXER_API_CLIENT) api: ChainIndexerApiClient, @inject(CHAIN_INDEXER_CONFIG) config: ChainIndexerConfig) {
     this.#api = api;
+    this.#config = config;
   }
 
   async getTransactionsByAddress(address: string, skip: number, limit: number): Promise<GetAddressTransactionsResponse> {
-    const { data } = await this.#api.v1.listAddressTransactions({ address, skip, limit });
+    const { data } = await this.#api.v1.listAddressTransactions(
+      { address, skip, limit },
+      { signal: AbortSignal.timeout(this.#config.CHAIN_INDEXER_REQUEST_TIMEOUT_MS) }
+    );
     return { count: data.total, results: data.transactions.map(toLegacyTransaction) };
   }
 }

@@ -1,7 +1,9 @@
 import { inject, singleton } from "tsyringe";
 
+import type { ChainIndexerConfig } from "@src/chain-indexer/config/env.config";
 import type { ChainIndexerApiClient } from "@src/chain-indexer/providers/chain-indexer-api.provider";
 import { CHAIN_INDEXER_API_CLIENT } from "@src/chain-indexer/providers/chain-indexer-api.provider";
+import { CHAIN_INDEXER_CONFIG } from "@src/chain-indexer/providers/chain-indexer-config.provider";
 import type { DashboardDataResponse } from "@src/dashboard/http-schemas/dashboard-data/dashboard-data.schema";
 
 type NetworkStats = Awaited<ReturnType<ChainIndexerApiClient["v1"]["getNetworkStats"]>>["data"];
@@ -17,13 +19,18 @@ const DAYS_TO_FETCH = 3;
 @singleton()
 export class ChainIndexerDashboardStatsService {
   readonly #api: ChainIndexerApiClient;
+  readonly #config: ChainIndexerConfig;
 
-  constructor(@inject(CHAIN_INDEXER_API_CLIENT) api: ChainIndexerApiClient) {
+  constructor(@inject(CHAIN_INDEXER_API_CLIENT) api: ChainIndexerApiClient, @inject(CHAIN_INDEXER_CONFIG) config: ChainIndexerConfig) {
     this.#api = api;
+    this.#config = config;
   }
 
   async getDashboardData(): Promise<{ now: DashboardStats; compare: DashboardStats }> {
-    const { data } = await this.#api.v1.getNetworkStats({ days: DAYS_TO_FETCH });
+    const { data } = await this.#api.v1.getNetworkStats(
+      { days: DAYS_TO_FETCH },
+      { signal: AbortSignal.timeout(this.#config.CHAIN_INDEXER_REQUEST_TIMEOUT_MS) }
+    );
     const compareDay = pickDayClosestTo24HoursBefore(new Date(data.datetime), data.daily);
     const compare = compareDay ? dayStats(compareDay) : liveStatsWithoutDeltas(data);
     return { now: liveStats(data, compare), compare };

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { mockDeep } from "vitest-mock-extended";
 
+import type { ChainIndexerConfig } from "@src/chain-indexer/config/env.config";
 import type { ChainIndexerApiClient } from "@src/chain-indexer/providers/chain-indexer-api.provider";
 import { ChainIndexerDashboardStatsService } from "@src/chain-indexer/services/dashboard-stats/chain-indexer-dashboard-stats.service";
 
@@ -43,6 +44,14 @@ describe(ChainIndexerDashboardStatsService.name, () => {
     expect(now.dailyLeaseCount).toBe(200);
   });
 
+  it("asks the api role for three closed days with a request deadline", async () => {
+    const { service, api } = setup({ datetime: "2026-09-26T02:00:00.000Z", daily: [] });
+
+    await service.getDashboardData();
+
+    expect(api.v1.getNetworkStats).toHaveBeenCalledWith({ days: 3 }, { signal: expect.any(AbortSignal) });
+  });
+
   it("compares against the live block itself when no day has closed yet", async () => {
     const { service } = setup({ datetime: "2026-09-26T02:00:00.000Z", daily: [] });
 
@@ -82,7 +91,8 @@ describe(ChainIndexerDashboardStatsService.name, () => {
         daily: input.daily
       }
     });
-    const service = new ChainIndexerDashboardStatsService(api);
+    const config: ChainIndexerConfig = { CHAIN_INDEXER_API_BASE_URL: "https://chain-indexer.test", CHAIN_INDEXER_REQUEST_TIMEOUT_MS: 10_000 };
+    const service = new ChainIndexerDashboardStatsService(api, config);
     return { service, api };
   }
 });

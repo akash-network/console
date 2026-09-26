@@ -4,7 +4,9 @@ import { z } from "zod";
 const emptyStringAsUndefined = (value: unknown) => (typeof value === "string" && value.trim() === "" ? undefined : value);
 
 export const envSchema = z.object({
-  CHAIN_INDEXER_API_BASE_URL: z.preprocess(emptyStringAsUndefined, z.string().url().optional())
+  CHAIN_INDEXER_API_BASE_URL: z.preprocess(emptyStringAsUndefined, z.string().url().optional()),
+  /** A delegated request fails after this instead of hanging the legacy endpoint on an unresponsive api role. */
+  CHAIN_INDEXER_REQUEST_TIMEOUT_MS: z.coerce.number().int().positive().default(10_000)
 });
 
 export type ChainIndexerConfig = z.infer<typeof envSchema>;
