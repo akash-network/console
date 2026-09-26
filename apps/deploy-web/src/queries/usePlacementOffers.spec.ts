@@ -369,7 +369,7 @@ describe(usePlacementOffers.name, () => {
     const useScreenedProviders = vi.fn(() => ({ providers: input.screened, isLoading: false, isError: false, isInvalid: input.screenedInvalid ?? false }));
     const useProviderList = vi.fn(() => ({ data: input.providerList ?? [], isLoading: false, isError: false }));
     const addressLookup = input.addressLookup ?? [];
-    const useProvidersByAddress = vi.fn((_addresses: string[]) => ({ data: addressLookup, isLoading: false, isError: false }));
+    const useProvidersByAddress = vi.fn((_addresses: string[]) => addressLookup);
     const dependencies: typeof DEPENDENCIES = {
       useScreenedProviders: useScreenedProviders as never,
       useListBids: (() => ({ data: { data: bids }, isLoading: input.bidsLoading ?? false, isError: input.bidsError ?? false })) as never,

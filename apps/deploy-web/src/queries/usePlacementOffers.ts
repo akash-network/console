@@ -85,10 +85,10 @@ export function usePlacementOffers(
       isScreening ? [] : placementBids.map(entry => entry.bid.id.provider).filter(owner => !screenedByOwner.has(owner) && !listedByOwner.has(owner)),
     [isScreening, placementBids, screenedByOwner, listedByOwner]
   );
-  const unlistedBiddersQuery = dependencies.useProvidersByAddress(unlistedBidders);
+  const unlistedBidderProviders = dependencies.useProvidersByAddress(unlistedBidders);
   const providersByOwner = useMemo(
-    () => new Map<string, BidderProvider>([...listedByOwner, ...(unlistedBiddersQuery.data ?? []).map(provider => [provider.owner, provider] as const)]),
-    [listedByOwner, unlistedBiddersQuery.data]
+    () => new Map<string, BidderProvider>([...listedByOwner, ...unlistedBidderProviders.map(provider => [provider.owner, provider] as const)]),
+    [listedByOwner, unlistedBidderProviders]
   );
 
   const offers = useMemo(
