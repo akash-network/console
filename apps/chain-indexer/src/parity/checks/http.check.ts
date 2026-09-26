@@ -45,10 +45,25 @@ export class HttpCheck implements ParityCheck {
   }
 
   async run(): Promise<CheckResult> {
-    const parts = [await this.#blockDetail(), await this.#blocksList(), await this.#addressTransactions(), await this.#networkStats()];
+    const parts = [
+      await this.#runPart("block-detail", () => this.#blockDetail()),
+      await this.#runPart("blocks-list", () => this.#blocksList()),
+      await this.#runPart("address-transactions", () => this.#addressTransactions()),
+      await this.#runPart("network-stats", () => this.#networkStats())
+    ];
     const mismatches = parts.flatMap(part => part.mismatches);
     const status = mismatches.length > 0 ? "fail" : parts.every(part => part.skipped) ? "skipped" : "pass";
     return { name: this.name, status, summary: parts.map(part => `${part.name}: ${part.summary}`).join("; "), mismatches };
+  }
+
+  /** One unreachable endpoint fails its own part and leaves the other parts' evidence in the report. */
+  async #runPart(name: string, part: () => Promise<Part>): Promise<Part> {
+    try {
+      return await part();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      return { name, summary: `threw: ${message}`, skipped: false, mismatches: [{ subject: name, expected: "HTTP 200 from both sides", actual: message }] };
+    }
   }
 
   async #blockDetail(): Promise<Part> {
@@ -57,11 +72,21 @@ export class HttpCheck implements ParityCheck {
     if (heights.length === 0) return { name, summary: "skipped (no heights configured)", skipped: true, mismatches: [] };
 
     const mismatches: Mismatch[] = [];
+    let unreached = 0;
     for (const height of heights) {
       const [legacy, v2] = await Promise.all([this.#legacy(`/v1/blocks/${height}`), this.#v2(`/v1/blocks/${height}`)]);
-      mismatches.push(...compareResources(`block ${height}`, legacy, v2, normalizeLegacyBlock, normalizeV2Block));
+      const comparison = compareResources(`block ${height}`, legacy, v2, normalizeLegacyBlock, normalizeV2Block);
+      if (comparison === undefined) {
+        unreached++;
+        continue;
+      }
+      mismatches.push(...comparison);
     }
-    return { name, summary: agreement(heights.length, "height", "heights", mismatches.length), skipped: false, mismatches };
+
+    const comparable = heights.length - unreached;
+    if (comparable === 0) return { name, summary: "skipped (no configured height reached on both sides)", skipped: true, mismatches: [] };
+    const summary = agreement(comparable, "height", "heights", mismatches.length);
+    return { name, summary: unreached === 0 ? summary : `${summary}, ${unreached} not reached on both sides`, skipped: false, mismatches };
   }
 
   async #blocksList(): Promise<Part> {
@@ -94,7 +119,7 @@ export class HttpCheck implements ParityCheck {
         notComparable++;
         continue;
       }
-      mismatches.push(...diffJson(aligned.legacy, aligned.v2, `address ${address}`));
+      mismatches.push(...compareAddressHistory(`address ${address}`, aligned.legacy, aligned.v2));
     }
     const summary = agreement(addresses.length - notComparable, "address", "addresses", mismatches.length);
     return {
@@ -149,20 +174,44 @@ function requireOk(url: string, response: JsonResponse): unknown {
   return response.body;
 }
 
+/** Undefined means neither side serves the resource, which is a tip gap to skip, not an agreement. */
 function compareResources<T>(
   subject: string,
   legacy: JsonResponse,
   v2: JsonResponse,
   normalizeLegacy: (body: unknown) => T,
   normalizeV2: (body: unknown) => T
-): Mismatch[] {
+): Mismatch[] | undefined {
   if (legacy.status !== 200 || v2.status !== 200) {
-    return legacy.status === v2.status ? [] : [{ subject, expected: { status: legacy.status }, actual: { status: v2.status } }];
+    return legacy.status === v2.status ? undefined : [{ subject, expected: { status: legacy.status }, actual: { status: v2.status } }];
   }
   return diffJson(normalizeLegacy(legacy.body), normalizeV2(v2.body), subject);
 }
 
-/** Both pages are newest first, so entries above the other side's newest height come from a tip gap, not from a difference in what was indexed. */
+/** Entries are matched by hash, so one transaction present on a single side is reported once instead of shifting every entry after it. */
+function compareAddressHistory(subject: string, legacy: NormalizedAddressTransactions, v2: NormalizedAddressTransactions): Mismatch[] {
+  const mismatches: Mismatch[] = [];
+  if (legacy.total !== v2.total) {
+    mismatches.push({ subject: `${subject}.total`, expected: legacy.total, actual: v2.total });
+  }
+
+  const v2ByHash = new Map(v2.transactions.map(tx => [tx.hash, tx]));
+  for (const tx of legacy.transactions) {
+    const counterpart = v2ByHash.get(tx.hash);
+    if (!counterpart) {
+      mismatches.push({ subject: `${subject}.transactions[${tx.hash}]`, expected: `present at height ${tx.height}`, actual: "missing" });
+      continue;
+    }
+    mismatches.push(...diffJson(tx, counterpart, `${subject}.transactions[${tx.hash}]`));
+    v2ByHash.delete(tx.hash);
+  }
+  for (const tx of v2ByHash.values()) {
+    mismatches.push({ subject: `${subject}.transactions[${tx.hash}]`, expected: "missing", actual: `present at height ${tx.height}` });
+  }
+  return mismatches;
+}
+
+/** Both pages are newest first: entries above the other side's newest height come from a tip gap, and entries below the other side's oldest fall outside its page, so neither says anything about what was indexed. */
 function alignOnNewestSharedHeight(
   legacy: NormalizedAddressTransactions,
   v2: NormalizedAddressTransactions
@@ -174,15 +223,22 @@ function alignOnNewestSharedHeight(
   }
 
   const sharedTop = Math.min(legacyTop, v2Top);
-  const legacyKept = legacy.transactions.filter(tx => (tx.height ?? 0) <= sharedTop);
-  const v2Kept = v2.transactions.filter(tx => (tx.height ?? 0) <= sharedTop);
-  if (legacyKept.length === 0 || v2Kept.length === 0) return undefined;
+  const legacyBelowTop = legacy.transactions.filter(tx => (tx.height ?? 0) <= sharedTop);
+  const v2BelowTop = v2.transactions.filter(tx => (tx.height ?? 0) <= sharedTop);
+  if (legacyBelowTop.length === 0 || v2BelowTop.length === 0) return undefined;
 
-  const comparable = Math.min(legacyKept.length, v2Kept.length);
+  const sharedFloor = Math.max(oldestHeight(legacyBelowTop), oldestHeight(v2BelowTop));
   return {
-    legacy: { total: legacy.total - (legacy.transactions.length - legacyKept.length), transactions: legacyKept.slice(0, comparable) },
-    v2: { total: v2.total - (v2.transactions.length - v2Kept.length), transactions: v2Kept.slice(0, comparable) }
+    legacy: {
+      total: legacy.total - (legacy.transactions.length - legacyBelowTop.length),
+      transactions: legacyBelowTop.filter(tx => (tx.height ?? 0) >= sharedFloor)
+    },
+    v2: { total: v2.total - (v2.transactions.length - v2BelowTop.length), transactions: v2BelowTop.filter(tx => (tx.height ?? 0) >= sharedFloor) }
   };
+}
+
+function oldestHeight(transactions: NormalizedAddressTransactions["transactions"]): number {
+  return transactions[transactions.length - 1].height ?? 0;
 }
 
 function agreement(count: number, singular: string, plural: string, differences: number): string {

@@ -1,6 +1,6 @@
 import { sql } from "drizzle-orm";
 import { container } from "tsyringe";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, onTestFinished } from "vitest";
 
 import { Blocks } from "@src/db/schema";
 import { DailyCountsCheck } from "@src/parity/checks/daily-counts.check";
@@ -69,6 +69,7 @@ describe(DailyCountsCheck.name, () => {
     }
 
     const legacy = createLegacyDatabase(process.env.POSTGRES_DB_URI!);
+    onTestFinished(() => legacy.end());
     const check = new DailyCountsCheck(db, legacy);
     return { check };
   }

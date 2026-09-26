@@ -1,6 +1,6 @@
 import { sql } from "drizzle-orm";
 import { container } from "tsyringe";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, onTestFinished } from "vitest";
 
 import { Accounts, DeploymentGroups, Deployments, Leases, Providers } from "@src/db/schema";
 import { ActiveSetsCheck } from "@src/parity/checks/active-sets.check";
@@ -89,6 +89,7 @@ describe(ActiveSetsCheck.name, () => {
     await db.execute(sql`INSERT INTO public.provider VALUES (5, NULL)`);
 
     const legacy = createLegacyDatabase(process.env.POSTGRES_DB_URI!);
+    onTestFinished(() => legacy.end());
     const check = new ActiveSetsCheck(db, legacy, [20, 40]);
     return { check };
   }

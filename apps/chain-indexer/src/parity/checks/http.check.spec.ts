@@ -52,6 +52,44 @@ describe(HttpCheck.name, () => {
     expect(result.mismatches).toEqual([{ subject: "block 10", expected: { status: 200 }, actual: { status: 404 } }]);
   });
 
+  it("counts a height neither side has reached as not comparable instead of agreeing", async () => {
+    const { check } = setup({
+      heights: [10, 99],
+      legacyOverrides: { [`${LEGACY}/v1/blocks/99`]: { status: 404, body: {} } },
+      v2Overrides: { [`${V2}/v1/blocks/99`]: { status: 404, body: {} } }
+    });
+
+    const result = await check.run();
+
+    expect(result.status).toBe("pass");
+    expect(result.summary).toContain("block-detail: 1 height agrees, 1 not reached on both sides");
+  });
+
+  it("skips block detail when no configured height is reached on both sides", async () => {
+    const { check } = setup({
+      heights: [99],
+      legacyOverrides: { [`${LEGACY}/v1/blocks/99`]: { status: 404, body: {} } },
+      v2Overrides: { [`${V2}/v1/blocks/99`]: { status: 404, body: {} } }
+    });
+
+    const result = await check.run();
+
+    expect(result.summary).toContain("block-detail: skipped (no configured height reached on both sides)");
+  });
+
+  it("keeps the other parts' results when one part's endpoint fails", async () => {
+    const { check } = setup({ heights: [10], legacyOverrides: { [`${LEGACY}/v1/blocks?limit=2`]: { status: 500, body: {} } } });
+
+    const result = await check.run();
+
+    expect(result.status).toBe("fail");
+    expect(result.summary).toContain("block-detail: 1 height agrees");
+    expect(result.summary).toContain("blocks-list: threw:");
+    expect(result.mismatches).toEqual([
+      { subject: "blocks-list", expected: "HTTP 200 from both sides", actual: `${LEGACY}/v1/blocks?limit=2 returned HTTP 500` }
+    ]);
+  });
+
   it("compares the block list only over the heights both sides return", async () => {
     const { check } = setup({ legacyOverrides: { [`${LEGACY}/v1/blocks?limit=2`]: [legacySummary(13, 4), legacySummary(12, 1)] } });
 
@@ -73,6 +111,22 @@ describe(HttpCheck.name, () => {
 
     expect(result.status).toBe("pass");
     expect(result.summary).toContain("address-transactions: 1 address agrees");
+  });
+
+  it("reports an extra transaction on one side once instead of shifting every entry after it", async () => {
+    const { check } = setup({
+      addresses: ["akash1a"],
+      v2Overrides: {
+        [`${V2}/v1/addresses/akash1a/transactions?skip=0&limit=2`]: { data: { total: 6, transactions: [v2Tx(12, "T9"), v2Tx(11, "X1"), v2Tx(11, "T8")] } }
+      }
+    });
+
+    const result = await check.run();
+
+    expect(result.mismatches).toEqual([
+      { subject: "address akash1a.total", expected: 5, actual: 6 },
+      { subject: "address akash1a.transactions[X1]", expected: "missing", actual: "present at height 11" }
+    ]);
   });
 
   it("fails when the aligned address totals differ", async () => {
