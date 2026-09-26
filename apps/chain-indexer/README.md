@@ -9,7 +9,7 @@ INDEXER_ROLE = sync | backfill | api | jobs
 NETWORK      = mainnet | sandbox | testnet
 ```
 
-Currently implemented: `sync` (live tail with per-block atomic commits and a parent-hash continuity check), `backfill` (historical catch-up over an explicit height range, or an archive-only pass that fills the raw block archive), and a minimal `api` (healthz + status). `jobs` exits with `ROLE_NOT_IMPLEMENTED`. The full mainnet procedure lives in [docs/mainnet-backfill-runbook.md](docs/mainnet-backfill-runbook.md).
+Currently implemented: `sync` (live tail with per-block atomic commits and a parent-hash continuity check), `backfill` (historical catch-up over an explicit height range, an archive-only pass that fills the raw block archive, or a single-module replay), and `api` (the read-only REST service below). `jobs` exits with `ROLE_NOT_IMPLEMENTED`. The full mainnet procedure lives in [docs/mainnet-backfill-runbook.md](docs/mainnet-backfill-runbook.md).
 
 ## Scope
 
@@ -39,6 +39,32 @@ curl localhost:3092/v1/status
 ```
 
 The checkpoint height should advance as blocks land in `cosmos.blocks`, `cosmos.transactions`, and `cosmos.messages`.
+
+## Public API
+
+`INDEXER_ROLE=api` serves a stateless, read-only REST API over the indexed data, documented at `GET /v1/doc` (OpenAPI 3.0). Any number of replicas can run; none of them writes. The first endpoints target the worst offenders of the legacy API:
+
+| Endpoint                                                   | Serves                                                                                               |
+| ---------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| `GET /v1/blocks?limit=20`                                  | The most recent blocks with their proposer resolved to a validator                                   |
+| `GET /v1/blocks/{height}`                                  | One block with its transactions and their message types                                              |
+| `GET /v1/addresses/{address}/transactions?skip=0&limit=20` | An address's transactions newest first, with the roles it played in each and the total               |
+| `GET /v1/network-stats?days=30`                            | Active leases, resources and spend as of the last aggregated block, plus the most recent closed days |
+| `GET /v1/status`                                           | Per-stream checkpoints, dead letters and deferred indexes                                            |
+
+Address history reads the activity log, whose primary key `(account_id, height, tx_index, role)` lets one backward index scan order a page and fold the roles per transaction; the total is an index-only count over the same prefix. Blocks and transactions are primary-key lookups. Hashes are uppercase hex, and exact amounts (spend totals, fees) travel as strings.
+
+The api role connects with `default_transaction_read_only` on and a per-statement timeout (`API_STATEMENT_TIMEOUT_MS`, default 30 s), whatever credentials it is given, and it never runs migrations: point `POSTGRES_DB_URI` at a read-only database role and deploy a writer role first. `SERVER_ORIGIN` is advertised as the server in the OpenAPI document.
+
+Internal consumers get a typed client from the committed OpenAPI document. `npm run swagger:gen` rebuilds `swagger/openapi.json` from the routes, and `npm run generate:chain-indexer -w packages/console-api-types` regenerates the `@akashnetwork/console-api-types/chain-indexer` entry consumed through `@akashnetwork/openapi-sdk`:
+
+```ts
+import { createApi } from "@akashnetwork/openapi-sdk";
+import { operations, type paths } from "@akashnetwork/console-api-types/chain-indexer";
+
+const api = createApi<paths, typeof operations>(operations, { baseUrl: "https://chain-indexer.example" });
+const { data } = await api.v1.listAddressTransactions({ address, skip: 0, limit: 20 });
+```
 
 ## Genesis import
 

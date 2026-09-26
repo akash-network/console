@@ -8,12 +8,14 @@
     "./package.json": "./package.json",
     ".": "./src/index.ts",
     "./notifications": "./src/notifications/index.ts",
-    "./notifications/internal": "./src/notifications/internal/index.ts"
+    "./notifications/internal": "./src/notifications/internal/index.ts",
+    "./chain-indexer": "./src/chain-indexer/index.ts"
   },
   "main": "src/index.ts",
   "scripts": {
     "format": "prettier --write ./*.{ts,json} **/*.{ts,json}",
-    "generate": "npm run generate:console && npm run generate:notifications && npm run generate:notifications-internal",
+    "generate": "npm run generate:console && npm run generate:notifications && npm run generate:notifications-internal && npm run generate:chain-indexer",
+    "generate:chain-indexer": "openapi-typescript ../../apps/chain-indexer/swagger/openapi.json -o src/chain-indexer/schema.d.ts && node --experimental-strip-types scripts/gen-operations.ts ../../apps/chain-indexer/swagger/openapi.json src/chain-indexer/operations.gen.ts",
     "generate:console": "openapi-typescript ../../apps/api/swagger/openapi.json -o src/schema.d.ts && node --experimental-strip-types scripts/gen-operations.ts ../../apps/api/swagger/openapi.json src/operations.gen.ts",
     "generate:notifications": "openapi-typescript ../../apps/notifications/swagger/swagger.json -o src/notifications/schema.d.ts && node --experimental-strip-types scripts/gen-operations.ts ../../apps/notifications/swagger/swagger.json src/notifications/operations.gen.ts",
     "generate:notifications-internal": "openapi-typescript ../../apps/notifications/swagger/swagger.internal.json -o src/notifications/internal/schema.d.ts && node --experimental-strip-types scripts/gen-operations.ts ../../apps/notifications/swagger/swagger.internal.json src/notifications/internal/operations.gen.ts",

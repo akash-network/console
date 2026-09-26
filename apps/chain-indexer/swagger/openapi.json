@@ -1,0 +1,796 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Akash Chain Indexer API",
+    "description": "Read-only access to the chain data the Akash chain indexer derives from akashnet-2 and its test networks.",
+    "version": "v1"
+  },
+  "servers": [],
+  "paths": {
+    "/v1/healthz": {
+      "get": {
+        "summary": "Health check",
+        "tags": [
+          "Healthz"
+        ],
+        "responses": {
+          "200": {
+            "description": "Returns ok",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "ok"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "status"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/status": {
+      "get": {
+        "operationId": "getStatus",
+        "summary": "Indexer status with per-stream checkpoints",
+        "tags": [
+          "Status"
+        ],
+        "responses": {
+          "200": {
+            "description": "Returns the indexer role, network, and checkpoints",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "network": {
+                          "type": "string"
+                        },
+                        "role": {
+                          "type": "string"
+                        },
+                        "checkpoints": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "stream": {
+                                "type": "string"
+                              },
+                              "lastHeight": {
+                                "type": "number"
+                              },
+                              "updatedAt": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "stream",
+                              "lastHeight",
+                              "updatedAt"
+                            ]
+                          }
+                        },
+                        "deadLetters": {
+                          "type": "object",
+                          "properties": {
+                            "total": {
+                              "type": "number"
+                            },
+                            "byType": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "type": {
+                                    "type": "string"
+                                  },
+                                  "count": {
+                                    "type": "number"
+                                  }
+                                },
+                                "required": [
+                                  "type",
+                                  "count"
+                                ]
+                              }
+                            }
+                          },
+                          "required": [
+                            "total",
+                            "byType"
+                          ]
+                        },
+                        "deferredIndexes": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        }
+                      },
+                      "required": [
+                        "network",
+                        "role",
+                        "checkpoints",
+                        "deadLetters",
+                        "deferredIndexes"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/blocks": {
+      "get": {
+        "operationId": "listBlocks",
+        "summary": "List the most recent blocks",
+        "tags": [
+          "Blocks"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20,
+              "description": "Number of most recent blocks to return",
+              "example": 20
+            },
+            "required": false,
+            "name": "limit",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The most recent blocks, newest first",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "height": {
+                            "type": "number"
+                          },
+                          "datetime": {
+                            "type": "string"
+                          },
+                          "hash": {
+                            "type": "string"
+                          },
+                          "proposer": {
+                            "type": "object",
+                            "properties": {
+                              "address": {
+                                "type": "string",
+                                "description": "Consensus (hex) address of the proposer"
+                              },
+                              "operatorAddress": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "moniker": {
+                                "type": "string",
+                                "nullable": true
+                              }
+                            },
+                            "required": [
+                              "address",
+                              "operatorAddress",
+                              "moniker"
+                            ]
+                          },
+                          "transactionCount": {
+                            "type": "number"
+                          }
+                        },
+                        "required": [
+                          "height",
+                          "datetime",
+                          "hash",
+                          "proposer",
+                          "transactionCount"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/blocks/{height}": {
+      "get": {
+        "operationId": "getBlock",
+        "summary": "Get a block with its transactions",
+        "tags": [
+          "Blocks"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "exclusiveMinimum": true,
+              "description": "Block height",
+              "example": 12121212
+            },
+            "required": true,
+            "name": "height",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The block at that height with its transactions and their message types",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "height": {
+                          "type": "number"
+                        },
+                        "datetime": {
+                          "type": "string"
+                        },
+                        "hash": {
+                          "type": "string"
+                        },
+                        "proposer": {
+                          "type": "object",
+                          "properties": {
+                            "address": {
+                              "type": "string",
+                              "description": "Consensus (hex) address of the proposer"
+                            },
+                            "operatorAddress": {
+                              "type": "string",
+                              "nullable": true
+                            },
+                            "moniker": {
+                              "type": "string",
+                              "nullable": true
+                            }
+                          },
+                          "required": [
+                            "address",
+                            "operatorAddress",
+                            "moniker"
+                          ]
+                        },
+                        "transactionCount": {
+                          "type": "number"
+                        },
+                        "parentHash": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "transactions": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "index": {
+                                "type": "number"
+                              },
+                              "hash": {
+                                "type": "string"
+                              },
+                              "code": {
+                                "type": "number"
+                              },
+                              "gasUsed": {
+                                "type": "number"
+                              },
+                              "gasWanted": {
+                                "type": "number"
+                              },
+                              "fee": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "denom": {
+                                      "type": "string"
+                                    },
+                                    "amount": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "required": [
+                                    "denom",
+                                    "amount"
+                                  ]
+                                }
+                              },
+                              "messages": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "index": {
+                                      "type": "number"
+                                    },
+                                    "type": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "required": [
+                                    "index",
+                                    "type"
+                                  ]
+                                }
+                              }
+                            },
+                            "required": [
+                              "index",
+                              "hash",
+                              "code",
+                              "gasUsed",
+                              "gasWanted",
+                              "fee",
+                              "messages"
+                            ]
+                          }
+                        }
+                      },
+                      "required": [
+                        "height",
+                        "datetime",
+                        "hash",
+                        "proposer",
+                        "transactionCount",
+                        "parentHash",
+                        "transactions"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The height is not indexed"
+          }
+        }
+      }
+    },
+    "/v1/addresses/{address}/transactions": {
+      "get": {
+        "operationId": "listAddressTransactions",
+        "summary": "List the transactions an address signed or moved coins in",
+        "tags": [
+          "Addresses",
+          "Transactions"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^akash1[02-9ac-hj-np-z]{38,58}$",
+              "description": "Account address",
+              "example": "akash1xvavd9cad6cxk4k3ac8jwsahfwp4xlwe2s08nv"
+            },
+            "required": true,
+            "name": "address",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "nullable": true,
+              "minimum": 0,
+              "default": 0,
+              "description": "Transactions to skip, newest first",
+              "example": 0
+            },
+            "required": false,
+            "name": "skip",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20,
+              "description": "Transactions to return",
+              "example": 20
+            },
+            "required": false,
+            "name": "limit",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A page of the address's transactions, newest first, with the total",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "total": {
+                          "type": "number"
+                        },
+                        "transactions": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "height": {
+                                "type": "number"
+                              },
+                              "datetime": {
+                                "type": "string"
+                              },
+                              "hash": {
+                                "type": "string"
+                              },
+                              "code": {
+                                "type": "number"
+                              },
+                              "gasUsed": {
+                                "type": "number"
+                              },
+                              "gasWanted": {
+                                "type": "number"
+                              },
+                              "fee": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "denom": {
+                                      "type": "string"
+                                    },
+                                    "amount": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "required": [
+                                    "denom",
+                                    "amount"
+                                  ]
+                                }
+                              },
+                              "roles": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string",
+                                  "enum": [
+                                    "signer",
+                                    "sender",
+                                    "receiver"
+                                  ]
+                                },
+                                "description": "How the address took part: it signed the transaction, or sent or received coins in it"
+                              },
+                              "messages": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "index": {
+                                      "type": "number"
+                                    },
+                                    "type": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "required": [
+                                    "index",
+                                    "type"
+                                  ]
+                                }
+                              }
+                            },
+                            "required": [
+                              "height",
+                              "datetime",
+                              "hash",
+                              "code",
+                              "gasUsed",
+                              "gasWanted",
+                              "fee",
+                              "roles",
+                              "messages"
+                            ]
+                          }
+                        }
+                      },
+                      "required": [
+                        "total",
+                        "transactions"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/network-stats": {
+      "get": {
+        "operationId": "getNetworkStats",
+        "summary": "Get the current network activity and the most recent closed days",
+        "tags": [
+          "Network"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "nullable": true,
+              "minimum": 0,
+              "maximum": 365,
+              "default": 30,
+              "description": "Number of most recent closed UTC days to include",
+              "example": 30
+            },
+            "required": false,
+            "name": "days",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Active leases, resources and spend as of the last aggregated block, plus per-day rollups",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "height": {
+                          "type": "number"
+                        },
+                        "datetime": {
+                          "type": "string"
+                        },
+                        "activeLeaseCount": {
+                          "type": "number"
+                        },
+                        "totalLeaseCount": {
+                          "type": "number"
+                        },
+                        "activeProviderCount": {
+                          "type": "number"
+                        },
+                        "active": {
+                          "type": "object",
+                          "properties": {
+                            "cpuUnits": {
+                              "type": "number"
+                            },
+                            "gpuUnits": {
+                              "type": "number"
+                            },
+                            "memoryBytes": {
+                              "type": "number"
+                            },
+                            "ephemeralStorageBytes": {
+                              "type": "number"
+                            },
+                            "persistentStorageBytes": {
+                              "type": "number"
+                            }
+                          },
+                          "required": [
+                            "cpuUnits",
+                            "gpuUnits",
+                            "memoryBytes",
+                            "ephemeralStorageBytes",
+                            "persistentStorageBytes"
+                          ]
+                        },
+                        "totalSpent": {
+                          "type": "object",
+                          "properties": {
+                            "uakt": {
+                              "type": "string"
+                            },
+                            "uusdc": {
+                              "type": "string"
+                            },
+                            "uact": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "uakt",
+                            "uusdc",
+                            "uact"
+                          ]
+                        },
+                        "daily": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "date": {
+                                "type": "string"
+                              },
+                              "closeHeight": {
+                                "type": "number"
+                              },
+                              "activeLeaseCount": {
+                                "type": "number"
+                              },
+                              "totalLeaseCount": {
+                                "type": "number"
+                              },
+                              "dailyLeaseCount": {
+                                "type": "number"
+                              },
+                              "activeProviderCount": {
+                                "type": "number"
+                              },
+                              "active": {
+                                "type": "object",
+                                "properties": {
+                                  "cpuUnits": {
+                                    "type": "number"
+                                  },
+                                  "gpuUnits": {
+                                    "type": "number"
+                                  },
+                                  "memoryBytes": {
+                                    "type": "number"
+                                  },
+                                  "ephemeralStorageBytes": {
+                                    "type": "number"
+                                  },
+                                  "persistentStorageBytes": {
+                                    "type": "number"
+                                  }
+                                },
+                                "required": [
+                                  "cpuUnits",
+                                  "gpuUnits",
+                                  "memoryBytes",
+                                  "ephemeralStorageBytes",
+                                  "persistentStorageBytes"
+                                ]
+                              },
+                              "totalSpent": {
+                                "type": "object",
+                                "properties": {
+                                  "uakt": {
+                                    "type": "string"
+                                  },
+                                  "uusdc": {
+                                    "type": "string"
+                                  },
+                                  "uact": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "uakt",
+                                  "uusdc",
+                                  "uact"
+                                ]
+                              },
+                              "dailySpent": {
+                                "type": "object",
+                                "properties": {
+                                  "uakt": {
+                                    "type": "string"
+                                  },
+                                  "uusdc": {
+                                    "type": "string"
+                                  },
+                                  "uact": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "uakt",
+                                  "uusdc",
+                                  "uact"
+                                ]
+                              },
+                              "dailyUsdSpent": {
+                                "type": "string",
+                                "nullable": true
+                              }
+                            },
+                            "required": [
+                              "date",
+                              "closeHeight",
+                              "activeLeaseCount",
+                              "totalLeaseCount",
+                              "dailyLeaseCount",
+                              "activeProviderCount",
+                              "active",
+                              "totalSpent",
+                              "dailySpent",
+                              "dailyUsdSpent"
+                            ]
+                          }
+                        }
+                      },
+                      "required": [
+                        "height",
+                        "datetime",
+                        "activeLeaseCount",
+                        "totalLeaseCount",
+                        "activeProviderCount",
+                        "active",
+                        "totalSpent",
+                        "daily"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No block has been aggregated yet"
+          }
+        }
+      }
+    }
+  }
+}

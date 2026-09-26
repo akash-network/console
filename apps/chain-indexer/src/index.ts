@@ -39,7 +39,6 @@ export async function bootstrap(): Promise<void> {
       return;
     }
     case "api": {
-      await migrateDb();
       await startServer(createApp(), logger, process, { port });
       return;
     }

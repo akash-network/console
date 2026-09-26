@@ -15,6 +15,7 @@ export default defineConfig(async overrideOptions =>
       server: "./src/server.ts",
       reconcile: "./src/reconcile/reconcile.ts",
       "recompute-usd": "./src/network/recompute-usd.ts",
+      "swagger-gen": "./src/swagger-gen.ts",
       instrumentation: fileURLToPath(import.meta.resolve("@akashnetwork/instrumentation/register"))
     },
     target: tsconfig.compilerOptions.target,

@@ -10,6 +10,8 @@ export const statusRouter = new OpenApiHonoHandler();
 const statusRoute = createRoute({
   method: "get",
   path: "/v1/status",
+  // eslint-disable-next-line akash/operation-id-format
+  operationId: "getStatus",
   summary: "Indexer status with per-stream checkpoints",
   tags: ["Status"],
   responses: {
