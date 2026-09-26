@@ -197,7 +197,7 @@ describe("Providers", () => {
 
     it("orders providers by how many leases the wallet holds on them", async () => {
       const walletAddress = createAkashAddress();
-      const [usedOnce, unused, usedTwice] = await Promise.all([createProvider(), createProvider(), createProvider()]);
+      const [mostlyClosed, runningOne, runningTwo] = await Promise.all([createProvider(), createProvider(), createProvider()]);
       const deployment = await createDeployment({ owner: walletAddress });
       const deploymentGroup = await createDeploymentGroup({ deploymentId: deployment.id, owner: walletAddress });
       const leaseOf = (provider: Provider, closedHeight: number | null) =>
@@ -208,16 +208,31 @@ describe("Providers", () => {
           deploymentGroupId: deploymentGroup.id,
           closedHeight
         });
-      await Promise.all([leaseOf(usedOnce, null), leaseOf(usedTwice, 10), leaseOf(usedTwice, 20)]);
-      const addresses = [usedOnce, unused, usedTwice].map(provider => provider.owner).join(",");
+      await Promise.all([
+        leaseOf(mostlyClosed, 10),
+        leaseOf(mostlyClosed, 20),
+        leaseOf(mostlyClosed, 30),
+        leaseOf(runningOne, null),
+        leaseOf(runningTwo, null),
+        leaseOf(runningTwo, null)
+      ]);
+      const addresses = [mostlyClosed, runningOne, runningTwo].map(provider => provider.owner).join(",");
 
       const [allLeases, activeLeases] = await Promise.all([
         app.request(`/v1/provider-search?addresses=${addresses}&sort=wallet-leases-desc&walletAddress=${walletAddress}`),
         app.request(`/v1/provider-search?addresses=${addresses}&sort=wallet-active-leases-desc&walletAddress=${walletAddress}`)
       ]);
 
-      expect(map(((await allLeases.json()) as ProviderSearchResponse).data.providers, "owner")).toEqual([usedTwice.owner, usedOnce.owner, unused.owner]);
-      expect(map(((await activeLeases.json()) as ProviderSearchResponse).data.providers, "owner")).toEqual([usedOnce.owner, unused.owner, usedTwice.owner]);
+      expect(map(((await allLeases.json()) as ProviderSearchResponse).data.providers, "owner")).toEqual([
+        mostlyClosed.owner,
+        runningTwo.owner,
+        runningOne.owner
+      ]);
+      expect(map(((await activeLeases.json()) as ProviderSearchResponse).data.providers, "owner")).toEqual([
+        runningTwo.owner,
+        runningOne.owner,
+        mostlyClosed.owner
+      ]);
     });
 
     it("refuses to sort by a wallet's leases without the wallet address", async () => {
