@@ -83,9 +83,14 @@ export class DashboardDataController {
     };
   }
 
-  private getStats(): Promise<Pick<DashboardDataResponse, "now" | "compare">> {
+  /** The legacy stats stay the fallback while delegated, so a chain-indexer outage degrades to the old data source instead of an empty dashboard. */
+  private async getStats(): Promise<Pick<DashboardDataResponse, "now" | "compare">> {
     if (this.chainIndexerDelegation.isEnabled("dashboardStats")) {
-      return this.chainIndexerStats.getDashboardData();
+      try {
+        return await this.chainIndexerStats.getDashboardData();
+      } catch (error) {
+        logger.error({ event: "CHAIN_INDEXER_DELEGATION_FAILED", endpoint: "dashboardStats", error });
+      }
     }
     return this.statsService.getDashboardData();
   }
