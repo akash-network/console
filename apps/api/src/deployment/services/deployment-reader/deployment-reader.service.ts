@@ -36,14 +36,13 @@ import { FallbackLeaseReaderService } from "@src/deployment/services/fallback-le
 import { leaseGpuKeyOf, type LeaseGpusByLease, LeaseGpuService } from "@src/deployment/services/lease-gpu/lease-gpu.service";
 import type { OnChainGroupSpec } from "@src/deployment/utils/changed-group-resources/changed-group-resources";
 import { ProviderService } from "@src/provider/services/provider/provider.service";
-import { ProviderList } from "@src/types/provider";
 import type { RestAkashDeploymentInfoResponse } from "@src/types/rest";
 import { averageBlockCountInAMonth } from "@src/utils/constants";
 import { FallbackDeploymentReaderService, UNKNOWN_DB_PLACEHOLDER } from "../fallback-deployment-reader/fallback-deployment-reader.service";
 import { MessageService } from "../message-service/message.service";
 
-/** One page of the key-paged sweep a search makes, matching the default the chain client uses for an unpaginated read. */
-const SEARCH_PAGE_SIZE = 1000;
+/** One page of a key-paged sweep, matching the default the chain client uses for an unpaginated read. */
+const SWEEP_PAGE_SIZE = 1000;
 
 /** Above this a search would sweep more of the chain than it is worth, so it is refused rather than served slowly. */
 export const MAX_SEARCHABLE_DEPLOYMENTS = 5000;
@@ -375,7 +374,7 @@ export class DeploymentReaderService {
     let key: string | undefined;
 
     do {
-      const response = await loadPage({ key, limit: SEARCH_PAGE_SIZE });
+      const response = await loadPage({ key, limit: SWEEP_PAGE_SIZE });
       deployments.push(...response.deployments);
       key = response.pagination.next_key ?? undefined;
 
@@ -421,12 +420,18 @@ export class DeploymentReaderService {
         ? { owner: address, state: status, pagination: basePagination }
         : { owner: address, state: status, pagination: { ...basePagination, offset: skip } }
     );
-    const leaseResponse = await this.leaseHttpService.list({ owner: address, state: "active" });
-    const providers = response.deployments.length ? await this.providerService.getProviderList() : ([] as ProviderList[]);
+    const count = parseInt(response.pagination.total);
+
+    if (!response.deployments.length) {
+      return { count, results: [] };
+    }
+
+    const activeLeases = await this.#loadEveryActiveLease(address);
+    const providers = await this.providerService.getProviderList();
     const providerMap = new Map(providers.map(p => [p.owner, p]));
 
     return {
-      count: parseInt(response.pagination.total),
+      count,
       results: response.deployments.map(x => ({
         owner: x.deployment.id.owner,
         dseq: x.deployment.id.dseq,
@@ -449,7 +454,7 @@ export class DeploymentReaderService {
               .reduce((a, b) => a + b, 0)
           )
           .reduce((a, b) => a + b, 0),
-        leases: leaseResponse.leases
+        leases: activeLeases
           .filter(l => l.lease.id.dseq === x.deployment.id.dseq)
           .map(lease => {
             const provider = providerMap.get(lease.lease.id.provider);
@@ -471,6 +476,20 @@ export class DeploymentReaderService {
           })
       }))
     };
+  }
+
+  /** The chain answers an unpaged read with its first 100 leases and a cursor, so an owner holding more is read page by page. */
+  async #loadEveryActiveLease(owner: string): Promise<RpcLease[]> {
+    const leases: RpcLease[] = [];
+    let key: string | undefined;
+
+    do {
+      const response = await this.leaseHttpService.list({ owner, state: "active", pagination: { key, limit: SWEEP_PAGE_SIZE } });
+      leases.push(...response.leases);
+      key = response.pagination.next_key ?? undefined;
+    } while (key);
+
+    return leases;
   }
 
   @Memoize({ ttlInSeconds: 30, maxEntries: 500 })

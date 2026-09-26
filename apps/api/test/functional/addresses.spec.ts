@@ -19,6 +19,7 @@ import { createDay } from "@test/seeders/day.seeder";
 import { createDeployment } from "@test/seeders/deployment.seeder";
 import { createDeploymentGroup } from "@test/seeders/deployment-group.seeder";
 import { createLease } from "@test/seeders/lease.seeder";
+import { createLeaseApiResponse } from "@test/seeders/lease-api-response.seeder";
 import { createProvider } from "@test/seeders/provider.seeder";
 import { createTransaction } from "@test/seeders/transaction.seeder";
 import { createValidator } from "@test/seeders/validator.seeder";
@@ -177,6 +178,18 @@ describe("Addresses API", () => {
           })
         ])
       );
+    });
+
+    it("reports each deployment's leases when the chain pages the owner's leases", async () => {
+      const { address } = await setup();
+
+      const response = await app.request(`/v1/addresses/${address}/deployments/0/10?status=active`);
+
+      const result = (await response.json()) as ListWithResourcesResponse;
+      expect(result.results.map(({ dseq, leases }) => ({ dseq, leases: leases.map(({ id }) => id) }))).toEqual([
+        { dseq: "111", leases: ["11111"] },
+        { dseq: "222", leases: ["22211"] }
+      ]);
     });
 
     it("returns 400 when address is not a valid akash address", async () => {
@@ -497,26 +510,18 @@ describe("Addresses API", () => {
 
     nock(container.resolve(CORE_CONFIG).REST_API_NODE_URL)
       .persist()
-      .get(`/akash/market/${marketVersion}/leases/list?filters.owner=${address}&filters.state=active`)
+      .get(`/akash/market/${marketVersion}/leases/list?filters.owner=${address}&filters.state=active&pagination.limit=1000`)
       .reply(200, {
-        leases: [
-          {
-            lease: {
-              id: {
-                owner: address,
-                dseq: "111"
-              }
-            }
-          },
-          {
-            lease: {
-              id: {
-                owner: address,
-                dseq: "222"
-              }
-            }
-          }
-        ]
+        leases: [createLeaseApiResponse({ owner: address, dseq: "111", gseq: 1, oseq: 1, provider: provider.owner, state: "active" })],
+        pagination: { next_key: "second-page", total: "2" }
+      });
+
+    nock(container.resolve(CORE_CONFIG).REST_API_NODE_URL)
+      .persist()
+      .get(`/akash/market/${marketVersion}/leases/list?filters.owner=${address}&filters.state=active&pagination.limit=1000&pagination.key=second-page`)
+      .reply(200, {
+        leases: [createLeaseApiResponse({ owner: address, dseq: "222", gseq: 1, oseq: 1, provider: provider.owner, state: "active" })],
+        pagination: { next_key: null, total: "2" }
       });
 
     const now = new Date();
