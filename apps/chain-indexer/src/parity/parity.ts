@@ -41,7 +41,7 @@ async function main(): Promise<void> {
     const results = [];
     for (const name of config.PARITY_CHECKS) {
       logger.info({ event: "PARITY_CHECK_STARTED", check: name });
-      const result = await runCheck(buildCheck(name, config, legacy));
+      const result = await runCheck(name, () => buildCheck(name, config, legacy));
       logger.info({ event: "PARITY_CHECK_FINISHED", check: name, status: result.status, summary: result.summary, mismatches: result.mismatches.length });
       results.push(result);
     }

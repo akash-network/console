@@ -46,11 +46,11 @@ export function skippedCheck(name: string, reason: string): ParityCheck {
   return { name, run: async () => ({ name, status: "skipped", summary: reason, mismatches: [] }) };
 }
 
-/** A check that throws still yields a result, so one unreachable dependency fails its own line instead of hiding the whole report. */
-export async function runCheck(check: ParityCheck): Promise<CheckResult> {
+/** A check that throws while being built or run still yields a result, so one unreachable dependency fails its own line instead of hiding the whole report. */
+export async function runCheck(name: string, build: () => ParityCheck): Promise<CheckResult> {
   try {
-    return await check.run();
+    return await build().run();
   } catch (error) {
-    return { name: check.name, status: "fail", summary: `threw: ${error instanceof Error ? error.message : String(error)}`, mismatches: [] };
+    return { name, status: "fail", summary: `threw: ${error instanceof Error ? error.message : String(error)}`, mismatches: [] };
   }
 }
