@@ -7,16 +7,17 @@ import { useServices } from "@src/context/ServicesProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { useListSelection } from "@src/hooks/useListSelection/useListSelection";
 import { useManagedDeploymentConfirm } from "@src/hooks/useManagedDeploymentConfirm";
-import { useProviderList } from "@src/queries/useProvidersQuery";
+import { useProvidersByAddresses } from "@src/queries/useProvidersQuery";
 import type { DeploymentsViewMode } from "@src/store/deploymentsViewStore";
 import { deploymentsViewModeAtom } from "@src/store/deploymentsViewStore";
 import sdlStore from "@src/store/sdlStore";
+import { isLeaseLive } from "@src/utils/leaseUtils";
 import { TransactionMessageData } from "@src/utils/TransactionMessageData";
 import { useApiDeploymentsListSource } from "./useApiDeploymentsListSource";
 
 export const DEPENDENCIES = {
   useWallet,
-  useProviderList,
+  useProvidersByAddresses,
   useManagedDeploymentConfirm,
   useListSelection,
   useDeploymentsListSource: useApiDeploymentsListSource
@@ -30,7 +31,6 @@ export function useDeploymentsListModel(dependencies: typeof DEPENDENCIES = DEPE
   const d = dependencies;
   const { analyticsService } = useServices();
   const { address, signAndBroadcastTx, hasWallet } = d.useWallet();
-  const { data: providers, isFetching: isLoadingProviders } = d.useProviderList();
   const { closeDeploymentConfirm } = d.useManagedDeploymentConfirm();
   const [, setDeploySdl] = useAtom(sdlStore.deploySdl);
   const [viewMode, setViewMode] = useAtom(deploymentsViewModeAtom);
@@ -46,6 +46,11 @@ export function useDeploymentsListModel(dependencies: typeof DEPENDENCIES = DEPE
   const isSearching = appliedSearch.length > 0;
 
   const pageDeployments = active.deployments;
+  const liveLeaseProviderAddresses = useMemo(
+    () => pageDeployments.flatMap(deployment => (deployment.leases ?? []).filter(isLeaseLive).map(lease => lease.provider)),
+    [pageDeployments]
+  );
+  const { data: providers, isFetching: isLoadingProviders } = d.useProvidersByAddresses(liveLeaseProviderAddresses);
   const archivePageDeployments = archive.deployments;
   const archiveTotal = archive.total;
 

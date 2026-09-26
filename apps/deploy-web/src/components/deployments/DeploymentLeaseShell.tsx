@@ -11,7 +11,7 @@ import { useProviderCredentials } from "@src/hooks/useProviderCredentials/usePro
 import { XTerm } from "@src/lib/XTerm";
 import type { XTermRefType } from "@src/lib/XTerm/XTerm";
 import { useLeaseStatus } from "@src/queries/useLeaseQuery";
-import { useProviderList } from "@src/queries/useProvidersQuery";
+import { useProvidersByAddresses } from "@src/queries/useProvidersQuery";
 import type { ReceivedShellMessage } from "@src/services/provider-proxy/provider-proxy.service";
 import type { LeaseDto } from "@src/types/deployment";
 import { LeaseShellCode } from "@src/types/shell";
@@ -38,10 +38,10 @@ export const DeploymentLeaseShell: React.FunctionComponent<Props> = ({ leases })
   const [selectedLease, setSelectedLease] = useState<LeaseDto | null>(null);
   const [isShowingDownloadModal, setIsShowingDownloadModal] = useState(false);
   const [isChangingSocket, setIsChangingSocket] = useState(false);
-  const { data: providers } = useProviderList();
+  const { data: providers } = useProvidersByAddresses(selectedLease ? [selectedLease.provider] : []);
   const providerCredentials = useProviderCredentials();
   const hasShellAccess = useProviderAccess(providerCredentials);
-  const providerInfo = providers?.find(p => p.owner === selectedLease?.provider);
+  const providerInfo = providers.find(p => p.owner === selectedLease?.provider);
   const providerHostUri = providerInfo?.hostUri;
   const providerAddress = providerInfo?.owner;
   const dseq = selectedLease?.dseq;
