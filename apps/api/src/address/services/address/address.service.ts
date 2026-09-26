@@ -13,6 +13,8 @@ import { ValidatorRepository } from "@src/validator/repositories/validator/valid
 
 const logger = createOtelLogger({ context: "AddressService" });
 
+const AKT_LOGO_URL = "https://console-cdn.akash.network/akash%20network%20logos/akash-sign-red.svg";
+
 @singleton()
 export class AddressService {
   constructor(
@@ -139,13 +141,13 @@ export class AddressService {
     if (coin.denom === "uakt") {
       return {
         symbol: "AKT",
-        logoUrl: "https://console.akash.network/images/akash-logo.svg",
+        logoUrl: AKT_LOGO_URL,
         amount: parseInt(coin.amount) / 1_000_000
       };
     } else if (coin.denom === "akt") {
       return {
         symbol: "AKT",
-        logoUrl: "https://console.akash.network/images/akash-logo.svg",
+        logoUrl: AKT_LOGO_URL,
         amount: parseFloat(coin.amount)
       };
     } else {
