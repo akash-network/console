@@ -127,6 +127,51 @@
                           "items": {
                             "type": "string"
                           }
+                        },
+                        "jobs": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "name": {
+                                "type": "string"
+                              },
+                              "lastStartedAt": {
+                                "type": "string"
+                              },
+                              "lastFinishedAt": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "lastStatus": {
+                                "type": "string",
+                                "enum": [
+                                  "running",
+                                  "success",
+                                  "failure"
+                                ]
+                              },
+                              "lastError": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "successCount": {
+                                "type": "number"
+                              },
+                              "failureCount": {
+                                "type": "number"
+                              }
+                            },
+                            "required": [
+                              "name",
+                              "lastStartedAt",
+                              "lastFinishedAt",
+                              "lastStatus",
+                              "lastError",
+                              "successCount",
+                              "failureCount"
+                            ]
+                          }
                         }
                       },
                       "required": [
@@ -134,7 +179,8 @@
                         "role",
                         "checkpoints",
                         "deadLetters",
-                        "deferredIndexes"
+                        "deferredIndexes",
+                        "jobs"
                       ]
                     }
                   },

@@ -4,3 +4,4 @@ export * from "./logging.provider";
 export * from "./type-registry.provider";
 export * from "./db.provider";
 export * from "./archive.provider";
+export * from "./fetch.provider";

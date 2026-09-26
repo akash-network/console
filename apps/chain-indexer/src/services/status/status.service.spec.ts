@@ -3,7 +3,7 @@ import { mock } from "vitest-mock-extended";
 
 import { envSchema } from "@src/config/env.config";
 import type { DeferredIndexService } from "@src/db/deferred-index.service";
-import { IndexerState } from "@src/db/schema";
+import { IndexerState, JobRuns } from "@src/db/schema";
 import { StatusResponseSchema } from "@src/http-schemas/status.schema";
 import type { ChainDatabase } from "@src/providers/db.provider";
 import { StatusService } from "@src/services/status/status.service";
@@ -40,6 +40,40 @@ describe(StatusService.name, () => {
 
     expect(status.data.deadLetters).toEqual({ total: 0, byType: [] });
     expect(status.data.deferredIndexes).toEqual([]);
+    expect(status.data.jobs).toEqual([]);
+  });
+
+  it("lists the last outcome of every scheduled job", async () => {
+    const { service } = setup({
+      checkpoints: [],
+      deadLetterCounts: [],
+      jobRuns: [
+        {
+          name: "price-history",
+          lastStartedAt: new Date("2026-08-14T01:00:00Z"),
+          lastFinishedAt: new Date("2026-08-14T01:00:02Z"),
+          lastStatus: "failure",
+          lastError: "coingecko down",
+          successCount: 10,
+          failureCount: 1
+        }
+      ]
+    });
+
+    const status = await service.getStatus();
+
+    expect(status.data.jobs).toEqual([
+      {
+        name: "price-history",
+        lastStartedAt: "2026-08-14T01:00:00.000Z",
+        lastFinishedAt: "2026-08-14T01:00:02.000Z",
+        lastStatus: "failure",
+        lastError: "coingecko down",
+        successCount: 10,
+        failureCount: 1
+      }
+    ]);
+    expect(StatusResponseSchema.parse(status)).toEqual(status);
   });
 
   it("lists the indexes a backfill left deferred", async () => {
@@ -55,12 +89,23 @@ describe(StatusService.name, () => {
     checkpoints: Array<{ stream: string; lastHeight: number; updatedAt: Date }>;
     deadLetterCounts: Array<{ type: string; count: number }>;
     deferredIndexes?: string[];
+    jobRuns?: Array<typeof JobRuns.$inferSelect>;
   }) {
+    const rowsFor = (table: unknown) => {
+      if (table === IndexerState) {
+        return input.checkpoints;
+      }
+      if (table === JobRuns) {
+        return input.jobRuns ?? [];
+      }
+      return [];
+    };
     const dbFake = {
       select: () => ({
         from: (table: unknown) =>
-          Object.assign(Promise.resolve(table === IndexerState ? input.checkpoints : []), {
-            innerJoin: () => ({ groupBy: () => Promise.resolve(input.deadLetterCounts) })
+          Object.assign(Promise.resolve(rowsFor(table)), {
+            innerJoin: () => ({ groupBy: () => Promise.resolve(input.deadLetterCounts) }),
+            orderBy: () => Promise.resolve(rowsFor(table))
           })
       })
     };

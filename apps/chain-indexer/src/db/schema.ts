@@ -9,6 +9,7 @@ import {
   integer,
   jsonb,
   numeric,
+  pgEnum,
   pgSchema,
   pgTable,
   primaryKey,
@@ -201,7 +202,23 @@ export const Validators = cosmosSchema.table("validators", {
   tokens: numeric("tokens", { precision: 38, scale: 0 }),
   delegatorShares: numeric("delegator_shares", { precision: 38, scale: 18 }),
   unbondingHeight: bigint("unbonding_height", { mode: "number" }),
-  unbondingTime: timestamp("unbonding_time", { withTimezone: true })
+  unbondingTime: timestamp("unbonding_time", { withTimezone: true }),
+  /** Resolved by the jobs role from the on-chain `identity` (a Keybase key suffix); the staking snapshot never touches these. */
+  keybaseUsername: text("keybase_username"),
+  keybaseAvatarUrl: text("keybase_avatar_url")
+});
+
+export const jobRunStatus = pgEnum("job_run_status", ["running", "success", "failure"]);
+
+/** Last outcome of each scheduled job in the jobs role, so a failing scrape is visible on `/v1/status` without reading logs. */
+export const JobRuns = pgTable("job_runs", {
+  name: text("name").primaryKey(),
+  lastStartedAt: timestamp("last_started_at", { withTimezone: true }).notNull(),
+  lastFinishedAt: timestamp("last_finished_at", { withTimezone: true }),
+  lastStatus: jobRunStatus("last_status").notNull(),
+  lastError: text("last_error"),
+  successCount: integer("success_count").notNull().default(0),
+  failureCount: integer("failure_count").notNull().default(0)
 });
 
 export const Delegations = cosmosSchema.table(

@@ -20,7 +20,18 @@ export const StatusResponseSchema = z.object({
         })
       )
     }),
-    deferredIndexes: z.array(z.string())
+    deferredIndexes: z.array(z.string()),
+    jobs: z.array(
+      z.object({
+        name: z.string(),
+        lastStartedAt: z.string(),
+        lastFinishedAt: z.string().nullable(),
+        lastStatus: z.enum(["running", "success", "failure"]),
+        lastError: z.string().nullable(),
+        successCount: z.number(),
+        failureCount: z.number()
+      })
+    )
   })
 });
 

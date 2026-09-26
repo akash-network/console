@@ -2,6 +2,7 @@ import { eq } from "drizzle-orm";
 import { inject, singleton } from "tsyringe";
 
 import { AccountBalances, Accounts, IndexerState } from "@src/db/schema";
+import { mapWithConcurrency } from "@src/lib/map-with-concurrency/map-with-concurrency";
 import type { CoinAmount } from "@src/pipeline/balance/coin-amount";
 import { SYNC_STREAM } from "@src/pipeline/block-committer.service";
 import { readModulesUnderReplay } from "@src/pipeline/module-replay/replay-markers";
@@ -137,22 +138,6 @@ export class ReconcileService {
       .slice(0, sampleSize)
       .map(entry => entry.account);
   }
-}
-
-/** Runs `worker` over `items` with at most `limit` in flight at once, preserving input order in the returned results. */
-async function mapWithConcurrency<T, R>(items: T[], limit: number, worker: (item: T) => Promise<R>): Promise<R[]> {
-  const results = new Array<R>(items.length);
-  let next = 0;
-
-  async function runWorker(): Promise<void> {
-    while (next < items.length) {
-      const index = next++;
-      results[index] = await worker(items[index]);
-    }
-  }
-
-  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, runWorker));
-  return results;
 }
 
 function totals(balances: AccountBalance[]): CoinAmount[] {

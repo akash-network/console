@@ -9,7 +9,7 @@ INDEXER_ROLE = sync | backfill | api | jobs
 NETWORK      = mainnet | sandbox | testnet
 ```
 
-Currently implemented: `sync` (live tail with per-block atomic commits and a parent-hash continuity check), `backfill` (historical catch-up over an explicit height range, an archive-only pass that fills the raw block archive, or a single-module replay), and `api` (the read-only REST service below). `jobs` exits with `ROLE_NOT_IMPLEMENTED`. The full mainnet procedure lives in [docs/mainnet-backfill-runbook.md](docs/mainnet-backfill-runbook.md).
+All four roles are implemented: `sync` (live tail with per-block atomic commits and a parent-hash continuity check), `backfill` (historical catch-up over an explicit height range, an archive-only pass that fills the raw block archive, or a single-module replay), `api` (the read-only REST service below) and `jobs` (the scheduled side tasks below). The full mainnet procedure lives in [docs/mainnet-backfill-runbook.md](docs/mainnet-backfill-runbook.md).
 
 ## Scope
 
@@ -65,6 +65,23 @@ import { operations, type paths } from "@akashnetwork/console-api-types/chain-in
 const api = createApi<paths, typeof operations>(operations, { baseUrl: "https://chain-indexer.example" });
 const { data } = await api.v1.listAddressTransactions({ address, skip: 0, limit: 20 });
 ```
+
+## Jobs role
+
+`INDEXER_ROLE=jobs` runs the two deliberate off-chain tasks on their own schedules, in their own process, so a slow scrape never delays ingestion:
+
+- `price-history` (every `PRICE_SYNC_INTERVAL_MS`, default hourly) fetches CoinGecko's daily USD close for `PRICE_COINGECKO_ID` (default `akash-network`; set it empty to disable) over the last 360 days into `akash.daily_prices`, then restates `daily_usd_spent` on exactly the rollup days whose price moved.
+- `keybase-identities` (every `KEYBASE_SYNC_INTERVAL_MS`, default six hours) resolves each validator's on-chain `identity` (a Keybase key suffix) to `keybase_username` and `keybase_avatar_url`. An invalid identity or a failed lookup is logged and retried next run.
+
+Each job runs one at a time: a tick that finds the previous run still going is skipped (`JOB_TICK_SKIPPED`), and a run past `JOB_TIMEOUT_MS` (default five minutes) is aborted and recorded as failed. Every run logs `JOB_STARTED` and `JOB_COMPLETED` or `JOB_FAILED` with its duration, increments the `indexer_job_runs_total` counter (by job and outcome) and records `indexer_job_duration_ms`, and updates `job_runs`, which `GET /v1/status` lists as `jobs` with the last status, error and counts.
+
+CoinGecko only serves about a year of daily prices, so daily USD before that comes from the legacy indexer's `day.aktPrice` history, imported once:
+
+```bash
+LEGACY_POSTGRES_DB_URI=postgres://... npm run prices:seed-legacy
+```
+
+The seed inserts the days `daily_prices` lacks, never overwrites a priced day, and restates the affected rollups; rerunning it is a no-op.
 
 ## Genesis import
 

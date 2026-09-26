@@ -82,6 +82,28 @@ const rawEnvSchema = z.object({
   MESSAGE_BODY_MAX_BYTES: z.number({ coerce: true }).int().positive().default(65_536),
   /** How many of the highest-balance accounts `npm run reconcile` checks against the chain. Unset defers to the service default. */
   RECONCILE_SAMPLE_SIZE: z.preprocess(emptyStringAsUndefined, z.number({ coerce: true }).int().positive().optional()),
+  /** CoinGecko coin id whose daily USD close feeds `daily_prices` (every Akash network prices in AKT); set it empty to disable the price job. */
+  PRICE_COINGECKO_ID: z.preprocess(value => (value === "" ? null : value), z.string().nullable().optional().default("akash-network")),
+  COINGECKO_API_URL: z.string().url().default("https://api.coingecko.com/api/v3"),
+  PRICE_SYNC_INTERVAL_MS: z
+    .number({ coerce: true })
+    .int()
+    .positive()
+    .default(60 * 60 * 1_000),
+  KEYBASE_API_URL: z.string().url().default("https://keybase.io/_/api/1.0"),
+  KEYBASE_SYNC_INTERVAL_MS: z
+    .number({ coerce: true })
+    .int()
+    .positive()
+    .default(6 * 60 * 60 * 1_000),
+  /** A job run past this bound is aborted and recorded as failed, so a hanging scrape cannot pin the jobs role. */
+  JOB_TIMEOUT_MS: z
+    .number({ coerce: true })
+    .int()
+    .positive()
+    .default(5 * 60 * 1_000),
+  /** The legacy indexer database (its `day.aktPrice` history) for the one-time `npm run prices:seed-legacy` import. */
+  LEGACY_POSTGRES_DB_URI: z.preprocess(emptyStringAsUndefined, z.string().optional()),
   /** Public origin of the api role, advertised as the server in the OpenAPI document; unset lists no server. */
   SERVER_ORIGIN: z.preprocess(emptyStringAsUndefined, z.string().url().optional()),
   /** Server-side bound on any single query the api role runs; the api serves read-only, so a slow query only ever costs its own request. */

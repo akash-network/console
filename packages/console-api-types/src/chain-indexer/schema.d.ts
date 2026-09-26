@@ -174,6 +174,16 @@ export interface operations {
                 }[];
               };
               deferredIndexes: string[];
+              jobs: {
+                name: string;
+                lastStartedAt: string;
+                lastFinishedAt: string | null;
+                /** @enum {string} */
+                lastStatus: "running" | "success" | "failure";
+                lastError: string | null;
+                successCount: number;
+                failureCount: number;
+              }[];
             };
           };
         };

@@ -16,6 +16,7 @@ export default defineConfig(async overrideOptions =>
       reconcile: "./src/reconcile/reconcile.ts",
       "recompute-usd": "./src/network/recompute-usd.ts",
       "swagger-gen": "./src/swagger-gen.ts",
+      "seed-legacy-prices": "./src/jobs/legacy-price-seed/seed-legacy-prices.ts",
       instrumentation: fileURLToPath(import.meta.resolve("@akashnetwork/instrumentation/register"))
     },
     target: tsconfig.compilerOptions.target,

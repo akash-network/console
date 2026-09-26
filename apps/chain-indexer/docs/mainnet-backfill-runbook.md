@@ -101,6 +101,15 @@ ARCHIVE_BUCKET=<bucket>
 
 `GENESIS_IMPORT=true` is accepted because the genesis marker already exists. The sync seeds its parent-hash check from block `TIP`, so the first live block is verified against the last backfilled one (`CHAIN_CONTINUITY_BROKEN` halts it otherwise). Enable the staking snapshot as usual; it reconciles validators and delegations once sync reaches the tip.
 
+Then start the jobs role and seed the price history the rollups' USD depends on, since CoinGecko serves only the last year:
+
+```
+INDEXER_ROLE=jobs NETWORK=mainnet POSTGRES_DB_URI=<database>
+LEGACY_POSTGRES_DB_URI=<legacy indexer database> npm run prices:seed-legacy
+```
+
+The seed logs `LEGACY_PRICES_SEEDED` with how many days it inserted and how many rollups it restated; the jobs role keeps the last year current from then on.
+
 ## Phase 4: parity gate A
 
 Three checks, all against the sync checkpoint height so the comparison is race-free.
