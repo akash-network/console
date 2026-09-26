@@ -151,6 +151,17 @@ Every step claims an `indexer_state` marker (`act-migration:upgrade`, `act-migra
 
 `npm run reconcile` proves the ledger matches the chain at the `sync` checkpoint height. It samples the highest-balance accounts, compares each against the node's bank balance at that height, and checks the ledger's per-denom totals against the chain's total supply; it exits non-zero on any mismatch or misconfiguration, so it can gate a deploy. Querying at the checkpoint rather than the moving tip keeps the comparison race-free, which requires an unpruned (archival) node — sandbox is archival. `RECONCILE_SAMPLE_SIZE` overrides the default sample of 100 accounts. While a `balance` replay owns the ledger (or an `akash` replay owns the network aggregates) the checkpoint no longer means those rows are complete, so the CLI reports `RECONCILE_MODULE_UNDER_REPLAY` and exits non-zero instead of comparing.
 
+## Delegation from the legacy API
+
+`apps/api` keeps serving its legacy chain endpoints unchanged while, one endpoint at a time, the data behind them comes from this indexer. Each endpoint has its own Unleash flag, so a cutover is a flag flip and a rollback is the same flip back; the legacy path stays in place until decommission. `apps/api` needs `CHAIN_INDEXER_API_BASE_URL` pointing at an api role; without it every flag is ignored.
+
+| Legacy endpoint                                            | Flag                                 | Served from                                |
+| ---------------------------------------------------------- | ------------------------------------ | ------------------------------------------ |
+| `GET /v1/addresses/{address}/transactions/{skip}/{limit}`  | `chain_indexer_address_transactions` | `GET /v1/addresses/{address}/transactions` |
+| `GET /v1/dashboard-data` (`now` and `compare` blocks only) | `chain_indexer_dashboard_stats`      | `GET /v1/network-stats`                    |
+
+The adapters in `apps/api/src/chain-indexer` reduce this indexer's responses to the legacy shapes. Three things differ in content, not shape, and have to be accepted before a flag is flipped: address history lists transactions where the address only received coins (the legacy endpoint did not), the memo, error log and per-message amounts are not stored here yet and come back empty (see CON-835), and the dashboard's USD totals are not exposed here yet and come back as zero. The dashboard's `compare` block is the day close nearest to 24 hours before the latest block rather than the first block after that instant.
+
 ## Parity
 
 `npm run parity` compares this indexer with the legacy one and exits non-zero on any difference, so each endpoint's cutover can be gated on it (see the runbook's phase 4). `PARITY_CHECKS` selects which checks run; the default is all four.

@@ -3,7 +3,9 @@ export const FeatureFlags = {
   NOTIFICATIONS_ALERT_UPDATE: "notifications_general_alerts_update",
   AUTO_CREDIT_RELOAD: "auto_credit_reload",
   AUTO_RELOAD_FIXED_THRESHOLD: "auto_reload_fixed_threshold",
-  TRIAL_FINGERPRINT_CHECK: "trial_fingerprint_check"
+  TRIAL_FINGERPRINT_CHECK: "trial_fingerprint_check",
+  CHAIN_INDEXER_ADDRESS_TRANSACTIONS: "chain_indexer_address_transactions",
+  CHAIN_INDEXER_DASHBOARD_STATS: "chain_indexer_dashboard_stats"
 } as const;
 
 export type FeatureFlagValue = (typeof FeatureFlags)[keyof typeof FeatureFlags];

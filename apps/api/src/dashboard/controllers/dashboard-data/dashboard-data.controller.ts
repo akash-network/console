@@ -3,6 +3,8 @@ import { cloneDeep } from "lodash";
 import { singleton } from "tsyringe";
 
 import { AkashBlockService } from "@src/block/services/akash-block/akash-block.service";
+import { ChainIndexerDashboardStatsService } from "@src/chain-indexer/services/dashboard-stats/chain-indexer-dashboard-stats.service";
+import { ChainIndexerDelegationService } from "@src/chain-indexer/services/delegation/chain-indexer-delegation.service";
 import { DashboardDataResponse } from "@src/dashboard/http-schemas/dashboard-data/dashboard-data.schema";
 import { emptyNetworkCapacity, StatsService } from "@src/dashboard/services/stats/stats.service";
 import { emptyProviderGraphData, ProviderGraphDataService } from "@src/provider/services/provider-graph-data/provider-graph-data.service";
@@ -43,12 +45,14 @@ export class DashboardDataController {
     private readonly statsService: StatsService,
     private readonly providerGraphDataService: ProviderGraphDataService,
     private readonly akashBlockService: AkashBlockService,
-    private readonly transactionService: TransactionService
+    private readonly transactionService: TransactionService,
+    private readonly chainIndexerDelegation: ChainIndexerDelegationService,
+    private readonly chainIndexerStats: ChainIndexerDashboardStatsService
   ) {}
 
   async getDashboardData(): Promise<DashboardDataResponse> {
     const [{ now, compare }, chainStatsQuery, networkCapacity, networkCapacityStats, latestBlocks, latestTransactions] = await Promise.all([
-      runOrLog(() => this.statsService.getDashboardData(), cloneDeep(emptyDashboardData)),
+      runOrLog(() => this.getStats(), cloneDeep(emptyDashboardData)),
       runOrLog(() => this.statsService.getChainStats(), {
         bondedTokens: 0,
         totalSupply: 0,
@@ -77,5 +81,12 @@ export class DashboardDataController {
       latestBlocks,
       latestTransactions
     };
+  }
+
+  private getStats(): Promise<Pick<DashboardDataResponse, "now" | "compare">> {
+    if (this.chainIndexerDelegation.isEnabled("dashboardStats")) {
+      return this.chainIndexerStats.getDashboardData();
+    }
+    return this.statsService.getDashboardData();
   }
 }
