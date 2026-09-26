@@ -705,6 +705,14 @@ describe(useDeploymentsListModel.name, () => {
       expect(useProvidersByAddresses).toHaveBeenLastCalledWith(["akash1running", "akash1reclaiming"]);
     });
 
+    it("looks up the providers of the next page once it arrives", () => {
+      const { useProvidersByAddresses, rerenderWith } = setup({ active: [deployment("100", "active", [lease("akash1first", "active")])] });
+
+      rerenderWith({ active: [deployment("200", "active", [lease("akash1second", "active")])] });
+
+      expect(useProvidersByAddresses).toHaveBeenLastCalledWith(["akash1second"]);
+    });
+
     it("hands the rows the providers the lookup resolved", () => {
       const provider = mock<ApiProviderList>({ owner: "akash1running" });
       const { result } = setup({ active: [deployment("100", "active", [lease("akash1running", "active")])], providers: [provider] });
