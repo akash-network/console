@@ -158,6 +158,17 @@ describe(usePlacementOffers.name, () => {
     expect(useProvidersByAddress).toHaveBeenLastCalledWith(["akash1sib"]);
   });
 
+  it("waits for the provider list before looking bidders up by address", () => {
+    const { useProvidersByAddress } = setup({
+      phase: "quoting",
+      dseq: "100",
+      screened: [],
+      providerListLoading: true,
+      bids: [{ bid: { state: "open", price: { amount: "1900", denom: "uakt" }, id: { provider: "akash1sib", dseq: "100", gseq: 1, oseq: 1 } } }]
+    });
+    expect(useProvidersByAddress).toHaveBeenLastCalledWith([]);
+  });
+
   it("does not look bidders up by address while screening", () => {
     const { useProvidersByAddress } = setup({
       phase: "configuring",
@@ -353,6 +364,7 @@ describe(usePlacementOffers.name, () => {
     screenedInvalid?: boolean;
     placementGseq?: number;
     providerList?: Array<Partial<ApiProviderList> & { owner: string }>;
+    providerListLoading?: boolean;
     addressLookup?: Array<Partial<ApiProviderList> & { owner: string }>;
     bidsLoading?: boolean;
     bidsError?: boolean;
@@ -367,7 +379,8 @@ describe(usePlacementOffers.name, () => {
   }) {
     const bids = (input.bids ?? []).map(entry => ({ ...entry, bid: { resources_offer: [], ...entry.bid } }));
     const useScreenedProviders = vi.fn(() => ({ providers: input.screened, isLoading: false, isError: false, isInvalid: input.screenedInvalid ?? false }));
-    const useProviderList = vi.fn(() => ({ data: input.providerList ?? [], isLoading: false, isError: false }));
+    const providerList = input.providerListLoading ? undefined : (input.providerList ?? []);
+    const useProviderList = vi.fn(() => ({ data: providerList, isLoading: input.providerListLoading ?? false, isError: false }));
     const addressLookup = input.addressLookup ?? [];
     const useProvidersByAddress = vi.fn((_addresses: string[]) => addressLookup);
     const dependencies: typeof DEPENDENCIES = {

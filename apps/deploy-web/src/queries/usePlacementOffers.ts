@@ -80,11 +80,10 @@ export function usePlacementOffers(
     () => (bidsQuery.data?.data ?? []).filter(entry => gseq === undefined || entry.bid.id.gseq === gseq),
     [bidsQuery.data, gseq]
   );
-  const unlistedBidders = useMemo(
-    () =>
-      isScreening ? [] : placementBids.map(entry => entry.bid.id.provider).filter(owner => !screenedByOwner.has(owner) && !listedByOwner.has(owner)),
-    [isScreening, placementBids, screenedByOwner, listedByOwner]
-  );
+  const unlistedBidders = useMemo(() => {
+    if (isScreening || !providerListQuery.data) return [];
+    return placementBids.map(entry => entry.bid.id.provider).filter(owner => !screenedByOwner.has(owner) && !listedByOwner.has(owner));
+  }, [isScreening, providerListQuery.data, placementBids, screenedByOwner, listedByOwner]);
   const unlistedBidderProviders = dependencies.useProvidersByAddress(unlistedBidders);
   const providersByOwner = useMemo(
     () => new Map<string, BidderProvider>([...listedByOwner, ...unlistedBidderProviders.map(provider => [provider.owner, provider] as const)]),
