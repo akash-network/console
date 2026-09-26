@@ -915,10 +915,21 @@ describe(DeploymentReaderService.name, () => {
       ]);
     });
 
+    it("answers a page that lists no deployment without reading the owner's leases", async () => {
+      const wallet = createUserWallet() as WalletInitialized;
+      const { service, leaseHttpService } = setup({ wallet, listedDseqs: [] });
+
+      const result = await service.listWithResources({ address: wallet.address, status: "active" });
+
+      expect(result).toEqual({ count: 0, results: [] });
+      expect(leaseHttpService.list).not.toHaveBeenCalled();
+    });
+
     it("asks the chain for the next page of leases with the cursor it handed back", async () => {
       const wallet = createUserWallet() as WalletInitialized;
       const { service, leaseHttpService } = setup({
         wallet,
+        listedDseqs: ["100"],
         leasePages: [
           { leases: [], nextKey: "second-page" },
           { leases: [], nextKey: null }

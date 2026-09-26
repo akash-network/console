@@ -36,7 +36,6 @@ import { FallbackLeaseReaderService } from "@src/deployment/services/fallback-le
 import { leaseGpuKeyOf, type LeaseGpusByLease, LeaseGpuService } from "@src/deployment/services/lease-gpu/lease-gpu.service";
 import type { OnChainGroupSpec } from "@src/deployment/utils/changed-group-resources/changed-group-resources";
 import { ProviderService } from "@src/provider/services/provider/provider.service";
-import { ProviderList } from "@src/types/provider";
 import type { RestAkashDeploymentInfoResponse } from "@src/types/rest";
 import { averageBlockCountInAMonth } from "@src/utils/constants";
 import { FallbackDeploymentReaderService, UNKNOWN_DB_PLACEHOLDER } from "../fallback-deployment-reader/fallback-deployment-reader.service";
@@ -421,12 +420,18 @@ export class DeploymentReaderService {
         ? { owner: address, state: status, pagination: basePagination }
         : { owner: address, state: status, pagination: { ...basePagination, offset: skip } }
     );
+    const count = parseInt(response.pagination.total);
+
+    if (!response.deployments.length) {
+      return { count, results: [] };
+    }
+
     const activeLeases = await this.#loadEveryActiveLease(address);
-    const providers = response.deployments.length ? await this.providerService.getProviderList() : ([] as ProviderList[]);
+    const providers = await this.providerService.getProviderList();
     const providerMap = new Map(providers.map(p => [p.owner, p]));
 
     return {
-      count: parseInt(response.pagination.total),
+      count,
       results: response.deployments.map(x => ({
         owner: x.deployment.id.owner,
         dseq: x.deployment.id.dseq,
