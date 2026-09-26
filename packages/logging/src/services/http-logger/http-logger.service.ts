@@ -16,6 +16,7 @@ type HttpRequestLog = {
   };
   fingerprint?: string;
   userId?: string;
+  authMethod?: string;
 };
 
 export class HttpLoggerInterceptor {
@@ -30,6 +31,7 @@ export class HttpLoggerInterceptor {
       } finally {
         const clientInfo = c.get("clientInfo");
         const currentUser = c.get("user");
+        const authMethod = c.get("authMethod");
 
         const log: HttpRequestLog = {
           httpRequest: {
@@ -51,6 +53,10 @@ export class HttpLoggerInterceptor {
 
         if (currentUser) {
           log.userId = currentUser.id;
+        }
+
+        if (authMethod) {
+          log.authMethod = authMethod;
         }
 
         const status = c.res.status;

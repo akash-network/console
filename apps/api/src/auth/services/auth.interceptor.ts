@@ -1,6 +1,6 @@
 import { withSpan } from "@akashnetwork/instrumentation";
 import { createOtelLogger } from "@akashnetwork/logging/otel";
-import { context as otelContext, propagation, trace } from "@opentelemetry/api";
+import { context as otelContext, propagation, type Span, trace } from "@opentelemetry/api";
 import { secondsInMinute } from "date-fns";
 import { Context, Next } from "hono";
 import { BadRequest, Unauthorized } from "http-errors";
@@ -21,6 +21,14 @@ const LAST_USER_ACTIVITY_THROTTLE_TIME_SECONDS = 30 * secondsInMinute;
 const MAX_TRACKED_USERS = 1e5;
 /** A `Date` under a user id, so the registry ranks this cache far below the ones holding response payloads. */
 const LAST_USER_ACTIVITY_ENTRY_BYTES = 128;
+
+type AuthMethod = "bearer" | "api_key" | "none";
+
+function authMethodOf(credentials: { bearer?: string; apiKey?: string }): AuthMethod {
+  if (credentials.apiKey) return "api_key";
+  if (credentials.bearer) return "bearer";
+  return "none";
+}
 
 @singleton()
 export class AuthInterceptor implements HonoInterceptor {
@@ -46,9 +54,14 @@ export class AuthInterceptor implements HonoInterceptor {
 
   intercept() {
     return async (c: Context, next: Next) => {
+      /** Read before withSpan, which makes its own child span the active one. */
+      const requestSpan = trace.getActiveSpan();
+
       return withSpan("AuthInterceptor.intercept", async () => {
         const bearer = c.req.header("authorization");
         const apiKey = c.req.header("x-api-key");
+
+        this.#recordAuthMethod(c, requestSpan, authMethodOf({ bearer, apiKey }));
 
         if (bearer && apiKey) {
           throw new BadRequest("Authorization and X-Api-Key headers are mutually exclusive");
@@ -93,6 +106,11 @@ export class AuthInterceptor implements HonoInterceptor {
 
   clearLastUserActivityCache(): void {
     this.lastUserActivityCache.clear();
+  }
+
+  #recordAuthMethod(c: Context, requestSpan: Span | undefined, authMethod: AuthMethod) {
+    c.set("authMethod", authMethod);
+    requestSpan?.setAttribute("auth.method", authMethod);
   }
 
   async #nextWithUserContext(user: UserOutput | undefined, next: Next) {
