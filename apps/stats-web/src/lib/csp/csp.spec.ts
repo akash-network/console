@@ -77,11 +77,18 @@ describe("csp", () => {
       expect(connectSrc).toContain("'self'");
     });
 
-    it("always includes fixed vendor connect origins", () => {
+    it("allows the hosts google analytics sends hits to", () => {
       const { connectSrc } = setup({});
 
-      expect(connectSrc).toContain("https://www.google-analytics.com");
       expect(connectSrc).toContain("https://www.googletagmanager.com");
+      expect(connectSrc).toContain("https://*.google-analytics.com");
+      expect(connectSrc).toContain("https://*.google.com");
+    });
+
+    it("allows images served from the console cdn", () => {
+      const { imgSrc } = setup({});
+
+      expect(imgSrc).toContain("https://console-cdn.akash.network");
     });
 
     it("adds Sentry CSP reporting directives when a Sentry DSN is configured", () => {
@@ -140,6 +147,12 @@ describe("csp", () => {
   function setup(input: ContentSecurityPolicyInput) {
     const policy = buildContentSecurityPolicy("test-nonce", input);
     const directives = Object.fromEntries(policy.split("; ").map(directive => [directive.split(" ")[0], directive]));
-    return { policy, connectSrc: directives["connect-src"], reportUri: directives["report-uri"], reportTo: directives["report-to"] };
+    return {
+      policy,
+      connectSrc: directives["connect-src"],
+      imgSrc: directives["img-src"],
+      reportUri: directives["report-uri"],
+      reportTo: directives["report-to"]
+    };
   }
 });

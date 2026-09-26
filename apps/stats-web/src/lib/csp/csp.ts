@@ -7,13 +7,10 @@ const NONCE_BYTE_LENGTH = 16;
 
 const isDevelopment = process.env.NODE_ENV !== "production";
 
-/** Google Analytics / Tag Manager endpoints the app connects to directly; these never vary by environment. */
-const FIXED_VENDOR_CONNECT_ORIGINS = [
-  "https://www.google-analytics.com",
-  "https://region1.google-analytics.com",
-  "https://analytics.google.com",
-  "https://www.googletagmanager.com"
-];
+/** Google's documented connect-src for GA4 without Ads features; gtag also sends hits to www.google.com. */
+const FIXED_VENDOR_CONNECT_ORIGINS = ["https://www.googletagmanager.com", "https://*.google-analytics.com", "https://*.google.com"];
+
+const CONSOLE_CDN_ORIGIN = "https://console-cdn.akash.network";
 
 export interface ContentSecurityPolicyInput {
   apiBaseUrl?: string;
@@ -99,7 +96,7 @@ export function buildContentSecurityPolicy(nonce: string, input: ContentSecurity
     "form-action 'self'",
     `script-src ${scriptSrc.join(" ")}`,
     "style-src 'self' 'unsafe-inline'",
-    "img-src 'self' data: blob: https://www.google-analytics.com https://www.googletagmanager.com",
+    `img-src 'self' data: blob: https://www.google-analytics.com https://www.googletagmanager.com ${CONSOLE_CDN_ORIGIN}`,
     "font-src 'self' data:",
     `connect-src ${connectSrc.join(" ")}`,
     "worker-src 'self' blob:",
