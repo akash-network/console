@@ -56,7 +56,7 @@ describe("Addresses API", () => {
         assets: [
           {
             amount: 1,
-            logoUrl: "https://console.akash.network/images/akash-logo.svg",
+            logoUrl: "https://console-cdn.akash.network/akash%20network%20logos/akash-sign-red.svg",
             symbol: "AKT"
           }
         ],
