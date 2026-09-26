@@ -1,9 +1,10 @@
 import React from "react";
 import type { PaymentMethod } from "@akashnetwork/http-sdk";
+import { Alert, AlertDescription, AlertTitle } from "@akashnetwork/ui/components";
 import { describe, expect, it, type Mock, vi } from "vitest";
 
 import type { PaymentMethodsRowProps } from "./PaymentMethodsRow";
-import { PaymentMethodsView } from "./PaymentMethodsView";
+import { type PaymentMethodOperationError, PaymentMethodsView } from "./PaymentMethodsView";
 
 import { fireEvent, render, screen } from "@testing-library/react";
 import { createMockPaymentMethod } from "@tests/seeders/payment";
@@ -22,8 +23,8 @@ const MockPaymentMethodsRow = ({ paymentMethod, onSetPaymentMethodAsDefault, onR
 
 const Passthrough = ({ children }: any) => <div>{children}</div>;
 const MockSkeleton = ({ className }: any) => <div data-testid="skeleton" className={className} />;
-const MockButton = ({ children, onClick, disabled }: any) => (
-  <button onClick={onClick} disabled={disabled}>
+const MockButton = ({ children, onClick, disabled, "aria-label": ariaLabel }: any) => (
+  <button onClick={onClick} disabled={disabled} aria-label={ariaLabel}>
     {children}
   </button>
 );
@@ -95,6 +96,37 @@ describe(PaymentMethodsView.name, () => {
     expect(onRemovePaymentMethod).toHaveBeenCalledWith("pm_123");
   });
 
+  it("shows no error alert when no operation has failed", () => {
+    setup({ operationError: null });
+
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("shows the failed operation with its reason and suggested action", () => {
+    setup({
+      operationError: {
+        title: "Couldn't remove payment method",
+        message: "You don't have permission to perform this action.",
+        userAction: "Contact support if you believe this is an error."
+      }
+    });
+
+    const alert = screen.getByRole("alert");
+    expect(alert).toHaveTextContent("Couldn't remove payment method");
+    expect(alert).toHaveTextContent("You don't have permission to perform this action.");
+    expect(alert).toHaveTextContent("Contact support if you believe this is an error.");
+  });
+
+  it("calls onDismissOperationError when the error is dismissed", () => {
+    const { onDismissOperationError } = setup({
+      operationError: { title: "Couldn't set default payment method", message: "An unexpected error occurred. Please try again." }
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Dismiss error" }));
+
+    expect(onDismissOperationError).toHaveBeenCalledTimes(1);
+  });
+
   function createMockPaymentMethods(count = 2): PaymentMethod[] {
     const cards = [
       { id: "pm_123", last4: "4242", brand: "visa" },
@@ -113,6 +145,7 @@ describe(PaymentMethodsView.name, () => {
       data?: PaymentMethod[];
       isLoadingPaymentMethods?: boolean;
       isInProgress?: boolean;
+      operationError?: PaymentMethodOperationError | null;
       onSetPaymentMethodAsDefault?: Mock;
       onRemovePaymentMethod?: Mock;
       openAddPaymentMethod?: Mock;
@@ -121,10 +154,14 @@ describe(PaymentMethodsView.name, () => {
     const openAddPaymentMethod = input.openAddPaymentMethod ?? vi.fn();
     const onSetPaymentMethodAsDefault = input.onSetPaymentMethodAsDefault ?? vi.fn();
     const onRemovePaymentMethod = input.onRemovePaymentMethod ?? vi.fn();
+    const onDismissOperationError = vi.fn();
 
     const dependencies: any = {
       useBillingActions: () => ({ openAddPaymentMethod }),
       PaymentMethodsRow: MockPaymentMethodsRow,
+      Alert,
+      AlertTitle,
+      AlertDescription,
       Card: Passthrough,
       CardHeader: Passthrough,
       CardContent: Passthrough,
@@ -137,12 +174,14 @@ describe(PaymentMethodsView.name, () => {
         data={input.data ?? createMockPaymentMethods()}
         onSetPaymentMethodAsDefault={onSetPaymentMethodAsDefault}
         onRemovePaymentMethod={onRemovePaymentMethod}
+        operationError={input.operationError ?? null}
+        onDismissOperationError={onDismissOperationError}
         isLoadingPaymentMethods={input.isLoadingPaymentMethods ?? false}
         isInProgress={input.isInProgress ?? false}
         dependencies={dependencies}
       />
     );
 
-    return { ...renderResult, openAddPaymentMethod, onSetPaymentMethodAsDefault, onRemovePaymentMethod };
+    return { ...renderResult, openAddPaymentMethod, onSetPaymentMethodAsDefault, onRemovePaymentMethod, onDismissOperationError };
   }
 });
