@@ -350,7 +350,7 @@ describe(BlockCommitterService.name, () => {
       const block = buildBlock([MSG_SEND], 10);
       await committer.commit(block);
 
-      expect(networkStatsWriter.write).toHaveBeenCalledWith(expect.anything(), [block], deltas);
+      expect(networkStatsWriter.write).toHaveBeenCalledWith(expect.anything(), [block], deltas, { providerCountFrozen: false });
     });
   });
 
@@ -412,6 +412,35 @@ describe(BlockCommitterService.name, () => {
       expect(insertedRows.map(call => call.table)).toEqual([IndexerState]);
       expect(insertedRows[0].rows).toEqual(expect.objectContaining({ stream: "replay:gov", lastHeight: 10 }));
       expect(result).toEqual({ modulesSkipped: [], handoffCompleted: false });
+    });
+
+    it("freezes the network provider count while the provider module is under replay", async () => {
+      const { committer, networkStatsWriter } = setup({ selectResults: [[{ id: 7, type: MSG_SEND }]], replayMarkers: ["provider"] });
+
+      await committer.commitBatch([buildBlock([MSG_SEND], 10)], { stream: "sync" });
+
+      expect(networkStatsWriter.write).toHaveBeenCalledWith(expect.anything(), expect.anything(), expect.anything(), { providerCountFrozen: true });
+    });
+
+    it("runs the handoff check only on the last segment of a batch", async () => {
+      const { committer, actMigration, deletions, insertedRows } = setup({ selectResults: [[{ id: 7, type: MSG_SEND }]] });
+      const blocks = [buildBlock([MSG_SEND], 10), buildBlock([MSG_SEND], 11), buildBlock([MSG_SEND], 12)];
+      const observations = { lastAktUsdPrice: null };
+      actMigration.segment.mockResolvedValue([
+        {
+          blocks: blocks.slice(0, 2),
+          step: { kind: "upgrade", height: 11, bankTotals: { burnedUakt: 0n, burnedUsdc: 0n, mintedUact: 0n }, validatable: true },
+          observations
+        },
+        { blocks: blocks.slice(2), step: null, observations }
+      ]);
+      actMigration.applySegment.mockResolvedValue(null);
+
+      const result = await committer.commitBatch(blocks, { stream: "replay:akash", modules: new Set(["akash"]), handoff: true });
+
+      expect(result.handoffCompleted).toBe(true);
+      expect(deletions.filter(deletion => deletion.table === IndexerState)).toHaveLength(1);
+      expect(insertedRows.filter(call => call.table === IndexerState).map(call => call.rows)).toEqual([expect.objectContaining({ lastHeight: 11 })]);
     });
 
     it("completes the handoff under the lock when the sync checkpoint is exactly the batch end", async () => {

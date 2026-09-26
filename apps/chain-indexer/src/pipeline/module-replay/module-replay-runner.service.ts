@@ -101,7 +101,7 @@ export class ModuleReplayRunnerService {
     }
 
     const stream = replayStream(module);
-    const [marker, syncCheckpoint] = await Promise.all([this.#readCheckpoint(stream), this.#readCheckpoint(SYNC_STREAM)]);
+    const [marker, syncCheckpoint] = await Promise.all([this.#readCheckpointWithRetry(stream), this.#readCheckpointWithRetry(SYNC_STREAM)]);
     if (syncCheckpoint === null && fixedEnd === undefined) {
       throw new Error("BACKFILL_TO_HEIGHT is required for a module replay when no sync checkpoint exists");
     }
@@ -125,13 +125,13 @@ export class ModuleReplayRunnerService {
     this.#archive.logState();
 
     while (!this.#stopped) {
-      const target = (await this.#readCheckpoint(SYNC_STREAM)) ?? fixedEnd;
+      const target = (await this.#readCheckpointWithRetry(SYNC_STREAM)) ?? fixedEnd;
       if (target === undefined) {
         throw new Error("The sync checkpoint disappeared during the module replay");
       }
 
       if (cursor > target) {
-        if (await this.#committer.handoffWithoutBlocks(stream, cursor - 1)) {
+        if (await this.#retryTransient(() => this.#committer.handoffWithoutBlocks(stream, cursor - 1), { event: "REPLAY_HANDOFF_RETRY", height: cursor - 1 })) {
           this.#logCompleted(module, fromHeight, cursor - 1);
           return true;
         }
@@ -240,6 +240,10 @@ export class ModuleReplayRunnerService {
       .from(Blocks)
       .where(eq(Blocks.height, startHeight - 1));
     this.#lastHash = previousBlock?.hash ?? null;
+  }
+
+  async #readCheckpointWithRetry(stream: string): Promise<number | null> {
+    return this.#retryTransient(() => this.#readCheckpoint(stream), { event: "REPLAY_CHECKPOINT_READ_RETRY" });
   }
 
   async #readCheckpoint(stream: string): Promise<number | null> {

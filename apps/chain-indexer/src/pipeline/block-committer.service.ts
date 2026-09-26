@@ -139,7 +139,8 @@ export class BlockCommitterService {
     let result: CommitResult = { modulesSkipped: [], handoffCompleted: false };
     for (const [index, group] of groups.entries()) {
       const segment = segments?.[index] ?? null;
-      const outcome = await this.#commitSegment(group, options, segment, replayModules);
+      const segmentOptions = index === groups.length - 1 ? options : { ...options, handoff: false };
+      const outcome = await this.#commitSegment(group, segmentOptions, segment, replayModules);
       if (segment && outcome.akashWritten) {
         this.#actMigration.markCommitted(segment, outcome.migrationOutcome);
       }
@@ -241,7 +242,7 @@ export class BlockCommitterService {
       const akashWritten = writes("akash");
       if (akashWritten) {
         const { networkDeltas } = await this.#akashWriter.write(tx, akashChanges, accountIds);
-        await this.#networkStatsWriter.write(tx, blocks, networkDeltas);
+        await this.#networkStatsWriter.write(tx, blocks, networkDeltas, { providerCountFrozen: modulesSkipped.includes("provider") });
         migrationOutcome = segment ? await this.#actMigration.applySegment(tx, segment) : null;
       }
       if (writes("provider")) {

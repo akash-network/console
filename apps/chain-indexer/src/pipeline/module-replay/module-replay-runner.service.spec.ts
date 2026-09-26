@@ -127,6 +127,15 @@ describe(ModuleReplayRunnerService.name, () => {
     expect(committer.handoffWithoutBlocks).toHaveBeenCalledTimes(2);
   });
 
+  it("retries a checkpoint read that fails transiently instead of aborting the replay", async () => {
+    const { runner, commits, logger } = setup({ module: "provider", fromHeight: 1, toHeight: 2, batchSize: 2, failCheckpointReadsOnce: true });
+
+    await runner.start();
+
+    expect(commits.map(commit => commit.heights)).toEqual([[1, 2]]);
+    expect(logger.warn).toHaveBeenCalledWith(expect.objectContaining({ event: "REPLAY_CHECKPOINT_READ_RETRY" }));
+  });
+
   it("hands off without blocks when the replay already stands at the sync checkpoint", async () => {
     const { runner, committer, pool } = setup({ module: "bme", fromHeight: 1, marker: 10, syncCheckpoints: [10] });
 
@@ -169,6 +178,7 @@ describe(ModuleReplayRunnerService.name, () => {
     syncCheckpoints?: (number | undefined)[];
     handoffResults?: boolean[];
     genesisImportEnabled?: boolean;
+    failCheckpointReadsOnce?: boolean;
   }) {
     const config = envSchema.parse({
       POSTGRES_DB_URI: "postgres://unit:unit@localhost:5432/unit",
@@ -192,12 +202,17 @@ describe(ModuleReplayRunnerService.name, () => {
     let markerHeight = input.marker;
 
     const readSyncCheckpoint = () => (syncCheckpoints.length > 1 ? syncCheckpoints.shift() : syncCheckpoints[0]);
+    let checkpointReadsToFail = input.failCheckpointReadsOnce ? 1 : 0;
     const dbFake = {
       select: () => ({
         from: (table: unknown) => ({
           where: (where: unknown) => {
             if (table !== IndexerState) {
               return Promise.resolve([]);
+            }
+            if (checkpointReadsToFail > 0) {
+              checkpointReadsToFail--;
+              return Promise.reject(new Error("connection reset"));
             }
             const { params } = renderSql(where);
             if (params.includes(`replay:${input.module}`)) {
