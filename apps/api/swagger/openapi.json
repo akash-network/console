@@ -13066,6 +13066,7 @@
     },
     "/v1/providers": {
       "get": {
+        "operationId": "listProviders",
         "summary": "Get a list of providers.",
         "tags": [
           "Providers"

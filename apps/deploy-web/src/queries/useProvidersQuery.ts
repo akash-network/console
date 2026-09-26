@@ -1,5 +1,6 @@
+import type { paths } from "@akashnetwork/console-api-types";
 import type { QueryKey, UseQueryOptions, UseQueryResult } from "@tanstack/react-query";
-import { useQuery } from "@tanstack/react-query";
+import { useQueries, useQuery } from "@tanstack/react-query";
 
 import { useServices } from "@src/context/ServicesProvider";
 import { useScopedFetchProviderUrl } from "@src/hooks/useScopedFetchProviderUrl";
@@ -146,6 +147,21 @@ export function useProviderList(options = {}) {
     queryKey: QueryKeys.getProviderListKey(),
     queryFn: () => publicConsoleApiHttpClient.get<ApiProviderList[]>(ApiUrlService.providerList()).then(response => response.data),
     ...options
+  });
+}
+
+type ListedProvider = paths["/v1/providers"]["get"]["responses"][200]["content"]["application/json"][number];
+
+function collectProviders(lookups: Array<{ data?: ListedProvider[] }>): ListedProvider[] {
+  return lookups.flatMap(lookup => lookup.data ?? []);
+}
+
+/** Unlike the provider list, which keeps one wallet per host, this answers every wallet asked about, one lookup each so a new address never re-keys an answered one. */
+export function useProvidersByAddress(addresses: string[]) {
+  const { api } = useServices();
+  return useQueries({
+    queries: [...new Set(addresses)].map(address => api.v1.listProviders.queryOptions({ addresses: address })),
+    combine: collectProviders
   });
 }
 

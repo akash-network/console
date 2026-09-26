@@ -1,10 +1,9 @@
 import { useMemo } from "react";
 
 import { BID_POLL_INTERVAL, useListBids } from "@src/queries/useListBids";
-import { useProviderList } from "@src/queries/useProvidersQuery";
+import { useProviderList, useProvidersByAddress } from "@src/queries/useProvidersQuery";
 import type { ScreenedProvider } from "@src/queries/useScreenedProviders";
 import { useScreenedProviders } from "@src/queries/useScreenedProviders";
-import type { ApiProviderList } from "@src/types/provider";
 import { formatBidId } from "@src/utils/bids/bidId";
 import { getGpusFromAttributes } from "@src/utils/deploymentUtils";
 import { getPlacementGseq } from "@src/utils/sdl/placementGseq";
@@ -25,6 +24,8 @@ export interface PlacementOffer extends ScreenedProvider {
 /** One deployment bid from listBids, derived from the query result so it can't drift from the SDK's bid shape (matches the sibling quote hooks). */
 type BidEntry = NonNullable<ReturnType<typeof useListBids>["data"]>["data"][number];
 
+type BidderProvider = { hostUri: string; isAudited: boolean; organization: string | null; locationRegion: string | null };
+
 interface UsePlacementOffersInput {
   phase: "configuring" | "creating" | "quoting" | "deploying" | "error";
   dseq?: string;
@@ -42,7 +43,7 @@ interface UsePlacementOffersResult {
 }
 
 // eslint-disable-next-line akash/dependencies-component-or-hook
-export const DEPENDENCIES = { useScreenedProviders, useListBids, useProviderList, getPlacementGseq };
+export const DEPENDENCIES = { useScreenedProviders, useListBids, useProviderList, useProvidersByAddress, getPlacementGseq };
 
 /**
  * The shared offers seam, read by the marketplace pane so screening and bids can never disagree about which
@@ -55,7 +56,8 @@ export const DEPENDENCIES = { useScreenedProviders, useListBids, useProviderList
  *   address: an open bid is `submitted` (priced, selectable), a closed bid is `closed`, and a screened
  *   provider that never bid is `unavailable`. A provider that bid without being screened is still included.
  *   Screened metadata (name, region, audited flag, incident-derived uptime) is reused for any provider that
- *   was screened; the provider list only fills in a bidder that was never screened.
+ *   was screened; the provider list only fills in a bidder that was never screened, and a lookup by address
+ *   fills in a bidder the provider list leaves out.
  *
  * Once the deployment is locked (`creating`/`quoting`/`deploying`) screening is paused and the last
  * screened set is kept (`keepPreviousData`) as both the pre-bid fallback and the metadata source. `listBids`
@@ -72,15 +74,25 @@ export function usePlacementOffers(
   const bidsQuery = dependencies.useListBids(dseq, { enabled: phase === "quoting", refetchInterval: BID_POLL_INTERVAL });
   const providerListQuery = dependencies.useProviderList({ enabled: !isScreening });
   const gseq = useMemo(() => dependencies.getPlacementGseq(sdl, placementName), [dependencies, sdl, placementName]);
-  const providersByOwner = useMemo(() => new Map((providerListQuery.data ?? []).map(provider => [provider.owner, provider])), [providerListQuery.data]);
+  const listedByOwner = useMemo(() => new Map((providerListQuery.data ?? []).map(provider => [provider.owner, provider])), [providerListQuery.data]);
   const screenedByOwner = useMemo(() => new Map(screened.providers.map(provider => [provider.owner, provider])), [screened.providers]);
+  const placementBids = useMemo(
+    () => (bidsQuery.data?.data ?? []).filter(entry => gseq === undefined || entry.bid.id.gseq === gseq),
+    [bidsQuery.data, gseq]
+  );
+  const unlistedBidders = useMemo(() => {
+    if (isScreening || !providerListQuery.data) return [];
+    return placementBids.map(entry => entry.bid.id.provider).filter(owner => !screenedByOwner.has(owner) && !listedByOwner.has(owner));
+  }, [isScreening, providerListQuery.data, placementBids, screenedByOwner, listedByOwner]);
+  const unlistedBidderProviders = dependencies.useProvidersByAddress(unlistedBidders);
+  const providersByOwner = useMemo(
+    () => new Map<string, BidderProvider>([...listedByOwner, ...unlistedBidderProviders.map(provider => [provider.owner, provider] as const)]),
+    [listedByOwner, unlistedBidderProviders]
+  );
 
   const offers = useMemo(
     function buildOffers(): PlacementOffer[] {
-      if (isScreening) return screened.providers.map(toSearchingOffer);
-
-      const placementBids = (bidsQuery.data?.data ?? []).filter(entry => gseq === undefined || entry.bid.id.gseq === gseq);
-      if (placementBids.length === 0) return screened.providers.map(toSearchingOffer);
+      if (isScreening || placementBids.length === 0) return screened.providers.map(toSearchingOffer);
 
       const bidByOwner = pickBestBidPerOwner(placementBids);
       return mergedOwners(screened.providers, bidByOwner).map(function toMergedOffer(owner): PlacementOffer {
@@ -92,7 +104,7 @@ export function usePlacementOffers(
         return { ...meta, offerState: "unavailable", bidId: undefined, price: undefined, gpus: undefined };
       });
     },
-    [isScreening, screened.providers, screenedByOwner, bidsQuery.data, gseq, providersByOwner]
+    [isScreening, screened.providers, screenedByOwner, placementBids, providersByOwner]
   );
 
   const isQuoting = phase === "quoting";
@@ -150,10 +162,10 @@ function mergedOwners(screened: ScreenedProvider[], bidByOwner: Map<string, BidE
 
 /**
  * A screened-provider-shaped record for a bidder that was never screened, so the table renders it identically.
- * The provider list (when loaded) supplies the name (organization, else host), region and audited flag; uptime
+ * The provider record (when loaded) supplies the name (organization, else host), region and audited flag; uptime
  * is left to the table's neutral fallback since the provider record carries no per-day incident history.
  */
-function providerListToOffer(owner: string, provider?: ApiProviderList): ScreenedProvider {
+function providerListToOffer(owner: string, provider?: BidderProvider): ScreenedProvider {
   return {
     owner,
     hostUri: provider?.hostUri ?? "",
