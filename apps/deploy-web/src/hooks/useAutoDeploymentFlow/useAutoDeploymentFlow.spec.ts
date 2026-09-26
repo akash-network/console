@@ -315,6 +315,12 @@ describe(useAutoDeploymentFlow.name, () => {
     });
   });
 
+  it("looks up no provider before the deployment is quoting", () => {
+    const { useProvidersByAddresses } = setup();
+
+    expect(useProvidersByAddresses).toHaveBeenNthCalledWith(1, [], { enabled: false });
+  });
+
   describe("with multiple placements", () => {
     const PROVIDER_A = "akash1providera";
     const PROVIDER_B = "akash1providerb";
@@ -342,6 +348,13 @@ describe(useAutoDeploymentFlow.name, () => {
       expect(flow.actions.selectProvider).toHaveBeenCalledTimes(1);
       expect(flow.actions.deploy).not.toHaveBeenCalled();
       expect(result.current.state.kind).toBe("matching");
+    });
+
+    it("looks up the providers of the open bids on the placement it is matching", async () => {
+      const { providerA, providerB, bidA, bidB } = multiPlacement();
+      const { useProvidersByAddresses } = setup({ initialDseq: DSEQ, providers: [providerA, providerB], bids: [bidA, bidB], requiredGseqs: [1, 2] });
+
+      await vi.waitFor(() => expect(useProvidersByAddresses).toHaveBeenCalledWith([PROVIDER_A], { enabled: true }));
     });
 
     it("reconstructs a selection from every live lease the guard resolved on resume", async () => {
@@ -506,9 +519,13 @@ describe(useAutoDeploymentFlow.name, () => {
 
     const publicConsoleApiHttpClient = { get: vi.fn().mockResolvedValue({ data: providers }) };
 
-    // `useProviderList` is stubbed to hand back the candidate providers directly; the real `useFirstReachableProvider` runs
+    // `useProvidersByAddresses` is stubbed to hand back the candidate providers directly; the real `useFirstReachableProvider` runs
     // against the stubbed provider-proxy so reachability outcomes (reachable vs. unreachable) drive the autopilot for real.
-    const useProviderList: typeof DEPENDENCIES.useProviderList = (() => ({ data: providers })) as never;
+    const useProvidersByAddresses = vi.fn((_addresses: readonly string[], _options?: { enabled?: boolean }) => ({
+      data: providers,
+      isLoading: false,
+      isFetching: false
+    }));
 
     // Stubbed group resolution so tests declare the placement count directly rather than crafting valid multi-group SDL.
     const getRequiredGseqs: typeof DEPENDENCIES.getRequiredGseqs = () => input?.requiredGseqs ?? [1];
@@ -533,7 +550,7 @@ describe(useAutoDeploymentFlow.name, () => {
           },
           {
             useServices,
-            useProviderList,
+            useProvidersByAddresses,
             useFirstReachableProvider,
             useQuoteExpiry,
             getRequiredGseqs,
@@ -549,6 +566,6 @@ describe(useAutoDeploymentFlow.name, () => {
       }
     );
 
-    return { ...view, actions, flow: { actions, ...flowControls }, providerProxy, analyticsService };
+    return { ...view, actions, flow: { actions, ...flowControls }, providerProxy, analyticsService, useProvidersByAddresses };
   }
 });
