@@ -12,6 +12,7 @@ import { BlockCommitterService, SYNC_STREAM } from "@src/pipeline/block-committe
 import { BlockDecoderService } from "@src/pipeline/block-decoder.service";
 import { ChainContinuityError } from "@src/pipeline/chain-continuity-error";
 import type { DecodedBlock } from "@src/pipeline/decoded-block";
+import { SyncLagMetrics } from "@src/pipeline/sync-lag-metrics";
 import { retryTransient } from "@src/pipeline/transient-retry";
 import { APP_CONFIG } from "@src/providers/app-config.provider";
 import type { ChainDatabase } from "@src/providers/db.provider";
@@ -32,6 +33,7 @@ export class SyncRunnerService {
   readonly #genesisImport: GenesisImportService;
   readonly #stakingSnapshot: StakingSnapshotService;
   readonly #deferredIndexes: DeferredIndexService;
+  readonly #lag: SyncLagMetrics;
   readonly #config: EnvConfig;
   readonly #logger: LoggerService;
 
@@ -48,6 +50,7 @@ export class SyncRunnerService {
     @inject(GenesisImportService) genesisImport: GenesisImportService,
     @inject(StakingSnapshotService) stakingSnapshot: StakingSnapshotService,
     @inject(DeferredIndexService) deferredIndexes: DeferredIndexService,
+    @inject(SyncLagMetrics) lag: SyncLagMetrics,
     @inject(APP_CONFIG) config: EnvConfig,
     @inject(LoggerService) logger: LoggerService
   ) {
@@ -59,6 +62,7 @@ export class SyncRunnerService {
     this.#genesisImport = genesisImport;
     this.#stakingSnapshot = stakingSnapshot;
     this.#deferredIndexes = deferredIndexes;
+    this.#lag = lag;
     this.#config = config;
     this.#logger = logger;
     this.#logger.setContext("SYNC");
@@ -94,6 +98,7 @@ export class SyncRunnerService {
 
     while (!this.#stopped) {
       const tipHeight = await this.#retryTransient(() => this.#pool.getTipHeight(), { event: "SYNC_TIP_FETCH_RETRY" });
+      this.#lag.recordTip(tipHeight);
 
       if (nextHeight <= tipHeight) {
         while (nextHeight <= tipHeight && !this.#stopped) {
@@ -171,6 +176,7 @@ export class SyncRunnerService {
     this.#verifyContinuity(decoded);
     await this.#committer.commit(decoded);
     this.#lastHash = decoded.hash;
+    this.#lag.recordCommitted(decoded.height, decoded.datetime);
 
     if (height % PROGRESS_LOG_EVERY_BLOCKS === 0) {
       this.#logger.info({ event: "SYNC_PROGRESS", height, txCount: decoded.transactions.length });
@@ -206,6 +212,9 @@ export class SyncRunnerService {
       .from(Blocks)
       .where(eq(Blocks.height, height - 1));
     this.#lastHash = previousBlock?.hash ?? null;
+    if (previousBlock) {
+      this.#lag.recordCommitted(previousBlock.height, previousBlock.datetime);
+    }
 
     return { height, resumed: state !== undefined };
   }

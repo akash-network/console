@@ -40,6 +40,10 @@ curl localhost:3092/v1/status
 
 The checkpoint height should advance as blocks land in `cosmos.blocks`, `cosmos.transactions`, and `cosmos.messages`.
 
+## Sync metrics
+
+The sync role exports three OpenTelemetry gauges alongside its logs: `indexer_sync_height` (the last block it committed), `indexer_sync_lag_blocks` (how far that is behind the tip the RPC pool last reported) and `indexer_sync_lag_seconds` (how long ago that block was produced). The lag in seconds is computed at collection time from the committed block's own time, so a sync that is up but not committing (retrying an unreachable RPC pool, for example) reports a growing lag instead of freezing at its last value. A fatal error such as `CHAIN_CONTINUITY_BROKEN` exits the process, so alert on the lag in seconds and on the series going missing. At startup the checkpoint block counts as committed, so a restarted sync reports its lag before it commits anything. While live sync follows the tip the lag stays around one block time.
+
 ## Public API
 
 `INDEXER_ROLE=api` serves a stateless, read-only REST API over the indexed data, documented at `GET /v1/doc` (OpenAPI 3.0). Any number of replicas can run; none of them writes. The query routes are mounted on the api role only; a sync, backfill or jobs process serves just `/healthz` and `/v1/status`, so a heavy query can never land on the writer's connection pool. The first endpoints target the worst offenders of the legacy API:
