@@ -1,3 +1,4 @@
+import { redactQueryParams } from "@akashnetwork/logging";
 import { DrizzlePGModule } from "@knaadh/nestjs-drizzle-pg";
 import type { DynamicModule } from "@nestjs/common";
 import { ConfigModule, ConfigService } from "@nestjs/config";
@@ -26,7 +27,7 @@ export const register = <TSchema extends Record<string, unknown> = Record<string
           schema,
           logger: {
             logQuery(query, params) {
-              logger.debug({ query, params });
+              logger.debug({ query, params: redactQueryParams(params) });
             }
           }
         }
