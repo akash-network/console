@@ -199,6 +199,27 @@ describe(BackfillRunnerService.name, () => {
     }
   });
 
+  it("reports the failed commit as the cause when the chain breaks while that commit is still rejecting", async () => {
+    vi.useFakeTimers();
+
+    try {
+      const { runner, committer, logger } = setup({ fromHeight: 1, toHeight: 6, batchSize: 2, concurrency: 1, brokenParentAtHeight: 3 });
+      committer.commitBatch.mockImplementation(async () => {
+        await new Promise(resolve => setTimeout(resolve, 50));
+        throw new Error("disk full");
+      });
+
+      const started = runner.start();
+      started.catch(() => undefined);
+      await vi.runAllTimersAsync();
+
+      await expect(started).rejects.toThrow("disk full");
+      expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "BACKFILL_COMMIT_FAILED", error: expect.any(Error) }));
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   describe("when BACKFILL_DEFER_INDEXES is on", () => {
     it("drops the deferrable indexes before the first commit and leaves them deferred at the end", async () => {
       const { runner, committer, deferredIndexes } = setup({ fromHeight: 1, toHeight: 2, deferIndexes: true });
@@ -208,6 +229,22 @@ describe(BackfillRunnerService.name, () => {
 
       expect(deferredIndexes.defer.mock.invocationCallOrder[0]).toBeLessThan(committer.commitBatch.mock.invocationCallOrder[0]);
       expect(deferredIndexes.restore).not.toHaveBeenCalled();
+    });
+
+    it("leaves the indexes in place when the range is already complete", async () => {
+      const { runner, deferredIndexes } = setup({ fromHeight: 1, toHeight: 5, checkpointHeight: 5, deferIndexes: true });
+
+      await runner.start();
+
+      expect(deferredIndexes.defer).not.toHaveBeenCalled();
+    });
+
+    it("leaves the indexes in place when the range is invalid", async () => {
+      const { runner, deferredIndexes } = setup({ fromHeight: 1, toHeight: 5, tipHeight: 3, deferIndexes: true });
+
+      await expect(runner.start()).rejects.toThrow();
+
+      expect(deferredIndexes.defer).not.toHaveBeenCalled();
     });
   });
 

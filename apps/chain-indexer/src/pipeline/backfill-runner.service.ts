@@ -102,8 +102,9 @@ export class BackfillRunnerService {
     const archiveOnly = this.#config.BACKFILL_ARCHIVE_ONLY;
     const stream = `${archiveOnly ? "archive" : "backfill"}:${fromHeight}-${toHeight}`;
     const replay = this.#config.BACKFILL_REPLAY;
-    if (!archiveOnly) {
-      await this.#applyIndexDeferral();
+    const deferIndexes = !archiveOnly && this.#config.BACKFILL_DEFER_INDEXES;
+    if (!archiveOnly && !deferIndexes) {
+      await this.#deferredIndexes.restore();
     }
     const [checkpointHeight, tipHeight] = await Promise.all([
       this.#retryTransient(() => this.#getCheckpointHeight(stream), { event: "BACKFILL_CHECKPOINT_READ_RETRY" }),
@@ -119,6 +120,10 @@ export class BackfillRunnerService {
     if (plan.kind === "already-complete") {
       this.#logger.info({ event: "BACKFILL_ALREADY_COMPLETE", stream, checkpointHeight });
       return true;
+    }
+
+    if (deferIndexes) {
+      await this.#deferredIndexes.defer();
     }
 
     const source = new ArchiveBlockSource({
@@ -280,6 +285,8 @@ export class BackfillRunnerService {
       if (pendingCommit) {
         await pendingCommit;
       }
+    } catch (error) {
+      throw await this.#preferCommitFailure(error, pendingCommit);
     } finally {
       await Promise.allSettled([...inflight.values(), pendingCommit]);
     }
@@ -313,12 +320,17 @@ export class BackfillRunnerService {
   }
 
   /** A run with the flag drops (or keeps dropped) the deferrable indexes; a run without it rebuilds whatever an earlier run left deferred, so a heavy multi-range backfill pays for the indexes once. */
-  async #applyIndexDeferral(): Promise<void> {
-    if (this.#config.BACKFILL_DEFER_INDEXES) {
-      await this.#deferredIndexes.defer();
-      return;
+  /** A detached commit that is still rejecting when a later step throws is the real cause, so it is reported and thrown instead of the error that merely followed it. */
+  async #preferCommitFailure(error: unknown, pendingCommit: Promise<void> | null): Promise<unknown> {
+    if (!pendingCommit) {
+      return error;
     }
-    await this.#deferredIndexes.restore();
+    const [commit] = await Promise.allSettled([pendingCommit]);
+    if (commit.status !== "rejected" || commit.reason === error) {
+      return error;
+    }
+    this.#logger.error({ event: "BACKFILL_COMMIT_FAILED", error: commit.reason, followedBy: error });
+    return commit.reason;
   }
 
   /** Retriable steps (checkpoint reads, tip fetches, idempotent batch commits) survive transient blips instead of failing the whole multi-hour Job; fatal errors propagate. */
