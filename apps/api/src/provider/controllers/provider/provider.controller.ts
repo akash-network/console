@@ -3,8 +3,9 @@ import { singleton } from "tsyringe";
 import { ProviderCleanupService } from "@src/billing/services/provider-cleanup/provider-cleanup.service";
 import { ProviderCleanupParams } from "@src/billing/types/provider-cleanup";
 import { cacheKeys, cacheResponse } from "@src/caching/helpers";
-import type { ProviderListQuery } from "@src/provider/http-schemas/provider.schema";
+import type { ProviderListQuery, ProviderSearchQuery } from "@src/provider/http-schemas/provider.schema";
 import { ProviderService } from "@src/provider/services/provider/provider.service";
+import { ProviderSearchService } from "@src/provider/services/provider-search/provider-search.service";
 import { ProviderStatsService } from "@src/provider/services/provider-stats/provider-stats.service";
 import { TrialProvidersService } from "@src/provider/services/trial-providers/trial-providers.service";
 
@@ -15,7 +16,8 @@ export class ProviderController {
     private readonly trialProvidersService: TrialProvidersService,
     private readonly providerCleanupService: ProviderCleanupService,
     private readonly providerService: ProviderService,
-    private readonly providerStatsService: ProviderStatsService
+    private readonly providerStatsService: ProviderStatsService,
+    private readonly providerSearchService: ProviderSearchService
   ) {}
 
   async getTrialProviders() {
@@ -38,6 +40,21 @@ export class ProviderController {
 
   async getFilteredProviderList(scope: ProviderListQuery["scope"], addresses: string[]) {
     return this.providerService.getProviderListByAddresses(addresses, scope === "trial");
+  }
+
+  async searchProviders(query: ProviderSearchQuery) {
+    const { providers, total } = await this.providerSearchService.search(query);
+
+    return {
+      data: {
+        providers,
+        pagination: { total, skip: query.skip, limit: query.limit, hasMore: query.skip + providers.length < total }
+      }
+    };
+  }
+
+  async findProviderLocations() {
+    return { data: await this.providerSearchService.findOnlineLocations() };
   }
 
   async getProvider(address: string) {
