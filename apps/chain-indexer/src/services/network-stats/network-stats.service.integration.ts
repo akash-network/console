@@ -1,7 +1,7 @@
 import { container } from "tsyringe";
 import { describe, expect, it } from "vitest";
 
-import { Blocks, NetworkRollups, NetworkState } from "@src/db/schema";
+import { Blocks, DailyPrices, NetworkRollups, NetworkState } from "@src/db/schema";
 import type { ChainDatabase } from "@src/providers/db.provider";
 import { CHAIN_DB } from "@src/providers/db.provider";
 import { NetworkStatsService } from "@src/services/network-stats/network-stats.service";
@@ -20,6 +20,7 @@ describe(NetworkStatsService.name, () => {
       activeProviderCount: 3,
       active: { cpuUnits: 1000, gpuUnits: 2, memoryBytes: 4096, ephemeralStorageBytes: 8192, persistentStorageBytes: 0 },
       totalSpent: { uakt: "123.500000000000000000", uusdc: "0.000000000000000000", uact: "7.000000000000000000" },
+      totalUsdSpent: "0.000032000000000000",
       daily: [
         {
           date: "2026-08-11",
@@ -31,10 +32,38 @@ describe(NetworkStatsService.name, () => {
           active: { cpuUnits: 900, gpuUnits: 1, memoryBytes: 2048, ephemeralStorageBytes: 4096, persistentStorageBytes: 0 },
           totalSpent: { uakt: "120.000000000000000000", uusdc: "0.000000000000000000", uact: "6.000000000000000000" },
           dailySpent: { uakt: "10.000000000000000000", uusdc: "0.000000000000000000", uact: "1.000000000000000000" },
-          dailyUsdSpent: "0.000030000000000000"
+          dailyUsdSpent: "0.000030000000000000",
+          totalUsdSpent: "0.000031000000000000"
         }
       ]
     });
+  });
+
+  it("accumulates every closed day's USD spend, counting only the stablecoin spend of a day without an AKT price", async () => {
+    const { service } = await setup();
+
+    const stats = await service.getStats({ days: 2 });
+
+    expect(stats?.daily.map(day => [day.date, day.totalUsdSpent])).toEqual([
+      ["2026-08-10", "0.000001000000000000"],
+      ["2026-08-11", "0.000031000000000000"]
+    ]);
+  });
+
+  it("prices the open day's spend at that day's AKT close on top of the closed days' USD spend", async () => {
+    const { service } = await setup({ openDayAktPrice: "2" });
+
+    const stats = await service.getStats({ days: 0 });
+
+    expect(stats?.totalUsdSpent).toBe("0.000039000000000000");
+  });
+
+  it("counts only the open day's stablecoin spend while that day has no AKT price", async () => {
+    const { service } = await setup();
+
+    const stats = await service.getStats({ days: 0 });
+
+    expect(stats?.totalUsdSpent).toBe("0.000032000000000000");
   });
 
   it("omits the daily series when zero days are requested", async () => {
@@ -50,8 +79,9 @@ describe(NetworkStatsService.name, () => {
     expect(await service.getStats({ days: 30 })).toBeNull();
   });
 
-  async function setup() {
+  async function setup(input: { openDayAktPrice?: string } = {}) {
     const db: ChainDatabase = container.resolve(CHAIN_DB);
+    await db.delete(DailyPrices);
     await db.delete(NetworkRollups);
     await db.delete(NetworkState);
     await db.delete(Blocks);
@@ -81,6 +111,10 @@ describe(NetworkStatsService.name, () => {
         buildDay("2026-08-10", 9, { totalUaktSpent: "110", dailyUaktSpent: "110" }),
         buildDay("2026-08-11", 19, { totalUaktSpent: "120", dailyUaktSpent: "10", dailyUsdSpent: "0.00003" })
       ]);
+
+    if (input.openDayAktPrice) {
+      await db.insert(DailyPrices).values({ date: "2026-08-12", denom: "uakt", price: input.openDayAktPrice });
+    }
 
     const service = container.resolve(NetworkStatsService);
     return { service, db };

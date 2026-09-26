@@ -15,7 +15,9 @@ const HOURS_24_MS = 24 * 60 * 60 * 1_000;
 /** Enough closed days to always hold the close nearest to 24 hours before the latest block. */
 const DAYS_TO_FETCH = 3;
 
-/** Serves the legacy dashboard `now` and `compare` blocks from chain-indexer; USD totals are not exposed there yet and come back as zero. */
+const MICRO_UNITS_PER_TOKEN = 1_000_000;
+
+/** Serves the legacy dashboard `now` and `compare` blocks from chain-indexer. */
 @singleton()
 export class ChainIndexerDashboardStatsService {
   readonly #api: ChainIndexerApiClient;
@@ -32,7 +34,7 @@ export class ChainIndexerDashboardStatsService {
       { signal: AbortSignal.timeout(this.#config.CHAIN_INDEXER_REQUEST_TIMEOUT_MS) }
     );
     const compareDay = pickDayClosestTo24HoursBefore(new Date(data.datetime), data.daily);
-    const compare = compareDay ? dayStats(compareDay) : liveStatsWithoutDeltas(data);
+    const compare = compareDay ? dayStats(compareDay, dayBefore(compareDay, data.daily)) : liveStatsWithoutDeltas(data);
     return { now: liveStats(data, compare), compare };
   }
 }
@@ -41,6 +43,13 @@ export class ChainIndexerDashboardStatsService {
 function pickDayClosestTo24HoursBefore(latest: Date, days: NetworkDay[]): NetworkDay | undefined {
   const target = latest.getTime() - HOURS_24_MS;
   return days.reduce<NetworkDay | undefined>((best, day) => (best === undefined || distance(day, target) < distance(best, target) ? day : best), undefined);
+}
+
+function dayBefore(day: NetworkDay, days: NetworkDay[]): NetworkDay | undefined {
+  return days.reduce<NetworkDay | undefined>(
+    (latest, candidate) => (candidate.date < day.date && (!latest || candidate.date > latest.date) ? candidate : latest),
+    undefined
+  );
 }
 
 function distance(day: NetworkDay, target: number): number {
@@ -54,6 +63,7 @@ function closeTime(day: NetworkDay): Date {
 function liveStats(data: NetworkStats, compare: DashboardStats): DashboardStats {
   const totalUAktSpent = wholeUnits(data.totalSpent.uakt);
   const totalUActSpent = combinedActSpent(data.totalSpent);
+  const totalUUsdSpent = microUnits(data.totalUsdSpent);
   return {
     date: data.datetime,
     height: data.height,
@@ -66,8 +76,8 @@ function liveStats(data: NetworkStats, compare: DashboardStats): DashboardStats 
     dailyUActSpent: totalUActSpent - compare.totalUActSpent,
     totalUUsdcSpent: totalUActSpent,
     dailyUUsdcSpent: totalUActSpent - compare.totalUUsdcSpent,
-    totalUUsdSpent: 0,
-    dailyUUsdSpent: 0,
+    totalUUsdSpent,
+    dailyUUsdSpent: totalUUsdSpent - compare.totalUUsdSpent,
     activeCPU: data.active.cpuUnits,
     activeGPU: data.active.gpuUnits,
     activeMemory: data.active.memoryBytes,
@@ -79,15 +89,23 @@ function liveStatsWithoutDeltas(data: NetworkStats): DashboardStats {
   const totalUAktSpent = wholeUnits(data.totalSpent.uakt);
   const totalUActSpent = combinedActSpent(data.totalSpent);
   return {
-    ...liveStats(data, { totalLeaseCount: data.totalLeaseCount, totalUAktSpent, totalUActSpent, totalUUsdcSpent: totalUActSpent } as DashboardStats),
+    ...liveStats(data, {
+      totalLeaseCount: data.totalLeaseCount,
+      totalUAktSpent,
+      totalUActSpent,
+      totalUUsdcSpent: totalUActSpent,
+      totalUUsdSpent: microUnits(data.totalUsdSpent)
+    } as DashboardStats),
     dailyLeaseCount: 0,
     dailyUAktSpent: 0,
     dailyUActSpent: 0,
-    dailyUUsdcSpent: 0
+    dailyUUsdcSpent: 0,
+    dailyUUsdSpent: 0
   };
 }
 
-function dayStats(day: NetworkDay): DashboardStats {
+/** Daily USD comes from consecutive cumulative totals, since `dailyUsdSpent` is null for a day without an AKT price while its cumulative still counts the stablecoin spend. */
+function dayStats(day: NetworkDay, previousDay: NetworkDay | undefined): DashboardStats {
   return {
     date: closeTime(day).toISOString(),
     height: day.closeHeight,
@@ -100,8 +118,8 @@ function dayStats(day: NetworkDay): DashboardStats {
     dailyUActSpent: combinedActSpent(day.dailySpent),
     totalUUsdcSpent: combinedActSpent(day.totalSpent),
     dailyUUsdcSpent: combinedActSpent(day.dailySpent),
-    totalUUsdSpent: 0,
-    dailyUUsdSpent: 0,
+    totalUUsdSpent: microUnits(day.totalUsdSpent),
+    dailyUUsdSpent: previousDay ? microUnits(day.totalUsdSpent) - microUnits(previousDay.totalUsdSpent) : microUnits(day.dailyUsdSpent ?? "0"),
     activeCPU: day.active.cpuUnits,
     activeGPU: day.active.gpuUnits,
     activeMemory: day.active.memoryBytes,
@@ -116,4 +134,8 @@ function combinedActSpent(spent: { uusdc: string; uact: string }): number {
 
 function wholeUnits(amount: string): number {
   return Math.floor(Number(amount));
+}
+
+function microUnits(amount: string): number {
+  return Math.round(Number(amount) * MICRO_UNITS_PER_TOKEN);
 }

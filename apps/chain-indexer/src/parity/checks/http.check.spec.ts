@@ -176,6 +176,15 @@ describe(HttpCheck.name, () => {
     expect(result.summary).toContain("network-stats: skipped (legacy at 12, v2 at 11)");
   });
 
+  it("fails when the USD totals differ at the same height", async () => {
+    const { check } = setup({ v2Overrides: { [`${V2}/v1/network-stats?days=0`]: { data: { ...v2Stats(12), totalUsdSpent: "9.75" } } } });
+
+    const result = await check.run();
+
+    expect(result.status).toBe("fail");
+    expect(result.mismatches).toEqual([{ subject: "network-stats@12.totalUusdSpent", expected: 9_500_000, actual: 9_750_000 }]);
+  });
+
   it("is skipped when nothing could be compared", async () => {
     const { check } = setup({
       legacyOverrides: { [`${LEGACY}/v1/blocks?limit=2`]: [legacySummary(30, 0), legacySummary(29, 0)] },
@@ -243,7 +252,8 @@ describe(HttpCheck.name, () => {
       activeStorage: 5,
       totalUAktSpent: 6,
       totalUUsdcSpent: 7,
-      totalUActSpent: 8
+      totalUActSpent: 8,
+      totalUUsdSpent: 9_500_000
     };
   }
 
@@ -256,6 +266,7 @@ describe(HttpCheck.name, () => {
       activeProviderCount: 1,
       active: { cpuUnits: 3, gpuUnits: 0, memoryBytes: 4, ephemeralStorageBytes: 5, persistentStorageBytes: 0 },
       totalSpent: { uakt: "6", uusdc: "7", uact: "8" },
+      totalUsdSpent: "9.5",
       daily: []
     };
   }

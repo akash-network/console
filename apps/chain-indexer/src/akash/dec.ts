@@ -30,6 +30,12 @@ export function decToString(atomics: bigint): string {
   return `${sign}${integerPart}${fractionalPart ? `.${fractionalPart}` : ""}`;
 }
 
+export function decToFixedString(atomics: bigint): string {
+  const sign = atomics < 0n ? "-" : "";
+  const abs = atomics < 0n ? -atomics : atomics;
+  return `${sign}${abs / DEC_ONE}.${(abs % DEC_ONE).toString().padStart(18, "0")}`;
+}
+
 /** LegacyDec chopPrecisionAndRound: divide by 10^18 rounding half away from zero. */
 function chopPrecisionAndRound(value: bigint): bigint {
   const negative = value < 0n;

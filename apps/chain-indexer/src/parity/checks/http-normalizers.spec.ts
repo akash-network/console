@@ -84,7 +84,7 @@ describe("http normalizers", () => {
     expect(v2).toEqual({ total: 4, transactions: [{ height: 9, hash: "T", isSuccess: true, messageTypes: ["/x"] }] });
   });
 
-  it("reduces both network stat shapes to whole u-denom spend and active resources", () => {
+  it("reduces both network stat shapes to whole u-denom and micro-USD spend and active resources", () => {
     const legacy = normalizeLegacyNetworkStats({
       height: 50,
       activeLeaseCount: 2,
@@ -95,7 +95,8 @@ describe("http normalizers", () => {
       activeStorage: 4096,
       totalUAktSpent: 123.4,
       totalUUsdcSpent: 10,
-      totalUActSpent: 0
+      totalUActSpent: 0,
+      totalUUsdSpent: 1_234_567.8
     });
     const v2 = normalizeV2NetworkStats({
       height: 50,
@@ -105,6 +106,7 @@ describe("http normalizers", () => {
       activeProviderCount: 3,
       active: { cpuUnits: 1000, gpuUnits: 1, memoryBytes: 2048, ephemeralStorageBytes: 4000, persistentStorageBytes: 96 },
       totalSpent: { uakt: "123.400000000000000000", uusdc: "10", uact: "0" },
+      totalUsdSpent: "1.234567800000000000",
       daily: []
     });
 
@@ -119,7 +121,8 @@ describe("http normalizers", () => {
       activeStorage: 4096,
       totalUaktSpent: 123,
       totalUusdcSpent: 10,
-      totalUactSpent: 0
+      totalUactSpent: 0,
+      totalUusdSpent: 1_234_567
     });
   });
 });

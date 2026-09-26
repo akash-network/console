@@ -4,6 +4,8 @@ import { ListAddressTransactionsResponseSchema } from "@src/http-schemas/address
 import { GetBlockResponseSchema, ListBlocksResponseSchema } from "@src/http-schemas/blocks.schema";
 import { GetNetworkStatsResponseSchema } from "@src/http-schemas/network-stats.schema";
 
+const MICRO_UNITS_PER_TOKEN = 1_000_000;
+
 export interface NormalizedBlockSummary {
   height: number;
   datetime: string;
@@ -42,6 +44,7 @@ export interface NormalizedNetworkStats {
   totalUaktSpent: number;
   totalUusdcSpent: number;
   totalUactSpent: number;
+  totalUusdSpent: number;
 }
 
 const LegacyMessageSchema = z.object({ type: z.string() });
@@ -75,7 +78,8 @@ export const LegacyDashboardSchema = z.object({
     activeStorage: z.number(),
     totalUAktSpent: z.number(),
     totalUUsdcSpent: z.number(),
-    totalUActSpent: z.number()
+    totalUActSpent: z.number(),
+    totalUUsdSpent: z.number()
   })
 });
 
@@ -149,7 +153,8 @@ export function normalizeLegacyNetworkStats(body: unknown): NormalizedNetworkSta
     activeStorage: now.activeStorage,
     totalUaktSpent: wholeUnits(now.totalUAktSpent),
     totalUusdcSpent: wholeUnits(now.totalUUsdcSpent),
-    totalUactSpent: wholeUnits(now.totalUActSpent)
+    totalUactSpent: wholeUnits(now.totalUActSpent),
+    totalUusdSpent: wholeUnits(now.totalUUsdSpent)
   };
 }
 
@@ -165,7 +170,8 @@ export function normalizeV2NetworkStats(body: unknown): NormalizedNetworkStats {
     activeStorage: stats.active.ephemeralStorageBytes + stats.active.persistentStorageBytes,
     totalUaktSpent: wholeUnits(stats.totalSpent.uakt),
     totalUusdcSpent: wholeUnits(stats.totalSpent.uusdc),
-    totalUactSpent: wholeUnits(stats.totalSpent.uact)
+    totalUactSpent: wholeUnits(stats.totalSpent.uact),
+    totalUusdSpent: wholeUnits(Number(stats.totalUsdSpent) * MICRO_UNITS_PER_TOKEN)
   };
 }
 

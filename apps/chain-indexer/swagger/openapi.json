@@ -705,6 +705,10 @@
                             "uact"
                           ]
                         },
+                        "totalUsdSpent": {
+                          "type": "string",
+                          "description": "Cumulative USD spend as of the aggregation height: the closed days plus the open day priced at its own AKT close"
+                        },
                         "daily": {
                           "type": "array",
                           "items": {
@@ -796,6 +800,10 @@
                               "dailyUsdSpent": {
                                 "type": "string",
                                 "nullable": true
+                              },
+                              "totalUsdSpent": {
+                                "type": "string",
+                                "description": "Cumulative USD spend through this day's close; a day without an AKT price counts its stablecoin spend only"
                               }
                             },
                             "required": [
@@ -808,7 +816,8 @@
                               "active",
                               "totalSpent",
                               "dailySpent",
-                              "dailyUsdSpent"
+                              "dailyUsdSpent",
+                              "totalUsdSpent"
                             ]
                           }
                         }
@@ -821,6 +830,7 @@
                         "activeProviderCount",
                         "active",
                         "totalSpent",
+                        "totalUsdSpent",
                         "daily"
                       ]
                     }

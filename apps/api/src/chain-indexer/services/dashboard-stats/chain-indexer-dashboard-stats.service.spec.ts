@@ -10,7 +10,11 @@ type NetworkDay = GetNetworkStatsResponse["data"]["daily"][number];
 
 describe(ChainIndexerDashboardStatsService.name, () => {
   it("serves the legacy now block from the api role's live network stats", async () => {
-    const { service } = setup({ datetime: "2026-09-26T20:00:00.000Z", daily: [day("2026-09-25", 900, 80), day("2026-09-24", 800, 70)] });
+    const { service } = setup({
+      datetime: "2026-09-26T20:00:00.000Z",
+      totalUsdSpent: "12.5",
+      daily: [day("2026-09-25", 900, 80, "10.25"), day("2026-09-24", 800, 70, "9")]
+    });
 
     const { now } = await service.getDashboardData();
 
@@ -26,8 +30,8 @@ describe(ChainIndexerDashboardStatsService.name, () => {
       dailyUActSpent: 120,
       totalUUsdcSpent: 300,
       dailyUUsdcSpent: 120,
-      totalUUsdSpent: 0,
-      dailyUUsdSpent: 0,
+      totalUUsdSpent: 12_500_000,
+      dailyUUsdSpent: 2_250_000,
       activeCPU: 4000,
       activeGPU: 2,
       activeMemory: 8192,
@@ -36,12 +40,33 @@ describe(ChainIndexerDashboardStatsService.name, () => {
   });
 
   it("picks the day close nearest to 24 hours before the latest block as the compare point", async () => {
-    const { service } = setup({ datetime: "2026-09-26T02:00:00.000Z", daily: [day("2026-09-25", 900, 80), day("2026-09-24", 800, 70)] });
+    const { service } = setup({
+      datetime: "2026-09-26T02:00:00.000Z",
+      totalUsdSpent: "12.5",
+      daily: [day("2026-09-25", 900, 80, "10.25"), day("2026-09-24", 800, 70, "9"), day("2026-09-23", 700, 60, "8.5")]
+    });
 
     const { now, compare } = await service.getDashboardData();
 
-    expect(compare).toMatchObject({ date: "2026-09-25T00:00:00.000Z", height: 70, totalLeaseCount: 800, dailyLeaseCount: 8, dailyUAktSpent: 8 });
+    expect(compare).toMatchObject({
+      date: "2026-09-25T00:00:00.000Z",
+      height: 70,
+      totalLeaseCount: 800,
+      dailyLeaseCount: 8,
+      dailyUAktSpent: 8,
+      totalUUsdSpent: 9_000_000,
+      dailyUUsdSpent: 500_000
+    });
     expect(now.dailyLeaseCount).toBe(200);
+    expect(now.dailyUUsdSpent).toBe(3_500_000);
+  });
+
+  it("takes the compare day's USD spend from the day itself when the day before it is not in the response", async () => {
+    const { service } = setup({ datetime: "2026-09-26T02:00:00.000Z", daily: [day("2026-09-25", 900, 80, "10.25"), day("2026-09-24", 800, 70, "9")] });
+
+    const { compare } = await service.getDashboardData();
+
+    expect(compare.dailyUUsdSpent).toBe(1_500_000);
   });
 
   it("asks the api role for three closed days with a request deadline", async () => {
@@ -62,7 +87,7 @@ describe(ChainIndexerDashboardStatsService.name, () => {
     expect(compare.dailyLeaseCount).toBe(0);
   });
 
-  function day(date: string, totalLeaseCount: number, closeHeight: number): NetworkDay {
+  function day(date: string, totalLeaseCount: number, closeHeight: number, totalUsdSpent = "0"): NetworkDay {
     return {
       date,
       closeHeight,
@@ -73,11 +98,12 @@ describe(ChainIndexerDashboardStatsService.name, () => {
       active: { cpuUnits: 3000, gpuUnits: 1, memoryBytes: 4096, ephemeralStorageBytes: 1024, persistentStorageBytes: 1024 },
       totalSpent: { uakt: `${totalLeaseCount}.000000000000000000`, uusdc: "100", uact: "80" },
       dailySpent: { uakt: "8", uusdc: "1", uact: "1" },
-      dailyUsdSpent: "1.5"
+      dailyUsdSpent: "1.5",
+      totalUsdSpent
     };
   }
 
-  function setup(input: { datetime: string; daily: NetworkDay[] }) {
+  function setup(input: { datetime: string; daily: NetworkDay[]; totalUsdSpent?: string }) {
     const api = mockDeep<ChainIndexerApiClient>();
     api.v1.getNetworkStats.mockResolvedValue({
       data: {
@@ -88,6 +114,7 @@ describe(ChainIndexerDashboardStatsService.name, () => {
         activeProviderCount: 5,
         active: { cpuUnits: 4000, gpuUnits: 2, memoryBytes: 8192, ephemeralStorageBytes: 4000, persistentStorageBytes: 96 },
         totalSpent: { uakt: "5000.000000000000000000", uusdc: "200", uact: "100" },
+        totalUsdSpent: input.totalUsdSpent ?? "0",
         daily: input.daily
       }
     });
