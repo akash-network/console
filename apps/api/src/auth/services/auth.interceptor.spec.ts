@@ -1,7 +1,8 @@
+import { type Span, trace } from "@opentelemetry/api";
 import { Hono } from "hono";
 import { isHttpError } from "http-errors";
 import { container as globalContainer } from "tsyringe";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import { ApiKeyRepository } from "@src/auth/repositories/api-key/api-key.repository";
@@ -115,8 +116,59 @@ describe(AuthInterceptor.name, () => {
     });
   });
 
+  describe("Auth method", () => {
+    it("records bearer on the request context and the request span for a session request", async () => {
+      const { callInterceptor, observedAuthMethods, requestSpan } = setup({ user: createUser() });
+
+      await callInterceptor();
+
+      expect(observedAuthMethods).toEqual(["bearer"]);
+      expect(requestSpan.setAttribute).toHaveBeenCalledWith("auth.method", "bearer");
+    });
+
+    it("records api_key on the request context and the request span for an API key request", async () => {
+      const { callInterceptor, observedAuthMethods, requestSpan } = setup({ apiKey: "123", user: createUser() });
+
+      await callInterceptor();
+
+      expect(observedAuthMethods).toEqual(["api_key"]);
+      expect(requestSpan.setAttribute).toHaveBeenCalledWith("auth.method", "api_key");
+    });
+
+    it("records api_key for a request whose API key is rejected", async () => {
+      const { callInterceptor, observedAuthMethods } = setup({ apiKey: "123", user: createUser(), apiKeyBehavior: "throw" });
+
+      const response = await callInterceptor();
+
+      expect(response.status).toBe(401);
+      expect(observedAuthMethods).toEqual(["api_key"]);
+    });
+
+    it("records none for a request without credentials", async () => {
+      const { callInterceptor, observedAuthMethods, requestSpan } = setup();
+
+      await callInterceptor();
+
+      expect(observedAuthMethods).toEqual(["none"]);
+      expect(requestSpan.setAttribute).toHaveBeenCalledWith("auth.method", "none");
+    });
+
+    it("records the auth method on the request context when no request span is active", async () => {
+      const { callInterceptor, observedAuthMethods } = setup({ user: createUser(), withoutRequestSpan: true });
+
+      const response = await callInterceptor();
+
+      expect(response.status).toBe(200);
+      expect(observedAuthMethods).toEqual(["bearer"]);
+    });
+  });
+
   function setup(input?: SetupInput) {
     const di = globalContainer.createChildContainer();
+    const requestSpan = mock<Span>();
+    const getActiveSpan = vi.spyOn(trace, "getActiveSpan").mockReturnValue(input?.withoutRequestSpan ? undefined : requestSpan);
+    onTestFinished(() => getActiveSpan.mockRestore());
+    const observedAuthMethods: unknown[] = [];
 
     di.registerInstance(AbilityService, mock());
     di.registerInstance(
@@ -146,10 +198,12 @@ describe(AuthInterceptor.name, () => {
     di.registerInstance(
       ApiKeyAuthService,
       mock<ApiKeyAuthService>({
-        getAndValidateApiKeyFromHeader: vi.fn().mockImplementation(async () => ({
-          id: "123",
-          userId: input?.user?.id
-        }))
+        getAndValidateApiKeyFromHeader: vi.fn().mockImplementation(async () => {
+          if (input?.apiKeyBehavior === "throw") {
+            throw new Error("Invalid API key");
+          }
+          return { id: "123", userId: input?.user?.id };
+        })
       })
     );
     di.register(AuthInterceptor, { useClass: AuthInterceptor });
@@ -171,12 +225,16 @@ describe(AuthInterceptor.name, () => {
       })
     });
 
-    const app = new Hono()
+    const app = new Hono<{ Variables: { authMethod?: string } }>()
       .onError((error, c) => {
         if (isHttpError(error)) {
           return c.json({ error: error.message }, { status: error.status });
         }
         throw error;
+      })
+      .use(async (c, next) => {
+        await next();
+        observedAuthMethods.push(c.get("authMethod"));
       })
       .use(di.resolve(AuthInterceptor).intercept())
       .get("/", c => c.text("Ok"));
@@ -194,6 +252,8 @@ describe(AuthInterceptor.name, () => {
 
     return {
       di,
+      requestSpan,
+      observedAuthMethods,
       callInterceptor: () =>
         app.request("/", {
           headers
@@ -206,5 +266,7 @@ describe(AuthInterceptor.name, () => {
     apiKey?: string;
     bearer?: string;
     tokenBehavior?: "null" | "throw";
+    apiKeyBehavior?: "throw";
+    withoutRequestSpan?: boolean;
   }
 });
