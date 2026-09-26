@@ -112,30 +112,30 @@ The seed logs `LEGACY_PRICES_SEEDED` with how many days it inserted and how many
 
 ## Phase 4: parity gate A
 
-Three checks, all against the sync checkpoint height so the comparison is race-free.
-
-Per-day block and transaction counts against the v1 indexer. Dump both and diff:
+The parity CLI runs the gate. Point it at the filled database, the legacy database, the legacy API and an api role serving the filled database, and pick a few fixed heights (spread over the chain's life) and busy addresses:
 
 ```bash
-psql "$V2_URI" -Atc "SELECT (datetime AT TIME ZONE 'UTC')::date AS day, count(*), sum(tx_count) FROM cosmos.blocks WHERE height <= $CHECKPOINT GROUP BY 1 ORDER BY 1" > v2-days.txt
-psql "$V1_URI" -Atc "SELECT (\"datetime\" AT TIME ZONE 'UTC')::date AS day, count(*), sum(\"txCount\") FROM block WHERE height <= $CHECKPOINT GROUP BY 1 ORDER BY 1" > v1-days.txt
-diff v1-days.txt v2-days.txt && echo "day counts match"
+POSTGRES_DB_URI="$V2_URI" LEGACY_POSTGRES_DB_URI="$V1_URI" \
+LEGACY_API_BASE_URL=https://console-api.akash.network PARITY_V2_API_BASE_URL=http://localhost:3092 \
+RPC_NODE_ENDPOINTS=<archive node> RECONCILE_SAMPLE_SIZE=200 \
+PARITY_HEIGHTS=1000000,5000000,10000000,15000000,20000000,25000000 PARITY_ADDRESSES=<comma-separated addresses> \
+PARITY_OUTPUT=parity-gate-a.json npm run parity
 ```
 
-Sampled balances against an archive node. The reconcile CLI compares the highest-balance accounts and the per-denom supply at the checkpoint height, and exits non-zero on any mismatch:
+It exits non-zero when any check fails. What each one proves is in the README's parity section; in short, `daily-counts` covers every block and transaction the two databases share, `active-sets` covers the akash lifecycle at the fixed heights, `balances` covers the ledger against the chain, and `http` covers the responses the delegation layer will switch over. A skipped part (the two tips differ, or a setting is missing) is not a pass: rerun until every part you rely on has compared something.
 
-```bash
-RPC_NODE_ENDPOINTS=<archive node> RECONCILE_SAMPLE_SIZE=200 npm run reconcile
-```
-
-Provider and audit sets. A fresh genesis-to-tip fill must reproduce every provider the chain lists (2,051 at the time of writing) and the audit signatures, which closes the open question from the L-8 reconcile:
+One set is not automated. A fresh genesis-to-tip fill must reproduce every provider the chain lists (2,051 at the time of writing) and the audit signatures, which closes the open question from the L-8 reconcile:
 
 ```bash
 psql "$V2_URI" -Atc "SELECT count(*) FROM akash.providers WHERE deleted_height IS NULL"
 akash query provider list --count-total --limit 1 -o json | jq -r .pagination.total
 ```
 
-Record the checkpoint height, the three results and the phase timings with the run. The parity CLI (L-15) automates these checks and adds the endpoint-level diffs; until it lands, this is the gate.
+Record the checkpoint height, the report file, the provider count and the phase timings with the run.
+
+### Cutover gate per endpoint
+
+After the fill, enable the nightly workflow (`CHAIN_INDEXER_PARITY_ENABLED=true` with the same settings as repository secrets and variables). An endpoint moves behind its delegation flag only once its part of the `http` check, together with `daily-counts` and `balances`, has passed on seven consecutive nightly runs with nothing skipped. A failed night blocks the flag until the difference is explained and either fixed or accepted in writing on the cutover issue.
 
 ## Phase 5: replaying one module later
 

@@ -1,9 +1,17 @@
 import { z } from "zod";
 
+import { PARITY_CHECK_NAMES } from "@src/parity/check-names";
 import { REPLAYABLE_MODULES } from "@src/pipeline/modules";
 
 /** Treats an empty string as absent so `VAR=` lines in env files don't fail coerced-number validation. */
 const emptyStringAsUndefined = (value: unknown) => (value === "" ? undefined : value);
+
+const commaSeparatedList = z.preprocess(emptyStringAsUndefined, z.string().optional()).transform(value =>
+  (value ?? "")
+    .split(",")
+    .map(item => item.trim())
+    .filter(item => item.length > 0)
+);
 
 const rawEnvSchema = z.object({
   INDEXER_ROLE: z.enum(["sync", "backfill", "api", "jobs"]).default("sync"),
@@ -108,6 +116,18 @@ const rawEnvSchema = z.object({
   SERVER_ORIGIN: z.preprocess(emptyStringAsUndefined, z.string().url().optional()),
   /** Server-side bound on any single query the api role runs; the api serves read-only, so a slow query only ever costs its own request. */
   API_STATEMENT_TIMEOUT_MS: z.number({ coerce: true }).int().positive().default(30_000),
+  /** The legacy Console API (its `/v1/blocks`, address transactions and dashboard endpoints) that `npm run parity` compares the api role against. */
+  LEGACY_API_BASE_URL: z.preprocess(emptyStringAsUndefined, z.string().url().optional()),
+  /** The api role instance `npm run parity` reads; unset skips the http check. */
+  PARITY_V2_API_BASE_URL: z.preprocess(emptyStringAsUndefined, z.string().url().optional()),
+  PARITY_CHECKS: commaSeparatedList.pipe(z.array(z.enum(PARITY_CHECK_NAMES))).transform(names => (names.length === 0 ? [...PARITY_CHECK_NAMES] : names)),
+  /** Fixed heights the active-sets and http checks compare at; a fixed height makes the comparison independent of either tip. */
+  PARITY_HEIGHTS: commaSeparatedList.pipe(z.array(z.coerce.number().int().positive())),
+  PARITY_ADDRESSES: commaSeparatedList,
+  /** Page size for the http check's list endpoints; the api role caps lists at 100. */
+  PARITY_SAMPLE_LIMIT: z.number({ coerce: true }).int().min(1).max(100).default(20),
+  /** File the parity report is written to as JSON, in addition to the log. */
+  PARITY_OUTPUT: z.preprocess(emptyStringAsUndefined, z.string().optional()),
   DRIZZLE_MIGRATIONS_FOLDER: z.string().default("./drizzle"),
   LOG_LEVEL: z.enum(["fatal", "error", "warn", "info", "debug", "trace"]).optional().default("info"),
   STD_OUT_LOG_FORMAT: z.enum(["json", "pretty"]).optional().default("json"),

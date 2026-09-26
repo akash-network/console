@@ -1,0 +1,51 @@
+name: Chain indexer parity
+
+on:
+  schedule:
+    - cron: "30 3 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: chain-indexer-parity
+  cancel-in-progress: false
+
+jobs:
+  parity:
+    if: vars.CHAIN_INDEXER_PARITY_ENABLED == 'true'
+    runs-on: [self-hosted, akash]
+    timeout-minutes: 120
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - uses: ./.github/actions/setup-app-deps
+        with:
+          app: chain-indexer
+
+      - name: Compare the legacy indexer with chain-indexer
+        working-directory: apps/chain-indexer
+        env:
+          NETWORK: ${{ vars.CHAIN_INDEXER_PARITY_NETWORK || 'mainnet' }}
+          POSTGRES_DB_URI: ${{ secrets.CHAIN_INDEXER_PARITY_POSTGRES_DB_URI }}
+          LEGACY_POSTGRES_DB_URI: ${{ secrets.CHAIN_INDEXER_PARITY_LEGACY_POSTGRES_DB_URI }}
+          RPC_NODE_ENDPOINTS: ${{ secrets.CHAIN_INDEXER_PARITY_RPC_NODE_ENDPOINTS }}
+          LEGACY_API_BASE_URL: ${{ vars.CHAIN_INDEXER_PARITY_LEGACY_API_BASE_URL }}
+          PARITY_V2_API_BASE_URL: ${{ vars.CHAIN_INDEXER_PARITY_V2_API_BASE_URL }}
+          PARITY_CHECKS: ${{ vars.CHAIN_INDEXER_PARITY_CHECKS }}
+          PARITY_HEIGHTS: ${{ vars.CHAIN_INDEXER_PARITY_HEIGHTS }}
+          PARITY_ADDRESSES: ${{ vars.CHAIN_INDEXER_PARITY_ADDRESSES }}
+          RECONCILE_SAMPLE_SIZE: ${{ vars.CHAIN_INDEXER_PARITY_RECONCILE_SAMPLE_SIZE }}
+          PARITY_OUTPUT: parity-report.json
+        run: npm run parity
+
+      - name: Upload the report
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: parity-report
+          path: apps/chain-indexer/parity-report.json
+          if-no-files-found: ignore
+          retention-days: 30

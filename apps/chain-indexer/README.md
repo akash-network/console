@@ -151,6 +151,21 @@ Every step claims an `indexer_state` marker (`act-migration:upgrade`, `act-migra
 
 `npm run reconcile` proves the ledger matches the chain at the `sync` checkpoint height. It samples the highest-balance accounts, compares each against the node's bank balance at that height, and checks the ledger's per-denom totals against the chain's total supply; it exits non-zero on any mismatch or misconfiguration, so it can gate a deploy. Querying at the checkpoint rather than the moving tip keeps the comparison race-free, which requires an unpruned (archival) node — sandbox is archival. `RECONCILE_SAMPLE_SIZE` overrides the default sample of 100 accounts. While a `balance` replay owns the ledger (or an `akash` replay owns the network aggregates) the checkpoint no longer means those rows are complete, so the CLI reports `RECONCILE_MODULE_UNDER_REPLAY` and exits non-zero instead of comparing.
 
+## Parity
+
+`npm run parity` compares this indexer with the legacy one and exits non-zero on any difference, so each endpoint's cutover can be gated on it (see the runbook's phase 4). `PARITY_CHECKS` selects which checks run; the default is all four.
+
+| Check          | Compares                                                                                                | Needs                                           |
+| -------------- | ------------------------------------------------------------------------------------------------------- | ----------------------------------------------- |
+| `daily-counts` | Per-UTC-day block and transaction counts over the heights both databases hold                           | `LEGACY_POSTGRES_DB_URI`                        |
+| `active-sets`  | How many deployments, leases and providers were open at each `PARITY_HEIGHTS` height                    | `LEGACY_POSTGRES_DB_URI`, `PARITY_HEIGHTS`      |
+| `balances`     | The reconcile check: sampled balances and the total supply against the chain at the sync checkpoint     | an archival node in `RPC_NODE_ENDPOINTS`        |
+| `http`         | What the legacy Console API and the api role serve for the endpoints the delegation layer switches over | `LEGACY_API_BASE_URL`, `PARITY_V2_API_BASE_URL` |
+
+The http check reduces both responses to the fields both sides serve before diffing them: block detail at each `PARITY_HEIGHTS` height (hash, time, gas, every transaction's hash, success and message types), the latest `PARITY_SAMPLE_LIMIT` blocks over the heights both lists share, each `PARITY_ADDRESSES` page aligned on the newest height both sides have indexed, and the live network stats only when both sides are at the same height. A part that cannot be compared because the two tips differ is reported as skipped, never as a failure.
+
+The report is logged as `PARITY_REPORT` and, when `PARITY_OUTPUT` is set, written there as JSON with one entry per check (`pass`, `fail` or `skipped`, a summary and up to the first differences). A nightly workflow (`.github/workflows/chain-indexer-parity.yml`) runs it once the `CHAIN_INDEXER_PARITY_ENABLED` repository variable is `true`; the connection settings come from repository secrets and variables, and the JSON is uploaded as the `parity-report` artifact of each run.
+
 ## Raw block archive
 
 Set `ARCHIVE_BUCKET` to a GCS bucket name to keep a zstd-compressed copy of every raw `/block` and `/block_results` payload, so handler fixes and new modules can be replayed without re-fetching history from RPC. Leave it unset and both roles behave exactly as before (the boot log says `ARCHIVE_DISABLED`). Authentication uses Application Default Credentials; no key material is configured in the app.
