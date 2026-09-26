@@ -150,6 +150,31 @@ describe(JobScheduler.name, () => {
     }
   });
 
+  it("gives up on an observer that never answers so the run can finish and stop can proceed", async () => {
+    vi.useFakeTimers();
+    try {
+      const { scheduler, run, observer, logger } = setup({ intervalMs: 60_000, runAtStart: true });
+      observer.onStart.mockImplementation(() => new Promise<void>(() => undefined));
+
+      scheduler.start();
+      await vi.advanceTimersByTimeAsync(30_000);
+      const stopping = scheduler.stop();
+      await vi.advanceTimersByTimeAsync(10_000);
+      await stopping;
+
+      expect(run).toHaveBeenCalledTimes(1);
+      expect(logger.error).toHaveBeenCalledWith(
+        expect.objectContaining({
+          event: "JOB_OBSERVER_FAILED",
+          job: "price-history",
+          error: expect.objectContaining({ message: expect.stringMatching(/observer.*30000 ms/) })
+        })
+      );
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("rejects registering the same job twice", () => {
     const { scheduler } = setup({ intervalMs: 1_000 });
 

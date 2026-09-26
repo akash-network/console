@@ -17,6 +17,9 @@ export interface JobRunObserver {
 /** Shorter than the usual 30 s Kubernetes termination grace, so an aborted run is still recorded before the process is killed. */
 const STOP_GRACE_MS = 10_000;
 
+/** The job's timeout guards only the job, so a stalled observer write needs its own bound or it pins the run forever. */
+const OBSERVER_TIMEOUT_MS = 30_000;
+
 interface ScheduledJob {
   definition: JobDefinition;
   running: Promise<void> | null;
@@ -103,12 +106,18 @@ export class JobScheduler {
     }
   }
 
-  /** An observer that fails (its own database write, say) must cost one record, never the scheduler's promise that nothing is thrown. */
+  /** An observer that fails or stalls (its own database write, say) must cost one record, never the scheduler's promise that nothing is thrown. */
   async #notify(name: string, record: () => Promise<void> | void): Promise<void> {
+    let deadline: NodeJS.Timeout | undefined;
+    const expiry = new Promise<never>((_, reject) => {
+      deadline = setTimeout(() => reject(new Error(`Job "${name}" observer did not answer within ${OBSERVER_TIMEOUT_MS} ms`)), OBSERVER_TIMEOUT_MS);
+    });
     try {
-      await record();
+      await Promise.race([Promise.resolve().then(record), expiry]);
     } catch (error) {
       this.#logger.error({ event: "JOB_OBSERVER_FAILED", job: name, error });
+    } finally {
+      clearTimeout(deadline);
     }
   }
 }
