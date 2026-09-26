@@ -265,9 +265,9 @@ describe(ManifestUpdate.name, () => {
     });
   });
 
-  describe("when the secrets feature is on", () => {
+  describe("when sealed creates and the structured update tab are both on", () => {
     it("keeps no copy of an accepted update in this browser", async () => {
-      const handles = setup({ secretsEnabled: true, editedManifest: "version: '2.0'", wallet: { address: "akash1abc" } });
+      const handles = setup({ secretsEnabled: true, updateEditorEnabled: true, editedManifest: "version: '2.0'", wallet: { address: "akash1abc" } });
 
       await clickUpdate(handles);
       await succeed(handles);
@@ -277,7 +277,7 @@ describe(ManifestUpdate.name, () => {
     });
 
     it("keeps no copy of an update the provider has yet to apply in this browser", async () => {
-      const handles = setup({ secretsEnabled: true, editedManifest: "version: '2.0'", wallet: { address: "akash1abc" } });
+      const handles = setup({ secretsEnabled: true, updateEditorEnabled: true, editedManifest: "version: '2.0'", wallet: { address: "akash1abc" } });
 
       await clickUpdate(handles);
       await fail(handles, STALE_PROVIDER_VERSION);
@@ -286,25 +286,48 @@ describe(ManifestUpdate.name, () => {
       expect(handles.queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: ["getDeployment", "123"] });
     });
 
-    it("compares no copy against the chain and renders no local-versus-chain warning", async () => {
+    it("still warns when a copy this browser recorded earlier differs from the chain", async () => {
       const { dependencies } = setup({
         secretsEnabled: true,
+        updateEditorEnabled: true,
         definition: { sdl: "version: '2.0'", source: "local" },
         deployment: { dseq: "123", state: "active", hash: "on-chain-hash" },
         dependencies: { deploymentData: mock<typeof DEPENDENCIES.deploymentData>({ getManifestVersion: vi.fn().mockResolvedValue("a-different-hash") }) }
       });
 
-      await waitFor(() => expect(dependencies.SDLEditor).toHaveBeenCalled());
-
-      expect(dependencies.deploymentData.getManifestVersion).not.toHaveBeenCalled();
-      expect(dependencies.WarningCircle).not.toHaveBeenCalled();
+      await waitFor(() => expect(dependencies.WarningCircle).toHaveBeenCalled());
     });
 
     it("still seeds the editor from a copy this browser recorded before the api held one", async () => {
       const onManifestChange = vi.fn();
-      setup({ secretsEnabled: true, onManifestChange, definition: { sdl: "version: '2.0' # recorded-in-this-browser", source: "local" } });
+      setup({
+        secretsEnabled: true,
+        updateEditorEnabled: true,
+        onManifestChange,
+        definition: { sdl: "version: '2.0' # recorded-in-this-browser", source: "local" }
+      });
 
       await waitFor(() => expect(onManifestChange).toHaveBeenCalledWith("version: '2.0' # recorded-in-this-browser"));
+    });
+  });
+
+  describe("while sealed creates or the structured update tab is still off", () => {
+    it("keeps a copy of an accepted update in this browser when only sealed creates are on", async () => {
+      const handles = setup({ secretsEnabled: true, updateEditorEnabled: false, editedManifest: "version: '2.0'", wallet: { address: "akash1abc" } });
+
+      await clickUpdate(handles);
+      await succeed(handles);
+
+      expect(handles.deploymentLocalStorage.update).toHaveBeenCalledWith("akash1abc", "123", { manifest: "version: '2.0'" });
+    });
+
+    it("keeps a copy of an accepted update in this browser when only the structured update tab is on", async () => {
+      const handles = setup({ secretsEnabled: false, updateEditorEnabled: true, editedManifest: "version: '2.0'", wallet: { address: "akash1abc" } });
+
+      await clickUpdate(handles);
+      await succeed(handles);
+
+      expect(handles.deploymentLocalStorage.update).toHaveBeenCalledWith("akash1abc", "123", { manifest: "version: '2.0'" });
     });
   });
 
@@ -1054,6 +1077,7 @@ describe(ManifestUpdate.name, () => {
     wallet?: Partial<{ address: string; signAndBroadcastTx: ContextType["signAndBroadcastTx"] }>;
     definition?: Partial<DeploymentDefinition>;
     secretsEnabled?: boolean;
+    updateEditorEnabled?: boolean;
     dependencies?: Partial<typeof DEPENDENCIES>;
   }) {
     const providerProxy = mock<ProviderProxyService>();
@@ -1099,7 +1123,11 @@ describe(ManifestUpdate.name, () => {
     const queryClient = mock<ReturnType<typeof DEPENDENCIES.useQueryClient>>();
     const useQueryClient: typeof DEPENDENCIES.useQueryClient = () => queryClient;
 
-    const useFlag: typeof DEPENDENCIES.useFlag = () => input?.secretsEnabled ?? false;
+    const flags: Partial<Record<Parameters<typeof DEPENDENCIES.useFlag>[0], boolean>> = {
+      ui_deployment_secrets: input?.secretsEnabled ?? false,
+      ui_deployment_update_editor: input?.updateEditorEnabled ?? false
+    };
+    const useFlag: typeof DEPENDENCIES.useFlag = flag => flags[flag] ?? false;
 
     const dependencies = MockComponents(DEPENDENCIES, {
       DeploymentTabHeader: vi.fn(({ actions, children }) => (

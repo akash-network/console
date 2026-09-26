@@ -101,8 +101,10 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({
   const { enqueueSnackbar, closeSnackbar } = d.useSnackbar();
   const { isBlockchainDown } = d.useBlockchainStatus();
   const definition = d.useDeploymentDefinition(deployment.dseq);
-  /** Once creates are sealed the console's stored copy is the one every browser reads, so this browser neither keeps a copy of its own nor holds a version to compare. */
-  const keepsBrowserCopy = !d.useFlag("ui_deployment_secrets");
+  const isSecretsEnabled = d.useFlag("ui_deployment_secrets");
+  const isUpdateEditorEnabled = d.useFlag("ui_deployment_update_editor");
+  /** The api seals every value of the unsealed update this tab sends, so the browser copy stays until sealed creates and the structured tab are both on and this tab is only a fallback. */
+  const keepsBrowserCopy = !isSecretsEnabled || !isUpdateEditorEnabled;
   const queryClient = d.useQueryClient();
   const seededDseq = useRef<string | undefined>(undefined);
   const seededSdl = useRef("");
@@ -157,7 +159,7 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({
 
       const { sdl } = definition;
 
-      if (!sdl || !keepsBrowserCopy || !needsChainVersionCheck(definition)) {
+      if (!sdl || !needsChainVersionCheck(definition)) {
         setDeploymentVersion(null);
         return;
       }
@@ -173,7 +175,7 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({
 
       readVersionOfResolvedCopy();
     },
-    [isResolvingDefinition, definition.sdl, definition.source, keepsBrowserCopy]
+    [isResolvingDefinition, definition.sdl, definition.source]
   );
 
   function handleManifestChange(value: string) {
