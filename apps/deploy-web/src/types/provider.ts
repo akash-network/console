@@ -241,9 +241,16 @@ export interface ClientProviderList extends ApiProviderList {
 
 export type CpuArchAgreement = "match" | "mismatch" | "unknown";
 
+export type ProviderGpuDriver = {
+  driverVersion: string;
+  cudaVersion: string | null;
+  lastSeenDate: string;
+};
+
 export interface ApiProviderDetail extends ApiProviderList {
   reportedCpuArchs: string[];
   cpuArchAgreement: CpuArchAgreement;
+  gpuDrivers: ProviderGpuDriver[];
   uptime: Array<{
     id: string;
     isOnline: boolean;
