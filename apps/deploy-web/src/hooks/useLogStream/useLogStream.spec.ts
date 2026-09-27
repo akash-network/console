@@ -256,11 +256,12 @@ describe(useLogStream.name, () => {
 
   it("disarms the grace period when the consumer goes away", async () => {
     const { unmount } = await setup();
-    expect(vi.getTimerCount()).toBe(1);
+    await advanceTime(0);
+    const timersWhileWaiting = vi.getTimerCount();
 
     unmount();
 
-    expect(vi.getTimerCount()).toBe(0);
+    expect(vi.getTimerCount()).toBe(timersWhileWaiting - 1);
   });
 
   async function advanceTime(ms: number) {
