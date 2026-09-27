@@ -11,7 +11,7 @@ on:
   workflow_run:
     workflows: ["CI"]
     types: [requested]
-  # pull_request: # uncomment to test this workflow in PR
+  pull_request: # TEMPORARY: runs this copy at push time on this PR, reverted before merge
 
 # Keyed on the scanned commit, not the branch: a branch-wide key lets a newer commit's scan cancel an
 # older commit's scan mid-flight, orphaning the check run it already created as permanently pending.
