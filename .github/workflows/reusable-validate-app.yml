@@ -12,6 +12,11 @@ on:
         required: false
         type: string
         default: "[1]"
+      build_on_runner:
+        description: "Whether test-build may run the app's build script on the runner instead of building its image"
+        required: false
+        type: boolean
+        default: false
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}-${{ inputs.app }}
@@ -373,14 +378,15 @@ jobs:
         with:
           persist-credentials: false
 
-      # Installing dependencies inside the image took over a minute on its own, so a Next.js app builds on the
-      # runner from the cached dependencies unless something only the image build reads has changed.
+      # Installing dependencies inside the image took over a minute on its own, so an app that allows it builds on
+      # the runner from the cached dependencies unless something only the image build reads has changed.
       - name: Decide how to build
         id: build_mode
         env:
+          BUILD_ON_RUNNER: ${{ inputs.build_on_runner }}
           IMAGE_BUILD_CHANGES: ${{ needs.should-validate.outputs.image_build_changes }}
         run: | # shell
-          if [[ -f "apps/$APP_TO_VALIDATE/next.config.js" && "$IMAGE_BUILD_CHANGES" != "true" ]]; then
+          if [[ "$BUILD_ON_RUNNER" == "true" && "$IMAGE_BUILD_CHANGES" != "true" ]]; then
             echo "mode=runner" >> "$GITHUB_OUTPUT"
           else
             echo "mode=image" >> "$GITHUB_OUTPUT"
