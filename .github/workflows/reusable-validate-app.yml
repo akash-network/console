@@ -99,9 +99,6 @@ jobs:
           echo "has_tests=$has_tests" >> "$GITHUB_OUTPUT"
           echo "requires_env_setup=$requires_env_setup" >> "$GITHUB_OUTPUT"
 
-      - uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4.0.0
-        if: ${{ steps.tests_details.outputs.requires_env_setup == 'true' }}
-
       - name: Normalize branch name
         if: ${{ steps.tests_details.outputs.requires_env_setup == 'true' }}
         run: |
@@ -109,7 +106,8 @@ jobs:
           echo "BRANCH_NAME_SAFE=${BRANCH_NAME_SAFE:-main}" >> "$GITHUB_ENV"
 
       # Starts before the dependencies are restored so the containers come up while they do. node_modules does
-      # not exist yet, so a shim puts the docker package's `dc` on PATH for the app's `test:ci-setup` script.
+      # not exist yet, so a shim puts the docker package's `dc` on PATH for the app's `test:ci-setup` script,
+      # which creates the buildx builder it needs itself.
       - name: Start tests environment
         if: ${{ steps.tests_details.outputs.requires_env_setup == 'true' }}
         env:
