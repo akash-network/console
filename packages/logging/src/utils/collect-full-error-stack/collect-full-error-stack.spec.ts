@@ -1,3 +1,4 @@
+import { DrizzleQueryError } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 
 import { collectFullErrorStack } from "./collect-full-error-stack";
@@ -138,5 +139,25 @@ describe(collectFullErrorStack.name, () => {
     expect(result).toContain("inner cause");
     expect(result).toContain("Status: 500");
     expect(result).toContain("Body: error body");
+  });
+
+  it("collects a failed query with its params redacted and why it failed", () => {
+    const driverError = Object.assign(new Error("duplicate key value violates unique constraint"), { code: "23505" });
+    const error = new DrizzleQueryError('insert into "deployment_settings" ("dseq", "sealed_secrets") values ($1, $2)', [42, "sealed-token"], driverError);
+
+    const result = collectFullErrorStack(error);
+
+    expect(result).toContain('Failed query: insert into "deployment_settings" ("dseq", "sealed_secrets") values ($1, $2)\nparams: 42, <redacted string>');
+    expect(result).toContain("duplicate key value violates unique constraint (code: 23505)");
+    expect(result).not.toContain("sealed-token");
+  });
+
+  it("collects a failed query that caused another error with its params redacted", () => {
+    const failedQuery = new DrizzleQueryError('update "api_keys" set "hashed_key" = $1', ["hashed-api-key"], new Error("connection terminated"));
+
+    const result = collectFullErrorStack(new Error("could not rotate the api key", { cause: failedQuery }));
+
+    expect(result).toContain("params: <redacted string>");
+    expect(result).not.toContain("hashed-api-key");
   });
 });

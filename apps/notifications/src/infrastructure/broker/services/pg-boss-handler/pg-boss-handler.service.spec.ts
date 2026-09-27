@@ -3,6 +3,7 @@ import { faker } from "@faker-js/faker";
 import type { DiscoveredMethod } from "@golevelup/nestjs-discovery";
 import { DiscoveryService } from "@golevelup/nestjs-discovery";
 import { Test, type TestingModule } from "@nestjs/testing";
+import { DrizzleQueryError } from "drizzle-orm";
 import type { ZodDto } from "nestjs-zod";
 import { createZodDto } from "nestjs-zod";
 import type { Job } from "pg-boss";
@@ -71,6 +72,26 @@ describe(PgBossHandlerService.name, () => {
       job: mockJob,
       error: mockError
     });
+  });
+
+  it("rethrows a failed query's error with its params redacted, so pg-boss stores none of them", async () => {
+    const { service, brokerService, dto, handlerMethod } = await setup();
+    const insertChannel = 'insert into "notification_channels" ("config") values ($1)';
+    let rethrown: unknown;
+
+    brokerService.subscribe.mockImplementation(async (key, options, callback) => {
+      try {
+        await callback({ data: generateMock(dto.schema) } as Job<any>);
+      } catch (error) {
+        rethrown = error;
+      }
+    });
+    handlerMethod.mockRejectedValue(new DrizzleQueryError(insertChannel, ['{"addresses":["user@example.com"]}'], new Error("connection terminated")));
+
+    await service.startAllHandlers();
+
+    expect((rethrown as DrizzleQueryError).message).toBe(`Failed query: ${insertChannel}\nparams: <redacted string>`);
+    expect((rethrown as DrizzleQueryError).params).toEqual(["<redacted string>"]);
   });
 
   async function setup(): Promise<{

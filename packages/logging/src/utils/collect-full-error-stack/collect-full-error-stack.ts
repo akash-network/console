@@ -1,3 +1,5 @@
+import { redactQueryError } from "../redact-query-error/redact-query-error";
+
 export function collectFullErrorStack(
   error: string | Error | AggregateError | ErrorWithResponse | ErrorWithData | ErrorLike | undefined | null,
   indent = 0
@@ -5,7 +7,7 @@ export function collectFullErrorStack(
   if (!error) return "";
   if (typeof error === "string") return sanitizeString(error);
 
-  const currentError = error;
+  const currentError = redactQueryError(error);
   const stack = currentError.stack ? currentError.stack.split("\n") : [];
 
   if (stack.length > 0 && "code" in currentError) {

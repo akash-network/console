@@ -1,5 +1,8 @@
 import { type MongoAbility, subject } from "@casl/ability";
 import { faker } from "@faker-js/faker";
+import type { Span, Tracer } from "@opentelemetry/api";
+import { SpanStatusCode, trace } from "@opentelemetry/api";
+import { DrizzleQueryError } from "drizzle-orm";
 import type { Job as PgBossJob, PgBoss, QueueResult, WorkHandler } from "pg-boss";
 import type { Sql } from "postgres";
 import { describe, expect, expectTypeOf, it, vi } from "vitest";
@@ -10,6 +13,9 @@ import type { CoreConfigService } from "../core-config/core-config.service";
 import type { ExecutionContextService } from "../execution-context/execution-context.service";
 import type { TxService } from "../tx/tx.service";
 import { type EnqueueOptions, type Job, JOB_NAME, type JobHandler, type JobPayload, type JobPermissions, JobQueueService } from "./job-queue.service";
+
+const DEPLOYMENT_INSERT = 'insert into "deployment_settings" ("dseq", "sealed_secrets") values ($1, $2)';
+const REDACTED_DEPLOYMENT_INSERT_MESSAGE = `Failed query: ${DEPLOYMENT_INSERT}\nparams: 42, <redacted string>`;
 
 describe(JobQueueService.name, () => {
   describe("registerHandlers", () => {
@@ -569,6 +575,35 @@ describe(JobQueueService.name, () => {
       expect(logger.error).toHaveBeenCalledWith({ event: "JOB_FAILED", jobId: expect.any(String), error });
     });
 
+    it("rethrows a failed query's error without its params or the row its driver error reported, so pg-boss stores neither", async () => {
+      const error = failedDeploymentInsert();
+      const { service, pgBoss, logger } = setup();
+      deliverOneJob(pgBoss, { message: "Job 1", userId: "user-1" });
+
+      await service.registerHandlers([new TestHandler(vi.fn().mockRejectedValue(error))]);
+      const [result] = await Promise.allSettled([service.startWorkers({ concurrency: 1 })]);
+
+      const thrown = (result as PromiseRejectedResult).reason as DrizzleQueryError;
+      expect(thrown.message).toBe(REDACTED_DEPLOYMENT_INSERT_MESSAGE);
+      expect(thrown.params).toEqual(["42", "<redacted string>"]);
+      expect(thrown.cause).toHaveProperty("code", "23502");
+      expect(thrown.cause).not.toHaveProperty("detail");
+      expect(logger.error).toHaveBeenCalledWith({ event: "JOB_FAILED", jobId: expect.any(String), error });
+    });
+
+    it("records a failed query on the job's span with its params redacted", async () => {
+      const { service, pgBoss, span } = setup();
+      deliverOneJob(pgBoss, { message: "Job 1", userId: "user-1" });
+
+      await service.registerHandlers([new TestHandler(vi.fn().mockRejectedValue(failedDeploymentInsert()))]);
+      await Promise.allSettled([service.startWorkers({ concurrency: 1 })]);
+
+      expect(span.setStatus).toHaveBeenCalledWith({ code: SpanStatusCode.ERROR, message: REDACTED_DEPLOYMENT_INSERT_MESSAGE });
+      expect(span.recordException).toHaveBeenCalledWith(
+        expect.objectContaining({ message: REDACTED_DEPLOYMENT_INSERT_MESSAGE, stack: expect.not.stringContaining("sealed-token") })
+      );
+    });
+
     it("rewrites the error when only its stack carries a NUL byte", async () => {
       const error = new Error("insert failed");
       error.stack = "Error: insert failed\n    at params: \u0000";
@@ -862,6 +897,8 @@ describe(JobQueueService.name, () => {
   }
 
   function setup(input?: { pgBoss?: PgBoss; postgresDbUri?: string; queues?: QueueResult[] }) {
+    const span = mock<Span>();
+    vi.spyOn(trace, "getTracer").mockReturnValue(mock<Tracer>({ startSpan: vi.fn().mockReturnValue(span) }));
     const mocks = {
       logger: mock<ReturnType<CreateLogger>>(),
       coreConfig: mock<CoreConfigService>({
@@ -898,7 +935,7 @@ describe(JobQueueService.name, () => {
       input && Object.hasOwn(input, "pgBoss") ? input?.pgBoss : mocks.pgBoss
     );
 
-    return { service, createLogger, ...mocks };
+    return { service, createLogger, span, ...mocks };
   }
 
   class TestJob implements Job {
@@ -978,6 +1015,15 @@ describe(JobQueueService.name, () => {
     requiresPermission(): JobPermissions {
       return [];
     }
+  }
+
+  function failedDeploymentInsert() {
+    const driverError = Object.assign(new Error('null value in column "name" of relation "deployment_settings" violates not-null constraint'), {
+      name: "PostgresError",
+      code: "23502",
+      detail: "Failing row contains (42, sealed-token)"
+    });
+    return new DrizzleQueryError(DEPLOYMENT_INSERT, [42, "sealed-token"], driverError);
   }
 
   function deliverOneJob(pgBoss: PgBoss, data: Record<string, unknown>) {

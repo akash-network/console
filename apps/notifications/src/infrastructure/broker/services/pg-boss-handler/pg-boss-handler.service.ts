@@ -1,3 +1,4 @@
+import { redactQueryError } from "@akashnetwork/logging";
 import { DiscoveryService } from "@golevelup/nestjs-discovery";
 import { Injectable } from "@nestjs/common";
 import { validate, ZodDto } from "nestjs-zod";
@@ -65,7 +66,7 @@ export class PgBossHandlerService {
           job,
           error
         });
-        throw error;
+        throw redactQueryError(error);
       }
     });
   }

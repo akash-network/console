@@ -1,3 +1,4 @@
+import { redactQueryError } from "@akashnetwork/logging";
 import type { Span } from "@opentelemetry/api";
 import { context, SpanStatusCode, trace } from "@opentelemetry/api";
 
@@ -54,11 +55,7 @@ export function Trace(spanName?: string) {
               return result;
             })
             .catch((error: Error) => {
-              span.setStatus({
-                code: SpanStatusCode.ERROR,
-                message: error.message
-              });
-              span.recordException(error);
+              recordFailure(span, error);
               span.end();
               throw error;
             });
@@ -69,11 +66,7 @@ export function Trace(spanName?: string) {
         span.end();
         return result;
       } catch (error: any) {
-        span.setStatus({
-          code: SpanStatusCode.ERROR,
-          message: error.message
-        });
-        span.recordException(error);
+        recordFailure(span, error);
         span.end();
         throw error;
       }
@@ -174,13 +167,15 @@ export async function withSpan<T>(spanName: string, fn: (ctx: { activeSpan: Span
     span.setStatus({ code: SpanStatusCode.OK });
     return result;
   } catch (error: any) {
-    span.setStatus({
-      code: SpanStatusCode.ERROR,
-      message: error.message
-    });
-    span.recordException(error);
+    recordFailure(span, error);
     throw error;
   } finally {
     span.end();
   }
+}
+
+function recordFailure(span: Span, error: Error): void {
+  const recordable = redactQueryError(error);
+  span.setStatus({ code: SpanStatusCode.ERROR, message: recordable.message });
+  span.recordException(recordable);
 }

@@ -1,5 +1,6 @@
 import { faker } from "@faker-js/faker";
 import type { Counter } from "@opentelemetry/api";
+import { DrizzleQueryError } from "drizzle-orm";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
@@ -204,6 +205,31 @@ describe(TopUpManagedDeploymentsInstrumentationService.name, () => {
       service.recordMessagePreparationError({ deployment, error: "string error" });
 
       expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ message: "string error" }));
+    });
+
+    it("logs the data an error carries", () => {
+      const { service, logger } = setup();
+      service.start(100, { dryRun: false });
+
+      service.recordMessagePreparationError({
+        deployment: createDrainingDeployment(),
+        error: Object.assign(new Error("rejected by chain"), { data: { code: 5 } })
+      });
+
+      expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ message: "rejected by chain", data: { code: 5 } }));
+    });
+
+    it("logs a failed query with its params redacted", () => {
+      const { service, logger } = setup();
+      service.start(100, { dryRun: false });
+      const query = 'update "deployment_settings" set "sealed_secrets" = $1 where "id" = $2';
+      const error = new DrizzleQueryError(query, ["sealed-token", 7], new Error("connection terminated"));
+
+      service.recordMessagePreparationError({ deployment: createDrainingDeployment(), error });
+
+      expect(logger.error).toHaveBeenCalledWith(
+        expect.objectContaining({ message: `Failed query: ${query}\nparams: <redacted string>, 7`, stack: expect.not.stringContaining("sealed-token") })
+      );
     });
   });
 

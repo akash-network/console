@@ -1,3 +1,4 @@
+import { redactQueryError } from "@akashnetwork/logging";
 import { createMongoAbility, type MongoAbility, type RawRuleOf } from "@casl/ability";
 import { context, propagation, SpanStatusCode, trace } from "@opentelemetry/api";
 import {
@@ -433,7 +434,7 @@ export class JobQueueService implements Disposable {
                   jobId: job.id,
                   error
                 });
-                throw toStorableError(error);
+                throw toStorableError(redactQueryError(error));
               }
             });
           });

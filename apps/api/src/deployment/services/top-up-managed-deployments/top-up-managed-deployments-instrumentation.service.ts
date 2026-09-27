@@ -1,3 +1,4 @@
+import { redactQueryError } from "@akashnetwork/logging";
 import type { Counter, Histogram, Meter } from "@opentelemetry/api";
 import { inject, Lifecycle, scoped } from "tsyringe";
 
@@ -444,15 +445,16 @@ export class TopUpManagedDeploymentsInstrumentationService implements Deployment
   }
 
   private serializeError(error: unknown): { message: string; stack?: string; data?: unknown } {
-    if (error instanceof Error) {
+    const loggable = redactQueryError(error);
+    if (loggable instanceof Error) {
       return {
-        message: error.message,
-        stack: error.stack,
-        data: "data" in error ? (error as Record<string, unknown>).data : undefined
+        message: loggable.message,
+        stack: loggable.stack,
+        data: "data" in loggable ? (loggable as Record<string, unknown>).data : undefined
       };
     }
 
-    return { message: String(error) };
+    return { message: String(loggable) };
   }
 
   private execWhenEnabled(fn: () => void): void {
