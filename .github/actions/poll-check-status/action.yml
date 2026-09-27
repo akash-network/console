@@ -97,7 +97,8 @@ runs:
               check_name: checkName
             });
 
-            const check = data.check_runs[0];
+            // A run cancelled by a newer one for the same commit leaves its check run in progress for good.
+            const check = data.check_runs.reduce((newest, run) => (!newest || run.id > newest.id ? run : newest), null);
             if (!check) return null;
 
             return {

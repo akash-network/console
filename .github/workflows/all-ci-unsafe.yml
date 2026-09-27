@@ -1,6 +1,7 @@
-# Security scan workflow triggered as soon as CI is requested, so it runs alongside CI instead of after it.
+# Security scan workflow triggered after CI completes successfully.
+# The scans themselves run in Security Analysis (security-analysis.yml), which starts with CI; this workflow waits for
+# CI's conclusion and that analysis' verdict, and reports both as the required `security-scan` check.
 # Uses workflow_run to run in base repo context, giving access to secrets for fork PRs.
-# None of its jobs build or execute the scanned code, so starting before CI has passed widens nothing.
 #
 # !!!! PLEASE be extra careful here and treat forked repository as untrusted user input !!!!
 
@@ -9,8 +10,8 @@ name: Security Scan
 on:
   workflow_run:
     workflows: ["CI"]
-    types: [requested]
-  pull_request: # TEMPORARY: times the scan from the push on this PR, reverted before merge
+    types: [completed]
+  # pull_request: # uncomment to test this workflow in PR
 
 # Keyed on the scanned commit, not the branch: a branch-wide key lets a newer commit's scan cancel an
 # older commit's scan mid-flight, orphaning the check run it already created as permanently pending.
@@ -28,6 +29,7 @@ permissions:
 # from the triggering run; on `pull_request` (used for testing this workflow
 # in-place) they're synthesized from the PR payload.
 env:
+  PARENT_WORKFLOW_CONCLUSION: ${{ github.event.workflow_run.conclusion || github.event.pull_request && 'success' }}
   PARENT_WORKFLOW_EVENT: ${{ github.event.workflow_run.event || github.event_name }}
   PARENT_WORKFLOW_HEAD_SHA: ${{ github.event.workflow_run.head_sha || github.event.pull_request.head.sha }}
 
@@ -59,28 +61,55 @@ jobs:
         env:
           PR_NUMBER: ${{ steps.associated_pr.outputs.number }}
         run: | # shell
+          # A cancelled CI run is superseded by a newer one whose own scan reports this commit's verdict;
+          # reporting here as well would race that scan for the same check name on the same commit.
+          if [ "${PARENT_WORKFLOW_CONCLUSION}" == "cancelled" ]; then
+            echo "run_scan=false" >> "$GITHUB_OUTPUT"
+            echo "report_check=false" >> "$GITHUB_OUTPUT"
+            echo "skip_reason=Upstream CI was cancelled, so the superseding CI run reports instead" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
           # Nothing to scan without a PR to read files and labels from, but the check is still reported:
           # withholding it leaves a required check pending forever on a commit that is a PR head after all.
           if [[ "${PARENT_WORKFLOW_EVENT}" == "pull_request" && "${PR_NUMBER}" == "" ]]; then
             echo "run_scan=false" >> "$GITHUB_OUTPUT"
+            echo "report_check=true" >> "$GITHUB_OUTPUT"
             echo "skip_reason=PR head changed because of rebase/force push and associated PR cannot be found" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if [ "${PARENT_WORKFLOW_CONCLUSION}" != "success" ]; then
+            echo "run_scan=false" >> "$GITHUB_OUTPUT"
+            echo "report_check=true" >> "$GITHUB_OUTPUT"
+            echo "skip_reason=Upstream CI conclusion is '${PARENT_WORKFLOW_CONCLUSION}'" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
           if [[ "${PARENT_WORKFLOW_EVENT}" != "pull_request" && "${PARENT_WORKFLOW_EVENT}" != "push" ]]; then
             echo "run_scan=false" >> "$GITHUB_OUTPUT"
+            echo "report_check=true" >> "$GITHUB_OUTPUT"
             echo "skip_reason=Upstream CI was not triggered by pull_request or push (event=${PARENT_WORKFLOW_EVENT})" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
           echo "run_scan=true" >> "$GITHUB_OUTPUT"
+          echo "report_check=true" >> "$GITHUB_OUTPUT"
           echo "skip_reason=" >> "$GITHUB_OUTPUT"
+
+      - name: Note skipped check run
+        if: ${{ steps.decide.outputs.report_check != 'true' }}
+        env:
+          SKIP_REASON: ${{ steps.decide.outputs.skip_reason }}
+        run: | # shell
+          echo "No \`security-scan\` check reported for ${PARENT_WORKFLOW_HEAD_SHA}: ${SKIP_REASON}" >> "$GITHUB_STEP_SUMMARY"
 
       # A pull request in a stack is rewritten whenever a branch below it moves, and an empty retrigger commit
       # does the same by hand, leaving CI's commit off the pull request: the verdict belongs on the commit the
       # merge box reads, as long as that commit holds the content this run scanned.
       - name: Resolve commit to report on
         id: report_target
+        if: ${{ steps.decide.outputs.report_check == 'true' }}
         env:
           GH_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ steps.associated_pr.outputs.number }}
@@ -115,6 +144,7 @@ jobs:
 
       - name: Create check run
         id: create_check
+        if: ${{ steps.decide.outputs.report_check == 'true' }}
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
           REPORT_SHA: ${{ steps.report_target.outputs.sha }}
@@ -137,174 +167,28 @@ jobs:
 
             core.setOutput("check_run_id", String(res.data.id));
 
-  setup-static-analyses:
+  wait-for-analysis:
     needs: [create-check-run]
-    if: ${{ needs.create-check-run.outputs.run_scan == 'true' && needs.create-check-run.outputs.event == 'pull_request' }}
-    runs-on: ubuntu-latest
-    outputs:
-      matrix: ${{ steps.matrix.outputs.value }}
-      should_run: ${{ !contains(fromJSON(steps.associated_pr.outputs.labels), 'ignore-static-analyses') }}
-      pr_head_ref: ${{ steps.associated_pr.outputs.head_ref }}
-      pr_head_repo: ${{ steps.associated_pr.outputs.head_repo }}
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-        with:
-          persist-credentials: false
-
-      - name: Get associated PR
-        id: associated_pr
-        uses: ./.github/actions/associated-pr
-        with:
-          ref: ${{ env.PARENT_WORKFLOW_HEAD_SHA }}
-
-      - name: Build matrix from changed files
-        if: ${{ !contains(fromJSON(steps.associated_pr.outputs.labels), 'ignore-static-security-analysis') }}
-        id: matrix
-        env:
-          GH_TOKEN: ${{ github.token }}
-          PR_NUMBER: ${{ steps.associated_pr.outputs.number }}
-        run: | # shell
-          changed_files=$(gh api "/repos/${{ github.repository }}/pulls/$PR_NUMBER/files" \
-            --paginate --jq '.[].filename')
-
-          all_apps=$(find apps/* -maxdepth 0 -type d -print0 | xargs -0 -n1 basename)
-
-          changed_apps=()
-          for app in $all_apps; do
-            if echo "$changed_files" | grep -q "^apps/$app/"; then
-              changed_apps+=("$app")
-            fi
-          done
-
-          if [ ${#changed_apps[@]} -eq 0 ]; then
-            echo "No changed apps detected, skipping static analyses"
-            echo "value=" >> "$GITHUB_OUTPUT"
-          else
-            workspaces=$(printf '"%s",' "${changed_apps[@]}")
-            workspaces="[${workspaces%,}]"
-            echo "Changed apps detected: ${changed_apps[*]}"
-            echo 'value={"workspace":'"$workspaces"'}' >> "$GITHUB_OUTPUT"
-          fi
-
-  static-analyses:
-    needs: [setup-static-analyses]
-    if: ${{ needs.setup-static-analyses.outputs.should_run == 'true' && needs.setup-static-analyses.outputs.matrix != '' }}
-    strategy:
-      matrix: ${{ fromJSON(needs.setup-static-analyses.outputs.matrix) }}
-      fail-fast: false
-    uses: ./.github/workflows/reusable-validate-app-unsafe.yml
-    secrets:
-      gh-token: ${{ secrets.GITHUB_TOKEN }}
-      snyk-token: ${{ secrets.SNYK_TOKEN }}
-    with:
-      path: apps/${{ matrix.workspace }}
-      pr_head_ref: ${{ needs.setup-static-analyses.outputs.pr_head_ref }}
-      pr_head_repo: ${{ needs.setup-static-analyses.outputs.pr_head_repo }}
-
-  apps-deps-scan:
-    needs: [create-check-run]
-    if: ${{ needs.create-check-run.outputs.run_scan == 'true' && needs.create-check-run.outputs.event == 'pull_request' }}
+    if: ${{ needs.create-check-run.outputs.run_scan == 'true' }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
-          sparse-checkout: |
-            .github
-
-      - name: Get associated PR
-        id: associated_pr
-        uses: ./.github/actions/associated-pr
-        with:
-          ref: ${{ env.PARENT_WORKFLOW_HEAD_SHA }}
-          export-file-changes: package-lock.json
-
-      - name: Check snyk status
-        if: >-
-          contains(fromJSON(steps.associated_pr.outputs.changes), 'package-lock.json')
-          && !contains(fromJSON(steps.associated_pr.outputs.labels), 'ignore-apps-deps-scan')
+          sparse-checkout: .github
+      - name: Wait for the security analysis
         uses: ./.github/actions/poll-check-status
         with:
-          name: "security/snyk (corysturtevant)"
+          name: security-analysis
           sha: ${{ env.PARENT_WORKFLOW_HEAD_SHA }}
-          check_type: status
-
-      - name: Check socketio status
-        if: >-
-          contains(fromJSON(steps.associated_pr.outputs.changes), 'package-lock.json')
-          && !contains(fromJSON(steps.associated_pr.outputs.labels), 'ignore-apps-deps-scan')
-        uses: ./.github/actions/poll-check-status
-        with:
-          name: "Socket Security: Pull Request Alerts"
-          sha: ${{ env.PARENT_WORKFLOW_HEAD_SHA }}
-
-  codeql-scan:
-    if: needs.create-check-run.outputs.run_scan == 'true'
-    needs: [create-check-run]
-    name: Analyze (${{ matrix.language }})
-    # Runner size impacts CodeQL analysis time. To learn more, please see:
-    #   - https://gh.io/recommended-hardware-resources-for-running-codeql
-    #   - https://gh.io/supported-runners-and-hardware-resources
-    #   - https://gh.io/using-larger-runners (GitHub.com only)
-    # Consider using larger runners or machines with greater resources for possible analysis time improvements.
-    runs-on: ubuntu-latest
-    permissions:
-      # required for all workflows
-      security-events: write
-      # required to fetch internal or private CodeQL packs
-      packages: read
-      # only required for workflows in private repositories
-      actions: read
-      contents: read
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - language: actions
-          - language: javascript-typescript
-            wait-for-check: true
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-        with:
-          persist-credentials: false
-          ref: ${{ env.PARENT_WORKFLOW_HEAD_SHA }}
-      - name: Get associated PR
-        if: ${{ env.PARENT_WORKFLOW_EVENT == 'pull_request' }}
-        id: associated_pr
-        uses: ./.github/actions/associated-pr
-        with:
-          ref: ${{ env.PARENT_WORKFLOW_HEAD_SHA }}
-      - name: Initialize CodeQL
-        if: ${{ steps.associated_pr.outcome == 'skipped' || !contains(fromJSON(steps.associated_pr.outputs.labels), 'ignore-codeql-security') }}
-        uses: github/codeql-action/init@95e58e9a2cdfd71adc6e0353d5c52f41a045d225 # v4.35.2
-        with:
-          languages: ${{ matrix.language }}
-          build-mode: none
-      - name: Perform CodeQL Analysis
-        if: ${{ steps.associated_pr.outcome == 'skipped' || !contains(fromJSON(steps.associated_pr.outputs.labels), 'ignore-codeql-security') }}
-        uses: github/codeql-action/analyze@95e58e9a2cdfd71adc6e0353d5c52f41a045d225 # v4.35.2
-        with:
-          category: "/language:${{matrix.language}}"
-          # Override GITHUB_SHA/REF (default branch under workflow_run) so the
-          # "CodeQL" check lands on the PR head or main. Ignored for fork PRs.
-          sha: ${{ env.PARENT_WORKFLOW_HEAD_SHA }}
-          ref: ${{ env.PARENT_WORKFLOW_EVENT == 'pull_request' && format('refs/pull/{0}/head', steps.associated_pr.outputs.number) || 'refs/heads/main' }}
-      - name: Wait for CodeQL status
-        if: ${{ matrix.wait-for-check && steps.associated_pr.outputs.labels && !contains(fromJSON(steps.associated_pr.outputs.labels), 'ignore-codeql-security') }}
-        uses: ./.github/actions/poll-check-status
-        with:
-          name: "CodeQL"
-          sha: ${{ env.PARENT_WORKFLOW_HEAD_SHA }}
-          max_retries: 10
-          # Code scanning re-evaluates the check as each language's upload lands and reads neutral in between.
-          pending_conclusions: neutral
+          retry_delay: 10000
+          # The analysis starts with CI and is usually done by now; this covers a CI run that finished first.
+          max_retries: 90
 
   finalize:
     runs-on: ubuntu-latest
-    needs: [create-check-run, static-analyses, codeql-scan, apps-deps-scan]
+    needs: [create-check-run, wait-for-analysis]
     if: ${{ always() && needs.create-check-run.result == 'success' && needs.create-check-run.outputs.check_run_id != '' }}
     steps:
       - name: Final conclusion and summary
@@ -312,9 +196,8 @@ jobs:
         env:
           RUN_SCAN: ${{ needs.create-check-run.outputs.run_scan }}
           SKIP_REASON: ${{ needs.create-check-run.outputs.skip_reason }}
-          STATIC_ANALYSES_RESULT: ${{ needs.static-analyses.result }}
-          APPS_DEPS_SCAN_RESULT: ${{ needs.apps-deps-scan.result }}
-          CODEQL_SCAN_RESULT: ${{ needs.codeql-scan.result }}
+          RELATED_WORKFLOW_CONCLUSION: ${{ env.PARENT_WORKFLOW_CONCLUSION }}
+          SECURITY_ANALYSIS_RESULT: ${{ needs.wait-for-analysis.result }}
         run: | # shell
           emit_output() {
             local conclusion="$1"
@@ -330,31 +213,19 @@ jobs:
           }
 
           if [[ "$RUN_SCAN" != "true" ]]; then
-            emit_output "success" "Skipped (treated as pass): $SKIP_REASON"
+            if [[ "$RELATED_WORKFLOW_CONCLUSION" == "success" ]]; then
+              emit_output "success" "Skipped (treated as pass): $SKIP_REASON"
+            else
+              emit_output "failure" "Blocked: $SKIP_REASON"
+            fi
             exit 0
           fi
 
-          scans=(
-            "Static analysis|$STATIC_ANALYSES_RESULT"
-            "Apps deps scan|$APPS_DEPS_SCAN_RESULT"
-            "CodeQL scan|$CODEQL_SCAN_RESULT"
-          )
-          conclusion="success"
-          details=()
-
-          for scan in "${scans[@]}"; do
-            label="${scan%%|*}"
-            result="${scan#*|}"
-            if [[ "$result" == "success" || "$result" == "skipped" ]]; then
-              details+=("$label: passed (result=$result)")
-            else
-              conclusion="failure"
-              details+=("$label: failed (result=$result)")
-            fi
-          done
-
-          summary=$(printf '%s\n' "${details[@]}")
-          emit_output "$conclusion" "$summary"
+          if [[ "$SECURITY_ANALYSIS_RESULT" == "success" ]]; then
+            emit_output "success" "Security analysis: passed (see the \`security-analysis\` check)"
+          else
+            emit_output "failure" "Security analysis: failed or did not finish (result=$SECURITY_ANALYSIS_RESULT, see the \`security-analysis\` check)"
+          fi
 
       - name: Complete check run
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
