@@ -177,6 +177,9 @@ jobs:
       MUTATION_MIN_SCORE: 80
       # A diff this wide is a PR to split, not a mutation run to sit through.
       MAX_MUTATION_RANGES: 200
+      # The hosted runner has four vCPUs, and the config's default of two test runners leaves half of them idle.
+      STRYKER_CONCURRENCY: 4
+      STRYKER_INCREMENTAL_FILE: ${{ github.workspace }}/stryker-incremental.json
     steps:
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -224,6 +227,17 @@ jobs:
             echo "Mutation testing skipped: $skip." >> "$GITHUB_STEP_SUMMARY"
           fi
 
+      # Each push of a pull request reuses the previous push's result for every mutant whose code and covering
+      # tests did not change, so only the lines touched since then pay for a mutation run again.
+      - name: Restore mutation results of earlier pushes
+        if: ${{ steps.mutation_targets.outputs.mutate != '' }}
+        uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: ${{ env.STRYKER_INCREMENTAL_FILE }}
+          key: stryker-incremental-${{ inputs.app }}-pr-${{ github.event.pull_request.number }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: |
+            stryker-incremental-${{ inputs.app }}-pr-${{ github.event.pull_request.number }}-
+
       - name: Run mutation testing
         if: ${{ steps.mutation_targets.outputs.mutate != '' }}
         working-directory: apps/${{ inputs.app }}
@@ -237,7 +251,8 @@ jobs:
           status=0
           # $TEST_ENV is an unquoted list of KEY=value tokens on purpose: `env` applies them, and nothing else gets re-parsed.
           # shellcheck disable=SC2086
-          env $TEST_ENV npx stryker run "$GITHUB_WORKSPACE/stryker.config.mjs" --mutate "$MUTATE" --testFiles "$TEST_FILES" || status=$?
+          env $TEST_ENV npx stryker run "$GITHUB_WORKSPACE/stryker.config.mjs" --mutate "$MUTATE" --testFiles "$TEST_FILES" \
+            --incremental --incrementalFile "$STRYKER_INCREMENTAL_FILE" || status=$?
 
           score_status=0
           summary=$(node "$GITHUB_WORKSPACE/script/mutation-report.mjs" "$STRYKER_JSON_REPORT" \
@@ -262,6 +277,13 @@ jobs:
 
           if (( status != 0 )); then exit $status; fi
           exit $score_status
+
+      - name: Save mutation results for later pushes
+        if: ${{ !cancelled() && steps.mutation_targets.outputs.mutate != '' }}
+        uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: ${{ env.STRYKER_INCREMENTAL_FILE }}
+          key: stryker-incremental-${{ inputs.app }}-pr-${{ github.event.pull_request.number }}-${{ github.run_id }}-${{ github.run_attempt }}
 
   test-build:
     runs-on: ubuntu-latest
