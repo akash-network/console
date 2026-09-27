@@ -8,7 +8,8 @@ import { type AbilityParams, BaseRepository } from "@src/core/repositories/base.
 import { TxService } from "@src/core/services";
 import { mergeLeaseGpuOffers } from "@src/deployment/lib/lease-gpu-offers/lease-gpu-offers";
 import { mergeLeaseGpuReadings } from "@src/deployment/lib/lease-gpu-readings/lease-gpu-readings";
-import type { LeaseGpuOffer, LeaseGpuReading } from "@src/deployment/model-schemas";
+import type { GpuProbeSource, LeaseGpuOffer, LeaseGpuReading } from "@src/deployment/model-schemas";
+import { NVIDIA_DRIVER_VERSION } from "@src/gpu/lib/cuda-version/cuda-version";
 import { Users } from "@src/user/model-schemas";
 
 type Table = ApiPgTables["DeploymentSettings"];
@@ -18,6 +19,10 @@ export type DeploymentSettingsOutput = Omit<DeploymentSettingsDbOutput, "created
   createdAt: string;
   updatedAt: string;
 };
+
+export type RecentNvidiaDriver = { driverVersion: string; lastSeenDate: string };
+
+const NVIDIA_PROBE_SOURCE = "nvidia-smi" satisfies GpuProbeSource;
 
 /** What a deployment list shows about a deployment, as distinct from the fuller row a single settings read answers with. */
 export type ListedDeploymentSetting = Pick<DeploymentSettingsDbOutput, "name" | "closed" | "runtimeLimitHours" | "runtimeEndsAt">;
@@ -193,13 +198,28 @@ export class DeploymentSettingRepository extends BaseRepository<Table, Deploymen
     return new Map(rows.map(row => [row.dseq, { readings: row.detectedGpus ?? [], offers: row.offeredGpus ?? [] }]));
   }
 
-  async findGpuReadingsByProvider(provider: string): Promise<LeaseGpuReading[]> {
-    const rows = await this.cursor
-      .select({ detectedGpus: this.table.detectedGpus })
-      .from(this.table)
-      .where(sql`${this.table.detectedGpus} @> ${JSON.stringify([{ provider }])}::jsonb`);
+  /** Newest first, one entry per driver version, with the UTC day it was last read. */
+  async findRecentNvidiaDrivers({ provider, since, limit }: { provider: string; since: Date; limit: number }): Promise<RecentNvidiaDriver[]> {
+    const lastDetectedAt = sql`max((reading->>'detectedAt')::timestamptz)`;
 
-    return rows.flatMap(row => row.detectedGpus ?? []).filter(reading => reading.provider === provider);
+    return await this.cursor
+      .select({
+        driverVersion: sql<string>`reading->>'driverVersion'`,
+        lastSeenDate: sql<string>`to_char(${lastDetectedAt} at time zone 'UTC', 'YYYY-MM-DD')`
+      })
+      .from(sql`${this.table}, jsonb_array_elements(${this.table.detectedGpus}) as reading`)
+      .where(
+        and(
+          sql`${this.table.detectedGpus} @> ${JSON.stringify([{ provider, source: NVIDIA_PROBE_SOURCE }])}::jsonb`,
+          sql`reading->>'provider' = ${provider}`,
+          sql`reading->>'source' = ${NVIDIA_PROBE_SOURCE}`,
+          sql`reading->>'driverVersion' ~ ${NVIDIA_DRIVER_VERSION.source}`,
+          sql`(reading->>'detectedAt')::timestamptz >= ${since.toISOString()}::timestamptz`
+        )
+      )
+      .groupBy(sql`reading->>'driverVersion'`)
+      .orderBy(desc(lastDetectedAt))
+      .limit(limit);
   }
 
   /** Merges under a row lock so a reading lands on what is stored now, and returns false when the deployment has no row to hold it. */

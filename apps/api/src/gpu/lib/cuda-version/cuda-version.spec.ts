@@ -45,7 +45,7 @@ describe(getMaxCudaVersion.name, () => {
     expect(getMaxCudaVersion("440.33.01")).toBeNull();
   });
 
-  it.each([[""], ["N/A"], ["550.x"], ["550..14"], ["-550.54.14"]])("answers null for the unparseable driver version %j", driverVersion => {
+  it.each([[""], ["N/A"], ["550.x"], ["550..14"], ["-550.54.14"], ["5500.54.14"], ["550"], ["550.54.15-custom"]])("answers null for the unparseable driver version %j", driverVersion => {
     expect(getMaxCudaVersion(driverVersion)).toBeNull();
   });
 });

@@ -25,11 +25,11 @@ const TOOLKIT_MINIMUM_DRIVERS = [
   { cudaVersion: "11.0", minimumDriver: [450, 51, 5] }
 ];
 
-const DRIVER_VERSION = /^\d+(\.\d+)*$/;
+export const NVIDIA_DRIVER_VERSION = /^\d{3}\.\d{1,3}(\.\d{1,3})?$/;
 
 /** The newest CUDA toolkit a driver meets the minimum of, so a driver newer than this table understates its support rather than guessing. */
 export function getMaxCudaVersion(driverVersion: string): string | null {
-  if (!DRIVER_VERSION.test(driverVersion)) return null;
+  if (!NVIDIA_DRIVER_VERSION.test(driverVersion)) return null;
 
   const driver = driverVersion.split(".").map(Number);
   const toolkit = TOOLKIT_MINIMUM_DRIVERS.find(({ minimumDriver }) => compareVersions(driver, minimumDriver) >= 0);

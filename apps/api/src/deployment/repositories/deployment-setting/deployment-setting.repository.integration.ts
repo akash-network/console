@@ -859,30 +859,120 @@ describe(DeploymentSettingRepository.name, () => {
     });
   });
 
-  describe("findGpuReadingsByProvider", () => {
-    it("reads every reading taken on a provider, across deployments and their owners", async () => {
+  describe("findRecentNvidiaDrivers", () => {
+    const since = new Date("2026-09-01T00:00:00.000Z");
+
+    it("lists each driver read on a provider once, across deployments and their owners, newest first", async () => {
       const { deploymentSettingRepository, user, trialUser } = await setup();
       const provider = createAkashAddress();
-      const webReading = createLeaseGpuReading({ provider, service: "web" });
-      const otherProviderReading = createLeaseGpuReading({ gseq: 2 });
-      const trialReading = createLeaseGpuReading({ provider, driverVersion: "535.183.01" });
-      await seedDeploymentSetting({ userId: user.id, dseq: newDseq(), detectedGpus: [webReading, otherProviderReading] });
-      await seedDeploymentSetting({ userId: trialUser.id, dseq: newDseq(), detectedGpus: [trialReading] });
-      await seedDeploymentSetting({ userId: user.id, dseq: newDseq() });
+      await seedDeploymentSetting({
+        userId: user.id,
+        dseq: newDseq(),
+        detectedGpus: [
+          createLeaseGpuReading({ provider, driverVersion: "550.54.15", detectedAt: "2026-09-10T08:00:00.000Z" }),
+          createLeaseGpuReading({ gseq: 2, driverVersion: "570.86.15", detectedAt: "2026-09-25T08:00:00.000Z" })
+        ]
+      });
+      await seedDeploymentSetting({
+        userId: trialUser.id,
+        dseq: newDseq(),
+        detectedGpus: [createLeaseGpuReading({ provider, driverVersion: "550.54.15", detectedAt: "2026-09-21T23:30:00.000Z" })]
+      });
+      await seedDeploymentSetting({
+        userId: user.id,
+        dseq: newDseq(),
+        detectedGpus: [createLeaseGpuReading({ provider, driverVersion: "535.183.01", detectedAt: "2026-09-15T08:00:00.000Z" })]
+      });
 
-      const readings = await deploymentSettingRepository.findGpuReadingsByProvider(provider);
+      const drivers = await deploymentSettingRepository.findRecentNvidiaDrivers({ provider, since, limit: 5 });
 
-      expect(readings).toHaveLength(2);
-      expect(readings).toEqual(expect.arrayContaining([webReading, trialReading]));
+      expect(drivers).toEqual([
+        { driverVersion: "550.54.15", lastSeenDate: "2026-09-21" },
+        { driverVersion: "535.183.01", lastSeenDate: "2026-09-15" }
+      ]);
+    });
+
+    it("leaves out a driver read only before the cutoff", async () => {
+      const { deploymentSettingRepository, user } = await setup();
+      const provider = createAkashAddress();
+      await seedDeploymentSetting({
+        userId: user.id,
+        dseq: newDseq(),
+        detectedGpus: [
+          createLeaseGpuReading({ provider, service: "web", driverVersion: "535.54.03", detectedAt: "2026-08-31T23:59:59.000Z" }),
+          createLeaseGpuReading({ provider, service: "worker", driverVersion: "550.54.15", detectedAt: "2026-09-01T00:00:00.000Z" })
+        ]
+      });
+
+      const drivers = await deploymentSettingRepository.findRecentNvidiaDrivers({ provider, since, limit: 5 });
+
+      expect(drivers).toEqual([{ driverVersion: "550.54.15", lastSeenDate: "2026-09-01" }]);
+    });
+
+    it("leaves out readings that carry no nvidia driver", async () => {
+      const { deploymentSettingRepository, user } = await setup();
+      const provider = createAkashAddress();
+      const detectedAt = "2026-09-21T10:00:00.000Z";
+      await seedDeploymentSetting({
+        userId: user.id,
+        dseq: newDseq(),
+        detectedGpus: [
+          createLeaseGpuReading({ provider, service: "amd", source: "rocm-smi", driverVersion: null, detectedAt }),
+          createLeaseGpuReading({ provider, service: "cpu", source: "none", driverVersion: null, gpus: [], detectedAt }),
+          createLeaseGpuReading({ provider, service: "unread", source: "nvidia-smi", driverVersion: null, detectedAt })
+        ]
+      });
+
+      const drivers = await deploymentSettingRepository.findRecentNvidiaDrivers({ provider, since, limit: 5 });
+
+      expect(drivers).toEqual([]);
+    });
+
+    it("leaves out a driver version that is not shaped like an nvidia driver version", async () => {
+      const { deploymentSettingRepository, user } = await setup();
+      const provider = createAkashAddress();
+      const detectedAt = "2026-09-21T10:00:00.000Z";
+      await seedDeploymentSetting({
+        userId: user.id,
+        dseq: newDseq(),
+        detectedGpus: [
+          createLeaseGpuReading({ provider, service: "prose", driverVersion: "see example.com", detectedAt }),
+          createLeaseGpuReading({ provider, service: "suffix", driverVersion: "550.54.15-custom", detectedAt }),
+          createLeaseGpuReading({ provider, service: "major", driverVersion: "5500.54.15", detectedAt }),
+          createLeaseGpuReading({ provider, service: "real", driverVersion: "570.26", detectedAt })
+        ]
+      });
+
+      const drivers = await deploymentSettingRepository.findRecentNvidiaDrivers({ provider, since, limit: 5 });
+
+      expect(drivers).toEqual([{ driverVersion: "570.26", lastSeenDate: "2026-09-21" }]);
+    });
+
+    it("keeps only the most recently read drivers up to the limit", async () => {
+      const { deploymentSettingRepository, user } = await setup();
+      const provider = createAkashAddress();
+      await seedDeploymentSetting({
+        userId: user.id,
+        dseq: newDseq(),
+        detectedGpus: [
+          createLeaseGpuReading({ provider, service: "a", driverVersion: "535.183.01", detectedAt: "2026-09-05T10:00:00.000Z" }),
+          createLeaseGpuReading({ provider, service: "b", driverVersion: "550.54.15", detectedAt: "2026-09-20T10:00:00.000Z" }),
+          createLeaseGpuReading({ provider, service: "c", driverVersion: "570.86.15", detectedAt: "2026-09-12T10:00:00.000Z" })
+        ]
+      });
+
+      const drivers = await deploymentSettingRepository.findRecentNvidiaDrivers({ provider, since, limit: 2 });
+
+      expect(drivers.map(driver => driver.driverVersion)).toEqual(["550.54.15", "570.86.15"]);
     });
 
     it("reads nothing for a provider no lease has been read on", async () => {
       const { deploymentSettingRepository, user } = await setup();
-      await seedDeploymentSetting({ userId: user.id, dseq: newDseq(), detectedGpus: [createLeaseGpuReading()] });
+      await seedDeploymentSetting({ userId: user.id, dseq: newDseq(), detectedGpus: [createLeaseGpuReading({ detectedAt: "2026-09-21T10:00:00.000Z" })] });
 
-      const readings = await deploymentSettingRepository.findGpuReadingsByProvider(createAkashAddress());
+      const drivers = await deploymentSettingRepository.findRecentNvidiaDrivers({ provider: createAkashAddress(), since, limit: 5 });
 
-      expect(readings).toEqual([]);
+      expect(drivers).toEqual([]);
     });
   });
 
