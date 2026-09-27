@@ -15763,6 +15763,40 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                       },
                       "type": "array",
                     },
+                    "gpuDrivers": {
+                      "description": "NVIDIA driver versions Console read on GPU leases it runs on this provider over the last 30 days, most recently read first. Empty when none of its leases has been read.",
+                      "example": [
+                        {
+                          "cudaVersion": "12.4",
+                          "driverVersion": "550.54.15",
+                          "lastSeenDate": "2026-09-21",
+                        },
+                      ],
+                      "items": {
+                        "properties": {
+                          "cudaVersion": {
+                            "description": "The newest CUDA toolkit whose minimum Linux driver this driver meets, per NVIDIA's release notes. Null when it meets none of them.",
+                            "nullable": true,
+                            "type": "string",
+                          },
+                          "driverVersion": {
+                            "type": "string",
+                          },
+                          "lastSeenDate": {
+                            "description": "The UTC day this driver was last read.",
+                            "example": "2026-09-21",
+                            "type": "string",
+                          },
+                        },
+                        "required": [
+                          "driverVersion",
+                          "cudaVersion",
+                          "lastSeenDate",
+                        ],
+                        "type": "object",
+                      },
+                      "type": "array",
+                    },
                     "gpuModels": {
                       "items": {
                         "properties": {
@@ -16124,6 +16158,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                     "hardwareCpuArch",
                     "reportedCpuArchs",
                     "cpuArchAgreement",
+                    "gpuDrivers",
                     "hardwareGpuVendor",
                     "hardwareGpuModels",
                     "hardwareDisk",

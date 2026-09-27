@@ -859,6 +859,33 @@ describe(DeploymentSettingRepository.name, () => {
     });
   });
 
+  describe("findGpuReadingsByProvider", () => {
+    it("reads every reading taken on a provider, across deployments and their owners", async () => {
+      const { deploymentSettingRepository, user, trialUser } = await setup();
+      const provider = createAkashAddress();
+      const webReading = createLeaseGpuReading({ provider, service: "web" });
+      const otherProviderReading = createLeaseGpuReading({ gseq: 2 });
+      const trialReading = createLeaseGpuReading({ provider, driverVersion: "535.183.01" });
+      await seedDeploymentSetting({ userId: user.id, dseq: newDseq(), detectedGpus: [webReading, otherProviderReading] });
+      await seedDeploymentSetting({ userId: trialUser.id, dseq: newDseq(), detectedGpus: [trialReading] });
+      await seedDeploymentSetting({ userId: user.id, dseq: newDseq() });
+
+      const readings = await deploymentSettingRepository.findGpuReadingsByProvider(provider);
+
+      expect(readings).toHaveLength(2);
+      expect(readings).toEqual(expect.arrayContaining([webReading, trialReading]));
+    });
+
+    it("reads nothing for a provider no lease has been read on", async () => {
+      const { deploymentSettingRepository, user } = await setup();
+      await seedDeploymentSetting({ userId: user.id, dseq: newDseq(), detectedGpus: [createLeaseGpuReading()] });
+
+      const readings = await deploymentSettingRepository.findGpuReadingsByProvider(createAkashAddress());
+
+      expect(readings).toEqual([]);
+    });
+  });
+
   describe("mergeGpuReadings", () => {
     it("stores the first readings of a deployment the probe never read", async () => {
       const { deploymentSettingRepository, user, readGpuReadings } = await setup();

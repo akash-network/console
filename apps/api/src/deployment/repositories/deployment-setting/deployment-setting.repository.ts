@@ -193,6 +193,15 @@ export class DeploymentSettingRepository extends BaseRepository<Table, Deploymen
     return new Map(rows.map(row => [row.dseq, { readings: row.detectedGpus ?? [], offers: row.offeredGpus ?? [] }]));
   }
 
+  async findGpuReadingsByProvider(provider: string): Promise<LeaseGpuReading[]> {
+    const rows = await this.cursor
+      .select({ detectedGpus: this.table.detectedGpus })
+      .from(this.table)
+      .where(sql`${this.table.detectedGpus} @> ${JSON.stringify([{ provider }])}::jsonb`);
+
+    return rows.flatMap(row => row.detectedGpus ?? []).filter(reading => reading.provider === provider);
+  }
+
   /** Merges under a row lock so a reading lands on what is stored now, and returns false when the deployment has no row to hold it. */
   async mergeGpuReadings({ userId, dseq, readings }: { userId: string; dseq: string; readings: LeaseGpuReading[] }): Promise<boolean> {
     const ofDeployment = and(eq(this.table.userId, userId), eq(this.table.dseq, dseq));

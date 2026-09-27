@@ -84,6 +84,9 @@ export const DeploymentSettings = pgTable(
     /** Backs the per-user walk of deployments holding a secret, so a re-key costs that user's rows and not the table. */
     userIdIdSealedSecretsIdx: index("user_id_id_sealed_secrets_idx")
       .on(table.userId, table.id)
-      .where(sql`${table.sealedSecrets} IS NOT NULL`)
+      .where(sql`${table.sealedSecrets} IS NOT NULL`),
+    detectedGpusIdx: index("deployment_settings_detected_gpus_idx")
+      .using("gin", sql`${table.detectedGpus} jsonb_path_ops`)
+      .where(sql`${table.detectedGpus} IS NOT NULL`)
   })
 );

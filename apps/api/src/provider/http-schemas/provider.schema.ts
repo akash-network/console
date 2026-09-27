@@ -170,6 +170,21 @@ export const ProviderResponseSchema = z.object({
     description:
       "Whether the self-declared capabilities/cpu/arch attribute agrees with the architecture the nodes report. Unknown when either side is missing or the declared value is not a recognised architecture."
   }),
+  gpuDrivers: z
+    .array(
+      z.object({
+        driverVersion: z.string(),
+        cudaVersion: z.string().nullable().openapi({
+          description: "The newest CUDA toolkit whose minimum Linux driver this driver meets, per NVIDIA's release notes. Null when it meets none of them."
+        }),
+        lastSeenDate: z.string().openapi({ description: "The UTC day this driver was last read.", example: "2026-09-21" })
+      })
+    )
+    .openapi({
+      description:
+        "NVIDIA driver versions Console read on GPU leases it runs on this provider over the last 30 days, most recently read first. Empty when none of its leases has been read.",
+      example: [{ driverVersion: "550.54.15", cudaVersion: "12.4", lastSeenDate: "2026-09-21" }]
+    }),
   hardwareGpuVendor: z.string().nullable(),
   hardwareGpuModels: z.array(z.string()),
   hardwareDisk: z.array(z.string()),

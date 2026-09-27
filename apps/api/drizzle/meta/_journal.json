@@ -449,6 +449,13 @@
       "when": 1790292331058,
       "tag": "0063_drop_lease_gpus",
       "breakpoints": true
+    },
+    {
+      "idx": 64,
+      "version": "7",
+      "when": 1790539996675,
+      "tag": "0064_deployment_settings_detected_gpus_index",
+      "breakpoints": true
     }
   ]
 }
