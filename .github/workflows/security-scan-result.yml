@@ -1,0 +1,255 @@
+# Reports the required `security-scan` check once CI completes. The scans themselves run in Security Scan
+# (all-ci-unsafe.yml), which starts with CI; this workflow waits for CI's conclusion and that scan's
+# `security-analysis` verdict, and reports both.
+# Uses workflow_run to run in base repo context, giving access to secrets for fork PRs.
+#
+# !!!! PLEASE be extra careful here and treat forked repository as untrusted user input !!!!
+
+name: Security Scan Result
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+  # pull_request: # uncomment to test this workflow in PR
+
+# Keyed on the scanned commit, not the branch: a branch-wide key lets a newer commit's scan cancel an
+# older commit's scan mid-flight, orphaning the check run it already created as permanently pending.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.workflow_run.head_sha || github.event.pull_request.head.sha }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: read
+  checks: write # to create check run on related PR
+
+# Normalizes the parent-CI context into a single set of env vars so downstream
+# jobs don't need to branch on `github.event_name`. On `workflow_run` these come
+# from the triggering run; on `pull_request` (used for testing this workflow
+# in-place) they're synthesized from the PR payload.
+env:
+  PARENT_WORKFLOW_CONCLUSION: ${{ github.event.workflow_run.conclusion || github.event.pull_request && 'success' }}
+  PARENT_WORKFLOW_EVENT: ${{ github.event.workflow_run.event || github.event_name }}
+  PARENT_WORKFLOW_HEAD_SHA: ${{ github.event.workflow_run.head_sha || github.event.pull_request.head.sha }}
+
+jobs:
+  create-check-run:
+    runs-on: ubuntu-latest
+    outputs:
+      run_scan: ${{ steps.decide.outputs.run_scan }}
+      event: ${{ env.PARENT_WORKFLOW_EVENT }}
+      check_run_id: ${{ steps.create_check.outputs.check_run_id }}
+      check_run_sha: ${{ steps.report_target.outputs.sha }}
+      skip_reason: ${{ steps.decide.outputs.skip_reason }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+          sparse-checkout: .github
+      - name: Get associated PR
+        if: ${{ env.PARENT_WORKFLOW_EVENT == 'pull_request' }}
+        id: associated_pr
+        uses: ./.github/actions/associated-pr
+        with:
+          ref: ${{ env.PARENT_WORKFLOW_HEAD_SHA }}
+          display-pr-details: 'true'
+
+      - name: Decide whether to run scan
+        id: decide
+        env:
+          PR_NUMBER: ${{ steps.associated_pr.outputs.number }}
+        run: | # shell
+          # A cancelled CI run is superseded by a newer one whose own scan reports this commit's verdict;
+          # reporting here as well would race that scan for the same check name on the same commit.
+          if [ "${PARENT_WORKFLOW_CONCLUSION}" == "cancelled" ]; then
+            echo "run_scan=false" >> "$GITHUB_OUTPUT"
+            echo "report_check=false" >> "$GITHUB_OUTPUT"
+            echo "skip_reason=Upstream CI was cancelled, so the superseding CI run reports instead" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # Nothing to scan without a PR to read files and labels from, but the check is still reported:
+          # withholding it leaves a required check pending forever on a commit that is a PR head after all.
+          if [[ "${PARENT_WORKFLOW_EVENT}" == "pull_request" && "${PR_NUMBER}" == "" ]]; then
+            echo "run_scan=false" >> "$GITHUB_OUTPUT"
+            echo "report_check=true" >> "$GITHUB_OUTPUT"
+            echo "skip_reason=PR head changed because of rebase/force push and associated PR cannot be found" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if [ "${PARENT_WORKFLOW_CONCLUSION}" != "success" ]; then
+            echo "run_scan=false" >> "$GITHUB_OUTPUT"
+            echo "report_check=true" >> "$GITHUB_OUTPUT"
+            echo "skip_reason=Upstream CI conclusion is '${PARENT_WORKFLOW_CONCLUSION}'" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if [[ "${PARENT_WORKFLOW_EVENT}" != "pull_request" && "${PARENT_WORKFLOW_EVENT}" != "push" ]]; then
+            echo "run_scan=false" >> "$GITHUB_OUTPUT"
+            echo "report_check=true" >> "$GITHUB_OUTPUT"
+            echo "skip_reason=Upstream CI was not triggered by pull_request or push (event=${PARENT_WORKFLOW_EVENT})" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "run_scan=true" >> "$GITHUB_OUTPUT"
+          echo "report_check=true" >> "$GITHUB_OUTPUT"
+          echo "skip_reason=" >> "$GITHUB_OUTPUT"
+
+      - name: Note skipped check run
+        if: ${{ steps.decide.outputs.report_check != 'true' }}
+        env:
+          SKIP_REASON: ${{ steps.decide.outputs.skip_reason }}
+        run: | # shell
+          echo "No \`security-scan\` check reported for ${PARENT_WORKFLOW_HEAD_SHA}: ${SKIP_REASON}" >> "$GITHUB_STEP_SUMMARY"
+
+      # A pull request in a stack is rewritten whenever a branch below it moves, and an empty retrigger commit
+      # does the same by hand, leaving CI's commit off the pull request: the verdict belongs on the commit the
+      # merge box reads, as long as that commit holds the content this run scanned.
+      - name: Resolve commit to report on
+        id: report_target
+        if: ${{ steps.decide.outputs.report_check == 'true' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ steps.associated_pr.outputs.number }}
+          PR_HEAD: ${{ github.event.workflow_run.head_repository.owner.login }}:${{ github.event.workflow_run.head_branch }}
+        run: | # shell
+          report_on() {
+            echo "sha=$1" >> "$GITHUB_OUTPUT"
+            exit 0
+          }
+
+          tree_of() {
+            gh api "repos/$GITHUB_REPOSITORY/commits/$1" --jq .commit.tree.sha
+          }
+
+          [[ "$PARENT_WORKFLOW_EVENT" == "pull_request" ]] || report_on "$PARENT_WORKFLOW_HEAD_SHA"
+
+          pr="$PR_NUMBER"
+          if [[ -z "$pr" ]]; then
+            pr=$(gh api -X GET "repos/$GITHUB_REPOSITORY/pulls" -f state=open -f head="$PR_HEAD" --jq '.[0].number // ""') || pr=""
+          fi
+          [[ -n "$pr" ]] || report_on "$PARENT_WORKFLOW_HEAD_SHA"
+
+          head_sha=$(gh api "repos/$GITHUB_REPOSITORY/pulls/$pr" --jq .head.sha) || report_on "$PARENT_WORKFLOW_HEAD_SHA"
+          [[ "$head_sha" != "$PARENT_WORKFLOW_HEAD_SHA" ]] || report_on "$PARENT_WORKFLOW_HEAD_SHA"
+
+          scanned_tree=$(tree_of "$PARENT_WORKFLOW_HEAD_SHA") || report_on "$PARENT_WORKFLOW_HEAD_SHA"
+          head_tree=$(tree_of "$head_sha") || report_on "$PARENT_WORKFLOW_HEAD_SHA"
+          [[ "$scanned_tree" == "$head_tree" ]] || report_on "$PARENT_WORKFLOW_HEAD_SHA"
+
+          echo "Reporting on $head_sha: #$pr moved off $PARENT_WORKFLOW_HEAD_SHA without changing content"
+          report_on "$head_sha"
+
+      - name: Create check run
+        id: create_check
+        if: ${{ steps.decide.outputs.report_check == 'true' }}
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          REPORT_SHA: ${{ steps.report_target.outputs.sha }}
+        with:
+          script: | # js
+            const sha = process.env.REPORT_SHA;
+            const workflowRunUrl = `${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}`;
+            const res = await github.rest.checks.create({
+              name: "security-scan",
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              head_sha: sha,
+              status: "in_progress",
+              details_url: workflowRunUrl,
+              output: {
+                title: "Security scan",
+                summary: `Initializing... Managed in [this workflow run](${workflowRunUrl})`
+              }
+            });
+
+            core.setOutput("check_run_id", String(res.data.id));
+
+  wait-for-analysis:
+    needs: [create-check-run]
+    if: ${{ needs.create-check-run.outputs.run_scan == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+          sparse-checkout: .github
+      - name: Wait for the security analysis
+        uses: ./.github/actions/poll-check-status
+        with:
+          name: security-analysis
+          sha: ${{ env.PARENT_WORKFLOW_HEAD_SHA }}
+          retry_delay: 10000
+          # The analysis starts with CI and is usually done by now; this covers a CI run that finished first.
+          max_retries: 90
+
+  finalize:
+    runs-on: ubuntu-latest
+    needs: [create-check-run, wait-for-analysis]
+    if: ${{ always() && needs.create-check-run.result == 'success' && needs.create-check-run.outputs.check_run_id != '' }}
+    steps:
+      - name: Final conclusion and summary
+        id: final
+        env:
+          RUN_SCAN: ${{ needs.create-check-run.outputs.run_scan }}
+          SKIP_REASON: ${{ needs.create-check-run.outputs.skip_reason }}
+          RELATED_WORKFLOW_CONCLUSION: ${{ env.PARENT_WORKFLOW_CONCLUSION }}
+          SECURITY_ANALYSIS_RESULT: ${{ needs.wait-for-analysis.result }}
+        run: | # shell
+          emit_output() {
+            local conclusion="$1"
+            local summary="$2"
+            local workflow_run_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+            summary="$summary"$'\n\n'"Managed in [this workflow run]($workflow_run_url)"
+            {
+              echo "conclusion=$conclusion"
+              echo "summary<<SUMMARY_EOF"
+              echo "$summary"
+              echo "SUMMARY_EOF"
+            } >> "$GITHUB_OUTPUT"
+          }
+
+          if [[ "$RUN_SCAN" != "true" ]]; then
+            if [[ "$RELATED_WORKFLOW_CONCLUSION" == "success" ]]; then
+              emit_output "success" "Skipped (treated as pass): $SKIP_REASON"
+            else
+              emit_output "failure" "Blocked: $SKIP_REASON"
+            fi
+            exit 0
+          fi
+
+          if [[ "$SECURITY_ANALYSIS_RESULT" == "success" ]]; then
+            emit_output "success" "Security analysis: passed (see the \`security-analysis\` check)"
+          else
+            emit_output "failure" "Security analysis: failed or did not finish (result=$SECURITY_ANALYSIS_RESULT, see the \`security-analysis\` check)"
+          fi
+
+      - name: Complete check run
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          CHECK_RUN_ID: ${{ needs.create-check-run.outputs.check_run_id }}
+          CHECK_RUN_SHA: ${{ needs.create-check-run.outputs.check_run_sha }}
+          CONCLUSION: ${{ steps.final.outputs.conclusion }}
+          SUMMARY: ${{ steps.final.outputs.summary }}
+        with:
+          script: | # js
+            const sha = process.env.CHECK_RUN_SHA;
+            const checkRunId = Number(process.env.CHECK_RUN_ID);
+            const workflowRunUrl = `${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}`;
+
+            await github.rest.checks.update({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              check_run_id: checkRunId,
+              head_sha: sha,
+              status: "completed",
+              details_url: workflowRunUrl,
+              conclusion: process.env.CONCLUSION,
+              output: {
+                title: "Security scan",
+                summary: process.env.SUMMARY
+              }
+            });
