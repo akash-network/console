@@ -12,7 +12,8 @@
     "start": "next start",
     "test:cov": "NODE_ENV=test jest --coverage --reporters=default --reporters=jest-junit",
     "test:unit": "NODE_ENV=test jest",
-    "type-check": "tsc"
+    "type-check": "tsc",
+    "validate:types": "tsc --noEmit -p tsconfig.build.json"
   },
   "dependencies": {
     "@akashnetwork/env-loader": "*",

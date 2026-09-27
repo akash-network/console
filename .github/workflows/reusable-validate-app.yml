@@ -372,7 +372,35 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
+
+      # Installing dependencies inside the image took over a minute on its own, so a Next.js app builds on the
+      # runner from the cached dependencies unless something only the image build reads has changed.
+      - name: Decide how to build
+        id: build_mode
+        env:
+          IMAGE_BUILD_CHANGES: ${{ needs.should-validate.outputs.image_build_changes }}
+        run: | # shell
+          if [[ -f "apps/$APP_TO_VALIDATE/next.config.js" && "$IMAGE_BUILD_CHANGES" != "true" ]]; then
+            echo "mode=runner" >> "$GITHUB_OUTPUT"
+          else
+            echo "mode=image" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: ./.github/actions/setup-app-deps
+        if: steps.build_mode.outputs.mode == 'runner'
+        with:
+          app: ${{ inputs.app }}
+
+      - name: Build the app
+        if: steps.build_mode.outputs.mode == 'runner'
+        env:
+          NODE_ENV: production
+          DEPLOYMENT_ENV: production
+          NEXT_TELEMETRY_DISABLED: 1
+        run: npm run build -w "apps/$APP_TO_VALIDATE"
+
       - name: Build the Docker image for API
+        if: steps.build_mode.outputs.mode == 'image'
         env:
           GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
         run: |

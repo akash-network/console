@@ -11,7 +11,8 @@
     "format": "prettier --write ./*.{ts,js,json} **/*.{ts,tsx,js,json}",
     "lint": "eslint .",
     "start": "next start",
-    "test:unit": "NODE_ENV=test vitest run"
+    "test:unit": "NODE_ENV=test vitest run",
+    "validate:types": "tsc --noEmit -p tsconfig.build.json"
   },
   "dependencies": {
     "@akashnetwork/chain-sdk": "1.0.0-alpha.45",
