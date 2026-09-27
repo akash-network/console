@@ -294,11 +294,19 @@ jobs:
           - language: javascript-typescript
             wait-for-check: true
     steps:
-      - name: Checkout repository
+      # The local actions below run with this job's token, so they come from the default branch. The commit
+      # under scan goes into its own directory, where only CodeQL reads it.
+      - name: Checkout trusted actions
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+          sparse-checkout: .github
+      - name: Checkout the commit to scan
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
           ref: ${{ env.PARENT_WORKFLOW_HEAD_SHA }}
+          path: scanned
       - name: Get associated PR
         if: ${{ env.PARENT_WORKFLOW_EVENT == 'pull_request' }}
         id: associated_pr
@@ -311,11 +319,13 @@ jobs:
         with:
           languages: ${{ matrix.language }}
           build-mode: none
+          source-root: scanned
       - name: Perform CodeQL Analysis
         if: ${{ steps.associated_pr.outcome == 'skipped' || !contains(fromJSON(steps.associated_pr.outputs.labels), 'ignore-codeql-security') }}
         uses: github/codeql-action/analyze@95e58e9a2cdfd71adc6e0353d5c52f41a045d225 # v4.35.2
         with:
           category: "/language:${{matrix.language}}"
+          checkout_path: ${{ github.workspace }}/scanned
           # Override GITHUB_SHA/REF (default branch under workflow_run) so the
           # "CodeQL" check lands on the PR head or main. Ignored for fork PRs.
           sha: ${{ env.PARENT_WORKFLOW_HEAD_SHA }}
