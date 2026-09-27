@@ -12,6 +12,10 @@ inputs:
     description: 'Expected conclusions of the check (e.g., success, failure or "success;neutral"). If not provided, any completed status is accepted.'
     required: false
     default: "success"
+  pending_conclusions:
+    description: 'Conclusions of a completed check that can still change, polled again like an unfinished check (e.g., "neutral")'
+    required: false
+    default: ""
   check_type:
     description: 'Type of check: "check_run" (Checks API) or "status" (Status API)'
     required: false
@@ -36,6 +40,7 @@ runs:
         SLEEP_TIMEOUT: ${{ inputs.retry_delay }}
         MAX_RETRIES: ${{ inputs.max_retries }}
         EXPECTED_CONCLUSIONS: ${{ inputs.expected_conclusions }}
+        PENDING_CONCLUSIONS: ${{ inputs.pending_conclusions }}
       with:
         script: | # js
           const checkName = process.env.CHECK_NAME;
@@ -44,6 +49,7 @@ runs:
           const maxRetries = Number(process.env.MAX_RETRIES);
           const sleepMs = Number(process.env.SLEEP_TIMEOUT);
           const expectedConclusions = process.env.EXPECTED_CONCLUSIONS.split(";").map(s => s.trim());
+          const pendingConclusions = process.env.PENDING_CONCLUSIONS.split(";").map(s => s.trim()).filter(Boolean);
 
           console.log(`Checking ${checkName} for SHA=${sha} (type: ${checkType})`);
 
@@ -66,6 +72,15 @@ runs:
               }
               const statusMsg = check ? `status: ${check.status}` : 'not found';
               throw new Error(`${checkName} check did not complete after ${maxRetries} attempts (${statusMsg})`);
+            }
+
+            if (pendingConclusions.includes(check.conclusion)) {
+              if (attempt < maxRetries - 1) {
+                console.log(`Check ${checkName} conclusion=${check.conclusion} can still change. Retry ${attempt + 1}/${maxRetries} in ${sleepMs / 1000}s...`);
+                await new Promise(resolve => setTimeout(resolve, sleepMs));
+                continue;
+              }
+              throw new Error(`${checkName} conclusion=${check.conclusion} after ${maxRetries} attempts`);
             }
 
             if (!expectedConclusions.includes(check.conclusion)) {
