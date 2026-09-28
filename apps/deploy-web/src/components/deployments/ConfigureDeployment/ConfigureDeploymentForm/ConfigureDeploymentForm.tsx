@@ -22,6 +22,7 @@ import { applyPresetToProfile, DEFAULT_HARDWARE_PRESET } from "../ConfigurationP
 import { ConfigureDeploymentBackButton } from "../ConfigureDeploymentBackButton/ConfigureDeploymentBackButton";
 import { ConfigureDeploymentHeader } from "../ConfigureDeploymentHeader/ConfigureDeploymentHeader";
 import { ConfigureDeploymentPanes } from "../ConfigureDeploymentPanes/ConfigureDeploymentPanes";
+import { ConfigureWorkspace } from "../ConfigureWorkspace/ConfigureWorkspace";
 import { DeployProgressOverlay } from "../DeployProgressOverlay/DeployProgressOverlay";
 import type { ImportedDeploymentState } from "../importDeploymentState/importDeploymentState";
 import { importDeploymentState, isKnownSdlParserError, NoVisibleServiceError, seedSelectedServiceId } from "../importDeploymentState/importDeploymentState";
@@ -45,6 +46,7 @@ export const DEPENDENCIES = {
   ConfigureDeploymentBackButton,
   ConfigureDeploymentHeader,
   ConfigureDeploymentPanes,
+  ConfigureWorkspace,
   ReviewAndDeployModal,
   DeployProgressOverlay,
   SdlImportExport,
@@ -74,6 +76,9 @@ type Props = {
 
 export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, initialName, intent, flow, dependencies: d = DEPENDENCIES }) => {
   const isSecretsEnabled = d.useFlag("ui_deployment_secrets");
+  const isTwoPanelEnabled = d.useFlag("ui_configure_two_panel");
+  /** Unleash can flip a flag mid-session, and swapping the layout under someone configuring would lose their place. */
+  const [isTwoPanel] = useState(isTwoPanelEnabled);
   const [initialState] = useState(() => getInitialState(initialSdl, intent.vm, isSecretsEnabled));
   const [liveSdl, setLiveSdl] = useState(initialState.sdl);
   const [previewSdl, setPreviewSdl] = useState(initialState.sdl);
@@ -105,9 +110,9 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, initialName, in
 
   useEffect(
     function trackConfigurePageViewed() {
-      analyticsService.track("configure_page_viewed", { category: "deployments" });
+      analyticsService.track("configure_page_viewed", { category: "deployments", layout: isTwoPanel ? "two_panel" : "three_pane" });
     },
-    [analyticsService]
+    [analyticsService, isTwoPanel]
   );
 
   useEffect(
@@ -301,6 +306,11 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, initialName, in
     },
     [form, isSecretsEnabled]
   );
+
+  const resetConfiguration = useCallback(() => {
+    analyticsService.track("configure_reset_confirmed", { category: "deployments" });
+    applyImportedState(defaultInitialState(intent.vm, isSecretsEnabled));
+  }, [analyticsService, applyImportedState, intent.vm, isSecretsEnabled]);
   /** Import is only meaningful while the deployment is still editable; export stays available in every phase. */
   const isEditable = flow.phase === "configuring" || flow.phase === "error";
   /** Nothing resolves a reference with the feature off, so a kept name has to read as one nothing answers for. */
@@ -313,41 +323,62 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, initialName, in
         <PlacementManagerProvider onSelectService={setSelectedServiceId}>
           <InheritedSecretsProvider value={resolvableInheritedSecrets}>
             <div className="relative flex min-h-0 flex-1 flex-col">
-              <div className="px-6 pt-6">
-                <d.ConfigureDeploymentBackButton />
-                <div className="mt-2">
-                  <d.ConfigureDeploymentHeader
-                    flow={flow}
-                    sdl={liveSdl}
-                    deploymentName={typedDeploymentName}
-                    onDeploy={() => openReview(flow.selections)}
-                    allPlacementsHaveBids={allPlacementsHaveBids}
-                  />
-                </div>
-              </div>
-              <div className="relative mt-6 flex min-h-0 flex-1 overflow-x-auto">
-                <d.ConfigureDeploymentPanes
+              {isTwoPanel ? (
+                <d.ConfigureWorkspace
+                  flow={flow}
                   sdl={liveSdl}
                   previewSdl={previewSdl}
                   selectedServiceId={selectedServiceId}
-                  selectedPlacementName={selectedPlacement.name}
-                  selectedPlacementRegion={selectedPlacement.region}
-                  selectedPlacementId={selectedPlacement.id}
+                  selectedPlacement={selectedPlacement}
                   onSelectService={setSelectedServiceId}
-                  phase={flow.phase}
-                  dseq={flow.dseq}
-                  selections={flow.selections}
                   onSelectProvider={selectProviderAndAdvance}
-                  onCancelAndEdit={flow.actions.cancelAndEdit}
-                  pendingClose={flow.pendingClose}
-                  onRetryClose={flow.actions.retryClose}
                   deploymentName={deploymentName}
+                  typedDeploymentName={typedDeploymentName}
                   onDeploymentNameChange={setDeploymentName}
-                  configurationActions={
-                    <d.SdlImportExport sdl={liveSdl} deploymentName={deploymentName} canImport={isEditable} onImport={applyImportedState} />
-                  }
+                  onDeploy={() => openReview(flow.selections)}
+                  allPlacementsHaveBids={allPlacementsHaveBids}
+                  onImport={applyImportedState}
+                  onReset={resetConfiguration}
                 />
-              </div>
+              ) : (
+                <>
+                  <div className="px-6 pt-6">
+                    <d.ConfigureDeploymentBackButton />
+                    <div className="mt-2">
+                      <d.ConfigureDeploymentHeader
+                        flow={flow}
+                        sdl={liveSdl}
+                        deploymentName={typedDeploymentName}
+                        onDeploy={() => openReview(flow.selections)}
+                        allPlacementsHaveBids={allPlacementsHaveBids}
+                      />
+                    </div>
+                  </div>
+                  <div className="relative mt-6 flex min-h-0 flex-1 overflow-x-auto">
+                    <d.ConfigureDeploymentPanes
+                      sdl={liveSdl}
+                      previewSdl={previewSdl}
+                      selectedServiceId={selectedServiceId}
+                      selectedPlacementName={selectedPlacement.name}
+                      selectedPlacementRegion={selectedPlacement.region}
+                      selectedPlacementId={selectedPlacement.id}
+                      onSelectService={setSelectedServiceId}
+                      phase={flow.phase}
+                      dseq={flow.dseq}
+                      selections={flow.selections}
+                      onSelectProvider={selectProviderAndAdvance}
+                      onCancelAndEdit={flow.actions.cancelAndEdit}
+                      pendingClose={flow.pendingClose}
+                      onRetryClose={flow.actions.retryClose}
+                      deploymentName={deploymentName}
+                      onDeploymentNameChange={setDeploymentName}
+                      configurationActions={
+                        <d.SdlImportExport sdl={liveSdl} deploymentName={deploymentName} canImport={isEditable} onImport={applyImportedState} />
+                      }
+                    />
+                  </div>
+                </>
+              )}
               {flow.phase === "deploying" && (
                 <d.DeployProgressOverlay
                   providerAddress={firstSelectedProviderAddress(flow.selections)}

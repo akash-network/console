@@ -122,6 +122,7 @@ export type AnalyticsEvent =
   | "configure_sdl_imported"
   | "configure_sdl_downloaded"
   | "configure_sdl_copied"
+  | "configure_reset_confirmed"
   | "cancel_during_create"
   | "close_deployment_failed"
   | "cancelled_deployment_auto_close_failed"

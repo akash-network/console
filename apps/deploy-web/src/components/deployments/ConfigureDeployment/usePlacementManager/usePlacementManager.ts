@@ -124,6 +124,9 @@ export const usePlacementManager = ({ onSelectService }: SelectionControls = {})
 
   const canRemoveService = visibleServices.length > 1;
 
+  /** The stacked editor selects a placement through one of its services, so a placement must keep at least one. */
+  const canRemoveServiceFrom = useCallback((placementId: string) => getPlacementServices(placementId).length > 1, [getPlacementServices]);
+
   const removeService = useCallback(
     (serviceId: string) => {
       const currentServices = getValues("services");
@@ -175,6 +178,7 @@ export const usePlacementManager = ({ onSelectService }: SelectionControls = {})
       removePlacement,
       addService,
       canRemoveService,
+      canRemoveServiceFrom,
       removeService,
       addLogCollector,
       removeLogCollector
@@ -187,6 +191,7 @@ export const usePlacementManager = ({ onSelectService }: SelectionControls = {})
       removePlacement,
       addService,
       canRemoveService,
+      canRemoveServiceFrom,
       removeService,
       addLogCollector,
       removeLogCollector

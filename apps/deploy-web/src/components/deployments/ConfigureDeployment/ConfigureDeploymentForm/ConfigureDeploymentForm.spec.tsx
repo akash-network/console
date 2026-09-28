@@ -6,10 +6,14 @@ import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { AnalyticsService } from "@src/services/analytics/analytics.service";
-import type { SdlBuilderFormValuesType } from "@src/types";
+import type { PlacementType, SdlBuilderFormValuesType } from "@src/types";
 import { defaultService } from "@src/utils/sdl/data";
 import { ConfigurationPane } from "../ConfigurationPane/ConfigurationPane";
 import { DEPENDENCIES as LOGS_CARD_DEPENDENCIES, LogsCard } from "../ConfigurationPane/LogsCard/LogsCard";
+import { ConfigureEditor, DEPENDENCIES as CONFIGURE_EDITOR_DEPENDENCIES } from "../ConfigureEditor/ConfigureEditor";
+import { PlacementFields } from "../ConfigureEditor/PlacementFields/PlacementFields";
+import { DEPENDENCIES as SERVICE_CARD_DEPENDENCIES, ServiceCard } from "../ConfigureEditor/ServiceCard/ServiceCard";
+import { ServiceStack } from "../ConfigureEditor/ServiceStack/ServiceStack";
 import { DEPENDENCIES as DEPLOYMENT_PANE_DEPENDENCIES, DeploymentPane } from "../DeploymentPane/DeploymentPane";
 import { DEPENDENCIES as PLACEMENT_CARD_DEPENDENCIES, PlacementCard } from "../DeploymentPane/PlacementCard/PlacementCard";
 import { importDeploymentState } from "../importDeploymentState/importDeploymentState";
@@ -19,7 +23,7 @@ import type { DeploymentFlow, FlowErrorKind } from "../useDeploymentFlow/useDepl
 import type { DEPENDENCIES } from "./ConfigureDeploymentForm";
 import { ConfigureDeploymentForm } from "./ConfigureDeploymentForm";
 
-import { act, render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 const VALID_SDL = [
@@ -541,7 +545,100 @@ describe(ConfigureDeploymentForm.name, () => {
   it("tracks the configure page view on mount", () => {
     const { analyticsService } = setup({ initialSdl: undefined });
 
-    expect(analyticsService.track).toHaveBeenCalledWith("configure_page_viewed", { category: "deployments" });
+    expect(analyticsService.track).toHaveBeenCalledWith("configure_page_viewed", { category: "deployments", layout: "three_pane" });
+  });
+
+  describe("with the two panel layout", () => {
+    it("renders the two panel workspace instead of the three panes", () => {
+      const { ConfigureWorkspace, ConfigureDeploymentPanes } = setup({ initialSdl: VALID_SDL, twoPanel: true });
+
+      expect(ConfigureWorkspace).toHaveBeenCalled();
+      expect(ConfigureDeploymentPanes).not.toHaveBeenCalled();
+    });
+
+    it("tracks the page view as the two panel layout", () => {
+      const { analyticsService } = setup({ initialSdl: undefined, twoPanel: true });
+
+      expect(analyticsService.track).toHaveBeenCalledWith("configure_page_viewed", { category: "deployments", layout: "two_panel" });
+    });
+
+    it("hands the workspace the live sdl, the active placement and both deployment names", () => {
+      const { ConfigureWorkspace } = setup({ initialSdl: VALID_SDL, initialName: "my-app", apiDerivedName: "web", twoPanel: true });
+
+      expect(ConfigureWorkspace).toHaveBeenCalledWith(
+        expect.objectContaining({
+          sdl: VALID_SDL,
+          previewSdl: VALID_SDL,
+          selectedServiceId: expect.any(String),
+          selectedPlacement: expect.objectContaining({ name: "dcloud" }),
+          deploymentName: "web",
+          typedDeploymentName: "my-app"
+        }),
+        expect.anything()
+      );
+    });
+
+    it("keeps the layout it mounted with when the flag flips mid-session", () => {
+      const { ConfigureWorkspace, rerenderWith } = setup({ initialSdl: undefined });
+
+      rerenderWith({ twoPanel: true });
+
+      expect(ConfigureWorkspace).not.toHaveBeenCalled();
+    });
+
+    it("turns off log forwarding whose collector sits before a mounted sibling without leaving a ghost service", async () => {
+      setup({ initialSdl: undefined, twoPanel: true, Workspace: EditorProbeWorkspace });
+
+      await userEvent.click(within(serviceCard("service-1")).getByRole("switch", { name: "Enable log forwarding" }));
+      await userEvent.click(screen.getByRole("button", { name: /Save/ }));
+      await userEvent.click(screen.getByRole("button", { name: "Add service" }));
+      await waitFor(() => expect(screen.getByTestId("sdl").textContent).toContain("service-2"));
+      expect(within(serviceCard("service-2")).getByRole("switch", { name: "Enable log forwarding" })).toBeInTheDocument();
+
+      await userEvent.click(within(serviceCard("service-1")).getByRole("switch", { name: "Enable log forwarding" }));
+
+      await waitFor(() => expect(screen.getByTestId("sdl").textContent).not.toContain("log-collector"));
+      expect(screen.getByTestId("sdl").textContent).toContain("service-2");
+      expect(screen.getByTestId("ghost-free").textContent).toBe("true");
+    });
+
+    it("removes a service while a sibling card is mounted without leaving a ghost service", async () => {
+      setup({ initialSdl: undefined, twoPanel: true, Workspace: EditorProbeWorkspace });
+      await userEvent.click(screen.getByRole("button", { name: "Add service" }));
+      await waitFor(() => expect(screen.getByTestId("sdl").textContent).toContain("service-2"));
+
+      await userEvent.click(screen.getByRole("button", { name: "Remove service-1" }));
+
+      await waitFor(() => expect(screen.getByTestId("sdl").textContent).not.toMatch(/service-1\b/));
+      expect(screen.getByTestId("ghost-free").textContent).toBe("true");
+      expect(serviceCard("service-2")).toBeInTheDocument();
+    });
+
+    it("removes a placement without leaving a ghost placement or service", async () => {
+      setup({ initialSdl: undefined, twoPanel: true, Workspace: EditorProbeWorkspace });
+      await userEvent.click(screen.getByRole("button", { name: "Add placement" }));
+      await waitFor(() => expect(screen.getByTestId("sdl").textContent).toContain("placement-1"));
+
+      await userEvent.click(screen.getByRole("button", { name: "Remove placement-1" }));
+
+      await waitFor(() => {
+        const sdl = screen.getByTestId("sdl").textContent ?? "";
+        expect(sdl).not.toContain("placement-1");
+        expect(sdl).not.toContain("service-2");
+      });
+      expect(screen.getByTestId("ghost-free").textContent).toBe("true");
+    });
+
+    it("starts over from a default deployment when the configuration is reset", async () => {
+      const { analyticsService } = setup({ initialSdl: TWO_SERVICE_SDL, twoPanel: true, Workspace: ResetProbeWorkspace });
+      expect(screen.getByTestId("service-titles").textContent).toBe("web,api");
+
+      await userEvent.click(screen.getByRole("button", { name: "reset" }));
+
+      await waitFor(() => expect(screen.getByTestId("service-titles").textContent).toBe("service-1"));
+      expect(screen.getByTestId("sdl").textContent).toContain("service-1");
+      expect(analyticsService.track).toHaveBeenCalledWith("configure_reset_confirmed", { category: "deployments" });
+    });
   });
 
   it("threads the live sdl, deployment name, and editability into the import/export control", () => {
@@ -621,12 +718,15 @@ describe(ConfigureDeploymentForm.name, () => {
     phase?: DeploymentFlow["phase"];
     pendingClose?: DeploymentFlow["pendingClose"];
     secretsEnabled?: boolean;
+    twoPanel?: boolean;
+    Workspace?: (props: WorkspaceProbeProps) => ReactNode;
     persistedInheritSecretsFrom?: string;
   }) {
     const ConfigureDeploymentPanes = vi.fn(
       input.Panes ?? (({ configurationActions }: ProbePanesProps) => <div data-testid="panes-mock">{configurationActions}</div>)
     );
     const ConfigureDeploymentHeader = vi.fn(() => <div data-testid="header-mock" />);
+    const ConfigureWorkspace = vi.fn(input.Workspace ?? (() => <div data-testid="workspace-mock" />));
     const SdlImportExport = vi.fn(() => null);
     const enqueueSnackbar = vi.fn();
     const closeSnackbar = vi.fn();
@@ -684,6 +784,7 @@ describe(ConfigureDeploymentForm.name, () => {
       ConfigureDeploymentBackButton: vi.fn(() => <div data-testid="back-button-mock" />),
       ConfigureDeploymentHeader,
       ConfigureDeploymentPanes: ConfigureDeploymentPanes as never,
+      ConfigureWorkspace: ConfigureWorkspace as never,
       useConfigureDraft: useConfigureDraft as never,
       useDeploymentName,
       useSnackbar: () => mock<ReturnType<typeof DEPENDENCIES.useSnackbar>>({ enqueueSnackbar, closeSnackbar }),
@@ -693,23 +794,29 @@ describe(ConfigureDeploymentForm.name, () => {
       DeployProgressOverlay: () => null,
       SdlImportExport: SdlImportExport as never,
       usePlacementsWithBids: () => new Set<string>(),
-      useFlag: () => input.secretsEnabled ?? false
+      useFlag: () => false
     };
 
-    const formWithSecrets = (secretsEnabled: boolean) => (
+    const formWithFlags = (flags: { secretsEnabled: boolean; twoPanel: boolean }) => (
       <ConfigureDeploymentForm
         initialSdl={input.initialSdl}
         initialName={input.initialName}
         intent={{ sdlStrategy: "edit", bidStrategy: "select", dseq: undefined, draftId: input.draftId, vm: input.vm ?? false }}
         flow={flow}
-        dependencies={{ ...dependencies, useFlag: () => secretsEnabled }}
+        dependencies={{
+          ...dependencies,
+          useFlag: flag => (flag === "ui_deployment_secrets" ? flags.secretsEnabled : flag === "ui_configure_two_panel" && flags.twoPanel)
+        }}
       />
     );
-    const { rerender } = render(formWithSecrets(input.secretsEnabled ?? false));
+    const initialFlags = { secretsEnabled: input.secretsEnabled ?? false, twoPanel: input.twoPanel ?? false };
+    const { rerender } = render(formWithFlags(initialFlags));
 
     return {
-      enableSecrets: () => rerender(formWithSecrets(true)),
+      enableSecrets: () => rerender(formWithFlags({ ...initialFlags, secretsEnabled: true })),
+      rerenderWith: (flags: Partial<typeof initialFlags>) => rerender(formWithFlags({ ...initialFlags, ...flags })),
       ConfigureDeploymentPanes,
+      ConfigureWorkspace,
       ConfigureDeploymentHeader,
       ReviewAndDeployModal,
       SdlImportExport,
@@ -727,6 +834,81 @@ describe(ConfigureDeploymentForm.name, () => {
 
 function needsFundsToastOf(enqueueSnackbar: Mock) {
   return enqueueSnackbar.mock.calls[0][0] as { props: { title: string; subTitle: { props: { message?: string; context?: string; onAction?: () => void } } } };
+}
+
+interface WorkspaceProbeProps {
+  sdl: string;
+  selectedServiceId: string;
+  selectedPlacement: PlacementType;
+  onSelectService: (serviceId: string) => void;
+  onReset: () => void;
+}
+
+function serviceCard(title: string) {
+  return screen.getByRole("region", { name: `${title} service` });
+}
+
+/**
+ * Workspace stand-in that mounts the real editor, where every stacked card registers its fields and carries a real
+ * logs card, so each structural change runs against the same services array and mounted cards as in the app.
+ */
+function EditorProbeWorkspace({ sdl, selectedServiceId, selectedPlacement, onSelectService }: WorkspaceProbeProps) {
+  const services = (useWatch<SdlBuilderFormValuesType>({ name: "services" }) as SdlBuilderFormValuesType["services"]) ?? [];
+  return (
+    <TooltipProvider>
+      <div data-testid="sdl">{sdl}</div>
+      <div data-testid="ghost-free">{String(services.every(service => !!service?.id && !!service?.placementId))}</div>
+      <ConfigureEditor
+        selectedServiceId={selectedServiceId}
+        activePlacementId={selectedPlacement.id}
+        onSelectService={onSelectService}
+        deploymentName=""
+        onDeploymentNameChange={vi.fn()}
+        pendingClose={null}
+        onRetryClose={vi.fn()}
+        onCancelAndEdit={vi.fn()}
+        toolbar={null}
+        dependencies={{ ...CONFIGURE_EDITOR_DEPENDENCIES, PlacementFields: PlacementFieldsWithoutRegion, ServiceStack: ServiceStackWithRegisteringCards }}
+      />
+    </TooltipProvider>
+  );
+}
+
+function PlacementFieldsWithoutRegion(props: ComponentProps<typeof PlacementFields>) {
+  return <PlacementFields {...props} dependencies={{ RegionSelect: () => null }} />;
+}
+
+function ServiceStackWithRegisteringCards(props: ComponentProps<typeof ServiceStack>) {
+  return <ServiceStack {...props} dependencies={{ ServiceCard: ServiceCardWithRegisteringSections }} />;
+}
+
+function ServiceCardWithRegisteringSections(props: ComponentProps<typeof ServiceCard>) {
+  return (
+    <ServiceCard
+      {...props}
+      dependencies={{
+        ...SERVICE_CARD_DEPENDENCIES,
+        ImageSection: FieldRegisteringSection as never,
+        HardwareSection: FieldRegisteringSection as never,
+        AdditionalSection: LogsOnlySection as never
+      }}
+    />
+  );
+}
+
+/** Workspace stand-in that shows the services and the live sdl and offers the reset the real toolbar confirms. */
+function ResetProbeWorkspace({ sdl, onReset }: WorkspaceProbeProps) {
+  const services = useWatch<SdlBuilderFormValuesType>({ name: "services" });
+  const titles = Array.isArray(services) ? (services as SdlBuilderFormValuesType["services"]).map(service => service.title) : [];
+  return (
+    <div>
+      <div data-testid="service-titles">{titles.join(",")}</div>
+      <div data-testid="sdl">{sdl}</div>
+      <button type="button" onClick={onReset}>
+        reset
+      </button>
+    </div>
+  );
 }
 
 interface ProbePanesProps {

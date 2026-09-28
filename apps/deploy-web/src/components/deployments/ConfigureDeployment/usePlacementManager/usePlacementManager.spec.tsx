@@ -135,6 +135,25 @@ describe(usePlacementManager.name, () => {
     expect(result.current.canRemoveService).toBe(false);
   });
 
+  it("allows removing a service only from a placement that keeps another one", () => {
+    const placementA = defaultPlacement({ name: "placement-1" });
+    const placementB = defaultPlacement({ name: "placement-2" });
+    const values: SdlBuilderFormValuesType = {
+      placements: [placementA, placementB],
+      services: [
+        defaultService(placementA.id, { title: "web" }),
+        defaultService(placementA.id, { title: "api" }),
+        defaultService(placementB.id, { title: "db" }),
+        defaultService(placementB.id, { title: "db-log-collector", image: LOG_COLLECTOR_IMAGE })
+      ],
+      endpoints: []
+    };
+    const { result } = setup({ values });
+
+    expect(result.current.canRemoveServiceFrom(placementA.id)).toBe(true);
+    expect(result.current.canRemoveServiceFrom(placementB.id)).toBe(false);
+  });
+
   it("removes a service together with its paired log collector", () => {
     const placement = defaultPlacement();
     const web = defaultService(placement.id, { title: "web" });
