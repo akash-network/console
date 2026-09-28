@@ -7,6 +7,11 @@ export interface ServiceCredentialsPatch {
   password: string;
 }
 
+export interface ServiceExposePatch {
+  port?: number;
+  as?: number;
+}
+
 /** The manifest-only fields of one service the api accepts as a partial update, keyed as its patch route spells them. */
 export interface ServicePatch {
   image?: string;
@@ -15,6 +20,8 @@ export interface ServicePatch {
   /** Keyed by variable name; null removes the variable. */
   env?: Record<string, string | null>;
   credentials?: ServiceCredentialsPatch | null;
+  /** Keyed by the container port the previous SDL declares, which is how the api addresses an endpoint. */
+  expose?: Record<string, ServiceExposePatch>;
 }
 
 /** Keyed by service name; only services with a difference appear. */
@@ -26,6 +33,12 @@ interface SdlService {
   args?: unknown;
   env?: unknown;
   credentials?: unknown;
+  expose?: unknown;
+}
+
+interface ExposedPorts {
+  port: number;
+  as: number;
 }
 
 /** A service present on only one side is a structural change the patch route does not take, so it is left out. */
@@ -66,7 +79,39 @@ function servicePatchBetween(previous: SdlService, next: SdlService): ServicePat
   const credentials = credentialsPatchBetween(previous.credentials, next.credentials);
   if (credentials !== undefined) patch.credentials = credentials;
 
+  const expose = exposePatchBetween(exposedPortsOf(previous.expose), exposedPortsOf(next.expose));
+  if (Object.keys(expose).length > 0) patch.expose = expose;
+
   return patch;
+}
+
+/** Paired by position, because an endpoint added or removed is structural and the patch route only moves numbers. */
+function exposePatchBetween(previous: ExposedPorts[], next: ExposedPorts[]): Record<string, ServiceExposePatch> {
+  if (previous.length !== next.length) return {};
+
+  return Object.fromEntries(
+    previous.flatMap((before, index) => {
+      const after = next[index];
+      if (after.port === before.port && after.as === before.as) return [];
+
+      return [[String(before.port), exposeEntryPatchBetween(before, after)]];
+    })
+  );
+}
+
+/** A container port move carries `as` with it, because the api reads an entry that declares none as reached on its new container port. */
+function exposeEntryPatchBetween(before: ExposedPorts, after: ExposedPorts): ServiceExposePatch {
+  return after.port === before.port ? { as: after.as } : { port: after.port, as: after.as };
+}
+
+/** A missing `as` is reached on the container port, so it is read that way and spelling it out never counts as a move. */
+function exposedPortsOf(expose: unknown): ExposedPorts[] {
+  if (!Array.isArray(expose)) return [];
+
+  return expose.map(entry => {
+    const { port, as } = entry as { port?: unknown; as?: unknown };
+    return { port: Number(port), as: Number(as || port) };
+  });
 }
 
 /** `undefined` means unchanged; `null` means the list was removed. */

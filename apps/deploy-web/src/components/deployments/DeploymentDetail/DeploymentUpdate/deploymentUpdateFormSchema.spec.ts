@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { importDeploymentState } from "@src/components/deployments/ConfigureDeployment/importDeploymentState/importDeploymentState";
 import { SdlBuilderFormValuesSchema } from "@src/types";
 import type { DeploymentUpdateFormValues } from "./deploymentUpdateFormSchema";
-import { DeploymentUpdateFormSchema } from "./deploymentUpdateFormSchema";
+import { DeploymentUpdateFormSchema, deploymentUpdateFormSchemaFor } from "./deploymentUpdateFormSchema";
 
 const KEPT_PASSWORD = "ac-secret://REGISTRY_PASSWORD";
 
@@ -170,5 +170,152 @@ describe("DeploymentUpdateFormSchema", () => {
   function setup() {
     const values: DeploymentUpdateFormValues = importDeploymentState(SDL_THE_CREATE_FORM_WOULD_REFUSE).values;
     return { values };
+  }
+});
+
+const SDL_WITH_PORTS = `
+version: "2.0"
+services:
+  web:
+    image: nginx:1.25
+    expose:
+      - port: 80
+        as: 80
+        to:
+          - global: true
+      - port: 3000
+        as: 3000
+        to:
+          - global: true
+      - port: 9000
+        as: 9000
+        to:
+          - global: true
+  api:
+    image: node:22
+    expose:
+      - port: 80
+        as: 80
+        to:
+          - global: false
+profiles:
+  compute:
+    web:
+      resources:
+        cpu:
+          units: 0.5
+        memory:
+          size: 512Mi
+        storage:
+          - size: 1Gi
+    api:
+      resources:
+        cpu:
+          units: 0.5
+        memory:
+          size: 512Mi
+        storage:
+          - size: 1Gi
+  placement:
+    dcloud:
+      pricing:
+        web:
+          denom: uakt
+          amount: 1000
+        api:
+          denom: uakt
+          amount: 1000
+deployment:
+  web:
+    dcloud:
+      profile: web
+      count: 1
+  api:
+    dcloud:
+      profile: api
+      count: 1
+`;
+
+describe(deploymentUpdateFormSchemaFor.name, () => {
+  it("moves a container port that stays reached on the same external port", () => {
+    const { values, issuesOf } = setup();
+    values.services[0].expose[0].port = 8080;
+
+    expect(issuesOf(values)).toEqual([]);
+  });
+
+  it("refuses moving a public endpoint off port 80, which would stop serving it over http", () => {
+    const { values, issuesOf } = setup();
+    values.services[0].expose[0].as = 8080;
+
+    expect(issuesOf(values)).toEqual([
+      { path: "services.0.expose.0.as", message: "Port 80 is served over HTTP with a hostname, so moving it off 80 needs a new deployment." }
+    ]);
+  });
+
+  it("refuses moving a public random-port endpoint onto port 80", () => {
+    const { values, issuesOf } = setup();
+    values.services[0].expose[1].as = 80;
+
+    expect(issuesOf(values)).toContainEqual({
+      path: "services.0.expose.1.as",
+      message: "This endpoint is reached on a random public port, so moving it onto 80 needs a new deployment."
+    });
+  });
+
+  it("lets an internal endpoint move off port 80, since the chain records no endpoint for it", () => {
+    const { values, issuesOf } = setup();
+    values.services[1].expose[0].as = 8080;
+
+    expect(issuesOf(values)).toEqual([]);
+  });
+
+  it("refuses moving a container port onto one the service already exposes", () => {
+    const { values, issuesOf } = setup();
+    values.services[0].expose[1].port = 9000;
+
+    expect(issuesOf(values)).toEqual([{ path: "services.0.expose.1.port", message: "This service already exposes port 9000." }]);
+  });
+
+  it("refuses moving an external port onto one another port of the service uses", () => {
+    const { values, issuesOf } = setup();
+    values.services[0].expose[1].as = 9000;
+
+    expect(issuesOf(values)).toEqual([{ path: "services.0.expose.1.as", message: "Another port of this service is already exposed as 9000." }]);
+  });
+
+  it("refuses a port number outside the range a port can take", () => {
+    const { values, issuesOf } = setup();
+    values.services[0].expose[1].port = 0;
+
+    expect(issuesOf(values)).toEqual([{ path: "services.0.expose.1.port", message: "Port number must be at least 1." }]);
+  });
+
+  it("holds no port against a service it has no loaded ports for", () => {
+    const { values, issuesOf } = setup({ loadedServiceCount: 0 });
+    values.services[0].expose[0].as = 8080;
+
+    expect(issuesOf(values)).toEqual([]);
+  });
+
+  it("holds no move against a port it did not load", () => {
+    const { values, issuesOf } = setup({ loadedPortCount: 1 });
+    values.services[0].expose[1].as = 80;
+
+    expect(issuesOf(values)).toEqual([]);
+  });
+
+  function setup(input: { loadedServiceCount?: number; loadedPortCount?: number } = {}) {
+    const loaded = importDeploymentState(SDL_WITH_PORTS).values;
+    const values: DeploymentUpdateFormValues = importDeploymentState(SDL_WITH_PORTS).values;
+    const loadedServices = loaded.services
+      .slice(0, input.loadedServiceCount ?? loaded.services.length)
+      .map(service => ({ ...service, expose: service.expose.slice(0, input.loadedPortCount ?? service.expose.length) }));
+    const schema = deploymentUpdateFormSchemaFor(loadedServices);
+    const issuesOf = (current: DeploymentUpdateFormValues) => {
+      const result = schema.safeParse(current);
+      return result.success ? [] : result.error.issues.map(issue => ({ path: issue.path.join("."), message: issue.message }));
+    };
+    return { values, issuesOf };
   }
 });

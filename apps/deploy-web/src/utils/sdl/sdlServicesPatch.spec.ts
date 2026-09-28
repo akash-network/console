@@ -73,8 +73,36 @@ describe("sdlServicesPatch", () => {
     });
 
     it("ignores fields outside the manifest-only set", () => {
-      const previous = sdlWith({ web: { image: "nginx", expose: [{ port: 80, as: 80, to: [{ global: true }] }] } });
+      const previous = sdlWith({ web: { image: "nginx", params: { storage: { data: { mount: "/data" } } } } });
+      const next = sdlWith({ web: { image: "nginx", params: { storage: { data: { mount: "/var/data" } } } } });
+
+      expect(servicesPatchBetween(previous, next)).toEqual({});
+    });
+
+    it("moves a container port under the port it declared, pinning the external port it was reached on", () => {
+      const previous = sdlWith({ web: { image: "nginx", expose: [{ port: 80, to: [{ global: true }] }] } });
       const next = sdlWith({ web: { image: "nginx", expose: [{ port: 8080, as: 80, to: [{ global: true }] }] } });
+
+      expect(servicesPatchBetween(previous, next)).toEqual({ web: { expose: { "80": { port: 8080, as: 80 } } } });
+    });
+
+    it("moves only the external port of the endpoint that changed", () => {
+      const previous = sdlWith({ web: { image: "nginx", expose: [{ port: 80, as: 80 }, { port: 3000, as: 3000 }] } });
+      const next = sdlWith({ web: { image: "nginx", expose: [{ port: 80, as: 80 }, { port: 3000, as: 3001 }] } });
+
+      expect(servicesPatchBetween(previous, next)).toEqual({ web: { expose: { "3000": { as: 3001 } } } });
+    });
+
+    it("reads a missing as as the container port, so spelling it out is not a change", () => {
+      const previous = sdlWith({ web: { image: "nginx", expose: [{ port: 8080 }] } });
+      const next = sdlWith({ web: { image: "nginx", expose: [{ port: 8080, as: 8080 }] } });
+
+      expect(servicesPatchBetween(previous, next)).toEqual({});
+    });
+
+    it("leaves every port alone once an endpoint was added or removed, which is structural rather than patchable", () => {
+      const previous = sdlWith({ web: { image: "nginx", expose: [{ port: 80, as: 80 }] } });
+      const next = sdlWith({ web: { image: "nginx", expose: [{ port: 81, as: 80 }, { port: 90, as: 90 }] } });
 
       expect(servicesPatchBetween(previous, next)).toEqual({});
     });

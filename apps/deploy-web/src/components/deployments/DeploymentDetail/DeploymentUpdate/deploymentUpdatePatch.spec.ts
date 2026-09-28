@@ -125,6 +125,13 @@ describe(sealedUpdateOf.name, () => {
       expect(sealedUpdateOf(seed, current).services).toEqual({ web: { env: { MODE: "prod", NEW: "x", GONE: null } } });
     });
 
+    it("moves a container port under the port it declared, pinning the port it is exposed as", () => {
+      const { seed, current } = setup();
+      serviceNamed(current, "worker").expose[0].port = 9001;
+
+      expect(sealedUpdateOf(seed, current).services).toEqual({ worker: { expose: { "9000": { port: 9001, as: 9000 } } } });
+    });
+
     it("clears the registry credentials once the private registry is turned off", () => {
       const { seed, current } = setup();
       const web = serviceNamed(current, "web");
