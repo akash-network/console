@@ -137,6 +137,12 @@ describe(GpuInterconnectFields.name, () => {
     expect(screen.getByText(/needs GPUs on this service/i)).toBeInTheDocument();
   });
 
+  it("warns when the gpu flag is on but the service asks for no GPU units", () => {
+    setup({ interconnect: {}, profile: { hasGpu: true, gpu: 0, gpuModels: [{ vendor: "nvidia", name: "h100" }] } });
+
+    expect(screen.getByText(/needs GPUs on this service/i)).toBeInTheDocument();
+  });
+
   it("does not warn right after enabling turns the GPU on", async () => {
     setup({ profile: { hasGpu: false, gpu: 0, gpuModels: [] } });
 

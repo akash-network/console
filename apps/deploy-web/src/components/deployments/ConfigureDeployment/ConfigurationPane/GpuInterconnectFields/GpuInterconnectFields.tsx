@@ -44,9 +44,8 @@ type Props = {
 /** The GPU card's interconnect opt-in; the placement capability it adds is shared with sibling services, so turning it off keeps it while one still opts in. */
 export const GpuInterconnectFields: FC<Props> = ({ serviceIndex, locked = false, isTrialBlocked = false, onUnlock, dependencies: d = DEPENDENCIES }) => {
   const { control, getValues, setValue } = useFormContext<SdlBuilderFormValuesType>();
-  const { enable: enableGpu } = useServiceGpu(serviceIndex);
+  const { count: gpuCount, enable: enableGpu } = useServiceGpu(serviceIndex);
   const interconnect = useWatch({ control, name: `services.${serviceIndex}.profile.interconnect` });
-  const hasGpu = useWatch({ control, name: `services.${serviceIndex}.profile.hasGpu` });
   const count = useWatch({ control, name: `services.${serviceIndex}.count` });
   const placementId = useWatch({ control, name: `services.${serviceIndex}.placementId` });
   const watchedServices = useWatch({ control, name: "services" });
@@ -60,7 +59,7 @@ export const GpuInterconnectFields: FC<Props> = ({ serviceIndex, locked = false,
 
   const groupIsReserved = interconnect?.group === "auto";
   const hasMixedForms = isEnabled && hasMixedInterconnectGroupForms(services, serviceIndex);
-  const gpuMismatch = isEnabled && !hasGpu;
+  const gpuMismatch = isEnabled && gpuCount === 0;
 
   const hasParticipatingSibling = hasOtherInterconnectService(services, serviceIndex);
   const showSingleNodeHint = isEnabled && count === 1 && !hasParticipatingSibling;
@@ -127,7 +126,9 @@ export const GpuInterconnectFields: FC<Props> = ({ serviceIndex, locked = false,
       />
       {isEnabled && (
         <>
-          <p className="text-sm text-muted-foreground">This service requests a high-bandwidth GPU-to-GPU interconnect; only interconnect-capable providers will bid.</p>
+          <p className="text-sm text-muted-foreground">
+            This service requests a high-bandwidth GPU-to-GPU interconnect; only interconnect-capable providers will bid.
+          </p>
           {showSingleNodeHint && (
             <p className="text-sm text-muted-foreground">
               A GPU interconnect links GPUs across 2+ nodes. Increase the replica count under Runtime for a multi-node workload.
@@ -147,7 +148,9 @@ export const GpuInterconnectFields: FC<Props> = ({ serviceIndex, locked = false,
               placeholder="auto"
               disabled={controlsDisabled}
             />
-            <p className="text-xs text-muted-foreground">Leave empty for the automatic group. Services that opt in without a name share one group per placement.</p>
+            <p className="text-xs text-muted-foreground">
+              Leave empty for the automatic group. Services that opt in without a name share one group per placement.
+            </p>
           </div>
           {groupIsReserved && (
             <d.Alert variant="warning" className="p-4 text-sm">
@@ -172,7 +175,11 @@ export const GpuInterconnectFields: FC<Props> = ({ serviceIndex, locked = false,
               {FABRIC_OPTIONS.map(option => {
                 const id = `interconnect-fabric-${serviceIndex}-${option.value}`;
                 return (
-                  <d.Label key={option.value} htmlFor={id} className="flex items-start gap-3 rounded-md border border-zinc-200 p-3 font-normal dark:border-zinc-800">
+                  <d.Label
+                    key={option.value}
+                    htmlFor={id}
+                    className="flex items-start gap-3 rounded-md border border-zinc-200 p-3 font-normal dark:border-zinc-800"
+                  >
                     <d.RadioGroupItem id={id} value={option.value} aria-label={option.label} disabled={controlsDisabled} className="mt-0.5" />
                     <span className="flex flex-col gap-0.5">
                       <span className="text-sm font-medium">{option.label}</span>
