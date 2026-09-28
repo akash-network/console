@@ -4,6 +4,7 @@ import { inject, singleton } from "tsyringe";
 import { type CreateLogger, LOGGER_FACTORY } from "@src/core";
 import { DeploymentSettingRepository, type RecentNvidiaDriver } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
 import { getMaxCudaVersion } from "@src/gpu/lib/cuda-version/cuda-version";
+import { CudaDriverTableService } from "@src/gpu/services/cuda-driver-table/cuda-driver-table.service";
 
 export type ProviderGpuDriver = RecentNvidiaDriver & { cudaVersion: string | null };
 
@@ -19,6 +20,7 @@ export class ProviderGpuDriverService {
 
   constructor(
     private readonly deploymentSettingRepository: DeploymentSettingRepository,
+    private readonly cudaDriverTableService: CudaDriverTableService,
     @inject(LOGGER_FACTORY) createLogger: CreateLogger
   ) {
     this.#logger = createLogger({ context: ProviderGpuDriverService.name });
@@ -26,8 +28,11 @@ export class ProviderGpuDriverService {
 
   async findRecentDrivers(provider: string): Promise<ProviderGpuDriver[]> {
     const drivers = await this.#findRecentNvidiaDrivers(provider);
+    if (drivers.length === 0) return [];
 
-    return drivers.map(driver => ({ ...driver, cudaVersion: getMaxCudaVersion(driver.driverVersion) }));
+    const minimumDrivers = await this.cudaDriverTableService.getMinimumDrivers();
+
+    return drivers.map(driver => ({ ...driver, cudaVersion: getMaxCudaVersion(driver.driverVersion, minimumDrivers) }));
   }
 
   /** An empty list when the readings cannot be loaded, since they only decorate the provider page. */

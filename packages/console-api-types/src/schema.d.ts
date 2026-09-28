@@ -3504,7 +3504,7 @@ export interface paths {
                */
               gpuDrivers: {
                 driverVersion: string;
-                /** @description The newest CUDA toolkit whose minimum Linux driver this driver meets, per NVIDIA's release notes. Null when it meets none of them. */
+                /** @description The newest CUDA version whose minimum Linux driver this driver meets, per NVIDIA's published driver requirements. Null when it meets none of them. */
                 cudaVersion: string | null;
                 /**
                  * @description The UTC day this driver was last read.
