@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
-import type { ApiProviderLocation } from "@src/types/provider";
+import type { ApiProviderList, ApiProviderLocation } from "@src/types/provider";
 import type { DEPENDENCIES } from "./ProvidersGlobe";
 import { ProvidersGlobe } from "./ProvidersGlobe";
 
@@ -69,15 +69,56 @@ describe(ProvidersGlobe.name, () => {
     expect(props.focusedMarker).toBeNull();
   });
 
-  it("does not focus on a focused address that is absent from the provider locations", () => {
+  it("narrows to a focused provider the locations leave out once its own lookup finds it", () => {
+    const Globe = vi.fn(ComponentMock);
+    setup({
+      focusedProviderAddress: "p2",
+      providers: [createProvider({ owner: "p1", name: "Provider One", ipLat: "10", ipLon: "20" })],
+      lookedUpProviders: [mock<ApiProviderList>({ owner: "p2", name: "Provider Two", hostUri: "https://p2", ipLat: "30", ipLon: "40" })],
+      dependencies: { Globe }
+    });
+
+    const props = Globe.mock.calls[0][0];
+    expect(props.markers).toEqual([{ id: "p2", label: "Provider Two", lat: 30, lng: 40 }]);
+    expect(props.focusedMarker).toEqual({ lat: 30, lng: 40 });
+  });
+
+  it("shows the focused provider before the locations load", () => {
+    const Globe = vi.fn(ComponentMock);
+    setup({
+      focusedProviderAddress: "p2",
+      providers: undefined,
+      lookedUpProviders: [mock<ApiProviderList>({ owner: "p2", name: "Provider Two", hostUri: "https://p2", ipLat: "30", ipLon: "40" })],
+      dependencies: { Globe }
+    });
+
+    expect(Globe.mock.calls[0][0].markers).toEqual([{ id: "p2", label: "Provider Two", lat: 30, lng: 40 }]);
+  });
+
+  it("keeps every located provider and focuses none when neither the locations nor the lookup know the focused address", () => {
     const Globe = vi.fn(ComponentMock);
     setup({
       focusedProviderAddress: "missing",
       providers: [createProvider({ owner: "p1", name: "Provider One", ipLat: "10", ipLon: "20" })],
+      lookedUpProviders: [mock<ApiProviderList>({ owner: "other", ipLat: "30", ipLon: "40" })],
       dependencies: { Globe }
     });
 
-    expect(Globe.mock.calls[0][0].focusedMarker).toBeNull();
+    const props = Globe.mock.calls[0][0];
+    expect(props.markers).toEqual([{ id: "p1", label: "Provider One", lat: 10, lng: 20 }]);
+    expect(props.focusedMarker).toBeNull();
+  });
+
+  it("looks up the focused provider by its address", () => {
+    const { useProvidersByAddresses } = setup({ focusedProviderAddress: "p2" });
+
+    expect(useProvidersByAddresses).toHaveBeenLastCalledWith(["p2"]);
+  });
+
+  it("looks no provider up while none is focused", () => {
+    const { useProvidersByAddresses } = setup({ focusedProviderAddress: null });
+
+    expect(useProvidersByAddresses).toHaveBeenLastCalledWith([]);
   });
 
   it("uses the provider hostUri as the marker label when the name is null", () => {
@@ -127,18 +168,23 @@ describe(ProvidersGlobe.name, () => {
   function setup(input: {
     focusedProviderAddress?: string | null;
     providers?: ApiProviderLocation[];
+    lookedUpProviders?: ApiProviderList[];
     theme?: string;
     dependencies?: Partial<typeof DEPENDENCIES>;
   }) {
     const useProviderLocations: typeof DEPENDENCIES.useProviderLocations = () =>
       mock<ProviderLocationsResult>({ data: "providers" in input ? input.providers : [] }) as ProviderLocationsResult;
+    const lookedUpProviders = input.lookedUpProviders ?? [];
+    const useProvidersByAddresses = vi.fn((_addresses: readonly string[]) => ({ data: lookedUpProviders, isLoading: false, isFetching: false }));
     const useTheme: typeof DEPENDENCIES.useTheme = () => input.theme ?? "light";
 
-    return render(
+    const view = render(
       <ProvidersGlobe
         focusedProviderAddress={input.focusedProviderAddress}
-        dependencies={{ useProviderLocations, useTheme, Globe: vi.fn(ComponentMock), ...input.dependencies }}
+        dependencies={{ useProviderLocations, useProvidersByAddresses, useTheme, Globe: vi.fn(ComponentMock), ...input.dependencies }}
       />
     );
+
+    return { ...view, useProvidersByAddresses };
   }
 });

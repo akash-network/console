@@ -137,9 +137,9 @@ export function useProviderListModel(dependencies: typeof DEPENDENCIES = DEPENDE
   const { refetch: refetchProviders } = providerSearch;
   const { refetch: refetchLocations } = providerLocations;
   const refresh = useCallback(() => {
-    refetchProviders();
+    if (!hasNoFavoriteToShow) refetchProviders();
     refetchLocations();
-  }, [refetchProviders, refetchLocations]);
+  }, [hasNoFavoriteToShow, refetchProviders, refetchLocations]);
 
   return {
     sort,

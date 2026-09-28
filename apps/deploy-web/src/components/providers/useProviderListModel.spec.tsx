@@ -236,6 +236,16 @@ describe(useProviderListModel.name, () => {
     expect(refetchLocations).toHaveBeenCalled();
   });
 
+  it("refreshes only the locations while filtering favorites without any", () => {
+    const { result, refetchProviders, refetchLocations } = setup({ favoriteProviders: [] });
+
+    act(() => result.current.changeIsFilteringFavorites(true));
+    act(() => result.current.refresh());
+
+    expect(refetchProviders).not.toHaveBeenCalled();
+    expect(refetchLocations).toHaveBeenCalled();
+  });
+
   type Model = ReturnType<typeof useProviderListModel>;
 
   function createProvider(owner: string) {
