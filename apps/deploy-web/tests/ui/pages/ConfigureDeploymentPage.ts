@@ -126,7 +126,7 @@ export class ConfigureDeploymentPage {
   }
 
   cpuInput() {
-    return this.page.getByRole("spinbutton", { name: "CPU Count" });
+    return this.page.getByRole("spinbutton", { name: "vCPU" });
   }
 
   requestQuotesButton() {

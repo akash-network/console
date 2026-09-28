@@ -106,7 +106,7 @@ describe(LogsCard.name, () => {
 
     expect(screen.getByLabelText("Datadog regional URL")).toBeInTheDocument();
     expect(screen.getByLabelText("Datadog API key")).toBeInTheDocument();
-    expect(screen.getByLabelText("CPU Count")).toBeInTheDocument();
+    expect(screen.getByLabelText("vCPU")).toBeInTheDocument();
   });
 
   it("keeps the collector on Save after enabling", async () => {
@@ -183,7 +183,7 @@ describe(LogsCard.name, () => {
     const { getValues, openViaHeader } = setup({ withLogForwarding: true });
 
     await openViaHeader();
-    const cpu = screen.getByLabelText("CPU Count");
+    const cpu = screen.getByLabelText("vCPU");
     await userEvent.clear(cpu);
     await userEvent.type(cpu, "2");
     await userEvent.click(screen.getByRole("button", { name: "Save" }));

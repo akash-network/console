@@ -332,7 +332,7 @@ describe(RuntimeCard.name, () => {
 
   /**
    * Renders the card under a supplied resolver so validation errors flow through to the field state.
-   * The CPU/GPU group errors live on `profile.cpu`/`profile.gpu`, which the sibling Compute Resources
+   * The CPU/GPU group errors live on `profile.cpu`/`profile.gpu`, which the sibling Compute
    * and GPU cards own, so a small probe surfaces them here to verify the replica-count re-validation
    * wiring in isolation.
    */

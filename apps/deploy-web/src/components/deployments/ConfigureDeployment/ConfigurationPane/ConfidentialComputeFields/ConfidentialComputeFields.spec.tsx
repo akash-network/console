@@ -1,19 +1,22 @@
-import type { PropsWithChildren } from "react";
+import type { ComponentPropsWithoutRef, PropsWithChildren } from "react";
+import { forwardRef } from "react";
 import { FormProvider, useForm } from "react-hook-form";
 import { TooltipProvider } from "@akashnetwork/ui/components";
 import { describe, expect, it, vi } from "vitest";
 
 import type { SdlBuilderFormValuesType, ServiceType } from "@src/types";
 import { defaultServiceWithPlacement } from "@src/utils/sdl/data";
-import { ConfidentialComputeCard, DEPENDENCIES } from "./ConfidentialComputeCard";
+import { ConfidentialComputeFields, DEPENDENCIES } from "./ConfidentialComputeFields";
 
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
-describe(ConfidentialComputeCard.name, () => {
-  it("hides the body and leaves the switch off when no TEE is set", () => {
+describe(ConfidentialComputeFields.name, () => {
+  it("shows only the opt-in and leaves the switch off when no TEE is set", () => {
     setup({});
 
+    expect(screen.getByText("Confidential compute")).toBeInTheDocument();
+    expect(screen.getByText("Require hardware-backed TEE providers.")).toBeInTheDocument();
     expect(screen.getByRole("switch", { name: "Enable confidential compute" })).not.toBeChecked();
     expect(screen.queryByRole("radiogroup", { name: "Confidential compute type" })).not.toBeInTheDocument();
   });
@@ -53,15 +56,18 @@ describe(ConfidentialComputeCard.name, () => {
     expect(screen.getByRole("radio", { name: "CPU-GPU" })).toBeChecked();
   });
 
-  it("enables GPU when cpu-gpu is chosen so the attested GPU is backed by resources", async () => {
+  it("describes that the cpu-gpu option adds a GPU to the service", () => {
+    setup({ tee: "cpu" });
+
+    expect(screen.getByText("Attest the GPU as well. This adds a GPU to this service.")).toBeInTheDocument();
+  });
+
+  it("adds one GPU with a default model when cpu-gpu is chosen for a service without GPUs", async () => {
     const { getValues } = setup({ tee: "cpu", profile: { hasGpu: false, gpu: 0, gpuModels: [] } });
 
     await userEvent.click(screen.getByRole("radio", { name: "CPU-GPU" }));
 
-    const profile = getValues().services[0].profile;
-    expect(profile.hasGpu).toBe(true);
-    expect(profile.gpu).toBeGreaterThanOrEqual(1);
-    expect((profile.gpuModels ?? []).length).toBeGreaterThanOrEqual(1);
+    expect(getValues().services[0].profile).toMatchObject({ hasGpu: true, gpu: 1, gpuModels: [{ vendor: "nvidia", name: "", memory: "", interface: "" }] });
   });
 
   it("preserves an already-configured GPU instead of resetting it when cpu-gpu is chosen", async () => {
@@ -72,6 +78,14 @@ describe(ConfidentialComputeCard.name, () => {
     const profile = getValues().services[0].profile;
     expect(profile.gpu).toBe(4);
     expect(profile.gpuModels).toEqual([{ vendor: "nvidia", name: "h100" }]);
+  });
+
+  it("leaves a service without GPUs alone when confidential compute is turned on", async () => {
+    const { getValues } = setup({ profile: { hasGpu: false, gpu: 0, gpuModels: [] } });
+
+    await userEvent.click(screen.getByRole("switch", { name: "Enable confidential compute" }));
+
+    expect(getValues().services[0].profile).toMatchObject({ hasGpu: false, gpu: 0, gpuModels: [] });
   });
 
   it("leaves GPU untouched when cpu is chosen", async () => {
@@ -110,12 +124,10 @@ describe(ConfidentialComputeCard.name, () => {
     expect(screen.getByRole("radio", { name: "CPU-GPU" })).toBeDisabled();
   });
 
-  it("shows an off-state hint instead of radios when opened while off and locked", async () => {
+  it("shows a disabled switch and no options while off and locked", () => {
     setup({ locked: true });
 
-    await userEvent.click(screen.getByRole("button", { name: "Expand Confidential Compute" }));
-
-    expect(screen.getByText("Confidential compute is off.")).toBeInTheDocument();
+    expect(screen.getByRole("switch", { name: "Enable confidential compute" })).toBeDisabled();
     expect(screen.queryByRole("radiogroup", { name: "Confidential compute type" })).not.toBeInTheDocument();
   });
 
@@ -127,28 +139,58 @@ describe(ConfidentialComputeCard.name, () => {
     expect(screen.getByText("Available to your container")).toBeInTheDocument();
   });
 
+  it.each([
+    { case: "the GPU is on", profile: { hasGpu: true, gpu: 2 }, gpuUnits: 2 },
+    { case: "the GPU is off but still stores a count", profile: { hasGpu: false, gpu: 2 }, gpuUnits: 0 }
+  ])("builds the carve-out from the declared resources with $gpuUnits GPUs when $case", ({ profile, gpuUnits }) => {
+    const ConfidentialComputeResources = vi.fn<typeof DEPENDENCIES.ConfidentialComputeResources>(() => null);
+
+    setup({ tee: "cpu-gpu", count: 3, profile: { cpu: 1, ram: 1, ramUnit: "Gi", ...profile }, dependencies: { ConfidentialComputeResources } });
+
+    expect(ConfidentialComputeResources).toHaveBeenLastCalledWith(
+      { carveouts: [expect.objectContaining({ teeType: "cpu-gpu", count: 3, gpuUnits, requested: { cpu: 1000, memory: 1024 ** 3 } })] },
+      expect.anything()
+    );
+  });
+
   it("hides the resource carve-out while confidential compute is off", () => {
     setup({});
 
     expect(screen.queryByText("Attestation sidecar")).not.toBeInTheDocument();
   });
 
-  it("warns when cpu-gpu is selected but the service has no GPU resources", () => {
-    setup({ tee: "cpu-gpu", profile: { hasGpu: false, gpu: 0, gpuModels: [] } });
+  it.each([
+    { case: "the GPU is off", profile: { hasGpu: false, gpu: 0, gpuModels: [] } },
+    { case: "the GPU is on with no units", profile: { hasGpu: true, gpu: 0, gpuModels: [{ vendor: "nvidia" }] } },
+    { case: "a switched-off GPU still stores a count", profile: { hasGpu: false, gpu: 2, gpuModels: [{ vendor: "nvidia" }] } }
+  ])("asks for GPUs when cpu-gpu is selected and $case", ({ profile }) => {
+    setup({ tee: "cpu-gpu", profile });
 
-    expect(screen.getByText(/needs GPU resources/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "CPU-GPU confidential compute attests a GPU, so this service needs GPUs. Set GPUs to 1 or more so providers with confidential-compute GPUs can bid."
+      )
+    ).toBeInTheDocument();
   });
 
-  it("does not warn when cpu-gpu is selected and GPU was enabled by the selection", async () => {
-    const { getValues } = setup({ tee: "cpu", profile: { hasGpu: false, gpu: 0, gpuModels: [] } });
+  it("does not ask for GPUs when cpu-gpu is selected and the service has GPUs", () => {
+    setup({ tee: "cpu-gpu", profile: { hasGpu: true, gpu: 2, gpuModels: [{ vendor: "nvidia" }] } });
+
+    expect(screen.queryByText(/so this service needs GPUs/i)).not.toBeInTheDocument();
+  });
+
+  it("does not ask for GPUs for CPU-only confidential compute", () => {
+    setup({ tee: "cpu", profile: { hasGpu: false, gpu: 0, gpuModels: [] } });
+
+    expect(screen.queryByText(/so this service needs GPUs/i)).not.toBeInTheDocument();
+  });
+
+  it("stops asking for GPUs once choosing cpu-gpu adds one", async () => {
+    setup({ tee: "cpu", profile: { hasGpu: false, gpu: 0, gpuModels: [] } });
 
     await userEvent.click(screen.getByRole("radio", { name: "CPU-GPU" }));
 
-    const profile = getValues().services[0].profile;
-    expect(profile.hasGpu).toBe(true);
-    expect(profile.gpu).toBeGreaterThanOrEqual(1);
-    expect((profile.gpuModels ?? []).length).toBeGreaterThanOrEqual(1);
-    expect(screen.queryByText(/needs GPU resources/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/so this service needs GPUs/i)).not.toBeInTheDocument();
   });
 
   describe("when GPU is blocked for the trial", () => {
@@ -166,6 +208,12 @@ describe(ConfidentialComputeCard.name, () => {
       expect(screen.getByRole("button", { name: "Unlock high-end GPUs" })).toBeInTheDocument();
     });
 
+    it("hides the free-trial warning while confidential compute is off", () => {
+      setup({ isGpuBlocked: true });
+
+      expect(screen.queryByText(/high-end GPUs aren't available on a free trial/i)).not.toBeInTheDocument();
+    });
+
     it("opens the unlock sheet when the unlock CTA is clicked", async () => {
       const onUnlock = vi.fn();
       setup({ tee: "cpu", isGpuBlocked: true, onUnlock });
@@ -175,16 +223,12 @@ describe(ConfidentialComputeCard.name, () => {
       expect(onUnlock).toHaveBeenCalledTimes(1);
     });
 
-    it("ignores a cpu-gpu selection defensively even if the disabled radio is triggered", async () => {
-      // Bypass the disabled radio to prove the setTee guard rejects cpu-gpu on its own; children (the real
-      // RadioGroupItems) are intentionally not rendered since they require the real RadioGroup context. Cast
-      // is needed because the real RadioGroup is a forwardRef component, structurally incompatible with a
-      // plain function component.
-      const RadioGroup = ((props: { onValueChange: (value: string) => void }) => (
-        <button type="button" onClick={() => props.onValueChange("cpu-gpu")}>
+    it("ignores a cpu-gpu selection even if the disabled radio is triggered", async () => {
+      const RadioGroup = forwardRef<HTMLDivElement, ComponentPropsWithoutRef<typeof DEPENDENCIES.RadioGroup>>(({ onValueChange }, _ref) => (
+        <button type="button" onClick={() => onValueChange?.("cpu-gpu")}>
           force-cpu-gpu
         </button>
-      )) as unknown as typeof DEPENDENCIES.RadioGroup;
+      ));
       const { getValues } = setup({ tee: "cpu", isGpuBlocked: true, dependencies: { RadioGroup } });
 
       await userEvent.click(screen.getByRole("button", { name: "force-cpu-gpu" }));
@@ -204,6 +248,7 @@ describe(ConfidentialComputeCard.name, () => {
     tee?: "cpu" | "cpu-gpu";
     params?: ServiceType["params"];
     profile?: Partial<ServiceType["profile"]>;
+    count?: number;
     locked?: boolean;
     isGpuBlocked?: boolean;
     onUnlock?: () => void;
@@ -213,7 +258,7 @@ describe(ConfidentialComputeCard.name, () => {
     const base = defaultServiceWithPlacement({ params });
     const values: SdlBuilderFormValuesType = {
       ...base,
-      services: [{ ...base.services[0], profile: { ...base.services[0].profile, ...input.profile } }]
+      services: [{ ...base.services[0], count: input.count ?? base.services[0].count, profile: { ...base.services[0].profile, ...input.profile } }]
     };
 
     let getValues: () => SdlBuilderFormValuesType = () => values;
@@ -226,7 +271,7 @@ describe(ConfidentialComputeCard.name, () => {
     render(
       <Wrapper>
         <TooltipProvider>
-          <ConfidentialComputeCard
+          <ConfidentialComputeFields
             serviceIndex={0}
             locked={input.locked}
             isGpuBlocked={input.isGpuBlocked}
