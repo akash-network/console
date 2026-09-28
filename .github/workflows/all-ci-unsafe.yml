@@ -74,7 +74,7 @@ jobs:
           echo "run_scan=true" >> "$GITHUB_OUTPUT"
           echo "skip_reason=" >> "$GITHUB_OUTPUT"
 
-      # Stays on the scanned commit: Security Scan reads the verdict from there and decides on its own which
+      # Stays on the scanned commit: Security Scan Result reads the verdict from there and decides on its own which
       # commit the required check belongs on.
       - name: Create check run
         id: create_check
@@ -289,8 +289,8 @@ jobs:
             } >> "$GITHUB_OUTPUT"
           }
 
-          # Skipped, not success: Security Scan only accepts a pass, so a pull request whose PR this run could not
-          # find cannot slip through unscanned when Security Scan finds it later.
+          # Skipped, not success: Security Scan Result only accepts a pass, so a pull request whose PR this run could
+          # not find cannot slip through unscanned when Security Scan Result finds it later.
           if [[ "$RUN_SCAN" != "true" ]]; then
             emit_output "skipped" "Skipped: $SKIP_REASON"
             exit 0
