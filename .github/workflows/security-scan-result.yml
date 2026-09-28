@@ -1,11 +1,12 @@
 # Reports the required `security-scan` check once CI completes. The scans themselves run in Security Scan
 # (all-ci-unsafe.yml), which starts with CI; this workflow waits for CI's conclusion and that scan's
-# `security-analysis` verdict, and reports both.
+# `security-analysis` verdict, re-running the scan once when it did not pass, and reports both.
 # Uses workflow_run to run in base repo context, giving access to secrets for fork PRs.
 #
 # !!!! PLEASE be extra careful here and treat forked repository as untrusted user input !!!!
 
 name: Security Scan Result
+run-name: Security Scan Result for ${{ github.event.workflow_run.head_sha || github.event.pull_request.head.sha }}
 
 on:
   workflow_run: # zizmor: ignore[dangerous-triggers] reads CI's conclusion and check runs, and never checks out or runs pull request code
@@ -174,22 +175,64 @@ jobs:
     if: ${{ needs.create-check-run.outputs.run_scan == 'true' }}
     runs-on: ubuntu-latest
     permissions:
-      contents: read
       checks: read
+      actions: write # to re-run a Security Scan that did not pass
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-        with:
-          persist-credentials: false
-          sparse-checkout: .github
+      # A CI re-run fires `completed` but never `requested`, so it cannot restart the scan itself: a scan that
+      # failed, was cancelled or skipped, or never reported gets re-run here once.
       - name: Wait for the security analysis
-        uses: ./.github/actions/poll-check-status
-        with:
-          name: security-analysis
-          sha: ${{ env.PARENT_WORKFLOW_HEAD_SHA }}
-          retry_delay: 10000
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          HEAD_SHA: ${{ env.PARENT_WORKFLOW_HEAD_SHA }}
+          POLL_SECONDS: 10
           # The analysis starts with CI and is usually done by now; this covers a CI run that finished first.
-          max_retries: 90
+          WAIT_MINUTES: 15
+        with:
+          script: | # js
+            const { owner, repo } = context.repo;
+            const sha = process.env.HEAD_SHA;
+            const pollMs = Number(process.env.POLL_SECONDS) * 1000;
+            const waitMs = Number(process.env.WAIT_MINUTES) * 60_000;
+            const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+
+            const newestAnalysis = async () => {
+              const { data } = await github.rest.checks.listForRef({ owner, repo, ref: sha, check_name: "security-analysis", filter: "all", per_page: 100 });
+              return data.check_runs.reduce((newest, run) => (!newest || run.id > newest.id ? run : newest), null);
+            };
+
+            const waitForAnalysis = async newerThan => {
+              const deadline = Date.now() + waitMs;
+              for (;;) {
+                const check = await newestAnalysis();
+                const fresh = check && check.id > newerThan ? check : null;
+                if (fresh?.status === "completed" || Date.now() >= deadline) return fresh;
+                core.info(fresh ? `security-analysis is ${fresh.status}` : "No security-analysis reported yet");
+                await sleep(pollMs);
+              }
+            };
+
+            const describe = check => (check ? check.conclusion ?? check.status : "never reported");
+
+            const findScanRun = async check => {
+              if (check?.external_id) return Number(check.external_id);
+              const { data } = await github.rest.actions.listWorkflowRuns({ owner, repo, workflow_id: "all-ci-unsafe.yml", per_page: 100 });
+              return data.workflow_runs.find(run => run.display_title.includes(sha))?.id ?? null;
+            };
+
+            const first = await waitForAnalysis(0);
+            if (first?.conclusion === "success") return core.info("security-analysis passed");
+
+            const runId = await findScanRun(first);
+            if (!runId) return core.setFailed(`security-analysis ${describe(first)}, and no Security Scan run for ${sha} was found to re-run`);
+            const { data: run } = await github.rest.actions.getWorkflowRun({ owner, repo, run_id: runId });
+            if (run.status !== "completed") return core.setFailed(`security-analysis ${describe(first)} while ${run.html_url} is still ${run.status}`);
+
+            core.info(`security-analysis ${describe(first)}, re-running ${run.html_url}`);
+            await github.rest.actions.reRunWorkflow({ owner, repo, run_id: runId });
+
+            const second = await waitForAnalysis(first?.id ?? 0);
+            if (second?.conclusion === "success") return core.info("security-analysis passed on the re-run");
+            core.setFailed(`security-analysis ${describe(second)} after re-running ${run.html_url}`);
 
   finalize:
     runs-on: ubuntu-latest

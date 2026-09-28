@@ -6,6 +6,9 @@
 # !!!! PLEASE be extra careful here and treat forked repository as untrusted user input !!!!
 
 name: Security Scan
+# Security Scan Result finds a run to re-run from its check's external_id, or by the commit in this name when
+# the run never created one.
+run-name: Security Scan for ${{ github.event.workflow_run.head_sha || github.event.pull_request.head.sha }}
 
 on:
   workflow_run:
@@ -46,9 +49,11 @@ jobs:
         with:
           persist-credentials: false
           sparse-checkout: .github
+      # A lookup that errors still reports a skipped analysis, which Security Scan Result re-runs, instead of none.
       - name: Get associated PR
         if: ${{ env.PARENT_WORKFLOW_EVENT == 'pull_request' }}
         id: associated_pr
+        continue-on-error: true
         uses: ./.github/actions/associated-pr
         with:
           ref: ${{ env.PARENT_WORKFLOW_HEAD_SHA }}
@@ -89,6 +94,8 @@ jobs:
               head_sha: process.env.PARENT_WORKFLOW_HEAD_SHA,
               status: "in_progress",
               details_url: workflowRunUrl,
+              // GitHub replaces details_url with the check's own page, so this is how Security Scan Result finds the run.
+              external_id: process.env.GITHUB_RUN_ID,
               output: {
                 title: "Security analysis",
                 summary: `Scanning... Managed in [this workflow run](${workflowRunUrl})`
