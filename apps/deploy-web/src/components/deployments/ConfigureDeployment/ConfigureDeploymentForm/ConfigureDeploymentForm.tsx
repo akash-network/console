@@ -89,6 +89,8 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, initialName, in
    * restore that service if it survived, instead of jumping to the first one.
    */
   const lastSelectedServiceId = useRef(selectedServiceId);
+  /** A draft save still pending when the user discards would otherwise write the cleared draft back. */
+  const isDiscardingRef = useRef(false);
   const { enqueueSnackbar, closeSnackbar } = d.useSnackbar();
   const { analyticsService } = d.useServices();
   const draft = d.useConfigureDraft(intent);
@@ -150,7 +152,7 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, initialName, in
     function debouncePreviewSdl() {
       const timeout = setTimeout(function commitDebouncedSdl() {
         setPreviewSdl(liveSdl);
-        draft.save(liveSdl, typedDeploymentName, runtimeLimitHours);
+        if (!isDiscardingRef.current) draft.save(liveSdl, typedDeploymentName, runtimeLimitHours);
       }, SDL_SYNC_DEBOUNCE_MS);
       return function cancelPreviewDebounce() {
         clearTimeout(timeout);
@@ -307,6 +309,13 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, initialName, in
     [form, isSecretsEnabled]
   );
 
+  const discardDeployment = useCallback(() => {
+    isDiscardingRef.current = true;
+    analyticsService.track("configure_leave_discarded", { category: "deployments", dseq: flow.dseq });
+    flow.actions.discard();
+    draft.clear();
+  }, [analyticsService, draft, flow.actions, flow.dseq]);
+
   const resetConfiguration = useCallback(() => {
     analyticsService.track("configure_reset_confirmed", { category: "deployments" });
     applyImportedState(defaultInitialState(intent.vm, isSecretsEnabled));
@@ -339,6 +348,7 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, initialName, in
                   allPlacementsHaveBids={allPlacementsHaveBids}
                   onImport={applyImportedState}
                   onReset={resetConfiguration}
+                  onDiscard={discardDeployment}
                 />
               ) : (
                 <>

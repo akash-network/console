@@ -125,6 +125,7 @@ export type AnalyticsEvent =
   | "configure_reset_confirmed"
   | "configure_choose_provider_clicked"
   | "configure_edit_clicked"
+  | "configure_leave_discarded"
   | "cancel_during_create"
   | "close_deployment_failed"
   | "cancelled_deployment_auto_close_failed"

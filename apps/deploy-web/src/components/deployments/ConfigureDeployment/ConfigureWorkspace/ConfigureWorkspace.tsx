@@ -4,11 +4,11 @@ import type { FieldErrors } from "react-hook-form";
 import { useFormContext, useFormState, useWatch } from "react-hook-form";
 import { AnimatePresence, motion, MotionConfig } from "framer-motion";
 
+import { isLogCollectorService } from "@src/components/sdl/LogCollectorControl/LogCollectorControl";
 import { useServices } from "@src/context/ServicesProvider";
 import { useScreenedProviders } from "@src/queries/useScreenedProviders";
 import type { PlacementType, SdlBuilderFormValuesType } from "@src/types";
 import { AvailabilityPane } from "../AvailabilityPane/AvailabilityPane";
-import { ConfigureDeploymentBackButton } from "../ConfigureDeploymentBackButton/ConfigureDeploymentBackButton";
 import { ConfigureEditor } from "../ConfigureEditor/ConfigureEditor";
 import { ResetConfigurationButton } from "../ConfigureEditor/ResetConfigurationButton/ResetConfigurationButton";
 import { deployCtaState } from "../deployCtaState/deployCtaState";
@@ -26,11 +26,12 @@ import { useRequestQuotes } from "../useRequestQuotes/useRequestQuotes";
 import { useRetryDeploy } from "../useRetryDeploy/useRetryDeploy";
 import { BidWindowToast } from "./BidWindowToast/BidWindowToast";
 import { ConfigureWorkspaceHeader } from "./ConfigureWorkspaceHeader/ConfigureWorkspaceHeader";
+import { LeaveConfigureButton } from "./LeaveConfigureButton/LeaveConfigureButton";
 import { LockedDeploymentRail } from "./LockedDeploymentRail/LockedDeploymentRail";
 import { PlacementProviderChips } from "./PlacementProviderChips/PlacementProviderChips";
 
 export const DEPENDENCIES = {
-  ConfigureDeploymentBackButton,
+  LeaveConfigureButton,
   ConfigureWorkspaceHeader,
   ConfigureEditor,
   AvailabilityPane,
@@ -70,6 +71,7 @@ type Props = {
   allPlacementsHaveBids: boolean;
   onImport: (state: ImportedDeploymentState) => void;
   onReset: () => void;
+  onDiscard: () => void;
   dependencies?: typeof DEPENDENCIES;
 };
 
@@ -89,11 +91,13 @@ export const ConfigureWorkspace: FC<Props> = ({
   allPlacementsHaveBids,
   onImport,
   onReset,
+  onDiscard,
   dependencies: d = DEPENDENCIES
 }) => {
   const { control, getValues } = useFormContext<SdlBuilderFormValuesType>();
   const { isSubmitting } = useFormState({ control });
   const placements = useWatch({ control, name: "placements" });
+  const services = useWatch({ control, name: "services" });
   const { analyticsService } = d.useServices();
   const status = d.useConfigurationStatus();
   const sdlPreview = d.useSdlPreviewPanel();
@@ -142,7 +146,17 @@ export const ConfigureWorkspace: FC<Props> = ({
     <div className="relative flex min-h-0 flex-1 flex-col">
       <div className="px-6 pt-6">
         <d.ConfigureWorkspaceHeader
-          backButton={<d.ConfigureDeploymentBackButton />}
+          backButton={
+            <d.LeaveConfigureButton
+              needsConfirmation={!isEditable || !!flow.pendingClose}
+              deploymentName={deploymentName}
+              serviceCount={services.filter(service => !isLogCollectorService(service)).length}
+              placementCount={placements.length}
+              hasBids={flow.bids.length > 0}
+              canEditInstead={view === "pick"}
+              onDiscard={onDiscard}
+            />
+          }
           ctaState={ctaState}
           onDeploy={onDeploy}
           onRetry={retryDeploy}

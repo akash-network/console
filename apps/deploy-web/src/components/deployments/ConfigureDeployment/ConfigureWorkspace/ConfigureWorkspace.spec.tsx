@@ -13,6 +13,7 @@ import type { MarketplacePane } from "../MarketplacePane/MarketplacePane";
 import type { DeploymentCost } from "../useDeploymentCost/useDeploymentCost";
 import type { DeploymentFlow, DeploymentFlowActions } from "../useDeploymentFlow/useDeploymentFlow";
 import type { ConfigureWorkspaceHeader } from "./ConfigureWorkspaceHeader/ConfigureWorkspaceHeader";
+import type { LeaveConfigureButton } from "./LeaveConfigureButton/LeaveConfigureButton";
 import type { LockedDeploymentRail } from "./LockedDeploymentRail/LockedDeploymentRail";
 import type { PlacementProviderChips } from "./PlacementProviderChips/PlacementProviderChips";
 import { ConfigureWorkspace, DEPENDENCIES } from "./ConfigureWorkspace";
@@ -50,7 +51,7 @@ describe(ConfigureWorkspace.name, () => {
   it("puts the back button beside the page title", () => {
     const { headerProps, dependencies } = setup({});
 
-    expect((headerProps().backButton as ReactElement).type).toBe(dependencies.ConfigureDeploymentBackButton);
+    expect((headerProps().backButton as ReactElement).type).toBe(dependencies.LeaveConfigureButton);
   });
 
   describe("while configuring", () => {
@@ -160,6 +161,32 @@ describe(ConfigureWorkspace.name, () => {
     });
   });
 
+  it("leaves without asking while the deployment is only being configured", () => {
+    const { leaveProps } = setup({});
+
+    expect(leaveProps()).toMatchObject({ needsConfirmation: false, canEditInstead: false });
+  });
+
+  it("asks before leaving a pending deployment and hands the question what would be lost", () => {
+    const { leaveProps, onDiscard } = setup({ phase: "quoting", bidCount: 1 });
+
+    expect(leaveProps()).toMatchObject({
+      needsConfirmation: true,
+      deploymentName: "shown-name",
+      serviceCount: 2,
+      placementCount: 2,
+      hasBids: true,
+      canEditInstead: true,
+      onDiscard
+    });
+  });
+
+  it("asks before leaving while a previous deployment is still closing", () => {
+    const { leaveProps } = setup({ pendingClose: { dseq: "41", failed: true } });
+
+    expect(leaveProps()).toMatchObject({ needsConfirmation: true, hasBids: false });
+  });
+
   it("follows the bid window in a toast", () => {
     const { dependencies } = setup({ phase: "quoting", expired: true });
 
@@ -225,6 +252,8 @@ describe(ConfigureWorkspace.name, () => {
     expired?: boolean;
     incompletePlacementId?: string;
     sdlPreviewEnabled?: boolean;
+    bidCount?: number;
+    pendingClose?: DeploymentFlow["pendingClose"];
   }) {
     const first = { ...defaultPlacement({ name: "placement-1" }), id: "p1", region: "" };
     const second = { ...defaultPlacement({ name: "gpu-pool" }), id: "p2", region: "us-west" };
@@ -253,6 +282,7 @@ describe(ConfigureWorkspace.name, () => {
     const onDeploy = vi.fn();
     const onImport = vi.fn();
     const onReset = vi.fn();
+    const onDiscard = vi.fn();
     const dependencies = MockComponents(DEPENDENCIES, {
       ConfigureEditor: vi.fn(() => <span>editor</span>),
       AvailabilityPane: vi.fn(() => <button type="button">Choose a provider</button>),
@@ -278,8 +308,9 @@ describe(ConfigureWorkspace.name, () => {
       const flow = mock<DeploymentFlow>({
         phase,
         dseq: "42",
-        pendingClose: null,
+        pendingClose: input.pendingClose ?? null,
         deployError: undefined,
+        bids: Array.from({ length: input.bidCount ?? 0 }, () => mock<DeploymentFlow["bids"][number]>()),
         actions: mock<DeploymentFlowActions>({ cancelAndEdit })
       });
       flow.selections = input.selections ?? {};
@@ -306,6 +337,7 @@ describe(ConfigureWorkspace.name, () => {
         allPlacementsHaveBids={input.allPlacementsHaveBids ?? false}
         onImport={onImport}
         onReset={onReset}
+        onDiscard={onDiscard}
         dependencies={dependencies}
       />
     );
@@ -324,6 +356,11 @@ describe(ConfigureWorkspace.name, () => {
       onDeploy,
       onImport,
       onReset,
+      onDiscard,
+      leaveProps: () => {
+        const header = dependencies.ConfigureWorkspaceHeader.mock.calls.at(-1)?.[0] as ComponentProps<typeof ConfigureWorkspaceHeader>;
+        return (header.backButton as ReactElement).props as ComponentProps<typeof LeaveConfigureButton>;
+      },
       rerender: (next: { phase: DeploymentFlow["phase"] }) => rendered.rerender(workspace(flowIn(next.phase))),
       headerProps: () => dependencies.ConfigureWorkspaceHeader.mock.calls.at(-1)?.[0] as ComponentProps<typeof ConfigureWorkspaceHeader>,
       editorProps: () => dependencies.ConfigureEditor.mock.calls.at(-1)?.[0] as ComponentProps<typeof ConfigureEditor>,

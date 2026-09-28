@@ -629,6 +629,26 @@ describe(ConfigureDeploymentForm.name, () => {
       expect(screen.getByTestId("ghost-free").textContent).toBe("true");
     });
 
+    it("discards the pending deployment and its draft when the user leaves", async () => {
+      const { flow, clear, analyticsService } = setup({ initialSdl: undefined, twoPanel: true, phase: "quoting", Workspace: DiscardProbeWorkspace });
+
+      await userEvent.click(screen.getByRole("button", { name: "discard" }));
+
+      expect(flow.actions.discard).toHaveBeenCalled();
+      expect(clear).toHaveBeenCalled();
+      expect(analyticsService.track).toHaveBeenCalledWith("configure_leave_discarded", { category: "deployments", dseq: null });
+    });
+
+    it("stops a pending draft save from writing the discarded draft back", async () => {
+      const { save } = setup({ initialSdl: undefined, twoPanel: true, Workspace: DiscardProbeWorkspace });
+
+      await userEvent.click(screen.getByRole("button", { name: "change image" }));
+      await userEvent.click(screen.getByRole("button", { name: "discard" }));
+      await act(() => new Promise(resolve => setTimeout(resolve, 400)));
+
+      expect(save.mock.calls.map(([sdl]) => sdl).filter(sdl => sdl.includes("nginx:latest"))).toEqual([]);
+    });
+
     it("starts over from a default deployment when the configuration is reset", async () => {
       const { analyticsService } = setup({ initialSdl: TWO_SERVICE_SDL, twoPanel: true, Workspace: ResetProbeWorkspace });
       expect(screen.getByTestId("service-titles").textContent).toBe("web,api");
@@ -842,6 +862,7 @@ interface WorkspaceProbeProps {
   selectedPlacement: PlacementType;
   onSelectService: (serviceId: string) => void;
   onReset: () => void;
+  onDiscard: () => void;
 }
 
 function serviceCard(title: string) {
@@ -892,6 +913,21 @@ function ServiceCardWithRegisteringSections(props: ComponentProps<typeof Service
         AdditionalSection: LogsOnlySection as never
       }}
     />
+  );
+}
+
+/** Workspace stand-in that edits the form and discards the deployment the way the leave dialog does. */
+function DiscardProbeWorkspace({ onDiscard }: WorkspaceProbeProps) {
+  const { setValue } = useFormContext<SdlBuilderFormValuesType>();
+  return (
+    <div>
+      <button type="button" onClick={() => setValue("services.0.image", "nginx:latest")}>
+        change image
+      </button>
+      <button type="button" onClick={onDiscard}>
+        discard
+      </button>
+    </div>
   );
 }
 

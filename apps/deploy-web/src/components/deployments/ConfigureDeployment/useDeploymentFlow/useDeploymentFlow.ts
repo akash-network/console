@@ -76,6 +76,8 @@ export interface DeploymentFlowActions {
   closeAndFail: (message: string) => void;
   /** Re-closes a deployment a background close left open. No-op while a close is in flight. */
   retryClose: () => void;
+  /** Gives the attempt up for good before leaving the page: the phase stays put so nothing flashes while the page navigates away. */
+  discard: () => void;
   setBidStrategy: (strategy: BidStrategy) => void;
   refreshQuotes: () => void;
   retry: () => void;
@@ -153,16 +155,27 @@ export const DEPENDENCIES = {
 export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependencies: typeof DEPENDENCIES = DEPENDENCIES): DeploymentFlow {
   const { api, deploymentLocalStorage, analyticsService } = dependencies.useServices();
   const router = dependencies.useRouter();
-  const createDeployment = api.v1.createDeployment.useMutation(walletProvisioningRetry);
-  const closeDeployment = api.v1.closeDeployment.useMutation();
+  const queryClient = dependencies.useQueryClient();
+  const settingsId = useAtomValue(settingsIdAtom);
+  /** Read by hook-level mutation callbacks, which still run once the page is gone and its own callbacks no longer do. */
+  const discardedRef = useRef(false);
+  const createDeployment = api.v1.createDeployment.useMutation({
+    ...walletProvisioningRetry,
+    onSuccess: function closeWhatADiscardedCreateOpened(result) {
+      if (discardedRef.current) closeDeployment.mutate({ dseq: result.data.dseq });
+    }
+  });
+  const closeDeployment = api.v1.closeDeployment.useMutation({
+    onSettled: function refreshListsAfterADiscardedClose() {
+      if (discardedRef.current) invalidateClosedDeploymentCaches();
+    }
+  });
   const createLease = api.v1.createLease.useMutation();
   const updateDeployment = api.v1.updateDeployment.useMutation();
   const patchDeployment = api.v1.patchDeployment.useMutation();
   const getDeployment = api.v1.getDeployment.useMutation();
   const getSdlSecretsContext = api.v1.getSDLSecretsContext.useMutation();
   const isSecretsEnabled = dependencies.useFlag("ui_deployment_secrets");
-  const queryClient = dependencies.useQueryClient();
-  const settingsId = useAtomValue(settingsIdAtom);
 
   const [phase, setPhase] = useState<DeploymentFlowPhase>(intent.dseq ? "quoting" : "configuring");
   const [dseq, setDseq] = useState<string | null>(intent.dseq ?? null);
@@ -251,6 +264,7 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
          * halt there; the manual flow has no autopilot, so close the dangling deployment and drop back to editing.
          */
         function timeOutWithoutProviders() {
+          if (discardedRef.current) return;
           if (intentRef.current.sdlStrategy === "default" && bidStrategyRef.current === "auto") {
             setError({ message: NO_PROVIDERS_MESSAGE, kind: "no-providers" });
             setPhase("error");
@@ -403,6 +417,7 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
 
       function onCreated(result: { data: { dseq: string; manifest: string } }) {
         if (!isCurrentAttempt()) {
+          if (discardedRef.current) return;
           closeDeployment.mutate(
             { dseq: result.data.dseq },
             {
@@ -560,6 +575,18 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
       startClose(strandedDseq);
     },
     [strandedDseq, startClose]
+  );
+
+  const discard = useCallback(
+    function discard() {
+      if (discardedRef.current) return;
+      discardedRef.current = true;
+      createAttemptRef.current += 1;
+      queuedCreateRef.current = null;
+      const dseqToClose = dseq ?? strandedDseq;
+      if (dseqToClose && closingDseqRef.current !== dseqToClose) startClose(dseqToClose);
+    },
+    [dseq, strandedDseq, startClose]
   );
 
   const setBidStrategy = useCallback(
@@ -756,7 +783,7 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
     deployError,
     error,
     pendingClose,
-    actions: { requestQuotes, cancelAndEdit, closeAndFail, retryClose, setBidStrategy, refreshQuotes, retry, selectProvider, clearSelection, deploy }
+    actions: { requestQuotes, cancelAndEdit, closeAndFail, retryClose, discard, setBidStrategy, refreshQuotes, retry, selectProvider, clearSelection, deploy }
   };
 }
 
