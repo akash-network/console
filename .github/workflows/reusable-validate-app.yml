@@ -7,6 +7,16 @@ on:
         description: "The app to release" # dir name in ./apps/*
         required: true
         type: string
+      has_changes:
+        description: "Whether the pull request or merge group changed anything the app's validation depends on"
+        required: false
+        type: boolean
+        default: true
+      image_build_changes:
+        description: "Whether the pull request or merge group changed a file the app's image build reads besides its source code"
+        required: false
+        type: boolean
+        default: false
       test_shards:
         description: "JSON list of the shards the app's test suite runs in, one runner each"
         required: false
@@ -33,14 +43,8 @@ env:
 # Static analysis, tests and mutation testing run as separate jobs so the slowest one sets the wall clock
 # instead of all three adding up.
 jobs:
-  should-validate:
-    uses: ./.github/workflows/reusable-should-validate.yml
-    with:
-      path: apps/${{ inputs.app }}
-
   static-analysis:
-    needs: should-validate
-    if: needs.should-validate.outputs.enabled == 'true'
+    if: github.event_name == 'push' || inputs.has_changes
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -88,8 +92,7 @@ jobs:
           npm run --if-present validate:types --workspace="apps/$APP_TO_VALIDATE"
 
   tests:
-    needs: should-validate
-    if: needs.should-validate.outputs.enabled == 'true'
+    if: github.event_name == 'push' || inputs.has_changes
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -252,8 +255,7 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
 
   mutation-testing:
-    needs: should-validate
-    if: ${{ needs.should-validate.outputs.enabled == 'true' && github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'ignore-mutations-testing') }}
+    if: ${{ inputs.has_changes && github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'ignore-mutations-testing') }}
     runs-on: ubuntu-latest
     env:
       # The mutation step fails when the score over the reached mutants of the changed lines drops below this.
@@ -370,8 +372,7 @@ jobs:
 
   test-build:
     runs-on: ubuntu-latest
-    needs: should-validate
-    if: needs.should-validate.outputs.has_changes == 'true'
+    if: ${{ (github.event_name == 'pull_request' || github.event_name == 'merge_group') && inputs.has_changes }}
 
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -384,7 +385,7 @@ jobs:
         id: build_mode
         env:
           BUILD_ON_RUNNER: ${{ inputs.build_on_runner }}
-          IMAGE_BUILD_CHANGES: ${{ needs.should-validate.outputs.image_build_changes }}
+          IMAGE_BUILD_CHANGES: ${{ inputs.image_build_changes }}
         run: | # shell
           if [[ "$BUILD_ON_RUNNER" == "true" && "$IMAGE_BUILD_CHANGES" != "true" ]]; then
             echo "mode=runner" >> "$GITHUB_OUTPUT"
@@ -417,7 +418,7 @@ jobs:
 
   result:
     runs-on: ubuntu-latest
-    needs: [should-validate, static-analysis, tests, merge-test-reports, mutation-testing, test-build]
+    needs: [static-analysis, tests, merge-test-reports, mutation-testing, test-build]
     if: always()
     permissions:
       contents: read
@@ -447,24 +448,17 @@ jobs:
 
       - name: Check statuses
         env:
-          SHOULD_VALIDATE_RESULT: ${{ needs.should-validate.result }}
           STATIC_ANALYSIS_RESULT: ${{ needs.static-analysis.result }}
           TESTS_RESULT: ${{ needs.tests.result }}
           MERGE_TEST_REPORTS_RESULT: ${{ needs.merge-test-reports.result }}
           MUTATION_TESTING_RESULT: ${{ needs.mutation-testing.result }}
           TEST_BUILD_RESULT: ${{ needs.test-build.result }}
         run: |
-          echo "Should validate: $SHOULD_VALIDATE_RESULT"
           echo "Static analysis: $STATIC_ANALYSIS_RESULT"
           echo "Tests: $TESTS_RESULT"
           echo "Merge test reports: $MERGE_TEST_REPORTS_RESULT"
           echo "Mutation testing: $MUTATION_TESTING_RESULT"
           echo "Test Build: $TEST_BUILD_RESULT"
-
-          # A failed change detection skips every job after it, which would otherwise read as a pass.
-          if [[ "$SHOULD_VALIDATE_RESULT" != "success" ]]; then
-            exit 1
-          fi
 
           for result in "$STATIC_ANALYSIS_RESULT" "$TESTS_RESULT" "$MERGE_TEST_REPORTS_RESULT" "$MUTATION_TESTING_RESULT" "$TEST_BUILD_RESULT"; do
             if [[ "$result" != "success" && "$result" != "skipped" ]]; then

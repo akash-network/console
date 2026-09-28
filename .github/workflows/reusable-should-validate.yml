@@ -17,9 +17,6 @@ on:
       has_changes:
         description: "Whether app has PR level changes"
         value: ${{ jobs.should-validate.outputs.has_changes }}
-      image_build_changes:
-        description: "Whether a file the app's image build reads, other than its source code, changed"
-        value: ${{ jobs.should-validate.outputs.image_build_changes }}
 
 permissions:
   contents: read
@@ -35,7 +32,6 @@ jobs:
     outputs:
       enabled: ${{ github.event_name == 'push' || steps.has_changes.outputs.value == 'true' }}
       has_changes: ${{ (github.event_name == 'pull_request' || github.event_name == 'pull_request_target' || github.event_name == 'merge_group') && steps.has_changes.outputs.value }}
-      image_build_changes: ${{ steps.has_changes.outputs.image_build }}
 
     steps:
       - name: Checkout repository
@@ -68,11 +64,3 @@ jobs:
               - package-lock.json
               - *local_deps
               - ${{ contains(inputs.path, 'apps/') && '*app_workflows' || '*package_workflows' }}
-            image_build:
-              - "packages/docker/**"
-              - ".dockerignore"
-              - "script/safe-deps-install.sh"
-              - package.json
-              - package-lock.json
-              - "${{ inputs.path }}/next.config.*"
-              - "${{ inputs.path }}/package.json"

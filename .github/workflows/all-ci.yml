@@ -23,6 +23,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       matrix: ${{ steps.matrix.outputs.value }}
+      changes: ${{ steps.changes.outputs.changes || '[]' }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
@@ -31,6 +32,19 @@ jobs:
         run: |
           workspaces=$(find apps/* -type d -print0 -maxdepth 0 | xargs -0 -n1 basename | jq -R -s -c 'split("\n")[:-1]')
           echo 'value={"workspace":'"$workspaces"'}' >> "$GITHUB_OUTPUT"
+
+      # One change detection for every app instead of a job per app. A push to main validates every app anyway.
+      - name: List what each app's validation depends on
+        id: filters
+        if: github.event_name != 'push'
+        run: echo "value=$(node script/app-change-filters.mjs)" >> "$GITHUB_OUTPUT"
+
+      - name: Detect changed apps
+        id: changes
+        if: github.event_name != 'push'
+        uses: dorny/paths-filter@fbd0ab8f3e69293af611ebaee6363fc25e6d187d # v4.0.1
+        with:
+          filters: ${{ steps.filters.outputs.value }}
 
   validate:
     needs: setup
@@ -41,6 +55,8 @@ jobs:
     secrets: inherit
     with:
       app: ${{ matrix.workspace }}
+      has_changes: ${{ contains(fromJSON(needs.setup.outputs.changes), matrix.workspace) }}
+      image_build_changes: ${{ contains(fromJSON(needs.setup.outputs.changes), format('{0}-image-build', matrix.workspace)) }}
       # api's suite takes over five minutes on one runner, so it runs in three and merges back into one report.
       test_shards: ${{ matrix.workspace == 'api' && '[1, 2, 3]' || '[1]' }}
       # provider-console's build needs packages only a whole-repo install hoists, like its image build does.
