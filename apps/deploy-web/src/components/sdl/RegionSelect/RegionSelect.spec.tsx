@@ -65,6 +65,20 @@ describe("RegionSelect", () => {
     expect(screen.getByRole("option", { name: "na-us-west" })).toBeInTheDocument();
   });
 
+  it("keeps its compact trigger unless asked otherwise", () => {
+    setup({ regions: [] });
+
+    expect(screen.getByRole("combobox", { name: "Region" })).toHaveClass("h-8");
+  });
+
+  it("sizes its trigger as the caller asks", () => {
+    setup({ regions: [], triggerClassName: "h-9" });
+
+    const trigger = screen.getByRole("combobox", { name: "Region" });
+    expect(trigger).toHaveClass("h-9");
+    expect(trigger).not.toHaveClass("h-8");
+  });
+
   describe("availability", () => {
     it("offers the regions an online provider serves and lists the rest as unavailable", async () => {
       setup({ regions: REGIONS, availableRegions: ["eu-west"] });
@@ -158,7 +172,13 @@ describe("RegionSelect", () => {
     });
   });
 
-  function setup(input: { regions: ApiProviderRegion[]; region?: string; availableRegions?: string[]; regionProviderCounts?: Record<string, number> }) {
+  function setup(input: {
+    regions: ApiProviderRegion[];
+    region?: string;
+    availableRegions?: string[];
+    regionProviderCounts?: Record<string, number>;
+    triggerClassName?: string;
+  }) {
     const values = defaultServiceWithPlacement();
     values.placements[0].region = input.region;
 
@@ -180,7 +200,7 @@ describe("RegionSelect", () => {
 
     render(
       <Wrapper>
-        <RegionSelect placementIndex={0} dependencies={{ useProviderRegions, usePlacementOptions }} />
+        <RegionSelect placementIndex={0} triggerClassName={input.triggerClassName} dependencies={{ useProviderRegions, usePlacementOptions }} />
       </Wrapper>
     );
 

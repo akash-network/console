@@ -24,10 +24,10 @@ export const PlacementFields: FC<Props> = ({ placementIndex, serviceCount, locke
           control={control}
           name={`placements.${placementIndex}.name`}
           render={({ field, fieldState }) => (
-            <div className="flex flex-col gap-2">
+            <div className="space-y-2">
+              <div className="px-1 font-mono text-xs uppercase text-muted-foreground">Placement name</div>
               <Input
-                label="Placement name"
-                labelClassName="font-mono text-xs uppercase text-muted-foreground"
+                aria-label="Placement name"
                 inputClassName="h-9"
                 value={field.value ?? ""}
                 onChange={field.onChange}
@@ -39,9 +39,9 @@ export const PlacementFields: FC<Props> = ({ placementIndex, serviceCount, locke
             </div>
           )}
         />
-        <div className="flex flex-col gap-2">
-          <span className="font-mono text-xs uppercase text-muted-foreground">Region</span>
-          <d.RegionSelect placementIndex={placementIndex} disabled={locked} />
+        <div className="space-y-2">
+          <div className="px-1 font-mono text-xs uppercase text-muted-foreground">Region</div>
+          <d.RegionSelect placementIndex={placementIndex} disabled={locked} triggerClassName="h-9" />
         </div>
       </div>
       <p className="text-sm text-muted-foreground">{serviceCount === 1 ? "1 service" : `${serviceCount} services`} in this placement</p>
