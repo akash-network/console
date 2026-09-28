@@ -6,12 +6,15 @@ import { ReclamationCountdown } from "./ReclamationCountdown";
 
 import { act, render, screen } from "@testing-library/react";
 
+const ONE_DAY_SECONDS = 24 * 60 * 60;
+
 describe("ReclamationCountdown", () => {
   it("says how long a reclaimed workload has left", () => {
-    const deadlineInOneDay = Math.floor(Date.now() / 1000) + 24 * 60 * 60;
-    setup([mock<LeaseDto>({ state: "reclaiming", reclamation: { deadline: deadlineInOneDay } })]);
+    withClockAt("2026-09-12T00:00:00.000Z", now => {
+      setup([reclaimingIn(now, ONE_DAY_SECONDS)]);
 
-    expect(screen.getByText("Closes in 24 hours.")).toBeInTheDocument();
+      expect(screen.getByText("Closes in 1 day.")).toBeInTheDocument();
+    });
   });
 
   it("says reclamation is pending when the chain has not published a deadline", () => {
@@ -21,20 +24,19 @@ describe("ReclamationCountdown", () => {
   });
 
   it("counts down even when only one of several placements is being reclaimed", () => {
-    const deadlineInOneDay = Math.floor(Date.now() / 1000) + 24 * 60 * 60;
-    setup([mock<LeaseDto>({ state: "active" }), mock<LeaseDto>({ state: "reclaiming", reclamation: { deadline: deadlineInOneDay } })]);
+    withClockAt("2026-09-12T00:00:00.000Z", now => {
+      setup([mock<LeaseDto>({ state: "active" }), reclaimingIn(now, ONE_DAY_SECONDS)]);
 
-    expect(screen.getByText("Closes in 24 hours.")).toBeInTheDocument();
+      expect(screen.getByText("Closes in 1 day.")).toBeInTheDocument();
+    });
   });
 
   it("counts down to the soonest deadline when several placements are being reclaimed", () => {
-    const now = Math.floor(Date.now() / 1000);
-    setup([
-      mock<LeaseDto>({ state: "reclaiming", reclamation: { deadline: now + 48 * 60 * 60 } }),
-      mock<LeaseDto>({ state: "reclaiming", reclamation: { deadline: now + 24 * 60 * 60 } })
-    ]);
+    withClockAt("2026-09-12T00:00:00.000Z", now => {
+      setup([reclaimingIn(now, 2 * ONE_DAY_SECONDS), reclaimingIn(now, ONE_DAY_SECONDS)]);
 
-    expect(screen.getByText("Closes in 24 hours.")).toBeInTheDocument();
+      expect(screen.getByText("Closes in 1 day.")).toBeInTheDocument();
+    });
   });
 
   it("keeps counting down while the list is left open", () => {
