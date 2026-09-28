@@ -42,6 +42,7 @@ IMPORTANT: Before pushing, ALWAYS run in the affected app:
 1. `npm test` (runs unit, integration, and functional tests)
 2. `npm run lint -- --quiet`
 3. `npx tsc --noEmit`
+4. The mutation check on the changed lines (see [Mutation Testing](#mutation-testing))
 
 #### Unit Tests
 
@@ -133,6 +134,21 @@ To run both unit and functional tests together:
 ```bash
 cd apps/<app-name>
 npm test
+```
+
+#### Mutation Testing
+
+CI runs Stryker on the lines a PR changes in each app and fails when the mutation score drops below 80% (`MUTATION_MIN_SCORE` in `.github/workflows/reusable-validate-app.yml`). Run it locally before the first push and add tests for surviving mutants, rather than waiting for CI to find the gap:
+
+```bash
+# From the repo root: prints the mutate, testFiles and testEnv values for the branch
+node script/mutation-targets.mjs apps/<app-name> origin/main
+
+cd apps/<app-name>
+env <testEnv> npx stryker run ../../stryker.config.mjs --mutate '<mutate>' --testFiles '<testFiles>'
+
+# The score CI gates on (killed over reached mutants), which differs from the one Stryker prints
+node ../../script/mutation-report.mjs reports/mutation/mutation.json --min 80
 ```
 
 ### Linting
