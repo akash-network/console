@@ -41,3 +41,5 @@ jobs:
     secrets: inherit
     with:
       app: ${{ matrix.workspace }}
+      # api's suite takes over five minutes on one runner, so it runs in three and merges back into one report.
+      test_shards: ${{ matrix.workspace == 'api' && '[1, 2, 3]' || '[1]' }}

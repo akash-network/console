@@ -7,6 +7,11 @@ on:
         description: "The app to release" # dir name in ./apps/*
         required: true
         type: string
+      test_shards:
+        description: "JSON list of the shards the app's test suite runs in, one runner each"
+        required: false
+        type: string
+        default: "[1]"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}-${{ inputs.app }}
@@ -81,6 +86,10 @@ jobs:
     needs: should-validate
     if: needs.should-validate.outputs.enabled == 'true'
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: ${{ fromJSON(inputs.test_shards) }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -142,15 +151,38 @@ jobs:
           exit "$(cat "$RUNNER_TEMP/test-env.status")"
 
       - name: Run tests
+        id: run_tests
         if: ${{ steps.tests_details.outputs.has_tests == 'true' }}
-        run: npm run "$TEST_SCRIPT_NAME" --workspace="apps/$APP_TO_VALIDATE"
+        env:
+          SHARD: ${{ matrix.shard }}
+          SHARD_COUNT: ${{ strategy.job-total }}
+        run: | # shell
+          shard_args=()
+          if (( SHARD_COUNT > 1 )); then
+            shard_args=(--shard="$SHARD/$SHARD_COUNT")
+            # merge-test-reports turns the shards' blob reports back into one coverage and junit report.
+            if [[ "$GITHUB_EVENT_NAME" != "merge_group" ]]; then
+              shard_args+=(--reporter=blob --outputFile.blob="test-reports/blob-$SHARD-$SHARD_COUNT.json")
+            fi
+          fi
+          npm run "$TEST_SCRIPT_NAME" --workspace="apps/$APP_TO_VALIDATE" -- "${shard_args[@]}"
 
       - name: Teardown tests environment
         if: ${{ always() && steps.tests_details.outputs.requires_env_setup == 'true' }}
         run: npm run --if-present --workspace="apps/$APP_TO_VALIDATE" test:ci-teardown
 
+      # Vitest writes the blob when tests fail too, so a failing shard still reaches Codecov's test results.
+      - name: Upload test report shard
+        if: ${{ !cancelled() && steps.run_tests.outcome != 'skipped' && strategy.job-total > 1 && github.event_name != 'merge_group' }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: test-reports-${{ inputs.app }}-${{ matrix.shard }}
+          path: apps/${{ inputs.app }}/test-reports/
+          if-no-files-found: error
+          retention-days: 1
+
       - name: Upload test results to Codecov
-        if: ${{ !cancelled() && steps.tests_details.outputs.has_tests == 'true' && github.event_name != 'merge_group' }}
+        if: ${{ !cancelled() && steps.tests_details.outputs.has_tests == 'true' && strategy.job-total == 1 && github.event_name != 'merge_group' }}
         uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
         with:
           report_type: test_results
@@ -160,7 +192,53 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
 
       - name: Upload Test Coverage
-        if: steps.tests_details.outputs.has_tests == 'true' && github.event_name != 'merge_group'
+        if: steps.tests_details.outputs.has_tests == 'true' && strategy.job-total == 1 && github.event_name != 'merge_group'
+        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
+        with:
+          fail_ci_if_error: true
+          directory: ./apps/${{ inputs.app }}/coverage
+          flags: ${{ inputs.app }}
+          token: ${{ secrets.CODECOV_TOKEN }}
+
+  # One Codecov upload per commit and flag, because Codecov can post codecov/patch from the first shard's
+  # upload alone, and the result job would read that partial verdict.
+  merge-test-reports:
+    needs: tests
+    if: ${{ !cancelled() && needs.tests.result != 'skipped' && inputs.test_shards != '[1]' && github.event_name != 'merge_group' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - uses: ./.github/actions/setup-app-deps
+        with:
+          app: ${{ inputs.app }}
+
+      - name: Download test report shards
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: test-reports-${{ inputs.app }}-*
+          path: apps/${{ inputs.app }}/test-reports
+          merge-multiple: true
+
+      - name: Merge test reports
+        working-directory: apps/${{ inputs.app }}
+        run: npx vitest run --merge-reports=test-reports --coverage --reporter=default --reporter=junit
+
+      - name: Upload test results to Codecov
+        if: ${{ !cancelled() }}
+        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
+        with:
+          report_type: test_results
+          files: ./junit.xml
+          name: ${{ inputs.app }}-test-results
+          flags: ${{ inputs.app }}
+          token: ${{ secrets.CODECOV_TOKEN }}
+
+      - name: Upload Test Coverage
+        if: needs.tests.result == 'success'
         uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
         with:
           fail_ci_if_error: true
@@ -283,7 +361,7 @@ jobs:
 
   result:
     runs-on: ubuntu-latest
-    needs: [should-validate, static-analysis, tests, mutation-testing, test-build]
+    needs: [should-validate, static-analysis, tests, merge-test-reports, mutation-testing, test-build]
     if: always()
     permissions:
       contents: read
@@ -297,7 +375,7 @@ jobs:
             .github
       - name: Conditionally required codecov/patch check
         if: >-
-          needs.tests.result == 'success' && github.event_name == 'pull_request' && (
+          needs.tests.result == 'success' && needs.merge-test-reports.result != 'failure' && github.event_name == 'pull_request' && (
             inputs.app == 'api' ||
             inputs.app == 'deploy-web' ||
             inputs.app == 'notifications' ||
@@ -316,12 +394,14 @@ jobs:
           SHOULD_VALIDATE_RESULT: ${{ needs.should-validate.result }}
           STATIC_ANALYSIS_RESULT: ${{ needs.static-analysis.result }}
           TESTS_RESULT: ${{ needs.tests.result }}
+          MERGE_TEST_REPORTS_RESULT: ${{ needs.merge-test-reports.result }}
           MUTATION_TESTING_RESULT: ${{ needs.mutation-testing.result }}
           TEST_BUILD_RESULT: ${{ needs.test-build.result }}
         run: |
           echo "Should validate: $SHOULD_VALIDATE_RESULT"
           echo "Static analysis: $STATIC_ANALYSIS_RESULT"
           echo "Tests: $TESTS_RESULT"
+          echo "Merge test reports: $MERGE_TEST_REPORTS_RESULT"
           echo "Mutation testing: $MUTATION_TESTING_RESULT"
           echo "Test Build: $TEST_BUILD_RESULT"
 
@@ -330,7 +410,7 @@ jobs:
             exit 1
           fi
 
-          for result in "$STATIC_ANALYSIS_RESULT" "$TESTS_RESULT" "$MUTATION_TESTING_RESULT" "$TEST_BUILD_RESULT"; do
+          for result in "$STATIC_ANALYSIS_RESULT" "$TESTS_RESULT" "$MERGE_TEST_REPORTS_RESULT" "$MUTATION_TESTING_RESULT" "$TEST_BUILD_RESULT"; do
             if [[ "$result" != "success" && "$result" != "skipped" ]]; then
               exit 1
             fi
