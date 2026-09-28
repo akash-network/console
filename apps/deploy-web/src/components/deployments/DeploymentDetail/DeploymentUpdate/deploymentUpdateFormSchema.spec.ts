@@ -236,6 +236,8 @@ deployment:
       count: 1
 `;
 
+const SDL_WITH_SHARED_CONTAINER_PORT = SDL_WITH_PORTS.replace("- port: 9000", "- port: 80");
+
 describe(deploymentUpdateFormSchemaFor.name, () => {
   it("moves a container port that stays reached on the same external port", () => {
     const { values, issuesOf } = setup();
@@ -305,9 +307,41 @@ describe(deploymentUpdateFormSchemaFor.name, () => {
     expect(issuesOf(values)).toEqual([]);
   });
 
-  function setup(input: { loadedServiceCount?: number; loadedPortCount?: number } = {}) {
-    const loaded = importDeploymentState(SDL_WITH_PORTS).values;
-    const values: DeploymentUpdateFormValues = importDeploymentState(SDL_WITH_PORTS).values;
+  it("refuses moving the external port of a port that shares its container port, before judging the move any other way", () => {
+    const { values, issuesOf } = setup({ sdl: SDL_WITH_SHARED_CONTAINER_PORT });
+    values.services[0].expose[0].as = 8080;
+
+    expect(issuesOf(values)).toEqual([
+      {
+        path: "services.0.expose.0.as",
+        message: "Another port of this service also uses container port 80, so this one's numbers can't change without a new deployment."
+      }
+    ]);
+  });
+
+  it("refuses moving the container port of a port that shares it", () => {
+    const { values, issuesOf } = setup({ sdl: SDL_WITH_SHARED_CONTAINER_PORT });
+    values.services[0].expose[2].port = 8081;
+
+    expect(issuesOf(values)).toEqual([
+      {
+        path: "services.0.expose.2.port",
+        message: "Another port of this service also uses container port 80, so this one's numbers can't change without a new deployment."
+      }
+    ]);
+  });
+
+  it("still moves a port of the same service whose container port no other port uses", () => {
+    const { values, issuesOf } = setup({ sdl: SDL_WITH_SHARED_CONTAINER_PORT });
+    values.services[0].expose[1].port = 3001;
+
+    expect(issuesOf(values)).toEqual([]);
+  });
+
+  function setup(input: { sdl?: string; loadedServiceCount?: number; loadedPortCount?: number } = {}) {
+    const sdl = input.sdl ?? SDL_WITH_PORTS;
+    const loaded = importDeploymentState(sdl).values;
+    const values: DeploymentUpdateFormValues = importDeploymentState(sdl).values;
     const loadedServices = loaded.services
       .slice(0, input.loadedServiceCount ?? loaded.services.length)
       .map(service => ({ ...service, expose: service.expose.slice(0, input.loadedPortCount ?? service.expose.length) }));

@@ -109,13 +109,25 @@ function refusePortMovesTheApiRefuses(expose: ExposedPort[], loaded: ExposedPort
     if (!before) return;
 
     const others = expose.filter(other => other !== entry);
-    const addIssue = (field: "port" | "as", message: string) =>
-      context.addIssue({ code: z.ZodIssueCode.custom, path: [...path, exposeIndex, field], message });
+    const addIssue = (field: "port" | "as", message: string) => context.addIssue({ code: z.ZodIssueCode.custom, path: [...path, exposeIndex, field], message });
+
+    if (sharesItsContainerPort(before, loaded)) {
+      const message = `Another port of this service also uses container port ${before.port}, so this one's numbers can't change without a new deployment.`;
+      if (entry.port !== before.port) addIssue("port", message);
+      if (entry.as !== before.as) addIssue("as", message);
+      return;
+    }
 
     if (changesEndpointKind(before, entry)) addIssue("as", endpointKindMessageOf(before));
     if (entry.port !== before.port && others.some(other => other.port === entry.port)) addIssue("port", `This service already exposes port ${entry.port}.`);
-    if (entry.as !== before.as && others.some(other => other.as === entry.as)) addIssue("as", `Another port of this service is already exposed as ${entry.as}.`);
+    if (entry.as !== before.as && others.some(other => other.as === entry.as))
+      addIssue("as", `Another port of this service is already exposed as ${entry.as}.`);
   });
+}
+
+/** The api addresses an endpoint by its container port and refuses one that matches two, so neither can ever be moved. */
+function sharesItsContainerPort(before: ExposedPort, loaded: ExposedPort[]): boolean {
+  return loaded.some(other => other !== before && other.port === before.port);
 }
 
 /** Mirrors chain-sdk's `isIngress`: a public endpoint on external port 80 is shared HTTP and any other is a random port, and an update cannot turn one into the other. */
