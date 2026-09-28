@@ -3576,7 +3576,7 @@ export interface paths {
                */
               cpuArchAgreement: "match" | "mismatch" | "unknown";
               /**
-               * @description Up to 5 NVIDIA driver versions Console read on GPU leases it runs on this provider over the last 30 days, most recently read first. Empty when none of its leases has been read.
+               * @description Up to 5 NVIDIA driver versions Console confirmed on GPU leases it runs on this provider over the last 30 days, most recently read first. Empty when none has been confirmed.
                * @example [
                *       {
                *         "driverVersion": "550.54.15",

@@ -884,7 +884,7 @@ describe(DeploymentSettingRepository.name, () => {
         detectedGpus: [createLeaseGpuReading({ provider, driverVersion: "535.183.01", detectedAt: "2026-09-15T08:00:00.000Z" })]
       });
 
-      const drivers = await deploymentSettingRepository.findRecentNvidiaDrivers({ provider, since, limit: 5 });
+      const drivers = await deploymentSettingRepository.findRecentNvidiaDrivers({ provider, since, limit: 5, minOwners: 1 });
 
       expect(drivers).toEqual([
         { driverVersion: "550.54.15", lastSeenDate: "2026-09-21" },
@@ -904,7 +904,7 @@ describe(DeploymentSettingRepository.name, () => {
         ]
       });
 
-      const drivers = await deploymentSettingRepository.findRecentNvidiaDrivers({ provider, since, limit: 5 });
+      const drivers = await deploymentSettingRepository.findRecentNvidiaDrivers({ provider, since, limit: 5, minOwners: 1 });
 
       expect(drivers).toEqual([{ driverVersion: "550.54.15", lastSeenDate: "2026-09-01" }]);
     });
@@ -923,7 +923,7 @@ describe(DeploymentSettingRepository.name, () => {
         ]
       });
 
-      const drivers = await deploymentSettingRepository.findRecentNvidiaDrivers({ provider, since, limit: 5 });
+      const drivers = await deploymentSettingRepository.findRecentNvidiaDrivers({ provider, since, limit: 5, minOwners: 1 });
 
       expect(drivers).toEqual([]);
     });
@@ -943,7 +943,7 @@ describe(DeploymentSettingRepository.name, () => {
         ]
       });
 
-      const drivers = await deploymentSettingRepository.findRecentNvidiaDrivers({ provider, since, limit: 5 });
+      const drivers = await deploymentSettingRepository.findRecentNvidiaDrivers({ provider, since, limit: 5, minOwners: 1 });
 
       expect(drivers).toEqual([{ driverVersion: "570.26", lastSeenDate: "2026-09-21" }]);
     });
@@ -961,16 +961,44 @@ describe(DeploymentSettingRepository.name, () => {
         ]
       });
 
-      const drivers = await deploymentSettingRepository.findRecentNvidiaDrivers({ provider, since, limit: 2 });
+      const drivers = await deploymentSettingRepository.findRecentNvidiaDrivers({ provider, since, limit: 2, minOwners: 1 });
 
       expect(drivers.map(driver => driver.driverVersion)).toEqual(["550.54.15", "570.86.15"]);
+    });
+
+    it("leaves out a driver version reported by fewer owners than required, however many deployments reported it", async () => {
+      const { deploymentSettingRepository, user, trialUser } = await setup();
+      const provider = createAkashAddress();
+      const detectedAt = "2026-09-21T10:00:00.000Z";
+      await seedDeploymentSetting({
+        userId: user.id,
+        dseq: newDseq(),
+        detectedGpus: [
+          createLeaseGpuReading({ provider, service: "shared", driverVersion: "550.54.15", detectedAt }),
+          createLeaseGpuReading({ provider, service: "single", driverVersion: "570.86.15", detectedAt })
+        ]
+      });
+      await seedDeploymentSetting({
+        userId: user.id,
+        dseq: newDseq(),
+        detectedGpus: [createLeaseGpuReading({ provider, driverVersion: "570.86.15", detectedAt })]
+      });
+      await seedDeploymentSetting({
+        userId: trialUser.id,
+        dseq: newDseq(),
+        detectedGpus: [createLeaseGpuReading({ provider, driverVersion: "550.54.15", detectedAt })]
+      });
+
+      const drivers = await deploymentSettingRepository.findRecentNvidiaDrivers({ provider, since, limit: 5, minOwners: 2 });
+
+      expect(drivers).toEqual([{ driverVersion: "550.54.15", lastSeenDate: "2026-09-21" }]);
     });
 
     it("reads nothing for a provider no lease has been read on", async () => {
       const { deploymentSettingRepository, user } = await setup();
       await seedDeploymentSetting({ userId: user.id, dseq: newDseq(), detectedGpus: [createLeaseGpuReading({ detectedAt: "2026-09-21T10:00:00.000Z" })] });
 
-      const drivers = await deploymentSettingRepository.findRecentNvidiaDrivers({ provider: createAkashAddress(), since, limit: 5 });
+      const drivers = await deploymentSettingRepository.findRecentNvidiaDrivers({ provider: createAkashAddress(), since, limit: 5, minOwners: 1 });
 
       expect(drivers).toEqual([]);
     });

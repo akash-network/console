@@ -26,14 +26,14 @@ describe(ProviderGpuDriverService.name, () => {
       ]);
     });
 
-    it("asks for at most 5 drivers read on the provider over the last 30 days", async () => {
+    it("asks for at most 5 drivers read on the provider over the last 30 days by at least 2 owners", async () => {
       const provider = createAkashAddress();
       const { service, deploymentSettingRepository } = setup({ drivers: [] });
 
       await service.findRecentDrivers(provider);
 
       const [{ since, ...query }] = deploymentSettingRepository.findRecentNvidiaDrivers.mock.calls[0];
-      expect(query).toEqual({ provider, limit: 5 });
+      expect(query).toEqual({ provider, limit: 5, minOwners: 2 });
       expect(differenceInDays(new Date(), since)).toBe(30);
     });
 

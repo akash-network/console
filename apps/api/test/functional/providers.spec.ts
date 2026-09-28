@@ -221,16 +221,24 @@ describe("Providers", () => {
       expect(data.cpuArchAgreement).toBe("unknown");
     });
 
-    it("lists the nvidia drivers read on its gpu leases with the cuda version each supports", async () => {
+    it("lists the nvidia drivers its gpu leases reported across owners, with the cuda version each supports", async () => {
       const provider = await createProvider();
       const lastReadAt = subDays(new Date(), 2);
       const firstReadAt = subDays(new Date(), 5);
-      const user = await container.resolve(UserRepository).create({ userId: faker.string.uuid() });
+      const [owner, otherOwner] = await Promise.all([createOwner(), createOwner()]);
       await seedDeploymentSetting({
-        userId: user.id,
+        userId: owner.id,
         detectedGpus: [
-          createLeaseGpuReading({ provider: provider.owner, driverVersion: "550.54.15", detectedAt: lastReadAt.toISOString() }),
-          createLeaseGpuReading({ provider: provider.owner, driverVersion: "535.183.01", detectedAt: firstReadAt.toISOString() })
+          createLeaseGpuReading({ provider: provider.owner, service: "web", driverVersion: "550.54.15", detectedAt: lastReadAt.toISOString() }),
+          createLeaseGpuReading({ provider: provider.owner, service: "worker", driverVersion: "535.183.01", detectedAt: firstReadAt.toISOString() }),
+          createLeaseGpuReading({ provider: provider.owner, service: "trainer", driverVersion: "570.86.15", detectedAt: lastReadAt.toISOString() })
+        ]
+      });
+      await seedDeploymentSetting({
+        userId: otherOwner.id,
+        detectedGpus: [
+          createLeaseGpuReading({ provider: provider.owner, service: "web", driverVersion: "550.54.15", detectedAt: firstReadAt.toISOString() }),
+          createLeaseGpuReading({ provider: provider.owner, service: "worker", driverVersion: "535.183.01", detectedAt: firstReadAt.toISOString() })
         ]
       });
 
@@ -252,6 +260,10 @@ describe("Providers", () => {
       const data = (await response.json()) as ProviderResponse;
       expect(data.gpuDrivers).toEqual([]);
     });
+
+    function createOwner() {
+      return container.resolve(UserRepository).create({ userId: faker.string.uuid() });
+    }
 
     async function createProviderWithNodeCpus(archs: (string | null)[], declaredArch: string | undefined) {
       const provider = await createProvider();

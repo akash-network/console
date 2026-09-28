@@ -198,8 +198,18 @@ export class DeploymentSettingRepository extends BaseRepository<Table, Deploymen
     return new Map(rows.map(row => [row.dseq, { readings: row.detectedGpus ?? [], offers: row.offeredGpus ?? [] }]));
   }
 
-  /** Newest first, one entry per driver version, with the UTC day it was last read. */
-  async findRecentNvidiaDrivers({ provider, since, limit }: { provider: string; since: Date; limit: number }): Promise<RecentNvidiaDriver[]> {
+  /** Newest first, one entry per driver version reported by at least `minOwners` deployment owners, with the UTC day it was last read. */
+  async findRecentNvidiaDrivers({
+    provider,
+    since,
+    limit,
+    minOwners
+  }: {
+    provider: string;
+    since: Date;
+    limit: number;
+    minOwners: number;
+  }): Promise<RecentNvidiaDriver[]> {
     const lastDetectedAt = sql`max((reading->>'detectedAt')::timestamptz)`;
 
     return await this.cursor
@@ -218,6 +228,7 @@ export class DeploymentSettingRepository extends BaseRepository<Table, Deploymen
         )
       )
       .groupBy(sql`reading->>'driverVersion'`)
+      .having(sql`count(distinct ${this.table.userId}) >= ${minOwners}`)
       .orderBy(desc(lastDetectedAt))
       .limit(limit);
   }
