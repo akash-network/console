@@ -40,6 +40,9 @@ export const DEFAULT_PAGE_SIZE = 10;
 /** The provider search refuses a request naming more addresses than this. */
 export const MAX_SEARCHED_FAVORITES = 100;
 
+/** The provider search refuses a longer search than this. */
+export const MAX_SEARCH_LENGTH = 200;
+
 const SEARCH_PACING = { wait: 400, maxWait: 1000 };
 
 export const DEPENDENCIES = {
@@ -65,7 +68,7 @@ export function useProviderListModel(dependencies: typeof DEPENDENCIES = DEPENDE
   const [isFilteringAudited, setIsFilteringAudited] = useState(true);
   const [isFilteringFavorites, setIsFilteringFavorites] = useState(false);
   const [search, setSearch] = useState("");
-  const pacedSearch = usePacedValue(search.trim(), SEARCH_PACING);
+  const pacedSearch = usePacedValue(search.trim().slice(0, MAX_SEARCH_LENGTH), SEARCH_PACING);
 
   const hasWallet = !!address;
   const sort = resolveSort(searchParams?.get("sort"), hasWallet);

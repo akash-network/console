@@ -7,7 +7,7 @@ import type { LeaseDto } from "@src/types/deployment";
 import type { ApiProviderList, ApiProviderLocation } from "@src/types/provider";
 import { UrlService } from "@src/utils/urlUtils";
 import type { DEPENDENCIES } from "./useProviderListModel";
-import { DEFAULT_PAGE_SIZE, MAX_SEARCHED_FAVORITES, useProviderListModel } from "./useProviderListModel";
+import { DEFAULT_PAGE_SIZE, MAX_SEARCH_LENGTH, MAX_SEARCHED_FAVORITES, useProviderListModel } from "./useProviderListModel";
 
 import { act, renderHook, waitFor } from "@testing-library/react";
 
@@ -111,6 +111,18 @@ describe(useProviderListModel.name, () => {
 
     expect(result.current.search).toBe("  europlots ");
     await waitFor(() => expect(useProviderSearch).toHaveBeenLastCalledWith(expect.objectContaining({ search: "europlots" }), expect.anything()));
+  });
+
+  it("asks for no longer a search than the provider search accepts", async () => {
+    const search = "a".repeat(MAX_SEARCH_LENGTH + 1);
+    const { result, useProviderSearch } = setup();
+
+    act(() => result.current.changeSearch(search));
+
+    expect(result.current.search).toBe(search);
+    await waitFor(() =>
+      expect(useProviderSearch).toHaveBeenLastCalledWith(expect.objectContaining({ search: search.slice(0, MAX_SEARCH_LENGTH) }), expect.anything())
+    );
   });
 
   it("changes the sort through the url", () => {
