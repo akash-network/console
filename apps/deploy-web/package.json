@@ -23,7 +23,8 @@
     "test:cov": "NODE_ENV=test DEPLOYMENT_ENV=staging vitest run --coverage --reporter=default --reporter=junit",
     "test:e2e": "playwright test",
     "test:unit": "NODE_ENV=test DEPLOYMENT_ENV=staging vitest run",
-    "type-check": "tsc"
+    "type-check": "tsc",
+    "validate:types": "tsc --noEmit -p tsconfig.build.json"
   },
   "dependencies": {
     "@akashnetwork/chain-sdk": "1.0.0-alpha.45",
