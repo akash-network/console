@@ -1,5 +1,5 @@
 import { manifestToSortedJSON, type SDLInput, yaml } from "@akashnetwork/chain-sdk";
-import type { DeploymentInfo } from "@akashnetwork/http-sdk";
+import type { Bid, DeploymentInfo } from "@akashnetwork/http-sdk";
 import { faker } from "@faker-js/faker";
 import createError, { NotFound } from "http-errors";
 import nock from "nock";
@@ -38,6 +38,7 @@ import { deploymentVersion, marketVersion } from "@src/utils/constants";
 import { registerFakeSdlSecretsKms, warmSealingKeyAsBootWould } from "@test/mocks/sdl-secrets-kms.mock";
 import { createAkashAddress } from "@test/seeders/akash-address.seeder";
 import { createApiKey } from "@test/seeders/api-key.seeder";
+import { createBid } from "@test/seeders/bid.seeder";
 import { seedDeploymentSetting } from "@test/seeders/db/deployment-setting.seeder";
 import { createDeployment } from "@test/seeders/deployment.seeder";
 import {
@@ -2208,6 +2209,25 @@ describe("Deployments API", () => {
   });
 
   describe("POST /v1/leases", () => {
+    it("answers a lease on a closed bid the way the chain would, without signing a transaction for it", async () => {
+      const { userApiKeySecret, user, wallets } = await mockPersistedUser();
+      const dseq = "1234";
+      const provider = createAkashAddress();
+      const closedBid = createBid({ owner: wallets[0].address!, dseq, gseq: 1, oseq: 1, provider });
+      closedBid.bid.state = "closed";
+      await recordDefinition({ user, dseq, sdl: sdlMock("hello-world-sdl.yml") });
+      mockLeaseChain({ wallets, dseq, leaseExists: false, bids: [closedBid] });
+
+      const response = await postLeases({ userApiKeySecret, dseq, manifest: '{"deliberately":"wrong"}', provider });
+
+      expect(response.status).toBe(400);
+      expect(await response.json()).toMatchObject({
+        message: "Failed to create lease: Cannot create lease: The selected bid is no longer open. Please refresh and select an available bid."
+      });
+      expect(signerService.executeDerivedDecodedTxByUserId).not.toHaveBeenCalled();
+      expect(providerService.sendManifest).not.toHaveBeenCalled();
+    });
+
     it("sends the provider the manifest it derived, ignoring the one the request carried", async () => {
       const { userApiKeySecret, user, wallets } = await mockPersistedUser();
       const dseq = "1234";
@@ -2246,7 +2266,9 @@ describe("Deployments API", () => {
       vi.mocked(providerService.assertReachable).mockRestore();
       nock(container.resolve(CORE_CONFIG).REST_API_NODE_URL)
         .get(`/akash/market/${marketVersion}/leases/list?filters.owner=${wallets[0].address}&filters.dseq=${dseq}`)
-        .reply(200, { leases: [], pagination: { next_key: null, total: "0" } });
+        .reply(200, { leases: [], pagination: { next_key: null, total: "0" } })
+        .get(`/akash/market/${marketVersion}/bids/list?filters.owner=${wallets[0].address}&filters.dseq=${dseq}`)
+        .reply(200, { bids: [], pagination: { next_key: null, total: "0" } });
       nock(container.resolve(DeploymentConfigService).get("PROVIDER_PROXY_URL"))
         .post("/", body => (body as { url: string }).url.endsWith("/version"))
         .reply(502, "Provider is temporarily unavailable");
@@ -2389,10 +2411,27 @@ describe("Deployments API", () => {
       });
     }
 
-    function mockLeaseChain({ wallets, dseq, deploymentFound = true }: { wallets: UserWalletOutput[]; dseq: string; deploymentFound?: boolean }) {
+    function mockLeaseChain({
+      wallets,
+      dseq,
+      deploymentFound = true,
+      leaseExists = true,
+      bids = []
+    }: {
+      wallets: UserWalletOutput[];
+      dseq: string;
+      deploymentFound?: boolean;
+      leaseExists?: boolean;
+      bids?: Bid[];
+    }) {
       const address = wallets[0].address;
       const restUrl = container.resolve(CORE_CONFIG).REST_API_NODE_URL;
-      const leases = createManyLeaseApiResponses(1, { owner: address!, dseq, state: "active" });
+      const leases = leaseExists ? createManyLeaseApiResponses(1, { owner: address!, dseq, state: "active" }) : [];
+
+      nock(restUrl)
+        .persist()
+        .get(`/akash/market/${marketVersion}/bids/list?filters.owner=${address}&filters.dseq=${dseq}`)
+        .reply(200, { bids, pagination: { next_key: null, total: String(bids.length) } });
 
       nock(restUrl).persist().get(`/akash/market/${marketVersion}/leases/list?filters.owner=${address}&filters.dseq=${dseq}`).reply(200, { leases });
       nock(restUrl)

@@ -362,6 +362,23 @@ describe(ChainErrorService.name, () => {
     });
   });
 
+  describe("leaseOnClosedBidError", () => {
+    it("answers exactly as the chain's own refusal of a lease on a closed bid does", async () => {
+      const { service } = setup();
+      const chainRefusal = new Error("failed to execute message; message index: 0: bid not open");
+      const leaseMessages: EncodeObject[] = [{ typeUrl: "/akash.market.v1beta5.MsgCreateLease", value: {} }];
+
+      const fromChain = await service.toAppError(chainRefusal, leaseMessages);
+      const beforeBroadcast = service.leaseOnClosedBidError();
+
+      expect(beforeBroadcast).toBeInstanceOf(BadRequest);
+      expect(beforeBroadcast.message).toBe(fromChain.message);
+      expect(beforeBroadcast.message).toBe(
+        "Failed to create lease: Cannot create lease: The selected bid is no longer open. Please refresh and select an available bid."
+      );
+    });
+  });
+
   describe("exposeSignerRefusal", () => {
     it("answers a signer refusal with the signer's status and reason", () => {
       const { service } = setup();

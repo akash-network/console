@@ -134,6 +134,13 @@ export class ChainErrorService {
     return createError(code, prefixedMessage, { originalError: error });
   }
 
+  /** The answer a lease on a closed bid gets from the chain, for a refusal made before anything is broadcast. */
+  public leaseOnClosedBidError() {
+    const { code, message } = this.ERRORS["bid not open"];
+
+    return createError(code, `${this.MESSAGE_ERROR_TITLES["/akash.market.v1beta5.MsgCreateLease"]}: ${message}`);
+  }
+
   /** Only for messages the caller supplied: a signer refusal of a message our own code built is our bug and must keep failing as a 500. */
   public exposeSignerRefusal(error: unknown): unknown {
     if (!(error instanceof Error)) {

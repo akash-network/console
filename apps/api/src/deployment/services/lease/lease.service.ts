@@ -1,10 +1,11 @@
-import { LeaseHttpService } from "@akashnetwork/http-sdk";
+import { type Bid, BidHttpService, LeaseHttpService } from "@akashnetwork/http-sdk";
 import { Trace } from "@akashnetwork/instrumentation";
 import { HTTPException } from "hono/http-exception";
 import createError, { isHttpError } from "http-errors";
 import { inject, singleton } from "tsyringe";
 
 import { ManagedSignerService, RpcMessageService } from "@src/billing/services";
+import { ChainErrorService } from "@src/billing/services/chain-error/chain-error.service";
 import { WalletReaderService } from "@src/billing/services/wallet-reader/wallet-reader.service";
 import { type CreateLogger, LOGGER_FACTORY } from "@src/core";
 import { type DeploymentResponse } from "@src/deployment/http-schemas/deployment.schema";
@@ -12,6 +13,12 @@ import { type CreateLeaseRequest } from "@src/deployment/http-schemas/lease.sche
 import { LeaseManifestService } from "@src/deployment/services/lease-manifest/lease-manifest.service";
 import { ProviderService } from "@src/provider/services/provider/provider.service";
 import { DeploymentReaderService } from "../deployment-reader/deployment-reader.service";
+
+function isOnClosedBid(lease: CreateLeaseRequest["leases"][number], bids: Bid[]): boolean {
+  const placementBids = bids.filter(({ bid: { id } }) => id.gseq === lease.gseq && id.oseq === lease.oseq && id.provider === lease.provider);
+
+  return placementBids.length > 0 && placementBids.every(({ bid }) => bid.state !== "open");
+}
 
 @singleton()
 export class LeaseService {
@@ -25,6 +32,8 @@ export class LeaseService {
     private readonly walletReaderService: WalletReaderService,
     private readonly leaseHttpService: LeaseHttpService,
     private readonly leaseManifestService: LeaseManifestService,
+    private readonly bidHttpService: BidHttpService,
+    private readonly chainErrorService: ChainErrorService,
     @inject(LOGGER_FACTORY) createLogger: CreateLogger
   ) {
     this.#logger = createLogger({ context: "lease-service" });
@@ -40,6 +49,7 @@ export class LeaseService {
     // Leases for all groups are created in one tx, so one existing lease means all exist:
     // skip creation when already on-chain to keep retries idempotent.
     if (!(await this.#hasActiveLease(wallet.address!, dseq))) {
+      await this.#refuseLeasesOnClosedBids(wallet.address!, leases);
       await this.#assertProvidersReachable(leases);
 
       const leaseMessages = leases.map(lease =>
@@ -62,6 +72,16 @@ export class LeaseService {
     }
 
     return deployment;
+  }
+
+  /** Refuses only what the chain would, so a bid it does not report is left for the chain to judge. */
+  async #refuseLeasesOnClosedBids(owner: string, leases: CreateLeaseRequest["leases"]): Promise<void> {
+    const dseqs = [...new Set(leases.map(lease => lease.dseq))];
+    const bidsByDseq = new Map(await Promise.all(dseqs.map(async dseq => [dseq, await this.bidHttpService.list(owner, dseq)] as const)));
+
+    if (leases.some(lease => isOnClosedBid(lease, bidsByDseq.get(lease.dseq)!))) {
+      throw this.chainErrorService.leaseOnClosedBidError();
+    }
   }
 
   async #assertProvidersReachable(leases: CreateLeaseRequest["leases"]): Promise<void> {
