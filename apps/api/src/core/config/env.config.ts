@@ -54,7 +54,11 @@ export const envSchema = z
     CACHE_PRESSURE_MONITORING_ENABLED: z
       .enum(["true", "false"])
       .default("true")
-      .transform(value => value === "true")
+      .transform(value => value === "true"),
+    /** 0 turns the backoff off. */
+    REPEATED_REFUSAL_LIMIT: z.number({ coerce: true }).int().min(0).optional().default(30),
+    REPEATED_REFUSAL_WINDOW_SECONDS: z.number({ coerce: true }).int().positive().optional().default(600),
+    REPEATED_REFUSAL_BACKOFF_SECONDS: z.number({ coerce: true }).int().positive().optional().default(300)
   })
   .superRefine((value, ctx) => {
     if (!value.FEATURE_FLAGS_ENABLE_ALL && (!value.UNLEASH_SERVER_API_URL || !value.UNLEASH_SERVER_API_TOKEN)) {

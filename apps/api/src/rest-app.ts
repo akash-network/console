@@ -11,6 +11,7 @@ import { AuthInterceptor } from "./auth/services/auth.interceptor";
 import { cacheRegistry } from "./caching/cache-registry";
 import { HonoErrorHandlerService } from "./core/services/hono-error-handler/hono-error-handler.service";
 import { OpenApiDocsService } from "./core/services/openapi-docs/openapi-docs.service";
+import { RefusalBackoffInterceptor } from "./core/services/refusal-backoff-interceptor/refusal-backoff.interceptor";
 import { RequestContextInterceptor } from "./core/services/request-context-interceptor/request-context.interceptor";
 import { startServer } from "./core/services/start-server/start-server";
 import type { AppEnv } from "./core/types/app-context";
@@ -47,6 +48,7 @@ appHono.use(
 appHono.use(container.resolve(HttpLoggerInterceptor).intercept());
 appHono.use(container.resolve(RequestContextInterceptor).intercept());
 appHono.use(container.resolve(AuthInterceptor).intercept());
+appHono.use(container.resolve(RefusalBackoffInterceptor).intercept());
 appHono.use(clientInfoMiddleware);
 
 appHono.route("/", legacyRouter);
