@@ -165,6 +165,27 @@ export function useProvidersByAddress(addresses: string[]) {
   });
 }
 
+/** Each address is its own query, so a provider read for one view is reused by the next and a growing address list only fetches the newcomers. */
+export function useProvidersByAddresses(addresses: readonly string[], options: { enabled?: boolean } = {}) {
+  const { providerLookup } = useServices();
+  return useQueries({
+    queries: [...new Set(addresses)].map(address => ({
+      queryKey: QueryKeys.getProviderByAddressKey(address),
+      queryFn: () => providerLookup.findByAddress(address),
+      enabled: options.enabled
+    })),
+    combine: combineProviderLookups
+  });
+}
+
+function combineProviderLookups(results: UseQueryResult<ApiProviderList | null>[]) {
+  return {
+    data: results.flatMap(result => (result.data ? [result.data] : [])),
+    isLoading: results.some(result => result.isLoading),
+    isFetching: results.some(result => result.isFetching)
+  };
+}
+
 export function useProviderRegions(options = {}) {
   const { publicConsoleApiHttpClient } = useServices();
   return useQuery({

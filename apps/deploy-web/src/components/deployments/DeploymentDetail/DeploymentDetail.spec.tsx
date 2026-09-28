@@ -182,6 +182,38 @@ describe("DeploymentDetail", () => {
     expect(router.replace).not.toHaveBeenCalled();
   });
 
+  it("looks up the providers of the deployment's leases", () => {
+    const { useProvidersByAddresses } = setup({
+      leases: [mock<LeaseDto>({ id: "1", provider: "akash1first", state: "active" }), mock<LeaseDto>({ id: "2", provider: "akash1second", state: "closed" })]
+    });
+
+    expect(useProvidersByAddresses).toHaveBeenLastCalledWith(["akash1first", "akash1second"]);
+  });
+
+  it("looks up the providers of leases that arrive after the first render", () => {
+    const { useProvidersByAddresses, rerenderWith } = setup({ leases: [mock<LeaseDto>({ id: "1", provider: "akash1first", state: "active" })] });
+
+    rerenderWith({
+      leases: [mock<LeaseDto>({ id: "1", provider: "akash1first", state: "active" }), mock<LeaseDto>({ id: "2", provider: "akash1second", state: "active" })]
+    });
+
+    expect(useProvidersByAddresses).toHaveBeenLastCalledWith(["akash1first", "akash1second"]);
+  });
+
+  it("looks up no provider while the deployment has no leases to show", () => {
+    const { useProvidersByAddresses } = setup({ leases: null });
+
+    expect(useProvidersByAddresses).toHaveBeenLastCalledWith([]);
+  });
+
+  it("reloads the leases whenever the deployment reloads", () => {
+    const { refetchLeases, rerenderWith } = setup();
+
+    rerenderWith({ deployment: mock<DeploymentDto>({ dseq: "1786440078202", state: "active", groups: [] }) });
+
+    expect(refetchLeases).toHaveBeenCalledTimes(2);
+  });
+
   it("orders the tabs with Update right after Details", () => {
     setup();
 
@@ -330,14 +362,17 @@ describe("DeploymentDetail", () => {
     const useRouter: typeof DEPENDENCIES.useRouter = () => router;
     const searchParams = new URLSearchParams(input?.tab ? `tab=${input.tab}` : "");
     const useSearchParams: typeof DEPENDENCIES.useSearchParams = () => searchParams as unknown as ReturnType<typeof DEPENDENCIES.useSearchParams>;
+    let currentDeployment = deployment;
     const useDeploymentDetail: typeof DEPENDENCIES.useDeploymentDetail = () =>
       mock<ReturnType<typeof DEPENDENCIES.useDeploymentDetail>>({
-        data: deployment,
+        data: currentDeployment,
         isFetching: false,
         error: input?.error ?? null,
         refetch: refetchDeployment
       });
+    const refetchLeases = vi.fn();
     const leaseList = mock<ReturnType<typeof DEPENDENCIES.useDeploymentLeaseList>>({
+      refetch: refetchLeases,
       data: leases,
       isLoading: false,
       isSuccess: input?.isLeasesLoaded ?? true,
@@ -346,8 +381,8 @@ describe("DeploymentDetail", () => {
     const useDeploymentLeaseList: typeof DEPENDENCIES.useDeploymentLeaseList = () => leaseList;
     let leaseGpus = input?.leaseGpus ?? {};
     const useLeaseGpus: typeof DEPENDENCIES.useLeaseGpus = () => ({ byLease: leaseGpus, isLoading: input?.isLoadingLeaseGpus ?? false });
-    const useProviderList: typeof DEPENDENCIES.useProviderList = () =>
-      mock<ReturnType<typeof DEPENDENCIES.useProviderList>>({ data: providers, isFetching: false });
+    const resolvedProviders = providers ?? [];
+    const useProvidersByAddresses = vi.fn(() => ({ data: resolvedProviders, isLoading: false, isFetching: false }));
     const redeploy = vi.fn();
     const useRedeploy: typeof DEPENDENCIES.useRedeploy = () => redeploy;
     const definition: DeploymentDefinition = { sdl: "version: '2.0'", name: undefined, source: "local", ...input?.definition };
@@ -378,7 +413,7 @@ describe("DeploymentDetail", () => {
       useDeploymentDetail,
       useDeploymentLeaseList,
       useLeaseGpus,
-      useProviderList,
+      useProvidersByAddresses,
       DeploymentDetailHeader,
       ReclamationBanner,
       DeploymentPlacements,
@@ -400,8 +435,15 @@ describe("DeploymentDetail", () => {
       refetchDeployment,
       DeploymentDetailHeader,
       DeploymentPlacements,
+      useProvidersByAddresses,
+      refetchLeases,
       rerenderWithLeaseGpus(next: LeaseGpusByLease) {
         leaseGpus = next;
+        rerender(<DeploymentDetail dseq="1786440078202" dependencies={dependencies} />);
+      },
+      rerenderWith(next: { deployment?: DeploymentDto; leases?: LeaseDto[] }) {
+        currentDeployment = next.deployment ?? currentDeployment;
+        if (next.leases) Object.assign(leaseList, { data: next.leases });
         rerender(<DeploymentDetail dseq="1786440078202" dependencies={dependencies} />);
       }
     };
