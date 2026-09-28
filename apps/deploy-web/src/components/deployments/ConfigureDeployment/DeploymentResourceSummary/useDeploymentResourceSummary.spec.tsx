@@ -4,9 +4,37 @@ import { describe, expect, it } from "vitest";
 
 import type { CpuArchType, SdlBuilderFormValuesType } from "@src/types";
 import { defaultPlacement, defaultService, defaultServiceWithPlacement } from "@src/utils/sdl/data";
-import { useDeploymentCpuArch, useDeploymentGpuCount, useDeploymentHasGpu } from "./useDeploymentResourceSummary";
+import { useDeploymentCpuArch, useDeploymentGpuCount, useDeploymentHasGpu, useDeploymentResourceSummary } from "./useDeploymentResourceSummary";
 
 import { renderHook } from "@testing-library/react";
+
+describe(useDeploymentResourceSummary.name, () => {
+  it("summarizes every service of the spec as resource segments", () => {
+    const placement = defaultPlacement();
+    const web = defaultService(placement.id, { image: "nginx:latest" });
+    const values: SdlBuilderFormValuesType = {
+      placements: [placement],
+      endpoints: [],
+      services: [
+        { ...web, profile: { ...web.profile, cpu: 1, ram: 2, ramUnit: "Gi", storage: [{ size: 10, unit: "Gi", isPersistent: false }] } },
+        {
+          ...web,
+          id: "api",
+          title: "api",
+          profile: { ...web.profile, cpu: 3, ram: 2, ramUnit: "Gi", storage: [{ size: 10, unit: "Gi", isPersistent: false }] }
+        }
+      ]
+    };
+    const Wrapper = ({ children }: PropsWithChildren) => {
+      const form = useForm<SdlBuilderFormValuesType>({ defaultValues: values });
+      return <FormProvider {...form}>{children}</FormProvider>;
+    };
+
+    const { result } = renderHook(() => useDeploymentResourceSummary(), { wrapper: Wrapper });
+
+    expect(result.current.map(segment => segment.label)).toEqual(["4 vCPU", "4 GiB", "20 GiB"]);
+  });
+});
 
 describe(useDeploymentGpuCount.name, () => {
   it("counts GPUs across the whole spec when no placement is given", () => {

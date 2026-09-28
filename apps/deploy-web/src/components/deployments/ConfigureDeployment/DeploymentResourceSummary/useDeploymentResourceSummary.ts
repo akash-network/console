@@ -2,13 +2,14 @@ import { useMemo } from "react";
 import { useFormContext, useWatch } from "react-hook-form";
 
 import type { CpuArchType, SdlBuilderFormValuesType } from "@src/types";
-import { aggregateDeploymentResources, formatDeploymentResources } from "./deploymentResources";
+import type { DeploymentResourceSegment } from "./deploymentResources";
+import { aggregateDeploymentResources, deploymentResourceSegments } from "./deploymentResources";
 
-/** Returns the live "Your deployment" resource summary string derived from the current form spec. */
-export function useDeploymentResourceSummary(): string {
+/** The live "Your deployment" resource segments derived from the current form spec. */
+export function useDeploymentResourceSummary(): DeploymentResourceSegment[] {
   const { control } = useFormContext<SdlBuilderFormValuesType>();
   const services = useWatch({ control, name: "services" });
-  return useMemo(() => formatDeploymentResources(aggregateDeploymentResources(services ?? [])), [services]);
+  return useMemo(() => deploymentResourceSegments(aggregateDeploymentResources(services ?? [])), [services]);
 }
 
 /**
