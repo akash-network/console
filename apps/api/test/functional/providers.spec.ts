@@ -325,22 +325,28 @@ describe("Providers", () => {
 
     it("lists the nvidia drivers its gpu leases reported across owners, with the cuda version each supports", async () => {
       const provider = await createProvider();
+      const newestReadAt = subDays(new Date(), 1);
       const lastReadAt = subDays(new Date(), 2);
       const firstReadAt = subDays(new Date(), 5);
+      nock("https://developer.download.nvidia.com")
+        .get("/compute/cuda/repos/ubuntu2404/x86_64/")
+        .reply(200, "<a href='cuda-compat-13-5_620.10.01-1ubuntu1_amd64.deb'>cuda-compat-13-5_620.10.01-1ubuntu1_amd64.deb</a>");
       const [owner, otherOwner] = await Promise.all([createOwner(), createOwner()]);
       await seedDeploymentSetting({
         userId: owner.id,
         detectedGpus: [
           createLeaseGpuReading({ provider: provider.owner, service: "web", driverVersion: "550.54.15", detectedAt: lastReadAt.toISOString() }),
           createLeaseGpuReading({ provider: provider.owner, service: "worker", driverVersion: "535.183.01", detectedAt: firstReadAt.toISOString() }),
-          createLeaseGpuReading({ provider: provider.owner, service: "trainer", driverVersion: "570.86.15", detectedAt: lastReadAt.toISOString() })
+          createLeaseGpuReading({ provider: provider.owner, service: "trainer", driverVersion: "570.86.15", detectedAt: lastReadAt.toISOString() }),
+          createLeaseGpuReading({ provider: provider.owner, service: "inference", driverVersion: "620.10.01", detectedAt: newestReadAt.toISOString() })
         ]
       });
       await seedDeploymentSetting({
         userId: otherOwner.id,
         detectedGpus: [
           createLeaseGpuReading({ provider: provider.owner, service: "web", driverVersion: "550.54.15", detectedAt: firstReadAt.toISOString() }),
-          createLeaseGpuReading({ provider: provider.owner, service: "worker", driverVersion: "535.183.01", detectedAt: firstReadAt.toISOString() })
+          createLeaseGpuReading({ provider: provider.owner, service: "worker", driverVersion: "535.183.01", detectedAt: firstReadAt.toISOString() }),
+          createLeaseGpuReading({ provider: provider.owner, service: "inference", driverVersion: "620.10.01", detectedAt: newestReadAt.toISOString() })
         ]
       });
 
@@ -349,6 +355,7 @@ describe("Providers", () => {
       const data = (await response.json()) as ProviderResponse;
       expect(response.status).toBe(200);
       expect(data.gpuDrivers).toEqual([
+        { driverVersion: "620.10.01", cudaVersion: "13.5", lastSeenDate: newestReadAt.toISOString().slice(0, 10) },
         { driverVersion: "550.54.15", cudaVersion: "12.4", lastSeenDate: lastReadAt.toISOString().slice(0, 10) },
         { driverVersion: "535.183.01", cudaVersion: "12.2", lastSeenDate: firstReadAt.toISOString().slice(0, 10) }
       ]);

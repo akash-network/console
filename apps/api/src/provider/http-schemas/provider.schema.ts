@@ -264,7 +264,7 @@ export const ProviderResponseSchema = z.object({
       z.object({
         driverVersion: z.string(),
         cudaVersion: z.string().nullable().openapi({
-          description: "The newest CUDA toolkit whose minimum Linux driver this driver meets, per NVIDIA's release notes. Null when it meets none of them."
+          description: "The newest CUDA version whose minimum Linux driver this driver meets, per NVIDIA's published driver requirements. Null when it meets none of them."
         }),
         lastSeenDate: z.string().openapi({ description: "The UTC day this driver was last read.", example: "2026-09-21" })
       })

@@ -13757,7 +13757,7 @@
                           "cudaVersion": {
                             "type": "string",
                             "nullable": true,
-                            "description": "The newest CUDA toolkit whose minimum Linux driver this driver meets, per NVIDIA's release notes. Null when it meets none of them."
+                            "description": "The newest CUDA version whose minimum Linux driver this driver meets, per NVIDIA's published driver requirements. Null when it meets none of them."
                           },
                           "lastSeenDate": {
                             "type": "string",
