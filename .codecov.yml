@@ -1,8 +1,3 @@
-codecov:
-  # By default Codecov posts no status at all on a commit where any other check failed, so every result job
-  # polling codecov/patch would wait out its budget and fail, even for apps whose own jobs all passed.
-  require_ci_to_pass: false
-
 coverage:
   status:
     project:
