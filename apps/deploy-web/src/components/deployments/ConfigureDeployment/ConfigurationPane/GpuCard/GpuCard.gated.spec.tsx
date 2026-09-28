@@ -92,6 +92,25 @@ describe("GpuCard trial gate", () => {
     expect(within(blockedOption).getByLabelText("Requires credits")).toBeInTheDocument();
   });
 
+  it("locks blocked models in the first model picker before any GPU entry exists", async () => {
+    const user = setup({ isBlockedModel: (_vendor, model) => model === "" || model === "h100", withoutGpuEntry: true });
+
+    await user.click(screen.getByRole("combobox", { name: "GPU model" }));
+
+    expect(await screen.findByRole("option", { name: /any model/i })).toHaveAttribute("aria-disabled", "true");
+    expect(screen.getByRole("option", { name: /h100/ })).toHaveAttribute("aria-disabled", "true");
+    expect(screen.getByRole("option", { name: /t4/ })).not.toHaveAttribute("aria-disabled", "true");
+  });
+
+  it("offers the unlock CTA before any GPU entry exists when the vendor has a blocked model", () => {
+    const onUnlock = vi.fn();
+    setup({ isBlockedModel: (_vendor, model) => model === "h100", onUnlock, withoutGpuEntry: true });
+
+    fireEvent.click(screen.getByRole("button", { name: /unlock high-end gpus/i }));
+
+    expect(onUnlock).toHaveBeenCalledTimes(1);
+  });
+
   it("shows no unlock CTA when the only blocked model is one nobody offers", () => {
     setup({ isBlockedModel: (_vendor, model) => model === "h100", availableGpus: [{ vendor: "nvidia", models: [availableModel("t4")] }] });
 
@@ -106,13 +125,14 @@ describe("GpuCard trial gate", () => {
     isBlockedModel?: (vendor?: string | null, model?: string | null) => boolean;
     onUnlock?: () => void;
     availableGpus?: AvailableGpuVendor[];
+    withoutGpuEntry?: boolean;
   }) {
     const values = defaultServiceWithPlacement({
       profile: {
         cpu: 0.5,
-        gpu: 1,
-        gpuModels: [{ vendor: "nvidia", name: "", memory: "", interface: "" }],
-        hasGpu: true,
+        gpu: input.withoutGpuEntry ? 0 : 1,
+        gpuModels: input.withoutGpuEntry ? [] : [{ vendor: "nvidia", name: "", memory: "", interface: "" }],
+        hasGpu: !input.withoutGpuEntry,
         ram: 256,
         ramUnit: "Mi",
         storage: [{ size: 1, unit: "Gi", isPersistent: false, type: "beta2" }]

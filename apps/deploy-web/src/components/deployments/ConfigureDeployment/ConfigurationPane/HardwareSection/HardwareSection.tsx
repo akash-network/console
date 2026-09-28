@@ -10,7 +10,6 @@ import { computeResourcesTooltip, presetsTooltip } from "../cardTooltips";
 import { ComputeResourcesCard } from "../ComputeResourcesCard/ComputeResourcesCard";
 import { ConfidentialComputeCard } from "../ConfidentialComputeCard/ConfidentialComputeCard";
 import { GpuCard } from "../GpuCard/GpuCard";
-import { GpuInterconnectCard } from "../GpuInterconnectCard/GpuInterconnectCard";
 import { PersistentStorageCard } from "../PersistentStorageCard/PersistentStorageCard";
 import { PresetsCard } from "../PresetsCard/PresetsCard";
 import { RamStorageCard } from "../RamStorageCard/RamStorageCard";
@@ -31,7 +30,6 @@ export const DEPENDENCIES = {
   CollapsibleCard,
   PresetsCard,
   GpuCard,
-  GpuInterconnectCard,
   ComputeResourcesCard,
   RamStorageCard,
   PersistentStorageCard,
@@ -52,8 +50,7 @@ type Props = {
  * The "HARDWARE" section of the Configuration pane for the selected service:
  * Presets, GPU, CPU (with memory & storage) and Persistent Storage cards. Each
  * card edits `services.${serviceIndex}.profile.*` on the shared deployment
- * model. The GPU and Persistent Storage cards own their own card shell because
- * they carry a header switch.
+ * model. The GPU and storage cards own their card shell.
  *
  * Persistent and RAM volumes share `profile.storage` and must each have a unique
  * name and mount; re-validating the whole array on any name or mount change keeps
@@ -83,12 +80,11 @@ export const HardwareSection: FC<Props> = ({ serviceIndex, locked = false, depen
           <d.PresetsCard serviceIndex={serviceIndex} locked={locked} isBlockedModel={isBlockedModel} onUnlock={openUnlock} />
         </d.CollapsibleCard>
 
-        <d.GpuCard serviceIndex={serviceIndex} locked={locked} isBlockedModel={isBlockedModel} onUnlock={openUnlock} />
-
-        <d.GpuInterconnectCard
+        <d.GpuCard
           serviceIndex={serviceIndex}
           locked={locked}
-          isTrialBlocked={isRestricted && !locked && isTrialGpuRestrictionActive()}
+          isBlockedModel={isBlockedModel}
+          isInterconnectTrialBlocked={isRestricted && !locked && isTrialGpuRestrictionActive()}
           onUnlock={openUnlock}
         />
 

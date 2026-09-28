@@ -53,6 +53,21 @@ describe(CollapsibleCard.name, () => {
     expect(screen.queryByText("1 GPU")).not.toBeInTheDocument();
   });
 
+  it("keeps the summary in the header while expanded when it is always visible", () => {
+    setup({ summary: "1 GPU", summaryVisibility: "always" });
+
+    expect(screen.getByText("1 GPU")).toBeInTheDocument();
+    expect(screen.getByText("card body")).toBeVisible();
+  });
+
+  it("keeps an always visible summary once collapsed", async () => {
+    setup({ summary: "1 GPU", summaryVisibility: "always" });
+
+    await userEvent.click(screen.getByRole("button", { name: "Collapse GPU" }));
+
+    expect(screen.getByText("1 GPU")).toBeInTheDocument();
+  });
+
   it("toggles when the title is clicked, not only the chevron", async () => {
     setup({});
 
@@ -359,6 +374,7 @@ describe(CollapsibleCard.name, () => {
 
   function setup(input: {
     summary?: string;
+    summaryVisibility?: "collapsed" | "always";
     infoTooltip?: React.ReactNode;
     headerControl?: React.ReactNode;
     isToggled?: boolean;
@@ -377,6 +393,7 @@ describe(CollapsibleCard.name, () => {
         icon={<svg />}
         infoTooltip={input.infoTooltip}
         summary={input.summary}
+        summaryVisibility={input.summaryVisibility}
         headerControl={input.headerControl}
         isToggled={input.isToggled}
         onToggle={input.onToggle}
