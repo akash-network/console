@@ -5,6 +5,14 @@ import { AUDITOR } from "@src/deployment/config/provider.config";
 
 dotenv.config({ path: "env/.env.funding-wallet-index" });
 
+function blankToUndefined(value: unknown): unknown {
+  return value === "" ? undefined : value;
+}
+
+function optionalUrl() {
+  return z.preprocess(blankToUndefined, z.string().url().optional());
+}
+
 export const envSchema = z.object({
   OLD_MASTER_WALLET_MNEMONIC: z.string().optional(),
   FUNDING_WALLET_MNEMONIC: z.string().optional(),
@@ -32,6 +40,9 @@ export const envSchema = z.object({
   STRIPE_WEBHOOK_SECRET: z.string(),
   STRIPE_ENABLE_COUPONS: z.enum(["true", "false"]).default("false"),
   CONSOLE_WEB_PAYMENT_LINK: z.string(),
+  CREDITS_ADDED_SLACK_WEBHOOK_URL: optionalUrl(),
+  AMPLITUDE_PROJECT_URL: optionalUrl(),
+  CONSOLE_ADMIN_URL: optionalUrl(),
   MANAGED_WALLET_LEASE_ALLOWED_AUDITORS: z
     .string()
     .default(AUDITOR)

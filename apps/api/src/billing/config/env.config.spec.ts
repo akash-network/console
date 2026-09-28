@@ -117,6 +117,31 @@ describe("envSchema", () => {
     });
   });
 
+  describe.each(["CREDITS_ADDED_SLACK_WEBHOOK_URL", "AMPLITUDE_PROJECT_URL", "CONSOLE_ADMIN_URL"] as const)("%s", key => {
+    it("is undefined when absent", () => {
+      const result = setup({});
+      expect(result.success).toBe(true);
+      expect(result.data?.[key]).toBeUndefined();
+    });
+
+    it("is undefined when blank", () => {
+      const result = setup({ [key]: "" });
+      expect(result.success).toBe(true);
+      expect(result.data?.[key]).toBeUndefined();
+    });
+
+    it("accepts a URL", () => {
+      const result = setup({ [key]: "https://example.com/path" });
+      expect(result.success).toBe(true);
+      expect(result.data?.[key]).toBe("https://example.com/path");
+    });
+
+    it("rejects a value that is not a URL", () => {
+      const result = setup({ [key]: "not-a-url" });
+      expect(result.success).toBe(false);
+    });
+  });
+
   const validEnv = {
     NETWORK: "sandbox",
     RPC_NODE_ENDPOINT: "https://rpc.example.com",

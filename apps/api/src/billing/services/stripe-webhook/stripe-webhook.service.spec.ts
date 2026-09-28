@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import { AutoRechargeSucceeded } from "@src/billing/events/auto-recharge-succeeded";
+import { CreditsAdded } from "@src/billing/events/credits-added";
 import { FirstPurchaseBonusGranted } from "@src/billing/events/first-purchase-bonus-granted";
 import type { PaymentMethodService } from "@src/billing/services/payment-method/payment-method.service";
 import type { StripeService } from "@src/billing/services/stripe/stripe.service";
@@ -116,6 +117,24 @@ describe(StripeWebhookService.name, () => {
 
       expect(domainEventsService.publish).toHaveBeenCalledWith(new FirstPurchaseBonusGranted(bonusGrant));
       expect(domainEventsService.publish).toHaveBeenCalledWith(new AutoRechargeSucceeded(autoRecharge));
+    });
+
+    it.each(["payment_intent.succeeded", "invoice.paid"] as const)("publishes a credits-added event when a %s settlement credits the wallet", async type => {
+      const { service, stripeTransaction, domainEventsService } = setup(type);
+      const creditsAdded = {
+        userId: "user_1",
+        transactionId: "txn-1",
+        source: "payment_intent" as const,
+        isAutoRecharge: false,
+        paidAmountCents: 5000,
+        bonusAmountCents: 0
+      };
+      stripeTransaction.settlePaymentIntent.mockResolvedValue({ creditsAdded });
+      stripeTransaction.settleInvoice.mockResolvedValue({ creditsAdded });
+
+      await service.routeStripeEvent("sig", "body");
+
+      expect(domainEventsService.publish).toHaveBeenCalledExactlyOnceWith(new CreditsAdded(creditsAdded));
     });
 
     it("does not publish when the settlement returns an empty outcome", async () => {
