@@ -585,7 +585,7 @@ describe(JobQueueService.name, () => {
 
       const thrown = (result as PromiseRejectedResult).reason as DrizzleQueryError;
       expect(thrown.message).toBe(REDACTED_DEPLOYMENT_INSERT_MESSAGE);
-      expect(thrown.params).toEqual(["42", "<redacted string>"]);
+      expect(thrown).not.toHaveProperty("params");
       expect(thrown.cause).toHaveProperty("code", "23502");
       expect(thrown.cause).not.toHaveProperty("detail");
       expect(logger.error).toHaveBeenCalledWith({ event: "JOB_FAILED", jobId: expect.any(String), error });

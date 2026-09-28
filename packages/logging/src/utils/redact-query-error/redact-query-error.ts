@@ -7,8 +7,8 @@ type DriverError = Error & { code?: unknown };
 export function redactQueryError<T>(error: T): T | Error {
   if (!isFailedQueryError(error)) return error;
 
-  const params = redactQueryParams(error.params);
-  const redacted = Object.assign(copyError(error, `Failed query: ${error.query}\nparams: ${params.join(", ")}`), { query: error.query, params });
+  const params = redactQueryParams(error.params).join(", ");
+  const redacted = Object.assign(copyError(error, `Failed query: ${error.query}\nparams: ${params}`), { query: error.query });
   if (error.cause instanceof Error) redacted.cause = copyDriverError(error.cause);
 
   return redacted;

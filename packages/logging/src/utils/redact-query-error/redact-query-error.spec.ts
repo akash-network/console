@@ -21,11 +21,17 @@ describe(redactQueryError.name, () => {
     expect(redacted.stack).toBe(`Error: ${REDACTED_INSERT_MESSAGE}${error.stack!.slice(error.stack!.indexOf("\n    at "))}`);
   });
 
-  it("keeps the query and the redacted params as fields", () => {
+  it("keeps the query as a field and leaves the params to its message", () => {
     const redacted = redactQueryError(failedInsert()) as DrizzleQueryError;
 
     expect(redacted.query).toBe(INSERT_DEPLOYMENT);
-    expect(redacted.params).toEqual(["42", "<redacted string>", "<redacted string>"]);
+    expect(redacted).not.toHaveProperty("params");
+  });
+
+  it("returns a copy it already redacted as it is", () => {
+    const redacted = redactQueryError(failedInsert());
+
+    expect(redactQueryError(redacted)).toBe(redacted);
   });
 
   it("keeps only the message, stack and code of the driver error that caused it", () => {

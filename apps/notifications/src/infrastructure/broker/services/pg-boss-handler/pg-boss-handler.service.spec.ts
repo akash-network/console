@@ -74,8 +74,8 @@ describe(PgBossHandlerService.name, () => {
     });
   });
 
-  it("rethrows a failed query's error with its params redacted, so pg-boss stores none of them", async () => {
-    const { service, brokerService, dto, handlerMethod } = await setup();
+  it("logs and rethrows a failed query's error with its params redacted, so neither the log nor pg-boss gets them", async () => {
+    const { service, brokerService, loggerService, dto, handlerMethod, testKey } = await setup();
     const insertChannel = 'insert into "notification_channels" ("config") values ($1)';
     let rethrown: unknown;
 
@@ -91,7 +91,7 @@ describe(PgBossHandlerService.name, () => {
     await service.startAllHandlers();
 
     expect((rethrown as DrizzleQueryError).message).toBe(`Failed query: ${insertChannel}\nparams: <redacted string>`);
-    expect((rethrown as DrizzleQueryError).params).toEqual(["<redacted string>"]);
+    expect(loggerService.error).toHaveBeenCalledWith(expect.objectContaining({ event: "MESSAGE_WORKER_FAILURE", key: testKey, error: rethrown }));
   });
 
   async function setup(): Promise<{

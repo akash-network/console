@@ -60,13 +60,14 @@ export class PgBossHandlerService {
           key: config.key
         });
       } catch (error) {
+        const redactedError = redactQueryError(error);
         this.loggerService.error({
           event: "MESSAGE_WORKER_FAILURE",
           key: config.key,
           job,
-          error
+          error: redactedError
         });
-        throw redactQueryError(error);
+        throw redactedError;
       }
     });
   }
