@@ -11,7 +11,7 @@ import type { HonoInterceptor } from "@src/core/types/hono-interceptor.type";
 type RefusalStreak = { status: number; refusals: number; startedAt: number; backoffUntil?: number };
 
 const MAX_TRACKED_STREAKS = 1e5;
-/** A status, two timestamps and a count under a user, method and path key. */
+/** A few numbers under a user, method and path key, so the registry ranks this cache far below the ones holding response payloads. */
 const STREAK_ENTRY_BYTES = 256;
 const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
 const UNCOUNTED_CLIENT_ERRORS = new Set([401, 429]);
