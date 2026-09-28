@@ -106,6 +106,7 @@ export function useProviderListModel(dependencies: typeof DEPENDENCIES = DEPENDE
   );
   const matchingProviderCount = hasNoFavoriteToShow ? 0 : providerSearch.data?.pagination.total ?? 0;
   const hasLoadedProviders = !!providerSearch.data || hasNoFavoriteToShow;
+  const isSearchingProviders = providerSearch.isFetching || providerSearch.isPaused;
 
   const changeSort = useCallback(
     (value: string) => {
@@ -166,8 +167,8 @@ export function useProviderListModel(dependencies: typeof DEPENDENCIES = DEPENDE
     pageCount: Math.ceil(matchingProviderCount / pageSize),
     providers,
     hasLoadedProviders,
-    hasFailedToLoadProviders: !hasLoadedProviders && providerSearch.isError && !providerSearch.isFetching,
-    isLoadingProviders: providerSearch.isFetching || providerSearch.isPaused,
+    hasFailedToLoadProviders: !hasLoadedProviders && providerSearch.isError && !isSearchingProviders,
+    isLoadingProviders: isSearchingProviders,
     locations: providerLocations.data,
     networkCapacity,
     isLoading: providerSearch.isFetching || providerLocations.isFetching || isLoadingLeases || isLoadingNetworkCapacity,

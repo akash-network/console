@@ -246,6 +246,12 @@ describe(useProviderListModel.name, () => {
     expect(result.current).toMatchObject({ hasLoadedProviders: false, hasFailedToLoadProviders: false, isLoadingProviders: true });
   });
 
+  it("reports loading instead of a failure while retrying the failed search waits for the network", () => {
+    const { result } = setup({ page: undefined, isSearchFailed: true, isSearchPaused: true });
+
+    expect(result.current).toMatchObject({ hasFailedToLoadProviders: false, isLoadingProviders: true });
+  });
+
   it("hands over the provider locations and the network capacity", () => {
     const locations = [mock<ApiProviderLocation>({ owner: "akash1first" })];
     const networkCapacity = mock<NonNullable<ReturnType<typeof DEPENDENCIES.useNetworkCapacity>["data"]>>();
