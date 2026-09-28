@@ -114,7 +114,7 @@ export const ProviderList: React.FunctionComponent<Props> = ({ dependencies: d =
               type="text"
               endIcon={
                 !!model.search && (
-                  <Button size="icon" variant="text" onClick={() => model.changeSearch("")}>
+                  <Button size="icon" variant="text" aria-label="Clear search" onClick={() => model.changeSearch("")}>
                     <Xmark />
                   </Button>
                 )

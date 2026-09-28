@@ -19,6 +19,7 @@ describe("ProviderList", () => {
     expect(screen.getByText("Couldn't load providers.")).toBeInTheDocument();
     expect(screen.getByRole("textbox", { name: "Search Providers" })).toBeInTheDocument();
     expect(screen.getByRole("checkbox", { name: "Active" })).toBeInTheDocument();
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
     expect(ProviderTable).not.toHaveBeenCalled();
   });
 
@@ -30,12 +31,20 @@ describe("ProviderList", () => {
     expect(refresh).toHaveBeenCalled();
   });
 
-  it("keeps the search box while the first page loads", () => {
+  it("shows a spinner under the search box while the first page loads", () => {
     const { ProviderTable } = setup({ hasLoadedProviders: false, isLoadingProviders: true });
 
+    expect(screen.getByRole("status")).toBeInTheDocument();
     expect(screen.getByRole("textbox", { name: "Search Providers" })).toBeInTheDocument();
     expect(screen.queryByText("Couldn't load providers.")).not.toBeInTheDocument();
     expect(ProviderTable).not.toHaveBeenCalled();
+  });
+
+  it("keeps the loaded page instead of a spinner while it is fetched again", () => {
+    const { ProviderTable } = setup({ hasLoadedProviders: true, isLoadingProviders: true });
+
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    expect(ProviderTable).toHaveBeenCalled();
   });
 
   it("lists the providers of the loaded page", () => {
@@ -52,14 +61,44 @@ describe("ProviderList", () => {
     expect(screen.getByText("No provider found.")).toBeInTheDocument();
   });
 
+  it("clears the search from the search box", async () => {
+    const { changeSearch } = setup({ search: "europlots" });
+
+    await userEvent.click(screen.getByRole("button", { name: "Clear search" }));
+
+    expect(changeSearch).toHaveBeenCalledWith("");
+  });
+
+  it("offers no clear button for an empty search", () => {
+    setup({ search: "" });
+
+    expect(screen.queryByRole("button", { name: "Clear search" })).not.toBeInTheDocument();
+  });
+
+  it("names the selected sort in the sort picker", () => {
+    setup({ sort: "gpu-available-desc" });
+
+    expect(screen.getByText("GPUs Available (desc)")).toBeInTheDocument();
+  });
+
+  it("opens the page on becoming a provider in a new tab", async () => {
+    const { windowOpen } = setup({});
+
+    await userEvent.click(screen.getByRole("button", { name: "Become a provider" }));
+
+    expect(windowOpen).toHaveBeenCalledWith("https://akash.network/providers/", "_blank");
+  });
+
   function setup(modelOverrides: Partial<Model>) {
     const refresh = vi.fn();
+    const changeSearch = vi.fn();
+    const windowOpen = vi.spyOn(window, "open").mockImplementation(() => null);
     const model: Model = {
       sort: "active-leases-desc",
       sortOptions: SORT_OPTIONS,
       changeSort: vi.fn(),
       search: "",
-      changeSearch: vi.fn(),
+      changeSearch,
       isFilteringActive: true,
       changeIsFilteringActive: vi.fn(),
       isFilteringAudited: true,
@@ -85,6 +124,6 @@ describe("ProviderList", () => {
 
     render(<ProviderList dependencies={dependencies} />);
 
-    return { refresh, ProviderTable: dependencies.ProviderTable };
+    return { refresh, changeSearch, windowOpen, ProviderTable: dependencies.ProviderTable };
   }
 });
