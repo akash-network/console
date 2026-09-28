@@ -14,12 +14,6 @@ import { LeaseManifestService } from "@src/deployment/services/lease-manifest/le
 import { ProviderService } from "@src/provider/services/provider/provider.service";
 import { DeploymentReaderService } from "../deployment-reader/deployment-reader.service";
 
-function isOnClosedBid(lease: CreateLeaseRequest["leases"][number], bids: Bid[]): boolean {
-  const placementBids = bids.filter(({ bid: { id } }) => id.gseq === lease.gseq && id.oseq === lease.oseq && id.provider === lease.provider);
-
-  return placementBids.length > 0 && placementBids.every(({ bid }) => bid.state !== "open");
-}
-
 @singleton()
 export class LeaseService {
   readonly #logger: ReturnType<CreateLogger>;
@@ -76,11 +70,22 @@ export class LeaseService {
 
   /** Refuses only what the chain would, so a bid it does not report is left for the chain to judge. */
   async #refuseLeasesOnClosedBids(owner: string, leases: CreateLeaseRequest["leases"]): Promise<void> {
-    const dseqs = [...new Set(leases.map(lease => lease.dseq))];
-    const bidsByDseq = new Map(await Promise.all(dseqs.map(async dseq => [dseq, await this.bidHttpService.list(owner, dseq)] as const)));
+    for (const lease of leases) {
+      const bids = await this.#placementBids(owner, lease);
 
-    if (leases.some(lease => isOnClosedBid(lease, bidsByDseq.get(lease.dseq)!))) {
-      throw this.chainErrorService.leaseOnClosedBidError();
+      if (bids.length > 0 && bids.every(({ bid }) => bid.state !== "open")) {
+        throw this.chainErrorService.leaseOnClosedBidError();
+      }
+    }
+  }
+
+  /** A failed read counts as no bids, since the chain still judges every lease this check lets through. */
+  async #placementBids(owner: string, { dseq, gseq, oseq, provider }: CreateLeaseRequest["leases"][number]): Promise<Bid[]> {
+    try {
+      return await this.bidHttpService.list(owner, dseq, { gseq, oseq, provider });
+    } catch (error) {
+      this.#logger.warn({ event: "LEASE_BID_LOOKUP_FAILED", dseq, gseq, oseq, provider, error });
+      return [];
     }
   }
 

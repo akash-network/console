@@ -161,7 +161,7 @@ describe(LeaseService.name, () => {
       expect(signerService.executeDerivedDecodedTxByUserId).toHaveBeenCalledTimes(1);
     });
 
-    it("reads each deployment's bids once, however many of its placements are leased", async () => {
+    it("reads only the bids of each leased placement", async () => {
       const provider = createAkashAddress();
       const leases = [
         { dseq: "100", gseq: 1, oseq: 1, provider },
@@ -172,10 +172,31 @@ describe(LeaseService.name, () => {
 
       await service.createLeasesAndSendManifest({ leases, manifest: MANIFEST, userId: wallet.userId });
 
-      expect(bidHttpService.list.mock.calls).toEqual([
-        [wallet.address, "100"],
-        [wallet.address, "200"]
-      ]);
+      expect(bidHttpService.list.mock.calls).toEqual(leases.map(({ dseq, gseq, oseq, provider }) => [wallet.address, dseq, { gseq, oseq, provider }]));
+    });
+
+    it("reads no further placement once one is refused", async () => {
+      const closed = { dseq: "100", gseq: 1, oseq: 1, provider: createAkashAddress() };
+      const next = { dseq: "100", gseq: 2, oseq: 1, provider: createAkashAddress() };
+      const { service, bidHttpService, wallet } = setup({ bids: owner => [bidFor(owner, closed, "closed")] });
+
+      await expect(service.createLeasesAndSendManifest({ leases: [closed, next], manifest: MANIFEST, userId: wallet.userId })).rejects.toBe(
+        LEASE_ON_CLOSED_BID
+      );
+
+      expect(bidHttpService.list).toHaveBeenCalledTimes(1);
+    });
+
+    it("leaves a placement whose bids cannot be read for the chain to judge", async () => {
+      const lease = { dseq: "100", gseq: 1, oseq: 1, provider: createAkashAddress() };
+      const failure = new Error("bids unavailable");
+      const { service, bidHttpService, signerService, logger, wallet } = setup();
+      bidHttpService.list.mockRejectedValue(failure);
+
+      await service.createLeasesAndSendManifest({ leases: [lease], manifest: MANIFEST, userId: wallet.userId });
+
+      expect(signerService.executeDerivedDecodedTxByUserId).toHaveBeenCalledTimes(1);
+      expect(logger.warn).toHaveBeenCalledWith({ event: "LEASE_BID_LOOKUP_FAILED", ...lease, error: failure });
     });
 
     it("judges each placement against the bids of its own deployment", async () => {
@@ -428,8 +449,14 @@ describe(LeaseService.name, () => {
     });
     const deployment = mock<GetDeploymentResponse["data"]>();
     const bidHttpService = mock<BidHttpService>({
-      list: vi.fn(async (owner: string, dseq: string) => (input.bids?.(owner) ?? []).filter(({ bid }) => bid.id.dseq === dseq))
+      list: vi.fn(async (owner: string, dseq: string, filters: Parameters<BidHttpService["list"]>[2] = {}) =>
+        (input.bids?.(owner) ?? []).filter(
+          ({ bid: { id } }) =>
+            id.dseq === dseq && Object.entries(filters).every(([name, value]) => value === undefined || id[name as keyof Bid["bid"]["id"]] === value)
+        )
+      )
     });
+    const logger = mock<LoggerService>();
     const chainErrorService = mock<ChainErrorService>({ leaseOnClosedBidError: vi.fn(() => LEASE_ON_CLOSED_BID) });
 
     walletReaderService.getWalletByUserId.mockResolvedValue(wallet);
@@ -447,7 +474,7 @@ describe(LeaseService.name, () => {
       leaseManifestService,
       bidHttpService,
       chainErrorService,
-      () => mock<LoggerService>()
+      () => logger
     );
 
     return {
@@ -460,6 +487,7 @@ describe(LeaseService.name, () => {
       walletReaderService,
       leaseHttpService,
       leaseManifestService,
+      logger,
       wallet,
       deployment
     };

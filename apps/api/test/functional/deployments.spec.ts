@@ -2267,7 +2267,9 @@ describe("Deployments API", () => {
       nock(container.resolve(CORE_CONFIG).REST_API_NODE_URL)
         .get(`/akash/market/${marketVersion}/leases/list?filters.owner=${wallets[0].address}&filters.dseq=${dseq}`)
         .reply(200, { leases: [], pagination: { next_key: null, total: "0" } })
-        .get(`/akash/market/${marketVersion}/bids/list?filters.owner=${wallets[0].address}&filters.dseq=${dseq}`)
+        .get(
+          `/akash/market/${marketVersion}/bids/list?filters.owner=${wallets[0].address}&filters.dseq=${dseq}&filters.gseq=1&filters.oseq=1&filters.provider=${provider}`
+        )
         .reply(200, { bids: [], pagination: { next_key: null, total: "0" } });
       nock(container.resolve(DeploymentConfigService).get("PROVIDER_PROXY_URL"))
         .post("/", body => (body as { url: string }).url.endsWith("/version"))
@@ -2430,7 +2432,8 @@ describe("Deployments API", () => {
 
       nock(restUrl)
         .persist()
-        .get(`/akash/market/${marketVersion}/bids/list?filters.owner=${address}&filters.dseq=${dseq}`)
+        .get(`/akash/market/${marketVersion}/bids/list`)
+        .query(query => query["filters.owner"] === address && query["filters.dseq"] === dseq)
         .reply(200, { bids, pagination: { next_key: null, total: String(bids.length) } });
 
       nock(restUrl).persist().get(`/akash/market/${marketVersion}/leases/list?filters.owner=${address}&filters.dseq=${dseq}`).reply(200, { leases });

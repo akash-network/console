@@ -23,6 +23,24 @@ describe(BidHttpService.name, () => {
       expect(httpClient.get).toHaveBeenCalledWith("/akash/market/v1beta5/bids/list?filters.owner=akash1owner&filters.dseq=123&filters.state=active");
     });
 
+    it("lists only the bids of the placement it was given", async () => {
+      const { service, httpClient } = setup();
+
+      await service.list("akash1owner", "123", { gseq: 2, oseq: 1, provider: "akash1provider" });
+
+      expect(httpClient.get).toHaveBeenCalledWith(
+        "/akash/market/v1beta5/bids/list?filters.owner=akash1owner&filters.dseq=123&filters.gseq=2&filters.oseq=1&filters.provider=akash1provider"
+      );
+    });
+
+    it("leaves out a filter it was given no value for", async () => {
+      const { service, httpClient } = setup();
+
+      await service.list("akash1owner", "123", { state: undefined, provider: "akash1provider" });
+
+      expect(httpClient.get).toHaveBeenCalledWith("/akash/market/v1beta5/bids/list?filters.owner=akash1owner&filters.dseq=123&filters.provider=akash1provider");
+    });
+
     it("answers with the bids the page holds", async () => {
       const bids = [mock<Bid>()];
       const { service } = setup({ bids });
