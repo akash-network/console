@@ -22,7 +22,7 @@ export function nFormatter(num: number, digits: number) {
 
 export function udenomToDenom(_amount: string | number, precision = 6, decimals: number = 1_000_000) {
   const amount = typeof _amount === "string" ? parseFloat(_amount) : _amount;
-  return roundDecimal(amount / decimals, precision);
+  return roundDecimal(amount / decimals, String(precision));
 }
 
 /** Decimal precision for rendering marketplace/review prices (overrides `udenomToDenom`'s default of 6). */
