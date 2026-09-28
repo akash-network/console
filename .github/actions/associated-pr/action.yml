@@ -102,11 +102,16 @@ runs:
 
           // listPullRequestsAssociatedWithCommit does not index head commits
           // from fork PRs (even though they're reachable via refs/pull/N/head),
-          // so for forks we fall back to the search API. We detect fork up
-          // front from the event payload to avoid wasting retry budget on the
-          // primary API which will never return a result for a fork commit.
+          // so for forks we look the PR up by its head branch, then fall back to
+          // the search API. We detect fork up front from the event payload to
+          // avoid wasting retry budget on the primary API which will never
+          // return a result for a fork commit.
           const headRepoFullName = context.payload.workflow_run?.head_repository?.full_name
             || context.payload.pull_request?.head?.repo?.full_name;
+          const headOwner = context.payload.workflow_run?.head_repository?.owner?.login
+            || context.payload.pull_request?.head?.repo?.owner?.login;
+          const headBranch = context.payload.workflow_run?.head_branch
+            || context.payload.pull_request?.head?.ref;
           const baseRepoFullName = `${context.repo.owner}/${context.repo.repo}`;
           const isFork = headRepoFullName && headRepoFullName !== baseRepoFullName;
 
@@ -132,9 +137,31 @@ runs:
             return full;
           };
 
-          const findPr = isFork ? findPrViaSearch : findPrViaAssociations;
+          // The search index can lag a fresh push by more than the retry budget, while listing
+          // open PRs by head branch answers as soon as the PR points at the commit.
+          const findPrViaHeadBranch = async () => {
+            if (!headOwner || !headBranch) return null;
+            const { data } = await github.rest.pulls.list({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              head: `${headOwner}:${headBranch}`,
+              state: 'open',
+            });
+            return data.find(candidate => candidate.head.sha === commitSha) ?? null;
+          };
+
+          const strategies = isFork
+            ? [findPrViaHeadBranch, findPrViaSearch]
+            : [findPrViaAssociations, findPrViaHeadBranch];
+          const findPr = async () => {
+            for (const strategy of strategies) {
+              const found = await strategy();
+              if (found) return found;
+            }
+            return null;
+          };
           if (isFork) {
-            core.info(`Commit is from fork (${headRepoFullName}), using search API to find PR`);
+            core.info(`Commit is from fork (${headRepoFullName}), looking the PR up by head branch, then via the search API`);
           }
 
           let pr;
