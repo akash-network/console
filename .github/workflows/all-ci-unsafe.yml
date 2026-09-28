@@ -181,6 +181,8 @@ jobs:
           ref: ${{ env.PARENT_WORKFLOW_HEAD_SHA }}
           export-file-changes: package-lock.json
 
+      # The scan starts with CI, often before Snyk and Socket have reported on the push, so both polls wait up to
+      # ten minutes for them.
       - name: Check snyk status
         if: >-
           contains(fromJSON(steps.associated_pr.outputs.changes), 'package-lock.json')
@@ -190,6 +192,8 @@ jobs:
           name: "security/snyk (corysturtevant)"
           sha: ${{ env.PARENT_WORKFLOW_HEAD_SHA }}
           check_type: status
+          retry_delay: 10000
+          max_retries: 60
 
       - name: Check socketio status
         if: >-
@@ -199,6 +203,8 @@ jobs:
         with:
           name: "Socket Security: Pull Request Alerts"
           sha: ${{ env.PARENT_WORKFLOW_HEAD_SHA }}
+          retry_delay: 10000
+          max_retries: 60
 
   codeql-scan:
     if: needs.create-check-run.outputs.run_scan == 'true'
