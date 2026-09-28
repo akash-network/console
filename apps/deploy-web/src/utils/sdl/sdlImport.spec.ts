@@ -721,3 +721,62 @@ describe("importSimpleSdl cpu architecture", () => {
     ].join("\n");
   }
 });
+
+describe("importSimpleSdl exposed ports", () => {
+  it("exposes a port that declares no `as` on its container port", () => {
+    const imported = importSimpleSdl(exposeSdl({ port: 8080 }));
+
+    expect(imported.services[0].expose[0]).toMatchObject({ port: 8080, as: 8080 });
+  });
+
+  it("keeps an explicit `as`", () => {
+    const imported = importSimpleSdl(exposeSdl({ port: 8080, as: 80 }));
+
+    expect(imported.services[0].expose[0]).toMatchObject({ port: 8080, as: 80 });
+  });
+
+  it("regenerates a port that declared no `as` on the same external port", () => {
+    const regenerated = generateSdl(importSimpleSdl(exposeSdl({ port: 8080 })));
+    const parsed = yaml.load(regenerated) as { services: Record<string, { expose: { port: number; as?: number }[] }> };
+
+    expect(parsed.services.web.expose[0]).toMatchObject({ port: 8080, as: 8080 });
+  });
+
+  function exposeSdl(expose: { port: number; as?: number }): string {
+    const asLine = expose.as === undefined ? [] : [`        as: ${expose.as}`];
+    return [
+      "---",
+      'version: "2.0"',
+      "services:",
+      "  web:",
+      "    image: nginx",
+      "    expose:",
+      `      - port: ${expose.port}`,
+      ...asLine,
+      "        to:",
+      "          - global: true",
+      "profiles:",
+      "  compute:",
+      "    web:",
+      "      resources:",
+      "        cpu:",
+      "          units: 0.5",
+      "        memory:",
+      "          size: 512Mi",
+      "        storage:",
+      "          - size: 512Mi",
+      "  placement:",
+      "    dcloud:",
+      "      pricing:",
+      "        web:",
+      "          denom: uakt",
+      "          amount: 1000",
+      "deployment:",
+      "  web:",
+      "    dcloud:",
+      "      profile: web",
+      "      count: 1",
+      ""
+    ].join("\n");
+  }
+});

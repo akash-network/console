@@ -137,7 +137,7 @@ export const importSimpleSdl = (yamlStr: string, { placementPerService = false }
         const _expose: ExposeType = {
           id: nanoid(),
           port: expose.port,
-          as: expose.as || 80,
+          as: expose.as || expose.port,
           proto: expose.proto === "tcp" ? expose.proto : "http",
           global: !!isGlobal,
           to: expose.to.filter((t: any) => t.global === undefined).map((t: any) => ({ id: nanoid(), value: t.service })),
