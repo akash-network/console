@@ -78,11 +78,10 @@ describe(ServiceStack.name, () => {
     expect(onRemoveService).toHaveBeenCalledWith("api");
   });
 
-  it("hands each card its configuration status, removal rule and lock", () => {
+  it("hands each card its removal rule and lock", () => {
     const { cardProps } = setup({ canRemoveService: false, locked: "onchain" });
 
-    expect(cardProps("web")).toMatchObject({ isConfigured: true, canRemove: false, locked: "onchain" });
-    expect(cardProps("api")).toMatchObject({ isConfigured: false });
+    expect(cardProps("web")).toMatchObject({ canRemove: false, locked: "onchain" });
   });
 
   it("disables adding a service while locked", () => {
@@ -101,7 +100,6 @@ describe(ServiceStack.name, () => {
         services={overrides.services ?? defaultServices()}
         selectedServiceId={overrides.selectedServiceId ?? input.selectedServiceId ?? "web"}
         onSelectService={onSelectService}
-        isServiceConfigured={serviceId => serviceId === "web"}
         canRemoveService={input.canRemoveService ?? true}
         onRemoveService={onRemoveService}
         onAddService={onAddService}

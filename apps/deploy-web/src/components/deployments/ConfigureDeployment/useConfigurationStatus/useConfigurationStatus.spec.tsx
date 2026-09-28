@@ -10,21 +10,6 @@ import { configurationStatusOf, useConfigurationStatus } from "./useConfiguratio
 import { renderHook } from "@testing-library/react";
 
 describe(configurationStatusOf.name, () => {
-  it("reports a service with an image as configured and one without as not", () => {
-    const { values, ready, empty } = setup();
-
-    const status = configurationStatusOf(values);
-
-    expect(status.isServiceConfigured(ready.id as string)).toBe(true);
-    expect(status.isServiceConfigured(empty.id as string)).toBe(false);
-  });
-
-  it("reports an unknown service as not configured", () => {
-    const { values } = setup();
-
-    expect(configurationStatusOf(values).isServiceConfigured("missing")).toBe(false);
-  });
-
   it("rates each placement by how many of its services are configured", () => {
     const { values, complete, partial, incomplete } = setup();
 
@@ -50,7 +35,7 @@ describe(configurationStatusOf.name, () => {
     const empty = defaultService(partial.id, { title: "empty", image: "" });
     const alsoEmpty = defaultService(incomplete.id, { title: "also-empty", image: "" });
     const values: SdlBuilderFormValuesType = { placements: [complete, partial, incomplete], services: [ready, alsoReady, empty, alsoEmpty], endpoints: [] };
-    return { values, complete, partial, incomplete, ready, empty };
+    return { values, complete, partial, incomplete };
   }
 
   function setupWithCollectorOnlyPlacement() {

@@ -137,7 +137,7 @@ describe(ConfigureEditor.name, () => {
     const onSelectService = vi.fn();
     const dependencies = MockComponents(DEPENDENCIES, {
       usePlacementManagerContext: () => manager,
-      useConfigurationStatus: () => ({ isServiceConfigured: () => true, placementStatus: placementId => (placementId === "p1" ? "complete" : "incomplete") })
+      useConfigurationStatus: () => ({ placementStatus: placementId => (placementId === "p1" ? "complete" : "incomplete") })
     });
     let form: UseFormReturn<SdlBuilderFormValuesType> | undefined;
     const Wrapper = ({ children }: PropsWithChildren) => {

@@ -10,7 +10,7 @@ import type { ConfigurationLock } from "../../ConfigurationPane/configurationLoc
 import type { DEPENDENCIES } from "./ServiceCard";
 import { ServiceCard } from "./ServiceCard";
 
-import { act, render, screen, within } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 describe(ServiceCard.name, () => {
@@ -18,15 +18,6 @@ describe(ServiceCard.name, () => {
     setup({});
 
     expect(screen.getByRole("region", { name: "web service" })).toBeInTheDocument();
-  });
-
-  it.each([
-    [true, "Complete"],
-    [false, "Incomplete"]
-  ])("shows the configuration status in the header (configured: %s)", (isConfigured, status) => {
-    setup({ isConfigured });
-
-    expect(within(screen.getByRole("region", { name: "web service" })).getByRole("img", { name: status })).toBeInTheDocument();
   });
 
   it("renders the service's sections while expanded", () => {
@@ -77,6 +68,14 @@ describe(ServiceCard.name, () => {
     expect(getValues().services[0].title).toBe("api");
   });
 
+  it("starts renaming when the pencil beside the name is clicked", async () => {
+    const { container } = setup({});
+
+    await userEvent.click(container.querySelector("svg.lucide-pencil") as Element);
+
+    expect(screen.getByLabelText("Service name")).toHaveFocus();
+  });
+
   it("removes the service", async () => {
     const { onRemove } = setup({});
 
@@ -99,7 +98,13 @@ describe(ServiceCard.name, () => {
 
     act(() => form().setError("services.0.image", { type: "manual", message: "Image is required" }));
 
-    expect(screen.getByRole("region", { name: "web service" })).toHaveClass("border-destructive");
+    expect(screen.getByRole("region", { name: "web service" })).toHaveAttribute("data-invalid", "true");
+  });
+
+  it("leaves the card untinted while the service is valid", () => {
+    setup({});
+
+    expect(screen.getByRole("region", { name: "web service" })).not.toHaveAttribute("data-invalid");
   });
 
   it("shows the service name's error below the header", () => {
@@ -119,7 +124,7 @@ describe(ServiceCard.name, () => {
     scrollIntoView.mockRestore();
   });
 
-  function setup(input: { isExpanded?: boolean; isConfigured?: boolean; canRemove?: boolean; locked?: ConfigurationLock; shouldScrollIntoView?: boolean }) {
+  function setup(input: { isExpanded?: boolean; canRemove?: boolean; locked?: ConfigurationLock; shouldScrollIntoView?: boolean }) {
     const values = defaultServiceWithPlacement({ title: "web" });
     const ImageSection = vi.fn(() => null);
     const HardwareSection = vi.fn(() => null);
@@ -133,14 +138,13 @@ describe(ServiceCard.name, () => {
       return <FormProvider {...form}>{children}</FormProvider>;
     };
 
-    render(
+    const { container } = render(
       <Wrapper>
         <ServiceCard
           service={values.services[0]}
           serviceIndex={0}
           isExpanded={input.isExpanded ?? true}
           onExpandedChange={onExpandedChange}
-          isConfigured={input.isConfigured ?? false}
           canRemove={input.canRemove ?? true}
           onRemove={onRemove}
           locked={input.locked}
@@ -151,6 +155,15 @@ describe(ServiceCard.name, () => {
     );
 
     const currentForm = () => form as UseFormReturn<SdlBuilderFormValuesType>;
-    return { ImageSection, HardwareSection, AdditionalSection, onExpandedChange, onRemove, form: currentForm, getValues: () => currentForm().getValues() };
+    return {
+      container,
+      ImageSection,
+      HardwareSection,
+      AdditionalSection,
+      onExpandedChange,
+      onRemove,
+      form: currentForm,
+      getValues: () => currentForm().getValues()
+    };
   }
 });

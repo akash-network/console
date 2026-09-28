@@ -102,7 +102,6 @@ export const ConfigureEditor: FC<Props> = ({
               services={activeServices}
               selectedServiceId={selectedServiceId}
               onSelectService={onSelectService}
-              isServiceConfigured={status.isServiceConfigured}
               canRemoveService={manager.canRemoveServiceFrom(activePlacementId)}
               onRemoveService={manager.removeService}
               onAddService={addService}

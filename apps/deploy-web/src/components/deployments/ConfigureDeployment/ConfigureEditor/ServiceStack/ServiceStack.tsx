@@ -13,7 +13,6 @@ type Props = {
   services: IndexedService[];
   selectedServiceId: string;
   onSelectService: (serviceId: string) => void;
-  isServiceConfigured: (serviceId: string) => boolean;
   canRemoveService: boolean;
   onRemoveService: (serviceId: string) => void;
   onAddService: () => string;
@@ -29,7 +28,6 @@ export const ServiceStack: FC<Props> = ({
   services,
   selectedServiceId,
   onSelectService,
-  isServiceConfigured,
   canRemoveService,
   onRemoveService,
   onAddService,
@@ -78,14 +76,13 @@ export const ServiceStack: FC<Props> = ({
           serviceIndex={index}
           isExpanded={expandedIds.has(service.id)}
           onExpandedChange={expanded => changeExpanded(service.id as string, expanded)}
-          isConfigured={isServiceConfigured(service.id as string)}
           canRemove={canRemoveService}
           onRemove={() => onRemoveService(service.id as string)}
           locked={locked}
           shouldScrollIntoView={service.id === scrollTargetId}
         />
       ))}
-      <Button type="button" variant="outline" disabled={!!locked} onClick={addService} className="gap-1.5">
+      <Button type="button" variant="outline" disabled={!!locked} onClick={addService} className="gap-1.5 self-start">
         <PlusIcon className="h-4 w-4" />
         Add service
       </Button>

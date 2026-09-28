@@ -298,7 +298,6 @@ describe(ConfigureWorkspace.name, () => {
       useRequestQuotes,
       useRetryDeploy: () => retryDeploy,
       useConfigurationStatus: () => ({
-        isServiceConfigured: () => true,
         placementStatus: placementId => (placementId === input.incompletePlacementId ? "incomplete" : "complete")
       }),
       useScreenedProviders,

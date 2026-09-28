@@ -7,11 +7,10 @@ import type { ConfigStatus } from "../DeploymentPane/ConfigStatusIcon/ConfigStat
 import { isServiceConfigured } from "../DeploymentPane/useServiceStatus/useServiceStatus";
 
 export interface ConfigurationStatus {
-  isServiceConfigured: (serviceId: string) => boolean;
   placementStatus: (placementId: string) => ConfigStatus;
 }
 
-/** Validates each visible service once per form change, so a card header, a placement tab and the footer never parse the schema on their own. */
+/** Validates each visible service once per form change, so the placement tabs and the footer never parse the schema on their own. */
 export function useConfigurationStatus(): ConfigurationStatus {
   const { control } = useFormContext<SdlBuilderFormValuesType>();
   const values = useWatch({ control }) as SdlBuilderFormValuesType;
@@ -23,7 +22,6 @@ export function configurationStatusOf(values: SdlBuilderFormValuesType): Configu
   const configured = new Map(visibleServices.map(({ service, index }) => [service.id, isServiceConfigured(values, index)]));
 
   return {
-    isServiceConfigured: serviceId => configured.get(serviceId) ?? false,
     placementStatus: placementId => {
       const statuses = visibleServices.filter(({ service }) => service.placementId === placementId).map(({ service }) => configured.get(service.id));
       const completeCount = statuses.filter(Boolean).length;
