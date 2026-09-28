@@ -430,9 +430,11 @@ jobs:
           persist-credentials: false
           sparse-checkout: |
             .github
+      # Skipped once another job failed: the check fails regardless, and there is no point waiting for Codecov first.
       - name: Conditionally required codecov/patch check
         if: >-
-          needs.tests.result == 'success' && needs.merge-test-reports.result != 'failure' && github.event_name == 'pull_request' && (
+          needs.tests.result == 'success' && !contains(needs.*.result, 'failure') && !contains(needs.*.result, 'cancelled')
+          && github.event_name == 'pull_request' && (
             inputs.app == 'api' ||
             inputs.app == 'deploy-web' ||
             inputs.app == 'notifications' ||
