@@ -56,7 +56,7 @@ describe("Addresses API", () => {
         assets: [
           {
             amount: 1,
-            logoUrl: "https://console.akash.network/images/akash-logo.svg",
+            logoUrl: "https://console-cdn.akash.network/akash%20network%20logos/akash-sign-red.svg",
             symbol: "AKT"
           }
         ],
@@ -189,6 +189,18 @@ describe("Addresses API", () => {
       expect(result.results.map(({ dseq, leases }) => ({ dseq, leases: leases.map(({ id }) => id) }))).toEqual([
         { dseq: "111", leases: ["11111"] },
         { dseq: "222", leases: ["22211"] }
+      ]);
+    });
+
+    it("attaches the provider of each lease", async () => {
+      const { address, provider } = await setup();
+
+      const response = await app.request(`/v1/addresses/${address}/deployments/0/10?status=active`);
+
+      const result = (await response.json()) as ListWithResourcesResponse;
+      expect(result.results.flatMap(({ leases }) => leases.map(lease => lease.provider))).toEqual([
+        expect.objectContaining({ address: provider.owner, hostUri: provider.hostUri }),
+        expect.objectContaining({ address: provider.owner, hostUri: provider.hostUri })
       ]);
     });
 
@@ -592,6 +604,7 @@ describe("Addresses API", () => {
 
     return {
       address,
+      provider,
       validators,
       transactions
     };

@@ -1,5 +1,5 @@
-import type { Provider, ProviderSnapshot } from "@akashnetwork/database/dbSchemas/akash";
-import { ProviderAttribute, ProviderAttributeSignature } from "@akashnetwork/database/dbSchemas/akash";
+import type { ProviderSnapshot } from "@akashnetwork/database/dbSchemas/akash";
+import { Provider, ProviderAttribute, ProviderAttributeSignature } from "@akashnetwork/database/dbSchemas/akash";
 import subDays from "date-fns/subDays";
 import map from "lodash/map";
 import nock from "nock";
@@ -8,15 +8,17 @@ import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 
 import { cacheEngine } from "@src/caching/helpers";
 import { AUDITOR, TRIAL_ATTRIBUTE } from "@src/deployment/config/provider.config";
-import type { ProviderListResponse, ProviderResponse } from "@src/provider/http-schemas/provider.schema";
+import type { ProviderListResponse, ProviderLocationsResponse, ProviderResponse, ProviderSearchResponse } from "@src/provider/http-schemas/provider.schema";
 import { app, initDb } from "@src/rest-app";
 
 import {
+  createAkashAddress,
   createDay,
   createDeployment,
   createDeploymentGroup,
   createLease,
   createProvider,
+  createProviderSeed,
   createProviderSnapshot,
   createProviderSnapshotNode,
   createProviderSnapshotNodeCpu
@@ -165,6 +167,106 @@ describe("Providers", () => {
       const response = await app.request(`/v1/providers?addresses=${addresses}`);
 
       expect(response.status).toBe(400);
+    });
+  });
+
+  describe("GET /v1/provider-search", () => {
+    it("answers a page of the providers matching the filters and how many matched", async () => {
+      const matching = await Promise.all([createProvider({ isOnline: true }), createProvider({ isOnline: true }), createProvider({ isOnline: true })]);
+      const offline = await createProvider({ isOnline: false });
+      const unaudited = await Provider.create(createProviderSeed({ isOnline: true }));
+      const addresses = [...matching, offline, unaudited].map(provider => provider.owner).join(",");
+
+      const response = await app.request(`/v1/provider-search?addresses=${addresses}&online=true&audited=true&skip=1&limit=1`);
+
+      const { data } = (await response.json()) as ProviderSearchResponse;
+      expect(response.status).toBe(200);
+      expect(data.pagination).toEqual({ total: 3, skip: 1, limit: 1, hasMore: true });
+      expect(data.providers).toHaveLength(1);
+      expect(map(matching, "owner")).toContain(data.providers[0].owner);
+    });
+
+    it("finds a provider by part of its host URI", async () => {
+      const provider = await createProvider({ hostUri: "https://provider.searchable-host.example.com:8443" });
+
+      const response = await app.request("/v1/provider-search?search=SEARCHABLE-HOST");
+
+      const { data } = (await response.json()) as ProviderSearchResponse;
+      expect(map(data.providers, "owner")).toEqual([provider.owner]);
+    });
+
+    it("orders providers by how many leases the wallet holds on them", async () => {
+      const walletAddress = createAkashAddress();
+      const [mostlyClosed, runningOne, runningTwo] = await Promise.all([createProvider(), createProvider(), createProvider()]);
+      const deployment = await createDeployment({ owner: walletAddress });
+      const deploymentGroup = await createDeploymentGroup({ deploymentId: deployment.id, owner: walletAddress });
+      const leaseOf = (provider: Provider, closedHeight: number | null) =>
+        createLease({
+          owner: walletAddress,
+          providerAddress: provider.owner,
+          deploymentId: deployment.id,
+          deploymentGroupId: deploymentGroup.id,
+          closedHeight
+        });
+      await Promise.all([
+        leaseOf(mostlyClosed, 10),
+        leaseOf(mostlyClosed, 20),
+        leaseOf(mostlyClosed, 30),
+        leaseOf(runningOne, null),
+        leaseOf(runningTwo, null),
+        leaseOf(runningTwo, null)
+      ]);
+      const addresses = [mostlyClosed, runningOne, runningTwo].map(provider => provider.owner).join(",");
+
+      const [allLeases, activeLeases] = await Promise.all([
+        app.request(`/v1/provider-search?addresses=${addresses}&sort=wallet-leases-desc&walletAddress=${walletAddress}`),
+        app.request(`/v1/provider-search?addresses=${addresses}&sort=wallet-active-leases-desc&walletAddress=${walletAddress}`)
+      ]);
+
+      expect(map(((await allLeases.json()) as ProviderSearchResponse).data.providers, "owner")).toEqual([
+        mostlyClosed.owner,
+        runningTwo.owner,
+        runningOne.owner
+      ]);
+      expect(map(((await activeLeases.json()) as ProviderSearchResponse).data.providers, "owner")).toEqual([
+        runningTwo.owner,
+        runningOne.owner,
+        mostlyClosed.owner
+      ]);
+    });
+
+    it("refuses to sort by a wallet's leases without the wallet address", async () => {
+      const response = await app.request("/v1/provider-search?sort=wallet-leases-desc");
+
+      expect(response.status).toBe(400);
+    });
+
+    it("refuses a page longer than 100 providers", async () => {
+      const response = await app.request("/v1/provider-search?limit=101");
+
+      expect(response.status).toBe(400);
+    });
+  });
+
+  describe("GET /v1/provider-locations", () => {
+    it("locates online providers and leaves offline ones out", async () => {
+      const online = await createProvider({ isOnline: true, ipRegion: "Quebec", ipCountryCode: "CA", ipLat: "45.5", ipLon: "-73.6" });
+      const offline = await createProvider({ isOnline: false });
+
+      const response = await app.request("/v1/provider-locations");
+
+      const { data } = (await response.json()) as ProviderLocationsResponse;
+      expect(response.status).toBe(200);
+      expect(data).toContainEqual({
+        owner: online.owner,
+        name: new URL(online.hostUri).hostname,
+        hostUri: online.hostUri,
+        ipRegion: "Quebec",
+        ipCountryCode: "CA",
+        ipLat: "45.5",
+        ipLon: "-73.6"
+      });
+      expect(map(data, "owner")).not.toContain(offline.owner);
     });
   });
 
