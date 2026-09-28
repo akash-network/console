@@ -18,9 +18,11 @@
   "scripts": {
     "format": "prettier --write ./*.{ts,json} **/*.{ts,json}",
     "lint": "eslint .",
+    "test": "vitest run",
     "validate:types": "tsc -p tsconfig.build.json --noEmit && echo"
   },
   "dependencies": {
+    "@akashnetwork/logging": "*",
     "@opentelemetry/api": "^1.9.0",
     "@opentelemetry/core": "^2.5.1",
     "@opentelemetry/instrumentation-http": "^0.212.0",
@@ -34,7 +36,9 @@
   },
   "devDependencies": {
     "@akashnetwork/dev-config": "*",
+    "drizzle-orm": "^0.45.2",
     "typescript": "~5.8.2",
-    "vitest": "^4.0.0"
+    "vitest": "^4.0.0",
+    "vitest-mock-extended": "^4.0.0"
   }
 }

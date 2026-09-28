@@ -1,3 +1,4 @@
+import { redactQueryError } from "@akashnetwork/logging";
 import { DiscoveryService } from "@golevelup/nestjs-discovery";
 import { Injectable } from "@nestjs/common";
 import { validate, ZodDto } from "nestjs-zod";
@@ -59,13 +60,14 @@ export class PgBossHandlerService {
           key: config.key
         });
       } catch (error) {
+        const redactedError = redactQueryError(error);
         this.loggerService.error({
           event: "MESSAGE_WORKER_FAILURE",
           key: config.key,
           job,
-          error
+          error: redactedError
         });
-        throw error;
+        throw redactedError;
       }
     });
   }
