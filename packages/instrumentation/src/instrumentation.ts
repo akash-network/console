@@ -7,7 +7,10 @@ import { containerDetector } from "@opentelemetry/resource-detector-container";
 import { envDetector, hostDetector, processDetector } from "@opentelemetry/resources";
 import { NodeSDK } from "@opentelemetry/sdk-node";
 
+import { requestSampler } from "./sampler/request-sampler";
+
 export const sdk = new NodeSDK({
+  sampler: requestSampler,
   instrumentations: [
     new RuntimeNodeInstrumentation({
       monitoringPrecision: 10 // this is actually a resolution option for nodejs perf_hooks not a reporting option
