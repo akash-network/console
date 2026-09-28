@@ -21,8 +21,10 @@ import type { FallbackLeaseReaderService } from "@src/deployment/services/fallba
 import type { LeaseGpusByLease, LeaseGpuService } from "@src/deployment/services/lease-gpu/lease-gpu.service";
 import type { MessageService } from "@src/deployment/services/message-service/message.service";
 import type { ProviderService } from "@src/provider/services/provider/provider.service";
+import type { ProviderList } from "@src/types/provider";
 import { DeploymentReaderService, MAX_SEARCHABLE_DEPLOYMENTS } from "./deployment-reader.service";
 
+import { createAkashAddress } from "@test/seeders/akash-address.seeder";
 import { createDeploymentInfoGroupSeed, createDeploymentInfoSeed } from "@test/seeders/deployment-info.seeder";
 import { createDeploymentListResponseSeed } from "@test/seeders/deployment-list-response.seeder";
 import { createLeaseApiResponse } from "@test/seeders/lease-api-response.seeder";
@@ -925,6 +927,63 @@ describe(DeploymentReaderService.name, () => {
       expect(leaseHttpService.list).not.toHaveBeenCalled();
     });
 
+    it("attaches to each lease the provider looked up by the addresses of the listed deployments' leases only", async () => {
+      const wallet = createUserWallet() as WalletInitialized;
+      const listedProvider = mock<ProviderList>({ owner: createAkashAddress(), hostUri: "https://listed.example.com:8443" });
+      const unlistedProviderAddress = createAkashAddress();
+      const { service, providerService } = setup({
+        wallet,
+        listedDseqs: ["100"],
+        providers: [listedProvider],
+        leasePages: [
+          {
+            leases: [
+              createLeaseApiResponse({ owner: wallet.address, dseq: "100", gseq: 1, oseq: 1, provider: listedProvider.owner }),
+              createLeaseApiResponse({ owner: wallet.address, dseq: "100", gseq: 2, oseq: 1, provider: listedProvider.owner }),
+              createLeaseApiResponse({ owner: wallet.address, dseq: "999", gseq: 1, oseq: 1, provider: unlistedProviderAddress })
+            ],
+            nextKey: null
+          }
+        ]
+      });
+
+      const result = await service.listWithResources({ address: wallet.address, status: "active" });
+
+      expect(providerService.getProviderListByAddresses).toHaveBeenCalledExactlyOnceWith([listedProvider.owner]);
+      expect(result.results[0].leases.map(({ provider }) => ({ address: provider?.address, hostUri: provider?.hostUri }))).toEqual([
+        { address: listedProvider.owner, hostUri: listedProvider.hostUri },
+        { address: listedProvider.owner, hostUri: listedProvider.hostUri }
+      ]);
+    });
+
+    it("leaves the provider out of a lease whose provider the lookup does not know", async () => {
+      const wallet = createUserWallet() as WalletInitialized;
+      const { service } = setup({
+        wallet,
+        listedDseqs: ["100"],
+        providers: [],
+        leasePages: [{ leases: [createLeaseApiResponse({ owner: wallet.address, dseq: "100", gseq: 1, oseq: 1 })], nextKey: null }]
+      });
+
+      const result = await service.listWithResources({ address: wallet.address, status: "active" });
+
+      expect(result.results[0].leases[0].provider).toBeUndefined();
+    });
+
+    it("skips the provider lookup when no listed deployment holds an active lease", async () => {
+      const wallet = createUserWallet() as WalletInitialized;
+      const { service, providerService } = setup({
+        wallet,
+        listedDseqs: ["100"],
+        leasePages: [{ leases: [createLeaseApiResponse({ owner: wallet.address, dseq: "999", gseq: 1, oseq: 1 })], nextKey: null }]
+      });
+
+      const result = await service.listWithResources({ address: wallet.address, status: "active" });
+
+      expect(result.results[0].leases).toEqual([]);
+      expect(providerService.getProviderListByAddresses).not.toHaveBeenCalled();
+    });
+
     it("asks the chain for the next page of leases with the cursor it handed back", async () => {
       const wallet = createUserWallet() as WalletInitialized;
       const { service, leaseHttpService } = setup({
@@ -1000,6 +1059,7 @@ describe(DeploymentReaderService.name, () => {
       chainTotal?: string;
       deploymentCount?: number;
       leaseGpus?: Map<string, LeaseGpusByLease>;
+      providers?: ProviderList[];
     } = {}
   ) {
     const defaultWallet = createUserWallet() as WalletInitialized;
@@ -1014,7 +1074,7 @@ describe(DeploymentReaderService.name, () => {
 
     const mocks = {
       providerService: mock<ProviderService>({
-        getProviderList: vi.fn().mockResolvedValue([]),
+        getProviderListByAddresses: vi.fn().mockResolvedValue(input.providers ?? []),
         getLeaseStatus: vi.fn().mockResolvedValue(null),
         toProviderAuth: vi.fn().mockResolvedValue({ type: "jwt", token: "test" })
       }),

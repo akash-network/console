@@ -7,6 +7,8 @@ import { localConfig } from "./test/services/local.config";
 import tsconfig from "./tsconfig.build.json";
 
 export default defineConfig({
+  /** unplugin-swc turns Vite's TypeScript transform off with `esbuild: false`, which Vite 8 ignores, so Oxc would transpile every file SWC already did. */
+  oxc: false,
   plugins: [
     swc.vite({
       jsc: {

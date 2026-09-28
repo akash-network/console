@@ -426,7 +426,7 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
           dseq: result.data.dseq,
           secretCount: Object.keys(secrets).length
         });
-        cacheDeployedSdl(deploymentLocalStorage, settingsId, result.data.dseq, sdl);
+        if (!isSecretsEnabled) cacheDeployedSdl(deploymentLocalStorage, settingsId, result.data.dseq, sdl);
         router.replace(buildConfigureUrl(intentRef.current, result.data.dseq, bidStrategyRef.current), undefined, { shallow: true });
       }
 
@@ -643,7 +643,7 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
           analyticsService.track("create_gpu_deployment", { category: "deployments", label: "Create lease", dseq: activeDseq, ...resources });
         }
         analyticsService.track("send_manifest", { category: "deployments", label: "Send manifest after creating lease", dseq: activeDseq });
-        cacheDeployedSdl(deploymentLocalStorage, owner, activeDseq, sdl);
+        if (!isSecretsEnabled) cacheDeployedSdl(deploymentLocalStorage, owner, activeDseq, sdl);
         queryClient.invalidateQueries({ queryKey: QueryKeys.getLeaseExistenceKey(owner) });
         queryClient.invalidateQueries({ queryKey: QueryKeys.getAllLeasesKey(owner) });
         queryClient.invalidateQueries({ queryKey: QueryKeys.getDeploymentListKey(owner) });
@@ -780,7 +780,7 @@ function isInheritedSecretsUnreadable(cause: unknown): boolean {
   return extractApiErrorCode(cause) === INHERITED_SECRETS_UNREADABLE_CODE;
 }
 
-/** Best-effort cache under owner + dseq (the key the detail page reads); failures are swallowed so storage issues never block deploy. */
+/** Kept only while creates go unsealed, since a sealed one leaves the api's copy complete; failures are swallowed so storage never blocks a deploy. */
 function cacheDeployedSdl(
   storage: ReturnType<typeof useServices>["deploymentLocalStorage"],
   owner: string | null | undefined,

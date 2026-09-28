@@ -21,7 +21,7 @@ import { useProviderAccess } from "@src/hooks/useProviderAccess/useProviderAcces
 import { useProviderApiActions } from "@src/hooks/useProviderApiActions";
 import { useProviderCredentials } from "@src/hooks/useProviderCredentials/useProviderCredentials";
 import { useLeaseStatus } from "@src/queries/useLeaseQuery";
-import { useProviderList } from "@src/queries/useProvidersQuery";
+import { useProvidersByAddresses } from "@src/queries/useProvidersQuery";
 import type { LeaseDto } from "@src/types/deployment";
 import { keepSelectedLease } from "@src/utils/leaseUtils";
 import { LeaseSelect } from "./LeaseSelect";
@@ -39,13 +39,13 @@ export const DeploymentLogs: React.FunctionComponent<Props> = ({ leases, selecte
   const [selectedServices, setSelectedServices] = useState<string[]>([]);
   const [stickToBottom, setStickToBottom] = useState(true);
   const [selectedLease, setSelectedLease] = useState<LeaseDto | null>(null);
-  const { data: providers } = useProviderList();
+  const { data: providers } = useProvidersByAddresses(selectedLease ? [selectedLease.provider] : []);
   const providerCredentials = useProviderCredentials();
   const hasLogsAccess = useProviderAccess(providerCredentials);
   const { downloadLogs } = useProviderApiActions();
   const monacoEditorRef = useRef<editor.IStandaloneCodeEditor | null>(null);
   const monacoRef = useRef<Monaco | null>(null);
-  const providerInfo = providers?.find(p => p.owner === selectedLease?.provider);
+  const providerInfo = providers.find(p => p.owner === selectedLease?.provider);
   const providerHostUri = providerInfo?.hostUri;
   const providerAddress = providerInfo?.owner;
   const dseq = selectedLease?.dseq;

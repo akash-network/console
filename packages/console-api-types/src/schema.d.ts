@@ -3370,90 +3370,7 @@ export interface paths {
       cookie?: never;
     };
     /** Get a list of providers. */
-    get: {
-      parameters: {
-        query?: {
-          scope?: "all" | "trial";
-          addresses?: string;
-        };
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: never;
-      responses: {
-        /** @description Returns a list of providers */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": {
-              owner: string;
-              name: string | null;
-              hostUri: string;
-              createdHeight: number;
-              email?: string | null;
-              website?: string | null;
-              lastCheckDate?: string | null;
-              deploymentCount?: number | null;
-              leaseCount?: number | null;
-              cosmosSdkVersion: string;
-              akashVersion: string;
-              ipRegion: string | null;
-              ipRegionCode: string | null;
-              ipCountry: string | null;
-              ipCountryCode: string | null;
-              ipLat: string | null;
-              ipLon: string | null;
-              uptime1d: number | null;
-              uptime7d: number | null;
-              uptime30d: number | null;
-              isValidVersion: boolean;
-              isOnline: boolean;
-              lastOnlineDate: string | null;
-              isAudited: boolean;
-              gpuModels: {
-                vendor: string;
-                model: string;
-                ram: string;
-                interface: string;
-              }[];
-              attributes: {
-                key: string;
-                value: string;
-                auditedBy: string[];
-              }[];
-              host: string | null;
-              organization: string | null;
-              statusPage: string | null;
-              locationRegion: string | null;
-              country: string | null;
-              city: string | null;
-              timezone: string | null;
-              locationType: string | null;
-              hostingProvider: string | null;
-              hardwareCpu: string | null;
-              hardwareCpuArch: string | null;
-              hardwareGpuVendor: string | null;
-              hardwareGpuModels: string[] | null;
-              hardwareDisk: string[] | null;
-              featPersistentStorage: boolean;
-              featPersistentStorageType: string[] | null;
-              hardwareMemory: string | null;
-              networkProvider: string | null;
-              networkSpeedDown: number;
-              networkSpeedUp: number;
-              tier: string | null;
-              featEndpointCustomDomain: boolean;
-              workloadSupportChia: boolean;
-              workloadSupportChiaCapabilities: string[] | null;
-              featEndpointIp: boolean;
-            }[];
-          };
-        };
-      };
-    };
+    get: operations["listProviders"];
     put?: never;
     post?: never;
     delete?: never;
@@ -9898,6 +9815,90 @@ export interface operations {
               } | null;
             }[];
           };
+        };
+      };
+    };
+  };
+  listProviders: {
+    parameters: {
+      query?: {
+        scope?: "all" | "trial";
+        addresses?: string;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Returns a list of providers */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            owner: string;
+            name: string | null;
+            hostUri: string;
+            createdHeight: number;
+            email?: string | null;
+            website?: string | null;
+            lastCheckDate?: string | null;
+            deploymentCount?: number | null;
+            leaseCount?: number | null;
+            cosmosSdkVersion: string;
+            akashVersion: string;
+            ipRegion: string | null;
+            ipRegionCode: string | null;
+            ipCountry: string | null;
+            ipCountryCode: string | null;
+            ipLat: string | null;
+            ipLon: string | null;
+            uptime1d: number | null;
+            uptime7d: number | null;
+            uptime30d: number | null;
+            isValidVersion: boolean;
+            isOnline: boolean;
+            lastOnlineDate: string | null;
+            isAudited: boolean;
+            gpuModels: {
+              vendor: string;
+              model: string;
+              ram: string;
+              interface: string;
+            }[];
+            attributes: {
+              key: string;
+              value: string;
+              auditedBy: string[];
+            }[];
+            host: string | null;
+            organization: string | null;
+            statusPage: string | null;
+            locationRegion: string | null;
+            country: string | null;
+            city: string | null;
+            timezone: string | null;
+            locationType: string | null;
+            hostingProvider: string | null;
+            hardwareCpu: string | null;
+            hardwareCpuArch: string | null;
+            hardwareGpuVendor: string | null;
+            hardwareGpuModels: string[] | null;
+            hardwareDisk: string[] | null;
+            featPersistentStorage: boolean;
+            featPersistentStorageType: string[] | null;
+            hardwareMemory: string | null;
+            networkProvider: string | null;
+            networkSpeedDown: number;
+            networkSpeedUp: number;
+            tier: string | null;
+            featEndpointCustomDomain: boolean;
+            workloadSupportChia: boolean;
+            workloadSupportChiaCapabilities: string[] | null;
+            featEndpointIp: boolean;
+          }[];
         };
       };
     };
