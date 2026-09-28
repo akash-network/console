@@ -1,16 +1,21 @@
 "use client";
-import { Badge, Card, CardContent } from "@akashnetwork/ui/components";
+import { Badge, Card, CardContent, CustomTooltip } from "@akashnetwork/ui/components";
 import { Check, WarningCircle } from "iconoir-react";
 
 import { LabelValue } from "@src/components/shared/LabelValue";
-import type { ClientProviderDetailWithStatus, CpuArchAgreement } from "@src/types/provider";
+import type { ClientProviderDetailWithStatus, CpuArchAgreement, ProviderGpuDriver } from "@src/types/provider";
 import { createFilterUnique } from "@src/utils/array";
+
+export const DEPENDENCIES = {
+  CustomTooltip
+};
 
 type Props = {
   provider: ClientProviderDetailWithStatus;
+  dependencies?: typeof DEPENDENCIES;
 };
 
-export const ProviderSpecs: React.FunctionComponent<Props> = ({ provider }) => {
+export const ProviderSpecs: React.FunctionComponent<Props> = ({ provider, dependencies = DEPENDENCIES }) => {
   const gpuModels =
     provider?.gpuModels
       ?.map(x => x.model + " " + x.ram)
@@ -38,6 +43,7 @@ export const ProviderSpecs: React.FunctionComponent<Props> = ({ provider }) => {
               </Badge>
             ))}
           />
+          <LabelValue label="GPU Driver (observed)" value={<ObservedGpuDrivers drivers={provider.gpuDrivers ?? []} dependencies={dependencies} />} />
           <LabelValue label="CPU Architecture (declared)" value={provider.hardwareCpuArch || "Unknown"} />
           <LabelValue
             label="CPU Architecture (reported)"
@@ -49,6 +55,25 @@ export const ProviderSpecs: React.FunctionComponent<Props> = ({ provider }) => {
         </div>
       </CardContent>
     </Card>
+  );
+};
+
+const ObservedGpuDrivers: React.FunctionComponent<{ drivers: ProviderGpuDriver[]; dependencies: typeof DEPENDENCIES }> = ({
+  drivers,
+  dependencies: d
+}) => {
+  if (drivers.length === 0) return <>Unknown</>;
+
+  return (
+    <span className="flex flex-wrap items-center gap-2">
+      {drivers.map(driver => (
+        <d.CustomTooltip key={driver.driverVersion} title={`Last seen ${driver.lastSeenDate} on a Console deployment`}>
+          <span>
+            <Badge>{driver.cudaVersion ? `${driver.driverVersion} · CUDA ${driver.cudaVersion}` : driver.driverVersion}</Badge>
+          </span>
+        </d.CustomTooltip>
+      ))}
+    </span>
   );
 };
 

@@ -1,0 +1,1 @@
+CREATE INDEX "deployment_settings_detected_gpus_idx" ON "deployment_settings" USING gin ("detected_gpus" jsonb_path_ops) WHERE "deployment_settings"."detected_gpus" IS NOT NULL;

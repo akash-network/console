@@ -13,6 +13,7 @@ import { LeaseStatusResponse } from "@src/deployment/http-schemas/lease.schema";
 import type { Auditor } from "@src/provider/http-schemas/auditor.schema";
 import { ProviderRepository } from "@src/provider/repositories/provider/provider.repository";
 import { ProviderAuth, ProviderIdentity, ProviderProxyService } from "@src/provider/services/provider/provider-proxy.service";
+import { ProviderGpuDriverService } from "@src/provider/services/provider-gpu-driver/provider-gpu-driver.service";
 import { ProviderJwtTokenService } from "@src/provider/services/provider-jwt-token/provider-jwt-token.service";
 import { ProviderDetail, ProviderList } from "@src/types/provider";
 import { toUTC } from "@src/utils";
@@ -59,6 +60,7 @@ export class ProviderService {
     private readonly providerAttributesSchemaService: ProviderAttributesSchemaService,
     private readonly auditorsService: AuditorService,
     private readonly jwtTokenService: ProviderJwtTokenService,
+    private readonly providerGpuDriverService: ProviderGpuDriverService,
     @inject(LOGGER_FACTORY) createLogger: CreateLogger
   ) {
     this.logger = createLogger({ context: ProviderService.name });
@@ -318,9 +320,10 @@ export class ProviderService {
         })
       : null;
 
-    const [auditors, providerAttributeSchema] = await Promise.all([
+    const [auditors, providerAttributeSchema, gpuDrivers] = await Promise.all([
       this.auditorsService.getAuditors(),
-      this.providerAttributesSchemaService.getProviderAttributesSchema()
+      this.providerAttributesSchemaService.getProviderAttributesSchema(),
+      this.providerGpuDriverService.findRecentDrivers(provider.owner)
     ]);
 
     const providerList = mapProviderToList(provider, providerAttributeSchema, auditors, lastSuccessfulSnapshot ?? undefined);
@@ -330,6 +333,7 @@ export class ProviderService {
       ...providerList,
       reportedCpuArchs,
       cpuArchAgreement: getCpuArchAgreement(providerList.hardwareCpuArch, reportedCpuArchs),
+      gpuDrivers,
       uptime: uptimeSnapshots.map(ps => ({
         id: ps.id,
         isOnline: ps.isOnline,

@@ -3492,6 +3492,26 @@ export interface paths {
                * @enum {string}
                */
               cpuArchAgreement: "match" | "mismatch" | "unknown";
+              /**
+               * @description Up to 5 NVIDIA driver versions Console confirmed on GPU leases it runs on this provider over the last 30 days, most recently read first. Empty when none has been confirmed.
+               * @example [
+               *       {
+               *         "driverVersion": "550.54.15",
+               *         "cudaVersion": "12.4",
+               *         "lastSeenDate": "2026-09-21"
+               *       }
+               *     ]
+               */
+              gpuDrivers: {
+                driverVersion: string;
+                /** @description The newest CUDA toolkit whose minimum Linux driver this driver meets, per NVIDIA's release notes. Null when it meets none of them. */
+                cudaVersion: string | null;
+                /**
+                 * @description The UTC day this driver was last read.
+                 * @example 2026-09-21
+                 */
+                lastSeenDate: string;
+              }[];
               hardwareGpuVendor: string | null;
               hardwareGpuModels: string[];
               hardwareDisk: string[];

@@ -1,3 +1,4 @@
+import type { ProviderGpuDriver } from "@src/provider/services/provider-gpu-driver/provider-gpu-driver.service";
 import type { CpuArchAgreement } from "@src/utils/cpu-arch/cpu-arch";
 
 export interface ProviderList {
@@ -80,6 +81,7 @@ export interface ProviderCapacityStats {
 export interface ProviderDetail extends ProviderList {
   reportedCpuArchs: string[];
   cpuArchAgreement: CpuArchAgreement;
+  gpuDrivers: ProviderGpuDriver[];
   uptime: {
     id: string;
     isOnline: boolean;
