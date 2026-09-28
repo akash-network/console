@@ -109,6 +109,7 @@ jobs:
       # not exist yet, so a shim puts the docker package's `dc` on PATH for the app's `test:ci-setup` script,
       # which creates the buildx builder it needs itself.
       - name: Start tests environment
+        id: start_tests_env
         if: ${{ steps.tests_details.outputs.requires_env_setup == 'true' }}
         env:
           USE_DOCKER_BUILDKIT: 1
@@ -120,8 +121,9 @@ jobs:
           mkdir -p "$RUNNER_TEMP/test-env-bin"
           ln -sf "$GITHUB_WORKSPACE/packages/docker/script/dc.sh" "$RUNNER_TEMP/test-env-bin/dc"
           (
-            PATH="$RUNNER_TEMP/test-env-bin:$PATH" npm run --if-present --workspace="apps/$APP_TO_VALIDATE" test:ci-setup > "$RUNNER_TEMP/test-env.log" 2>&1
-            echo "$?" > "$RUNNER_TEMP/test-env.status.tmp"
+            status=0
+            PATH="$RUNNER_TEMP/test-env-bin:$PATH" npm run --if-present --workspace="apps/$APP_TO_VALIDATE" test:ci-setup > "$RUNNER_TEMP/test-env.log" 2>&1 || status=$?
+            echo "$status" > "$RUNNER_TEMP/test-env.status.tmp"
             mv "$RUNNER_TEMP/test-env.status.tmp" "$RUNNER_TEMP/test-env.status"
           ) < /dev/null > /dev/null 2>&1 &
 
@@ -130,8 +132,9 @@ jobs:
         with:
           app: ${{ inputs.app }}
 
+      # Also runs after a failed dependency restore, so the teardown never races containers that are still starting.
       - name: Wait for tests environment
-        if: ${{ steps.tests_details.outputs.requires_env_setup == 'true' }}
+        if: ${{ !cancelled() && steps.start_tests_env.outcome == 'success' }}
         timeout-minutes: 5
         run: | # shell
           until [[ -f "$RUNNER_TEMP/test-env.status" ]]; do sleep 1; done
