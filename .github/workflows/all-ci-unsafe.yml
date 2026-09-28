@@ -14,12 +14,12 @@ on:
   workflow_run:
     workflows: ["CI"]
     types: [requested]
-  # pull_request: # uncomment to test this workflow in PR
+  pull_request:
 
 # Keyed on the scanned commit, not the branch: a branch-wide key lets a newer commit's scan cancel an
 # older commit's scan mid-flight, orphaning the check run it already created as permanently pending.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.workflow_run.head_sha || github.event.pull_request.head.sha }}
+  group: ${{ github.workflow }}-${{ github.event.workflow_run.head_sha || github.event.pull_request.head.sha }}${{ github.event_name == 'pull_request' && '-pr-copy' || '' }}
   cancel-in-progress: true
 
 permissions:
