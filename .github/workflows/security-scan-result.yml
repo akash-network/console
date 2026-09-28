@@ -8,7 +8,7 @@
 name: Security Scan Result
 
 on:
-  workflow_run:
+  workflow_run: # zizmor: ignore[dangerous-triggers] reads CI's conclusion and check runs, and never checks out or runs pull request code
     workflows: ["CI"]
     types: [completed]
   # pull_request: # uncomment to test this workflow in PR
@@ -21,8 +21,6 @@ concurrency:
 
 permissions:
   contents: read
-  pull-requests: read
-  checks: write # to create check run on related PR
 
 # Normalizes the parent-CI context into a single set of env vars so downstream
 # jobs don't need to branch on `github.event_name`. On `workflow_run` these come
@@ -36,6 +34,10 @@ env:
 jobs:
   create-check-run:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+      checks: write # to create check run on related PR
     outputs:
       run_scan: ${{ steps.decide.outputs.run_scan }}
       event: ${{ env.PARENT_WORKFLOW_EVENT }}
@@ -171,6 +173,9 @@ jobs:
     needs: [create-check-run]
     if: ${{ needs.create-check-run.outputs.run_scan == 'true' }}
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      checks: read
     steps:
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -188,6 +193,8 @@ jobs:
 
   finalize:
     runs-on: ubuntu-latest
+    permissions:
+      checks: write # to complete the check run on related PR
     needs: [create-check-run, wait-for-analysis]
     if: ${{ always() && needs.create-check-run.result == 'success' && needs.create-check-run.outputs.check_run_id != '' }}
     steps:
