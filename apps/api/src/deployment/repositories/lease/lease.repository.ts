@@ -23,6 +23,12 @@ export interface ActiveLeaseOnProvider {
   providerAddress: string;
 }
 
+export interface ProviderLeaseCount {
+  providerAddress: string;
+  leaseCount: number;
+  activeLeaseCount: number;
+}
+
 export interface DatabaseLeaseListParams {
   owner?: string;
   dseq?: string;
@@ -77,6 +83,19 @@ export class LeaseRepository implements DrainingDeploymentLeaseSource {
         AND r."gpuUnits" > 0
         AND l."owner" IN (:owners)`,
       { type: QueryTypes.SELECT, replacements: { owners } }
+    );
+  }
+
+  async countLeasesPerProvider(owner: string): Promise<ProviderLeaseCount[]> {
+    return await this.#chainDb.query<ProviderLeaseCount>(
+      `/* lease:countPerProvider */
+      SELECT l."providerAddress",
+        COUNT(*)::int AS "leaseCount",
+        (COUNT(*) FILTER (WHERE l."closedHeight" IS NULL))::int AS "activeLeaseCount"
+      FROM lease l
+      WHERE l."owner" = :owner
+      GROUP BY l."providerAddress"`,
+      { type: QueryTypes.SELECT, replacements: { owner } }
     );
   }
 
