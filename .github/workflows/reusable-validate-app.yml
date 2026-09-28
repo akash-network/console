@@ -151,6 +151,7 @@ jobs:
           exit "$(cat "$RUNNER_TEMP/test-env.status")"
 
       - name: Run tests
+        id: run_tests
         if: ${{ steps.tests_details.outputs.has_tests == 'true' }}
         env:
           SHARD: ${{ matrix.shard }}
@@ -170,8 +171,9 @@ jobs:
         if: ${{ always() && steps.tests_details.outputs.requires_env_setup == 'true' }}
         run: npm run --if-present --workspace="apps/$APP_TO_VALIDATE" test:ci-teardown
 
+      # Vitest writes the blob when tests fail too, so a failing shard still reaches Codecov's test results.
       - name: Upload test report shard
-        if: ${{ steps.tests_details.outputs.has_tests == 'true' && strategy.job-total > 1 && github.event_name != 'merge_group' }}
+        if: ${{ !cancelled() && steps.run_tests.outcome != 'skipped' && strategy.job-total > 1 && github.event_name != 'merge_group' }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: test-reports-${{ inputs.app }}-${{ matrix.shard }}
@@ -202,7 +204,7 @@ jobs:
   # upload alone, and the result job would read that partial verdict.
   merge-test-reports:
     needs: tests
-    if: ${{ needs.tests.result == 'success' && inputs.test_shards != '[1]' && github.event_name != 'merge_group' }}
+    if: ${{ !cancelled() && needs.tests.result != 'skipped' && inputs.test_shards != '[1]' && github.event_name != 'merge_group' }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -226,6 +228,7 @@ jobs:
         run: npx vitest run --merge-reports=test-reports --coverage --reporter=default --reporter=junit
 
       - name: Upload test results to Codecov
+        if: ${{ !cancelled() }}
         uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
         with:
           report_type: test_results
@@ -235,6 +238,7 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
 
       - name: Upload Test Coverage
+        if: needs.tests.result == 'success'
         uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
         with:
           fail_ci_if_error: true
