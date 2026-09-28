@@ -20,6 +20,7 @@ export const providersRouter = new OpenApiHonoHandler();
 const providerListRoute = createRoute({
   method: "get",
   path: "/v1/providers",
+  operationId: "listProviders",
   summary: "Get a list of providers.",
   tags: ["Providers"],
   security: SECURITY_NONE,
