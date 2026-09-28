@@ -1,4 +1,4 @@
-import type { LeaseHttpService } from "@akashnetwork/http-sdk";
+import type { Bid, BidHttpService, LeaseHttpService } from "@akashnetwork/http-sdk";
 import type { LoggerService } from "@akashnetwork/logging";
 import createError from "http-errors";
 import { describe, expect, it, vi } from "vitest";
@@ -6,6 +6,7 @@ import { mock } from "vitest-mock-extended";
 
 import type { WalletInitialized } from "@src/billing/repositories";
 import type { ManagedSignerService, RpcMessageService } from "@src/billing/services";
+import type { ChainErrorService } from "@src/billing/services/chain-error/chain-error.service";
 import type { WalletReaderService } from "@src/billing/services/wallet-reader/wallet-reader.service";
 import type { GetDeploymentResponse } from "@src/deployment/http-schemas/deployment.schema";
 import type { DeploymentReaderService } from "@src/deployment/services/deployment-reader/deployment-reader.service";
@@ -14,11 +15,13 @@ import type { ProviderService } from "@src/provider/services/provider/provider.s
 import { LeaseService } from "./lease.service";
 
 import { createAkashAddress } from "@test/seeders/akash-address.seeder";
+import { createBid } from "@test/seeders/bid.seeder";
 import { createLeaseApiResponse } from "@test/seeders/lease-api-response.seeder";
 import { createUserWallet } from "@test/seeders/user-wallet.seeder";
 
 const MANIFEST = '{"version":"v2","groups":[]}';
 const DERIVED_MANIFEST = '{"version":"v2","groups":[{"name":"derived"}]}';
+const LEASE_ON_CLOSED_BID = createError(400, "Failed to create lease: Cannot create lease: The selected bid is no longer open.");
 
 describe(LeaseService.name, () => {
   describe("createLeasesAndSendManifest", () => {
@@ -100,6 +103,123 @@ describe(LeaseService.name, () => {
 
       expect(providerService.assertReachable).not.toHaveBeenCalled();
       expect(providerService.sendManifest).toHaveBeenCalledTimes(1);
+    });
+
+    it("refuses a lease on a bid the chain reports closed before signing anything or asking any provider", async () => {
+      const lease = { dseq: "100", gseq: 1, oseq: 1, provider: createAkashAddress() };
+      const { service, signerService, providerService, wallet } = setup({ bids: owner => [bidFor(owner, lease, "closed")] });
+
+      await expect(service.createLeasesAndSendManifest({ leases: [lease], manifest: MANIFEST, userId: wallet.userId })).rejects.toBe(LEASE_ON_CLOSED_BID);
+
+      expect(signerService.executeDerivedDecodedTxByUserId).not.toHaveBeenCalled();
+      expect(providerService.assertReachable).not.toHaveBeenCalled();
+      expect(providerService.sendManifest).not.toHaveBeenCalled();
+    });
+
+    it("refuses the whole request when any one placement's bid is closed", async () => {
+      const open = { dseq: "100", gseq: 1, oseq: 1, provider: createAkashAddress() };
+      const closed = { dseq: "100", gseq: 2, oseq: 1, provider: createAkashAddress() };
+      const { service, signerService, wallet } = setup({ bids: owner => [bidFor(owner, open, "open"), bidFor(owner, closed, "closed")] });
+
+      await expect(service.createLeasesAndSendManifest({ leases: [open, closed], manifest: MANIFEST, userId: wallet.userId })).rejects.toBe(
+        LEASE_ON_CLOSED_BID
+      );
+
+      expect(signerService.executeDerivedDecodedTxByUserId).not.toHaveBeenCalled();
+    });
+
+    it("leases a placement when one of its provider's bids is still open", async () => {
+      const lease = { dseq: "100", gseq: 1, oseq: 1, provider: createAkashAddress() };
+      const { service, signerService, wallet } = setup({
+        bids: owner => [bidFor(owner, lease, "closed", 1), bidFor(owner, lease, "open", 2)]
+      });
+
+      await service.createLeasesAndSendManifest({ leases: [lease], manifest: MANIFEST, userId: wallet.userId });
+
+      expect(signerService.executeDerivedDecodedTxByUserId).toHaveBeenCalledTimes(1);
+    });
+
+    it("leaves a bid the chain does not report for the chain to judge", async () => {
+      const lease = { dseq: "100", gseq: 1, oseq: 1, provider: createAkashAddress() };
+      const { service, signerService, wallet } = setup({ bids: () => [] });
+
+      await service.createLeasesAndSendManifest({ leases: [lease], manifest: MANIFEST, userId: wallet.userId });
+
+      expect(signerService.executeDerivedDecodedTxByUserId).toHaveBeenCalledTimes(1);
+    });
+
+    it.each([
+      { differs: "gseq", other: (lease: TestLease) => ({ ...lease, gseq: lease.gseq + 1 }) },
+      { differs: "oseq", other: (lease: TestLease) => ({ ...lease, oseq: lease.oseq + 1 }) },
+      { differs: "provider", other: (lease: TestLease) => ({ ...lease, provider: createAkashAddress() }) }
+    ])("ignores a closed bid whose $differs is not the leased placement's", async ({ other }) => {
+      const lease = { dseq: "100", gseq: 1, oseq: 1, provider: createAkashAddress() };
+      const { service, signerService, wallet } = setup({ bids: owner => [bidFor(owner, other(lease), "closed")] });
+
+      await service.createLeasesAndSendManifest({ leases: [lease], manifest: MANIFEST, userId: wallet.userId });
+
+      expect(signerService.executeDerivedDecodedTxByUserId).toHaveBeenCalledTimes(1);
+    });
+
+    it("reads only the bids of each leased placement", async () => {
+      const provider = createAkashAddress();
+      const leases = [
+        { dseq: "100", gseq: 1, oseq: 1, provider },
+        { dseq: "100", gseq: 2, oseq: 1, provider },
+        { dseq: "200", gseq: 1, oseq: 1, provider }
+      ];
+      const { service, bidHttpService, wallet } = setup();
+
+      await service.createLeasesAndSendManifest({ leases, manifest: MANIFEST, userId: wallet.userId });
+
+      expect(bidHttpService.list.mock.calls).toEqual(leases.map(({ dseq, gseq, oseq, provider }) => [wallet.address, dseq, { gseq, oseq, provider }]));
+    });
+
+    it("reads no further placement once one is refused", async () => {
+      const closed = { dseq: "100", gseq: 1, oseq: 1, provider: createAkashAddress() };
+      const next = { dseq: "100", gseq: 2, oseq: 1, provider: createAkashAddress() };
+      const { service, bidHttpService, wallet } = setup({ bids: owner => [bidFor(owner, closed, "closed")] });
+
+      await expect(service.createLeasesAndSendManifest({ leases: [closed, next], manifest: MANIFEST, userId: wallet.userId })).rejects.toBe(
+        LEASE_ON_CLOSED_BID
+      );
+
+      expect(bidHttpService.list).toHaveBeenCalledTimes(1);
+    });
+
+    it("leaves a placement whose bids cannot be read for the chain to judge", async () => {
+      const lease = { dseq: "100", gseq: 1, oseq: 1, provider: createAkashAddress() };
+      const failure = new Error("bids unavailable");
+      const { service, bidHttpService, signerService, logger, wallet } = setup();
+      bidHttpService.list.mockRejectedValue(failure);
+
+      await service.createLeasesAndSendManifest({ leases: [lease], manifest: MANIFEST, userId: wallet.userId });
+
+      expect(signerService.executeDerivedDecodedTxByUserId).toHaveBeenCalledTimes(1);
+      expect(logger.warn).toHaveBeenCalledWith({ event: "LEASE_BID_LOOKUP_FAILED", ...lease, error: failure });
+    });
+
+    it("judges each placement against the bids of its own deployment", async () => {
+      const first = { dseq: "100", gseq: 1, oseq: 1, provider: createAkashAddress() };
+      const second = { dseq: "200", gseq: 1, oseq: 1, provider: first.provider };
+      const { service, wallet } = setup({ bids: owner => [bidFor(owner, first, "open"), bidFor(owner, second, "closed")] });
+
+      await expect(service.createLeasesAndSendManifest({ leases: [first, second], manifest: MANIFEST, userId: wallet.userId })).rejects.toBe(
+        LEASE_ON_CLOSED_BID
+      );
+    });
+
+    it("reads no bids when the lease already exists", async () => {
+      const { service, bidHttpService, leaseHttpService, wallet } = setup();
+      const lease = { dseq: "100", gseq: 1, oseq: 1, provider: createAkashAddress() };
+      leaseHttpService.list.mockResolvedValue({
+        leases: [createLeaseApiResponse({ owner: wallet.address, dseq: lease.dseq, state: "active" })],
+        pagination: { next_key: null, total: "1" }
+      });
+
+      await service.createLeasesAndSendManifest({ leases: [lease], manifest: MANIFEST, userId: wallet.userId });
+
+      expect(bidHttpService.list).not.toHaveBeenCalled();
     });
 
     it("reports the lease exists when the provider it names did not receive the manifest", async () => {
@@ -307,7 +427,15 @@ describe(LeaseService.name, () => {
     });
   });
 
-  function setup(input: { wallet?: WalletInitialized; derived?: string | null } = {}) {
+  type TestLease = { dseq: string; gseq: number; oseq: number; provider: string };
+
+  function bidFor(owner: string, lease: TestLease, state: Bid["bid"]["state"], bseq = 1): Bid {
+    const bid = createBid({ owner, ...lease, bseq });
+    bid.bid.state = state;
+    return bid;
+  }
+
+  function setup(input: { wallet?: WalletInitialized; derived?: string | null; bids?: (owner: string) => Bid[] } = {}) {
     const wallet = input.wallet ?? (createUserWallet() as WalletInitialized);
 
     const signerService = mock<ManagedSignerService>();
@@ -320,6 +448,16 @@ describe(LeaseService.name, () => {
       deriveFor: vi.fn().mockResolvedValue(input.derived === undefined ? DERIVED_MANIFEST : input.derived)
     });
     const deployment = mock<GetDeploymentResponse["data"]>();
+    const bidHttpService = mock<BidHttpService>({
+      list: vi.fn(async (owner: string, dseq: string, filters: Parameters<BidHttpService["list"]>[2] = {}) =>
+        (input.bids?.(owner) ?? []).filter(
+          ({ bid: { id } }) =>
+            id.dseq === dseq && Object.entries(filters).every(([name, value]) => value === undefined || id[name as keyof Bid["bid"]["id"]] === value)
+        )
+      )
+    });
+    const logger = mock<LoggerService>();
+    const chainErrorService = mock<ChainErrorService>({ leaseOnClosedBidError: vi.fn(() => LEASE_ON_CLOSED_BID) });
 
     walletReaderService.getWalletByUserId.mockResolvedValue(wallet);
     leaseHttpService.list.mockResolvedValue({ leases: [], pagination: { next_key: null, total: "0" } });
@@ -334,11 +472,14 @@ describe(LeaseService.name, () => {
       walletReaderService,
       leaseHttpService,
       leaseManifestService,
-      () => mock<LoggerService>()
+      bidHttpService,
+      chainErrorService,
+      () => logger
     );
 
     return {
       service,
+      bidHttpService,
       signerService,
       rpcMessageService,
       providerService,
@@ -346,6 +487,7 @@ describe(LeaseService.name, () => {
       walletReaderService,
       leaseHttpService,
       leaseManifestService,
+      logger,
       wallet,
       deployment
     };

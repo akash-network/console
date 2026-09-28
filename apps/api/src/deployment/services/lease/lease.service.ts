@@ -1,10 +1,11 @@
-import { LeaseHttpService } from "@akashnetwork/http-sdk";
+import { type Bid, BidHttpService, LeaseHttpService } from "@akashnetwork/http-sdk";
 import { Trace } from "@akashnetwork/instrumentation";
 import { HTTPException } from "hono/http-exception";
 import createError, { isHttpError } from "http-errors";
 import { inject, singleton } from "tsyringe";
 
 import { ManagedSignerService, RpcMessageService } from "@src/billing/services";
+import { ChainErrorService } from "@src/billing/services/chain-error/chain-error.service";
 import { WalletReaderService } from "@src/billing/services/wallet-reader/wallet-reader.service";
 import { type CreateLogger, LOGGER_FACTORY } from "@src/core";
 import { type DeploymentResponse } from "@src/deployment/http-schemas/deployment.schema";
@@ -25,6 +26,8 @@ export class LeaseService {
     private readonly walletReaderService: WalletReaderService,
     private readonly leaseHttpService: LeaseHttpService,
     private readonly leaseManifestService: LeaseManifestService,
+    private readonly bidHttpService: BidHttpService,
+    private readonly chainErrorService: ChainErrorService,
     @inject(LOGGER_FACTORY) createLogger: CreateLogger
   ) {
     this.#logger = createLogger({ context: "lease-service" });
@@ -40,6 +43,7 @@ export class LeaseService {
     // Leases for all groups are created in one tx, so one existing lease means all exist:
     // skip creation when already on-chain to keep retries idempotent.
     if (!(await this.#hasActiveLease(wallet.address!, dseq))) {
+      await this.#refuseLeasesOnClosedBids(wallet.address!, leases);
       await this.#assertProvidersReachable(leases);
 
       const leaseMessages = leases.map(lease =>
@@ -62,6 +66,27 @@ export class LeaseService {
     }
 
     return deployment;
+  }
+
+  /** Refuses only what the chain would, so a bid it does not report is left for the chain to judge. */
+  async #refuseLeasesOnClosedBids(owner: string, leases: CreateLeaseRequest["leases"]): Promise<void> {
+    for (const lease of leases) {
+      const bids = await this.#placementBids(owner, lease);
+
+      if (bids.length > 0 && bids.every(({ bid }) => bid.state !== "open")) {
+        throw this.chainErrorService.leaseOnClosedBidError();
+      }
+    }
+  }
+
+  /** A failed read counts as no bids, since the chain still judges every lease this check lets through. */
+  async #placementBids(owner: string, { dseq, gseq, oseq, provider }: CreateLeaseRequest["leases"][number]): Promise<Bid[]> {
+    try {
+      return await this.bidHttpService.list(owner, dseq, { gseq, oseq, provider });
+    } catch (error) {
+      this.#logger.warn({ event: "LEASE_BID_LOOKUP_FAILED", dseq, gseq, oseq, provider, error });
+      return [];
+    }
   }
 
   async #assertProvidersReachable(leases: CreateLeaseRequest["leases"]): Promise<void> {
