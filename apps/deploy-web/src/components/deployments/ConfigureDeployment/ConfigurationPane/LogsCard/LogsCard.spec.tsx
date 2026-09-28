@@ -2,7 +2,7 @@ import type { PropsWithChildren } from "react";
 import type { UseFormReturn } from "react-hook-form";
 import { FormProvider, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import { isLogCollectorService } from "@src/components/sdl/LogCollectorControl/LogCollectorControl";
@@ -11,6 +11,7 @@ import type { SdlBuilderFormValuesType } from "@src/types";
 import { SdlBuilderFormValuesSchema } from "@src/types/sdlBuilder/sdlBuilder";
 import { kvArrayToObject } from "@src/utils/keyValue/keyValue";
 import { defaultServiceWithPlacement } from "@src/utils/sdl/data";
+import { PlacementManagerProvider } from "../../PlacementManagerProvider/PlacementManagerProvider";
 import { DEPENDENCIES, LogsCard } from "./LogsCard";
 
 import { act, render, screen, waitFor } from "@testing-library/react";
@@ -219,30 +220,6 @@ describe(LogsCard.name, () => {
   });
 
   describe("when the parent service is renamed outside the modal", () => {
-    it("keeps a single collector paired and re-syncs its title", async () => {
-      const { getValues, renameParent } = setup({ withLogForwarding: true });
-
-      act(() => renameParent("api"));
-
-      await waitFor(() => {
-        const collectors = getValues().services.filter(isLogCollectorService);
-        expect(collectors).toHaveLength(1);
-        expect(collectors[0].title).toBe("api-log-collector");
-      });
-    });
-
-    it("re-points the collector's POD_LABEL_SELECTOR at the renamed parent", async () => {
-      const { getValues, renameParent } = setup({ withLogForwarding: true });
-
-      act(() => renameParent("api"));
-
-      await waitFor(() => {
-        const collector = getValues().services.find(isLogCollectorService);
-        const env = kvArrayToObject(collector?.env ?? []);
-        expect(env.POD_LABEL_SELECTOR).toBe("akash.network/manifest-service=api");
-      });
-    });
-
     it("still reports log forwarding as enabled in the header summary after a rename", async () => {
       const { renameParent } = setup({ withLogForwarding: true });
 
@@ -277,7 +254,11 @@ describe(LogsCard.name, () => {
     let form: UseFormReturn<SdlBuilderFormValuesType> | undefined;
     const Wrapper = ({ children }: PropsWithChildren) => {
       form = useForm<SdlBuilderFormValuesType>({ defaultValues: values, mode: "onChange", resolver: zodResolver(SdlBuilderFormValuesSchema) });
-      return <FormProvider {...form}>{children}</FormProvider>;
+      return (
+        <FormProvider {...form}>
+          <PlacementManagerProvider onSelectService={vi.fn()}>{children}</PlacementManagerProvider>
+        </FormProvider>
+      );
     };
 
     const { container } = render(

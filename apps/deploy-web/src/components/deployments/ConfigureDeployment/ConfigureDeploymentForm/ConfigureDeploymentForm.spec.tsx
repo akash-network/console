@@ -1,19 +1,23 @@
-import type { ReactNode } from "react";
+import type { ComponentProps, ReactNode } from "react";
 import { useController, useFormContext, useWatch } from "react-hook-form";
+import { TooltipProvider } from "@akashnetwork/ui/components";
 import type { Mock } from "vitest";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { AnalyticsService } from "@src/services/analytics/analytics.service";
-import type { PlacementType, SdlBuilderFormValuesType, ServiceType } from "@src/types";
+import type { SdlBuilderFormValuesType } from "@src/types";
 import { defaultService } from "@src/utils/sdl/data";
 import { ConfigurationPane } from "../ConfigurationPane/ConfigurationPane";
-import { usePlacementManager } from "../DeploymentPane/usePlacementManager/usePlacementManager";
+import { DEPENDENCIES as LOGS_CARD_DEPENDENCIES, LogsCard } from "../ConfigurationPane/LogsCard/LogsCard";
+import { DEPENDENCIES as DEPLOYMENT_PANE_DEPENDENCIES, DeploymentPane } from "../DeploymentPane/DeploymentPane";
+import { DEPENDENCIES as PLACEMENT_CARD_DEPENDENCIES, PlacementCard } from "../DeploymentPane/PlacementCard/PlacementCard";
 import { importDeploymentState } from "../importDeploymentState/importDeploymentState";
 import { useInheritedSecrets } from "../InheritedSecretsProvider/InheritedSecretsProvider";
+import { usePlacementManagerContext } from "../PlacementManagerProvider/PlacementManagerProvider";
 import type { DeploymentFlow, FlowErrorKind } from "../useDeploymentFlow/useDeploymentFlow";
 import type { DEPENDENCIES } from "./ConfigureDeploymentForm";
-import { ConfigureDeploymentForm, firstBidReadyServiceId, nextUndoneServiceId } from "./ConfigureDeploymentForm";
+import { ConfigureDeploymentForm } from "./ConfigureDeploymentForm";
 
 import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -267,6 +271,23 @@ describe(ConfigureDeploymentForm.name, () => {
     await waitFor(() => expect(screen.getByTestId("sdl").textContent).not.toContain("service-1"));
     expect(screen.getByTestId("ghost-free").textContent).toBe("true");
     expect(screen.getByTestId("selected").textContent).toBe(selectedService3);
+  });
+
+  it("turns log forwarding off after another service was added without leaving a ghost service", async () => {
+    setup({ initialSdl: undefined, Panes: LogForwardingProbePanes });
+
+    await userEvent.click(screen.getByRole("switch", { name: "Enable log forwarding" }));
+    await userEvent.click(screen.getByRole("button", { name: /Save/ }));
+    await userEvent.click(screen.getByRole("button", { name: "Add service" }));
+    await userEvent.click(screen.getByRole("button", { name: "Select service-1" }));
+    await waitFor(() => expect(screen.getByTestId("sdl").textContent).toContain("service-1-log-collector"));
+
+    await userEvent.click(screen.getByRole("switch", { name: "Enable log forwarding" }));
+
+    await waitFor(() => expect(screen.getByTestId("sdl").textContent).not.toContain("log-collector"));
+    expect(screen.getByTestId("sdl").textContent).toContain("service-2");
+    expect(screen.getByTestId("ghost-free").textContent).toBe("true");
+    expect(screen.getAllByRole("button", { name: /^Select service-/ })).toHaveLength(2);
   });
 
   it("reselects the first remaining service when the selected one is removed", async () => {
@@ -545,7 +566,7 @@ describe(ConfigureDeploymentForm.name, () => {
 
     await waitFor(() => {
       expect(screen.getByTestId("service-titles").textContent).toBe("web,api");
-      expect(screen.getByTestId("sdl").textContent).toContain("version: '2.0'");
+      expect(screen.getByTestId("sdl").textContent).toContain("node:18");
       expect(screen.getByTestId("selected").textContent).toBe(state.selectedServiceId);
     });
   });
@@ -708,54 +729,6 @@ function needsFundsToastOf(enqueueSnackbar: Mock) {
   return enqueueSnackbar.mock.calls[0][0] as { props: { title: string; subTitle: { props: { message?: string; context?: string; onAction?: () => void } } } };
 }
 
-describe(nextUndoneServiceId.name, () => {
-  it("falls back to the first undone placement's service when none have bids yet", () => {
-    const placements = [placement("p1"), placement("p2")];
-    const services = [service("s1", "p1"), service("s2", "p2")];
-    expect(nextUndoneServiceId(placements, services, { p1: "bid" }, new Set())).toBe("s2");
-  });
-
-  it("prefers the first undone placement that already has bids", () => {
-    const placements = [placement("p1"), placement("p2"), placement("p3")];
-    const services = [service("s1", "p1"), service("s2", "p2"), service("s3", "p3")];
-    expect(nextUndoneServiceId(placements, services, { p1: "bid" }, new Set(["p3"]))).toBe("s3");
-  });
-
-  it("returns null once every placement has a selection", () => {
-    const placements = [placement("p1"), placement("p2")];
-    const services = [service("s1", "p1"), service("s2", "p2")];
-    expect(nextUndoneServiceId(placements, services, { p1: "b1", p2: "b2" }, new Set(["p1", "p2"]))).toBeNull();
-  });
-
-  function placement(id: string): PlacementType {
-    return mock<PlacementType>({ id });
-  }
-  function service(id: string, placementId: string): ServiceType {
-    return mock<ServiceType>({ id, placementId, title: id });
-  }
-});
-
-describe(firstBidReadyServiceId.name, () => {
-  it("returns the first unselected placement that has bids", () => {
-    const placements = [placement("p1"), placement("p2")];
-    const services = [service("s1", "p1"), service("s2", "p2")];
-    expect(firstBidReadyServiceId(placements, services, {}, new Set(["p2"]))).toBe("s2");
-  });
-
-  it("returns null when no unselected placement has bids", () => {
-    const placements = [placement("p1")];
-    const services = [service("s1", "p1")];
-    expect(firstBidReadyServiceId(placements, services, {}, new Set())).toBeNull();
-  });
-
-  function placement(id: string): PlacementType {
-    return mock<PlacementType>({ id });
-  }
-  function service(id: string, placementId: string): ServiceType {
-    return mock<ServiceType>({ id, placementId, title: id });
-  }
-});
-
 interface ProbePanesProps {
   sdl: string;
   selectedServiceId: string;
@@ -838,7 +811,7 @@ function ServiceListProbePanes() {
  * the form still carries an id and placementId (a resurrected partial entry would be missing them).
  */
 function AddRemoveProbePanes({ sdl, selectedServiceId, onSelectService }: ProbePanesProps) {
-  const manager = usePlacementManager({ onSelectService });
+  const manager = usePlacementManagerContext();
   const { getValues } = useFormContext<SdlBuilderFormValuesType>();
   const services = (useWatch<SdlBuilderFormValuesType>({ name: "services" }) as SdlBuilderFormValuesType["services"]) ?? [];
   return (
@@ -870,6 +843,63 @@ function AddRemoveProbePanes({ sdl, selectedServiceId, onSelectService }: ProbeP
         }}
       />
     </div>
+  );
+}
+
+/**
+ * Panes stand-in that mounts the real deployment pane and the real logs card, so a collector toggled from the
+ * logs card and a service added from the deployment pane go through the same services array as in the app.
+ */
+function LogForwardingProbePanes({ sdl, selectedServiceId, onSelectService }: ProbePanesProps) {
+  const services = (useWatch<SdlBuilderFormValuesType>({ name: "services" }) as SdlBuilderFormValuesType["services"]) ?? [];
+  return (
+    <TooltipProvider>
+      <div data-testid="sdl">{sdl}</div>
+      <div data-testid="ghost-free">{String(services.every(service => !!service?.id && !!service?.placementId))}</div>
+      <DeploymentPane
+        selectedServiceId={selectedServiceId}
+        onSelectService={onSelectService}
+        phase="configuring"
+        selections={{}}
+        selectedPlacementId=""
+        sdl={sdl}
+        dseq={null}
+        deploymentName=""
+        onDeploymentNameChange={vi.fn()}
+        dependencies={{
+          ...DEPLOYMENT_PANE_DEPENDENCIES,
+          PlacementCard: PlacementCardWithoutRegion,
+          usePlacementsWithBids: () => new Set<string>(),
+          ReclamationSection: () => null,
+          DeploymentNameField: () => null
+        }}
+      />
+      <ConfigurationPane
+        selectedServiceId={selectedServiceId}
+        dependencies={{
+          ImageSection: FieldRegisteringSection as never,
+          HardwareSection: FieldRegisteringSection as never,
+          AdditionalSection: LogsOnlySection as never
+        }}
+      />
+    </TooltipProvider>
+  );
+}
+
+function PlacementCardWithoutRegion(props: ComponentProps<typeof PlacementCard>) {
+  return <PlacementCard {...props} dependencies={{ ...PLACEMENT_CARD_DEPENDENCIES, RegionSelect: () => null }} />;
+}
+
+function LogsOnlySection({ serviceIndex }: { serviceIndex: number }) {
+  return (
+    <LogsCard
+      serviceIndex={serviceIndex}
+      dependencies={{
+        ...LOGS_CARD_DEPENDENCIES,
+        ComputeResourcesCard: () => null,
+        useServices: () => mock<ReturnType<typeof LOGS_CARD_DEPENDENCIES.useServices>>({ analyticsService: mock<AnalyticsService>() })
+      }}
+    />
   );
 }
 

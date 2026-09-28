@@ -165,14 +165,13 @@ describe(RuntimeCard.name, () => {
     expect(screen.getByText("VMs run as a single instance.")).toBeInTheDocument();
   });
 
-  it("forces Expose SSH on, disabled, with the key field visible for a vm service", async () => {
-    const { getValues } = setup({ image: "ghcr.io/akash-network/ubuntu-2404-ssh:2" });
+  it("forces Expose SSH on, disabled, with the key field visible for a vm service", () => {
+    setup({ image: "ghcr.io/akash-network/ubuntu-2404-ssh:2" });
 
     expect(screen.getByRole("checkbox", { name: "Expose SSH" })).toBeChecked();
     expect(screen.getByRole("checkbox", { name: "Expose SSH" })).toBeDisabled();
     expect(screen.getByLabelText("SSH public key")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Generate new key" })).toBeInTheDocument();
-    await waitFor(() => expect(getValues().hasSSHKey).toBe(true));
   });
 
   it("keeps Expose SSH forced on a sibling non-vm service's card while the deployment holds a vm", () => {

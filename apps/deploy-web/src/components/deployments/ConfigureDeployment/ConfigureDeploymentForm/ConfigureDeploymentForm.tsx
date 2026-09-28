@@ -9,11 +9,10 @@ import { useSnackbar } from "notistack";
 
 import { AddCreditsSnackbarContent } from "@src/components/billing-usage/AddCreditsSnackbarContent/AddCreditsSnackbarContent";
 import Layout from "@src/components/layout/Layout";
-import { isLogCollectorService } from "@src/components/sdl/LogCollectorControl/LogCollectorControl";
 import { useServices } from "@src/context/ServicesProvider";
 import { useFlag } from "@src/hooks/useFlag";
 import { usePlacementsWithBids } from "@src/queries/usePlacementsWithBids";
-import type { SdlBuilderFormValuesType, ServiceType } from "@src/types";
+import type { SdlBuilderFormValuesType } from "@src/types";
 import { SdlBuilderFormValuesSchema } from "@src/types";
 import { parseBidId } from "@src/utils/bids/bidId";
 import { defaultServiceWithPlacement, vmServiceOverrides } from "@src/utils/sdl/data";
@@ -28,12 +27,16 @@ import type { ImportedDeploymentState } from "../importDeploymentState/importDep
 import { importDeploymentState, isKnownSdlParserError, NoVisibleServiceError, seedSelectedServiceId } from "../importDeploymentState/importDeploymentState";
 import type { InheritedSecrets } from "../InheritedSecretsProvider/InheritedSecretsProvider";
 import { InheritedSecretsProvider } from "../InheritedSecretsProvider/InheritedSecretsProvider";
+import { PlacementManagerProvider } from "../PlacementManagerProvider/PlacementManagerProvider";
 import { ReviewAndDeployModal } from "../ReviewAndDeployModal/ReviewAndDeployModal";
 import { SdlImportExport } from "../SdlImportExport/SdlImportExport";
+import { firstBidReadyServiceId, nextSelectedServiceId, nextUndoneServiceId, resolveSelectedPlacement } from "../serviceSelection/serviceSelection";
 import { useConfigureDraft } from "../useConfigureDraft/useConfigureDraft";
 import type { DeploymentIntent } from "../useDeploymentFlow/deploymentIntent";
 import type { DeploymentFlow, FlowErrorKind } from "../useDeploymentFlow/useDeploymentFlow";
 import { useDeploymentName } from "../useDeploymentName/useDeploymentName";
+import { useForceSshForVmServices } from "../useForceSshForVmServices/useForceSshForVmServices";
+import { useSyncLogCollectors } from "../useSyncLogCollectors/useSyncLogCollectors";
 
 export const DEPENDENCIES = {
   AddCreditsSnackbarContent,
@@ -95,7 +98,10 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, initialName, in
   });
   const services = useWatch({ control: form.control, name: "services" });
   const placements = useWatch({ control: form.control, name: "placements" });
-  const selectedPlacement = resolveSelectedPlacement(services, placements, selectedServiceId);
+  const selectedPlacement = resolveSelectedPlacement(services, placements, selectedServiceId || lastSelectedServiceId.current);
+  const lastSelectedPlacementId = useRef(selectedPlacement.id);
+  useSyncLogCollectors(form);
+  useForceSshForVmServices(form);
 
   useEffect(
     function trackConfigurePageViewed() {
@@ -151,14 +157,17 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, initialName, in
   useEffect(
     function rememberLastSelection() {
       if (selectedServiceId) lastSelectedServiceId.current = selectedServiceId;
+      lastSelectedPlacementId.current = selectedPlacement.id;
     },
-    [selectedServiceId]
+    [selectedServiceId, selectedPlacement.id]
   );
 
   useEffect(
     function reselectRemovedService() {
       const subscription = form.watch(values => {
-        setSelectedServiceId(previous => nextSelectedServiceId(values as SdlBuilderFormValuesType, previous || lastSelectedServiceId.current));
+        setSelectedServiceId(previous =>
+          nextSelectedServiceId(values as SdlBuilderFormValuesType, previous || lastSelectedServiceId.current, lastSelectedPlacementId.current)
+        );
       });
       return function teardownReselect() {
         subscription.unsubscribe();
@@ -301,70 +310,74 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, initialName, in
     <d.Layout background="white" disableContainer containerClassName="flex h-[calc(100vh-57px)] flex-col">
       <d.NextSeo title="Configure your deployment" />
       <FormProvider {...form}>
-        <InheritedSecretsProvider value={resolvableInheritedSecrets}>
-          <div className="relative flex min-h-0 flex-1 flex-col">
-            <div className="px-6 pt-6">
-              <d.ConfigureDeploymentBackButton />
-              <div className="mt-2">
-                <d.ConfigureDeploymentHeader
-                  flow={flow}
+        <PlacementManagerProvider onSelectService={setSelectedServiceId}>
+          <InheritedSecretsProvider value={resolvableInheritedSecrets}>
+            <div className="relative flex min-h-0 flex-1 flex-col">
+              <div className="px-6 pt-6">
+                <d.ConfigureDeploymentBackButton />
+                <div className="mt-2">
+                  <d.ConfigureDeploymentHeader
+                    flow={flow}
+                    sdl={liveSdl}
+                    deploymentName={typedDeploymentName}
+                    onDeploy={() => openReview(flow.selections)}
+                    allPlacementsHaveBids={allPlacementsHaveBids}
+                  />
+                </div>
+              </div>
+              <div className="relative mt-6 flex min-h-0 flex-1 overflow-x-auto">
+                <d.ConfigureDeploymentPanes
                   sdl={liveSdl}
-                  deploymentName={typedDeploymentName}
-                  onDeploy={() => openReview(flow.selections)}
-                  allPlacementsHaveBids={allPlacementsHaveBids}
+                  previewSdl={previewSdl}
+                  selectedServiceId={selectedServiceId}
+                  selectedPlacementName={selectedPlacement.name}
+                  selectedPlacementRegion={selectedPlacement.region}
+                  selectedPlacementId={selectedPlacement.id}
+                  onSelectService={setSelectedServiceId}
+                  phase={flow.phase}
+                  dseq={flow.dseq}
+                  selections={flow.selections}
+                  onSelectProvider={selectProviderAndAdvance}
+                  onCancelAndEdit={flow.actions.cancelAndEdit}
+                  pendingClose={flow.pendingClose}
+                  onRetryClose={flow.actions.retryClose}
+                  deploymentName={deploymentName}
+                  onDeploymentNameChange={setDeploymentName}
+                  configurationActions={
+                    <d.SdlImportExport sdl={liveSdl} deploymentName={deploymentName} canImport={isEditable} onImport={applyImportedState} />
+                  }
                 />
               </div>
+              {flow.phase === "deploying" && (
+                <d.DeployProgressOverlay
+                  providerAddress={firstSelectedProviderAddress(flow.selections)}
+                  activePhase={flow.deploySucceeded ? "success" : "preparing"}
+                  deploymentName={deploymentName}
+                />
+              )}
             </div>
-            <div className="relative mt-6 flex min-h-0 flex-1 overflow-x-auto">
-              <d.ConfigureDeploymentPanes
-                sdl={liveSdl}
-                previewSdl={previewSdl}
-                selectedServiceId={selectedServiceId}
-                selectedPlacementName={selectedPlacement.name}
-                selectedPlacementRegion={selectedPlacement.region}
-                selectedPlacementId={selectedPlacement.id}
-                onSelectService={setSelectedServiceId}
-                phase={flow.phase}
-                dseq={flow.dseq}
-                selections={flow.selections}
-                onSelectProvider={selectProviderAndAdvance}
-                onCancelAndEdit={flow.actions.cancelAndEdit}
-                pendingClose={flow.pendingClose}
-                onRetryClose={flow.actions.retryClose}
-                deploymentName={deploymentName}
-                onDeploymentNameChange={setDeploymentName}
-                configurationActions={<d.SdlImportExport sdl={liveSdl} deploymentName={deploymentName} canImport={isEditable} onImport={applyImportedState} />}
-              />
-            </div>
-            {flow.phase === "deploying" && (
-              <d.DeployProgressOverlay
-                providerAddress={firstSelectedProviderAddress(flow.selections)}
-                activePhase={flow.deploySucceeded ? "success" : "preparing"}
-                deploymentName={deploymentName}
-              />
-            )}
-          </div>
-          <d.ReviewAndDeployModal
-            open={isReviewOpen}
-            dseq={flow.dseq}
-            placements={placements}
-            selections={flow.selections}
-            runtimeLimitHours={runtimeLimitHours}
-            onRuntimeLimitHoursChange={setRuntimeLimitHours}
-            onBack={closeReview}
-            onConfirm={() => {
-              analyticsService.track("review_deploy_confirmed", { category: "deployments", dseq: flow.dseq });
-              setReviewOpen(false);
-              if (isSecretsEnabled) {
-                const values = form.getValues();
-                const secrets = resolveSdlSecrets(values, { sealSecrets: true });
-                flow.actions.deploy(regenerateSdl(values, liveSdl, true), { secrets: secrets.values, unresolvedSecrets: secrets.unresolved });
-              } else {
-                flow.actions.deploy(liveSdl);
-              }
-            }}
-          />
-        </InheritedSecretsProvider>
+            <d.ReviewAndDeployModal
+              open={isReviewOpen}
+              dseq={flow.dseq}
+              placements={placements}
+              selections={flow.selections}
+              runtimeLimitHours={runtimeLimitHours}
+              onRuntimeLimitHoursChange={setRuntimeLimitHours}
+              onBack={closeReview}
+              onConfirm={() => {
+                analyticsService.track("review_deploy_confirmed", { category: "deployments", dseq: flow.dseq });
+                setReviewOpen(false);
+                if (isSecretsEnabled) {
+                  const values = form.getValues();
+                  const secrets = resolveSdlSecrets(values, { sealSecrets: true });
+                  flow.actions.deploy(regenerateSdl(values, liveSdl, true), { secrets: secrets.values, unresolvedSecrets: secrets.unresolved });
+                } else {
+                  flow.actions.deploy(liveSdl);
+                }
+              }}
+            />
+          </InheritedSecretsProvider>
+        </PlacementManagerProvider>
       </FormProvider>
     </d.Layout>
   );
@@ -465,78 +478,8 @@ function regenerateSdl(values: SdlBuilderFormValuesType, previous: string, sealS
   }
 }
 
-/**
- * Resolves the placement the marketplace is scoped to. There is always a placement and a service, so this
- * returns a placement rather than null: it uses the selected service when present, otherwise the first visible
- * service (which also covers the brief window after a removal, before the reselect effect runs), and falls
- * back to the first placement. The placement carries the region the marketplace filters by — kept independent
- * of the SDL so it still applies before the deployment is valid.
- */
-function resolveSelectedPlacement(
-  services: SdlBuilderFormValuesType["services"],
-  placements: SdlBuilderFormValuesType["placements"],
-  selectedServiceId: string
-): SdlBuilderFormValuesType["placements"][number] {
-  const selected = services.find(candidate => candidate.id === selectedServiceId);
-  const service = selected ?? services.find(candidate => !isLogCollectorService(candidate));
-  return (service && placements.find(candidate => candidate.id === service.placementId)) || placements[0];
-}
-
-/** Keeps the selection on an existing service, falling back to the first visible one after a removal. */
-function nextSelectedServiceId(values: SdlBuilderFormValuesType, previous: string): string {
-  const services = values.services ?? [];
-  if (services.some(candidate => candidate?.id === previous)) {
-    return previous;
-  }
-  const visible = services.find(candidate => candidate && !isLogCollectorService(candidate as ServiceType)) ?? services[0];
-  return visible.id;
-}
-
 /** The provider chosen for the first placement, focused on the deploy-progress globe while deploying. */
 function firstSelectedProviderAddress(selections: Record<string, string>): string | null {
   const first = Object.values(selections)[0];
   return first ? parseBidId(first).provider : null;
-}
-
-/** The first unselected placement that already has bids, as its first service id — used to focus where the first bids land. */
-export function firstBidReadyServiceId(
-  placements: SdlBuilderFormValuesType["placements"],
-  services: SdlBuilderFormValuesType["services"],
-  selections: Record<string, string>,
-  placementsWithBids: Set<string>
-): string | null {
-  return serviceIdOfPlacement(
-    services,
-    placements.find(placement => !selections[placement.id] && placementsWithBids.has(placement.id))
-  );
-}
-
-/**
- * After a provider is chosen, the service to focus next: the first unselected placement that already has bids,
- * else the first unselected placement at all (so focus still advances while its bids are pending). Null when
- * every placement is selected — the cue to open the review modal.
- */
-export function nextUndoneServiceId(
-  placements: SdlBuilderFormValuesType["placements"],
-  services: SdlBuilderFormValuesType["services"],
-  selections: Record<string, string>,
-  placementsWithBids: Set<string>
-): string | null {
-  return (
-    firstBidReadyServiceId(placements, services, selections, placementsWithBids) ??
-    serviceIdOfPlacement(
-      services,
-      placements.find(placement => !selections[placement.id])
-    )
-  );
-}
-
-/** The first non-log-collector service of a placement (or null), used to make that placement the active one. */
-function serviceIdOfPlacement(
-  services: SdlBuilderFormValuesType["services"],
-  placement: SdlBuilderFormValuesType["placements"][number] | undefined
-): string | null {
-  if (!placement) return null;
-  const service = services.find(candidate => candidate.placementId === placement.id && !isLogCollectorService(candidate));
-  return service?.id ?? null;
 }

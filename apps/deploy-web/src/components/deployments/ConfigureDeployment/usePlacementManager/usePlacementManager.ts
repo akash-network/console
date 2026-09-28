@@ -2,13 +2,17 @@ import { useCallback, useMemo } from "react";
 import { flushSync } from "react-dom";
 import { useFieldArray, useFormContext, useWatch } from "react-hook-form";
 
-import { isLogCollectorService } from "@src/components/sdl/LogCollectorControl/LogCollectorControl";
+import {
+  findOwnLogCollectorServiceIndex,
+  generateLogCollectorService,
+  isLogCollectorService
+} from "@src/components/sdl/LogCollectorControl/LogCollectorControl";
 import type { SdlBuilderFormValuesType, ServiceType } from "@src/types";
 import { defaultPlacement, defaultService } from "@src/utils/sdl/data";
 import { mergeFieldValues, nextPlacementName, nextServiceTitle, serviceRemovalIndexes } from "@src/utils/sdl/formArrayHelpers";
 import { readServiceSshKey, withServiceSshKey } from "@src/utils/sdl/sshKey";
-import { applyPresetToProfile, DEFAULT_HARDWARE_PRESET } from "../../ConfigurationPane/PresetsCard/hardwarePresets";
-import { useRevalidateUniqueness } from "../useRevalidateUniqueness/useRevalidateUniqueness";
+import { applyPresetToProfile, DEFAULT_HARDWARE_PRESET } from "../ConfigurationPane/PresetsCard/hardwarePresets";
+import { useRevalidateUniqueness } from "../DeploymentPane/useRevalidateUniqueness/useRevalidateUniqueness";
 
 export type IndexedService = { service: ServiceType; index: number };
 
@@ -132,6 +136,36 @@ export const usePlacementManager = ({ onSelectService }: SelectionControls = {})
     [getValues, removeServicesAt, spliceServicesWithoutGhost]
   );
 
+  const addLogCollector = useCallback(
+    (serviceId: string) => {
+      const currentServices = getValues("services");
+      const service = currentServices.find(candidate => candidate.id === serviceId);
+      if (service && findOwnLogCollectorServiceIndex(service, currentServices) === -1) {
+        appendService(generateLogCollectorService(service));
+      }
+    },
+    [appendService, getValues]
+  );
+
+  /** A trailing collector shifts no other service, so only a collector sitting before another service needs the ghost guard. */
+  const removeLogCollector = useCallback(
+    (serviceId: string) => {
+      const currentServices = getValues("services");
+      const service = currentServices.find(candidate => candidate.id === serviceId);
+      const collectorIndex = service ? findOwnLogCollectorServiceIndex(service, currentServices) : -1;
+      if (collectorIndex === -1) {
+        return;
+      }
+      const removeCollector = () => removeServicesAt(collectorIndex);
+      if (collectorIndex === currentServices.length - 1) {
+        removeCollector();
+      } else {
+        spliceServicesWithoutGhost(removeCollector);
+      }
+    },
+    [getValues, removeServicesAt, spliceServicesWithoutGhost]
+  );
+
   return useMemo(
     () => ({
       placements,
@@ -141,11 +175,26 @@ export const usePlacementManager = ({ onSelectService }: SelectionControls = {})
       removePlacement,
       addService,
       canRemoveService,
-      removeService
+      removeService,
+      addLogCollector,
+      removeLogCollector
     }),
-    [placements, getPlacementServices, addPlacement, canRemovePlacement, removePlacement, addService, canRemoveService, removeService]
+    [
+      placements,
+      getPlacementServices,
+      addPlacement,
+      canRemovePlacement,
+      removePlacement,
+      addService,
+      canRemoveService,
+      removeService,
+      addLogCollector,
+      removeLogCollector
+    ]
   );
 };
+
+export type PlacementManager = ReturnType<typeof usePlacementManager>;
 
 /**
  * Builds a fresh service for the configure screen: the shared default seeded onto the default (small)
