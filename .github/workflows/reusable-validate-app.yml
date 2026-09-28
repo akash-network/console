@@ -18,23 +18,20 @@ permissions:
 
 env:
   APP_TO_VALIDATE: ${{ inputs.app }}
+  TEST_SCRIPT_NAME: ${{ github.event_name == 'merge_group' && 'test' || 'test:cov' }}
 
+# Static analysis, tests and mutation testing run as separate jobs so the slowest one sets the wall clock
+# instead of all three adding up.
 jobs:
   should-validate:
     uses: ./.github/workflows/reusable-should-validate.yml
     with:
       path: apps/${{ inputs.app }}
 
-  validate:
+  static-analysis:
     needs: should-validate
     if: needs.should-validate.outputs.enabled == 'true'
     runs-on: ubuntu-latest
-    env:
-      TEST_SCRIPT_NAME: ${{ github.event_name == 'merge_group' && 'test' || 'test:cov' }}
-      # The mutation step fails when the score over the reached mutants of the changed lines drops below this.
-      MUTATION_MIN_SCORE: 80
-      # A diff this wide is a PR to split, not a mutation run to sit through.
-      MAX_MUTATION_RANGES: 200
     steps:
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -50,12 +47,8 @@ jobs:
         env:
           PACKAGE_PATH: "./apps/${{ inputs.app }}/package.json"
         run: |
-          read -r has_tests requires_env_setup < <(jq -r '[
-            (if .scripts["${{ env.TEST_SCRIPT_NAME }}"] then "true" else "false" end),
-            (if .scripts["test:ci-setup"] then "true" else "false" end)
-          ] | @tsv' "$PACKAGE_PATH")
+          has_tests=$(jq -r --arg script "$TEST_SCRIPT_NAME" 'if .scripts[$script] then "true" else "false" end' "$PACKAGE_PATH")
           echo "has_tests=$has_tests" >> "$GITHUB_OUTPUT"
-          echo "requires_env_setup=$requires_env_setup" >> "$GITHUB_OUTPUT"
 
       # The per-run key never pre-exists, so every run saves a fresh cache; restore-keys picks up the
       # newest previous one. The prefix hashes the lockfile and shared eslint config sources because
@@ -84,8 +77,27 @@ jobs:
         run: |
           npm run --if-present validate:types --workspace="apps/$APP_TO_VALIDATE"
 
-      - uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4.0.0
-        if: ${{ steps.tests_details.outputs.requires_env_setup == 'true' }}
+  tests:
+    needs: should-validate
+    if: needs.should-validate.outputs.enabled == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Check whether app has tests
+        id: tests_details
+        env:
+          PACKAGE_PATH: "./apps/${{ inputs.app }}/package.json"
+        run: |
+          read -r has_tests requires_env_setup < <(jq -r --arg script "$TEST_SCRIPT_NAME" '[
+            (if .scripts[$script] then "true" else "false" end),
+            (if .scripts["test:ci-setup"] then "true" else "false" end)
+          ] | @tsv' "$PACKAGE_PATH")
+          echo "has_tests=$has_tests" >> "$GITHUB_OUTPUT"
+          echo "requires_env_setup=$requires_env_setup" >> "$GITHUB_OUTPUT"
 
       - name: Normalize branch name
         if: ${{ steps.tests_details.outputs.requires_env_setup == 'true' }}
@@ -93,7 +105,11 @@ jobs:
           BRANCH_NAME_SAFE="${GITHUB_REF_NAME//\//-}"
           echo "BRANCH_NAME_SAFE=${BRANCH_NAME_SAFE:-main}" >> "$GITHUB_ENV"
 
-      - name: Prepare tests environment
+      # Starts before the dependencies are restored so the containers come up while they do. node_modules does
+      # not exist yet, so a shim puts the docker package's `dc` on PATH for the app's `test:ci-setup` script,
+      # which creates the buildx builder it needs itself.
+      - name: Start tests environment
+        id: start_tests_env
         if: ${{ steps.tests_details.outputs.requires_env_setup == 'true' }}
         env:
           USE_DOCKER_BUILDKIT: 1
@@ -101,16 +117,88 @@ jobs:
           DOCKER_BUILDKIT_CACHE_FALLBACK_SCOPE: ${{ github.workflow }}-${{ inputs.app }}-${{ env.BRANCH_NAME_SAFE }}
           BUILDX_BAKE_ENTITLEMENTS_FS: 0
           POSTGRES_SKIP_IMPORT: "true"
-        run: |
-          npm run --if-present --workspace="apps/$APP_TO_VALIDATE" test:ci-setup
+        run: | # shell
+          mkdir -p "$RUNNER_TEMP/test-env-bin"
+          ln -sf "$GITHUB_WORKSPACE/packages/docker/script/dc.sh" "$RUNNER_TEMP/test-env-bin/dc"
+          (
+            status=0
+            PATH="$RUNNER_TEMP/test-env-bin:$PATH" npm run --if-present --workspace="apps/$APP_TO_VALIDATE" test:ci-setup > "$RUNNER_TEMP/test-env.log" 2>&1 || status=$?
+            echo "$status" > "$RUNNER_TEMP/test-env.status.tmp"
+            mv "$RUNNER_TEMP/test-env.status.tmp" "$RUNNER_TEMP/test-env.status"
+          ) < /dev/null > /dev/null 2>&1 &
+
+      - uses: ./.github/actions/setup-app-deps
+        if: ${{ steps.tests_details.outputs.has_tests == 'true' }}
+        with:
+          app: ${{ inputs.app }}
+
+      # Also runs after a failed dependency restore, so the teardown never races containers that are still starting.
+      - name: Wait for tests environment
+        if: ${{ !cancelled() && steps.start_tests_env.outcome == 'success' }}
+        timeout-minutes: 5
+        run: | # shell
+          until [[ -f "$RUNNER_TEMP/test-env.status" ]]; do sleep 1; done
+          cat "$RUNNER_TEMP/test-env.log"
+          exit "$(cat "$RUNNER_TEMP/test-env.status")"
 
       - name: Run tests
         if: ${{ steps.tests_details.outputs.has_tests == 'true' }}
         run: npm run "$TEST_SCRIPT_NAME" --workspace="apps/$APP_TO_VALIDATE"
 
+      - name: Teardown tests environment
+        if: ${{ always() && steps.tests_details.outputs.requires_env_setup == 'true' }}
+        run: npm run --if-present --workspace="apps/$APP_TO_VALIDATE" test:ci-teardown
+
+      - name: Upload test results to Codecov
+        if: ${{ !cancelled() && steps.tests_details.outputs.has_tests == 'true' && github.event_name != 'merge_group' }}
+        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
+        with:
+          report_type: test_results
+          files: ./junit.xml
+          name: ${{ inputs.app }}-test-results
+          flags: ${{ inputs.app }}
+          token: ${{ secrets.CODECOV_TOKEN }}
+
+      - name: Upload Test Coverage
+        if: steps.tests_details.outputs.has_tests == 'true' && github.event_name != 'merge_group'
+        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
+        with:
+          fail_ci_if_error: true
+          directory: ./apps/${{ inputs.app }}/coverage
+          flags: ${{ inputs.app }}
+          token: ${{ secrets.CODECOV_TOKEN }}
+
+  mutation-testing:
+    needs: should-validate
+    if: ${{ needs.should-validate.outputs.enabled == 'true' && github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'ignore-mutations-testing') }}
+    runs-on: ubuntu-latest
+    env:
+      # The mutation step fails when the score over the reached mutants of the changed lines drops below this.
+      MUTATION_MIN_SCORE: 80
+      # A diff this wide is a PR to split, not a mutation run to sit through.
+      MAX_MUTATION_RANGES: 200
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Check whether app has tests
+        id: tests_details
+        env:
+          PACKAGE_PATH: "./apps/${{ inputs.app }}/package.json"
+        run: |
+          has_tests=$(jq -r --arg script "$TEST_SCRIPT_NAME" 'if .scripts[$script] then "true" else "false" end' "$PACKAGE_PATH")
+          echo "has_tests=$has_tests" >> "$GITHUB_OUTPUT"
+
+      - uses: ./.github/actions/setup-app-deps
+        if: ${{ steps.tests_details.outputs.has_tests == 'true' }}
+        with:
+          app: ${{ inputs.app }}
+
       - name: Find mutation testing targets
         id: mutation_targets
-        if: ${{ github.event_name == 'pull_request' && steps.tests_details.outputs.has_tests == 'true' && !contains(github.event.pull_request.labels.*.name, 'ignore-mutations-testing') }}
+        if: ${{ steps.tests_details.outputs.has_tests == 'true' }}
         env:
           APP_PATH: apps/${{ inputs.app }}
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
@@ -175,29 +263,6 @@ jobs:
           if (( status != 0 )); then exit $status; fi
           exit $score_status
 
-      - name: Teardown tests environment
-        if: ${{ always() && steps.tests_details.outputs.requires_env_setup == 'true' }}
-        run: npm run --if-present --workspace="apps/$APP_TO_VALIDATE" test:ci-teardown
-
-      - name: Upload test results to Codecov
-        if: ${{ !cancelled() && steps.tests_details.outputs.has_tests == 'true' && github.event_name != 'merge_group' }}
-        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
-        with:
-          report_type: test_results
-          files: ./junit.xml
-          name: ${{ inputs.app }}-test-results
-          flags: ${{ inputs.app }}
-          token: ${{ secrets.CODECOV_TOKEN }}
-
-      - name: Upload Test Coverage
-        if: steps.tests_details.outputs.has_tests == 'true' && github.event_name != 'merge_group'
-        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
-        with:
-          fail_ci_if_error: true
-          directory: ./apps/${{ inputs.app }}/coverage
-          flags: ${{ inputs.app }}
-          token: ${{ secrets.CODECOV_TOKEN }}
-
   test-build:
     runs-on: ubuntu-latest
     needs: should-validate
@@ -218,7 +283,7 @@ jobs:
 
   result:
     runs-on: ubuntu-latest
-    needs: [should-validate, validate, test-build]
+    needs: [should-validate, static-analysis, tests, mutation-testing, test-build]
     if: always()
     permissions:
       contents: read
@@ -232,7 +297,7 @@ jobs:
             .github
       - name: Conditionally required codecov/patch check
         if: >-
-          needs.validate.result == 'success' && github.event_name == 'pull_request' && (
+          needs.tests.result == 'success' && github.event_name == 'pull_request' && (
             inputs.app == 'api' ||
             inputs.app == 'deploy-web' ||
             inputs.app == 'notifications' ||
@@ -242,18 +307,31 @@ jobs:
         with:
           name: codecov/patch/${{ inputs.app }}
           sha: ${{ github.event.pull_request.head.sha }}
+          # Codecov usually posts within half a minute of the upload; the budget covers the ones that land later.
+          retry_delay: 10000
+          max_retries: 30
 
       - name: Check statuses
         env:
-          VALIDATE_RESULT: ${{ needs.validate.result }}
+          SHOULD_VALIDATE_RESULT: ${{ needs.should-validate.result }}
+          STATIC_ANALYSIS_RESULT: ${{ needs.static-analysis.result }}
+          TESTS_RESULT: ${{ needs.tests.result }}
+          MUTATION_TESTING_RESULT: ${{ needs.mutation-testing.result }}
           TEST_BUILD_RESULT: ${{ needs.test-build.result }}
         run: |
-          echo "Validate: $VALIDATE_RESULT"
+          echo "Should validate: $SHOULD_VALIDATE_RESULT"
+          echo "Static analysis: $STATIC_ANALYSIS_RESULT"
+          echo "Tests: $TESTS_RESULT"
+          echo "Mutation testing: $MUTATION_TESTING_RESULT"
           echo "Test Build: $TEST_BUILD_RESULT"
 
-          is_validation_ok=$(echo "$VALIDATE_RESULT" | grep -q -E "^(success|skipped)$" && echo "true" || echo "false")
-          is_test_build_ok=$(echo "$TEST_BUILD_RESULT" | grep -q -E "^(success|skipped)$" && echo "true" || echo "false")
-
-          if [[ "$is_validation_ok" != "true" || "$is_test_build_ok" != "true" ]]; then
+          # A failed change detection skips every job after it, which would otherwise read as a pass.
+          if [[ "$SHOULD_VALIDATE_RESULT" != "success" ]]; then
             exit 1
           fi
+
+          for result in "$STATIC_ANALYSIS_RESULT" "$TESTS_RESULT" "$MUTATION_TESTING_RESULT" "$TEST_BUILD_RESULT"; do
+            if [[ "$result" != "success" && "$result" != "skipped" ]]; then
+              exit 1
+            fi
+          done
