@@ -225,7 +225,7 @@ describe(useProviderListModel.name, () => {
   it("reports the providers failed to load when no page could be fetched", () => {
     const { result } = setup({ page: undefined, isSearchFailed: true });
 
-    expect(result.current).toMatchObject({ hasLoadedProviders: false, hasFailedToLoadProviders: true });
+    expect(result.current).toMatchObject({ hasLoadedProviders: false, hasFailedToLoadProviders: true, isLoadingProviders: false });
   });
 
   it("keeps showing the last page instead of a failure when fetching it again fails", () => {
@@ -238,6 +238,12 @@ describe(useProviderListModel.name, () => {
     const { result } = setup({ page: undefined, isSearchFailed: true, isSearching: true });
 
     expect(result.current).toMatchObject({ hasFailedToLoadProviders: false, isLoadingProviders: true });
+  });
+
+  it("reports loading while the search waits for the network to come back", () => {
+    const { result } = setup({ page: undefined, isSearchPaused: true });
+
+    expect(result.current).toMatchObject({ hasLoadedProviders: false, hasFailedToLoadProviders: false, isLoadingProviders: true });
   });
 
   it("hands over the provider locations and the network capacity", () => {
@@ -307,6 +313,7 @@ describe(useProviderListModel.name, () => {
       page?: ProviderSearchPage;
       isSearching?: boolean;
       isSearchFailed?: boolean;
+      isSearchPaused?: boolean;
       locations?: ApiProviderLocation[];
       isLocating?: boolean;
       leases?: LeaseDto[] | null;
@@ -325,6 +332,7 @@ describe(useProviderListModel.name, () => {
       data: page,
       isFetching: !!input.isSearching,
       isError: !!input.isSearchFailed,
+      isPaused: !!input.isSearchPaused,
       refetch: refetchProviders
     });
     const providerLocations = mock<ReturnType<typeof DEPENDENCIES.useProviderLocations>>({

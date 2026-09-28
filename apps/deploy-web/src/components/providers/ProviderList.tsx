@@ -143,7 +143,9 @@ export const ProviderList: React.FunctionComponent<Props> = ({ dependencies: d =
 
         {model.hasFailedToLoadProviders && (
           <div className="flex flex-col items-center justify-center gap-4 py-8">
-            <p className="text-muted-foreground">Couldn&apos;t load providers.</p>
+            <p role="alert" className="text-muted-foreground">
+              Couldn&apos;t load providers.
+            </p>
             <Button variant="outline" size="sm" onClick={model.refresh}>
               <Refresh className="mr-2 h-4 w-4" />
               Retry

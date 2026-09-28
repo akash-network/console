@@ -16,7 +16,7 @@ describe("ProviderList", () => {
   it("keeps the search and the filters within reach when the providers fail to load", () => {
     const { ProviderTable } = setup({ hasLoadedProviders: false, hasFailedToLoadProviders: true });
 
-    expect(screen.getByText("Couldn't load providers.")).toBeInTheDocument();
+    expect(screen.getByRole("alert")).toHaveTextContent("Couldn't load providers.");
     expect(screen.getByRole("textbox", { name: "Search Providers" })).toBeInTheDocument();
     expect(screen.getByRole("checkbox", { name: "Active" })).toBeInTheDocument();
     expect(screen.queryByRole("status")).not.toBeInTheDocument();

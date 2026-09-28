@@ -167,7 +167,7 @@ export function useProviderListModel(dependencies: typeof DEPENDENCIES = DEPENDE
     providers,
     hasLoadedProviders,
     hasFailedToLoadProviders: !hasLoadedProviders && providerSearch.isError && !providerSearch.isFetching,
-    isLoadingProviders: providerSearch.isFetching,
+    isLoadingProviders: providerSearch.isFetching || providerSearch.isPaused,
     locations: providerLocations.data,
     networkCapacity,
     isLoading: providerSearch.isFetching || providerLocations.isFetching || isLoadingLeases || isLoadingNetworkCapacity,
