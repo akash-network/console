@@ -29,8 +29,11 @@ export class ApiUrlService {
   static providers(apiEndpoint: string) {
     return `${apiEndpoint}/akash/provider/${networkStore.providerVersion}/providers`;
   }
-  static providerList() {
-    return `${this.baseApiUrl}/v1/providers`;
+  static providerSearch() {
+    return `${this.baseApiUrl}/v1/provider-search`;
+  }
+  static providerLocations() {
+    return `${this.baseApiUrl}/v1/provider-locations`;
   }
   static providerDetail(owner: string) {
     return `${this.baseApiUrl}/v1/providers/${owner}`;

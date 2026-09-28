@@ -1,6 +1,5 @@
 "use client";
 import type { ChangeEventHandler } from "react";
-import { useEffect, useState } from "react";
 import {
   Button,
   CheckboxWithLabel,
@@ -17,192 +16,59 @@ import {
 } from "@akashnetwork/ui/components";
 import { OpenNewWindow, Refresh, Xmark } from "iconoir-react";
 import dynamic from "next/dynamic";
-import { useRouter, useSearchParams } from "next/navigation";
 
-import { useLocalNotes } from "@src/components/LocalNoteManager";
-import { useWallet } from "@src/context/WalletProvider";
-import { useAllLeases } from "@src/queries/useLeaseQuery";
-import { useNetworkCapacity, useProviderList } from "@src/queries/useProvidersQuery";
 import networkStore from "@src/store/networkStore";
-import type { ClientProviderList } from "@src/types/provider";
-import { isLeaseLive } from "@src/utils/leaseUtils";
 import { domainName, UrlService } from "@src/utils/urlUtils";
 import Layout from "../layout/Layout";
 import { CustomNextSeo } from "../shared/CustomNextSeo";
 import { Title } from "../shared/Title";
 import { ProviderMap } from "./ProviderMap";
 import { ProviderTable } from "./ProviderTable";
+import { useProviderListModel } from "./useProviderListModel";
 
 const NetworkCapacity = dynamic(() => import("./NetworkCapacity/NetworkCapacity"), {
   ssr: false
 });
 
-type SortId = "active-leases-desc" | "active-leases-asc" | "my-leases-desc" | "my-active-leases-desc" | "gpu-available-desc";
-
-const sortOptions: { id: SortId; title: string }[] = [
-  { id: "active-leases-desc", title: "Active Leases (desc)" },
-  { id: "active-leases-asc", title: "Active Leases (asc)" },
-  { id: "my-leases-desc", title: "Your Leases (desc)" },
-  { id: "my-active-leases-desc", title: "Your Active Leases (desc)" },
-  { id: "gpu-available-desc", title: "GPUs Available (desc)" }
-];
-
 export const ProviderList: React.FunctionComponent = () => {
-  const { address } = useWallet();
-  const [pageIndex, setPageIndex] = useState(0);
-  const [isFilteringActive, setIsFilteringActive] = useState(true);
-  const [isFilteringFavorites, setIsFilteringFavorites] = useState(false);
-  const [isFilteringAudited, setIsFilteringAudited] = useState(true);
-  const [filteredProviders, setFilteredProviders] = useState<Array<ClientProviderList>>([]);
-  const [pageSize, setPageSize] = useState(10);
-  const [sort, setSort] = useState<SortId>("active-leases-desc");
-  const [search, setSearch] = useState("");
-  const { favoriteProviders } = useLocalNotes();
-  const { data: providers, isFetching: isLoadingProviders, refetch: getProviders } = useProviderList();
-  const { data: leases, isFetching: isLoadingLeases, refetch: getLeases } = useAllLeases(address, { enabled: false });
-  const { data: networkCapacity, isFetching: isLoadingNetworkCapacity } = useNetworkCapacity();
-  const start = pageIndex * pageSize;
-  const end = start + pageSize;
-  const currentPageProviders = filteredProviders.slice(start, end);
-  const pageCount = Math.ceil(filteredProviders.length / pageSize);
+  const model = useProviderListModel();
   const selectedNetwork = networkStore.useSelectedNetwork();
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const sortQuery = searchParams?.get("sort");
-
-  useEffect(() => {
-    getLeases();
-
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  useEffect(() => {
-    if (sortQuery && sortOptions.some(x => x.id === sortQuery)) {
-      setSort(sortQuery as SortId);
-    }
-  }, [sortQuery]);
-
-  useEffect(() => {
-    if (providers) {
-      let filteredProviders = [...providers].map(p => {
-        const numberOfDeployments = leases?.filter(d => d.provider === p.owner).length || 0;
-        const numberOfActiveLeases = leases?.filter(d => d.provider === p.owner && isLeaseLive(d)).length || 0;
-
-        return {
-          ...p,
-          userLeases: numberOfDeployments,
-          userActiveLeases: numberOfActiveLeases
-        };
-      });
-
-      // Filter for search
-      if (search) {
-        filteredProviders = filteredProviders.filter(x => x.hostUri?.includes(search.toLowerCase()) || x.owner?.includes(search.toLowerCase()));
-      }
-
-      if (isFilteringActive) {
-        filteredProviders = filteredProviders.filter(x => x.isOnline);
-      }
-
-      if (isFilteringFavorites) {
-        filteredProviders = filteredProviders.filter(x => favoriteProviders.some(y => y === x.owner));
-      }
-
-      if (isFilteringAudited) {
-        filteredProviders = filteredProviders.filter(x => x.isAudited);
-      }
-
-      filteredProviders = filteredProviders.sort((a, b) => {
-        if (sort === "active-leases-desc") {
-          return b.leaseCount - a.leaseCount;
-        } else if (sort === "active-leases-asc") {
-          return a.leaseCount - b.leaseCount;
-        } else if (sort === "my-leases-desc") {
-          return b.userLeases - a.userLeases;
-        } else if (sort === "my-active-leases-desc") {
-          return b.userActiveLeases - a.userActiveLeases;
-        } else if (sort === "gpu-available-desc") {
-          const totalGpuB = b.stats.gpu.available + b.stats.gpu.pending + b.stats.gpu.active;
-          const totalGpuA = a.stats.gpu.available + a.stats.gpu.pending + a.stats.gpu.active;
-          return totalGpuB - totalGpuA;
-        } else {
-          return 1;
-        }
-      });
-
-      setFilteredProviders(filteredProviders);
-    }
-  }, [providers, isFilteringActive, isFilteringFavorites, isFilteringAudited, favoriteProviders, search, sort, leases]);
-
-  const refresh = () => {
-    getProviders();
-  };
-
-  const handleChangePage = (newPage: number) => {
-    setPageIndex(newPage);
-  };
-
-  const onIsFilteringActiveClick = (value: boolean) => {
-    setPageIndex(0);
-    setIsFilteringActive(value);
-  };
-
-  const onIsFilteringFavoritesClick = (value: boolean) => {
-    setPageIndex(0);
-    setIsFilteringFavorites(value);
-  };
-
-  const onIsFilteringAuditedClick = (value: boolean) => {
-    setPageIndex(0);
-    setIsFilteringAudited(value);
-  };
 
   const onSearchChange: ChangeEventHandler<HTMLInputElement> = event => {
-    const value = event.target.value;
-    setSearch(value);
-    setPageIndex(0);
-  };
-
-  const handleSortChange = (value: string) => {
-    router.replace(UrlService.providers(value), { scroll: false });
-  };
-
-  const onPageSizeChange = (value: number) => {
-    setPageSize(value);
-    setPageIndex(0);
+    model.changeSearch(event.target.value);
   };
 
   return (
-    <Layout isLoading={isLoadingProviders || isLoadingLeases || isLoadingNetworkCapacity}>
+    <Layout isLoading={model.isLoading}>
       <CustomNextSeo title="Providers" url={`${domainName}${UrlService.providers()}`} description="Explore all the providers available on the Akash Network." />
 
       <Title>Network Capacity</Title>
 
-      {providers && providers.length > 0 && (
+      {model.locations && model.locations.length > 0 && (
         <h3 className="mb-8 text-base text-muted-foreground">
-          <span className="text-2xl font-bold text-primary">{providers.filter(x => x.isOnline).length}</span> active providers on {selectedNetwork.title}
+          <span className="text-2xl font-bold text-primary">{model.locations.length}</span> active providers on {selectedNetwork.title}
         </h3>
       )}
 
-      {!providers && isLoadingProviders && (
+      {!model.hasLoadedProviders && model.isLoadingProviders && (
         <div className="flex items-center justify-center py-16">
           <Spinner size="large" />
         </div>
       )}
 
-      {providers && (
+      {model.locations && (
         <div className="mx-auto max-w-[800px]">
-          <ProviderMap providers={providers} />
+          <ProviderMap providers={model.locations} />
         </div>
       )}
 
-      {providers && networkCapacity && (
+      {model.networkCapacity && (
         <div className="mb-8">
-          <NetworkCapacity stats={networkCapacity.resources} />
+          <NetworkCapacity stats={model.networkCapacity.resources} />
         </div>
       )}
 
-      {(providers?.length || 0) > 0 && (
+      {model.hasLoadedProviders && (
         <>
           <div className="mr-4">
             <Button onClick={() => window.open("https://akash.network/providers/", "_blank")} size="sm" color="secondary" className="space-x-2">
@@ -217,7 +83,7 @@ export const ProviderList: React.FunctionComponent = () => {
                 <h3 className="text-2xl">Providers</h3>
 
                 <div>
-                  <Button aria-label="back" onClick={() => refresh()} size="icon" variant="ghost" className="rounded-full">
+                  <Button aria-label="back" onClick={model.refresh} size="icon" variant="ghost" className="rounded-full">
                     <Refresh />
                   </Button>
                 </div>
@@ -225,13 +91,13 @@ export const ProviderList: React.FunctionComponent = () => {
 
               <div className="my-2 flex items-center space-x-6 md:my-0 md:ml-8">
                 <div>
-                  <CheckboxWithLabel checked={isFilteringActive} onCheckedChange={onIsFilteringActiveClick} label="Active" />
+                  <CheckboxWithLabel checked={model.isFilteringActive} onCheckedChange={model.changeIsFilteringActive} label="Active" />
                 </div>
                 <div>
-                  <CheckboxWithLabel checked={isFilteringAudited} onCheckedChange={onIsFilteringAuditedClick} label="Audited" />
+                  <CheckboxWithLabel checked={model.isFilteringAudited} onCheckedChange={model.changeIsFilteringAudited} label="Audited" />
                 </div>
                 <div>
-                  <CheckboxWithLabel checked={isFilteringFavorites} onCheckedChange={onIsFilteringFavoritesClick} label="Favorites" />
+                  <CheckboxWithLabel checked={model.isFilteringFavorites} onCheckedChange={model.changeIsFilteringFavorites} label="Favorites" />
                 </div>
               </div>
             </div>
@@ -239,14 +105,14 @@ export const ProviderList: React.FunctionComponent = () => {
             <div className="my-2 flex flex-col items-center space-y-2 md:flex-row md:space-x-2 md:space-y-0">
               <div className="flex-grow">
                 <Input
-                  value={search}
+                  value={model.search}
                   onChange={onSearchChange}
                   className="w-full"
                   label="Search Providers"
                   type="text"
                   endIcon={
-                    !!search && (
-                      <Button size="icon" variant="text" onClick={() => setSearch("")}>
+                    !!model.search && (
+                      <Button size="icon" variant="text" onClick={() => model.changeSearch("")}>
                         <Xmark />
                       </Button>
                     )
@@ -256,13 +122,13 @@ export const ProviderList: React.FunctionComponent = () => {
 
               <div className="w-full min-w-[200px] space-y-1 md:w-auto">
                 <Label>Sort by</Label>
-                <Select value={sort} onValueChange={handleSortChange}>
+                <Select value={model.sort} onValueChange={model.changeSort}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select lease" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectGroup>
-                      {sortOptions.map(l => (
+                      {model.sortOptions.map(l => (
                         <SelectItem key={l.id} value={l.id}>
                           <span className="text-sm text-muted-foreground">{l.title}</span>
                         </SelectItem>
@@ -273,25 +139,23 @@ export const ProviderList: React.FunctionComponent = () => {
               </div>
             </div>
 
-            <ProviderTable providers={currentPageProviders} sortOption={sort} />
+            <ProviderTable providers={model.providers} sortOption={model.sort} />
 
-            {currentPageProviders.length === 0 && (
+            {model.providers.length === 0 && (
               <div className="p-4 text-center">
                 <p>No provider found.</p>
               </div>
             )}
 
-            {(providers?.length || 0) > 0 && (
-              <div className="flex items-center justify-center py-8">
-                <CustomPagination
-                  pageSize={pageSize}
-                  setPageIndex={handleChangePage}
-                  pageIndex={pageIndex}
-                  totalPageCount={pageCount}
-                  setPageSize={onPageSizeChange}
-                />
-              </div>
-            )}
+            <div className="flex items-center justify-center py-8">
+              <CustomPagination
+                pageSize={model.pageSize}
+                setPageIndex={model.changePageIndex}
+                pageIndex={model.pageIndex}
+                totalPageCount={model.pageCount}
+                setPageSize={model.changePageSize}
+              />
+            </div>
           </div>
         </>
       )}

@@ -234,6 +234,8 @@ export interface ApiProviderList {
   featEndpointIp: boolean;
 }
 
+export type ApiProviderLocation = Pick<ApiProviderList, "owner" | "name" | "hostUri" | "ipRegion" | "ipCountryCode" | "ipLat" | "ipLon">;
+
 export interface ClientProviderList extends ApiProviderList {
   userLeases?: number;
   userActiveLeases?: number;

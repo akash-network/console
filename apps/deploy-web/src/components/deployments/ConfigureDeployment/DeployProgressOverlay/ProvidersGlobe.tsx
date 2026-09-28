@@ -5,8 +5,8 @@ import { useMemo } from "react";
 import type { GlobeMarker } from "@src/components/globe/Globe/Globe";
 import { Globe } from "@src/components/globe/Globe/Globe";
 import useCookieTheme from "@src/hooks/useTheme";
-import { useProviderList } from "@src/queries/useProvidersQuery";
-import type { ApiProviderList } from "@src/types/provider";
+import { useProviderLocations, useProvidersByAddresses } from "@src/queries/useProvidersQuery";
+import type { ApiProviderLocation } from "@src/types/provider";
 
 /** Lifts a focused marker toward the top of the visible cap of the oversized globe (negative = up from sphere center). */
 const GLOBE_FOCUS_BIAS_Y = -0.75;
@@ -17,7 +17,7 @@ const GLOBE_MARKER_SIZE = 0.01;
 /** Square diameter that always overshoots the viewport so the sphere fills the visible cap on any aspect ratio. */
 const GLOBE_CONTAINER_SIZE = "min(220vh, 120vw)";
 
-export const DEPENDENCIES = { useProviderList, useTheme: useCookieTheme, Globe };
+export const DEPENDENCIES = { useProviderLocations, useProvidersByAddresses, useTheme: useCookieTheme, Globe };
 
 interface Props {
   /** When set, the globe shows only this provider's marker and focuses the camera on it; otherwise it shows every online provider. */
@@ -32,7 +32,8 @@ interface Props {
  */
 export const ProvidersGlobe: FC<Props> = ({ focusedProviderAddress, dependencies: d = DEPENDENCIES }) => {
   const documentTheme = d.useTheme();
-  const { data: providers } = d.useProviderList();
+  const { data: providers } = d.useProviderLocations();
+  const { data: lookedUpFocusedProviders } = d.useProvidersByAddresses(focusedProviderAddress ? [focusedProviderAddress] : []);
 
   const cobeOptions = useMemo(() => {
     // Dark: lift the glow to the --card level (#171717) and brighten the map so the dotted continents read against the near-black (#0a0a0a) app background; white glow in light.
@@ -40,10 +41,12 @@ export const ProvidersGlobe: FC<Props> = ({ focusedProviderAddress, dependencies
     return { mapSamples: 32000, dark: 1, diffuse: 0, mapBrightness: documentTheme === "dark" ? 8 : 1, glowColor };
   }, [documentTheme]);
 
-  const focused = useMemo(
-    () => (focusedProviderAddress && providers ? providers.find(provider => provider.owner === focusedProviderAddress) ?? null : null),
-    [focusedProviderAddress, providers]
-  );
+  /** The locations list only online providers, so a matched provider the crawler still reports offline is found by its own lookup. */
+  const focused = useMemo<ApiProviderLocation | null>(() => {
+    if (!focusedProviderAddress) return null;
+    const isFocused = (provider: ApiProviderLocation) => provider.owner === focusedProviderAddress;
+    return providers?.find(isFocused) ?? lookedUpFocusedProviders.find(isFocused) ?? null;
+  }, [focusedProviderAddress, providers, lookedUpFocusedProviders]);
 
   const focusedMarker = useMemo(() => {
     if (!focused) return null;
@@ -53,15 +56,12 @@ export const ProvidersGlobe: FC<Props> = ({ focusedProviderAddress, dependencies
   }, [focused]);
 
   const markers = useMemo<GlobeMarker[]>(() => {
-    if (!providers) return [];
     if (focused) {
       const marker = providerToMarker(focused);
       return marker ? [marker] : [];
     }
-    return providers
-      .filter(provider => provider.isOnline)
-      .map(providerToMarker)
-      .filter((marker): marker is GlobeMarker => marker !== null);
+    if (!providers) return [];
+    return providers.map(providerToMarker).filter((marker): marker is GlobeMarker => marker !== null);
   }, [providers, focused]);
 
   return (
@@ -82,7 +82,7 @@ export const ProvidersGlobe: FC<Props> = ({ focusedProviderAddress, dependencies
 };
 
 /** A provider as a globe marker, or null when it has no usable coordinates. */
-function providerToMarker(provider: ApiProviderList): GlobeMarker | null {
+function providerToMarker(provider: ApiProviderLocation): GlobeMarker | null {
   const lat = parseFloat(provider.ipLat);
   const lng = parseFloat(provider.ipLon);
   if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;

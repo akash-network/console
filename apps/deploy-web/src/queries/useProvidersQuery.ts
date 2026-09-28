@@ -1,11 +1,12 @@
 import type { QueryKey, UseQueryOptions, UseQueryResult } from "@tanstack/react-query";
-import { useQueries, useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQueries, useQuery } from "@tanstack/react-query";
 
 import { useServices } from "@src/context/ServicesProvider";
 import { useScopedFetchProviderUrl } from "@src/hooks/useScopedFetchProviderUrl";
 import type {
   ApiProviderDetail,
   ApiProviderList,
+  ApiProviderLocation,
   ApiProviderRegion,
   Auditor,
   ProviderStatus,
@@ -140,12 +141,42 @@ export function useProviderAttributesSchema(options = {}) {
   });
 }
 
-export function useProviderList(options = {}) {
+export type ProviderSearchSort = "active-leases-desc" | "active-leases-asc" | "wallet-leases-desc" | "wallet-active-leases-desc" | "gpus-desc";
+
+export interface ProviderSearchParams {
+  search?: string;
+  online?: boolean;
+  audited?: boolean;
+  addresses?: string[];
+  sort: ProviderSearchSort;
+  walletAddress?: string;
+  skip: number;
+  limit: number;
+}
+
+export interface ProviderSearchPage {
+  providers: ApiProviderList[];
+  pagination: { total: number; skip: number; limit: number; hasMore: boolean };
+}
+
+export function useProviderSearch(params: ProviderSearchParams, options: { enabled?: boolean } = {}) {
   const { publicConsoleApiHttpClient } = useServices();
   return useQuery({
-    queryKey: QueryKeys.getProviderListKey(),
-    queryFn: () => publicConsoleApiHttpClient.get<ApiProviderList[]>(ApiUrlService.providerList()).then(response => response.data),
-    ...options
+    queryKey: QueryKeys.getProviderSearchKey(params),
+    queryFn: () =>
+      publicConsoleApiHttpClient
+        .get<{ data: ProviderSearchPage }>(ApiUrlService.providerSearch(), { params: { ...params, addresses: params.addresses?.join(",") } })
+        .then(response => response.data.data),
+    placeholderData: keepPreviousData,
+    enabled: options.enabled
+  });
+}
+
+export function useProviderLocations() {
+  const { publicConsoleApiHttpClient } = useServices();
+  return useQuery({
+    queryKey: QueryKeys.getProviderLocationsKey(),
+    queryFn: () => publicConsoleApiHttpClient.get<{ data: ApiProviderLocation[] }>(ApiUrlService.providerLocations()).then(response => response.data.data)
   });
 }
 
