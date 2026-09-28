@@ -5,8 +5,9 @@ import { AppNav } from "./AppNav";
 
 /**
  * Drives the "Configure your deployment" screen and its quoting lifecycle: configure a spec, request
- * quotes (creates the deployment), then cancel-and-edit (closes it). Interactions only — assertions live
- * in the spec.
+ * quotes (creates the deployment), then cancel-and-edit (closes it). Interactions only, assertions live
+ * in the spec. Every locator matches both the three pane layout and the two panel one, since the layout
+ * follows a feature flag that can change without a deploy.
  */
 export class ConfigureDeploymentPage {
   constructor(readonly page: Page) {}
@@ -97,7 +98,11 @@ export class ConfigureDeploymentPage {
   }
 
   async cancelAndEdit() {
-    await this.page.getByRole("button", { name: "Cancel and edit" }).first().click();
+    await this.page
+      .getByRole("button", { name: "Cancel and edit" })
+      .or(this.page.getByRole("button", { name: "Edit", exact: true }))
+      .first()
+      .click();
   }
 
   dockerImageInput() {
@@ -126,16 +131,21 @@ export class ConfigureDeploymentPage {
   }
 
   cpuInput() {
-    return this.page.getByRole("spinbutton", { name: "CPU Count" });
+    return this.page.getByRole("spinbutton", { name: "vCPU" });
+  }
+
+  /** Disabled in the three pane layout and not rendered in the two panel one, so none exists while the spec is locked. */
+  editableCpuInput() {
+    return this.cpuInput().and(this.page.locator(":enabled"));
   }
 
   requestQuotesButton() {
-    return this.page.getByRole("button", { name: "Request quotes" });
+    return this.page.getByRole("button", { name: "Request quotes" }).or(this.page.getByRole("button", { name: "Choose a provider" }));
   }
 
-  /** The lock banner copy shown in each spec pane while quotes are active. */
+  /** The lock banner copy of the three pane layout, or the hint under the locked rail's Edit button. */
   lockBannerText() {
-    return this.page.getByText("Changing a locked setting needs new quotes.");
+    return this.page.getByText("Changing a locked setting needs new quotes.").or(this.page.getByText("unlocks · bids reset"));
   }
 
   marketplaceHeading() {
@@ -147,12 +157,16 @@ export class ConfigureDeploymentPage {
     return this.page.getByRole("region", { name: /Compute Marketplace/i });
   }
 
-  /** Waits for the first submitted bid's Select button in the marketplace, then picks it. */
+  /**
+   * Waits for the first submitted bid's Select button in the marketplace, then presses it from the keyboard. The two
+   * panel layout keeps that button for keyboard and assistive technology but hides it, so a pointer click on it
+   * could land on another row.
+   */
   async selectFirstAvailableProvider() {
     const select = this.marketplace()
       .getByRole("button", { name: /^Select / })
       .first();
-    await select.click({ timeout: 90_000 });
+    await select.press("Enter", { timeout: 90_000 });
   }
 
   reviewDialog() {

@@ -1,5 +1,6 @@
 import type { FC } from "react";
 import { Controller, useFormContext } from "react-hook-form";
+import { cn } from "@akashnetwork/ui/utils";
 import { MapPin } from "iconoir-react";
 
 import { SearchableSelect } from "@src/components/shared/SearchableSelect/SearchableSelect";
@@ -14,10 +15,11 @@ type Props = {
   placementIndex: number;
   /** Disables the trigger while the pane is locked so the region can't be changed. */
   disabled?: boolean;
+  triggerClassName?: string;
   dependencies?: typeof DEPENDENCIES;
 };
 
-export const RegionSelect: FC<Props> = ({ placementIndex, disabled, dependencies: d = DEPENDENCIES }) => {
+export const RegionSelect: FC<Props> = ({ placementIndex, disabled, triggerClassName, dependencies: d = DEPENDENCIES }) => {
   const { control } = useFormContext<SdlBuilderFormValuesType>();
   const { data: regions } = d.useProviderRegions();
   const { data: placementOptions } = d.usePlacementOptions();
@@ -43,7 +45,7 @@ export const RegionSelect: FC<Props> = ({ placementIndex, disabled, dependencies
             emptyOption={{ value: "", label: "Any region" }}
             leadingIcon={<MapPin aria-hidden="true" className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />}
             disabled={disabled}
-            triggerClassName="h-8 px-3 text-xs"
+            triggerClassName={cn("h-8 px-3 text-xs", triggerClassName)}
           />
         );
       }}

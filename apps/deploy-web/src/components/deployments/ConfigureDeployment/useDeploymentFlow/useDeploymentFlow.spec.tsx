@@ -1377,6 +1377,127 @@ describe(useDeploymentFlow.name, () => {
     }
   });
 
+  describe("discard", () => {
+    it("closes the open deployment in the background without leaving the current phase or touching the url", () => {
+      const replace = vi.fn();
+      const closeMutate = vi.fn();
+      const { result } = setup({ intent: { sdlStrategy: "edit", bidStrategy: "select", dseq: "777" }, replace, closeMutate });
+
+      act(() => result.current.actions.discard());
+
+      expect(closeMutate).toHaveBeenCalledWith({ dseq: "777" }, expect.any(Object));
+      expect(result.current.phase).toBe("quoting");
+      expect(replace).not.toHaveBeenCalled();
+    });
+
+    it("closes a deployment an earlier close left open", () => {
+      const closeMutate = vi.fn((_args, options) => options.onError?.(new Error("close failed")));
+      const getDeploymentMutate = vi.fn((_args, options) => options.onSuccess?.({ data: { deployment: { state: "active" } } }));
+      const { result } = setup({ intent: { sdlStrategy: "edit", bidStrategy: "select", dseq: "777" }, closeMutate, getDeploymentMutate });
+      act(() => result.current.actions.cancelAndEdit());
+      expect(result.current.pendingClose).toMatchObject({ dseq: "777", failed: true });
+
+      act(() => result.current.actions.discard());
+
+      expect(closeMutate).toHaveBeenCalledTimes(2);
+      expect(closeMutate).toHaveBeenLastCalledWith({ dseq: "777" }, expect.any(Object));
+    });
+
+    it("discards only once however often it is asked", () => {
+      const closeMutate = vi.fn();
+      const { result } = setup({ intent: { sdlStrategy: "edit", bidStrategy: "select", dseq: "777" }, closeMutate });
+
+      act(() => result.current.actions.discard());
+      act(() => result.current.actions.discard());
+
+      expect(closeMutate).toHaveBeenCalledTimes(1);
+    });
+
+    it("stops the no-bid timeout from closing and editing a discarded deployment", () => {
+      vi.useFakeTimers();
+      try {
+        const replace = vi.fn();
+        const closeMutate = vi.fn();
+        const { result } = setup({ intent: { sdlStrategy: "edit", bidStrategy: "select", dseq: "777" }, replace, closeMutate });
+        act(() => result.current.actions.discard());
+
+        act(() => vi.advanceTimersByTime(60_000));
+
+        expect(closeMutate).toHaveBeenCalledTimes(1);
+        expect(replace).not.toHaveBeenCalled();
+        expect(result.current.error).toBeUndefined();
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("closes what a create still in flight opens, even once the page is gone", () => {
+      const createMutate = vi.fn();
+      const { result, services, closeDeployment } = setup({ createMutate });
+      act(() => result.current.actions.requestQuotes("sdl"));
+
+      act(() => result.current.actions.discard());
+      act(() => hookOptionsOf(services.api.v1.createDeployment.useMutation).onSuccess?.({ data: { dseq: "999", manifest: "m" } }));
+
+      expect(closeDeployment.mutate).toHaveBeenCalledWith({ dseq: "999" });
+    });
+
+    it("closes a create in flight only once when the page is still there to see it resolve", () => {
+      let resolveCreate: ((result: { data: { dseq: string; manifest: string } }) => void) | undefined;
+      const createMutate = vi.fn((_args, options) => {
+        resolveCreate = options.onSuccess;
+      });
+      const { result, services, closeDeployment } = setup({ createMutate });
+      act(() => result.current.actions.requestQuotes("sdl"));
+      act(() => result.current.actions.discard());
+
+      act(() => {
+        hookOptionsOf(services.api.v1.createDeployment.useMutation).onSuccess?.({ data: { dseq: "999", manifest: "m" } });
+        resolveCreate?.({ data: { dseq: "999", manifest: "m" } });
+      });
+
+      expect(closeDeployment.mutate).toHaveBeenCalledTimes(1);
+      expect(result.current.dseq).toBeNull();
+    });
+
+    it("leaves a create that was never discarded to the attempt that made it", () => {
+      const { services, closeDeployment } = setup({ createMutate: vi.fn() });
+
+      act(() => hookOptionsOf(services.api.v1.createDeployment.useMutation).onSuccess?.({ data: { dseq: "999", manifest: "m" } }));
+
+      expect(closeDeployment.mutate).not.toHaveBeenCalled();
+    });
+
+    it("drops a create queued behind a close", () => {
+      const closeMutate = vi.fn();
+      const createMutate = vi.fn();
+      const { result } = setup({ intent: { sdlStrategy: "edit", bidStrategy: "select", dseq: "777" }, closeMutate, createMutate });
+      act(() => result.current.actions.requestQuotes("sdl"));
+
+      act(() => result.current.actions.discard());
+      act(() => closeMutate.mock.calls[0][1].onSuccess({}));
+
+      expect(createMutate).not.toHaveBeenCalled();
+    });
+
+    it("refreshes the deployment lists once a discarded deployment's close settles, even once the page is gone", () => {
+      const { result, services, queryClient } = setup({ intent: { sdlStrategy: "edit", bidStrategy: "select", dseq: "777" }, closeMutate: vi.fn() });
+      act(() => result.current.actions.discard());
+
+      act(() => hookOptionsOf(services.api.v1.closeDeployment.useMutation).onSettled?.());
+
+      expect(queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: ["v1", "listDeployments"] });
+    });
+
+    it("leaves list refreshes to the close itself while nothing was discarded", () => {
+      const { services, queryClient } = setup({ intent: { sdlStrategy: "edit", bidStrategy: "select", dseq: "777" } });
+
+      act(() => hookOptionsOf(services.api.v1.closeDeployment.useMutation).onSettled?.());
+
+      expect(queryClient.invalidateQueries).not.toHaveBeenCalled();
+    });
+  });
+
   describe("cancel and edit close reliability", () => {
     it("stays in configuring and auto-closes the deployment when cancelled while it is still being created", () => {
       const replace = vi.fn();
@@ -1857,6 +1978,10 @@ describe(useDeploymentFlow.name, () => {
     return renderHook(() => useDeploymentFlow({ intent }, dependencies), {
       wrapper: ({ children }: PropsWithChildren) => <JotaiStoreProvider store={store}>{children}</JotaiStoreProvider>
     });
+  }
+
+  function hookOptionsOf(useMutation: { mock: { calls: unknown[][] } }) {
+    return (useMutation.mock.calls.at(-1)?.[0] ?? {}) as { onSuccess?: (...args: unknown[]) => void; onSettled?: (...args: unknown[]) => void };
   }
 
   /** The create-lease success payload shape the flow reads the owner from. */

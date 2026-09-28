@@ -1,14 +1,12 @@
 import type { FC } from "react";
-import { useRef, useState } from "react";
+import { useId, useRef, useState } from "react";
 import { useController, useFormContext } from "react-hook-form";
 import {
   Field,
   FieldContent,
+  FieldError,
   FieldLabel,
   FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
   Input,
   NumberUnitInput,
   Select,
@@ -43,16 +41,13 @@ type Props = {
   dependencies?: typeof DEPENDENCIES;
 };
 
-/**
- * Hardware "Compute Resources" card body: vCPU count plus side-by-side Memory and Storage
- * number+unit inputs. Writes to the selected service's compute profile
- * (`profile.cpu`, `profile.ram`/`ramUnit`, `profile.storage[0].size`/`unit`)
- * and surfaces the existing schema validation inline on each field.
- */
+/** The Compute card body, also rendered in the log collector dialog, so vCPU, Memory and Storage share one row that wraps where the column is narrow. */
 export const ComputeResourcesCard: FC<Props> = ({ serviceIndex, locked = false, dependencies: d = DEPENDENCIES }) => {
   const { control } = useFormContext<SdlBuilderFormValuesType>();
   const { analyticsService } = d.useServices();
   const cpuFocusValueRef = useRef<number | null>(null);
+  /** Input renders its element under `${id}-input`, so that is the id the vCPU label targets. */
+  const cpuFieldId = useId();
   const isCpuArchEnabled = d.useFlag("ui_sdl_cpu_arch");
 
   const arch = useController({ control, name: `services.${serviceIndex}.profile.arch` });
@@ -77,49 +72,48 @@ export const ComputeResourcesCard: FC<Props> = ({ serviceIndex, locked = false, 
 
   return (
     <>
-      <FormField
-        control={control}
-        name={`services.${serviceIndex}.profile.cpu`}
-        render={({ field, fieldState }) => {
-          const captureCpuCount = () => {
-            cpuFocusValueRef.current = field.value;
-          };
-          const commitCpuCount = () => {
-            if (field.value !== cpuFocusValueRef.current && Number.isFinite(field.value)) {
-              analyticsService.track("configure_cpu_count_changed", { category: "deployments", count: field.value });
-            }
-            field.onBlur();
-          };
-          return (
-            <FormItem>
-              <FormLabel className="text-sm" htmlFor="cpu-count-input">
-                CPU Count
-              </FormLabel>
-              <Input
-                type="number"
-                id="cpu-count"
-                aria-label="CPU Count"
-                error={!!fieldState.error}
-                value={Number.isFinite(field.value) ? field.value : ""}
-                min={0.1}
-                step={0.1}
-                max={validationConfig.maxCpuAmount}
-                disabled={locked}
-                onFocus={captureCpuCount}
-                onChange={event => {
-                  const next = parseFloat(event.target.value);
-                  field.onChange(Number.isFinite(next) ? next : null);
-                }}
-                onBlur={commitCpuCount}
-                inputClassName="h-9"
-              />
-              <FormMessage className="text-muted-foreground" />
-            </FormItem>
-          );
-        }}
-      />
-
-      <div className="grid grid-cols-2 gap-2">
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(8.5rem,1fr))] gap-2">
+        <FormField
+          control={control}
+          name={`services.${serviceIndex}.profile.cpu`}
+          render={({ field, fieldState }) => {
+            const captureCpuCount = () => {
+              cpuFocusValueRef.current = field.value;
+            };
+            const commitCpuCount = () => {
+              if (field.value !== cpuFocusValueRef.current && Number.isFinite(field.value)) {
+                analyticsService.track("configure_cpu_count_changed", { category: "deployments", count: field.value });
+              }
+              field.onBlur();
+            };
+            return (
+              <Field className="gap-2">
+                <FieldLabel htmlFor={`${cpuFieldId}-input`}>vCPU</FieldLabel>
+                <FieldContent>
+                  <Input
+                    type="number"
+                    id={cpuFieldId}
+                    aria-label="vCPU"
+                    error={!!fieldState.error}
+                    value={Number.isFinite(field.value) ? field.value : ""}
+                    min={0.1}
+                    step={0.1}
+                    max={validationConfig.maxCpuAmount}
+                    disabled={locked}
+                    onFocus={captureCpuCount}
+                    onChange={event => {
+                      const next = parseFloat(event.target.value);
+                      field.onChange(Number.isFinite(next) ? next : null);
+                    }}
+                    onBlur={commitCpuCount}
+                    inputClassName="h-9"
+                  />
+                  <FieldError className="text-muted-foreground">{fieldState.error?.message}</FieldError>
+                </FieldContent>
+              </Field>
+            );
+          }}
+        />
         <Field className="gap-2">
           <FieldLabel>Memory</FieldLabel>
           <FieldContent>

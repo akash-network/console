@@ -10,7 +10,7 @@ interface Props {
   onRetry: () => void;
 }
 
-const CLOSE_FAILED_FALLBACK = "Requesting quotes again will close it first, so nothing is left behind.";
+const CLOSE_FAILED_FALLBACK = "Requesting new bids closes it first, so nothing is left behind.";
 
 /**
  * Takes the lock banner's slot for as long as a cancelled deployment is unaccounted for, so the form stays editable

@@ -44,6 +44,8 @@ interface UseScreenedProvidersResult {
    * does NOT fall back to the full catalog.
    */
   isInvalid: boolean;
+  /** The providers shown are from the previous spec while the current one is being screened. */
+  isRefreshing: boolean;
 }
 
 /** Quiet period after the last spec edit before the current spec is screened. */
@@ -86,7 +88,8 @@ export function useScreenedProviders({ sdl, placementName, enabled = true }: Use
     providers: isInvalid ? [] : query.data?.providers ?? [],
     isLoading: !isInvalid && query.isLoading,
     isError: !isInvalid && query.isError,
-    isInvalid
+    isInvalid,
+    isRefreshing: !isInvalid && query.isFetching && query.isPlaceholderData
   };
 }
 

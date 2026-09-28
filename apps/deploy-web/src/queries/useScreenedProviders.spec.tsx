@@ -78,6 +78,21 @@ describe("useScreenedProviders", () => {
     expect(result.current.providers).toEqual(providers);
   });
 
+  it("reports a refresh while it re-screens with the previous providers still shown", () => {
+    const { result } = setup({ placementName: "dcloud", isFetching: true, isPlaceholderData: true });
+
+    expect(result.current.isRefreshing).toBe(true);
+  });
+
+  it.each([
+    ["the first screening", { isFetching: true, isPlaceholderData: false }],
+    ["a settled screening", { isFetching: false, isPlaceholderData: false }]
+  ])("reports no refresh for %s", (_, state) => {
+    const { result } = setup({ placementName: "dcloud", ...state });
+
+    expect(result.current.isRefreshing).toBe(false);
+  });
+
   it("requests the previous data as a placeholder so the list refines in place instead of blanking", () => {
     const { useQuery } = setup({ placementName: "dcloud" });
 
@@ -120,12 +135,22 @@ describe("useScreenedProviders", () => {
     }
   });
 
-  function setup(input: { placementName: string; sdl?: string; region?: string; providers?: ScreenedProvider[]; enabled?: boolean }) {
+  function setup(input: {
+    placementName: string;
+    sdl?: string;
+    region?: string;
+    providers?: ScreenedProvider[];
+    enabled?: boolean;
+    isFetching?: boolean;
+    isPlaceholderData?: boolean;
+  }) {
     const useQuery = vi.fn().mockReturnValue(
       mock<UseQueryResult<ScreenedProvidersResponse>>({
         data: { providers: input.providers ?? [] },
         isLoading: false,
-        isError: false
+        isError: false,
+        isFetching: input.isFetching ?? false,
+        isPlaceholderData: input.isPlaceholderData ?? false
       })
     );
     const api = { v1: { screenProviders: { useQuery } } } as unknown as ReturnType<

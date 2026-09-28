@@ -1,73 +1,49 @@
 import type { FC } from "react";
 import { useCallback } from "react";
 import { useFormContext, useWatch } from "react-hook-form";
-import { Alert, CollapsibleCard, Label, RadioGroup, RadioGroupItem } from "@akashnetwork/ui/components";
-import { LockIcon, ShieldCheckIcon } from "lucide-react";
+import { Alert, Label, RadioGroup, RadioGroupItem } from "@akashnetwork/ui/components";
+import { LockIcon } from "lucide-react";
 
 import { ConfidentialComputeResources } from "@src/components/deployments/ConfidentialComputeResources";
 import type { SdlBuilderFormValuesType } from "@src/types";
 import { buildFormTeeCarveout } from "@src/utils/confidentialCompute";
-import { defaultGpuModel } from "@src/utils/sdl/data";
-import { confidentialComputeTooltip } from "../cardTooltips";
+import { ToggleRow } from "../ToggleRow/ToggleRow";
 import { UnlockGpusButton } from "../UnlockGpusButton/UnlockGpusButton";
+import { useServiceGpu } from "../useServiceGpu/useServiceGpu";
 
-export const DEPENDENCIES = { CollapsibleCard, RadioGroup, RadioGroupItem, Label, Alert, ConfidentialComputeResources, UnlockGpusButton };
+export const DEPENDENCIES = { ToggleRow, RadioGroup, RadioGroupItem, Label, Alert, ConfidentialComputeResources, UnlockGpusButton };
 
 type ServiceParams = NonNullable<SdlBuilderFormValuesType["services"][number]["params"]>;
 type TeeType = NonNullable<ServiceParams["tee"]>;
 
 const TEE_OPTIONS: { value: TeeType; label: string; description: string }[] = [
   { value: "cpu", label: "CPU", description: "Run inside a CPU-only Trusted Execution Environment." },
-  { value: "cpu-gpu", label: "CPU-GPU", description: "Attest the GPU as well. This enables the GPU card for this service." }
+  { value: "cpu-gpu", label: "CPU-GPU", description: "Attest the GPU as well. This adds a GPU to this service." }
 ];
 
-/** TEE type a freshly enabled card defaults to. CPU is the least restrictive and needs no GPU resources. */
+/** CPU is the least restrictive TEE type and needs no GPU. */
 const DEFAULT_TEE: TeeType = "cpu";
 
 type Props = {
   serviceIndex: number;
   locked?: boolean;
-  /**
-   * True when the current (trial) user cannot request a GPU: the `cpu-gpu` option is locked and a warning with
-   * an add-credits CTA is shown. CPU-only TEE stays selectable (the backend never blocks it). Defaults to
-   * `false` so existing consumers/tests keep the unrestricted behavior.
-   */
+  /** A trial wallet can't attest a GPU, while CPU-only confidential compute stays selectable because the API never blocks it. */
   isGpuBlocked?: boolean;
-  /** Opens the add-credits (unlock) sheet owned by the HardwareSection. */
   onUnlock?: () => void;
   dependencies?: typeof DEPENDENCIES;
 };
 
-/**
- * Hardware "Confidential Compute" card. A header switch toggles whether the
- * service requests a Trusted Execution Environment, persisted as
- * `services.${serviceIndex}.params.tee`. Enabling defaults to `cpu`; the body
- * then offers a radio choice between `cpu` and `cpu-gpu`. Disabling clears `tee`
- * while preserving any other `params` (e.g. log-collector `permissions`), and
- * drops `params` entirely once nothing is left so the generated SDL stays clean.
- *
- * Picking `cpu-gpu` attests the GPU, so it enables the GPU card for this service
- * (sets `profile.hasGpu`, a count of at least one, and a default GPU model) — the
- * same state that card's own switch produces — so the attested GPU is backed by
- * real GPU resources and the SDL stays valid. Cross-service TEE conflicts within a
- * placement group are still caught by the SDL validator before requesting quotes.
- *
- * The body renders only while the card is open: an open, switched-off card is
- * reachable only when the pane is locked, where the short off-state hint just
- * tells the viewer no confidential compute is configured.
- */
-export const ConfidentialComputeCard: FC<Props> = ({ serviceIndex, locked = false, isGpuBlocked = false, onUnlock, dependencies: d = DEPENDENCIES }) => {
+/** The Security card's confidential compute opt-in; turning it off keeps the service's other params and drops `params` once empty so the SDL stays clean. */
+export const ConfidentialComputeFields: FC<Props> = ({ serviceIndex, locked = false, isGpuBlocked = false, onUnlock, dependencies: d = DEPENDENCIES }) => {
   const { control, getValues, setValue } = useFormContext<SdlBuilderFormValuesType>();
+  const { count: gpuCount, enable: enableGpu } = useServiceGpu(serviceIndex);
   const tee = useWatch({ control, name: `services.${serviceIndex}.params.tee` });
   const isEnabled = tee === "cpu" || tee === "cpu-gpu";
 
-  // Watch the declared resources so the attestation-sidecar preview recomputes as the user edits CPU/RAM.
   const serviceProfile = useWatch({ control, name: `services.${serviceIndex}.profile` });
   const count = useWatch({ control, name: `services.${serviceIndex}.count` });
 
-  // Picking cpu-gpu enables the GPU card, but the user can still turn GPU back off afterwards — surface the
-  // resulting mismatch since a cpu-gpu enclave attests a GPU and the SDL validator rejects it without one.
-  const gpuMismatch = tee === "cpu-gpu" && !serviceProfile?.hasGpu;
+  const gpuMismatch = tee === "cpu-gpu" && gpuCount === 0;
 
   const carveout =
     isEnabled && tee && serviceProfile
@@ -77,32 +53,13 @@ export const ConfidentialComputeCard: FC<Props> = ({ serviceIndex, locked = fals
           ram: serviceProfile.ram,
           ramUnit: serviceProfile.ramUnit,
           count,
-          gpu: serviceProfile.gpu,
+          gpu: gpuCount,
           teeType: tee
         })
       : undefined;
 
-  /**
-   * Brings the GPU card to its enabled state — `profile.hasGpu` on, a count of at least one, and at least
-   * one GPU model — matching what the GPU card's own switch does. Only ever turns GPU on (never off), so a
-   * GPU the user configured independently, or one left over after switching back to `cpu`, is preserved.
-   */
-  const enableGpu = useCallback(() => {
-    const profile = `services.${serviceIndex}.profile` as const;
-    if (!getValues(`${profile}.hasGpu`)) {
-      setValue(`${profile}.hasGpu`, true, { shouldDirty: true });
-    }
-    if ((getValues(`${profile}.gpu`) ?? 0) < 1) {
-      setValue(`${profile}.gpu`, 1, { shouldValidate: true, shouldDirty: true });
-    }
-    if ((getValues(`${profile}.gpuModels`) ?? []).length === 0) {
-      setValue(`${profile}.gpuModels`, [{ ...defaultGpuModel }], { shouldDirty: true });
-    }
-  }, [getValues, serviceIndex, setValue]);
-
   const setTee = useCallback(
     (value: TeeType | undefined) => {
-      // Defensive: never let a trial land on cpu-gpu even if the (disabled) radio is somehow triggered.
       if (value === "cpu-gpu" && isGpuBlocked) return;
       const params = getValues(`services.${serviceIndex}.params`);
       const nextParams: ServiceParams = { ...params, tee: value };
@@ -127,18 +84,17 @@ export const ConfidentialComputeCard: FC<Props> = ({ serviceIndex, locked = fals
   );
 
   return (
-    <d.CollapsibleCard
-      locked={locked}
-      title="Confidential Compute"
-      icon={<ShieldCheckIcon className="h-4 w-4" />}
-      infoTooltip={confidentialComputeTooltip}
-      isToggled={isEnabled}
-      onToggle={toggleConfidentialCompute}
-      toggleAriaLabel="Enable confidential compute"
-      toggleDisabled={locked}
-    >
-      {isEnabled ? (
-        <div className="space-y-4">
+    <div className="flex flex-col gap-4">
+      <d.ToggleRow
+        label="Confidential compute"
+        description="Require hardware-backed TEE providers."
+        switchLabel="Enable confidential compute"
+        checked={isEnabled}
+        onCheckedChange={toggleConfidentialCompute}
+        disabled={locked}
+      />
+      {isEnabled && (
+        <>
           <d.RadioGroup
             aria-label="Confidential compute type"
             value={tee}
@@ -177,15 +133,12 @@ export const ConfidentialComputeCard: FC<Props> = ({ serviceIndex, locked = fals
           )}
           {gpuMismatch && (
             <d.Alert variant="warning" className="p-4 text-sm">
-              CPU-GPU confidential compute attests a GPU, so this service needs GPU resources. Enable the GPU card above so providers with confidential-compute
-              GPUs can bid.
+              CPU-GPU confidential compute attests a GPU, so this service needs GPUs. Set GPUs to 1 or more so providers with confidential-compute GPUs can bid.
             </d.Alert>
           )}
           {carveout && <d.ConfidentialComputeResources carveouts={[carveout]} />}
-        </div>
-      ) : (
-        <p className="text-sm text-muted-foreground">Confidential compute is off.</p>
+        </>
       )}
-    </d.CollapsibleCard>
+    </div>
   );
 };

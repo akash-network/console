@@ -7,6 +7,7 @@ import { mock } from "vitest-mock-extended";
 
 import type { SdlBuilderFormValuesType } from "@src/types";
 import { defaultPlacement, defaultService, defaultServiceWithPlacement } from "@src/utils/sdl/data";
+import { PlacementManagerProvider } from "../PlacementManagerProvider/PlacementManagerProvider";
 import { DEPENDENCIES as PLACEMENT_CARD_DEPENDENCIES, PlacementCard } from "./PlacementCard/PlacementCard";
 import { DEPENDENCIES, DeploymentPane, placementSelectionState } from "./DeploymentPane";
 
@@ -107,13 +108,13 @@ describe("DeploymentPane", () => {
     dependencies?: Partial<typeof DEPENDENCIES>;
   }) {
     const placements = input.placements ?? [defaultPlacement({ name: "placement-1" })];
-    const manager = mock<ReturnType<typeof DEPENDENCIES.usePlacementManager>>({
+    const manager = mock<ReturnType<typeof DEPENDENCIES.usePlacementManagerContext>>({
       placements,
       canRemoveService: false,
       canRemovePlacement: false,
       getPlacementServices: vi.fn(() => [{ service: defaultService(placements[0].id, { title: "service-1" }), index: 0 }])
     });
-    const usePlacementManager: typeof DEPENDENCIES.usePlacementManager = () => manager;
+    const usePlacementManagerContext: typeof DEPENDENCIES.usePlacementManagerContext = () => manager;
 
     render(
       <TooltipProvider>
@@ -128,7 +129,7 @@ describe("DeploymentPane", () => {
           dseq={null}
           deploymentName={input.deploymentName ?? ""}
           onDeploymentNameChange={input.onDeploymentNameChange ?? vi.fn()}
-          dependencies={MockComponents(DEPENDENCIES, { usePlacementManager, usePlacementsWithBids: () => new Set<string>(), ...input.dependencies })}
+          dependencies={MockComponents(DEPENDENCIES, { usePlacementManagerContext, usePlacementsWithBids: () => new Set<string>(), ...input.dependencies })}
         />
       </TooltipProvider>
     );
@@ -183,7 +184,9 @@ describe("DeploymentPane placement management", () => {
       form = f;
       return (
         <TooltipProvider>
-          <FormProvider {...f}>{children}</FormProvider>
+          <FormProvider {...f}>
+            <PlacementManagerProvider onSelectService={vi.fn()}>{children}</PlacementManagerProvider>
+          </FormProvider>
         </TooltipProvider>
       );
     };

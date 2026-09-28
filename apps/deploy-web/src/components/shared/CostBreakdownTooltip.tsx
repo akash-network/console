@@ -57,7 +57,7 @@ export const CostBreakdownTooltip: FC<Props> = ({ perBlockUDenom, denom, gpuCoun
         </div>
       }
     >
-      {children ?? <InfoCircle className="ml-2 text-xs text-muted-foreground" />}
+      {children ?? <InfoCircle data-row-click-ignore className="ml-2 text-xs text-muted-foreground" />}
     </CustomTooltip>
   );
 };

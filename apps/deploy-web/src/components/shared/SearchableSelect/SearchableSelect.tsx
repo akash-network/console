@@ -37,6 +37,8 @@ type Props = {
   searchPlaceholder?: string;
   notFoundMessage: string;
   emptyOption?: EmptyOption;
+  /** Trigger text while nothing is selected, in place of the empty option's label (which stays pickable in the list). */
+  emptyTriggerLabel?: ReactNode;
   /** Trigger text when nothing is selected and no `emptyOption` is provided. */
   placeholder?: ReactNode;
   leadingIcon?: ReactNode;
@@ -66,6 +68,7 @@ export const SearchableSelect: FC<Props> = ({
   searchPlaceholder,
   notFoundMessage,
   emptyOption,
+  emptyTriggerLabel,
   placeholder,
   leadingIcon,
   disabled,
@@ -103,7 +106,7 @@ export const SearchableSelect: FC<Props> = ({
         >
           <span className="flex min-w-0 items-center gap-1.5">
             {leadingIcon}
-            <span className="truncate">{value ? (renderValue ? renderValue(value) : value) : emptyOption?.label ?? placeholder}</span>
+            <span className="truncate">{value ? (renderValue ? renderValue(value) : value) : emptyTriggerLabel ?? emptyOption?.label ?? placeholder}</span>
           </span>
           <NavArrowDown aria-hidden="true" className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
         </Button>

@@ -6,16 +6,18 @@ import { describe, expect, it, vi } from "vitest";
 import type { PlacementAttributeType, SdlBuilderFormValuesType, ServiceType } from "@src/types";
 import { defaultPlacement, defaultService, defaultServiceWithPlacement } from "@src/utils/sdl/data";
 import { GPU_INTERCONNECT_CAPABILITY_KEY, GPU_INTERCONNECT_FABRIC_PREFIX } from "@src/utils/sdl/gpuInterconnect";
-import { GpuInterconnectCard } from "./GpuInterconnectCard";
+import { GpuInterconnectFields } from "./GpuInterconnectFields";
 
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
-describe(GpuInterconnectCard.name, () => {
-  it("hides the body and leaves the switch off when the service does not opt in", () => {
+describe(GpuInterconnectFields.name, () => {
+  it("hides the options and leaves the switch off when the service does not opt in", () => {
     setup({});
 
     expect(screen.getByRole("switch", { name: "Enable GPU interconnect" })).not.toBeChecked();
+    expect(screen.getByText("High-bandwidth GPU-to-GPU fabric for multi-node jobs.")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Interconnect group")).not.toBeInTheDocument();
     expect(screen.queryByText(/high-bandwidth GPU-to-GPU interconnect/i)).not.toBeInTheDocument();
   });
 
@@ -132,7 +134,13 @@ describe(GpuInterconnectCard.name, () => {
   it("warns when enabled while the service has no GPU resources", () => {
     setup({ interconnect: {}, profile: { hasGpu: false, gpu: 0, gpuModels: [] } });
 
-    expect(screen.getByText(/needs GPU resources/i)).toBeInTheDocument();
+    expect(screen.getByText(/needs GPUs on this service/i)).toBeInTheDocument();
+  });
+
+  it("warns when the gpu flag is on but the service asks for no GPU units", () => {
+    setup({ interconnect: {}, profile: { hasGpu: true, gpu: 0, gpuModels: [{ vendor: "nvidia", name: "h100" }] } });
+
+    expect(screen.getByText(/needs GPUs on this service/i)).toBeInTheDocument();
   });
 
   it("does not warn right after enabling turns the GPU on", async () => {
@@ -140,21 +148,13 @@ describe(GpuInterconnectCard.name, () => {
 
     await userEvent.click(screen.getByRole("switch", { name: "Enable GPU interconnect" }));
 
-    expect(screen.queryByText(/needs GPU resources/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/needs GPUs on this service/i)).not.toBeInTheDocument();
   });
 
   it("disables the switch while the pane is locked", () => {
     setup({ interconnect: {}, locked: true });
 
     expect(screen.getByRole("switch", { name: "Enable GPU interconnect" })).toBeDisabled();
-  });
-
-  it("shows an off-state hint when opened while off and locked", async () => {
-    setup({ locked: true });
-
-    await userEvent.click(screen.getByRole("button", { name: "Expand GPU Interconnect" }));
-
-    expect(screen.getByText("GPU interconnect is off.")).toBeInTheDocument();
   });
 
   it("disables the switch for a trial-blocked wallet while off", () => {
@@ -167,7 +167,6 @@ describe(GpuInterconnectCard.name, () => {
     const onUnlock = vi.fn();
     setup({ isTrialBlocked: true, onUnlock });
 
-    await userEvent.click(screen.getByRole("button", { name: "Expand GPU Interconnect" }));
     expect(screen.getByText(/isn't available on a free trial/i)).toBeInTheDocument();
 
     await userEvent.click(screen.getByRole("button", { name: /unlock gpu interconnect/i }));
@@ -340,7 +339,7 @@ describe(GpuInterconnectCard.name, () => {
     render(
       <Wrapper>
         <TooltipProvider>
-          <GpuInterconnectCard serviceIndex={0} locked={input.locked} isTrialBlocked={input.isTrialBlocked} onUnlock={input.onUnlock} />
+          <GpuInterconnectFields serviceIndex={0} locked={input.locked} isTrialBlocked={input.isTrialBlocked} onUnlock={input.onUnlock} />
         </TooltipProvider>
       </Wrapper>
     );

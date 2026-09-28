@@ -34,7 +34,7 @@ export function isKnownSdlParserError(err: unknown): err is Error {
  * for a service-less SDL and rethrows parser errors (`YAMLException`, `CustomValidationError`, …) verbatim.
  */
 export function importDeploymentState(sdl: string): ImportedDeploymentState {
-  const values = withVmSshBackfill(applyImportedSshState(importSimpleSdl(sdl)));
+  const values = withGpuUnitsCounted(withVmSshBackfill(applyImportedSshState(importSimpleSdl(sdl))));
   if (!hasVisibleService(values)) {
     throw new NoVisibleServiceError("This SDL doesn't define any services to configure.");
   }
@@ -57,6 +57,17 @@ function withVmSshBackfill(values: SdlBuilderFormValuesType): SdlBuilderFormValu
     return values;
   }
   return { ...values, hasSSHKey: true };
+}
+
+/** An SDL can quote its GPU units or ask for none, and the form counts zero units as no GPU. */
+function withGpuUnitsCounted(values: SdlBuilderFormValuesType): SdlBuilderFormValuesType {
+  return {
+    ...values,
+    services: values.services.map(service => {
+      const gpu = Number(service.profile.gpu) || 0;
+      return { ...service, profile: { ...service.profile, gpu, hasGpu: !!service.profile.hasGpu && gpu > 0 } };
+    })
+  };
 }
 
 /** A usable deployment has at least one service the user can configure (log collectors don't count). */

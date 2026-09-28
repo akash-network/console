@@ -45,31 +45,34 @@ export function aggregateDeploymentResources(services: ServiceType[]): Deploymen
   );
 }
 
-/** Formats a byte total to a binary unit string with no separating space, e.g. `512MiB`. */
-function formatBytes(bytes: number): string {
-  const { value, unit } = bytesToShrink(bytes, true);
-  return `${roundDecimal(value, 2)}${unit}`;
+export type DeploymentResourceKind = "cpu" | "gpu" | "memory" | "storage" | "persistent";
+
+export interface DeploymentResourceSegment {
+  kind: DeploymentResourceKind;
+  label: string;
 }
 
-/**
- * Builds the header summary string: `{cpu} vCPU · [{gpu} GPU ·] {memory} · {ephemeral} [· {persistent} persistent]`.
- * GPU and persistent segments appear only when present. Returns an em dash when the spec has no resources.
- */
-export function formatDeploymentResources(totals: DeploymentResourceTotals): string {
+function formatBytes(bytes: number): string {
+  const { value, unit } = bytesToShrink(bytes, true);
+  return `${roundDecimal(value, 2)} ${unit}`;
+}
+
+/** The header summary as labelled segments; GPU and persistent storage appear only when requested, and an empty spec has none. */
+export function deploymentResourceSegments(totals: DeploymentResourceTotals): DeploymentResourceSegment[] {
   const hasResources = totals.cpu > 0 || totals.gpu > 0 || totals.memoryBytes > 0 || totals.ephemeralBytes > 0 || totals.persistentBytes > 0;
   if (!hasResources) {
-    return "—";
+    return [];
   }
 
-  const segments = [`${roundDecimal(totals.cpu, 2)} vCPU`];
+  const segments: DeploymentResourceSegment[] = [{ kind: "cpu", label: `${roundDecimal(totals.cpu, 2)} vCPU` }];
   if (totals.gpu > 0) {
-    segments.push(`${totals.gpu} GPU`);
+    segments.push({ kind: "gpu", label: `${totals.gpu} GPU` });
   }
-  segments.push(formatBytes(totals.memoryBytes));
-  segments.push(formatBytes(totals.ephemeralBytes));
+  segments.push({ kind: "memory", label: formatBytes(totals.memoryBytes) });
+  segments.push({ kind: "storage", label: formatBytes(totals.ephemeralBytes) });
   if (totals.persistentBytes > 0) {
-    segments.push(`${formatBytes(totals.persistentBytes)} persistent`);
+    segments.push({ kind: "persistent", label: `${formatBytes(totals.persistentBytes)} persistent` });
   }
 
-  return segments.join(" · ");
+  return segments;
 }

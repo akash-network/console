@@ -104,20 +104,20 @@ describe(VariablesAndSecretsCard.name, () => {
 
     expect(screen.getByLabelText("Environment variable 1 value")).toHaveValue("");
     expect(screen.getByLabelText("Environment variable 1 value")).toHaveAttribute("placeholder", "Kept from the SDL. Type to replace.");
-    expect(screen.getByText("The value was not included. Enter it before requesting quotes.")).toBeInTheDocument();
+    expect(screen.getByText("The value was not included. Enter it before requesting bids.")).toBeInTheDocument();
   });
 
   it("shows a secret the redeploy source holds as kept from that deployment, with no missing-value hint", () => {
     setup({ env: [{ key: "DB_URL", value: "ac-secret://DB_URL", isSecret: true }], inheritedSecrets: { sourceDseq: "123", names: new Set(["DB_URL"]) } });
 
     expect(screen.getByLabelText("Environment variable 1 value")).toHaveAttribute("placeholder", "Kept from deployment #123. Type to replace.");
-    expect(screen.queryByText("The value was not included. Enter it before requesting quotes.")).not.toBeInTheDocument();
+    expect(screen.queryByText("The value was not included. Enter it before requesting bids.")).not.toBeInTheDocument();
   });
 
   it("still asks for a kept secret the redeploy source does not hold", () => {
     setup({ env: [{ key: "OTHER", value: "ac-secret://OTHER", isSecret: true }], inheritedSecrets: { sourceDseq: "123", names: new Set(["DB_URL"]) } });
 
-    expect(screen.getByText("The value was not included. Enter it before requesting quotes.")).toBeInTheDocument();
+    expect(screen.getByText("The value was not included. Enter it before requesting bids.")).toBeInTheDocument();
   });
 
   it("replaces a kept reference with what the user types", async () => {
@@ -126,7 +126,7 @@ describe(VariablesAndSecretsCard.name, () => {
     await userEvent.type(screen.getByLabelText("Environment variable 1 value"), "pg");
 
     expect(getValues().services[0].env?.[0]?.value).toBe("pg");
-    expect(screen.queryByText("The value was not included. Enter it before requesting quotes.")).not.toBeInTheDocument();
+    expect(screen.queryByText("The value was not included. Enter it before requesting bids.")).not.toBeInTheDocument();
   });
 
   it("counts the visible variables in the header and the secrets in the footer", () => {

@@ -1,10 +1,10 @@
-import type { FC } from "react";
+import type { FC, MouseEvent } from "react";
 import { useMemo, useState } from "react";
 import { Badge, Button, Skeleton, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
 import type { Column, Row, SortingState } from "@tanstack/react-table";
 import { createColumnHelper, flexRender, getCoreRowModel, getSortedRowModel, useReactTable } from "@tanstack/react-table";
-import { ArrowDown, ArrowUp, ChevronsUpDown } from "lucide-react";
+import { ArrowDown, ArrowUp, CheckIcon, ChevronsUpDown } from "lucide-react";
 
 import { CostRate } from "@src/components/shared/CostRate";
 import type { OfferedGpu, PlacementOffer } from "@src/queries/usePlacementOffers";
@@ -34,6 +34,9 @@ const COLUMN_WIDTH_CLASS: Record<string, string | undefined> = {
   status: "w-[18%]"
 };
 
+/** Clicks on these keep their own meaning (open a link, press a button, read a tooltip) instead of selecting the row. */
+const ROW_CLICK_IGNORED = "a,button,[data-row-click-ignore]";
+
 /** Region, Uptime and status give up width to the GPU column so Provider keeps its share. */
 const COLUMN_WIDTH_CLASS_WITH_GPU: Record<string, string | undefined> = {
   location: "w-[15%]",
@@ -60,6 +63,8 @@ interface Props {
   gpuVendors?: GpuVendor[];
   /** Replaces the generic no-provider text when the spec asks for something specific enough to name, e.g. a CPU architecture. */
   emptyMessage?: string;
+  /** Clicking a selectable row selects it; the select button stays in the row for keyboard and assistive technology, visually hidden. */
+  selectOnRowClick?: boolean;
 }
 
 export const MarketplaceProvidersTable: FC<Props> = ({
@@ -73,7 +78,8 @@ export const MarketplaceProvidersTable: FC<Props> = ({
   gpuCount = 0,
   showProviderLink,
   emptyMessage,
-  gpuVendors
+  gpuVendors,
+  selectOnRowClick = false
 }) => {
   const [sorting, setSorting] = useState<SortingState>([]);
 
@@ -86,8 +92,19 @@ export const MarketplaceProvidersTable: FC<Props> = ({
   const columnWidthClass = showGpu ? COLUMN_WIDTH_CLASS_WITH_GPU : COLUMN_WIDTH_CLASS;
   const columns = useMemo(
     () =>
-      buildColumns(uptimeByOwner, { selectedBidId, onSelect, isSelectable, showCost, showGpu, showStatus: isMerged, gpuCount, showProviderLink, gpuVendors }),
-    [uptimeByOwner, selectedBidId, onSelect, isSelectable, showCost, showGpu, isMerged, gpuCount, showProviderLink, gpuVendors]
+      buildColumns(uptimeByOwner, {
+        selectedBidId,
+        onSelect,
+        isSelectable,
+        showCost,
+        showGpu,
+        showStatus: isMerged,
+        gpuCount,
+        showProviderLink,
+        gpuVendors,
+        selectOnRowClick
+      }),
+    [uptimeByOwner, selectedBidId, onSelect, isSelectable, showCost, showGpu, isMerged, gpuCount, showProviderLink, gpuVendors, selectOnRowClick]
   );
 
   const table = useReactTable({
@@ -128,6 +145,10 @@ export const MarketplaceProvidersTable: FC<Props> = ({
   const biddableRows = sortedRows.filter(row => !isPinnedBelow(row.original.offerState));
   const noBidRows = sortedRows.filter(row => isPinnedBelow(row.original.offerState));
   const columnCount = table.getVisibleFlatColumns().length;
+  const rowSelectionOf = (offer: PlacementOffer) =>
+    selectOnRowClick && isSelectable && offer.offerState === "submitted" && offer.bidId && offer.bidId !== selectedBidId
+      ? () => onSelect?.(offer.bidId!)
+      : undefined;
 
   return (
     <div className="overflow-hidden rounded-lg border border-zinc-300 bg-card shadow-sm dark:border-zinc-700">
@@ -145,7 +166,7 @@ export const MarketplaceProvidersTable: FC<Props> = ({
         </TableHeader>
         <TableBody>
           {biddableRows.map(row => (
-            <OfferRow key={row.id} row={row} />
+            <OfferRow key={row.id} row={row} onSelect={rowSelectionOf(row.original)} />
           ))}
           {noBidRows.length > 0 && biddableRows.length > 0 && (
             <TableRow key="didnt-bid-divider" className="hover:bg-transparent">
@@ -214,10 +235,23 @@ function isNonSelectable(state: PlacementOffer["offerState"]): boolean {
 }
 
 /** One marketplace row. Selectable rows read normally; closed/expired and never-bid rows are muted (which also greys their price). Cell content (price vs "—", Select vs status badge) comes from the column defs. Two-line Provider and Cost cells set the taller row height. */
-function OfferRow({ row }: { row: Row<PlacementOffer> }) {
+function OfferRow({ row, onSelect }: { row: Row<PlacementOffer>; onSelect?: () => void }) {
   const isDisabled = isNonSelectable(row.original.offerState);
+
+  function selectFromRow(event: MouseEvent<HTMLTableRowElement>) {
+    if ((event.target as HTMLElement).closest(ROW_CLICK_IGNORED)) return;
+    onSelect?.();
+  }
+
   return (
-    <TableRow className={cn("h-16", isDisabled && "text-muted-foreground hover:bg-transparent")}>
+    <TableRow
+      onClick={onSelect ? selectFromRow : undefined}
+      className={cn(
+        "h-16",
+        isDisabled && "text-muted-foreground hover:bg-transparent",
+        onSelect && "cursor-pointer focus-within:ring-2 focus-within:ring-inset focus-within:ring-ring"
+      )}
+    >
       {row.getVisibleCells().map(cell => (
         <TableCell key={cell.id} className={cn("py-2 pl-4 pr-2 text-sm", !isDisabled && "font-medium text-foreground")}>
           {flexRender(cell.column.columnDef.cell, cell.getContext())}
@@ -261,13 +295,22 @@ function buildColumns(
     gpuCount: number;
     showProviderLink: boolean;
     gpuVendors?: GpuVendor[];
+    selectOnRowClick: boolean;
   }
 ) {
   return [
     columnHelper.accessor(providerDisplayName, {
       id: "hostUri",
       header: ({ column }) => <SortableHeader column={column} title="Provider" />,
-      cell: info => <MarketplaceProviderCell offer={info.row.original} showProviderLink={selection.showProviderLink} />
+      cell: info => {
+        const isSelected = selection.selectOnRowClick && !!info.row.original.bidId && info.row.original.bidId === selection.selectedBidId;
+        return (
+          <div className="flex min-w-0 items-center gap-2">
+            {isSelected && <CheckIcon role="img" aria-label="Selected provider" className="h-4 w-4 shrink-0 text-green-600" />}
+            <MarketplaceProviderCell offer={info.row.original} showProviderLink={selection.showProviderLink} />
+          </div>
+        );
+      }
     }),
     columnHelper.accessor("location", {
       header: ({ column }) => <SortableHeader column={column} title="Region" />,
@@ -319,7 +362,7 @@ function buildColumns(
               if (offer.offerState === "unavailable") return <Badge variant="outline">No bid</Badge>;
               if (offer.offerState !== "submitted" || !offer.bidId) return null;
               const isSelected = offer.bidId === selection.selectedBidId;
-              return (
+              const selectButton = (
                 <Button
                   type="button"
                   size="sm"
@@ -331,6 +374,7 @@ function buildColumns(
                   {isSelected ? "Selected" : "Select"}
                 </Button>
               );
+              return selection.selectOnRowClick ? <span className="sr-only">{selectButton}</span> : selectButton;
             }
           })
         ]

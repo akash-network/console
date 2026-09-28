@@ -6,14 +6,24 @@ import { afterEach, beforeAll, vi } from "vitest";
 
 import { cleanup } from "@testing-library/react";
 
+const { setTimeout: setRealTimeout, clearTimeout: clearRealTimeout } = globalThis;
+const MS_PER_FRAME = 1000 / 60;
+
 Object.assign(globalThis, {
   Blob,
   ResizeObserver: class {
     observe() {}
     unobserve() {}
     disconnect() {}
-  }
+  },
+  requestAnimationFrame: requestFrameOnRealTimers,
+  cancelAnimationFrame: (handle: number) => clearRealTimeout(handle)
 });
+
+/** Frames must not run on fake timers: jsdom loses a frame requested under them, and framer-motion then never animates again in the worker. */
+function requestFrameOnRealTimers(callback: FrameRequestCallback) {
+  return Number(setRealTimeout(() => callback(performance.now()), MS_PER_FRAME));
+}
 
 // jsdom 20 ships crypto.getRandomValues but not crypto.randomUUID
 if (typeof globalThis.crypto.randomUUID !== "function") {

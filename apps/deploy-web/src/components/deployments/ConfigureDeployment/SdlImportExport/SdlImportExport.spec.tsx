@@ -104,11 +104,37 @@ describe(SdlImportExport.name, () => {
     expect(screen.getByRole("menuitem", { name: "Copy to clipboard" })).toHaveAttribute("aria-disabled", "true");
   });
 
+  describe("in the toolbar variant", () => {
+    it("opens the import dialog from a labelled Import SDL button", async () => {
+      setup({ variant: "toolbar" });
+
+      await userEvent.click(screen.getByRole("button", { name: "Import SDL" }));
+
+      expect(screen.getByRole("button", { name: "trigger import" })).toBeInTheDocument();
+    });
+
+    it("disables Import SDL while the flow is locked", () => {
+      setup({ variant: "toolbar", canImport: false });
+
+      expect(screen.getByRole("button", { name: "Import SDL" })).toBeDisabled();
+    });
+
+    it("keeps the download and the copy in an export menu", async () => {
+      const { saveAs } = setup({ variant: "toolbar", deploymentName: "My App" });
+
+      await userEvent.click(screen.getByRole("button", { name: "Export SDL" }));
+      await userEvent.click(screen.getByRole("menuitem", { name: "Download .yaml" }));
+
+      expect(saveAs).toHaveBeenCalledWith(expect.any(Blob), "my-app.yaml");
+      expect(screen.queryByRole("button", { name: "Import or export config" })).not.toBeInTheDocument();
+    });
+  });
+
   function openMenu() {
     return userEvent.click(screen.getByRole("button", { name: "Import or export config" }));
   }
 
-  function setup(input: { sdl?: string; deploymentName?: string; canImport?: boolean; canCopy?: boolean }) {
+  function setup(input: { sdl?: string; deploymentName?: string; canImport?: boolean; canCopy?: boolean; variant?: "menu" | "toolbar" }) {
     const onImport = vi.fn();
     const analyticsService = mock<AnalyticsService>();
     const enqueueSnackbar = vi.fn();
@@ -127,6 +153,7 @@ describe(SdlImportExport.name, () => {
         deploymentName={input.deploymentName ?? "my-app"}
         canImport={input.canImport ?? true}
         onImport={onImport}
+        variant={input.variant}
         dependencies={{
           ImportSdlDialog,
           useServices: () => mock<ReturnType<typeof DEPENDENCIES.useServices>>({ analyticsService }),

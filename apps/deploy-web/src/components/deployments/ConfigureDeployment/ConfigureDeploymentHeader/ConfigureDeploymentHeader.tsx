@@ -1,45 +1,34 @@
 import type { FC, ReactNode } from "react";
 import { useFormContext, useWatch } from "react-hook-form";
-import { Button, CustomTooltip, Snackbar } from "@akashnetwork/ui/components";
+import { Button, CustomTooltip } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
 import { Clock, LoaderCircle } from "lucide-react";
-import { useSnackbar } from "notistack";
 
 import { PriceValue } from "@src/components/shared/PriceValue";
-import { useFlag } from "@src/hooks/useFlag";
 import type { SdlBuilderFormValuesType } from "@src/types";
-import { hasTrialBlockedGpu } from "@src/utils/deploymentData/v1beta3";
 import { getAvgCostPerMonth, perBlockToHourly } from "@src/utils/priceUtils";
-import { generateSdl } from "@src/utils/sdl/sdlGenerator";
-import { resolveSdlSecrets, unresolvedSecretMessage } from "@src/utils/sdl/sdlSecrets";
-import { validateGeneratedSdl } from "@src/utils/sdl/validateGeneratedSdl";
-import { useTrialGate } from "../ConfigurationPane/HardwareSection/useTrialGate/useTrialGate";
-import { useDeploymentHasGpu, useDeploymentResourceSummary } from "../DeploymentResourceSummary/useDeploymentResourceSummary";
-import { useInheritedSecrets } from "../InheritedSecretsProvider/InheritedSecretsProvider";
+import type { DeployCtaState } from "../deployCtaState/deployCtaState";
+import { deployCtaState } from "../deployCtaState/deployCtaState";
+import { DeploymentResourceSummary } from "../DeploymentResourceSummary/DeploymentResourceSummary";
+import { useDeploymentHasGpu } from "../DeploymentResourceSummary/useDeploymentResourceSummary";
 import type { DeploymentCost } from "../useDeploymentCost/useDeploymentCost";
 import { useDeploymentCost } from "../useDeploymentCost/useDeploymentCost";
 import type { DeploymentFlow } from "../useDeploymentFlow/useDeploymentFlow";
+import { formatCountdown } from "../useQuoteExpiry/formatCountdown";
 import type { QuoteExpiry } from "../useQuoteExpiry/useQuoteExpiry";
 import { useQuoteExpiry } from "../useQuoteExpiry/useQuoteExpiry";
+import { useRequestQuotes } from "../useRequestQuotes/useRequestQuotes";
+import { useRetryDeploy } from "../useRetryDeploy/useRetryDeploy";
 
 export const DEPENDENCIES = {
-  useDeploymentResourceSummary,
+  DeploymentResourceSummary,
   useDeploymentHasGpu,
-  useSnackbar,
-  Snackbar,
-  // eslint-disable-next-line akash/dependencies-component-or-hook
-  generateSdl,
-  // eslint-disable-next-line akash/dependencies-component-or-hook
-  validateGeneratedSdl,
-  // eslint-disable-next-line akash/dependencies-component-or-hook
-  resolveSdlSecrets,
-  useFlag,
-  useInheritedSecrets,
+  useRequestQuotes,
+  useRetryDeploy,
   useDeploymentCost,
   PriceValue,
   useQuoteExpiry,
-  CustomTooltip,
-  useTrialGate
+  CustomTooltip
 };
 
 type Props = {
@@ -52,84 +41,21 @@ type Props = {
 };
 
 export const ConfigureDeploymentHeader: FC<Props> = ({ flow, sdl, deploymentName, onDeploy, allPlacementsHaveBids, dependencies: d = DEPENDENCIES }) => {
-  const deploymentSummary = d.useDeploymentResourceSummary();
   const showAsHourly = d.useDeploymentHasGpu();
-  const { control, handleSubmit, getValues } = useFormContext<SdlBuilderFormValuesType>();
-  const { enqueueSnackbar } = d.useSnackbar();
-  const { isRestricted } = d.useTrialGate();
-  const isSecretsEnabled = d.useFlag("ui_deployment_secrets");
-  const inheritedSecrets = d.useInheritedSecrets();
+  const { control } = useFormContext<SdlBuilderFormValuesType>();
   const placements = useWatch({ control, name: "placements" });
   const cost = d.useDeploymentCost({ dseq: flow.dseq, sdl, placements, selections: flow.selections });
   const expiry = d.useQuoteExpiry({ dseq: flow.dseq, enabled: flow.phase === "quoting" });
-
-  const isEditable = flow.phase === "configuring" || flow.phase === "error";
-  /** Deploy only takes over from the loading CTA once every placement has bids; until then quoting still reads as "Requesting…". */
-  const showDeployCta = flow.phase === "quoting" && allPlacementsHaveBids;
-  const allPlacementsSelected = placements.length > 0 && placements.every(placement => !!flow.selections[placement.id]);
-  /** A failed deploy returns to quoting with the error set; the CTA then re-fires the same request rather than re-opening review. */
-  const hasDeployError = !!flow.deployError;
-  const quotesExpired = !!expiry?.isExpired;
-  /**
-   * The timer is only indicative — providers can close their bids a little earlier or later — so we switch to
-   * "Close and Edit" only once the bids are actually gone (no placement has an open bid, hence no cost), not the
-   * moment the timer elapses. While any open bid remains the user can still deploy.
-   */
-  const hasOpenBids = !!cost;
-
-  /**
-   * Request quotes runs the zod form validation first, then regenerates the SDL from the values
-   * `handleSubmit` just accepted — not a prop snapshot, which lags behind in-flight edits — and runs the
-   * chain-sdk SDL validator on it. That validator catches semantic rules the form can't, such as a `cpu-gpu`
-   * confidential-compute service missing GPU resources or conflicting TEE types across a placement group.
-   * Either failure surfaces the errors to the user; otherwise the same freshly generated SDL is what gets
-   * submitted, so validation and creation can never disagree about which spec they acted on.
-   */
-  const onRequestQuotes = handleSubmit(values => {
-    const sdl = d.generateSdl(values, { sealSecrets: isSecretsEnabled });
-    const errors = [...d.validateGeneratedSdl(sdl)];
-    const secrets = isSecretsEnabled ? d.resolveSdlSecrets(values, { sealSecrets: true, heldNames: inheritedSecrets?.names }) : undefined;
-    secrets?.unresolved.forEach(secret => errors.push(unresolvedSecretMessage(secret)));
-    // Load-bearing trial guard: enabling the GPU card leaves the model at the empty default without ever
-    // opening the (locked) picker, so the presentational lock alone can't stop an empty-model submission —
-    // otherwise the deployment would spin on "Requesting…" with no usable bid (CON-660).
-    if (isRestricted && hasTrialBlockedGpu(values)) {
-      errors.push("GPU access is not available on a free trial. Add funds to unlock GPU access.");
-    }
-    if (errors.length > 0) {
-      enqueueSnackbar(
-        <d.Snackbar
-          title="Your deployment can't be submitted yet"
-          subTitle={
-            <ul className="list-disc pl-4">
-              {errors.map(error => (
-                <li key={error}>{error}</li>
-              ))}
-            </ul>
-          }
-          iconVariant="error"
-        />,
-        { variant: "error" }
-      );
-      return;
-    }
-    flow.actions.requestQuotes(sdl, {
-      name: deploymentName,
-      ...(secrets ? { secrets: secrets.values, ...(inheritedSecrets ? { inheritSecretsFrom: inheritedSecrets.sourceDseq } : {}) } : {})
-    });
+  const requestQuotes = d.useRequestQuotes({ flow, deploymentName });
+  const retryDeploy = d.useRetryDeploy({ flow });
+  const ctaState = deployCtaState({
+    phase: flow.phase,
+    allPlacementsHaveBids,
+    allPlacementsSelected: placements.length > 0 && placements.every(placement => !!flow.selections[placement.id]),
+    hasDeployError: !!flow.deployError,
+    quotesExpired: !!expiry?.isExpired,
+    hasOpenBids: !!cost
   });
-
-  /** Re-fires the lease request from the current form values; with secrets on, the typed values ride along so a patch can seal them. */
-  function retryDeploy() {
-    const values = getValues();
-    const sdl = d.generateSdl(values, { sealSecrets: isSecretsEnabled });
-    if (isSecretsEnabled) {
-      const secrets = d.resolveSdlSecrets(values, { sealSecrets: true });
-      flow.actions.deploy(sdl, { secrets: secrets.values, unresolvedSecrets: secrets.unresolved });
-      return;
-    }
-    flow.actions.deploy(sdl);
-  }
 
   return (
     <header className="flex flex-col gap-3 xl:flex-row xl:items-end xl:justify-between">
@@ -144,7 +70,7 @@ export const ConfigureDeploymentHeader: FC<Props> = ({ flow, sdl, deploymentName
 
       <div className="flex items-center justify-between gap-3 md:gap-6 xl:shrink-0 xl:justify-start">
         <div className="flex items-start gap-3 md:gap-6">
-          <DeploymentSummaryBlock label="Your deployment" value={deploymentSummary} />
+          <DeploymentSummaryBlock label="Your deployment" value={<d.DeploymentResourceSummary />} />
           <div className="hidden h-12 w-px self-stretch bg-border md:block" aria-hidden="true" />
           <div className="flex flex-col items-start gap-0.5 xl:items-end">
             <DeploymentSummaryBlock
@@ -155,34 +81,57 @@ export const ConfigureDeploymentHeader: FC<Props> = ({ flow, sdl, deploymentName
             <div className="h-4">{expiry ? <QuoteExpiryLine expiry={expiry} CustomTooltip={d.CustomTooltip} /> : null}</div>
           </div>
         </div>
-        {isEditable ? (
-          <Button type="button" onClick={onRequestQuotes} className="h-9 shrink-0 px-3 md:h-10 md:px-8">
-            Request quotes
-          </Button>
-        ) : quotesExpired && !hasOpenBids ? (
-          <Button type="button" onClick={flow.actions.cancelAndEdit} className="h-9 shrink-0 px-3 md:h-10 md:px-8">
-            Close and Edit
-          </Button>
-        ) : showDeployCta ? (
-          <Button
-            type="button"
-            disabled={!allPlacementsSelected}
-            onClick={hasDeployError ? retryDeploy : onDeploy}
-            aria-label={hasDeployError ? "Retry" : "Deploy"}
-            className="h-9 shrink-0 px-3 md:h-10 md:px-8"
-          >
-            {hasDeployError ? "Retry" : "Deploy"}
-          </Button>
-        ) : (
-          <Button type="button" disabled aria-label="Requesting" className="h-9 shrink-0 gap-2 px-3 md:h-10 md:px-8">
-            <LoaderCircle className="h-4 w-4 animate-spin text-current" aria-hidden="true" />
-            <span>Requesting…</span>
-          </Button>
-        )}
+        <HeaderCta state={ctaState} onRequestQuotes={requestQuotes} onCloseAndEdit={flow.actions.cancelAndEdit} onDeploy={onDeploy} onRetry={retryDeploy} />
       </div>
     </header>
   );
 };
+
+type HeaderCtaProps = {
+  state: DeployCtaState;
+  onRequestQuotes: () => void;
+  onCloseAndEdit: () => void;
+  onDeploy: () => void;
+  onRetry: () => void;
+};
+
+function HeaderCta({ state, onRequestQuotes, onCloseAndEdit, onDeploy, onRetry }: HeaderCtaProps) {
+  const className = "h-9 shrink-0 px-3 md:h-10 md:px-8";
+  switch (state) {
+    case "request-quotes":
+      return (
+        <Button type="button" onClick={onRequestQuotes} className={className}>
+          Request quotes
+        </Button>
+      );
+    case "close-and-edit":
+      return (
+        <Button type="button" onClick={onCloseAndEdit} className={className}>
+          Close and Edit
+        </Button>
+      );
+    case "deploy":
+    case "select-providers":
+      return (
+        <Button type="button" disabled={state === "select-providers"} onClick={onDeploy} className={className}>
+          Deploy
+        </Button>
+      );
+    case "retry":
+      return (
+        <Button type="button" onClick={onRetry} className={className}>
+          Retry
+        </Button>
+      );
+    case "requesting":
+      return (
+        <Button type="button" disabled aria-label="Requesting" className={cn(className, "gap-2")}>
+          <LoaderCircle className="h-4 w-4 animate-spin text-current" aria-hidden="true" />
+          <span>Requesting…</span>
+        </Button>
+      );
+  }
+}
 
 interface DeploymentSummaryBlockProps {
   label: string;
@@ -195,7 +144,7 @@ function DeploymentSummaryBlock({ label, value, suffix }: DeploymentSummaryBlock
     <div className="flex flex-col items-start xl:items-end">
       <span className="font-mono text-[10px] uppercase text-muted-foreground md:text-sm">{label}</span>
       <div className="flex items-baseline gap-1">
-        <span className="font-mono text-base font-semibold leading-tight md:text-xl md:leading-8">{value}</span>
+        <div className="font-mono text-base font-semibold leading-tight md:text-xl md:leading-8">{value}</div>
         {suffix ? <span className="font-mono text-xs text-muted-foreground md:text-base">{suffix}</span> : null}
       </div>
     </div>
@@ -233,8 +182,6 @@ function CostValue({ cost, showAsHourly, PriceValue }: CostValueProps) {
  * tooltip flags that the countdown is only indicative — bids can close a little earlier or later.
  */
 function QuoteExpiryLine({ expiry, CustomTooltip }: { expiry: QuoteExpiry; CustomTooltip: typeof DEPENDENCIES.CustomTooltip }) {
-  const minutes = Math.floor(expiry.secondsLeft / 60);
-  const seconds = String(expiry.secondsLeft % 60).padStart(2, "0");
   return (
     <CustomTooltip title="This countdown is only indicative — providers may close their bids a little earlier or later.">
       <div
@@ -249,10 +196,7 @@ function QuoteExpiryLine({ expiry, CustomTooltip }: { expiry: QuoteExpiry; Custo
           <span>expired</span>
         ) : (
           <span>
-            expires in{" "}
-            <span className="inline-block w-[4ch] text-right tabular-nums">
-              {minutes}:{seconds}
-            </span>
+            expires in <span className="inline-block w-[4ch] text-right tabular-nums">{formatCountdown(expiry.secondsLeft)}</span>
           </span>
         )}
       </div>
