@@ -6,7 +6,8 @@
 # !!!! PLEASE be extra careful here and treat forked repository as untrusted user input !!!!
 
 name: Security Scan
-# Security Scan Result finds the run to re-run by the commit in its name when the run never reported.
+# Security Scan Result finds a run to re-run from its check's external_id, or by the commit in this name when
+# the run never created one.
 run-name: Security Scan for ${{ github.event.workflow_run.head_sha || github.event.pull_request.head.sha }}
 
 on:
@@ -93,6 +94,8 @@ jobs:
               head_sha: process.env.PARENT_WORKFLOW_HEAD_SHA,
               status: "in_progress",
               details_url: workflowRunUrl,
+              // GitHub replaces details_url with the check's own page, so this is how Security Scan Result finds the run.
+              external_id: process.env.GITHUB_RUN_ID,
               output: {
                 title: "Security analysis",
                 summary: `Scanning... Managed in [this workflow run](${workflowRunUrl})`

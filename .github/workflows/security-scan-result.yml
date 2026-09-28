@@ -214,8 +214,7 @@ jobs:
             const describe = check => (check ? check.conclusion ?? check.status : "never reported");
 
             const findScanRun = async check => {
-              const fromCheck = check?.details_url?.match(/\/actions\/runs\/(\d+)/)?.[1];
-              if (fromCheck) return Number(fromCheck);
+              if (check?.external_id) return Number(check.external_id);
               const { data } = await github.rest.actions.listWorkflowRuns({ owner, repo, workflow_id: "all-ci-unsafe.yml", per_page: 100 });
               return data.workflow_runs.find(run => run.display_title.includes(sha))?.id ?? null;
             };
