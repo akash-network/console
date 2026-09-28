@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 
 import { BID_POLL_INTERVAL, useListBids } from "@src/queries/useListBids";
-import { useProviderList, useProvidersByAddress } from "@src/queries/useProvidersQuery";
+import { useProvidersByAddresses } from "@src/queries/useProvidersQuery";
 import type { ScreenedProvider } from "@src/queries/useScreenedProviders";
 import { useScreenedProviders } from "@src/queries/useScreenedProviders";
 import { formatBidId } from "@src/utils/bids/bidId";
@@ -43,7 +43,7 @@ interface UsePlacementOffersResult {
 }
 
 // eslint-disable-next-line akash/dependencies-component-or-hook
-export const DEPENDENCIES = { useScreenedProviders, useListBids, useProviderList, useProvidersByAddress, getPlacementGseq };
+export const DEPENDENCIES = { useScreenedProviders, useListBids, useProvidersByAddresses, getPlacementGseq };
 
 /**
  * The shared offers seam, read by the marketplace pane so screening and bids can never disagree about which
@@ -56,8 +56,7 @@ export const DEPENDENCIES = { useScreenedProviders, useListBids, useProviderList
  *   address: an open bid is `submitted` (priced, selectable), a closed bid is `closed`, and a screened
  *   provider that never bid is `unavailable`. A provider that bid without being screened is still included.
  *   Screened metadata (name, region, audited flag, incident-derived uptime) is reused for any provider that
- *   was screened; the provider list only fills in a bidder that was never screened, and a lookup by address
- *   fills in a bidder the provider list leaves out.
+ *   was screened; only a bidder that was never screened is looked up by address, as its bid arrives.
  *
  * Once the deployment is locked (`creating`/`quoting`/`deploying`) screening is paused and the last
  * screened set is kept (`keepPreviousData`) as both the pre-bid fallback and the metadata source. `listBids`
@@ -72,23 +71,15 @@ export function usePlacementOffers(
   const isScreening = phase === "configuring" || phase === "creating";
   const screened = dependencies.useScreenedProviders({ sdl, placementName, region, enabled: !isLocked });
   const bidsQuery = dependencies.useListBids(dseq, { enabled: phase === "quoting", refetchInterval: BID_POLL_INTERVAL });
-  const providerListQuery = dependencies.useProviderList({ enabled: !isScreening });
   const gseq = useMemo(() => dependencies.getPlacementGseq(sdl, placementName), [dependencies, sdl, placementName]);
-  const listedByOwner = useMemo(() => new Map((providerListQuery.data ?? []).map(provider => [provider.owner, provider])), [providerListQuery.data]);
   const screenedByOwner = useMemo(() => new Map(screened.providers.map(provider => [provider.owner, provider])), [screened.providers]);
-  const placementBids = useMemo(
-    () => (bidsQuery.data?.data ?? []).filter(entry => gseq === undefined || entry.bid.id.gseq === gseq),
-    [bidsQuery.data, gseq]
+  const placementBids = useMemo(() => (bidsQuery.data?.data ?? []).filter(entry => gseq === undefined || entry.bid.id.gseq === gseq), [bidsQuery.data, gseq]);
+  const unscreenedBidderAddresses = useMemo(
+    () => placementBids.map(entry => entry.bid.id.provider).filter(owner => !screenedByOwner.has(owner)),
+    [placementBids, screenedByOwner]
   );
-  const unlistedBidders = useMemo(() => {
-    if (isScreening || !providerListQuery.data) return [];
-    return placementBids.map(entry => entry.bid.id.provider).filter(owner => !screenedByOwner.has(owner) && !listedByOwner.has(owner));
-  }, [isScreening, providerListQuery.data, placementBids, screenedByOwner, listedByOwner]);
-  const unlistedBidderProviders = dependencies.useProvidersByAddress(unlistedBidders);
-  const providersByOwner = useMemo(
-    () => new Map<string, BidderProvider>([...listedByOwner, ...unlistedBidderProviders.map(provider => [provider.owner, provider] as const)]),
-    [listedByOwner, unlistedBidderProviders]
-  );
+  const unscreenedBidders = dependencies.useProvidersByAddresses(unscreenedBidderAddresses, { enabled: !isScreening });
+  const providersByOwner = useMemo(() => new Map(unscreenedBidders.data.map(provider => [provider.owner, provider])), [unscreenedBidders.data]);
 
   const offers = useMemo(
     function buildOffers(): PlacementOffer[] {
@@ -162,7 +153,7 @@ function mergedOwners(screened: ScreenedProvider[], bidByOwner: Map<string, BidE
 
 /**
  * A screened-provider-shaped record for a bidder that was never screened, so the table renders it identically.
- * The provider record (when loaded) supplies the name (organization, else host), region and audited flag; uptime
+ * The provider record (once looked up) supplies the name (organization, else host), region and audited flag; uptime
  * is left to the table's neutral fallback since the provider record carries no per-day incident history.
  */
 function providerListToOffer(owner: string, provider?: BidderProvider): ScreenedProvider {

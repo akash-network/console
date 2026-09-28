@@ -8,9 +8,9 @@ import { useDeploymentNames } from "@src/hooks/useDeploymentNames/useDeploymentN
 import { useWalletBalance } from "@src/hooks/useWalletBalance";
 import { useDeploymentList } from "@src/queries/useDeploymentQuery";
 import { useAllLeases } from "@src/queries/useLeaseQuery";
-import { useProviderList } from "@src/queries/useProvidersQuery";
+import { useProvidersByAddresses } from "@src/queries/useProvidersQuery";
 import type { DeploymentDto } from "@src/types/deployment";
-import { LIVE_LEASE_STATES } from "@src/utils/leaseUtils";
+import { isLeaseLive, LIVE_LEASE_STATES } from "@src/utils/leaseUtils";
 import Layout from "../layout/Layout";
 import { WelcomePanel } from "./WelcomePanel";
 
@@ -22,7 +22,7 @@ export const DEPENDENCIES = {
   useWallet,
   useDeploymentNames,
   useWalletBalance,
-  useProviderList,
+  useProvidersByAddresses,
   useDeploymentList,
   useAllLeases,
   Layout,
@@ -54,8 +54,9 @@ export function HomeContainer({ dependencies: d = DEPENDENCIES }: Props) {
   );
 
   const { balance: walletBalance, isLoading: isLoadingBalances } = d.useWalletBalance();
-  const { data: providers, isFetching: isLoadingProviders } = d.useProviderList();
   const { data: leases, isFetching: isLoadingLeases, refetch: getLeases } = d.useAllLeases(address, { enabled: false, state: LIVE_LEASE_STATES });
+  const liveLeaseProviderAddresses = useMemo(() => leases?.filter(isLeaseLive).map(lease => lease.provider) ?? [], [leases]);
+  const { data: providers, isFetching: isLoadingProviders, isLoading: isResolvingProviders } = d.useProvidersByAddresses(liveLeaseProviderAddresses);
 
   useEffect(() => {
     if (address) {
@@ -84,7 +85,7 @@ export function HomeContainer({ dependencies: d = DEPENDENCIES }: Props) {
             walletBalance={walletBalance}
             activeDeployments={activeDeployments}
             leases={leases}
-            providers={providers}
+            providers={isResolvingProviders ? undefined : providers}
           />
         )}
       </div>

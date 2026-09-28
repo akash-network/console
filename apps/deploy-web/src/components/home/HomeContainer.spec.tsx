@@ -30,6 +30,38 @@ describe(HomeContainer.name, () => {
     expect(YourAccount).toHaveBeenCalledWith(expect.objectContaining({ leases, providers }), expect.anything());
   });
 
+  it("looks up only the providers of the live leases", () => {
+    const leases = [
+      mock<LeaseDto>({ dseq: "1", state: "active", provider: "akash1running" }),
+      mock<LeaseDto>({ dseq: "2", state: "reclaiming", provider: "akash1reclaiming" }),
+      mock<LeaseDto>({ dseq: "3", state: "closed", provider: "akash1gone" })
+    ];
+    const { useProvidersByAddresses } = setup({ address: "akash1owner", leases });
+
+    expect(useProvidersByAddresses).toHaveBeenLastCalledWith(["akash1running", "akash1reclaiming"]);
+  });
+
+  it("looks up no provider before the leases arrive", () => {
+    const { useProvidersByAddresses } = setup({ address: "akash1owner", leasesUnresolved: true });
+
+    expect(useProvidersByAddresses).toHaveBeenLastCalledWith([]);
+  });
+
+  it("looks up the providers of leases that arrive after the first render", () => {
+    const { useProvidersByAddresses, rerenderWith } = setup({ address: "akash1owner", leases: [] });
+
+    rerenderWith({ leases: [mock<LeaseDto>({ dseq: "1", state: "active", provider: "akash1running" })] });
+
+    expect(useProvidersByAddresses).toHaveBeenLastCalledWith(["akash1running"]);
+  });
+
+  it("hands YourAccount no providers while they are still being looked up", () => {
+    const leases = [mock<LeaseDto>({ dseq: "1", state: "active", provider: "akash1running" })];
+    const { YourAccount } = setup({ address: "akash1owner", leases, isLookingUpProviders: true });
+
+    expect(YourAccount).toHaveBeenCalledWith(expect.objectContaining({ providers: undefined }), expect.anything());
+  });
+
   it("hands YourAccount the active deployments under the names the console holds", () => {
     const { YourAccount } = setup({ address: "akash1owner", deployments: [mock<DeploymentDto>({ dseq: "100" })], names: { "100": "web" } });
 
@@ -76,7 +108,9 @@ describe(HomeContainer.name, () => {
     input: {
       address?: string;
       leases?: LeaseDto[];
+      leasesUnresolved?: boolean;
       providers?: ApiProviderList[];
+      isLookingUpProviders?: boolean;
       deployments?: DeploymentDto[];
       deploymentsUnresolved?: boolean;
       names?: Record<string, string>;
@@ -87,16 +121,17 @@ describe(HomeContainer.name, () => {
     const useDeploymentNames = vi.fn<typeof DEPENDENCIES.useDeploymentNames>(() => ({ getDeploymentName }));
     const useWalletBalance: typeof DEPENDENCIES.useWalletBalance = () =>
       mock<ReturnType<typeof DEPENDENCIES.useWalletBalance>>({ balance: null, isLoading: false });
-    const useProviderList = mockQueryHook<typeof DEPENDENCIES.useProviderList>(input.providers ?? []);
+    const providerLookup = { data: input.providers ?? [], isLoading: !!input.isLookingUpProviders, isFetching: !!input.isLookingUpProviders };
+    const useProvidersByAddresses = vi.fn((_addresses: readonly string[]) => providerLookup);
     const useDeploymentList = mockQueryHook<typeof DEPENDENCIES.useDeploymentList>(input.deploymentsUnresolved ? undefined : input.deployments ?? []);
-    const useAllLeases = mockQueryHook<typeof DEPENDENCIES.useAllLeases>(input.leases ?? []);
+    const useAllLeases = mockQueryHook<typeof DEPENDENCIES.useAllLeases>(input.leasesUnresolved ? undefined : input.leases ?? []);
     const YourAccount = vi.fn(() => <div>your account</div>);
 
     const dependencies = MockComponents(DEPENDENCIES, {
       useWallet,
       useDeploymentNames,
       useWalletBalance,
-      useProviderList,
+      useProvidersByAddresses,
       useDeploymentList,
       useAllLeases,
       YourAccount
@@ -107,9 +142,11 @@ describe(HomeContainer.name, () => {
       useAllLeases,
       useDeploymentList,
       useDeploymentNames,
+      useProvidersByAddresses,
       YourAccount,
-      rerenderWith(next: { deployments: DeploymentDto[] }) {
-        useDeploymentList.setData(next.deployments);
+      rerenderWith(next: { deployments?: DeploymentDto[]; leases?: LeaseDto[] }) {
+        if (next.deployments) useDeploymentList.setData(next.deployments);
+        if (next.leases) useAllLeases.setData(next.leases);
         rerender(<HomeContainer dependencies={dependencies} />);
       }
     };
