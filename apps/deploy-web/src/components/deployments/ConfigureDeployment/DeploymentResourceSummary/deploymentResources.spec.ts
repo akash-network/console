@@ -3,12 +3,12 @@ import { mock } from "vitest-mock-extended";
 
 import type { ServiceType } from "@src/types";
 import type { DeploymentResourceTotals } from "./deploymentResources";
-import { aggregateDeploymentResources, formatDeploymentResources } from "./deploymentResources";
+import { aggregateDeploymentResources, deploymentResourceSegments } from "./deploymentResources";
 
 const MI = 1024 ** 2;
 const GI = 1024 ** 3;
 
-describe("aggregateDeploymentResources", () => {
+describe(aggregateDeploymentResources.name, () => {
   it("aggregates a single default service (cpu 0.1, 512 Mi ram, 1 Gi ephemeral)", () => {
     const { services } = setup({ services: [{ cpu: 0.1, ram: 512, ramUnit: "Mi", storage: [{ size: 1, unit: "Gi" }] }] });
 
@@ -61,7 +61,15 @@ describe("aggregateDeploymentResources", () => {
 
   it("splits storage into ephemeral and persistent by isPersistent", () => {
     const { services } = setup({
-      services: [{ cpu: 1, storage: [{ size: 1, unit: "Gi" }, { size: 10, unit: "Gi", isPersistent: true }] }]
+      services: [
+        {
+          cpu: 1,
+          storage: [
+            { size: 1, unit: "Gi" },
+            { size: 10, unit: "Gi", isPersistent: true }
+          ]
+        }
+      ]
     });
 
     const totals = aggregateDeploymentResources(services);
@@ -102,27 +110,51 @@ describe("aggregateDeploymentResources", () => {
   }
 });
 
-describe("formatDeploymentResources", () => {
-  it("formats cpu, memory and ephemeral storage in binary units", () => {
-    expect(formatDeploymentResources(setup({ cpu: 0.1, memoryBytes: 512 * MI, ephemeralBytes: 1 * GI }))).toBe("0.1 vCPU · 512MiB · 1GiB");
+describe(deploymentResourceSegments.name, () => {
+  it("labels cpu, memory and ephemeral storage in binary units with a space before the unit", () => {
+    expect(deploymentResourceSegments(setup({ cpu: 0.1, memoryBytes: 512 * MI, ephemeralBytes: 1 * GI }))).toEqual([
+      { kind: "cpu", label: "0.1 vCPU" },
+      { kind: "memory", label: "512 MiB" },
+      { kind: "storage", label: "1 GiB" }
+    ]);
   });
 
-  it("inserts the gpu segment right after cpu when gpu is present", () => {
-    expect(formatDeploymentResources(setup({ cpu: 2, gpu: 1, memoryBytes: 8 * GI, ephemeralBytes: 100 * GI }))).toBe("2 vCPU · 1 GPU · 8GiB · 100GiB");
+  it("puts the gpu segment right after cpu when gpu is present", () => {
+    expect(deploymentResourceSegments(setup({ cpu: 2, gpu: 1, memoryBytes: 8 * GI, ephemeralBytes: 100 * GI })).map(segment => segment.label)).toEqual([
+      "2 vCPU",
+      "1 GPU",
+      "8 GiB",
+      "100 GiB"
+    ]);
   });
 
   it("appends a labeled persistent segment when persistent storage is present", () => {
-    expect(formatDeploymentResources(setup({ cpu: 1, memoryBytes: 1 * GI, ephemeralBytes: 1 * GI, persistentBytes: 10 * GI }))).toBe(
-      "1 vCPU · 1GiB · 1GiB · 10GiB persistent"
-    );
+    expect(deploymentResourceSegments(setup({ cpu: 1, memoryBytes: 1 * GI, ephemeralBytes: 1 * GI, persistentBytes: 10 * GI })).at(-1)).toEqual({
+      kind: "persistent",
+      label: "10 GiB persistent"
+    });
   });
 
-  it("rounds fractional byte values to two decimals", () => {
-    expect(formatDeploymentResources(setup({ cpu: 1, memoryBytes: 1536 * MI, ephemeralBytes: 1 * GI }))).toBe("1 vCPU · 1.5GiB · 1GiB");
+  it("rounds fractional values to two decimals", () => {
+    expect(deploymentResourceSegments(setup({ cpu: 1.005, memoryBytes: 1536 * MI, ephemeralBytes: 1 * GI })).map(segment => segment.label)).toEqual([
+      "1.01 vCPU",
+      "1.5 GiB",
+      "1 GiB"
+    ]);
   });
 
-  it("falls back to an em dash when the spec has no resources", () => {
-    expect(formatDeploymentResources(setup({}))).toBe("—");
+  it("returns no segments when the spec has no resources", () => {
+    expect(deploymentResourceSegments(setup({}))).toEqual([]);
+  });
+
+  it.each([
+    ["cpu", { cpu: 1 }],
+    ["gpu", { gpu: 1 }],
+    ["memory", { memoryBytes: 1 * GI }],
+    ["ephemeral storage", { ephemeralBytes: 1 * GI }],
+    ["persistent storage", { persistentBytes: 1 * GI }]
+  ])("returns segments for a spec that only has %s", (_, totals) => {
+    expect(deploymentResourceSegments(setup(totals)).length).toBeGreaterThan(0);
   });
 
   function setup(input: Partial<DeploymentResourceTotals>) {

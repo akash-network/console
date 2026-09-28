@@ -21,8 +21,7 @@ test.describe("Configure deployment — request quotes flow", () => {
       await page.waitForURL(/\/new-deployment\/configure\/\d+/, { timeout: 15_000 });
 
       await expect(configure.lockBannerText().first()).toBeVisible();
-      await expect(configure.cpuInput()).toBeDisabled();
-      await expect(configure.dockerImageInput()).toBeEnabled();
+      await expect(configure.editableCpuInput()).toHaveCount(0);
 
       // the marketplace is scoped to the placement and lists offers
       await expect(configure.marketplaceHeading()).toBeVisible();

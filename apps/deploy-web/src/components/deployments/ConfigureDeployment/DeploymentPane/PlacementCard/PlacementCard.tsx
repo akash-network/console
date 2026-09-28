@@ -6,11 +6,11 @@ import { Plus, Trash } from "iconoir-react";
 
 import { RegionSelect } from "@src/components/sdl/RegionSelect/RegionSelect";
 import type { PlacementType } from "@src/types";
+import type { IndexedService } from "../../usePlacementManager/usePlacementManager";
 import { ConfigStatusIcon } from "../ConfigStatusIcon/ConfigStatusIcon";
 import type { PlacementSelectionState } from "../PlacementSelectionBadge/PlacementSelectionBadge";
 import { PlacementSelectionBadge } from "../PlacementSelectionBadge/PlacementSelectionBadge";
 import { ServiceRow } from "../ServiceRow/ServiceRow";
-import type { IndexedService } from "../usePlacementManager/usePlacementManager";
 import { usePlacementStatus } from "../usePlacementStatus/usePlacementStatus";
 
 export const DEPENDENCIES = { InlineEditInput, RegionSelect, ServiceRow, usePlacementStatus, useFieldError };

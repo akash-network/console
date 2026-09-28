@@ -421,6 +421,7 @@ describe(useAutoDeploymentFlow.name, () => {
       cancelAndEdit: vi.fn(),
       closeAndFail: vi.fn(),
       retryClose: vi.fn(),
+      discard: vi.fn(),
       setBidStrategy: vi.fn(),
       refreshQuotes: vi.fn(),
       retry: vi.fn(),

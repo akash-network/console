@@ -1,168 +1,37 @@
 import type { ReactNode } from "react";
 import { FormProvider, useForm } from "react-hook-form";
-import { Snackbar } from "@akashnetwork/ui/components";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import { getAvgCostPerMonth } from "@src/utils/priceUtils";
-import { resolveSdlSecrets } from "@src/utils/sdl/sdlSecrets";
 import type { DeploymentCost } from "../useDeploymentCost/useDeploymentCost";
 import type { DeploymentFlow, DeploymentFlowActions } from "../useDeploymentFlow/useDeploymentFlow";
 import type { QuoteExpiry } from "../useQuoteExpiry/useQuoteExpiry";
 import type { DEPENDENCIES } from "./ConfigureDeploymentHeader";
 import { ConfigureDeploymentHeader } from "./ConfigureDeploymentHeader";
 
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
-/** Stand-in for the SDL the header regenerates from the submitted form values. */
-const GENERATED_SDL = 'version: "2.0" # generated';
-
 describe(ConfigureDeploymentHeader.name, () => {
-  it("requests quotes with the SDL generated from the submitted form values, not a stale snapshot", async () => {
-    const requestQuotes = vi.fn();
-    const { enqueueSnackbar } = setup({ phase: "configuring", requestQuotes });
+  it("requests quotes through the shared request quotes action", async () => {
+    const { requestQuotes } = setup({ phase: "configuring" });
 
-    fireEvent.click(screen.getByRole("button", { name: /request quotes/i }));
+    await userEvent.click(screen.getByRole("button", { name: /request quotes/i }));
 
-    await waitFor(() => expect(requestQuotes).toHaveBeenCalledWith(GENERATED_SDL, { name: "" }));
-    expect(enqueueSnackbar).not.toHaveBeenCalled();
+    expect(requestQuotes).toHaveBeenCalled();
   });
 
-  it("requests quotes with the name typed into the deployment pane, so the api records it on create", async () => {
-    const requestQuotes = vi.fn();
-    setup({ phase: "configuring", requestQuotes, deploymentName: "my-app" });
+  it("hands the request quotes action the flow and the name typed for the deployment", () => {
+    const { useRequestQuotes, flow } = setup({ phase: "configuring", deploymentName: "my-app" });
 
-    fireEvent.click(screen.getByRole("button", { name: /request quotes/i }));
-
-    await waitFor(() => expect(requestQuotes).toHaveBeenCalledWith(GENERATED_SDL, { name: "my-app" }));
+    expect(useRequestQuotes).toHaveBeenCalledWith({ flow, deploymentName: "my-app" });
   });
 
-  it("blocks a trial deployment whose GPU resolves to a blocked selection and surfaces the trial message", async () => {
-    const requestQuotes = vi.fn();
-    const { enqueueSnackbar } = setup({
-      phase: "configuring",
-      requestQuotes,
-      isRestricted: true,
-      services: [{ profile: { hasGpu: true, gpuModels: [{ vendor: "nvidia", name: "" }] } }]
-    });
+  it("shows each resource of the deployment in the summary", () => {
+    setup({ phase: "configuring" });
 
-    fireEvent.click(screen.getByRole("button", { name: /request quotes/i }));
-
-    await waitFor(() => expect(enqueueSnackbar).toHaveBeenCalledTimes(1));
-    expect(requestQuotes).not.toHaveBeenCalled();
-
-    render(enqueueSnackbar.mock.calls[0][0] as ReactNode);
-    expect(screen.getByText(/GPU access is not available on a free trial/i)).toBeInTheDocument();
-  });
-
-  it("lets a trial deployment on an allowed specific GPU model request quotes", async () => {
-    const requestQuotes = vi.fn();
-    setup({
-      phase: "configuring",
-      requestQuotes,
-      isRestricted: true,
-      services: [{ profile: { hasGpu: true, gpuModels: [{ vendor: "nvidia", name: "t4" }] } }]
-    });
-
-    fireEvent.click(screen.getByRole("button", { name: /request quotes/i }));
-
-    await waitFor(() => expect(requestQuotes).toHaveBeenCalledWith(GENERATED_SDL, { name: "" }));
-  });
-
-  it("does not apply the trial GPU guard for a non-trial user", async () => {
-    const requestQuotes = vi.fn();
-    setup({
-      phase: "configuring",
-      requestQuotes,
-      isRestricted: false,
-      services: [{ profile: { hasGpu: true, gpuModels: [{ vendor: "nvidia", name: "" }] } }]
-    });
-
-    fireEvent.click(screen.getByRole("button", { name: /request quotes/i }));
-
-    await waitFor(() => expect(requestQuotes).toHaveBeenCalledWith(GENERATED_SDL, { name: "" }));
-  });
-
-  it("seals credentials in the generated SDL and hands the typed secret values to the flow when the secrets feature is on", async () => {
-    const requestQuotes = vi.fn();
-    const { generateSdl } = setup({
-      phase: "configuring",
-      requestQuotes,
-      secretsEnabled: true,
-      resolveSdlSecrets: () => ({ references: new Map(), values: { API_KEY: "hunter2" }, unresolved: [] })
-    });
-
-    fireEvent.click(screen.getByRole("button", { name: /request quotes/i }));
-
-    await waitFor(() => expect(requestQuotes).toHaveBeenCalledWith(GENERATED_SDL, { name: "", secrets: { API_KEY: "hunter2" } }));
-    expect(generateSdl).toHaveBeenCalledWith(expect.anything(), { sealSecrets: true });
-  });
-
-  it("treats the redeploy source's secrets as held and names the source on the request", async () => {
-    const requestQuotes = vi.fn();
-    const resolveSdlSecretsSpy = vi.fn(() => ({ references: new Map(), values: {}, unresolved: [] }));
-    setup({
-      phase: "configuring",
-      requestQuotes,
-      secretsEnabled: true,
-      resolveSdlSecrets: resolveSdlSecretsSpy,
-      inheritedSecrets: { sourceDseq: "123", names: new Set(["API_KEY"]) }
-    });
-
-    fireEvent.click(screen.getByRole("button", { name: /request quotes/i }));
-
-    await waitFor(() => expect(requestQuotes).toHaveBeenCalledWith(GENERATED_SDL, { name: "", secrets: {}, inheritSecretsFrom: "123" }));
-    expect(resolveSdlSecretsSpy).toHaveBeenCalledWith(expect.anything(), { sealSecrets: true, heldNames: new Set(["API_KEY"]) });
-  });
-
-  it("refuses to request quotes while a secret still needs a value, naming the secret and its service", async () => {
-    const requestQuotes = vi.fn();
-    const { enqueueSnackbar } = setup({
-      phase: "configuring",
-      requestQuotes,
-      secretsEnabled: true,
-      resolveSdlSecrets: () => ({
-        references: new Map(),
-        values: {},
-        unresolved: [{ serviceTitle: "web", label: "API_KEY", name: "API_KEY", isKeptReference: false }]
-      })
-    });
-
-    fireEvent.click(screen.getByRole("button", { name: /request quotes/i }));
-
-    await waitFor(() => expect(enqueueSnackbar).toHaveBeenCalledTimes(1));
-    expect(requestQuotes).not.toHaveBeenCalled();
-
-    render(enqueueSnackbar.mock.calls[0][0] as ReactNode);
-    expect(screen.getByText('Secret "API_KEY" in service "web" needs a value.')).toBeInTheDocument();
-  });
-
-  it("keeps credentials as typed and hands no secrets to the flow while the feature is off", async () => {
-    const requestQuotes = vi.fn();
-    const { generateSdl } = setup({ phase: "configuring", requestQuotes });
-
-    fireEvent.click(screen.getByRole("button", { name: /request quotes/i }));
-
-    await waitFor(() => expect(requestQuotes).toHaveBeenCalledWith(GENERATED_SDL, { name: "" }));
-    expect(generateSdl).toHaveBeenCalledWith(expect.anything(), { sealSecrets: false });
-  });
-
-  it("surfaces SDL validation errors and does not request quotes when the spec is invalid", async () => {
-    const requestQuotes = vi.fn();
-    const { enqueueSnackbar } = setup({
-      phase: "configuring",
-      requestQuotes,
-      validationErrors: ["/services/web/params/tee: missing required property 'gpu'"]
-    });
-
-    fireEvent.click(screen.getByRole("button", { name: /request quotes/i }));
-
-    await waitFor(() => expect(enqueueSnackbar).toHaveBeenCalledTimes(1));
-    expect(requestQuotes).not.toHaveBeenCalled();
-
-    render(enqueueSnackbar.mock.calls[0][0] as ReactNode);
-    expect(screen.getByText("/services/web/params/tee: missing required property 'gpu'")).toBeInTheDocument();
+    expect(screen.getByText("resource summary")).toBeInTheDocument();
   });
 
   it("shows a disabled Requesting CTA while creating", () => {
@@ -209,55 +78,18 @@ describe(ConfigureDeploymentHeader.name, () => {
   });
 
   it("shows Retry instead of Deploy after a failed deploy and re-fires the deploy request", async () => {
-    const deploy = vi.fn();
-    setup({
+    const { retryDeploy } = setup({
       phase: "quoting",
       allPlacementsHaveBids: true,
       placements: [{ id: "p1" }],
       selections: { p1: "akash1a/1/1/1" },
-      deployError: { message: "boom" },
-      deploy
+      deployError: { message: "boom" }
     });
     expect(screen.queryByRole("button", { name: "Deploy" })).not.toBeInTheDocument();
-    await userEvent.click(screen.getByRole("button", { name: "Retry" }));
-    expect(deploy).toHaveBeenCalledWith(GENERATED_SDL);
-  });
-
-  it("re-fires the deploy request with the typed secret values when the secrets feature is on", async () => {
-    const deploy = vi.fn();
-    setup({
-      phase: "quoting",
-      allPlacementsHaveBids: true,
-      placements: [{ id: "p1" }],
-      selections: { p1: "akash1a/1/1/1" },
-      deployError: { message: "boom" },
-      deploy,
-      secretsEnabled: true,
-      resolveSdlSecrets: () => ({ references: new Map(), values: { API_KEY: "hunter2" }, unresolved: [] })
-    });
 
     await userEvent.click(screen.getByRole("button", { name: "Retry" }));
 
-    expect(deploy).toHaveBeenCalledWith(GENERATED_SDL, { secrets: { API_KEY: "hunter2" }, unresolvedSecrets: [] });
-  });
-
-  it("hands a retry the secrets nothing holds a value for, so the deploy stops instead of leasing them", async () => {
-    const deploy = vi.fn();
-    const unresolved = [{ serviceTitle: "web", label: "API_KEY", name: "API_KEY", isKeptReference: false }];
-    setup({
-      phase: "quoting",
-      allPlacementsHaveBids: true,
-      placements: [{ id: "p1" }],
-      selections: { p1: "akash1a/1/1/1" },
-      deployError: { message: "boom" },
-      deploy,
-      secretsEnabled: true,
-      resolveSdlSecrets: () => ({ references: new Map(), values: {}, unresolved })
-    });
-
-    await userEvent.click(screen.getByRole("button", { name: "Retry" }));
-
-    expect(deploy).toHaveBeenCalledWith(GENERATED_SDL, { secrets: {}, unresolvedSecrets: unresolved });
+    expect(retryDeploy).toHaveBeenCalled();
   });
 
   it("shows a dash for the cost before any bids arrive", () => {
@@ -344,58 +176,41 @@ describe(ConfigureDeploymentHeader.name, () => {
 
   function setup(input: {
     phase: DeploymentFlow["phase"];
-    requestQuotes?: (sdl: string) => void;
-    validationErrors?: string[];
     placements?: { id: string }[];
     selections?: Record<string, string>;
     onDeploy?: () => void;
     allPlacementsHaveBids?: boolean;
     deployError?: { message?: string };
-    deploy?: () => void;
     cost?: DeploymentCost | null;
     hasGpu?: boolean;
     sdl?: string;
     expiry?: QuoteExpiry | null;
     cancelAndEdit?: () => void;
-    isRestricted?: boolean;
     deploymentName?: string;
-    services?: Array<{ profile: { hasGpu?: boolean; gpuModels?: Array<{ vendor: string; name?: string }> } }>;
-    secretsEnabled?: boolean;
-    resolveSdlSecrets?: typeof DEPENDENCIES.resolveSdlSecrets;
-    inheritedSecrets?: ReturnType<typeof DEPENDENCIES.useInheritedSecrets>;
   }) {
     const flow = mock<DeploymentFlow>({
       phase: input.phase,
       dseq: null,
       deployError: input.deployError,
-      actions: mock<DeploymentFlowActions>({
-        requestQuotes: input.requestQuotes ?? vi.fn(),
-        deploy: input.deploy ?? vi.fn(),
-        cancelAndEdit: input.cancelAndEdit ?? vi.fn()
-      })
+      actions: mock<DeploymentFlowActions>({ cancelAndEdit: input.cancelAndEdit ?? vi.fn() })
     });
     flow.selections = input.selections ?? {};
-    const enqueueSnackbar = vi.fn();
     const useDeploymentCost = vi.fn(() => input.cost ?? null);
-    const generateSdl = vi.fn(() => GENERATED_SDL);
+    const requestQuotes = vi.fn();
+    const retryDeploy = vi.fn();
+    const useRequestQuotes = vi.fn(() => requestQuotes);
     const dependencies: typeof DEPENDENCIES = {
-      useDeploymentResourceSummary: (() => "1 vCPU") as never,
+      DeploymentResourceSummary: () => <span>resource summary</span>,
       useDeploymentHasGpu: () => input.hasGpu ?? true,
-      useSnackbar: () => mock<ReturnType<(typeof DEPENDENCIES)["useSnackbar"]>>({ enqueueSnackbar }),
-      Snackbar,
-      generateSdl,
-      validateGeneratedSdl: () => input.validationErrors ?? [],
-      resolveSdlSecrets: input.resolveSdlSecrets ?? resolveSdlSecrets,
-      useFlag: () => input.secretsEnabled ?? false,
-      useInheritedSecrets: () => input.inheritedSecrets ?? null,
+      useRequestQuotes,
+      useRetryDeploy: () => retryDeploy,
       useDeploymentCost: useDeploymentCost as typeof DEPENDENCIES.useDeploymentCost,
       PriceValue: ({ value }) => <span data-testid="price">{String(value)}</span>,
       useQuoteExpiry: () => input.expiry ?? null,
-      CustomTooltip: ({ children }) => <>{children}</>,
-      useTrialGate: () => ({ isRestricted: input.isRestricted ?? false, isWalletReady: true })
+      CustomTooltip: ({ children }) => <>{children}</>
     };
     render(
-      <Wrapper placements={input.placements} services={input.services}>
+      <Wrapper placements={input.placements}>
         <ConfigureDeploymentHeader
           flow={flow}
           sdl={input.sdl ?? ""}
@@ -406,19 +221,11 @@ describe(ConfigureDeploymentHeader.name, () => {
         />
       </Wrapper>
     );
-    return { enqueueSnackbar, useDeploymentCost, generateSdl };
+    return { flow, useDeploymentCost, useRequestQuotes, requestQuotes, retryDeploy };
   }
 
-  function Wrapper({
-    children,
-    placements,
-    services
-  }: {
-    children: ReactNode;
-    placements?: { id: string }[];
-    services?: Array<{ profile: { hasGpu?: boolean; gpuModels?: Array<{ vendor: string; name?: string }> } }>;
-  }) {
-    const form = useForm({ defaultValues: { placements: placements ?? [], services: services ?? [] } });
+  function Wrapper({ children, placements }: { children: ReactNode; placements?: { id: string }[] }) {
+    const form = useForm({ defaultValues: { placements: placements ?? [], services: [] } });
     return <FormProvider {...form}>{children}</FormProvider>;
   }
 });

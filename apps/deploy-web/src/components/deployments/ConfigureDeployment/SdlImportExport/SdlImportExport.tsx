@@ -14,6 +14,7 @@ import {
 import { copyTextToClipboard } from "@akashnetwork/ui/utils";
 import { saveAs } from "file-saver";
 import { Settings } from "iconoir-react";
+import { DownloadIcon, UploadIcon } from "lucide-react";
 import { useSnackbar } from "notistack";
 
 import { useServices } from "@src/context/ServicesProvider";
@@ -26,6 +27,8 @@ const saveBlobAs: (data: Blob, filename: string) => void = saveAs;
 /** Names the menu trigger for both the visible tooltip and the accessible label, so the two can't drift apart. */
 const MENU_TRIGGER_LABEL = "Import or export config";
 
+const EXPORT_TRIGGER_LABEL = "Export SDL";
+
 // eslint-disable-next-line akash/dependencies-component-or-hook
 export const DEPENDENCIES = { ImportSdlDialog, useServices, useSnackbar, Snackbar, saveAs: saveBlobAs, copyTextToClipboard, CustomNoDivTooltip };
 
@@ -37,11 +40,13 @@ type Props = {
   /** False while the flow is locked (quoting/deploying); disables Import only, Export stays available. */
   canImport: boolean;
   onImport: (state: ImportedDeploymentState) => void;
+  /** `toolbar` shows a labelled Import SDL button and keeps only the exports in the menu. */
+  variant?: "menu" | "toolbar";
   dependencies?: typeof DEPENDENCIES;
 };
 
 /** SDL import/export actions for the configure toolbar, collapsed into a single overflow menu. */
-export const SdlImportExport: FC<Props> = ({ sdl, deploymentName, canImport, onImport, dependencies: d = DEPENDENCIES }) => {
+export const SdlImportExport: FC<Props> = ({ sdl, deploymentName, canImport, onImport, variant = "menu", dependencies: d = DEPENDENCIES }) => {
   const { analyticsService } = d.useServices();
   const { enqueueSnackbar } = d.useSnackbar();
   const [isImportOpen, setImportOpen] = useState(false);
@@ -68,29 +73,54 @@ export const SdlImportExport: FC<Props> = ({ sdl, deploymentName, canImport, onI
     analyticsService.track("configure_sdl_copied", { category: "deployments" });
   }
 
+  const exportItems = (
+    <>
+      <DropdownMenuItem disabled={!sdl} onClick={handleDownload}>
+        Download .yaml
+      </DropdownMenuItem>
+      <DropdownMenuItem disabled={!sdl} onClick={handleCopy}>
+        Copy to clipboard
+      </DropdownMenuItem>
+    </>
+  );
+
   return (
     <>
-      <DropdownMenu modal={false}>
-        <d.CustomNoDivTooltip title={MENU_TRIGGER_LABEL}>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" className="rounded-full" aria-label={MENU_TRIGGER_LABEL}>
-              <Settings />
-            </Button>
-          </DropdownMenuTrigger>
-        </d.CustomNoDivTooltip>
-        <DropdownMenuContent align="end">
-          <DropdownMenuItem disabled={!canImport} onClick={() => setImportOpen(true)}>
-            Import Config
-          </DropdownMenuItem>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem disabled={!sdl} onClick={handleDownload}>
-            Download .yaml
-          </DropdownMenuItem>
-          <DropdownMenuItem disabled={!sdl} onClick={handleCopy}>
-            Copy to clipboard
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
+      {variant === "toolbar" ? (
+        <div className="flex items-center gap-1">
+          <Button type="button" variant="outline" size="sm" disabled={!canImport} onClick={() => setImportOpen(true)} className="gap-1.5">
+            <UploadIcon className="h-4 w-4" aria-hidden="true" />
+            Import SDL
+          </Button>
+          <DropdownMenu modal={false}>
+            <d.CustomNoDivTooltip title={EXPORT_TRIGGER_LABEL}>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full" aria-label={EXPORT_TRIGGER_LABEL}>
+                  <DownloadIcon className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+            </d.CustomNoDivTooltip>
+            <DropdownMenuContent align="end">{exportItems}</DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      ) : (
+        <DropdownMenu modal={false}>
+          <d.CustomNoDivTooltip title={MENU_TRIGGER_LABEL}>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" className="rounded-full" aria-label={MENU_TRIGGER_LABEL}>
+                <Settings />
+              </Button>
+            </DropdownMenuTrigger>
+          </d.CustomNoDivTooltip>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem disabled={!canImport} onClick={() => setImportOpen(true)}>
+              Import Config
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            {exportItems}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      )}
 
       {isImportOpen && <d.ImportSdlDialog onClose={() => setImportOpen(false)} onImport={handleImported} />}
     </>

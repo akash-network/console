@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
@@ -8,7 +9,7 @@ import { ProviderSearchInput } from "./ProviderSearchInput/ProviderSearchInput";
 import type { DEPENDENCIES } from "./MarketplacePane";
 import { MarketplacePane } from "./MarketplacePane";
 
-import { render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { buildScreenedProvider } from "@tests/seeders/screenedProvider";
 
@@ -146,6 +147,54 @@ describe(MarketplacePane.name, () => {
     expect(useDeploymentCpuArch).toHaveBeenCalledWith("placement-2");
   });
 
+  describe("expanded", () => {
+    it("titles the marketplace without the pane number and shows the placement chips", () => {
+      setup({ variant: "expanded", chips: <span>placement chips</span> });
+
+      expect(screen.getByRole("heading", { name: "Compute Marketplace" })).toBeInTheDocument();
+      expect(screen.getByText("placement chips")).toBeInTheDocument();
+    });
+
+    it("lets rows select their offer", () => {
+      const { MarketplaceProvidersTable } = setup({ variant: "expanded" });
+
+      expect(MarketplaceProvidersTable).toHaveBeenCalledWith(expect.objectContaining({ selectOnRowClick: true }), expect.anything());
+    });
+
+    it("clears the search when it moves to another placement", () => {
+      const { clear, rerender } = setup({ variant: "expanded", selectedPlacementId: "placement-1" });
+
+      rerender({ selectedPlacementId: "placement-2" });
+
+      expect(clear).toHaveBeenCalled();
+    });
+
+    it("ignores a selection made right after it moved to another placement, which would be a double click", () => {
+      vi.useFakeTimers();
+      const onSelectProvider = vi.fn();
+      const { rerender } = setup({ variant: "expanded", selectedPlacementId: "placement-1", onSelectProvider });
+      rerender({ selectedPlacementId: "placement-2" });
+
+      fireEvent.click(screen.getByRole("button", { name: "select" }));
+      expect(onSelectProvider).not.toHaveBeenCalled();
+
+      act(() => vi.advanceTimersByTime(400));
+      fireEvent.click(screen.getByRole("button", { name: "select" }));
+
+      expect(onSelectProvider).toHaveBeenCalledWith("placement-2", "NEW");
+    });
+  });
+
+  it("keeps the numbered pane title and the select buttons in the three pane layout", () => {
+    const { MarketplaceProvidersTable, clear, rerender } = setup({ selectedPlacementId: "placement-1" });
+
+    rerender({ selectedPlacementId: "placement-2" });
+
+    expect(screen.getByRole("heading", { name: "3. Compute Marketplace" })).toBeInTheDocument();
+    expect(MarketplaceProvidersTable).toHaveBeenCalledWith(expect.objectContaining({ selectOnRowClick: false }), expect.anything());
+    expect(clear).not.toHaveBeenCalled();
+  });
+
   function setup(
     input: {
       sdl?: string;
@@ -166,8 +215,11 @@ describe(MarketplacePane.name, () => {
       selectedPlacementId?: string;
       selectedBidId?: string;
       onSelectProvider?: (placementId: string, bidId: string) => void;
+      variant?: "pane" | "expanded";
+      chips?: ReactNode;
     } = {}
   ) {
+    const clear = vi.fn();
     const usePlacementOffers = vi.fn(() => ({
       offers: input.offers ?? [],
       isLoading: input.isLoading ?? false,
@@ -177,7 +229,7 @@ describe(MarketplacePane.name, () => {
     const useProviderSearch = vi.fn((offers: PlacementOffer[]) => ({
       query: "",
       setQuery: vi.fn(),
-      clear: vi.fn(),
+      clear,
       filteredProviders: input.filteredProviders ?? offers,
       isSearchActive: input.isSearchActive ?? false
     }));
@@ -199,20 +251,33 @@ describe(MarketplacePane.name, () => {
       useGpuModels: () => Object.assign(mock<ReturnType<typeof DEPENDENCIES.useGpuModels>>(), { data: input.gpuVendors })
     };
     const user = userEvent.setup();
-
-    render(
+    const onSelectProvider = input.onSelectProvider ?? vi.fn();
+    const pane = (overrides: { selectedPlacementId?: string }) => (
       <MarketplacePane
         sdl={input.sdl ?? ""}
         placementName={input.placementName ?? "dcloud"}
         region={input.region}
         phase={input.phase ?? "configuring"}
         dseq={input.dseq ?? null}
-        selectedPlacementId={input.selectedPlacementId ?? "placement-1"}
+        selectedPlacementId={overrides.selectedPlacementId ?? input.selectedPlacementId ?? "placement-1"}
         selectedBidId={input.selectedBidId}
-        onSelectProvider={input.onSelectProvider ?? vi.fn()}
+        onSelectProvider={onSelectProvider}
+        variant={input.variant}
+        chips={input.chips}
         dependencies={dependencies}
       />
     );
-    return { usePlacementOffers, useProviderSearch, MarketplaceProvidersTable, useDeploymentGpuCount, useDeploymentCpuArch, user };
+
+    const rendered = render(pane({}));
+    return {
+      usePlacementOffers,
+      useProviderSearch,
+      MarketplaceProvidersTable,
+      useDeploymentGpuCount,
+      useDeploymentCpuArch,
+      user,
+      clear,
+      rerender: (overrides: { selectedPlacementId?: string }) => rendered.rerender(pane(overrides))
+    };
   }
 });

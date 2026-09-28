@@ -1,6 +1,6 @@
 "use client";
 import { type FC, useCallback, useMemo, useState } from "react";
-import { useFieldArray, useFormContext, useWatch } from "react-hook-form";
+import { useFormContext, useWatch } from "react-hook-form";
 import {
   Button,
   CollapsibleCard,
@@ -24,17 +24,12 @@ import {
 import { SaveIcon, ScrollTextIcon } from "lucide-react";
 
 import { datadogEnvSchema } from "@src/components/sdl/DatadogEnvConfig/DatadogEnvConfig";
-import {
-  findOwnLogCollectorServiceIndex,
-  generateLogCollectorService,
-  toLogCollectorTitle,
-  toPodLabelSelector
-} from "@src/components/sdl/LogCollectorControl/LogCollectorControl";
+import { findOwnLogCollectorServiceIndex } from "@src/components/sdl/LogCollectorControl/LogCollectorControl";
 import { useServices } from "@src/context/ServicesProvider";
 import { useSdlEnv } from "@src/hooks/useSdlEnv/useSdlEnv";
-import { useThrottledEffect } from "@src/hooks/useThrottledEffect/useThrottledEffect";
-import type { SdlBuilderFormValuesType, ServiceType } from "@src/types";
-import { kvArrayToObject, objectToKvArray } from "@src/utils/keyValue/keyValue";
+import type { SdlBuilderFormValuesType } from "@src/types";
+import { usePlacementManagerContext } from "../../PlacementManagerProvider/PlacementManagerProvider";
+import { syncLogCollectors } from "../../useSyncLogCollectors/useSyncLogCollectors";
 import { logsTooltip } from "../cardTooltips";
 import { ComputeResourcesCard } from "../ComputeResourcesCard/ComputeResourcesCard";
 
@@ -48,6 +43,7 @@ export const DEPENDENCIES = {
   DialogV2Body,
   DialogV2Footer,
   ComputeResourcesCard,
+  usePlacementManagerContext,
   useSdlEnv,
   useServices
 };
@@ -63,8 +59,9 @@ type Props = {
  * "Logs" card. A header switch enables/disables log forwarding for the selected
  * service; the settings live in a modal. Like the legacy {@link LogCollectorControl},
  * enabling appends a separate `-log-collector` sibling service to `services[]`
- * (Datadog provider, seeded default resources) that ships the parent service's logs;
- * the sibling's title/placement/pricing are kept in sync with the parent.
+ * (Datadog provider, seeded default resources) that ships the parent service's logs.
+ * The collector is added and removed through the shared placement manager, the single owner
+ * of the services array, and the form keeps its title/placement/pricing in sync with the parent.
  *
  * Trigger behavior:
  * - Off → flip the switch (or click the header): the collector is added straight away
@@ -80,7 +77,7 @@ type Props = {
 export const LogsCard: FC<Props> = ({ serviceIndex, locked = false, dependencies: d = DEPENDENCIES }) => {
   const { control, getValues, setValue, reset, trigger, formState } = useFormContext<SdlBuilderFormValuesType>();
   const { analyticsService } = d.useServices();
-  const { append, remove } = useFieldArray({ control, name: "services", keyName: "fieldId" });
+  const { addLogCollector, removeLogCollector } = d.usePlacementManagerContext();
   const services = useWatch({ control, name: "services" }) ?? [];
   const targetService = services[serviceIndex];
   const collectorIndex = useMemo(
@@ -100,27 +97,13 @@ export const LogsCard: FC<Props> = ({ serviceIndex, locked = false, dependencies
   const [open, setOpen] = useState(false);
   const [snapshot, setSnapshot] = useState<SdlBuilderFormValuesType | null>(null);
 
-  /**
-   * Appends the collector sibling if it isn't there yet. Uses the field array's
-   * `append` (not a raw `setValue`) so the live SDL preview, which is driven by a
-   * `form.watch` subscription, is notified of the structural change.
-   */
   const addCollector = useCallback(() => {
-    const current = getValues();
-    const target = current.services[serviceIndex];
-    if (findOwnLogCollectorServiceIndex(target, current.services) === -1) {
-      append(generateLogCollectorService(target));
-    }
-  }, [getValues, append, serviceIndex]);
+    addLogCollector(getValues(`services.${serviceIndex}.id`) as string);
+  }, [addLogCollector, getValues, serviceIndex]);
 
-  /** Removes the collector sibling if present, via the field array so the SDL preview updates. */
   const removeCollector = useCallback(() => {
-    const current = getValues();
-    const existingIndex = findOwnLogCollectorServiceIndex(current.services[serviceIndex], current.services);
-    if (existingIndex !== -1) {
-      remove(existingIndex);
-    }
-  }, [getValues, remove, serviceIndex]);
+    removeLogCollector(getValues(`services.${serviceIndex}.id`) as string);
+  }, [removeLogCollector, getValues, serviceIndex]);
 
   /** Snapshots the form, enables forwarding, and opens the settings modal. */
   const enableAndOpen = useCallback(() => {
@@ -172,28 +155,10 @@ export const LogsCard: FC<Props> = ({ serviceIndex, locked = false, dependencies
     setOpen(false);
   }, [reset, trigger, snapshot, isSubmitted]);
 
-  /**
-   * Re-derives the collector's parent-coupled fields (title, placement, pricing and
-   * the `POD_LABEL_SELECTOR` env that targets the parent's pods) from the current
-   * parent and writes back only what changed. Returns whether anything was written.
-   */
-  const syncCollectorToParent = useCallback((): boolean => {
-    const current = getValues();
-    const target = current.services[serviceIndex];
-    if (!target) return false;
-    const existingIndex = findOwnLogCollectorServiceIndex(target, current.services);
-    if (existingIndex === -1) return false;
-    return syncCollectorService({ services: current.services, parent: target, collectorIndex: existingIndex, setValue });
-  }, [getValues, setValue, serviceIndex]);
-
-  useThrottledEffect(() => {
-    syncCollectorToParent();
-  }, [targetService?.title, targetService?.placementId, targetService?.pricing?.amount, targetService?.pricing?.denom, collectorIndex, syncCollectorToParent]);
-
   const handleSave = useCallback(() => {
     const enabledThisSession = !!snapshot && findOwnLogCollectorServiceIndex(snapshot.services[serviceIndex], snapshot.services) === -1;
 
-    syncCollectorToParent();
+    syncLogCollectors(getValues("services"), setValue);
 
     reset(getValues(), { keepDirty: true, keepErrors: true });
     if (isSubmitted) void trigger("services");
@@ -202,7 +167,7 @@ export const LogsCard: FC<Props> = ({ serviceIndex, locked = false, dependencies
     if (enabledThisSession) {
       analyticsService.track("log_collector_enabled", { category: "deployments" });
     }
-  }, [getValues, reset, trigger, syncCollectorToParent, snapshot, serviceIndex, analyticsService, isSubmitted]);
+  }, [getValues, setValue, reset, trigger, snapshot, serviceIndex, analyticsService, isSubmitted]);
 
   return (
     <>
@@ -266,51 +231,6 @@ export const LogsCard: FC<Props> = ({ serviceIndex, locked = false, dependencies
     </>
   );
 };
-
-type SyncCollectorServiceInput = {
-  services: SdlBuilderFormValuesType["services"];
-  parent: ServiceType;
-  collectorIndex: number;
-  setValue: ReturnType<typeof useFormContext<SdlBuilderFormValuesType>>["setValue"];
-};
-
-/**
- * Writes the collector at `collectorIndex` back into form state with its
- * parent-derived fields refreshed: title, placement, pricing and the
- * `POD_LABEL_SELECTOR` env entry (which targets the parent's pods by title). Only
- * fields that actually changed are written; returns whether anything was written.
- */
-function syncCollectorService({ services, parent, collectorIndex, setValue }: SyncCollectorServiceInput): boolean {
-  const collector = services[collectorIndex];
-  if (!collector) return false;
-
-  let changed = false;
-
-  const nextTitle = toLogCollectorTitle(parent);
-  if (collector.title !== nextTitle) {
-    setValue(`services.${collectorIndex}.title`, nextTitle, { shouldDirty: true });
-    changed = true;
-  }
-
-  if (collector.placementId !== parent.placementId) {
-    setValue(`services.${collectorIndex}.placementId`, parent.placementId, { shouldDirty: true });
-    changed = true;
-  }
-
-  if (collector.pricing.amount !== parent.pricing.amount || collector.pricing.denom !== parent.pricing.denom) {
-    setValue(`services.${collectorIndex}.pricing`, parent.pricing, { shouldDirty: true });
-    changed = true;
-  }
-
-  const nextSelector = toPodLabelSelector(parent);
-  const env = kvArrayToObject(collector.env ?? []);
-  if (env.POD_LABEL_SELECTOR !== nextSelector) {
-    setValue(`services.${collectorIndex}.env`, objectToKvArray({ ...env, POD_LABEL_SELECTOR: nextSelector }), { shouldDirty: true });
-    changed = true;
-  }
-
-  return changed;
-}
 
 type DatadogFieldsProps = {
   serviceIndex: number;

@@ -1,5 +1,5 @@
 import type { FC } from "react";
-import { useCallback, useEffect } from "react";
+import { useCallback } from "react";
 import { useController, useFormContext, useWatch } from "react-hook-form";
 import {
   Button,
@@ -62,28 +62,17 @@ type Props = {
  * at a single instance, and while ANY service in the deployment is a VM, "Expose SSH" is forced on
  * (checked and disabled, key field always shown). The force keys off any-service because `hasSSHKey`
  * is deployment-wide: unchecking it from a sibling service's card would strip the VM's key too. The
- * force lives on the card (not the collapsible body, which unmounts while collapsed), a VM service's
- * card opens expanded so the required key field is visible on entry, and a submit rejected on this
- * card's fields (missing key, replica limit) marks the collapsed header, mirroring ExposePortsCard.
+ * form turns the flag on (the card only shows it forced), a VM service's card opens expanded so the
+ * required key field is visible on entry, and a submit rejected on this card's fields (missing key,
+ * replica limit) marks the collapsed header, mirroring ExposePortsCard.
  */
 export const RuntimeCard: FC<Props> = ({ serviceIndex, locked = false, dependencies: d = DEPENDENCIES }) => {
   const { control, formState } = useFormContext<SdlBuilderFormValuesType>();
-  const hasSSHKey = useController({ control, name: "hasSSHKey" });
   const services = useWatch({ control, name: "services" });
   const isVm = isVmImage(services?.[serviceIndex]?.image ?? "");
-  const hasVmService = (services ?? []).some(service => isVmImage(service?.image ?? ""));
   const { isSubmitted } = formState;
   const serviceErrors = formState.errors.services?.[serviceIndex];
   const hasErrors = isSubmitted && !!(serviceErrors?.sshPubKey || serviceErrors?.count);
-
-  useEffect(
-    function forceSshWhileVmServiceExists() {
-      if (hasVmService && !hasSSHKey.field.value) {
-        hasSSHKey.field.onChange(true);
-      }
-    },
-    [hasVmService, hasSSHKey.field]
-  );
 
   return (
     <d.CollapsibleCard

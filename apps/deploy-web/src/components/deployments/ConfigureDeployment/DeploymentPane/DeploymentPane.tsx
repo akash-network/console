@@ -4,14 +4,14 @@ import { Button, CustomTooltip } from "@akashnetwork/ui/components";
 import { InfoCircle, Plus, SidebarCollapse, SidebarExpand } from "iconoir-react";
 
 import { usePlacementsWithBids } from "@src/queries/usePlacementsWithBids";
+import { usePlacementManagerContext } from "../PlacementManagerProvider/PlacementManagerProvider";
 import type { DeploymentFlowPhase } from "../useDeploymentFlow/useDeploymentFlow";
 import { DeploymentNameField } from "./DeploymentNameField/DeploymentNameField";
 import { PlacementCard } from "./PlacementCard/PlacementCard";
 import type { PlacementSelectionState } from "./PlacementSelectionBadge/PlacementSelectionBadge";
 import { ReclamationSection } from "./ReclamationSection/ReclamationSection";
-import { usePlacementManager } from "./usePlacementManager/usePlacementManager";
 
-export const DEPENDENCIES = { PlacementCard, usePlacementManager, usePlacementsWithBids, ReclamationSection, DeploymentNameField };
+export const DEPENDENCIES = { PlacementCard, usePlacementManagerContext, usePlacementsWithBids, ReclamationSection, DeploymentNameField };
 
 type Props = {
   selectedServiceId: string;
@@ -42,7 +42,7 @@ export const DeploymentPane: FC<Props> = ({
   dependencies: d = DEPENDENCIES
 }) => {
   const [minimized, setMinimized] = useState(false);
-  const manager = d.usePlacementManager({ onSelectService });
+  const manager = d.usePlacementManagerContext();
   const placementsWithBids = d.usePlacementsWithBids({ enabled: phase === "quoting", dseq, sdl, placements: manager.placements });
   const toggle = () => setMinimized(prev => !prev);
 
