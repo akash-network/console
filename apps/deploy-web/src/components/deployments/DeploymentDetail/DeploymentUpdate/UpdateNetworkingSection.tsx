@@ -128,8 +128,7 @@ const PortNumberField: FC<{ label: string; name: `services.${number}.expose.${nu
 
 /** An emptied box holds null, because the form reads an undefined field as unset and puts the loaded port back. */
 function portNumberOf(value: string): number | null {
-  const parsed = Number.parseInt(value, 10);
-  return Number.isNaN(parsed) ? null : parsed;
+  return value === "" ? null : Number(value);
 }
 
 const ReadOnlyField: FC<{ label: string; value: string }> = ({ label, value }) => (

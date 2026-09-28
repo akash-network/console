@@ -13,7 +13,7 @@ import { DEPENDENCIES, DeploymentUpdate } from "./DeploymentUpdate";
 import type { DeploymentUpdateFormValues } from "./deploymentUpdateFormSchema";
 import type { DeploymentUpdateSubmitInput } from "./useDeploymentUpdateSubmit";
 
-import { act, render, screen, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 const STORED_SDL = `
@@ -671,6 +671,28 @@ describe(DeploymentUpdate.name, () => {
       await userEvent.click(updateButton());
 
       expect(serviceIn(submittedValues(submit), "api").expose[0]).toMatchObject({ port: 8081, as: 9090 });
+    });
+
+    it("reads a port typed in exponent notation as the number it spells", async () => {
+      const { submit } = setup();
+      const api = serviceSection("api");
+
+      fireEvent.change(within(api).getByLabelText("Port (internal)"), { target: { value: "8e3" } });
+      await userEvent.click(updateButton());
+
+      expect(serviceIn(submittedValues(submit), "api").expose[0]).toMatchObject({ port: 8000 });
+    });
+
+    it("refuses a port with a decimal part instead of rounding it", async () => {
+      const { submit } = setup();
+      const port = within(serviceSection("api")).getByLabelText("Port (internal)");
+
+      fireEvent.change(port, { target: { value: "80.5" } });
+      await userEvent.click(updateButton());
+
+      expect(port).toHaveValue(80.5);
+      expect(port).toBeInvalid();
+      expect(submit).not.toHaveBeenCalled();
     });
 
     it("refuses moving a public endpoint onto port 80 and says why", async () => {
