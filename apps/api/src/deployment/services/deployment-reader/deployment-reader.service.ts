@@ -36,6 +36,7 @@ import { FallbackLeaseReaderService } from "@src/deployment/services/fallback-le
 import { leaseGpuKeyOf, type LeaseGpusByLease, LeaseGpuService } from "@src/deployment/services/lease-gpu/lease-gpu.service";
 import type { OnChainGroupSpec } from "@src/deployment/utils/changed-group-resources/changed-group-resources";
 import { ProviderService } from "@src/provider/services/provider/provider.service";
+import type { ProviderList } from "@src/types/provider";
 import type { RestAkashDeploymentInfoResponse } from "@src/types/rest";
 import { averageBlockCountInAMonth } from "@src/utils/constants";
 import { FallbackDeploymentReaderService, UNKNOWN_DB_PLACEHOLDER } from "../fallback-deployment-reader/fallback-deployment-reader.service";
@@ -426,9 +427,9 @@ export class DeploymentReaderService {
       return { count, results: [] };
     }
 
-    const activeLeases = await this.#loadEveryActiveLease(address);
-    const providers = await this.providerService.getProviderList();
-    const providerMap = new Map(providers.map(p => [p.owner, p]));
+    const listedDseqs = new Set(response.deployments.map(x => x.deployment.id.dseq));
+    const activeLeases = (await this.#loadEveryActiveLease(address)).filter(lease => listedDseqs.has(lease.lease.id.dseq));
+    const providerMap = await this.#findLeaseProvidersByOwner(activeLeases);
 
     return {
       count,
@@ -490,6 +491,18 @@ export class DeploymentReaderService {
     } while (key);
 
     return leases;
+  }
+
+  async #findLeaseProvidersByOwner(leases: RpcLease[]): Promise<Map<string, ProviderList>> {
+    const providerAddresses = [...new Set(leases.map(lease => lease.lease.id.provider))];
+
+    if (!providerAddresses.length) {
+      return new Map();
+    }
+
+    const providers = await this.providerService.getProviderListByAddresses(providerAddresses);
+
+    return new Map(providers.map(provider => [provider.owner, provider]));
   }
 
   @Memoize({ ttlInSeconds: 30, maxEntries: 500 })

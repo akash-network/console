@@ -6,6 +6,7 @@ import { mock } from "vitest-mock-extended";
 
 import type { Wallet } from "../../../billing/lib/wallet/wallet";
 import type { TxManagerService } from "../../../billing/services/tx-manager/tx-manager.service";
+import { cacheEngine } from "../../../caching/helpers";
 import type { JWTModule } from "../../providers/jwt.provider";
 import { ProviderJwtTokenService } from "./provider-jwt-token.service";
 
@@ -64,6 +65,7 @@ describe(ProviderJwtTokenService.name, () => {
   });
 
   function setup() {
+    cacheEngine.clearByPrefix(`${ProviderJwtTokenService.name}#`);
     const walletId = faker.number.int({ min: 1, max: 10000 });
     const address = createAkashAddress();
     const jwtTokenValue = faker.string.alphanumeric();
