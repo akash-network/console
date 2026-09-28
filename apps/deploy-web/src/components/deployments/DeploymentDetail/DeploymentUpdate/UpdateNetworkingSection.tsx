@@ -12,7 +12,9 @@ import { UpdateSectionRule } from "./UpdateSectionRule";
 import { UpdateVariablesPanel } from "./UpdateVariablesPanel";
 
 const RESERVED_ENV_KEYS = new Set<string>(RESERVED_ENV_KEY_LIST);
-const PORTS_HELPER = "Protocol, routing, and adding or removing exposed ports require a new deployment.";
+const PORTS_HELPER =
+  "Protocol, routing, and adding or removing exposed ports require a new deployment. If you change a public port other than 80, the provider assigns it a new random public port, and the service's other random ports can change too.";
+const LEASED_IP_NOTICE = "This port is reached through a leased IP, so its numbers can't change without a new deployment.";
 
 type NetworkingTab = "ports" | "variables" | "command";
 
@@ -52,7 +54,7 @@ export const UpdateNetworkingSection: FC<UpdateNetworkingSectionProps> = ({ serv
           )}
         </TabsList>
         <TabsContent value="ports" className="m-0 p-4">
-          <PortsPanel expose={expose} />
+          <PortsPanel serviceIndex={serviceIndex} expose={expose} locked={locked} />
         </TabsContent>
         <TabsContent value="variables" className="m-0 p-4">
           <UpdateVariablesPanel serviceIndex={serviceIndex} locked={locked} />
@@ -67,20 +69,67 @@ export const UpdateNetworkingSection: FC<UpdateNetworkingSectionProps> = ({ serv
   );
 };
 
-const PortsPanel: FC<{ expose: ExposeType[] }> = ({ expose }) => (
+const PortsPanel: FC<{ serviceIndex: number; expose: ExposeType[]; locked: boolean }> = ({ serviceIndex, expose, locked }) => (
   <div className="flex flex-col gap-3">
     {expose.length === 0 && <p className="text-sm text-muted-foreground">This service exposes no ports.</p>}
-    {expose.map((entry, index) => (
-      <div key={entry.id ?? index} role="group" aria-label={`Port ${entry.port}`} className="grid gap-3 md:grid-cols-[1fr_1fr_1fr_2fr]">
-        <ReadOnlyField label="Port (internal)" value={String(entry.port)} />
-        <ReadOnlyField label="As (external)" value={String(entry.as)} />
-        <ReadOnlyField label="Protocol" value={protocolLabelOf(entry)} />
-        <ReadOnlyField label="Routing" value={routingLabelOf(entry)} />
-      </div>
+    {expose.map((entry, exposeIndex) => (
+      <PortRow key={entry.id ?? exposeIndex} serviceIndex={serviceIndex} exposeIndex={exposeIndex} entry={entry} locked={locked} />
     ))}
     <p className="text-sm text-muted-foreground">{PORTS_HELPER}</p>
   </div>
 );
+
+interface PortRowProps {
+  serviceIndex: number;
+  exposeIndex: number;
+  entry: ExposeType;
+  locked: boolean;
+}
+
+/** A provider keeps a leased IP on the ports it was declared with, so those numbers stay read-only here. */
+const PortRow: FC<PortRowProps> = ({ serviceIndex, exposeIndex, entry, locked }) => {
+  const isLeasedIp = !!entry.ipName;
+
+  return (
+    <div role="group" aria-label={`Port ${exposeIndex + 1}`} className="flex flex-col gap-2">
+      <fieldset disabled={locked || isLeasedIp} className="m-0 grid min-w-0 gap-3 border-0 p-0 md:grid-cols-[1fr_1fr_1fr_2fr]">
+        <PortNumberField label="Port (internal)" name={`services.${serviceIndex}.expose.${exposeIndex}.port`} />
+        <PortNumberField label="As (external)" name={`services.${serviceIndex}.expose.${exposeIndex}.as`} />
+        <ReadOnlyField label="Protocol" value={protocolLabelOf(entry)} />
+        <ReadOnlyField label="Routing" value={routingLabelOf(entry)} />
+      </fieldset>
+      {isLeasedIp && <p className="text-sm text-muted-foreground">{LEASED_IP_NOTICE}</p>}
+    </div>
+  );
+};
+
+const PortNumberField: FC<{ label: string; name: `services.${number}.expose.${number}.${"port" | "as"}` }> = ({ label, name }) => {
+  const { control } = useFormContext<SdlBuilderFormValuesType>();
+  const { field, fieldState } = useController({ control, name });
+
+  return (
+    <div className="flex flex-col gap-1">
+      <span className="text-sm">{label}</span>
+      <Input
+        aria-label={label}
+        type="number"
+        min={1}
+        max={65535}
+        value={field.value ?? ""}
+        onChange={event => field.onChange(portNumberOf(event.target.value))}
+        onBlur={field.onBlur}
+        error={!!fieldState.error}
+        inputClassName="h-10 font-mono"
+      />
+      {fieldState.error && <p className="text-xs text-destructive">{fieldState.error.message}</p>}
+    </div>
+  );
+};
+
+/** An emptied box holds null, because the form reads an undefined field as unset and puts the loaded port back. */
+function portNumberOf(value: string): number | null {
+  return value === "" ? null : Number(value);
+}
 
 const ReadOnlyField: FC<{ label: string; value: string }> = ({ label, value }) => (
   <div className="flex flex-col gap-1">

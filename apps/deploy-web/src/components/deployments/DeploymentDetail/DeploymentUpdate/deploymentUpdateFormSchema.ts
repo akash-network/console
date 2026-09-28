@@ -1,7 +1,7 @@
 import { z } from "zod";
 
-import type { SdlBuilderFormValuesType } from "@src/types";
-import { CommandSchema, CredentialsSchema, EnvironmentVariableSchema, VALID_IMAGE_NAME } from "@src/types/sdlBuilder/sdlBuilder";
+import type { ExposeType, SdlBuilderFormValuesType, ServiceType } from "@src/types";
+import { CommandSchema, CredentialsSchema, EnvironmentVariableSchema, ExposeSchema, VALID_IMAGE_NAME } from "@src/types/sdlBuilder/sdlBuilder";
 import { secretNameOf } from "@src/utils/sdl/sdlSecrets";
 
 /** A replacement typed for a kept secret is keyed by the name its reference carries, so the reference itself never changes under it. */
@@ -69,13 +69,16 @@ const UpdatableCredentialsSchema = CredentialsSchema.unwrap()
   .extend({ username: z.string().min(1, { message: "Username is required." }) })
   .optional();
 
+const UpdatablePortSchema = z.number({ invalid_type_error: "Enter a port number." }).pipe(ExposeSchema.shape.port);
+
 const UpdatableServiceSchema = z
   .object({
     image: z.string().min(1, { message: "Docker image name is required." }).regex(VALID_IMAGE_NAME, { message: "Invalid docker image name." }),
     hasCredentials: z.boolean().optional(),
     credentials: UpdatableCredentialsSchema,
     env: z.array(EnvironmentVariableSchema).optional(),
-    command: CommandSchema.optional()
+    command: CommandSchema.optional(),
+    expose: z.array(z.object({ port: UpdatablePortSchema, as: UpdatablePortSchema, global: z.boolean().optional() }).passthrough())
   })
   .passthrough()
   .superRefine(refuseRepeatedVariableNames)
@@ -86,3 +89,54 @@ export const DeploymentUpdateFormSchema = z
   .object({ services: z.array(UpdatableServiceSchema), secretValues: z.record(z.string().optional()).optional() })
   .passthrough()
   .superRefine(refuseShortRegistryPasswordReplacements);
+
+const SHARED_HTTP_PORT = 80;
+
+type ExposedPort = Pick<ExposeType, "port" | "as" | "global">;
+
+/** The chain fixed each endpoint's kind at create, so a port move is judged against the ports the form was loaded with, as the api judges it. */
+export function deploymentUpdateFormSchemaFor(loadedServices: ServiceType[]) {
+  return DeploymentUpdateFormSchema.superRefine((values, context) =>
+    values.services.forEach((service, serviceIndex) =>
+      refusePortMovesTheApiRefuses(service.expose, loadedServices[serviceIndex]?.expose ?? [], ["services", serviceIndex, "expose"], context)
+    )
+  );
+}
+
+function refusePortMovesTheApiRefuses(expose: ExposedPort[], loaded: ExposedPort[], path: Array<string | number>, context: z.RefinementCtx) {
+  expose.forEach((entry, exposeIndex) => {
+    const before = loaded[exposeIndex];
+    if (!before) return;
+
+    const others = expose.filter(other => other !== entry);
+    const addIssue = (field: "port" | "as", message: string) => context.addIssue({ code: z.ZodIssueCode.custom, path: [...path, exposeIndex, field], message });
+
+    if (sharesItsContainerPort(before, loaded)) {
+      const message = `Another port of this service also uses container port ${before.port}, so this one's numbers can't change without a new deployment.`;
+      if (entry.port !== before.port) addIssue("port", message);
+      if (entry.as !== before.as) addIssue("as", message);
+      return;
+    }
+
+    if (changesEndpointKind(before, entry)) addIssue("as", endpointKindMessageOf(before));
+    if (entry.port !== before.port && others.some(other => other.port === entry.port)) addIssue("port", `This service already exposes port ${entry.port}.`);
+    if (entry.as !== before.as && others.some(other => other.as === entry.as))
+      addIssue("as", `Another port of this service is already exposed as ${entry.as}.`);
+  });
+}
+
+/** The api addresses an endpoint by its container port and refuses one that matches two, so neither can ever be moved. */
+function sharesItsContainerPort(before: ExposedPort, loaded: ExposedPort[]): boolean {
+  return loaded.some(other => other !== before && other.port === before.port);
+}
+
+/** Mirrors chain-sdk's `isIngress`: a public endpoint on external port 80 is shared HTTP and any other is a random port, and an update cannot turn one into the other. */
+function changesEndpointKind(before: ExposedPort, after: ExposedPort): boolean {
+  return !!before.global && (before.as === SHARED_HTTP_PORT) !== (after.as === SHARED_HTTP_PORT);
+}
+
+function endpointKindMessageOf(before: ExposedPort): string {
+  return before.as === SHARED_HTTP_PORT
+    ? "Port 80 is served over HTTP with a hostname, so moving it off 80 needs a new deployment."
+    : "This endpoint is reached on a random public port, so moving it onto 80 needs a new deployment.";
+}

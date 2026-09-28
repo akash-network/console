@@ -13,7 +13,7 @@ import { DEPENDENCIES, DeploymentUpdate } from "./DeploymentUpdate";
 import type { DeploymentUpdateFormValues } from "./deploymentUpdateFormSchema";
 import type { DeploymentUpdateSubmitInput } from "./useDeploymentUpdateSubmit";
 
-import { act, render, screen, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 const STORED_SDL = `
@@ -133,6 +133,11 @@ deployment:
       profile: web
       count: 1
 `;
+
+const SDL_WITH_LEASED_IP = SINGLE_SERVICE_SDL.replace("          - global: true", "          - global: true\n            ip: edge-ip").replace(
+  "profiles:",
+  "endpoints:\n  edge-ip:\n    kind: ip\nprofiles:"
+);
 
 const SDL_WITH_LOG_COLLECTOR = SINGLE_SERVICE_SDL.replace(
   "profiles:",
@@ -640,16 +645,87 @@ describe(DeploymentUpdate.name, () => {
       expect(serviceIn(current, "api").command).toEqual({ command: "bun", arg: "server.js" });
     });
 
-    it("shows each exposed port with its protocol and routing, none of which can change yet", () => {
+    it("shows each exposed port with its protocol and routing, and lets only the port numbers change", () => {
       setup();
 
       const web = serviceSection("web");
-      expect(within(web).getByLabelText("Port (internal)")).toHaveValue("3000");
-      expect(within(web).getByLabelText("Port (internal)")).toBeDisabled();
-      expect(within(web).getByLabelText("As (external)")).toHaveValue("443");
+      expect(within(web).getByLabelText("Port (internal)")).toHaveValue(3000);
+      expect(within(web).getByLabelText("Port (internal)")).toBeEnabled();
+      expect(within(web).getByLabelText("As (external)")).toHaveValue(443);
+      expect(within(web).getByLabelText("As (external)")).toBeEnabled();
       expect(within(web).getByLabelText("Protocol")).toHaveValue("HTTP");
+      expect(within(web).getByLabelText("Protocol")).toBeDisabled();
       expect(within(web).getByLabelText("Routing")).toHaveValue("Public (any IP)");
+      expect(within(web).getByLabelText("Routing")).toBeDisabled();
       expect(within(serviceSection("api")).getByLabelText("Routing")).toHaveValue("Internal");
+    });
+
+    it("moves a container port and the port it is exposed as", async () => {
+      const { submit } = setup();
+      const api = serviceSection("api");
+
+      await userEvent.clear(within(api).getByLabelText("Port (internal)"));
+      await userEvent.type(within(api).getByLabelText("Port (internal)"), "8081");
+      await userEvent.clear(within(api).getByLabelText("As (external)"));
+      await userEvent.type(within(api).getByLabelText("As (external)"), "9090");
+      await userEvent.click(updateButton());
+
+      expect(serviceIn(submittedValues(submit), "api").expose[0]).toMatchObject({ port: 8081, as: 9090 });
+    });
+
+    it("reads a port typed in exponent notation as the number it spells", async () => {
+      const { submit } = setup();
+      const api = serviceSection("api");
+
+      fireEvent.change(within(api).getByLabelText("Port (internal)"), { target: { value: "8e3" } });
+      await userEvent.click(updateButton());
+
+      expect(serviceIn(submittedValues(submit), "api").expose[0]).toMatchObject({ port: 8000 });
+    });
+
+    it("refuses a port with a decimal part instead of rounding it", async () => {
+      const { submit } = setup();
+      const port = within(serviceSection("api")).getByLabelText("Port (internal)");
+
+      fireEvent.change(port, { target: { value: "80.5" } });
+      await userEvent.click(updateButton());
+
+      expect(port).toHaveValue(80.5);
+      expect(port).toBeInvalid();
+      expect(submit).not.toHaveBeenCalled();
+    });
+
+    it("refuses moving a public endpoint onto port 80 and says why", async () => {
+      const { submit } = setup();
+      const web = serviceSection("web");
+
+      await userEvent.clear(within(web).getByLabelText("As (external)"));
+      await userEvent.type(within(web).getByLabelText("As (external)"), "80");
+      await userEvent.click(updateButton());
+
+      expect(within(web).getByText("This endpoint is reached on a random public port, so moving it onto 80 needs a new deployment.")).toBeInTheDocument();
+      expect(submit).not.toHaveBeenCalled();
+    });
+
+    it("refuses a port left empty", async () => {
+      const { submit } = setup();
+      const web = serviceSection("web");
+
+      await userEvent.clear(within(web).getByLabelText("Port (internal)"));
+      await userEvent.click(updateButton());
+
+      expect(within(web).getByLabelText("Port (internal)")).toHaveValue(null);
+      expect(within(web).getByText("Enter a port number.")).toBeInTheDocument();
+      expect(submit).not.toHaveBeenCalled();
+    });
+
+    it("keeps the numbers of a port reached through a leased IP read-only", () => {
+      setup({ definition: { sdl: SDL_WITH_LEASED_IP } });
+
+      const web = serviceSection("web");
+      expect(within(web).getByLabelText("Port (internal)")).toBeDisabled();
+      expect(within(web).getByLabelText("As (external)")).toBeDisabled();
+      expect(within(web).getByText("This port is reached through a leased IP, so its numbers can't change without a new deployment.")).toBeInTheDocument();
     });
   });
 

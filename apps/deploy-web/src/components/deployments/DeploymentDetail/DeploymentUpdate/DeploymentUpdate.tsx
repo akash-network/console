@@ -16,7 +16,7 @@ import { getPlacementName } from "../DeploymentPlacements/placementModel";
 import { DeploymentTabHeader } from "../DeploymentTabHeader";
 import { DefinitionImport } from "./DefinitionImport";
 import type { DeploymentUpdateFormValues } from "./deploymentUpdateFormSchema";
-import { DeploymentUpdateFormSchema } from "./deploymentUpdateFormSchema";
+import { deploymentUpdateFormSchemaFor } from "./deploymentUpdateFormSchema";
 import { UpdatePlacementCard } from "./UpdatePlacementCard";
 import { useDeploymentUpdateSubmit } from "./useDeploymentUpdateSubmit";
 
@@ -87,10 +87,11 @@ export const DeploymentUpdate: FC<DeploymentUpdateProps> = ({
   latestSeed.current = seed;
   const heldVersion = useRef(baseline?.manifestVersion);
   heldVersion.current = baseline?.manifestVersion;
+  const resolver = useMemo(() => zodResolver(deploymentUpdateFormSchemaFor(baseline?.values.services ?? [])), [baseline]);
   const form = useForm<DeploymentUpdateFormValues>({
     defaultValues: baseline?.values,
     mode: "onTouched",
-    resolver: zodResolver(DeploymentUpdateFormSchema)
+    resolver
   });
   const { isDirty } = form.formState;
   const { submit, isUpdating, sdlRefusal, secretsUnreadable } = d.useDeploymentUpdateSubmit({
