@@ -15,11 +15,13 @@ const MAX_TRACKED_STREAKS = 1e5;
 const STREAK_ENTRY_BYTES = 256;
 const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
 const UNCOUNTED_CLIENT_ERRORS = new Set([401, 429]);
+const IN_FLIGHT_RETRY_AFTER_SECONDS = 1;
 
 @singleton()
 export class RefusalBackoffInterceptor implements HonoInterceptor {
   readonly #logger: ReturnType<CreateLogger>;
   readonly #streaks: LRUCache<string, RefusalStreak>;
+  readonly #requestsInFlight = new Map<string, number>();
 
   constructor(
     @inject(CORE_CONFIG) private readonly config: CoreConfig,
@@ -42,7 +44,7 @@ export class RefusalBackoffInterceptor implements HonoInterceptor {
       }
 
       const key = `${userId} ${c.req.method} ${c.req.path}`;
-      const retryAfterSeconds = this.#secondsLeftInBackoff(key);
+      const retryAfterSeconds = this.#secondsLeftInBackoff(key) || (this.#wouldPassLimitWithRequestsInFlight(key) ? IN_FLIGHT_RETRY_AFTER_SECONDS : 0);
 
       if (retryAfterSeconds) {
         throw createError(429, "This request has been refused repeatedly. Wait before sending it again.", {
@@ -51,7 +53,12 @@ export class RefusalBackoffInterceptor implements HonoInterceptor {
         });
       }
 
-      await next();
+      this.#requestsInFlight.set(key, (this.#requestsInFlight.get(key) ?? 0) + 1);
+      try {
+        await next();
+      } finally {
+        this.#release(key);
+      }
       this.#record(key, userId, c);
     };
   }
@@ -59,6 +66,28 @@ export class RefusalBackoffInterceptor implements HonoInterceptor {
   #secondsLeftInBackoff(key: string): number {
     const backoffUntil = this.#streaks.get(key)?.backoffUntil ?? 0;
     return Math.max(0, Math.ceil((backoffUntil - Date.now()) / 1000));
+  }
+
+  /** Counts identical requests still in flight as refusals once a streak exists, so a parallel burst cannot run past the limit before its answers come back. */
+  #wouldPassLimitWithRequestsInFlight(key: string): boolean {
+    const streak = this.#streaks.get(key);
+    if (!streak || !this.#isWithinWindow(streak, Date.now())) return false;
+
+    return streak.refusals + (this.#requestsInFlight.get(key) ?? 0) >= this.config.REPEATED_REFUSAL_LIMIT;
+  }
+
+  #isWithinWindow(streak: RefusalStreak, now: number): boolean {
+    return now - streak.startedAt < this.config.REPEATED_REFUSAL_WINDOW_SECONDS * 1000;
+  }
+
+  #release(key: string): void {
+    const inFlight = this.#requestsInFlight.get(key)!;
+
+    if (inFlight > 1) {
+      this.#requestsInFlight.set(key, inFlight - 1);
+    } else {
+      this.#requestsInFlight.delete(key);
+    }
   }
 
   #record(key: string, userId: string, c: Context): void {
@@ -69,11 +98,11 @@ export class RefusalBackoffInterceptor implements HonoInterceptor {
       return;
     }
 
-    if (status >= 500 || UNCOUNTED_CLIENT_ERRORS.has(status)) return;
+    if (status >= 500 || UNCOUNTED_CLIENT_ERRORS.has(status) || this.#secondsLeftInBackoff(key)) return;
 
     const now = Date.now();
     const streak = this.#streaks.get(key);
-    const continues = streak?.status === status && now - streak.startedAt < this.config.REPEATED_REFUSAL_WINDOW_SECONDS * 1000;
+    const continues = streak?.status === status && this.#isWithinWindow(streak, now);
     const refusals = continues ? streak.refusals + 1 : 1;
 
     if (refusals < this.config.REPEATED_REFUSAL_LIMIT) {

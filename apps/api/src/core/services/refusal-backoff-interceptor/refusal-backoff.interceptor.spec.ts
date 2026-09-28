@@ -90,6 +90,95 @@ describe(RefusalBackoffInterceptor.name, () => {
     expect(handler).toHaveBeenCalledTimes(4);
   });
 
+  it("counts identical requests still in flight against the limit", async () => {
+    const { send, handler, holdResponses } = setup({ limit: 3 });
+
+    await refuse(send, 2);
+    const release = holdResponses();
+    const inFlight = send({ status: 400, held: true });
+    await vi.waitFor(() => expect(handler).toHaveBeenCalledTimes(3));
+    const overflow = await send({ status: 400 });
+    release();
+
+    expect(overflow.status).toBe(429);
+    expect(overflow.headers.get("Retry-After")).toBe("1");
+    expect((await inFlight).status).toBe(400);
+    expect(handler).toHaveBeenCalledTimes(3);
+  });
+
+  it("lets an identical request through once the ones in flight are answered without a refusal", async () => {
+    const { send, handler, holdResponses } = setup({ limit: 3 });
+
+    await refuse(send, 1);
+    const release = holdResponses();
+    const inFlight = [send({ status: 500, held: true }), send({ status: 500, held: true })];
+    await vi.waitFor(() => expect(handler).toHaveBeenCalledTimes(3));
+    release();
+    await Promise.all(inFlight);
+    const response = await send({ status: 400 });
+
+    expect(response.status).toBe(400);
+  });
+
+  it("keeps counting a request still in flight after an identical one is answered", async () => {
+    const { send, handler, holdResponses } = setup({ limit: 3 });
+
+    const releaseFirst = holdResponses();
+    const first = send({ status: 500, held: true });
+    await vi.waitFor(() => expect(handler).toHaveBeenCalledTimes(1));
+    const releaseSecond = holdResponses();
+    const second = send({ status: 500, held: true });
+    await vi.waitFor(() => expect(handler).toHaveBeenCalledTimes(2));
+    releaseFirst();
+    await first;
+    await refuse(send, 2);
+    const overflow = await send({ status: 400 });
+    releaseSecond();
+    await second;
+
+    expect(overflow.status).toBe(429);
+  });
+
+  it("never holds back parallel requests to an endpoint that has refused nothing yet", async () => {
+    const { send, handler, holdResponses } = setup({ limit: 3 });
+
+    const release = holdResponses();
+    const burst = Array.from({ length: 4 }, () => send({ status: 400, held: true }));
+    await vi.waitFor(() => expect(handler).toHaveBeenCalledTimes(4));
+    release();
+    const responses = await Promise.all(burst);
+
+    expect(responses.map(({ status }) => status)).toEqual([400, 400, 400, 400]);
+  });
+
+  it("keeps a backoff that starts while an identical request is still in flight", async () => {
+    const { send, handler, holdResponses } = setup({ limit: 3 });
+
+    const release = holdResponses();
+    const burst = Array.from({ length: 4 }, () => send({ status: 400, held: true }));
+    await vi.waitFor(() => expect(handler).toHaveBeenCalledTimes(4));
+    release();
+    await Promise.all(burst);
+    const response = await send({ status: 400 });
+
+    expect(response.status).toBe(429);
+  });
+
+  it("stops counting a streak that has left the window against requests in flight", async () => {
+    const { send, advance, handler, holdResponses } = setup({ limit: 3, windowSeconds: 600 });
+
+    await refuse(send, 2);
+    advance(600_000);
+    const release = holdResponses();
+    const inFlight = send({ status: 400, held: true });
+    await vi.waitFor(() => expect(handler).toHaveBeenCalledTimes(3));
+    const response = await send({ status: 400 });
+    release();
+    await inFlight;
+
+    expect(response.status).toBe(400);
+  });
+
   it("keeps the streak through a failure of ours", async () => {
     const { send } = setup({ limit: 3 });
 
@@ -222,6 +311,7 @@ describe(RefusalBackoffInterceptor.name, () => {
     const createLogger = vi.fn(() => mock<LoggerService>());
     const interceptor = new RefusalBackoffInterceptor(config, createLogger);
     const handler = vi.fn();
+    let heldResponses: Promise<void> | undefined;
 
     const app = new Hono<{ Variables: { user?: { id: string } } }>()
       .onError((error, c) => {
@@ -236,8 +326,9 @@ describe(RefusalBackoffInterceptor.name, () => {
         await next();
       })
       .use(interceptor.intercept())
-      .all("*", c => {
+      .all("*", async c => {
         handler();
+        if (c.req.header("x-held")) await heldResponses;
         return c.body(null, Number(c.req.header("x-respond-with")) as 200);
       });
 
@@ -245,11 +336,19 @@ describe(RefusalBackoffInterceptor.name, () => {
       createLogger,
       handler,
       advance: (ms: number) => vi.advanceTimersByTime(ms),
-      send: (request: { status: number; method?: string; path?: string; userId?: string | null }) =>
+      holdResponses: () => {
+        let release!: () => void;
+        heldResponses = new Promise<void>(resolve => {
+          release = resolve;
+        });
+        return release;
+      },
+      send: (request: { status: number; method?: string; path?: string; userId?: string | null; held?: boolean }) =>
         app.request(request.path ?? "/v1/leases", {
           method: request.method ?? "POST",
           headers: {
             "x-respond-with": String(request.status),
+            ...(request.held ? { "x-held": "true" } : {}),
             ...(request.userId === null ? {} : { "x-test-user": request.userId ?? USER })
           }
         })
