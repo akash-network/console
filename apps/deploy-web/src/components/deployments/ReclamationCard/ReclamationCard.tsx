@@ -6,7 +6,7 @@ import { WarningTriangle } from "iconoir-react";
 import Link from "next/link";
 
 import { useWallet } from "@src/context/WalletProvider";
-import { isUsableDeploymentDefinition, useDeploymentDefinition } from "@src/hooks/useDeploymentDefinition/useDeploymentDefinition";
+import { isUsableDeploymentDefinition, sdlToRedeploy, useDeploymentDefinition } from "@src/hooks/useDeploymentDefinition/useDeploymentDefinition";
 import { useManagedDeploymentConfirm } from "@src/hooks/useManagedDeploymentConfirm";
 import { useNewDeploymentUrl } from "@src/hooks/useNewDeploymentUrl/useNewDeploymentUrl";
 import { useRedeploy } from "@src/hooks/useRedeploy/useRedeploy";
@@ -72,7 +72,7 @@ export const ReclamationCard: React.FunctionComponent<Props> = ({ lease, dseq, o
               size="sm"
               className="text-foreground"
               disabled={definition.source === "resolving"}
-              onClick={() => redeploy({ sdl: definition.sdl, name: definition.name, sourceDseq: dseq })}
+              onClick={() => redeploy({ sdl: sdlToRedeploy(definition), name: definition.name, sourceDseq: dseq })}
             >
               Redeploy
             </Button>

@@ -40,6 +40,15 @@ describe("DeploymentActionsMenu", () => {
     expect(redeploy).toHaveBeenCalledWith({ sdl: "version: '2.0'", name: "acme", sourceDseq: expect.any(String) });
   });
 
+  it("redeploys the values this browser gave back when it holds the running copy", async () => {
+    const { redeploy } = setup({ definition: { sdl: "version: '2.0' # withheld", restoredSdl: "version: '2.0' # restored", name: "acme", source: "api" } });
+
+    await openMenu();
+    await userEvent.click(screen.getByRole("menuitem", { name: /Redeploy/ }));
+
+    expect(redeploy).toHaveBeenCalledWith({ sdl: "version: '2.0' # restored", name: "acme", sourceDseq: expect.any(String) });
+  });
+
   it("hides redeploy when no usable definition survives", async () => {
     setup({ definition: { sdl: undefined, name: undefined, source: "absent" } });
 

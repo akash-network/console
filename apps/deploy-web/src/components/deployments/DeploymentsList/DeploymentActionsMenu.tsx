@@ -7,7 +7,7 @@ import { Edit, MoreHoriz, Upload, XmarkSquare } from "iconoir-react";
 import { useLocalNotes } from "@src/components/LocalNoteManager";
 import { useServices } from "@src/context/ServicesProvider";
 import { useWallet } from "@src/context/WalletProvider";
-import { isUsableDeploymentDefinition, useDeploymentDefinition } from "@src/hooks/useDeploymentDefinition/useDeploymentDefinition";
+import { isUsableDeploymentDefinition, sdlToRedeploy, useDeploymentDefinition } from "@src/hooks/useDeploymentDefinition/useDeploymentDefinition";
 import { useManagedDeploymentConfirm } from "@src/hooks/useManagedDeploymentConfirm";
 import { useRedeploy } from "@src/hooks/useRedeploy/useRedeploy";
 import type { DeploymentDto } from "@src/types/deployment";
@@ -66,7 +66,7 @@ export const DeploymentActionsMenu: FC<DeploymentActionsMenuProps> = ({ deployme
         {canRedeploy && (
           <DropdownMenuItem
             disabled={isResolvingDefinition}
-            onSelect={() => redeploy({ sdl: definition.sdl, name: definition.name, sourceDseq: deployment.dseq })}
+            onSelect={() => redeploy({ sdl: sdlToRedeploy(definition), name: definition.name, sourceDseq: deployment.dseq })}
           >
             <Upload className="mr-2 h-4 w-4" />
             Redeploy

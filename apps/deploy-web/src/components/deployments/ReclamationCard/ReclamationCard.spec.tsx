@@ -32,6 +32,14 @@ describe("ReclamationCard", () => {
     expect(redeploy).toHaveBeenCalledWith({ sdl: "version: 2.0", name: "my-app", sourceDseq: expect.any(String) });
   });
 
+  it("redeploys the values this browser gave back when it holds the running copy", async () => {
+    const { redeploy } = setup({ definition: { sdl: "version: 2.0 # withheld", restoredSdl: "version: 2.0 # restored", name: "my-app", source: "api" } });
+
+    await userEvent.click(screen.getByRole("button", { name: "Redeploy" }));
+
+    expect(redeploy).toHaveBeenCalledWith({ sdl: "version: 2.0 # restored", name: "my-app", sourceDseq: expect.any(String) });
+  });
+
   it("redeploys from the api definition on a device holding no local copy", async () => {
     const { redeploy } = setup({ definition: { sdl: "version: 2.0 # from-the-api", name: undefined, source: "api" } });
 

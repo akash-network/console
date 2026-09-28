@@ -11,7 +11,7 @@ import { NextSeo } from "next-seo";
 import { createConfigureDraft } from "@src/components/deployments/ConfigureDeployment/useConfigureDraft/useConfigureDraft";
 import { useServices } from "@src/context/ServicesProvider";
 import { useWallet } from "@src/context/WalletProvider";
-import { isUsableDeploymentDefinition, useDeploymentDefinition } from "@src/hooks/useDeploymentDefinition/useDeploymentDefinition";
+import { isUsableDeploymentDefinition, sdlToRedeploy, useDeploymentDefinition } from "@src/hooks/useDeploymentDefinition/useDeploymentDefinition";
 import { useFlag } from "@src/hooks/useFlag";
 import { useLeaseGpus, withLeaseGpus } from "@src/hooks/useLeaseGpus/useLeaseGpus";
 import { useRedeploy } from "@src/hooks/useRedeploy/useRedeploy";
@@ -145,12 +145,12 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq, dependencies
   }
 
   function redeployFromResolvedDefinition() {
-    redeploy({ sdl: definition.sdl, name: definition.name, sourceDseq: dseq });
+    redeploy({ sdl: sdlToRedeploy(definition), name: definition.name, sourceDseq: dseq });
     analyticsService.track("redeploy_btn_clk", "Amplitude");
   }
 
   function redeployWithNewSecrets() {
-    redeploy({ sdl: definition.sdl, name: definition.name });
+    redeploy({ sdl: sdlToRedeploy(definition), name: definition.name });
     analyticsService.track("redeploy_btn_clk", "Amplitude");
   }
 

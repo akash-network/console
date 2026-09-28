@@ -24,6 +24,39 @@ export function isStoredSdlRedeployable(sdl: string): boolean {
   return document !== null && blankEnvValuesIn(document).length === 0;
 }
 
+/** Only env values come back, since registry credentials are kept as secrets whatever this browser holds; undefined when none does. */
+export function withEnvValuesFrom(browserSdl: string, apiSdl: string): string | undefined {
+  const document = parseSdl(apiSdl);
+  const browserValues = plainEnvValuesByService(parseSdl(browserSdl));
+  let restoredCount = 0;
+
+  Object.entries(servicesOf(document)).forEach(([service, definition]) => {
+    const env = (definition as { env?: unknown } | null)?.env;
+    if (!Array.isArray(env)) return;
+
+    env.forEach((entry, index) => {
+      if (typeof entry !== "string" || !SDL_REFERENCE_PATTERN.test(assignedValueOf(entry))) return;
+
+      const name = entry.slice(0, entry.indexOf("="));
+      const value = browserValues.get(`${service}.${name}`);
+      if (value === undefined) return;
+
+      env[index] = `${name}=${value}`;
+      restoredCount++;
+    });
+  });
+
+  return restoredCount > 0 ? yaml.dump(document) : undefined;
+}
+
+function plainEnvValuesByService(document: unknown): Map<string, string> {
+  return new Map(
+    envEntriesIn(document)
+      .filter(({ entry }) => entry.includes("=") && !SDL_REFERENCE_PATTERN.test(assignedValueOf(entry)))
+      .map(({ service, entry }) => [`${service}.${entry.slice(0, entry.indexOf("="))}`, assignedValueOf(entry)])
+  );
+}
+
 /** Named per service, because the same env name can be a withheld secret in one service and a value of the user's own in another. */
 function blankEnvValuesIn(document: unknown): string[] {
   return envEntriesIn(document)
@@ -55,11 +88,13 @@ function isBlank(entry: string): boolean {
   return separatorAt !== -1 && entry.slice(separatorAt + 1) === "";
 }
 
-function envEntriesIn(document: unknown): { service: string; entry: string }[] {
+function servicesOf(document: unknown): Record<string, unknown> {
   const services = (document as { services?: unknown } | null)?.services;
-  if (!isRecord(services)) return [];
+  return isRecord(services) ? services : {};
+}
 
-  return Object.entries(services).flatMap(([service, definition]) => {
+function envEntriesIn(document: unknown): { service: string; entry: string }[] {
+  return Object.entries(servicesOf(document)).flatMap(([service, definition]) => {
     const env = (definition as { env?: unknown } | null)?.env;
     if (!Array.isArray(env)) return [];
 

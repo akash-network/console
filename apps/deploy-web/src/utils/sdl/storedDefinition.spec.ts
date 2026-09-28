@@ -1,6 +1,7 @@
+import yaml from "js-yaml";
 import { describe, expect, it } from "vitest";
 
-import { hasSdlReference, isStoredSdlRedeployable, isStoredSdlSelfContained, leavesWithheldEnvValuesBlank } from "./storedDefinition";
+import { hasSdlReference, isStoredSdlRedeployable, isStoredSdlSelfContained, leavesWithheldEnvValuesBlank, withEnvValuesFrom } from "./storedDefinition";
 
 describe("storedDefinition", () => {
   describe(hasSdlReference.name, () => {
@@ -126,6 +127,72 @@ describe("storedDefinition", () => {
       expect(isStoredSdlSelfContained("services: [unclosed")).toBe(false);
     });
   });
+
+  describe(withEnvValuesFrom.name, () => {
+    it("fills a withheld env value with the one this browser holds under the same name", () => {
+      const restored = withEnvValuesFrom(sdlWithEnv(["TOKEN=from-this-browser"]), sdlWithEnv(["TOKEN=ac-secret://s0_e0", "MODE=dev"]));
+
+      expect(envOf(restored, "web")).toEqual(["TOKEN=from-this-browser", "MODE=dev"]);
+    });
+
+    it("restores each service from its own values, since a name can mean something else in another service", () => {
+      const restored = withEnvValuesFrom(
+        sdlWithTwoServices(["TOKEN=web-token"], ["TOKEN=api-token"]),
+        sdlWithTwoServices(["TOKEN=ac-secret://s0_e0"], ["TOKEN=ac-secret://s1_e0"])
+      );
+
+      expect(envOf(restored, "web")).toEqual(["TOKEN=web-token"]);
+      expect(envOf(restored, "api")).toEqual(["TOKEN=api-token"]);
+    });
+
+    it("keeps a value carrying an equals sign whole", () => {
+      const restored = withEnvValuesFrom(sdlWithEnv(["URL=postgres://u:p@h/db?a=1"]), sdlWithEnv(["URL=ac-secret://s0_e0"]));
+
+      expect(envOf(restored, "web")).toEqual(["URL=postgres://u:p@h/db?a=1"]);
+    });
+
+    it("leaves the registry credentials withheld, since they are kept as secrets whatever this browser holds", () => {
+      const restored = withEnvValuesFrom(
+        `${sdlWithCredentials("a-plain-password")}\n    env:\n      - "TOKEN=from-this-browser"`,
+        `${sdlWithCredentials("ac-secret://s0_c_password")}\n    env:\n      - "TOKEN=ac-secret://s0_e0"`
+      );
+
+      expect(envOf(restored, "web")).toEqual(["TOKEN=from-this-browser"]);
+      expect(restored).toContain("ac-secret://s0_c_password");
+      expect(restored).not.toContain("a-plain-password");
+    });
+
+    it("keeps a value withheld when this browser holds it as a reference too", () => {
+      expect(withEnvValuesFrom(sdlWithEnv(["TOKEN=ac-secret://TOKEN"]), sdlWithEnv(["TOKEN=ac-secret://TOKEN"]))).toBeUndefined();
+    });
+
+    it("keeps a value withheld when this browser holds nothing under its name", () => {
+      expect(withEnvValuesFrom(sdlWithEnv(["OTHER=x"]), sdlWithEnv(["TOKEN=ac-secret://s0_e0"]))).toBeUndefined();
+    });
+
+    it("restores past a service that declares no env", () => {
+      const withWorker = (webEnv: string) => `${sdlWithEnv([webEnv])}\n  worker:\n    image: busybox`;
+
+      const restored = withEnvValuesFrom(withWorker("TOKEN=from-this-browser"), withWorker("TOKEN=ac-secret://s0_e0"));
+
+      expect(envOf(restored, "web")).toEqual(["TOKEN=from-this-browser"]);
+      expect(envOf(restored, "worker")).toBeUndefined();
+    });
+
+    it("is undefined when the api withholds no env value", () => {
+      expect(withEnvValuesFrom(sdlWithEnv(["TOKEN=from-this-browser"]), sdlWithEnv(["TOKEN=from-the-api"]))).toBeUndefined();
+    });
+
+    it("is undefined when either copy does not parse", () => {
+      expect(withEnvValuesFrom("services: [not, a, map", sdlWithEnv(["TOKEN=ac-secret://s0_e0"]))).toBeUndefined();
+      expect(withEnvValuesFrom(sdlWithEnv(["TOKEN=x"]), "services: [not, a, map")).toBeUndefined();
+    });
+  });
+
+  function envOf(sdl: string | undefined, service: string) {
+    const document = yaml.load(sdl ?? "") as { services: Record<string, { env?: string[] }> };
+    return document.services[service].env;
+  }
 
   function sdlWithEnv(env: string[]) {
     return ["version: '2.0'", "services:", "  web:", "    image: nginx", "    env:", ...env.map(entry => `      - "${entry}"`)].join("\n");
