@@ -85,7 +85,7 @@ export const ProviderList: React.FunctionComponent<Props> = ({ dependencies: d =
             <h3 className="text-2xl">Providers</h3>
 
             <div>
-              <Button aria-label="back" onClick={model.refresh} size="icon" variant="ghost" className="rounded-full">
+              <Button aria-label="Refresh providers" onClick={model.refresh} size="icon" variant="ghost" className="rounded-full">
                 <Refresh />
               </Button>
             </div>

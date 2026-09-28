@@ -31,6 +31,14 @@ describe("ProviderList", () => {
     expect(refresh).toHaveBeenCalled();
   });
 
+  it("refreshes the providers from the list header", async () => {
+    const { refresh } = setup({});
+
+    await userEvent.click(screen.getByRole("button", { name: "Refresh providers" }));
+
+    expect(refresh).toHaveBeenCalled();
+  });
+
   it("shows a spinner under the search box while the first page loads", () => {
     const { ProviderTable } = setup({ hasLoadedProviders: false, isLoadingProviders: true });
 
