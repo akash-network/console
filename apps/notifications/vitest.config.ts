@@ -3,6 +3,8 @@ import swc from "unplugin-swc";
 import { defineConfig } from "vitest/config";
 
 export default defineConfig({
+  /** unplugin-swc turns Vite's TypeScript transform off with `esbuild: false`, which Vite 8 ignores, so Oxc would transpile every file SWC already did. */
+  oxc: false,
   plugins: [
     swc.vite({
       jsc: {
