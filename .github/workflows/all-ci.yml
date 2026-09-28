@@ -61,3 +61,52 @@ jobs:
       test_shards: ${{ matrix.workspace == 'api' && '[1, 2, 3]' || '[1]' }}
       # provider-console's build needs packages only a whole-repo install hoists, like its image build does.
       build_on_runner: ${{ matrix.workspace == 'deploy-web' || matrix.workspace == 'stats-web' }}
+
+  # Failed test results reach Codecov only here, once every app's result job has read its codecov/patch status:
+  # Codecov sends no coverage status for any app of a commit that has a failed test.
+  failed-test-results:
+    needs: validate
+    if: ${{ !cancelled() && needs.validate.result == 'failure' && github.event_name != 'merge_group' }}
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+    outputs:
+      apps: ${{ steps.list.outputs.apps }}
+    steps:
+      - name: List the apps whose tests failed in this attempt
+        id: list
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SUFFIX: -attempt-${{ github.run_attempt }}
+        run: | # shell
+          apps=$(gh api --paginate "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/artifacts" \
+            --jq ".artifacts[].name | select(startswith(\"failed-test-results-\") and endswith(\"$SUFFIX\")) | ltrimstr(\"failed-test-results-\") | rtrimstr(\"$SUFFIX\")" \
+            | jq -R -s -c 'split("\n") | map(select(length > 0))')
+          echo "apps=$apps" >> "$GITHUB_OUTPUT"
+
+  upload-failed-test-results:
+    needs: failed-test-results
+    if: ${{ !cancelled() && needs.failed-test-results.outputs.apps != '' && needs.failed-test-results.outputs.apps != '[]' }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        app: ${{ fromJSON(needs.failed-test-results.outputs.apps || '[]') }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+          sparse-checkout: .github
+
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: failed-test-results-${{ matrix.app }}-attempt-${{ github.run_attempt }}
+
+      - name: Upload test results to Codecov
+        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
+        with:
+          report_type: test_results
+          files: ./junit.xml
+          disable_search: true
+          name: ${{ matrix.app }}-test-results
+          flags: ${{ matrix.app }}
+          token: ${{ secrets.CODECOV_TOKEN }}

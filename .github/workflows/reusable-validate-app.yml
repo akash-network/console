@@ -188,9 +188,11 @@ jobs:
           path: apps/${{ inputs.app }}/test-reports/
           if-no-files-found: error
           retention-days: 1
+          # A re-run of a failed shard uploads it again, and merge-test-reports needs that newer blob.
+          overwrite: true
 
       - name: Upload test results to Codecov
-        if: ${{ !cancelled() && steps.tests_details.outputs.has_tests == 'true' && strategy.job-total == 1 && github.event_name != 'merge_group' }}
+        if: ${{ !cancelled() && steps.run_tests.outcome == 'success' && strategy.job-total == 1 && github.event_name != 'merge_group' }}
         uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
         with:
           report_type: test_results
@@ -198,6 +200,17 @@ jobs:
           name: ${{ inputs.app }}-test-results
           flags: ${{ inputs.app }}
           token: ${{ secrets.CODECOV_TOKEN }}
+
+      # Codecov sends no coverage status for any app of a commit once it has a failed test, so all-ci.yml only
+      # uploads these after every app's result job has read its codecov/patch status.
+      - name: Keep failed test results for after the coverage checks
+        if: ${{ !cancelled() && steps.run_tests.outcome == 'failure' && strategy.job-total == 1 && github.event_name != 'merge_group' }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: failed-test-results-${{ inputs.app }}-attempt-${{ github.run_attempt }}
+          path: apps/${{ inputs.app }}/junit.xml
+          if-no-files-found: warn
+          retention-days: 1
 
       - name: Upload Test Coverage
         if: steps.tests_details.outputs.has_tests == 'true' && strategy.job-total == 1 && github.event_name != 'merge_group'
@@ -236,7 +249,7 @@ jobs:
         run: npx vitest run --merge-reports=test-reports --coverage --reporter=default --reporter=junit
 
       - name: Upload test results to Codecov
-        if: ${{ !cancelled() }}
+        if: ${{ !cancelled() && needs.tests.result == 'success' }}
         uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
         with:
           report_type: test_results
@@ -244,6 +257,15 @@ jobs:
           name: ${{ inputs.app }}-test-results
           flags: ${{ inputs.app }}
           token: ${{ secrets.CODECOV_TOKEN }}
+
+      - name: Keep failed test results for after the coverage checks
+        if: ${{ !cancelled() && needs.tests.result == 'failure' }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: failed-test-results-${{ inputs.app }}-attempt-${{ github.run_attempt }}
+          path: apps/${{ inputs.app }}/junit.xml
+          if-no-files-found: warn
+          retention-days: 1
 
       - name: Upload Test Coverage
         if: needs.tests.result == 'success'
