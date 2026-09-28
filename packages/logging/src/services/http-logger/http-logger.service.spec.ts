@@ -63,13 +63,29 @@ describe(HttpLoggerInterceptor.name, () => {
     );
   });
 
-  async function setup(input: { status: number }) {
+  it("includes the auth method a later middleware recorded", async () => {
+    const { logger } = await setup({ status: 401, authMethod: "api_key" });
+
+    expect(logger.warn).toHaveBeenCalledWith(expect.objectContaining({ authMethod: "api_key" }));
+  });
+
+  it("omits the auth method when none was recorded", async () => {
+    const { logger } = await setup({ status: 200 });
+
+    expect(logger.info.mock.calls[0][0]).not.toHaveProperty("authMethod");
+  });
+
+  async function setup(input: { status: number; authMethod?: string }) {
     const logger = mock<LoggerService>();
 
     const interceptor = new HttpLoggerInterceptor(logger);
 
-    const app = new Hono();
+    const app = new Hono<{ Variables: { authMethod?: string } }>();
     app.use(interceptor.intercept());
+    app.use(async (c, next) => {
+      c.set("authMethod", input.authMethod);
+      await next();
+    });
     app.get("/test", c => c.text("ok", input.status as 200));
 
     await app.request("/test");
