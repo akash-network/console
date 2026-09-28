@@ -222,6 +222,24 @@ describe(useProviderListModel.name, () => {
     expect(result.current).toMatchObject({ providers: [], pageCount: 0, hasLoadedProviders: false, isLoadingProviders: true });
   });
 
+  it("reports the providers failed to load when no page could be fetched", () => {
+    const { result } = setup({ page: undefined, isSearchFailed: true });
+
+    expect(result.current).toMatchObject({ hasLoadedProviders: false, hasFailedToLoadProviders: true });
+  });
+
+  it("keeps showing the last page instead of a failure when fetching it again fails", () => {
+    const { result } = setup({ page: createPage([createProvider("akash1first")], 1), isSearchFailed: true });
+
+    expect(result.current).toMatchObject({ hasLoadedProviders: true, hasFailedToLoadProviders: false });
+  });
+
+  it("reports loading instead of a failure while retrying the failed search", () => {
+    const { result } = setup({ page: undefined, isSearchFailed: true, isSearching: true });
+
+    expect(result.current).toMatchObject({ hasFailedToLoadProviders: false, isLoadingProviders: true });
+  });
+
   it("hands over the provider locations and the network capacity", () => {
     const locations = [mock<ApiProviderLocation>({ owner: "akash1first" })];
     const networkCapacity = mock<NonNullable<ReturnType<typeof DEPENDENCIES.useNetworkCapacity>["data"]>>();
@@ -288,6 +306,7 @@ describe(useProviderListModel.name, () => {
       favoriteProviders?: string[];
       page?: ProviderSearchPage;
       isSearching?: boolean;
+      isSearchFailed?: boolean;
       locations?: ApiProviderLocation[];
       isLocating?: boolean;
       leases?: LeaseDto[] | null;
@@ -302,7 +321,12 @@ describe(useProviderListModel.name, () => {
     const refetchLocations = vi.fn();
     const getLeases = vi.fn();
     const page = "page" in input ? input.page : createPage([], 0);
-    const providerSearch = mock<ReturnType<typeof DEPENDENCIES.useProviderSearch>>({ data: page, isFetching: !!input.isSearching, refetch: refetchProviders });
+    const providerSearch = mock<ReturnType<typeof DEPENDENCIES.useProviderSearch>>({
+      data: page,
+      isFetching: !!input.isSearching,
+      isError: !!input.isSearchFailed,
+      refetch: refetchProviders
+    });
     const providerLocations = mock<ReturnType<typeof DEPENDENCIES.useProviderLocations>>({
       data: input.locations,
       isFetching: !!input.isLocating,

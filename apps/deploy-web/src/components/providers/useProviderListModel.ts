@@ -105,6 +105,7 @@ export function useProviderListModel(dependencies: typeof DEPENDENCIES = DEPENDE
     [hasNoFavoriteToShow, providerSearch.data, leases]
   );
   const matchingProviderCount = hasNoFavoriteToShow ? 0 : providerSearch.data?.pagination.total ?? 0;
+  const hasLoadedProviders = !!providerSearch.data || hasNoFavoriteToShow;
 
   const changeSort = useCallback(
     (value: string) => {
@@ -164,7 +165,8 @@ export function useProviderListModel(dependencies: typeof DEPENDENCIES = DEPENDE
     changePageSize,
     pageCount: Math.ceil(matchingProviderCount / pageSize),
     providers,
-    hasLoadedProviders: !!providerSearch.data || hasNoFavoriteToShow,
+    hasLoadedProviders,
+    hasFailedToLoadProviders: !hasLoadedProviders && providerSearch.isError && !providerSearch.isFetching,
     isLoadingProviders: providerSearch.isFetching,
     locations: providerLocations.data,
     networkCapacity,
