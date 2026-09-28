@@ -866,7 +866,6 @@ function EditorProbeWorkspace({ sdl, selectedServiceId, selectedPlacement, onSel
         onDeploymentNameChange={vi.fn()}
         pendingClose={null}
         onRetryClose={vi.fn()}
-        onCancelAndEdit={vi.fn()}
         toolbar={null}
         dependencies={{ ...CONFIGURE_EDITOR_DEPENDENCIES, PlacementFields: PlacementFieldsWithoutRegion, ServiceStack: ServiceStackWithRegisteringCards }}
       />

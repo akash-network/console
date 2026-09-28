@@ -5,7 +5,6 @@ import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { PlacementType, SdlBuilderFormValuesType, ServiceType } from "@src/types";
-import type { ConfigurationLock } from "../ConfigurationPane/configurationLock";
 import type { PendingClose } from "../useDeploymentFlow/useDeploymentFlow";
 import type { IndexedService, PlacementManager } from "../usePlacementManager/usePlacementManager";
 import type { PlacementTabs } from "./PlacementTabs/PlacementTabs";
@@ -23,15 +22,17 @@ describe(ConfigureEditor.name, () => {
     expect(screen.getByText("toolbar")).toBeInTheDocument();
   });
 
-  it.each<[string, { locked?: ConfigurationLock; pendingClose?: PendingClose }, boolean, boolean]>([
-    ["the lock banner while locked", { locked: "onchain", pendingClose: { dseq: "1", failed: false } }, true, false],
-    ["the background close while a previous deployment closes", { pendingClose: { dseq: "1", failed: false } }, false, true],
-    ["no banner otherwise", {}, false, false]
-  ])("shows %s", (_, input, showsLock, showsClose) => {
-    const { PaneLockBanner, BackgroundCloseBanner } = setup(input);
+  it("shows the previous deployment closing in the background", () => {
+    const pendingClose = { dseq: "1", failed: false };
+    const { BackgroundCloseBanner } = setup({ pendingClose });
 
-    expect(PaneLockBanner.mock.calls.length > 0).toBe(showsLock);
-    expect(BackgroundCloseBanner.mock.calls.length > 0).toBe(showsClose);
+    expect(BackgroundCloseBanner).toHaveBeenCalledWith(expect.objectContaining({ pendingClose }), expect.anything());
+  });
+
+  it("shows no banner while nothing closes in the background", () => {
+    const { BackgroundCloseBanner } = setup({});
+
+    expect(BackgroundCloseBanner).not.toHaveBeenCalled();
   });
 
   it("hands every placement to the tabs with its status and the active one", () => {
@@ -40,7 +41,6 @@ describe(ConfigureEditor.name, () => {
     expect(tabsProps()).toMatchObject({
       activePlacementId: "p2",
       canRemove: true,
-      locked: false,
       placements: [
         { id: "p1", name: "placement-1", status: "complete", hasError: false },
         { id: "p2", name: "placement-2", status: "incomplete", hasError: false }
@@ -92,7 +92,7 @@ describe(ConfigureEditor.name, () => {
   it("shows the fields of the active placement", () => {
     const { PlacementFields } = setup({ activePlacementId: "p1" });
 
-    expect(PlacementFields).toHaveBeenCalledWith(expect.objectContaining({ placementIndex: 0, serviceCount: 2, locked: false }), expect.anything());
+    expect(PlacementFields).toHaveBeenCalledWith(expect.objectContaining({ placementIndex: 0, serviceCount: 2 }), expect.anything());
   });
 
   it("unmounts the placement fields while the selection is cleared around a splice", () => {
@@ -102,9 +102,9 @@ describe(ConfigureEditor.name, () => {
   });
 
   it("stacks the active placement's services", () => {
-    const { stackProps } = setup({ activePlacementId: "p1", locked: "onchain" });
+    const { stackProps } = setup({ activePlacementId: "p1" });
 
-    expect(stackProps()).toMatchObject({ selectedServiceId: "web", canRemoveService: true, locked: "onchain" });
+    expect(stackProps()).toMatchObject({ selectedServiceId: "web", canRemoveService: true });
     expect(stackProps().services.map(({ service }) => service.id)).toEqual(["web", "api"]);
   });
 
@@ -122,14 +122,7 @@ describe(ConfigureEditor.name, () => {
     expect(addedServiceId).toBe("worker");
   });
 
-  it("locks the name and the reclamation window while locked", () => {
-    const { DeploymentNameField, ReclamationSection } = setup({ locked: "all" });
-
-    expect(DeploymentNameField).toHaveBeenCalledWith(expect.objectContaining({ disabled: true }), expect.anything());
-    expect(ReclamationSection).toHaveBeenCalledWith(expect.objectContaining({ locked: true }), expect.anything());
-  });
-
-  function setup(input: { selectedServiceId?: string; activePlacementId?: string; locked?: ConfigurationLock; pendingClose?: PendingClose }) {
+  function setup(input: { selectedServiceId?: string; activePlacementId?: string; pendingClose?: PendingClose }) {
     const placements = [placement("p1", "placement-1"), placement("p2", "placement-2")];
     const servicesByPlacement: Record<string, IndexedService[]> = {
       p1: [indexed("web", "p1", 0), indexed("api", "p1", 1)],
@@ -165,12 +158,10 @@ describe(ConfigureEditor.name, () => {
           selectedServiceId={input.selectedServiceId ?? "web"}
           activePlacementId={input.activePlacementId ?? "p1"}
           onSelectService={onSelectService}
-          locked={input.locked}
           deploymentName="my-app"
           onDeploymentNameChange={vi.fn()}
           pendingClose={input.pendingClose ?? null}
           onRetryClose={vi.fn()}
-          onCancelAndEdit={vi.fn()}
           toolbar={<span>toolbar</span>}
           dependencies={dependencies}
         />

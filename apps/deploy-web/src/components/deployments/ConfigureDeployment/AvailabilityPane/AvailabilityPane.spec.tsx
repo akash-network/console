@@ -86,11 +86,13 @@ describe(AvailabilityPane.name, () => {
     expect(screen.queryByText(/Add a container image and hardware/)).not.toBeInTheDocument();
   });
 
-  it("explains what is missing and holds the choice until every service is ready", () => {
-    setup({ isReady: false });
+  it("explains what is missing and still lets the choice point at the first problem", async () => {
+    const { onChooseProvider } = setup({ isReady: false });
+
+    await userEvent.click(screen.getByRole("button", { name: "Choose a provider" }));
 
     expect(screen.getByText("Add a container image and hardware to every service on the left to deploy.")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Choose a provider" })).toBeDisabled();
+    expect(onChooseProvider).toHaveBeenCalled();
   });
 
   it("holds the choice while a request is already being submitted", () => {

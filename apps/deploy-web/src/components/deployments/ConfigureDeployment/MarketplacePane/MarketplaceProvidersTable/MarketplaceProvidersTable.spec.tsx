@@ -233,6 +233,19 @@ describe(MarketplaceProvidersTable.name, () => {
     expect(screen.getByRole("button", { name: /selected/i })).toBeDisabled();
   });
 
+  it("leaves the selected mark to the Select button while rows don't select", () => {
+    setup({ providers: [submittedOffer({ owner: "akash1a", bidId: "akash1a/1/1/1" })], selectedBidId: "akash1a/1/1/1" });
+
+    expect(screen.queryByRole("img", { name: "Selected provider" })).not.toBeInTheDocument();
+  });
+
+  it("mutes the rows that can't be picked", () => {
+    setup({ providers: [submittedOffer({ owner: "akash1a", bidId: "akash1a/1/1/1" }), closedOffer({ owner: "akash1c", bidId: "akash1c/1/1/1" })] });
+
+    expect(screen.getByRole("row", { name: /akash1c/ })).toHaveClass("text-muted-foreground");
+    expect(screen.getByRole("row", { name: /akash1a/ })).not.toHaveClass("text-muted-foreground");
+  });
+
   it("renders a non-bidding screened provider with a No bid indicator and no Select button", () => {
     setup({
       providers: [submittedOffer({ owner: "akash1a", bidId: "akash1a/1/1/1" }), unavailableOffer({ owner: "akash1b", hostUri: "https://b.example:8443" })]
@@ -377,6 +390,113 @@ describe(MarketplaceProvidersTable.name, () => {
     });
   }
 
+  describe("when rows select their offer", () => {
+    it("selects a submitted offer when its row is clicked", async () => {
+      const { onSelect, user } = setup({
+        providers: [submittedOffer({ owner: "akash1a", bidId: "akash1a/1/1/1", location: "us-west" })],
+        selectOnRowClick: true
+      });
+
+      await user.click(screen.getByText("us-west"));
+
+      expect(onSelect).toHaveBeenCalledWith("akash1a/1/1/1");
+    });
+
+    it("keeps a select button for keyboard and assistive technology that is visually hidden", async () => {
+      const { onSelect, user } = setup({ providers: [submittedOffer({ owner: "akash1a", bidId: "akash1a/1/1/1" })], selectOnRowClick: true });
+      const button = screen.getByRole("button", { name: "Select akash1a" });
+
+      await user.click(button);
+
+      expect(button.parentElement).toHaveClass("sr-only");
+      expect(button).not.toHaveClass("sr-only");
+      expect(onSelect).toHaveBeenCalledTimes(1);
+    });
+
+    it("leaves the provider link to open the provider instead of selecting", async () => {
+      const { onSelect, user } = setup({
+        providers: [submittedOffer({ owner: "akash1a", bidId: "akash1a/1/1/1", hostUri: "https://a.example:8443" })],
+        selectOnRowClick: true
+      });
+
+      await user.click(screen.getByRole("link", { name: "a.example" }));
+
+      expect(onSelect).not.toHaveBeenCalled();
+    });
+
+    it("ignores clicks on elements that opt out of selecting the row", async () => {
+      const { onSelect, user } = setup({ providers: [submittedOffer({ owner: "akash1a", bidId: "akash1a/1/1/1" })], selectOnRowClick: true });
+      const cost = screen.getByRole("row", { name: /akash1a/ }).querySelector("[data-row-click-ignore]") as HTMLElement;
+      expect(cost).toBeInTheDocument();
+
+      await user.click(cost);
+
+      expect(onSelect).not.toHaveBeenCalled();
+    });
+
+    it("leaves expired, never-bid and already selected rows inert", async () => {
+      const { onSelect, user } = setup({
+        providers: [
+          submittedOffer({ owner: "akash1a", bidId: "akash1a/1/1/1", location: "selected-region" }),
+          closedOffer({ owner: "akash1c", bidId: "akash1c/1/1/1", location: "expired-region" }),
+          unavailableOffer({ owner: "akash1b", location: "no-bid-region" })
+        ],
+        selectedBidId: "akash1a/1/1/1",
+        selectOnRowClick: true
+      });
+
+      await user.click(screen.getByText("selected-region"));
+      await user.click(screen.getByText("expired-region"));
+      await user.click(screen.getByText("no-bid-region"));
+
+      expect(onSelect).not.toHaveBeenCalled();
+    });
+
+    it("leaves rows inert while selection is turned off", async () => {
+      const { onSelect, user } = setup({
+        providers: [submittedOffer({ owner: "akash1a", bidId: "akash1a/1/1/1", location: "us-west" })],
+        isSelectable: false,
+        selectOnRowClick: true
+      });
+
+      await user.click(screen.getByText("us-west"));
+
+      expect(onSelect).not.toHaveBeenCalled();
+    });
+
+    it("marks only the selected offer with a check before its name", () => {
+      setup({ providers: twoSubmittedOffers(), selectedBidId: "akash1a/1/1/1", selectOnRowClick: true });
+
+      expect(within(screen.getByRole("row", { name: /akash1a/ })).getByRole("img", { name: "Selected provider" })).toBeInTheDocument();
+      expect(within(screen.getByRole("row", { name: /akash1b/ })).queryByRole("img", { name: "Selected provider" })).not.toBeInTheDocument();
+    });
+
+    it("marks no offer before a bid is picked", () => {
+      setup({ providers: [searchingOffer({ owner: "akash1a" })], selectOnRowClick: true });
+
+      expect(screen.queryByRole("img", { name: "Selected provider" })).not.toBeInTheDocument();
+    });
+
+    it("moves the check when another offer gets selected", () => {
+      const { selectBid } = setup({ providers: twoSubmittedOffers(), selectedBidId: "akash1a/1/1/1", selectOnRowClick: true });
+
+      selectBid("akash1b/1/1/1");
+
+      expect(within(screen.getByRole("row", { name: /akash1b/ })).getByRole("img", { name: "Selected provider" })).toBeInTheDocument();
+    });
+
+    it("gives a pointer only to the rows a click would select", () => {
+      setup({ providers: twoSubmittedOffers(), selectedBidId: "akash1a/1/1/1", selectOnRowClick: true });
+
+      expect(screen.getByRole("row", { name: /akash1b/ })).toHaveClass("cursor-pointer");
+      expect(screen.getByRole("row", { name: /akash1a/ })).not.toHaveClass("cursor-pointer");
+    });
+
+    function twoSubmittedOffers() {
+      return [submittedOffer({ owner: "akash1a", bidId: "akash1a/1/1/1" }), submittedOffer({ owner: "akash1b", bidId: "akash1b/1/1/1" })];
+    }
+  });
+
   function setup(input: {
     providers: PlacementOffer[];
     isLoading?: boolean;
@@ -388,10 +508,11 @@ describe(MarketplaceProvidersTable.name, () => {
     showProviderLink?: boolean;
     emptyMessage?: string;
     gpuVendors?: GpuVendor[];
+    selectOnRowClick?: boolean;
   }) {
     const onSelect = vi.fn();
     const user = userEvent.setup();
-    render(
+    const table = (selectedBidId: string | undefined) => (
       <TestContainerProvider>
         <IntlProvider locale="en">
           <TooltipProvider>
@@ -400,18 +521,20 @@ describe(MarketplaceProvidersTable.name, () => {
               isLoading={input.isLoading}
               isSearchActive={input.isSearchActive}
               onClearSearch={input.onClearSearch}
-              selectedBidId={input.selectedBidId}
+              selectedBidId={selectedBidId}
               onSelect={onSelect}
               isSelectable={input.isSelectable}
               gpuCount={input.gpuCount}
               showProviderLink={input.showProviderLink ?? true}
               emptyMessage={input.emptyMessage}
               gpuVendors={input.gpuVendors}
+              selectOnRowClick={input.selectOnRowClick}
             />
           </TooltipProvider>
         </IntlProvider>
       </TestContainerProvider>
     );
-    return { onSelect, user };
+    const { rerender } = render(table(input.selectedBidId));
+    return { onSelect, user, selectBid: (bidId: string) => rerender(table(bidId)) };
   }
 });

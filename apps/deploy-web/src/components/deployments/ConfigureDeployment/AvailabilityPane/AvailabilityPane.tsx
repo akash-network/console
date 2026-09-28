@@ -59,7 +59,7 @@ export const AvailabilityPane: FC<Props> = ({ sdl, placement, placementCount, is
           type="button"
           aria-label="Choose a provider"
           aria-describedby={subtitleId}
-          disabled={!isReady || isSubmitting}
+          disabled={isSubmitting}
           onClick={onChooseProvider}
           className="h-auto w-full flex-col gap-0.5 py-3"
         >

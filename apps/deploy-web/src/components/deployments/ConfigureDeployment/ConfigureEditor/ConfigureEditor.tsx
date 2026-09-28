@@ -4,10 +4,8 @@ import { useFormState } from "react-hook-form";
 
 import type { SdlBuilderFormValuesType } from "@src/types";
 import { BackgroundCloseBanner } from "../BackgroundCloseBanner/BackgroundCloseBanner";
-import type { ConfigurationLock } from "../ConfigurationPane/configurationLock";
 import { DeploymentNameField } from "../DeploymentPane/DeploymentNameField/DeploymentNameField";
 import { ReclamationSection } from "../DeploymentPane/ReclamationSection/ReclamationSection";
-import { PaneLockBanner } from "../PaneLockBanner/PaneLockBanner";
 import { usePlacementManagerContext } from "../PlacementManagerProvider/PlacementManagerProvider";
 import { useConfigurationStatus } from "../useConfigurationStatus/useConfigurationStatus";
 import type { PendingClose } from "../useDeploymentFlow/useDeploymentFlow";
@@ -23,20 +21,17 @@ export const DEPENDENCIES = {
   ServiceStack,
   DeploymentNameField,
   ReclamationSection,
-  BackgroundCloseBanner,
-  PaneLockBanner
+  BackgroundCloseBanner
 };
 
 type Props = {
   selectedServiceId: string;
   activePlacementId: string;
   onSelectService: (serviceId: string) => void;
-  locked?: ConfigurationLock;
   deploymentName: string;
   onDeploymentNameChange: (value: string) => void;
   pendingClose: PendingClose | null;
   onRetryClose: () => void;
-  onCancelAndEdit: () => void;
   toolbar: ReactNode;
   dependencies?: typeof DEPENDENCIES;
 };
@@ -46,12 +41,10 @@ export const ConfigureEditor: FC<Props> = ({
   selectedServiceId,
   activePlacementId,
   onSelectService,
-  locked,
   deploymentName,
   onDeploymentNameChange,
   pendingClose,
   onRetryClose,
-  onCancelAndEdit,
   toolbar,
   dependencies: d = DEPENDENCIES
 }) => {
@@ -62,7 +55,6 @@ export const ConfigureEditor: FC<Props> = ({
   const activePlacementIndex = manager.placements.findIndex(placement => placement.id === activePlacementId);
   const activeServices = manager.getPlacementServices(activePlacementId);
   const isSplicing = selectedServiceId === "";
-  const isLocked = !!locked;
 
   const tabs = manager.placements.map((placement, index) => ({
     id: placement.id,
@@ -85,20 +77,16 @@ export const ConfigureEditor: FC<Props> = ({
   return (
     <section aria-labelledby={headingId} className="flex h-full min-h-0 flex-col">
       <header className="flex h-[52px] shrink-0 items-center justify-between gap-2 border-b border-zinc-300 px-4 dark:border-zinc-700">
-        <h2 id={headingId} className="font-mono text-sm font-medium uppercase text-muted-foreground">
+        <h2 id={headingId} tabIndex={-1} className="font-mono text-sm font-medium uppercase text-muted-foreground outline-none">
           Deployment
         </h2>
         {toolbar}
       </header>
-      {isLocked ? (
-        <d.PaneLockBanner onCancelAndEdit={onCancelAndEdit} />
-      ) : pendingClose ? (
-        <d.BackgroundCloseBanner pendingClose={pendingClose} onRetry={onRetryClose} />
-      ) : null}
+      {pendingClose && <d.BackgroundCloseBanner pendingClose={pendingClose} onRetry={onRetryClose} />}
       <div className="min-h-0 flex-1 space-y-6 overflow-y-auto p-4">
         <div className="grid grid-cols-[repeat(auto-fit,minmax(14rem,1fr))] items-start gap-4">
-          <d.DeploymentNameField value={deploymentName} onChange={onDeploymentNameChange} disabled={isLocked} />
-          <d.ReclamationSection locked={isLocked} />
+          <d.DeploymentNameField value={deploymentName} onChange={onDeploymentNameChange} />
+          <d.ReclamationSection />
         </div>
         <d.PlacementTabs
           placements={tabs}
@@ -107,12 +95,9 @@ export const ConfigureEditor: FC<Props> = ({
           canRemove={manager.canRemovePlacement}
           onRemovePlacement={manager.removePlacement}
           onAddPlacement={() => onSelectService(manager.addPlacement())}
-          locked={isLocked}
         >
           <div className="flex flex-col gap-4">
-            {!isSplicing && activePlacementIndex !== -1 && (
-              <d.PlacementFields placementIndex={activePlacementIndex} serviceCount={activeServices.length} locked={isLocked} />
-            )}
+            {!isSplicing && activePlacementIndex !== -1 && <d.PlacementFields placementIndex={activePlacementIndex} serviceCount={activeServices.length} />}
             <d.ServiceStack
               services={activeServices}
               selectedServiceId={selectedServiceId}
@@ -121,7 +106,6 @@ export const ConfigureEditor: FC<Props> = ({
               canRemoveService={manager.canRemoveServiceFrom(activePlacementId)}
               onRemoveService={manager.removeService}
               onAddService={addService}
-              locked={locked}
             />
           </div>
         </d.PlacementTabs>
