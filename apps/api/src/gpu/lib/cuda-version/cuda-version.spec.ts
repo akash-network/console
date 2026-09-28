@@ -61,6 +61,22 @@ describe(getMaxCudaVersion.name, () => {
 
     expect(getMaxCudaVersion("575.51.03", minimumDrivers)).toBe("12.8");
   });
+
+  it.each([
+    [[{ cudaVersion: "13.4", minimumDriver: [615] }, { cudaVersion: "13.5", minimumDriver: [615] }]],
+    [[{ cudaVersion: "13.5", minimumDriver: [615] }, { cudaVersion: "13.4", minimumDriver: [615] }]]
+  ])("reads the newer of two cuda versions that share a minimum driver", minimumDrivers => {
+    expect(getMaxCudaVersion("615.20.01", minimumDrivers)).toBe("13.5");
+  });
+
+  it("orders cuda versions by number rather than by text", () => {
+    const minimumDrivers = [
+      { cudaVersion: "12.10", minimumDriver: [600] },
+      { cudaVersion: "12.9", minimumDriver: [600] }
+    ];
+
+    expect(getMaxCudaVersion("600.10.01", minimumDrivers)).toBe("12.10");
+  });
 });
 
 describe(parseCudaCompatListing.name, () => {

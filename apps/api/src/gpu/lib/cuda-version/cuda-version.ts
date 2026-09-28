@@ -35,18 +35,20 @@ const CUDA_COMPAT_PACKAGE = /cuda-compat-(\d+)-(\d+)_(\d{3}\.\d{1,3}(?:\.\d{1,3}
 export function getMaxCudaVersion(driverVersion: string, minimumDrivers: CudaMinimumDriver[]): string | null {
   if (!NVIDIA_DRIVER_VERSION.test(driverVersion)) return null;
 
-  const driver = toDriverVersion(driverVersion);
-  const met = minimumDrivers.filter(({ minimumDriver }) => compareVersions(driver, minimumDriver) >= 0);
-  const newest = met.reduce<CudaMinimumDriver | null>((best, entry) => (!best || compareVersions(entry.minimumDriver, best.minimumDriver) > 0 ? entry : best), null);
+  const driver = toVersion(driverVersion);
+  const metCudaVersions = minimumDrivers.filter(({ minimumDriver }) => compareVersions(driver, minimumDriver) >= 0).map(({ cudaVersion }) => cudaVersion);
 
-  return newest?.cudaVersion ?? null;
+  return metCudaVersions.reduce<string | null>(
+    (newest, cudaVersion) => (!newest || compareVersions(toVersion(cudaVersion), toVersion(newest)) > 0 ? cudaVersion : newest),
+    null
+  );
 }
 
 /** Reads NVIDIA's apt repository listing, where each `cuda-compat-X-Y` package is versioned with the driver it ships for CUDA X.Y. */
 export function parseCudaCompatListing(listing: string): CudaMinimumDriver[] {
   const listed = [...listing.matchAll(CUDA_COMPAT_PACKAGE)].map(([, major, minor, driverVersion]) => ({
     cudaVersion: `${major}.${minor}`,
-    minimumDriver: toDriverVersion(driverVersion)
+    minimumDriver: toVersion(driverVersion)
   }));
 
   return mergeCudaMinimumDrivers(listed);
@@ -63,8 +65,8 @@ export function mergeCudaMinimumDrivers(...tables: CudaMinimumDriver[][]): CudaM
   return [...lowestByCudaVersion.values()];
 }
 
-function toDriverVersion(driverVersion: string): number[] {
-  return driverVersion.split(".").map(Number);
+function toVersion(version: string): number[] {
+  return version.split(".").map(Number);
 }
 
 function compareVersions(left: number[], right: number[]): number {
