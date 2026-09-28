@@ -476,22 +476,22 @@ function getImportErrorMessage(error: unknown): string {
 
 /**
  * Title and subtitle-fallback for the flow-error toast. A failed close gets its own copy that reassures the user the
- * stranded deployment is not lost: requesting quotes again closes it first, so no manual recovery is needed.
+ * stranded deployment is not lost: requesting new bids closes it first, so no manual recovery is needed.
  */
 function flowErrorToastCopy(kind: FlowErrorKind | undefined): { title: string; fallback: string } {
   if (kind === "inherited-unreadable") {
     return {
       title: "The previous deployment's secrets can't be reused",
-      fallback: "Enter a value for each secret, then request quotes again."
+      fallback: "Enter a value for each secret, then request new bids."
     };
   }
   if (kind === "close") {
     return {
       title: "Couldn't close the deployment",
-      fallback: "Your previous deployment is still closing. It will be closed automatically when you request quotes again."
+      fallback: "Your previous deployment is still closing. It will be closed automatically when you request new bids."
     };
   }
-  return { title: "Couldn't get provider quotes", fallback: "Something went wrong. Please adjust your deployment and try again." };
+  return { title: "Couldn't get bids from providers", fallback: "Something went wrong. Please adjust your deployment and try again." };
 }
 
 /** A redeploy's draft names the deployment whose stored secrets the create may inherit; the references its SDL carries are the names covered. */

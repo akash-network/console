@@ -1,4 +1,5 @@
 import type { PropsWithChildren, ReactNode } from "react";
+import type { FieldErrors } from "react-hook-form";
 import { FormProvider, useForm } from "react-hook-form";
 import { Snackbar } from "@akashnetwork/ui/components";
 import { describe, expect, it, vi } from "vitest";
@@ -118,6 +119,19 @@ describe(useRequestQuotes.name, () => {
     expect(generateSdl).toHaveBeenCalledWith(expect.anything(), { sealSecrets: false });
   });
 
+  it("hands the validation errors to the caller when the form rejects the submit", async () => {
+    const onInvalid = vi.fn();
+    const { requestQuotes, submit } = setup({ onInvalid, rejectWith: { services: { 0: { image: { type: "manual", message: "Image is required" } } } } });
+
+    await submit();
+
+    expect(requestQuotes).not.toHaveBeenCalled();
+    expect(onInvalid).toHaveBeenCalledWith(
+      expect.objectContaining({ services: { 0: { image: expect.objectContaining({ message: "Image is required" }) } } }),
+      undefined
+    );
+  });
+
   it("surfaces SDL validation errors and does not request quotes when the spec is invalid", async () => {
     const { requestQuotes, submit, enqueueSnackbar } = setup({ validationErrors: ["/services/web/params/tee: missing required property 'gpu'"] });
 
@@ -138,6 +152,8 @@ describe(useRequestQuotes.name, () => {
     secretsEnabled?: boolean;
     resolveSdlSecrets?: typeof DEPENDENCIES.resolveSdlSecrets;
     inheritedSecrets?: ReturnType<typeof DEPENDENCIES.useInheritedSecrets>;
+    onInvalid?: (errors: FieldErrors) => void;
+    rejectWith?: FieldErrors;
   }) {
     const requestQuotes = vi.fn();
     const flow = mock<DeploymentFlow>({ actions: mock<DeploymentFlowActions>({ requestQuotes }) });
@@ -154,10 +170,15 @@ describe(useRequestQuotes.name, () => {
       useTrialGate: () => ({ isRestricted: input.isRestricted ?? false, isWalletReady: true })
     };
     const Wrapper = ({ children }: PropsWithChildren) => {
-      const form = useForm({ defaultValues: { placements: [], services: input.services ?? [] } });
+      const form = useForm({
+        defaultValues: { placements: [], services: input.services ?? [] },
+        resolver: input.rejectWith ? async () => ({ values: {}, errors: input.rejectWith as FieldErrors }) : undefined
+      });
       return <FormProvider {...form}>{children}</FormProvider>;
     };
-    const { result } = renderHook(() => useRequestQuotes({ flow, deploymentName: input.deploymentName ?? "" }, dependencies), { wrapper: Wrapper });
+    const { result } = renderHook(() => useRequestQuotes({ flow, deploymentName: input.deploymentName ?? "", onInvalid: input.onInvalid }, dependencies), {
+      wrapper: Wrapper
+    });
 
     return {
       requestQuotes,

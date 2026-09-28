@@ -417,11 +417,11 @@ describe(ConfigureDeploymentForm.name, () => {
     expect(toast.props.title).toBe("Couldn't close the deployment");
   });
 
-  it("keeps the quotes-error title for a non-close flow error", () => {
+  it("keeps the bids error title for a non-close flow error", () => {
     const { enqueueSnackbar } = setup({ initialSdl: undefined, flowError: { message: "No providers", kind: "no-providers" } });
 
     const toast = enqueueSnackbar.mock.calls[0][0] as { props: { title: string } };
-    expect(toast.props.title).toBe("Couldn't get provider quotes");
+    expect(toast.props.title).toBe("Couldn't get bids from providers");
   });
 
   it("offers to add credits rather than apologising when the create was refused until the user pays", () => {

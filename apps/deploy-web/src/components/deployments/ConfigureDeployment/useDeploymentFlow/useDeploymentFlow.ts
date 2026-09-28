@@ -113,7 +113,7 @@ const DEPLOY_SUCCESS_DWELL_MS = 1200;
 const NO_BIDS_TIMEOUT_MS = 60 * 1000;
 
 /** Error surfaced when a deployment draws no provider bids at all within {@link NO_BIDS_TIMEOUT_MS}. */
-const NO_PROVIDERS_MESSAGE = "No providers are available for this deployment right now. Try adjusting your deployment and requesting quotes again.";
+const NO_PROVIDERS_MESSAGE = "No providers are available for this deployment right now. Try adjusting your deployment and requesting new bids.";
 
 /** An `active` bid is one this deployment already holds the lease on — exactly what a resumed selection points at. */
 const LIVE_BID_STATES = new Set(["open", "active"]);

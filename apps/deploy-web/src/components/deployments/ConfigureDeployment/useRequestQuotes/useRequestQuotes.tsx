@@ -1,3 +1,4 @@
+import type { FieldErrors } from "react-hook-form";
 import { useFormContext } from "react-hook-form";
 import { Snackbar } from "@akashnetwork/ui/components";
 import { useSnackbar } from "notistack";
@@ -29,10 +30,11 @@ export const DEPENDENCIES = {
 type Input = {
   flow: DeploymentFlow;
   deploymentName: string;
+  onInvalid?: (errors: FieldErrors<SdlBuilderFormValuesType>) => void;
 };
 
 /** Regenerates the SDL from the values the form just accepted, never a prop snapshot, so validation and creation act on the same spec. */
-export function useRequestQuotes({ flow, deploymentName }: Input, dependencies: typeof DEPENDENCIES = DEPENDENCIES) {
+export function useRequestQuotes({ flow, deploymentName, onInvalid }: Input, dependencies: typeof DEPENDENCIES = DEPENDENCIES) {
   const d = dependencies;
   const { handleSubmit } = useFormContext<SdlBuilderFormValuesType>();
   const { enqueueSnackbar } = d.useSnackbar();
@@ -69,5 +71,5 @@ export function useRequestQuotes({ flow, deploymentName }: Input, dependencies: 
       name: deploymentName,
       ...(secrets ? { secrets: secrets.values, ...(inheritedSecrets ? { inheritSecretsFrom: inheritedSecrets.sourceDseq } : {}) } : {})
     });
-  });
+  }, onInvalid);
 }

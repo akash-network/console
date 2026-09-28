@@ -1,9 +1,17 @@
+import type { FieldErrors } from "react-hook-form";
 import { describe, expect, it } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import { LOG_COLLECTOR_IMAGE } from "@src/config/log-collector.config";
 import type { PlacementType, SdlBuilderFormValuesType, ServiceType } from "@src/types";
-import { firstBidReadyServiceId, nextSelectedServiceId, nextUndoneServiceId, resolveSelectedPlacement, serviceIdOfPlacement } from "./serviceSelection";
+import {
+  firstBidReadyServiceId,
+  firstInvalidServiceId,
+  nextSelectedServiceId,
+  nextUndoneServiceId,
+  resolveSelectedPlacement,
+  serviceIdOfPlacement
+} from "./serviceSelection";
 
 describe(resolveSelectedPlacement.name, () => {
   it("returns the placement of the selected service", () => {
@@ -99,6 +107,39 @@ describe(serviceIdOfPlacement.name, () => {
     expect(serviceIdOfPlacement([service("s1", "p1")], placement("p2"))).toBeNull();
     expect(serviceIdOfPlacement([service("s1", "p1")], undefined)).toBeNull();
   });
+});
+
+describe(firstInvalidServiceId.name, () => {
+  it("reveals the first service with an error", () => {
+    const values = mock<SdlBuilderFormValuesType>({ services: [service("s1", "p1"), service("s2", "p2")], placements: [placement("p1"), placement("p2")] });
+
+    expect(firstInvalidServiceId(values, errorsAt({ services: [1] }))).toBe("s2");
+  });
+
+  it("reveals the service a log collector with an error belongs to", () => {
+    const web = service("web", "p1");
+    const collector = mock<ServiceType>({ id: "web-log-collector", placementId: "p1", title: "web-log-collector", image: LOG_COLLECTOR_IMAGE });
+    const values = mock<SdlBuilderFormValuesType>({ services: [web, service("api", "p1"), collector], placements: [placement("p1")] });
+
+    expect(firstInvalidServiceId(values, errorsAt({ services: [2] }))).toBe("web");
+  });
+
+  it("reveals the first service of the first placement with an error", () => {
+    const values = mock<SdlBuilderFormValuesType>({ services: [service("s1", "p1"), service("s2", "p2")], placements: [placement("p1"), placement("p2")] });
+
+    expect(firstInvalidServiceId(values, errorsAt({ placements: [1] }))).toBe("s2");
+  });
+
+  it("reveals nothing when neither a service nor a placement has an error", () => {
+    const values = mock<SdlBuilderFormValuesType>({ services: [service("s1", "p1")], placements: [placement("p1")] });
+
+    expect(firstInvalidServiceId(values, {})).toBeNull();
+  });
+
+  function errorsAt(input: { services?: number[]; placements?: number[] }): FieldErrors<SdlBuilderFormValuesType> {
+    const byIndex = (indexes: number[] = []) => Object.fromEntries(indexes.map(index => [index, { title: { type: "manual", message: "invalid" } }]));
+    return { services: byIndex(input.services), placements: byIndex(input.placements) } as FieldErrors<SdlBuilderFormValuesType>;
+  }
 });
 
 function placement(id: string): PlacementType {

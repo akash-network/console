@@ -264,7 +264,7 @@ const VariableRow: FC<VariableRowProps> = ({ serviceIndex, envIndex, visibleInde
       </div>
       {key.fieldState.error && <p className="pl-1 text-xs text-destructive">{key.fieldState.error.message}</p>}
       {value.fieldState.error && <p className="pl-1 text-xs text-destructive">{value.fieldState.error.message}</p>}
-      {isKept && inheritedFrom === null && <p className="pl-1 text-xs text-muted-foreground">The value was not included. Enter it before requesting quotes.</p>}
+      {isKept && inheritedFrom === null && <p className="pl-1 text-xs text-muted-foreground">The value was not included. Enter it before requesting bids.</p>}
     </div>
   );
 };

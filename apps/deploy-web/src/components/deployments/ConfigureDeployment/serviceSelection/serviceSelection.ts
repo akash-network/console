@@ -1,4 +1,6 @@
-import { isLogCollectorService } from "@src/components/sdl/LogCollectorControl/LogCollectorControl";
+import type { FieldErrors } from "react-hook-form";
+
+import { findOwnLogCollectorServiceIndex, isLogCollectorService } from "@src/components/sdl/LogCollectorControl/LogCollectorControl";
 import type { SdlBuilderFormValuesType, ServiceType } from "@src/types";
 
 type Services = SdlBuilderFormValuesType["services"];
@@ -58,6 +60,21 @@ export function nextUndoneServiceId(
       services,
       placements.find(placement => !selections[placement.id])
     )
+  );
+}
+
+/** The service to reveal after a rejected submit: the first invalid one, a log collector's own service, else the first service of the first invalid placement. */
+export function firstInvalidServiceId(values: SdlBuilderFormValuesType, errors: FieldErrors<SdlBuilderFormValuesType>): string | null {
+  const services = values.services ?? [];
+  const invalidIndex = services.findIndex((_, index) => !!errors.services?.[index]);
+  if (invalidIndex !== -1) {
+    const invalidService = services[invalidIndex];
+    if (!isLogCollectorService(invalidService)) return invalidService.id as string;
+    return (services.find(candidate => findOwnLogCollectorServiceIndex(candidate, services) === invalidIndex)?.id as string | undefined) ?? null;
+  }
+  return serviceIdOfPlacement(
+    services,
+    (values.placements ?? []).find((_, index) => !!errors.placements?.[index])
   );
 }
 
