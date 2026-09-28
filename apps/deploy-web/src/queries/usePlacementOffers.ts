@@ -73,10 +73,7 @@ export function usePlacementOffers(
   const bidsQuery = dependencies.useListBids(dseq, { enabled: phase === "quoting", refetchInterval: BID_POLL_INTERVAL });
   const gseq = useMemo(() => dependencies.getPlacementGseq(sdl, placementName), [dependencies, sdl, placementName]);
   const screenedByOwner = useMemo(() => new Map(screened.providers.map(provider => [provider.owner, provider])), [screened.providers]);
-  const placementBids = useMemo(
-    () => (bidsQuery.data?.data ?? []).filter(entry => gseq === undefined || entry.bid.id.gseq === gseq),
-    [bidsQuery.data, gseq]
-  );
+  const placementBids = useMemo(() => (bidsQuery.data?.data ?? []).filter(entry => gseq === undefined || entry.bid.id.gseq === gseq), [bidsQuery.data, gseq]);
   const unscreenedBidderAddresses = useMemo(
     () => placementBids.map(entry => entry.bid.id.provider).filter(owner => !screenedByOwner.has(owner)),
     [placementBids, screenedByOwner]
