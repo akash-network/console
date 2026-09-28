@@ -125,6 +125,15 @@ describe(useProviderListModel.name, () => {
     );
   });
 
+  it("leaves out an emoji the search length cap would split", async () => {
+    const keptSearch = "a".repeat(MAX_SEARCH_LENGTH - 1);
+    const { result, useProviderSearch } = setup();
+
+    act(() => result.current.changeSearch(`${keptSearch}😀`));
+
+    await waitFor(() => expect(useProviderSearch).toHaveBeenLastCalledWith(expect.objectContaining({ search: keptSearch }), expect.anything()));
+  });
+
   it("changes the sort through the url", () => {
     const { result, router } = setup();
 

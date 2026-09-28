@@ -45,6 +45,8 @@ export const MAX_SEARCH_LENGTH = 200;
 
 const SEARCH_PACING = { wait: 400, maxWait: 1000 };
 
+const HIGH_SURROGATE_AT_END = /[\uD800-\uDBFF]$/;
+
 export const DEPENDENCIES = {
   useWallet,
   useLocalNotes,
@@ -68,7 +70,7 @@ export function useProviderListModel(dependencies: typeof DEPENDENCIES = DEPENDE
   const [isFilteringAudited, setIsFilteringAudited] = useState(true);
   const [isFilteringFavorites, setIsFilteringFavorites] = useState(false);
   const [search, setSearch] = useState("");
-  const pacedSearch = usePacedValue(search.trim().slice(0, MAX_SEARCH_LENGTH), SEARCH_PACING);
+  const pacedSearch = usePacedValue(capSearchLength(search.trim()), SEARCH_PACING);
 
   const hasWallet = !!address;
   const sort = resolveSort(searchParams?.get("sort"), hasWallet);
@@ -169,6 +171,12 @@ export function useProviderListModel(dependencies: typeof DEPENDENCIES = DEPENDE
     isLoading: providerSearch.isFetching || providerLocations.isFetching || isLoadingLeases || isLoadingNetworkCapacity,
     refresh
   };
+}
+
+/** Cuts on UTF-16 units, which the API's limit counts, without leaving half an emoji, which the URL encoder refuses. */
+function capSearchLength(search: string): string {
+  const capped = search.slice(0, MAX_SEARCH_LENGTH);
+  return HIGH_SURROGATE_AT_END.test(capped) ? capped.slice(0, -1) : capped;
 }
 
 function resolveSort(requested: string | null | undefined, hasWallet: boolean): SortId {
