@@ -1,6 +1,7 @@
 import type { Context, Next } from "hono";
 import createError from "http-errors";
 import { LRUCache } from "lru-cache";
+import { createHash } from "node:crypto";
 import { inject, singleton } from "tsyringe";
 
 import { cacheRegistry, nominalEntrySizing } from "@src/caching/cache-registry";
@@ -16,6 +17,11 @@ const STREAK_ENTRY_BYTES = 256;
 const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
 const UNCOUNTED_CLIENT_ERRORS = new Set([401, 429]);
 const IN_FLIGHT_RETRY_AFTER_SECONDS = 1;
+
+/** The path is caller controlled, so it is hashed to keep every key the size the entry estimate assumes. */
+function digestOf(path: string): string {
+  return createHash("sha256").update(path).digest("base64url");
+}
 
 @singleton()
 export class RefusalBackoffInterceptor implements HonoInterceptor {
@@ -43,7 +49,7 @@ export class RefusalBackoffInterceptor implements HonoInterceptor {
         return await next();
       }
 
-      const key = `${userId} ${c.req.method} ${c.req.path}`;
+      const key = `${userId} ${c.req.method} ${digestOf(c.req.path)}`;
       const retryAfterSeconds = this.#secondsLeftInBackoff(key) || (this.#wouldPassLimitWithRequestsInFlight(key) ? IN_FLIGHT_RETRY_AFTER_SECONDS : 0);
 
       if (retryAfterSeconds) {
