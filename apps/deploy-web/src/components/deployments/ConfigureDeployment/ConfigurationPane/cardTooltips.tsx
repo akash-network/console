@@ -25,6 +25,10 @@ export const gpuTooltip = (
     You can also specify the GPU vendor and model you want specifically. If you don't specify any model, providers with any GPU model will bid on your workload.
     <br />
     <br />
+    GPU interconnect links the GPUs of a multi-node job, such as NCCL training, over a high-bandwidth fabric like InfiniBand. Turning it on limits the bids to
+    interconnect-capable providers.
+    <br />
+    <br />
     <a href="https://akash.network/docs/developers/deployment/akash-sdl/advanced-features/#gpu-configuration" target="_blank" rel="noopener">
       View official documentation
     </a>
@@ -83,15 +87,6 @@ export const confidentialComputeTooltip = (
     <a href={CONFIDENTIAL_COMPUTE_DOCS_URL} target="_blank" rel="noopener">
       View official documentation
     </a>
-  </>
-);
-
-export const gpuInterconnectTooltip = (
-  <>
-    Request a high-bandwidth GPU-to-GPU interconnect (e.g. InfiniBand) between the nodes running this service, for multi-node workloads like NCCL training.
-    <br />
-    <br />
-    Enabling adds a placement capability so only interconnect-capable providers bid on this deployment. It also turns on the GPU card for this service.
   </>
 );
 

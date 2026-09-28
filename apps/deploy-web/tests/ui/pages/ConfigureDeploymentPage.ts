@@ -131,7 +131,7 @@ export class ConfigureDeploymentPage {
   }
 
   cpuInput() {
-    return this.page.getByRole("spinbutton", { name: "CPU Count" });
+    return this.page.getByRole("spinbutton", { name: "vCPU" });
   }
 
   /** Disabled in the three pane layout and not rendered in the two panel one, so none exists while the spec is locked. */

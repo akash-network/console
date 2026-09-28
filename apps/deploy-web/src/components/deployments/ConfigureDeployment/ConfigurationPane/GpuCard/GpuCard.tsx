@@ -1,6 +1,6 @@
-import type { FC } from "react";
+import type { FC, ReactNode } from "react";
 import { useCallback, useId, useMemo } from "react";
-import { useController, useFieldArray, useFormContext } from "react-hook-form";
+import { useController, useFieldArray, useFormContext, useWatch } from "react-hook-form";
 import {
   Button,
   CollapsibleCard,
@@ -26,6 +26,7 @@ import type { AvailableGpuVendor } from "@src/queries/usePlacementOptions";
 import { usePlacementOptions } from "@src/queries/usePlacementOptions";
 import type { SdlBuilderFormValuesType } from "@src/types";
 import type { GpuVendor } from "@src/types/gpu";
+import type { PinnedGpu } from "@src/utils/akash/gpu";
 import {
   findUnavailableGpuModels,
   gpuVendors as fallbackVendors,
@@ -39,66 +40,69 @@ import { validationConfig } from "@src/utils/akash/units";
 import { formatProviderCount } from "@src/utils/providerUtils";
 import { defaultGpuModel } from "@src/utils/sdl/data";
 import { gpuTooltip } from "../cardTooltips";
+import { GpuInterconnectFields } from "../GpuInterconnectFields/GpuInterconnectFields";
 import { SELECT_TRUNCATE_VALUE } from "../selectStyles";
 import { UnlockGpusButton } from "../UnlockGpusButton/UnlockGpusButton";
+import { useServiceGpu } from "../useServiceGpu/useServiceGpu";
+import { summarizeGpu } from "./gpuSummary";
 
-export const DEPENDENCIES = { CollapsibleCard, useGpuModels, usePlacementOptions, useFieldError, useServices, GpuModelFields };
+export const DEPENDENCIES = { CollapsibleCard, useGpuModels, usePlacementOptions, useFieldError, useServices, GpuModelFields, GpuInterconnectFields };
 
 type Props = {
   serviceIndex: number;
-  /** While the pane is locked the enable switch and every GPU input are disabled so the configured GPU stays viewable but read-only. */
+  /** While the pane is locked every GPU input is disabled so the configured GPU stays viewable but read-only. */
   locked?: boolean;
   /** Returns whether a GPU model is blocked for the current (trial) user; blocked models lock in the model picker. */
   isBlockedModel?: (vendor?: string | null, model?: string | null) => boolean;
+  /** A trial wallet can't opt into the GPU interconnect. */
+  isInterconnectTrialBlocked?: boolean;
   /** Opens the add-credits (unlock) sheet owned by the HardwareSection. */
   onUnlock?: () => void;
   dependencies?: typeof DEPENDENCIES;
 };
 
-/**
- * Hardware "GPU" card. A header switch toggles `profile.hasGpu` (the SDL emits a
- * GPU block only while enabled); enabling defaults the count to at least one and
- * keeps at least one GPU collection. The body holds a count stepper followed by
- * one collection per `profile.gpuModels` entry — vendor, model, memory and
- * interface selects — plus an "Add GPU" button. Each collection after the first
- * can be removed.
- *
- * While the trial restriction is in force, blocked GPU models render locked in the
- * model picker (with an unlock CTA); allowed models stay selectable and the enable
- * switch itself is never disabled by the restriction.
- */
-export const GpuCard: FC<Props> = ({ serviceIndex, locked = false, isBlockedModel = () => false, onUnlock, dependencies: d = DEPENDENCIES }) => {
-  const { control, setValue, getValues } = useFormContext<SdlBuilderFormValuesType>();
-  const { data: gpuModels, isLoading: isLoadingModels, isError: isModelsError } = d.useGpuModels();
+type ModelFieldsSharedProps = Omit<GpuModelFieldsProps, "gpuIndex" | "isGpuOn" | "countField" | "onModelPick" | "onRemove">;
+
+/** A GPU count of 0 means no GPU, so the first model picker and the count stay visible while the rest of the GPU settings wait for a count. */
+export const GpuCard: FC<Props> = ({
+  serviceIndex,
+  locked = false,
+  isBlockedModel = () => false,
+  isInterconnectTrialBlocked = false,
+  onUnlock,
+  dependencies: d = DEPENDENCIES
+}) => {
+  const { control } = useFormContext<SdlBuilderFormValuesType>();
+  const { data: gpuCatalog, isLoading: isLoadingModels, isError: isModelsError } = d.useGpuModels();
   const { data: placementOptions } = d.usePlacementOptions();
-  const availableVendors = narrowGpuVendorsToAvailable(gpuModels, placementOptions?.gpus);
-
-  const hasGpu = useController({ control, name: `services.${serviceIndex}.profile.hasGpu` });
-
+  const availableVendors = narrowGpuVendorsToAvailable(gpuCatalog, placementOptions?.gpus);
+  const serviceGpu = useServiceGpu(serviceIndex);
+  const [hasGpu, gpu, watchedModels] = useWatch({
+    control,
+    name: [`services.${serviceIndex}.profile.hasGpu`, `services.${serviceIndex}.profile.gpu`, `services.${serviceIndex}.profile.gpuModels`]
+  });
   const { fields, append, remove } = useFieldArray({ control, name: `services.${serviceIndex}.profile.gpuModels`, keyName: "id" });
+  const isGpuOn = serviceGpu.count > 0;
 
-  const toggleGpu = useCallback(
-    (checked: boolean) => {
-      hasGpu.field.onChange(checked);
-      if (checked) {
-        if (getValues(`services.${serviceIndex}.profile.gpu`) === 0) {
-          setValue(`services.${serviceIndex}.profile.gpu`, 1, { shouldValidate: true, shouldDirty: true });
-        }
-        if (fields.length === 0) {
-          append({ ...defaultGpuModel }, { shouldFocus: false });
-        }
-      } else {
-        setValue(`services.${serviceIndex}.profile.gpu`, 0, { shouldValidate: true, shouldDirty: true });
-      }
-    },
-    [hasGpu.field, getValues, setValue, serviceIndex, fields.length, append]
-  );
-
-  const hasReachedGpuLimit = fields.length >= validationConfig.maxGpuAmount;
-  const addGpuModel = useCallback(() => {
+  const hasReachedModelLimit = fields.length >= validationConfig.maxGpuAmount;
+  const addAlternativeModel = useCallback(() => {
     if (fields.length >= validationConfig.maxGpuAmount) return;
     append({ ...defaultGpuModel }, { shouldFocus: false });
   }, [append, fields.length]);
+
+  const sharedModelProps: ModelFieldsSharedProps = {
+    serviceIndex,
+    gpuVendors: availableVendors,
+    gpuCatalog,
+    availableGpus: placementOptions?.gpus,
+    isLoading: isLoadingModels,
+    isError: isModelsError && !availableVendors,
+    isBlockedModel,
+    onUnlock,
+    locked,
+    dependencies: d
+  };
+  const countField = <GpuCountField serviceIndex={serviceIndex} locked={locked} count={serviceGpu.count} onCountChange={serviceGpu.setCount} dependencies={d} />;
 
   return (
     <d.CollapsibleCard
@@ -106,79 +110,69 @@ export const GpuCard: FC<Props> = ({ serviceIndex, locked = false, isBlockedMode
       title="GPU"
       icon={<GpuIcon className="h-4 w-4" />}
       infoTooltip={gpuTooltip}
-      isToggled={!!hasGpu.field.value}
-      onToggle={toggleGpu}
-      toggleAriaLabel="Enable GPU"
-      toggleDisabled={locked}
+      summary={summarizeGpu({ hasGpu, gpu, gpuModels: watchedModels }, gpuCatalog)}
+      summaryVisibility="always"
     >
-      {hasGpu.field.value ? (
-        <fieldset disabled={locked} className="flex flex-col gap-4 border-0 p-0">
-          <GpuCountField serviceIndex={serviceIndex} locked={locked} dependencies={d} />
+      <fieldset disabled={locked} className="flex flex-col gap-4 border-0 p-0">
+        <p className="text-sm text-muted-foreground">Add accelerators for inference, training or rendering.</p>
 
-          {fields.map((field, index) => (
-            <d.GpuModelFields
-              key={field.id}
-              serviceIndex={serviceIndex}
-              gpuIndex={index}
-              gpuVendors={availableVendors}
-              gpuCatalog={gpuModels}
-              availableGpus={placementOptions?.gpus}
-              isLoading={isLoadingModels}
-              isError={isModelsError && !availableVendors}
-              isBlockedModel={isBlockedModel}
-              onUnlock={onUnlock}
-              locked={locked}
-              onRemove={index === 0 ? undefined : () => remove(index)}
-              dependencies={d}
-            />
-          ))}
+        {fields.length > 0 ? (
+          <d.GpuModelFields
+            {...sharedModelProps}
+            key={fields[0].id}
+            gpuIndex={0}
+            isGpuOn={isGpuOn}
+            countField={countField}
+            onModelPick={serviceGpu.enable}
+          />
+        ) : (
+          <FirstGpuModelPicker {...sharedModelProps} countField={countField} onPick={serviceGpu.pickFirstModel} />
+        )}
 
-          {!locked && (
-            <div className="flex justify-end">
-              <button
-                type="button"
-                aria-label="Add GPU"
-                onClick={addGpuModel}
-                disabled={hasReachedGpuLimit}
-                className="flex w-full items-center justify-center rounded-md py-1.5 text-muted-foreground hover:bg-accent hover:text-foreground disabled:pointer-events-none disabled:opacity-50 dark:hover:bg-black"
-              >
-                <PlusIcon className="h-4 w-4" />
-              </button>
-            </div>
-          )}
-        </fieldset>
-      ) : (
-        <p className="text-sm text-muted-foreground">GPU is off.</p>
-      )}
+        {isGpuOn &&
+          fields
+            .slice(1)
+            .map((field, offset) => (
+              <d.GpuModelFields {...sharedModelProps} key={field.id} gpuIndex={offset + 1} isGpuOn onRemove={() => remove(offset + 1)} />
+            ))}
+
+        {isGpuOn && !locked && (
+          <Button type="button" variant="ghost" size="sm" onClick={addAlternativeModel} disabled={hasReachedModelLimit} className="gap-1.5 self-start text-muted-foreground">
+            <PlusIcon className="h-4 w-4" />
+            Add another model
+          </Button>
+        )}
+
+        <d.GpuInterconnectFields serviceIndex={serviceIndex} locked={locked} isTrialBlocked={isInterconnectTrialBlocked} onUnlock={onUnlock} />
+      </fieldset>
     </d.CollapsibleCard>
   );
 };
 
-const GpuCountField: FC<{ serviceIndex: number; locked?: boolean; dependencies: typeof DEPENDENCIES }> = ({
-  serviceIndex,
-  locked = false,
-  dependencies: d
-}) => {
-  const { control } = useFormContext<SdlBuilderFormValuesType>();
+const GpuCountField: FC<{
+  serviceIndex: number;
+  locked?: boolean;
+  count: number;
+  onCountChange: (count: number) => void;
+  dependencies: typeof DEPENDENCIES;
+}> = ({ serviceIndex, locked = false, count, onCountChange, dependencies: d }) => {
   const { analyticsService } = d.useServices();
   const { error: gpuError } = d.useFieldError(`services.${serviceIndex}.profile.gpu`);
   const errorId = useId();
-  const gpu = useController({ control, name: `services.${serviceIndex}.profile.gpu` });
 
-  function changeGpuCount(count: number) {
-    analyticsService.track("configure_gpu_count_changed", { category: "deployments", count });
-    gpu.field.onChange(count);
+  function changeGpuCount(next: number) {
+    analyticsService.track("configure_gpu_count_changed", { category: "deployments", count: next });
+    onCountChange(next);
   }
 
   return (
     <Field className="gap-2">
-      <FieldLabel>Count</FieldLabel>
+      <FieldLabel>GPUs</FieldLabel>
       <FieldContent>
         <QuantityStepper
-          label="GPU count"
-          className="self-start"
-          value={gpu.field.value ?? 0}
-          min={1}
+          label="GPUs"
+          value={count}
+          min={0}
           max={validationConfig.maxGpuAmount}
           aria-describedby={gpuError ? errorId : undefined}
           disabled={locked}
@@ -204,6 +198,12 @@ type GpuModelFieldsProps = {
   onUnlock?: () => void;
   /** While the pane is locked every input is disabled so the configured GPU stays viewable but read-only. */
   locked?: boolean;
+  /** The vendor, memory and interface of the first model wait for a GPU count. */
+  isGpuOn: boolean;
+  /** Rendered beside the first model's picker. */
+  countField?: ReactNode;
+  /** Runs on every pick, including a re-pick of the current model, so picking a model while the GPU is off turns it on. */
+  onModelPick?: () => void;
   onRemove?: () => void;
   dependencies?: typeof DEPENDENCIES;
 };
@@ -220,6 +220,9 @@ function GpuModelFields({
   isBlockedModel,
   onUnlock,
   locked = false,
+  isGpuOn,
+  countField,
+  onModelPick,
   onRemove,
   dependencies: d = DEPENDENCIES
 }: GpuModelFieldsProps) {
@@ -232,45 +235,13 @@ function GpuModelFields({
   const memory = useController({ control, name: `${basePath}.memory` });
   const gpuInterface = useController({ control, name: `${basePath}.interface` });
 
-  const offeredVendors = useMemo(
-    () =>
-      withPinnedGpu(gpuVendors, {
-        vendor: vendor.field.value,
-        name: name.field.value,
-        memory: memory.field.value,
-        interface: gpuInterface.field.value
-      }),
-    [gpuVendors, vendor.field.value, name.field.value, memory.field.value, gpuInterface.field.value]
-  );
-
-  const vendorOptions = useMemo(
-    () =>
-      offeredVendors
-        ? offeredVendors.map(v => ({ value: v.name, label: v.displayName ?? v.name }))
-        : fallbackVendors.map(v => ({ value: v.value, label: v.label })),
-    [offeredVendors]
-  );
-  /** The vendor question has a single answer while one vendor is available, so the step only appears when this entry needs it. */
-  const showVendor = vendorOptions.length !== 1 || vendor.field.value !== vendorOptions[0].value;
-  const models = useMemo(() => offeredVendors?.find(v => v.name === vendor.field.value)?.models ?? [], [offeredVendors, vendor.field.value]);
-  const unavailableModels = useMemo(
-    () => findUnavailableGpuModels(gpuCatalog, availableGpus, { vendor: vendor.field.value, name: name.field.value }),
-    [gpuCatalog, availableGpus, vendor.field.value, name.field.value]
-  );
-  const selectableModels = useMemo(
-    () => models.filter(model => !unavailableModels.some(unavailableModel => unavailableModel.name === model.name)),
-    [models, unavailableModels]
-  );
-  const listedModels = useMemo(() => [...selectableModels, ...unavailableModels], [selectableModels, unavailableModels]);
-  const selectedModel = useMemo(() => models.find(m => m.name === name.field.value), [models, name.field.value]);
-  const memorySizes = useMemo(
-    () => listGpuMemoryOptions(selectedModel, { memory: memory.field.value, interface: gpuInterface.field.value }),
-    [selectedModel, memory.field.value, gpuInterface.field.value]
-  );
-  const interfaces = useMemo(
-    () => listGpuInterfaceOptions(selectedModel, { memory: memory.field.value, interface: gpuInterface.field.value }),
-    [selectedModel, memory.field.value, gpuInterface.field.value]
-  );
+  const choices = useGpuModelOptions({
+    gpuVendors,
+    gpuCatalog,
+    availableGpus,
+    isBlockedModel,
+    pinned: { vendor: vendor.field.value, name: name.field.value, memory: memory.field.value, interface: gpuInterface.field.value }
+  });
 
   const selectGpuVendor = useCallback(
     (value: string) => {
@@ -285,6 +256,7 @@ function GpuModelFields({
   /** A provider bids only on a GPU key it advertises verbatim, so memory and interface stay unpinned until the user asks for them. */
   const selectModel = useCallback(
     (value: string) => {
+      onModelPick?.();
       if (value === name.field.value) {
         return;
       }
@@ -295,20 +267,254 @@ function GpuModelFields({
         analyticsService.track("configure_gpu_type_selected", { category: "deployments", model: value, vendor: vendor.field.value });
       }
     },
-    [name.field, memory.field, gpuInterface.field, analyticsService, vendor.field.value]
+    [onModelPick, name.field, memory.field, gpuInterface.field, analyticsService, vendor.field.value]
   );
+
+  const isCatalogReady = !isLoading && !isError;
+
+  const vendorField = isGpuOn && choices.showVendor && (
+    <Field className="gap-2">
+      <FieldLabel>Vendor</FieldLabel>
+      <FieldContent>
+        <Select value={vendor.field.value || ""} onValueChange={selectGpuVendor} disabled={locked}>
+          <SelectTrigger aria-label="GPU vendor" className={`h-9 ${SELECT_TRUNCATE_VALUE}`}>
+            <SelectValue placeholder="Select" />
+          </SelectTrigger>
+          <SelectContent>
+            {choices.vendorOptions.map(option => (
+              <SelectItem key={option.value} value={option.value}>
+                {option.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </FieldContent>
+    </Field>
+  );
+
+  const modelField = (
+    <GpuModelControl
+      isLoading={isLoading}
+      isError={isError}
+      value={name.field.value || ""}
+      onChange={selectModel}
+      choices={choices}
+      disabled={locked}
+      emptyTriggerLabel={isGpuOn ? undefined : "Select"}
+    />
+  );
+
+  const pinFields = isGpuOn && isCatalogReady && (
+    <div className="grid grid-cols-[repeat(auto-fit,minmax(9rem,1fr))] gap-3">
+      <Field className="gap-2">
+        <FieldLabel>Memory</FieldLabel>
+        <FieldContent>
+          <ClearableSelect clearLabel="Clear GPU memory" onClear={!locked && memory.field.value ? () => memory.field.onChange("") : undefined}>
+            <Select value={memory.field.value || ""} onValueChange={memory.field.onChange} disabled={locked || !choices.selectedModel}>
+              <SelectTrigger aria-label="GPU memory" className={`h-9 ${SELECT_TRUNCATE_VALUE}`}>
+                <SelectValue placeholder="Select" />
+              </SelectTrigger>
+              <SelectContent>
+                {choices.memorySizes.map(size => (
+                  <SelectItem key={size} value={size}>
+                    {size}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </ClearableSelect>
+        </FieldContent>
+      </Field>
+
+      <Field className="gap-2">
+        <FieldLabel>Interface</FieldLabel>
+        <FieldContent>
+          <ClearableSelect clearLabel="Clear GPU interface" onClear={!locked && gpuInterface.field.value ? () => gpuInterface.field.onChange("") : undefined}>
+            <Select value={gpuInterface.field.value || ""} onValueChange={gpuInterface.field.onChange} disabled={locked || !choices.selectedModel}>
+              <SelectTrigger aria-label="GPU interface" className={`h-9 ${SELECT_TRUNCATE_VALUE}`}>
+                <SelectValue placeholder="Select" />
+              </SelectTrigger>
+              <SelectContent>
+                {choices.interfaces.map(option => (
+                  <SelectItem key={option} value={option}>
+                    {option}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </ClearableSelect>
+        </FieldContent>
+      </Field>
+    </div>
+  );
+
+  const unlockButton = isCatalogReady && choices.hasBlockedModel && <UnlockGpusButton onUnlock={onUnlock} />;
+
+  if (gpuIndex === 0) {
+    return (
+      <div className="flex flex-col gap-3">
+        {vendorField}
+        <div className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-3">
+          {modelField}
+          {countField}
+        </div>
+        {pinFields}
+        {unlockButton}
+      </div>
+    );
+  }
+
+  return (
+    <div role="group" aria-label={`Alternative model ${gpuIndex}`} className="flex flex-col gap-3 rounded-md border border-zinc-200 p-3 dark:border-zinc-800">
+      <div className="flex items-center justify-between">
+        <span className="text-xs font-medium uppercase text-muted-foreground">Alternative model {gpuIndex}</span>
+        {onRemove && (
+          <Button
+            size="icon"
+            type="button"
+            variant="ghost"
+            className="h-6 w-6"
+            aria-label={`Remove alternative model ${gpuIndex}`}
+            disabled={locked}
+            onClick={onRemove}
+          >
+            <TrashIcon className="h-4 w-4" />
+          </Button>
+        )}
+      </div>
+      {vendorField}
+      {modelField}
+      {pinFields}
+      {unlockButton}
+    </div>
+  );
+}
+
+type FirstGpuModelPickerProps = ModelFieldsSharedProps & {
+  countField: ReactNode;
+  onPick: (name: string) => void;
+};
+
+/** Stands in for the first model while the service has no GPU entry, writing the whole entry on a pick so nothing registers a partial one. */
+function FirstGpuModelPicker({ gpuVendors, gpuCatalog, availableGpus, isLoading, isError, isBlockedModel, onUnlock, locked = false, countField, onPick }: FirstGpuModelPickerProps) {
+  const choices = useGpuModelOptions({ gpuVendors, gpuCatalog, availableGpus, isBlockedModel, pinned: { vendor: defaultGpuModel.vendor } });
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-3">
+        <GpuModelControl isLoading={isLoading} isError={isError} value="" onChange={onPick} choices={choices} disabled={locked} emptyTriggerLabel="Select" />
+        {countField}
+      </div>
+      {!isLoading && !isError && choices.hasBlockedModel && <UnlockGpusButton onUnlock={onUnlock} />}
+    </div>
+  );
+}
+
+type GpuModelControlProps = {
+  isLoading?: boolean;
+  isError?: boolean;
+  value: string;
+  onChange: (value: string) => void;
+  choices: GpuModelChoices;
+  disabled: boolean;
+  emptyTriggerLabel?: string;
+};
+
+function GpuModelControl({ isLoading, isError, value, onChange, choices, disabled, emptyTriggerLabel }: GpuModelControlProps) {
+  if (isLoading) {
+    return (
+      <div className="flex items-center gap-2 py-1">
+        <Spinner size="small" />
+        <span className="text-sm text-muted-foreground">Loading GPU models...</span>
+      </div>
+    );
+  }
+
+  if (isError) {
+    return <p className="py-1 text-sm text-destructive">Failed to load GPU models. You can still deploy without specifying a model.</p>;
+  }
+
+  return (
+    <Field className="gap-2">
+      <FieldLabel>GPU model</FieldLabel>
+      <FieldContent>
+        <SearchableSelect
+          value={value}
+          onChange={onChange}
+          options={choices.modelOptions}
+          unavailableOptions={choices.unavailableModelOptions}
+          ariaLabel="GPU model"
+          searchLabel="Search GPU models"
+          searchPlaceholder="Search models..."
+          notFoundMessage="No models found."
+          emptyOption={{
+            value: "",
+            disabled: choices.anyModelBlocked,
+            label: choices.anyModelBlocked ? (
+              <span className="flex items-center gap-1.5">
+                Any model
+                <LockIcon className="h-3 w-3 shrink-0 text-muted-foreground" aria-label="Requires credits" />
+              </span>
+            ) : (
+              "Any model"
+            )
+          }}
+          emptyTriggerLabel={emptyTriggerLabel}
+          renderValue={modelName => choices.listedModels.find(model => model.name === modelName)?.displayName ?? modelName}
+          disabled={disabled || choices.listedModels.length === 0}
+          triggerClassName="h-9"
+        />
+      </FieldContent>
+    </Field>
+  );
+}
+
+type GpuModelChoices = ReturnType<typeof useGpuModelOptions>;
+
+type GpuModelOptionsInput = {
+  gpuVendors: GpuVendor[] | undefined;
+  gpuCatalog?: GpuVendor[];
+  availableGpus?: AvailableGpuVendor[];
+  isBlockedModel: (vendor?: string | null, model?: string | null) => boolean;
+  pinned: PinnedGpu;
+};
+
+function useGpuModelOptions({ gpuVendors, gpuCatalog, availableGpus, isBlockedModel, pinned }: GpuModelOptionsInput) {
+  const { vendor, name, memory, interface: gpuInterface } = pinned;
+
+  const offeredVendors = useMemo(() => withPinnedGpu(gpuVendors, { vendor, name, memory, interface: gpuInterface }), [gpuVendors, vendor, name, memory, gpuInterface]);
+
+  const vendorOptions = useMemo(
+    () =>
+      offeredVendors
+        ? offeredVendors.map(offered => ({ value: offered.name, label: offered.displayName ?? offered.name }))
+        : fallbackVendors.map(fallback => ({ value: fallback.value, label: fallback.label })),
+    [offeredVendors]
+  );
+  /** The vendor question has a single answer while one vendor is available, so the step only appears when this entry needs it. */
+  const showVendor = vendorOptions.length !== 1 || vendor !== vendorOptions[0].value;
+  const models = useMemo(() => offeredVendors?.find(offered => offered.name === vendor)?.models ?? [], [offeredVendors, vendor]);
+  const unavailableModels = useMemo(() => findUnavailableGpuModels(gpuCatalog, availableGpus, { vendor, name }), [gpuCatalog, availableGpus, vendor, name]);
+  const selectableModels = useMemo(
+    () => models.filter(model => !unavailableModels.some(unavailableModel => unavailableModel.name === model.name)),
+    [models, unavailableModels]
+  );
+  const listedModels = useMemo(() => [...selectableModels, ...unavailableModels], [selectableModels, unavailableModels]);
+  const selectedModel = useMemo(() => models.find(model => model.name === name), [models, name]);
+  const memorySizes = useMemo(() => listGpuMemoryOptions(selectedModel, { memory, interface: gpuInterface }), [selectedModel, memory, gpuInterface]);
+  const interfaces = useMemo(() => listGpuInterfaceOptions(selectedModel, { memory, interface: gpuInterface }), [selectedModel, memory, gpuInterface]);
 
   /**
    * On a trial, "Any model" is locked too (not just specific blocked models): it only draws a usable bid if an
    * allowed-model provider happens to bid, otherwise the deployment spins with no explanation (CON-660). The
    * predicate treats the empty model as blocked when the vendor exposes any blocked model.
    */
-  const anyModelBlocked = isBlockedModel(vendor.field.value, "");
+  const anyModelBlocked = isBlockedModel(vendor, "");
 
   const modelOptions = useMemo(
     () =>
       prioritizeGpuModels(selectableModels).map(model => {
-        const blocked = isBlockedModel(vendor.field.value, model.name);
+        const blocked = isBlockedModel(vendor, model.name);
         const label = model.displayName ?? model.name;
         return {
           value: model.name,
@@ -323,7 +529,7 @@ function GpuModelFields({
           )
         };
       }),
-    [selectableModels, isBlockedModel, vendor.field.value]
+    [selectableModels, isBlockedModel, vendor]
   );
 
   const unavailableModelOptions = useMemo(
@@ -335,125 +541,20 @@ function GpuModelFields({
     [unavailableModels]
   );
 
-  return (
-    <div role="group" aria-label={`GPU ${gpuIndex + 1}`} className="flex flex-col gap-3 rounded-md border border-zinc-200 p-3 dark:border-zinc-800">
-      <div className="flex items-center justify-between">
-        <span className="text-xs font-medium uppercase text-muted-foreground">GPU {gpuIndex + 1}</span>
-        {onRemove && (
-          <Button size="icon" type="button" variant="ghost" className="h-6 w-6" aria-label={`Remove GPU ${gpuIndex + 1}`} disabled={locked} onClick={onRemove}>
-            <TrashIcon className="h-4 w-4" />
-          </Button>
-        )}
-      </div>
+  const hasBlockedModel = selectableModels.some(model => isBlockedModel(vendor, model.name));
 
-      {showVendor && (
-        <Field className="gap-2">
-          <FieldLabel>Vendor</FieldLabel>
-          <FieldContent>
-            <Select value={vendor.field.value || ""} onValueChange={selectGpuVendor} disabled={locked}>
-              <SelectTrigger aria-label="GPU vendor" className={`h-9 ${SELECT_TRUNCATE_VALUE}`}>
-                <SelectValue placeholder="Select" />
-              </SelectTrigger>
-              <SelectContent>
-                {vendorOptions.map(option => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </FieldContent>
-        </Field>
-      )}
-
-      {isLoading ? (
-        <div className="flex items-center gap-2 py-1">
-          <Spinner size="small" />
-          <span className="text-sm text-muted-foreground">Loading GPU models...</span>
-        </div>
-      ) : isError ? (
-        <p className="py-1 text-sm text-destructive">Failed to load GPU models. You can still deploy without specifying a model.</p>
-      ) : (
-        <>
-          <Field className="gap-2">
-            <FieldLabel>Model</FieldLabel>
-            <FieldContent>
-              <SearchableSelect
-                value={name.field.value || ""}
-                onChange={selectModel}
-                options={modelOptions}
-                unavailableOptions={unavailableModelOptions}
-                ariaLabel="GPU model"
-                searchLabel="Search GPU models"
-                searchPlaceholder="Search models..."
-                notFoundMessage="No models found."
-                emptyOption={{
-                  value: "",
-                  disabled: anyModelBlocked,
-                  label: anyModelBlocked ? (
-                    <span className="flex items-center gap-1.5">
-                      Any model
-                      <LockIcon className="h-3 w-3 shrink-0 text-muted-foreground" aria-label="Requires credits" />
-                    </span>
-                  ) : (
-                    "Any model"
-                  )
-                }}
-                renderValue={modelName => listedModels.find(model => model.name === modelName)?.displayName ?? modelName}
-                disabled={locked || listedModels.length === 0}
-                triggerClassName="h-9"
-              />
-            </FieldContent>
-          </Field>
-
-          <Field className="gap-2">
-            <FieldLabel>Memory</FieldLabel>
-            <FieldContent>
-              <ClearableSelect clearLabel="Clear GPU memory" onClear={!locked && memory.field.value ? () => memory.field.onChange("") : undefined}>
-                <Select value={memory.field.value || ""} onValueChange={memory.field.onChange} disabled={locked || !selectedModel}>
-                  <SelectTrigger aria-label="GPU memory" className={`h-9 ${SELECT_TRUNCATE_VALUE}`}>
-                    <SelectValue placeholder="Select" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {memorySizes.map(size => (
-                      <SelectItem key={size} value={size}>
-                        {size}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </ClearableSelect>
-            </FieldContent>
-          </Field>
-
-          <Field className="gap-2">
-            <FieldLabel>Interface</FieldLabel>
-            <FieldContent>
-              <ClearableSelect
-                clearLabel="Clear GPU interface"
-                onClear={!locked && gpuInterface.field.value ? () => gpuInterface.field.onChange("") : undefined}
-              >
-                <Select value={gpuInterface.field.value || ""} onValueChange={gpuInterface.field.onChange} disabled={locked || !selectedModel}>
-                  <SelectTrigger aria-label="GPU interface" className={`h-9 ${SELECT_TRUNCATE_VALUE}`}>
-                    <SelectValue placeholder="Select" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {interfaces.map(option => (
-                      <SelectItem key={option} value={option}>
-                        {option}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </ClearableSelect>
-            </FieldContent>
-          </Field>
-
-          {selectableModels.some(model => isBlockedModel(vendor.field.value, model.name)) && <UnlockGpusButton onUnlock={onUnlock} />}
-        </>
-      )}
-    </div>
-  );
+  return {
+    vendorOptions,
+    showVendor,
+    listedModels,
+    selectedModel,
+    memorySizes,
+    interfaces,
+    anyModelBlocked,
+    modelOptions,
+    unavailableModelOptions,
+    hasBlockedModel
+  };
 }
 
 type ClearableSelectProps = {

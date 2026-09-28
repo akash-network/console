@@ -7,9 +7,9 @@ import { describe, expect, it } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { AnalyticsService } from "@src/services/analytics/analytics.service";
-import type { SdlBuilderFormValuesType } from "@src/types";
+import type { SdlBuilderFormValuesType, ServiceType } from "@src/types";
 import { SdlBuilderFormValuesSchema } from "@src/types";
-import { defaultServiceWithPlacement } from "@src/utils/sdl/data";
+import { defaultPlacement, defaultService } from "@src/utils/sdl/data";
 import { ComputeResourcesCard, DEPENDENCIES } from "./ComputeResourcesCard";
 
 import { fireEvent, render, screen } from "@testing-library/react";
@@ -19,7 +19,7 @@ describe(ComputeResourcesCard.name, () => {
   it("writes the CPU count to the service profile", async () => {
     const { getValues } = setup({});
 
-    const input = screen.getByLabelText("CPU Count");
+    const input = screen.getByLabelText("vCPU");
     await userEvent.clear(input);
     await userEvent.type(input, "2");
 
@@ -29,14 +29,24 @@ describe(ComputeResourcesCard.name, () => {
   it("clears the CPU count instead of writing NaN", async () => {
     const { getValues } = setup({});
 
-    await userEvent.clear(screen.getByLabelText("CPU Count"));
+    await userEvent.clear(screen.getByLabelText("vCPU"));
 
     expect(getValues().services[0].profile.cpu).toBeNull();
   });
 
-  it("seeds memory and storage from the service profile", () => {
+  it("points each service's vCPU label at its own input", () => {
+    setup({ serviceCount: 2 });
+
+    const [firstLabel, secondLabel] = screen.getAllByText("vCPU") as HTMLLabelElement[];
+    const [firstInput, secondInput] = screen.getAllByRole("spinbutton", { name: "vCPU" });
+    expect(firstLabel.control).toBe(firstInput);
+    expect(secondLabel.control).toBe(secondInput);
+  });
+
+  it("seeds vCPU, memory and storage from the service profile", () => {
     setup({ ram: 512, ramUnit: "Mi", storageSize: 10, storageUnit: "Gi" });
 
+    expect(screen.getByLabelText("vCPU")).toHaveValue(0.5);
     expect(screen.getByLabelText("Memory")).toHaveValue(512);
     expect(screen.getByLabelText("Storage")).toHaveValue(10);
   });
@@ -44,7 +54,7 @@ describe(ComputeResourcesCard.name, () => {
   it("disables every compute input while locked", () => {
     setup({ locked: true });
 
-    expect(screen.getByLabelText("CPU Count")).toBeDisabled();
+    expect(screen.getByLabelText("vCPU")).toBeDisabled();
     expect(screen.getByLabelText("Memory")).toBeDisabled();
     expect(screen.getByRole("combobox", { name: "Memory unit" })).toBeDisabled();
     expect(screen.getByLabelText("Storage")).toBeDisabled();
@@ -71,7 +81,16 @@ describe(ComputeResourcesCard.name, () => {
     setup({ cpuError: "CPU count is required." });
 
     await screen.findByText("CPU count is required.");
-    expect(screen.getByLabelText("CPU Count")).toHaveClass("ring-destructive");
+    expect(screen.getByLabelText("vCPU")).toHaveClass("ring-destructive");
+  });
+
+  it("reports a cleared vCPU as required once it loses focus", async () => {
+    setup({ mode: "onTouched", resolver: zodResolver(SdlBuilderFormValuesSchema) });
+
+    await userEvent.clear(screen.getByLabelText("vCPU"));
+    await userEvent.tab();
+
+    expect(await screen.findByText("CPU count is required.")).toBeInTheDocument();
   });
 
   it("shows the storage error inline when storage exceeds the maximum", async () => {
@@ -128,7 +147,7 @@ describe(ComputeResourcesCard.name, () => {
   it("tracks the CPU count on blur", async () => {
     const { analyticsService } = setup({});
 
-    const cpuInput = screen.getByLabelText("CPU Count");
+    const cpuInput = screen.getByLabelText("vCPU");
     await userEvent.clear(cpuInput);
     await userEvent.type(cpuInput, "2");
     fireEvent.blur(cpuInput);
@@ -139,7 +158,7 @@ describe(ComputeResourcesCard.name, () => {
   it("does not track the CPU count when it is unchanged on blur", () => {
     const { analyticsService } = setup({});
 
-    const cpuInput = screen.getByLabelText("CPU Count");
+    const cpuInput = screen.getByLabelText("vCPU");
     fireEvent.focus(cpuInput);
     fireEvent.blur(cpuInput);
 
@@ -149,7 +168,7 @@ describe(ComputeResourcesCard.name, () => {
   it("does not track the CPU count when the field is cleared to an empty value", async () => {
     const { analyticsService } = setup({});
 
-    const cpuInput = screen.getByLabelText("CPU Count");
+    const cpuInput = screen.getByLabelText("vCPU");
     await userEvent.clear(cpuInput);
     fireEvent.blur(cpuInput);
 
@@ -210,25 +229,31 @@ describe(ComputeResourcesCard.name, () => {
     locked?: boolean;
     arch?: "amd64" | "arm64";
     isCpuArchEnabled?: boolean;
+    serviceCount?: number;
+    mode?: "onChange" | "onTouched";
     resolver?: Resolver<SdlBuilderFormValuesType>;
     dependencies?: Partial<typeof DEPENDENCIES>;
   }) {
-    const values = defaultServiceWithPlacement({
-      profile: {
-        cpu: 0.5,
-        arch: input.arch,
-        gpu: 1,
-        gpuModels: [{ vendor: "nvidia" }],
-        hasGpu: false,
-        ram: input.ram ?? 256,
-        ramUnit: input.ramUnit ?? "Mi",
-        storage: [{ size: input.storageSize ?? 1, unit: input.storageUnit ?? "Gi", isPersistent: false, type: "beta2" }]
-      }
-    });
+    const profile: ServiceType["profile"] = {
+      cpu: 0.5,
+      arch: input.arch,
+      gpu: 1,
+      gpuModels: [{ vendor: "nvidia" }],
+      hasGpu: false,
+      ram: input.ram ?? 256,
+      ramUnit: input.ramUnit ?? "Mi",
+      storage: [{ size: input.storageSize ?? 1, unit: input.storageUnit ?? "Gi", isPersistent: false, type: "beta2" }]
+    };
+    const placement = defaultPlacement();
+    const values: SdlBuilderFormValuesType = {
+      placements: [placement],
+      services: Array.from({ length: input.serviceCount ?? 1 }, (_, index) => defaultService(placement.id, { title: `service-${index + 1}`, profile })),
+      endpoints: []
+    };
 
     let getValues: () => SdlBuilderFormValuesType = () => values;
     const Wrapper = ({ children }: PropsWithChildren) => {
-      const form = useForm<SdlBuilderFormValuesType>({ defaultValues: values, mode: "onChange", resolver: input.resolver });
+      const form = useForm<SdlBuilderFormValuesType>({ defaultValues: values, mode: input.mode ?? "onChange", resolver: input.resolver });
       getValues = form.getValues;
       const { setError } = form;
       useEffect(() => {
@@ -245,7 +270,14 @@ describe(ComputeResourcesCard.name, () => {
 
     render(
       <Wrapper>
-        <ComputeResourcesCard serviceIndex={0} locked={input.locked} dependencies={{ ...DEPENDENCIES, useServices, useFlag, ...input.dependencies }} />
+        {values.services.map((service, serviceIndex) => (
+          <ComputeResourcesCard
+            key={service.id}
+            serviceIndex={serviceIndex}
+            locked={input.locked}
+            dependencies={{ ...DEPENDENCIES, useServices, useFlag, ...input.dependencies }}
+          />
+        ))}
       </Wrapper>
     );
 

@@ -46,6 +46,13 @@ describe("SearchableSelect", () => {
     expect(screen.getByRole("combobox", { name: "Region" })).toHaveTextContent("Any region");
   });
 
+  it("shows the empty trigger label in place of the empty option label while nothing is selected", () => {
+    setup({ value: "", emptyOption: { value: "", label: "Any region" }, emptyTriggerLabel: "Select" });
+
+    expect(screen.getByRole("combobox", { name: "Region" })).toHaveTextContent("Select");
+    expect(screen.getByRole("combobox", { name: "Region" })).not.toHaveTextContent("Any region");
+  });
+
   it("renders the selected value through renderValue in the trigger", () => {
     setup({ value: "na-us-west", renderValue: value => value.toUpperCase() });
 
@@ -181,6 +188,7 @@ describe("SearchableSelect", () => {
     options?: SearchableSelectOption[];
     unavailableOptions?: SearchableSelectOption[];
     emptyOption?: { value: string; label: string; disabled?: boolean };
+    emptyTriggerLabel?: string;
     placeholder?: string;
     disabled?: boolean;
     renderValue?: (value: string) => ReactNode;
@@ -202,6 +210,7 @@ describe("SearchableSelect", () => {
           searchPlaceholder="Search regions..."
           notFoundMessage="No regions found."
           emptyOption={input.emptyOption}
+          emptyTriggerLabel={input.emptyTriggerLabel}
           placeholder={input.placeholder}
           disabled={input.disabled}
           renderValue={input.renderValue}

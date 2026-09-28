@@ -38,6 +38,12 @@ const VALID_SDL = [
   "      count: 1"
 ].join("\n");
 
+const sdlWithGpuUnits = (units: string) =>
+  VALID_SDL.replace(
+    ["        storage:", "          - size: 512Mi"].join("\n"),
+    ["        storage:", "          - size: 512Mi", "        gpu:", `          units: ${units}`, "          attributes:", "            vendor:", "              nvidia:"].join("\n")
+  );
+
 /** Two services sharing the `dcloud` placement name — the default (non-legacy) import dedupes them to one placement record. */
 const TWO_SERVICE_SHARED_PLACEMENT_SDL = [
   "version: '2.0'",
@@ -206,6 +212,24 @@ describe(importDeploymentState.name, () => {
     const state = importDeploymentState(VALID_SDL);
 
     expect(state.values.hasSSHKey).toBeFalsy();
+  });
+
+  it("switches the GPU off for an SDL that asks for zero GPU units", () => {
+    const { values } = importDeploymentState(sdlWithGpuUnits("0"));
+
+    expect(values.services[0].profile).toMatchObject({ hasGpu: false, gpu: 0 });
+  });
+
+  it("reads quoted GPU units as a count", () => {
+    const { values } = importDeploymentState(sdlWithGpuUnits('"2"'));
+
+    expect(values.services[0].profile).toMatchObject({ hasGpu: true, gpu: 2 });
+  });
+
+  it("keeps a GPU the SDL asks for as it is", () => {
+    const { values } = importDeploymentState(sdlWithGpuUnits("4"));
+
+    expect(values.services[0].profile).toMatchObject({ hasGpu: true, gpu: 4, gpuModels: [{ vendor: "nvidia" }] });
   });
 
   it("throws NoVisibleServiceError for a service-less SDL", () => {

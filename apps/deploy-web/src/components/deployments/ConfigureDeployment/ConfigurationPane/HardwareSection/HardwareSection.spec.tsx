@@ -1,50 +1,75 @@
+import type { ComponentPropsWithoutRef } from "react";
+import { forwardRef } from "react";
 import { describe, expect, it, vi } from "vitest";
 
 import { DEPENDENCIES, HardwareSection } from "./HardwareSection";
 
-import { act, render } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 import { MockComponents } from "@tests/unit/mocks";
 
 describe(HardwareSection.name, () => {
   it("renders each hardware row for the selected service", () => {
     const PresetsCard = vi.fn(() => null);
     const GpuCard = vi.fn(() => null);
-    const GpuInterconnectCard = vi.fn(() => null);
     const ComputeResourcesCard = vi.fn(() => null);
     const PersistentStorageCard = vi.fn(() => null);
     const RamStorageCard = vi.fn(() => null);
-    const ConfidentialComputeCard = vi.fn(() => null);
+    const SecurityCard = vi.fn(() => null);
 
     setup({
       serviceIndex: 2,
-      dependencies: { PresetsCard, GpuCard, GpuInterconnectCard, ComputeResourcesCard, PersistentStorageCard, RamStorageCard, ConfidentialComputeCard }
+      dependencies: { PresetsCard, GpuCard, ComputeResourcesCard, PersistentStorageCard, RamStorageCard, SecurityCard }
     });
 
     expect(PresetsCard).toHaveBeenCalledWith(expect.objectContaining({ serviceIndex: 2 }), expect.anything());
     expect(GpuCard).toHaveBeenCalledWith(expect.objectContaining({ serviceIndex: 2 }), expect.anything());
-    expect(GpuInterconnectCard).toHaveBeenCalledWith(expect.objectContaining({ serviceIndex: 2 }), expect.anything());
     expect(ComputeResourcesCard).toHaveBeenCalledWith(expect.objectContaining({ serviceIndex: 2 }), expect.anything());
     expect(PersistentStorageCard).toHaveBeenCalledWith(expect.objectContaining({ serviceIndex: 2 }), expect.anything());
     expect(RamStorageCard).toHaveBeenCalledWith(expect.objectContaining({ serviceIndex: 2 }), expect.anything());
-    expect(ConfidentialComputeCard).toHaveBeenCalledWith(expect.objectContaining({ serviceIndex: 2 }), expect.anything());
+    expect(SecurityCard).toHaveBeenCalledWith(expect.objectContaining({ serviceIndex: 2 }), expect.anything());
   });
 
   it("forwards the locked state to every hardware card", () => {
     const PresetsCard = vi.fn(() => null);
     const GpuCard = vi.fn(() => null);
-    const GpuInterconnectCard = vi.fn(() => null);
     const ComputeResourcesCard = vi.fn(() => null);
     const PersistentStorageCard = vi.fn(() => null);
     const RamStorageCard = vi.fn(() => null);
+    const SecurityCard = vi.fn(() => null);
 
-    setup({ locked: true, dependencies: { PresetsCard, GpuCard, GpuInterconnectCard, ComputeResourcesCard, PersistentStorageCard, RamStorageCard } });
+    setup({ locked: true, dependencies: { PresetsCard, GpuCard, ComputeResourcesCard, PersistentStorageCard, RamStorageCard, SecurityCard } });
 
     expect(PresetsCard).toHaveBeenCalledWith(expect.objectContaining({ locked: true }), expect.anything());
     expect(GpuCard).toHaveBeenCalledWith(expect.objectContaining({ locked: true }), expect.anything());
-    expect(GpuInterconnectCard).toHaveBeenCalledWith(expect.objectContaining({ locked: true }), expect.anything());
     expect(ComputeResourcesCard).toHaveBeenCalledWith(expect.objectContaining({ locked: true }), expect.anything());
     expect(PersistentStorageCard).toHaveBeenCalledWith(expect.objectContaining({ locked: true }), expect.anything());
     expect(RamStorageCard).toHaveBeenCalledWith(expect.objectContaining({ locked: true }), expect.anything());
+    expect(SecurityCard).toHaveBeenCalledWith(expect.objectContaining({ locked: true }), expect.anything());
+  });
+
+  it("stacks the presets, GPU, compute, security, RAM storage and persistent storage cards in that order", () => {
+    const CollapsibleCard = forwardRef<HTMLDivElement, ComponentPropsWithoutRef<typeof DEPENDENCIES.CollapsibleCard>>(({ title, children }, _ref) => (
+      <section aria-label={title}>{children}</section>
+    ));
+
+    setup({
+      dependencies: {
+        CollapsibleCard,
+        GpuCard: () => <section aria-label="GPU" />,
+        SecurityCard: () => <section aria-label="Security" />,
+        RamStorageCard: () => <section aria-label="RAM storage" />,
+        PersistentStorageCard: () => <section aria-label="Persistent storage" />
+      }
+    });
+
+    expect(screen.getAllByRole("region").map(card => card.getAttribute("aria-label"))).toEqual([
+      "Presets",
+      "GPU",
+      "Compute",
+      "Security",
+      "RAM storage",
+      "Persistent storage"
+    ]);
   });
 
   it("passes an isBlockedModel predicate and unlock handler to the GPU cards", () => {
@@ -61,58 +86,58 @@ describe(HardwareSection.name, () => {
     expect(GpuCard).toHaveBeenCalledWith(expect.objectContaining({ isBlockedModel: expect.any(Function), onUnlock: expect.any(Function) }), expect.anything());
   });
 
-  it("passes isGpuBlocked and an unlock handler to the confidential compute card for a trial", () => {
-    const ConfidentialComputeCard = vi.fn(() => null);
+  it("passes isGpuBlocked and an unlock handler to the security card for a trial", () => {
+    const SecurityCard = vi.fn(() => null);
     const useTrialGate = () => ({ isRestricted: true, isWalletReady: true });
 
-    setup({ dependencies: { ConfidentialComputeCard, useTrialGate } });
+    setup({ dependencies: { SecurityCard, useTrialGate } });
 
-    expect(ConfidentialComputeCard).toHaveBeenCalledWith(expect.objectContaining({ isGpuBlocked: true, onUnlock: expect.any(Function) }), expect.anything());
+    expect(SecurityCard).toHaveBeenCalledWith(expect.objectContaining({ isGpuBlocked: true, onUnlock: expect.any(Function) }), expect.anything());
   });
 
-  it("does not block the confidential compute card when the trial restriction is not in force", () => {
-    const ConfidentialComputeCard = vi.fn(() => null);
+  it("does not block the security card when the trial restriction is not in force", () => {
+    const SecurityCard = vi.fn(() => null);
     const useTrialGate = () => ({ isRestricted: false, isWalletReady: true });
 
-    setup({ dependencies: { ConfidentialComputeCard, useTrialGate } });
+    setup({ dependencies: { SecurityCard, useTrialGate } });
 
-    expect(ConfidentialComputeCard).toHaveBeenCalledWith(expect.objectContaining({ isGpuBlocked: false }), expect.anything());
+    expect(SecurityCard).toHaveBeenCalledWith(expect.objectContaining({ isGpuBlocked: false }), expect.anything());
   });
 
-  it("does not block the confidential compute card while the pane is locked so the trial warning never fights the read-only quote view", () => {
-    const ConfidentialComputeCard = vi.fn(() => null);
+  it("does not block the security card while the pane is locked so the trial warning never fights the read-only quote view", () => {
+    const SecurityCard = vi.fn(() => null);
     const useTrialGate = () => ({ isRestricted: true, isWalletReady: true });
 
-    setup({ locked: true, dependencies: { ConfidentialComputeCard, useTrialGate } });
+    setup({ locked: true, dependencies: { SecurityCard, useTrialGate } });
 
-    expect(ConfidentialComputeCard).toHaveBeenCalledWith(expect.objectContaining({ isGpuBlocked: false }), expect.anything());
+    expect(SecurityCard).toHaveBeenCalledWith(expect.objectContaining({ isGpuBlocked: false }), expect.anything());
   });
 
-  it("passes isTrialBlocked and an unlock handler to the GPU interconnect card for a trial", () => {
-    const GpuInterconnectCard = vi.fn(() => null);
+  it("blocks the GPU interconnect in the GPU card for a trial", () => {
+    const GpuCard = vi.fn(() => null);
     const useTrialGate = () => ({ isRestricted: true, isWalletReady: true });
 
-    setup({ dependencies: { GpuInterconnectCard, useTrialGate } });
+    setup({ dependencies: { GpuCard, useTrialGate } });
 
-    expect(GpuInterconnectCard).toHaveBeenCalledWith(expect.objectContaining({ isTrialBlocked: true, onUnlock: expect.any(Function) }), expect.anything());
+    expect(GpuCard).toHaveBeenCalledWith(expect.objectContaining({ isInterconnectTrialBlocked: true, onUnlock: expect.any(Function) }), expect.anything());
   });
 
-  it("does not block the GPU interconnect card when the trial restriction is not in force", () => {
-    const GpuInterconnectCard = vi.fn(() => null);
+  it("does not block the GPU interconnect when the trial restriction is not in force", () => {
+    const GpuCard = vi.fn(() => null);
     const useTrialGate = () => ({ isRestricted: false, isWalletReady: true });
 
-    setup({ dependencies: { GpuInterconnectCard, useTrialGate } });
+    setup({ dependencies: { GpuCard, useTrialGate } });
 
-    expect(GpuInterconnectCard).toHaveBeenCalledWith(expect.objectContaining({ isTrialBlocked: false }), expect.anything());
+    expect(GpuCard).toHaveBeenCalledWith(expect.objectContaining({ isInterconnectTrialBlocked: false }), expect.anything());
   });
 
-  it("does not block the GPU interconnect card while the pane is locked so the trial warning never fights the read-only quote view", () => {
-    const GpuInterconnectCard = vi.fn(() => null);
+  it("does not block the GPU interconnect while the pane is locked so the trial warning never fights the read-only quote view", () => {
+    const GpuCard = vi.fn(() => null);
     const useTrialGate = () => ({ isRestricted: true, isWalletReady: true });
 
-    setup({ locked: true, dependencies: { GpuInterconnectCard, useTrialGate } });
+    setup({ locked: true, dependencies: { GpuCard, useTrialGate } });
 
-    expect(GpuInterconnectCard).toHaveBeenCalledWith(expect.objectContaining({ isTrialBlocked: false }), expect.anything());
+    expect(GpuCard).toHaveBeenCalledWith(expect.objectContaining({ isInterconnectTrialBlocked: false }), expect.anything());
   });
 
   it("blocks nothing while the pane is locked", () => {

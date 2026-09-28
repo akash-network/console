@@ -20,8 +20,10 @@ export interface CollapsibleCardProps {
    * title. Accepts plain text or JSX (e.g. multi-paragraph copy with links).
    */
   infoTooltip?: React.ReactNode;
-  /** Optional collapsed-state summary shown on the right of the header. */
+  /** Optional summary shown on the right of the header. */
   summary?: React.ReactNode;
+  /** Whether the summary shows only while collapsed (default) or also while expanded. */
+  summaryVisibility?: "collapsed" | "always";
   /** Optional control rendered in the header (e.g. an enable switch). */
   headerControl?: React.ReactNode;
   /**
@@ -106,6 +108,7 @@ const CollapsibleCardBody = React.forwardRef<HTMLDivElement, Omit<CollapsibleCar
       locked,
       infoTooltip,
       summary,
+      summaryVisibility = "collapsed",
       headerControl,
       defaultOpen = true,
       open: openProp,
@@ -178,7 +181,7 @@ const CollapsibleCardBody = React.forwardRef<HTMLDivElement, Omit<CollapsibleCar
           >
             <CardIcon icon={icon} />
             <CardTitle title={title} infoTooltip={infoTooltip} locked={locked} />
-            {!open && summary && <CardSummary summary={summary} />}
+            {(summaryVisibility === "always" || !open) && summary && <CardSummary summary={summary} />}
             <span className="text-foreground flex h-6 w-6 shrink-0 items-center justify-center" aria-hidden>
               {open ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
             </span>

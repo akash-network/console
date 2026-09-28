@@ -26,36 +26,102 @@ const GPU_VENDORS: GpuVendor[] = [
 ];
 
 describe(GpuCard.name, () => {
-  it("hides the body while GPU is disabled", () => {
+  it("reads None in the header and counts zero GPUs while the GPU is off", () => {
+    setup({ hasGpu: false, gpu: 1 });
+
+    expect(screen.getByText("None")).toBeInTheDocument();
+    expect(screen.getByLabelText("GPUs")).toHaveValue(0);
+    expect(screen.queryByRole("switch", { name: "Enable GPU" })).not.toBeInTheDocument();
+  });
+
+  it("reads the count and the model in the header while expanded", () => {
+    setup({ hasGpu: true, gpu: 2, gpuModels: [{ vendor: "nvidia", name: "a100", memory: "", interface: "" }] });
+
+    expect(screen.getByText("2× A100")).toBeInTheDocument();
+  });
+
+  it("turns the GPU on with one unit and a default model when counting up from zero", async () => {
+    const { getValues, user } = setup({ hasGpu: false, gpu: 1, gpuModels: [] });
+
+    await user.click(screen.getByRole("button", { name: "Increase GPUs" }));
+
+    expect(getValues().services[0].profile).toMatchObject({ hasGpu: true, gpu: 1, gpuModels: [{ vendor: "nvidia", name: "", memory: "", interface: "" }] });
+  });
+
+  it("turns the GPU off at zero and keeps the picked model", async () => {
+    const { getValues, user } = setup({ hasGpu: true, gpu: 1, gpuModels: [{ vendor: "nvidia", name: "a100", memory: "", interface: "" }] });
+
+    await user.click(screen.getByRole("button", { name: "Decrease GPUs" }));
+
+    expect(getValues().services[0].profile).toMatchObject({ hasGpu: false, gpu: 0, gpuModels: [{ vendor: "nvidia", name: "a100" }] });
+    expect(screen.getByText("None")).toBeInTheDocument();
+  });
+
+  it("writes the first model and turns the GPU on when a model is picked before any entry exists", async () => {
+    const { getValues, user } = setup({ hasGpu: false, gpu: 0, gpuModels: [] });
+
+    await user.click(screen.getByRole("combobox", { name: "GPU model" }));
+    await user.click(await screen.findByRole("option", { name: "a100" }));
+
+    expect(getValues().services[0].profile).toMatchObject({
+      hasGpu: true,
+      gpu: 1,
+      gpuModels: [{ vendor: "nvidia", name: "a100", memory: "", interface: "" }]
+    });
+  });
+
+  it("turns the GPU on when a model is picked while it is off", async () => {
+    const { getValues, user } = setup({ hasGpu: false, gpu: 0, gpuModels: [{ vendor: "nvidia", name: "", memory: "", interface: "" }] });
+
+    await user.click(screen.getByRole("combobox", { name: "GPU model" }));
+    await user.click(await screen.findByRole("option", { name: "t4" }));
+
+    expect(getValues().services[0].profile).toMatchObject({ hasGpu: true, gpu: 1, gpuModels: [{ vendor: "nvidia", name: "t4" }] });
+  });
+
+  it("turns the GPU on when the model it already has is picked again while it is off", async () => {
+    const { getValues, user } = setup({ hasGpu: false, gpu: 0, gpuModels: [{ vendor: "nvidia", name: "", memory: "", interface: "" }] });
+
+    await user.click(screen.getByRole("combobox", { name: "GPU model" }));
+    await user.click(await screen.findByRole("option", { name: "Any model" }));
+
+    expect(getValues().services[0].profile).toMatchObject({ hasGpu: true, gpu: 1 });
+  });
+
+  it("keeps the vendor, memory and interface pickers out of the way while the GPU is off", () => {
+    setup({ hasGpu: false, gpu: 0, gpuModels: [{ vendor: "nvidia", name: "a100", memory: "", interface: "" }] });
+
+    expect(screen.getByRole("combobox", { name: "GPU model" })).toHaveTextContent("a100");
+    expect(screen.queryByRole("combobox", { name: "GPU vendor" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("combobox", { name: "GPU memory" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("combobox", { name: "GPU interface" })).not.toBeInTheDocument();
+  });
+
+  it.each([
+    { case: "before any entry exists", gpuModels: [] },
+    { case: "with an entry left on any model", gpuModels: [{ vendor: "nvidia", name: "", memory: "", interface: "" }] }
+  ])("prompts for a model while the GPU is off $case", ({ gpuModels }) => {
+    setup({ hasGpu: false, gpu: 0, gpuModels });
+
+    expect(screen.getByRole("combobox", { name: "GPU model" })).toHaveTextContent("Select");
+  });
+
+  it("names Any model in the trigger once the GPU is on without a pinned model", () => {
+    setup({ hasGpu: true, gpu: 1, gpuModels: [{ vendor: "nvidia", name: "", memory: "", interface: "" }] });
+
+    expect(screen.getByRole("combobox", { name: "GPU model" })).toHaveTextContent("Any model");
+  });
+
+  it("offers the GPU interconnect inside the card", () => {
     setup({ hasGpu: false });
 
-    expect(screen.getByRole("switch", { name: "Enable GPU" })).not.toBeChecked();
-    expect(screen.queryByLabelText("GPU vendor")).not.toBeInTheDocument();
-  });
-
-  it("enables hasGpu and defaults the count to one when toggled on", async () => {
-    const { getValues, user } = setup({ hasGpu: false, gpu: 0 });
-
-    await user.click(screen.getByRole("switch", { name: "Enable GPU" }));
-
-    expect(getValues().services[0].profile.hasGpu).toBe(true);
-    expect(getValues().services[0].profile.gpu).toBe(1);
-    expect(screen.getByLabelText("GPU vendor")).toBeInTheDocument();
-  });
-
-  it("disables hasGpu and resets the count to zero when toggled off", async () => {
-    const { getValues, user } = setup({ hasGpu: true, gpu: 2 });
-
-    await user.click(screen.getByRole("switch", { name: "Enable GPU" }));
-
-    expect(getValues().services[0].profile.hasGpu).toBe(false);
-    expect(getValues().services[0].profile.gpu).toBe(0);
+    expect(screen.getByRole("switch", { name: "Enable GPU interconnect" })).not.toBeChecked();
   });
 
   it("increments the GPU count", async () => {
     const { getValues, user } = setup({ hasGpu: true, gpu: 1 });
 
-    await user.click(screen.getByRole("button", { name: "Increase GPU count" }));
+    await user.click(screen.getByRole("button", { name: "Increase GPUs" }));
 
     expect(getValues().services[0].profile.gpu).toBe(2);
   });
@@ -64,7 +130,7 @@ describe(GpuCard.name, () => {
     setup({ hasGpu: true, gpuError: "GPU count is too high." });
 
     const error = screen.getByText("GPU count is too high.");
-    expect(screen.getByLabelText("GPU count")).toHaveAttribute("aria-describedby", error.id);
+    expect(screen.getByLabelText("GPUs")).toHaveAttribute("aria-describedby", error.id);
   });
 
   it("removes a non-first collection", async () => {
@@ -76,7 +142,7 @@ describe(GpuCard.name, () => {
       ]
     });
 
-    await user.click(screen.getByRole("button", { name: "Remove GPU 2" }));
+    await user.click(screen.getByRole("button", { name: "Remove alternative model 1" }));
 
     const gpuModels = getValues().services[0].profile.gpuModels;
     expect(gpuModels).toHaveLength(1);
@@ -92,16 +158,16 @@ describe(GpuCard.name, () => {
       ]
     });
 
-    const first = screen.getByRole("group", { name: "GPU 1" });
-    const second = screen.getByRole("group", { name: "GPU 2" });
-    expect(within(first).getByRole("combobox", { name: "GPU model" })).toHaveTextContent("a100");
-    expect(within(second).getByRole("combobox", { name: "GPU model" })).toHaveTextContent("mi300");
+    const [firstModel] = screen.getAllByRole("combobox", { name: "GPU model" });
+    const alternative = screen.getByRole("group", { name: "Alternative model 1" });
+    expect(firstModel).toHaveTextContent("a100");
+    expect(within(alternative).getByRole("combobox", { name: "GPU model" })).toHaveTextContent("mi300");
   });
 
-  it("disables Add GPU once the collection count reaches the max", () => {
+  it("disables Add another model once the collection count reaches the max", () => {
     setup({ hasGpu: true, gpuModels: makeGpuModels(validationConfig.maxGpuAmount), dependencies: { GpuModelFields: StubGpuModelFields } });
 
-    expect(screen.getByRole("button", { name: "Add GPU" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Add another model" })).toBeDisabled();
   });
 
   it("writes the picked model and leaves its sole memory and interface for the user to pin", async () => {
@@ -278,20 +344,34 @@ describe(GpuCard.name, () => {
     expect(screen.queryByRole("button", { name: "Clear GPU interface" })).not.toBeInTheDocument();
   });
 
-  it("appends a GPU collection when Add GPU is clicked", async () => {
+  it("appends an alternative model when Add another model is clicked", async () => {
     const { getValues, user } = setup({ hasGpu: true, gpuModels: [{ vendor: "nvidia", name: "", memory: "", interface: "" }] });
 
-    await user.click(screen.getByRole("button", { name: "Add GPU" }));
+    await user.click(screen.getByRole("button", { name: "Add another model" }));
 
-    expect(await screen.findByRole("group", { name: "GPU 2" })).toBeInTheDocument();
+    expect(await screen.findByRole("group", { name: "Alternative model 1" })).toBeInTheDocument();
     expect(getValues().services[0].profile.gpuModels).toHaveLength(2);
-    expect(screen.getByRole("button", { name: "Remove GPU 2" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Remove alternative model 1" })).toBeInTheDocument();
   });
 
-  it("does not offer a remove control for the first collection", () => {
+  it("does not offer a remove control for the first model", () => {
     setup({ hasGpu: true, gpuModels: [{ vendor: "nvidia", name: "", memory: "", interface: "" }] });
 
-    expect(screen.queryByRole("button", { name: "Remove GPU 1" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Remove/ })).not.toBeInTheDocument();
+  });
+
+  it("keeps alternative models and the add control hidden while the GPU is off", () => {
+    setup({
+      hasGpu: false,
+      gpu: 0,
+      gpuModels: [
+        { vendor: "nvidia", name: "a100", memory: "", interface: "" },
+        { vendor: "nvidia", name: "t4", memory: "", interface: "" }
+      ]
+    });
+
+    expect(screen.queryByRole("group", { name: "Alternative model 1" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Add another model" })).not.toBeInTheDocument();
   });
 
   it("shows a loading affordance instead of the model selects while GPU models are loading", () => {
@@ -308,11 +388,11 @@ describe(GpuCard.name, () => {
     expect(screen.queryByRole("combobox", { name: "GPU model" })).not.toBeInTheDocument();
   });
 
-  it("disables the enable switch and every GPU input while locked", () => {
+  it("disables every GPU input while locked", () => {
     setup({ hasGpu: true, locked: true, gpuModels: [{ vendor: "nvidia", name: "a100", memory: "40Gi", interface: "pcie" }] });
 
-    expect(screen.getByRole("switch", { name: "Enable GPU" })).toBeDisabled();
-    expect(screen.getByLabelText("GPU count")).toBeDisabled();
+    expect(screen.getByLabelText("GPUs")).toBeDisabled();
+    expect(screen.getByRole("switch", { name: "Enable GPU interconnect" })).toBeDisabled();
     expect(screen.getByRole("combobox", { name: "GPU vendor" })).toBeDisabled();
     expect(screen.getByRole("combobox", { name: "GPU model" })).toBeDisabled();
     expect(screen.getByRole("combobox", { name: "GPU memory" })).toBeDisabled();
@@ -342,7 +422,7 @@ describe(GpuCard.name, () => {
   it("tracks a GPU count change", async () => {
     const { analyticsService, user } = setup({ hasGpu: true, gpu: 1 });
 
-    await user.click(screen.getByRole("button", { name: "Increase GPU count" }));
+    await user.click(screen.getByRole("button", { name: "Increase GPUs" }));
 
     expect(analyticsService.track).toHaveBeenCalledWith("configure_gpu_count_changed", { category: "deployments", count: 2 });
   });
@@ -653,12 +733,12 @@ describe(GpuCard.name, () => {
     it("adds and removes GPU entries without a vendor step", async () => {
       const { getValues, user } = setup({ hasGpu: true, availableGpus: [{ vendor: "nvidia", models: [availableModel("t4")] }] });
 
-      await user.click(screen.getByRole("button", { name: "Add GPU" }));
+      await user.click(screen.getByRole("button", { name: "Add another model" }));
 
       expect(getValues().services[0].profile.gpuModels).toHaveLength(2);
       expect(screen.queryByRole("combobox", { name: "GPU vendor" })).not.toBeInTheDocument();
 
-      await user.click(screen.getByRole("button", { name: "Remove GPU 2" }));
+      await user.click(screen.getByRole("button", { name: "Remove alternative model 1" }));
 
       expect(getValues().services[0].profile.gpuModels).toHaveLength(1);
     });
