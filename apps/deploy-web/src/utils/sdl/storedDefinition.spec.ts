@@ -163,7 +163,16 @@ describe("storedDefinition", () => {
     });
 
     it("keeps a value withheld when this browser holds it as a reference too", () => {
-      expect(withEnvValuesFrom(sdlWithEnv(["TOKEN=ac-secret://TOKEN"]), sdlWithEnv(["TOKEN=ac-secret://TOKEN"]))).toBeUndefined();
+      expect(withEnvValuesFrom(sdlWithEnv(["TOKEN=ac-secret://s0_e0"]), sdlWithEnv(["TOKEN=ac-secret://s0_e0"]))).toBeUndefined();
+    });
+
+    it("keeps a secret the user named withheld, even where this browser holds its value", () => {
+      const restored = withEnvValuesFrom(
+        sdlWithEnv(["DB_PASSWORD=sealed-by-the-user", "PORT=3000"]),
+        sdlWithEnv(["DB_PASSWORD=ac-secret://DB_PASSWORD", "PORT=ac-secret://s0_e1"])
+      );
+
+      expect(envOf(restored, "web")).toEqual(["DB_PASSWORD=ac-secret://DB_PASSWORD", "PORT=3000"]);
     });
 
     it("keeps a value withheld when this browser holds nothing under its name", () => {

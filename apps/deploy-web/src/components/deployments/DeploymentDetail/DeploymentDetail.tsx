@@ -123,11 +123,11 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq, dependencies
       if (definition.source === "resolving") return;
 
       if (leases && deployment?.state === "active" && leases.length === 0 && !deployment.groups?.some(g => g.state === "paused")) {
-        const draftId = isUsableDeploymentDefinition(definition) ? createConfigureDraft(definition.sdl, { name: definition.name }) : undefined;
+        const draftId = isUsableDeploymentDefinition(definition) ? createConfigureDraft(sdlToRedeploy(definition), { name: definition.name }) : undefined;
         router.replace(UrlService.configureDeployment({ dseq, draftId }));
       }
     },
-    [deployment?.state, deployment?.groups, definition.source, definition.sdl, definition.name, dseq, leases, router]
+    [deployment?.state, deployment?.groups, definition.source, definition.sdl, definition.restoredSdl, definition.name, dseq, leases, router]
   );
 
   const tabQuery = searchParams?.get("tab");

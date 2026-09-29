@@ -1,14 +1,16 @@
 import { ApiError } from "@akashnetwork/openapi-sdk";
 import { createProxy } from "@akashnetwork/react-query-proxy";
 import { QueryCache, QueryClient } from "@tanstack/react-query";
+import yaml from "js-yaml";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import { useResolvedDeploymentName } from "@src/hooks/useResolvedDeploymentName/useResolvedDeploymentName";
 import type { DeploymentStorageService } from "@src/services/deployment-storage/deployment-storage.service";
-import type { DEPENDENCIES } from "./useDeploymentDefinition";
-import { isUsableDeploymentDefinition, sdlToRedeploy, useDeploymentDefinition } from "./useDeploymentDefinition";
+import { deploymentData } from "@src/utils/deploymentData";
+import { DEPENDENCIES, isUsableDeploymentDefinition, sdlToRedeploy, useDeploymentDefinition } from "./useDeploymentDefinition";
 
+import { helloWorldManifest } from "@tests/seeders/manifest";
 import { buildWallet } from "@tests/seeders/wallet";
 import { type RenderAppHookOptions, setupQuery } from "@tests/unit/query-client";
 
@@ -213,6 +215,35 @@ describe(useDeploymentDefinition.name, () => {
 
       await vi.waitFor(() => expect(result.current.source).toBe("local"));
     });
+
+    describe("when this browser hashes its own copy", () => {
+      it("fills the values the api sealed from a copy that hashes to the version the chain runs", async () => {
+        const localSdl = helloWorldWithEnv("TOKEN=from-this-browser");
+        const chainManifestVersion = await deploymentData.getManifestVersion(yaml.load(localSdl));
+        const { result, onQueryError } = setup({
+          apiSdl: helloWorldWithEnv("TOKEN=ac-secret://s0_e0"),
+          localSdl,
+          chainManifestVersion,
+          acceptReferences: true,
+          hashesBrowserCopy: true
+        });
+
+        await vi.waitFor(() => expect(result.current.restoredSdl).toContain("TOKEN=from-this-browser"));
+        expect(result.current.source).toBe("api");
+        expect(onQueryError).not.toHaveBeenCalled();
+      });
+
+      it.each([
+        ["does not parse", "services: [not, a, map"],
+        ["builds no manifest", LOCAL_SDL]
+      ])("restores nothing from a copy that %s, and reports nothing", async (_case, localSdl) => {
+        const { result, onQueryError } = setup({ apiSdl: WITHHELD_VALUES_SDL, localSdl, acceptReferences: true, hashesBrowserCopy: true });
+
+        await vi.waitFor(() => expect(result.current.source).toBe("api"));
+        expect(result.current.restoredSdl).toBeUndefined();
+        expect(onQueryError).not.toHaveBeenCalled();
+      });
+    });
   });
 
   it("restores nothing for a caller that does not accept references", async () => {
@@ -268,6 +299,12 @@ describe(useDeploymentDefinition.name, () => {
     expect(result.current.source).toBe("local");
   });
 
+  function helloWorldWithEnv(entry: string) {
+    const document = yaml.load(helloWorldManifest) as { services: { web: Record<string, unknown> } };
+    document.services.web.env = [entry];
+    return yaml.dump(document);
+  }
+
   function setup(input: {
     dseq?: string | null;
     apiSdl?: string | null;
@@ -281,6 +318,7 @@ describe(useDeploymentDefinition.name, () => {
     secretsEnabled?: boolean;
     browserCopyVersion?: string;
     isReadingBrowserCopy?: boolean;
+    hashesBrowserCopy?: boolean;
   }) {
     const chainManifestVersion = input.chainManifestVersion ?? "on-chain-version";
     const recordedManifestVersion = input.recordedManifestVersion ?? chainManifestVersion;
@@ -313,10 +351,11 @@ describe(useDeploymentDefinition.name, () => {
 
     const useResolvedName: typeof DEPENDENCIES.useResolvedDeploymentName = dseq =>
       useResolvedDeploymentName(dseq, { useServices, useDeploymentNameBackfill: () => undefined });
-    const useManifestVersionOf: typeof DEPENDENCIES.useManifestVersionOf = sdl => ({
+    const readBrowserCopyVersion: typeof DEPENDENCIES.useManifestVersionOf = sdl => ({
       version: sdl && !input.isReadingBrowserCopy ? input.browserCopyVersion ?? chainManifestVersion : undefined,
       isReading: !!sdl && !!input.isReadingBrowserCopy
     });
+    const useManifestVersionOf = input.hashesBrowserCopy ? DEPENDENCIES.useManifestVersionOf : readBrowserCopyVersion;
 
     const { result } = setupQuery(
       () =>

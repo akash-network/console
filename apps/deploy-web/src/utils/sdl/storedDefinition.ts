@@ -1,6 +1,6 @@
 import yaml from "js-yaml";
 
-import { SDL_REFERENCE_PATTERN } from "./sdlSecrets";
+import { isProtectedByDefault, SDL_REFERENCE_PATTERN } from "./sdlSecrets";
 
 export function hasSdlReference(sdl: string): boolean {
   return carriesReference(parseSdl(sdl));
@@ -24,7 +24,7 @@ export function isStoredSdlRedeployable(sdl: string): boolean {
   return document !== null && blankEnvValuesIn(document).length === 0;
 }
 
-/** Only env values come back, since registry credentials are kept as secrets whatever this browser holds; undefined when none does. */
+/** Only env values the api sealed on its own come back, since registry credentials and secrets the user named stay secrets whatever this browser holds; undefined when none does. */
 export function withEnvValuesFrom(browserSdl: string, apiSdl: string): string | undefined {
   const document = parseSdl(apiSdl);
   const browserValues = plainEnvValuesByService(parseSdl(browserSdl));
@@ -35,7 +35,7 @@ export function withEnvValuesFrom(browserSdl: string, apiSdl: string): string | 
     if (!Array.isArray(env)) return;
 
     env.forEach((entry, index) => {
-      if (typeof entry !== "string" || !SDL_REFERENCE_PATTERN.test(assignedValueOf(entry))) return;
+      if (typeof entry !== "string" || !isProtectedByDefault(assignedValueOf(entry))) return;
 
       const name = entry.slice(0, entry.indexOf("="));
       const value = browserValues.get(`${service}.${name}`);

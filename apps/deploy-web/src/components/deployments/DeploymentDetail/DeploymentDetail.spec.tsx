@@ -170,6 +170,14 @@ describe("DeploymentDetail", () => {
     expect(router.replace).toHaveBeenCalledWith(expect.stringContaining("draftId"));
   });
 
+  it("seeds the configure draft with the values this browser gave back when redirecting a lease-less deployment", () => {
+    const { router } = setup({ leases: [], definition: { sdl: "version: '2.0' # withheld", restoredSdl: "version: '2.0' # restored", source: "api" } });
+
+    const draftId = new URL(router.replace.mock.calls[0][0] as string, "https://console.test").searchParams.get("draftId");
+    const draft = JSON.parse(localStorage.getItem(`configure-draft:${draftId}`) ?? "{}");
+    expect(draft.sdl).toBe("version: '2.0' # restored");
+  });
+
   it("redirects a lease-less deployment without a draft when the definition is absent despite an inspection-only api sdl", () => {
     const { router } = setup({ leases: [], definition: { sdl: "version: '2.0' # not-self-contained", source: "absent" } });
 

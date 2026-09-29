@@ -22,7 +22,7 @@ export interface DeploymentDefinition {
   manifestVersion?: string;
   /** Whether the console holds a definition of its own, usable here or not; unknown until the api has answered. */
   isRecordedByConsole?: boolean;
-  /** The api's copy with the env values it withholds filled from this browser, present only while this browser's copy is the one the chain runs. */
+  /** The api's copy with the env values it sealed on its own filled from this browser, present only while this browser's copy is the one the chain runs. */
   restoredSdl?: string;
 }
 
@@ -34,20 +34,30 @@ export function isUsableDeploymentDefinition(definition: DeploymentDefinition): 
 }
 
 /** A redeploy seeds Configure with the values this browser gave back, so the new deployment stores them as plain variables. */
+export function sdlToRedeploy(definition: DeploymentDefinition & { sdl: string }): string;
+export function sdlToRedeploy(definition: DeploymentDefinition): string | undefined;
 export function sdlToRedeploy(definition: DeploymentDefinition): string | undefined {
   return definition.restoredSdl ?? definition.sdl;
 }
 
-/** A copy this browser cannot hash is treated as one the chain does not run, rather than reported. */
 function useManifestVersionOf(sdl: string | undefined): { version: string | null | undefined; isReading: boolean } {
   const query = useQuery({
     queryKey: QueryKeys.getManifestVersionKey(sdl),
-    queryFn: () => deploymentData.getManifestVersion(yaml.load(sdl ?? "")).catch(() => null),
+    queryFn: () => manifestVersionOrNull(sdl ?? ""),
     enabled: !!sdl,
     staleTime: Infinity
   });
 
   return { version: query.data, isReading: query.isLoading };
+}
+
+/** A copy this browser cannot parse or hash is treated as one the chain does not run, rather than reported. */
+async function manifestVersionOrNull(sdl: string): Promise<string | null> {
+  try {
+    return await deploymentData.getManifestVersion(yaml.load(sdl));
+  } catch {
+    return null;
+  }
 }
 
 export const DEPENDENCIES = { useServices, useWallet, useResolvedDeploymentName, useFlag, useManifestVersionOf };

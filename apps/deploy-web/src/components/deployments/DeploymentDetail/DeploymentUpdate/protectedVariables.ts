@@ -1,11 +1,8 @@
 import type { EnvironmentVariableType } from "@src/types/sdlBuilder/sdlBuilder";
 import { RESERVED_ENV_KEYS as RESERVED_ENV_KEY_LIST } from "@src/types/sdlBuilder/sdlBuilder";
-import { isSdlReference, secretNameOf } from "@src/utils/sdl/sdlSecrets";
+import { isProtectedByDefault, isSdlReference } from "@src/utils/sdl/sdlSecrets";
 
 const RESERVED_ENV_KEYS = new Set<string>(RESERVED_ENV_KEY_LIST);
-
-/** Mirrors the names the api mints for env values it sealed without being asked: `s<service>_e<position>`, plus a suffix on a collision. */
-const PROTECTED_BY_DEFAULT_NAME = /^s\d+_e\d+(_\d+)?$/;
 
 type ServiceEnv = EnvironmentVariableType[];
 
@@ -34,7 +31,7 @@ export function restoredEnvOf(current: ServiceEnv[], restored: ServiceEnv[]): { 
 }
 
 export function holdsVariablesProtectedByDefault(services: ServiceEnv[]): boolean {
-  return services.some(env => env.some(variable => isKeptSecret(variable) && PROTECTED_BY_DEFAULT_NAME.test(secretNameOf(variable.value ?? "") ?? "")));
+  return services.some(env => env.some(variable => isKeptSecret(variable) && isProtectedByDefault(variable.value ?? "")));
 }
 
 /** A reserved variable is managed for the user and never shown, so it is neither counted nor given back. */

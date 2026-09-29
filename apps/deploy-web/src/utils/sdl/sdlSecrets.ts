@@ -12,6 +12,9 @@ const SECRET_NAME_PATTERN = /^[A-Za-z_][A-Za-z0-9_]{0,63}$/;
 
 const SECRET_REFERENCE_KIND = "secret";
 
+/** Mirrors the names the api mints for env values it sealed without being asked: `s<service>_e<position>`, plus a suffix on a collision. */
+const PROTECTED_BY_DEFAULT_NAME = /^s\d+_e\d+(_\d+)?$/;
+
 export const REGISTRY_USERNAME_SECRET_NAME = "REGISTRY_USERNAME";
 export const REGISTRY_PASSWORD_SECRET_NAME = "REGISTRY_PASSWORD";
 
@@ -70,6 +73,10 @@ export function secretReferenceOf(name: string): string {
 export function secretNameOf(value: string): string | null {
   const reference = SDL_REFERENCE_PATTERN.exec(value);
   return reference && reference[1] === SECRET_REFERENCE_KIND ? reference[2] : null;
+}
+
+export function isProtectedByDefault(value: string): boolean {
+  return PROTECTED_BY_DEFAULT_NAME.test(secretNameOf(value) ?? "");
 }
 
 export function envSecretSlotKey(serviceIndex: number, envIndex: number): string {
