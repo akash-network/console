@@ -179,6 +179,14 @@ export const operations = {
       queryParams: [],
       hasBody: true
     },
+    createHardwareRequest: {
+      path: "/v1/hardware-requests",
+      method: "post",
+      operationId: "createHardwareRequest",
+      pathParams: [],
+      queryParams: [],
+      hasBody: true
+    },
     createAlert: { path: "/v1/alerts", method: "post", operationId: "createAlert", pathParams: [], queryParams: [], hasBody: true },
     listAlerts: {
       path: "/v1/alerts",
