@@ -2,6 +2,7 @@ import { createOtelLogger } from "@akashnetwork/logging/otel";
 import { singleton } from "tsyringe";
 
 import { AutoRechargeSucceeded } from "@src/billing/events/auto-recharge-succeeded";
+import { CreditsAdded } from "@src/billing/events/credits-added";
 import { FirstPurchaseBonusGranted } from "@src/billing/events/first-purchase-bonus-granted";
 import { PaymentMethodService } from "@src/billing/services/payment-method/payment-method.service";
 import { StripeService } from "@src/billing/services/stripe/stripe.service";
@@ -59,12 +60,15 @@ export class StripeWebhookService {
           break;
       }
 
-      // Published after the settling transaction has committed so neither email fires on a rolled-back credit.
+      // Published after the settling transaction has committed so nothing notifies on a rolled-back credit.
       if (outcome.bonusGrant) {
         await this.domainEventsService.publish(new FirstPurchaseBonusGranted(outcome.bonusGrant));
       }
       if (outcome.autoRecharge) {
         await this.domainEventsService.publish(new AutoRechargeSucceeded(outcome.autoRecharge));
+      }
+      if (outcome.creditsAdded) {
+        await this.domainEventsService.publish(new CreditsAdded(outcome.creditsAdded));
       }
     } catch (error) {
       this.logger.error({

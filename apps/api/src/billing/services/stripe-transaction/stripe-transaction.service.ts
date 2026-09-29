@@ -6,6 +6,7 @@ import Stripe from "stripe";
 import { inject, singleton } from "tsyringe";
 
 import { FundDrainingDeploymentsCommand } from "@src/billing/commands/fund-draining-deployments.command";
+import type { CreditsAdded } from "@src/billing/events/credits-added";
 import { PaymentIntentResult } from "@src/billing/http-schemas/stripe.schema";
 import { CARD_DECLINED_ERROR_CODE } from "@src/billing/lib/card-decline/card-decline";
 import { STRIPE_CLIENT } from "@src/billing/providers/stripe-client.provider";
@@ -68,11 +69,12 @@ export interface AutoRechargeSuccess {
 
 /**
  * What a webhook settlement produced, for the dispatcher to publish after the transaction commits.
- * Either field is absent when its event should not fire.
+ * Each field is absent when its event should not fire.
  */
 export interface SettlementOutcome {
   bonusGrant?: FirstPurchaseBonusGrant;
   autoRecharge?: AutoRechargeSuccess;
+  creditsAdded?: CreditsAdded["data"];
 }
 
 /**
@@ -624,9 +626,10 @@ export class StripeTransactionService {
    * Credits the wallet for a settled Stripe charge: resolves the owning user, enriches the row with the
    * charge's card details, and records the succeeded transaction. Once that transaction has committed it
    * publishes the draining-deployment funding command, then returns the events the caller should publish
-   * (first-purchase bonus, automatic recharge success). Everything runs post-commit so a rolled-back credit
-   * can neither fund deployments nor send an email. The auto-recharge event is returned only when this
-   * delivery actually credited the wallet, so retries and replays never notify twice.
+   * (first-purchase bonus, automatic recharge success, credits added). Everything runs post-commit so a
+   * rolled-back credit can neither fund deployments nor send an email. The auto-recharge and credits-added
+   * events are returned only when this delivery actually credited the wallet, so retries and replays never
+   * notify twice.
    */
   async #settleFromWebhook(params: {
     customerId: string | null;
@@ -699,7 +702,17 @@ export class StripeTransactionService {
 
     return {
       bonusGrant: bonusAmount > 0 ? { userId: user.id, bonusAmountCents: bonusAmount, paidAmountCents: params.paymentAmount } : undefined,
-      autoRecharge: settled && params.isAutoRecharge ? { userId: user.id, transactionId: params.transaction.id, amountCents: params.paymentAmount } : undefined
+      autoRecharge: settled && params.isAutoRecharge ? { userId: user.id, transactionId: params.transaction.id, amountCents: params.paymentAmount } : undefined,
+      creditsAdded: settled
+        ? {
+            userId: user.id,
+            transactionId: params.transaction.id,
+            source: params.transaction.type,
+            isAutoRecharge: params.isAutoRecharge,
+            paidAmountCents: params.paymentAmount,
+            bonusAmountCents: bonusAmount
+          }
+        : undefined
     };
   }
 

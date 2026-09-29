@@ -342,9 +342,117 @@ describe(StripeTransactionService.name, () => {
 
       expect(outcome.autoRecharge).toBeUndefined();
     });
+
+    it("returns the credits added by a card purchase, including its first-purchase bonus", async () => {
+      const { service, userRepository, stripeTransactionRepository, firstPurchaseBonusService } = setup();
+      const mockUser = createTestUser();
+      const amount = 15000;
+      const bonusAmount = 1500;
+      const internalTransaction = generateDatabaseStripeTransaction({ id: "tx-card", type: "payment_intent", status: "created", amount });
+
+      userRepository.findOneBy.mockResolvedValue(mockUser);
+      stripeTransactionRepository.findById.mockResolvedValue(internalTransaction);
+      stripeTransactionRepository.findOneByAndLock.mockResolvedValue(internalTransaction);
+      firstPurchaseBonusService.getEligibleBonusAmount.mockResolvedValue(bonusAmount);
+
+      const outcome = await service.settlePaymentIntent(
+        createPaymentIntentSucceededEvent({
+          id: "pi_card",
+          customer: mockUser.stripeCustomerId,
+          amount,
+          amount_received: amount,
+          metadata: { internal_transaction_id: internalTransaction.id }
+        })
+      );
+
+      expect(outcome.creditsAdded).toEqual({
+        userId: mockUser.id,
+        transactionId: internalTransaction.id,
+        source: "payment_intent",
+        isAutoRecharge: false,
+        paidAmountCents: amount,
+        bonusAmountCents: bonusAmount
+      });
+    });
+
+    it("returns the credits added by an auto recharge as automatic", async () => {
+      const { service, userRepository, stripeTransactionRepository } = setup();
+      const mockUser = createTestUser();
+      const amount = 5000;
+      const internalTransaction = generateDatabaseStripeTransaction({ id: "tx-auto", type: "payment_intent", status: "created", amount });
+
+      userRepository.findOneBy.mockResolvedValue(mockUser);
+      stripeTransactionRepository.findById.mockResolvedValue(internalTransaction);
+      stripeTransactionRepository.findOneByAndLock.mockResolvedValue(internalTransaction);
+
+      const outcome = await service.settlePaymentIntent(
+        createPaymentIntentSucceededEvent({
+          id: "pi_auto",
+          customer: mockUser.stripeCustomerId,
+          amount,
+          amount_received: amount,
+          metadata: { internal_transaction_id: internalTransaction.id, auto_recharge: "true" }
+        })
+      );
+
+      expect(outcome.creditsAdded).toEqual({
+        userId: mockUser.id,
+        transactionId: internalTransaction.id,
+        source: "payment_intent",
+        isAutoRecharge: true,
+        paidAmountCents: amount,
+        bonusAmountCents: 0
+      });
+    });
+
+    it("does not return credits added when the transaction was already settled", async () => {
+      const { service, userRepository, stripeTransactionRepository } = setup();
+      const mockUser = createTestUser();
+      const amount = 5000;
+      const settledTransaction = generateDatabaseStripeTransaction({ id: "tx-settled", type: "payment_intent", status: "succeeded", amount });
+
+      userRepository.findOneBy.mockResolvedValue(mockUser);
+      stripeTransactionRepository.findById.mockResolvedValue(settledTransaction);
+      stripeTransactionRepository.findOneByAndLock.mockResolvedValue(settledTransaction);
+
+      const outcome = await service.settlePaymentIntent(
+        createPaymentIntentSucceededEvent({
+          id: "pi_settled",
+          customer: mockUser.stripeCustomerId,
+          amount,
+          amount_received: amount,
+          metadata: { internal_transaction_id: settledTransaction.id }
+        })
+      );
+
+      expect(outcome.creditsAdded).toBeUndefined();
+    });
   });
 
   describe("settleInvoice", () => {
+    it.each(["coupon_claim", "manual_credit"] as const)("returns the credits added by a matched %s invoice", async type => {
+      const { service, userRepository, stripeTransactionRepository } = setup();
+      const mockUser = createTestUser();
+      const invoiceId = `in_${type}`;
+      const amount = 2000;
+      const transaction = generateDatabaseStripeTransaction({ id: `tx-${type}`, type, status: "pending", amount, stripeInvoiceId: invoiceId });
+
+      userRepository.findOneBy.mockResolvedValue(mockUser);
+      stripeTransactionRepository.findByInvoiceId.mockResolvedValue(transaction);
+      stripeTransactionRepository.findOneByAndLock.mockResolvedValue(transaction);
+
+      const outcome = await service.settleInvoice(createInvoicePaidEvent({ id: invoiceId, customer: mockUser.stripeCustomerId, amount_paid: 0 }));
+
+      expect(outcome.creditsAdded).toEqual({
+        userId: mockUser.id,
+        transactionId: transaction.id,
+        source: type,
+        isAutoRecharge: false,
+        paidAmountCents: amount,
+        bonusAmountCents: 0
+      });
+    });
+
     it("tops up wallet using transaction amount (not invoice amount_paid which may be 0 for discounted invoices)", async () => {
       const { service, userRepository, stripeTransactionRepository, refillService, stripe } = setup();
       const mockUser = createTestUser();

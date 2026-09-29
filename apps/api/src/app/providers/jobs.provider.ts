@@ -20,6 +20,7 @@ import { AutoRechargeSucceededHandler } from "../services/auto-recharge-succeede
 import { CloseExpiredDeploymentHandler } from "../services/close-expired-deployment/close-expired-deployment.handler";
 import { CloseTrialDeploymentHandler } from "../services/close-trial-deployment/close-trial-deployment.handler";
 import { CloseUnreachableProviderDeploymentHandler } from "../services/close-unreachable-provider-deployment/close-unreachable-provider-deployment.handler";
+import { CreditsAddedSlackAlertHandler } from "../services/credits-added-slack-alert/credits-added-slack-alert.handler";
 import { EnableDeploymentAlertHandler } from "../services/enable-deployment-alert/enable-deployment-alert.handler";
 import { FirstPurchaseBonusGrantedHandler } from "../services/first-purchase-bonus-granted/first-purchase-bonus-granted.handler";
 import { FundDeploymentHandler } from "../services/fund-deployment/fund-deployment.handler";
@@ -46,6 +47,7 @@ export async function startJobQueues(): Promise<void> {
     container.resolve(WalletCreditsLowCheckHandler),
     container.resolve(FirstPurchaseBonusGrantedHandler),
     container.resolve(AutoRechargeSucceededHandler),
+    container.resolve(CreditsAddedSlackAlertHandler),
     container.resolve(ActivateTrialHandler),
     container.resolve(DeleteUnbackedDeploymentSettingHandler),
     container.resolve(RecordDeploymentSettingHandler),
