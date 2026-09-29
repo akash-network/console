@@ -16,8 +16,7 @@ test.describe("Configure deployment — Container-VM (SSH)", () => {
       await expect(page).toHaveURL(/\/new-deployment\/configure\?.*vm=true/);
       await expect(configure.operatingSystemCard()).toBeVisible();
       await expect(configure.dockerImageInput()).toHaveCount(0);
-      await expect(configure.exposeSshCheckbox()).toBeChecked();
-      await expect(configure.exposeSshCheckbox()).toBeDisabled();
+      await expect(configure.sshPublicKeyInput()).toBeVisible();
     });
 
     await test.step("the managed distributions are selectable", async () => {
