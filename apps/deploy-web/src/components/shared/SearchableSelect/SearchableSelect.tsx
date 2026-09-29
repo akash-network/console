@@ -44,7 +44,7 @@ type Props = {
   /** Groups `options` under a heading, with an optional column label above the hints, and separates every section. */
   optionsHeading?: { label: string; hintLabel?: string };
   unavailableHeading?: string;
-  renderFooter?: (search: string) => ReactNode;
+  renderFooter?: (search: string, controls: { close: () => void }) => ReactNode;
   /** Accessible name of the trigger (which exposes `role="combobox"`). */
   ariaLabel: string;
   /** Accessible name of the search box inside the popover. */
@@ -172,7 +172,7 @@ export const SearchableSelect: FC<Props> = ({
               <p className="py-6 text-center text-sm text-muted-foreground">{notFoundMessage}</p>
             )}
           </CommandList>
-          {renderFooter && <div className="border-t p-1">{renderFooter(search)}</div>}
+          {renderFooter && <div className="border-t p-1">{renderFooter(search, { close: () => closeAndResetSearch(false) })}</div>}
         </Command>
       </PopoverContent>
     </Popover>
