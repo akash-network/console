@@ -1,9 +1,9 @@
 import type { PropsWithChildren } from "react";
-import type { Resolver } from "react-hook-form";
+import type { FieldError, FieldPath, Resolver } from "react-hook-form";
 import { FormProvider, useForm, useFormState } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { SnackbarProvider } from "notistack";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 
 import type { SdlBuilderFormValuesType } from "@src/types";
 import { SdlBuilderFormValuesSchema } from "@src/types";
@@ -66,67 +66,12 @@ describe(RuntimeCard.name, () => {
     expect(getValues().services[0].sshPubKey).toBe("");
   });
 
-  it("edits the ssh public key", async () => {
-    const { getValues } = setup({ hasSSHKey: true });
-
-    await userEvent.type(screen.getByLabelText("SSH public key"), "ssh-rsa AAAA");
-
-    expect(getValues().services[0].sshPubKey).toBe("ssh-rsa AAAA");
-  });
-
-  it("mirrors the ssh public key into a managed SSH_PUBKEY env var", async () => {
-    const { getValues } = setup({ hasSSHKey: true });
-
-    await userEvent.type(screen.getByLabelText("SSH public key"), "ssh-rsa AAAA");
-
-    const sshEnv = getValues().services[0].env?.filter(e => e.key === "SSH_PUBKEY");
-    expect(sshEnv).toEqual([expect.objectContaining({ key: "SSH_PUBKEY", value: "ssh-rsa AAAA", isSecret: false })]);
-  });
-
   it("removes the SSH_PUBKEY env var when Expose SSH is unchecked", async () => {
     const { getValues } = setup({ hasSSHKey: true, sshPubKey: "ssh-rsa EXISTING", env: [{ key: "SSH_PUBKEY", value: "ssh-rsa EXISTING" }] });
 
     await userEvent.click(screen.getByLabelText("Expose SSH"));
 
     expect(getValues().services[0].env?.some(e => e.key === "SSH_PUBKEY")).toBe(false);
-  });
-
-  it("does not duplicate the SSH_PUBKEY env var on repeated edits", async () => {
-    const { getValues } = setup({ hasSSHKey: true });
-
-    await userEvent.type(screen.getByLabelText("SSH public key"), "ab");
-
-    expect(getValues().services[0].env?.filter(e => e.key === "SSH_PUBKEY")).toHaveLength(1);
-  });
-
-  it("preserves other env vars when syncing SSH_PUBKEY", async () => {
-    const { getValues } = setup({ hasSSHKey: true, env: [{ key: "FOO", value: "bar" }] });
-
-    await userEvent.type(screen.getByLabelText("SSH public key"), "x");
-
-    const env = getValues().services[0].env ?? [];
-    expect(env.some(e => e.key === "FOO" && e.value === "bar")).toBe(true);
-    expect(env.some(e => e.key === "SSH_PUBKEY")).toBe(true);
-  });
-
-  it("applies the ssh public key to every service so none is left invalid", async () => {
-    const { getValues } = setup({ hasSSHKey: true, extraServices: 1 });
-
-    await userEvent.type(screen.getByLabelText("SSH public key"), "ssh-rsa AAAA");
-
-    expect(getValues().services.map(s => s.sshPubKey)).toEqual(["ssh-rsa AAAA", "ssh-rsa AAAA"]);
-  });
-
-  it("mirrors the SSH_PUBKEY env var into every service", async () => {
-    const { getValues } = setup({ hasSSHKey: true, extraServices: 1 });
-
-    await userEvent.type(screen.getByLabelText("SSH public key"), "ssh-rsa AAAA");
-
-    for (const service of getValues().services) {
-      expect(service.env?.filter(e => e.key === "SSH_PUBKEY")).toEqual([
-        expect.objectContaining({ key: "SSH_PUBKEY", value: "ssh-rsa AAAA", isSecret: false })
-      ]);
-    }
   });
 
   it("clears the ssh key from every service when Expose SSH is unchecked", async () => {
@@ -138,24 +83,6 @@ describe(RuntimeCard.name, () => {
     expect(getValues().services.every(s => !s.env?.some(e => e.key === "SSH_PUBKEY"))).toBe(true);
   });
 
-  it("populates the ssh public key and env from a generated keypair", async () => {
-    const generateSSHKeyPair = vi.fn().mockResolvedValue({ publicKey: "ssh-rsa GENERATED", privatePem: "PRIVATE" });
-    const { getValues } = setup({ hasSSHKey: true, dependencies: { generateSSHKeyPair } });
-
-    await userEvent.click(screen.getByRole("button", { name: "Generate new key" }));
-
-    expect(generateSSHKeyPair).toHaveBeenCalled();
-    await vi.waitFor(() => expect(getValues().services[0].sshPubKey).toBe("ssh-rsa GENERATED"));
-    expect(screen.getByLabelText("SSH public key")).toHaveValue("ssh-rsa GENERATED");
-    expect(getValues().services[0].env?.find(e => e.key === "SSH_PUBKEY")?.value).toBe("ssh-rsa GENERATED");
-  });
-
-  it("offers the usage instructions tooltip whenever SSH is exposed", () => {
-    setup({ hasSSHKey: true });
-
-    expect(screen.getByRole("button", { name: "How to use the SSH key" })).toBeInTheDocument();
-  });
-
   it("pins the replica stepper at a single disabled instance for a vm service", () => {
     setup({ image: "ghcr.io/akash-network/ubuntu-2404-ssh:2" });
 
@@ -165,20 +92,26 @@ describe(RuntimeCard.name, () => {
     expect(screen.getByText("VMs run as a single instance.")).toBeInTheDocument();
   });
 
-  it("forces Expose SSH on, disabled, with the key field visible for a vm service", () => {
-    setup({ image: "ghcr.io/akash-network/ubuntu-2404-ssh:2" });
+  it("leaves the ssh controls to the Operating System card for a vm service", () => {
+    setup({ image: "ghcr.io/akash-network/ubuntu-2404-ssh:2", hasSSHKey: true });
 
-    expect(screen.getByRole("checkbox", { name: "Expose SSH" })).toBeChecked();
-    expect(screen.getByRole("checkbox", { name: "Expose SSH" })).toBeDisabled();
-    expect(screen.getByLabelText("SSH public key")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Generate new key" })).toBeInTheDocument();
+    expect(screen.getByRole("spinbutton", { name: "Replicas" })).toBeInTheDocument();
+    expect(screen.queryByRole("checkbox", { name: "Expose SSH" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("textbox", { name: "SSH public key" })).not.toBeInTheDocument();
   });
 
-  it("keeps Expose SSH forced on a sibling non-vm service's card while the deployment holds a vm", () => {
+  it("renders collapsed for a vm service", () => {
+    setup({ image: "ghcr.io/akash-network/ubuntu-2404-ssh:2", expanded: false });
+
+    expect(screen.getByRole("button", { name: "Expand Runtime" })).toBeInTheDocument();
+  });
+
+  it("keeps Expose SSH forced on, with the key field, on a sibling non-vm service's card while the deployment holds a vm", () => {
     setup({ image: "", siblingVmService: true });
 
     expect(screen.getByRole("checkbox", { name: "Expose SSH" })).toBeChecked();
     expect(screen.getByRole("checkbox", { name: "Expose SSH" })).toBeDisabled();
+    expect(screen.getByRole("textbox", { name: "SSH public key" })).toBeInTheDocument();
     expect(screen.getByRole("spinbutton", { name: "Replicas" })).not.toBeDisabled();
   });
 
@@ -190,28 +123,46 @@ describe(RuntimeCard.name, () => {
     expect(screen.queryByText("VMs run as a single instance.")).not.toBeInTheDocument();
   });
 
-  it("opens expanded for a vm service so the required key field is visible on entry", () => {
-    setup({ image: "ghcr.io/akash-network/ubuntu-2404-ssh:2", expanded: false });
-
-    expect(screen.getByLabelText("SSH public key")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Expand Runtime" })).not.toBeInTheDocument();
-  });
-
-  it("shows the missing-key error inline when a vm submit is rejected", async () => {
-    setup({ image: "ghcr.io/akash-network/ubuntu-2404-ssh:2", resolver: zodResolver(SdlBuilderFormValuesSchema), expanded: false });
-
-    await userEvent.click(screen.getByRole("button", { name: "Request quotes" }));
-
-    await waitFor(() => expect(screen.getByText("SSH Public key is required.")).toBeInTheDocument());
-  });
-
   it("marks the collapsed card when a submit is rejected on its hidden ssh key field", async () => {
-    setup({ image: "ghcr.io/akash-network/ubuntu-2404-ssh:2", resolver: zodResolver(SdlBuilderFormValuesSchema), expanded: false });
+    setup({ image: "nginx:latest", hasSSHKey: true, resolver: zodResolver(SdlBuilderFormValuesSchema), expanded: false });
 
-    await userEvent.click(screen.getByRole("button", { name: "Collapse Runtime" }));
     await userEvent.click(screen.getByRole("button", { name: "Request quotes" }));
 
     await waitFor(() => expect(screen.getByRole("button", { name: "Expand Runtime" }).closest(".border-destructive")).not.toBeNull());
+  });
+
+  it("marks the collapsed card when a submit is rejected on the replica count", async () => {
+    const resolver: Resolver<SdlBuilderFormValuesType> = async () => ({
+      values: {},
+      errors: { services: { 0: { count: { type: "max", message: "Too many replicas" } } } }
+    });
+    setup({ image: "nginx:latest", resolver, expanded: false });
+
+    await userEvent.click(screen.getByRole("button", { name: "Request quotes" }));
+
+    await waitFor(() => expect(screen.getByRole("button", { name: "Expand Runtime" }).closest(".border-destructive")).not.toBeNull());
+  });
+
+  it("leaves the card unmarked when a vm submit is rejected on the key the Operating System card holds", async () => {
+    const { fieldError } = setup({ image: "ghcr.io/akash-network/ubuntu-2404-ssh:2", resolver: zodResolver(SdlBuilderFormValuesSchema), expanded: false });
+
+    await userEvent.click(screen.getByRole("button", { name: "Request quotes" }));
+
+    await waitFor(() => expect(fieldError("services.0.sshPubKey")?.message).toBe("SSH Public key is required."));
+    expect(screen.getByRole("button", { name: "Expand Runtime" }).closest(".border-destructive")).toBeNull();
+  });
+
+  it("leaves the card unmarked when a submit is rejected on another service", async () => {
+    const resolver: Resolver<SdlBuilderFormValuesType> = async () => ({
+      values: {},
+      errors: { services: { 1: { image: { type: "required", message: "Docker image is required." } } } }
+    });
+    const { fieldError } = setup({ image: "nginx:latest", resolver, expanded: false });
+
+    await userEvent.click(screen.getByRole("button", { name: "Request quotes" }));
+
+    await waitFor(() => expect(fieldError("services.1.image")?.message).toBe("Docker image is required."));
+    expect(screen.getByRole("button", { name: "Expand Runtime" }).closest(".border-destructive")).toBeNull();
   });
 
   it("re-validates the CPU group limit when the replica count changes", async () => {
@@ -257,7 +208,6 @@ describe(RuntimeCard.name, () => {
     locked?: boolean;
     expanded?: boolean;
     resolver?: Resolver<SdlBuilderFormValuesType>;
-    dependencies?: Partial<typeof DEPENDENCIES>;
   }) {
     const base = defaultServiceWithPlacement({
       image: input.image ?? "",
@@ -279,6 +229,7 @@ describe(RuntimeCard.name, () => {
     };
 
     let getValues: () => SdlBuilderFormValuesType = () => values;
+    let getFieldError: (name: FieldPath<SdlBuilderFormValuesType>) => FieldError | undefined = () => undefined;
     const Wrapper = ({ children }: PropsWithChildren) => {
       const form = useForm<SdlBuilderFormValuesType>({
         defaultValues: values,
@@ -287,6 +238,7 @@ describe(RuntimeCard.name, () => {
         resolver: input.resolver
       });
       getValues = form.getValues;
+      getFieldError = name => form.getFieldState(name).error;
       return (
         <SnackbarProvider>
           <FormProvider {...form}>
@@ -299,23 +251,9 @@ describe(RuntimeCard.name, () => {
       );
     };
 
-    const dependencies: typeof DEPENDENCIES = {
-      ...DEPENDENCIES,
-      saveAs: vi.fn(),
-      loadJSZip: vi.fn().mockResolvedValue(
-        class {
-          file() {}
-          async generateAsync() {
-            return new Blob();
-          }
-        }
-      ),
-      ...input.dependencies
-    };
-
     render(
       <Wrapper>
-        <RuntimeCard serviceIndex={0} locked={input.locked} dependencies={dependencies} />
+        <RuntimeCard serviceIndex={0} locked={input.locked} dependencies={DEPENDENCIES} />
       </Wrapper>
     );
 
@@ -326,7 +264,7 @@ describe(RuntimeCard.name, () => {
       }
     }
 
-    return { getValues: () => getValues() };
+    return { getValues: () => getValues(), fieldError: (name: FieldPath<SdlBuilderFormValuesType>) => getFieldError(name) };
   }
 
   /**
@@ -363,7 +301,7 @@ describe(RuntimeCard.name, () => {
 
     render(
       <Wrapper>
-        <RuntimeCard serviceIndex={0} dependencies={{ ...DEPENDENCIES, saveAs: vi.fn(), loadJSZip: vi.fn() }} />
+        <RuntimeCard serviceIndex={0} dependencies={DEPENDENCIES} />
       </Wrapper>
     );
 

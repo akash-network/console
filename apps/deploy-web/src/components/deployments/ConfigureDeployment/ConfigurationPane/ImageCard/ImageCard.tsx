@@ -25,8 +25,9 @@ import { isSdlReference } from "@src/utils/sdl/sdlSecrets";
 import { isVmImage, SSH_VM_IMAGES } from "@src/utils/sdl/vmImages";
 import { dockerImageTooltip, operatingSystemTooltip } from "../cardTooltips";
 import { SELECT_TRUNCATE_VALUE } from "../selectStyles";
+import { SshPublicKeyField } from "../SshPublicKeyField/SshPublicKeyField";
 
-export const DEPENDENCIES = { CollapsibleCard };
+export const DEPENDENCIES = { CollapsibleCard, SshPublicKeyField };
 
 type Props = {
   serviceIndex: number;
@@ -59,14 +60,16 @@ const KEPT_CREDENTIAL_PLACEHOLDER = "Kept from your deployment. Type to replace.
  * seeds defaults; unchecking clears them.
  *
  * A service running a managed SSH-VM image presents as an "Operating System" card instead: the image
- * becomes a distro Select over the managed catalog (the form always stores the real image ref), and
- * the private-registry controls are hidden (the VM images are public) with any credentials cleared.
+ * becomes a distro Select over the managed catalog (the form always stores the real image ref), the
+ * required SSH public key sits under it, and the private-registry controls are hidden (the VM images
+ * are public) with any credentials cleared.
  */
 export const ImageCard: FC<Props> = ({ serviceIndex, locked = false, dependencies: d = DEPENDENCIES }) => {
-  const { control, setValue } = useFormContext<SdlBuilderFormValuesType>();
+  const { control, setValue, formState } = useFormContext<SdlBuilderFormValuesType>();
   const hasCredentials = useController({ control, name: `services.${serviceIndex}.hasCredentials` });
   const image = useWatch({ control, name: `services.${serviceIndex}.image` });
   const isVm = isVmImage(image ?? "");
+  const hasSshKeyError = isVm && formState.isSubmitted && !!formState.errors.services?.[serviceIndex]?.sshPubKey;
 
   useEffect(
     function clearCredentialsOnVmImage() {
@@ -84,10 +87,15 @@ export const ImageCard: FC<Props> = ({ serviceIndex, locked = false, dependencie
       title={isVm ? "Operating System" : "Docker"}
       icon={isVm ? <MonitorIcon className="h-4 w-4" /> : <BoxIcon className="h-4 w-4" />}
       infoTooltip={isVm ? operatingSystemTooltip : dockerImageTooltip}
+      className={hasSshKeyError ? "border-destructive dark:border-destructive" : undefined}
     >
       <fieldset disabled={locked} className="flex min-w-0 flex-col gap-4 border-0 p-0">
         {isVm ? (
-          <DistributionField serviceIndex={serviceIndex} />
+          <>
+            <DistributionField serviceIndex={serviceIndex} />
+
+            <d.SshPublicKeyField serviceIndex={serviceIndex} />
+          </>
         ) : (
           <>
             <ImageField serviceIndex={serviceIndex} hasCredentials={!!hasCredentials.field.value} onToggleCredentials={hasCredentials.field.onChange} />

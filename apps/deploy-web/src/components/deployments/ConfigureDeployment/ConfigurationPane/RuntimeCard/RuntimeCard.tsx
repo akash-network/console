@@ -1,45 +1,15 @@
 import type { FC } from "react";
 import { useCallback } from "react";
 import { useController, useFormContext, useWatch } from "react-hook-form";
-import {
-  Button,
-  Checkbox,
-  CollapsibleCard,
-  CustomTooltip,
-  Field,
-  FieldContent,
-  FieldError,
-  FieldLabel,
-  Input,
-  Label,
-  QuantityStepper,
-  Snackbar,
-  TooltipProvider
-} from "@akashnetwork/ui/components";
-import { saveAs } from "file-saver";
-import { InfoIcon, SettingsIcon } from "lucide-react";
-import { useSnackbar } from "notistack";
+import { Checkbox, CollapsibleCard, Field, FieldContent, FieldError, FieldLabel, Label, QuantityStepper } from "@akashnetwork/ui/components";
+import { SettingsIcon } from "lucide-react";
 
-import { CodeSnippet } from "@src/components/shared/CodeSnippet";
 import type { SdlBuilderFormValuesType } from "@src/types";
-import { withServiceSshKey } from "@src/utils/sdl/sshKey";
 import { isVmImage } from "@src/utils/sdl/vmImages";
-import { generateSSHKeyPair } from "@src/utils/sshKeyUtils";
 import { runtimeTooltip } from "../cardTooltips";
+import { SshPublicKeyField, useApplySshKeyToAllServices } from "../SshPublicKeyField/SshPublicKeyField";
 
-type JSZipInstance = { file(name: string, data: string): void; generateAsync(opts: { type: string }): Promise<Blob> };
-
-/** Lazily loads JSZip so the (sizable) dependency stays out of the initial bundle. */
-const loadJSZip = async (): Promise<{ new (): JSZipInstance }> => {
-  const JSZipModule = await import("jszip");
-  return (JSZipModule.default || JSZipModule) as unknown as { new (): JSZipInstance };
-};
-
-/** Narrowed to the single call signature used here so tests can supply a plain stub. */
-const saveBlobAs: (data: Blob, filename: string) => void = saveAs;
-
-// eslint-disable-next-line akash/dependencies-component-or-hook
-export const DEPENDENCIES = { CollapsibleCard, QuantityStepper, CodeSnippet, generateSSHKeyPair, useSnackbar, saveAs: saveBlobAs, loadJSZip };
+export const DEPENDENCIES = { CollapsibleCard, QuantityStepper, SshPublicKeyField };
 
 type Props = {
   serviceIndex: number;
@@ -49,22 +19,14 @@ type Props = {
 };
 
 /**
- * "Runtime" card. Edits the non-image runtime fields of a service on the shared deployment model:
- * the replica count (`count`) and the SSH public key (`sshPubKey`). Checking "Expose SSH" (the
- * top-level `hasSSHKey` flag) reveals the SSH key field; the key can be filled manually or populated
- * by generating a new keypair, which downloads the pair as a zip and surfaces usage instructions.
- * Because `hasSSHKey` is deployment-wide and the schema requires every service to carry the key while
- * it is on, the key is applied to all services (not just the selected one) and mirrored into a
- * managed `SSH_PUBKEY` env var on each (so it appears in the Environment Variables card and the
- * generated SDL); unchecking "Expose SSH" clears both the key and that env var from every service.
+ * "Runtime" card. Edits the non-image runtime fields of a service on the shared deployment model: the replica count
+ * (`count`) and, behind "Expose SSH" (the deployment-wide `hasSSHKey` flag), the SSH public key; unchecking "Expose SSH"
+ * clears the key and its managed `SSH_PUBKEY` env var from every service.
  *
- * Container-VM constraints: a service running a managed SSH-VM image has its replica stepper pinned
- * at a single instance, and while ANY service in the deployment is a VM, "Expose SSH" is forced on
- * (checked and disabled, key field always shown). The force keys off any-service because `hasSSHKey`
- * is deployment-wide: unchecking it from a sibling service's card would strip the VM's key too. The
- * form turns the flag on (the card only shows it forced), a VM service's card opens expanded so the
- * required key field is visible on entry, and a submit rejected on this card's fields (missing key,
- * replica limit) marks the collapsed header, mirroring ExposePortsCard.
+ * Container-VM constraints: a service running a managed SSH-VM image has its replica stepper pinned at a single instance
+ * and no SSH controls here, because its key is required and lives in the Operating System card. While ANY service is a
+ * VM, a sibling service's "Expose SSH" is forced on (checked and disabled), since unchecking it would strip the VM's key
+ * too. A submit rejected on this card's fields marks the collapsed header, mirroring ExposePortsCard.
  */
 export const RuntimeCard: FC<Props> = ({ serviceIndex, locked = false, dependencies: d = DEPENDENCIES }) => {
   const { control, formState } = useFormContext<SdlBuilderFormValuesType>();
@@ -72,11 +34,11 @@ export const RuntimeCard: FC<Props> = ({ serviceIndex, locked = false, dependenc
   const isVm = isVmImage(services?.[serviceIndex]?.image ?? "");
   const { isSubmitted } = formState;
   const serviceErrors = formState.errors.services?.[serviceIndex];
-  const hasErrors = isSubmitted && !!(serviceErrors?.sshPubKey || serviceErrors?.count);
+  const hasErrors = isSubmitted && !!(serviceErrors?.count || (!isVm && serviceErrors?.sshPubKey));
 
   return (
     <d.CollapsibleCard
-      defaultOpen={isVm}
+      defaultOpen={false}
       locked={locked}
       title="Runtime"
       icon={<SettingsIcon className="h-4 w-4" />}
@@ -86,7 +48,7 @@ export const RuntimeCard: FC<Props> = ({ serviceIndex, locked = false, dependenc
       <fieldset disabled={locked} className="flex min-w-0 flex-col gap-4 border-0 p-0">
         <ReplicasField serviceIndex={serviceIndex} dependencies={d} />
 
-        <SshKeyField serviceIndex={serviceIndex} dependencies={d} />
+        {!isVm && <ExposeSshField serviceIndex={serviceIndex} dependencies={d} />}
       </fieldset>
     </d.CollapsibleCard>
   );
@@ -134,32 +96,12 @@ const ReplicasField: FC<Required<Omit<Props, "locked">>> = ({ serviceIndex, depe
   );
 };
 
-const SshKeyField: FC<Required<Omit<Props, "locked">>> = ({ serviceIndex, dependencies: d }) => {
-  const { control, setValue, getValues } = useFormContext<SdlBuilderFormValuesType>();
-  const { enqueueSnackbar } = d.useSnackbar();
+const ExposeSshField: FC<Required<Omit<Props, "locked">>> = ({ serviceIndex, dependencies: d }) => {
+  const { control } = useFormContext<SdlBuilderFormValuesType>();
   const hasSSHKey = useController({ control, name: "hasSSHKey" });
-  const sshPubKey = useController({ control, name: `services.${serviceIndex}.sshPubKey` });
   const services = useWatch({ control, name: "services" });
   const hasVmService = (services ?? []).some(service => isVmImage(service?.image ?? ""));
-
-  const applyKeyToAllServices = useCallback(
-    (publicKey: string) => {
-      const services = getValues("services") ?? [];
-      services.forEach((service, index) => {
-        const updated = withServiceSshKey(service, publicKey);
-        setValue(`services.${index}.sshPubKey`, updated.sshPubKey, { shouldValidate: true, shouldDirty: true });
-        setValue(`services.${index}.env`, updated.env, { shouldValidate: true, shouldDirty: true });
-      });
-    },
-    [getValues, setValue]
-  );
-
-  const changeKey = useCallback(
-    (value: string) => {
-      applyKeyToAllServices(value);
-    },
-    [applyKeyToAllServices]
-  );
+  const applyKeyToAllServices = useApplySshKeyToAllServices();
 
   const toggleExposeSsh = useCallback(
     (checked: boolean) => {
@@ -171,32 +113,8 @@ const SshKeyField: FC<Required<Omit<Props, "locked">>> = ({ serviceIndex, depend
     [hasSSHKey.field, applyKeyToAllServices]
   );
 
-  const generateKey = useCallback(async () => {
-    if (!window.crypto?.subtle) {
-      enqueueSnackbar(<Snackbar title="SSH key cannot be generated" subTitle="Your browser doesn't support the WebCrypto API." iconVariant="error" />, {
-        variant: "error"
-      });
-      return;
-    }
-
-    try {
-      const { publicKey, privatePem } = await d.generateSSHKeyPair();
-      applyKeyToAllServices(publicKey);
-
-      const JSZip = await d.loadJSZip();
-      const zip = new JSZip();
-      zip.file("id_rsa.pub", publicKey);
-      zip.file("id_rsa", privatePem);
-      d.saveAs(await zip.generateAsync({ type: "blob" }), "keypair.zip");
-    } catch {
-      enqueueSnackbar(<Snackbar title="SSH key cannot be generated" subTitle="Failed to generate or download the SSH keypair." iconVariant="error" />, {
-        variant: "error"
-      });
-    }
-  }, [d, enqueueSnackbar, applyKeyToAllServices]);
-
   return (
-    <Field className="gap-2">
+    <div className="flex flex-col gap-2">
       <div className="flex items-center gap-2">
         <Checkbox
           id={`expose-ssh-${serviceIndex}`}
@@ -207,72 +125,7 @@ const SshKeyField: FC<Required<Omit<Props, "locked">>> = ({ serviceIndex, depend
         <Label htmlFor={`expose-ssh-${serviceIndex}`}>Expose SSH</Label>
       </div>
 
-      {(hasVmService || hasSSHKey.field.value) && (
-        <>
-          <FieldLabel htmlFor={`ssh-pub-key-${serviceIndex}`}>SSH public key</FieldLabel>
-          <FieldContent>
-            <Input
-              id={`ssh-pub-key-${serviceIndex}`}
-              aria-label="SSH public key"
-              placeholder="ssh-ed25519 AAAA… user@host"
-              value={sshPubKey.field.value ?? ""}
-              onChange={event => changeKey(event.target.value || "")}
-              onBlur={sshPubKey.field.onBlur}
-              error={!!sshPubKey.fieldState.error}
-              inputClassName="h-9"
-            />
-            <FieldError className="text-muted-foreground">{sshPubKey.fieldState.error?.message}</FieldError>
-          </FieldContent>
-
-          <div className="flex items-center justify-end gap-2">
-            <span className="text-sm text-muted-foreground">Or</span>
-            <Button size="sm" type="button" variant="outline" onClick={generateKey}>
-              Generate new key
-            </Button>
-
-            <SshKeyInstructions dependencies={d} />
-          </div>
-        </>
-      )}
-    </Field>
+      {(hasVmService || hasSSHKey.field.value) && <d.SshPublicKeyField serviceIndex={serviceIndex} />}
+    </div>
   );
 };
-
-const SshKeyInstructions: FC<{ dependencies: typeof DEPENDENCIES }> = ({ dependencies: d }) => (
-  <div className="flex items-center justify-end">
-    <TooltipProvider>
-      <CustomTooltip title={<SshKeyUsage dependencies={d} />} className="max-w-md p-4 text-left font-sans text-xs normal-case">
-        <button
-          type="button"
-          aria-label="How to use the SSH key"
-          className="inline-flex cursor-help items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
-        >
-          <InfoIcon className="h-4 w-4" />
-        </button>
-      </CustomTooltip>
-    </TooltipProvider>
-  </div>
-);
-
-const SshKeyUsage: FC<{ dependencies: typeof DEPENDENCIES }> = ({ dependencies: d }) => (
-  <div role="note" aria-label="How to use the SSH key" className="text-muted-foreground">
-    <p className="font-bold">How to use</p>
-    <p>The generated SSH key pair is used to access the container via SSH. Here are generalized steps to use them:</p>
-    <ul className="mt-1 list-inside list-disc space-y-1">
-      <li>
-        Download the key pair and extract it.
-        <d.CodeSnippet code="unzip ~/Downloads/keypair.zip" />
-      </li>
-      <li>
-        Copy the private key file to <code>~/.ssh/id_rsa</code> on your local machine.
-        <d.CodeSnippet code="mv ~/Downloads/keypair/* ~/.ssh/" />
-      </li>
-      <li>
-        Make sure to set the correct permissions on the private key file:
-        <d.CodeSnippet code="chmod 600 ~/.ssh/id_rsa" />
-      </li>
-      <li>Check out more instructions on the deployment page in the Lease tab.</li>
-    </ul>
-    <p className="mt-2">Note: the above is valid for unix operating systems. Make sure your image has SSH configured.</p>
-  </div>
-);

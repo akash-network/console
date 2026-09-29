@@ -118,10 +118,6 @@ export class ConfigureDeploymentPage {
     return this.page.getByRole("combobox", { name: "Distribution" });
   }
 
-  exposeSshCheckbox() {
-    return this.page.getByRole("checkbox", { name: "Expose SSH" });
-  }
-
   sshPublicKeyInput() {
     return this.page.getByRole("textbox", { name: "SSH public key" });
   }

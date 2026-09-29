@@ -1,5 +1,5 @@
 import type { PropsWithChildren } from "react";
-import type { Resolver } from "react-hook-form";
+import type { FieldError, FieldPath, Resolver } from "react-hook-form";
 import { FormProvider, useFieldArray, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { describe, expect, it } from "vitest";
@@ -268,22 +268,77 @@ describe(ImageCard.name, () => {
     expect(screen.queryByText("Operating System")).not.toBeInTheDocument();
   });
 
+  it("puts the ssh public key field in the Operating System card for a vm image", () => {
+    setup({ image: "ghcr.io/akash-network/ubuntu-2404-ssh:2" });
+
+    expect(screen.getByRole("textbox", { name: "SSH public key" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Generate new key" })).toBeInTheDocument();
+  });
+
+  it("disables the ssh public key field while a vm card is locked", () => {
+    setup({ image: "ghcr.io/akash-network/ubuntu-2404-ssh:2", locked: true });
+
+    expect(screen.getByRole("textbox", { name: "SSH public key" })).toBeDisabled();
+  });
+
+  it("keeps the ssh public key field out of the Docker card", () => {
+    setup({ image: "nginx:latest", hasSSHKey: true });
+
+    expect(screen.queryByRole("textbox", { name: "SSH public key" })).not.toBeInTheDocument();
+  });
+
+  it("marks the Operating System card when a submit is rejected on its missing ssh key", async () => {
+    setup({ image: "ghcr.io/akash-network/ubuntu-2404-ssh:2", resolver: zodResolver(SdlBuilderFormValuesSchema) });
+
+    await userEvent.click(screen.getByRole("button", { name: "Request quotes" }));
+
+    expect(await screen.findByText("SSH Public key is required.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Collapse Operating System" }).closest(".border-destructive")).not.toBeNull();
+  });
+
+  it("leaves the Docker card unmarked when a submit is rejected on the ssh key the Runtime card holds", async () => {
+    const { fieldError } = setup({ image: "nginx:latest", hasSSHKey: true, resolver: zodResolver(SdlBuilderFormValuesSchema) });
+
+    await userEvent.click(screen.getByRole("button", { name: "Request quotes" }));
+
+    await waitFor(() => expect(fieldError("services.0.sshPubKey")?.message).toBe("SSH Public key is required."));
+    expect(screen.getByRole("button", { name: "Collapse Docker" }).closest(".border-destructive")).toBeNull();
+  });
+
+  it("leaves the Operating System card unmarked when a submit is rejected on another service", async () => {
+    const resolver: Resolver<SdlBuilderFormValuesType> = async () => ({
+      values: {},
+      errors: { services: { 1: { image: { type: "required", message: "Docker image is required." } } } }
+    });
+    const { fieldError } = setup({ image: "ghcr.io/akash-network/ubuntu-2404-ssh:2", resolver });
+
+    await userEvent.click(screen.getByRole("button", { name: "Request quotes" }));
+
+    await waitFor(() => expect(fieldError("services.1.image")?.message).toBe("Docker image is required."));
+    expect(screen.getByRole("button", { name: "Collapse Operating System" }).closest(".border-destructive")).toBeNull();
+  });
+
   function setup(input: {
     image?: string;
+    hasSSHKey?: boolean;
     hasCredentials?: boolean;
     credentials?: { host: string; username: string; password: string };
     resolver?: Resolver<SdlBuilderFormValuesType>;
     locked?: boolean;
   }) {
     const hasCredentials = input.hasCredentials ?? !!input.credentials;
-    const values = defaultServiceWithPlacement({
-      image: input.image ?? "",
-      hasCredentials,
-      credentials: hasCredentials ? input.credentials ?? { host: "docker.io", username: "", password: "" } : undefined
-    });
+    const values: SdlBuilderFormValuesType = {
+      ...defaultServiceWithPlacement({
+        image: input.image ?? "",
+        hasCredentials,
+        credentials: hasCredentials ? input.credentials ?? { host: "docker.io", username: "", password: "" } : undefined
+      }),
+      hasSSHKey: input.hasSSHKey ?? false
+    };
 
     let getValues: () => SdlBuilderFormValuesType = () => values;
     let reset: (imported: SdlBuilderFormValuesType) => void = () => undefined;
+    let getFieldError: (name: FieldPath<SdlBuilderFormValuesType>) => FieldError | undefined = () => undefined;
     const Wrapper = ({ children }: PropsWithChildren) => {
       const form = useForm<SdlBuilderFormValuesType>({
         defaultValues: values,
@@ -293,6 +348,7 @@ describe(ImageCard.name, () => {
       });
       getValues = form.getValues;
       reset = form.reset;
+      getFieldError = name => form.getFieldState(name).error;
       return (
         <FormProvider {...form}>
           <form onSubmit={form.handleSubmit(() => undefined)}>
@@ -309,7 +365,11 @@ describe(ImageCard.name, () => {
       </Wrapper>
     );
 
-    return { getValues: () => getValues(), importValues: (imported: SdlBuilderFormValuesType) => act(() => reset(imported)) };
+    return {
+      getValues: () => getValues(),
+      importValues: (imported: SdlBuilderFormValuesType) => act(() => reset(imported)),
+      fieldError: (name: FieldPath<SdlBuilderFormValuesType>) => getFieldError(name)
+    };
   }
 
   /** Renders the card in the app's `onTouched` mode with the real resolver so touched-field validation can be asserted. */
