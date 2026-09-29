@@ -126,8 +126,9 @@ export class ConfigureDeploymentPage {
     return this.page.getByRole("textbox", { name: "SSH public key" });
   }
 
+  /** Exact so it skips the blocked-submit snackbar, which repeats the message prefixed with the service name. */
   sshKeyRequiredError() {
-    return this.page.getByText("SSH Public key is required.");
+    return this.page.getByText("SSH Public key is required.", { exact: true });
   }
 
   cpuInput() {
