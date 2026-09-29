@@ -46,9 +46,39 @@ describe(LoadingButton.name, () => {
     expect(screen.getByRole("button")).toBeDisabled();
   });
 
+  it("shows the loading indicator after a browser translator has replaced the label text", () => {
+    const { rerender } = setup({ children: "Redeem coupon" });
+    moveTextIntoFontLikeBrowserTranslator(screen.getByRole("button"));
+
+    rerender({ loading: true });
+
+    expect(screen.getByRole("status")).toBeInTheDocument();
+    expect(screen.getByText("Redeem coupon")).toBeInTheDocument();
+  });
+
+  function moveTextIntoFontLikeBrowserTranslator(root: HTMLElement) {
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+    const textNodes: Text[] = [];
+    while (walker.nextNode()) textNodes.push(walker.currentNode as Text);
+
+    textNodes.forEach(textNode => {
+      const outerFont = document.createElement("font");
+      const innerFont = document.createElement("font");
+      innerFont.textContent = textNode.data;
+      outerFont.appendChild(innerFont);
+      textNode.replaceWith(outerFont);
+    });
+  }
+
   function setup(input: { children?: ReactNode; loading?: boolean; loadingIndicator?: ReactNode; disabled?: boolean } = {}) {
     const { children = "Submit", ...buttonProps } = input;
-    render(<LoadingButton {...buttonProps}>{children}</LoadingButton>);
-    return input;
+    const view = render(<LoadingButton {...buttonProps}>{children}</LoadingButton>);
+    const rerender = (nextProps: { loading?: boolean }) =>
+      view.rerender(
+        <LoadingButton {...buttonProps} {...nextProps}>
+          {children}
+        </LoadingButton>
+      );
+    return { ...input, rerender };
   }
 });
