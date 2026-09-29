@@ -55,5 +55,16 @@ describe("Placement options API", () => {
 
       expect(response.status).toBe(503);
     });
+
+    it("answers 499 when the client disconnects before provider inventory answers", async () => {
+      nock(PROVIDER_INVENTORY_API_URL).get("/v1/placement-options").delay(1000).reply(200, { regions: [], gpus: [] });
+      const clientConnection = new AbortController();
+
+      const pendingResponse = app.request("/v1/placement-options", { signal: clientConnection.signal });
+      clientConnection.abort("Client connection prematurely closed.");
+      const response = await pendingResponse;
+
+      expect(response.status).toBe(499);
+    });
   });
 });

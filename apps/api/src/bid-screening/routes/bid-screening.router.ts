@@ -57,7 +57,7 @@ bidScreeningRouter.openapi(postBidScreeningRoute, async function routePostBidScr
       signal: c.req.raw.signal
     });
   } catch (error) {
-    const statusCode = (error instanceof Error && error.name === "AbortError" ? 499 : 503) as StatusCode;
+    const statusCode = (c.req.raw.signal.aborted ? 499 : 503) as StatusCode;
     throw new HTTPException(statusCode, { cause: error, message: "Failed to screen providers." });
   }
 
