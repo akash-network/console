@@ -1,7 +1,14 @@
 import yaml from "js-yaml";
 import { describe, expect, it } from "vitest";
 
-import { hasSdlReference, isStoredSdlRedeployable, isStoredSdlSelfContained, leavesWithheldEnvValuesBlank, withEnvValuesFrom } from "./storedDefinition";
+import {
+  hasEnvProtectedByDefault,
+  hasSdlReference,
+  isStoredSdlRedeployable,
+  isStoredSdlSelfContained,
+  leavesWithheldEnvValuesBlank,
+  withEnvValuesFrom
+} from "./storedDefinition";
 
 describe("storedDefinition", () => {
   describe(hasSdlReference.name, () => {
@@ -125,6 +132,24 @@ describe("storedDefinition", () => {
 
     it("rejects an sdl that does not parse", () => {
       expect(isStoredSdlSelfContained("services: [unclosed")).toBe(false);
+    });
+  });
+
+  describe(hasEnvProtectedByDefault.name, () => {
+    it("is true for an env value the api sealed on its own", () => {
+      expect(hasEnvProtectedByDefault(sdlWithEnv(["MODE=dev", "TOKEN=ac-secret://s0_e1"]))).toBe(true);
+    });
+
+    it("is false for an env secret the user named", () => {
+      expect(hasEnvProtectedByDefault(sdlWithEnv(["TOKEN=ac-secret://API_TOKEN"]))).toBe(false);
+    });
+
+    it("is false when only a registry credential is sealed, since this browser never gives one back", () => {
+      expect(hasEnvProtectedByDefault(`${sdlWithCredentials("ac-secret://s0_c_password")}\n    env:\n      - "MODE=dev"`)).toBe(false);
+    });
+
+    it("is false for a copy that does not parse", () => {
+      expect(hasEnvProtectedByDefault("services: [not, a, map")).toBe(false);
     });
   });
 

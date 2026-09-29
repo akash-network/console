@@ -9,7 +9,7 @@ import { useFlag } from "@src/hooks/useFlag";
 import { useResolvedDeploymentName } from "@src/hooks/useResolvedDeploymentName/useResolvedDeploymentName";
 import { QueryKeys } from "@src/queries/queryKeys";
 import { deploymentData } from "@src/utils/deploymentData";
-import { hasSdlReference, isStoredSdlRedeployable, isStoredSdlSelfContained, withEnvValuesFrom } from "@src/utils/sdl/storedDefinition";
+import { hasEnvProtectedByDefault, isStoredSdlRedeployable, isStoredSdlSelfContained, withEnvValuesFrom } from "@src/utils/sdl/storedDefinition";
 
 /** `absent` still carries the API's copy when it held one it could not stand behind, so the shape is visible even though the values are not. */
 export type DeploymentDefinitionSource = "resolving" | "api" | "local" | "absent";
@@ -109,7 +109,7 @@ export function useDeploymentDefinition(
   /** Nothing resolves a reference with the feature off, so the api's copy is only preferred over this browser's while it is on. */
   const acceptReferences = !!options.acceptReferences && dependencies.useFlag("ui_deployment_secrets");
   const mayRestoreFromBrowser = useMemo(
-    () => acceptReferences && isApiCopyOnChain && !!apiSdl && !!localSdl && hasSdlReference(apiSdl),
+    () => acceptReferences && isApiCopyOnChain && !!apiSdl && !!localSdl && hasEnvProtectedByDefault(apiSdl),
     [acceptReferences, isApiCopyOnChain, apiSdl, localSdl]
   );
   const browserCopyVersion = dependencies.useManifestVersionOf(mayRestoreFromBrowser ? localSdl : undefined);

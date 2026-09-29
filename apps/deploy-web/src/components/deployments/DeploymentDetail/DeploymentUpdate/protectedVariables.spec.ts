@@ -61,7 +61,33 @@ describe(restoredEnvOf.name, () => {
   });
 
   it("gives back nothing a secret still stands on in this browser's copy", () => {
-    expect(restoredEnvOf([[kept("token", "TOKEN", "TOKEN")]], [[kept("t", "TOKEN", "TOKEN")]])).toEqual({ count: 0, changes: [] });
+    expect(restoredEnvOf([[kept("token", "TOKEN", "s0_e0")]], [[kept("t", "TOKEN", "s0_e0")]])).toEqual({ count: 0, changes: [] });
+  });
+
+  it("leaves a secret the user named alone, even where this browser gave back a value under its key", () => {
+    expect(restoredEnvOf([[kept("token", "TOKEN", "API_TOKEN")]], [[plain("t", "TOKEN", "from-this-browser")]])).toEqual({ count: 0, changes: [] });
+  });
+
+  it("gives back only the rows the api sealed on its own in a service that changes", () => {
+    const restored = restoredEnvOf(
+      [[kept("port", "PORT", "s0_e0"), kept("token", "TOKEN", "API_TOKEN"), plain("mode", "MODE", "dev"), kept("region", "REGION", "s0_e3")]],
+      [[plain("p", "PORT", "3000"), plain("t", "TOKEN", "from-this-browser"), plain("m", "MODE", "prod")]]
+    );
+
+    expect(restored).toEqual({
+      count: 1,
+      changes: [
+        {
+          serviceIndex: 0,
+          env: [
+            { id: "port", key: "PORT", value: "3000", isSecret: false },
+            kept("token", "TOKEN", "API_TOKEN"),
+            plain("mode", "MODE", "dev"),
+            kept("region", "REGION", "s0_e3")
+          ]
+        }
+      ]
+    });
   });
 });
 

@@ -19,6 +19,8 @@ type ApiService = ReturnType<NonNullable<NonNullable<RenderAppHookOptions["servi
 const API_SDL = 'version: "2.0"\nservices:\n  web:\n    image: nginx\n    env:\n      - "TOKEN=from-the-api"\n';
 const LOCAL_SDL = 'version: "2.0"\nservices:\n  web:\n    image: nginx\n    env:\n      - "TOKEN=from-this-browser"\n';
 const WITHHELD_VALUES_SDL = 'version: "2.0"\nservices:\n  web:\n    image: nginx\n    env:\n      - "TOKEN=ac-secret://s0_e0"\n';
+const SEALED_CREDENTIALS_SDL =
+  'version: "2.0"\nservices:\n  web:\n    image: nginx\n    credentials:\n      host: docker.io\n      username: someone\n      password: "ac-secret://s0_c_password"\n    env:\n      - "TOKEN=from-the-api"\n';
 const BLANK_ENV_SDL = 'version: "2.0"\nservices:\n  web:\n    image: nginx\n    env:\n      - "TOKEN="\n';
 const PARTLY_BLANK_ENV_SDL = 'version: "2.0"\nservices:\n  web:\n    image: nginx\n    env:\n      - "TOKEN="\n      - "REGION=us-east-1"\n';
 
@@ -199,6 +201,13 @@ describe(useDeploymentDefinition.name, () => {
 
     it("does not wait on this browser's copy when the api withholds nothing", async () => {
       const { result } = setup({ apiSdl: API_SDL, localSdl: LOCAL_SDL, acceptReferences: true, isReadingBrowserCopy: true });
+
+      await vi.waitFor(() => expect(result.current.source).toBe("api"));
+      expect(result.current.restoredSdl).toBeUndefined();
+    });
+
+    it("does not wait on this browser's copy when the api withholds only a registry credential", async () => {
+      const { result } = setup({ apiSdl: SEALED_CREDENTIALS_SDL, localSdl: LOCAL_SDL, acceptReferences: true, isReadingBrowserCopy: true });
 
       await vi.waitFor(() => expect(result.current.source).toBe("api"));
       expect(result.current.restoredSdl).toBeUndefined();

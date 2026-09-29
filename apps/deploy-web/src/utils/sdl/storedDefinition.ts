@@ -24,6 +24,10 @@ export function isStoredSdlRedeployable(sdl: string): boolean {
   return document !== null && blankEnvValuesIn(document).length === 0;
 }
 
+export function hasEnvProtectedByDefault(sdl: string): boolean {
+  return envEntriesIn(parseSdl(sdl)).some(({ entry }) => isProtectedByDefault(assignedValueOf(entry)));
+}
+
 /** Only env values the api sealed on its own come back, since registry credentials and secrets the user named stay secrets whatever this browser holds; undefined when none does. */
 export function withEnvValuesFrom(browserSdl: string, apiSdl: string): string | undefined {
   const document = parseSdl(apiSdl);
