@@ -12,6 +12,7 @@ import { validateGeneratedSdl } from "@src/utils/sdl/validateGeneratedSdl";
 import { useTrialGate } from "../ConfigurationPane/HardwareSection/useTrialGate/useTrialGate";
 import { useInheritedSecrets } from "../InheritedSecretsProvider/InheritedSecretsProvider";
 import type { DeploymentFlow } from "../useDeploymentFlow/useDeploymentFlow";
+import { listInvalidFieldMessages } from "./invalidFieldMessages";
 
 export const DEPENDENCIES = {
   useSnackbar,
@@ -36,40 +37,50 @@ type Input = {
 /** Regenerates the SDL from the values the form just accepted, never a prop snapshot, so validation and creation act on the same spec. */
 export function useRequestQuotes({ flow, deploymentName, onInvalid }: Input, dependencies: typeof DEPENDENCIES = DEPENDENCIES) {
   const d = dependencies;
-  const { handleSubmit } = useFormContext<SdlBuilderFormValuesType>();
+  const { handleSubmit, getValues } = useFormContext<SdlBuilderFormValuesType>();
   const { enqueueSnackbar } = d.useSnackbar();
   const { isRestricted } = d.useTrialGate();
   const isSecretsEnabled = d.useFlag("ui_deployment_secrets");
   const inheritedSecrets = d.useInheritedSecrets();
 
-  return handleSubmit(values => {
-    const sdl = d.generateSdl(values, { sealSecrets: isSecretsEnabled });
-    const errors = [...d.validateGeneratedSdl(sdl)];
-    const secrets = isSecretsEnabled ? d.resolveSdlSecrets(values, { sealSecrets: true, heldNames: inheritedSecrets?.names }) : undefined;
-    secrets?.unresolved.forEach(secret => errors.push(unresolvedSecretMessage(secret)));
-    if (isRestricted && hasTrialBlockedGpu(values)) {
-      errors.push("GPU access is not available on a free trial. Add funds to unlock GPU access.");
+  function explainWhySubmitIsBlocked(reasons: string[]) {
+    enqueueSnackbar(
+      <d.Snackbar
+        title="Your deployment can't be submitted yet"
+        subTitle={
+          <ul className="list-disc pl-4">
+            {reasons.map(reason => (
+              <li key={reason}>{reason}</li>
+            ))}
+          </ul>
+        }
+        iconVariant="error"
+      />,
+      { variant: "error" }
+    );
+  }
+
+  return handleSubmit(
+    values => {
+      const sdl = d.generateSdl(values, { sealSecrets: isSecretsEnabled });
+      const errors = [...d.validateGeneratedSdl(sdl)];
+      const secrets = isSecretsEnabled ? d.resolveSdlSecrets(values, { sealSecrets: true, heldNames: inheritedSecrets?.names }) : undefined;
+      secrets?.unresolved.forEach(secret => errors.push(unresolvedSecretMessage(secret)));
+      if (isRestricted && hasTrialBlockedGpu(values)) {
+        errors.push("GPU access is not available on a free trial. Add funds to unlock GPU access.");
+      }
+      if (errors.length > 0) {
+        explainWhySubmitIsBlocked(errors);
+        return;
+      }
+      flow.actions.requestQuotes(sdl, {
+        name: deploymentName,
+        ...(secrets ? { secrets: secrets.values, ...(inheritedSecrets ? { inheritSecretsFrom: inheritedSecrets.sourceDseq } : {}) } : {})
+      });
+    },
+    errors => {
+      explainWhySubmitIsBlocked(listInvalidFieldMessages(getValues(), errors));
+      onInvalid?.(errors);
     }
-    if (errors.length > 0) {
-      enqueueSnackbar(
-        <d.Snackbar
-          title="Your deployment can't be submitted yet"
-          subTitle={
-            <ul className="list-disc pl-4">
-              {errors.map(error => (
-                <li key={error}>{error}</li>
-              ))}
-            </ul>
-          }
-          iconVariant="error"
-        />,
-        { variant: "error" }
-      );
-      return;
-    }
-    flow.actions.requestQuotes(sdl, {
-      name: deploymentName,
-      ...(secrets ? { secrets: secrets.values, ...(inheritedSecrets ? { inheritSecretsFrom: inheritedSecrets.sourceDseq } : {}) } : {})
-    });
-  }, onInvalid);
+  );
 }
