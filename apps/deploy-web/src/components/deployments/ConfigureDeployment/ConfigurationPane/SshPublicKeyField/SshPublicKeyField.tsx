@@ -64,13 +64,13 @@ export const SshPublicKeyField: FC<Props> = ({ serviceIndex, dependencies: d = D
 
     try {
       const { publicKey, privatePem } = await d.generateSSHKeyPair();
-      applyKeyToAllServices(publicKey);
 
       const JSZip = await d.loadJSZip();
       const zip = new JSZip();
       zip.file("id_rsa.pub", publicKey);
       zip.file("id_rsa", privatePem);
       d.saveAs(await zip.generateAsync({ type: "blob" }), "keypair.zip");
+      applyKeyToAllServices(publicKey);
     } catch {
       enqueueSnackbar(<Snackbar title="SSH key cannot be generated" subTitle="Failed to generate or download the SSH keypair." iconVariant="error" />, {
         variant: "error"

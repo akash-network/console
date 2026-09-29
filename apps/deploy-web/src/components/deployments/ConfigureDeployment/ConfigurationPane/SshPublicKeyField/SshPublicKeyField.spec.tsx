@@ -111,7 +111,10 @@ describe(SshPublicKeyField.name, () => {
   it("reports a keypair that fails to generate as an error", async () => {
     const enqueueSnackbar = vi.fn();
     const { getValues } = setup({
-      dependencies: { generateSSHKeyPair: vi.fn().mockRejectedValue(new Error("boom")), useSnackbar: () => mock({ enqueueSnackbar }) }
+      dependencies: {
+        generateSSHKeyPair: vi.fn().mockRejectedValue(new Error("boom")),
+        useSnackbar: () => mock<ReturnType<typeof DEPENDENCIES.useSnackbar>>({ enqueueSnackbar })
+      }
     });
 
     await userEvent.click(screen.getByRole("button", { name: "Generate new key" }));
@@ -125,10 +128,33 @@ describe(SshPublicKeyField.name, () => {
     expect(getValues().services[0].sshPubKey).toBe("");
   });
 
+  it("keeps the current key when the generated keypair cannot be downloaded", async () => {
+    const enqueueSnackbar = vi.fn();
+    const { getValues } = setup({
+      sshPubKey: "ssh-rsa EXISTING",
+      dependencies: {
+        generateSSHKeyPair: vi.fn().mockResolvedValue({ publicKey: "ssh-rsa GENERATED", privatePem: "PRIVATE" }),
+        loadJSZip: vi.fn().mockRejectedValue(new Error("chunk failed to load")),
+        useSnackbar: () => mock<ReturnType<typeof DEPENDENCIES.useSnackbar>>({ enqueueSnackbar })
+      }
+    });
+
+    await userEvent.click(screen.getByRole("button", { name: "Generate new key" }));
+
+    await vi.waitFor(() =>
+      expect(enqueueSnackbar).toHaveBeenCalledWith(
+        expect.objectContaining({ props: expect.objectContaining({ subTitle: "Failed to generate or download the SSH keypair." }) }),
+        { variant: "error" }
+      )
+    );
+    expect(getValues().services[0].sshPubKey).toBe("ssh-rsa EXISTING");
+    expect(screen.getByRole("textbox", { name: "SSH public key" })).toHaveValue("ssh-rsa EXISTING");
+  });
+
   it("refuses to generate a keypair without the WebCrypto API", async () => {
     const generateSSHKeyPair = vi.fn();
     const enqueueSnackbar = vi.fn();
-    setup({ dependencies: { generateSSHKeyPair, useSnackbar: () => mock({ enqueueSnackbar }) } });
+    setup({ dependencies: { generateSSHKeyPair, useSnackbar: () => mock<ReturnType<typeof DEPENDENCIES.useSnackbar>>({ enqueueSnackbar }) } });
     vi.stubGlobal("crypto", undefined);
     onTestFinished(() => {
       vi.unstubAllGlobals();
