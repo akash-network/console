@@ -18,6 +18,7 @@ describe(useGpuAvailability.name, () => {
 
     expect(result.current).toEqual({
       requestedLabel: "H100",
+      hasRequestedGpu: true,
       topModels: [{ key: "nvidia/rtx4090", label: "RTX 4090", providerCount: 7 }]
     });
   });
@@ -26,6 +27,7 @@ describe(useGpuAvailability.name, () => {
     const { result } = setup({});
 
     expect(result.current.requestedLabel).toBe("No GPU");
+    expect(result.current.hasRequestedGpu).toBe(false);
     expect(result.current.topModels.map(model => model.key)).toEqual(["nvidia/rtx4090", "nvidia/h100"]);
   });
 

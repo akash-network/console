@@ -16,6 +16,13 @@ describe(AvailabilityPane.name, () => {
 
     expect(screen.getByText("providers can host your deployment").parentElement).toHaveTextContent(/^12\s*providers can host your deployment$/);
     expect(screen.getByText("40 providers on the network")).toBeInTheDocument();
+    expect(screen.getByText("eligible")).toBeInTheDocument();
+  });
+
+  it("counts a single provider on the network", () => {
+    setup({ networkCount: 1 });
+
+    expect(screen.getByText("1 provider on the network")).toBeInTheDocument();
   });
 
   it("speaks of this placement and names it once the deployment has several", () => {
@@ -42,7 +49,7 @@ describe(AvailabilityPane.name, () => {
     setup({ isLoading: true });
 
     expect(screen.getByRole("status")).toHaveTextContent("Checking providers…");
-    expect(within(screen.getByRole("list", { name: "If you add a GPU" })).getAllByRole("listitem")[0]).toHaveTextContent("…");
+    expect(within(screen.getByRole("list", { name: "If you switch model" })).getAllByRole("listitem")[0]).toHaveTextContent("…");
   });
 
   it("marks the count as updating while a changed spec is screened", () => {
@@ -55,7 +62,7 @@ describe(AvailabilityPane.name, () => {
     setup({ isInvalid: true });
 
     expect(screen.getByText("No providers to show yet")).toBeInTheDocument();
-    expect(screen.queryByRole("list", { name: "If you add a GPU" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("list", { name: "If you switch model" })).not.toBeInTheDocument();
   });
 
   it("explains a failed screening instead of counting providers", () => {
@@ -73,8 +80,17 @@ describe(AvailabilityPane.name, () => {
   it("lists the current GPU request with the live count, then the busiest models", () => {
     setup({ eligibleCount: 5 });
 
-    const rows = within(screen.getByRole("list", { name: "If you add a GPU" })).getAllByRole("listitem");
+    const rows = within(screen.getByRole("list", { name: "If you switch model" })).getAllByRole("listitem");
+    expect(screen.getByRole("heading", { name: "GPU availability" })).toBeInTheDocument();
     expect(rows.map(row => row.textContent)).toEqual(["No GPUCurrent5", "RTX 40909", "H1004"]);
+    expect(rows.map(row => row.getAttribute("aria-current"))).toEqual(["true", null, null]);
+  });
+
+  it("lists no gpu with the network total as the last alternative to a requested gpu", () => {
+    setup({ eligibleCount: 3, networkCount: 20, gpuAvailability: { requestedLabel: "A100", hasRequestedGpu: true } });
+
+    const rows = within(screen.getByRole("list", { name: "If you switch model" })).getAllByRole("listitem");
+    expect(rows.map(row => row.textContent)).toEqual(["A100Current3", "RTX 40909", "H1004", "No GPU20"]);
   });
 
   it("chooses a provider once the deployment is ready", async () => {
@@ -112,6 +128,7 @@ describe(AvailabilityPane.name, () => {
     isError?: boolean;
     isReady?: boolean;
     isSubmitting?: boolean;
+    gpuAvailability?: { requestedLabel: string; hasRequestedGpu: boolean };
   }) {
     const onChooseProvider = vi.fn();
     const useScreenedProviders = vi.fn(() => ({
@@ -123,6 +140,8 @@ describe(AvailabilityPane.name, () => {
     }));
     const useGpuAvailability = vi.fn(() => ({
       requestedLabel: "No GPU",
+      hasRequestedGpu: false,
+      ...input.gpuAvailability,
       topModels: [
         { key: "nvidia/rtx4090", label: "RTX 4090", providerCount: 9 },
         { key: "nvidia/h100", label: "H100", providerCount: 4 }
