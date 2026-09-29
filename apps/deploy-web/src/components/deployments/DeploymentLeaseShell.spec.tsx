@@ -8,7 +8,7 @@ import type { LeaseDto } from "@src/types/deployment";
 import type { DEPENDENCIES } from "./DeploymentLeaseShell";
 import { DeploymentLeaseShell } from "./DeploymentLeaseShell";
 
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 
 describe(DeploymentLeaseShell.name, () => {
   it("looks up the provider of the selected lease", async () => {
@@ -43,7 +43,18 @@ describe(DeploymentLeaseShell.name, () => {
 
     expect(terminal.getOutput).toHaveBeenCalled();
     expect(copyTextToClipboard).toHaveBeenCalledWith("$ ls\nfile.txt");
-    expect(notificator.success).toHaveBeenCalledWith("Shell output copied to clipboard");
+    await waitFor(() => expect(notificator.success).toHaveBeenCalledWith("Shell output copied to clipboard"));
+    expect(notificator.error).not.toHaveBeenCalled();
+  });
+
+  it("reports an error instead of a success when the clipboard write fails", async () => {
+    const { connections, notificator } = await setup({ terminalOutput: "$ ls\nfile.txt", canCopy: false });
+
+    await act(() => connections[0].push(textMessage("hello")));
+    fireEvent.click(screen.getByRole("button", { name: /copy output/i }));
+
+    await waitFor(() => expect(notificator.error).toHaveBeenCalledWith("Couldn't copy the shell output to your clipboard"));
+    expect(notificator.success).not.toHaveBeenCalled();
   });
 
   it("reconnects the shell and clears the terminal when reset is clicked", async () => {
@@ -130,7 +141,7 @@ describe(DeploymentLeaseShell.name, () => {
     };
   }
 
-  async function setup(input?: { terminalOutput?: string; leaseCount?: number }) {
+  async function setup(input?: { terminalOutput?: string; leaseCount?: number; canCopy?: boolean }) {
     const leases = Array.from({ length: input?.leaseCount ?? 1 }, (_, index) =>
       mock<LeaseDto>({ id: `lease-${index + 1}`, provider: "akash1provider", dseq: "123", gseq: 1, oseq: index + 1 })
     );
@@ -169,7 +180,7 @@ describe(DeploymentLeaseShell.name, () => {
       useImperativeHandle(ref, () => terminal);
       return <div>terminal</div>;
     });
-    const copyTextToClipboard = vi.fn();
+    const copyTextToClipboard = vi.fn<typeof DEPENDENCIES.copyTextToClipboard>().mockResolvedValue(input?.canCopy ?? true);
     const useProvidersByAddresses = vi.fn(() => providers);
     const LeaseSelect = vi.fn(() => null);
 

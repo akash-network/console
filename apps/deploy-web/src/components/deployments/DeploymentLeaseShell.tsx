@@ -1,7 +1,7 @@
 "use client";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Alert, AlertDescription, AlertTitle, Button, Spinner } from "@akashnetwork/ui/components";
-import { cn } from "@akashnetwork/ui/utils";
+import { cn, copyTextToClipboard } from "@akashnetwork/ui/utils";
 import { Copy, Refresh, WarningCircle } from "iconoir-react";
 
 import { ViewPanel } from "@src/components/shared/ViewPanel";
@@ -17,7 +17,6 @@ import type { ReceivedShellMessage } from "@src/services/provider-proxy/provider
 import type { LeaseDto } from "@src/types/deployment";
 import { LeaseShellCode } from "@src/types/shell";
 import { forEachGeneratedItem } from "@src/utils/array";
-import { copyTextToClipboard } from "@src/utils/copyClipboard";
 import { keepSelectedLease } from "@src/utils/leaseUtils";
 import { LeaseSelect } from "./LeaseSelect";
 import { ProviderAuthFallback } from "./ProviderAuthGate";
@@ -254,9 +253,14 @@ export const DeploymentLeaseShell: React.FunctionComponent<Props> = ({ leases, d
     requestNewShellSession({});
   };
 
-  const copyShellOutput = () => {
-    d.copyTextToClipboard(terminalRef.current?.getOutput() ?? "");
-    notificator.success("Shell output copied to clipboard");
+  const copyShellOutput = async () => {
+    const isCopied = await d.copyTextToClipboard(terminalRef.current?.getOutput() ?? "");
+
+    if (isCopied) {
+      notificator.success("Shell output copied to clipboard");
+    } else {
+      notificator.error("Couldn't copy the shell output to your clipboard");
+    }
   };
 
   const onDownloadFileClick = async () => {
