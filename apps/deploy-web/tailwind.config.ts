@@ -12,11 +12,17 @@ config.theme = {
       "akash-loading-shard": {
         "0%, 72%, 100%": { fill: "hsl(var(--border))" },
         "14%, 46%": { fill: "hsl(var(--foreground))" }
+      },
+      "edit-nudge": {
+        "0%, 76%, 88%, 100%": { transform: "translateY(0)" },
+        "82%": { transform: "translateY(-3px)" },
+        "94%": { transform: "translateY(-1px)" }
       }
     },
     animation: {
       ...config.theme?.extend?.animation,
-      "akash-loading-shard": "akash-loading-shard 1.8s linear infinite"
+      "akash-loading-shard": "akash-loading-shard 1.8s linear infinite",
+      "edit-nudge": "edit-nudge 4s ease-in-out 1s infinite"
     }
   }
 };
