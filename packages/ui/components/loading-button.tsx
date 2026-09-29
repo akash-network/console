@@ -32,7 +32,7 @@ const LoadingButton = React.forwardRef<HTMLButtonElement, LoadingButtonProps>(
               </motion.div>
             )}
           </AnimatePresence>
-          {children}
+          <ButtonLabel>{children}</ButtonLabel>
         </div>
       </Button>
     );
@@ -40,6 +40,11 @@ const LoadingButton = React.forwardRef<HTMLButtonElement, LoadingButtonProps>(
 );
 
 LoadingButton.displayName = "LoadingButton";
+
+/** Browser translators replace bare text nodes, so the spinner must be inserted before an element React still owns. */
+function ButtonLabel({ children }: { children: React.ReactNode }) {
+  return <span className="contents">{children}</span>;
+}
 
 /**
  * Default in-button spinner: a ring tinted with the button's own foreground color via `border-current`, so it
