@@ -5,7 +5,7 @@ import { cn } from "@akashnetwork/ui/utils";
 import { WarningTriangle } from "iconoir-react";
 import Link from "next/link";
 
-import { isUsableDeploymentDefinition, useDeploymentDefinition } from "@src/hooks/useDeploymentDefinition/useDeploymentDefinition";
+import { isUsableDeploymentDefinition, sdlToRedeploy, useDeploymentDefinition } from "@src/hooks/useDeploymentDefinition/useDeploymentDefinition";
 import { useNewDeploymentUrl } from "@src/hooks/useNewDeploymentUrl/useNewDeploymentUrl";
 import { useRedeploy } from "@src/hooks/useRedeploy/useRedeploy";
 import type { LeaseDto } from "@src/types/deployment";
@@ -59,7 +59,7 @@ export const ReclamationBanner: React.FunctionComponent<Props> = ({ leases, dseq
             size="sm"
             className="mt-3"
             disabled={definition.source === "resolving"}
-            onClick={() => redeploy({ sdl: definition.sdl, name: definition.name, sourceDseq: dseq })}
+            onClick={() => redeploy({ sdl: sdlToRedeploy(definition), name: definition.name, sourceDseq: dseq })}
           >
             Redeploy
           </Button>

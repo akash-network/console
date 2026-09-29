@@ -5,6 +5,7 @@ import { defaultServiceWithPlacement } from "./data";
 import {
   credentialSecretSlotKey,
   envSecretSlotKey,
+  isProtectedByDefault,
   isReservedSdlValue,
   isSdlReference,
   isValidSecretName,
@@ -56,6 +57,23 @@ describe("sdlSecrets", () => {
 
     it("is null for a plain value", () => {
       expect(secretNameOf("DB_URL")).toBeNull();
+    });
+  });
+
+  describe(isProtectedByDefault.name, () => {
+    it.each(["s0_e2", "s12_e34", "s1_e0_2", "s1_e0_10"])("is true for a secret named %s, as the api names a value it sealed on its own", name => {
+      expect(isProtectedByDefault(`ac-secret://${name}`)).toBe(true);
+    });
+
+    it.each([
+      ["a secret the user named", "ac-secret://DB_PASSWORD"],
+      ["a registry credential the api sealed", "ac-secret://s0_c_password"],
+      ["a name carrying more before the api's spelling", "ac-secret://xs0_e0"],
+      ["a name carrying more after the api's spelling", "ac-secret://s0_e0x"],
+      ["a reference of another kind", "ac-vault://s0_e0"],
+      ["a plain value spelled like the api's name", "s0_e0"]
+    ])("is false for %s", (_case, value) => {
+      expect(isProtectedByDefault(value)).toBe(false);
     });
   });
 

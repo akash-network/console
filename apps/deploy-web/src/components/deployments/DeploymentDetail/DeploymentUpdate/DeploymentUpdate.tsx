@@ -17,6 +17,7 @@ import { DeploymentTabHeader } from "../DeploymentTabHeader";
 import { DefinitionImport } from "./DefinitionImport";
 import type { DeploymentUpdateFormValues } from "./deploymentUpdateFormSchema";
 import { deploymentUpdateFormSchemaFor } from "./deploymentUpdateFormSchema";
+import { ProtectedVariablesNotice } from "./ProtectedVariablesNotice";
 import { UpdatePlacementCard } from "./UpdatePlacementCard";
 import { useDeploymentUpdateSubmit } from "./useDeploymentUpdateSubmit";
 
@@ -176,6 +177,8 @@ export const DeploymentUpdate: FC<DeploymentUpdateProps> = ({
         />
 
         <LockedFieldsNotice />
+
+        {!isClosed && <ProtectedVariablesNotice restoredSdl={definition.restoredSdl} locked={isUpdating || isReloading} />}
 
         {baseline.values.placements.map((placement, position) => {
           const lease = leases?.find((candidate, index) => getPlacementName(candidate.group, index) === placement.name);

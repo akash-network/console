@@ -171,6 +171,8 @@ deployment:
 
 const RECORDED_VERSION = "cmVjb3JkZWQ=";
 
+const PROTECTED_SDL = STORED_SDL.replace("MODE=dev", "MODE=ac-secret://s0_e0");
+
 describe(DeploymentUpdate.name, () => {
   describe("the placements it shows", () => {
     it("shows every placement the definition declares, each with its services", () => {
@@ -726,6 +728,46 @@ describe(DeploymentUpdate.name, () => {
       expect(within(web).getByLabelText("Port (internal)")).toBeDisabled();
       expect(within(web).getByLabelText("As (external)")).toBeDisabled();
       expect(within(web).getByText("This port is reached through a leased IP, so its numbers can't change without a new deployment.")).toBeInTheDocument();
+    });
+  });
+
+  describe("variables the console protected when the deployment was created", () => {
+    it("restores the ones this browser holds as plain variables, and stores them once the deployment is updated", async () => {
+      const { submit } = setup({ definition: { sdl: PROTECTED_SDL, restoredSdl: STORED_SDL } });
+      expect(updateButton()).toBeDisabled();
+
+      await userEvent.click(screen.getByRole("button", { name: "Restore 1 variable" }));
+      await userEvent.click(updateButton());
+
+      const web = serviceIn(submittedValues(submit), "web");
+      expect(web.env).toContainEqual(expect.objectContaining({ key: "MODE", value: "dev", isSecret: false }));
+      expect(web.env).toContainEqual(expect.objectContaining({ key: "API_TOKEN", value: "ac-secret://API_TOKEN", isSecret: true }));
+      expect(screen.queryByRole("button", { name: /^Restore/ })).not.toBeInTheDocument();
+    });
+
+    it("explains why their values are hidden when this browser holds no copy of them", () => {
+      setup({ definition: { sdl: PROTECTED_SDL } });
+
+      expect(screen.getByText(/so their values can't be shown/)).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: /^Restore/ })).not.toBeInTheDocument();
+    });
+
+    it("says nothing about a secret the user named", () => {
+      setup();
+
+      expect(screen.queryByText(/kept this deployment's variables as secrets/)).not.toBeInTheDocument();
+    });
+
+    it("offers nothing on a closed deployment, which cannot be updated", () => {
+      setup({ deploymentState: "closed", definition: { sdl: PROTECTED_SDL, restoredSdl: STORED_SDL } });
+
+      expect(screen.queryByText(/kept this deployment's variables as secrets/)).not.toBeInTheDocument();
+    });
+
+    it("holds the restore while an update is in flight", () => {
+      setup({ isUpdating: true, definition: { sdl: PROTECTED_SDL, restoredSdl: STORED_SDL } });
+
+      expect(screen.getByRole("button", { name: "Restore 1 variable" })).toBeDisabled();
     });
   });
 

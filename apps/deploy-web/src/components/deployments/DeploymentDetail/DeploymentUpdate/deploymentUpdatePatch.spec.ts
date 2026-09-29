@@ -132,6 +132,17 @@ describe(sealedUpdateOf.name, () => {
       expect(sealedUpdateOf(seed, current).services).toEqual({ worker: { expose: { "9000": { port: 9001, as: 9000 } } } });
     });
 
+    it("sends a kept secret restored as a plain variable as its plain value, sealing nothing", () => {
+      const { seed, current } = setup();
+      const web = serviceNamed(current, "web");
+      web.env = web.env?.map(variable => (variable.key === "DB_PASSWORD" ? { ...variable, value: "restored-from-this-browser", isSecret: false } : variable));
+
+      const update = sealedUpdateOf(seed, current);
+
+      expect(update.services).toEqual({ web: { env: { DB_PASSWORD: "restored-from-this-browser" } } });
+      expect(update.secrets).toEqual({});
+    });
+
     it("clears the registry credentials once the private registry is turned off", () => {
       const { seed, current } = setup();
       const web = serviceNamed(current, "web");

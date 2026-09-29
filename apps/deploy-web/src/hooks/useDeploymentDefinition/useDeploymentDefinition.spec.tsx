@@ -1,14 +1,16 @@
 import { ApiError } from "@akashnetwork/openapi-sdk";
 import { createProxy } from "@akashnetwork/react-query-proxy";
 import { QueryCache, QueryClient } from "@tanstack/react-query";
+import yaml from "js-yaml";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import { useResolvedDeploymentName } from "@src/hooks/useResolvedDeploymentName/useResolvedDeploymentName";
 import type { DeploymentStorageService } from "@src/services/deployment-storage/deployment-storage.service";
-import type { DEPENDENCIES } from "./useDeploymentDefinition";
-import { isUsableDeploymentDefinition, useDeploymentDefinition } from "./useDeploymentDefinition";
+import { deploymentData } from "@src/utils/deploymentData";
+import { DEPENDENCIES, isUsableDeploymentDefinition, sdlToRedeploy, useDeploymentDefinition } from "./useDeploymentDefinition";
 
+import { helloWorldManifest } from "@tests/seeders/manifest";
 import { buildWallet } from "@tests/seeders/wallet";
 import { type RenderAppHookOptions, setupQuery } from "@tests/unit/query-client";
 
@@ -17,6 +19,8 @@ type ApiService = ReturnType<NonNullable<NonNullable<RenderAppHookOptions["servi
 const API_SDL = 'version: "2.0"\nservices:\n  web:\n    image: nginx\n    env:\n      - "TOKEN=from-the-api"\n';
 const LOCAL_SDL = 'version: "2.0"\nservices:\n  web:\n    image: nginx\n    env:\n      - "TOKEN=from-this-browser"\n';
 const WITHHELD_VALUES_SDL = 'version: "2.0"\nservices:\n  web:\n    image: nginx\n    env:\n      - "TOKEN=ac-secret://s0_e0"\n';
+const SEALED_CREDENTIALS_SDL =
+  'version: "2.0"\nservices:\n  web:\n    image: nginx\n    credentials:\n      host: docker.io\n      username: someone\n      password: "ac-secret://s0_c_password"\n    env:\n      - "TOKEN=from-the-api"\n';
 const BLANK_ENV_SDL = 'version: "2.0"\nservices:\n  web:\n    image: nginx\n    env:\n      - "TOKEN="\n';
 const PARTLY_BLANK_ENV_SDL = 'version: "2.0"\nservices:\n  web:\n    image: nginx\n    env:\n      - "TOKEN="\n      - "REGION=us-east-1"\n';
 
@@ -170,6 +174,92 @@ describe(useDeploymentDefinition.name, () => {
       await vi.waitFor(() => expect(result.current.source).toBe("local"));
       expect(result.current.sdl).toBe(LOCAL_SDL);
     });
+
+    it("fills the values the api withholds from this browser's copy once that copy is the one the chain runs", async () => {
+      const { result } = setup({ apiSdl: WITHHELD_VALUES_SDL, localSdl: LOCAL_SDL, acceptReferences: true });
+
+      await vi.waitFor(() => expect(result.current.source).toBe("api"));
+      expect(result.current.sdl).toBe(WITHHELD_VALUES_SDL);
+      expect(result.current.restoredSdl).toContain("TOKEN=from-this-browser");
+    });
+
+    it("restores nothing from a copy of this browser's the chain has moved past", async () => {
+      const { result } = setup({ apiSdl: WITHHELD_VALUES_SDL, localSdl: LOCAL_SDL, acceptReferences: true, browserCopyVersion: "an-older-version" });
+
+      await vi.waitFor(() => expect(result.current.source).toBe("api"));
+      expect(result.current.restoredSdl).toBeUndefined();
+    });
+
+    it("reports resolving while it reads which version this browser's copy is", () => {
+      const { result } = setup({ apiSdl: WITHHELD_VALUES_SDL, localSdl: LOCAL_SDL, acceptReferences: true, isReadingBrowserCopy: true });
+
+      return vi.waitFor(() => {
+        expect(result.current.source).toBe("resolving");
+        expect(result.current.sdl).toBeUndefined();
+      });
+    });
+
+    it("does not wait on this browser's copy when the api withholds nothing", async () => {
+      const { result } = setup({ apiSdl: API_SDL, localSdl: LOCAL_SDL, acceptReferences: true, isReadingBrowserCopy: true });
+
+      await vi.waitFor(() => expect(result.current.source).toBe("api"));
+      expect(result.current.restoredSdl).toBeUndefined();
+    });
+
+    it("does not wait on this browser's copy when the api withholds only a registry credential", async () => {
+      const { result } = setup({ apiSdl: SEALED_CREDENTIALS_SDL, localSdl: LOCAL_SDL, acceptReferences: true, isReadingBrowserCopy: true });
+
+      await vi.waitFor(() => expect(result.current.source).toBe("api"));
+      expect(result.current.restoredSdl).toBeUndefined();
+    });
+
+    it("does not wait on this browser's copy when the api's copy is not the one the chain runs", async () => {
+      const { result } = setup({
+        apiSdl: WITHHELD_VALUES_SDL,
+        localSdl: LOCAL_SDL,
+        acceptReferences: true,
+        recordedManifestVersion: "an-older-version",
+        isReadingBrowserCopy: true
+      });
+
+      await vi.waitFor(() => expect(result.current.source).toBe("local"));
+    });
+
+    describe("when this browser hashes its own copy", () => {
+      it("fills the values the api sealed from a copy that hashes to the version the chain runs", async () => {
+        const localSdl = helloWorldWithEnv("TOKEN=from-this-browser");
+        const chainManifestVersion = await deploymentData.getManifestVersion(yaml.load(localSdl));
+        const { result, onQueryError } = setup({
+          apiSdl: helloWorldWithEnv("TOKEN=ac-secret://s0_e0"),
+          localSdl,
+          chainManifestVersion,
+          acceptReferences: true,
+          hashesBrowserCopy: true
+        });
+
+        await vi.waitFor(() => expect(result.current.restoredSdl).toContain("TOKEN=from-this-browser"));
+        expect(result.current.source).toBe("api");
+        expect(onQueryError).not.toHaveBeenCalled();
+      });
+
+      it.each([
+        ["does not parse", "services: [not, a, map"],
+        ["builds no manifest", LOCAL_SDL]
+      ])("restores nothing from a copy that %s, and reports nothing", async (_case, localSdl) => {
+        const { result, onQueryError } = setup({ apiSdl: WITHHELD_VALUES_SDL, localSdl, acceptReferences: true, hashesBrowserCopy: true });
+
+        await vi.waitFor(() => expect(result.current.source).toBe("api"));
+        expect(result.current.restoredSdl).toBeUndefined();
+        expect(onQueryError).not.toHaveBeenCalled();
+      });
+    });
+  });
+
+  it("restores nothing for a caller that does not accept references", async () => {
+    const { result } = setup({ apiSdl: WITHHELD_VALUES_SDL, localSdl: LOCAL_SDL, isReadingBrowserCopy: true });
+
+    await vi.waitFor(() => expect(result.current.source).toBe("local"));
+    expect(result.current.restoredSdl).toBeUndefined();
   });
 
   describe("whether the console holds a definition of its own", () => {
@@ -218,6 +308,12 @@ describe(useDeploymentDefinition.name, () => {
     expect(result.current.source).toBe("local");
   });
 
+  function helloWorldWithEnv(entry: string) {
+    const document = yaml.load(helloWorldManifest) as { services: { web: Record<string, unknown> } };
+    document.services.web.env = [entry];
+    return yaml.dump(document);
+  }
+
   function setup(input: {
     dseq?: string | null;
     apiSdl?: string | null;
@@ -229,6 +325,9 @@ describe(useDeploymentDefinition.name, () => {
     localName?: string;
     acceptReferences?: boolean;
     secretsEnabled?: boolean;
+    browserCopyVersion?: string;
+    isReadingBrowserCopy?: boolean;
+    hashesBrowserCopy?: boolean;
   }) {
     const chainManifestVersion = input.chainManifestVersion ?? "on-chain-version";
     const recordedManifestVersion = input.recordedManifestVersion ?? chainManifestVersion;
@@ -261,13 +360,18 @@ describe(useDeploymentDefinition.name, () => {
 
     const useResolvedName: typeof DEPENDENCIES.useResolvedDeploymentName = dseq =>
       useResolvedDeploymentName(dseq, { useServices, useDeploymentNameBackfill: () => undefined });
+    const readBrowserCopyVersion: typeof DEPENDENCIES.useManifestVersionOf = sdl => ({
+      version: sdl && !input.isReadingBrowserCopy ? input.browserCopyVersion ?? chainManifestVersion : undefined,
+      isReading: !!sdl && !!input.isReadingBrowserCopy
+    });
+    const useManifestVersionOf = input.hashesBrowserCopy ? DEPENDENCIES.useManifestVersionOf : readBrowserCopyVersion;
 
     const { result } = setupQuery(
       () =>
         useDeploymentDefinition(
           input.dseq === undefined ? "123" : input.dseq,
           { acceptReferences: input.acceptReferences },
-          { useServices, useWallet, useResolvedDeploymentName: useResolvedName, useFlag: () => input.secretsEnabled ?? true }
+          { useServices, useWallet, useResolvedDeploymentName: useResolvedName, useFlag: () => input.secretsEnabled ?? true, useManifestVersionOf }
         ),
       {
         services: { api: () => api, deploymentLocalStorage: () => deploymentLocalStorage, queryClient: () => queryClient }
@@ -289,5 +393,15 @@ describe(isUsableDeploymentDefinition.name, () => {
 
   it("rejects a usable source that carries no sdl", () => {
     expect(isUsableDeploymentDefinition({ sdl: undefined, name: undefined, source: "local" })).toBe(false);
+  });
+});
+
+describe(sdlToRedeploy.name, () => {
+  it("redeploys the values this browser gave back", () => {
+    expect(sdlToRedeploy({ sdl: WITHHELD_VALUES_SDL, restoredSdl: LOCAL_SDL, name: undefined, source: "api" })).toBe(LOCAL_SDL);
+  });
+
+  it("redeploys the served copy when nothing was given back", () => {
+    expect(sdlToRedeploy({ sdl: WITHHELD_VALUES_SDL, name: undefined, source: "api" })).toBe(WITHHELD_VALUES_SDL);
   });
 });
