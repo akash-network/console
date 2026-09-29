@@ -718,7 +718,10 @@ export class StripeTransactionService {
             source: params.transaction.type,
             isAutoRecharge: params.isAutoRecharge,
             paidAmountCents: params.paymentAmount,
-            bonusAmountCents: bonusAmount
+            bonusAmountCents: bonusAmount,
+            stripeCustomerId: params.customerId,
+            stripePaymentIntentId: params.stripePaymentIntentId,
+            stripeInvoiceId: params.transaction.stripeInvoiceId ?? undefined
           }
         : undefined
     };

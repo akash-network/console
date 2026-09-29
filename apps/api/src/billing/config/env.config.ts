@@ -43,6 +43,7 @@ export const envSchema = z.object({
   CREDITS_ADDED_SLACK_WEBHOOK_URL: optionalUrl(),
   AMPLITUDE_PROJECT_URL: optionalUrl(),
   CONSOLE_ADMIN_URL: optionalUrl(),
+  STRIPE_DASHBOARD_URL: optionalUrl(),
   MANAGED_WALLET_LEASE_ALLOWED_AUDITORS: z
     .string()
     .default(AUDITOR)

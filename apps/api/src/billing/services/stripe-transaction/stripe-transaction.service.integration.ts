@@ -371,7 +371,9 @@ describe(StripeTransactionService.name, () => {
         source: "payment_intent",
         isAutoRecharge: false,
         paidAmountCents: amount,
-        bonusAmountCents: bonusAmount
+        bonusAmountCents: bonusAmount,
+        stripeCustomerId: mockUser.stripeCustomerId,
+        stripePaymentIntentId: "pi_card"
       });
     });
 
@@ -401,7 +403,9 @@ describe(StripeTransactionService.name, () => {
         source: "payment_intent",
         isAutoRecharge: true,
         paidAmountCents: amount,
-        bonusAmountCents: 0
+        bonusAmountCents: 0,
+        stripeCustomerId: mockUser.stripeCustomerId,
+        stripePaymentIntentId: "pi_auto"
       });
     });
 
@@ -449,7 +453,9 @@ describe(StripeTransactionService.name, () => {
         source: type,
         isAutoRecharge: false,
         paidAmountCents: amount,
-        bonusAmountCents: 0
+        bonusAmountCents: 0,
+        stripeCustomerId: mockUser.stripeCustomerId,
+        stripeInvoiceId: invoiceId
       });
     });
 

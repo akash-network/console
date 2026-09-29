@@ -16,7 +16,10 @@ const SLACK_ORIGIN = "https://hooks.slack.test";
 const SLACK_PATH = "/services/T000/B000/credits";
 const AMPLITUDE_PROJECT_URL = "https://app.amplitude.com/analytics/example-org/project/100001";
 const CONSOLE_ADMIN_URL = "https://console-admin.example.com";
+const STRIPE_DASHBOARD_URL = "https://dashboard.stripe.example/acct_test";
 const MISSING_USER_ID = "00000000-0000-0000-0000-000000000000";
+
+type CreditsAddedInput = Pick<CreditsAdded["data"], "userId" | "transactionId"> & Partial<CreditsAdded["data"]>;
 
 const jobWorkers = useJobWorkers(() => [container.resolve(CreditsAddedSlackAlertHandler)]);
 
@@ -26,17 +29,22 @@ describe(CreditsAddedSlackAlertHandler.name, () => {
     nock.cleanAll();
   });
 
-  it("posts the credited amount, the buyer and links to their Amplitude sessions and admin page", async () => {
+  it("posts the credited amount, the buyer and links to their Amplitude sessions, admin page and Stripe records", async () => {
     const { user, creditsAdded, slackPosts } = await setup({ email: "buyer@example.com" });
 
-    await creditsAdded({ userId: user.id, transactionId: "tx-card-purchase" });
+    await creditsAdded({ userId: user.id, transactionId: "tx-card-purchase", stripeCustomerId: "cus_buyer", stripePaymentIntentId: "pi_buyer" });
 
     expect(slackPosts).toEqual([
       {
         text: [
-          ":credit_card: *Card purchase* · $25.00 credited",
+          ":credit_card: *Card purchase* · *$25.00* credited",
           "buyer@example.com",
-          `<${AMPLITUDE_PROJECT_URL}/search/user_id%3D${user.id}|Amplitude sessions> · <${CONSOLE_ADMIN_URL}/users/${user.id}|Admin>`
+          [
+            `<${AMPLITUDE_PROJECT_URL}/search/user_id%3D${user.id}|Amplitude sessions>`,
+            `<${CONSOLE_ADMIN_URL}/users/${user.id}|Admin>`,
+            `<${STRIPE_DASHBOARD_URL}/customers/cus_buyer|Stripe customer>`,
+            `<${STRIPE_DASHBOARD_URL}/payments/pi_buyer|Stripe payment>`
+          ].join(" · ")
         ].join("\n")
       }
     ]);
@@ -83,7 +91,8 @@ describe(CreditsAddedSlackAlertHandler.name, () => {
     const overrides: Partial<Record<Parameters<typeof readConfig>[0], unknown>> = {
       CREDITS_ADDED_SLACK_WEBHOOK_URL: webhookUrl,
       AMPLITUDE_PROJECT_URL,
-      CONSOLE_ADMIN_URL
+      CONSOLE_ADMIN_URL,
+      STRIPE_DASHBOARD_URL
     };
     vi.spyOn(billingConfig, "get").mockImplementation((key => (key in overrides ? overrides[key] : readConfig(key))) as typeof billingConfig.get);
 
@@ -96,7 +105,7 @@ describe(CreditsAddedSlackAlertHandler.name, () => {
       .reply(input.slackStatus ?? 200, "ok")
       .persist();
 
-    const enqueueCreditsAdded = async (event: { userId: string; transactionId: string }) => {
+    const enqueueCreditsAdded = async (event: CreditsAddedInput) => {
       await enqueue(new CreditsAdded({ source: "payment_intent", isAutoRecharge: false, paidAmountCents: 2500, bonusAmountCents: 0, ...event }));
       await startWorkers();
     };
@@ -105,7 +114,7 @@ describe(CreditsAddedSlackAlertHandler.name, () => {
       user,
       slackPosts,
       enqueueCreditsAdded,
-      creditsAdded: async (event: { userId: string; transactionId: string }) => {
+      creditsAdded: async (event: CreditsAddedInput) => {
         await enqueueCreditsAdded(event);
         await expectJobCompleted(CreditsAdded[DOMAIN_EVENT_NAME], { data: { transactionId: event.transactionId } });
       }
