@@ -15,6 +15,19 @@ const DAY_MS = 24 * HOUR_MS;
 
 type RequestWindow = { durationMs: number; limit: number; message: string };
 
+type Refusal = { message: string; retryAfterSeconds: number };
+
+/** Waits on the request `limit` places before the newest, since a window a lowered limit left over-full needs more than its oldest to leave. */
+function refusalIn({ durationMs, limit, message }: RequestWindow, creationTimes: Date[], now: number): Refusal | undefined {
+  const windowStart = now - durationMs;
+  const inWindow = creationTimes.filter(createdAt => createdAt.getTime() > windowStart);
+
+  if (inWindow.length < limit) return undefined;
+
+  const releasing = inWindow[inWindow.length - limit];
+  return { message, retryAfterSeconds: Math.ceil((releasing.getTime() - windowStart) / 1000) };
+}
+
 @singleton()
 export class HardwareRequestService {
   constructor(
@@ -42,7 +55,7 @@ export class HardwareRequestService {
     });
   }
 
-  /** Windows run longest first, so a user over both limits is told the later time they can send again. */
+  /** A user over both limits is told the later of the two times, since either window can be the one that lifts last. */
   async #assertWithinLimits(userId: string): Promise<void> {
     const now = Date.now();
     const windows: RequestWindow[] = [
@@ -59,14 +72,11 @@ export class HardwareRequestService {
     ];
     const creationTimes = await this.hardwareRequestRepository.findCreationTimesSince(userId, new Date(now - DAY_MS));
 
-    for (const { durationMs, limit, message } of windows) {
-      const windowStart = now - durationMs;
-      const inWindow = creationTimes.filter(createdAt => createdAt.getTime() > windowStart);
+    const refusals = windows.map(window => refusalIn(window, creationTimes, now)).filter(refusal => refusal !== undefined);
 
-      if (inWindow.length >= limit) {
-        const retryAfterSeconds = Math.ceil((inWindow[0].getTime() - windowStart) / 1000);
-        throw createError(429, message, { errorCode: "hardware_request_limit", headers: { "Retry-After": String(retryAfterSeconds) } });
-      }
-    }
+    if (refusals.length === 0) return;
+
+    const latest = refusals.reduce((later, refusal) => (refusal.retryAfterSeconds > later.retryAfterSeconds ? refusal : later));
+    throw createError(429, latest.message, { errorCode: "hardware_request_limit", headers: { "Retry-After": String(latest.retryAfterSeconds) } });
   }
 }

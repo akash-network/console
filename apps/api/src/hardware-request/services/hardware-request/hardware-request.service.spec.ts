@@ -140,10 +140,31 @@ describe(HardwareRequestService.name, () => {
       expect(hardwareRequestRepository.create).not.toHaveBeenCalled();
     });
 
-    it("reports the daily limit when the hourly one is reached too, since it lifts later", async () => {
+    it("reports the daily limit when both are reached and the day lifts later", async () => {
       const { service } = setup({ creationTimes: [...hoursAgo([20, 18, 16, 14, 12, 10, 8]), minutesAgo(40), minutesAgo(20), minutesAgo(10)] });
 
-      await expect(service.create(anInput())).rejects.toMatchObject({ message: expect.stringContaining("a day") });
+      await expect(service.create(anInput())).rejects.toMatchObject({
+        message: expect.stringContaining("a day"),
+        headers: { "Retry-After": String(4 * 60 * 60) }
+      });
+    });
+
+    it("reports the hourly limit when both are reached and the hour lifts later", async () => {
+      const dayOldestAlmostGone = new Date(NOW - 24 * HOUR_MS + 60 * 1000);
+      const { service } = setup({
+        creationTimes: [dayOldestAlmostGone, ...hoursAgo([20, 18, 16, 14, 12, 10]), minutesAgo(10), minutesAgo(5), minutesAgo(1)]
+      });
+
+      await expect(service.create(anInput())).rejects.toMatchObject({
+        message: expect.stringContaining("an hour"),
+        headers: { "Retry-After": String(50 * 60) }
+      });
+    });
+
+    it("waits for enough requests to leave a window that holds more than the limit", async () => {
+      const { service } = setup({ config: { HARDWARE_REQUEST_HOURLY_LIMIT: 2 }, creationTimes: [minutesAgo(50), minutesAgo(40), minutesAgo(30)] });
+
+      await expect(service.create(anInput())).rejects.toMatchObject({ headers: { "Retry-After": String(20 * 60) } });
     });
 
     it("applies the configured limits", async () => {

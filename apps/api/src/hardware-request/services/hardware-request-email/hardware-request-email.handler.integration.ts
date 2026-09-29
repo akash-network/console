@@ -18,7 +18,7 @@ const DEFAULT_CHANNEL_PATH = "/v1/notification-channels/default";
 
 const jobWorkers = useJobWorkers(() => [container.resolve(HardwareRequestEmailHandler)]);
 
-type SentRequest = { userId: string | undefined; body: Record<string, any> };
+type SentRequest = { userId: string | undefined; body: Record<string, unknown> };
 
 describe(HardwareRequestEmailHandler.name, () => {
   afterEach(() => {
@@ -52,7 +52,7 @@ describe(HardwareRequestEmailHandler.name, () => {
     nock(notificationsBaseUrl)
       .post(DEFAULT_CHANNEL_PATH)
       .reply(function reply(this: nock.ReplyFnContext, _uri, body) {
-        channels.push({ userId: this.req.headers["x-user-id"], body: body as Record<string, any> });
+        channels.push({ userId: this.req.headers["x-user-id"], body: body as Record<string, unknown> });
         return [204];
       });
     const notifications = answerNotificationsWith(204);
@@ -97,7 +97,7 @@ describe(HardwareRequestEmailHandler.name, () => {
         .persist()
         .post(NOTIFICATION_PATH)
         .reply(function reply(this: nock.ReplyFnContext, _uri, body) {
-          sent.push({ userId: this.req.headers["x-user-id"], body: body as Record<string, any> });
+          sent.push({ userId: this.req.headers["x-user-id"], body: body as Record<string, unknown> });
           return [status];
         });
 
