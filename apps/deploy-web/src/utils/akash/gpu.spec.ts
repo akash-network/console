@@ -7,6 +7,7 @@ import {
   findUnavailableGpuModels,
   listGpuInterfaceOptions,
   listGpuMemoryOptions,
+  narrowFallbackVendors,
   narrowGpuVendorsToAvailable,
   prioritizeGpuModels,
   withPinnedGpu
@@ -41,6 +42,34 @@ describe("prioritizeGpuModels", () => {
     const models = [{ name: "a100" }, { name: "t4" }];
 
     expect(prioritizeGpuModels(models, ["t4", "a100"]).map(model => model.name)).toEqual(["t4", "a100"]);
+  });
+});
+
+describe(narrowFallbackVendors.name, () => {
+  const CATALOG: GpuVendor[] = [
+    { name: "nvidia", models: [{ name: "t4", memory: ["16Gi"], interface: ["pcie"] }] },
+    { name: "amd", models: [{ name: "mi300", memory: ["192Gi"], interface: ["pcie"] }] },
+    { name: "intel", models: [{ name: "max1550", memory: ["128Gi"], interface: ["pcie"] }] }
+  ];
+
+  it("keeps only the default vendor while availability is absent", () => {
+    expect(narrowFallbackVendors(CATALOG, undefined, undefined)?.map(vendor => vendor.name)).toEqual(["nvidia"]);
+  });
+
+  it("keeps only the default vendor while no gpu is reported available", () => {
+    expect(narrowFallbackVendors(CATALOG, [], "nvidia")?.map(vendor => vendor.name)).toEqual(["nvidia"]);
+  });
+
+  it("keeps a pinned vendor with its catalog models alongside the default one", () => {
+    expect(narrowFallbackVendors(CATALOG, undefined, "amd")).toEqual([CATALOG[0], CATALOG[1]]);
+  });
+
+  it("leaves the vendors untouched once availability is reported", () => {
+    expect(narrowFallbackVendors(CATALOG, [{ vendor: "intel", models: [] }], undefined)).toBe(CATALOG);
+  });
+
+  it("reports no list when there is none to narrow", () => {
+    expect(narrowFallbackVendors(undefined, undefined, "amd")).toBeUndefined();
   });
 });
 

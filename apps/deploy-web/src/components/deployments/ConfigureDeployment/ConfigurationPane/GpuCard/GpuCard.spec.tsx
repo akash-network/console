@@ -198,7 +198,11 @@ describe(GpuCard.name, () => {
   });
 
   it("resets model, memory, and interface when the vendor changes", async () => {
-    const { getValues, user } = setup({ hasGpu: true, gpuModels: [{ vendor: "nvidia", name: "a100", memory: "40Gi", interface: "pcie" }] });
+    const { getValues, user } = setup({
+      hasGpu: true,
+      gpuModels: [{ vendor: "nvidia", name: "a100", memory: "40Gi", interface: "pcie" }],
+      availableGpus: everyCatalogGpuAvailable()
+    });
 
     await user.click(screen.getByRole("combobox", { name: "GPU vendor" }));
     await user.click(await screen.findByRole("option", { name: "amd" }));
@@ -313,7 +317,8 @@ describe(GpuCard.name, () => {
       vendors: [
         { name: "nvidia", displayName: "NVIDIA", models: [{ name: "a100", displayName: "A100", memory: ["80Gi"], interface: ["sxm"] }] },
         { name: "amd", displayName: "AMD", models: [{ name: "mi300", memory: ["192Gi"], interface: ["pcie"] }] }
-      ]
+      ],
+      availableGpus: everyCatalogGpuAvailable()
     });
 
     await user.click(screen.getByRole("combobox", { name: "GPU vendor" }));
@@ -389,7 +394,12 @@ describe(GpuCard.name, () => {
   });
 
   it("disables every GPU input while locked", () => {
-    setup({ hasGpu: true, locked: true, gpuModels: [{ vendor: "nvidia", name: "a100", memory: "40Gi", interface: "pcie" }] });
+    setup({
+      hasGpu: true,
+      locked: true,
+      gpuModels: [{ vendor: "nvidia", name: "a100", memory: "40Gi", interface: "pcie" }],
+      availableGpus: everyCatalogGpuAvailable()
+    });
 
     expect(screen.getByLabelText("GPUs")).toBeDisabled();
     expect(screen.getByRole("switch", { name: "Enable GPU interconnect" })).toBeDisabled();
@@ -409,7 +419,11 @@ describe(GpuCard.name, () => {
   });
 
   it("tracks the model with the vendor the entry switched to", async () => {
-    const { analyticsService, user } = setup({ hasGpu: true, gpuModels: [{ vendor: "nvidia", name: "", memory: "", interface: "" }] });
+    const { analyticsService, user } = setup({
+      hasGpu: true,
+      gpuModels: [{ vendor: "nvidia", name: "", memory: "", interface: "" }],
+      availableGpus: everyCatalogGpuAvailable()
+    });
 
     await user.click(screen.getByRole("combobox", { name: "GPU vendor" }));
     await user.click(await screen.findByRole("option", { name: "amd" }));
@@ -715,8 +729,25 @@ describe(GpuCard.name, () => {
 
       expect(await screen.findByRole("option", { name: "a100" })).toBeInTheDocument();
       expect(screen.getByRole("option", { name: "t4" })).toBeInTheDocument();
-      expect(screen.getByRole("combobox", { name: "GPU vendor" })).toBeInTheDocument();
       expect(screen.queryByRole("group", { name: "Unavailable" })).not.toBeInTheDocument();
+    });
+
+    it("drops the vendor step when availability cannot be loaded", () => {
+      setup({ hasGpu: true });
+
+      expect(screen.queryByRole("combobox", { name: "GPU vendor" })).not.toBeInTheDocument();
+    });
+
+    it("offers only the default vendor and a pinned one when availability cannot be loaded", async () => {
+      const { user } = setup({
+        hasGpu: true,
+        gpuModels: [{ vendor: "amd", name: "mi300", memory: "", interface: "" }],
+        vendors: [...GPU_VENDORS, { name: "intel", models: [{ name: "max1550", memory: ["128Gi"], interface: ["pcie"] }] }]
+      });
+
+      await user.click(screen.getByRole("combobox", { name: "GPU vendor" }));
+
+      expect((await screen.findAllByRole("option")).map(option => option.textContent)).toEqual(["nvidia", "amd"]);
     });
 
     it("still sorts the popular models to the top of the shortened list", async () => {
@@ -763,6 +794,13 @@ describe(GpuCard.name, () => {
 
   function availableModel(name: string, memory = ["80Gi"], gpuInterface = ["sxm"], providerCount = 1): AvailableGpuVendor["models"][number] {
     return { name, memory, interface: gpuInterface, providerCount, variants: everyVariant(memory, gpuInterface, providerCount) };
+  }
+
+  function everyCatalogGpuAvailable(): AvailableGpuVendor[] {
+    return [
+      { vendor: "nvidia", models: [availableModel("a100", ["40Gi", "80Gi"], ["pcie", "sxm"]), availableModel("t4", ["16Gi"], ["pcie"])] },
+      { vendor: "amd", models: [availableModel("mi300", ["192Gi"], ["pcie"])] }
+    ];
   }
 
   function everyVariant(memory: string[], gpuInterface: string[], providerCount: number) {

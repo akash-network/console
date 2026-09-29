@@ -32,6 +32,7 @@ import {
   gpuVendors as fallbackVendors,
   listGpuInterfaceOptions,
   listGpuMemoryOptions,
+  narrowFallbackVendors,
   narrowGpuVendorsToAvailable,
   prioritizeGpuModels,
   withPinnedGpu
@@ -102,7 +103,9 @@ export const GpuCard: FC<Props> = ({
     locked,
     dependencies: d
   };
-  const countField = <GpuCountField serviceIndex={serviceIndex} locked={locked} count={serviceGpu.count} onCountChange={serviceGpu.setCount} dependencies={d} />;
+  const countField = (
+    <GpuCountField serviceIndex={serviceIndex} locked={locked} count={serviceGpu.count} onCountChange={serviceGpu.setCount} dependencies={d} />
+  );
 
   return (
     <d.CollapsibleCard
@@ -117,14 +120,7 @@ export const GpuCard: FC<Props> = ({
         <p className="text-sm text-muted-foreground">Add accelerators for inference, training or rendering.</p>
 
         {fields.length > 0 ? (
-          <d.GpuModelFields
-            {...sharedModelProps}
-            key={fields[0].id}
-            gpuIndex={0}
-            isGpuOn={isGpuOn}
-            countField={countField}
-            onModelPick={serviceGpu.enable}
-          />
+          <d.GpuModelFields {...sharedModelProps} key={fields[0].id} gpuIndex={0} isGpuOn={isGpuOn} countField={countField} onModelPick={serviceGpu.enable} />
         ) : (
           <FirstGpuModelPicker {...sharedModelProps} countField={countField} onPick={serviceGpu.pickFirstModel} />
         )}
@@ -137,7 +133,14 @@ export const GpuCard: FC<Props> = ({
             ))}
 
         {isGpuOn && !locked && (
-          <Button type="button" variant="ghost" size="sm" onClick={addAlternativeModel} disabled={hasReachedModelLimit} className="gap-1.5 self-start text-muted-foreground">
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={addAlternativeModel}
+            disabled={hasReachedModelLimit}
+            className="gap-1.5 self-start text-muted-foreground"
+          >
             <PlusIcon className="h-4 w-4" />
             Add another model
           </Button>
@@ -353,11 +356,18 @@ function GpuModelFields({
   if (gpuIndex === 0) {
     return (
       <div className="flex flex-col gap-3">
-        {vendorField}
-        <div className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-3">
-          {modelField}
-          {countField}
-        </div>
+        {vendorField ? (
+          <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,2fr)_auto] items-end gap-3">
+            {vendorField}
+            {modelField}
+            {countField}
+          </div>
+        ) : (
+          <div className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-3">
+            {modelField}
+            {countField}
+          </div>
+        )}
         {pinFields}
         {unlockButton}
       </div>
@@ -382,8 +392,14 @@ function GpuModelFields({
           </Button>
         )}
       </div>
-      {vendorField}
-      {modelField}
+      {vendorField ? (
+        <div className="grid grid-cols-2 items-end gap-3">
+          {vendorField}
+          {modelField}
+        </div>
+      ) : (
+        modelField
+      )}
       {pinFields}
       {unlockButton}
     </div>
@@ -396,7 +412,18 @@ type FirstGpuModelPickerProps = ModelFieldsSharedProps & {
 };
 
 /** Stands in for the first model while the service has no GPU entry, writing the whole entry on a pick so nothing registers a partial one. */
-function FirstGpuModelPicker({ gpuVendors, gpuCatalog, availableGpus, isLoading, isError, isBlockedModel, onUnlock, locked = false, countField, onPick }: FirstGpuModelPickerProps) {
+function FirstGpuModelPicker({
+  gpuVendors,
+  gpuCatalog,
+  availableGpus,
+  isLoading,
+  isError,
+  isBlockedModel,
+  onUnlock,
+  locked = false,
+  countField,
+  onPick
+}: FirstGpuModelPickerProps) {
   const choices = useGpuModelOptions({ gpuVendors, gpuCatalog, availableGpus, isBlockedModel, pinned: { vendor: defaultGpuModel.vendor } });
 
   return (
@@ -482,7 +509,10 @@ type GpuModelOptionsInput = {
 function useGpuModelOptions({ gpuVendors, gpuCatalog, availableGpus, isBlockedModel, pinned }: GpuModelOptionsInput) {
   const { vendor, name, memory, interface: gpuInterface } = pinned;
 
-  const offeredVendors = useMemo(() => withPinnedGpu(gpuVendors, { vendor, name, memory, interface: gpuInterface }), [gpuVendors, vendor, name, memory, gpuInterface]);
+  const offeredVendors = useMemo(
+    () => withPinnedGpu(narrowFallbackVendors(gpuVendors, availableGpus, vendor), { vendor, name, memory, interface: gpuInterface }),
+    [gpuVendors, availableGpus, vendor, name, memory, gpuInterface]
+  );
 
   const vendorOptions = useMemo(
     () =>
