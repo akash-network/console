@@ -12,35 +12,16 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 describe(ConfidentialComputeFields.name, () => {
-  it("shows only the opt-in and leaves the switch off when no TEE is set", () => {
-    setup({});
+  it("explains confidential compute and asks for the attestation", () => {
+    setup({ tee: "cpu" });
 
-    expect(screen.getByText("Confidential compute")).toBeInTheDocument();
-    expect(screen.getByText("Require hardware-backed TEE providers.")).toBeInTheDocument();
-    expect(screen.getByRole("switch", { name: "Enable confidential compute" })).not.toBeChecked();
-    expect(screen.queryByRole("radiogroup", { name: "Confidential compute type" })).not.toBeInTheDocument();
-  });
-
-  it("sets the TEE to cpu and reveals the radios when toggled on", async () => {
-    const { getValues } = setup({});
-
-    await userEvent.click(screen.getByRole("switch", { name: "Enable confidential compute" }));
-
-    expect(getValues().services[0].params?.tee).toBe("cpu");
+    expect(screen.getByText(/Runs this service inside a Trusted Execution Environment \(TEE\)/)).toBeInTheDocument();
+    expect(screen.getByRole("group", { name: "Attestation" })).toBeInTheDocument();
     expect(screen.getByRole("radio", { name: "CPU" })).toBeChecked();
     expect(screen.getByRole("radio", { name: "CPU-GPU" })).not.toBeChecked();
   });
 
-  it("clears the TEE param when toggled off", async () => {
-    const { getValues } = setup({ tee: "cpu" });
-
-    await userEvent.click(screen.getByRole("switch", { name: "Enable confidential compute" }));
-
-    expect(getValues().services[0].params?.tee).toBeUndefined();
-    expect(screen.queryByRole("radiogroup", { name: "Confidential compute type" })).not.toBeInTheDocument();
-  });
-
-  it("switches the TEE to cpu-gpu when that radio is chosen", async () => {
+  it("switches the TEE to cpu-gpu when that attestation is chosen", async () => {
     const { getValues } = setup({ tee: "cpu" });
 
     await userEvent.click(screen.getByRole("radio", { name: "CPU-GPU" }));
@@ -52,14 +33,34 @@ describe(ConfidentialComputeFields.name, () => {
   it("reflects an initial cpu-gpu value", () => {
     setup({ tee: "cpu-gpu" });
 
-    expect(screen.getByRole("switch", { name: "Enable confidential compute" })).toBeChecked();
     expect(screen.getByRole("radio", { name: "CPU-GPU" })).toBeChecked();
   });
 
-  it("describes that the cpu-gpu option adds a GPU to the service", () => {
+  it("keeps the attestation when the chosen one is clicked again", async () => {
+    const { getValues } = setup({ tee: "cpu" });
+
+    await userEvent.click(screen.getByRole("radio", { name: "CPU" }));
+
+    expect(getValues().services[0].params?.tee).toBe("cpu");
+    expect(screen.getByRole("radio", { name: "CPU" })).toBeChecked();
+  });
+
+  it("describes the chosen attestation", async () => {
     setup({ tee: "cpu" });
 
+    expect(screen.getByText("Run inside a CPU-only Trusted Execution Environment.")).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("radio", { name: "CPU-GPU" }));
+
     expect(screen.getByText("Attest the GPU as well. This adds a GPU to this service.")).toBeInTheDocument();
+    expect(screen.queryByText("Run inside a CPU-only Trusted Execution Environment.")).not.toBeInTheDocument();
+  });
+
+  it("describes no attestation before one is chosen", () => {
+    setup({});
+
+    expect(screen.queryByText("Run inside a CPU-only Trusted Execution Environment.")).not.toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: "CPU" })).not.toBeChecked();
   });
 
   it("adds one GPU with a default model when cpu-gpu is chosen for a service without GPUs", async () => {
@@ -80,14 +81,6 @@ describe(ConfidentialComputeFields.name, () => {
     expect(profile.gpuModels).toEqual([{ vendor: "nvidia", name: "h100" }]);
   });
 
-  it("leaves a service without GPUs alone when confidential compute is turned on", async () => {
-    const { getValues } = setup({ profile: { hasGpu: false, gpu: 0, gpuModels: [] } });
-
-    await userEvent.click(screen.getByRole("switch", { name: "Enable confidential compute" }));
-
-    expect(getValues().services[0].profile).toMatchObject({ hasGpu: false, gpu: 0, gpuModels: [] });
-  });
-
   it("leaves GPU untouched when cpu is chosen", async () => {
     const { getValues } = setup({ tee: "cpu-gpu", profile: { hasGpu: true, gpu: 2, gpuModels: [{ vendor: "nvidia" }] } });
 
@@ -97,38 +90,19 @@ describe(ConfidentialComputeFields.name, () => {
     expect(getValues().services[0].profile.gpu).toBe(2);
   });
 
-  it("preserves other params when the TEE is toggled on and off", async () => {
-    const { getValues } = setup({ params: { permissions: { read: ["logs"] } } });
+  it("preserves other params when the attestation changes", async () => {
+    const { getValues } = setup({ params: { permissions: { read: ["logs"] }, tee: "cpu" } });
 
-    await userEvent.click(screen.getByRole("switch", { name: "Enable confidential compute" }));
-    expect(getValues().services[0].params).toMatchObject({ permissions: { read: ["logs"] }, tee: "cpu" });
+    await userEvent.click(screen.getByRole("radio", { name: "CPU-GPU" }));
 
-    await userEvent.click(screen.getByRole("switch", { name: "Enable confidential compute" }));
-    expect(getValues().services[0].params).toMatchObject({ permissions: { read: ["logs"] } });
-    expect(getValues().services[0].params?.tee).toBeUndefined();
+    expect(getValues().services[0].params).toMatchObject({ permissions: { read: ["logs"] }, tee: "cpu-gpu" });
   });
 
-  it("drops the params object entirely when toggling off leaves nothing behind", async () => {
-    const { getValues } = setup({ tee: "cpu" });
-
-    await userEvent.click(screen.getByRole("switch", { name: "Enable confidential compute" }));
-
-    expect(getValues().services[0].params).toBeUndefined();
-  });
-
-  it("disables the switch and radios while the pane is locked", () => {
+  it("disables the attestations while the pane is locked", () => {
     setup({ tee: "cpu", locked: true });
 
-    expect(screen.getByRole("switch", { name: "Enable confidential compute" })).toBeDisabled();
     expect(screen.getByRole("radio", { name: "CPU" })).toBeDisabled();
     expect(screen.getByRole("radio", { name: "CPU-GPU" })).toBeDisabled();
-  });
-
-  it("shows a disabled switch and no options while off and locked", () => {
-    setup({ locked: true });
-
-    expect(screen.getByRole("switch", { name: "Enable confidential compute" })).toBeDisabled();
-    expect(screen.queryByRole("radiogroup", { name: "Confidential compute type" })).not.toBeInTheDocument();
   });
 
   it("previews the attestation-sidecar resource carve-out when enabled", () => {
@@ -153,7 +127,7 @@ describe(ConfidentialComputeFields.name, () => {
     );
   });
 
-  it("hides the resource carve-out while confidential compute is off", () => {
+  it("hides the resource carve-out while no attestation is chosen", () => {
     setup({});
 
     expect(screen.queryByText("Attestation sidecar")).not.toBeInTheDocument();
@@ -208,12 +182,6 @@ describe(ConfidentialComputeFields.name, () => {
       expect(screen.getByRole("button", { name: "Unlock high-end GPUs" })).toBeInTheDocument();
     });
 
-    it("hides the free-trial warning while confidential compute is off", () => {
-      setup({ isGpuBlocked: true });
-
-      expect(screen.queryByText(/high-end GPUs aren't available on a free trial/i)).not.toBeInTheDocument();
-    });
-
     it("opens the unlock sheet when the unlock CTA is clicked", async () => {
       const onUnlock = vi.fn();
       setup({ tee: "cpu", isGpuBlocked: true, onUnlock });
@@ -223,13 +191,13 @@ describe(ConfidentialComputeFields.name, () => {
       expect(onUnlock).toHaveBeenCalledTimes(1);
     });
 
-    it("ignores a cpu-gpu selection even if the disabled radio is triggered", async () => {
-      const RadioGroup = forwardRef<HTMLDivElement, ComponentPropsWithoutRef<typeof DEPENDENCIES.RadioGroup>>(({ onValueChange }, _ref) => (
-        <button type="button" onClick={() => onValueChange?.("cpu-gpu")}>
+    it("ignores a cpu-gpu selection even if the disabled attestation is triggered", async () => {
+      const ToggleGroup = forwardRef<HTMLDivElement, ComponentPropsWithoutRef<typeof DEPENDENCIES.ToggleGroup>>((props, _ref) => (
+        <button type="button" onClick={() => (props.onValueChange as (value: string) => void)("cpu-gpu")}>
           force-cpu-gpu
         </button>
       ));
-      const { getValues } = setup({ tee: "cpu", isGpuBlocked: true, dependencies: { RadioGroup } });
+      const { getValues } = setup({ tee: "cpu", isGpuBlocked: true, dependencies: { ToggleGroup } });
 
       await userEvent.click(screen.getByRole("button", { name: "force-cpu-gpu" }));
 

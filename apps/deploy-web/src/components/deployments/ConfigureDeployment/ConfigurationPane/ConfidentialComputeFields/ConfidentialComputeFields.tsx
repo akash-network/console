@@ -1,28 +1,23 @@
 import type { FC } from "react";
-import { useCallback } from "react";
+import { useId } from "react";
 import { useFormContext, useWatch } from "react-hook-form";
-import { Alert, Label, RadioGroup, RadioGroupItem } from "@akashnetwork/ui/components";
+import { Alert, ToggleGroup, ToggleGroupItem } from "@akashnetwork/ui/components";
 import { LockIcon } from "lucide-react";
 
 import { ConfidentialComputeResources } from "@src/components/deployments/ConfidentialComputeResources";
 import type { SdlBuilderFormValuesType } from "@src/types";
+import type { TeeType } from "@src/utils/confidentialCompute";
 import { buildFormTeeCarveout } from "@src/utils/confidentialCompute";
-import { ToggleRow } from "../ToggleRow/ToggleRow";
 import { UnlockGpusButton } from "../UnlockGpusButton/UnlockGpusButton";
+import { useConfidentialCompute } from "../useConfidentialCompute/useConfidentialCompute";
 import { useServiceGpu } from "../useServiceGpu/useServiceGpu";
 
-export const DEPENDENCIES = { ToggleRow, RadioGroup, RadioGroupItem, Label, Alert, ConfidentialComputeResources, UnlockGpusButton };
-
-type ServiceParams = NonNullable<SdlBuilderFormValuesType["services"][number]["params"]>;
-type TeeType = NonNullable<ServiceParams["tee"]>;
+export const DEPENDENCIES = { ToggleGroup, Alert, ConfidentialComputeResources, UnlockGpusButton };
 
 const TEE_OPTIONS: { value: TeeType; label: string; description: string }[] = [
   { value: "cpu", label: "CPU", description: "Run inside a CPU-only Trusted Execution Environment." },
   { value: "cpu-gpu", label: "CPU-GPU", description: "Attest the GPU as well. This adds a GPU to this service." }
 ];
-
-/** CPU is the least restrictive TEE type and needs no GPU. */
-const DEFAULT_TEE: TeeType = "cpu";
 
 type Props = {
   serviceIndex: number;
@@ -33,20 +28,20 @@ type Props = {
   dependencies?: typeof DEPENDENCIES;
 };
 
-/** The Security card's confidential compute opt-in; turning it off keeps the service's other params and drops `params` once empty so the SDL stays clean. */
 export const ConfidentialComputeFields: FC<Props> = ({ serviceIndex, locked = false, isGpuBlocked = false, onUnlock, dependencies: d = DEPENDENCIES }) => {
-  const { control, getValues, setValue } = useFormContext<SdlBuilderFormValuesType>();
-  const { count: gpuCount, enable: enableGpu } = useServiceGpu(serviceIndex);
-  const tee = useWatch({ control, name: `services.${serviceIndex}.params.tee` });
-  const isEnabled = tee === "cpu" || tee === "cpu-gpu";
+  const { control, getValues } = useFormContext<SdlBuilderFormValuesType>();
+  const { count: gpuCount } = useServiceGpu(serviceIndex);
+  const { tee, setTee } = useConfidentialCompute(serviceIndex, { isGpuBlocked });
+  const attestationLabelId = useId();
 
   const serviceProfile = useWatch({ control, name: `services.${serviceIndex}.profile` });
   const count = useWatch({ control, name: `services.${serviceIndex}.count` });
 
+  const selectedOption = TEE_OPTIONS.find(option => option.value === tee);
   const gpuMismatch = tee === "cpu-gpu" && gpuCount === 0;
 
   const carveout =
-    isEnabled && tee && serviceProfile
+    tee && serviceProfile
       ? buildFormTeeCarveout({
           id: getValues(`services.${serviceIndex}.id`) ?? getValues(`services.${serviceIndex}.title`),
           cpu: serviceProfile.cpu,
@@ -58,87 +53,64 @@ export const ConfidentialComputeFields: FC<Props> = ({ serviceIndex, locked = fa
         })
       : undefined;
 
-  const setTee = useCallback(
-    (value: TeeType | undefined) => {
-      if (value === "cpu-gpu" && isGpuBlocked) return;
-      const params = getValues(`services.${serviceIndex}.params`);
-      const nextParams: ServiceParams = { ...params, tee: value };
-      if (!value) {
-        delete nextParams.tee;
-      }
-      const isEmpty = Object.values(nextParams).every(entry => entry === undefined);
-      setValue(`services.${serviceIndex}.params`, isEmpty ? undefined : nextParams, { shouldDirty: true });
-
-      if (value === "cpu-gpu") {
-        enableGpu();
-      }
-    },
-    [enableGpu, getValues, isGpuBlocked, serviceIndex, setValue]
-  );
-
-  const toggleConfidentialCompute = useCallback(
-    (checked: boolean) => {
-      setTee(checked ? DEFAULT_TEE : undefined);
-    },
-    [setTee]
-  );
+  function selectTee(value: string) {
+    if (value) setTee(value as TeeType);
+  }
 
   return (
     <div className="flex flex-col gap-4">
-      <d.ToggleRow
-        label="Confidential compute"
-        description="Require hardware-backed TEE providers."
-        switchLabel="Enable confidential compute"
-        checked={isEnabled}
-        onCheckedChange={toggleConfidentialCompute}
-        disabled={locked}
-      />
-      {isEnabled && (
-        <>
-          <d.RadioGroup
-            aria-label="Confidential compute type"
-            value={tee}
-            onValueChange={value => setTee(value as TeeType)}
-            className="gap-3"
-            disabled={locked}
-          >
-            {TEE_OPTIONS.map(option => {
-              const id = `tee-${serviceIndex}-${option.value}`;
-              const optionBlocked = isGpuBlocked && option.value === "cpu-gpu";
-              return (
-                <d.Label
-                  key={option.value}
-                  htmlFor={id}
-                  className="flex items-start gap-3 rounded-md border border-zinc-200 p-3 font-normal dark:border-zinc-800"
-                >
-                  <d.RadioGroupItem id={id} value={option.value} aria-label={option.label} disabled={locked || optionBlocked} className="mt-0.5" />
-                  <span className="flex flex-col gap-0.5">
-                    <span className="flex items-center gap-1.5 text-sm font-medium">
-                      {option.label}
-                      {optionBlocked && <LockIcon className="h-3 w-3 shrink-0 text-muted-foreground" aria-label="Requires credits" />}
-                    </span>
-                    <span className="text-xs text-muted-foreground">{option.description}</span>
-                  </span>
-                </d.Label>
-              );
-            })}
-          </d.RadioGroup>
-          {isGpuBlocked && (
-            <d.Alert variant="warning" className="p-4">
-              <div className="flex flex-col items-start gap-2 text-sm">
-                <p>High-end GPUs aren&apos;t available on a free trial. Add credits to attest a GPU, or use CPU-only confidential compute.</p>
-                <d.UnlockGpusButton onUnlock={onUnlock} prominent />
-              </div>
-            </d.Alert>
-          )}
-          {gpuMismatch && (
-            <d.Alert variant="warning" className="p-4 text-sm">
-              CPU-GPU confidential compute attests a GPU, so this service needs GPUs. Set GPUs to 1 or more so providers with confidential-compute GPUs can bid.
-            </d.Alert>
-          )}
-          {carveout && <d.ConfidentialComputeResources carveouts={[carveout]} />}
-        </>
+      <p className="text-sm text-muted-foreground">
+        Runs this service inside a Trusted Execution Environment (TEE) so its memory stays encrypted and isolated from the provider. All services in a placement
+        must agree on their confidential compute type.
+      </p>
+      <div className="flex flex-col gap-2">
+        <span id={attestationLabelId} className="text-sm font-medium">
+          Attestation
+        </span>
+        <d.ToggleGroup
+          type="single"
+          variant="outline"
+          aria-labelledby={attestationLabelId}
+          value={tee ?? ""}
+          onValueChange={selectTee}
+          disabled={locked}
+          className="grid grid-cols-2 gap-2"
+        >
+          {TEE_OPTIONS.map(option => {
+            const optionBlocked = isGpuBlocked && option.value === "cpu-gpu";
+            return (
+              <ToggleGroupItem
+                key={option.value}
+                value={option.value}
+                aria-label={option.label}
+                disabled={locked || optionBlocked}
+                className="group h-9 gap-2 font-normal data-[state=on]:border-foreground data-[state=on]:bg-transparent"
+              >
+                <span className="flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-full border border-current" aria-hidden="true">
+                  <span className="h-1.5 w-1.5 rounded-full bg-current opacity-0 group-data-[state=on]:opacity-100" />
+                </span>
+                {option.label}
+                {optionBlocked && <LockIcon className="h-3 w-3 shrink-0 text-muted-foreground" aria-label="Requires credits" />}
+              </ToggleGroupItem>
+            );
+          })}
+        </d.ToggleGroup>
+        {selectedOption && <p className="text-xs text-muted-foreground">{selectedOption.description}</p>}
+      </div>
+      {isGpuBlocked && (
+        <d.Alert variant="warning" className="p-4">
+          <div className="flex flex-col items-start gap-2 text-sm">
+            <p>High-end GPUs aren&apos;t available on a free trial. Add credits to attest a GPU, or use CPU-only confidential compute.</p>
+            <d.UnlockGpusButton onUnlock={onUnlock} prominent />
+          </div>
+        </d.Alert>
       )}
+      {gpuMismatch && (
+        <d.Alert variant="warning" className="p-4 text-sm">
+          CPU-GPU confidential compute attests a GPU, so this service needs GPUs. Set GPUs to 1 or more so providers with confidential-compute GPUs can bid.
+        </d.Alert>
+      )}
+      {carveout && <d.ConfidentialComputeResources carveouts={[carveout]} />}
     </div>
   );
 };

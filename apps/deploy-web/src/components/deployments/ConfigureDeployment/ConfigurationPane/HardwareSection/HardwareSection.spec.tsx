@@ -47,7 +47,7 @@ describe(HardwareSection.name, () => {
     expect(SecurityCard).toHaveBeenCalledWith(expect.objectContaining({ locked: true }), expect.anything());
   });
 
-  it("stacks the presets, GPU, compute, security, RAM storage and persistent storage cards in that order", () => {
+  it("stacks the presets, GPU, compute, confidential compute, RAM storage and persistent storage cards in that order", () => {
     const CollapsibleCard = forwardRef<HTMLDivElement, ComponentPropsWithoutRef<typeof DEPENDENCIES.CollapsibleCard>>(({ title, children }, _ref) => (
       <section aria-label={title}>{children}</section>
     ));
@@ -56,7 +56,7 @@ describe(HardwareSection.name, () => {
       dependencies: {
         CollapsibleCard,
         GpuCard: () => <section aria-label="GPU" />,
-        SecurityCard: () => <section aria-label="Security" />,
+        SecurityCard: () => <section aria-label="Confidential compute" />,
         RamStorageCard: () => <section aria-label="RAM storage" />,
         PersistentStorageCard: () => <section aria-label="Persistent storage" />
       }
@@ -66,7 +66,7 @@ describe(HardwareSection.name, () => {
       "Presets",
       "GPU",
       "Compute",
-      "Security",
+      "Confidential compute",
       "RAM storage",
       "Persistent storage"
     ]);
