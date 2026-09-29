@@ -1,51 +1,108 @@
 import type { PropsWithChildren } from "react";
+import type { UseFormReturn } from "react-hook-form";
 import { FormProvider, useForm } from "react-hook-form";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { PlacementOptions } from "@src/queries/usePlacementOptions";
+import type { ScreeningRequest } from "@src/queries/useScreenedProviders";
+import { SCREENING_DEBOUNCE_MS } from "@src/queries/useScreenedProviders";
 import type { SdlBuilderFormValuesType } from "@src/types";
 import type { GpuVendor } from "@src/types/gpu";
 import { defaultPlacement, defaultService } from "@src/utils/sdl/data";
+import { GPU_INTERCONNECT_CAPABILITY_KEY } from "@src/utils/sdl/gpuInterconnect";
 import type { DEPENDENCIES } from "./useGpuAvailability";
 import { useGpuAvailability } from "./useGpuAvailability";
 
-import { renderHook } from "@testing-library/react";
+import { act, renderHook } from "@testing-library/react";
+
+const NO_GPU = "no-gpu";
 
 describe(useGpuAvailability.name, () => {
-  it("labels the placement's GPU request and lists the busiest other models", () => {
-    const { result } = setup({ gpuModel: "h100" });
+  it("counts each other model by screening the configuration with only the model switched", () => {
+    const { result, screenedRequests } = setup({ gpuModel: "h100", interconnect: true, screened: { a100: 2, t4: 0, [NO_GPU]: 25 } });
 
-    expect(result.current).toEqual({
-      requestedLabel: "H100",
-      hasRequestedGpu: true,
-      topModels: [{ key: "nvidia/rtx4090", label: "RTX 4090", providerCount: 7 }]
-    });
+    expect(result.current.requestedLabel).toBe("H100");
+    expect(result.current.alternatives).toEqual([{ key: "nvidia/a100", label: "A100", providerCount: 2 }]);
+    expect(screenedRequests().map(modelOf)).toEqual(["a100", "t4", NO_GPU]);
+    expect(screenedRequests().every(request => request.requirements?.attributes?.some(attribute => attribute.key === GPU_INTERCONNECT_CAPABILITY_KEY))).toBe(
+      true
+    );
   });
 
-  it("labels a placement without GPUs", () => {
-    const { result } = setup({});
+  it("counts no gpu by screening the configuration with the gpu turned off", () => {
+    const { result } = setup({ gpuModel: "h100", screened: { a100: 2, t4: 1, [NO_GPU]: 25 } });
+
+    expect(result.current.noGpuCount).toBe(25);
+  });
+
+  it("screens a gpu for each model and no gpu variant while the placement asks for no gpu", () => {
+    const { result, screenedRequests } = setup({ screened: { a100: 3, h100: 1, t4: 2 } });
 
     expect(result.current.requestedLabel).toBe("No GPU");
-    expect(result.current.hasRequestedGpu).toBe(false);
-    expect(result.current.topModels.map(model => model.key)).toEqual(["nvidia/rtx4090", "nvidia/h100"]);
+    expect(result.current.noGpuCount).toBeNull();
+    expect(result.current.alternatives.map(model => model.key)).toEqual(["nvidia/a100", "nvidia/t4", "nvidia/h100"]);
+    expect(screenedRequests().map(modelOf)).toEqual(["a100", "h100", "t4"]);
   });
 
-  it("lists no models while the placement options are unavailable", () => {
-    const { result } = setup({ withoutOptions: true });
+  it("reports the check in progress while any variant is still being screened", () => {
+    const { result } = setup({ gpuModel: "h100", screened: { a100: 0, t4: 0, [NO_GPU]: 25 }, loading: ["t4"] });
 
-    expect(result.current.topModels).toEqual([]);
+    expect(result.current.isChecking).toBe(true);
+    expect(result.current.noOtherModelFits).toBe(false);
   });
 
-  function setup(input: { gpuModel?: string; withoutOptions?: boolean }) {
-    const placement = defaultPlacement({ name: "placement-1" });
+  it("reports that no other model fits once every variant has been screened", () => {
+    const { result } = setup({ gpuModel: "h100", interconnect: true, screened: { a100: 0, t4: 0, [NO_GPU]: 25 } });
+
+    expect(result.current.isChecking).toBe(false);
+    expect(result.current.noOtherModelFits).toBe(true);
+  });
+
+  it("reports nothing about other models while the placement options are unavailable", () => {
+    const { result, screenedRequests } = setup({ gpuModel: "h100", withoutOptions: true, screened: { [NO_GPU]: 25 } });
+
+    expect(result.current.alternatives).toEqual([]);
+    expect(result.current.noOtherModelFits).toBe(false);
+    expect(screenedRequests().map(modelOf)).toEqual([NO_GPU]);
+  });
+
+  it("screens a changed configuration once the edits settle", () => {
+    vi.useFakeTimers();
+    try {
+      const { form, screenedRequests } = setup({ gpuModel: "h100", screened: { a100: 2, t4: 1, [NO_GPU]: 25 } });
+
+      act(() => form().setValue("services.0.profile.gpuModels.0.name", "t4"));
+      expect(screenedRequests().map(modelOf)).toEqual(["a100", "t4", NO_GPU]);
+
+      act(() => vi.advanceTimersByTime(SCREENING_DEBOUNCE_MS));
+      expect(screenedRequests().map(modelOf)).toEqual(["a100", "h100", NO_GPU]);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  function setup(input: { gpuModel?: string; interconnect?: boolean; withoutOptions?: boolean; screened: Record<string, number>; loading?: string[] }) {
+    const placement = defaultPlacement({
+      name: "placement-1",
+      attributes: input.interconnect ? [{ id: "a1", key: GPU_INTERCONNECT_CAPABILITY_KEY, value: "true" }] : []
+    });
     const service = defaultService(placement.id, { image: "nginx" });
     const values: SdlBuilderFormValuesType = {
       placements: [placement],
       endpoints: [],
       services: [
         input.gpuModel
-          ? { ...service, profile: { ...service.profile, hasGpu: true, gpu: 1, gpuModels: [{ vendor: "nvidia", name: input.gpuModel }] } }
+          ? {
+              ...service,
+              profile: {
+                ...service.profile,
+                hasGpu: true,
+                gpu: 1,
+                gpuModels: [{ vendor: "nvidia", name: input.gpuModel }],
+                ...(input.interconnect ? { interconnect: {} } : {})
+              }
+            }
           : service
       ]
     };
@@ -57,7 +114,9 @@ describe(useGpuAvailability.name, () => {
           vendor: "nvidia",
           models: [
             { name: "h100", memory: [], interface: [], providerCount: 3, variants: [] },
-            { name: "rtx4090", memory: [], interface: [], providerCount: 7, variants: [] }
+            { name: "t4", memory: [], interface: [], providerCount: 7, variants: [] },
+            { name: "a100", memory: [], interface: [], providerCount: 4, variants: [] },
+            { name: "v100", memory: [], interface: [], providerCount: 0, variants: [] }
           ]
         }
       ]
@@ -67,18 +126,39 @@ describe(useGpuAvailability.name, () => {
         name: "nvidia",
         models: [
           { name: "h100", displayName: "H100", memory: [], interface: [] },
-          { name: "rtx4090", displayName: "RTX 4090", memory: [], interface: [] }
+          { name: "a100", displayName: "A100", memory: [], interface: [] },
+          { name: "t4", displayName: "T4", memory: [], interface: [] }
         ]
       }
     ];
+    const useScreenedProviderCounts = vi.fn((requests: (ScreeningRequest | null)[]) =>
+      requests.map(request => {
+        const model = request ? modelOf(request) : NO_GPU;
+        return { count: input.screened[model] ?? null, isLoading: input.loading?.includes(model) ?? false };
+      })
+    );
     const dependencies: typeof DEPENDENCIES = {
       usePlacementOptions: () => mock<ReturnType<typeof DEPENDENCIES.usePlacementOptions>>({ data: input.withoutOptions ? undefined : placementOptions }),
-      useGpuModels: () => mock<ReturnType<typeof DEPENDENCIES.useGpuModels>>({ data: catalog })
+      useGpuModels: () => mock<ReturnType<typeof DEPENDENCIES.useGpuModels>>({ data: catalog }),
+      useScreenedProviderCounts
     };
+    let formMethods: UseFormReturn<SdlBuilderFormValuesType> | undefined;
     const Wrapper = ({ children }: PropsWithChildren) => {
       const form = useForm<SdlBuilderFormValuesType>({ defaultValues: values });
+      formMethods = form;
       return <FormProvider {...form}>{children}</FormProvider>;
     };
-    return renderHook(() => useGpuAvailability(placement.id, dependencies), { wrapper: Wrapper });
+    const view = renderHook(() => useGpuAvailability({ id: placement.id, name: placement.name }, dependencies), { wrapper: Wrapper });
+
+    return {
+      result: view.result,
+      form: () => formMethods!,
+      screenedRequests: () => (useScreenedProviderCounts.mock.lastCall?.[0] ?? []).filter((request): request is ScreeningRequest => request !== null)
+    };
   }
 });
+
+function modelOf(request: ScreeningRequest): string {
+  const modelAttribute = request.resources[0].resource.gpu.attributes?.find(attribute => attribute.key.startsWith("vendor/"));
+  return modelAttribute?.key.split("/").at(-1) ?? NO_GPU;
+}

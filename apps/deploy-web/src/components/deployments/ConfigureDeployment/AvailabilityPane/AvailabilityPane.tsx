@@ -28,7 +28,7 @@ export const AvailabilityPane: FC<Props> = ({ sdl, placement, placementCount, is
   const subtitleId = useId();
   const screened = d.useScreenedProviders({ sdl, placementName: placement.name, region: placement.region });
   const network = d.useNetworkProviderCount();
-  const gpuAvailability = d.useGpuAvailability(placement.id);
+  const gpuAvailability = d.useGpuAvailability(placement);
   const scope = placementCount > 1 ? "this placement" : "your deployment";
 
   return (
@@ -158,7 +158,8 @@ type GpuAvailabilityCardProps = {
 
 function GpuAvailabilityCard({ gpuAvailability, requestedCount, networkCount, CustomTooltip }: GpuAvailabilityCardProps) {
   const listId = useId();
-  const rows = listGpuAvailabilityRows({ ...gpuAvailability, requestedCount, networkCount });
+  const { requestedLabel, alternatives, noGpuCount, isChecking, noOtherModelFits } = gpuAvailability;
+  const rows = listGpuAvailabilityRows({ requestedLabel, alternatives, noGpuCount, requestedCount, networkCount });
 
   return (
     <AvailabilityCard>
@@ -166,7 +167,7 @@ function GpuAvailabilityCard({ gpuAvailability, requestedCount, networkCount, Cu
         <GpuIcon className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
         <h3 className="text-sm font-semibold">GPU availability</h3>
         <span className="ml-auto flex">
-          <CustomTooltip title="Counts other than the current one cover the whole network and ignore CPU, memory and region.">
+          <CustomTooltip title="Each number is how many providers could host this configuration if you switched to that model and kept everything else the same.">
             <InfoIcon className="h-3.5 w-3.5 cursor-help text-muted-foreground" aria-label="How these counts work" />
           </CustomTooltip>
         </span>
@@ -180,6 +181,13 @@ function GpuAvailabilityCard({ gpuAvailability, requestedCount, networkCount, Cu
             <GpuRow key={row.key} row={row} />
           ))}
         </ul>
+        {isChecking && alternatives.length === 0 && (
+          <p role="status" className="flex items-center gap-2 px-2 text-xs text-muted-foreground">
+            <LoaderCircleIcon className="h-3 w-3 animate-spin" aria-hidden="true" />
+            Checking other models…
+          </p>
+        )}
+        {noOtherModelFits && <p className="px-2 text-xs text-muted-foreground">No other GPU model fits this configuration.</p>}
       </div>
     </AvailabilityCard>
   );

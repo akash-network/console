@@ -2,13 +2,13 @@ import { useMemo } from "react";
 import { GroupSpec } from "@akashnetwork/chain-sdk/private-types/akash.v1beta4";
 import { generateManifest, type SDLInput, yaml } from "@akashnetwork/chain-sdk/web";
 import type { paths } from "@akashnetwork/console-api-types";
-import { keepPreviousData } from "@tanstack/react-query";
+import { keepPreviousData, useQueries } from "@tanstack/react-query";
 
 import { useServices } from "@src/context/ServicesProvider";
 import { usePacedValue } from "@src/hooks/usePacedValue/usePacedValue";
 import { AUDITOR } from "@src/utils/deploymentData/v1beta3";
 
-type ScreeningRequest = NonNullable<paths["/v1/bid-screening"]["post"]["requestBody"]>["content"]["application/json"];
+export type ScreeningRequest = NonNullable<paths["/v1/bid-screening"]["post"]["requestBody"]>["content"]["application/json"];
 
 /** The screening request minus `timezone`, which the hook attaches from the client's resolved locale. */
 type ScreeningRequestBody = Omit<ScreeningRequest, "timezone">;
@@ -32,6 +32,11 @@ interface UseScreenedProvidersInput {
    * `keepPreviousData`) while live bids drive the marketplace.
    */
   enabled?: boolean;
+}
+
+export interface ScreenedProviderCount {
+  count: number | null;
+  isLoading: boolean;
 }
 
 interface UseScreenedProvidersResult {
@@ -72,11 +77,7 @@ const SKIPPED_SCREENING_REQUEST: ScreeningRequest = { ...buildCatalogScreeningRe
  */
 export function useScreenedProviders({ sdl, placementName, enabled = true }: UseScreenedProvidersInput): UseScreenedProvidersResult {
   const { api } = useServices();
-  const request = useMemo(() => {
-    const placementRequest = buildPlacementScreeningRequest(sdl, placementName);
-    if (!placementRequest) return null;
-    return { ...placementRequest, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone };
-  }, [sdl, placementName]);
+  const request = useMemo(() => toScreeningRequest(sdl, placementName), [sdl, placementName]);
   const pacedRequest = usePacedValue(request, { wait: SCREENING_DEBOUNCE_MS, maxWait: SCREENING_MAX_WAIT_MS });
   const isInvalid = pacedRequest === null;
   const query = api.v1.screenProviders.useQuery(pacedRequest ?? SKIPPED_SCREENING_REQUEST, {
@@ -91,6 +92,28 @@ export function useScreenedProviders({ sdl, placementName, enabled = true }: Use
     isInvalid,
     isRefreshing: !isInvalid && query.isFetching && query.isPlaceholderData
   };
+}
+
+/** A null request is never sent and counts as unknown. */
+export function useScreenedProviderCounts(requests: (ScreeningRequest | null)[]): ScreenedProviderCount[] {
+  const { api } = useServices();
+  const results = useQueries({
+    queries: requests.map(request =>
+      api.v1.screenProviders.queryOptions(request ?? SKIPPED_SCREENING_REQUEST, { enabled: request !== null, placeholderData: keepPreviousData })
+    )
+  });
+
+  return results.map((result, index) => ({
+    count: requests[index] === null ? null : result.data?.providers.length ?? null,
+    isLoading: result.isLoading
+  }));
+}
+
+/** Every caller builds its request here so equal specs share one query cache entry. */
+export function toScreeningRequest(sdl: string, placementName: string): ScreeningRequest | null {
+  const placementRequest = buildPlacementScreeningRequest(sdl, placementName);
+  if (!placementRequest) return null;
+  return { ...placementRequest, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone };
 }
 
 /**

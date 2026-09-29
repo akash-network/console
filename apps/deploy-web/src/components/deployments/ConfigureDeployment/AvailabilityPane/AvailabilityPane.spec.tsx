@@ -3,6 +3,7 @@ import { mock } from "vitest-mock-extended";
 
 import type { ScreenedProvider } from "@src/queries/useScreenedProviders";
 import type { PlacementType } from "@src/types";
+import type { GpuAvailability } from "./useGpuAvailability/useGpuAvailability";
 import type { DEPENDENCIES } from "./AvailabilityPane";
 import { AvailabilityPane } from "./AvailabilityPane";
 
@@ -42,7 +43,7 @@ describe(AvailabilityPane.name, () => {
     const { useScreenedProviders, useGpuAvailability } = setup({ region: "us-west" });
 
     expect(useScreenedProviders).toHaveBeenCalledWith({ sdl: "the-sdl", placementName: "gpu-pool", region: "us-west" });
-    expect(useGpuAvailability).toHaveBeenCalledWith("p1");
+    expect(useGpuAvailability).toHaveBeenCalledWith(expect.objectContaining({ id: "p1", name: "gpu-pool" }));
   });
 
   it("shows a loading state while the first screening runs", () => {
@@ -86,11 +87,47 @@ describe(AvailabilityPane.name, () => {
     expect(rows.map(row => row.getAttribute("aria-current"))).toEqual(["true", null, null]);
   });
 
-  it("lists no gpu with the network total as the last alternative to a requested gpu", () => {
-    setup({ eligibleCount: 3, networkCount: 20, gpuAvailability: { requestedLabel: "A100", hasRequestedGpu: true } });
+  it("lists no gpu with its screened count as the last alternative to a requested gpu", () => {
+    setup({ eligibleCount: 3, networkCount: 20, gpuAvailability: { requestedLabel: "A100", noGpuCount: 12 } });
 
     const rows = within(screen.getByRole("list", { name: "If you switch model" })).getAllByRole("listitem");
-    expect(rows.map(row => row.textContent)).toEqual(["A100Current3", "RTX 40909", "H1004", "No GPU20"]);
+    expect(rows.map(row => row.textContent)).toEqual(["A100Current3", "RTX 40909", "H1004", "No GPU12"]);
+  });
+
+  it("explains that every count keeps the rest of the configuration", () => {
+    const { CustomTooltip } = setup({});
+
+    expect(CustomTooltip).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: "Each number is how many providers could host this configuration if you switched to that model and kept everything else the same."
+      }),
+      expect.anything()
+    );
+  });
+
+  it("shows other models are being checked until the first of them is counted", () => {
+    setup({ gpuAvailability: { isChecking: true, alternatives: [] } });
+
+    expect(screen.getByRole("status")).toHaveTextContent("Checking other models…");
+  });
+
+  it("keeps the counted models in place of the check status while the rest are screened", () => {
+    setup({ gpuAvailability: { isChecking: true } });
+
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    expect(within(screen.getByRole("list", { name: "If you switch model" })).getAllByRole("listitem")).toHaveLength(3);
+  });
+
+  it("says no other model fits once none of them can host the configuration", () => {
+    setup({ gpuAvailability: { alternatives: [], noOtherModelFits: true } });
+
+    expect(screen.getByText("No other GPU model fits this configuration.")).toBeInTheDocument();
+  });
+
+  it("says nothing about other models while some of them fit", () => {
+    setup({});
+
+    expect(screen.queryByText("No other GPU model fits this configuration.")).not.toBeInTheDocument();
   });
 
   it("draws each gpu bar as a share of the network", () => {
@@ -135,7 +172,7 @@ describe(AvailabilityPane.name, () => {
     isError?: boolean;
     isReady?: boolean;
     isSubmitting?: boolean;
-    gpuAvailability?: { requestedLabel: string; hasRequestedGpu: boolean };
+    gpuAvailability?: Partial<GpuAvailability>;
   }) {
     const onChooseProvider = vi.fn();
     const useScreenedProviders = vi.fn(() => ({
@@ -145,20 +182,25 @@ describe(AvailabilityPane.name, () => {
       isInvalid: input.isInvalid ?? false,
       isRefreshing: input.isRefreshing ?? false
     }));
-    const useGpuAvailability = vi.fn(() => ({
-      requestedLabel: "No GPU",
-      hasRequestedGpu: false,
-      ...input.gpuAvailability,
-      topModels: [
-        { key: "nvidia/rtx4090", label: "RTX 4090", providerCount: 9 },
-        { key: "nvidia/h100", label: "H100", providerCount: 4 }
-      ]
-    }));
+    const useGpuAvailability = vi.fn(
+      (): GpuAvailability => ({
+        requestedLabel: "No GPU",
+        alternatives: [
+          { key: "nvidia/rtx4090", label: "RTX 4090", providerCount: 9 },
+          { key: "nvidia/h100", label: "H100", providerCount: 4 }
+        ],
+        noGpuCount: null,
+        isChecking: false,
+        noOtherModelFits: false,
+        ...input.gpuAvailability
+      })
+    );
+    const CustomTooltip = vi.fn(ComponentMock);
     const dependencies: typeof DEPENDENCIES = {
       useScreenedProviders,
       useNetworkProviderCount: () => ({ count: input.networkCount === undefined ? 20 : input.networkCount, isLoading: false }),
       useGpuAvailability,
-      CustomTooltip: ComponentMock as never
+      CustomTooltip: CustomTooltip as never
     };
 
     render(
@@ -173,6 +215,6 @@ describe(AvailabilityPane.name, () => {
       />
     );
 
-    return { onChooseProvider, useScreenedProviders, useGpuAvailability };
+    return { onChooseProvider, useScreenedProviders, useGpuAvailability, CustomTooltip };
   }
 });

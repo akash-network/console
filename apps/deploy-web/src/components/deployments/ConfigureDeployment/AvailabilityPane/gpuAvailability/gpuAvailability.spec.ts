@@ -5,7 +5,7 @@ import type { PlacementOptions } from "@src/queries/usePlacementOptions";
 import type { SdlBuilderFormValuesType } from "@src/types";
 import type { GpuVendor } from "@src/types/gpu";
 import { defaultService } from "@src/utils/sdl/data";
-import { listGpuAvailabilityRows, requestedGpuLabel, requestedGpuOf, topGpuModels } from "./gpuAvailability";
+import { candidateGpuModels, listGpuAvailabilityRows, rankGpuAlternatives, requestedGpuLabel, requestedGpuOf } from "./gpuAvailability";
 
 const CATALOG: GpuVendor[] = [
   {
@@ -68,41 +68,46 @@ describe(requestedGpuLabel.name, () => {
   });
 });
 
-describe(topGpuModels.name, () => {
-  it("lists the models the most providers could serve, busiest first, with their display names", () => {
-    const models = topGpuModels(options([{ vendor: "nvidia", models: [model("h100", 4), model("rtx4090", 9), model("a100", 6)] }]), CATALOG, null);
-
-    expect(models).toEqual([
-      { key: "nvidia/rtx4090", label: "RTX 4090", providerCount: 9 },
-      { key: "nvidia/a100", label: "A100", providerCount: 6 },
-      { key: "nvidia/h100", label: "H100", providerCount: 4 }
-    ]);
-  });
-
-  it("keeps the five busiest models across vendors", () => {
-    const models = topGpuModels(
+describe(candidateGpuModels.name, () => {
+  it("lists every model some provider has free, across vendors, in key order", () => {
+    const candidates = candidateGpuModels(
       options([
-        { vendor: "nvidia", models: [model("a", 1), model("b", 2), model("c", 3), model("d", 4)] },
-        { vendor: "amd", models: [model("e", 5), model("f", 6)] }
+        { vendor: "nvidia", models: [model("t4", 2), model("a100", 6)] },
+        { vendor: "amd", models: [model("mi300", 1)] }
       ]),
-      undefined,
       null
     );
 
-    expect(models.map(entry => entry.key)).toEqual(["amd/f", "amd/e", "nvidia/d", "nvidia/c", "nvidia/b"]);
+    expect(candidates).toEqual([
+      { key: "amd/mi300", vendor: "amd", name: "mi300" },
+      { key: "nvidia/a100", vendor: "nvidia", name: "a100" },
+      { key: "nvidia/t4", vendor: "nvidia", name: "t4" }
+    ]);
   });
 
-  it("leaves out the model already requested and models nobody can serve", () => {
-    const models = topGpuModels(options([{ vendor: "nvidia", models: [model("h100", 4), model("a100", 0), model("t4", 2)] }]), CATALOG, {
+  it("leaves out the model already requested and models nobody has free", () => {
+    const candidates = candidateGpuModels(options([{ vendor: "nvidia", models: [model("h100", 4), model("a100", 0), model("t4", 2)] }]), {
       vendor: "nvidia",
       name: "h100"
     });
 
-    expect(models.map(entry => entry.key)).toEqual(["nvidia/t4"]);
+    expect(candidates.map(candidate => candidate.key)).toEqual(["nvidia/t4"]);
+  });
+
+  it("keeps a model of the same name from another vendor", () => {
+    const candidates = candidateGpuModels(
+      options([
+        { vendor: "amd", models: [model("h100", 1)] },
+        { vendor: "nvidia", models: [model("h100", 1)] }
+      ]),
+      { vendor: "nvidia", name: "h100" }
+    );
+
+    expect(candidates.map(candidate => candidate.key)).toEqual(["amd/h100"]);
   });
 
   it("lists nothing without placement options", () => {
-    expect(topGpuModels(undefined, CATALOG, null)).toEqual([]);
+    expect(candidateGpuModels(undefined, null)).toEqual([]);
   });
 
   function options(gpus: PlacementOptions["gpus"]): PlacementOptions {
@@ -114,50 +119,91 @@ describe(topGpuModels.name, () => {
   }
 });
 
+describe(rankGpuAlternatives.name, () => {
+  it("lists the models that fit, the most providers first, with their display names", () => {
+    const models = rankGpuAlternatives([candidate("nvidia", "h100"), candidate("nvidia", "rtx4090"), candidate("nvidia", "a100")], counts([4, 9, 6]), CATALOG);
+
+    expect(models).toEqual([
+      { key: "nvidia/rtx4090", label: "RTX 4090", providerCount: 9 },
+      { key: "nvidia/a100", label: "A100", providerCount: 6 },
+      { key: "nvidia/h100", label: "H100", providerCount: 4 }
+    ]);
+  });
+
+  it("leaves out models that fit no provider or whose count is unknown", () => {
+    const models = rankGpuAlternatives([candidate("nvidia", "h100"), candidate("nvidia", "a100"), candidate("nvidia", "t4")], counts([0, 2, null]), CATALOG);
+
+    expect(models.map(entry => entry.key)).toEqual(["nvidia/a100"]);
+  });
+
+  it("orders models with the same count by label", () => {
+    const models = rankGpuAlternatives([candidate("nvidia", "t4"), candidate("nvidia", "a100")], counts([2, 2]), undefined);
+
+    expect(models.map(entry => entry.label)).toEqual(["A100", "T4"]);
+  });
+
+  it("keeps the five models with the most providers", () => {
+    const candidates = ["a", "b", "c", "d", "e", "f"].map(name => candidate("nvidia", name));
+
+    const models = rankGpuAlternatives(candidates, counts([1, 2, 3, 4, 5, 6]), undefined);
+
+    expect(models.map(entry => entry.key)).toEqual(["nvidia/f", "nvidia/e", "nvidia/d", "nvidia/c", "nvidia/b"]);
+  });
+
+  it("treats a candidate without a count as not fitting", () => {
+    expect(rankGpuAlternatives([candidate("nvidia", "a100")], [], CATALOG)).toEqual([]);
+  });
+
+  function candidate(vendor: string, name: string) {
+    return { key: `${vendor}/${name}`, vendor, name };
+  }
+
+  function counts(values: (number | null)[]) {
+    return values.map(count => ({ count, isLoading: false }));
+  }
+});
+
 describe(listGpuAvailabilityRows.name, () => {
-  const TOP_MODELS = [
+  const ALTERNATIVES = [
     { key: "nvidia/a100", label: "A100", providerCount: 15 },
     { key: "nvidia/t4", label: "T4", providerCount: 10 }
   ];
 
-  it("lists the current request with its live count first, then the alternatives and no gpu with the network total", () => {
-    const rows = listGpuAvailabilityRows({ requestedLabel: "H100", requestedCount: 16, hasRequestedGpu: true, topModels: TOP_MODELS, networkCount: 72 });
+  it("lists the current request with its live count first, then the alternatives and no gpu", () => {
+    const rows = listGpuAvailabilityRows({ requestedLabel: "H100", requestedCount: 16, alternatives: ALTERNATIVES, noGpuCount: 30, networkCount: 72 });
 
     expect(rows.map(({ key, label, providerCount, isCurrent }) => ({ key, label, providerCount, isCurrent }))).toEqual([
       { key: "current", label: "H100", providerCount: 16, isCurrent: true },
       { key: "nvidia/a100", label: "A100", providerCount: 15, isCurrent: false },
       { key: "nvidia/t4", label: "T4", providerCount: 10, isCurrent: false },
-      { key: "no-gpu", label: "No GPU", providerCount: 72, isCurrent: false }
+      { key: "no-gpu", label: "No GPU", providerCount: 30, isCurrent: false }
     ]);
   });
 
-  it("leaves no gpu out of the alternatives while no gpu is requested", () => {
-    const rows = listGpuAvailabilityRows({ requestedLabel: "No GPU", requestedCount: 72, hasRequestedGpu: false, topModels: TOP_MODELS, networkCount: 72 });
-
-    expect(rows.map(row => row.key)).toEqual(["current", "nvidia/a100", "nvidia/t4"]);
-  });
-
-  it("leaves no gpu out while the network total is unknown", () => {
-    const rows = listGpuAvailabilityRows({ requestedLabel: "H100", requestedCount: 16, hasRequestedGpu: true, topModels: TOP_MODELS, networkCount: null });
+  it.each([
+    ["unknown", null],
+    ["zero", 0]
+  ])("leaves no gpu out while its count is %s", (_, noGpuCount) => {
+    const rows = listGpuAvailabilityRows({ requestedLabel: "H100", requestedCount: 16, alternatives: ALTERNATIVES, noGpuCount, networkCount: 72 });
 
     expect(rows.map(row => row.key)).toEqual(["current", "nvidia/a100", "nvidia/t4"]);
   });
 
   it("sizes each bar as a share of the network total, capped at a full bar", () => {
-    const rows = listGpuAvailabilityRows({ requestedLabel: "H100", requestedCount: 30, hasRequestedGpu: false, topModels: TOP_MODELS, networkCount: 20 });
+    const rows = listGpuAvailabilityRows({ requestedLabel: "H100", requestedCount: 30, alternatives: ALTERNATIVES, noGpuCount: null, networkCount: 20 });
 
     expect(rows.map(row => row.share)).toEqual([1, 0.75, 0.5]);
   });
 
   it("sizes each bar against the busiest row while the network total is unknown", () => {
-    const rows = listGpuAvailabilityRows({ requestedLabel: "H100", requestedCount: 5, hasRequestedGpu: true, topModels: TOP_MODELS, networkCount: null });
+    const rows = listGpuAvailabilityRows({ requestedLabel: "H100", requestedCount: 5, alternatives: ALTERNATIVES, noGpuCount: null, networkCount: null });
 
     expect(rows.map(row => row.share)).toEqual([1 / 3, 1, 2 / 3]);
   });
 
   it("draws no bar for a count still loading or a network without providers", () => {
-    expect(listGpuAvailabilityRows({ requestedLabel: "H100", requestedCount: null, hasRequestedGpu: false, topModels: [], networkCount: 20 })[0].share).toBe(0);
-    expect(listGpuAvailabilityRows({ requestedLabel: "H100", requestedCount: 0, hasRequestedGpu: false, topModels: [], networkCount: 0 })[0].share).toBe(0);
+    expect(listGpuAvailabilityRows({ requestedLabel: "H100", requestedCount: null, alternatives: [], noGpuCount: null, networkCount: 20 })[0].share).toBe(0);
+    expect(listGpuAvailabilityRows({ requestedLabel: "H100", requestedCount: 0, alternatives: [], noGpuCount: null, networkCount: 0 })[0].share).toBe(0);
   });
 });
 
