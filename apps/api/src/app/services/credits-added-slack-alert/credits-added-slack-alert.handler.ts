@@ -45,7 +45,8 @@ export class CreditsAddedSlackAlertHandler implements JobHandler<CreditsAdded> {
       event: payload,
       email: user?.email,
       amplitudeProjectUrl: this.billingConfig.get("AMPLITUDE_PROJECT_URL"),
-      adminUrl: this.billingConfig.get("CONSOLE_ADMIN_URL")
+      adminUrl: this.billingConfig.get("CONSOLE_ADMIN_URL"),
+      stripeDashboardUrl: this.billingConfig.get("STRIPE_DASHBOARD_URL")
     });
 
     await this.slackWebhookClient.post(webhookUrl, message);

@@ -117,7 +117,7 @@ describe("envSchema", () => {
     });
   });
 
-  describe.each(["CREDITS_ADDED_SLACK_WEBHOOK_URL", "AMPLITUDE_PROJECT_URL", "CONSOLE_ADMIN_URL"] as const)("%s", key => {
+  describe.each(["CREDITS_ADDED_SLACK_WEBHOOK_URL", "AMPLITUDE_PROJECT_URL", "CONSOLE_ADMIN_URL", "STRIPE_DASHBOARD_URL"] as const)("%s", key => {
     it("is undefined when absent", () => {
       const result = setup({});
       expect(result.success).toBe(true);

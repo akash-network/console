@@ -7,6 +7,7 @@ import { buildCreditsAddedSlackMessage } from "./credits-added-slack-message";
 const USER_ID = "11111111-2222-4333-8444-555555555555";
 const AMPLITUDE_PROJECT_URL = "https://app.amplitude.com/analytics/example-org/project/100001";
 const ADMIN_URL = "https://console-admin.example.com";
+const STRIPE_DASHBOARD_URL = "https://dashboard.stripe.example/acct_test";
 
 describe(buildCreditsAddedSlackMessage.name, () => {
   it.each([
@@ -14,17 +15,17 @@ describe(buildCreditsAddedSlackMessage.name, () => {
     { source: "payment_intent", isAutoRecharge: true, label: ":repeat: *Auto-recharge*" },
     { source: "coupon_claim", isAutoRecharge: false, label: ":ticket: *Coupon claim*" },
     { source: "manual_credit", isAutoRecharge: false, label: ":gift: *Admin credit*" }
-  ] as const)("labels a $source credit (auto-recharge: $isAutoRecharge) with the credited amount", ({ source, isAutoRecharge, label }) => {
+  ] as const)("labels a $source credit (auto-recharge: $isAutoRecharge) with the credited amount in bold", ({ source, isAutoRecharge, label }) => {
     const message = setup({ event: { source, isAutoRecharge, paidAmountCents: 2505 } });
 
-    expect(lines(message)[0]).toBe(`${label} · $25.05 credited`);
+    expect(lines(message)[0]).toBe(`${label} · *$25.05* credited`);
   });
 
   it("credits the bonus on top of the payment and breaks both down next to the buyer", () => {
     const message = setup({ event: { paidAmountCents: 10000, bonusAmountCents: 1000 } });
 
     expect(lines(message).slice(0, 2)).toEqual([
-      ":credit_card: *Card purchase* · $110.00 credited",
+      ":credit_card: *Card purchase* · *$110.00* credited",
       "buyer@example.com · $100.00 paid + $10.00 first-purchase bonus"
     ]);
   });
@@ -47,10 +48,17 @@ describe(buildCreditsAddedSlackMessage.name, () => {
     expect(lines(message)[1]).toBe("a&amp;b&lt;c&gt;@example.com");
   });
 
-  it("links to the user's Amplitude profile and admin page", () => {
-    const message = setup({});
+  it("links to the user's Amplitude profile, admin page, Stripe customer and Stripe payment in that order", () => {
+    const message = setup({ event: { stripeCustomerId: "cus_1", stripePaymentIntentId: "pi_1" } });
 
-    expect(lines(message)[2]).toBe(`<${AMPLITUDE_PROJECT_URL}/search/user_id%3D${USER_ID}|Amplitude sessions> · <${ADMIN_URL}/users/${USER_ID}|Admin>`);
+    expect(lines(message)[2]).toBe(
+      [
+        `<${AMPLITUDE_PROJECT_URL}/search/user_id%3D${USER_ID}|Amplitude sessions>`,
+        `<${ADMIN_URL}/users/${USER_ID}|Admin>`,
+        `<${STRIPE_DASHBOARD_URL}/customers/cus_1|Stripe customer>`,
+        `<${STRIPE_DASHBOARD_URL}/payments/pi_1|Stripe payment>`
+      ].join(" · ")
+    );
   });
 
   it("links only to Amplitude when no admin URL is configured", () => {
@@ -65,17 +73,64 @@ describe(buildCreditsAddedSlackMessage.name, () => {
     expect(lines(message)[2]).toBe(`<${ADMIN_URL}/users/${USER_ID}|Admin>`);
   });
 
-  it("leaves out the links line when neither URL is configured", () => {
-    const message = setup({ amplitudeProjectUrl: undefined, adminUrl: undefined });
+  describe("when only the Stripe dashboard URL is configured", () => {
+    it("links to the payment rather than the invoice when the credit has both", () => {
+      const message = setupStripeOnly({ stripeCustomerId: "cus_1", stripePaymentIntentId: "pi_1", stripeInvoiceId: "in_1" });
 
-    expect(lines(message)).toEqual([":credit_card: *Card purchase* · $25.00 credited", "buyer@example.com"]);
+      expect(lines(message)[2]).toBe(`<${STRIPE_DASHBOARD_URL}/customers/cus_1|Stripe customer> · <${STRIPE_DASHBOARD_URL}/payments/pi_1|Stripe payment>`);
+    });
+
+    it("links to the invoice when the credit has no payment", () => {
+      const message = setupStripeOnly({ stripeCustomerId: "cus_1", stripeInvoiceId: "in_1" });
+
+      expect(lines(message)[2]).toBe(`<${STRIPE_DASHBOARD_URL}/customers/cus_1|Stripe customer> · <${STRIPE_DASHBOARD_URL}/invoices/in_1|Stripe invoice>`);
+    });
+
+    it("links only to the customer when the credit has neither a payment nor an invoice", () => {
+      const message = setupStripeOnly({ stripeCustomerId: "cus_1" });
+
+      expect(lines(message)[2]).toBe(`<${STRIPE_DASHBOARD_URL}/customers/cus_1|Stripe customer>`);
+    });
+
+    it("links only to the payment when the customer is unknown", () => {
+      const message = setupStripeOnly({ stripePaymentIntentId: "pi_1" });
+
+      expect(lines(message)[2]).toBe(`<${STRIPE_DASHBOARD_URL}/payments/pi_1|Stripe payment>`);
+    });
+
+    function setupStripeOnly(event: Partial<EventPayload<CreditsAdded>>) {
+      return setup({ event, amplitudeProjectUrl: undefined, adminUrl: undefined });
+    }
+  });
+
+  it("leaves out the Stripe links when no Stripe dashboard URL is configured", () => {
+    const message = setup({ event: { stripeCustomerId: "cus_1", stripePaymentIntentId: "pi_1" }, stripeDashboardUrl: undefined });
+
+    expect(lines(message)[2]).toBe(`<${AMPLITUDE_PROJECT_URL}/search/user_id%3D${USER_ID}|Amplitude sessions> · <${ADMIN_URL}/users/${USER_ID}|Admin>`);
+  });
+
+  it("leaves out the links line when no URL is configured", () => {
+    const message = setup({
+      event: { stripeCustomerId: "cus_1", stripePaymentIntentId: "pi_1" },
+      amplitudeProjectUrl: undefined,
+      adminUrl: undefined,
+      stripeDashboardUrl: undefined
+    });
+
+    expect(lines(message)).toEqual([":credit_card: *Card purchase* · *$25.00* credited", "buyer@example.com"]);
   });
 
   function lines(message: { text: string }) {
     return message.text.split("\n");
   }
 
-  function setup(input: { event?: Partial<EventPayload<CreditsAdded>>; email?: string | null; amplitudeProjectUrl?: string; adminUrl?: string }) {
+  function setup(input: {
+    event?: Partial<EventPayload<CreditsAdded>>;
+    email?: string | null;
+    amplitudeProjectUrl?: string;
+    adminUrl?: string;
+    stripeDashboardUrl?: string;
+  }) {
     return buildCreditsAddedSlackMessage({
       event: {
         version: 1,
@@ -89,7 +144,8 @@ describe(buildCreditsAddedSlackMessage.name, () => {
       },
       email: "email" in input ? input.email : "buyer@example.com",
       amplitudeProjectUrl: "amplitudeProjectUrl" in input ? input.amplitudeProjectUrl : AMPLITUDE_PROJECT_URL,
-      adminUrl: "adminUrl" in input ? input.adminUrl : ADMIN_URL
+      adminUrl: "adminUrl" in input ? input.adminUrl : ADMIN_URL,
+      stripeDashboardUrl: "stripeDashboardUrl" in input ? input.stripeDashboardUrl : STRIPE_DASHBOARD_URL
     });
   }
 });

@@ -34,14 +34,47 @@ function describeBuyer(event: EventPayload<CreditsAdded>, email: string | null |
   return buyer;
 }
 
-function describeLinks(userId: string, links: { amplitudeProjectUrl?: string; adminUrl?: string }): string[] {
+function slackLink(url: string, label: string): string {
+  return `<${url}|${label}>`;
+}
+
+function describeStripeTransactionLink(stripeDashboardUrl: string, event: EventPayload<CreditsAdded>): string | undefined {
+  if (event.stripePaymentIntentId) {
+    return slackLink(`${stripeDashboardUrl}/payments/${encodeURIComponent(event.stripePaymentIntentId)}`, "Stripe payment");
+  }
+  if (event.stripeInvoiceId) {
+    return slackLink(`${stripeDashboardUrl}/invoices/${encodeURIComponent(event.stripeInvoiceId)}`, "Stripe invoice");
+  }
+
+  return undefined;
+}
+
+function describeStripeLinks(stripeDashboardUrl: string, event: EventPayload<CreditsAdded>): string[] {
+  const stripeLinks: string[] = [];
+
+  if (event.stripeCustomerId) {
+    stripeLinks.push(slackLink(`${stripeDashboardUrl}/customers/${encodeURIComponent(event.stripeCustomerId)}`, "Stripe customer"));
+  }
+
+  const transactionLink = describeStripeTransactionLink(stripeDashboardUrl, event);
+  if (transactionLink) {
+    stripeLinks.push(transactionLink);
+  }
+
+  return stripeLinks;
+}
+
+function describeLinks(event: EventPayload<CreditsAdded>, links: { amplitudeProjectUrl?: string; adminUrl?: string; stripeDashboardUrl?: string }): string[] {
   const userLinks: string[] = [];
 
   if (links.amplitudeProjectUrl) {
-    userLinks.push(`<${links.amplitudeProjectUrl}/search/user_id%3D${encodeURIComponent(userId)}|Amplitude sessions>`);
+    userLinks.push(slackLink(`${links.amplitudeProjectUrl}/search/user_id%3D${encodeURIComponent(event.userId)}`, "Amplitude sessions"));
   }
   if (links.adminUrl) {
-    userLinks.push(`<${links.adminUrl}/users/${encodeURIComponent(userId)}|Admin>`);
+    userLinks.push(slackLink(`${links.adminUrl}/users/${encodeURIComponent(event.userId)}`, "Admin"));
+  }
+  if (links.stripeDashboardUrl) {
+    userLinks.push(...describeStripeLinks(links.stripeDashboardUrl, event));
   }
 
   return userLinks.length ? [userLinks.join(" · ")] : [];
@@ -52,14 +85,11 @@ export function buildCreditsAddedSlackMessage(input: {
   email: string | null | undefined;
   amplitudeProjectUrl?: string;
   adminUrl?: string;
+  stripeDashboardUrl?: string;
 }): CreditsAddedSlackMessage {
   const { event } = input;
   const creditedCents = event.paidAmountCents + event.bonusAmountCents;
-  const messageLines = [
-    `${describeSource(event)} · ${formatUsd(creditedCents)} credited`,
-    describeBuyer(event, input.email),
-    ...describeLinks(event.userId, input)
-  ];
+  const messageLines = [`${describeSource(event)} · *${formatUsd(creditedCents)}* credited`, describeBuyer(event, input.email), ...describeLinks(event, input)];
 
   return { text: messageLines.join("\n") };
 }

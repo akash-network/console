@@ -15,6 +15,9 @@ export class CreditsAdded implements DomainEvent {
       isAutoRecharge: boolean;
       paidAmountCents: number;
       bonusAmountCents: number;
+      stripeCustomerId?: string;
+      stripePaymentIntentId?: string;
+      stripeInvoiceId?: string;
     }
   ) {}
 }
