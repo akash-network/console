@@ -874,11 +874,316 @@ describe(AddCreditsForm.name, () => {
     expect(keys[1]).toBe(keys[0]);
   });
 
+  describe("payment outcome tracking", () => {
+    it("tracks the submitted payment with the saved method's type", async () => {
+      const analyticsService = mock<AnalyticsService>();
+      setup({
+        status: "idle",
+        confirmPayment: vi.fn().mockResolvedValue({ success: true }),
+        analyticsService,
+        paymentMethods: [paymentMethod({ id: "pm_card" }), paymentMethod({ id: "pm_bank", type: "us_bank_account", isDefault: true })]
+      });
+
+      await submitWithAmount("100");
+
+      expect(analyticsService.track).toHaveBeenCalledWith("add_credits_payment_submitted", {
+        category: "billing",
+        amount: 100,
+        type: "bank",
+        isSavedMethod: true
+      });
+    });
+
+    it("tracks a new card submission with the type reported by the payment element", async () => {
+      const analyticsService = mock<AnalyticsService>();
+      const { Mock: AddCreditsNewPaymentMethodFields, lastProps } = makePaymentMethodFieldsMock(vi.fn().mockResolvedValue({ paymentMethodId: "pm_new" }));
+      setup({
+        status: "success",
+        clientSecret: "seti_secret",
+        confirmPayment: vi.fn().mockResolvedValue({ success: true }),
+        analyticsService,
+        dependencies: { AddCreditsNewPaymentMethodFields }
+      });
+
+      act(() => lastProps()!.onPaymentTypeChange?.("link"));
+      await submitWithAmount("100");
+
+      expect(analyticsService.track).toHaveBeenCalledWith("add_credits_payment_submitted", {
+        category: "billing",
+        amount: 100,
+        type: "link",
+        isSavedMethod: false
+      });
+    });
+
+    it("tracks a new card submission as card when the payment element reported no type", async () => {
+      const analyticsService = mock<AnalyticsService>();
+      const { Mock: AddCreditsNewPaymentMethodFields } = makePaymentMethodFieldsMock(vi.fn().mockResolvedValue({ paymentMethodId: "pm_new" }));
+      setup({
+        status: "success",
+        clientSecret: "seti_secret",
+        confirmPayment: vi.fn().mockResolvedValue({ success: true }),
+        analyticsService,
+        dependencies: { AddCreditsNewPaymentMethodFields }
+      });
+
+      await submitWithAmount("100");
+
+      expect(analyticsService.track).toHaveBeenCalledWith("add_credits_payment_submitted", {
+        category: "billing",
+        amount: 100,
+        type: "card",
+        isSavedMethod: false
+      });
+    });
+
+    it("tracks a setup failure when the new payment method cannot be confirmed", async () => {
+      const analyticsService = mock<AnalyticsService>();
+      const { Mock: AddCreditsNewPaymentMethodFields } = makePaymentMethodFieldsMock(vi.fn().mockResolvedValue(null));
+      setup({ status: "success", clientSecret: "seti_secret", analyticsService, dependencies: { AddCreditsNewPaymentMethodFields } });
+
+      await submitWithAmount("100");
+
+      expect(analyticsService.track).toHaveBeenCalledWith("add_credits_payment_failed", {
+        category: "billing",
+        amount: 100,
+        type: "card",
+        isSavedMethod: false,
+        stage: "payment_method_setup"
+      });
+    });
+
+    it("tracks a declined charge", async () => {
+      const analyticsService = mock<AnalyticsService>();
+      setup({
+        status: "idle",
+        confirmPayment: vi.fn().mockResolvedValue({ success: false }),
+        analyticsService,
+        paymentMethods: [paymentMethod({ id: "pm_saved", isDefault: true })]
+      });
+
+      await submitWithAmount("100");
+
+      expect(analyticsService.track).toHaveBeenCalledWith("add_credits_payment_failed", {
+        category: "billing",
+        amount: 100,
+        type: "card",
+        isSavedMethod: true,
+        stage: "charge_declined"
+      });
+    });
+
+    it("tracks the error code and status when the charge request fails", async () => {
+      const analyticsService = mock<AnalyticsService>();
+      setup({
+        status: "idle",
+        confirmPayment: vi.fn().mockRejectedValue({ response: { status: 402, data: { code: "card_declined" } } }),
+        analyticsService,
+        paymentMethods: [paymentMethod({ id: "pm_saved", isDefault: true })]
+      });
+
+      await submitWithAmount("100");
+
+      expect(analyticsService.track).toHaveBeenCalledWith("add_credits_payment_failed", {
+        category: "billing",
+        amount: 100,
+        type: "card",
+        isSavedMethod: true,
+        stage: "charge_error",
+        errorCode: "card_declined",
+        httpStatus: 402
+      });
+    });
+
+    it("tracks a charge error without details when the failure has no response", async () => {
+      const analyticsService = mock<AnalyticsService>();
+      setup({
+        status: "idle",
+        confirmPayment: vi.fn().mockRejectedValue(new Error("network down")),
+        analyticsService,
+        paymentMethods: [paymentMethod({ id: "pm_saved", isDefault: true })]
+      });
+
+      await submitWithAmount("100");
+
+      expect(analyticsService.track).toHaveBeenCalledWith("add_credits_payment_failed", {
+        category: "billing",
+        amount: 100,
+        type: "card",
+        isSavedMethod: true,
+        stage: "charge_error"
+      });
+    });
+
+    it("tracks only the status when the failed response carries no error body", async () => {
+      const analyticsService = mock<AnalyticsService>();
+      setup({
+        status: "idle",
+        confirmPayment: vi.fn().mockRejectedValue({ response: { status: 503 } }),
+        analyticsService,
+        paymentMethods: [paymentMethod({ id: "pm_saved", isDefault: true })]
+      });
+
+      await submitWithAmount("100");
+
+      expect(analyticsService.track).toHaveBeenCalledWith("add_credits_payment_failed", {
+        category: "billing",
+        amount: 100,
+        type: "card",
+        isSavedMethod: true,
+        stage: "charge_error",
+        httpStatus: 503
+      });
+    });
+
+    it("tracks a charge error when the request rejects without a reason", async () => {
+      const analyticsService = mock<AnalyticsService>();
+      setup({
+        status: "idle",
+        confirmPayment: vi.fn().mockRejectedValue(undefined),
+        analyticsService,
+        paymentMethods: [paymentMethod({ id: "pm_saved", isDefault: true })]
+      });
+
+      await submitWithAmount("100");
+
+      expect(analyticsService.track).toHaveBeenCalledWith("add_credits_payment_failed", {
+        category: "billing",
+        amount: 100,
+        type: "card",
+        isSavedMethod: true,
+        stage: "charge_error"
+      });
+    });
+
+    it("tracks 3D Secure being required and completed", async () => {
+      const analyticsService = mock<AnalyticsService>();
+      const { use3DSecure, threeDSecureOptions } = capture3DSecure();
+      setup({
+        status: "idle",
+        confirmPayment: vi.fn().mockResolvedValue({ requiresAction: true, clientSecret: "pi_secret", paymentIntentId: "pi_1" }),
+        analyticsService,
+        paymentMethods: [paymentMethod({ id: "pm_saved", isDefault: true })],
+        dependencies: { use3DSecure }
+      });
+
+      await submitWithAmount("100");
+      await act(async () => {
+        threeDSecureOptions()?.onSuccess?.();
+      });
+
+      const expectedProperties = { category: "billing", amount: 100, type: "card", isSavedMethod: true };
+      expect(analyticsService.track).toHaveBeenCalledWith("add_credits_3ds_required", expectedProperties);
+      expect(analyticsService.track).toHaveBeenCalledWith("add_credits_3ds_completed", expectedProperties);
+    });
+
+    it("tracks a failed 3D Secure challenge", async () => {
+      const analyticsService = mock<AnalyticsService>();
+      const { use3DSecure, threeDSecureOptions } = capture3DSecure();
+      setup({
+        status: "idle",
+        confirmPayment: vi.fn().mockResolvedValue({ requiresAction: true, clientSecret: "pi_secret", paymentIntentId: "pi_1" }),
+        analyticsService,
+        paymentMethods: [paymentMethod({ id: "pm_saved", isDefault: true })],
+        dependencies: { use3DSecure }
+      });
+
+      await submitWithAmount("100");
+      await act(async () => {
+        threeDSecureOptions()?.onError?.("Authentication failed");
+      });
+
+      expect(analyticsService.track).toHaveBeenCalledWith("add_credits_payment_failed", {
+        category: "billing",
+        amount: 100,
+        type: "card",
+        isSavedMethod: true,
+        stage: "three_d_secure"
+      });
+    });
+
+    it("tracks a confirmation timeout when polling exhausts", async () => {
+      const analyticsService = mock<AnalyticsService>();
+      const confirmPayment = vi.fn().mockResolvedValue({ success: true });
+      const methods = [paymentMethod({ id: "pm_saved", isDefault: true })];
+      const { rerender } = setup({ status: "idle", confirmPayment, analyticsService, isPolling: false, paymentMethods: methods });
+
+      await submitWithAmount("100");
+      rerender({ status: "idle", confirmPayment, analyticsService, isPolling: true, lastOutcome: null, paymentMethods: methods });
+      rerender({ status: "idle", confirmPayment, analyticsService, isPolling: false, lastOutcome: "timeout", paymentMethods: methods });
+
+      expect(analyticsService.track).toHaveBeenCalledWith("add_credits_payment_failed", {
+        category: "billing",
+        amount: 100,
+        type: "card",
+        isSavedMethod: true,
+        stage: "confirmation_timeout"
+      });
+    });
+
+    it("tracks a trial activation timeout when payment settles but the trial does not end", async () => {
+      const analyticsService = mock<AnalyticsService>();
+      const confirmPayment = vi.fn().mockResolvedValue({ success: true });
+      const methods = [paymentMethod({ id: "pm_saved", isDefault: true })];
+      const { rerender } = setup({ status: "idle", confirmPayment, analyticsService, isTrialing: true, isPolling: false, paymentMethods: methods });
+
+      await submitWithAmount("100");
+      rerender({ status: "idle", confirmPayment, analyticsService, isTrialing: true, isPolling: true, lastOutcome: null, paymentMethods: methods });
+      rerender({ status: "idle", confirmPayment, analyticsService, isTrialing: true, isPolling: false, lastOutcome: "success", paymentMethods: methods });
+
+      expect(analyticsService.track).toHaveBeenCalledWith("add_credits_payment_failed", {
+        category: "billing",
+        amount: 100,
+        type: "card",
+        isSavedMethod: true,
+        stage: "trial_activation_timeout"
+      });
+    });
+
+    it("does not track a failure when the purchase completes", async () => {
+      const analyticsService = mock<AnalyticsService>();
+      const confirmPayment = vi.fn().mockResolvedValue({ success: true });
+      const methods = [paymentMethod({ id: "pm_saved", isDefault: true })];
+      const { rerender } = setup({ status: "idle", confirmPayment, analyticsService, isPolling: false, paymentMethods: methods });
+
+      await submitWithAmount("100");
+      rerender({ status: "idle", confirmPayment, analyticsService, isPolling: true, lastOutcome: null, paymentMethods: methods });
+      rerender({ status: "idle", confirmPayment, analyticsService, isPolling: false, lastOutcome: "success", paymentMethods: methods });
+
+      expect(analyticsService.track).not.toHaveBeenCalledWith("add_credits_payment_failed", expect.anything());
+    });
+  });
+
+  async function submitWithAmount(amount: string) {
+    fireEvent.click(screen.getByRole("radio", { name: amount }));
+
+    await act(async () => {
+      fireEvent.submit(screen.getByRole("button", { name: /purchase credits/i }).closest("form")!);
+    });
+  }
+
+  function capture3DSecure() {
+    let options: Parameters<typeof DEPENDENCIES.use3DSecure>[0] | undefined;
+    const use3DSecure: typeof DEPENDENCIES.use3DSecure = input => {
+      options = input;
+      return mock<ReturnType<typeof DEPENDENCIES.use3DSecure>>({
+        isOpen: false,
+        threeDSData: null,
+        isLoading: false,
+        start3DSecure: vi.fn(),
+        close3DSecure: vi.fn(),
+        handle3DSSuccess: vi.fn(),
+        handle3DSError: vi.fn()
+      });
+    };
+    return { use3DSecure, threeDSecureOptions: () => options };
+  }
+
   function makePaymentMethodFieldsMock(addPaymentMethod: PaymentMethodSourceHandle["addPaymentMethod"] = vi.fn().mockResolvedValue(null)) {
-    const propsLog: Array<{ clientSecret?: string; isLoading: boolean }> = [];
+    const propsLog: Array<{ clientSecret?: string; isLoading: boolean; onPaymentTypeChange?: (type: string) => void }> = [];
     const Mock: typeof DEPENDENCIES.AddCreditsNewPaymentMethodFields = React.forwardRef<
       PaymentMethodSourceHandle,
-      { clientSecret?: string; isLoading: boolean }
+      { clientSecret?: string; isLoading: boolean; onPaymentTypeChange?: (type: string) => void }
     >(function MockPaymentMethodFields(props, ref) {
       propsLog.push(props);
       useImperativeHandle(ref, () => ({ addPaymentMethod }), [addPaymentMethod]);

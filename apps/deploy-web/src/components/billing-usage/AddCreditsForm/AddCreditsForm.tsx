@@ -70,6 +70,19 @@ interface AddCreditsFormProps {
   dependencies?: typeof DEPENDENCIES;
 }
 
+interface PaymentAnalytics {
+  amount: number;
+  type: string;
+  isSavedMethod: boolean;
+}
+
+type PaymentFailureStage = "payment_method_setup" | "charge_declined" | "charge_error" | "three_d_secure" | "confirmation_timeout" | "trial_activation_timeout";
+
+interface PaymentFailureDetails {
+  errorCode?: string;
+  httpStatus?: number;
+}
+
 interface PendingCharge {
   paymentMethodId: string;
   organization?: string;
@@ -77,6 +90,7 @@ interface PendingCharge {
   wasTrialing: boolean;
   status: "pending" | "charging";
   idempotencyKey: string;
+  analytics: PaymentAnalytics;
 }
 
 /**
@@ -123,6 +137,8 @@ export function AddCreditsForm({ onDone, onProcessingChange, dependencies: d = D
   /** Last payment-method type reported to analytics, so the payment element's frequent change events don't re-fire the same type. */
   const lastPaymentTypeRef = useRef<string | null>(null);
   const wasPollingRef = useRef<boolean>(false);
+  /** Analytics of the charge awaiting 3D Secure, read by the 3DS callbacks which fire outside the charge flow. */
+  const threeDSecureAnalyticsRef = useRef<PaymentAnalytics | null>(null);
 
   const amount = useMemo(() => Number(amountInput.predefinedAmount || amountInput.customAmount) || 0, [amountInput.predefinedAmount, amountInput.customAmount]);
   const amountError = amount > 0 && amount < topUpMinAmountUsd ? `Minimum amount is $${topUpMinAmountUsd}` : undefined;
@@ -146,6 +162,21 @@ export function AddCreditsForm({ onDone, onProcessingChange, dependencies: d = D
     [isNewCard, setupIntentStatus, createSetupIntent]
   );
 
+  const trackPaymentFailed = useCallback(
+    (analytics: PaymentAnalytics | null, stage: PaymentFailureStage, details?: PaymentFailureDetails) => {
+      analyticsService.track("add_credits_payment_failed", { category: "billing", ...analytics, stage, ...details });
+    },
+    [analyticsService]
+  );
+
+  const describeSelectedPayment = (): PaymentAnalytics => {
+    if (isNewCard) {
+      return { amount, type: lastPaymentTypeRef.current ?? "card", isSavedMethod: false };
+    }
+    const savedMethod = paymentMethods?.find(method => method.id === selectedMethodId);
+    return { amount, type: toPaymentMethodType(savedMethod?.type ?? "unknown"), isSavedMethod: true };
+  };
+
   const submit: FormEventHandler<HTMLFormElement> = async e => {
     e.preventDefault();
 
@@ -157,6 +188,9 @@ export function AddCreditsForm({ onDone, onProcessingChange, dependencies: d = D
     setErrorAction(null);
     setIsProcessing(true);
 
+    const analytics = describeSelectedPayment();
+    analyticsService.track("add_credits_payment_submitted", { category: "billing", ...analytics });
+
     let paymentMethodId = selectedMethodId;
     let organization: string | undefined;
 
@@ -165,6 +199,7 @@ export function AddCreditsForm({ onDone, onProcessingChange, dependencies: d = D
       if (!paymentMethod) {
         paymentMethod = (await paymentMethodRef.current?.addPaymentMethod()) ?? null;
         if (!paymentMethod) {
+          trackPaymentFailed(analytics, "payment_method_setup");
           setIsProcessing(false);
           return;
         }
@@ -185,7 +220,8 @@ export function AddCreditsForm({ onDone, onProcessingChange, dependencies: d = D
       amount,
       wasTrialing: isTrialing,
       status: "pending",
-      idempotencyKey: attempt.resolve({ userId: user.id, amount, paymentMethodId })
+      idempotencyKey: attempt.resolve({ userId: user.id, amount, paymentMethodId }),
+      analytics
     });
   };
 
@@ -212,9 +248,11 @@ export function AddCreditsForm({ onDone, onProcessingChange, dependencies: d = D
 
   const threeDSecure = d.use3DSecure({
     onSuccess: function onThreeDSecureSuccess() {
+      analyticsService.track("add_credits_3ds_completed", { category: "billing", ...threeDSecureAnalyticsRef.current });
       pollForPayment();
     },
     onError: function onThreeDSecureError(message) {
+      trackPaymentFailed(threeDSecureAnalyticsRef.current, "three_d_secure");
       finalizeFailure(message);
     },
     showSuccessMessage: false
@@ -241,6 +279,8 @@ export function AddCreditsForm({ onDone, onProcessingChange, dependencies: d = D
         });
 
         if (chargeResult.requiresAction && chargeResult.clientSecret && chargeResult.paymentIntentId) {
+          threeDSecureAnalyticsRef.current = pending.analytics;
+          analyticsService.track("add_credits_3ds_required", { category: "billing", ...pending.analytics });
           threeDSecure.start3DSecure({
             clientSecret: chargeResult.clientSecret,
             paymentIntentId: chargeResult.paymentIntentId,
@@ -258,15 +298,17 @@ export function AddCreditsForm({ onDone, onProcessingChange, dependencies: d = D
           return;
         }
 
+        trackPaymentFailed(pending.analytics, "charge_declined");
         finalizeFailure("Payment failed. Please try again.");
       } catch (err) {
         attempt.clearIfConcluded(err);
+        trackPaymentFailed(pending.analytics, "charge_error", toPaymentFailureDetails(err));
 
         const stripeError = d.handleStripeError(err);
         finalizeFailure(stripeError.message, stripeError.userAction);
       }
     },
-    [user?.id, confirmPayment, threeDSecure, pollForPayment, pollForAlreadyCreditedPayment, finalizeFailure, attempt, d]
+    [user?.id, confirmPayment, threeDSecure, pollForPayment, pollForAlreadyCreditedPayment, finalizeFailure, trackPaymentFailed, analyticsService, attempt, d]
   );
 
   useEffect(
@@ -287,11 +329,13 @@ export function AddCreditsForm({ onDone, onProcessingChange, dependencies: d = D
       if (!wasPolling || isPolling || !charge) return;
 
       if (lastOutcome !== "success") {
+        trackPaymentFailed(charge.analytics, "confirmation_timeout");
         releaseChargeKeepingAttempt();
         return;
       }
 
       if (charge.wasTrialing && isTrialing) {
+        trackPaymentFailed(charge.analytics, "trial_activation_timeout");
         finalizeFailure("Payment did not complete in time. Please try again.");
         return;
       }
@@ -318,7 +362,7 @@ export function AddCreditsForm({ onDone, onProcessingChange, dependencies: d = D
         onDone(amount, organization, bonusAmount);
       })();
     },
-    [isPolling, lastOutcome, isTrialing, charge, releaseChargeKeepingAttempt, finalizeFailure, attempt, onDone, stripe]
+    [isPolling, lastOutcome, isTrialing, charge, releaseChargeKeepingAttempt, finalizeFailure, trackPaymentFailed, attempt, onDone, stripe]
   );
 
   useEffect(
@@ -453,6 +497,11 @@ export function AddCreditsForm({ onDone, onProcessingChange, dependencies: d = D
       )}
     </>
   );
+}
+
+function toPaymentFailureDetails(error: unknown): PaymentFailureDetails {
+  const { response } = (error ?? {}) as { response?: { status?: number; data?: { code?: string } } };
+  return { errorCode: response?.data?.code, httpStatus: response?.status };
 }
 
 /** Maps a Stripe payment-method type (`card`, `us_bank_account`, …) to the coarse label reported to analytics. */
