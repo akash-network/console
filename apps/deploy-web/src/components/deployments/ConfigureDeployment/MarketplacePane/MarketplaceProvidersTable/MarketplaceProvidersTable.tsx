@@ -48,6 +48,8 @@ const COLUMN_WIDTH_CLASS_WITH_GPU: Record<string, string | undefined> = {
 
 interface Props {
   providers: PlacementOffer[];
+  /** Marks the listed candidates as still waiting for their bids. */
+  isBusy?: boolean;
   isLoading?: boolean;
   isSearchActive?: boolean;
   onClearSearch?: () => void;
@@ -63,12 +65,13 @@ interface Props {
   gpuVendors?: GpuVendor[];
   /** Replaces the generic no-provider text when the spec asks for something specific enough to name, e.g. a CPU architecture. */
   emptyMessage?: string;
-  /** Clicking a selectable row selects it; the select button stays in the row for keyboard and assistive technology, visually hidden. */
+  /** Clicking a selectable row selects it, or picks it again once selected; the select button stays in the row for keyboard and assistive technology, visually hidden. */
   selectOnRowClick?: boolean;
 }
 
 export const MarketplaceProvidersTable: FC<Props> = ({
   providers,
+  isBusy = false,
   isLoading,
   isSearchActive,
   onClearSearch,
@@ -146,12 +149,13 @@ export const MarketplaceProvidersTable: FC<Props> = ({
   const noBidRows = sortedRows.filter(row => isPinnedBelow(row.original.offerState));
   const columnCount = table.getVisibleFlatColumns().length;
   const rowSelectionOf = (offer: PlacementOffer) =>
-    selectOnRowClick && isSelectable && offer.offerState === "submitted" && offer.bidId && offer.bidId !== selectedBidId
-      ? () => onSelect?.(offer.bidId!)
-      : undefined;
+    selectOnRowClick && isSelectable && offer.offerState === "submitted" && offer.bidId ? () => onSelect?.(offer.bidId!) : undefined;
 
   return (
-    <div className="overflow-hidden rounded-lg border border-zinc-300 bg-card shadow-sm dark:border-zinc-700">
+    <div
+      aria-busy={isBusy || undefined}
+      className="overflow-hidden rounded-lg border border-zinc-300 bg-card shadow-sm transition-opacity aria-busy:opacity-60 dark:border-zinc-700"
+    >
       <Table className="table-fixed">
         <TableHeader>
           {table.getHeaderGroups().map(headerGroup => (
@@ -367,7 +371,7 @@ function buildColumns(
                   type="button"
                   size="sm"
                   variant={isSelected ? "default" : "outline"}
-                  disabled={isSelected || !selection.isSelectable}
+                  disabled={(isSelected && !selection.selectOnRowClick) || !selection.isSelectable}
                   aria-label={isSelected ? `Selected ${providerDisplayName(offer)}` : `Select ${providerDisplayName(offer)}`}
                   onClick={() => selection.onSelect?.(offer.bidId!)}
                 >
