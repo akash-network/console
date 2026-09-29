@@ -8,6 +8,7 @@ import type { HardwareRequestInput } from "@src/hardware-request/http-schemas/ha
 import { HARDWARE_REQUEST_CONFIG, type HardwareRequestConfig } from "@src/hardware-request/providers/config.provider";
 import { type HardwareRequestOutput, HardwareRequestRepository } from "@src/hardware-request/repositories/hardware-request/hardware-request.repository";
 import { HardwareRequestEmailJob } from "@src/hardware-request/services/hardware-request-email/hardware-request-email.handler";
+import { HardwareRequestSlackAlertJob } from "@src/hardware-request/services/hardware-request-slack-alert/hardware-request-slack-alert.handler";
 import { UserRepository } from "@src/user/repositories";
 
 const HOUR_MS = 60 * 60 * 1000;
@@ -50,6 +51,7 @@ export class HardwareRequestService {
         .accessibleBy(this.authService.ability, "create")
         .create({ ...fields, contactEmail: email, userId });
       await this.jobQueueService.enqueue(new HardwareRequestEmailJob({ hardwareRequestId: hardwareRequest.id }));
+      await this.jobQueueService.enqueue(new HardwareRequestSlackAlertJob({ hardwareRequestId: hardwareRequest.id }));
 
       return hardwareRequest;
     });

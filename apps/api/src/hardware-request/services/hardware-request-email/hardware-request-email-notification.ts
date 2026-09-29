@@ -1,5 +1,6 @@
 import escapeHtml from "lodash/escape";
 
+import { hardwareRequestTitle } from "@src/hardware-request/lib/hardware-request-title/hardware-request-title";
 import type { HardwareRequestOutput } from "@src/hardware-request/repositories/hardware-request/hardware-request.repository";
 import type { CreateNotificationInput } from "@src/notifications/services/notification/notification.service";
 import type { UserOutput } from "@src/user/repositories";
@@ -17,7 +18,7 @@ export function hardwareRequestEmailNotification(input: {
   return {
     notificationId: `hardwareRequest.${hardwareRequest.id}`,
     payload: {
-      summary: subjectOf(hardwareRequest),
+      summary: hardwareRequestTitle(hardwareRequest),
       description: [
         field("GPU model", hardwareRequest.gpuModel),
         field("Quantity", hardwareRequest.quantity?.toString()),
@@ -32,19 +33,6 @@ export function hardwareRequestEmailNotification(input: {
     },
     user: mailbox
   };
-}
-
-function subjectOf({ category, gpuModel, quantity, region }: HardwareRequestOutput): string {
-  switch (category) {
-    case "gpu_model":
-      return `GPU request: ${quantity}× ${gpuModel}`;
-    case "capacity":
-      return gpuModel ? `Capacity request: ${quantity}× ${gpuModel}` : `Capacity request: ${quantity} GPUs`;
-    case "region":
-      return `Region request: ${region}`;
-    case "other":
-      return "Hardware request";
-  }
 }
 
 function field(label: string, value: string | null | undefined): string {
