@@ -52,30 +52,30 @@ describe("GpuCard trial gate", () => {
     expect(screen.queryByRole("button", { name: /unlock/i })).not.toBeInTheDocument();
   });
 
-  it("locks the 'Any model' option when the empty model is blocked for the trial", async () => {
+  it("locks the 'Any GPU' option when the empty model is blocked for the trial", async () => {
     const user = setup({ isBlockedModel: (_vendor, model) => model === "" || model === "h100" });
 
     await user.click(screen.getByRole("combobox", { name: "GPU model" }));
 
-    expect(await screen.findByRole("option", { name: /any model/i })).toHaveAttribute("aria-disabled", "true");
+    expect(await screen.findByRole("option", { name: /any gpu/i })).toHaveAttribute("aria-disabled", "true");
   });
 
-  it("keeps the 'Any model' option selectable when nothing is blocked", async () => {
+  it("keeps the 'Any GPU' option selectable when nothing is blocked", async () => {
     const user = setup({});
 
     await user.click(screen.getByRole("combobox", { name: "GPU model" }));
 
-    expect(await screen.findByRole("option", { name: /any model/i })).not.toHaveAttribute("aria-disabled", "true");
+    expect(await screen.findByRole("option", { name: /any gpu/i })).not.toHaveAttribute("aria-disabled", "true");
   });
 
   it("keeps a blocked model visible and locked when it is the only one available", async () => {
     const user = setup({ isBlockedModel: (_vendor, model) => model === "h100", availableGpus: [{ vendor: "nvidia", models: [availableModel("h100")] }] });
 
     await user.click(screen.getByRole("combobox", { name: "GPU model" }));
-    const unavailable = within(await screen.findByRole("group", { name: "Unavailable" }));
+    const unavailable = within(await screen.findByRole("group", { name: "Others" }));
 
     expect(screen.getByRole("option", { name: /h100/ })).toHaveAttribute("aria-disabled", "true");
-    expect(unavailable.getByRole("option", { name: "t4" })).toHaveAttribute("aria-disabled", "true");
+    expect(unavailable.getByRole("option", { name: "NVIDIA t4" })).toHaveAttribute("aria-disabled", "true");
   });
 
   it("keeps a blocked model's lock alongside its provider count", async () => {
@@ -97,7 +97,7 @@ describe("GpuCard trial gate", () => {
 
     await user.click(screen.getByRole("combobox", { name: "GPU model" }));
 
-    expect(await screen.findByRole("option", { name: /any model/i })).toHaveAttribute("aria-disabled", "true");
+    expect(await screen.findByRole("option", { name: /any gpu/i })).toHaveAttribute("aria-disabled", "true");
     expect(screen.getByRole("option", { name: /h100/ })).toHaveAttribute("aria-disabled", "true");
     expect(screen.getByRole("option", { name: /t4/ })).not.toHaveAttribute("aria-disabled", "true");
   });

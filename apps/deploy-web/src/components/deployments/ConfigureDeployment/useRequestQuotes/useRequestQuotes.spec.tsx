@@ -126,10 +126,21 @@ describe(useRequestQuotes.name, () => {
     await submit();
 
     expect(requestQuotes).not.toHaveBeenCalled();
-    expect(onInvalid).toHaveBeenCalledWith(
-      expect.objectContaining({ services: { 0: { image: expect.objectContaining({ message: "Image is required" }) } } }),
-      undefined
-    );
+    expect(onInvalid).toHaveBeenCalledWith(expect.objectContaining({ services: { 0: { image: expect.objectContaining({ message: "Image is required" }) } } }));
+  });
+
+  it("names the missing fields and their service when the form rejects the submit", async () => {
+    const { submit, enqueueSnackbar } = setup({
+      services: [{ title: "web", profile: {} }],
+      rejectWith: { services: { 0: { image: { type: "manual", message: "Docker image name is required." } } } }
+    });
+
+    await submit();
+
+    expect(enqueueSnackbar).toHaveBeenCalledWith(expect.anything(), { variant: "error" });
+    render(enqueueSnackbar.mock.calls[0][0] as ReactNode);
+    expect(screen.getByText("Your deployment can't be submitted yet")).toBeInTheDocument();
+    expect(screen.getByText("web: Docker image name is required.")).toBeInTheDocument();
   });
 
   it("surfaces SDL validation errors and does not request quotes when the spec is invalid", async () => {
@@ -148,7 +159,7 @@ describe(useRequestQuotes.name, () => {
     deploymentName?: string;
     validationErrors?: string[];
     isRestricted?: boolean;
-    services?: Array<{ profile: { hasGpu?: boolean; gpuModels?: Array<{ vendor: string; name?: string }> } }>;
+    services?: Array<{ title?: string; profile: { hasGpu?: boolean; gpuModels?: Array<{ vendor: string; name?: string }> } }>;
     secretsEnabled?: boolean;
     resolveSdlSecrets?: typeof DEPENDENCIES.resolveSdlSecrets;
     inheritedSecrets?: ReturnType<typeof DEPENDENCIES.useInheritedSecrets>;

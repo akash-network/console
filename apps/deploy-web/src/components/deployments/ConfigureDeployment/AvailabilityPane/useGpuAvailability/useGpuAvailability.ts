@@ -11,6 +11,7 @@ export const DEPENDENCIES = { usePlacementOptions, useGpuModels };
 
 export interface GpuAvailability {
   requestedLabel: string;
+  hasRequestedGpu: boolean;
   topModels: GpuAvailabilityModel[];
 }
 
@@ -22,6 +23,10 @@ export function useGpuAvailability(placementId: string, dependencies: typeof DEP
 
   return useMemo(() => {
     const requested = requestedGpuOf(services, placementId);
-    return { requestedLabel: requestedGpuLabel(requested, catalog), topModels: topGpuModels(placementOptions, catalog, requested) };
+    return {
+      requestedLabel: requestedGpuLabel(requested, catalog),
+      hasRequestedGpu: requested !== null,
+      topModels: topGpuModels(placementOptions, catalog, requested)
+    };
   }, [catalog, placementId, placementOptions, services]);
 }

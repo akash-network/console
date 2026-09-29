@@ -61,7 +61,7 @@ describe(GpuCard.name, () => {
     const { getValues, user } = setup({ hasGpu: false, gpu: 0, gpuModels: [] });
 
     await user.click(screen.getByRole("combobox", { name: "GPU model" }));
-    await user.click(await screen.findByRole("option", { name: "a100" }));
+    await user.click(await screen.findByRole("option", { name: "NVIDIA a100" }));
 
     expect(getValues().services[0].profile).toMatchObject({
       hasGpu: true,
@@ -74,7 +74,7 @@ describe(GpuCard.name, () => {
     const { getValues, user } = setup({ hasGpu: false, gpu: 0, gpuModels: [{ vendor: "nvidia", name: "", memory: "", interface: "" }] });
 
     await user.click(screen.getByRole("combobox", { name: "GPU model" }));
-    await user.click(await screen.findByRole("option", { name: "t4" }));
+    await user.click(await screen.findByRole("option", { name: "NVIDIA t4" }));
 
     expect(getValues().services[0].profile).toMatchObject({ hasGpu: true, gpu: 1, gpuModels: [{ vendor: "nvidia", name: "t4" }] });
   });
@@ -83,7 +83,7 @@ describe(GpuCard.name, () => {
     const { getValues, user } = setup({ hasGpu: false, gpu: 0, gpuModels: [{ vendor: "nvidia", name: "", memory: "", interface: "" }] });
 
     await user.click(screen.getByRole("combobox", { name: "GPU model" }));
-    await user.click(await screen.findByRole("option", { name: "Any model" }));
+    await user.click(await screen.findByRole("option", { name: "Any GPU" }));
 
     expect(getValues().services[0].profile).toMatchObject({ hasGpu: true, gpu: 1 });
   });
@@ -106,10 +106,10 @@ describe(GpuCard.name, () => {
     expect(screen.getByRole("combobox", { name: "GPU model" })).toHaveTextContent("Select");
   });
 
-  it("names Any model in the trigger once the GPU is on without a pinned model", () => {
+  it("names Any GPU in the trigger once the GPU is on without a pinned model", () => {
     setup({ hasGpu: true, gpu: 1, gpuModels: [{ vendor: "nvidia", name: "", memory: "", interface: "" }] });
 
-    expect(screen.getByRole("combobox", { name: "GPU model" })).toHaveTextContent("Any model");
+    expect(screen.getByRole("combobox", { name: "GPU model" })).toHaveTextContent("Any GPU");
   });
 
   it("offers the GPU interconnect inside the card", () => {
@@ -174,7 +174,7 @@ describe(GpuCard.name, () => {
     const { getValues, user } = setup({ hasGpu: true, gpuModels: [{ vendor: "nvidia", name: "", memory: "", interface: "" }] });
 
     await user.click(screen.getByRole("combobox", { name: "GPU model" }));
-    await user.click(await screen.findByRole("option", { name: "t4" }));
+    await user.click(await screen.findByRole("option", { name: "NVIDIA t4" }));
 
     expect(getValues().services[0].profile.gpuModels?.[0]).toEqual({ vendor: "nvidia", name: "t4", memory: "", interface: "" });
   });
@@ -183,7 +183,7 @@ describe(GpuCard.name, () => {
     const { getValues, user } = setup({ hasGpu: true, gpuModels: [{ vendor: "nvidia", name: "a100", memory: "40Gi", interface: "pcie" }] });
 
     await user.click(screen.getByRole("combobox", { name: "GPU model" }));
-    await user.click(await screen.findByRole("option", { name: "t4" }));
+    await user.click(await screen.findByRole("option", { name: "NVIDIA t4" }));
 
     expect(getValues().services[0].profile.gpuModels?.[0]).toEqual({ vendor: "nvidia", name: "t4", memory: "", interface: "" });
   });
@@ -192,13 +192,17 @@ describe(GpuCard.name, () => {
     const { getValues, user } = setup({ hasGpu: true, gpuModels: [{ vendor: "nvidia", name: "a100", memory: "40Gi", interface: "pcie" }] });
 
     await user.click(screen.getByRole("combobox", { name: "GPU model" }));
-    await user.click(await screen.findByRole("option", { name: "a100" }));
+    await user.click(await screen.findByRole("option", { name: "NVIDIA a100" }));
 
     expect(getValues().services[0].profile.gpuModels?.[0]).toEqual({ vendor: "nvidia", name: "a100", memory: "40Gi", interface: "pcie" });
   });
 
   it("resets model, memory, and interface when the vendor changes", async () => {
-    const { getValues, user } = setup({ hasGpu: true, gpuModels: [{ vendor: "nvidia", name: "a100", memory: "40Gi", interface: "pcie" }] });
+    const { getValues, user } = setup({
+      hasGpu: true,
+      gpuModels: [{ vendor: "nvidia", name: "a100", memory: "40Gi", interface: "pcie" }],
+      availableGpus: everyCatalogGpuAvailable()
+    });
 
     await user.click(screen.getByRole("combobox", { name: "GPU vendor" }));
     await user.click(await screen.findByRole("option", { name: "amd" }));
@@ -206,11 +210,11 @@ describe(GpuCard.name, () => {
     expect(getValues().services[0].profile.gpuModels?.[0]).toEqual({ vendor: "amd", name: "", memory: "", interface: "" });
   });
 
-  it("clears the model along with memory and interface when Any model is picked", async () => {
+  it("clears the model along with memory and interface when Any GPU is picked", async () => {
     const { getValues, user } = setup({ hasGpu: true, gpuModels: [{ vendor: "nvidia", name: "a100", memory: "40Gi", interface: "pcie" }] });
 
     await user.click(screen.getByRole("combobox", { name: "GPU model" }));
-    await user.click(await screen.findByRole("option", { name: "Any model" }));
+    await user.click(await screen.findByRole("option", { name: "Any GPU" }));
 
     expect(getValues().services[0].profile.gpuModels?.[0]).toMatchObject({ vendor: "nvidia", name: "", memory: "", interface: "" });
   });
@@ -221,7 +225,7 @@ describe(GpuCard.name, () => {
     expect(screen.getByRole("combobox", { name: "GPU model" })).toHaveTextContent("a100");
 
     await user.click(screen.getByRole("combobox", { name: "GPU model" }));
-    await user.click(await screen.findByRole("option", { name: "Any model" }));
+    await user.click(await screen.findByRole("option", { name: "Any GPU" }));
 
     expect(screen.getByRole("combobox", { name: "GPU model" })).not.toHaveTextContent("a100");
   });
@@ -245,7 +249,7 @@ describe(GpuCard.name, () => {
     await user.click(screen.getByRole("combobox", { name: "GPU model" }));
 
     const optionNames = (await screen.findAllByRole("option")).map(option => option.textContent);
-    expect(optionNames).toEqual(["Any model", "h100", "a100", "t4"]);
+    expect(optionNames).toEqual(["Any GPU", "NVIDIA h100", "NVIDIA a100", "NVIDIA t4"]);
   });
 
   it("filters the model options by the search box", async () => {
@@ -266,8 +270,8 @@ describe(GpuCard.name, () => {
     await user.click(screen.getByRole("combobox", { name: "GPU model" }));
     await user.type(await screen.findByRole("combobox", { name: "Search GPU models" }), "h1");
 
-    expect(screen.getByRole("option", { name: "h100" })).toBeInTheDocument();
-    expect(screen.queryByRole("option", { name: "t4" })).not.toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "NVIDIA h100" })).toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: "NVIDIA t4" })).not.toBeInTheDocument();
   });
 
   it("shows the prettified model displayName in the options and trigger while writing the raw name", async () => {
@@ -278,7 +282,7 @@ describe(GpuCard.name, () => {
     });
 
     await user.click(screen.getByRole("combobox", { name: "GPU model" }));
-    await user.click(await screen.findByRole("option", { name: "RTX 4090" }));
+    await user.click(await screen.findByRole("option", { name: "NVIDIA RTX 4090" }));
 
     expect(screen.getByRole("combobox", { name: "GPU model" })).toHaveTextContent("RTX 4090");
     expect(getValues().services[0].profile.gpuModels?.[0]).toMatchObject({ name: "rtx4090" });
@@ -303,8 +307,8 @@ describe(GpuCard.name, () => {
     await user.click(screen.getByRole("combobox", { name: "GPU model" }));
     await user.type(await screen.findByRole("combobox", { name: "Search GPU models" }), "RTX 40");
 
-    expect(screen.getByRole("option", { name: "RTX 4090" })).toBeInTheDocument();
-    expect(screen.queryByRole("option", { name: "A100" })).not.toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "NVIDIA RTX 4090" })).toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: "NVIDIA A100" })).not.toBeInTheDocument();
   });
 
   it("labels the vendor option with its displayName", async () => {
@@ -313,7 +317,8 @@ describe(GpuCard.name, () => {
       vendors: [
         { name: "nvidia", displayName: "NVIDIA", models: [{ name: "a100", displayName: "A100", memory: ["80Gi"], interface: ["sxm"] }] },
         { name: "amd", displayName: "AMD", models: [{ name: "mi300", memory: ["192Gi"], interface: ["pcie"] }] }
-      ]
+      ],
+      availableGpus: everyCatalogGpuAvailable()
     });
 
     await user.click(screen.getByRole("combobox", { name: "GPU vendor" }));
@@ -389,7 +394,12 @@ describe(GpuCard.name, () => {
   });
 
   it("disables every GPU input while locked", () => {
-    setup({ hasGpu: true, locked: true, gpuModels: [{ vendor: "nvidia", name: "a100", memory: "40Gi", interface: "pcie" }] });
+    setup({
+      hasGpu: true,
+      locked: true,
+      gpuModels: [{ vendor: "nvidia", name: "a100", memory: "40Gi", interface: "pcie" }],
+      availableGpus: everyCatalogGpuAvailable()
+    });
 
     expect(screen.getByLabelText("GPUs")).toBeDisabled();
     expect(screen.getByRole("switch", { name: "Enable GPU interconnect" })).toBeDisabled();
@@ -403,18 +413,22 @@ describe(GpuCard.name, () => {
     const { analyticsService, user } = setup({ hasGpu: true, gpuModels: [{ vendor: "nvidia", name: "", memory: "", interface: "" }] });
 
     await user.click(screen.getByRole("combobox", { name: "GPU model" }));
-    await user.click(await screen.findByRole("option", { name: "t4" }));
+    await user.click(await screen.findByRole("option", { name: "NVIDIA t4" }));
 
     expect(analyticsService.track).toHaveBeenCalledWith("configure_gpu_type_selected", { category: "deployments", model: "t4", vendor: "nvidia" });
   });
 
   it("tracks the model with the vendor the entry switched to", async () => {
-    const { analyticsService, user } = setup({ hasGpu: true, gpuModels: [{ vendor: "nvidia", name: "", memory: "", interface: "" }] });
+    const { analyticsService, user } = setup({
+      hasGpu: true,
+      gpuModels: [{ vendor: "nvidia", name: "", memory: "", interface: "" }],
+      availableGpus: everyCatalogGpuAvailable()
+    });
 
     await user.click(screen.getByRole("combobox", { name: "GPU vendor" }));
     await user.click(await screen.findByRole("option", { name: "amd" }));
     await user.click(screen.getByRole("combobox", { name: "GPU model" }));
-    await user.click(await screen.findByRole("option", { name: "mi300" }));
+    await user.click(await screen.findByRole("option", { name: "AMD mi300" }));
 
     expect(analyticsService.track).toHaveBeenCalledWith("configure_gpu_type_selected", { category: "deployments", model: "mi300", vendor: "amd" });
   });
@@ -432,11 +446,11 @@ describe(GpuCard.name, () => {
       const { user } = setup({ hasGpu: true, availableGpus: [{ vendor: "nvidia", models: [availableModel("t4", ["16Gi"], ["pcie"])] }] });
 
       await user.click(screen.getByRole("combobox", { name: "GPU model" }));
-      const unavailable = within(await screen.findByRole("group", { name: "Unavailable" }));
+      const unavailable = within(await screen.findByRole("group", { name: "Others" }));
 
-      expect(screen.getByRole("option", { name: "t4" })).toHaveAttribute("aria-disabled", "false");
-      expect(unavailable.getByRole("option", { name: "a100" })).toHaveAttribute("aria-disabled", "true");
-      expect(screen.getByRole("option", { name: "Any model" })).toBeInTheDocument();
+      expect(screen.getByRole("option", { name: "NVIDIA t4" })).toHaveAttribute("aria-disabled", "false");
+      expect(unavailable.getByRole("option", { name: "NVIDIA a100" })).toHaveAttribute("aria-disabled", "true");
+      expect(screen.getByRole("option", { name: "Any GPU" })).toBeInTheDocument();
     });
 
     it("shows how many providers have free capacity for each offered model", async () => {
@@ -447,18 +461,75 @@ describe(GpuCard.name, () => {
 
       await user.click(screen.getByRole("combobox", { name: "GPU model" }));
 
-      expect(await screen.findByRole("option", { name: "t4" })).toHaveAccessibleDescription("4 providers");
-      expect(screen.getByRole("option", { name: "a100" })).toHaveAccessibleDescription("1 provider");
+      expect(await screen.findByRole("option", { name: "NVIDIA t4" })).toHaveAccessibleDescription("4 providers");
+      expect(screen.getByRole("option", { name: "NVIDIA a100" })).toHaveAccessibleDescription("1 provider");
+    });
+
+    it("lists the offered models under an Available heading with their bare provider count", async () => {
+      const { user } = setup({ hasGpu: true, availableGpus: [{ vendor: "nvidia", models: [availableModel("t4", ["16Gi"], ["pcie"], 4)] }] });
+
+      await user.click(screen.getByRole("combobox", { name: "GPU model" }));
+      const available = within(await screen.findByRole("group", { name: "Available" }));
+
+      expect(within(available.getByRole("option", { name: "NVIDIA t4" })).getByText("4")).toBeInTheDocument();
+      expect(screen.getByText("Providers")).toBeInTheDocument();
+    });
+
+    it("counts no provider on an unavailable model", async () => {
+      const { user } = setup({ hasGpu: true, availableGpus: [{ vendor: "nvidia", models: [availableModel("t4", ["16Gi"], ["pcie"])] }] });
+
+      await user.click(screen.getByRole("combobox", { name: "GPU model" }));
+
+      expect(await screen.findByRole("option", { name: "NVIDIA a100" })).toHaveAccessibleDescription("0 providers");
+    });
+
+    it("leaves the offered models without a heading when availability cannot be loaded", async () => {
+      const { user } = setup({ hasGpu: true });
+
+      await user.click(screen.getByRole("combobox", { name: "GPU model" }));
+
+      expect(await screen.findByRole("option", { name: "NVIDIA t4" })).not.toHaveAttribute("aria-describedby");
+      expect(screen.queryByRole("group", { name: "Available" })).not.toBeInTheDocument();
+    });
+
+    it("finds the models by their vendor name", async () => {
+      const { user } = setup({ hasGpu: true, availableGpus: [{ vendor: "nvidia", models: [availableModel("t4", ["16Gi"], ["pcie"])] }] });
+
+      await user.click(screen.getByRole("combobox", { name: "GPU model" }));
+      await user.type(await screen.findByRole("combobox", { name: "Search GPU models" }), "nvidia");
+
+      expect(screen.getByRole("option", { name: "NVIDIA t4" })).toBeInTheDocument();
+      expect(screen.getByRole("option", { name: "NVIDIA a100" })).toBeInTheDocument();
+    });
+
+    it("asks support for the searched gpu from the menu", async () => {
+      const { user } = setup({ hasGpu: true, availableGpus: [{ vendor: "nvidia", models: [availableModel("t4", ["16Gi"], ["pcie"])] }] });
+
+      await user.click(screen.getByRole("combobox", { name: "GPU model" }));
+      await user.type(await screen.findByRole("combobox", { name: "Search GPU models" }), " b300 ");
+
+      expect(screen.getByRole("link", { name: /contact us/i })).toHaveAttribute(
+        "href",
+        "mailto:support@akash.network?subject=GPU%20request&body=I'm%20looking%20for%3A%20b300"
+      );
+    });
+
+    it("asks support for a gpu without a body before anything is searched", async () => {
+      const { user } = setup({ hasGpu: true, availableGpus: [{ vendor: "nvidia", models: [availableModel("t4", ["16Gi"], ["pcie"])] }] });
+
+      await user.click(screen.getByRole("combobox", { name: "GPU model" }));
+
+      expect(await screen.findByRole("link", { name: /contact us/i })).toHaveAttribute("href", "mailto:support@akash.network?subject=GPU%20request");
     });
 
     it("keeps the provider count on a model once it is picked", async () => {
       const { user } = setup({ hasGpu: true, availableGpus: [{ vendor: "nvidia", models: [availableModel("t4", ["16Gi"], ["pcie"], 4)] }] });
 
       await user.click(screen.getByRole("combobox", { name: "GPU model" }));
-      await user.click(await screen.findByRole("option", { name: "t4" }));
+      await user.click(await screen.findByRole("option", { name: "NVIDIA t4" }));
       await user.click(screen.getByRole("combobox", { name: "GPU model" }));
 
-      expect(await screen.findByRole("option", { name: "t4" })).toHaveAccessibleDescription("4 providers");
+      expect(await screen.findByRole("option", { name: "NVIDIA t4" })).toHaveAccessibleDescription("4 providers");
     });
 
     it("finds an unavailable model with the search box", async () => {
@@ -467,7 +538,7 @@ describe(GpuCard.name, () => {
       await user.click(screen.getByRole("combobox", { name: "GPU model" }));
       await user.type(await screen.findByRole("combobox", { name: "Search GPU models" }), "a1");
 
-      expect(screen.getByRole("option", { name: "a100" })).toHaveAttribute("aria-disabled", "true");
+      expect(screen.getByRole("option", { name: "NVIDIA a100" })).toHaveAttribute("aria-disabled", "true");
       expect(screen.queryByText("No models found.")).not.toBeInTheDocument();
     });
 
@@ -489,7 +560,7 @@ describe(GpuCard.name, () => {
       await user.click(screen.getByRole("combobox", { name: "GPU model" }));
       await user.type(await screen.findByRole("combobox", { name: "Search GPU models" }), "RTX 40");
 
-      expect(screen.getByRole("option", { name: "RTX 4090" })).toHaveAttribute("aria-disabled", "true");
+      expect(screen.getByRole("option", { name: "NVIDIA RTX 4090" })).toHaveAttribute("aria-disabled", "true");
     });
 
     it("lists the offered and unavailable models of the vendor the entry switches to", async () => {
@@ -505,9 +576,9 @@ describe(GpuCard.name, () => {
       await user.click(await screen.findByRole("option", { name: "amd" }));
       await user.click(screen.getByRole("combobox", { name: "GPU model" }));
 
-      expect(await screen.findByRole("option", { name: "mi300" })).toHaveAccessibleDescription("2 providers");
-      expect(screen.queryByRole("option", { name: "t4" })).not.toBeInTheDocument();
-      expect(screen.queryByRole("group", { name: "Unavailable" })).not.toBeInTheDocument();
+      expect(await screen.findByRole("option", { name: "AMD mi300" })).toHaveAccessibleDescription("2 providers");
+      expect(screen.queryByRole("option", { name: "NVIDIA t4" })).not.toBeInTheDocument();
+      expect(screen.queryByRole("group", { name: "Others" })).not.toBeInTheDocument();
     });
 
     it("disables the model picker while the vendor has no model to list", () => {
@@ -541,10 +612,10 @@ describe(GpuCard.name, () => {
       expect(screen.getByRole("combobox", { name: "GPU interface" })).toHaveTextContent("sxm");
 
       await user.click(screen.getByRole("combobox", { name: "GPU model" }));
-      const unavailable = within(await screen.findByRole("group", { name: "Unavailable" }));
+      const unavailable = within(await screen.findByRole("group", { name: "Others" }));
 
-      expect(unavailable.getByRole("option", { name: "A100" })).toHaveAttribute("aria-disabled", "true");
-      expect(screen.getByRole("option", { name: "T4" })).toHaveAttribute("aria-disabled", "false");
+      expect(unavailable.getByRole("option", { name: "NVIDIA A100" })).toHaveAttribute("aria-disabled", "true");
+      expect(screen.getByRole("option", { name: "NVIDIA T4" })).toHaveAttribute("aria-disabled", "false");
     });
 
     it("offers only the memory sizes and interfaces the picked model is available with", async () => {
@@ -713,10 +784,27 @@ describe(GpuCard.name, () => {
 
       await user.click(screen.getByRole("combobox", { name: "GPU model" }));
 
-      expect(await screen.findByRole("option", { name: "a100" })).toBeInTheDocument();
-      expect(screen.getByRole("option", { name: "t4" })).toBeInTheDocument();
-      expect(screen.getByRole("combobox", { name: "GPU vendor" })).toBeInTheDocument();
-      expect(screen.queryByRole("group", { name: "Unavailable" })).not.toBeInTheDocument();
+      expect(await screen.findByRole("option", { name: "NVIDIA a100" })).toBeInTheDocument();
+      expect(screen.getByRole("option", { name: "NVIDIA t4" })).toBeInTheDocument();
+      expect(screen.queryByRole("group", { name: "Others" })).not.toBeInTheDocument();
+    });
+
+    it("drops the vendor step when availability cannot be loaded", () => {
+      setup({ hasGpu: true });
+
+      expect(screen.queryByRole("combobox", { name: "GPU vendor" })).not.toBeInTheDocument();
+    });
+
+    it("offers only the default vendor and a pinned one when availability cannot be loaded", async () => {
+      const { user } = setup({
+        hasGpu: true,
+        gpuModels: [{ vendor: "amd", name: "mi300", memory: "", interface: "" }],
+        vendors: [...GPU_VENDORS, { name: "intel", models: [{ name: "max1550", memory: ["128Gi"], interface: ["pcie"] }] }]
+      });
+
+      await user.click(screen.getByRole("combobox", { name: "GPU vendor" }));
+
+      expect((await screen.findAllByRole("option")).map(option => option.textContent)).toEqual(["nvidia", "amd"]);
     });
 
     it("still sorts the popular models to the top of the shortened list", async () => {
@@ -727,7 +815,9 @@ describe(GpuCard.name, () => {
 
       await user.click(screen.getByRole("combobox", { name: "GPU model" }));
 
-      expect(await screen.findAllByRole("option")).toEqual(["Any model", "h100", "a100", "t4"].map(name => screen.getByRole("option", { name })));
+      expect(await screen.findAllByRole("option")).toEqual(
+        ["Any GPU", "NVIDIA h100", "NVIDIA a100", "NVIDIA t4"].map(name => screen.getByRole("option", { name }))
+      );
     });
 
     it("adds and removes GPU entries without a vendor step", async () => {
@@ -748,7 +838,7 @@ describe(GpuCard.name, () => {
 
       await user.click(screen.getByRole("combobox", { name: "GPU model" }));
 
-      expect(await screen.findByRole("option", { name: "t4" })).toBeInTheDocument();
+      expect(await screen.findByRole("option", { name: "NVIDIA t4" })).toBeInTheDocument();
       expect(screen.queryByText(/failed to load gpu models/i)).not.toBeInTheDocument();
     });
 
@@ -757,12 +847,19 @@ describe(GpuCard.name, () => {
 
       await user.click(screen.getByRole("combobox", { name: "GPU model" }));
 
-      expect(await screen.findByRole("option", { name: "b200" })).toBeInTheDocument();
+      expect(await screen.findByRole("option", { name: "NVIDIA b200" })).toBeInTheDocument();
     });
   });
 
   function availableModel(name: string, memory = ["80Gi"], gpuInterface = ["sxm"], providerCount = 1): AvailableGpuVendor["models"][number] {
     return { name, memory, interface: gpuInterface, providerCount, variants: everyVariant(memory, gpuInterface, providerCount) };
+  }
+
+  function everyCatalogGpuAvailable(): AvailableGpuVendor[] {
+    return [
+      { vendor: "nvidia", models: [availableModel("a100", ["40Gi", "80Gi"], ["pcie", "sxm"]), availableModel("t4", ["16Gi"], ["pcie"])] },
+      { vendor: "amd", models: [availableModel("mi300", ["192Gi"], ["pcie"])] }
+    ];
   }
 
   function everyVariant(memory: string[], gpuInterface: string[], providerCount: number) {

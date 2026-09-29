@@ -460,6 +460,27 @@ describe(ConfigureDeploymentForm.name, () => {
     expect(screen.queryByRole("button", { name: "back to marketplace" })).not.toBeInTheDocument();
   });
 
+  it("records a newly picked provider for its placement", async () => {
+    const { flow } = setup({ initialSdl: VALID_SDL, Panes: ProviderSelectProbePanes });
+    const placementId = screen.getByTestId("focused-placement").textContent;
+
+    await userEvent.click(screen.getByRole("button", { name: "select provider" }));
+
+    expect(flow.actions.selectProvider).toHaveBeenCalledWith(placementId, "bid-1");
+  });
+
+  it("reopens a dismissed review without picking again when the selected provider is picked again", async () => {
+    const { flow } = setup({ initialSdl: VALID_SDL, Panes: ProviderSelectProbePanes });
+    flow.selections = { [screen.getByTestId("focused-placement").textContent ?? ""]: "bid-1" };
+
+    await userEvent.click(screen.getByRole("button", { name: "select provider" }));
+    await userEvent.click(screen.getByRole("button", { name: "back to marketplace" }));
+    await userEvent.click(screen.getByRole("button", { name: "select provider" }));
+
+    expect(screen.getByRole("button", { name: "back to marketplace" })).toBeInTheDocument();
+    expect(flow.actions.selectProvider).not.toHaveBeenCalled();
+  });
+
   it("tracks the review modal opening from the header deploy action", () => {
     const { ConfigureDeploymentHeader, analyticsService } = setup({ initialSdl: VALID_SDL });
     const onDeploy = (ConfigureDeploymentHeader as ReturnType<typeof vi.fn>).mock.calls[0][0].onDeploy as () => void;

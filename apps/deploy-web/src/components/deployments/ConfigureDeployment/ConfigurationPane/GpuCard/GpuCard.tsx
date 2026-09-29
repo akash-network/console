@@ -17,9 +17,10 @@ import {
   Spinner,
   useFieldError
 } from "@akashnetwork/ui/components";
-import { GpuIcon, LockIcon, PlusIcon, TrashIcon, XIcon } from "lucide-react";
+import { ArrowRightIcon, GpuIcon, LockIcon, MessageSquareIcon, PlusIcon, TrashIcon, XIcon } from "lucide-react";
 
 import { SearchableSelect } from "@src/components/shared/SearchableSelect/SearchableSelect";
+import { SUPPORT_EMAIL } from "@src/config/ui.config";
 import { useServices } from "@src/context/ServicesProvider";
 import { useGpuModels } from "@src/queries/useGpuQuery";
 import type { AvailableGpuVendor } from "@src/queries/usePlacementOptions";
@@ -32,6 +33,7 @@ import {
   gpuVendors as fallbackVendors,
   listGpuInterfaceOptions,
   listGpuMemoryOptions,
+  narrowFallbackVendors,
   narrowGpuVendorsToAvailable,
   prioritizeGpuModels,
   withPinnedGpu
@@ -102,7 +104,9 @@ export const GpuCard: FC<Props> = ({
     locked,
     dependencies: d
   };
-  const countField = <GpuCountField serviceIndex={serviceIndex} locked={locked} count={serviceGpu.count} onCountChange={serviceGpu.setCount} dependencies={d} />;
+  const countField = (
+    <GpuCountField serviceIndex={serviceIndex} locked={locked} count={serviceGpu.count} onCountChange={serviceGpu.setCount} dependencies={d} />
+  );
 
   return (
     <d.CollapsibleCard
@@ -117,14 +121,7 @@ export const GpuCard: FC<Props> = ({
         <p className="text-sm text-muted-foreground">Add accelerators for inference, training or rendering.</p>
 
         {fields.length > 0 ? (
-          <d.GpuModelFields
-            {...sharedModelProps}
-            key={fields[0].id}
-            gpuIndex={0}
-            isGpuOn={isGpuOn}
-            countField={countField}
-            onModelPick={serviceGpu.enable}
-          />
+          <d.GpuModelFields {...sharedModelProps} key={fields[0].id} gpuIndex={0} isGpuOn={isGpuOn} countField={countField} onModelPick={serviceGpu.enable} />
         ) : (
           <FirstGpuModelPicker {...sharedModelProps} countField={countField} onPick={serviceGpu.pickFirstModel} />
         )}
@@ -137,7 +134,14 @@ export const GpuCard: FC<Props> = ({
             ))}
 
         {isGpuOn && !locked && (
-          <Button type="button" variant="ghost" size="sm" onClick={addAlternativeModel} disabled={hasReachedModelLimit} className="gap-1.5 self-start text-muted-foreground">
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={addAlternativeModel}
+            disabled={hasReachedModelLimit}
+            className="gap-1.5 self-start text-muted-foreground"
+          >
             <PlusIcon className="h-4 w-4" />
             Add another model
           </Button>
@@ -353,11 +357,18 @@ function GpuModelFields({
   if (gpuIndex === 0) {
     return (
       <div className="flex flex-col gap-3">
-        {vendorField}
-        <div className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-3">
-          {modelField}
-          {countField}
-        </div>
+        {vendorField ? (
+          <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,2fr)_auto] items-end gap-3">
+            {vendorField}
+            {modelField}
+            {countField}
+          </div>
+        ) : (
+          <div className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-3">
+            {modelField}
+            {countField}
+          </div>
+        )}
         {pinFields}
         {unlockButton}
       </div>
@@ -382,8 +393,14 @@ function GpuModelFields({
           </Button>
         )}
       </div>
-      {vendorField}
-      {modelField}
+      {vendorField ? (
+        <div className="grid grid-cols-2 items-end gap-3">
+          {vendorField}
+          {modelField}
+        </div>
+      ) : (
+        modelField
+      )}
       {pinFields}
       {unlockButton}
     </div>
@@ -396,7 +413,18 @@ type FirstGpuModelPickerProps = ModelFieldsSharedProps & {
 };
 
 /** Stands in for the first model while the service has no GPU entry, writing the whole entry on a pick so nothing registers a partial one. */
-function FirstGpuModelPicker({ gpuVendors, gpuCatalog, availableGpus, isLoading, isError, isBlockedModel, onUnlock, locked = false, countField, onPick }: FirstGpuModelPickerProps) {
+function FirstGpuModelPicker({
+  gpuVendors,
+  gpuCatalog,
+  availableGpus,
+  isLoading,
+  isError,
+  isBlockedModel,
+  onUnlock,
+  locked = false,
+  countField,
+  onPick
+}: FirstGpuModelPickerProps) {
   const choices = useGpuModelOptions({ gpuVendors, gpuCatalog, availableGpus, isBlockedModel, pinned: { vendor: defaultGpuModel.vendor } });
 
   return (
@@ -445,27 +473,60 @@ function GpuModelControl({ isLoading, isError, value, onChange, choices, disable
           unavailableOptions={choices.unavailableModelOptions}
           ariaLabel="GPU model"
           searchLabel="Search GPU models"
-          searchPlaceholder="Search models..."
+          searchPlaceholder="Search GPUs..."
           notFoundMessage="No models found."
+          optionsHeading={choices.isAvailabilityKnown ? { label: "Available", hintLabel: "Providers" } : undefined}
+          unavailableHeading="Others"
           emptyOption={{
             value: "",
             disabled: choices.anyModelBlocked,
             label: choices.anyModelBlocked ? (
               <span className="flex items-center gap-1.5">
-                Any model
+                Any GPU
                 <LockIcon className="h-3 w-3 shrink-0 text-muted-foreground" aria-label="Requires credits" />
               </span>
             ) : (
-              "Any model"
+              "Any GPU"
             )
           }}
           emptyTriggerLabel={emptyTriggerLabel}
           renderValue={modelName => choices.listedModels.find(model => model.name === modelName)?.displayName ?? modelName}
+          renderFooter={search => <GpuRequestLink search={search} />}
           disabled={disabled || choices.listedModels.length === 0}
           triggerClassName="h-9"
+          contentClassName="w-[max(var(--radix-popover-trigger-width),20rem)]"
         />
       </FieldContent>
     </Field>
+  );
+}
+
+function GpuRequestLink({ search }: { search: string }) {
+  const wantedGpu = search.trim();
+  const body = wantedGpu ? `&body=${encodeURIComponent(`I'm looking for: ${wantedGpu}`)}` : "";
+
+  return (
+    <a
+      href={`mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent("GPU request")}${body}`}
+      className="flex items-center gap-2 rounded-sm px-2 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+    >
+      <MessageSquareIcon className="h-4 w-4 shrink-0" aria-hidden="true" />
+      <span>
+        Don&apos;t see the GPU you need? <span className="font-medium text-foreground">Contact us</span>
+      </span>
+      <ArrowRightIcon className="ml-auto h-4 w-4 shrink-0" aria-hidden="true" />
+    </a>
+  );
+}
+
+function ProviderCountHint({ count }: { count: number }) {
+  return (
+    <>
+      <span aria-hidden="true" className="font-mono">
+        {count}
+      </span>
+      <span className="sr-only">{formatProviderCount(count)}</span>
+    </>
   );
 }
 
@@ -482,7 +543,10 @@ type GpuModelOptionsInput = {
 function useGpuModelOptions({ gpuVendors, gpuCatalog, availableGpus, isBlockedModel, pinned }: GpuModelOptionsInput) {
   const { vendor, name, memory, interface: gpuInterface } = pinned;
 
-  const offeredVendors = useMemo(() => withPinnedGpu(gpuVendors, { vendor, name, memory, interface: gpuInterface }), [gpuVendors, vendor, name, memory, gpuInterface]);
+  const offeredVendors = useMemo(
+    () => withPinnedGpu(narrowFallbackVendors(gpuVendors, availableGpus, vendor), { vendor, name, memory, interface: gpuInterface }),
+    [gpuVendors, availableGpus, vendor, name, memory, gpuInterface]
+  );
 
   const vendorOptions = useMemo(
     () =>
@@ -493,7 +557,9 @@ function useGpuModelOptions({ gpuVendors, gpuCatalog, availableGpus, isBlockedMo
   );
   /** The vendor question has a single answer while one vendor is available, so the step only appears when this entry needs it. */
   const showVendor = vendorOptions.length !== 1 || vendor !== vendorOptions[0].value;
-  const models = useMemo(() => offeredVendors?.find(offered => offered.name === vendor)?.models ?? [], [offeredVendors, vendor]);
+  const offeredVendor = offeredVendors?.find(offered => offered.name === vendor);
+  const vendorLabel = offeredVendor?.displayName ?? vendor?.toUpperCase() ?? "";
+  const models = useMemo(() => offeredVendor?.models ?? [], [offeredVendor]);
   const unavailableModels = useMemo(() => findUnavailableGpuModels(gpuCatalog, availableGpus, { vendor, name }), [gpuCatalog, availableGpus, vendor, name]);
   const selectableModels = useMemo(
     () => models.filter(model => !unavailableModels.some(unavailableModel => unavailableModel.name === model.name)),
@@ -505,7 +571,7 @@ function useGpuModelOptions({ gpuVendors, gpuCatalog, availableGpus, isBlockedMo
   const interfaces = useMemo(() => listGpuInterfaceOptions(selectedModel, { memory, interface: gpuInterface }), [selectedModel, memory, gpuInterface]);
 
   /**
-   * On a trial, "Any model" is locked too (not just specific blocked models): it only draws a usable bid if an
+   * On a trial, "Any GPU" is locked too (not just specific blocked models): it only draws a usable bid if an
    * allowed-model provider happens to bid, otherwise the deployment spins with no explanation (CON-660). The
    * predicate treats the empty model as blocked when the vendor exposes any blocked model.
    */
@@ -519,31 +585,32 @@ function useGpuModelOptions({ gpuVendors, gpuCatalog, availableGpus, isBlockedMo
         return {
           value: model.name,
           disabled: blocked,
-          keywords: [label],
-          hint: formatProviderCount(model.providerCount),
+          keywords: [label, vendorLabel],
+          hint: model.providerCount === undefined ? undefined : <ProviderCountHint count={model.providerCount} />,
           label: (
             <span className="flex items-center gap-1.5">
-              {label}
+              {vendorLabel} {label}
               {blocked && <LockIcon className="h-3 w-3 shrink-0 text-muted-foreground" aria-label="Requires credits" />}
             </span>
           )
         };
       }),
-    [selectableModels, isBlockedModel, vendor]
+    [selectableModels, isBlockedModel, vendor, vendorLabel]
   );
 
   const unavailableModelOptions = useMemo(
     () =>
       prioritizeGpuModels(unavailableModels).map(model => {
         const label = model.displayName ?? model.name;
-        return { value: model.name, keywords: [label], label };
+        return { value: model.name, keywords: [label, vendorLabel], label: `${vendorLabel} ${label}`, hint: <ProviderCountHint count={0} /> };
       }),
-    [unavailableModels]
+    [unavailableModels, vendorLabel]
   );
 
   const hasBlockedModel = selectableModels.some(model => isBlockedModel(vendor, model.name));
 
   return {
+    isAvailabilityKnown: !!availableGpus?.length,
     vendorOptions,
     showVendor,
     listedModels,

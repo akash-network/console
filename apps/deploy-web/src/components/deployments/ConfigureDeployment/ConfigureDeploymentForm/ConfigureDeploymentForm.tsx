@@ -265,11 +265,13 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, initialName, in
 
   /**
    * Records the provider chosen for a placement, then advances: focuses the next placement still missing a
-   * selection, or — when that was the last one — opens the review modal so the user confirms without hunting
-   * for the Deploy button.
+   * selection or, once none is missing, opens the review modal so the user confirms without hunting for the
+   * Deploy button. Picking the selected provider again only advances, which reopens a dismissed review.
    */
   function selectProviderAndAdvance(placementId: string, bidId: string) {
-    flow.actions.selectProvider(placementId, bidId);
+    if (flow.selections[placementId] !== bidId) {
+      flow.actions.selectProvider(placementId, bidId);
+    }
     const selections = { ...flow.selections, [placementId]: bidId };
     const nextServiceId = nextUndoneServiceId(placements, services, selections, placementsWithBids);
     if (nextServiceId) {

@@ -1,6 +1,17 @@
 import type { FC, ReactNode } from "react";
 import { useId, useState } from "react";
-import { Button, Command, CommandGroup, CommandInput, CommandItem, CommandList, Popover, PopoverContent, PopoverTrigger } from "@akashnetwork/ui/components";
+import {
+  Button,
+  Command,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+  CommandSeparator,
+  Popover,
+  PopoverContent,
+  PopoverTrigger
+} from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
 import { NavArrowDown } from "iconoir-react";
 
@@ -16,7 +27,7 @@ export type SearchableSelectOption = {
   keywords?: string[];
 };
 
-/** A leading "no selection" row (e.g. "Any region"/"Any model") that is always shown and never filtered out. */
+/** A leading "no selection" row (e.g. "Any region"/"Any GPU") that is always shown and never filtered out. */
 type EmptyOption = {
   value: string;
   label: ReactNode;
@@ -28,8 +39,12 @@ type Props = {
   value: string;
   onChange: (value: string) => void;
   options: SearchableSelectOption[];
-  /** Listed after `options` under an "Unavailable" heading, searchable but never selectable. */
+  /** Listed after `options` under {@link Props.unavailableHeading}, searchable but never selectable. */
   unavailableOptions?: SearchableSelectOption[];
+  /** Groups `options` under a heading, with an optional column label above the hints, and separates every section. */
+  optionsHeading?: { label: string; hintLabel?: string };
+  unavailableHeading?: string;
+  renderFooter?: (search: string) => ReactNode;
   /** Accessible name of the trigger (which exposes `role="combobox"`). */
   ariaLabel: string;
   /** Accessible name of the search box inside the popover. */
@@ -44,6 +59,7 @@ type Props = {
   leadingIcon?: ReactNode;
   disabled?: boolean;
   triggerClassName?: string;
+  contentClassName?: string;
   /** Maps the selected raw `value` to what the trigger displays (e.g. a prettified label); defaults to the raw value. */
   renderValue?: (value: string) => ReactNode;
 };
@@ -63,6 +79,9 @@ export const SearchableSelect: FC<Props> = ({
   onChange,
   options,
   unavailableOptions = [],
+  optionsHeading,
+  unavailableHeading = "Unavailable",
+  renderFooter,
   ariaLabel,
   searchLabel,
   searchPlaceholder,
@@ -73,6 +92,7 @@ export const SearchableSelect: FC<Props> = ({
   leadingIcon,
   disabled,
   triggerClassName,
+  contentClassName,
   renderValue
 }) => {
   const [open, setOpen] = useState(false);
@@ -111,7 +131,7 @@ export const SearchableSelect: FC<Props> = ({
           <NavArrowDown aria-hidden="true" className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent align="start" className="w-[var(--radix-popover-trigger-width)] p-0">
+      <PopoverContent align="start" className={cn("w-[var(--radix-popover-trigger-width)] p-0", contentClassName)}>
         <Command label={searchLabel} shouldFilter={false}>
           <CommandInput value={search} onValueChange={setSearch} placeholder={searchPlaceholder} />
           <CommandList>
@@ -126,25 +146,45 @@ export const SearchableSelect: FC<Props> = ({
                 {emptyOption.label}
               </CommandItem>
             )}
-            {filteredOptions.map(option => (
-              <SearchableSelectItem key={option.value} option={option} onSelect={selectValue} />
-            ))}
+            {optionsHeading
+              ? filteredOptions.length > 0 && (
+                  <>
+                    {emptyOption && <CommandSeparator />}
+                    <CommandGroup heading={<SectionHeading label={optionsHeading.label} hintLabel={optionsHeading.hintLabel} />} className="p-0">
+                      {filteredOptions.map(option => (
+                        <SearchableSelectItem key={option.value} option={option} onSelect={selectValue} />
+                      ))}
+                    </CommandGroup>
+                  </>
+                )
+              : filteredOptions.map(option => <SearchableSelectItem key={option.value} option={option} onSelect={selectValue} />)}
             {filteredUnavailableOptions.length > 0 && (
-              <CommandGroup heading="Unavailable" className="p-0">
-                {filteredUnavailableOptions.map(option => (
-                  <SearchableSelectItem key={option.value} option={{ ...option, disabled: true }} onSelect={selectValue} />
-                ))}
-              </CommandGroup>
+              <>
+                {optionsHeading && <CommandSeparator />}
+                <CommandGroup heading={optionsHeading ? <SectionHeading label={unavailableHeading} /> : unavailableHeading} className="p-0">
+                  {filteredUnavailableOptions.map(option => (
+                    <SearchableSelectItem key={option.value} option={{ ...option, disabled: true }} onSelect={selectValue} />
+                  ))}
+                </CommandGroup>
+              </>
             )}
             {search && filteredOptions.length === 0 && filteredUnavailableOptions.length === 0 && (
               <p className="py-6 text-center text-sm text-muted-foreground">{notFoundMessage}</p>
             )}
           </CommandList>
+          {renderFooter && <div className="border-t p-1">{renderFooter(search)}</div>}
         </Command>
       </PopoverContent>
     </Popover>
   );
 };
+
+const SectionHeading: FC<{ label: string; hintLabel?: string }> = ({ label, hintLabel }) => (
+  <span className="flex items-center justify-between gap-2 font-mono uppercase tracking-wider">
+    {label}
+    {hintLabel && <span aria-hidden="true">{hintLabel}</span>}
+  </span>
+);
 
 const SearchableSelectItem: FC<{ option: SearchableSelectOption; onSelect: (value: string) => void }> = ({ option, onSelect }) => {
   const hintId = useId();

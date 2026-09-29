@@ -1,7 +1,19 @@
 import type { AvailableGpuVendor } from "@src/queries/usePlacementOptions";
 import type { GpuModel, GpuVendor } from "@src/types/gpu";
+import { defaultGpuModel } from "@src/utils/sdl/data";
 
 export const gpuVendors = [{ id: 1, value: "nvidia", label: "NVIDIA" }];
+
+/** The catalog lists vendors no provider may serve, so without availability the vendor choice keeps only the default one and whatever the entry already pins. */
+export function narrowFallbackVendors(
+  vendors: GpuVendor[] | undefined,
+  available: AvailableGpuVendor[] | undefined,
+  pinnedVendor: string | null | undefined
+): GpuVendor[] | undefined {
+  if (!vendors || available?.length) return vendors;
+
+  return vendors.filter(vendor => vendor.name === defaultGpuModel.vendor || vendor.name === pinnedVendor);
+}
 
 /** An absent or empty availability answer returns the catalog untouched, so a failed fetch leaves the card offering everything rather than nothing. */
 export function narrowGpuVendorsToAvailable(catalog: GpuVendor[] | undefined, available: AvailableGpuVendor[] | undefined): GpuVendor[] | undefined {

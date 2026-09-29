@@ -1,12 +1,13 @@
 import type { FC, ReactNode } from "react";
 import { useId } from "react";
 import { Button, CustomTooltip } from "@akashnetwork/ui/components";
-import { cn } from "@akashnetwork/ui/utils";
-import { GpuIcon, InfoIcon, LoaderCircleIcon, ServerIcon } from "lucide-react";
+import { GpuIcon, InfoIcon, LoaderCircleIcon } from "lucide-react";
 
 import { useNetworkProviderCount } from "@src/queries/useNetworkProviderCount";
 import { useScreenedProviders } from "@src/queries/useScreenedProviders";
 import type { PlacementType } from "@src/types";
+import type { GpuAvailabilityRow } from "./gpuAvailability/gpuAvailability";
+import { listGpuAvailabilityRows } from "./gpuAvailability/gpuAvailability";
 import type { GpuAvailability } from "./useGpuAvailability/useGpuAvailability";
 import { useGpuAvailability } from "./useGpuAvailability/useGpuAvailability";
 
@@ -49,6 +50,7 @@ export const AvailabilityPane: FC<Props> = ({ sdl, placement, placementCount, is
           <GpuAvailabilityCard
             gpuAvailability={gpuAvailability}
             requestedCount={screened.isLoading ? null : screened.providers.length}
+            networkCount={network.count}
             CustomTooltip={d.CustomTooltip}
           />
         )}
@@ -115,7 +117,7 @@ function ProviderCountCard({ screened, networkCount, scope }: ProviderCountCardP
     <AvailabilityCard>
       <div className="flex items-start justify-between gap-2">
         <p className="flex items-baseline gap-2">
-          <span className="font-mono text-3xl font-semibold">{eligibleCount}</span>
+          <span className="font-mono text-4xl font-semibold">{eligibleCount}</span>
           <span className="text-sm text-muted-foreground">
             {eligibleCount === 1 ? "provider" : "providers"} can host {scope}
           </span>
@@ -128,15 +130,20 @@ function ProviderCountCard({ screened, networkCount, scope }: ProviderCountCardP
         )}
       </div>
       {networkCount !== null && (
-        <>
-          <div className="h-1.5 overflow-hidden rounded-full bg-muted" aria-hidden="true">
+        <div className="space-y-2 border-t border-zinc-200 pt-3 dark:border-zinc-800">
+          <div className="h-2 overflow-hidden rounded-full bg-muted" aria-hidden="true">
             <div className="h-full rounded-full bg-primary" style={{ width: `${eligibleShare * 100}%` }} />
           </div>
-          <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <ServerIcon className="h-3.5 w-3.5" aria-hidden="true" />
-            {networkCount} {networkCount === 1 ? "provider" : "providers"} on the network
-          </p>
-        </>
+          <div className="flex items-center justify-between gap-2 font-mono text-xs text-muted-foreground">
+            <span className="flex items-center gap-1.5">
+              <span className="h-2 w-2 rounded-sm bg-primary" aria-hidden="true" />
+              eligible
+            </span>
+            <span>
+              {networkCount} {networkCount === 1 ? "provider" : "providers"} on the network
+            </span>
+          </div>
+        </div>
       )}
     </AvailabilityCard>
   );
@@ -145,41 +152,53 @@ function ProviderCountCard({ screened, networkCount, scope }: ProviderCountCardP
 type GpuAvailabilityCardProps = {
   gpuAvailability: GpuAvailability;
   requestedCount: number | null;
+  networkCount: number | null;
   CustomTooltip: typeof DEPENDENCIES.CustomTooltip;
 };
 
-function GpuAvailabilityCard({ gpuAvailability, requestedCount, CustomTooltip }: GpuAvailabilityCardProps) {
+function GpuAvailabilityCard({ gpuAvailability, requestedCount, networkCount, CustomTooltip }: GpuAvailabilityCardProps) {
   const listId = useId();
+  const rows = listGpuAvailabilityRows({ ...gpuAvailability, requestedCount, networkCount });
 
   return (
     <AvailabilityCard>
       <div className="flex items-center gap-2">
         <GpuIcon className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
-        <h3 id={listId} className="text-sm font-semibold">
-          If you add a GPU
-        </h3>
-        <CustomTooltip title="Counts other than the current one cover the whole network and ignore CPU, memory and region.">
-          <InfoIcon className="h-3.5 w-3.5 cursor-help text-muted-foreground" aria-label="How these counts work" />
-        </CustomTooltip>
+        <h3 className="text-sm font-semibold">GPU availability</h3>
+        <span className="ml-auto flex">
+          <CustomTooltip title="Counts other than the current one cover the whole network and ignore CPU, memory and region.">
+            <InfoIcon className="h-3.5 w-3.5 cursor-help text-muted-foreground" aria-label="How these counts work" />
+          </CustomTooltip>
+        </span>
       </div>
-      <ul aria-labelledby={listId} className="divide-y divide-zinc-200 dark:divide-zinc-800">
-        <GpuRow label={gpuAvailability.requestedLabel} providerCount={requestedCount} isCurrent />
-        {gpuAvailability.topModels.map(model => (
-          <GpuRow key={model.key} label={model.label} providerCount={model.providerCount} />
-        ))}
-      </ul>
+      <div className="space-y-2 border-t border-zinc-200 pt-3 dark:border-zinc-800">
+        <p id={listId} className="font-mono text-[11px] uppercase tracking-wider text-muted-foreground">
+          If you switch model
+        </p>
+        <ul aria-labelledby={listId} className="space-y-1">
+          {rows.map(row => (
+            <GpuRow key={row.key} row={row} />
+          ))}
+        </ul>
+      </div>
     </AvailabilityCard>
   );
 }
 
-function GpuRow({ label, providerCount, isCurrent = false }: { label: string; providerCount: number | null; isCurrent?: boolean }) {
+function GpuRow({ row }: { row: GpuAvailabilityRow }) {
   return (
-    <li className="flex items-center justify-between gap-2 py-2 text-sm">
-      <span className={cn("flex items-center gap-2", isCurrent && "font-medium")}>
-        {label}
-        {isCurrent && <span className="rounded bg-muted px-1.5 py-0.5 font-mono text-[10px] uppercase text-muted-foreground">Current</span>}
+    <li
+      aria-current={row.isCurrent || undefined}
+      className="group grid grid-cols-[minmax(0,9rem)_minmax(0,1fr)_2.5rem] items-center gap-3 rounded-md border border-transparent px-2 py-1.5 font-mono text-xs aria-[current=true]:border-zinc-300 aria-[current=true]:bg-muted aria-[current=true]:font-semibold dark:aria-[current=true]:border-zinc-700"
+    >
+      <span className="flex min-w-0 items-center gap-1.5">
+        <span className="truncate">{row.label}</span>
+        {row.isCurrent && <span className="shrink-0 rounded bg-foreground px-1.5 py-0.5 text-[10px] uppercase text-background">Current</span>}
       </span>
-      <span className="font-mono text-muted-foreground">{providerCount ?? "…"}</span>
+      <span className="h-2 overflow-hidden rounded-full bg-muted group-aria-[current=true]:bg-background" aria-hidden="true">
+        <span className="block h-full rounded-full bg-muted-foreground/40 group-aria-[current=true]:bg-foreground" style={{ width: `${row.share * 100}%` }} />
+      </span>
+      <span className="text-right">{row.providerCount ?? "…"}</span>
     </li>
   );
 }

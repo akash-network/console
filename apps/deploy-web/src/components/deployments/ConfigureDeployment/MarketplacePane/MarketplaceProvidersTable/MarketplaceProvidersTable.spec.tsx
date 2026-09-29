@@ -228,6 +228,18 @@ describe(MarketplaceProvidersTable.name, () => {
     expect(screen.getByRole("button", { name: "Select akash1a" })).toBeDisabled();
   });
 
+  it("marks the table busy while its candidates wait for bids", () => {
+    setup({ providers: [searchingOffer({ owner: "akash1a" })], isBusy: true });
+
+    expect(screen.getByRole("table").closest("[aria-busy]")).toHaveAttribute("aria-busy", "true");
+  });
+
+  it("leaves the table idle by default", () => {
+    setup({ providers: [searchingOffer({ owner: "akash1a" })] });
+
+    expect(screen.getByRole("table").closest("[aria-busy]")).toBeNull();
+  });
+
   it("marks the selected offer's row and makes its button non-clickable", () => {
     setup({ providers: [submittedOffer({ owner: "akash1a", bidId: "akash1a/1/1/1" })], selectedBidId: "akash1a/1/1/1" });
     expect(screen.getByRole("button", { name: /selected/i })).toBeDisabled();
@@ -434,22 +446,43 @@ describe(MarketplaceProvidersTable.name, () => {
       expect(onSelect).not.toHaveBeenCalled();
     });
 
-    it("leaves expired, never-bid and already selected rows inert", async () => {
+    it("leaves expired and never-bid rows inert", async () => {
       const { onSelect, user } = setup({
         providers: [
-          submittedOffer({ owner: "akash1a", bidId: "akash1a/1/1/1", location: "selected-region" }),
           closedOffer({ owner: "akash1c", bidId: "akash1c/1/1/1", location: "expired-region" }),
           unavailableOffer({ owner: "akash1b", location: "no-bid-region" })
         ],
+        selectOnRowClick: true
+      });
+
+      await user.click(screen.getByText("expired-region"));
+      await user.click(screen.getByText("no-bid-region"));
+
+      expect(onSelect).not.toHaveBeenCalled();
+    });
+
+    it("picks the selected offer again when its row is clicked", async () => {
+      const { onSelect, user } = setup({
+        providers: [submittedOffer({ owner: "akash1a", bidId: "akash1a/1/1/1", location: "selected-region" })],
         selectedBidId: "akash1a/1/1/1",
         selectOnRowClick: true
       });
 
       await user.click(screen.getByText("selected-region"));
-      await user.click(screen.getByText("expired-region"));
-      await user.click(screen.getByText("no-bid-region"));
 
-      expect(onSelect).not.toHaveBeenCalled();
+      expect(onSelect).toHaveBeenCalledWith("akash1a/1/1/1");
+    });
+
+    it("keeps the selected offer's hidden button pickable for keyboard and assistive technology", async () => {
+      const { onSelect, user } = setup({
+        providers: [submittedOffer({ owner: "akash1a", bidId: "akash1a/1/1/1" })],
+        selectedBidId: "akash1a/1/1/1",
+        selectOnRowClick: true
+      });
+
+      await user.click(screen.getByRole("button", { name: "Selected akash1a" }));
+
+      expect(onSelect).toHaveBeenCalledWith("akash1a/1/1/1");
     });
 
     it("leaves rows inert while selection is turned off", async () => {
@@ -486,10 +519,14 @@ describe(MarketplaceProvidersTable.name, () => {
     });
 
     it("gives a pointer only to the rows a click would select", () => {
-      setup({ providers: twoSubmittedOffers(), selectedBidId: "akash1a/1/1/1", selectOnRowClick: true });
+      setup({
+        providers: [submittedOffer({ owner: "akash1a", bidId: "akash1a/1/1/1" }), closedOffer({ owner: "akash1c", bidId: "akash1c/1/1/1" })],
+        selectedBidId: "akash1a/1/1/1",
+        selectOnRowClick: true
+      });
 
-      expect(screen.getByRole("row", { name: /akash1b/ })).toHaveClass("cursor-pointer");
-      expect(screen.getByRole("row", { name: /akash1a/ })).not.toHaveClass("cursor-pointer");
+      expect(screen.getByRole("row", { name: /akash1a/ })).toHaveClass("cursor-pointer");
+      expect(screen.getByRole("row", { name: /akash1c/ })).not.toHaveClass("cursor-pointer");
     });
 
     function twoSubmittedOffers() {
@@ -499,6 +536,7 @@ describe(MarketplaceProvidersTable.name, () => {
 
   function setup(input: {
     providers: PlacementOffer[];
+    isBusy?: boolean;
     isLoading?: boolean;
     isSearchActive?: boolean;
     onClearSearch?: () => void;
@@ -518,6 +556,7 @@ describe(MarketplaceProvidersTable.name, () => {
           <TooltipProvider>
             <MarketplaceProvidersTable
               providers={input.providers}
+              isBusy={input.isBusy}
               isLoading={input.isLoading}
               isSearchActive={input.isSearchActive}
               onClearSearch={input.onClearSearch}

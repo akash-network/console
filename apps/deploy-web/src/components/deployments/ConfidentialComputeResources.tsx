@@ -29,7 +29,7 @@ function ResourceLine({ label, cpu, memory }: { label: string; cpu: number; memo
     <div className="flex items-start justify-between gap-3 text-sm">
       <span className="text-muted-foreground">{label}</span>
       {/* Keep each value intact (e.g. "0.01 CPU") and pinned right so a wrapping label can't break the numbers across lines. */}
-      <span className="flex shrink-0 items-center gap-3 whitespace-nowrap text-right font-medium tabular-nums">
+      <span className="flex shrink-0 items-center gap-3 whitespace-nowrap text-right font-mono font-medium tabular-nums">
         <span>{formatCpu(cpu)}</span>
         <span>{formatByteSize(memory)}</span>
       </span>

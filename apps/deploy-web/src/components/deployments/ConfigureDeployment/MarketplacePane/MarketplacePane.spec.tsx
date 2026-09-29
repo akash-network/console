@@ -98,6 +98,44 @@ describe(MarketplacePane.name, () => {
     expect(MarketplaceProvidersTable).not.toHaveBeenCalled();
   });
 
+  it.each([
+    { phase: "creating", title: "Creating your deployment", description: "Providers start bidding as soon as your deployment is on chain." },
+    {
+      phase: "quoting",
+      title: "Waiting for bids",
+      description: "The providers below can host this placement and are sending their bids. You can pick one as soon as its bid arrives."
+    }
+  ] as const)("says what is happening while the $phase deployment waits for its first bid", ({ phase, title, description }) => {
+    const { MarketplaceProvidersTable } = setup({ phase, offers: [buildOffer({ offerState: "searching" })] });
+
+    expect(screen.getByRole("status")).toHaveTextContent(title);
+    expect(screen.getByRole("status")).toHaveTextContent(description);
+    expect(MarketplaceProvidersTable).toHaveBeenCalledWith(expect.objectContaining({ isBusy: true }), expect.anything());
+  });
+
+  it("stops waiting once a bid arrives for the placement", () => {
+    const { MarketplaceProvidersTable } = setup({
+      phase: "quoting",
+      offers: [buildOffer({ offerState: "searching" }), buildOffer({ offerState: "submitted" })]
+    });
+
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    expect(MarketplaceProvidersTable).toHaveBeenCalledWith(expect.objectContaining({ isBusy: false }), expect.anything());
+  });
+
+  it.each(["creating", "quoting"] as const)("shows no waiting notice while the %s deployment has no provider to wait on", phase => {
+    const { MarketplaceProvidersTable } = setup({ phase, offers: [] });
+
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    expect(MarketplaceProvidersTable).toHaveBeenCalledWith(expect.objectContaining({ isBusy: false }), expect.anything());
+  });
+
+  it("shows no waiting notice while the deployment is still being configured", () => {
+    setup({ phase: "configuring", offers: [buildOffer({ offerState: "searching" })] });
+
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+  });
+
   it("renders the provider search input in the header", () => {
     setup({ offers: [buildOffer()] });
 

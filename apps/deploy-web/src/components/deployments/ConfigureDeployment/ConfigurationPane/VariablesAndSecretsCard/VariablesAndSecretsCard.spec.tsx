@@ -14,6 +14,24 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 describe(VariablesAndSecretsCard.name, () => {
+  it("titles the card Environment Variables & Secrets", () => {
+    setup({ env: [] });
+
+    expect(screen.getByRole("button", { name: "Collapse Environment Variables & Secrets" })).toBeInTheDocument();
+  });
+
+  it("offers the eye toggle on secret rows only", () => {
+    setup({
+      env: [
+        { key: "PORT", value: "80" },
+        { key: "API_KEY", value: "hunter2", isSecret: true }
+      ]
+    });
+
+    expect(screen.queryByRole("button", { name: "Show Environment variable 1 value" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Show Environment variable 2 value" })).toBeInTheDocument();
+  });
+
   it("shows the empty state and no rows when the service has no variables", () => {
     setup({ env: [] });
 

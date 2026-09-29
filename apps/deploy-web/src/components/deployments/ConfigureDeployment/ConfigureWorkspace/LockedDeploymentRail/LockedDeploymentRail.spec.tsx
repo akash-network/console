@@ -9,14 +9,13 @@ describe(LockedDeploymentRail.name, () => {
   it("shows the deployment as locked under its name", () => {
     setup({ deploymentName: "my-app" });
 
-    expect(screen.getByRole("complementary", { name: "Locked deployment" })).toHaveTextContent("Locked");
-    expect(screen.getByText("Deployment · my-app")).toBeInTheDocument();
+    expect(screen.getByRole("complementary", { name: "Locked deployment" })).toHaveTextContent(/^Locked.*Deployment · my-app$/);
   });
 
   it("names an unnamed deployment as untitled", () => {
     setup({ deploymentName: "" });
 
-    expect(screen.getByText("Deployment · Untitled")).toBeInTheDocument();
+    expect(screen.getByRole("complementary", { name: "Locked deployment" })).toHaveTextContent(/Deployment · Untitled$/);
   });
 
   it("unlocks the configuration and warns that the bids reset", async () => {

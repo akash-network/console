@@ -5,7 +5,7 @@ import type { PlacementOptions } from "@src/queries/usePlacementOptions";
 import type { SdlBuilderFormValuesType } from "@src/types";
 import type { GpuVendor } from "@src/types/gpu";
 import { defaultService } from "@src/utils/sdl/data";
-import { requestedGpuLabel, requestedGpuOf, topGpuModels } from "./gpuAvailability";
+import { listGpuAvailabilityRows, requestedGpuLabel, requestedGpuOf, topGpuModels } from "./gpuAvailability";
 
 const CATALOG: GpuVendor[] = [
   {
@@ -112,6 +112,53 @@ describe(topGpuModels.name, () => {
   function model(name: string, providerCount: number): PlacementOptions["gpus"][number]["models"][number] {
     return { name, memory: [], interface: [], providerCount, variants: [] };
   }
+});
+
+describe(listGpuAvailabilityRows.name, () => {
+  const TOP_MODELS = [
+    { key: "nvidia/a100", label: "A100", providerCount: 15 },
+    { key: "nvidia/t4", label: "T4", providerCount: 10 }
+  ];
+
+  it("lists the current request with its live count first, then the alternatives and no gpu with the network total", () => {
+    const rows = listGpuAvailabilityRows({ requestedLabel: "H100", requestedCount: 16, hasRequestedGpu: true, topModels: TOP_MODELS, networkCount: 72 });
+
+    expect(rows.map(({ key, label, providerCount, isCurrent }) => ({ key, label, providerCount, isCurrent }))).toEqual([
+      { key: "current", label: "H100", providerCount: 16, isCurrent: true },
+      { key: "nvidia/a100", label: "A100", providerCount: 15, isCurrent: false },
+      { key: "nvidia/t4", label: "T4", providerCount: 10, isCurrent: false },
+      { key: "no-gpu", label: "No GPU", providerCount: 72, isCurrent: false }
+    ]);
+  });
+
+  it("leaves no gpu out of the alternatives while no gpu is requested", () => {
+    const rows = listGpuAvailabilityRows({ requestedLabel: "No GPU", requestedCount: 72, hasRequestedGpu: false, topModels: TOP_MODELS, networkCount: 72 });
+
+    expect(rows.map(row => row.key)).toEqual(["current", "nvidia/a100", "nvidia/t4"]);
+  });
+
+  it("leaves no gpu out while the network total is unknown", () => {
+    const rows = listGpuAvailabilityRows({ requestedLabel: "H100", requestedCount: 16, hasRequestedGpu: true, topModels: TOP_MODELS, networkCount: null });
+
+    expect(rows.map(row => row.key)).toEqual(["current", "nvidia/a100", "nvidia/t4"]);
+  });
+
+  it("sizes each bar as a share of the network total, capped at a full bar", () => {
+    const rows = listGpuAvailabilityRows({ requestedLabel: "H100", requestedCount: 30, hasRequestedGpu: false, topModels: TOP_MODELS, networkCount: 20 });
+
+    expect(rows.map(row => row.share)).toEqual([1, 0.75, 0.5]);
+  });
+
+  it("sizes each bar against the busiest row while the network total is unknown", () => {
+    const rows = listGpuAvailabilityRows({ requestedLabel: "H100", requestedCount: 5, hasRequestedGpu: true, topModels: TOP_MODELS, networkCount: null });
+
+    expect(rows.map(row => row.share)).toEqual([1 / 3, 1, 2 / 3]);
+  });
+
+  it("draws no bar for a count still loading or a network without providers", () => {
+    expect(listGpuAvailabilityRows({ requestedLabel: "H100", requestedCount: null, hasRequestedGpu: false, topModels: [], networkCount: 20 })[0].share).toBe(0);
+    expect(listGpuAvailabilityRows({ requestedLabel: "H100", requestedCount: 0, hasRequestedGpu: false, topModels: [], networkCount: 0 })[0].share).toBe(0);
+  });
 });
 
 function withGpu(

@@ -183,10 +183,79 @@ describe("SearchableSelect", () => {
     });
   });
 
+  describe("sections", () => {
+    it("groups the options under the heading without announcing its column label", async () => {
+      const { user } = setup({ optionsHeading: { label: "Available", hintLabel: "Providers" } });
+
+      await user.click(screen.getByRole("combobox", { name: "Region" }));
+      const available = within(await screen.findByRole("group", { name: "Available" }));
+
+      expect(available.getAllByRole("option").map(option => option.textContent)).toEqual(["eu-west", "eu-central", "na-us-west"]);
+      expect(screen.getByText("Providers")).toBeInTheDocument();
+    });
+
+    it("separates the empty option, the options and the unavailable options", async () => {
+      const { user } = setup({
+        optionsHeading: { label: "Available" },
+        emptyOption: { value: "", label: "Any region" },
+        unavailableOptions: [{ value: "as-east", label: "as-east" }]
+      });
+
+      await user.click(screen.getByRole("combobox", { name: "Region" }));
+
+      expect(await screen.findAllByRole("separator")).toHaveLength(2);
+    });
+
+    it("leaves the separators out without a heading", async () => {
+      const { user } = setup({ emptyOption: { value: "", label: "Any region" }, unavailableOptions: [{ value: "as-east", label: "as-east" }] });
+
+      await user.click(screen.getByRole("combobox", { name: "Region" }));
+      await screen.findByRole("group", { name: "Unavailable" });
+
+      expect(screen.queryByRole("separator")).not.toBeInTheDocument();
+    });
+
+    it("leaves the heading out while the search matches none of the options", async () => {
+      const { user } = setup({ optionsHeading: { label: "Available" }, unavailableOptions: [{ value: "as-east", label: "as-east" }] });
+
+      await user.click(screen.getByRole("combobox", { name: "Region" }));
+      await user.type(await screen.findByRole("combobox", { name: "Search regions" }), "as");
+
+      expect(screen.getByRole("option", { name: "as-east" })).toBeInTheDocument();
+      expect(screen.queryByRole("group", { name: "Available" })).not.toBeInTheDocument();
+    });
+
+    it("names the unavailable group after the given heading", async () => {
+      const { user } = setup({
+        optionsHeading: { label: "Available" },
+        unavailableHeading: "Others",
+        unavailableOptions: [{ value: "as-east", label: "as-east" }]
+      });
+
+      await user.click(screen.getByRole("combobox", { name: "Region" }));
+      const others = within(await screen.findByRole("group", { name: "Others" }));
+
+      expect(others.getByRole("option", { name: "as-east" })).toHaveAttribute("aria-disabled", "true");
+    });
+  });
+
+  it("renders the footer with the live search text", async () => {
+    const { user } = setup({ renderFooter: search => <p>Looking for {search || "nothing"}</p> });
+
+    await user.click(screen.getByRole("combobox", { name: "Region" }));
+    expect(await screen.findByText("Looking for nothing")).toBeInTheDocument();
+
+    await user.type(screen.getByRole("combobox", { name: "Search regions" }), "b300");
+    expect(screen.getByText("Looking for b300")).toBeInTheDocument();
+  });
+
   function setup(input: {
     value?: string;
     options?: SearchableSelectOption[];
     unavailableOptions?: SearchableSelectOption[];
+    optionsHeading?: { label: string; hintLabel?: string };
+    unavailableHeading?: string;
+    renderFooter?: (search: string) => ReactNode;
     emptyOption?: { value: string; label: string; disabled?: boolean };
     emptyTriggerLabel?: string;
     placeholder?: string;
@@ -205,6 +274,9 @@ describe("SearchableSelect", () => {
           }}
           options={input.options ?? OPTIONS}
           unavailableOptions={input.unavailableOptions}
+          optionsHeading={input.optionsHeading}
+          unavailableHeading={input.unavailableHeading}
+          renderFooter={input.renderFooter}
           ariaLabel="Region"
           searchLabel="Search regions"
           searchPlaceholder="Search regions..."
