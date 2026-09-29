@@ -1,6 +1,6 @@
 import yaml from "js-yaml";
 
-import { isProtectedByDefault, SDL_REFERENCE_PATTERN } from "./sdlSecrets";
+import { isProtectedByDefault, isReservedSdlValue, SDL_REFERENCE_PATTERN } from "./sdlSecrets";
 
 export function hasSdlReference(sdl: string): boolean {
   return carriesReference(parseSdl(sdl));
@@ -53,10 +53,11 @@ export function withEnvValuesFrom(browserSdl: string, apiSdl: string): string | 
   return restoredCount > 0 ? yaml.dump(document) : undefined;
 }
 
+/** A value opening with the reserved prefix can't stand as a plain variable, so it stays sealed rather than coming back. */
 function plainEnvValuesByService(document: unknown): Map<string, string> {
   return new Map(
     envEntriesIn(document)
-      .filter(({ entry }) => entry.includes("=") && !SDL_REFERENCE_PATTERN.test(assignedValueOf(entry)))
+      .filter(({ entry }) => entry.includes("=") && !isReservedSdlValue(assignedValueOf(entry)))
       .map(({ service, entry }) => [`${service}.${entry.slice(0, entry.indexOf("="))}`, assignedValueOf(entry)])
   );
 }

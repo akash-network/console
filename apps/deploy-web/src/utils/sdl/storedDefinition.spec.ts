@@ -191,6 +191,15 @@ describe("storedDefinition", () => {
       expect(withEnvValuesFrom(sdlWithEnv(["TOKEN=ac-secret://s0_e0"]), sdlWithEnv(["TOKEN=ac-secret://s0_e0"]))).toBeUndefined();
     });
 
+    it("keeps a value withheld when this browser's opens with the prefix the console reserves for references", () => {
+      const restored = withEnvValuesFrom(
+        sdlWithEnv(["CLUSTER=ac-cluster-1", "PORT=3000"]),
+        sdlWithEnv(["CLUSTER=ac-secret://s0_e0", "PORT=ac-secret://s0_e1"])
+      );
+
+      expect(envOf(restored, "web")).toEqual(["CLUSTER=ac-secret://s0_e0", "PORT=3000"]);
+    });
+
     it("keeps a secret the user named withheld, even where this browser holds its value", () => {
       const restored = withEnvValuesFrom(
         sdlWithEnv(["DB_PASSWORD=sealed-by-the-user", "PORT=3000"]),
