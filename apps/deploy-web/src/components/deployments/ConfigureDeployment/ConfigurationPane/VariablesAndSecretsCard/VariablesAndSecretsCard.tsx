@@ -106,7 +106,7 @@ export const VariablesAndSecretsCard: FC<Props> = ({ serviceIndex, locked = fals
   return (
     <d.CollapsibleCard
       locked={locked}
-      title="Env Vars & Secrets"
+      title="Environment Variables & Secrets"
       icon={<KeyRoundIcon className="h-4 w-4" />}
       headerControl={visibleCount > 0 ? <Badge variant="secondary">{visibleCount}</Badge> : undefined}
     >
@@ -246,7 +246,7 @@ const VariableRow: FC<VariableRowProps> = ({ serviceIndex, envIndex, visibleInde
           inputClassName="h-9"
           className="flex-1"
         />
-        {secret && (
+        {secret ? (
           <Button
             type="button"
             size="icon"
@@ -257,6 +257,8 @@ const VariableRow: FC<VariableRowProps> = ({ serviceIndex, envIndex, visibleInde
           >
             {isRevealed ? <EyeOffIcon className="h-4 w-4" /> : <EyeIcon className="h-4 w-4" />}
           </Button>
+        ) : (
+          <span className="h-9 w-9 shrink-0" aria-hidden="true" />
         )}
         <Button type="button" size="icon" variant="outline" className="h-9 w-9 shrink-0" aria-label={`Remove ${label}`} onClick={onRemove}>
           <XIcon className="h-4 w-4" />
