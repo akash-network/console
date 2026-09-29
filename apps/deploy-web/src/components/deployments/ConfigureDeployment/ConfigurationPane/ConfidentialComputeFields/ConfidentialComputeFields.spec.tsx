@@ -8,7 +8,7 @@ import type { SdlBuilderFormValuesType, ServiceType } from "@src/types";
 import { defaultServiceWithPlacement } from "@src/utils/sdl/data";
 import { ConfidentialComputeFields, DEPENDENCIES } from "./ConfidentialComputeFields";
 
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 describe(ConfidentialComputeFields.name, () => {
@@ -173,6 +173,8 @@ describe(ConfidentialComputeFields.name, () => {
 
       expect(screen.getByRole("radio", { name: "CPU-GPU" })).toBeDisabled();
       expect(screen.getByRole("radio", { name: "CPU" })).not.toBeDisabled();
+      expect(within(screen.getByRole("radio", { name: "CPU-GPU" })).getByLabelText("Requires credits")).toBeInTheDocument();
+      expect(within(screen.getByRole("radio", { name: "CPU" })).queryByLabelText("Requires credits")).not.toBeInTheDocument();
     });
 
     it("shows the free-trial warning with an unlock CTA", () => {

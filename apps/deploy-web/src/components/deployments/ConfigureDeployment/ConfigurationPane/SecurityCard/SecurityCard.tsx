@@ -18,7 +18,7 @@ type Props = {
 
 /** An open, switched-off card is only reachable while the pane is locked, since the header switch alone turns confidential compute on. */
 export const SecurityCard: FC<Props> = ({ serviceIndex, locked = false, isGpuBlocked, onUnlock, dependencies: d = DEPENDENCIES }) => {
-  const { isEnabled, setEnabled } = useConfidentialCompute(serviceIndex, { isGpuBlocked });
+  const { isEnabled, setEnabled } = useConfidentialCompute(serviceIndex);
 
   return (
     <d.CollapsibleCard

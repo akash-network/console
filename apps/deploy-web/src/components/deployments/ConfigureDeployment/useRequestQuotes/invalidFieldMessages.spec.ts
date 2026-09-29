@@ -49,6 +49,27 @@ describe(listInvalidFieldMessages.name, () => {
     expect(messages).toEqual(["Add at least one service.", "Service names must be unique."]);
   });
 
+  it("keeps an error on the whole list of placements without a name", () => {
+    const { values } = setup();
+
+    const messages = listInvalidFieldMessages(values, {
+      placements: { root: { type: "custom", message: "Placement names must be unique." } }
+    } as unknown as FieldErrors<SdlBuilderFormValuesType>);
+
+    expect(messages).toEqual(["Placement names must be unique."]);
+  });
+
+  it("skips fields whose error was cleared", () => {
+    const { values } = setup();
+
+    const messages = listInvalidFieldMessages(values, {
+      services: undefined,
+      endpoints: { 0: { name: null } }
+    } as unknown as FieldErrors<SdlBuilderFormValuesType>);
+
+    expect(messages).toEqual([]);
+  });
+
   it("leaves an error without a name when its service is unknown", () => {
     const { values } = setup();
 

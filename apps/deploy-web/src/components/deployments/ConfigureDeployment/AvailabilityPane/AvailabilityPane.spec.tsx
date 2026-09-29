@@ -93,6 +93,13 @@ describe(AvailabilityPane.name, () => {
     expect(rows.map(row => row.textContent)).toEqual(["A100Current3", "RTX 40909", "H1004", "No GPU20"]);
   });
 
+  it("draws each gpu bar as a share of the network", () => {
+    setup({ eligibleCount: 5, networkCount: 20 });
+
+    const rows = within(screen.getByRole("list", { name: "If you switch model" })).getAllByRole("listitem");
+    expect(rows.map(row => row.querySelector<HTMLElement>("[style]")?.style.width)).toEqual(["25%", "45%", "20%"]);
+  });
+
   it("chooses a provider once the deployment is ready", async () => {
     const { onChooseProvider } = setup({ isReady: true });
 

@@ -76,7 +76,7 @@ export function listGpuAvailabilityRows({
   ];
   const scale = networkCount ?? Math.max(...rows.map(row => row.providerCount ?? 0));
 
-  return rows.map(row => ({ ...row, share: scale > 0 && row.providerCount ? Math.min(1, row.providerCount / scale) : 0 }));
+  return rows.map(row => ({ ...row, share: scale > 0 ? Math.min(1, (row.providerCount ?? 0) / scale) : 0 }));
 }
 
 function gpuDisplayName(vendor: string, name: string, catalog: GpuVendor[] | undefined): string {

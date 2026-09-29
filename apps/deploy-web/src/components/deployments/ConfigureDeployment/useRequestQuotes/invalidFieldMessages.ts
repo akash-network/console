@@ -5,8 +5,8 @@ import type { SdlBuilderFormValuesType } from "@src/types";
 /** Each message names the service or placement it belongs to, because the form lists several with the same fields. */
 export function listInvalidFieldMessages(values: SdlBuilderFormValuesType, errors: FieldErrors<SdlBuilderFormValuesType>): string[] {
   const messages = Object.entries(errors).flatMap(([field, error]) => {
-    if (field === "services") return messagesByEntry(error, index => values.services?.[index]?.title);
-    if (field === "placements") return messagesByEntry(error, index => values.placements?.[index]?.name);
+    if (field === "services") return messagesByEntry(error, index => values.services[index]?.title);
+    if (field === "placements") return messagesByEntry(error, index => values.placements[index]?.name);
     return collectMessages(error);
   });
 
@@ -17,7 +17,7 @@ function messagesByEntry(errors: unknown, entryName: (index: number) => string |
   if (!isRecord(errors)) return [];
 
   const entryMessages = childErrors(errors).flatMap(([key, error]) => {
-    const name = /^\d+$/.test(key) ? entryName(Number(key)) : undefined;
+    const name = entryName(Number(key));
     return collectMessages(error).map(message => (name ? `${name}: ${message}` : message));
   });
 

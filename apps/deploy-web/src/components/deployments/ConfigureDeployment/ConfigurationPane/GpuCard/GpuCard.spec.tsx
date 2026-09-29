@@ -472,6 +472,7 @@ describe(GpuCard.name, () => {
       const available = within(await screen.findByRole("group", { name: "Available" }));
 
       expect(within(available.getByRole("option", { name: "NVIDIA t4" })).getByText("4")).toBeInTheDocument();
+      expect(screen.getByText("Providers")).toBeInTheDocument();
     });
 
     it("counts no provider on an unavailable model", async () => {
@@ -486,8 +487,8 @@ describe(GpuCard.name, () => {
       const { user } = setup({ hasGpu: true });
 
       await user.click(screen.getByRole("combobox", { name: "GPU model" }));
-      await screen.findByRole("option", { name: "NVIDIA t4" });
 
+      expect(await screen.findByRole("option", { name: "NVIDIA t4" })).not.toHaveAttribute("aria-describedby");
       expect(screen.queryByRole("group", { name: "Available" })).not.toBeInTheDocument();
     });
 

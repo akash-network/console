@@ -42,10 +42,18 @@ describe(useConfidentialCompute.name, () => {
     const { result, getValues } = setup({ params: { permissions: { read: ["logs"] } } });
 
     act(() => result.current.setEnabled(true));
-    expect(getValues().services[0].params).toEqual({ permissions: { read: ["logs"] }, tee: "cpu" });
+    expect(getValues().services[0].params).toStrictEqual({ permissions: { read: ["logs"] }, tee: "cpu" });
 
     act(() => result.current.setEnabled(false));
-    expect(getValues().services[0].params).toEqual({ permissions: { read: ["logs"] } });
+    expect(getValues().services[0].params).toStrictEqual({ permissions: { read: ["logs"] } });
+  });
+
+  it("drops the params object when only cleared params remain after turning off", () => {
+    const { result, getValues } = setup({ params: { permissions: undefined, tee: "cpu" } });
+
+    act(() => result.current.setEnabled(false));
+
+    expect(getValues().services[0].params).toBeUndefined();
   });
 
   it("adds one GPU with a default model when cpu-gpu is chosen for a service without GPUs", () => {
@@ -70,6 +78,14 @@ describe(useConfidentialCompute.name, () => {
     const { result, getValues } = setup({ params: { tee: "cpu" }, isGpuBlocked: true });
 
     act(() => result.current.setTee("cpu-gpu"));
+
+    expect(getValues().services[0].params?.tee).toBe("cpu");
+  });
+
+  it("still turns cpu confidential compute on while the trial blocks GPUs", () => {
+    const { result, getValues } = setup({ isGpuBlocked: true });
+
+    act(() => result.current.setEnabled(true));
 
     expect(getValues().services[0].params?.tee).toBe("cpu");
   });
