@@ -2,7 +2,7 @@ import React, { useMemo } from "react";
 import { Snackbar } from "@akashnetwork/ui/components";
 import { useSnackbar } from "notistack";
 
-const SUPPORT_EMAIL = "support@akash.network";
+import { SUPPORT_EMAIL } from "@src/config/ui.config";
 
 function errorMessageWithSupport(message: string) {
   return (
