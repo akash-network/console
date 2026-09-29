@@ -65,7 +65,8 @@ export const MarketplacePane: FC<Props> = ({
   const { offers, isLoading, isError, isInvalid } = d.usePlacementOffers({ phase, dseq: dseq ?? undefined, sdl, placementName, region });
   const { query, setQuery, clear, filteredProviders, isSearchActive } = d.useProviderSearch(offers);
   const hasFailedWithoutData = isError && offers.length === 0;
-  const awaitingBids = offers.every(offer => offer.offerState === "searching") ? AWAITING_BIDS_COPY[phase] : undefined;
+  const isAwaitingFirstBid = offers.length > 0 && offers.every(offer => offer.offerState === "searching");
+  const awaitingBids = isAwaitingFirstBid ? AWAITING_BIDS_COPY[phase] : undefined;
   const gpuCount = d.useDeploymentGpuCount(selectedPlacementId);
   const requestedCpuArch = d.useDeploymentCpuArch(selectedPlacementId);
   /** Provider names link out only once the user is onboarded: the route gate bounces a not-yet-onboarded user back into the funnel, so the link would dead-end. */

@@ -123,6 +123,13 @@ describe(MarketplacePane.name, () => {
     expect(MarketplaceProvidersTable).toHaveBeenCalledWith(expect.objectContaining({ isBusy: false }), expect.anything());
   });
 
+  it.each(["creating", "quoting"] as const)("shows no waiting notice while the %s deployment has no provider to wait on", phase => {
+    const { MarketplaceProvidersTable } = setup({ phase, offers: [] });
+
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    expect(MarketplaceProvidersTable).toHaveBeenCalledWith(expect.objectContaining({ isBusy: false }), expect.anything());
+  });
+
   it("shows no waiting notice while the deployment is still being configured", () => {
     setup({ phase: "configuring", offers: [buildOffer({ offerState: "searching" })] });
 
