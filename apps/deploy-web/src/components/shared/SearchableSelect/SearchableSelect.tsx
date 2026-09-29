@@ -122,7 +122,7 @@ export const SearchableSelect: FC<Props> = ({
           aria-label={ariaLabel}
           aria-expanded={open}
           disabled={disabled}
-          className={cn("w-full justify-between gap-1.5 font-normal", triggerClassName)}
+          className={cn("w-full justify-between gap-1.5 bg-popover font-normal dark:bg-popover", triggerClassName)}
         >
           <span className="flex min-w-0 items-center gap-1.5">
             {leadingIcon}
