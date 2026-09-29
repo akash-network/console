@@ -54,26 +54,26 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
     { className, startIconClassName, endIconClassName, inputClassName, type, startIcon, endIcon, error, label, isForm, id: inputId, labelClassName, ...props },
     ref
   ) => {
-    const id = React.useId();
+    const generatedId = React.useId();
     const formField = useFormField();
-    const finalId = inputId ?? formField.id ?? id;
+    const id = inputId ?? `${formField.id ?? generatedId}-input`;
 
     return (
       <div className={cn("space-y-1", className)}>
         {label &&
           (formField.id ? (
-            <FormLabel className={labelClassName} htmlFor={`${finalId}-input`}>
+            <FormLabel className={labelClassName} htmlFor={id}>
               {label}
             </FormLabel>
           ) : (
-            <Label className={labelClassName} htmlFor={`${finalId}-input`}>
+            <Label className={labelClassName} htmlFor={id}>
               {label}
             </Label>
           ))}
         <div className="relative flex items-center">
           {startIcon && <div className={cn("absolute inset-y-0 left-0 flex items-center", startIconClassName)}>{startIcon}</div>}
           <input
-            id={`${finalId}-input`}
+            id={id}
             type={type}
             className={cn(
               "border-input bg-popover ring-offset-background placeholder:text-muted-foreground focus-visible:ring-ring flex h-10 w-full rounded-md border px-3 py-2 text-sm file:border-0 file:bg-transparent file:text-sm file:font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
@@ -97,9 +97,9 @@ export interface TextareaProps extends React.TextareaHTMLAttributes<HTMLTextArea
 }
 
 const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(({ className, onChange, inputClassName, label, id: textareaId, ...props }, ref) => {
-  const id = React.useId();
+  const generatedId = React.useId();
   const formField = useFormField();
-  const finalId = textareaId ?? formField.id ?? id;
+  const id = textareaId ?? `${formField.id ?? generatedId}-input`;
 
   const [value, setValue] = useState("");
   const textAreaRef = useRef<HTMLTextAreaElement>(null);
@@ -118,9 +118,9 @@ const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(({ classNa
 
   return (
     <div className={cn("space-y-1", className)}>
-      {label && (formField.id ? <FormLabel htmlFor={`${finalId}-input`}>{label}</FormLabel> : <Label htmlFor={`${finalId}-input`}>{label}</Label>)}
+      {label && (formField.id ? <FormLabel htmlFor={id}>{label}</FormLabel> : <Label htmlFor={id}>{label}</Label>)}
       <textarea
-        id={`${finalId}-input`}
+        id={id}
         className={cn(
           "border-input bg-popover ring-offset-background placeholder:text-muted-foreground focus-visible:ring-ring flex h-10 w-full resize-y rounded-md border px-3 py-2 text-sm file:border-0 file:bg-transparent file:text-sm file:font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
           inputClassName

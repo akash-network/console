@@ -48,7 +48,6 @@ export const ComputeResourcesCard: FC<Props> = ({ serviceIndex, locked = false, 
   const { control } = useFormContext<SdlBuilderFormValuesType>();
   const { analyticsService } = d.useServices();
   const cpuFocusValueRef = useRef<number | null>(null);
-  /** Input renders its element under `${id}-input`, so that is the id the vCPU label targets. */
   const cpuFieldId = useId();
   const isCpuArchEnabled = d.useFlag("ui_sdl_cpu_arch");
 
@@ -90,7 +89,7 @@ export const ComputeResourcesCard: FC<Props> = ({ serviceIndex, locked = false, 
             };
             return (
               <Field className="gap-2">
-                <FieldLabel htmlFor={`${cpuFieldId}-input`}>vCPU</FieldLabel>
+                <FieldLabel htmlFor={cpuFieldId}>vCPU</FieldLabel>
                 <FieldContent>
                   <Input
                     type="number"
