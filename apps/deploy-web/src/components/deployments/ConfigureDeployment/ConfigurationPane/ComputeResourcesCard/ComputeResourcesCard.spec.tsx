@@ -193,6 +193,25 @@ describe(ComputeResourcesCard.name, () => {
     expect(getValues().services[0].profile.arch).toBeUndefined();
   });
 
+  it("offers only the default and arm64 architectures", async () => {
+    setup({});
+
+    await userEvent.click(screen.getByLabelText("CPU Architecture"));
+
+    expect((await screen.findAllByRole("option")).map(option => option.textContent)).toEqual(["Default (amd64)", "arm64"]);
+  });
+
+  it("keeps showing an amd64 architecture an imported SDL pins", async () => {
+    setup({ arch: "amd64" });
+
+    expect(screen.getByLabelText("CPU Architecture")).toHaveTextContent("amd64");
+    expect(screen.getByLabelText("CPU Architecture")).not.toHaveTextContent("Default");
+
+    await userEvent.click(screen.getByLabelText("CPU Architecture"));
+
+    expect((await screen.findAllByRole("option")).map(option => option.textContent)).toEqual(["Default (amd64)", "arm64", "amd64"]);
+  });
+
   it("tracks the chosen CPU architecture", async () => {
     const { analyticsService } = setup({});
 

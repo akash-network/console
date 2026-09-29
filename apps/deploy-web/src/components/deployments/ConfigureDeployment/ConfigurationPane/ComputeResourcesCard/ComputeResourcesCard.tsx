@@ -30,9 +30,11 @@ const DEFAULT_ARCH_OPTION = "default";
 
 const ARCH_OPTIONS = [
   { value: DEFAULT_ARCH_OPTION, label: "Default (amd64)" },
-  { value: "amd64", label: "amd64" },
   { value: "arm64", label: "arm64" }
 ] as const;
+
+/** The default already means amd64, so an explicit amd64 is only listed while an imported SDL pins it, keeping the trigger from going blank. */
+const PINNED_AMD64 = "amd64";
 
 type Props = {
   serviceIndex: number;
@@ -164,6 +166,7 @@ export const ComputeResourcesCard: FC<Props> = ({ serviceIndex, locked = false, 
                     {option.label}
                   </SelectItem>
                 ))}
+                {arch.field.value === PINNED_AMD64 && <SelectItem value={PINNED_AMD64}>{PINNED_AMD64}</SelectItem>}
               </SelectContent>
             </Select>
           </FieldContent>
