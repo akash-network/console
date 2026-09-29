@@ -52,7 +52,7 @@ export interface DeploymentResourceSegment {
   label: string;
 }
 
-function formatBytes(bytes: number): string {
+export function formatBytes(bytes: number): string {
   const { value, unit } = bytesToShrink(bytes, true);
   return `${roundDecimal(value, 2)} ${unit}`;
 }

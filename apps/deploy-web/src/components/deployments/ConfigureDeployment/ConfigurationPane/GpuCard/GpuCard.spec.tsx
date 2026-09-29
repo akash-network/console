@@ -1,6 +1,6 @@
 import type { PropsWithChildren } from "react";
 import { FormProvider, useForm } from "react-hook-form";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { AvailableGpuVendor } from "@src/queries/usePlacementOptions";
@@ -11,7 +11,7 @@ import { validationConfig } from "@src/utils/akash/units";
 import { defaultServiceWithPlacement } from "@src/utils/sdl/data";
 import { DEPENDENCIES, GpuCard } from "./GpuCard";
 
-import { render, screen, within } from "@testing-library/react";
+import { act, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 const GPU_VENDORS: GpuVendor[] = [
@@ -147,6 +147,21 @@ describe(GpuCard.name, () => {
     const gpuModels = getValues().services[0].profile.gpuModels;
     expect(gpuModels).toHaveLength(1);
     expect(gpuModels?.[0]).toMatchObject({ vendor: "nvidia", name: "a100" });
+  });
+
+  it("removes the alternative that was asked for when there are several", async () => {
+    const { getValues, user } = setup({
+      hasGpu: true,
+      gpuModels: [
+        { vendor: "nvidia", name: "a100", memory: "", interface: "" },
+        { vendor: "amd", name: "mi300", memory: "", interface: "" },
+        { vendor: "nvidia", name: "t4", memory: "", interface: "" }
+      ]
+    });
+
+    await user.click(screen.getByRole("button", { name: "Remove alternative model 1" }));
+
+    expect(getValues().services[0].profile.gpuModels?.map(model => model.name)).toEqual(["a100", "t4"]);
   });
 
   it("renders each collection's selects bound to its own entry", () => {
@@ -502,24 +517,56 @@ describe(GpuCard.name, () => {
       expect(screen.getByRole("option", { name: "NVIDIA a100" })).toBeInTheDocument();
     });
 
-    it("asks support for the searched gpu from the menu", async () => {
-      const { user } = setup({ hasGpu: true, availableGpus: [{ vendor: "nvidia", models: [availableModel("t4", ["16Gi"], ["pcie"])] }] });
+    it("asks for the searched gpu in the hardware request dialog, with this service's configuration", async () => {
+      const { user, HardwareRequestDialog } = setup({
+        hasGpu: true,
+        availableGpus: [{ vendor: "nvidia", models: [availableModel("t4", ["16Gi"], ["pcie"])] }]
+      });
 
       await user.click(screen.getByRole("combobox", { name: "GPU model" }));
       await user.type(await screen.findByRole("combobox", { name: "Search GPU models" }), " b300 ");
+      await user.click(screen.getByRole("button", { name: /contact us/i }));
 
-      expect(screen.getByRole("link", { name: /contact us/i })).toHaveAttribute(
-        "href",
-        "mailto:support@akash.network?subject=GPU%20request&body=I'm%20looking%20for%3A%20b300"
+      expect(screen.getByText("Hardware request dialog")).toBeInTheDocument();
+      expect(screen.queryByRole("combobox", { name: "Search GPU models" })).not.toBeInTheDocument();
+      expect(HardwareRequestDialog).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          initialGpuModel: "b300",
+          configuration: expect.objectContaining({ summary: "0.5 vCPU · 1× Any GPU · 256 MiB memory · 1 GiB storage · Any region" })
+        }),
+        expect.anything()
       );
     });
 
-    it("asks support for a gpu without a body before anything is searched", async () => {
-      const { user } = setup({ hasGpu: true, availableGpus: [{ vendor: "nvidia", models: [availableModel("t4", ["16Gi"], ["pcie"])] }] });
+    it("opens the hardware request dialog with no gpu before anything is searched", async () => {
+      const { user, HardwareRequestDialog } = setup({
+        hasGpu: true,
+        availableGpus: [{ vendor: "nvidia", models: [availableModel("t4", ["16Gi"], ["pcie"])] }]
+      });
 
       await user.click(screen.getByRole("combobox", { name: "GPU model" }));
+      await user.click(await screen.findByRole("button", { name: /contact us/i }));
 
-      expect(await screen.findByRole("link", { name: /contact us/i })).toHaveAttribute("href", "mailto:support@akash.network?subject=GPU%20request");
+      expect(HardwareRequestDialog).toHaveBeenLastCalledWith(expect.objectContaining({ initialGpuModel: "" }), expect.anything());
+    });
+
+    it("offers the hardware request dialog from the first model picker of a service without a gpu entry", async () => {
+      const { user } = setup({ gpuModels: [] });
+
+      await user.click(screen.getByRole("combobox", { name: "GPU model" }));
+      await user.click(await screen.findByRole("button", { name: /contact us/i }));
+
+      expect(screen.getByText("Hardware request dialog")).toBeInTheDocument();
+    });
+
+    it("closes the hardware request dialog when it asks to", async () => {
+      const { user, HardwareRequestDialog } = setup({ hasGpu: true });
+
+      await user.click(screen.getByRole("combobox", { name: "GPU model" }));
+      await user.click(await screen.findByRole("button", { name: /contact us/i }));
+      act(() => HardwareRequestDialog.mock.lastCall![0].onClose());
+
+      expect(screen.queryByText("Hardware request dialog")).not.toBeInTheDocument();
     });
 
     it("keeps the provider count on a model once it is picked", async () => {
@@ -909,6 +956,7 @@ describe(GpuCard.name, () => {
     const useFieldError: typeof DEPENDENCIES.useFieldError = () => ({ error: input.gpuError });
     const analyticsService = mock<AnalyticsService>();
     const useServices: typeof DEPENDENCIES.useServices = () => mock<ReturnType<typeof DEPENDENCIES.useServices>>({ analyticsService });
+    const HardwareRequestDialog = vi.fn<typeof DEPENDENCIES.HardwareRequestDialog>(() => <div>Hardware request dialog</div>);
 
     let getValues: () => SdlBuilderFormValuesType = () => values;
     const Wrapper = ({ children }: PropsWithChildren) => {
@@ -922,13 +970,13 @@ describe(GpuCard.name, () => {
         <GpuCard
           serviceIndex={0}
           locked={input.locked}
-          dependencies={{ ...DEPENDENCIES, useGpuModels, usePlacementOptions, useFieldError, useServices, ...input.dependencies }}
+          dependencies={{ ...DEPENDENCIES, useGpuModels, usePlacementOptions, useFieldError, useServices, HardwareRequestDialog, ...input.dependencies }}
         />
       </Wrapper>
     );
 
     const user = userEvent.setup();
 
-    return { user, getValues: () => getValues(), analyticsService };
+    return { user, getValues: () => getValues(), analyticsService, HardwareRequestDialog };
   }
 });

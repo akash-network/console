@@ -249,13 +249,33 @@ describe("SearchableSelect", () => {
     expect(screen.getByText("Looking for b300")).toBeInTheDocument();
   });
 
+  it("lets the footer close the popover and resets the search", async () => {
+    const { user } = setup({
+      renderFooter: (search, { close }) => (
+        <button type="button" onClick={close}>
+          Ask for {search || "nothing"}
+        </button>
+      )
+    });
+
+    await user.click(screen.getByRole("combobox", { name: "Region" }));
+    await user.type(await screen.findByRole("combobox", { name: "Search regions" }), "b300");
+    await user.click(screen.getByRole("button", { name: "Ask for b300" }));
+
+    expect(screen.queryByRole("combobox", { name: "Search regions" })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("combobox", { name: "Region" }));
+
+    expect(await screen.findByRole("button", { name: "Ask for nothing" })).toBeInTheDocument();
+  });
+
   function setup(input: {
     value?: string;
     options?: SearchableSelectOption[];
     unavailableOptions?: SearchableSelectOption[];
     optionsHeading?: { label: string; hintLabel?: string };
     unavailableHeading?: string;
-    renderFooter?: (search: string) => ReactNode;
+    renderFooter?: (search: string, controls: { close: () => void }) => ReactNode;
     emptyOption?: { value: string; label: string; disabled?: boolean };
     emptyTriggerLabel?: string;
     placeholder?: string;

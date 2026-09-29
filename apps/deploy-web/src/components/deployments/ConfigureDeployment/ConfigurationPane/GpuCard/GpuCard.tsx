@@ -1,5 +1,5 @@
 import type { FC, ReactNode } from "react";
-import { useCallback, useId, useMemo } from "react";
+import { useCallback, useId, useMemo, useState } from "react";
 import { useController, useFieldArray, useFormContext, useWatch } from "react-hook-form";
 import {
   Button,
@@ -20,7 +20,6 @@ import {
 import { ArrowRightIcon, GpuIcon, LockIcon, MessageSquareIcon, PlusIcon, TrashIcon, XIcon } from "lucide-react";
 
 import { SearchableSelect } from "@src/components/shared/SearchableSelect/SearchableSelect";
-import { SUPPORT_EMAIL } from "@src/config/ui.config";
 import { useServices } from "@src/context/ServicesProvider";
 import { useGpuModels } from "@src/queries/useGpuQuery";
 import type { AvailableGpuVendor } from "@src/queries/usePlacementOptions";
@@ -41,6 +40,8 @@ import {
 import { validationConfig } from "@src/utils/akash/units";
 import { formatProviderCount } from "@src/utils/providerUtils";
 import { defaultGpuModel } from "@src/utils/sdl/data";
+import { describeCurrentConfiguration } from "../../HardwareRequestDialog/currentConfiguration";
+import { HardwareRequestDialog } from "../../HardwareRequestDialog/HardwareRequestDialog";
 import { gpuTooltip } from "../cardTooltips";
 import { GpuInterconnectFields } from "../GpuInterconnectFields/GpuInterconnectFields";
 import { SELECT_TRUNCATE_VALUE } from "../selectStyles";
@@ -48,7 +49,16 @@ import { UnlockGpusButton } from "../UnlockGpusButton/UnlockGpusButton";
 import { useServiceGpu } from "../useServiceGpu/useServiceGpu";
 import { summarizeGpu } from "./gpuSummary";
 
-export const DEPENDENCIES = { CollapsibleCard, useGpuModels, usePlacementOptions, useFieldError, useServices, GpuModelFields, GpuInterconnectFields };
+export const DEPENDENCIES = {
+  CollapsibleCard,
+  useGpuModels,
+  usePlacementOptions,
+  useFieldError,
+  useServices,
+  GpuModelFields,
+  GpuInterconnectFields,
+  HardwareRequestDialog
+};
 
 type Props = {
   serviceIndex: number;
@@ -74,7 +84,8 @@ export const GpuCard: FC<Props> = ({
   onUnlock,
   dependencies: d = DEPENDENCIES
 }) => {
-  const { control } = useFormContext<SdlBuilderFormValuesType>();
+  const { control, getValues } = useFormContext<SdlBuilderFormValuesType>();
+  const [requestedGpuModel, setRequestedGpuModel] = useState<string | null>(null);
   const { data: gpuCatalog, isLoading: isLoadingModels, isError: isModelsError } = d.useGpuModels();
   const { data: placementOptions } = d.usePlacementOptions();
   const availableVendors = narrowGpuVendorsToAvailable(gpuCatalog, placementOptions?.gpus);
@@ -101,6 +112,7 @@ export const GpuCard: FC<Props> = ({
     isError: isModelsError && !availableVendors,
     isBlockedModel,
     onUnlock,
+    onRequestGpu: setRequestedGpuModel,
     locked,
     dependencies: d
   };
@@ -109,47 +121,57 @@ export const GpuCard: FC<Props> = ({
   );
 
   return (
-    <d.CollapsibleCard
-      locked={locked}
-      title="GPU"
-      icon={<GpuIcon className="h-4 w-4" />}
-      infoTooltip={gpuTooltip}
-      summary={summarizeGpu({ hasGpu, gpu, gpuModels: watchedModels }, gpuCatalog)}
-      summaryVisibility="always"
-    >
-      <fieldset disabled={locked} className="flex flex-col gap-4 border-0 p-0">
-        <p className="text-sm text-muted-foreground">Add accelerators for inference, training or rendering.</p>
+    <>
+      <d.CollapsibleCard
+        locked={locked}
+        title="GPU"
+        icon={<GpuIcon className="h-4 w-4" />}
+        infoTooltip={gpuTooltip}
+        summary={summarizeGpu({ hasGpu, gpu, gpuModels: watchedModels }, gpuCatalog)}
+        summaryVisibility="always"
+      >
+        <fieldset disabled={locked} className="flex flex-col gap-4 border-0 p-0">
+          <p className="text-sm text-muted-foreground">Add accelerators for inference, training or rendering.</p>
 
-        {fields.length > 0 ? (
-          <d.GpuModelFields {...sharedModelProps} key={fields[0].id} gpuIndex={0} isGpuOn={isGpuOn} countField={countField} onModelPick={serviceGpu.enable} />
-        ) : (
-          <FirstGpuModelPicker {...sharedModelProps} countField={countField} onPick={serviceGpu.pickFirstModel} />
-        )}
+          {fields.length > 0 ? (
+            <d.GpuModelFields {...sharedModelProps} key={fields[0].id} gpuIndex={0} isGpuOn={isGpuOn} countField={countField} onModelPick={serviceGpu.enable} />
+          ) : (
+            <FirstGpuModelPicker {...sharedModelProps} countField={countField} onPick={serviceGpu.pickFirstModel} />
+          )}
 
-        {isGpuOn &&
-          fields
-            .slice(1)
-            .map((field, offset) => (
-              <d.GpuModelFields {...sharedModelProps} key={field.id} gpuIndex={offset + 1} isGpuOn onRemove={() => remove(offset + 1)} />
-            ))}
+          {isGpuOn &&
+            fields
+              .slice(1)
+              .map((field, offset) => (
+                <d.GpuModelFields {...sharedModelProps} key={field.id} gpuIndex={offset + 1} isGpuOn onRemove={() => remove(offset + 1)} />
+              ))}
 
-        {isGpuOn && !locked && (
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={addAlternativeModel}
-            disabled={hasReachedModelLimit}
-            className="gap-1.5 self-start text-muted-foreground"
-          >
-            <PlusIcon className="h-4 w-4" />
-            Add another model
-          </Button>
-        )}
+          {isGpuOn && !locked && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={addAlternativeModel}
+              disabled={hasReachedModelLimit}
+              className="gap-1.5 self-start text-muted-foreground"
+            >
+              <PlusIcon className="h-4 w-4" />
+              Add another model
+            </Button>
+          )}
 
-        <d.GpuInterconnectFields serviceIndex={serviceIndex} locked={locked} isTrialBlocked={isInterconnectTrialBlocked} onUnlock={onUnlock} />
-      </fieldset>
-    </d.CollapsibleCard>
+          <d.GpuInterconnectFields serviceIndex={serviceIndex} locked={locked} isTrialBlocked={isInterconnectTrialBlocked} onUnlock={onUnlock} />
+        </fieldset>
+      </d.CollapsibleCard>
+
+      {requestedGpuModel !== null && (
+        <d.HardwareRequestDialog
+          initialGpuModel={requestedGpuModel}
+          configuration={describeCurrentConfiguration(getValues(), serviceIndex, gpuCatalog)}
+          onClose={() => setRequestedGpuModel(null)}
+        />
+      )}
+    </>
   );
 };
 
@@ -200,6 +222,7 @@ type GpuModelFieldsProps = {
   isBlockedModel: (vendor?: string | null, model?: string | null) => boolean;
   /** Opens the add-credits (unlock) sheet, offered when the picked vendor exposes any blocked model. */
   onUnlock?: () => void;
+  onRequestGpu: (gpuModel: string) => void;
   /** While the pane is locked every input is disabled so the configured GPU stays viewable but read-only. */
   locked?: boolean;
   /** The vendor, memory and interface of the first model wait for a GPU count. */
@@ -223,6 +246,7 @@ function GpuModelFields({
   isError,
   isBlockedModel,
   onUnlock,
+  onRequestGpu,
   locked = false,
   isGpuOn,
   countField,
@@ -302,6 +326,7 @@ function GpuModelFields({
       isError={isError}
       value={name.field.value || ""}
       onChange={selectModel}
+      onRequestGpu={onRequestGpu}
       choices={choices}
       disabled={locked}
       emptyTriggerLabel={isGpuOn ? undefined : "Select"}
@@ -421,6 +446,7 @@ function FirstGpuModelPicker({
   isError,
   isBlockedModel,
   onUnlock,
+  onRequestGpu,
   locked = false,
   countField,
   onPick
@@ -430,7 +456,16 @@ function FirstGpuModelPicker({
   return (
     <div className="flex flex-col gap-3">
       <div className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-3">
-        <GpuModelControl isLoading={isLoading} isError={isError} value="" onChange={onPick} choices={choices} disabled={locked} emptyTriggerLabel="Select" />
+        <GpuModelControl
+          isLoading={isLoading}
+          isError={isError}
+          value=""
+          onChange={onPick}
+          onRequestGpu={onRequestGpu}
+          choices={choices}
+          disabled={locked}
+          emptyTriggerLabel="Select"
+        />
         {countField}
       </div>
       {!isLoading && !isError && choices.hasBlockedModel && <UnlockGpusButton onUnlock={onUnlock} />}
@@ -443,12 +478,13 @@ type GpuModelControlProps = {
   isError?: boolean;
   value: string;
   onChange: (value: string) => void;
+  onRequestGpu: (gpuModel: string) => void;
   choices: GpuModelChoices;
   disabled: boolean;
   emptyTriggerLabel?: string;
 };
 
-function GpuModelControl({ isLoading, isError, value, onChange, choices, disabled, emptyTriggerLabel }: GpuModelControlProps) {
+function GpuModelControl({ isLoading, isError, value, onChange, onRequestGpu, choices, disabled, emptyTriggerLabel }: GpuModelControlProps) {
   if (isLoading) {
     return (
       <div className="flex items-center gap-2 py-1">
@@ -491,7 +527,14 @@ function GpuModelControl({ isLoading, isError, value, onChange, choices, disable
           }}
           emptyTriggerLabel={emptyTriggerLabel}
           renderValue={modelName => choices.listedModels.find(model => model.name === modelName)?.displayName ?? modelName}
-          renderFooter={search => <GpuRequestLink search={search} />}
+          renderFooter={(search, { close }) => (
+            <GpuRequestLink
+              onClick={() => {
+                close();
+                onRequestGpu(search.trim());
+              }}
+            />
+          )}
           disabled={disabled || choices.listedModels.length === 0}
           triggerClassName="h-9"
           contentClassName="w-[max(var(--radix-popover-trigger-width),20rem)]"
@@ -501,21 +544,19 @@ function GpuModelControl({ isLoading, isError, value, onChange, choices, disable
   );
 }
 
-function GpuRequestLink({ search }: { search: string }) {
-  const wantedGpu = search.trim();
-  const body = wantedGpu ? `&body=${encodeURIComponent(`I'm looking for: ${wantedGpu}`)}` : "";
-
+function GpuRequestLink({ onClick }: { onClick: () => void }) {
   return (
-    <a
-      href={`mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent("GPU request")}${body}`}
-      className="flex items-center gap-2 rounded-sm px-2 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground"
     >
       <MessageSquareIcon className="h-4 w-4 shrink-0" aria-hidden="true" />
       <span>
         Don&apos;t see the GPU you need? <span className="font-medium text-foreground">Contact us</span>
       </span>
       <ArrowRightIcon className="ml-auto h-4 w-4 shrink-0" aria-hidden="true" />
-    </a>
+    </button>
   );
 }
 
