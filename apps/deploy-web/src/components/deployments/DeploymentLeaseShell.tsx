@@ -1,11 +1,12 @@
 "use client";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Alert, AlertDescription, AlertTitle, Button, Spinner } from "@akashnetwork/ui/components";
-import { cn } from "@akashnetwork/ui/utils";
-import { WarningCircle } from "iconoir-react";
+import { cn, copyTextToClipboard } from "@akashnetwork/ui/utils";
+import { Copy, Refresh, WarningCircle } from "iconoir-react";
 
 import { ViewPanel } from "@src/components/shared/ViewPanel";
 import { useServices } from "@src/context/ServicesProvider";
+import { useNotificator } from "@src/hooks/useNotificator";
 import { useProviderAccess } from "@src/hooks/useProviderAccess/useProviderAccess";
 import { useProviderCredentials } from "@src/hooks/useProviderCredentials/useProviderCredentials";
 import { XTerm } from "@src/lib/XTerm";
@@ -22,14 +23,32 @@ import { ProviderAuthFallback } from "./ProviderAuthGate";
 import { ServiceSelect } from "./ServiceSelect";
 import { ShellDownloadModal } from "./ShellDownloadModal";
 
+export const DEPENDENCIES = {
+  useServices,
+  useNotificator,
+  useProviderAccess,
+  useProviderCredentials,
+  useLeaseStatus,
+  useProvidersByAddresses,
+  // eslint-disable-next-line akash/dependencies-component-or-hook
+  copyTextToClipboard,
+  XTerm,
+  LeaseSelect,
+  ServiceSelect,
+  ShellDownloadModal,
+  ProviderAuthFallback
+};
+
 type Props = {
   leases: LeaseDto[] | null | undefined;
+  dependencies?: typeof DEPENDENCIES;
 };
 
 const textDecoder = new TextDecoder("utf-8");
 
-export const DeploymentLeaseShell: React.FunctionComponent<Props> = ({ leases }) => {
-  const { providerProxy, errorHandler } = useServices();
+export const DeploymentLeaseShell: React.FunctionComponent<Props> = ({ leases, dependencies: d = DEPENDENCIES }) => {
+  const { providerProxy, errorHandler } = d.useServices();
+  const notificator = d.useNotificator();
 
   const [isConnectionEstablished, setIsConnectionEstablished] = useState(false);
   const [isLoadingData, setIsLoadingData] = useState(true);
@@ -38,9 +57,10 @@ export const DeploymentLeaseShell: React.FunctionComponent<Props> = ({ leases })
   const [selectedLease, setSelectedLease] = useState<LeaseDto | null>(null);
   const [isShowingDownloadModal, setIsShowingDownloadModal] = useState(false);
   const [isChangingSocket, setIsChangingSocket] = useState(false);
-  const { data: providers } = useProvidersByAddresses(selectedLease ? [selectedLease.provider] : []);
-  const providerCredentials = useProviderCredentials();
-  const hasShellAccess = useProviderAccess(providerCredentials);
+  const [shellSessionRequest, requestNewShellSession] = useState({});
+  const { data: providers } = d.useProvidersByAddresses(selectedLease ? [selectedLease.provider] : []);
+  const providerCredentials = d.useProviderCredentials();
+  const hasShellAccess = d.useProviderAccess(providerCredentials);
   const providerInfo = providers.find(p => p.owner === selectedLease?.provider);
   const providerHostUri = providerInfo?.hostUri;
   const providerAddress = providerInfo?.owner;
@@ -51,7 +71,7 @@ export const DeploymentLeaseShell: React.FunctionComponent<Props> = ({ leases })
     data: leaseStatus,
     refetch: getLeaseStatus,
     isFetching: isLoadingStatus
-  } = useLeaseStatus({
+  } = d.useLeaseStatus({
     provider: providerInfo,
     lease: selectedLease
   });
@@ -99,7 +119,7 @@ export const DeploymentLeaseShell: React.FunctionComponent<Props> = ({ leases })
       conn,
       abortController
     };
-  }, [providerHostUri, providerAddress, hasShellAccess, dseq, gseq, oseq, selectedService, providerCredentials.ensureToken]);
+  }, [providerHostUri, providerAddress, hasShellAccess, dseq, gseq, oseq, selectedService, providerCredentials.ensureToken, shellSessionRequest]);
 
   useEffect(() => {
     if (!shellSession) return;
@@ -224,6 +244,25 @@ export const DeploymentLeaseShell: React.FunctionComponent<Props> = ({ leases })
     }
   };
 
+  const resetShell = () => {
+    terminalRef.current?.reset();
+
+    setIsConnectionEstablished(false);
+    setIsConnectionClosed(false);
+    isConnectionEstablishedRef.current = false;
+    requestNewShellSession({});
+  };
+
+  const copyShellOutput = async () => {
+    const isCopied = await d.copyTextToClipboard(terminalRef.current?.getOutput() ?? "");
+
+    if (isCopied) {
+      notificator.success("Shell output copied to clipboard");
+    } else {
+      notificator.error("Couldn't copy the shell output to your clipboard");
+    }
+  };
+
   const onDownloadFileClick = async () => {
     setIsShowingDownloadModal(true);
   };
@@ -236,10 +275,10 @@ export const DeploymentLeaseShell: React.FunctionComponent<Props> = ({ leases })
   return (
     <div>
       {isShowingDownloadModal && selectedLease && providerInfo && selectedService && (
-        <ShellDownloadModal onCloseClick={onCloseDownloadClick} selectedLease={selectedLease} providerInfo={providerInfo} selectedService={selectedService} />
+        <d.ShellDownloadModal onCloseClick={onCloseDownloadClick} selectedLease={selectedLease} providerInfo={providerInfo} selectedService={selectedService} />
       )}
 
-      <ProviderAuthFallback hasAccess={hasShellAccess} error={providerCredentials.details.error} />
+      <d.ProviderAuthFallback hasAccess={hasShellAccess} error={providerCredentials.details.error} />
 
       {hasShellAccess && (
         <>
@@ -249,18 +288,28 @@ export const DeploymentLeaseShell: React.FunctionComponent<Props> = ({ leases })
                 <>
                   <div className="flex min-h-[50px] items-center gap-4">
                     <div className="flex items-center">
-                      {(leases?.length || 0) > 1 && <LeaseSelect leases={leases || []} defaultValue={selectedLease.id} onSelectedChange={handleLeaseChange} />}
+                      {(leases?.length || 0) > 1 && (
+                        <d.LeaseSelect leases={leases || []} defaultValue={selectedLease.id} onSelectedChange={handleLeaseChange} />
+                      )}
 
                       {services?.length > 0 && selectedService && (
                         <div className={cn({ ["ml-2"]: (leases?.length || 0) > 1 })}>
-                          <ServiceSelect services={services} defaultValue={selectedService} onSelectedChange={onSelectedServiceChange} />
+                          <d.ServiceSelect services={services} defaultValue={selectedService} onSelectedChange={onSelectedServiceChange} />
                         </div>
                       )}
                     </div>
 
-                    <div className="flex items-center">
+                    <div className="flex items-center gap-2">
                       <Button onClick={onDownloadFileClick} variant="default" size="sm" disabled={!isConnectionEstablished}>
                         Download file
+                      </Button>
+                      <Button onClick={copyShellOutput} variant="outline" size="sm" disabled={!isConnectionEstablished}>
+                        <Copy className="mr-2 h-4 w-4" />
+                        Copy output
+                      </Button>
+                      <Button onClick={resetShell} variant="outline" size="sm">
+                        <Refresh className="mr-2 h-4 w-4" />
+                        Reset shell
                       </Button>
                     </div>
 
@@ -287,10 +336,14 @@ export const DeploymentLeaseShell: React.FunctionComponent<Props> = ({ leases })
                         <li>Redeploying if the container appears stuck or unresponsive</li>
                         <li>Verifying the provider is healthy</li>
                       </ul>
+                      <Button onClick={resetShell} variant="default" size="sm" className="mt-4">
+                        <Refresh className="mr-2 h-4 w-4" />
+                        Reset shell
+                      </Button>
                     </AlertDescription>
                   </Alert>
                 ) : (
-                  <XTerm ref={terminalRef} onKey={onTerminalKey} onTerminalPaste={onTerminalPaste} />
+                  <d.XTerm ref={terminalRef} onKey={onTerminalKey} onTerminalPaste={onTerminalPaste} />
                 )}
               </ViewPanel>
             </>

@@ -129,6 +129,7 @@ export type XTermRefType = {
   clear: () => void;
   reset: () => void;
   focus: () => void;
+  getOutput: () => string;
 };
 
 const XTerm: React.FunctionComponent<IProps & { dependencies?: typeof DEPENDENCIES }> = props => {
@@ -153,7 +154,8 @@ const XTerm: React.FunctionComponent<IProps & { dependencies?: typeof DEPENDENCI
     loadAddon: (addon: ITerminalAddon) => terminalRef.current?.loadAddon(addon),
     clear: () => terminalRef.current?.clear(),
     reset: () => terminalRef.current?.reset(),
-    focus: () => terminalRef.current?.focus()
+    focus: () => terminalRef.current?.focus(),
+    getOutput: () => (terminalRef.current ? readTerminalOutput(terminalRef.current) : "")
   }));
 
   useEffect(() => {
@@ -255,6 +257,21 @@ export default XTerm;
 function disposable(value: IDisposable | undefined) {
   if (!value) return;
   return () => value.dispose();
+}
+
+export function readTerminalOutput(terminal: Pick<Terminal, "buffer">) {
+  const buffer = terminal.buffer.active;
+  const lines = Array.from({ length: buffer.length }, (_, lineIndex) => buffer.getLine(lineIndex));
+
+  return lines
+    .reduce((output, line, lineIndex) => {
+      if (!line) return output;
+
+      const separator = lineIndex > 0 && !line.isWrapped ? "\n" : "";
+      const continuesOnNextLine = !!lines[lineIndex + 1]?.isWrapped;
+      return output + separator + line.translateToString(!continuesOnNextLine);
+    }, "")
+    .trimEnd();
 }
 
 export function getTheme(resolvedTheme: string | undefined) {

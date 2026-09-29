@@ -1,9 +1,25 @@
+import { createRef } from "react";
 import { describe, expect, it, vi } from "vitest";
 
-import type { DEPENDENCIES } from "./XTerm";
-import XTerm, { getTheme } from "./XTerm";
+import type { DEPENDENCIES, XTermRefType } from "./XTerm";
+import XTerm, { getTheme, readTerminalOutput } from "./XTerm";
 
 import { render } from "@testing-library/react";
+
+type MockBufferLine = { text: string; isWrapped?: boolean } | null;
+
+function createMockBuffer(lines: MockBufferLine[]) {
+  return {
+    active: {
+      length: lines.length,
+      getLine: (index: number) => {
+        const line = lines[index];
+        if (!line) return undefined;
+        return { isWrapped: line.isWrapped ?? false, translateToString: (trimRight?: boolean) => (trimRight ? line.text.trimEnd() : line.text) };
+      }
+    }
+  };
+}
 
 describe("getTheme", () => {
   it("returns dark theme colors when resolvedTheme is dark", () => {
@@ -42,7 +58,56 @@ describe("getTheme", () => {
   });
 });
 
+describe(readTerminalOutput.name, () => {
+  it("joins buffer lines with newlines and trims trailing whitespace", () => {
+    const buffer = createMockBuffer([{ text: "$ ls   " }, { text: "file.txt" }, { text: "" }, { text: "" }]);
+
+    expect(readTerminalOutput({ buffer } as never)).toBe("$ ls\nfile.txt");
+  });
+
+  it("joins wrapped lines without a newline", () => {
+    const buffer = createMockBuffer([{ text: "very long " }, { text: "command", isWrapped: true }, { text: "next" }]);
+
+    expect(readTerminalOutput({ buffer } as never)).toBe("very long command\nnext");
+  });
+
+  it("skips lines the buffer cannot provide", () => {
+    const buffer = createMockBuffer([{ text: "first" }, null, { text: "third" }]);
+
+    expect(readTerminalOutput({ buffer } as never)).toBe("first\nthird");
+  });
+
+  it("returns an empty string for an empty buffer", () => {
+    const buffer = createMockBuffer([]);
+
+    expect(readTerminalOutput({ buffer } as never)).toBe("");
+  });
+});
+
 describe("XTerm", () => {
+  it("exposes terminal output through the ref", () => {
+    const { customRef } = setup({ bufferLines: [{ text: "hello" }, { text: "world" }] });
+
+    expect(customRef.current?.getOutput()).toBe("hello\nworld");
+  });
+
+  it("focuses the terminal through the ref", () => {
+    const { customRef, mockTerminal } = setup();
+
+    customRef.current?.focus();
+
+    expect(mockTerminal.focus).toHaveBeenCalled();
+  });
+
+  it("returns empty output through the ref after unmount", () => {
+    const { customRef, unmount } = setup({ bufferLines: [{ text: "hello" }] });
+    const getOutput = customRef.current!.getOutput;
+
+    unmount();
+
+    expect(getOutput()).toBe("");
+  });
+
   it("creates terminal and opens it on mount", () => {
     const { mockTerminal, mockFitAddon } = setup();
 
@@ -162,8 +227,9 @@ describe("XTerm", () => {
     });
   });
 
-  function createMockTerminal() {
+  function createMockTerminal(bufferLines: MockBufferLine[] = []) {
     return {
+      buffer: createMockBuffer(bufferLines),
       attachCustomKeyEventHandler: vi.fn(),
       loadAddon: vi.fn(),
       open: vi.fn(),
@@ -201,8 +267,10 @@ describe("XTerm", () => {
     customKeyEventHandler?: (event: KeyboardEvent) => boolean;
     mockFitAddon?: ReturnType<typeof createMockFitAddon>;
     useThemeMock?: () => { resolvedTheme: string };
+    bufferLines?: MockBufferLine[];
   }) {
-    const mockTerminal = createMockTerminal();
+    const mockTerminal = createMockTerminal(input?.bufferLines);
+    const customRef = createRef<XTermRefType>();
     const mockFitAddon = input?.mockFitAddon ?? createMockFitAddon();
     const copyTextToClipboardMock = vi.fn();
 
@@ -228,6 +296,7 @@ describe("XTerm", () => {
         }}
         addons={input?.addons as never}
         customKeyEventHandler={input?.customKeyEventHandler}
+        customRef={customRef}
       />
     );
 
@@ -235,6 +304,6 @@ describe("XTerm", () => {
       return mockTerminal.attachCustomKeyEventHandler.mock.calls[0][0] as (event: KeyboardEvent) => boolean;
     };
 
-    return { ...result, mockTerminal, mockFitAddon, MockTerminal, MockFitAddon, copyTextToClipboardMock, useThemeMock, getKeyHandler };
+    return { ...result, customRef, mockTerminal, mockFitAddon, MockTerminal, MockFitAddon, copyTextToClipboardMock, useThemeMock, getKeyHandler };
   }
 });
