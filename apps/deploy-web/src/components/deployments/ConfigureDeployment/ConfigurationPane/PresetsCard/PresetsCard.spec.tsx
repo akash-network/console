@@ -110,7 +110,7 @@ describe(PresetsCard.name, () => {
 
     await pickPreset("Small preset");
 
-    expect(screen.getByRole("combobox", { name: "Preset" })).toHaveTextContent("Small preset");
+    expect(screen.getByRole("combobox", { name: "Preset" })).toHaveTextContent(/^Small preset · 2 vCPU · 4 GiB$/);
   });
 
   it("falls back to the placeholder once the resources no longer match a preset", async () => {

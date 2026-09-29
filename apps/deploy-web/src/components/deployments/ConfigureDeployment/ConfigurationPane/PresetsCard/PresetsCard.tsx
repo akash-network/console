@@ -41,7 +41,7 @@ export const PresetsCard: FC<Props> = ({ serviceIndex, locked = false, isBlocked
   const { control, setValue } = useFormContext<SdlBuilderFormValuesType>();
   const { analyticsService } = d.useServices();
   const profile = useWatch({ control, name: `services.${serviceIndex}.profile` });
-  const selectedPresetId = useMemo(() => detectPreset(d.hardwarePresets, profile ?? {})?.id ?? "", [d.hardwarePresets, profile]);
+  const selectedPreset = useMemo(() => detectPreset(d.hardwarePresets, profile ?? {}), [d.hardwarePresets, profile]);
 
   const applySelectedPreset = useCallback(
     (id: string) => {
@@ -64,11 +64,18 @@ export const PresetsCard: FC<Props> = ({ serviceIndex, locked = false, isBlocked
 
   return (
     <div className="flex flex-col gap-2">
-      <Select value={selectedPresetId} onValueChange={applySelectedPreset} disabled={locked}>
+      <Select value={selectedPreset?.id ?? ""} onValueChange={applySelectedPreset} disabled={locked}>
         <SelectTrigger aria-label="Preset" className={`h-9 ${SELECT_TRUNCATE_VALUE}`}>
-          <SelectValue placeholder="Choose a starting point..." />
+          <SelectValue placeholder="Choose a starting point...">
+            {selectedPreset && (
+              <>
+                {selectedPreset.label}
+                <span className="font-mono text-xs text-muted-foreground"> · {formatPresetSpecs(selectedPreset)}</span>
+              </>
+            )}
+          </SelectValue>
         </SelectTrigger>
-        <SelectContent className="min-w-[18rem]">
+        <SelectContent className="w-[22rem] max-w-[var(--radix-select-content-available-width)] [&_[data-radix-select-viewport]]:min-w-0">
           {groups.map(({ group, presets }, index) => (
             <Fragment key={group}>
               {index > 0 && <SelectSeparator />}
