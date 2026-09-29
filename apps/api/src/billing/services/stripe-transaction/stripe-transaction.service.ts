@@ -1,7 +1,7 @@
 import type { LoggerService } from "@akashnetwork/logging";
 import { ConstantBackoff, handleWhenResult, retry, TaskCancelledError, timeout, TimeoutStrategy, wrap } from "cockatiel";
 import assert from "http-assert";
-import createError from "http-errors";
+import createError, { isHttpError } from "http-errors";
 import Stripe from "stripe";
 import { inject, singleton } from "tsyringe";
 
@@ -44,11 +44,19 @@ export const AUTO_RECHARGE_METADATA_KEY = "auto_recharge";
 
 const CARD_DECLINED_MESSAGE = "Payment method was declined. Please try a different card.";
 
+const PAYMENT_FAILED_MESSAGE = "Payment failed";
+
 /** Without both, an issuer that wants 3DS leaves the intent stalled in requires_action instead of declining it. */
 const OFF_SESSION_CHARGE_OPTIONS = { off_session: true, error_on_requires_action: true } as const satisfies Pick<
   Stripe.PaymentIntentCreateParams,
   "off_session" | "error_on_requires_action"
 >;
+
+/** A replay that finds no decline on the intent hands this reason to the customer, so only a message written for them is kept. */
+function customerFacingFailureReason(error: unknown): string {
+  if (error instanceof Stripe.errors.StripeCardError || (isHttpError(error) && error.expose)) return error.message;
+  return PAYMENT_FAILED_MESSAGE;
+}
 
 /** The decline code lets the reload job tell a card it can retry from one the issuer will never approve. */
 function declineCodeOf(paymentIntent: Stripe.PaymentIntent): { declineCode?: string } {
@@ -385,7 +393,7 @@ export class StripeTransactionService {
 
       const updated = await this.stripeTransactionRepository.updateByIdUnlessSettled(transaction.id, {
         status: "failed",
-        errorMessage: error instanceof Error ? error.message : "Unknown error",
+        errorMessage: customerFacingFailureReason(error),
         stripePaymentIntentId: paymentIntentId
       });
 
@@ -719,7 +727,7 @@ export class StripeTransactionService {
   @WithTransaction()
   async failPaymentIntent(event: Stripe.PaymentIntentPaymentFailedEvent): Promise<void> {
     const paymentIntent = event.data.object;
-    const errorMessage = paymentIntent.last_payment_error?.message ?? "Payment failed";
+    const errorMessage = paymentIntent.last_payment_error?.message ?? PAYMENT_FAILED_MESSAGE;
 
     await this.stripeTransactionRepository.updateByPaymentIntentId(paymentIntent.id, {
       status: "failed",

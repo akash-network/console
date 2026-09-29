@@ -1,5 +1,7 @@
 import type { LoggerService } from "@akashnetwork/logging";
 import { faker } from "@faker-js/faker";
+import { DrizzleQueryError } from "drizzle-orm";
+import createError from "http-errors";
 import Stripe from "stripe";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
@@ -311,9 +313,82 @@ describe(StripeTransactionService.name, () => {
         await expect(service.createPaymentIntent(keyedParams)).rejects.toThrow("socket hang up");
         expect(stripeTransactionRepository.updateByIdUnlessSettled).toHaveBeenCalledWith(
           transaction.id,
-          expect.objectContaining({ status: "failed", errorMessage: "socket hang up" })
+          expect.objectContaining({ status: "failed", errorMessage: "Payment failed" })
         );
         expect(stripeTransactionRepository.updateById).not.toHaveBeenCalled();
+      });
+
+      describe("when the charge fails", () => {
+        it("records a card error's message, which Stripe writes for the customer", async () => {
+          const { service, stripe, stripeTransactionRepository } = setup();
+          const transaction = generateDatabaseStripeTransaction({ amount: 10000, status: "created", stripePaymentIntentId: null });
+          stripeTransactionRepository.findOrCreateByIdempotencyKey.mockResolvedValue({ transaction, isNew: true });
+          const cardError = new Stripe.errors.StripeCardError({
+            type: "card_error",
+            code: "card_declined",
+            message: "Your card has insufficient funds.",
+            payment_intent: createTestPaymentIntent({ id: "pi_declined", status: "requires_payment_method" })
+          } as Stripe.StripeRawError);
+          vi.mocked(stripe.paymentIntents.create).mockRejectedValue(cardError);
+
+          await expect(service.createPaymentIntent(keyedParams)).rejects.toBe(cardError);
+          expect(stripeTransactionRepository.updateByIdUnlessSettled).toHaveBeenCalledWith(transaction.id, {
+            status: "failed",
+            errorMessage: "Your card has insufficient funds.",
+            stripePaymentIntentId: "pi_declined"
+          });
+        });
+
+        it("records the decline it raises when the new intent needs another payment method", async () => {
+          const { service, stripe, stripeTransactionRepository } = setup();
+          const transaction = generateDatabaseStripeTransaction({ amount: 10000, status: "created", stripePaymentIntentId: null });
+          stripeTransactionRepository.findOrCreateByIdempotencyKey.mockResolvedValue({ transaction, isNew: true });
+          vi.mocked(stripe.paymentIntents.create).mockResolvedValue(createTestPaymentIntent({ id: "pi_declined", status: "requires_payment_method" }));
+
+          await expect(service.createPaymentIntent(keyedParams)).rejects.toMatchObject({ status: 402 });
+          expect(stripeTransactionRepository.updateByIdUnlessSettled).toHaveBeenLastCalledWith(
+            transaction.id,
+            expect.objectContaining({ status: "failed", errorMessage: "Payment method was declined. Please try a different card." })
+          );
+        });
+
+        it("records a generic reason instead of a failed query's message and still rethrows the query error", async () => {
+          const { service, stripeTransactionRepository } = setup();
+          const transaction = generateDatabaseStripeTransaction({ amount: 10000, status: "created", stripePaymentIntentId: null });
+          stripeTransactionRepository.findOrCreateByIdempotencyKey.mockResolvedValue({ transaction, isNew: true });
+          const failedQuery = new DrizzleQueryError(
+            'update "stripe_transactions" set "stripe_payment_intent_id" = $1',
+            ["pi_created"],
+            new Error("connection terminated")
+          );
+          stripeTransactionRepository.updateByIdUnlessSettled.mockRejectedValueOnce(failedQuery);
+
+          await expect(service.createPaymentIntent(keyedParams)).rejects.toBe(failedQuery);
+          expect(stripeTransactionRepository.updateByIdUnlessSettled).toHaveBeenLastCalledWith(
+            transaction.id,
+            expect.objectContaining({ status: "failed", errorMessage: "Payment failed" })
+          );
+        });
+
+        it.each([
+          ["a network failure", new Error("socket hang up")],
+          [
+            "a request Stripe rejected",
+            new Stripe.errors.StripeInvalidRequestError({ type: "invalid_request_error", message: "No such customer: 'cus_123'" } as Stripe.StripeRawError)
+          ],
+          ["an http error the api does not expose", createError(503, "Signer unavailable")]
+        ])("records a generic reason instead of the message of %s", async (_, error) => {
+          const { service, stripe, stripeTransactionRepository } = setup();
+          const transaction = generateDatabaseStripeTransaction({ amount: 10000, status: "created", stripePaymentIntentId: null });
+          stripeTransactionRepository.findOrCreateByIdempotencyKey.mockResolvedValue({ transaction, isNew: true });
+          vi.mocked(stripe.paymentIntents.create).mockRejectedValue(error);
+
+          await expect(service.createPaymentIntent(keyedParams)).rejects.toBe(error);
+          expect(stripeTransactionRepository.updateByIdUnlessSettled).toHaveBeenCalledWith(
+            transaction.id,
+            expect.objectContaining({ status: "failed", errorMessage: "Payment failed" })
+          );
+        });
       });
 
       describe("when a webhook settles the row mid-request", () => {
