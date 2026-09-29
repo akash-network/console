@@ -3,6 +3,7 @@ import "nprogress/nprogress.css";
 import "../styles/index.css";
 
 import React from "react";
+import { LoggerService } from "@akashnetwork/logging";
 import { TooltipProvider } from "@akashnetwork/ui/components";
 import { CustomSnackbarProvider, PopupProvider } from "@akashnetwork/ui/context";
 import { cn } from "@akashnetwork/ui/utils";
@@ -37,6 +38,7 @@ import { RootContainerProvider, useRootContainer } from "@src/context/ServicesPr
 import { WalletProvider } from "@src/context/WalletProvider";
 import type { PageWithAuth } from "@src/lib/pages/definePublicPage";
 import { store } from "@src/store/global-store";
+import { tolerateTranslatorDomEdits } from "@src/utils/tolerateTranslatorDomEdits/tolerateTranslatorDomEdits";
 
 interface Props extends AppProps {
   seo?: NextSeoProps;
@@ -50,6 +52,10 @@ NProgress.configure({
 Router.events.on("routeChangeStart", () => NProgress.start());
 Router.events.on("routeChangeComplete", () => NProgress.done());
 Router.events.on("routeChangeError", () => NProgress.done());
+
+if (typeof window !== "undefined") {
+  tolerateTranslatorDomEdits(Node.prototype, LoggerService.forContext("TranslatorDomGuard"));
+}
 
 const App: React.FunctionComponent<Props> = props => {
   const { Component, pageProps } = props;
