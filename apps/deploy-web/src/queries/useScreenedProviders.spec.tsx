@@ -5,7 +5,7 @@ import { mock } from "vitest-mock-extended";
 
 import { AUDITOR } from "@src/utils/deploymentData/v1beta3";
 import { setupQuery } from "../../tests/unit/query-client";
-import type { ScreenedProvider, ScreenedProvidersResponse, ScreeningRequest } from "./useScreenedProviders";
+import type { KeyedScreeningRequest, ScreenedProvider, ScreenedProvidersResponse, ScreeningRequest } from "./useScreenedProviders";
 import {
   buildCatalogScreeningRequest,
   buildPlacementScreeningRequest,
@@ -265,7 +265,7 @@ describe(toScreeningRequest.name, () => {
 
 describe(useScreenedProviderCounts.name, () => {
   it("counts the providers each request screens to", async () => {
-    const { result } = setup({ requests: [requestForRegion("west"), requestForRegion("east")], providersByRegion: { west: 2, east: 0 } });
+    const { result } = setup({ requests: [keyed("a", "west"), keyed("b", "east")], providersByRegion: { west: 2, east: 0 } });
 
     await waitFor(() =>
       expect(result.current.counts).toEqual([
@@ -276,7 +276,7 @@ describe(useScreenedProviderCounts.name, () => {
   });
 
   it("never sends a null request and counts it as unknown", async () => {
-    const { result, screenProviders } = setup({ requests: [null, requestForRegion("west")], providersByRegion: { west: 1 } });
+    const { result, screenProviders } = setup({ requests: [{ key: "a", request: null }, keyed("b", "west")], providersByRegion: { west: 1 } });
 
     await waitFor(() => expect(result.current.counts[1].count).toBe(1));
     expect(result.current.counts[0]).toEqual({ count: null, isLoading: false });
@@ -284,14 +284,41 @@ describe(useScreenedProviderCounts.name, () => {
   });
 
   it("reports a request as loading until it is screened", () => {
-    const { result } = setup({ requests: [requestForRegion("west")], providersByRegion: { west: 1 }, pending: true });
+    const { result } = setup({ requests: [keyed("a", "west")], providersByRegion: {}, pendingRegions: ["west"] });
 
     expect(result.current.counts).toEqual([{ count: null, isLoading: true }]);
   });
 
+  it("keeps a key's last count while its changed request is screened", async () => {
+    const { result, rerender } = setup({ requests: [keyed("a", "west")], providersByRegion: { west: 2 }, pendingRegions: ["east"] });
+    await waitFor(() => expect(result.current.counts[0].count).toBe(2));
+
+    rerender([keyed("a", "east")]);
+
+    await waitFor(() => expect(result.current.counts).toEqual([{ count: 2, isLoading: true }]));
+  });
+
+  it("gives a new key no count until its request is screened", async () => {
+    const { result, rerender } = setup({ requests: [keyed("a", "west")], providersByRegion: { west: 2 }, pendingRegions: ["east"] });
+    await waitFor(() => expect(result.current.counts[0].count).toBe(2));
+
+    rerender([keyed("b", "east")]);
+
+    await waitFor(() => expect(result.current.counts).toEqual([{ count: null, isLoading: true }]));
+  });
+
+  it("forgets the count of a request that can no longer be screened", async () => {
+    const { result, rerender } = setup({ requests: [keyed("a", "west")], providersByRegion: { west: 2 } });
+    await waitFor(() => expect(result.current.counts[0].count).toBe(2));
+
+    rerender([{ key: "a", request: null }]);
+
+    expect(result.current.counts).toEqual([{ count: null, isLoading: false }]);
+  });
+
   it("reuses the screening the provider count already ran for the same spec", async () => {
     const { result, screenProviders } = setup({
-      requests: [toScreeningRequest(sdlForRegion("west"), "dcloud")],
+      requests: [keyed("a", "west")],
       providersByRegion: { west: 3 },
       alongsideHeadline: sdlForRegion("west")
     });
@@ -301,19 +328,25 @@ describe(useScreenedProviderCounts.name, () => {
     expect(screenProviders).toHaveBeenCalledTimes(1);
   });
 
-  function setup(input: { requests: (ScreeningRequest | null)[]; providersByRegion: Record<string, number>; pending?: boolean; alongsideHeadline?: string }) {
+  function setup(input: {
+    requests: KeyedScreeningRequest[];
+    providersByRegion: Record<string, number>;
+    pendingRegions?: string[];
+    alongsideHeadline?: string;
+  }) {
     const screenProviders = vi.fn(async (request: ScreeningRequest): Promise<ScreenedProvidersResponse> => {
-      if (input.pending) return new Promise(() => {});
       const region = (request.requirements?.attributes ?? []).find(attribute => attribute.key === "location-region")!.value;
+      if (input.pendingRegions?.includes(region)) return new Promise(() => {});
       return { providers: Array.from({ length: input.providersByRegion[region] }, () => buildScreenedProvider()) };
     });
     const api = createProxy({ v1: { screenProviders } }) as unknown as ReturnType<
       NonNullable<NonNullable<NonNullable<Parameters<typeof setupQuery>[1]>["services"]>["api"]>
     >;
 
+    const current = { requests: input.requests };
     const view = setupQuery(
       () => ({
-        counts: useScreenedProviderCounts(input.requests),
+        counts: useScreenedProviderCounts(current.requests),
         headline: useScreenedProviders({
           sdl: input.alongsideHeadline ?? HELLO_WORLD_SDL,
           placementName: "dcloud",
@@ -323,11 +356,16 @@ describe(useScreenedProviderCounts.name, () => {
       { services: { api: () => api } }
     );
 
-    return { result: view.result, screenProviders };
+    function rerender(requests: KeyedScreeningRequest[]) {
+      current.requests = requests;
+      view.rerender();
+    }
+
+    return { result: view.result, screenProviders, rerender };
   }
 
-  function requestForRegion(region: string): ScreeningRequest {
-    return toScreeningRequest(sdlForRegion(region), "dcloud")!;
+  function keyed(key: string, region: string): KeyedScreeningRequest {
+    return { key, request: toScreeningRequest(sdlForRegion(region), "dcloud") };
   }
 });
 

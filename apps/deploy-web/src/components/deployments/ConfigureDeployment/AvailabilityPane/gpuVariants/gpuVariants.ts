@@ -2,7 +2,6 @@ import { isLogCollectorService } from "@src/components/sdl/LogCollectorControl/L
 import type { ScreeningRequest } from "@src/queries/useScreenedProviders";
 import { toScreeningRequest } from "@src/queries/useScreenedProviders";
 import type { SdlBuilderFormValuesType } from "@src/types";
-import { defaultGpuModel } from "@src/utils/sdl/data";
 import { generateSdl } from "@src/utils/sdl/sdlGenerator";
 import type { GpuModelCandidate } from "../gpuAvailability/gpuAvailability";
 import { isPlacementGpuService } from "../gpuAvailability/gpuAvailability";
@@ -42,7 +41,7 @@ export function screeningRequestOf(values: SdlBuilderFormValuesType, placementNa
 
 function switchGpuModel(service: Service, model: Pick<GpuModelCandidate, "vendor" | "name">): Service {
   const [firstModel, ...otherModels] = service.profile.gpuModels ?? [];
-  const pickedModel = { ...(firstModel ?? defaultGpuModel), vendor: model.vendor, name: model.name, memory: "", interface: "" };
+  const pickedModel = { ...firstModel, vendor: model.vendor, name: model.name, memory: "", interface: "" };
   const gpu = service.profile.hasGpu && (service.profile.gpu ?? 0) > 0 ? service.profile.gpu : 1;
 
   return { ...service, profile: { ...service.profile, hasGpu: true, gpu, gpuModels: [pickedModel, ...otherModels] } };

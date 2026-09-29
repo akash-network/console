@@ -53,6 +53,15 @@ describe(withGpuModel.name, () => {
     });
   });
 
+  it.each([
+    ["switched off with units left", { hasGpu: false, gpu: 2 }],
+    ["switched on with no units", { hasGpu: true, gpu: 0 }]
+  ])("asks for one unit from a gpu %s", (_, gpuState) => {
+    const values = gpuForm({ ...gpuState, gpuModels: [{ vendor: "nvidia", name: "a100" }] });
+
+    expect(withGpuModel(values, "p1", H100).services[0].profile).toMatchObject({ hasGpu: true, gpu: 1 });
+  });
+
   it("seeds a model for a service that has none", () => {
     const values = gpuForm({ hasGpu: false, gpuModels: [] });
 

@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useRef } from "react";
 import { GroupSpec } from "@akashnetwork/chain-sdk/private-types/akash.v1beta4";
 import { generateManifest, type SDLInput, yaml } from "@akashnetwork/chain-sdk/web";
 import type { paths } from "@akashnetwork/console-api-types";
@@ -32,6 +32,11 @@ interface UseScreenedProvidersInput {
    * `keepPreviousData`) while live bids drive the marketplace.
    */
   enabled?: boolean;
+}
+
+export interface KeyedScreeningRequest {
+  key: string;
+  request: ScreeningRequest | null;
 }
 
 export interface ScreenedProviderCount {
@@ -94,19 +99,21 @@ export function useScreenedProviders({ sdl, placementName, enabled = true }: Use
   };
 }
 
-/** A null request is never sent and counts as unknown. */
-export function useScreenedProviderCounts(requests: (ScreeningRequest | null)[]): ScreenedProviderCount[] {
+/** Keeps each key's last count while it is re-screened, because `useQueries` drops placeholder data when a query key changes. */
+export function useScreenedProviderCounts(requests: KeyedScreeningRequest[]): ScreenedProviderCount[] {
   const { api } = useServices();
+  const lastCountByKey = useRef(new Map<string, number>());
   const results = useQueries({
-    queries: requests.map(request =>
-      api.v1.screenProviders.queryOptions(request ?? SKIPPED_SCREENING_REQUEST, { enabled: request !== null, placeholderData: keepPreviousData })
-    )
+    queries: requests.map(({ request }) => api.v1.screenProviders.queryOptions(request ?? SKIPPED_SCREENING_REQUEST, { enabled: request !== null }))
   });
 
-  return results.map((result, index) => ({
-    count: requests[index] === null ? null : result.data?.providers.length ?? null,
-    isLoading: result.isLoading
-  }));
+  return results.map((result, index) => {
+    const { key, request } = requests[index];
+    if (request === null) return { count: null, isLoading: false };
+    const count = result.data?.providers.length;
+    if (count !== undefined) lastCountByKey.current.set(key, count);
+    return { count: count ?? lastCountByKey.current.get(key) ?? null, isLoading: result.isLoading };
+  });
 }
 
 /** Every caller builds its request here so equal specs share one query cache entry. */

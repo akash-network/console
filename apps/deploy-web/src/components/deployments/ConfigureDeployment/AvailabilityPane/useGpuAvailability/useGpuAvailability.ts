@@ -12,6 +12,8 @@ import { screeningRequestOf, withGpuModel, withoutGpu } from "../gpuVariants/gpu
 
 export const DEPENDENCIES = { usePlacementOptions, useGpuModels, useScreenedProviderCounts };
 
+const NO_GPU_KEY = "no-gpu";
+
 export interface GpuAvailability {
   requestedLabel: string;
   alternatives: GpuAvailabilityModel[];
@@ -30,8 +32,13 @@ export function useGpuAvailability(placement: Pick<PlacementType, "id" | "name">
   const requested = useMemo(() => requestedGpuOf(pacedValues.services, placement.id), [pacedValues.services, placement.id]);
   const candidates = useMemo(() => candidateGpuModels(placementOptions, requested), [placementOptions, requested]);
   const requests = useMemo(() => {
-    const modelRequests = candidates.map(model => screeningRequestOf(withGpuModel(pacedValues, placement.id, model), placement.name));
-    return requested ? [...modelRequests, screeningRequestOf(withoutGpu(pacedValues, placement.id), placement.name)] : modelRequests;
+    const modelRequests = candidates.map(model => ({
+      key: model.key,
+      request: screeningRequestOf(withGpuModel(pacedValues, placement.id, model), placement.name)
+    }));
+    return requested
+      ? [...modelRequests, { key: NO_GPU_KEY, request: screeningRequestOf(withoutGpu(pacedValues, placement.id), placement.name) }]
+      : modelRequests;
   }, [candidates, pacedValues, placement.id, placement.name, requested]);
   const counts = dependencies.useScreenedProviderCounts(requests);
 
@@ -41,7 +48,7 @@ export function useGpuAvailability(placement: Pick<PlacementType, "id" | "name">
   return {
     requestedLabel: requestedGpuLabel(requested, catalog),
     alternatives,
-    noGpuCount: requested ? counts[candidates.length]?.count ?? null : null,
+    noGpuCount: requested ? counts[candidates.length].count : null,
     isChecking,
     noOtherModelFits: candidates.length > 0 && !isChecking && alternatives.length === 0
   };

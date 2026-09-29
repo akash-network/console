@@ -5,7 +5,7 @@ import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { PlacementOptions } from "@src/queries/usePlacementOptions";
-import type { ScreeningRequest } from "@src/queries/useScreenedProviders";
+import type { KeyedScreeningRequest, ScreeningRequest } from "@src/queries/useScreenedProviders";
 import { SCREENING_DEBOUNCE_MS } from "@src/queries/useScreenedProviders";
 import type { SdlBuilderFormValuesType } from "@src/types";
 import type { GpuVendor } from "@src/types/gpu";
@@ -20,11 +20,13 @@ const NO_GPU = "no-gpu";
 
 describe(useGpuAvailability.name, () => {
   it("counts each other model by screening the configuration with only the model switched", () => {
-    const { result, screenedRequests } = setup({ gpuModel: "h100", interconnect: true, screened: { a100: 2, t4: 0, [NO_GPU]: 25 } });
+    const { result, screenedRequests, screenedKeys } = setup({ gpuModel: "h100", interconnect: true, screened: { a100: 2, t4: 0, [NO_GPU]: 25 } });
 
     expect(result.current.requestedLabel).toBe("H100");
     expect(result.current.alternatives).toEqual([{ key: "nvidia/a100", label: "A100", providerCount: 2 }]);
+    expect(result.current.noOtherModelFits).toBe(false);
     expect(screenedRequests().map(modelOf)).toEqual(["a100", "t4", NO_GPU]);
+    expect(screenedKeys()).toEqual(["nvidia/a100", "nvidia/t4", "no-gpu"]);
     expect(screenedRequests().every(request => request.requirements?.attributes?.some(attribute => attribute.key === GPU_INTERCONNECT_CAPABILITY_KEY))).toBe(
       true
     );
@@ -131,8 +133,8 @@ describe(useGpuAvailability.name, () => {
         ]
       }
     ];
-    const useScreenedProviderCounts = vi.fn((requests: (ScreeningRequest | null)[]) =>
-      requests.map(request => {
+    const useScreenedProviderCounts = vi.fn((requests: KeyedScreeningRequest[]) =>
+      requests.map(({ request }) => {
         const model = request ? modelOf(request) : NO_GPU;
         return { count: input.screened[model] ?? null, isLoading: input.loading?.includes(model) ?? false };
       })
@@ -153,7 +155,9 @@ describe(useGpuAvailability.name, () => {
     return {
       result: view.result,
       form: () => formMethods!,
-      screenedRequests: () => (useScreenedProviderCounts.mock.lastCall?.[0] ?? []).filter((request): request is ScreeningRequest => request !== null)
+      screenedKeys: () => (useScreenedProviderCounts.mock.lastCall?.[0] ?? []).map(({ key }) => key),
+      screenedRequests: () =>
+        (useScreenedProviderCounts.mock.lastCall?.[0] ?? []).map(({ request }) => request).filter((request): request is ScreeningRequest => request !== null)
     };
   }
 });
