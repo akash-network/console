@@ -456,6 +456,13 @@
       "when": 1790539996675,
       "tag": "0064_deployment_settings_detected_gpus_index",
       "breakpoints": true
+    },
+    {
+      "idx": 65,
+      "version": "7",
+      "when": 1790707582006,
+      "tag": "0065_hardware_requests",
+      "breakpoints": true
     }
   ]
 }

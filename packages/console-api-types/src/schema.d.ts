@@ -6327,6 +6327,23 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/v1/hardware-requests": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Ask the Akash team for a GPU model, more capacity or a region that is not available yet */
+    post: operations["createHardwareRequest"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/v1/alerts": {
     parameters: {
       query?: never;
@@ -10341,6 +10358,137 @@ export interface operations {
       };
       /** @description Invalid request body */
       400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  createHardwareRequest: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": {
+          data:
+            | {
+                /** @enum {string} */
+                category: "gpu_model";
+                gpuModel: string;
+                quantity: number;
+                details?: string;
+                /** Format: email */
+                email: string;
+                configuration?: {
+                  summary: string;
+                  cpu: number;
+                  memoryBytes: number;
+                  storageBytes: number;
+                  region: string | null;
+                  gpu?: {
+                    count: number;
+                    models: string[];
+                  };
+                };
+              }
+            | {
+                /** @enum {string} */
+                category: "capacity";
+                gpuModel?: string;
+                quantity: number;
+                details?: string;
+                /** Format: email */
+                email: string;
+                configuration?: {
+                  summary: string;
+                  cpu: number;
+                  memoryBytes: number;
+                  storageBytes: number;
+                  region: string | null;
+                  gpu?: {
+                    count: number;
+                    models: string[];
+                  };
+                };
+              }
+            | {
+                /** @enum {string} */
+                category: "region";
+                region: string;
+                details?: string;
+                /** Format: email */
+                email: string;
+                configuration?: {
+                  summary: string;
+                  cpu: number;
+                  memoryBytes: number;
+                  storageBytes: number;
+                  region: string | null;
+                  gpu?: {
+                    count: number;
+                    models: string[];
+                  };
+                };
+              }
+            | {
+                /** @enum {string} */
+                category: "other";
+                details: string;
+                /** Format: email */
+                email: string;
+                configuration?: {
+                  summary: string;
+                  cpu: number;
+                  memoryBytes: number;
+                  storageBytes: number;
+                  region: string | null;
+                  gpu?: {
+                    count: number;
+                    models: string[];
+                  };
+                };
+              };
+        };
+      };
+    };
+    responses: {
+      /** @description The request was recorded and the Akash team will follow up by email */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            data: {
+              /** Format: uuid */
+              id: string;
+              /** Format: date-time */
+              createdAt: string;
+            };
+          };
+        };
+      };
+      /** @description Invalid request body */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Too many requests sent recently */
+      429: {
         headers: {
           [name: string]: unknown;
         };

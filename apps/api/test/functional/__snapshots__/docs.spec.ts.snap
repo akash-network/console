@@ -11671,6 +11671,425 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
         ],
       },
     },
+    "/v1/hardware-requests": {
+      "post": {
+        "operationId": "createHardwareRequest",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "data": {
+                    "oneOf": [
+                      {
+                        "properties": {
+                          "category": {
+                            "enum": [
+                              "gpu_model",
+                            ],
+                            "type": "string",
+                          },
+                          "configuration": {
+                            "properties": {
+                              "cpu": {
+                                "minimum": 0,
+                                "type": "number",
+                              },
+                              "gpu": {
+                                "properties": {
+                                  "count": {
+                                    "minimum": 0,
+                                    "type": "integer",
+                                  },
+                                  "models": {
+                                    "items": {
+                                      "maxLength": 100,
+                                      "type": "string",
+                                    },
+                                    "maxItems": 20,
+                                    "type": "array",
+                                  },
+                                },
+                                "required": [
+                                  "count",
+                                  "models",
+                                ],
+                                "type": "object",
+                              },
+                              "memoryBytes": {
+                                "minimum": 0,
+                                "type": "integer",
+                              },
+                              "region": {
+                                "maxLength": 100,
+                                "nullable": true,
+                                "type": "string",
+                              },
+                              "storageBytes": {
+                                "minimum": 0,
+                                "type": "integer",
+                              },
+                              "summary": {
+                                "maxLength": 500,
+                                "type": "string",
+                              },
+                            },
+                            "required": [
+                              "summary",
+                              "cpu",
+                              "memoryBytes",
+                              "storageBytes",
+                              "region",
+                            ],
+                            "type": "object",
+                          },
+                          "details": {
+                            "maxLength": 2000,
+                            "type": "string",
+                          },
+                          "email": {
+                            "format": "email",
+                            "maxLength": 255,
+                            "type": "string",
+                          },
+                          "gpuModel": {
+                            "maxLength": 100,
+                            "minLength": 1,
+                            "type": "string",
+                          },
+                          "quantity": {
+                            "maximum": 1000,
+                            "minimum": 1,
+                            "type": "integer",
+                          },
+                        },
+                        "required": [
+                          "category",
+                          "gpuModel",
+                          "quantity",
+                          "email",
+                        ],
+                        "type": "object",
+                      },
+                      {
+                        "properties": {
+                          "category": {
+                            "enum": [
+                              "capacity",
+                            ],
+                            "type": "string",
+                          },
+                          "configuration": {
+                            "properties": {
+                              "cpu": {
+                                "minimum": 0,
+                                "type": "number",
+                              },
+                              "gpu": {
+                                "properties": {
+                                  "count": {
+                                    "minimum": 0,
+                                    "type": "integer",
+                                  },
+                                  "models": {
+                                    "items": {
+                                      "maxLength": 100,
+                                      "type": "string",
+                                    },
+                                    "maxItems": 20,
+                                    "type": "array",
+                                  },
+                                },
+                                "required": [
+                                  "count",
+                                  "models",
+                                ],
+                                "type": "object",
+                              },
+                              "memoryBytes": {
+                                "minimum": 0,
+                                "type": "integer",
+                              },
+                              "region": {
+                                "maxLength": 100,
+                                "nullable": true,
+                                "type": "string",
+                              },
+                              "storageBytes": {
+                                "minimum": 0,
+                                "type": "integer",
+                              },
+                              "summary": {
+                                "maxLength": 500,
+                                "type": "string",
+                              },
+                            },
+                            "required": [
+                              "summary",
+                              "cpu",
+                              "memoryBytes",
+                              "storageBytes",
+                              "region",
+                            ],
+                            "type": "object",
+                          },
+                          "details": {
+                            "maxLength": 2000,
+                            "type": "string",
+                          },
+                          "email": {
+                            "format": "email",
+                            "maxLength": 255,
+                            "type": "string",
+                          },
+                          "gpuModel": {
+                            "maxLength": 100,
+                            "minLength": 1,
+                            "type": "string",
+                          },
+                          "quantity": {
+                            "maximum": 1000,
+                            "minimum": 1,
+                            "type": "integer",
+                          },
+                        },
+                        "required": [
+                          "category",
+                          "quantity",
+                          "email",
+                        ],
+                        "type": "object",
+                      },
+                      {
+                        "properties": {
+                          "category": {
+                            "enum": [
+                              "region",
+                            ],
+                            "type": "string",
+                          },
+                          "configuration": {
+                            "properties": {
+                              "cpu": {
+                                "minimum": 0,
+                                "type": "number",
+                              },
+                              "gpu": {
+                                "properties": {
+                                  "count": {
+                                    "minimum": 0,
+                                    "type": "integer",
+                                  },
+                                  "models": {
+                                    "items": {
+                                      "maxLength": 100,
+                                      "type": "string",
+                                    },
+                                    "maxItems": 20,
+                                    "type": "array",
+                                  },
+                                },
+                                "required": [
+                                  "count",
+                                  "models",
+                                ],
+                                "type": "object",
+                              },
+                              "memoryBytes": {
+                                "minimum": 0,
+                                "type": "integer",
+                              },
+                              "region": {
+                                "maxLength": 100,
+                                "nullable": true,
+                                "type": "string",
+                              },
+                              "storageBytes": {
+                                "minimum": 0,
+                                "type": "integer",
+                              },
+                              "summary": {
+                                "maxLength": 500,
+                                "type": "string",
+                              },
+                            },
+                            "required": [
+                              "summary",
+                              "cpu",
+                              "memoryBytes",
+                              "storageBytes",
+                              "region",
+                            ],
+                            "type": "object",
+                          },
+                          "details": {
+                            "maxLength": 2000,
+                            "type": "string",
+                          },
+                          "email": {
+                            "format": "email",
+                            "maxLength": 255,
+                            "type": "string",
+                          },
+                          "region": {
+                            "maxLength": 100,
+                            "minLength": 1,
+                            "type": "string",
+                          },
+                        },
+                        "required": [
+                          "category",
+                          "region",
+                          "email",
+                        ],
+                        "type": "object",
+                      },
+                      {
+                        "properties": {
+                          "category": {
+                            "enum": [
+                              "other",
+                            ],
+                            "type": "string",
+                          },
+                          "configuration": {
+                            "properties": {
+                              "cpu": {
+                                "minimum": 0,
+                                "type": "number",
+                              },
+                              "gpu": {
+                                "properties": {
+                                  "count": {
+                                    "minimum": 0,
+                                    "type": "integer",
+                                  },
+                                  "models": {
+                                    "items": {
+                                      "maxLength": 100,
+                                      "type": "string",
+                                    },
+                                    "maxItems": 20,
+                                    "type": "array",
+                                  },
+                                },
+                                "required": [
+                                  "count",
+                                  "models",
+                                ],
+                                "type": "object",
+                              },
+                              "memoryBytes": {
+                                "minimum": 0,
+                                "type": "integer",
+                              },
+                              "region": {
+                                "maxLength": 100,
+                                "nullable": true,
+                                "type": "string",
+                              },
+                              "storageBytes": {
+                                "minimum": 0,
+                                "type": "integer",
+                              },
+                              "summary": {
+                                "maxLength": 500,
+                                "type": "string",
+                              },
+                            },
+                            "required": [
+                              "summary",
+                              "cpu",
+                              "memoryBytes",
+                              "storageBytes",
+                              "region",
+                            ],
+                            "type": "object",
+                          },
+                          "details": {
+                            "maxLength": 2000,
+                            "minLength": 1,
+                            "type": "string",
+                          },
+                          "email": {
+                            "format": "email",
+                            "maxLength": 255,
+                            "type": "string",
+                          },
+                        },
+                        "required": [
+                          "category",
+                          "details",
+                          "email",
+                        ],
+                        "type": "object",
+                      },
+                    ],
+                  },
+                },
+                "required": [
+                  "data",
+                ],
+                "type": "object",
+              },
+            },
+          },
+          "required": true,
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "properties": {
+                        "createdAt": {
+                          "format": "date-time",
+                          "type": "string",
+                        },
+                        "id": {
+                          "format": "uuid",
+                          "type": "string",
+                        },
+                      },
+                      "required": [
+                        "id",
+                        "createdAt",
+                      ],
+                      "type": "object",
+                    },
+                  },
+                  "required": [
+                    "data",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "The request was recorded and the Akash team will follow up by email",
+          },
+          "400": {
+            "description": "Invalid request body",
+          },
+          "401": {
+            "description": "Unauthorized",
+          },
+          "429": {
+            "description": "Too many requests sent recently",
+          },
+        },
+        "security": [
+          {
+            "BearerAuth": [],
+          },
+        ],
+        "summary": "Ask the Akash team for a GPU model, more capacity or a region that is not available yet",
+        "tags": [
+          "Hardware Requests",
+        ],
+      },
+    },
     "/v1/leases": {
       "post": {
         "description": "Creates the leases, then sends each provider its manifest. If a provider refuses the manifest once its lease exists, the error carries code \`manifest_not_delivered\` and the status the provider path produced. Send the same request again to retry the manifest, or close the deployment to stop paying for it.",
