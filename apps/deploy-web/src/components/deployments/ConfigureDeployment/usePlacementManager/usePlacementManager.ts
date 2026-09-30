@@ -212,11 +212,7 @@ function newConfigureService(placementId: string, values: SdlBuilderFormValuesTy
   return withSeededSshKey(seeded, values);
 }
 
-/**
- * Seeds the deployment-wide SSH key onto a freshly added service so it isn't left
- * invalid while "Expose SSH" is on — the schema requires every service to carry
- * the key. No-op when SSH is off or no key has been set on any service yet.
- */
+/** Seeds the deployment-wide SSH key onto a freshly added service so it matches its siblings; a no-op until a key is set. */
 function withSeededSshKey(service: ServiceType, values: SdlBuilderFormValuesType): ServiceType {
   if (!values.hasSSHKey) {
     return service;

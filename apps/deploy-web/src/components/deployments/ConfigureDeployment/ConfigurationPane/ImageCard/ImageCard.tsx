@@ -24,11 +24,10 @@ import { normalizeDockerImage } from "@src/utils/sdl/normalizeDockerImage";
 import { isSdlReference } from "@src/utils/sdl/sdlSecrets";
 import { isVmImage, SSH_VM_IMAGES } from "@src/utils/sdl/vmImages";
 import { dockerImageTooltip, operatingSystemTooltip } from "../cardTooltips";
-import { ExposeSshField } from "../ExposeSshField/ExposeSshField";
 import { SELECT_TRUNCATE_VALUE } from "../selectStyles";
 import { SshPublicKeyField } from "../SshPublicKeyField/SshPublicKeyField";
 
-export const DEPENDENCIES = { CollapsibleCard, SshPublicKeyField, ExposeSshField };
+export const DEPENDENCIES = { CollapsibleCard, SshPublicKeyField };
 
 type Props = {
   serviceIndex: number;
@@ -58,7 +57,7 @@ const KEPT_CREDENTIAL_PLACEHOLDER = "Kept from your deployment. Type to replace.
  * column so the one required runtime field is immediately accessible. Edits the Docker image and,
  * behind the "Private registry" toggle, the host/username/password credentials
  * (`hasCredentials`/`credentials`). Checking "Private registry" reveals the credentials fields and
- * seeds defaults; unchecking clears them. Below them, "Expose SSH" holds the optional SSH public key.
+ * seeds defaults; unchecking clears them.
  *
  * A service running a managed SSH-VM image presents as an "Operating System" card instead: the image
  * becomes a distro Select over the managed catalog (the form always stores the real image ref), the
@@ -102,8 +101,6 @@ export const ImageCard: FC<Props> = ({ serviceIndex, locked = false, dependencie
             <ImageField serviceIndex={serviceIndex} hasCredentials={!!hasCredentials.field.value} onToggleCredentials={hasCredentials.field.onChange} />
 
             {hasCredentials.field.value && <CredentialsFields serviceIndex={serviceIndex} />}
-
-            <d.ExposeSshField serviceIndex={serviceIndex} />
           </>
         )}
       </fieldset>

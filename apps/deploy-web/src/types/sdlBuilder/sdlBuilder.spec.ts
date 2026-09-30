@@ -355,6 +355,38 @@ describe("SdlBuilderFormValuesSchema", () => {
     expect(result.error.issues).toContainEqual(expect.objectContaining({ path: ["services", 0, "sshPubKey"], message: "SSH Public key is required." }));
   });
 
+  it("requires an ssh key on a vm service that carries no key field at all", () => {
+    const { sshPubKey: _omitted, ...serviceWithoutKey } = vmService();
+
+    const result = SdlBuilderFormValuesSchema.safeParse({ placements: [{ id: "p-1", name: "dcloud" }], services: [serviceWithoutKey] });
+
+    expect(result.error?.issues).toContainEqual(expect.objectContaining({ path: ["services", 0, "sshPubKey"], message: "SSH Public key is required." }));
+  });
+
+  it("asks a container service for no ssh key while the deployment-wide flag is on", () => {
+    const result = SdlBuilderFormValuesSchema.safeParse({
+      placements: [{ id: "p-1", name: "dcloud" }],
+      services: [{ ...vmService(), image: "nginx:latest", expose: [{ port: 80, as: 80, proto: "http", global: true }], sshPubKey: "" }],
+      hasSSHKey: true
+    });
+
+    expect(result.success).toBe(true);
+  });
+
+  it("points a missing key at the vm service rather than a container listed before it", () => {
+    const result = SdlBuilderFormValuesSchema.safeParse({
+      placements: [{ id: "p-1", name: "dcloud" }],
+      services: [
+        { ...vmService(), id: "svc-web", title: "web", image: "nginx:latest", expose: [{ port: 80, as: 80, proto: "http", global: true }], sshPubKey: "" },
+        { ...vmService(), sshPubKey: "" }
+      ],
+      hasSSHKey: true
+    });
+
+    expect(result.error?.issues).toContainEqual(expect.objectContaining({ path: ["services", 1, "sshPubKey"], message: "SSH Public key is required." }));
+    expect(result.error?.issues).not.toContainEqual(expect.objectContaining({ path: ["services", 0, "sshPubKey"] }));
+  });
+
   it("rejects a whitespace-only ssh key on a vm service", () => {
     const result = SdlBuilderFormValuesSchema.safeParse({
       placements: [{ id: "p-1", name: "dcloud" }],
