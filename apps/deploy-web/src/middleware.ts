@@ -3,7 +3,12 @@ import { netConfig } from "@akashnetwork/net";
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 
-import { buildContentSecurityPolicy, getContentSecurityPolicyHeaderName, getContentSecurityPolicyReportHeaders } from "./lib/csp/csp";
+import {
+  buildContentSecurityPolicy,
+  getContentSecurityPolicyHeaderName,
+  getContentSecurityPolicyReportHeaders,
+  isSampledForViolationReports
+} from "./lib/csp/csp";
 
 const logger = new LoggerService({ name: "middleware" });
 
@@ -25,7 +30,8 @@ export function middleware(request: NextRequest) {
     unleashFrontendApiUrl: process.env.NEXT_PUBLIC_UNLEASH_FRONTEND_API_URL,
     sentryDsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
     templatesUrl: process.env.NEXT_PUBLIC_BASE_TEMPLATES_URL,
-    networkRpcAndApiUrls
+    networkRpcAndApiUrls,
+    reportViolations: isSampledForViolationReports()
   };
   const contentSecurityPolicy = buildContentSecurityPolicy(contentSecurityPolicyInput);
   const contentSecurityPolicyHeaderName = getContentSecurityPolicyHeaderName();

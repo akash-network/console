@@ -3,6 +3,9 @@ const CSP_HEADER_REPORT_ONLY = "Content-Security-Policy-Report-Only";
 const CSP_REPORT_ENDPOINT_NAME = "csp-endpoint";
 const CSP_REPORT_MAX_AGE_SECONDS = 10886400;
 
+/** Every violation report counts as an error against the monthly Sentry quota. */
+export const VIOLATION_REPORT_SAMPLE_RATE = 0.1;
+
 const isDevelopment = process.env.NODE_ENV !== "production";
 
 /**
@@ -70,6 +73,11 @@ export interface ContentSecurityPolicyInput {
   sentryDsn?: string;
   templatesUrl?: string;
   networkRpcAndApiUrls?: string[];
+  reportViolations?: boolean;
+}
+
+export function isSampledForViolationReports(random: () => number = Math.random): boolean {
+  return random() < VIOLATION_REPORT_SAMPLE_RATE;
 }
 
 /**
@@ -139,7 +147,7 @@ export function buildContentSecurityPolicy(input: ContentSecurityPolicyInput) {
 
   const connectSrc = dedupeOrigins(["'self'", ...envConnectOrigins, ...FIXED_VENDOR_CONNECT_ORIGINS, ...MARKETING_TAG_CONNECT_ORIGINS]);
   const imgSrc = dedupeOrigins(["'self'", ...FIXED_IMG_SRC]);
-  const sentrySecurityReportUri = toSentrySecurityReportUri(input.sentryDsn);
+  const sentrySecurityReportUri = toViolationReportUri(input);
 
   if (isDevelopment) {
     scriptSrc.push("'unsafe-eval'");
@@ -171,7 +179,7 @@ export function getContentSecurityPolicyHeaderName() {
 }
 
 export function getContentSecurityPolicyReportHeaders(input: ContentSecurityPolicyInput) {
-  const sentrySecurityReportUri = toSentrySecurityReportUri(input.sentryDsn);
+  const sentrySecurityReportUri = toViolationReportUri(input);
 
   if (!sentrySecurityReportUri) return [];
 
@@ -190,6 +198,10 @@ export function getContentSecurityPolicyReportHeaders(input: ContentSecurityPoli
       value: `${CSP_REPORT_ENDPOINT_NAME}="${sentrySecurityReportUri}"`
     }
   ];
+}
+
+function toViolationReportUri(input: ContentSecurityPolicyInput) {
+  return input.reportViolations ? toSentrySecurityReportUri(input.sentryDsn) : undefined;
 }
 
 function dedupeOrigins(origins: Array<string | undefined>) {

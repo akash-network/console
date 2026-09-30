@@ -2,7 +2,13 @@ import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 
 import { createLogger } from "./lib/createLogger/createLogger";
-import { buildContentSecurityPolicy, generateNonce, getContentSecurityPolicyHeaderName, getContentSecurityPolicyReportHeaders } from "./lib/csp/csp";
+import {
+  buildContentSecurityPolicy,
+  generateNonce,
+  getContentSecurityPolicyHeaderName,
+  getContentSecurityPolicyReportHeaders,
+  isSampledForViolationReports
+} from "./lib/csp/csp";
 
 const { MAINTENANCE_MODE } = process.env;
 const logger = createLogger({ name: "middleware" });
@@ -15,7 +21,8 @@ export function middleware(request: NextRequest) {
     testnetApiUrl: process.env.NEXT_PUBLIC_BASE_API_TESTNET_URL,
     sandboxApiUrl: process.env.NEXT_PUBLIC_BASE_API_SANDBOX_URL,
     unleashFrontendApiUrl: process.env.NEXT_PUBLIC_UNLEASH_FRONTEND_API_URL,
-    sentryDsn: process.env.NEXT_PUBLIC_SENTRY_DSN
+    sentryDsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
+    reportViolations: isSampledForViolationReports()
   };
   const contentSecurityPolicy = buildContentSecurityPolicy(nonce, contentSecurityPolicyInput);
   const contentSecurityPolicyHeaderName = getContentSecurityPolicyHeaderName();

@@ -1,12 +1,33 @@
 import { NextRequest } from "next/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { THEME_SCRIPT_HASH } from "@src/lib/csp/csp";
+import { THEME_SCRIPT_HASH, VIOLATION_REPORT_SAMPLE_RATE } from "@src/lib/csp/csp";
 import { middleware } from "@src/middleware";
 
 describe("middleware", () => {
   afterEach(() => {
     vi.unstubAllEnvs();
+    vi.restoreAllMocks();
+  });
+
+  it("asks the browser to report CSP violations from a page load inside the report sample", () => {
+    const { response } = setup({ path: "/", sentryDsn: "https://publicKey@o877251.ingest.sentry.io/4504", violationReportDraw: 0 });
+
+    expect(response.headers.get("Content-Security-Policy-Report-Only")).toContain(
+      "report-uri https://o877251.ingest.sentry.io/api/4504/security/?sentry_key=publicKey"
+    );
+    expect(response.headers.get("Reporting-Endpoints")).toBe('csp-endpoint="https://o877251.ingest.sentry.io/api/4504/security/?sentry_key=publicKey"');
+  });
+
+  it("keeps CSP violation reporting off for a page load outside the report sample", () => {
+    const { response } = setup({
+      path: "/",
+      sentryDsn: "https://publicKey@o877251.ingest.sentry.io/4504",
+      violationReportDraw: VIOLATION_REPORT_SAMPLE_RATE
+    });
+
+    expect(response.headers.get("Content-Security-Policy-Report-Only")).not.toContain("report-uri");
+    expect(response.headers.get("Reporting-Endpoints")).toBeNull();
   });
 
   it("sets a report-only CSP header with a host-allowlist script-src by default", () => {
@@ -116,7 +137,9 @@ describe("middleware", () => {
     expect(location.hostname).not.toBe("evil.example");
   });
 
-  function setup(input: { path: string }) {
+  function setup(input: { path: string; sentryDsn?: string; violationReportDraw?: number }) {
+    vi.stubEnv("NEXT_PUBLIC_SENTRY_DSN", input.sentryDsn ?? "");
+    vi.spyOn(Math, "random").mockReturnValue(input.violationReportDraw ?? 1);
     const request = new NextRequest(new URL(`http://localhost${input.path}`));
     const response = middleware(request);
     return { request, response };
