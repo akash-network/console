@@ -66,7 +66,7 @@ export const ServiceCard: FC<Props> = ({
             <BoxIcon className="h-3.5 w-3.5" />
           </span>
           <fieldset disabled={!!locked} className="group m-0 flex min-w-0 flex-1 border-0 p-0 disabled:pointer-events-none">
-            <label className="flex min-w-0 items-center gap-1.5 focus-within:flex-1">
+            <label className="flex min-w-0 cursor-pointer items-center gap-1.5 focus-within:flex-1">
               <div className="grid min-w-0 grid-cols-[minmax(0,min-content)] focus-within:flex-1 focus-within:grid-cols-[minmax(0,1fr)]">
                 <span aria-hidden="true" className="invisible col-start-1 row-start-1 h-0 overflow-hidden whitespace-pre font-mono text-sm font-bold uppercase">
                   {title}
@@ -76,7 +76,7 @@ export const ServiceCard: FC<Props> = ({
                   label="Service name"
                   suppressErrorMessage
                   errorMessageId={titleErrorId}
-                  className="col-start-1 row-start-1 [&_input:not(:focus)]:uppercase [&_input]:font-bold"
+                  className="col-start-1 row-start-1 [&_input:focus]:cursor-text [&_input:not(:focus)]:cursor-pointer [&_input:not(:focus)]:uppercase [&_input]:font-bold"
                 />
               </div>
               <PencilIcon aria-hidden="true" className="h-3 w-3 shrink-0 group-focus-within:hidden group-disabled:hidden" />
