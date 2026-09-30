@@ -463,6 +463,13 @@
       "when": 1790707582006,
       "tag": "0065_hardware_requests",
       "breakpoints": true
+    },
+    {
+      "idx": 66,
+      "version": "7",
+      "when": 1790780132489,
+      "tag": "0066_deployment_settings_close_reason",
+      "breakpoints": true
     }
   ]
 }

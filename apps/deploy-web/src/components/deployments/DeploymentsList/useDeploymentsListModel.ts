@@ -5,8 +5,8 @@ import { useAtom } from "jotai";
 
 import { useServices } from "@src/context/ServicesProvider";
 import { useWallet } from "@src/context/WalletProvider";
+import { useCloseDeploymentConfirm } from "@src/hooks/useCloseDeploymentConfirm";
 import { useListSelection } from "@src/hooks/useListSelection/useListSelection";
-import { useManagedDeploymentConfirm } from "@src/hooks/useManagedDeploymentConfirm";
 import { useProvidersByAddresses } from "@src/queries/useProvidersQuery";
 import type { DeploymentsViewMode } from "@src/store/deploymentsViewStore";
 import { deploymentsViewModeAtom } from "@src/store/deploymentsViewStore";
@@ -18,7 +18,7 @@ import { useApiDeploymentsListSource } from "./useApiDeploymentsListSource";
 export const DEPENDENCIES = {
   useWallet,
   useProvidersByAddresses,
-  useManagedDeploymentConfirm,
+  useCloseDeploymentConfirm,
   useListSelection,
   useDeploymentsListSource: useApiDeploymentsListSource
 };
@@ -31,7 +31,7 @@ export function useDeploymentsListModel(dependencies: typeof DEPENDENCIES = DEPE
   const d = dependencies;
   const { analyticsService } = useServices();
   const { address, signAndBroadcastTx, hasWallet } = d.useWallet();
-  const { closeDeploymentConfirm } = d.useManagedDeploymentConfirm();
+  const { confirmCloseDeployment, recordCloseReason } = d.useCloseDeploymentConfirm();
   const [, setDeploySdl] = useAtom(sdlStore.deploySdl);
   const [viewMode, setViewMode] = useAtom(deploymentsViewModeAtom);
 
@@ -119,16 +119,23 @@ export function useDeploymentsListModel(dependencies: typeof DEPENDENCIES = DEPE
   );
 
   const closeSelectedDeployments = useCallback(async () => {
-    if (!(await closeDeploymentConfirm(selectedItemIds))) return;
+    const closeReason = await confirmCloseDeployment({ dseqs: selectedItemIds });
+    if (!closeReason) return;
 
     const messages = selectedItemIds.map(dseq => TransactionMessageData.getCloseDeploymentMsg(address, `${dseq}`));
     const response = await signAndBroadcastTx(messages);
     if (!response) return;
 
+    recordCloseReason(selectedItemIds, closeReason);
     refetchDeployments();
     clearSelection();
-    analyticsService.track("close_deployment", { category: "deployments", label: "Close selected deployments from list", count: selectedItemIds.length });
-  }, [closeDeploymentConfirm, selectedItemIds, address, signAndBroadcastTx, refetchDeployments, clearSelection, analyticsService]);
+    analyticsService.track("close_deployment", {
+      category: "deployments",
+      label: "Close selected deployments from list",
+      count: selectedItemIds.length,
+      reason: closeReason.closeReason
+    });
+  }, [confirmCloseDeployment, recordCloseReason, selectedItemIds, address, signAndBroadcastTx, refetchDeployments, clearSelection, analyticsService]);
 
   const startNewDeployment = useCallback(() => setDeploySdl(null), [setDeploySdl]);
 

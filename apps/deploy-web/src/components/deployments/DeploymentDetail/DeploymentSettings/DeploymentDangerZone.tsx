@@ -5,11 +5,12 @@ import { Button, Spinner } from "@akashnetwork/ui/components";
 
 import { useServices } from "@src/context/ServicesProvider";
 import { useWallet } from "@src/context/WalletProvider";
-import { useManagedDeploymentConfirm } from "@src/hooks/useManagedDeploymentConfirm";
+import { useCloseDeploymentConfirm } from "@src/hooks/useCloseDeploymentConfirm";
+import { useResolvedDeploymentName } from "@src/hooks/useResolvedDeploymentName/useResolvedDeploymentName";
 import type { DeploymentDto } from "@src/types/deployment";
 import { TransactionMessageData } from "@src/utils/TransactionMessageData";
 
-export const DEPENDENCIES = { useServices, useWallet, useManagedDeploymentConfirm };
+export const DEPENDENCIES = { useServices, useWallet, useCloseDeploymentConfirm, useResolvedDeploymentName };
 
 export interface DeploymentDangerZoneProps {
   deployment: DeploymentDto;
@@ -20,19 +21,25 @@ export interface DeploymentDangerZoneProps {
 export const DeploymentDangerZone: FC<DeploymentDangerZoneProps> = ({ deployment, onClosed, dependencies: d = DEPENDENCIES }) => {
   const { analyticsService } = d.useServices();
   const { address, signAndBroadcastTx } = d.useWallet();
-  const { closeDeploymentConfirm } = d.useManagedDeploymentConfirm();
+  const { confirmCloseDeployment, recordCloseReason } = d.useCloseDeploymentConfirm();
+  const name = d.useResolvedDeploymentName(deployment.dseq);
   const [isClosing, setIsClosing] = useState(false);
 
   const confirmAndClose = async () => {
-    const isConfirmed = await closeDeploymentConfirm([deployment.dseq]);
-    if (!isConfirmed) return;
+    const closeReason = await confirmCloseDeployment({ dseqs: [deployment.dseq], name });
+    if (!closeReason) return;
 
     setIsClosing(true);
     try {
       const message = TransactionMessageData.getCloseDeploymentMsg(address, deployment.dseq);
       const response = await signAndBroadcastTx([message]);
       if (response) {
-        analyticsService.track("close_deployment", { category: "deployments", label: "Close deployment in deployment detail" });
+        recordCloseReason([deployment.dseq], closeReason);
+        analyticsService.track("close_deployment", {
+          category: "deployments",
+          label: "Close deployment in deployment detail",
+          reason: closeReason.closeReason
+        });
         onClosed();
       }
     } finally {

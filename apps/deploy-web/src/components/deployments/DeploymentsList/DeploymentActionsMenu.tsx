@@ -7,8 +7,8 @@ import { Edit, MoreHoriz, Upload, XmarkSquare } from "iconoir-react";
 import { useLocalNotes } from "@src/components/LocalNoteManager";
 import { useServices } from "@src/context/ServicesProvider";
 import { useWallet } from "@src/context/WalletProvider";
+import { useCloseDeploymentConfirm } from "@src/hooks/useCloseDeploymentConfirm";
 import { isUsableDeploymentDefinition, sdlToRedeploy, useDeploymentDefinition } from "@src/hooks/useDeploymentDefinition/useDeploymentDefinition";
-import { useManagedDeploymentConfirm } from "@src/hooks/useManagedDeploymentConfirm";
 import { useRedeploy } from "@src/hooks/useRedeploy/useRedeploy";
 import type { DeploymentDto } from "@src/types/deployment";
 import { TransactionMessageData } from "@src/utils/TransactionMessageData";
@@ -17,7 +17,7 @@ export const DEPENDENCIES = {
   useLocalNotes,
   useWallet,
   useDeploymentDefinition,
-  useManagedDeploymentConfirm,
+  useCloseDeploymentConfirm,
   useRedeploy
 };
 
@@ -32,7 +32,7 @@ export const DeploymentActionsMenu: FC<DeploymentActionsMenuProps> = ({ deployme
   const { analyticsService } = useServices();
   const { changeDeploymentName } = d.useLocalNotes();
   const { address, signAndBroadcastTx } = d.useWallet();
-  const { closeDeploymentConfirm } = d.useManagedDeploymentConfirm();
+  const { confirmCloseDeployment, recordCloseReason } = d.useCloseDeploymentConfirm();
   const redeploy = d.useRedeploy();
   /** Only once the menu is open, so a page of cards does not each fire a deployment read on mount. */
   const definition = d.useDeploymentDefinition(isOpen ? deployment.dseq : null, { acceptReferences: true });
@@ -42,13 +42,15 @@ export const DeploymentActionsMenu: FC<DeploymentActionsMenuProps> = ({ deployme
   const closeDeployment = async () => {
     setIsOpen(false);
 
-    if (!(await closeDeploymentConfirm([deployment.dseq]))) return;
+    const closeReason = await confirmCloseDeployment({ dseqs: [deployment.dseq], name: definition.name });
+    if (!closeReason) return;
 
     const response = await signAndBroadcastTx([TransactionMessageData.getCloseDeploymentMsg(address, deployment.dseq)]);
     if (!response) return;
 
+    recordCloseReason([deployment.dseq], closeReason);
     onDeploymentClosed?.();
-    analyticsService.track("close_deployment", { category: "deployments", label: "Close deployment from list" });
+    analyticsService.track("close_deployment", { category: "deployments", label: "Close deployment from list", reason: closeReason.closeReason });
   };
 
   return (

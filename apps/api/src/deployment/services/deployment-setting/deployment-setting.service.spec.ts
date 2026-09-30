@@ -46,7 +46,9 @@ describe(DeploymentSettingService.name, () => {
           name: "web",
           sealedSecrets: "seal",
           detectedGpus: [createLeaseGpuReading()],
-          offeredGpus: [createLeaseGpuOffer()]
+          offeredGpus: [createLeaseGpuOffer()],
+          closeReason: "other",
+          closeReasonDetails: "Moved to a bigger box"
         })
       );
 
@@ -57,6 +59,8 @@ describe(DeploymentSettingService.name, () => {
       expect(result).not.toHaveProperty("manifestVersion");
       expect(result).not.toHaveProperty("detectedGpus");
       expect(result).not.toHaveProperty("offeredGpus");
+      expect(result).not.toHaveProperty("closeReason");
+      expect(result).not.toHaveProperty("closeReasonDetails");
     });
 
     it("returns undefined and writes no row when nothing is stored for the deployment", async () => {
@@ -239,6 +243,41 @@ describe(DeploymentSettingService.name, () => {
 
       expect(deploymentSettingRepository.applyRuntimeLimit).not.toHaveBeenCalled();
       expect(deploymentSettingRepository.updateBy).toHaveBeenCalledWith(params, {}, { returning: true });
+    });
+  });
+
+  describe("upsert recording a close reason", () => {
+    it("writes the close reason and its details onto the setting", async () => {
+      const { service, deploymentSettingRepository } = setup();
+      const params = { userId: faker.string.uuid(), dseq: faker.string.numeric(6) };
+      const change = { closeReason: "cost_or_budget", closeReasonDetails: "Cheaper elsewhere" } as const;
+
+      deploymentSettingRepository.accessibleBy.mockReturnValue(deploymentSettingRepository);
+      deploymentSettingRepository.findOneBy.mockResolvedValue(createDeploymentSettingsOutput({ ...params, closed: true }));
+      deploymentSettingRepository.updateBy.mockResolvedValue(createDeploymentSettingsOutput({ ...params, closed: true, ...change }) as never);
+
+      await service.upsert(params, change);
+
+      expect(deploymentSettingRepository.updateBy).toHaveBeenCalledWith(params, change, { returning: true });
+    });
+
+    it("rejects a close reason sent together with a runtime limit change", async () => {
+      const { service, deploymentSettingRepository } = setup();
+      const params = { userId: faker.string.uuid(), dseq: faker.string.numeric(6) };
+
+      await expect(service.upsert(params, { runtimeLimitHours: 12, closeReason: "no_longer_needed" })).rejects.toMatchObject({
+        status: 400,
+        message: "Change the runtime limit and record a close reason in separate requests"
+      });
+      expect(deploymentSettingRepository.findOneBy).not.toHaveBeenCalled();
+    });
+
+    it("rejects close reason details sent together with a runtime limit removal", async () => {
+      const { service, deploymentSettingRepository } = setup();
+      const params = { userId: faker.string.uuid(), dseq: faker.string.numeric(6) };
+
+      await expect(service.upsert(params, { runtimeLimitHours: null, closeReasonDetails: "Done testing" })).rejects.toMatchObject({ status: 400 });
+      expect(deploymentSettingRepository.findOneBy).not.toHaveBeenCalled();
     });
   });
 
@@ -562,6 +601,8 @@ describe(DeploymentSettingService.name, () => {
       providerUnreachableNotifiedFor: null,
       detectedGpus: null,
       offeredGpus: null,
+      closeReason: null,
+      closeReasonDetails: null,
       createdAt: faker.date.past().toISOString(),
       updatedAt: faker.date.past().toISOString(),
       ...overrides

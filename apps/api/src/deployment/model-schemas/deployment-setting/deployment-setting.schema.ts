@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { boolean, index, integer, jsonb, pgTable, text, timestamp, unique, uuid, varchar } from "drizzle-orm/pg-core";
+import { boolean, index, integer, jsonb, pgEnum, pgTable, text, timestamp, unique, uuid, varchar } from "drizzle-orm/pg-core";
 
 import { Users } from "@src/user/model-schemas";
 
@@ -47,6 +47,19 @@ export type LeaseGpuOffer = {
   recordedAt: string;
 };
 
+export const deploymentCloseReasonEnum = pgEnum("deployment_close_reason", [
+  "no_longer_needed",
+  "cost_or_budget",
+  "migrating_elsewhere",
+  "performance_or_reliability",
+  "testing_or_project_complete",
+  "other"
+]);
+
+export type DeploymentCloseReason = (typeof deploymentCloseReasonEnum.enumValues)[number];
+
+export const MAX_CLOSE_REASON_DETAILS_LENGTH = 1000;
+
 export const DeploymentSettings = pgTable(
   "deployment_settings",
   {
@@ -75,6 +88,9 @@ export const DeploymentSettings = pgTable(
     detectedGpus: jsonb("detected_gpus").$type<LeaseGpuReading[]>(),
     /** Null until the winning bid of a gpu lease has been read, so an unrecorded deployment is never mistaken for one offered no gpu. */
     offeredGpus: jsonb("offered_gpus").$type<LeaseGpuOffer[]>(),
+    /** Null for a close the user gave no reason for, which includes every close the console makes on its own. */
+    closeReason: deploymentCloseReasonEnum("close_reason"),
+    closeReasonDetails: text("close_reason_details"),
     createdAt: timestamp("created_at").defaultNow(),
     updatedAt: timestamp("updated_at").defaultNow()
   },

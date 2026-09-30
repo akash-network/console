@@ -22,6 +22,7 @@ import { AccountCreatedTracker } from "@src/components/analytics/AccountCreatedT
 import { AppBootstrap } from "@src/components/AppBootstrap/AppBootstrap";
 import { RequireAuth } from "@src/components/auth/RequireAuth/RequireAuth";
 import { AddCreditsHost } from "@src/components/billing-usage/AddCreditsHost/AddCreditsHost";
+import { CloseDeploymentConfirmHost } from "@src/components/deployments/CloseDeploymentConfirmHost/CloseDeploymentConfirmHost";
 import { RequireFairUsePolicy } from "@src/components/fair-use-policy/RequireFairUsePolicy/RequireFairUsePolicy";
 import { AppThemeProvider } from "@src/components/layout/AppThemeProvider";
 import { CustomIntlProvider } from "@src/components/layout/CustomIntlProvider";
@@ -71,6 +72,7 @@ const App: React.FunctionComponent<Props> = props => {
               <WalletProvider>
                 <PaymentPollingProvider>
                   <AddCreditsHost />
+                  <CloseDeploymentConfirmHost />
                   <NavigationGuardProvider>
                     <RequireOnboarding isPublic={isPublic}>
                       <WaitForFeatureFlags>
