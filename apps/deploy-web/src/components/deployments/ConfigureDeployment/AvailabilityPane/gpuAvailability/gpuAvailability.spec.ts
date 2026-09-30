@@ -115,7 +115,7 @@ describe(candidateGpuModels.name, () => {
   }
 
   function model(name: string, providerCount: number): PlacementOptions["gpus"][number]["models"][number] {
-    return { name, memory: [], interface: [], providerCount, variants: [] };
+    return { name, memory: [], interface: [], providerCount, availableUnits: providerCount, maxNodeFreeUnits: 1, variants: [] };
   }
 });
 

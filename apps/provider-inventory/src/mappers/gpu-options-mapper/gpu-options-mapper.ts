@@ -10,8 +10,14 @@ interface GpuShape {
   interface: string | null;
 }
 
+interface NodeCapacity {
+  matchingUnits: number;
+  nodeFreeUnits: number | null;
+}
+
 interface CountedShape extends GpuShape {
   owners: Set<string>;
+  nodes: Map<string, NodeCapacity>;
 }
 
 /** The only GPU interfaces an SDL can carry. */
@@ -25,7 +31,13 @@ export function mapToGpuVendorOptions(gpus: AvailableGpu[]): GpuVendorOption[] {
     for (const shape of findBiddableShapes(gpu)) {
       const models = getOrCreate(vendors, gpu.vendor, () => new Map<string, Map<string, CountedShape>>());
       const shapes = getOrCreate(models, gpu.model, () => new Map<string, CountedShape>());
-      getOrCreate(shapes, `${shape.memory}|${shape.interface}`, () => ({ ...shape, owners: new Set<string>() })).owners.add(gpu.owner);
+      const counted = getOrCreate(shapes, `${shape.memory}|${shape.interface}`, () => ({
+        ...shape,
+        owners: new Set<string>(),
+        nodes: new Map<string, NodeCapacity>()
+      }));
+      counted.owners.add(gpu.owner);
+      getOrCreate(counted.nodes, `${gpu.owner}|${gpu.node}`, () => ({ matchingUnits: 0, nodeFreeUnits: gpu.nodeFreeUnits })).matchingUnits += gpu.units;
     }
   }
 
@@ -68,9 +80,23 @@ function toModelOption(name: string, shapes: CountedShape[]): GpuModelOption[] {
       memory: shapes.flatMap(shape => (shape.memory !== null && shape.interface === null ? [shape.memory] : [])),
       interface: shapes.flatMap(shape => (shape.memory === null && shape.interface !== null ? [shape.interface] : [])),
       providerCount: modelOnly.owners.size,
-      variants: shapes.map(shape => ({ memory: shape.memory, interface: shape.interface, providerCount: shape.owners.size }))
+      ...countFreeUnits(modelOnly),
+      variants: shapes.map(shape => ({ memory: shape.memory, interface: shape.interface, providerCount: shape.owners.size, ...countFreeUnits(shape) }))
     }
   ];
+}
+
+function countFreeUnits(shape: CountedShape): { availableUnits: number; maxNodeFreeUnits: number } {
+  const biddableUnitsPerNode = [...shape.nodes.values()].map(countBiddableUnits);
+  return {
+    availableUnits: biddableUnitsPerNode.reduce((sum, units) => sum + units, 0),
+    maxNodeFreeUnits: Math.max(...biddableUnitsPerNode)
+  };
+}
+
+/** A provider bids when the node has that many GPUs free and lists that many matching devices, free or not, so a node never offers more of a shape than both allow. */
+function countBiddableUnits({ matchingUnits, nodeFreeUnits }: NodeCapacity): number {
+  return nodeFreeUnits === null ? matchingUnits : Math.min(matchingUnits, nodeFreeUnits);
 }
 
 function getOrCreate<K, V>(map: Map<K, V>, key: K, create: () => V): V {

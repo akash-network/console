@@ -7,6 +7,7 @@ describe(mapToGpuVendorOptions.name, () => {
   it("groups models under their vendor", () => {
     const options = mapToGpuVendorOptions([gpu({ vendor: "nvidia", model: "a100" }), gpu({ vendor: "amd", model: "mi100" })]);
 
+    const units = { availableUnits: 1, maxNodeFreeUnits: 1 };
     expect(options).toEqual([
       {
         vendor: "nvidia",
@@ -16,11 +17,12 @@ describe(mapToGpuVendorOptions.name, () => {
             memory: ["40Gi"],
             interface: ["pcie"],
             providerCount: 1,
+            ...units,
             variants: [
-              { memory: null, interface: null, providerCount: 1 },
-              { memory: "40Gi", interface: null, providerCount: 1 },
-              { memory: null, interface: "pcie", providerCount: 1 },
-              { memory: "40Gi", interface: "pcie", providerCount: 1 }
+              { memory: null, interface: null, providerCount: 1, ...units },
+              { memory: "40Gi", interface: null, providerCount: 1, ...units },
+              { memory: null, interface: "pcie", providerCount: 1, ...units },
+              { memory: "40Gi", interface: "pcie", providerCount: 1, ...units }
             ]
           }
         ]
@@ -33,16 +35,72 @@ describe(mapToGpuVendorOptions.name, () => {
             memory: ["40Gi"],
             interface: ["pcie"],
             providerCount: 1,
+            ...units,
             variants: [
-              { memory: null, interface: null, providerCount: 1 },
-              { memory: "40Gi", interface: null, providerCount: 1 },
-              { memory: null, interface: "pcie", providerCount: 1 },
-              { memory: "40Gi", interface: "pcie", providerCount: 1 }
+              { memory: null, interface: null, providerCount: 1, ...units },
+              { memory: "40Gi", interface: null, providerCount: 1, ...units },
+              { memory: null, interface: "pcie", providerCount: 1, ...units },
+              { memory: "40Gi", interface: "pcie", providerCount: 1, ...units }
             ]
           }
         ]
       }
     ]);
+  });
+
+  it("adds up the free gpus of a model across every provider's nodes", () => {
+    const options = mapToGpuVendorOptions([
+      gpu({ owner: "akash1first", node: 1, model: "h200", units: 8, nodeFreeUnits: 8 }),
+      gpu({ owner: "akash1first", node: 2, model: "h200", units: 8, nodeFreeUnits: 3 }),
+      gpu({ owner: "akash1second", node: 1, model: "h200", units: 8, nodeFreeUnits: 5 })
+    ]);
+
+    expect(options[0].models[0]).toMatchObject({ providerCount: 2, availableUnits: 16, maxNodeFreeUnits: 8 });
+  });
+
+  it("counts no more gpus of a model on a node than the node lists devices of it", () => {
+    const options = mapToGpuVendorOptions([
+      gpu({ node: 1, model: "a100", units: 2, nodeFreeUnits: 4 }),
+      gpu({ node: 1, model: "h100", units: 6, nodeFreeUnits: 4 })
+    ]);
+
+    expect(options[0].models.map(model => [model.name, model.availableUnits, model.maxNodeFreeUnits])).toEqual([
+      ["a100", 2, 2],
+      ["h100", 4, 4]
+    ]);
+  });
+
+  it("counts every matching device of a node reporting unlimited capacity", () => {
+    const options = mapToGpuVendorOptions([gpu({ model: "a100", units: 3, nodeFreeUnits: null })]);
+
+    expect(options[0].models[0]).toMatchObject({ availableUnits: 3, maxNodeFreeUnits: 3 });
+  });
+
+  it("counts a combination only on the devices that match it", () => {
+    const options = mapToGpuVendorOptions([
+      gpu({ node: 1, model: "a100", memory: "40Gi", units: 2, nodeFreeUnits: 3 }),
+      gpu({ node: 1, model: "a100", memory: "80Gi", units: 2, nodeFreeUnits: 3 }),
+      gpu({ node: 2, model: "a100", memory: "80Gi", units: 8, nodeFreeUnits: 8 })
+    ]);
+
+    expect(options[0].models[0]).toMatchObject({ availableUnits: 11, maxNodeFreeUnits: 8 });
+    expect(options[0].models[0].variants.filter(variant => variant.interface === null)).toEqual([
+      { memory: null, interface: null, providerCount: 1, availableUnits: 11, maxNodeFreeUnits: 8 },
+      { memory: "40Gi", interface: null, providerCount: 1, availableUnits: 2, maxNodeFreeUnits: 2 },
+      { memory: "80Gi", interface: null, providerCount: 1, availableUnits: 10, maxNodeFreeUnits: 8 }
+    ]);
+  });
+
+  it("counts the devices of every sxm revision on a node as one interface", () => {
+    const options = mapToGpuVendorOptions([
+      gpu({ model: "a100", interface: "SXM4", units: 2, nodeFreeUnits: 8 }),
+      gpu({ model: "a100", interface: "sxm5", units: 3, nodeFreeUnits: 8 })
+    ]);
+
+    expect(options[0].models[0].variants.find(variant => variant.memory === null && variant.interface === "sxm")).toMatchObject({
+      availableUnits: 5,
+      maxNodeFreeUnits: 5
+    });
   });
 
   it("counts each combination by the providers advertising exactly its key", () => {
@@ -63,10 +121,10 @@ describe(mapToGpuVendorOptions.name, () => {
     ]);
 
     expect(options[0].models[0].variants).toEqual([
-      { memory: null, interface: null, providerCount: 2 },
-      { memory: "80Gi", interface: null, providerCount: 2 },
-      { memory: null, interface: "sxm", providerCount: 2 },
-      { memory: "80Gi", interface: "sxm", providerCount: 1 }
+      { memory: null, interface: null, providerCount: 2, availableUnits: 2, maxNodeFreeUnits: 1 },
+      { memory: "80Gi", interface: null, providerCount: 2, availableUnits: 2, maxNodeFreeUnits: 1 },
+      { memory: null, interface: "sxm", providerCount: 2, availableUnits: 2, maxNodeFreeUnits: 1 },
+      { memory: "80Gi", interface: "sxm", providerCount: 1, availableUnits: 1, maxNodeFreeUnits: 1 }
     ]);
   });
 
@@ -159,7 +217,17 @@ describe(mapToGpuVendorOptions.name, () => {
     expect(options).toEqual([
       {
         vendor: "nvidia",
-        models: [{ name: "h100", memory: [], interface: [], providerCount: 1, variants: [{ memory: null, interface: null, providerCount: 1 }] }]
+        models: [
+          {
+            name: "h100",
+            memory: [],
+            interface: [],
+            providerCount: 1,
+            availableUnits: 1,
+            maxNodeFreeUnits: 1,
+            variants: [{ memory: null, interface: null, providerCount: 1, availableUnits: 1, maxNodeFreeUnits: 1 }]
+          }
+        ]
       }
     ]);
   });
@@ -184,10 +252,13 @@ describe(mapToGpuVendorOptions.name, () => {
 
     return {
       owner: input.owner ?? "akash1provider",
+      node: input.node ?? 1,
       vendor,
       model,
       memory,
       interface: gpuInterface,
+      units: input.units ?? 1,
+      nodeFreeUnits: input.nodeFreeUnits === undefined ? 1 : input.nodeFreeUnits,
       advertisedGpuKeys: input.advertisedGpuKeys ?? [
         base,
         `${base}/ram/${memory}`,

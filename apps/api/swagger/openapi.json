@@ -20275,6 +20275,16 @@
                                   "description": "Audited providers with free capacity that would bid on this model with memory and interface unpinned",
                                   "example": 3
                                 },
+                                "availableUnits": {
+                                  "type": "integer",
+                                  "description": "Free GPUs across those providers' nodes, counting on each node no more than it would bid on",
+                                  "example": 40
+                                },
+                                "maxNodeFreeUnits": {
+                                  "type": "integer",
+                                  "description": "Most GPUs a single node would bid on, which bounds the GPUs one replica can ask for",
+                                  "example": 8
+                                },
                                 "variants": {
                                   "type": "array",
                                   "items": {
@@ -20296,12 +20306,24 @@
                                         "type": "integer",
                                         "description": "Audited providers with free capacity that advertise this exact GPU key",
                                         "example": 2
+                                      },
+                                      "availableUnits": {
+                                        "type": "integer",
+                                        "description": "Free GPUs across those providers' nodes, counting on each node no more than it would bid on",
+                                        "example": 40
+                                      },
+                                      "maxNodeFreeUnits": {
+                                        "type": "integer",
+                                        "description": "Most GPUs a single node would bid on, which bounds the GPUs one replica can ask for",
+                                        "example": 8
                                       }
                                     },
                                     "required": [
                                       "memory",
                                       "interface",
-                                      "providerCount"
+                                      "providerCount",
+                                      "availableUnits",
+                                      "maxNodeFreeUnits"
                                     ]
                                   },
                                   "description": "Every memory and interface combination at least one provider would bid on, the model alone included"
@@ -20312,6 +20334,8 @@
                                 "memory",
                                 "interface",
                                 "providerCount",
+                                "availableUnits",
+                                "maxNodeFreeUnits",
                                 "variants"
                               ]
                             }

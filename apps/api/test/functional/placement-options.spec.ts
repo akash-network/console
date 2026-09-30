@@ -20,7 +20,17 @@ describe("Placement options API", () => {
         gpus: [
           {
             vendor: "nvidia",
-            models: [{ name: "a100", memory: ["80Gi"], interface: ["sxm"], providerCount: 3, variants: [{ memory: null, interface: null, providerCount: 3 }] }]
+            models: [
+              {
+                name: "a100",
+                memory: ["80Gi"],
+                interface: ["sxm"],
+                providerCount: 3,
+                availableUnits: 20,
+                maxNodeFreeUnits: 8,
+                variants: [{ memory: null, interface: null, providerCount: 3, availableUnits: 20, maxNodeFreeUnits: 8 }]
+              }
+            ]
           }
         ]
       };

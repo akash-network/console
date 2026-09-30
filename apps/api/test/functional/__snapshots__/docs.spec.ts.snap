@@ -13123,6 +13123,11 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                           "models": {
                             "items": {
                               "properties": {
+                                "availableUnits": {
+                                  "description": "Free GPUs across those providers' nodes, counting on each node no more than it would bid on",
+                                  "example": 40,
+                                  "type": "integer",
+                                },
                                 "interface": {
                                   "description": "Interfaces a provider would bid on with the memory left unpinned",
                                   "example": [
@@ -13132,6 +13137,11 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                                     "type": "string",
                                   },
                                   "type": "array",
+                                },
+                                "maxNodeFreeUnits": {
+                                  "description": "Most GPUs a single node would bid on, which bounds the GPUs one replica can ask for",
+                                  "example": 8,
+                                  "type": "integer",
                                 },
                                 "memory": {
                                   "description": "Memory sizes a provider would bid on with the interface left unpinned",
@@ -13157,11 +13167,21 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                                   "description": "Every memory and interface combination at least one provider would bid on, the model alone included",
                                   "items": {
                                     "properties": {
+                                      "availableUnits": {
+                                        "description": "Free GPUs across those providers' nodes, counting on each node no more than it would bid on",
+                                        "example": 40,
+                                        "type": "integer",
+                                      },
                                       "interface": {
                                         "description": "Interface the SDL pins, or null to leave it unpinned",
                                         "example": "sxm",
                                         "nullable": true,
                                         "type": "string",
+                                      },
+                                      "maxNodeFreeUnits": {
+                                        "description": "Most GPUs a single node would bid on, which bounds the GPUs one replica can ask for",
+                                        "example": 8,
+                                        "type": "integer",
                                       },
                                       "memory": {
                                         "description": "Memory size the SDL pins, or null to leave it unpinned",
@@ -13179,6 +13199,8 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                                       "memory",
                                       "interface",
                                       "providerCount",
+                                      "availableUnits",
+                                      "maxNodeFreeUnits",
                                     ],
                                     "type": "object",
                                   },
@@ -13190,6 +13212,8 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                                 "memory",
                                 "interface",
                                 "providerCount",
+                                "availableUnits",
+                                "maxNodeFreeUnits",
                                 "variants",
                               ],
                               "type": "object",
