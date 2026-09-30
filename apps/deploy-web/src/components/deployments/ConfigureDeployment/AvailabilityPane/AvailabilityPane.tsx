@@ -6,12 +6,13 @@ import { GpuIcon, InfoIcon, LoaderCircleIcon, MessageSquareIcon, PanelsTopLeftIc
 import { useNetworkProviderCount } from "@src/queries/useNetworkProviderCount";
 import { useScreenedProviders } from "@src/queries/useScreenedProviders";
 import type { PlacementType } from "@src/types";
+import { InvalidSpecReasons } from "../InvalidSpecReasons/InvalidSpecReasons";
 import type { GpuAvailabilityRow } from "./gpuAvailability/gpuAvailability";
 import { listGpuAvailabilityRows } from "./gpuAvailability/gpuAvailability";
 import type { GpuAvailability } from "./useGpuAvailability/useGpuAvailability";
 import { useGpuAvailability } from "./useGpuAvailability/useGpuAvailability";
 
-export const DEPENDENCIES = { useScreenedProviders, useNetworkProviderCount, useGpuAvailability, CustomTooltip };
+export const DEPENDENCIES = { useScreenedProviders, useNetworkProviderCount, useGpuAvailability, CustomTooltip, InvalidSpecReasons };
 
 type Props = {
   sdl: string;
@@ -55,7 +56,7 @@ export const AvailabilityPane: FC<Props> = ({
               {placement.name} · {placement.region || "Any region"}
             </p>
           )}
-          <ProviderCountCard screened={screened} networkCount={network.count} scope={scope} />
+          <ProviderCountCard screened={screened} networkCount={network.count} scope={scope} InvalidSpecReasons={d.InvalidSpecReasons} />
           {!screened.isInvalid && !screened.isError && (
             <GpuAvailabilityCard
               gpuAvailability={gpuAvailability}
@@ -135,14 +136,15 @@ type ProviderCountCardProps = {
   screened: ReturnType<typeof DEPENDENCIES.useScreenedProviders>;
   networkCount: number | null;
   scope: string;
+  InvalidSpecReasons: typeof DEPENDENCIES.InvalidSpecReasons;
 };
 
-function ProviderCountCard({ screened, networkCount, scope }: ProviderCountCardProps) {
+function ProviderCountCard({ screened, networkCount, scope, InvalidSpecReasons }: ProviderCountCardProps) {
   if (screened.isInvalid) {
     return (
       <AvailabilityCard>
         <p className="text-sm font-medium">No providers to show yet</p>
-        <p className="text-sm text-muted-foreground">Fix the highlighted fields on the left to see which providers can host it.</p>
+        <InvalidSpecReasons />
       </AvailabilityCard>
     );
   }

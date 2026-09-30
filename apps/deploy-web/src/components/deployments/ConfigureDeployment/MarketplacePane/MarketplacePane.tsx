@@ -6,6 +6,7 @@ import { useIsOnboarded } from "@src/hooks/useIsOnboarded";
 import { useGpuModels } from "@src/queries/useGpuQuery";
 import { usePlacementOffers } from "@src/queries/usePlacementOffers";
 import { useDeploymentCpuArch, useDeploymentGpuCount } from "../DeploymentResourceSummary/useDeploymentResourceSummary";
+import { InvalidSpecReasons } from "../InvalidSpecReasons/InvalidSpecReasons";
 import type { DeploymentFlowPhase } from "../useDeploymentFlow/useDeploymentFlow";
 import { MarketplaceProvidersTable } from "./MarketplaceProvidersTable/MarketplaceProvidersTable";
 import { useProviderSearch } from "./MarketplaceProvidersTable/useProviderSearch/useProviderSearch";
@@ -19,7 +20,8 @@ export const DEPENDENCIES = {
   useDeploymentGpuCount,
   useDeploymentCpuArch,
   useIsOnboarded,
-  useGpuModels
+  useGpuModels,
+  InvalidSpecReasons
 };
 
 interface Props {
@@ -114,9 +116,7 @@ export const MarketplacePane: FC<Props> = ({
         ) : isInvalid ? (
           <div role="status" className="flex flex-col items-start gap-1">
             <p className="text-sm font-medium">No providers to show yet</p>
-            <p className="text-sm text-muted-foreground">
-              This deployment spec isn&apos;t valid, so no provider could bid on it. Fix the highlighted fields to see matching providers.
-            </p>
+            <d.InvalidSpecReasons />
           </div>
         ) : (
           <div className="flex flex-col gap-4">

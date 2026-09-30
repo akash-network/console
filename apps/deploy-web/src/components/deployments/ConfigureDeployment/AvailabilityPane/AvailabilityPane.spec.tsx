@@ -63,6 +63,7 @@ describe(AvailabilityPane.name, () => {
     setup({ isInvalid: true });
 
     expect(screen.getByText("No providers to show yet")).toBeInTheDocument();
+    expect(screen.getByText("Settings to fix")).toBeInTheDocument();
     expect(screen.queryByRole("list", { name: "If you switch model" })).not.toBeInTheDocument();
   });
 
@@ -221,7 +222,8 @@ describe(AvailabilityPane.name, () => {
       useScreenedProviders,
       useNetworkProviderCount: () => ({ count: input.networkCount === undefined ? 20 : input.networkCount, isLoading: false }),
       useGpuAvailability,
-      CustomTooltip: CustomTooltip as never
+      CustomTooltip: CustomTooltip as never,
+      InvalidSpecReasons: () => <p>Settings to fix</p>
     };
 
     render(

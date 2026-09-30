@@ -94,7 +94,8 @@ describe(MarketplacePane.name, () => {
   it("shows a message and no table when the spec is invalid", () => {
     const { MarketplaceProvidersTable } = setup({ isInvalid: true });
 
-    expect(screen.getByText(/no provider could bid on it/i)).toBeInTheDocument();
+    expect(screen.getByText("No providers to show yet")).toBeInTheDocument();
+    expect(screen.getByText("Settings to fix")).toBeInTheDocument();
     expect(MarketplaceProvidersTable).not.toHaveBeenCalled();
   });
 
@@ -286,7 +287,8 @@ describe(MarketplacePane.name, () => {
       useDeploymentGpuCount,
       useDeploymentCpuArch,
       useIsOnboarded: () => input.isOnboarded ?? true,
-      useGpuModels: () => Object.assign(mock<ReturnType<typeof DEPENDENCIES.useGpuModels>>(), { data: input.gpuVendors })
+      useGpuModels: () => Object.assign(mock<ReturnType<typeof DEPENDENCIES.useGpuModels>>(), { data: input.gpuVendors }),
+      InvalidSpecReasons: () => <p>Settings to fix</p>
     };
     const user = userEvent.setup();
     const onSelectProvider = input.onSelectProvider ?? vi.fn();

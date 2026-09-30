@@ -84,18 +84,20 @@ export function useScreenedProviders({ sdl, placementName, enabled = true }: Use
   const { api } = useServices();
   const request = useMemo(() => toScreeningRequest(sdl, placementName), [sdl, placementName]);
   const pacedRequest = usePacedValue(request, { wait: SCREENING_DEBOUNCE_MS, maxWait: SCREENING_MAX_WAIT_MS });
-  const isInvalid = pacedRequest === null;
+  const isScreenable = pacedRequest !== null;
+  /** A spec fixed mid-edit waits out the pacing as loading, so the panes stop explaining an invalid spec the moment it becomes valid. */
+  const isInvalid = !isScreenable && request === null;
   const query = api.v1.screenProviders.useQuery(pacedRequest ?? SKIPPED_SCREENING_REQUEST, {
-    enabled: enabled && !isInvalid,
+    enabled: enabled && isScreenable,
     placeholderData: keepPreviousData
   });
 
   return {
-    providers: isInvalid ? [] : query.data?.providers ?? [],
-    isLoading: !isInvalid && query.isLoading,
-    isError: !isInvalid && query.isError,
+    providers: isScreenable ? query.data?.providers ?? [] : [],
+    isLoading: !isInvalid && (!isScreenable || query.isLoading),
+    isError: isScreenable && query.isError,
     isInvalid,
-    isRefreshing: !isInvalid && query.isFetching && query.isPlaceholderData
+    isRefreshing: isScreenable && query.isFetching && query.isPlaceholderData
   };
 }
 

@@ -85,7 +85,7 @@ describe(ImageCard.name, () => {
     await userEvent.type(screen.getByLabelText("Registry password"), "hunter22");
     await userEvent.click(screen.getByRole("button", { name: "Request quotes" }));
 
-    await waitFor(() => expect(screen.getByText("Username is required.")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("Registry username is required.")).toBeInTheDocument());
   });
 
   it("clears credentials when private registry is unchecked", async () => {
