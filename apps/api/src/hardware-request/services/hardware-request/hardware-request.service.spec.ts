@@ -8,6 +8,7 @@ import type { HardwareRequestConfig } from "@src/hardware-request/config/env.con
 import type { HardwareRequestInput } from "@src/hardware-request/http-schemas/hardware-request.schema";
 import type { HardwareRequestRepository } from "@src/hardware-request/repositories/hardware-request/hardware-request.repository";
 import { HardwareRequestEmailJob } from "@src/hardware-request/services/hardware-request-email/hardware-request-email.handler";
+import { HardwareRequestSlackAlertJob } from "@src/hardware-request/services/hardware-request-slack-alert/hardware-request-slack-alert.handler";
 import type { UserRepository } from "@src/user/repositories";
 import { HardwareRequestService } from "./hardware-request.service";
 
@@ -57,13 +58,16 @@ describe(HardwareRequestService.name, () => {
       await expect(service.create(anInput())).resolves.toEqual(created);
     });
 
-    it("queues the email for the created request in the same transaction", async () => {
+    it("queues the email and the Slack alert for the created request in the same transaction", async () => {
       const { service, jobQueueService, txService, created } = setup();
 
       await service.create(anInput());
 
       expect(txService.transaction).toHaveBeenCalledTimes(1);
-      expect(jobQueueService.enqueue).toHaveBeenCalledWith(new HardwareRequestEmailJob({ hardwareRequestId: created.id }));
+      expect(jobQueueService.enqueue.mock.calls).toEqual([
+        [new HardwareRequestEmailJob({ hardwareRequestId: created.id })],
+        [new HardwareRequestSlackAlertJob({ hardwareRequestId: created.id })]
+      ]);
     });
 
     it("locks the user row before counting their recent requests", async () => {

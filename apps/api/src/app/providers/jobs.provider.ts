@@ -12,6 +12,7 @@ import { ReconcileManagedTxHandler } from "@src/deployment/services/reconcile-ma
 import { RecordDeploymentSettingHandler } from "@src/deployment/services/record-deployment-setting/record-deployment-setting.handler";
 import { RecordLeaseGpuOffersHandler } from "@src/deployment/services/record-lease-gpu-offers/record-lease-gpu-offers.handler";
 import { HardwareRequestEmailHandler } from "@src/hardware-request/services/hardware-request-email/hardware-request-email.handler";
+import { HardwareRequestSlackAlertHandler } from "@src/hardware-request/services/hardware-request-slack-alert/hardware-request-slack-alert.handler";
 import { NotificationHandler } from "@src/notifications/services/notification-handler/notification.handler";
 import { BlockEmailDomainOfWalletHandler } from "@src/workload-abuse/services/block-email-domain-of-wallet/block-email-domain-of-wallet.handler";
 import { EnforceTrialAbuseHandler } from "@src/workload-abuse/services/enforce-trial-abuse/enforce-trial-abuse.handler";
@@ -60,7 +61,8 @@ export async function startJobQueues(): Promise<void> {
     container.resolve(EnforceTrialAbuseHandler),
     container.resolve(LockBlockedDomainWalletHandler),
     container.resolve(BlockEmailDomainOfWalletHandler),
-    container.resolve(HardwareRequestEmailHandler)
+    container.resolve(HardwareRequestEmailHandler),
+    container.resolve(HardwareRequestSlackAlertHandler)
   ]);
 }
 

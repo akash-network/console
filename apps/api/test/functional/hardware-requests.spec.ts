@@ -7,6 +7,7 @@ import { UserAuthTokenService } from "@src/auth/services/user-auth-token/user-au
 import { JOB_NAME } from "@src/core";
 import { HardwareRequestRepository } from "@src/hardware-request/repositories/hardware-request/hardware-request.repository";
 import { HardwareRequestEmailJob } from "@src/hardware-request/services/hardware-request-email/hardware-request-email.handler";
+import { HardwareRequestSlackAlertJob } from "@src/hardware-request/services/hardware-request-slack-alert/hardware-request-slack-alert.handler";
 import { app } from "@src/rest-app";
 import { UserRepository } from "@src/user/repositories/user/user.repository";
 
@@ -71,6 +72,7 @@ describe("Hardware requests", () => {
         createdAt: data.createdAt
       });
       expect(await findJobRows(HardwareRequestEmailJob[JOB_NAME], { data: { hardwareRequestId: data.id } })).toHaveLength(1);
+      expect(await findJobRows(HardwareRequestSlackAlertJob[JOB_NAME], { data: { hardwareRequestId: data.id } })).toHaveLength(1);
     });
 
     it("records a region request without any GPU fields", async () => {

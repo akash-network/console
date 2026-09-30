@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { hardwareRequestTitle } from "@src/hardware-request/lib/hardware-request-title/hardware-request-title";
 import { hardwareRequestEmailNotification } from "./hardware-request-email-notification";
 
 import { createHardwareRequest } from "@test/seeders/hardware-request.seeder";
@@ -22,19 +23,12 @@ describe(hardwareRequestEmailNotification.name, () => {
     expect(notification.notificationId).toBe(`hardwareRequest.${hardwareRequest.id}`);
   });
 
-  it.each([
-    { hardwareRequest: createHardwareRequest({ category: "gpu_model", gpuModel: "B200", quantity: 8 }), subject: "GPU request: 8× B200" },
-    { hardwareRequest: createHardwareRequest({ category: "capacity", gpuModel: "H100", quantity: 64 }), subject: "Capacity request: 64× H100" },
-    { hardwareRequest: createHardwareRequest({ category: "capacity", gpuModel: null, quantity: 32 }), subject: "Capacity request: 32 GPUs" },
-    {
-      hardwareRequest: createHardwareRequest({ category: "region", gpuModel: null, quantity: null, region: "Frankfurt" }),
-      subject: "Region request: Frankfurt"
-    },
-    { hardwareRequest: createHardwareRequest({ category: "other", gpuModel: null, quantity: null }), subject: "Hardware request" }
-  ])("uses '$subject' as the subject of a $hardwareRequest.category request", ({ hardwareRequest, subject }) => {
+  it("uses the request's title as the subject", () => {
+    const hardwareRequest = createHardwareRequest({ category: "gpu_model", gpuModel: "B200", quantity: 8 });
+
     const notification = setup({ hardwareRequest });
 
-    expect(notification.payload.summary).toBe(subject);
+    expect(notification.payload.summary).toBe(hardwareRequestTitle(hardwareRequest));
   });
 
   it("lists every field the request carries with its label", () => {
