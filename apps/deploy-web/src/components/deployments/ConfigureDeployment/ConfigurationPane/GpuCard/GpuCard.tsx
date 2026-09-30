@@ -511,7 +511,11 @@ function GpuModelControl({ isLoading, isError, value, onChange, onRequestGpu, ch
           searchLabel="Search GPU models"
           searchPlaceholder="Search GPUs..."
           notFoundMessage="No models found."
-          optionsHeading={choices.isAvailabilityKnown ? { label: "Available", hintLabel: "Providers" } : { label: "All models" }}
+          optionsHeading={
+            choices.isAvailabilityKnown
+              ? { label: "Available", hintLabel: choices.hasFreeUnitCounts ? <AvailabilityColumnLabels /> : "Providers" }
+              : { label: "All models" }
+          }
           unavailableHeading="Others"
           emptyOption={{
             value: "",
@@ -537,7 +541,7 @@ function GpuModelControl({ isLoading, isError, value, onChange, onRequestGpu, ch
           )}
           disabled={disabled || choices.listedModels.length === 0}
           triggerClassName="h-9"
-          contentClassName="w-[max(var(--radix-popover-trigger-width),20rem)]"
+          contentClassName="w-[max(var(--radix-popover-trigger-width),22rem)]"
         />
       </FieldContent>
     </Field>
@@ -560,15 +564,45 @@ function GpuRequestLink({ onClick }: { onClick: () => void }) {
   );
 }
 
-function ProviderCountHint({ count }: { count: number }) {
+/** The column labels and every row's counts share these widths, so each count lines up under its label. */
+const AVAILABILITY_COLUMNS = "grid grid-cols-[5.5rem_3rem] justify-items-end";
+
+function AvailabilityColumnLabels() {
   return (
-    <>
-      <span aria-hidden="true" className="font-mono">
-        {count}
-      </span>
-      <span className="sr-only">{formatProviderCount(count)}</span>
-    </>
+    <span className={AVAILABILITY_COLUMNS}>
+      <span>Providers</span>
+      <span>GPUs</span>
+    </span>
   );
+}
+
+function AvailabilityHint({ providerCount, availableUnits }: { providerCount: number; availableUnits?: number }) {
+  if (availableUnits === undefined) {
+    return (
+      <>
+        <span aria-hidden="true" className="font-mono">
+          {providerCount}
+        </span>
+        <span className="sr-only">{formatProviderCount(providerCount)}</span>
+      </>
+    );
+  }
+
+  return (
+    <span className={AVAILABILITY_COLUMNS}>
+      <span aria-hidden="true" className="font-mono">
+        {providerCount}
+      </span>
+      <span aria-hidden="true" className="font-mono">
+        {availableUnits}
+      </span>
+      <span className="sr-only">{`${formatFreeGpuCount(availableUnits)} on ${formatProviderCount(providerCount)}`}</span>
+    </span>
+  );
+}
+
+function formatFreeGpuCount(count: number): string {
+  return `${count} free ${count === 1 ? "GPU" : "GPUs"}`;
 }
 
 type GpuModelChoices = ReturnType<typeof useGpuModelOptions>;
@@ -618,6 +652,9 @@ function useGpuModelOptions({ gpuVendors, gpuCatalog, availableGpus, isBlockedMo
    */
   const anyModelBlocked = isBlockedModel(vendor, "");
 
+  /** An API from before free GPUs were counted serves none, and the picker then shows the provider count alone. */
+  const hasFreeUnitCounts = selectableModels.some(model => model.availableUnits !== undefined);
+
   const modelOptions = useMemo(
     () =>
       prioritizeGpuModels(selectableModels).map(model => {
@@ -627,7 +664,7 @@ function useGpuModelOptions({ gpuVendors, gpuCatalog, availableGpus, isBlockedMo
           value: model.name,
           disabled: blocked,
           keywords: [label, vendorLabel],
-          hint: model.providerCount === undefined ? undefined : <ProviderCountHint count={model.providerCount} />,
+          hint: model.providerCount === undefined ? undefined : <AvailabilityHint providerCount={model.providerCount} availableUnits={model.availableUnits} />,
           label: (
             <span className="flex items-center gap-1.5">
               {vendorLabel} {label}
@@ -643,15 +680,21 @@ function useGpuModelOptions({ gpuVendors, gpuCatalog, availableGpus, isBlockedMo
     () =>
       prioritizeGpuModels(unavailableModels).map(model => {
         const label = model.displayName ?? model.name;
-        return { value: model.name, keywords: [label, vendorLabel], label: `${vendorLabel} ${label}`, hint: <ProviderCountHint count={0} /> };
+        return {
+          value: model.name,
+          keywords: [label, vendorLabel],
+          label: `${vendorLabel} ${label}`,
+          hint: <AvailabilityHint providerCount={0} availableUnits={hasFreeUnitCounts ? 0 : undefined} />
+        };
       }),
-    [unavailableModels, vendorLabel]
+    [unavailableModels, vendorLabel, hasFreeUnitCounts]
   );
 
   const hasBlockedModel = selectableModels.some(model => isBlockedModel(vendor, model.name));
 
   return {
     isAvailabilityKnown: !!availableGpus?.length,
+    hasFreeUnitCounts,
     vendorOptions,
     showVendor,
     listedModels,

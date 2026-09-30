@@ -468,34 +468,52 @@ describe(GpuCard.name, () => {
       expect(screen.getByRole("option", { name: "Any GPU" })).toBeInTheDocument();
     });
 
-    it("shows how many providers have free capacity for each offered model", async () => {
+    it("shows how many gpus are free and on how many providers for each offered model", async () => {
       const { user } = setup({
         hasGpu: true,
-        availableGpus: [{ vendor: "nvidia", models: [availableModel("t4", ["16Gi"], ["pcie"], 4), availableModel("a100", ["80Gi"], ["sxm"], 1)] }]
+        availableGpus: [{ vendor: "nvidia", models: [availableModel("t4", ["16Gi"], ["pcie"], 4, 40), availableModel("a100", ["80Gi"], ["sxm"], 1, 1)] }]
+      });
+
+      await user.click(screen.getByRole("combobox", { name: "GPU model" }));
+
+      expect(await screen.findByRole("option", { name: "NVIDIA t4" })).toHaveAccessibleDescription("40 free GPUs on 4 providers");
+      expect(screen.getByRole("option", { name: "NVIDIA a100" })).toHaveAccessibleDescription("1 free GPU on 1 provider");
+    });
+
+    it("lists the offered models under an Available heading with their bare provider and free gpu counts", async () => {
+      const { user } = setup({ hasGpu: true, availableGpus: [{ vendor: "nvidia", models: [availableModel("t4", ["16Gi"], ["pcie"], 4, 40)] }] });
+
+      await user.click(screen.getByRole("combobox", { name: "GPU model" }));
+      const available = within(await screen.findByRole("group", { name: "Available" }));
+      const offered = within(available.getByRole("option", { name: "NVIDIA t4" }));
+
+      expect(offered.getByText("4")).toBeInTheDocument();
+      expect(offered.getByText("40")).toBeInTheDocument();
+      expect(within(screen.getByRole("listbox")).getByText("Providers")).toBeInTheDocument();
+      expect(within(screen.getByRole("listbox")).getByText("GPUs")).toBeInTheDocument();
+    });
+
+    it("counts no provider and no free gpu on an unavailable model", async () => {
+      const { user } = setup({ hasGpu: true, availableGpus: [{ vendor: "nvidia", models: [availableModel("t4", ["16Gi"], ["pcie"])] }] });
+
+      await user.click(screen.getByRole("combobox", { name: "GPU model" }));
+
+      expect(await screen.findByRole("option", { name: "NVIDIA a100" })).toHaveAccessibleDescription("0 free GPUs on 0 providers");
+    });
+
+    it("shows the provider count alone while availability carries no free gpu count", async () => {
+      const { availableUnits: _availableUnits, ...countedByProvidersOnly } = availableModel("t4", ["16Gi"], ["pcie"], 4);
+      const { user } = setup({
+        hasGpu: true,
+        availableGpus: [{ vendor: "nvidia", models: [countedByProvidersOnly as AvailableGpuVendor["models"][number]] }]
       });
 
       await user.click(screen.getByRole("combobox", { name: "GPU model" }));
 
       expect(await screen.findByRole("option", { name: "NVIDIA t4" })).toHaveAccessibleDescription("4 providers");
-      expect(screen.getByRole("option", { name: "NVIDIA a100" })).toHaveAccessibleDescription("1 provider");
-    });
-
-    it("lists the offered models under an Available heading with their bare provider count", async () => {
-      const { user } = setup({ hasGpu: true, availableGpus: [{ vendor: "nvidia", models: [availableModel("t4", ["16Gi"], ["pcie"], 4)] }] });
-
-      await user.click(screen.getByRole("combobox", { name: "GPU model" }));
-      const available = within(await screen.findByRole("group", { name: "Available" }));
-
-      expect(within(available.getByRole("option", { name: "NVIDIA t4" })).getByText("4")).toBeInTheDocument();
-      expect(screen.getByText("Providers")).toBeInTheDocument();
-    });
-
-    it("counts no provider on an unavailable model", async () => {
-      const { user } = setup({ hasGpu: true, availableGpus: [{ vendor: "nvidia", models: [availableModel("t4", ["16Gi"], ["pcie"])] }] });
-
-      await user.click(screen.getByRole("combobox", { name: "GPU model" }));
-
-      expect(await screen.findByRole("option", { name: "NVIDIA a100" })).toHaveAccessibleDescription("0 providers");
+      expect(screen.getByRole("option", { name: "NVIDIA a100" })).toHaveAccessibleDescription("0 providers");
+      expect(within(screen.getByRole("listbox")).getByText("Providers")).toBeInTheDocument();
+      expect(within(screen.getByRole("listbox")).queryByText("GPUs")).not.toBeInTheDocument();
     });
 
     it("lists every model under an All models heading without provider counts when availability cannot be loaded", async () => {
@@ -571,14 +589,14 @@ describe(GpuCard.name, () => {
       expect(screen.queryByText("Hardware request dialog")).not.toBeInTheDocument();
     });
 
-    it("keeps the provider count on a model once it is picked", async () => {
-      const { user } = setup({ hasGpu: true, availableGpus: [{ vendor: "nvidia", models: [availableModel("t4", ["16Gi"], ["pcie"], 4)] }] });
+    it("keeps the counts on a model once it is picked", async () => {
+      const { user } = setup({ hasGpu: true, availableGpus: [{ vendor: "nvidia", models: [availableModel("t4", ["16Gi"], ["pcie"], 4, 12)] }] });
 
       await user.click(screen.getByRole("combobox", { name: "GPU model" }));
       await user.click(await screen.findByRole("option", { name: "NVIDIA t4" }));
       await user.click(screen.getByRole("combobox", { name: "GPU model" }));
 
-      expect(await screen.findByRole("option", { name: "NVIDIA t4" })).toHaveAccessibleDescription("4 providers");
+      expect(await screen.findByRole("option", { name: "NVIDIA t4" })).toHaveAccessibleDescription("12 free GPUs on 4 providers");
     });
 
     it("finds an unavailable model with the search box", async () => {
@@ -625,7 +643,7 @@ describe(GpuCard.name, () => {
       await user.click(await screen.findByRole("option", { name: "amd" }));
       await user.click(screen.getByRole("combobox", { name: "GPU model" }));
 
-      expect(await screen.findByRole("option", { name: "AMD mi300" })).toHaveAccessibleDescription("2 providers");
+      expect(await screen.findByRole("option", { name: "AMD mi300" })).toHaveAccessibleDescription("2 free GPUs on 2 providers");
       expect(screen.queryByRole("option", { name: "NVIDIA t4" })).not.toBeInTheDocument();
       expect(screen.queryByRole("group", { name: "Others" })).not.toBeInTheDocument();
     });
@@ -884,13 +902,19 @@ describe(GpuCard.name, () => {
     });
   });
 
-  function availableModel(name: string, memory = ["80Gi"], gpuInterface = ["sxm"], providerCount = 1): AvailableGpuVendor["models"][number] {
+  function availableModel(
+    name: string,
+    memory = ["80Gi"],
+    gpuInterface = ["sxm"],
+    providerCount = 1,
+    availableUnits = providerCount
+  ): AvailableGpuVendor["models"][number] {
     return {
       name,
       memory,
       interface: gpuInterface,
       providerCount,
-      availableUnits: providerCount,
+      availableUnits,
       maxNodeFreeUnits: 1,
       variants: everyVariant(memory, gpuInterface, providerCount)
     };

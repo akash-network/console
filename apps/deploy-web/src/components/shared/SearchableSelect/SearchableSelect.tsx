@@ -42,7 +42,7 @@ type Props = {
   /** Listed after `options` under {@link Props.unavailableHeading}, searchable but never selectable. */
   unavailableOptions?: SearchableSelectOption[];
   /** Groups `options` under a heading, with an optional column label above the hints, and separates every section. */
-  optionsHeading?: { label: string; hintLabel?: string };
+  optionsHeading?: { label: string; hintLabel?: ReactNode };
   unavailableHeading?: string;
   renderFooter?: (search: string, controls: { close: () => void }) => ReactNode;
   /** Accessible name of the trigger (which exposes `role="combobox"`). */
@@ -179,7 +179,7 @@ export const SearchableSelect: FC<Props> = ({
   );
 };
 
-const SectionHeading: FC<{ label: string; hintLabel?: string }> = ({ label, hintLabel }) => (
+const SectionHeading: FC<{ label: string; hintLabel?: ReactNode }> = ({ label, hintLabel }) => (
   <span className="flex items-center justify-between gap-2 font-mono uppercase tracking-wider">
     {label}
     {hintLabel && <span aria-hidden="true">{hintLabel}</span>}
