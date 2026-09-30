@@ -49,7 +49,7 @@ export const AvailabilityPane: FC<Props> = ({
         <span className="text-xs text-muted-foreground">Live view · nothing to select here</span>
       </header>
       <div className="min-h-0 flex-1 overflow-y-auto p-4">
-        <div className="max-w-[720px] space-y-4">
+        <div className="mx-auto max-w-[720px] space-y-4">
           {placementCount > 1 && (
             <p className="font-mono text-xs text-muted-foreground">
               {placement.name} · {placement.region || "Any region"}
@@ -67,7 +67,7 @@ export const AvailabilityPane: FC<Props> = ({
         </div>
       </div>
       <footer className="shrink-0 border-t border-zinc-300 p-4 dark:border-zinc-700">
-        <div className="max-w-[720px] space-y-3">
+        <div className="mx-auto max-w-[720px] space-y-3">
           {!isReady && <p className="text-sm text-muted-foreground">Add a container image and hardware to every service on the left to deploy.</p>}
           <div className="grid grid-cols-[repeat(auto-fit,minmax(15rem,1fr))] gap-3">
             <FooterAction
