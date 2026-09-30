@@ -65,22 +65,22 @@ describe(NetworkDownBanner.name, () => {
   it("shows the read-only message when no upgrade time is set", () => {
     setup({ date: "" });
 
-    expect(screen.getByText(/read-only mode until service is restored/)).toBeInTheDocument();
+    expect(screen.getByText("We can't reach Akash Network right now. Console is read-only until service is restored.")).toBeInTheDocument();
   });
 
   it("shows the upgrading message once the upgrade window has started", () => {
     setup({ date: "2000-01-01T00:00:00Z" });
 
-    expect(screen.getByText(/We are upgrading the blockchain/)).toBeInTheDocument();
+    expect(screen.getByText("Network upgrade in progress. Console is read-only until it completes.")).toBeInTheDocument();
   });
 
   it("reverts to the read-only message when a started upgrade window is later cleared", () => {
     const { rerenderWithDate } = setup({ date: "2000-01-01T00:00:00Z" });
-    expect(screen.getByText(/We are upgrading the blockchain/)).toBeInTheDocument();
+    expect(screen.getByText("Network upgrade in progress. Console is read-only until it completes.")).toBeInTheDocument();
 
     rerenderWithDate("");
 
-    expect(screen.getByText(/read-only mode until service is restored/)).toBeInTheDocument();
+    expect(screen.getByText("We can't reach Akash Network right now. Console is read-only until service is restored.")).toBeInTheDocument();
   });
 
   function setup(input: { date: string }) {

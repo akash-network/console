@@ -41,7 +41,7 @@ interface Props {
 const MIN_PICK_DELAY_AFTER_PLACEMENT_CHANGE_MS = 400;
 
 const AWAITING_BIDS_COPY: Partial<Record<DeploymentFlowPhase, { title: string; description: string }>> = {
-  creating: { title: "Creating your deployment", description: "Providers start bidding as soon as your deployment is on chain." },
+  creating: { title: "Creating your deployment", description: "Providers start bidding as soon as your deployment is created." },
   quoting: {
     title: "Waiting for bids",
     description: "The providers below can host this placement and are sending their bids. You can pick one as soon as its bid arrives."

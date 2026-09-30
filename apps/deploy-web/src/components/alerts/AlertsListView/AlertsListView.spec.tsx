@@ -1,7 +1,7 @@
 import React from "react";
 import { TooltipProvider } from "@akashnetwork/ui/components";
 import { PopupProvider } from "@akashnetwork/ui/context";
-import { capitalize, startCase } from "lodash";
+import { capitalize } from "lodash";
 import { describe, expect, it, vi } from "vitest";
 
 import type { useFlag } from "@src/hooks/useFlag";
@@ -93,7 +93,7 @@ describe(AlertsListView.name, () => {
     setup({ data: [mockAlert] });
 
     expect(screen.getByText(mockAlert.deploymentName)).toBeInTheDocument();
-    expect(screen.getByText(startCase(mockAlert.type.toLowerCase()))).toBeInTheDocument();
+    expect(screen.getByText("Network Activity")).toBeInTheDocument();
     expect(screen.getByText(capitalize(mockAlert.status))).toBeInTheDocument();
 
     const checkbox = screen.getByRole("checkbox");
@@ -101,6 +101,17 @@ describe(AlertsListView.name, () => {
     expect(checkbox).not.toBeChecked();
 
     expect(screen.getByText("N/A")).toBeInTheDocument();
+  });
+
+  it.each([
+    { label: "Network Activity", alert: buildAlert({ type: "CHAIN_MESSAGE", params: undefined }) },
+    { label: "Deployment Event", alert: buildAlert({ type: "CHAIN_EVENT", params: undefined }) },
+    { label: "Deployment Close", alert: buildAlert({ type: "CHAIN_EVENT" }) },
+    { label: "Wallet Balance", alert: buildAlert({ type: "WALLET_BALANCE" }) }
+  ])("labels a $alert.type alert as $label", ({ alert, label }) => {
+    setup({ data: [alert] });
+
+    expect(screen.getByText(label)).toBeInTheDocument();
   });
 
   it("renders an edit link to the alert detail page for wallet balance alerts", () => {

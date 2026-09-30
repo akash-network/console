@@ -22,7 +22,6 @@ import { cn } from "@akashnetwork/ui/utils";
 import type { CellContext } from "@tanstack/react-table";
 import { createColumnHelper, flexRender, getCoreRowModel, useReactTable } from "@tanstack/react-table";
 import { Bin, Edit } from "iconoir-react";
-import { startCase } from "lodash";
 import Link from "next/link";
 
 import { AlertStatus } from "@src/components/alerts/AlertStatus/AlertStatus";
@@ -31,6 +30,13 @@ import { UrlService } from "@src/utils/urlUtils";
 
 type Alert = components["schemas"]["AlertListOutputResponse"]["data"][0] & { deploymentName: string };
 type AlertsPagination = components["schemas"]["AlertListOutputResponse"]["pagination"];
+
+const ALERT_TYPE_LABELS: Record<Alert["type"], string> = {
+  CHAIN_MESSAGE: "Network Activity",
+  CHAIN_EVENT: "Deployment Event",
+  DEPLOYMENT_BALANCE: "Deployment Balance",
+  WALLET_BALANCE: "Wallet Balance"
+};
 
 const DEPENDENCIES = {
   useFlag
@@ -121,7 +127,7 @@ export const AlertsListView: FC<Props> = ({
           return "Deployment Close";
         }
 
-        return startCase(type.toLowerCase());
+        return ALERT_TYPE_LABELS[type];
       }
     }),
     columnHelper.accessor("status", {

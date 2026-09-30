@@ -362,7 +362,7 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({
                 <d.CustomTooltip
                   title={
                     <d.Alert variant="warning">
-                      Your local deployment file version doesn't match the one on-chain. If you click update, you will override the deployed version.
+                      Your local deployment file version doesn't match the deployed one. If you click update, you will override the deployed version.
                     </d.Alert>
                   }
                 >
