@@ -285,6 +285,28 @@ describe(UserTemplateRepository.name, () => {
       expect(newTemplate?.userId).toBe(user2.userId);
     });
 
+    it("creates the copy under a new id when the submitted template still carries the original's id", async () => {
+      const { userTemplateRepository } = setup();
+      const owner = await createTestUser();
+      const copier = await createTestUser();
+      const originalTemplate = await createTestTemplate({ userId: owner.userId! });
+      const submittedTemplate = {
+        id: originalTemplate.id,
+        sdl: faker.lorem.paragraph(),
+        title: faker.lorem.words(3),
+        cpu: faker.number.int({ min: 1000, max: 10000 }),
+        ram: faker.number.int({ min: 1000000, max: 10000000 }),
+        storage: faker.number.int({ min: 1000000, max: 100000000 })
+      };
+
+      const copyId = await userTemplateRepository.upsert(submittedTemplate.id, copier.userId!, submittedTemplate);
+      createdTemplateIds.push(copyId);
+
+      expect(copyId).not.toBe(originalTemplate.id);
+      expect(await userTemplateRepository.findById(copyId)).toMatchObject({ userId: copier.userId, title: submittedTemplate.title });
+      expect(await userTemplateRepository.findById(originalTemplate.id)).toMatchObject({ userId: owner.userId, title: originalTemplate.title });
+    });
+
     it("updates isPublic when provided", async () => {
       const { userTemplateRepository } = setup();
       const user = await createTestUser();

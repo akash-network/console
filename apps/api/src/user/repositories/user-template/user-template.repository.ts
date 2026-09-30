@@ -140,7 +140,7 @@ export class UserTemplateRepository extends BaseRepository<ApiPgTables["Template
 
     const [created] = await this.cursor
       .insert(this.table)
-      .values({ id: randomUUID(), userId, copiedFromId: id || undefined, ...data })
+      .values({ ...data, id: randomUUID(), userId, copiedFromId: id || undefined })
       .returning({ id: this.table.id });
     return created.id;
   }
