@@ -5,9 +5,11 @@ import {
   type ContentSecurityPolicyInput,
   getContentSecurityPolicyHeaderName,
   getContentSecurityPolicyReportHeaders,
+  isSampledForViolationReports,
   THEME_SCRIPT_HASH,
   toOrigin,
-  toSentrySecurityReportUri
+  toSentrySecurityReportUri,
+  VIOLATION_REPORT_SAMPLE_RATE
 } from "./csp";
 
 describe("csp", () => {
@@ -175,18 +177,35 @@ describe("csp", () => {
       expect(connectSrc).toContain("https://*.amplitude.com");
     });
 
-    it("adds Sentry CSP reporting directives when a Sentry DSN is configured", () => {
-      const { reportUri, reportTo } = setup({ sentryDsn: "https://publicKey@o877251.ingest.sentry.io/4504" });
+    it("adds Sentry CSP reporting directives to a page load that reports violations", () => {
+      const { reportUri, reportTo } = setup({ sentryDsn: "https://publicKey@o877251.ingest.sentry.io/4504", reportViolations: true });
 
       expect(reportUri).toEqual(["https://o877251.ingest.sentry.io/api/4504/security/?sentry_key=publicKey"]);
       expect(reportTo).toEqual(["csp-endpoint"]);
     });
 
-    it("omits Sentry CSP reporting directives when no Sentry DSN is configured", () => {
-      const { reportUri, reportTo } = setup({});
+    it("omits Sentry CSP reporting directives from a page load that does not report violations", () => {
+      const { reportUri, reportTo } = setup({ sentryDsn: "https://publicKey@o877251.ingest.sentry.io/4504", reportViolations: false });
 
       expect(reportUri).toBeUndefined();
       expect(reportTo).toBeUndefined();
+    });
+
+    it("omits Sentry CSP reporting directives when no Sentry DSN is configured", () => {
+      const { reportUri, reportTo } = setup({ reportViolations: true });
+
+      expect(reportUri).toBeUndefined();
+      expect(reportTo).toBeUndefined();
+    });
+  });
+
+  describe(isSampledForViolationReports.name, () => {
+    it("samples a page load whose draw falls below the sample rate", () => {
+      expect(isSampledForViolationReports(() => VIOLATION_REPORT_SAMPLE_RATE / 2)).toBe(true);
+    });
+
+    it("does not sample a page load whose draw equals the sample rate", () => {
+      expect(isSampledForViolationReports(() => VIOLATION_REPORT_SAMPLE_RATE)).toBe(false);
     });
   });
 
@@ -204,7 +223,7 @@ describe("csp", () => {
 
   describe("getContentSecurityPolicyReportHeaders", () => {
     it("returns Report-To and Reporting-Endpoints headers for the Sentry CSP endpoint", () => {
-      const headers = getContentSecurityPolicyReportHeaders({ sentryDsn: "https://publicKey@o877251.ingest.sentry.io/4504" });
+      const headers = getContentSecurityPolicyReportHeaders({ sentryDsn: "https://publicKey@o877251.ingest.sentry.io/4504", reportViolations: true });
 
       expect(headers).toEqual([
         {
@@ -223,8 +242,12 @@ describe("csp", () => {
       ]);
     });
 
+    it("returns no reporting headers for a page load that does not report violations", () => {
+      expect(getContentSecurityPolicyReportHeaders({ sentryDsn: "https://publicKey@o877251.ingest.sentry.io/4504", reportViolations: false })).toEqual([]);
+    });
+
     it("returns no reporting headers when no Sentry DSN is configured", () => {
-      expect(getContentSecurityPolicyReportHeaders({})).toEqual([]);
+      expect(getContentSecurityPolicyReportHeaders({ reportViolations: true })).toEqual([]);
     });
   });
 
