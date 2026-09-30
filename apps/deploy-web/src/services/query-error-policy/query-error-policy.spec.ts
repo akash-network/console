@@ -118,6 +118,41 @@ describe("query-error-policy", () => {
     it("reports when meta holds no predicate", () => {
       expect(shouldReportError(httpError(502), { somethingElse: true })).toBe(true);
     });
+
+    it.each(["Failed to fetch", "NetworkError when attempting to fetch resource.", "Load failed"])(
+      "stays quiet for a request the browser could not send (%s)",
+      message => {
+        expect(shouldReportError(new TypeError(message), undefined)).toBe(false);
+      }
+    );
+
+    it("stays quiet for an axios request that never reached the network", () => {
+      expect(shouldReportError(new AxiosError("Network Error", "ERR_NETWORK"), undefined)).toBe(false);
+    });
+
+    it("reports a TypeError the app raised itself", () => {
+      expect(shouldReportError(new TypeError("Cannot read properties of undefined (reading 'dseq')"), undefined)).toBe(true);
+    });
+
+    it("reports an axios request that timed out", () => {
+      expect(shouldReportError(new AxiosError("timeout of 1000ms exceeded", "ECONNABORTED"), undefined)).toBe(true);
+    });
+
+    it.each([401, 402])("stays quiet for a %s the typed api client raised", status => {
+      expect(shouldReportError(apiError(status), undefined)).toBe(false);
+    });
+
+    it.each([401, 402])("stays quiet for a %s an axios client raised", status => {
+      expect(shouldReportError(httpError(status), undefined)).toBe(false);
+    });
+
+    it.each([400, 403])("reports a %s the typed api client raised", status => {
+      expect(shouldReportError(apiError(status), undefined)).toBe(true);
+    });
+
+    it.each([400, 403])("reports a %s an axios client raised", status => {
+      expect(shouldReportError(httpError(status), undefined)).toBe(true);
+    });
   });
 
   describe("SKIP_REPORTING_PROVIDER_POLL_FAILURE", () => {
