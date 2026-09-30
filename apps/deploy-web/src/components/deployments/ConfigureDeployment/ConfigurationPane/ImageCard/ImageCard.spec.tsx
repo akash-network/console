@@ -328,10 +328,23 @@ describe(ImageCard.name, () => {
     expect(screen.getByRole("textbox", { name: "SSH public key" })).toBeDisabled();
   });
 
-  it("keeps the ssh public key field out of the Docker card", () => {
+  it("offers Expose SSH in the Docker card, with the ssh public key behind it", () => {
     setup({ image: "nginx:latest", hasSSHKey: true });
 
-    expect(screen.queryByRole("textbox", { name: "SSH public key" })).not.toBeInTheDocument();
+    expect(screen.getByRole("checkbox", { name: "Expose SSH" })).toBeChecked();
+    expect(screen.getByRole("textbox", { name: "SSH public key" })).toBeInTheDocument();
+  });
+
+  it("disables Expose SSH while the Docker card is locked", () => {
+    setup({ image: "nginx:latest", locked: true });
+
+    expect(screen.getByRole("checkbox", { name: "Expose SSH" })).toBeDisabled();
+  });
+
+  it("leaves Expose SSH out of the Operating System card, whose key is always required", () => {
+    setup({ image: "ghcr.io/akash-network/ubuntu-2404-ssh:2" });
+
+    expect(screen.queryByRole("checkbox", { name: "Expose SSH" })).not.toBeInTheDocument();
   });
 
   it("marks the Operating System card when a submit is rejected on its missing ssh key", async () => {
@@ -343,12 +356,21 @@ describe(ImageCard.name, () => {
     expect(screen.getByRole("button", { name: "Collapse Operating System" }).closest(".border-destructive")).not.toBeNull();
   });
 
-  it("leaves the Docker card unmarked when a submit is rejected on the ssh key the Runtime card holds", async () => {
-    const { fieldError } = setup({ image: "nginx:latest", hasSSHKey: true, resolver: zodResolver(SdlBuilderFormValuesSchema) });
+  it("marks the Docker card when a submit is rejected on its missing ssh key", async () => {
+    setup({ image: "nginx:latest", hasSSHKey: true, resolver: zodResolver(SdlBuilderFormValuesSchema) });
 
     await userEvent.click(screen.getByRole("button", { name: "Request quotes" }));
 
-    await waitFor(() => expect(fieldError("services.0.sshPubKey")?.message).toBe("SSH Public key is required."));
+    expect(await screen.findByText("SSH Public key is required.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Collapse Docker" }).closest(".border-destructive")).not.toBeNull();
+  });
+
+  it("leaves the Docker card unmarked when a submit is rejected on another field", async () => {
+    const { fieldError } = setup({ image: "", resolver: zodResolver(SdlBuilderFormValuesSchema) });
+
+    await userEvent.click(screen.getByRole("button", { name: "Request quotes" }));
+
+    await waitFor(() => expect(fieldError("services.0.image")).toBeDefined());
     expect(screen.getByRole("button", { name: "Collapse Docker" }).closest(".border-destructive")).toBeNull();
   });
 

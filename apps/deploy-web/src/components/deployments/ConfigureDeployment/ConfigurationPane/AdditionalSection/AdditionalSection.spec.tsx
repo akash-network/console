@@ -12,31 +12,31 @@ import { MockComponents } from "@tests/unit/mocks";
 
 describe(AdditionalSection.name, () => {
   it("renders each additional row for the selected service", () => {
-    const RuntimeCard = vi.fn(() => null);
+    const ReplicasCard = vi.fn(() => null);
     const EnvironmentVariablesCard = vi.fn(() => null);
     const CommandsCard = vi.fn(() => null);
     const ExposePortsCard = vi.fn(() => null);
     const LogsCard = vi.fn(() => null);
 
-    setup({ serviceIndex: 2, dependencies: { RuntimeCard, EnvironmentVariablesCard, CommandsCard, ExposePortsCard, LogsCard } });
+    setup({ serviceIndex: 2, dependencies: { ReplicasCard, EnvironmentVariablesCard, CommandsCard, ExposePortsCard, LogsCard } });
 
-    expect(RuntimeCard).toHaveBeenCalledWith(expect.objectContaining({ serviceIndex: 2 }), expect.anything());
+    expect(ReplicasCard).toHaveBeenCalledWith(expect.objectContaining({ serviceIndex: 2 }), expect.anything());
     expect(EnvironmentVariablesCard).toHaveBeenCalledWith(expect.objectContaining({ serviceIndex: 2 }), expect.anything());
     expect(CommandsCard).toHaveBeenCalledWith(expect.objectContaining({ serviceIndex: 2 }), expect.anything());
     expect(ExposePortsCard).toHaveBeenCalledWith(expect.objectContaining({ serviceIndex: 2 }), expect.anything());
     expect(LogsCard).toHaveBeenCalledWith(expect.objectContaining({ serviceIndex: 2 }), expect.anything());
   });
 
-  it("locks the runtime, ports and logs cards but leaves env vars and commands editable while only on-chain fields are locked", () => {
-    const RuntimeCard = vi.fn(() => null);
+  it("locks the replicas, ports and logs cards but leaves env vars and commands editable while only on-chain fields are locked", () => {
+    const ReplicasCard = vi.fn(() => null);
     const EnvironmentVariablesCard = vi.fn(() => null);
     const CommandsCard = vi.fn(() => null);
     const ExposePortsCard = vi.fn(() => null);
     const LogsCard = vi.fn(() => null);
 
-    setup({ locked: "onchain", dependencies: { RuntimeCard, EnvironmentVariablesCard, CommandsCard, ExposePortsCard, LogsCard } });
+    setup({ locked: "onchain", dependencies: { ReplicasCard, EnvironmentVariablesCard, CommandsCard, ExposePortsCard, LogsCard } });
 
-    expect(RuntimeCard).toHaveBeenCalledWith(expect.objectContaining({ locked: true }), expect.anything());
+    expect(ReplicasCard).toHaveBeenCalledWith(expect.objectContaining({ locked: true }), expect.anything());
     expect(ExposePortsCard).toHaveBeenCalledWith(expect.objectContaining({ locked: true }), expect.anything());
     expect(LogsCard).toHaveBeenCalledWith(expect.objectContaining({ locked: true }), expect.anything());
     expect(EnvironmentVariablesCard).toHaveBeenCalledWith(expect.objectContaining({ locked: false }), expect.anything());
@@ -73,22 +73,26 @@ describe(AdditionalSection.name, () => {
     expect(VariablesAndSecretsCard).not.toHaveBeenCalled();
   });
 
-  it("omits the commands card for a vm service", () => {
+  it("omits the commands and replicas cards for a vm service", () => {
     const CommandsCard = vi.fn(() => null);
-    const RuntimeCard = vi.fn(() => null);
+    const ReplicasCard = vi.fn(() => null);
+    const ExposePortsCard = vi.fn(() => null);
 
-    setup({ image: "ghcr.io/akash-network/ubuntu-2404-ssh:2", dependencies: { CommandsCard, RuntimeCard } });
+    setup({ image: "ghcr.io/akash-network/ubuntu-2404-ssh:2", dependencies: { CommandsCard, ReplicasCard, ExposePortsCard } });
 
     expect(CommandsCard).not.toHaveBeenCalled();
-    expect(RuntimeCard).toHaveBeenCalled();
+    expect(ReplicasCard).not.toHaveBeenCalled();
+    expect(ExposePortsCard).toHaveBeenCalled();
   });
 
-  it("renders the commands card for a custom service", () => {
+  it("renders the commands and replicas cards for a custom service", () => {
     const CommandsCard = vi.fn(() => null);
+    const ReplicasCard = vi.fn(() => null);
 
-    setup({ image: "nginx:latest", dependencies: { CommandsCard } });
+    setup({ image: "nginx:latest", dependencies: { CommandsCard, ReplicasCard } });
 
     expect(CommandsCard).toHaveBeenCalled();
+    expect(ReplicasCard).toHaveBeenCalled();
   });
 
   function setup(input: { serviceIndex?: number; locked?: ConfigurationLock; image?: string; dependencies?: Partial<typeof DEPENDENCIES> }) {
