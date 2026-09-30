@@ -1,9 +1,21 @@
 import { z } from "@hono/zod-openapi";
 
+const availableUnits = z
+  .number()
+  .int()
+  .openapi({ description: "Free GPUs across those providers' nodes, counting on each node no more than it would bid on", example: 40 });
+
+const maxNodeFreeUnits = z
+  .number()
+  .int()
+  .openapi({ description: "Most GPUs a single node would bid on, which bounds the GPUs one replica can ask for", example: 8 });
+
 const GpuModelVariantSchema = z.object({
   memory: z.string().nullable().openapi({ description: "Memory size the SDL pins, or null to leave it unpinned", example: "80Gi" }),
   interface: z.string().nullable().openapi({ description: "Interface the SDL pins, or null to leave it unpinned", example: "sxm" }),
-  providerCount: z.number().int().openapi({ description: "Audited providers with free capacity that advertise this exact GPU key", example: 2 })
+  providerCount: z.number().int().openapi({ description: "Audited providers with free capacity that advertise this exact GPU key", example: 2 }),
+  availableUnits,
+  maxNodeFreeUnits
 });
 
 const GpuModelOptionSchema = z.object({
@@ -14,6 +26,8 @@ const GpuModelOptionSchema = z.object({
     .number()
     .int()
     .openapi({ description: "Audited providers with free capacity that would bid on this model with memory and interface unpinned", example: 3 }),
+  availableUnits,
+  maxNodeFreeUnits,
   variants: z
     .array(GpuModelVariantSchema)
     .openapi({ description: "Every memory and interface combination at least one provider would bid on, the model alone included" })

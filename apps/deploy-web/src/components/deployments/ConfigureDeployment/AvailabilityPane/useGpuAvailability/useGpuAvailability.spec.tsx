@@ -115,10 +115,10 @@ describe(useGpuAvailability.name, () => {
         {
           vendor: "nvidia",
           models: [
-            { name: "h100", memory: [], interface: [], providerCount: 3, variants: [] },
-            { name: "t4", memory: [], interface: [], providerCount: 7, variants: [] },
-            { name: "a100", memory: [], interface: [], providerCount: 4, variants: [] },
-            { name: "v100", memory: [], interface: [], providerCount: 0, variants: [] }
+            { name: "h100", memory: [], interface: [], providerCount: 3, availableUnits: 3, maxNodeFreeUnits: 1, variants: [] },
+            { name: "t4", memory: [], interface: [], providerCount: 7, availableUnits: 7, maxNodeFreeUnits: 1, variants: [] },
+            { name: "a100", memory: [], interface: [], providerCount: 4, availableUnits: 4, maxNodeFreeUnits: 1, variants: [] },
+            { name: "v100", memory: [], interface: [], providerCount: 0, availableUnits: 0, maxNodeFreeUnits: 0, variants: [] }
           ]
         }
       ]

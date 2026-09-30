@@ -694,13 +694,7 @@ describe(GpuCard.name, () => {
             models: [
               {
                 ...availableModel("h100", ["80Gi"], ["sxm", "pcie"]),
-                variants: [
-                  { memory: null, interface: null, providerCount: 3 },
-                  { memory: "80Gi", interface: null, providerCount: 3 },
-                  { memory: null, interface: "sxm", providerCount: 3 },
-                  { memory: null, interface: "pcie", providerCount: 1 },
-                  { memory: "80Gi", interface: "pcie", providerCount: 1 }
-                ]
+                variants: [variant(null, null, 3), variant("80Gi", null, 3), variant(null, "sxm", 3), variant(null, "pcie", 1), variant("80Gi", "pcie", 1)]
               }
             ]
           }
@@ -725,13 +719,7 @@ describe(GpuCard.name, () => {
             models: [
               {
                 ...availableModel("a100", ["40Gi", "80Gi"], ["sxm"]),
-                variants: [
-                  { memory: null, interface: null, providerCount: 2 },
-                  { memory: "40Gi", interface: null, providerCount: 1 },
-                  { memory: "80Gi", interface: null, providerCount: 1 },
-                  { memory: null, interface: "sxm", providerCount: 1 },
-                  { memory: "80Gi", interface: "sxm", providerCount: 1 }
-                ]
+                variants: [variant(null, null, 2), variant("40Gi", null, 1), variant("80Gi", null, 1), variant(null, "sxm", 1), variant("80Gi", "sxm", 1)]
               }
             ]
           }
@@ -756,11 +744,7 @@ describe(GpuCard.name, () => {
             models: [
               {
                 ...availableModel("h100", ["80Gi"], ["sxm"]),
-                variants: [
-                  { memory: null, interface: null, providerCount: 1 },
-                  { memory: "80Gi", interface: null, providerCount: 1 },
-                  { memory: null, interface: "sxm", providerCount: 1 }
-                ]
+                variants: [variant(null, null, 1), variant("80Gi", null, 1), variant(null, "sxm", 1)]
               }
             ]
           }
@@ -901,7 +885,19 @@ describe(GpuCard.name, () => {
   });
 
   function availableModel(name: string, memory = ["80Gi"], gpuInterface = ["sxm"], providerCount = 1): AvailableGpuVendor["models"][number] {
-    return { name, memory, interface: gpuInterface, providerCount, variants: everyVariant(memory, gpuInterface, providerCount) };
+    return {
+      name,
+      memory,
+      interface: gpuInterface,
+      providerCount,
+      availableUnits: providerCount,
+      maxNodeFreeUnits: 1,
+      variants: everyVariant(memory, gpuInterface, providerCount)
+    };
+  }
+
+  function variant(memory: string | null, gpuInterface: string | null, providerCount: number): AvailableGpuVendor["models"][number]["variants"][number] {
+    return { memory, interface: gpuInterface, providerCount, availableUnits: providerCount, maxNodeFreeUnits: 1 };
   }
 
   function everyCatalogGpuAvailable(): AvailableGpuVendor[] {
@@ -912,7 +908,7 @@ describe(GpuCard.name, () => {
   }
 
   function everyVariant(memory: string[], gpuInterface: string[], providerCount: number) {
-    return [null, ...memory].flatMap(size => [null, ...gpuInterface].map(option => ({ memory: size, interface: option, providerCount })));
+    return [null, ...memory].flatMap(size => [null, ...gpuInterface].map(option => variant(size, option, providerCount)));
   }
 
   const StubGpuModelFields: typeof DEPENDENCIES.GpuModelFields = ({ gpuIndex }) => <div role="group" aria-label={`GPU ${gpuIndex + 1}`} />;

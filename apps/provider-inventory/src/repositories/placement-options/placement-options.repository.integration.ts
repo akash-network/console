@@ -89,31 +89,47 @@ describe(PlacementOptionsRepository.name, () => {
   });
 
   describe("findAvailableGpus", () => {
-    it("returns every distinct gpu on a node with free capacity", async () => {
+    it("returns every kind of gpu on a node with free capacity, with its device count and the gpus the node has free", async () => {
       await seed({
         owner: "akash1gpu",
         maxNodeFreeGpu: 4n,
-        nodes: [node({ allocatable: 8, allocated: 4, info: [gpuInfo({ name: "a100", memorySize: "40Gi" }), gpuInfo({ name: "h100", memorySize: "80Gi" })] })]
+        nodes: [
+          node({
+            allocatable: 8,
+            allocated: 4,
+            info: [gpuInfo({ name: "a100", memorySize: "40Gi" }), gpuInfo({ name: "h100", memorySize: "80Gi" }), gpuInfo({ name: "a100", memorySize: "40Gi" })]
+          })
+        ]
       });
 
       expect(await repository.findAvailableGpus()).toEqual([
-        { owner: "akash1gpu", vendor: "nvidia", model: "a100", memory: "40Gi", interface: "pcie", advertisedGpuKeys: [] },
-        { owner: "akash1gpu", vendor: "nvidia", model: "h100", memory: "80Gi", interface: "pcie", advertisedGpuKeys: [] }
+        { owner: "akash1gpu", node: 1, vendor: "nvidia", model: "a100", memory: "40Gi", interface: "pcie", units: 2, nodeFreeUnits: 4, advertisedGpuKeys: [] },
+        { owner: "akash1gpu", node: 1, vendor: "nvidia", model: "h100", memory: "80Gi", interface: "pcie", units: 1, nodeFreeUnits: 4, advertisedGpuKeys: [] }
       ]);
     });
 
-    it("reports a gpu once for each provider offering it", async () => {
+    it("reports each node of each provider on its own", async () => {
       await seed({
         owner: "akash1first",
         maxNodeFreeGpu: 4n,
-        nodes: [node({ info: [gpuInfo({ name: "a100" })] }), node({ info: [gpuInfo({ name: "a100" })] })]
+        nodes: [
+          node({ allocatable: 8, allocated: 6, info: [gpuInfo({ name: "a100" })] }),
+          node({ allocatable: 8, allocated: 4, info: [gpuInfo({ name: "a100" })] })
+        ]
       });
-      await seed({ owner: "akash1second", maxNodeFreeGpu: 4n, nodes: [node({ info: [gpuInfo({ name: "a100" })] })] });
+      await seed({ owner: "akash1second", maxNodeFreeGpu: 8n, nodes: [node({ info: [gpuInfo({ name: "a100" })] })] });
 
-      expect(await repository.findAvailableGpus()).toEqual([
-        { owner: "akash1first", vendor: "nvidia", model: "a100", memory: "40Gi", interface: "pcie", advertisedGpuKeys: [] },
-        { owner: "akash1second", vendor: "nvidia", model: "a100", memory: "40Gi", interface: "pcie", advertisedGpuKeys: [] }
+      expect((await repository.findAvailableGpus()).map(gpu => [gpu.owner, gpu.node, gpu.nodeFreeUnits])).toEqual([
+        ["akash1first", 1, 2],
+        ["akash1first", 2, 4],
+        ["akash1second", 1, 8]
       ]);
+    });
+
+    it("treats a node reporting no allocation as having every gpu free", async () => {
+      await seed({ owner: "akash1unreported", maxNodeFreeGpu: 4n, nodes: [node({ allocatable: 4, allocated: null, info: [gpuInfo({ name: "a100" })] })] });
+
+      expect((await repository.findAvailableGpus()).map(gpu => gpu.nodeFreeUnits)).toEqual([4]);
     });
 
     it("leaves out gpus on a fully leased node", async () => {
@@ -132,7 +148,7 @@ describe(PlacementOptionsRepository.name, () => {
     it("treats a node reporting unlimited capacity as free", async () => {
       await seed({ owner: "akash1unlimited", maxNodeFreeGpu: 1n, nodes: [node({ allocatable: -1, allocated: 12, info: [gpuInfo({ name: "a100" })] })] });
 
-      expect((await repository.findAvailableGpus()).map(gpu => gpu.model)).toEqual(["a100"]);
+      expect((await repository.findAvailableGpus()).map(gpu => [gpu.model, gpu.nodeFreeUnits])).toEqual([["a100", null]]);
     });
 
     it("leaves out gpus of an offline provider", async () => {
@@ -167,7 +183,7 @@ describe(PlacementOptionsRepository.name, () => {
       await seed({ owner: "akash1blank", maxNodeFreeGpu: 4n, nodes: [node({ info: [gpuInfo({ name: "a100", memorySize: "", interface: "" })] })] });
 
       expect(await repository.findAvailableGpus()).toEqual([
-        { owner: "akash1blank", vendor: "nvidia", model: "a100", memory: "", interface: "", advertisedGpuKeys: [] }
+        { owner: "akash1blank", node: 1, vendor: "nvidia", model: "a100", memory: "", interface: "", units: 1, nodeFreeUnits: 8, advertisedGpuKeys: [] }
       ]);
     });
 
@@ -207,13 +223,16 @@ describe(PlacementOptionsRepository.name, () => {
     };
   }
 
-  function node(input: { allocatable?: number; allocated?: number; info?: GpuInfo[] }): NodeState {
+  function node(input: { allocatable?: number; allocated?: number | null; info?: GpuInfo[] }): NodeState {
+    const quantity =
+      input.allocated === null ? { allocatable: input.allocatable ?? 8 } : { allocatable: input.allocatable ?? 8, allocated: input.allocated ?? 0 };
+
     return {
       name: "node-1",
       cpu: { allocatable: 1000, allocated: 0 },
       memory: { allocatable: 1000, allocated: 0 },
       ephemeralStorage: { allocatable: 1000, allocated: 0 },
-      gpu: { quantity: { allocatable: input.allocatable ?? 8, allocated: input.allocated ?? 0 }, info: input.info ?? [] },
+      gpu: { quantity: quantity as NodeState["gpu"]["quantity"], info: input.info ?? [] },
       storageClasses: [],
       cpus: []
     };

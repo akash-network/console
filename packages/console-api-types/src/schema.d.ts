@@ -10209,6 +10209,16 @@ export interface operations {
                  * @example 3
                  */
                 providerCount: number;
+                /**
+                 * @description Free GPUs across those providers' nodes, counting on each node no more than it would bid on
+                 * @example 40
+                 */
+                availableUnits: number;
+                /**
+                 * @description Most GPUs a single node would bid on, which bounds the GPUs one replica can ask for
+                 * @example 8
+                 */
+                maxNodeFreeUnits: number;
                 /** @description Every memory and interface combination at least one provider would bid on, the model alone included */
                 variants: {
                   /**
@@ -10226,6 +10236,16 @@ export interface operations {
                    * @example 2
                    */
                   providerCount: number;
+                  /**
+                   * @description Free GPUs across those providers' nodes, counting on each node no more than it would bid on
+                   * @example 40
+                   */
+                  availableUnits: number;
+                  /**
+                   * @description Most GPUs a single node would bid on, which bounds the GPUs one replica can ask for
+                   * @example 8
+                   */
+                  maxNodeFreeUnits: number;
                 }[];
               }[];
             }[];

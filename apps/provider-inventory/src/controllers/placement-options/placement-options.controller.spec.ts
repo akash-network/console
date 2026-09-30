@@ -22,7 +22,17 @@ describe(PlacementOptionsController.name, () => {
   it("answers with the available gpus grouped by vendor", async () => {
     const { controller } = setup({
       availableGpus: [
-        { owner: "akash1provider", vendor: "nvidia", model: "a100", memory: "80Gi", interface: "sxm", advertisedGpuKeys: ["vendor/nvidia/model/a100"] }
+        {
+          owner: "akash1provider",
+          node: 1,
+          vendor: "nvidia",
+          model: "a100",
+          memory: "80Gi",
+          interface: "sxm",
+          units: 8,
+          nodeFreeUnits: 6,
+          advertisedGpuKeys: ["vendor/nvidia/model/a100"]
+        }
       ]
     });
 
@@ -31,7 +41,17 @@ describe(PlacementOptionsController.name, () => {
     expect(options.gpus).toEqual([
       {
         vendor: "nvidia",
-        models: [{ name: "a100", memory: [], interface: [], providerCount: 1, variants: [{ memory: null, interface: null, providerCount: 1 }] }]
+        models: [
+          {
+            name: "a100",
+            memory: [],
+            interface: [],
+            providerCount: 1,
+            availableUnits: 6,
+            maxNodeFreeUnits: 6,
+            variants: [{ memory: null, interface: null, providerCount: 1, availableUnits: 6, maxNodeFreeUnits: 6 }]
+          }
+        ]
       }
     ]);
   });
