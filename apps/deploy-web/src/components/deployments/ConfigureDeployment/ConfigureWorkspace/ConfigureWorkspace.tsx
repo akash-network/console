@@ -6,12 +6,16 @@ import { AnimatePresence, motion, MotionConfig } from "framer-motion";
 
 import { isLogCollectorService } from "@src/components/sdl/LogCollectorControl/LogCollectorControl";
 import { useServices } from "@src/context/ServicesProvider";
+import { useGpuModels } from "@src/queries/useGpuQuery";
 import { useScreenedProviders } from "@src/queries/useScreenedProviders";
 import type { PlacementType, SdlBuilderFormValuesType } from "@src/types";
 import { AvailabilityPane } from "../AvailabilityPane/AvailabilityPane";
 import { ConfigureEditor } from "../ConfigureEditor/ConfigureEditor";
 import { ResetConfigurationButton } from "../ConfigureEditor/ResetConfigurationButton/ResetConfigurationButton";
 import { deployCtaState } from "../deployCtaState/deployCtaState";
+import { describeCurrentConfiguration } from "../HardwareRequestDialog/currentConfiguration";
+import { HardwareRequestDialog } from "../HardwareRequestDialog/HardwareRequestDialog";
+import type { HardwareRequestConfiguration } from "../HardwareRequestDialog/hardwareRequestForm";
 import type { ImportedDeploymentState } from "../importDeploymentState/importDeploymentState";
 import { MarketplacePane } from "../MarketplacePane/MarketplacePane";
 import { SdlImportExport } from "../SdlImportExport/SdlImportExport";
@@ -42,7 +46,9 @@ export const DEPENDENCIES = {
   SdlImportExport,
   ResetConfigurationButton,
   SdlPreviewPane,
+  HardwareRequestDialog,
   useSdlPreviewPanel,
+  useGpuModels,
   useQuoteExpiry,
   useDeploymentCost,
   useRequestQuotes,
@@ -105,6 +111,8 @@ export const ConfigureWorkspace: FC<Props> = ({
   const cost = d.useDeploymentCost({ dseq: flow.dseq, sdl, placements, selections: flow.selections });
   const retryDeploy = d.useRetryDeploy({ flow });
   const requestQuotes = d.useRequestQuotes({ flow, deploymentName: typedDeploymentName, onInvalid: revealFirstInvalidService });
+  const { data: gpuCatalog } = d.useGpuModels();
+  const [requestedConfiguration, setRequestedConfiguration] = useState<HardwareRequestConfiguration | null>(null);
   const panelsRef = useRef<HTMLDivElement>(null);
   const isEditable = flow.phase === "configuring" || flow.phase === "error";
   const view: View = isEditable ? "configure" : "pick";
@@ -127,6 +135,13 @@ export const ConfigureWorkspace: FC<Props> = ({
   function chooseProvider() {
     analyticsService.track("configure_choose_provider_clicked", { category: "deployments" });
     void requestQuotes();
+  }
+
+  function requestCompute() {
+    analyticsService.track("configure_request_compute_clicked", { category: "deployments" });
+    const values = getValues();
+    const serviceIndex = values.services.findIndex(service => service.id === selectedServiceId);
+    setRequestedConfiguration(describeCurrentConfiguration(values, serviceIndex, gpuCatalog));
   }
 
   function editConfiguration() {
@@ -259,6 +274,7 @@ export const ConfigureWorkspace: FC<Props> = ({
                     isReady={isReady}
                     isSubmitting={isSubmitting}
                     onChooseProvider={chooseProvider}
+                    onRequestCompute={requestCompute}
                   />
                 </motion.div>
               )}
@@ -267,6 +283,9 @@ export const ConfigureWorkspace: FC<Props> = ({
         </MotionConfig>
         {sdlPreview.isEnabled && <d.SdlPreviewPane sdl={previewSdl} isOpen={sdlPreview.isOpen} onOpen={sdlPreview.open} onClose={sdlPreview.close} />}
       </div>
+      {requestedConfiguration && (
+        <d.HardwareRequestDialog initialGpuModel="" configuration={requestedConfiguration} onClose={() => setRequestedConfiguration(null)} />
+      )}
     </div>
   );
 };

@@ -155,10 +155,30 @@ describe(AvailabilityPane.name, () => {
     expect(onChooseProvider).toHaveBeenCalled();
   });
 
-  it("holds the choice while a request is already being submitted", () => {
+  it("holds the provider choice but not the compute request while a request is already being submitted", () => {
     setup({ isReady: true, isSubmitting: true });
 
     expect(screen.getByRole("button", { name: "Choose a provider" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Request compute" })).toBeEnabled();
+  });
+
+  it("requests compute from beside the provider choice", async () => {
+    const { onRequestCompute, onChooseProvider } = setup({ isReady: false });
+
+    await userEvent.click(screen.getByRole("button", { name: "Request compute" }));
+
+    expect(onRequestCompute).toHaveBeenCalled();
+    expect(onChooseProvider).not.toHaveBeenCalled();
+  });
+
+  it("offers the compute request for what is missing before the provider choice", () => {
+    setup({});
+
+    const [requestCompute, chooseProvider] = screen.getAllByRole("button");
+    expect(chooseProvider).toHaveAccessibleName("Choose a provider");
+    expect(chooseProvider).toHaveAccessibleDescription("Compare live bids yourself");
+    expect(requestCompute).toHaveAccessibleName("Request compute");
+    expect(requestCompute).toHaveAccessibleDescription("Don't see what you need?");
   });
 
   function setup(input: {
@@ -175,6 +195,7 @@ describe(AvailabilityPane.name, () => {
     gpuAvailability?: Partial<GpuAvailability>;
   }) {
     const onChooseProvider = vi.fn();
+    const onRequestCompute = vi.fn();
     const useScreenedProviders = vi.fn(() => ({
       providers: Array.from({ length: input.eligibleCount ?? 3 }, () => mock<ScreenedProvider>()),
       isLoading: input.isLoading ?? false,
@@ -211,10 +232,11 @@ describe(AvailabilityPane.name, () => {
         isReady={input.isReady ?? true}
         isSubmitting={input.isSubmitting ?? false}
         onChooseProvider={onChooseProvider}
+        onRequestCompute={onRequestCompute}
         dependencies={dependencies}
       />
     );
 
-    return { onChooseProvider, useScreenedProviders, useGpuAvailability, CustomTooltip };
+    return { onChooseProvider, onRequestCompute, useScreenedProviders, useGpuAvailability, CustomTooltip };
   }
 });

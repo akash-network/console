@@ -86,6 +86,32 @@ describe(ConfigureWorkspace.name, () => {
       expect(useRequestQuotes).toHaveBeenCalledWith(expect.objectContaining({ deploymentName: "typed-name" }));
     });
 
+    it("tracks a compute request and asks for it with the selected service's configuration", () => {
+      const { availabilityProps, analyticsService, dependencies } = setup({ selectedServiceId: "api" });
+      expect(dependencies.HardwareRequestDialog).not.toHaveBeenCalled();
+
+      act(() => availabilityProps().onRequestCompute());
+
+      expect(analyticsService.track).toHaveBeenCalledWith("configure_request_compute_clicked", { category: "deployments" });
+      expect(screen.getByText("Hardware request dialog")).toBeInTheDocument();
+      expect(dependencies.HardwareRequestDialog).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          initialGpuModel: "",
+          configuration: expect.objectContaining({ summary: "0.1 vCPU · 512 MiB memory · 1 GiB storage · us-west" })
+        }),
+        expect.anything()
+      );
+    });
+
+    it("closes the hardware request dialog when it asks to", () => {
+      const { availabilityProps, dependencies } = setup({});
+      act(() => availabilityProps().onRequestCompute());
+
+      act(() => dependencies.HardwareRequestDialog.mock.lastCall![0].onClose());
+
+      expect(screen.queryByText("Hardware request dialog")).not.toBeInTheDocument();
+    });
+
     it("reveals the first invalid service when the request is rejected", () => {
       const { useRequestQuotes, onSelectService } = setup({});
       const { onInvalid } = useRequestQuotes.mock.calls.at(-1)![0];
@@ -254,6 +280,7 @@ describe(ConfigureWorkspace.name, () => {
     sdlPreviewEnabled?: boolean;
     bidCount?: number;
     pendingClose?: DeploymentFlow["pendingClose"];
+    selectedServiceId?: string;
   }) {
     const first = { ...defaultPlacement({ name: "placement-1" }), id: "p1", region: "" };
     const second = { ...defaultPlacement({ name: "gpu-pool" }), id: "p2", region: "us-west" };
@@ -292,7 +319,9 @@ describe(ConfigureWorkspace.name, () => {
           Compute Marketplace
         </h2>
       )),
+      HardwareRequestDialog: vi.fn(() => <div>Hardware request dialog</div>),
       useSdlPreviewPanel: () => ({ isEnabled: input.sdlPreviewEnabled ?? false, isOpen: false, open: vi.fn(), close: vi.fn() }),
+      useGpuModels: () => mock<ReturnType<typeof DEPENDENCIES.useGpuModels>>({ data: [] }),
       useQuoteExpiry: () => (input.expired ? { secondsLeft: 0, isExpired: true } : null),
       useDeploymentCost: () => input.cost ?? null,
       useRequestQuotes,
@@ -325,7 +354,7 @@ describe(ConfigureWorkspace.name, () => {
         flow={currentFlow}
         sdl="live-sdl"
         previewSdl="preview-sdl"
-        selectedServiceId="web"
+        selectedServiceId={input.selectedServiceId ?? "web"}
         selectedPlacement={second as PlacementType}
         onSelectService={onSelectService}
         onSelectProvider={onSelectProvider}
