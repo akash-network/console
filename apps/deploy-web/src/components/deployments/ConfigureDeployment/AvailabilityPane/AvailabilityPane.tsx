@@ -1,7 +1,7 @@
 import type { FC, ReactNode } from "react";
 import { useId } from "react";
 import { Button, CustomTooltip } from "@akashnetwork/ui/components";
-import { GpuIcon, InfoIcon, LoaderCircleIcon } from "lucide-react";
+import { GpuIcon, InfoIcon, LoaderCircleIcon, MessageSquareIcon, PanelsTopLeftIcon } from "lucide-react";
 
 import { useNetworkProviderCount } from "@src/queries/useNetworkProviderCount";
 import { useScreenedProviders } from "@src/queries/useScreenedProviders";
@@ -20,12 +20,21 @@ type Props = {
   isReady: boolean;
   isSubmitting: boolean;
   onChooseProvider: () => void;
+  onRequestCompute: () => void;
   dependencies?: typeof DEPENDENCIES;
 };
 
-export const AvailabilityPane: FC<Props> = ({ sdl, placement, placementCount, isReady, isSubmitting, onChooseProvider, dependencies: d = DEPENDENCIES }) => {
+export const AvailabilityPane: FC<Props> = ({
+  sdl,
+  placement,
+  placementCount,
+  isReady,
+  isSubmitting,
+  onChooseProvider,
+  onRequestCompute,
+  dependencies: d = DEPENDENCIES
+}) => {
   const headingId = useId();
-  const subtitleId = useId();
   const screened = d.useScreenedProviders({ sdl, placementName: placement.name, region: placement.region });
   const network = d.useNetworkProviderCount();
   const gpuAvailability = d.useGpuAvailability(placement);
@@ -60,24 +69,67 @@ export const AvailabilityPane: FC<Props> = ({ sdl, placement, placementCount, is
       <footer className="shrink-0 border-t border-zinc-300 p-4 dark:border-zinc-700">
         <div className="max-w-[720px] space-y-3">
           {!isReady && <p className="text-sm text-muted-foreground">Add a container image and hardware to every service on the left to deploy.</p>}
-          <Button
-            type="button"
-            aria-label="Choose a provider"
-            aria-describedby={subtitleId}
-            disabled={isSubmitting}
-            onClick={onChooseProvider}
-            className="h-auto w-full flex-col gap-0.5 py-3"
-          >
-            <span className="text-base font-semibold">Choose a provider</span>
-            <span id={subtitleId} className="text-xs font-normal opacity-80">
-              Compare live bids yourself
-            </span>
-          </Button>
+          <div className="grid grid-cols-[repeat(auto-fit,minmax(15rem,1fr))] gap-3">
+            <FooterAction
+              variant="outline"
+              icon={<MessageSquareIcon className="h-5 w-5" />}
+              title="Request compute"
+              subtitle="Don't see what you need?"
+              onClick={onRequestCompute}
+            />
+            <FooterAction
+              variant="default"
+              icon={<PanelsTopLeftIcon className="h-5 w-5" />}
+              title="Choose a provider"
+              subtitle="Compare live bids yourself"
+              disabled={isSubmitting}
+              onClick={onChooseProvider}
+            />
+          </div>
         </div>
       </footer>
     </section>
   );
 };
+
+type FooterActionProps = {
+  variant: "default" | "outline";
+  icon: ReactNode;
+  title: string;
+  subtitle: string;
+  disabled?: boolean;
+  onClick: () => void;
+};
+
+function FooterAction({ variant, icon, title, subtitle, disabled, onClick }: FooterActionProps) {
+  const subtitleId = useId();
+
+  return (
+    <Button
+      type="button"
+      variant={variant}
+      data-variant={variant}
+      aria-label={title}
+      aria-describedby={subtitleId}
+      disabled={disabled}
+      onClick={onClick}
+      className="group h-auto justify-start gap-3 whitespace-normal rounded-lg p-3 text-left"
+    >
+      <span
+        aria-hidden="true"
+        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-muted text-foreground group-data-[variant=default]:bg-primary-foreground/15 group-data-[variant=default]:text-primary-foreground"
+      >
+        {icon}
+      </span>
+      <span className="flex min-w-0 flex-col gap-0.5">
+        <span className="text-base font-semibold">{title}</span>
+        <span id={subtitleId} className="text-xs font-normal opacity-80">
+          {subtitle}
+        </span>
+      </span>
+    </Button>
+  );
+}
 
 type ProviderCountCardProps = {
   screened: ReturnType<typeof DEPENDENCIES.useScreenedProviders>;
