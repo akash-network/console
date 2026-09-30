@@ -78,7 +78,7 @@ describe("GpuCard trial gate", () => {
     expect(unavailable.getByRole("option", { name: "NVIDIA t4" })).toHaveAttribute("aria-disabled", "true");
   });
 
-  it("keeps a blocked model's lock alongside its provider count", async () => {
+  it("keeps a blocked model's lock alongside its counts", async () => {
     const user = setup({
       isBlockedModel: (_vendor, model) => model === "h100",
       availableGpus: [{ vendor: "nvidia", models: [availableModel("h100", 2), availableModel("t4")] }]
@@ -88,7 +88,7 @@ describe("GpuCard trial gate", () => {
     const blockedOption = await screen.findByRole("option", { name: /h100/ });
 
     expect(blockedOption).toHaveAttribute("aria-disabled", "true");
-    expect(blockedOption).toHaveAccessibleDescription("2 providers");
+    expect(blockedOption).toHaveAccessibleDescription("2 free GPUs on 2 providers");
     expect(within(blockedOption).getByLabelText("Requires credits")).toBeInTheDocument();
   });
 

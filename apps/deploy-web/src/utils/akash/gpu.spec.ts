@@ -90,7 +90,11 @@ describe(narrowGpuVendorsToAvailable.name, () => {
     const narrowed = narrowGpuVendorsToAvailable(CATALOG, [{ vendor: "nvidia", models: [model("t4", ["16Gi"], ["pcie"])] }]);
 
     expect(narrowed).toEqual([
-      { name: "nvidia", displayName: "NVIDIA", models: [{ name: "t4", displayName: "T4", memory: ["16Gi"], interface: ["pcie"], providerCount: 1 }] }
+      {
+        name: "nvidia",
+        displayName: "NVIDIA",
+        models: [{ name: "t4", displayName: "T4", memory: ["16Gi"], interface: ["pcie"], providerCount: 1, availableUnits: 1 }]
+      }
     ]);
   });
 
@@ -98,6 +102,12 @@ describe(narrowGpuVendorsToAvailable.name, () => {
     const narrowed = narrowGpuVendorsToAvailable(CATALOG, [{ vendor: "nvidia", models: [model("t4", ["16Gi"], ["pcie"], 4)] }]);
 
     expect(narrowed?.[0].models[0].providerCount).toBe(4);
+  });
+
+  it("carries how many gpus of each model are free", () => {
+    const narrowed = narrowGpuVendorsToAvailable(CATALOG, [{ vendor: "nvidia", models: [{ ...model("t4", ["16Gi"], ["pcie"], 2), availableUnits: 40 }] }]);
+
+    expect(narrowed?.[0].models[0].availableUnits).toBe(40);
   });
 
   it("keeps only the memory sizes and interfaces the model is available with", () => {
@@ -109,7 +119,14 @@ describe(narrowGpuVendorsToAvailable.name, () => {
   it("offers a model the catalog does not list, without a display name", () => {
     const narrowed = narrowGpuVendorsToAvailable(CATALOG, [{ vendor: "nvidia", models: [model("b200", ["180Gi"], ["sxm"])] }]);
 
-    expect(narrowed?.[0].models[0]).toEqual({ name: "b200", displayName: undefined, memory: ["180Gi"], interface: ["sxm"], providerCount: 1 });
+    expect(narrowed?.[0].models[0]).toEqual({
+      name: "b200",
+      displayName: undefined,
+      memory: ["180Gi"],
+      interface: ["sxm"],
+      providerCount: 1,
+      availableUnits: 1
+    });
   });
 
   it("offers a model the catalog does not list with nothing to pick when providers report no memory or interface", () => {

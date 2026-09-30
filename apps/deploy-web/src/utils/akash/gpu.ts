@@ -34,6 +34,7 @@ export function narrowGpuVendorsToAvailable(catalog: GpuVendor[] | undefined, av
           memory: availableModel.memory.length ? availableModel.memory : catalogModel?.memory ?? [],
           interface: availableModel.interface.length ? availableModel.interface : catalogModel?.interface ?? [],
           providerCount: availableModel.providerCount,
+          availableUnits: availableModel.availableUnits,
           variants: availableModel.variants?.length ? availableModel.variants : undefined
         };
       })
