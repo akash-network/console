@@ -1,5 +1,6 @@
 import { JwtTokenManager } from "@akashnetwork/chain-sdk";
 import { z } from "@hono/zod-openapi";
+import { createPrivateKey } from "node:crypto";
 import { isIP } from "node:net";
 
 import { isValidBech32Address } from "./isValidBech32";
@@ -60,6 +61,17 @@ export function addProviderAuthValidation<T extends z.ZodType<any>>(schema: T): 
         }
       }
 
+      if (data.auth?.type === "mtls" && !isReadablePrivateKey(data.auth.keyPem)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "is not a valid private key",
+          path: ["auth", "keyPem"],
+          params: {
+            reason: "invalid"
+          }
+        });
+      }
+
       if (data.auth?.type === "jwt" && data.auth.token) {
         const validationResult = validateJwtPayload(data.auth.token);
         if (!validationResult.isValid) {
@@ -86,5 +98,14 @@ function validateJwtPayload(token: string): { isValid: boolean; errors?: string[
     return jwtTokenManager.validatePayload(jwtTokenManager.decodeToken(token));
   } catch {
     return { isValid: false, errors: ["Invalid token"] };
+  }
+}
+
+function isReadablePrivateKey(keyPem: string): boolean {
+  try {
+    createPrivateKey(keyPem);
+    return true;
+  } catch {
+    return false;
   }
 }
