@@ -902,12 +902,100 @@ describe(GpuCard.name, () => {
     });
   });
 
+  describe("node capacity", () => {
+    it("warns when no single node has as many free gpus of the picked model as the count asks for", () => {
+      setup({
+        hasGpu: true,
+        gpu: 12,
+        gpuModels: [{ vendor: "nvidia", name: "h100", memory: "", interface: "" }],
+        availableGpus: [{ vendor: "nvidia", models: [availableModel("h100", ["80Gi"], ["sxm"], 5, 40, 8)] }]
+      });
+
+      expect(screen.getByRole("status")).toHaveTextContent("No single node has 12 of these GPUs free right now. The most one node can offer is 8.");
+    });
+
+    it("shows the warning once the count goes above what one node has free and drops it once back", async () => {
+      const { user } = setup({
+        hasGpu: true,
+        gpu: 8,
+        gpuModels: [{ vendor: "nvidia", name: "h100", memory: "", interface: "" }],
+        availableGpus: [{ vendor: "nvidia", models: [availableModel("h100", ["80Gi"], ["sxm"], 5, 40, 8)] }]
+      });
+
+      expect(screen.queryByRole("status")).not.toBeInTheDocument();
+
+      await user.click(screen.getByRole("button", { name: "Increase GPUs" }));
+      expect(screen.getByRole("status")).toHaveTextContent("No single node has 9 of these GPUs free right now.");
+
+      await user.click(screen.getByRole("button", { name: "Decrease GPUs" }));
+      expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    });
+
+    it("counts only the nodes advertising the pinned memory and interface", () => {
+      setup({
+        hasGpu: true,
+        gpu: 6,
+        gpuModels: [{ vendor: "nvidia", name: "h100", memory: "80Gi", interface: "sxm" }],
+        availableGpus: [
+          {
+            vendor: "nvidia",
+            models: [
+              {
+                ...availableModel("h100", ["80Gi"], ["sxm"], 5, 40, 8),
+                variants: [variant(null, null, 5, 8), variant("80Gi", null, 5, 8), variant(null, "sxm", 5, 8), variant("80Gi", "sxm", 1, 4)]
+              }
+            ]
+          }
+        ]
+      });
+
+      expect(screen.getByRole("status")).toHaveTextContent("The most one node can offer is 4.");
+    });
+
+    it("stays quiet while one of the alternative models fits on a single node", () => {
+      setup({
+        hasGpu: true,
+        gpu: 6,
+        gpuModels: [
+          { vendor: "nvidia", name: "h100", memory: "", interface: "" },
+          { vendor: "nvidia", name: "a100", memory: "", interface: "" }
+        ],
+        availableGpus: [{ vendor: "nvidia", models: [availableModel("h100", ["80Gi"], ["sxm"], 1, 4, 4), availableModel("a100", ["80Gi"], ["sxm"], 1, 8, 8)] }]
+      });
+
+      expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    });
+
+    it("says no node has the gpus free when the picked model is not offered", () => {
+      setup({
+        hasGpu: true,
+        gpuModels: [{ vendor: "nvidia", name: "a100", memory: "", interface: "" }],
+        availableGpus: [{ vendor: "nvidia", models: [availableModel("t4", ["16Gi"], ["pcie"])] }]
+      });
+
+      expect(screen.getByRole("status")).toHaveTextContent("No node has these GPUs free right now.");
+    });
+
+    it("warns from the first model picker before any gpu entry exists", () => {
+      setup({ hasGpu: true, gpu: 4, gpuModels: [], availableGpus: [{ vendor: "nvidia", models: [availableModel("t4", ["16Gi"], ["pcie"], 1, 2, 2)] }] });
+
+      expect(screen.getByRole("status")).toHaveTextContent("No single node has 4 of these GPUs free right now. The most one node can offer is 2.");
+    });
+
+    it("shows no warning while availability is unknown", () => {
+      setup({ hasGpu: true, gpu: 24, gpuModels: [{ vendor: "nvidia", name: "h100", memory: "", interface: "" }] });
+
+      expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    });
+  });
+
   function availableModel(
     name: string,
     memory = ["80Gi"],
     gpuInterface = ["sxm"],
     providerCount = 1,
-    availableUnits = providerCount
+    availableUnits = providerCount,
+    maxNodeFreeUnits = 1
   ): AvailableGpuVendor["models"][number] {
     return {
       name,
@@ -915,13 +1003,18 @@ describe(GpuCard.name, () => {
       interface: gpuInterface,
       providerCount,
       availableUnits,
-      maxNodeFreeUnits: 1,
-      variants: everyVariant(memory, gpuInterface, providerCount)
+      maxNodeFreeUnits,
+      variants: everyVariant(memory, gpuInterface, providerCount, maxNodeFreeUnits)
     };
   }
 
-  function variant(memory: string | null, gpuInterface: string | null, providerCount: number): AvailableGpuVendor["models"][number]["variants"][number] {
-    return { memory, interface: gpuInterface, providerCount, availableUnits: providerCount, maxNodeFreeUnits: 1 };
+  function variant(
+    memory: string | null,
+    gpuInterface: string | null,
+    providerCount: number,
+    maxNodeFreeUnits = 1
+  ): AvailableGpuVendor["models"][number]["variants"][number] {
+    return { memory, interface: gpuInterface, providerCount, availableUnits: providerCount, maxNodeFreeUnits };
   }
 
   function everyCatalogGpuAvailable(): AvailableGpuVendor[] {
@@ -931,8 +1024,8 @@ describe(GpuCard.name, () => {
     ];
   }
 
-  function everyVariant(memory: string[], gpuInterface: string[], providerCount: number) {
-    return [null, ...memory].flatMap(size => [null, ...gpuInterface].map(option => variant(size, option, providerCount)));
+  function everyVariant(memory: string[], gpuInterface: string[], providerCount: number, maxNodeFreeUnits = 1) {
+    return [null, ...memory].flatMap(size => [null, ...gpuInterface].map(option => variant(size, option, providerCount, maxNodeFreeUnits)));
   }
 
   const StubGpuModelFields: typeof DEPENDENCIES.GpuModelFields = ({ gpuIndex }) => <div role="group" aria-label={`GPU ${gpuIndex + 1}`} />;

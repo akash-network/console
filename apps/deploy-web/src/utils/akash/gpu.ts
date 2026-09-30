@@ -35,6 +35,7 @@ export function narrowGpuVendorsToAvailable(catalog: GpuVendor[] | undefined, av
           interface: availableModel.interface.length ? availableModel.interface : catalogModel?.interface ?? [],
           providerCount: availableModel.providerCount,
           availableUnits: availableModel.availableUnits,
+          maxNodeFreeUnits: availableModel.maxNodeFreeUnits,
           variants: availableModel.variants?.length ? availableModel.variants : undefined
         };
       })
@@ -102,6 +103,28 @@ export function listGpuInterfaceOptions(model: GpuModel | undefined, pinned: Pin
 function withPinnedValue(values: string[], pinned: string | null | undefined): string[] {
   if (!pinned || values.includes(pinned)) return values;
   return [...values, pinned];
+}
+
+/** Undefined while availability or its per-node counts are unknown, so neither an outage nor an older API raises a capacity warning. */
+export function findMaxNodeFreeUnits(available: AvailableGpuVendor[] | undefined, entries: PinnedGpu[]): number | undefined {
+  const served = narrowGpuVendorsToAvailable(undefined, available);
+  if (!served) return undefined;
+
+  const perNodeLimits = (entries.length ? entries : [{}]).flatMap(entry => listMaxNodeFreeUnits(served, entry));
+  return perNodeLimits.every((units): units is number => units !== undefined) ? Math.max(0, ...perNodeLimits) : undefined;
+}
+
+/** An entry naming no model takes any model of its vendor, and a pinned memory or interface only counts the nodes advertising that exact combination. */
+function listMaxNodeFreeUnits(vendors: GpuVendor[], entry: PinnedGpu): (number | undefined)[] {
+  const models = vendors.filter(vendor => !entry.vendor || vendor.name === entry.vendor).flatMap(vendor => vendor.models);
+  if (!entry.name) return models.map(model => model.maxNodeFreeUnits);
+
+  const model = models.find(candidate => candidate.name === entry.name);
+  if (!model) return [];
+  if (!entry.memory && !entry.interface) return [model.maxNodeFreeUnits];
+
+  const variant = model.variants?.find(candidate => candidate.memory === (entry.memory || null) && candidate.interface === (entry.interface || null));
+  return [variant ? variant.maxNodeFreeUnits : 0];
 }
 
 /** Empty while availability is absent or empty, so a failed fetch keeps every model selectable. */

@@ -15,6 +15,8 @@ export interface GpuModel {
   providerCount?: number;
   /** Free GPUs of the model across those providers, set only on models narrowed to what providers offer and served by the API. */
   availableUnits?: number;
+  /** Most GPUs of the model a single node would bid on, set only on models narrowed to what providers offer and served by the API. */
+  maxNodeFreeUnits?: number;
   /** Memory and interface combinations some provider would bid on, set only on models narrowed to what providers offer. */
   variants?: GpuVariant[];
 }
@@ -23,4 +25,6 @@ export interface GpuVariant {
   memory: string | null;
   interface: string | null;
   providerCount: number;
+  /** Absent on an API from before free GPUs were counted. */
+  maxNodeFreeUnits?: number;
 }

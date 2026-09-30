@@ -4,6 +4,7 @@ import type { AvailableGpuVendor } from "@src/queries/usePlacementOptions";
 import type { GpuVendor } from "@src/types/gpu";
 import type { GpuModel } from "@src/types/gpu";
 import {
+  findMaxNodeFreeUnits,
   findUnavailableGpuModels,
   listGpuInterfaceOptions,
   listGpuMemoryOptions,
@@ -93,7 +94,7 @@ describe(narrowGpuVendorsToAvailable.name, () => {
       {
         name: "nvidia",
         displayName: "NVIDIA",
-        models: [{ name: "t4", displayName: "T4", memory: ["16Gi"], interface: ["pcie"], providerCount: 1, availableUnits: 1 }]
+        models: [{ name: "t4", displayName: "T4", memory: ["16Gi"], interface: ["pcie"], providerCount: 1, availableUnits: 1, maxNodeFreeUnits: 1 }]
       }
     ]);
   });
@@ -125,7 +126,8 @@ describe(narrowGpuVendorsToAvailable.name, () => {
       memory: ["180Gi"],
       interface: ["sxm"],
       providerCount: 1,
-      availableUnits: 1
+      availableUnits: 1,
+      maxNodeFreeUnits: 1
     });
   });
 
@@ -364,4 +366,97 @@ describe(listGpuInterfaceOptions.name, () => {
   it("lists only the pinned interface while no model is picked", () => {
     expect(listGpuInterfaceOptions(undefined, { interface: "sxm" })).toEqual(["sxm"]);
   });
+});
+
+describe(findMaxNodeFreeUnits.name, () => {
+  const AVAILABLE: AvailableGpuVendor[] = [
+    {
+      vendor: "nvidia",
+      models: [
+        servedModel("h100", 8, [
+          { memory: null, interface: null, maxNodeFreeUnits: 8 },
+          { memory: "80Gi", interface: null, maxNodeFreeUnits: 6 },
+          { memory: "80Gi", interface: "sxm", maxNodeFreeUnits: 4 }
+        ]),
+        servedModel("a100", 4, [{ memory: null, interface: null, maxNodeFreeUnits: 4 }])
+      ]
+    },
+    { vendor: "amd", models: [servedModel("mi300", 2, [{ memory: null, interface: null, maxNodeFreeUnits: 2 }])] }
+  ];
+
+  it("returns the most gpus of the picked model one node would bid on", () => {
+    expect(findMaxNodeFreeUnits(AVAILABLE, [{ vendor: "nvidia", name: "a100", memory: "", interface: "" }])).toBe(4);
+  });
+
+  it("counts only the nodes advertising the pinned memory and interface", () => {
+    expect(findMaxNodeFreeUnits(AVAILABLE, [{ vendor: "nvidia", name: "h100", memory: "80Gi", interface: "sxm" }])).toBe(4);
+  });
+
+  it("counts only the nodes advertising a pinned memory alone", () => {
+    expect(findMaxNodeFreeUnits(AVAILABLE, [{ vendor: "nvidia", name: "h100", memory: "80Gi", interface: "" }])).toBe(6);
+  });
+
+  it("counts no gpu for a pinned combination no provider advertises", () => {
+    expect(findMaxNodeFreeUnits(AVAILABLE, [{ vendor: "nvidia", name: "h100", memory: "94Gi", interface: "" }])).toBe(0);
+  });
+
+  it("counts no gpu for a pinned combination of a model served without any", () => {
+    const available = [{ vendor: "nvidia", models: [servedModel("h100", 8, [])] }];
+
+    expect(findMaxNodeFreeUnits(available, [{ vendor: "nvidia", name: "h100", memory: "80Gi", interface: "" }])).toBe(0);
+  });
+
+  it("takes the largest of the alternative models", () => {
+    const entries = [
+      { vendor: "nvidia", name: "a100", memory: "", interface: "" },
+      { vendor: "nvidia", name: "h100", memory: "", interface: "" }
+    ];
+
+    expect(findMaxNodeFreeUnits(AVAILABLE, entries)).toBe(8);
+  });
+
+  it("takes any model of the vendor for an entry naming none", () => {
+    expect(findMaxNodeFreeUnits(AVAILABLE, [{ vendor: "nvidia", name: "", memory: "", interface: "" }])).toBe(8);
+  });
+
+  it("looks only at the models of the entry's vendor", () => {
+    expect(findMaxNodeFreeUnits(AVAILABLE, [{ vendor: "amd", name: "", memory: "", interface: "" }])).toBe(2);
+  });
+
+  it("looks at every vendor while the service has no gpu entry", () => {
+    expect(findMaxNodeFreeUnits(AVAILABLE, [])).toBe(8);
+  });
+
+  it("counts no gpu for a model or vendor no provider offers", () => {
+    expect(findMaxNodeFreeUnits(AVAILABLE, [{ vendor: "nvidia", name: "v100", memory: "", interface: "" }])).toBe(0);
+    expect(findMaxNodeFreeUnits(AVAILABLE, [{ vendor: "intel", name: "", memory: "", interface: "" }])).toBe(0);
+  });
+
+  it("is unknown while availability is absent or empty", () => {
+    expect(findMaxNodeFreeUnits(undefined, [{ vendor: "nvidia", name: "h100" }])).toBeUndefined();
+    expect(findMaxNodeFreeUnits([], [{ vendor: "nvidia", name: "h100" }])).toBeUndefined();
+  });
+
+  it("is unknown while availability carries no per-node counts", () => {
+    const { maxNodeFreeUnits: _maxNodeFreeUnits, ...uncounted } = servedModel("h100", 8, []);
+    const available = [{ vendor: "nvidia", models: [uncounted as AvailableGpuVendor["models"][number]] }];
+
+    expect(findMaxNodeFreeUnits(available, [{ vendor: "nvidia", name: "h100" }])).toBeUndefined();
+  });
+
+  function servedModel(
+    name: string,
+    maxNodeFreeUnits: number,
+    variants: Array<{ memory: string | null; interface: string | null; maxNodeFreeUnits: number }>
+  ): AvailableGpuVendor["models"][number] {
+    return {
+      name,
+      memory: [],
+      interface: [],
+      providerCount: 1,
+      availableUnits: maxNodeFreeUnits,
+      maxNodeFreeUnits,
+      variants: variants.map(variant => ({ ...variant, providerCount: 1, availableUnits: variant.maxNodeFreeUnits }))
+    };
+  }
 });

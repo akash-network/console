@@ -17,7 +17,7 @@ import {
   Spinner,
   useFieldError
 } from "@akashnetwork/ui/components";
-import { ArrowRightIcon, GpuIcon, LockIcon, MessageSquareIcon, PlusIcon, TrashIcon, XIcon } from "lucide-react";
+import { ArrowRightIcon, GpuIcon, LockIcon, MessageSquareIcon, PlusIcon, TrashIcon, TriangleAlertIcon, XIcon } from "lucide-react";
 
 import { SearchableSelect } from "@src/components/shared/SearchableSelect/SearchableSelect";
 import { useServices } from "@src/context/ServicesProvider";
@@ -28,6 +28,7 @@ import type { SdlBuilderFormValuesType } from "@src/types";
 import type { GpuVendor } from "@src/types/gpu";
 import type { PinnedGpu } from "@src/utils/akash/gpu";
 import {
+  findMaxNodeFreeUnits,
   findUnavailableGpuModels,
   gpuVendors as fallbackVendors,
   listGpuInterfaceOptions,
@@ -73,7 +74,7 @@ type Props = {
   dependencies?: typeof DEPENDENCIES;
 };
 
-type ModelFieldsSharedProps = Omit<GpuModelFieldsProps, "gpuIndex" | "isGpuOn" | "countField" | "onModelPick" | "onRemove">;
+type ModelFieldsSharedProps = Omit<GpuModelFieldsProps, "gpuIndex" | "isGpuOn" | "countField" | "capacityWarning" | "onModelPick" | "onRemove">;
 
 /** A GPU count of 0 means no GPU, so the first model picker and the count stay visible while the rest of the GPU settings wait for a count. */
 export const GpuCard: FC<Props> = ({
@@ -119,6 +120,10 @@ export const GpuCard: FC<Props> = ({
   const countField = (
     <GpuCountField serviceIndex={serviceIndex} locked={locked} count={serviceGpu.count} onCountChange={serviceGpu.setCount} dependencies={d} />
   );
+  const maxNodeFreeUnits = findMaxNodeFreeUnits(placementOptions?.gpus, watchedModels ?? []);
+  const capacityWarning = maxNodeFreeUnits !== undefined && serviceGpu.count > maxNodeFreeUnits && (
+    <GpuCapacityWarning count={serviceGpu.count} maxNodeFreeUnits={maxNodeFreeUnits} />
+  );
 
   return (
     <>
@@ -134,9 +139,17 @@ export const GpuCard: FC<Props> = ({
           <p className="text-sm text-muted-foreground">Add accelerators for inference, training or rendering.</p>
 
           {fields.length > 0 ? (
-            <d.GpuModelFields {...sharedModelProps} key={fields[0].id} gpuIndex={0} isGpuOn={isGpuOn} countField={countField} onModelPick={serviceGpu.enable} />
+            <d.GpuModelFields
+              {...sharedModelProps}
+              key={fields[0].id}
+              gpuIndex={0}
+              isGpuOn={isGpuOn}
+              countField={countField}
+              capacityWarning={capacityWarning}
+              onModelPick={serviceGpu.enable}
+            />
           ) : (
-            <FirstGpuModelPicker {...sharedModelProps} countField={countField} onPick={serviceGpu.pickFirstModel} />
+            <FirstGpuModelPicker {...sharedModelProps} countField={countField} capacityWarning={capacityWarning} onPick={serviceGpu.pickFirstModel} />
           )}
 
           {isGpuOn &&
@@ -210,6 +223,21 @@ const GpuCountField: FC<{
   );
 };
 
+/** All GPUs of one replica must sit on a single node, so a count above the largest free slice gets no bid however many GPUs are free in total. */
+function GpuCapacityWarning({ count, maxNodeFreeUnits }: { count: number; maxNodeFreeUnits: number }) {
+  return (
+    <p role="status" className="flex items-start gap-2 rounded-md border border-warning/50 bg-warning/10 px-3 py-2 text-sm text-muted-foreground">
+      <TriangleAlertIcon className="mt-0.5 h-4 w-4 shrink-0 text-warning" aria-hidden="true" />
+      <span>{describeNodeCapacity(count, maxNodeFreeUnits)}</span>
+    </p>
+  );
+}
+
+function describeNodeCapacity(count: number, maxNodeFreeUnits: number): string {
+  if (maxNodeFreeUnits === 0) return "No node has these GPUs free right now.";
+  return `No single node has ${count} of these GPUs free right now. The most one node can offer is ${maxNodeFreeUnits}.`;
+}
+
 type GpuModelFieldsProps = {
   serviceIndex: number;
   gpuIndex: number;
@@ -229,6 +257,8 @@ type GpuModelFieldsProps = {
   isGpuOn: boolean;
   /** Rendered beside the first model's picker. */
   countField?: ReactNode;
+  /** Rendered below the first model's picker and count. */
+  capacityWarning?: ReactNode;
   /** Runs on every pick, including a re-pick of the current model, so picking a model while the GPU is off turns it on. */
   onModelPick?: () => void;
   onRemove?: () => void;
@@ -250,6 +280,7 @@ function GpuModelFields({
   locked = false,
   isGpuOn,
   countField,
+  capacityWarning,
   onModelPick,
   onRemove,
   dependencies: d = DEPENDENCIES
@@ -394,6 +425,7 @@ function GpuModelFields({
             {countField}
           </div>
         )}
+        {capacityWarning}
         {pinFields}
         {unlockButton}
       </div>
@@ -434,6 +466,7 @@ function GpuModelFields({
 
 type FirstGpuModelPickerProps = ModelFieldsSharedProps & {
   countField: ReactNode;
+  capacityWarning: ReactNode;
   onPick: (name: string) => void;
 };
 
@@ -449,6 +482,7 @@ function FirstGpuModelPicker({
   onRequestGpu,
   locked = false,
   countField,
+  capacityWarning,
   onPick
 }: FirstGpuModelPickerProps) {
   const choices = useGpuModelOptions({ gpuVendors, gpuCatalog, availableGpus, isBlockedModel, pinned: { vendor: defaultGpuModel.vendor } });
@@ -468,6 +502,7 @@ function FirstGpuModelPicker({
         />
         {countField}
       </div>
+      {capacityWarning}
       {!isLoading && !isError && choices.hasBlockedModel && <UnlockGpusButton onUnlock={onUnlock} />}
     </div>
   );
