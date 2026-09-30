@@ -21,7 +21,8 @@ try {
 const nextConfig = {
   output: "standalone",
   env: {
-    NEXT_PUBLIC_APP_VERSION: version
+    NEXT_PUBLIC_APP_VERSION: version,
+    NEXT_PUBLIC_SENTRY_ENVIRONMENT: process.env.SENTRY_ENVIRONMENT || process.env.DEPLOYMENT_ENV
   },
   eslint: {
     ignoreDuringBuilds: true

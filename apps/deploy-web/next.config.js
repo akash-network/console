@@ -61,7 +61,8 @@ const nextConfig = {
   reactStrictMode: false,
   productionBrowserSourceMaps: true,
   env: {
-    NEXT_PUBLIC_APP_VERSION: version
+    NEXT_PUBLIC_APP_VERSION: version,
+    NEXT_PUBLIC_SENTRY_ENVIRONMENT: process.env.SENTRY_ENVIRONMENT || process.env.DEPLOYMENT_ENV
   },
   compiler: {
     // Enables the styled-components SWC transform
