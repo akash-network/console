@@ -197,6 +197,10 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
   const bidStrategyRef = useRef(bidStrategy);
   bidStrategyRef.current = bidStrategy;
 
+  /** Read in the same callback, because a trial wallet still provisioning when the create went out gets its address only while it is in flight. */
+  const settingsIdRef = useRef(settingsId);
+  settingsIdRef.current = settingsId;
+
   /**
    * Bumped on every requestQuotes and every cancel, so any create from a superseded attempt is treated as stale: one
    * not yet started (still behind a pre-create close) is skipped in `create()`, and one already in flight has its late
@@ -442,7 +446,7 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
           dseq: result.data.dseq,
           secretCount: Object.keys(secrets).length
         });
-        if (!isSecretsEnabled) cacheDeployedSdl(deploymentLocalStorage, settingsId, result.data.dseq, sdl);
+        if (!isSecretsEnabled) cacheDeployedSdl(deploymentLocalStorage, settingsIdRef.current, result.data.dseq, sdl);
         router.replace(buildConfigureUrl(intentRef.current, result.data.dseq, bidStrategyRef.current), undefined, { shallow: true });
       }
 
@@ -517,19 +521,7 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
 
       create();
     },
-    [
-      createDeployment,
-      closeDeployment,
-      sealSecrets,
-      isSecretsEnabled,
-      dseq,
-      strandedDseq,
-      router,
-      deploymentLocalStorage,
-      settingsId,
-      analyticsService,
-      startClose
-    ]
+    [createDeployment, closeDeployment, sealSecrets, isSecretsEnabled, dseq, strandedDseq, router, deploymentLocalStorage, analyticsService, startClose]
   );
 
   /**

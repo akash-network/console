@@ -402,6 +402,17 @@ describe(useDeploymentFlow.name, () => {
     expect(deploymentLocalStorage.update).toHaveBeenCalledWith("akash1owner", "555", { manifest: "SDL_AT_CREATE" });
   });
 
+  it("caches the created SDL under the settings id that arrived while the create was in flight", () => {
+    const createDeployment = mockMutation();
+    const { result, deploymentLocalStorage, store } = renderFlow({ createDeployment, settingsId: null });
+
+    act(() => result.current.actions.requestQuotes("SDL_AT_CREATE"));
+    act(() => store.set(settingsIdAtom, "akash1provisioned"));
+    act(() => createDeployment.mutate.mock.calls[0][1].onSuccess({ data: { dseq: "555", manifest: "M" } }));
+
+    expect(deploymentLocalStorage.update).toHaveBeenCalledWith("akash1provisioned", "555", { manifest: "SDL_AT_CREATE" });
+  });
+
   it("still marks the deploy succeeded and redirects when caching the SDL throws", () => {
     vi.useFakeTimers();
     try {
@@ -1954,6 +1965,7 @@ describe(useDeploymentFlow.name, () => {
     secretsEnabled?: boolean;
     sealSdlSecrets?: typeof DEPENDENCIES.sealSdlSecrets;
     servicesPatchBetween?: typeof DEPENDENCIES.servicesPatchBetween;
+    settingsId?: string | null;
   }) {
     const getSdlSecretsContext = mockSealContextMutation();
     const intent: DeploymentIntent = { sdlStrategy: "edit", bidStrategy: "select", dseq: undefined, vm: false, ...input?.intent };
@@ -1980,7 +1992,7 @@ describe(useDeploymentFlow.name, () => {
       sealSdlSecrets,
       servicesPatchBetween: input?.servicesPatchBetween ?? servicesPatchBetween
     };
-    const utils = renderDeploymentFlow(intent, dependencies);
+    const utils = renderDeploymentFlow(intent, dependencies, input?.settingsId);
     return {
       ...utils,
       router,
@@ -2022,12 +2034,13 @@ describe(useDeploymentFlow.name, () => {
     return services;
   }
 
-  function renderDeploymentFlow(intent: DeploymentIntent, dependencies: typeof DEPENDENCIES) {
+  function renderDeploymentFlow(intent: DeploymentIntent, dependencies: typeof DEPENDENCIES, settingsId: string | null = "akash1owner") {
     const store = createStore();
-    store.set(settingsIdAtom, "akash1owner");
-    return renderHook(() => useDeploymentFlow({ intent }, dependencies), {
+    store.set(settingsIdAtom, settingsId);
+    const view = renderHook(() => useDeploymentFlow({ intent }, dependencies), {
       wrapper: ({ children }: PropsWithChildren) => <JotaiStoreProvider store={store}>{children}</JotaiStoreProvider>
     });
+    return { ...view, store };
   }
 
   function hookOptionsOf(useMutation: { mock: { calls: unknown[][] } }) {

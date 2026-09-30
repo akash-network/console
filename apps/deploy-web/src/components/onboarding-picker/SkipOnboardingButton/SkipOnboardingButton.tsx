@@ -2,10 +2,11 @@
 
 import { Button } from "@akashnetwork/ui/components";
 
+import { useIsDeploymentCreating } from "@src/components/deployments/ConfigureDeployment/DeploymentFlowProvider/DeploymentFlowProvider";
 import type { SkipOnboardingSource } from "@src/hooks/useSkipOnboarding";
 import { useSkipOnboarding } from "@src/hooks/useSkipOnboarding";
 
-export const DEPENDENCIES = { useSkipOnboarding };
+export const DEPENDENCIES = { useSkipOnboarding, useIsDeploymentCreating };
 
 type Props = {
   source: SkipOnboardingSource;
@@ -14,6 +15,9 @@ type Props = {
 
 export function SkipOnboardingButton({ source, dependencies: d = DEPENDENCIES }: Props) {
   const { skip, isSkipping } = d.useSkipOnboarding();
+  const isDeploymentCreating = d.useIsDeploymentCreating();
+
+  if (isDeploymentCreating) return null;
 
   return (
     <Button variant="ghost" size="sm" className="text-xs text-muted-foreground" disabled={isSkipping} onClick={() => skip(source)}>
