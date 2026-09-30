@@ -17,6 +17,7 @@ import { unresolvedSecretMessage } from "@src/utils/sdl/sdlSecrets";
 import type { ServicesPatch } from "@src/utils/sdl/sdlServicesPatch";
 import { isEmptyServicesPatch, servicesPatchBetween } from "@src/utils/sdl/sdlServicesPatch";
 import { sealSdlSecrets } from "@src/utils/sdl/sealSdlSecrets";
+import { hasSdlReference } from "@src/utils/sdl/storedDefinition";
 import { UrlService } from "@src/utils/urlUtils";
 import { isWalletProvisioning, WALLET_PROVISIONING_ERROR_CODE, walletProvisioningRetry } from "@src/utils/walletProvisioning";
 import { aggregateDeploymentResources } from "../DeploymentResourceSummary/deploymentResources";
@@ -629,8 +630,8 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
   /**
    * The manifest is derived from the SDL being deployed (not the create-time one) so a quoting-window edit gets leased;
    * when it differs from create the deployment is updated first so the on-chain hash matches before the manifest is sent.
-   * With the secrets feature on, that update is a patch of what changed since the create, because the whole-SDL update
-   * seals every value and cannot resolve a reference.
+   * With the secrets feature on, or an SDL that keeps a reference the api holds the value for, that update is a patch of
+   * what changed since the create, because the whole-SDL update seals every value and cannot resolve a reference.
    */
   const deploy = useCallback(
     function deploy(sdl: string, options: DeployOptions = {}) {
@@ -655,6 +656,7 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
       const activeManifest = nextManifest;
       /** A corrected secret leaves the SDL untouched, because its reference is what the SDL carries, so an unchanged manifest still has to patch. */
       const hasTypedSecrets = Object.keys(options.secrets ?? {}).length > 0;
+      const keepsStoredReference = hasSdlReference(sdl);
       const resources = dependencies.deploymentResourcesFromSdl(sdl);
       setDeployError(undefined);
       setDeploySucceeded(false);
@@ -686,8 +688,10 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
         setPhase("quoting");
       }
 
+      /** A manifest hashed from references would ship them to the provider as literal values, so the api's own derivation is left as the only source. */
       function sendManifestAndLease() {
-        createLease.mutate({ manifest: activeManifest, leases }, { onSuccess: completeDeploy, onError: failDeploy });
+        const lease = keepsStoredReference ? { leases } : { manifest: activeManifest, leases };
+        createLease.mutate(lease, { onSuccess: completeDeploy, onError: failDeploy });
       }
 
       function updateWholeSdlAndLease() {
@@ -748,7 +752,7 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
 
       if (activeManifest === manifest && !hasTypedSecrets) {
         sendManifestAndLease();
-      } else if (isSecretsEnabled) {
+      } else if (isSecretsEnabled || keepsStoredReference) {
         void patchChangesAndLease();
       } else {
         updateWholeSdlAndLease();

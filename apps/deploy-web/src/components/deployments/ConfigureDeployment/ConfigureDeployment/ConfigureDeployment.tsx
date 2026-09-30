@@ -52,8 +52,9 @@ type Props = {
  * `userTemplateId` instead fetches the viewer's own saved template, which the API answers with an empty body when it
  * isn't theirs to see — surfaced as the same "couldn't load" fallback as a failed request. With neither, the carried-in
  * `deploySdl` atom is used, except on a `vm=true` entry, which ignores the atom so a fresh Container-VM session always
- * seeds deterministically. Keeping resolution here lets the form initialize synchronously from a single source — and
- * lets a resume skip the template fetch.
+ * seeds deterministically. A resume none of those answer for starts the form from the definition the console recorded.
+ * Keeping resolution here lets the form initialize synchronously from a single source — and lets a resume skip the
+ * template fetch.
  */
 export const ConfigureDeployment: FC<Props> = ({ dependencies: d = DEPENDENCIES }) => {
   const searchParams = d.useSearchParams();
@@ -144,7 +145,12 @@ export const ConfigureDeployment: FC<Props> = ({ dependencies: d = DEPENDENCIES 
               isAutoDeploy && initialSdl ? (
                 <d.AutoDeployFlow templateName={templateName} sdl={initialSdl} resume={resume} flow={flow} />
               ) : (
-                <d.ConfigureDeploymentForm initialSdl={initialSdl} initialName={initialName} intent={resolvedIntent} flow={flow} />
+                <d.ConfigureDeploymentForm
+                  initialSdl={initialSdl ?? resume.recordedDefinition?.sdl}
+                  initialName={initialName ?? resume.recordedDefinition?.name}
+                  intent={resolvedIntent}
+                  flow={flow}
+                />
               )
             }
           </d.DeploymentFlowProvider>

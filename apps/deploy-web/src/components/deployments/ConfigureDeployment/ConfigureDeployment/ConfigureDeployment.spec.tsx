@@ -7,6 +7,7 @@ import { mock } from "vitest-mock-extended";
 import sdlStore from "@src/store/sdlStore";
 import type { ITemplate, TemplateCreation } from "@src/types";
 import { helloWorldTemplate } from "@src/utils/templates";
+import type { ResumeResolution } from "../ResumeDeploymentGuard/ResumeDeploymentGuard";
 import type { DeploymentFlow } from "../useDeploymentFlow/useDeploymentFlow";
 import type { DEPENDENCIES } from "./ConfigureDeployment";
 import { ConfigureDeployment } from "./ConfigureDeployment";
@@ -313,6 +314,32 @@ describe(ConfigureDeployment.name, () => {
     );
   });
 
+  it("starts the form from the recorded definition when a resume has no draft, template or carried-in SDL", () => {
+    const { ConfigureDeploymentForm } = setup({
+      templateId: null,
+      resume: { activeLeases: [], recordedDefinition: { sdl: "recorded: sdl", name: "recorded-name" } }
+    });
+
+    expect(ConfigureDeploymentForm).toHaveBeenCalledWith(
+      expect.objectContaining({ initialSdl: "recorded: sdl", initialName: "recorded-name" }),
+      expect.anything()
+    );
+  });
+
+  it("prefers the persisted draft over the recorded definition", () => {
+    const { ConfigureDeploymentForm } = setup({
+      templateId: null,
+      persistedSdl: "restored: sdl",
+      persistedName: "resumed-name",
+      resume: { activeLeases: [], recordedDefinition: { sdl: "recorded: sdl", name: "recorded-name" } }
+    });
+
+    expect(ConfigureDeploymentForm).toHaveBeenCalledWith(
+      expect.objectContaining({ initialSdl: "restored: sdl", initialName: "resumed-name" }),
+      expect.anything()
+    );
+  });
+
   function setup(input: {
     templateId?: string | null;
     sdlStrategy?: string;
@@ -326,6 +353,7 @@ describe(ConfigureDeployment.name, () => {
     deploySdl?: TemplateCreation | null;
     vm?: boolean;
     isSecretsEnabled?: boolean;
+    resume?: ResumeResolution;
   }) {
     const ConfigureDeploymentForm = vi.fn(() => <div data-testid="form-mock" />);
     const AutoDeployFlow = vi.fn(() => <div data-testid="auto-mock" />);
@@ -360,7 +388,7 @@ describe(ConfigureDeployment.name, () => {
       AutoDeployFlow: AutoDeployFlow as never,
       ConfigureDeploymentForm: ConfigureDeploymentForm as never,
       DeploymentFlowProvider: DeploymentFlowProvider as never,
-      ResumeDeploymentGuard: vi.fn(({ children }) => <>{children({ activeLeases: [] })}</>) as never,
+      ResumeDeploymentGuard: vi.fn(({ children }) => <>{children(input.resume ?? { activeLeases: [] })}</>) as never,
       usePublicTemplate: usePublicTemplate as never,
       useUserTemplate: useUserTemplate as never,
       useConfigureDraft: useConfigureDraft as never,
