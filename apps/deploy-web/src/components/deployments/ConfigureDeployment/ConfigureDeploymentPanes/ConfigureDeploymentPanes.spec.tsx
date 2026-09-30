@@ -62,17 +62,17 @@ describe("ConfigureDeploymentPanes", () => {
     expect(ConfigurationPane).toHaveBeenCalledWith(expect.objectContaining({ selectedServiceId: "svc-1" }), expect.anything());
   });
 
-  it("threads the sdl, selected placement, its region, and the lifecycle phase into the marketplace pane", () => {
+  it("threads the sdl, selected placement, its regions, and the lifecycle phase into the marketplace pane", () => {
     const { MarketplacePane } = setup({
       sdl: 'version: "2.0"',
       selectedPlacementName: "dcloud",
-      selectedPlacementRegion: "na-us-west",
+      selectedPlacementRegions: ["na-us-west", "eu-west"],
       phase: "quoting",
       dseq: "100"
     });
 
     expect(MarketplacePane).toHaveBeenCalledWith(
-      expect.objectContaining({ sdl: 'version: "2.0"', placementName: "dcloud", region: "na-us-west", phase: "quoting", dseq: "100" }),
+      expect.objectContaining({ sdl: 'version: "2.0"', placementName: "dcloud", regions: ["na-us-west", "eu-west"], phase: "quoting", dseq: "100" }),
       expect.anything()
     );
   });
@@ -147,7 +147,7 @@ describe("ConfigureDeploymentPanes", () => {
       preserveStorage?: boolean;
       selectedServiceId?: string;
       selectedPlacementName?: string;
-      selectedPlacementRegion?: string;
+      selectedPlacementRegions?: string[];
       selectedPlacementId?: string;
       onSelectService?: (serviceId: string) => void;
       phase?: DeploymentFlowPhase;
@@ -192,7 +192,7 @@ describe("ConfigureDeploymentPanes", () => {
           previewSdl={input.previewSdl ?? ""}
           selectedServiceId={input.selectedServiceId ?? ""}
           selectedPlacementName={input.selectedPlacementName ?? "dcloud"}
-          selectedPlacementRegion={input.selectedPlacementRegion}
+          selectedPlacementRegions={input.selectedPlacementRegions}
           selectedPlacementId={input.selectedPlacementId ?? ""}
           onSelectService={input.onSelectService ?? vi.fn()}
           phase={input.phase ?? "configuring"}

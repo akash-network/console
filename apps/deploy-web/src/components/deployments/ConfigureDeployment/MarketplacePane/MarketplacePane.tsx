@@ -27,7 +27,7 @@ export const DEPENDENCIES = {
 interface Props {
   sdl: string;
   placementName: string;
-  region?: string;
+  regions?: readonly string[];
   phase: DeploymentFlowPhase;
   dseq: string | null;
   selectedPlacementId: string;
@@ -53,7 +53,7 @@ const AWAITING_BIDS_COPY: Partial<Record<DeploymentFlowPhase, { title: string; d
 export const MarketplacePane: FC<Props> = ({
   sdl,
   placementName,
-  region,
+  regions,
   phase,
   dseq,
   selectedPlacementId,
@@ -64,7 +64,7 @@ export const MarketplacePane: FC<Props> = ({
   dependencies: d = DEPENDENCIES
 }) => {
   const isExpanded = variant === "expanded";
-  const { offers, isLoading, isError, isInvalid } = d.usePlacementOffers({ phase, dseq: dseq ?? undefined, sdl, placementName, region });
+  const { offers, isLoading, isError, isInvalid } = d.usePlacementOffers({ phase, dseq: dseq ?? undefined, sdl, placementName, regions });
   const { query, setQuery, clear, filteredProviders, isSearchActive } = d.useProviderSearch(offers);
   const hasFailedWithoutData = isError && offers.length === 0;
   const isAwaitingFirstBid = offers.length > 0 && offers.every(offer => offer.offerState === "searching");

@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { ScreenedProvider } from "@src/queries/useScreenedProviders";
-import type { PlacementType } from "@src/types";
+import { defaultPlacement } from "@src/utils/sdl/data";
 import type { GpuAvailability } from "./useGpuAvailability/useGpuAvailability";
 import type { DEPENDENCIES } from "./AvailabilityPane";
 import { AvailabilityPane } from "./AvailabilityPane";
@@ -26,11 +26,11 @@ describe(AvailabilityPane.name, () => {
     expect(screen.getByText("1 provider on the network")).toBeInTheDocument();
   });
 
-  it("speaks of this placement and names it once the deployment has several", () => {
-    setup({ eligibleCount: 1, placementCount: 2, region: "us-west" });
+  it("speaks of this placement and names it with its regions once the deployment has several", () => {
+    setup({ eligibleCount: 1, placementCount: 2, regions: ["us-west", "eu-west"] });
 
     expect(screen.getByText("provider can host this placement")).toBeInTheDocument();
-    expect(screen.getByText("gpu-pool · us-west")).toBeInTheDocument();
+    expect(screen.getByText("gpu-pool · us-west, eu-west")).toBeInTheDocument();
   });
 
   it("names any region for a placement without one", () => {
@@ -40,9 +40,9 @@ describe(AvailabilityPane.name, () => {
   });
 
   it("screens the active placement", () => {
-    const { useScreenedProviders, useGpuAvailability } = setup({ region: "us-west" });
+    const { useScreenedProviders, useGpuAvailability } = setup({ regions: ["us-west"] });
 
-    expect(useScreenedProviders).toHaveBeenCalledWith({ sdl: "the-sdl", placementName: "gpu-pool", region: "us-west" });
+    expect(useScreenedProviders).toHaveBeenCalledWith({ sdl: "the-sdl", placementName: "gpu-pool", regions: ["us-west"] });
     expect(useGpuAvailability).toHaveBeenCalledWith(expect.objectContaining({ id: "p1", name: "gpu-pool" }));
   });
 
@@ -186,7 +186,7 @@ describe(AvailabilityPane.name, () => {
     eligibleCount?: number;
     networkCount?: number | null;
     placementCount?: number;
-    region?: string;
+    regions?: string[];
     isLoading?: boolean;
     isRefreshing?: boolean;
     isInvalid?: boolean;
@@ -229,7 +229,7 @@ describe(AvailabilityPane.name, () => {
     render(
       <AvailabilityPane
         sdl="the-sdl"
-        placement={mock<PlacementType>({ id: "p1", name: "gpu-pool", region: input.region ?? "" })}
+        placement={{ ...defaultPlacement({ name: "gpu-pool", regions: input.regions }), id: "p1" }}
         placementCount={input.placementCount ?? 1}
         isReady={input.isReady ?? true}
         isSubmitting={input.isSubmitting ?? false}

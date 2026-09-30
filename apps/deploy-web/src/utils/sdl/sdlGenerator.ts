@@ -3,6 +3,7 @@ import yaml from "js-yaml";
 import { isLogCollectorService } from "@src/components/sdl/LogCollectorControl/LogCollectorControl";
 import type { ExposeType, PlacementType, ProfileGpuModelType, SdlBuilderFormValuesType, ServiceExposeHTTPProxyType, ServiceType } from "@src/types";
 import { defaultHttpOptions } from "./data";
+import { sdlRegionOf } from "./placementRegions";
 import { credentialSecretSlotKey, envSecretSlotKey, isSdlReference, resolveSdlSecrets } from "./sdlSecrets";
 
 export interface GenerateSdlOptions {
@@ -75,10 +76,11 @@ export const generateSdl = (formValues: SdlBuilderFormValuesType, options: Gener
       );
     }
 
-    if (!!placement.region && placement.region !== "any") {
+    const sdlRegion = sdlRegionOf(placement.regions);
+    if (sdlRegion) {
       sdl.profiles.placement[placement.name].attributes = {
         ...(sdl.profiles.placement[placement.name].attributes || {}),
-        "location-region": placement.region.toLowerCase()
+        "location-region": sdlRegion.toLowerCase()
       };
     }
   });

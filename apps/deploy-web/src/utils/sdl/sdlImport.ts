@@ -313,7 +313,7 @@ function hydratePlacement(id: string, name: string, profile: any): PlacementType
   return {
     id,
     name,
-    region,
+    regions: region ? [region] : [],
     attributes,
     signedBy: {
       anyOf: profile.signedBy?.anyOf ? profile.signedBy.anyOf.map((x: string) => ({ id: nanoid(), value: x })) : [],

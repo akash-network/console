@@ -1,17 +1,22 @@
 import { useMemo } from "react";
 
 import { useListBids } from "@src/queries/useListBids";
+import { useProvidersByAddresses } from "@src/queries/useProvidersQuery";
+import { bidderAddressesToLocate, toBidderRegions } from "@src/utils/bids/bidderRegions";
 import { parseBidId } from "@src/utils/bids/bidId";
 import { PRICE_DISPLAY_PRECISION, udenomToDenom } from "@src/utils/mathHelpers";
 import { getPlacementGseq } from "@src/utils/sdl/placementGseq";
+import { isInPickedRegions } from "@src/utils/sdl/placementRegions";
 
 // eslint-disable-next-line akash/dependencies-component-or-hook
-export const DEPENDENCIES = { useListBids, getPlacementGseq };
+export const DEPENDENCIES = { useListBids, useProvidersByAddresses, getPlacementGseq };
+
+type Placement = { id?: string; name: string; regions?: readonly string[] };
 
 interface Input {
   dseq: string | null;
   sdl: string;
-  placements: ReadonlyArray<{ id?: string; name: string }>;
+  placements: ReadonlyArray<Placement>;
   selections: Record<string, string>;
 }
 
@@ -34,27 +39,31 @@ type BidEntry = NonNullable<ReturnType<typeof useListBids>["data"]>["data"][numb
  * shared `listBids` cache (no extra poll) and the same `gseq` bucketing as `usePlacementsWithBids`, so cost,
  * readiness, and the marketplace never disagree about which bids belong to a placement. The total assumes a
  * single denom per deployment (chain-guaranteed), labelling it with the first open bid's denom like the review
- * modal's total.
+ * modal's total. A placement picking several regions ranges only over the bids of providers located in them.
  */
 export function useDeploymentCost({ dseq, sdl, placements, selections }: Input, dependencies: typeof DEPENDENCIES = DEPENDENCIES): DeploymentCost | null {
   const bidsQuery = dependencies.useListBids(dseq);
   const bids = bidsQuery.data?.data;
+  const bidderAddresses = useMemo(() => bidderAddressesToLocate(bids ?? [], placements), [bids, placements]);
+  const bidders = dependencies.useProvidersByAddresses(bidderAddresses);
 
   return useMemo(
     function buildDeploymentCost(): DeploymentCost | null {
       const openBids = (bids ?? []).filter(entry => entry.bid.state === "open");
       if (openBids.length === 0) return null;
 
+      const bidderRegions = toBidderRegions(bidders.data);
       let minPerBlock = 0;
       let maxPerBlock = 0;
       for (const placement of placements) {
-        const [min, max] = placementBounds(placement, openBids, sdl, selections, dependencies.getPlacementGseq);
+        const regionBids = openBids.filter(entry => isInPickedRegions(placement.regions, bidderRegions.get(entry.bid.id.provider)));
+        const [min, max] = placementBounds(placement, regionBids, sdl, selections, dependencies.getPlacementGseq);
         minPerBlock += min;
         maxPerBlock += max;
       }
       return { minPerBlock, maxPerBlock, denom: openBids[0].bid.price.denom };
     },
-    [bids, placements, sdl, selections, dependencies]
+    [bids, bidders.data, placements, sdl, selections, dependencies]
   );
 }
 
@@ -67,7 +76,7 @@ export function useDeploymentCost({ dseq, sdl, placements, selections }: Input, 
  * to the open range.
  */
 function placementBounds(
-  placement: { id?: string; name: string },
+  placement: Placement,
   openBids: BidEntry[],
   sdl: string,
   selections: Record<string, string>,

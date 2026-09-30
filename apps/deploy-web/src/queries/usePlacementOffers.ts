@@ -7,6 +7,7 @@ import { useScreenedProviders } from "@src/queries/useScreenedProviders";
 import { formatBidId } from "@src/utils/bids/bidId";
 import { getGpusFromAttributes } from "@src/utils/deploymentUtils";
 import { getPlacementGseq } from "@src/utils/sdl/placementGseq";
+import { isInPickedRegions } from "@src/utils/sdl/placementRegions";
 
 export type OfferState = "searching" | "submitted" | "closed" | "unavailable";
 
@@ -31,7 +32,7 @@ interface UsePlacementOffersInput {
   dseq?: string;
   sdl: string;
   placementName: string;
-  region?: string;
+  regions?: readonly string[];
 }
 
 interface UsePlacementOffersResult {
@@ -61,25 +62,34 @@ export const DEPENDENCIES = { useScreenedProviders, useListBids, useProvidersByA
  * Once the deployment is locked (`creating`/`quoting`/`deploying`) screening is paused and the last
  * screened set is kept (`keepPreviousData`) as both the pre-bid fallback and the metadata source. `listBids`
  * returns every bid for the deployment across its groups, so bids are scoped to this placement by its group
- * sequence (`gseq`).
+ * sequence (`gseq`). Several picked regions can't be enforced on chain, so the screened pool already holds only
+ * providers located in them and a bid counts only once its provider is known to be located in one of them.
  */
 export function usePlacementOffers(
-  { phase, dseq, sdl, placementName, region }: UsePlacementOffersInput,
+  { phase, dseq, sdl, placementName, regions }: UsePlacementOffersInput,
   dependencies: typeof DEPENDENCIES = DEPENDENCIES
 ): UsePlacementOffersResult {
   const isLocked = phase === "creating" || phase === "quoting" || phase === "deploying";
   const isScreening = phase === "configuring" || phase === "creating";
-  const screened = dependencies.useScreenedProviders({ sdl, placementName, region, enabled: !isLocked });
+  const screened = dependencies.useScreenedProviders({ sdl, placementName, regions, enabled: !isLocked });
   const bidsQuery = dependencies.useListBids(dseq, { enabled: phase === "quoting", refetchInterval: BID_POLL_INTERVAL });
   const gseq = useMemo(() => dependencies.getPlacementGseq(sdl, placementName), [dependencies, sdl, placementName]);
   const screenedByOwner = useMemo(() => new Map(screened.providers.map(provider => [provider.owner, provider])), [screened.providers]);
-  const placementBids = useMemo(() => (bidsQuery.data?.data ?? []).filter(entry => gseq === undefined || entry.bid.id.gseq === gseq), [bidsQuery.data, gseq]);
+  const groupBids = useMemo(() => (bidsQuery.data?.data ?? []).filter(entry => gseq === undefined || entry.bid.id.gseq === gseq), [bidsQuery.data, gseq]);
   const unscreenedBidderAddresses = useMemo(
-    () => placementBids.map(entry => entry.bid.id.provider).filter(owner => !screenedByOwner.has(owner)),
-    [placementBids, screenedByOwner]
+    () => groupBids.map(entry => entry.bid.id.provider).filter(owner => !screenedByOwner.has(owner)),
+    [groupBids, screenedByOwner]
   );
   const unscreenedBidders = dependencies.useProvidersByAddresses(unscreenedBidderAddresses, { enabled: !isScreening });
   const providersByOwner = useMemo(() => new Map(unscreenedBidders.data.map(provider => [provider.owner, provider])), [unscreenedBidders.data]);
+  const placementBids = useMemo(
+    () =>
+      groupBids.filter(entry => {
+        const owner = entry.bid.id.provider;
+        return screenedByOwner.has(owner) || isInPickedRegions(regions, providersByOwner.get(owner)?.locationRegion);
+      }),
+    [groupBids, screenedByOwner, providersByOwner, regions]
+  );
 
   const offers = useMemo(
     function buildOffers(): PlacementOffer[] {

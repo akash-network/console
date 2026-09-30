@@ -13,7 +13,7 @@ type BidEntry = NonNullable<ReturnType<typeof DEPENDENCIES.useListBids>["data"]>
 describe("useReviewRows", () => {
   it("builds a row per selected placement with provider name and price", () => {
     const { result } = setup({
-      placements: [mock<PlacementType>({ id: "p1", name: "placement-1", region: "us-west" })],
+      placements: [mock<PlacementType>({ id: "p1", name: "placement-1", regions: ["us-west", "eu-west"] })],
       selections: { p1: "akash1a/55/1/2" },
       bids: [mock<BidEntry>({ bid: { id: { provider: "akash1a", dseq: "55", gseq: 1, oseq: 2 }, price: { amount: "100", denom: "uakt" }, state: "open" } })],
       providers: [mock<ApiProviderList>({ owner: "akash1a", organization: "Dune Networks", hostUri: "" })]
@@ -21,7 +21,7 @@ describe("useReviewRows", () => {
     expect(result.current.rows).toEqual([
       expect.objectContaining({
         placementName: "placement-1",
-        region: "us-west",
+        region: "us-west, eu-west",
         providerName: "Dune Networks",
         price: expect.objectContaining({ amount: "100", denom: "uakt" })
       })
@@ -30,7 +30,7 @@ describe("useReviewRows", () => {
 
   it("omits placements without a selection and counts priced rows", () => {
     const { result } = setup({
-      placements: [mock<PlacementType>({ id: "p1", name: "placement-1" }), mock<PlacementType>({ id: "p2", name: "placement-2" })],
+      placements: [mock<PlacementType>({ id: "p1", name: "placement-1", regions: [] }), mock<PlacementType>({ id: "p2", name: "placement-2", regions: [] })],
       selections: { p1: "akash1a/55/1/2" },
       bids: [mock<BidEntry>({ bid: { id: { provider: "akash1a", dseq: "55", gseq: 1, oseq: 2 }, price: { amount: "100", denom: "uakt" }, state: "open" } })],
       providers: [mock<ApiProviderList>({ owner: "akash1a", organization: "Dune", hostUri: "" })]
@@ -42,7 +42,7 @@ describe("useReviewRows", () => {
 
   it("names a selection by its provider address until the provider is looked up", () => {
     const { result } = setup({
-      placements: [mock<PlacementType>({ id: "p1", name: "placement-1" })],
+      placements: [mock<PlacementType>({ id: "p1", name: "placement-1", regions: [] })],
       selections: { p1: "akash1a/55/1/2" },
       bids: [],
       providers: []
@@ -52,7 +52,7 @@ describe("useReviewRows", () => {
 
   it("looks up only the providers of the selected bids", () => {
     const { useProvidersByAddresses } = setup({
-      placements: [mock<PlacementType>({ id: "p1", name: "placement-1" }), mock<PlacementType>({ id: "p2", name: "placement-2" })],
+      placements: [mock<PlacementType>({ id: "p1", name: "placement-1", regions: [] }), mock<PlacementType>({ id: "p2", name: "placement-2", regions: [] })],
       selections: { p1: "akash1a/55/1/2" },
       bids: [],
       providers: []
@@ -60,9 +60,20 @@ describe("useReviewRows", () => {
     expect(useProvidersByAddresses).toHaveBeenLastCalledWith(["akash1a"]);
   });
 
+  it("leaves the region out for a placement that never picked one", () => {
+    const { result } = setup({
+      placements: [Object.assign(mock<PlacementType>({ id: "p1", name: "placement-1" }), { regions: undefined })],
+      selections: { p1: "akash1a/55/1/2" },
+      bids: [],
+      providers: []
+    });
+
+    expect(result.current.rows).toEqual([expect.objectContaining({ placementName: "placement-1", region: undefined })]);
+  });
+
   it("follows a selection changed after the first render", () => {
     const { result, useProvidersByAddresses, rerenderWithSelections } = setup({
-      placements: [mock<PlacementType>({ id: "p1", name: "placement-1" })],
+      placements: [mock<PlacementType>({ id: "p1", name: "placement-1", regions: [] })],
       selections: { p1: "akash1a/55/1/2" },
       bids: [],
       providers: [mock<ApiProviderList>({ owner: "akash1b", organization: "Beta", hostUri: "" })]

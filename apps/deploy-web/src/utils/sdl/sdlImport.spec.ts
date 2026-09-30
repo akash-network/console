@@ -120,8 +120,16 @@ describe("sdlImport", () => {
 
       const { placements } = importSimpleSdl(yml);
 
-      expect(placements[0].region).toBe("us-west");
+      expect(placements[0].regions).toEqual(["us-west"]);
       expect(placements[0].attributes?.some(a => a.key === "location-region")).toBe(false);
+    });
+
+    it("picks no region for a placement without a location-region attribute", () => {
+      const yml = fs.readFileSync(path.resolve(__dirname, "../../../tests/mocks/two-services-sdl.yml"), "utf8");
+
+      const { placements } = importSimpleSdl(yml);
+
+      expect(placements.map(placement => placement.regions)).toEqual(placements.map(() => []));
     });
 
     it("lifts pricing onto each service", () => {

@@ -19,7 +19,7 @@ const REGIONS: ApiProviderRegion[] = [
 ];
 
 describe("RegionSelect", () => {
-  it("writes the picked region, reflects it in the trigger, and resets the search", async () => {
+  it("writes a single picked region and names it in the trigger", async () => {
     const { getValues } = setup({ regions: REGIONS });
     const trigger = screen.getByRole("combobox", { name: "Region" });
 
@@ -27,22 +27,48 @@ describe("RegionSelect", () => {
     fireEvent.change(await screen.findByRole("combobox", { name: "Search regions" }), { target: { value: "na" } });
     fireEvent.click(await screen.findByRole("option", { name: "na-us-west" }));
 
-    expect(getValues().placements[0].region).toBe("na-us-west");
-    expect(trigger).toHaveTextContent("na-us-west");
-
-    fireEvent.click(trigger);
-    expect(await screen.findByRole("combobox", { name: "Search regions" })).toHaveValue("");
+    expect(getValues().placements[0].regions).toEqual(["na-us-west"]);
+    expect(trigger).toHaveTextContent(/^na-us-west$/);
   });
 
-  it("clears the region and shows Any region in the trigger when Any region is picked", async () => {
-    const { getValues } = setup({ regions: REGIONS, region: "eu-west" });
+  it("adds every picked region and names the first with a count of the others in the trigger", async () => {
+    const { getValues } = setup({ regions: REGIONS });
+    const trigger = screen.getByRole("combobox", { name: "Region" });
+
+    fireEvent.click(trigger);
+    fireEvent.click(await screen.findByRole("option", { name: "na-us-west" }));
+    fireEvent.click(screen.getByRole("option", { name: "eu-west" }));
+    fireEvent.click(screen.getByRole("option", { name: "eu-central" }));
+
+    expect(getValues().placements[0].regions).toEqual(["na-us-west", "eu-west", "eu-central"]);
+    expect(trigger).toHaveTextContent("na-us-west +2");
+    expect(screen.getByRole("option", { name: "eu-west" })).toHaveAttribute("aria-checked", "true");
+  });
+
+  it("removes a region that is picked again", async () => {
+    const { getValues } = setup({ regions: REGIONS, pickedRegions: ["eu-west", "na-us-west"] });
+
+    fireEvent.click(screen.getByRole("combobox", { name: "Region" }));
+    fireEvent.click(await screen.findByRole("option", { name: "eu-west" }));
+
+    expect(getValues().placements[0].regions).toEqual(["na-us-west"]);
+  });
+
+  it("clears every region and shows Any region in the trigger when Any region is picked", async () => {
+    const { getValues } = setup({ regions: REGIONS, pickedRegions: ["eu-west", "na-us-west"] });
     const trigger = screen.getByRole("combobox", { name: "Region" });
 
     fireEvent.click(trigger);
     fireEvent.click(await screen.findByRole("option", { name: "Any region" }));
 
-    expect(getValues().placements[0].region).toBeFalsy();
+    expect(getValues().placements[0].regions).toEqual([]);
     expect(trigger).toHaveTextContent("Any region");
+  });
+
+  it("shows Any region in the trigger for a placement that never picked one", () => {
+    setup({ regions: REGIONS, pickedRegions: undefined });
+
+    expect(screen.getByRole("combobox", { name: "Region" })).toHaveTextContent("Any region");
   });
 
   it("filters by the visible key, ignores description text, keeps Any region, and restores on clear", async () => {
@@ -150,37 +176,43 @@ describe("RegionSelect", () => {
       expect(screen.queryByRole("group", { name: "Unavailable" })).not.toBeInTheDocument();
     });
 
-    it("keeps a region the configuration already pins once nobody offers it, listed as unavailable", async () => {
-      const { getValues } = setup({ regions: REGIONS, region: "na-us-west", availableRegions: ["eu-west"] });
+    it("keeps a region the configuration already picks once nobody offers it, listed as unavailable but removable", async () => {
+      const { getValues } = setup({ regions: REGIONS, pickedRegions: ["na-us-west"], availableRegions: ["eu-west"] });
       const trigger = screen.getByRole("combobox", { name: "Region" });
 
-      expect(trigger).toHaveTextContent("na-us-west");
-      expect(getValues().placements[0].region).toBe("na-us-west");
+      expect(trigger).toHaveTextContent(/^na-us-west$/);
+      expect(getValues().placements[0].regions).toEqual(["na-us-west"]);
 
       fireEvent.click(trigger);
       const unavailable = within(await screen.findByRole("group", { name: "Unavailable" }));
-      expect(unavailable.getByRole("option", { name: "na-us-west" })).toHaveAttribute("aria-disabled", "true");
+      const pickedUnavailable = unavailable.getByRole("option", { name: "na-us-west" });
+      expect(pickedUnavailable).toHaveAttribute("aria-checked", "true");
+
+      fireEvent.click(pickedUnavailable);
+      expect(getValues().placements[0].regions).toEqual([]);
     });
 
-    it("lists a pinned region the catalog does not know as unavailable when nobody serves it", async () => {
-      setup({ regions: REGIONS, region: "oc-aus", availableRegions: ["eu-west"] });
+    it("lists picked regions the catalog does not know as unavailable when nobody serves them", async () => {
+      setup({ regions: REGIONS, pickedRegions: ["oc-aus", "as-east"], availableRegions: ["eu-west"] });
 
       fireEvent.click(screen.getByRole("combobox", { name: "Region" }));
       const unavailable = within(await screen.findByRole("group", { name: "Unavailable" }));
 
-      expect(unavailable.getByRole("option", { name: "oc-aus" })).toHaveAttribute("aria-disabled", "true");
+      expect(unavailable.getByRole("option", { name: "oc-aus" })).toHaveAttribute("aria-checked", "true");
+      expect(unavailable.getByRole("option", { name: "as-east" })).toHaveAttribute("aria-checked", "true");
+      expect(unavailable.getAllByRole("option").map(option => option.textContent)).toEqual(["eu-central", "na-us-west", "oc-aus", "as-east"]);
     });
   });
 
   function setup(input: {
     regions: ApiProviderRegion[];
-    region?: string;
+    pickedRegions?: string[];
     availableRegions?: string[];
     regionProviderCounts?: Record<string, number>;
     triggerClassName?: string;
   }) {
     const values = defaultServiceWithPlacement();
-    values.placements[0].region = input.region;
+    values.placements[0].regions = input.pickedRegions;
 
     const regionsQuery = Object.assign(mock<ReturnType<typeof DEPENDENCIES.useProviderRegions>>(), { data: input.regions });
     const useProviderRegions: typeof DEPENDENCIES.useProviderRegions = () => regionsQuery;

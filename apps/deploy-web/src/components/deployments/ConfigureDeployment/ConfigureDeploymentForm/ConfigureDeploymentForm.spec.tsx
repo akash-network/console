@@ -59,6 +59,8 @@ const VALID_SDL = [
   "      count: 1"
 ].join("\n");
 
+const SINGLE_REGION_SDL = VALID_SDL.replace("    dcloud:\n      pricing:", "    dcloud:\n      attributes:\n        location-region: us-west\n      pricing:");
+
 /** The valid SDL with a private registry on its service, the password typed in the clear as an upload would carry it. */
 const CREDENTIALS_SDL = VALID_SDL.replace(
   "    image: nginx:1.0",
@@ -311,21 +313,21 @@ describe(ConfigureDeploymentForm.name, () => {
 
     await userEvent.click(screen.getByRole("button", { name: "change image" }));
 
-    await waitFor(() => expect(save).toHaveBeenCalledWith(expect.stringContaining("nginx:latest"), expect.any(String), undefined, undefined));
+    await waitFor(() => expect(save).toHaveBeenCalledWith(expect.stringContaining("nginx:latest"), expect.any(String), undefined, undefined, {}));
   });
 
   it("regenerates a carried-in SDL with its registry credentials as references when the secrets feature is on, so the draft never holds the password", async () => {
     const { save } = setup({ initialSdl: CREDENTIALS_SDL, secretsEnabled: true });
 
     await waitFor(() =>
-      expect(save).toHaveBeenCalledWith(expect.stringContaining("ac-secret://REGISTRY_PASSWORD"), expect.any(String), undefined, expect.any(String))
+      expect(save).toHaveBeenCalledWith(expect.stringContaining("ac-secret://REGISTRY_PASSWORD"), expect.any(String), undefined, expect.any(String), {})
     );
     expect(save.mock.calls.flat().filter(arg => String(arg).includes("hunter22"))).toEqual([]);
   });
 
   it("seals a carried-in SDL's credentials when the secrets feature turns on mid-session", async () => {
     const { save, enableSecrets } = setup({ initialSdl: CREDENTIALS_SDL });
-    await waitFor(() => expect(save).toHaveBeenCalledWith(expect.stringContaining("password: hunter22"), expect.any(String), undefined, CREDENTIALS_SDL));
+    await waitFor(() => expect(save).toHaveBeenCalledWith(expect.stringContaining("password: hunter22"), expect.any(String), undefined, CREDENTIALS_SDL, {}));
 
     enableSecrets();
 
@@ -334,7 +336,8 @@ describe(ConfigureDeploymentForm.name, () => {
         expect.stringContaining("ac-secret://REGISTRY_PASSWORD"),
         expect.any(String),
         undefined,
-        expect.stringContaining("ac-secret://REGISTRY_PASSWORD")
+        expect.stringContaining("ac-secret://REGISTRY_PASSWORD"),
+        {}
       )
     );
   });
@@ -342,19 +345,19 @@ describe(ConfigureDeploymentForm.name, () => {
   it("keeps a carried-in SDL verbatim, credentials included, while the secrets feature is off", async () => {
     const { save } = setup({ initialSdl: CREDENTIALS_SDL });
 
-    await waitFor(() => expect(save).toHaveBeenCalledWith(expect.stringContaining("password: hunter22"), expect.any(String), undefined, CREDENTIALS_SDL));
+    await waitFor(() => expect(save).toHaveBeenCalledWith(expect.stringContaining("password: hunter22"), expect.any(String), undefined, CREDENTIALS_SDL, {}));
   });
 
   it("keeps the sdl a restored draft started from in its later saves", async () => {
     const { save } = setup({ initialSdl: TWO_SERVICE_SDL, persistedSdl: TWO_SERVICE_SDL, persistedStartingSdl: VALID_SDL });
 
-    await waitFor(() => expect(save).toHaveBeenCalledWith(expect.any(String), expect.any(String), undefined, VALID_SDL));
+    await waitFor(() => expect(save).toHaveBeenCalledWith(expect.any(String), expect.any(String), undefined, VALID_SDL, {}));
   });
 
   it("leaves a starting sdl that no longer imports out of a sealed draft", async () => {
     const { save } = setup({ initialSdl: VALID_SDL, persistedSdl: VALID_SDL, persistedStartingSdl: "not: [valid", secretsEnabled: true });
 
-    await waitFor(() => expect(save).toHaveBeenCalledWith(expect.any(String), expect.any(String), undefined, undefined));
+    await waitFor(() => expect(save).toHaveBeenCalledWith(expect.any(String), expect.any(String), undefined, undefined, {}));
   });
 
   it("forgets the redeploy source and explains when the console cannot reuse its secrets", () => {
@@ -408,7 +411,7 @@ describe(ConfigureDeploymentForm.name, () => {
 
     await userEvent.click(screen.getByRole("button", { name: "change image" }));
 
-    await waitFor(() => expect(save).toHaveBeenCalledWith(expect.stringContaining("nginx:latest"), "my-app", undefined, undefined));
+    await waitFor(() => expect(save).toHaveBeenCalledWith(expect.stringContaining("nginx:latest"), "my-app", undefined, undefined, {}));
   });
 
   it("seeds the runtime limit from the persisted draft and forwards it to the review modal", () => {
@@ -422,7 +425,43 @@ describe(ConfigureDeploymentForm.name, () => {
 
     await userEvent.click(screen.getByRole("button", { name: "change image" }));
 
-    await waitFor(() => expect(save).toHaveBeenCalledWith(expect.stringContaining("nginx:latest"), expect.any(String), 6, undefined));
+    await waitFor(() => expect(save).toHaveBeenCalledWith(expect.stringContaining("nginx:latest"), expect.any(String), 6, undefined, {}));
+  });
+
+  it("persists several picked regions into the draft beside the sdl, which can't carry them", async () => {
+    const { save } = setup({ initialSdl: undefined, Panes: RegionsProbePanes });
+
+    await userEvent.click(screen.getByRole("button", { name: "pick two regions" }));
+
+    await waitFor(() =>
+      expect(save).toHaveBeenLastCalledWith(expect.any(String), expect.any(String), undefined, undefined, { dcloud: ["eu-west", "na-us-west"] })
+    );
+  });
+
+  it("persists a changed pick of several regions even though the sdl stays the same", async () => {
+    const { save } = setup({ initialSdl: undefined, Panes: RegionsProbePanes });
+    await userEvent.click(screen.getByRole("button", { name: "pick two regions" }));
+    await waitFor(() =>
+      expect(save).toHaveBeenLastCalledWith(expect.any(String), expect.any(String), undefined, undefined, { dcloud: ["eu-west", "na-us-west"] })
+    );
+
+    await userEvent.click(screen.getByRole("button", { name: "pick three regions" }));
+
+    await waitFor(() =>
+      expect(save).toHaveBeenLastCalledWith(expect.any(String), expect.any(String), undefined, undefined, { dcloud: ["eu-west", "na-us-west", "eu-central"] })
+    );
+  });
+
+  it("restores several picked regions the draft saved beside its sdl", () => {
+    setup({ initialSdl: VALID_SDL, persistedPlacementRegions: { dcloud: ["eu-west", "na-us-west"] }, Panes: RegionsProbePanes });
+
+    expect(screen.getByTestId("regions").textContent).toBe("eu-west,na-us-west");
+  });
+
+  it("keeps the sdl's region for a placement the draft saved no picks for", () => {
+    setup({ initialSdl: SINGLE_REGION_SDL, persistedPlacementRegions: { other: ["eu-west", "na-us-west"] }, Panes: RegionsProbePanes });
+
+    expect(screen.getByTestId("regions").textContent).toBe("us-west");
   });
 
   it("toasts when the flow reports an error, such as the no-providers timeout", () => {
@@ -737,6 +776,22 @@ describe(ConfigureDeploymentForm.name, () => {
 
       await waitFor(() => expect(screen.getByTestId("service-titles").textContent).toBe("service-1"));
     });
+
+    it("drops the regions a restored draft picked when it resets to the sdl it started from", async () => {
+      setup({
+        initialSdl: VALID_SDL,
+        persistedSdl: VALID_SDL,
+        persistedStartingSdl: VALID_SDL,
+        persistedPlacementRegions: { dcloud: ["eu-west", "na-us-west"] },
+        twoPanel: true,
+        Workspace: ResetProbeWorkspace
+      });
+      expect(screen.getByTestId("placement-regions").textContent).toBe("eu-west,na-us-west");
+
+      await userEvent.click(screen.getByRole("button", { name: "reset" }));
+
+      await waitFor(() => expect(screen.getByTestId("placement-regions").textContent).toBe(""));
+    });
   });
 
   it("threads the live sdl, deployment name, and editability into the import/export control", () => {
@@ -774,7 +829,7 @@ describe(ConfigureDeploymentForm.name, () => {
       (SdlImportExport as ReturnType<typeof vi.fn>).mock.calls[0][0].onImport(state);
     });
 
-    await waitFor(() => expect(save).toHaveBeenCalledWith(expect.stringContaining("node:18"), "my-app", undefined, undefined));
+    await waitFor(() => expect(save).toHaveBeenCalledWith(expect.stringContaining("node:18"), "my-app", undefined, undefined, {}));
   });
 
   it("persists only the name this session typed, never one the api derived for it", async () => {
@@ -782,7 +837,7 @@ describe(ConfigureDeploymentForm.name, () => {
 
     await userEvent.click(screen.getByRole("button", { name: "change image" }));
 
-    await waitFor(() => expect(save).toHaveBeenCalledWith(expect.any(String), "", undefined, undefined));
+    await waitFor(() => expect(save).toHaveBeenCalledWith(expect.any(String), "", undefined, undefined, {}));
   });
 
   it("shows the name the api derived while asking for quotes under none, so the api can derive it again", () => {
@@ -810,6 +865,7 @@ describe(ConfigureDeploymentForm.name, () => {
     Panes?: typeof SdlProbePanes;
     draftId?: string;
     persistedRuntimeLimitHours?: number;
+    persistedPlacementRegions?: Record<string, string[]>;
     deploySucceeded?: boolean;
     flowError?: { message?: string; kind?: FlowErrorKind };
     vm?: boolean;
@@ -832,7 +888,7 @@ describe(ConfigureDeploymentForm.name, () => {
     const closeSnackbar = vi.fn();
     const Snackbar = vi.fn(() => null);
     const AddCreditsSnackbarContent = vi.fn((_props: { message?: string; context?: string; onAction?: () => void }) => null);
-    const save = vi.fn<(sdl: string, name?: string, runtimeLimitHours?: number, startingSdl?: string) => void>();
+    const save = vi.fn<(sdl: string, name?: string, runtimeLimitHours?: number, startingSdl?: string, placementRegions?: Record<string, string[]>) => void>();
     const clear = vi.fn<() => void>();
     const dropInheritance = vi.fn<() => void>();
     const requestQuotes = vi.fn();
@@ -850,16 +906,19 @@ describe(ConfigureDeploymentForm.name, () => {
       ) : null
     );
     const useConfigureDraft = vi.fn(() =>
-      mock<ReturnType<typeof DEPENDENCIES.useConfigureDraft>>({
-        draftId: input.draftId ?? "draft-1",
-        persistedSdl: input.persistedSdl,
-        persistedStartingSdl: input.persistedStartingSdl,
-        persistedRuntimeLimitHours: input.persistedRuntimeLimitHours,
-        persistedInheritSecretsFrom: input.persistedInheritSecretsFrom,
-        save,
-        dropInheritance,
-        clear
-      })
+      Object.assign(
+        mock<ReturnType<typeof DEPENDENCIES.useConfigureDraft>>({
+          draftId: input.draftId ?? "draft-1",
+          persistedSdl: input.persistedSdl,
+          persistedStartingSdl: input.persistedStartingSdl,
+          persistedRuntimeLimitHours: input.persistedRuntimeLimitHours,
+          persistedInheritSecretsFrom: input.persistedInheritSecretsFrom,
+          save,
+          dropInheritance,
+          clear
+        }),
+        { persistedPlacementRegions: input.persistedPlacementRegions }
+      )
     );
     const useDeploymentName = ((args: { initialName?: string }) => ({
       name: input.apiDerivedName ?? args.initialName ?? "",
@@ -1013,13 +1072,14 @@ function DiscardProbeWorkspace({ onDiscard }: WorkspaceProbeProps) {
 }
 
 /** Workspace stand-in that shows the services and the live sdl and offers the reset the real toolbar confirms. */
-function ResetProbeWorkspace({ sdl, onReset }: WorkspaceProbeProps) {
+function ResetProbeWorkspace({ sdl, selectedPlacement, onReset }: WorkspaceProbeProps) {
   const { setValue } = useFormContext<SdlBuilderFormValuesType>();
   const services = useWatch<SdlBuilderFormValuesType>({ name: "services" });
   const titles = Array.isArray(services) ? (services as SdlBuilderFormValuesType["services"]).map(service => service.title) : [];
   return (
     <div>
       <div data-testid="service-titles">{titles.join(",")}</div>
+      <div data-testid="placement-regions">{selectedPlacement.regions?.join(",")}</div>
       <div data-testid="sdl">{sdl}</div>
       <button type="button" onClick={() => setValue("services.0.title", "renamed")}>
         rename first service
@@ -1033,6 +1093,7 @@ function ResetProbeWorkspace({ sdl, onReset }: WorkspaceProbeProps) {
 
 interface ProbePanesProps {
   sdl: string;
+  selectedPlacementRegions?: readonly string[];
   selectedServiceId: string;
   onSelectService: (serviceId: string) => void;
   selectedPlacementId: string;
@@ -1075,6 +1136,21 @@ function SdlProbePanes({ sdl }: ProbePanesProps) {
       <div data-testid="sdl">{sdl}</div>
       <button type="button" onClick={() => setValue("services.0.image", "nginx:latest")}>
         change image
+      </button>
+    </div>
+  );
+}
+
+function RegionsProbePanes({ selectedPlacementRegions }: ProbePanesProps) {
+  const { setValue } = useFormContext<SdlBuilderFormValuesType>();
+  return (
+    <div>
+      <div data-testid="regions">{selectedPlacementRegions?.join(",")}</div>
+      <button type="button" onClick={() => setValue("placements.0.regions", ["eu-west", "na-us-west"])}>
+        pick two regions
+      </button>
+      <button type="button" onClick={() => setValue("placements.0.regions", ["eu-west", "na-us-west", "eu-central"])}>
+        pick three regions
       </button>
     </div>
   );

@@ -22,7 +22,10 @@ export interface GpuAvailability {
   noOtherModelFits: boolean;
 }
 
-export function useGpuAvailability(placement: Pick<PlacementType, "id" | "name">, dependencies: typeof DEPENDENCIES = DEPENDENCIES): GpuAvailability {
+export function useGpuAvailability(
+  placement: Pick<PlacementType, "id" | "name" | "regions">,
+  dependencies: typeof DEPENDENCIES = DEPENDENCIES
+): GpuAvailability {
   const { control } = useFormContext<SdlBuilderFormValuesType>();
   const values = useWatch({ control }) as SdlBuilderFormValuesType;
   const pacedValues = usePacedValue(values, { wait: SCREENING_DEBOUNCE_MS, maxWait: SCREENING_MAX_WAIT_MS });
@@ -34,12 +37,13 @@ export function useGpuAvailability(placement: Pick<PlacementType, "id" | "name">
   const requests = useMemo(() => {
     const modelRequests = candidates.map(model => ({
       key: model.key,
-      request: screeningRequestOf(withGpuModel(pacedValues, placement.id, model), placement.name)
+      request: screeningRequestOf(withGpuModel(pacedValues, placement.id, model), placement.name),
+      regions: placement.regions
     }));
     return requested
-      ? [...modelRequests, { key: NO_GPU_KEY, request: screeningRequestOf(withoutGpu(pacedValues, placement.id), placement.name) }]
+      ? [...modelRequests, { key: NO_GPU_KEY, request: screeningRequestOf(withoutGpu(pacedValues, placement.id), placement.name), regions: placement.regions }]
       : modelRequests;
-  }, [candidates, pacedValues, placement.id, placement.name, requested]);
+  }, [candidates, pacedValues, placement.id, placement.name, placement.regions, requested]);
   const counts = dependencies.useScreenedProviderCounts(requests);
 
   const alternatives = rankGpuAlternatives(candidates, counts, catalog);

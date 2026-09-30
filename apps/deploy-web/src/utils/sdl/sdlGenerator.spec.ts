@@ -82,26 +82,29 @@ describe("sdlGenerator", () => {
       expect(Object.keys(gpuAttributesOf(result))).toEqual(["interconnect", "vendor"]);
     });
 
-    it("injects location-region attribute when placement.region is set", () => {
+    it("injects the location-region attribute, lowercased, when the placement picks a single region", () => {
       const formValues = buildFormValues(buildLogCollectorService({ title: "web", image: "nginx:latest" }));
-      formValues.placements[0].region = "us-west";
+      formValues.placements[0].regions = ["US-West"];
       const result = generateSdl(formValues);
       const parsed = yaml.load(result) as { profiles: { placement: Record<string, { attributes?: Record<string, string> }> } };
 
       expect(parsed.profiles.placement["dcloud"].attributes).toMatchObject({ "location-region": "us-west" });
     });
 
-    it("does not inject location-region when placement.region is undefined or 'any'", () => {
-      const formValuesNoRegion = buildFormValues(buildLogCollectorService({ title: "web", image: "nginx:latest" }));
-      const parsedNoRegion = yaml.load(generateSdl(formValuesNoRegion)) as {
-        profiles: { placement: Record<string, { attributes?: Record<string, string> }> };
-      };
-      expect(parsedNoRegion.profiles.placement["dcloud"].attributes?.["location-region"]).toBeUndefined();
+    it("does not inject location-region when the placement picks no region", () => {
+      const formValues = buildFormValues(buildLogCollectorService({ title: "web", image: "nginx:latest" }));
+      formValues.placements[0].regions = [];
+      const parsed = yaml.load(generateSdl(formValues)) as { profiles: { placement: Record<string, { attributes?: Record<string, string> }> } };
 
-      const formValuesAny = buildFormValues(buildLogCollectorService({ title: "web", image: "nginx:latest" }));
-      formValuesAny.placements[0].region = "any";
-      const parsedAny = yaml.load(generateSdl(formValuesAny)) as { profiles: { placement: Record<string, { attributes?: Record<string, string> }> } };
-      expect(parsedAny.profiles.placement["dcloud"].attributes?.["location-region"]).toBeUndefined();
+      expect(parsed.profiles.placement["dcloud"].attributes?.["location-region"]).toBeUndefined();
+    });
+
+    it("does not inject location-region when the placement picks several regions, since one attribute can't name them all", () => {
+      const formValues = buildFormValues(buildLogCollectorService({ title: "web", image: "nginx:latest" }));
+      formValues.placements[0].regions = ["us-west", "eu-west"];
+      const parsed = yaml.load(generateSdl(formValues)) as { profiles: { placement: Record<string, { attributes?: Record<string, string> }> } };
+
+      expect(parsed.profiles.placement["dcloud"].attributes?.["location-region"]).toBeUndefined();
     });
 
     it("throws when a service references a placementId that does not exist", () => {
@@ -115,7 +118,7 @@ describe("sdlGenerator", () => {
 
     it("emits a placement profile for a placement without services", () => {
       const formValues = buildFormValues(buildLogCollectorService({ title: "web", image: "nginx:latest" }));
-      formValues.placements.push({ id: "p-2", name: "placement-1", region: "eu-west" } as PlacementType);
+      formValues.placements.push({ id: "p-2", name: "placement-1", regions: ["eu-west"] } as PlacementType);
       const result = generateSdl(formValues);
       const parsed = yaml.load(result) as { profiles: { placement: Record<string, { attributes?: Record<string, string> }> }; deployment: object };
 

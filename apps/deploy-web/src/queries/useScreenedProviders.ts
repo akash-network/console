@@ -7,6 +7,7 @@ import { keepPreviousData, useQueries } from "@tanstack/react-query";
 import { useServices } from "@src/context/ServicesProvider";
 import { usePacedValue } from "@src/hooks/usePacedValue/usePacedValue";
 import { AUDITOR } from "@src/utils/deploymentData/v1beta3";
+import { isInPickedRegions } from "@src/utils/sdl/placementRegions";
 
 export type ScreeningRequest = NonNullable<paths["/v1/bid-screening"]["post"]["requestBody"]>["content"]["application/json"];
 
@@ -20,12 +21,8 @@ export type ScreenedProvider = ScreenedProvidersResponse["providers"][number];
 interface UseScreenedProvidersInput {
   sdl: string;
   placementName: string;
-  /**
-   * Kept for the call-site contract. A selected region now travels inside the SDL (the placement's
-   * `location-region` attribute), so a valid spec already screens by region and an invalid spec shows no
-   * providers regardless — screening no longer needs the region threaded in separately.
-   */
-  region?: string;
+  /** The placement's picked regions: a single one already screens through the SDL, while several are applied to the result here. */
+  regions?: readonly string[];
   /**
    * Gates the screening query. Defaults to true. Set false once the deployment is locked (quoting/creating/closing):
    * the spec is frozen, so re-running the CPU-heavy screening yields nothing new — the last result is kept (via
@@ -37,6 +34,8 @@ interface UseScreenedProvidersInput {
 export interface KeyedScreeningRequest {
   key: string;
   request: ScreeningRequest | null;
+  /** Counts only providers in these regions when there are several, as {@link UseScreenedProvidersInput.regions} does. */
+  regions?: readonly string[];
 }
 
 export interface ScreenedProviderCount {
@@ -78,9 +77,10 @@ const SKIPPED_SCREENING_REQUEST: ScreeningRequest = { ...buildCatalogScreeningRe
  * the current SDL to group specs and queries the one matching `placementName`. When the SDL can't be turned
  * into a screening request (invalid or incomplete spec) it does NOT fall back to the full catalog — no
  * provider would bid on an unusable spec — instead it reports `isInvalid` so the marketplace shows a message.
- * A selected region travels in the SDL, so a valid spec already screens by region. Audited-only via signedBy.
+ * A single picked region travels in the SDL, so a valid spec already screens by it; several can't, so the result keeps
+ * only the providers located in one of them. Audited-only via signedBy.
  */
-export function useScreenedProviders({ sdl, placementName, enabled = true }: UseScreenedProvidersInput): UseScreenedProvidersResult {
+export function useScreenedProviders({ sdl, placementName, regions, enabled = true }: UseScreenedProvidersInput): UseScreenedProvidersResult {
   const { api } = useServices();
   const request = useMemo(() => toScreeningRequest(sdl, placementName), [sdl, placementName]);
   const pacedRequest = usePacedValue(request, { wait: SCREENING_DEBOUNCE_MS, maxWait: SCREENING_MAX_WAIT_MS });
@@ -91,9 +91,10 @@ export function useScreenedProviders({ sdl, placementName, enabled = true }: Use
     enabled: enabled && isScreenable,
     placeholderData: keepPreviousData
   });
+  const providers = useMemo(() => inPickedRegions(query.data?.providers ?? [], regions), [query.data, regions]);
 
   return {
-    providers: isScreenable ? query.data?.providers ?? [] : [],
+    providers: isScreenable ? providers : [],
     isLoading: !isInvalid && (!isScreenable || query.isLoading),
     isError: isScreenable && query.isError,
     isInvalid,
@@ -110,9 +111,9 @@ export function useScreenedProviderCounts(requests: KeyedScreeningRequest[]): Sc
   });
 
   return results.map((result, index) => {
-    const { key, request } = requests[index];
+    const { key, request, regions } = requests[index];
     if (request === null) return { count: null, isLoading: false };
-    const count = result.data?.providers.length;
+    const count = result.data && inPickedRegions(result.data.providers, regions).length;
     if (count !== undefined) lastCountByKey.current.set(key, count);
     return { count: count ?? lastCountByKey.current.get(key) ?? null, isLoading: result.isLoading };
   });
@@ -197,4 +198,9 @@ function fillPlaceholderImages(parsedSdl: SDLInput): void {
       service.image = SCREENING_PLACEHOLDER_IMAGE;
     }
   }
+}
+
+/** Several picked regions never reach the chain, so the screened list is kept to the providers located in them here. */
+function inPickedRegions(providers: ScreenedProvider[], regions: readonly string[] | undefined): ScreenedProvider[] {
+  return providers.filter(provider => isInPickedRegions(regions, provider.location));
 }

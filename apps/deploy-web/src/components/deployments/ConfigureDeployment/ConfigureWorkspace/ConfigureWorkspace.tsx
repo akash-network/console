@@ -250,7 +250,7 @@ export const ConfigureWorkspace: FC<Props> = ({
                     }
                     sdl={sdl}
                     placementName={selectedPlacement.name}
-                    region={selectedPlacement.region}
+                    regions={selectedPlacement.regions}
                     phase={flow.phase}
                     dseq={flow.dseq}
                     selectedPlacementId={selectedPlacement.id}
@@ -299,7 +299,7 @@ type PlacementScreeningProps = {
 
 /** Screening pauses once bids are requested, so every placement is screened while configuring and its result kept for the picker. */
 function PlacementScreening({ sdl, placement, isEnabled, useScreenedProviders }: PlacementScreeningProps) {
-  useScreenedProviders({ sdl, placementName: placement.name, region: placement.region, enabled: isEnabled });
+  useScreenedProviders({ sdl, placementName: placement.name, regions: placement.regions, enabled: isEnabled });
   return null;
 }
 

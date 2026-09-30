@@ -13,7 +13,7 @@ import {
   PopoverTrigger
 } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
-import { NavArrowDown } from "iconoir-react";
+import { Check, NavArrowDown } from "iconoir-react";
 
 export type SearchableSelectOption = {
   value: string;
@@ -35,11 +35,9 @@ type EmptyOption = {
   disabled?: boolean;
 };
 
-type Props = {
-  value: string;
-  onChange: (value: string) => void;
+type SharedProps = {
   options: SearchableSelectOption[];
-  /** Listed after `options` under {@link Props.unavailableHeading}, searchable but never selectable. */
+  /** Listed after `options` under {@link SharedProps.unavailableHeading}, searchable but never selectable. */
   unavailableOptions?: SearchableSelectOption[];
   /** Groups `options` under a heading, with an optional column label above the hints, and separates every section. */
   optionsHeading?: { label: string; hintLabel?: ReactNode };
@@ -60,9 +58,30 @@ type Props = {
   disabled?: boolean;
   triggerClassName?: string;
   contentClassName?: string;
+};
+
+type SingleSelectProps = SharedProps & {
+  value: string;
+  onChange: (value: string) => void;
   /** Maps the selected raw `value` to what the trigger displays (e.g. a prettified label); defaults to the raw value. */
   renderValue?: (value: string) => ReactNode;
 };
+
+type MultiSelectProps = SharedProps & {
+  value: string[];
+  onChange: (value: string[]) => void;
+  /** Maps the picked values to what the trigger displays; defaults to the values joined by commas. */
+  renderValue?: (value: string[]) => ReactNode;
+};
+
+interface Selection {
+  values: readonly string[];
+  /** Renders the trigger text, called only while `values` is non-empty. */
+  renderLabel: () => ReactNode;
+  isMultiple: boolean;
+  pick: (value: string) => void;
+  clear: (emptyValue: string) => void;
+}
 
 /** cmdk requires a non-empty item value; the empty option owns this sentinel while reporting `emptyOption.value` on select. */
 const EMPTY_OPTION_VALUE = "__searchable-select-empty__";
@@ -74,9 +93,35 @@ const EMPTY_OPTION_VALUE = "__searchable-select-empty__";
  * Options render in the order given, so a consumer that wants a custom order sorts
  * `options` before passing them in.
  */
-export const SearchableSelect: FC<Props> = ({
-  value,
-  onChange,
+export const SearchableSelect: FC<SingleSelectProps> = ({ value, onChange, renderValue, ...props }) => (
+  <SearchableSelectList
+    {...props}
+    selection={{
+      values: value ? [value] : [],
+      renderLabel: () => (renderValue ? renderValue(value) : value),
+      isMultiple: false,
+      pick: onChange,
+      clear: onChange
+    }}
+  />
+);
+
+/** A picked option that has since become unavailable stays removable, or the pick could never be undone short of clearing all of it. */
+export const SearchableMultiSelect: FC<MultiSelectProps> = ({ value, onChange, renderValue, ...props }) => (
+  <SearchableSelectList
+    {...props}
+    selection={{
+      values: value,
+      renderLabel: () => (renderValue ? renderValue(value) : value.join(", ")),
+      isMultiple: true,
+      pick: picked => onChange(value.includes(picked) ? value.filter(current => current !== picked) : [...value, picked]),
+      clear: () => onChange([])
+    }}
+  />
+);
+
+const SearchableSelectList: FC<SharedProps & { selection: Selection }> = ({
+  selection,
   options,
   unavailableOptions = [],
   optionsHeading,
@@ -92,13 +137,14 @@ export const SearchableSelect: FC<Props> = ({
   leadingIcon,
   disabled,
   triggerClassName,
-  contentClassName,
-  renderValue
+  contentClassName
 }) => {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
   const filteredOptions = filterOptions(options, search);
   const filteredUnavailableOptions = filterOptions(unavailableOptions, search);
+  const checkedValues = selection.isMultiple ? new Set(selection.values) : undefined;
+  const hasSelection = selection.values.length > 0;
 
   function closeAndResetSearch(nextOpen: boolean) {
     setOpen(nextOpen);
@@ -108,8 +154,14 @@ export const SearchableSelect: FC<Props> = ({
   }
 
   function selectValue(nextValue: string) {
-    onChange(nextValue);
-    closeAndResetSearch(false);
+    selection.pick(nextValue);
+    if (!selection.isMultiple) {
+      closeAndResetSearch(false);
+    }
+  }
+
+  function renderOption(option: SearchableSelectOption, className?: string) {
+    return <SearchableSelectItem key={option.value} option={option} checked={checkedValues?.has(option.value)} onSelect={selectValue} className={className} />;
   }
 
   return (
@@ -126,7 +178,7 @@ export const SearchableSelect: FC<Props> = ({
         >
           <span className="flex min-w-0 items-center gap-1.5">
             {leadingIcon}
-            <span className="truncate">{value ? (renderValue ? renderValue(value) : value) : emptyTriggerLabel ?? emptyOption?.label ?? placeholder}</span>
+            <span className="truncate">{hasSelection ? selection.renderLabel() : emptyTriggerLabel ?? emptyOption?.label ?? placeholder}</span>
           </span>
           <NavArrowDown aria-hidden="true" className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
         </Button>
@@ -134,15 +186,18 @@ export const SearchableSelect: FC<Props> = ({
       <PopoverContent align="start" className={cn("w-[var(--radix-popover-trigger-width)] p-0", contentClassName)}>
         <Command label={searchLabel} shouldFilter={false}>
           <CommandInput value={search} onValueChange={setSearch} placeholder={searchPlaceholder} />
-          <CommandList>
+          <CommandList aria-multiselectable={selection.isMultiple || undefined}>
             {emptyOption && (
               <CommandItem
                 value={EMPTY_OPTION_VALUE}
                 disabled={emptyOption.disabled}
+                aria-checked={checkedValues && !hasSelection}
                 onSelect={function selectEmptyOption() {
-                  selectValue(emptyOption.value);
+                  selection.clear(emptyOption.value);
+                  closeAndResetSearch(false);
                 }}
               >
+                {checkedValues && <CheckIndicator checked={!hasSelection} />}
                 {emptyOption.label}
               </CommandItem>
             )}
@@ -151,20 +206,16 @@ export const SearchableSelect: FC<Props> = ({
                   <>
                     {emptyOption && <CommandSeparator className="my-1" />}
                     <CommandGroup heading={<SectionHeading label={optionsHeading.label} hintLabel={optionsHeading.hintLabel} />} className="p-0">
-                      {filteredOptions.map(option => (
-                        <SearchableSelectItem key={option.value} option={option} onSelect={selectValue} className="pl-6" />
-                      ))}
+                      {filteredOptions.map(option => renderOption(option, "pl-6"))}
                     </CommandGroup>
                   </>
                 )
-              : filteredOptions.map(option => <SearchableSelectItem key={option.value} option={option} onSelect={selectValue} />)}
+              : filteredOptions.map(option => renderOption(option))}
             {filteredUnavailableOptions.length > 0 && (
               <>
                 {optionsHeading && <CommandSeparator className="my-1" />}
                 <CommandGroup heading={optionsHeading ? <SectionHeading label={unavailableHeading} /> : unavailableHeading} className="p-0">
-                  {filteredUnavailableOptions.map(option => (
-                    <SearchableSelectItem key={option.value} option={{ ...option, disabled: true }} onSelect={selectValue} className="pl-6" />
-                  ))}
+                  {filteredUnavailableOptions.map(option => renderOption({ ...option, disabled: !checkedValues?.has(option.value) }, "pl-6"))}
                 </CommandGroup>
               </>
             )}
@@ -186,8 +237,13 @@ const SectionHeading: FC<{ label: string; hintLabel?: ReactNode }> = ({ label, h
   </span>
 );
 
-const SearchableSelectItem: FC<{ option: SearchableSelectOption; onSelect: (value: string) => void; className?: string }> = ({
+const CheckIndicator: FC<{ checked: boolean }> = ({ checked }) => (
+  <Check aria-hidden="true" className={cn("mr-2 h-3.5 w-3.5 shrink-0", checked ? "opacity-100" : "opacity-0")} />
+);
+
+const SearchableSelectItem: FC<{ option: SearchableSelectOption; checked?: boolean; onSelect: (value: string) => void; className?: string }> = ({
   option,
+  checked,
   onSelect,
   className
 }) => {
@@ -198,11 +254,13 @@ const SearchableSelectItem: FC<{ option: SearchableSelectOption; onSelect: (valu
       value={option.value}
       className={className}
       disabled={option.disabled}
+      aria-checked={checked}
       aria-describedby={option.hint ? hintId : undefined}
       onSelect={function selectOption() {
         onSelect(option.value);
       }}
     >
+      {checked !== undefined && <CheckIndicator checked={checked} />}
       {option.label}
       {option.hint && (
         <span id={hintId} aria-hidden="true" className="ml-auto shrink-0 pl-2 text-xs text-muted-foreground">

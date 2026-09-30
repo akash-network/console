@@ -45,7 +45,7 @@ export function useReviewRows({ dseq, placements, selections }: Input, dependenc
         return {
           placementId: placement.id,
           placementName: placement.name,
-          region: placement.region || undefined,
+          region: placement.regions?.join(", ") || undefined,
           providerName: provider ? providerDisplayName(provider) : parsed.provider,
           price: match?.bid.price
         };

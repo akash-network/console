@@ -4,6 +4,7 @@ import type { ServiceType } from "@src/types";
 import type { GpuVendor } from "@src/types/gpu";
 import { defaultServiceWithPlacement } from "@src/utils/sdl/data";
 import { describeCurrentConfiguration } from "./currentConfiguration";
+import { MAX_REGION_LENGTH } from "./hardwareRequestForm";
 
 const GIB = 1024 ** 3;
 const MIB = 1024 ** 2;
@@ -37,11 +38,41 @@ describe(describeCurrentConfiguration.name, () => {
   });
 
   it("names the region of the service's placement", () => {
-    const configuration = setup({ region: "us-west" });
+    const configuration = setup({ regions: ["us-west"] });
 
     expect(configuration.region).toBe("us-west");
     expect(configuration.summary).toContain("· us-west");
     expect(configuration.summary).not.toContain("Any region");
+  });
+
+  it("lists every region the service's placement picks", () => {
+    const configuration = setup({ regions: ["us-west", "eu-west"] });
+
+    expect(configuration.region).toBe("us-west, eu-west");
+    expect(configuration.summary).toContain("· us-west, eu-west");
+  });
+
+  it("names the first region and counts the rest when listing them all would pass the request's region limit", () => {
+    const regions = Array.from({ length: 9 }, (_, index) => `na-us-southwest-${index}`);
+    const configuration = setup({ regions });
+
+    expect(regions.join(", ").length).toBeGreaterThan(MAX_REGION_LENGTH);
+    expect(configuration.region).toBe("na-us-southwest-0 +8");
+    expect(configuration.summary).toContain("· na-us-southwest-0 +8");
+  });
+
+  it("lists regions that exactly fill the request's region limit", () => {
+    const regions = ["a".repeat(MAX_REGION_LENGTH - 3), "b"];
+    const configuration = setup({ regions });
+
+    expect(configuration.region).toBe(regions.join(", "));
+  });
+
+  it("falls back to any region when the service's placement picks none", () => {
+    const configuration = setup({ regions: [] });
+
+    expect(configuration.region).toBeNull();
+    expect(configuration.summary).toContain("· Any region");
   });
 
   it("falls back to any region when the service's placement is missing", () => {
@@ -108,7 +139,7 @@ describe(describeCurrentConfiguration.name, () => {
 
   function setup(input: {
     count?: number;
-    region?: string;
+    regions?: string[];
     profile?: Partial<Omit<ServiceType["profile"], "storage">> & { storage?: Array<Partial<ServiceType["profile"]["storage"][number]>> };
     gpuCatalog?: GpuVendor[];
   }) {
@@ -122,7 +153,7 @@ describe(describeCurrentConfiguration.name, () => {
       ...profile,
       storage: storage ? storage.map(entry => ({ ...service.profile.storage[0], ...entry })) : service.profile.storage
     };
-    values.placements[0].region = input.region;
+    values.placements[0].regions = input.regions;
 
     return describeCurrentConfiguration(values, 0, input.gpuCatalog);
   }
