@@ -517,6 +517,13 @@ describe("CredentialsSchema", () => {
     expect(result.error.issues).toContainEqual(expect.objectContaining({ path: ["password"], message: "Password must be at least 6 characters." }));
   });
 
+  it("rejects registry credentials without a username", () => {
+    const result = CredentialsSchema.safeParse({ host: "docker.io", username: "", password: "123456" });
+
+    expect(result.success).toBe(false);
+    expect(result.error?.issues).toContainEqual(expect.objectContaining({ path: ["username"], message: "Username is required." }));
+  });
+
   it("accepts a registry password of at least 6 characters", () => {
     const result = CredentialsSchema.safeParse({ host: "docker.io", username: "alice", password: "123456" });
 

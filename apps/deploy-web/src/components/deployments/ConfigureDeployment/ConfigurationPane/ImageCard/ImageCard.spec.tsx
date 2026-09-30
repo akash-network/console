@@ -41,6 +41,53 @@ describe(ImageCard.name, () => {
     expect(getValues().services[0].credentials).toMatchObject({ host: "docker.io", username: "", password: "" });
   });
 
+  it("marks the registry credentials as required once private registry is checked", async () => {
+    setup({});
+
+    await userEvent.click(screen.getByLabelText("Private registry"));
+
+    expect(screen.getByLabelText("Registry username")).toBeRequired();
+    expect(screen.getByLabelText("Registry password")).toBeRequired();
+    expect(screen.getByText("Host")).toHaveTextContent("Host *");
+    expect(screen.getByText("Username")).toHaveTextContent("Username *");
+    expect(screen.getByText("Password")).toHaveTextContent("Password *");
+  });
+
+  it("focuses the registry username from its visible label", async () => {
+    setup({ hasCredentials: true });
+
+    await userEvent.click(screen.getByText("Username"));
+
+    expect(screen.getByLabelText("Registry username")).toHaveFocus();
+  });
+
+  it("focuses the registry password from its visible label", async () => {
+    setup({ hasCredentials: true });
+
+    await userEvent.click(screen.getByText("Password"));
+
+    expect(screen.getByLabelText("Registry password")).toHaveFocus();
+  });
+
+  it("marks the custom registry URL as required", async () => {
+    setup({ hasCredentials: true });
+
+    await userEvent.click(screen.getByRole("combobox", { name: "Registry host" }));
+    await userEvent.click(screen.getByRole("option", { name: "Custom Registry" }));
+
+    expect(screen.getByLabelText("Custom registry URL")).toBeRequired();
+  });
+
+  it("shows the username error after submitting a private registry without one", async () => {
+    setup({ resolver: zodResolver(SdlBuilderFormValuesSchema) });
+
+    await userEvent.click(screen.getByLabelText("Private registry"));
+    await userEvent.type(screen.getByLabelText("Registry password"), "hunter22");
+    await userEvent.click(screen.getByRole("button", { name: "Request quotes" }));
+
+    await waitFor(() => expect(screen.getByText("Username is required.")).toBeInTheDocument());
+  });
+
   it("clears credentials when private registry is unchecked", async () => {
     const { getValues } = setup({ hasCredentials: true });
 

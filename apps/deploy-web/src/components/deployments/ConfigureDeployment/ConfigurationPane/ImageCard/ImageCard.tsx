@@ -224,7 +224,9 @@ const CredentialsFields: FC<{ serviceIndex: number }> = ({ serviceIndex }) => {
   return (
     <div role="group" aria-label="Private registry credentials" className="flex flex-col gap-3 rounded-md border border-zinc-200 p-3 dark:border-zinc-800">
       <Field className="gap-2">
-        <FieldLabel>Host</FieldLabel>
+        <FieldLabel>
+          Host <span className="text-destructive">*</span>
+        </FieldLabel>
         <FieldContent>
           <Select value={isCustomHost ? CUSTOM_HOST_ID : host.field.value} onValueChange={selectHost}>
             <SelectTrigger aria-label="Registry host" className={`h-9 ${SELECT_TRUNCATE_VALUE}`}>
@@ -242,6 +244,7 @@ const CredentialsFields: FC<{ serviceIndex: number }> = ({ serviceIndex }) => {
           {isCustomHost && (
             <Input
               aria-label="Custom registry URL"
+              aria-required
               placeholder="e.g. myregistry.example.com"
               value={host.field.value === CUSTOM_HOST_ID ? "" : host.field.value ?? ""}
               onChange={host.field.onChange}
@@ -255,11 +258,14 @@ const CredentialsFields: FC<{ serviceIndex: number }> = ({ serviceIndex }) => {
       </Field>
 
       <Field className="gap-2">
-        <FieldLabel htmlFor={`credentials-username-${serviceIndex}`}>Username</FieldLabel>
+        <FieldLabel htmlFor={`credentials-username-${serviceIndex}`}>
+          Username <span className="text-destructive">*</span>
+        </FieldLabel>
         <FieldContent>
           <Input
             id={`credentials-username-${serviceIndex}`}
             aria-label="Registry username"
+            aria-required
             value={isUsernameKept ? "" : username.field.value ?? ""}
             placeholder={isUsernameKept ? KEPT_CREDENTIAL_PLACEHOLDER : undefined}
             onChange={event => username.field.onChange(event.target.value || keptUsername)}
@@ -272,11 +278,14 @@ const CredentialsFields: FC<{ serviceIndex: number }> = ({ serviceIndex }) => {
       </Field>
 
       <Field className="gap-2">
-        <FieldLabel htmlFor={`credentials-password-${serviceIndex}`}>Password</FieldLabel>
+        <FieldLabel htmlFor={`credentials-password-${serviceIndex}`}>
+          Password <span className="text-destructive">*</span>
+        </FieldLabel>
         <FieldContent>
           <Input
             id={`credentials-password-${serviceIndex}`}
             aria-label="Registry password"
+            aria-required
             type={showPassword ? "text" : "password"}
             value={isPasswordKept ? "" : password.field.value ?? ""}
             placeholder={isPasswordKept ? KEPT_CREDENTIAL_PLACEHOLDER : undefined}
