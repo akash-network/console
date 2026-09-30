@@ -8,7 +8,7 @@ initSentry({
   dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
   environment: process.env.NEXT_PUBLIC_SENTRY_ENVIRONMENT,
   // Adjust this value in production, or use tracesSampler for greater control
-  tracesSampleRate: 0.1,
+  tracesSampleRate: 0.01,
   enabled: process.env.NEXT_PUBLIC_SENTRY_ENABLED === "true",
   // propagate sentry-trace and baggage headers to internal API only
   // everything else will be done with custom interceptor
