@@ -99,7 +99,7 @@ describe(MarketplacePane.name, () => {
   });
 
   it.each([
-    { phase: "creating", title: "Creating your deployment", description: "Providers start bidding as soon as your deployment is on chain." },
+    { phase: "creating", title: "Creating your deployment", description: "Providers start bidding as soon as your deployment is created." },
     {
       phase: "quoting",
       title: "Waiting for bids",

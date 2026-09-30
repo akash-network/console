@@ -38,8 +38,8 @@ export function NetworkDownBanner({ dependencies: d = NETWORK_DOWN_BANNER_DEPEND
   return (
     <Banner variant="error">
       {isUpgrading
-        ? "We are upgrading the blockchain. Console operations are temporarily restricted to read-only."
-        : "Blockchain unavailable — console in read-only mode until service is restored."}
+        ? "Network upgrade in progress. Console is read-only until it completes."
+        : "We can't reach Akash Network right now. Console is read-only until service is restored."}
     </Banner>
   );
 }
