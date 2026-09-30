@@ -92,11 +92,20 @@ export class DeploymentSettingService {
     assert(input.runtimeLimitHours === undefined || !recordsCloseReason, 400, "Change the runtime limit and record a close reason in separate requests");
 
     try {
-      return this.withEstimatedTopUpAmount(await this.#writeReconcilingConcurrentCreate(params, input));
+      const setting = recordsCloseReason ? await this.#recordCloseReason(params, input) : await this.#writeReconcilingConcurrentCreate(params, input);
+      return this.withEstimatedTopUpAmount(setting);
     } catch (error) {
       assert(!(error instanceof ForbiddenError), 404, "Deployment setting not found");
       throw error;
     }
+  }
+
+  /** A row created here would default to open and auto-funded, which the top-up sweep would then pick up for a deployment that is already closed. */
+  async #recordCloseReason(params: FindDeploymentSettingParams, input: DeploymentSettingChange): Promise<DeploymentSettingsOutput> {
+    const updated = await this.deploymentSettingRepository.accessibleBy(this.authService.ability, "update").updateBy(params, input, { returning: true });
+    assert(updated, 404, "Deployment setting not found");
+
+    return updated;
   }
 
   /**

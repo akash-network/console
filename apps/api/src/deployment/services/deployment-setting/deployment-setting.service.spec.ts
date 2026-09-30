@@ -253,12 +253,26 @@ describe(DeploymentSettingService.name, () => {
       const change = { closeReason: "cost_or_budget", closeReasonDetails: "Cheaper elsewhere" } as const;
 
       deploymentSettingRepository.accessibleBy.mockReturnValue(deploymentSettingRepository);
-      deploymentSettingRepository.findOneBy.mockResolvedValue(createDeploymentSettingsOutput({ ...params, closed: true }));
       deploymentSettingRepository.updateBy.mockResolvedValue(createDeploymentSettingsOutput({ ...params, closed: true, ...change }) as never);
 
       await service.upsert(params, change);
 
+      expect(deploymentSettingRepository.accessibleBy).toHaveBeenCalledWith(expect.anything(), "update");
       expect(deploymentSettingRepository.updateBy).toHaveBeenCalledWith(params, change, { returning: true });
+    });
+
+    it("returns 404 and creates no setting when the deployment has none", async () => {
+      const { service, deploymentSettingRepository } = setup();
+      const params = { userId: faker.string.uuid(), dseq: faker.string.numeric(6) };
+
+      deploymentSettingRepository.accessibleBy.mockReturnValue(deploymentSettingRepository);
+      deploymentSettingRepository.updateBy.mockResolvedValue(undefined as never);
+
+      await expect(service.upsert(params, { closeReasonDetails: "Done testing" })).rejects.toMatchObject({
+        status: 404,
+        message: "Deployment setting not found"
+      });
+      expect(deploymentSettingRepository.create).not.toHaveBeenCalled();
     });
 
     it("rejects a close reason sent together with a runtime limit change", async () => {

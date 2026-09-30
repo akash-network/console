@@ -567,6 +567,16 @@ describe("Deployment Settings", () => {
       });
     });
 
+    it("returns 404 and stores nothing for a deployment the console holds no settings for", async () => {
+      const { token, user } = await setup();
+      const dseq = faker.number.int({ min: 1, max: 1000000 }).toString();
+
+      const response = await patchSetting({ dseq, token, data: { closeReason: "no_longer_needed" } });
+
+      expect(response.status).toBe(404);
+      expect(await deploymentSettingRepository.findOneBy({ userId: user.id, dseq })).toBeUndefined();
+    });
+
     it("returns 400 for a close reason the console does not offer", async () => {
       const { token, user } = await setup();
       const dseq = faker.number.int({ min: 1, max: 1000000 }).toString();
