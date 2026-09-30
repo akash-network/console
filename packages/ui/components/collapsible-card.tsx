@@ -265,7 +265,7 @@ const ActionCard: React.FC<
 };
 
 const CardIcon: React.FC<{ icon: React.ReactNode }> = ({ icon }) => (
-  <span className="text-foreground flex h-4 w-4 shrink-0 items-center justify-center" aria-hidden>
+  <span className="text-muted-foreground flex h-4 w-4 shrink-0 items-center justify-center" aria-hidden>
     {icon}
   </span>
 );
