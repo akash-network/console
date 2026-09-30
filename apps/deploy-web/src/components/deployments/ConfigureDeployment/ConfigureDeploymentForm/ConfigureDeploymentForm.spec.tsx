@@ -311,29 +311,50 @@ describe(ConfigureDeploymentForm.name, () => {
 
     await userEvent.click(screen.getByRole("button", { name: "change image" }));
 
-    await waitFor(() => expect(save).toHaveBeenCalledWith(expect.stringContaining("nginx:latest"), expect.any(String), undefined));
+    await waitFor(() => expect(save).toHaveBeenCalledWith(expect.stringContaining("nginx:latest"), expect.any(String), undefined, undefined));
   });
 
   it("regenerates a carried-in SDL with its registry credentials as references when the secrets feature is on, so the draft never holds the password", async () => {
     const { save } = setup({ initialSdl: CREDENTIALS_SDL, secretsEnabled: true });
 
-    await waitFor(() => expect(save).toHaveBeenCalledWith(expect.stringContaining("ac-secret://REGISTRY_PASSWORD"), expect.any(String), undefined));
-    expect(save).not.toHaveBeenCalledWith(expect.stringContaining("hunter22"), expect.anything(), expect.anything());
+    await waitFor(() =>
+      expect(save).toHaveBeenCalledWith(expect.stringContaining("ac-secret://REGISTRY_PASSWORD"), expect.any(String), undefined, expect.any(String))
+    );
+    expect(save.mock.calls.flat().filter(arg => String(arg).includes("hunter22"))).toEqual([]);
   });
 
   it("seals a carried-in SDL's credentials when the secrets feature turns on mid-session", async () => {
     const { save, enableSecrets } = setup({ initialSdl: CREDENTIALS_SDL });
-    await waitFor(() => expect(save).toHaveBeenCalledWith(expect.stringContaining("password: hunter22"), expect.any(String), undefined));
+    await waitFor(() => expect(save).toHaveBeenCalledWith(expect.stringContaining("password: hunter22"), expect.any(String), undefined, CREDENTIALS_SDL));
 
     enableSecrets();
 
-    await waitFor(() => expect(save).toHaveBeenCalledWith(expect.stringContaining("ac-secret://REGISTRY_PASSWORD"), expect.any(String), undefined));
+    await waitFor(() =>
+      expect(save).toHaveBeenCalledWith(
+        expect.stringContaining("ac-secret://REGISTRY_PASSWORD"),
+        expect.any(String),
+        undefined,
+        expect.stringContaining("ac-secret://REGISTRY_PASSWORD")
+      )
+    );
   });
 
   it("keeps a carried-in SDL verbatim, credentials included, while the secrets feature is off", async () => {
     const { save } = setup({ initialSdl: CREDENTIALS_SDL });
 
-    await waitFor(() => expect(save).toHaveBeenCalledWith(expect.stringContaining("password: hunter22"), expect.any(String), undefined));
+    await waitFor(() => expect(save).toHaveBeenCalledWith(expect.stringContaining("password: hunter22"), expect.any(String), undefined, CREDENTIALS_SDL));
+  });
+
+  it("keeps the sdl a restored draft started from in its later saves", async () => {
+    const { save } = setup({ initialSdl: TWO_SERVICE_SDL, persistedSdl: TWO_SERVICE_SDL, persistedStartingSdl: VALID_SDL });
+
+    await waitFor(() => expect(save).toHaveBeenCalledWith(expect.any(String), expect.any(String), undefined, VALID_SDL));
+  });
+
+  it("leaves a starting sdl that no longer imports out of a sealed draft", async () => {
+    const { save } = setup({ initialSdl: VALID_SDL, persistedSdl: VALID_SDL, persistedStartingSdl: "not: [valid", secretsEnabled: true });
+
+    await waitFor(() => expect(save).toHaveBeenCalledWith(expect.any(String), expect.any(String), undefined, undefined));
   });
 
   it("forgets the redeploy source and explains when the console cannot reuse its secrets", () => {
@@ -387,7 +408,7 @@ describe(ConfigureDeploymentForm.name, () => {
 
     await userEvent.click(screen.getByRole("button", { name: "change image" }));
 
-    await waitFor(() => expect(save).toHaveBeenCalledWith(expect.stringContaining("nginx:latest"), "my-app", undefined));
+    await waitFor(() => expect(save).toHaveBeenCalledWith(expect.stringContaining("nginx:latest"), "my-app", undefined, undefined));
   });
 
   it("seeds the runtime limit from the persisted draft and forwards it to the review modal", () => {
@@ -401,7 +422,7 @@ describe(ConfigureDeploymentForm.name, () => {
 
     await userEvent.click(screen.getByRole("button", { name: "change image" }));
 
-    await waitFor(() => expect(save).toHaveBeenCalledWith(expect.stringContaining("nginx:latest"), expect.any(String), 6));
+    await waitFor(() => expect(save).toHaveBeenCalledWith(expect.stringContaining("nginx:latest"), expect.any(String), 6, undefined));
   });
 
   it("toasts when the flow reports an error, such as the no-providers timeout", () => {
@@ -670,15 +691,51 @@ describe(ConfigureDeploymentForm.name, () => {
       expect(save.mock.calls.map(([sdl]) => sdl).filter(sdl => sdl.includes("nginx:latest"))).toEqual([]);
     });
 
-    it("starts over from a default deployment when the configuration is reset", async () => {
+    it("restores the sdl the session started from when the configuration is reset", async () => {
       const { analyticsService } = setup({ initialSdl: TWO_SERVICE_SDL, twoPanel: true, Workspace: ResetProbeWorkspace });
-      expect(screen.getByTestId("service-titles").textContent).toBe("web,api");
+      await userEvent.click(screen.getByRole("button", { name: "rename first service" }));
+      await waitFor(() => expect(screen.getByTestId("service-titles").textContent).toBe("renamed,api"));
+
+      await userEvent.click(screen.getByRole("button", { name: "reset" }));
+
+      await waitFor(() => expect(screen.getByTestId("service-titles").textContent).toBe("web,api"));
+      expect(screen.getByTestId("sdl").textContent).not.toContain("renamed");
+      expect(analyticsService.track).toHaveBeenCalledWith("configure_reset_confirmed", { category: "deployments" });
+    });
+
+    it("starts over from a default deployment when the session started from none", async () => {
+      setup({ initialSdl: undefined, twoPanel: true, Workspace: ResetProbeWorkspace });
+      await userEvent.click(screen.getByRole("button", { name: "rename first service" }));
+      await waitFor(() => expect(screen.getByTestId("service-titles").textContent).toBe("renamed"));
 
       await userEvent.click(screen.getByRole("button", { name: "reset" }));
 
       await waitFor(() => expect(screen.getByTestId("service-titles").textContent).toBe("service-1"));
-      expect(screen.getByTestId("sdl").textContent).toContain("service-1");
-      expect(analyticsService.track).toHaveBeenCalledWith("configure_reset_confirmed", { category: "deployments" });
+    });
+
+    it("restores the sdl a restored draft started from rather than the draft's own edits", async () => {
+      setup({ initialSdl: TWO_SERVICE_SDL, persistedSdl: TWO_SERVICE_SDL, persistedStartingSdl: VALID_SDL, twoPanel: true, Workspace: ResetProbeWorkspace });
+      expect(screen.getByTestId("service-titles").textContent).toBe("web,api");
+
+      await userEvent.click(screen.getByRole("button", { name: "reset" }));
+
+      await waitFor(() => expect(screen.getByTestId("service-titles").textContent).toBe("web"));
+    });
+
+    it("starts over from a default deployment when a restored draft recorded no starting sdl", async () => {
+      setup({ initialSdl: TWO_SERVICE_SDL, persistedSdl: TWO_SERVICE_SDL, persistedStartingSdl: undefined, twoPanel: true, Workspace: ResetProbeWorkspace });
+
+      await userEvent.click(screen.getByRole("button", { name: "reset" }));
+
+      await waitFor(() => expect(screen.getByTestId("service-titles").textContent).toBe("service-1"));
+    });
+
+    it("starts over from a default deployment when the starting sdl no longer imports", async () => {
+      setup({ initialSdl: VALID_SDL, persistedSdl: VALID_SDL, persistedStartingSdl: "not: [valid", twoPanel: true, Workspace: ResetProbeWorkspace });
+
+      await userEvent.click(screen.getByRole("button", { name: "reset" }));
+
+      await waitFor(() => expect(screen.getByTestId("service-titles").textContent).toBe("service-1"));
     });
   });
 
@@ -717,7 +774,7 @@ describe(ConfigureDeploymentForm.name, () => {
       (SdlImportExport as ReturnType<typeof vi.fn>).mock.calls[0][0].onImport(state);
     });
 
-    await waitFor(() => expect(save).toHaveBeenCalledWith(expect.stringContaining("node:18"), "my-app", undefined));
+    await waitFor(() => expect(save).toHaveBeenCalledWith(expect.stringContaining("node:18"), "my-app", undefined, undefined));
   });
 
   it("persists only the name this session typed, never one the api derived for it", async () => {
@@ -725,7 +782,7 @@ describe(ConfigureDeploymentForm.name, () => {
 
     await userEvent.click(screen.getByRole("button", { name: "change image" }));
 
-    await waitFor(() => expect(save).toHaveBeenCalledWith(expect.any(String), "", undefined));
+    await waitFor(() => expect(save).toHaveBeenCalledWith(expect.any(String), "", undefined, undefined));
   });
 
   it("shows the name the api derived while asking for quotes under none, so the api can derive it again", () => {
@@ -762,6 +819,8 @@ describe(ConfigureDeploymentForm.name, () => {
     twoPanel?: boolean;
     Workspace?: (props: WorkspaceProbeProps) => ReactNode;
     persistedInheritSecretsFrom?: string;
+    persistedSdl?: string;
+    persistedStartingSdl?: string;
   }) {
     const ConfigureDeploymentPanes = vi.fn(
       input.Panes ?? (({ configurationActions }: ProbePanesProps) => <div data-testid="panes-mock">{configurationActions}</div>)
@@ -773,7 +832,7 @@ describe(ConfigureDeploymentForm.name, () => {
     const closeSnackbar = vi.fn();
     const Snackbar = vi.fn(() => null);
     const AddCreditsSnackbarContent = vi.fn((_props: { message?: string; context?: string; onAction?: () => void }) => null);
-    const save = vi.fn<(sdl: string, name?: string, runtimeLimitHours?: number) => void>();
+    const save = vi.fn<(sdl: string, name?: string, runtimeLimitHours?: number, startingSdl?: string) => void>();
     const clear = vi.fn<() => void>();
     const dropInheritance = vi.fn<() => void>();
     const requestQuotes = vi.fn();
@@ -793,7 +852,8 @@ describe(ConfigureDeploymentForm.name, () => {
     const useConfigureDraft = vi.fn(() =>
       mock<ReturnType<typeof DEPENDENCIES.useConfigureDraft>>({
         draftId: input.draftId ?? "draft-1",
-        persistedSdl: undefined,
+        persistedSdl: input.persistedSdl,
+        persistedStartingSdl: input.persistedStartingSdl,
         persistedRuntimeLimitHours: input.persistedRuntimeLimitHours,
         persistedInheritSecretsFrom: input.persistedInheritSecretsFrom,
         save,
@@ -954,12 +1014,16 @@ function DiscardProbeWorkspace({ onDiscard }: WorkspaceProbeProps) {
 
 /** Workspace stand-in that shows the services and the live sdl and offers the reset the real toolbar confirms. */
 function ResetProbeWorkspace({ sdl, onReset }: WorkspaceProbeProps) {
+  const { setValue } = useFormContext<SdlBuilderFormValuesType>();
   const services = useWatch<SdlBuilderFormValuesType>({ name: "services" });
   const titles = Array.isArray(services) ? (services as SdlBuilderFormValuesType["services"]).map(service => service.title) : [];
   return (
     <div>
       <div data-testid="service-titles">{titles.join(",")}</div>
       <div data-testid="sdl">{sdl}</div>
+      <button type="button" onClick={() => setValue("services.0.title", "renamed")}>
+        rename first service
+      </button>
       <button type="button" onClick={onReset}>
         reset
       </button>
@@ -994,7 +1058,7 @@ function ProviderSelectProbePanes({ selectedPlacementId, onSelectProvider }: Pro
 
 /**
  * Stand-in for a real configuration card: registers fields on its service index via `useController`, exactly
- * like ImageCard/RuntimeCard/etc. This registration is what resurrected a removed service before the fix, so a
+ * like ImageCard/ReplicasCard/etc. This registration is what resurrected a removed service before the fix, so a
  * regression test must mount something that registers.
  */
 function FieldRegisteringSection({ serviceIndex }: { serviceIndex: number }) {

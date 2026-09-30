@@ -1,6 +1,6 @@
 "use client";
 import type { FC } from "react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { FormProvider, useForm, useWatch } from "react-hook-form";
 import { Snackbar } from "@akashnetwork/ui/components";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -94,6 +94,9 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, initialName, in
   const { enqueueSnackbar, closeSnackbar } = d.useSnackbar();
   const { analyticsService } = d.useServices();
   const draft = d.useConfigureDraft(intent);
+  /** A restored draft's working SDL already holds the user's edits, so the SDL a reset restores is read back from the draft instead. */
+  const [startingSdl] = useState(() => (draft.persistedSdl === undefined ? initialSdl : draft.persistedStartingSdl));
+  const draftableStartingSdl = useMemo(() => startingSdl && draftableSdlOf(startingSdl, isSecretsEnabled), [startingSdl, isSecretsEnabled]);
   const [inheritedSecrets, setInheritedSecrets] = useState<InheritedSecrets | null>(() => inheritedSecretsOf(draft.persistedInheritSecretsFrom, initialSdl));
   const { name: deploymentName, typedName: typedDeploymentName, setName: setDeploymentName } = d.useDeploymentName({ initialName, dseq: flow.dseq });
   const [runtimeLimitHours, setRuntimeLimitHours] = useState<number | undefined>(() => draft.persistedRuntimeLimitHours);
@@ -152,13 +155,13 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, initialName, in
     function debouncePreviewSdl() {
       const timeout = setTimeout(function commitDebouncedSdl() {
         setPreviewSdl(liveSdl);
-        if (!isDiscardingRef.current) draft.save(liveSdl, typedDeploymentName, runtimeLimitHours);
+        if (!isDiscardingRef.current) draft.save(liveSdl, typedDeploymentName, runtimeLimitHours, draftableStartingSdl);
       }, SDL_SYNC_DEBOUNCE_MS);
       return function cancelPreviewDebounce() {
         clearTimeout(timeout);
       };
     },
-    [liveSdl, typedDeploymentName, runtimeLimitHours, draft]
+    [liveSdl, typedDeploymentName, runtimeLimitHours, draftableStartingSdl, draft]
   );
 
   useEffect(
@@ -320,8 +323,8 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, initialName, in
 
   const resetConfiguration = useCallback(() => {
     analyticsService.track("configure_reset_confirmed", { category: "deployments" });
-    applyImportedState(defaultInitialState(intent.vm, isSecretsEnabled));
-  }, [analyticsService, applyImportedState, intent.vm, isSecretsEnabled]);
+    applyImportedState(getInitialState(startingSdl, intent.vm, isSecretsEnabled));
+  }, [analyticsService, applyImportedState, startingSdl, intent.vm, isSecretsEnabled]);
   /** Import is only meaningful while the deployment is still editable; export stays available in every phase. */
   const isEditable = flow.phase === "configuring" || flow.phase === "error";
   /** Nothing resolves a reference with the feature off, so a kept name has to read as one nothing answers for. */
@@ -458,6 +461,16 @@ function getInitialState(carriedInSdl: string | undefined, isVm: boolean, sealSe
  */
 function sdlOfImportedState(state: ImportedDeploymentState, sealSecrets: boolean): string {
   return sealSecrets ? regenerateSdl(state.values, state.sdl, true) : state.sdl;
+}
+
+/** The starting SDL as the draft may hold it, sealed like the working SDL; one that no longer imports is not worth keeping. */
+function draftableSdlOf(sdl: string, sealSecrets: boolean): string | undefined {
+  if (!sealSecrets) return sdl;
+  try {
+    return sdlOfImportedState(importDeploymentState(sdl), true);
+  } catch {
+    return undefined;
+  }
 }
 
 /** A fresh default deployment (or SSH-ready VM deployment), optionally annotated with the error that made an import unusable. */

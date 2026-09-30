@@ -116,6 +116,29 @@ describe(useConfigureDraft.name, () => {
     expect(storedEntry("draft-1")).toEqual(expect.objectContaining({ sdl: "version: '2.0'", name: "my-app", inheritSecretsFrom: "123" }));
   });
 
+  it("exposes the sdl the draft started from", () => {
+    const { result } = setup({
+      intent: { draftId: "draft-1" },
+      rawStored: { "draft-1": JSON.stringify({ sdl: "edited", startingSdl: "template", updatedAt: 1 }) }
+    });
+
+    expect(result.current.persistedStartingSdl).toBe("template");
+  });
+
+  it("has no starting sdl when the stored draft omits one", () => {
+    const { result } = setup({ intent: { draftId: "draft-1" }, stored: { "draft-1": "version: '2.0'" } });
+
+    expect(result.current.persistedStartingSdl).toBeUndefined();
+  });
+
+  it("saves the starting sdl alongside the working sdl", () => {
+    const { result } = setup({ intent: { draftId: "draft-1" } });
+
+    result.current.save("edited", "my-app", 6, "template");
+
+    expect(storedEntry("draft-1")).toEqual(expect.objectContaining({ sdl: "edited", name: "my-app", runtimeLimitHours: 6, startingSdl: "template" }));
+  });
+
   it("forgets the inheritance on request and keeps the rest of the draft", () => {
     const { result } = setup({
       intent: { draftId: "draft-1" },
@@ -279,6 +302,14 @@ describe(createConfigureDraft.name, () => {
     expect(readEntry("fresh-1")).toEqual(expect.objectContaining({ sdl: "version: '2.0'", name: "my-app" }));
   });
 
+  it("records the sdl as the one a reset restores", () => {
+    const { create } = setup({ mintedDraftId: "fresh-1" });
+
+    create("version: '2.0'");
+
+    expect(readEntry("fresh-1")).toEqual(expect.objectContaining({ startingSdl: "version: '2.0'" }));
+  });
+
   it("persists the deployment to inherit secrets from alongside the sdl when one is given", () => {
     const { create } = setup({ mintedDraftId: "fresh-1" });
 
@@ -293,7 +324,7 @@ describe(createConfigureDraft.name, () => {
 
   function readEntry(draftId: string) {
     const raw = window.localStorage.getItem(`${DRAFT_KEY_PREFIX}${draftId}`);
-    return raw ? (JSON.parse(raw) as { sdl: string; name?: string; inheritSecretsFrom?: string }) : undefined;
+    return raw ? (JSON.parse(raw) as { sdl: string; name?: string; inheritSecretsFrom?: string; startingSdl?: string }) : undefined;
   }
 
   function setup(input: { mintedDraftId?: string; getStorage?: typeof DEPENDENCIES.getStorage }) {

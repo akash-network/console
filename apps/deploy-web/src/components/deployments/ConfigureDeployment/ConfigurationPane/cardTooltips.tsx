@@ -113,7 +113,7 @@ export const operatingSystemTooltip = (
   </>
 );
 
-export const runtimeTooltip = <>Runtime options for the service: how many replicas to run and an optional SSH public key for shell access to the container.</>;
+export const replicasTooltip = <>How many copies of this service to run. Each copy gets the full compute resources you set for the service.</>;
 
 export const commandsTooltip = (
   <>

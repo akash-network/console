@@ -34,6 +34,8 @@ interface StoredDraft {
   runtimeLimitHours?: number;
   /** The deployment a redeploy started from, whose stored secret values the create may inherit. */
   inheritSecretsFrom?: string;
+  /** The SDL the session started from (a template, an upload or a redeploy), which a reset restores. */
+  startingSdl?: string;
   updatedAt: number;
 }
 
@@ -53,8 +55,10 @@ export interface ConfigureDraft {
   persistedRuntimeLimitHours: number | undefined;
   /** The deployment whose stored secrets this draft inherits, or undefined when it was not started by a redeploy. */
   persistedInheritSecretsFrom: string | undefined;
-  /** Persists `sdl` (and the optional deployment `name` and `runtimeLimitHours`) as the working draft, then evicts the oldest drafts past the cap. */
-  save(sdl: string, name?: string, runtimeLimitHours?: number): void;
+  /** The SDL the draft's session started from, or undefined when it started from a default deployment. */
+  persistedStartingSdl: string | undefined;
+  /** Persists `sdl` (and the optional deployment `name`, `runtimeLimitHours` and `startingSdl`) as the working draft, then evicts the oldest drafts past the cap. */
+  save(sdl: string, name?: string, runtimeLimitHours?: number, startingSdl?: string): void;
   /** Forgets the deployment this draft inherits secrets from, once the console has said those secrets cannot be reused. */
   dropInheritance(): void;
   /** Removes the persisted draft. */
@@ -81,6 +85,7 @@ export function useConfigureDraft(intent: DeploymentIntent, dependencies: typeof
   const persistedName = typeof storedDraft?.name === "string" ? storedDraft.name : undefined;
   const persistedRuntimeLimitHours = typeof storedDraft?.runtimeLimitHours === "number" ? storedDraft.runtimeLimitHours : undefined;
   const persistedInheritSecretsFrom = typeof storedDraft?.inheritSecretsFrom === "string" ? storedDraft.inheritSecretsFrom : undefined;
+  const persistedStartingSdl = typeof storedDraft?.startingSdl === "string" ? storedDraft.startingSdl : undefined;
 
   const persistedToUrlRef = useRef<string>();
   useEffect(
@@ -101,24 +106,27 @@ export function useConfigureDraft(intent: DeploymentIntent, dependencies: typeof
       persistedName,
       persistedRuntimeLimitHours,
       persistedInheritSecretsFrom,
-      save: (sdl: string, name?: string, runtimeLimitHours?: number) => saveDraft(storage, draftId, sdl, name, runtimeLimitHours),
+      persistedStartingSdl,
+      save: (sdl: string, name?: string, runtimeLimitHours?: number, startingSdl?: string) =>
+        saveDraft(storage, draftId, { sdl, name, runtimeLimitHours, startingSdl }),
       dropInheritance: () => dropDraftInheritance(storage, draftId),
       clear: () => clearDraft(storage, draftId)
     }),
-    [draftId, persistedSdl, persistedName, persistedRuntimeLimitHours, persistedInheritSecretsFrom, storage]
+    [draftId, persistedSdl, persistedName, persistedRuntimeLimitHours, persistedInheritSecretsFrom, persistedStartingSdl, storage]
   );
 }
 
 /**
  * Starts a configure session from an SDL produced outside the screen (e.g. an uploaded file or a redeploy): mints a
- * draft id, persists the SDL (and the optional deployment `name` and `inheritSecretsFrom`) under it, and returns the id
- * so the caller can route to `configure?draftId=<id>`. Uses the same storage format as in-screen saves, so the configure
- * screen restores it on arrival. Storage-safe: if storage is blocked or full the write no-ops and the id is still
- * returned (configure then seeds from its other sources), matching how `saveDraft` already swallows failures.
+ * draft id, persists the SDL (and the optional deployment `name` and `inheritSecretsFrom`) under it, both as the working
+ * SDL and as the one a reset restores, and returns the id so the caller can route to `configure?draftId=<id>`. Uses the
+ * same storage format as in-screen saves, so the configure screen restores it on arrival. Storage-safe: if storage is
+ * blocked or full the write no-ops and the id is still returned (configure then seeds from its other sources), matching
+ * how `saveDraft` already swallows failures.
  */
 export function createConfigureDraft(sdl: string, options: CreateConfigureDraftOptions = {}, dependencies: typeof DEPENDENCIES = DEPENDENCIES): string {
   const draftId = dependencies.mintDraftId();
-  writeDraft(dependencies.getStorage(), draftId, { sdl, name: options.name, inheritSecretsFrom: options.inheritSecretsFrom });
+  writeDraft(dependencies.getStorage(), draftId, { sdl, name: options.name, inheritSecretsFrom: options.inheritSecretsFrom, startingSdl: sdl });
   return draftId;
 }
 
@@ -145,9 +153,9 @@ function readStoredDraft(storage: Storage | undefined, draftId: string | undefin
 }
 
 /** An in-screen save carries the inheritance it found forward, because the redeploy that set it is not around to say so again. */
-function saveDraft(storage: Storage | undefined, draftId: string | undefined, sdl: string, name?: string, runtimeLimitHours?: number): void {
+function saveDraft(storage: Storage | undefined, draftId: string | undefined, entry: Omit<StoredDraft, "updatedAt" | "inheritSecretsFrom">): void {
   const inheritSecretsFrom = readStoredDraft(storage, draftId)?.inheritSecretsFrom;
-  writeDraft(storage, draftId, { sdl, name, runtimeLimitHours, inheritSecretsFrom });
+  writeDraft(storage, draftId, { ...entry, inheritSecretsFrom });
 }
 
 function dropDraftInheritance(storage: Storage | undefined, draftId: string | undefined): void {

@@ -9,15 +9,15 @@ import type { ConfigurationLock } from "../configurationLock";
 import { EnvironmentVariablesCard } from "../EnvironmentVariablesCard/EnvironmentVariablesCard";
 import { ExposePortsCard } from "../ExposePortsCard/ExposePortsCard";
 import { LogsCard } from "../LogsCard/LogsCard";
-import { RuntimeCard } from "../RuntimeCard/RuntimeCard";
+import { ReplicasCard } from "../ReplicasCard/ReplicasCard";
 import { VariablesAndSecretsCard } from "../VariablesAndSecretsCard/VariablesAndSecretsCard";
 
-export const DEPENDENCIES = { RuntimeCard, EnvironmentVariablesCard, VariablesAndSecretsCard, CommandsCard, ExposePortsCard, LogsCard, useFlag };
+export const DEPENDENCIES = { ReplicasCard, EnvironmentVariablesCard, VariablesAndSecretsCard, CommandsCard, ExposePortsCard, LogsCard, useFlag };
 
 type Props = {
   serviceIndex: number;
   /**
-   * How much of the section is locked. The runtime, ports and logs cards lock as soon as the deployment is on-chain;
+   * How much of the section is locked. The replicas, ports and logs cards lock as soon as the deployment is on-chain;
    * the manifest-only env-var and command cards lock only under a full `"all"` lock (create/close/deploy).
    */
   locked?: ConfigurationLock;
@@ -31,6 +31,7 @@ type Props = {
  *
  * A managed SSH-VM service gets no Commands card: overriding the entrypoint would break the SSH
  * bootstrap that installs the public key and starts sshd (the legacy builder hid it the same way).
+ * It gets no Replicas card either, because a VM runs as a single instance.
  */
 export const AdditionalSection: FC<Props> = ({ serviceIndex, locked, dependencies: d = DEPENDENCIES }) => {
   const structuralLocked = !!locked;
@@ -44,7 +45,7 @@ export const AdditionalSection: FC<Props> = ({ serviceIndex, locked, dependencie
     <div className="flex flex-col gap-2 px-4">
       <p className="font-mono text-xs uppercase text-muted-foreground">Additional</p>
       <div className="flex flex-col gap-4">
-        <d.RuntimeCard serviceIndex={serviceIndex} locked={structuralLocked} />
+        {!isVm && <d.ReplicasCard serviceIndex={serviceIndex} locked={structuralLocked} />}
 
         {isSecretsEnabled ? (
           <d.VariablesAndSecretsCard serviceIndex={serviceIndex} locked={manifestLocked} />
