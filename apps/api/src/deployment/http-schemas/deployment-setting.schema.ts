@@ -27,7 +27,7 @@ export const DeploymentSettingResponseSchema = z.object({
 
 export const CreateDeploymentSettingRequestSchema = z.object({
   data: z.object({
-    userId: z.string().openapi({
+    userId: z.string().uuid().openapi({
       description: "User ID"
     }),
     dseq: DseqSchema.openapi({
@@ -52,7 +52,7 @@ export const UpdateDeploymentSettingRequestSchema = z.object({
 });
 
 export const FindDeploymentSettingParamsSchema = z.object({
-  userId: z.string().openapi({
+  userId: z.string().uuid().openapi({
     description: "User ID"
   }),
   dseq: DseqSchema.openapi({

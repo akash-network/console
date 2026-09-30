@@ -32,7 +32,7 @@ describe("Deployment Settings", () => {
 
   describe("GET /v1/deployment-settings/{userId}/{dseq}", () => {
     it("returns 401 if user is not authenticated", async () => {
-      const response = await app.request("/v1/deployment-settings/123/456");
+      const response = await app.request(`/v1/deployment-settings/${faker.string.uuid()}/456`);
       expect(response.status).toBe(401);
     });
 
@@ -95,6 +95,20 @@ describe("Deployment Settings", () => {
         code: "not_found",
         type: "client_error"
       });
+    });
+
+    it("returns 400 when the user id is not a uuid", async () => {
+      const { token } = await setup();
+      const dseq = faker.number.int({ min: 1, max: 1000000 }).toString();
+
+      const response = await app.request(`/v1/deployment-settings/${encodeURIComponent(createAuth0UserId())}/${dseq}`, {
+        headers: {
+          authorization: `Bearer ${token}`
+        }
+      });
+
+      expect(response.status).toBe(400);
+      expect(await response.json()).toMatchObject({ error: "BadRequestError", code: "validation_error" });
     });
 
     it("returns deployment settings if found", async () => {
@@ -217,6 +231,27 @@ describe("Deployment Settings", () => {
       });
     });
 
+    it("returns 400 when the user id is not a uuid", async () => {
+      const { token } = await setup();
+
+      const response = await app.request("/v1/deployment-settings", {
+        method: "POST",
+        headers: {
+          authorization: `Bearer ${token}`,
+          "content-type": "application/json"
+        },
+        body: JSON.stringify({
+          data: {
+            userId: createAuth0UserId(),
+            dseq: faker.number.int({ min: 1, max: 1000000 }).toString()
+          }
+        })
+      });
+
+      expect(response.status).toBe(400);
+      expect(await response.json()).toMatchObject({ error: "BadRequestError", code: "validation_error" });
+    });
+
     it("creates deployment settings", async () => {
       const { token, user, wallet } = await setup();
       const dseq = faker.number.int({ min: 1, max: 1000000 }).toString();
@@ -256,7 +291,7 @@ describe("Deployment Settings", () => {
 
   describe("PATCH /v1/deployment-settings/{userId}/{dseq}", () => {
     it("returns 401 if user is not authenticated", async () => {
-      const response = await app.request("/v1/deployment-settings/123/456", {
+      const response = await app.request(`/v1/deployment-settings/${faker.string.uuid()}/456`, {
         method: "PATCH",
         headers: {
           "content-type": "application/json"
@@ -335,6 +370,27 @@ describe("Deployment Settings", () => {
         code: "not_found",
         type: "client_error"
       });
+    });
+
+    it("returns 400 when the user id is not a uuid", async () => {
+      const { token } = await setup();
+      const dseq = faker.number.int({ min: 1, max: 1000000 }).toString();
+
+      const response = await app.request(`/v1/deployment-settings/${encodeURIComponent(createAuth0UserId())}/${dseq}`, {
+        method: "PATCH",
+        headers: {
+          authorization: `Bearer ${token}`,
+          "content-type": "application/json"
+        },
+        body: JSON.stringify({
+          data: {
+            runtimeLimitHours: 12
+          }
+        })
+      });
+
+      expect(response.status).toBe(400);
+      expect(await response.json()).toMatchObject({ error: "BadRequestError", code: "validation_error" });
     });
 
     it("updates deployment settings and heals a legacy opted-out row through a runtime limit", async () => {
@@ -514,6 +570,10 @@ describe("Deployment Settings", () => {
       expect(await response.json()).toEqual({ data: expect.objectContaining({ autoTopUpEnabled: true }) });
     });
   });
+
+  function createAuth0UserId() {
+    return `auth0|${faker.string.hexadecimal({ length: 24, casing: "lower", prefix: "" })}`;
+  }
 
   function patchRuntimeLimit({ dseq, token, runtimeLimitHours }: { dseq: string; token: string; runtimeLimitHours: number | null }) {
     return app.request(`/v2/deployment-settings/${dseq}`, {

@@ -2,7 +2,7 @@ import { z } from "@hono/zod-openapi";
 
 export const SignTxRequestInputSchema = z.object({
   data: z.object({
-    userId: z.string(),
+    userId: z.string().uuid(),
     messages: z
       .array(
         z.object({

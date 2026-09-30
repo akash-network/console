@@ -128,6 +128,18 @@ describe("Tx Sign", () => {
       expect(await res.json()).toMatchObject({ error: "NotFoundError", message: "UserWallet Not Found" });
     });
 
+    it("responds with 400 provided a user id that is not a uuid", async () => {
+      const { user, token, wallet } = await setup();
+      const res = await app.request("/v1/tx", {
+        method: "POST",
+        body: await createMessagePayload(`auth0|${user.id.replaceAll("-", "").slice(0, 24)}`, wallet.address),
+        headers: { "Content-Type": "application/json", authorization: `Bearer ${token}` }
+      });
+
+      expect(res.status).toBe(400);
+      expect(await res.json()).toMatchObject({ error: "BadRequestError", code: "validation_error" });
+    });
+
     it("responds with 402 Payment Required when blockchain returns insufficient balance error", async () => {
       const { user, token, wallet } = await setup({
         blockchainError: "failed to execute message; message index: 1: Deposit invalid: insufficient balance"
