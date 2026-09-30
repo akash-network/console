@@ -41,13 +41,33 @@ function isClientError(error: unknown): boolean {
   return isHttpError(error) && !!error.response && error.response.status >= 400 && error.response.status < 500;
 }
 
+/** Each browser words a request that never reached the network differently. */
+const NETWORK_FAILURE_MESSAGES = ["Failed to fetch", "NetworkError when attempting to fetch resource.", "Load failed"];
+
+/** An expired session and an underfunded wallet are the user's state, and the UI already answers both. */
+const USER_STATE_STATUSES = [401, 402];
+
 /**
  * Queries and mutations opt out of error reporting by putting a predicate on React Query's `meta`, which is the
  * documented way to hand per-call policy to the global cache handlers.
  */
 export function shouldReportError(error: unknown, meta: Record<string, unknown> | undefined): boolean {
+  if (isNetworkFailure(error) || isUserStateRefusal(error)) return false;
+
   const skipErrorReporting = meta?.skipErrorReporting;
   return typeof skipErrorReporting === "function" ? !skipErrorReporting(error) : true;
+}
+
+function isNetworkFailure(error: unknown): boolean {
+  if (error instanceof TypeError) return NETWORK_FAILURE_MESSAGES.includes(error.message);
+
+  return isHttpError(error) && error.code === "ERR_NETWORK";
+}
+
+function isUserStateRefusal(error: unknown): boolean {
+  if (error instanceof ApiError) return USER_STATE_STATUSES.includes(error.status);
+
+  return isHttpError(error) && !!error.response && USER_STATE_STATUSES.includes(error.response.status);
 }
 
 /**
