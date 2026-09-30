@@ -12,7 +12,7 @@ describe(ResetConfigurationButton.name, () => {
 
     await userEvent.click(screen.getByRole("button", { name: "Reset configuration" }));
 
-    expect(screen.getByRole("dialog", { name: "Start over with a default deployment?" })).toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: "Start over?" })).toBeInTheDocument();
     expect(onReset).not.toHaveBeenCalled();
   });
 
