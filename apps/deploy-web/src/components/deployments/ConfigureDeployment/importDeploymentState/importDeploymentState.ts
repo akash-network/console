@@ -48,7 +48,7 @@ export function seedSelectedServiceId(values: SdlBuilderFormValuesType): string 
 }
 
 /**
- * Restores the deployment-wide "Expose SSH" flag for a carried-in deployment holding a VM service, covering
+ * Restores the deployment-wide `hasSSHKey` flag for a carried-in deployment holding a VM service, covering
  * a VM draft saved before a key was entered (`applyImportedSshState` only flips it once a key exists). The
  * SDL itself is taken literally: no expose or key is backfilled.
  */

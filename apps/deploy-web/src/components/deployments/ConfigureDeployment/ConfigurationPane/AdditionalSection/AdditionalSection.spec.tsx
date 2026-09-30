@@ -7,7 +7,7 @@ import { defaultService, defaultServiceWithPlacement } from "@src/utils/sdl/data
 import type { ConfigurationLock } from "../configurationLock";
 import { AdditionalSection, DEPENDENCIES } from "./AdditionalSection";
 
-import { render } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import { MockComponents } from "@tests/unit/mocks";
 
 describe(AdditionalSection.name, () => {
@@ -25,6 +25,27 @@ describe(AdditionalSection.name, () => {
     expect(CommandsCard).toHaveBeenCalledWith(expect.objectContaining({ serviceIndex: 2 }), expect.anything());
     expect(ExposePortsCard).toHaveBeenCalledWith(expect.objectContaining({ serviceIndex: 2 }), expect.anything());
     expect(LogsCard).toHaveBeenCalledWith(expect.objectContaining({ serviceIndex: 2 }), expect.anything());
+  });
+
+  it("orders the cards ports, variables, commands, logs, then replicas", () => {
+    setup({
+      image: "nginx:latest",
+      dependencies: {
+        ExposePortsCard: () => <p>ports card</p>,
+        EnvironmentVariablesCard: () => <p>variables card</p>,
+        CommandsCard: () => <p>commands card</p>,
+        LogsCard: () => <p>logs card</p>,
+        ReplicasCard: () => <p>replicas card</p>
+      }
+    });
+
+    expect(screen.getAllByText(/ card$/).map(card => card.textContent)).toEqual([
+      "ports card",
+      "variables card",
+      "commands card",
+      "logs card",
+      "replicas card"
+    ]);
   });
 
   it("locks the replicas, ports and logs cards but leaves env vars and commands editable while only on-chain fields are locked", () => {

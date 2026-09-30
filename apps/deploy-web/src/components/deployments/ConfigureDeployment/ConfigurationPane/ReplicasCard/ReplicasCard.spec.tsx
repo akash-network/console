@@ -56,11 +56,11 @@ describe(ReplicasCard.name, () => {
   });
 
   it("leaves the card unmarked when a submit is rejected on another field of the service", async () => {
-    const { fieldError } = setup({ hasSSHKey: true, resolver: zodResolver(SdlBuilderFormValuesSchema), expanded: false });
+    const { fieldError } = setup({ image: "", resolver: zodResolver(SdlBuilderFormValuesSchema), expanded: false });
 
     await userEvent.click(screen.getByRole("button", { name: "Request quotes" }));
 
-    await waitFor(() => expect(fieldError("services.0.sshPubKey")?.message).toBe("SSH Public key is required."));
+    await waitFor(() => expect(fieldError("services.0.image")).toBeDefined());
     expect(screen.getByRole("button", { name: "Expand Replicas" }).closest(".border-destructive")).toBeNull();
   });
 
@@ -137,11 +137,8 @@ describe(ReplicasCard.name, () => {
     });
   });
 
-  function setup(input: { count?: number; hasSSHKey?: boolean; locked?: boolean; expanded?: boolean; resolver?: Resolver<SdlBuilderFormValuesType> }) {
-    const values: SdlBuilderFormValuesType = {
-      ...defaultServiceWithPlacement({ image: "nginx:latest", count: input.count ?? 1 }),
-      hasSSHKey: input.hasSSHKey ?? false
-    };
+  function setup(input: { count?: number; image?: string; locked?: boolean; expanded?: boolean; resolver?: Resolver<SdlBuilderFormValuesType> }) {
+    const values: SdlBuilderFormValuesType = defaultServiceWithPlacement({ image: input.image ?? "nginx:latest", count: input.count ?? 1 });
 
     let getValues: () => SdlBuilderFormValuesType = () => values;
     let getFieldError: (name: FieldPath<SdlBuilderFormValuesType>) => FieldError | undefined = () => undefined;

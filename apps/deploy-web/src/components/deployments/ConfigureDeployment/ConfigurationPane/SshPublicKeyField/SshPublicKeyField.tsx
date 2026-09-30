@@ -30,7 +30,7 @@ type Props = {
   dependencies?: typeof DEPENDENCIES;
 };
 
-/** `hasSSHKey` is deployment-wide and the schema requires every service to carry the key while it is on, so the key and its managed `SSH_PUBKEY` env var go to all services. */
+/** The key is deployment-wide, so it and its managed `SSH_PUBKEY` env var go to all services. */
 export function useApplySshKeyToAllServices() {
   const { setValue, getValues } = useFormContext<SdlBuilderFormValuesType>();
 

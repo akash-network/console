@@ -328,17 +328,11 @@ describe(ImageCard.name, () => {
     expect(screen.getByRole("textbox", { name: "SSH public key" })).toBeDisabled();
   });
 
-  it("offers Expose SSH in the Docker card, with the ssh public key behind it", () => {
+  it("offers no ssh controls in the Docker card", () => {
     setup({ image: "nginx:latest", hasSSHKey: true });
 
-    expect(screen.getByRole("checkbox", { name: "Expose SSH" })).toBeChecked();
-    expect(screen.getByRole("textbox", { name: "SSH public key" })).toBeInTheDocument();
-  });
-
-  it("disables Expose SSH while the Docker card is locked", () => {
-    setup({ image: "nginx:latest", locked: true });
-
-    expect(screen.getByRole("checkbox", { name: "Expose SSH" })).toBeDisabled();
+    expect(screen.queryByRole("checkbox", { name: "Expose SSH" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("textbox", { name: "SSH public key" })).not.toBeInTheDocument();
   });
 
   it("leaves Expose SSH out of the Operating System card, whose key is always required", () => {
@@ -354,15 +348,6 @@ describe(ImageCard.name, () => {
 
     expect(await screen.findByText("SSH Public key is required.")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Collapse Operating System" }).closest(".border-destructive")).not.toBeNull();
-  });
-
-  it("marks the Docker card when a submit is rejected on its missing ssh key", async () => {
-    setup({ image: "nginx:latest", hasSSHKey: true, resolver: zodResolver(SdlBuilderFormValuesSchema) });
-
-    await userEvent.click(screen.getByRole("button", { name: "Request quotes" }));
-
-    expect(await screen.findByText("SSH Public key is required.")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Collapse Docker" }).closest(".border-destructive")).not.toBeNull();
   });
 
   it("leaves the Docker card unmarked when a submit is rejected on another field", async () => {
