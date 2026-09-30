@@ -498,13 +498,15 @@ describe(GpuCard.name, () => {
       expect(await screen.findByRole("option", { name: "NVIDIA a100" })).toHaveAccessibleDescription("0 providers");
     });
 
-    it("leaves the offered models without a heading when availability cannot be loaded", async () => {
+    it("lists every model under an All models heading without provider counts when availability cannot be loaded", async () => {
       const { user } = setup({ hasGpu: true });
 
       await user.click(screen.getByRole("combobox", { name: "GPU model" }));
+      const allModels = within(await screen.findByRole("group", { name: "All models" }));
 
-      expect(await screen.findByRole("option", { name: "NVIDIA t4" })).not.toHaveAttribute("aria-describedby");
+      expect(allModels.getByRole("option", { name: "NVIDIA t4" })).not.toHaveAttribute("aria-describedby");
       expect(screen.queryByRole("group", { name: "Available" })).not.toBeInTheDocument();
+      expect(screen.queryByText("Providers")).not.toBeInTheDocument();
     });
 
     it("finds the models by their vendor name", async () => {

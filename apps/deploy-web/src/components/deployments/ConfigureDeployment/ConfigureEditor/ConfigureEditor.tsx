@@ -83,31 +83,33 @@ export const ConfigureEditor: FC<Props> = ({
         {toolbar}
       </header>
       {pendingClose && <d.BackgroundCloseBanner pendingClose={pendingClose} onRetry={onRetryClose} />}
-      <div className="min-h-0 flex-1 space-y-6 overflow-y-auto p-4">
-        <div className="grid grid-cols-[repeat(auto-fit,minmax(14rem,1fr))] items-start gap-4">
-          <d.DeploymentNameField value={deploymentName} onChange={onDeploymentNameChange} />
-          <d.ReclamationSection />
-        </div>
-        <d.PlacementTabs
-          placements={tabs}
-          activePlacementId={activePlacementId}
-          onSelectPlacement={selectPlacement}
-          canRemove={manager.canRemovePlacement}
-          onRemovePlacement={manager.removePlacement}
-          onAddPlacement={() => onSelectService(manager.addPlacement())}
-        >
-          <div className="flex flex-col gap-4">
-            {!isSplicing && activePlacementIndex !== -1 && <d.PlacementFields placementIndex={activePlacementIndex} serviceCount={activeServices.length} />}
-            <d.ServiceStack
-              services={activeServices}
-              selectedServiceId={selectedServiceId}
-              onSelectService={onSelectService}
-              canRemoveService={manager.canRemoveServiceFrom(activePlacementId)}
-              onRemoveService={manager.removeService}
-              onAddService={addService}
-            />
+      <div className="min-h-0 flex-1 overflow-y-auto p-4">
+        <div className="max-w-[720px] space-y-6">
+          <div className="grid grid-cols-[repeat(auto-fit,minmax(14rem,1fr))] items-start gap-4">
+            <d.DeploymentNameField value={deploymentName} onChange={onDeploymentNameChange} />
+            <d.ReclamationSection />
           </div>
-        </d.PlacementTabs>
+          <d.PlacementTabs
+            placements={tabs}
+            activePlacementId={activePlacementId}
+            onSelectPlacement={selectPlacement}
+            canRemove={manager.canRemovePlacement}
+            onRemovePlacement={manager.removePlacement}
+            onAddPlacement={() => onSelectService(manager.addPlacement())}
+          >
+            <div className="flex flex-col gap-4">
+              {!isSplicing && activePlacementIndex !== -1 && <d.PlacementFields placementIndex={activePlacementIndex} serviceCount={activeServices.length} />}
+              <d.ServiceStack
+                services={activeServices}
+                selectedServiceId={selectedServiceId}
+                onSelectService={onSelectService}
+                canRemoveService={manager.canRemoveServiceFrom(activePlacementId)}
+                onRemoveService={manager.removeService}
+                onAddService={addService}
+              />
+            </div>
+          </d.PlacementTabs>
+        </div>
       </div>
     </section>
   );

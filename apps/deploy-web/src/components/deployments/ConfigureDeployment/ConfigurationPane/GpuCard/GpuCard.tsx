@@ -511,7 +511,7 @@ function GpuModelControl({ isLoading, isError, value, onChange, onRequestGpu, ch
           searchLabel="Search GPU models"
           searchPlaceholder="Search GPUs..."
           notFoundMessage="No models found."
-          optionsHeading={choices.isAvailabilityKnown ? { label: "Available", hintLabel: "Providers" } : undefined}
+          optionsHeading={choices.isAvailabilityKnown ? { label: "Available", hintLabel: "Providers" } : { label: "All models" }}
           unavailableHeading="Others"
           emptyOption={{
             value: "",
