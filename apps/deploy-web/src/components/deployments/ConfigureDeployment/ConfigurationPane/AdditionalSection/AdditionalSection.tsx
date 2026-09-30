@@ -45,7 +45,7 @@ export const AdditionalSection: FC<Props> = ({ serviceIndex, locked, dependencie
     <div className="flex flex-col gap-2 px-4">
       <p className="font-mono text-xs uppercase text-muted-foreground">Additional</p>
       <div className="flex flex-col gap-4">
-        {!isVm && <d.ReplicasCard serviceIndex={serviceIndex} locked={structuralLocked} />}
+        <d.ExposePortsCard serviceIndex={serviceIndex} locked={structuralLocked} />
 
         {isSecretsEnabled ? (
           <d.VariablesAndSecretsCard serviceIndex={serviceIndex} locked={manifestLocked} />
@@ -55,9 +55,9 @@ export const AdditionalSection: FC<Props> = ({ serviceIndex, locked, dependencie
 
         {!isVm && <d.CommandsCard serviceIndex={serviceIndex} locked={manifestLocked} />}
 
-        <d.ExposePortsCard serviceIndex={serviceIndex} locked={structuralLocked} />
-
         <d.LogsCard serviceIndex={serviceIndex} locked={structuralLocked} />
+
+        {!isVm && <d.ReplicasCard serviceIndex={serviceIndex} locked={structuralLocked} />}
       </div>
     </div>
   );
