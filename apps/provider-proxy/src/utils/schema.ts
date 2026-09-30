@@ -1,6 +1,6 @@
 import { JwtTokenManager } from "@akashnetwork/chain-sdk";
 import { z } from "@hono/zod-openapi";
-import { createPrivateKey } from "node:crypto";
+import { createPrivateKey, X509Certificate } from "node:crypto";
 import { isIP } from "node:net";
 
 import { isValidBech32Address } from "./isValidBech32";
@@ -72,6 +72,17 @@ export function addProviderAuthValidation<T extends z.ZodType<any>>(schema: T): 
         });
       }
 
+      if (data.auth?.type === "mtls" && isKeyOfAnotherCertificate(data.auth.keyPem, data.auth.certPem)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "does not match the certificate",
+          path: ["auth", "keyPem"],
+          params: {
+            reason: "mismatch"
+          }
+        });
+      }
+
       if (data.auth?.type === "jwt" && data.auth.token) {
         const validationResult = validateJwtPayload(data.auth.token);
         if (!validationResult.isValid) {
@@ -105,6 +116,15 @@ function isReadablePrivateKey(keyPem: string): boolean {
   try {
     createPrivateKey(keyPem);
     return true;
+  } catch {
+    return false;
+  }
+}
+
+/** A certificate or key that cannot be parsed is reported by its own check, so only a parsed pair can mismatch. */
+function isKeyOfAnotherCertificate(keyPem: string, certPem: string): boolean {
+  try {
+    return !new X509Certificate(certPem).checkPrivateKey(createPrivateKey(keyPem));
   } catch {
     return false;
   }
