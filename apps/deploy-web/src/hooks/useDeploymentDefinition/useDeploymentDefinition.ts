@@ -9,7 +9,13 @@ import { useFlag } from "@src/hooks/useFlag";
 import { useResolvedDeploymentName } from "@src/hooks/useResolvedDeploymentName/useResolvedDeploymentName";
 import { QueryKeys } from "@src/queries/queryKeys";
 import { deploymentData } from "@src/utils/deploymentData";
-import { hasEnvProtectedByDefault, isStoredSdlRedeployable, isStoredSdlSelfContained, withEnvValuesFrom } from "@src/utils/sdl/storedDefinition";
+import {
+  hasEnvProtectedByDefault,
+  isStoredSdlRedeployable,
+  isStoredSdlSelfContained,
+  mayHaveEnvValuesBlankedAway,
+  withEnvValuesFrom
+} from "@src/utils/sdl/storedDefinition";
 
 /** `absent` still carries the API's copy when it held one it could not stand behind, so the shape is visible even though the values are not. */
 export type DeploymentDefinitionSource = "resolving" | "api" | "local" | "absent";
@@ -115,11 +121,15 @@ export function useDeploymentDefinition(
   const browserCopyVersion = dependencies.useManifestVersionOf(mayRestoreFromBrowser ? localSdl : undefined);
   const isReadingBrowserCopy = mayRestoreFromBrowser && browserCopyVersion.isReading;
   const isBrowserCopyOnChain = mayRestoreFromBrowser && browserCopyVersion.version === chainManifestVersion;
+  const mustHashApiCopy = useMemo(() => isApiCopyOnChain && !!apiSdl && mayHaveEnvValuesBlankedAway(apiSdl), [isApiCopyOnChain, apiSdl]);
+  const apiCopyVersion = dependencies.useManifestVersionOf(mustHashApiCopy ? apiSdl : undefined);
+  const isReadingApiCopy = mustHashApiCopy && apiCopyVersion.isReading;
+  const isApiCopyHashedOnChain = mustHashApiCopy && apiCopyVersion.version === chainManifestVersion;
 
   return useMemo(() => {
     const isApiCopyUsable = acceptReferences ? isStoredSdlRedeployable : isStoredSdlSelfContained;
-    if (isResolving || isReadingBrowserCopy) return { sdl: undefined, name, source: "resolving" };
-    if (apiSdl && isApiCopyOnChain && isApiCopyUsable(apiSdl)) {
+    if (isResolving || isReadingBrowserCopy || isReadingApiCopy) return { sdl: undefined, name, source: "resolving" };
+    if (apiSdl && isApiCopyOnChain && (isApiCopyHashedOnChain || isApiCopyUsable(apiSdl))) {
       const restoredSdl = isBrowserCopyOnChain && localSdl ? withEnvValuesFrom(localSdl, apiSdl) : undefined;
       return { sdl: apiSdl, name, source: "api", manifestVersion: recordedManifestVersion, isRecordedByConsole, ...(restoredSdl ? { restoredSdl } : {}) };
     }
@@ -129,6 +139,8 @@ export function useDeploymentDefinition(
     isResolving,
     isReadingBrowserCopy,
     isBrowserCopyOnChain,
+    isReadingApiCopy,
+    isApiCopyHashedOnChain,
     apiSdl,
     recordedManifestVersion,
     isApiCopyOnChain,
