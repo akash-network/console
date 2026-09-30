@@ -6,6 +6,7 @@ import { inboundFiltersIntegration, init as initSentry, thirdPartyErrorFilterInt
 
 initSentry({
   dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
+  environment: process.env.NEXT_PUBLIC_SENTRY_ENVIRONMENT,
   // Adjust this value in production, or use tracesSampler for greater control
   tracesSampleRate: 0.1,
   enabled: process.env.NEXT_PUBLIC_SENTRY_ENABLED === "true",
