@@ -5602,6 +5602,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                       },
                       "userId": {
                         "description": "User ID",
+                        "format": "uuid",
                         "type": "string",
                       },
                     },
@@ -5721,6 +5722,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
             "required": true,
             "schema": {
               "description": "User ID",
+              "format": "uuid",
               "type": "string",
             },
           },
@@ -5852,6 +5854,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
             "required": true,
             "schema": {
               "description": "User ID",
+              "format": "uuid",
               "type": "string",
             },
           },
@@ -18482,6 +18485,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                         "type": "array",
                       },
                       "userId": {
+                        "format": "uuid",
                         "type": "string",
                       },
                     },
