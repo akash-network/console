@@ -64,18 +64,13 @@ function refuseShortRegistryPasswordReplacements(
   });
 }
 
-/** A kept registry stands as references long enough to pass the create form's rules, so they hold for a registry added here too. */
-const UpdatableCredentialsSchema = CredentialsSchema.unwrap()
-  .extend({ username: z.string().min(1, { message: "Username is required." }) })
-  .optional();
-
 const UpdatablePortSchema = z.number({ invalid_type_error: "Enter a port number." }).pipe(ExposeSchema.shape.port);
 
 const UpdatableServiceSchema = z
   .object({
     image: z.string().min(1, { message: "Docker image name is required." }).regex(VALID_IMAGE_NAME, { message: "Invalid docker image name." }),
     hasCredentials: z.boolean().optional(),
-    credentials: UpdatableCredentialsSchema,
+    credentials: CredentialsSchema,
     env: z.array(EnvironmentVariableSchema).optional(),
     command: CommandSchema.optional(),
     expose: z.array(z.object({ port: UpdatablePortSchema, as: UpdatablePortSchema, global: z.boolean().optional() }).passthrough())

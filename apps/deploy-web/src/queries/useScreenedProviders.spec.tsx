@@ -1,5 +1,5 @@
 import { createProxy } from "@akashnetwork/react-query-proxy";
-import { keepPreviousData, type UseQueryResult } from "@tanstack/react-query";
+import { keepPreviousData, type QueryObserverBaseResult } from "@tanstack/react-query";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
@@ -142,6 +142,70 @@ describe("useScreenedProviders", () => {
     }
   });
 
+  it("reports a spec fixed mid-edit as loading rather than invalid until the edit is screened", () => {
+    vi.useFakeTimers();
+    try {
+      const { result, rerender } = setup({
+        sdl: "foo: [unclosed",
+        placementName: "dcloud",
+        providers: [buildScreenedProvider()],
+        isError: true,
+        isFetching: true,
+        isPlaceholderData: true
+      });
+
+      rerender({ sdl: HELLO_WORLD_SDL });
+
+      expect(result.current).toEqual(expect.objectContaining({ isInvalid: false, isLoading: true, isError: false, isRefreshing: false, providers: [] }));
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("returns the screened providers once a fixed spec settles", () => {
+    vi.useFakeTimers();
+    try {
+      const providers = [buildScreenedProvider()];
+      const { result, rerender } = setup({ sdl: "foo: [unclosed", placementName: "dcloud", providers });
+
+      rerender({ sdl: HELLO_WORLD_SDL });
+      act(() => vi.advanceTimersByTime(SCREENING_DEBOUNCE_MS));
+
+      expect(result.current).toEqual(expect.objectContaining({ isInvalid: false, isLoading: false, providers }));
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("keeps the previous providers until an edit that breaks the spec settles", () => {
+    vi.useFakeTimers();
+    try {
+      const providers = [buildScreenedProvider()];
+      const { result, rerender } = setup({ placementName: "dcloud", providers });
+
+      rerender({ sdl: "foo: [unclosed" });
+      expect(result.current).toEqual(expect.objectContaining({ isInvalid: false, providers }));
+
+      act(() => vi.advanceTimersByTime(SCREENING_DEBOUNCE_MS));
+
+      expect(result.current).toEqual(expect.objectContaining({ isInvalid: true, providers: [] }));
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("reports a failed screening of a valid spec", () => {
+    const { result } = setup({ placementName: "dcloud", isError: true });
+
+    expect(result.current.isError).toBe(true);
+  });
+
+  it("returns no providers before the first screening answers", () => {
+    const { result } = setup({ placementName: "dcloud", hasNoData: true });
+
+    expect(result.current.providers).toEqual([]);
+  });
+
   function setup(input: {
     placementName: string;
     sdl?: string;
@@ -150,12 +214,14 @@ describe("useScreenedProviders", () => {
     enabled?: boolean;
     isFetching?: boolean;
     isPlaceholderData?: boolean;
+    isError?: boolean;
+    hasNoData?: boolean;
   }) {
     const useQuery = vi.fn().mockReturnValue(
-      mock<UseQueryResult<ScreenedProvidersResponse>>({
-        data: { providers: input.providers ?? [] },
+      mock<QueryObserverBaseResult<ScreenedProvidersResponse>>({
+        data: input.hasNoData ? undefined : { providers: input.providers ?? [] },
         isLoading: false,
-        isError: false,
+        isError: input.isError ?? false,
         isFetching: input.isFetching ?? false,
         isPlaceholderData: input.isPlaceholderData ?? false
       })

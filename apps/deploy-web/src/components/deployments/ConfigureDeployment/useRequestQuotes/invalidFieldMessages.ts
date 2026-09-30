@@ -1,6 +1,7 @@
 import type { FieldErrors } from "react-hook-form";
 
 import type { SdlBuilderFormValuesType } from "@src/types";
+import { SdlBuilderFormValuesSchema } from "@src/types";
 
 /** Each message names the service or placement it belongs to, because the form lists several with the same fields. */
 export function listInvalidFieldMessages(values: SdlBuilderFormValuesType, errors: FieldErrors<SdlBuilderFormValuesType>): string[] {
@@ -11,6 +12,28 @@ export function listInvalidFieldMessages(values: SdlBuilderFormValuesType, error
   });
 
   return [...new Set(messages)];
+}
+
+/** Reads the schema rather than the form's errors, which stay empty until a field is touched or a submit is refused. */
+export function listSpecIssueMessages(values: SdlBuilderFormValuesType): string[] {
+  const result = SdlBuilderFormValuesSchema.safeParse(values);
+  if (result.success) return [];
+
+  const messageByField = new Map<string, string>();
+  result.error.issues.forEach(({ path, message }) => {
+    const field = path.join(".");
+    if (messageByField.has(field)) return;
+    const name = entryNameOf(values, path[0], path[1]);
+    messageByField.set(field, name ? `${name}: ${message}` : message);
+  });
+
+  return [...new Set(messageByField.values())];
+}
+
+function entryNameOf(values: SdlBuilderFormValuesType, field: string | number | undefined, index: string | number | undefined): string | undefined {
+  if (field === "services") return values.services[Number(index)]?.title;
+  if (field === "placements") return values.placements[Number(index)]?.name;
+  return undefined;
 }
 
 function messagesByEntry(errors: unknown, entryName: (index: number) => string | undefined): string[] {

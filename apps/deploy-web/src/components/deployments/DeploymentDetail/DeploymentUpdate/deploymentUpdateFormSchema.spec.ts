@@ -119,7 +119,7 @@ describe("DeploymentUpdateFormSchema", () => {
     values.services[0].hasCredentials = true;
     values.services[0].credentials = { host: "ghcr.io", username: "acme", password: "abc" };
 
-    expect(issuesOf(values)).toEqual([{ path: "services.0.credentials.password", message: "Password must be at least 6 characters." }]);
+    expect(issuesOf(values)).toEqual([{ path: "services.0.credentials.password", message: "Registry password must be at least 6 characters." }]);
   });
 
   it("refuses a registry left without a username", () => {
@@ -127,7 +127,7 @@ describe("DeploymentUpdateFormSchema", () => {
     values.services[0].hasCredentials = true;
     values.services[0].credentials = { host: "ghcr.io", username: "", password: KEPT_PASSWORD };
 
-    expect(issuesOf(values)).toEqual([{ path: "services.0.credentials.username", message: "Username is required." }]);
+    expect(issuesOf(values)).toEqual([{ path: "services.0.credentials.username", message: "Registry username is required." }]);
   });
 
   it("refuses a replacement for a kept registry password shorter than the create form accepts", () => {
@@ -136,7 +136,7 @@ describe("DeploymentUpdateFormSchema", () => {
     values.services[0].credentials = { host: "ghcr.io", username: "acme", password: KEPT_PASSWORD };
     values.secretValues = { REGISTRY_PASSWORD: "abc" };
 
-    expect(issuesOf(values)).toEqual([{ path: "secretValues.REGISTRY_PASSWORD", message: "Password must be at least 6 characters." }]);
+    expect(issuesOf(values)).toEqual([{ path: "secretValues.REGISTRY_PASSWORD", message: "Registry password must be at least 6 characters." }]);
   });
 
   it("accepts a replacement box left blank, which keeps the stored value", () => {

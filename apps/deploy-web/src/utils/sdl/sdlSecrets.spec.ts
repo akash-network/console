@@ -310,7 +310,7 @@ describe("sdlSecrets", () => {
       expect(resolved.unresolved).toEqual([{ serviceTitle: "web", label: "registry password", name: "REGISTRY_PASSWORD", isKeptReference: true }]);
     });
 
-    it("emits nothing for an empty registry username, which the schema leaves optional", () => {
+    it("emits nothing for an empty registry username", () => {
       const values = formValues([service("web", { hasCredentials: true, credentials: { host: "ghcr.io", username: "", password: "hunter22" } })]);
 
       const resolved = resolveSdlSecrets(values, { sealSecrets: true });
