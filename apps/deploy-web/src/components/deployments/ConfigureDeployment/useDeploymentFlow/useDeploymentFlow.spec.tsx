@@ -23,6 +23,8 @@ const SEAL_CONTEXT = {
 
 const STALE_KEY_MESSAGE = "Sealed to a key the console no longer holds; refetch the SDL secrets context";
 
+const REFERENCED_SDL = 'version: "2.0"\nservices:\n  web:\n    image: nginx\n    env:\n      - "API_KEY=ac-secret://s0_e0"\n';
+
 describe(useDeploymentFlow.name, () => {
   it("starts in configuring when there is no dseq", () => {
     const { result } = setup({});
@@ -1274,6 +1276,54 @@ describe(useDeploymentFlow.name, () => {
       await waitFor(() => expect(result.current.deployError).toEqual({ message: "Invalid SDL" }));
       expect(result.current.phase).toBe("quoting");
       expect(createLease.mutate).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("when a resumed SDL keeps references the api holds the values for", () => {
+    it("leases without any update and leaves the manifest to the api when the stored definition is deployed unchanged", async () => {
+      const getDeployment = mockMutation(
+        vi.fn(),
+        vi.fn(async () => ({ data: { consoleSettings: { sdl: REFERENCED_SDL } } }))
+      );
+      const updateDeployment = mockMutation();
+      const patchDeployment = mockMutation();
+      const createLease = mockMutation();
+      const { result } = renderFlow({ intent: { dseq: "555" }, getDeployment, updateDeployment, patchDeployment, createLease });
+
+      act(() => result.current.actions.selectProvider("placement-1", "akash1a/555/1/3"));
+      act(() => result.current.actions.deploy(REFERENCED_SDL));
+
+      await waitFor(() =>
+        expect(createLease.mutate).toHaveBeenCalledWith({ leases: [{ dseq: "555", gseq: 1, oseq: 3, provider: "akash1a" }] }, expect.anything())
+      );
+      expect(createLease.mutate.mock.calls[0][0]).not.toHaveProperty("manifest");
+      expect(updateDeployment.mutate).not.toHaveBeenCalled();
+      expect(patchDeployment.mutate).not.toHaveBeenCalled();
+    });
+
+    it("patches an edit instead of resubmitting a whole SDL whose references it could not resolve", async () => {
+      const getDeployment = mockMutation(
+        vi.fn(),
+        vi.fn(async () => ({ data: { consoleSettings: { sdl: REFERENCED_SDL } } }))
+      );
+      const updateDeployment = mockMutation();
+      const patchDeployment = mockMutation(vi.fn((_i, o) => o.onSuccess({})));
+      const createLease = mockMutation();
+      const servicesPatchBetween = vi.fn(() => ({ web: { image: "nginx:2" } }));
+      const { result } = renderFlow({ intent: { dseq: "555" }, getDeployment, updateDeployment, patchDeployment, createLease, servicesPatchBetween });
+
+      act(() => result.current.actions.selectProvider("placement-1", "akash1a/555/1/3"));
+      act(() => result.current.actions.deploy(REFERENCED_SDL));
+
+      await waitFor(() =>
+        expect(patchDeployment.mutate).toHaveBeenCalledWith(
+          { dseq: "555", data: { services: { web: { image: "nginx:2" } }, sealedSecrets: "SEALED" } },
+          expect.anything()
+        )
+      );
+      expect(servicesPatchBetween).toHaveBeenCalledWith(REFERENCED_SDL, REFERENCED_SDL);
+      expect(updateDeployment.mutate).not.toHaveBeenCalled();
+      expect(createLease.mutate).toHaveBeenCalledWith({ leases: [{ dseq: "555", gseq: 1, oseq: 3, provider: "akash1a" }] }, expect.anything());
     });
   });
 

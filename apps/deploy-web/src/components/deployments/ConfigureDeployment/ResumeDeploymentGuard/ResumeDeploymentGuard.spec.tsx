@@ -13,6 +13,10 @@ import { render, screen } from "@testing-library/react";
 
 const PROVIDER = "akash1provider";
 
+const RECORDED_SDL = 'version: "2.0"\nservices:\n  web:\n    image: nginx\n    env:\n      - "API_KEY=ac-secret://s0_e0"\n';
+
+const BLANKED_SDL = 'version: "2.0"\nservices:\n  web:\n    image: nginx\n    env:\n      - "API_KEY="\n';
+
 describe(ResumeDeploymentGuard.name, () => {
   it("renders a fresh start immediately when there is no dseq to resume", () => {
     const { getResume, replace } = setup({ intent: intentFor(undefined) });
@@ -85,6 +89,43 @@ describe(ResumeDeploymentGuard.name, () => {
     expect(replace).not.toHaveBeenCalled();
   });
 
+  it("hands over the definition the console recorded for the version the chain runs", () => {
+    const { getResume } = setup({
+      intent: intentFor("555"),
+      query: deployment({ state: "active", hash: "v1", name: "my-app", consoleSettings: { sdl: RECORDED_SDL, manifestVersion: "v1" } })
+    });
+
+    expect(getResume()).toEqual({ activeLeases: [], recordedDefinition: { sdl: RECORDED_SDL, name: "my-app" } });
+  });
+
+  it("hands over the recorded definition without a name when the deployment carries none", () => {
+    const { getResume } = setup({
+      intent: intentFor("555"),
+      query: deployment({ state: "active", hash: "v1", name: null, consoleSettings: { sdl: RECORDED_SDL, manifestVersion: "v1" } })
+    });
+
+    expect(getResume()).toEqual({ activeLeases: [], recordedDefinition: { sdl: RECORDED_SDL } });
+    expect(getResume()?.recordedDefinition).not.toHaveProperty("name");
+  });
+
+  it("leaves out a definition recorded for a version the chain has moved past", () => {
+    const { getResume } = setup({
+      intent: intentFor("555"),
+      query: deployment({ state: "active", hash: "v2", name: "my-app", consoleSettings: { sdl: RECORDED_SDL, manifestVersion: "v1" } })
+    });
+
+    expect(getResume()).not.toHaveProperty("recordedDefinition");
+  });
+
+  it("leaves out a recorded definition that blanked a value away", () => {
+    const { getResume } = setup({
+      intent: intentFor("555"),
+      query: deployment({ state: "active", hash: "v1", name: "my-app", consoleSettings: { sdl: BLANKED_SDL, manifestVersion: "v1" } })
+    });
+
+    expect(getResume()).not.toHaveProperty("recordedDefinition");
+  });
+
   it("reconstructs the live leases so the flow can re-send the manifest when it can resume", () => {
     const { getResume, replace } = setup({
       intent: intentFor("555"),
@@ -117,8 +158,23 @@ describe(ResumeDeploymentGuard.name, () => {
     return { sdlStrategy: "edit", bidStrategy: "select", dseq, vm: false };
   }
 
-  function deployment(input: { state: string; leases?: unknown[] }) {
-    return { data: { data: { deployment: { state: input.state }, leases: input.leases ?? [] } } };
+  function deployment(input: {
+    state: string;
+    leases?: unknown[];
+    hash?: string;
+    name?: string | null;
+    consoleSettings?: { sdl: string; manifestVersion: string };
+  }) {
+    return {
+      data: {
+        data: {
+          deployment: { state: input.state, hash: input.hash },
+          leases: input.leases ?? [],
+          name: input.name ?? null,
+          consoleSettings: input.consoleSettings ?? null
+        }
+      }
+    };
   }
 
   function setup(input: {

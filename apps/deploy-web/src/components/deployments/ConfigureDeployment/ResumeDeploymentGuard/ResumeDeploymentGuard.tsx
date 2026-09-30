@@ -8,12 +8,15 @@ import { useSnackbar } from "notistack";
 
 import Layout from "@src/components/layout/Layout";
 import { useServices } from "@src/context/ServicesProvider";
+import { isStoredSdlRedeployable } from "@src/utils/sdl/storedDefinition";
 import { UrlService } from "@src/utils/urlUtils";
 import type { DeploymentIntent } from "../useDeploymentFlow/deploymentIntent";
 import { buildConfigureUrl } from "../useDeploymentFlow/useDeploymentFlow";
 
 /** The coordinates identifying a lease, in the same shape the auto flow reconstructs a selection from. */
 export type ResumeLease = { dseq: string; gseq: number; oseq: number; provider: string };
+
+export type RecordedDefinition = { sdl: string; name?: string };
 
 export type ResumeResolution = {
   /**
@@ -22,6 +25,8 @@ export type ResumeResolution = {
    * resume, or an open deployment with no live leases (which re-quotes from scratch).
    */
   activeLeases: ResumeLease[];
+  /** The definition the console recorded for the version the chain runs, so a resume this browser holds no SDL for can still be leased. */
+  recordedDefinition?: RecordedDefinition;
 };
 
 const EMPTY_RESUME: ResumeResolution = { activeLeases: [] };
@@ -135,6 +140,8 @@ export const ResumeDeploymentGuard: FC<Props> = ({ intent, canResume, children, 
 
 type Decision = { kind: "loading" } | { kind: "render"; resume: ResumeResolution } | { kind: "redirect" } | { kind: "notFound" };
 
+type DeploymentResponse = NonNullable<ReturnType<typeof useGetDeployment>["data"]>["data"];
+
 /**
  * Classifies the deployment query into a resume decision (side-effect free). Errors are split so only a genuine 404
  * wipes the dseq: a transient failure falls through to a best-effort resume (the children re-quote the existing dseq)
@@ -149,10 +156,17 @@ function resolveDecision(resumeDseq: string | undefined, query: ReturnType<typeo
   if (data.deployment.state === "closed") return { kind: "redirect" };
 
   const liveLeases = data.leases.filter(lease => lease.state !== "closed");
-  if (liveLeases.length === 0) return { kind: "render", resume: EMPTY_RESUME };
+  if (liveLeases.length === 0) return { kind: "render", resume: { activeLeases: [], ...recordedDefinitionOf(data) } };
   if (!canResume) return { kind: "redirect" };
   return {
     kind: "render",
     resume: { activeLeases: liveLeases.map(lease => ({ dseq: lease.id.dseq, gseq: lease.id.gseq, oseq: lease.id.oseq, provider: lease.id.provider })) }
   };
+}
+
+/** A copy recorded under an older version would lease a superseded document, and one with a value blanked out has lost it for good. */
+function recordedDefinitionOf(data: DeploymentResponse): { recordedDefinition?: RecordedDefinition } {
+  const recorded = data.consoleSettings;
+  if (!recorded || recorded.manifestVersion !== data.deployment.hash || !isStoredSdlRedeployable(recorded.sdl)) return {};
+  return { recordedDefinition: { sdl: recorded.sdl, ...(data.name ? { name: data.name } : {}) } };
 }
