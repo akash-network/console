@@ -26,13 +26,26 @@ describe("ConfigureDeploymentBackButton", () => {
     expect(router.back).not.toHaveBeenCalled();
   });
 
-  function setup(input: { hasInAppHistory: boolean }) {
+  it("is disabled while a deployment is being created", () => {
+    setup({ hasInAppHistory: true, isDeploymentCreating: true });
+
+    expect(screen.getByRole("button", { name: /back/i })).toBeDisabled();
+  });
+
+  it("is enabled when no deployment is being created", () => {
+    setup({ hasInAppHistory: true });
+
+    expect(screen.getByRole("button", { name: /back/i })).toBeEnabled();
+  });
+
+  function setup(input: { hasInAppHistory: boolean; isDeploymentCreating?: boolean }) {
     const router = mock<ReturnType<typeof DEPENDENCIES.useRouter>>();
     render(
       <ConfigureDeploymentBackButton
         dependencies={MockComponents(DEPENDENCIES, {
           useRouter: () => router,
           useHasInAppHistory: () => input.hasInAppHistory,
+          useIsDeploymentCreating: () => input.isDeploymentCreating ?? false,
           UrlService
         })}
       />

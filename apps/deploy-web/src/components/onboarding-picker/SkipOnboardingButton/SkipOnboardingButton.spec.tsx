@@ -32,11 +32,18 @@ describe(SkipOnboardingButton.name, () => {
     expect(screen.getByRole("button", { name: /skip/i })).toBeDisabled();
   });
 
-  function setup(input: { source: SkipOnboardingSource; skip?: () => Promise<void>; isSkipping?: boolean }) {
+  it("stays out of the way while a deployment is being created", () => {
+    setup({ source: "auto_deploy", isDeploymentCreating: true });
+
+    expect(screen.queryByRole("button", { name: /skip/i })).not.toBeInTheDocument();
+  });
+
+  function setup(input: { source: SkipOnboardingSource; skip?: () => Promise<void>; isSkipping?: boolean; isDeploymentCreating?: boolean }) {
     const skip = input.skip ?? vi.fn();
     const useSkipOnboarding: typeof DEPENDENCIES.useSkipOnboarding = () =>
       mock<ReturnType<typeof DEPENDENCIES.useSkipOnboarding>>({ skip, isSkipping: input.isSkipping ?? false });
+    const useIsDeploymentCreating = () => input.isDeploymentCreating ?? false;
 
-    return render(<SkipOnboardingButton source={input.source} dependencies={{ useSkipOnboarding }} />);
+    return render(<SkipOnboardingButton source={input.source} dependencies={{ useSkipOnboarding, useIsDeploymentCreating }} />);
   }
 });

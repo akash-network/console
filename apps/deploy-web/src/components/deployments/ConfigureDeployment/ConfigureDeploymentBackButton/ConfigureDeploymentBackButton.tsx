@@ -7,10 +7,12 @@ import { useRouter } from "next/navigation";
 
 import { useHasInAppHistory } from "@src/hooks/useHasInAppHistory";
 import { UrlService } from "@src/utils/urlUtils";
+import { useIsDeploymentCreating } from "../DeploymentFlowProvider/DeploymentFlowProvider";
 
 export const DEPENDENCIES = {
   useRouter,
   useHasInAppHistory,
+  useIsDeploymentCreating,
   UrlService
 };
 
@@ -23,6 +25,7 @@ type Props = { dependencies?: typeof DEPENDENCIES };
 export const ConfigureDeploymentBackButton: FC<Props> = ({ dependencies: d = DEPENDENCIES }) => {
   const router = d.useRouter();
   const hasInAppHistory = d.useHasInAppHistory();
+  const isDeploymentCreating = d.useIsDeploymentCreating();
 
   const goBack = useCallback(() => {
     if (hasInAppHistory) {
@@ -33,7 +36,7 @@ export const ConfigureDeploymentBackButton: FC<Props> = ({ dependencies: d = DEP
   }, [hasInAppHistory, router, d]);
 
   return (
-    <Button type="button" variant="ghost" onClick={goBack} className="-ml-2 h-8 gap-1 px-2 text-muted-foreground">
+    <Button type="button" variant="ghost" onClick={goBack} disabled={isDeploymentCreating} className="-ml-2 h-8 gap-1 px-2 text-muted-foreground">
       <NavArrowLeft className="h-4 w-4" />
       Back
     </Button>

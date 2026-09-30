@@ -1,11 +1,13 @@
 "use client";
 import type { FC, ReactNode } from "react";
+import { createContext, useContext } from "react";
 
+import { useWarnBeforeUnload } from "@src/hooks/useWarnBeforeUnload/useWarnBeforeUnload";
 import type { DeploymentIntent } from "../useDeploymentFlow/deploymentIntent";
 import type { DeploymentFlow } from "../useDeploymentFlow/useDeploymentFlow";
 import { useDeploymentFlow } from "../useDeploymentFlow/useDeploymentFlow";
 
-export const DEPENDENCIES = { useDeploymentFlow };
+export const DEPENDENCIES = { useDeploymentFlow, useWarnBeforeUnload };
 
 /** The shared flow state machine both configure branches need. */
 export type DeploymentFlowContext = {
@@ -19,6 +21,13 @@ interface Props {
   dependencies?: typeof DEPENDENCIES;
 }
 
+const DeploymentCreatingContext = createContext(false);
+
+/** A create's response only reaches the page that sent it, so chrome that navigates away (the onboarding skip, Back) steps aside until it lands. */
+export function useIsDeploymentCreating(): boolean {
+  return useContext(DeploymentCreatingContext);
+}
+
 /**
  * Owns the single base deployment flow for the configure screen, so the auto and manual branches
  * share one state machine instead of each mounting their own. Rendered below the `ResumeDeploymentGuard`: the flow
@@ -30,5 +39,8 @@ interface Props {
  */
 export const DeploymentFlowProvider: FC<Props> = ({ intent, children, dependencies: d = DEPENDENCIES }) => {
   const flow = d.useDeploymentFlow({ intent });
-  return <>{children({ flow })}</>;
+  const isCreating = flow.phase === "creating";
+  d.useWarnBeforeUnload(isCreating);
+
+  return <DeploymentCreatingContext.Provider value={isCreating}>{children({ flow })}</DeploymentCreatingContext.Provider>;
 };
