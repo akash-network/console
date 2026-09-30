@@ -84,9 +84,27 @@ describe(useGpuAvailability.name, () => {
     }
   });
 
-  function setup(input: { gpuModel?: string; interconnect?: boolean; withoutOptions?: boolean; screened: Record<string, number>; loading?: string[] }) {
+  it("counts every variant within the placement's picked regions", () => {
+    const { screenedRegions } = setup({ gpuModel: "h100", regions: ["eu-west", "na-us-west"], screened: { a100: 2, t4: 1, [NO_GPU]: 25 } });
+
+    expect(screenedRegions()).toEqual([
+      ["eu-west", "na-us-west"],
+      ["eu-west", "na-us-west"],
+      ["eu-west", "na-us-west"]
+    ]);
+  });
+
+  function setup(input: {
+    gpuModel?: string;
+    interconnect?: boolean;
+    withoutOptions?: boolean;
+    screened: Record<string, number>;
+    loading?: string[];
+    regions?: string[];
+  }) {
     const placement = defaultPlacement({
       name: "placement-1",
+      regions: input.regions,
       attributes: input.interconnect ? [{ id: "a1", key: GPU_INTERCONNECT_CAPABILITY_KEY, value: "true" }] : []
     });
     const service = defaultService(placement.id, { image: "nginx" });
@@ -150,12 +168,15 @@ describe(useGpuAvailability.name, () => {
       formMethods = form;
       return <FormProvider {...form}>{children}</FormProvider>;
     };
-    const view = renderHook(() => useGpuAvailability({ id: placement.id, name: placement.name }, dependencies), { wrapper: Wrapper });
+    const view = renderHook(() => useGpuAvailability({ id: placement.id, name: placement.name, regions: placement.regions }, dependencies), {
+      wrapper: Wrapper
+    });
 
     return {
       result: view.result,
       form: () => formMethods!,
       screenedKeys: () => (useScreenedProviderCounts.mock.lastCall?.[0] ?? []).map(({ key }) => key),
+      screenedRegions: () => (useScreenedProviderCounts.mock.lastCall?.[0] ?? []).map(({ regions }) => regions),
       screenedRequests: () =>
         (useScreenedProviderCounts.mock.lastCall?.[0] ?? []).map(({ request }) => request).filter((request): request is ScreeningRequest => request !== null)
     };

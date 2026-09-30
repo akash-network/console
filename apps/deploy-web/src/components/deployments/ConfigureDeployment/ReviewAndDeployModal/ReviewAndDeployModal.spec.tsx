@@ -321,7 +321,7 @@ describe(ReviewAndDeployModal.name, () => {
       <ReviewAndDeployModal
         open
         dseq="55"
-        placements={[mock<PlacementType>({ id: "p1", name: "placement-1", region: "Any region" })]}
+        placements={[mock<PlacementType>({ id: "p1", name: "placement-1", regions: [] })]}
         selections={{ p1: "akash1a/55/1/2" }}
         runtimeLimitHours={runtimeLimitHours}
         onRuntimeLimitHoursChange={vi.fn()}

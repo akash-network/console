@@ -28,6 +28,9 @@ export const DEPENDENCIES = {
   mintDraftId
 };
 
+/** The regions of each placement that picks several, by placement name, since the SDL can only carry a single one. */
+export type PlacementRegionPicks = Record<string, string[]>;
+
 interface StoredDraft {
   sdl: string;
   name?: string;
@@ -36,6 +39,7 @@ interface StoredDraft {
   inheritSecretsFrom?: string;
   /** The SDL the session started from (a template, an upload or a redeploy), which a reset restores. */
   startingSdl?: string;
+  placementRegions?: PlacementRegionPicks;
   updatedAt: number;
 }
 
@@ -57,8 +61,10 @@ export interface ConfigureDraft {
   persistedInheritSecretsFrom: string | undefined;
   /** The SDL the draft's session started from, or undefined when it started from a default deployment. */
   persistedStartingSdl: string | undefined;
-  /** Persists `sdl` (and the optional deployment `name`, `runtimeLimitHours` and `startingSdl`) as the working draft, then evicts the oldest drafts past the cap. */
-  save(sdl: string, name?: string, runtimeLimitHours?: number, startingSdl?: string): void;
+  /** The persisted picks of placements choosing several regions, or undefined when none were saved. */
+  persistedPlacementRegions: PlacementRegionPicks | undefined;
+  /** Persists `sdl` (and the optional deployment `name`, `runtimeLimitHours`, `startingSdl` and `placementRegions`) as the working draft, then evicts the oldest drafts past the cap. */
+  save(sdl: string, name?: string, runtimeLimitHours?: number, startingSdl?: string, placementRegions?: PlacementRegionPicks): void;
   /** Forgets the deployment this draft inherits secrets from, once the console has said those secrets cannot be reused. */
   dropInheritance(): void;
   /** Removes the persisted draft. */
@@ -86,6 +92,7 @@ export function useConfigureDraft(intent: DeploymentIntent, dependencies: typeof
   const persistedRuntimeLimitHours = typeof storedDraft?.runtimeLimitHours === "number" ? storedDraft.runtimeLimitHours : undefined;
   const persistedInheritSecretsFrom = typeof storedDraft?.inheritSecretsFrom === "string" ? storedDraft.inheritSecretsFrom : undefined;
   const persistedStartingSdl = typeof storedDraft?.startingSdl === "string" ? storedDraft.startingSdl : undefined;
+  const persistedPlacementRegions = typeof storedDraft?.placementRegions === "object" ? storedDraft.placementRegions ?? undefined : undefined;
 
   const persistedToUrlRef = useRef<string>();
   useEffect(
@@ -107,12 +114,13 @@ export function useConfigureDraft(intent: DeploymentIntent, dependencies: typeof
       persistedRuntimeLimitHours,
       persistedInheritSecretsFrom,
       persistedStartingSdl,
-      save: (sdl: string, name?: string, runtimeLimitHours?: number, startingSdl?: string) =>
-        saveDraft(storage, draftId, { sdl, name, runtimeLimitHours, startingSdl }),
+      persistedPlacementRegions,
+      save: (sdl: string, name?: string, runtimeLimitHours?: number, startingSdl?: string, placementRegions?: PlacementRegionPicks) =>
+        saveDraft(storage, draftId, { sdl, name, runtimeLimitHours, startingSdl, placementRegions }),
       dropInheritance: () => dropDraftInheritance(storage, draftId),
       clear: () => clearDraft(storage, draftId)
     }),
-    [draftId, persistedSdl, persistedName, persistedRuntimeLimitHours, persistedInheritSecretsFrom, persistedStartingSdl, storage]
+    [draftId, persistedSdl, persistedName, persistedRuntimeLimitHours, persistedInheritSecretsFrom, persistedStartingSdl, persistedPlacementRegions, storage]
   );
 }
 

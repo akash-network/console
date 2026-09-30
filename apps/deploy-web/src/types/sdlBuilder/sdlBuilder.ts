@@ -372,7 +372,7 @@ export const PlacementSchema = z.object({
     .regex(/^[a-z0-9-]+$/, { message: "Invalid placement name. It must only be lower case letters, numbers and dashes." })
     .regex(/^[a-z]/, { message: "Invalid starting character. It can only start with a lowercase letter." })
     .regex(/[^-]$/, { message: "Invalid ending character. It can only end with a lowercase letter or number" }),
-  region: z.string().optional(),
+  regions: z.array(z.string()).optional(),
   attributes: z.array(PlacementAttributeSchema).optional(),
   signedBy: z
     .object({

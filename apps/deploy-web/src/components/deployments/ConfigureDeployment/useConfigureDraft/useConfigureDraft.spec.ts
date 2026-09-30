@@ -96,6 +96,44 @@ describe(useConfigureDraft.name, () => {
     expect(storedRuntimeLimitHours("draft-1")).toBe(6);
   });
 
+  it("exposes the persisted region picks for the active draft", () => {
+    const { result } = setup({
+      intent: { draftId: "draft-1" },
+      rawStored: { "draft-1": JSON.stringify({ sdl: "seeded", placementRegions: { dcloud: ["eu-west", "na-us-west"] }, updatedAt: 1 }) }
+    });
+
+    expect(result.current.persistedPlacementRegions).toEqual({ dcloud: ["eu-west", "na-us-west"] });
+  });
+
+  it("has no persisted region picks when the stored draft omits them or holds something else", () => {
+    const { result, rerender } = setup({
+      intent: { draftId: "draft-1" },
+      rawStored: {
+        "draft-1": JSON.stringify({ sdl: "seeded", updatedAt: 1 }),
+        "draft-2": JSON.stringify({ sdl: "seeded", placementRegions: null, updatedAt: 1 }),
+        "draft-3": JSON.stringify({ sdl: "seeded", placementRegions: "eu-west", updatedAt: 1 })
+      }
+    });
+
+    expect(result.current.persistedPlacementRegions).toBeUndefined();
+
+    rerender({ sdlStrategy: "edit", bidStrategy: "select", vm: false, draftId: "draft-2" });
+    expect(result.current.persistedPlacementRegions).toBeUndefined();
+
+    rerender({ sdlStrategy: "edit", bidStrategy: "select", vm: false, draftId: "draft-3" });
+    expect(result.current.persistedPlacementRegions).toBeUndefined();
+  });
+
+  it("saves the region picks alongside the sdl for the active draft", () => {
+    const { result } = setup({ intent: { draftId: "draft-1" } });
+
+    result.current.save("version: '2.0'", "my-app", 6, undefined, { dcloud: ["eu-west", "na-us-west"] });
+
+    expect(storedEntry("draft-1")).toEqual(
+      expect.objectContaining({ sdl: "version: '2.0'", name: "my-app", runtimeLimitHours: 6, placementRegions: { dcloud: ["eu-west", "na-us-west"] } })
+    );
+  });
+
   it("exposes the deployment the draft inherits secrets from", () => {
     const { result } = setup({
       intent: { draftId: "draft-1" },

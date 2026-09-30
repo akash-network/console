@@ -14,10 +14,16 @@ import userEvent from "@testing-library/user-event";
 import { buildScreenedProvider } from "@tests/seeders/screenedProvider";
 
 describe(MarketplacePane.name, () => {
-  it("reads offers for the current phase, dseq, sdl, placement and region", () => {
-    const { usePlacementOffers } = setup({ sdl: "version: 2.0", placementName: "dcloud", region: "na-us-west", phase: "quoting", dseq: "100" });
+  it("reads offers for the current phase, dseq, sdl, placement and regions", () => {
+    const { usePlacementOffers } = setup({ sdl: "version: 2.0", placementName: "dcloud", regions: ["na-us-west", "eu-west"], phase: "quoting", dseq: "100" });
 
-    expect(usePlacementOffers).toHaveBeenCalledWith({ sdl: "version: 2.0", placementName: "dcloud", region: "na-us-west", phase: "quoting", dseq: "100" });
+    expect(usePlacementOffers).toHaveBeenCalledWith({
+      sdl: "version: 2.0",
+      placementName: "dcloud",
+      regions: ["na-us-west", "eu-west"],
+      phase: "quoting",
+      dseq: "100"
+    });
   });
 
   it("shows the placement name in the header", () => {
@@ -238,7 +244,7 @@ describe(MarketplacePane.name, () => {
     input: {
       sdl?: string;
       placementName?: string;
-      region?: string;
+      regions?: string[];
       phase?: DeploymentFlowPhase;
       dseq?: string | null;
       offers?: PlacementOffer[];
@@ -296,7 +302,7 @@ describe(MarketplacePane.name, () => {
       <MarketplacePane
         sdl={input.sdl ?? ""}
         placementName={input.placementName ?? "dcloud"}
-        region={input.region}
+        regions={input.regions}
         phase={input.phase ?? "configuring"}
         dseq={input.dseq ?? null}
         selectedPlacementId={overrides.selectedPlacementId ?? input.selectedPlacementId ?? "placement-1"}

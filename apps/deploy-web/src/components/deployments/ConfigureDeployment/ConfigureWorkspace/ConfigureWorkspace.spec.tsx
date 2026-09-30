@@ -97,7 +97,7 @@ describe(ConfigureWorkspace.name, () => {
       expect(dependencies.HardwareRequestDialog).toHaveBeenLastCalledWith(
         expect.objectContaining({
           initialGpuModel: "",
-          configuration: expect.objectContaining({ summary: "0.1 vCPU · 512 MiB memory · 1 GiB storage · us-west" })
+          configuration: expect.objectContaining({ summary: "0.1 vCPU · 512 MiB memory · 1 GiB storage · us-west, eu-west" })
         }),
         expect.anything()
       );
@@ -135,8 +135,8 @@ describe(ConfigureWorkspace.name, () => {
     it("screens every placement so the picker has each placement's providers once screening pauses", () => {
       const { useScreenedProviders } = setup({});
 
-      expect(useScreenedProviders).toHaveBeenCalledWith({ sdl: "live-sdl", placementName: "placement-1", region: "", enabled: true });
-      expect(useScreenedProviders).toHaveBeenCalledWith({ sdl: "live-sdl", placementName: "gpu-pool", region: "us-west", enabled: true });
+      expect(useScreenedProviders).toHaveBeenCalledWith({ sdl: "live-sdl", placementName: "placement-1", regions: [], enabled: true });
+      expect(useScreenedProviders).toHaveBeenCalledWith({ sdl: "live-sdl", placementName: "gpu-pool", regions: ["us-west", "eu-west"], enabled: true });
     });
   });
 
@@ -163,7 +163,7 @@ describe(ConfigureWorkspace.name, () => {
       expect(marketplaceProps()).toMatchObject({
         variant: "expanded",
         placementName: "gpu-pool",
-        region: "us-west",
+        regions: ["us-west", "eu-west"],
         selectedPlacementId: "p2",
         selectedBidId: "bid-2",
         onSelectProvider
@@ -282,8 +282,8 @@ describe(ConfigureWorkspace.name, () => {
     pendingClose?: DeploymentFlow["pendingClose"];
     selectedServiceId?: string;
   }) {
-    const first = { ...defaultPlacement({ name: "placement-1" }), id: "p1", region: "" };
-    const second = { ...defaultPlacement({ name: "gpu-pool" }), id: "p2", region: "us-west" };
+    const first = { ...defaultPlacement({ name: "placement-1" }), id: "p1", regions: [] };
+    const second = { ...defaultPlacement({ name: "gpu-pool" }), id: "p2", regions: ["us-west", "eu-west"] };
     const values: SdlBuilderFormValuesType = {
       placements: [first, second],
       services: [

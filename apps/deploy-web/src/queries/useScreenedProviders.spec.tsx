@@ -85,6 +85,32 @@ describe("useScreenedProviders", () => {
     expect(result.current.providers).toEqual(providers);
   });
 
+  it("returns every screened provider when a single region is picked, since the spec already screens by it", () => {
+    const providers = [buildScreenedProvider({ location: "eu-west" }), buildScreenedProvider({ location: null })];
+    const { result } = setup({ placementName: "dcloud", providers, regions: ["eu-west"] });
+
+    expect(result.current.providers).toEqual(providers);
+  });
+
+  it("keeps only the providers located in one of several picked regions", () => {
+    const west = buildScreenedProvider({ location: "eu-west" });
+    const usWest = buildScreenedProvider({ location: "na-us-west" });
+    const providers = [west, buildScreenedProvider({ location: "eu-central" }), usWest, buildScreenedProvider({ location: null })];
+    const { result } = setup({ placementName: "dcloud", providers, regions: ["eu-west", "na-us-west"] });
+
+    expect(result.current.providers).toEqual([west, usWest]);
+  });
+
+  it("follows the picked regions as they change", () => {
+    const west = buildScreenedProvider({ location: "eu-west" });
+    const central = buildScreenedProvider({ location: "eu-central" });
+    const { result, rerender } = setup({ placementName: "dcloud", providers: [west, central], regions: ["eu-west", "na-us-west"] });
+
+    rerender({ regions: ["eu-central", "na-us-west"] });
+
+    expect(result.current.providers).toEqual([central]);
+  });
+
   it("reports a refresh while it re-screens with the previous providers still shown", () => {
     const { result } = setup({ placementName: "dcloud", isFetching: true, isPlaceholderData: true });
 
@@ -209,7 +235,7 @@ describe("useScreenedProviders", () => {
   function setup(input: {
     placementName: string;
     sdl?: string;
-    region?: string;
+    regions?: string[];
     providers?: ScreenedProvider[];
     enabled?: boolean;
     isFetching?: boolean;
@@ -230,12 +256,12 @@ describe("useScreenedProviders", () => {
       NonNullable<NonNullable<NonNullable<Parameters<typeof setupQuery>[1]>["services"]>["api"]>
     >;
 
-    const current = { sdl: input.sdl ?? HELLO_WORLD_SDL, placementName: input.placementName, region: input.region, enabled: input.enabled };
+    const current = { sdl: input.sdl ?? HELLO_WORLD_SDL, placementName: input.placementName, regions: input.regions, enabled: input.enabled };
     const view = setupQuery(() => useScreenedProviders({ ...current }), { services: { api: () => api } });
 
-    function rerender(next: { sdl?: string; region?: string }) {
+    function rerender(next: { sdl?: string; regions?: string[] }) {
       if (next.sdl !== undefined) current.sdl = next.sdl;
-      if ("region" in next) current.region = next.region;
+      if (next.regions !== undefined) current.regions = next.regions;
       view.rerender();
     }
 
@@ -341,6 +367,24 @@ describe(useScreenedProviderCounts.name, () => {
     );
   });
 
+  it("counts only the providers located in one of several picked regions", async () => {
+    const { result } = setup({
+      requests: [
+        { ...keyed("a", "west"), regions: ["eu-west", "na-us-west"] },
+        { ...keyed("b", "west"), regions: ["eu-west"] }
+      ],
+      providersByRegion: { west: 4 },
+      providerLocations: ["eu-west", "eu-central", "na-us-west", null]
+    });
+
+    await waitFor(() =>
+      expect(result.current.counts).toEqual([
+        { count: 2, isLoading: false },
+        { count: 4, isLoading: false }
+      ])
+    );
+  });
+
   it("never sends a null request and counts it as unknown", async () => {
     const { result, screenProviders } = setup({ requests: [{ key: "a", request: null }, keyed("b", "west")], providersByRegion: { west: 1 } });
 
@@ -399,11 +443,16 @@ describe(useScreenedProviderCounts.name, () => {
     providersByRegion: Record<string, number>;
     pendingRegions?: string[];
     alongsideHeadline?: string;
+    providerLocations?: (string | null)[];
   }) {
     const screenProviders = vi.fn(async (request: ScreeningRequest): Promise<ScreenedProvidersResponse> => {
       const region = (request.requirements?.attributes ?? []).find(attribute => attribute.key === "location-region")!.value;
       if (input.pendingRegions?.includes(region)) return new Promise(() => {});
-      return { providers: Array.from({ length: input.providersByRegion[region] }, () => buildScreenedProvider()) };
+      return {
+        providers: Array.from({ length: input.providersByRegion[region] }, (_, index) =>
+          buildScreenedProvider(input.providerLocations ? { location: input.providerLocations[index] } : {})
+        )
+      };
     });
     const api = createProxy({ v1: { screenProviders } }) as unknown as ReturnType<
       NonNullable<NonNullable<NonNullable<Parameters<typeof setupQuery>[1]>["services"]>["api"]>

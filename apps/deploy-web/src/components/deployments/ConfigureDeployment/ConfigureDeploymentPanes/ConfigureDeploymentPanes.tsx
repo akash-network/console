@@ -19,7 +19,7 @@ type Props = {
   previewSdl: string;
   selectedServiceId: string;
   selectedPlacementName: string;
-  selectedPlacementRegion?: string;
+  selectedPlacementRegions?: readonly string[];
   selectedPlacementId: string;
   onSelectService: (serviceId: string) => void;
   phase: DeploymentFlowPhase;
@@ -46,7 +46,7 @@ export const ConfigureDeploymentPanes: FC<Props> = ({
   previewSdl,
   selectedServiceId,
   selectedPlacementName,
-  selectedPlacementRegion,
+  selectedPlacementRegions,
   selectedPlacementId,
   onSelectService,
   phase,
@@ -96,7 +96,7 @@ export const ConfigureDeploymentPanes: FC<Props> = ({
         <d.MarketplacePane
           sdl={sdl}
           placementName={selectedPlacementName}
-          region={selectedPlacementRegion}
+          regions={selectedPlacementRegions}
           phase={phase}
           dseq={dseq}
           selectedPlacementId={selectedPlacementId}

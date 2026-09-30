@@ -322,6 +322,62 @@ describe(usePlacementOffers.name, () => {
     expect(result.current.isInvalid).toBe(false);
   });
 
+  it("screens the placement's picked regions", () => {
+    const { useScreenedProviders } = setup({ phase: "configuring", screened: [polaris()], regions: ["us-east", "eu-west"] });
+    expect(useScreenedProviders).toHaveBeenCalledWith(expect.objectContaining({ regions: ["us-east", "eu-west"] }));
+  });
+
+  describe("when the placement picks several regions", () => {
+    it("offers only the bids of screened providers and of bidders located in the picked regions", () => {
+      const { result } = setup({
+        phase: "quoting",
+        dseq: "100",
+        regions: ["us-east", "eu-west"],
+        screened: [polaris()],
+        providerList: [
+          { owner: "akash1central", locationRegion: "eu-central" },
+          { owner: "akash1west", locationRegion: "eu-west" }
+        ],
+        bids: [openBid("akash1aaa"), openBid("akash1central"), openBid("akash1west"), openBid("akash1unlocated")]
+      });
+
+      expect(result.current.offers.map(offer => [offer.owner, offer.offerState])).toEqual([
+        ["akash1aaa", "submitted"],
+        ["akash1west", "submitted"]
+      ]);
+    });
+
+    it("keeps the screened candidates searching while only providers outside the picked regions bid", () => {
+      const { result } = setup({
+        phase: "quoting",
+        dseq: "100",
+        regions: ["us-east", "eu-west"],
+        screened: [polaris()],
+        providerList: [{ owner: "akash1central", locationRegion: "eu-central" }],
+        bids: [openBid("akash1central")]
+      });
+
+      expect(result.current.offers).toEqual([expect.objectContaining({ owner: "akash1aaa", offerState: "searching" })]);
+    });
+  });
+
+  it("offers every bidder when the placement picks one region, since the chain already holds bids to it", () => {
+    const { result } = setup({
+      phase: "quoting",
+      dseq: "100",
+      regions: ["us-east"],
+      screened: [],
+      providerList: [{ owner: "akash1central", locationRegion: "eu-central" }],
+      bids: [openBid("akash1central")]
+    });
+
+    expect(result.current.offers).toEqual([expect.objectContaining({ owner: "akash1central", offerState: "submitted" })]);
+  });
+
+  function openBid(provider: string) {
+    return { bid: { state: "open", price: { amount: "1900", denom: "uakt" }, id: { provider, dseq: "100", gseq: 1, oseq: 1 } } };
+  }
+
   function polaris() {
     return mock<ScreenedProvider>({ owner: "akash1aaa", organization: "Polaris", location: "us-east" });
   }
@@ -332,6 +388,7 @@ describe(usePlacementOffers.name, () => {
 
   function setup(input: {
     phase: "configuring" | "quoting";
+    regions?: string[];
     dseq?: string;
     screened: ScreenedProvider[];
     screenedInvalid?: boolean;
@@ -368,7 +425,7 @@ describe(usePlacementOffers.name, () => {
       getPlacementGseq: (() => input.placementGseq) as never
     };
     const view = renderHook(() =>
-      usePlacementOffers({ phase: input.phase, dseq: input.dseq, sdl: "sdl", placementName: "placement-1", region: "us-east" }, dependencies)
+      usePlacementOffers({ phase: input.phase, dseq: input.dseq, sdl: "sdl", placementName: "placement-1", regions: input.regions }, dependencies)
     );
     return {
       ...view,

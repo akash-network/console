@@ -16,6 +16,7 @@ import type { SdlBuilderFormValuesType } from "@src/types";
 import { SdlBuilderFormValuesSchema } from "@src/types";
 import { parseBidId } from "@src/utils/bids/bidId";
 import { defaultServiceWithPlacement, vmServiceOverrides } from "@src/utils/sdl/data";
+import { severalRegionPicksOf } from "@src/utils/sdl/placementRegions";
 import { generateSdl } from "@src/utils/sdl/sdlGenerator";
 import { resolveSdlSecrets, secretReferenceNamesIn } from "@src/utils/sdl/sdlSecrets";
 import { applyPresetToProfile, DEFAULT_HARDWARE_PRESET } from "../ConfigurationPane/PresetsCard/hardwarePresets";
@@ -32,6 +33,7 @@ import { PlacementManagerProvider } from "../PlacementManagerProvider/PlacementM
 import { ReviewAndDeployModal } from "../ReviewAndDeployModal/ReviewAndDeployModal";
 import { SdlImportExport } from "../SdlImportExport/SdlImportExport";
 import { firstBidReadyServiceId, nextSelectedServiceId, nextUndoneServiceId, resolveSelectedPlacement } from "../serviceSelection/serviceSelection";
+import type { PlacementRegionPicks } from "../useConfigureDraft/useConfigureDraft";
 import { useConfigureDraft } from "../useConfigureDraft/useConfigureDraft";
 import type { DeploymentIntent } from "../useDeploymentFlow/deploymentIntent";
 import type { DeploymentFlow, FlowErrorKind } from "../useDeploymentFlow/useDeploymentFlow";
@@ -79,7 +81,8 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, initialName, in
   const isTwoPanelEnabled = d.useFlag("ui_configure_two_panel");
   /** Unleash can flip a flag mid-session, and swapping the layout under someone configuring would lose their place. */
   const [isTwoPanel] = useState(isTwoPanelEnabled);
-  const [initialState] = useState(() => getInitialState(initialSdl, intent.vm, isSecretsEnabled));
+  const draft = d.useConfigureDraft(intent);
+  const [initialState] = useState(() => getInitialState(initialSdl, intent.vm, isSecretsEnabled, draft.persistedPlacementRegions));
   const [liveSdl, setLiveSdl] = useState(initialState.sdl);
   const [previewSdl, setPreviewSdl] = useState(initialState.sdl);
   const [selectedServiceId, setSelectedServiceId] = useState<string>(initialState.selectedServiceId);
@@ -93,7 +96,6 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, initialName, in
   const isDiscardingRef = useRef(false);
   const { enqueueSnackbar, closeSnackbar } = d.useSnackbar();
   const { analyticsService } = d.useServices();
-  const draft = d.useConfigureDraft(intent);
   /** A restored draft's working SDL already holds the user's edits, so the SDL a reset restores is read back from the draft instead. */
   const [startingSdl] = useState(() => (draft.persistedSdl === undefined ? initialSdl : draft.persistedStartingSdl));
   const draftableStartingSdl = useMemo(() => startingSdl && draftableSdlOf(startingSdl, isSecretsEnabled), [startingSdl, isSecretsEnabled]);
@@ -108,6 +110,7 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, initialName, in
   });
   const services = useWatch({ control: form.control, name: "services" });
   const placements = useWatch({ control: form.control, name: "placements" });
+  const placementRegionPicks = useMemo(() => severalRegionPicksOf(placements), [placements]);
   const selectedPlacement = resolveSelectedPlacement(services, placements, selectedServiceId || lastSelectedServiceId.current);
   const lastSelectedPlacementId = useRef(selectedPlacement.id);
   useSyncLogCollectors(form);
@@ -155,13 +158,13 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, initialName, in
     function debouncePreviewSdl() {
       const timeout = setTimeout(function commitDebouncedSdl() {
         setPreviewSdl(liveSdl);
-        if (!isDiscardingRef.current) draft.save(liveSdl, typedDeploymentName, runtimeLimitHours, draftableStartingSdl);
+        if (!isDiscardingRef.current) draft.save(liveSdl, typedDeploymentName, runtimeLimitHours, draftableStartingSdl, placementRegionPicks);
       }, SDL_SYNC_DEBOUNCE_MS);
       return function cancelPreviewDebounce() {
         clearTimeout(timeout);
       };
     },
-    [liveSdl, typedDeploymentName, runtimeLimitHours, draftableStartingSdl, draft]
+    [liveSdl, typedDeploymentName, runtimeLimitHours, draftableStartingSdl, placementRegionPicks, draft]
   );
 
   useEffect(
@@ -375,7 +378,7 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, initialName, in
                       previewSdl={previewSdl}
                       selectedServiceId={selectedServiceId}
                       selectedPlacementName={selectedPlacement.name}
-                      selectedPlacementRegion={selectedPlacement.region}
+                      selectedPlacementRegions={selectedPlacement.regions}
                       selectedPlacementId={selectedPlacement.id}
                       onSelectService={setSelectedServiceId}
                       phase={flow.phase}
@@ -443,16 +446,22 @@ interface InitialState {
  * back to a default deployment. This guarantees there is always a service (and placement) to select.
  * A Container-VM entry (`isVm`) seeds an SSH-ready VM service instead of the blank default.
  */
-function getInitialState(carriedInSdl: string | undefined, isVm: boolean, sealSecrets: boolean): InitialState {
+function getInitialState(carriedInSdl: string | undefined, isVm: boolean, sealSecrets: boolean, placementRegions?: PlacementRegionPicks): InitialState {
   if (!carriedInSdl) return defaultInitialState(isVm, sealSecrets);
 
   try {
-    const imported = importDeploymentState(carriedInSdl);
+    const imported = withRestoredRegions(importDeploymentState(carriedInSdl), placementRegions);
     return { ...imported, sdl: sdlOfImportedState(imported, sealSecrets) };
   } catch (error) {
     if (error instanceof NoVisibleServiceError) return defaultInitialState(isVm, sealSecrets);
     return defaultInitialState(isVm, sealSecrets, getImportErrorMessage(error));
   }
+}
+
+/** Several picked regions never reach the SDL, so a restored draft takes them back from beside it. */
+function withRestoredRegions(state: ImportedDeploymentState, placementRegions: PlacementRegionPicks | undefined): ImportedDeploymentState {
+  const placements = state.values.placements.map(placement => ({ ...placement, regions: placementRegions?.[placement.name] ?? placement.regions }));
+  return { ...state, values: { ...state.values, placements } };
 }
 
 /**

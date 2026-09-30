@@ -36,7 +36,7 @@ export const AvailabilityPane: FC<Props> = ({
   dependencies: d = DEPENDENCIES
 }) => {
   const headingId = useId();
-  const screened = d.useScreenedProviders({ sdl, placementName: placement.name, region: placement.region });
+  const screened = d.useScreenedProviders({ sdl, placementName: placement.name, regions: placement.regions });
   const network = d.useNetworkProviderCount();
   const gpuAvailability = d.useGpuAvailability(placement);
   const scope = placementCount > 1 ? "this placement" : "your deployment";
@@ -53,7 +53,7 @@ export const AvailabilityPane: FC<Props> = ({
         <div className="mx-auto max-w-[720px] space-y-4">
           {placementCount > 1 && (
             <p className="font-mono text-xs text-muted-foreground">
-              {placement.name} · {placement.region || "Any region"}
+              {placement.name} · {placement.regions?.join(", ") || "Any region"}
             </p>
           )}
           <ProviderCountCard screened={screened} networkCount={network.count} scope={scope} InvalidSpecReasons={d.InvalidSpecReasons} />
