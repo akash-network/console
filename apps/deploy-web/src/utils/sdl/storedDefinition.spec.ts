@@ -7,6 +7,7 @@ import {
   isStoredSdlRedeployable,
   isStoredSdlSelfContained,
   leavesWithheldEnvValuesBlank,
+  mayHaveEnvValuesBlankedAway,
   withEnvValuesFrom
 } from "./storedDefinition";
 
@@ -96,8 +97,38 @@ describe("storedDefinition", () => {
       expect(isStoredSdlRedeployable('version: "2.0"\nservices:\n  web:\n    image: nginx\n    env:\n      - "TOKEN="\n')).toBe(false);
     });
 
+    it("accepts an sdl whose blank value sits beside a reference, since the api blanked values only before it sealed any", () => {
+      expect(isStoredSdlRedeployable(sdlWithEnv(["TOKEN=ac-secret://s0_e0", "VAEURLS="]))).toBe(true);
+    });
+
     it("rejects an sdl that does not parse", () => {
       expect(isStoredSdlRedeployable("services: [")).toBe(false);
+    });
+  });
+
+  describe(mayHaveEnvValuesBlankedAway.name, () => {
+    it("is true for a blank value in a copy carrying no reference", () => {
+      expect(mayHaveEnvValuesBlankedAway(sdlWithEnv(["ENABLE_MANAGER=true", "VAEURLS="]))).toBe(true);
+    });
+
+    it("is true for a blank value in another service", () => {
+      expect(mayHaveEnvValuesBlankedAway(sdlWithTwoServices(["TOKEN=kept"], ["OTHER="]))).toBe(true);
+    });
+
+    it("is false for a copy carrying a reference, since the api blanked values only before it sealed any", () => {
+      expect(mayHaveEnvValuesBlankedAway(sdlWithEnv(["TOKEN=ac-secret://s0_e0", "VAEURLS="]))).toBe(false);
+    });
+
+    it("is false for a copy that leaves no value blank", () => {
+      expect(mayHaveEnvValuesBlankedAway(sdlWithEnv(["TOKEN=a-real-token"]))).toBe(false);
+    });
+
+    it("does not treat a bare name as blank, because it inherits from the host environment", () => {
+      expect(mayHaveEnvValuesBlankedAway(sdlWithEnv(["INHERITED_FROM_HOST"]))).toBe(false);
+    });
+
+    it("is false for a copy that does not parse", () => {
+      expect(mayHaveEnvValuesBlankedAway("services: [unclosed")).toBe(false);
     });
   });
 

@@ -21,7 +21,17 @@ export function isStoredSdlSelfContained(sdl: string): boolean {
 /** Whether a stored SDL can seed Configure for a redeploy: references are fine there, only a value blanked away is lost. */
 export function isStoredSdlRedeployable(sdl: string): boolean {
   const document = parseSdl(sdl);
-  return document !== null && blankEnvValuesIn(document).length === 0;
+  return document !== null && !mayHaveEnvValuesBlankedAwayIn(document);
+}
+
+/** Only the hash the chain committed tells a value the api blanked away from one the document was written with. */
+export function mayHaveEnvValuesBlankedAway(sdl: string): boolean {
+  return mayHaveEnvValuesBlankedAwayIn(parseSdl(sdl));
+}
+
+/** The api blanked env values only before it sealed any, so a copy carrying a reference never lost one that way. */
+function mayHaveEnvValuesBlankedAwayIn(document: unknown): boolean {
+  return !carriesReference(document) && blankEnvValuesIn(document).length > 0;
 }
 
 export function hasEnvProtectedByDefault(sdl: string): boolean {

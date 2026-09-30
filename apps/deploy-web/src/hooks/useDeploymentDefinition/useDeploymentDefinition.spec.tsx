@@ -23,6 +23,7 @@ const SEALED_CREDENTIALS_SDL =
   'version: "2.0"\nservices:\n  web:\n    image: nginx\n    credentials:\n      host: docker.io\n      username: someone\n      password: "ac-secret://s0_c_password"\n    env:\n      - "TOKEN=from-the-api"\n';
 const BLANK_ENV_SDL = 'version: "2.0"\nservices:\n  web:\n    image: nginx\n    env:\n      - "TOKEN="\n';
 const PARTLY_BLANK_ENV_SDL = 'version: "2.0"\nservices:\n  web:\n    image: nginx\n    env:\n      - "TOKEN="\n      - "REGION=us-east-1"\n';
+const REFERENCE_BESIDE_BLANK_ENV_SDL = 'version: "2.0"\nservices:\n  web:\n    image: nginx\n    env:\n      - "TOKEN=ac-secret://s0_e0"\n      - "VAEURLS="\n';
 
 describe(useDeploymentDefinition.name, () => {
   it("prefers the sdl the api recorded over this browser's own copy", async () => {
@@ -93,12 +94,56 @@ describe(useDeploymentDefinition.name, () => {
     expect(result.current.sdl).toBe(LOCAL_SDL);
   });
 
+  describe("when the api's copy leaves an env value blank", () => {
+    it.each([
+      ["a caller that signs it", false],
+      ["a caller that accepts references", true]
+    ])("serves it to %s once it hashes to the version the chain runs, since the value was left blank on purpose", async (_case, acceptReferences) => {
+      const { result } = setup({ apiSdl: PARTLY_BLANK_ENV_SDL, apiCopyVersion: "on-chain-version", localSdl: LOCAL_SDL, acceptReferences });
+
+      await vi.waitFor(() => expect(result.current.source).toBe("api"));
+      expect(result.current.sdl).toBe(PARTLY_BLANK_ENV_SDL);
+    });
+
+    it("reports resolving after the api answers while it hashes the copy", async () => {
+      const { result } = setup({ apiSdl: PARTLY_BLANK_ENV_SDL, apiName: "named-by-the-api", localSdl: LOCAL_SDL, isReadingApiCopy: true });
+
+      await vi.waitFor(() => expect(result.current.name).toBe("named-by-the-api"));
+      expect(result.current.source).toBe("resolving");
+      expect(result.current.sdl).toBeUndefined();
+    });
+
+    it("serves a copy whose blank value sits beside a reference without hashing it, since the api blanked values only before it sealed any", async () => {
+      const { result } = setup({ apiSdl: REFERENCE_BESIDE_BLANK_ENV_SDL, localSdl: LOCAL_SDL, acceptReferences: true, isReadingApiCopy: true });
+
+      await vi.waitFor(() => expect(result.current.source).toBe("api"));
+      expect(result.current.sdl).toBe(REFERENCE_BESIDE_BLANK_ENV_SDL);
+    });
+
+    it("does not hash a copy the chain has moved past", async () => {
+      const { result } = setup({
+        apiSdl: PARTLY_BLANK_ENV_SDL,
+        recordedManifestVersion: "an-older-version",
+        localSdl: LOCAL_SDL,
+        isReadingApiCopy: true
+      });
+
+      await vi.waitFor(() => expect(result.current.source).toBe("local"));
+    });
+  });
+
+  it("does not wait on hashing the api's copy when it leaves no value blank", async () => {
+    const { result } = setup({ apiSdl: API_SDL, isReadingApiCopy: true });
+
+    await vi.waitFor(() => expect(result.current.source).toBe("api"));
+  });
+
   describe("when the api holds no sdl it can stand behind", () => {
     it.each([
       ["it recorded none", null],
       ["its values were withheld as references", WITHHELD_VALUES_SDL],
-      ["every env value it holds is blank", BLANK_ENV_SDL],
-      ["one of the env values it holds is blank", PARTLY_BLANK_ENV_SDL]
+      ["every env value it holds was blanked away", BLANK_ENV_SDL],
+      ["one of the env values it holds was blanked away", PARTLY_BLANK_ENV_SDL]
     ])("falls back to this browser's copy when %s", async (_case, apiSdl) => {
       const { result } = setup({ apiSdl, localSdl: LOCAL_SDL });
 
@@ -234,7 +279,7 @@ describe(useDeploymentDefinition.name, () => {
           localSdl,
           chainManifestVersion,
           acceptReferences: true,
-          hashesBrowserCopy: true
+          hashesCopies: true
         });
 
         await vi.waitFor(() => expect(result.current.restoredSdl).toContain("TOKEN=from-this-browser"));
@@ -246,12 +291,32 @@ describe(useDeploymentDefinition.name, () => {
         ["does not parse", "services: [not, a, map"],
         ["builds no manifest", LOCAL_SDL]
       ])("restores nothing from a copy that %s, and reports nothing", async (_case, localSdl) => {
-        const { result, onQueryError } = setup({ apiSdl: WITHHELD_VALUES_SDL, localSdl, acceptReferences: true, hashesBrowserCopy: true });
+        const { result, onQueryError } = setup({ apiSdl: WITHHELD_VALUES_SDL, localSdl, acceptReferences: true, hashesCopies: true });
 
         await vi.waitFor(() => expect(result.current.source).toBe("api"));
         expect(result.current.restoredSdl).toBeUndefined();
         expect(onQueryError).not.toHaveBeenCalled();
       });
+    });
+  });
+
+  describe("when this browser hashes the api's copy", () => {
+    it("serves a copy whose blank value was written that way, as its hash matches the version the chain runs", async () => {
+      const apiSdl = helloWorldWithEnv("VAEURLS=");
+      const chainManifestVersion = await deploymentData.getManifestVersion(yaml.load(apiSdl));
+      const { result, onQueryError } = setup({ apiSdl, localSdl: LOCAL_SDL, chainManifestVersion, hashesCopies: true });
+
+      await vi.waitFor(() => expect(result.current.source).toBe("api"));
+      expect(result.current.sdl).toBe(apiSdl);
+      expect(onQueryError).not.toHaveBeenCalled();
+    });
+
+    it("falls back from a copy whose value the api blanked away, as its hash matches no version the chain runs", async () => {
+      const chainManifestVersion = await deploymentData.getManifestVersion(yaml.load(helloWorldWithEnv("TOKEN=a-real-token")));
+      const { result } = setup({ apiSdl: helloWorldWithEnv("TOKEN="), localSdl: LOCAL_SDL, chainManifestVersion, hashesCopies: true });
+
+      await vi.waitFor(() => expect(result.current.source).toBe("local"));
+      expect(result.current.sdl).toBe(LOCAL_SDL);
     });
   });
 
@@ -327,7 +392,9 @@ describe(useDeploymentDefinition.name, () => {
     secretsEnabled?: boolean;
     browserCopyVersion?: string;
     isReadingBrowserCopy?: boolean;
-    hashesBrowserCopy?: boolean;
+    apiCopyVersion?: string;
+    isReadingApiCopy?: boolean;
+    hashesCopies?: boolean;
   }) {
     const chainManifestVersion = input.chainManifestVersion ?? "on-chain-version";
     const recordedManifestVersion = input.recordedManifestVersion ?? chainManifestVersion;
@@ -360,11 +427,15 @@ describe(useDeploymentDefinition.name, () => {
 
     const useResolvedName: typeof DEPENDENCIES.useResolvedDeploymentName = dseq =>
       useResolvedDeploymentName(dseq, { useServices, useDeploymentNameBackfill: () => undefined });
-    const readBrowserCopyVersion: typeof DEPENDENCIES.useManifestVersionOf = sdl => ({
-      version: sdl && !input.isReadingBrowserCopy ? input.browserCopyVersion ?? chainManifestVersion : undefined,
-      isReading: !!sdl && !!input.isReadingBrowserCopy
-    });
-    const useManifestVersionOf = input.hashesBrowserCopy ? DEPENDENCIES.useManifestVersionOf : readBrowserCopyVersion;
+    const readCopyVersion: typeof DEPENDENCIES.useManifestVersionOf = sdl => {
+      if (sdl && sdl === input.apiSdl) return { version: input.isReadingApiCopy ? undefined : input.apiCopyVersion, isReading: !!input.isReadingApiCopy };
+
+      return {
+        version: sdl && !input.isReadingBrowserCopy ? input.browserCopyVersion ?? chainManifestVersion : undefined,
+        isReading: !!sdl && !!input.isReadingBrowserCopy
+      };
+    };
+    const useManifestVersionOf = input.hashesCopies ? DEPENDENCIES.useManifestVersionOf : readCopyVersion;
 
     const { result } = setupQuery(
       () =>
