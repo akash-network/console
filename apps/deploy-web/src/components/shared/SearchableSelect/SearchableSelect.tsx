@@ -149,10 +149,10 @@ export const SearchableSelect: FC<Props> = ({
             {optionsHeading
               ? filteredOptions.length > 0 && (
                   <>
-                    {emptyOption && <CommandSeparator />}
+                    {emptyOption && <CommandSeparator className="my-1" />}
                     <CommandGroup heading={<SectionHeading label={optionsHeading.label} hintLabel={optionsHeading.hintLabel} />} className="p-0">
                       {filteredOptions.map(option => (
-                        <SearchableSelectItem key={option.value} option={option} onSelect={selectValue} />
+                        <SearchableSelectItem key={option.value} option={option} onSelect={selectValue} className="pl-6" />
                       ))}
                     </CommandGroup>
                   </>
@@ -160,10 +160,10 @@ export const SearchableSelect: FC<Props> = ({
               : filteredOptions.map(option => <SearchableSelectItem key={option.value} option={option} onSelect={selectValue} />)}
             {filteredUnavailableOptions.length > 0 && (
               <>
-                {optionsHeading && <CommandSeparator />}
+                {optionsHeading && <CommandSeparator className="my-1" />}
                 <CommandGroup heading={optionsHeading ? <SectionHeading label={unavailableHeading} /> : unavailableHeading} className="p-0">
                   {filteredUnavailableOptions.map(option => (
-                    <SearchableSelectItem key={option.value} option={{ ...option, disabled: true }} onSelect={selectValue} />
+                    <SearchableSelectItem key={option.value} option={{ ...option, disabled: true }} onSelect={selectValue} className="pl-6" />
                   ))}
                 </CommandGroup>
               </>
@@ -186,12 +186,17 @@ const SectionHeading: FC<{ label: string; hintLabel?: string }> = ({ label, hint
   </span>
 );
 
-const SearchableSelectItem: FC<{ option: SearchableSelectOption; onSelect: (value: string) => void }> = ({ option, onSelect }) => {
+const SearchableSelectItem: FC<{ option: SearchableSelectOption; onSelect: (value: string) => void; className?: string }> = ({
+  option,
+  onSelect,
+  className
+}) => {
   const hintId = useId();
 
   return (
     <CommandItem
       value={option.value}
+      className={className}
       disabled={option.disabled}
       aria-describedby={option.hint ? hintId : undefined}
       onSelect={function selectOption() {

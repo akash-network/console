@@ -115,15 +115,14 @@ export const GpuInterconnectFields: FC<Props> = ({ serviceIndex, locked = false,
   );
 
   return (
-    <div className="flex flex-col gap-4">
-      <d.ToggleRow
-        label="GPU interconnect"
-        description="High-bandwidth GPU-to-GPU fabric for multi-node jobs."
-        switchLabel="Enable GPU interconnect"
-        checked={isEnabled}
-        onCheckedChange={toggleInterconnect}
-        disabled={locked || (isTrialBlocked && !isEnabled)}
-      />
+    <d.ToggleRow
+      label="GPU interconnect"
+      description="High-bandwidth GPU-to-GPU fabric for multi-node jobs."
+      switchLabel="Enable GPU interconnect"
+      checked={isEnabled}
+      onCheckedChange={toggleInterconnect}
+      disabled={locked || (isTrialBlocked && !isEnabled)}
+    >
       {isEnabled && (
         <>
           <p className="text-sm text-muted-foreground">
@@ -205,6 +204,6 @@ export const GpuInterconnectFields: FC<Props> = ({ serviceIndex, locked = false,
           </div>
         </d.Alert>
       )}
-    </div>
+    </d.ToggleRow>
   );
 };

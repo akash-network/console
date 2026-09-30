@@ -162,7 +162,7 @@ const CollapsibleCardBody = React.forwardRef<HTMLDivElement, Omit<CollapsibleCar
 
     const triggerLabel = open ? `Collapse ${title}` : `Expand ${title}`;
     const control = hasToggle ? (
-      <Switch size="sm" aria-label={toggleAriaLabel} checked={isToggled} onCheckedChange={handleEnableToggle} disabled={toggleDisabled} />
+      <Switch aria-label={toggleAriaLabel} checked={isToggled} onCheckedChange={handleEnableToggle} disabled={toggleDisabled} />
     ) : (
       headerControl
     );
@@ -237,7 +237,13 @@ const ActionCard: React.FC<
   }
 
   return (
-    <div className={cn("bg-card flex h-12 w-full items-center gap-2 rounded-lg border border-zinc-300 px-4 dark:border-zinc-700", locked && "opacity-60", className)}>
+    <div
+      className={cn(
+        "bg-card flex h-12 w-full items-center gap-2 rounded-lg border border-zinc-300 px-4 dark:border-zinc-700",
+        locked && "opacity-60",
+        className
+      )}
+    >
       <button
         type="button"
         onClick={onHeaderClick}
@@ -245,7 +251,7 @@ const ActionCard: React.FC<
       >
         {content}
       </button>
-      <Switch size="sm" aria-label={toggleAriaLabel} checked={isToggled} onCheckedChange={onToggle} disabled={toggleDisabled} />
+      <Switch aria-label={toggleAriaLabel} checked={isToggled} onCheckedChange={onToggle} disabled={toggleDisabled} />
       <button
         type="button"
         onClick={onHeaderClick}

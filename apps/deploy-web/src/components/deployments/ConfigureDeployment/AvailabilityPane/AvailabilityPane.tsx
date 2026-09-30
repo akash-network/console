@@ -39,37 +39,41 @@ export const AvailabilityPane: FC<Props> = ({ sdl, placement, placementCount, is
         </h2>
         <span className="text-xs text-muted-foreground">Live view · nothing to select here</span>
       </header>
-      <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4">
-        {placementCount > 1 && (
-          <p className="font-mono text-xs text-muted-foreground">
-            {placement.name} · {placement.region || "Any region"}
-          </p>
-        )}
-        <ProviderCountCard screened={screened} networkCount={network.count} scope={scope} />
-        {!screened.isInvalid && !screened.isError && (
-          <GpuAvailabilityCard
-            gpuAvailability={gpuAvailability}
-            requestedCount={screened.isLoading ? null : screened.providers.length}
-            networkCount={network.count}
-            CustomTooltip={d.CustomTooltip}
-          />
-        )}
+      <div className="min-h-0 flex-1 overflow-y-auto p-4">
+        <div className="max-w-[720px] space-y-4">
+          {placementCount > 1 && (
+            <p className="font-mono text-xs text-muted-foreground">
+              {placement.name} · {placement.region || "Any region"}
+            </p>
+          )}
+          <ProviderCountCard screened={screened} networkCount={network.count} scope={scope} />
+          {!screened.isInvalid && !screened.isError && (
+            <GpuAvailabilityCard
+              gpuAvailability={gpuAvailability}
+              requestedCount={screened.isLoading ? null : screened.providers.length}
+              networkCount={network.count}
+              CustomTooltip={d.CustomTooltip}
+            />
+          )}
+        </div>
       </div>
-      <footer className="shrink-0 space-y-3 border-t border-zinc-300 p-4 dark:border-zinc-700">
-        {!isReady && <p className="text-sm text-muted-foreground">Add a container image and hardware to every service on the left to deploy.</p>}
-        <Button
-          type="button"
-          aria-label="Choose a provider"
-          aria-describedby={subtitleId}
-          disabled={isSubmitting}
-          onClick={onChooseProvider}
-          className="h-auto w-full flex-col gap-0.5 py-3"
-        >
-          <span className="text-base font-semibold">Choose a provider</span>
-          <span id={subtitleId} className="text-xs font-normal opacity-80">
-            Compare live bids yourself
-          </span>
-        </Button>
+      <footer className="shrink-0 border-t border-zinc-300 p-4 dark:border-zinc-700">
+        <div className="max-w-[720px] space-y-3">
+          {!isReady && <p className="text-sm text-muted-foreground">Add a container image and hardware to every service on the left to deploy.</p>}
+          <Button
+            type="button"
+            aria-label="Choose a provider"
+            aria-describedby={subtitleId}
+            disabled={isSubmitting}
+            onClick={onChooseProvider}
+            className="h-auto w-full flex-col gap-0.5 py-3"
+          >
+            <span className="text-base font-semibold">Choose a provider</span>
+            <span id={subtitleId} className="text-xs font-normal opacity-80">
+              Compare live bids yourself
+            </span>
+          </Button>
+        </div>
       </footer>
     </section>
   );

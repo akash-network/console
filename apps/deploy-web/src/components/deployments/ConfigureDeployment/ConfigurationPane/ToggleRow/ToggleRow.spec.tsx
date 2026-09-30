@@ -24,4 +24,21 @@ describe(ToggleRow.name, () => {
     expect(screen.getByRole("switch", { name: "Enable GPU interconnect" })).not.toBeChecked();
     expect(onCheckedChange).toHaveBeenCalledWith(true);
   });
+
+  it("shows the settings it unlocks alongside its switch", () => {
+    render(
+      <ToggleRow
+        label="GPU interconnect"
+        description="High-bandwidth GPU-to-GPU fabric for multi-node jobs."
+        switchLabel="Enable GPU interconnect"
+        checked
+        onCheckedChange={vi.fn()}
+      >
+        <p>Interconnect group</p>
+      </ToggleRow>
+    );
+
+    expect(screen.getByRole("switch", { name: "Enable GPU interconnect" })).toBeChecked();
+    expect(screen.getByText("Interconnect group")).toBeInTheDocument();
+  });
 });
