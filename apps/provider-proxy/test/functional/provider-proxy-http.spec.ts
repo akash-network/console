@@ -284,6 +284,49 @@ describe("Provider HTTP proxy", () => {
     );
   });
 
+  it("returns 400 for a client private key that belongs to another certificate", async () => {
+    const providerAddress = generateBech32();
+    const validCertPair = await createX509CertPair({ commonName: providerAddress, validFrom: new Date(Date.now() - ONE_HOUR) });
+    const clientCertPair = await createX509CertPair({ commonName: generateBech32(), validFrom: new Date(Date.now() - ONE_HOUR) });
+    const anotherClientCertPair = await createX509CertPair({ commonName: generateBech32(), validFrom: new Date(Date.now() - ONE_HOUR) });
+
+    const chainServer = await startChainApiServer([validCertPair.cert]);
+    const { providerUrl } = await startProviderServer({ certPair: validCertPair, requireClientCertificate: true });
+    await startServer({ REST_API_NODE_URL: chainServer.url });
+
+    const response = await request("/", {
+      method: "POST",
+      body: JSON.stringify({
+        method: "GET",
+        url: `${providerUrl}/200.txt`,
+        providerAddress,
+        auth: {
+          type: "mtls",
+          certPem: clientCertPair.cert.toString(),
+          keyPem: anotherClientCertPair.key
+        }
+      })
+    });
+
+    expect(response.status).toBe(400);
+    const body = await response.json();
+    expect(body).toEqual(
+      expect.objectContaining({
+        error: expect.objectContaining({
+          issues: [
+            expect.objectContaining({
+              code: "custom",
+              path: ["auth", "keyPem"],
+              params: {
+                reason: "mismatch"
+              }
+            })
+          ]
+        })
+      })
+    );
+  });
+
   it("retries fetching chain certificates if chain API is unavailable", async () => {
     const providerAddress = generateBech32();
     const validCertPair = await createX509CertPair({

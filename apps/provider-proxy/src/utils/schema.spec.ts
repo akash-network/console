@@ -28,6 +28,37 @@ describe(addProviderAuthValidation.name, () => {
     ]);
   });
 
+  it("rejects an mtls private key that belongs to another certificate", async () => {
+    const { schema, certPem, keyPemOfAnotherCertificate } = await setup();
+
+    const result = schema.safeParse({
+      url: PROVIDER_URL,
+      providerAddress: PROVIDER_ADDRESS,
+      auth: { type: "mtls", certPem, keyPem: keyPemOfAnotherCertificate }
+    });
+
+    expect(result.error?.issues).toEqual([
+      expect.objectContaining({
+        code: "custom",
+        message: "does not match the certificate",
+        path: ["auth", "keyPem"],
+        params: { reason: "mismatch" }
+      })
+    ]);
+  });
+
+  it("reports only the certificate when the certificate cannot be read", async () => {
+    const { schema, keyPem } = await setup();
+
+    const result = schema.safeParse({
+      url: PROVIDER_URL,
+      providerAddress: PROVIDER_ADDRESS,
+      auth: { type: "mtls", certPem: "not a certificate", keyPem }
+    });
+
+    expect(result.error?.issues).toEqual([expect.objectContaining({ path: ["auth", "certPem"], params: { reason: "invalid" } })]);
+  });
+
   it("accepts a readable mtls private key", async () => {
     const { schema, certPem, keyPem } = await setup();
 
@@ -50,11 +81,13 @@ describe(addProviderAuthValidation.name, () => {
 
   async function setup() {
     const certPair = await createX509CertPair({ commonName: PROVIDER_ADDRESS, validFrom: new Date(Date.now() - ONE_HOUR) });
+    const anotherCertPair = await createX509CertPair({ commonName: PROVIDER_ADDRESS, validFrom: new Date(Date.now() - ONE_HOUR) });
 
     return {
       schema: addProviderAuthValidation(providerRequestSchema),
       certPem: certPair.cert.toString(),
-      keyPem: certPair.key
+      keyPem: certPair.key,
+      keyPemOfAnotherCertificate: anotherCertPair.key
     };
   }
 });
