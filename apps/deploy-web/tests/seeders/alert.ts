@@ -4,6 +4,7 @@ import { faker } from "@faker-js/faker";
 
 type Alert = components["schemas"]["AlertOutputResponse"]["data"] & { deploymentName: string };
 type ChainMessageAlert = Extract<Alert, { type: "CHAIN_MESSAGE" }>;
+type ChainEventAlert = Extract<Alert, { type: "CHAIN_EVENT" }>;
 type DeploymentBalanceAlert = Extract<Alert, { type: "DEPLOYMENT_BALANCE" }>;
 type WalletBalanceAlert = Extract<Alert, { type: "WALLET_BALANCE" }>;
 
@@ -20,7 +21,23 @@ export function buildAlert(overrides?: Partial<Alert>): Alert {
     return buildChainMessageAlert(overrides);
   }
 
+  if (overrides?.type === "CHAIN_EVENT") {
+    return buildChainEventAlert(overrides);
+  }
+
   return buildChainMessageAlert();
+}
+
+function buildChainEventAlert(overrides?: Partial<ChainEventAlert>): ChainEventAlert {
+  return {
+    ...buildChainMessageAlert(),
+    params: {
+      dseq: faker.number.int({ min: 1000, max: 999999 }).toString(),
+      type: "DEPLOYMENT_CLOSED"
+    },
+    ...overrides,
+    type: "CHAIN_EVENT"
+  };
 }
 
 export function buildWalletBalanceAlert(overrides?: Partial<WalletBalanceAlert>): WalletBalanceAlert {
