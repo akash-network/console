@@ -72,6 +72,7 @@ export const proxyRoute = createRoute({
 });
 
 const MAX_PER_ATTEMPT_TIMEOUT_MS = 30 * 1000;
+const DROPPED_PROVIDER_HEADERS = new Set(["set-cookie", "clear-site-data"]);
 export async function proxyProviderRequest(ctx: AppContext): Promise<Response | TypedResponse<string>> {
   const { method, body, url, providerAddress, timeout: rawTimeout, auth } = ctx.req.valid("json" as never) as z.infer<typeof RequestPayload>;
   const timeout = rawTimeout === undefined ? undefined : Math.min(rawTimeout, MAX_PER_ATTEMPT_TIMEOUT_MS);
@@ -177,6 +178,8 @@ export async function proxyProviderRequest(ctx: AppContext): Promise<Response | 
 
   const headers = new Headers();
   Object.keys(proxyResult.response.headers).forEach(header => {
+    if (DROPPED_PROVIDER_HEADERS.has(header)) return;
+
     const value = proxyResult.response.headers[header];
     if (Array.isArray(value)) {
       value.forEach(v => headers.set(header, v));
