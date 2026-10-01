@@ -73,6 +73,20 @@ describe(ProviderHostVerifier.name, () => {
       expect(providerService.getHostUri).toHaveBeenCalledTimes(2);
     });
 
+    it("asks chain again once the clock moved back past the time it last checked", async () => {
+      const clock = { now: Date.now() };
+      const { verifier, providerService } = setup({ now: () => clock.now });
+      providerService.getHostUri.mockResolvedValue(REGISTERED_HOST);
+
+      await verifier.canProxyTo(`${REGISTERED_HOST}/status`, PROVIDER_ADDRESS);
+      await verifier.canProxyTo(`${REGISTERED_HOST}/status`, PROVIDER_ADDRESS);
+      expect(providerService.getHostUri).toHaveBeenCalledTimes(1);
+
+      clock.now -= 1;
+      await verifier.canProxyTo(`${REGISTERED_HOST}/status`, PROVIDER_ADDRESS);
+      expect(providerService.getHostUri).toHaveBeenCalledTimes(2);
+    });
+
     it("asks chain again before refusing a host that differs from the one it has on record", async () => {
       const { verifier, providerService } = setup();
       providerService.getHostUri.mockResolvedValue(REGISTERED_HOST);

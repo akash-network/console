@@ -24,7 +24,7 @@ export class ProviderHostVerifier {
     const origin = new URL(url).origin;
     const knownHost = this.#registeredHosts.get(providerAddress);
 
-    if (knownHost?.origin === origin && this.#now() - knownHost.checkedAt < HOST_RECHECK_INTERVAL_MS) return true;
+    if (knownHost?.origin === origin && this.#isRecentlyChecked(knownHost)) return true;
 
     let registeredOrigin: string | null;
     try {
@@ -42,6 +42,12 @@ export class ProviderHostVerifier {
 
     this.#instrumentation?.onUnregisteredHost?.(url, providerAddress, registeredOrigin);
     return false;
+  }
+
+  /** `now` is a wall clock that can step backward, so a negative age has to mean stale rather than fresh. */
+  #isRecentlyChecked({ checkedAt }: RegisteredHost): boolean {
+    const ageMs = this.#now() - checkedAt;
+    return ageMs >= 0 && ageMs < HOST_RECHECK_INTERVAL_MS;
   }
 
   async #lookUpRegisteredOrigin(providerAddress: string): Promise<string | null> {
