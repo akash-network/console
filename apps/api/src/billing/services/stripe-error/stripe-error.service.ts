@@ -66,10 +66,6 @@ export class StripeErrorService {
       code: 402,
       message: "Payment not successful"
     },
-    "Payment account not properly configured. Please contact support.": {
-      code: 500,
-      message: "Payment account not properly configured. Please contact support."
-    },
     "Coupon ID is required": {
       code: 400,
       message: "Coupon ID is required"

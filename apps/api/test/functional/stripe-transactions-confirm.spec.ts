@@ -107,6 +107,16 @@ describe("Stripe transactions confirm", () => {
       expect(response.status).toBe(409);
       expect(await response.json()).toEqual(expect.objectContaining({ code: "idempotency_key_mismatch" }));
     });
+
+    it("answers 402 without charging a user who has not set up payments", async () => {
+      const { user, token, paymentMethodId } = await setup({ hasStripeCustomer: false });
+
+      const response = await confirmPayment(token, { userId: user.userId!, paymentMethodId, amount: 20, idempotencyKey: faker.string.uuid() });
+
+      expect(response.status).toBe(402);
+      expect(await response.json()).toMatchObject({ message: "User payments are not set up." });
+      expect(await stripeTransactionRepository.find({ userId: user.id })).toEqual([]);
+    });
   });
 
   async function confirmPayment(token: string, data: { userId: string; paymentMethodId: string; amount: number; idempotencyKey?: string }) {
@@ -120,9 +130,12 @@ describe("Stripe transactions confirm", () => {
     });
   }
 
-  async function setup() {
+  async function setup(input: { hasStripeCustomer?: boolean } = {}) {
     const stripeCustomerId = `cus_${faker.string.alphanumeric(14)}`;
-    const user = await userRepository.create({ userId: faker.string.uuid(), stripeCustomerId });
+    const user = await userRepository.create({
+      userId: faker.string.uuid(),
+      stripeCustomerId: input.hasStripeCustomer === false ? undefined : stripeCustomerId
+    });
     const wallet = await userWalletRepository.create({ userId: user.id, address: createAkashAddress() });
     await userWalletRepository.updateById(wallet.id, { activatedAt: new Date(), isTrialing: false });
     const token = faker.string.alphanumeric(40);

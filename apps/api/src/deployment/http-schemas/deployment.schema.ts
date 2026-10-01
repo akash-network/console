@@ -245,10 +245,16 @@ export const CloseDeploymentResponseSchema = z.object({
   })
 });
 
+/** One micro unit, the smallest amount the chain denominates. */
+const MIN_DEPOSIT = 0.000001;
+
 export const DepositDeploymentRequestSchema = z.object({
   data: z.object({
     dseq: DseqSchema.describe("Deployment sequence number"),
-    deposit: z.number().describe("Amount to deposit in dollars (e.g. 5.5). Accepted for backwards compatibility; automatic funding makes it unnecessary.")
+    deposit: z
+      .number()
+      .min(MIN_DEPOSIT)
+      .describe("Amount to deposit in dollars (e.g. 5.5). Accepted for backwards compatibility; automatic funding makes it unnecessary.")
   })
 });
 

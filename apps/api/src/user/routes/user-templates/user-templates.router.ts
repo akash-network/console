@@ -8,6 +8,8 @@ import { UserTemplatesController } from "@src/user/controllers/user-templates/us
 
 export const userTemplatesRouter = new OpenApiHonoHandler();
 
+const ResourceQuantitySchema = z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER);
+
 const getTemplateByIdRoute = createRoute({
   method: "get",
   path: "/v1/user/template/{id}",
@@ -51,10 +53,10 @@ const saveTemplateRoute = createRoute({
           schema: z.object({
             id: z.string().uuid().optional(),
             sdl: z.string(),
-            title: z.string(),
-            cpu: z.number(),
-            ram: z.number(),
-            storage: z.number(),
+            title: z.string().max(255),
+            cpu: ResourceQuantitySchema,
+            ram: ResourceQuantitySchema,
+            storage: ResourceQuantitySchema,
             isPublic: z.boolean(),
             description: z.string().max(2000).optional()
           })

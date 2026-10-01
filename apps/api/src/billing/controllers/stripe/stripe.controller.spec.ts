@@ -50,16 +50,6 @@ describe(StripeController.name, () => {
       expect(result).toEqual({ data });
     });
 
-    it("throws a 500 without charging when there is no current paying user", async () => {
-      const { controller, topUpService, authService } = setup();
-      authService.getCurrentPayingUser.mockReturnValue(undefined as unknown as PayingUser);
-
-      await expect(controller.confirmPayment({ userId: faker.string.uuid(), paymentMethodId: "pm_1", amount: 100 })).rejects.toMatchObject({
-        status: 500
-      });
-      expect(topUpService.topUp).not.toHaveBeenCalled();
-    });
-
     it("maps a known payment error through StripeErrorService", async () => {
       const { controller, topUpService, stripeErrorService, user } = setup();
       const rawError = new Error("Payment not successful");

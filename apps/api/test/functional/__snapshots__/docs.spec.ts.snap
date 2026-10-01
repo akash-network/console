@@ -10581,6 +10581,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                     "properties": {
                       "deposit": {
                         "description": "Amount to deposit in dollars (e.g. 5.5). Accepted for backwards compatibility; automatic funding makes it unnecessary.",
+                        "minimum": 0.000001,
                         "type": "number",
                       },
                       "dseq": {
@@ -19116,7 +19117,9 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
               "schema": {
                 "properties": {
                   "cpu": {
-                    "type": "number",
+                    "maximum": 9007199254740991,
+                    "minimum": 0,
+                    "type": "integer",
                   },
                   "description": {
                     "maxLength": 2000,
@@ -19130,15 +19133,20 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                     "type": "boolean",
                   },
                   "ram": {
-                    "type": "number",
+                    "maximum": 9007199254740991,
+                    "minimum": 0,
+                    "type": "integer",
                   },
                   "sdl": {
                     "type": "string",
                   },
                   "storage": {
-                    "type": "number",
+                    "maximum": 9007199254740991,
+                    "minimum": 0,
+                    "type": "integer",
                   },
                   "title": {
+                    "maxLength": 255,
                     "type": "string",
                   },
                 },

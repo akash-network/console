@@ -129,9 +129,7 @@ export class StripeController {
 
   @Protected([{ action: "create", subject: "StripePayment" }])
   async confirmPayment(params: ConfirmPaymentRequest["data"]): Promise<ConfirmPaymentResponse> {
-    const currentUser = this.authService.getCurrentPayingUser({ strict: false });
-
-    assert(currentUser, 500, "Payment account not properly configured. Please contact support.");
+    const currentUser = this.authService.getCurrentPayingUser();
 
     try {
       const data = await this.topUpService.topUp(currentUser, {
@@ -191,9 +189,7 @@ export class StripeController {
 
   @Protected([{ action: "delete", subject: "StripePayment" }])
   async removePaymentMethod(paymentMethodId: string): Promise<void> {
-    const { currentUser } = this.authService;
-
-    assert(currentUser.stripeCustomerId, 500, "Payment account not properly configured. Please contact support.");
+    const currentUser = this.authService.getCurrentPayingUser();
 
     try {
       // Verify payment method ownership
