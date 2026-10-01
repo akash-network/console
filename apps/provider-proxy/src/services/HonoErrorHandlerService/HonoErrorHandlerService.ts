@@ -1,5 +1,6 @@
 import type { LoggerService } from "@akashnetwork/logging";
 import { createOtelLogger } from "@akashnetwork/logging/otel";
+import { HTTPException } from "hono/http-exception";
 import { ZodError } from "zod";
 
 import type { AppContext } from "../../types/AppContext";
@@ -26,6 +27,10 @@ export class HonoErrorHandlerService {
         },
         { status: 400 }
       );
+    }
+
+    if (error instanceof HTTPException) {
+      return error.getResponse();
     }
 
     return c.json(

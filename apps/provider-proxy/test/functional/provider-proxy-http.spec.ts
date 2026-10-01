@@ -978,6 +978,18 @@ describe("Provider HTTP proxy", () => {
     expect(response.status).toBe(400);
   });
 
+  it.each([
+    ["an empty", ""],
+    ["a truncated", '{"method":"GET","url":"https://example.com/"']
+  ])("returns 400 for a request with %s JSON body", async (_label, body) => {
+    const chainServer = await startChainApiServer([]);
+    await startServer({ REST_API_NODE_URL: chainServer.url });
+
+    const response = await request("/", { method: "POST", body });
+
+    expect(response.status).toBe(400);
+  });
+
   describe("rejects forbidden target URLs before connecting", () => {
     const FORBIDDEN_URLS = [
       ["a hostname ending in .local", "https://provider.local/200.txt"],
