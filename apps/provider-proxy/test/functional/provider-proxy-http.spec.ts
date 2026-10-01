@@ -193,6 +193,26 @@ describe("Provider HTTP proxy", () => {
     expect(body).toContain("unknownCertificate");
   });
 
+  it("responds with 495 instead of hanging when chain never answers the certificate lookup", async () => {
+    const providerAddress = generateBech32();
+    const validCertPair = await createX509CertPair({ commonName: providerAddress, validFrom: new Date(Date.now() - ONE_HOUR) });
+    const chainServer = await startChainApiServer([validCertPair.cert], {
+      interceptRequest(req) {
+        return !!req.url?.includes("/akash/cert/");
+      }
+    });
+    const { providerUrl } = await startProviderServer({ certPair: validCertPair });
+    await startServer({ REST_API_NODE_URL: chainServer.url });
+
+    const response = await request("/", {
+      method: "POST",
+      body: JSON.stringify({ method: "GET", url: `${providerUrl}/200.txt`, providerAddress })
+    });
+
+    expect(response.status).toBe(495);
+    expect(await response.text()).toContain("unknownCertificate");
+  });
+
   it("responds with 495 error if server uses invalid certificate", async () => {
     const providerAddress = generateBech32();
     const validCertPair = await createX509CertPair({
