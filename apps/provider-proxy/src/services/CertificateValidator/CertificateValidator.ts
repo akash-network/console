@@ -49,7 +49,7 @@ export class CertificateValidator {
     const key = `${providerAddress}.${cert.serialNumber}`;
     const knownCertificate = this.knownCertificatesCache.get(key);
 
-    if (knownCertificate && this.now() - knownCertificate.confirmedAt < CERTIFICATE_RECHECK_INTERVAL_MS) {
+    if (knownCertificate && this.isRecentlyConfirmed(knownCertificate)) {
       return knownCertificate.certificate;
     }
 
@@ -59,6 +59,12 @@ export class CertificateValidator {
     } finally {
       delete this.inflightCertificates[key];
     }
+  }
+
+  /** `now` is a wall clock that can step backward, so a negative age has to mean stale rather than fresh. */
+  private isRecentlyConfirmed({ confirmedAt }: KnownCertificate): boolean {
+    const ageMs = this.now() - confirmedAt;
+    return ageMs >= 0 && ageMs < CERTIFICATE_RECHECK_INTERVAL_MS;
   }
 
   private async fetchProviderCertificate(key: string, cert: X509Certificate, providerAddress: string): Promise<X509Certificate | null> {

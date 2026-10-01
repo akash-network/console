@@ -105,6 +105,21 @@ describe(CertificateValidator.name, () => {
     expect(result.ok).toBe(true);
   });
 
+  it("rechecks a known certificate with chain once the clock moved back past the time chain confirmed it", async () => {
+    const { cert } = await createX509CertPair({ commonName: PROVIDER_ADDRESS });
+    const clock = { now: Date.now() };
+    const getCertificate = vi.fn(() => Promise.resolve(cert));
+    const validator = setup({ getCertificate, now: () => clock.now });
+
+    await validator.validate(cert, "provider");
+    await validator.validate(cert, "provider");
+    expect(getCertificate).toHaveBeenCalledTimes(1);
+
+    clock.now -= 1;
+    await validator.validate(cert, "provider");
+    expect(getCertificate).toHaveBeenCalledTimes(2);
+  });
+
   it("validates against the last certificate chain confirmed while chain cannot be queried", async () => {
     const { cert } = await createX509CertPair({ commonName: PROVIDER_ADDRESS });
     const clock = { now: Date.now() };
