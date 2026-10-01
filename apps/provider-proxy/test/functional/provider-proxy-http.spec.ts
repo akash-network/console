@@ -1105,6 +1105,28 @@ describe("Provider HTTP proxy", () => {
     });
   });
 
+  describe("bounds the host lookup when chain never answers", () => {
+    it("proxies to a provider it has not looked up yet once the lookup times out", async () => {
+      const providerAddress = generateBech32();
+      const validCertPair = await createX509CertPair({ commonName: providerAddress });
+      const chainServer = await startChainApiServer([validCertPair.cert], {
+        interceptRequest(req) {
+          return !!req.url?.includes("/akash/provider/");
+        }
+      });
+      const { providerUrl } = await startProviderServer({ certPair: validCertPair });
+      await startServer({ REST_API_NODE_URL: chainServer.url });
+
+      const response = await request("/", {
+        method: "POST",
+        body: JSON.stringify({ method: "GET", url: `${providerUrl}/200.txt`, providerAddress })
+      });
+
+      expect(response.status).toBe(200);
+      expect(await response.text()).toBe("Hello, World!");
+    });
+  });
+
   describe("rejects forbidden target URLs before connecting", () => {
     const FORBIDDEN_URLS = [
       ["a hostname ending in .local", "https://provider.local/200.txt"],

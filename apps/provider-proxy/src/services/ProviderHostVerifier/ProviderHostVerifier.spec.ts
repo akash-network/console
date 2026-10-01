@@ -8,7 +8,8 @@ import type { ProviderHostVerifierInstrumentation } from "./ProviderHostVerifier
 import { createProviderHostVerifierInstrumentation, ProviderHostVerifier } from "./ProviderHostVerifier";
 
 describe(ProviderHostVerifier.name, () => {
-  const THIRTY_MINUTES = 30 * 60 * 1000;
+  const ONE_MINUTE = 60 * 1000;
+  const THIRTY_MINUTES = 30 * ONE_MINUTE;
   const PROVIDER_ADDRESS = "akash18ga02jzaq8cw52anyhzkwta5wygufgu6zsz6xc";
   const REGISTERED_HOST = "https://provider.example.com:8443";
   const OTHER_HOST = "https://other.example.com:8443";
@@ -87,22 +88,39 @@ describe(ProviderHostVerifier.name, () => {
       expect(providerService.getHostUri).toHaveBeenCalledTimes(2);
     });
 
-    it("asks chain again before refusing a host that differs from the one it has on record", async () => {
-      const { verifier, providerService } = setup();
+    it("asks chain again before refusing a host that differs from the one on record, at most once a minute", async () => {
+      const clock = { now: Date.now() };
+      const { verifier, providerService } = setup({ now: () => clock.now });
       providerService.getHostUri.mockResolvedValue(REGISTERED_HOST);
 
       await verifier.canProxyTo(`${REGISTERED_HOST}/status`, PROVIDER_ADDRESS);
-      const result = await verifier.canProxyTo(`${OTHER_HOST}/status`, PROVIDER_ADDRESS);
+      clock.now += ONE_MINUTE - 1;
+      expect(await verifier.canProxyTo(`${OTHER_HOST}/status`, PROVIDER_ADDRESS)).toBe(false);
+      expect(providerService.getHostUri).toHaveBeenCalledTimes(1);
 
-      expect(result).toBe(false);
+      clock.now += 1;
+      expect(await verifier.canProxyTo(`${OTHER_HOST}/status`, PROVIDER_ADDRESS)).toBe(false);
       expect(providerService.getHostUri).toHaveBeenCalledTimes(2);
     });
 
-    it("allows a host the provider just changed to on chain", async () => {
+    it("refuses repeated requests for a provider chain has no record of without asking chain each time", async () => {
       const { verifier, providerService } = setup();
+      providerService.getHostUri.mockResolvedValue(null);
+
+      await verifier.canProxyTo(`${REGISTERED_HOST}/status`, PROVIDER_ADDRESS);
+      const result = await verifier.canProxyTo(`${REGISTERED_HOST}/status`, PROVIDER_ADDRESS);
+
+      expect(result).toBe(false);
+      expect(providerService.getHostUri).toHaveBeenCalledTimes(1);
+    });
+
+    it("allows a host the provider changed to on chain once a minute has passed since the last check", async () => {
+      const clock = { now: Date.now() };
+      const { verifier, providerService } = setup({ now: () => clock.now });
       providerService.getHostUri.mockResolvedValueOnce(REGISTERED_HOST).mockResolvedValueOnce(OTHER_HOST);
 
       await verifier.canProxyTo(`${REGISTERED_HOST}/status`, PROVIDER_ADDRESS);
+      clock.now += ONE_MINUTE;
       const result = await verifier.canProxyTo(`${OTHER_HOST}/status`, PROVIDER_ADDRESS);
 
       expect(result).toBe(true);
@@ -137,23 +155,29 @@ describe(ProviderHostVerifier.name, () => {
     });
 
     it("keeps refusing a host chain did not report while chain cannot be queried", async () => {
-      const { verifier, providerService } = setup();
+      const clock = { now: Date.now() };
+      const { verifier, providerService } = setup({ now: () => clock.now });
       providerService.getHostUri.mockResolvedValueOnce(REGISTERED_HOST).mockRejectedValue(new Error("chain is halted"));
 
       await verifier.canProxyTo(`${REGISTERED_HOST}/status`, PROVIDER_ADDRESS);
+      clock.now += ONE_MINUTE;
       const result = await verifier.canProxyTo(`${OTHER_HOST}/status`, PROVIDER_ADDRESS);
 
       expect(result).toBe(false);
+      expect(providerService.getHostUri).toHaveBeenCalledTimes(2);
     });
 
     it("keeps refusing a provider chain had no record of while chain cannot be queried", async () => {
-      const { verifier, providerService } = setup();
+      const clock = { now: Date.now() };
+      const { verifier, providerService } = setup({ now: () => clock.now });
       providerService.getHostUri.mockResolvedValueOnce(null).mockRejectedValue(new Error("chain is halted"));
 
       await verifier.canProxyTo(`${REGISTERED_HOST}/status`, PROVIDER_ADDRESS);
+      clock.now += ONE_MINUTE;
       const result = await verifier.canProxyTo(`${REGISTERED_HOST}/status`, PROVIDER_ADDRESS);
 
       expect(result).toBe(false);
+      expect(providerService.getHostUri).toHaveBeenCalledTimes(2);
     });
 
     it("allows a provider it has not looked up yet while chain cannot be queried", async () => {
@@ -161,6 +185,33 @@ describe(ProviderHostVerifier.name, () => {
       providerService.getHostUri.mockRejectedValue(new Error("chain is halted"));
 
       expect(await verifier.canProxyTo(`${REGISTERED_HOST}/status`, PROVIDER_ADDRESS)).toBe(true);
+    });
+
+    it("waits a minute before asking chain again about a provider it could not look up", async () => {
+      const clock = { now: Date.now() };
+      const { verifier, providerService } = setup({ now: () => clock.now });
+      providerService.getHostUri.mockRejectedValue(new Error("chain is halted"));
+
+      await verifier.canProxyTo(`${REGISTERED_HOST}/status`, PROVIDER_ADDRESS);
+      clock.now += ONE_MINUTE - 1;
+      expect(await verifier.canProxyTo(`${REGISTERED_HOST}/status`, PROVIDER_ADDRESS)).toBe(true);
+      expect(providerService.getHostUri).toHaveBeenCalledTimes(1);
+
+      clock.now += 1;
+      await verifier.canProxyTo(`${REGISTERED_HOST}/status`, PROVIDER_ADDRESS);
+      expect(providerService.getHostUri).toHaveBeenCalledTimes(2);
+    });
+
+    it("checks a provider it could not look up once chain answers again", async () => {
+      const clock = { now: Date.now() };
+      const { verifier, providerService } = setup({ now: () => clock.now });
+      providerService.getHostUri.mockRejectedValueOnce(new Error("chain is halted")).mockResolvedValue(REGISTERED_HOST);
+
+      await verifier.canProxyTo(`${OTHER_HOST}/status`, PROVIDER_ADDRESS);
+      clock.now += ONE_MINUTE;
+      const result = await verifier.canProxyTo(`${OTHER_HOST}/status`, PROVIDER_ADDRESS);
+
+      expect(result).toBe(false);
     });
 
     it("reports a host it lets through without being able to check it", async () => {

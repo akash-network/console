@@ -59,7 +59,7 @@ describe(ProviderService.name, () => {
       const result = await service.getHostUri("provider");
 
       expect(result).toBe("https://provider.example.com:8443");
-      expect(chainSdk.akash.provider.v1beta4.getProvider).toHaveBeenCalledWith({ owner: "provider" });
+      expect(chainSdk.akash.provider.v1beta4.getProvider).toHaveBeenCalledWith({ owner: "provider" }, { timeoutMs: 5_000 });
     });
 
     it("returns null when the provider registered no host URI", async () => {

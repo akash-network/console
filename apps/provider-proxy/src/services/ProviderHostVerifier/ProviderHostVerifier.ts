@@ -4,10 +4,12 @@ import { LRUCache } from "lru-cache";
 import type { ProviderService } from "../ProviderService/ProviderService";
 
 const HOST_RECHECK_INTERVAL_MS = 30 * 60 * 1000;
+/** Caps how often requests that the cached record does not allow can send the proxy back to chain. */
+const MIN_HOST_RECHECK_INTERVAL_MS = 60 * 1000;
 
 export class ProviderHostVerifier {
-  /** Entries outlive the recheck interval so the last host chain reported can stand in while chain cannot be queried. */
-  readonly #registeredHosts = new LRUCache<string, RegisteredHost>({ max: 100_000 });
+  /** Records outlive the recheck interval so the last host chain reported can stand in while chain cannot be queried. */
+  readonly #hostRecords = new LRUCache<string, HostRecord>({ max: 100_000 });
   readonly #inflightLookups: Record<string, Promise<string | null>> = {};
   readonly #now: () => number;
   readonly #providerService: ProviderService;
@@ -22,47 +24,46 @@ export class ProviderHostVerifier {
   /** A provider never seen before is allowed while chain cannot be queried, so deployments stay manageable through a chain outage. */
   async canProxyTo(url: string, providerAddress: string): Promise<boolean> {
     const origin = new URL(url).origin;
-    const knownHost = this.#registeredHosts.get(providerAddress);
+    const cachedRecord = this.#hostRecords.get(providerAddress);
+    const record = cachedRecord && !this.#isDueForRecheck(cachedRecord, origin) ? cachedRecord : await this.#recheck(providerAddress, cachedRecord);
 
-    if (knownHost?.origin === origin && this.#isRecentlyChecked(knownHost)) return true;
-
-    let registeredOrigin: string | null;
-    try {
-      registeredOrigin = await this.#lookUpRegisteredOrigin(providerAddress);
-    } catch {
-      if (!knownHost) {
-        this.#instrumentation?.onUnverifiedHost?.(url, providerAddress);
-        return true;
-      }
-      this.#registeredHosts.set(providerAddress, { origin: knownHost.origin, checkedAt: this.#now() });
-      registeredOrigin = knownHost.origin;
+    if (!record.verified) {
+      this.#instrumentation?.onUnverifiedHost?.(url, providerAddress);
+      return true;
     }
 
-    if (registeredOrigin === origin) return true;
+    if (record.origin === origin) return true;
 
-    this.#instrumentation?.onUnregisteredHost?.(url, providerAddress, registeredOrigin);
+    this.#instrumentation?.onUnregisteredHost?.(url, providerAddress, record.origin);
     return false;
   }
 
-  /** `now` is a wall clock that can step backward, so a negative age has to mean stale rather than fresh. */
-  #isRecentlyChecked({ checkedAt }: RegisteredHost): boolean {
-    const ageMs = this.#now() - checkedAt;
-    return ageMs >= 0 && ageMs < HOST_RECHECK_INTERVAL_MS;
+  /** `now` is a wall clock that can step backward, so a negative age has to mean due rather than fresh. */
+  #isDueForRecheck(record: HostRecord, origin: string): boolean {
+    const recheckIntervalMs = record.verified && record.origin === origin ? HOST_RECHECK_INTERVAL_MS : MIN_HOST_RECHECK_INTERVAL_MS;
+    const ageMs = this.#now() - record.checkedAt;
+    return ageMs < 0 || ageMs >= recheckIntervalMs;
+  }
+
+  async #recheck(providerAddress: string, previousRecord: HostRecord | undefined): Promise<HostRecord> {
+    let record: HostRecord;
+    try {
+      record = { verified: true, origin: await this.#lookUpRegisteredOrigin(providerAddress), checkedAt: this.#now() };
+    } catch {
+      record = previousRecord?.verified ? { ...previousRecord, checkedAt: this.#now() } : { verified: false, checkedAt: this.#now() };
+    }
+
+    this.#hostRecords.set(providerAddress, record);
+    return record;
   }
 
   async #lookUpRegisteredOrigin(providerAddress: string): Promise<string | null> {
     try {
-      this.#inflightLookups[providerAddress] ??= this.#fetchRegisteredOrigin(providerAddress);
+      this.#inflightLookups[providerAddress] ??= this.#providerService.getHostUri(providerAddress).then(toOrigin);
       return await this.#inflightLookups[providerAddress];
     } finally {
       delete this.#inflightLookups[providerAddress];
     }
-  }
-
-  async #fetchRegisteredOrigin(providerAddress: string): Promise<string | null> {
-    const origin = toOrigin(await this.#providerService.getHostUri(providerAddress));
-    this.#registeredHosts.set(providerAddress, { origin, checkedAt: this.#now() });
-    return origin;
   }
 }
 
@@ -76,10 +77,7 @@ function toOrigin(hostUri: string | null): string | null {
   }
 }
 
-interface RegisteredHost {
-  origin: string | null;
-  checkedAt: number;
-}
+type HostRecord = { verified: true; origin: string | null; checkedAt: number } | { verified: false; checkedAt: number };
 
 export interface ProviderHostVerifierInstrumentation {
   onUnverifiedHost?(url: string, providerAddress: string): void;
