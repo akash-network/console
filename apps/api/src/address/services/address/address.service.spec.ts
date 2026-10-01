@@ -1,9 +1,9 @@
 import type { CosmosHttpService } from "@akashnetwork/http-sdk";
 import { AxiosError } from "axios";
 import { describe, expect, it } from "vitest";
-import type { MockProxy } from "vitest-mock-extended";
 import { mock } from "vitest-mock-extended";
 
+import type { GetAddressResponse } from "@src/address/http-schemas/address.schema";
 import MemoryCacheEngine from "@src/caching/memoryCacheEngine";
 import type { TransactionService } from "@src/transaction/services/transaction/transaction.service";
 import type { ValidatorRepository } from "@src/validator/repositories/validator/validator.repository";
@@ -12,7 +12,7 @@ import { AddressService } from "./address.service";
 describe(AddressService.name, () => {
   describe("getAddressDetails", () => {
     it("handles validator commission fetch error gracefully when validator doesn't exist on-chain", async () => {
-      const { service, cosmosHttpService, validatorRepository, transactionService } = setup();
+      const { service, cosmosHttpService, validatorRepository } = setup();
       const testAddress = "akash1test123";
       const operatorAddress = "akashvaloper1test123";
 
@@ -49,11 +49,6 @@ describe(AddressService.name, () => {
       cosmosHttpService.getStakingDelegatorsRedelegationsByAddress.mockResolvedValue({
         redelegation_responses: [],
         pagination: { next_key: null, total: "0" }
-      } as any);
-
-      transactionService.getTransactionsByAddress.mockResolvedValue({
-        results: [],
-        count: 0
       } as any);
 
       // Mock validator commission fetch to throw 500 error (validator not found on-chain)
@@ -75,7 +70,7 @@ describe(AddressService.name, () => {
     });
 
     it("fetches validator commission successfully when validator exists on-chain", async () => {
-      const { service, cosmosHttpService, validatorRepository, transactionService } = setup();
+      const { service, cosmosHttpService, validatorRepository } = setup();
       const testAddress = "akash1test123";
       const operatorAddress = "akashvaloper1test123";
 
@@ -114,11 +109,6 @@ describe(AddressService.name, () => {
         pagination: { next_key: null, total: "0" }
       } as any);
 
-      transactionService.getTransactionsByAddress.mockResolvedValue({
-        results: [],
-        count: 0
-      } as any);
-
       // Mock successful validator commission fetch
       cosmosHttpService.getDistributionValidatorsCommissionByAddress.mockResolvedValue({
         commission: {
@@ -134,7 +124,7 @@ describe(AddressService.name, () => {
     });
 
     it("sets commission to 0 when validator is not found in DB", async () => {
-      const { service, cosmosHttpService, validatorRepository, transactionService } = setup();
+      const { service, cosmosHttpService, validatorRepository } = setup();
       const testAddress = "akash1test123";
 
       // Mock validator doesn't exist in DB
@@ -162,11 +152,6 @@ describe(AddressService.name, () => {
         pagination: { next_key: null, total: "0" }
       } as any);
 
-      transactionService.getTransactionsByAddress.mockResolvedValue({
-        results: [],
-        count: 0
-      } as any);
-
       const result = await service.getAddressDetails(testAddress);
 
       expect(result.commission).toBe(0);
@@ -175,7 +160,7 @@ describe(AddressService.name, () => {
     });
 
     it("re-throws non-500 errors from validator commission fetch", async () => {
-      const { service, cosmosHttpService, validatorRepository, transactionService } = setup();
+      const { service, cosmosHttpService, validatorRepository } = setup();
       const testAddress = "akash1test123";
       const operatorAddress = "akashvaloper1test123";
 
@@ -214,11 +199,6 @@ describe(AddressService.name, () => {
         pagination: { next_key: null, total: "0" }
       } as any);
 
-      transactionService.getTransactionsByAddress.mockResolvedValue({
-        results: [],
-        count: 0
-      } as any);
-
       // Mock validator commission fetch to throw 400 error (different error)
       const axiosError = new AxiosError("Bad Request");
       axiosError.response = {
@@ -232,19 +212,53 @@ describe(AddressService.name, () => {
 
       await expect(service.getAddressDetails(testAddress)).rejects.toThrow(axiosError);
     });
+
+    it("lists the five latest transactions of the address without counting all of them", async () => {
+      const { service, transactionService } = setup();
+      const latestTransactions: GetAddressResponse["latestTransactions"] = [
+        {
+          height: 28875296,
+          datetime: "2026-10-01T19:52:51.589Z",
+          hash: "8DBCA7F3CA9BDED60CB275432F7AEB6360A1CE502F200ACBCF352610E566005F",
+          isSuccess: true,
+          error: null,
+          gasUsed: 302198,
+          gasWanted: 423489,
+          fee: 10588,
+          memo: "akash price update",
+          isSigner: true,
+          messages: [{ id: "d8298c23-97e9-43a0-8d2c-96b3d819b536", type: "/cosmwasm.wasm.v1.MsgExecuteContract", amount: 0, isReceiver: false }]
+        }
+      ];
+      transactionService.getLatestTransactionsByAddress.mockResolvedValue(latestTransactions);
+
+      const result = await service.getAddressDetails("akash1test123");
+
+      expect(result.latestTransactions).toEqual(latestTransactions);
+      expect(transactionService.getLatestTransactionsByAddress).toHaveBeenCalledWith("akash1test123", 5);
+      expect(transactionService.getTransactionsByAddress).not.toHaveBeenCalled();
+    });
   });
 
-  function setup(): {
-    cosmosHttpService: MockProxy<CosmosHttpService>;
-    transactionService: MockProxy<TransactionService>;
-    validatorRepository: MockProxy<ValidatorRepository>;
-    service: AddressService;
-  } {
+  function setup() {
     MemoryCacheEngine.clearAllCaches();
 
     const transactionService = mock<TransactionService>();
+    transactionService.getLatestTransactionsByAddress.mockResolvedValue([]);
     const cosmosHttpService = mock<CosmosHttpService>();
+    cosmosHttpService.getBankBalancesByAddress.mockResolvedValue(mock<Awaited<ReturnType<CosmosHttpService["getBankBalancesByAddress"]>>>({ balances: [] }));
+    cosmosHttpService.getStakingDelegationsByAddress.mockResolvedValue(
+      mock<Awaited<ReturnType<CosmosHttpService["getStakingDelegationsByAddress"]>>>({ delegation_responses: [] })
+    );
+    cosmosHttpService.getDistributionDelegatorsRewardsByAddress.mockResolvedValue(
+      mock<Awaited<ReturnType<CosmosHttpService["getDistributionDelegatorsRewardsByAddress"]>>>({ rewards: [], total: [] })
+    );
+    cosmosHttpService.getStakingDelegatorsRedelegationsByAddress.mockResolvedValue(
+      mock<Awaited<ReturnType<CosmosHttpService["getStakingDelegatorsRedelegationsByAddress"]>>>({ redelegation_responses: [] })
+    );
     const validatorRepository = mock<ValidatorRepository>();
+    validatorRepository.findAll.mockResolvedValue([]);
+    validatorRepository.findByAccountAddress.mockResolvedValue(null);
     const service = new AddressService(transactionService, cosmosHttpService, validatorRepository);
 
     return { cosmosHttpService, transactionService, validatorRepository, service };

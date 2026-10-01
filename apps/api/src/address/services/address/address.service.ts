@@ -30,7 +30,7 @@ export class AddressService {
       this.cosmosHttpService.getStakingDelegationsByAddress(address),
       this.cosmosHttpService.getDistributionDelegatorsRewardsByAddress(address),
       this.cosmosHttpService.getStakingDelegatorsRedelegationsByAddress(address),
-      this.transactionService.getTransactionsByAddress(address, 0, 5)
+      this.transactionService.getLatestTransactionsByAddress(address, 5)
     ]);
 
     const allValidatorsFromDb = await this.validatorRepository.findAll();
@@ -133,7 +133,7 @@ export class AddressService {
       assets,
       redelegations,
       commission,
-      latestTransactions: latestTransactions.results
+      latestTransactions
     };
   }
 

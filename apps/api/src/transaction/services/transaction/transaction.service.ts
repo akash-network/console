@@ -24,4 +24,8 @@ export class TransactionService {
   async getTransactionsByAddress(address: string, skip: number = -1, limit: number = -1): Promise<GetAddressTransactionsResponse> {
     return await this.transactionRepository.getTransactionsByAddress(address, skip === -1 ? undefined : skip, limit === -1 ? undefined : limit);
   }
+
+  async getLatestTransactionsByAddress(address: string, limit: number): Promise<GetAddressTransactionsResponse["results"]> {
+    return await this.transactionRepository.findTransactionsByAddress(address, 0, limit);
+  }
 }

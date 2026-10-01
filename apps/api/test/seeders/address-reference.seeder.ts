@@ -7,7 +7,8 @@ export const createAddressReference = (input: Partial<CreationAttributes<Address
     transactionId: input.transactionId || faker.string.uuid(),
     messageId: input.messageId || faker.string.uuid(),
     address: input.address || faker.string.hexadecimal({ length: 64 }),
-    type: input.type || faker.string.alphanumeric({ length: 10 })
+    type: input.type || faker.string.alphanumeric({ length: 10 }),
+    height: input.height
   };
 };
 

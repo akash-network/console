@@ -10,6 +10,16 @@ import { TYPE_REGISTRY } from "@src/billing/providers/type-registry.provider";
 import { CHAIN_DB } from "@src/chain";
 import { GetTransactionByHashResponse, ListTransactionsResponse } from "@src/transaction/http-schemas/transaction.schema";
 
+/** Dedupes with DISTINCT in ORDER BY order, since a GROUP BY on t.id makes Postgres 14 join every reference of the address before it can apply the LIMIT. */
+const TRANSACTION_IDS_BY_ADDRESS_QUERY = `/* transactions:by-address-paginated-ids */
+  SELECT DISTINCT af.height, t.index, t.id
+  FROM "addressReference" af
+  INNER JOIN "transaction" t ON t.id = af."transactionId"
+  WHERE af.address = ?
+  ORDER BY af.height DESC, t.index DESC
+  OFFSET ? LIMIT ?
+`;
+
 @singleton()
 export class TransactionRepository {
   readonly #typeRegistry: Registry;
@@ -114,29 +124,23 @@ export class TransactionRepository {
   }
 
   async getTransactionsByAddress(address: string, skip?: number, limit?: number): Promise<GetAddressTransactionsResponse> {
-    const countQuery = AddressReference.count({
-      col: "transactionId",
-      distinct: true,
-      where: { address: address }
+    const [count, results] = await Promise.all([
+      AddressReference.count({
+        col: "transactionId",
+        distinct: true,
+        where: { address: address }
+      }),
+      this.findTransactionsByAddress(address, skip, limit)
+    ]);
+
+    return { count, results };
+  }
+
+  async findTransactionsByAddress(address: string, skip?: number, limit?: number): Promise<GetAddressTransactionsResponse["results"]> {
+    const txIds = await this.#chainDb.query<{ id: string }>(TRANSACTION_IDS_BY_ADDRESS_QUERY, {
+      replacements: [address, skip, limit],
+      type: QueryTypes.SELECT
     });
-
-    const txIdsQuery = this.#chainDb.query<{ id: string }>(
-      `/* transactions:by-address-paginated-ids */
-      SELECT t.id
-      FROM "addressReference" af
-      INNER JOIN "transaction" t ON t.id = af."transactionId"
-      WHERE af.address = ?
-      GROUP BY t.id, af.height, t.index
-      ORDER BY af.height DESC, t.index DESC
-      OFFSET ? LIMIT ?
-      `,
-      {
-        replacements: [address, skip, limit],
-        type: QueryTypes.SELECT
-      }
-    );
-
-    const [count, txIds] = await Promise.all([countQuery, txIdsQuery]);
 
     const txs = await Transaction.findAll({
       include: [{ model: Block, required: true }, { model: Message }, { model: AddressReference, required: true, where: { address: address } }],
@@ -147,26 +151,23 @@ export class TransactionRepository {
       ]
     });
 
-    return {
-      count: count,
-      results: txs.map(tx => ({
-        height: tx.height,
-        datetime: tx.block.datetime.toISOString(),
-        hash: tx.hash,
-        isSuccess: !tx.hasProcessingError,
-        error: tx.hasProcessingError && tx.log ? tx.log : null,
-        gasUsed: tx.gasUsed,
-        gasWanted: tx.gasWanted,
-        fee: parseInt(tx.fee),
-        memo: tx.memo,
-        isSigner: (tx.addressReferences || []).some(ar => ar.type === "Signer"),
-        messages: (tx.messages || []).map(msg => ({
-          id: msg.id,
-          type: msg.type,
-          amount: parseInt(msg.amount || "0"),
-          isReceiver: (tx.addressReferences || []).some(ar => ar.messageId === msg.id && ar.type === "Receiver")
-        }))
+    return txs.map(tx => ({
+      height: tx.height,
+      datetime: tx.block.datetime.toISOString(),
+      hash: tx.hash,
+      isSuccess: !tx.hasProcessingError,
+      error: tx.hasProcessingError && tx.log ? tx.log : null,
+      gasUsed: tx.gasUsed,
+      gasWanted: tx.gasWanted,
+      fee: parseInt(tx.fee),
+      memo: tx.memo,
+      isSigner: (tx.addressReferences || []).some(ar => ar.type === "Signer"),
+      messages: (tx.messages || []).map(msg => ({
+        id: msg.id,
+        type: msg.type,
+        amount: parseInt(msg.amount || "0"),
+        isReceiver: (tx.addressReferences || []).some(ar => ar.messageId === msg.id && ar.type === "Receiver")
       }))
-    };
+    }));
   }
 }
