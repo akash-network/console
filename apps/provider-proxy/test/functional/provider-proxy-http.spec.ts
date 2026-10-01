@@ -1,5 +1,6 @@
 import { JwtTokenManager } from "@akashnetwork/chain-sdk";
 import { Secp256k1HdWallet } from "@cosmjs/amino";
+import { fromBech32, toBech32 } from "@cosmjs/encoding";
 import { setTimeout as wait } from "timers/promises";
 import type { TLSSocket } from "tls";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -1079,6 +1080,21 @@ describe("Provider HTTP proxy", () => {
 
       expect(response.status).toBe(400);
       expect(handleRequest).not.toHaveBeenCalled();
+    });
+
+    it("returns 400 without asking chain when the provider address is not an akash address", async () => {
+      const providerAddress = toBech32("../../x?", fromBech32(generateBech32()).data);
+      const interceptRequest = vi.fn(() => false);
+      const chainServer = await startChainApiServer([], { interceptRequest });
+      await startServer({ REST_API_NODE_URL: chainServer.url });
+
+      const response = await request("/", {
+        method: "POST",
+        body: JSON.stringify({ method: "GET", url: "https://provider.example.com:8443/status", providerAddress })
+      });
+
+      expect(response.status).toBe(400);
+      expect(interceptRequest).not.toHaveBeenCalled();
     });
 
     it("proxies to a provider it has not looked up yet while chain cannot be queried", async () => {

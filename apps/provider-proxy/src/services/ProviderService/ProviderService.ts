@@ -6,6 +6,10 @@ import { X509Certificate } from "crypto";
 /** A proxied request waits on this lookup before it dials, so a chain node that stops answering must not hold it longer than this, retries included. */
 const HOST_URI_LOOKUP_TIMEOUT_MS = 5_000;
 
+function isChainAnswerForNoSuchProvider(error: unknown): boolean {
+  return error instanceof SDKError && (error.code === SDKErrorCode.NotFound || error.code === SDKErrorCode.InvalidArgument);
+}
+
 export class ProviderService {
   readonly #chainSdk: ChainNodeWebSDK;
   readonly #logger?: LoggerService;
@@ -48,7 +52,7 @@ export class ProviderService {
       const response = await this.#chainSdk.akash.provider.v1beta4.getProvider({ owner: providerAddress }, { timeoutMs: HOST_URI_LOOKUP_TIMEOUT_MS });
       return response.provider?.hostUri || null;
     } catch (error) {
-      if (error instanceof SDKError && error.code === SDKErrorCode.NotFound) return null;
+      if (isChainAnswerForNoSuchProvider(error)) return null;
 
       this.#logger?.error({
         event: "PROVIDER_HOST_FETCH_ERROR",

@@ -69,11 +69,15 @@ describe(ProviderService.name, () => {
       expect(await service.getHostUri("provider")).toBe(null);
     });
 
-    it("returns null when chain has no such provider", async () => {
-      const { service, chainSdk } = setup();
-      chainSdk.akash.provider.v1beta4.getProvider.mockRejectedValue(new SDKError("[not_found] invalid provider: address not found", SDKErrorCode.NotFound));
+    it.each([
+      ["has no such provider", new SDKError("[not_found] invalid provider: address not found", SDKErrorCode.NotFound)],
+      ["rejects the address", new SDKError("[invalid_argument] invalid address", SDKErrorCode.InvalidArgument)]
+    ])("returns null when chain %s", async (_label, error) => {
+      const { service, chainSdk, logger } = setup();
+      chainSdk.akash.provider.v1beta4.getProvider.mockRejectedValue(error);
 
       expect(await service.getHostUri("provider")).toBe(null);
+      expect(logger.error).not.toHaveBeenCalled();
     });
 
     it("rejects and logs when chain cannot be queried", async () => {
