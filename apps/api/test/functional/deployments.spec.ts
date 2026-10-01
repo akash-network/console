@@ -1770,6 +1770,40 @@ describe("Deployments API", () => {
 
       expect(response.status).toBe(400);
     });
+
+    it.each([0, -1, 0.0000001])("answers 400 without signing for a deposit of %s", async deposit => {
+      const { userApiKeySecret } = await mockUser();
+      const executeTx = vi.spyOn(signerService, "executeDerivedDecodedTxByUserId");
+
+      const response = await app.request("/v1/deposit-deployment", {
+        method: "POST",
+        body: JSON.stringify({ data: { dseq: "1234", deposit } }),
+        headers: new Headers({ "Content-Type": "application/json", "x-api-key": userApiKeySecret })
+      });
+
+      expect(response.status).toBe(400);
+      expect(await response.json()).toMatchObject({ error: "BadRequestError", code: "validation_error" });
+      expect(executeTx).not.toHaveBeenCalled();
+    });
+
+    it("signs a deposit of the smallest amount the chain denominates", async () => {
+      const { userApiKeySecret, wallets } = await mockUser();
+      await setupDeploymentInfoMock(wallets, "1234");
+      const executeTx = vi
+        .spyOn(signerService, "executeDerivedDecodedTxByUserId")
+        .mockResolvedValueOnce({ code: 0, hash: "test-hash", transactionHash: "test-hash", rawLog: "success" });
+
+      const response = await app.request("/v1/deposit-deployment", {
+        method: "POST",
+        body: JSON.stringify({ data: { dseq: "1234", deposit: 0.000001 } }),
+        headers: new Headers({ "Content-Type": "application/json", "x-api-key": userApiKeySecret })
+      });
+
+      expect(response.status).toBe(200);
+      expect(executeTx).toHaveBeenCalledWith(expect.any(String), [
+        expect.objectContaining({ value: expect.objectContaining({ deposit: expect.objectContaining({ amount: expect.objectContaining({ amount: "1" }) }) }) })
+      ]);
+    });
   });
 
   describe("PUT /v1/deployments/{dseq}", () => {
