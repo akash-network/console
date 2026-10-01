@@ -89,6 +89,39 @@ describe("Provider HTTP proxy", () => {
     expect(body).toBe(JSON.stringify({ ok: true }));
   });
 
+  it("does not pass cookie, site-data or transport-security headers from the provider host through", async () => {
+    const providerAddress = generateBech32();
+    const validCertPair = await createX509CertPair({ commonName: providerAddress, validFrom: new Date(Date.now() - ONE_HOUR) });
+    const chainServer = await startChainApiServer([validCertPair.cert]);
+    const { providerUrl } = await startProviderServer({
+      certPair: validCertPair,
+      handlers: {
+        "/session.json"(_, res) {
+          res.writeHead(200, "OK", {
+            "Content-Type": "application/json",
+            "Set-Cookie": ["first=1; Path=/", "second=2; Path=/"],
+            "Clear-Site-Data": '"cookies", "storage"',
+            "Strict-Transport-Security": "max-age=0",
+            "X-Custom-Header": "test"
+          });
+          res.end(JSON.stringify({ ok: true }));
+        }
+      }
+    });
+    await startServer({ REST_API_NODE_URL: chainServer.url });
+
+    const response = await request("/", {
+      method: "POST",
+      body: JSON.stringify({ method: "GET", url: `${providerUrl}/session.json`, providerAddress })
+    });
+
+    expect(response.status).toBe(200);
+    expect(response.headers.getSetCookie()).toEqual([]);
+    expect(response.headers.get("clear-site-data")).toBeNull();
+    expect(response.headers.get("strict-transport-security")).toBeNull();
+    expect(response.headers.get("x-custom-header")).toBe("test");
+  });
+
   it("can work without chain API by using cached certificates", async () => {
     const providerAddress = generateBech32();
     const validCertPair = await createX509CertPair({ commonName: providerAddress, validFrom: new Date(Date.now() - ONE_HOUR) });
