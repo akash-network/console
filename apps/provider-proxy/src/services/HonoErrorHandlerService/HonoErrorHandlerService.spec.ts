@@ -1,4 +1,5 @@
 import type { LoggerService } from "@akashnetwork/logging";
+import { HTTPException } from "hono/http-exception";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 import { ZodError } from "zod";
@@ -26,6 +27,18 @@ describe(HonoErrorHandlerService.name, () => {
       },
       { status: 400 }
     );
+  });
+
+  it("returns the response of an HTTPException", async () => {
+    const service = setup();
+    const error = new HTTPException(400, { message: "Malformed JSON in request body" });
+    const json = vi.fn();
+
+    const result = await service.handle(error, { json } as unknown as AppContext);
+
+    expect(json).not.toHaveBeenCalled();
+    expect(result.status).toBe(400);
+    expect(await result.text()).toBe("Malformed JSON in request body");
   });
 
   it("returns 500 status error on unknown error", async () => {

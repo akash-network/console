@@ -24,6 +24,7 @@ export const proxyRoute = createRoute({
   path: "/",
   request: {
     body: {
+      required: true,
       content: {
         "application/json": {
           schema: RequestPayload
