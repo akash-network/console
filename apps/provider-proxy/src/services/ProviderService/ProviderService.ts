@@ -1,4 +1,5 @@
 import type { ChainNodeWebSDK } from "@akashnetwork/chain-sdk/web";
+import { SDKError, SDKErrorCode } from "@akashnetwork/chain-sdk/web";
 import type { LoggerService } from "@akashnetwork/logging";
 import { X509Certificate } from "crypto";
 
@@ -32,6 +33,23 @@ export class ProviderService {
         event: "PROVIDER_CERTIFICATE_FETCH_ERROR",
         providerAddress,
         serialNumber,
+        error
+      });
+      throw error;
+    }
+  }
+
+  /** Resolves `null` when chain has no such provider and rejects when chain cannot be queried. */
+  async getHostUri(providerAddress: string): Promise<string | null> {
+    try {
+      const response = await this.#chainSdk.akash.provider.v1beta4.getProvider({ owner: providerAddress });
+      return response.provider?.hostUri || null;
+    } catch (error) {
+      if (error instanceof SDKError && error.code === SDKErrorCode.NotFound) return null;
+
+      this.#logger?.error({
+        event: "PROVIDER_HOST_FETCH_ERROR",
+        providerAddress,
         error
       });
       throw error;

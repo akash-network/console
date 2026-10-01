@@ -7,6 +7,7 @@ import type { AppConfig } from "./config/env.config";
 import { appConfigSchema } from "./config/env.config";
 import { CertificateValidator, createCertificateValidatorInstrumentation } from "./services/CertificateValidator/CertificateValidator";
 import { createProviderConnectionTrackerInstrumentation, ProviderConnectionTracker } from "./services/ProviderConnectionTracker/ProviderConnectionTracker";
+import { createProviderHostVerifierInstrumentation, ProviderHostVerifier } from "./services/ProviderHostVerifier/ProviderHostVerifier";
 import { ProviderProxy } from "./services/ProviderProxy";
 import { ProviderService } from "./services/ProviderService/ProviderService";
 import { WebsocketStats } from "./services/WebsocketStats";
@@ -28,6 +29,7 @@ export interface Container {
   wsStats: WebsocketStats;
   providerProxy: ProviderProxy;
   certificateValidator: CertificateValidator;
+  providerHostVerifier: ProviderHostVerifier;
   providerConnectionTracker: ProviderConnectionTracker | undefined;
   httpLogger: LoggerService | undefined;
   httpLoggerInterceptor: HttpLoggerInterceptor;
@@ -55,6 +57,11 @@ export function createContainer(untrustedConfig: Record<string, unknown>): Conta
     providerService,
     isLoggingDisabled ? undefined : createCertificateValidatorInstrumentation(createOtelLogger({ name: "cert-validator" }))
   );
+  const providerHostVerifier = new ProviderHostVerifier(
+    Date.now,
+    providerService,
+    isLoggingDisabled ? undefined : createProviderHostVerifierInstrumentation(createOtelLogger({ name: "host-verifier" }))
+  );
   const providerConnectionTracker = appConfig.PROVIDER_UNREACHABLE_TRACKING_ENABLED
     ? new ProviderConnectionTracker(
         Date.now,
@@ -79,6 +86,7 @@ export function createContainer(untrustedConfig: Record<string, unknown>): Conta
     wsStats,
     providerProxy,
     certificateValidator,
+    providerHostVerifier,
     providerConnectionTracker,
     httpLogger,
     httpLoggerInterceptor,

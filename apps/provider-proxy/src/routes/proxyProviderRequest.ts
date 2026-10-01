@@ -74,6 +74,19 @@ export const proxyRoute = createRoute({
 
 const MAX_PER_ATTEMPT_TIMEOUT_MS = 30 * 1000;
 const DROPPED_PROVIDER_HEADERS = new Set(["set-cookie", "clear-site-data", "strict-transport-security"]);
+const INVALID_URL_ERROR = {
+  error: {
+    code: "custom",
+    issues: [
+      {
+        path: ["url"],
+        params: {
+          reason: "invalid"
+        }
+      }
+    ]
+  }
+};
 export async function proxyProviderRequest(ctx: AppContext): Promise<Response | TypedResponse<string>> {
   const { method, body, url, providerAddress, timeout: rawTimeout, auth } = ctx.req.valid("json" as never) as z.infer<typeof RequestPayload>;
   const timeout = rawTimeout === undefined ? undefined : Math.min(rawTimeout, MAX_PER_ATTEMPT_TIMEOUT_MS);
@@ -86,6 +99,11 @@ export async function proxyProviderRequest(ctx: AppContext): Promise<Response | 
     timeout,
     authenticationType: auth?.type
   });
+
+  if (!(await ctx.get("container").providerHostVerifier.canProxyTo(url, providerAddress))) {
+    return ctx.json(INVALID_URL_ERROR, 400);
+  }
+
   const clientAbortSignal = ctx.req.raw.signal;
   const proxyResult = await httpRetry(
     () =>
@@ -156,22 +174,7 @@ export async function proxyProviderRequest(ctx: AppContext): Promise<Response | 
     }
 
     if (errorCategory === "blockedAddress") {
-      return ctx.json(
-        {
-          error: {
-            code: "custom",
-            issues: [
-              {
-                path: ["url"],
-                params: {
-                  reason: "invalid"
-                }
-              }
-            ]
-          }
-        },
-        400
-      );
+      return ctx.json(INVALID_URL_ERROR, 400);
     }
 
     return ctx.text(`Provider ${new URL(url).origin} is temporarily unavailable`, 502);

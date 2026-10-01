@@ -6,6 +6,7 @@ import WebSocket from "ws";
 
 import { shutdownServer } from "../../src/utils/shutdownServer";
 import type { CertPair } from "../seeders/createX509CertPair";
+import { registerProviderHost } from "./chainApiServer";
 
 let runningServer: https.Server | undefined;
 
@@ -55,7 +56,9 @@ export function startProviderServer(options: ProviderServerOptions): Promise<Pro
 
     server.listen(0, () => {
       runningServer = server;
-      resolve({ providerUrl: `https://localhost:${(server.address() as AddressInfo).port}` });
+      const providerUrl = `https://localhost:${(server.address() as AddressInfo).port}`;
+      registerProviderHost(certPair.cert.toLegacyObject().subject.CN, providerUrl);
+      resolve({ providerUrl });
     });
 
     if (options.websocketServer?.enable) {

@@ -6,7 +6,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import WebSocket from "ws";
 
 import { createX509CertPair } from "../seeders/createX509CertPair";
-import { generateBech32, startChainApiServer, stopChainAPIServer } from "../setup/chainApiServer";
+import { generateBech32, registerProviderHost, startChainApiServer, stopChainAPIServer } from "../setup/chainApiServer";
 import { startProviderServer, stopProviderServer } from "../setup/providerServer";
 import { startServer, stopServer } from "../setup/proxyServer";
 
@@ -195,6 +195,8 @@ describe("Provider proxy ws", () => {
         }
       }
     });
+    const providerAddressWithoutCertificate = generateBech32();
+    registerProviderHost(providerAddressWithoutCertificate, providerUrl);
     const proxyServerUrl = await startServer({ REST_API_NODE_URL: chainServer.url });
     const ws = new WebSocket(`${proxyServerUrl}/ws`);
     await new Promise(resolve => ws.once("open", resolve));
@@ -202,7 +204,7 @@ describe("Provider proxy ws", () => {
     ws.send(
       JSON.stringify(
         ourMessage("test1", providerUrl, {
-          providerAddress: generateBech32()
+          providerAddress: providerAddressWithoutCertificate
         })
       )
     );
@@ -224,6 +226,23 @@ describe("Provider proxy ws", () => {
     );
     expect(await waitForMessage(ws)).toEqual(providerMessage("connected"));
     expect(await waitForMessage(ws)).toEqual(providerMessage("replied: test2"));
+  });
+
+  it("does not connect to a provider socket on a host other than the one the provider registered", async () => {
+    const providerAddress = generateBech32();
+    const certPair = await createX509CertPair({ commonName: providerAddress });
+    const chainServer = await startChainApiServer([certPair.cert]);
+    const onConnection = vi.fn();
+    const { providerUrl } = await startProviderServer({ certPair, websocketServer: { enable: true, onConnection } });
+    registerProviderHost(providerAddress, "https://provider.example.com:8443");
+    const proxyServerUrl = await startServer({ REST_API_NODE_URL: chainServer.url });
+    const ws = new WebSocket(`${proxyServerUrl}/ws`);
+    await new Promise(resolve => ws.once("open", resolve));
+
+    ws.send(JSON.stringify(ourMessage("hello", providerUrl, { providerAddress })));
+
+    expect(await waitForMessage(ws)).toEqual(providerMessage("Received error from provider websocket", { error: "Received error from provider websocket" }));
+    expect(onConnection).not.toHaveBeenCalled();
   });
 
   it("supports mtls authentication", async () => {
