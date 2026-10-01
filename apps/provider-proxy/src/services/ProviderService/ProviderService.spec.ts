@@ -38,13 +38,12 @@ describe(ProviderService.name, () => {
       expect(result).toHaveProperty("serialNumber", "17B85C634EF9EB05");
     });
 
-    it("returns null when getCertificates throws", async () => {
+    it("rejects when getCertificates throws, so a chain outage is not mistaken for a missing certificate", async () => {
       const { service, chainSdk } = setup();
-      chainSdk.akash.cert.v1.getCertificates.mockRejectedValue(new Error("Server error"));
+      const error = new Error("Server error");
+      chainSdk.akash.cert.v1.getCertificates.mockRejectedValue(error);
 
-      const result = await service.getCertificate("provider", "17B85C634EF9EB05");
-
-      expect(result).toBe(null);
+      await expect(service.getCertificate("provider", "17B85C634EF9EB05")).rejects.toBe(error);
     });
   });
 
