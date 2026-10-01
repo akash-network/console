@@ -245,7 +245,7 @@ export const CloseDeploymentResponseSchema = z.object({
   })
 });
 
-/** Anything smaller rounds to a zero deposit once converted to micro units. */
+/** One micro unit, the smallest amount the chain denominates. */
 const MIN_DEPOSIT = 0.000001;
 
 export const DepositDeploymentRequestSchema = z.object({
