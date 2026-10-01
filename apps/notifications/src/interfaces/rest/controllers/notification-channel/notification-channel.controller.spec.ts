@@ -96,6 +96,22 @@ describe(NotificationChannelController.name, () => {
       expect(res.status).toBe(404);
       expect(notificationChannelRepository.updateById).toHaveBeenCalledWith(id, { name: "renamed channel" });
     });
+
+    it.each([{ data: {} }, { data: { unknownField: "value" } }])(
+      "answers 400 without updating the notification channel when %j changes no field",
+      async body => {
+        const { app, notificationChannelRepository } = await setup();
+
+        const res = await request(app.getHttpServer()).patch(`/v1/notification-channels/${faker.string.uuid()}`).send(body);
+
+        expect(res.status).toBe(400);
+        expect(res.body).toMatchObject({
+          message: "Validation failed",
+          errors: { issues: [expect.objectContaining({ path: ["data"], message: "Provide at least one field to update" })] }
+        });
+        expect(notificationChannelRepository.updateById).not.toHaveBeenCalled();
+      }
+    );
   });
 
   describe("getNotificationChannel", () => {

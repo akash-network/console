@@ -44,6 +44,19 @@ describe("Contact Points CRUD", () => {
     await app.close();
   });
 
+  it("answers 400 to an update that changes no field", async () => {
+    const { app } = await setup();
+
+    const res = await request(app.getHttpServer())
+      .patch(`/v1/notification-channels/${faker.string.uuid()}`)
+      .set("x-user-id", faker.string.uuid())
+      .send({ data: {} });
+
+    expect(res.status).toBe(400);
+
+    await app.close();
+  });
+
   async function shouldCreate(app: INestApplication): Promise<NotificationChannelMeta> {
     const input = generateMock(notificationChannelCreateInputSchema);
     const userId = faker.string.uuid();
