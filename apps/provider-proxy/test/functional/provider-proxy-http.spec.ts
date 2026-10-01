@@ -965,6 +965,19 @@ describe("Provider HTTP proxy", () => {
     );
   });
 
+  it.each([
+    ["no body", "/", undefined],
+    ["the request fields in the query string", `/?method=GET&url=https://example.com/&providerAddress=${generateBech32()}`, undefined],
+    ["a plain text body", "/", JSON.stringify({ method: "GET", url: "https://example.com/", providerAddress: generateBech32() })]
+  ])("returns 400 for a request with %s instead of a JSON body", async (_label, path, body) => {
+    const chainServer = await startChainApiServer([]);
+    await startServer({ REST_API_NODE_URL: chainServer.url });
+
+    const response = await request(path, { method: "POST", body, headers: { "Content-type": "text/plain" } });
+
+    expect(response.status).toBe(400);
+  });
+
   describe("rejects forbidden target URLs before connecting", () => {
     const FORBIDDEN_URLS = [
       ["a hostname ending in .local", "https://provider.local/200.txt"],
