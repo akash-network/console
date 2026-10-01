@@ -89,7 +89,7 @@ describe("Provider HTTP proxy", () => {
     expect(body).toBe(JSON.stringify({ ok: true }));
   });
 
-  it("does not pass cookie or site-data headers from the provider host through", async () => {
+  it("does not pass cookie, site-data or transport-security headers from the provider host through", async () => {
     const providerAddress = generateBech32();
     const validCertPair = await createX509CertPair({ commonName: providerAddress, validFrom: new Date(Date.now() - ONE_HOUR) });
     const chainServer = await startChainApiServer([validCertPair.cert]);
@@ -101,6 +101,7 @@ describe("Provider HTTP proxy", () => {
             "Content-Type": "application/json",
             "Set-Cookie": ["first=1; Path=/", "second=2; Path=/"],
             "Clear-Site-Data": '"cookies", "storage"',
+            "Strict-Transport-Security": "max-age=0",
             "X-Custom-Header": "test"
           });
           res.end(JSON.stringify({ ok: true }));
@@ -117,6 +118,7 @@ describe("Provider HTTP proxy", () => {
     expect(response.status).toBe(200);
     expect(response.headers.getSetCookie()).toEqual([]);
     expect(response.headers.get("clear-site-data")).toBeNull();
+    expect(response.headers.get("strict-transport-security")).toBeNull();
     expect(response.headers.get("x-custom-header")).toBe("test");
   });
 
