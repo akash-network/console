@@ -9,8 +9,9 @@ import { BlockInfo } from "./BlockInfo";
 import { TransactionRow } from "@/components/blockchain/TransactionRow";
 import { PageContainer } from "@/components/PageContainer";
 import { Title } from "@/components/Title";
-import { networkId } from "@/config/env-config.schema";
+import { serverEnvConfig } from "@/config/server-env.config";
 import { createLogger } from "@/lib/createLogger/createLogger";
+import { createNetworkSearchParamsSchema } from "@/lib/networkSearchParams/networkSearchParams";
 import { serverFetch } from "@/lib/serverFetch";
 import { serverApiUrlService } from "@/services/api-url/server-api-url.service";
 import type { BlockDetail } from "@/types";
@@ -21,9 +22,7 @@ const BlockDetailPageSchema = z.object({
   params: z.object({
     height: z.string()
   }),
-  searchParams: z.object({
-    network: networkId
-  })
+  searchParams: createNetworkSearchParamsSchema(serverEnvConfig.NEXT_PUBLIC_DEFAULT_NETWORK_ID)
 });
 type ParsedBlockDetailProps = z.infer<typeof BlockDetailPageSchema>;
 type BlockDetailPageProps = {

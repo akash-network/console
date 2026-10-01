@@ -77,6 +77,8 @@ services:
         WORKSPACE: apps/stats-web
         DEPLOYMENT_ENV: ${DEPLOYMENT_ENV}
         GIT_COMMIT_HASH: ${GIT_COMMIT_HASH}
+        # without --enable-source-maps: source-mapping each server error stack blocks the event loop long enough to fail the liveness probe
+        NODE_OPTIONS: --no-network-family-autoselection
       secrets:
         - sentry_auth_token
 

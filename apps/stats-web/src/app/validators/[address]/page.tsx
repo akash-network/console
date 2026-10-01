@@ -6,7 +6,8 @@ import { ValidatorsInfo } from "./ValidatorInfo";
 
 import { PageContainer } from "@/components/PageContainer";
 import { Title } from "@/components/Title";
-import { networkId } from "@/config/env-config.schema";
+import { serverEnvConfig } from "@/config/server-env.config";
+import { createNetworkSearchParamsSchema } from "@/lib/networkSearchParams/networkSearchParams";
 import { serverFetch } from "@/lib/serverFetch";
 import { UrlService } from "@/lib/urlUtils";
 import { serverApiUrlService } from "@/services/api-url/server-api-url.service";
@@ -16,9 +17,7 @@ const ValidatorDetailPageSchema = z.object({
   params: z.object({
     address: z.string()
   }),
-  searchParams: z.object({
-    network: networkId
-  })
+  searchParams: createNetworkSearchParamsSchema(serverEnvConfig.NEXT_PUBLIC_DEFAULT_NETWORK_ID)
 });
 type ParsedValidatorDetailProps = z.infer<typeof ValidatorDetailPageSchema>;
 type ValidatorDetailPageProps = {
