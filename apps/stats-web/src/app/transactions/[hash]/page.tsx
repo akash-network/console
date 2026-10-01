@@ -8,9 +8,10 @@ import { TransactionInfo } from "./TransactionInfo";
 import { PageContainer } from "@/components/PageContainer";
 import { Title } from "@/components/Title";
 import { TxMessageRow } from "@/components/transactions/TxMessageRow";
-import { networkId } from "@/config/env-config.schema";
+import { serverEnvConfig } from "@/config/server-env.config";
 import { getSplitText } from "@/hooks/useShortText";
 import { createLogger } from "@/lib/createLogger/createLogger";
+import { createNetworkSearchParamsSchema } from "@/lib/networkSearchParams/networkSearchParams";
 import { serverFetch } from "@/lib/serverFetch";
 import { serverApiUrlService } from "@/services/api-url/server-api-url.service";
 import type { TransactionDetail } from "@/types";
@@ -21,9 +22,7 @@ const TransactionDetailPageSchema = z.object({
   params: z.object({
     hash: z.string()
   }),
-  searchParams: z.object({
-    network: networkId
-  })
+  searchParams: createNetworkSearchParamsSchema(serverEnvConfig.NEXT_PUBLIC_DEFAULT_NETWORK_ID)
 });
 type ParsedTransactionDetailProps = z.infer<typeof TransactionDetailPageSchema>;
 type TransactionDetailPageProps = {

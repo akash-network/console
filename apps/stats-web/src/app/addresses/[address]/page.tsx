@@ -9,8 +9,9 @@ import { AssetList } from "./AssetList";
 import { LatestTransactions } from "./LatestTransactions";
 
 import { Title } from "@/components/Title";
-import { networkId } from "@/config/env-config.schema";
+import { serverEnvConfig } from "@/config/server-env.config";
 import { createLogger } from "@/lib/createLogger/createLogger";
+import { createNetworkSearchParamsSchema } from "@/lib/networkSearchParams/networkSearchParams";
 import { serverFetch } from "@/lib/serverFetch";
 import { UrlService } from "@/lib/urlUtils";
 import { serverApiUrlService } from "@/services/api-url/server-api-url.service";
@@ -22,9 +23,7 @@ const AddressDetailPageSchema = z.object({
   params: z.object({
     address: z.string()
   }),
-  searchParams: z.object({
-    network: networkId
-  })
+  searchParams: createNetworkSearchParamsSchema(serverEnvConfig.NEXT_PUBLIC_DEFAULT_NETWORK_ID)
 });
 type ParsedAddressDetailProps = z.infer<typeof AddressDetailPageSchema>;
 type AddressDetailPageProps = {
