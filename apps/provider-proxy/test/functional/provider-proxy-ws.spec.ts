@@ -245,6 +245,22 @@ describe("Provider proxy ws", () => {
     expect(onConnection).not.toHaveBeenCalled();
   });
 
+  it("does not connect to a provider socket whose registered host resolves to a private network address", async () => {
+    const providerAddress = generateBech32();
+    const certPair = await createX509CertPair({ commonName: providerAddress });
+    const chainServer = await startChainApiServer([certPair.cert]);
+    const onConnection = vi.fn();
+    const { providerUrl } = await startProviderServer({ certPair, websocketServer: { enable: true, onConnection } });
+    const proxyServerUrl = await startServer({ REST_API_NODE_URL: chainServer.url, ALLOW_PROXY_TO_LOCAL_NETWORK: "false" });
+    const ws = new WebSocket(`${proxyServerUrl}/ws`);
+    await new Promise(resolve => ws.once("open", resolve));
+
+    ws.send(JSON.stringify(ourMessage("hello", providerUrl, { providerAddress })));
+
+    expect(await waitForMessage(ws)).toEqual(providerMessage("Received error from provider websocket", { error: "Received error from provider websocket" }));
+    expect(onConnection).not.toHaveBeenCalled();
+  });
+
   it("supports mtls authentication", async () => {
     const providerAddress = generateBech32();
     const certPair = await createX509CertPair({ commonName: providerAddress });

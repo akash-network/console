@@ -47,7 +47,8 @@ export class WebsocketServer {
     private readonly certificateValidator: CertificateValidator,
     private readonly providerHostVerifier: ProviderHostVerifier,
     private readonly wsStats: WebsocketStats,
-    private readonly logger?: LoggerService
+    private readonly logger?: LoggerService,
+    private readonly networkLookup?: NetworkLookup
   ) {}
 
   get listening(): boolean {
@@ -387,7 +388,7 @@ export class WebsocketServer {
     return (hostname, lookupOptions, callback) => {
       this.providerHostVerifier.canProxyTo(providerUrl, providerAddress).then(
         canProxy => {
-          if (canProxy) return dns.lookup(hostname, lookupOptions, callback);
+          if (canProxy) return (this.networkLookup ?? dns.lookup)(hostname, lookupOptions, callback);
 
           const unregistered: NodeJS.ErrnoException = new Error(`${new URL(providerUrl).origin} is not the host registered by ${providerAddress}`);
           unregistered.code = "EFORBIDDEN";
