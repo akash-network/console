@@ -36,11 +36,13 @@ export const notificationChannelOutputResponseSchema = z.object({
 });
 export type NotificationChannelOutputResponse = z.infer<typeof notificationChannelOutputResponseSchema>;
 
-export const notificationChannelPatchInputSchema = z.object({
-  name: z.string().optional(),
-  type: z.literal("email").optional(),
-  config: notificationChannelConfigSchema.optional()
-});
+export const notificationChannelPatchInputSchema = z
+  .object({
+    name: z.string().optional(),
+    type: z.literal("email").optional(),
+    config: notificationChannelConfigSchema.optional()
+  })
+  .refine(input => Object.keys(input).length > 0, { message: "Provide at least one field to update" });
 
 class NotificationChannelCreateInput extends createZodDto(z.object({ data: notificationChannelCreateInputSchema })) {}
 class NotificationChannelPatchInput extends createZodDto(z.object({ data: notificationChannelPatchInputSchema })) {}
