@@ -13,7 +13,7 @@ import { AvailabilityPane } from "../AvailabilityPane/AvailabilityPane";
 import { ConfigureEditor } from "../ConfigureEditor/ConfigureEditor";
 import { ResetConfigurationButton } from "../ConfigureEditor/ResetConfigurationButton/ResetConfigurationButton";
 import { deployCtaState } from "../deployCtaState/deployCtaState";
-import { describeCurrentConfiguration } from "../HardwareRequestDialog/currentConfiguration";
+import { describeCurrentConfiguration, describeRequestedGpuModels } from "../HardwareRequestDialog/currentConfiguration";
 import { HardwareRequestDialog } from "../HardwareRequestDialog/HardwareRequestDialog";
 import type { HardwareRequestCategory, HardwareRequestConfiguration } from "../HardwareRequestDialog/hardwareRequestForm";
 import type { ImportedDeploymentState } from "../importDeploymentState/importDeploymentState";
@@ -66,7 +66,7 @@ type View = "configure" | "pick";
 
 type ComputeRequestSource = "footer" | "no_bids_notice";
 
-type HardwareRequest = { configuration: HardwareRequestConfiguration; category: HardwareRequestCategory };
+type HardwareRequest = { configuration: HardwareRequestConfiguration; category: HardwareRequestCategory; gpuModel: string };
 
 type Props = {
   flow: DeploymentFlow;
@@ -148,7 +148,11 @@ export const ConfigureWorkspace: FC<Props> = ({
     analyticsService.track("configure_request_compute_clicked", { category: "deployments", source });
     const values = getValues();
     const serviceIndex = values.services.findIndex(service => service.id === selectedServiceId);
-    setHardwareRequest({ configuration: describeCurrentConfiguration(values, serviceIndex, gpuCatalog), category });
+    setHardwareRequest({
+      configuration: describeCurrentConfiguration(values, serviceIndex, gpuCatalog),
+      category,
+      gpuModel: describeRequestedGpuModels(values, serviceIndex, gpuCatalog)
+    });
   }
 
   function editConfiguration() {
@@ -293,7 +297,7 @@ export const ConfigureWorkspace: FC<Props> = ({
       </div>
       {hardwareRequest && (
         <d.HardwareRequestDialog
-          initialGpuModel=""
+          initialGpuModel={hardwareRequest.gpuModel}
           initialCategory={hardwareRequest.category}
           configuration={hardwareRequest.configuration}
           onClose={() => setHardwareRequest(null)}

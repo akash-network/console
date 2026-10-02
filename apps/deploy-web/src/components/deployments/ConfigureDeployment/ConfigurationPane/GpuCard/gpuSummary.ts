@@ -16,12 +16,17 @@ export function summarizeGpu(profile: GpuProfile, catalog: GpuVendor[] | undefin
 }
 
 function describeAcceptedModels(models: NonNullable<GpuProfile["gpuModels"]>, catalog: GpuVendor[] | undefined): string {
+  const labels = acceptedGpuModelLabels(models, catalog);
+  return labels.length > 0 ? labels.join(" / ") : ANY_GPU_LABEL;
+}
+
+/** The distinct display names of the accepted models, or none when the profile accepts any model. */
+export function acceptedGpuModelLabels(models: NonNullable<GpuProfile["gpuModels"]>, catalog: GpuVendor[] | undefined): string[] {
   if (models.length === 0 || models.some(model => !model.name)) {
-    return ANY_GPU_LABEL;
+    return [];
   }
 
-  const labels = models.map(model => displayNameOf(model.vendor, model.name as string, catalog));
-  return [...new Set(labels)].join(" / ");
+  return [...new Set(models.map(model => displayNameOf(model.vendor, model.name as string, catalog)))];
 }
 
 function displayNameOf(vendor: string, name: string, catalog: GpuVendor[] | undefined): string {

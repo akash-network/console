@@ -3,8 +3,8 @@ import { describe, expect, it } from "vitest";
 import type { ServiceType } from "@src/types";
 import type { GpuVendor } from "@src/types/gpu";
 import { defaultServiceWithPlacement } from "@src/utils/sdl/data";
-import { describeCurrentConfiguration } from "./currentConfiguration";
-import { MAX_REGION_LENGTH } from "./hardwareRequestForm";
+import { describeCurrentConfiguration, describeRequestedGpuModels } from "./currentConfiguration";
+import { MAX_GPU_MODEL_LENGTH, MAX_REGION_LENGTH } from "./hardwareRequestForm";
 
 const GIB = 1024 ** 3;
 const MIB = 1024 ** 2;
@@ -156,5 +156,59 @@ describe(describeCurrentConfiguration.name, () => {
     values.placements[0].regions = input.regions;
 
     return describeCurrentConfiguration(values, 0, input.gpuCatalog);
+  }
+});
+
+describe(describeRequestedGpuModels.name, () => {
+  it("names the models the service asks for as the catalog shows them", () => {
+    const gpuModel = setup({ gpu: 2, models: ["h100", "a100"], gpuCatalog: [catalogVendor("nvidia", [["h100", "H100 SXM"]])] });
+
+    expect(gpuModel).toBe("H100 SXM, A100");
+  });
+
+  it("names a model once however many of its variants are accepted", () => {
+    const gpuModel = setup({ gpu: 1, models: ["h100", "h100"] });
+
+    expect(gpuModel).toBe("H100");
+  });
+
+  it.each<[string, Parameters<typeof setup>[0]]>([
+    ["while the service has its GPU turned off", { hasGpu: false, gpu: 1, models: ["h100"] }],
+    ["while the service asks for no GPU unit", { gpu: 0, models: ["h100"] }],
+    ["while the service accepts any model", { gpu: 1, models: ["h100", ""] }]
+  ])("leaves the model blank %s", (_, input) => {
+    expect(setup(input)).toBe("");
+  });
+
+  it("names the first model and counts the rest when the list would not fit the field", () => {
+    const models = Array.from({ length: 12 }, (_, index) => `model-number-${index}`);
+
+    const gpuModel = setup({ gpu: 1, models });
+
+    expect(models.map(model => model.toUpperCase()).join(", ").length).toBeGreaterThan(MAX_GPU_MODEL_LENGTH);
+    expect(gpuModel).toBe("MODEL-NUMBER-0 +11");
+  });
+
+  it("lists the models in full when they fill the field exactly", () => {
+    const model = "m".repeat(MAX_GPU_MODEL_LENGTH);
+
+    expect(setup({ gpu: 1, models: [model] })).toBe(model.toUpperCase());
+  });
+
+  function setup(input: { hasGpu?: boolean; gpu: number; models: string[]; gpuCatalog?: GpuVendor[] }) {
+    const values = defaultServiceWithPlacement({ count: 1 });
+    const service = values.services[0];
+    service.profile = {
+      ...service.profile,
+      hasGpu: input.hasGpu ?? true,
+      gpu: input.gpu,
+      gpuModels: input.models.map(name => ({ vendor: "nvidia", name, memory: "", interface: "" }))
+    };
+
+    return describeRequestedGpuModels(values, 0, input.gpuCatalog);
+  }
+
+  function catalogVendor(name: string, models: Array<[string, string]>): GpuVendor {
+    return { name, models: models.map(([modelName, displayName]) => ({ name: modelName, displayName, memory: [], interface: [] })) };
   }
 });

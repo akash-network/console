@@ -5,7 +5,7 @@ import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { AnalyticsService } from "@src/services/analytics/analytics.service";
-import type { PlacementType, SdlBuilderFormValuesType } from "@src/types";
+import type { PlacementType, SdlBuilderFormValuesType, ServiceType } from "@src/types";
 import { defaultPlacement, defaultService } from "@src/utils/sdl/data";
 import type { AvailabilityPane } from "../AvailabilityPane/AvailabilityPane";
 import type { ConfigureEditor } from "../ConfigureEditor/ConfigureEditor";
@@ -104,6 +104,14 @@ describe(ConfigureWorkspace.name, () => {
         }),
         expect.anything()
       );
+    });
+
+    it("prefills the GPU models the selected service asks for in the compute request", () => {
+      const { availabilityProps, dependencies } = setup({ selectedServiceId: "api", apiGpuModels: ["h100", "a100"] });
+
+      act(() => availabilityProps().onRequestCompute());
+
+      expect(dependencies.HardwareRequestDialog).toHaveBeenLastCalledWith(expect.objectContaining({ initialGpuModel: "H100, A100" }), expect.anything());
     });
 
     it("closes the hardware request dialog when it asks to", () => {
@@ -206,6 +214,17 @@ describe(ConfigureWorkspace.name, () => {
           initialCategory: "capacity",
           configuration: expect.objectContaining({ summary: "0.1 vCPU · 512 MiB memory · 1 GiB storage · us-west, eu-west" })
         }),
+        expect.anything()
+      );
+    });
+
+    it("prefills the GPU models the selected service asks for when compute is requested from the no-bid notice", () => {
+      const { marketplaceProps, dependencies } = setup({ phase: "quoting", noBidsReceived: true, selectedServiceId: "api", apiGpuModels: ["h100"] });
+
+      act(() => ((marketplaceProps().notice as ReactElement).props as ComponentProps<typeof NoBidsNotice>).onRequestCompute());
+
+      expect(dependencies.HardwareRequestDialog).toHaveBeenLastCalledWith(
+        expect.objectContaining({ initialGpuModel: "H100", initialCategory: "capacity" }),
         expect.anything()
       );
     });
@@ -318,6 +337,7 @@ describe(ConfigureWorkspace.name, () => {
     pendingClose?: DeploymentFlow["pendingClose"];
     selectedServiceId?: string;
     noBidsReceived?: boolean;
+    apiGpuModels?: string[];
   }) {
     const first = { ...defaultPlacement({ name: "placement-1" }), id: "p1", regions: [] };
     const second = { ...defaultPlacement({ name: "gpu-pool" }), id: "p2", regions: ["us-west", "eu-west"] };
@@ -325,7 +345,7 @@ describe(ConfigureWorkspace.name, () => {
       placements: [first, second],
       services: [
         { ...defaultService("p1", { title: "web" }), id: "web" },
-        { ...defaultService("p2", { title: "api" }), id: "api" }
+        { ...withGpuModels(defaultService("p2", { title: "api" }), input.apiGpuModels), id: "api" }
       ],
       endpoints: []
     };
@@ -437,6 +457,14 @@ describe(ConfigureWorkspace.name, () => {
         const marketplace = dependencies.MarketplacePane.mock.calls.at(-1)?.[0] as ComponentProps<typeof MarketplacePane>;
         return (marketplace.chips as ReactElement).props as ComponentProps<typeof PlacementProviderChips>;
       }
+    };
+  }
+
+  function withGpuModels(service: ServiceType, models: string[] | undefined): ServiceType {
+    if (!models) return service;
+    return {
+      ...service,
+      profile: { ...service.profile, hasGpu: true, gpu: 1, gpuModels: models.map(name => ({ vendor: "nvidia", name, memory: "", interface: "" })) }
     };
   }
 });
