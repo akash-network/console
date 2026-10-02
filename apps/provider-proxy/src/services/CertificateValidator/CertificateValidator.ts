@@ -5,10 +5,12 @@ import { LRUCache } from "lru-cache";
 import { validateCertificateAttrs } from "../../utils/validateCertificateAttrs";
 import type { ProviderService } from "../ProviderService/ProviderService";
 
+const CERTIFICATE_RECHECK_INTERVAL_MS = 30 * 60 * 1000;
+
 export class CertificateValidator {
-  private readonly knownCertificatesCache = new LRUCache<string, X509Certificate>({
-    max: 100_000,
-    ttl: 30 * 60 * 1000
+  /** Entries outlive the recheck interval so the last certificate chain confirmed can stand in while chain cannot be queried. */
+  private readonly knownCertificatesCache = new LRUCache<string, KnownCertificate>({
+    max: 100_000
   });
   private readonly inflightCertificates: Record<string, Promise<X509Certificate | null>> = {};
 
@@ -45,21 +47,49 @@ export class CertificateValidator {
 
   private async getProviderCertificate(cert: X509Certificate, providerAddress: string): Promise<X509Certificate | null> {
     const key = `${providerAddress}.${cert.serialNumber}`;
+    const knownCertificate = this.knownCertificatesCache.get(key);
 
-    if (this.knownCertificatesCache.has(key)) {
-      return this.knownCertificatesCache.get(key)!;
+    if (knownCertificate && this.isRecentlyConfirmed(knownCertificate)) {
+      return knownCertificate.certificate;
     }
 
     try {
-      this.inflightCertificates[key] ??= this.providerService.getCertificate(providerAddress, cert.serialNumber);
-      const certificate = await this.inflightCertificates[key];
-      if (certificate) this.knownCertificatesCache.set(key, certificate);
-
-      return certificate;
+      this.inflightCertificates[key] ??= this.fetchProviderCertificate(key, cert, providerAddress);
+      return await this.inflightCertificates[key];
     } finally {
       delete this.inflightCertificates[key];
     }
   }
+
+  /** `now` is a wall clock that can step backward, so a negative age has to mean stale rather than fresh. */
+  private isRecentlyConfirmed({ confirmedAt }: KnownCertificate): boolean {
+    const ageMs = this.now() - confirmedAt;
+    return ageMs >= 0 && ageMs < CERTIFICATE_RECHECK_INTERVAL_MS;
+  }
+
+  private async fetchProviderCertificate(key: string, cert: X509Certificate, providerAddress: string): Promise<X509Certificate | null> {
+    try {
+      const certificate = await this.providerService.getCertificate(providerAddress, cert.serialNumber);
+
+      if (certificate) {
+        this.knownCertificatesCache.set(key, { certificate, confirmedAt: this.now() });
+      } else {
+        this.knownCertificatesCache.delete(key);
+      }
+
+      return certificate;
+    } catch {
+      const lastKnownCertificate = this.knownCertificatesCache.get(key)?.certificate ?? null;
+      if (lastKnownCertificate) this.instrumentation?.onLastKnownCertUsed?.(cert, providerAddress);
+
+      return lastKnownCertificate;
+    }
+  }
+}
+
+interface KnownCertificate {
+  certificate: X509Certificate;
+  confirmedAt: number;
 }
 
 export type CertValidationResult = { ok: true } | CertValidationResultError;
@@ -72,6 +102,7 @@ export interface CertificateValidatorIntrumentation {
   onInvalidAttrs?(certificate: X509Certificate, providerAddress: string, now: number, validationResult: CertValidationResultError): void;
   onUnknownCert?(certificate: X509Certificate, providerAddress: string): void;
   onInvalidFingerprint?(certificate: X509Certificate, providerAddress: string, providerCertificate: X509Certificate): void;
+  onLastKnownCertUsed?(certificate: X509Certificate, providerAddress: string): void;
 }
 
 export const createCertificateValidatorInstrumentation = (logger: LoggerService): CertificateValidatorIntrumentation => ({
@@ -88,5 +119,8 @@ export const createCertificateValidatorInstrumentation = (logger: LoggerService)
   },
   onUnknownCert(certificate, providerAddress) {
     logger.warn(`Certificate ${certificate.serialNumber} does not have corresponding certificate for ${providerAddress}`);
+  },
+  onLastKnownCertUsed(certificate, providerAddress) {
+    logger.warn({ event: "LAST_KNOWN_PROVIDER_CERTIFICATE_USED", serialNumber: certificate.serialNumber, providerAddress });
   }
 });

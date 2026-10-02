@@ -1,14 +1,18 @@
+import type { LoggerService } from "@akashnetwork/logging";
 import type { X509Certificate } from "crypto";
 import { setTimeout } from "timers/promises";
 import { describe, expect, it, vi } from "vitest";
+import { mock } from "vitest-mock-extended";
 
 import { createX509CertPair } from "../../../test/seeders/createX509CertPair";
 import type { ProviderService } from "../ProviderService/ProviderService";
 import type { CertificateValidatorIntrumentation, CertValidationResultError } from "./CertificateValidator";
-import { CertificateValidator } from "./CertificateValidator";
+import { CertificateValidator, createCertificateValidatorInstrumentation } from "./CertificateValidator";
 
 describe(CertificateValidator.name, () => {
   const ONE_MINUTE = 60 * 1000;
+  const THIRTY_MINUTES = 30 * ONE_MINUTE;
+  const PROVIDER_ADDRESS = "akash1rk090a6mq9gvm0h6ljf8kz8mrxglwwxsk4srxh";
 
   it('returns "unknownCertificate" error result if provider certificate cannot be found', async () => {
     const { cert } = await createX509CertPair({
@@ -84,10 +88,99 @@ describe(CertificateValidator.name, () => {
     expect(result.ok).toBe(true);
   });
 
+  it("rechecks a known certificate with chain once 30 minutes have passed since chain confirmed it", async () => {
+    const { cert } = await createX509CertPair({ commonName: PROVIDER_ADDRESS });
+    const clock = { now: Date.now() };
+    const getCertificate = vi.fn(() => Promise.resolve(cert));
+    const validator = setup({ getCertificate, now: () => clock.now });
+
+    await validator.validate(cert, "provider");
+    clock.now += THIRTY_MINUTES - 1;
+    await validator.validate(cert, "provider");
+    expect(getCertificate).toHaveBeenCalledTimes(1);
+
+    clock.now += 1;
+    const result = await validator.validate(cert, "provider");
+    expect(getCertificate).toHaveBeenCalledTimes(2);
+    expect(result.ok).toBe(true);
+  });
+
+  it("rechecks a known certificate with chain once the clock moved back past the time chain confirmed it", async () => {
+    const { cert } = await createX509CertPair({ commonName: PROVIDER_ADDRESS });
+    const clock = { now: Date.now() };
+    const getCertificate = vi.fn(() => Promise.resolve(cert));
+    const validator = setup({ getCertificate, now: () => clock.now });
+
+    await validator.validate(cert, "provider");
+    await validator.validate(cert, "provider");
+    expect(getCertificate).toHaveBeenCalledTimes(1);
+
+    clock.now -= 1;
+    await validator.validate(cert, "provider");
+    expect(getCertificate).toHaveBeenCalledTimes(2);
+  });
+
+  it("validates against the last certificate chain confirmed while chain cannot be queried", async () => {
+    const { cert } = await createX509CertPair({ commonName: PROVIDER_ADDRESS });
+    const clock = { now: Date.now() };
+    const getCertificate = vi.fn().mockResolvedValueOnce(cert).mockRejectedValue(new Error("chain is halted"));
+    const validator = setup({ getCertificate, now: () => clock.now });
+
+    await validator.validate(cert, "provider");
+    clock.now += 2 * THIRTY_MINUTES;
+    const result = await validator.validate(cert, "provider");
+
+    expect(getCertificate).toHaveBeenCalledTimes(2);
+    expect(result.ok).toBe(true);
+  });
+
+  it("reports when the last certificate chain confirmed stands in for chain", async () => {
+    const { cert } = await createX509CertPair({ commonName: PROVIDER_ADDRESS });
+    const clock = { now: Date.now() };
+    const getCertificate = vi.fn().mockResolvedValueOnce(cert).mockRejectedValue(new Error("chain is halted"));
+    const instrumentation = mock<CertificateValidatorIntrumentation>();
+    const validator = setup({ getCertificate, now: () => clock.now, instrumentation });
+
+    await validator.validate(cert, "provider");
+    clock.now += THIRTY_MINUTES;
+    await validator.validate(cert, "provider");
+
+    expect(instrumentation.onLastKnownCertUsed).toHaveBeenCalledWith(cert, "provider");
+  });
+
+  it('returns "unknownCertificate" error result if chain cannot be queried and no certificate is known', async () => {
+    const { cert } = await createX509CertPair({ commonName: PROVIDER_ADDRESS });
+    const getCertificate = vi.fn(() => Promise.reject(new Error("chain is halted")));
+    const instrumentation = mock<CertificateValidatorIntrumentation>();
+    const validator = setup({ getCertificate, instrumentation });
+
+    const result = (await validator.validate(cert, "provider")) as CertValidationResultError;
+
+    expect(result.ok).toBe(false);
+    expect(result.code).toBe("unknownCertificate");
+    expect(instrumentation.onLastKnownCertUsed).not.toHaveBeenCalled();
+  });
+
+  it("does not fall back to a certificate chain stopped reporting", async () => {
+    const { cert } = await createX509CertPair({ commonName: PROVIDER_ADDRESS });
+    const clock = { now: Date.now() };
+    const getCertificate = vi.fn().mockResolvedValueOnce(cert).mockResolvedValueOnce(null).mockRejectedValue(new Error("chain is halted"));
+    const validator = setup({ getCertificate, now: () => clock.now });
+
+    await validator.validate(cert, "provider");
+    clock.now += THIRTY_MINUTES;
+    const revokedResult = (await validator.validate(cert, "provider")) as CertValidationResultError;
+    const haltedResult = (await validator.validate(cert, "provider")) as CertValidationResultError;
+
+    expect(revokedResult.code).toBe("unknownCertificate");
+    expect(haltedResult.code).toBe("unknownCertificate");
+    expect(getCertificate).toHaveBeenCalledTimes(3);
+  });
+
   it("returns error if certificate is issued for future use", async () => {
     const validFrom = new Date();
     const { cert } = await createX509CertPair({ validFrom });
-    const validator = setup({ now: validFrom.getTime() - ONE_MINUTE });
+    const validator = setup({ now: () => validFrom.getTime() - ONE_MINUTE });
 
     const result = (await validator.validate(cert, "provider")) as CertValidationResultError;
 
@@ -99,7 +192,7 @@ describe(CertificateValidator.name, () => {
     const validFrom = new Date();
     const validTo = new Date(validFrom.getTime() + 60 * 1000);
     const { cert } = await createX509CertPair({ validFrom, validTo });
-    const validator = setup({ now: validTo.getTime() + ONE_MINUTE });
+    const validator = setup({ now: () => validTo.getTime() + ONE_MINUTE });
 
     const result = (await validator.validate(cert, "provider")) as CertValidationResultError;
 
@@ -178,7 +271,7 @@ describe(CertificateValidator.name, () => {
 
   function setup(params?: Params) {
     return new CertificateValidator(
-      () => params?.now ?? Date.now(),
+      params?.now ?? Date.now,
       {
         getCertificate: params?.getCertificate || vi.fn()
       } as ProviderService,
@@ -187,8 +280,24 @@ describe(CertificateValidator.name, () => {
   }
 
   interface Params {
-    now?: number;
+    now?: () => number;
     getCertificate?: ProviderService["getCertificate"];
     instrumentation?: CertificateValidatorIntrumentation;
   }
+});
+
+describe(createCertificateValidatorInstrumentation.name, () => {
+  it("logs the provider and serial number when the last known certificate stands in for chain", async () => {
+    const { cert } = await createX509CertPair({ serialNumber: "177831BE7F249E66" });
+    const logger = mock<LoggerService>();
+    const instrumentation = createCertificateValidatorInstrumentation(logger);
+
+    instrumentation.onLastKnownCertUsed?.(cert, "provider");
+
+    expect(logger.warn).toHaveBeenCalledWith({
+      event: "LAST_KNOWN_PROVIDER_CERTIFICATE_USED",
+      serialNumber: "177831BE7F249E66",
+      providerAddress: "provider"
+    });
+  });
 });

@@ -34,7 +34,7 @@ export class ProviderService {
         serialNumber,
         error
       });
-      return null;
+      throw error;
     }
   }
 

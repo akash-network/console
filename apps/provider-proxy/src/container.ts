@@ -12,6 +12,18 @@ import { ProviderService } from "./services/ProviderService/ProviderService";
 import { WebsocketStats } from "./services/WebsocketStats";
 import { createForbidPrivateNetworkLookup } from "./utils/createForbidPrivateNetworkLookup/createForbidPrivateNetworkLookup";
 
+/** A proxied request waits on chain queries, so a chain node that stops answering must fail them over to the fallbacks instead of holding the request, retries included. */
+const CHAIN_QUERY_TIMEOUT_MS = 5_000;
+
+type ChainQueryTransportOptions = NonNullable<Parameters<typeof createChainNodeWebSDK>[0]["query"]["transportOptions"]>;
+
+const CHAIN_QUERY_TRANSPORT_OPTIONS: ChainQueryTransportOptions & { defaultTimeoutMs: number } = {
+  defaultTimeoutMs: CHAIN_QUERY_TIMEOUT_MS,
+  retry: {
+    maxAttempts: 3
+  }
+};
+
 export interface Container {
   wsStats: WebsocketStats;
   providerProxy: ProviderProxy;
@@ -34,11 +46,7 @@ export function createContainer(untrustedConfig: Record<string, unknown>): Conta
   const chainSdk = createChainNodeWebSDK({
     query: {
       baseUrl: appConfig.REST_API_NODE_URL,
-      transportOptions: {
-        retry: {
-          maxAttempts: 3
-        }
-      }
+      transportOptions: CHAIN_QUERY_TRANSPORT_OPTIONS
     }
   });
   const providerService = new ProviderService(chainSdk, appLogger);
