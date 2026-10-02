@@ -6199,7 +6199,6 @@ export interface paths {
           };
           content: {
             "application/json": {
-              count: number;
               results: {
                 height: number;
                 datetime: string;
@@ -6218,6 +6217,8 @@ export interface paths {
                   isReceiver: boolean;
                 }[];
               }[];
+              /** @description Whether a further page exists. */
+              hasMore: boolean;
             };
           };
         };

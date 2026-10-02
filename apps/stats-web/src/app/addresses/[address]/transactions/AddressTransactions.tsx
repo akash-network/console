@@ -1,6 +1,17 @@
 "use client";
 import React, { useState } from "react";
-import { Card, CardContent, DataTable } from "@akashnetwork/ui/components";
+import {
+  Card,
+  CardContent,
+  DataTable,
+  MIN_PAGE_SIZE,
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationNext,
+  PaginationPrevious,
+  PaginationSizeSelector
+} from "@akashnetwork/ui/components";
 import { SearchX } from "lucide-react";
 
 import { columns } from "./columns";
@@ -12,30 +23,50 @@ interface IProps {
 }
 
 export function AddressTransactions({ address }: IProps) {
-  const [page, setPage] = useState<number>(1);
-  const [pageSize, setPageSize] = useState<number>(10);
-  const { data: transactionsResult, isLoading } = useAddressTransactions(address, page * pageSize, pageSize);
-  const pageCount = transactionsResult?.count ? Math.ceil((transactionsResult.count || 0) / pageSize) : undefined;
+  const [pageIndex, setPageIndex] = useState(0);
+  const [pageSize, setPageSize] = useState(MIN_PAGE_SIZE);
+  const { data: transactionsPage, isLoading } = useAddressTransactions(address, pageIndex * pageSize, pageSize);
+  const hasNextPage = !!transactionsPage?.hasMore;
+  const isPaginated = hasNextPage || pageIndex > 0;
+
+  const changePageSize = (value: number) => {
+    setPageSize(value);
+    setPageIndex(0);
+  };
 
   return (
     <Card>
       <CardContent className="pt-6">
-        {transactionsResult?.results.length === 0 ? (
+        {pageIndex === 0 && transactionsPage?.results.length === 0 ? (
           <div className="flex items-center p-4">
             <SearchX size="1rem" />
             &nbsp;This address has no transactions
           </div>
         ) : (
-          <DataTable
-            data={transactionsResult?.results || []}
-            columns={columns}
-            pageCount={pageCount}
-            manualPagniation
-            noResultsText="This address has no deployments."
-            isLoading={isLoading}
-            setPageIndex={pageIndex => setPage(pageIndex)}
-            setPageSize={pageSize => setPageSize(pageSize)}
-          />
+          <>
+            <DataTable
+              data={transactionsPage?.results || []}
+              columns={columns}
+              manualPagniation
+              noResultsText="This address has no transactions."
+              isLoading={isLoading}
+            />
+            <div className="flex flex-col items-center justify-between px-2 pt-4 md:flex-row md:space-x-4">
+              <PaginationSizeSelector pageSize={pageSize} setPageSize={changePageSize} />
+              {isPaginated && (
+                <Pagination>
+                  <PaginationContent>
+                    <PaginationItem>
+                      <PaginationPrevious onClick={() => setPageIndex(current => Math.max(current - 1, 0))} disabled={pageIndex === 0} />
+                    </PaginationItem>
+                    <PaginationItem>
+                      <PaginationNext onClick={() => setPageIndex(current => current + 1)} disabled={!hasNextPage} />
+                    </PaginationItem>
+                  </PaginationContent>
+                </Pagination>
+              )}
+            </div>
+          </>
         )}
       </CardContent>
     </Card>

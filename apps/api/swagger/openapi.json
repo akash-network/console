@@ -19627,9 +19627,6 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "count": {
-                      "type": "number"
-                    },
                     "results": {
                       "type": "array",
                       "items": {
@@ -19708,11 +19705,15 @@
                           "messages"
                         ]
                       }
+                    },
+                    "hasMore": {
+                      "type": "boolean",
+                      "description": "Whether a further page exists."
                     }
                   },
                   "required": [
-                    "count",
-                    "results"
+                    "results",
+                    "hasMore"
                   ]
                 }
               }

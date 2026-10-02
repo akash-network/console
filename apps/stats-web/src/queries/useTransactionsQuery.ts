@@ -1,5 +1,5 @@
 import type { QueryKey, UseQueryOptions } from "@tanstack/react-query";
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import axios from "axios";
 import { z } from "zod";
 
@@ -9,7 +9,7 @@ import { ApiUrlService } from "@/lib/apiUtils";
 import { removeEmptyFilters } from "@/lib/urlUtils";
 import type { DeploymentRowType } from "@/lib/zod/deploymentRow";
 import { deploymentRowSchema } from "@/lib/zod/deploymentRow";
-import type { PaginatedResults, TransactionDetail } from "@/types";
+import type { PaginatedResults, ResultsPage, TransactionDetail } from "@/types";
 
 async function getTransactions(limit: number): Promise<TransactionDetail[]> {
   const response = await axios.get(ApiUrlService.transactions(limit));
@@ -24,7 +24,7 @@ export function useTransactions(limit: number, options?: Omit<UseQueryOptions<Tr
   });
 }
 
-async function getAddressTransactions(address: string, skip: number, limit: number) {
+async function getAddressTransactions(address: string, skip: number, limit: number): Promise<ResultsPage<TransactionDetail>> {
   const response = await axios.get(ApiUrlService.addressTransactions(address, skip, limit));
   return response.data;
 }
@@ -33,11 +33,12 @@ export function useAddressTransactions(
   address: string,
   skip: number,
   limit: number,
-  options?: Omit<UseQueryOptions<PaginatedResults<TransactionDetail>, Error, any, QueryKey>, "queryKey" | "queryFn">
+  options?: Omit<UseQueryOptions<ResultsPage<TransactionDetail>, Error, any, QueryKey>, "queryKey" | "queryFn">
 ) {
-  return useQuery<PaginatedResults<TransactionDetail>, Error>({
+  return useQuery<ResultsPage<TransactionDetail>, Error>({
     queryKey: QueryKeys.getAddressTransactionsKey(address, skip, limit),
     queryFn: () => getAddressTransactions(address, skip, limit),
+    placeholderData: keepPreviousData,
     ...options
   });
 }
