@@ -103,11 +103,12 @@ export const AutoRechargeRow: React.FunctionComponent<{ dependencies?: typeof DE
     return `${capitalizeFirstLetter(card.brand || "card")} **** ${card.last4 || ""}`.trim();
   }, [defaultPaymentMethod]);
 
+  const isBalanceKnown = !overview.isLoading && !overview.isError;
   const daysUntilNextRecharge = useMemo(() => {
     const dailySpend = overview.perHour * HOURS_PER_DAY;
-    if (dailySpend <= 0 || overview.available <= autoReloadThreshold) return null;
+    if (!isBalanceKnown || dailySpend <= 0 || overview.available <= autoReloadThreshold) return null;
     return Math.max(1, Math.round((overview.available - autoReloadThreshold) / dailySpend));
-  }, [overview.perHour, overview.available, autoReloadThreshold]);
+  }, [isBalanceKnown, overview.perHour, overview.available, autoReloadThreshold]);
 
   const isSetupRequested = searchParams.get(SETUP_PARAM) === "true";
 

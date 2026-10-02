@@ -64,9 +64,18 @@ describe(AutoRechargeRow.name, () => {
 
   it.each([
     { scenario: "nothing is being spent", perHour: 0, available: 500 },
-    { scenario: "available is already at the threshold", perHour: 1, available: 20 }
-  ])("leaves the estimate out when $scenario", ({ perHour, available }) => {
-    setup({ defaultPaymentMethod: card(), walletSettings: { autoReloadEnabled: true, autoReloadThreshold: 20, autoReloadAmount: 100 }, perHour, available });
+    { scenario: "available is already at the threshold", perHour: 1, available: 20 },
+    { scenario: "the balance is still loading", perHour: 1, available: 92, isBalanceLoading: true },
+    { scenario: "the balance failed to load", perHour: 1, available: 92, isBalanceError: true }
+  ])("leaves the estimate out when $scenario", ({ perHour, available, isBalanceLoading, isBalanceError }) => {
+    setup({
+      defaultPaymentMethod: card(),
+      walletSettings: { autoReloadEnabled: true, autoReloadThreshold: 20, autoReloadAmount: 100 },
+      perHour,
+      available,
+      isBalanceLoading,
+      isBalanceError
+    });
 
     expect(summary()).not.toHaveTextContent("next in");
   });
@@ -293,6 +302,8 @@ describe(AutoRechargeRow.name, () => {
     isPending?: boolean;
     perHour?: number;
     available?: number;
+    isBalanceLoading?: boolean;
+    isBalanceError?: boolean;
     hasSetupParam?: boolean;
   }) {
     const upsertMutate = input.upsertMutate ?? vi.fn();
@@ -337,7 +348,12 @@ describe(AutoRechargeRow.name, () => {
           upsertWalletSettings: mock<UpsertWalletSettings>({ mutate: upsertMutate, isPending: input.isPending ?? false })
         }),
       useAccountBalanceOverview: () =>
-        mock<ReturnType<typeof DEPENDENCIES.useAccountBalanceOverview>>({ perHour: input.perHour ?? 0, available: input.available ?? 0 }),
+        mock<ReturnType<typeof DEPENDENCIES.useAccountBalanceOverview>>({
+          perHour: input.perHour ?? 0,
+          available: input.available ?? 0,
+          isLoading: input.isBalanceLoading ?? false,
+          isError: input.isBalanceError ?? false
+        }),
       useBillingActions: () => ({ openAddPaymentMethod }),
       useSearchParams: () => searchParams,
       useRouter: () => mock<ReturnType<typeof DEPENDENCIES.useRouter>>({ replace }),
