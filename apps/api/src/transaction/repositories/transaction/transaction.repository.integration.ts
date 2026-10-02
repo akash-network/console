@@ -107,7 +107,23 @@ describe(TransactionRepository.name, () => {
       expect(transactionsFound).toEqual([]);
     });
 
-    async function seedAddressTransactions(input: { address: string; positions: { height: number; index: number }[] }) {
+    it("pages references recorded without a height after the ones that have one", async () => {
+      const { repository } = await setup();
+      const address = createAkashAddress();
+      const [, newerWithHeight] = await seedAddressTransactions({
+        address,
+        positions: [
+          { height: 0, index: 1, isReferenceHeightRecorded: false },
+          { height: 1, index: 1 }
+        ]
+      });
+
+      const firstPage = await repository.findTransactionsByAddress(address, 0, 1);
+
+      expect(firstPage.map(trx => trx.hash)).toEqual([newerWithHeight.hash]);
+    });
+
+    async function seedAddressTransactions(input: { address: string; positions: { height: number; index: number; isReferenceHeightRecorded?: boolean }[] }) {
       const baseHeight = faker.number.int({ min: 20_000_000, max: 2_000_000_000 });
       const heights = [...new Set(input.positions.map(position => baseHeight + position.height))];
       await Promise.all(heights.map(height => createAkashBlock({ height })));
@@ -115,20 +131,25 @@ describe(TransactionRepository.name, () => {
       return Promise.all(
         input.positions.map(async position => {
           const transaction = await createTransaction({ height: baseHeight + position.height, index: position.index });
-          await referenceAddressInNewMessage({ transaction, address: input.address, type: "Signer" });
+          await referenceAddressInNewMessage({
+            transaction,
+            address: input.address,
+            type: "Signer",
+            isHeightRecorded: position.isReferenceHeightRecorded ?? true
+          });
           return transaction;
         })
       );
     }
 
-    async function referenceAddressInNewMessage(input: { transaction: Transaction; address: string; type: string }) {
+    async function referenceAddressInNewMessage(input: { transaction: Transaction; address: string; type: string; isHeightRecorded?: boolean }) {
       const message = await createAkashMessage({ txId: input.transaction.id, height: input.transaction.height });
       await createAddressReferenceInDatabase({
         transactionId: input.transaction.id,
         messageId: message.id,
         address: input.address,
         type: input.type,
-        height: input.transaction.height
+        height: input.isHeightRecorded ?? true ? input.transaction.height : undefined
       });
     }
   });

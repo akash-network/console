@@ -10,13 +10,13 @@ import { TYPE_REGISTRY } from "@src/billing/providers/type-registry.provider";
 import { CHAIN_DB } from "@src/chain";
 import { GetTransactionByHashResponse, ListTransactionsResponse } from "@src/transaction/http-schemas/transaction.schema";
 
-/** Dedupes with DISTINCT in ORDER BY order, since a GROUP BY on t.id makes Postgres 14 join every reference of the address before it can apply the LIMIT. */
+/** The ORDER BY must match address_reference_address_height_desc, NULLS LAST included, and dedupe with DISTINCT rather than GROUP BY, or Postgres sorts every reference of the address before the LIMIT. */
 const TRANSACTION_IDS_BY_ADDRESS_QUERY = `/* transactions:by-address-paginated-ids */
   SELECT DISTINCT af.height, t.index, t.id
   FROM "addressReference" af
   INNER JOIN "transaction" t ON t.id = af."transactionId"
   WHERE af.address = ?
-  ORDER BY af.height DESC, t.index DESC
+  ORDER BY af.height DESC NULLS LAST, t.index DESC
   OFFSET ? LIMIT ?
 `;
 
