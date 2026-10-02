@@ -250,7 +250,8 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
     [bidsQuery.data]
   );
 
-  const hasOpenBids = (bidsQuery.data?.data ?? []).some(entry => entry.bid.state === "open");
+  /** A closed or leased bid still means a provider bid, so it counts as much as an open one. */
+  const hasAnyBid = (bidsQuery.data?.data ?? []).length > 0;
 
   /** One-shot latch: once any bid appears the no-providers timeout must not re-arm — a later empty list is quote-expiry, not "no providers". */
   const providersEverBidRef = useRef(false);
@@ -272,7 +273,7 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
 
   useEffect(
     function reportWhenNoProvidersBid() {
-      if (hasOpenBids) {
+      if (hasAnyBid) {
         providersEverBidRef.current = true;
         setNoBidsReceived(false);
       }
@@ -305,7 +306,7 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
         clearTimeout(timer);
       };
     },
-    [phase, hasOpenBids, dseq, analyticsService]
+    [phase, hasAnyBid, dseq, analyticsService]
   );
 
   /** Everything tied to the deployment that just went away. The caller decides where the flow lands afterwards. */

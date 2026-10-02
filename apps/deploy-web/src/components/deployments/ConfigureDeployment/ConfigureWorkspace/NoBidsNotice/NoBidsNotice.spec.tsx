@@ -6,12 +6,13 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 describe(NoBidsNotice.name, () => {
-  it("explains why matching providers may not bid", () => {
+  it("explains why a matching provider may not bid, without claiming any matched", () => {
     setup();
 
     expect(screen.getByRole("status")).toHaveTextContent("No provider has bid yet");
+    expect(screen.getByRole("status")).not.toHaveTextContent("matched your configuration");
     expect(screen.getByRole("status")).toHaveTextContent(
-      "some providers only take deployments from accounts on their allowlist, run custom setups, or reserve their capacity for private contracts."
+      "A provider that matches your configuration doesn't always bid: some only take deployments from accounts on their allowlist, run custom setups, or reserve their capacity for private contracts."
     );
   });
 

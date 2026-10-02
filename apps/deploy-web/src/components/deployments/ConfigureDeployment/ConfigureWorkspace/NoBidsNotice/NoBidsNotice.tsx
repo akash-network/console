@@ -13,8 +13,8 @@ export const NoBidsNotice: FC<Props> = ({ onRequestCompute }) => (
       <div role="status" className="flex flex-col gap-1">
         <p className="text-sm font-semibold">No provider has bid yet</p>
         <p className="text-sm text-muted-foreground">
-          The providers below matched your configuration, but none of them bid on it. A match doesn&apos;t guarantee a bid: some providers only take deployments
-          from accounts on their allowlist, run custom setups, or reserve their capacity for private contracts.
+          A provider that matches your configuration doesn&apos;t always bid: some only take deployments from accounts on their allowlist, run custom setups, or
+          reserve their capacity for private contracts.
         </p>
       </div>
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">

@@ -318,6 +318,46 @@ describe(useDeploymentFlow.name, () => {
     }
   });
 
+  it.each(["closed", "active"])("does not report missing bids for a resumed deployment whose only bid is %s, since a provider did bid", state => {
+    vi.useFakeTimers();
+    try {
+      const bid = { bid: { state, price: { amount: "1", denom: "uakt" }, id: { provider: "p", dseq: "777", gseq: 1, oseq: 1 } } };
+      const { result, analyticsService } = renderFlow({ intent: { dseq: "777" }, listBids: [bid] });
+
+      act(() => vi.advanceTimersByTime(60_000));
+
+      expect(result.current.noBidsReceived).toBe(false);
+      expect(analyticsService.track).not.toHaveBeenCalledWith("bids_not_received", expect.anything());
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("still waits out the first bid while the bid list has not loaded yet", () => {
+    vi.useFakeTimers();
+    try {
+      const services = mockServices();
+      const dependencies: typeof DEPENDENCIES = {
+        useServices: (() => services) as never,
+        useListBids: (() => ({ data: undefined, isLoading: true, isError: false })) as never,
+        useRouter: (() => mock<ReturnType<typeof DEPENDENCIES.useRouter>>({ replace: vi.fn(), push: vi.fn() })) as never,
+        useQueryClient: (() => mock<ReturnType<typeof DEPENDENCIES.useQueryClient>>()) as never,
+        useFlag: () => false,
+        manifestFromSdl: () => "M",
+        deploymentResourcesFromSdl: () => ({ gpuAmount: 0, cpuAmount: 0, memoryAmount: 0, storageAmount: 0 }),
+        sealSdlSecrets: async () => "SEALED",
+        servicesPatchBetween
+      };
+      const { result } = renderDeploymentFlow({ sdlStrategy: "edit", bidStrategy: "select", dseq: "777", vm: false }, dependencies);
+
+      act(() => vi.advanceTimersByTime(60_000));
+
+      expect(result.current.noBidsReceived).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("does not re-arm the no-providers timeout after bids appear and then disappear", () => {
     vi.useFakeTimers();
     try {
