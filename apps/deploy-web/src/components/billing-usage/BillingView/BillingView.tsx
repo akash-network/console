@@ -137,7 +137,7 @@ export const BillingView: React.FC<BillingViewProps> = ({
                   <span role="cell" className="justify-self-end sm:justify-self-start">
                     <span
                       data-status={transaction.status}
-                      className="inline-flex rounded-full bg-muted px-3 py-[3px] text-xs font-medium text-muted-foreground data-[status=failed]:bg-destructive/15 data-[status=pending]:bg-warning/15 data-[status=succeeded]:bg-success/15 data-[status=failed]:text-destructive data-[status=pending]:text-warning data-[status=succeeded]:text-success"
+                      className="inline-flex rounded-full bg-muted px-3 py-[3px] text-xs font-medium text-muted-foreground data-[status=failed]:bg-destructive/15 data-[status=pending]:bg-warning/15 data-[status=refunded]:bg-blue-50 data-[status=succeeded]:bg-success/15 data-[status=failed]:text-destructive data-[status=pending]:text-warning data-[status=refunded]:text-blue-600 data-[status=succeeded]:text-success dark:data-[status=refunded]:bg-blue-400/10 dark:data-[status=refunded]:text-blue-400"
                     >
                       {STATUS_LABELS[transaction.status] ?? capitalizeFirstLetter(transaction.status)}
                     </span>
