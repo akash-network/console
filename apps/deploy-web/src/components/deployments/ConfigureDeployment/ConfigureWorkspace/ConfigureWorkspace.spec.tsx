@@ -15,6 +15,7 @@ import type { DeploymentFlow, DeploymentFlowActions } from "../useDeploymentFlow
 import type { ConfigureWorkspaceHeader } from "./ConfigureWorkspaceHeader/ConfigureWorkspaceHeader";
 import type { LeaveConfigureButton } from "./LeaveConfigureButton/LeaveConfigureButton";
 import type { LockedDeploymentRail } from "./LockedDeploymentRail/LockedDeploymentRail";
+import type { NoBidsNotice } from "./NoBidsNotice/NoBidsNotice";
 import type { PlacementProviderChips } from "./PlacementProviderChips/PlacementProviderChips";
 import { ConfigureWorkspace, DEPENDENCIES } from "./ConfigureWorkspace";
 
@@ -92,11 +93,42 @@ describe(ConfigureWorkspace.name, () => {
 
       act(() => availabilityProps().onRequestCompute());
 
-      expect(analyticsService.track).toHaveBeenCalledWith("configure_request_compute_clicked", { category: "deployments" });
+      expect(analyticsService.track).toHaveBeenCalledWith("configure_request_compute_clicked", { category: "deployments", source: "footer" });
       expect(screen.getByText("Hardware request dialog")).toBeInTheDocument();
       expect(dependencies.HardwareRequestDialog).toHaveBeenLastCalledWith(
         expect.objectContaining({
           initialGpuModel: "",
+          initialCategory: "gpu_model",
+          configuration: expect.objectContaining({ summary: "0.1 vCPU · 512 MiB memory · 1 GiB storage · us-west, eu-west" })
+        }),
+        expect.anything()
+      );
+    });
+
+    it("explains above the availability that no provider bid on the last request", () => {
+      const { availabilityProps, dependencies } = setup({ error: { kind: "no-providers", message: "No providers are available" } });
+
+      expect((availabilityProps().notice as ReactElement).type).toBe(dependencies.NoBidsNotice);
+    });
+
+    it.each<[string, DeploymentFlow["error"]]>([
+      ["while nothing failed", undefined],
+      ["for a failure other than a request no provider bid on", { kind: "create", message: "boom" }]
+    ])("shows no notice %s", (_, error) => {
+      const { availabilityProps } = setup({ error });
+
+      expect(availabilityProps().notice).toBeUndefined();
+    });
+
+    it("asks for more capacity from the no-bid notice and tracks that the request came from there", () => {
+      const { availabilityProps, analyticsService, dependencies } = setup({ selectedServiceId: "api", error: { kind: "no-providers" } });
+
+      act(() => ((availabilityProps().notice as ReactElement).props as ComponentProps<typeof NoBidsNotice>).onRequestCompute());
+
+      expect(analyticsService.track).toHaveBeenCalledWith("configure_request_compute_clicked", { category: "deployments", source: "no_bids_notice" });
+      expect(dependencies.HardwareRequestDialog).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          initialCategory: "capacity",
           configuration: expect.objectContaining({ summary: "0.1 vCPU · 512 MiB memory · 1 GiB storage · us-west, eu-west" })
         }),
         expect.anything()
@@ -281,6 +313,7 @@ describe(ConfigureWorkspace.name, () => {
     bidCount?: number;
     pendingClose?: DeploymentFlow["pendingClose"];
     selectedServiceId?: string;
+    error?: DeploymentFlow["error"];
   }) {
     const first = { ...defaultPlacement({ name: "placement-1" }), id: "p1", regions: [] };
     const second = { ...defaultPlacement({ name: "gpu-pool" }), id: "p2", regions: ["us-west", "eu-west"] };
@@ -338,6 +371,7 @@ describe(ConfigureWorkspace.name, () => {
         dseq: "42",
         pendingClose: input.pendingClose ?? null,
         deployError: undefined,
+        error: input.error,
         bids: Array.from({ length: input.bidCount ?? 0 }, () => mock<DeploymentFlow["bids"][number]>()),
         actions: mock<DeploymentFlowActions>({ cancelAndEdit })
       });

@@ -154,6 +154,83 @@ describe(useDeploymentFlow.name, () => {
       expect(closeMutate).toHaveBeenCalledWith({ dseq: "777" }, expect.any(Object));
       expect(result.current.phase).toBe("configuring");
       expect(result.current.error?.message).toContain("No providers");
+      expect(result.current.error?.kind).toBe("no-providers");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("reports what screening promised when no provider bids on the requested deployment", () => {
+    vi.useFakeTimers();
+    try {
+      const createMutate = vi.fn((_args, { onSuccess }) => onSuccess({ data: { dseq: "999", manifest: "m" } }));
+      const { result, analyticsService } = setup({ createMutate, closeMutate: vi.fn() });
+
+      act(() => result.current.actions.requestQuotes("sdl-content", { screening: { placementCount: 2, providerCount: 3 } }));
+      act(() => vi.advanceTimersByTime(60_000));
+
+      expect(analyticsService.track).toHaveBeenCalledWith("bids_not_received", {
+        category: "deployments",
+        dseq: "999",
+        bidStrategy: "select",
+        waitedSeconds: 60,
+        placementCount: 2,
+        screenedProviderCount: 3
+      });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("reports a resumed deployment that draws no bid without screening counts, since this session never saw its request", () => {
+    vi.useFakeTimers();
+    try {
+      const { analyticsService } = setup({ intent: { sdlStrategy: "default", bidStrategy: "auto", dseq: "777" } });
+
+      act(() => vi.advanceTimersByTime(60_000));
+
+      expect(analyticsService.track).toHaveBeenCalledWith("bids_not_received", {
+        category: "deployments",
+        dseq: "777",
+        bidStrategy: "auto",
+        waitedSeconds: 60,
+        placementCount: undefined,
+        screenedProviderCount: undefined
+      });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("does not report missing bids before the wait is over", () => {
+    vi.useFakeTimers();
+    try {
+      const { analyticsService } = setup({ intent: { sdlStrategy: "edit", bidStrategy: "select", dseq: "777" }, closeMutate: vi.fn() });
+
+      act(() => vi.advanceTimersByTime(59_999));
+
+      expect(analyticsService.track).not.toHaveBeenCalledWith("bids_not_received", expect.anything());
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("forgets the previous attempt's screening once a resumed request carries none", () => {
+    vi.useFakeTimers();
+    try {
+      const createMutate = vi.fn((_args, { onSuccess }) => onSuccess({ data: { dseq: "999", manifest: "m" } }));
+      const closeMutate = vi.fn((_args, { onSuccess }) => onSuccess({}));
+      const { result, analyticsService } = setup({ createMutate, closeMutate });
+
+      act(() => result.current.actions.requestQuotes("sdl-content", { screening: { placementCount: 1, providerCount: 4 } }));
+      act(() => vi.advanceTimersByTime(60_000));
+      act(() => result.current.actions.requestQuotes("sdl-content"));
+      act(() => vi.advanceTimersByTime(60_000));
+
+      expect(analyticsService.track).toHaveBeenLastCalledWith(
+        "bids_not_received",
+        expect.objectContaining({ placementCount: undefined, screenedProviderCount: undefined })
+      );
     } finally {
       vi.useRealTimers();
     }

@@ -6,7 +6,7 @@ import { mock } from "vitest-mock-extended";
 import type { AppDIContainer } from "@src/context/ServicesProvider/ServicesProvider";
 import type { DEPENDENCIES } from "./HardwareRequestDialog";
 import { HardwareRequestDialog } from "./HardwareRequestDialog";
-import type { HardwareRequestConfiguration } from "./hardwareRequestForm";
+import type { HardwareRequestCategory, HardwareRequestConfiguration } from "./hardwareRequestForm";
 
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -116,6 +116,13 @@ describe("HardwareRequestDialog", () => {
 
     expect(screen.getByRole("textbox", { name: "GPU model (optional)" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Send request" })).toBeEnabled();
+  });
+
+  it("opens on the category the caller asks for", () => {
+    setup({ initialGpuModel: "", initialCategory: "capacity" });
+
+    expect(screen.getByRole("radio", { name: "More capacity" })).toBeChecked();
+    expect(screen.getByRole("textbox", { name: "GPU model (optional)" })).toBeInTheDocument();
   });
 
   it("asks for details on a request for something else", async () => {
@@ -233,7 +240,7 @@ describe("HardwareRequestDialog", () => {
     expect(screen.getByRole("link", { name: "Or ask on Discord" })).toHaveAttribute("href", DISCORD_URL);
   });
 
-  function setup(input: { initialGpuModel?: string; email?: string; response?: Promise<unknown> }) {
+  function setup(input: { initialGpuModel?: string; initialCategory?: HardwareRequestCategory; email?: string; response?: Promise<unknown> }) {
     const response = input.response ?? Promise.resolve({ data: { id: "request-id", createdAt: "2026-09-29T12:00:00.000Z" } });
     response.catch(() => undefined);
     const createHardwareRequest = vi.fn(() => response);
@@ -249,7 +256,13 @@ describe("HardwareRequestDialog", () => {
 
     render(
       <TestContainerProvider services={{ api: () => api, publicConfig: () => publicConfig }}>
-        <HardwareRequestDialog initialGpuModel={input.initialGpuModel ?? "B200"} configuration={CONFIGURATION} onClose={onClose} dependencies={dependencies} />
+        <HardwareRequestDialog
+          initialGpuModel={input.initialGpuModel ?? "B200"}
+          initialCategory={input.initialCategory}
+          configuration={CONFIGURATION}
+          onClose={onClose}
+          dependencies={dependencies}
+        />
       </TestContainerProvider>
     );
 

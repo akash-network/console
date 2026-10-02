@@ -59,6 +59,14 @@ export interface RequestQuotesOptions {
   secrets?: SdlSecretValues;
   /** A deployment of the user's whose stored secret values the new one starts from, sent while the secrets feature is on. */
   inheritSecretsFrom?: string;
+  /** What bid screening answered when the bids were requested, reported if no provider bids after all. */
+  screening?: ScreeningSummary;
+}
+
+export interface ScreeningSummary {
+  placementCount: number;
+  /** Absent while any placement is still unscreened. */
+  providerCount?: number;
 }
 
 export interface DeployOptions {
@@ -249,6 +257,9 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
 
   const bidsReceivedTrackedRef = useRef(false);
 
+  /** Null on a resumed deployment, whose request this session never saw. */
+  const screeningRef = useRef<ScreeningSummary | null>(null);
+
   useEffect(
     function trackFirstBidsReceived() {
       const currentBids = bidsQuery.data?.data;
@@ -270,13 +281,21 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
          */
         function timeOutWithoutProviders() {
           if (discardedRef.current) return;
+          analyticsService.track("bids_not_received", {
+            category: "deployments",
+            dseq,
+            bidStrategy: bidStrategyRef.current,
+            waitedSeconds: NO_BIDS_TIMEOUT_MS / 1000,
+            placementCount: screeningRef.current?.placementCount,
+            screenedProviderCount: screeningRef.current?.providerCount
+          });
           if (intentRef.current.sdlStrategy === "default" && bidStrategyRef.current === "auto") {
             setError({ message: NO_PROVIDERS_MESSAGE, kind: "no-providers" });
             setPhase("error");
             return;
           }
           cancelAndEditRef.current?.();
-          setError({ message: NO_PROVIDERS_MESSAGE });
+          setError({ message: NO_PROVIDERS_MESSAGE, kind: "no-providers" });
         },
         NO_BIDS_TIMEOUT_MS
       );
@@ -284,7 +303,7 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
         clearTimeout(timer);
       };
     },
-    [phase, hasOpenBids]
+    [phase, hasOpenBids, dseq, analyticsService]
   );
 
   /** Everything tied to the deployment that just went away. The caller decides where the flow lands afterwards. */
@@ -413,6 +432,7 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
       const attempt = ++createAttemptRef.current;
       providersEverBidRef.current = false;
       bidsReceivedTrackedRef.current = false;
+      screeningRef.current = options.screening ?? null;
       setError(undefined);
       const secrets = options.secrets ?? {};
 

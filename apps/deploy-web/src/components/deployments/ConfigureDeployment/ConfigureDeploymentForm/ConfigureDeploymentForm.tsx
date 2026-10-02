@@ -215,7 +215,8 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, initialName, in
 
   useEffect(
     function toastFlowError() {
-      if (flow.error && flow.error !== lastToastedFlowError.current) {
+      const isExplainedInPlace = isTwoPanel && flow.error?.kind === "no-providers";
+      if (flow.error && flow.error !== lastToastedFlowError.current && !isExplainedInPlace) {
         if (flow.error.kind === "needs-funds") {
           const key = enqueueSnackbar(
             <d.Snackbar
@@ -232,7 +233,7 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, initialName, in
       }
       lastToastedFlowError.current = flow.error;
     },
-    [flow.error, enqueueSnackbar, closeSnackbar, d]
+    [flow.error, enqueueSnackbar, closeSnackbar, d, isTwoPanel]
   );
 
   useEffect(

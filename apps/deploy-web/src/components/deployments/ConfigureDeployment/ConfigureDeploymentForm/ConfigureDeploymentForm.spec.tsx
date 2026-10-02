@@ -484,6 +484,37 @@ describe(ConfigureDeploymentForm.name, () => {
     expect(toast.props.title).toBe("Couldn't get bids from providers");
   });
 
+  it("toasts a flow error that arrives once the form is already shown", () => {
+    const { flow, rerenderWith, enqueueSnackbar } = setup({ initialSdl: undefined });
+    expect(enqueueSnackbar).not.toHaveBeenCalled();
+
+    flow.error = { message: "boom", kind: "create" };
+    rerenderWith({});
+
+    expect(enqueueSnackbar).toHaveBeenCalledTimes(1);
+  });
+
+  it("toasts a flow error only once however often the form renders again", () => {
+    const { rerenderWith, enqueueSnackbar } = setup({ initialSdl: undefined, flowError: { message: "boom", kind: "create" } });
+
+    rerenderWith({});
+    rerenderWith({});
+
+    expect(enqueueSnackbar).toHaveBeenCalledTimes(1);
+  });
+
+  it("leaves a request no provider bid on to the two panel workspace, which explains it in place", () => {
+    const { enqueueSnackbar } = setup({ initialSdl: undefined, twoPanel: true, flowError: { message: "No providers", kind: "no-providers" } });
+
+    expect(enqueueSnackbar).not.toHaveBeenCalled();
+  });
+
+  it("still toasts any other flow error in the two panel workspace", () => {
+    const { enqueueSnackbar } = setup({ initialSdl: undefined, twoPanel: true, flowError: { message: "still closing", kind: "close" } });
+
+    expect(enqueueSnackbar).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ variant: "error" }));
+  });
+
   it("offers to add credits rather than apologising when the create was refused until the user pays", () => {
     const message = "Not enough balance to cover the deployment deposit. Add credits or turn on auto recharge to continue.";
     const { enqueueSnackbar } = setup({ initialSdl: undefined, flowError: { message, kind: "needs-funds" } });

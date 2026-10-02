@@ -1,8 +1,8 @@
-import { useMemo, useRef } from "react";
+import { useCallback, useMemo, useRef } from "react";
 import { GroupSpec } from "@akashnetwork/chain-sdk/private-types/akash.v1beta4";
 import { generateManifest, type SDLInput, yaml } from "@akashnetwork/chain-sdk/web";
 import type { paths } from "@akashnetwork/console-api-types";
-import { keepPreviousData, useQueries } from "@tanstack/react-query";
+import { keepPreviousData, useQueries, useQueryClient } from "@tanstack/react-query";
 
 import { useServices } from "@src/context/ServicesProvider";
 import { usePacedValue } from "@src/hooks/usePacedValue/usePacedValue";
@@ -117,6 +117,26 @@ export function useScreenedProviderCounts(requests: KeyedScreeningRequest[]): Sc
     if (count !== undefined) lastCountByKey.current.set(key, count);
     return { count: count ?? lastCountByKey.current.get(key) ?? null, isLoading: result.isLoading };
   });
+}
+
+/** Reads the screening already cached for each placement, so recording what screening promised never screens again. */
+export function useCachedScreenedProviderCount() {
+  const { api } = useServices();
+  const queryClient = useQueryClient();
+
+  return useCallback(
+    function countScreenedProviders(sdl: string, placements: ReadonlyArray<{ name: string; regions?: readonly string[] }>): number | undefined {
+      let total = 0;
+      for (const placement of placements) {
+        const request = toScreeningRequest(sdl, placement.name);
+        const screened = request && queryClient.getQueryData<ScreenedProvidersResponse>(api.v1.screenProviders.getKey(request));
+        if (!screened) return undefined;
+        total += inPickedRegions(screened.providers, placement.regions).length;
+      }
+      return total;
+    },
+    [api, queryClient]
+  );
 }
 
 /** Every caller builds its request here so equal specs share one query cache entry. */

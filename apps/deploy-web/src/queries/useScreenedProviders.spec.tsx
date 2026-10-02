@@ -11,6 +11,7 @@ import {
   buildPlacementScreeningRequest,
   SCREENING_DEBOUNCE_MS,
   toScreeningRequest,
+  useCachedScreenedProviderCount,
   useScreenedProviderCounts,
   useScreenedProviders
 } from "./useScreenedProviders";
@@ -47,6 +48,59 @@ profiles:
 deployment:
   web:
     dcloud:
+      profile: web
+      count: 1
+`;
+
+const TWO_PLACEMENT_SDL = `---
+version: "2.0"
+services:
+  web:
+    image: nginx
+    expose:
+      - port: 80
+        as: 80
+        to:
+          - global: true
+  api:
+    image: nginx
+    expose:
+      - port: 80
+        as: 80
+        to:
+          - global: true
+profiles:
+  compute:
+    web:
+      resources:
+        cpu:
+          units: 0.1
+        memory:
+          size: 512Mi
+        storage:
+          size: 1Gi
+  placement:
+    west:
+      attributes:
+        location-region: na-us-west
+      pricing:
+        web:
+          denom: uact
+          amount: 1000
+    east:
+      attributes:
+        location-region: eu-west
+      pricing:
+        web:
+          denom: uact
+          amount: 1000
+deployment:
+  web:
+    west:
+      profile: web
+      count: 1
+  api:
+    east:
       profile: web
       count: 1
 `;
@@ -481,6 +535,83 @@ describe(useScreenedProviderCounts.name, () => {
 
   function keyed(key: string, region: string): KeyedScreeningRequest {
     return { key, request: toScreeningRequest(sdlForRegion(region), "dcloud") };
+  }
+});
+
+describe(useCachedScreenedProviderCount.name, () => {
+  it("adds up what screening already found for every placement", async () => {
+    const { result, countFor } = setup({ screenedPlacements: ["west", "east"], providersByRegion: { "na-us-west": 2, "eu-west": 3 } });
+
+    await waitFor(() => expect(result.current.isScreened).toBe(true));
+
+    expect(countFor([{ name: "west" }, { name: "east" }])).toBe(5);
+  });
+
+  it("counts only the providers located in one of a placement's picked regions", async () => {
+    const { result, countFor } = setup({
+      screenedPlacements: ["west"],
+      providersByRegion: { "na-us-west": 3 },
+      providerLocations: ["eu-west", "na-us-west", null]
+    });
+
+    await waitFor(() => expect(result.current.isScreened).toBe(true));
+
+    expect(countFor([{ name: "west", regions: ["eu-west", "na-us-west"] }])).toBe(2);
+  });
+
+  it("knows no total while any placement is still unscreened", async () => {
+    const { result, countFor } = setup({ screenedPlacements: ["west"], providersByRegion: { "na-us-west": 2 } });
+
+    await waitFor(() => expect(result.current.isScreened).toBe(true));
+
+    expect(countFor([{ name: "west" }, { name: "east" }])).toBeUndefined();
+  });
+
+  it("knows no total for a placement the spec does not declare", async () => {
+    const { result, countFor } = setup({ screenedPlacements: ["west"], providersByRegion: { "na-us-west": 2 } });
+
+    await waitFor(() => expect(result.current.isScreened).toBe(true));
+
+    expect(countFor([{ name: "west" }, { name: "north" }])).toBeUndefined();
+  });
+
+  it("never screens again to count", async () => {
+    const { result, countFor, screenProviders } = setup({ screenedPlacements: ["west", "east"], providersByRegion: { "na-us-west": 1, "eu-west": 1 } });
+    await waitFor(() => expect(result.current.isScreened).toBe(true));
+
+    countFor([{ name: "west" }, { name: "east" }]);
+
+    expect(screenProviders).toHaveBeenCalledTimes(2);
+  });
+
+  function setup(input: { screenedPlacements: Array<"west" | "east">; providersByRegion: Record<string, number>; providerLocations?: (string | null)[] }) {
+    const screenProviders = vi.fn(async (request: ScreeningRequest): Promise<ScreenedProvidersResponse> => {
+      const region = (request.requirements?.attributes ?? []).find(attribute => attribute.key === "location-region")!.value;
+      return {
+        providers: Array.from({ length: input.providersByRegion[region] }, (_, index) =>
+          buildScreenedProvider(input.providerLocations ? { location: input.providerLocations[index] } : {})
+        )
+      };
+    });
+    const api = createProxy({ v1: { screenProviders } }) as unknown as ReturnType<
+      NonNullable<NonNullable<NonNullable<Parameters<typeof setupQuery>[1]>["services"]>["api"]>
+    >;
+
+    const view = setupQuery(
+      () => {
+        const west = useScreenedProviders({ sdl: TWO_PLACEMENT_SDL, placementName: "west", enabled: input.screenedPlacements.includes("west") });
+        const east = useScreenedProviders({ sdl: TWO_PLACEMENT_SDL, placementName: "east", enabled: input.screenedPlacements.includes("east") });
+        const screened = input.screenedPlacements.map(name => (name === "west" ? west : east));
+        return { countScreenedProviders: useCachedScreenedProviderCount(), isScreened: screened.every(placement => !placement.isLoading) };
+      },
+      { services: { api: () => api } }
+    );
+
+    function countFor(placements: Array<{ name: string; regions?: readonly string[] }>) {
+      return view.result.current.countScreenedProviders(TWO_PLACEMENT_SDL, placements);
+    }
+
+    return { result: view.result, countFor, screenProviders };
   }
 });
 

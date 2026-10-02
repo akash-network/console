@@ -55,12 +55,19 @@ const SKIP_REPORTING_REQUEST_LIMIT = { skipErrorReporting: isRequestLimitError }
 
 type Props = {
   initialGpuModel: string;
+  initialCategory?: HardwareRequestCategory;
   configuration: HardwareRequestConfiguration;
   onClose: () => void;
   dependencies?: typeof DEPENDENCIES;
 };
 
-export const HardwareRequestDialog: FC<Props> = ({ initialGpuModel, configuration, onClose, dependencies: d = DEPENDENCIES }) => {
+export const HardwareRequestDialog: FC<Props> = ({
+  initialGpuModel,
+  initialCategory = "gpu_model",
+  configuration,
+  onClose,
+  dependencies: d = DEPENDENCIES
+}) => {
   const { api, publicConfig } = useServices();
   const { user } = d.useUser();
   const { enqueueSnackbar } = d.useSnackbar();
@@ -72,7 +79,7 @@ export const HardwareRequestDialog: FC<Props> = ({ initialGpuModel, configuratio
     mode: "onChange",
     resolver: zodResolver(hardwareRequestFormSchema),
     defaultValues: {
-      category: "gpu_model",
+      category: initialCategory,
       gpuModel: initialGpuModel,
       quantity: 1,
       region: "",

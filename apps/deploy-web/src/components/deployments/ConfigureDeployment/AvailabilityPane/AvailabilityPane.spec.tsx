@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
@@ -31,6 +32,14 @@ describe(AvailabilityPane.name, () => {
 
     expect(screen.getByText("provider can host this placement")).toBeInTheDocument();
     expect(screen.getByText("gpu-pool · us-west, eu-west")).toBeInTheDocument();
+  });
+
+  it("puts the notice it is given above the provider counts", () => {
+    setup({ eligibleCount: 1, notice: <p>Nobody bid</p> });
+
+    const notice = screen.getByText("Nobody bid");
+    const counts = screen.getByText("provider can host your deployment");
+    expect(notice.compareDocumentPosition(counts) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
   it("names any region for a placement without one", () => {
@@ -194,6 +203,7 @@ describe(AvailabilityPane.name, () => {
     isReady?: boolean;
     isSubmitting?: boolean;
     gpuAvailability?: Partial<GpuAvailability>;
+    notice?: ReactNode;
   }) {
     const onChooseProvider = vi.fn();
     const onRequestCompute = vi.fn();
@@ -235,6 +245,7 @@ describe(AvailabilityPane.name, () => {
         isSubmitting={input.isSubmitting ?? false}
         onChooseProvider={onChooseProvider}
         onRequestCompute={onRequestCompute}
+        notice={input.notice}
         dependencies={dependencies}
       />
     );

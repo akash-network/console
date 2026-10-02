@@ -4,6 +4,7 @@ import { Snackbar } from "@akashnetwork/ui/components";
 import { useSnackbar } from "notistack";
 
 import { useFlag } from "@src/hooks/useFlag";
+import { useCachedScreenedProviderCount } from "@src/queries/useScreenedProviders";
 import type { SdlBuilderFormValuesType } from "@src/types";
 import { hasTrialBlockedGpu } from "@src/utils/deploymentData/v1beta3";
 import { generateSdl } from "@src/utils/sdl/sdlGenerator";
@@ -25,7 +26,8 @@ export const DEPENDENCIES = {
   resolveSdlSecrets,
   useFlag,
   useInheritedSecrets,
-  useTrialGate
+  useTrialGate,
+  useCachedScreenedProviderCount
 };
 
 type Input = {
@@ -42,6 +44,7 @@ export function useRequestQuotes({ flow, deploymentName, onInvalid }: Input, dep
   const { isRestricted } = d.useTrialGate();
   const isSecretsEnabled = d.useFlag("ui_deployment_secrets");
   const inheritedSecrets = d.useInheritedSecrets();
+  const countScreenedProviders = d.useCachedScreenedProviderCount();
 
   function explainWhySubmitIsBlocked(reasons: string[]) {
     enqueueSnackbar(
@@ -75,6 +78,7 @@ export function useRequestQuotes({ flow, deploymentName, onInvalid }: Input, dep
       }
       flow.actions.requestQuotes(sdl, {
         name: deploymentName,
+        screening: { placementCount: values.placements.length, providerCount: countScreenedProviders(sdl, values.placements) },
         ...(secrets ? { secrets: secrets.values, ...(inheritedSecrets ? { inheritSecretsFrom: inheritedSecrets.sourceDseq } : {}) } : {})
       });
     },
