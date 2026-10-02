@@ -1,6 +1,14 @@
 import type { ChainNodeWebSDK } from "@akashnetwork/chain-sdk/web";
+import { SDKError, SDKErrorCode } from "@akashnetwork/chain-sdk/web";
 import type { LoggerService } from "@akashnetwork/logging";
 import { X509Certificate } from "crypto";
+
+/** A proxied request waits on this lookup before it dials, so a chain node that stops answering must not hold it longer than this, retries included. */
+const HOST_URI_LOOKUP_TIMEOUT_MS = 5_000;
+
+function isChainAnswerForNoSuchProvider(error: unknown): boolean {
+  return error instanceof SDKError && (error.code === SDKErrorCode.NotFound || error.code === SDKErrorCode.InvalidArgument);
+}
 
 export class ProviderService {
   readonly #chainSdk: ChainNodeWebSDK;
@@ -32,6 +40,23 @@ export class ProviderService {
         event: "PROVIDER_CERTIFICATE_FETCH_ERROR",
         providerAddress,
         serialNumber,
+        error
+      });
+      throw error;
+    }
+  }
+
+  /** Resolves `null` when chain has no such provider and rejects when chain cannot be queried. */
+  async getHostUri(providerAddress: string): Promise<string | null> {
+    try {
+      const response = await this.#chainSdk.akash.provider.v1beta4.getProvider({ owner: providerAddress }, { timeoutMs: HOST_URI_LOOKUP_TIMEOUT_MS });
+      return response.provider?.hostUri || null;
+    } catch (error) {
+      if (isChainAnswerForNoSuchProvider(error)) return null;
+
+      this.#logger?.error({
+        event: "PROVIDER_HOST_FETCH_ERROR",
+        providerAddress,
         error
       });
       throw error;

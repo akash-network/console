@@ -1,6 +1,8 @@
 import type { ChainNodeWebSDK } from "@akashnetwork/chain-sdk/web";
+import { SDKError, SDKErrorCode } from "@akashnetwork/chain-sdk/web";
+import type { LoggerService } from "@akashnetwork/logging";
 import { describe, expect, it } from "vitest";
-import { mockDeep } from "vitest-mock-extended";
+import { mock, mockDeep } from "vitest-mock-extended";
 
 import type { CertificateOptions } from "../../../test/seeders/createX509CertPair";
 import { createX509CertPair } from "../../../test/seeders/createX509CertPair";
@@ -47,6 +49,47 @@ describe(ProviderService.name, () => {
     });
   });
 
+  describe("getHostUri", () => {
+    it("returns the host URI the provider registered on chain", async () => {
+      const { service, chainSdk } = setup();
+      chainSdk.akash.provider.v1beta4.getProvider.mockResolvedValue({
+        provider: { owner: "provider", hostUri: "https://provider.example.com:8443", attributes: [], info: undefined }
+      });
+
+      const result = await service.getHostUri("provider");
+
+      expect(result).toBe("https://provider.example.com:8443");
+      expect(chainSdk.akash.provider.v1beta4.getProvider).toHaveBeenCalledWith({ owner: "provider" }, { timeoutMs: 5_000 });
+    });
+
+    it("returns null when the provider registered no host URI", async () => {
+      const { service, chainSdk } = setup();
+      chainSdk.akash.provider.v1beta4.getProvider.mockResolvedValue({ provider: undefined });
+
+      expect(await service.getHostUri("provider")).toBe(null);
+    });
+
+    it.each([
+      ["has no such provider", new SDKError("[not_found] invalid provider: address not found", SDKErrorCode.NotFound)],
+      ["rejects the address", new SDKError("[invalid_argument] invalid address", SDKErrorCode.InvalidArgument)]
+    ])("returns null when chain %s", async (_label, error) => {
+      const { service, chainSdk, logger } = setup();
+      chainSdk.akash.provider.v1beta4.getProvider.mockRejectedValue(error);
+
+      expect(await service.getHostUri("provider")).toBe(null);
+      expect(logger.error).not.toHaveBeenCalled();
+    });
+
+    it("rejects and logs when chain cannot be queried", async () => {
+      const { service, chainSdk, logger } = setup();
+      const error = new SDKError("[unavailable] chain is halted", SDKErrorCode.Unavailable);
+      chainSdk.akash.provider.v1beta4.getProvider.mockRejectedValue(error);
+
+      await expect(service.getHostUri("provider")).rejects.toBe(error);
+      expect(logger.error).toHaveBeenCalledWith({ event: "PROVIDER_HOST_FETCH_ERROR", providerAddress: "provider", error });
+    });
+  });
+
   describe("isValidationServerError", () => {
     [
       { name: "starts with manifest cross-validation error", body: "manifest cross-validation error: test", expected: true },
@@ -65,8 +108,9 @@ describe(ProviderService.name, () => {
 
   function setup() {
     const chainSdk = mockDeep<ChainNodeWebSDK>();
-    const service = new ProviderService(chainSdk);
-    return { service, chainSdk };
+    const logger = mock<LoggerService>();
+    const service = new ProviderService(chainSdk, logger);
+    return { service, chainSdk, logger };
   }
 
   async function buildCertificate(params?: CertificateOptions) {

@@ -7,9 +7,11 @@ import type { AppConfig } from "./config/env.config";
 import { appConfigSchema } from "./config/env.config";
 import { CertificateValidator, createCertificateValidatorInstrumentation } from "./services/CertificateValidator/CertificateValidator";
 import { createProviderConnectionTrackerInstrumentation, ProviderConnectionTracker } from "./services/ProviderConnectionTracker/ProviderConnectionTracker";
+import { createProviderHostVerifierInstrumentation, ProviderHostVerifier } from "./services/ProviderHostVerifier/ProviderHostVerifier";
 import { ProviderProxy } from "./services/ProviderProxy";
 import { ProviderService } from "./services/ProviderService/ProviderService";
 import { WebsocketStats } from "./services/WebsocketStats";
+import type { NetworkLookup } from "./utils/createForbidPrivateNetworkLookup/createForbidPrivateNetworkLookup";
 import { createForbidPrivateNetworkLookup } from "./utils/createForbidPrivateNetworkLookup/createForbidPrivateNetworkLookup";
 
 /** A proxied request waits on chain queries, so a chain node that stops answering must fail them over to the fallbacks instead of holding the request, retries included. */
@@ -28,7 +30,9 @@ export interface Container {
   wsStats: WebsocketStats;
   providerProxy: ProviderProxy;
   certificateValidator: CertificateValidator;
+  providerHostVerifier: ProviderHostVerifier;
   providerConnectionTracker: ProviderConnectionTracker | undefined;
+  networkLookup: NetworkLookup | undefined;
   httpLogger: LoggerService | undefined;
   httpLoggerInterceptor: HttpLoggerInterceptor;
   wsLogger: LoggerService | undefined;
@@ -55,6 +59,11 @@ export function createContainer(untrustedConfig: Record<string, unknown>): Conta
     providerService,
     isLoggingDisabled ? undefined : createCertificateValidatorInstrumentation(createOtelLogger({ name: "cert-validator" }))
   );
+  const providerHostVerifier = new ProviderHostVerifier(
+    Date.now,
+    providerService,
+    isLoggingDisabled ? undefined : createProviderHostVerifierInstrumentation(createOtelLogger({ name: "host-verifier" }))
+  );
   const providerConnectionTracker = appConfig.PROVIDER_UNREACHABLE_TRACKING_ENABLED
     ? new ProviderConnectionTracker(
         Date.now,
@@ -66,11 +75,8 @@ export function createContainer(untrustedConfig: Record<string, unknown>): Conta
         isLoggingDisabled ? undefined : createProviderConnectionTrackerInstrumentation(createOtelLogger({ name: "connection-tracker" }))
       )
     : undefined;
-  const providerProxy = new ProviderProxy(
-    certificateValidator,
-    appConfig.ALLOW_PROXY_TO_LOCAL_NETWORK ? undefined : createForbidPrivateNetworkLookup(),
-    providerConnectionTracker
-  );
+  const networkLookup = appConfig.ALLOW_PROXY_TO_LOCAL_NETWORK ? undefined : createForbidPrivateNetworkLookup();
+  const providerProxy = new ProviderProxy(certificateValidator, networkLookup, providerConnectionTracker);
   const wsLogger = isLoggingDisabled ? undefined : createOtelLogger({ name: "ws" });
   const httpLogger = isLoggingDisabled ? undefined : createOtelLogger({ name: "http" });
   const httpLoggerInterceptor = new HttpLoggerInterceptor(httpLogger);
@@ -79,7 +85,9 @@ export function createContainer(untrustedConfig: Record<string, unknown>): Conta
     wsStats,
     providerProxy,
     certificateValidator,
+    providerHostVerifier,
     providerConnectionTracker,
+    networkLookup,
     httpLogger,
     httpLoggerInterceptor,
     wsLogger,

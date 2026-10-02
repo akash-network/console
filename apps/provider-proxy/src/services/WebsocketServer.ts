@@ -1,15 +1,18 @@
 import type { Attributes } from "@akashnetwork/instrumentation";
 import { trace } from "@akashnetwork/instrumentation";
 import type { LoggerService } from "@akashnetwork/logging";
+import dns from "dns";
 import type http from "http";
 import https from "https";
 import { TLSSocket } from "tls";
 import WebSocket from "ws";
 import { z } from "zod";
 
+import type { NetworkLookup } from "../utils/createForbidPrivateNetworkLookup/createForbidPrivateNetworkLookup";
 import { addProviderAuthValidation, providerRequestSchema } from "../utils/schema";
 import { propagateTracingContext, traceActiveSpan } from "../utils/telemetry";
 import type { CertificateValidator } from "./CertificateValidator/CertificateValidator";
+import type { ProviderHostVerifier } from "./ProviderHostVerifier/ProviderHostVerifier";
 import type { ClientWebSocketStats, WebsocketStats, WebSocketUsage } from "./WebsocketStats";
 
 const MESSAGE_SCHEMA = addProviderAuthValidation(
@@ -42,8 +45,10 @@ export class WebsocketServer {
   constructor(
     private readonly appServer: http.Server,
     private readonly certificateValidator: CertificateValidator,
+    private readonly providerHostVerifier: ProviderHostVerifier,
     private readonly wsStats: WebsocketStats,
-    private readonly logger?: LoggerService
+    private readonly logger?: LoggerService,
+    private readonly networkLookup?: NetworkLookup
   ) {}
 
   get listening(): boolean {
@@ -228,7 +233,8 @@ export class WebsocketServer {
       socketDetails = this.createProviderSocket(url, {
         wsId: stats.id,
         auth: message.auth,
-        providerAddress: message.providerAddress
+        providerAddress: message.providerAddress,
+        providerUrl: message.url
       });
       this.linkSockets(socketDetails, ws, stats);
     }
@@ -348,6 +354,8 @@ export class WebsocketServer {
   }
 
   private connectWebSocket(url: string, options: CreateProviderSocketOptions) {
+    const lookup = this.createRegisteredHostLookup(options.providerUrl, options.providerAddress);
+
     if (options.auth?.type === "mtls") {
       return new WebSocket(url, {
         key: options.auth.keyPem,
@@ -356,7 +364,8 @@ export class WebsocketServer {
           // do not use TLS session resumption for websocket
           sessionTimeout: 0,
           rejectUnauthorized: false,
-          servername: "" // disable SNI for mtls authentication
+          servername: "", // disable SNI for mtls authentication
+          lookup
         })
       });
     }
@@ -368,9 +377,26 @@ export class WebsocketServer {
       agent: new https.Agent({
         // do not use TLS session resumption for websocket
         sessionTimeout: 0,
-        rejectUnauthorized: false
+        rejectUnauthorized: false,
+        lookup
       })
     });
+  }
+
+  /** Checking the host as the dial's DNS lookup keeps anything from being sent to a host the provider did not register. */
+  private createRegisteredHostLookup(providerUrl: string, providerAddress: string): NetworkLookup {
+    return (hostname, lookupOptions, callback) => {
+      this.providerHostVerifier.canProxyTo(providerUrl, providerAddress).then(
+        canProxy => {
+          if (canProxy) return (this.networkLookup ?? dns.lookup)(hostname, lookupOptions, callback);
+
+          const unregistered: NodeJS.ErrnoException = new Error(`${new URL(providerUrl).origin} is not the host registered by ${providerAddress}`);
+          unregistered.code = "EFORBIDDEN";
+          callback(unregistered, "");
+        },
+        error => callback(error, "")
+      );
+    };
   }
 
   private linkSockets(providerSocketDetails: WebSocketDetails, ws: WebSocket, stats: ClientWebSocketStats): void {
@@ -451,6 +477,7 @@ interface CreateProviderSocketOptions {
   wsId: string;
   auth?: z.infer<typeof providerRequestSchema>["auth"];
   providerAddress: string;
+  providerUrl: string;
 }
 
 export function emitVerifiedWhenOpen(ws: WebSocket): void {

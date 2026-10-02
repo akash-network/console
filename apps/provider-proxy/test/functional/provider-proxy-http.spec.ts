@@ -1,11 +1,12 @@
 import { JwtTokenManager } from "@akashnetwork/chain-sdk";
 import { Secp256k1HdWallet } from "@cosmjs/amino";
+import { fromBech32, toBech32 } from "@cosmjs/encoding";
 import { setTimeout as wait } from "timers/promises";
 import type { TLSSocket } from "tls";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { createX509CertPair } from "../seeders/createX509CertPair";
-import { generateBech32, startChainApiServer, stopChainAPIServer } from "../setup/chainApiServer";
+import { generateBech32, registerProviderHost, startChainApiServer, stopChainAPIServer } from "../setup/chainApiServer";
 import { startProviderServer, stopProviderServer } from "../setup/providerServer";
 import { request } from "../setup/proxyServer";
 import { startServer, stopServer } from "../setup/proxyServer";
@@ -571,6 +572,7 @@ describe("Provider HTTP proxy", () => {
     const chainServer = await startChainApiServer([validCertPair.cert]);
     await startServer({ REST_API_NODE_URL: chainServer.url });
     const providerUrl = `https://some-unknown-host-${Date.now()}.com/200`;
+    registerProviderHost(providerAddress, new URL(providerUrl).origin);
 
     const response = await request("/", {
       method: "POST",
@@ -1041,6 +1043,104 @@ describe("Provider HTTP proxy", () => {
     const response = await request("/", { method: "POST", body });
 
     expect(response.status).toBe(400);
+  });
+
+  describe("checks the target URL against the host the provider registered on chain", () => {
+    it("returns 400 without connecting when the URL is not the provider's registered host", async () => {
+      const providerAddress = generateBech32();
+      const validCertPair = await createX509CertPair({ commonName: providerAddress });
+      const chainServer = await startChainApiServer([validCertPair.cert]);
+      const handleRequest = vi.fn((_, res) => res.end("Hello, World!"));
+      const { providerUrl } = await startProviderServer({ certPair: validCertPair, handlers: { "/200.txt": handleRequest } });
+      registerProviderHost(providerAddress, "https://provider.example.com:8443");
+      await startServer({ REST_API_NODE_URL: chainServer.url });
+
+      const response = await request("/", {
+        method: "POST",
+        body: JSON.stringify({ method: "GET", url: `${providerUrl}/200.txt`, providerAddress })
+      });
+
+      expect(response.status).toBe(400);
+      expect(await response.json()).toEqual({ error: { code: "custom", issues: [{ path: ["url"], params: { reason: "invalid" } }] } });
+      expect(handleRequest).not.toHaveBeenCalled();
+    });
+
+    it("returns 400 without connecting when the provider is not registered on chain", async () => {
+      const providerAddress = generateBech32();
+      const validCertPair = await createX509CertPair({ commonName: providerAddress });
+      const chainServer = await startChainApiServer([validCertPair.cert]);
+      const handleRequest = vi.fn((_, res) => res.end("Hello, World!"));
+      const { providerUrl } = await startProviderServer({ certPair: validCertPair, handlers: { "/200.txt": handleRequest } });
+      await startServer({ REST_API_NODE_URL: chainServer.url });
+
+      const response = await request("/", {
+        method: "POST",
+        body: JSON.stringify({ method: "GET", url: `${providerUrl}/200.txt`, providerAddress: generateBech32() })
+      });
+
+      expect(response.status).toBe(400);
+      expect(handleRequest).not.toHaveBeenCalled();
+    });
+
+    it("returns 400 without asking chain when the provider address is not an akash address", async () => {
+      const providerAddress = toBech32("../../x?", fromBech32(generateBech32()).data);
+      const interceptRequest = vi.fn(() => false);
+      const chainServer = await startChainApiServer([], { interceptRequest });
+      await startServer({ REST_API_NODE_URL: chainServer.url });
+
+      const response = await request("/", {
+        method: "POST",
+        body: JSON.stringify({ method: "GET", url: "https://provider.example.com:8443/status", providerAddress })
+      });
+
+      expect(response.status).toBe(400);
+      expect(interceptRequest).not.toHaveBeenCalled();
+    });
+
+    it("proxies to a provider it has not looked up yet while chain cannot be queried", async () => {
+      const providerAddress = generateBech32();
+      const validCertPair = await createX509CertPair({ commonName: providerAddress });
+      const chainServer = await startChainApiServer([validCertPair.cert], {
+        interceptRequest(req, res) {
+          if (!req.url?.includes("/akash/provider/")) return false;
+          res.writeHead(503, { Connection: "close" });
+          res.end();
+          return true;
+        }
+      });
+      const { providerUrl } = await startProviderServer({ certPair: validCertPair });
+      await startServer({ REST_API_NODE_URL: chainServer.url });
+
+      const response = await request("/", {
+        method: "POST",
+        body: JSON.stringify({ method: "GET", url: `${providerUrl}/200.txt`, providerAddress })
+      });
+
+      expect(response.status).toBe(200);
+      expect(await response.text()).toBe("Hello, World!");
+    });
+  });
+
+  describe("bounds the host lookup when chain never answers", () => {
+    it("proxies to a provider it has not looked up yet once the lookup times out", async () => {
+      const providerAddress = generateBech32();
+      const validCertPair = await createX509CertPair({ commonName: providerAddress });
+      const chainServer = await startChainApiServer([validCertPair.cert], {
+        interceptRequest(req) {
+          return !!req.url?.includes("/akash/provider/");
+        }
+      });
+      const { providerUrl } = await startProviderServer({ certPair: validCertPair });
+      await startServer({ REST_API_NODE_URL: chainServer.url });
+
+      const response = await request("/", {
+        method: "POST",
+        body: JSON.stringify({ method: "GET", url: `${providerUrl}/200.txt`, providerAddress })
+      });
+
+      expect(response.status).toBe(200);
+      expect(await response.text()).toBe("Hello, World!");
+    });
   });
 
   describe("rejects forbidden target URLs before connecting", () => {

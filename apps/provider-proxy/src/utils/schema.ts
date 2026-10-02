@@ -32,7 +32,10 @@ export const providerRequestSchema = z.object({
         return false;
       }
     }, "URL must use https protocol and cannot point to IP address"),
-  providerAddress: z.string().refine(isValidBech32Address, "is not bech32 address").describe("Bech32 representation of provider wallet address"),
+  providerAddress: z
+    .string()
+    .refine(address => isValidBech32Address(address, "akash"), "is not an akash bech32 address")
+    .describe("Bech32 representation of provider wallet address"),
   isBase64: z
     .boolean()
     .describe("Temporary field for the time when some clients are sending comma-separated data, while some are sending base64.")

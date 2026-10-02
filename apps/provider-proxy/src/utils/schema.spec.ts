@@ -1,3 +1,4 @@
+import { fromBech32, toBech32 } from "@cosmjs/encoding";
 import { describe, expect, it } from "vitest";
 
 import { createX509CertPair } from "../../test/seeders/createX509CertPair";
@@ -77,6 +78,18 @@ describe(addProviderAuthValidation.name, () => {
     const result = schema.safeParse({ url: PROVIDER_URL, providerAddress: PROVIDER_ADDRESS });
 
     expect(result.error).toBeUndefined();
+  });
+
+  it.each([
+    ["another chain's prefix", toBech32("cosmos", fromBech32(PROVIDER_ADDRESS).data)],
+    ["a prefix carrying path characters", toBech32("../../x?", fromBech32(PROVIDER_ADDRESS).data)],
+    ["a string that is not bech32", "akash1notanaddress"]
+  ])("rejects a provider address with %s", async (_label, providerAddress) => {
+    const { schema } = await setup();
+
+    const result = schema.safeParse({ url: PROVIDER_URL, providerAddress });
+
+    expect(result.error?.issues).toEqual([expect.objectContaining({ path: ["providerAddress"], message: "is not an akash bech32 address" })]);
   });
 
   async function setup() {

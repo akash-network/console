@@ -60,7 +60,14 @@ export async function startAppServer(untrustedConfig: Record<string, unknown> | 
       fetch: app.fetch,
       port: container.appConfig.PORT
     }) as http.Server;
-    const wss = new WebsocketServer(httpAppServer, container.certificateValidator, container.wsStats, container.wsLogger);
+    const wss = new WebsocketServer(
+      httpAppServer,
+      container.certificateValidator,
+      container.providerHostVerifier,
+      container.wsStats,
+      container.wsLogger,
+      container.networkLookup
+    );
     wss.listen();
     let isClosingPromise: Promise<void> | undefined;
 
