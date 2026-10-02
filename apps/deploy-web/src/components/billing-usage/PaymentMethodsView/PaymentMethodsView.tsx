@@ -94,8 +94,8 @@ export const PaymentMethodsView: React.FC<PaymentMethodsViewProps> = ({
           )}
         </div>
         <div className="flex flex-wrap items-center justify-between gap-3 border-t bg-muted px-5 py-3 text-[13px] text-muted-foreground sm:pl-6 sm:pr-4">
-          <span>All transactions will be made using your default card.</span>
-          <d.Button onClick={() => openAddPaymentMethod()} size="sm" variant="outline" disabled={isInProgress} className="gap-1.5 bg-background">
+          {data.length > 0 && <span>All transactions will be made using your default payment method.</span>}
+          <d.Button onClick={() => openAddPaymentMethod()} size="sm" variant="outline" disabled={isInProgress} className="ml-auto gap-1.5 bg-background">
             <Plus className="h-3.5 w-3.5" />
             <span>Add Payment Method</span>
           </d.Button>

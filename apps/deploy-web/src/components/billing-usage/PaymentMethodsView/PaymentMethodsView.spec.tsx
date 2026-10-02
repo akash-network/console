@@ -30,11 +30,11 @@ const MockButton = ({ children, onClick, disabled, "aria-label": ariaLabel }: an
 );
 
 describe(PaymentMethodsView.name, () => {
-  it("renders the cards under the Payment Method section with the default card note", () => {
+  it("renders the payment methods under the Payment Method section with the default method note", () => {
     setup();
 
     expect(screen.getByRole("region", { name: "Payment Method" })).toBeInTheDocument();
-    expect(screen.getByText("All transactions will be made using your default card.")).toBeInTheDocument();
+    expect(screen.getByText("All transactions will be made using your default payment method.")).toBeInTheDocument();
   });
 
   it("renders a row for each payment method", () => {
@@ -51,6 +51,7 @@ describe(PaymentMethodsView.name, () => {
     expect(screen.getByText("Add a card to buy credits and turn on auto recharge.")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Add Payment Method" })).toBeEnabled();
     expect(screen.queryByTestId(/payment-method-row-/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/default payment method/)).not.toBeInTheDocument();
   });
 
   it("opens the add-payment-method flow when the add button is clicked", () => {

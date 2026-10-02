@@ -2,7 +2,7 @@ import React from "react";
 import type { StripeService } from "@akashnetwork/http-sdk";
 import { ApiError } from "@akashnetwork/openapi-sdk";
 import type { PaginationState } from "@tanstack/react-table";
-import { endOfToday, startOfToday, subDays, subMonths } from "date-fns";
+import { endOfDay, endOfToday, startOfDay, startOfToday, subDays, subMonths } from "date-fns";
 import { describe, expect, it, type MockedFunction, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
@@ -82,27 +82,85 @@ describe(BillingContainer.name, () => {
     expect(mockedUsePaymentTransactionsQuery).toHaveBeenLastCalledWith(expect.objectContaining({ startDate: subDays(startOfToday(), 29), offset: 0 }));
   });
 
-  it("keeps the current range when switching to a custom range", async () => {
+  it("keeps the current range and page when switching to a custom range", async () => {
     const { child, childCapturer } = await setup();
 
-    act(() => child.onDatePresetChange("custom"));
+    act(() => child.onDatePresetChange("last30Days"));
+    const last30Days = await childCapturer.awaitChild(candidate => candidate.datePreset === "last30Days");
+    act(() => last30Days.onPaginationChange({ pageIndex: 2, pageSize: 10 }));
+    const onPageThree = await childCapturer.awaitChild(candidate => candidate.pagination.pageIndex === 2);
+    act(() => onPageThree.onDatePresetChange("custom"));
     const next = await childCapturer.awaitChild(candidate => candidate.datePreset === "custom");
 
-    expect(next.dateRange).toEqual(child.dateRange);
+    expect(next.dateRange).toEqual({ from: subDays(startOfToday(), 29), to: endOfToday() });
+    expect(next.pagination.pageIndex).toBe(2);
+  });
+
+  it("switches to a custom range and its first page when a range is picked", async () => {
+    const { child, childCapturer, mockedUsePaymentTransactionsQuery } = await setup();
+
+    act(() => child.onPaginationChange({ pageIndex: 2, pageSize: 10 }));
+    act(() => child.onDateRangeChange({ from: new Date(2024, 0, 1), to: new Date(2024, 0, 2) }));
+    const next = await childCapturer.awaitChild(candidate => candidate.datePreset === "custom");
+
+    expect(next.dateRange).toEqual({ from: new Date(2024, 0, 1), to: endOfDay(new Date(2024, 0, 2)) });
+    expect(next.pagination.pageIndex).toBe(0);
+    expect(mockedUsePaymentTransactionsQuery).toHaveBeenLastCalledWith(expect.objectContaining({ startDate: new Date(2024, 0, 1), offset: 0 }));
+  });
+
+  it("moves a preset's range to the current day when the page renders again the next day", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    try {
+      vi.setSystemTime(new Date(2026, 9, 1, 12));
+      const { child, childCapturer, mockedUsePaymentTransactionsQuery } = await setup();
+
+      vi.setSystemTime(new Date(2026, 9, 2, 9));
+      act(() => child.onPaginationChange({ pageIndex: 1, pageSize: 10 }));
+      await childCapturer.awaitChild(candidate => candidate.pagination.pageIndex === 1);
+
+      expect(mockedUsePaymentTransactionsQuery).toHaveBeenLastCalledWith(
+        expect.objectContaining({ startDate: subMonths(new Date(2026, 9, 2), 3), endDate: endOfDay(new Date(2026, 9, 2)) })
+      );
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("exports the selected range as CSV", async () => {
     const stripe = mock<StripeService>({ exportTransactionsCsv: vi.fn().mockResolvedValue(new Blob(["csv"])) });
     const clickDownloadLink = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => undefined);
-    const { child } = await setup({ services: { stripe: () => stripe } });
+    try {
+      const { child } = await setup({ services: { stripe: () => stripe } });
 
-    await act(() => child.onExport());
+      await act(() => child.onExport());
 
-    expect(stripe.exportTransactionsCsv).toHaveBeenCalledWith(
-      expect.objectContaining({ startDate: subMonths(startOfToday(), 3), endDate: endOfToday(), timezone: expect.any(String) })
-    );
-    expect(clickDownloadLink).toHaveBeenCalledTimes(1);
-    clickDownloadLink.mockRestore();
+      expect(stripe.exportTransactionsCsv).toHaveBeenCalledWith(
+        expect.objectContaining({ startDate: subMonths(startOfToday(), 3), endDate: endOfToday(), timezone: expect.any(String) })
+      );
+      expect(clickDownloadLink).toHaveBeenCalledTimes(1);
+    } finally {
+      clickDownloadLink.mockRestore();
+    }
+  });
+
+  it("exports a preset's range as of the day the export runs", async () => {
+    const stripe = mock<StripeService>({ exportTransactionsCsv: vi.fn().mockResolvedValue(new Blob(["csv"])) });
+    const clickDownloadLink = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => undefined);
+    vi.useFakeTimers({ toFake: ["Date"] });
+    try {
+      vi.setSystemTime(new Date(2026, 9, 1, 12));
+      const { child } = await setup({ services: { stripe: () => stripe } });
+
+      vi.setSystemTime(new Date(2026, 9, 2, 9));
+      await act(() => child.onExport());
+
+      expect(stripe.exportTransactionsCsv).toHaveBeenCalledWith(
+        expect.objectContaining({ startDate: subMonths(startOfDay(new Date(2026, 9, 2)), 3), endDate: endOfDay(new Date(2026, 9, 2)) })
+      );
+    } finally {
+      vi.useRealTimers();
+      clickDownloadLink.mockRestore();
+    }
   });
 
   async function setup(
