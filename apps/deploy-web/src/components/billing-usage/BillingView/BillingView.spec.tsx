@@ -1,278 +1,258 @@
 import React from "react";
-import { TooltipProvider } from "@akashnetwork/ui/components";
 import { describe, expect, it, vi } from "vitest";
 
-import type { BillingTransaction } from "@src/queries";
-import type { BillingViewProps } from "./BillingView";
-import { BillingView } from "./BillingView";
+import { BillingView, type DEPENDENCIES } from "./BillingView";
 
-import { fireEvent, render, screen } from "@testing-library/react";
-import { createMockItems, createMockTransaction } from "@tests/seeders/payment";
+import { fireEvent, render, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { createMockTransaction } from "@tests/seeders/payment";
 
 describe(BillingView.name, () => {
+  it("renders the history under the History section", () => {
+    setup();
+
+    expect(screen.getByRole("region", { name: "History" })).toBeInTheDocument();
+    expect(screen.getByRole("table", { name: "Payment history" })).toBeInTheDocument();
+  });
+
+  it("labels the columns", () => {
+    setup();
+
+    expect(screen.getAllByRole("columnheader").map(header => header.textContent)).toEqual(["Date", "Amount", "Account source", "Status", "Receipt"]);
+  });
+
   it("shows a skeleton on first load", () => {
     setup({ isLoading: true, data: [] });
+
     expect(screen.getByTestId("billing-history-skeleton")).toBeInTheDocument();
+    expect(screen.queryByRole("table")).not.toBeInTheDocument();
   });
 
-  it("shows error alert when error", () => {
+  it("shows an error alert in place of the table", () => {
     setup({ isError: true, errorMessage: "fail!" });
+
     expect(screen.getByText("Error fetching billing data")).toBeInTheDocument();
     expect(screen.getByText("fail!")).toBeInTheDocument();
+    expect(screen.queryByRole("table")).not.toBeInTheDocument();
   });
 
-  it("shows empty state when no data", () => {
-    setup({ data: [] });
-    expect(screen.getByText(/No billing history found/i)).toBeInTheDocument();
+  it("falls back to a generic message when the error has none", () => {
+    setup({ isError: true, errorMessage: null });
+
+    expect(screen.getByText("An unexpected error occurred.")).toBeInTheDocument();
   });
 
-  it("renders table headers", () => {
-    setup();
-    expect(screen.getByText("History")).toBeInTheDocument();
-    expect(screen.getByText("Date")).toBeInTheDocument();
-    expect(screen.getByText("Type")).toBeInTheDocument();
-    expect(screen.getByText("Amount")).toBeInTheDocument();
-    expect(screen.getByText("Description")).toBeInTheDocument();
-    expect(screen.getByText("Status")).toBeInTheDocument();
-    expect(screen.getByText("Receipt")).toBeInTheDocument();
+  it("explains an empty period and keeps the date filter reachable", () => {
+    setup({ data: [], totalCount: 0 });
+
+    expect(screen.getByText("No payments in this period")).toBeInTheDocument();
+    expect(screen.getByText("Payments, coupons and credits added to your balance show up here.")).toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: "Date range" })).toBeInTheDocument();
+    expect(screen.queryByTestId("pagination")).not.toBeInTheDocument();
   });
 
-  it("renders the type badge label for each transaction type", () => {
-    setup({
-      data: [
-        createMockTransaction({ type: "payment_intent" }),
-        createMockTransaction({ type: "coupon_claim" }),
-        createMockTransaction({ type: "manual_credit" })
-      ]
-    });
+  it("fades the rows while the next page loads", () => {
+    setup({ isFetching: true });
 
-    expect(screen.getByText("Card Payment")).toBeInTheDocument();
-    expect(screen.getByText("Coupon")).toBeInTheDocument();
-    expect(screen.getByText("Manual Credit")).toBeInTheDocument();
+    expect(screen.getByRole("table")).toHaveAttribute("aria-busy", "true");
   });
 
-  it("shows the card brand and last4 under a card payment", () => {
+  it("names the card behind a card payment", () => {
     setup({ data: [createMockTransaction({ type: "payment_intent", cardBrand: "visa", cardLast4: "4242" })] });
 
-    expect(screen.getByText(/Visa/)).toBeInTheDocument();
-    expect(screen.getByText(/4242/)).toBeInTheDocument();
+    expect(cell(0, "Account source")).toHaveTextContent("Visa **** 4242");
   });
 
-  it("renders the description, falling back to N/A when missing", () => {
-    setup({
-      data: [createMockTransaction({ description: "Wallet top-up" }), createMockTransaction({ description: null })]
-    });
+  it("leaves the brand out when the card has none", () => {
+    setup({ data: [createMockTransaction({ cardBrand: null, cardLast4: "4242" })] });
 
-    expect(screen.getByText("Wallet top-up")).toBeInTheDocument();
-    expect(screen.getByText("N/A")).toBeInTheDocument();
+    expect(cell(0, "Account source")).toHaveTextContent(/^\*\*\*\* 4242$/);
   });
 
-  it("renders the transaction amount", () => {
-    const { data } = setup({ data: [createMockTransaction({ amount: 25000, status: "succeeded" })] });
-    expect(screen.getByText((data[0].amount / 100).toFixed(2))).toBeInTheDocument();
+  it.each([
+    { type: "coupon_claim" as const, label: "Coupon" },
+    { type: "manual_credit" as const, label: "Manual credit" },
+    { type: "payment_intent" as const, label: "Card payment" }
+  ])("names a $type without a card as $label with its description", ({ type, label }) => {
+    setup({ data: [createMockTransaction({ type, cardLast4: null, description: "Hackathon credits" })] });
+
+    expect(cell(0, "Account source")).toHaveTextContent(`${label}Hackathon credits`);
   });
 
-  it("shows the first-purchase bonus under the amount when present", () => {
+  it("omits the description line when a credit has none", () => {
+    setup({ data: [createMockTransaction({ type: "coupon_claim", cardLast4: null, description: null })] });
+
+    expect(cell(0, "Account source")).toHaveTextContent(/^Coupon$/);
+  });
+
+  it("reads coupons and manual credits as money in", () => {
+    setup({ data: [createMockTransaction({ type: "coupon_claim", amount: 2500, cardLast4: null })] });
+
+    const amount = within(cell(0, "Amount")).getByText(/25\.00/);
+    expect(amount).toHaveTextContent("+25.00");
+    expect(amount).toHaveAttribute("data-credit", "true");
+  });
+
+  it("shows card payments without a sign", () => {
+    setup({ data: [createMockTransaction({ type: "payment_intent", amount: 2500 })] });
+
+    expect(cell(0, "Amount")).toHaveTextContent(/^25\.00$/);
+    expect(within(cell(0, "Amount")).getByText("25.00")).not.toHaveAttribute("data-credit");
+  });
+
+  it("shows the first-purchase bonus under the amount", () => {
     setup({ data: [createMockTransaction({ amount: 25000, bonusAmount: 1000 })] });
 
-    expect(screen.getByText("250.00")).toBeInTheDocument();
-    expect(screen.getByText("10.00")).toBeInTheDocument();
-    expect(screen.getByText(/bonus/)).toBeInTheDocument();
+    expect(cell(0, "Amount")).toHaveTextContent("250.00+10.00 bonus");
   });
 
-  it("renders no bonus line when the transaction has no bonus", () => {
-    setup({ data: [createMockTransaction({ amount: 25000, bonusAmount: 0 })] });
-
-    expect(screen.queryByText(/bonus/)).not.toBeInTheDocument();
-  });
-
-  it("shows the refunded amount when the transaction has a refund", () => {
+  it("shows the refunded part under the amount", () => {
     setup({ data: [createMockTransaction({ amount: 25000, amountRefunded: 5000, status: "refunded" })] });
 
-    expect(screen.getByText("50.00")).toBeInTheDocument();
-    expect(screen.getByText(/refunded/)).toBeInTheDocument();
-    expect(screen.getByText("Refunded")).toBeInTheDocument();
+    expect(cell(0, "Amount")).toHaveTextContent("250.00-50.00 refunded");
+    expect(cell(0, "Status")).toHaveTextContent("Refunded");
   });
 
-  it("renders no refunded line when nothing was refunded", () => {
-    setup({ data: [createMockTransaction({ amount: 25000, amountRefunded: 0 })] });
+  it("adds no bonus or refund line when there is neither", () => {
+    setup({ data: [createMockTransaction({ amount: 25000, bonusAmount: 0, amountRefunded: 0 })] });
 
-    expect(screen.queryByText(/refunded/i)).not.toBeInTheDocument();
+    expect(cell(0, "Amount")).toHaveTextContent(/^250\.00$/);
   });
 
-  it("renders a receipt link when a receipt url is present", () => {
+  it.each([
+    { status: "succeeded", label: "Successful" },
+    { status: "pending", label: "Pending" },
+    { status: "failed", label: "Failed" },
+    { status: "requires_action", label: "Requires_action" }
+  ])("labels a $status payment as $label", ({ status, label }) => {
+    setup({ data: [createMockTransaction({ status })] });
+
+    const pill = within(cell(0, "Status")).getByText(label);
+    expect(pill).toHaveAttribute("data-status", status);
+  });
+
+  it("links to the receipt in a new tab", () => {
     setup({ data: [createMockTransaction({ receiptUrl: "https://example.com/receipt" })] });
-    const receiptLink = screen.getAllByRole("link").find(link => link.getAttribute("target") === "_blank");
-    expect(receiptLink).toHaveAttribute("href", "https://example.com/receipt");
+
+    const receipt = screen.getByRole("link", { name: "View receipt" });
+    expect(receipt).toHaveAttribute("href", "https://example.com/receipt");
+    expect(receipt).toHaveAttribute("target", "_blank");
+    expect(receipt).toHaveAttribute("rel", "noopener noreferrer");
   });
 
   it("renders no receipt link when the receipt url is missing", () => {
     setup({ data: [createMockTransaction({ receiptUrl: null })] });
-    const receiptLink = screen.queryAllByRole("link").find(link => link.getAttribute("target") === "_blank");
-    expect(receiptLink).toBeUndefined();
+
+    expect(screen.queryByRole("link", { name: "View receipt" })).not.toBeInTheDocument();
   });
 
-  it("calls onPaginationChange when changing page size", () => {
-    const onPaginationChange = vi.fn();
-    setup({ onPaginationChange });
-    fireEvent.change(screen.getByRole("combobox"), { target: { value: "20" } });
-    expect(onPaginationChange).toHaveBeenCalledWith({ pageIndex: 0, pageSize: 20 });
-  });
+  it("renders the transaction date", () => {
+    const created = new Date(2026, 8, 30, 12);
+    setup({ data: [createMockTransaction({ created: created.getTime() / 1000 })] });
 
-  it("calls onPaginationChange when clicking next/prev", () => {
-    const onPaginationChange = vi.fn();
-    setup({ onPaginationChange, totalCount: 30, pagination: { pageIndex: 1, pageSize: 10 } });
-    fireEvent.click(screen.getByText("Previous"));
-    expect(onPaginationChange).toHaveBeenCalledWith({ pageIndex: 0, pageSize: 10 });
-    fireEvent.click(screen.getByText("Next"));
-    expect(onPaginationChange).toHaveBeenCalledWith({ pageIndex: 2, pageSize: 10 });
+    expect(cell(0, "Date")).toHaveTextContent(created.toLocaleDateString());
   });
 
   it("derives one page per pageSize chunk of totalCount", () => {
-    setup({ totalCount: 35, pagination: { pageIndex: 0, pageSize: 10 } });
-    expect(screen.getByRole("button", { name: "1" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "4" })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "5" })).not.toBeInTheDocument();
+    const { CustomPagination } = setup({ totalCount: 35, pagination: { pageIndex: 1, pageSize: 10 } });
+
+    expect(CustomPagination).toHaveBeenLastCalledWith(expect.objectContaining({ totalPageCount: 4, pageIndex: 1, pageSize: 10 }), expect.anything());
   });
 
-  it("navigates to the clicked page number", () => {
-    const onPaginationChange = vi.fn();
-    setup({ onPaginationChange, totalCount: 35, pagination: { pageIndex: 0, pageSize: 10 } });
-    fireEvent.click(screen.getByRole("button", { name: "3" }));
+  it("moves to the page the pager asks for", () => {
+    const { CustomPagination, onPaginationChange } = setup({ totalCount: 35, pagination: { pageIndex: 0, pageSize: 10 } });
+
+    CustomPagination.mock.lastCall![0].setPageIndex(2);
+
     expect(onPaginationChange).toHaveBeenCalledWith({ pageIndex: 2, pageSize: 10 });
   });
 
-  it("does not render a phantom page beyond totalCount", () => {
-    setup({ totalCount: 15, pagination: { pageIndex: 0, pageSize: 10 } });
-    expect(screen.getByRole("button", { name: "2" })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "3" })).not.toBeInTheDocument();
+  it("returns to the first page when the page size changes", () => {
+    const { CustomPagination, onPaginationChange } = setup({ totalCount: 35, pagination: { pageIndex: 2, pageSize: 10 } });
+
+    CustomPagination.mock.lastCall![0].setPageSize(20);
+
+    expect(onPaginationChange).toHaveBeenCalledWith({ pageIndex: 0, pageSize: 20 });
   });
 
-  it("disables export button when no data", () => {
-    setup({ data: [] });
-    expect(screen.getByText(/Export as CSV/i)).toBeDisabled();
+  it("shows the selected date preset", () => {
+    setup({ datePreset: "last3Months" });
+
+    expect(screen.getByRole("combobox", { name: "Date range" })).toHaveTextContent("Last 3 months");
   });
 
-  it("enables export button when data exists", () => {
-    setup();
-    expect(screen.getByText(/Export as CSV/i)).not.toBeDisabled();
+  it("switches to the date preset picked from the menu", async () => {
+    const { onDatePresetChange } = setup({ datePreset: "last3Months" });
+
+    await userEvent.click(screen.getByRole("combobox", { name: "Date range" }));
+    await userEvent.click(screen.getByRole("option", { name: "Last 12 months" }));
+
+    expect(onDatePresetChange).toHaveBeenCalledWith("last12Months");
   });
 
-  it("disables export button when no date range is selected", () => {
-    setup({ dateRange: null });
-    expect(screen.getByText(/Export as CSV/i)).toBeDisabled();
+  it("offers the custom range picker only for a custom range", () => {
+    const { DateRangePicker } = setup({ datePreset: "last30Days" });
+
+    expect(DateRangePicker).not.toHaveBeenCalled();
   });
 
-  it("calls onDateRangeChange when date range start changes", () => {
-    const onDateRangeChange = vi.fn();
-    setup({
-      onDateRangeChange,
-      dateRange: {
-        from: new Date(),
-        to: new Date("2030-01-01")
-      }
-    });
-    fireEvent.change(screen.getByLabelText("Filter by start date"), {
-      target: { value: "2025-01-01" }
-    });
-    expect(onDateRangeChange).toHaveBeenCalledWith({
-      from: new Date("2025-01-01"),
-      to: new Date("2030-01-01")
-    });
+  it("passes the current range and its limits to the custom range picker", () => {
+    const dateRange = { from: new Date(2026, 6, 1), to: new Date(2026, 6, 31) };
+    const { DateRangePicker, onDateRangeChange } = setup({ datePreset: "custom", dateRange });
+
+    const props = DateRangePicker.mock.lastCall![0];
+    props.onChange!({ from: new Date(2026, 5, 1), to: new Date(2026, 5, 30) });
+
+    expect(props).toEqual(expect.objectContaining({ date: dateRange, maxRangeInDays: 366 }));
+    expect(props.minDate!.getTime()).toBeLessThan(props.maxDate!.getTime());
+    expect(onDateRangeChange).toHaveBeenCalledWith({ from: new Date(2026, 5, 1), to: new Date(2026, 5, 30) });
   });
 
-  it("calls onDateRangeChange when date range end changes", () => {
-    const onDateRangeChange = vi.fn();
-    setup({
-      onDateRangeChange,
-      dateRange: {
-        from: new Date("2020-01-01"),
-        to: new Date()
-      }
-    });
-    fireEvent.change(screen.getByLabelText("Filter by end date"), {
-      target: { value: "2025-01-01" }
-    });
-    expect(onDateRangeChange).toHaveBeenCalledWith({
-      from: new Date("2020-01-01"),
-      to: new Date("2025-01-01")
-    });
-  });
+  it("exports the history as CSV", () => {
+    const { onExport } = setup();
 
-  it("calls onExport when export button clicked", () => {
-    const onExport = vi.fn();
-    setup({ onExport });
-    fireEvent.click(screen.getByText(/Export as CSV/i));
+    fireEvent.click(screen.getByRole("button", { name: "Export as CSV" }));
+
     expect(onExport).toHaveBeenCalled();
   });
 
-  function setup(props: Partial<React.ComponentProps<typeof BillingView>> = {}) {
-    const defaultData: BillingTransaction[] = createMockItems(createMockTransaction, 1);
+  it("disables the export when the period has no payments", () => {
+    setup({ data: [], totalCount: 0 });
 
-    const defaultComponents: NonNullable<BillingViewProps["components"]> = {
-      FormattedNumber: ({ value }) => <span>{value.toFixed(2)}</span>,
-      CustomPagination: ({ totalPageCount, pageIndex, pageSize, setPageIndex, setPageSize }) => (
-        <div>
-          <select value={pageSize} onChange={e => setPageSize(parseInt(e.target.value, 10))} role="combobox">
-            {[10, 20, 50].map(size => (
-              <option key={size} value={size}>
-                {size}
-              </option>
-            ))}
-          </select>
-          <button onClick={() => setPageIndex(pageIndex - 1)}>Previous</button>
-          {Array.from({ length: totalPageCount }, (_, page) => (
-            <button key={page} onClick={() => setPageIndex(page)}>
-              {page + 1}
-            </button>
-          ))}
-          <button onClick={() => setPageIndex(pageIndex + 1)}>Next</button>
-        </div>
-      ),
-      DateRangePicker: ({ date = props.dateRange, onChange }) => (
-        <div>
-          <label>
-            <span>Filter by start date</span>
-            <input
-              type="date"
-              value={date?.from ? date.from.toISOString().split("T")[0] : ""}
-              onChange={e => onChange?.({ from: new Date(e.target.value), to: date?.to || new Date() })}
-            />
-          </label>
-          <label>
-            <span>Filter by end date</span>
-            <input
-              type="date"
-              value={date?.to ? date.to.toISOString().split("T")[0] : ""}
-              onChange={e => onChange?.({ from: date?.from || new Date(), to: new Date(e.target.value) })}
-            />
-          </label>
-        </div>
-      )
-    };
+    expect(screen.getByRole("button", { name: "Export as CSV" })).toBeDisabled();
+  });
 
-    const defaultProps: React.ComponentProps<typeof BillingView> = {
-      data: props.data ?? defaultData,
+  function cell(rowIndex: number, column: string) {
+    const columnIndex = ["Date", "Amount", "Account source", "Status", "Receipt"].indexOf(column);
+    const rows = screen.getAllByRole("row").slice(1);
+    return within(rows[rowIndex]).getAllByRole("cell")[columnIndex];
+  }
+
+  function setup(input: Partial<Omit<React.ComponentProps<typeof BillingView>, "dependencies">> = {}) {
+    const CustomPagination = vi.fn<typeof DEPENDENCIES.CustomPagination>(() => <div data-testid="pagination" />);
+    const DateRangePicker = vi.fn<typeof DEPENDENCIES.DateRangePicker>(() => <div />);
+    const FormattedNumber = vi.fn((({ value }: { value: number }) => <>{value.toFixed(2)}</>) as typeof DEPENDENCIES.FormattedNumber);
+
+    const props: React.ComponentProps<typeof BillingView> = {
+      data: [createMockTransaction()],
       isLoading: false,
       isFetching: false,
       isError: false,
       errorMessage: "",
-      onExport: props.onExport ?? vi.fn(),
-      onPaginationChange: props.onPaginationChange ?? vi.fn(),
-      pagination: props.pagination ?? { pageIndex: 0, pageSize: 10 },
+      onExport: vi.fn(),
+      onPaginationChange: vi.fn(),
+      pagination: { pageIndex: 0, pageSize: 10 },
       totalCount: 1,
-      dateRange: { from: new Date(), to: new Date() },
-      onDateRangeChange: props.onDateRangeChange ?? vi.fn(),
-      components: props.components ?? defaultComponents,
-      ...props
+      dateRange: { from: new Date(2026, 6, 2), to: new Date(2026, 9, 2) },
+      onDateRangeChange: vi.fn(),
+      datePreset: "last3Months",
+      onDatePresetChange: vi.fn(),
+      ...input,
+      dependencies: { CustomPagination, DateRangePicker, FormattedNumber }
     };
 
-    render(
-      <TooltipProvider>
-        <BillingView {...defaultProps} />
-      </TooltipProvider>
-    );
+    render(<BillingView {...props} />);
 
-    return defaultProps;
+    return { ...props, CustomPagination, DateRangePicker };
   }
 });

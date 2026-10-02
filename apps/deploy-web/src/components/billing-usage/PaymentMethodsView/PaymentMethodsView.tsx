@@ -1,9 +1,11 @@
 import React from "react";
 import type { PaymentMethod } from "@akashnetwork/http-sdk";
-import { Alert, AlertDescription, AlertTitle, Button, Card, CardContent, CardHeader, Skeleton } from "@akashnetwork/ui/components";
+import { Alert, AlertDescription, AlertTitle, Button, Card, Skeleton } from "@akashnetwork/ui/components";
+import { CreditCard } from "iconoir-react";
 import { Plus, X } from "lucide-react";
 
 import { useBillingActions } from "@src/components/billing-usage/BillingActionsProvider/BillingActionsProvider";
+import { SettingsSection } from "@src/components/layout/SettingsSection/SettingsSection";
 import type { StripeErrorInfo } from "@src/utils/stripeErrorHandler";
 import { PaymentMethodsRow } from "./PaymentMethodsRow";
 
@@ -14,8 +16,6 @@ export const DEPENDENCIES = {
   AlertTitle,
   AlertDescription,
   Card,
-  CardHeader,
-  CardContent,
   Skeleton,
   Button
 };
@@ -46,58 +46,61 @@ export const PaymentMethodsView: React.FC<PaymentMethodsViewProps> = ({
   const { openAddPaymentMethod } = d.useBillingActions();
 
   return (
-    <d.Card className="overflow-hidden">
-      <d.CardHeader className="flex flex-row flex-wrap items-start justify-between gap-4 space-y-0">
-        <div className="space-y-1">
-          <h3 className="text-lg font-bold leading-none">Payment Method</h3>
-          <p className="text-sm text-muted-foreground">All transactions will be made using your default card.</p>
-        </div>
-        <d.Button onClick={() => openAddPaymentMethod()} size="sm" variant="outline" disabled={isInProgress} className="gap-2">
-          <Plus className="h-4 w-4" />
-          <span>Add Payment Method</span>
-        </d.Button>
-      </d.CardHeader>
-      <d.CardContent>
-        {operationError && (
-          <d.Alert variant="destructive" className="mb-2 flex items-start gap-3 p-4">
-            <div className="min-w-0 flex-1">
-              <d.AlertTitle>{operationError.title}</d.AlertTitle>
-              <d.AlertDescription>
-                <span className="block">{operationError.message}</span>
-                {operationError.userAction && <span className="mt-1 block">{operationError.userAction}</span>}
-              </d.AlertDescription>
+    <SettingsSection title="Payment Method">
+      {operationError && (
+        <d.Alert variant="destructive" className="mb-3 flex items-start gap-3 p-4">
+          <div className="min-w-0 flex-1">
+            <d.AlertTitle>{operationError.title}</d.AlertTitle>
+            <d.AlertDescription>
+              <span className="block">{operationError.message}</span>
+              {operationError.userAction && <span className="mt-1 block">{operationError.userAction}</span>}
+            </d.AlertDescription>
+          </div>
+          <d.Button onClick={onDismissOperationError} size="icon" variant="ghost" className="h-6 w-6 shrink-0" aria-label="Dismiss error">
+            <X className="h-4 w-4" />
+          </d.Button>
+        </d.Alert>
+      )}
+      <d.Card className="overflow-hidden rounded-xl shadow-none">
+        <div className="p-5 sm:px-6">
+          {isLoadingPaymentMethods ? (
+            <div className="flex flex-col gap-5">
+              {Array.from({ length: 2 }).map((_, index) => (
+                <div key={index} className="flex items-center gap-3.5">
+                  <d.Skeleton className="h-7 w-[42px] rounded-md" />
+                  <d.Skeleton className="h-4 w-48" />
+                  <d.Skeleton className="ml-auto h-4 w-28" />
+                </div>
+              ))}
             </div>
-            <d.Button onClick={onDismissOperationError} size="icon" variant="ghost" className="h-6 w-6 shrink-0" aria-label="Dismiss error">
-              <X className="h-4 w-4" />
-            </d.Button>
-          </d.Alert>
-        )}
-        {isLoadingPaymentMethods ? (
-          <div className="divide-y">
-            {Array.from({ length: 2 }).map((_, index) => (
-              <div key={index} className="flex items-center gap-3 py-4">
-                <d.Skeleton className="h-6 w-6 rounded" />
-                <d.Skeleton className="h-4 w-48" />
-                <d.Skeleton className="ml-auto h-4 w-24" />
-              </div>
-            ))}
-          </div>
-        ) : data.length === 0 ? (
-          <p className="py-4 text-sm text-muted-foreground">No payment methods added yet.</p>
-        ) : (
-          <div className="divide-y">
-            {data.map(paymentMethod => (
-              <d.PaymentMethodsRow
-                key={paymentMethod.id}
-                paymentMethod={paymentMethod}
-                isDisabled={isInProgress}
-                onSetPaymentMethodAsDefault={onSetPaymentMethodAsDefault}
-                onRemovePaymentMethod={onRemovePaymentMethod}
-              />
-            ))}
-          </div>
-        )}
-      </d.CardContent>
-    </d.Card>
+          ) : data.length === 0 ? (
+            <div className="flex flex-col items-center gap-2 py-4 text-center">
+              <CreditCard className="h-[22px] w-[22px] text-muted-foreground" aria-hidden />
+              <p className="text-sm font-semibold">No payment methods yet</p>
+              <p className="text-xs text-muted-foreground">Add a card to buy credits and turn on auto recharge.</p>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-5">
+              {data.map(paymentMethod => (
+                <d.PaymentMethodsRow
+                  key={paymentMethod.id}
+                  paymentMethod={paymentMethod}
+                  isDisabled={isInProgress}
+                  onSetPaymentMethodAsDefault={onSetPaymentMethodAsDefault}
+                  onRemovePaymentMethod={onRemovePaymentMethod}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t bg-muted px-5 py-3 text-[13px] text-muted-foreground sm:pl-6 sm:pr-4">
+          <span>All transactions will be made using your default card.</span>
+          <d.Button onClick={() => openAddPaymentMethod()} size="sm" variant="outline" disabled={isInProgress} className="gap-1.5 bg-background">
+            <Plus className="h-3.5 w-3.5" />
+            <span>Add Payment Method</span>
+          </d.Button>
+        </div>
+      </d.Card>
+    </SettingsSection>
   );
 };

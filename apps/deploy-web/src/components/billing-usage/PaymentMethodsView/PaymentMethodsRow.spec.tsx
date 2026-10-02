@@ -9,7 +9,7 @@ import userEvent from "@testing-library/user-event";
 import { createMockLinkPaymentMethod, createMockPaymentMethod } from "@tests/seeders/payment";
 
 // Mock implementations for dependencies
-const MockCreditCard = ({ className }: any) => <svg data-testid="card-icon" className={className} />;
+const MockCardBrandMark = ({ brand }: { brand?: string | null }) => <span data-testid="card-brand-mark">{brand}</span>;
 
 let isDropdownOpen = false;
 
@@ -59,7 +59,7 @@ const MockCustomDropdownLinkItem = React.forwardRef(({ children, onClick, icon, 
 ));
 
 const mockDependencies: any = {
-  CreditCard: MockCreditCard,
+  CardBrandMark: MockCardBrandMark,
   DropdownMenu: MockDropdownMenu,
   DropdownMenuTrigger: MockDropdownMenuTrigger,
   Button: MockButton,
@@ -410,6 +410,18 @@ describe(PaymentMethodsRow.name, () => {
 
       expect(screen.getByText(/Link \(email@example\.com\)/)).toBeInTheDocument();
       expect(screen.queryByText(/Valid until/)).not.toBeInTheDocument();
+    });
+
+    it("marks a card with its brand", () => {
+      setup({ paymentMethod: createMockPaymentMethod({ card: { brand: "visa", last4: "4242", funding: "credit", exp_month: 1, exp_year: 2030 } }) });
+
+      expect(screen.getByTestId("card-brand-mark")).toHaveTextContent("visa");
+    });
+
+    it("marks a Link payment method with its type", () => {
+      setup({ paymentMethod: createMockLinkPaymentMethod({ link: undefined }) });
+
+      expect(screen.getByTestId("card-brand-mark")).toHaveTextContent("link");
     });
   });
 

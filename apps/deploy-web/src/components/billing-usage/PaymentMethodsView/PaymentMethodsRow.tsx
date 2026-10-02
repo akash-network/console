@@ -1,10 +1,10 @@
 import React, { useCallback, useMemo, useState } from "react";
 import type { PaymentMethod } from "@akashnetwork/http-sdk";
-import { Badge, Button, DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "@akashnetwork/ui/components";
+import { Button, DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "@akashnetwork/ui/components";
 import { ClickAwayListener } from "@mui/material";
 import { BadgeCheck, CheckCircle, MoreHoriz, Trash } from "iconoir-react";
-import { CreditCard } from "lucide-react";
 
+import { CardBrandMark } from "@src/components/billing-usage/CardBrandMark/CardBrandMark";
 import { CustomDropdownLinkItem } from "@src/components/shared/CustomDropdownLinkItem";
 import { capitalizeFirstLetter } from "@src/utils/stringUtils";
 
@@ -15,7 +15,7 @@ export const DEPENDENCIES = {
   DropdownMenuContent,
   ClickAwayListener,
   CustomDropdownLinkItem,
-  CreditCard
+  CardBrandMark
 };
 
 export type PaymentMethodsRowProps = {
@@ -79,10 +79,10 @@ export const PaymentMethodsRow: React.FC<PaymentMethodsRowProps> = ({
     }
 
     return (
-      <Badge variant="info" className="h-4 px-1 py-0 text-xs">
-        <BadgeCheck width="10px" className="mr-1" />
-        <small>Default</small>
-      </Badge>
+      <span className="inline-flex items-center gap-1 rounded-full border border-blue-200 bg-blue-50 px-2.5 py-0.5 text-xs font-semibold text-blue-600 dark:border-blue-400/30 dark:bg-blue-400/10 dark:text-blue-400">
+        <BadgeCheck className="h-3 w-3" aria-hidden />
+        Default
+      </span>
     );
   }, [paymentMethod]);
 
@@ -99,18 +99,27 @@ export const PaymentMethodsRow: React.FC<PaymentMethodsRowProps> = ({
   const canSetAsDefault = !paymentMethod.isDefault;
 
   return (
-    <div className="flex items-center gap-3 py-4">
-      <d.CreditCard className="h-6 w-6 shrink-0 text-muted-foreground" />
-      <div className="flex min-w-0 flex-wrap items-center gap-2">
-        <span className="truncate font-medium">{paymentMethodLabel}</span>
-        {defaultBadge}
+    <div className="flex items-center gap-3.5">
+      <d.CardBrandMark brand={paymentMethod.card?.brand ?? paymentMethod.type} />
+      <div className="flex min-w-0 flex-1 flex-col gap-1 sm:flex-row sm:items-center sm:gap-3">
+        <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
+          <span className="truncate text-[14.5px] font-medium">{paymentMethodLabel}</span>
+          {defaultBadge}
+        </div>
+        {validUntilContent && <span className="whitespace-nowrap text-xs text-muted-foreground sm:ml-auto sm:text-sm">Valid until {validUntilContent}</span>}
       </div>
-      <div className="ml-auto flex items-center gap-2">
-        {validUntilContent && <span className="whitespace-nowrap text-sm text-muted-foreground">Valid until {validUntilContent}</span>}
+      <div className="flex shrink-0 items-center">
         <d.DropdownMenu modal={false} open={open}>
           <d.DropdownMenuTrigger asChild>
-            <d.Button onClick={openMenu} disabled={isDisabled} size="icon" variant="ghost" className="rounded-full" aria-label="Payment method actions">
-              <MoreHoriz />
+            <d.Button
+              onClick={openMenu}
+              disabled={isDisabled}
+              size="icon"
+              variant="ghost"
+              className="h-[30px] w-[30px] rounded-md text-muted-foreground"
+              aria-label="Payment method actions"
+            >
+              <MoreHoriz className="h-[17px] w-[17px]" />
             </d.Button>
           </d.DropdownMenuTrigger>
           <d.DropdownMenuContent

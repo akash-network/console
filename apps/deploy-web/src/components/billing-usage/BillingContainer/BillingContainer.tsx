@@ -9,6 +9,7 @@ import type { BillingTransaction } from "@src/queries";
 import { usePaymentTransactionsQuery } from "@src/queries";
 import { createDateRange } from "@src/utils/dateUtils";
 import { downloadCsv } from "@src/utils/domUtils";
+import { DEFAULT_HISTORY_DATE_PRESET, getHistoryPresetRange, type HistoryDatePreset, type HistoryDateRange } from "./historyDatePresets";
 
 const DEPENDENCIES = {
   usePaymentTransactionsQuery
@@ -24,8 +25,10 @@ export type ChildrenProps = {
   onPaginationChange: (state: PaginationState) => void;
   pagination: PaginationState;
   totalCount: number;
-  dateRange: { from: Date; to: Date } | null;
-  onDateRangeChange: (range: { from: Date; to: Date }) => void;
+  dateRange: HistoryDateRange;
+  onDateRangeChange: (range: HistoryDateRange) => void;
+  datePreset: HistoryDatePreset;
+  onDatePresetChange: (preset: HistoryDatePreset) => void;
 };
 
 type BillingContainerProps = {
@@ -36,7 +39,8 @@ type BillingContainerProps = {
 export const BillingContainer: React.FC<BillingContainerProps> = ({ children, dependencies: D = DEPENDENCIES }) => {
   const { toast } = useToast();
   const { stripe } = useServices();
-  const [dateRange, setDateRange] = React.useState<{ from: Date; to: Date } | null>(null);
+  const [datePreset, setDatePreset] = useState<HistoryDatePreset>(DEFAULT_HISTORY_DATE_PRESET);
+  const [dateRange, setDateRange] = useState<HistoryDateRange>(() => getHistoryPresetRange(DEFAULT_HISTORY_DATE_PRESET));
   const [pagination, setPagination] = useState<PaginationState>({ pageIndex: 0, pageSize: 10 });
 
   const [errorMessage, setErrorMessage] = React.useState("");
@@ -50,8 +54,8 @@ export const BillingContainer: React.FC<BillingContainerProps> = ({ children, de
   } = D.usePaymentTransactionsQuery({
     limit: pagination.pageSize,
     offset: pagination.pageIndex * pagination.pageSize,
-    startDate: dateRange?.from,
-    endDate: dateRange?.to
+    startDate: dateRange.from,
+    endDate: dateRange.to
   });
 
   React.useEffect(() => {
@@ -64,14 +68,20 @@ export const BillingContainer: React.FC<BillingContainerProps> = ({ children, de
     setPagination(state.pageSize !== pagination.pageSize ? { pageIndex: 0, pageSize: state.pageSize } : state);
   };
 
-  const changeDateRange = (range: { from: Date; to: Date }) => {
+  const changeDateRange = (range: HistoryDateRange) => {
     setDateRange(createDateRange(range));
     setPagination(prev => ({ ...prev, pageIndex: 0 }));
     setErrorMessage("");
   };
 
+  const changeDatePreset = (preset: HistoryDatePreset) => {
+    setDatePreset(preset);
+    if (preset !== "custom") {
+      changeDateRange(getHistoryPresetRange(preset));
+    }
+  };
+
   const exportCsv = async () => {
-    if (!dateRange) return;
     const { from: startDate, to: endDate } = dateRange;
 
     try {
@@ -106,6 +116,8 @@ export const BillingContainer: React.FC<BillingContainerProps> = ({ children, de
         totalCount: data?.totalCount || 0,
         dateRange,
         onDateRangeChange: changeDateRange,
+        datePreset,
+        onDatePresetChange: changeDatePreset,
         pagination,
         isLoading,
         isFetching,

@@ -1,15 +1,19 @@
 import React from "react";
+import type { StripeService } from "@akashnetwork/http-sdk";
 import { ApiError } from "@akashnetwork/openapi-sdk";
 import type { PaginationState } from "@tanstack/react-table";
+import { endOfToday, startOfToday, subDays, subMonths } from "date-fns";
 import { describe, expect, it, type MockedFunction, vi } from "vitest";
+import { mock } from "vitest-mock-extended";
 
 import type { BillingTransaction, usePaymentTransactionsQuery } from "@src/queries";
 import type { ChildrenProps } from "./BillingContainer";
 import { BillingContainer } from "./BillingContainer";
 
-import { render } from "@testing-library/react";
+import { act, render } from "@testing-library/react";
 import { createMockTransaction } from "@tests/seeders/payment";
 import { createContainerTestingChildCapturer } from "@tests/unit/container-testing-child-capturer";
+import { TestContainerProvider } from "@tests/unit/TestContainerProvider";
 
 describe(BillingContainer.name, () => {
   it("renders payment transactions data", async () => {
@@ -56,6 +60,51 @@ describe(BillingContainer.name, () => {
     expect(onExport).toHaveBeenCalled();
   });
 
+  it("starts on the last 3 months", async () => {
+    const { child, mockedUsePaymentTransactionsQuery } = await setup();
+
+    expect(child.datePreset).toBe("last3Months");
+    expect(child.dateRange).toEqual({ from: subMonths(startOfToday(), 3), to: endOfToday() });
+    expect(mockedUsePaymentTransactionsQuery).toHaveBeenLastCalledWith(
+      expect.objectContaining({ startDate: subMonths(startOfToday(), 3), endDate: endOfToday() })
+    );
+  });
+
+  it("loads a preset's range from the first page", async () => {
+    const { child, childCapturer, mockedUsePaymentTransactionsQuery } = await setup();
+
+    act(() => child.onPaginationChange({ pageIndex: 2, pageSize: 10 }));
+    act(() => child.onDatePresetChange("last30Days"));
+    const next = await childCapturer.awaitChild(candidate => candidate.datePreset === "last30Days");
+
+    expect(next.dateRange).toEqual({ from: subDays(startOfToday(), 29), to: endOfToday() });
+    expect(next.pagination.pageIndex).toBe(0);
+    expect(mockedUsePaymentTransactionsQuery).toHaveBeenLastCalledWith(expect.objectContaining({ startDate: subDays(startOfToday(), 29), offset: 0 }));
+  });
+
+  it("keeps the current range when switching to a custom range", async () => {
+    const { child, childCapturer } = await setup();
+
+    act(() => child.onDatePresetChange("custom"));
+    const next = await childCapturer.awaitChild(candidate => candidate.datePreset === "custom");
+
+    expect(next.dateRange).toEqual(child.dateRange);
+  });
+
+  it("exports the selected range as CSV", async () => {
+    const stripe = mock<StripeService>({ exportTransactionsCsv: vi.fn().mockResolvedValue(new Blob(["csv"])) });
+    const clickDownloadLink = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => undefined);
+    const { child } = await setup({ services: { stripe: () => stripe } });
+
+    await act(() => child.onExport());
+
+    expect(stripe.exportTransactionsCsv).toHaveBeenCalledWith(
+      expect.objectContaining({ startDate: subMonths(startOfToday(), 3), endDate: endOfToday(), timezone: expect.any(String) })
+    );
+    expect(clickDownloadLink).toHaveBeenCalledTimes(1);
+    clickDownloadLink.mockRestore();
+  });
+
   async function setup(
     overrides: Partial<{
       data: { transactions: BillingTransaction[]; hasMore: boolean; totalCount: number };
@@ -63,6 +112,7 @@ describe(BillingContainer.name, () => {
       isFetching: boolean;
       isError: boolean;
       queryError: Error;
+      services: React.ComponentProps<typeof TestContainerProvider>["services"];
     }> = {}
   ) {
     const useDefaultData = !Object.prototype.hasOwnProperty.call(overrides, "data");
@@ -98,29 +148,31 @@ describe(BillingContainer.name, () => {
     const childCapturer = createContainerTestingChildCapturer<ChildrenProps>();
 
     render(
-      <BillingContainer dependencies={dependencies}>
-        {props => {
-          return childCapturer.renderChild({
-            ...props,
-            onPaginationChange: (state: PaginationState) => {
-              onPaginationChange(state);
-              props.onPaginationChange(state);
-            },
-            onDateRangeChange: (range: { from: Date; to: Date }) => {
-              onDateRangeChange(range);
-              props.onDateRangeChange(range);
-            },
-            onExport: () => {
-              onExport();
-              props.onExport();
-            }
-          });
-        }}
-      </BillingContainer>
+      <TestContainerProvider services={overrides.services}>
+        <BillingContainer dependencies={dependencies}>
+          {props => {
+            return childCapturer.renderChild({
+              ...props,
+              onPaginationChange: (state: PaginationState) => {
+                onPaginationChange(state);
+                props.onPaginationChange(state);
+              },
+              onDateRangeChange: (range: { from: Date; to: Date }) => {
+                onDateRangeChange(range);
+                props.onDateRangeChange(range);
+              },
+              onExport: () => {
+                onExport();
+                return props.onExport();
+              }
+            });
+          }}
+        </BillingContainer>
+      </TestContainerProvider>
     );
 
     const child = await childCapturer.awaitChild(() => true);
 
-    return { data, child, onPaginationChange, onDateRangeChange, onExport };
+    return { data, child, childCapturer, mockedUsePaymentTransactionsQuery, onPaginationChange, onDateRangeChange, onExport };
   }
 });
