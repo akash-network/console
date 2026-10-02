@@ -51,39 +51,6 @@ describe(TransactionRepository.name, () => {
     });
   });
 
-  describe("getTransactionsByAddress", () => {
-    it("returns a list of transactions by address", async () => {
-      const { transactions, repository } = await setup();
-      const address = createAkashAddress();
-      const transactionsWithAddressRef = transactions.slice(0, 10);
-      await Promise.all(
-        transactionsWithAddressRef.map(async trx => {
-          const message = await createAkashMessage({
-            txId: trx.id,
-            height: trx.height
-          });
-          return createAddressReferenceInDatabase({
-            transactionId: trx.id,
-            address,
-            type: "sender",
-            messageId: message.id
-          });
-        })
-      );
-      const transactionsFound = await repository.getTransactionsByAddress(address, 0, 10);
-      expect(transactionsFound.count).toBe(transactionsWithAddressRef.length);
-      expect(transactionsFound.results.map(trx => trx.hash).toSorted()).toEqual(transactionsWithAddressRef.map(trx => trx.hash).toSorted());
-    });
-
-    it("returns an empty list if the address has no transactions", async () => {
-      const { repository } = await setup();
-      const address = createAkashAddress();
-      const transactionsFound = await repository.getTransactionsByAddress(address, 0, 5);
-      expect(transactionsFound.count).toBe(0);
-      expect(transactionsFound.results).toEqual([]);
-    });
-  });
-
   describe("findTransactionsByAddress", () => {
     it("fills the page with distinct transactions when the address is referenced by several messages of one", async () => {
       const { repository } = await setup();

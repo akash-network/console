@@ -17,6 +17,11 @@ export type PaginatedResults<T> = {
   count: number;
 };
 
+export type ResultsPage<T> = {
+  results: T[];
+  hasMore: boolean;
+};
+
 export type ISidebarGroupMenu = {
   title?: string;
   routes: Array<ISidebarRoute>;

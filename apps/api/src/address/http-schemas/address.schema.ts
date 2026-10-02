@@ -93,7 +93,7 @@ export const GetAddressResponseSchema = z.object({
 export type GetAddressResponse = z.infer<typeof GetAddressResponseSchema>;
 
 export const GetAddressTransactionsResponseSchema = z.object({
-  count: z.number(),
-  results: z.array(TransactionSchema)
+  results: z.array(TransactionSchema),
+  hasMore: z.boolean().openapi({ description: "Whether a further page exists." })
 });
 export type GetAddressTransactionsResponse = z.infer<typeof GetAddressTransactionsResponseSchema>;

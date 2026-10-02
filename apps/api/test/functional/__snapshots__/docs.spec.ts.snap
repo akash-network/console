@@ -2034,8 +2034,9 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
               "application/json": {
                 "schema": {
                   "properties": {
-                    "count": {
-                      "type": "number",
+                    "hasMore": {
+                      "description": "Whether a further page exists.",
+                      "type": "boolean",
                     },
                     "results": {
                       "items": {
@@ -2118,8 +2119,8 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                     },
                   },
                   "required": [
-                    "count",
                     "results",
+                    "hasMore",
                   ],
                   "type": "object",
                 },

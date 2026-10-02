@@ -123,20 +123,7 @@ export class TransactionRepository {
     };
   }
 
-  async getTransactionsByAddress(address: string, skip?: number, limit?: number): Promise<GetAddressTransactionsResponse> {
-    const [count, results] = await Promise.all([
-      AddressReference.count({
-        col: "transactionId",
-        distinct: true,
-        where: { address: address }
-      }),
-      this.findTransactionsByAddress(address, skip, limit)
-    ]);
-
-    return { count, results };
-  }
-
-  async findTransactionsByAddress(address: string, skip?: number, limit?: number): Promise<GetAddressTransactionsResponse["results"]> {
+  async findTransactionsByAddress(address: string, skip: number, limit: number): Promise<GetAddressTransactionsResponse["results"]> {
     const txIds = await this.#chainDb.query<{ id: string }>(TRANSACTION_IDS_BY_ADDRESS_QUERY, {
       replacements: [address, skip, limit],
       type: QueryTypes.SELECT

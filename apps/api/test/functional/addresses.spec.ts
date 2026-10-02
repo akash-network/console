@@ -124,17 +124,28 @@ describe("Addresses API", () => {
 
       expect(response.status).toBe(200);
       const result = (await response.json()) as GetAddressTransactionsResponse;
-      expect(result.count).toEqual(2);
-      expect(result.results).toEqual(
-        expect.arrayContaining([
+      expect(result).toEqual({
+        results: expect.arrayContaining([
           expect.objectContaining({
             hash: transactions[0].hash
           }),
           expect.objectContaining({
             hash: transactions[1].hash
           })
-        ])
-      );
+        ]),
+        hasMore: false
+      });
+    });
+
+    it("reports a further page when the address has more transactions than the limit", async () => {
+      const { address } = await setup();
+
+      const response = await app.request(`/v1/addresses/${address}/transactions/0/1`);
+
+      expect(response.status).toBe(200);
+      const result = (await response.json()) as GetAddressTransactionsResponse;
+      expect(result.results).toHaveLength(1);
+      expect(result.hasMore).toBe(true);
     });
 
     it("returns 400 when address is not a valid akash address", async () => {

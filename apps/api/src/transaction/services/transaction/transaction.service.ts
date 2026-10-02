@@ -21,8 +21,10 @@ export class TransactionService {
   }
 
   @Memoize({ ttlInSeconds: averageBlockTime, maxEntries: 500 })
-  async getTransactionsByAddress(address: string, skip: number = -1, limit: number = -1): Promise<GetAddressTransactionsResponse> {
-    return await this.transactionRepository.getTransactionsByAddress(address, skip === -1 ? undefined : skip, limit === -1 ? undefined : limit);
+  async getTransactionsByAddress(address: string, skip: number, limit: number): Promise<GetAddressTransactionsResponse> {
+    const transactions = await this.transactionRepository.findTransactionsByAddress(address, skip, limit + 1);
+
+    return { results: transactions.slice(0, limit), hasMore: transactions.length > limit };
   }
 
   async getLatestTransactionsByAddress(address: string, limit: number): Promise<GetAddressTransactionsResponse["results"]> {
