@@ -2,6 +2,7 @@ import { createStore, Provider } from "jotai";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
+import type { DeploymentCloseReasonInput } from "@src/components/deployments/CloseDeploymentDialog/closeDeploymentReasons";
 import type { AnalyticsService } from "@src/services/analytics/analytics.service";
 import sdlStore from "@src/store/sdlStore";
 import type { TemplateCreation } from "@src/types";
@@ -14,6 +15,7 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { TestContainerProvider } from "@tests/unit/TestContainerProvider";
 
 const NO_PROVIDERS: ApiProviderList[] = [];
+const CLOSE_REASON: DeploymentCloseReasonInput = { closeReason: "migrating_elsewhere" };
 
 describe(useDeploymentsListModel.name, () => {
   it("asks the source for the first active page at the default size while nobody is searching", () => {
@@ -279,20 +281,21 @@ describe(useDeploymentsListModel.name, () => {
   });
 
   describe("closing the selected deployments", () => {
-    it("signs one message per selected deployment and then clears the selection", async () => {
-      const { result, signAndBroadcastTx, closeDeploymentConfirm, refetch } = setup({ active: [deployment("100"), deployment("101")] });
+    it("signs one message per selected deployment, records why on each, and then clears the selection", async () => {
+      const { result, signAndBroadcastTx, confirmCloseDeployment, recordCloseReason, refetch } = setup({ active: [deployment("100"), deployment("101")] });
 
       act(() => result.current.selectItem({ id: "100", isShiftPressed: false }));
       act(() => result.current.selectItem({ id: "101", isShiftPressed: false }));
       await act(async () => await result.current.closeSelectedDeployments());
 
-      expect(closeDeploymentConfirm).toHaveBeenCalledWith(["100", "101"]);
+      expect(confirmCloseDeployment).toHaveBeenCalledWith({ dseqs: ["100", "101"] });
       expect(signAndBroadcastTx).toHaveBeenCalledWith([expect.anything(), expect.anything()]);
+      expect(recordCloseReason).toHaveBeenCalledWith(["100", "101"], CLOSE_REASON);
       expect(refetch).toHaveBeenCalled();
       expect(result.current.selectedItemIds).toEqual([]);
     });
 
-    it("records how many deployments the landed close covered", async () => {
+    it("records how many deployments the landed close covered and why", async () => {
       const { result, analyticsService } = setup({ active: [deployment("100"), deployment("101")] });
 
       act(() => result.current.selectItem({ id: "100", isShiftPressed: false }));
@@ -302,12 +305,13 @@ describe(useDeploymentsListModel.name, () => {
       expect(analyticsService.track).toHaveBeenCalledWith("close_deployment", {
         category: "deployments",
         label: "Close selected deployments from list",
-        count: 2
+        count: 2,
+        reason: "migrating_elsewhere"
       });
     });
 
     it("does nothing when the confirmation is declined", async () => {
-      const { result, signAndBroadcastTx, analyticsService } = setup({ active: [deployment("100")], isCloseConfirmed: false });
+      const { result, signAndBroadcastTx, analyticsService } = setup({ active: [deployment("100")], closeReason: null });
 
       act(() => result.current.selectItem({ id: "100", isShiftPressed: false }));
       await act(async () => await result.current.closeSelectedDeployments());
@@ -318,11 +322,12 @@ describe(useDeploymentsListModel.name, () => {
     });
 
     it("records no close when the transaction does not land", async () => {
-      const { result, analyticsService } = setup({ active: [deployment("100")], broadcastResponse: false });
+      const { result, analyticsService, recordCloseReason } = setup({ active: [deployment("100")], broadcastResponse: false });
 
       act(() => result.current.selectItem({ id: "100", isShiftPressed: false }));
       await act(async () => await result.current.closeSelectedDeployments());
 
+      expect(recordCloseReason).not.toHaveBeenCalled();
       expect(analyticsService.track).not.toHaveBeenCalled();
     });
 
@@ -755,7 +760,7 @@ describe(useDeploymentsListModel.name, () => {
     isError?: boolean;
     isArchiveFetching?: boolean;
     isArchiveError?: boolean;
-    isCloseConfirmed?: boolean;
+    closeReason?: DeploymentCloseReasonInput | null;
     broadcastResponse?: boolean;
     appliedSearch?: string;
     isSearchTooBroad?: boolean;
@@ -768,7 +773,8 @@ describe(useDeploymentsListModel.name, () => {
 
     let current = input;
     const refetch = vi.fn();
-    const closeDeploymentConfirm = vi.fn(async () => current.isCloseConfirmed ?? true);
+    const confirmCloseDeployment = vi.fn(async () => ("closeReason" in current ? current.closeReason ?? null : CLOSE_REASON));
+    const recordCloseReason = vi.fn();
     const signAndBroadcastTx = vi.fn(async () => ("broadcastResponse" in current ? (current.broadcastResponse as boolean) : true));
     const analyticsService = mock<AnalyticsService>();
 
@@ -805,13 +811,12 @@ describe(useDeploymentsListModel.name, () => {
         signAndBroadcastTx
       });
     const useProvidersByAddresses = vi.fn(() => ({ data: current.providers ?? NO_PROVIDERS, isLoading: false, isFetching: false }));
-    const useManagedDeploymentConfirm: typeof DEPENDENCIES.useManagedDeploymentConfirm = () =>
-      mock<ReturnType<typeof DEPENDENCIES.useManagedDeploymentConfirm>>({ closeDeploymentConfirm });
+    const useCloseDeploymentConfirm: typeof DEPENDENCIES.useCloseDeploymentConfirm = () => ({ confirmCloseDeployment, recordCloseReason });
 
     const dependencies: typeof DEPENDENCIES = {
       useWallet,
       useProvidersByAddresses,
-      useManagedDeploymentConfirm,
+      useCloseDeploymentConfirm,
       useListSelection: DEPENDENCIES.useListSelection,
       useDeploymentsListSource
     };
@@ -833,7 +838,8 @@ describe(useDeploymentsListModel.name, () => {
         hook.rerender();
       },
       refetch,
-      closeDeploymentConfirm,
+      confirmCloseDeployment,
+      recordCloseReason,
       signAndBroadcastTx,
       analyticsService,
       useDeploymentsListSource,

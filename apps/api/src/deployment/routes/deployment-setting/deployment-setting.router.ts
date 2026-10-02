@@ -224,6 +224,7 @@ const patchRouteV2 = createRoute({
   path: "/v2/deployment-settings/{dseq}",
   summary: "Update deployment settings",
   tags: ["Deployment Settings"],
+  operationId: "updateDeploymentSetting",
   security: SECURITY_BEARER_OR_API_KEY,
   request: {
     params: FindDeploymentSettingV2ParamsSchema,

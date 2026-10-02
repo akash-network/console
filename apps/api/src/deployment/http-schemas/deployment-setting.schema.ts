@@ -1,5 +1,6 @@
 import { z } from "@hono/zod-openapi";
 
+import { deploymentCloseReasonEnum, MAX_CLOSE_REASON_DETAILS_LENGTH } from "@src/deployment/model-schemas";
 import { DseqSchema } from "@src/utils/schema";
 import { MAX_RUNTIME_LIMIT_HOURS, MAX_RUNTIME_LIMIT_INCREMENT_HOURS } from "./runtime-limit";
 
@@ -47,7 +48,13 @@ export const UpdateDeploymentSettingRequestSchema = z.object({
       .optional()
       .openapi({
         description: `Runtime limit in hours, counted from lease start. On a deployment with no limit yet it may be at most ${MAX_RUNTIME_LIMIT_INCREMENT_HOURS}. Extending an existing limit must raise it by at most ${MAX_RUNTIME_LIMIT_INCREMENT_HOURS} hours per request; send the new total rather than the increment. Lowering a limit is not supported. Send null to remove the limit and return the deployment to always-on funding.`
-      })
+      }),
+    closeReason: z.enum(deploymentCloseReasonEnum.enumValues).optional().openapi({
+      description: "Why the deployment was closed. Cannot be sent in the same request as runtimeLimitHours."
+    }),
+    closeReasonDetails: z.string().trim().max(MAX_CLOSE_REASON_DETAILS_LENGTH).optional().openapi({
+      description: "Free-text details about why the deployment was closed. Cannot be sent in the same request as runtimeLimitHours."
+    })
   })
 });
 

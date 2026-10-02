@@ -272,6 +272,14 @@ export const operations = {
       pathParams: ["dseq"],
       queryParams: ["userId"],
       hasBody: false
+    },
+    updateDeploymentSetting: {
+      path: "/v2/deployment-settings/{dseq}",
+      method: "patch",
+      operationId: "updateDeploymentSetting",
+      pathParams: ["dseq"],
+      queryParams: ["userId"],
+      hasBody: true
     }
   }
 } as const;

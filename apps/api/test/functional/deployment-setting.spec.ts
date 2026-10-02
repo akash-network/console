@@ -552,6 +552,54 @@ describe("Deployment Settings", () => {
     });
   });
 
+  describe("PATCH /v2/deployment-settings/{dseq} recording a close reason", () => {
+    it("records why the deployment was closed, trimming the details", async () => {
+      const { token, user } = await setup();
+      const dseq = faker.number.int({ min: 1, max: 1000000 }).toString();
+      await deploymentSettingRepository.create({ userId: user.id, dseq, autoTopUpEnabled: false, closed: true });
+
+      const response = await patchSetting({ dseq, token, data: { closeReason: "other", closeReasonDetails: "  Moved to our own cluster  " } });
+
+      expect(response.status).toBe(200);
+      expect(await deploymentSettingRepository.findOneBy({ userId: user.id, dseq })).toMatchObject({
+        closeReason: "other",
+        closeReasonDetails: "Moved to our own cluster"
+      });
+    });
+
+    it("returns 404 and stores nothing for a deployment the console holds no settings for", async () => {
+      const { token, user } = await setup();
+      const dseq = faker.number.int({ min: 1, max: 1000000 }).toString();
+
+      const response = await patchSetting({ dseq, token, data: { closeReason: "no_longer_needed" } });
+
+      expect(response.status).toBe(404);
+      expect(await deploymentSettingRepository.findOneBy({ userId: user.id, dseq })).toBeUndefined();
+    });
+
+    it("returns 400 for a close reason the console does not offer", async () => {
+      const { token, user } = await setup();
+      const dseq = faker.number.int({ min: 1, max: 1000000 }).toString();
+      await deploymentSettingRepository.create({ userId: user.id, dseq, autoTopUpEnabled: false, closed: true });
+
+      const response = await patchSetting({ dseq, token, data: { closeReason: "bored" } });
+
+      expect(response.status).toBe(400);
+      expect(await deploymentSettingRepository.findOneBy({ userId: user.id, dseq })).toMatchObject({ closeReason: null });
+    });
+
+    it("returns 400 for close reason details longer than 1000 characters", async () => {
+      const { token, user } = await setup();
+      const dseq = faker.number.int({ min: 1, max: 1000000 }).toString();
+      await deploymentSettingRepository.create({ userId: user.id, dseq, autoTopUpEnabled: false, closed: true });
+
+      const response = await patchSetting({ dseq, token, data: { closeReason: "other", closeReasonDetails: "a".repeat(1001) } });
+
+      expect(response.status).toBe(400);
+      expect(await deploymentSettingRepository.findOneBy({ userId: user.id, dseq })).toMatchObject({ closeReason: null, closeReasonDetails: null });
+    });
+  });
+
   describe("creating a setting without a funding preference", () => {
     it("creates a funded setting when the field is omitted", async () => {
       const { token } = await setup();
@@ -576,13 +624,17 @@ describe("Deployment Settings", () => {
   }
 
   function patchRuntimeLimit({ dseq, token, runtimeLimitHours }: { dseq: string; token: string; runtimeLimitHours: number | null }) {
+    return patchSetting({ dseq, token, data: { runtimeLimitHours } });
+  }
+
+  function patchSetting({ dseq, token, data }: { dseq: string; token: string; data: Record<string, unknown> }) {
     return app.request(`/v2/deployment-settings/${dseq}`, {
       method: "PATCH",
       headers: {
         authorization: `Bearer ${token}`,
         "content-type": "application/json"
       },
-      body: JSON.stringify({ data: { runtimeLimitHours } })
+      body: JSON.stringify({ data })
     });
   }
 

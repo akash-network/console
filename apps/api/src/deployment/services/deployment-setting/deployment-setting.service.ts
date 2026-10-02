@@ -22,7 +22,7 @@ import { DeploymentConfigService } from "../deployment-config/deployment-config.
 import { DrainingDeploymentService } from "../draining-deployment/draining-deployment.service";
 
 /** The fields a PATCH may change. A null `runtimeLimitHours` removes the limit; an absent one leaves it alone. */
-type DeploymentSettingChange = Pick<DeploymentSettingsInput, "runtimeLimitHours">;
+type DeploymentSettingChange = Pick<DeploymentSettingsInput, "runtimeLimitHours" | "closeReason" | "closeReasonDetails">;
 
 type DeploymentSettingWithEstimatedTopUpAmount = Omit<
   DeploymentSettingsOutput,
@@ -35,6 +35,8 @@ type DeploymentSettingWithEstimatedTopUpAmount = Omit<
   | "runtimeEndsAt"
   | "detectedGpus"
   | "offeredGpus"
+  | "closeReason"
+  | "closeReasonDetails"
 > & {
   estimatedTopUpAmount: number;
   topUpFrequencyMs: number;
@@ -84,13 +86,26 @@ export class DeploymentSettingService {
     return result;
   }
 
+  /** Setting a runtime limit writes only the limit, so a close reason sent alongside a limit change would be silently dropped. */
   async upsert(params: FindDeploymentSettingParams, input: DeploymentSettingChange): Promise<DeploymentSettingWithEstimatedTopUpAmount> {
+    const recordsCloseReason = input.closeReason !== undefined || input.closeReasonDetails !== undefined;
+    assert(input.runtimeLimitHours === undefined || !recordsCloseReason, 400, "Change the runtime limit and record a close reason in separate requests");
+
     try {
-      return this.withEstimatedTopUpAmount(await this.#writeReconcilingConcurrentCreate(params, input));
+      const setting = recordsCloseReason ? await this.#recordCloseReason(params, input) : await this.#writeReconcilingConcurrentCreate(params, input);
+      return this.withEstimatedTopUpAmount(setting);
     } catch (error) {
       assert(!(error instanceof ForbiddenError), 404, "Deployment setting not found");
       throw error;
     }
+  }
+
+  /** A row created here would default to open and auto-funded, which the top-up sweep would then pick up for a deployment that is already closed. */
+  async #recordCloseReason(params: FindDeploymentSettingParams, input: DeploymentSettingChange): Promise<DeploymentSettingsOutput> {
+    const updated = await this.deploymentSettingRepository.accessibleBy(this.authService.ability, "update").updateBy(params, input, { returning: true });
+    assert(updated, 404, "Deployment setting not found");
+
+    return updated;
   }
 
   /**
@@ -324,7 +339,8 @@ export class DeploymentSettingService {
    * deployment by, not something it hands back, and the response schema is types only — whatever this returns is
    * what ships. `sealedSecrets` is ciphertext rather than a value, but it is the one field here no response has any
    * reason to carry, so it is dropped by the same rule rather than by a weaker one. `detectedGpus` and `offeredGpus` are
-   * served on the deployment read, next to the lease they describe.
+   * served on the deployment read, next to the lease they describe. `closeReason` and `closeReasonDetails` are feedback
+   * the user gave us, not state any client acts on.
    */
   async withEstimatedTopUpAmount(params: DeploymentSettingsOutput): Promise<DeploymentSettingWithEstimatedTopUpAmount>;
   async withEstimatedTopUpAmount(params: undefined): Promise<undefined>;
@@ -344,6 +360,8 @@ export class DeploymentSettingService {
       runtimeEndsAt,
       detectedGpus,
       offeredGpus,
+      closeReason,
+      closeReasonDetails,
       ...rest
     } = params;
     const setting = { ...rest, runtimeEndsAt: runtimeEndsAt?.toISOString() ?? null };

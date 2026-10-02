@@ -1719,6 +1719,19 @@ export interface paths {
             data: {
               /** @description Runtime limit in hours, counted from lease start. On a deployment with no limit yet it may be at most 48. Extending an existing limit must raise it by at most 48 hours per request; send the new total rather than the increment. Lowering a limit is not supported. Send null to remove the limit and return the deployment to always-on funding. */
               runtimeLimitHours?: number | null;
+              /**
+               * @description Why the deployment was closed. Cannot be sent in the same request as runtimeLimitHours.
+               * @enum {string}
+               */
+              closeReason?:
+                | "no_longer_needed"
+                | "cost_or_budget"
+                | "migrating_elsewhere"
+                | "performance_or_reliability"
+                | "testing_or_project_complete"
+                | "other";
+              /** @description Free-text details about why the deployment was closed. Cannot be sent in the same request as runtimeLimitHours. */
+              closeReasonDetails?: string;
             };
           };
         };
@@ -1876,94 +1889,7 @@ export interface paths {
     options?: never;
     head?: never;
     /** Update deployment settings */
-    patch: {
-      parameters: {
-        query?: {
-          userId?: string;
-        };
-        header?: never;
-        path: {
-          dseq: string;
-        };
-        cookie?: never;
-      };
-      requestBody?: {
-        content: {
-          "application/json": {
-            data: {
-              /** @description Runtime limit in hours, counted from lease start. On a deployment with no limit yet it may be at most 48. Extending an existing limit must raise it by at most 48 hours per request; send the new total rather than the increment. Lowering a limit is not supported. Send null to remove the limit and return the deployment to always-on funding. */
-              runtimeLimitHours?: number | null;
-            };
-          };
-        };
-      };
-      responses: {
-        /** @description Deployment settings updated successfully */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": {
-              data: {
-                /** Format: uuid */
-                id: string;
-                userId: string;
-                dseq: string;
-                sdl: string | null;
-                autoTopUpEnabled: boolean;
-                estimatedTopUpAmount: number;
-                topUpFrequencyMs: number;
-                /** @description Runtime limit in hours chosen at deployment creation, or null for always-on funding */
-                runtimeLimitHours: number | null;
-                /**
-                 * Format: date-time
-                 * @description When the runtime limit is reached, anchored at lease start; null until the lease starts or when no limit is set
-                 */
-                runtimeEndsAt: string | null;
-                /** Format: date-time */
-                createdAt: string;
-                /** Format: date-time */
-                updatedAt: string;
-              };
-            };
-          };
-        };
-        /** @description Invalid runtime limit change */
-        400: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": {
-              message: string;
-            };
-          };
-        };
-        /** @description Deployment settings not found */
-        404: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": {
-              message: string;
-            };
-          };
-        };
-        /** @description Runtime limit changed concurrently */
-        409: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": {
-              message: string;
-            };
-          };
-        };
-      };
-    };
+    patch: operations["updateDeploymentSetting"];
     trace?: never;
   };
   "/v2/deployment-settings": {
@@ -7976,6 +7902,107 @@ export interface operations {
       };
       /** @description Deployment settings not found */
       404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            message: string;
+          };
+        };
+      };
+    };
+  };
+  updateDeploymentSetting: {
+    parameters: {
+      query?: {
+        userId?: string;
+      };
+      header?: never;
+      path: {
+        dseq: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: {
+      content: {
+        "application/json": {
+          data: {
+            /** @description Runtime limit in hours, counted from lease start. On a deployment with no limit yet it may be at most 48. Extending an existing limit must raise it by at most 48 hours per request; send the new total rather than the increment. Lowering a limit is not supported. Send null to remove the limit and return the deployment to always-on funding. */
+            runtimeLimitHours?: number | null;
+            /**
+             * @description Why the deployment was closed. Cannot be sent in the same request as runtimeLimitHours.
+             * @enum {string}
+             */
+            closeReason?:
+              | "no_longer_needed"
+              | "cost_or_budget"
+              | "migrating_elsewhere"
+              | "performance_or_reliability"
+              | "testing_or_project_complete"
+              | "other";
+            /** @description Free-text details about why the deployment was closed. Cannot be sent in the same request as runtimeLimitHours. */
+            closeReasonDetails?: string;
+          };
+        };
+      };
+    };
+    responses: {
+      /** @description Deployment settings updated successfully */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            data: {
+              /** Format: uuid */
+              id: string;
+              userId: string;
+              dseq: string;
+              sdl: string | null;
+              autoTopUpEnabled: boolean;
+              estimatedTopUpAmount: number;
+              topUpFrequencyMs: number;
+              /** @description Runtime limit in hours chosen at deployment creation, or null for always-on funding */
+              runtimeLimitHours: number | null;
+              /**
+               * Format: date-time
+               * @description When the runtime limit is reached, anchored at lease start; null until the lease starts or when no limit is set
+               */
+              runtimeEndsAt: string | null;
+              /** Format: date-time */
+              createdAt: string;
+              /** Format: date-time */
+              updatedAt: string;
+            };
+          };
+        };
+      };
+      /** @description Invalid runtime limit change */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            message: string;
+          };
+        };
+      };
+      /** @description Deployment settings not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            message: string;
+          };
+        };
+      };
+      /** @description Runtime limit changed concurrently */
+      409: {
         headers: {
           [name: string]: unknown;
         };

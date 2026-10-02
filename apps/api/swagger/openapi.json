@@ -3206,6 +3206,23 @@
                         "minimum": 1,
                         "maximum": 8760,
                         "description": "Runtime limit in hours, counted from lease start. On a deployment with no limit yet it may be at most 48. Extending an existing limit must raise it by at most 48 hours per request; send the new total rather than the increment. Lowering a limit is not supported. Send null to remove the limit and return the deployment to always-on funding."
+                      },
+                      "closeReason": {
+                        "type": "string",
+                        "enum": [
+                          "no_longer_needed",
+                          "cost_or_budget",
+                          "migrating_elsewhere",
+                          "performance_or_reliability",
+                          "testing_or_project_complete",
+                          "other"
+                        ],
+                        "description": "Why the deployment was closed. Cannot be sent in the same request as runtimeLimitHours."
+                      },
+                      "closeReasonDetails": {
+                        "type": "string",
+                        "maxLength": 1000,
+                        "description": "Free-text details about why the deployment was closed. Cannot be sent in the same request as runtimeLimitHours."
                       }
                     }
                   }
@@ -3616,6 +3633,7 @@
         "tags": [
           "Deployment Settings"
         ],
+        "operationId": "updateDeploymentSetting",
         "security": [
           {
             "BearerAuth": []
@@ -3661,6 +3679,23 @@
                         "minimum": 1,
                         "maximum": 8760,
                         "description": "Runtime limit in hours, counted from lease start. On a deployment with no limit yet it may be at most 48. Extending an existing limit must raise it by at most 48 hours per request; send the new total rather than the increment. Lowering a limit is not supported. Send null to remove the limit and return the deployment to always-on funding."
+                      },
+                      "closeReason": {
+                        "type": "string",
+                        "enum": [
+                          "no_longer_needed",
+                          "cost_or_budget",
+                          "migrating_elsewhere",
+                          "performance_or_reliability",
+                          "testing_or_project_complete",
+                          "other"
+                        ],
+                        "description": "Why the deployment was closed. Cannot be sent in the same request as runtimeLimitHours."
+                      },
+                      "closeReasonDetails": {
+                        "type": "string",
+                        "maxLength": 1000,
+                        "description": "Free-text details about why the deployment was closed. Cannot be sent in the same request as runtimeLimitHours."
                       }
                     }
                   }
