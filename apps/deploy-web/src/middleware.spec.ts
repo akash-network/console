@@ -39,8 +39,18 @@ describe("middleware", () => {
     expect(scriptSrc).toContain(THEME_SCRIPT_HASH);
     expect(scriptSrc).not.toContain("'unsafe-inline'");
     expect(csp).not.toContain("'strict-dynamic'");
-    expect(csp).not.toContain("'nonce-");
     expect(response.headers.get("Content-Security-Policy")).toBeNull();
+  });
+
+  it("gives every response a fresh script nonce for Cloudflare to stamp onto its injected script", () => {
+    const first = setup({ path: "/" });
+    const second = setup({ path: "/" });
+
+    const firstNonce = toScriptNonce(first.response.headers.get("Content-Security-Policy-Report-Only"));
+    const secondNonce = toScriptNonce(second.response.headers.get("Content-Security-Policy-Report-Only"));
+    expect(firstNonce).toMatch(/^[A-Za-z0-9+/]+={0,2}$/);
+    expect(secondNonce).toMatch(/^[A-Za-z0-9+/]+={0,2}$/);
+    expect(firstNonce).not.toBe(secondNonce);
   });
 
   it("does not attach an x-nonce header", () => {
@@ -145,3 +155,7 @@ describe("middleware", () => {
     return { request, response };
   }
 });
+
+function toScriptNonce(policy: string | null) {
+  return policy?.match(/script-src [^;]*'nonce-([^']+)'/)?.[1];
+}

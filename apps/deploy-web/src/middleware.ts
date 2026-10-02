@@ -5,6 +5,7 @@ import { NextResponse } from "next/server";
 
 import {
   buildContentSecurityPolicy,
+  generateScriptNonce,
   getContentSecurityPolicyHeaderName,
   getContentSecurityPolicyReportHeaders,
   isSampledForViolationReports
@@ -31,7 +32,8 @@ export function middleware(request: NextRequest) {
     sentryDsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
     templatesUrl: process.env.NEXT_PUBLIC_BASE_TEMPLATES_URL,
     networkRpcAndApiUrls,
-    reportViolations: isSampledForViolationReports()
+    reportViolations: isSampledForViolationReports(),
+    scriptNonce: generateScriptNonce()
   };
   const contentSecurityPolicy = buildContentSecurityPolicy(contentSecurityPolicyInput);
   const contentSecurityPolicyHeaderName = getContentSecurityPolicyHeaderName();
