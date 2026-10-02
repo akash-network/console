@@ -45,7 +45,7 @@ export const PaymentMethodsContainer: React.FC<PaymentMethodsContainerProps> = (
           ? {
               title: "Remove default payment method?",
               message:
-                "Removing it will turn off Auto Top-Up. Your deployments may stop if your credit balance runs out, and no automatic charges will be made. You can turn Auto Top-Up back on after setting another card as default."
+                "Removing it will turn off auto recharge. Your deployments may stop if your credit balance runs out, and no automatic charges will be made. You can turn auto recharge back on after setting another card as default."
             }
           : {
               title: "Remove payment method?",

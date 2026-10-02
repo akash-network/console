@@ -30,11 +30,11 @@ const MockButton = ({ children, onClick, disabled, "aria-label": ariaLabel }: an
 );
 
 describe(PaymentMethodsView.name, () => {
-  it("renders the header title and description", () => {
+  it("renders the payment methods under the Payment Method section with the default method note", () => {
     setup();
 
-    expect(screen.getByText("Payment Method")).toBeInTheDocument();
-    expect(screen.getByText("All transactions will be made using your default card.")).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Payment Method" })).toBeInTheDocument();
+    expect(screen.getByText("All transactions will be made using your default payment method.")).toBeInTheDocument();
   });
 
   it("renders a row for each payment method", () => {
@@ -47,8 +47,11 @@ describe(PaymentMethodsView.name, () => {
   it("shows the empty state when there are no payment methods", () => {
     setup({ data: [] });
 
-    expect(screen.getByText("No payment methods added yet.")).toBeInTheDocument();
+    expect(screen.getByText("No payment methods yet")).toBeInTheDocument();
+    expect(screen.getByText("Add a card to buy credits and turn on auto recharge.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Add Payment Method" })).toBeEnabled();
     expect(screen.queryByTestId(/payment-method-row-/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/default payment method/)).not.toBeInTheDocument();
   });
 
   it("opens the add-payment-method flow when the add button is clicked", () => {
@@ -76,7 +79,7 @@ describe(PaymentMethodsView.name, () => {
     setup({ isLoadingPaymentMethods: true, data: [] });
 
     expect(screen.getAllByTestId("skeleton").length).toBeGreaterThan(0);
-    expect(screen.queryByText("No payment methods added yet.")).not.toBeInTheDocument();
+    expect(screen.queryByText("No payment methods yet")).not.toBeInTheDocument();
     expect(screen.queryByTestId(/payment-method-row-/)).not.toBeInTheDocument();
   });
 
@@ -163,8 +166,6 @@ describe(PaymentMethodsView.name, () => {
       AlertTitle,
       AlertDescription,
       Card: Passthrough,
-      CardHeader: Passthrough,
-      CardContent: Passthrough,
       Skeleton: MockSkeleton,
       Button: MockButton
     };

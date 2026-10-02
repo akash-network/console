@@ -6,62 +6,51 @@ import {
   AlertTitle,
   Button,
   Card,
-  CardContent,
-  CardHeader,
   CustomPagination,
   DateRangePicker,
-  Label,
-  Skeleton,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  Skeleton
 } from "@akashnetwork/ui/components";
-import { cn } from "@akashnetwork/ui/utils";
 import type { PaginationState } from "@tanstack/react-table";
-import { createColumnHelper, flexRender, getCoreRowModel, useReactTable } from "@tanstack/react-table";
 import { endOfToday, startOfDay, subYears } from "date-fns";
-import { Download, Page } from "iconoir-react";
-import Link from "next/link";
+import { Calendar, Download, Page } from "iconoir-react";
 
+import { HISTORY_DATE_PRESETS, type HistoryDatePreset, type HistoryDateRange } from "@src/components/billing-usage/BillingContainer/historyDatePresets";
+import { SettingsSection } from "@src/components/layout/SettingsSection/SettingsSection";
 import type { BillingTransaction } from "@src/queries";
 import { capitalizeFirstLetter } from "@src/utils/stringUtils";
 
-export const COMPONENTS = {
+export const DEPENDENCIES = {
   FormattedNumber,
   DateRangePicker,
   CustomPagination
 };
 
 const TRANSACTION_TYPE_LABELS: Record<BillingTransaction["type"], string> = {
-  payment_intent: "Card Payment",
+  payment_intent: "Card payment",
   coupon_claim: "Coupon",
-  manual_credit: "Manual Credit"
+  manual_credit: "Manual credit"
 };
 
-const TRANSACTION_TYPE_BADGE_CLASSES: Record<BillingTransaction["type"], string> = {
-  coupon_claim: "bg-blue-100 text-blue-800",
-  manual_credit: "bg-gray-100 text-gray-800",
-  payment_intent: "bg-gray-100 text-gray-800"
+const STATUS_LABELS: Record<string, string> = {
+  succeeded: "Successful",
+  pending: "Pending",
+  failed: "Failed",
+  refunded: "Refunded"
 };
 
-const DEFAULT_TRANSACTION_TYPE_BADGE_CLASS = "bg-gray-100 text-gray-800";
+const COLUMN_HEADERS = ["Date", "Amount", "Account source", "Status", "Receipt"];
 
-const STATUS_BADGE_CLASSES: Record<string, string> = {
-  succeeded: "bg-green-100 text-green-800",
-  pending: "bg-yellow-100 text-yellow-800",
-  failed: "bg-red-100 text-red-800",
-  refunded: "bg-blue-100 text-blue-800"
-};
-
-const DEFAULT_STATUS_BADGE_CLASS = "bg-gray-100 text-gray-800";
+/** Phones lay a row out as date and amount over source, status and receipt; wider screens give each its own column. */
+const ROW_GRID =
+  "grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-x-3 gap-y-1.5 px-5 sm:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_minmax(0,1.4fr)_minmax(0,1fr)_72px] sm:gap-y-0";
 
 /** Coupon claims and manual credits top up the wallet, so their amount reads as money in (green +). */
 const isCreditTransaction = (type: BillingTransaction["type"]) => type === "coupon_claim" || type === "manual_credit";
-
-const COLUMN_CLASSES = ["w-28 px-4 py-2", "w-36 px-4 py-2", "w-32 px-4 py-2", "w-48 px-4 py-2", "w-28 px-4 py-2", "w-16 px-4 py-2"];
 
 export type BillingViewProps = {
   data: BillingTransaction[];
@@ -73,9 +62,11 @@ export type BillingViewProps = {
   onPaginationChange: (state: PaginationState) => void;
   pagination: PaginationState;
   totalCount: number;
-  dateRange: { from: Date; to: Date } | null;
-  onDateRangeChange: (range: { from: Date; to: Date }) => void;
-  components?: typeof COMPONENTS;
+  dateRange: HistoryDateRange;
+  onDateRangeChange: (range: HistoryDateRange) => void;
+  datePreset: HistoryDatePreset;
+  onDatePresetChange: (preset: HistoryDatePreset) => void;
+  dependencies?: typeof DEPENDENCIES;
 };
 
 export const BillingView: React.FC<BillingViewProps> = ({
@@ -90,214 +81,178 @@ export const BillingView: React.FC<BillingViewProps> = ({
   totalCount,
   dateRange,
   onDateRangeChange,
-  components: { FormattedNumber, DateRangePicker, CustomPagination } = COMPONENTS
+  datePreset,
+  onDatePresetChange,
+  dependencies: d = DEPENDENCIES
 }) => {
-  const oneYearAgo = startOfDay(subYears(new Date(), 1));
-  const columnHelper = createColumnHelper<BillingTransaction>();
-
-  const columns = [
-    columnHelper.accessor("created", {
-      header: "Date",
-      cell: info => new Date(info.getValue() * 1000).toLocaleDateString()
-    }),
-    columnHelper.accessor("type", {
-      header: "Type",
-      cell: info => {
-        const { cardBrand, cardLast4 } = info.row.original;
-        const type = info.getValue();
-        return (
-          <div>
-            <span
-              className={cn(
-                "inline-flex items-center justify-center rounded-full px-2 py-0.5 text-xs font-semibold",
-                TRANSACTION_TYPE_BADGE_CLASSES[type] ?? DEFAULT_TRANSACTION_TYPE_BADGE_CLASS
-              )}
-            >
-              {TRANSACTION_TYPE_LABELS[type] ?? capitalizeFirstLetter(type)}
-            </span>
-            {cardLast4 && (
-              <div className="mt-1 text-xs text-muted-foreground">
-                {cardBrand ? `${capitalizeFirstLetter(cardBrand)} ` : ""}**** {cardLast4}
-              </div>
-            )}
-          </div>
-        );
-      }
-    }),
-    columnHelper.accessor("amount", {
-      header: "Amount",
-      cell: info => {
-        const { currency, bonusAmount = 0, amountRefunded = 0, type } = info.row.original;
-        const isCredit = isCreditTransaction(type);
-        return (
-          <div>
-            <span className={cn(isCredit && "font-medium text-green-600 dark:text-green-500")}>
-              {isCredit && "+"}
-              <FormattedNumber value={info.getValue() / 100} style="currency" currency={currency} currencyDisplay="narrowSymbol" />
-            </span>
-            {bonusAmount > 0 && (
-              <div className="text-xs font-medium text-primary">
-                +<FormattedNumber value={bonusAmount / 100} style="currency" currency={currency} currencyDisplay="narrowSymbol" /> bonus
-              </div>
-            )}
-            {amountRefunded > 0 && (
-              <div className="text-xs font-medium text-muted-foreground">
-                -<FormattedNumber value={amountRefunded / 100} style="currency" currency={currency} currencyDisplay="narrowSymbol" /> refunded
-              </div>
-            )}
-          </div>
-        );
-      }
-    }),
-    columnHelper.accessor("description", {
-      header: "Description",
-      cell: info => info.getValue() || "N/A"
-    }),
-    columnHelper.accessor("status", {
-      header: "Status",
-      cell: info => (
-        <div
-          className={cn(
-            "inline-flex items-center justify-center rounded-full px-2 py-0.5 text-xs font-semibold",
-            STATUS_BADGE_CLASSES[info.getValue()] ?? DEFAULT_STATUS_BADGE_CLASS
-          )}
-        >
-          {capitalizeFirstLetter(info.getValue())}
-        </div>
-      )
-    }),
-    columnHelper.display({
-      id: "receipt",
-      header: "Receipt",
-      cell: info => {
-        const { receiptUrl } = info.row.original;
-        if (!receiptUrl) return null;
-        return (
-          <Link href={receiptUrl} target="_blank" rel="noopener noreferrer" aria-label="View receipt on Stripe">
-            <Button size="icon" variant="ghost" className="text-black hover:bg-primary hover:text-white dark:text-white">
-              <Page width={16} />
-            </Button>
-          </Link>
-        );
-      }
-    })
-  ];
-
-  const table = useReactTable({
-    data,
-    columns,
-    getCoreRowModel: getCoreRowModel(),
-    manualPagination: true,
-    state: {
-      pagination
-    },
-    onPaginationChange: updaterOrValue => {
-      const { pageIndex, pageSize } = typeof updaterOrValue === "function" ? updaterOrValue(table.getState().pagination) : updaterOrValue;
-      onPaginationChange({
-        pageIndex,
-        pageSize
-      });
-    }
-  });
-
   if (isError) {
     return (
-      <Alert variant="destructive">
-        <AlertTitle>Error fetching billing data</AlertTitle>
-        <AlertDescription>{errorMessage || "An unexpected error occurred."}</AlertDescription>
-      </Alert>
+      <SettingsSection title="History">
+        <Alert variant="destructive">
+          <AlertTitle>Error fetching billing data</AlertTitle>
+          <AlertDescription>{errorMessage || "An unexpected error occurred."}</AlertDescription>
+        </Alert>
+      </SettingsSection>
     );
   }
 
+  const usd = (cents: number, currency: string) => (
+    <d.FormattedNumber value={cents / 100} style="currency" currency={currency} currencyDisplay="narrowSymbol" />
+  );
+
   return (
-    <Card className="overflow-hidden">
-      <CardHeader className="space-y-1">
-        <h3 className="text-lg font-bold leading-none">History</h3>
-        <p className="text-sm text-muted-foreground">All payments to add credits will be made using your default card.</p>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
-          <div>
-            <Label>Filter by Date:</Label>
-            <DateRangePicker
-              date={dateRange ?? undefined}
-              onChange={onDateRangeChange}
-              className="w-full"
-              minDate={oneYearAgo}
-              maxDate={endOfToday()}
-              maxRangeInDays={366}
-            />
-          </div>
-
-          <Button variant="outline" onClick={onExport} size="sm" className="gap-2" disabled={!data.length || !dateRange}>
-            <Download width={16} />
-            Export as CSV
-          </Button>
-        </div>
-
+    <SettingsSection title="History">
+      <Card className="overflow-hidden rounded-xl shadow-none">
         {isLoading ? (
           <BillingTableSkeleton />
-        ) : !data.length ? (
-          <div className="py-8 text-center text-muted-foreground">
-            <p>{dateRange ? "No billing history found for the selected date range." : "No billing history found."}</p>
+        ) : data.length === 0 ? (
+          <div className="flex flex-col items-center gap-2 px-6 py-10 text-center">
+            <Page className="h-[22px] w-[22px] text-muted-foreground" aria-hidden />
+            <p className="text-sm font-semibold">No payments in this period</p>
+            <p className="text-xs text-muted-foreground">Payments, coupons and credits added to your balance show up here.</p>
           </div>
         ) : (
-          <div className={cn("transition-opacity duration-150", isFetching && "opacity-60")}>
-            <Table className="table-fixed">
-              <TableHeader className="[&_tr]:border-b-0">
-                {table.getHeaderGroups().map(headerGroup => (
-                  <TableRow key={headerGroup.id} className="hover:bg-transparent">
-                    {headerGroup.headers.map((header, index) => (
-                      <TableHead key={header.id} className={COLUMN_CLASSES[index]}>
-                        {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
-                      </TableHead>
-                    ))}
-                  </TableRow>
+          <div role="table" aria-label="Payment history" aria-busy={isFetching} className="transition-opacity duration-150 aria-busy:opacity-60">
+            <div role="rowgroup" className="hidden sm:block">
+              <div role="row" className={`${ROW_GRID} py-3.5`}>
+                {COLUMN_HEADERS.map(header => (
+                  <span key={header} role="columnheader" className="text-[13px] font-medium">
+                    {header}
+                  </span>
                 ))}
-              </TableHeader>
-            </Table>
-
-            <div className="rounded border border-muted-foreground/20">
-              <Table className="table-fixed">
-                <TableBody>
-                  {table.getRowModel().rows.map(row => (
-                    <TableRow key={row.id}>
-                      {row.getVisibleCells().map((cell, index) => (
-                        <TableCell key={cell.id} className={COLUMN_CLASSES[index]}>
-                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                        </TableCell>
-                      ))}
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+              </div>
             </div>
+            <div role="rowgroup">
+              {data.map(transaction => (
+                <div key={transaction.id} role="row" className={`${ROW_GRID} border-t py-3.5 first:border-t-0 sm:py-4 sm:first:border-t`}>
+                  <span role="cell" className="text-sm">
+                    {new Date(transaction.created * 1000).toLocaleDateString()}
+                  </span>
+                  <span role="cell" className="col-span-2 text-right text-sm sm:col-span-1 sm:text-left">
+                    <TransactionAmount transaction={transaction} usd={usd} />
+                  </span>
+                  <span role="cell" className="min-w-0 text-sm">
+                    <TransactionSource transaction={transaction} />
+                  </span>
+                  <span role="cell" className="justify-self-end sm:justify-self-start">
+                    <span
+                      data-status={transaction.status}
+                      className="inline-flex rounded-full bg-muted px-3 py-[3px] text-xs font-medium text-muted-foreground data-[status=failed]:bg-destructive/15 data-[status=pending]:bg-warning/15 data-[status=refunded]:bg-blue-50 data-[status=succeeded]:bg-success/15 data-[status=failed]:text-destructive data-[status=pending]:text-warning data-[status=refunded]:text-blue-600 data-[status=succeeded]:text-success dark:data-[status=refunded]:bg-blue-400/10 dark:data-[status=refunded]:text-blue-400"
+                    >
+                      {STATUS_LABELS[transaction.status] ?? capitalizeFirstLetter(transaction.status)}
+                    </span>
+                  </span>
+                  <span role="cell" className="justify-self-end sm:justify-self-start">
+                    {transaction.receiptUrl && (
+                      <a
+                        href={transaction.receiptUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        aria-label="View receipt"
+                        className="inline-flex h-[34px] w-[34px] items-center justify-center rounded-lg text-foreground transition-colors hover:bg-muted"
+                      >
+                        <Page className="h-[17px] w-[17px]" />
+                      </a>
+                    )}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
-            <div className="flex items-center justify-center pt-2 sm:pt-6">
-              <CustomPagination
+        <div className="space-y-3 border-t px-5 py-3.5">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            {totalCount > 0 && (
+              <d.CustomPagination
                 totalPageCount={Math.max(1, Math.ceil(totalCount / pagination.pageSize))}
                 pageIndex={pagination.pageIndex}
                 pageSize={pagination.pageSize}
                 setPageIndex={pageIndex => onPaginationChange({ pageIndex, pageSize: pagination.pageSize })}
                 setPageSize={pageSize => onPaginationChange({ pageIndex: 0, pageSize })}
               />
+            )}
+            <div className="flex flex-wrap items-center gap-2 lg:ml-auto">
+              <Select value={datePreset} onValueChange={value => onDatePresetChange(value as HistoryDatePreset)}>
+                <SelectTrigger aria-label="Date range" className="h-9 w-auto gap-2 text-[13px]">
+                  <Calendar className="h-[15px] w-[15px] text-muted-foreground" aria-hidden />
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {HISTORY_DATE_PRESETS.map(preset => (
+                    <SelectItem key={preset.value} value={preset.value}>
+                      {preset.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button variant="outline" onClick={onExport} size="sm" className="h-9 gap-1.5" disabled={!data.length}>
+                <Download className="h-[15px] w-[15px]" />
+                Export as CSV
+              </Button>
             </div>
           </div>
-        )}
-      </CardContent>
-    </Card>
+          {datePreset === "custom" && (
+            <div className="flex lg:justify-end">
+              <d.DateRangePicker
+                date={dateRange}
+                onChange={onDateRangeChange}
+                minDate={startOfDay(subYears(new Date(), 1))}
+                maxDate={endOfToday()}
+                maxRangeInDays={366}
+              />
+            </div>
+          )}
+        </div>
+      </Card>
+    </SettingsSection>
+  );
+};
+
+const TransactionAmount: React.FC<{ transaction: BillingTransaction; usd: (cents: number, currency: string) => React.ReactNode }> = ({ transaction, usd }) => {
+  const { amount, currency, bonusAmount = 0, amountRefunded = 0, type } = transaction;
+  const isCredit = isCreditTransaction(type);
+
+  return (
+    <>
+      <span data-credit={isCredit || undefined} className="data-[credit]:font-medium data-[credit]:text-success">
+        {isCredit && "+"}
+        {usd(amount, currency)}
+      </span>
+      {bonusAmount > 0 && <span className="block text-xs font-medium text-muted-foreground">+{usd(bonusAmount, currency)} bonus</span>}
+      {amountRefunded > 0 && <span className="block text-xs font-medium text-muted-foreground">-{usd(amountRefunded, currency)} refunded</span>}
+    </>
+  );
+};
+
+const TransactionSource: React.FC<{ transaction: BillingTransaction }> = ({ transaction }) => {
+  const { type, cardBrand, cardLast4, description } = transaction;
+
+  if (cardLast4) {
+    return <span className="block truncate">{`${cardBrand ? `${capitalizeFirstLetter(cardBrand)} ` : ""}**** ${cardLast4}`}</span>;
+  }
+
+  return (
+    <>
+      <span className="block truncate">{TRANSACTION_TYPE_LABELS[type] ?? capitalizeFirstLetter(type)}</span>
+      {description && (
+        <span className="block truncate text-xs text-muted-foreground" title={description}>
+          {description}
+        </span>
+      )}
+    </>
   );
 };
 
 const BillingTableSkeleton: React.FC = () => (
-  <div className="space-y-3 pt-2" data-testid="billing-history-skeleton">
+  <div data-testid="billing-history-skeleton">
     {Array.from({ length: 5 }).map((_, index) => (
-      <div key={index} className="flex items-center gap-4">
-        {COLUMN_CLASSES.map((columnClass, columnIndex) => (
-          <div key={columnIndex} className={columnClass}>
-            <Skeleton className="h-4 w-full" />
-          </div>
-        ))}
+      <div key={index} className={`${ROW_GRID} border-t py-4 first:border-t-0`}>
+        <Skeleton className="h-4 w-20" />
+        <Skeleton className="col-span-2 ml-auto h-4 w-16 sm:col-span-1 sm:ml-0" />
+        <Skeleton className="h-4 w-24" />
+        <Skeleton className="h-5 w-20 rounded-full" />
+        <Skeleton className="h-4 w-6" />
       </div>
     ))}
   </div>

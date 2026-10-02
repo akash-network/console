@@ -92,7 +92,7 @@ describe(PaymentMethodsContainer.name, () => {
     expect(child.isInProgress).toBe(true);
   });
 
-  it("warns that auto top-up turns off when removing the default payment method while auto reload is enabled", async () => {
+  it("warns that auto recharge turns off when removing the default payment method while auto reload is enabled", async () => {
     const { child, mockConfirm, mockRemovePaymentMethod } = await setup({
       paymentMethods: [createMockPaymentMethod({ id: "pm_default", isDefault: true })],
       autoReloadEnabled: true
@@ -100,7 +100,9 @@ describe(PaymentMethodsContainer.name, () => {
 
     await child.onRemovePaymentMethod("pm_default");
 
-    expect(mockConfirm).toHaveBeenCalledWith(expect.objectContaining({ title: "Remove default payment method?" }));
+    expect(mockConfirm).toHaveBeenCalledWith(
+      expect.objectContaining({ title: "Remove default payment method?", message: expect.stringContaining("turn off auto recharge") })
+    );
     expect(mockRemovePaymentMethod.mutate).toHaveBeenCalledWith("pm_default", expect.anything());
   });
 
@@ -126,7 +128,7 @@ describe(PaymentMethodsContainer.name, () => {
     expect(mockConfirm).toHaveBeenCalledWith(expect.objectContaining({ title: "Remove payment method?" }));
   });
 
-  it("warns about auto top-up for the default payment method while wallet settings are still loading", async () => {
+  it("warns about auto recharge for the default payment method while wallet settings are still loading", async () => {
     const { child, mockConfirm } = await setup({
       paymentMethods: [createMockPaymentMethod({ id: "pm_default", isDefault: true })],
       isWalletSettingsLoading: true
@@ -134,7 +136,9 @@ describe(PaymentMethodsContainer.name, () => {
 
     await child.onRemovePaymentMethod("pm_default");
 
-    expect(mockConfirm).toHaveBeenCalledWith(expect.objectContaining({ title: "Remove default payment method?" }));
+    expect(mockConfirm).toHaveBeenCalledWith(
+      expect.objectContaining({ title: "Remove default payment method?", message: expect.stringContaining("turn off auto recharge") })
+    );
   });
 
   it("starts without an operation error", async () => {
@@ -162,7 +166,9 @@ describe(PaymentMethodsContainer.name, () => {
   it("surfaces the api message for an uncatalogued removal failure", async () => {
     const { child, childCapturer, mockRemovePaymentMethod } = await setup();
     mockRemovePaymentMethod.mutate.mockImplementation((_id, options) =>
-      options?.onError?.({ response: { status: 500, data: { code: "unknown_error", message: "Payment account not properly configured. Please contact support." } } })
+      options?.onError?.({
+        response: { status: 500, data: { code: "unknown_error", message: "Payment account not properly configured. Please contact support." } }
+      })
     );
 
     await act(() => child.onRemovePaymentMethod("pm_123456"));
