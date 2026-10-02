@@ -48,9 +48,12 @@ export class DeploymentDetailPage {
    */
   async closeDeployment() {
     const trigger = await this.openDangerZone();
+    const dialog = this.page.getByRole("dialog", { name: "Close this deployment?" });
 
-    await expect(this.page.getByText(/are you sure you want to close/i)).toBeVisible({ timeout: 5_000 });
-    await this.page.getByRole("button", { name: /^confirm$/i }).click();
+    await expect(dialog).toBeVisible({ timeout: 5_000 });
+    await dialog.getByRole("combobox", { name: "Why are you closing this deployment?" }).click();
+    await this.page.getByRole("option", { name: "Testing or project complete" }).click();
+    await dialog.getByRole("button", { name: "Close deployment" }).click();
     await expect(trigger).toBeHidden({ timeout: 60_000 });
   }
 
