@@ -36,6 +36,8 @@ interface Props {
   /** `expanded` is the full-width picker of the two panel layout: rows select their offer and the placement chips sit under the header. */
   variant?: "pane" | "expanded";
   chips?: ReactNode;
+  /** Replaces the waiting card, for a deployment whose wait for a first bid ran out. */
+  notice?: ReactNode;
   dependencies?: typeof DEPENDENCIES;
 }
 
@@ -61,6 +63,7 @@ export const MarketplacePane: FC<Props> = ({
   onSelectProvider,
   variant = "pane",
   chips,
+  notice,
   dependencies: d = DEPENDENCIES
 }) => {
   const isExpanded = variant === "expanded";
@@ -68,7 +71,7 @@ export const MarketplacePane: FC<Props> = ({
   const { query, setQuery, clear, filteredProviders, isSearchActive } = d.useProviderSearch(offers);
   const hasFailedWithoutData = isError && offers.length === 0;
   const isAwaitingFirstBid = offers.length > 0 && offers.every(offer => offer.offerState === "searching");
-  const awaitingBids = isAwaitingFirstBid ? AWAITING_BIDS_COPY[phase] : undefined;
+  const awaitingBids = isAwaitingFirstBid && !notice ? AWAITING_BIDS_COPY[phase] : undefined;
   const gpuCount = d.useDeploymentGpuCount(selectedPlacementId);
   const requestedCpuArch = d.useDeploymentCpuArch(selectedPlacementId);
   /** Provider names link out only once the user is onboarded: the route gate bounces a not-yet-onboarded user back into the funnel, so the link would dead-end. */
@@ -120,6 +123,7 @@ export const MarketplacePane: FC<Props> = ({
           </div>
         ) : (
           <div className="flex flex-col gap-4">
+            {notice}
             {awaitingBids && (
               <div role="status" className="flex items-start gap-3 rounded-lg border border-zinc-300 bg-muted/40 p-4 dark:border-zinc-700">
                 <LoaderCircleIcon className="mt-0.5 h-5 w-5 shrink-0 animate-spin text-primary" aria-hidden="true" />

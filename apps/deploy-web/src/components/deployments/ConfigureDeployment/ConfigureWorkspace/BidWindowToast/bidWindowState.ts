@@ -9,10 +9,11 @@ export interface BidWindowInput {
   /** Latched by the caller, because open bids drop off as they expire and would otherwise read as still collecting. */
   hasCollectedEveryPlacement: boolean;
   isExpired: boolean;
+  noBidsReceived: boolean;
 }
 
 export function bidWindowState(input: BidWindowInput): BidWindowState {
-  if (input.phase !== "creating" && input.phase !== "quoting") return { kind: "hidden" };
+  if ((input.phase !== "creating" && input.phase !== "quoting") || input.noBidsReceived) return { kind: "hidden" };
   if (input.isExpired) return { kind: "expired" };
   if (input.hasCollectedEveryPlacement || hasBidsForEveryPlacement(input)) return { kind: "collected" };
 

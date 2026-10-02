@@ -11,10 +11,10 @@ export const NoBidsNotice: FC<Props> = ({ onRequestCompute }) => (
     <CircleAlertIcon className="mt-0.5 h-5 w-5 shrink-0 text-muted-foreground" aria-hidden="true" />
     <div className="flex min-w-0 flex-col gap-3">
       <div role="status" className="flex flex-col gap-1">
-        <p className="text-sm font-semibold">No provider bid on your deployment</p>
+        <p className="text-sm font-semibold">No provider has bid yet</p>
         <p className="text-sm text-muted-foreground">
-          Providers matched your configuration, but none of them bid on it. A match doesn&apos;t guarantee a bid: some providers only take deployments from
-          accounts on their allowlist, run custom setups, or reserve their capacity for private contracts.
+          The providers below matched your configuration, but none of them bid on it. A match doesn&apos;t guarantee a bid: some providers only take deployments
+          from accounts on their allowlist, run custom setups, or reserve their capacity for private contracts.
         </p>
       </div>
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
@@ -22,7 +22,7 @@ export const NoBidsNotice: FC<Props> = ({ onRequestCompute }) => (
           <MessageSquareIcon className="h-4 w-4" aria-hidden="true" />
           Request compute
         </Button>
-        <p className="text-xs text-muted-foreground">You can also change your configuration and choose a provider again.</p>
+        <p className="text-xs text-muted-foreground">A late bid still shows up here. To change your configuration, use Close and Edit.</p>
       </div>
     </div>
   </div>

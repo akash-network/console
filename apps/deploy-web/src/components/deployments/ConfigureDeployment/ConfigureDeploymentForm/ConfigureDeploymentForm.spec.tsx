@@ -503,16 +503,30 @@ describe(ConfigureDeploymentForm.name, () => {
     expect(enqueueSnackbar).toHaveBeenCalledTimes(1);
   });
 
-  it("leaves a request no provider bid on to the two panel workspace, which explains it in place", () => {
-    const { enqueueSnackbar } = setup({ initialSdl: undefined, twoPanel: true, flowError: { message: "No providers", kind: "no-providers" } });
+  it("drops the older layout back to editing and says why once no provider bid in time", () => {
+    const { enqueueSnackbar, flow } = setup({ initialSdl: undefined, phase: "quoting", noBidsReceived: true });
 
+    expect(flow.actions.cancelAndEdit).toHaveBeenCalledTimes(1);
+    const toast = enqueueSnackbar.mock.calls[0][0] as { props: { title: string; subTitle: string } };
+    expect(toast.props).toMatchObject({
+      title: "Couldn't get bids from providers",
+      subTitle: "No providers are available for this deployment right now. Try adjusting your deployment and requesting new bids."
+    });
+    expect(enqueueSnackbar).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ variant: "error" }));
+  });
+
+  it("keeps the two panel workspace on the bid page once no provider bid in time, since its marketplace explains it", () => {
+    const { enqueueSnackbar, flow } = setup({ initialSdl: undefined, twoPanel: true, phase: "quoting", noBidsReceived: true });
+
+    expect(flow.actions.cancelAndEdit).not.toHaveBeenCalled();
     expect(enqueueSnackbar).not.toHaveBeenCalled();
   });
 
-  it("still toasts any other flow error in the two panel workspace", () => {
-    const { enqueueSnackbar } = setup({ initialSdl: undefined, twoPanel: true, flowError: { message: "still closing", kind: "close" } });
+  it("leaves the older layout alone while bids may still come", () => {
+    const { enqueueSnackbar, flow } = setup({ initialSdl: undefined, phase: "quoting" });
 
-    expect(enqueueSnackbar).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ variant: "error" }));
+    expect(flow.actions.cancelAndEdit).not.toHaveBeenCalled();
+    expect(enqueueSnackbar).not.toHaveBeenCalled();
   });
 
   it("offers to add credits rather than apologising when the create was refused until the user pays", () => {
@@ -899,6 +913,7 @@ describe(ConfigureDeploymentForm.name, () => {
     persistedPlacementRegions?: Record<string, string[]>;
     deploySucceeded?: boolean;
     flowError?: { message?: string; kind?: FlowErrorKind };
+    noBidsReceived?: boolean;
     vm?: boolean;
     phase?: DeploymentFlow["phase"];
     pendingClose?: DeploymentFlow["pendingClose"];
@@ -964,6 +979,7 @@ describe(ConfigureDeploymentForm.name, () => {
       selections: {},
       deploySucceeded: input.deploySucceeded ?? false,
       error: input.flowError,
+      noBidsReceived: input.noBidsReceived ?? false,
       pendingClose: input.pendingClose ?? null,
       actions: mock<DeploymentFlow["actions"]>({ requestQuotes })
     });

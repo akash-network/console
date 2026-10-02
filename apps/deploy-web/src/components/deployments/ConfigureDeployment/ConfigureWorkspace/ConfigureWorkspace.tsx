@@ -122,7 +122,6 @@ export const ConfigureWorkspace: FC<Props> = ({
   const panelsRef = useRef<HTMLDivElement>(null);
   const isEditable = flow.phase === "configuring" || flow.phase === "error";
   const view: View = isEditable ? "configure" : "pick";
-  const noProviderBid = isEditable && flow.error?.kind === "no-providers";
   const announcement = useViewChangeFocus(view, panelsRef);
   const isReady = placements.length > 0 && placements.every(placement => status.placementStatus(placement.id) === "complete");
   const ctaState = deployCtaState({
@@ -131,7 +130,8 @@ export const ConfigureWorkspace: FC<Props> = ({
     allPlacementsSelected: placements.length > 0 && placements.every(placement => !!flow.selections[placement.id]),
     hasDeployError: !!flow.deployError,
     quotesExpired: !!expiry?.isExpired,
-    hasOpenBids: !!cost
+    hasOpenBids: !!cost,
+    noBidsReceived: flow.noBidsReceived
   });
 
   function revealFirstInvalidService(errors: FieldErrors<SdlBuilderFormValuesType>) {
@@ -188,7 +188,7 @@ export const ConfigureWorkspace: FC<Props> = ({
       {placements.map(placement => (
         <PlacementScreening key={placement.id} sdl={sdl} placement={placement} isEnabled={isEditable} useScreenedProviders={d.useScreenedProviders} />
       ))}
-      <d.BidWindowToast phase={flow.phase} dseq={flow.dseq} sdl={sdl} placements={placements} expiry={expiry} />
+      <d.BidWindowToast phase={flow.phase} dseq={flow.dseq} sdl={sdl} placements={placements} expiry={expiry} noBidsReceived={flow.noBidsReceived} />
       <p aria-live="polite" className="sr-only">
         {announcement}
       </p>
@@ -263,6 +263,7 @@ export const ConfigureWorkspace: FC<Props> = ({
                     selectedPlacementId={selectedPlacement.id}
                     selectedBidId={flow.selections[selectedPlacement.id]}
                     onSelectProvider={onSelectProvider}
+                    notice={flow.noBidsReceived ? <d.NoBidsNotice onRequestCompute={() => requestCompute("no_bids_notice", "capacity")} /> : undefined}
                   />
                 </motion.div>
               ) : (
@@ -282,7 +283,6 @@ export const ConfigureWorkspace: FC<Props> = ({
                     isSubmitting={isSubmitting}
                     onChooseProvider={chooseProvider}
                     onRequestCompute={() => requestCompute("footer", "gpu_model")}
-                    notice={noProviderBid ? <d.NoBidsNotice onRequestCompute={() => requestCompute("no_bids_notice", "capacity")} /> : undefined}
                   />
                 </motion.div>
               )}

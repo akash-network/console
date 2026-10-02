@@ -47,6 +47,8 @@ export interface DeploymentFlowState {
   bids: DeploymentBids;
   /** True once the lease is created; the deploy overlay completes its progress before the brief redirect to the deployment. */
   deploySucceeded: boolean;
+  /** True once the wait for a first bid ran out with none; cleared when a bid lands or the deployment goes away. */
+  noBidsReceived: boolean;
   deployError?: { message?: string };
   error?: { message?: string; kind?: FlowErrorKind };
   /** The cancelled deployment closing in the background. Orthogonal to `phase`: the form stays editable throughout. */
@@ -124,7 +126,7 @@ const DEPLOY_SUCCESS_DWELL_MS = 1200;
 const NO_BIDS_TIMEOUT_MS = 60 * 1000;
 
 /** Error surfaced when a deployment draws no provider bids at all within {@link NO_BIDS_TIMEOUT_MS}. */
-const NO_PROVIDERS_MESSAGE = "No providers are available for this deployment right now. Try adjusting your deployment and requesting new bids.";
+export const NO_PROVIDERS_MESSAGE = "No providers are available for this deployment right now. Try adjusting your deployment and requesting new bids.";
 
 /** An `active` bid is one this deployment already holds the lease on — exactly what a resumed selection points at. */
 const LIVE_BID_STATES = new Set(["open", "active"]);
@@ -197,6 +199,7 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
   const [deployError, setDeployError] = useState<{ message?: string } | undefined>(undefined);
   const [deploySucceeded, setDeploySucceeded] = useState(false);
   const [pendingClose, setPendingClose] = useState<PendingClose | null>(null);
+  const [noBidsReceived, setNoBidsReceived] = useState(false);
 
   const intentRef = useRef(intent);
   intentRef.current = intent;
@@ -224,9 +227,6 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
 
   /** Pins a close's outcome to the close that started it, so a superseded one can never settle a newer session. */
   const closeTokenRef = useRef(0);
-
-  /** Held in a ref so the no-providers timeout calls the latest `cancelAndEdit` without re-arming the timer each render. */
-  const cancelAndEditRef = useRef<() => void>();
 
   const bidsQuery = dependencies.useListBids(dseq, { enabled: phase === "quoting", refetchInterval: BID_POLL_INTERVAL });
 
@@ -271,13 +271,16 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
   );
 
   useEffect(
-    function failWhenNoProvidersBid() {
-      if (hasOpenBids) providersEverBidRef.current = true;
+    function reportWhenNoProvidersBid() {
+      if (hasOpenBids) {
+        providersEverBidRef.current = true;
+        setNoBidsReceived(false);
+      }
       if (phase !== "quoting" || providersEverBidRef.current) return;
       const timer = setTimeout(
         /**
          * The auto flow autopilots over this shared flow and reads its error scene off `phase === "error"`, so it must
-         * halt there; the manual flow has no autopilot, so close the dangling deployment and drop back to editing.
+         * halt there; the manual flow keeps the deployment open, since a late bid can still land.
          */
         function timeOutWithoutProviders() {
           if (discardedRef.current) return;
@@ -294,8 +297,7 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
             setPhase("error");
             return;
           }
-          cancelAndEditRef.current?.();
-          setError({ message: NO_PROVIDERS_MESSAGE, kind: "no-providers" });
+          setNoBidsReceived(true);
         },
         NO_BIDS_TIMEOUT_MS
       );
@@ -314,6 +316,7 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
     setCreatedSdl(null);
     setDeployError(undefined);
     setDeploySucceeded(false);
+    setNoBidsReceived(false);
   }, []);
 
   /** Leaves `pendingClose` alone, because the close it tracks outlives the reset that hands the form back. */
@@ -434,6 +437,7 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
       bidsReceivedTrackedRef.current = false;
       screeningRef.current = options.screening ?? null;
       setError(undefined);
+      setNoBidsReceived(false);
       const secrets = options.secrets ?? {};
 
       function isCurrentAttempt() {
@@ -579,8 +583,6 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
     },
     [dseq, strandedDseq, router, clearDeploymentState, startClose]
   );
-
-  cancelAndEditRef.current = cancelAndEdit;
 
   const retryClose = useCallback(
     function retryClose() {
@@ -796,6 +798,7 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
     selections,
     bids: bidsQuery.data?.data ?? [],
     deploySucceeded,
+    noBidsReceived,
     deployError,
     error,
     pendingClose,

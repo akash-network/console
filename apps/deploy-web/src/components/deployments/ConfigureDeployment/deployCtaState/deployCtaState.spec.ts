@@ -40,6 +40,14 @@ describe(deployCtaState.name, () => {
     expect(deployCtaState(input({ allPlacementsHaveBids: false, quotesExpired: true, hasOpenBids: false }))).toBe("close-and-edit");
   });
 
+  it("offers close and edit once the wait for a first bid ran out with none", () => {
+    expect(deployCtaState(input({ allPlacementsHaveBids: false, hasOpenBids: false, noBidsReceived: true }))).toBe("close-and-edit");
+  });
+
+  it("asks for quotes after the deployment that drew no bid was closed to edit it", () => {
+    expect(deployCtaState(input({ phase: "configuring", noBidsReceived: true }))).toBe("request-quotes");
+  });
+
   function input(overrides: Partial<DeployCtaInput>): DeployCtaInput {
     return {
       phase: "quoting",
@@ -48,6 +56,7 @@ describe(deployCtaState.name, () => {
       hasDeployError: false,
       quotesExpired: false,
       hasOpenBids: true,
+      noBidsReceived: false,
       ...overrides
     };
   }

@@ -22,7 +22,6 @@ type Props = {
   isSubmitting: boolean;
   onChooseProvider: () => void;
   onRequestCompute: () => void;
-  notice?: ReactNode;
   dependencies?: typeof DEPENDENCIES;
 };
 
@@ -34,7 +33,6 @@ export const AvailabilityPane: FC<Props> = ({
   isSubmitting,
   onChooseProvider,
   onRequestCompute,
-  notice,
   dependencies: d = DEPENDENCIES
 }) => {
   const headingId = useId();
@@ -53,7 +51,6 @@ export const AvailabilityPane: FC<Props> = ({
       </header>
       <div className="min-h-0 flex-1 overflow-y-auto p-4">
         <div className="mx-auto max-w-[720px] space-y-4">
-          {notice}
           {placementCount > 1 && (
             <p className="font-mono text-xs text-muted-foreground">
               {placement.name} · {placement.regions?.join(", ") || "Any region"}

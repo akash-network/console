@@ -37,6 +37,7 @@ import type { PlacementRegionPicks } from "../useConfigureDraft/useConfigureDraf
 import { useConfigureDraft } from "../useConfigureDraft/useConfigureDraft";
 import type { DeploymentIntent } from "../useDeploymentFlow/deploymentIntent";
 import type { DeploymentFlow, FlowErrorKind } from "../useDeploymentFlow/useDeploymentFlow";
+import { NO_PROVIDERS_MESSAGE } from "../useDeploymentFlow/useDeploymentFlow";
 import { useDeploymentName } from "../useDeploymentName/useDeploymentName";
 import { useForceSshForVmServices } from "../useForceSshForVmServices/useForceSshForVmServices";
 import { useSyncLogCollectors } from "../useSyncLogCollectors/useSyncLogCollectors";
@@ -215,8 +216,7 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, initialName, in
 
   useEffect(
     function toastFlowError() {
-      const isExplainedInPlace = isTwoPanel && flow.error?.kind === "no-providers";
-      if (flow.error && flow.error !== lastToastedFlowError.current && !isExplainedInPlace) {
+      if (flow.error && flow.error !== lastToastedFlowError.current) {
         if (flow.error.kind === "needs-funds") {
           const key = enqueueSnackbar(
             <d.Snackbar
@@ -233,7 +233,17 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, initialName, in
       }
       lastToastedFlowError.current = flow.error;
     },
-    [flow.error, enqueueSnackbar, closeSnackbar, d, isTwoPanel]
+    [flow.error, enqueueSnackbar, closeSnackbar, d]
+  );
+
+  useEffect(
+    /** The two panel workspace explains a request no provider bid on in its marketplace, so only the older layout drops back to editing. */
+    function returnOldLayoutToEditingWithoutBids() {
+      if (isTwoPanel || !flow.noBidsReceived) return;
+      flow.actions.cancelAndEdit();
+      enqueueSnackbar(<d.Snackbar title="Couldn't get bids from providers" subTitle={NO_PROVIDERS_MESSAGE} iconVariant="error" />, { variant: "error" });
+    },
+    [isTwoPanel, flow.noBidsReceived, flow.actions, enqueueSnackbar, d]
   );
 
   useEffect(

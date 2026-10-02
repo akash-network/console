@@ -120,6 +120,14 @@ describe(MarketplacePane.name, () => {
     expect(MarketplaceProvidersTable).toHaveBeenCalledWith(expect.objectContaining({ isBusy: true }), expect.anything());
   });
 
+  it("puts the notice it is given in place of the waiting card and stops dimming the providers", () => {
+    const { MarketplaceProvidersTable } = setup({ phase: "quoting", offers: [buildOffer({ offerState: "searching" })], notice: <p>Nobody bid</p> });
+
+    expect(screen.getByText("Nobody bid")).toBeInTheDocument();
+    expect(screen.queryByText("Waiting for bids")).not.toBeInTheDocument();
+    expect(MarketplaceProvidersTable).toHaveBeenCalledWith(expect.objectContaining({ isBusy: false }), expect.anything());
+  });
+
   it("stops waiting once a bid arrives for the placement", () => {
     const { MarketplaceProvidersTable } = setup({
       phase: "quoting",
@@ -262,6 +270,7 @@ describe(MarketplacePane.name, () => {
       onSelectProvider?: (placementId: string, bidId: string) => void;
       variant?: "pane" | "expanded";
       chips?: ReactNode;
+      notice?: ReactNode;
     } = {}
   ) {
     const clear = vi.fn();
@@ -310,6 +319,7 @@ describe(MarketplacePane.name, () => {
         onSelectProvider={onSelectProvider}
         variant={input.variant}
         chips={input.chips}
+        notice={input.notice}
         dependencies={dependencies}
       />
     );

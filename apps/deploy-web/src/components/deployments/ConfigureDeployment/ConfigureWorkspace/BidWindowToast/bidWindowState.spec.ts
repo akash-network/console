@@ -37,8 +37,20 @@ describe(bidWindowState.name, () => {
     expect(bidWindowState(input({ isExpired: true, hasCollectedEveryPlacement: true }))).toEqual({ kind: "expired" });
   });
 
+  it("steps aside once the wait for a first bid ran out with none, which the marketplace explains", () => {
+    expect(bidWindowState(input({ noBidsReceived: true }))).toEqual({ kind: "hidden" });
+  });
+
   function input(overrides: Partial<BidWindowInput>): BidWindowInput {
-    return { phase: "quoting", placements: PLACEMENTS, placementsWithBids: new Set(), hasCollectedEveryPlacement: false, isExpired: false, ...overrides };
+    return {
+      phase: "quoting",
+      placements: PLACEMENTS,
+      placementsWithBids: new Set(),
+      hasCollectedEveryPlacement: false,
+      isExpired: false,
+      noBidsReceived: false,
+      ...overrides
+    };
   }
 });
 

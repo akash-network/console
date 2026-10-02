@@ -36,7 +36,8 @@ describe(ConfigureWorkspace.name, () => {
       { phase: "quoting", allPlacementsHaveBids: true, selections: { p1: "bid-1", p2: "bid-2" }, cost: { minPerBlock: 1, maxPerBlock: 1, denom: "uact" } },
       "deploy"
     ],
-    ["offers close and edit once the bids expired", { phase: "quoting", expired: true }, "close-and-edit"]
+    ["offers close and edit once the bids expired", { phase: "quoting", expired: true }, "close-and-edit"],
+    ["offers close and edit once the wait for a first bid ran out", { phase: "quoting", noBidsReceived: true }, "close-and-edit"]
   ])("%s", (_, input, ctaState) => {
     const { headerProps } = setup(input);
 
@@ -99,36 +100,6 @@ describe(ConfigureWorkspace.name, () => {
         expect.objectContaining({
           initialGpuModel: "",
           initialCategory: "gpu_model",
-          configuration: expect.objectContaining({ summary: "0.1 vCPU · 512 MiB memory · 1 GiB storage · us-west, eu-west" })
-        }),
-        expect.anything()
-      );
-    });
-
-    it("explains above the availability that no provider bid on the last request", () => {
-      const { availabilityProps, dependencies } = setup({ error: { kind: "no-providers", message: "No providers are available" } });
-
-      expect((availabilityProps().notice as ReactElement).type).toBe(dependencies.NoBidsNotice);
-    });
-
-    it.each<[string, DeploymentFlow["error"]]>([
-      ["while nothing failed", undefined],
-      ["for a failure other than a request no provider bid on", { kind: "create", message: "boom" }]
-    ])("shows no notice %s", (_, error) => {
-      const { availabilityProps } = setup({ error });
-
-      expect(availabilityProps().notice).toBeUndefined();
-    });
-
-    it("asks for more capacity from the no-bid notice and tracks that the request came from there", () => {
-      const { availabilityProps, analyticsService, dependencies } = setup({ selectedServiceId: "api", error: { kind: "no-providers" } });
-
-      act(() => ((availabilityProps().notice as ReactElement).props as ComponentProps<typeof NoBidsNotice>).onRequestCompute());
-
-      expect(analyticsService.track).toHaveBeenCalledWith("configure_request_compute_clicked", { category: "deployments", source: "no_bids_notice" });
-      expect(dependencies.HardwareRequestDialog).toHaveBeenLastCalledWith(
-        expect.objectContaining({
-          initialCategory: "capacity",
           configuration: expect.objectContaining({ summary: "0.1 vCPU · 512 MiB memory · 1 GiB storage · us-west, eu-west" })
         }),
         expect.anything()
@@ -212,6 +183,33 @@ describe(ConfigureWorkspace.name, () => {
       expect(onSelectService).toHaveBeenCalledWith("web");
     });
 
+    it("explains in the marketplace that no provider bid once the wait for a first bid ran out", () => {
+      const { marketplaceProps, dependencies } = setup({ phase: "quoting", noBidsReceived: true });
+
+      expect((marketplaceProps().notice as ReactElement).type).toBe(dependencies.NoBidsNotice);
+    });
+
+    it("keeps the waiting card while the wait for a first bid is still running", () => {
+      const { marketplaceProps } = setup({ phase: "quoting" });
+
+      expect(marketplaceProps().notice).toBeUndefined();
+    });
+
+    it("asks for more capacity from the no-bid notice and tracks that the request came from there", () => {
+      const { marketplaceProps, analyticsService, dependencies } = setup({ phase: "quoting", noBidsReceived: true, selectedServiceId: "api" });
+
+      act(() => ((marketplaceProps().notice as ReactElement).props as ComponentProps<typeof NoBidsNotice>).onRequestCompute());
+
+      expect(analyticsService.track).toHaveBeenCalledWith("configure_request_compute_clicked", { category: "deployments", source: "no_bids_notice" });
+      expect(dependencies.HardwareRequestDialog).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          initialCategory: "capacity",
+          configuration: expect.objectContaining({ summary: "0.1 vCPU · 512 MiB memory · 1 GiB storage · us-west, eu-west" })
+        }),
+        expect.anything()
+      );
+    });
+
     it("keeps screening paused while the bids are live", () => {
       const { useScreenedProviders } = setup({ phase: "quoting" });
 
@@ -249,9 +247,15 @@ describe(ConfigureWorkspace.name, () => {
     const { dependencies } = setup({ phase: "quoting", expired: true });
 
     expect(dependencies.BidWindowToast).toHaveBeenCalledWith(
-      expect.objectContaining({ phase: "quoting", dseq: "42", sdl: "live-sdl", expiry: { secondsLeft: 0, isExpired: true } }),
+      expect.objectContaining({ phase: "quoting", dseq: "42", sdl: "live-sdl", expiry: { secondsLeft: 0, isExpired: true }, noBidsReceived: false }),
       expect.anything()
     );
+  });
+
+  it("tells the bid window toast once the wait for a first bid ran out", () => {
+    const { dependencies } = setup({ phase: "quoting", noBidsReceived: true });
+
+    expect(dependencies.BidWindowToast).toHaveBeenLastCalledWith(expect.objectContaining({ noBidsReceived: true }), expect.anything());
   });
 
   it("slides from the editor to the picker once bids are requested, and back after Edit", async () => {
@@ -313,7 +317,7 @@ describe(ConfigureWorkspace.name, () => {
     bidCount?: number;
     pendingClose?: DeploymentFlow["pendingClose"];
     selectedServiceId?: string;
-    error?: DeploymentFlow["error"];
+    noBidsReceived?: boolean;
   }) {
     const first = { ...defaultPlacement({ name: "placement-1" }), id: "p1", regions: [] };
     const second = { ...defaultPlacement({ name: "gpu-pool" }), id: "p2", regions: ["us-west", "eu-west"] };
@@ -371,7 +375,7 @@ describe(ConfigureWorkspace.name, () => {
         dseq: "42",
         pendingClose: input.pendingClose ?? null,
         deployError: undefined,
-        error: input.error,
+        noBidsReceived: input.noBidsReceived ?? false,
         bids: Array.from({ length: input.bidCount ?? 0 }, () => mock<DeploymentFlow["bids"][number]>()),
         actions: mock<DeploymentFlowActions>({ cancelAndEdit })
       });
