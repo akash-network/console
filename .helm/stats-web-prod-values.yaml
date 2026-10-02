@@ -1,1 +1,2 @@
 hostName: stats.akash.network
+replicas: 2
