@@ -1,10 +1,10 @@
 import { IntlProvider } from "react-intl";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { BalanceBreakdownBar, buildBalanceSegments } from "./BalanceBreakdownBar";
 import type { EscrowedDeployment } from "./useAccountBalanceOverview";
 
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 
 describe(buildBalanceSegments.name, () => {
   it("orders escrowed deployments before the available segment", () => {
@@ -21,22 +21,14 @@ describe(buildBalanceSegments.name, () => {
     expect(available.color).toBe("hsl(var(--success))");
   });
 
-  it("gives the largest deployment the most opaque ramp step", () => {
+  it("colors every escrowed deployment with the foreground token", () => {
     const segments = buildBalanceSegments(deployments([100, 50]), 0);
 
-    expect(segments[0].color).toContain("0.9");
-    expect(segments[1].color).not.toBe(segments[0].color);
+    expect(segments.map(s => s.color)).toEqual(["hsl(var(--foreground))", "hsl(var(--foreground))"]);
   });
 
   it("drops zero-value segments", () => {
-    expect(buildBalanceSegments(deployments([0]), 0)).toEqual([]);
-  });
-
-  it("shades visible segments the same regardless of drained deployments in the list", () => {
-    const withDrained = buildBalanceSegments(deployments([100, 50, 0]), 0);
-    const withoutDrained = buildBalanceSegments(deployments([100, 50]), 0);
-
-    expect(withDrained.map(s => s.color)).toEqual(withoutDrained.map(s => s.color));
+    expect(buildBalanceSegments(deployments([0, 40]), 0).map(s => s.key)).toEqual(["dseq-1"]);
   });
 
   it("carries each deployment's hourly rate onto its escrow segment but not the available one", () => {
@@ -67,9 +59,51 @@ describe(BalanceBreakdownBar.name, () => {
   });
 
   it("summarizes every segment in the aria-label", () => {
-    setup({ segments: [{ key: "d1", label: "llama", amountUsd: 100, color: "hsl(var(--primary))" }] });
+    setup({
+      segments: [
+        { key: "d1", label: "llama", amountUsd: 100, color: "hsl(var(--primary))" },
+        { key: "available", label: "Available", amountUsd: 300, color: "hsl(var(--success))" }
+      ]
+    });
 
-    expect(screen.getByRole("img").getAttribute("aria-label")).toContain("llama");
+    expect(screen.getByRole("img")).toHaveAttribute("aria-label", "Balance breakdown: llama $100.00, Available $300.00");
+  });
+
+  it("draws an empty track when there are no funds to show", () => {
+    setup({ segments: [] });
+
+    expect(screen.getByRole("img")).toHaveAttribute("aria-label", "Balance breakdown: no funds");
+    expect(screen.getByTestId("balance-empty-track")).toBeInTheDocument();
+  });
+
+  it("leaves the track out once a segment fills the bar", () => {
+    setup({ segments: [{ key: "available", label: "Available", amountUsd: 1, color: "hsl(var(--success))" }] });
+
+    expect(screen.queryByTestId("balance-empty-track")).not.toBeInTheDocument();
+  });
+
+  it("dims every segment except the hovered one", () => {
+    setup({
+      segments: [
+        { key: "d1", label: "llama", amountUsd: 100, color: "hsl(var(--foreground))" },
+        { key: "available", label: "Available", amountUsd: 300, color: "hsl(var(--success))" }
+      ],
+      hoveredKey: "d1"
+    });
+
+    const [hovered, other] = Array.from(screen.getByRole("img").children) as HTMLElement[];
+    expect(hovered.style.opacity).toBe("1");
+    expect(other.style.opacity).toBe("0.18");
+  });
+
+  it("reports hovers on a segment and clears them on leave", () => {
+    const onHover = vi.fn();
+    setup({ segments: [{ key: "d1", label: "llama", amountUsd: 100, color: "hsl(var(--foreground))" }], onHover });
+
+    fireEvent.mouseEnter(screen.getByTitle("llama: $100.00"));
+    fireEvent.mouseLeave(screen.getByTitle("llama: $100.00"));
+
+    expect(onHover.mock.calls).toEqual([["d1"], [null]]);
   });
 
   it("marks the auto top-up threshold when one is provided", () => {
@@ -135,10 +169,22 @@ describe(BalanceBreakdownBar.name, () => {
     expect(screen.queryByTestId("balance-threshold-caption")).not.toBeInTheDocument();
   });
 
-  function setup(input: { segments: Parameters<typeof BalanceBreakdownBar>[0]["segments"]; threshold?: number | null; hideThresholdCaption?: boolean }) {
+  function setup(input: {
+    segments: Parameters<typeof BalanceBreakdownBar>[0]["segments"];
+    threshold?: number | null;
+    hideThresholdCaption?: boolean;
+    hoveredKey?: string | null;
+    onHover?: (key: string | null) => void;
+  }) {
     return render(
       <IntlProvider locale="en-US">
-        <BalanceBreakdownBar segments={input.segments} threshold={input.threshold} hideThresholdCaption={input.hideThresholdCaption} />
+        <BalanceBreakdownBar
+          segments={input.segments}
+          threshold={input.threshold}
+          hideThresholdCaption={input.hideThresholdCaption}
+          hoveredKey={input.hoveredKey}
+          onHover={input.onHover}
+        />
       </IntlProvider>
     );
   }

@@ -12,22 +12,9 @@ export type BalanceSegment = {
   color: string;
   /** Hourly burn rate for this deployment; omitted for the Available segment. */
   perHourUsd?: number;
-  /** Tinted pill background for the legend chip, following this segment's shade. */
-  badgeBackground?: string;
-  /** Readable solid text color for the legend chip. */
-  badgeColor?: string;
 };
 
-/** Stepped opacity for the escrow ramp: largest deployment is the most opaque, tapering to 0.35. */
-function escrowAlpha(index: number, count: number): number {
-  if (count <= 1) return 0.9;
-  return Number((0.9 - (index / (count - 1)) * 0.55).toFixed(3));
-}
-
-/** Legend chip background follows the segment's shade at a low, readable alpha (floored so faint steps stay visible). */
-function badgeBackground(hue: string, alpha: number): string {
-  return `hsl(${hue} / ${Number(Math.max(0.08, alpha * 0.2).toFixed(3))})`;
-}
+const DIMMED_SEGMENT_OPACITY = 0.18;
 
 /**
  * Vertical dashes for the threshold line: a 4px mark every 7px, so each mark stays taller than the line
@@ -40,7 +27,7 @@ const THRESHOLD_LINE_DASHES = "repeating-linear-gradient(to bottom, hsl(var(--fo
  * Where the auto-top-up marker sits inside the Available segment: the dashed line lands `threshold`
  * dollars past the escrow/available boundary, which is where the bar's right edge will be once the
  * balance has drained far enough to trigger a top-up. Expressed as a percentage of the segment so it
- * stays glued to that boundary regardless of the 2px gaps between segments. Null once available is at or
+ * stays glued to that boundary regardless of the gaps between segments. Null once available is at or
  * below the threshold, where the line would fall on the segment's own right edge and read as noise.
  */
 function buildThresholdMarker(threshold: number, available: number) {
@@ -48,32 +35,21 @@ function buildThresholdMarker(threshold: number, available: number) {
   return { positionPct: (threshold / available) * 100, amountUsd: threshold };
 }
 
-/**
- * Builds the ordered segments for the balance bar and its legend so both share identical colors.
- * Escrowed deployments use a single-hue ramp (sorted largest-first); Available is the success green.
- */
+/** Builds the ordered segments for the balance bar and its breakdown: escrowed deployments in the foreground tone, then Available in success green. */
 export function buildBalanceSegments(deployments: EscrowedDeployment[], available: number): BalanceSegment[] {
-  const fundedDeployments = deployments.filter(deployment => deployment.escrowUsd > 0);
-  const escrowSegments = fundedDeployments.map((deployment, index) => {
-    const alpha = escrowAlpha(index, fundedDeployments.length);
-    return {
-      key: deployment.dseq,
-      label: deployment.name,
-      amountUsd: deployment.escrowUsd,
-      perHourUsd: deployment.perHourUsd,
-      color: `hsl(var(--primary) / ${alpha})`,
-      badgeBackground: badgeBackground("var(--primary)", alpha),
-      badgeColor: "hsl(var(--primary))"
-    };
-  });
+  const escrowSegments = deployments.map(deployment => ({
+    key: deployment.dseq,
+    label: deployment.name,
+    amountUsd: deployment.escrowUsd,
+    perHourUsd: deployment.perHourUsd,
+    color: "hsl(var(--foreground))"
+  }));
 
   const availableSegment = {
     key: "available",
     label: "Available",
     amountUsd: available,
-    color: "hsl(var(--success))",
-    badgeBackground: "hsl(var(--success) / 0.14)",
-    badgeColor: "hsl(var(--success))"
+    color: "hsl(var(--success))"
   };
 
   return [...escrowSegments, availableSegment].filter(segment => segment.amountUsd > 0);
@@ -95,13 +71,14 @@ export const BalanceBreakdownBar: React.FunctionComponent<{
 }> = ({ segments, hoveredKey = null, onHover, threshold = null, hideThresholdCaption = false }) => {
   const intl = useIntl();
   const formatUsd = (value: number) => intl.formatNumber(value, { style: "currency", currency: "USD" });
-  const label = segments.map(segment => `${segment.label} ${formatUsd(segment.amountUsd)}`).join(", ");
+  const label = segments.map(segment => `${segment.label} ${formatUsd(segment.amountUsd)}`).join(", ") || "no funds";
   const available = segments.find(segment => segment.key === "available")?.amountUsd ?? 0;
   const marker = threshold !== null && threshold > 0 && available > 0 ? buildThresholdMarker(threshold, available) : null;
 
   return (
     <div className={marker === null || hideThresholdCaption ? undefined : "pb-6"}>
-      <div className="flex h-3 w-full gap-[2px]" role="img" aria-label={`Balance breakdown: ${label}`}>
+      <div className="flex h-2.5 w-full gap-px" role="img" aria-label={`Balance breakdown: ${label}`}>
+        {segments.length === 0 && <div className="h-full w-full rounded-full bg-muted" data-testid="balance-empty-track" />}
         {segments.map(segment => (
           <div
             key={segment.key}
@@ -110,7 +87,7 @@ export const BalanceBreakdownBar: React.FunctionComponent<{
               flexGrow: segment.amountUsd,
               flexBasis: 0,
               backgroundColor: segment.color,
-              opacity: hoveredKey && hoveredKey !== segment.key ? 0.35 : 1
+              opacity: hoveredKey && hoveredKey !== segment.key ? DIMMED_SEGMENT_OPACITY : 1
             }}
             title={`${segment.label}: ${formatUsd(segment.amountUsd)}`}
             onMouseEnter={() => onHover?.(segment.key)}

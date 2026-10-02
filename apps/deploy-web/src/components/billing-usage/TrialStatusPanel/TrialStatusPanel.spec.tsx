@@ -13,18 +13,27 @@ describe("TrialStatusPanel", () => {
   it("renders nothing when the wallet is no longer trialing", () => {
     setup({ trial: { isTrialing: false } });
 
-    expect(screen.queryByText("Free trial")).not.toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Free trial" })).not.toBeInTheDocument();
+  });
+
+  it("renders the panel under the Free trial section", () => {
+    setup();
+
+    expect(screen.getByRole("region", { name: "Free trial" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Time left" })).toBeInTheDocument();
   });
 
   it("shows the days remaining out of the full trial length", () => {
     setup({ trial: { daysLeft: 18, totalDays: 30 } });
 
+    expect(screen.getByText("18 days")).toBeInTheDocument();
     expect(screen.getByText("18 days left out of 30 days before the trial ends")).toBeInTheDocument();
   });
 
   it("keeps the countdown singular on the last day", () => {
     setup({ trial: { daysLeft: 1, totalDays: 30 } });
 
+    expect(screen.getByText("1 day")).toBeInTheDocument();
     expect(screen.getByText("1 day left out of 30 days before the trial ends")).toBeInTheDocument();
   });
 
@@ -45,6 +54,7 @@ describe("TrialStatusPanel", () => {
   it("announces the trial has ended once no days remain", () => {
     setup({ trial: { daysLeft: 0, isExpired: true, daysRemainingPercent: 0 } });
 
+    expect(screen.getByText("Ended")).toBeInTheDocument();
     expect(screen.getByText("Your free trial has ended")).toBeInTheDocument();
     expect(screen.queryByText(/days left/)).not.toBeInTheDocument();
   });
@@ -54,6 +64,20 @@ describe("TrialStatusPanel", () => {
 
     expect(screen.queryByText(/before the trial ends/)).not.toBeInTheDocument();
     expect(screen.queryByRole("progressbar")).not.toBeInTheDocument();
+  });
+
+  it("holds the countdown back until the trial length is known", () => {
+    setup({ trial: { totalDays: null } });
+
+    expect(screen.queryByRole("progressbar")).not.toBeInTheDocument();
+  });
+
+  it("explains what a first purchase unlocks and earns", () => {
+    setup();
+
+    expect(
+      screen.getByText(/^Purchase credits to lift every limit above\. Your first purchase earns \d+% in bonus credits, up to \$\d+ free\.$/)
+    ).toBeInTheDocument();
   });
 
   it("opens the add credits sheet from the purchase button", async () => {
@@ -82,9 +106,6 @@ describe("TrialStatusPanel", () => {
         dependencies={{
           ...MockComponents(DEPENDENCIES, input.dependencies),
           Card: DEPENDENCIES.Card,
-          CardContent: DEPENDENCIES.CardContent,
-          CardHeader: DEPENDENCIES.CardHeader,
-          Badge: DEPENDENCIES.Badge,
           Button: DEPENDENCIES.Button,
           Progress: DEPENDENCIES.Progress,
           useTrialStatus,
