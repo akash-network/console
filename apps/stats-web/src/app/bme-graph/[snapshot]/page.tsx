@@ -2,10 +2,10 @@ import React from "react";
 import { Button } from "@akashnetwork/ui/components";
 import { ArrowLeft } from "iconoir-react";
 import type { Metadata } from "next";
-import Link from "next/link";
 
 import GraphContainer from "./GraphContainer";
 
+import { Link } from "@/components/Link/Link";
 import { PageContainer } from "@/components/PageContainer";
 import { urlParamToBmeSnapshot } from "@/lib/snapshotsUrlHelpers";
 import { UrlService } from "@/lib/urlUtils";

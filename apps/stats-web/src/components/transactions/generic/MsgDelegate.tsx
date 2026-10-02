@@ -1,10 +1,9 @@
 "use client";
-import Link from "next/link";
-
 import { AddressLink } from "../../AddressLink";
 import { AKTAmount } from "../../AKTAmount";
 import { LabelValue } from "../../LabelValue";
 
+import { Link } from "@/components/Link/Link";
 import { coinsToAmount } from "@/lib/mathHelpers";
 import { UrlService } from "@/lib/urlUtils";
 import type { TransactionMessage } from "@/types";

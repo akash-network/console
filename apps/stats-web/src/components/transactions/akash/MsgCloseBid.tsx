@@ -1,10 +1,9 @@
 "use client";
-import Link from "next/link";
-
 import { LabelValue } from "../../LabelValue";
 import { createMsgView } from "../createMsgView";
 
 import { AddressLink } from "@/components/AddressLink";
+import { Link } from "@/components/Link/Link";
 import { UrlService } from "@/lib/urlUtils";
 
 export const MsgCloseBid = createMsgView(["v1beta1", "v1beta2", "v1beta3", "v1beta4", "v1beta5"], ({ message }) => {

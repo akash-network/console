@@ -1,9 +1,9 @@
 "use client";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@akashnetwork/ui/components";
 import { SearchX } from "lucide-react";
-import Link from "next/link";
 
 import { AKTAmount } from "@/components/AKTAmount";
+import { Link } from "@/components/Link/Link";
 import { getShortText } from "@/hooks/useShortText";
 import { UrlService } from "@/lib/urlUtils";
 import type { IDelegationDetail } from "@/types";

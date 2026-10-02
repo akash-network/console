@@ -4,10 +4,10 @@ import { FormattedNumber } from "react-intl";
 import { Avatar, AvatarFallback, AvatarImage, Badge, DataTableColumnHeader } from "@akashnetwork/ui/components";
 import type { AccessorColumnDef } from "@tanstack/react-table";
 import { User } from "iconoir-react";
-import Link from "next/link";
 import { z } from "zod";
 
 import { AKTLabel } from "@/components/AKTLabel";
+import { Link } from "@/components/Link/Link";
 import { getShortText } from "@/hooks/useShortText";
 import { udenomToDenom } from "@/lib/mathHelpers";
 import { UrlService } from "@/lib/urlUtils";

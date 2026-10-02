@@ -1,6 +1,4 @@
 "use client";
-import Link from "next/link";
-
 import { LabelValue } from "../../LabelValue";
 import { createMsgView } from "../createMsgView";
 import { DepositDetail } from "./helpers/DepositDetail";
@@ -8,6 +6,7 @@ import { DepositDetail } from "./helpers/DepositDetail";
 import { AddressLink } from "@/components/AddressLink";
 import { AKTAmount } from "@/components/AKTAmount";
 import { DynamicReactJson } from "@/components/DynamicJsonView";
+import { Link } from "@/components/Link/Link";
 import { coinsToAmount } from "@/lib/mathHelpers";
 import { UrlService } from "@/lib/urlUtils";
 

@@ -1,10 +1,9 @@
 "use client";
-import Link from "next/link";
-
 import { LabelValue } from "../../LabelValue";
 import { createMsgView } from "../createMsgView";
 
 import { AddressLink } from "@/components/AddressLink";
+import { Link } from "@/components/Link/Link";
 import { formatLeaseCloseReason } from "@/lib/leaseCloseReason";
 import { UrlService } from "@/lib/urlUtils";
 
