@@ -36,7 +36,10 @@ const ESCROW_TOOLTIP =
 
 const CARD_CLASSES = "rounded-xl p-5 shadow-none sm:px-[22px]";
 
-export const AccountBalanceOverview: React.FunctionComponent<{ dependencies?: typeof DEPENDENCIES }> = ({ dependencies: d = DEPENDENCIES }) => {
+export const AccountBalanceOverview: React.FunctionComponent<{ footerAction?: ReactNode; dependencies?: typeof DEPENDENCIES }> = ({
+  footerAction,
+  dependencies: d = DEPENDENCIES
+}) => {
   const overview = d.useAccountBalanceOverview();
   const [hoveredKey, setHoveredKey] = useState<string | null>(null);
   const [isBreakdownOpen, setIsBreakdownOpen] = useState(false);
@@ -56,6 +59,7 @@ export const AccountBalanceOverview: React.FunctionComponent<{ dependencies?: ty
         <d.Card className={CARD_CLASSES}>
           {header}
           <p className="mt-3 text-sm text-muted-foreground">Your balance couldn't be loaded. It will refresh automatically once the connection recovers.</p>
+          {footerAction && <div className="mt-4 border-t pt-3.5">{footerAction}</div>}
         </d.Card>
       </SettingsSection>
     );
@@ -145,18 +149,23 @@ export const AccountBalanceOverview: React.FunctionComponent<{ dependencies?: ty
           />
         </div>
 
-        {escrowSegments.length > 0 && (
+        {(escrowSegments.length > 0 || footerAction) && (
           <div className="mt-4 space-y-3 border-t pt-3.5">
-            <button
-              type="button"
-              className="group inline-flex items-center gap-1.5 text-[13px] font-medium text-foreground"
-              onClick={() => setIsBreakdownOpen(open => !open)}
-              aria-expanded={isBreakdownOpen}
-            >
-              <d.NavArrowDown className="h-3.5 w-3.5 transition-transform duration-150 group-aria-[expanded=false]:-rotate-90" aria-hidden />
-              {isBreakdownOpen ? "Hide breakdown" : "Show breakdown"}
-            </button>
-            {isBreakdownOpen && (
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
+              {escrowSegments.length > 0 && (
+                <button
+                  type="button"
+                  className="group inline-flex items-center gap-1.5 text-[13px] font-medium text-foreground"
+                  onClick={() => setIsBreakdownOpen(open => !open)}
+                  aria-expanded={isBreakdownOpen}
+                >
+                  <d.NavArrowDown className="h-3.5 w-3.5 transition-transform duration-150 group-aria-[expanded=false]:-rotate-90" aria-hidden />
+                  {isBreakdownOpen ? "Hide breakdown" : "Show breakdown"}
+                </button>
+              )}
+              {footerAction && <div className="min-w-0 basis-full sm:flex-1 sm:basis-auto">{footerAction}</div>}
+            </div>
+            {escrowSegments.length > 0 && isBreakdownOpen && (
               <>
                 <ul className="flex flex-wrap gap-1.5">
                   {escrowSegments.map(segment => (

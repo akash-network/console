@@ -4,12 +4,12 @@ import type { PaymentMethod } from "@akashnetwork/http-sdk";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
-import type { DEPENDENCIES } from "./AutoTopUpSettingsPopup";
-import { AutoTopUpSettingsPopup } from "./AutoTopUpSettingsPopup";
+import type { DEPENDENCIES } from "./AutoRechargeSettingsPopup";
+import { AutoRechargeSettingsPopup } from "./AutoRechargeSettingsPopup";
 
 import { act, fireEvent, render, screen } from "@testing-library/react";
 
-describe(AutoTopUpSettingsPopup.name, () => {
+describe(AutoRechargeSettingsPopup.name, () => {
   it("prefills the default threshold and amount when no stored values are provided", () => {
     setup({});
 
@@ -24,11 +24,67 @@ describe(AutoTopUpSettingsPopup.name, () => {
     expect(amountInput().value).toBe("250");
   });
 
-  it("renders the default payment method row", () => {
+  it("calls the dialog auto recharge settings", () => {
+    setup({});
+
+    expect(screen.getByText("Auto recharge settings")).toBeInTheDocument();
+    expect(screen.queryByText(/top-up settings/i)).not.toBeInTheDocument();
+  });
+
+  it("renders the default payment method row with its brand mark", () => {
     setup({});
 
     expect(screen.getByText(/VISA •••• 5720/)).toBeInTheDocument();
     expect(screen.getByText(/Expires 5\/30/)).toBeInTheDocument();
+    expect(screen.getByTestId("card-brand-mark")).toHaveTextContent("visa");
+  });
+
+  it("estimates a week of spend in prediction mode", () => {
+    const { useWeeklyDeploymentCostQuery } = setup({ mode: "prediction", weeklyCost: 3731.28 });
+
+    expect(screen.getByLabelText("Estimated weekly recharge")).toHaveTextContent("3731.28");
+    expect(useWeeklyDeploymentCostQuery).toHaveBeenLastCalledWith({ enabled: true });
+  });
+
+  it("holds the estimate back while the weekly cost loads", () => {
+    setup({ mode: "prediction", isWeeklyCostLoading: true });
+
+    expect(screen.queryByLabelText("Estimated weekly recharge")).not.toBeInTheDocument();
+    expect(screen.getByTestId("skeleton")).toBeInTheDocument();
+  });
+
+  it("skips the weekly cost query in threshold mode", () => {
+    const { useWeeklyDeploymentCostQuery } = setup({ mode: "threshold" });
+
+    expect(useWeeklyDeploymentCostQuery).toHaveBeenLastCalledWith({ enabled: false });
+    expect(screen.queryByText("Estimated recharge")).not.toBeInTheDocument();
+  });
+
+  it("skips the weekly cost query while the dialog is closed", () => {
+    const { useWeeklyDeploymentCostQuery } = setup({ open: false, mode: "prediction" });
+
+    expect(useWeeklyDeploymentCostQuery).toHaveBeenLastCalledWith({ enabled: false });
+  });
+
+  it.each([
+    { enableOnSave: true, title: "Auto recharge enabled" },
+    { enableOnSave: false, title: "Auto recharge settings updated" }
+  ])("confirms the save with '$title'", async ({ enableOnSave, title }) => {
+    const enqueueSnackbar = vi.fn();
+    const upsertMutate = vi.fn((_payload, options) => options?.onSuccess?.());
+    setup({ enableOnSave, enqueueSnackbar, upsertMutate });
+
+    await submit();
+
+    expect(enqueueSnackbar.mock.lastCall![0].props.title).toBe(title);
+    expect(enqueueSnackbar).toHaveBeenLastCalledWith(expect.anything(), { variant: "success", autoHideDuration: 3000 });
+  });
+
+  it("marks a Link default method with its type", () => {
+    setup({ defaultPaymentMethod: mock<PaymentMethod>({ type: "link", card: undefined, link: { email: "jane@example.com" } }) });
+
+    expect(screen.getByTestId("card-brand-mark")).toHaveTextContent("link");
+    expect(screen.getByText("Link (jane@example.com)")).toBeInTheDocument();
   });
 
   it("blocks submit and shows an error when the amount is below the minimum", async () => {
@@ -170,7 +226,7 @@ describe(AutoTopUpSettingsPopup.name, () => {
   it("resets the mode when the dialog transitions from closed to open", () => {
     const { props, rerender } = setup({ open: false, mode: "threshold" });
 
-    rerender(<AutoTopUpSettingsPopup {...props} open mode="prediction" />);
+    rerender(<AutoRechargeSettingsPopup {...props} open mode="prediction" />);
 
     expect(modeRadio(/predicted spend/i)).toBeChecked();
   });
@@ -202,7 +258,7 @@ describe(AutoTopUpSettingsPopup.name, () => {
   it("resets to the stored values when the dialog transitions from closed to open", () => {
     const { props, rerender } = setup({ open: false, threshold: 30, amount: 250 });
 
-    rerender(<AutoTopUpSettingsPopup {...props} open threshold={40} amount={300} />);
+    rerender(<AutoRechargeSettingsPopup {...props} open threshold={40} amount={300} />);
 
     expect(thresholdInput().value).toBe("40");
     expect(amountInput().value).toBe("300");
@@ -212,7 +268,7 @@ describe(AutoTopUpSettingsPopup.name, () => {
     const { props, rerender } = setup({ open: true, threshold: 20, amount: 100 });
 
     fireEvent.change(amountInput(), { target: { value: "150" } });
-    rerender(<AutoTopUpSettingsPopup {...props} amount={120} />);
+    rerender(<AutoRechargeSettingsPopup {...props} amount={120} />);
 
     expect(amountInput().value).toBe("150");
   });
@@ -259,13 +315,18 @@ describe(AutoTopUpSettingsPopup.name, () => {
     enqueueSnackbar?: ReturnType<typeof vi.fn>;
     upsertMutate?: ReturnType<typeof vi.fn>;
     isPending?: boolean;
+    weeklyCost?: number;
+    isWeeklyCostLoading?: boolean;
+    defaultPaymentMethod?: PaymentMethod;
   }) {
     const useSnackbar: typeof DEPENDENCIES.useSnackbar = () =>
       ({ enqueueSnackbar: input.enqueueSnackbar ?? vi.fn(), closeSnackbar: vi.fn() }) as unknown as ReturnType<typeof DEPENDENCIES.useSnackbar>;
 
-    const paymentMethod = mock<PaymentMethod>({
-      card: { brand: "visa", last4: "5720", exp_month: 5, exp_year: 30 } as PaymentMethod["card"]
-    });
+    const paymentMethod =
+      input.defaultPaymentMethod ??
+      mock<PaymentMethod>({
+        card: { brand: "visa", last4: "5720", exp_month: 5, exp_year: 30 } as PaymentMethod["card"]
+      });
     const useDefaultPaymentMethodQuery: typeof DEPENDENCIES.useDefaultPaymentMethodQuery = () =>
       mock<ReturnType<typeof DEPENDENCIES.useDefaultPaymentMethodQuery>>({ data: paymentMethod });
 
@@ -274,11 +335,19 @@ describe(AutoTopUpSettingsPopup.name, () => {
         upsertWalletSettings: { mutate: input.upsertMutate ?? vi.fn(), isPending: input.isPending ?? false }
       }) as unknown as ReturnType<typeof DEPENDENCIES.useWalletSettingsMutations>;
 
+    const useWeeklyDeploymentCostQuery = vi.fn(() =>
+      mock<ReturnType<typeof DEPENDENCIES.useWeeklyDeploymentCostQuery>>({ data: input.isWeeklyCostLoading ? undefined : input.weeklyCost ?? 42 })
+    );
+
     const dependencies = {
       useForm,
       useSnackbar,
       useDefaultPaymentMethodQuery,
-      useWalletSettingsMutations
+      useWalletSettingsMutations,
+      useWeeklyDeploymentCostQuery,
+      CardBrandMark: ({ brand }: { brand?: string | null }) => <span data-testid="card-brand-mark">{brand}</span>,
+      UsdValue: ({ value }: { value: number }) => <>{value}</>,
+      Skeleton: () => <span data-testid="skeleton" />
     };
 
     const props = {
@@ -291,8 +360,8 @@ describe(AutoTopUpSettingsPopup.name, () => {
       dependencies
     };
 
-    const utils = render(<AutoTopUpSettingsPopup {...props} />);
+    const utils = render(<AutoRechargeSettingsPopup {...props} />);
 
-    return { ...utils, props };
+    return { ...utils, props, useWeeklyDeploymentCostQuery };
   }
 });

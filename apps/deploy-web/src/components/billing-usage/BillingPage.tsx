@@ -3,7 +3,7 @@ import { NextSeo } from "next-seo";
 
 import { AccountBalanceOverview } from "@src/components/billing-usage/AccountBalanceOverview/AccountBalanceOverview";
 import { AddToBalanceButton } from "@src/components/billing-usage/AddToBalanceButton/AddToBalanceButton";
-import { AutoTopUpSection } from "@src/components/billing-usage/AutoTopUpSection/AutoTopUpSection";
+import { AutoRechargeRow } from "@src/components/billing-usage/AutoRechargeRow/AutoRechargeRow";
 import { BillingActionsProvider } from "@src/components/billing-usage/BillingActionsProvider/BillingActionsProvider";
 import { BillingContainer } from "@src/components/billing-usage/BillingContainer/BillingContainer";
 import { BillingView } from "@src/components/billing-usage/BillingView/BillingView";
@@ -30,8 +30,7 @@ export const BillingPage: FC = () => {
         <TrialStatusPanel />
         {isAutoCreditReloadEnabled ? (
           <BillingActionsProvider>
-            <AccountBalanceOverview />
-            <AutoTopUpSection />
+            <AccountBalanceOverview footerAction={<AutoRechargeRow />} />
             <PaymentMethodsContainer>{props => <PaymentMethodsView {...props} />}</PaymentMethodsContainer>
             <BillingContainer>{props => <BillingView {...props} />}</BillingContainer>
           </BillingActionsProvider>

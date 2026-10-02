@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
 
 import { UrlService } from "@src/utils/urlUtils";
@@ -214,6 +215,26 @@ describe(AccountBalanceOverview.name, () => {
     expect(screen.getByRole("link", { name: /llama-chat/ })).toHaveAttribute("href", UrlService.deploymentDetails("42"));
   });
 
+  it("holds the footer action next to the breakdown toggle", () => {
+    setup({ deployments: [{ dseq: "1", name: "llama-chat", escrowUsd: 100, perHourUsd: 1 }], footerAction: <span>auto recharge row</span> });
+
+    expect(screen.getByRole("button", { name: "Show breakdown" })).toBeInTheDocument();
+    expect(screen.getByText("auto recharge row")).toBeInTheDocument();
+  });
+
+  it("keeps the footer action when nothing is in escrow", () => {
+    setup({ deployments: [], footerAction: <span>auto recharge row</span> });
+
+    expect(screen.getByText("auto recharge row")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Show breakdown" })).not.toBeInTheDocument();
+  });
+
+  it("keeps the footer action reachable when the balance can't be loaded", () => {
+    setup({ isError: true, footerAction: <span>auto recharge row</span> });
+
+    expect(screen.getByText("auto recharge row")).toBeInTheDocument();
+  });
+
   it("renders a skeleton instead of the balance while loading", () => {
     setup({ isLoading: true });
 
@@ -229,7 +250,7 @@ describe(AccountBalanceOverview.name, () => {
     expect(screen.queryByLabelText("Total account balance")).not.toBeInTheDocument();
   });
 
-  function setup(overview: Partial<AccountBalanceOverviewData>) {
+  function setup({ footerAction, ...overview }: Partial<AccountBalanceOverviewData> & { footerAction?: ReactNode }) {
     const BalanceBreakdownBar = vi.fn<typeof DEPENDENCIES.BalanceBreakdownBar>(ComponentMock);
     const UsdValue = vi.fn(({ value }: { value: number }) => <>{value}</>);
 
@@ -251,6 +272,7 @@ describe(AccountBalanceOverview.name, () => {
 
       return (
         <AccountBalanceOverview
+          footerAction={footerAction}
           dependencies={MockComponents(DEPENDENCIES, {
             useAccountBalanceOverview: () => data,
             BalanceBreakdownBar,
