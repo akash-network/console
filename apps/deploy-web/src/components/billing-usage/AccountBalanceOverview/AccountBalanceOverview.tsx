@@ -141,7 +141,7 @@ export const AccountBalanceOverview: React.FunctionComponent<{ dependencies?: ty
                 {usd(overview.available)}
               </span>
             }
-            caption={overview.totalUsd > 0 ? "Free to spend on something new" : "Add to your balance to start deploying"}
+            caption={getAvailableCaption(overview.available, escrowSegments.length)}
           />
         </div>
 
@@ -189,6 +189,11 @@ export const AccountBalanceOverview: React.FunctionComponent<{ dependencies?: ty
     </SettingsSection>
   );
 };
+
+function getAvailableCaption(available: number, runningDeploymentCount: number) {
+  if (available > 0) return "Free to spend on something new";
+  return runningDeploymentCount > 0 ? "Add to your balance to deploy something new" : "Add to your balance to start deploying";
+}
 
 const BalanceFigure: React.FunctionComponent<{ label: string; dot: ReactNode; info?: ReactNode; amount: ReactNode; caption: string }> = ({
   label,

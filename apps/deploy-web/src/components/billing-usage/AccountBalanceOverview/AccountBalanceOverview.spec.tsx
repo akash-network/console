@@ -78,6 +78,13 @@ describe(AccountBalanceOverview.name, () => {
     expect(screen.queryByText("Free to spend on something new")).not.toBeInTheDocument();
   });
 
+  it("invites an account whose whole balance is in escrow to add funds for new deployments", () => {
+    setup({ totalUsd: 100, escrow: 100, available: 0, deployments: [{ dseq: "1", name: "app-a", escrowUsd: 100, perHourUsd: 1 }] });
+
+    expect(screen.getByText("Add to your balance to deploy something new")).toBeInTheDocument();
+    expect(screen.queryByText("Free to spend on something new")).not.toBeInTheDocument();
+  });
+
   it("passes the escrowed deployments and the available balance to the bar", () => {
     const { BalanceBreakdownBar } = setup({ available: 300, deployments: [{ dseq: "1", name: "llama-chat", escrowUsd: 100, perHourUsd: 1 }] });
 
