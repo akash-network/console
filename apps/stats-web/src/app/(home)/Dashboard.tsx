@@ -15,7 +15,6 @@ import {
   TableHeader,
   TableRow
 } from "@akashnetwork/ui/components";
-import Link from "next/link";
 
 import { BlockRow } from "../../components/blockchain/BlockRow";
 import { TransactionRow } from "../../components/blockchain/TransactionRow";
@@ -24,6 +23,7 @@ import { StatsCard } from "./StatsCard";
 import { AKTAmount } from "@/components/AKTAmount";
 import { AKTLabel } from "@/components/AKTLabel";
 import { HumanReadableBytes } from "@/components/HumanReadableBytes";
+import { Link } from "@/components/Link/Link";
 import SearchBar from "@/components/SearchBar";
 import { Title } from "@/components/Title";
 import { ACTLabel } from "@/components/UsdLabel";

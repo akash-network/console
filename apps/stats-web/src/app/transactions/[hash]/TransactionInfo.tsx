@@ -3,11 +3,11 @@ import React from "react";
 import { Alert, AlertDescription, AlertTitle, Card, CardContent } from "@akashnetwork/ui/components";
 import { WarningCircle } from "iconoir-react";
 import dynamic from "next/dynamic";
-import Link from "next/link";
 
 import { AddressLink } from "@/components/AddressLink";
 import { AKTAmount } from "@/components/AKTAmount";
 import { LabelValue } from "@/components/LabelValue";
+import { Link } from "@/components/Link/Link";
 import { UrlService } from "@/lib/urlUtils";
 import type { TransactionDetail } from "@/types";
 

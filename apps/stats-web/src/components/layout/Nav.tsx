@@ -1,11 +1,12 @@
 "use client";
 import { Button } from "@akashnetwork/ui/components";
 import { Discord, Github, Rocket, X as TwitterX } from "iconoir-react";
-import Link from "next/link";
 
 import { AkashConsoleDarkLogo, AkashConsoleLightLogo } from "../icons/AkashConsoleLogo";
 import { ModeToggle } from "../ModeToggle";
 import { MobileNav } from "./MobileNav";
+
+import { Link } from "@/components/Link/Link";
 
 const NetworkSelect = dynamic(() => import("./NetworkSelect"), {
   ssr: false

@@ -2,8 +2,8 @@
 
 import React from "react";
 import { buttonVariants } from "@akashnetwork/ui/components";
-import Link from "next/link";
 
+import { Link } from "@/components/Link/Link";
 import { cn } from "@/lib/utils";
 
 interface NavLinksProps {

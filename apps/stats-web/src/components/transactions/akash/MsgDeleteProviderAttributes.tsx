@@ -1,10 +1,9 @@
 "use client";
-import Link from "next/link";
-
 import { LabelValue } from "../../LabelValue";
 import { createMsgView } from "../createMsgView";
 
 import { DynamicReactJson } from "@/components/DynamicJsonView";
+import { Link } from "@/components/Link/Link";
 import { UrlService } from "@/lib/urlUtils";
 
 export const MsgDeleteProviderAttributes = createMsgView(["v1beta1", "v1beta2", "v1beta3", "v1"], ({ message }) => {

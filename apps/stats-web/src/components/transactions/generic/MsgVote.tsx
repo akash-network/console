@@ -1,9 +1,8 @@
 "use client";
-import Link from "next/link";
-
 import { AddressLink } from "../../AddressLink";
 import { LabelValue } from "../../LabelValue";
 
+import { Link } from "@/components/Link/Link";
 import { UrlService } from "@/lib/urlUtils";
 import type { TransactionMessage } from "@/types";
 

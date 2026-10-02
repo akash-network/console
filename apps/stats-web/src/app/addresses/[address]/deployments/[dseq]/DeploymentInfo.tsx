@@ -2,12 +2,12 @@
 
 import { FormattedNumber } from "react-intl";
 import { Address, Badge, Card, CardContent, Table, TableBody, TableHead, TableHeader, TableRow } from "@akashnetwork/ui/components";
-import Link from "next/link";
 
 import { EventRow } from "./EventRow";
 
 import { LabelValue } from "@/components/LabelValue";
 import { LeaseSpecDetail } from "@/components/LeaseSpecDetail";
+import { Link } from "@/components/Link/Link";
 import { PriceValue } from "@/components/PriceValue";
 import { Title } from "@/components/Title";
 import { getSplitText } from "@/hooks/useShortText";

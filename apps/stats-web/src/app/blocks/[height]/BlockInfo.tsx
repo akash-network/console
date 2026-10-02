@@ -1,9 +1,9 @@
 "use client";
 import { FormattedDate, FormattedRelativeTime } from "react-intl";
 import { Card, CardContent } from "@akashnetwork/ui/components";
-import Link from "next/link";
 
 import { LabelValue } from "@/components/LabelValue";
+import { Link } from "@/components/Link/Link";
 import { UrlService } from "@/lib/urlUtils";
 import type { BlockDetail } from "@/types";
 
