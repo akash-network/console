@@ -333,25 +333,48 @@ describe(useDeploymentFlow.name, () => {
     }
   });
 
-  it("still waits out the first bid while the bid list has not loaded yet", () => {
+  it("does not report missing bids before any were requested", () => {
     vi.useFakeTimers();
     try {
-      const services = mockServices();
-      const dependencies: typeof DEPENDENCIES = {
-        useServices: (() => services) as never,
-        useListBids: (() => ({ data: undefined, isLoading: true, isError: false })) as never,
-        useRouter: (() => mock<ReturnType<typeof DEPENDENCIES.useRouter>>({ replace: vi.fn(), push: vi.fn() })) as never,
-        useQueryClient: (() => mock<ReturnType<typeof DEPENDENCIES.useQueryClient>>()) as never,
-        useFlag: () => false,
-        manifestFromSdl: () => "M",
-        deploymentResourcesFromSdl: () => ({ gpuAmount: 0, cpuAmount: 0, memoryAmount: 0, storageAmount: 0 }),
-        sealSdlSecrets: async () => "SEALED",
-        servicesPatchBetween
-      };
-      const { result } = renderDeploymentFlow({ sdlStrategy: "edit", bidStrategy: "select", dseq: "777", vm: false }, dependencies);
+      const { result, analyticsService } = setup({});
 
-      act(() => vi.advanceTimersByTime(60_000));
+      act(() => vi.advanceTimersByTime(120_000));
 
+      expect(result.current.phase).toBe("configuring");
+      expect(result.current.noBidsReceived).toBe(false);
+      expect(analyticsService.track).not.toHaveBeenCalledWith("bids_not_received", expect.anything());
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("does not report missing bids while the bid list has never loaded, since nothing confirms that nobody bid", () => {
+    vi.useFakeTimers();
+    try {
+      const { result, analyticsService } = renderWithBidList({ data: undefined });
+
+      act(() => vi.advanceTimersByTime(120_000));
+
+      expect(result.current.noBidsReceived).toBe(false);
+      expect(analyticsService.track).not.toHaveBeenCalledWith("bids_not_received", expect.anything());
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("starts the wait for a first bid once the bid list first loads", () => {
+    vi.useFakeTimers();
+    try {
+      const bidList: { data: { data: never[] } | undefined } = { data: undefined };
+      const { result, rerender } = renderWithBidList(bidList);
+      act(() => vi.advanceTimersByTime(30_000));
+
+      bidList.data = { data: [] };
+      rerender();
+      act(() => vi.advanceTimersByTime(59_999));
+      expect(result.current.noBidsReceived).toBe(false);
+
+      act(() => vi.advanceTimersByTime(1));
       expect(result.current.noBidsReceived).toBe(true);
     } finally {
       vi.useRealTimers();
@@ -2171,6 +2194,25 @@ describe(useDeploymentFlow.name, () => {
       sealSdlSecrets,
       getSdlSecretsContext,
       deploymentLocalStorage: services.deploymentLocalStorage,
+      analyticsService: services.analyticsService
+    };
+  }
+
+  function renderWithBidList(bidList: { data: { data: never[] } | undefined }) {
+    const services = mockServices();
+    const dependencies: typeof DEPENDENCIES = {
+      useServices: (() => services) as never,
+      useListBids: (() => ({ data: bidList.data, isLoading: bidList.data === undefined, isError: false })) as never,
+      useRouter: (() => mock<ReturnType<typeof DEPENDENCIES.useRouter>>({ replace: vi.fn(), push: vi.fn() })) as never,
+      useQueryClient: (() => mock<ReturnType<typeof DEPENDENCIES.useQueryClient>>()) as never,
+      useFlag: () => false,
+      manifestFromSdl: () => "M",
+      deploymentResourcesFromSdl: () => ({ gpuAmount: 0, cpuAmount: 0, memoryAmount: 0, storageAmount: 0 }),
+      sealSdlSecrets: async () => "SEALED",
+      servicesPatchBetween
+    };
+    return {
+      ...renderDeploymentFlow({ sdlStrategy: "edit", bidStrategy: "select", dseq: "777", vm: false }, dependencies),
       analyticsService: services.analyticsService
     };
   }

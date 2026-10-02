@@ -253,6 +253,9 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
   /** A closed or leased bid still means a provider bid, so it counts as much as an open one. */
   const hasAnyBid = (bidsQuery.data?.data ?? []).length > 0;
 
+  /** Only a bid list actually read can confirm that nobody bid, so the wait starts once one has loaded. */
+  const hasReadBidList = bidsQuery.data !== undefined;
+
   /** One-shot latch: once any bid appears the no-providers timeout must not re-arm — a later empty list is quote-expiry, not "no providers". */
   const providersEverBidRef = useRef(false);
 
@@ -277,7 +280,7 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
         providersEverBidRef.current = true;
         setNoBidsReceived(false);
       }
-      if (phase !== "quoting" || providersEverBidRef.current) return;
+      if (phase !== "quoting" || providersEverBidRef.current || !hasReadBidList) return;
       const timer = setTimeout(
         /**
          * The auto flow autopilots over this shared flow and reads its error scene off `phase === "error"`, so it must
@@ -306,7 +309,7 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
         clearTimeout(timer);
       };
     },
-    [phase, hasAnyBid, dseq, analyticsService]
+    [phase, hasAnyBid, hasReadBidList, dseq, analyticsService]
   );
 
   /** Everything tied to the deployment that just went away. The caller decides where the flow lands afterwards. */
