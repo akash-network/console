@@ -10,11 +10,12 @@ export interface DeployCtaInput {
   quotesExpired: boolean;
   /** The bid timer is only indicative, so close and edit waits until no placement has an open bid left. */
   hasOpenBids: boolean;
+  noBidsReceived: boolean;
 }
 
 export function deployCtaState(input: DeployCtaInput): DeployCtaState {
   if (input.phase === "configuring" || input.phase === "error") return "request-quotes";
-  if (input.quotesExpired && !input.hasOpenBids) return "close-and-edit";
+  if (input.noBidsReceived || (input.quotesExpired && !input.hasOpenBids)) return "close-and-edit";
   if (input.phase !== "quoting" || !input.allPlacementsHaveBids) return "requesting";
   if (!input.allPlacementsSelected) return "select-providers";
   return input.hasDeployError ? "retry" : "deploy";

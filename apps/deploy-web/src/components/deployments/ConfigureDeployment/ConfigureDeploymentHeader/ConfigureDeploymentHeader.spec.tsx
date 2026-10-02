@@ -166,6 +166,12 @@ describe(ConfigureDeploymentHeader.name, () => {
     expect(screen.getByRole("button", { name: "Deploy" })).toBeInTheDocument();
   });
 
+  it("offers Close and Edit once the wait for a first bid ran out with none", () => {
+    setup({ phase: "quoting", cost: null, noBidsReceived: true });
+
+    expect(screen.getByRole("button", { name: "Close and Edit" })).toBeInTheDocument();
+  });
+
   it("flips the CTA to Close and Edit once the window elapses and no open bids remain, and runs cancelAndEdit", async () => {
     const cancelAndEdit = vi.fn();
     setup({ phase: "quoting", cost: null, expiry: { secondsLeft: 0, isExpired: true }, cancelAndEdit });
@@ -187,11 +193,13 @@ describe(ConfigureDeploymentHeader.name, () => {
     expiry?: QuoteExpiry | null;
     cancelAndEdit?: () => void;
     deploymentName?: string;
+    noBidsReceived?: boolean;
   }) {
     const flow = mock<DeploymentFlow>({
       phase: input.phase,
       dseq: null,
       deployError: input.deployError,
+      noBidsReceived: input.noBidsReceived ?? false,
       actions: mock<DeploymentFlowActions>({ cancelAndEdit: input.cancelAndEdit ?? vi.fn() })
     });
     flow.selections = input.selections ?? {};

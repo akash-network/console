@@ -13,9 +13,9 @@ import { AvailabilityPane } from "../AvailabilityPane/AvailabilityPane";
 import { ConfigureEditor } from "../ConfigureEditor/ConfigureEditor";
 import { ResetConfigurationButton } from "../ConfigureEditor/ResetConfigurationButton/ResetConfigurationButton";
 import { deployCtaState } from "../deployCtaState/deployCtaState";
-import { describeCurrentConfiguration } from "../HardwareRequestDialog/currentConfiguration";
+import { describeCurrentConfiguration, describeRequestedGpuModels } from "../HardwareRequestDialog/currentConfiguration";
 import { HardwareRequestDialog } from "../HardwareRequestDialog/HardwareRequestDialog";
-import type { HardwareRequestConfiguration } from "../HardwareRequestDialog/hardwareRequestForm";
+import type { HardwareRequestCategory, HardwareRequestConfiguration } from "../HardwareRequestDialog/hardwareRequestForm";
 import type { ImportedDeploymentState } from "../importDeploymentState/importDeploymentState";
 import { MarketplacePane } from "../MarketplacePane/MarketplacePane";
 import { SdlImportExport } from "../SdlImportExport/SdlImportExport";
@@ -32,6 +32,7 @@ import { BidWindowToast } from "./BidWindowToast/BidWindowToast";
 import { ConfigureWorkspaceHeader } from "./ConfigureWorkspaceHeader/ConfigureWorkspaceHeader";
 import { LeaveConfigureButton } from "./LeaveConfigureButton/LeaveConfigureButton";
 import { LockedDeploymentRail } from "./LockedDeploymentRail/LockedDeploymentRail";
+import { NoBidsNotice } from "./NoBidsNotice/NoBidsNotice";
 import { PlacementProviderChips } from "./PlacementProviderChips/PlacementProviderChips";
 
 export const DEPENDENCIES = {
@@ -43,6 +44,7 @@ export const DEPENDENCIES = {
   LockedDeploymentRail,
   PlacementProviderChips,
   BidWindowToast,
+  NoBidsNotice,
   SdlImportExport,
   ResetConfigurationButton,
   SdlPreviewPane,
@@ -61,6 +63,10 @@ export const DEPENDENCIES = {
 const PANEL_TRANSITION = { duration: 0.3, ease: "easeOut" } as const;
 
 type View = "configure" | "pick";
+
+type ComputeRequestSource = "footer" | "no_bids_notice";
+
+type HardwareRequest = { configuration: HardwareRequestConfiguration; category: HardwareRequestCategory; gpuModel: string };
 
 type Props = {
   flow: DeploymentFlow;
@@ -112,7 +118,7 @@ export const ConfigureWorkspace: FC<Props> = ({
   const retryDeploy = d.useRetryDeploy({ flow });
   const requestQuotes = d.useRequestQuotes({ flow, deploymentName: typedDeploymentName, onInvalid: revealFirstInvalidService });
   const { data: gpuCatalog } = d.useGpuModels();
-  const [requestedConfiguration, setRequestedConfiguration] = useState<HardwareRequestConfiguration | null>(null);
+  const [hardwareRequest, setHardwareRequest] = useState<HardwareRequest | null>(null);
   const panelsRef = useRef<HTMLDivElement>(null);
   const isEditable = flow.phase === "configuring" || flow.phase === "error";
   const view: View = isEditable ? "configure" : "pick";
@@ -124,7 +130,8 @@ export const ConfigureWorkspace: FC<Props> = ({
     allPlacementsSelected: placements.length > 0 && placements.every(placement => !!flow.selections[placement.id]),
     hasDeployError: !!flow.deployError,
     quotesExpired: !!expiry?.isExpired,
-    hasOpenBids: !!cost
+    hasOpenBids: !!cost,
+    noBidsReceived: flow.noBidsReceived
   });
 
   function revealFirstInvalidService(errors: FieldErrors<SdlBuilderFormValuesType>) {
@@ -137,11 +144,15 @@ export const ConfigureWorkspace: FC<Props> = ({
     void requestQuotes();
   }
 
-  function requestCompute() {
-    analyticsService.track("configure_request_compute_clicked", { category: "deployments" });
+  function requestCompute(source: ComputeRequestSource, category: HardwareRequestCategory) {
+    analyticsService.track("configure_request_compute_clicked", { category: "deployments", source });
     const values = getValues();
     const serviceIndex = values.services.findIndex(service => service.id === selectedServiceId);
-    setRequestedConfiguration(describeCurrentConfiguration(values, serviceIndex, gpuCatalog));
+    setHardwareRequest({
+      configuration: describeCurrentConfiguration(values, serviceIndex, gpuCatalog),
+      category,
+      gpuModel: describeRequestedGpuModels(values, serviceIndex, gpuCatalog)
+    });
   }
 
   function editConfiguration() {
@@ -181,7 +192,7 @@ export const ConfigureWorkspace: FC<Props> = ({
       {placements.map(placement => (
         <PlacementScreening key={placement.id} sdl={sdl} placement={placement} isEnabled={isEditable} useScreenedProviders={d.useScreenedProviders} />
       ))}
-      <d.BidWindowToast phase={flow.phase} dseq={flow.dseq} sdl={sdl} placements={placements} expiry={expiry} />
+      <d.BidWindowToast phase={flow.phase} dseq={flow.dseq} sdl={sdl} placements={placements} expiry={expiry} noBidsReceived={flow.noBidsReceived} />
       <p aria-live="polite" className="sr-only">
         {announcement}
       </p>
@@ -256,6 +267,7 @@ export const ConfigureWorkspace: FC<Props> = ({
                     selectedPlacementId={selectedPlacement.id}
                     selectedBidId={flow.selections[selectedPlacement.id]}
                     onSelectProvider={onSelectProvider}
+                    notice={flow.noBidsReceived ? <d.NoBidsNotice onRequestCompute={() => requestCompute("no_bids_notice", "capacity")} /> : undefined}
                   />
                 </motion.div>
               ) : (
@@ -274,7 +286,7 @@ export const ConfigureWorkspace: FC<Props> = ({
                     isReady={isReady}
                     isSubmitting={isSubmitting}
                     onChooseProvider={chooseProvider}
-                    onRequestCompute={requestCompute}
+                    onRequestCompute={() => requestCompute("footer", "gpu_model")}
                   />
                 </motion.div>
               )}
@@ -283,8 +295,13 @@ export const ConfigureWorkspace: FC<Props> = ({
         </MotionConfig>
         {sdlPreview.isEnabled && <d.SdlPreviewPane sdl={previewSdl} isOpen={sdlPreview.isOpen} onOpen={sdlPreview.open} onClose={sdlPreview.close} />}
       </div>
-      {requestedConfiguration && (
-        <d.HardwareRequestDialog initialGpuModel="" configuration={requestedConfiguration} onClose={() => setRequestedConfiguration(null)} />
+      {hardwareRequest && (
+        <d.HardwareRequestDialog
+          initialGpuModel={hardwareRequest.gpuModel}
+          initialCategory={hardwareRequest.category}
+          configuration={hardwareRequest.configuration}
+          onClose={() => setHardwareRequest(null)}
+        />
       )}
     </div>
   );

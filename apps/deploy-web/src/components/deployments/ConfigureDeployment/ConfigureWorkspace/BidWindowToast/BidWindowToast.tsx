@@ -21,11 +21,12 @@ type Props = {
   sdl: string;
   placements: PlacementType[];
   expiry: QuoteExpiry | null;
+  noBidsReceived: boolean;
   dependencies?: typeof DEPENDENCIES;
 };
 
 /** The countdown stays out of the status region, which would otherwise announce every second. */
-export const BidWindowToast: FC<Props> = ({ phase, dseq, sdl, placements, expiry, dependencies: d = DEPENDENCIES }) => {
+export const BidWindowToast: FC<Props> = ({ phase, dseq, sdl, placements, expiry, noBidsReceived, dependencies: d = DEPENDENCIES }) => {
   const placementsWithBids = d.usePlacementsWithBids({ enabled: phase === "quoting", dseq, sdl, placements });
   const [collectedDseq, setCollectedDseq] = useState<string | null>(null);
   const [dismissed, setDismissed] = useState<{ dseq: string | null; kind: BidWindowState["kind"] } | null>(null);
@@ -39,7 +40,8 @@ export const BidWindowToast: FC<Props> = ({ phase, dseq, sdl, placements, expiry
     placements,
     placementsWithBids,
     hasCollectedEveryPlacement: !!dseq && collectedDseq === dseq,
-    isExpired: !!expiry?.isExpired
+    isExpired: !!expiry?.isExpired,
+    noBidsReceived
   });
 
   if (state.kind === "hidden" || (dismissed?.dseq === dseq && dismissed.kind === state.kind)) return null;

@@ -5,7 +5,7 @@ import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { AnalyticsService } from "@src/services/analytics/analytics.service";
-import type { PlacementType, SdlBuilderFormValuesType } from "@src/types";
+import type { PlacementType, SdlBuilderFormValuesType, ServiceType } from "@src/types";
 import { defaultPlacement, defaultService } from "@src/utils/sdl/data";
 import type { AvailabilityPane } from "../AvailabilityPane/AvailabilityPane";
 import type { ConfigureEditor } from "../ConfigureEditor/ConfigureEditor";
@@ -15,6 +15,7 @@ import type { DeploymentFlow, DeploymentFlowActions } from "../useDeploymentFlow
 import type { ConfigureWorkspaceHeader } from "./ConfigureWorkspaceHeader/ConfigureWorkspaceHeader";
 import type { LeaveConfigureButton } from "./LeaveConfigureButton/LeaveConfigureButton";
 import type { LockedDeploymentRail } from "./LockedDeploymentRail/LockedDeploymentRail";
+import type { NoBidsNotice } from "./NoBidsNotice/NoBidsNotice";
 import type { PlacementProviderChips } from "./PlacementProviderChips/PlacementProviderChips";
 import { ConfigureWorkspace, DEPENDENCIES } from "./ConfigureWorkspace";
 
@@ -35,7 +36,8 @@ describe(ConfigureWorkspace.name, () => {
       { phase: "quoting", allPlacementsHaveBids: true, selections: { p1: "bid-1", p2: "bid-2" }, cost: { minPerBlock: 1, maxPerBlock: 1, denom: "uact" } },
       "deploy"
     ],
-    ["offers close and edit once the bids expired", { phase: "quoting", expired: true }, "close-and-edit"]
+    ["offers close and edit once the bids expired", { phase: "quoting", expired: true }, "close-and-edit"],
+    ["offers close and edit once the wait for a first bid ran out", { phase: "quoting", noBidsReceived: true }, "close-and-edit"]
   ])("%s", (_, input, ctaState) => {
     const { headerProps } = setup(input);
 
@@ -92,15 +94,24 @@ describe(ConfigureWorkspace.name, () => {
 
       act(() => availabilityProps().onRequestCompute());
 
-      expect(analyticsService.track).toHaveBeenCalledWith("configure_request_compute_clicked", { category: "deployments" });
+      expect(analyticsService.track).toHaveBeenCalledWith("configure_request_compute_clicked", { category: "deployments", source: "footer" });
       expect(screen.getByText("Hardware request dialog")).toBeInTheDocument();
       expect(dependencies.HardwareRequestDialog).toHaveBeenLastCalledWith(
         expect.objectContaining({
           initialGpuModel: "",
+          initialCategory: "gpu_model",
           configuration: expect.objectContaining({ summary: "0.1 vCPU · 512 MiB memory · 1 GiB storage · us-west, eu-west" })
         }),
         expect.anything()
       );
+    });
+
+    it("prefills the GPU models the selected service asks for in the compute request", () => {
+      const { availabilityProps, dependencies } = setup({ selectedServiceId: "api", apiGpuModels: ["h100", "a100"] });
+
+      act(() => availabilityProps().onRequestCompute());
+
+      expect(dependencies.HardwareRequestDialog).toHaveBeenLastCalledWith(expect.objectContaining({ initialGpuModel: "H100, A100" }), expect.anything());
     });
 
     it("closes the hardware request dialog when it asks to", () => {
@@ -180,6 +191,44 @@ describe(ConfigureWorkspace.name, () => {
       expect(onSelectService).toHaveBeenCalledWith("web");
     });
 
+    it("explains in the marketplace that no provider bid once the wait for a first bid ran out", () => {
+      const { marketplaceProps, dependencies } = setup({ phase: "quoting", noBidsReceived: true });
+
+      expect((marketplaceProps().notice as ReactElement).type).toBe(dependencies.NoBidsNotice);
+    });
+
+    it("keeps the waiting card while the wait for a first bid is still running", () => {
+      const { marketplaceProps } = setup({ phase: "quoting" });
+
+      expect(marketplaceProps().notice).toBeUndefined();
+    });
+
+    it("asks for more capacity from the no-bid notice and tracks that the request came from there", () => {
+      const { marketplaceProps, analyticsService, dependencies } = setup({ phase: "quoting", noBidsReceived: true, selectedServiceId: "api" });
+
+      act(() => ((marketplaceProps().notice as ReactElement).props as ComponentProps<typeof NoBidsNotice>).onRequestCompute());
+
+      expect(analyticsService.track).toHaveBeenCalledWith("configure_request_compute_clicked", { category: "deployments", source: "no_bids_notice" });
+      expect(dependencies.HardwareRequestDialog).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          initialCategory: "capacity",
+          configuration: expect.objectContaining({ summary: "0.1 vCPU · 512 MiB memory · 1 GiB storage · us-west, eu-west" })
+        }),
+        expect.anything()
+      );
+    });
+
+    it("prefills the GPU models the selected service asks for when compute is requested from the no-bid notice", () => {
+      const { marketplaceProps, dependencies } = setup({ phase: "quoting", noBidsReceived: true, selectedServiceId: "api", apiGpuModels: ["h100"] });
+
+      act(() => ((marketplaceProps().notice as ReactElement).props as ComponentProps<typeof NoBidsNotice>).onRequestCompute());
+
+      expect(dependencies.HardwareRequestDialog).toHaveBeenLastCalledWith(
+        expect.objectContaining({ initialGpuModel: "H100", initialCategory: "capacity" }),
+        expect.anything()
+      );
+    });
+
     it("keeps screening paused while the bids are live", () => {
       const { useScreenedProviders } = setup({ phase: "quoting" });
 
@@ -217,9 +266,15 @@ describe(ConfigureWorkspace.name, () => {
     const { dependencies } = setup({ phase: "quoting", expired: true });
 
     expect(dependencies.BidWindowToast).toHaveBeenCalledWith(
-      expect.objectContaining({ phase: "quoting", dseq: "42", sdl: "live-sdl", expiry: { secondsLeft: 0, isExpired: true } }),
+      expect.objectContaining({ phase: "quoting", dseq: "42", sdl: "live-sdl", expiry: { secondsLeft: 0, isExpired: true }, noBidsReceived: false }),
       expect.anything()
     );
+  });
+
+  it("tells the bid window toast once the wait for a first bid ran out", () => {
+    const { dependencies } = setup({ phase: "quoting", noBidsReceived: true });
+
+    expect(dependencies.BidWindowToast).toHaveBeenLastCalledWith(expect.objectContaining({ noBidsReceived: true }), expect.anything());
   });
 
   it("slides from the editor to the picker once bids are requested, and back after Edit", async () => {
@@ -281,6 +336,8 @@ describe(ConfigureWorkspace.name, () => {
     bidCount?: number;
     pendingClose?: DeploymentFlow["pendingClose"];
     selectedServiceId?: string;
+    noBidsReceived?: boolean;
+    apiGpuModels?: string[];
   }) {
     const first = { ...defaultPlacement({ name: "placement-1" }), id: "p1", regions: [] };
     const second = { ...defaultPlacement({ name: "gpu-pool" }), id: "p2", regions: ["us-west", "eu-west"] };
@@ -288,7 +345,7 @@ describe(ConfigureWorkspace.name, () => {
       placements: [first, second],
       services: [
         { ...defaultService("p1", { title: "web" }), id: "web" },
-        { ...defaultService("p2", { title: "api" }), id: "api" }
+        { ...withGpuModels(defaultService("p2", { title: "api" }), input.apiGpuModels), id: "api" }
       ],
       endpoints: []
     };
@@ -338,6 +395,7 @@ describe(ConfigureWorkspace.name, () => {
         dseq: "42",
         pendingClose: input.pendingClose ?? null,
         deployError: undefined,
+        noBidsReceived: input.noBidsReceived ?? false,
         bids: Array.from({ length: input.bidCount ?? 0 }, () => mock<DeploymentFlow["bids"][number]>()),
         actions: mock<DeploymentFlowActions>({ cancelAndEdit })
       });
@@ -399,6 +457,14 @@ describe(ConfigureWorkspace.name, () => {
         const marketplace = dependencies.MarketplacePane.mock.calls.at(-1)?.[0] as ComponentProps<typeof MarketplacePane>;
         return (marketplace.chips as ReactElement).props as ComponentProps<typeof PlacementProviderChips>;
       }
+    };
+  }
+
+  function withGpuModels(service: ServiceType, models: string[] | undefined): ServiceType {
+    if (!models) return service;
+    return {
+      ...service,
+      profile: { ...service.profile, hasGpu: true, gpu: 1, gpuModels: models.map(name => ({ vendor: "nvidia", name, memory: "", interface: "" })) }
     };
   }
 });

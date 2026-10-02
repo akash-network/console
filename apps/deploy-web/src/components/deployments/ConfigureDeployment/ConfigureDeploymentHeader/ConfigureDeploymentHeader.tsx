@@ -54,7 +54,8 @@ export const ConfigureDeploymentHeader: FC<Props> = ({ flow, sdl, deploymentName
     allPlacementsSelected: placements.length > 0 && placements.every(placement => !!flow.selections[placement.id]),
     hasDeployError: !!flow.deployError,
     quotesExpired: !!expiry?.isExpired,
-    hasOpenBids: !!cost
+    hasOpenBids: !!cost,
+    noBidsReceived: flow.noBidsReceived
   });
 
   return (

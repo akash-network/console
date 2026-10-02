@@ -1,10 +1,10 @@
 import type { SdlBuilderFormValuesType } from "@src/types";
 import type { GpuVendor } from "@src/types/gpu";
 import { roundDecimal } from "@src/utils/mathHelpers";
-import { summarizeGpu } from "../ConfigurationPane/GpuCard/gpuSummary";
+import { acceptedGpuModelLabels, summarizeGpu } from "../ConfigurationPane/GpuCard/gpuSummary";
 import { aggregateDeploymentResources, formatBytes } from "../DeploymentResourceSummary/deploymentResources";
 import type { HardwareRequestConfiguration } from "./hardwareRequestForm";
-import { MAX_REGION_LENGTH } from "./hardwareRequestForm";
+import { MAX_GPU_MODEL_LENGTH, MAX_REGION_LENGTH } from "./hardwareRequestForm";
 
 /** Describes one replica of the service, so the GPU count and the resources agree, and names the replica count separately. */
 export function describeCurrentConfiguration(
@@ -35,6 +35,16 @@ export function describeCurrentConfiguration(
     region,
     gpu: gpuCount > 0 ? { count: gpuCount, models: (service.profile.gpuModels ?? []).flatMap(model => (model.name ? [model.name] : [])) } : undefined
   };
+}
+
+/** The request keeps the GPU model in one bounded string, so a pick too long to list in full names the first model and counts the rest. */
+export function describeRequestedGpuModels(values: SdlBuilderFormValuesType, serviceIndex: number, gpuCatalog: GpuVendor[] | undefined): string {
+  const { profile } = values.services[serviceIndex];
+  if (!profile.hasGpu || !profile.gpu) return "";
+
+  const labels = acceptedGpuModelLabels(profile.gpuModels ?? [], gpuCatalog);
+  const listedModels = labels.join(", ");
+  return listedModels.length <= MAX_GPU_MODEL_LENGTH ? listedModels : `${labels[0]} +${labels.length - 1}`;
 }
 
 /** The request keeps the region in one bounded string, so a pick too long to list in full names the first region and counts the rest. */

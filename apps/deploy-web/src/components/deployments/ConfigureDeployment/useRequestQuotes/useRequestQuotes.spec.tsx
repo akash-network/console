@@ -20,8 +20,21 @@ describe(useRequestQuotes.name, () => {
 
     await submit();
 
-    expect(requestQuotes).toHaveBeenCalledWith(GENERATED_SDL, { name: "" });
+    expect(requestQuotes).toHaveBeenCalledWith(GENERATED_SDL, { screening: { placementCount: 0 }, name: "" });
     expect(enqueueSnackbar).not.toHaveBeenCalled();
+  });
+
+  it("records what screening found for every placement when requesting quotes", async () => {
+    const placements = [
+      { id: "p1", name: "west", regions: ["na-us-west"] },
+      { id: "p2", name: "east" }
+    ];
+    const { requestQuotes, submit, countScreenedProviders } = setup({ placements, screenedProviderCount: 4 });
+
+    await submit();
+
+    expect(countScreenedProviders).toHaveBeenCalledWith(GENERATED_SDL, placements);
+    expect(requestQuotes).toHaveBeenCalledWith(GENERATED_SDL, expect.objectContaining({ screening: { placementCount: 2, providerCount: 4 } }));
   });
 
   it("requests quotes under the name typed for the deployment", async () => {
@@ -29,7 +42,7 @@ describe(useRequestQuotes.name, () => {
 
     await submit();
 
-    expect(requestQuotes).toHaveBeenCalledWith(GENERATED_SDL, { name: "my-app" });
+    expect(requestQuotes).toHaveBeenCalledWith(GENERATED_SDL, { screening: { placementCount: 0 }, name: "my-app" });
   });
 
   it("blocks a trial deployment whose GPU resolves to a blocked selection and explains why", async () => {
@@ -53,7 +66,7 @@ describe(useRequestQuotes.name, () => {
 
     await submit();
 
-    expect(requestQuotes).toHaveBeenCalledWith(GENERATED_SDL, { name: "" });
+    expect(requestQuotes).toHaveBeenCalledWith(GENERATED_SDL, { screening: { placementCount: 0 }, name: "" });
   });
 
   it("applies no trial GPU guard for a user who is not on a trial", async () => {
@@ -64,7 +77,7 @@ describe(useRequestQuotes.name, () => {
 
     await submit();
 
-    expect(requestQuotes).toHaveBeenCalledWith(GENERATED_SDL, { name: "" });
+    expect(requestQuotes).toHaveBeenCalledWith(GENERATED_SDL, { screening: { placementCount: 0 }, name: "" });
   });
 
   it("seals credentials in the generated SDL and hands the typed secret values to the flow when the secrets feature is on", async () => {
@@ -75,7 +88,7 @@ describe(useRequestQuotes.name, () => {
 
     await submit();
 
-    expect(requestQuotes).toHaveBeenCalledWith(GENERATED_SDL, { name: "", secrets: { API_KEY: "hunter2" } });
+    expect(requestQuotes).toHaveBeenCalledWith(GENERATED_SDL, { screening: { placementCount: 0 }, name: "", secrets: { API_KEY: "hunter2" } });
     expect(generateSdl).toHaveBeenCalledWith(expect.anything(), { sealSecrets: true });
   });
 
@@ -89,7 +102,7 @@ describe(useRequestQuotes.name, () => {
 
     await submit();
 
-    expect(requestQuotes).toHaveBeenCalledWith(GENERATED_SDL, { name: "", secrets: {}, inheritSecretsFrom: "123" });
+    expect(requestQuotes).toHaveBeenCalledWith(GENERATED_SDL, { screening: { placementCount: 0 }, name: "", secrets: {}, inheritSecretsFrom: "123" });
     expect(resolveSdlSecretsSpy).toHaveBeenCalledWith(expect.anything(), { sealSecrets: true, heldNames: new Set(["API_KEY"]) });
   });
 
@@ -115,7 +128,7 @@ describe(useRequestQuotes.name, () => {
 
     await submit();
 
-    expect(requestQuotes).toHaveBeenCalledWith(GENERATED_SDL, { name: "" });
+    expect(requestQuotes).toHaveBeenCalledWith(GENERATED_SDL, { screening: { placementCount: 0 }, name: "" });
     expect(generateSdl).toHaveBeenCalledWith(expect.anything(), { sealSecrets: false });
   });
 
@@ -165,11 +178,14 @@ describe(useRequestQuotes.name, () => {
     inheritedSecrets?: ReturnType<typeof DEPENDENCIES.useInheritedSecrets>;
     onInvalid?: (errors: FieldErrors) => void;
     rejectWith?: FieldErrors;
+    placements?: Array<{ id: string; name: string; regions?: string[] }>;
+    screenedProviderCount?: number;
   }) {
     const requestQuotes = vi.fn();
     const flow = mock<DeploymentFlow>({ actions: mock<DeploymentFlowActions>({ requestQuotes }) });
     const enqueueSnackbar = vi.fn();
     const generateSdl = vi.fn(() => GENERATED_SDL);
+    const countScreenedProviders = vi.fn(() => input.screenedProviderCount);
     const dependencies: typeof DEPENDENCIES = {
       useSnackbar: () => mock<ReturnType<typeof DEPENDENCIES.useSnackbar>>({ enqueueSnackbar }),
       Snackbar,
@@ -178,11 +194,12 @@ describe(useRequestQuotes.name, () => {
       resolveSdlSecrets: input.resolveSdlSecrets ?? resolveSdlSecrets,
       useFlag: () => input.secretsEnabled ?? false,
       useInheritedSecrets: () => input.inheritedSecrets ?? null,
-      useTrialGate: () => ({ isRestricted: input.isRestricted ?? false, isWalletReady: true })
+      useTrialGate: () => ({ isRestricted: input.isRestricted ?? false, isWalletReady: true }),
+      useCachedScreenedProviderCount: () => countScreenedProviders
     };
     const Wrapper = ({ children }: PropsWithChildren) => {
       const form = useForm({
-        defaultValues: { placements: [], services: input.services ?? [] },
+        defaultValues: { placements: input.placements ?? [], services: input.services ?? [] },
         resolver: input.rejectWith ? async () => ({ values: {}, errors: input.rejectWith as FieldErrors }) : undefined
       });
       return <FormProvider {...form}>{children}</FormProvider>;
@@ -195,6 +212,7 @@ describe(useRequestQuotes.name, () => {
       requestQuotes,
       enqueueSnackbar,
       generateSdl,
+      countScreenedProviders,
       submit: () => act(() => result.current())
     };
   }

@@ -97,7 +97,19 @@ describe(BidWindowToast.name, () => {
     expect(usePlacementsWithBids).toHaveBeenCalledWith(expect.objectContaining({ enabled: false }));
   });
 
-  function setup(input: { phase?: DeploymentFlowPhase; placementNames?: string[]; placementsWithBids?: string[]; expiry?: QuoteExpiry | null }) {
+  it("disappears once the wait for a first bid ran out with none", () => {
+    setup({ noBidsReceived: true });
+
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+  });
+
+  function setup(input: {
+    phase?: DeploymentFlowPhase;
+    placementNames?: string[];
+    placementsWithBids?: string[];
+    expiry?: QuoteExpiry | null;
+    noBidsReceived?: boolean;
+  }) {
     const placements = (input.placementNames ?? ["web", "db"]).map((name, index) => mock<PlacementType>({ id: `p${index + 1}`, name }));
     let withBids = new Set(input.placementsWithBids ?? []);
     const usePlacementsWithBids = vi.fn(() => withBids);
@@ -109,6 +121,7 @@ describe(BidWindowToast.name, () => {
         sdl="the-sdl"
         placements={placements}
         expiry={overrides.expiry === undefined ? input.expiry ?? null : overrides.expiry}
+        noBidsReceived={input.noBidsReceived ?? false}
         dependencies={dependencies}
       />
     );
