@@ -235,6 +235,12 @@ describe(AccountBalanceOverview.name, () => {
     expect(screen.getByText("auto recharge row")).toBeInTheDocument();
   });
 
+  it("keeps the footer action in place while the balance loads", () => {
+    setup({ isLoading: true, footerAction: <span>auto recharge row</span> });
+
+    expect(screen.getByText("auto recharge row")).toBeInTheDocument();
+  });
+
   it("renders a skeleton instead of the balance while loading", () => {
     setup({ isLoading: true });
 

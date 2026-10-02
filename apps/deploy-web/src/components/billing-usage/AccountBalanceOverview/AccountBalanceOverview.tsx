@@ -53,13 +53,15 @@ export const AccountBalanceOverview: React.FunctionComponent<{ footerAction?: Re
     </div>
   );
 
+  const footerWithoutBreakdown = footerAction && <div className="mt-4 border-t pt-3.5">{footerAction}</div>;
+
   if (overview.isError) {
     return (
       <SettingsSection title="Account">
         <d.Card className={CARD_CLASSES}>
           {header}
           <p className="mt-3 text-sm text-muted-foreground">Your balance couldn't be loaded. It will refresh automatically once the connection recovers.</p>
-          {footerAction && <div className="mt-4 border-t pt-3.5">{footerAction}</div>}
+          {footerWithoutBreakdown}
         </d.Card>
       </SettingsSection>
     );
@@ -76,6 +78,7 @@ export const AccountBalanceOverview: React.FunctionComponent<{ footerAction?: Re
             <d.Skeleton className="h-14 w-40" />
             <d.Skeleton className="h-14 w-40" />
           </div>
+          {footerWithoutBreakdown}
         </d.Card>
       </SettingsSection>
     );
