@@ -41,6 +41,11 @@ const FIXED_IMG_SRC = ["data:", "blob:", "https:"];
 const STACKADAPT_ORIGIN = "https://tags.srv.stackadapt.com";
 const IQM_ORIGIN = "https://pxl.iqm.com";
 
+/** IQM's pixel loads this partner tracker on a visitor's first page view. */
+const IQM_PARTNER_TRACKER_ORIGIN = "https://wt.rqtrk.eu";
+
+const SCRIPT_NONCE_BYTES = 16;
+
 /** CSP cannot wildcard a TLD, so Google Ads' per-country audience endpoints have to be listed one by one. */
 const GOOGLE_ADS_COUNTRY_ORIGINS = [
   "https://www.google.com",
@@ -74,10 +79,17 @@ export interface ContentSecurityPolicyInput {
   templatesUrl?: string;
   networkRpcAndApiUrls?: string[];
   reportViolations?: boolean;
+  /** No app script carries it: Cloudflare reads it from the response header and stamps it onto the bot detection script its edge injects. */
+  scriptNonce?: string;
 }
 
 export function isSampledForViolationReports(random: () => number = Math.random): boolean {
   return random() < VIOLATION_REPORT_SAMPLE_RATE;
+}
+
+export function generateScriptNonce(): string {
+  const bytes = crypto.getRandomValues(new Uint8Array(SCRIPT_NONCE_BYTES));
+  return btoa(String.fromCharCode(...bytes));
 }
 
 /**
@@ -119,14 +131,17 @@ export function toSentrySecurityReportUri(dsn?: string): string | undefined {
 export function buildContentSecurityPolicy(input: ContentSecurityPolicyInput) {
   const scriptSrc = [
     "'self'",
+    "'report-sample'",
     THEME_SCRIPT_HASH,
+    ...(input.scriptNonce ? [`'nonce-${input.scriptNonce}'`] : []),
     "https://www.googletagmanager.com",
     "https://*.google-analytics.com",
     "https://pxl.growth-channel.net",
     "https://challenges.cloudflare.com",
     "https://js.stripe.com",
     STACKADAPT_ORIGIN,
-    IQM_ORIGIN
+    IQM_ORIGIN,
+    IQM_PARTNER_TRACKER_ORIGIN
   ];
 
   const providerProxyOrigin = toOrigin(input.providerProxyUrl);

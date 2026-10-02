@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   buildContentSecurityPolicy,
   type ContentSecurityPolicyInput,
+  generateScriptNonce,
   getContentSecurityPolicyHeaderName,
   getContentSecurityPolicyReportHeaders,
   isSampledForViolationReports,
@@ -53,7 +54,7 @@ describe("csp", () => {
   });
 
   describe("buildContentSecurityPolicy", () => {
-    it("allows first-party, vendor, and hashed theme scripts without a nonce, strict-dynamic, or unsafe-inline", () => {
+    it("allows first-party, vendor, and hashed theme scripts without strict-dynamic or unsafe-inline", () => {
       const { scriptSrc } = setup({});
 
       expect(scriptSrc).toContain("'self'");
@@ -64,8 +65,28 @@ describe("csp", () => {
       expect(scriptSrc).toContain("https://challenges.cloudflare.com");
       expect(scriptSrc).toContain("https://js.stripe.com");
       expect(scriptSrc).not.toContain("'strict-dynamic'");
-      expect(scriptSrc.some(source => source.startsWith("'nonce-"))).toBe(false);
       expect(scriptSrc).not.toContain("'unsafe-inline'");
+    });
+
+    it("allows the script nonce Cloudflare stamps onto its injected bot detection script", () => {
+      const { scriptSrc } = setup({ scriptNonce: "cmVxdWVzdC1ub25jZQ==" });
+
+      expect(scriptSrc).toContain("'nonce-cmVxdWVzdC1ub25jZQ=='");
+      expect(scriptSrc).toContain("'self'");
+      expect(scriptSrc).not.toContain("'strict-dynamic'");
+    });
+
+    it("leaves only the nonce source out when no script nonce is given", () => {
+      const withoutNonce = setup({}).scriptSrc;
+      const withNonce = setup({ scriptNonce: "cmVxdWVzdC1ub25jZQ==" }).scriptSrc;
+
+      expect(withoutNonce).toEqual(withNonce.filter(source => source !== "'nonce-cmVxdWVzdC1ub25jZQ=='"));
+    });
+
+    it("asks for a sample of every blocked inline script so its origin shows in the report", () => {
+      const { scriptSrc } = setup({});
+
+      expect(scriptSrc).toContain("'report-sample'");
     });
 
     it("includes origins derived from the provided env values", () => {
@@ -142,6 +163,7 @@ describe("csp", () => {
 
       expect(scriptSrc).toContain("https://tags.srv.stackadapt.com");
       expect(scriptSrc).toContain("https://pxl.iqm.com");
+      expect(scriptSrc).toContain("https://wt.rqtrk.eu");
       expect(styleSrc).toContain("https://tags.srv.stackadapt.com");
       expect(connectSrc).toContain("https://tags.srv.stackadapt.com");
       expect(connectSrc).toContain("https://*.g.doubleclick.net");
@@ -196,6 +218,19 @@ describe("csp", () => {
 
       expect(reportUri).toBeUndefined();
       expect(reportTo).toBeUndefined();
+    });
+  });
+
+  describe(generateScriptNonce.name, () => {
+    it("encodes 128 random bits as base64", () => {
+      const nonce = generateScriptNonce();
+
+      expect(nonce).toMatch(/^[A-Za-z0-9+/]+={0,2}$/);
+      expect(atob(nonce)).toHaveLength(16);
+    });
+
+    it("draws a different nonce on every call", () => {
+      expect(generateScriptNonce()).not.toBe(generateScriptNonce());
     });
   });
 
