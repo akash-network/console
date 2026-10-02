@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { type ReactNode, useEffect } from "react";
 import { describe, expect, it, vi } from "vitest";
 
 import { UrlService } from "@src/utils/urlUtils";
@@ -241,6 +241,21 @@ describe(AccountBalanceOverview.name, () => {
     expect(screen.getByText("auto recharge row")).toBeInTheDocument();
   });
 
+  it("keeps the same footer action instance when the balance finishes loading", () => {
+    const mountFooterAction = vi.fn();
+    const FooterAction = () => {
+      useEffect(() => mountFooterAction(), []);
+      return <span>auto recharge row</span>;
+    };
+    const { rerenderWith } = setup({ isLoading: true, footerAction: <FooterAction /> });
+
+    rerenderWith({ escrow: 100, available: 50, deployments: [{ dseq: "1", name: "llama-chat", escrowUsd: 100, perHourUsd: 1 }] });
+
+    expect(screen.getByRole("button", { name: "Show breakdown" })).toBeInTheDocument();
+    expect(screen.getByText("auto recharge row")).toBeInTheDocument();
+    expect(mountFooterAction).toHaveBeenCalledTimes(1);
+  });
+
   it("renders a skeleton instead of the balance while loading", () => {
     setup({ isLoading: true });
 
@@ -260,37 +275,38 @@ describe(AccountBalanceOverview.name, () => {
     const BalanceBreakdownBar = vi.fn<typeof DEPENDENCIES.BalanceBreakdownBar>(ComponentMock);
     const UsdValue = vi.fn(({ value }: { value: number }) => <>{value}</>);
 
-    const renderView = (partial: Partial<AccountBalanceOverviewData>) => {
-      const data: AccountBalanceOverviewData = {
-        totalUsd: 0,
-        escrow: 0,
-        available: 0,
-        deployments: [],
-        perHour: 0,
-        lastsUntil: null,
-        runwayDays: null,
-        autoReloadEnabled: false,
-        autoReloadThreshold: null,
-        isLoading: false,
-        isError: false,
-        ...partial
-      };
+    const buildOverview = (partial: Partial<AccountBalanceOverviewData>): AccountBalanceOverviewData => ({
+      totalUsd: 0,
+      escrow: 0,
+      available: 0,
+      deployments: [],
+      perHour: 0,
+      lastsUntil: null,
+      runwayDays: null,
+      autoReloadEnabled: false,
+      autoReloadThreshold: null,
+      isLoading: false,
+      isError: false,
+      ...partial
+    });
+    let currentOverview = buildOverview(overview);
+    const dependencies = MockComponents(DEPENDENCIES, {
+      useAccountBalanceOverview: () => currentOverview,
+      BalanceBreakdownBar,
+      UsdValue,
+      Link: DEPENDENCIES.Link
+    });
+    const renderView = () => <AccountBalanceOverview footerAction={footerAction} dependencies={dependencies} />;
 
-      return (
-        <AccountBalanceOverview
-          footerAction={footerAction}
-          dependencies={MockComponents(DEPENDENCIES, {
-            useAccountBalanceOverview: () => data,
-            BalanceBreakdownBar,
-            UsdValue,
-            Link: DEPENDENCIES.Link
-          })}
-        />
-      );
+    const view = render(renderView());
+
+    return {
+      ...view,
+      BalanceBreakdownBar,
+      rerenderWith: (next: Partial<AccountBalanceOverviewData>) => {
+        currentOverview = buildOverview(next);
+        view.rerender(renderView());
+      }
     };
-
-    const view = render(renderView(overview));
-
-    return { ...view, BalanceBreakdownBar, rerenderWith: (next: Partial<AccountBalanceOverviewData>) => view.rerender(renderView(next)) };
   }
 });

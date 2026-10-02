@@ -1,7 +1,7 @@
 import React from "react";
 import { useForm } from "react-hook-form";
 import type { PaymentMethod } from "@akashnetwork/http-sdk";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, type Mock, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { DEPENDENCIES } from "./AutoRechargeSettingsPopup";
@@ -312,7 +312,7 @@ describe(AutoRechargeSettingsPopup.name, () => {
     threshold?: number;
     amount?: number;
     onClose?: () => void;
-    enqueueSnackbar?: ReturnType<typeof vi.fn>;
+    enqueueSnackbar?: Mock;
     upsertMutate?: ReturnType<typeof vi.fn>;
     isPending?: boolean;
     weeklyCost?: number;
@@ -320,7 +320,7 @@ describe(AutoRechargeSettingsPopup.name, () => {
     defaultPaymentMethod?: PaymentMethod;
   }) {
     const useSnackbar: typeof DEPENDENCIES.useSnackbar = () =>
-      ({ enqueueSnackbar: input.enqueueSnackbar ?? vi.fn(), closeSnackbar: vi.fn() }) as unknown as ReturnType<typeof DEPENDENCIES.useSnackbar>;
+      mock<ReturnType<typeof DEPENDENCIES.useSnackbar>>({ enqueueSnackbar: input.enqueueSnackbar ?? vi.fn() });
 
     const paymentMethod =
       input.defaultPaymentMethod ??
@@ -331,9 +331,12 @@ describe(AutoRechargeSettingsPopup.name, () => {
       mock<ReturnType<typeof DEPENDENCIES.useDefaultPaymentMethodQuery>>({ data: paymentMethod });
 
     const useWalletSettingsMutations: typeof DEPENDENCIES.useWalletSettingsMutations = () =>
-      ({
-        upsertWalletSettings: { mutate: input.upsertMutate ?? vi.fn(), isPending: input.isPending ?? false }
-      }) as unknown as ReturnType<typeof DEPENDENCIES.useWalletSettingsMutations>;
+      mock<ReturnType<typeof DEPENDENCIES.useWalletSettingsMutations>>({
+        upsertWalletSettings: Object.assign(mock<ReturnType<typeof DEPENDENCIES.useWalletSettingsMutations>["upsertWalletSettings"]>(), {
+          mutate: input.upsertMutate ?? vi.fn(),
+          isPending: input.isPending ?? false
+        })
+      });
 
     const useWeeklyDeploymentCostQuery = vi.fn(() =>
       mock<ReturnType<typeof DEPENDENCIES.useWeeklyDeploymentCostQuery>>({ data: input.isWeeklyCostLoading ? undefined : input.weeklyCost ?? 42 })
