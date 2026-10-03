@@ -2,7 +2,7 @@ import { MsgCloseDeployment, MsgCreateDeployment } from "@akashnetwork/chain-sdk
 import type { components } from "@akashnetwork/console-api-types/notifications";
 import { faker } from "@faker-js/faker";
 
-type Alert = components["schemas"]["AlertOutputResponse"]["data"] & { deploymentName: string };
+type Alert = components["schemas"]["AlertOutputResponse"]["data"] & { deploymentName: string | null };
 type ChainMessageAlert = Extract<Alert, { type: "CHAIN_MESSAGE" }>;
 type ChainEventAlert = Extract<Alert, { type: "CHAIN_EVENT" }>;
 type DeploymentBalanceAlert = Extract<Alert, { type: "DEPLOYMENT_BALANCE" }>;

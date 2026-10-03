@@ -22,7 +22,9 @@ describe("NotificationChannelsListContainer", () => {
 
   it("calls delete endpoint and shows success notification when removing a notification channel succeeds", async () => {
     const { mockData, mockFetch, child } = await setup();
-    await act(() => child.onRemove(mockData.data[0].id));
+    const result = await act(() => child.onRemove(mockData.data[0].id));
+
+    expect(result).toBe("removed");
 
     await vi.waitFor(() => {
       expect(mockFetch).toHaveBeenCalledWith(
@@ -36,7 +38,9 @@ describe("NotificationChannelsListContainer", () => {
   it("calls delete endpoint and shows error notification when removing a notification channel fails", async () => {
     const { mockData, mockFetch, child } = await setup();
     mockFetch.mockRejectedValue(new Error());
-    await act(() => child.onRemove(mockData.data[0].id));
+    const result = await act(() => child.onRemove(mockData.data[0].id));
+
+    expect(result).toBe("failed");
 
     await vi.waitFor(() => {
       expect(mockFetch).toHaveBeenCalledWith(
@@ -45,6 +49,16 @@ describe("NotificationChannelsListContainer", () => {
       );
       expect(screen.getByTestId("notification-channel-remove-error-notification")).toBeInTheDocument();
     });
+  });
+
+  it("reports a channel that alerts still use without showing an error notification", async () => {
+    const { mockData, mockFetch, child } = await setup();
+    mockFetch.mockResolvedValue(jsonResponse({ statusCode: 400, message: "Cannot delete notification channel with alerts" }, 400));
+
+    const result = await act(() => child.onRemove(mockData.data[0].id));
+
+    expect(result).toBe("in-use");
+    expect(screen.queryByTestId("notification-channel-remove-error-notification")).not.toBeInTheDocument();
   });
 
   it("handles pagination correctly", async () => {
@@ -66,7 +80,7 @@ describe("NotificationChannelsListContainer", () => {
         totalPages: 2
       }
     };
-    const mockFetch = vi.fn(() => Promise.resolve(jsonResponse(mockData)));
+    const mockFetch = vi.fn((_url: RequestInfo | URL, _init?: RequestInit) => Promise.resolve(jsonResponse(mockData)));
     const services = {
       queryClient: () => queryClient,
       api: () => createProxy(createApiSdk({ baseUrl: "", fetch: mockFetch }))

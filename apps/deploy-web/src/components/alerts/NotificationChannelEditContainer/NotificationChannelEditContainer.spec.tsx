@@ -9,7 +9,7 @@ import { NotificationChannelEditContainer } from "@src/components/alerts/Notific
 import { queryClient } from "@src/queries";
 import { createApiSdk } from "@src/services/api-sdk/createApiSdk";
 
-import { render, screen } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 import { buildNotificationChannel } from "@tests/seeders/notificationChannel";
 import { createContainerTestingChildCapturer } from "@tests/unit/container-testing-child-capturer";
 import { jsonResponse } from "@tests/unit/jsonResponse";
@@ -40,6 +40,33 @@ describe("NotificationChannelEditContainer", () => {
     });
   });
 
+  it("notifies and calls back only once when re-rendered with a new callback after saving", async () => {
+    const { input, child, onEditSuccess, rerenderWithCallback } = await setup();
+
+    child.onEdit(input);
+    await vi.waitFor(() => {
+      expect(onEditSuccess).toHaveBeenCalledTimes(1);
+    });
+
+    const laterCallback = vi.fn();
+    rerenderWithCallback(laterCallback);
+    await act(() => new Promise(resolve => setTimeout(resolve, 20)));
+
+    expect(laterCallback).not.toHaveBeenCalled();
+    expect(onEditSuccess).toHaveBeenCalledTimes(1);
+    expect(screen.getAllByTestId("notification-channel-edit-success-notification")).toHaveLength(1);
+  });
+
+  it("calls back once the changes are saved", async () => {
+    const { input, child, onEditSuccess } = await setup();
+
+    child.onEdit(input);
+
+    await vi.waitFor(() => {
+      expect(onEditSuccess).toHaveBeenCalledTimes(1);
+    });
+  });
+
   it("triggers notification channel patch endpoint and shows error message on error", async () => {
     const { mockFetch, input, child } = await setup();
 
@@ -65,17 +92,25 @@ describe("NotificationChannelEditContainer", () => {
       api: () => createProxy(createApiSdk({ baseUrl: "", fetch: mockFetch }))
     };
     const childCapturer = createContainerTestingChildCapturer<ChildrenProps>();
+    const onEditSuccess = vi.fn();
 
-    render(
+    const renderWith = (onSuccess: () => void) => (
       <CustomSnackbarProvider>
         <TestContainerProvider services={services}>
-          <NotificationChannelEditContainer id={input.id} onEditSuccess={vi.fn()}>
+          <NotificationChannelEditContainer id={input.id} onEditSuccess={onSuccess}>
             {childCapturer.renderChild}
           </NotificationChannelEditContainer>
         </TestContainerProvider>
       </CustomSnackbarProvider>
     );
+    const { rerender } = render(renderWith(onEditSuccess));
 
-    return { mockFetch, input, child: await childCapturer.awaitChild() };
+    return {
+      mockFetch,
+      input,
+      onEditSuccess,
+      rerenderWithCallback: (onSuccess: () => void) => rerender(renderWith(onSuccess)),
+      child: await childCapturer.awaitChild()
+    };
   }
 });

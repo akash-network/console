@@ -8,9 +8,9 @@ import { useQueryClient } from "@tanstack/react-query";
 
 import { useServices } from "@src/context/ServicesProvider";
 import { useNotificator } from "@src/hooks/useNotificator";
-import { useWhen } from "@src/hooks/useWhen";
 
 type NotificationChannelCreateInput = components["schemas"]["NotificationChannelCreateInput"]["data"];
+type NotificationChannel = components["schemas"]["NotificationChannelOutput"]["data"];
 export type ContainerCreateInput = Pick<NotificationChannelCreateInput, "name"> & {
   emails: NotificationChannelCreateInput["config"]["addresses"];
 };
@@ -20,7 +20,12 @@ export type ChildrenProps = {
   isLoading: boolean;
 };
 
-export const NotificationChannelCreateContainer: FC<{ children: (props: ChildrenProps) => ReactNode; onCreate?: () => void }> = ({ children, onCreate }) => {
+type NotificationChannelCreateContainerProps = {
+  children: (props: ChildrenProps) => ReactNode;
+  onCreate?: (notificationChannel: NotificationChannel) => void;
+};
+
+export const NotificationChannelCreateContainer: FC<NotificationChannelCreateContainerProps> = ({ children, onCreate }) => {
   const { api } = useServices();
   const mutation = api.v1.createNotificationChannel.useMutation();
   const notificator = useNotificator();
@@ -28,27 +33,27 @@ export const NotificationChannelCreateContainer: FC<{ children: (props: Children
 
   const create = useCallback(
     ({ emails, name }: ContainerCreateInput) => {
-      mutation.mutate({
-        data: {
-          name,
-          type: "email",
-          config: {
-            addresses: emails
+      mutation.mutate(
+        {
+          data: {
+            name,
+            type: "email",
+            config: {
+              addresses: emails
+            }
           }
+        },
+        {
+          onSuccess: async ({ data }) => {
+            notificator.success("Notification channel created!", { dataTestId: "notification-channel-create-success-notification" });
+            await queryClient.invalidateQueries({ queryKey: api.v1.listNotificationChannels.getKey() });
+            onCreate?.(data);
+          },
+          onError: () => notificator.error("Failed to create notification channel...", { dataTestId: "notification-channel-create-error-notification" })
         }
-      });
+      );
     },
-    [mutation]
-  );
-
-  useWhen(mutation.isSuccess, async () => {
-    notificator.success("Notification channel created!", { dataTestId: "notification-channel-create-success-notification" });
-    await queryClient.invalidateQueries({ queryKey: api.v1.listNotificationChannels.getKey() });
-    onCreate?.();
-  });
-
-  useWhen(mutation.isError, () =>
-    notificator.error("Failed to create notification channel...", { dataTestId: "notification-channel-create-error-notification" })
+    [mutation, notificator, queryClient, api, onCreate]
   );
 
   return <>{children({ create, isLoading: mutation.isPending })}</>;

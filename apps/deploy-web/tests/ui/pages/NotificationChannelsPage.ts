@@ -3,18 +3,25 @@ import type { Page } from "@playwright/test";
 export class NotificationChannelsPage {
   constructor(readonly page: Page) {}
 
+  getChannelDialog() {
+    return this.page.getByRole("dialog", { name: /notification channel/i });
+  }
+
   async openCreate() {
-    await this.page.getByRole("link", { name: /create/i }).click();
-    await this.page.waitForURL(/\/alerts\/notification-channels\/new/);
+    await this.page.getByRole("button", { name: /^add channel$/i }).click();
+    await this.getChannelDialog().waitFor();
   }
 
   async fillForm(input: { name: string; emails: string }) {
-    await this.page.getByLabel("Name", { exact: true }).fill(input.name);
-    await this.page.getByLabel("Emails", { exact: true }).fill(input.emails);
+    const dialog = this.getChannelDialog();
+    await dialog.getByLabel("Name", { exact: true }).fill(input.name);
+    await dialog.getByLabel("Emails", { exact: true }).fill(input.emails);
   }
 
   async submitForm() {
-    await this.page.getByRole("button", { name: /^save$/i }).click();
+    await this.getChannelDialog()
+      .getByRole("button", { name: /^(add channel|save changes)$/i })
+      .click();
   }
 
   getChannelRow(name: string) {
@@ -23,9 +30,12 @@ export class NotificationChannelsPage {
 
   async deleteChannel(name: string) {
     await this.getChannelRow(name)
-      .getByRole("button", { name: /remove notification channel/i })
+      .getByRole("button", { name: `Delete ${name}` })
       .click();
-    await this.page.getByRole("button", { name: /^confirm$/i }).click();
+    await this.page
+      .getByRole("dialog")
+      .getByRole("button", { name: /^delete$/i })
+      .click();
   }
 
   async ensureOnTheLastPage() {

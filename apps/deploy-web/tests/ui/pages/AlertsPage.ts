@@ -22,7 +22,7 @@ export class AlertsPage {
   }
 
   getAlertToggle(row: Locator) {
-    return row.getByRole("checkbox", { name: /toggle alert/i });
+    return row.getByRole("checkbox", { name: /^enable .* alert for /i });
   }
 
   async findAlertRowByDseq(dseq: string, options: { timeout?: number } = {}) {

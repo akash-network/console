@@ -1,5 +1,4 @@
 export type FeatureFlag =
-  | "notifications_general_alerts_update"
   | "ui_deployment_closed_alert"
   | "ui_sdl_log_collector_enabled"
   | "maintenance_banner"

@@ -1,125 +1,189 @@
 import React from "react";
-import { TooltipProvider } from "@akashnetwork/ui/components";
-import { PopupProvider } from "@akashnetwork/ui/context";
 import { describe, expect, it, vi } from "vitest";
 
+import type { RemoveNotificationChannelResult } from "@src/components/alerts/NotificationChannelsListContainer/NotificationChannelsListContainer";
 import type { NotificationChannelsListViewProps } from "./NotificationChannelsListView";
-import { NotificationChannelsListView } from "./NotificationChannelsListView";
+import { DEPENDENCIES, NotificationChannelsListView } from "./NotificationChannelsListView";
 
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { buildNotificationChannel } from "@tests/seeders/notificationChannel";
 
-describe("NotificationChannelsListView", () => {
-  it("renders loading spinner when isLoading is true", () => {
+describe(NotificationChannelsListView.name, () => {
+  it("shows a skeleton and no count while channels load", () => {
     setup({ isLoading: true });
-    expect(screen.getByRole("status")).toBeInTheDocument();
+
+    expect(screen.getByTestId("channels-table-skeleton")).toBeInTheDocument();
+    expect(screen.queryByText(/\d+ channels?$/)).not.toBeInTheDocument();
   });
 
-  it("renders error message when isError is true", () => {
+  it("explains that channels failed to load", () => {
     setup({ isError: true });
+
     expect(screen.getByText("Error loading notification channels")).toBeInTheDocument();
+    expect(screen.queryByRole("table")).not.toBeInTheDocument();
   });
 
-  it("renders empty state message when no data is provided", () => {
-    setup({ data: [] });
-    expect(screen.getByText("No notification channels found")).toBeInTheDocument();
+  it("shows the empty state when there are no channels", () => {
+    setup({ data: [], total: 0 });
+
+    expect(screen.getByText("No notification channels")).toBeInTheDocument();
   });
 
-  it("renders table with notification channels data", () => {
-    const mockNotificationChannel = buildNotificationChannel();
+  it.each([
+    { total: 1, label: "1 channel" },
+    { total: 12, label: "12 channels" }
+  ])("counts every channel on all pages as $label", ({ total, label }) => {
+    setup({ data: [buildNotificationChannel()], total });
 
-    setup({ data: [mockNotificationChannel] });
-
-    expect(screen.getByText("Name")).toBeInTheDocument();
-    expect(screen.getByText("Type")).toBeInTheDocument();
-    expect(screen.getByText("Addresses")).toBeInTheDocument();
-
-    expect(screen.getByText(mockNotificationChannel.name)).toBeInTheDocument();
-    expect(screen.getByText("email")).toBeInTheDocument();
-    expect(screen.getByText(mockNotificationChannel.config.addresses[0])).toBeInTheDocument();
+    expect(within(screen.getByRole("region", { name: "Notification channels" })).getByText(label)).toBeInTheDocument();
   });
 
-  it("shows confirmation popup when remove button is clicked", async () => {
-    const mockNotificationChannel = buildNotificationChannel();
-    setup({ data: [mockNotificationChannel] });
+  it("shows a channel's name, type and every address in one row", () => {
+    const channel = buildNotificationChannel({ name: "Ops team", config: { addresses: ["ops@acme.dev", "oncall@acme.dev"] } });
 
-    fireEvent.click(screen.getByTestId("remove-notification-channel-button"));
+    setup({ data: [channel] });
 
-    await vi.waitFor(() => {
-      expect(screen.getByTestId("remove-notification-channel-confirmation-popup")).toBeInTheDocument();
-    });
-
-    expect(screen.getByText("Are you sure you want to remove this notification channel?")).toBeInTheDocument();
-    expect(screen.getByText("This action cannot be undone.")).toBeInTheDocument();
-    expect(screen.getByText("Cancel")).toBeInTheDocument();
-    expect(screen.getByText("Confirm")).toBeInTheDocument();
+    expect(screen.getAllByRole("columnheader").map(header => header.textContent)).toEqual(["Name", "Type", "Email", "Actions"]);
+    const cells = within(screen.getAllByRole("row")[1]).getAllByRole("cell");
+    expect(cells.map(cell => cell.textContent)).toEqual(["Ops team", "Email", "ops@acme.devoncall@acme.dev", ""]);
+    expect(screen.getByText("ops@acme.dev")).toHaveAttribute("title", "ops@acme.dev");
   });
 
-  it("calls onRemove when confirmed", async () => {
-    const onRemove = vi.fn();
-    const mockNotificationChannel = buildNotificationChannel();
+  it("opens the channel in the edit dialog and closes it when asked", async () => {
+    const channel = buildNotificationChannel({ name: "Ops team" });
+    const { NotificationChannelDialog } = setup({ data: [channel] });
 
-    setup({ data: [mockNotificationChannel], onRemove });
+    await userEvent.click(screen.getByRole("button", { name: "Edit Ops team" }));
 
-    fireEvent.click(screen.getByTestId("remove-notification-channel-button"));
+    expect(NotificationChannelDialog.mock.lastCall?.[0].notificationChannel).toBe(channel);
 
-    await vi.waitFor(() => {
-      expect(screen.getByTestId("remove-notification-channel-confirmation-popup")).toBeInTheDocument();
-    });
+    await userEvent.click(screen.getByRole("button", { name: "Close channel dialog" }));
 
-    act(() => {
-      fireEvent.click(screen.getByTestId("remove-notification-channel-confirmation-popup-confirm-button"));
-    });
-
-    await vi.waitFor(() => {
-      expect(onRemove).toHaveBeenCalledWith(mockNotificationChannel.id);
-    });
+    expect(screen.queryByTestId("notification-channel-dialog")).not.toBeInTheDocument();
   });
 
-  it("does not render pagination when total is not greater than minimum page size", () => {
-    setup();
+  it("deletes a channel once the deletion is confirmed", async () => {
+    const channel = buildNotificationChannel({ name: "Ops team" });
+    const { onRemove } = setup({ data: [channel] });
 
-    expect(screen.queryByRole("navigation")).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Delete Ops team" }));
+
+    const dialog = screen.getByRole("dialog", { name: "Delete “Ops team”?" });
+    expect(dialog).toHaveTextContent("This channel will no longer receive notifications.");
+
+    await userEvent.click(within(dialog).getByRole("button", { name: "Delete" }));
+
+    expect(onRemove).toHaveBeenCalledWith(channel.id);
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
-  it("renders pagination when total is greater than minimum page size", () => {
-    const pagination = {
-      page: 1,
-      limit: 10,
-      total: 11,
-      totalPages: 2
-    };
-    const mockData = Array.from({ length: 11 }, buildNotificationChannel);
+  it("closes the confirmation when the deletion fails for another reason", async () => {
+    setup({ data: [buildNotificationChannel({ name: "Ops team" })], removeResult: "failed" });
 
-    setup({ data: mockData, pagination });
+    await userEvent.click(screen.getByRole("button", { name: "Delete Ops team" }));
+    await userEvent.click(screen.getByRole("button", { name: "Delete" }));
 
-    expect(screen.getByRole("navigation")).toBeInTheDocument();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
-  function setup(props: Partial<NotificationChannelsListViewProps> = {}) {
-    const defaultProps: NotificationChannelsListViewProps = {
-      pagination: {
-        page: 1,
-        limit: 10,
-        total: 10,
-        totalPages: 1
-      },
-      data: Array.from({ length: 10 }, buildNotificationChannel),
-      isLoading: false,
-      onRemove: vi.fn(),
-      removingIds: new Set(),
-      onPaginationChange: vi.fn(),
-      isError: false,
-      ...props
-    };
+  it("explains why a channel that alerts still use can't be deleted", async () => {
+    setup({ data: [buildNotificationChannel({ name: "Ops team" })], removeResult: "in-use" });
+
+    await userEvent.click(screen.getByRole("button", { name: "Delete Ops team" }));
+    await userEvent.click(screen.getByRole("button", { name: "Delete" }));
+
+    const dialog = screen.getByRole("dialog", { name: "Delete “Ops team”?" });
+    expect(dialog).toHaveTextContent("Alerts still use this channel, so it can't be deleted.");
+    expect(within(dialog).queryByRole("button", { name: "Delete" })).not.toBeInTheDocument();
+
+    await userEvent.click(within(dialog).getByRole("button", { name: "OK" }));
+
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("forgets the refusal when another deletion starts", async () => {
+    setup({ data: [buildNotificationChannel({ name: "Ops team" }), buildNotificationChannel({ name: "On-call" })], removeResult: "in-use" });
+
+    await userEvent.click(screen.getByRole("button", { name: "Delete Ops team" }));
+    await userEvent.click(screen.getByRole("button", { name: "Delete" }));
+    await userEvent.click(screen.getByRole("button", { name: "OK" }));
+    await userEvent.click(screen.getByRole("button", { name: "Delete On-call" }));
+
+    const dialog = screen.getByRole("dialog", { name: "Delete “On-call”?" });
+    expect(dialog).not.toHaveTextContent("Alerts still use this channel");
+    expect(within(dialog).getByRole("button", { name: "Delete" })).toBeEnabled();
+  });
+
+  it("keeps the channel when the deletion is cancelled", async () => {
+    const { onRemove } = setup({ data: [buildNotificationChannel({ name: "Ops team" })] });
+
+    await userEvent.click(screen.getByRole("button", { name: "Delete Ops team" }));
+    await userEvent.click(screen.getByRole("button", { name: "Cancel" }));
+
+    expect(onRemove).not.toHaveBeenCalled();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("locks a channel's actions while it is being deleted", () => {
+    const channel = buildNotificationChannel({ name: "Ops team" });
+
+    setup({ data: [channel], removingIds: new Set([channel.id]) });
+
+    expect(screen.getByRole("button", { name: "Edit Ops team" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Delete Ops team" })).toBeDisabled();
+  });
+
+  it("doesn't show the pagination while every channel fits on one page", () => {
+    const { CustomPagination } = setup({ total: 10 });
+
+    expect(CustomPagination).not.toHaveBeenCalled();
+  });
+
+  it("pages through the channels once there are more than fit on one page", () => {
+    const { CustomPagination, onPaginationChange } = setup({ total: 11, totalPages: 2, page: 2 });
+
+    const paginationProps = CustomPagination.mock.lastCall![0];
+    expect(paginationProps).toMatchObject({ pageIndex: 1, pageSize: 10, totalPageCount: 2 });
+
+    paginationProps.setPageIndex(0);
+    expect(onPaginationChange).toHaveBeenLastCalledWith({ page: 1, limit: 10 });
+
+    paginationProps.setPageSize(25);
+    expect(onPaginationChange).toHaveBeenLastCalledWith({ page: 1, limit: 25 });
+  });
+
+  function setup(
+    input: Partial<Pick<NotificationChannelsListViewProps, "data" | "isLoading" | "isError" | "removingIds">> & {
+      total?: number;
+      totalPages?: number;
+      page?: number;
+      removeResult?: RemoveNotificationChannelResult;
+    } = {}
+  ) {
+    const CustomPagination = vi.fn<typeof DEPENDENCIES.CustomPagination>(() => <nav />);
+    const NotificationChannelDialog = vi.fn<typeof DEPENDENCIES.NotificationChannelDialog>(({ onClose }) => (
+      <div data-testid="notification-channel-dialog">
+        <button onClick={onClose}>Close channel dialog</button>
+      </div>
+    ));
+    const onRemove = vi.fn(() => Promise.resolve(input.removeResult ?? "removed"));
+    const onPaginationChange = vi.fn();
+    const data = input.data ?? Array.from({ length: 3 }, () => buildNotificationChannel());
 
     render(
-      <PopupProvider>
-        <TooltipProvider>
-          <NotificationChannelsListView {...defaultProps} />
-        </TooltipProvider>
-      </PopupProvider>
+      <NotificationChannelsListView
+        data={data}
+        pagination={{ page: input.page ?? 1, limit: 10, total: input.total ?? data.length, totalPages: input.totalPages ?? 1 }}
+        isLoading={input.isLoading ?? false}
+        isError={input.isError ?? false}
+        removingIds={input.removingIds ?? new Set()}
+        onRemove={onRemove}
+        onPaginationChange={onPaginationChange}
+        dependencies={{ ...DEPENDENCIES, CustomPagination, NotificationChannelDialog }}
+      />
     );
-    return defaultProps;
+
+    return { onRemove, onPaginationChange, CustomPagination, NotificationChannelDialog };
   }
 });

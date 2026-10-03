@@ -1,35 +1,34 @@
 import type { FC } from "react";
-import React from "react";
-import { useEffect } from "react";
-import { useMemo } from "react";
-import { useState } from "react";
-import { useCallback } from "react";
+import React, { useCallback, useMemo } from "react";
 import { useForm, useWatch } from "react-hook-form";
-import { Alert, Button, Form, FormField, FormInput, FormMessage, LoadingButton, Textarea } from "@akashnetwork/ui/components";
-import { cn } from "@akashnetwork/ui/utils";
+import { Button, DialogV2Body, DialogV2Footer, Form, FormField, FormInput, FormMessage, LoadingButton, Textarea } from "@akashnetwork/ui/components";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { isEqual } from "lodash";
 import { z } from "zod";
 
-import type { ChangeableComponentProps } from "@src/types/changeable-component-props.type";
-
 const formSchema = z.object({
-  name: z.string().min(1).max(100),
+  name: z.string().min(1, "Name is required").max(100),
   emails: z.string().min(1, "At least one email is required")
 });
 type FormValues = z.infer<typeof formSchema>;
 type DataValues = Pick<FormValues, "name"> & { emails: string[] };
 
-export type NotificationChannelFormProps = ChangeableComponentProps<{
+export type NotificationChannelFormProps = {
   initialValues?: DataValues;
+  submitLabel: string;
   onSubmit: (data: DataValues) => void;
-  onCancel?: () => void;
+  onCancel: () => void;
   isLoading?: boolean;
-}>;
+};
 
-export const NotificationChannelForm: FC<NotificationChannelFormProps> = ({ onCancel, isLoading, onSubmit, onStateChange, initialValues }) => {
-  const [error, setError] = useState<string | null>(null);
+function splitEmails(value: string) {
+  return value
+    .split(",")
+    .map(email => email.trim())
+    .filter(Boolean);
+}
 
+export const NotificationChannelForm: FC<NotificationChannelFormProps> = ({ initialValues, submitLabel, onSubmit, onCancel, isLoading }) => {
   const initialFormValues: FormValues = useMemo(() => {
     return {
       name: initialValues?.name || "",
@@ -46,32 +45,27 @@ export const NotificationChannelForm: FC<NotificationChannelFormProps> = ({ onCa
   const { control, handleSubmit } = form;
 
   const submit = useCallback(
-    async (values: FormValues) => {
-      try {
-        const emails = values.emails
-          .split(",")
-          .map(email => email.trim())
-          .filter(Boolean);
+    (values: FormValues) => {
+      const emails = splitEmails(values.emails);
+      const invalids = emails.filter(email => !z.string().email().safeParse(email).success);
 
-        const invalids = emails.filter(email => !z.string().email().safeParse(email).success);
-
-        if (invalids.length > 0) {
-          form.setError("emails", {
-            message: `Invalid email addresses: ${invalids.join(", ")}`
-          });
-
-          return;
-        }
-
-        onSubmit({
-          ...values,
-          emails: Array.from(new Set(emails))
-        });
-      } catch {
-        setError("Failed to save notification channel. Please try again.");
+      if (invalids.length > 0) {
+        form.setError("emails", { message: `Invalid email addresses: ${invalids.join(", ")}` });
+        return;
       }
+
+      onSubmit({ name: values.name, emails: Array.from(new Set(emails)) });
     },
     [form, onSubmit]
+  );
+
+  /** The dialog can open from inside another form, and React bubbles submit events through portals. */
+  const submitWithoutOuterForm = useCallback(
+    (event: React.FormEvent<HTMLFormElement>) => {
+      event.stopPropagation();
+      return handleSubmit(submit)(event);
+    },
+    [handleSubmit, submit]
   );
 
   const currentValues = useWatch({ control });
@@ -81,72 +75,54 @@ export const NotificationChannelForm: FC<NotificationChannelFormProps> = ({ onCa
     return fields.some(key => !isEqual(initialFormValues[key], currentValues[key]));
   }, [currentValues, initialFormValues]);
 
-  useEffect(() => {
-    if (onStateChange) {
-      onStateChange({
-        hasChanges
-      });
-    }
-  }, [hasChanges, onStateChange]);
-
-  const cancel = useCallback(() => onCancel?.(), [onCancel]);
-
   return (
-    <div className="space-y-6 p-6">
-      <Form {...form}>
-        <form onSubmit={handleSubmit(submit)} className="space-y-6">
-          <div className="space-y-3">
-            <FormField
-              control={control}
-              name="name"
-              render={({ field }) => (
-                <FormInput
-                  data-testid="notification-channel-form-name"
-                  label="Name"
+    <Form {...form}>
+      <form onSubmit={submitWithoutOuterForm} className="flex min-h-0 flex-1 flex-col">
+        <DialogV2Body className="space-y-4">
+          <FormField
+            control={control}
+            name="name"
+            render={({ field }) => (
+              <FormInput
+                data-testid="notification-channel-form-name"
+                label="Name"
+                value={field.value}
+                placeholder="Ops team"
+                onChange={event => field.onChange(event.target.value)}
+                disabled={isLoading}
+              />
+            )}
+          />
+          <FormField
+            control={control}
+            name="emails"
+            render={({ field }) => (
+              <div className="space-y-1.5">
+                <Textarea
+                  data-testid="notification-channel-form-emails"
+                  rows={3}
+                  label="Emails"
                   value={field.value}
-                  placeholder="Notification channel name..."
+                  placeholder="ops@company.com"
                   onChange={event => field.onChange(event.target.value)}
                   disabled={isLoading}
                 />
-              )}
-            />
-          </div>
-          <div className="space-y-3">
-            <FormField
-              control={control}
-              name="emails"
-              render={({ field, fieldState }) => (
-                <>
-                  <Textarea
-                    data-testid="notification-channel-form-emails"
-                    rows={4}
-                    label="Emails"
-                    value={field.value}
-                    placeholder="Comma separated email address..."
-                    onChange={event => field.onChange(event.target.value)}
-                    disabled={isLoading}
-                  />
-                  <FormMessage data-testid="notification-channel-form-emails-error" className={cn({ "pt-2": !!fieldState.error })} />
-                </>
-              )}
-            />
-          </div>
-
-          {error && <Alert variant="destructive">{error}</Alert>}
-
-          <div className="flex justify-end gap-6">
-            <LoadingButton data-testid="notification-channel-form-submit" disabled={isLoading || !hasChanges} loading={isLoading} type="submit">
-              Save
-            </LoadingButton>
-
-            {onCancel && (
-              <Button data-testid="notification-channel-form-cancel" disabled={isLoading} type="button" variant="secondary" onClick={cancel}>
-                Cancel
-              </Button>
+                <p className="text-xs text-muted-foreground">Separate several addresses with commas.</p>
+                <FormMessage data-testid="notification-channel-form-emails-error" />
+              </div>
             )}
-          </div>
-        </form>
-      </Form>
-    </div>
+          />
+        </DialogV2Body>
+
+        <DialogV2Footer>
+          <Button data-testid="notification-channel-form-cancel" disabled={isLoading} type="button" variant="ghost" onClick={onCancel}>
+            Cancel
+          </Button>
+          <LoadingButton data-testid="notification-channel-form-submit" disabled={!hasChanges} loading={isLoading} type="submit">
+            {submitLabel}
+          </LoadingButton>
+        </DialogV2Footer>
+      </form>
+    </Form>
   );
 };

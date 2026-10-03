@@ -81,9 +81,6 @@ export const UrlService = {
   providerDetailLeases: (owner: string) => `/providers/${owner}/leases`,
   providerDetailRaw: (owner: string) => `/providers/${owner}/raw`,
   alerts: () => "/alerts",
-  alertDetails: (id: string) => `/alerts/${id}`,
-  newNotificationChannel: () => "/alerts/notification-channels/new",
-  notificationChannelDetails: (id: string) => `/alerts/notification-channels/${id}`,
 
   newDeployment: () => "/new-deployment",
 

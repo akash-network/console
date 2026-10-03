@@ -40,8 +40,19 @@ describe("NotificationChannelCreateContainer", () => {
     });
   });
 
+  it("hands over the created channel once the channel list is refreshed", async () => {
+    const { mockFetch, mockResponse, input, child, onCreate } = await setup();
+
+    child.create(input);
+
+    await vi.waitFor(() => {
+      expect(onCreate).toHaveBeenCalledWith(mockResponse.data);
+    });
+    expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining("/v1/notification-channels"), expect.objectContaining({ method: "POST" }));
+  });
+
   it("triggers a notification channel creation and shows error message on error", async () => {
-    const { mockFetch, input, child } = await setup();
+    const { mockFetch, input, child, onCreate } = await setup();
 
     mockFetch.mockRejectedValue(new Error());
 
@@ -51,6 +62,7 @@ describe("NotificationChannelCreateContainer", () => {
       expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining("/v1/notification-channels"), expect.objectContaining({ method: "POST" }));
       expect(screen.getByTestId("notification-channel-create-error-notification")).toBeInTheDocument();
     });
+    expect(onCreate).not.toHaveBeenCalled();
   });
 
   async function setup() {
@@ -74,15 +86,16 @@ describe("NotificationChannelCreateContainer", () => {
       api: () => createProxy(createApiSdk({ baseUrl: "", fetch: mockFetch }))
     };
     const childCapturer = createContainerTestingChildCapturer<ChildrenProps>();
+    const onCreate = vi.fn();
 
     render(
       <CustomSnackbarProvider>
         <TestContainerProvider services={services}>
-          <NotificationChannelCreateContainer onCreate={vi.fn()}>{childCapturer.renderChild}</NotificationChannelCreateContainer>
+          <NotificationChannelCreateContainer onCreate={onCreate}>{childCapturer.renderChild}</NotificationChannelCreateContainer>
         </TestContainerProvider>
       </CustomSnackbarProvider>
     );
 
-    return { mockFetch, input, child: await childCapturer.awaitChild() };
+    return { mockFetch, mockResponse, input, onCreate, child: await childCapturer.awaitChild() };
   }
 });

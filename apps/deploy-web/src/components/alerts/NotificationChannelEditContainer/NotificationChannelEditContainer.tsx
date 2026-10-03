@@ -4,10 +4,10 @@ import type { FC, ReactNode } from "react";
 import React from "react";
 import { useCallback } from "react";
 import type { components } from "@akashnetwork/console-api-types/notifications";
+import { useQueryClient } from "@tanstack/react-query";
 
 import { useServices } from "@src/context/ServicesProvider";
 import { useNotificator } from "@src/hooks/useNotificator";
-import { useWhen } from "@src/hooks/useWhen";
 
 type NotificationChannelPatchInput = components["schemas"]["NotificationChannelPatchInput"]["data"];
 export type ContainerPatchInput = Pick<NotificationChannelPatchInput, "name"> & {
@@ -28,34 +28,34 @@ type NotificationChannelEditContainerProps = {
 
 export const NotificationChannelEditContainer: FC<NotificationChannelEditContainerProps> = ({ id, children, onEditSuccess }) => {
   const { api } = useServices();
+  const queryClient = useQueryClient();
   const mutation = api.v1.updateNotificationChannel.useMutation();
   const notificator = useNotificator();
 
   const edit: ChildrenProps["onEdit"] = useCallback(
     ({ emails, name }) => {
-      mutation.mutate({
-        id,
-        data: {
-          name,
-          config: {
-            addresses: emails
+      mutation.mutate(
+        {
+          id,
+          data: {
+            name,
+            config: {
+              addresses: emails
+            }
           }
+        },
+        {
+          onSuccess: async () => {
+            notificator.success("Notification channel saved!", { dataTestId: "notification-channel-edit-success-notification" });
+            await queryClient.invalidateQueries({ queryKey: api.v1.listNotificationChannels.getKey() });
+            onEditSuccess();
+          },
+          onError: () => notificator.error("Failed to save notification channel...", { dataTestId: "notification-channel-edit-error-notification" })
         }
-      });
+      );
     },
-    [mutation]
+    [mutation, id, notificator, queryClient, api, onEditSuccess]
   );
-
-  useWhen(
-    mutation.isSuccess,
-    () => {
-      notificator.success("Notification channel saved!", { dataTestId: "notification-channel-edit-success-notification" });
-      onEditSuccess();
-    },
-    [mutation.isSuccess, notificator, onEditSuccess]
-  );
-
-  useWhen(mutation.isError, () => notificator.error("Failed to save notification channel...", { dataTestId: "notification-channel-edit-error-notification" }));
 
   return (
     <>
