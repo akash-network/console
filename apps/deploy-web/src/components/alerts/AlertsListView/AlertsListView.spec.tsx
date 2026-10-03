@@ -37,7 +37,7 @@ describe(AlertsListView.name, () => {
   ])("counts every alert on all pages as $label", ({ total, label }) => {
     setup({ data: [buildDeploymentCloseAlert()], total });
 
-    expect(screen.getByRole("region", { name: "Deployment alerts" })).toHaveTextContent(label);
+    expect(within(screen.getByRole("region", { name: "Deployment alerts" })).getByText(label)).toBeInTheDocument();
   });
 
   it("shows an alert's deployment, DSEQ, type, status and channel in one row", () => {

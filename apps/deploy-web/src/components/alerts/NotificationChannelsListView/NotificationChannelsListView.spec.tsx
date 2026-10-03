@@ -36,7 +36,7 @@ describe(NotificationChannelsListView.name, () => {
   ])("counts every channel on all pages as $label", ({ total, label }) => {
     setup({ data: [buildNotificationChannel()], total });
 
-    expect(screen.getByRole("region", { name: "Notification channels" })).toHaveTextContent(label);
+    expect(within(screen.getByRole("region", { name: "Notification channels" })).getByText(label)).toBeInTheDocument();
   });
 
   it("shows a channel's name, type and every address in one row", () => {
