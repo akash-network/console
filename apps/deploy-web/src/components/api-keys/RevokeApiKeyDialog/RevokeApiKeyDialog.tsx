@@ -20,8 +20,8 @@ type Props = {
 };
 
 export const RevokeApiKeyDialog: FC<Props> = ({ apiKey, isRevoking, onConfirm, onCancel }) => (
-  <DialogV2 open onOpenChange={isOpen => (!isOpen ? onCancel() : undefined)}>
-    <DialogV2Content className="max-w-md">
+  <DialogV2 open onOpenChange={isOpen => (!isOpen && !isRevoking ? onCancel() : undefined)}>
+    <DialogV2Content className="max-w-md" hideCloseButton={isRevoking}>
       <DialogV2Header>
         <DialogV2Title>Revoke &ldquo;{apiKey.name}&rdquo;?</DialogV2Title>
         <DialogV2Description>Any client still using this key starts getting 401 Unauthorized right away. This can&apos;t be undone.</DialogV2Description>

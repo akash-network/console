@@ -63,6 +63,7 @@ export const CreateApiKeyDialog: FC<Props> = ({ onClose, dependencies: d = DEPEN
   const { analyticsService } = useServices();
   const { enqueueSnackbar } = d.useSnackbar();
   const { mutate: createApiKey, data: createdApiKey, isPending } = d.useCreateApiKey();
+  const isDismissible = !isPending && !createdApiKey?.apiKey;
 
   const createKey = ({ name, lifetimeDays }: NewApiKeyValues) => {
     analyticsService.track("create_api_key", {
@@ -91,8 +92,8 @@ export const CreateApiKeyDialog: FC<Props> = ({ onClose, dependencies: d = DEPEN
   };
 
   return (
-    <DialogV2 open onOpenChange={isOpen => (!isOpen ? onClose() : undefined)}>
-      <DialogV2Content className="max-w-[520px]">
+    <DialogV2 open onOpenChange={isOpen => (!isOpen && isDismissible ? onClose() : undefined)}>
+      <DialogV2Content className="max-w-[520px]" hideCloseButton={!isDismissible}>
         {createdApiKey?.apiKey ? (
           <ApiKeySecretStep name={createdApiKey.name} secret={createdApiKey.apiKey} onCopy={copySecret} onDone={onClose} />
         ) : (
@@ -171,7 +172,7 @@ const NewApiKeyStep: FC<NewApiKeyStepProps> = ({ isCreating, onCreate, onCancel 
       </DialogV2Body>
 
       <DialogV2Footer className="flex items-center justify-end gap-2">
-        <Button type="button" variant="ghost" onClick={onCancel}>
+        <Button type="button" variant="ghost" disabled={isCreating} onClick={onCancel}>
           Cancel
         </Button>
         <LoadingButton type="submit" form={formId} loading={isCreating}>

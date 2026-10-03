@@ -3,7 +3,8 @@ import type { FC } from "react";
 import type { ApiKeyResponse } from "@akashnetwork/http-sdk";
 import { Button, Card, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, Skeleton } from "@akashnetwork/ui/components";
 import { format, formatDistanceStrict } from "date-fns";
-import { KeyRoundIcon, MoreHorizontalIcon, ShieldAlertIcon, Trash2Icon } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
+import { KeyRoundIcon, MoreHorizontalIcon, ShieldAlertIcon, Trash2Icon, TriangleAlertIcon } from "lucide-react";
 
 import type { ApiKeyExpiryStatus } from "@src/components/api-keys/apiKeyExpiry/apiKeyExpiry";
 import { getApiKeyExpiryStatus } from "@src/components/api-keys/apiKeyExpiry/apiKeyExpiry";
@@ -19,10 +20,11 @@ const EXPIRY_BADGE_LABELS: Partial<Record<ApiKeyExpiryStatus, string>> = {
 type Props = {
   apiKeys: ApiKeyResponse[] | undefined;
   isLoading: boolean;
+  isError: boolean;
   onRevoke: (apiKey: ApiKeyResponse) => void;
 };
 
-export const ApiKeyList: FC<Props> = ({ apiKeys, isLoading, onRevoke }) => {
+export const ApiKeyList: FC<Props> = ({ apiKeys, isLoading, isError, onRevoke }) => {
   const now = new Date();
   const newestFirst = [...(apiKeys ?? [])].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   const activeCount = newestFirst.filter(apiKey => getApiKeyExpiryStatus(apiKey.expiresAt, now) !== "expired").length;
@@ -33,21 +35,7 @@ export const ApiKeyList: FC<Props> = ({ apiKeys, isLoading, onRevoke }) => {
       aside={apiKeys && <span className="text-xs text-muted-foreground">{activeCount === 1 ? "1 active key" : `${activeCount} active keys`}</span>}
     >
       <Card className="overflow-hidden rounded-xl shadow-none">
-        {isLoading ? (
-          <ApiKeyListSkeleton />
-        ) : newestFirst.length === 0 ? (
-          <div className="flex flex-col items-center gap-1.5 px-6 py-10 text-center">
-            <KeyRoundIcon className="h-5 w-5 text-muted-foreground" aria-hidden />
-            <p className="text-sm font-semibold">No API keys</p>
-            <p className="text-xs text-muted-foreground">Create a key to call the Console API.</p>
-          </div>
-        ) : (
-          <ul aria-label="API keys" className="divide-y">
-            {newestFirst.map(apiKey => (
-              <ApiKeyRow key={apiKey.id} apiKey={apiKey} now={now} onRevoke={onRevoke} />
-            ))}
-          </ul>
-        )}
+        <ApiKeyListContent apiKeys={newestFirst} isLoading={isLoading} isError={isError} now={now} onRevoke={onRevoke} />
       </Card>
       <p className="mt-2.5 flex items-start gap-2 px-0.5 text-xs leading-[17px] text-muted-foreground">
         <ShieldAlertIcon className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
@@ -59,6 +47,48 @@ export const ApiKeyList: FC<Props> = ({ apiKeys, isLoading, onRevoke }) => {
     </SettingsSection>
   );
 };
+
+type ApiKeyListContentProps = {
+  apiKeys: ApiKeyResponse[];
+  isLoading: boolean;
+  isError: boolean;
+  now: Date;
+  onRevoke: (apiKey: ApiKeyResponse) => void;
+};
+
+const ApiKeyListContent: FC<ApiKeyListContentProps> = ({ apiKeys, isLoading, isError, now, onRevoke }) => {
+  if (isLoading) return <ApiKeyListSkeleton />;
+
+  if (apiKeys.length > 0) {
+    return (
+      <ul aria-label="API keys" className="divide-y">
+        {apiKeys.map(apiKey => (
+          <ApiKeyRow key={apiKey.id} apiKey={apiKey} now={now} onRevoke={onRevoke} />
+        ))}
+      </ul>
+    );
+  }
+
+  if (isError) {
+    return <ApiKeyListNotice icon={TriangleAlertIcon} title="Couldn't load your API keys" description="Refresh the page to try again." />;
+  }
+
+  return <ApiKeyListNotice icon={KeyRoundIcon} title="No API keys" description="Create a key to call the Console API." />;
+};
+
+type ApiKeyListNoticeProps = {
+  icon: LucideIcon;
+  title: string;
+  description: string;
+};
+
+const ApiKeyListNotice: FC<ApiKeyListNoticeProps> = ({ icon: Icon, title, description }) => (
+  <div className="flex flex-col items-center gap-1.5 px-6 py-10 text-center">
+    <Icon className="h-5 w-5 text-muted-foreground" aria-hidden />
+    <p className="text-sm font-semibold">{title}</p>
+    <p className="text-xs text-muted-foreground">{description}</p>
+  </div>
+);
 
 const ApiKeyListSkeleton: FC = () => (
   <div className="flex flex-col gap-5 px-4 py-4">

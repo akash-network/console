@@ -38,14 +38,18 @@ export function ApiKeysPage({ dependencies: d = DEPENDENCIES }: Props = {}) {
   const { enqueueSnackbar } = d.useSnackbar();
   const [isCreatingKey, setIsCreatingKey] = useState(false);
   const [apiKeyToRevoke, setApiKeyToRevoke] = useState<ApiKeyResponse | null>(null);
-  const { data: apiKeys, isLoading } = d.useUserApiKeys();
+  const { data: apiKeys, isLoading, isError } = d.useUserApiKeys();
   const { mutate: deleteApiKey, isPending: isRevoking } = d.useDeleteApiKey(apiKeyToRevoke?.id ?? "", () => {
     enqueueSnackbar(<Snackbar title={`“${apiKeyToRevoke?.name}” revoked`} iconVariant="success" />, { variant: "success" });
     setApiKeyToRevoke(null);
   });
 
   const revokeApiKey = () => {
-    deleteApiKey();
+    deleteApiKey(undefined, {
+      onError: () => {
+        enqueueSnackbar(<Snackbar title="Couldn't revoke the key" subTitle="Try again in a moment." iconVariant="error" />, { variant: "error" });
+      }
+    });
 
     analyticsService.track("delete_api_key", {
       category: "settings",
@@ -74,7 +78,7 @@ export function ApiKeysPage({ dependencies: d = DEPENDENCIES }: Props = {}) {
           </div>
         }
       >
-        <d.ApiKeyList apiKeys={apiKeys} isLoading={isLoading} onRevoke={setApiKeyToRevoke} />
+        <d.ApiKeyList apiKeys={apiKeys} isLoading={isLoading} isError={isError} onRevoke={setApiKeyToRevoke} />
         <d.ApiKeyUsageGuide />
       </d.SettingsLayout>
 

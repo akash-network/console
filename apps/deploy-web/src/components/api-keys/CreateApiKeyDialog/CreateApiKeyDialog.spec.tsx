@@ -96,6 +96,16 @@ describe("CreateApiKeyDialog", () => {
     expect(screen.getByRole("button", { name: /Create key/ })).toBeDisabled();
   });
 
+  it("stays open while the key is being created", async () => {
+    const { user, onClose } = setup({ isPending: true });
+
+    await user.keyboard("{Escape}");
+
+    expect(onClose).not.toHaveBeenCalled();
+    expect(screen.getByRole("button", { name: "Cancel" })).toBeDisabled();
+    expect(screen.queryByRole("button", { name: "Close" })).not.toBeInTheDocument();
+  });
+
   it("tells the user when the key can't be created", async () => {
     const { user, createApiKey, enqueueSnackbar } = setup();
     createApiKey.mockImplementation((_newApiKey, options) => options?.onError?.(new Error("boom"), _newApiKey, undefined));
@@ -120,6 +130,14 @@ describe("CreateApiKeyDialog", () => {
     const { user, onClose } = setup();
 
     await user.click(screen.getByRole("button", { name: "Close" }));
+
+    expect(onClose).toHaveBeenCalledOnce();
+  });
+
+  it("closes when dismissed with Escape", async () => {
+    const { user, onClose } = setup();
+
+    await user.keyboard("{Escape}");
 
     expect(onClose).toHaveBeenCalledOnce();
   });
@@ -176,6 +194,15 @@ describe("CreateApiKeyDialog", () => {
       await user.click(screen.getByRole("button", { name: "Done" }));
 
       expect(onClose).toHaveBeenCalledOnce();
+    });
+
+    it("stays open until the user is done", async () => {
+      const { user, onClose } = setup({ createdApiKey: { ...buildApiKey(), apiKey: "ac.sk.mainnet.secret" } });
+
+      await user.keyboard("{Escape}");
+
+      expect(onClose).not.toHaveBeenCalled();
+      expect(screen.queryByRole("button", { name: "Close" })).not.toBeInTheDocument();
     });
   });
 

@@ -34,7 +34,7 @@ describe(tokenizeShellLine.name, () => {
   });
 
   it("recognizes every command the setup guides use", () => {
-    const commands = ["curl", "jq", "export", "until", "do", "done", "sleep", "npx", "brew", "akt"];
+    const commands = ["curl", "jq", "export", "until", "do", "done", "sleep", "echo", "exit", "npx", "brew", "akt"];
 
     const tokens = tokenizeShellLine(commands.join(" "));
 

@@ -40,11 +40,28 @@ describe("RevokeApiKeyDialog", () => {
     expect(onConfirm).not.toHaveBeenCalled();
   });
 
+  it("keeps the key when dismissed with Escape", async () => {
+    const { user, onCancel } = setup();
+
+    await user.keyboard("{Escape}");
+
+    expect(onCancel).toHaveBeenCalledOnce();
+  });
+
   it("disables both actions while the key is being revoked", () => {
     setup({ isRevoking: true });
 
     expect(screen.getByRole("button", { name: /Revoke key/ })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Cancel" })).toBeDisabled();
+  });
+
+  it("stays open while the key is being revoked", async () => {
+    const { user, onCancel } = setup({ isRevoking: true });
+
+    await user.keyboard("{Escape}");
+
+    expect(onCancel).not.toHaveBeenCalled();
+    expect(screen.queryByRole("button", { name: "Close" })).not.toBeInTheDocument();
   });
 
   function setup(input: { isRevoking?: boolean } = {}) {

@@ -2,7 +2,7 @@ export type ShellTokenKind = "comment" | "command" | "string" | "plain";
 
 export type ShellToken = { text: string; kind: ShellTokenKind };
 
-const SHELL_COMMANDS = ["curl", "jq", "export", "until", "do", "done", "sleep", "npx", "brew", "akt"];
+const SHELL_COMMANDS = ["curl", "jq", "export", "until", "do", "done", "sleep", "echo", "exit", "npx", "brew", "akt"];
 
 const SHELL_TOKEN_PATTERN = new RegExp(`("[^"]*"|'[^']*'|(?<![\\w./-])(?:${SHELL_COMMANDS.join("|")})(?![\\w./-]))`);
 

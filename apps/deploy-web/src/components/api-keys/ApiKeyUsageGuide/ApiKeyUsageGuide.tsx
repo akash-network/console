@@ -18,7 +18,8 @@ export const API_KEY_USAGE_SCRIPT_LINES = [
   'DSEQ=$(curl -s -X POST "$API/v1/deployments" \\',
   '  -H "x-api-key: $AKASH_API_KEY" \\',
   '  -H "Content-Type: application/json" \\',
-  `  -d "$(jq -n --rawfile sdl deploy.yaml '{ data: { sdl: $sdl } }')" | jq -r '.data.dseq')`,
+  `  -d "$(jq -n --rawfile sdl deploy.yaml '{ data: { sdl: $sdl } }')" | jq -r '.data.dseq // empty')`,
+  `[ -n "$DSEQ" ] || { echo "Couldn't create the deployment" >&2; exit 1; }`,
   "",
   "# 2. Wait for providers to bid",
   'until BID=$(curl -s "$API/v1/bids?dseq=$DSEQ" \\',
@@ -106,7 +107,8 @@ export const ApiKeyUsageGuide: FC = () => (
 
         <TabsContent value="rest" className="mt-0 flex flex-col gap-3">
           <p className="text-sm text-muted-foreground">
-            Send the key in the x-api-key header. This script runs the getting-started flow: create a deployment, wait for bids, start the lease and close it.
+            Send the key in the x-api-key header. Save this script next to deploy.yaml and run it with bash. It follows the getting-started flow: create a
+            deployment, wait for bids, start the lease and close it.
           </p>
           <CommandBlock label="REST API script" lines={API_KEY_USAGE_SCRIPT_LINES} />
         </TabsContent>

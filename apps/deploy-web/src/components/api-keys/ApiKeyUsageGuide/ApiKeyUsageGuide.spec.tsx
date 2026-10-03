@@ -51,6 +51,7 @@ describe("ApiKeyUsageGuide", () => {
     const script = screen.getByLabelText("REST API script");
     expect(script.textContent).toBe(API_KEY_USAGE_SCRIPT_LINES.join("\n"));
     expect(script).toHaveTextContent('DSEQ=$(curl -s -X POST "$API/v1/deployments"');
+    expect(script).toHaveTextContent(`[ -n "$DSEQ" ] || { echo "Couldn't create the deployment" >&2; exit 1; }`);
     expect(script).toHaveTextContent('until BID=$(curl -s "$API/v1/bids?dseq=$DSEQ"');
     expect(script).toHaveTextContent('curl -s -X POST "$API/v1/leases"');
     expect(script).toHaveTextContent('curl -s -X DELETE "$API/v1/deployments/$DSEQ"');

@@ -91,6 +91,22 @@ describe(ApiKeyList.name, () => {
     expect(screen.queryByText(/active key/)).not.toBeInTheDocument();
   });
 
+  it("says the keys couldn't load instead of claiming there are none", () => {
+    setup({ apiKeys: undefined, isError: true });
+
+    expect(screen.getByText("Couldn't load your API keys")).toBeInTheDocument();
+    expect(screen.getByText("Refresh the page to try again.")).toBeInTheDocument();
+    expect(screen.queryByText("No API keys")).not.toBeInTheDocument();
+    expect(screen.queryByText(/active key/)).not.toBeInTheDocument();
+  });
+
+  it("keeps showing the loaded keys when a refresh fails", () => {
+    setup({ apiKeys: [buildApiKey({ name: "Monitoring" })], isError: true });
+
+    expect(within(screen.getByRole("list", { name: "API keys" })).getByText("Monitoring")).toBeInTheDocument();
+    expect(screen.queryByText("Couldn't load your API keys")).not.toBeInTheDocument();
+  });
+
   it("shows neither the list, the empty state nor a count while keys load", () => {
     setup({ apiKeys: undefined, isLoading: true });
 
@@ -115,9 +131,9 @@ describe(ApiKeyList.name, () => {
     expect(screen.getByText(/API keys grant full access to your Console account/)).toBeInTheDocument();
   });
 
-  function setup(input: { apiKeys: ApiKeyResponse[] | undefined; isLoading?: boolean }) {
+  function setup(input: { apiKeys: ApiKeyResponse[] | undefined; isLoading?: boolean; isError?: boolean }) {
     const onRevoke = vi.fn();
-    render(<ApiKeyList apiKeys={input.apiKeys} isLoading={input.isLoading ?? false} onRevoke={onRevoke} />);
+    render(<ApiKeyList apiKeys={input.apiKeys} isLoading={input.isLoading ?? false} isError={input.isError ?? false} onRevoke={onRevoke} />);
     return { onRevoke };
   }
 });
