@@ -15,4 +15,14 @@ describe(SettingsSection.name, () => {
     expect(screen.getByRole("region", { name: "Account" })).toHaveTextContent("balance card");
     expect(screen.getByRole("heading", { level: 2, name: "Account" })).toBeInTheDocument();
   });
+
+  it("renders the aside next to the title", () => {
+    render(
+      <SettingsSection title="Your keys" aside={<span>2 active keys</span>}>
+        <p>key list</p>
+      </SettingsSection>
+    );
+
+    expect(screen.getByRole("region", { name: "Your keys" })).toHaveTextContent("2 active keys");
+  });
 });

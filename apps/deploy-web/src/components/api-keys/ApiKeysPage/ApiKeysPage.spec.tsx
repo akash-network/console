@@ -3,216 +3,191 @@ import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { AnalyticsService } from "@src/services/analytics/analytics.service";
-import { ApiKeysPage, DEPENDENCIES } from "./ApiKeysPage";
+import { API_REFERENCE_URL, ApiKeysPage, DEPENDENCIES } from "./ApiKeysPage";
 
-import { act, render } from "@testing-library/react";
-import { ComponentMock, MockComponents } from "@tests/unit/mocks";
+import { act, render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { buildApiKey } from "@tests/seeders";
+import { MockComponents } from "@tests/unit/mocks";
 import { TestContainerProvider } from "@tests/unit/TestContainerProvider";
 
 describe(ApiKeysPage.name, () => {
-  it("passes api keys to ApiKeyList", () => {
-    const ApiKeyListMock = vi.fn(ComponentMock);
-    const apiKeys = [createApiKey()];
-    setup({
-      apiKeys,
-      dependencies: {
-        ApiKeyList: ApiKeyListMock
-      }
-    });
+  it("titles the page and lists the user's keys", () => {
+    const apiKeys = [buildApiKey()];
+    const { ApiKeyList, SettingsLayout, NextSeo } = setup({ apiKeys });
 
-    expect(ApiKeyListMock.mock.calls[0][0].apiKeys).toEqual(apiKeys);
+    expect(NextSeo.mock.lastCall?.[0].title).toBe("API Keys");
+    expect(SettingsLayout.mock.lastCall?.[0].title).toBe("API keys");
+    expect(ApiKeyList.mock.lastCall?.[0]).toEqual(expect.objectContaining({ apiKeys, isLoading: false, isError: false }));
   });
 
-  it("passes isDeleting as false initially", () => {
-    const ApiKeyListMock = vi.fn(ComponentMock);
-    setup({
-      dependencies: {
-        ApiKeyList: ApiKeyListMock
-      }
-    });
+  it("shows the list loading while keys load", () => {
+    const { ApiKeyList, Layout } = setup({ isLoadingApiKeys: true });
 
-    expect(ApiKeyListMock.mock.calls[0][0].isDeleting).toBe(false);
+    expect(ApiKeyList.mock.lastCall?.[0].isLoading).toBe(true);
+    expect(Layout.mock.lastCall?.[0].isLoading).toBe(true);
   });
 
-  it("passes apiKeyToDelete as null initially", () => {
-    const ApiKeyListMock = vi.fn(ComponentMock);
-    setup({
-      dependencies: {
-        ApiKeyList: ApiKeyListMock
-      }
-    });
+  it("tells the list when the keys can't load", () => {
+    const { ApiKeyList } = setup({ isApiKeysError: true });
 
-    expect(ApiKeyListMock.mock.calls[0][0].apiKeyToDelete).toBeNull();
+    expect(ApiKeyList.mock.lastCall?.[0].isError).toBe(true);
   });
 
-  it("sets apiKeyToDelete when updateApiKeyToDelete is called", () => {
-    const ApiKeyListMock = vi.fn(ComponentMock);
-    const apiKey = createApiKey();
-    setup({
-      dependencies: {
-        ApiKeyList: ApiKeyListMock
-      }
-    });
+  it("links to the API reference in a new tab", () => {
+    setup();
 
-    act(() => {
-      ApiKeyListMock.mock.calls[0][0].updateApiKeyToDelete(apiKey);
-    });
-
-    expect(ApiKeyListMock.mock.lastCall![0].apiKeyToDelete).toEqual(apiKey);
+    const link = screen.getByRole("link", { name: "API reference" });
+    expect(link).toHaveAttribute("href", API_REFERENCE_URL);
+    expect(link).toHaveAttribute("target", "_blank");
+    expect(link).toHaveAttribute("rel", "noopener noreferrer");
   });
 
-  it("resets apiKeyToDelete when onDeleteClose is called", () => {
-    const ApiKeyListMock = vi.fn(ComponentMock);
-    const apiKey = createApiKey();
-    setup({
-      dependencies: {
-        ApiKeyList: ApiKeyListMock
-      }
-    });
+  it("opens the create key dialog and closes it again", async () => {
+    const { user, CreateApiKeyDialog } = setup();
+    expect(screen.queryByText("create key dialog")).not.toBeInTheDocument();
 
-    act(() => {
-      ApiKeyListMock.mock.calls[0][0].updateApiKeyToDelete(apiKey);
-    });
+    await user.click(screen.getByRole("button", { name: "Create new key" }));
+    expect(screen.getByText("create key dialog")).toBeInTheDocument();
 
-    act(() => {
-      ApiKeyListMock.mock.lastCall![0].onDeleteClose();
-    });
-
-    expect(ApiKeyListMock.mock.lastCall![0].apiKeyToDelete).toBeNull();
+    act(() => CreateApiKeyDialog.mock.lastCall?.[0].onClose());
+    expect(screen.queryByText("create key dialog")).not.toBeInTheDocument();
   });
 
-  it("calls deleteApiKey and tracks analytics when onDeleteApiKey is called", () => {
-    const ApiKeyListMock = vi.fn(ComponentMock);
-    const deleteApiKey = vi.fn();
-    const { analyticsService } = setup({
-      deleteApiKeyMutate: deleteApiKey,
-      dependencies: {
-        ApiKeyList: ApiKeyListMock
-      }
-    });
+  it("asks to confirm before revoking the key picked in the list", () => {
+    const apiKey = buildApiKey({ id: "key-1" });
+    const { ApiKeyList, RevokeApiKeyDialog, useDeleteApiKey } = setup({ apiKeys: [apiKey] });
+    expect(screen.queryByText("revoke key dialog")).not.toBeInTheDocument();
+    expect(useDeleteApiKey).toHaveBeenLastCalledWith("", expect.any(Function));
 
-    act(() => {
-      ApiKeyListMock.mock.calls[0][0].onDeleteApiKey();
-    });
+    act(() => ApiKeyList.mock.lastCall?.[0].onRevoke(apiKey));
 
-    expect(deleteApiKey).toHaveBeenCalled();
-    expect(analyticsService.track).toHaveBeenCalledWith("delete_api_key", {
-      category: "settings",
-      label: "Delete API key"
-    });
+    expect(screen.getByText("revoke key dialog")).toBeInTheDocument();
+    expect(RevokeApiKeyDialog.mock.lastCall?.[0]).toEqual(expect.objectContaining({ apiKey, isRevoking: false }));
+    expect(useDeleteApiKey).toHaveBeenLastCalledWith("key-1", expect.any(Function));
   });
 
-  it("passes loading state to Layout when api keys are loading", () => {
-    const LayoutMock = vi.fn(ComponentMock);
-    setup({
-      isLoadingApiKeys: true,
-      dependencies: {
-        Layout: LayoutMock
-      }
-    });
+  it("revokes the key and tracks it once confirmed", () => {
+    const apiKey = buildApiKey();
+    const { ApiKeyList, RevokeApiKeyDialog, deleteApiKey, analyticsService } = setup({ apiKeys: [apiKey] });
 
-    expect(LayoutMock.mock.calls[0][0].isLoading).toBe(true);
+    act(() => ApiKeyList.mock.lastCall?.[0].onRevoke(apiKey));
+    act(() => RevokeApiKeyDialog.mock.lastCall?.[0].onConfirm());
+
+    expect(deleteApiKey).toHaveBeenCalledOnce();
+    expect(analyticsService.track).toHaveBeenCalledWith("delete_api_key", { category: "settings", label: "Delete API key" });
   });
 
-  it("passes loading state to Layout when deleting", () => {
-    const LayoutMock = vi.fn(ComponentMock);
-    setup({
-      isDeleting: true,
-      dependencies: {
-        Layout: LayoutMock
-      }
-    });
+  it("tells the user when the key can't be revoked and keeps the dialog open", () => {
+    const apiKey = buildApiKey();
+    const { ApiKeyList, RevokeApiKeyDialog, deleteApiKey, enqueueSnackbar } = setup({ apiKeys: [apiKey] });
+    deleteApiKey.mockImplementation((_variables, options) => options?.onError?.(new Error("boom"), undefined, undefined));
 
-    expect(LayoutMock.mock.calls[0][0].isLoading).toBe(true);
+    act(() => ApiKeyList.mock.lastCall?.[0].onRevoke(apiKey));
+    act(() => RevokeApiKeyDialog.mock.lastCall?.[0].onConfirm());
+
+    expect(enqueueSnackbar).toHaveBeenCalledWith(expect.objectContaining({ props: expect.objectContaining({ title: "Couldn't revoke the key" }) }), {
+      variant: "error"
+    });
+    expect(screen.getByText("revoke key dialog")).toBeInTheDocument();
   });
 
-  it("sets page title via NextSeo", () => {
-    const NextSeoMock = vi.fn(() => null);
-    setup({
-      dependencies: {
-        NextSeo: NextSeoMock
-      }
-    });
+  it("shows the revoke in progress", () => {
+    const apiKey = buildApiKey();
+    const { ApiKeyList, RevokeApiKeyDialog } = setup({ apiKeys: [apiKey], isRevoking: true });
 
-    expect(NextSeoMock.mock.calls[0][0].title).toBe("API Keys");
+    act(() => ApiKeyList.mock.lastCall?.[0].onRevoke(apiKey));
+
+    expect(RevokeApiKeyDialog.mock.lastCall?.[0].isRevoking).toBe(true);
   });
 
-  it("calls enqueueSnackbar on successful deletion", () => {
-    const enqueueSnackbar = vi.fn();
-    let onSuccessCallback: (() => void) | undefined;
-    const useDeleteApiKey: typeof DEPENDENCIES.useDeleteApiKey = (_id, onSuccess) => {
-      onSuccessCallback = onSuccess;
-      return { mutate: vi.fn(), isPending: false } as unknown as ReturnType<typeof DEPENDENCIES.useDeleteApiKey>;
-    };
+  it("confirms the revoke and closes the dialog once the key is gone", () => {
+    const apiKey = buildApiKey({ name: "Monitoring" });
+    const { ApiKeyList, useDeleteApiKey, enqueueSnackbar } = setup({ apiKeys: [apiKey] });
 
-    setup({
-      dependencies: {
-        useDeleteApiKey,
-        useSnackbar: () => ({ enqueueSnackbar, closeSnackbar: vi.fn() }) as unknown as ReturnType<typeof DEPENDENCIES.useSnackbar>
-      }
-    });
+    act(() => ApiKeyList.mock.lastCall?.[0].onRevoke(apiKey));
+    const onRevoked = useDeleteApiKey.mock.lastCall?.[1];
+    act(() => onRevoked?.());
 
-    act(() => {
-      onSuccessCallback!();
-    });
-
-    expect(enqueueSnackbar).toHaveBeenCalledWith("API Key deleted successfully", {
+    expect(enqueueSnackbar).toHaveBeenCalledWith(expect.objectContaining({ props: expect.objectContaining({ title: "“Monitoring” revoked" }) }), {
       variant: "success"
     });
+    expect(screen.queryByText("revoke key dialog")).not.toBeInTheDocument();
   });
 
-  function setup(
-    input: {
-      apiKeys?: ApiKeyResponse[];
-      isLoadingApiKeys?: boolean;
-      isDeleting?: boolean;
-      deleteApiKeyMutate?: ReturnType<typeof vi.fn>;
-      dependencies?: Partial<typeof DEPENDENCIES>;
-    } = {}
-  ) {
-    const useUserApiKeys: typeof DEPENDENCIES.useUserApiKeys = () =>
-      ({
-        data: input.apiKeys,
-        isLoading: input.isLoadingApiKeys ?? false
-      }) as unknown as ReturnType<typeof DEPENDENCIES.useUserApiKeys>;
+  it("keeps the key when the revoke is cancelled", () => {
+    const apiKey = buildApiKey();
+    const { ApiKeyList, RevokeApiKeyDialog, deleteApiKey } = setup({ apiKeys: [apiKey] });
 
-    const useDeleteApiKey: typeof DEPENDENCIES.useDeleteApiKey = () =>
-      ({
-        mutate: input.deleteApiKeyMutate ?? vi.fn(),
-        isPending: input.isDeleting ?? false
-      }) as unknown as ReturnType<typeof DEPENDENCIES.useDeleteApiKey>;
+    act(() => ApiKeyList.mock.lastCall?.[0].onRevoke(apiKey));
+    act(() => RevokeApiKeyDialog.mock.lastCall?.[0].onCancel());
 
+    expect(screen.queryByText("revoke key dialog")).not.toBeInTheDocument();
+    expect(deleteApiKey).not.toHaveBeenCalled();
+  });
+
+  function setup(input: { apiKeys?: ApiKeyResponse[]; isLoadingApiKeys?: boolean; isApiKeysError?: boolean; isRevoking?: boolean } = {}) {
+    const user = userEvent.setup();
+    const deleteApiKey = vi.fn<ReturnType<typeof DEPENDENCIES.useDeleteApiKey>["mutate"]>();
+    const enqueueSnackbar = vi.fn();
     const analyticsService = mock<AnalyticsService>();
+
+    const Layout = vi.fn<typeof DEPENDENCIES.Layout>(({ children }) => <>{children}</>);
+    const NextSeo = vi.fn<typeof DEPENDENCIES.NextSeo>(() => <></>);
+    const SettingsLayout = vi.fn<typeof DEPENDENCIES.SettingsLayout>(({ headerActions, children }) => (
+      <>
+        {headerActions}
+        {children}
+      </>
+    ));
+    const ApiKeyList = vi.fn<typeof DEPENDENCIES.ApiKeyList>(() => <></>);
+    const CreateApiKeyDialog = vi.fn<typeof DEPENDENCIES.CreateApiKeyDialog>(() => <div>create key dialog</div>);
+    const RevokeApiKeyDialog = vi.fn<typeof DEPENDENCIES.RevokeApiKeyDialog>(() => <div>revoke key dialog</div>);
+    const useUserApiKeys: typeof DEPENDENCIES.useUserApiKeys = () =>
+      Object.assign(mock<ReturnType<typeof DEPENDENCIES.useUserApiKeys>>(), {
+        data: input.apiKeys,
+        isLoading: input.isLoadingApiKeys ?? false,
+        isError: input.isApiKeysError ?? false
+      });
+    const useDeleteApiKey = vi.fn<typeof DEPENDENCIES.useDeleteApiKey>(() =>
+      Object.assign(mock<ReturnType<typeof DEPENDENCIES.useDeleteApiKey>>(), {
+        mutate: deleteApiKey,
+        isPending: input.isRevoking ?? false
+      })
+    );
+    const useSnackbar: typeof DEPENDENCIES.useSnackbar = () => Object.assign(mock<ReturnType<typeof DEPENDENCIES.useSnackbar>>(), { enqueueSnackbar });
 
     render(
       <TestContainerProvider services={{ analyticsService: () => analyticsService }}>
         <ApiKeysPage
           dependencies={{
             ...MockComponents(DEPENDENCIES),
+            Layout,
+            NextSeo,
+            SettingsLayout,
+            ApiKeyList,
+            CreateApiKeyDialog,
+            RevokeApiKeyDialog,
             useUserApiKeys,
             useDeleteApiKey,
-            useSnackbar: () => ({ enqueueSnackbar: vi.fn(), closeSnackbar: vi.fn() }) as unknown as ReturnType<typeof DEPENDENCIES.useSnackbar>,
-            ...input.dependencies
+            useSnackbar
           }}
         />
       </TestContainerProvider>
     );
 
     return {
-      analyticsService
-    };
-  }
-
-  function createApiKey(overrides: Partial<ApiKeyResponse> = {}): ApiKeyResponse {
-    return {
-      id: "test-id",
-      name: "test-key",
-      expiresAt: null,
-      createdAt: "2026-01-01T00:00:00.000Z",
-      updatedAt: "2026-01-01T00:00:00.000Z",
-      lastUsedAt: null,
-      keyFormat: "ak_****1234",
-      ...overrides
+      user,
+      deleteApiKey,
+      enqueueSnackbar,
+      analyticsService,
+      Layout,
+      NextSeo,
+      SettingsLayout,
+      ApiKeyList,
+      CreateApiKeyDialog,
+      RevokeApiKeyDialog,
+      useDeleteApiKey
     };
   }
 });

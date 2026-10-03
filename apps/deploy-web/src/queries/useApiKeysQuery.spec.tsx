@@ -91,10 +91,11 @@ describe("useApiKeysQuery", () => {
   });
 
   describe("useCreateApiKey", () => {
-    it("should create API key successfully", async () => {
+    it("creates the API key with its expiry and caches it without the secret", async () => {
       const newApiKey = buildApiKey({ id: "new-key", name: "New Key" });
+      const expiresAt = new Date("2027-10-02T12:00:00.000Z");
       const apiKeyService = mock<ApiKeyHttpService>({
-        createApiKey: vi.fn().mockResolvedValue(newApiKey)
+        createApiKey: vi.fn().mockResolvedValue({ ...newApiKey, apiKey: "ac.sk.test.secret" })
       });
 
       const queryClient = new QueryClient();
@@ -119,7 +120,7 @@ describe("useApiKeysQuery", () => {
       );
 
       act(() => {
-        result.current.mutate("New Key");
+        result.current.mutate({ name: "New Key", expiresAt });
       });
 
       await vi.waitFor(() => {
@@ -127,13 +128,41 @@ describe("useApiKeysQuery", () => {
       });
 
       expect(apiKeyService.createApiKey).toHaveBeenCalledWith({
-        data: { name: "New Key" }
+        data: { name: "New Key", expiresAt }
       });
 
-      // Verify the cache is updated with the new API key
       const expectedQueryKey = ["API_KEYS", mockUser.userId];
       const cachedData = queryClient.getQueryData<ApiKeyResponse[]>(expectedQueryKey);
-      expect(cachedData).toContainEqual(newApiKey);
+      expect(cachedData).toEqual([newApiKey]);
+    });
+
+    it("appends the created API key to the keys already cached", async () => {
+      const existingKey = buildApiKey({ id: "existing-key" });
+      const newApiKey = buildApiKey({ id: "new-key" });
+      const apiKeyService = mock<ApiKeyHttpService>({
+        createApiKey: vi.fn().mockResolvedValue({ ...newApiKey, apiKey: "ac.sk.test.secret" })
+      });
+      const queryClient = new QueryClient();
+      queryClient.setQueryData(["API_KEYS", mockUser.userId], [existingKey]);
+
+      const { result } = setupQuery(
+        () =>
+          useCreateApiKey({
+            ...USE_API_KEYS_DEPENDENCIES,
+            useUser: () => mock<ReturnType<typeof USE_API_KEYS_DEPENDENCIES.useUser>>({ user: mockUser, isLoading: false })
+          }),
+        { services: { apiKey: () => apiKeyService, queryClient: () => queryClient } }
+      );
+
+      act(() => {
+        result.current.mutate({ name: newApiKey.name, expiresAt: new Date("2027-10-02T12:00:00.000Z") });
+      });
+
+      await vi.waitFor(() => {
+        expect(result.current.isSuccess).toBe(true);
+      });
+
+      expect(queryClient.getQueryData<ApiKeyResponse[]>(["API_KEYS", mockUser.userId])).toEqual([existingKey, newApiKey]);
     });
   });
 

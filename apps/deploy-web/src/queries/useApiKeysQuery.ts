@@ -10,6 +10,8 @@ export const USE_API_KEYS_DEPENDENCIES = {
   useUser
 };
 
+export type NewApiKey = { name: string; expiresAt: Date };
+
 export function useUserApiKeys(
   options: Omit<UseQueryOptions<ApiKeyResponse[], Error, ApiKeyResponse[], QueryKey>, "queryKey" | "queryFn"> = {},
   dependencies: typeof USE_API_KEYS_DEPENDENCIES = USE_API_KEYS_DEPENDENCIES
@@ -33,17 +35,12 @@ export function useCreateApiKey(dependencies: typeof USE_API_KEYS_DEPENDENCIES =
   const queryClient = useQueryClient();
   const { apiKey } = useServices();
 
-  return useMutation<ApiKeyResponse, Error, string>({
-    mutationFn: (name: string) =>
-      apiKey.createApiKey({
-        data: {
-          name: name
-        }
-      }),
-    onSuccess: _response => {
+  return useMutation<ApiKeyResponse, Error, NewApiKey>({
+    mutationFn: ({ name, expiresAt }) => apiKey.createApiKey({ data: { name, expiresAt } }),
+    onSuccess: ({ apiKey: _secret, ...createdKey }) => {
       queryClient.setQueryData(QueryKeys.getApiKeysKey(user?.userId ?? ""), (oldData: ApiKeyResponse[] | undefined) => {
-        if (!oldData) return [_response];
-        return [...oldData, _response];
+        if (!oldData) return [createdKey];
+        return [...oldData, createdKey];
       });
     }
   });

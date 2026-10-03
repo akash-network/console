@@ -7,12 +7,12 @@ import Link from "next/link";
 import { useSnackbar } from "notistack";
 
 import { ExternalLink } from "@src/components/shared/ExternalLink";
+import { AI_AGENTS_DOCS_URL, AKASH_SKILL_INSTALL_COMMAND } from "@src/config/agent-setup.config";
 import { useServices } from "@src/context/ServicesProvider";
 import { copyTextToClipboard } from "@src/utils/copyClipboard";
 import { UrlService } from "@src/utils/urlUtils";
 
-const SKILL_INSTALL_COMMANDS = ["npx skills add akash-network/akash-skill --skill akash"];
-const AI_AGENTS_DOCS_URL = "https://akash.network/docs/getting-started/ai-agents/";
+const SKILL_INSTALL_COMMANDS = [AKASH_SKILL_INSTALL_COMMAND];
 
 export const AgentModePanel: React.FunctionComponent = () => {
   const { analyticsService } = useServices();
