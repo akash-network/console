@@ -3,6 +3,7 @@ import { useMemo } from "react";
 import differenceInCalendarDays from "date-fns/differenceInCalendarDays";
 
 import { useAutoReloadMode } from "@src/components/billing-usage/useAutoReloadMode";
+import { useCurrentSpendRate } from "@src/components/billing-usage/useCurrentSpendRate";
 import { useWallet } from "@src/context/WalletProvider";
 import { useDeploymentNames } from "@src/hooks/useDeploymentNames/useDeploymentNames";
 import { usePricing } from "@src/hooks/usePricing/usePricing";
@@ -11,16 +12,14 @@ import { computeWalletBalance } from "@src/hooks/useWalletBalance";
 import { useWalletSettingsQuery } from "@src/queries";
 import { useBalances } from "@src/queries/useBalancesQuery";
 import { useBlock } from "@src/queries/useBlocksQuery";
-import { useAllLeases } from "@src/queries/useLeaseQuery";
-import { isLeaseLive, LIVE_LEASE_STATES } from "@src/utils/leaseUtils";
-import { getLeaseCostPerBlockUsdByDseq, getLiveEscrowBalance, getTimeLeft, perBlockToHourly } from "@src/utils/priceUtils";
+import { getLiveEscrowBalance, getTimeLeft, perBlockToHourly } from "@src/utils/priceUtils";
 
 export const DEPENDENCIES = {
   useWallet,
   usePricing,
   useAutoReloadMode,
   useBalances,
-  useAllLeases,
+  useCurrentSpendRate,
   useBlock,
   useWalletSettingsQuery,
   useDeploymentNames
@@ -54,7 +53,7 @@ export function useAccountBalanceOverview({ dependencies: d = DEPENDENCIES }: { 
   const { address } = d.useWallet();
   const { price, udenomToUsd } = d.usePricing();
   const { data: balances, isError: isBalancesError, fetchStatus: balancesFetchStatus } = d.useBalances(address);
-  const { data: leases } = d.useAllLeases(address, { state: LIVE_LEASE_STATES, enabled: !!address });
+  const spendRate = d.useCurrentSpendRate();
   const hasActiveDeployments = !!balances?.activeDeployments.length;
   /** Gated on the wallet holding an escrow: an account with nothing running shouldn't poll the chain every 30 seconds. */
   const { data: latestBlock } = d.useBlock("latest", { refetchInterval: 30000, enabled: hasActiveDeployments });
@@ -65,9 +64,9 @@ export function useAccountBalanceOverview({ dependencies: d = DEPENDENCIES }: { 
   const liveEscrow = useMemo<LiveEscrowInput>(
     () => ({
       latestBlockHeight: latestBlock ? Number(latestBlock.block.header.height) : undefined,
-      perBlockUsdByDseq: getLeaseCostPerBlockUsdByDseq(leases?.filter(isLeaseLive) ?? [])
+      perBlockUsdByDseq: spendRate.perBlockUsdByDseq
     }),
-    [leases, latestBlock]
+    [spendRate.perBlockUsdByDseq, latestBlock]
   );
 
   /** Not gated on the AKT market price: managed wallets hold ACT/USDC (1:1 USD), and blocking on market data would strand the card on its skeleton during an outage. */
@@ -75,12 +74,6 @@ export function useAccountBalanceOverview({ dependencies: d = DEPENDENCIES }: { 
     () => (balances ? computeWalletBalance(balances, price ?? 0, udenomToUsd, liveEscrow) : null),
     [balances, price, udenomToUsd, liveEscrow]
   );
-
-  const spend = useMemo(() => {
-    const perBlockUsd = [...liveEscrow.perBlockUsdByDseq.values()].reduce((total, deploymentPerBlockUsd) => total + deploymentPerBlockUsd, 0);
-
-    return { perBlockUsd, perHour: perBlockToHourly(perBlockUsd) };
-  }, [liveEscrow]);
 
   const deployments = useMemo<EscrowedDeployment[]>(() => {
     if (!balances) return [];
@@ -106,8 +99,7 @@ export function useAccountBalanceOverview({ dependencies: d = DEPENDENCIES }: { 
   const totalUsd = walletBalance?.totalUsd ?? 0;
   const escrow = deployments.reduce((sum, deployment) => sum + deployment.escrowUsd, 0);
   const available = Math.max(0, totalUsd - escrow);
-  const hasSpend = spend.perBlockUsd > 0;
-  const lastsUntil = hasSpend ? getTimeLeft(spend.perBlockUsd, totalUsd) : null;
+  const lastsUntil = spendRate.perBlockUsd > 0 ? getTimeLeft(spendRate.perBlockUsd, totalUsd) : null;
   const autoReloadEnabled = (walletSettings?.autoReloadEnabled ?? false) && !walletSettings?.autoReloadPausedAt;
   const isBalanceUnavailable = !balances && (isBalancesError || (!!address && balancesFetchStatus === "idle"));
   const autoReloadThreshold = showsThresholdRule && autoReloadEnabled ? walletSettings?.autoReloadThreshold ?? null : null;
@@ -117,7 +109,7 @@ export function useAccountBalanceOverview({ dependencies: d = DEPENDENCIES }: { 
     escrow,
     available,
     deployments,
-    perHour: spend.perHour,
+    perHour: spendRate.perHourUsd,
     lastsUntil,
     runwayDays: lastsUntil ? differenceInCalendarDays(lastsUntil, new Date()) : null,
     autoReloadEnabled,

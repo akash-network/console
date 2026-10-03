@@ -5,6 +5,8 @@ import { UACT_DENOM, UAKT_DENOM } from "@src/config/denom.config";
 import type { Balances } from "@src/types";
 import type { LeaseDto } from "@src/types/deployment";
 import { LIVE_LEASE_STATES } from "@src/utils/leaseUtils";
+import type { DEPENDENCIES as SPEND_RATE_DEPENDENCIES } from "../useCurrentSpendRate";
+import { useCurrentSpendRate } from "../useCurrentSpendRate";
 import type { DEPENDENCIES } from "./useAccountBalanceOverview";
 import { useAccountBalanceOverview } from "./useAccountBalanceOverview";
 
@@ -334,8 +336,8 @@ describe(useAccountBalanceOverview.name, () => {
     });
     const useBalances: typeof DEPENDENCIES.useBalances = () => balancesQuery;
 
-    const leasesQuery = Object.assign(mock<ReturnType<typeof DEPENDENCIES.useAllLeases>>(), { data: leases });
-    const useAllLeases = vi.fn<typeof DEPENDENCIES.useAllLeases>(() => leasesQuery);
+    const leasesQuery = Object.assign(mock<ReturnType<typeof SPEND_RATE_DEPENDENCIES.useAllLeases>>(), { data: leases });
+    const useAllLeases = vi.fn<typeof SPEND_RATE_DEPENDENCIES.useAllLeases>(() => leasesQuery);
 
     const blockQuery = Object.assign(mock<ReturnType<typeof DEPENDENCIES.useBlock>>(), {
       data: input.latestBlockHeight === undefined ? undefined : { block: { header: { height: String(input.latestBlockHeight) } } }
@@ -360,7 +362,7 @@ describe(useAccountBalanceOverview.name, () => {
       usePricing,
       useAutoReloadMode,
       useBalances,
-      useAllLeases,
+      useCurrentSpendRate: () => useCurrentSpendRate({ dependencies: { useWallet, useAllLeases } }),
       useBlock,
       useWalletSettingsQuery,
       useDeploymentNames

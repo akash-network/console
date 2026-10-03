@@ -1,181 +1,239 @@
 import React from "react";
-import type { LinearProgressProps } from "@mui/material";
+import { IntlProvider } from "react-intl";
+import { getDaysInMonth } from "date-fns";
 import { describe, expect, it, vi } from "vitest";
 
-import type { CumulativeSpendingLineChartProps } from "@src/components/billing-usage/CumulativeSpendingLineChart/CumulativeSpendingLineChart";
-import type { DailyUsageBarChartProps } from "@src/components/billing-usage/DailyUsageBarChart/DailyUsageBarChart";
-import { COMPONENTS, UsageView, type UsageViewProps } from "@src/components/billing-usage/UsageView/UsageView";
+import type { ChildrenProps } from "@src/components/billing-usage/UsageContainer/UsageContainer";
+import { getUsagePresetRange, type UsageDatePreset, type UsageDateRange } from "@src/components/billing-usage/UsageContainer/usageDatePresets";
+import type { UsageHistory, UsageHistoryStats } from "@src/types";
+import { DEPENDENCIES, UsageView } from "./UsageView";
 
-import { fireEvent, render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { buildUsageHistory, buildUsageHistoryStats } from "@tests/seeders/usage";
 import { MockComponents } from "@tests/unit/mocks";
 
 describe(UsageView.name, () => {
-  it("renders an error message when stats fail to load", () => {
-    setup({ isUsageHistoryStatsError: true });
-    expect(screen.queryByText("Error loading usage stats")).toBeInTheDocument();
+  it("shows total spend with its rise against the previous period", () => {
+    setup({ stats: { totalSpent: 1234.5 }, previousPeriodTotalSpent: 987.6 });
+
+    const tile = screen.getByRole("group", { name: "Total spend" });
+    expect(within(tile).getByText("$1,234.50")).toBeInTheDocument();
+    expect(within(tile).getByText("Last 30 days · +25% vs prior")).toBeInTheDocument();
   });
 
-  it("renders two progress bars while stats are fetching", () => {
-    setup({ isFetchingUsageHistoryStats: true });
-    const bars = screen.getAllByRole("progressbar");
-    expect(bars).toHaveLength(2);
+  it("shows a drop against the previous period", () => {
+    setup({ stats: { totalSpent: 80 }, previousPeriodTotalSpent: 100 });
+
+    expect(within(screen.getByRole("group", { name: "Total spend" })).getByText("Last 30 days · -20% vs prior")).toBeInTheDocument();
   });
 
-  it("displays usage stats data when available", () => {
-    const { usageHistoryStatsData } = setup({
-      usageHistoryStatsData: {
-        totalSpent: 100,
-        averageSpentPerDay: 7,
-        totalDeployments: 3,
-        averageDeploymentsPerDay: 0.5
-      }
-    });
-    expect(screen.getByText(usageHistoryStatsData.totalSpent)).toBeInTheDocument();
+  it("calls a change under half a percent the same as prior", () => {
+    setup({ stats: { totalSpent: 100.4 }, previousPeriodTotalSpent: 100 });
+
+    expect(within(screen.getByRole("group", { name: "Total spend" })).getByText("Last 30 days · same as prior")).toBeInTheDocument();
+  });
+
+  it("rounds a change just over half a percent to one percent", () => {
+    setup({ stats: { totalSpent: 99.4 }, previousPeriodTotalSpent: 100 });
+
+    expect(within(screen.getByRole("group", { name: "Total spend" })).getByText("Last 30 days · -1% vs prior")).toBeInTheDocument();
+  });
+
+  it("leaves the comparison out when the previous period had no spend", () => {
+    setup({ stats: { totalSpent: 50 }, previousPeriodTotalSpent: 0 });
+
+    expect(within(screen.getByRole("group", { name: "Total spend" })).getByText("Last 30 days")).toBeInTheDocument();
+  });
+
+  it("leaves the comparison out until the previous period loads", () => {
+    setup({ stats: { totalSpent: 50 }, previousPeriodTotalSpent: null });
+
+    expect(within(screen.getByRole("group", { name: "Total spend" })).getByText("Last 30 days")).toBeInTheDocument();
+  });
+
+  it("names a custom range by its dates", () => {
+    setup({ datePreset: "custom", dateRange: { from: new Date(2026, 5, 1), to: new Date(2026, 5, 20, 23, 59) }, previousPeriodTotalSpent: null });
+
+    expect(within(screen.getByRole("group", { name: "Total spend" })).getByText("Jun 1 to Jun 20")).toBeInTheDocument();
+  });
+
+  it("names the years of a custom range that spans two years", () => {
+    setup({ datePreset: "custom", dateRange: { from: new Date(2025, 11, 1), to: new Date(2026, 0, 15, 23, 59) }, previousPeriodTotalSpent: null });
+
+    expect(within(screen.getByRole("group", { name: "Total spend" })).getByText("Dec 1, 2025 to Jan 15, 2026")).toBeInTheDocument();
+  });
+
+  it("shows the daily average across the days of the range", () => {
+    setup({ stats: { averageSpentPerDay: 41.15 } });
+
+    const tile = screen.getByRole("group", { name: "Daily average" });
+    expect(within(tile).getByText("$41.15")).toBeInTheDocument();
+    expect(within(tile).getByText("Across 30 days")).toBeInTheDocument();
+  });
+
+  it("counts a single-day range as one day", () => {
+    const today = getUsagePresetRange("last7Days").to;
+    setup({ datePreset: "custom", dateRange: { from: new Date(today.getFullYear(), today.getMonth(), today.getDate()), to: today } });
+
+    expect(within(screen.getByRole("group", { name: "Daily average" })).getByText("Across 1 day")).toBeInTheDocument();
+  });
+
+  it("shows the deployments active during the range", () => {
+    setup({ stats: { totalDeployments: 1234, averageDeploymentsPerDay: 0.25 } });
+
+    const tile = screen.getByRole("group", { name: "Deployments" });
+    expect(within(tile).getByText("1,234")).toBeInTheDocument();
+    expect(within(tile).getByText("0.25 a day on average")).toBeInTheDocument();
+  });
+
+  it("projects this month at the current spend rate", () => {
+    setup({ spendRate: { perHourUsd: 2, isLoading: false, isError: false } });
+
+    const tile = screen.getByRole("group", { name: "Projected month" });
     expect(
-      screen.getByText((_, element) => {
-        return element?.textContent === "7 average per day";
-      })
+      within(tile).getByText(new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(2 * 24 * getDaysInMonth(new Date())))
     ).toBeInTheDocument();
-    expect(screen.getByText("3")).toBeInTheDocument();
-
-    expect(
-      screen.getByText((_, element) => {
-        return element?.textContent === "0.5 average per day";
-      })
-    ).toBeInTheDocument();
+    expect(within(tile).getByText("At your current $2.00/hr")).toBeInTheDocument();
   });
 
-  it("renders an error message when history data fails to load", () => {
-    setup({ isUsageHistoryError: true });
-    expect(screen.getByText("Error loading usage data")).toBeInTheDocument();
+  it("says nothing is running when there is no spend rate", () => {
+    setup({ spendRate: { perHourUsd: 0, isLoading: false, isError: false } });
+
+    const tile = screen.getByRole("group", { name: "Projected month" });
+    expect(within(tile).getByText("$0.00")).toBeInTheDocument();
+    expect(within(tile).getByText("Nothing is running right now")).toBeInTheDocument();
   });
 
-  it("renders charts with correct data and loading state", () => {
-    const { usageHistoryData } = setup({ isFetchingUsageHistory: true });
+  it("holds the stats figures back while they load", () => {
+    setup({ stats: { totalSpent: 1234.5 }, isUsageHistoryStatsLoading: true });
 
-    const daily = screen.getByTestId("daily-chart");
-    expect(daily).toHaveAttribute("data-fetching", "true");
-    expect(daily).toHaveTextContent(JSON.stringify(usageHistoryData));
-
-    const cumulative = screen.getByTestId("cumulative-chart");
-    expect(cumulative).toHaveAttribute("data-fetching", "true");
+    for (const name of ["Total spend", "Daily average", "Deployments"]) {
+      expect(screen.getByRole("group", { name })).toHaveAttribute("aria-busy", "true");
+    }
+    expect(screen.queryByText("$1,234.50")).not.toBeInTheDocument();
+    expect(screen.getByRole("group", { name: "Projected month" })).toHaveAttribute("aria-busy", "false");
   });
 
-  it("renders charts in non-loading state by default", () => {
-    setup();
-    expect(screen.getByTestId("daily-chart")).toHaveAttribute("data-fetching", "false");
-    expect(screen.getByTestId("cumulative-chart")).toHaveAttribute("data-fetching", "false");
+  it("shows its own error in each stats tile when the stats fail to load", () => {
+    setup({ isUsageHistoryStatsError: true, spendRate: { perHourUsd: 1, isLoading: false, isError: false } });
+
+    for (const name of ["Total spend", "Daily average", "Deployments"]) {
+      expect(within(screen.getByRole("group", { name })).getByText("Couldn't be loaded. Refresh the page to try again.")).toBeInTheDocument();
+    }
+    expect(within(screen.getByRole("group", { name: "Projected month" })).getByText("At your current $1.00/hr")).toBeInTheDocument();
   });
 
-  it("calls onDateRangeChange when date range start changes", () => {
+  it("holds the projection back while the spend rate loads", () => {
+    setup({ spendRate: { perHourUsd: 0, isLoading: true, isError: false } });
+
+    const tile = screen.getByRole("group", { name: "Projected month" });
+    expect(tile).toHaveAttribute("aria-busy", "true");
+    expect(within(tile).queryByText("$0.00")).not.toBeInTheDocument();
+  });
+
+  it("shows its own error in the projection when the spend rate fails to load", () => {
+    setup({ stats: { totalSpent: 50 }, spendRate: { perHourUsd: 0, isLoading: false, isError: true } });
+
+    expect(within(screen.getByRole("group", { name: "Projected month" })).getByText("Couldn't be loaded. Refresh the page to try again.")).toBeInTheDocument();
+    expect(within(screen.getByRole("group", { name: "Total spend" })).getByText("$50.00")).toBeInTheDocument();
+  });
+
+  it("charts the daily usage of the range", () => {
+    const history = buildUsageHistory();
+    const { DailySpendChart } = setup({ history, isUsageHistoryLoading: true, isUsageHistoryError: true });
+
+    expect(DailySpendChart).toHaveBeenCalledWith(expect.objectContaining({ data: history, isLoading: true, isError: true }), expect.anything());
+  });
+
+  it("marks the chart range that matches the selected range", () => {
+    setup({ datePreset: "last7Days" });
+
+    expect(screen.getByRole("radio", { name: "Last 7 days" })).toBeChecked();
+    expect(screen.getByRole("radio", { name: "Last 30 days" })).not.toBeChecked();
+  });
+
+  it("marks no chart range for a range the chart toggle doesn't offer", () => {
+    setup({ datePreset: "last12Months" });
+
+    expect(screen.getAllByRole("radio")).toHaveLength(3);
+    expect(screen.queryByRole("radio", { checked: true })).not.toBeInTheDocument();
+  });
+
+  it("switches the whole page to the range picked on the chart", async () => {
+    const { onDatePresetChange } = setup({ datePreset: "last30Days" });
+
+    await userEvent.click(screen.getByRole("radio", { name: "Last 90 days" }));
+
+    expect(onDatePresetChange).toHaveBeenCalledWith("last90Days");
+  });
+
+  it("keeps the range when the selected chart range is clicked again", async () => {
+    const { onDatePresetChange } = setup({ datePreset: "last30Days" });
+
+    await userEvent.click(screen.getByRole("radio", { name: "Last 30 days" }));
+
+    expect(onDatePresetChange).not.toHaveBeenCalled();
+  });
+
+  it("offers the date picker only for a custom range", () => {
+    const { DateRangePicker } = setup({ datePreset: "last30Days" });
+
+    expect(DateRangePicker).not.toHaveBeenCalled();
+  });
+
+  it("passes the custom range and its limits to the date picker", () => {
+    const dateRange = { from: new Date(2026, 6, 1), to: new Date(2026, 6, 31) };
+    const { DateRangePicker, onDateRangeChange } = setup({ datePreset: "custom", dateRange });
+
+    const props = DateRangePicker.mock.lastCall![0];
+    props.onChange!({ from: new Date(2026, 5, 1), to: new Date(2026, 5, 30) });
+
+    expect(props).toEqual(expect.objectContaining({ date: dateRange, maxRangeInDays: 366 }));
+    expect(props.minDate!.getTime()).toBeLessThan(props.maxDate!.getTime());
+    expect(onDateRangeChange).toHaveBeenCalledWith({ from: new Date(2026, 5, 1), to: new Date(2026, 5, 30) });
+  });
+
+  function setup(
+    input: {
+      history?: UsageHistory;
+      stats?: Partial<UsageHistoryStats>;
+      previousPeriodTotalSpent?: number | null;
+      isUsageHistoryLoading?: boolean;
+      isUsageHistoryError?: boolean;
+      isUsageHistoryStatsLoading?: boolean;
+      isUsageHistoryStatsError?: boolean;
+      spendRate?: ChildrenProps["spendRate"];
+      datePreset?: UsageDatePreset;
+      dateRange?: UsageDateRange;
+    } = {}
+  ) {
+    const onDatePresetChange = vi.fn();
     const onDateRangeChange = vi.fn();
-    setup({
-      onDateRangeChange,
-      dateRange: {
-        from: new Date(),
-        to: new Date("2030-01-01")
-      }
+    const dependencies = MockComponents(DEPENDENCIES, {
+      DailySpendChart: vi.fn(({ rangeToggle }) => <>{rangeToggle}</>)
     });
-    fireEvent.change(screen.getByLabelText("Filter by start date"), {
-      target: { value: "2025-01-01" }
-    });
-    expect(onDateRangeChange).toHaveBeenCalledWith({
-      from: new Date("2025-01-01"),
-      to: new Date("2030-01-01")
-    });
-  });
 
-  it("includes ACT fields in exported CSV", () => {
-    const usageHistoryData = buildUsageHistory([{ dailyActSpent: 42, totalActSpent: 99 }], 1);
-    setup({ usageHistoryData });
+    render(
+      <IntlProvider locale="en-US">
+        <UsageView
+          usageHistoryData={input.history ?? buildUsageHistory()}
+          usageHistoryStatsData={buildUsageHistoryStats(input.stats)}
+          previousPeriodTotalSpent={"previousPeriodTotalSpent" in input ? input.previousPeriodTotalSpent! : 0}
+          isUsageHistoryLoading={input.isUsageHistoryLoading ?? false}
+          isUsageHistoryError={input.isUsageHistoryError ?? false}
+          isUsageHistoryStatsLoading={input.isUsageHistoryStatsLoading ?? false}
+          isUsageHistoryStatsError={input.isUsageHistoryStatsError ?? false}
+          spendRate={input.spendRate ?? { perHourUsd: 0, isLoading: false, isError: false }}
+          datePreset={input.datePreset ?? "last30Days"}
+          onDatePresetChange={onDatePresetChange}
+          dateRange={input.dateRange ?? getUsagePresetRange(input.datePreset && input.datePreset !== "custom" ? input.datePreset : "last30Days")}
+          onDateRangeChange={onDateRangeChange}
+          dependencies={dependencies}
+        />
+      </IntlProvider>
+    );
 
-    let capturedBlob: Blob | undefined;
-    const createObjectURLSpy = vi.spyOn(URL, "createObjectURL").mockImplementation((blob: Blob) => {
-      capturedBlob = blob;
-      return "blob:mock";
-    });
-    const revokeObjectURLSpy = vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => {});
-
-    fireEvent.click(screen.getByText("Export CSV"));
-
-    expect(capturedBlob).toBeDefined();
-    expect(capturedBlob!.type).toBe("text/csv;charset=utf-8;");
-
-    createObjectURLSpy.mockRestore();
-    revokeObjectURLSpy.mockRestore();
-  });
-
-  it("calls onDateRangeChange when date range end changes", () => {
-    const onDateRangeChange = vi.fn();
-    setup({
-      onDateRangeChange,
-      dateRange: {
-        to: new Date(),
-        from: new Date("2020-01-01")
-      }
-    });
-    fireEvent.change(screen.getByLabelText("Filter by end date"), {
-      target: { value: "2025-01-01" }
-    });
-    expect(onDateRangeChange).toHaveBeenCalledWith({
-      from: new Date("2020-01-01"),
-      to: new Date("2025-01-01")
-    });
-  });
-
-  function setup(props: Partial<UsageViewProps> = {}) {
-    const defaultComponents: NonNullable<UsageViewProps["components"]> = {
-      FormattedNumber: ({ value }: { value: number }) => <span>{value}</span>,
-      Title: ({ children }: { children?: React.ReactNode }) => <div>{children}</div>,
-      DailyUsageBarChart: ({ data, isFetching }: DailyUsageBarChartProps) => (
-        <div data-testid="daily-chart" data-fetching={String(isFetching)}>
-          {JSON.stringify(data)}
-        </div>
-      ),
-      CumulativeSpendingLineChart: ({ data, isFetching }: CumulativeSpendingLineChartProps) => (
-        <div data-testid="cumulative-chart" data-fetching={String(isFetching)}>
-          {JSON.stringify(data)}
-        </div>
-      ),
-      LinearProgress: (props: Omit<LinearProgressProps, "ref">) => <div role="progressbar" {...props} />,
-      DateRangePicker: ({ date = props.dateRange, onChange }) => (
-        <div>
-          <label>
-            <span>Filter by start date</span>
-            <input
-              type="date"
-              value={date?.from ? date.from.toISOString().split("T")[0] : ""}
-              onChange={e => onChange?.({ from: new Date(e.target.value), to: date?.to || new Date() })}
-            />
-          </label>
-          <label>
-            <span>Filter by end date</span>
-            <input
-              type="date"
-              value={date?.to ? date.to.toISOString().split("T")[0] : ""}
-              onChange={e => onChange?.({ from: date?.from || new Date(), to: new Date(e.target.value) })}
-            />
-          </label>
-        </div>
-      )
-    };
-
-    const defaultProps: UsageViewProps = {
-      usageHistoryData: props.usageHistoryData ?? buildUsageHistory(),
-      usageHistoryStatsData: buildUsageHistoryStats(props.usageHistoryStatsData),
-      isFetchingUsageHistory: false,
-      isUsageHistoryError: false,
-      isFetchingUsageHistoryStats: false,
-      isUsageHistoryStatsError: false,
-      dateRange: { from: new Date(), to: new Date() },
-      onDateRangeChange: props.onDateRangeChange ?? vi.fn(),
-      components: MockComponents(COMPONENTS, { ...defaultComponents, ...props.components }),
-      ...props
-    };
-
-    render(<UsageView {...defaultProps} />);
-
-    return defaultProps;
+    return { ...dependencies, onDatePresetChange, onDateRangeChange };
   }
 });

@@ -1,181 +1,198 @@
-import React from "react";
+"use client";
+import React, { type FC, type ReactNode, useId } from "react";
 import { FormattedNumber } from "react-intl";
-import { Button, Card, CardContent, CardHeader, CardTitle, DateRangePicker, Label } from "@akashnetwork/ui/components";
-import LinearProgress from "@mui/material/LinearProgress";
-import { endOfToday, startOfDay, subYears } from "date-fns";
-import { Cloud, Dollar, Download } from "iconoir-react";
+import { Card, DateRangePicker, Skeleton, ToggleGroup, ToggleGroupItem } from "@akashnetwork/ui/components";
+import { endOfToday, format, getDaysInMonth, startOfDay, subYears } from "date-fns";
 
-import { CumulativeSpendingLineChart } from "@src/components/billing-usage/CumulativeSpendingLineChart/CumulativeSpendingLineChart";
-import { DailyUsageBarChart } from "@src/components/billing-usage/DailyUsageBarChart/DailyUsageBarChart";
-import { Title } from "@src/components/shared/Title";
-import type { UsageHistory, UsageHistoryStats } from "@src/types";
-import { downloadCsv } from "@src/utils/domUtils";
-import { sanitizeCsvField } from "@src/utils/stringUtils";
+import { DailySpendChart } from "@src/components/billing-usage/DailySpendChart/DailySpendChart";
+import type { ChildrenProps } from "@src/components/billing-usage/UsageContainer/UsageContainer";
+import { countDaysInRange, USAGE_DATE_PRESETS, type UsageDatePreset, type UsageDateRange } from "@src/components/billing-usage/UsageContainer/usageDatePresets";
+import { UsdValue } from "@src/components/billing-usage/UsdValue/UsdValue";
 
-const isValidNumber = (value: number | null | undefined): boolean => {
-  return value !== null && value !== undefined && !Number.isNaN(value) && Number.isFinite(value);
-};
-
-export const COMPONENTS = {
-  FormattedNumber,
-  Title,
-  DailyUsageBarChart,
-  CumulativeSpendingLineChart,
-  LinearProgress,
+export const DEPENDENCIES = {
+  DailySpendChart,
   DateRangePicker
 };
 
-export type UsageViewProps = {
-  usageHistoryData: UsageHistory;
-  usageHistoryStatsData: UsageHistoryStats;
-  isFetchingUsageHistory: boolean;
-  isUsageHistoryError: boolean;
-  isFetchingUsageHistoryStats: boolean;
-  isUsageHistoryStatsError: boolean;
-  dateRange: { from: Date; to: Date };
-  onDateRangeChange: (range: { from: Date; to: Date }) => void;
-  components?: typeof COMPONENTS;
+const CHART_RANGE_OPTIONS = [
+  { value: "last7Days", label: "7d" },
+  { value: "last30Days", label: "30d" },
+  { value: "last90Days", label: "90d" }
+] as const satisfies ReadonlyArray<{ value: UsageDatePreset; label: string }>;
+
+/** The usage API rejects windows longer than this. */
+const MAX_RANGE_IN_DAYS = 366;
+
+/** A change smaller than this reads as no change rather than a rounded 0%. */
+const MIN_REPORTED_CHANGE_PERCENT = 0.5;
+
+const LOAD_ERROR = "Couldn't be loaded. Refresh the page to try again.";
+
+export type UsageViewProps = Omit<ChildrenProps, "onExport"> & {
+  dependencies?: typeof DEPENDENCIES;
 };
 
-export const UsageView = ({
+export const UsageView: FC<UsageViewProps> = ({
   usageHistoryData,
   usageHistoryStatsData,
-  isFetchingUsageHistory,
+  previousPeriodTotalSpent,
+  isUsageHistoryLoading,
   isUsageHistoryError,
-  isFetchingUsageHistoryStats,
+  isUsageHistoryStatsLoading,
   isUsageHistoryStatsError,
+  spendRate,
   dateRange,
   onDateRangeChange,
-  components = COMPONENTS
-}: UsageViewProps) => {
-  const oneYearAgo = startOfDay(subYears(new Date(), 1));
-
-  const { FormattedNumber, Title, DailyUsageBarChart, CumulativeSpendingLineChart, LinearProgress, DateRangePicker } = components;
-
-  const exportCsv = React.useCallback(() => {
-    const statsCsvContent = [
-      "Usage Stats",
-      "Total Spent,Average Spent Per Day,Total Deployments,Average Deployments Per Day",
-      [
-        usageHistoryStatsData.totalSpent,
-        usageHistoryStatsData.averageSpentPerDay,
-        usageHistoryStatsData.totalDeployments,
-        usageHistoryStatsData.averageDeploymentsPerDay
-      ]
-        .map(sanitizeCsvField)
-        .join(",")
-    ];
-
-    const historyCsvContent = [
-      "Usage History",
-      "Date,Active Deployments,Daily AKT Spent,Total AKT Spent,Daily ACT Spent,Total ACT Spent,Daily USD Spent,Total USD Spent",
-      ...usageHistoryData.map(row =>
-        [row.date, row.activeDeployments, row.dailyAktSpent, row.totalAktSpent, row.dailyActSpent, row.totalActSpent, row.dailyUsdSpent, row.totalUsdSpent]
-          .map(sanitizeCsvField)
-          .join(",")
-      )
-    ];
-
-    const combinedCsvContent = [...statsCsvContent, ...historyCsvContent].join("\n");
-
-    const blob = new Blob([combinedCsvContent], { type: "text/csv;charset=utf-8;" });
-
-    downloadCsv(blob, "akash_billing_usage");
-  }, [usageHistoryData, usageHistoryStatsData]);
+  datePreset,
+  onDatePresetChange,
+  dependencies: d = DEPENDENCIES
+}) => {
+  const statsError = isUsageHistoryStatsError ? LOAD_ERROR : undefined;
+  const totalSpendCaption = [getRangeLabel(datePreset, dateRange), describeChange(usageHistoryStatsData.totalSpent, previousPeriodTotalSpent)]
+    .filter(Boolean)
+    .join(" · ");
+  const daysInRange = countDaysInRange(dateRange);
 
   return (
-    <div className="h-full space-y-4">
-      <Title subTitle>Overview</Title>
-
-      <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
-        <div>
-          <Label>Filter by Date:</Label>
-          <DateRangePicker date={dateRange} onChange={onDateRangeChange} className="w-full" minDate={oneYearAgo} maxDate={endOfToday()} maxRangeInDays={366} />
+    <div className="space-y-6">
+      {datePreset === "custom" && (
+        <div className="flex sm:justify-end">
+          <d.DateRangePicker
+            date={dateRange}
+            onChange={onDateRangeChange}
+            minDate={startOfDay(subYears(new Date(), 1))}
+            maxDate={endOfToday()}
+            maxRangeInDays={MAX_RANGE_IN_DAYS}
+          />
         </div>
-        <Button variant="outline" onClick={exportCsv} size="sm">
-          <Download width={16} className="mr-2" />
-          Export CSV
-        </Button>
+      )}
+
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(180px,1fr))] gap-3">
+        <StatTile
+          label="Total spend"
+          isLoading={isUsageHistoryStatsLoading}
+          error={statsError}
+          value={<UsdValue value={usageHistoryStatsData.totalSpent} />}
+          caption={totalSpendCaption}
+        />
+        <StatTile
+          label="Daily average"
+          isLoading={isUsageHistoryStatsLoading}
+          error={statsError}
+          value={<UsdValue value={usageHistoryStatsData.averageSpentPerDay} />}
+          caption={`Across ${daysInRange} ${daysInRange === 1 ? "day" : "days"}`}
+        />
+        <StatTile
+          label="Deployments"
+          isLoading={isUsageHistoryStatsLoading}
+          error={statsError}
+          value={<FormattedNumber value={usageHistoryStatsData.totalDeployments} />}
+          caption={
+            <>
+              <FormattedNumber value={usageHistoryStatsData.averageDeploymentsPerDay} maximumFractionDigits={2} /> a day on average
+            </>
+          }
+        />
+        <StatTile
+          label="Projected month"
+          isLoading={spendRate.isLoading}
+          error={spendRate.isError ? LOAD_ERROR : undefined}
+          value={<UsdValue value={spendRate.perHourUsd * 24 * getDaysInMonth(new Date())} />}
+          caption={
+            spendRate.perHourUsd > 0 ? (
+              <>
+                At your current <UsdValue value={spendRate.perHourUsd} />
+                /hr
+              </>
+            ) : (
+              "Nothing is running right now"
+            )
+          }
+        />
       </div>
 
-      {isUsageHistoryStatsError && (
-        <div className="flex h-full items-center justify-center">
-          <p className="text-red-500">Error loading usage stats</p>
-        </div>
-      )}
-
-      {!isUsageHistoryStatsError && (
-        <div className="flex w-full flex-col gap-4 lg:flex-row lg:gap-8">
-          <Card className="flex min-h-28 basis-1/2 flex-col">
-            <CardHeader className="flex flex-row items-center justify-between pb-0">
-              <CardTitle className="text-base">Total Spent</CardTitle>
-              <Dollar color="#71717a" width={18} />
-            </CardHeader>
-            {isFetchingUsageHistoryStats ? (
-              <div className="flex flex-1 items-center">
-                <LinearProgress color="primary" className="mx-auto w-11/12" />
-              </div>
-            ) : (
-              <CardContent className="pt-2">
-                {isValidNumber(usageHistoryStatsData.totalSpent) ? (
-                  <div className="text-3xl font-bold">
-                    <FormattedNumber value={usageHistoryStatsData.totalSpent} style="currency" currency="USD" currencyDisplay="narrowSymbol" />
-                  </div>
-                ) : (
-                  <p className="text-gray-400">No data</p>
-                )}
-                {isValidNumber(usageHistoryStatsData.averageSpentPerDay) && (
-                  <div className="text-sm font-semibold text-gray-400">
-                    <FormattedNumber value={usageHistoryStatsData.averageSpentPerDay} style="currency" currency="USD" currencyDisplay="narrowSymbol" /> average
-                    per day
-                  </div>
-                )}
-              </CardContent>
-            )}
-          </Card>
-          <Card className="flex min-h-28 basis-1/2 flex-col">
-            <CardHeader className="flex flex-row items-center justify-between pb-0">
-              <CardTitle className="text-base">Total Deployments</CardTitle>
-              <Cloud color="#71717a" width={18} />
-            </CardHeader>
-            {isFetchingUsageHistoryStats ? (
-              <div className="flex flex-1 items-center">
-                <LinearProgress color="primary" className="mx-auto w-11/12" />
-              </div>
-            ) : (
-              <CardContent className="pt-2">
-                {isValidNumber(usageHistoryStatsData.totalDeployments) ? (
-                  <div className="text-3xl font-bold">
-                    <FormattedNumber value={usageHistoryStatsData.totalDeployments} />
-                  </div>
-                ) : (
-                  <p className="text-gray-400">No data</p>
-                )}
-                {isValidNumber(usageHistoryStatsData.averageDeploymentsPerDay) && (
-                  <div className="text-sm font-semibold text-gray-400">
-                    <FormattedNumber value={usageHistoryStatsData.averageDeploymentsPerDay} /> average per day
-                  </div>
-                )}
-              </CardContent>
-            )}
-          </Card>
-        </div>
-      )}
-
-      <Title subTitle>Historical</Title>
-
-      {isUsageHistoryError && (
-        <div className="flex h-full items-center justify-center">
-          <p className="text-red-500">Error loading usage data</p>
-        </div>
-      )}
-
-      {!isUsageHistoryError && (
-        <>
-          <DailyUsageBarChart data={usageHistoryData} isFetching={isFetchingUsageHistory} />
-          <CumulativeSpendingLineChart data={usageHistoryData} isFetching={isFetchingUsageHistory} />
-        </>
-      )}
+      <d.DailySpendChart
+        data={usageHistoryData}
+        isLoading={isUsageHistoryLoading}
+        isError={isUsageHistoryError}
+        rangeToggle={<ChartRangeToggle datePreset={datePreset} onDatePresetChange={onDatePresetChange} />}
+      />
     </div>
   );
 };
+
+const StatTile: FC<{ label: string; isLoading: boolean; error?: string; value: ReactNode; caption: ReactNode }> = ({
+  label,
+  isLoading,
+  error,
+  value,
+  caption
+}) => {
+  const labelId = useId();
+
+  return (
+    <Card role="group" aria-labelledby={labelId} aria-busy={isLoading} className="flex min-w-0 flex-col gap-1.5 rounded-xl px-4 py-3.5 shadow-none">
+      <span id={labelId} className="font-mono text-[10px] font-medium uppercase leading-4 tracking-[0.08em] text-muted-foreground">
+        {label}
+      </span>
+      {isLoading ? (
+        <>
+          <Skeleton className="h-7 w-28" />
+          <Skeleton className="h-4 w-36" />
+        </>
+      ) : error ? (
+        <p className="text-xs text-muted-foreground">{error}</p>
+      ) : (
+        <>
+          <span className="truncate font-mono text-[22px] font-semibold tabular-nums leading-7 tracking-[-0.01em]">{value}</span>
+          <span className="text-xs text-muted-foreground">{caption}</span>
+        </>
+      )}
+    </Card>
+  );
+};
+
+const ChartRangeToggle: FC<{ datePreset: UsageDatePreset; onDatePresetChange: (preset: UsageDatePreset) => void }> = ({ datePreset, onDatePresetChange }) => {
+  const selected = CHART_RANGE_OPTIONS.some(option => option.value === datePreset) ? datePreset : "";
+
+  return (
+    <ToggleGroup
+      type="single"
+      value={selected}
+      onValueChange={value => value && onDatePresetChange(value as UsageDatePreset)}
+      aria-label="Chart range"
+      className="gap-0.5 rounded-lg border bg-muted p-[3px]"
+    >
+      {CHART_RANGE_OPTIONS.map(option => (
+        <ToggleGroupItem
+          key={option.value}
+          value={option.value}
+          aria-label={getPresetLabel(option.value)}
+          className="h-auto rounded-md px-2.5 py-1 text-xs font-normal text-muted-foreground data-[state=on]:bg-background data-[state=on]:font-medium data-[state=on]:text-foreground data-[state=on]:shadow-sm hover:bg-transparent hover:text-foreground"
+        >
+          {option.label}
+        </ToggleGroupItem>
+      ))}
+    </ToggleGroup>
+  );
+};
+
+function getPresetLabel(preset: UsageDatePreset) {
+  return USAGE_DATE_PRESETS.find(option => option.value === preset)!.label;
+}
+
+function getRangeLabel(preset: UsageDatePreset, range: UsageDateRange) {
+  if (preset !== "custom") return getPresetLabel(preset);
+
+  const pattern = range.from.getFullYear() === range.to.getFullYear() ? "MMM d" : "MMM d, yyyy";
+  return `${format(range.from, pattern)} to ${format(range.to, pattern)}`;
+}
+
+function describeChange(total: number, previousTotal: number | null) {
+  if (!previousTotal) return null;
+
+  const changePercent = ((total - previousTotal) / previousTotal) * 100;
+  if (Math.abs(changePercent) < MIN_REPORTED_CHANGE_PERCENT) return "same as prior";
+
+  return `${changePercent > 0 ? "+" : ""}${Math.round(changePercent)}% vs prior`;
+}
