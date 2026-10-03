@@ -70,17 +70,32 @@ describe(NotificationChannelDialog.name, () => {
     expect(onClose).toHaveBeenCalled();
   });
 
-  function setup(input: { notificationChannel?: ReturnType<typeof buildNotificationChannel>; withoutOnCreate?: boolean }) {
+  it.each([
+    { mode: "a new channel", notificationChannel: undefined },
+    { mode: "channel edits", notificationChannel: buildNotificationChannel() }
+  ])("can't be dismissed while saving $mode", async ({ notificationChannel }) => {
+    const { onClose, NotificationChannelForm } = setup({ notificationChannel, isSaving: true });
+
+    expect(NotificationChannelForm.mock.lastCall![0].isLoading).toBe(true);
+
+    await userEvent.keyboard("{Escape}");
+    await userEvent.click(screen.getByRole("button", { name: "Close" }));
+
+    expect(onClose).not.toHaveBeenCalled();
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+  });
+
+  function setup(input: { notificationChannel?: ReturnType<typeof buildNotificationChannel>; withoutOnCreate?: boolean; isSaving?: boolean }) {
     const create = vi.fn();
     const onEdit = vi.fn();
     const onCreate = vi.fn();
     const onClose = vi.fn();
     const NotificationChannelForm = vi.fn<typeof DEPENDENCIES.NotificationChannelForm>(() => null);
     const NotificationChannelCreateContainer = vi.fn<typeof DEPENDENCIES.NotificationChannelCreateContainer>(({ children }) => (
-      <>{children({ create, isLoading: false })}</>
+      <>{children({ create, isLoading: input.isSaving ?? false })}</>
     ));
     const NotificationChannelEditContainer = vi.fn<typeof DEPENDENCIES.NotificationChannelEditContainer>(({ children }) => (
-      <>{children({ onEdit, isLoading: false })}</>
+      <>{children({ onEdit, isLoading: input.isSaving ?? false })}</>
     ));
 
     render(

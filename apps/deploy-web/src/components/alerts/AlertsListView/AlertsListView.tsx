@@ -1,5 +1,5 @@
 import type { FC } from "react";
-import React, { useMemo, useState } from "react";
+import React, { useState } from "react";
 import type { components } from "@akashnetwork/console-api-types/notifications";
 import { Alert, AlertDescription, AlertTitle, Button, Card, Checkbox, CustomPagination, MIN_PAGE_SIZE, Skeleton } from "@akashnetwork/ui/components";
 import { Bell, Pencil, Trash2 } from "lucide-react";
@@ -78,7 +78,6 @@ export const AlertsListView: FC<Props> = ({
 }) => {
   const [alertPendingDelete, setAlertPendingDelete] = useState<AlertWithDeploymentName | null>(null);
   const [alertBeingEdited, setAlertBeingEdited] = useState<WalletBalanceAlert | null>(null);
-  const visibleData = useMemo(() => data.filter(alert => alert.type !== "DEPLOYMENT_BALANCE"), [data]);
 
   const deleteAlert = async (alert: AlertWithDeploymentName) => {
     await onRemove(alert.id);
@@ -101,7 +100,7 @@ export const AlertsListView: FC<Props> = ({
       <Card className="overflow-hidden rounded-xl shadow-none">
         {isLoading ? (
           <AlertsTableSkeleton />
-        ) : visibleData.length === 0 ? (
+        ) : data.length === 0 ? (
           <div className="flex flex-col items-center gap-2 px-6 py-10 text-center">
             <Bell className="h-5 w-5 text-muted-foreground" aria-hidden />
             <p className="text-sm font-semibold">No alerts yet</p>
@@ -122,7 +121,7 @@ export const AlertsListView: FC<Props> = ({
               </div>
             </div>
             <div role="rowgroup">
-              {visibleData.map(alert => {
+              {data.map(alert => {
                 const dseq = getDseq(alert);
                 const typeLabel = getTypeLabel(alert);
                 const subject = getSubject(alert);

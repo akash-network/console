@@ -98,15 +98,6 @@ describe(AlertsListView.name, () => {
     expect(screen.getByText(label)).toBeInTheDocument();
   });
 
-  it("leaves out the retired deployment balance alerts", () => {
-    const retired = buildAlert({ type: "DEPLOYMENT_BALANCE", deploymentName: "retired", params: { owner: "owner", dseq: "12345" } });
-
-    setup({ data: [retired], total: 1 });
-
-    expect(screen.queryByText("retired")).not.toBeInTheDocument();
-    expect(screen.getByText("No alerts yet")).toBeInTheDocument();
-  });
-
   it.each([
     { enabled: true, nextEnabled: false },
     { enabled: false, nextEnabled: true }

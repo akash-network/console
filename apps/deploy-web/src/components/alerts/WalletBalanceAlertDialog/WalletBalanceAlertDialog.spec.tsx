@@ -89,12 +89,24 @@ describe(WalletBalanceAlertDialog.name, () => {
     expect(onClose).toHaveBeenCalled();
   });
 
-  function setup(input: { conditions: WalletBalanceAlert["conditions"] }) {
+  it("can't be dismissed while the changes are being saved", async () => {
+    const { onClose, WalletBalanceAlertForm } = setup({ conditions: SINGLE_LEAF_CONDITION, isSaving: true });
+
+    expect(WalletBalanceAlertForm.mock.lastCall![0].isLoading).toBe(true);
+
+    await userEvent.keyboard("{Escape}");
+    await userEvent.click(screen.getByRole("button", { name: "Close" }));
+
+    expect(onClose).not.toHaveBeenCalled();
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+  });
+
+  function setup(input: { conditions: WalletBalanceAlert["conditions"]; isSaving?: boolean }) {
     const alert = buildWalletBalanceAlert({ conditions: input.conditions, params: { owner: "akash1owner", denom: "uakt" } });
     const onEdit = vi.fn();
     const onClose = vi.fn();
     const WalletBalanceAlertForm = vi.fn<typeof DEPENDENCIES.WalletBalanceAlertForm>(() => null);
-    const EditAlertContainer = vi.fn<typeof DEPENDENCIES.EditAlertContainer>(({ children }) => <>{children({ onEdit, isLoading: false })}</>);
+    const EditAlertContainer = vi.fn<typeof DEPENDENCIES.EditAlertContainer>(({ children }) => <>{children({ onEdit, isLoading: input.isSaving ?? false })}</>);
 
     render(<WalletBalanceAlertDialog alert={alert} onClose={onClose} dependencies={{ WalletBalanceAlertForm, EditAlertContainer }} />);
 

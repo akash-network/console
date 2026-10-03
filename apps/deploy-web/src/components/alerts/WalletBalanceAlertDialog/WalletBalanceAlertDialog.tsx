@@ -1,6 +1,6 @@
 "use client";
 
-import type { FC } from "react";
+import type { FC, ReactNode } from "react";
 import React, { useMemo } from "react";
 import type { components } from "@akashnetwork/console-api-types/notifications";
 import {
@@ -49,41 +49,49 @@ type Props = {
 export const WalletBalanceAlertDialog: FC<Props> = ({ alert, onClose, dependencies: d = DEPENDENCIES }) => {
   const initialValues = useMemo(() => getWalletBalanceAlertInitialValues(alert), [alert]);
 
+  if (!initialValues) {
+    return (
+      <AlertDialogFrame isSaving={false} onClose={onClose}>
+        <DialogV2Body>
+          <Alert variant="warning">
+            This alert has several balance conditions, so it can&apos;t be edited here. To change it, delete it and create a new one.
+          </Alert>
+        </DialogV2Body>
+        <DialogV2Footer>
+          <Button type="button" variant="ghost" onClick={onClose}>
+            OK
+          </Button>
+        </DialogV2Footer>
+      </AlertDialogFrame>
+    );
+  }
+
   return (
-    <DialogV2 open onOpenChange={isOpen => !isOpen && onClose()}>
-      <DialogV2Content className="max-w-xl">
-        <DialogV2Header>
-          <DialogV2Title>Edit wallet balance alert</DialogV2Title>
-          <DialogV2Description>Choose when this alert fires and which channel it notifies.</DialogV2Description>
-        </DialogV2Header>
-        {initialValues ? (
-          <d.EditAlertContainer id={alert.id} onEditSuccess={onClose}>
-            {props => (
-              <d.WalletBalanceAlertForm
-                initialValues={initialValues}
-                owner={alert.params.owner}
-                denom={alert.params.denom}
-                isLoading={props.isLoading}
-                onSubmit={props.onEdit}
-                onCancel={onClose}
-              />
-            )}
-          </d.EditAlertContainer>
-        ) : (
-          <>
-            <DialogV2Body>
-              <Alert variant="warning">
-                This alert has several balance conditions, so it can&apos;t be edited here. To change it, delete it and create a new one.
-              </Alert>
-            </DialogV2Body>
-            <DialogV2Footer>
-              <Button type="button" variant="ghost" onClick={onClose}>
-                OK
-              </Button>
-            </DialogV2Footer>
-          </>
-        )}
-      </DialogV2Content>
-    </DialogV2>
+    <d.EditAlertContainer id={alert.id} onEditSuccess={onClose}>
+      {props => (
+        <AlertDialogFrame isSaving={props.isLoading} onClose={onClose}>
+          <d.WalletBalanceAlertForm
+            initialValues={initialValues}
+            owner={alert.params.owner}
+            denom={alert.params.denom}
+            isLoading={props.isLoading}
+            onSubmit={props.onEdit}
+            onCancel={onClose}
+          />
+        </AlertDialogFrame>
+      )}
+    </d.EditAlertContainer>
   );
 };
+
+const AlertDialogFrame: FC<{ isSaving: boolean; onClose: () => void; children: ReactNode }> = ({ isSaving, onClose, children }) => (
+  <DialogV2 open onOpenChange={isOpen => !isOpen && !isSaving && onClose()}>
+    <DialogV2Content className="max-w-xl">
+      <DialogV2Header>
+        <DialogV2Title>Edit wallet balance alert</DialogV2Title>
+        <DialogV2Description>Choose when this alert fires and which channel it notifies.</DialogV2Description>
+      </DialogV2Header>
+      {children}
+    </DialogV2Content>
+  </DialogV2>
+);
