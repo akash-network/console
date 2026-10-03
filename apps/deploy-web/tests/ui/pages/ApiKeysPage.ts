@@ -8,26 +8,36 @@ export class ApiKeysPage {
   }
 
   async createKey(name: string) {
-    await this.page.getByRole("button", { name: /create key/i }).click();
-    const dialog = this.page.getByRole("dialog");
+    await this.page.getByRole("button", { name: "Create new key" }).click();
+    const dialog = this.page.getByRole("dialog", { name: "Create a new API key" });
     await dialog.getByLabel("Name").fill(name);
-    await dialog.getByRole("button", { name: /create key/i }).click();
+    await dialog.getByRole("button", { name: "Create key" }).click();
   }
 
-  getSaveKeyDialog() {
-    return this.page.getByRole("dialog", { name: /save your key/i });
+  getCreatedKeyDialog(name: string) {
+    return this.page.getByRole("dialog", { name: `“${name}” is ready` });
   }
 
-  async dismissSaveDialog() {
-    await this.getSaveKeyDialog().getByRole("button", { name: /done/i }).click();
+  getCreatedKeySecret(name: string) {
+    return this.getCreatedKeyDialog(name).getByLabel("API key secret");
+  }
+
+  async closeCreatedKeyDialog(name: string) {
+    await this.getCreatedKeyDialog(name).getByRole("button", { name: "Done" }).click();
   }
 
   getKeyRow(name: string) {
-    return this.page.getByRole("row").filter({ hasText: name });
+    return this.page.getByRole("list", { name: "API keys" }).getByRole("listitem").filter({ hasText: name });
   }
 
-  async deleteKey(name: string) {
-    await this.getKeyRow(name).getByRole("button").click();
-    await this.page.getByRole("button", { name: /confirm/i }).click();
+  async revokeKey(name: string) {
+    await this.getKeyRow(name)
+      .getByRole("button", { name: `Actions for ${name}` })
+      .click();
+    await this.page.getByRole("menuitem", { name: "Revoke key" }).click();
+    await this.page
+      .getByRole("dialog", { name: `Revoke “${name}”?` })
+      .getByRole("button", { name: "Revoke key" })
+      .click();
   }
 }
