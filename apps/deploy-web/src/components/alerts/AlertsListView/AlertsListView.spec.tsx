@@ -122,6 +122,15 @@ describe(AlertsListView.name, () => {
     expect(screen.getByRole("button", { name: "Delete Deployment Close alert for web" })).toBeEnabled();
   });
 
+  it("locks editing while that wallet balance alert is being toggled", () => {
+    const alert = buildAlert({ type: "WALLET_BALANCE", name: "Low balance", deploymentName: null });
+
+    setup({ data: [alert], loadingIds: new Set([alert.id]) });
+
+    expect(screen.getByRole("button", { name: "Edit Wallet Balance alert for Low balance" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Delete Wallet Balance alert for Low balance" })).toBeEnabled();
+  });
+
   it("locks the checkbox and actions while that alert is being deleted", () => {
     const alert = buildAlert({ type: "WALLET_BALANCE", name: "Low balance", deploymentName: null });
 

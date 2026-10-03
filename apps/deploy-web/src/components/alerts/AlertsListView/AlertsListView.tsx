@@ -126,6 +126,7 @@ export const AlertsListView: FC<Props> = ({
                 const typeLabel = getTypeLabel(alert);
                 const subject = getSubject(alert);
                 const isRemoving = removingIds.has(alert.id);
+                const isToggling = loadingIds.has(alert.id);
 
                 return (
                   <div
@@ -137,7 +138,7 @@ export const AlertsListView: FC<Props> = ({
                     <span role="cell" className="flex self-start pt-0.5 [grid-area:toggle] lg:self-center lg:pt-0 lg:[grid-area:auto]">
                       <Checkbox
                         checked={alert.enabled}
-                        disabled={isRemoving || loadingIds.has(alert.id)}
+                        disabled={isRemoving || isToggling}
                         onCheckedChange={checked => onToggle(alert.id, checked === true, dseq)}
                         aria-label={`Enable ${typeLabel} alert for ${subject}`}
                       />
@@ -172,7 +173,7 @@ export const AlertsListView: FC<Props> = ({
                           variant="ghost"
                           size="icon"
                           className="h-8 w-8 rounded-lg"
-                          disabled={isRemoving}
+                          disabled={isRemoving || isToggling}
                           aria-label={`Edit ${typeLabel} alert for ${subject}`}
                           onClick={() => setAlertBeingEdited(alert)}
                         >
