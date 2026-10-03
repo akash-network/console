@@ -1,4 +1,5 @@
 import React from "react";
+import { DialogV2, DialogV2Content, DialogV2Title } from "@akashnetwork/ui/components";
 import { describe, expect, it, vi } from "vitest";
 
 import type { WalletBalanceAlertFormProps } from "./WalletBalanceAlertForm";
@@ -60,21 +61,48 @@ describe(WalletBalanceAlertForm.name, () => {
     });
   });
 
+  it("cancels without submitting", async () => {
+    const { onSubmit, onCancel } = setup();
+
+    fireEvent.click(screen.getByTestId("wallet-balance-alert-cancel"));
+
+    expect(onCancel).toHaveBeenCalled();
+    expect(onSubmit).not.toHaveBeenCalled();
+  });
+
+  it("locks the fields and actions while saving", () => {
+    setup({ isLoading: true });
+
+    expect(screen.getByTestId("wallet-balance-alert-name")).toBeDisabled();
+    expect(screen.getByTestId("wallet-balance-alert-amount")).toBeDisabled();
+    expect(screen.getByTestId("wallet-balance-alert-cancel")).toBeDisabled();
+    expect(screen.getByTestId("wallet-balance-alert-submit")).toBeDisabled();
+  });
+
   function setup(input: Partial<WalletBalanceAlertFormProps> = {}) {
     const onSubmit = vi.fn();
+    const onCancel = vi.fn();
     const props: WalletBalanceAlertFormProps = {
       initialValues: { name: "Low balance", notificationChannelId: "channel-1", operator: "lt", amount: 5, enabled: true },
       owner: "akash1owner",
       denom: "uakt",
       onSubmit,
+      onCancel,
       ...input,
       dependencies: {
         NotificationChannelSelect: () => <div data-testid="notification-channel-select" />
       }
     };
 
-    render(<WalletBalanceAlertForm {...props} />);
+    render(
+      <DialogV2 open>
+        <DialogV2Content aria-describedby={undefined}>
+          <DialogV2Title>Edit wallet balance alert</DialogV2Title>
+          <WalletBalanceAlertForm {...props} />
+        </DialogV2Content>
+      </DialogV2>
+    );
 
-    return { onSubmit, props };
+    return { onSubmit, onCancel, props };
   }
 });

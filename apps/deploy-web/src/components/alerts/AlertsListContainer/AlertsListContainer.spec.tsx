@@ -59,14 +59,14 @@ describe(AlertsListContainer.name, () => {
     expect(child.data[0].deploymentName).toBe("web");
   });
 
-  it("leaves an alert that names no deployment on the placeholder", async () => {
+  it("gives no deployment name to an alert that names no deployment", async () => {
     const withDseq = buildAlert({ type: "DEPLOYMENT_BALANCE", params: { dseq: "4242", owner: "akash1owner" } });
     const withoutParams = buildAlert({ type: "CHAIN_MESSAGE", params: undefined });
     const { childCapturer } = await setup({ alerts: [withDseq, withoutParams], names: { "4242": "web" } });
 
     const child = await childCapturer.awaitChild(({ data }) => data[0]?.deploymentName === "web");
 
-    expect(child.data[1].deploymentName).toBe("NA");
+    expect(child.data[1].deploymentName).toBeNull();
   });
 
   it("asks the console only for the deployments the alerts actually name", async () => {
@@ -84,7 +84,7 @@ describe(AlertsListContainer.name, () => {
     const mockData = {
       data:
         input.alerts ??
-        Array.from({ length: 11 }, () => buildAlert({ type: faker.helpers.arrayElement(["DEPLOYMENT_BALANCE", "CHAIN_MESSAGE"]), deploymentName: "NA" })),
+        Array.from({ length: 11 }, () => buildAlert({ type: faker.helpers.arrayElement(["DEPLOYMENT_BALANCE", "CHAIN_MESSAGE"]), deploymentName: null })),
       pagination: {
         page: 1,
         limit: 10,

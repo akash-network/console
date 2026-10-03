@@ -1,12 +1,13 @@
 "use client";
 
 import type { FC } from "react";
-import React, { useCallback, useEffect, useMemo } from "react";
+import React, { useCallback, useMemo } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import {
-  Alert,
   Button,
   CheckboxWithLabel,
+  DialogV2Body,
+  DialogV2Footer,
   Form,
   FormField,
   FormInput,
@@ -24,7 +25,6 @@ import { isEqual } from "lodash";
 import { z } from "zod";
 
 import { NotificationChannelSelect } from "@src/components/alerts/NotificationChannelSelectForm/NotificationChannelSelect";
-import type { ChangeableComponentProps } from "@src/types/changeable-component-props.type";
 import { getDenomLabel } from "@src/utils/denomLabel";
 
 export const DEPENDENCIES = { NotificationChannelSelect };
@@ -53,15 +53,15 @@ export type WalletBalanceAlertFormValues = Pick<FormValues, "name" | "notificati
   conditions: { operator: BalanceOperator; field: "balance"; value: number };
 };
 
-export type WalletBalanceAlertFormProps = ChangeableComponentProps<{
+export type WalletBalanceAlertFormProps = {
   initialValues: FormValues;
   owner: string;
   denom: string;
   onSubmit: (data: WalletBalanceAlertFormValues) => void;
-  onCancel?: () => void;
+  onCancel: () => void;
   isLoading?: boolean;
   dependencies?: typeof DEPENDENCIES;
-}>;
+};
 
 export const WalletBalanceAlertForm: FC<WalletBalanceAlertFormProps> = ({
   initialValues,
@@ -70,7 +70,6 @@ export const WalletBalanceAlertForm: FC<WalletBalanceAlertFormProps> = ({
   onSubmit,
   onCancel,
   isLoading,
-  onStateChange,
   dependencies: d = DEPENDENCIES
 }) => {
   const { symbol, decimals } = useMemo(() => getDenomLabel(denom), [denom]);
@@ -106,118 +105,111 @@ export const WalletBalanceAlertForm: FC<WalletBalanceAlertFormProps> = ({
     return fields.some(key => !isEqual(initialValues[key], currentValues[key]));
   }, [currentValues, initialValues]);
 
-  useEffect(() => {
-    onStateChange?.({ hasChanges });
-  }, [hasChanges, onStateChange]);
-
   return (
     <Form {...form}>
-      <form onSubmit={handleSubmit(submit)} className="max-w-xl space-y-6 p-6">
-        <FormField
-          control={control}
-          name="name"
-          render={({ field }) => (
-            <FormInput
-              data-testid="wallet-balance-alert-name"
-              label="Name"
-              value={field.value}
-              onChange={event => field.onChange(event.target.value)}
-              disabled={isLoading}
-            />
-          )}
-        />
+      <form onSubmit={handleSubmit(submit)} className="flex min-h-0 flex-1 flex-col">
+        <DialogV2Body className="space-y-5">
+          <FormField
+            control={control}
+            name="name"
+            render={({ field }) => (
+              <FormInput
+                data-testid="wallet-balance-alert-name"
+                label="Name"
+                value={field.value}
+                onChange={event => field.onChange(event.target.value)}
+                disabled={isLoading}
+              />
+            )}
+          />
 
-        <div className="space-y-2">
-          <FormLabel>Wallet</FormLabel>
-          <div className="flex items-center justify-between gap-3 rounded-md border bg-muted/40 px-3 py-2">
-            <span className="break-all font-mono text-sm" data-testid="wallet-balance-alert-owner">
-              {owner}
-            </span>
-            <span className="shrink-0 rounded border bg-background px-2 py-0.5 font-mono text-xs text-muted-foreground">{denom}</span>
+          <div className="space-y-2">
+            <FormLabel>Wallet</FormLabel>
+            <div className="flex items-center justify-between gap-3 rounded-md border bg-muted/40 px-3 py-2">
+              <span className="break-all font-mono text-sm" data-testid="wallet-balance-alert-owner">
+                {owner}
+              </span>
+              <span className="shrink-0 rounded border bg-background px-2 py-0.5 font-mono text-xs text-muted-foreground">{denom}</span>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              The watched wallet and denom can&apos;t be changed. To watch a different wallet, delete this alert and create a new one.
+            </p>
           </div>
-          <p className="text-xs text-muted-foreground">
-            The watched wallet and denom can&apos;t be changed. To watch a different wallet, delete this alert and create a new one.
-          </p>
-        </div>
 
-        <div className="space-y-2">
-          <FormLabel>Alert me when balance is</FormLabel>
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
-            <FormField
-              control={control}
-              name="operator"
-              render={({ field }) => (
-                <Select value={field.value} onValueChange={field.onChange} disabled={isLoading}>
-                  <SelectTrigger className="sm:w-56" data-testid="wallet-balance-alert-operator">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectGroup>
-                      {BALANCE_OPERATORS.map(operator => (
-                        <SelectItem key={operator} value={operator}>
-                          {OPERATOR_LABELS[operator]}
-                        </SelectItem>
-                      ))}
-                    </SelectGroup>
-                  </SelectContent>
-                </Select>
-              )}
-            />
-            <div className="flex-1">
+          <div className="space-y-2">
+            <FormLabel>Alert me when balance is</FormLabel>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
               <FormField
                 control={control}
-                name="amount"
+                name="operator"
                 render={({ field }) => (
-                  <FormInput
-                    type="number"
-                    step={1 / 10 ** decimals}
-                    min={0}
-                    data-testid="wallet-balance-alert-amount"
-                    endIcon={<span className="pr-3 font-mono text-sm text-muted-foreground">{symbol}</span>}
-                    value={Number.isNaN(field.value) ? "" : field.value}
-                    onChange={event => field.onChange(event.target.valueAsNumber)}
-                    disabled={isLoading}
-                  />
+                  <Select value={field.value} onValueChange={field.onChange} disabled={isLoading}>
+                    <SelectTrigger className="sm:w-56" data-testid="wallet-balance-alert-operator">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectGroup>
+                        {BALANCE_OPERATORS.map(operator => (
+                          <SelectItem key={operator} value={operator}>
+                            {OPERATOR_LABELS[operator]}
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
                 )}
               />
-              <p className="pt-1 font-mono text-xs text-muted-foreground" data-testid="wallet-balance-alert-base-preview">
-                stored as {Math.round((Number.isNaN(amount) ? 0 : amount) * 10 ** decimals).toLocaleString("en-US")} {denom}
-              </p>
+              <div className="flex-1">
+                <FormField
+                  control={control}
+                  name="amount"
+                  render={({ field }) => (
+                    <FormInput
+                      type="number"
+                      step={1 / 10 ** decimals}
+                      min={0}
+                      data-testid="wallet-balance-alert-amount"
+                      endIcon={<span className="pr-3 font-mono text-sm text-muted-foreground">{symbol}</span>}
+                      value={Number.isNaN(field.value) ? "" : field.value}
+                      onChange={event => field.onChange(event.target.valueAsNumber)}
+                      disabled={isLoading}
+                    />
+                  )}
+                />
+                <p className="pt-1 font-mono text-xs text-muted-foreground" data-testid="wallet-balance-alert-base-preview">
+                  stored as {Math.round((Number.isNaN(amount) ? 0 : amount) * 10 ** decimals).toLocaleString("en-US")} {denom}
+                </p>
+              </div>
             </div>
           </div>
-        </div>
 
-        <div className="space-y-2">
-          <d.NotificationChannelSelect name="notificationChannelId" disabled={isLoading} />
-        </div>
+          <div className="space-y-2">
+            <d.NotificationChannelSelect name="notificationChannelId" disabled={isLoading} />
+          </div>
 
-        <FormField
-          control={control}
-          name="enabled"
-          render={({ field }) => (
-            <CheckboxWithLabel
-              label="Enabled"
-              data-testid="wallet-balance-alert-enabled"
-              disabled={isLoading}
-              checked={field.value}
-              onCheckedChange={value => field.onChange(value as boolean)}
-              labelClassName="font-bold"
-            />
-          )}
-        />
+          <FormField
+            control={control}
+            name="enabled"
+            render={({ field }) => (
+              <CheckboxWithLabel
+                label="Enabled"
+                data-testid="wallet-balance-alert-enabled"
+                disabled={isLoading}
+                checked={field.value}
+                onCheckedChange={value => field.onChange(value as boolean)}
+              />
+            )}
+          />
+        </DialogV2Body>
 
-        {form.formState.errors.root && <Alert variant="destructive">{form.formState.errors.root.message}</Alert>}
-
-        <div className="flex justify-end gap-4">
-          {onCancel && (
-            <Button data-testid="wallet-balance-alert-cancel" disabled={isLoading} type="button" variant="secondary" onClick={onCancel}>
-              Cancel
-            </Button>
-          )}
-          <LoadingButton data-testid="wallet-balance-alert-submit" disabled={isLoading || !hasChanges} loading={isLoading} type="submit">
+        <DialogV2Footer>
+          <Button data-testid="wallet-balance-alert-cancel" disabled={isLoading} type="button" variant="ghost" onClick={onCancel}>
+            Cancel
+          </Button>
+          <LoadingButton data-testid="wallet-balance-alert-submit" disabled={!hasChanges} loading={isLoading} type="submit">
             Save changes
           </LoadingButton>
-        </div>
+        </DialogV2Footer>
       </form>
     </Form>
   );

@@ -14,13 +14,15 @@ type NotificationChannel = components["schemas"]["NotificationChannelOutput"]["d
 export type NotificationChannelsOutput = components["schemas"]["NotificationChannelListOutput"]["data"];
 type NotificationChannelsPagination = components["schemas"]["NotificationChannelListOutput"]["pagination"];
 
+export type RemoveNotificationChannelResult = "removed" | "in-use" | "failed";
+
 export type ChildrenProps = {
   data: NotificationChannelsOutput;
   pagination: Pick<NotificationChannelsPagination, "page" | "limit" | "total" | "totalPages">;
   isLoading: boolean;
   isFetched: boolean;
   removingIds: Set<NotificationChannel["id"]>;
-  onRemove: (id: NotificationChannel["id"]) => Promise<void>;
+  onRemove: (id: NotificationChannel["id"]) => Promise<RemoveNotificationChannelResult>;
   onPaginationChange: (state: { page: number; limit: number }) => void;
   isError: boolean;
   refetch: () => void;
@@ -31,9 +33,7 @@ type NotificationChannelsListContainerProps = {
   children: (props: ChildrenProps) => ReactNode;
 };
 
-const ERROR_MESSAGES: Record<string, string> = {
-  "Cannot delete notification channel with alerts": "Cannot delete notification channel with alerts"
-};
+const CHANNEL_IN_USE_ERROR = "Cannot delete notification channel with alerts";
 
 export const NotificationChannelsListContainer: FC<NotificationChannelsListContainerProps> = ({ onFetched, children }) => {
   const [page, setPage] = useState(1);
@@ -45,7 +45,7 @@ export const NotificationChannelsListContainer: FC<NotificationChannelsListConta
   const notificator = useNotificator();
 
   const remove = useCallback(
-    async (id: NotificationChannel["id"]) => {
+    async (id: NotificationChannel["id"]): Promise<RemoveNotificationChannelResult> => {
       try {
         setRemovingIds(prev => new Set(prev).add(id));
 
@@ -58,12 +58,17 @@ export const NotificationChannelsListContainer: FC<NotificationChannelsListConta
         } else {
           refetch();
         }
+
+        return "removed";
       } catch (error) {
-        const backendMessage = extractApiErrorMessage(error);
-        const message = (backendMessage && ERROR_MESSAGES[backendMessage]) || "Failed to remove notification channel";
-        notificator.error(message, {
+        if (extractApiErrorMessage(error) === CHANNEL_IN_USE_ERROR) {
+          return "in-use";
+        }
+
+        notificator.error("Failed to remove notification channel", {
           dataTestId: "notification-channel-remove-error-notification"
         });
+        return "failed";
       } finally {
         setRemovingIds(prev => {
           const nextSet = new Set(prev);

@@ -17,8 +17,10 @@ type Alert = components["schemas"]["AlertOutputResponse"]["data"];
 type AlertsOutput = components["schemas"]["AlertListOutputResponse"]["data"][0];
 type AlertsPagination = components["schemas"]["AlertListOutputResponse"]["pagination"];
 
+export type AlertWithDeploymentName = AlertsOutput & { deploymentName: string | null };
+
 export type ChildrenProps = {
-  data: (AlertsOutput & { deploymentName: string })[];
+  data: AlertWithDeploymentName[];
   pagination: Pick<AlertsPagination, "page" | "limit" | "total" | "totalPages">;
   isLoading: boolean;
   onPaginationChange: (state: { page: number; limit: number }) => void;
@@ -108,7 +110,7 @@ export const AlertsListContainer: FC<AlertsListContainerProps> = ({ children }) 
   const dataWithNames = useMemo(() => {
     return data?.data.map(item => ({
       ...item,
-      deploymentName: (item.params && "dseq" in item.params && getDeploymentName(item.params.dseq)) || "NA"
+      deploymentName: item.params && "dseq" in item.params ? getDeploymentName(item.params.dseq) : null
     }));
   }, [data?.data, getDeploymentName]);
 

@@ -174,6 +174,11 @@ const nextConfig = {
         permanent: true
       },
       {
+        source: "/alerts/:path+",
+        destination: "/alerts",
+        permanent: false
+      },
+      {
         source: "/price-compare",
         destination: "https://akash.network/about/pricing/custom/",
         permanent: false

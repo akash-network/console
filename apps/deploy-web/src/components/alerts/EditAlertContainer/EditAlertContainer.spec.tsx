@@ -9,7 +9,7 @@ import { EditAlertContainer } from "@src/components/alerts/EditAlertContainer/Ed
 import { queryClient } from "@src/queries";
 import { createApiSdk } from "@src/services/api-sdk/createApiSdk";
 
-import { render, screen } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 import { buildWalletBalanceAlert } from "@tests/seeders/alert";
 import { createContainerTestingChildCapturer } from "@tests/unit/container-testing-child-capturer";
 import { jsonResponse } from "@tests/unit/jsonResponse";
@@ -30,6 +30,33 @@ describe(EditAlertContainer.name, () => {
         })
       );
       expect(screen.getByTestId("alert-edit-success-notification")).toBeInTheDocument();
+    });
+  });
+
+  it("notifies and calls back only once when re-rendered with a new callback after saving", async () => {
+    const { input, child, onEditSuccess, rerenderWithCallback } = await setup();
+
+    child.onEdit(input);
+    await vi.waitFor(() => {
+      expect(onEditSuccess).toHaveBeenCalledTimes(1);
+    });
+
+    const laterCallback = vi.fn();
+    rerenderWithCallback(laterCallback);
+    await act(() => new Promise(resolve => setTimeout(resolve, 20)));
+
+    expect(laterCallback).not.toHaveBeenCalled();
+    expect(onEditSuccess).toHaveBeenCalledTimes(1);
+    expect(screen.getAllByTestId("alert-edit-success-notification")).toHaveLength(1);
+  });
+
+  it("calls back once the changes are saved", async () => {
+    const { input, child, onEditSuccess } = await setup();
+
+    child.onEdit(input);
+
+    await vi.waitFor(() => {
+      expect(onEditSuccess).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -60,17 +87,26 @@ describe(EditAlertContainer.name, () => {
       api: () => createProxy(createApiSdk({ baseUrl: "", fetch: mockFetch }))
     };
     const childCapturer = createContainerTestingChildCapturer<ChildrenProps>();
+    const onEditSuccess = vi.fn();
 
-    render(
+    const renderWith = (onSuccess: () => void) => (
       <CustomSnackbarProvider>
         <TestContainerProvider services={services}>
-          <EditAlertContainer id={id} onEditSuccess={vi.fn()}>
+          <EditAlertContainer id={id} onEditSuccess={onSuccess}>
             {childCapturer.renderChild}
           </EditAlertContainer>
         </TestContainerProvider>
       </CustomSnackbarProvider>
     );
+    const { rerender } = render(renderWith(onEditSuccess));
 
-    return { mockFetch, id, input, child: await childCapturer.awaitChild() };
+    return {
+      mockFetch,
+      id,
+      input,
+      onEditSuccess,
+      rerenderWithCallback: (onSuccess: () => void) => rerender(renderWith(onSuccess)),
+      child: await childCapturer.awaitChild()
+    };
   }
 });

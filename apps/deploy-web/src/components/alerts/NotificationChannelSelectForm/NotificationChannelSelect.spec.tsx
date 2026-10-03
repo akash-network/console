@@ -1,11 +1,13 @@
-import { FormProvider, useForm } from "react-hook-form";
-import { describe, expect, it } from "vitest";
+import { FormProvider, useForm, useFormContext } from "react-hook-form";
+import { describe, expect, it, vi } from "vitest";
 
 import type { NotificationChannelsOutput } from "@src/components/alerts/NotificationChannelsListContainer/NotificationChannelsListContainer";
 import type { FCWithChildren } from "@src/types/component";
+import type { DEPENDENCIES } from "./NotificationChannelSelect";
 import { NotificationChannelSelectView } from "./NotificationChannelSelect";
 
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { buildNotificationChannel } from "@tests/seeders/notificationChannel";
 
 describe(NotificationChannelSelectView.name, () => {
@@ -40,22 +42,52 @@ describe(NotificationChannelSelectView.name, () => {
     expect(label).toHaveClass("cursor-not-allowed");
   });
 
-  it("renders add notification channel link", () => {
+  it("adds a notification channel in a dialog and selects it", async () => {
+    const createdChannel = buildNotificationChannel({ name: "Ops team" });
+    setup({ createdChannel });
+    expect(screen.queryByTestId("notification-channel-dialog")).not.toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: "Add notification channel" }));
+    await userEvent.click(screen.getByRole("button", { name: "Create channel" }));
+
+    expect(screen.getByTestId("selected-channel")).toHaveTextContent(createdChannel.id);
+    expect(screen.getByTestId("selected-channel")).toHaveAttribute("data-dirty", "true");
+  });
+
+  it("closes the add channel dialog when it asks to", async () => {
     setup();
 
-    const addLink = screen.getByRole("link", { name: "Add notification channel" });
-    expect(addLink).toHaveAttribute("href", "/alerts/notification-channels/new");
+    await userEvent.click(screen.getByRole("button", { name: "Add notification channel" }));
+    await userEvent.click(screen.getByRole("button", { name: "Close channel dialog" }));
+
+    expect(screen.queryByTestId("notification-channel-dialog")).not.toBeInTheDocument();
+    expect(screen.getByTestId("selected-channel")).toHaveTextContent("");
   });
 
-  it("disables add link when disabled prop is true", () => {
+  it("disables the add channel button when disabled prop is true", () => {
     setup({ disabled: true });
 
-    const addLink = screen.getByRole("link", { name: "Add notification channel" });
-    expect(addLink).toHaveClass("opacity-10");
-    expect(addLink).toHaveClass("cursor-not-allowed");
+    expect(screen.getByRole("button", { name: "Add notification channel" })).toBeDisabled();
   });
 
-  function setup(input: { data?: NotificationChannelsOutput; disabled?: boolean; fieldError?: string } = {}) {
+  function setup(
+    input: { data?: NotificationChannelsOutput; disabled?: boolean; fieldError?: string; createdChannel?: ReturnType<typeof buildNotificationChannel> } = {}
+  ) {
+    const createdChannel = input.createdChannel ?? buildNotificationChannel();
+    const NotificationChannelDialog: typeof DEPENDENCIES.NotificationChannelDialog = ({ onCreate, onClose }) => (
+      <div data-testid="notification-channel-dialog">
+        <button onClick={() => onCreate?.(createdChannel)}>Create channel</button>
+        <button onClick={onClose}>Close channel dialog</button>
+      </div>
+    );
+    const SelectedChannel = () => {
+      const { watch, formState } = useFormContext();
+      return (
+        <output data-testid="selected-channel" data-dirty={String(!!formState.dirtyFields.notificationChannelId)}>
+          {watch("notificationChannelId")}
+        </output>
+      );
+    };
     const notificationChannels = [buildNotificationChannel({ name: "Email: alice@example.com" }), buildNotificationChannel({ name: "Email: bob@example.com" })];
 
     const Wrapper: FCWithChildren = ({ children }) => {
@@ -73,7 +105,14 @@ describe(NotificationChannelSelectView.name, () => {
 
     render(
       <Wrapper>
-        <NotificationChannelSelectView name="notificationChannelId" data={input.data || notificationChannels} isFetched={true} disabled={input.disabled} />
+        <NotificationChannelSelectView
+          name="notificationChannelId"
+          data={input.data || notificationChannels}
+          isFetched={true}
+          disabled={input.disabled}
+          dependencies={{ NotificationChannelDialog: vi.fn(NotificationChannelDialog) }}
+        />
+        <SelectedChannel />
       </Wrapper>
     );
 
