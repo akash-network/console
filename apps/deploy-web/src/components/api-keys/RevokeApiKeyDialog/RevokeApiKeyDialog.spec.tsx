@@ -31,6 +31,15 @@ describe("RevokeApiKeyDialog", () => {
     expect(onConfirm).not.toHaveBeenCalled();
   });
 
+  it("keeps the key when closed from its close button", async () => {
+    const { user, onConfirm, onCancel } = setup();
+
+    await user.click(screen.getByRole("button", { name: "Close" }));
+
+    expect(onCancel).toHaveBeenCalledOnce();
+    expect(onConfirm).not.toHaveBeenCalled();
+  });
+
   it("disables both actions while the key is being revoked", () => {
     setup({ isRevoking: true });
 

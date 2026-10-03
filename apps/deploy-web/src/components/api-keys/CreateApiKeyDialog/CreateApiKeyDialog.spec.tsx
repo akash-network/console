@@ -116,6 +116,14 @@ describe("CreateApiKeyDialog", () => {
     expect(onClose).toHaveBeenCalledOnce();
   });
 
+  it("closes from its close button", async () => {
+    const { user, onClose } = setup();
+
+    await user.click(screen.getByRole("button", { name: "Close" }));
+
+    expect(onClose).toHaveBeenCalledOnce();
+  });
+
   describe("when the key is created", () => {
     it("shows the secret once with a warning that it won't be shown again", () => {
       setup({ createdApiKey: { ...buildApiKey({ name: "CI/CD pipeline" }), apiKey: "ac.sk.mainnet.secret" } });
@@ -127,8 +135,7 @@ describe("CreateApiKeyDialog", () => {
     });
 
     it("copies the secret from the footer", async () => {
-      const { user, enqueueSnackbar } = setup({ createdApiKey: { ...buildApiKey(), apiKey: "ac.sk.mainnet.secret" } });
-      const writeText = vi.spyOn(navigator.clipboard, "writeText").mockResolvedValue();
+      const { user, enqueueSnackbar, writeText } = setup({ createdApiKey: { ...buildApiKey(), apiKey: "ac.sk.mainnet.secret" } });
 
       await user.click(screen.getByRole("button", { name: "Copy key" }));
 
@@ -142,8 +149,7 @@ describe("CreateApiKeyDialog", () => {
     });
 
     it("copies the secret from the secret field", async () => {
-      const { user } = setup({ createdApiKey: { ...buildApiKey(), apiKey: "ac.sk.mainnet.secret" } });
-      const writeText = vi.spyOn(navigator.clipboard, "writeText").mockResolvedValue();
+      const { user, writeText } = setup({ createdApiKey: { ...buildApiKey(), apiKey: "ac.sk.mainnet.secret" } });
 
       await user.click(screen.getByRole("button", { name: "Copy to clipboard" }));
 
@@ -151,8 +157,8 @@ describe("CreateApiKeyDialog", () => {
     });
 
     it("tells the user when the secret can't be copied", async () => {
-      const { user, enqueueSnackbar } = setup({ createdApiKey: { ...buildApiKey(), apiKey: "ac.sk.mainnet.secret" } });
-      vi.spyOn(navigator.clipboard, "writeText").mockRejectedValue(new Error("denied"));
+      const { user, enqueueSnackbar, writeText } = setup({ createdApiKey: { ...buildApiKey(), apiKey: "ac.sk.mainnet.secret" } });
+      writeText.mockRejectedValue(new Error("denied"));
 
       await user.click(screen.getByRole("button", { name: "Copy key" }));
 
@@ -175,6 +181,8 @@ describe("CreateApiKeyDialog", () => {
 
   function setup(input: { createdApiKey?: ApiKeyResponse; isPending?: boolean } = {}) {
     const user = userEvent.setup();
+    const writeText = vi.spyOn(navigator.clipboard, "writeText").mockResolvedValue();
+    writeText.mockClear();
     const onClose = vi.fn();
     const createApiKey = vi.fn<ReturnType<typeof DEPENDENCIES.useCreateApiKey>["mutate"]>();
     const enqueueSnackbar = vi.fn();
@@ -194,6 +202,6 @@ describe("CreateApiKeyDialog", () => {
       </TestContainerProvider>
     );
 
-    return { user, onClose, createApiKey, enqueueSnackbar, analyticsService };
+    return { user, onClose, createApiKey, enqueueSnackbar, analyticsService, writeText };
   }
 });

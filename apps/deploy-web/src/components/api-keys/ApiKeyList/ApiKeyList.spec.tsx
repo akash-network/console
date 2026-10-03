@@ -83,6 +83,14 @@ describe(ApiKeyList.name, () => {
     expect(screen.queryByRole("list", { name: "API keys" })).not.toBeInTheDocument();
   });
 
+  it("shows the empty state without a count when the keys are unavailable", () => {
+    setup({ apiKeys: undefined });
+
+    expect(screen.getByText("No API keys")).toBeInTheDocument();
+    expect(screen.queryByRole("list", { name: "API keys" })).not.toBeInTheDocument();
+    expect(screen.queryByText(/active key/)).not.toBeInTheDocument();
+  });
+
   it("shows neither the list, the empty state nor a count while keys load", () => {
     setup({ apiKeys: undefined, isLoading: true });
 

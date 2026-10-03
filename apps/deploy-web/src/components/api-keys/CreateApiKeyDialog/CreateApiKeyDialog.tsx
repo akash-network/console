@@ -49,7 +49,7 @@ const newApiKeySchema = z.object({
     .trim()
     .min(1, { message: "Name is required." })
     .max(MAX_API_KEY_NAME_LENGTH, { message: `Name must be ${MAX_API_KEY_NAME_LENGTH} characters or fewer.` }),
-  lifetimeDays: z.custom<ApiKeyLifetimeDays>(value => API_KEY_LIFETIMES.some(lifetime => lifetime.days === value))
+  lifetimeDays: z.custom<ApiKeyLifetimeDays>()
 });
 
 type NewApiKeyValues = z.infer<typeof newApiKeySchema>;
