@@ -18,11 +18,19 @@ type ExternalProps = {
 };
 
 type Props = Pick<ChildrenProps, "isFetched" | "data"> & ExternalProps & { dependencies?: typeof DEPENDENCIES };
+type NotificationChannel = ChildrenProps["data"][number];
 
 export const NotificationChannelSelectView: FC<Props> = ({ name, isFetched, data, disabled, dependencies: d = DEPENDENCIES }) => {
   const { control, getFieldState, setValue } = useFormContext();
   const state = getFieldState(name);
   const [isAddingChannel, setIsAddingChannel] = useState(false);
+  const [createdChannel, setCreatedChannel] = useState<NotificationChannel | null>(null);
+  const options = createdChannel && !data.some(channel => channel.id === createdChannel.id) ? [...data, createdChannel] : data;
+
+  const selectCreatedChannel = (channel: NotificationChannel) => {
+    setCreatedChannel(channel);
+    setValue(name, channel.id, { shouldDirty: true, shouldValidate: true });
+  };
 
   return (
     <LoadingBlocker isLoading={!isFetched}>
@@ -42,7 +50,7 @@ export const NotificationChannelSelectView: FC<Props> = ({ name, isFetched, data
                   </SelectTrigger>
                   <SelectContent>
                     <SelectGroup>
-                      {data.map(notificationChannel => (
+                      {options.map(notificationChannel => (
                         <SelectItem key={notificationChannel.id} value={notificationChannel.id}>
                           {notificationChannel.name}
                         </SelectItem>
@@ -61,12 +69,7 @@ export const NotificationChannelSelectView: FC<Props> = ({ name, isFetched, data
           </Button>
         </div>
       </div>
-      {isAddingChannel && (
-        <d.NotificationChannelDialog
-          onCreate={createdChannel => setValue(name, createdChannel.id, { shouldDirty: true, shouldValidate: true })}
-          onClose={() => setIsAddingChannel(false)}
-        />
-      )}
+      {isAddingChannel && <d.NotificationChannelDialog onCreate={selectCreatedChannel} onClose={() => setIsAddingChannel(false)} />}
     </LoadingBlocker>
   );
 };

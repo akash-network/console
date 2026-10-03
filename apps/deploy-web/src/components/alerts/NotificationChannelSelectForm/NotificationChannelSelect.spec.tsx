@@ -54,6 +54,28 @@ describe(NotificationChannelSelectView.name, () => {
     expect(screen.getByTestId("selected-channel")).toHaveAttribute("data-dirty", "true");
   });
 
+  it("offers a created channel the loaded page doesn't list yet", async () => {
+    const createdChannel = buildNotificationChannel({ name: "Ops team" });
+    setup({ createdChannel });
+
+    await userEvent.click(screen.getByRole("button", { name: "Add notification channel" }));
+    await userEvent.click(screen.getByRole("button", { name: "Create channel" }));
+    await userEvent.click(screen.getByRole("combobox"));
+
+    expect(screen.getByRole("option", { name: "Ops team" })).toHaveAttribute("aria-selected", "true");
+  });
+
+  it("doesn't list a created channel twice once the loaded page has it", async () => {
+    const createdChannel = buildNotificationChannel({ name: "Ops team" });
+    setup({ createdChannel, data: [buildNotificationChannel({ name: "Default" }), createdChannel] });
+
+    await userEvent.click(screen.getByRole("button", { name: "Add notification channel" }));
+    await userEvent.click(screen.getByRole("button", { name: "Create channel" }));
+    await userEvent.click(screen.getByRole("combobox"));
+
+    expect(screen.getAllByRole("option").map(option => option.textContent)).toEqual(["Default", "Ops team"]);
+  });
+
   it("closes the add channel dialog when it asks to", async () => {
     setup();
 
