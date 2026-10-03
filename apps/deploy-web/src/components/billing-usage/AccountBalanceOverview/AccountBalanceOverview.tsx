@@ -36,127 +36,120 @@ const ESCROW_TOOLTIP =
 
 const CARD_CLASSES = "rounded-xl p-5 shadow-none sm:px-[22px]";
 
-export const AccountBalanceOverview: React.FunctionComponent<{ dependencies?: typeof DEPENDENCIES }> = ({ dependencies: d = DEPENDENCIES }) => {
+export const AccountBalanceOverview: React.FunctionComponent<{ footerAction?: ReactNode; dependencies?: typeof DEPENDENCIES }> = ({
+  footerAction,
+  dependencies: d = DEPENDENCIES
+}) => {
   const overview = d.useAccountBalanceOverview();
   const [hoveredKey, setHoveredKey] = useState<string | null>(null);
   const [isBreakdownOpen, setIsBreakdownOpen] = useState(false);
   const segments = useMemo(() => buildBalanceSegments(overview.deployments, overview.available), [overview.deployments, overview.available]);
   const usd = (value: number) => <d.UsdValue value={value} />;
 
-  const header = (
-    <div className="flex items-start justify-between gap-3">
-      <h3 className="text-sm font-normal tracking-normal text-muted-foreground">Account Balance</h3>
-      <d.Wallet className="h-[17px] w-[17px] shrink-0 text-muted-foreground" aria-hidden />
-    </div>
-  );
-
-  if (overview.isError) {
-    return (
-      <SettingsSection title="Account">
-        <d.Card className={CARD_CLASSES}>
-          {header}
-          <p className="mt-3 text-sm text-muted-foreground">Your balance couldn't be loaded. It will refresh automatically once the connection recovers.</p>
-        </d.Card>
-      </SettingsSection>
-    );
-  }
-
-  if (overview.isLoading) {
-    return (
-      <SettingsSection title="Account">
-        <d.Card className={CARD_CLASSES}>
-          {header}
-          <d.Skeleton className="mt-3 h-9 w-48" />
-          <d.Skeleton className="mt-3.5 h-2.5 w-full" />
-          <div className="mt-3.5 grid max-w-[720px] grid-cols-1 gap-4 sm:grid-cols-2">
-            <d.Skeleton className="h-14 w-40" />
-            <d.Skeleton className="h-14 w-40" />
-          </div>
-        </d.Card>
-      </SettingsSection>
-    );
-  }
-
   const escrowSegments = segments.filter(segment => segment.key !== "available");
+  const hasBreakdown = !overview.isError && !overview.isLoading && escrowSegments.length > 0;
   const activeHoveredKey = hoveredKey && segments.some(segment => segment.key === hoveredKey) ? hoveredKey : null;
   const hasRunway = overview.runwayDays !== null && overview.lastsUntil !== null;
 
   return (
     <SettingsSection title="Account">
       <d.Card className={CARD_CLASSES}>
-        {header}
-
-        <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2">
-          <span className="text-[30px] font-bold tabular-nums leading-[1.1] tracking-tight" aria-label="Total account balance">
-            {usd(overview.totalUsd)}
-          </span>
-          {hasRunway && (
-            <span className="rounded-full bg-success/15 px-2.5 py-[3px] text-xs font-medium text-success">{`${overview.runwayDays} days of runway`}</span>
-          )}
-          {hasRunway && (
-            <p className="w-full text-[13px] text-muted-foreground sm:ml-auto sm:w-auto">
-              Spending {usd(overview.perHour)}/hr · lasts until{" "}
-              <span className="font-semibold text-foreground">{format(overview.lastsUntil!, "MMM d, yyyy")}</span>
-            </p>
-          )}
+        <div className="flex items-start justify-between gap-3">
+          <h3 className="text-sm font-normal tracking-normal text-muted-foreground">Account Balance</h3>
+          <d.Wallet className="h-[17px] w-[17px] shrink-0 text-muted-foreground" aria-hidden />
         </div>
 
-        <div className="mt-3.5">
-          <d.BalanceBreakdownBar
-            segments={segments}
-            hoveredKey={activeHoveredKey}
-            onHover={setHoveredKey}
-            threshold={overview.autoReloadThreshold}
-            hideThresholdCaption
-          />
-        </div>
-
-        <div className="mt-3.5 grid max-w-[720px] grid-cols-1 gap-4 sm:grid-cols-2">
-          <BalanceFigure
-            label="Escrow"
-            dot={<span className="h-[7px] w-[7px] shrink-0 rounded-full bg-foreground" aria-hidden />}
-            info={
-              <d.CustomNoDivTooltip title={ESCROW_TOOLTIP}>
-                <span className="inline-flex cursor-help text-muted-foreground">
-                  <d.InfoCircle className="h-[13px] w-[13px]" />
-                </span>
-              </d.CustomNoDivTooltip>
-            }
-            amount={
-              <span className="text-foreground" aria-label="Escrow balance">
-                {usd(overview.escrow)}
+        {overview.isError ? (
+          <p className="mt-3 text-sm text-muted-foreground">Your balance couldn't be loaded. It will refresh automatically once the connection recovers.</p>
+        ) : overview.isLoading ? (
+          <>
+            <d.Skeleton className="mt-3 h-9 w-48" />
+            <d.Skeleton className="mt-3.5 h-2.5 w-full" />
+            <div className="mt-3.5 grid max-w-[720px] grid-cols-1 gap-4 sm:grid-cols-2">
+              <d.Skeleton className="h-14 w-40" />
+              <d.Skeleton className="h-14 w-40" />
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2">
+              <span className="text-[30px] font-bold tabular-nums leading-[1.1] tracking-tight" aria-label="Total account balance">
+                {usd(overview.totalUsd)}
               </span>
-            }
-            caption={
-              escrowSegments.length === 0
-                ? "No deployments running"
-                : `Held to keep your ${escrowSegments.length} deployment${escrowSegments.length === 1 ? "" : "s"} running`
-            }
-          />
-          <BalanceFigure
-            label="Available"
-            dot={<span className="h-[7px] w-[7px] shrink-0 rounded-full bg-success" aria-hidden />}
-            amount={
-              <span className="text-success" aria-label="Available balance">
-                {usd(overview.available)}
-              </span>
-            }
-            caption={getAvailableCaption(overview.available, escrowSegments.length)}
-          />
-        </div>
+              {hasRunway && (
+                <span className="rounded-full bg-success/15 px-2.5 py-[3px] text-xs font-medium text-success">{`${overview.runwayDays} days of runway`}</span>
+              )}
+              {hasRunway && (
+                <p className="w-full text-[13px] text-muted-foreground sm:ml-auto sm:w-auto">
+                  Spending {usd(overview.perHour)}/hr · lasts until{" "}
+                  <span className="font-semibold text-foreground">{format(overview.lastsUntil!, "MMM d, yyyy")}</span>
+                </p>
+              )}
+            </div>
 
-        {escrowSegments.length > 0 && (
+            <div className="mt-3.5">
+              <d.BalanceBreakdownBar
+                segments={segments}
+                hoveredKey={activeHoveredKey}
+                onHover={setHoveredKey}
+                threshold={overview.autoReloadThreshold}
+                hideThresholdCaption
+              />
+            </div>
+
+            <div className="mt-3.5 grid max-w-[720px] grid-cols-1 gap-4 sm:grid-cols-2">
+              <BalanceFigure
+                label="Escrow"
+                dot={<span className="h-[7px] w-[7px] shrink-0 rounded-full bg-foreground" aria-hidden />}
+                info={
+                  <d.CustomNoDivTooltip title={ESCROW_TOOLTIP}>
+                    <span className="inline-flex cursor-help text-muted-foreground">
+                      <d.InfoCircle className="h-[13px] w-[13px]" />
+                    </span>
+                  </d.CustomNoDivTooltip>
+                }
+                amount={
+                  <span className="text-foreground" aria-label="Escrow balance">
+                    {usd(overview.escrow)}
+                  </span>
+                }
+                caption={
+                  escrowSegments.length === 0
+                    ? "No deployments running"
+                    : `Held to keep your ${escrowSegments.length} deployment${escrowSegments.length === 1 ? "" : "s"} running`
+                }
+              />
+              <BalanceFigure
+                label="Available"
+                dot={<span className="h-[7px] w-[7px] shrink-0 rounded-full bg-success" aria-hidden />}
+                amount={
+                  <span className="text-success" aria-label="Available balance">
+                    {usd(overview.available)}
+                  </span>
+                }
+                caption={getAvailableCaption(overview.available, escrowSegments.length)}
+              />
+            </div>
+          </>
+        )}
+
+        {(hasBreakdown || footerAction) && (
           <div className="mt-4 space-y-3 border-t pt-3.5">
-            <button
-              type="button"
-              className="group inline-flex items-center gap-1.5 text-[13px] font-medium text-foreground"
-              onClick={() => setIsBreakdownOpen(open => !open)}
-              aria-expanded={isBreakdownOpen}
-            >
-              <d.NavArrowDown className="h-3.5 w-3.5 transition-transform duration-150 group-aria-[expanded=false]:-rotate-90" aria-hidden />
-              {isBreakdownOpen ? "Hide breakdown" : "Show breakdown"}
-            </button>
-            {isBreakdownOpen && (
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
+              {hasBreakdown && (
+                <button
+                  type="button"
+                  className="group inline-flex items-center gap-1.5 text-[13px] font-medium text-foreground"
+                  onClick={() => setIsBreakdownOpen(open => !open)}
+                  aria-expanded={isBreakdownOpen}
+                >
+                  <d.NavArrowDown className="h-3.5 w-3.5 transition-transform duration-150 group-aria-[expanded=false]:-rotate-90" aria-hidden />
+                  {isBreakdownOpen ? "Hide breakdown" : "Show breakdown"}
+                </button>
+              )}
+              {footerAction && <div className="min-w-0 basis-full sm:flex-1 sm:basis-auto">{footerAction}</div>}
+            </div>
+            {hasBreakdown && isBreakdownOpen && (
               <>
                 <ul className="flex flex-wrap gap-1.5">
                   {escrowSegments.map(segment => (

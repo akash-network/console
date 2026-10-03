@@ -1,6 +1,6 @@
 "use client";
 import { useAccountBalanceOverview } from "@src/components/billing-usage/AccountBalanceOverview/useAccountBalanceOverview";
-import { AUTO_RELOAD_AMOUNT_MIN_USD, DEFAULT_AUTO_RELOAD_AMOUNT } from "@src/components/billing-usage/AutoTopUpSettingsPopup/AutoTopUpSettingsPopup";
+import { AUTO_RELOAD_AMOUNT_MIN_USD, DEFAULT_AUTO_RELOAD_AMOUNT } from "@src/components/billing-usage/AutoRechargeSettingsPopup/AutoRechargeSettingsPopup";
 import { useServices } from "@src/context/ServicesProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { usePricing } from "@src/hooks/usePricing/usePricing";
