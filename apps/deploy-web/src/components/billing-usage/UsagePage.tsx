@@ -12,7 +12,7 @@ export const UsagePage: FC = () => {
     <Layout disableContainer containerClassName="flex h-full flex-col justify-between">
       <NextSeo title="Usage" />
       <UsageContainer>
-        {({ onExport, ...props }) => (
+        {({ onExport, canExport, ...props }) => (
           <SettingsLayout
             title="Usage"
             description="Track your spending and resource usage over time."
@@ -21,7 +21,7 @@ export const UsagePage: FC = () => {
                 datePreset={props.datePreset}
                 onDatePresetChange={props.onDatePresetChange}
                 onExport={onExport}
-                isExportDisabled={props.isUsageHistoryLoading || props.isUsageHistoryStatsLoading}
+                isExportDisabled={!canExport}
               />
             }
           >

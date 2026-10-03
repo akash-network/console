@@ -1,5 +1,5 @@
 import React from "react";
-import { endOfDay, startOfDay, startOfToday } from "date-fns";
+import { endOfDay, format, startOfDay, startOfToday, subDays } from "date-fns";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
@@ -10,7 +10,7 @@ import { UsageContainer } from "./UsageContainer";
 import { getPreviousPeriod, getUsagePresetRange } from "./usageDatePresets";
 
 import { act, render } from "@testing-library/react";
-import { buildUsageHistory, buildUsageHistoryStats } from "@tests/seeders/usage";
+import { buildUsageHistory, buildUsageHistoryItem, buildUsageHistoryStats } from "@tests/seeders/usage";
 import { createContainerTestingChildCapturer } from "@tests/unit/container-testing-child-capturer";
 
 describe(UsageContainer.name, () => {
@@ -30,18 +30,38 @@ describe(UsageContainer.name, () => {
     expect(child.usageHistoryStatsData).toBe(usageStats);
   });
 
-  it("loads the stats of the previous period of the same length", async () => {
-    const { child, useUsageStats } = await setup({ previousStats: buildUsageHistoryStats({ totalSpent: 42 }) });
+  it("compares the daily spend with the previous period of the same length", async () => {
+    const { child, useUsageStats } = await setup({
+      usageHistory: [buildDay(2, 10), buildDay(1, 10)],
+      previousStats: buildUsageHistoryStats({ totalSpent: 240 })
+    });
     const previousPeriod = getPreviousPeriod(getUsagePresetRange("last30Days"));
 
     expect(useUsageStats).toHaveBeenCalledWith({ address: "akash1abc", startDate: previousPeriod.from, endDate: previousPeriod.to });
-    expect(child.previousPeriodTotalSpent).toBe(42);
+    expect(child.spendChangePercent).toBeCloseTo(25, 6);
   });
 
-  it("has no previous total until the previous period loads", async () => {
-    const { child } = await setup({ previousStats: undefined });
+  it("has no spend comparison until the previous period loads", async () => {
+    const { child } = await setup({ usageHistory: [buildDay(1, 10)], previousStats: undefined });
 
-    expect(child.previousPeriodTotalSpent).toBeNull();
+    expect(child.spendChangePercent).toBeNull();
+  });
+
+  it("allows the export once the usage has loaded", async () => {
+    const { child } = await setup();
+
+    expect(child.canExport).toBe(true);
+  });
+
+  it.each([
+    { case: "the usage history loads", input: { usageHistory: undefined } },
+    { case: "the usage stats load", input: { usageStats: undefined } },
+    { case: "the usage history fails to load", input: { isHistoryError: true } },
+    { case: "the usage stats fail to load", input: { isStatsError: true } }
+  ])("holds the export back while $case", async ({ input }) => {
+    const { child } = await setup(input);
+
+    expect(child.canExport).toBe(false);
   });
 
   it("falls back to empty usage while it loads", async () => {
@@ -54,7 +74,7 @@ describe(UsageContainer.name, () => {
   });
 
   it("passes through error flags", async () => {
-    const { child } = await setup({ isError: true });
+    const { child } = await setup({ isHistoryError: true, isStatsError: true });
 
     expect(child.isUsageHistoryError).toBe(true);
     expect(child.isUsageHistoryStatsError).toBe(true);
@@ -120,7 +140,8 @@ describe(UsageContainer.name, () => {
       usageStats?: UsageHistoryStats;
       previousStats?: UsageHistoryStats;
       isLoading?: boolean;
-      isError?: boolean;
+      isHistoryError?: boolean;
+      isStatsError?: boolean;
       spendRate?: { perHourUsd: number; isLoading: boolean; isError: boolean };
     } = {}
   ) {
@@ -133,14 +154,14 @@ describe(UsageContainer.name, () => {
     const historyQuery = Object.assign(mock<ReturnType<typeof DEPENDENCIES.useUsage>>(), {
       data: usageHistory,
       isLoading: input.isLoading ?? false,
-      isError: input.isError ?? false
+      isError: input.isHistoryError ?? false
     });
     const useUsage = vi.fn<typeof DEPENDENCIES.useUsage>(() => historyQuery);
 
     const statsQuery = Object.assign(mock<ReturnType<typeof DEPENDENCIES.useUsageStats>>(), {
       data: usageStats,
       isLoading: input.isLoading ?? false,
-      isError: input.isError ?? false
+      isError: input.isStatsError ?? false
     });
     const previousStatsQuery = Object.assign(mock<ReturnType<typeof DEPENDENCIES.useUsageStats>>(), { data: previousStats });
     const useUsageStats = vi.fn<typeof DEPENDENCIES.useUsageStats>(params =>
@@ -164,3 +185,7 @@ describe(UsageContainer.name, () => {
     return { child, childCapturer, useUsage, useUsageStats, usageHistory, usageStats };
   }
 });
+
+function buildDay(daysAgo: number, dailyUsdSpent: number) {
+  return buildUsageHistoryItem({ date: format(subDays(startOfToday(), daysAgo), "yyyy-MM-dd"), dailyUsdSpent });
+}

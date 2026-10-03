@@ -28,14 +28,14 @@ const MIN_REPORTED_CHANGE_PERCENT = 0.5;
 
 const LOAD_ERROR = "Couldn't be loaded. Refresh the page to try again.";
 
-export type UsageViewProps = Omit<ChildrenProps, "onExport"> & {
+export type UsageViewProps = Omit<ChildrenProps, "onExport" | "canExport"> & {
   dependencies?: typeof DEPENDENCIES;
 };
 
 export const UsageView: FC<UsageViewProps> = ({
   usageHistoryData,
   usageHistoryStatsData,
-  previousPeriodTotalSpent,
+  spendChangePercent,
   isUsageHistoryLoading,
   isUsageHistoryError,
   isUsageHistoryStatsLoading,
@@ -48,9 +48,7 @@ export const UsageView: FC<UsageViewProps> = ({
   dependencies: d = DEPENDENCIES
 }) => {
   const statsError = isUsageHistoryStatsError ? LOAD_ERROR : undefined;
-  const totalSpendCaption = [getRangeLabel(datePreset, dateRange), describeChange(usageHistoryStatsData.totalSpent, previousPeriodTotalSpent)]
-    .filter(Boolean)
-    .join(" · ");
+  const totalSpendCaption = [getRangeLabel(datePreset, dateRange), describeChange(spendChangePercent)].filter(Boolean).join(" · ");
   const daysInRange = countDaysInRange(dateRange);
 
   return (
@@ -188,10 +186,8 @@ function getRangeLabel(preset: UsageDatePreset, range: UsageDateRange) {
   return `${format(range.from, pattern)} to ${format(range.to, pattern)}`;
 }
 
-function describeChange(total: number, previousTotal: number | null) {
-  if (!previousTotal) return null;
-
-  const changePercent = ((total - previousTotal) / previousTotal) * 100;
+function describeChange(changePercent: number | null) {
+  if (changePercent === null) return null;
   if (Math.abs(changePercent) < MIN_REPORTED_CHANGE_PERCENT) return "same as prior";
 
   return `${changePercent > 0 ? "+" : ""}${Math.round(changePercent)}% vs prior`;

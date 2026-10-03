@@ -15,7 +15,7 @@ import { MockComponents } from "@tests/unit/mocks";
 
 describe(UsageView.name, () => {
   it("shows total spend with its rise against the previous period", () => {
-    setup({ stats: { totalSpent: 1234.5 }, previousPeriodTotalSpent: 987.6 });
+    setup({ stats: { totalSpent: 1234.5 }, spendChangePercent: 25 });
 
     const tile = screen.getByRole("group", { name: "Total spend" });
     expect(within(tile).getByText("$1,234.50")).toBeInTheDocument();
@@ -23,43 +23,37 @@ describe(UsageView.name, () => {
   });
 
   it("shows a drop against the previous period", () => {
-    setup({ stats: { totalSpent: 80 }, previousPeriodTotalSpent: 100 });
+    setup({ spendChangePercent: -20 });
 
     expect(within(screen.getByRole("group", { name: "Total spend" })).getByText("Last 30 days · -20% vs prior")).toBeInTheDocument();
   });
 
   it("calls a change under half a percent the same as prior", () => {
-    setup({ stats: { totalSpent: 100.4 }, previousPeriodTotalSpent: 100 });
+    setup({ spendChangePercent: 0.4 });
 
     expect(within(screen.getByRole("group", { name: "Total spend" })).getByText("Last 30 days · same as prior")).toBeInTheDocument();
   });
 
   it("rounds a change just over half a percent to one percent", () => {
-    setup({ stats: { totalSpent: 99.4 }, previousPeriodTotalSpent: 100 });
+    setup({ spendChangePercent: -0.6 });
 
     expect(within(screen.getByRole("group", { name: "Total spend" })).getByText("Last 30 days · -1% vs prior")).toBeInTheDocument();
   });
 
-  it("leaves the comparison out when the previous period had no spend", () => {
-    setup({ stats: { totalSpent: 50 }, previousPeriodTotalSpent: 0 });
-
-    expect(within(screen.getByRole("group", { name: "Total spend" })).getByText("Last 30 days")).toBeInTheDocument();
-  });
-
-  it("leaves the comparison out until the previous period loads", () => {
-    setup({ stats: { totalSpent: 50 }, previousPeriodTotalSpent: null });
+  it("leaves the comparison out when there is nothing to compare against", () => {
+    setup({ spendChangePercent: null });
 
     expect(within(screen.getByRole("group", { name: "Total spend" })).getByText("Last 30 days")).toBeInTheDocument();
   });
 
   it("names a custom range by its dates", () => {
-    setup({ datePreset: "custom", dateRange: { from: new Date(2026, 5, 1), to: new Date(2026, 5, 20, 23, 59) }, previousPeriodTotalSpent: null });
+    setup({ datePreset: "custom", dateRange: { from: new Date(2026, 5, 1), to: new Date(2026, 5, 20, 23, 59) } });
 
     expect(within(screen.getByRole("group", { name: "Total spend" })).getByText("Jun 1 to Jun 20")).toBeInTheDocument();
   });
 
   it("names the years of a custom range that spans two years", () => {
-    setup({ datePreset: "custom", dateRange: { from: new Date(2025, 11, 1), to: new Date(2026, 0, 15, 23, 59) }, previousPeriodTotalSpent: null });
+    setup({ datePreset: "custom", dateRange: { from: new Date(2025, 11, 1), to: new Date(2026, 0, 15, 23, 59) } });
 
     expect(within(screen.getByRole("group", { name: "Total spend" })).getByText("Dec 1, 2025 to Jan 15, 2026")).toBeInTheDocument();
   });
@@ -198,7 +192,7 @@ describe(UsageView.name, () => {
     input: {
       history?: UsageHistory;
       stats?: Partial<UsageHistoryStats>;
-      previousPeriodTotalSpent?: number | null;
+      spendChangePercent?: number | null;
       isUsageHistoryLoading?: boolean;
       isUsageHistoryError?: boolean;
       isUsageHistoryStatsLoading?: boolean;
@@ -219,7 +213,7 @@ describe(UsageView.name, () => {
         <UsageView
           usageHistoryData={input.history ?? buildUsageHistory()}
           usageHistoryStatsData={buildUsageHistoryStats(input.stats)}
-          previousPeriodTotalSpent={"previousPeriodTotalSpent" in input ? input.previousPeriodTotalSpent! : 0}
+          spendChangePercent={input.spendChangePercent ?? null}
           isUsageHistoryLoading={input.isUsageHistoryLoading ?? false}
           isUsageHistoryError={input.isUsageHistoryError ?? false}
           isUsageHistoryStatsLoading={input.isUsageHistoryStatsLoading ?? false}

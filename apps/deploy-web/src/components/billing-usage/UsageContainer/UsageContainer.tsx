@@ -7,7 +7,15 @@ import type { UsageHistory, UsageHistoryStats } from "@src/types";
 import { createDateRange } from "@src/utils/dateUtils";
 import { downloadCsv } from "@src/utils/domUtils";
 import { buildUsageCsv } from "./buildUsageCsv";
-import { DEFAULT_USAGE_DATE_PRESET, getPreviousPeriod, getUsagePresetRange, type UsageDatePreset, type UsageDateRange } from "./usageDatePresets";
+import { getSpendChangePercent } from "./getSpendChangePercent";
+import {
+  countDaysInRange,
+  DEFAULT_USAGE_DATE_PRESET,
+  getPreviousPeriod,
+  getUsagePresetRange,
+  type UsageDatePreset,
+  type UsageDateRange
+} from "./usageDatePresets";
 
 export const DEPENDENCIES = {
   useWallet,
@@ -26,7 +34,7 @@ const EMPTY_USAGE_STATS: UsageHistoryStats = {
 export type ChildrenProps = {
   usageHistoryData: UsageHistory;
   usageHistoryStatsData: UsageHistoryStats;
-  previousPeriodTotalSpent: number | null;
+  spendChangePercent: number | null;
   isUsageHistoryLoading: boolean;
   isUsageHistoryError: boolean;
   isUsageHistoryStatsLoading: boolean;
@@ -36,6 +44,7 @@ export type ChildrenProps = {
   onDateRangeChange: (range: UsageDateRange) => void;
   datePreset: UsageDatePreset;
   onDatePresetChange: (preset: UsageDatePreset) => void;
+  canExport: boolean;
   onExport: () => void;
 };
 
@@ -81,7 +90,11 @@ export const UsageContainer: FC<UsageContainerProps> = ({ children, dependencies
       {children({
         usageHistoryData,
         usageHistoryStatsData,
-        previousPeriodTotalSpent: previousPeriodStats.data?.totalSpent ?? null,
+        spendChangePercent: getSpendChangePercent({
+          history: usageHistoryData,
+          previousTotalSpent: previousPeriodStats.data?.totalSpent ?? null,
+          previousDays: countDaysInRange(previousPeriod)
+        }),
         isUsageHistoryLoading: usageHistory.isLoading,
         isUsageHistoryError: usageHistory.isError,
         isUsageHistoryStatsLoading: usageStats.isLoading,
@@ -91,6 +104,7 @@ export const UsageContainer: FC<UsageContainerProps> = ({ children, dependencies
         onDateRangeChange: changeDateRange,
         datePreset,
         onDatePresetChange: changeDatePreset,
+        canExport: !!usageHistory.data && !!usageStats.data && !usageHistory.isError && !usageStats.isError,
         onExport: exportCsv
       })}
     </>
