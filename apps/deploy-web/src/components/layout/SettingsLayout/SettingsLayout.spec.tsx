@@ -29,6 +29,26 @@ describe(SettingsLayout.name, () => {
     expect(screen.getByRole("button", { name: "Add to Balance" })).toBeInTheDocument();
   });
 
+  it("renders header actions without an empty heading when there is no title", () => {
+    setup({ headerActions: <button>Create key</button> });
+
+    expect(screen.getByRole("button", { name: "Create key" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading")).not.toBeInTheDocument();
+  });
+
+  it("renders the description without a title or header actions", () => {
+    setup({ description: "Manage your API keys." });
+
+    expect(screen.getByText("Manage your API keys.")).toBeInTheDocument();
+    expect(screen.queryByRole("heading")).not.toBeInTheDocument();
+  });
+
+  it("omits the description paragraph when no description is provided", () => {
+    setup({ title: "Billing" });
+
+    expect(screen.queryByRole("paragraph")).not.toBeInTheDocument();
+  });
+
   it("renders children", () => {
     setup({ children: <div data-testid="content" /> });
 
