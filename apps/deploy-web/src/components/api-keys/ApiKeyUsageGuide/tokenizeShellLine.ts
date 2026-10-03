@@ -2,9 +2,9 @@ export type ShellTokenKind = "comment" | "command" | "string" | "plain";
 
 export type ShellToken = { text: string; kind: ShellTokenKind };
 
-const SHELL_COMMANDS = ["curl", "jq", "export", "until", "do", "done", "sleep"];
+const SHELL_COMMANDS = ["curl", "jq", "export", "until", "do", "done", "sleep", "npx", "brew", "akt"];
 
-const SHELL_TOKEN_PATTERN = new RegExp(`("[^"]*"|'[^']*'|\\b(?:${SHELL_COMMANDS.join("|")})\\b)`);
+const SHELL_TOKEN_PATTERN = new RegExp(`("[^"]*"|'[^']*'|(?<![\\w./-])(?:${SHELL_COMMANDS.join("|")})(?![\\w./-]))`);
 
 export function tokenizeShellLine(line: string): ShellToken[] {
   if (line.trimStart().startsWith("#")) return [{ text: line, kind: "comment" }];

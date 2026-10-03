@@ -6,7 +6,7 @@ import { NextSeo } from "next-seo";
 import { useSnackbar } from "notistack";
 
 import { ApiKeyList } from "@src/components/api-keys/ApiKeyList/ApiKeyList";
-import { ApiKeyUsageExample } from "@src/components/api-keys/ApiKeyUsageExample/ApiKeyUsageExample";
+import { ApiKeyUsageGuide } from "@src/components/api-keys/ApiKeyUsageGuide/ApiKeyUsageGuide";
 import { CreateApiKeyDialog } from "@src/components/api-keys/CreateApiKeyDialog/CreateApiKeyDialog";
 import { RevokeApiKeyDialog } from "@src/components/api-keys/RevokeApiKeyDialog/RevokeApiKeyDialog";
 import Layout from "@src/components/layout/Layout";
@@ -21,7 +21,7 @@ export const DEPENDENCIES = {
   SettingsLayout,
   NextSeo,
   ApiKeyList,
-  ApiKeyUsageExample,
+  ApiKeyUsageGuide,
   CreateApiKeyDialog,
   RevokeApiKeyDialog,
   useUserApiKeys,
@@ -75,7 +75,7 @@ export function ApiKeysPage({ dependencies: d = DEPENDENCIES }: Props = {}) {
         }
       >
         <d.ApiKeyList apiKeys={apiKeys} isLoading={isLoading} onRevoke={setApiKeyToRevoke} />
-        <d.ApiKeyUsageExample />
+        <d.ApiKeyUsageGuide />
       </d.SettingsLayout>
 
       {isCreatingKey && <d.CreateApiKeyDialog onClose={() => setIsCreatingKey(false)} />}

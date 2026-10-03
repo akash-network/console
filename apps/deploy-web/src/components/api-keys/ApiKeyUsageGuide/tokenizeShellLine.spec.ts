@@ -26,6 +26,21 @@ describe(tokenizeShellLine.name, () => {
     ]);
   });
 
+  it("leaves a command name inside a path, file or flag plain", () => {
+    expect(tokenizeShellLine("brew install akash-network/tap/akt akt.yaml --akt")).toEqual([
+      { text: "brew", kind: "command" },
+      { text: " install akash-network/tap/akt akt.yaml --akt", kind: "plain" }
+    ]);
+  });
+
+  it("recognizes every command the setup guides use", () => {
+    const commands = ["curl", "jq", "export", "until", "do", "done", "sleep", "npx", "brew", "akt"];
+
+    const tokens = tokenizeShellLine(commands.join(" "));
+
+    expect(tokens.filter(token => token.kind === "command").map(token => token.text)).toEqual(commands);
+  });
+
   it("returns no tokens for an empty line", () => {
     expect(tokenizeShellLine("")).toEqual([]);
   });
