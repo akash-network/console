@@ -78,7 +78,10 @@ export const NotificationChannelsListView: FC<NotificationChannelsListViewProps>
   }
 
   return (
-    <SettingsSection title="Notification channels" aside={!isLoading && `${pagination.total} ${pagination.total === 1 ? "channel" : "channels"}`}>
+    <SettingsSection
+      title="Notification channels"
+      aside={!isLoading && <span className="text-xs text-muted-foreground">{`${pagination.total} ${pagination.total === 1 ? "channel" : "channels"}`}</span>}
+    >
       <Card className="overflow-hidden rounded-xl shadow-none">
         {isLoading ? (
           <ChannelsTableSkeleton />

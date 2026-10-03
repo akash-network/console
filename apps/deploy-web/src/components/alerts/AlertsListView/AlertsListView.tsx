@@ -96,7 +96,10 @@ export const AlertsListView: FC<Props> = ({
   }
 
   return (
-    <SettingsSection title="Deployment alerts" aside={!isLoading && `${pagination.total} ${pagination.total === 1 ? "alert" : "alerts"}`}>
+    <SettingsSection
+      title="Deployment alerts"
+      aside={!isLoading && <span className="text-xs text-muted-foreground">{`${pagination.total} ${pagination.total === 1 ? "alert" : "alerts"}`}</span>}
+    >
       <Card className="overflow-hidden rounded-xl shadow-none">
         {isLoading ? (
           <AlertsTableSkeleton />
