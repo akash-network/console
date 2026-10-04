@@ -17,6 +17,8 @@ const GLOBE_MARKER_SIZE = 0.01;
 /** Square diameter that always overshoots the viewport so the sphere fills the visible cap on any aspect ratio. */
 const GLOBE_CONTAINER_SIZE = "min(220vh, 120vw)";
 
+type LocatedProvider = Pick<ApiProviderLocation, "owner" | "name" | "hostUri" | "ipLat" | "ipLon">;
+
 export const DEPENDENCIES = { useProviderLocations, useProvidersByAddresses, useTheme: useCookieTheme, Globe };
 
 interface Props {
@@ -42,9 +44,9 @@ export const ProvidersGlobe: FC<Props> = ({ focusedProviderAddress, dependencies
   }, [documentTheme]);
 
   /** The locations list only online providers, so a matched provider the crawler still reports offline is found by its own lookup. */
-  const focused = useMemo<ApiProviderLocation | null>(() => {
+  const focused = useMemo<LocatedProvider | null>(() => {
     if (!focusedProviderAddress) return null;
-    const isFocused = (provider: ApiProviderLocation) => provider.owner === focusedProviderAddress;
+    const isFocused = (provider: LocatedProvider) => provider.owner === focusedProviderAddress;
     return providers?.find(isFocused) ?? lookedUpFocusedProviders.find(isFocused) ?? null;
   }, [focusedProviderAddress, providers, lookedUpFocusedProviders]);
 
@@ -82,7 +84,7 @@ export const ProvidersGlobe: FC<Props> = ({ focusedProviderAddress, dependencies
 };
 
 /** A provider as a globe marker, or null when it has no usable coordinates. */
-function providerToMarker(provider: ApiProviderLocation): GlobeMarker | null {
+function providerToMarker(provider: LocatedProvider): GlobeMarker | null {
   const lat = parseFloat(provider.ipLat);
   const lng = parseFloat(provider.ipLon);
   if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
