@@ -59,7 +59,7 @@ async function drawLandCanvas(fetchTopology: () => Promise<Topology>, forgetFail
   return canvas;
 }
 
-async function fetchLandTopology(): Promise<Topology> {
+export async function fetchLandTopology(): Promise<Topology> {
   const response = await fetch(LAND_TOPOLOGY_URL);
   if (!response.ok) throw new Error(`Land topology answered ${response.status}`);
   return response.json();

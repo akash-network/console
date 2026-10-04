@@ -1,0 +1,77 @@
+import type { ComponentProps } from "react";
+import { describe, expect, it } from "vitest";
+
+import { GpuInventoryCard } from "./GpuInventoryCard";
+
+import { render, screen, within } from "@testing-library/react";
+
+describe("GpuInventoryCard", () => {
+  it("lists each GPU model with its memory, interface and how many are free", () => {
+    setup({
+      models: [
+        { vendor: "nvidia", model: "h100", ram: "80Gi", interface: "SXM5", total: 32, free: 4 },
+        { vendor: "nvidia", model: "t4", ram: "16Gi", interface: "PCIe", total: 2, free: 0 }
+      ]
+    });
+
+    const table = screen.getByRole("table", { name: "GPU models" });
+    expect(screen.getByText("4 of 34 free now")).toBeInTheDocument();
+    expect(within(table).getByRole("row", { name: /H100 80 GB SXM5 4 of 32 free/ })).toBeInTheDocument();
+    expect(within(table).getByRole("row", { name: /T4 16 GB PCIe None free/ })).toBeInTheDocument();
+  });
+
+  it("keeps a memory size it can't read as the provider reported it", () => {
+    setup({ models: [{ vendor: "nvidia", model: "a100", ram: "lots", interface: "PCIe", total: 1, free: 1 }] });
+
+    expect(screen.getByText("lots")).toBeInTheDocument();
+  });
+
+  it("shows the drivers seen on Console leases with the CUDA version each supports", () => {
+    setup({
+      models: [{ vendor: "nvidia", model: "h100", ram: "80Gi", interface: "SXM5", total: 8, free: 8 }],
+      drivers: [
+        { driverVersion: "550.54.15", cudaVersion: "12.4", lastSeenDate: "2026-09-21" },
+        { driverVersion: "470.10.01", cudaVersion: null, lastSeenDate: "2026-09-20" }
+      ]
+    });
+
+    expect(screen.getByText("550.54.15 · CUDA 12.4")).toHaveAttribute("title", "Last seen 2026-09-21");
+    expect(screen.getByText("470.10.01")).toBeInTheDocument();
+  });
+
+  it("says when no driver has been read yet", () => {
+    setup({ models: [{ vendor: "nvidia", model: "h100", ram: "80Gi", interface: "SXM5", total: 8, free: 8 }], drivers: [] });
+
+    expect(screen.getByText("None read yet")).toBeInTheDocument();
+  });
+
+  it("says a provider without GPUs is a CPU provider and what it has free", () => {
+    setup({ models: [], freeVcpuCount: 41, freeMemoryBytes: 96e9 });
+
+    expect(screen.getByText("No GPUs. This is a CPU and memory provider, with 41 vCPU and 96 GB of RAM free right now.")).toBeInTheDocument();
+    expect(screen.queryByRole("table")).not.toBeInTheDocument();
+  });
+
+  it("says an offline provider reports no inventory", () => {
+    setup({ models: [], isProviderOffline: true });
+
+    expect(screen.getByText("No inventory is reported while the provider is offline.")).toBeInTheDocument();
+    expect(screen.queryByText(/CPU and memory provider/)).not.toBeInTheDocument();
+  });
+
+  it("shows placeholders while the inventory loads", () => {
+    setup({ models: null, isLoading: true });
+
+    expect(screen.getByLabelText("Loading the GPU inventory")).toBeInTheDocument();
+  });
+
+  it("says when the inventory can't be loaded", () => {
+    setup({ models: null, isLoading: false });
+
+    expect(screen.getByText("The GPU inventory can't be loaded right now.")).toBeInTheDocument();
+  });
+
+  function setup(input: Partial<ComponentProps<typeof GpuInventoryCard>> & Pick<ComponentProps<typeof GpuInventoryCard>, "models">) {
+    render(<GpuInventoryCard isLoading={false} isProviderOffline={false} drivers={[]} freeVcpuCount={8} freeMemoryBytes={16e9} {...input} />);
+  }
+});

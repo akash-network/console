@@ -113,8 +113,8 @@ export class ApiUrlService {
   static gpuModels() {
     return `${this.baseApiUrl}/v1/gpu-models`;
   }
-  static auditors() {
-    return `${this.baseApiUrl}/v1/auditors`;
+  static providerGpus(providerAddress: string) {
+    return `${this.baseApiUrl}/v1/gpu?provider=${providerAddress}`;
   }
   static trialProviders() {
     return `${this.baseApiUrl}/v1/trial-providers`;

@@ -78,8 +78,6 @@ export const UrlService = {
   templateDetails: (templateId: string) => `/templates/${templateId}`,
   providers: (sort?: string) => `/providers${appendSearchParams({ sort })}`,
   providerDetail: (owner: string) => `/providers/${owner}${appendSearchParams({ network: networkStore.selectedNetworkId })}`,
-  providerDetailLeases: (owner: string) => `/providers/${owner}/leases`,
-  providerDetailRaw: (owner: string) => `/providers/${owner}/raw`,
   alerts: () => "/alerts",
 
   newDeployment: () => "/new-deployment",

@@ -31,7 +31,7 @@ export const ResourceStatsGrid: React.FC<Props> = ({ providers, totalCpu, totalG
           <div className="flex flex-wrap gap-2">
             {providers.map((p, index) =>
               p.owner ? (
-                <Link key={`${p.owner}-${index}`} href={UrlService.providerDetailLeases(p.owner)}>
+                <Link key={`${p.owner}-${index}`} href={UrlService.providerDetail(p.owner)}>
                   <Badge variant="default" className="rounded-md bg-muted-foreground">
                     {p.name}
                   </Badge>

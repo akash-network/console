@@ -105,9 +105,3 @@ export interface MarketData {
   priceChange24h: number;
   priceChangePercentage24: number;
 }
-
-export interface ISnapshotMetadata {
-  value: number;
-  unit?: string;
-  modifiedValue?: number;
-}

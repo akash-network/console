@@ -28,3 +28,18 @@ export interface GpuVariant {
   /** Absent on an API from before free GPUs were counted. */
   maxNodeFreeUnits?: number;
 }
+
+export interface ProviderGpuModelInventory {
+  model: string;
+  ram: string;
+  interface: string;
+  allocatable: number;
+  allocated: number;
+}
+
+export interface ProviderGpuInventory {
+  gpus: {
+    total: { allocatable: number; allocated: number };
+    details: Record<string, ProviderGpuModelInventory[]>;
+  };
+}

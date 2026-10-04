@@ -44,7 +44,6 @@ export class QueryKeys {
   static getProviderStatusKey = (providerUri: string) => ["PROVIDER_STATUS", providerUri];
   static getFirstReachableProviderKey = (placementKey: string) => ["FIRST_REACHABLE_PROVIDER", placementKey];
   static getProviderActiveLeasesGraph = (providerAddress: string) => ["PROVIDER_ACTIVE_LEASES_GRAPH", providerAddress];
-  static getAuditorsKey = () => ["AUDITORS"];
   static getBlockKey = (id: string) => ["BLOCK", id];
   static getBalancesKey = (address?: string) => (address ? ["BALANCES", address] : []);
   static getTemplatesKey = () => ["TEMPLATES"];
@@ -52,6 +51,8 @@ export class QueryKeys {
   static getDepositParamsKey = () => ["DEPOSIT_PARAMS"];
   static getBmeParamsKey = () => ["BME_PARAMS"];
   static getGpuModelsKey = () => ["GPU_MODELS"];
+  static getProviderGpusKey = (providerAddress: string) => ["PROVIDER_GPUS", providerAddress];
+  static getLandTopologyKey = () => ["LAND_TOPOLOGY"];
   static getTrialProvidersKey = () => ["TRIAL_PROVIDERS"];
   static getDeploymentSettingKey = (dseq: string) => ["DEPLOYMENT_SETTING", dseq];
   static getApiKeysKey = (userId: string) => ["API_KEYS", userId];

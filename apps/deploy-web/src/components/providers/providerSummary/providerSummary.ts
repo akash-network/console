@@ -94,6 +94,10 @@ export function formatUptime(uptime: number): string {
   return `${parseFloat((uptime * 100).toFixed(2))}%`;
 }
 
+export function formatOptionalUptime(uptime: number | null | undefined): string {
+  return uptime === null || uptime === undefined ? "—" : formatUptime(uptime);
+}
+
 export function getUptimeQuality(uptime: number): UptimeQuality {
   if (uptime > EXCELLENT_UPTIME) return "excellent";
   if (uptime > HEALTHY_UPTIME) return "healthy";
