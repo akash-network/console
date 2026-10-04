@@ -32,6 +32,7 @@ import type { InheritedSecrets } from "../InheritedSecretsProvider/InheritedSecr
 import { InheritedSecretsProvider } from "../InheritedSecretsProvider/InheritedSecretsProvider";
 import { PlacementManagerProvider } from "../PlacementManagerProvider/PlacementManagerProvider";
 import { ReviewAndDeployModal } from "../ReviewAndDeployModal/ReviewAndDeployModal";
+import { SdlImportChangesBanner } from "../SdlImportChangesBanner/SdlImportChangesBanner";
 import { SdlImportExport } from "../SdlImportExport/SdlImportExport";
 import { firstBidReadyServiceId, nextSelectedServiceId, nextUndoneServiceId, resolveSelectedPlacement } from "../serviceSelection/serviceSelection";
 import type { PlacementRegionPicks } from "../useConfigureDraft/useConfigureDraft";
@@ -54,6 +55,7 @@ export const DEPENDENCIES = {
   ReviewAndDeployModal,
   DeployProgressOverlay,
   SdlImportExport,
+  SdlImportChangesBanner,
   useConfigureDraft,
   useDeploymentName,
   usePlacementsWithBids,
@@ -88,6 +90,7 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, initialName, in
   const [liveSdl, setLiveSdl] = useState(initialState.sdl);
   const [previewSdl, setPreviewSdl] = useState(initialState.sdl);
   const [selectedServiceId, setSelectedServiceId] = useState<string>(initialState.selectedServiceId);
+  const [importChanges, setImportChanges] = useState(initialState.changes);
   /**
    * The last service the user actually had selected. A removal briefly blurs the selection to "" (so the
    * ConfigurationPane cards unmount and can't resurrect a deleted service); this lets the reselect below
@@ -331,6 +334,7 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, initialName, in
       form.reset(state.values);
       setLiveSdl(sdlOfImportedState(state, isSecretsEnabled));
       setSelectedServiceId(state.selectedServiceId);
+      setImportChanges(state.changes);
     },
     [form, isSecretsEnabled]
   );
@@ -358,6 +362,7 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, initialName, in
         <PlacementManagerProvider onSelectService={setSelectedServiceId}>
           <InheritedSecretsProvider value={resolvableInheritedSecrets}>
             <div className="relative flex min-h-0 flex-1 flex-col">
+              {importChanges.length > 0 && <d.SdlImportChangesBanner changes={importChanges} onDismiss={() => setImportChanges([])} />}
               {isTwoPanel ? (
                 <d.ConfigureWorkspace
                   flow={flow}
@@ -454,6 +459,7 @@ interface InitialState {
   values: SdlBuilderFormValuesType;
   sdl: string;
   selectedServiceId: string;
+  changes: string[];
   importError?: string;
 }
 
@@ -505,7 +511,7 @@ function defaultInitialState(isVm: boolean, sealSecrets: boolean, importError?: 
   const values = isVm
     ? { ...withDefaultPreset(defaultServiceWithPlacement(vmServiceOverrides())), hasSSHKey: true }
     : withDefaultPreset(defaultServiceWithPlacement());
-  return { values, sdl: regenerateSdl(values, "", sealSecrets), selectedServiceId: seedSelectedServiceId(values), importError };
+  return { values, sdl: regenerateSdl(values, "", sealSecrets), selectedServiceId: seedSelectedServiceId(values), changes: [], importError };
 }
 
 /** Seeds the fresh deployment's service on the default (small) hardware preset so the screen opens deployable. */

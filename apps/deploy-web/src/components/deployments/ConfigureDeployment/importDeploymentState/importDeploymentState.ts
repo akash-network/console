@@ -1,6 +1,8 @@
 import { isLogCollectorService } from "@src/components/sdl/LogCollectorControl/LogCollectorControl";
 import type { SdlBuilderFormValuesType } from "@src/types";
+import { generateSdl } from "@src/utils/sdl/sdlGenerator";
 import { importSimpleSdl } from "@src/utils/sdl/sdlImport";
+import { listSdlImportChanges } from "@src/utils/sdl/sdlImportChanges";
 import { applyImportedSshState } from "@src/utils/sdl/sshKey";
 import { isVmImage } from "@src/utils/sdl/vmImages";
 
@@ -9,6 +11,8 @@ export interface ImportedDeploymentState {
   /** The imported SDL verbatim, mirroring how a carried-in SDL is used at mount. */
   sdl: string;
   selectedServiceId: string;
+  /** What deploying from the form changes compared with the imported SDL; empty when it deploys as written. */
+  changes: string[];
 }
 
 /**
@@ -38,7 +42,16 @@ export function importDeploymentState(sdl: string): ImportedDeploymentState {
   if (!hasVisibleService(values)) {
     throw new NoVisibleServiceError("This SDL doesn't define any services to configure.");
   }
-  return { values, sdl, selectedServiceId: seedSelectedServiceId(values) };
+  return { values, sdl, selectedServiceId: seedSelectedServiceId(values), changes: changesOnTheWayToTheForm(sdl, values) };
+}
+
+/** Values the generator cannot write leave nothing to compare with, and the form keeps the imported SDL for them. */
+function changesOnTheWayToTheForm(sdl: string, values: SdlBuilderFormValuesType): string[] {
+  try {
+    return listSdlImportChanges(sdl, generateSdl(values));
+  } catch {
+    return [];
+  }
 }
 
 /** Picks the first user-visible service to focus. Callers guarantee at least one service exists. */
