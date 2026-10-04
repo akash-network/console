@@ -37,10 +37,10 @@ export function useProviderDetail(
   });
 }
 
-export function useProviderStatus(
-  provider: ApiProviderList | undefined | null,
-  options: Omit<UseQueryOptions<ProviderStatusDto>, "queryKey" | "queryFn"> = {}
-): UseQueryResult<ProviderStatusDto> {
+/** Provider status polls own their error-reporting policy, so `meta` is not caller-settable and cannot silently drop it. */
+type ProviderStatusQueryOptions = Omit<UseQueryOptions<ProviderStatusDto>, "queryKey" | "queryFn" | "meta">;
+
+export function useProviderStatus(provider: ApiProviderList | undefined | null, options: ProviderStatusQueryOptions = {}): UseQueryResult<ProviderStatusDto> {
   const fetchProviderUrl = useScopedFetchProviderUrl(provider);
   return useQuery({
     queryKey: QueryKeys.getProviderStatusKey(provider?.hostUri || ""),
@@ -48,8 +48,8 @@ export function useProviderStatus(
       const [statusResponse, versionResponse] = await Promise.all([fetchProviderUrl<ProviderStatus>("/status"), fetchProviderUrl<ProviderVersion>("/version")]);
       return providerStatusToDto(statusResponse.data, versionResponse.data || {});
     },
-    meta: SKIP_REPORTING_PROVIDER_POLL_FAILURE,
-    ...options
+    ...options,
+    meta: SKIP_REPORTING_PROVIDER_POLL_FAILURE
   });
 }
 
