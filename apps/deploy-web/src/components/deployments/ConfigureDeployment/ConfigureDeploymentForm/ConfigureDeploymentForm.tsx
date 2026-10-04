@@ -25,6 +25,7 @@ import { ConfigureDeploymentHeader } from "../ConfigureDeploymentHeader/Configur
 import { ConfigureDeploymentPanes } from "../ConfigureDeploymentPanes/ConfigureDeploymentPanes";
 import { ConfigureWorkspace } from "../ConfigureWorkspace/ConfigureWorkspace";
 import { DeployProgressOverlay } from "../DeployProgressOverlay/DeployProgressOverlay";
+import { describeDepositShortfall, TOP_UP_PENDING_MESSAGE } from "../depositShortfall/depositShortfall";
 import type { ImportedDeploymentState } from "../importDeploymentState/importDeploymentState";
 import { importDeploymentState, isKnownSdlParserError, NoVisibleServiceError, seedSelectedServiceId } from "../importDeploymentState/importDeploymentState";
 import type { InheritedSecrets } from "../InheritedSecretsProvider/InheritedSecretsProvider";
@@ -218,14 +219,20 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, initialName, in
     function toastFlowError() {
       if (flow.error && flow.error !== lastToastedFlowError.current) {
         if (flow.error.kind === "needs-funds") {
+          const message = flow.error.shortfall ? describeDepositShortfall(flow.error.shortfall) : flow.error.message;
           const key = enqueueSnackbar(
             <d.Snackbar
               title="Add funds to continue"
-              subTitle={<d.AddCreditsSnackbarContent message={flow.error.message} context="configure_quotes_needs_funds" onAction={() => closeSnackbar(key)} />}
+              subTitle={<d.AddCreditsSnackbarContent message={message} context="configure_quotes_needs_funds" onAction={() => closeSnackbar(key)} />}
               iconVariant="warning"
             />,
             { variant: "warning", autoHideDuration: NEEDS_FUNDS_TOAST_DURATION_MS }
           );
+        } else if (flow.error.kind === "top-up-pending") {
+          enqueueSnackbar(<d.Snackbar title="Your balance is being topped up" subTitle={TOP_UP_PENDING_MESSAGE} iconVariant="warning" />, {
+            variant: "warning",
+            autoHideDuration: NEEDS_FUNDS_TOAST_DURATION_MS
+          });
         } else {
           const { title, fallback } = flowErrorToastCopy(flow.error.kind);
           enqueueSnackbar(<d.Snackbar title={title} subTitle={flow.error.message ?? fallback} iconVariant="error" />, { variant: "error" });

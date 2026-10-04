@@ -5,10 +5,18 @@ import { cn } from "@akashnetwork/ui/utils";
 import { ArrowRight, Check } from "iconoir-react";
 import { capitalize } from "lodash";
 
+import { describeDepositShortfall, TOP_UP_PENDING_MESSAGE } from "@src/components/deployments/ConfigureDeployment/depositShortfall/depositShortfall";
+import type { DeployFailure } from "@src/hooks/useAutoDeploymentFlow/deployPhases";
+
 type DeploymentPhaseStatus = "pending" | "active" | "completed";
 
 /** Upper bound for `progressPercent` — the bar fills the rounded segment up to 100%. */
 const BAR_MAX_PERCENT = 100;
+
+const CREATE_FAILED_FALLBACK_MESSAGE =
+  "Something went wrong while creating your deployment. You can try again from the start, or contact support if the problem keeps happening.";
+
+const NEEDS_FUNDS_FALLBACK_MESSAGE = "Your balance doesn't cover this deployment yet. Add funds, then try again.";
 
 type DeploymentPhase = {
   id: "creating" | "matching" | "preparing";
@@ -16,7 +24,7 @@ type DeploymentPhase = {
   status: DeploymentPhaseStatus;
 };
 
-type DeployOverlayState = { kind: "creating" | "matching" | "preparing" | "success" } | { kind: "error"; message?: string };
+type DeployOverlayState = { kind: "creating" | "matching" | "preparing" | "success" } | ({ kind: "error" } & DeployFailure);
 
 type DeployProgressOverlayProps = {
   state: DeployOverlayState;
@@ -26,6 +34,7 @@ type DeployProgressOverlayProps = {
   onChooseProvider?: () => void;
   onTryAgain?: () => void;
   onContactSupport?: () => void;
+  onAddFunds?: () => void;
 };
 
 export function PhasedDeploymentProgress({
@@ -35,10 +44,11 @@ export function PhasedDeploymentProgress({
   phases,
   onChooseProvider,
   onTryAgain,
-  onContactSupport
+  onContactSupport,
+  onAddFunds
 }: DeployProgressOverlayProps) {
   if (state.kind === "error") {
-    return <DeployErrorPanel templateName={templateName} message={state.message} onTryAgain={onTryAgain} onContactSupport={onContactSupport} />;
+    return <DeployErrorPanel templateName={templateName} failure={state} onTryAgain={onTryAgain} onContactSupport={onContactSupport} onAddFunds={onAddFunds} />;
   }
 
   const canChooseProvider = state.kind === "matching" || state.kind === "creating";
@@ -54,32 +64,56 @@ export function PhasedDeploymentProgress({
 
 type DeployErrorPanelProps = {
   templateName: string;
-  message?: string;
+  failure: DeployFailure;
   onTryAgain?: () => void;
   onContactSupport?: () => void;
+  onAddFunds?: () => void;
 };
 
-function DeployErrorPanel({ templateName, message, onTryAgain, onContactSupport }: DeployErrorPanelProps) {
+function DeployErrorPanel({ templateName, failure, onTryAgain, onContactSupport, onAddFunds }: DeployErrorPanelProps) {
+  const { title, description } = errorCopyOf(templateName, failure);
+
   return (
     <div className="relative z-10 flex w-full flex-col gap-6">
       <div className="flex flex-col gap-6">
         <div className="flex flex-col gap-2">
-          <h1 className="text-3xl leading-9 text-foreground">We couldn&apos;t deploy {templateName}</h1>
-          <p className="max-w-2xl text-sm leading-5 text-muted-foreground">
-            {message ??
-              "Something went wrong while creating your deployment. You can try again from the start, or contact support if the problem keeps happening."}
-          </p>
+          <h1 className="text-3xl leading-9 text-foreground">{title}</h1>
+          <p className="max-w-2xl text-sm leading-5 text-muted-foreground">{description}</p>
         </div>
 
         <div className="flex flex-col gap-3 sm:flex-row">
-          <Button onClick={onTryAgain}>Try again</Button>
-          <Button variant="outline" onClick={onContactSupport}>
-            Contact support
-          </Button>
+          {failure.reason === "needs-funds" ? (
+            <>
+              <Button onClick={onAddFunds}>Add funds</Button>
+              <Button variant="outline" onClick={onTryAgain}>
+                Try again
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button onClick={onTryAgain}>Try again</Button>
+              <Button variant="outline" onClick={onContactSupport}>
+                Contact support
+              </Button>
+            </>
+          )}
         </div>
       </div>
     </div>
   );
+}
+
+function errorCopyOf(templateName: string, { reason, message, shortfall }: DeployFailure): { title: string; description: string } {
+  if (reason === "needs-funds") {
+    return {
+      title: `Add funds to deploy ${templateName}`,
+      description: shortfall ? describeDepositShortfall(shortfall) : message ?? NEEDS_FUNDS_FALLBACK_MESSAGE
+    };
+  }
+  if (reason === "top-up-pending") {
+    return { title: "Your balance is being topped up", description: TOP_UP_PENDING_MESSAGE };
+  }
+  return { title: `We couldn't deploy ${templateName}`, description: message ?? CREATE_FAILED_FALLBACK_MESSAGE };
 }
 
 type DeployProgressPanelProps = {

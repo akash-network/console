@@ -196,6 +196,45 @@ describe(ManagedSignerService.name, () => {
       });
     });
 
+    it("tells a refused client how far its balance falls short of the deposit", async () => {
+      const { service } = setupForCreate({ deploymentLimit: 120000 });
+
+      await expect(service.executeDerivedDecodedTxByUserId("user-123", [createDeploymentMessage(500000)])).rejects.toMatchObject({
+        status: 402,
+        errorCode: "insufficient_balance",
+        data: { requiredAmountUsd: 0.5, availableAmountUsd: 0.12 }
+      });
+    });
+
+    it("tells a refused client to wait rather than add credits when auto recharge is topping up the balance", async () => {
+      const { service } = setupForCreate({ deploymentLimit: 120000, scheduleImmediate: vi.fn().mockResolvedValue(true) });
+
+      await expect(service.executeDerivedDecodedTxByUserId("user-123", [createDeploymentMessage(500000)])).rejects.toMatchObject({
+        status: 402,
+        errorCode: "balance_top_up_pending",
+        data: { requiredAmountUsd: 0.5, availableAmountUsd: 0.12 }
+      });
+    });
+
+    it("repeats the shortfall when answering a refusal from cache", async () => {
+      const { service, balancesService } = setupForCreate({ deploymentLimit: 120000 });
+      const refusal = expect.objectContaining({ errorCode: "insufficient_balance", data: { requiredAmountUsd: 0.5, availableAmountUsd: 0.12 } });
+
+      await expect(service.executeDerivedDecodedTxByUserId("user-123", [createDeploymentMessage(500000)])).rejects.toEqual(refusal);
+      await expect(service.executeDerivedDecodedTxByUserId("user-123", [createDeploymentMessage(500000)])).rejects.toEqual(refusal);
+
+      expect(balancesService.retrieveDeploymentLimit).toHaveBeenCalledTimes(1);
+    });
+
+    it("still refuses with a 402 when the shortfall cannot be priced", async () => {
+      const { service, logger } = setupForCreate({ deploymentLimit: 120000, toFiatAmount: vi.fn().mockRejectedValue(new Error("price unavailable")) });
+
+      const refusal = await service.executeDerivedDecodedTxByUserId("user-123", [createDeploymentMessage(500000)]).catch(error => error);
+
+      expect(refusal).toMatchObject({ status: 402, errorCode: "insufficient_balance", data: undefined });
+      expect(logger.warn).toHaveBeenCalledWith(expect.objectContaining({ event: "DEPOSIT_SHORTFALL_PRICING_FAILED" }));
+    });
+
     it("answers a repeated refusal from cache without re-reading the chain or warning again", async () => {
       const { service, balancesService, logger } = setupForCreate({
         deploymentLimit: 0,
@@ -1431,6 +1470,7 @@ describe(ManagedSignerService.name, () => {
     refreshUserWalletLimits?: BalancesService["refreshUserWalletLimits"];
     retrieveAndCalcFeeLimit?: BalancesService["retrieveAndCalcFeeLimit"];
     retrieveDeploymentLimit?: BalancesService["retrieveDeploymentLimit"];
+    toFiatAmount?: BalancesService["toFiatAmount"];
     publish?: DomainEventsService["publish"];
     transformChainError?: ChainErrorService["toAppError"];
     exposeSignerRefusal?: ChainErrorService["exposeSignerRefusal"];
@@ -1450,7 +1490,8 @@ describe(ManagedSignerService.name, () => {
       balancesService: mock<BalancesService>({
         refreshUserWalletLimits: input?.refreshUserWalletLimits ?? vi.fn(),
         retrieveAndCalcFeeLimit: input?.retrieveAndCalcFeeLimit ?? vi.fn().mockResolvedValue(1000000),
-        retrieveDeploymentLimit: input?.retrieveDeploymentLimit ?? vi.fn().mockResolvedValue(5000000)
+        retrieveDeploymentLimit: input?.retrieveDeploymentLimit ?? vi.fn().mockResolvedValue(5000000),
+        toFiatAmount: input?.toFiatAmount ?? vi.fn(async (uTokenAmount: number) => uTokenAmount / 1_000_000)
       }),
       authService: mock<AuthService>({
         currentUser: input?.currentUser ?? createUser({ userId: "current-user" }),

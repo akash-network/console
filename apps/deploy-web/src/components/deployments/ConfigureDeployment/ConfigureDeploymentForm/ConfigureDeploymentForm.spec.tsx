@@ -19,7 +19,7 @@ import { DEPENDENCIES as PLACEMENT_CARD_DEPENDENCIES, PlacementCard } from "../D
 import { importDeploymentState } from "../importDeploymentState/importDeploymentState";
 import { useInheritedSecrets } from "../InheritedSecretsProvider/InheritedSecretsProvider";
 import { usePlacementManagerContext } from "../PlacementManagerProvider/PlacementManagerProvider";
-import type { DeploymentFlow, FlowErrorKind } from "../useDeploymentFlow/useDeploymentFlow";
+import type { DeploymentFlow, FlowError } from "../useDeploymentFlow/useDeploymentFlow";
 import type { DEPENDENCIES } from "./ConfigureDeploymentForm";
 import { ConfigureDeploymentForm } from "./ConfigureDeploymentForm";
 
@@ -548,6 +548,27 @@ describe(ConfigureDeploymentForm.name, () => {
     expect(toast.props.subTitle.props).toMatchObject({ message });
   });
 
+  it("says how far the balance falls short when the api reports the amounts", () => {
+    const { enqueueSnackbar } = setup({
+      initialSdl: undefined,
+      flowError: { message: "Not enough balance", kind: "needs-funds", shortfall: { requiredAmountUsd: 0.5, availableAmountUsd: 0.12 } }
+    });
+
+    expect(needsFundsToastOf(enqueueSnackbar).props.subTitle.props).toMatchObject({
+      message: "Starting this deployment takes $0.50 and your balance has $0.12, so you're $0.38 short."
+    });
+  });
+
+  it("asks the user to wait rather than add funds when a top up is already on its way", () => {
+    const message = "Not enough balance to cover the deployment deposit. A top up from your saved payment method is on the way, so try again in a moment.";
+    const { enqueueSnackbar } = setup({ initialSdl: undefined, flowError: { message, kind: "top-up-pending" } });
+
+    expect(enqueueSnackbar).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ variant: "warning" }));
+    const toast = enqueueSnackbar.mock.calls[0][0] as { props: { title: string; subTitle: unknown } };
+    expect(toast.props.title).toBe("Your balance is being topped up");
+    expect(toast.props.subTitle).toBe("A top up from your saved payment method is on the way. Try again in a moment.");
+  });
+
   it("dismisses the add funds toast once the add credits sheet is open", () => {
     const { enqueueSnackbar, closeSnackbar } = setup({ initialSdl: undefined, flowError: { message: "Not enough balance", kind: "needs-funds" } });
 
@@ -912,7 +933,7 @@ describe(ConfigureDeploymentForm.name, () => {
     persistedRuntimeLimitHours?: number;
     persistedPlacementRegions?: Record<string, string[]>;
     deploySucceeded?: boolean;
-    flowError?: { message?: string; kind?: FlowErrorKind };
+    flowError?: FlowError;
     noBidsReceived?: boolean;
     vm?: boolean;
     phase?: DeploymentFlow["phase"];
@@ -972,17 +993,19 @@ describe(ConfigureDeploymentForm.name, () => {
       setName: setDeploymentName
     })) as never;
     // The base flow is created upstream by the DeploymentFlowProvider now, so it arrives as a prop rather than a hook.
-    const flow = mock<DeploymentFlow>({
-      phase: input.phase ?? "configuring",
-      dseq: null,
-      bidStrategy: "select",
-      selections: {},
-      deploySucceeded: input.deploySucceeded ?? false,
-      error: input.flowError,
-      noBidsReceived: input.noBidsReceived ?? false,
-      pendingClose: input.pendingClose ?? null,
-      actions: mock<DeploymentFlow["actions"]>({ requestQuotes })
-    });
+    const flow = Object.assign(
+      mock<DeploymentFlow>({
+        phase: input.phase ?? "configuring",
+        dseq: null,
+        bidStrategy: "select",
+        selections: {},
+        deploySucceeded: input.deploySucceeded ?? false,
+        noBidsReceived: input.noBidsReceived ?? false,
+        pendingClose: input.pendingClose ?? null,
+        actions: mock<DeploymentFlow["actions"]>({ requestQuotes })
+      }),
+      { error: input.flowError }
+    );
     const analyticsService = mock<AnalyticsService>();
     const dependencies: typeof DEPENDENCIES = {
       AddCreditsSnackbarContent: AddCreditsSnackbarContent as never,

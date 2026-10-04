@@ -1,11 +1,14 @@
+import type { DepositShortfall } from "@src/components/deployments/ConfigureDeployment/depositShortfall/depositShortfall";
 import { usePhasedProgressBar } from "@src/hooks/useGradualProgress/usePhasedProgressBar";
 
 export type DeployPhaseId = "creating" | "matching" | "preparing";
 export type DeployPhaseStatus = "pending" | "active" | "completed";
 export type DeployPhase = { id: DeployPhaseId; label: string; status: DeployPhaseStatus };
 
+export type DeployFailure = { message?: string; reason?: "needs-funds" | "top-up-pending"; shortfall?: DepositShortfall };
+
 /** The progress state the shared deploy scene renders from: an in-flight/succeeded phase, or a terminal error. */
-export type DeployProgressState = { kind: DeployPhaseId | "success" } | { kind: "error"; message?: string };
+export type DeployProgressState = { kind: DeployPhaseId | "success" } | ({ kind: "error" } & DeployFailure);
 
 /** The step a *manual* configure deploy can be on while its scene is up: the lease ("preparing"), then "success". */
 export type ManualDeployActivePhase = "preparing" | "success";

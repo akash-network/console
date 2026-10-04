@@ -2,7 +2,7 @@ import { useCallback, useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
-import type { DeploymentBids, DeploymentFlow } from "@src/components/deployments/ConfigureDeployment/useDeploymentFlow/useDeploymentFlow";
+import type { DeploymentBids, DeploymentFlow, FlowError } from "@src/components/deployments/ConfigureDeployment/useDeploymentFlow/useDeploymentFlow";
 import { useFirstReachableProvider } from "@src/queries/useProvidersQuery";
 import type { ProviderProxyService } from "@src/services/provider-proxy/provider-proxy.service";
 import type { ApiProviderList } from "@src/types/provider";
@@ -49,6 +49,25 @@ describe(useAutoDeploymentFlow.name, () => {
     act(() => flow.setPhaseError("Tx rejected by node"));
 
     await vi.waitFor(() => expect(result.current.state).toEqual({ kind: "error", message: "Tx rejected by node" }));
+  });
+
+  it("carries a refusal the user can pay their way out of, with its shortfall, onto the error state", async () => {
+    const { result, flow } = setup();
+    const shortfall = { requiredAmountUsd: 0.5, availableAmountUsd: 0.12 };
+
+    await vi.waitFor(() => expect(flow.actions.requestQuotes).toHaveBeenCalled());
+    act(() => flow.setFlowError({ kind: "needs-funds", message: "Not enough balance", shortfall }));
+
+    await vi.waitFor(() => expect(result.current.state).toEqual({ kind: "error", message: "Not enough balance", reason: "needs-funds", shortfall }));
+  });
+
+  it("marks a refusal a pending top up will clear so the screen asks the user to wait", async () => {
+    const { result, flow } = setup();
+
+    await vi.waitFor(() => expect(flow.actions.requestQuotes).toHaveBeenCalled());
+    act(() => flow.setFlowError({ kind: "top-up-pending", message: "A top up is on the way" }));
+
+    await vi.waitFor(() => expect(result.current.state).toEqual({ kind: "error", message: "A top up is on the way", reason: "top-up-pending" }));
   });
 
   it("stays in matching while no open bid is returned", async () => {
@@ -430,12 +449,14 @@ describe(useAutoDeploymentFlow.name, () => {
 
     const flowControls: {
       setPhaseError: (message?: string) => void;
+      setFlowError: (error: FlowError) => void;
       setDeployError: (message?: string) => void;
       setCreating: () => void;
       dropSelections: () => void;
       replaceDseq: (next: string) => void;
     } = {
       setPhaseError: () => undefined,
+      setFlowError: () => undefined,
       setDeployError: () => undefined,
       setCreating: () => undefined,
       dropSelections: () => undefined,
@@ -451,10 +472,14 @@ describe(useAutoDeploymentFlow.name, () => {
       const [selections, setSelections] = useState<Record<string, string>>({});
       const [deploySucceeded, setDeploySucceeded] = useState(false);
       const [deployError, setDeployError] = useState<{ message?: string } | undefined>(undefined);
-      const [error, setError] = useState<{ message?: string } | undefined>(undefined);
+      const [error, setError] = useState<FlowError | undefined>(undefined);
 
       flowControls.setPhaseError = (message?: string) => {
         setError({ message });
+        setPhase("error");
+      };
+      flowControls.setFlowError = (flowError: FlowError) => {
+        setError(flowError);
         setPhase("error");
       };
       flowControls.setDeployError = (message?: string) => {

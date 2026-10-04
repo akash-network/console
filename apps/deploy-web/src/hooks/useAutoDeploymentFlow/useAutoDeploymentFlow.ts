@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { DeploymentFlow, DeploymentFlowPhase } from "@src/components/deployments/ConfigureDeployment/useDeploymentFlow/useDeploymentFlow";
 import { useQuoteExpiry } from "@src/components/deployments/ConfigureDeployment/useQuoteExpiry/useQuoteExpiry";
 import { useServices } from "@src/context/ServicesProvider";
-import type { DeployPhase, DeployPhaseId, DeployProgressState } from "@src/hooks/useAutoDeploymentFlow/deployPhases";
+import type { DeployFailure, DeployPhase, DeployPhaseId, DeployProgressState } from "@src/hooks/useAutoDeploymentFlow/deployPhases";
 import { PHASE_ORDER, useDeployPhaseProgress } from "@src/hooks/useAutoDeploymentFlow/deployPhases";
 import { BID_POLL_INTERVAL } from "@src/queries/useListBids";
 import { useFirstReachableProvider, useProvidersByAddresses } from "@src/queries/useProvidersQuery";
@@ -274,7 +274,6 @@ export function useAutoDeploymentFlow({ sdl, resumeLeases = [], flow }: Options,
   );
 
   const projected = projectPhase(flow.phase, flow.deploySucceeded, !!flow.deployError);
-  const errorMessage = flow.deployError?.message ?? flow.error?.message;
 
   const phaseIndex = getPhaseIndex(projected);
   const { progressPercent, phases } = useDeployPhaseProgress(phaseIndex, { succeeded: projected === "success", resetKey: retryToken });
@@ -296,7 +295,7 @@ export function useAutoDeploymentFlow({ sdl, resumeLeases = [], flow }: Options,
   }
 
   return {
-    state: projected === "error" ? { kind: "error", message: errorMessage } : { kind: projected },
+    state: projected === "error" ? { kind: "error", ...failureOf(flow) } : { kind: projected },
     progressPercent,
     phases,
     matchedProviderAddress,
@@ -307,6 +306,14 @@ export function useAutoDeploymentFlow({ sdl, resumeLeases = [], flow }: Options,
 }
 
 type ProjectedPhase = DeployPhaseId | "success" | "error";
+
+function failureOf(flow: DeploymentFlow): DeployFailure {
+  if (flow.deployError) return { message: flow.deployError.message };
+
+  const { message, kind, shortfall } = flow.error ?? {};
+  const reason = kind === "needs-funds" || kind === "top-up-pending" ? kind : undefined;
+  return { message, reason, shortfall };
+}
 
 /** Projects the manual flow's phase onto the three-step auto progress UI (create → match → prepare) plus success/error. */
 function projectPhase(phase: DeploymentFlowPhase, deploySucceeded: boolean, deployErrored: boolean): ProjectedPhase {

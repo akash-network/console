@@ -45,6 +45,20 @@ const SPENDING_TXS = [MsgCreateDeployment, MsgAccountDeposit];
 const INSUFFICIENT_DEPOSIT_BALANCE_MESSAGE = "Not enough balance to cover the deployment deposit. Add credits or turn on auto recharge to continue.";
 const INSUFFICIENT_DEPOSIT_BALANCE_RELOADING_MESSAGE =
   "Not enough balance to cover the deployment deposit. A top up from your saved payment method is on the way, so try again in a moment.";
+const INSUFFICIENT_BALANCE_ERROR_CODE = "insufficient_balance";
+const BALANCE_TOP_UP_PENDING_ERROR_CODE = "balance_top_up_pending";
+
+type DepositRefusal = {
+  reloadScheduled: boolean;
+  retryAfterSeconds: number;
+  requiredDeposit: number;
+  deploymentAllowance: number;
+};
+
+type DepositShortfall = {
+  requiredAmountUsd: number;
+  availableAmountUsd: number;
+};
 
 @singleton()
 export class ManagedSignerService {
@@ -333,7 +347,7 @@ export class ManagedSignerService {
           reloadScheduled
         });
 
-        this.#throwInsufficientDepositBalance(reloadScheduled, retryAfterSeconds);
+        throw await this.#createDepositRefusal({ reloadScheduled, retryAfterSeconds, requiredDeposit, deploymentAllowance });
       }
     });
   }
@@ -357,13 +371,35 @@ export class ManagedSignerService {
       suppressedAttempts: cached.suppressedAttempts
     });
 
-    this.#throwInsufficientDepositBalance(reloadScheduled, cached.retryAfterSeconds);
+    throw await this.#createDepositRefusal({
+      reloadScheduled,
+      retryAfterSeconds: cached.retryAfterSeconds,
+      requiredDeposit,
+      deploymentAllowance: cached.chainDeploymentAllowance
+    });
   }
 
-  #throwInsufficientDepositBalance(reloadScheduled: boolean, retryAfterSeconds: number): never {
+  async #createDepositRefusal({ reloadScheduled, retryAfterSeconds, requiredDeposit, deploymentAllowance }: DepositRefusal) {
     const message = reloadScheduled ? INSUFFICIENT_DEPOSIT_BALANCE_RELOADING_MESSAGE : INSUFFICIENT_DEPOSIT_BALANCE_MESSAGE;
+    const errorCode = reloadScheduled ? BALANCE_TOP_UP_PENDING_ERROR_CODE : INSUFFICIENT_BALANCE_ERROR_CODE;
+    const data = await this.#priceDepositShortfall(requiredDeposit, deploymentAllowance);
 
-    throw createError(402, message, { headers: { "Retry-After": String(retryAfterSeconds) } });
+    return createError(402, message, { errorCode, data, headers: { "Retry-After": String(retryAfterSeconds) } });
+  }
+
+  /** The amounts only help the client explain the refusal, so a failed price lookup must not replace the 402 with a different error. */
+  async #priceDepositShortfall(requiredDeposit: number, deploymentAllowance: number): Promise<DepositShortfall | undefined> {
+    try {
+      const [requiredAmountUsd, availableAmountUsd] = await Promise.all([
+        this.balancesService.toFiatAmount(requiredDeposit),
+        this.balancesService.toFiatAmount(deploymentAllowance)
+      ]);
+
+      return { requiredAmountUsd, availableAmountUsd };
+    } catch (error) {
+      this.logger.warn({ event: "DEPOSIT_SHORTFALL_PRICING_FAILED", error });
+      return undefined;
+    }
   }
 
   #getCreateDeploymentMessages(messages: EncodeObject[]): { typeUrl: string; value: MsgCreateDeployment }[] {

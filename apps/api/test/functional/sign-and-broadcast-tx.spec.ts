@@ -64,7 +64,7 @@ describe("Tx Sign", () => {
       expect(res.headers.get("Retry-After")).toMatch(/^[1-9]\d*$/);
       expect(await res.json()).toMatchObject({
         error: "PaymentRequiredError",
-        code: "payment_required",
+        code: "insufficient_balance",
         message: "Not enough balance to cover the deployment deposit. Add credits or turn on auto recharge to continue."
       });
     });
