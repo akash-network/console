@@ -23,12 +23,16 @@ export function useTemplateGalleryUrlState(dependencies: typeof DEPENDENCIES = D
   const urlCategory = searchParams?.get("category") || null;
   const urlSearch = searchParams?.get("search") ?? "";
   const [state, setState] = useState<GalleryUrlState>({ category: urlCategory, search: urlSearch });
-  /** The page's own writes the link has yet to show, oldest first; a link matching one of them is the page's own echo, not a navigation to follow. */
+  const lastSeenUrl = useRef<GalleryUrlState>({ category: urlCategory, search: urlSearch });
+  /** The page's own writes the link has yet to show, oldest first; a write back to the link it is on never shows as a change, so it replaces this queue instead of joining it. */
   const unsettledWrites = useRef<GalleryUrlState[]>([]);
 
   const writeUrl = useCallback(
     (next: GalleryUrlState) => {
-      unsettledWrites.current.push(next);
+      const isLinkAlreadyThere = isSameUrlState(next, lastSeenUrl.current);
+      if (isLinkAlreadyThere && unsettledWrites.current.length === 0) return;
+
+      unsettledWrites.current = isLinkAlreadyThere ? [] : [...unsettledWrites.current, next];
       router.replace(UrlService.templates(next.category, next.search));
     },
     [router]
@@ -37,14 +41,18 @@ export function useTemplateGalleryUrlState(dependencies: typeof DEPENDENCIES = D
 
   useEffect(
     function followUrlChangedElsewhere() {
-      const settledIndex = unsettledWrites.current.findIndex(write => write.category === urlCategory && write.search === urlSearch);
+      const url = { category: urlCategory, search: urlSearch };
+      lastSeenUrl.current = url;
+
+      const settledIndex = unsettledWrites.current.findIndex(write => isSameUrlState(write, url));
       if (settledIndex !== -1) {
         unsettledWrites.current.splice(0, settledIndex + 1);
         return;
       }
 
       writeUrlLater.cancel();
-      setState(current => (current.category === urlCategory && current.search === urlSearch ? current : { category: urlCategory, search: urlSearch }));
+      unsettledWrites.current = [];
+      setState(current => (isSameUrlState(current, url) ? current : url));
     },
     [urlCategory, urlSearch, writeUrlLater]
   );
@@ -76,4 +84,8 @@ export function useTemplateGalleryUrlState(dependencies: typeof DEPENDENCIES = D
   };
 
   return { category: state.category, search: state.search, selectCategory, changeSearch, clearSearch };
+}
+
+function isSameUrlState(a: GalleryUrlState, b: GalleryUrlState): boolean {
+  return a.category === b.category && a.search === b.search;
 }

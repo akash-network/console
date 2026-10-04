@@ -86,8 +86,8 @@ describe(useTemplateGalleryUrlState.name, () => {
     act(() => result.current.clearSearch());
     await new Promise(resolve => setTimeout(resolve, 400));
 
-    expect(router.replace).toHaveBeenCalledTimes(1);
-    expect(router.replace).toHaveBeenCalledWith("/templates");
+    expect(result.current.search).toBe("");
+    expect(router.replace).not.toHaveBeenCalled();
   });
 
   it("follows the link when something else changes it", () => {
@@ -174,6 +174,58 @@ describe(useTemplateGalleryUrlState.name, () => {
 
     act(() => result.current.selectCategory("Games"));
     rerenderWithUrl({ category: "Games" });
+    rerenderWithUrl({ category: "Tools" });
+    rerenderWithUrl({ category: "Games" });
+
+    expect(result.current.category).toBe("Games");
+  });
+
+  it("does not navigate when the pick is already in the link", () => {
+    const { result, router } = setup({ url: { category: "Games", search: "craft" } });
+
+    act(() => result.current.selectCategory("Games"));
+
+    expect(router.replace).not.toHaveBeenCalled();
+  });
+
+  it("drops its pending writes when the link changes elsewhere, so it follows a later return to one of them", () => {
+    const { result, rerenderWithUrl } = setup({ url: {} });
+
+    act(() => result.current.selectCategory("Games"));
+    rerenderWithUrl({ category: "Tools" });
+    rerenderWithUrl({ category: "Games" });
+
+    expect(result.current.category).toBe("Games");
+  });
+
+  it("forgets a pending write once the user goes back to what the link already shows", () => {
+    const { result, router, rerenderWithUrl } = setup({ url: {} });
+
+    act(() => result.current.selectCategory("Games"));
+    act(() => result.current.selectCategory(null));
+    rerenderWithUrl({ category: "Games" });
+
+    expect(router.replace).toHaveBeenLastCalledWith("/templates");
+    expect(result.current.category).toBe("Games");
+  });
+
+  it("keeps waiting for its own write after going back to what the link shows and picking again", () => {
+    const { result, rerenderWithUrl } = setup({ url: {} });
+
+    act(() => result.current.selectCategory("Games"));
+    act(() => result.current.selectCategory(null));
+    act(() => result.current.selectCategory("Tools"));
+    rerenderWithUrl({ category: "Tools" });
+
+    expect(result.current.category).toBe("Tools");
+  });
+
+  it("follows an outside link to a category it wrote before, once its own writes have landed", () => {
+    const { result, rerenderWithUrl } = setup({ url: {} });
+
+    act(() => result.current.selectCategory("Games"));
+    rerenderWithUrl({ category: "Games" });
+    act(() => result.current.selectCategory("Tools"));
     rerenderWithUrl({ category: "Tools" });
     rerenderWithUrl({ category: "Games" });
 
