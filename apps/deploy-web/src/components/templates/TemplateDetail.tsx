@@ -2,6 +2,7 @@
 
 import type { FC, MouseEvent, ReactNode } from "react";
 import { useId } from "react";
+import type { PluggableList } from "react-markdown/lib/react-markdown";
 import { Avatar, AvatarFallback, AvatarImage, buttonVariants, Tabs, TabsContent, TabsList, TabsTrigger } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
 import { Github } from "iconoir-react";
@@ -16,6 +17,7 @@ import type { ApiTemplate } from "@src/types";
 import { UrlService } from "@src/utils/urlUtils";
 import Layout from "../layout/Layout";
 import { SDLEditor } from "../sdl/SDLEditor/SDLEditor";
+import { rehypeRemoveDeployBadge } from "./rehypeRemoveDeployBadge/rehypeRemoveDeployBadge";
 import { TemplateDeploysAs } from "./TemplateDeploysAs/TemplateDeploysAs";
 import { describeRepository } from "./templateRepository";
 
@@ -23,6 +25,8 @@ const OVERLINE_CLASSES = "font-mono text-[10px] font-semibold uppercase tracking
 
 const MARKDOWN_CLASSES =
   "prose-sm [overflow-wrap:anywhere] prose-headings:tracking-tight prose-h1:border-b prose-h1:border-border prose-h1:pb-3 prose-h1:text-[22px] prose-h2:text-base prose-a:text-blue-600 prose-a:no-underline hover:prose-a:underline prose-pre:rounded-[10px] dark:prose-a:text-blue-400 [&_img]:max-w-full";
+
+const TEMPLATE_DOCUMENT_PLUGINS: PluggableList = [rehypeRemoveDeployBadge];
 
 export const DEPENDENCIES = {
   useRouter,
@@ -45,7 +49,7 @@ export const TemplateDetail: FC<TemplateDetailProps> = ({ template, dependencies
   const repository = describeRepository(template.githubUrl);
 
   const returnToPreviousPage = (event: MouseEvent<HTMLAnchorElement>) => {
-    if (!hasInAppHistory) return;
+    if (!hasInAppHistory || isOpeningElsewhere(event)) return;
     event.preventDefault();
     router.back();
   };
@@ -117,7 +121,11 @@ export const TemplateDetail: FC<TemplateDetailProps> = ({ template, dependencies
             </div>
 
             <TabsContent value="readme" className="mt-0 px-4 pb-[26px] pt-[22px] sm:px-[26px]">
-              <d.Markdown hasHtml={template.id?.startsWith("akash-network-awesome-akash")} className={MARKDOWN_CLASSES}>
+              <d.Markdown
+                hasHtml={template.id?.startsWith("akash-network-awesome-akash")}
+                className={MARKDOWN_CLASSES}
+                rehypePlugins={TEMPLATE_DOCUMENT_PLUGINS}
+              >
                 {template.readme}
               </d.Markdown>
             </TabsContent>
@@ -126,7 +134,9 @@ export const TemplateDetail: FC<TemplateDetailProps> = ({ template, dependencies
             </TabsContent>
             {template.guide && (
               <TabsContent value="guide" className="mt-0 px-4 pb-[26px] pt-[22px] sm:px-[26px]">
-                <d.Markdown className={MARKDOWN_CLASSES}>{template.guide}</d.Markdown>
+                <d.Markdown className={MARKDOWN_CLASSES} rehypePlugins={TEMPLATE_DOCUMENT_PLUGINS}>
+                  {template.guide}
+                </d.Markdown>
               </TabsContent>
             )}
           </Tabs>
@@ -149,6 +159,11 @@ export const TemplateDetail: FC<TemplateDetailProps> = ({ template, dependencies
     </d.Layout>
   );
 };
+
+/** Modifier clicks ask the browser to open the gallery in a new tab or window, which going back in this one would override. */
+function isOpeningElsewhere(event: MouseEvent<HTMLAnchorElement>): boolean {
+  return event.metaKey || event.ctrlKey || event.shiftKey || event.altKey;
+}
 
 const FileTab: FC<{ value: string; icon: LucideIcon; children: ReactNode }> = ({ value, icon: Icon, children }) => (
   <TabsTrigger

@@ -147,6 +147,92 @@ deployment:
       count: 1
 `;
 
+const MIXED_GPU_SERVICES_SDL = `
+version: "2.0"
+services:
+  head:
+    image: rayproject/ray
+    expose:
+      - port: 8265
+        to:
+          - global: true
+  worker:
+    image: rayproject/ray
+    expose:
+      - port: 8000
+        to:
+          - service: head
+  web:
+    image: nginx
+    expose:
+      - port: 80
+        to:
+          - global: true
+profiles:
+  compute:
+    head:
+      resources:
+        cpu:
+          units: 8
+        memory:
+          size: 64Gi
+        gpu:
+          units: 8
+          attributes:
+            vendor:
+              nvidia:
+                - model: h100
+                - model: a100
+        storage:
+          size: 100Gi
+    worker:
+      resources:
+        cpu:
+          units: 8
+        memory:
+          size: 64Gi
+        gpu:
+          units: 8
+          attributes:
+            vendor:
+              nvidia:
+        storage:
+          size: 100Gi
+    web:
+      resources:
+        cpu:
+          units: 1
+        memory:
+          size: 1Gi
+        storage:
+          size: 1Gi
+  placement:
+    akash:
+      pricing:
+        head:
+          denom: uact
+          amount: 10000
+        worker:
+          denom: uact
+          amount: 10000
+        web:
+          denom: uact
+          amount: 1000
+deployment:
+  head:
+    akash:
+      profile: head
+      count: 1
+  worker:
+    akash:
+      profile: worker
+      count: 2
+  web:
+    akash:
+      profile: web
+      count: 1
+`;
+
 const TWO_SERVICES_SDL = `
 version: "2.0"
 services:
@@ -241,6 +327,10 @@ describe(summarizeTemplateDeployment.name, () => {
 
   it("says any GPU will do when the template names no vendor", () => {
     expect(summarizeTemplateDeployment(GPU_WITHOUT_VENDOR_SDL)?.gpu).toBe("1\u00d7 Any");
+  });
+
+  it("counts GPUs per set of models each service accepts, across replicas", () => {
+    expect(summarizeTemplateDeployment(MIXED_GPU_SERVICES_SDL)?.gpu).toBe("8\u00d7 H100 / A100, 16\u00d7 NVIDIA");
   });
 
   it("totals several services and their replicas, counting the services instead of naming an image", () => {

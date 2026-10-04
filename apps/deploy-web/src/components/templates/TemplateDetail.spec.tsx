@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { ApiTemplate } from "@src/types";
+import { rehypeRemoveDeployBadge } from "./rehypeRemoveDeployBadge/rehypeRemoveDeployBadge";
 import { DEPENDENCIES, TemplateDetail } from "./TemplateDetail";
 
 import { fireEvent, render, screen } from "@testing-library/react";
@@ -41,6 +42,15 @@ describe(TemplateDetail.name, () => {
     expect(router.back).toHaveBeenCalled();
   });
 
+  it.each(["metaKey", "ctrlKey", "shiftKey", "altKey"] as const)("leaves a click with %s to the browser, to open the gallery elsewhere", modifier => {
+    const { router, clickAndReportPrevented } = setup({ hasInAppHistory: true });
+
+    const wasPrevented = clickAndReportPrevented(screen.getByRole("link", { name: "Back to templates" }), { [modifier]: true });
+
+    expect(wasPrevented).toBe(false);
+    expect(router.back).not.toHaveBeenCalled();
+  });
+
   it("follows the link to the gallery when the user landed on the template directly", () => {
     const { router, clickAndReportPrevented } = setup({ hasInAppHistory: false });
     const backLink = screen.getByRole("link", { name: "Back to templates" });
@@ -69,6 +79,15 @@ describe(TemplateDetail.name, () => {
     const { Markdown } = setup({ template: { id: undefined } });
 
     expect(Markdown).toHaveBeenCalledWith(expect.objectContaining({ hasHtml: undefined }), {});
+  });
+
+  it("strips the GitHub deploy badge from the README and the guide", async () => {
+    const { Markdown } = setup({ template: { guide: "# How to use it" } });
+
+    await userEvent.click(screen.getByRole("tab", { name: "GUIDE.md" }));
+
+    expect(Markdown).toHaveBeenCalledWith(expect.objectContaining({ children: "# ComfyUI readme", rehypePlugins: [rehypeRemoveDeployBadge] }), {});
+    expect(Markdown).toHaveBeenCalledWith(expect.objectContaining({ children: "# How to use it", rehypePlugins: [rehypeRemoveDeployBadge] }), {});
   });
 
   it("shows the template's SDL read-only", async () => {
@@ -147,14 +166,14 @@ describe(TemplateDetail.name, () => {
 
     const { container } = render(<TemplateDetail template={template} dependencies={dependencies} />);
 
-    const clickAndReportPrevented = (element: HTMLElement) => {
+    const clickAndReportPrevented = (element: HTMLElement, init?: MouseEventInit) => {
       let wasPrevented = false;
       const recordAndStopNavigation = (event: Event) => {
         wasPrevented = event.defaultPrevented;
         event.preventDefault();
       };
       container.addEventListener("click", recordAndStopNavigation);
-      fireEvent.click(element);
+      fireEvent.click(element, init);
       container.removeEventListener("click", recordAndStopNavigation);
       return wasPrevented;
     };
