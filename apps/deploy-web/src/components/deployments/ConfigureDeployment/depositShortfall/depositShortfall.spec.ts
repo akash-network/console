@@ -25,6 +25,12 @@ describe(extractDepositShortfall.name, () => {
   it("returns nothing for a failure that is not an api error", () => {
     expect(extractDepositShortfall(new Error("network down"))).toBeUndefined();
   });
+
+  it("trusts only an api error, even when another failure carries the same body", () => {
+    const lookalike = Object.assign(new Error("proxy failure"), { body: { data: { requiredAmountUsd: 0.5, availableAmountUsd: 0.12 } } });
+
+    expect(extractDepositShortfall(lookalike)).toBeUndefined();
+  });
 });
 
 describe(isBalanceTopUpPending.name, () => {

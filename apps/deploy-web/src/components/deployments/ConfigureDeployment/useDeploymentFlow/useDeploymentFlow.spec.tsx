@@ -1169,6 +1169,7 @@ describe(useDeploymentFlow.name, () => {
       expect(createMutate).toHaveBeenCalledTimes(1);
       expect(sealSdlSecrets).toHaveBeenCalledTimes(1);
       expect(result.current.error?.message).toContain("still being set up");
+      expect(result.current.error?.kind).toBe("create");
     });
 
     it("does not seal again when the create fails with something other than a conflict", async () => {

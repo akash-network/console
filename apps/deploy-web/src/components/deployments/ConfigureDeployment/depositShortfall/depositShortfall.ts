@@ -9,13 +9,13 @@ const depositShortfallSchema = z
   .object({ requiredAmountUsd: z.number(), availableAmountUsd: z.number() })
   .refine(({ requiredAmountUsd, availableAmountUsd }) => requiredAmountUsd > availableAmountUsd);
 
+const refusalBodySchema = z.object({ data: depositShortfallSchema });
+
 export type DepositShortfall = z.infer<typeof depositShortfallSchema>;
 
 export function extractDepositShortfall(cause: unknown): DepositShortfall | undefined {
-  if (!isApiError(cause) || !cause.body || typeof cause.body !== "object") return undefined;
-
-  const parsed = depositShortfallSchema.safeParse((cause.body as { data?: unknown }).data);
-  return parsed.success ? parsed.data : undefined;
+  const parsed = refusalBodySchema.safeParse(isApiError(cause) ? cause.body : null);
+  return parsed.success ? parsed.data.data : undefined;
 }
 
 export function isBalanceTopUpPending(cause: unknown): boolean {

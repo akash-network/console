@@ -61,6 +61,15 @@ describe(useAutoDeploymentFlow.name, () => {
     await vi.waitFor(() => expect(result.current.state).toEqual({ kind: "error", message: "Not enough balance", reason: "needs-funds", shortfall }));
   });
 
+  it("gives a failure the user cannot pay their way out of no funding reason", async () => {
+    const { result, flow } = setup();
+
+    await vi.waitFor(() => expect(flow.actions.requestQuotes).toHaveBeenCalled());
+    act(() => flow.setFlowError({ kind: "create", message: "Invalid SDL" }));
+
+    await vi.waitFor(() => expect(result.current.state).toEqual({ kind: "error", message: "Invalid SDL" }));
+  });
+
   it("marks a refusal a pending top up will clear so the screen asks the user to wait", async () => {
     const { result, flow } = setup();
 

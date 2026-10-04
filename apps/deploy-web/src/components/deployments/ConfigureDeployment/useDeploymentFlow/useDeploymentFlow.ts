@@ -818,7 +818,7 @@ function namePayload(name: string | undefined): { name?: string } {
   return trimmed ? { name: trimmed } : {};
 }
 
-/** Status is the only signal available: a refused deposit, an exhausted fee allowance and a trial-blocked GPU all report `payment_required`. */
+/** Matched on status because an exhausted fee allowance and a trial-blocked GPU still report the generic `payment_required`, and adding funds clears them too. */
 function isPaymentRequired(cause: unknown): boolean {
   return isApiError(cause) && cause.status === HTTP_PAYMENT_REQUIRED;
 }
