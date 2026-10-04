@@ -144,6 +144,12 @@ describe("csp", () => {
       expect(imgSrc).toContain("blob:");
     });
 
+    it("allows any https media source because template READMEs embed videos from arbitrary origins", () => {
+      const { mediaSrc } = setup({});
+
+      expect(mediaSrc).toEqual(["'self'", "https:"]);
+    });
+
     it("allows the bare analytics.google.com host the subdomain wildcard cannot match", () => {
       const { connectSrc } = setup({});
 
@@ -300,6 +306,7 @@ describe("csp", () => {
       styleSrc: directives["style-src"],
       connectSrc: directives["connect-src"],
       imgSrc: directives["img-src"],
+      mediaSrc: directives["media-src"],
       reportUri: directives["report-uri"],
       reportTo: directives["report-to"]
     };
