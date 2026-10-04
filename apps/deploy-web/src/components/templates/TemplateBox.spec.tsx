@@ -14,34 +14,6 @@ describe(TemplateBox.name, () => {
     expect(screen.getByText("A brief summary")).toBeInTheDocument();
   });
 
-  it("shows Recommended badge when isRecommended is true", () => {
-    setup({ isRecommended: true });
-
-    expect(screen.getByText("Recommended")).toBeInTheDocument();
-    expect(screen.queryByText("Popular")).not.toBeInTheDocument();
-  });
-
-  it("shows Popular badge when isPopular is true and isRecommended is false", () => {
-    setup({ isPopular: true });
-
-    expect(screen.getByText("Popular")).toBeInTheDocument();
-    expect(screen.queryByText("Recommended")).not.toBeInTheDocument();
-  });
-
-  it("shows only Recommended badge when both isRecommended and isPopular are true", () => {
-    setup({ isRecommended: true, isPopular: true });
-
-    expect(screen.getByText("Recommended")).toBeInTheDocument();
-    expect(screen.queryByText("Popular")).not.toBeInTheDocument();
-  });
-
-  it("shows no badge by default", () => {
-    setup();
-
-    expect(screen.queryByText("Recommended")).not.toBeInTheDocument();
-    expect(screen.queryByText("Popular")).not.toBeInTheDocument();
-  });
-
   it("renders a link to the template details page", () => {
     setup();
 
@@ -56,7 +28,7 @@ describe(TemplateBox.name, () => {
     expect(link).toHaveAttribute("href", "/custom-link");
   });
 
-  function setup(input: { isRecommended?: boolean; isPopular?: boolean; linkHref?: string } = {}) {
+  function setup(input: { linkHref?: string } = {}) {
     const template: TemplateOutputSummaryWithCategory = {
       id: "template-123",
       name: "My Template",
@@ -65,6 +37,6 @@ describe(TemplateBox.name, () => {
       logoUrl: null,
       category: "AI & ML"
     };
-    render(<TemplateBox template={template} isRecommended={input.isRecommended} isPopular={input.isPopular} linkHref={input.linkHref} />);
+    render(<TemplateBox template={template} linkHref={input.linkHref} />);
   }
 });
