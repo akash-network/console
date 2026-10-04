@@ -233,6 +233,73 @@ deployment:
       count: 1
 `;
 
+const REORDERED_GPU_MODELS_SDL = `
+version: "2.0"
+services:
+  head:
+    image: rayproject/ray
+    expose:
+      - port: 8265
+        to:
+          - global: true
+  worker:
+    image: rayproject/ray
+    expose:
+      - port: 8000
+        to:
+          - service: head
+profiles:
+  compute:
+    head:
+      resources:
+        cpu:
+          units: 8
+        memory:
+          size: 64Gi
+        gpu:
+          units: 8
+          attributes:
+            vendor:
+              nvidia:
+                - model: h100
+                - model: a100
+        storage:
+          size: 100Gi
+    worker:
+      resources:
+        cpu:
+          units: 8
+        memory:
+          size: 64Gi
+        gpu:
+          units: 8
+          attributes:
+            vendor:
+              nvidia:
+                - model: a100
+                - model: h100
+        storage:
+          size: 100Gi
+  placement:
+    akash:
+      pricing:
+        head:
+          denom: uact
+          amount: 10000
+        worker:
+          denom: uact
+          amount: 10000
+deployment:
+  head:
+    akash:
+      profile: head
+      count: 1
+  worker:
+    akash:
+      profile: worker
+      count: 1
+`;
+
 const TWO_SERVICES_SDL = `
 version: "2.0"
 services:
@@ -331,6 +398,10 @@ describe(summarizeTemplateDeployment.name, () => {
 
   it("counts GPUs per set of models each service accepts, across replicas", () => {
     expect(summarizeTemplateDeployment(MIXED_GPU_SERVICES_SDL)?.gpu).toBe("8\u00d7 H100 / A100, 16\u00d7 NVIDIA");
+  });
+
+  it("counts services that list the same GPU models in another order together", () => {
+    expect(summarizeTemplateDeployment(REORDERED_GPU_MODELS_SDL)?.gpu).toBe("16\u00d7 H100 / A100");
   });
 
   it("totals several services and their replicas, counting the services instead of naming an image", () => {

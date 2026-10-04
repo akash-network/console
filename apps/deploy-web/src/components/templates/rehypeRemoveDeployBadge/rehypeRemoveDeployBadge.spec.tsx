@@ -40,6 +40,12 @@ describe(rehypeRemoveDeployBadge.name, () => {
     expect(screen.getByText("Run ComfyUI on a GPU.")).toBeInTheDocument();
   });
 
+  it.each(["?raw=true", "#gh-dark-mode-only"])("removes the badge whose image link ends with %s", suffix => {
+    setup({ readme: `[![Deploy on Akash](${BADGE_IMAGE}${suffix})](${BADGE_LINK})\n\nRun ComfyUI on a GPU.` });
+
+    expect(screen.queryByRole("img", { name: "Deploy on Akash" })).not.toBeInTheDocument();
+  });
+
   it("keeps the text that shares a line with the badge", () => {
     setup({ readme: `# ComfyUI [![Deploy on Akash](${BADGE_IMAGE})](${BADGE_LINK})` });
 

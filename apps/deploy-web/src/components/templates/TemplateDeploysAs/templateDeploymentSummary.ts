@@ -44,23 +44,23 @@ function importServices(sdl: string | undefined): ServiceType[] | undefined {
 
 /** Counts GPUs per set of models a service accepts, so one service's count is never shown against another service's models. */
 function describeGpus(services: ServiceType[]): string | undefined {
-  const unitsByModels = new Map<string, number>();
+  const gpusByModelSet = new Map<string, { models: string; units: number }>();
 
   for (const service of services) {
     const units = service.profile.hasGpu ? (service.profile.gpu || 0) * (service.count || 0) : 0;
     if (units > 0) {
-      const models = describeGpuModels(service.profile.gpuModels ?? []);
-      unitsByModels.set(models, (unitsByModels.get(models) ?? 0) + units);
+      const names = listGpuModelNames(service.profile.gpuModels ?? []);
+      const modelSet = [...names].sort((a, b) => a.localeCompare(b)).join();
+      const counted = gpusByModelSet.get(modelSet) ?? { models: names.length > 0 ? names.join(" / ") : "Any", units: 0 };
+      gpusByModelSet.set(modelSet, { ...counted, units: counted.units + units });
     }
   }
 
-  if (unitsByModels.size === 0) return undefined;
-  return Array.from(unitsByModels, ([models, units]) => `${units}\u00d7 ${models}`).join(", ");
+  if (gpusByModelSet.size === 0) return undefined;
+  return Array.from(gpusByModelSet.values(), ({ models, units }) => `${units}\u00d7 ${models}`).join(", ");
 }
 
 /** Named models when the SDL pins any, else the vendor it accepts any model from. */
-function describeGpuModels(models: ProfileGpuModelType[]): string {
-  const names = Array.from(new Set(models.map(model => (model.name || model.vendor).toUpperCase())));
-
-  return names.length > 0 ? names.join(" / ") : "Any";
+function listGpuModelNames(models: ProfileGpuModelType[]): string[] {
+  return Array.from(new Set(models.map(model => (model.name || model.vendor).toUpperCase())));
 }

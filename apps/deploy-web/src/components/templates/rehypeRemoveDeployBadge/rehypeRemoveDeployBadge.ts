@@ -33,7 +33,7 @@ function removeBadgesFrom(parent: HastNode): boolean {
 }
 
 function isDeployBadgeImage(node: HastNode): boolean {
-  return node.tagName === "img" && String(node.properties?.src).endsWith(DEPLOY_BADGE_IMAGE_SUFFIX);
+  return node.tagName === "img" && String(node.properties?.src).split(/[?#]/)[0].endsWith(DEPLOY_BADGE_IMAGE_SUFFIX);
 }
 
 function isBlank(node: HastNode): boolean {
