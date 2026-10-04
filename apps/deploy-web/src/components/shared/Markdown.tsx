@@ -12,9 +12,10 @@ import remarkGfm from "remark-gfm";
 type MarkdownProps = {
   children?: React.ReactNode | string;
   hasHtml?: boolean;
+  className?: string;
 };
 
-const Markdown: React.FunctionComponent<MarkdownProps> = ({ children, hasHtml }) => {
+const Markdown: React.FunctionComponent<MarkdownProps> = ({ children, hasHtml, className }) => {
   const { resolvedTheme } = useTheme();
 
   const rehypePlugins: PluggableList = [[rehypeHighlight, { ignoreMissing: true }]];
@@ -27,7 +28,8 @@ const Markdown: React.FunctionComponent<MarkdownProps> = ({ children, hasHtml })
     <ReactMarkdown
       className={cn(
         "markdownContainerRoot prose max-w-full dark:prose-invert prose-code:before:hidden prose-code:after:hidden prose-img:inline",
-        resolvedTheme === "dark" ? "markdownContainer-dark" : "markdownContainer"
+        resolvedTheme === "dark" ? "markdownContainer-dark" : "markdownContainer",
+        className
       )}
       linkTarget="_blank"
       remarkPlugins={[remarkGfm]}
