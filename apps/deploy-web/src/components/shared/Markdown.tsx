@@ -13,9 +13,11 @@ type MarkdownProps = {
   children?: React.ReactNode | string;
   hasHtml?: boolean;
   className?: string;
+  /** Run after the built-in ones, so raw HTML is already part of the tree they see. */
+  rehypePlugins?: PluggableList;
 };
 
-const Markdown: React.FunctionComponent<MarkdownProps> = ({ children, hasHtml, className }) => {
+const Markdown: React.FunctionComponent<MarkdownProps> = ({ children, hasHtml, className, rehypePlugins: extraRehypePlugins = [] }) => {
   const { resolvedTheme } = useTheme();
 
   const rehypePlugins: PluggableList = [[rehypeHighlight, { ignoreMissing: true }]];
@@ -33,7 +35,7 @@ const Markdown: React.FunctionComponent<MarkdownProps> = ({ children, hasHtml, c
       )}
       linkTarget="_blank"
       remarkPlugins={[remarkGfm]}
-      rehypePlugins={rehypePlugins}
+      rehypePlugins={[...rehypePlugins, ...extraRehypePlugins]}
     >
       {children as string}
     </ReactMarkdown>
