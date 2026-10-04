@@ -12,9 +12,12 @@ import remarkGfm from "remark-gfm";
 type MarkdownProps = {
   children?: React.ReactNode | string;
   hasHtml?: boolean;
+  className?: string;
+  /** Run after the built-in ones, so raw HTML is already part of the tree they see. */
+  rehypePlugins?: PluggableList;
 };
 
-const Markdown: React.FunctionComponent<MarkdownProps> = ({ children, hasHtml }) => {
+const Markdown: React.FunctionComponent<MarkdownProps> = ({ children, hasHtml, className, rehypePlugins: extraRehypePlugins = [] }) => {
   const { resolvedTheme } = useTheme();
 
   const rehypePlugins: PluggableList = [[rehypeHighlight, { ignoreMissing: true }]];
@@ -27,11 +30,12 @@ const Markdown: React.FunctionComponent<MarkdownProps> = ({ children, hasHtml })
     <ReactMarkdown
       className={cn(
         "markdownContainerRoot prose max-w-full dark:prose-invert prose-code:before:hidden prose-code:after:hidden prose-img:inline",
-        resolvedTheme === "dark" ? "markdownContainer-dark" : "markdownContainer"
+        resolvedTheme === "dark" ? "markdownContainer-dark" : "markdownContainer",
+        className
       )}
       linkTarget="_blank"
       remarkPlugins={[remarkGfm]}
-      rehypePlugins={rehypePlugins}
+      rehypePlugins={[...rehypePlugins, ...extraRehypePlugins]}
     >
       {children as string}
     </ReactMarkdown>
