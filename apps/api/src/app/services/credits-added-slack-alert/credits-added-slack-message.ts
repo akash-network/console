@@ -16,6 +16,14 @@ function describeSource(event: EventPayload<CreditsAdded>): string {
   }
 }
 
+function describeCustomer(event: EventPayload<CreditsAdded>, hasPaidBefore: boolean): string {
+  if (hasPaidBefore) {
+    return "Returning customer";
+  }
+
+  return event.source === "payment_intent" ? ":new: New customer" : "No paid purchase yet";
+}
+
 function formatUsd(cents: number): string {
   return `$${(cents / 100).toFixed(2)}`;
 }
@@ -83,13 +91,15 @@ function describeLinks(event: EventPayload<CreditsAdded>, links: { amplitudeProj
 export function buildCreditsAddedSlackMessage(input: {
   event: EventPayload<CreditsAdded>;
   email: string | null | undefined;
+  hasPaidBefore: boolean;
   amplitudeProjectUrl?: string;
   adminUrl?: string;
   stripeDashboardUrl?: string;
 }): CreditsAddedSlackMessage {
   const { event } = input;
   const creditedCents = event.paidAmountCents + event.bonusAmountCents;
-  const messageLines = [`${describeSource(event)} · *${formatUsd(creditedCents)}* credited`, describeBuyer(event, input.email), ...describeLinks(event, input)];
+  const headline = `${describeSource(event)} · *${formatUsd(creditedCents)}* credited · ${describeCustomer(event, input.hasPaidBefore)}`;
+  const messageLines = [headline, describeBuyer(event, input.email), ...describeLinks(event, input)];
 
   return { text: messageLines.join("\n") };
 }

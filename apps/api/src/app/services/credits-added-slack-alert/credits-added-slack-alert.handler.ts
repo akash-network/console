@@ -3,6 +3,7 @@ import { inject, singleton } from "tsyringe";
 
 import { CreditsAdded } from "@src/billing/events/credits-added";
 import { SLACK_WEBHOOK_HTTP_CLIENT } from "@src/billing/providers/slack-webhook-client.provider";
+import { StripeTransactionRepository } from "@src/billing/repositories";
 import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import { type CreateLogger, EventPayload, JobHandler, type JobPermissions, LOGGER_FACTORY } from "@src/core";
 import { UserRepository } from "@src/user/repositories";
@@ -18,6 +19,7 @@ export class CreditsAddedSlackAlertHandler implements JobHandler<CreditsAdded> {
 
   constructor(
     private readonly userRepository: UserRepository,
+    private readonly stripeTransactionRepository: StripeTransactionRepository,
     private readonly billingConfig: BillingConfigService,
     @inject(SLACK_WEBHOOK_HTTP_CLIENT) private readonly slackWebhookClient: HttpClient,
     @inject(LOGGER_FACTORY) createLogger: CreateLogger
@@ -41,9 +43,11 @@ export class CreditsAddedSlackAlertHandler implements JobHandler<CreditsAdded> {
     }
 
     const user = await this.userRepository.findById(payload.userId);
+    const hasPaidBefore = await this.stripeTransactionRepository.hasCompletedPaidTransactionBefore(payload.transactionId);
     const message = buildCreditsAddedSlackMessage({
       event: payload,
       email: user?.email,
+      hasPaidBefore,
       amplitudeProjectUrl: this.billingConfig.get("AMPLITUDE_PROJECT_URL"),
       adminUrl: this.billingConfig.get("CONSOLE_ADMIN_URL"),
       stripeDashboardUrl: this.billingConfig.get("STRIPE_DASHBOARD_URL")

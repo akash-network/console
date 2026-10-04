@@ -1,10 +1,12 @@
 import "@src/app/providers/jobs.provider";
 
+import { faker } from "@faker-js/faker";
 import nock from "nock";
 import { container } from "tsyringe";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { CreditsAdded } from "@src/billing/events/credits-added";
+import { StripeTransactionRepository } from "@src/billing/repositories";
 import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import { DOMAIN_EVENT_NAME } from "@src/core/services/domain-events/domain-events.service";
 import { CreditsAddedSlackAlertHandler } from "./credits-added-slack-alert.handler";
@@ -29,15 +31,16 @@ describe(CreditsAddedSlackAlertHandler.name, () => {
     nock.cleanAll();
   });
 
-  it("posts the credited amount, the buyer and links to their Amplitude sessions, admin page and Stripe records", async () => {
-    const { user, creditsAdded, slackPosts } = await setup({ email: "buyer@example.com" });
+  it("posts the credited amount, a first-time buyer as a new customer and links to their Amplitude sessions, admin page and Stripe records", async () => {
+    const { user, creditsAdded, slackPosts, seedCardPurchase } = await setup({ email: "buyer@example.com" });
+    const purchase = await seedCardPurchase();
 
-    await creditsAdded({ userId: user.id, transactionId: "tx-card-purchase", stripeCustomerId: "cus_buyer", stripePaymentIntentId: "pi_buyer" });
+    await creditsAdded({ userId: user.id, transactionId: purchase.id, stripeCustomerId: "cus_buyer", stripePaymentIntentId: "pi_buyer" });
 
     expect(slackPosts).toEqual([
       {
         text: [
-          ":credit_card: *Card purchase* · *$25.00* credited",
+          ":credit_card: *Card purchase* · *$25.00* credited · :new: New customer",
           "buyer@example.com",
           [
             `<${AMPLITUDE_PROJECT_URL}/search/user_id%3D${user.id}|Amplitude sessions>`,
@@ -50,31 +53,44 @@ describe(CreditsAddedSlackAlertHandler.name, () => {
     ]);
   });
 
+  it("calls the buyer a returning customer when they paid before this credit", async () => {
+    const { user, creditsAdded, slackPosts, seedCardPurchase } = await setup({ email: "buyer@example.com" });
+    await seedCardPurchase({ createdAt: new Date("2026-01-01T00:00:00Z") });
+    const purchase = await seedCardPurchase({ createdAt: new Date("2026-02-01T00:00:00Z") });
+
+    await creditsAdded({ userId: user.id, transactionId: purchase.id });
+
+    expect(slackPosts).toHaveLength(1);
+    expect(slackPosts[0].text.split("\n")[0]).toBe(":credit_card: *Card purchase* · *$25.00* credited · Returning customer");
+  });
+
   it("names the buyer by id when the user no longer exists", async () => {
     const { creditsAdded, slackPosts } = await setup({ email: "buyer@example.com" });
 
-    await creditsAdded({ userId: MISSING_USER_ID, transactionId: "tx-missing-user" });
+    await creditsAdded({ userId: MISSING_USER_ID, transactionId: faker.string.uuid() });
 
     expect(slackPosts).toHaveLength(1);
     expect(slackPosts[0].text.split("\n")[1]).toBe(MISSING_USER_ID);
   });
 
   it("posts nothing when no Slack webhook is configured", async () => {
-    const { user, creditsAdded, slackPosts } = await setup({ email: "buyer@example.com", webhookUrl: undefined });
+    const { user, creditsAdded, slackPosts, seedCardPurchase } = await setup({ email: "buyer@example.com", webhookUrl: undefined });
+    const purchase = await seedCardPurchase();
 
-    await creditsAdded({ userId: user.id, transactionId: "tx-unconfigured" });
+    await creditsAdded({ userId: user.id, transactionId: purchase.id });
 
     expect(slackPosts).toEqual([]);
   });
 
   it("leaves the job to be retried when Slack rejects the post", async () => {
-    const { user, enqueueCreditsAdded } = await setup({ email: "buyer@example.com", slackStatus: 500 });
+    const { user, enqueueCreditsAdded, seedCardPurchase } = await setup({ email: "buyer@example.com", slackStatus: 500 });
+    const purchase = await seedCardPurchase();
 
-    await enqueueCreditsAdded({ userId: user.id, transactionId: "tx-slack-down" });
+    await enqueueCreditsAdded({ userId: user.id, transactionId: purchase.id });
 
     await vi.waitFor(
       async () => {
-        const [row] = await findJobRows(CreditsAdded[DOMAIN_EVENT_NAME], { data: { transactionId: "tx-slack-down" } });
+        const [row] = await findJobRows(CreditsAdded[DOMAIN_EVENT_NAME], { data: { transactionId: purchase.id } });
         expect(row?.state).toBe("retry");
       },
       { timeout: 20_000, interval: 250 }
@@ -110,9 +126,15 @@ describe(CreditsAddedSlackAlertHandler.name, () => {
       await startWorkers();
     };
 
+    const seedCardPurchase = (overrides: { createdAt?: Date } = {}) =>
+      container
+        .resolve(StripeTransactionRepository)
+        .create({ userId: user.id, type: "payment_intent", status: "succeeded", amount: 2500, currency: "usd", ...overrides });
+
     return {
       user,
       slackPosts,
+      seedCardPurchase,
       enqueueCreditsAdded,
       creditsAdded: async (event: CreditsAddedInput) => {
         await enqueueCreditsAdded(event);

@@ -1,4 +1,5 @@
-import { and, count, desc, eq, exists, gte, inArray, lte, notInArray, SQL, sql } from "drizzle-orm";
+import { and, count, desc, eq, exists, gte, inArray, lt, lte, notInArray, SQL, sql } from "drizzle-orm";
+import { alias } from "drizzle-orm/pg-core";
 import { singleton } from "tsyringe";
 
 import { type ApiPgDatabase, type ApiPgTables, InjectPg, InjectPgTable } from "@src/core/providers";
@@ -173,6 +174,22 @@ export class StripeTransactionRepository extends BaseRepository<Table, StripeTra
       ),
       columns: { id: true }
     });
+
+    return !!item;
+  }
+
+  async hasCompletedPaidTransactionBefore(transactionId: StripeTransactionOutput["id"]): Promise<boolean> {
+    const currentTransaction = alias(this.table, "current_transaction");
+    const [item] = await this.cursor
+      .select({ id: this.table.id })
+      .from(this.table)
+      .innerJoin(currentTransaction, and(eq(currentTransaction.userId, this.table.userId), lt(this.table.createdAt, currentTransaction.createdAt)))
+      .where(
+        this.whereAccessibleBy(
+          and(eq(currentTransaction.id, transactionId), eq(this.table.type, "payment_intent"), inArray(this.table.status, ["succeeded", "refunded"]))
+        )
+      )
+      .limit(1);
 
     return !!item;
   }

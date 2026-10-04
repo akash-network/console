@@ -255,6 +255,71 @@ describe(StripeTransactionRepository.name, () => {
     });
   });
 
+  describe("hasCompletedPaidTransactionBefore", () => {
+    const earlier = new Date("2026-01-01T00:00:00Z");
+    const current = new Date("2026-02-01T00:00:00Z");
+    const later = new Date("2026-03-01T00:00:00Z");
+
+    it.each([
+      { status: "succeeded" as const, expected: true },
+      { status: "refunded" as const, expected: true },
+      { status: "created" as const, expected: false },
+      { status: "failed" as const, expected: false },
+      { status: "canceled" as const, expected: false }
+    ])("answers $expected when an earlier payment_intent is $status", async ({ status, expected }) => {
+      const { stripeTransactionRepository, createTestUser } = setup();
+      const user = await createTestUser();
+      await stripeTransactionRepository.create({ ...transactionInput(user.id), status, createdAt: earlier });
+      const transaction = await stripeTransactionRepository.create({ ...transactionInput(user.id), createdAt: current });
+
+      await expect(stripeTransactionRepository.hasCompletedPaidTransactionBefore(transaction.id)).resolves.toBe(expected);
+    });
+
+    it("answers false for a first purchase, which is not its own predecessor", async () => {
+      const { stripeTransactionRepository, createTestUser } = setup();
+      const user = await createTestUser();
+      const transaction = await stripeTransactionRepository.create({ ...transactionInput(user.id), createdAt: current });
+
+      await expect(stripeTransactionRepository.hasCompletedPaidTransactionBefore(transaction.id)).resolves.toBe(false);
+    });
+
+    it("ignores a purchase made after the given transaction", async () => {
+      const { stripeTransactionRepository, createTestUser } = setup();
+      const user = await createTestUser();
+      const transaction = await stripeTransactionRepository.create({ ...transactionInput(user.id), createdAt: current });
+      await stripeTransactionRepository.create({ ...transactionInput(user.id), createdAt: later });
+
+      await expect(stripeTransactionRepository.hasCompletedPaidTransactionBefore(transaction.id)).resolves.toBe(false);
+    });
+
+    it.each([["manual_credit" as const], ["coupon_claim" as const]])("does not count an earlier %s as a purchase", async type => {
+      const { stripeTransactionRepository, createTestUser } = setup();
+      const user = await createTestUser();
+      await stripeTransactionRepository.create({ ...transactionInput(user.id), type, createdAt: earlier });
+      const transaction = await stripeTransactionRepository.create({ ...transactionInput(user.id), createdAt: current });
+
+      await expect(stripeTransactionRepository.hasCompletedPaidTransactionBefore(transaction.id)).resolves.toBe(false);
+    });
+
+    it("does not count another user's earlier purchase", async () => {
+      const { stripeTransactionRepository, createTestUser } = setup();
+      const user = await createTestUser();
+      const otherUser = await createTestUser();
+      await stripeTransactionRepository.create({ ...transactionInput(otherUser.id), createdAt: earlier });
+      const transaction = await stripeTransactionRepository.create({ ...transactionInput(user.id), createdAt: current });
+
+      await expect(stripeTransactionRepository.hasCompletedPaidTransactionBefore(transaction.id)).resolves.toBe(false);
+    });
+
+    it("answers false for an unknown transaction", async () => {
+      const { stripeTransactionRepository, createTestUser } = setup();
+      const user = await createTestUser();
+      await stripeTransactionRepository.create({ ...transactionInput(user.id), createdAt: earlier });
+
+      await expect(stripeTransactionRepository.hasCompletedPaidTransactionBefore(faker.string.uuid())).resolves.toBe(false);
+    });
+  });
+
   let cleanup: () => Promise<void>;
   afterEach(async () => {
     await cleanup?.();
