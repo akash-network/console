@@ -1,258 +1,152 @@
 "use client";
-import type { ChangeEventHandler } from "react";
-import { useEffect, useState } from "react";
-import { MdSearchOff } from "react-icons/md";
-import { Button, buttonVariants, Input, Spinner } from "@akashnetwork/ui/components";
-import { cn } from "@akashnetwork/ui/utils";
-import { FilterList, Xmark } from "iconoir-react";
-import { useRouter, useSearchParams } from "next/navigation";
+import type { ChangeEvent, FC } from "react";
+import { useId, useMemo, useState } from "react";
+import { Button, Input, Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, Spinner } from "@akashnetwork/ui/components";
+import { Search, SlidersHorizontal, X } from "lucide-react";
 
-import { LinkTo } from "@src/components/shared/LinkTo";
-import type { TemplateOutputSummaryWithCategory } from "@src/queries/useTemplateQuery";
+import type { TemplateSection } from "@src/components/templates/templateGalleryModel";
+import { findSelectedCategory, isPopularTemplate, listUseCaseFilters, selectTemplateSections } from "@src/components/templates/templateGalleryModel";
 import { useTemplates } from "@src/queries/useTemplateQuery";
 import { domainName, UrlService } from "@src/utils/urlUtils";
 import Layout from "../layout/Layout";
 import { CustomNextSeo } from "../shared/CustomNextSeo";
-import { Title } from "../shared/Title";
-import type { Props as MobileTemplatesFilterProps } from "./MobileTemplatesFilter";
-import { MobileTemplatesFilter } from "./MobileTemplatesFilter";
-import { TemplateBox } from "./TemplateBox";
+import { TemplateCard } from "./TemplateCard/TemplateCard";
+import { TemplateUseCaseNav } from "./TemplateUseCaseNav/TemplateUseCaseNav";
+import { useTemplateGalleryUrlState } from "./useTemplateGalleryUrlState/useTemplateGalleryUrlState";
 
-let timeoutId: NodeJS.Timeout | null = null;
-
-const isRecommended = (t: TemplateOutputSummaryWithCategory) => t.tags?.includes("recommended") ?? false;
-const isPopular = (t: TemplateOutputSummaryWithCategory) => t.tags?.includes("popular") ?? false;
-
-const FEATURED_TEMPLATE_IDS = ["akash-network-awesome-akash-Razer-AIKit"];
+const OVERLINE_CLASSES = "font-mono text-[11px] font-medium uppercase leading-4 tracking-[0.08em] text-muted-foreground";
 
 export const DEPENDENCIES = {
-  useRouter,
-  useSearchParams,
+  useTemplateGalleryUrlState,
   useTemplates,
   Layout,
   CustomNextSeo,
-  MobileTemplatesFilter,
-  TemplateBox
+  TemplateCard,
+  TemplateUseCaseNav
 };
 
-export const TemplateGallery: React.FunctionComponent<{ dependencies?: typeof DEPENDENCIES }> = ({ dependencies: d = DEPENDENCIES }) => {
-  const [selectedCategoryTitle, setSelectedCategoryTitle] = useState<string | null>(null);
-  const [searchTerms, setSearchTerms] = useState("");
-  const [shownTemplates, setShownTemplates] = useState<TemplateOutputSummaryWithCategory[]>([]);
-  const { isLoading: isLoadingTemplates, categories, templates } = d.useTemplates();
-  const router = d.useRouter();
-  const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
-  const searchParams = d.useSearchParams();
+export const TemplateGallery: FC<{ dependencies?: typeof DEPENDENCIES }> = ({ dependencies: d = DEPENDENCIES }) => {
+  const urlState = d.useTemplateGalleryUrlState();
+  const { isLoading, categories } = d.useTemplates();
+  const [isFilterSheetOpen, setIsFilterSheetOpen] = useState(false);
 
-  useEffect(() => {
-    const queryCategory = searchParams?.get("category") as string;
-    const querySearch = searchParams?.get("search") as string;
+  const search = urlState.search;
+  const selectedCategory = findSelectedCategory(categories, urlState.category);
+  const filters = useMemo(() => listUseCaseFilters(categories), [categories]);
+  const selectedFilter = filters.find(filter => filter.category === selectedCategory) ?? filters[0];
+  const sections = useMemo(() => selectTemplateSections({ categories, category: selectedCategory, search }), [categories, selectedCategory, search]);
+  const trimmedSearch = search.trim();
+  const hasNoMatch = categories.length > 0 && sections.length === 0 && !!trimmedSearch;
 
-    if (queryCategory) {
-      setSelectedCategoryTitle(queryCategory);
-    }
+  const changeSearch = (event: ChangeEvent<HTMLInputElement>) => urlState.changeSearch(event.target.value);
 
-    if (querySearch) {
-      setSearchTerms(querySearch);
-    }
-  }, []);
-
-  useEffect(() => {
-    const queryCategory = searchParams?.get("category");
-    const querySearch = searchParams?.get("search");
-    let _templates: TemplateOutputSummaryWithCategory[];
-
-    if (queryCategory) {
-      const selectedCategory = categories.find(x => x.title === queryCategory);
-      _templates = [...(selectedCategory?.templates || [])];
-    } else {
-      _templates = [...templates];
-    }
-
-    _templates.sort((a, b) => {
-      const aFeatured = FEATURED_TEMPLATE_IDS.indexOf(a.id) !== -1 ? FEATURED_TEMPLATE_IDS.indexOf(a.id) : Infinity;
-      const bFeatured = FEATURED_TEMPLATE_IDS.indexOf(b.id) !== -1 ? FEATURED_TEMPLATE_IDS.indexOf(b.id) : Infinity;
-      if (aFeatured !== bFeatured) return aFeatured - bFeatured;
-
-      const aTag = isRecommended(a) ? 0 : isPopular(a) ? 1 : 2;
-      const bTag = isRecommended(b) ? 0 : isPopular(b) ? 1 : 2;
-      return aTag - bTag;
-    });
-
-    if (querySearch) {
-      // TODO: use minisearch instead https://lucaong.github.io/minisearch/
-      const searchTermsSplit = querySearch?.split(" ").map(x => x.toLowerCase());
-      _templates = _templates.filter(x => searchTermsSplit.some(s => x.name?.toLowerCase().includes(s) || x.summary?.toLowerCase().includes(s)));
-    }
-
-    setShownTemplates(_templates);
-
-    return () => {
-      clearTimeout(timeoutId as NodeJS.Timeout);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchParams, templates]);
-
-  const onSearchChange: ChangeEventHandler<HTMLInputElement> = event => {
-    const searchValue = event.target.value;
-    setSearchTerms(searchValue);
-
-    if (searchValue) {
-      clearTimeout(timeoutId as NodeJS.Timeout);
-      timeoutId = setTimeout(() => {
-        router.replace(UrlService.templates(selectedCategoryTitle || "", searchValue));
-      }, 300);
-    } else {
-      router.replace(UrlService.templates(selectedCategoryTitle || "", ""));
-    }
+  const selectCategory = (category: string | null) => {
+    setIsFilterSheetOpen(false);
+    urlState.selectCategory(category);
   };
-
-  const onCategoryClick: MobileTemplatesFilterProps["onCategoryClick"] = categoryTitle => {
-    setSelectedCategoryTitle(categoryTitle);
-
-    if (isMobileSearchOpen) {
-      setIsMobileSearchOpen(false);
-    }
-    router.replace(UrlService.templates(categoryTitle, searchTerms));
-  };
-
-  const onClearSearch = () => {
-    setSearchTerms("");
-
-    router.replace(UrlService.templates(selectedCategoryTitle || "", ""));
-  };
-
-  const searchBar = (
-    <Input
-      value={searchTerms}
-      onChange={onSearchChange}
-      label="Search"
-      className="w-full"
-      type="text"
-      endIcon={
-        !!searchTerms && (
-          <Button size="icon" variant="text" onClick={onClearSearch}>
-            <Xmark className="text-xs" />
-          </Button>
-        )
-      }
-    />
-  );
 
   return (
-    <d.Layout isLoading={isLoadingTemplates}>
+    <d.Layout isLoading={isLoading} disableContainer containerClassName="flex h-full flex-col">
       <d.CustomNextSeo
         title="Template Gallery"
         url={`${domainName}${UrlService.templates()}`}
         description="Explore all the templates made by the community to easily deploy any docker container on the Akash Network."
       />
 
-      <div className="mb-6">
-        <Title className="mb-2">Deploy an App</Title>
+      <div className="flex h-[calc(100dvh_-_var(--app-header-height,57px)_-_4px)] w-full flex-col">
+        <div className="flex min-h-[60px] shrink-0 items-center gap-4 border-b border-border bg-background px-4 py-2.5 sm:px-6">
+          <h1 className="text-xl font-bold tracking-tight">Templates</h1>
+        </div>
 
-        <Title subTitle className="text-base font-normal text-muted-foreground sm:text-lg">
-          Jumpstart your app development process with our pre-built solutions.
-        </Title>
-      </div>
+        <div className="flex min-h-0 flex-1">
+          <nav
+            aria-label="Filter by use case"
+            className="hidden w-[232px] shrink-0 overflow-y-auto border-r border-border bg-background px-4 pb-8 pt-5 md:block"
+          >
+            <p className={`${OVERLINE_CLASSES} px-2 pb-2.5`}>Filter by use case</p>
+            <d.TemplateUseCaseNav filters={filters} selectedCategory={selectedCategory} onSelect={selectCategory} />
+          </nav>
 
-      <div className="mb-8">
-        <div className="hidden md:block">{searchBar}</div>
-      </div>
+          <div className="min-w-0 flex-1 overflow-y-auto">
+            <div className="flex flex-col gap-6 px-4 pb-8 pt-5 sm:px-6">
+              <div className="flex flex-wrap items-center gap-2">
+                <Input
+                  value={search}
+                  onChange={changeSearch}
+                  aria-label="Search templates"
+                  placeholder="Search templates"
+                  type="text"
+                  className="w-full sm:max-w-[380px]"
+                  startIcon={<Search className="ml-3 h-4 w-4 text-muted-foreground" aria-hidden="true" />}
+                  endIcon={
+                    !!search && (
+                      <Button size="icon" variant="text" aria-label="Clear search" onClick={urlState.clearSearch}>
+                        <X className="h-4 w-4" />
+                      </Button>
+                    )
+                  }
+                />
 
-      <div className="mb-8 block md:hidden">
-        {searchBar}
+                {filters.length > 1 && (
+                  <Button variant="outline" className="w-full justify-between gap-2 md:hidden" onClick={() => setIsFilterSheetOpen(true)}>
+                    <span className="flex min-w-0 items-center gap-2">
+                      <SlidersHorizontal className="h-4 w-4 shrink-0" aria-hidden="true" />
+                      <span className="sr-only">Filter by use case: </span>
+                      <span className="truncate">{selectedFilter.label}</span>
+                    </span>
+                    <span className="font-mono text-xs text-muted-foreground">{selectedFilter.count}</span>
+                  </Button>
+                )}
+              </div>
 
-        <Button onClick={() => setIsMobileSearchOpen(true)} className="mt-2 flex w-full items-center" variant="outline">
-          Filter by category
-          <FilterList className="ml-2 text-xs" />
-        </Button>
-        <d.MobileTemplatesFilter
-          handleDrawerToggle={() => setIsMobileSearchOpen(prev => !prev)}
-          isOpen={isMobileSearchOpen}
-          templates={templates}
-          categories={categories}
-          onCategoryClick={onCategoryClick}
-          selectedCategoryTitle={selectedCategoryTitle}
-        />
-
-        {selectedCategoryTitle && !searchTerms && <p className="mt-4 font-bold">{selectedCategoryTitle}</p>}
-      </div>
-
-      <div className="flex">
-        {templates.length > 0 && (
-          <div className="mr-12 hidden w-[222px] md:block">
-            <p className="mb-4 font-bold">Filter by category</p>
-
-            <ul className="flex flex-col items-start">
-              {templates && (
-                <li
-                  className={cn(
-                    { ["bg-muted-foreground/10"]: !selectedCategoryTitle },
-                    buttonVariants({ variant: "ghost" }),
-                    "h-8 w-full justify-start px-4 py-0"
-                  )}
-                  onClick={() => onCategoryClick(null)}
-                >
-                  All{" "}
-                  <span className="text-xs">
-                    <small className="ml-2 text-muted-foreground">({templates.length - 1})</small>
-                  </span>
-                </li>
+              {isLoading && categories.length === 0 && (
+                <div className="flex justify-center py-12">
+                  <Spinner size="large" />
+                </div>
               )}
 
-              {categories.map(category => (
-                <li
-                  key={category.title}
-                  className={cn(
-                    { ["bg-muted-foreground/10"]: category.title === selectedCategoryTitle },
-                    buttonVariants({ variant: "ghost" }),
-                    "h-8 w-full justify-start px-4 py-0"
-                  )}
-                  onClick={() => onCategoryClick(category.title)}
-                >
-                  {category.title}{" "}
-                  <span className="text-xs">
-                    <small className="ml-2 text-muted-foreground">({category.templates.length})</small>
-                  </span>
-                </li>
+              {sections.map(section => (
+                <TemplateSectionView key={section.title} section={section} dependencies={d} />
               ))}
-            </ul>
+
+              {hasNoMatch && (
+                <div className="flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-border bg-card px-6 py-14 text-center">
+                  <Search className="h-[22px] w-[22px] text-muted-foreground" aria-hidden="true" />
+                  <p className="text-sm font-semibold">No templates match “{trimmedSearch}”</p>
+                  <p className="text-[12.5px] text-muted-foreground">Try a different search, or another use case.</p>
+                </div>
+              )}
+            </div>
           </div>
-        )}
-
-        <div className="flex-1">
-          {searchTerms && (
-            <div className="flex items-center pb-6">
-              <p className="text-muted-foreground">
-                Searching for: "{searchTerms}" - {shownTemplates.length} results
-              </p>
-
-              <div className="ml-4 inline-flex">
-                <LinkTo onClick={onClearSearch}>Clear</LinkTo>
-              </div>
-            </div>
-          )}
-
-          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3">
-            {shownTemplates.map((template, id) => (
-              <d.TemplateBox key={`${template.id}_${id}`} template={template} isRecommended={isRecommended(template)} isPopular={isPopular(template)} />
-            ))}
-          </div>
-
-          {isLoadingTemplates && (
-            <div className="mt-8 flex items-center justify-center">
-              <Spinner size="large" />
-            </div>
-          )}
-
-          {!isLoadingTemplates && categories.length > 0 && shownTemplates.length === 0 && (!!searchTerms || !!selectedCategoryTitle) && (
-            <div className="flex h-[200px] flex-col items-center justify-center border border-muted-foreground">
-              <MdSearchOff className="mb-4 text-6xl" />
-              <p>No search result found. Try adjusting your filters.</p>
-            </div>
-          )}
         </div>
       </div>
+
+      <Sheet open={isFilterSheetOpen} onOpenChange={setIsFilterSheetOpen}>
+        <SheetContent side="bottom" className="max-h-[70dvh] overflow-y-auto px-4 pb-6 pt-5">
+          <SheetHeader className="pb-2 text-left">
+            <SheetTitle>Filter by use case</SheetTitle>
+            <SheetDescription className="sr-only">Show the templates for one use case.</SheetDescription>
+          </SheetHeader>
+          <d.TemplateUseCaseNav filters={filters} selectedCategory={selectedCategory} onSelect={selectCategory} />
+        </SheetContent>
+      </Sheet>
     </d.Layout>
+  );
+};
+
+const TemplateSectionView: FC<{ section: TemplateSection; dependencies: typeof DEPENDENCIES }> = ({ section, dependencies: d }) => {
+  const headingId = useId();
+
+  return (
+    <section aria-labelledby={headingId}>
+      <h2 id={headingId} className={`${OVERLINE_CLASSES} pb-3 pt-2`}>
+        {section.title}
+      </h2>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 min-[1400px]:grid-cols-3">
+        {section.templates.map(template => (
+          <d.TemplateCard key={template.id} template={template} isPopular={isPopularTemplate(template)} />
+        ))}
+      </div>
+    </section>
   );
 };

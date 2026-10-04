@@ -1,7 +1,7 @@
 "use client";
-import { Avatar, AvatarFallback, AvatarImage, Badge, cardClasses, CardContent, CardHeader } from "@akashnetwork/ui/components";
+import { Avatar, AvatarFallback, AvatarImage, cardClasses, CardContent, CardHeader } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
-import { FireFlame, MediaImage, Rocket } from "iconoir-react";
+import { MediaImage } from "iconoir-react";
 import Link from "next/link";
 
 import type { TemplateOutputSummaryWithCategory } from "@src/queries/useTemplateQuery";
@@ -11,11 +11,9 @@ type Props = {
   template: TemplateOutputSummaryWithCategory;
   linkHref?: string;
   children?: React.ReactNode;
-  isRecommended?: boolean;
-  isPopular?: boolean;
 };
 
-export const TemplateBox: React.FunctionComponent<Props> = ({ template, linkHref, isRecommended, isPopular }) => {
+export const TemplateBox: React.FunctionComponent<Props> = ({ template, linkHref }) => {
   return (
     <Link
       className={cn(cardClasses, "min-h-[100px] cursor-pointer !no-underline hover:bg-secondary/60 dark:hover:bg-secondary/30")}
@@ -30,17 +28,6 @@ export const TemplateBox: React.FunctionComponent<Props> = ({ template, linkHref
               <MediaImage />
             </AvatarFallback>
           </Avatar>
-
-          {isRecommended && (
-            <Badge className="gap-1 px-1.5 py-0.5 text-[10px]">
-              <Rocket className="h-2.5 w-2.5" /> Recommended
-            </Badge>
-          )}
-          {isPopular && !isRecommended && (
-            <Badge variant="outline" className="gap-1 border-orange-500/50 px-1.5 py-0.5 text-[10px] text-orange-500">
-              <FireFlame className="h-2.5 w-2.5" /> Popular
-            </Badge>
-          )}
         </div>
       </CardHeader>
       <CardContent className="mt-0 pt-0">
