@@ -107,9 +107,6 @@ export class ApiUrlService {
   static providerAttributesSchema() {
     return `${this.baseApiUrl}/v1/provider-attributes-schema`;
   }
-  static networkCapacity() {
-    return `${this.baseApiUrl}/v1/network-capacity`;
-  }
   static blockchainStatus() {
     return `${this.baseApiUrl}/v1/blockchain-status`;
   }
