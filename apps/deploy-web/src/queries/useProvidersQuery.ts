@@ -3,6 +3,7 @@ import { keepPreviousData, useQueries, useQuery } from "@tanstack/react-query";
 
 import { useServices } from "@src/context/ServicesProvider";
 import { useScopedFetchProviderUrl } from "@src/hooks/useScopedFetchProviderUrl";
+import { SKIP_REPORTING_PROVIDER_POLL_FAILURE } from "@src/services/query-error-policy/query-error-policy";
 import type {
   ApiProviderDetail,
   ApiProviderList,
@@ -44,17 +45,10 @@ export function useProviderStatus(
   return useQuery({
     queryKey: QueryKeys.getProviderStatusKey(provider?.hostUri || ""),
     queryFn: async () => {
-      try {
-        const [statusResponse, versionResponse] = await Promise.all([
-          fetchProviderUrl<ProviderStatus>("/status"),
-          fetchProviderUrl<ProviderVersion>("/version")
-        ]);
-        return providerStatusToDto(statusResponse.data, versionResponse.data || {});
-      } catch (error) {
-        console.log(error);
-        throw error;
-      }
+      const [statusResponse, versionResponse] = await Promise.all([fetchProviderUrl<ProviderStatus>("/status"), fetchProviderUrl<ProviderVersion>("/version")]);
+      return providerStatusToDto(statusResponse.data, versionResponse.data || {});
     },
+    meta: SKIP_REPORTING_PROVIDER_POLL_FAILURE,
     ...options
   });
 }

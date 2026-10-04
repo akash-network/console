@@ -38,7 +38,13 @@ export function isProviderTokenRejection(error: unknown): boolean {
 }
 
 function isClientError(error: unknown): boolean {
-  return isHttpError(error) && !!error.response && error.response.status >= 400 && error.response.status < 500;
+  if (error instanceof ApiError) return isClientErrorStatus(error.status);
+
+  return isHttpError(error) && !!error.response && isClientErrorStatus(error.response.status);
+}
+
+function isClientErrorStatus(status: number): boolean {
+  return status >= 400 && status < 500;
 }
 
 /** Each browser words a request that never reached the network differently. */
@@ -77,6 +83,9 @@ function isUserStateRefusal(error: unknown): boolean {
 export const SKIP_REPORTING_PROVIDER_POLL_FAILURE = {
   skipErrorReporting: (error: unknown) => isProviderUnavailableError(error) || isClientError(error)
 };
+
+/** Opt out for a write whose 4xx refusal, such as an SDL above the trial limits, the page already shows the user. */
+export const SKIP_REPORTING_REFUSED_INPUT = { skipErrorReporting: isClientError };
 
 /** Opt out for call sites whose own onError reports the failure with tags the cache handler has no way to know. */
 export const SKIP_REPORTING_HANDLED_BY_CALLER = { skipErrorReporting: () => true };

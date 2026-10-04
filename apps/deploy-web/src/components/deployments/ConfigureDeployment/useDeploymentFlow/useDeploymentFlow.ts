@@ -8,6 +8,7 @@ import { useServices } from "@src/context/ServicesProvider";
 import { useFlag } from "@src/hooks/useFlag";
 import { QueryKeys } from "@src/queries/queryKeys";
 import { BID_POLL_INTERVAL, useListBids } from "@src/queries/useListBids";
+import { SKIP_REPORTING_REFUSED_INPUT } from "@src/services/query-error-policy/query-error-policy";
 import { settingsIdAtom } from "@src/store/settingsStore";
 import { formatBidId, parseBidId } from "@src/utils/bids/bidId";
 import { ManifestYaml } from "@src/utils/deploymentData/helpers";
@@ -172,6 +173,7 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
   const discardedRef = useRef(false);
   const createDeployment = api.v1.createDeployment.useMutation({
     ...walletProvisioningRetry,
+    meta: SKIP_REPORTING_REFUSED_INPUT,
     onSuccess: function closeWhatADiscardedCreateOpened(result) {
       if (discardedRef.current) closeDeployment.mutate({ dseq: result.data.dseq });
     }

@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from "vitest";
 import { mock, mockDeep } from "vitest-mock-extended";
 
 import { QueryKeys } from "@src/queries/queryKeys";
+import { SKIP_REPORTING_REFUSED_INPUT } from "@src/services/query-error-policy/query-error-policy";
 import { settingsIdAtom } from "@src/store/settingsStore";
 import { servicesPatchBetween } from "@src/utils/sdl/sdlServicesPatch";
 import { UrlService } from "@src/utils/urlUtils";
@@ -123,6 +124,12 @@ describe(useDeploymentFlow.name, () => {
     act(() => result.current.actions.requestQuotes("sdl-content"));
 
     await waitFor(() => expect(result.current.error).toEqual({ kind: "create", message: "Invalid SDL" }));
+  });
+
+  it("asks the mutation cache not to report a create the api refused, since the page shows the reason", () => {
+    const { services } = renderFlow();
+
+    expect(hookOptionsOf(services.api.v1.createDeployment.useMutation).meta).toBe(SKIP_REPORTING_REFUSED_INPUT);
   });
 
   it("halts in error without closing the deployment when no providers bid in the auto flow", () => {
@@ -2256,7 +2263,11 @@ describe(useDeploymentFlow.name, () => {
   }
 
   function hookOptionsOf(useMutation: { mock: { calls: unknown[][] } }) {
-    return (useMutation.mock.calls.at(-1)?.[0] ?? {}) as { onSuccess?: (...args: unknown[]) => void; onSettled?: (...args: unknown[]) => void };
+    return (useMutation.mock.calls.at(-1)?.[0] ?? {}) as {
+      onSuccess?: (...args: unknown[]) => void;
+      onSettled?: (...args: unknown[]) => void;
+      meta?: Record<string, unknown>;
+    };
   }
 
   /** The create-lease success payload shape the flow reads the owner from. */
