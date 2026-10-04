@@ -15,17 +15,38 @@ describe(buildCreditsAddedSlackMessage.name, () => {
     { source: "payment_intent", isAutoRecharge: true, label: ":repeat: *Auto-recharge*" },
     { source: "coupon_claim", isAutoRecharge: false, label: ":ticket: *Coupon claim*" },
     { source: "manual_credit", isAutoRecharge: false, label: ":gift: *Admin credit*" }
-  ] as const)("labels a $source credit (auto-recharge: $isAutoRecharge) with the credited amount in bold", ({ source, isAutoRecharge, label }) => {
-    const message = setup({ event: { source, isAutoRecharge, paidAmountCents: 2505 } });
+  ] as const)(
+    "labels a $source credit (auto-recharge: $isAutoRecharge) from a returning customer with the credited amount in bold",
+    ({ source, isAutoRecharge, label }) => {
+      const message = setup({ event: { source, isAutoRecharge, paidAmountCents: 2505 }, hasPaidBefore: true });
 
-    expect(lines(message)[0]).toBe(`${label} · *$25.05* credited`);
+      expect(lines(message)[0]).toBe(`${label} · *$25.05* credited · Returning customer`);
+    }
+  );
+
+  it.each([
+    { isAutoRecharge: false, label: ":credit_card: *Card purchase*" },
+    { isAutoRecharge: true, label: ":repeat: *Auto-recharge*" }
+  ])("calls the buyer a new customer when the $label is their first paid purchase", ({ isAutoRecharge, label }) => {
+    const message = setup({ event: { source: "payment_intent", isAutoRecharge }, hasPaidBefore: false });
+
+    expect(lines(message)[0]).toBe(`${label} · *$25.00* credited · :new: New customer`);
+  });
+
+  it.each([
+    { source: "coupon_claim", label: ":ticket: *Coupon claim*" },
+    { source: "manual_credit", label: ":gift: *Admin credit*" }
+  ] as const)("says a $source buyer who never paid has no paid purchase yet rather than calling them a customer", ({ source, label }) => {
+    const message = setup({ event: { source }, hasPaidBefore: false });
+
+    expect(lines(message)[0]).toBe(`${label} · *$25.00* credited · No paid purchase yet`);
   });
 
   it("credits the bonus on top of the payment and breaks both down next to the buyer", () => {
-    const message = setup({ event: { paidAmountCents: 10000, bonusAmountCents: 1000 } });
+    const message = setup({ event: { paidAmountCents: 10000, bonusAmountCents: 1000 }, hasPaidBefore: false });
 
     expect(lines(message).slice(0, 2)).toEqual([
-      ":credit_card: *Card purchase* · *$110.00* credited",
+      ":credit_card: *Card purchase* · *$110.00* credited · :new: New customer",
       "buyer@example.com · $100.00 paid + $10.00 first-purchase bonus"
     ]);
   });
@@ -117,7 +138,7 @@ describe(buildCreditsAddedSlackMessage.name, () => {
       stripeDashboardUrl: undefined
     });
 
-    expect(lines(message)).toEqual([":credit_card: *Card purchase* · *$25.00* credited", "buyer@example.com"]);
+    expect(lines(message)).toEqual([":credit_card: *Card purchase* · *$25.00* credited · Returning customer", "buyer@example.com"]);
   });
 
   function lines(message: { text: string }) {
@@ -127,6 +148,7 @@ describe(buildCreditsAddedSlackMessage.name, () => {
   function setup(input: {
     event?: Partial<EventPayload<CreditsAdded>>;
     email?: string | null;
+    hasPaidBefore?: boolean;
     amplitudeProjectUrl?: string;
     adminUrl?: string;
     stripeDashboardUrl?: string;
@@ -143,6 +165,7 @@ describe(buildCreditsAddedSlackMessage.name, () => {
         ...input.event
       },
       email: "email" in input ? input.email : "buyer@example.com",
+      hasPaidBefore: input.hasPaidBefore ?? true,
       amplitudeProjectUrl: "amplitudeProjectUrl" in input ? input.amplitudeProjectUrl : AMPLITUDE_PROJECT_URL,
       adminUrl: "adminUrl" in input ? input.adminUrl : ADMIN_URL,
       stripeDashboardUrl: "stripeDashboardUrl" in input ? input.stripeDashboardUrl : STRIPE_DASHBOARD_URL
