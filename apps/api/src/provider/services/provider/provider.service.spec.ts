@@ -18,6 +18,7 @@ import type { ProviderRepository } from "../../repositories/provider/provider.re
 import type { AuditorService } from "../auditors/auditors.service";
 import type { ProviderAttributesSchemaService } from "../provider-attributes-schema/provider-attributes-schema.service";
 import type { ProviderGpuDriverService } from "../provider-gpu-driver/provider-gpu-driver.service";
+import type { ProviderInventoryHttpService } from "../provider-inventory-http/provider-inventory-http.service";
 import type { ProviderJwtTokenService } from "../provider-jwt-token/provider-jwt-token.service";
 import { ProviderService } from "./provider.service";
 import type { ProviderProxyService } from "./provider-proxy.service";
@@ -856,6 +857,7 @@ describe(ProviderService.name, () => {
       generateJwtToken: vi.fn().mockResolvedValue(Ok("mock-jwt-token"))
     });
     const providerGpuDriverService = mock<ProviderGpuDriverService>();
+    const providerInventoryHttpService = mock<ProviderInventoryHttpService>();
 
     const logger = mock<ReturnType<CreateLogger>>();
     const createLogger = vi.fn<CreateLogger>(() => logger);
@@ -867,6 +869,7 @@ describe(ProviderService.name, () => {
       auditorsService,
       jwtTokenService,
       providerGpuDriverService,
+      providerInventoryHttpService,
       createLogger
     );
 

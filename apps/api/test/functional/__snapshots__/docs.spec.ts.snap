@@ -15712,6 +15712,17 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                     "data": {
                       "items": {
                         "properties": {
+                          "gpuModels": {
+                            "description": "Distinct GPU model names across the provider's nodes.",
+                            "example": [
+                              "h100",
+                              "a100",
+                            ],
+                            "items": {
+                              "type": "string",
+                            },
+                            "type": "array",
+                          },
                           "hostUri": {
                             "type": "string",
                           },
@@ -15731,12 +15742,140 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                             "nullable": true,
                             "type": "string",
                           },
+                          "isAudited": {
+                            "type": "boolean",
+                          },
+                          "locationRegion": {
+                            "description": "The provider's location-region attribute.",
+                            "example": "eu-central",
+                            "nullable": true,
+                            "type": "string",
+                          },
                           "name": {
                             "nullable": true,
                             "type": "string",
                           },
                           "owner": {
                             "type": "string",
+                          },
+                          "stats": {
+                            "properties": {
+                              "cpu": {
+                                "properties": {
+                                  "active": {
+                                    "type": "number",
+                                  },
+                                  "available": {
+                                    "type": "number",
+                                  },
+                                  "pending": {
+                                    "type": "number",
+                                  },
+                                },
+                                "required": [
+                                  "active",
+                                  "available",
+                                  "pending",
+                                ],
+                                "type": "object",
+                              },
+                              "gpu": {
+                                "properties": {
+                                  "active": {
+                                    "type": "number",
+                                  },
+                                  "available": {
+                                    "type": "number",
+                                  },
+                                  "pending": {
+                                    "type": "number",
+                                  },
+                                },
+                                "required": [
+                                  "active",
+                                  "available",
+                                  "pending",
+                                ],
+                                "type": "object",
+                              },
+                              "memory": {
+                                "properties": {
+                                  "active": {
+                                    "type": "number",
+                                  },
+                                  "available": {
+                                    "type": "number",
+                                  },
+                                  "pending": {
+                                    "type": "number",
+                                  },
+                                },
+                                "required": [
+                                  "active",
+                                  "available",
+                                  "pending",
+                                ],
+                                "type": "object",
+                              },
+                              "storage": {
+                                "properties": {
+                                  "ephemeral": {
+                                    "properties": {
+                                      "active": {
+                                        "type": "number",
+                                      },
+                                      "available": {
+                                        "type": "number",
+                                      },
+                                      "pending": {
+                                        "type": "number",
+                                      },
+                                    },
+                                    "required": [
+                                      "active",
+                                      "available",
+                                      "pending",
+                                    ],
+                                    "type": "object",
+                                  },
+                                  "persistent": {
+                                    "properties": {
+                                      "active": {
+                                        "type": "number",
+                                      },
+                                      "available": {
+                                        "type": "number",
+                                      },
+                                      "pending": {
+                                        "type": "number",
+                                      },
+                                    },
+                                    "required": [
+                                      "active",
+                                      "available",
+                                      "pending",
+                                    ],
+                                    "type": "object",
+                                  },
+                                },
+                                "required": [
+                                  "ephemeral",
+                                  "persistent",
+                                ],
+                                "type": "object",
+                              },
+                            },
+                            "required": [
+                              "cpu",
+                              "gpu",
+                              "memory",
+                              "storage",
+                            ],
+                            "type": "object",
+                          },
+                          "uptime30d": {
+                            "nullable": true,
+                            "type": "number",
                           },
                         },
                         "required": [
@@ -15747,6 +15886,11 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                           "ipCountryCode",
                           "ipLat",
                           "ipLon",
+                          "isAudited",
+                          "locationRegion",
+                          "uptime30d",
+                          "gpuModels",
+                          "stats",
                         ],
                         "type": "object",
                       },
@@ -15862,6 +16006,39 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
             "required": false,
             "schema": {
               "description": "Comma-separated provider addresses the search is limited to, at most 100.",
+              "type": "string",
+            },
+          },
+          {
+            "in": "query",
+            "name": "regions",
+            "required": false,
+            "schema": {
+              "description": "Comma-separated location-region attribute values, at most 50. Keeps providers in any of them.",
+              "example": "eu-central,na-us-west",
+              "type": "string",
+            },
+          },
+          {
+            "in": "query",
+            "name": "gpu",
+            "required": false,
+            "schema": {
+              "description": "Only providers with GPUs when true, only providers without any when false, both when omitted.",
+              "enum": [
+                "true",
+                "false",
+              ],
+              "type": "string",
+            },
+          },
+          {
+            "in": "query",
+            "name": "gpuModels",
+            "required": false,
+            "schema": {
+              "description": "Comma-separated GPU model names, matched ignoring case, at most 50. Keeps providers with any of them.",
+              "example": "h100,a100",
               "type": "string",
             },
           },
@@ -17164,6 +17341,14 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                     },
                     "owner": {
                       "type": "string",
+                    },
+                    "reclamationWindow": {
+                      "description": "Seconds of notice the provider gives before it reclaims leased capacity. Null when it advertises none; absent when the provider inventory could not be read.",
+                      "example": 86400,
+                      "exclusiveMinimum": true,
+                      "minimum": 0,
+                      "nullable": true,
+                      "type": "integer",
                     },
                     "reportedCpuArchs": {
                       "description": "Distinct CPU architectures the provider's nodes reported in its last successful snapshot. Known spellings such as x86_64 or aarch64 are folded onto amd64 or arm64; any other reported value is kept as reported. Empty when no node reports one.",
