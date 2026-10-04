@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from "vitest";
 import { mock, mockDeep } from "vitest-mock-extended";
 
 import { QueryKeys } from "@src/queries/queryKeys";
+import { shouldReportError } from "@src/services/query-error-policy/query-error-policy";
 import { settingsIdAtom } from "@src/store/settingsStore";
 import { servicesPatchBetween } from "@src/utils/sdl/sdlServicesPatch";
 import { UrlService } from "@src/utils/urlUtils";
@@ -150,6 +151,32 @@ describe(useDeploymentFlow.name, () => {
     act(() => result.current.actions.requestQuotes("sdl-content"));
 
     await waitFor(() => expect(result.current.error).toEqual({ kind: "create", message: "Invalid SDL" }));
+  });
+
+  describe("error reporting for a failed create", () => {
+    it("stays quiet about a create the api refused, since the page shows the reason", () => {
+      const { createMeta } = setupCreateErrorReporting();
+
+      expect(shouldReportError(new ApiError(400, { message: "Invalid SDL" }, "POST /v1/deployments → 400"), createMeta)).toBe(false);
+    });
+
+    it("reports a create that ran out of retries while the trial wallet was still provisioning", () => {
+      const { createMeta } = setupCreateErrorReporting();
+      const error = new ApiError(409, { message: "Wallet is still being provisioned", code: "wallet_provisioning" }, "POST /v1/deployments → 409");
+
+      expect(shouldReportError(error, createMeta)).toBe(true);
+    });
+
+    it("reports a create the api failed to answer", () => {
+      const { createMeta } = setupCreateErrorReporting();
+
+      expect(shouldReportError(new ApiError(503, {}, "POST /v1/deployments → 503"), createMeta)).toBe(true);
+    });
+
+    function setupCreateErrorReporting() {
+      const { services } = renderFlow();
+      return { createMeta: hookOptionsOf(services.api.v1.createDeployment.useMutation).meta };
+    }
   });
 
   it("halts in error without closing the deployment when no providers bid in the auto flow", () => {
@@ -2284,7 +2311,11 @@ describe(useDeploymentFlow.name, () => {
   }
 
   function hookOptionsOf(useMutation: { mock: { calls: unknown[][] } }) {
-    return (useMutation.mock.calls.at(-1)?.[0] ?? {}) as { onSuccess?: (...args: unknown[]) => void; onSettled?: (...args: unknown[]) => void };
+    return (useMutation.mock.calls.at(-1)?.[0] ?? {}) as {
+      onSuccess?: (...args: unknown[]) => void;
+      onSettled?: (...args: unknown[]) => void;
+      meta?: Record<string, unknown>;
+    };
   }
 
   /** The create-lease success payload shape the flow reads the owner from. */

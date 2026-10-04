@@ -9,7 +9,8 @@ import {
   shouldReportError,
   SKIP_REPORTING_BELOW_SERVER_ERROR,
   SKIP_REPORTING_HANDLED_BY_CALLER,
-  SKIP_REPORTING_PROVIDER_POLL_FAILURE
+  SKIP_REPORTING_PROVIDER_POLL_FAILURE,
+  SKIP_REPORTING_REFUSED_INPUT
 } from "./query-error-policy";
 
 const EXPIRED_TOKEN_BODY = {
@@ -170,6 +171,32 @@ describe("query-error-policy", () => {
 
     it("reports a non-http error", () => {
       expect(shouldReportError(new Error("boom"), SKIP_REPORTING_PROVIDER_POLL_FAILURE)).toBe(true);
+    });
+  });
+
+  describe("SKIP_REPORTING_REFUSED_INPUT", () => {
+    it.each([400, 403, 409, 429, 499])("stays quiet for a %s the typed api client raised", status => {
+      expect(shouldReportError(apiError(status), SKIP_REPORTING_REFUSED_INPUT)).toBe(false);
+    });
+
+    it.each([400, 499])("stays quiet for a %s an axios client raised", status => {
+      expect(shouldReportError(httpError(status), SKIP_REPORTING_REFUSED_INPUT)).toBe(false);
+    });
+
+    it.each([399, 500, 503])("reports a %s the typed api client raised", status => {
+      expect(shouldReportError(apiError(status), SKIP_REPORTING_REFUSED_INPUT)).toBe(true);
+    });
+
+    it.each([399, 500])("reports a %s an axios client raised", status => {
+      expect(shouldReportError(httpError(status), SKIP_REPORTING_REFUSED_INPUT)).toBe(true);
+    });
+
+    it("reports an axios error that carries no response", () => {
+      expect(shouldReportError(new AxiosError("timeout of 1000ms exceeded", "ECONNABORTED"), SKIP_REPORTING_REFUSED_INPUT)).toBe(true);
+    });
+
+    it("reports a non-http error", () => {
+      expect(shouldReportError(new Error("boom"), SKIP_REPORTING_REFUSED_INPUT)).toBe(true);
     });
   });
 

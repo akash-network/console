@@ -8,6 +8,7 @@ import { useServices } from "@src/context/ServicesProvider";
 import { useFlag } from "@src/hooks/useFlag";
 import { QueryKeys } from "@src/queries/queryKeys";
 import { BID_POLL_INTERVAL, useListBids } from "@src/queries/useListBids";
+import { SKIP_REPORTING_REFUSED_INPUT } from "@src/services/query-error-policy/query-error-policy";
 import { settingsIdAtom } from "@src/store/settingsStore";
 import { formatBidId, parseBidId } from "@src/utils/bids/bidId";
 import { ManifestYaml } from "@src/utils/deploymentData/helpers";
@@ -145,6 +146,11 @@ const NO_SELECTION_MESSAGE = "No provider is selected for this deployment.";
 const WALLET_PROVISIONING_TIMEOUT_MESSAGE =
   "Your account is still being set up. Please try again in a few minutes, or contact support if this keeps happening.";
 
+/** A trial wallet still provisioning once the retries run out is Console's to answer for, unlike a refusal of the user's input. */
+const SKIP_REPORTING_REFUSED_CREATE = {
+  skipErrorReporting: (error: unknown) => !isWalletProvisioning(error) && SKIP_REPORTING_REFUSED_INPUT.skipErrorReporting(error)
+};
+
 export const DEPENDENCIES = {
   useServices,
   useListBids,
@@ -176,6 +182,7 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
   const discardedRef = useRef(false);
   const createDeployment = api.v1.createDeployment.useMutation({
     ...walletProvisioningRetry,
+    meta: SKIP_REPORTING_REFUSED_CREATE,
     onSuccess: function closeWhatADiscardedCreateOpened(result) {
       if (discardedRef.current) closeDeployment.mutate({ dseq: result.data.dseq });
     }

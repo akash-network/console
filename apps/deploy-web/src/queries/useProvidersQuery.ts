@@ -3,6 +3,7 @@ import { keepPreviousData, useQueries, useQuery } from "@tanstack/react-query";
 
 import { useServices } from "@src/context/ServicesProvider";
 import { useScopedFetchProviderUrl } from "@src/hooks/useScopedFetchProviderUrl";
+import { SKIP_REPORTING_PROVIDER_POLL_FAILURE } from "@src/services/query-error-policy/query-error-policy";
 import type {
   ApiProviderDetail,
   ApiProviderList,
@@ -36,26 +37,19 @@ export function useProviderDetail(
   });
 }
 
-export function useProviderStatus(
-  provider: ApiProviderList | undefined | null,
-  options: Omit<UseQueryOptions<ProviderStatusDto>, "queryKey" | "queryFn"> = {}
-): UseQueryResult<ProviderStatusDto> {
+/** Provider status polls own their error-reporting policy, so `meta` is not caller-settable and cannot silently drop it. */
+type ProviderStatusQueryOptions = Omit<UseQueryOptions<ProviderStatusDto>, "queryKey" | "queryFn" | "meta">;
+
+export function useProviderStatus(provider: ApiProviderList | undefined | null, options: ProviderStatusQueryOptions = {}): UseQueryResult<ProviderStatusDto> {
   const fetchProviderUrl = useScopedFetchProviderUrl(provider);
   return useQuery({
     queryKey: QueryKeys.getProviderStatusKey(provider?.hostUri || ""),
     queryFn: async () => {
-      try {
-        const [statusResponse, versionResponse] = await Promise.all([
-          fetchProviderUrl<ProviderStatus>("/status"),
-          fetchProviderUrl<ProviderVersion>("/version")
-        ]);
-        return providerStatusToDto(statusResponse.data, versionResponse.data || {});
-      } catch (error) {
-        console.log(error);
-        throw error;
-      }
+      const [statusResponse, versionResponse] = await Promise.all([fetchProviderUrl<ProviderStatus>("/status"), fetchProviderUrl<ProviderVersion>("/version")]);
+      return providerStatusToDto(statusResponse.data, versionResponse.data || {});
     },
-    ...options
+    ...options,
+    meta: SKIP_REPORTING_PROVIDER_POLL_FAILURE
   });
 }
 
