@@ -8,6 +8,7 @@ import { FundDrainingDeploymentsCommand } from "@src/billing/commands/fund-drain
 import type { StripeTransactionRepository } from "@src/billing/repositories";
 import type { FirstPurchaseBonusService } from "@src/billing/services/first-purchase-bonus/first-purchase-bonus.service";
 import type { RefillService } from "@src/billing/services/refill/refill.service";
+import type { AnalyticsService } from "@src/core/services/analytics/analytics.service";
 import type { DomainEventsService } from "@src/core/services/domain-events/domain-events.service";
 import type { TimerService } from "@src/core/services/timer/timer.service";
 import type { UserRepository } from "@src/user/repositories/user/user.repository";
@@ -701,6 +702,153 @@ describe(StripeTransactionService.name, () => {
 
       expect(stripeTransactionRepository.updateByPaymentIntentId).toHaveBeenCalledWith("pi_123", { status: "failed", errorMessage: "Payment failed" });
     });
+
+    it("reports a declined top-up to analytics under the paying user, once per Stripe event", async () => {
+      const { service, stripeTransactionRepository, analyticsService } = setup();
+      const transaction = generateDatabaseStripeTransaction({ amount: 2500 });
+      stripeTransactionRepository.findById.mockResolvedValue(transaction);
+      const event = createPaymentIntentFailedEvent({
+        id: "pi_123",
+        amount: 2500,
+        currency: "usd",
+        metadata: { internal_transaction_id: transaction.id },
+        last_payment_error: createCardDecline()
+      });
+
+      await service.failPaymentIntent(event);
+
+      expect(stripeTransactionRepository.findById).toHaveBeenCalledWith(transaction.id);
+      expect(analyticsService.track).toHaveBeenCalledWith(
+        transaction.userId,
+        "balance_top_up_failed",
+        {
+          amount_cents: 2500,
+          amount_usd: 25,
+          currency: "usd",
+          error_code: "card_declined",
+          decline_code: "insufficient_funds",
+          payment_method_type: "card",
+          card_brand: "visa",
+          transaction_id: transaction.id,
+          auto_recharge: false
+        },
+        { insertId: event.id }
+      );
+    });
+
+    it("reports a declined automatic recharge as one", async () => {
+      const { service, stripeTransactionRepository, analyticsService } = setup();
+      const transaction = generateDatabaseStripeTransaction();
+      stripeTransactionRepository.findById.mockResolvedValue(transaction);
+
+      await service.failPaymentIntent(
+        createPaymentIntentFailedEvent({
+          id: "pi_123",
+          metadata: { internal_transaction_id: transaction.id, auto_recharge: "true" },
+          last_payment_error: createCardDecline()
+        })
+      );
+
+      expect(analyticsService.track).toHaveBeenCalledWith(
+        transaction.userId,
+        "balance_top_up_failed",
+        expect.objectContaining({ auto_recharge: true }),
+        expect.anything()
+      );
+    });
+
+    it("reports a failed top-up that Stripe gives no error for", async () => {
+      const { service, stripeTransactionRepository, analyticsService } = setup();
+      const transaction = generateDatabaseStripeTransaction();
+      stripeTransactionRepository.findById.mockResolvedValue(transaction);
+
+      await service.failPaymentIntent(
+        createPaymentIntentFailedEvent({ id: "pi_123", metadata: { internal_transaction_id: transaction.id }, last_payment_error: null })
+      );
+
+      expect(analyticsService.track).toHaveBeenCalledWith(
+        transaction.userId,
+        "balance_top_up_failed",
+        expect.objectContaining({ error_code: undefined, decline_code: undefined, payment_method_type: undefined, card_brand: undefined }),
+        expect.anything()
+      );
+    });
+
+    it("reports a failed top-up whose error names no payment method", async () => {
+      const { service, stripeTransactionRepository, analyticsService } = setup();
+      const transaction = generateDatabaseStripeTransaction();
+      stripeTransactionRepository.findById.mockResolvedValue(transaction);
+
+      await service.failPaymentIntent(
+        createPaymentIntentFailedEvent({
+          id: "pi_123",
+          metadata: { internal_transaction_id: transaction.id },
+          last_payment_error: mock<Stripe.PaymentIntent.LastPaymentError>({
+            type: "card_error",
+            code: "processing_error",
+            decline_code: undefined,
+            message: "An error occurred while processing your card.",
+            payment_method: undefined
+          })
+        })
+      );
+
+      expect(analyticsService.track).toHaveBeenCalledWith(
+        transaction.userId,
+        "balance_top_up_failed",
+        expect.objectContaining({ error_code: "processing_error", payment_method_type: undefined, card_brand: undefined }),
+        expect.anything()
+      );
+    });
+
+    it("logs the failure with the paying user and the decline reason", async () => {
+      const { service, stripeTransactionRepository, logger } = setup();
+      const transaction = generateDatabaseStripeTransaction();
+      stripeTransactionRepository.findById.mockResolvedValue(transaction);
+
+      await service.failPaymentIntent(
+        createPaymentIntentFailedEvent({
+          id: "pi_123",
+          metadata: { internal_transaction_id: transaction.id },
+          last_payment_error: createCardDecline()
+        })
+      );
+
+      expect(logger.warn).toHaveBeenCalledWith({
+        event: "PAYMENT_INTENT_FAILED",
+        paymentIntentId: "pi_123",
+        transactionId: transaction.id,
+        userId: transaction.userId,
+        errorMessage: "Your card has insufficient funds.",
+        errorCode: "card_declined",
+        declineCode: "insufficient_funds"
+      });
+    });
+
+    it("does not report an intent that no top-up created", async () => {
+      const { service, stripeTransactionRepository, analyticsService, logger } = setup();
+
+      await service.failPaymentIntent(createPaymentIntentFailedEvent({ id: "pi_123", last_payment_error: createCardDecline() }));
+
+      expect(stripeTransactionRepository.findById).not.toHaveBeenCalled();
+      expect(analyticsService.track).not.toHaveBeenCalled();
+      expect(logger.warn).toHaveBeenCalledWith(expect.objectContaining({ event: "PAYMENT_INTENT_FAILED", transactionId: undefined, userId: undefined }));
+    });
+
+    it("does not report a top-up whose transaction is gone", async () => {
+      const { service, stripeTransactionRepository, analyticsService } = setup();
+      stripeTransactionRepository.findById.mockResolvedValue(undefined);
+
+      await service.failPaymentIntent(
+        createPaymentIntentFailedEvent({
+          id: "pi_123",
+          metadata: { internal_transaction_id: faker.string.uuid() },
+          last_payment_error: createCardDecline()
+        })
+      );
+
+      expect(analyticsService.track).not.toHaveBeenCalled();
+    });
   });
 
   describe("cancelPaymentIntent", () => {
@@ -866,6 +1014,8 @@ describe(StripeTransactionService.name, () => {
     firstPurchaseBonusService.getEligibleBonusAmount.mockResolvedValue(0);
     const userRepository = mock<UserRepository>();
     const domainEventsService = mock<DomainEventsService>();
+    const analyticsService = mock<AnalyticsService>();
+    const logger = mock<LoggerService>();
 
     const toppedUpWallet = { walletId: 42, address: "akash1toppedupwallet" };
     refillService.topUpWallet.mockResolvedValue(toppedUpWallet);
@@ -880,10 +1030,22 @@ describe(StripeTransactionService.name, () => {
       mock<TimerService>(),
       userRepository,
       domainEventsService,
-      () => mock<LoggerService>()
+      analyticsService,
+      () => logger
     );
 
-    return { service, stripe, stripeTransactionRepository, refillService, firstPurchaseBonusService, userRepository, domainEventsService, toppedUpWallet };
+    return {
+      service,
+      stripe,
+      stripeTransactionRepository,
+      refillService,
+      firstPurchaseBonusService,
+      userRepository,
+      domainEventsService,
+      analyticsService,
+      logger,
+      toppedUpWallet
+    };
   }
 
   function createPaymentIntentSucceededEvent(paymentIntent: Partial<Stripe.PaymentIntent>): Stripe.PaymentIntentSucceededEvent {
@@ -896,10 +1058,20 @@ describe(StripeTransactionService.name, () => {
 
   function createPaymentIntentFailedEvent(paymentIntent: Partial<Stripe.PaymentIntent>): Stripe.PaymentIntentPaymentFailedEvent {
     return {
-      id: "evt_123",
+      id: `evt_${faker.string.alphanumeric(24)}`,
       type: "payment_intent.payment_failed",
-      data: { object: paymentIntent as Stripe.PaymentIntent }
+      data: { object: { metadata: {}, ...paymentIntent } as Stripe.PaymentIntent }
     } as Stripe.PaymentIntentPaymentFailedEvent;
+  }
+
+  function createCardDecline() {
+    return mock<Stripe.PaymentIntent.LastPaymentError>({
+      type: "card_error",
+      code: "card_declined",
+      decline_code: "insufficient_funds",
+      message: "Your card has insufficient funds.",
+      payment_method: mock<Stripe.PaymentMethod>({ type: "card", card: mock<Stripe.PaymentMethod.Card>({ brand: "visa" }) })
+    });
   }
 
   function createPaymentIntentCanceledEvent(paymentIntent: Partial<Stripe.PaymentIntent>): Stripe.PaymentIntentCanceledEvent {

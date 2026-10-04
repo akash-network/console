@@ -529,7 +529,7 @@ describe("Stripe webhook", () => {
 
         const { user, stripeCustomerId } = await setup();
 
-        await stripeTransactionRepository.create({
+        const topUp = await stripeTransactionRepository.create({
           userId: user.id,
           type: "payment_intent",
           status: "created",
@@ -544,6 +544,7 @@ describe("Stripe webhook", () => {
               id: paymentIntentId,
               customer: stripeCustomerId,
               amount,
+              metadata: { internal_transaction_id: topUp.id },
               last_payment_error: {
                 message: "Your card was declined."
               }

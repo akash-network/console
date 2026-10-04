@@ -54,6 +54,17 @@ describe(AnalyticsService.name, () => {
         }
       );
     });
+
+    it("passes the insert id so Amplitude drops a repeated delivery of the same event", () => {
+      const { service, amplitude } = setup();
+
+      const userId = faker.string.uuid();
+      const insertId = `evt_${faker.string.alphanumeric(24)}`;
+
+      service.track(userId, "balance_top_up_failed", {}, { insertId });
+
+      expect(amplitude.track).toHaveBeenCalledWith("balance_top_up_failed", {}, { user_id: userId, insert_id: insertId });
+    });
   });
 
   describe("identify", () => {
