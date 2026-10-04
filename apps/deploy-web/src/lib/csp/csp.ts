@@ -38,6 +38,9 @@ const FIXED_VENDOR_CONNECT_ORIGINS = [
 /** Template logos are community-supplied and point at arbitrary origins, so img-src cannot be a host allowlist. */
 const FIXED_IMG_SRC = ["data:", "blob:", "https:"];
 
+/** Template READMEs embed videos hosted anywhere, GitHub user attachments included, so media-src cannot be a host allowlist. */
+const MEDIA_SRC = ["'self'", "https:"];
+
 const STACKADAPT_ORIGIN = "https://tags.srv.stackadapt.com";
 const IQM_ORIGIN = "https://pxl.iqm.com";
 
@@ -179,6 +182,7 @@ export function buildContentSecurityPolicy(input: ContentSecurityPolicyInput) {
     `style-src 'self' 'unsafe-inline' https://fonts.googleapis.com ${STACKADAPT_ORIGIN}`,
     "style-src-attr 'unsafe-inline'",
     `img-src ${imgSrc.join(" ")}`,
+    `media-src ${MEDIA_SRC.join(" ")}`,
     "font-src 'self' data: https://fonts.gstatic.com",
     `connect-src ${connectSrc.join(" ")}`,
     "frame-src 'self' https://js.stripe.com https://hooks.stripe.com https://challenges.cloudflare.com https://www.googletagmanager.com",
