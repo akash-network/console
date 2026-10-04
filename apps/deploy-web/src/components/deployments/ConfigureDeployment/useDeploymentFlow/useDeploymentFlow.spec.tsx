@@ -106,6 +106,33 @@ describe(useDeploymentFlow.name, () => {
     expect(result.current.error).toEqual({ kind: "needs-funds", message });
   });
 
+  it("carries how far the balance falls short so the user is told what is missing", async () => {
+    const message = "Not enough balance to cover the deployment deposit. Add credits or turn on auto recharge to continue.";
+    const refusal = new ApiError(
+      402,
+      { message, code: "insufficient_balance", data: { requiredAmountUsd: 0.5, availableAmountUsd: 0.12 } },
+      "POST /v1/deployments → 402"
+    );
+    const createMutate = vi.fn((_args, { onError }) => onError(refusal));
+    const { result } = setup({ createMutate });
+
+    act(() => result.current.actions.requestQuotes("sdl-content"));
+
+    await waitFor(() =>
+      expect(result.current.error).toEqual({ kind: "needs-funds", message, shortfall: { requiredAmountUsd: 0.5, availableAmountUsd: 0.12 } })
+    );
+  });
+
+  it("tells a refusal a top up already on its way will clear apart from one that needs credits", async () => {
+    const message = "Not enough balance to cover the deployment deposit. A top up from your saved payment method is on the way, so try again in a moment.";
+    const createMutate = vi.fn((_args, { onError }) => onError(new ApiError(402, { message, code: "balance_top_up_pending" }, "POST /v1/deployments → 402")));
+    const { result } = setup({ createMutate });
+
+    act(() => result.current.actions.requestQuotes("sdl-content"));
+
+    await waitFor(() => expect(result.current.error).toEqual({ kind: "top-up-pending", message }));
+  });
+
   it("treats a trial gpu refusal the same way, since adding funds is what unlocks it too", async () => {
     const message = "GPU interconnect not available on free trial: Add funds to unlock GPU interconnect";
     const createMutate = vi.fn((_args, { onError }) => onError(new ApiError(402, { message, code: "payment_required" }, "POST /v1/deployments → 402")));
@@ -1142,6 +1169,7 @@ describe(useDeploymentFlow.name, () => {
       expect(createMutate).toHaveBeenCalledTimes(1);
       expect(sealSdlSecrets).toHaveBeenCalledTimes(1);
       expect(result.current.error?.message).toContain("still being set up");
+      expect(result.current.error?.kind).toBe("create");
     });
 
     it("does not seal again when the create fails with something other than a conflict", async () => {

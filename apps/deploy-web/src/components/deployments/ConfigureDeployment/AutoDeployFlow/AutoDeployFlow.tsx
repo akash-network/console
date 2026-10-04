@@ -3,6 +3,7 @@ import type { FC } from "react";
 
 import Layout from "@src/components/layout/Layout";
 import { useServices } from "@src/context/ServicesProvider";
+import { useAddCredits } from "@src/hooks/useAddCredits";
 import { useAutoDeploymentFlow } from "@src/hooks/useAutoDeploymentFlow/useAutoDeploymentFlow";
 import { PhasedDeployProgressScene } from "../DeployProgressOverlay/PhasedDeployProgressScene";
 import type { ResumeResolution } from "../ResumeDeploymentGuard/ResumeDeploymentGuard";
@@ -12,7 +13,8 @@ export const DEPENDENCIES = {
   Layout,
   PhasedDeployProgressScene,
   useAutoDeploymentFlow,
-  useServices
+  useServices,
+  useAddCredits
 };
 
 type Props = {
@@ -42,6 +44,7 @@ type Props = {
  */
 export const AutoDeployFlow: FC<Props> = ({ templateName, sdl, resume, flow, dependencies: d = DEPENDENCIES }) => {
   const { publicConfig, analyticsService } = d.useServices();
+  const openAddCredits = d.useAddCredits();
   const { state, progressPercent, phases, matchedProviderAddress, tryAgain, stopAutopilot } = d.useAutoDeploymentFlow({
     sdl,
     resumeLeases: resume.activeLeases,
@@ -57,6 +60,9 @@ export const AutoDeployFlow: FC<Props> = ({ templateName, sdl, resume, flow, dep
         phases={phases}
         focusedProviderAddress={matchedProviderAddress}
         onTryAgain={tryAgain}
+        onAddFunds={() => {
+          openAddCredits({ initialTab: "purchase", description: `Add credits to your balance to deploy ${templateName}.`, context: "auto_deploy_needs_funds" });
+        }}
         onContactSupport={() => {
           window.open(publicConfig.NEXT_PUBLIC_CONTACT_SUPPORT_URL, "_blank", "noopener,noreferrer");
         }}

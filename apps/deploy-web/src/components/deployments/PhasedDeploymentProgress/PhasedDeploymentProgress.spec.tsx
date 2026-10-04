@@ -58,6 +58,68 @@ describe(PhasedDeploymentProgress.name, () => {
     });
   });
 
+  describe("when the balance cannot cover the deployment", () => {
+    it("asks the user to add funds to deploy the template", () => {
+      setup({ state: { kind: "error", reason: "needs-funds" }, templateName: "my-app" });
+
+      expect(screen.getByText("Add funds to deploy my-app")).toBeInTheDocument();
+    });
+
+    it("says how far the balance falls short", () => {
+      setup({ state: { kind: "error", reason: "needs-funds", shortfall: { requiredAmountUsd: 0.5, availableAmountUsd: 0.12 } } });
+
+      expect(screen.getByText("Starting this deployment takes $0.50 and your balance has $0.12, so you're $0.38 short.")).toBeInTheDocument();
+    });
+
+    it("falls back to the refusal's own message when no amounts were reported", () => {
+      setup({ state: { kind: "error", reason: "needs-funds", message: "Not enough balance to cover the deployment deposit." } });
+
+      expect(screen.getByText("Not enough balance to cover the deployment deposit.")).toBeInTheDocument();
+    });
+
+    it("opens add credits when Add funds is clicked", () => {
+      const onAddFunds = vi.fn();
+      setup({ state: { kind: "error", reason: "needs-funds" }, onAddFunds });
+
+      fireEvent.click(screen.getByRole("button", { name: "Add funds" }));
+
+      expect(onAddFunds).toHaveBeenCalledTimes(1);
+    });
+
+    it("keeps Try again so the same deployment can be retried once the funds land", () => {
+      const onTryAgain = vi.fn();
+      setup({ state: { kind: "error", reason: "needs-funds" }, onTryAgain });
+
+      fireEvent.click(screen.getByRole("button", { name: "Try again" }));
+
+      expect(onTryAgain).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe("when a top up is already on its way", () => {
+    it("asks the user to wait for the top up", () => {
+      setup({ state: { kind: "error", reason: "top-up-pending" } });
+
+      expect(screen.getByText("Your balance is being topped up")).toBeInTheDocument();
+      expect(screen.getByText("A top up from your saved payment method is on the way. Try again in a moment.")).toBeInTheDocument();
+    });
+
+    it("does not send the user to add funds", () => {
+      setup({ state: { kind: "error", reason: "top-up-pending" }, onAddFunds: vi.fn() });
+
+      expect(screen.queryByRole("button", { name: "Add funds" })).not.toBeInTheDocument();
+    });
+
+    it("invokes onTryAgain when Try again is clicked", () => {
+      const onTryAgain = vi.fn();
+      setup({ state: { kind: "error", reason: "top-up-pending" }, onTryAgain });
+
+      fireEvent.click(screen.getByRole("button", { name: "Try again" }));
+
+      expect(onTryAgain).toHaveBeenCalledTimes(1);
+    });
+  });
+
   describe("when state is in progress", () => {
     it("renders the deploying heading with the template name", () => {
       setup({ templateName: "my-app" });
@@ -130,6 +192,7 @@ describe(PhasedDeploymentProgress.name, () => {
         onChooseProvider={input?.onChooseProvider}
         onTryAgain={input?.onTryAgain}
         onContactSupport={input?.onContactSupport}
+        onAddFunds={input?.onAddFunds}
       />
     );
   }

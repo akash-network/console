@@ -20,6 +20,7 @@ interface Props {
   onTryAgain?: () => void;
   onContactSupport?: () => void;
   onChooseProvider?: () => void;
+  onAddFunds?: () => void;
   dependencies?: typeof DEPENDENCIES;
 }
 
@@ -38,6 +39,7 @@ export const PhasedDeployProgressScene: FC<Props> = ({
   onTryAgain,
   onContactSupport,
   onChooseProvider,
+  onAddFunds,
   dependencies: d = DEPENDENCIES
 }) => (
   <div className={cn("flex flex-1 flex-col items-center", className)}>
@@ -50,6 +52,7 @@ export const PhasedDeployProgressScene: FC<Props> = ({
         onTryAgain={onTryAgain}
         onContactSupport={onContactSupport}
         onChooseProvider={onChooseProvider}
+        onAddFunds={onAddFunds}
       />
     </div>
     <d.ProviderGlobe focusedProviderAddress={focusedProviderAddress} />

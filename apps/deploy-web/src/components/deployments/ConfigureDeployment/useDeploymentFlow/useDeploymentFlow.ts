@@ -21,6 +21,8 @@ import { hasSdlReference } from "@src/utils/sdl/storedDefinition";
 import { UrlService } from "@src/utils/urlUtils";
 import { isWalletProvisioning, WALLET_PROVISIONING_ERROR_CODE, walletProvisioningRetry } from "@src/utils/walletProvisioning";
 import { aggregateDeploymentResources } from "../DeploymentResourceSummary/deploymentResources";
+import type { DepositShortfall } from "../depositShortfall/depositShortfall";
+import { extractDepositShortfall, isBalanceTopUpPending } from "../depositShortfall/depositShortfall";
 import type { BidStrategy, DeploymentIntent } from "./deploymentIntent";
 
 export type DeploymentFlowPhase = "configuring" | "creating" | "quoting" | "deploying" | "error";
@@ -29,7 +31,9 @@ export type DeploymentFlowPhase = "configuring" | "creating" | "quoting" | "depl
 export type PendingClose = { dseq: string; failed: boolean; message?: string };
 
 /** Which toast the form shows. A close failure reads differently from a failed quote request, and a refusal the user can pay their way out of needs an Add Funds action rather than an apology. */
-export type FlowErrorKind = "create" | "close" | "no-providers" | "needs-funds" | "no-match" | "inherited-unreadable";
+export type FlowErrorKind = "create" | "close" | "no-providers" | "needs-funds" | "top-up-pending" | "no-match" | "inherited-unreadable";
+
+export type FlowError = { message?: string; kind?: FlowErrorKind; shortfall?: DepositShortfall };
 
 /** The live bids the flow polls while quoting (react-query-backed). Element shape derived from the shared `listBids` query. */
 export type DeploymentBids = NonNullable<ReturnType<typeof useListBids>["data"]>["data"];
@@ -50,7 +54,7 @@ export interface DeploymentFlowState {
   /** True once the wait for a first bid ran out with none; cleared when a bid lands or the deployment goes away. */
   noBidsReceived: boolean;
   deployError?: { message?: string };
-  error?: { message?: string; kind?: FlowErrorKind };
+  error?: FlowError;
   /** The cancelled deployment closing in the background. Orthogonal to `phase`: the form stays editable throughout. */
   pendingClose: PendingClose | null;
 }
@@ -191,7 +195,7 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
   const [phase, setPhase] = useState<DeploymentFlowPhase>(intent.dseq ? "quoting" : "configuring");
   const [dseq, setDseq] = useState<string | null>(intent.dseq ?? null);
   const [bidStrategy, setBidStrategyState] = useState<BidStrategy>(intent.bidStrategy);
-  const [error, setError] = useState<{ message?: string; kind?: FlowErrorKind } | undefined>(undefined);
+  const [error, setError] = useState<FlowError | undefined>(undefined);
   const [selections, setSelections] = useState<Record<string, string>>({});
   const [manifest, setManifest] = useState<string | null>(null);
   /** The SDL the create sent, which a quoting-window edit is diffed against; null on a session that never saw the create. */
@@ -480,9 +484,7 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
 
       function onCreateFailed(cause: unknown) {
         if (!isCurrentAttempt()) return;
-        const message =
-          extractApiErrorCode(cause) === WALLET_PROVISIONING_ERROR_CODE ? WALLET_PROVISIONING_TIMEOUT_MESSAGE : extractApiErrorMessage(cause) ?? undefined;
-        setError({ message, kind: isPaymentRequired(cause) ? "needs-funds" : "create" });
+        setError(describeCreateFailure(cause));
         setPhase("error");
       }
 
@@ -816,9 +818,18 @@ function namePayload(name: string | undefined): { name?: string } {
   return trimmed ? { name: trimmed } : {};
 }
 
-/** Status is the only signal available: a refused deposit, an exhausted fee allowance and a trial-blocked GPU all report `payment_required`. */
+/** Matched on status because an exhausted fee allowance and a trial-blocked GPU still report the generic `payment_required`, and adding funds clears them too. */
 function isPaymentRequired(cause: unknown): boolean {
   return isApiError(cause) && cause.status === HTTP_PAYMENT_REQUIRED;
+}
+
+function describeCreateFailure(cause: unknown): FlowError {
+  if (extractApiErrorCode(cause) === WALLET_PROVISIONING_ERROR_CODE) return { message: WALLET_PROVISIONING_TIMEOUT_MESSAGE, kind: "create" };
+
+  const message = extractApiErrorMessage(cause) ?? undefined;
+  if (isBalanceTopUpPending(cause)) return { message, kind: "top-up-pending" };
+  if (isPaymentRequired(cause)) return { message, kind: "needs-funds", shortfall: extractDepositShortfall(cause) };
+  return { message, kind: "create" };
 }
 
 /** A seal made against a retired key comes back as a bare 409; a wallet still provisioning answers 409 too and has its own retry. */

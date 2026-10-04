@@ -61,6 +61,18 @@ describe(AutoDeployFlow.name, () => {
     expect(tryAgain).toHaveBeenCalledTimes(1);
   });
 
+  it("opens add credits in place when the scene asks to add funds", () => {
+    const { sceneProps, openAddCredits } = setup({ templateName: "Hello World" });
+
+    sceneProps().onAddFunds?.();
+
+    expect(openAddCredits).toHaveBeenCalledWith({
+      initialTab: "purchase",
+      description: "Add credits to your balance to deploy Hello World.",
+      context: "auto_deploy_needs_funds"
+    });
+  });
+
   it("stops the autopilot and switches to manual bid selection when the user chooses a provider", () => {
     const stopAutopilot = vi.fn();
     const setBidStrategy = vi.fn();
@@ -122,6 +134,8 @@ describe(AutoDeployFlow.name, () => {
     const PhasedDeployProgressScene = input.dependencies?.PhasedDeployProgressScene ?? vi.fn(ComponentMock);
     const useAutoDeploymentFlow: typeof DEPENDENCIES.useAutoDeploymentFlow = input.useAutoDeploymentFlow ?? (() => buildAutopilot(input.autopilot));
     const analyticsService = mock<ReturnType<typeof DEPENDENCIES.useServices>["analyticsService"]>();
+    const openAddCredits = vi.fn();
+    const useAddCredits: typeof DEPENDENCIES.useAddCredits = () => openAddCredits;
     const useServices: typeof DEPENDENCIES.useServices = () =>
       mock<ReturnType<typeof DEPENDENCIES.useServices>>({
         publicConfig: { NEXT_PUBLIC_CONTACT_SUPPORT_URL: input.contactSupportUrl ?? CONTACT_SUPPORT_URL },
@@ -139,11 +153,12 @@ describe(AutoDeployFlow.name, () => {
           PhasedDeployProgressScene,
           useAutoDeploymentFlow,
           useServices,
+          useAddCredits,
           ...input.dependencies
         }}
       />
     );
 
-    return { analyticsService, sceneProps: () => (PhasedDeployProgressScene as ReturnType<typeof vi.fn>).mock.calls[0][0] as SceneProps };
+    return { analyticsService, openAddCredits, sceneProps: () => (PhasedDeployProgressScene as ReturnType<typeof vi.fn>).mock.calls[0][0] as SceneProps };
   }
 });
