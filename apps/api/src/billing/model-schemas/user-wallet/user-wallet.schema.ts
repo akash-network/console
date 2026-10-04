@@ -17,6 +17,8 @@ export const UserWallets = pgTable("user_wallets", {
   creditsLowNotifiedAt: timestamp("credits_low_notified_at", { withTimezone: true }),
   creditsSufficientSince: timestamp("credits_sufficient_since", { withTimezone: true }),
   creditsLowSince: timestamp("credits_low_since", { withTimezone: true }),
+  /** Only meaningful while `credits_low_notified_at` is set: every new credits-low email clears it, so each low episode warns of closure once. */
+  creditsExhaustedNotifiedAt: timestamp("credits_exhausted_notified_at", { withTimezone: true }),
   /** Set when a wallet is wiped for workload abuse; a locked wallet is skipped by fee refills and probes but may still convert by paying. */
   abuseLockedAt: timestamp("abuse_locked_at", { withTimezone: true }),
   abuseLockedReason: varchar("abuse_locked_reason", { length: 64 }),

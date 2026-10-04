@@ -1,5 +1,7 @@
 import { MsgAccountDeposit } from "@akashnetwork/chain-sdk/private-types/akash.v1";
+import { addMinutes } from "date-fns";
 import { millisecondsInMinute } from "date-fns/constants";
+import minBy from "lodash/minBy";
 import { Err, Ok, Result } from "ts-results";
 import { singleton } from "tsyringe";
 
@@ -18,7 +20,7 @@ import { AutoTopUpOwnerDeployments, DrainingDeployment } from "@src/deployment/s
 import { DrainingDeploymentService } from "@src/deployment/services/draining-deployment/draining-deployment.service";
 import { ReconcileManagedTxJobService } from "@src/deployment/services/reconcile-managed-tx/reconcile-managed-tx-job.service";
 import { COSMOS_TX_CODE_OK } from "@src/utils/constants";
-import { CachedBalance, CachedBalanceService } from "../cached-balance/cached-balance.service";
+import { CachedBalance, CachedBalanceService, InsufficientBalanceError } from "../cached-balance/cached-balance.service";
 import { DeploymentConfigService } from "../deployment-config/deployment-config.service";
 import type { DeploymentTopUpInstrumentation, OwnerInsufficientBalanceItem } from "./deployment-top-up-instrumentation";
 import { FundDrainingDeploymentsInstrumentationService } from "./fund-draining-deployments-instrumentation.service";
@@ -142,12 +144,13 @@ export class TopUpManagedDeploymentsService {
     currentHeight: number
   ): Promise<void> {
     if (balance.spendable <= 0) {
-      this.#skipOwnerWithoutSpendableBalance({ address, deployments }, balance, instrumentation, currentHeight);
+      const unfundable = this.#skipOwnerWithoutSpendableBalance({ address, deployments }, balance, instrumentation, currentHeight);
+      await this.#warnOfClosureForLackOfCredits(unfundable, options, currentHeight);
       return;
     }
 
     if (options.dryRun) {
-      const messageInputs = await this.collectMessages(deployments, balance, instrumentation, currentHeight);
+      const { messageInputs } = await this.collectMessages(deployments, balance, instrumentation, currentHeight);
 
       if (!messageInputs.length) {
         instrumentation.recordSkipped({ owner: address, deploymentCount: deployments.length });
@@ -166,13 +169,15 @@ export class TopUpManagedDeploymentsService {
     }
 
     const claimedIds = new Set(claims.map(claim => claim.id));
-    const messageInputs = await this.collectMessages(
+    const { messageInputs, unfundable } = await this.collectMessages(
       deployments.filter(deployment => claimedIds.has(deployment.id)),
       balance,
       instrumentation,
       currentHeight
     );
     const preparedIds = new Set(messageInputs.map(input => input.deployment.id));
+
+    await this.#warnOfClosureForLackOfCredits(unfundable, options, currentHeight);
 
     await this.#releaseFundingClaims(
       address,
@@ -236,13 +241,31 @@ export class TopUpManagedDeploymentsService {
     return needsCreditsLowTransition({ balance, weeklyCost: weeklyCredits, isNotified });
   }
 
+  /** The handler re-checks every gate against fresh state, so the owner flags here only spare a job for owners it would skip anyway. */
+  async #warnOfClosureForLackOfCredits(unfundable: DrainingDeployment[], options: DryRunOptions, currentHeight: number): Promise<void> {
+    const firstClosing = minBy(unfundable, deployment => deployment.predictedClosedHeight);
+
+    if (!firstClosing || options.dryRun || firstClosing.isWalletAutoTopUpEnabled || firstClosing.walletIsTrialing) {
+      return;
+    }
+
+    const runwayMinutes = this.drainingDeploymentService.calculateRunwayMinutesAfterDeposit(firstClosing, 0, currentHeight);
+
+    await this.walletReloadService.scheduleCreditsExhaustedCheck({
+      userId: firstClosing.userId,
+      firstClosingDseq: firstClosing.dseq,
+      unfundedDeploymentCount: unfundable.length,
+      firstClosureAt: addMinutes(new Date(), runwayMinutes).toISOString()
+    });
+  }
+
   /** Mirrors the preparation loop's telemetry without claiming rows, so the cooldown filter here must keep matching the claim query's. */
   #skipOwnerWithoutSpendableBalance(
     { address, deployments }: { address: string; deployments: DrainingDeployment[] },
     balance: CachedBalance,
     instrumentation: DeploymentTopUpInstrumentation,
     currentHeight: number
-  ): void {
+  ): DrainingDeployment[] {
     const insufficient: OwnerInsufficientBalanceItem[] = [];
 
     for (const deployment of this.#filterClaimable(deployments)) {
@@ -268,6 +291,8 @@ export class TopUpManagedDeploymentsService {
     }
 
     instrumentation.recordSkipped({ owner: address, deploymentCount: deployments.length });
+
+    return insufficient.map(({ deployment }) => deployment);
   }
 
   #filterClaimable(deployments: DrainingDeployment[]): DrainingDeployment[] {
@@ -335,8 +360,9 @@ export class TopUpManagedDeploymentsService {
     balance: CachedBalance,
     instrumentation: DeploymentTopUpInstrumentation,
     currentHeight: number
-  ): Promise<CollectedMessage[]> {
+  ): Promise<{ messageInputs: CollectedMessage[]; unfundable: DrainingDeployment[] }> {
     const denom = this.billingConfig.get("DEPLOYMENT_GRANT_DENOM");
+    const unfundable: DrainingDeployment[] = [];
 
     const messageInputs = await Promise.all(
       deployments.map(async deployment => {
@@ -362,6 +388,7 @@ export class TopUpManagedDeploymentsService {
               affordableAmount,
               runwayMinutes
             });
+            unfundable.push(deployment);
             return;
           }
 
@@ -383,6 +410,10 @@ export class TopUpManagedDeploymentsService {
             deployment
           };
         } catch (error: unknown) {
+          if (error instanceof InsufficientBalanceError) {
+            unfundable.push(deployment);
+          }
+
           instrumentation.recordMessagePreparationError({
             deployment,
             error
@@ -391,7 +422,7 @@ export class TopUpManagedDeploymentsService {
       })
     );
 
-    return messageInputs.filter(x => !!x);
+    return { messageInputs: messageInputs.filter(x => !!x), unfundable };
   }
 
   /** The floor must never be the reason a deposit is not made, so it yields when the floored amount falls short. */

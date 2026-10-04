@@ -1,26 +1,20 @@
 import { inject, singleton } from "tsyringe";
 
 import { WalletCreditsLowCheck } from "@src/billing/events/wallet-credits-low-check";
-import { isAutoReloadActive } from "@src/billing/lib/auto-reload/auto-reload";
-import { isWalletInitialized, type UserWalletOutput, UserWalletRepository, WalletSettingRepository } from "@src/billing/repositories";
+import { type UserWalletOutput, UserWalletRepository } from "@src/billing/repositories";
 import { BalancesService } from "@src/billing/services/balances/balances.service";
 import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
+import {
+  type CreditsWarningIneligibility,
+  CreditsWarningRecipientService
+} from "@src/billing/services/credits-warning-recipient/credits-warning-recipient.service";
 import { type CreateLogger, type JobHandler, type JobPayload, type JobPermissions, LOGGER_FACTORY } from "@src/core";
 import { DrainingDeploymentService } from "@src/deployment/services/draining-deployment/draining-deployment.service";
 import { NotificationService } from "@src/notifications/services/notification/notification.service";
 import { creditsRunningLowNotification } from "@src/notifications/services/notification-templates/credits-running-low-notification";
-import { type UserOutput, UserRepository } from "@src/user/repositories";
+import type { UserOutput } from "@src/user/repositories";
 
-type SkipReason =
-  | "auto_reload_enabled"
-  | "no_wallet"
-  | "trialing"
-  | "abuse_locked"
-  | "no_email"
-  | "zero_cost"
-  | "sufficient_balance"
-  | "already_notified"
-  | "low_unconfirmed";
+type SkipReason = CreditsWarningIneligibility | "zero_cost" | "sufficient_balance" | "already_notified" | "low_unconfirmed";
 
 type NotLowReason = Extract<SkipReason, "zero_cost" | "sufficient_balance">;
 
@@ -42,9 +36,8 @@ export class WalletCreditsLowCheckHandler implements JobHandler<WalletCreditsLow
   private readonly logger: ReturnType<CreateLogger>;
 
   constructor(
-    private readonly walletSettingRepository: WalletSettingRepository,
+    private readonly creditsWarningRecipientService: CreditsWarningRecipientService,
     private readonly userWalletRepository: UserWalletRepository,
-    private readonly userRepository: UserRepository,
     private readonly balancesService: BalancesService,
     private readonly drainingDeploymentService: DrainingDeploymentService,
     private readonly notificationService: NotificationService,
@@ -59,12 +52,13 @@ export class WalletCreditsLowCheckHandler implements JobHandler<WalletCreditsLow
   }
 
   async handle(payload: JobPayload<WalletCreditsLowCheck>): Promise<void> {
-    const resources = await this.#getValidWalletResources(payload.userId);
-    if (!resources) {
+    const recipient = await this.creditsWarningRecipientService.find(payload.userId);
+    if (recipient.err) {
+      this.#skip(recipient.val, payload.userId);
       return;
     }
 
-    const { wallet, user } = resources;
+    const { wallet, user } = recipient.val;
     const balanceUsd = await this.balancesService.getDeploymentBalanceInFiat(wallet.address);
     const { weeklyCostUsd, cumulativeDailyCostsUsd, hasAutoTopUpSettings } = await this.drainingDeploymentService.calculateWeeklyCoverageForAddress(
       wallet.address
@@ -122,7 +116,12 @@ export class WalletCreditsLowCheckHandler implements JobHandler<WalletCreditsLow
    */
   async #stampNotified(wallet: UserWalletOutput, userId: UserOutput["id"]): Promise<void> {
     try {
-      await this.userWalletRepository.updateById(wallet.id, { creditsLowNotifiedAt: new Date(), creditsSufficientSince: null, creditsLowSince: null });
+      await this.userWalletRepository.updateById(wallet.id, {
+        creditsLowNotifiedAt: new Date(),
+        creditsSufficientSince: null,
+        creditsLowSince: null,
+        creditsExhaustedNotifiedAt: null
+      });
     } catch (error) {
       this.logger.error({ event: "CREDITS_LOW_NOTIFIED_STAMP_FAILED", userId, error });
     }
@@ -136,38 +135,6 @@ export class WalletCreditsLowCheckHandler implements JobHandler<WalletCreditsLow
     }
 
     return await this.userWalletRepository.isCreditsLowConfirmed(wallet.id, this.billingConfig.get("CREDITS_LOW_CONFIRM_WINDOW_MIN"));
-  }
-
-  async #getValidWalletResources(userId: UserOutput["id"]) {
-    const walletSetting = await this.walletSettingRepository.findByUserId(userId);
-    if (isAutoReloadActive(walletSetting)) {
-      this.#skip("auto_reload_enabled", userId);
-      return;
-    }
-
-    const wallet = await this.userWalletRepository.findOneByUserId(userId);
-    if (!wallet || !isWalletInitialized(wallet)) {
-      this.#skip("no_wallet", userId);
-      return;
-    }
-
-    if (wallet.isTrialing) {
-      this.#skip("trialing", userId);
-      return;
-    }
-
-    if (wallet.abuseLockedAt) {
-      this.#skip("abuse_locked", userId);
-      return;
-    }
-
-    const user = await this.userRepository.findById(userId);
-    if (!user?.email) {
-      this.#skip("no_email", userId);
-      return;
-    }
-
-    return { wallet, user };
   }
 
   /** Nothing re-checks a wallet with no auto-top-up deployment left, so that verdict unlatches at once while a chain-derived one must hold for the window. */

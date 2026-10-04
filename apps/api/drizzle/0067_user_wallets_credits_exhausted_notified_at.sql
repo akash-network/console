@@ -1,0 +1,1 @@
+ALTER TABLE "user_wallets" ADD COLUMN "credits_exhausted_notified_at" timestamp with time zone;

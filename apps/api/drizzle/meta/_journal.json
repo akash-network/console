@@ -470,6 +470,13 @@
       "when": 1790780132489,
       "tag": "0066_deployment_settings_close_reason",
       "breakpoints": true
+    },
+    {
+      "idx": 67,
+      "version": "7",
+      "when": 1791148824729,
+      "tag": "0067_user_wallets_credits_exhausted_notified_at",
+      "breakpoints": true
     }
   ]
 }

@@ -16,6 +16,7 @@ export function createUserWallet({
   creditsLowNotifiedAt = null,
   creditsSufficientSince = null,
   creditsLowSince = null,
+  creditsExhaustedNotifiedAt = null,
   abuseLockedAt = null,
   abuseLockedReason = null
 }: Partial<UserWalletOutput> = {}): UserWalletOutput {
@@ -33,6 +34,7 @@ export function createUserWallet({
     creditsLowNotifiedAt,
     creditsSufficientSince,
     creditsLowSince,
+    creditsExhaustedNotifiedAt,
     abuseLockedAt,
     abuseLockedReason
   };

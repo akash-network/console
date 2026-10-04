@@ -9,6 +9,12 @@ import { denomToUdenom } from "@src/utils/math";
 /** Outlives one owner's funding pass so its reservations stay shared, and expires well inside the hourly sweep that would otherwise reuse a balance predating its own deposits. */
 const BALANCE_MEMO_TTL_MS = 5 * 60_000;
 
+export class InsufficientBalanceError extends Error {
+  constructor(spendable: number, desiredAmount: number) {
+    super(`Insufficient balance: ${spendable} < ${desiredAmount}`);
+  }
+}
+
 export class CachedBalance {
   readonly #available: number;
   readonly #headroom: number;
@@ -56,7 +62,7 @@ export class CachedBalance {
     const value = this.previewSufficientAmount(desiredAmount);
 
     if (value <= 0) {
-      throw new Error(`Insufficient balance: ${this.spendable} < ${desiredAmount}`);
+      throw new InsufficientBalanceError(this.spendable, desiredAmount);
     }
 
     this.#reserved += value;

@@ -2,6 +2,7 @@ import { addMilliseconds, millisecondsInMinute } from "date-fns";
 import { inject, singleton } from "tsyringe";
 
 import { WalletBalanceReloadCheck } from "@src/billing/events/wallet-balance-reload-check";
+import { WalletCreditsExhaustedCheck } from "@src/billing/events/wallet-credits-exhausted-check";
 import { WalletCreditsLowCheck } from "@src/billing/events/wallet-credits-low-check";
 import { isAutoReloadActive } from "@src/billing/lib/auto-reload/auto-reload";
 import { calculateChargeCooldownMinutes } from "@src/billing/lib/auto-reload/charge-cooldown";
@@ -141,6 +142,21 @@ export class WalletReloadJobService {
         error
       });
       return null;
+    }
+  }
+
+  /** Best-effort like the credits-low check: every funding pass that leaves the deployment unfunded asks again. */
+  async scheduleCreditsExhaustedCheck(data: WalletCreditsExhaustedCheck["data"]): Promise<void> {
+    try {
+      await this.jobQueueService.enqueue(new WalletCreditsExhaustedCheck(data), {
+        singletonKey: `${WalletCreditsExhaustedCheck.name}.${data.userId}`
+      });
+    } catch (error) {
+      this.logger.error({
+        event: "CREDITS_EXHAUSTED_CHECK_SCHEDULE_FAILED",
+        userId: data.userId,
+        error
+      });
     }
   }
 
