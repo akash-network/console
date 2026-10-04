@@ -4,7 +4,10 @@ import { isLogCollectorService } from "@src/components/sdl/LogCollectorControl/L
 import type { ExposeType, PlacementType, ProfileGpuModelType, SdlBuilderFormValuesType, ServiceExposeHTTPProxyType, ServiceType } from "@src/types";
 import { defaultHttpOptions } from "./data";
 import { sdlRegionOf } from "./placementRegions";
+import { parseSvcCommand } from "./sdlImport";
 import { credentialSecretSlotKey, envSecretSlotKey, isSdlReference, resolveSdlSecrets } from "./sdlSecrets";
+
+const LOG_COLLECTOR_PERMISSIONS = { read: ["deployment", "logs", "events"] };
 
 export interface GenerateSdlOptions {
   /** Emits every secret, env and registry credential alike, as a reference for the create to seal values under, instead of as typed. */
@@ -140,14 +143,14 @@ export const generateSdl = (formValues: SdlBuilderFormValuesType, options: Gener
       })
     };
 
-    const trimmedCommand = service.command?.command?.trim();
-    if (trimmedCommand) {
-      sdl.services[service.title].command = buildCommand(trimmedCommand);
+    const command = sdlTokensOf(service.command?.command, service.command?.importedCommand);
+    if (command.length > 0) {
+      sdl.services[service.title].command = command;
     }
 
-    const trimmedArg = service.command?.arg?.trim();
-    if (trimmedArg) {
-      sdl.services[service.title].args = buildCommand(trimmedArg);
+    const args = sdlTokensOf(service.command?.arg, service.command?.importedArg);
+    if (args.length > 0) {
+      sdl.services[service.title].args = args;
     }
 
     if ((service.env?.length || 0) > 0) {
@@ -238,12 +241,11 @@ export const generateSdl = (formValues: SdlBuilderFormValuesType, options: Gener
       });
     }
 
-    if (isLogCollectorService(service)) {
+    const permissions = isLogCollectorService(service) ? LOG_COLLECTOR_PERMISSIONS : service.params?.permissions;
+    if (permissions) {
       sdl.services[service.title].params = {
         ...sdl.services[service.title].params,
-        permissions: {
-          read: ["deployment", "logs", "events"]
-        }
+        permissions
       };
     }
 
@@ -291,6 +293,11 @@ export const generateSdl = (formValues: SdlBuilderFormValuesType, options: Gener
   return `---
 ${result}`;
 };
+
+/** Tokens an SDL wrote in a way the form's one-per-line text cannot hold stand for as long as that text still reads as they imported. */
+function sdlTokensOf(text: string | undefined, importedTokens: string[] | undefined): string[] {
+  return importedTokens && text === parseSvcCommand(importedTokens) ? importedTokens : buildCommand(text ?? "");
+}
 
 /** Swaps each sealed credential for its reference, so a typed registry secret never reaches the SDL; the rest is emitted as typed. */
 function credentialsWithReferences(service: ServiceType, serviceIndex: number, references: ReadonlyMap<string, string>): ServiceType["credentials"] {

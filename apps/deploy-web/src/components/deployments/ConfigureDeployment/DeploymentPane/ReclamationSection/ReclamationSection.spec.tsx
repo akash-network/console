@@ -61,6 +61,30 @@ describe(ReclamationSection.name, () => {
     expect(getValues().reclamationMinWindow).toBeUndefined();
   });
 
+  it("offers only the dropdown windows when none is set", async () => {
+    setup();
+
+    await userEvent.click(screen.getByRole("combobox", { name: "Reclamation" }));
+
+    expect((await screen.findAllByRole("option")).map(option => option.textContent)).toEqual(["Any", "1 hour", "4 hours", "1 day", "3 days"]);
+  });
+
+  it("offers a selected dropdown window once", async () => {
+    setup({ reclamationMinWindow: "24h" });
+
+    await userEvent.click(screen.getByRole("combobox", { name: "Reclamation" }));
+
+    expect((await screen.findAllByRole("option")).map(option => option.textContent)).toEqual(["Any", "1 hour", "4 hours", "1 day", "3 days"]);
+  });
+
+  it("keeps an imported window the dropdown does not offer selectable as written", async () => {
+    setup({ reclamationMinWindow: "90m" });
+
+    expect(screen.getByRole("combobox", { name: "Reclamation" })).toHaveTextContent("90m");
+    await userEvent.click(screen.getByRole("combobox", { name: "Reclamation" }));
+    expect(await screen.findByRole("option", { name: "90m" })).toBeInTheDocument();
+  });
+
   it("disables the control when the pane is locked", () => {
     setup({ locked: true });
     expect(screen.getByRole("combobox", { name: "Reclamation" })).toBeDisabled();

@@ -73,7 +73,7 @@ export const ReclamationSection: FC<Props> = ({ locked = false }) => {
             </SelectTrigger>
             <SelectContent>
               <SelectGroup>
-                {RECLAMATION_WINDOW_OPTIONS.map(option => (
+                {windowOptionsIncluding(field.value).map(option => (
                   <SelectItem key={option.value} value={option.value}>
                     {option.label}
                   </SelectItem>
@@ -86,3 +86,9 @@ export const ReclamationSection: FC<Props> = ({ locked = false }) => {
     </fieldset>
   );
 };
+
+/** An imported SDL may ask for a window the dropdown does not offer, which stays selectable as written. */
+function windowOptionsIncluding(value: ReclamationMinWindow | undefined): typeof RECLAMATION_WINDOW_OPTIONS {
+  if (!value || RECLAMATION_WINDOW_OPTIONS.some(option => option.value === value)) return RECLAMATION_WINDOW_OPTIONS;
+  return [...RECLAMATION_WINDOW_OPTIONS, { label: value, value }];
+}

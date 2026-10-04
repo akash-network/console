@@ -648,11 +648,15 @@ describe("importSimpleSdl reclamation", () => {
     expect(importSimpleSdl(yml).reclamationMinWindow).toBeUndefined();
   });
 
-  it("ignores a reclamation window the builder cannot represent", () => {
-    expect(importSimpleSdl(reclamationSdl("30m")).reclamationMinWindow).toBeUndefined();
+  it("imports a reclamation window the dropdown does not offer", () => {
+    expect(importSimpleSdl(reclamationSdl("30m")).reclamationMinWindow).toBe("30m");
   });
 
-  it.each([["1h"], ["24h"]] as const)("round-trips reclamation.min_window %s through import then regeneration", minWindow => {
+  it("ignores a reclamation window the SDL schema refuses", () => {
+    expect(importSimpleSdl(reclamationSdl("1d")).reclamationMinWindow).toBeUndefined();
+  });
+
+  it.each([["1h"], ["24h"], ["90m"]] as const)("round-trips reclamation.min_window %s through import then regeneration", minWindow => {
     const regenerated = generateSdl(importSimpleSdl(reclamationSdl(minWindow)));
     const parsed = yaml.load(regenerated) as { reclamation?: { min_window?: string } };
 
@@ -745,13 +749,40 @@ describe("importSimpleSdl exposed ports", () => {
 
   it("regenerates a port that declared no `as` on the same external port", () => {
     const regenerated = generateSdl(importSimpleSdl(exposeSdl({ port: 8080 })));
-    const parsed = yaml.load(regenerated) as { services: Record<string, { expose: { port: number; as?: number }[] }> };
 
-    expect(parsed.services.web.expose[0]).toMatchObject({ port: 8080, as: 8080 });
+    expect(regeneratedExposeOf(regenerated)).toMatchObject({ port: 8080, as: 8080 });
   });
 
-  function exposeSdl(expose: { port: number; as?: number }): string {
+  it.each([
+    ["udp", "udp"],
+    ["UDP", "udp"],
+    ["tcp", "tcp"],
+    ["TCP", "tcp"]
+  ] as const)("imports protocol %s as %s", (proto, expected) => {
+    const imported = importSimpleSdl(exposeSdl({ port: 53, as: 53, proto }));
+
+    expect(imported.services[0].expose[0].proto).toBe(expected);
+  });
+
+  it("imports a port that declares no protocol as http", () => {
+    const imported = importSimpleSdl(exposeSdl({ port: 80, as: 80 }));
+
+    expect(imported.services[0].expose[0].proto).toBe("http");
+  });
+
+  it("regenerates a udp port with its protocol", () => {
+    const regenerated = generateSdl(importSimpleSdl(exposeSdl({ port: 53, as: 53, proto: "udp" })));
+
+    expect(regeneratedExposeOf(regenerated).proto).toBe("udp");
+  });
+
+  function regeneratedExposeOf(sdl: string): { port: number; as?: number; proto?: string } {
+    return (yaml.load(sdl) as { services: Record<string, { expose: { port: number; as?: number; proto?: string }[] }> }).services.web.expose[0];
+  }
+
+  function exposeSdl(expose: { port: number; as?: number; proto?: string }): string {
     const asLine = expose.as === undefined ? [] : [`        as: ${expose.as}`];
+    const protoLine = expose.proto === undefined ? [] : [`        proto: ${expose.proto}`];
     return [
       "---",
       'version: "2.0"',
@@ -761,6 +792,7 @@ describe("importSimpleSdl exposed ports", () => {
       "    expose:",
       `      - port: ${expose.port}`,
       ...asLine,
+      ...protoLine,
       "        to:",
       "          - global: true",
       "profiles:",
@@ -788,3 +820,160 @@ describe("importSimpleSdl exposed ports", () => {
     ].join("\n");
   }
 });
+
+describe("importSimpleSdl service params", () => {
+  it("captures params.permissions onto the service model", () => {
+    const imported = importSimpleSdl(serviceSdl({ serviceLines: ["    params:", "      permissions:", "        read:", "          - logs"] }));
+
+    expect(imported.services[0].params).toEqual({ permissions: { read: ["logs"] } });
+  });
+
+  it("regenerates the permissions of a service that is not a log collector", () => {
+    const regenerated = generateSdl(
+      importSimpleSdl(serviceSdl({ serviceLines: ["    params:", "      permissions:", "        read:", "          - events"] }))
+    );
+    const parsed = yaml.load(regenerated) as { services: Record<string, { params?: unknown }> };
+
+    expect(parsed.services.web.params).toEqual({ permissions: { read: ["events"] } });
+  });
+});
+
+describe("importSimpleSdl command tokens", () => {
+  const multiLineScript = ["    command:", "      - sh", "      - -c", "      - |", "        echo a", "        echo b"];
+
+  it("keeps a token an SDL wrote across lines as written beside the one-per-line text", () => {
+    const imported = importSimpleSdl(serviceSdl({ serviceLines: multiLineScript }));
+
+    expect(imported.services[0].command).toMatchObject({ command: "sh\n-c\necho a\necho b\n", importedCommand: ["sh", "-c", "echo a\necho b\n"] });
+  });
+
+  it.each([['"  --verbose"'], ['"--verbose  "']])("keeps the padded argument %s as written", argument => {
+    const imported = importSimpleSdl(serviceSdl({ serviceLines: ["    args:", `      - ${argument}`] }));
+
+    expect(imported.services[0].command?.importedArg).toEqual([JSON.parse(argument)]);
+  });
+
+  it("keeps an empty argument an SDL writes to clear the image's command", () => {
+    const regenerated = generateSdl(importSimpleSdl(serviceSdl({ serviceLines: ["    args:", '      - ""'] })));
+    const parsed = yaml.load(regenerated) as { services: Record<string, { args?: string[] }> };
+
+    expect(parsed.services.web.args).toEqual([""]);
+  });
+
+  it("skips a null token an SDL writes as ~", () => {
+    const imported = importSimpleSdl(serviceSdl({ serviceLines: ["    args:", "      - --verbose", "      - ~"] }));
+
+    expect(imported.services[0].command).toMatchObject({ arg: "--verbose", importedArg: undefined });
+  });
+
+  it("keeps no written tokens for a command the form holds one per line", () => {
+    const imported = importSimpleSdl(serviceSdl({ serviceLines: ["    command:", "      - sh", "      - -c", "      - echo a"] }));
+
+    expect(imported.services[0].command?.importedCommand).toBeUndefined();
+  });
+
+  it("regenerates a multi-line script unchanged", () => {
+    const regenerated = generateSdl(importSimpleSdl(serviceSdl({ serviceLines: multiLineScript })));
+    const parsed = yaml.load(regenerated) as { services: Record<string, { command?: string[] }> };
+
+    expect(parsed.services.web.command).toEqual(["sh", "-c", "echo a\necho b\n"]);
+  });
+});
+
+describe("importSimpleSdl http options", () => {
+  it("regenerates the provider's next timeout for a port whose http options leave it out", () => {
+    const sdl = serviceSdl({}).replace("        as: 80\n", "        as: 80\n        http_options:\n          max_body_size: 104857600\n");
+    const parsed = yaml.load(generateSdl(importSimpleSdl(sdl))) as {
+      services: Record<string, { expose: { http_options: { max_body_size: number; next_timeout: number } }[] }>;
+    };
+
+    expect(parsed.services.web.expose[0].http_options).toMatchObject({ max_body_size: 104857600, next_timeout: 0 });
+  });
+});
+
+describe("importSimpleSdl resource sizes", () => {
+  it("keeps the fraction of a memory size", () => {
+    const imported = importSimpleSdl(serviceSdl({ memorySize: "4.75Gi" }));
+
+    expect(imported.services[0].profile).toMatchObject({ ram: 4.75, ramUnit: "Gi" });
+  });
+
+  it("regenerates a fractional storage size unchanged", () => {
+    const regenerated = generateSdl(importSimpleSdl(serviceSdl({ storageLines: ["          - size: 2.5Gi"] })));
+    const parsed = yaml.load(regenerated) as { profiles: { compute: Record<string, { resources: { storage: { size: string }[] } }> } };
+
+    expect(parsed.profiles.compute.web.resources.storage[0].size).toBe("2.5Gi");
+  });
+});
+
+describe("importSimpleSdl storage order", () => {
+  const volumeBeforeRootStorage = {
+    serviceLines: ["    params:", "      storage:", "        data:", "          mount: /data"],
+    storageLines: [
+      "          - name: data",
+      "            size: 10Gi",
+      "            attributes:",
+      "              persistent: true",
+      "              class: beta2",
+      "          - size: 1Gi"
+    ]
+  };
+
+  it("holds the root storage first when the SDL lists a volume before it", () => {
+    const imported = importSimpleSdl(serviceSdl(volumeBeforeRootStorage));
+
+    expect(imported.services[0].profile.storage.map(storage => storage.mount)).toEqual(["", "/data"]);
+  });
+
+  it("regenerates the volume with its mount after the root storage", () => {
+    const regenerated = generateSdl(importSimpleSdl(serviceSdl(volumeBeforeRootStorage)));
+    const parsed = yaml.load(regenerated) as {
+      services: Record<string, { params?: unknown }>;
+      profiles: { compute: Record<string, { resources: { storage: unknown[] } }> };
+    };
+
+    expect(parsed.profiles.compute.web.resources.storage).toEqual([
+      { size: "1Gi" },
+      { name: "data", size: "10Gi", attributes: { persistent: true, class: "beta2" } }
+    ]);
+    expect(parsed.services.web.params).toEqual({ storage: { data: { mount: "/data", readOnly: false } } });
+  });
+});
+
+function serviceSdl(input: { serviceLines?: string[]; storageLines?: string[]; memorySize?: string }): string {
+  return [
+    "---",
+    'version: "2.0"',
+    "services:",
+    "  web:",
+    "    image: nginx",
+    ...(input.serviceLines ?? []),
+    "    expose:",
+    "      - port: 80",
+    "        as: 80",
+    "        to:",
+    "          - global: true",
+    "profiles:",
+    "  compute:",
+    "    web:",
+    "      resources:",
+    "        cpu:",
+    "          units: 0.5",
+    "        memory:",
+    `          size: ${input.memorySize ?? "512Mi"}`,
+    "        storage:",
+    ...(input.storageLines ?? ["          - size: 512Mi"]),
+    "  placement:",
+    "    dcloud:",
+    "      pricing:",
+    "        web:",
+    "          denom: uakt",
+    "          amount: 1000",
+    "deployment:",
+    "  web:",
+    "    dcloud:",
+    "      profile: web",
+    "      count: 1",
+    ""
+  ].join("\n");
+}

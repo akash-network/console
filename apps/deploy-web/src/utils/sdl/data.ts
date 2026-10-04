@@ -9,8 +9,12 @@ export { SSH_VM_IMAGES };
 export const protoTypes = [
   { id: 1, name: "http" },
   // { id: 2, name: "https" },
-  { id: 3, name: "tcp" }
+  { id: 3, name: "tcp" },
+  { id: 4, name: "udp" }
 ];
+
+/** The provider's own `next_timeout` for an SDL that leaves it out, unlike the one a new port is seeded with. */
+export const SDL_DEFAULT_NEXT_TIMEOUT = 0;
 
 export const defaultHttpOptions = {
   maxBodySize: 1048576,

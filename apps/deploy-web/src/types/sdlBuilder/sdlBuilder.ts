@@ -64,7 +64,9 @@ export const ServiceStorageSchema = z.object({
 
 export const CommandSchema = z.object({
   command: z.string().optional(),
-  arg: z.string().optional()
+  arg: z.string().optional(),
+  importedCommand: z.array(z.string()).optional(),
+  importedArg: z.array(z.string()).optional()
 });
 
 /** Env key under which the managed SSH public key is mirrored onto every service. */
@@ -214,7 +216,7 @@ export const ServiceExposeHTTPOptionsSchema = z.object({
   readTimeout: z.number().min(1, { message: "Read timeout is required." }),
   sendTimeout: z.number().min(1, { message: "Send timeout is required." }),
   nextTries: z.number().min(1, { message: "Next tries is required." }),
-  nextTimeout: z.number().min(1, { message: "Next timeout is required." }),
+  nextTimeout: z.number().min(0, { message: "Next timeout can't be negative." }),
   nextCases: z.array(z.string()).min(1, { message: "Next cases is required." }),
   proxy: ServiceExposeHTTPProxySchema.optional()
 });
@@ -348,7 +350,7 @@ export const ExposeSchema = z.object({
   port: Port,
   as: Port,
   to: z.array(ToSchema).optional(),
-  proto: z.enum(["http", "tcp"]).optional(),
+  proto: z.enum(["http", "tcp", "udp"]).optional(),
   global: z.boolean().optional(),
   accept: z.array(AcceptSchema).optional(),
   hasCustomHttpOptions: z.boolean().optional(),
@@ -565,13 +567,9 @@ const logProviderVars = z.discriminatedUnion("PROVIDER", [
   })
 ]);
 
-/**
- * Allowed `reclamation.min_window` durations exposed by the builder. The user picks a friendly label
- * (1hr / 4hrs / 1day / 3days) and "Any"; "Any" means no requirement and is represented as an absent
- * field, so it is intentionally not part of this enum.
- */
+/** The reclamation windows the dropdown offers; an imported SDL may carry any other duration the SDL schema accepts. */
 export const RECLAMATION_MIN_WINDOW_VALUES = ["1h", "4h", "24h", "72h"] as const;
-export const ReclamationMinWindowSchema = z.enum(RECLAMATION_MIN_WINDOW_VALUES);
+export const ReclamationMinWindowSchema = z.string().regex(/^[1-9][0-9]*(s|m|h)$/);
 export type ReclamationMinWindow = z.infer<typeof ReclamationMinWindowSchema>;
 
 export const SdlBuilderFormValuesSchema = z
