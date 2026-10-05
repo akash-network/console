@@ -387,6 +387,24 @@ describe(ProvidersGlobe.name, () => {
     expect(globe().pins).toHaveLength(2);
   });
 
+  it("keeps the pins that survive a zoom step at their size instead of growing them again", () => {
+    const { advanceFrames, globe, controls, tickZoomTracker, onZoomChange } = setup({
+      playIntro: false,
+      providers: [createProvider({ id: "akash1a-west", lat: 0, lng: 0 }), createProvider({ id: "akash1b-east", lat: 40, lng: 90 })]
+    });
+    advanceFrames(SETTLE_FRAMES);
+    const settled = globe().pins.map(({ pin }) => pin);
+
+    act(() => controls.current?.zoomBy(-0.42));
+    tickZoomTracker();
+    advanceFrames(1);
+    const rebuilt = globe().pins.map(({ pin }) => pin);
+
+    expect(onZoomChange).toHaveBeenLastCalledWith(0.25);
+    expect(rebuilt[0]).not.toBe(settled[0]);
+    rebuilt.forEach(pin => expect(pin.scale.x).toBeCloseTo(PIN_RADIUS, 4));
+  });
+
   describe("count labels", () => {
     it("counts the providers behind a shared pin, right where the pin sits", () => {
       const { advanceFrames, controls, pointAt, onHover } = setup({ providers: pairOfProviders({ lat: 10, lng: 10 }) });

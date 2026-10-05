@@ -62,13 +62,14 @@ export function useProvidersExplorerModel(dependencies: typeof DEPENDENCIES = DE
   const [pageIndex, setPageIndex] = useState(0);
   const pacedSearch = usePacedValue(capSearchLength(search.trim()), SEARCH_PACING);
   const hasNoFavoriteToShow = filters.isFavoritesOnly && favoriteProviders.length === 0;
+  const searchedFavorites = useMemo(() => favoriteProviders.slice(0, MAX_SEARCHED_FAVORITES), [favoriteProviders]);
 
   const providerSearch = d.useProviderSearch(
     {
       search: pacedSearch || undefined,
       online: filters.isActiveOnly || undefined,
       audited: filters.isAuditedOnly || undefined,
-      addresses: filters.isFavoritesOnly ? favoriteProviders.slice(0, MAX_SEARCHED_FAVORITES) : undefined,
+      addresses: filters.isFavoritesOnly ? searchedFavorites : undefined,
       regions: filters.regions.length > 0 ? filters.regions : undefined,
       gpu: filters.isGpuOnly || undefined,
       gpuModels: filters.gpuModels.length > 0 ? filters.gpuModels : undefined,
@@ -118,8 +119,8 @@ export function useProvidersExplorerModel(dependencies: typeof DEPENDENCIES = DE
   }, [hasNoFavoriteToShow, refetchProviders]);
 
   const matchingLocationIds = useMemo(
-    () => (hasNarrowingFilter(filters, search) ? findMatchingLocationIds(locations, filters, search.trim(), favoriteProviders) : null),
-    [filters, search, locations, favoriteProviders]
+    () => (hasNarrowingFilter(filters, search) ? findMatchingLocationIds(locations, filters, search.trim(), searchedFavorites) : null),
+    [filters, search, locations, searchedFavorites]
   );
 
   return {

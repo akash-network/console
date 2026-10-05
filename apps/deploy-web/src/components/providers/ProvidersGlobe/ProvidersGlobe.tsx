@@ -705,6 +705,7 @@ function createClusterLabel(count: number): HTMLSpanElement {
 }
 
 function replaceMarkers(globe: GlobeScene, clusters: GlobeCluster[], labelLayer: HTMLDivElement | null) {
+  const previousMarkers = new Map(globe.markers.map(marker => [marker.cluster.id, marker]));
   for (const marker of globe.markers) {
     globe.markerGroup.remove(marker.mesh, marker.halo);
     marker.mesh.material.dispose();
@@ -716,6 +717,7 @@ function replaceMarkers(globe: GlobeScene, clusters: GlobeCluster[], labelLayer:
 
   const isIntroPlaying = !!globe.intro;
   globe.markers = clusters.map(cluster => {
+    const previous = previousMarkers.get(cluster.id);
     const position = toSurfacePoint(cluster.lat, cluster.lng, MARKER_ALTITUDE);
     const mesh = new Mesh(globe.markerGeometry, new MeshBasicMaterial({ color: new Color(globe.palette.pin), transparent: true, opacity: 1 }));
     const halo = new Mesh(globe.markerGeometry, new MeshBasicMaterial({ color: new Color(globe.palette.glow), transparent: true, opacity: 0.14 }));
@@ -726,10 +728,10 @@ function replaceMarkers(globe: GlobeScene, clusters: GlobeCluster[], labelLayer:
       cluster,
       mesh,
       halo,
-      scale: 0,
+      scale: previous?.scale ?? 0,
       radius: 0.021 + Math.min(0.016, Math.sqrt(cluster.providerIds.length - 1) * 0.009),
       ignitesAt: (cluster.lng + 180) / 360,
-      ignited: !isIntroPlaying
+      ignited: previous?.ignited ?? !isIntroPlaying
     };
   });
 }

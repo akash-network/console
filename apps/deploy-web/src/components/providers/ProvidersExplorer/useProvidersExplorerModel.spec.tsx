@@ -103,6 +103,18 @@ describe(useProvidersExplorerModel.name, () => {
     });
   });
 
+  it("lights only the favorites the search covers on the globe", () => {
+    const favoriteProviders = Array.from({ length: MAX_SEARCHED_FAVORITES + 1 }, (_, index) => `akash1favorite${index}`);
+    const { result } = setup({
+      favoriteProviders,
+      locations: [createLocation({ owner: favoriteProviders[0] }), createLocation({ owner: favoriteProviders[MAX_SEARCHED_FAVORITES] })]
+    });
+
+    act(() => result.current.updateFilters({ isFavoritesOnly: true }));
+
+    expect(result.current.matchingLocationIds).toEqual(new Set([favoriteProviders[0]]));
+  });
+
   it("shows no provider and asks for none while filtering favorites without any", () => {
     const { result, useProviderSearch } = setup({ favoriteProviders: [], page: createPage([createProvider("akash1stale")], 1) });
 
