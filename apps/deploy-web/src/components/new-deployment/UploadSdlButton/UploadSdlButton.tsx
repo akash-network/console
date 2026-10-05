@@ -5,13 +5,13 @@ import { FileUp } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useSnackbar } from "notistack";
 
+import { importDeploymentState } from "@src/components/deployments/ConfigureDeployment/importDeploymentState/importDeploymentState";
 import { createConfigureDraft } from "@src/components/deployments/ConfigureDeployment/useConfigureDraft/useConfigureDraft";
 import { useServices } from "@src/context/ServicesProvider";
-import { importSimpleSdl } from "@src/utils/sdl/sdlImport";
 import { UrlService } from "@src/utils/urlUtils";
 
 // eslint-disable-next-line akash/dependencies-component-or-hook
-export const DEPENDENCIES = { useRouter, useSnackbar, Snackbar, FileButton, importSimpleSdl, createConfigureDraft };
+export const DEPENDENCIES = { useRouter, useSnackbar, Snackbar, FileButton, importDeploymentState, createConfigureDraft };
 
 type Props = { dependencies?: typeof DEPENDENCIES };
 
@@ -28,7 +28,7 @@ export const UploadSdlButton: FC<Props> = ({ dependencies: d = DEPENDENCIES }) =
     reader.onload = function routeValidSdlToConfigure(event) {
       const content = event.target?.result as string;
 
-      if (!canImportSdl(content, d.importSimpleSdl)) {
+      if (!canImportSdl(content, d.importDeploymentState)) {
         enqueueSnackbar(
           <d.Snackbar title="Invalid SDL file" subTitle="This file couldn't be read as a deployment. Please upload a valid SDL." iconVariant="error" />,
           { variant: "error" }
@@ -51,8 +51,8 @@ export const UploadSdlButton: FC<Props> = ({ dependencies: d = DEPENDENCIES }) =
   );
 };
 
-/** A throw means Configure's importer can't load the file, so it is rejected here rather than opening a screen that would silently fall back to an empty deployment. */
-function canImportSdl(sdl: string, importSdl: typeof importSimpleSdl): boolean {
+/** Configure falls back to an empty deployment for any SDL its importer refuses, including one without a service, so the same importer gates the upload. */
+function canImportSdl(sdl: string, importSdl: typeof importDeploymentState): boolean {
   try {
     importSdl(sdl);
     return true;

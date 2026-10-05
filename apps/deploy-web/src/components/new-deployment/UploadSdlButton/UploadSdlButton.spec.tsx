@@ -3,8 +3,7 @@ import { mock } from "vitest-mock-extended";
 
 import type { AnalyticsService } from "@src/services/analytics/analytics.service";
 import { UrlService } from "@src/utils/urlUtils";
-import type { DEPENDENCIES } from "./UploadSdlButton";
-import { UploadSdlButton } from "./UploadSdlButton";
+import { DEPENDENCIES, UploadSdlButton } from "./UploadSdlButton";
 
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -24,7 +23,11 @@ describe("UploadSdlButton", () => {
   });
 
   it("keeps the user on the page with an error when the file isn't a valid SDL", async () => {
-    const { push, createConfigureDraft, enqueueSnackbar, analyticsService, Snackbar } = setup({ importSdlThrows: true });
+    const { push, createConfigureDraft, enqueueSnackbar, analyticsService, Snackbar } = setup({
+      importDeploymentState: vi.fn(() => {
+        throw new Error("invalid sdl");
+      })
+    });
 
     await userEvent.upload(screen.getByLabelText("Upload SDL"), sdlFile("not a valid sdl"));
 
@@ -34,6 +37,16 @@ describe("UploadSdlButton", () => {
     expect(createConfigureDraft).not.toHaveBeenCalled();
     expect(push).not.toHaveBeenCalled();
     expect(analyticsService.track).not.toHaveBeenCalled();
+  });
+
+  it("rejects an SDL that defines no service, which Configure would replace with an empty deployment", async () => {
+    const { push, createConfigureDraft, enqueueSnackbar } = setup({ importDeploymentState: DEPENDENCIES.importDeploymentState });
+
+    await userEvent.upload(screen.getByLabelText("Upload SDL"), sdlFile('version: "2.0"\n'));
+
+    await waitFor(() => expect(enqueueSnackbar).toHaveBeenCalledWith(expect.anything(), { variant: "error" }));
+    expect(createConfigureDraft).not.toHaveBeenCalled();
+    expect(push).not.toHaveBeenCalled();
   });
 
   it("does nothing when the picker closes without a file", () => {
@@ -50,16 +63,11 @@ describe("UploadSdlButton", () => {
     return new File([content], "deploy.yaml", { type: "application/x-yaml" });
   }
 
-  function setup(input: { importSdlThrows?: boolean }) {
+  function setup(input: { importDeploymentState?: typeof DEPENDENCIES.importDeploymentState }) {
     const push = vi.fn();
     const createConfigureDraft = vi.fn(() => "draft-xyz");
     const enqueueSnackbar = vi.fn();
     const analyticsService = mock<AnalyticsService>();
-    const importSimpleSdl: typeof DEPENDENCIES.importSimpleSdl = input.importSdlThrows
-      ? vi.fn(() => {
-          throw new Error("invalid sdl");
-        })
-      : vi.fn();
     const router = mock<ReturnType<typeof DEPENDENCIES.useRouter>>({ push });
     const Snackbar = vi.fn(() => null);
     const FileButton = vi.fn<typeof DEPENDENCIES.FileButton>(({ onFileSelect }) => (
@@ -74,7 +82,7 @@ describe("UploadSdlButton", () => {
       useSnackbar: () => mock<ReturnType<typeof DEPENDENCIES.useSnackbar>>({ enqueueSnackbar }),
       Snackbar,
       FileButton,
-      importSimpleSdl,
+      importDeploymentState: input.importDeploymentState ?? vi.fn(),
       createConfigureDraft
     };
 
