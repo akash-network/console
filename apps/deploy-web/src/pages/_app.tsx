@@ -28,6 +28,7 @@ import { AppThemeProvider } from "@src/components/layout/AppThemeProvider";
 import { CustomIntlProvider } from "@src/components/layout/CustomIntlProvider";
 import { PageHead } from "@src/components/layout/PageHead";
 import { RequireOnboarding } from "@src/components/onboarding/RequireOnboarding/RequireOnboarding";
+import { AccountDeletedNotice } from "@src/components/user/AccountDeletedNotice/AccountDeletedNotice";
 import { UserProviders } from "@src/components/user/UserProviders/UserProviders";
 import { BlockchainStatusProvider } from "@src/context/BlockchainStatusProvider";
 import { BootLoadingProvider } from "@src/context/BootLoadingProvider/BootLoadingProvider";
@@ -67,6 +68,7 @@ const App: React.FunctionComponent<Props> = props => {
       <BootLoadingProvider>
         <UserProviders>
           <AccountCreatedTracker />
+          <AccountDeletedNotice />
           <RequireAuth isPublic={isPublic}>
             <FlagProvider>
               <WalletProvider>

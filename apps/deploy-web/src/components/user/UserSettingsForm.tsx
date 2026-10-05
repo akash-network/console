@@ -9,6 +9,7 @@ import { NextSeo } from "next-seo";
 import { z } from "zod";
 
 import { LabelValue } from "@src/components/shared/LabelValue";
+import { DeleteAccountSection } from "@src/components/user/DeleteAccount/DeleteAccountSection";
 import { UserProfileLayout } from "@src/components/user/UserProfileLayout";
 import { useServices } from "@src/context/ServicesProvider";
 import { useCustomUser } from "@src/hooks/useCustomUser";
@@ -195,6 +196,7 @@ export const UserSettingsForm: FC<{ user: CustomUserProfile }> = ({ user }) => {
             </Form>
           </CardContent>
         </Card>
+        <DeleteAccountSection email={user.email} />
       </UserProfileLayout>
     </Layout>
   );
