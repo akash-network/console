@@ -129,6 +129,47 @@ describe("Activities", () => {
     });
   });
 
+  describe("GET /v1/activities/{id}", () => {
+    it("returns one of the caller's activities", async () => {
+      const { token, seed } = await setup();
+      const activity = await seed({ status: "pending", createdAt: new Date("2026-10-05T10:00:00.000Z"), meta: { dseq: "1001" } });
+
+      const response = await request(`/v1/activities/${activity.id}`, token);
+
+      expect(response.status).toBe(200);
+      expect(await response.json()).toEqual({
+        data: {
+          id: activity.id,
+          type: "deployment_close",
+          status: "pending",
+          meta: { dseq: "1001" },
+          seenAt: null,
+          createdAt: "2026-10-05T10:00:00.000Z",
+          updatedAt: activity.updatedAt
+        }
+      });
+    });
+
+    it("answers 404 for another user's activity, the same as for one that does not exist", async () => {
+      const { token } = await setup();
+      const stranger = await setup();
+      const strangers = await stranger.seed();
+
+      const response = await request(`/v1/activities/${strangers.id}`, token);
+
+      expect(response.status).toBe(404);
+      expect(await response.json()).toMatchObject({ message: "Activity not found" });
+    });
+
+    it("refuses an id that is not a uuid", async () => {
+      const { token } = await setup();
+
+      const response = await request("/v1/activities/42", token);
+
+      expect(response.status).toBe(400);
+    });
+  });
+
   describe("POST /v1/activities/seen", () => {
     it("marks the chosen activities seen and answers with how many are still unseen", async () => {
       const { token, seed } = await setup();

@@ -134,7 +134,7 @@ export const operations = {
       method: "delete",
       operationId: "closeDeployment",
       pathParams: ["dseq"],
-      queryParams: [],
+      queryParams: ["async"],
       hasBody: false
     },
     updateDeployment: { path: "/v1/deployments/{dseq}", method: "put", operationId: "updateDeployment", pathParams: ["dseq"], queryParams: [], hasBody: true },
@@ -287,6 +287,7 @@ export const operations = {
       queryParams: ["limit", "cursor", "status", "type"],
       hasBody: false
     },
+    getActivity: { path: "/v1/activities/{id}", method: "get", operationId: "getActivity", pathParams: ["id"], queryParams: [], hasBody: false },
     markActivitiesSeen: { path: "/v1/activities/seen", method: "post", operationId: "markActivitiesSeen", pathParams: [], queryParams: [], hasBody: true }
   },
   v2: {

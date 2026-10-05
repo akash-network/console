@@ -4,7 +4,9 @@ import { singleton } from "tsyringe";
 import { z } from "zod";
 
 import { AuthService, Protected } from "@src/auth/services/auth.service";
-import type { ListDeploymentsQuery } from "@src/deployment/http-schemas/deployment.schema";
+import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
+import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
+import type { CloseDeploymentAcceptedResponse, CloseDeploymentQuery, ListDeploymentsQuery } from "@src/deployment/http-schemas/deployment.schema";
 import {
   CloseDeploymentResponse,
   CreateDeploymentDefinitionRequest,
@@ -36,7 +38,8 @@ export class DeploymentController {
     private readonly deploymentReaderService: DeploymentReaderService,
     private readonly deploymentWriterService: DeploymentWriterService,
     private readonly authService: AuthService,
-    private readonly drainingDeploymentService: DrainingDeploymentService
+    private readonly drainingDeploymentService: DrainingDeploymentService,
+    private readonly featureFlagsService: FeatureFlagsService
   ) {}
 
   @Protected([{ action: "sign", subject: "UserWallet" }])
@@ -57,9 +60,17 @@ export class DeploymentController {
     return { data: result };
   }
 
+  /** The flag is read here rather than in the worker, because inside a job every user evaluates as the background-job user. */
   @Protected([{ action: "sign", subject: "UserWallet" }])
-  async close(dseq: string): Promise<CloseDeploymentResponse> {
-    await this.deploymentWriterService.closeByUserIdAndDseq(this.authService.currentUser.id, dseq);
+  async close(dseq: string, query: CloseDeploymentQuery = { async: false }): Promise<CloseDeploymentResponse | CloseDeploymentAcceptedResponse> {
+    const userId = this.authService.currentUser.id;
+
+    if (query.async && this.featureFlagsService.isEnabled(FeatureFlags.BACKGROUND_DEPLOYMENT_CLOSE, { userId })) {
+      const queued = await this.deploymentWriterService.closeInBackgroundByUserIdAndDseq(userId, dseq);
+      return queued ? { data: queued } : { data: { success: true } };
+    }
+
+    await this.deploymentWriterService.closeByUserIdAndDseq(userId, dseq);
     return { data: { success: true } };
   }
 

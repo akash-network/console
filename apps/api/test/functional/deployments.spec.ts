@@ -19,10 +19,12 @@ import type { UserWalletOutput } from "@src/billing/repositories";
 import { UserWalletRepository } from "@src/billing/repositories";
 import { ManagedSignerService } from "@src/billing/services";
 import { BlockHttpService } from "@src/chain/services/block-http/block-http.service";
-import { CORE_CONFIG } from "@src/core";
+import { CORE_CONFIG, JOB_NAME } from "@src/core";
 import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
+import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import { deploymentListMaxLimit } from "@src/deployment/http-schemas/deployment.schema";
 import { DeploymentSettingRepository } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
+import { CloseDeployment, closeDeploymentKeyFor } from "@src/deployment/services/close-deployment/close-deployment.job";
 import { DeploymentConfigService } from "@src/deployment/services/deployment-config/deployment-config.service";
 import { DeploymentReaderService } from "@src/deployment/services/deployment-reader/deployment-reader.service";
 import { SdlService } from "@src/deployment/services/sdl/sdl.service";
@@ -40,7 +42,7 @@ import { registerFakeSdlSecretsKms, warmSealingKeyAsBootWould } from "@test/mock
 import { createAkashAddress } from "@test/seeders/akash-address.seeder";
 import { createApiKey } from "@test/seeders/api-key.seeder";
 import { createBid } from "@test/seeders/bid.seeder";
-import { seedDeploymentSetting } from "@test/seeders/db/deployment-setting.seeder";
+import { createDseq, seedDeploymentSetting } from "@test/seeders/db/deployment-setting.seeder";
 import { createDeployment } from "@test/seeders/deployment.seeder";
 import {
   createDeploymentInfoErrorSeed,
@@ -55,6 +57,7 @@ import { createLeaseStatus } from "@test/seeders/lease-status.seeder";
 import { createProvider } from "@test/seeders/provider.seeder";
 import { createUser } from "@test/seeders/user.seeder";
 import { createUserWallet } from "@test/seeders/user-wallet.seeder";
+import { findJobRows } from "@test/services/job-queue-harness";
 
 const OVERSIZED_FILLER = "z".repeat(4096);
 const HELLO_WORLD_SDL = fs.readFileSync(path.resolve(__dirname, "../mocks/hello-world-sdl.yml"), "utf8");
@@ -187,6 +190,13 @@ describe("Deployments API", () => {
     allWallets.push(...wallets);
 
     return { user, userApiKeySecret, wallets };
+  }
+
+  async function closeInBackground(dseq: string, userApiKeySecret: string) {
+    return await app.request(`/v1/deployments/${dseq}?async=true`, {
+      method: "DELETE",
+      headers: new Headers({ "Content-Type": "application/json", "x-api-key": userApiKeySecret })
+    });
   }
 
   async function setupDeploymentInfoMock(wallets: UserWalletOutput[], dseq: string, deploymentInfo?: RestAkashDeploymentInfoResponse) {
@@ -1592,6 +1602,73 @@ describe("Deployments API", () => {
       expect(await activityRepository.find({ userId: user.id })).toEqual([
         expect.objectContaining({ type: "deployment_close", status: "succeeded", meta: { dseq }, seenAt: null })
       ]);
+    });
+
+    it("queues the close and answers 202 with the activity to follow when asked to close in the background", async () => {
+      const { user, userApiKeySecret, wallets } = await mockPersistedUser();
+      const dseq = createDseq();
+      await setupDeploymentInfoMock(wallets, dseq);
+      const broadcast = vi.spyOn(signerService, "executeDecodedTxByUserWallet");
+
+      const response = await closeInBackground(dseq, userApiKeySecret);
+      const { data } = (await response.json()) as { data: { activityId: string } };
+
+      expect(response.status).toBe(202);
+      expect(await activityRepository.findById(data.activityId)).toMatchObject({
+        userId: user.id,
+        type: "deployment_close",
+        status: "pending",
+        meta: { dseq }
+      });
+      expect(await findJobRows(CloseDeployment[JOB_NAME], { singletonKey: closeDeploymentKeyFor({ userId: user.id, dseq }) })).toEqual([
+        expect.objectContaining({ state: "created", data: expect.objectContaining({ userId: user.id, dseq, activityId: data.activityId }) })
+      ]);
+      expect(broadcast).not.toHaveBeenCalled();
+    });
+
+    it("answers a second background close of the same deployment with the close already in flight", async () => {
+      const { user, userApiKeySecret, wallets } = await mockPersistedUser();
+      const dseq = createDseq();
+      await setupDeploymentInfoMock(wallets, dseq);
+
+      const first = (await (await closeInBackground(dseq, userApiKeySecret)).json()) as { data: { activityId: string } };
+      const second = await closeInBackground(dseq, userApiKeySecret);
+
+      expect(second.status).toBe(202);
+      expect(await second.json()).toEqual(first);
+      expect(await findJobRows(CloseDeployment[JOB_NAME], { singletonKey: closeDeploymentKeyFor({ userId: user.id, dseq }) })).toHaveLength(1);
+    });
+
+    it("refuses a background close on the request itself and queues nothing", async () => {
+      const { user, userApiKeySecret, wallets } = await mockPersistedUser();
+      const dseq = createDseq();
+      await setupDeploymentInfoMock(wallets, dseq);
+      vi.mocked(signerService.assertCanBroadcast).mockRejectedValue(createError(402, "Not enough credits to close this deployment"));
+
+      const response = await closeInBackground(dseq, userApiKeySecret);
+
+      expect(response.status).toBe(402);
+      expect(await activityRepository.find({ userId: user.id })).toEqual([]);
+      expect(await findJobRows(CloseDeployment[JOB_NAME], { singletonKey: closeDeploymentKeyFor({ userId: user.id, dseq }) })).toEqual([]);
+    });
+
+    it("closes the deployment during the request when background closes are switched off", async () => {
+      const { user, userApiKeySecret, wallets } = await mockPersistedUser();
+      const dseq = createDseq();
+      await setupDeploymentInfoMock(wallets, dseq);
+      vi.spyOn(container.resolve(FeatureFlagsService), "isEnabled").mockReturnValue(false);
+      vi.spyOn(signerService, "executeDecodedTxByUserWallet").mockResolvedValueOnce({
+        code: 0,
+        hash: "test-hash",
+        transactionHash: "test-hash",
+        rawLog: "success"
+      });
+
+      const response = await closeInBackground(dseq, userApiKeySecret);
+
+      expect(response.status).toBe(200);
+      expect(await response.json()).toEqual({ data: { success: true } });
+      expect(await findJobRows(CloseDeployment[JOB_NAME], { singletonKey: closeDeploymentKeyFor({ userId: user.id, dseq }) })).toEqual([]);
     });
 
     it("records nothing in the activity feed when the close is refused", async () => {

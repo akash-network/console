@@ -3,7 +3,7 @@ import { faker } from "@faker-js/faker";
 import type { Span, Tracer } from "@opentelemetry/api";
 import { SpanStatusCode, trace } from "@opentelemetry/api";
 import { DrizzleQueryError } from "drizzle-orm";
-import type { Job as PgBossJob, PgBoss, QueueResult, WorkHandler } from "pg-boss";
+import type { JobWithMetadata, PgBoss, QueueResult, WorkWithMetadataHandler } from "pg-boss";
 import type { Sql } from "postgres";
 import { describe, expect, expectTypeOf, it, vi } from "vitest";
 import { mock, mockDeep, type MockProxy } from "vitest-mock-extended";
@@ -499,10 +499,10 @@ describe(JobQueueService.name, () => {
       const handler = new TestHandler(handleFn);
       const { service, pgBoss, logger } = setup();
 
-      const job = { id: "1", data: { message: "Job 1", userId: "user-1" } };
+      const job = { id: "1", retryCount: 2, retryLimit: 5, data: { message: "Job 1", userId: "user-1" } };
 
-      vi.spyOn(pgBoss, "work").mockImplementation(async (queueName: string, options: unknown, processFn: WorkHandler<unknown>) => {
-        await processFn([job as PgBossJob<unknown>]);
+      vi.spyOn(pgBoss, "work").mockImplementation(async (queueName: string, options: unknown, processFn: WorkWithMetadataHandler<unknown>) => {
+        await processFn([job as JobWithMetadata<unknown>]);
         return "work-id";
       });
 
@@ -517,13 +517,13 @@ describe(JobQueueService.name, () => {
         policy: undefined
       });
       expect(pgBoss.work).toHaveBeenCalledTimes(5);
-      expect(pgBoss.work).toHaveBeenCalledWith("test", { batchSize: 1 }, expect.any(Function));
+      expect(pgBoss.work).toHaveBeenCalledWith("test", { batchSize: 1, includeMetadata: true }, expect.any(Function));
       expect(logger.info).toHaveBeenCalledWith({
         event: "JOB_STARTED",
         jobId: job.id
       });
       expect(handleFn).toHaveBeenCalledTimes(5);
-      expect(handleFn).toHaveBeenCalledWith({ message: "Job 1", userId: "user-1" }, { id: job.id });
+      expect(handleFn).toHaveBeenCalledWith({ message: "Job 1", userId: "user-1" }, { id: job.id, retryCount: 2, retryLimit: 5 });
       expect(logger.info).toHaveBeenCalledWith({
         event: "JOB_DONE",
         jobId: job.id
@@ -536,10 +536,10 @@ describe(JobQueueService.name, () => {
       const handler = new TestHandler(handleFn);
       const { service, pgBoss, logger } = setup();
 
-      const job = { id: "1", data: { message: "Job 1", userId: "user-1" } };
+      const job = { id: "1", retryCount: 2, retryLimit: 5, data: { message: "Job 1", userId: "user-1" } };
 
-      vi.spyOn(pgBoss, "work").mockImplementation(async (queueName: string, options: unknown, processFn: WorkHandler<unknown>) => {
-        await processFn([job as PgBossJob<unknown>]);
+      vi.spyOn(pgBoss, "work").mockImplementation(async (queueName: string, options: unknown, processFn: WorkWithMetadataHandler<unknown>) => {
+        await processFn([job as JobWithMetadata<unknown>]);
         return "work-id";
       });
 
@@ -554,7 +554,7 @@ describe(JobQueueService.name, () => {
         error: (result as PromiseRejectedResult).reason
       });
       expect(handleFn).toHaveBeenCalledTimes(1);
-      expect(handleFn).toHaveBeenCalledWith({ message: "Job 1", userId: "user-1" }, { id: job.id });
+      expect(handleFn).toHaveBeenCalledWith({ message: "Job 1", userId: "user-1" }, { id: job.id, retryCount: 2, retryLimit: 5 });
     });
 
     it("rethrows a NUL-free copy of a failing handler's error so pg-boss can store it", async () => {
@@ -810,10 +810,10 @@ describe(JobQueueService.name, () => {
       const handleFn = vi.fn().mockResolvedValue(undefined);
       const handler = new TestHandler(handleFn);
       const { service, pgBoss } = setup();
-      const job = { id: "1", data: { message: "Job 1", userId: "user-1" } };
+      const job = { id: "1", retryCount: 2, retryLimit: 5, data: { message: "Job 1", userId: "user-1" } };
 
-      vi.spyOn(pgBoss, "work").mockImplementation(async (queueName: string, options: unknown, processFn: WorkHandler<unknown>) => {
-        await processFn([job as PgBossJob<unknown>]);
+      vi.spyOn(pgBoss, "work").mockImplementation(async (queueName: string, options: unknown, processFn: WorkWithMetadataHandler<unknown>) => {
+        await processFn([job as JobWithMetadata<unknown>]);
         return "work-id";
       });
 
@@ -821,9 +821,9 @@ describe(JobQueueService.name, () => {
       await service.startWorkers();
 
       expect(pgBoss.work).toHaveBeenCalledTimes(2);
-      expect(pgBoss.work).toHaveBeenCalledWith("test", { batchSize: 1 }, expect.any(Function));
+      expect(pgBoss.work).toHaveBeenCalledWith("test", { batchSize: 1, includeMetadata: true }, expect.any(Function));
       expect(handleFn).toHaveBeenCalledTimes(2);
-      expect(handleFn).toHaveBeenCalledWith({ message: "Job 1", userId: "user-1" }, { id: job.id });
+      expect(handleFn).toHaveBeenCalledWith({ message: "Job 1", userId: "user-1" }, { id: job.id, retryCount: 2, retryLimit: 5 });
     });
   });
 
@@ -1028,8 +1028,8 @@ describe(JobQueueService.name, () => {
 
   function deliverOneJob(pgBoss: PgBoss, data: Record<string, unknown>) {
     const job = { id: "1", data };
-    vi.spyOn(pgBoss, "work").mockImplementation(async (queueName: string, options: unknown, processFn: WorkHandler<unknown>) => {
-      await processFn([job as PgBossJob<unknown>]);
+    vi.spyOn(pgBoss, "work").mockImplementation(async (queueName: string, options: unknown, processFn: WorkWithMetadataHandler<unknown>) => {
+      await processFn([job as JobWithMetadata<unknown>]);
       return "work-id";
     });
 

@@ -5,7 +5,8 @@ export const FeatureFlags = {
   TRIAL_FINGERPRINT_CHECK: "trial_fingerprint_check",
   FAIR_USE_POLICY_GATE: "fair_use_policy_gate",
   BLOCKED_EMAIL_DOMAIN_ENFORCEMENT: "blocked_email_domain_enforcement",
-  ACCOUNT_DELETION: "account_deletion"
+  ACCOUNT_DELETION: "account_deletion",
+  BACKGROUND_DEPLOYMENT_CLOSE: "background_deployment_close"
 } as const;
 
 export type FeatureFlagValue = (typeof FeatureFlags)[keyof typeof FeatureFlags];

@@ -5,6 +5,7 @@ import type { AnyAbility } from "@casl/ability";
 import { addMinutes } from "date-fns";
 import { HTTPException } from "hono/http-exception";
 import createError from "http-errors";
+import { randomUUID } from "node:crypto";
 import { inject, singleton } from "tsyringe";
 
 import { ActivityService } from "@src/activity/services/activity/activity.service";
@@ -27,6 +28,7 @@ import {
   UpdateDeploymentRequest
 } from "@src/deployment/http-schemas/deployment.schema";
 import { DeploymentSettingRepository } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
+import { CLOSE_DEPLOYMENT_RETRY_OPTIONS, CloseDeployment, closeDeploymentKeyFor } from "@src/deployment/services/close-deployment/close-deployment.job";
 import {
   DeleteUnbackedDeploymentSetting,
   unbackedDeploymentSettingKeyFor,
@@ -374,6 +376,34 @@ export class DeploymentWriterService {
       await this.activityService.record(failedCloseActivityOf({ userId, dseq }, error));
       throw error;
     }
+  }
+
+  /** Refusals still answer on the request; a close that passes them is queued in the same transaction as its pending activity, so every queued close has an activity to settle. */
+  public async closeInBackgroundByUserIdAndDseq(userId: string, dseq: string): Promise<{ activityId: string } | undefined> {
+    const wallet = await this.walletReaderService.getWalletByUserId(userId);
+    const deployment = await this.deploymentReaderService.findByWalletAndDseqWithoutProviderStatus(wallet, dseq);
+    if (deployment.deployment.state === "closed") return undefined;
+
+    await this.signerService.assertCanBroadcast(userId, [this.#closeMessageFor(wallet, deployment)]);
+
+    return await this.txService.transaction(async () => {
+      const activityId = randomUUID();
+      const jobId = await this.jobQueueService.enqueue(new CloseDeployment({ userId, dseq, activityId }), {
+        singletonKey: closeDeploymentKeyFor({ userId, dseq }),
+        ...CLOSE_DEPLOYMENT_RETRY_OPTIONS
+      });
+      if (!jobId) return { activityId: await this.#closeInFlight(userId, dseq) };
+
+      await this.activityService.open({ id: activityId, userId, type: "deployment_close", status: "pending", meta: { dseq } });
+      return { activityId };
+    });
+  }
+
+  async #closeInFlight(userId: string, dseq: string): Promise<string> {
+    const inFlight = await this.activityService.findLatest({ userId, type: "deployment_close", dseq });
+    if (!inFlight) throw createError(409, "This deployment is already being closed");
+
+    return inFlight.id;
   }
 
   /**

@@ -59,6 +59,17 @@ export class ActivityRepository extends BaseRepository<Table, ActivityInput, Act
     return this.toOutputList(rows);
   }
 
+  async findLatestByDseq({ userId, type, dseq }: { userId: string; type: ActivityType; dseq: string }): Promise<ActivityOutput | undefined> {
+    const [row] = await this.cursor
+      .select()
+      .from(this.table)
+      .where(this.whereAccessibleBy(and(eq(this.table.userId, userId), eq(this.table.type, type), sql`${this.table.meta}->>'dseq' = ${dseq}`)))
+      .orderBy(desc(this.table.createdAt), desc(this.table.id))
+      .limit(1);
+
+    return row ? this.toOutput(row) : undefined;
+  }
+
   async countUnseen(): Promise<number> {
     const [result] = await this.cursor
       .select({ count: count() })

@@ -20,6 +20,7 @@ import { JOB_NAME } from "@src/core";
 import { SDL_MAX_LENGTH } from "@src/deployment/config/sdl.config";
 import type { DeploymentResponse } from "@src/deployment/http-schemas/deployment.schema";
 import type { DeploymentSettingRepository, DeploymentSettingsOutput } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
+import { CLOSE_DEPLOYMENT_RETRY_OPTIONS, CloseDeployment, closeDeploymentKeyFor } from "@src/deployment/services/close-deployment/close-deployment.job";
 import { DeleteUnbackedDeploymentSetting } from "@src/deployment/services/delete-unbacked-deployment-setting/delete-unbacked-deployment-setting.handler";
 import type { LeaseGpuDetectionJobService } from "@src/deployment/services/lease-gpu-detection-job/lease-gpu-detection-job.service";
 import type { GenerateResolvedManifestResult, SdlManifest, SdlService } from "@src/deployment/services/sdl/sdl.service";
@@ -40,6 +41,7 @@ import type { StaleManagedDeploymentsCleanerService } from "../stale-managed-dep
 import { DeploymentWriterService } from "./deployment-writer.service";
 
 import { mockConfigService } from "@test/mocks/config-service.mock";
+import { createActivity } from "@test/seeders/activity.seeder";
 import { createDeploymentInfoGroupSeed } from "@test/seeders/deployment-info.seeder";
 
 const ALIASED_FILLER = "x".repeat(4096);
@@ -1218,6 +1220,75 @@ describe(DeploymentWriterService.name, () => {
 
       expect(deploymentReaderService.findByWalletAndDseqWithoutProviderStatus).toHaveBeenCalledTimes(1);
       expect(deploymentReaderService.findByWalletAndDseqWithoutProviderStatus).toHaveBeenCalledWith(wallet, "100");
+    });
+  });
+
+  describe("closeInBackgroundByUserIdAndDseq", () => {
+    it("checks every refusal, then queues the close and opens its pending activity in one transaction", async () => {
+      const { service, signerService, rpcMessageService, txService, jobQueueService, activityService } = setup();
+      const closeMsg = { typeUrl: "/close", value: MsgCloseDeployment.fromPartial({}) };
+      rpcMessageService.getCloseDeploymentMsg.mockReturnValue(closeMsg);
+      activityService.open.mockImplementation(async () => {
+        expect(txService.transaction).toHaveBeenCalledTimes(1);
+      });
+
+      const queued = await service.closeInBackgroundByUserIdAndDseq("user-1", "100");
+
+      expect(signerService.assertCanBroadcast).toHaveBeenCalledWith("user-1", [closeMsg]);
+      expect(jobQueueService.enqueue).toHaveBeenCalledWith(new CloseDeployment({ userId: "user-1", dseq: "100", activityId: queued!.activityId }), {
+        singletonKey: closeDeploymentKeyFor({ userId: "user-1", dseq: "100" }),
+        ...CLOSE_DEPLOYMENT_RETRY_OPTIONS
+      });
+      expect(activityService.open).toHaveBeenCalledWith({
+        id: queued!.activityId,
+        userId: "user-1",
+        type: "deployment_close",
+        status: "pending",
+        meta: { dseq: "100" }
+      });
+      expect(signerService.executeDecodedTxByUserWallet).not.toHaveBeenCalled();
+    });
+
+    it("queues nothing when a refusal stops the close", async () => {
+      const { service, signerService, jobQueueService, activityService } = setup();
+      const refusal = createError(402, "Not enough credits");
+      signerService.assertCanBroadcast.mockRejectedValue(refusal);
+
+      await expect(service.closeInBackgroundByUserIdAndDseq("user-1", "100")).rejects.toBe(refusal);
+
+      expect(jobQueueService.enqueue).not.toHaveBeenCalled();
+      expect(activityService.open).not.toHaveBeenCalled();
+    });
+
+    it("queues nothing for a deployment that is already closed", async () => {
+      const { service, signerService, jobQueueService } = setup({ onChainState: "closed" });
+
+      await expect(service.closeInBackgroundByUserIdAndDseq("user-1", "100")).resolves.toBeUndefined();
+
+      expect(signerService.assertCanBroadcast).not.toHaveBeenCalled();
+      expect(jobQueueService.enqueue).not.toHaveBeenCalled();
+    });
+
+    it("answers with the close already in flight instead of queueing a second one", async () => {
+      const { service, jobQueueService, activityService } = setup();
+      jobQueueService.enqueue.mockResolvedValue(null);
+      activityService.findLatest.mockResolvedValue(createActivity({ id: "in-flight-activity" }));
+
+      await expect(service.closeInBackgroundByUserIdAndDseq("user-1", "100")).resolves.toEqual({ activityId: "in-flight-activity" });
+
+      expect(activityService.findLatest).toHaveBeenCalledWith({ userId: "user-1", type: "deployment_close", dseq: "100" });
+      expect(activityService.open).not.toHaveBeenCalled();
+    });
+
+    it("refuses with a 409 when a close is in flight but its activity cannot be found", async () => {
+      const { service, jobQueueService, activityService } = setup();
+      jobQueueService.enqueue.mockResolvedValue(null);
+      activityService.findLatest.mockResolvedValue(undefined);
+
+      await expect(service.closeInBackgroundByUserIdAndDseq("user-1", "100")).rejects.toMatchObject({
+        status: 409,
+        message: "This deployment is already being closed"
+      });
     });
   });
 

@@ -2,7 +2,7 @@ import { redactQueryError } from "@akashnetwork/logging";
 import { createMongoAbility, type MongoAbility, type RawRuleOf } from "@casl/ability";
 import { context, propagation, SpanStatusCode, trace } from "@opentelemetry/api";
 import {
-  Job as PgBossJob,
+  type JobWithMetadata as PgBossJobWithMetadata,
   PgBoss,
   Queue as PgBossQueue,
   type QueueResult as PgBossQueueResult,
@@ -388,7 +388,8 @@ export class JobQueueService implements Disposable {
 
     const workerOptions = {
       ...options,
-      batchSize: 1
+      batchSize: 1,
+      includeMetadata: true as const
     };
     const jobs = this.handlers.map(async handler => {
       const queueName = handler.accepts[JOB_NAME];
@@ -423,7 +424,7 @@ export class JobQueueService implements Disposable {
               });
               try {
                 this.executionContextService.set("ABILITY", createMongoAbility<MongoAbility>(handler.requiresPermission(job.data)));
-                await handler.handle(job.data, { id: job.id });
+                await handler.handle(job.data, { id: job.id, retryCount: job.retryCount, retryLimit: job.retryLimit });
                 this.logger.info({
                   event: "JOB_DONE",
                   jobId: job.id
@@ -519,7 +520,8 @@ export type JobType<T extends Job> = {
   [JOB_NAME]: string;
 };
 
-export type JobMeta = Pick<PgBossJob, "id">;
+/** `retryCount` counts the retries already made, so the attempt that fails for good is the one where it equals `retryLimit`. */
+export type JobMeta = Pick<PgBossJobWithMetadata, "id" | "retryCount" | "retryLimit">;
 
 export type JobPermissions = RawRuleOf<MongoAbility>[];
 

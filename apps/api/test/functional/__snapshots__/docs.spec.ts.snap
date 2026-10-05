@@ -1830,6 +1830,138 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
         ],
       },
     },
+    "/v1/activities/{id}": {
+      "get": {
+        "operationId": "getActivity",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "description": "The activity's id, as a background action's request returned it.",
+              "format": "uuid",
+              "type": "string",
+            },
+          },
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "properties": {
+                        "createdAt": {
+                          "format": "date-time",
+                          "type": "string",
+                        },
+                        "id": {
+                          "format": "uuid",
+                          "type": "string",
+                        },
+                        "meta": {
+                          "properties": {
+                            "dseq": {
+                              "description": "The deployment the action was about.",
+                              "type": "string",
+                            },
+                            "error": {
+                              "description": "Why a failed action did not go through.",
+                              "properties": {
+                                "code": {
+                                  "type": "string",
+                                },
+                                "message": {
+                                  "type": "string",
+                                },
+                              },
+                              "required": [
+                                "code",
+                                "message",
+                              ],
+                              "type": "object",
+                            },
+                            "txHash": {
+                              "description": "Reference of a pending action whose outcome is still being confirmed.",
+                              "type": "string",
+                            },
+                          },
+                          "type": "object",
+                        },
+                        "seenAt": {
+                          "description": "When the user first marked the activity seen.",
+                          "format": "date-time",
+                          "nullable": true,
+                          "type": "string",
+                        },
+                        "status": {
+                          "description": "\`pending\` while the action is still being confirmed, then \`succeeded\` or \`failed\`.",
+                          "enum": [
+                            "pending",
+                            "succeeded",
+                            "failed",
+                          ],
+                          "type": "string",
+                        },
+                        "type": {
+                          "description": "What the action was.",
+                          "enum": [
+                            "deployment_close",
+                          ],
+                          "type": "string",
+                        },
+                        "updatedAt": {
+                          "format": "date-time",
+                          "type": "string",
+                        },
+                      },
+                      "required": [
+                        "id",
+                        "type",
+                        "status",
+                        "meta",
+                        "seenAt",
+                        "createdAt",
+                        "updatedAt",
+                      ],
+                      "type": "object",
+                    },
+                  },
+                  "required": [
+                    "data",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "The activity",
+          },
+          "400": {
+            "description": "The id is not a uuid",
+          },
+          "401": {
+            "description": "Unauthorized",
+          },
+          "404": {
+            "description": "No activity of the user's has this id",
+          },
+        },
+        "security": [
+          {
+            "BearerAuth": [],
+          },
+          {
+            "ApiKeyAuth": [],
+          },
+        ],
+        "summary": "Get one of the user's activities, for example to follow a close running in the background",
+        "tags": [
+          "Activities",
+        ],
+      },
+    },
     "/v1/addresses/{address}": {
       "get": {
         "parameters": [
@@ -8284,6 +8416,19 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
               "type": "string",
             },
           },
+          {
+            "in": "query",
+            "name": "async",
+            "required": false,
+            "schema": {
+              "description": "With \`true\`, the close finishes in the background: the request answers 202 with an \`activityId\` to follow at \`GET /v1/activities/{id}\` once every check that could refuse it has passed. It answers 200 as without it when the deployment was already closed or background closes are unavailable.",
+              "enum": [
+                "true",
+                "false",
+              ],
+              "type": "string",
+            },
+          },
         ],
         "responses": {
           "200": {
@@ -8311,6 +8456,34 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
               },
             },
             "description": "Deployment closed successfully",
+          },
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "properties": {
+                        "activityId": {
+                          "description": "The activity that reports how the close ends.",
+                          "format": "uuid",
+                          "type": "string",
+                        },
+                      },
+                      "required": [
+                        "activityId",
+                      ],
+                      "type": "object",
+                    },
+                  },
+                  "required": [
+                    "data",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "The close passed every check and will finish in the background",
           },
         },
         "security": [

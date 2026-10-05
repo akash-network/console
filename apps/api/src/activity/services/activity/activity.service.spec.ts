@@ -42,6 +42,54 @@ describe(ActivityService.name, () => {
     });
   });
 
+  describe("open", () => {
+    it("stores the activity under the id it was given and lets a failed write fail the caller", async () => {
+      const { service, activityRepository } = setup();
+      const error = new Error("connection reset");
+      activityRepository.create.mockRejectedValue(error);
+      const activity = { id: faker.string.uuid(), ...createNewActivity({ status: "pending" }) };
+
+      await expect(service.open(activity)).rejects.toBe(error);
+
+      expect(activityRepository.create).toHaveBeenCalledWith(activity);
+    });
+  });
+
+  describe("findLatest", () => {
+    it("asks for the newest activity of that type about the deployment", async () => {
+      const { service, activityRepository } = setup();
+      const latest = createActivity();
+      activityRepository.findLatestByDseq.mockResolvedValue(latest);
+
+      expect(await service.findLatest({ userId: "user-1", type: "deployment_close", dseq: "100" })).toBe(latest);
+      expect(activityRepository.findLatestByDseq).toHaveBeenCalledWith({ userId: "user-1", type: "deployment_close", dseq: "100" });
+    });
+  });
+
+  describe("isPending", () => {
+    it.each([
+      ["a pending activity", createActivity({ status: "pending" }), true],
+      ["a settled activity", createActivity({ status: "succeeded" }), false],
+      ["an activity that no longer exists", undefined, false]
+    ])("answers %s", async (_, found, expected) => {
+      const { service, activityRepository } = setup();
+      activityRepository.findById.mockResolvedValue(found);
+
+      expect(await service.isPending("activity-1")).toBe(expected);
+      expect(activityRepository.findById).toHaveBeenCalledWith("activity-1");
+    });
+  });
+
+  describe("settle", () => {
+    it("writes the outcome only onto an activity that is still pending", async () => {
+      const { service, activityRepository } = setup();
+
+      await service.settle("activity-1", createNewActivity({ status: "succeeded", meta: { dseq: "100" } }));
+
+      expect(activityRepository.updateBy).toHaveBeenCalledWith({ id: "activity-1", status: "pending" }, { status: "succeeded", meta: { dseq: "100" } });
+    });
+  });
+
   describe("list", () => {
     it("reads the caller's activities one row past the page so it can tell whether another page follows", async () => {
       const { service, activityRepository, readRepository, ability } = setup();
@@ -79,6 +127,18 @@ describe(ActivityService.name, () => {
       await expect(service.list({ limit: 20, cursor: "garbage" })).rejects.toMatchObject({ status: 400 });
 
       expect(readRepository.findPage).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("findById", () => {
+    it("reads the activity only among the caller's own", async () => {
+      const { service, activityRepository, readRepository, ability } = setup();
+      const activity = createActivity();
+      readRepository.findById.mockResolvedValue(activity);
+
+      expect(await service.findById(activity.id)).toBe(activity);
+      expect(activityRepository.accessibleBy).toHaveBeenCalledWith(ability, "read");
+      expect(readRepository.findById).toHaveBeenCalledWith(activity.id);
     });
   });
 
