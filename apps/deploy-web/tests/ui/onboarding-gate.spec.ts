@@ -86,7 +86,7 @@ test.describe("Onboarding gate — onboarded user", () => {
     await test.step("the classic deployment-type/template picker is reachable and renders", async () => {
       await visit(page, "/new-deployment");
       await expect(page).toHaveURL(/\/new-deployment(\?|$)/, { timeout: 30_000 });
-      await expect(page.getByRole("heading", { name: "Build Your Own" })).toBeVisible({ timeout: 30_000 });
+      await expect(page.getByRole("heading", { name: "What do you want to deploy?" })).toBeVisible({ timeout: 30_000 });
     });
 
     await test.step("an inbound edit-deployment link redirects to configure", async () => {

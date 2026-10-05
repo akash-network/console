@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { AnalyticsService } from "@src/services/analytics/analytics.service";
@@ -12,7 +12,7 @@ describe(AgentModePanel.name, () => {
   it("renders the header but keeps the setup steps collapsed by default", () => {
     setup();
 
-    expect(screen.getByText("Deploy with your agent")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Deploy with your agent" })).toBeInTheDocument();
     expect(screen.queryByText("Install the Akash skill")).not.toBeInTheDocument();
   });
 
@@ -26,12 +26,25 @@ describe(AgentModePanel.name, () => {
     expect(screen.getByText("npx skills add akash-network/akash-skill --skill akash")).toBeInTheDocument();
   });
 
-  it("offers a copy button for the install command", async () => {
-    setup();
+  it("tracks opening the steps but not closing them", async () => {
+    const { analyticsService } = setup();
 
     await userEvent.click(screen.getByRole("button", { name: /Set up with your agent/ }));
+    await userEvent.click(screen.getByRole("button", { name: /Set up with your agent/ }));
 
-    expect(screen.getAllByRole("button", { name: "copy" })).toHaveLength(1);
+    expect(analyticsService.track).toHaveBeenCalledTimes(1);
+    expect(screen.queryByText("Install the Akash skill")).not.toBeInTheDocument();
+  });
+
+  it("copies the install command", async () => {
+    const user = userEvent.setup();
+    const writeText = vi.spyOn(navigator.clipboard, "writeText").mockResolvedValue();
+    setup();
+
+    await user.click(screen.getByRole("button", { name: /Set up with your agent/ }));
+    await user.click(screen.getByRole("button", { name: "Copy command" }));
+
+    expect(writeText).toHaveBeenCalledWith("npx skills add akash-network/akash-skill --skill akash");
   });
 
   it("links Create an API key to the in-app API keys page", async () => {

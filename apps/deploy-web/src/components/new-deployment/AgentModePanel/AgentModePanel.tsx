@@ -1,125 +1,115 @@
 "use client";
+import type { FC, ReactNode } from "react";
 import { useState } from "react";
-import { Button, Card, Collapsible, CollapsibleContent, CollapsibleTrigger, Snackbar } from "@akashnetwork/ui/components";
-import { cn } from "@akashnetwork/ui/utils";
-import { Copy, NavArrowDown, Sparks } from "iconoir-react";
+import { Button, Collapsible, CollapsibleContent, CollapsibleTrigger, Snackbar } from "@akashnetwork/ui/components";
+import { ArrowRight, ChevronDown, Copy, ExternalLink, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { useSnackbar } from "notistack";
 
-import { ExternalLink } from "@src/components/shared/ExternalLink";
 import { AI_AGENTS_DOCS_URL, AKASH_SKILL_INSTALL_COMMAND } from "@src/config/agent-setup.config";
 import { useServices } from "@src/context/ServicesProvider";
 import { copyTextToClipboard } from "@src/utils/copyClipboard";
 import { UrlService } from "@src/utils/urlUtils";
 
-const SKILL_INSTALL_COMMANDS = [AKASH_SKILL_INSTALL_COMMAND];
+const STEP_LINK_CLASSES = "inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-foreground hover:underline";
 
-export const AgentModePanel: React.FunctionComponent = () => {
+export const AgentModePanel: FC = () => {
   const { analyticsService } = useServices();
   const [isOpen, setIsOpen] = useState(false);
 
-  const handleOpenChange = (open: boolean) => {
+  const toggleSetupSteps = (open: boolean) => {
     if (open) analyticsService.track("deploy_with_agent_btn_clk", "Amplitude");
     setIsOpen(open);
   };
 
   return (
-    <Card className="mb-6 p-5 sm:p-6">
-      <Collapsible open={isOpen} onOpenChange={handleOpenChange}>
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-secondary text-foreground">
-              <Sparks className="h-5 w-5" />
-            </div>
-            <div className="space-y-0.5">
-              <h3 className="text-base font-bold tracking-tight">Deploy with your agent</h3>
-              <p className="max-w-2xl text-sm text-muted-foreground">
-                Describe your deployment in plain language. The Akash skill drafts the SDL and deploys it from your coding agent.
-              </p>
-            </div>
+    <Collapsible
+      open={isOpen}
+      onOpenChange={toggleSetupSteps}
+      className="overflow-hidden rounded-[14px] border border-border bg-card text-card-foreground shadow-sm"
+    >
+      <div className="flex flex-col gap-3 px-4 py-3.5 sm:flex-row sm:items-center">
+        <div className="flex min-w-0 flex-1 items-center gap-3">
+          <span className="inline-flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-[9px] border border-border bg-muted">
+            <Sparkles className="h-[15px] w-[15px] opacity-80" aria-hidden="true" />
+          </span>
+          <div className="min-w-0">
+            <h2 className="text-sm font-semibold">Deploy with your agent</h2>
+            <p className="mt-0.5 max-w-[800px] text-xs leading-normal text-muted-foreground">
+              Describe your deployment in plain language. The Akash skill drafts the SDL and deploys it from your coding agent.
+            </p>
           </div>
-          <CollapsibleTrigger asChild>
-            <Button variant="outline" size="sm" className="shrink-0 gap-2 self-start sm:self-center">
-              <span>Set up with your agent</span>
-              <NavArrowDown className={cn("h-4 w-4 transition-transform duration-200", isOpen && "rotate-180")} />
-            </Button>
-          </CollapsibleTrigger>
         </div>
+        <CollapsibleTrigger asChild>
+          <Button variant="outline" size="sm" className="group shrink-0 gap-1.5 self-start sm:self-center">
+            Set up with your agent
+            <ChevronDown className="h-3.5 w-3.5 transition-transform duration-200 group-data-[state=open]:rotate-180" aria-hidden="true" />
+          </Button>
+        </CollapsibleTrigger>
+      </div>
 
-        <CollapsibleContent>
-          <div className="mt-5 grid grid-cols-1 gap-x-8 gap-y-6 border-t pt-5 md:grid-cols-3">
-            <AgentModeStep
-              index={1}
-              title="Install the Akash skill"
-              description="From your terminal — works with Claude Code, Cursor, Codex, OpenCode, and more:"
-              action={
-                <div className="space-y-2">
-                  {SKILL_INSTALL_COMMANDS.map(command => (
-                    <CommandLine key={command} command={command} />
-                  ))}
-                </div>
-              }
-            />
+      <CollapsibleContent>
+        <div className="grid grid-cols-1 gap-7 border-t border-border bg-background px-4 py-5 md:grid-cols-3">
+          <SetupStep
+            index={1}
+            title="Install the Akash skill"
+            description="Run it in your terminal. It works with Claude Code, Cursor, Codex, OpenCode and more."
+          >
+            <InstallCommand command={AKASH_SKILL_INSTALL_COMMAND} />
+          </SetupStep>
 
-            <AgentModeStep
-              index={2}
-              title="Create an API key"
-              description="The agent deploys on your behalf using a Console API key."
-              action={
-                <Link href={UrlService.userApiKeys()} className="inline-flex text-sm font-medium text-primary hover:underline">
-                  Go to API keys →
-                </Link>
-              }
-            />
+          <SetupStep index={2} title="Create an API key" description="The agent deploys on your behalf using a Console API key.">
+            <Link href={UrlService.userApiKeys()} className={STEP_LINK_CLASSES}>
+              Go to API keys
+              <ArrowRight className="h-3 w-3" aria-hidden="true" />
+            </Link>
+          </SetupStep>
 
-            <AgentModeStep
-              index={3}
-              title="Read the setup guide"
-              description="Full walkthrough for connecting your agent and deploying."
-              action={
-                <span className="text-sm font-medium text-primary hover:underline">
-                  <ExternalLink href={AI_AGENTS_DOCS_URL} text="Setup guide" />
-                </span>
-              }
-            />
-          </div>
-        </CollapsibleContent>
-      </Collapsible>
-    </Card>
+          <SetupStep index={3} title="Read the setup guide" description="Full walkthrough for connecting your agent and deploying.">
+            <a href={AI_AGENTS_DOCS_URL} target="_blank" rel="noreferrer" className={STEP_LINK_CLASSES}>
+              Setup guide
+              <ExternalLink className="h-3 w-3" aria-hidden="true" />
+            </a>
+          </SetupStep>
+        </div>
+      </CollapsibleContent>
+    </Collapsible>
   );
 };
 
-type AgentModeStepProps = {
-  index: number;
-  title: string;
-  description: React.ReactNode;
-  action: React.ReactNode;
-};
-
-const AgentModeStep: React.FunctionComponent<AgentModeStepProps> = ({ index, title, description, action }) => (
-  <div className="flex h-full flex-col">
-    <div className="flex items-center gap-2.5">
-      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-secondary text-xs font-semibold text-muted-foreground">{index}</span>
-      <h4 className="text-sm font-semibold">{title}</h4>
+const SetupStep: FC<{ index: number; title: string; description: string; children: ReactNode }> = ({ index, title, description, children }) => (
+  <div className="min-w-0">
+    <div className="mb-2 flex items-baseline gap-2.5">
+      <span className="shrink-0 font-mono text-xs text-muted-foreground">{index}</span>
+      <h3 className="text-[13.5px] font-semibold">{title}</h3>
     </div>
-    <p className="mt-3 text-sm text-muted-foreground">{description}</p>
-    <div className="mt-auto pt-4">{action}</div>
+    <p className="text-[12.5px] leading-normal text-muted-foreground">{description}</p>
+    <div className="mt-3">{children}</div>
   </div>
 );
 
-const CommandLine: React.FunctionComponent<{ command: string }> = ({ command }) => {
+const InstallCommand: FC<{ command: string }> = ({ command }) => {
   const { enqueueSnackbar } = useSnackbar();
 
-  const onCopy = () => {
+  const copyCommand = () => {
     copyTextToClipboard(command);
     enqueueSnackbar(<Snackbar title="Copied to clipboard!" iconVariant="success" />, { variant: "success", autoHideDuration: 1500 });
   };
 
   return (
-    <div className="flex items-center gap-2 rounded-md border bg-muted/40 py-1 pl-3 pr-1">
-      <code className="flex-1 overflow-x-auto whitespace-nowrap text-xs text-foreground">{command}</code>
-      <Button aria-label="copy" onClick={onCopy} size="icon" variant="ghost" type="button" className="h-7 w-7 shrink-0 text-muted-foreground">
-        <Copy className="h-3.5 w-3.5" />
+    <div className="flex items-center gap-2 rounded-lg border border-border bg-muted py-2 pl-2.5 pr-2">
+      <code title={command} className="min-w-0 flex-1 truncate font-mono text-[11px] text-foreground">
+        {command}
+      </code>
+      <Button
+        aria-label="Copy command"
+        onClick={copyCommand}
+        size="icon"
+        variant="outline"
+        type="button"
+        className="h-[26px] w-[26px] shrink-0 rounded-md bg-background text-muted-foreground hover:text-foreground"
+      >
+        <Copy className="h-3.5 w-3.5" aria-hidden="true" />
       </Button>
     </div>
   );
