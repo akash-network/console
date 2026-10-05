@@ -77,7 +77,6 @@ export const TemplateDetail: FC<TemplateDetailProps> = ({ template, dependencies
               </Avatar>
               <h1 className="min-w-0 break-words text-[26px] font-bold leading-tight tracking-tight">{template.name}</h1>
             </div>
-            {template.summary && <p className="mt-2.5 max-w-[620px] text-sm leading-relaxed text-muted-foreground">{template.summary}</p>}
           </div>
 
           <Link
