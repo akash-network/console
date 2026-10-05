@@ -167,6 +167,23 @@ export function secretReferenceNamesIn(sdl: string): Set<string> {
   return names;
 }
 
+/** Matches on key or value alike, so renaming a secret or typing it a new value cannot leave this copy holding it in the clear. */
+export function withSecretsMarkedLike(values: SdlBuilderFormValuesType, markedServices: ServiceType[]): SdlBuilderFormValuesType {
+  const secrets = markedServices.flatMap(service => (service.env ?? []).filter(variable => variable.isSecret));
+  const secretKeys = new Set(secrets.map(variable => variable.key.trim()));
+  const secretValues = new Set(secrets.map(variable => variable.value));
+  const isHeldAsSecret = (variable: { key: string; value?: string }) =>
+    !!variable.value && (secretKeys.has(variable.key.trim()) || secretValues.has(variable.value));
+
+  return {
+    ...values,
+    services: values.services.map(service => ({
+      ...service,
+      env: service.env?.map(variable => (isHeldAsSecret(variable) ? { ...variable, isSecret: true } : variable))
+    }))
+  };
+}
+
 function servicesOf(sdl: string): Record<string, { env?: unknown; credentials?: unknown }> {
   try {
     const document = yaml.load(sdl) as { services?: unknown } | null;

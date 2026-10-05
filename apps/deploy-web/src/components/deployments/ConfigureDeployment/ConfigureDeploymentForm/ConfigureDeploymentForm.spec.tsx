@@ -68,6 +68,9 @@ const CREDENTIALS_SDL = VALID_SDL.replace(
   ["    image: nginx:1.0", "    credentials:", "      host: ghcr.io", "      username: alice", "      password: hunter22"].join("\n")
 );
 
+/** The valid SDL with a variable an upload carries in the clear, which the user may go on to mark secret. */
+const PLAIN_VARIABLE_SDL = VALID_SDL.replace("    image: nginx:1.0", ["    image: nginx:1.0", "    env:", "      - API_KEY=hunter2"].join("\n"));
+
 /** The valid SDL as the api records it once a registry password has been sealed away, so it reaches Configure carrying a reference. */
 const INHERITED_REFERENCE_SDL = VALID_SDL.replace(
   "    image: nginx:1.0",
@@ -359,6 +362,47 @@ describe(ConfigureDeploymentForm.name, () => {
     const { save } = setup({ initialSdl: TWO_SERVICE_SDL, persistedSdl: TWO_SERVICE_SDL, persistedStartingSdl: VALID_SDL });
 
     await waitFor(() => expect(save).toHaveBeenCalledWith(expect.any(String), expect.any(String), undefined, VALID_SDL, {}));
+  });
+
+  it("seals a variable marked secret in the starting sdl the draft holds, not only in the working one", async () => {
+    const { save } = setup({
+      initialSdl: PLAIN_VARIABLE_SDL,
+      persistedSdl: PLAIN_VARIABLE_SDL,
+      persistedStartingSdl: PLAIN_VARIABLE_SDL,
+      secretsEnabled: true,
+      Panes: SecretProbePanes
+    });
+
+    await userEvent.click(screen.getByRole("button", { name: "mark variable secret" }));
+
+    await waitFor(() =>
+      expect(save).toHaveBeenLastCalledWith(
+        expect.stringContaining("API_KEY=ac-secret://API_KEY"),
+        expect.any(String),
+        undefined,
+        expect.stringContaining("API_KEY=ac-secret://API_KEY"),
+        {}
+      )
+    );
+    expect(JSON.stringify(save.mock.lastCall)).not.toContain("hunter2");
+  });
+
+  it("keeps the starting sdl sealed once a variable marked secret is renamed", async () => {
+    const { save } = setup({
+      initialSdl: PLAIN_VARIABLE_SDL,
+      persistedSdl: PLAIN_VARIABLE_SDL,
+      persistedStartingSdl: PLAIN_VARIABLE_SDL,
+      secretsEnabled: true,
+      Panes: SecretProbePanes
+    });
+
+    await userEvent.click(screen.getByRole("button", { name: "mark variable secret" }));
+    await userEvent.click(screen.getByRole("button", { name: "rename variable" }));
+
+    await waitFor(() =>
+      expect(save).toHaveBeenLastCalledWith(expect.stringContaining("OPENAI_KEY=ac-secret://OPENAI_KEY"), expect.any(String), undefined, expect.any(String), {})
+    );
+    expect(JSON.stringify(save.mock.lastCall)).not.toContain("hunter2");
   });
 
   it("leaves a starting sdl that no longer imports out of a sealed draft", async () => {
@@ -1251,6 +1295,21 @@ function SdlProbePanes({ sdl }: ProbePanesProps) {
       <div data-testid="sdl">{sdl}</div>
       <button type="button" onClick={() => setValue("services.0.image", "nginx:latest")}>
         change image
+      </button>
+    </div>
+  );
+}
+
+/** Panes stand-in that flips the first variable to a secret the way its toggle does, then renames it. */
+function SecretProbePanes() {
+  const { setValue } = useFormContext<SdlBuilderFormValuesType>();
+  return (
+    <div>
+      <button type="button" onClick={() => setValue("services.0.env.0.isSecret", true)}>
+        mark variable secret
+      </button>
+      <button type="button" onClick={() => setValue("services.0.env.0.key", "OPENAI_KEY")}>
+        rename variable
       </button>
     </div>
   );

@@ -12,13 +12,13 @@ import Layout from "@src/components/layout/Layout";
 import { useServices } from "@src/context/ServicesProvider";
 import { useFlag } from "@src/hooks/useFlag";
 import { usePlacementsWithBids } from "@src/queries/usePlacementsWithBids";
-import type { SdlBuilderFormValuesType } from "@src/types";
+import type { SdlBuilderFormValuesType, ServiceType } from "@src/types";
 import { SdlBuilderFormValuesSchema } from "@src/types";
 import { parseBidId } from "@src/utils/bids/bidId";
 import { defaultServiceWithPlacement, vmServiceOverrides } from "@src/utils/sdl/data";
 import { severalRegionPicksOf } from "@src/utils/sdl/placementRegions";
 import { generateSdl } from "@src/utils/sdl/sdlGenerator";
-import { resolveSdlSecrets, secretReferenceNamesIn } from "@src/utils/sdl/sdlSecrets";
+import { resolveSdlSecrets, secretReferenceNamesIn, withSecretsMarkedLike } from "@src/utils/sdl/sdlSecrets";
 import { applyPresetToProfile, DEFAULT_HARDWARE_PRESET } from "../ConfigurationPane/PresetsCard/hardwarePresets";
 import { ConfigureDeploymentBackButton } from "../ConfigureDeploymentBackButton/ConfigureDeploymentBackButton";
 import { ConfigureDeploymentHeader } from "../ConfigureDeploymentHeader/ConfigureDeploymentHeader";
@@ -103,7 +103,6 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, initialName, in
   const { analyticsService } = d.useServices();
   /** A restored draft's working SDL already holds the user's edits, so the SDL a reset restores is read back from the draft instead. */
   const [startingSdl] = useState(() => (draft.persistedSdl === undefined ? initialSdl : draft.persistedStartingSdl));
-  const draftableStartingSdl = useMemo(() => startingSdl && draftableSdlOf(startingSdl, isSecretsEnabled), [startingSdl, isSecretsEnabled]);
   const [inheritedSecrets, setInheritedSecrets] = useState<InheritedSecrets | null>(() => inheritedSecretsOf(draft.persistedInheritSecretsFrom, initialSdl));
   const { name: deploymentName, typedName: typedDeploymentName, setName: setDeploymentName } = d.useDeploymentName({ initialName, dseq: flow.dseq });
   const [runtimeLimitHours, setRuntimeLimitHours] = useState<number | undefined>(() => draft.persistedRuntimeLimitHours);
@@ -116,6 +115,7 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, initialName, in
   const services = useWatch({ control: form.control, name: "services" });
   const placements = useWatch({ control: form.control, name: "placements" });
   const placementRegionPicks = useMemo(() => severalRegionPicksOf(placements), [placements]);
+  const draftableStartingSdl = useMemo(() => startingSdl && draftableSdlOf(startingSdl, isSecretsEnabled, services), [startingSdl, isSecretsEnabled, services]);
   const selectedPlacement = resolveSelectedPlacement(services, placements, selectedServiceId || lastSelectedServiceId.current);
   const lastSelectedPlacementId = useRef(selectedPlacement.id);
   useSyncLogCollectors(form);
@@ -496,11 +496,11 @@ function sdlOfImportedState(state: ImportedDeploymentState, sealSecrets: boolean
   return sealSecrets ? regenerateSdl(state.values, state.sdl, true) : state.sdl;
 }
 
-/** The starting SDL as the draft may hold it, sealed like the working SDL; one that no longer imports is not worth keeping. */
-function draftableSdlOf(sdl: string, sealSecrets: boolean): string | undefined {
+/** The starting SDL as the draft may hold it, sealed like the working SDL, variables marked secret since included; one that no longer imports is not worth keeping. */
+function draftableSdlOf(sdl: string, sealSecrets: boolean, services: ServiceType[]): string | undefined {
   if (!sealSecrets) return sdl;
   try {
-    return sdlOfImportedState(importDeploymentState(sdl), true);
+    return generateSdl(withSecretsMarkedLike(importDeploymentState(sdl).values, services), { sealSecrets: true });
   } catch {
     return undefined;
   }
