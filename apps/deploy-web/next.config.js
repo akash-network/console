@@ -179,6 +179,11 @@ const nextConfig = {
         permanent: false
       },
       {
+        source: "/providers/:owner/:tab(leases|raw)",
+        destination: "/providers/:owner",
+        permanent: false
+      },
+      {
         source: "/price-compare",
         destination: "https://akash.network/about/pricing/custom/",
         permanent: false

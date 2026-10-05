@@ -1,7 +1,8 @@
 import type { GetServerSidePropsResult } from "next";
 import { z } from "zod";
 
-import { ProviderDetail } from "@src/components/providers/ProviderDetail";
+import { loadProviderDetail } from "@src/components/providers/ProviderProfile/loadProviderDetail";
+import { ProviderProfile } from "@src/components/providers/ProviderProfile/ProviderProfile";
 import { defineServerSideProps } from "@src/lib/nextjs/defineServerSideProps/defineServerSideProps";
 import type { ApiProviderDetail } from "@src/types/provider";
 
@@ -11,7 +12,7 @@ type Props = {
 };
 
 const ProviderDetailPage: React.FunctionComponent<Props> = ({ owner, _provider }) => {
-  return <ProviderDetail owner={owner} _provider={_provider} />;
+  return <ProviderProfile owner={owner} initialProvider={_provider} />;
 };
 
 export default ProviderDetailPage;
@@ -28,12 +29,16 @@ export const getServerSideProps = defineServerSideProps({
   }),
   async handler({ params, query, services }): Promise<GetServerSidePropsResult<Props>> {
     const apiUrl = services.apiUrlService.getBaseApiUrlFor(query.network);
-    const response = await services.consoleApiHttpClient.get(`${apiUrl}/v1/providers/${params.owner}`);
+    const provider = await loadProviderDetail(services.consoleApiHttpClient, apiUrl, params.owner);
+
+    if (!provider) {
+      return { notFound: true };
+    }
 
     return {
       props: {
         owner: params.owner,
-        _provider: response.data
+        _provider: provider
       }
     };
   }

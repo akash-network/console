@@ -187,7 +187,7 @@ export interface ApiProviderList {
   uptime30d: number;
   isValidVersion: boolean;
   isOnline: boolean;
-  lastOnlineDate: string;
+  lastOnlineDate: string | null;
   isAudited: boolean;
   gpuModels: { vendor: string; model: string; ram: string; interface: string }[];
   stats: {
@@ -256,6 +256,8 @@ export interface ApiProviderDetail extends ApiProviderList {
   reportedCpuArchs: string[];
   cpuArchAgreement: CpuArchAgreement;
   gpuDrivers: ProviderGpuDriver[];
+  /** Seconds of notice before leased capacity is reclaimed; null when none is offered, absent when it couldn't be read. */
+  reclamationWindow?: number | null;
   uptime: Array<{
     id: string;
     isOnline: boolean;
@@ -269,13 +271,6 @@ export interface ClientProviderDetail extends ApiProviderDetail {
 }
 
 export type ClientProviderDetailWithStatus = ClientProviderDetail & ProviderStatusDto;
-
-export type Auditor = {
-  id: string;
-  name: string;
-  address: string;
-  website: string;
-};
 
 export interface ApiProviderRegion {
   key: string;

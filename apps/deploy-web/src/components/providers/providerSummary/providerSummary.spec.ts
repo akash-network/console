@@ -6,6 +6,7 @@ import {
   formatBytes,
   formatCompactCount,
   formatGpuModel,
+  formatOptionalUptime,
   formatProviderLocation,
   formatUptime,
   getProviderName,
@@ -144,6 +145,18 @@ describe("providerSummary", () => {
       expect(formatUptime(0.99567)).toBe("99.57%");
       expect(formatUptime(1)).toBe("100%");
       expect(formatUptime(0.999)).toBe("99.9%");
+    });
+  });
+
+  describe(formatOptionalUptime.name, () => {
+    it("shows a known uptime as a percentage", () => {
+      expect(formatOptionalUptime(0)).toBe("0%");
+      expect(formatOptionalUptime(0.995)).toBe("99.5%");
+    });
+
+    it("shows a dash when the uptime isn't known", () => {
+      expect(formatOptionalUptime(null)).toBe("—");
+      expect(formatOptionalUptime(undefined)).toBe("—");
     });
   });
 

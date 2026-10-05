@@ -10,11 +10,9 @@ import type {
   ApiProviderList,
   ApiProviderLocation,
   ApiProviderRegion,
-  Auditor,
   ProviderStatus,
   ProviderStatusDto,
-  ProviderVersion,
-  StatsItem
+  ProviderVersion
 } from "@src/types/provider";
 import type { ProviderAttributesSchema } from "@src/types/providerAttributes";
 import { ApiUrlService } from "@src/utils/apiUtils";
@@ -78,38 +76,18 @@ export function useFirstReachableProvider(
   });
 }
 
-export interface NetworkCapacityStats {
-  activeProviderCount: number;
-  resources: {
-    cpu: StatsItem;
-    gpu: StatsItem;
-    memory: StatsItem;
-    storage: {
-      ephemeral: StatsItem;
-      persistent: StatsItem;
-      total: StatsItem;
-    };
-  };
-}
-
-export function useAuditors(options = {}) {
-  const { publicConsoleApiHttpClient } = useServices();
-  return useQuery<Array<Auditor>>({
-    queryKey: QueryKeys.getAuditorsKey(),
-    queryFn: () => publicConsoleApiHttpClient.get(ApiUrlService.auditors()).then(response => response.data),
-    ...options,
-    refetchInterval: false,
-    refetchIntervalInBackground: false,
-    refetchOnWindowFocus: false,
-    refetchOnReconnect: false
-  });
+export interface ProviderActiveLeasesGraph {
+  currentValue: number;
+  compareValue: number;
+  snapshots: { date: string; value: number }[];
 }
 
 export function useProviderActiveLeasesGraph(providerAddress: string, options = {}) {
   const { publicConsoleApiHttpClient } = useServices();
   return useQuery({
     queryKey: QueryKeys.getProviderActiveLeasesGraph(providerAddress),
-    queryFn: () => publicConsoleApiHttpClient.get(ApiUrlService.providerActiveLeasesGraph(providerAddress)).then(response => response.data),
+    queryFn: () =>
+      publicConsoleApiHttpClient.get<ProviderActiveLeasesGraph>(ApiUrlService.providerActiveLeasesGraph(providerAddress)).then(response => response.data),
     ...options
   });
 }
