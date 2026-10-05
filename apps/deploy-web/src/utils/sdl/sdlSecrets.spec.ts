@@ -188,6 +188,15 @@ describe("sdlSecrets", () => {
       expect(resolved.values).toEqual({});
     });
 
+    it("collects a secret named __proto__ as a value of its own rather than reassigning the prototype", () => {
+      const values = formValues([service("web", { env: [env("__proto__", "hunter2", true)] })]);
+
+      const resolved = resolveSdlSecrets(values, { sealSecrets: true });
+
+      expect(resolved.references.get(envSecretSlotKey(0, 0))).toBe("ac-secret://__proto__");
+      expect(JSON.stringify(resolved.values)).toBe('{"__proto__":"hunter2"}');
+    });
+
     it("keeps a secret value exactly as typed rather than trimming it", () => {
       const values = formValues([service("web", { env: [env("TOKEN", " spaced ", true)] })]);
 

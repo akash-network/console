@@ -93,10 +93,10 @@ export function suggestedSecretVariablesOf(services: ImportableService[]): Set<s
 export function recordableDefinitionOf(sdl: string, choices: RecordableDefinitionChoices): RecordableDefinition {
   const document = parse(sdl);
   const taken = secretReferenceNamesIn(sdl);
-  const secrets: SdlSecretValues = {};
+  const secrets = new Map<string, string>();
   const referenceTo = (preferredName: string, value: string) => {
     const name = mintSecretName(preferredName, taken);
-    secrets[name] = value;
+    secrets.set(name, value);
     return secretReferenceOf(name);
   };
   let isRewritten = false;
@@ -124,10 +124,10 @@ export function recordableDefinitionOf(sdl: string, choices: RecordableDefinitio
 
   taken.forEach(name => {
     const value = choices.referenceValues.get(name);
-    if (value && !Object.hasOwn(secrets, name)) secrets[name] = value;
+    if (value && !secrets.has(name)) secrets.set(name, value);
   });
 
-  return { sdl: isRewritten ? yaml.dump(document, { lineWidth: -1 }) : sdl, secrets };
+  return { sdl: isRewritten ? yaml.dump(document, { lineWidth: -1 }) : sdl, secrets: Object.fromEntries(secrets) };
 }
 
 /** A secret name is stricter than a variable name, so the characters only a variable may spell become underscores. */

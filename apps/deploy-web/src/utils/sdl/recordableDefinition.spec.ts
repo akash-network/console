@@ -258,7 +258,33 @@ describe("recordableDefinition", () => {
     it("hands back no value for a reference named like an object built-in that was given none", () => {
       const result = recordableDefinitionOf(SDL_REFERRING_TO_A_BUILT_IN_NAME, { secretVariables: new Set(), referenceValues: new Map() });
 
-      expect(result.secrets).toEqual({});
+      expect(result.secrets).toStrictEqual({});
+    });
+
+    it("keeps a long variable on the one line it was written on when it rewrites the sdl", () => {
+      const longValue = Array.from({ length: 20 }, (_, index) => `word${index}`).join(" ");
+      const sdl = SDL_WITHOUT_SECRETS.replace("LOG_LEVEL=debug", `BANNER=${longValue}\n      - API_TOKEN=plain-token`);
+
+      const result = recordableDefinitionOf(sdl, { secretVariables: new Set([secretVariableKey("web", "API_TOKEN")]), referenceValues: new Map() });
+
+      expect(result.sdl).toContain(`BANNER=${longValue}\n`);
+    });
+
+    it("hands back the value of a variable named __proto__ as one of its own rather than reassigning the prototype", () => {
+      const sdl = SDL_WITHOUT_SECRETS.replace("LOG_LEVEL=debug", "__proto__=hunter2");
+
+      const result = recordableDefinitionOf(sdl, { secretVariables: new Set([secretVariableKey("web", "__proto__")]), referenceValues: new Map() });
+
+      expect(envOf(result.sdl, "web")).toEqual(["__proto__=ac-secret://__proto__"]);
+      expect(JSON.stringify(result.secrets)).toBe('{"__proto__":"hunter2"}');
+    });
+
+    it("hands back the value given for a reference named __proto__ as one of its own", () => {
+      const sdl = SDL_WITHOUT_SECRETS.replace("LOG_LEVEL=debug", "TOKEN=ac-secret://__proto__");
+
+      const result = recordableDefinitionOf(sdl, { secretVariables: new Set(), referenceValues: new Map([["__proto__", "hunter2"]]) });
+
+      expect(JSON.stringify(result.secrets)).toBe('{"__proto__":"hunter2"}');
     });
 
     it("seals a variable two services share through an anchor once, for both", () => {
