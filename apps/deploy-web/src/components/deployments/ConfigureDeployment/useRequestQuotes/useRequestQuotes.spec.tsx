@@ -20,7 +20,7 @@ describe(useRequestQuotes.name, () => {
 
     await submit();
 
-    expect(requestQuotes).toHaveBeenCalledWith(GENERATED_SDL, { screening: { placementCount: 0 }, name: "" });
+    expect(requestQuotes).toHaveBeenCalledWith(GENERATED_SDL, { screening: { placementCount: 0 }, name: "", secrets: {} });
     expect(enqueueSnackbar).not.toHaveBeenCalled();
   });
 
@@ -42,7 +42,7 @@ describe(useRequestQuotes.name, () => {
 
     await submit();
 
-    expect(requestQuotes).toHaveBeenCalledWith(GENERATED_SDL, { screening: { placementCount: 0 }, name: "my-app" });
+    expect(requestQuotes).toHaveBeenCalledWith(GENERATED_SDL, { screening: { placementCount: 0 }, name: "my-app", secrets: {} });
   });
 
   it("blocks a trial deployment whose GPU resolves to a blocked selection and explains why", async () => {
@@ -66,7 +66,7 @@ describe(useRequestQuotes.name, () => {
 
     await submit();
 
-    expect(requestQuotes).toHaveBeenCalledWith(GENERATED_SDL, { screening: { placementCount: 0 }, name: "" });
+    expect(requestQuotes).toHaveBeenCalledWith(GENERATED_SDL, { screening: { placementCount: 0 }, name: "", secrets: {} });
   });
 
   it("applies no trial GPU guard for a user who is not on a trial", async () => {
@@ -77,12 +77,11 @@ describe(useRequestQuotes.name, () => {
 
     await submit();
 
-    expect(requestQuotes).toHaveBeenCalledWith(GENERATED_SDL, { screening: { placementCount: 0 }, name: "" });
+    expect(requestQuotes).toHaveBeenCalledWith(GENERATED_SDL, { screening: { placementCount: 0 }, name: "", secrets: {} });
   });
 
-  it("seals credentials in the generated SDL and hands the typed secret values to the flow when the secrets feature is on", async () => {
+  it("seals credentials in the generated SDL and hands the typed secret values to the flow", async () => {
     const { requestQuotes, submit, generateSdl } = setup({
-      secretsEnabled: true,
       resolveSdlSecrets: () => ({ references: new Map(), values: { API_KEY: "hunter2" }, unresolved: [] })
     });
 
@@ -95,7 +94,6 @@ describe(useRequestQuotes.name, () => {
   it("treats the redeploy source's secrets as held and names the source on the request", async () => {
     const resolveSdlSecretsSpy = vi.fn(() => ({ references: new Map(), values: {}, unresolved: [] }));
     const { requestQuotes, submit } = setup({
-      secretsEnabled: true,
       resolveSdlSecrets: resolveSdlSecretsSpy,
       inheritedSecrets: { sourceDseq: "123", names: new Set(["API_KEY"]) }
     });
@@ -108,7 +106,6 @@ describe(useRequestQuotes.name, () => {
 
   it("refuses to request quotes while a secret still needs a value, naming the secret and its service", async () => {
     const { requestQuotes, submit, enqueueSnackbar } = setup({
-      secretsEnabled: true,
       resolveSdlSecrets: () => ({
         references: new Map(),
         values: {},
@@ -121,15 +118,6 @@ describe(useRequestQuotes.name, () => {
     expect(requestQuotes).not.toHaveBeenCalled();
     render(enqueueSnackbar.mock.calls[0][0] as ReactNode);
     expect(screen.getByText('Secret "API_KEY" in service "web" needs a value.')).toBeInTheDocument();
-  });
-
-  it("keeps credentials as typed and hands no secrets to the flow while the secrets feature is off", async () => {
-    const { requestQuotes, submit, generateSdl } = setup({});
-
-    await submit();
-
-    expect(requestQuotes).toHaveBeenCalledWith(GENERATED_SDL, { screening: { placementCount: 0 }, name: "" });
-    expect(generateSdl).toHaveBeenCalledWith(expect.anything(), { sealSecrets: false });
   });
 
   it("hands the validation errors to the caller when the form rejects the submit", async () => {
@@ -173,7 +161,6 @@ describe(useRequestQuotes.name, () => {
     validationErrors?: string[];
     isRestricted?: boolean;
     services?: Array<{ title?: string; profile: { hasGpu?: boolean; gpuModels?: Array<{ vendor: string; name?: string }> } }>;
-    secretsEnabled?: boolean;
     resolveSdlSecrets?: typeof DEPENDENCIES.resolveSdlSecrets;
     inheritedSecrets?: ReturnType<typeof DEPENDENCIES.useInheritedSecrets>;
     onInvalid?: (errors: FieldErrors) => void;
@@ -192,7 +179,6 @@ describe(useRequestQuotes.name, () => {
       generateSdl,
       validateGeneratedSdl: () => input.validationErrors ?? [],
       resolveSdlSecrets: input.resolveSdlSecrets ?? resolveSdlSecrets,
-      useFlag: () => input.secretsEnabled ?? false,
       useInheritedSecrets: () => input.inheritedSecrets ?? null,
       useTrialGate: () => ({ isRestricted: input.isRestricted ?? false, isWalletReady: true }),
       useCachedScreenedProviderCount: () => countScreenedProviders

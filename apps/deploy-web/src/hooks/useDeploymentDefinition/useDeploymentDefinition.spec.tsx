@@ -213,13 +213,6 @@ describe(useDeploymentDefinition.name, () => {
       await vi.waitFor(() => expect(result.current.source).toBe("local"));
     });
 
-    it("keeps this browser's copy while the secrets feature is off, because nothing would resolve the references", async () => {
-      const { result } = setup({ apiSdl: WITHHELD_VALUES_SDL, localSdl: LOCAL_SDL, acceptReferences: true, secretsEnabled: false });
-
-      await vi.waitFor(() => expect(result.current.source).toBe("local"));
-      expect(result.current.sdl).toBe(LOCAL_SDL);
-    });
-
     it("fills the values the api withholds from this browser's copy once that copy is the one the chain runs", async () => {
       const { result } = setup({ apiSdl: WITHHELD_VALUES_SDL, localSdl: LOCAL_SDL, acceptReferences: true });
 
@@ -389,7 +382,6 @@ describe(useDeploymentDefinition.name, () => {
     localSdl?: string;
     localName?: string;
     acceptReferences?: boolean;
-    secretsEnabled?: boolean;
     browserCopyVersion?: string;
     isReadingBrowserCopy?: boolean;
     apiCopyVersion?: string;
@@ -442,7 +434,7 @@ describe(useDeploymentDefinition.name, () => {
         useDeploymentDefinition(
           input.dseq === undefined ? "123" : input.dseq,
           { acceptReferences: input.acceptReferences },
-          { useServices, useWallet, useResolvedDeploymentName: useResolvedName, useFlag: () => input.secretsEnabled ?? true, useManifestVersionOf }
+          { useServices, useWallet, useResolvedDeploymentName: useResolvedName, useManifestVersionOf }
         ),
       {
         services: { api: () => api, deploymentLocalStorage: () => deploymentLocalStorage, queryClient: () => queryClient }

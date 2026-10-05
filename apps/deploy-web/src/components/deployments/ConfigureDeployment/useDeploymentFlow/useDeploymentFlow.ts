@@ -5,7 +5,6 @@ import { useAtomValue } from "jotai";
 import { useRouter } from "next/router";
 
 import { useServices } from "@src/context/ServicesProvider";
-import { useFlag } from "@src/hooks/useFlag";
 import { QueryKeys } from "@src/queries/queryKeys";
 import { BID_POLL_INTERVAL, useListBids } from "@src/queries/useListBids";
 import { SKIP_REPORTING_REFUSED_INPUT } from "@src/services/query-error-policy/query-error-policy";
@@ -62,9 +61,9 @@ export interface DeploymentFlowState {
 
 export interface RequestQuotesOptions {
   name?: string;
-  /** Typed secret values keyed by the name their SDL reference carries; sealed ahead of the create while the secrets feature is on. */
+  /** Typed secret values keyed by the name their SDL reference carries; sealed ahead of the create. */
   secrets?: SdlSecretValues;
-  /** A deployment of the user's whose stored secret values the new one starts from, sent while the secrets feature is on. */
+  /** A deployment of the user's whose stored secret values the new one starts from. */
   inheritSecretsFrom?: string;
   /** What bid screening answered when the bids were requested, reported if no provider bids after all. */
   screening?: ScreeningSummary;
@@ -77,7 +76,7 @@ export interface ScreeningSummary {
 }
 
 export interface DeployOptions {
-  /** Typed secret values keyed by the name their SDL reference carries; sealed into the pre-lease patch while the secrets feature is on. */
+  /** Typed secret values keyed by the name their SDL reference carries; sealed into the pre-lease patch. */
   secrets?: SdlSecretValues;
   /** Secrets the SDL references that nothing holds a value for, which the api could not resolve once the manifest is sent. */
   unresolvedSecrets?: UnresolvedSdlSecret[];
@@ -156,7 +155,6 @@ export const DEPENDENCIES = {
   useListBids,
   useRouter,
   useQueryClient,
-  useFlag,
   // eslint-disable-next-line akash/dependencies-component-or-hook
   manifestFromSdl,
   // eslint-disable-next-line akash/dependencies-component-or-hook
@@ -174,7 +172,7 @@ export const DEPENDENCIES = {
  * a dseq, so a reload picks up live bids rather than restarting.
  */
 export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependencies: typeof DEPENDENCIES = DEPENDENCIES): DeploymentFlow {
-  const { api, deploymentLocalStorage, analyticsService } = dependencies.useServices();
+  const { api, analyticsService } = dependencies.useServices();
   const router = dependencies.useRouter();
   const queryClient = dependencies.useQueryClient();
   const settingsId = useAtomValue(settingsIdAtom);
@@ -197,7 +195,6 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
   const patchDeployment = api.v1.patchDeployment.useMutation();
   const getDeployment = api.v1.getDeployment.useMutation();
   const getSdlSecretsContext = api.v1.getSDLSecretsContext.useMutation();
-  const isSecretsEnabled = dependencies.useFlag("ui_deployment_secrets");
 
   const [phase, setPhase] = useState<DeploymentFlowPhase>(intent.dseq ? "quoting" : "configuring");
   const [dseq, setDseq] = useState<string | null>(intent.dseq ?? null);
@@ -218,10 +215,6 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
   /** Read in the async create-success callback so a create resolving after a strategy switch uses the current value. */
   const bidStrategyRef = useRef(bidStrategy);
   bidStrategyRef.current = bidStrategy;
-
-  /** Read in the same callback, because a trial wallet still provisioning when the create went out gets its address only while it is in flight. */
-  const settingsIdRef = useRef(settingsId);
-  settingsIdRef.current = settingsId;
 
   /**
    * Bumped on every requestQuotes and every cancel, so any create from a superseded attempt is treated as stale: one
@@ -440,10 +433,9 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
   );
 
   /**
-   * Caches the SDL under the settings id + dseq at create time (the create response omits `owner`) so an in-progress
-   * deployment can resume after a reload. A still-open deployment is closed first and a create fired mid-close waits on
-   * it rather than racing it, so only one deployment is ever open. With the secrets feature on, the typed values are
-   * sealed to the console's current key first, and a seal the api reports stale is remade once against a fresh key.
+   * A still-open deployment is closed first and a create fired mid-close waits on it rather than racing it, so only one
+   * deployment is ever open. The typed values are sealed to the console's current key first, and a seal the api reports
+   * stale is remade once against a fresh key.
    */
   const requestQuotes = useCallback(
     function requestQuotes(sdl: string, options: RequestQuotesOptions = {}) {
@@ -485,7 +477,6 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
           dseq: result.data.dseq,
           secretCount: Object.keys(secrets).length
         });
-        if (!isSecretsEnabled) cacheDeployedSdl(deploymentLocalStorage, settingsIdRef.current, result.data.dseq, sdl);
         router.replace(buildConfigureUrl(intentRef.current, result.data.dseq, bidStrategyRef.current), undefined, { shallow: true });
       }
 
@@ -495,7 +486,7 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
         setPhase("error");
       }
 
-      const inheritance = isSecretsEnabled && options.inheritSecretsFrom ? { inheritSecretsFrom: options.inheritSecretsFrom } : {};
+      const inheritance = options.inheritSecretsFrom ? { inheritSecretsFrom: options.inheritSecretsFrom } : {};
 
       function submitCreate(sealed: { sealedSecrets?: string }, canResealOnce: boolean) {
         createDeployment.mutate(
@@ -534,11 +525,7 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
       function create() {
         if (!isCurrentAttempt()) return;
         setPhase("creating");
-        if (isSecretsEnabled) {
-          void sealAndSubmit(true);
-          return;
-        }
-        submitCreate({}, false);
+        void sealAndSubmit(true);
       }
 
       const openDseq = dseq ?? strandedDseq;
@@ -558,7 +545,7 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
 
       create();
     },
-    [createDeployment, closeDeployment, sealSecrets, isSecretsEnabled, dseq, strandedDseq, router, deploymentLocalStorage, analyticsService, startClose]
+    [createDeployment, closeDeployment, sealSecrets, dseq, strandedDseq, router, analyticsService, startClose]
   );
 
   /**
@@ -657,8 +644,8 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
   /**
    * The manifest is derived from the SDL being deployed (not the create-time one) so a quoting-window edit gets leased;
    * when it differs from create the deployment is updated first so the on-chain hash matches before the manifest is sent.
-   * With the secrets feature on, or an SDL that keeps a reference the api holds the value for, that update is a patch of
-   * what changed since the create, because the whole-SDL update seals every value and cannot resolve a reference.
+   * That update is a patch of what changed since the create, because the whole-SDL update seals every value and cannot
+   * resolve a reference.
    */
   const deploy = useCallback(
     function deploy(sdl: string, options: DeployOptions = {}) {
@@ -699,7 +686,6 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
           analyticsService.track("create_gpu_deployment", { category: "deployments", label: "Create lease", dseq: activeDseq, ...resources });
         }
         analyticsService.track("send_manifest", { category: "deployments", label: "Send manifest after creating lease", dseq: activeDseq });
-        if (!isSecretsEnabled) cacheDeployedSdl(deploymentLocalStorage, owner, activeDseq, sdl);
         queryClient.invalidateQueries({ queryKey: QueryKeys.getLeaseExistenceKey(owner) });
         queryClient.invalidateQueries({ queryKey: QueryKeys.getAllLeasesKey(owner) });
         queryClient.invalidateQueries({ queryKey: QueryKeys.getDeploymentListKey(owner) });
@@ -779,10 +765,8 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
 
       if (activeManifest === manifest && !hasTypedSecrets) {
         sendManifestAndLease();
-      } else if (isSecretsEnabled || keepsStoredReference) {
-        void patchChangesAndLease();
       } else {
-        updateWholeSdlAndLease();
+        void patchChangesAndLease();
       }
     },
     [
@@ -791,14 +775,12 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
       patchDeployment,
       getDeployment,
       sealSecrets,
-      isSecretsEnabled,
       createdSdl,
       dseq,
       manifest,
       selections,
       router,
       dependencies,
-      deploymentLocalStorage,
       queryClient,
       analyticsService
     ]
@@ -846,20 +828,6 @@ function isStaleSealingKey(cause: unknown): boolean {
 
 function isInheritedSecretsUnreadable(cause: unknown): boolean {
   return extractApiErrorCode(cause) === INHERITED_SECRETS_UNREADABLE_CODE;
-}
-
-/** Kept only while creates go unsealed, since a sealed one leaves the api's copy complete; failures are swallowed so storage never blocks a deploy. */
-function cacheDeployedSdl(
-  storage: ReturnType<typeof useServices>["deploymentLocalStorage"],
-  owner: string | null | undefined,
-  dseq: string,
-  sdl: string
-): void {
-  try {
-    storage.update(owner, dseq, { manifest: sdl });
-  } catch {
-    return;
-  }
 }
 
 /** The provider manifest for an SDL, or null when it can't be built (invalid/mid-edit). Matches the server's create-deployment manifest, so the update-before-lease comparison in `deploy` holds. */

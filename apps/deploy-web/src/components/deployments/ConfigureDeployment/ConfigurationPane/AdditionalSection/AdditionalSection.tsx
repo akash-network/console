@@ -1,18 +1,16 @@
 import type { FC } from "react";
 import { useFormContext, useWatch } from "react-hook-form";
 
-import { useFlag } from "@src/hooks/useFlag";
 import type { SdlBuilderFormValuesType } from "@src/types";
 import { isVmImage } from "@src/utils/sdl/vmImages";
 import { CommandsCard } from "../CommandsCard/CommandsCard";
 import type { ConfigurationLock } from "../configurationLock";
-import { EnvironmentVariablesCard } from "../EnvironmentVariablesCard/EnvironmentVariablesCard";
 import { ExposePortsCard } from "../ExposePortsCard/ExposePortsCard";
 import { LogsCard } from "../LogsCard/LogsCard";
 import { ReplicasCard } from "../ReplicasCard/ReplicasCard";
 import { VariablesAndSecretsCard } from "../VariablesAndSecretsCard/VariablesAndSecretsCard";
 
-export const DEPENDENCIES = { ReplicasCard, EnvironmentVariablesCard, VariablesAndSecretsCard, CommandsCard, ExposePortsCard, LogsCard, useFlag };
+export const DEPENDENCIES = { ReplicasCard, VariablesAndSecretsCard, CommandsCard, ExposePortsCard, LogsCard };
 
 type Props = {
   serviceIndex: number;
@@ -36,7 +34,6 @@ type Props = {
 export const AdditionalSection: FC<Props> = ({ serviceIndex, locked, dependencies: d = DEPENDENCIES }) => {
   const structuralLocked = !!locked;
   const manifestLocked = locked === "all";
-  const isSecretsEnabled = d.useFlag("ui_deployment_secrets");
   const { control } = useFormContext<SdlBuilderFormValuesType>();
   const image = useWatch({ control, name: `services.${serviceIndex}.image` });
   const isVm = isVmImage(image ?? "");
@@ -47,11 +44,7 @@ export const AdditionalSection: FC<Props> = ({ serviceIndex, locked, dependencie
       <div className="flex flex-col gap-4">
         <d.ExposePortsCard serviceIndex={serviceIndex} locked={structuralLocked} />
 
-        {isSecretsEnabled ? (
-          <d.VariablesAndSecretsCard serviceIndex={serviceIndex} locked={manifestLocked} />
-        ) : (
-          <d.EnvironmentVariablesCard serviceIndex={serviceIndex} locked={manifestLocked} />
-        )}
+        <d.VariablesAndSecretsCard serviceIndex={serviceIndex} locked={manifestLocked} />
 
         {!isVm && <d.CommandsCard serviceIndex={serviceIndex} locked={manifestLocked} />}
 

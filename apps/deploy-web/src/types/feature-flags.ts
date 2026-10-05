@@ -10,6 +10,4 @@ export type FeatureFlag =
   | "ui_sdl_proxy_http_options"
   | "ui_sdl_cpu_arch"
   | "fair_use_policy_gate"
-  | "ui_deployment_secrets"
-  | "ui_deployment_update_editor"
   | "ui_configure_two_panel";

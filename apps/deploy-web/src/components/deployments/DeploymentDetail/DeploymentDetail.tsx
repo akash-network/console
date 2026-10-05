@@ -12,7 +12,6 @@ import { createConfigureDraft } from "@src/components/deployments/ConfigureDeplo
 import { useServices } from "@src/context/ServicesProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { isUsableDeploymentDefinition, sdlToRedeploy, useDeploymentDefinition } from "@src/hooks/useDeploymentDefinition/useDeploymentDefinition";
-import { useFlag } from "@src/hooks/useFlag";
 import { useLeaseGpus, withLeaseGpus } from "@src/hooks/useLeaseGpus/useLeaseGpus";
 import { useRedeploy } from "@src/hooks/useRedeploy/useRedeploy";
 import { useDeploymentDetail } from "@src/queries/useDeploymentQuery";
@@ -37,7 +36,6 @@ export const DEPENDENCIES = {
   useRouter,
   useSearchParams,
   useRedeploy,
-  useFlag,
   useDeploymentDefinition,
   useDeploymentDetail,
   useDeploymentLeaseList,
@@ -82,7 +80,6 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq, dependencies
   const searchParams = d.useSearchParams();
   const { address } = d.useWallet();
   const redeploy = d.useRedeploy();
-  const isUpdateEditorEnabled = d.useFlag("ui_deployment_update_editor");
 
   const [activeTab, setActiveTab] = useState<Tab>("DETAILS");
   const [editedManifest, setEditedManifest] = useState<string | null>(null);
@@ -241,23 +238,19 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq, dependencies
                 {activeTab === "EVENTS" && (isActive ? <d.DeploymentLogs leases={leases} selectedLogsMode="events" /> : <TabInactiveState />)}
                 {activeTab === "SHELL" && (isActive ? <d.DeploymentLeaseShell leases={leases} /> : <TabInactiveState />)}
 
-                {activeTab === "UPDATE" &&
-                  leases &&
-                  (isUpdateEditorEnabled ? (
-                    <d.DeploymentUpdate
-                      deployment={deployment}
-                      leases={leases}
-                      providers={providers}
-                      isLoadingLeaseGpus={isLoadingLeaseGpus}
-                      definition={definition}
-                      onUpdated={loadDeploymentDetail}
-                      onRedeploy={isUsableDeploymentDefinition(definition) ? redeployFromResolvedDefinition : undefined}
-                      onRedeployWithNewSecrets={isUsableDeploymentDefinition(definition) ? redeployWithNewSecrets : undefined}
-                      fallback={manifestUpdate}
-                    />
-                  ) : (
-                    manifestUpdate
-                  ))}
+                {activeTab === "UPDATE" && leases && (
+                  <d.DeploymentUpdate
+                    deployment={deployment}
+                    leases={leases}
+                    providers={providers}
+                    isLoadingLeaseGpus={isLoadingLeaseGpus}
+                    definition={definition}
+                    onUpdated={loadDeploymentDetail}
+                    onRedeploy={isUsableDeploymentDefinition(definition) ? redeployFromResolvedDefinition : undefined}
+                    onRedeployWithNewSecrets={isUsableDeploymentDefinition(definition) ? redeployWithNewSecrets : undefined}
+                    fallback={manifestUpdate}
+                  />
+                )}
 
                 {activeTab === "SETTINGS" && <d.DeploymentSettings deployment={deployment} leases={leases} onDeploymentChange={loadDeploymentDetail} />}
               </div>

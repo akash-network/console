@@ -3,7 +3,6 @@ import { useFormContext } from "react-hook-form";
 import { Snackbar } from "@akashnetwork/ui/components";
 import { useSnackbar } from "notistack";
 
-import { useFlag } from "@src/hooks/useFlag";
 import { useCachedScreenedProviderCount } from "@src/queries/useScreenedProviders";
 import type { SdlBuilderFormValuesType } from "@src/types";
 import { hasTrialBlockedGpu } from "@src/utils/deploymentData/v1beta3";
@@ -24,7 +23,6 @@ export const DEPENDENCIES = {
   validateGeneratedSdl,
   // eslint-disable-next-line akash/dependencies-component-or-hook
   resolveSdlSecrets,
-  useFlag,
   useInheritedSecrets,
   useTrialGate,
   useCachedScreenedProviderCount
@@ -42,7 +40,6 @@ export function useRequestQuotes({ flow, deploymentName, onInvalid }: Input, dep
   const { handleSubmit, getValues } = useFormContext<SdlBuilderFormValuesType>();
   const { enqueueSnackbar } = d.useSnackbar();
   const { isRestricted } = d.useTrialGate();
-  const isSecretsEnabled = d.useFlag("ui_deployment_secrets");
   const inheritedSecrets = d.useInheritedSecrets();
   const countScreenedProviders = d.useCachedScreenedProviderCount();
 
@@ -65,10 +62,10 @@ export function useRequestQuotes({ flow, deploymentName, onInvalid }: Input, dep
 
   return handleSubmit(
     values => {
-      const sdl = d.generateSdl(values, { sealSecrets: isSecretsEnabled });
+      const sdl = d.generateSdl(values, { sealSecrets: true });
       const errors = [...d.validateGeneratedSdl(sdl)];
-      const secrets = isSecretsEnabled ? d.resolveSdlSecrets(values, { sealSecrets: true, heldNames: inheritedSecrets?.names }) : undefined;
-      secrets?.unresolved.forEach(secret => errors.push(unresolvedSecretMessage(secret)));
+      const secrets = d.resolveSdlSecrets(values, { sealSecrets: true, heldNames: inheritedSecrets?.names });
+      secrets.unresolved.forEach(secret => errors.push(unresolvedSecretMessage(secret)));
       if (isRestricted && hasTrialBlockedGpu(values)) {
         errors.push("GPU access is not available on a free trial. Add funds to unlock GPU access.");
       }
@@ -79,7 +76,8 @@ export function useRequestQuotes({ flow, deploymentName, onInvalid }: Input, dep
       flow.actions.requestQuotes(sdl, {
         name: deploymentName,
         screening: { placementCount: values.placements.length, providerCount: countScreenedProviders(sdl, values.placements) },
-        ...(secrets ? { secrets: secrets.values, ...(inheritedSecrets ? { inheritSecretsFrom: inheritedSecrets.sourceDseq } : {}) } : {})
+        secrets: secrets.values,
+        ...(inheritedSecrets ? { inheritSecretsFrom: inheritedSecrets.sourceDseq } : {})
       });
     },
     errors => {

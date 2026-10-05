@@ -149,8 +149,7 @@ describe(ConfigureDeployment.name, () => {
       templateId: "tpl-1",
       sdlStrategy: "default",
       bidStrategy: "auto",
-      template: { isLoading: false, isError: false, data: mock<TemplateOutput>({ deploy: SECRET_REFERENCE_SDL }) },
-      isSecretsEnabled: true
+      template: { isLoading: false, isError: false, data: mock<TemplateOutput>({ deploy: SECRET_REFERENCE_SDL }) }
     });
 
     expect(AutoDeployFlow).not.toHaveBeenCalled();
@@ -164,29 +163,15 @@ describe(ConfigureDeployment.name, () => {
     );
   });
 
-  it("keeps an auto-deploy intent on the auto flow when secrets are on and its SDL references none", () => {
+  it("keeps an auto-deploy intent on the auto flow when its SDL references no secret", () => {
     const { AutoDeployFlow, ConfigureDeploymentForm } = setup({
       templateId: helloWorldTemplate.code,
       sdlStrategy: "default",
-      bidStrategy: "auto",
-      isSecretsEnabled: true
+      bidStrategy: "auto"
     });
 
     expect(ConfigureDeploymentForm).not.toHaveBeenCalled();
     expect(AutoDeployFlow).toHaveBeenCalledWith(expect.objectContaining({ sdl: helloWorldTemplate.content }), expect.anything());
-  });
-
-  it("keeps an auto-deploy intent on the auto flow when secrets are off, whatever its SDL references", () => {
-    const { AutoDeployFlow, ConfigureDeploymentForm } = setup({
-      templateId: "tpl-1",
-      sdlStrategy: "default",
-      bidStrategy: "auto",
-      template: { isLoading: false, isError: false, data: mock<TemplateOutput>({ deploy: SECRET_REFERENCE_SDL }) },
-      isSecretsEnabled: false
-    });
-
-    expect(ConfigureDeploymentForm).not.toHaveBeenCalled();
-    expect(AutoDeployFlow).toHaveBeenCalledWith(expect.objectContaining({ sdl: SECRET_REFERENCE_SDL }), expect.anything());
   });
 
   it("resumes a draft restored under an auto-deploy intent in the manual form as an edit", () => {
@@ -204,6 +189,22 @@ describe(ConfigureDeployment.name, () => {
     );
     expect(ConfigureDeploymentForm).toHaveBeenCalledWith(
       expect.objectContaining({ initialSdl: "restored: sdl", intent: expect.objectContaining({ sdlStrategy: "edit" }) }),
+      expect.anything()
+    );
+  });
+
+  it("hands an auto-deploy intent to the manual form once a template that references a secret finishes loading", () => {
+    const { ConfigureDeploymentForm, rerenderWithTemplate } = setup({
+      templateId: "tpl-1",
+      sdlStrategy: "default",
+      bidStrategy: "auto",
+      template: { isLoading: true, isError: false }
+    });
+
+    rerenderWithTemplate({ isLoading: false, isError: false, data: mock<TemplateOutput>({ deploy: SECRET_REFERENCE_SDL }) });
+
+    expect(ConfigureDeploymentForm).toHaveBeenLastCalledWith(
+      expect.objectContaining({ initialSdl: SECRET_REFERENCE_SDL, intent: expect.objectContaining({ sdlStrategy: "edit" }) }),
       expect.anything()
     );
   });
@@ -352,7 +353,6 @@ describe(ConfigureDeployment.name, () => {
     userTemplate?: { isLoading?: boolean; isError?: boolean; isSuccess?: boolean; data?: ITemplate | null };
     deploySdl?: TemplateCreation | null;
     vm?: boolean;
-    isSecretsEnabled?: boolean;
     resume?: ResumeResolution;
   }) {
     const ConfigureDeploymentForm = vi.fn(() => <div data-testid="form-mock" />);
@@ -395,8 +395,7 @@ describe(ConfigureDeployment.name, () => {
       useSearchParams: () => params as unknown as ReadonlyURLSearchParams,
       useParams: (() => ({})) as never,
       useSnackbar: () => mock<ReturnType<typeof DEPENDENCIES.useSnackbar>>({ enqueueSnackbar }),
-      Snackbar: vi.fn(() => null) as never,
-      useFlag: flag => flag === "ui_deployment_secrets" && (input.isSecretsEnabled ?? false)
+      Snackbar: vi.fn(() => null) as never
     };
 
     const store = createStore();

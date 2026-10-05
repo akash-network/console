@@ -8,7 +8,6 @@ import { NextSeo } from "next-seo";
 import { useSnackbar } from "notistack";
 
 import Layout from "@src/components/layout/Layout";
-import { useFlag } from "@src/hooks/useFlag";
 import { usePublicTemplate, useTemplate } from "@src/queries/useTemplateQuery";
 import sdlStore from "@src/store/sdlStore";
 import type { TemplateCreation } from "@src/types";
@@ -35,8 +34,7 @@ export const DEPENDENCIES = {
   useSearchParams,
   useParams,
   useSnackbar,
-  Snackbar,
-  useFlag
+  Snackbar
 };
 
 type Props = {
@@ -71,7 +69,6 @@ export const ConfigureDeployment: FC<Props> = ({ dependencies: d = DEPENDENCIES 
   const templateQuery = d.usePublicTemplate(fetchedTemplateId);
   const userTemplateQuery = d.useUserTemplate(fetchedUserTemplateId);
   const { enqueueSnackbar } = d.useSnackbar();
-  const isSecretsEnabled = d.useFlag("ui_deployment_secrets");
 
   const isFetchingTemplate = !!fetchedTemplateId || !!fetchedUserTemplateId;
   const isTemplateLoading = (!!fetchedTemplateId && templateQuery.isLoading) || (!!fetchedUserTemplateId && userTemplateQuery.isLoading);
@@ -101,7 +98,7 @@ export const ConfigureDeployment: FC<Props> = ({ dependencies: d = DEPENDENCIES 
   );
 
   /** The auto flow has no way to supply secret values, so an SDL that references any is edited in the form, which does. */
-  const needsSecretValues = useMemo(() => isSecretsEnabled && !!initialSdl && secretReferenceNamesIn(initialSdl).size > 0, [isSecretsEnabled, initialSdl]);
+  const needsSecretValues = useMemo(() => !!initialSdl && secretReferenceNamesIn(initialSdl).size > 0, [initialSdl]);
   /** Only the form saves a draft, and a template that failed with nothing to start from has handed the session to it, so neither returns to auto later. */
   const isEditedInForm = isDraftRestored || hasFallenBackToForm;
   const resolvedIntent = useMemo<DeploymentIntent>(

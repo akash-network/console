@@ -265,70 +265,29 @@ describe(ManifestUpdate.name, () => {
     });
   });
 
-  describe("when sealed creates and the structured update tab are both on", () => {
-    it("keeps no copy of an accepted update in this browser", async () => {
-      const handles = setup({ secretsEnabled: true, updateEditorEnabled: true, editedManifest: "version: '2.0'", wallet: { address: "akash1abc" } });
+  it("keeps no copy of an accepted update in this browser", async () => {
+    const handles = setup({ editedManifest: "version: '2.0'", wallet: { address: "akash1abc" } });
 
-      await clickUpdate(handles);
-      await succeed(handles);
+    await clickUpdate(handles);
+    await succeed(handles);
 
-      expect(handles.deploymentLocalStorage.update).not.toHaveBeenCalled();
-      expect(handles.queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: ["getDeployment", "123"] });
-    });
-
-    it("keeps no copy of an update the provider has yet to apply in this browser", async () => {
-      const handles = setup({ secretsEnabled: true, updateEditorEnabled: true, editedManifest: "version: '2.0'", wallet: { address: "akash1abc" } });
-
-      await clickUpdate(handles);
-      await fail(handles, STALE_PROVIDER_VERSION);
-
-      expect(handles.deploymentLocalStorage.update).not.toHaveBeenCalled();
-      expect(handles.queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: ["getDeployment", "123"] });
-    });
-
-    it("still warns when a copy this browser recorded earlier differs from the chain", async () => {
-      const { dependencies } = setup({
-        secretsEnabled: true,
-        updateEditorEnabled: true,
-        definition: { sdl: "version: '2.0'", source: "local" },
-        deployment: { dseq: "123", state: "active", hash: "on-chain-hash" },
-        dependencies: { deploymentData: mock<typeof DEPENDENCIES.deploymentData>({ getManifestVersion: vi.fn().mockResolvedValue("a-different-hash") }) }
-      });
-
-      await waitFor(() => expect(dependencies.WarningCircle).toHaveBeenCalled());
-    });
-
-    it("still seeds the editor from a copy this browser recorded before the api held one", async () => {
-      const onManifestChange = vi.fn();
-      setup({
-        secretsEnabled: true,
-        updateEditorEnabled: true,
-        onManifestChange,
-        definition: { sdl: "version: '2.0' # recorded-in-this-browser", source: "local" }
-      });
-
-      await waitFor(() => expect(onManifestChange).toHaveBeenCalledWith("version: '2.0' # recorded-in-this-browser"));
-    });
+    expect(handles.deploymentLocalStorage.update).not.toHaveBeenCalled();
   });
 
-  describe("while sealed creates or the structured update tab is still off", () => {
-    it("keeps a copy of an accepted update in this browser when only sealed creates are on", async () => {
-      const handles = setup({ secretsEnabled: true, updateEditorEnabled: false, editedManifest: "version: '2.0'", wallet: { address: "akash1abc" } });
+  it("keeps no copy of an update the provider has yet to apply in this browser", async () => {
+    const handles = setup({ editedManifest: "version: '2.0'", wallet: { address: "akash1abc" } });
 
-      await clickUpdate(handles);
-      await succeed(handles);
+    await clickUpdate(handles);
+    await fail(handles, STALE_PROVIDER_VERSION);
 
-      expect(handles.deploymentLocalStorage.update).toHaveBeenCalledWith("akash1abc", "123", { manifest: "version: '2.0'" });
-    });
+    expect(handles.deploymentLocalStorage.update).not.toHaveBeenCalled();
+  });
 
-    it("keeps a copy of an accepted update in this browser when only the structured update tab is on", async () => {
-      const handles = setup({ secretsEnabled: false, updateEditorEnabled: true, editedManifest: "version: '2.0'", wallet: { address: "akash1abc" } });
+  it("seeds the editor from a copy this browser recorded before the api held one", async () => {
+    const onManifestChange = vi.fn();
+    setup({ onManifestChange, definition: { sdl: "version: '2.0' # recorded-in-this-browser", source: "local" } });
 
-      await clickUpdate(handles);
-      await succeed(handles);
-
-      expect(handles.deploymentLocalStorage.update).toHaveBeenCalledWith("akash1abc", "123", { manifest: "version: '2.0'" });
-    });
+    await waitFor(() => expect(onManifestChange).toHaveBeenCalledWith("version: '2.0' # recorded-in-this-browser"));
   });
 
   describe("a definition whose secret values the api withheld", () => {
@@ -536,15 +495,6 @@ describe(ManifestUpdate.name, () => {
     expect(handles.mutate).toHaveBeenCalledTimes(1);
   });
 
-  it("caches the submitted sdl under the deployment without a manifest version", async () => {
-    const handles = setup({ editedManifest: "version: '2.0'", wallet: { address: "akash1abc" } });
-
-    await clickUpdate(handles);
-    await succeed(handles);
-
-    expect(handles.deploymentLocalStorage.update).toHaveBeenCalledWith("akash1abc", "123", { manifest: "version: '2.0'" });
-  });
-
   it("refetches the resolved definition so the details it feeds stop describing the replaced document", async () => {
     const handles = setup({ deployment: { dseq: "456" }, editedManifest: "version: '2.0'" });
 
@@ -563,40 +513,15 @@ describe(ManifestUpdate.name, () => {
     expect(handles.queryClient.invalidateQueries).not.toHaveBeenCalled();
   });
 
-  it("caches the sdl it submitted, not the one edited while the update was in flight", async () => {
-    const handles = setup({ editedManifest: "version: '2.0'", wallet: { address: "akash1abc" } });
-
-    await clickUpdate(handles);
-    handles.rerenderWith({ editedManifest: "version: '3.0'" });
-    await succeed(handles);
-
-    expect(handles.deploymentLocalStorage.update).toHaveBeenCalledWith("akash1abc", "123", { manifest: "version: '2.0'" });
-  });
-
-  it("finishes the accepted update even when caching the manifest locally fails", async () => {
+  it("refetches the definition it updated even when the editor closes before the api answers", async () => {
     const closeManifestEditor = vi.fn();
-    const handles = setup({ closeManifestEditor });
-    handles.deploymentLocalStorage.update.mockImplementation(() => {
-      throw new Error("quota exceeded");
-    });
-
-    await clickUpdate(handles);
-    await succeed(handles);
-
-    expect(handles.analyticsService.track).toHaveBeenCalledWith("successful_tx", { category: "transactions", label: "Successful transaction" });
-    expect(closeManifestEditor).toHaveBeenCalled();
-    expect(handles.enqueueSnackbar).not.toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ variant: "error" }));
-  });
-
-  it("caches the submitted sdl even when the editor closes before the api answers", async () => {
-    const closeManifestEditor = vi.fn();
-    const handles = setup({ editedManifest: "version: '2.0'", wallet: { address: "akash1abc" }, closeManifestEditor });
+    const handles = setup({ editedManifest: "version: '2.0'", closeManifestEditor });
 
     await clickUpdate(handles);
     handles.unmount();
     await settleAfterClose(handles, { outcome: "success" });
 
-    expect(handles.deploymentLocalStorage.update).toHaveBeenCalledWith("akash1abc", "123", { manifest: "version: '2.0'" });
+    expect(handles.queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: ["getDeployment", "123"] });
     expect(closeManifestEditor).not.toHaveBeenCalled();
   });
 
@@ -668,7 +593,6 @@ describe(ManifestUpdate.name, () => {
 
     expect(screen.getByText("SDL is not valid YAML: line 3, column 5")).toBeInTheDocument();
     expect(closeManifestEditor).not.toHaveBeenCalled();
-    expect(handles.deploymentLocalStorage.update).not.toHaveBeenCalled();
     expect(handles.enqueueSnackbar).not.toHaveBeenCalled();
   });
 
@@ -884,7 +808,6 @@ describe(ManifestUpdate.name, () => {
       await clickUpdate(handles);
       await fail(handles, STALE_PROVIDER_VERSION);
 
-      expect(handles.deploymentLocalStorage.update).toHaveBeenCalledWith("akash1abc", "456", { manifest: "version: '2.0'" });
       expect(handles.queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: ["getDeployment", "456"] });
     });
 
@@ -937,7 +860,6 @@ describe(ManifestUpdate.name, () => {
       handles.rerenderWith({ deployment: { dseq: "456" } });
       await fail(handles, STALE_PROVIDER_VERSION);
 
-      expect(handles.deploymentLocalStorage.update).toHaveBeenCalledWith("akash1abc", "123", { manifest: "version: '2.0'" });
       expect(handles.queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: ["getDeployment", "123"] });
       expect(screen.queryByText(STALE_PROVIDER_MESSAGE)).not.toBeInTheDocument();
     });
@@ -1076,8 +998,6 @@ describe(ManifestUpdate.name, () => {
     onRedeploy?: () => void;
     wallet?: Partial<{ address: string; signAndBroadcastTx: ContextType["signAndBroadcastTx"] }>;
     definition?: Partial<DeploymentDefinition>;
-    secretsEnabled?: boolean;
-    updateEditorEnabled?: boolean;
     dependencies?: Partial<typeof DEPENDENCIES>;
   }) {
     const providerProxy = mock<ProviderProxyService>();
@@ -1123,12 +1043,6 @@ describe(ManifestUpdate.name, () => {
     const queryClient = mock<ReturnType<typeof DEPENDENCIES.useQueryClient>>();
     const useQueryClient: typeof DEPENDENCIES.useQueryClient = () => queryClient;
 
-    const flags: Partial<Record<Parameters<typeof DEPENDENCIES.useFlag>[0], boolean>> = {
-      ui_deployment_secrets: input?.secretsEnabled ?? false,
-      ui_deployment_update_editor: input?.updateEditorEnabled ?? false
-    };
-    const useFlag: typeof DEPENDENCIES.useFlag = flag => flags[flag] ?? false;
-
     const dependencies = MockComponents(DEPENDENCIES, {
       DeploymentTabHeader: vi.fn(({ actions, children }) => (
         <>
@@ -1142,7 +1056,6 @@ describe(ManifestUpdate.name, () => {
       useBlockchainStatus,
       useDeploymentDefinition,
       useQueryClient,
-      useFlag,
       deploymentData: mock<typeof DEPENDENCIES.deploymentData>({
         getManifestVersion: vi.fn().mockResolvedValue("test-version")
       }),
