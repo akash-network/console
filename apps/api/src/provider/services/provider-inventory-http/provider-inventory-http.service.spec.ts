@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { ProviderConfig } from "@src/provider/providers/config.provider";
 import { ProviderInventoryHttpService } from "./provider-inventory-http.service";
@@ -8,6 +8,10 @@ import { createAkashAddress } from "@test/seeders/akash-address.seeder";
 const INVENTORY_URL = "http://provider-inventory:3092";
 
 describe(ProviderInventoryHttpService.name, () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   describe("findReclamationWindow", () => {
     it("asks the inventory for the provider by its address", async () => {
       const owner = createAkashAddress();
