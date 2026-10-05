@@ -358,7 +358,7 @@ export class DeploymentWriterService {
     }
   }
 
-  /** Refusals run before anything is recorded, so only a close that was attempted reaches the caller's activity feed. */
+  /** Refusals run before anything is recorded, and a close another request beat this one to is left for that request to record, so one close is one entry. */
   public async closeByUserIdAndDseq(userId: string, dseq: string): Promise<boolean> {
     const wallet = await this.walletReaderService.getWalletByUserId(userId);
     const deployment = await this.deploymentReaderService.findByWalletAndDseqWithoutProviderStatus(wallet, dseq);
@@ -368,7 +368,7 @@ export class DeploymentWriterService {
 
     try {
       const closed = await this.#closeOpen(wallet, deployment);
-      await this.activityService.record(closedActivityOf({ userId, dseq }));
+      if (closed) await this.activityService.record(closedActivityOf({ userId, dseq }));
       return closed;
     } catch (error) {
       await this.activityService.record(failedCloseActivityOf({ userId, dseq }, error));

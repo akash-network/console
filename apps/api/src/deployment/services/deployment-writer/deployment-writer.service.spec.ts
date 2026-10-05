@@ -1188,7 +1188,7 @@ describe(DeploymentWriterService.name, () => {
       expect(activityService.record).not.toHaveBeenCalled();
     });
 
-    it("records the close as succeeded when a concurrent close got there first", async () => {
+    it("records nothing when a concurrent close got there first, since that close records itself", async () => {
       const { service, signerService, deploymentReaderService, activityService } = setup();
       signerService.executeDecodedTxByUserWallet.mockRejectedValue(new Error("deployment already closed"));
       deploymentReaderService.findByWalletAndDseqWithoutProviderStatus
@@ -1197,7 +1197,7 @@ describe(DeploymentWriterService.name, () => {
 
       await expect(service.closeByUserIdAndDseq("user-1", "100")).resolves.toBe(false);
 
-      expect(activityService.record).toHaveBeenCalledWith(closedActivityOf({ userId: "user-1", dseq: "100" }));
+      expect(activityService.record).not.toHaveBeenCalled();
     });
 
     it("records a close that fails with its reason and still answers with the failure", async () => {
