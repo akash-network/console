@@ -120,6 +120,14 @@ export const operations = {
       queryParams: [],
       hasBody: true
     },
+    createProductUpdateUnsubscription: {
+      path: "/v1/product-update-unsubscriptions",
+      method: "post",
+      operationId: "createProductUpdateUnsubscription",
+      pathParams: [],
+      queryParams: ["token"],
+      hasBody: false
+    },
     getDeploymentFundingConfig: {
       path: "/v1/deployment-funding-config",
       method: "get",

@@ -1372,6 +1372,23 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/v1/product-update-unsubscriptions": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Stop product update emails for the user an unsubscribe link was sent to, without signing in (RFC 8058 one-click) */
+    post: operations["createProductUpdateUnsubscription"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/v1/send-verification-email": {
     parameters: {
       query?: never;
@@ -8003,6 +8020,40 @@ export interface operations {
       };
       /** @description The account has active deployments or credits nobody agreed to forfeit */
       409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  createProductUpdateUnsubscription: {
+    parameters: {
+      query: {
+        token: string;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description The user no longer receives product update emails */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description The unsubscribe link is invalid */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Unsubscribe links are not configured */
+      503: {
         headers: {
           [name: string]: unknown;
         };

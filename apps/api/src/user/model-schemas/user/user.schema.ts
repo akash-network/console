@@ -29,6 +29,7 @@ export const Users = pgTable("userSetting", {
   lastFingerprint: varchar("last_fingerprint", { length: 255 }),
   onboardingSkippedAt: timestamp("onboardingSkippedAt"),
   fairUsePolicyAcceptedAt: timestamp("fair_use_policy_accepted_at", { withTimezone: true }),
+  productUpdatesUnsubscribedAt: timestamp("product_updates_unsubscribed_at", { withTimezone: true }),
   createdAt: timestamp("created_at").defaultNow()
 });
 
