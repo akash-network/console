@@ -7,6 +7,7 @@ import { HTTPException } from "hono/http-exception";
 import createError from "http-errors";
 import { inject, singleton } from "tsyringe";
 
+import { ActivityService } from "@src/activity/services/activity/activity.service";
 import type { UserWalletOutput, WalletInitialized } from "@src/billing/repositories";
 import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import { ManagedSignerService } from "@src/billing/services/managed-signer/managed-signer.service";
@@ -40,6 +41,7 @@ import { SdlSecretsDerivationService } from "@src/deployment/services/sdl-secret
 import { SdlSecretsInheritanceService } from "@src/deployment/services/sdl-secrets-inheritance/sdl-secrets-inheritance.service";
 import type { SdlSecrets } from "@src/deployment/services/sdl-secrets-unsealer/sdl-secrets-unsealer.service";
 import { findGroupWithChangedResources, type OnChainGroupSpec } from "@src/deployment/utils/changed-group-resources/changed-group-resources";
+import { closedActivityOf, failedCloseActivityOf } from "@src/deployment/utils/close-activity/close-activity";
 import { deriveDeploymentName } from "@src/deployment/utils/deployment-name/deployment-name";
 import type { StorableSdl, StoredSdlPosition, StoredSdlRefusal } from "@src/deployment/utils/sdl-for-storage/sdl-for-storage";
 import { parseSdlForStorage, sdlForStorage } from "@src/deployment/utils/sdl-for-storage/sdl-for-storage";
@@ -127,7 +129,8 @@ export class DeploymentWriterService {
     private readonly sdlReferenceService: SdlReferenceService,
     private readonly sdlSecretsInheritanceService: SdlSecretsInheritanceService,
     private readonly probeJobService: TrialWorkloadProbeJobService,
-    private readonly leaseGpuDetectionJobService: LeaseGpuDetectionJobService
+    private readonly leaseGpuDetectionJobService: LeaseGpuDetectionJobService,
+    private readonly activityService: ActivityService
   ) {
     this.logger = createLogger({ context: DeploymentWriterService.name });
   }
@@ -355,9 +358,22 @@ export class DeploymentWriterService {
     }
   }
 
+  /** Refusals run before anything is recorded, so only a close that was attempted reaches the caller's activity feed. */
   public async closeByUserIdAndDseq(userId: string, dseq: string): Promise<boolean> {
     const wallet = await this.walletReaderService.getWalletByUserId(userId);
-    return this.close(wallet, dseq);
+    const deployment = await this.deploymentReaderService.findByWalletAndDseqWithoutProviderStatus(wallet, dseq);
+    if (deployment.deployment.state === "closed") return false;
+
+    await this.signerService.assertCanBroadcast(userId, [this.#closeMessageFor(wallet, deployment)]);
+
+    try {
+      const closed = await this.#closeOpen(wallet, deployment);
+      await this.activityService.record(closedActivityOf({ userId, dseq }));
+      return closed;
+    } catch (error) {
+      await this.activityService.record(failedCloseActivityOf({ userId, dseq }, error));
+      throw error;
+    }
   }
 
   /**
@@ -370,7 +386,16 @@ export class DeploymentWriterService {
   public async close(wallet: WalletInitialized, dseq: string): Promise<boolean> {
     const deployment = await this.deploymentReaderService.findByWalletAndDseqWithoutProviderStatus(wallet, dseq);
     if (deployment.deployment.state === "closed") return false;
-    const message = this.rpcMessageService.getCloseDeploymentMsg(wallet.address, deployment.deployment.id.dseq);
+    return await this.#closeOpen(wallet, deployment);
+  }
+
+  #closeMessageFor(wallet: WalletInitialized, deployment: DeploymentResponse) {
+    return this.rpcMessageService.getCloseDeploymentMsg(wallet.address, deployment.deployment.id.dseq);
+  }
+
+  async #closeOpen(wallet: WalletInitialized, deployment: DeploymentResponse): Promise<boolean> {
+    const dseq = deployment.deployment.id.dseq;
+    const message = this.#closeMessageFor(wallet, deployment);
     try {
       await this.signerService.executeDecodedTxByUserWallet(wallet, [message]);
     } catch (error) {

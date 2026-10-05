@@ -262,7 +262,16 @@ export const operations = {
       pathParams: ["dseq"],
       queryParams: [],
       hasBody: false
-    }
+    },
+    listActivities: {
+      path: "/v1/activities",
+      method: "get",
+      operationId: "listActivities",
+      pathParams: [],
+      queryParams: ["limit", "cursor", "status", "type"],
+      hasBody: false
+    },
+    markActivitiesSeen: { path: "/v1/activities/seen", method: "post", operationId: "markActivitiesSeen", pathParams: [], queryParams: [], hasBody: true }
   },
   v2: {
     getDeploymentSetting: {

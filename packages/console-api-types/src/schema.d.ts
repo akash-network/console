@@ -6367,6 +6367,40 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/v1/activities": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List the user's recent actions and their outcomes, newest first, with how many are still unseen */
+    get: operations["listActivities"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/activities/seen": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Mark activities seen, either by id or every one created up to a time */
+    post: operations["markActivitiesSeen"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -11338,6 +11372,148 @@ export interface operations {
         content: {
           "application/json": components["schemas"]["InternalServerErrorResponse"];
         };
+      };
+    };
+  };
+  listActivities: {
+    parameters: {
+      query?: {
+        limit?: number;
+        cursor?: string;
+        status?: "pending" | "succeeded" | "failed";
+        type?: "deployment_close";
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description One page of activities */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            data: {
+              /** @description Newest first. */
+              activities: {
+                /** Format: uuid */
+                id: string;
+                /**
+                 * @description What the action was.
+                 * @enum {string}
+                 */
+                type: "deployment_close";
+                /**
+                 * @description `pending` while the action is still being confirmed, then `succeeded` or `failed`.
+                 * @enum {string}
+                 */
+                status: "pending" | "succeeded" | "failed";
+                meta: {
+                  /** @description The deployment the action was about. */
+                  dseq?: string;
+                  /** @description Reference of a pending action whose outcome is still being confirmed. */
+                  txHash?: string;
+                  /** @description Why a failed action did not go through. */
+                  error?: {
+                    code: string;
+                    message: string;
+                  };
+                };
+                /**
+                 * Format: date-time
+                 * @description When the user first marked the activity seen.
+                 */
+                seenAt: string | null;
+                /** Format: date-time */
+                createdAt: string;
+                /** Format: date-time */
+                updatedAt: string;
+              }[];
+              /** @description Activities the user has not marked seen, whatever the filters. */
+              unseenCount: number;
+              pagination: {
+                limit: number;
+                /** @description Whether a further page exists. */
+                hasMore: boolean;
+                /** @description Pass it as `cursor` to read the next page. Null on the last page. */
+                nextCursor: string | null;
+              };
+            };
+          };
+        };
+      };
+      /** @description Invalid query or cursor */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  markActivitiesSeen: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": {
+          data:
+            | {
+                /** @description The activities to mark seen. */
+                ids: string[];
+              }
+            | {
+                /**
+                 * Format: date-time
+                 * @description Marks every activity created at or before this time.
+                 */
+                upTo: string;
+              };
+        };
+      };
+    };
+    responses: {
+      /** @description How many activities are still unseen */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            data: {
+              /** @description Activities the user has not marked seen, whatever the filters. */
+              unseenCount: number;
+            };
+          };
+        };
+      };
+      /** @description Invalid request body */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
       };
     };
   };

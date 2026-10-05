@@ -10,6 +10,7 @@ import { container } from "tsyringe";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
+import { ActivityRepository } from "@src/activity/repositories/activity/activity.repository";
 import { startJobQueues } from "@src/app/providers/jobs.provider";
 import type { ApiKeyOutput } from "@src/auth/repositories/api-key/api-key.repository";
 import { ApiKeyAuthService } from "@src/auth/services/api-key/api-key-auth.service";
@@ -69,6 +70,7 @@ describe("Deployments API", () => {
   const blockHttpService = container.resolve(BlockHttpService);
   const signerService = container.resolve(ManagedSignerService);
   const deploymentReaderService = container.resolve(DeploymentReaderService);
+  const activityRepository = container.resolve(ActivityRepository);
 
   let currentUser: UserOutput;
   let knownUsers: Record<string, UserOutput>;
@@ -1570,6 +1572,45 @@ describe("Deployments API", () => {
   });
 
   describe("DELETE /v1/deployments/{dseq}", () => {
+    it("records the close in the caller's activity feed", async () => {
+      const { user, userApiKeySecret, wallets } = await mockPersistedUser();
+      const dseq = "1234";
+      await setupDeploymentInfoMock(wallets, dseq);
+      vi.spyOn(signerService, "executeDecodedTxByUserWallet").mockResolvedValueOnce({
+        code: 0,
+        hash: "test-hash",
+        transactionHash: "test-hash",
+        rawLog: "success"
+      });
+
+      const response = await app.request(`/v1/deployments/${dseq}`, {
+        method: "DELETE",
+        headers: new Headers({ "Content-Type": "application/json", "x-api-key": userApiKeySecret })
+      });
+
+      expect(response.status).toBe(200);
+      expect(await activityRepository.find({ userId: user.id })).toEqual([
+        expect.objectContaining({ type: "deployment_close", status: "succeeded", meta: { dseq }, seenAt: null })
+      ]);
+    });
+
+    it("records nothing in the activity feed when the close is refused", async () => {
+      const { user, userApiKeySecret, wallets } = await mockPersistedUser();
+      const dseq = "1234";
+      await setupDeploymentInfoMock(wallets, dseq);
+      vi.mocked(signerService.assertCanBroadcast).mockRejectedValue(createError(402, "Not enough credits to close this deployment"));
+      const broadcast = vi.spyOn(signerService, "executeDecodedTxByUserWallet");
+
+      const response = await app.request(`/v1/deployments/${dseq}`, {
+        method: "DELETE",
+        headers: new Headers({ "Content-Type": "application/json", "x-api-key": userApiKeySecret })
+      });
+
+      expect(response.status).toBe(402);
+      expect(broadcast).not.toHaveBeenCalled();
+      expect(await activityRepository.find({ userId: user.id })).toEqual([]);
+    });
+
     it("should close a deployment successfully", async () => {
       const { userApiKeySecret, wallets } = await mockUser();
       const dseq = "1234";

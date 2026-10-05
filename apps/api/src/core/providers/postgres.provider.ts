@@ -5,6 +5,7 @@ import postgres from "postgres";
 import type { DependencyContainer, InjectionToken } from "tsyringe";
 import { container, inject, instancePerContainerCachingFactory } from "tsyringe";
 
+import * as activitySchemas from "@src/activity/model-schemas";
 import * as authSchemas from "@src/auth/model-schemas";
 import * as billingSchemas from "@src/billing/model-schemas";
 import { DisposableRegistry } from "@src/core/lib/disposable-registry/disposable-registry";
@@ -58,7 +59,8 @@ const schema = {
   ...authSchemas,
   ...secretSchemas,
   ...workloadAbuseSchemas,
-  ...hardwareRequestSchemas
+  ...hardwareRequestSchemas,
+  ...activitySchemas
 };
 const getDrizzleOptions = (config: Pick<CoreConfig, "SQL_LOG_FORMAT">) => ({
   logger: new PostgresLoggerService(container.resolve(LOGGER_FACTORY), { useFormat: config.SQL_LOG_FORMAT === "pretty" }),

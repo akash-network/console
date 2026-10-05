@@ -1,3 +1,4 @@
+import { activityRouter } from "@src/activity";
 import { addressRouter } from "@src/address";
 import { apiKeysRouter, sendVerificationCodeRouter, sendVerificationEmailRouter, signupRouter, verifyEmailCodeRouter } from "@src/auth";
 import { verifyEmailRouter } from "@src/auth/routes/verify-email/verify-email.router";
@@ -116,5 +117,6 @@ export const openApiHonoHandlers: OpenApiHonoHandler[] = [
   bidScreeningRouter,
   placementOptionsRouter,
   attestationRouter,
-  hardwareRequestRouter
+  hardwareRequestRouter,
+  activityRouter
 ];

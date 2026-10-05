@@ -477,6 +477,13 @@
       "when": 1791148824729,
       "tag": "0067_user_wallets_credits_exhausted_notified_at",
       "breakpoints": true
+    },
+    {
+      "idx": 68,
+      "version": "7",
+      "when": 1791223186216,
+      "tag": "0068_activities",
+      "breakpoints": true
     }
   ]
 }
