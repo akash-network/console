@@ -62,6 +62,18 @@ describe(ProvidersGlobe.name, () => {
       expect(onUnavailable).toHaveBeenCalledTimes(1);
       expect(onZoomChange).not.toHaveBeenCalled();
     });
+
+    it("ignores a selection it has no globe to turn", () => {
+      const { onUnavailable } = setup({
+        providers: [createProvider({ id: "akash1selected", lat: 10, lng: 20 })],
+        selectedId: "akash1selected",
+        createRenderer: () => {
+          throw new Error("WebGL is not supported");
+        }
+      });
+
+      expect(onUnavailable).toHaveBeenCalledTimes(1);
+    });
   });
 
   it("sizes the renderer to its box, falling back to 800 by 400 before layout", () => {
@@ -591,6 +603,19 @@ describe(ProvidersGlobe.name, () => {
       expect(globe().rotator.rotation.y).toBeCloseTo(-0.6871114, 6);
     });
 
+    it("holds the globe still when the selected provider has no pin", () => {
+      const { advanceFrames, globe } = setup({
+        playIntro: false,
+        providers: [createProvider({ id: "akash1shown", lat: 10, lng: 20 })],
+        selectedId: "akash1hidden"
+      });
+
+      advanceFrames(11);
+
+      expect(globe().rotator.rotation.y).toBe(RESTING_YAW);
+      expect(globe().pivot.rotation.x).toBe(RESTING_PITCH);
+    });
+
     it("holds the globe still when the intro doesn't play", () => {
       const { advanceFrames, globe } = setup({ playIntro: false });
 
@@ -746,6 +771,23 @@ describe(ProvidersGlobe.name, () => {
       advanceFrames(SETTLE_FRAMES);
 
       expect(globe().rotator.rotation.y).toBeCloseTo(-2.6179939, 3);
+    });
+
+    it("keeps a turn the user dragged in while the providers refresh around the same selection", () => {
+      const providers = [createProvider({ id: "akash1a-first", lat: 0, lng: 0 })];
+      const { advanceFrames, globe, rerender, pointAt } = setup({ providers, selectedId: "akash1a-first" });
+      advanceFrames(SETTLE_FRAMES);
+      pointAt("pointerdown", 100, 100);
+      pointAt("pointermove", 300, 100);
+      pointAt("pointerup", 300, 100);
+      advanceFrames(SETTLE_FRAMES);
+      const draggedYaw = globe().rotator.rotation.y;
+
+      rerender({ providers: [createProvider({ id: "akash1a-first", lat: 0, lng: 0, gpuCount: 4 })] });
+      advanceFrames(SETTLE_FRAMES);
+
+      expect(draggedYaw).not.toBeCloseTo(-Math.PI / 2, 3);
+      expect(globe().rotator.rotation.y).toBeCloseTo(draggedYaw, 6);
     });
   });
 

@@ -254,14 +254,17 @@ export function ProvidersGlobe(props: Props) {
     [introKey, playIntro]
   );
 
+  const selectedProvider = selectedId ? providers.find(provider => provider.id === selectedId) : undefined;
+  const selectedLat = selectedProvider?.lat;
+  const selectedLng = selectedProvider?.lng;
+
   useEffect(
     function turnSelectedProviderToCamera() {
       const globe = sceneRef.current;
-      const selected = selectedId ? providers.find(provider => provider.id === selectedId) : undefined;
-      if (!globe || !selected) return;
-      faceCoordinates(globe, selected.lat, selected.lng);
+      if (!globe || selectedLat === undefined || selectedLng === undefined) return;
+      faceCoordinates(globe, selectedLat, selectedLng);
     },
-    [selectedId, providers]
+    [selectedId, selectedLat, selectedLng]
   );
 
   useImperativeHandle(
