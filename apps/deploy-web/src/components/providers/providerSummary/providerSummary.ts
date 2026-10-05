@@ -10,6 +10,7 @@ export type ProviderSummary = {
   location: string | null;
   locationRegion: string | null;
   isAudited: boolean;
+  isOnline: boolean;
   uptime30d: number | null;
   gpuCount: number;
   gpuModels: string[];
@@ -28,6 +29,7 @@ const MILLICORES_PER_VCPU = 1000;
 export function summarizeLocatedProvider(location: ApiProviderLocation): ProviderSummary {
   return {
     ...summarizeIdentity(location),
+    isOnline: true,
     gpuModels: location.gpuModels,
     coordinates: parseCoordinates(location.ipLat, location.ipLon)
   };
@@ -36,12 +38,13 @@ export function summarizeLocatedProvider(location: ApiProviderLocation): Provide
 export function summarizeListedProvider(provider: ApiProviderList): ProviderSummary {
   return {
     ...summarizeIdentity(provider),
+    isOnline: provider.isOnline,
     gpuModels: [...new Set(provider.gpuModels.map(gpu => gpu.model))],
     coordinates: parseCoordinates(provider.ipLat, provider.ipLon)
   };
 }
 
-function summarizeIdentity(provider: ApiProviderLocation | ApiProviderList): Omit<ProviderSummary, "gpuModels" | "coordinates"> {
+function summarizeIdentity(provider: ApiProviderLocation | ApiProviderList): Omit<ProviderSummary, "isOnline" | "gpuModels" | "coordinates"> {
   return {
     owner: provider.owner,
     name: getProviderName(provider),

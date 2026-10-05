@@ -154,11 +154,31 @@ describe(useProvidersExplorerModel.name, () => {
   });
 
   it("asks for the page the user moved to", () => {
-    const { result, useProviderSearch } = setup();
+    const { result, useProviderSearch } = setup({ page: createPage([], 30) });
 
     act(() => result.current.changePageIndex(2));
 
     expect(useProviderSearch).toHaveBeenLastCalledWith(expect.objectContaining({ skip: 2 * PAGE_SIZE, limit: PAGE_SIZE }), expect.anything());
+  });
+
+  it("returns to the last page once the results shrink below the page the user is on", () => {
+    const { result, rerender, providerSearch } = setup({ page: createPage([], 30) });
+    act(() => result.current.changePageIndex(2));
+
+    providerSearch.data = createPage([], 12);
+    rerender();
+
+    expect(result.current).toMatchObject({ pageIndex: 1, pageCount: 2 });
+  });
+
+  it("keeps the page while the shrunken results are still loading", () => {
+    const { result, rerender, providerSearch } = setup({ page: createPage([], 30) });
+    act(() => result.current.changePageIndex(2));
+
+    Object.assign(providerSearch, { data: createPage([], 5), isFetching: true });
+    rerender();
+
+    expect(result.current.pageIndex).toBe(2);
   });
 
   it("searches for the trimmed term once the user pauses typing, back on the first page", async () => {

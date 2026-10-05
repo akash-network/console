@@ -184,16 +184,21 @@ const ProviderRow: FC<ProviderRowProps> = ({ provider, isSelected, isFavorite, i
     >
       <td className="min-w-0 px-3.5 py-3">
         <div className="flex min-w-0 flex-col gap-0.5">
-          <button
-            type="button"
-            onClick={event => {
-              event.stopPropagation();
-              selectProvider();
-            }}
-            className="truncate text-left text-[13.5px] font-semibold text-foreground hover:underline"
-          >
-            {provider.name}
-          </button>
+          <span className="flex min-w-0 items-center gap-1.5">
+            <button
+              type="button"
+              onClick={event => {
+                event.stopPropagation();
+                selectProvider();
+              }}
+              className="truncate text-left text-[13.5px] font-semibold text-foreground hover:underline"
+            >
+              {provider.name}
+            </button>
+            {!provider.isOnline && (
+              <span className="shrink-0 rounded-full bg-warning/15 px-1.5 py-px font-mono text-[10px] font-medium text-warning">Offline</span>
+            )}
+          </span>
           <span className="truncate font-mono text-[10.5px] text-muted-foreground" title={provider.owner}>
             {provider.owner}
           </span>

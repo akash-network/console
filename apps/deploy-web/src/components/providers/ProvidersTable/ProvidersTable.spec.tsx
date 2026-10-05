@@ -49,6 +49,18 @@ describe("ProvidersTable", () => {
     expect(within(row).getAllByLabelText("None")).toHaveLength(3);
   });
 
+  it("marks an offline provider's row and leaves online ones unmarked", () => {
+    setup({
+      providers: [
+        createSummary({ owner: "akash1down", name: "provider.down.com", isOnline: false }),
+        createSummary({ owner: "akash1up", name: "provider.up.com" })
+      ]
+    });
+
+    expect(within(screen.getByRole("row", { name: /provider\.down\.com/ })).getByText("Offline")).toBeInTheDocument();
+    expect(within(screen.getByRole("row", { name: /provider\.up\.com/ })).queryByText("Offline")).not.toBeInTheDocument();
+  });
+
   it("shows only the providers' rows once they are loaded", () => {
     setup({
       providers: [createSummary({ owner: "akash1first", name: "provider.first.com" }), createSummary({ owner: "akash1second", name: "provider.second.com" })]
@@ -228,6 +240,7 @@ describe("ProvidersTable", () => {
       location: "Missouri, US",
       locationRegion: "na-us-midwest",
       isAudited: true,
+      isOnline: true,
       uptime30d: 0.995,
       gpuCount: 0,
       gpuModels: [],

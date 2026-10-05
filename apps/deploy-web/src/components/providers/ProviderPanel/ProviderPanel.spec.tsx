@@ -76,6 +76,20 @@ describe("ProviderPanel", () => {
     expect(screen.getByRole("link", { name: "View full profile" })).toHaveAttribute("href", UrlService.providerDetail("akash1selected"));
   });
 
+  it("marks an offline provider", () => {
+    const provider = createSummary({ isOnline: false, locationRegion: null, isAudited: false });
+    setup({ providers: [provider], selected: provider });
+
+    expect(screen.getByText("Offline")).toBeInTheDocument();
+  });
+
+  it("leaves an online provider unmarked", () => {
+    const provider = createSummary({});
+    setup({ providers: [provider], selected: provider });
+
+    expect(screen.queryByText("Offline")).not.toBeInTheDocument();
+  });
+
   it("says when a provider runs no GPU, has no measured uptime and no known location", () => {
     const provider = createSummary({ gpuCount: 0, gpuModels: [], uptime30d: null, location: null, locationRegion: null, isAudited: false });
     setup({ providers: [provider], selected: provider });
@@ -161,6 +175,7 @@ describe("ProviderPanel", () => {
       location: "Missouri, US",
       locationRegion: "na-us-midwest",
       isAudited: true,
+      isOnline: true,
       uptime30d: 0.995,
       gpuCount: 0,
       gpuModels: [],

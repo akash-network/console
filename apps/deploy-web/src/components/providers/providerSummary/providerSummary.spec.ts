@@ -41,6 +41,7 @@ describe("providerSummary", () => {
         location: "Quebec, CA",
         locationRegion: "na-ca-central",
         isAudited: true,
+        isOnline: true,
         uptime30d: 0.995,
         gpuCount: 8,
         gpuModels: ["h100", "a100"],
@@ -53,7 +54,7 @@ describe("providerSummary", () => {
   });
 
   describe(summarizeListedProvider.name, () => {
-    it("names each GPU model once and keeps an unset region and uptime empty", () => {
+    it("names each GPU model once, keeps an unset region and uptime empty and carries its online status", () => {
       const provider = Object.assign(mock<ApiProviderList>(), {
         owner: "akash1listed",
         name: null,
@@ -63,6 +64,7 @@ describe("providerSummary", () => {
         ipLat: "",
         ipLon: "",
         isAudited: false,
+        isOnline: false,
         locationRegion: "",
         uptime30d: undefined as unknown as number,
         gpuModels: [
@@ -74,6 +76,7 @@ describe("providerSummary", () => {
 
       expect(summarizeListedProvider(provider)).toMatchObject({
         name: "offline.example.com",
+        isOnline: false,
         location: null,
         locationRegion: null,
         uptime30d: null,

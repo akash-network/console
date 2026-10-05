@@ -102,8 +102,9 @@ const ProviderDetails: FC<{ provider: ProviderSummary }> = ({ provider }) => (
     <p className="mb-2 truncate font-mono text-[10.5px] text-muted-foreground" title={provider.owner}>
       {provider.owner}
     </p>
-    {(provider.locationRegion || provider.isAudited) && (
+    {(provider.locationRegion || provider.isAudited || !provider.isOnline) && (
       <div className="mb-2.5 flex flex-wrap items-center gap-1.5">
+        {!provider.isOnline && <span className="rounded-full bg-warning/15 px-2 py-0.5 font-mono text-[10.5px] font-medium text-warning">Offline</span>}
         {provider.locationRegion && <RegionPill region={provider.locationRegion} />}
         {provider.isAudited && (
           <span className="inline-flex items-center gap-1 rounded-full border bg-muted px-2 py-0.5 font-mono text-[10.5px] text-foreground">

@@ -1,5 +1,5 @@
 "use client";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { useLocalNotes } from "@src/components/LocalNoteManager";
 import { totalOf } from "@src/components/providers/providerSummary/providerSummary";
@@ -86,6 +86,14 @@ export function useProvidersExplorerModel(dependencies: typeof DEPENDENCIES = DE
   const matchingProviderCount = hasNoFavoriteToShow ? 0 : providerSearch.data?.pagination.total ?? 0;
   const hasLoadedProviders = !!providerSearch.data || hasNoFavoriteToShow;
   const isSearchingProviders = providerSearch.isFetching || providerSearch.isPaused;
+  const lastPageIndex = Math.max(0, Math.ceil(matchingProviderCount / PAGE_SIZE) - 1);
+
+  useEffect(
+    function returnToLastPageOnceResultsShrink() {
+      if (hasLoadedProviders && !isSearchingProviders && pageIndex > lastPageIndex) setPageIndex(lastPageIndex);
+    },
+    [hasLoadedProviders, isSearchingProviders, pageIndex, lastPageIndex]
+  );
   const locations = useMemo(() => providerLocations.data ?? [], [providerLocations.data]);
 
   const updateFilters = useCallback((change: Partial<ProviderFilters>) => {
