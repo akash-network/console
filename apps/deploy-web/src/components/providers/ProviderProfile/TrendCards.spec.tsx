@@ -127,6 +127,12 @@ describe("TrendCards", () => {
       expect(periods.map(period => period.getAttribute("aria-label"))).toEqual(["10:00 online", "10:15 offline"]);
     });
 
+    it("warns about an uptime of 0% rather than treating it as unmeasured", () => {
+      render(<UptimeCard provider={{ uptime30d: 0, uptime7d: 0, uptime1d: 0, uptime: [] }} />);
+
+      expect(screen.getByText("0%")).toHaveClass("text-amber-600");
+    });
+
     it("says when no check ran in the last day and an uptime isn't measured", () => {
       render(<UptimeCard provider={{ uptime30d: null, uptime7d: 0.5, uptime1d: 0.5, uptime: [] }} />);
 

@@ -71,7 +71,7 @@ export const UptimeCard: FC<{ provider: UptimeProvider }> = ({ provider }) => {
           <span
             className={cn(
               "text-[22px] font-semibold leading-none",
-              provider.uptime30d ? UPTIME_TONE_CLASSES[getUptimeQuality(provider.uptime30d)] : "text-foreground"
+              provider.uptime30d === null ? "text-foreground" : UPTIME_TONE_CLASSES[getUptimeQuality(provider.uptime30d)]
             )}
           >
             {formatOptionalUptime(provider.uptime30d)}
