@@ -196,7 +196,7 @@ export const UserSettingsForm: FC<{ user: CustomUserProfile }> = ({ user }) => {
             </Form>
           </CardContent>
         </Card>
-        <DeleteAccountSection email={user.email ?? ""} />
+        <DeleteAccountSection email={user.email} />
       </UserProfileLayout>
     </Layout>
   );

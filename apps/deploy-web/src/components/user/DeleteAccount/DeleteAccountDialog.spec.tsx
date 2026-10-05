@@ -180,12 +180,21 @@ describe(DeleteAccountDialog.name, () => {
     expect(await screen.findByText("A deletion link was just sent.")).toBeInTheDocument();
   });
 
-  it("asks the user to retry when the email could not be sent", async () => {
-    const { user } = setup({ eligibility: { status: "clean" }, response: Promise.reject(new ApiError(500, {}, "500")) });
+  it("asks the user to retry when a rate limit answered without a message", async () => {
+    const { user } = setup({ eligibility: { status: "clean" }, response: Promise.reject(new ApiError(429, undefined, "429")) });
 
     await confirmWithEmail(user);
 
     expect(await screen.findByText("We couldn't send the email. Please try again.")).toBeInTheDocument();
+  });
+
+  it("asks the user to retry when the email could not be sent", async () => {
+    const { user } = setup({ eligibility: { status: "clean" }, response: Promise.reject(new ApiError(500, { message: "Internal Server Error" }, "500")) });
+
+    await confirmWithEmail(user);
+
+    expect(await screen.findByText("We couldn't send the email. Please try again.")).toBeInTheDocument();
+    expect(screen.queryByText("Internal Server Error")).not.toBeInTheDocument();
   });
 
   it("closes when the user cancels", async () => {

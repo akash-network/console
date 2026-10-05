@@ -197,7 +197,8 @@ const ConfirmStep: FC<ConfirmStepProps> = ({ email, forfeitedBalanceUsd, isSendi
   const [isForfeitAcknowledged, setIsForfeitAcknowledged] = useState(false);
   const isForfeiting = forfeitedBalanceUsd > 0;
   const canSend = typedEmail.toLowerCase() === email.toLowerCase() && (!isForfeiting || isForfeitAcknowledged);
-  const errorMessage = isApiError(error) && error.status === 429 ? extractApiErrorMessage(error) : "We couldn't send the email. Please try again.";
+  const rateLimitMessage = isApiError(error) && error.status === 429 ? extractApiErrorMessage(error) : null;
+  const errorMessage = rateLimitMessage ?? "We couldn't send the email. Please try again.";
 
   return (
     <>

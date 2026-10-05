@@ -17,6 +17,12 @@ describe(DeleteAccountSection.name, () => {
     expect(useFlag).toHaveBeenCalledWith("account_deletion");
   });
 
+  it("stays hidden when the profile has no email to send the confirmation link to", () => {
+    setup({ isEnabled: true, email: null });
+
+    expect(screen.queryByRole("button", { name: "Delete account" })).not.toBeInTheDocument();
+  });
+
   it("opens the deletion dialog for the user's email and reports it", async () => {
     const { user, DeleteAccountDialog, analyticsService } = setup({ isEnabled: true });
     expect(DeleteAccountDialog).not.toHaveBeenCalled();
@@ -38,14 +44,15 @@ describe(DeleteAccountSection.name, () => {
     expect(DeleteAccountDialog.mock.calls.length).toBe(renderCount);
   });
 
-  function setup(input: { isEnabled: boolean }) {
+  function setup(input: { isEnabled: boolean; email?: string | null }) {
     const analyticsService = mock<AnalyticsService>();
     const useFlag = vi.fn(() => input.isEnabled);
     const DeleteAccountDialog = vi.fn<typeof DEPENDENCIES.DeleteAccountDialog>(() => <div>delete account dialog</div>);
+    const email = "email" in input ? input.email : "jane@example.com";
 
     render(
       <TestContainerProvider services={{ analyticsService: () => analyticsService }}>
-        <DeleteAccountSection email="jane@example.com" dependencies={MockComponents(DEPENDENCIES, { useFlag, DeleteAccountDialog })} />
+        <DeleteAccountSection email={email} dependencies={MockComponents(DEPENDENCIES, { useFlag, DeleteAccountDialog })} />
       </TestContainerProvider>
     );
 

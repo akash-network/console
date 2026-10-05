@@ -10,7 +10,7 @@ import { DeleteAccountDialog } from "./DeleteAccountDialog";
 export const DEPENDENCIES = { useFlag, DeleteAccountDialog };
 
 type Props = {
-  email: string;
+  email: string | null | undefined;
   dependencies?: typeof DEPENDENCIES;
 };
 
@@ -19,7 +19,7 @@ export const DeleteAccountSection: FC<Props> = ({ email, dependencies: d = DEPEN
   const isAccountDeletionEnabled = d.useFlag("account_deletion");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
-  if (!isAccountDeletionEnabled) return null;
+  if (!isAccountDeletionEnabled || !email) return null;
 
   const openDialog = () => {
     analyticsService.track("account_deletion_modal_opened", { category: "user", label: "Open delete account dialog" });
