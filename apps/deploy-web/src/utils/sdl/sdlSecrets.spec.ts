@@ -12,7 +12,8 @@ import {
   resolveSdlSecrets,
   secretNameOf,
   secretReferenceNamesIn,
-  secretReferenceOf
+  secretReferenceOf,
+  withSecretsMarkedLike
 } from "./sdlSecrets";
 
 describe("sdlSecrets", () => {
@@ -334,6 +335,64 @@ describe("sdlSecrets", () => {
       const resolved = resolveSdlSecrets(values, { sealSecrets: true });
 
       expect(resolved.references.size).toBe(0);
+    });
+  });
+
+  describe(withSecretsMarkedLike.name, () => {
+    it("marks a variable whose key another copy holds as a secret, whatever value or padding it holds there", () => {
+      const values = formValues([service("web", { env: [env("API_KEY ", "hunter2", false)] })]);
+
+      const marked = withSecretsMarkedLike(values, [service("api", { env: [env(" API_KEY", "rotated", true)] })]);
+
+      expect(marked.services[0].env).toEqual([env("API_KEY ", "hunter2", true)]);
+    });
+
+    it("marks a variable whose value another copy holds as a secret, under whatever key", () => {
+      const values = formValues([service("web", { env: [env("API_KEY", "hunter2", false)] })]);
+
+      const marked = withSecretsMarkedLike(values, [service("web", { env: [env("OPENAI_KEY", "hunter2", true)] })]);
+
+      expect(marked.services[0].env).toEqual([env("API_KEY", "hunter2", true)]);
+    });
+
+    it("leaves a variable whose key the other copy holds only as a plain variable, whatever value it holds there", () => {
+      const values = formValues([service("web", { env: [env("API_KEY", "hunter2", false)] })]);
+
+      const marked = withSecretsMarkedLike(values, [service("web", { env: [env("API_KEY", "edited", false)] })]);
+
+      expect(marked.services[0].env).toEqual([env("API_KEY", "hunter2", false)]);
+    });
+
+    it("leaves a value the other copy also holds in a plain variable, which sealing here would not hide", () => {
+      const values = formValues([service("web", { env: [env("RETRY_DELAY", "1234", false)] })]);
+
+      const marked = withSecretsMarkedLike(values, [service("web", { env: [env("DB_PASSWORD", "1234", true), env("RETRY_DELAY", "1234", false)] })]);
+
+      expect(marked.services[0].env).toEqual([env("RETRY_DELAY", "1234", false)]);
+    });
+
+    it("drops the value of a variable whose key cannot name a secret, rather than minting a reference it cannot read back", () => {
+      const values = formValues([service("web", { env: [env("my-config.value", "hunter2", false)] })]);
+
+      const marked = withSecretsMarkedLike(values, [service("web", { env: [env("my-config.value", "hunter2", true)] })]);
+
+      expect(marked.services[0].env).toEqual([env("my-config.value", "", false)]);
+    });
+
+    it("leaves a variable with no value, which holds nothing to seal", () => {
+      const values = formValues([service("web", { env: [env("API_KEY", "", false)] })]);
+
+      const marked = withSecretsMarkedLike(values, [service("web", { env: [env("API_KEY", "", true)] })]);
+
+      expect(marked.services[0].env).toEqual([env("API_KEY", "", false)]);
+    });
+
+    it("keeps the rest of the deployment as it was", () => {
+      const values = formValues([service("web", { image: "nginx:1.25", env: [env("LOG_LEVEL", "debug", false)] }), service("api", { env: undefined })]);
+
+      const marked = withSecretsMarkedLike(values, [service("web", { env: [env("API_KEY", "hunter2", true)] })]);
+
+      expect(marked).toEqual(values);
     });
   });
 
