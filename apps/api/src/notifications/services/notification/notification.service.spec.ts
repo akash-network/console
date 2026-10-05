@@ -163,6 +163,32 @@ describe(NotificationService.name, () => {
     });
   });
 
+  describe("purgeUserData", () => {
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it("asks the notifications service to purge the user's channels and alerts", async () => {
+      const { service, apiInternal } = setup();
+      apiInternal.v1.purge.mockResolvedValueOnce(undefined as never);
+
+      await service.purgeUserData("user-1");
+
+      expect(apiInternal.v1.purge).toHaveBeenCalledWith({ userId: "user-1" });
+    });
+
+    it("retries when the notifications service fails", async () => {
+      vi.useFakeTimers();
+      const { service, apiInternal } = setup();
+      apiInternal.v1.purge.mockRejectedValueOnce(new ApiError(503, { message: "unavailable" }, "POST /internal/v1/users/user-1/purge → 503"));
+      apiInternal.v1.purge.mockResolvedValueOnce(undefined as never);
+
+      await Promise.all([service.purgeUserData("user-1"), vi.runAllTimersAsync()]);
+
+      expect(apiInternal.v1.purge).toHaveBeenCalledTimes(2);
+    });
+  });
+
   describe("autoEnableDeploymentAlert", () => {
     it("creates default channel when no channels exist, then upserts only the deployment-closed alert", async () => {
       const { service, api, userRepository } = setup();

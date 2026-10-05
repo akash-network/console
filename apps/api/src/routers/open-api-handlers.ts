@@ -55,7 +55,7 @@ import {
 } from "@src/provider";
 import { templatesRouter } from "@src/template";
 import { transactionsRouter } from "@src/transaction";
-import { getCurrentUserRouter, registerUserRouter, userSettingsRouter, userTemplatesRouter } from "@src/user";
+import { accountDeletionRouter, getCurrentUserRouter, registerUserRouter, userSettingsRouter, userTemplatesRouter } from "@src/user";
 import { validatorsRouter } from "@src/validator";
 
 export const openApiHonoHandlers: OpenApiHonoHandler[] = [
@@ -73,6 +73,7 @@ export const openApiHonoHandlers: OpenApiHonoHandler[] = [
   getCurrentUserRouter,
   userSettingsRouter,
   userTemplatesRouter,
+  accountDeletionRouter,
   sendVerificationEmailRouter,
   sendVerificationCodeRouter,
   signupRouter,

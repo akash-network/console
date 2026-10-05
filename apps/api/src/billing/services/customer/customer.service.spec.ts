@@ -59,6 +59,42 @@ describe(CustomerService.name, () => {
     });
   });
 
+  describe("deleteCustomer", () => {
+    it("deletes the Stripe customer", async () => {
+      const { service, stripe } = setup();
+      const del = vi.spyOn(stripe.customers, "del").mockResolvedValue(mock<Stripe.Response<Stripe.DeletedCustomer>>({ id: "cus_1", deleted: true }));
+
+      await service.deleteCustomer("cus_1");
+
+      expect(del).toHaveBeenCalledWith("cus_1");
+    });
+
+    it("treats a customer Stripe no longer has as deleted", async () => {
+      const { service, stripe } = setup();
+      vi.spyOn(stripe.customers, "del").mockRejectedValue(
+        new Stripe.errors.StripeInvalidRequestError({ type: "invalid_request_error", code: "resource_missing", message: "No such customer: 'cus_1'" })
+      );
+
+      await expect(service.deleteCustomer("cus_1")).resolves.toBeUndefined();
+    });
+
+    it("rethrows any other failure", async () => {
+      const { service, stripe } = setup();
+      const outage = new Stripe.errors.StripeAPIError({ type: "api_error", message: "Stripe is down" });
+      vi.spyOn(stripe.customers, "del").mockRejectedValue(outage);
+
+      await expect(service.deleteCustomer("cus_1")).rejects.toBe(outage);
+    });
+
+    it("rethrows an invalid request that is not a missing customer", async () => {
+      const { service, stripe } = setup();
+      const invalid = new Stripe.errors.StripeInvalidRequestError({ type: "invalid_request_error", code: "parameter_invalid_empty", message: "Invalid id" });
+      vi.spyOn(stripe.customers, "del").mockRejectedValue(invalid);
+
+      await expect(service.deleteCustomer("cus_1")).rejects.toBe(invalid);
+    });
+  });
+
   describe("updateCustomerOrganization", () => {
     it("sets the customer business name", async () => {
       const { service, stripe } = setup();

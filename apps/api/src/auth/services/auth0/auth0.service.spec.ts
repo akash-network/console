@@ -51,6 +51,31 @@ describe(Auth0Service.name, () => {
     });
   });
 
+  describe("deleteUser", () => {
+    it("deletes the user by id", async () => {
+      const deleteUser = vi.fn().mockResolvedValue(undefined);
+      const { auth0Service } = setup({ users: { delete: deleteUser } });
+
+      await auth0Service.deleteUser("auth0|xyz789");
+
+      expect(deleteUser).toHaveBeenCalledWith({ id: "auth0|xyz789" });
+    });
+
+    it("treats a user Auth0 no longer has as deleted", async () => {
+      const notFound = Object.assign(new Error("The user does not exist."), { statusCode: 404, body: "{}" });
+      const { auth0Service } = setup({ users: { delete: vi.fn().mockRejectedValue(notFound) } });
+
+      await expect(auth0Service.deleteUser("auth0|xyz789")).resolves.toBeUndefined();
+    });
+
+    it("rethrows any other failure", async () => {
+      const rateLimited = Object.assign(new Error("Too Many Requests"), { statusCode: 429, body: "{}" });
+      const { auth0Service } = setup({ users: { delete: vi.fn().mockRejectedValue(rateLimited) } });
+
+      await expect(auth0Service.deleteUser("auth0|xyz789")).rejects.toBe(rateLimited);
+    });
+  });
+
   describe("getUserByEmail", () => {
     it("returns user when user is found", async () => {
       const email = faker.internet.email();
@@ -164,7 +189,7 @@ describe(Auth0Service.name, () => {
   function setup(
     input: {
       jobs?: { verifyEmail: Mock };
-      users?: { update?: Mock; create?: Mock; link?: Mock };
+      users?: { update?: Mock; create?: Mock; link?: Mock; delete?: Mock };
       usersByEmail?: { getByEmail: Mock };
     } = {}
   ) {

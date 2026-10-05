@@ -5,6 +5,8 @@ import type { ClientInfoContextVariables } from "@src/middlewares/clientInfoMidd
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export interface AppContext<E extends Env = AppEnv, P extends string = any, I extends Input = {}> extends Context<E, P, I> {}
 
+export type AuthMethod = "bearer" | "api_key" | "none";
+
 export interface AppEnv extends Env {
-  Variables: ClientInfoContextVariables & Env["Variables"];
+  Variables: ClientInfoContextVariables & { authMethod?: AuthMethod } & Env["Variables"];
 }

@@ -152,6 +152,11 @@ export class UserTemplateRepository extends BaseRepository<ApiPgTables["Template
       .where(and(eq(this.table.id, id), eq(this.table.userId, userId)));
   }
 
+  async deleteAllOwnedBy(userId: string): Promise<void> {
+    await this.cursor.delete(this.favoriteTable).where(eq(this.favoriteTable.userId, userId));
+    await this.cursor.delete(this.table).where(eq(this.table.userId, userId));
+  }
+
   async deleteById(id: string | string[], userId?: string): Promise<void> {
     if (typeof id === "string" && userId) {
       await this.cursor.delete(this.table).where(and(eq(this.table.id, id), eq(this.table.userId, userId)));
