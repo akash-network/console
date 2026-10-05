@@ -11,7 +11,8 @@ describe("GpuInventoryCard", () => {
       models: [
         { vendor: "nvidia", model: "h100", ram: "80Gi", interface: "SXM5", total: 32, free: 4 },
         { vendor: "nvidia", model: "t4", ram: "16Gi", interface: "PCIe", total: 2, free: 0 }
-      ]
+      ],
+      hasGpus: true
     });
 
     const table = screen.getByRole("table", { name: "GPU models" });
@@ -83,6 +84,13 @@ describe("GpuInventoryCard", () => {
     expect(screen.queryByText(/CPU and memory provider/)).not.toBeInTheDocument();
   });
 
+  it("says an offline GPU provider reports no inventory rather than that it can't be loaded", () => {
+    setup({ models: [], isProviderOffline: true, hasGpus: true });
+
+    expect(screen.getByText("No inventory is reported while the provider is offline.")).toBeInTheDocument();
+    expect(screen.queryByText("The GPU inventory can't be loaded right now.")).not.toBeInTheDocument();
+  });
+
   it.each([{ isProviderOffline: true }, { isProviderOffline: false }])(
     "shows only placeholders while the inventory loads (offline: $isProviderOffline)",
     ({ isProviderOffline }) => {
@@ -99,6 +107,13 @@ describe("GpuInventoryCard", () => {
 
     expect(screen.getByLabelText("Loading the GPU inventory")).toBeInTheDocument();
     expect(screen.queryByText("The GPU inventory can't be loaded right now.")).not.toBeInTheDocument();
+  });
+
+  it("says the inventory can't be loaded when the provider reports GPUs the inventory doesn't list yet", () => {
+    setup({ models: [], hasGpus: true });
+
+    expect(screen.getByText("The GPU inventory can't be loaded right now.")).toBeInTheDocument();
+    expect(screen.queryByText(/No GPUs/)).not.toBeInTheDocument();
   });
 
   it("says when the inventory can't be loaded", () => {
@@ -137,6 +152,6 @@ describe("GpuInventoryCard", () => {
   });
 
   function setup(input: Partial<ComponentProps<typeof GpuInventoryCard>> & Pick<ComponentProps<typeof GpuInventoryCard>, "models">) {
-    render(<GpuInventoryCard isLoading={false} isProviderOffline={false} drivers={[]} freeVcpuCount={8} freeMemoryBytes={16e9} {...input} />);
+    render(<GpuInventoryCard isLoading={false} isProviderOffline={false} hasGpus={false} drivers={[]} freeVcpuCount={8} freeMemoryBytes={16e9} {...input} />);
   }
 });

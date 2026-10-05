@@ -79,10 +79,13 @@ describe("ProviderProfile", () => {
   });
 
   it("shows the vCPU, memory and disk free on a CPU provider", () => {
-    setup({ provider: { stats: createStats({ gpu: [0, 0], cpu: [41_000, 0], memory: [96e9, 0], ephemeral: [1e12, 0], persistent: [500e9, 0] }) } });
+    const { dependencies } = setup({
+      provider: { stats: createStats({ gpu: [0, 0], cpu: [41_000, 0], memory: [96e9, 0], ephemeral: [1e12, 0], persistent: [500e9, 0] }) }
+    });
 
     expect(card("Available now")).toHaveTextContent("41 vCPU");
     expect(card("Available now")).toHaveTextContent("96 GB RAM · 1.5 TB disk free");
+    expect(dependencies.GpuInventoryCard.mock.calls[0][0]).toMatchObject({ hasGpus: false });
   });
 
   it("shows the uptime over 30 days, 7 days and 24 hours", () => {
@@ -125,6 +128,7 @@ describe("ProviderProfile", () => {
       models: model.gpuModels,
       isLoading: false,
       isProviderOffline: false,
+      hasGpus: true,
       freeVcpuCount: 8
     });
     expect(dependencies.LeaseTrendCard.mock.calls[0][0]).toMatchObject({ trend: model.leaseTrend });

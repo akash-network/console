@@ -33,7 +33,7 @@ export const YourLeasesCard: FC<Props> = ({ leases, getDeploymentName, dependenc
             <d.PricePerTimeUnit
               denom={lease.price.denom}
               perBlockValue={uaktToAKT(parseFloat(lease.price.amount), 10)}
-              showAsHourly
+              showAsHourly={(lease.gpuAmount ?? 0) > 0}
               abbreviated
               className="whitespace-nowrap font-mono text-[11.5px] text-foreground"
             />

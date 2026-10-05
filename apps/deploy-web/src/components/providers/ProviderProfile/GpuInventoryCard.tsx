@@ -12,14 +12,16 @@ type Props = {
   models: GpuModelAvailability[] | null;
   isLoading: boolean;
   isProviderOffline: boolean;
+  hasGpus: boolean;
   drivers: ProviderGpuDriver[];
   freeVcpuCount: number;
   freeMemoryBytes: number;
 };
 
-export const GpuInventoryCard: FC<Props> = ({ models, isLoading, isProviderOffline, drivers, freeVcpuCount, freeMemoryBytes }) => {
+export const GpuInventoryCard: FC<Props> = ({ models, isLoading, isProviderOffline, hasGpus, drivers, freeVcpuCount, freeMemoryBytes }) => {
   const total = models?.reduce((sum, model) => sum + model.total, 0) ?? 0;
   const free = models?.reduce((sum, model) => sum + model.free, 0) ?? 0;
+  const isUnreadable = !models || (models.length === 0 && hasGpus && !isProviderOffline);
 
   return (
     <ProfileCard
@@ -33,13 +35,13 @@ export const GpuInventoryCard: FC<Props> = ({ models, isLoading, isProviderOffli
         </div>
       )}
 
-      {!isLoading && !models && <p className="px-3.5 py-4 text-[12.5px] text-muted-foreground">The GPU inventory can&apos;t be loaded right now.</p>}
+      {!isLoading && isUnreadable && <p className="px-3.5 py-4 text-[12.5px] text-muted-foreground">The GPU inventory can&apos;t be loaded right now.</p>}
 
       {!isLoading && models?.length === 0 && isProviderOffline && (
         <p className="px-3.5 py-4 text-[12.5px] text-muted-foreground">No inventory is reported while the provider is offline.</p>
       )}
 
-      {!isLoading && models?.length === 0 && !isProviderOffline && (
+      {!isLoading && models?.length === 0 && !isProviderOffline && !hasGpus && (
         <div className="flex items-start gap-2.5 px-3.5 pb-4 pt-3.5">
           <Cpu className="mt-px h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
           <p className="text-[12.5px] leading-[1.55] text-muted-foreground">

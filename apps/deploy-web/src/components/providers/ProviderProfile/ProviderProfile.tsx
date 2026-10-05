@@ -115,6 +115,7 @@ export const ProviderProfile: FC<Props> = ({ owner, initialProvider, dependencie
           models={model.gpuModels}
           isLoading={model.isLoadingGpus}
           isProviderOffline={model.isInactive}
+          hasGpus={totalOf(provider.stats.gpu) > 0}
           drivers={provider.gpuDrivers ?? []}
           freeVcpuCount={freeVcpuCount}
           freeMemoryBytes={freeMemoryBytes}
