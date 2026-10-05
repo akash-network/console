@@ -10378,6 +10378,11 @@ export interface operations {
                * @example Akash
                */
               organization: string | null;
+              /**
+               * @description Free GPUs matching the request on nodes that can also fit one replica of it; 0 when the request asks for no GPU
+               * @example 4
+               */
+              availableGpus: number;
               /** @description Per-day downtime over a rolling 7-day window */
               incidents: {
                 /**

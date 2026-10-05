@@ -14,6 +14,7 @@ describe(BidScreeningService.name, () => {
       const { service, repository, matcher } = setup();
       repository.findCandidates.mockResolvedValue([makeCandidate("akash1abc")]);
       matcher.match.mockReturnValue({ matched: true });
+      matcher.countAvailableGpus.mockReturnValue(3);
 
       const results = await service.findMatchingProviders(makeRequest());
 
@@ -25,9 +26,44 @@ describe(BidScreeningService.name, () => {
           createdAt: "2026-01-01T00:00:00.000Z",
           location: null,
           organization: null,
+          availableGpus: 3,
           incidents: []
         }
       ]);
+    });
+
+    it("counts each matched provider's available GPUs from its own cluster and declared architecture", async () => {
+      const { service, repository, matcher } = setup();
+      const candidate = makeCandidate("akash1abc", { declaredCpuArch: "arm64" });
+      repository.findCandidates.mockResolvedValue([candidate]);
+      matcher.match.mockReturnValue({ matched: true });
+
+      await service.findMatchingProviders(makeRequest());
+
+      expect(matcher.countAvailableGpus).toHaveBeenCalledWith(candidate.cluster, matcher.match.mock.calls[0][1], { declaredCpuArch: "arm64" });
+    });
+
+    it("does not count GPUs for a candidate that fails matching", async () => {
+      const { service, repository, matcher } = setup();
+      repository.findCandidates.mockResolvedValue([makeCandidate("akash1abc")]);
+      matcher.match.mockReturnValue({ matched: false, error: "INSUFFICIENT_CAPACITY" });
+
+      await service.findMatchingProviders(makeRequest());
+
+      expect(matcher.countAvailableGpus).not.toHaveBeenCalled();
+    });
+
+    it("returns every candidate with no available GPUs for a request without resources", async () => {
+      const { service, repository, matcher } = setup();
+      repository.findCandidates.mockResolvedValue([makeCandidate("akash1abc"), makeCandidate("akash1def")]);
+
+      const results = await service.findMatchingProviders({ ...makeRequest(), resources: [] });
+
+      expect(results.map(result => [result.owner, result.availableGpus])).toEqual([
+        ["akash1abc", 0],
+        ["akash1def", 0]
+      ]);
+      expect(matcher.match).not.toHaveBeenCalled();
     });
 
     it("threads candidate.location through to the result", async () => {

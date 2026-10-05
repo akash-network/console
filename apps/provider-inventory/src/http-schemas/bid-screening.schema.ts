@@ -168,6 +168,10 @@ const ProviderResultSchema = z.object({
     description: "Provider organization from the organization attribute (signed preferred, else self-declared); null if unset",
     example: "Akash"
   }),
+  availableGpus: z.number().int().nonnegative().openapi({
+    description: "Free GPUs matching the request on nodes that can also fit one replica of it; 0 when the request asks for no GPU",
+    example: 4
+  }),
   incidents: z
     .array(
       z.object({

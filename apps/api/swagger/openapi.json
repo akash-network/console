@@ -20360,6 +20360,12 @@
                             "description": "Provider organization from the organization attribute (signed preferred, else self-declared); null if unset",
                             "example": "Akash"
                           },
+                          "availableGpus": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "description": "Free GPUs matching the request on nodes that can also fit one replica of it; 0 when the request asks for no GPU",
+                            "example": 4
+                          },
                           "incidents": {
                             "type": "array",
                             "items": {
@@ -20400,6 +20406,7 @@
                           "createdAt",
                           "location",
                           "organization",
+                          "availableGpus",
                           "incidents"
                         ]
                       }

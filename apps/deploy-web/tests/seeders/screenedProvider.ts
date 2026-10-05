@@ -11,6 +11,7 @@ export function buildScreenedProvider(overrides?: Partial<ScreenedProvider>): Sc
     createdAt: faker.date.past().toISOString(),
     location: faker.location.state({ abbreviated: true }),
     organization: null,
+    availableGpus: faker.number.int({ min: 0, max: 8 }),
     incidents: [],
     ...overrides
   };

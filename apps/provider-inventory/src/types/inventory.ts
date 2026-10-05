@@ -84,6 +84,7 @@ export interface BidScreeningResult {
   createdAt: string;
   location: string | null;
   organization: string | null;
+  availableGpus: number;
   incidents: Omit<DailyDowntimeRow, "provider">[];
 }
 

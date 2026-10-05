@@ -174,6 +174,7 @@ function providerListToOffer(owner: string, provider?: BidderProvider): Screened
     createdAt: "",
     location: provider?.locationRegion || null,
     organization: provider?.organization || null,
+    availableGpus: 0,
     incidents: []
   };
 }
