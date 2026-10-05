@@ -11,17 +11,11 @@ import userEvent from "@testing-library/user-event";
 import { MockComponents } from "@tests/unit/mocks";
 
 describe(TemplateDetail.name, () => {
-  it("shows the template's name and summary", () => {
+  it("shows the template's name without repeating the summary its README already opens with", () => {
     setup({});
 
     expect(screen.getByRole("heading", { level: 1, name: "ComfyUI" })).toBeInTheDocument();
-    expect(screen.getByText("The most powerful and modular stable diffusion GUI.", { selector: "p" })).toBeInTheDocument();
-  });
-
-  it("leaves out the summary when the template has none", () => {
-    const { container } = setup({ template: { summary: "" } });
-
-    expect(container.querySelector("header p")).not.toBeInTheDocument();
+    expect(screen.queryByText("The most powerful and modular stable diffusion GUI.")).not.toBeInTheDocument();
   });
 
   it("deploys the template through Configure", () => {
