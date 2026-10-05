@@ -58,8 +58,18 @@ describe(PurgeDeletedAccountHandler.name, () => {
       error: notificationsDown
     });
     expect(logger.error).toHaveBeenCalledWith({ event: "ACCOUNT_DELETION_CLEANUP_FAILED", userId: payload.userId, step: "stripe", error: stripeDown });
-    expect(analyticsService.track).toHaveBeenCalledWith(payload.userId, "account_deletion_failed", { step: "notifications", error_type: "TypeError" });
-    expect(analyticsService.track).toHaveBeenCalledWith(payload.userId, "account_deletion_failed", { step: "stripe", error_type: "Error" });
+    expect(analyticsService.track).toHaveBeenCalledWith(
+      payload.userId,
+      "account_deletion_failed",
+      { step: "notifications", error_type: "TypeError" },
+      { insertId: `account_deletion_failed.${payload.userId}.notifications` }
+    );
+    expect(analyticsService.track).toHaveBeenCalledWith(
+      payload.userId,
+      "account_deletion_failed",
+      { step: "stripe", error_type: "Error" },
+      { insertId: `account_deletion_failed.${payload.userId}.stripe` }
+    );
   });
 
   it("reports the type of a failure that is not an Error", async () => {
@@ -68,7 +78,12 @@ describe(PurgeDeletedAccountHandler.name, () => {
 
     await expect(handler.handle(payload)).rejects.toThrow();
 
-    expect(analyticsService.track).toHaveBeenCalledWith(payload.userId, "account_deletion_failed", { step: "auth0", error_type: "string" });
+    expect(analyticsService.track).toHaveBeenCalledWith(
+      payload.userId,
+      "account_deletion_failed",
+      { step: "auth0", error_type: "string" },
+      { insertId: `account_deletion_failed.${payload.userId}.auth0` }
+    );
   });
 
   it("accepts the job the deletion enqueues", () => {

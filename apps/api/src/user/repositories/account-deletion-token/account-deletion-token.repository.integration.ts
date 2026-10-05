@@ -17,23 +17,23 @@ describe(AccountDeletionTokenRepository.name, () => {
       const first = hash();
       const second = hash();
 
-      await repository.replaceForUser({ userId, tokenHash: first, forfeitAcknowledged: false, expiresAt: addMinutes(new Date(), 15) });
-      await repository.replaceForUser({ userId, tokenHash: second, forfeitAcknowledged: true, expiresAt: addMinutes(new Date(), 15) });
+      await repository.replaceForUser({ userId, tokenHash: first, acknowledgedForfeitUsd: 0, expiresAt: addMinutes(new Date(), 15) });
+      await repository.replaceForUser({ userId, tokenHash: second, acknowledgedForfeitUsd: 12.5, expiresAt: addMinutes(new Date(), 15) });
 
       expect(await repository.findByTokenHash(first)).toBeUndefined();
-      expect(await repository.findByTokenHash(second)).toMatchObject({ userId, forfeitAcknowledged: true });
+      expect(await repository.findByTokenHash(second)).toMatchObject({ userId, acknowledgedForfeitUsd: 12.5 });
     });
 
     it("restarts the link's age when it replaces one", async () => {
       const { repository, db, userId, hash } = await setup();
       const table = resolveTable("AccountDeletionTokens");
-      await repository.replaceForUser({ userId, tokenHash: hash(), forfeitAcknowledged: false, expiresAt: addMinutes(new Date(), 15) });
+      await repository.replaceForUser({ userId, tokenHash: hash(), acknowledgedForfeitUsd: 0, expiresAt: addMinutes(new Date(), 15) });
       await db
         .update(table)
         .set({ createdAt: subMinutes(new Date(), 30) })
         .where(eq(table.userId, userId));
 
-      await repository.replaceForUser({ userId, tokenHash: hash(), forfeitAcknowledged: false, expiresAt: addMinutes(new Date(), 15) });
+      await repository.replaceForUser({ userId, tokenHash: hash(), acknowledgedForfeitUsd: 0, expiresAt: addMinutes(new Date(), 15) });
 
       const token = await repository.findByUserId(userId);
       expect(token!.createdAt.getTime()).toBeGreaterThan(subMinutes(new Date(), 1).getTime());
@@ -43,7 +43,7 @@ describe(AccountDeletionTokenRepository.name, () => {
   describe("deleteByUserId", () => {
     it("removes the user's link", async () => {
       const { repository, userId, hash } = await setup();
-      await repository.replaceForUser({ userId, tokenHash: hash(), forfeitAcknowledged: false, expiresAt: addMinutes(new Date(), 15) });
+      await repository.replaceForUser({ userId, tokenHash: hash(), acknowledgedForfeitUsd: 0, expiresAt: addMinutes(new Date(), 15) });
 
       await repository.deleteByUserId(userId);
 

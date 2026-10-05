@@ -62,7 +62,12 @@ export class PurgeDeletedAccountHandler implements JobHandler<PurgeDeletedAccoun
       } catch (error) {
         failedSteps.push(step);
         this.logger.error({ event: "ACCOUNT_DELETION_CLEANUP_FAILED", userId, step, error });
-        this.analyticsService.track(userId, "account_deletion_failed", { step, error_type: error instanceof Error ? error.name : typeof error });
+        this.analyticsService.track(
+          userId,
+          "account_deletion_failed",
+          { step, error_type: error instanceof Error ? error.name : typeof error },
+          { insertId: `account_deletion_failed.${userId}.${step}` }
+        );
       }
     };
 

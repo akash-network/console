@@ -23,7 +23,7 @@ export class AccountDeletionTokenRepository extends BaseRepository<Table, Accoun
     return new AccountDeletionTokenRepository(this.pg, this.table, this.txManager).withAbility(...abilityParams) as this;
   }
 
-  async replaceForUser(input: { userId: string; tokenHash: string; forfeitAcknowledged: boolean; expiresAt: Date }): Promise<AccountDeletionTokenOutput> {
+  async replaceForUser(input: { userId: string; tokenHash: string; acknowledgedForfeitUsd: number; expiresAt: Date }): Promise<AccountDeletionTokenOutput> {
     const [token] = await this.cursor
       .insert(this.table)
       .values(input)
@@ -31,7 +31,7 @@ export class AccountDeletionTokenRepository extends BaseRepository<Table, Accoun
         target: this.table.userId,
         set: {
           tokenHash: input.tokenHash,
-          forfeitAcknowledged: input.forfeitAcknowledged,
+          acknowledgedForfeitUsd: input.acknowledgedForfeitUsd,
           expiresAt: input.expiresAt,
           createdAt: sql`now()`
         }

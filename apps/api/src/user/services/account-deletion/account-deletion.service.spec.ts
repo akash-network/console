@@ -66,7 +66,7 @@ describe(AccountDeletionService.name, () => {
       expect(tokenRepository.replaceForUser).toHaveBeenCalledWith({
         userId: user.id,
         tokenHash: sha256(token),
-        forfeitAcknowledged: false,
+        acknowledgedForfeitUsd: 0,
         expiresAt: expect.any(Date)
       });
     });
@@ -146,13 +146,21 @@ describe(AccountDeletionService.name, () => {
 
       await service.initiate(user, { forfeitAcknowledged: true });
 
-      expect(tokenRepository.replaceForUser).toHaveBeenCalledWith(expect.objectContaining({ forfeitAcknowledged: true }));
+      expect(tokenRepository.replaceForUser).toHaveBeenCalledWith(expect.objectContaining({ acknowledgedForfeitUsd: 12.5 }));
       expect(sentNotification(notificationService).payload.description).toContain("$12.50");
       expect(analyticsService.track).toHaveBeenCalledWith(user.id, "account_deletion_started", {
         forfeit_acknowledged: true,
         had_balance: true,
         is_trial: false
       });
+    });
+
+    it("acknowledges nothing to forfeit for an account without credits, whatever the request says", async () => {
+      const { service, user, tokenRepository } = setup();
+
+      await service.initiate(user, { forfeitAcknowledged: true });
+
+      expect(tokenRepository.replaceForUser).toHaveBeenCalledWith(expect.objectContaining({ acknowledgedForfeitUsd: 0 }));
     });
 
     it("refuses another link within a minute of the last one and says when to retry", async () => {
@@ -173,6 +181,18 @@ describe(AccountDeletionService.name, () => {
       await service.initiate(user, { forfeitAcknowledged: false });
 
       expect(notificationService.createNotification).toHaveBeenCalledTimes(1);
+    });
+
+    it("still reports the email failure when withdrawing the link fails too", async () => {
+      const failure = new Error("notifications unavailable");
+      const cleanupFailure = new Error("database unavailable");
+      const { service, user, tokenRepository, logger } = setup({ emailFails: failure });
+      tokenRepository.deleteByUserId.mockRejectedValue(cleanupFailure);
+
+      await expect(service.initiate(user, { forfeitAcknowledged: false })).rejects.toBe(failure);
+
+      expect(logger.error).toHaveBeenCalledWith({ event: "ACCOUNT_DELETION_EMAIL_FAILED", userId: user.id, error: failure });
+      expect(logger.error).toHaveBeenCalledWith({ event: "ACCOUNT_DELETION_TOKEN_CLEANUP_FAILED", userId: user.id, error: cleanupFailure });
     });
 
     it("withdraws the link and reports the failure when the email cannot be sent", async () => {
@@ -216,13 +236,12 @@ describe(AccountDeletionService.name, () => {
       expect(tokenRepository.findByTokenHash).toHaveBeenCalledWith(sha256("link-token"));
     });
 
-    it("reports the confirmation before the user row is gone", async () => {
-      const { service, user, analyticsService, userRepository, logger } = setup({ storedToken: {}, eligibility: { ...CLEAN_ACCOUNT, isTrialing: true } });
+    it("reports the confirmation once the account is erased", async () => {
+      const { service, user, analyticsService, logger } = setup({ storedToken: {}, eligibility: { ...CLEAN_ACCOUNT, isTrialing: true } });
 
       await service.confirm({ token: "link-token" });
 
       expect(analyticsService.track).toHaveBeenCalledWith(user.id, "account_deletion_confirmed", { had_balance: false, is_trial: true });
-      expect(analyticsService.track.mock.invocationCallOrder[0]).toBeLessThan(userRepository.deleteById.mock.invocationCallOrder[0]);
       expect(logger.info).toHaveBeenCalledWith({ event: "ACCOUNT_DELETION_CONFIRMED", userId: user.id });
     });
 
@@ -248,12 +267,14 @@ describe(AccountDeletionService.name, () => {
     });
 
     it("does nothing when a concurrent confirmation already deleted the user", async () => {
-      const { service, userRepository, jobQueueService } = setup({ storedToken: {}, lockedUserGone: true });
+      const { service, userRepository, jobQueueService, analyticsService, logger } = setup({ storedToken: {}, lockedUserGone: true });
 
       await service.confirm({ token: "link-token" });
 
       expect(userRepository.deleteById).not.toHaveBeenCalled();
       expect(jobQueueService.enqueue).not.toHaveBeenCalled();
+      expect(analyticsService.track).not.toHaveBeenCalledWith(expect.anything(), "account_deletion_confirmed", expect.anything());
+      expect(logger.info).not.toHaveBeenCalledWith(expect.objectContaining({ event: "ACCOUNT_DELETION_CONFIRMED" }));
     });
 
     it("answers 404 when the flag is off for the user the link belongs to", async () => {
@@ -302,7 +323,7 @@ describe(AccountDeletionService.name, () => {
 
     it("refuses when credits appeared after a link that did not acknowledge a forfeit", async () => {
       const { service, user, userRepository, analyticsService } = setup({
-        storedToken: { forfeitAcknowledged: false },
+        storedToken: { acknowledgedForfeitUsd: 0 },
         eligibility: { ...CLEAN_ACCOUNT, forfeitableBalanceUsd: 5 }
       });
 
@@ -316,9 +337,28 @@ describe(AccountDeletionService.name, () => {
       expect(analyticsService.track).toHaveBeenCalledWith(user.id, "account_deletion_blocked", { reason: "balance_without_forfeit" });
     });
 
+    it("refuses when the credits grew past the amount the link acknowledged", async () => {
+      const { service, userRepository } = setup({ storedToken: { acknowledgedForfeitUsd: 5 }, eligibility: { ...CLEAN_ACCOUNT, forfeitableBalanceUsd: 500 } });
+
+      await expect(service.confirm({ token: "link-token" })).rejects.toMatchObject({ status: 409, errorCode: "forfeit_acknowledgement_required" });
+
+      expect(userRepository.deleteById).not.toHaveBeenCalled();
+    });
+
+    it("deletes an account whose credits shrank since the link acknowledged them", async () => {
+      const { service, user, userRepository } = setup({
+        storedToken: { acknowledgedForfeitUsd: 5 },
+        eligibility: { ...CLEAN_ACCOUNT, forfeitableBalanceUsd: 3 }
+      });
+
+      await service.confirm({ token: "link-token" });
+
+      expect(userRepository.deleteById).toHaveBeenCalledWith(user.id);
+    });
+
     it("deletes an account with credits when its link acknowledged the forfeit", async () => {
       const { service, user, userRepository, analyticsService } = setup({
-        storedToken: { forfeitAcknowledged: true },
+        storedToken: { acknowledgedForfeitUsd: 5 },
         eligibility: { ...CLEAN_ACCOUNT, forfeitableBalanceUsd: 5 }
       });
 
@@ -362,7 +402,7 @@ describe(AccountDeletionService.name, () => {
       id: faker.string.uuid(),
       userId: user.id,
       tokenHash: sha256("link-token"),
-      forfeitAcknowledged: false,
+      acknowledgedForfeitUsd: 0,
       expiresAt: addMinutes(new Date(), 10),
       createdAt: new Date(),
       ...overrides
@@ -372,6 +412,7 @@ describe(AccountDeletionService.name, () => {
     tokenRepository.findByUserId.mockResolvedValue(input.existingToken ? tokenFor(input.existingToken) : undefined);
     tokenRepository.findByTokenHash.mockResolvedValue(input.storedToken ? tokenFor(input.storedToken) : undefined);
     tokenRepository.replaceForUser.mockImplementation(async token => tokenFor(token));
+    tokenRepository.deleteByUserId.mockResolvedValue(undefined);
 
     const eligibilityService = mock<AccountDeletionEligibilityService>();
     eligibilityService.assess.mockResolvedValue(input.eligibility ?? CLEAN_ACCOUNT);

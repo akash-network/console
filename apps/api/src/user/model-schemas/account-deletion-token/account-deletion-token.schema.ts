@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { boolean, pgTable, timestamp, uniqueIndex, uuid, varchar } from "drizzle-orm/pg-core";
+import { doublePrecision, pgTable, timestamp, uniqueIndex, uuid, varchar } from "drizzle-orm/pg-core";
 
 import { Users } from "@src/user/model-schemas/user/user.schema";
 
@@ -14,7 +14,7 @@ export const AccountDeletionTokens = pgTable(
       .references(() => Users.id, { onDelete: "cascade" })
       .notNull(),
     tokenHash: varchar("token_hash", { length: 64 }).notNull(),
-    forfeitAcknowledged: boolean("forfeit_acknowledged").default(false).notNull(),
+    acknowledgedForfeitUsd: doublePrecision("acknowledged_forfeit_usd").default(0).notNull(),
     expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull()
   },

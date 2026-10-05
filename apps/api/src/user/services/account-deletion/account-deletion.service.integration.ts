@@ -118,7 +118,7 @@ describe(AccountDeletionService.name, () => {
     await container.resolve(AccountDeletionTokenRepository).replaceForUser({
       userId: account.user.id,
       tokenHash: createHash("sha256").update(token).digest("hex"),
-      forfeitAcknowledged: false,
+      acknowledgedForfeitUsd: 0,
       expiresAt: addMinutes(new Date(), 10)
     });
 

@@ -75,7 +75,7 @@ export class AccountDeletionService {
     await this.tokenRepository.replaceForUser({
       userId: user.id,
       tokenHash: hashToken(token),
-      forfeitAcknowledged: input.forfeitAcknowledged,
+      acknowledgedForfeitUsd: input.forfeitAcknowledged ? eligibility.forfeitableBalanceUsd : 0,
       expiresAt: addMinutes(new Date(), DELETION_LINK_TTL_MINUTES)
     });
     await this.sendConfirmationEmail(user, token, eligibility.forfeitableBalanceUsd);
@@ -113,20 +113,21 @@ export class AccountDeletionService {
     const eligibility = await this.eligibilityService.assess(user.id);
     this.assertNoActiveDeployments(user.id, eligibility);
 
-    if (eligibility.forfeitableBalanceUsd > 0 && !record.forfeitAcknowledged) {
+    if (eligibility.forfeitableBalanceUsd > record.acknowledgedForfeitUsd) {
       this.reportBlocked(user.id, "balance_without_forfeit");
-      throw createError(409, "This account has credits that were not there when the deletion was requested. Request a new deletion link.", {
+      throw createError(409, "This account has more credits than were acknowledged when the deletion was requested. Request a new deletion link.", {
         errorCode: "forfeit_acknowledgement_required",
         data: { balanceUsd: eligibility.forfeitableBalanceUsd }
       });
     }
 
+    if (!(await this.eraseAccount(user))) return;
+
+    this.logger.info({ event: "ACCOUNT_DELETION_CONFIRMED", userId: user.id });
     this.analyticsService.track(user.id, "account_deletion_confirmed", {
       had_balance: eligibility.forfeitableBalanceUsd > 0,
       is_trial: eligibility.isTrialing
     });
-    await this.eraseAccount(user);
-    this.logger.info({ event: "ACCOUNT_DELETION_CONFIRMED", userId: user.id });
   }
 
   private async assertResendCooldownElapsed(userId: string): Promise<void> {
@@ -166,17 +167,19 @@ export class AccountDeletionService {
         accountDeletionConfirmationNotification(user, { confirmUrl, expiresInMinutes: DELETION_LINK_TTL_MINUTES, forfeitedBalanceUsd })
       );
     } catch (error) {
-      await this.tokenRepository.deleteByUserId(user.id);
       this.logger.error({ event: "ACCOUNT_DELETION_EMAIL_FAILED", userId: user.id, error });
+      await this.tokenRepository.deleteByUserId(user.id).catch(cleanupError => {
+        this.logger.error({ event: "ACCOUNT_DELETION_TOKEN_CLEANUP_FAILED", userId: user.id, error: cleanupError });
+      });
       throw error;
     }
   }
 
   /** Templates and favorites key on the Auth0 id and probe evidence on the wallet id, so no foreign key cascades them with the user row. */
-  private async eraseAccount(user: UserOutput): Promise<void> {
-    await this.txService.transaction(async () => {
+  private async eraseAccount(user: UserOutput): Promise<boolean> {
+    return await this.txService.transaction(async () => {
       const lockedUser = await this.userRepository.findOneByAndLock({ id: user.id });
-      if (!lockedUser) return;
+      if (!lockedUser) return false;
 
       const wallet = await this.userWalletRepository.findOneByUserId(user.id);
 
@@ -188,6 +191,8 @@ export class AccountDeletionService {
         new PurgeDeletedAccount({ userId: user.id, auth0UserId: lockedUser.userId, stripeCustomerId: lockedUser.stripeCustomerId }),
         PURGE_DELETED_ACCOUNT_RETRY_OPTIONS
       );
+
+      return true;
     });
   }
 }

@@ -73,7 +73,7 @@ describe("Account deletion", () => {
       expect(confirmUrl.pathname).toBe("/user/confirm-delete");
       expect(confirmUrl.search).toBe("");
       const linkToken = new URLSearchParams(confirmUrl.hash.slice(1)).get("token")!;
-      expect(await tokenRepository.findByUserId(user.id)).toMatchObject({ tokenHash: sha256(linkToken), forfeitAcknowledged: false });
+      expect(await tokenRepository.findByUserId(user.id)).toMatchObject({ tokenHash: sha256(linkToken), acknowledgedForfeitUsd: 0 });
     });
 
     it("refuses an account with active deployments and names them", async () => {
@@ -95,7 +95,7 @@ describe("Account deletion", () => {
       await tokenRepository.replaceForUser({
         userId: user.id,
         tokenHash: sha256(faker.string.alphanumeric(43)),
-        forfeitAcknowledged: false,
+        acknowledgedForfeitUsd: 0,
         expiresAt: addMinutes(new Date(), 15)
       });
 
@@ -177,7 +177,7 @@ describe("Account deletion", () => {
     await tokenRepository.replaceForUser({
       userId: user.id,
       tokenHash: sha256(linkToken),
-      forfeitAcknowledged: false,
+      acknowledgedForfeitUsd: 0,
       expiresAt: input.expiresAt ?? addMinutes(new Date(), 15)
     });
 
