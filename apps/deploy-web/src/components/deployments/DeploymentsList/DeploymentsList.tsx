@@ -61,139 +61,149 @@ export const DeploymentsList: React.FunctionComponent<Props> = ({ dependencies: 
   };
 
   return (
-    <d.Layout isLoading={model.isLoadingDeployments || model.isLoadingProviders}>
+    <d.Layout isLoading={model.isLoadingDeployments || model.isLoadingProviders} disableContainer>
       <NextSeo title="Deployments" />
 
-      {model.hasWallet && (
-        <div className="flex flex-wrap items-center gap-3 pb-6">
-          <div className="mr-auto flex items-center gap-6">
-            <h1 className="text-3xl font-bold tracking-tight">Deployments</h1>
+      <div className="flex flex-col md:h-[calc(100dvh_-_var(--app-header-height,57px)_-_4px)]">
+        {model.hasWallet && (
+          <div className="flex min-h-[60px] shrink-0 flex-wrap items-center gap-3 border-b border-border bg-background px-4 py-2.5 sm:px-6">
+            <div className="mr-auto flex items-center gap-6">
+              <h1 className="whitespace-nowrap text-xl font-bold leading-7 tracking-[-0.02em]">Deployments</h1>
 
-            {model.selectedItemIds.length > 0 && (
+              {model.selectedItemIds.length > 0 && (
+                <>
+                  <Button onClick={model.closeSelectedDeployments} variant="outline" size="sm">
+                    Close selected ({model.selectedItemIds.length})
+                  </Button>
+                  <LinkTo className="text-sm" onClick={model.clearSelection}>
+                    Clear
+                  </LinkTo>
+                </>
+              )}
+            </div>
+
+            {model.hasAnyDeployment && (
               <>
-                <Button onClick={model.closeSelectedDeployments} variant="outline" size="sm">
-                  Close selected ({model.selectedItemIds.length})
+                <Input
+                  value={model.search}
+                  onChange={changeSearch}
+                  aria-label="Search deployments"
+                  placeholder="Search deployments"
+                  maxLength={MAX_SEARCH_LENGTH}
+                  className="w-full sm:w-64"
+                  type="text"
+                  startIcon={<Search className="ml-3 h-4 w-4 text-muted-foreground" />}
+                  endIcon={
+                    !!model.search && (
+                      <Button size="icon" variant="text" aria-label="Clear search" onClick={() => model.changeSearch("")}>
+                        <Xmark className="text-xs" />
+                      </Button>
+                    )
+                  }
+                />
+
+                <Button aria-label="Refresh deployments" onClick={model.refetchDeployments} size="icon" variant="ghost">
+                  <Refresh />
                 </Button>
-                <LinkTo className="text-sm" onClick={model.clearSelection}>
-                  Clear
-                </LinkTo>
+
+                <ToggleGroup type="single" value={model.viewMode} onValueChange={model.changeViewMode} variant="outline" className="gap-0 rounded-md border">
+                  <ToggleGroupItem value="grid" aria-label="Grid view" className="rounded-r-none border-0">
+                    <ViewGrid className="h-4 w-4" />
+                  </ToggleGroupItem>
+                  <ToggleGroupItem value="list" aria-label="List view" className="rounded-l-none border-0">
+                    <List className="h-4 w-4" />
+                  </ToggleGroupItem>
+                </ToggleGroup>
               </>
             )}
+
+            {model.showNewDeploymentLink && (
+              <Link
+                href={newDeploymentUrl()}
+                className={cn("space-x-2", buttonVariants({ variant: "default" }), isBlockchainDown && "pointer-events-none opacity-50")}
+                aria-disabled={isBlockchainDown}
+                onClick={startNewDeploymentUnlessChainIsDown}
+              >
+                <span className="whitespace-nowrap">New deployment</span>
+                <NavArrowRight className="h-4 w-4" />
+              </Link>
+            )}
           </div>
+        )}
 
-          {model.hasAnyDeployment && (
-            <>
-              <Input
-                value={model.search}
-                onChange={changeSearch}
-                aria-label="Search deployments"
-                placeholder="Search deployments"
-                maxLength={MAX_SEARCH_LENGTH}
-                className="w-full sm:w-64"
-                type="text"
-                startIcon={<Search className="ml-3 h-4 w-4 text-muted-foreground" />}
-                endIcon={
-                  !!model.search && (
-                    <Button size="icon" variant="text" aria-label="Clear search" onClick={() => model.changeSearch("")}>
-                      <Xmark className="text-xs" />
-                    </Button>
-                  )
-                }
+        <div className="md:min-h-0 md:flex-1 md:overflow-y-auto">
+          <div className="container p-6 pb-8">
+            {model.showErrorState && (
+              <div className="flex flex-col items-center justify-center gap-4 py-8">
+                <p className="text-muted-foreground">Couldn&apos;t load deployments.</p>
+                <Button variant="outline" size="sm" onClick={model.refetchDeployments}>
+                  <Refresh className="mr-2 h-4 w-4" />
+                  Retry
+                </Button>
+              </div>
+            )}
+
+            {model.hasSettledWithoutActiveDeployments && (
+              <d.DeploymentsEmptyState
+                onDeployClick={model.startNewDeployment}
+                hasDeployments={model.hasAnyArchived}
+                showTemplatesButton={!model.hasAnyArchived}
               />
+            )}
 
-              <Button aria-label="Refresh deployments" onClick={model.refetchDeployments} size="icon" variant="ghost">
-                <Refresh />
-              </Button>
+            {(model.hasPageResults || model.isInitialLoad) && (
+              <d.DeploymentsCollection
+                deployments={model.pageDeployments}
+                providers={model.providers}
+                viewMode={model.viewMode}
+                isLoading={model.isInitialLoad}
+                isSelectable
+                selectedIds={model.selectedItemIds}
+                onSelect={model.selectItem}
+                onDeploymentClosed={model.refetchDeployments}
+              />
+            )}
 
-              <ToggleGroup type="single" value={model.viewMode} onValueChange={model.changeViewMode} variant="outline" className="gap-0 rounded-md border">
-                <ToggleGroupItem value="grid" aria-label="Grid view" className="rounded-r-none border-0">
-                  <ViewGrid className="h-4 w-4" />
-                </ToggleGroupItem>
-                <ToggleGroupItem value="list" aria-label="List view" className="rounded-l-none border-0">
-                  <List className="h-4 w-4" />
-                </ToggleGroupItem>
-              </ToggleGroup>
-            </>
-          )}
+            {model.showNoSearchResults && <p className="py-6">No deployment found.</p>}
 
-          {model.showNewDeploymentLink && (
-            <Link
-              href={newDeploymentUrl()}
-              className={cn("space-x-2", buttonVariants({ variant: "default" }), isBlockchainDown && "pointer-events-none opacity-50")}
-              aria-disabled={isBlockchainDown}
-              onClick={startNewDeploymentUnlessChainIsDown}
-            >
-              <span className="whitespace-nowrap">New deployment</span>
-              <NavArrowRight className="h-4 w-4" />
-            </Link>
-          )}
+            {model.showSearchTooBroad && <p className="py-6">Too many deployments to search through. Clear the search to page through them instead.</p>}
+
+            {model.showPageSizeSelector && (
+              <div className="flex flex-col items-center justify-between px-2 py-8 md:flex-row md:space-x-4">
+                <PaginationSizeSelector pageSize={model.pageSize} setPageSize={model.changePageSize} />
+                {model.isPaginated && (
+                  <Pagination>
+                    <PaginationContent>
+                      <PaginationItem>
+                        <PaginationPrevious onClick={model.goToPreviousPage} disabled={model.pageIndex === 0} />
+                      </PaginationItem>
+                      <PaginationItem>
+                        <PaginationNext onClick={model.goToNextPage} disabled={!model.hasNextPage} />
+                      </PaginationItem>
+                    </PaginationContent>
+                  </Pagination>
+                )}
+              </div>
+            )}
+
+            <d.DeploymentArchive
+              deployments={model.archivePageDeployments}
+              totalCount={model.archiveTotal}
+              providers={model.providers}
+              viewMode={model.viewMode}
+              isError={model.showArchiveError}
+              isSearchTooBroad={model.showArchiveSearchTooBroad}
+              isRetrying={model.isRetryingArchive}
+              onRetry={model.refetchDeployments}
+              pageIndex={model.archivePageIndex}
+              hasNextPage={model.hasNextArchivePage}
+              isPaginated={model.isArchivePaginated}
+              onPreviousPage={model.goToPreviousArchivePage}
+              onNextPage={model.goToNextArchivePage}
+            />
+          </div>
         </div>
-      )}
-
-      {model.showErrorState && (
-        <div className="flex flex-col items-center justify-center gap-4 py-8">
-          <p className="text-muted-foreground">Couldn&apos;t load deployments.</p>
-          <Button variant="outline" size="sm" onClick={model.refetchDeployments}>
-            <Refresh className="mr-2 h-4 w-4" />
-            Retry
-          </Button>
-        </div>
-      )}
-
-      {model.hasSettledWithoutActiveDeployments && (
-        <d.DeploymentsEmptyState onDeployClick={model.startNewDeployment} hasDeployments={model.hasAnyArchived} showTemplatesButton={!model.hasAnyArchived} />
-      )}
-
-      {(model.hasPageResults || model.isInitialLoad) && (
-        <d.DeploymentsCollection
-          deployments={model.pageDeployments}
-          providers={model.providers}
-          viewMode={model.viewMode}
-          isLoading={model.isInitialLoad}
-          isSelectable
-          selectedIds={model.selectedItemIds}
-          onSelect={model.selectItem}
-          onDeploymentClosed={model.refetchDeployments}
-        />
-      )}
-
-      {model.showNoSearchResults && <p className="py-6">No deployment found.</p>}
-
-      {model.showSearchTooBroad && <p className="py-6">Too many deployments to search through. Clear the search to page through them instead.</p>}
-
-      {model.showPageSizeSelector && (
-        <div className="flex flex-col items-center justify-between px-2 py-8 md:flex-row md:space-x-4">
-          <PaginationSizeSelector pageSize={model.pageSize} setPageSize={model.changePageSize} />
-          {model.isPaginated && (
-            <Pagination>
-              <PaginationContent>
-                <PaginationItem>
-                  <PaginationPrevious onClick={model.goToPreviousPage} disabled={model.pageIndex === 0} />
-                </PaginationItem>
-                <PaginationItem>
-                  <PaginationNext onClick={model.goToNextPage} disabled={!model.hasNextPage} />
-                </PaginationItem>
-              </PaginationContent>
-            </Pagination>
-          )}
-        </div>
-      )}
-
-      <d.DeploymentArchive
-        deployments={model.archivePageDeployments}
-        totalCount={model.archiveTotal}
-        providers={model.providers}
-        viewMode={model.viewMode}
-        isError={model.showArchiveError}
-        isSearchTooBroad={model.showArchiveSearchTooBroad}
-        isRetrying={model.isRetryingArchive}
-        onRetry={model.refetchDeployments}
-        pageIndex={model.archivePageIndex}
-        hasNextPage={model.hasNextArchivePage}
-        isPaginated={model.isArchivePaginated}
-        onPreviousPage={model.goToPreviousArchivePage}
-        onNextPage={model.goToNextArchivePage}
-      />
+      </div>
     </d.Layout>
   );
 };
