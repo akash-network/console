@@ -167,21 +167,28 @@ export function secretReferenceNamesIn(sdl: string): Set<string> {
   return names;
 }
 
-/** Matches on key or value alike, so renaming a secret or typing it a new value cannot leave this copy holding it in the clear. */
+/** Matches on key or value so a renamed or retyped secret is still caught, but leaves a value the form also holds in the clear, which sealing here would not hide. */
 export function withSecretsMarkedLike(values: SdlBuilderFormValuesType, markedServices: ServiceType[]): SdlBuilderFormValuesType {
-  const secrets = markedServices.flatMap(service => (service.env ?? []).filter(variable => variable.isSecret));
+  const variables = markedServices.flatMap(service => service.env ?? []);
+  const secrets = variables.filter(variable => variable.isSecret);
   const secretKeys = new Set(secrets.map(variable => variable.key.trim()));
   const secretValues = new Set(secrets.map(variable => variable.value));
+  const plainValues = new Set(variables.filter(variable => !variable.isSecret).map(variable => variable.value));
   const isHeldAsSecret = (variable: { key: string; value?: string }) =>
-    !!variable.value && (secretKeys.has(variable.key.trim()) || secretValues.has(variable.value));
+    !!variable.value && !plainValues.has(variable.value) && (secretKeys.has(variable.key.trim()) || secretValues.has(variable.value));
 
   return {
     ...values,
     services: values.services.map(service => ({
       ...service,
-      env: service.env?.map(variable => (isHeldAsSecret(variable) ? { ...variable, isSecret: true } : variable))
+      env: service.env?.map(variable => (isHeldAsSecret(variable) ? withValueWithheld(variable) : variable))
     }))
   };
+}
+
+/** A key no secret name can spell would mint a reference the SDL cannot read back, so its value is dropped rather than sealed. */
+function withValueWithheld<T extends { key: string }>(variable: T): T {
+  return isValidSecretName(variable.key.trim()) ? { ...variable, isSecret: true } : { ...variable, value: "" };
 }
 
 function servicesOf(sdl: string): Record<string, { env?: unknown; credentials?: unknown }> {
