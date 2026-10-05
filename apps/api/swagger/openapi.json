@@ -19197,6 +19197,47 @@
                                   "items": {
                                     "type": "string"
                                   }
+                                },
+                                "hardware": {
+                                  "type": "object",
+                                  "properties": {
+                                    "cpu": {
+                                      "type": "number",
+                                      "description": "vCPUs across every service and replica"
+                                    },
+                                    "memoryBytes": {
+                                      "type": "number"
+                                    },
+                                    "storageBytes": {
+                                      "type": "number",
+                                      "description": "Ephemeral and persistent storage combined"
+                                    },
+                                    "gpu": {
+                                      "type": "object",
+                                      "properties": {
+                                        "units": {
+                                          "type": "number"
+                                        },
+                                        "models": {
+                                          "type": "array",
+                                          "items": {
+                                            "type": "string"
+                                          },
+                                          "description": "Model names, or a vendor name when any of its models will do; empty when any GPU will do"
+                                        }
+                                      },
+                                      "required": [
+                                        "units",
+                                        "models"
+                                      ]
+                                    }
+                                  },
+                                  "required": [
+                                    "cpu",
+                                    "memoryBytes",
+                                    "storageBytes"
+                                  ],
+                                  "description": "Absent when the template's SDL cannot be read"
                                 }
                               },
                               "required": [

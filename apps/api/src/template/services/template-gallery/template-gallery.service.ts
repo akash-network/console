@@ -8,6 +8,7 @@ import type z from "zod";
 
 import type { CreateLogger } from "@src/core";
 import type { Category, FinalCategory, Template } from "@src/template/types/template";
+import { summarizeTemplateHardware } from "@src/template/utils/template-hardware/template-hardware";
 import { cacheRegistry, nominalEntrySizing } from "../../../caching/cache-registry.ts";
 import { reusePendingPromise } from "../../../caching/helpers.ts";
 import { GitHubArchiveService } from "../github-archive/github-archive.service.ts";
@@ -184,7 +185,7 @@ export class TemplateGalleryService {
 
     await this.#fs.mkdir(`${this.#galleriesCachePath}/v1/templates`, { recursive: true });
 
-    const summary = categoriesSchema.parse(gallery);
+    const summary = categoriesSchema.parse(withTemplateHardware(gallery));
     await this.#fs.writeFile(this.#summaryCachePath(), JSON.stringify({ data: summary }));
     const { errors } = await PromisePool.for(allTemplates)
       .withConcurrency(100)
@@ -345,6 +346,13 @@ export class TemplateGalleryService {
 
     return categories;
   }
+}
+
+function withTemplateHardware(gallery: FinalCategory[]) {
+  return gallery.map(category => ({
+    ...category,
+    templates: category.templates.map(template => ({ ...template, hardware: summarizeTemplateHardware(template.deploy) }))
+  }));
 }
 
 function getOctokit(githubPAT: string | undefined, fetch = globalThis.fetch) {

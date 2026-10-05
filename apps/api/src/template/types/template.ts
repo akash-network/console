@@ -24,6 +24,13 @@ export type TemplateConfig = {
   logoUrl?: string;
 };
 
+export type TemplateHardware = {
+  cpu: number;
+  memoryBytes: number;
+  storageBytes: number;
+  gpu?: { units: number; models: string[] };
+};
+
 export type Template = {
   id: string;
   name: string;
