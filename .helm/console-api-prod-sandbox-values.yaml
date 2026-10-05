@@ -12,3 +12,9 @@ resources:
     cpu: 250m
     ephemeral-storage: 1Gi
     memory: 1Gi
+
+backgroundJobs:
+  resources:
+    limits:
+      # Boot is CPU-bound: the chart's 500m default stretches it to 20-30s.
+      cpu: 2
