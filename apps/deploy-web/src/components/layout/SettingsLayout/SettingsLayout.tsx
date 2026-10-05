@@ -45,11 +45,13 @@ export const SettingsLayout: React.FunctionComponent<Props> = ({ title, descript
             {headerActions}
           </div>
         )}
-        {description && <p className="px-6 pt-5 text-sm text-muted-foreground">{description}</p>}
+        <div className="mx-auto w-full max-w-[1180px]">
+          {description && <p className="px-6 pt-5 text-sm text-muted-foreground">{description}</p>}
 
-        <ErrorBoundary FallbackComponent={ErrorFallback}>
-          <div className="space-y-6 p-6 pb-10">{children}</div>
-        </ErrorBoundary>
+          <ErrorBoundary FallbackComponent={ErrorFallback}>
+            <div className="space-y-6 p-6 pb-10">{children}</div>
+          </ErrorBoundary>
+        </div>
       </div>
     </div>
   );

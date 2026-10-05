@@ -70,7 +70,7 @@ export function TopNavAccountMenu({ dependencies: d = DEPENDENCIES, minimal = fa
           {profileLink.title}
         </button>
 
-        <div className="flex items-center justify-between rounded-md px-3 py-2 text-sm text-muted-foreground">
+        <div className="flex items-center justify-between gap-2 rounded-md py-2 pl-3 pr-1 text-sm text-muted-foreground">
           <span className="flex items-center gap-3">
             <CloudSunny className="h-5 w-5 shrink-0" />
             Theme
@@ -117,7 +117,7 @@ export function TopNavAccountMenu({ dependencies: d = DEPENDENCIES, minimal = fa
           </Avatar>
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-[240px]">
+      <DropdownMenuContent align="end" className="w-[264px]">
         {user ? (
           <div className="w-full">
             {!minimal && (
@@ -125,7 +125,7 @@ export function TopNavAccountMenu({ dependencies: d = DEPENDENCIES, minimal = fa
                 <CustomDropdownLinkItem onClick={profileLink.onClick} icon={<profileLink.icon />}>
                   {profileLink.title}
                 </CustomDropdownLinkItem>
-                <div className="relative flex items-center justify-between py-1 pl-8 pr-2 text-sm">
+                <div className="relative flex items-center justify-between gap-3 py-1 pl-8 pr-2 text-sm">
                   <span className="absolute left-2 flex h-4 w-4 items-center justify-center">
                     <CloudSunny />
                   </span>

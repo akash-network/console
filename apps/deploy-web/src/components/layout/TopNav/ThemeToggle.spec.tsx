@@ -26,6 +26,23 @@ describe(ThemeToggle.name, () => {
     expect(document.cookie).toContain("theme=dark");
   });
 
+  it("sets the system theme and persists it in a cookie", async () => {
+    const { setTheme } = setup({ theme: "dark" });
+
+    await userEvent.click(screen.getByRole("button", { name: "System" }));
+
+    expect(setTheme).toHaveBeenCalledWith("system");
+    expect(document.cookie).toContain("theme=system");
+  });
+
+  it("marks only the current theme as pressed", () => {
+    setup({ theme: "system" });
+
+    expect(screen.getByRole("button", { name: "System" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "Light" })).toHaveAttribute("aria-pressed", "false");
+    expect(screen.getByRole("button", { name: "Dark" })).toHaveAttribute("aria-pressed", "false");
+  });
+
   function setup(input: { theme?: string }) {
     const setTheme = vi.fn();
     const dependencies: typeof DEPENDENCIES = {

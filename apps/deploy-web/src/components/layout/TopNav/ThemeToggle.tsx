@@ -1,10 +1,15 @@
 "use client";
 import { useEffect, useState } from "react";
 import { Button } from "@akashnetwork/ui/components";
-import { cn } from "@akashnetwork/ui/utils";
 import { useTheme } from "next-themes";
 
 export const DEPENDENCIES = { useTheme };
+
+const THEME_OPTIONS = [
+  { value: "light", label: "Light" },
+  { value: "dark", label: "Dark" },
+  { value: "system", label: "System" }
+];
 
 interface Props {
   dependencies?: typeof DEPENDENCIES;
@@ -29,22 +34,18 @@ export function ThemeToggle({ dependencies: d = DEPENDENCIES }: Props = {}) {
 
   return (
     <div className="flex items-center rounded-md border p-0.5">
-      <Button
-        variant="ghost"
-        size="sm"
-        className={cn("h-6 rounded-sm px-2 text-xs", { "bg-accent font-medium": theme === "light" })}
-        onClick={() => onThemeClick("light")}
-      >
-        Light
-      </Button>
-      <Button
-        variant="ghost"
-        size="sm"
-        className={cn("h-6 rounded-sm px-2 text-xs", { "bg-accent font-medium": theme === "dark" })}
-        onClick={() => onThemeClick("dark")}
-      >
-        Dark
-      </Button>
+      {THEME_OPTIONS.map(option => (
+        <Button
+          key={option.value}
+          variant="ghost"
+          size="sm"
+          aria-pressed={theme === option.value}
+          className="h-6 rounded-sm px-2 text-xs aria-pressed:bg-accent aria-pressed:font-medium"
+          onClick={() => onThemeClick(option.value)}
+        >
+          {option.label}
+        </Button>
+      ))}
     </div>
   );
 }
