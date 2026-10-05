@@ -1,9 +1,11 @@
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { describe, expect, it } from "vitest";
 
+import { QueryKeys } from "@src/queries/queryKeys";
 import { domainName, UrlService } from "@src/utils/urlUtils";
 import { BECOME_A_PROVIDER_URL, DEPENDENCIES, ProvidersPage } from "./ProvidersPage";
 
-import { render, screen } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import { MockComponents } from "@tests/unit/mocks";
 
 describe("ProvidersPage", () => {
@@ -24,9 +26,45 @@ describe("ProvidersPage", () => {
     );
   });
 
+  it("does not show the page loading bar while nothing is fetching", () => {
+    const { dependencies } = setup();
+
+    expect(dependencies.Layout).toHaveBeenLastCalledWith(expect.objectContaining({ isLoading: false, disableContainer: true }), expect.anything());
+  });
+
+  it("shows the page loading bar while a provider search is fetching", async () => {
+    const { dependencies, startFetching } = setup();
+
+    startFetching(QueryKeys.getProviderSearchKey({ search: "akash", skip: 0, limit: 10 }));
+
+    await waitFor(() => expect(dependencies.Layout).toHaveBeenLastCalledWith(expect.objectContaining({ isLoading: true }), expect.anything()));
+  });
+
+  it("does not show the page loading bar while only other provider data is fetching", async () => {
+    const { dependencies, startFetching, queryClient } = setup();
+
+    startFetching(QueryKeys.getProviderLocationsKey());
+
+    await waitFor(() => expect(queryClient.isFetching()).toBe(1));
+    expect(dependencies.Layout).toHaveBeenLastCalledWith(expect.objectContaining({ isLoading: false }), expect.anything());
+  });
+
   function setup() {
-    const dependencies = MockComponents(DEPENDENCIES);
-    render(<ProvidersPage dependencies={dependencies} />);
-    return { dependencies };
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const dependencies = MockComponents(DEPENDENCIES, { useIsFetching: DEPENDENCIES.useIsFetching });
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <ProvidersPage dependencies={dependencies} />
+      </QueryClientProvider>
+    );
+
+    const startFetching = (queryKey: unknown[]) => {
+      act(() => {
+        void queryClient.prefetchQuery({ queryKey, queryFn: () => new Promise(() => {}) });
+      });
+    };
+
+    return { dependencies, queryClient, startFetching };
   }
 });
