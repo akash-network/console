@@ -22126,6 +22126,314 @@
           "DeploymentAlert"
         ]
       }
+    },
+    "/v1/activities": {
+      "get": {
+        "operationId": "listActivities",
+        "summary": "List the user's recent actions and their outcomes, newest first, with how many are still unseen",
+        "tags": [
+          "Activities"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20,
+              "description": "Activities per page, at most 100."
+            },
+            "required": false,
+            "name": "limit",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "description": "Where the page starts: the `nextCursor` of the page before it. Omit it for the newest activities."
+            },
+            "required": false,
+            "name": "cursor",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "pending",
+                "succeeded",
+                "failed"
+              ],
+              "description": "`pending` while the action is still being confirmed, then `succeeded` or `failed`."
+            },
+            "required": false,
+            "name": "status",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "deployment_close"
+              ],
+              "description": "What the action was."
+            },
+            "required": false,
+            "name": "type",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "One page of activities",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "activities": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string",
+                                "format": "uuid"
+                              },
+                              "type": {
+                                "type": "string",
+                                "enum": [
+                                  "deployment_close"
+                                ],
+                                "description": "What the action was."
+                              },
+                              "status": {
+                                "type": "string",
+                                "enum": [
+                                  "pending",
+                                  "succeeded",
+                                  "failed"
+                                ],
+                                "description": "`pending` while the action is still being confirmed, then `succeeded` or `failed`."
+                              },
+                              "meta": {
+                                "type": "object",
+                                "properties": {
+                                  "dseq": {
+                                    "type": "string",
+                                    "description": "The deployment the action was about."
+                                  },
+                                  "txHash": {
+                                    "type": "string",
+                                    "description": "Reference of a pending action whose outcome is still being confirmed."
+                                  },
+                                  "error": {
+                                    "type": "object",
+                                    "properties": {
+                                      "code": {
+                                        "type": "string"
+                                      },
+                                      "message": {
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": [
+                                      "code",
+                                      "message"
+                                    ],
+                                    "description": "Why a failed action did not go through."
+                                  }
+                                }
+                              },
+                              "seenAt": {
+                                "type": "string",
+                                "nullable": true,
+                                "format": "date-time",
+                                "description": "When the user first marked the activity seen."
+                              },
+                              "createdAt": {
+                                "type": "string",
+                                "format": "date-time"
+                              },
+                              "updatedAt": {
+                                "type": "string",
+                                "format": "date-time"
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "type",
+                              "status",
+                              "meta",
+                              "seenAt",
+                              "createdAt",
+                              "updatedAt"
+                            ]
+                          },
+                          "description": "Newest first."
+                        },
+                        "unseenCount": {
+                          "type": "integer",
+                          "description": "Activities the user has not marked seen, whatever the filters."
+                        },
+                        "pagination": {
+                          "type": "object",
+                          "properties": {
+                            "limit": {
+                              "type": "number"
+                            },
+                            "hasMore": {
+                              "type": "boolean",
+                              "description": "Whether a further page exists."
+                            },
+                            "nextCursor": {
+                              "type": "string",
+                              "nullable": true,
+                              "description": "Pass it as `cursor` to read the next page. Null on the last page."
+                            }
+                          },
+                          "required": [
+                            "limit",
+                            "hasMore",
+                            "nextCursor"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "activities",
+                        "unseenCount",
+                        "pagination"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid query or cursor"
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        }
+      }
+    },
+    "/v1/activities/seen": {
+      "post": {
+        "operationId": "markActivitiesSeen",
+        "summary": "Mark activities seen, either by id or every one created up to a time",
+        "tags": [
+          "Activities"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "data": {
+                    "anyOf": [
+                      {
+                        "type": "object",
+                        "properties": {
+                          "ids": {
+                            "type": "array",
+                            "items": {
+                              "type": "string",
+                              "format": "uuid"
+                            },
+                            "minItems": 1,
+                            "maxItems": 100,
+                            "description": "The activities to mark seen."
+                          }
+                        },
+                        "required": [
+                          "ids"
+                        ]
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "upTo": {
+                            "type": "string",
+                            "format": "date-time",
+                            "description": "Marks every activity created at or before this time."
+                          }
+                        },
+                        "required": [
+                          "upTo"
+                        ]
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "data"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "How many activities are still unseen",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "unseenCount": {
+                          "type": "integer",
+                          "description": "Activities the user has not marked seen, whatever the filters."
+                        }
+                      },
+                      "required": [
+                        "unseenCount"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request body"
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        }
+      }
     }
   },
   "components": {

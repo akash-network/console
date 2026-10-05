@@ -9,6 +9,7 @@ import { randomUUID } from "node:crypto";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { mock, type MockProxy } from "vitest-mock-extended";
 
+import type { ActivityService } from "@src/activity/services/activity/activity.service";
 import type { WalletInitialized } from "@src/billing/repositories";
 import type { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import type { ManagedSignerService } from "@src/billing/services/managed-signer/managed-signer.service";
@@ -29,6 +30,7 @@ import { SdlSecretsDerivationService } from "@src/deployment/services/sdl-secret
 import type { SdlSecretsInheritanceService } from "@src/deployment/services/sdl-secrets-inheritance/sdl-secrets-inheritance.service";
 import type { SdlSecrets } from "@src/deployment/services/sdl-secrets-unsealer/sdl-secrets-unsealer.service";
 import type { OnChainGroupSpec } from "@src/deployment/utils/changed-group-resources/changed-group-resources";
+import { closedActivityOf, failedCloseActivityOf } from "@src/deployment/utils/close-activity/close-activity";
 import type { ProviderService } from "@src/provider/services/provider/provider.service";
 import { SECRET_UNREADABLE_ERROR_MESSAGE } from "@src/secret/config/secret-at-rest.config";
 import type { TrialWorkloadProbeJobService } from "@src/workload-abuse/services/trial-workload-probe-job/trial-workload-probe-job.service";
@@ -1151,15 +1153,71 @@ describe(DeploymentWriterService.name, () => {
   });
 
   describe("closeByUserIdAndDseq", () => {
-    it("fetches wallet and closes deployment", async () => {
-      const { service, signerService, rpcMessageService } = setup();
+    it("checks every refusal before closing and records the close in the caller's activity feed", async () => {
+      const { service, signerService, rpcMessageService, activityService } = setup();
       const closeMsg = { typeUrl: "/close", value: MsgCloseDeployment.fromPartial({}) };
       rpcMessageService.getCloseDeploymentMsg.mockReturnValue(closeMsg);
 
-      await service.closeByUserIdAndDseq("user-1", "100");
+      await expect(service.closeByUserIdAndDseq("user-1", "100")).resolves.toBe(true);
 
       expect(rpcMessageService.getCloseDeploymentMsg).toHaveBeenCalledWith(wallet.address, "100");
+      expect(signerService.assertCanBroadcast).toHaveBeenCalledWith("user-1", [closeMsg]);
       expect(signerService.executeDecodedTxByUserWallet).toHaveBeenCalledWith(wallet, [closeMsg]);
+      expect(signerService.assertCanBroadcast.mock.invocationCallOrder[0]).toBeLessThan(signerService.executeDecodedTxByUserWallet.mock.invocationCallOrder[0]);
+      expect(activityService.record).toHaveBeenCalledWith(closedActivityOf({ userId: "user-1", dseq: "100" }));
+    });
+
+    it("records nothing when a refusal stops the close", async () => {
+      const { service, signerService, activityService } = setup();
+      const refusal = createError(402, "Not enough credits");
+      signerService.assertCanBroadcast.mockRejectedValue(refusal);
+
+      await expect(service.closeByUserIdAndDseq("user-1", "100")).rejects.toBe(refusal);
+
+      expect(signerService.executeDecodedTxByUserWallet).not.toHaveBeenCalled();
+      expect(activityService.record).not.toHaveBeenCalled();
+    });
+
+    it("records nothing and closes nothing when the deployment is already closed", async () => {
+      const { service, signerService, activityService } = setup({ onChainState: "closed" });
+
+      await expect(service.closeByUserIdAndDseq("user-1", "100")).resolves.toBe(false);
+
+      expect(signerService.assertCanBroadcast).not.toHaveBeenCalled();
+      expect(signerService.executeDecodedTxByUserWallet).not.toHaveBeenCalled();
+      expect(activityService.record).not.toHaveBeenCalled();
+    });
+
+    it("records nothing when a concurrent close got there first, since that close records itself", async () => {
+      const { service, signerService, deploymentReaderService, activityService } = setup();
+      signerService.executeDecodedTxByUserWallet.mockRejectedValue(new Error("deployment already closed"));
+      deploymentReaderService.findByWalletAndDseqWithoutProviderStatus
+        .mockResolvedValueOnce(deploymentData)
+        .mockResolvedValueOnce({ ...deploymentData, deployment: { ...deploymentData.deployment, state: "closed" } });
+
+      await expect(service.closeByUserIdAndDseq("user-1", "100")).resolves.toBe(false);
+
+      expect(activityService.record).not.toHaveBeenCalled();
+    });
+
+    it("records a close that fails with its reason and still answers with the failure", async () => {
+      const { service, signerService, deploymentReaderService, activityService } = setup();
+      const failure = createError(400, "Deployment is not open");
+      signerService.executeDecodedTxByUserWallet.mockRejectedValue(failure);
+      deploymentReaderService.findByWalletAndDseqWithoutProviderStatus.mockResolvedValue(deploymentData);
+
+      await expect(service.closeByUserIdAndDseq("user-1", "100")).rejects.toBe(failure);
+
+      expect(activityService.record).toHaveBeenCalledWith(failedCloseActivityOf({ userId: "user-1", dseq: "100" }, failure));
+    });
+
+    it("reads the deployment once before closing it", async () => {
+      const { service, deploymentReaderService } = setup();
+
+      await service.closeByUserIdAndDseq("user-1", "100");
+
+      expect(deploymentReaderService.findByWalletAndDseqWithoutProviderStatus).toHaveBeenCalledTimes(1);
+      expect(deploymentReaderService.findByWalletAndDseqWithoutProviderStatus).toHaveBeenCalledWith(wallet, "100");
     });
   });
 
@@ -2546,7 +2604,8 @@ describe(DeploymentWriterService.name, () => {
         sdlReferenceService,
         mock<SdlSecretsInheritanceService>(),
         probeJobService,
-        leaseGpuDetectionJobService
+        leaseGpuDetectionJobService,
+        mock<ActivityService>()
       );
 
       function sealedFor() {
@@ -2882,6 +2941,7 @@ describe(DeploymentWriterService.name, () => {
     walletReaderService.getWalletByUserId.mockResolvedValue(input?.isTrialing ? { ...wallet, isTrialing: true } : wallet);
     const probeJobService = mock<TrialWorkloadProbeJobService>();
     const leaseGpuDetectionJobService = mock<LeaseGpuDetectionJobService>();
+    const activityService = mock<ActivityService>();
     sdlService.parse.mockReturnValue({ ok: true, value: parsedSdlValue } as any);
     sdlService.generateManifest.mockResolvedValue({ ok: true, value: manifestValue } as any);
     sdlService.generateManifestVersion.mockResolvedValue(new Uint8Array([4, 5, 6]));
@@ -2927,7 +2987,8 @@ describe(DeploymentWriterService.name, () => {
       new SdlReferenceService(),
       sdlSecretsInheritanceService,
       probeJobService,
-      leaseGpuDetectionJobService
+      leaseGpuDetectionJobService,
+      activityService
     );
 
     function storedSecrets() {
@@ -2955,6 +3016,7 @@ describe(DeploymentWriterService.name, () => {
       scopedSettingRepository,
       probeJobService,
       leaseGpuDetectionJobService,
+      activityService,
       ability: mock<AnyAbility>(),
       storedSecrets
     };

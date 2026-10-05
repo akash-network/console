@@ -213,7 +213,7 @@ export class ManagedSignerService {
 
     await this.#recordCreatedDeployments(userWallet, messages);
 
-    await this.balancesService.refreshUserWalletLimits(userWallet);
+    await this.#refreshWalletLimits(userWallet);
     await this.#ensureAutoReloadSchedule(userWallet.userId, messages);
     await this.#scheduleCreditsLowCheckOnClose(userWallet, messages);
 
@@ -227,6 +227,15 @@ export class ManagedSignerService {
     }
 
     return result as Pick<IndexedTx, "code" | "hash" | "rawLog"> & { transactionHash: string };
+  }
+
+  /** The transaction has already landed, so a failed refresh is logged rather than reported as a failure the caller might retry. */
+  async #refreshWalletLimits(userWallet: UserWalletOutput) {
+    try {
+      await this.balancesService.refreshUserWalletLimits(userWallet);
+    } catch (error) {
+      this.logger.error({ event: "WALLET_LIMITS_REFRESH_FAILED", walletId: userWallet.id, error });
+    }
   }
 
   /** Reading a lease's gpus is an extra the deployment does not depend on, so a failed publish is logged rather than failing a lease that already landed. */
