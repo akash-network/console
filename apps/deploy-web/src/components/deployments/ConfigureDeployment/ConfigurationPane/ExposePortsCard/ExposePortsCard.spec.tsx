@@ -431,6 +431,16 @@ describe(ExposePortsCard.name, () => {
       expect(saved.hasCustomHttpOptions).toBe(false);
       expect(saved.httpOptions).toBeUndefined();
     });
+
+    it("switches a port to UDP", async () => {
+      const { getValues, openCard } = setup({ expose: [{ port: 53, as: 53, proto: "http" }] });
+
+      await openCard();
+      await userEvent.click(screen.getByLabelText("udp"));
+      await userEvent.click(screen.getByRole("button", { name: "Save" }));
+
+      expect(getValues().services[0].expose[0].proto).toBe("udp");
+    });
   });
 
   describe("routingValueOf", () => {

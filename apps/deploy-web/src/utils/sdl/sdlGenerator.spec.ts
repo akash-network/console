@@ -52,6 +52,58 @@ describe("sdlGenerator", () => {
       });
     });
 
+    it("writes the permissions a service carries", () => {
+      const result = generateSdl(
+        buildFormValues(buildLogCollectorService({ title: "web", image: "nginx:latest", params: { permissions: { read: ["logs"] } } }))
+      );
+      const parsed = yaml.load(result) as { services: Record<string, { params?: unknown }> };
+
+      expect(parsed.services.web.params).toEqual({ permissions: { read: ["logs"] } });
+    });
+
+    it("grants a log collector its own permissions over the ones it carries", () => {
+      const result = generateSdl(buildFormValues(buildLogCollectorService({ params: { permissions: { read: ["logs"] } } })));
+      const parsed = yaml.load(result) as { services: Record<string, { params?: unknown }> };
+
+      expect(parsed.services["web-log-collector"].params).toEqual({ permissions: { read: ["deployment", "logs", "events"] } });
+    });
+
+    it("writes the tokens a service imported across lines while its command text still matches them", () => {
+      const command = { command: "sh\n-c\necho a\necho b\n", importedCommand: ["sh", "-c", "echo a\necho b\n"] };
+      const result = generateSdl(buildFormValues(buildLogCollectorService({ title: "web", image: "nginx:latest", command })));
+
+      expect(commandOf(result)).toEqual(["sh", "-c", "echo a\necho b\n"]);
+    });
+
+    it("splits the command text by line once it no longer matches the imported tokens", () => {
+      const command = { command: "sh\n-c\necho a", importedCommand: ["sh", "-c", "echo a\necho b\n"] };
+      const result = generateSdl(buildFormValues(buildLogCollectorService({ title: "web", image: "nginx:latest", command })));
+
+      expect(commandOf(result)).toEqual(["sh", "-c", "echo a"]);
+    });
+
+    it("writes the args a service imported across lines while its args text still matches them", () => {
+      const command = { arg: "  --flag", importedArg: ["  --flag"] };
+      const result = generateSdl(buildFormValues(buildLogCollectorService({ title: "web", image: "nginx:latest", command })));
+
+      expect(argsOf(result)).toEqual(["  --flag"]);
+    });
+
+    it("writes no command or args for a service that has none", () => {
+      const result = generateSdl(buildFormValues(buildLogCollectorService({ title: "web", image: "nginx:latest" })));
+
+      expect(commandOf(result)).toBeUndefined();
+      expect(argsOf(result)).toBeUndefined();
+    });
+
+    it("writes the protocol of a udp port", () => {
+      const result = generateSdl(
+        buildFormValues(buildLogCollectorService({ title: "web", image: "nginx:latest", expose: [{ port: 53, as: 53, proto: "udp", global: true, to: [] }] }))
+      );
+
+      expect(exposeOf(result).proto).toBe("udp");
+    });
+
     it("emits gpu.attributes.interconnect as an empty array for an implicit opt-in", () => {
       const result = generateSdl(buildFormValues(buildGpuService({ interconnect: {} })));
 
@@ -292,6 +344,18 @@ describe("sdlGenerator", () => {
 
     function envOf(sdl: string): string[] | undefined {
       return (yaml.load(sdl) as { services: Record<string, { env?: string[] }> }).services.web?.env;
+    }
+
+    function exposeOf(sdl: string): { proto?: string } {
+      return (yaml.load(sdl) as { services: Record<string, { expose: { proto?: string }[] }> }).services.web.expose[0];
+    }
+
+    function commandOf(sdl: string): string[] | undefined {
+      return (yaml.load(sdl) as { services: Record<string, { command?: string[] }> }).services.web.command;
+    }
+
+    function argsOf(sdl: string): string[] | undefined {
+      return (yaml.load(sdl) as { services: Record<string, { args?: string[] }> }).services.web.args;
     }
 
     function credentialsOf(sdl: string): Record<string, string> | undefined {

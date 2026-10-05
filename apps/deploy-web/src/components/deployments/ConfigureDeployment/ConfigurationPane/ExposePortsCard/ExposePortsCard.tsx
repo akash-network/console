@@ -113,14 +113,14 @@ export const inputToHostnames = (value: string): NonNullable<ExposeType["accept"
  * Dialog where the user maps container ports to externally reachable ports on the
  * shared deployment model (`services.${serviceIndex}.expose`). Each row edits a
  * port mapping — container port, exposed-as port, protocol (the SDL supports
- * http/tcp), routing and accepted hostnames.
+ * http/tcp/udp), routing and accepted hostnames.
  *
  * Routing is a derived control over the model's `global`/`ipName` pair: "Public"
  * is `global: true` with no IP name, "Internal" is `global: false`, and each
  * declared IP endpoint is `global: true` bound to that endpoint's name. Accepted
  * hostnames (the `accept` array) and the custom `httpOptions` are HTTP-only: they
  * surface only while the protocol is `http` (and `accept` only when not internal),
- * and switching a port to `tcp` clears their backing values so the SDL never carries
+ * and switching a port to `tcp` or `udp` clears their backing values so the SDL never carries
  * HTTP-only config onto a non-HTTP expose.
  *
  * Changes are committed on Save and reverted on Cancel. The header shows the count
@@ -193,7 +193,7 @@ export const ExposePortsCard: FC<Props> = ({ serviceIndex, locked = false, depen
           <d.DialogV2Header>
             <d.DialogV2Title>Exposed ports</d.DialogV2Title>
             <d.DialogV2Description id="expose-ports-description">
-              Map container ports to external ports. TCP/HTTP. Add as many as you need before saving.
+              Map container ports to external ports over HTTP, TCP or UDP. Add as many as you need before saving.
             </d.DialogV2Description>
           </d.DialogV2Header>
 

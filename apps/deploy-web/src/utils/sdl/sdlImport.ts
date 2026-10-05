@@ -15,25 +15,27 @@ import type {
 import { CPU_ARCHITECTURES, ReclamationMinWindowSchema, RESERVED_ENV_KEYS } from "@src/types/sdlBuilder/sdlBuilder";
 import { CustomValidationError } from "../deploymentData";
 import { capitalizeFirstLetter } from "../stringUtils";
-import { defaultHttpOptions } from "./data";
+import { defaultHttpOptions, SDL_DEFAULT_NEXT_TIMEOUT } from "./data";
 import { secretNameOf } from "./sdlSecrets";
 
-/** YAML parses unquoted scalars like `0` or `false` into native types, so tokens are stringified instead of filtered as falsy. */
-export const parseSvcCommand = (command?: string | (string | number | boolean)[]): string => {
-  if (!command) {
-    return "";
-  }
-
-  if (typeof command === "string") {
-    return parseSvcCommand([command]);
-  }
-
-  return command
-    .filter(token => token !== null && token !== undefined)
-    .map(String)
+export const parseSvcCommand = (command?: string | (string | number | boolean)[]): string =>
+  svcTokensOf(command)
     .filter(token => token.length > 0)
     .join("\n");
-};
+
+/** YAML parses unquoted scalars like `0` or `false` into native types, so tokens are stringified instead of filtered as falsy. */
+function svcTokensOf(command?: string | (string | number | boolean)[]): string[] {
+  if (!command) {
+    return [];
+  }
+
+  return (typeof command === "string" ? [command] : command).filter(token => token !== null && token !== undefined).map(String);
+}
+
+/** The form holds one trimmed, non-empty token per line, so tokens an SDL wrote empty, padded or across lines are kept as written. */
+function tokensUnlessOnePerLine(tokens: string[]): string[] | undefined {
+  return tokens.some(token => !token || token.includes("\n") || token !== token.trim()) ? tokens : undefined;
+}
 
 /**
  * Imports an SDL YAML into builder form values. By default placements are
@@ -58,8 +60,6 @@ export const importSimpleSdl = (yamlStr: string, { placementPerService = false }
         ? Object.keys(yamlJson.endpoints).map(name => ({ id: nanoid(), name }))
         : [];
 
-    // Only round-trip a reclamation window the builder can represent in its dropdown; any other
-    // value falls back to "Any" (omitted) rather than producing an invalid form state.
     const reclamationParse = ReclamationMinWindowSchema.safeParse(yamlJson.reclamation?.min_window);
     const reclamationMinWindow = reclamationParse.success ? reclamationParse.data : undefined;
 
@@ -114,10 +114,13 @@ export const importSimpleSdl = (yamlStr: string, { placementPerService = false }
           };
         })
       };
+      service.profile.storage = withRootStorageFirst(service.profile.storage);
 
       service.command = {
         command: parseSvcCommand(svc.command),
-        arg: parseSvcCommand(svc.args)
+        arg: parseSvcCommand(svc.args),
+        importedCommand: tokensUnlessOnePerLine(svcTokensOf(svc.command)),
+        importedArg: tokensUnlessOnePerLine(svcTokensOf(svc.args))
       };
 
       service.env =
@@ -138,7 +141,7 @@ export const importSimpleSdl = (yamlStr: string, { placementPerService = false }
           id: nanoid(),
           port: expose.port,
           as: expose.as || expose.port,
-          proto: expose.proto === "tcp" ? expose.proto : "http",
+          proto: protoOf(expose.proto),
           global: !!isGlobal,
           to: expose.to.filter((t: any) => t.global === undefined).map((t: any) => ({ id: nanoid(), value: t.service })),
           accept: expose.accept?.map((a: string) => ({ id: nanoid(), value: a })) || [],
@@ -150,7 +153,7 @@ export const importSimpleSdl = (yamlStr: string, { placementPerService = false }
             sendTimeout: expose.http_options?.send_timeout ?? defaultHttpOptions.sendTimeout,
             nextCases: expose.http_options?.next_cases ?? defaultHttpOptions.nextCases,
             nextTries: expose.http_options?.next_tries ?? defaultHttpOptions.nextTries,
-            nextTimeout: expose.http_options?.next_timeout ?? defaultHttpOptions.nextTimeout,
+            nextTimeout: expose.http_options?.next_timeout ?? SDL_DEFAULT_NEXT_TIMEOUT,
             proxy: importHttpProxy(expose.http_options?.proxy)
           }
         };
@@ -196,10 +199,7 @@ export const importSimpleSdl = (yamlStr: string, { placementPerService = false }
 
       service.count = deployment.count;
 
-      // Preserve the TEE param through the round-trip even though the builder UI cannot edit it yet.
-      if (svc.params?.tee) {
-        service.params = { ...service.params, tee: svc.params.tee };
-      }
+      service.params = preservedParamsOf(svc.params);
 
       services.push(service as ServiceType);
     });
@@ -211,8 +211,28 @@ export const importSimpleSdl = (yamlStr: string, { placementPerService = false }
   }
 };
 
+/** The form holds the container's root storage first, while an SDL may list its volumes in any order. */
+function withRootStorageFirst<T extends { mount?: string }>(storages: T[]): T[] {
+  return [...storages.filter(storage => !storage.mount), ...storages.filter(storage => !!storage.mount)];
+}
+
+/** The SDL spells a protocol in either case and leaves HTTP implicit. */
+function protoOf(proto: unknown): ExposeType["proto"] {
+  const lowercased = typeof proto === "string" ? proto.toLowerCase() : undefined;
+  return lowercased === "tcp" || lowercased === "udp" ? lowercased : "http";
+}
+
+/** Service params the form carries without editing them, so a round trip writes them back unchanged. */
+function preservedParamsOf(params: any): ServiceType["params"] {
+  const preserved: ServiceType["params"] = {
+    ...(params?.permissions ? { permissions: params.permissions } : {}),
+    ...(params?.tee ? { tee: params.tee } : {})
+  };
+  return Object.keys(preserved).length > 0 ? preserved : undefined;
+}
+
 const getResourceDigit = (size: string): number => {
-  const match = size.match(/\d+/g);
+  const match = size.match(/\d+(\.\d+)?/);
   return match ? parseFloat(match[0]) : 0;
 };
 
