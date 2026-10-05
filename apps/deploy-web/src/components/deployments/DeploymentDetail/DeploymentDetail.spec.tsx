@@ -59,14 +59,15 @@ describe("DeploymentDetail", () => {
     expect(screen.getByText("logs")).toBeInTheDocument();
   });
 
-  it("opens the manifest editor on the Update tab from the ?tab= query param", () => {
+  it("opens the update editor on the Update tab from the ?tab= query param", () => {
     setup({ tab: "UPDATE" });
 
-    expect(screen.getByText("manifest-update")).toBeInTheDocument();
+    expect(screen.getByText("structured-update")).toBeInTheDocument();
   });
 
   it("returns to Details and clears the update tab from the url once the manifest editor closes", async () => {
-    setup({ tab: "UPDATE" });
+    const { DeploymentUpdate } = setup({ tab: "UPDATE" });
+    render(<>{DeploymentUpdate.mock.calls[0][0].fallback}</>);
 
     await userEvent.click(screen.getByRole("button", { name: "close-manifest-editor" }));
 
@@ -141,27 +142,28 @@ describe("DeploymentDetail", () => {
   });
 
   it("offers redeploy on the Update tab when a definition resolves", () => {
-    const { redeploy, analyticsService, ManifestUpdate } = setup({
+    const { redeploy, analyticsService, DeploymentUpdate } = setup({
       tab: "UPDATE",
       definition: { sdl: "version: '2.0'", name: "My Storefront", source: "api" }
     });
 
-    ManifestUpdate.mock.calls[0][0].onRedeploy?.();
+    DeploymentUpdate.mock.calls[0][0].onRedeploy?.();
 
     expect(redeploy).toHaveBeenCalledWith({ sdl: "version: '2.0'", name: "My Storefront", sourceDseq: expect.any(String) });
     expect(analyticsService.track).toHaveBeenCalledWith("redeploy_btn_clk", "Amplitude");
   });
 
   it("withholds redeploy from the Update tab when neither source holds a definition", () => {
-    const { ManifestUpdate } = setup({ tab: "UPDATE", definition: { sdl: undefined, source: "absent" } });
+    const { DeploymentUpdate } = setup({ tab: "UPDATE", definition: { sdl: undefined, source: "absent" } });
 
-    expect(ManifestUpdate.mock.calls[0][0].onRedeploy).toBeUndefined();
+    expect(DeploymentUpdate.mock.calls[0][0].onRedeploy).toBeUndefined();
+    expect(DeploymentUpdate.mock.calls[0][0].onRedeployWithNewSecrets).toBeUndefined();
   });
 
   it("withholds redeploy from the Update tab when the definition is absent despite an inspection-only api sdl", () => {
-    const { ManifestUpdate } = setup({ tab: "UPDATE", definition: { sdl: "version: '2.0' # not-self-contained", source: "absent" } });
+    const { DeploymentUpdate } = setup({ tab: "UPDATE", definition: { sdl: "version: '2.0' # not-self-contained", source: "absent" } });
 
-    expect(ManifestUpdate.mock.calls[0][0].onRedeploy).toBeUndefined();
+    expect(DeploymentUpdate.mock.calls[0][0].onRedeploy).toBeUndefined();
   });
 
   it("seeds the configure draft from the api definition when redirecting a lease-less deployment", () => {
@@ -228,9 +230,9 @@ describe("DeploymentDetail", () => {
     expect(screen.getAllByRole("tab").map(tab => tab.textContent)).toEqual(["Details", "Update", "Logs", "Events", "Shell", "Settings"]);
   });
 
-  describe("when the structured update editor is on", () => {
-    it("opens the structured editor on the Update tab, with the raw editor as its fallback", () => {
-      const { DeploymentUpdate } = setup({ tab: "UPDATE", isUpdateEditorEnabled: true });
+  describe("on the Update tab", () => {
+    it("opens the structured editor, with the raw editor as its fallback", () => {
+      const { DeploymentUpdate } = setup({ tab: "UPDATE" });
 
       expect(screen.getByText("structured-update")).toBeInTheDocument();
       render(<>{DeploymentUpdate.mock.calls[0][0].fallback}</>);
@@ -240,7 +242,6 @@ describe("DeploymentDetail", () => {
     it("hands the editor the definition the page resolved", () => {
       const { DeploymentUpdate } = setup({
         tab: "UPDATE",
-        isUpdateEditorEnabled: true,
         definition: { sdl: "version: '2.0'", source: "api", manifestVersion: "cmVjb3JkZWQ=" }
       });
 
@@ -248,7 +249,7 @@ describe("DeploymentDetail", () => {
     });
 
     it("offers the editor a redeploy of the resolved definition", () => {
-      const { DeploymentUpdate, redeploy } = setup({ tab: "UPDATE", isUpdateEditorEnabled: true, definition: { sdl: "version: '2.0'", source: "api" } });
+      const { DeploymentUpdate, redeploy } = setup({ tab: "UPDATE", definition: { sdl: "version: '2.0'", source: "api" } });
 
       DeploymentUpdate.mock.calls[0][0].onRedeploy?.();
 
@@ -258,7 +259,6 @@ describe("DeploymentDetail", () => {
     it("offers the editor a redeploy of the values this browser gave back", () => {
       const { DeploymentUpdate, redeploy } = setup({
         tab: "UPDATE",
-        isUpdateEditorEnabled: true,
         definition: { sdl: "version: '2.0' # withheld", restoredSdl: "version: '2.0' # restored", source: "api" }
       });
 
@@ -270,7 +270,6 @@ describe("DeploymentDetail", () => {
     it("offers the editor a redeploy with new secrets that keeps the values this browser gave back", () => {
       const { DeploymentUpdate, redeploy } = setup({
         tab: "UPDATE",
-        isUpdateEditorEnabled: true,
         definition: { sdl: "version: '2.0' # withheld", restoredSdl: "version: '2.0' # restored", source: "api" }
       });
 
@@ -282,7 +281,6 @@ describe("DeploymentDetail", () => {
     it("offers the editor a redeploy that leaves the stored secrets behind, for when they can no longer be read", () => {
       const { DeploymentUpdate, redeploy, analyticsService } = setup({
         tab: "UPDATE",
-        isUpdateEditorEnabled: true,
         definition: { sdl: "version: '2.0'", source: "api", name: "My Storefront" }
       });
 
@@ -293,44 +291,51 @@ describe("DeploymentDetail", () => {
     });
 
     it("hands the editor the providers the page loaded", () => {
-      const { DeploymentUpdate } = setup({ tab: "UPDATE", isUpdateEditorEnabled: true });
+      const { DeploymentUpdate } = setup({ tab: "UPDATE" });
 
       expect(DeploymentUpdate.mock.calls[0][0].providers.map(provider => provider.owner)).toEqual(["akash1provider"]);
     });
 
     it("hands the editor no providers until they load", () => {
-      const { DeploymentUpdate } = setup({ tab: "UPDATE", isUpdateEditorEnabled: true, providers: undefined });
+      const { DeploymentUpdate } = setup({ tab: "UPDATE", providers: undefined });
 
       expect(DeploymentUpdate.mock.calls[0][0].providers).toEqual([]);
     });
 
     it("tells the editor while the gpus the console read are still loading", () => {
-      const { DeploymentUpdate } = setup({ tab: "UPDATE", isUpdateEditorEnabled: true, isLoadingLeaseGpus: true });
+      const { DeploymentUpdate } = setup({ tab: "UPDATE", isLoadingLeaseGpus: true });
 
       expect(DeploymentUpdate.mock.calls[0][0].isLoadingLeaseGpus).toBe(true);
     });
 
+    it("stays off the page while another tab is open", () => {
+      setup({ tab: "LOGS" });
+
+      expect(screen.queryByText("structured-update")).not.toBeInTheDocument();
+    });
+
+    it("waits for the leases before opening the editor", () => {
+      setup({ tab: "UPDATE", leases: null });
+
+      expect(screen.queryByText("structured-update")).not.toBeInTheDocument();
+    });
+
     it("keeps the raw editor off the page while the structured editor renders", () => {
-      setup({ tab: "UPDATE", isUpdateEditorEnabled: true });
+      setup({ tab: "UPDATE" });
 
       expect(screen.queryByText("manifest-update")).not.toBeInTheDocument();
     });
+
+    it("reloads the deployment once the raw editor closes", async () => {
+      const { DeploymentUpdate, refetchDeployment } = setup({ tab: "UPDATE" });
+      render(<>{DeploymentUpdate.mock.calls[0][0].fallback}</>);
+
+      await userEvent.click(screen.getByRole("button", { name: "close-manifest-editor" }));
+
+      expect(refetchDeployment).toHaveBeenCalled();
+    });
   });
 
-  it("reloads the deployment once the raw editor closes", async () => {
-    const { refetchDeployment } = setup({ tab: "UPDATE" });
-
-    await userEvent.click(screen.getByRole("button", { name: "close-manifest-editor" }));
-
-    expect(refetchDeployment).toHaveBeenCalled();
-  });
-
-  it("keeps the raw editor on the Update tab while the structured editor is off", () => {
-    const { DeploymentUpdate } = setup({ tab: "UPDATE", isUpdateEditorEnabled: false });
-
-    expect(screen.getByText("manifest-update")).toBeInTheDocument();
-    expect(DeploymentUpdate).not.toHaveBeenCalled();
-  });
   it("joins the gpus the console recorded onto the lease they were recorded for, even when they arrive after the leases", () => {
     const { DeploymentDetailHeader, rerenderWithLeaseGpus } = setup({ leases: [gpuLease()] });
 
@@ -373,7 +378,6 @@ describe("DeploymentDetail", () => {
     tab?: string;
     leaseState?: string;
     definition?: Partial<DeploymentDefinition>;
-    isUpdateEditorEnabled?: boolean;
     providers?: ApiProviderList[];
     leaseGpus?: LeaseGpusByLease;
     isLoadingLeaseGpus?: boolean;
@@ -433,7 +437,6 @@ describe("DeploymentDetail", () => {
     ));
     const DeploymentSettings = vi.fn(() => <div>settings</div>);
     const DeploymentUpdate = vi.fn((_props: DeploymentUpdateProps) => <div>structured-update</div>);
-    const useFlag: typeof DEPENDENCIES.useFlag = flag => flag === "ui_deployment_update_editor" && !!input?.isUpdateEditorEnabled;
 
     const dependencies = MockComponents(DEPENDENCIES, {
       useServices,
@@ -453,8 +456,7 @@ describe("DeploymentDetail", () => {
       DeploymentLeaseShell,
       ManifestUpdate,
       DeploymentSettings,
-      DeploymentUpdate,
-      useFlag
+      DeploymentUpdate
     });
     const { rerender } = render(<DeploymentDetail dseq="1786440078202" dependencies={dependencies} />);
 

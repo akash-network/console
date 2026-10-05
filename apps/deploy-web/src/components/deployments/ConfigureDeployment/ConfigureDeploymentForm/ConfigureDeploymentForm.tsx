@@ -81,12 +81,11 @@ type Props = {
 };
 
 export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, initialName, intent, flow, dependencies: d = DEPENDENCIES }) => {
-  const isSecretsEnabled = d.useFlag("ui_deployment_secrets");
   const isTwoPanelEnabled = d.useFlag("ui_configure_two_panel");
   /** Unleash can flip a flag mid-session, and swapping the layout under someone configuring would lose their place. */
   const [isTwoPanel] = useState(isTwoPanelEnabled);
   const draft = d.useConfigureDraft(intent);
-  const [initialState] = useState(() => getInitialState(initialSdl, intent.vm, isSecretsEnabled, draft.persistedPlacementRegions));
+  const [initialState] = useState(() => getInitialState(initialSdl, intent.vm, draft.persistedPlacementRegions));
   const [liveSdl, setLiveSdl] = useState(initialState.sdl);
   const [previewSdl, setPreviewSdl] = useState(initialState.sdl);
   const [selectedServiceId, setSelectedServiceId] = useState<string>(initialState.selectedServiceId);
@@ -115,7 +114,7 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, initialName, in
   const services = useWatch({ control: form.control, name: "services" });
   const placements = useWatch({ control: form.control, name: "placements" });
   const placementRegionPicks = useMemo(() => severalRegionPicksOf(placements), [placements]);
-  const draftableStartingSdl = useMemo(() => startingSdl && draftableSdlOf(startingSdl, isSecretsEnabled, services), [startingSdl, isSecretsEnabled, services]);
+  const draftableStartingSdl = useMemo(() => startingSdl && draftableSdlOf(startingSdl, services), [startingSdl, services]);
   const selectedPlacement = resolveSelectedPlacement(services, placements, selectedServiceId || lastSelectedServiceId.current);
   const lastSelectedPlacementId = useRef(selectedPlacement.id);
   useSyncLogCollectors(form);
@@ -138,25 +137,14 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, initialName, in
     [initialState, enqueueSnackbar, d]
   );
 
-  const sealedCredentials = useRef(isSecretsEnabled);
-
-  useEffect(
-    function resealWhenSecretsFlagChanges() {
-      if (sealedCredentials.current === isSecretsEnabled) return;
-      sealedCredentials.current = isSecretsEnabled;
-      setLiveSdl(previous => regenerateSdl(form.getValues(), previous, isSecretsEnabled));
-    },
-    [form, isSecretsEnabled]
-  );
-
   useEffect(
     function syncLiveSdl() {
-      const subscription = form.watch(values => setLiveSdl(previous => regenerateSdl(values as SdlBuilderFormValuesType, previous, isSecretsEnabled)));
+      const subscription = form.watch(values => setLiveSdl(previous => regenerateSdl(values as SdlBuilderFormValuesType, previous)));
       return function teardownLiveSync() {
         subscription.unsubscribe();
       };
     },
-    [form, isSecretsEnabled]
+    [form]
   );
 
   useEffect(
@@ -332,11 +320,11 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, initialName, in
   const applyImportedState = useCallback(
     (state: ImportedDeploymentState) => {
       form.reset(state.values);
-      setLiveSdl(sdlOfImportedState(state, isSecretsEnabled));
+      setLiveSdl(sdlOfImportedState(state));
       setSelectedServiceId(state.selectedServiceId);
       setImportChanges(state.changes);
     },
-    [form, isSecretsEnabled]
+    [form]
   );
 
   const discardDeployment = useCallback(() => {
@@ -348,19 +336,17 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, initialName, in
 
   const resetConfiguration = useCallback(() => {
     analyticsService.track("configure_reset_confirmed", { category: "deployments" });
-    applyImportedState(getInitialState(startingSdl, intent.vm, isSecretsEnabled));
-  }, [analyticsService, applyImportedState, startingSdl, intent.vm, isSecretsEnabled]);
+    applyImportedState(getInitialState(startingSdl, intent.vm));
+  }, [analyticsService, applyImportedState, startingSdl, intent.vm]);
   /** Import is only meaningful while the deployment is still editable; export stays available in every phase. */
   const isEditable = flow.phase === "configuring" || flow.phase === "error";
-  /** Nothing resolves a reference with the feature off, so a kept name has to read as one nothing answers for. */
-  const resolvableInheritedSecrets = isSecretsEnabled ? inheritedSecrets : null;
 
   return (
     <d.Layout background="white" disableContainer containerClassName="flex h-[calc(100vh-57px)] flex-col">
       <d.NextSeo title="Configure your deployment" />
       <FormProvider {...form}>
         <PlacementManagerProvider onSelectService={setSelectedServiceId}>
-          <InheritedSecretsProvider value={resolvableInheritedSecrets}>
+          <InheritedSecretsProvider value={inheritedSecrets}>
             <div className="relative flex min-h-0 flex-1 flex-col">
               {importChanges.length > 0 && <d.SdlImportChangesBanner changes={importChanges} onDismiss={() => setImportChanges([])} />}
               {isTwoPanel ? (
@@ -439,13 +425,9 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, initialName, in
               onConfirm={() => {
                 analyticsService.track("review_deploy_confirmed", { category: "deployments", dseq: flow.dseq });
                 setReviewOpen(false);
-                if (isSecretsEnabled) {
-                  const values = form.getValues();
-                  const secrets = resolveSdlSecrets(values, { sealSecrets: true });
-                  flow.actions.deploy(regenerateSdl(values, liveSdl, true), { secrets: secrets.values, unresolvedSecrets: secrets.unresolved });
-                } else {
-                  flow.actions.deploy(liveSdl);
-                }
+                const values = form.getValues();
+                const secrets = resolveSdlSecrets(values, { sealSecrets: true });
+                flow.actions.deploy(regenerateSdl(values, liveSdl), { secrets: secrets.values, unresolvedSecrets: secrets.unresolved });
               }}
             />
           </InheritedSecretsProvider>
@@ -470,15 +452,15 @@ interface InitialState {
  * back to a default deployment. This guarantees there is always a service (and placement) to select.
  * A Container-VM entry (`isVm`) seeds an SSH-ready VM service instead of the blank default.
  */
-function getInitialState(carriedInSdl: string | undefined, isVm: boolean, sealSecrets: boolean, placementRegions?: PlacementRegionPicks): InitialState {
-  if (!carriedInSdl) return defaultInitialState(isVm, sealSecrets);
+function getInitialState(carriedInSdl: string | undefined, isVm: boolean, placementRegions?: PlacementRegionPicks): InitialState {
+  if (!carriedInSdl) return defaultInitialState(isVm);
 
   try {
     const imported = withRestoredRegions(importDeploymentState(carriedInSdl), placementRegions);
-    return { ...imported, sdl: sdlOfImportedState(imported, sealSecrets) };
+    return { ...imported, sdl: sdlOfImportedState(imported) };
   } catch (error) {
-    if (error instanceof NoVisibleServiceError) return defaultInitialState(isVm, sealSecrets);
-    return defaultInitialState(isVm, sealSecrets, getImportErrorMessage(error));
+    if (error instanceof NoVisibleServiceError) return defaultInitialState(isVm);
+    return defaultInitialState(isVm, getImportErrorMessage(error));
   }
 }
 
@@ -488,17 +470,13 @@ function withRestoredRegions(state: ImportedDeploymentState, placementRegions: P
   return { ...state, values: { ...state.values, placements } };
 }
 
-/**
- * An imported SDL is normally shown verbatim, but a typed registry password inside it would then sit in the draft in
- * the clear, so with credentials sealed the SDL is regenerated from the imported values and carries references instead.
- */
-function sdlOfImportedState(state: ImportedDeploymentState, sealSecrets: boolean): string {
-  return sealSecrets ? regenerateSdl(state.values, state.sdl, true) : state.sdl;
+/** An imported SDL is regenerated from its values rather than shown verbatim, so a registry password typed inside it carries a reference instead of sitting in the draft in the clear. */
+function sdlOfImportedState(state: ImportedDeploymentState): string {
+  return regenerateSdl(state.values, state.sdl);
 }
 
 /** The starting SDL as the draft may hold it, sealed like the working SDL, variables marked secret since included; one that no longer imports is not worth keeping. */
-function draftableSdlOf(sdl: string, sealSecrets: boolean, services: ServiceType[]): string | undefined {
-  if (!sealSecrets) return sdl;
+function draftableSdlOf(sdl: string, services: ServiceType[]): string | undefined {
   try {
     return generateSdl(withSecretsMarkedLike(importDeploymentState(sdl).values, services), { sealSecrets: true });
   } catch {
@@ -507,11 +485,11 @@ function draftableSdlOf(sdl: string, sealSecrets: boolean, services: ServiceType
 }
 
 /** A fresh default deployment (or SSH-ready VM deployment), optionally annotated with the error that made an import unusable. */
-function defaultInitialState(isVm: boolean, sealSecrets: boolean, importError?: string): InitialState {
+function defaultInitialState(isVm: boolean, importError?: string): InitialState {
   const values = isVm
     ? { ...withDefaultPreset(defaultServiceWithPlacement(vmServiceOverrides())), hasSSHKey: true }
     : withDefaultPreset(defaultServiceWithPlacement());
-  return { values, sdl: regenerateSdl(values, "", sealSecrets), selectedServiceId: seedSelectedServiceId(values), changes: [], importError };
+  return { values, sdl: regenerateSdl(values, ""), selectedServiceId: seedSelectedServiceId(values), changes: [], importError };
 }
 
 /** Seeds the fresh deployment's service on the default (small) hardware preset so the screen opens deployable. */
@@ -559,9 +537,9 @@ function inheritedSecretsOf(sourceDseq: string | undefined, sdl: string | undefi
 }
 
 /** Regenerates the preview SDL, keeping the last good output while the form is mid-edit. */
-function regenerateSdl(values: SdlBuilderFormValuesType, previous: string, sealSecrets: boolean): string {
+function regenerateSdl(values: SdlBuilderFormValuesType, previous: string): string {
   try {
-    return generateSdl(values, { sealSecrets });
+    return generateSdl(values, { sealSecrets: true });
   } catch {
     return previous;
   }

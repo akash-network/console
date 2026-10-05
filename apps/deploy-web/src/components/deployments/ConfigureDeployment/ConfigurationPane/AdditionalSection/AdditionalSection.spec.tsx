@@ -13,15 +13,15 @@ import { MockComponents } from "@tests/unit/mocks";
 describe(AdditionalSection.name, () => {
   it("renders each additional row for the selected service", () => {
     const ReplicasCard = vi.fn(() => null);
-    const EnvironmentVariablesCard = vi.fn(() => null);
+    const VariablesAndSecretsCard = vi.fn(() => null);
     const CommandsCard = vi.fn(() => null);
     const ExposePortsCard = vi.fn(() => null);
     const LogsCard = vi.fn(() => null);
 
-    setup({ serviceIndex: 2, dependencies: { ReplicasCard, EnvironmentVariablesCard, CommandsCard, ExposePortsCard, LogsCard } });
+    setup({ serviceIndex: 2, dependencies: { ReplicasCard, VariablesAndSecretsCard, CommandsCard, ExposePortsCard, LogsCard } });
 
     expect(ReplicasCard).toHaveBeenCalledWith(expect.objectContaining({ serviceIndex: 2 }), expect.anything());
-    expect(EnvironmentVariablesCard).toHaveBeenCalledWith(expect.objectContaining({ serviceIndex: 2 }), expect.anything());
+    expect(VariablesAndSecretsCard).toHaveBeenCalledWith(expect.objectContaining({ serviceIndex: 2 }), expect.anything());
     expect(CommandsCard).toHaveBeenCalledWith(expect.objectContaining({ serviceIndex: 2 }), expect.anything());
     expect(ExposePortsCard).toHaveBeenCalledWith(expect.objectContaining({ serviceIndex: 2 }), expect.anything());
     expect(LogsCard).toHaveBeenCalledWith(expect.objectContaining({ serviceIndex: 2 }), expect.anything());
@@ -32,7 +32,7 @@ describe(AdditionalSection.name, () => {
       image: "nginx:latest",
       dependencies: {
         ExposePortsCard: () => <p>ports card</p>,
-        EnvironmentVariablesCard: () => <p>variables card</p>,
+        VariablesAndSecretsCard: () => <p>variables card</p>,
         CommandsCard: () => <p>commands card</p>,
         LogsCard: () => <p>logs card</p>,
         ReplicasCard: () => <p>replicas card</p>
@@ -50,48 +50,28 @@ describe(AdditionalSection.name, () => {
 
   it("locks the replicas, ports and logs cards but leaves env vars and commands editable while only on-chain fields are locked", () => {
     const ReplicasCard = vi.fn(() => null);
-    const EnvironmentVariablesCard = vi.fn(() => null);
+    const VariablesAndSecretsCard = vi.fn(() => null);
     const CommandsCard = vi.fn(() => null);
     const ExposePortsCard = vi.fn(() => null);
     const LogsCard = vi.fn(() => null);
 
-    setup({ locked: "onchain", dependencies: { ReplicasCard, EnvironmentVariablesCard, CommandsCard, ExposePortsCard, LogsCard } });
+    setup({ locked: "onchain", dependencies: { ReplicasCard, VariablesAndSecretsCard, CommandsCard, ExposePortsCard, LogsCard } });
 
     expect(ReplicasCard).toHaveBeenCalledWith(expect.objectContaining({ locked: true }), expect.anything());
     expect(ExposePortsCard).toHaveBeenCalledWith(expect.objectContaining({ locked: true }), expect.anything());
     expect(LogsCard).toHaveBeenCalledWith(expect.objectContaining({ locked: true }), expect.anything());
-    expect(EnvironmentVariablesCard).toHaveBeenCalledWith(expect.objectContaining({ locked: false }), expect.anything());
+    expect(VariablesAndSecretsCard).toHaveBeenCalledWith(expect.objectContaining({ locked: false }), expect.anything());
     expect(CommandsCard).toHaveBeenCalledWith(expect.objectContaining({ locked: false }), expect.anything());
   });
 
   it("locks the env-var and command cards too while a create/close/deploy is in flight", () => {
-    const EnvironmentVariablesCard = vi.fn(() => null);
+    const VariablesAndSecretsCard = vi.fn(() => null);
     const CommandsCard = vi.fn(() => null);
 
-    setup({ locked: "all", dependencies: { EnvironmentVariablesCard, CommandsCard } });
+    setup({ locked: "all", dependencies: { VariablesAndSecretsCard, CommandsCard } });
 
-    expect(EnvironmentVariablesCard).toHaveBeenCalledWith(expect.objectContaining({ locked: true }), expect.anything());
+    expect(VariablesAndSecretsCard).toHaveBeenCalledWith(expect.objectContaining({ locked: true }), expect.anything());
     expect(CommandsCard).toHaveBeenCalledWith(expect.objectContaining({ locked: true }), expect.anything());
-  });
-
-  it("renders the Variables & Secrets card in place of the env card while the secrets feature is on", () => {
-    const EnvironmentVariablesCard = vi.fn(() => null);
-    const VariablesAndSecretsCard = vi.fn(() => null);
-
-    setup({ locked: "onchain", dependencies: { EnvironmentVariablesCard, VariablesAndSecretsCard, useFlag: () => true } });
-
-    expect(VariablesAndSecretsCard).toHaveBeenCalledWith(expect.objectContaining({ serviceIndex: 0, locked: false }), expect.anything());
-    expect(EnvironmentVariablesCard).not.toHaveBeenCalled();
-  });
-
-  it("keeps the env card while the secrets feature is off", () => {
-    const EnvironmentVariablesCard = vi.fn(() => null);
-    const VariablesAndSecretsCard = vi.fn(() => null);
-
-    setup({ dependencies: { EnvironmentVariablesCard, VariablesAndSecretsCard, useFlag: () => false } });
-
-    expect(EnvironmentVariablesCard).toHaveBeenCalled();
-    expect(VariablesAndSecretsCard).not.toHaveBeenCalled();
   });
 
   it("omits the commands and replicas cards for a vm service", () => {

@@ -8,6 +8,7 @@ import { mock } from "vitest-mock-extended";
 import type { AnalyticsService } from "@src/services/analytics/analytics.service";
 import type { PlacementType, SdlBuilderFormValuesType } from "@src/types";
 import { defaultService } from "@src/utils/sdl/data";
+import { generateSdl } from "@src/utils/sdl/sdlGenerator";
 import { ConfigurationPane } from "../ConfigurationPane/ConfigurationPane";
 import { DEPENDENCIES as LOGS_CARD_DEPENDENCIES, LogsCard } from "../ConfigurationPane/LogsCard/LogsCard";
 import { ConfigureEditor, DEPENDENCIES as CONFIGURE_EDITOR_DEPENDENCIES } from "../ConfigureEditor/ConfigureEditor";
@@ -177,13 +178,16 @@ describe(ConfigureDeploymentForm.name, () => {
   it("seeds the panes with the carried-in template SDL", () => {
     const { ConfigureDeploymentPanes } = setup({ initialSdl: VALID_SDL });
 
-    expect(ConfigureDeploymentPanes).toHaveBeenCalledWith(expect.objectContaining({ sdl: VALID_SDL }), expect.anything());
+    expect(ConfigureDeploymentPanes).toHaveBeenCalledWith(expect.objectContaining({ sdl: sealedSdlOf(VALID_SDL) }), expect.anything());
   });
 
   it("threads both the live sdl and the debounced preview sdl into the panes", () => {
     const { ConfigureDeploymentPanes } = setup({ initialSdl: VALID_SDL });
 
-    expect(ConfigureDeploymentPanes).toHaveBeenCalledWith(expect.objectContaining({ sdl: VALID_SDL, previewSdl: VALID_SDL }), expect.anything());
+    expect(ConfigureDeploymentPanes).toHaveBeenCalledWith(
+      expect.objectContaining({ sdl: sealedSdlOf(VALID_SDL), previewSdl: sealedSdlOf(VALID_SDL) }),
+      expect.anything()
+    );
   });
 
   it("falls back to a default deployment when the carried-in SDL has no services", () => {
@@ -326,8 +330,8 @@ describe(ConfigureDeploymentForm.name, () => {
     await waitFor(() => expect(save).toHaveBeenCalledWith(expect.stringContaining("nginx:latest"), expect.any(String), undefined, undefined, {}));
   });
 
-  it("regenerates a carried-in SDL with its registry credentials as references when the secrets feature is on, so the draft never holds the password", async () => {
-    const { save } = setup({ initialSdl: CREDENTIALS_SDL, secretsEnabled: true });
+  it("regenerates a carried-in SDL with its registry credentials as references, so the draft never holds the password", async () => {
+    const { save } = setup({ initialSdl: CREDENTIALS_SDL });
 
     await waitFor(() =>
       expect(save).toHaveBeenCalledWith(expect.stringContaining("ac-secret://REGISTRY_PASSWORD"), expect.any(String), undefined, expect.any(String), {})
@@ -335,33 +339,10 @@ describe(ConfigureDeploymentForm.name, () => {
     expect(save.mock.calls.flat().filter(arg => String(arg).includes("hunter22"))).toEqual([]);
   });
 
-  it("seals a carried-in SDL's credentials when the secrets feature turns on mid-session", async () => {
-    const { save, enableSecrets } = setup({ initialSdl: CREDENTIALS_SDL });
-    await waitFor(() => expect(save).toHaveBeenCalledWith(expect.stringContaining("password: hunter22"), expect.any(String), undefined, CREDENTIALS_SDL, {}));
-
-    enableSecrets();
-
-    await waitFor(() =>
-      expect(save).toHaveBeenCalledWith(
-        expect.stringContaining("ac-secret://REGISTRY_PASSWORD"),
-        expect.any(String),
-        undefined,
-        expect.stringContaining("ac-secret://REGISTRY_PASSWORD"),
-        {}
-      )
-    );
-  });
-
-  it("keeps a carried-in SDL verbatim, credentials included, while the secrets feature is off", async () => {
-    const { save } = setup({ initialSdl: CREDENTIALS_SDL });
-
-    await waitFor(() => expect(save).toHaveBeenCalledWith(expect.stringContaining("password: hunter22"), expect.any(String), undefined, CREDENTIALS_SDL, {}));
-  });
-
   it("keeps the sdl a restored draft started from in its later saves", async () => {
     const { save } = setup({ initialSdl: TWO_SERVICE_SDL, persistedSdl: TWO_SERVICE_SDL, persistedStartingSdl: VALID_SDL });
 
-    await waitFor(() => expect(save).toHaveBeenCalledWith(expect.any(String), expect.any(String), undefined, VALID_SDL, {}));
+    await waitFor(() => expect(save).toHaveBeenCalledWith(expect.any(String), expect.any(String), undefined, sealedSdlOf(VALID_SDL), {}));
   });
 
   it("seals a variable marked secret in the starting sdl the draft holds, not only in the working one", async () => {
@@ -369,7 +350,6 @@ describe(ConfigureDeploymentForm.name, () => {
       initialSdl: PLAIN_VARIABLE_SDL,
       persistedSdl: PLAIN_VARIABLE_SDL,
       persistedStartingSdl: PLAIN_VARIABLE_SDL,
-      secretsEnabled: true,
       Panes: SecretProbePanes
     });
 
@@ -392,7 +372,6 @@ describe(ConfigureDeploymentForm.name, () => {
       initialSdl: PLAIN_VARIABLE_SDL,
       persistedSdl: PLAIN_VARIABLE_SDL,
       persistedStartingSdl: PLAIN_VARIABLE_SDL,
-      secretsEnabled: true,
       Panes: SecretProbePanes
     });
 
@@ -406,7 +385,7 @@ describe(ConfigureDeploymentForm.name, () => {
   });
 
   it("leaves a starting sdl that no longer imports out of a sealed draft", async () => {
-    const { save } = setup({ initialSdl: VALID_SDL, persistedSdl: VALID_SDL, persistedStartingSdl: "not: [valid", secretsEnabled: true });
+    const { save } = setup({ initialSdl: VALID_SDL, persistedSdl: VALID_SDL, persistedStartingSdl: "not: [valid" });
 
     await waitFor(() => expect(save).toHaveBeenCalledWith(expect.any(String), expect.any(String), undefined, undefined, {}));
   });
@@ -425,18 +404,11 @@ describe(ConfigureDeploymentForm.name, () => {
     expect(toast.props).toMatchObject({ title: "The previous deployment's secrets can't be reused", subTitle: message });
   });
 
-  it("offers a redeploy's inherited secret names to the panes while the secrets feature is on", () => {
-    setup({ initialSdl: INHERITED_REFERENCE_SDL, persistedInheritSecretsFrom: "123", secretsEnabled: true, Panes: InheritedSecretsProbePanes });
+  it("offers a redeploy's inherited secret names to the panes", () => {
+    setup({ initialSdl: INHERITED_REFERENCE_SDL, persistedInheritSecretsFrom: "123", Panes: InheritedSecretsProbePanes });
 
     expect(screen.getByTestId("inherited-source").textContent).toBe("123");
     expect(screen.getByTestId("inherited-names").textContent).toBe("c_password");
-  });
-
-  it("offers no inherited secret names while the secrets feature is off, so a kept reference still reads as needing a value", () => {
-    setup({ initialSdl: INHERITED_REFERENCE_SDL, persistedInheritSecretsFrom: "123", Panes: InheritedSecretsProbePanes });
-
-    expect(screen.getByTestId("inherited-source").textContent).toBe("");
-    expect(screen.getByTestId("inherited-names").textContent).toBe("");
   });
 
   it("clears the configure draft once the deployment is deployed", () => {
@@ -682,17 +654,30 @@ describe(ConfigureDeploymentForm.name, () => {
     await userEvent.click(screen.getByRole("button", { name: "confirm and deploy" }));
 
     expect(analyticsService.track).toHaveBeenCalledWith("review_deploy_confirmed", expect.objectContaining({ category: "deployments" }));
-    expect(flow.actions.deploy).toHaveBeenCalledWith(expect.any(String));
+    expect(flow.actions.deploy).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({ secrets: {} }));
   });
 
-  it("hands the typed secret values to the deploy when the secrets feature is on", async () => {
-    const { flow, ConfigureDeploymentPanes } = setup({ initialSdl: VALID_SDL, Panes: ProviderSelectProbePanes, secretsEnabled: true });
+  it("hands the typed secret values to the deploy", async () => {
+    const { flow, ConfigureDeploymentPanes } = setup({ initialSdl: VALID_SDL, Panes: ProviderSelectProbePanes });
 
     await userEvent.click(screen.getByRole("button", { name: "select provider" }));
     await userEvent.click(screen.getByRole("button", { name: "confirm and deploy" }));
 
     const previewed = lastPanesProps(ConfigureDeploymentPanes).sdl;
     expect(flow.actions.deploy).toHaveBeenCalledWith(previewed, { secrets: {}, unresolvedSecrets: [] });
+  });
+
+  it("hands a secret typed in the form to the deploy and leaves only its reference in the sdl", async () => {
+    const { flow } = setup({ initialSdl: VALID_SDL, Panes: SecretTypingProbePanes });
+
+    await userEvent.click(screen.getByRole("button", { name: "type a secret" }));
+    await userEvent.click(screen.getByRole("button", { name: "select provider" }));
+    await userEvent.click(screen.getByRole("button", { name: "confirm and deploy" }));
+
+    expect(flow.actions.deploy).toHaveBeenCalledWith(expect.stringContaining("API_KEY=ac-secret://API_KEY"), {
+      secrets: { API_KEY: "hunter2" },
+      unresolvedSecrets: []
+    });
   });
 
   it("tracks a dismissal when the review modal is closed via Back", async () => {
@@ -765,8 +750,8 @@ describe(ConfigureDeploymentForm.name, () => {
 
       expect(ConfigureWorkspace).toHaveBeenCalledWith(
         expect.objectContaining({
-          sdl: VALID_SDL,
-          previewSdl: VALID_SDL,
+          sdl: sealedSdlOf(VALID_SDL),
+          previewSdl: sealedSdlOf(VALID_SDL),
           selectedServiceId: expect.any(String),
           selectedPlacement: expect.objectContaining({ name: "dcloud" }),
           deploymentName: "web",
@@ -914,7 +899,10 @@ describe(ConfigureDeploymentForm.name, () => {
   it("threads the live sdl, deployment name, and editability into the import/export control", () => {
     const { SdlImportExport } = setup({ initialSdl: VALID_SDL, initialName: "my-app" });
 
-    expect(SdlImportExport).toHaveBeenCalledWith(expect.objectContaining({ sdl: VALID_SDL, deploymentName: "my-app", canImport: true }), expect.anything());
+    expect(SdlImportExport).toHaveBeenCalledWith(
+      expect.objectContaining({ sdl: sealedSdlOf(VALID_SDL), deploymentName: "my-app", canImport: true }),
+      expect.anything()
+    );
   });
 
   it("disables import while the flow is quoting", () => {
@@ -1026,7 +1014,6 @@ describe(ConfigureDeploymentForm.name, () => {
     vm?: boolean;
     phase?: DeploymentFlow["phase"];
     pendingClose?: DeploymentFlow["pendingClose"];
-    secretsEnabled?: boolean;
     twoPanel?: boolean;
     Workspace?: (props: WorkspaceProbeProps) => ReactNode;
     persistedInheritSecretsFrom?: string;
@@ -1116,7 +1103,7 @@ describe(ConfigureDeploymentForm.name, () => {
       useFlag: () => false
     };
 
-    const formWithFlags = (flags: { secretsEnabled: boolean; twoPanel: boolean }) => (
+    const formWithFlags = (flags: { twoPanel: boolean }) => (
       <ConfigureDeploymentForm
         initialSdl={input.initialSdl}
         initialName={input.initialName}
@@ -1124,15 +1111,14 @@ describe(ConfigureDeploymentForm.name, () => {
         flow={flow}
         dependencies={{
           ...dependencies,
-          useFlag: flag => (flag === "ui_deployment_secrets" ? flags.secretsEnabled : flag === "ui_configure_two_panel" && flags.twoPanel)
+          useFlag: flag => flag === "ui_configure_two_panel" && flags.twoPanel
         }}
       />
     );
-    const initialFlags = { secretsEnabled: input.secretsEnabled ?? false, twoPanel: input.twoPanel ?? false };
+    const initialFlags = { twoPanel: input.twoPanel ?? false };
     const { rerender } = render(formWithFlags(initialFlags));
 
     return {
-      enableSecrets: () => rerender(formWithFlags({ ...initialFlags, secretsEnabled: true })),
       rerenderWith: (flags: Partial<typeof initialFlags>) => rerender(formWithFlags({ ...initialFlags, ...flags })),
       ConfigureDeploymentPanes,
       ConfigureWorkspace,
@@ -1150,6 +1136,10 @@ describe(ConfigureDeploymentForm.name, () => {
     };
   }
 });
+
+function sealedSdlOf(sdl: string) {
+  return generateSdl(importDeploymentState(sdl).values, { sealSecrets: true });
+}
 
 function needsFundsToastOf(enqueueSnackbar: Mock) {
   return enqueueSnackbar.mock.calls[0][0] as { props: { title: string; subTitle: { props: { message?: string; context?: string; onAction?: () => void } } } };
@@ -1285,6 +1275,19 @@ function FieldRegisteringSection({ serviceIndex }: { serviceIndex: number }) {
   useController<SdlBuilderFormValuesType>({ name: `services.${serviceIndex}.image` as never });
   useController<SdlBuilderFormValuesType>({ name: `services.${serviceIndex}.title` as never });
   return null;
+}
+
+/** Panes stand-in that types a secret into the first service before offering the provider pick. */
+function SecretTypingProbePanes(props: ProbePanesProps) {
+  const { setValue } = useFormContext<SdlBuilderFormValuesType>();
+  return (
+    <div>
+      <button type="button" onClick={() => setValue("services.0.env", [{ id: "api-key", key: "API_KEY", value: "hunter2", isSecret: true }])}>
+        type a secret
+      </button>
+      <ProviderSelectProbePanes {...props} />
+    </div>
+  );
 }
 
 /** Panes stand-in that mutates the shared form to drive the SDL preview subscription. */

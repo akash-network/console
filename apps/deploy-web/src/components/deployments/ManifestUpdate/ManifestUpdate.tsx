@@ -16,7 +16,6 @@ import { useServices } from "@src/context/ServicesProvider";
 import { useWallet as useWalletOriginal } from "@src/context/WalletProvider";
 import type { DeploymentDefinition } from "@src/hooks/useDeploymentDefinition/useDeploymentDefinition";
 import { useDeploymentDefinition as useDeploymentDefinitionOriginal } from "@src/hooks/useDeploymentDefinition/useDeploymentDefinition";
-import { useFlag as useFlagOriginal } from "@src/hooks/useFlag";
 import { useBalances as useBalancesOriginal } from "@src/queries/useBalancesQuery";
 import type { DeploymentDto } from "@src/types/deployment";
 import { deploymentData as deploymentDataOriginal } from "@src/utils/deploymentData";
@@ -51,7 +50,6 @@ export const DEPENDENCIES = {
   useSnackbar: useSnackbarOriginal,
   useBlockchainStatus: useBlockchainStatusOriginal,
   useDeploymentDefinition: useDeploymentDefinitionOriginal,
-  useFlag: useFlagOriginal,
   useQueryClient: useQueryClientOriginal,
   // eslint-disable-next-line akash/dependencies-component-or-hook
   deploymentData: deploymentDataOriginal
@@ -90,7 +88,7 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({
   onRedeploy,
   dependencies: d = DEPENDENCIES
 }) => {
-  const { api, analyticsService, deploymentLocalStorage, logger } = useServices();
+  const { api, analyticsService, logger } = useServices();
   const [parsingError, setParsingError] = useState<string | null>(null);
   const [staleProviderNotice, setStaleProviderNotice] = useState<{ dseq: string; message: string } | null>(null);
   const [deploymentVersion, setDeploymentVersion] = useState<string | null>(null);
@@ -101,10 +99,6 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({
   const { enqueueSnackbar, closeSnackbar } = d.useSnackbar();
   const { isBlockchainDown } = d.useBlockchainStatus();
   const definition = d.useDeploymentDefinition(deployment.dseq);
-  const isSecretsEnabled = d.useFlag("ui_deployment_secrets");
-  const isUpdateEditorEnabled = d.useFlag("ui_deployment_update_editor");
-  /** The api seals every value of the unsealed update this tab sends, so the browser copy stays until sealed creates and the structured tab are both on and this tab is only a fallback. */
-  const keepsBrowserCopy = !isSecretsEnabled || !isUpdateEditorEnabled;
   const queryClient = d.useQueryClient();
   const seededDseq = useRef<string | undefined>(undefined);
   const seededSdl = useRef("");
@@ -207,7 +201,6 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({
   }
 
   function recordUpdate(submitted: SubmittedUpdate) {
-    cacheSubmittedManifest(submitted);
     refetchResolvedDefinition(submitted.dseq);
     analyticsService.track("update_deployment", { category: "deployments", label: "Update deployment" });
     analyticsService.track("successful_tx", { category: "transactions", label: "Successful transaction" });
@@ -220,17 +213,6 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({
   /** The resolved definition also feeds the header's service count and the placement cards, which would otherwise keep describing the document this update replaced. */
   function refetchResolvedDefinition(dseq: string) {
     queryClient.invalidateQueries({ queryKey: api.v1.getDeployment.getKey({ dseq }) });
-  }
-
-  /** A full or corrupted browser storage must not turn an update the api already accepted into a reported failure. */
-  function cacheSubmittedManifest({ dseq, sdl: manifest }: SubmittedUpdate) {
-    if (!keepsBrowserCopy) return;
-
-    try {
-      deploymentLocalStorage.update(address, dseq, { manifest });
-    } catch (error) {
-      logger.error({ event: "DEPLOYMENT_MANIFEST_CACHE_FAILED", error });
-    }
   }
 
   function closeAfterUpdate() {
@@ -264,9 +246,8 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({
     });
   }
 
-  /** The chain and the api already hold this document, so the browser's copy and the header follow them even though the provider has yet to run it. */
+  /** The chain and the api already hold this document, so the header follows them even though the provider has yet to run it. */
   function recordUpdateTheProviderHasYetToApply(submitted: SubmittedUpdate, cause: unknown) {
-    cacheSubmittedManifest(submitted);
     refetchResolvedDefinition(submitted.dseq);
 
     const message = extractApiErrorMessage(cause) ?? STALE_PROVIDER_VERSION_FALLBACK_MESSAGE;

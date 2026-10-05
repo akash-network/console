@@ -5,7 +5,6 @@ import yaml from "js-yaml";
 
 import { useServices } from "@src/context/ServicesProvider";
 import { useWallet } from "@src/context/WalletProvider";
-import { useFlag } from "@src/hooks/useFlag";
 import { useResolvedDeploymentName } from "@src/hooks/useResolvedDeploymentName/useResolvedDeploymentName";
 import { QueryKeys } from "@src/queries/queryKeys";
 import { deploymentData } from "@src/utils/deploymentData";
@@ -66,10 +65,10 @@ async function manifestVersionOrNull(sdl: string): Promise<string | null> {
   }
 }
 
-export const DEPENDENCIES = { useServices, useWallet, useResolvedDeploymentName, useFlag, useManifestVersionOf };
+export const DEPENDENCIES = { useServices, useWallet, useResolvedDeploymentName, useManifestVersionOf };
 
 export interface DeploymentDefinitionOptions {
-  /** Takes the api's copy even where it withholds values as references, for a caller that hands the SDL to Configure rather than signing it, and only while the secrets feature can resolve them. */
+  /** Takes the api's copy even where it withholds values as references, for a caller that hands the SDL to Configure rather than signing it. */
   acceptReferences?: boolean;
 }
 
@@ -112,8 +111,7 @@ export function useDeploymentDefinition(
   const localSdl = deploymentLocalStorage.get(address, dseq)?.manifest;
   const isRecordedByConsole = query.data ? !!consoleSettings : undefined;
   const name = dependencies.useResolvedDeploymentName(dseq);
-  /** Nothing resolves a reference with the feature off, so the api's copy is only preferred over this browser's while it is on. */
-  const acceptReferences = !!options.acceptReferences && dependencies.useFlag("ui_deployment_secrets");
+  const acceptReferences = !!options.acceptReferences;
   const mayRestoreFromBrowser = useMemo(
     () => acceptReferences && isApiCopyOnChain && !!apiSdl && !!localSdl && hasEnvProtectedByDefault(apiSdl),
     [acceptReferences, isApiCopyOnChain, apiSdl, localSdl]
