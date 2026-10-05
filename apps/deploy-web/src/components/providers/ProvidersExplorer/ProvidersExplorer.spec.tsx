@@ -74,13 +74,25 @@ describe("ProvidersExplorer", () => {
 
   it("opens a provider's summary from its table row and turns the globe to it", async () => {
     const provider = createListedProvider({ owner: "akash1row", name: "provider.row.com", ipLat: "50.1", ipLon: "8.7" });
-    const { globe } = setup({ providers: [provider] });
+    const { globe } = setup({ providers: [provider], locations: [createLocation({ owner: "akash1row", ipLat: "50.1", ipLon: "8.7" })] });
 
     await userEvent.click(screen.getByRole("button", { name: "provider.row.com" }));
 
     expect(screen.getByRole("complementary", { name: "Provider provider.row.com" })).toBeInTheDocument();
     expect(globe.props().selectedId).toBe("akash1row");
     expect(globe.controls.focus).toHaveBeenCalledExactlyOnceWith(50.1, 8.7, 2.35);
+  });
+
+  it("opens an offline provider's summary without turning the globe to a spot with no pin", async () => {
+    const { globe } = setup({
+      providers: [createListedProvider({ owner: "akash1offline", name: "provider.offline.com", ipLat: "50.1", ipLon: "8.7" })],
+      locations: [createLocation({ owner: "akash1online" })]
+    });
+
+    await userEvent.click(screen.getByRole("button", { name: "provider.offline.com" }));
+
+    expect(screen.getByRole("complementary", { name: "Provider provider.offline.com" })).toBeInTheDocument();
+    expect(globe.controls.focus).not.toHaveBeenCalled();
   });
 
   it("opens an unlocated provider's summary without turning the globe", async () => {

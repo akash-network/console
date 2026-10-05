@@ -504,6 +504,20 @@ describe(ProvidersGlobe.name, () => {
       expect(onIntroDone).toHaveBeenCalledTimes(1);
     });
 
+    it("rings every pin that pops in on the same frame", () => {
+      const { advanceFrames, globe } = setup({
+        providers: [createProvider({ id: "akash1equator", lat: 0, lng: 0 }), createProvider({ id: "akash1north", lat: 50, lng: 0 })],
+        playIntro: true
+      });
+
+      advanceFrames(1);
+      advanceFrames(1, INTRO_MS * 0.45 - FRAME_MS);
+      advanceFrames(1, INTRO_MS * 0.095);
+      const { pins, rings } = globe();
+
+      expect(rings.filter(ring => ring.visible).map(ring => ring.position.toArray())).toEqual(pins.map(({ pin }) => pin.position.toArray()));
+    });
+
     it("keeps each pin dark until the sweep reaches its longitude, then pops it in with a pulse ring", () => {
       const { advanceFrames, globe, onIntroDone } = setup({ providers: [createProvider({ id: "akash1center", lat: 0, lng: 0 })], playIntro: true });
 

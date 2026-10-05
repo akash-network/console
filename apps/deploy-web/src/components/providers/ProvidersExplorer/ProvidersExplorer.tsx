@@ -88,10 +88,12 @@ export const ProvidersExplorer: FC<Props> = ({ dependencies: d = DEPENDENCIES })
   const openProvider = useCallback(
     (provider: ProviderSummary) => {
       setPanel({ title: provider.location ?? provider.name, providers: [provider], selected: provider });
-      if (provider.coordinates) globeControls.current?.focus(provider.coordinates.lat, provider.coordinates.lng, PROVIDER_CAMERA_DISTANCE);
+      if (provider.coordinates && locatedProviders.has(provider.owner)) {
+        globeControls.current?.focus(provider.coordinates.lat, provider.coordinates.lng, PROVIDER_CAMERA_DISTANCE);
+      }
       heroRef.current?.scrollIntoView?.({ behavior: prefersReducedMotion ? "auto" : "smooth", block: "start" });
     },
-    [prefersReducedMotion]
+    [locatedProviders, prefersReducedMotion]
   );
 
   const selectFromPanel = useCallback((provider: ProviderSummary) => {

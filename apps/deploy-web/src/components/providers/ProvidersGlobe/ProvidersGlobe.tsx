@@ -129,7 +129,7 @@ type GlobeScene = {
   intro: { startedAt: number } | null;
   hovered: GlobeCluster | null;
   lastFrameAt: number;
-  pendingPulse: Marker | null;
+  pendingPulses: Marker[];
   landReadyAt: number;
   isVisible: boolean;
   width: number;
@@ -389,7 +389,7 @@ function buildScene(
     intro: null,
     hovered: null,
     lastFrameAt: 0,
-    pendingPulse: null,
+    pendingPulses: [],
     landReadyAt: 0,
     isVisible: true,
     width,
@@ -622,23 +622,22 @@ function markerArrival(globe: GlobeScene, marker: Marker, introProgress: number 
   if (introProgress < marker.ignitesAt) return 0;
   if (!marker.ignited) {
     marker.ignited = true;
-    globe.pendingPulse = marker;
+    globe.pendingPulses.push(marker);
   }
   return Math.min(1, (introProgress - marker.ignitesAt) / 0.09);
 }
 
 function updatePulses(globe: GlobeScene, elapsedSeconds: number) {
-  if (globe.pendingPulse) {
+  for (const marker of globe.pendingPulses) {
     const free = globe.pulses.find(pulse => !pulse.isActive);
-    if (free) {
-      free.isActive = true;
-      free.progress = 0;
-      free.mesh.visible = true;
-      free.mesh.position.copy(globe.pendingPulse.mesh.position);
-      free.mesh.lookAt(0, 0, 0);
-    }
-    globe.pendingPulse = null;
+    if (!free) break;
+    free.isActive = true;
+    free.progress = 0;
+    free.mesh.visible = true;
+    free.mesh.position.copy(marker.mesh.position);
+    free.mesh.lookAt(0, 0, 0);
   }
+  globe.pendingPulses = [];
 
   for (const pulse of globe.pulses) {
     if (!pulse.isActive) continue;
