@@ -22,6 +22,7 @@ import { RefillService, type ToppedUpWallet } from "@src/billing/services/refill
 import { STRIPE_CURRENCY } from "@src/billing/services/stripe/stripe.service";
 import { IDEMPOTENCY_KEY_MISMATCH_ERROR_MESSAGE, PAYMENT_IN_PROGRESS_ERROR_MESSAGE } from "@src/billing/services/stripe-error/stripe-error.service";
 import { type CreateLogger, LOGGER_FACTORY, WithTransaction } from "@src/core";
+import { AnalyticsService } from "@src/core/services/analytics/analytics.service";
 import { DomainEventsService } from "@src/core/services/domain-events/domain-events.service";
 import { TimerService } from "@src/core/services/timer/timer.service";
 import { UserRepository } from "@src/user/repositories/user/user.repository";
@@ -114,6 +115,7 @@ export class StripeTransactionService {
     private readonly timerService: TimerService,
     private readonly userRepository: UserRepository,
     private readonly domainEventsService: DomainEventsService,
+    private readonly analyticsService: AnalyticsService,
     @inject(LOGGER_FACTORY) createLogger: CreateLogger
   ) {
     this.loggerService = createLogger({ context: StripeTransactionService.name });
@@ -730,18 +732,57 @@ export class StripeTransactionService {
   @WithTransaction()
   async failPaymentIntent(event: Stripe.PaymentIntentPaymentFailedEvent): Promise<void> {
     const paymentIntent = event.data.object;
-    const errorMessage = paymentIntent.last_payment_error?.message ?? PAYMENT_FAILED_MESSAGE;
+    const paymentError = paymentIntent.last_payment_error;
+    const errorMessage = paymentError?.message ?? PAYMENT_FAILED_MESSAGE;
 
     await this.stripeTransactionRepository.updateByPaymentIntentId(paymentIntent.id, {
       status: "failed",
       errorMessage
     });
 
+    const topUp = await this.#findTopUpTransaction(paymentIntent);
+
     this.loggerService.warn({
       event: "PAYMENT_INTENT_FAILED",
       paymentIntentId: paymentIntent.id,
-      errorMessage
+      transactionId: topUp?.id,
+      userId: topUp?.userId,
+      errorMessage,
+      errorCode: paymentError?.code,
+      declineCode: paymentError?.decline_code
     });
+
+    if (topUp) {
+      this.#trackTopUpFailed(event, topUp);
+    }
+  }
+
+  /** Found through the intent's metadata, since a synchronous decline can reach this webhook before the charge request records the intent id. */
+  async #findTopUpTransaction(paymentIntent: Stripe.PaymentIntent): Promise<StripeTransactionOutput | undefined> {
+    const transactionId = paymentIntent.metadata.internal_transaction_id;
+    return transactionId ? await this.stripeTransactionRepository.findById(transactionId) : undefined;
+  }
+
+  #trackTopUpFailed(event: Stripe.PaymentIntentPaymentFailedEvent, transaction: StripeTransactionOutput): void {
+    const paymentIntent = event.data.object;
+    const paymentError = paymentIntent.last_payment_error;
+
+    this.analyticsService.track(
+      transaction.userId,
+      "balance_top_up_failed",
+      {
+        amount_cents: paymentIntent.amount,
+        amount_usd: paymentIntent.amount / 100,
+        currency: paymentIntent.currency,
+        error_code: paymentError?.code,
+        decline_code: paymentError?.decline_code,
+        payment_method_type: paymentError?.payment_method?.type,
+        card_brand: paymentError?.payment_method?.card?.brand,
+        transaction_id: transaction.id,
+        auto_recharge: paymentIntent.metadata[AUTO_RECHARGE_METADATA_KEY] === "true"
+      },
+      { insertId: event.id }
+    );
   }
 
   @WithTransaction()

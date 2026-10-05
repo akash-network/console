@@ -6,6 +6,7 @@ import { type CreateLogger, LOGGER_FACTORY } from "@src/core/providers/logging.p
 type AnalyticsEvent =
   | "user_registered"
   | "balance_top_up"
+  | "balance_top_up_failed"
   | "balance_refund"
   | "first_purchase_bonus_granted"
   | "auto_recharge_enabled"
@@ -36,10 +37,11 @@ export class AnalyticsService {
     this.loggerService.debug({ event: "ANALYTICS_USER_IDENTIFIED", userId });
   }
 
-  track(userId: string, eventName: AnalyticsEvent, eventProperties: Record<string, unknown> = {}) {
+  track(userId: string, eventName: AnalyticsEvent, eventProperties: Record<string, unknown> = {}, options: { insertId?: string } = {}) {
     const amplitudeProperties = eventProperties as Record<string, unknown>;
     this.amplitude.track(eventName, amplitudeProperties, {
-      user_id: userId
+      user_id: userId,
+      ...(options.insertId && { insert_id: options.insertId })
     });
     this.loggerService.debug({ event: "ANALYTICS_EVENT_REPORTED", userId, eventName });
   }
