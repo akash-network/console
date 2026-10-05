@@ -26,7 +26,7 @@ import type {
 } from "@src/deployment/services/draining-deployment/draining-deployment.service";
 import type { ReconcileManagedTxJobService } from "@src/deployment/services/reconcile-managed-tx/reconcile-managed-tx-job.service";
 import { mockConfigService } from "../../../../test/mocks/config-service.mock";
-import { CachedBalance, type CachedBalanceService } from "../cached-balance/cached-balance.service";
+import { CachedBalance, type CachedBalanceService, InsufficientBalanceError } from "../cached-balance/cached-balance.service";
 import type { FundDrainingDeploymentsInstrumentationService } from "./fund-draining-deployments-instrumentation.service";
 import { TopUpManagedDeploymentsService } from "./top-up-managed-deployments.service";
 import type { TopUpManagedDeploymentsInstrumentationService } from "./top-up-managed-deployments-instrumentation.service";
@@ -59,7 +59,7 @@ describe(TopUpManagedDeploymentsService.name, () => {
       const amount = affordableAmount(desiredAmount);
 
       if (amount <= 0) {
-        throw new Error(`Insufficient balance: ${amount} < ${desiredAmount}`);
+        throw new InsufficientBalanceError(amount, desiredAmount);
       }
 
       return amount;
@@ -1582,6 +1582,187 @@ describe(TopUpManagedDeploymentsService.name, () => {
         ...createDrainingDeployment({ dseq: Number(setting.dseq), owner, predictedClosedHeight, denom: DEPLOYMENT_GRANT_DENOM }),
         dseq: setting.dseq
       } as DrainingDeployment;
+    }
+  });
+
+  describe("when funding leaves deployments unfunded for lack of credits", () => {
+    it("warns the owner of a wallet with nothing spendable about the deployment that closes first", async () => {
+      const { service, drainingDeploymentService, cachedBalanceService, walletReloadService } = setup();
+      const [later, first, last] = createOwnerDeployments([3000, 900, 4000]);
+      const runwayMinutes = 90;
+      const startedAt = Date.now();
+
+      mockOwnerYields(drainingDeploymentService, createOwnerYield([later, first, last]));
+      drainingDeploymentService.calculateAmountToTargetRunway.mockReturnValue(1_000_000);
+      drainingDeploymentService.calculateRunwayMinutesAfterDeposit.mockImplementation(deployment => (deployment === first ? runwayMinutes : 0));
+      cachedBalanceService.get.mockResolvedValue(mock<CachedBalance>({ spendable: 0 }));
+
+      await service.topUpDeployments({ dryRun: false });
+
+      expect(drainingDeploymentService.calculateRunwayMinutesAfterDeposit).toHaveBeenCalledWith(first, 0, CURRENT_BLOCK_HEIGHT);
+      expect(walletReloadService.scheduleCreditsExhaustedCheck).toHaveBeenCalledExactlyOnceWith({
+        userId: first.userId,
+        firstClosingDseq: first.dseq,
+        unfundedDeploymentCount: 3,
+        firstClosureAt: expect.any(String)
+      });
+      const [{ firstClosureAt }] = vi.mocked(walletReloadService.scheduleCreditsExhaustedCheck).mock.calls[0];
+      expectClosureAfterMinutes(firstClosureAt, { startedAt, runwayMinutes });
+    });
+
+    it("leaves deployments with nothing to deposit out of the warning", async () => {
+      const { service, drainingDeploymentService, cachedBalanceService, walletReloadService } = setup();
+      const [unfunded, fundedToTarget] = createOwnerDeployments([1500, 900]);
+
+      mockOwnerYields(drainingDeploymentService, createOwnerYield([unfunded, fundedToTarget]));
+      drainingDeploymentService.calculateAmountToTargetRunway.mockImplementation(deployment => (deployment === unfunded ? 1_000_000 : 0));
+      cachedBalanceService.get.mockResolvedValue(mock<CachedBalance>({ spendable: 0 }));
+
+      await service.topUpDeployments({ dryRun: false });
+
+      expect(walletReloadService.scheduleCreditsExhaustedCheck).toHaveBeenCalledExactlyOnceWith(
+        expect.objectContaining({ firstClosingDseq: unfunded.dseq, unfundedDeploymentCount: 1 })
+      );
+    });
+
+    it("does not warn when no deployment of a zero-balance owner needs a deposit", async () => {
+      const { service, drainingDeploymentService, cachedBalanceService, walletReloadService } = setup();
+
+      mockOwnerYields(drainingDeploymentService, createOwnerYield(createOwnerDeployments([1500])));
+      drainingDeploymentService.calculateAmountToTargetRunway.mockReturnValue(0);
+      cachedBalanceService.get.mockResolvedValue(mock<CachedBalance>({ spendable: 0 }));
+
+      await service.topUpDeployments({ dryRun: false });
+
+      expect(walletReloadService.scheduleCreditsExhaustedCheck).not.toHaveBeenCalled();
+    });
+
+    it("does not warn an owner whose Auto Recharge refills the balance", async () => {
+      const { service, drainingDeploymentService, cachedBalanceService, walletReloadService } = setup();
+
+      mockOwnerYields(drainingDeploymentService, createOwnerYield(createOwnerDeployments([1500], { isWalletAutoTopUpEnabled: true })));
+      drainingDeploymentService.calculateAmountToTargetRunway.mockReturnValue(1_000_000);
+      cachedBalanceService.get.mockResolvedValue(mock<CachedBalance>({ spendable: 0 }));
+
+      await service.topUpDeployments({ dryRun: false });
+
+      expect(walletReloadService.scheduleCreditsExhaustedCheck).not.toHaveBeenCalled();
+    });
+
+    it("does not warn a trialing owner", async () => {
+      const { service, drainingDeploymentService, cachedBalanceService, walletReloadService } = setup();
+
+      mockOwnerYields(drainingDeploymentService, createOwnerYield(createOwnerDeployments([1500], { walletIsTrialing: true })));
+      drainingDeploymentService.calculateAmountToTargetRunway.mockReturnValue(1_000_000);
+      cachedBalanceService.get.mockResolvedValue(mock<CachedBalance>({ spendable: 0 }));
+
+      await service.topUpDeployments({ dryRun: false });
+
+      expect(walletReloadService.scheduleCreditsExhaustedCheck).not.toHaveBeenCalled();
+    });
+
+    it("does not warn on a dry run", async () => {
+      const { service, drainingDeploymentService, cachedBalanceService, walletReloadService } = setup();
+
+      mockOwnerYields(drainingDeploymentService, createOwnerYield(createOwnerDeployments([1500])));
+      drainingDeploymentService.calculateAmountToTargetRunway.mockReturnValue(1_000_000);
+      cachedBalanceService.get.mockResolvedValue(mock<CachedBalance>({ spendable: 0 }));
+
+      await service.topUpDeployments({ dryRun: true });
+
+      expect(walletReloadService.scheduleCreditsExhaustedCheck).not.toHaveBeenCalled();
+    });
+
+    it("warns about a deposit declined for buying less runway than the funding cooldown", async () => {
+      const { service, drainingDeploymentService, cachedBalanceService, walletReloadService } = setup();
+      const [declined] = createOwnerDeployments([1500]);
+
+      drainingDeploymentService.findDrainingDeploymentsForOwner.mockResolvedValue([declined]);
+      drainingDeploymentService.calculateAmountToTargetRunway.mockReturnValue(1_000_000);
+      drainingDeploymentService.calculateRunwayMinutesAfterDeposit.mockReturnValue(DEDUP_COOLDOWN_IN_MIN - 1);
+      cachedBalanceService.getFresh.mockResolvedValue(createMockCachedBalance(() => 1000));
+
+      await service.topUpDrainingDeploymentsForOwner({ walletId: declined.walletId, address: declined.address });
+
+      expect(walletReloadService.scheduleCreditsExhaustedCheck).toHaveBeenCalledExactlyOnceWith(
+        expect.objectContaining({ userId: declined.userId, firstClosingDseq: declined.dseq, unfundedDeploymentCount: 1 })
+      );
+    });
+
+    it("warns about a deployment the rest of the batch left no allowance for, and still funds the rest", async () => {
+      const { service, drainingDeploymentService, cachedBalanceService, managedSignerService, walletReloadService } = setup();
+      const [funded, starved] = createOwnerDeployments([900, 1500]);
+      const ALLOWANCE = 1_000_000;
+      const NO_HEADROOM = 0;
+
+      drainingDeploymentService.findDrainingDeploymentsForOwner.mockResolvedValue([funded, starved]);
+      drainingDeploymentService.calculateAmountToTargetRunway.mockReturnValue(ALLOWANCE);
+      cachedBalanceService.getFresh.mockResolvedValue(new CachedBalance(ALLOWANCE, { headroom: NO_HEADROOM, minDeposit: MIN_DEPOSIT }));
+
+      await service.topUpDrainingDeploymentsForOwner({ walletId: funded.walletId, address: funded.address });
+
+      expect(managedSignerService.executeDerivedTx).toHaveBeenCalledTimes(1);
+      expect(walletReloadService.scheduleCreditsExhaustedCheck).toHaveBeenCalledExactlyOnceWith(
+        expect.objectContaining({ firstClosingDseq: starved.dseq, unfundedDeploymentCount: 1 })
+      );
+    });
+
+    it("does not warn about a deployment whose deposit failed for a reason other than credits", async () => {
+      const { service, drainingDeploymentService, cachedBalanceService, walletReloadService, fundDrainingInstrumentation } = setup();
+      const [deployment] = createOwnerDeployments([1500]);
+
+      drainingDeploymentService.findDrainingDeploymentsForOwner.mockResolvedValue([deployment]);
+      drainingDeploymentService.calculateAmountToTargetRunway.mockImplementation(() => {
+        throw new Error("block rate unavailable");
+      });
+      cachedBalanceService.getFresh.mockResolvedValue(createMockCachedBalance(() => 1_000_000));
+
+      await service.topUpDrainingDeploymentsForOwner({ walletId: deployment.walletId, address: deployment.address });
+
+      expect(fundDrainingInstrumentation.recordMessagePreparationError).toHaveBeenCalledWith(expect.objectContaining({ deployment }));
+      expect(walletReloadService.scheduleCreditsExhaustedCheck).not.toHaveBeenCalled();
+    });
+
+    it("does not warn when every deployment is funded", async () => {
+      const { service, drainingDeploymentService, cachedBalanceService, managedSignerService, walletReloadService } = setup();
+      const deployments = createOwnerDeployments([900, 1500]);
+
+      drainingDeploymentService.findDrainingDeploymentsForOwner.mockResolvedValue(deployments);
+      drainingDeploymentService.calculateAmountToTargetRunway.mockReturnValue(1_000_000);
+      cachedBalanceService.getFresh.mockResolvedValue(createMockCachedBalance(desiredAmount => desiredAmount));
+
+      await service.topUpDrainingDeploymentsForOwner({ walletId: deployments[0].walletId, address: deployments[0].address });
+
+      expect(managedSignerService.executeDerivedTx).toHaveBeenCalledTimes(1);
+      expect(walletReloadService.scheduleCreditsExhaustedCheck).not.toHaveBeenCalled();
+    });
+
+    function createOwnerDeployments(blocksUntilClosure: number[], overrides?: Partial<AutoTopUpDeployment>): DrainingDeployment[] {
+      const owner = createAkashAddress();
+      const walletId = faker.number.int({ min: 1000000, max: 9999999 });
+      const userId = faker.string.uuid();
+
+      return blocksUntilClosure.map((blocks, index) => {
+        const setting = createAutoTopUpDeployment({ address: owner, walletId, userId, dseq: String(7001 + index), ...overrides });
+
+        return {
+          ...setting,
+          ...createDrainingDeployment({
+            dseq: Number(setting.dseq),
+            owner,
+            predictedClosedHeight: CURRENT_BLOCK_HEIGHT + blocks,
+            denom: DEPLOYMENT_GRANT_DENOM
+          }),
+          dseq: setting.dseq
+        } as DrainingDeployment;
+      });
+    }
+
+    function expectClosureAfterMinutes(firstClosureAt: string, { startedAt, runwayMinutes }: { startedAt: number; runwayMinutes: number }) {
+      const runwayMs = runwayMinutes * 60 * 1000;
+
+      expect(Date.parse(firstClosureAt)).toBeGreaterThanOrEqual(startedAt + runwayMs);
+      expect(Date.parse(firstClosureAt)).toBeLessThanOrEqual(Date.now() + runwayMs);
     }
   });
 

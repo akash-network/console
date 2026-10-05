@@ -4,7 +4,7 @@ import { mock } from "vitest-mock-extended";
 import type { BalancesService } from "@src/billing/services/balances/balances.service";
 import type { CreateLogger } from "@src/core";
 import type { DeploymentConfigService } from "@src/deployment/services/deployment-config/deployment-config.service";
-import { CachedBalanceService } from "./cached-balance.service";
+import { CachedBalanceService, InsufficientBalanceError } from "./cached-balance.service";
 
 import { mockConfigService } from "@test/mocks/config-service.mock";
 import { createAkashAddress } from "@test/seeders";
@@ -91,7 +91,7 @@ describe(CachedBalanceService.name, () => {
 
       balance.reserveSufficientAmount(1000);
 
-      expect(() => balance.reserveSufficientAmount(200)).toThrow("Insufficient balance");
+      expect(() => balance.reserveSufficientAmount(200)).toThrow(new InsufficientBalanceError(0, 200));
     });
 
     it("returns the maximum available amount when requesting more than available", async () => {

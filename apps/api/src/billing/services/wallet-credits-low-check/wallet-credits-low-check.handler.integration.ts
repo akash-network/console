@@ -68,6 +68,19 @@ describe(WalletCreditsLowCheckHandler.name, () => {
     expect(await findWallet()).toMatchObject({ creditsLowNotifiedAt: expect.any(Date), creditsLowSince: null, creditsSufficientSince: null });
   });
 
+  it("lets the new low episode warn of closure again by clearing the previous episode's closure warning", async () => {
+    const { checkCredits, findWallet } = await setup({
+      balanceUsd: 1,
+      weeklyCostUsd: 20,
+      creditsLowSince: subMinutes(new Date(), PAST_THE_CONFIRM_WINDOW_IN_MIN),
+      creditsExhaustedNotifiedAt: subHours(new Date(), PAST_THE_RESEND_COOLDOWN_IN_H)
+    });
+
+    await checkCredits();
+
+    expect(await findWallet()).toMatchObject({ creditsLowNotifiedAt: expect.any(Date), creditsExhaustedNotifiedAt: null });
+  });
+
   it("emails nothing a second time for a wallet already notified, and ends its recovery streak", async () => {
     const { checkCredits, findWallet, sentNotifications } = await setup({
       balanceUsd: 1,
@@ -165,6 +178,7 @@ describe(WalletCreditsLowCheckHandler.name, () => {
     creditsLowSince?: Date;
     creditsLowNotifiedAt?: Date;
     creditsSufficientSince?: Date;
+    creditsExhaustedNotifiedAt?: Date;
     autoReload?: boolean;
     isTrialing?: boolean;
     hasAutoTopUpSettings?: boolean;
@@ -179,6 +193,7 @@ describe(WalletCreditsLowCheckHandler.name, () => {
       creditsLowSince: input.creditsLowSince ?? null,
       creditsLowNotifiedAt: input.creditsLowNotifiedAt ?? null,
       creditsSufficientSince: input.creditsSufficientSince ?? null,
+      creditsExhaustedNotifiedAt: input.creditsExhaustedNotifiedAt ?? null,
       user: { email: "credits-low@example.com" }
     });
 

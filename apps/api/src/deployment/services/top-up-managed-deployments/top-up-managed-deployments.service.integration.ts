@@ -4,12 +4,14 @@ import nock from "nock";
 import { container } from "tsyringe";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { WalletCreditsExhaustedCheck } from "@src/billing/events/wallet-credits-exhausted-check";
 import { UserWalletRepository } from "@src/billing/repositories";
 import { BalancesService } from "@src/billing/services/balances/balances.service";
 import { ChainErrorService } from "@src/billing/services/chain-error/chain-error.service";
 import { ManagedSignerService } from "@src/billing/services/managed-signer/managed-signer.service";
+import { WalletCreditsExhaustedCheckHandler } from "@src/billing/services/wallet-credits-exhausted-check/wallet-credits-exhausted-check.handler";
 import type { ApiPgDatabase } from "@src/core";
-import { CORE_CONFIG, POSTGRES_DB, resolveTable } from "@src/core";
+import { CORE_CONFIG, JOB_NAME, POSTGRES_DB, resolveTable } from "@src/core";
 import { TopUpSummarizer } from "@src/deployment/lib/top-up-summarizer/top-up-summarizer";
 import { UserRepository } from "@src/user/repositories";
 import { averageBlockCountInAnHour } from "@src/utils/constants";
@@ -18,6 +20,7 @@ import { TopUpManagedDeploymentsService } from "./top-up-managed-deployments.ser
 import { createAkashAddress } from "@test/seeders/akash-address.seeder";
 import { createDeploymentInfoSeed } from "@test/seeders/deployment-info.seeder";
 import { createLeaseApiResponse } from "@test/seeders/lease-api-response.seeder";
+import { findJobRows, useJobWorkers } from "@test/services/job-queue-harness";
 
 const CURRENT_HEIGHT = 1000000;
 const CLOSED_HEIGHT = String(CURRENT_HEIGHT - 500);
@@ -28,6 +31,8 @@ const ESCROW_AMOUNT = "50000";
 const HEADROOM_UDENOM = 5000000;
 const NEARLY_DRAINED_ESCROW_AMOUNT = "1000";
 const ALLOWANCE_ABOVE_HEADROOM_BELOW_A_COOLDOWN = 20000;
+
+const jobWorkers = useJobWorkers(() => [container.resolve(WalletCreditsExhaustedCheckHandler)]);
 
 type DepositMessage = { value: { deposit?: { amount?: { amount: string } } } };
 
@@ -433,6 +438,24 @@ describe(TopUpManagedDeploymentsService.name, () => {
       expect(result.ok).toBe(true);
       expect(executeDerivedTx).not.toHaveBeenCalled();
       expect((await findSetting(address, drainingDseq))?.lastFundedAt).toBeNull();
+    });
+
+    it("queues a closure warning for a paying owner whose credits cannot fund a draining deployment", async () => {
+      const { topUpService, createUserWithWallet, createDeploymentSetting, mockLeasesForOwner, mockDeploymentsForOwner, stubGetFreshLimits } = await setup();
+      await jobWorkers();
+      const { user, address } = await createUserWithWallet();
+      const drainingDseq = "710001";
+
+      await createDeploymentSetting(user.id, drainingDseq);
+
+      mockLeasesForOwner(address, [createActiveLease(address, drainingDseq)]);
+      mockDeploymentsForOwner(address, [createActiveDeployment(address, drainingDseq)]);
+      stubGetFreshLimits({ [address]: 0 });
+
+      await topUpService.topUpDeployments({ dryRun: false });
+
+      const [warning] = await findJobRows(WalletCreditsExhaustedCheck[JOB_NAME], { singletonKey: `${WalletCreditsExhaustedCheck.name}.${user.id}` });
+      expect(warning?.data).toMatchObject({ userId: user.id, firstClosingDseq: drainingDseq, unfundedDeploymentCount: 1 });
     });
 
     it("caps the deposit at what sits above the headroom floor so a new deployment can still be created", async () => {

@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import { WalletBalanceReloadCheck } from "@src/billing/events/wallet-balance-reload-check";
+import { WalletCreditsExhaustedCheck } from "@src/billing/events/wallet-credits-exhausted-check";
 import { WalletCreditsLowCheck } from "@src/billing/events/wallet-credits-low-check";
 import type { UserWalletRepository, WalletSettingRepository } from "@src/billing/repositories";
 import type { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
@@ -408,6 +409,37 @@ describe(WalletReloadJobService.name, () => {
         userId,
         error
       });
+    });
+  });
+
+  describe("scheduleCreditsExhaustedCheck", () => {
+    it("enqueues one closure warning check per user", async () => {
+      const { service, jobQueueService } = setup();
+      const data = {
+        userId: faker.string.uuid(),
+        firstClosingDseq: "1234567",
+        unfundedDeploymentCount: 2,
+        firstClosureAt: "2026-10-05T12:00:00.000Z"
+      };
+
+      await service.scheduleCreditsExhaustedCheck(data);
+
+      expect(jobQueueService.enqueue).toHaveBeenCalledExactlyOnceWith(new WalletCreditsExhaustedCheck(data), {
+        singletonKey: `WalletCreditsExhaustedCheck.${data.userId}`
+      });
+    });
+
+    it("logs instead of throwing when the enqueue fails, so the funding pass carries on", async () => {
+      const { service, jobQueueService, logger } = setup();
+      const userId = faker.string.uuid();
+      const error = new Error("Queue cache is not initialized");
+      jobQueueService.enqueue.mockRejectedValue(error);
+
+      await expect(
+        service.scheduleCreditsExhaustedCheck({ userId, firstClosingDseq: "1234567", unfundedDeploymentCount: 1, firstClosureAt: "2026-10-05T12:00:00.000Z" })
+      ).resolves.toBeUndefined();
+
+      expect(logger.error).toHaveBeenCalledWith({ event: "CREDITS_EXHAUSTED_CHECK_SCHEDULE_FAILED", userId, error });
     });
   });
 

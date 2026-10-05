@@ -2,6 +2,7 @@ import { container } from "tsyringe";
 
 import { ActivateTrialHandler } from "@src/billing/services/activate-trial/activate-trial.handler";
 import { WalletBalanceReloadCheckHandler } from "@src/billing/services/wallet-balance-reload-check/wallet-balance-reload-check.handler";
+import { WalletCreditsExhaustedCheckHandler } from "@src/billing/services/wallet-credits-exhausted-check/wallet-credits-exhausted-check.handler";
 import { WalletCreditsLowCheckHandler } from "@src/billing/services/wallet-credits-low-check/wallet-credits-low-check.handler";
 import type { AppInitializer } from "@src/core/providers/app-initializer";
 import { APP_INITIALIZER, ON_APP_START } from "@src/core/providers/app-initializer";
@@ -47,6 +48,7 @@ export async function startJobQueues(): Promise<void> {
     container.resolve(FundDrainingDeploymentsHandler),
     container.resolve(WalletBalanceReloadCheckHandler),
     container.resolve(WalletCreditsLowCheckHandler),
+    container.resolve(WalletCreditsExhaustedCheckHandler),
     container.resolve(FirstPurchaseBonusGrantedHandler),
     container.resolve(AutoRechargeSucceededHandler),
     container.resolve(CreditsAddedSlackAlertHandler),

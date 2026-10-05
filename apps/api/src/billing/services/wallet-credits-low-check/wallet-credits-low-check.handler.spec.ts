@@ -5,6 +5,7 @@ import type { WalletCreditsLowCheck } from "@src/billing/events/wallet-credits-l
 import type { UserWalletRepository, WalletSettingRepository } from "@src/billing/repositories";
 import type { BalancesService } from "@src/billing/services/balances/balances.service";
 import type { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
+import { CreditsWarningRecipientService } from "@src/billing/services/credits-warning-recipient/credits-warning-recipient.service";
 import type { JobPayload } from "@src/core";
 import type { CreateLogger } from "@src/core/providers/logging.provider";
 import type { DrainingDeploymentService } from "@src/deployment/services/draining-deployment/draining-deployment.service";
@@ -368,7 +369,7 @@ describe(WalletCreditsLowCheckHandler.name, () => {
     expect(logger.info).toHaveBeenCalledWith(expect.objectContaining({ event: "CREDITS_LOW_EMAIL_SENT" }));
   });
 
-  it("stamps creditsLowNotifiedAt after a successful send", async () => {
+  it("stamps creditsLowNotifiedAt and reopens the closure warning for the new low episode after a successful send", async () => {
     const { handler, notificationService, userWalletRepository, wallet, logger, job } = setup();
 
     await handler.handle(job);
@@ -377,7 +378,8 @@ describe(WalletCreditsLowCheckHandler.name, () => {
     expect(userWalletRepository.updateById).toHaveBeenCalledWith(wallet.id, {
       creditsLowNotifiedAt: expect.any(Date),
       creditsSufficientSince: null,
-      creditsLowSince: null
+      creditsLowSince: null,
+      creditsExhaustedNotifiedAt: null
     });
     expect(logger.info).toHaveBeenCalledWith(expect.objectContaining({ event: "CREDITS_LOW_EMAIL_SENT" }));
   });
@@ -393,7 +395,8 @@ describe(WalletCreditsLowCheckHandler.name, () => {
     expect(userWalletRepository.updateById).toHaveBeenCalledWith(expect.any(Number), {
       creditsLowNotifiedAt: expect.any(Date),
       creditsSufficientSince: null,
-      creditsLowSince: null
+      creditsLowSince: null,
+      creditsExhaustedNotifiedAt: null
     });
   });
 
@@ -484,9 +487,8 @@ describe(WalletCreditsLowCheckHandler.name, () => {
     userWalletRepository.isCreditsLowConfirmed.mockResolvedValue(input?.isLowConfirmed ?? true);
 
     const handler = new WalletCreditsLowCheckHandler(
-      walletSettingRepository,
+      new CreditsWarningRecipientService(walletSettingRepository, userWalletRepository, userRepository),
       userWalletRepository,
-      userRepository,
       balancesService,
       drainingDeploymentService,
       notificationService,
