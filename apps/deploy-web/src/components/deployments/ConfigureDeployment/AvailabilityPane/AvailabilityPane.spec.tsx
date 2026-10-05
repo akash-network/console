@@ -163,6 +163,28 @@ describe(AvailabilityPane.name, () => {
     expect(screen.getByRole("button", { name: "Request compute" })).toBeEnabled();
   });
 
+  it("holds the provider choice and points at the compute request while no provider can host the configuration", () => {
+    setup({ isReady: true, hasPlacementWithoutProviders: true });
+
+    expect(screen.getByRole("button", { name: "Choose a provider" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Request compute" })).toBeEnabled();
+    expect(screen.getByText("No provider can host this configuration right now. Change the resources or request compute.")).toBeInTheDocument();
+  });
+
+  it("says which placements no provider can host once the deployment has several", () => {
+    setup({ isReady: true, placementCount: 2, hasPlacementWithoutProviders: true });
+
+    expect(screen.getByRole("button", { name: "Choose a provider" })).toBeDisabled();
+    expect(screen.getByText("No provider can host every placement right now. Change the resources or request compute.")).toBeInTheDocument();
+  });
+
+  it("says nothing about hosting while every placement has a provider", () => {
+    setup({ isReady: true, hasPlacementWithoutProviders: false });
+
+    expect(screen.getByRole("button", { name: "Choose a provider" })).toBeEnabled();
+    expect(screen.queryByText(/No provider can host/)).not.toBeInTheDocument();
+  });
+
   it("requests compute from beside the provider choice", async () => {
     const { onRequestCompute, onChooseProvider } = setup({ isReady: false });
 
@@ -193,6 +215,7 @@ describe(AvailabilityPane.name, () => {
     isError?: boolean;
     isReady?: boolean;
     isSubmitting?: boolean;
+    hasPlacementWithoutProviders?: boolean;
     gpuAvailability?: Partial<GpuAvailability>;
   }) {
     const onChooseProvider = vi.fn();
@@ -233,6 +256,7 @@ describe(AvailabilityPane.name, () => {
         placementCount={input.placementCount ?? 1}
         isReady={input.isReady ?? true}
         isSubmitting={input.isSubmitting ?? false}
+        hasPlacementWithoutProviders={input.hasPlacementWithoutProviders ?? false}
         onChooseProvider={onChooseProvider}
         onRequestCompute={onRequestCompute}
         dependencies={dependencies}
