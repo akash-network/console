@@ -42,6 +42,15 @@ export class CustomerService {
     return reloaded.stripeCustomerId;
   }
 
+  async deleteCustomer(customerId: string): Promise<void> {
+    try {
+      await this.stripe.customers.del(customerId);
+    } catch (error) {
+      if (error instanceof Stripe.errors.StripeInvalidRequestError && error.code === "resource_missing") return;
+      throw error;
+    }
+  }
+
   async updateCustomerOrganization(customerId: string, organization: string): Promise<void> {
     const customer = await this.stripe.customers.retrieve(customerId);
 

@@ -15,6 +15,7 @@ import { RecordLeaseGpuOffersHandler } from "@src/deployment/services/record-lea
 import { HardwareRequestEmailHandler } from "@src/hardware-request/services/hardware-request-email/hardware-request-email.handler";
 import { HardwareRequestSlackAlertHandler } from "@src/hardware-request/services/hardware-request-slack-alert/hardware-request-slack-alert.handler";
 import { NotificationHandler } from "@src/notifications/services/notification-handler/notification.handler";
+import { PurgeDeletedAccountHandler } from "@src/user/services/purge-deleted-account/purge-deleted-account.handler";
 import { BlockEmailDomainOfWalletHandler } from "@src/workload-abuse/services/block-email-domain-of-wallet/block-email-domain-of-wallet.handler";
 import { EnforceTrialAbuseHandler } from "@src/workload-abuse/services/enforce-trial-abuse/enforce-trial-abuse.handler";
 import { LockBlockedDomainWalletHandler } from "@src/workload-abuse/services/lock-blocked-domain-wallet/lock-blocked-domain-wallet.handler";
@@ -64,7 +65,8 @@ export async function startJobQueues(): Promise<void> {
     container.resolve(LockBlockedDomainWalletHandler),
     container.resolve(BlockEmailDomainOfWalletHandler),
     container.resolve(HardwareRequestEmailHandler),
-    container.resolve(HardwareRequestSlackAlertHandler)
+    container.resolve(HardwareRequestSlackAlertHandler),
+    container.resolve(PurgeDeletedAccountHandler)
   ]);
 }
 

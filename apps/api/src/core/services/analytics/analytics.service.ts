@@ -13,7 +13,11 @@ type AnalyticsEvent =
   | "auto_recharge_disabled"
   | "trial_started"
   | "account_restricted"
-  | "account_restriction_lifted";
+  | "account_restriction_lifted"
+  | "account_deletion_started"
+  | "account_deletion_blocked"
+  | "account_deletion_confirmed"
+  | "account_deletion_failed";
 
 @singleton()
 export class AnalyticsService {

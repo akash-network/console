@@ -1,6 +1,8 @@
 import { GetUsers200ResponseOneOfInner, ManagementClient, PostIdentitiesRequestProviderEnum } from "auth0";
 import { singleton } from "tsyringe";
 
+import { isAuth0ApiError } from "./auth0-error";
+
 export const AUTH0_DB_CONNECTION = "Username-Password-Authentication";
 
 @singleton()
@@ -22,6 +24,15 @@ export class Auth0Service {
 
   async markEmailVerified(userId: string) {
     await this.managementClient.users.update({ id: userId }, { email_verified: true });
+  }
+
+  async deleteUser(userId: string): Promise<void> {
+    try {
+      await this.managementClient.users.delete({ id: userId });
+    } catch (error) {
+      if (isAuth0ApiError(error) && error.statusCode === 404) return;
+      throw error;
+    }
   }
 
   async getUserByEmail(email: string): Promise<GetUsers200ResponseOneOfInner | null> {

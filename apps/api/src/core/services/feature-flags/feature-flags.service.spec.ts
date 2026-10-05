@@ -134,6 +134,17 @@ describe(FeatureFlagsService.name, () => {
       });
     });
 
+    it("evaluates the flag for the user it is given instead of the current user", async () => {
+      const client = createUnleashMockClient({
+        isEnabledFeatureFlag: vi.fn(() => false)
+      });
+      const service = await setup({ createClient: () => client, currentUser: { id: "current-user" } });
+
+      service.isEnabled(FeatureFlags.ACCOUNT_DELETION, { userId: "token-owner" });
+
+      expect(client.isEnabled).toHaveBeenCalledWith(FeatureFlags.ACCOUNT_DELETION, expect.objectContaining({ userId: "token-owner" }));
+    });
+
     it("returns false when feature flag is disabled", async () => {
       const createClient = vi.fn(() =>
         createUnleashMockClient({

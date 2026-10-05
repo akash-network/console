@@ -27,7 +27,7 @@ export class FeatureFlagsService implements Disposable, AppInitializer {
     this.createClient = createClient;
   }
 
-  isEnabled(featureFlag: FeatureFlagValue): boolean {
+  isEnabled(featureFlag: FeatureFlagValue, context: { userId?: string } = {}): boolean {
     if (this.configService.get("FEATURE_FLAGS_ENABLE_ALL")) return true;
 
     assert(this.client, "Feature flags service was not initialized. Call initialize() method first.");
@@ -37,7 +37,7 @@ export class FeatureFlagsService implements Disposable, AppInitializer {
 
     return this.client.isEnabled(featureFlag, {
       currentTime: new Date(),
-      userId: currentUser?.id,
+      userId: context.userId ?? currentUser?.id,
       sessionId,
       environment: this.configService.get("DEPLOYMENT_ENV"),
       properties: {

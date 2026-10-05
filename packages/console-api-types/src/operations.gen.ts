@@ -104,6 +104,22 @@ export const operations = {
       queryParams: [],
       hasBody: false
     },
+    createAccountDeletionRequest: {
+      path: "/v1/user/me/initiate-deletion",
+      method: "post",
+      operationId: "createAccountDeletionRequest",
+      pathParams: [],
+      queryParams: [],
+      hasBody: true
+    },
+    confirmAccountDeletion: {
+      path: "/v1/user/me/confirm-deletion",
+      method: "post",
+      operationId: "confirmAccountDeletion",
+      pathParams: [],
+      queryParams: [],
+      hasBody: true
+    },
     getDeploymentFundingConfig: {
       path: "/v1/deployment-funding-config",
       method: "get",

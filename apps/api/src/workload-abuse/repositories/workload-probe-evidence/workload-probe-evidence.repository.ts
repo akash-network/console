@@ -58,6 +58,10 @@ export class WorkloadProbeEvidenceRepository extends BaseRepository<Table, Workl
     return Number(row?.deployments ?? 0);
   }
 
+  async deleteByWalletId(walletId: number): Promise<void> {
+    await this.cursor.delete(this.table).where(eq(this.table.walletId, walletId));
+  }
+
   async deleteOlderThan({ before }: { before: Date }): Promise<void> {
     await this.cursor.delete(this.table).where(lt(this.table.createdAt, before));
   }

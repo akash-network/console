@@ -11,6 +11,7 @@ import { AbilityService } from "@src/auth/services/ability/ability.service";
 import { AuthService } from "@src/auth/services/auth.service";
 import { cacheRegistry, nominalEntrySizing } from "@src/caching/cache-registry";
 import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
+import type { AuthMethod } from "@src/core/types/app-context";
 import type { HonoInterceptor } from "@src/core/types/hono-interceptor.type";
 import { UserOutput, UserRepository } from "@src/user/repositories";
 import { ApiKeyOutput, ApiKeyRepository } from "../repositories/api-key/api-key.repository";
@@ -21,8 +22,6 @@ const LAST_USER_ACTIVITY_THROTTLE_TIME_SECONDS = 30 * secondsInMinute;
 const MAX_TRACKED_USERS = 1e5;
 /** A `Date` under a user id, so the registry ranks this cache far below the ones holding response payloads. */
 const LAST_USER_ACTIVITY_ENTRY_BYTES = 128;
-
-type AuthMethod = "bearer" | "api_key" | "none";
 
 function authMethodOf(credentials: { bearer?: string; apiKey?: string }): AuthMethod {
   if (credentials.apiKey) return "api_key";

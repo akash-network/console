@@ -57,6 +57,10 @@ export class NotificationService {
     });
   }
 
+  async purgeUserData(userId: string): Promise<void> {
+    await this.#retryPolicy.execute(async () => this.notificationsInternalApi.v1.purge({ userId }));
+  }
+
   async autoEnableDeploymentAlert(input: AutoEnableDeploymentAlertInput): Promise<void> {
     const user = await this.userRepository.findById(input.userId);
     if (!user?.email) {

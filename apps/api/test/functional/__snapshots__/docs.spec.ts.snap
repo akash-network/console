@@ -19582,6 +19582,121 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
         ],
       },
     },
+    "/v1/user/me/confirm-deletion": {
+      "post": {
+        "operationId": "confirmAccountDeletion",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "data": {
+                    "properties": {
+                      "token": {
+                        "maxLength": 256,
+                        "minLength": 1,
+                        "type": "string",
+                      },
+                    },
+                    "required": [
+                      "token",
+                    ],
+                    "type": "object",
+                  },
+                },
+                "required": [
+                  "data",
+                ],
+                "type": "object",
+              },
+            },
+          },
+          "required": true,
+        },
+        "responses": {
+          "204": {
+            "description": "Account deleted",
+          },
+          "400": {
+            "description": "The link is invalid or expired",
+          },
+          "404": {
+            "description": "Account deletion is not available",
+          },
+          "409": {
+            "description": "The account has active deployments or credits nobody agreed to forfeit",
+          },
+        },
+        "security": [],
+        "summary": "Permanently deletes the account a deletion link was sent for",
+        "tags": [
+          "Users",
+        ],
+      },
+    },
+    "/v1/user/me/initiate-deletion": {
+      "post": {
+        "operationId": "createAccountDeletionRequest",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "data": {
+                    "properties": {
+                      "forfeitAcknowledged": {
+                        "type": "boolean",
+                      },
+                    },
+                    "required": [
+                      "forfeitAcknowledged",
+                    ],
+                    "type": "object",
+                  },
+                },
+                "required": [
+                  "data",
+                ],
+                "type": "object",
+              },
+            },
+          },
+          "required": true,
+        },
+        "responses": {
+          "204": {
+            "description": "Confirmation link sent",
+          },
+          "400": {
+            "description": "The account has credits and the forfeit was not acknowledged",
+          },
+          "401": {
+            "description": "Unauthorized",
+          },
+          "403": {
+            "description": "Requested with an API key instead of a signed-in session",
+          },
+          "404": {
+            "description": "Account deletion is not available",
+          },
+          "409": {
+            "description": "The account has active deployments",
+          },
+          "429": {
+            "description": "A link was sent less than a minute ago",
+          },
+        },
+        "security": [
+          {
+            "BearerAuth": [],
+          },
+        ],
+        "summary": "Emails the signed-in user a link that permanently deletes their account",
+        "tags": [
+          "Users",
+        ],
+      },
+    },
     "/v1/user/removeFavoriteTemplate/{templateId}": {
       "delete": {
         "parameters": [
