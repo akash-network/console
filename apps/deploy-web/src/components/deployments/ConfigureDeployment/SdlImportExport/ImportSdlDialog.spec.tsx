@@ -10,7 +10,7 @@ import { ImportSdlDialog } from "./ImportSdlDialog";
 import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
-const IMPORTED_STATE: ImportedDeploymentState = { values: mock<SdlBuilderFormValuesType>(), sdl: "imported-sdl", selectedServiceId: "svc-1" };
+const IMPORTED_STATE: ImportedDeploymentState = { values: mock<SdlBuilderFormValuesType>(), sdl: "imported-sdl", selectedServiceId: "svc-1", changes: [] };
 
 describe(ImportSdlDialog.name, () => {
   afterEach(() => vi.unstubAllGlobals());

@@ -19,6 +19,7 @@ import { DEPENDENCIES as PLACEMENT_CARD_DEPENDENCIES, PlacementCard } from "../D
 import { importDeploymentState } from "../importDeploymentState/importDeploymentState";
 import { useInheritedSecrets } from "../InheritedSecretsProvider/InheritedSecretsProvider";
 import { usePlacementManagerContext } from "../PlacementManagerProvider/PlacementManagerProvider";
+import { SdlImportChangesBanner } from "../SdlImportChangesBanner/SdlImportChangesBanner";
 import type { DeploymentFlow, FlowError } from "../useDeploymentFlow/useDeploymentFlow";
 import type { DEPENDENCIES } from "./ConfigureDeploymentForm";
 import { ConfigureDeploymentForm } from "./ConfigureDeploymentForm";
@@ -127,6 +128,12 @@ const TWO_SERVICE_SDL = [
   "      profile: api",
   "      count: 1"
 ].join("\n");
+
+/** The valid SDL with its service also deployed to a second placement, which the form has no way to hold. */
+const TWO_PLACEMENT_SDL = VALID_SDL.replace(
+  "  placement:\n",
+  "  placement:\n    west:\n      pricing:\n        web:\n          denom: uact\n          amount: 1000\n"
+).concat("\n    west:\n      profile: web\n      count: 1");
 
 /** A VM deployment saved before any SSH key was entered: the VM image is present but no SSH_PUBKEY env exists. */
 const VM_SDL_WITHOUT_KEY = [
@@ -887,6 +894,43 @@ describe(ConfigureDeploymentForm.name, () => {
     });
   });
 
+  it("warns about what deploying from the form changes in a carried-in SDL", () => {
+    setup({ initialSdl: TWO_PLACEMENT_SDL });
+
+    const banner = screen.getByRole("region", { name: "Parts of the imported SDL won't deploy as written" });
+    expect(within(banner).getByText('Placement "west" and the services it runs (web) are left out.')).toBeInTheDocument();
+  });
+
+  it("shows no import warning for an SDL the form deploys as written", () => {
+    setup({ initialSdl: VALID_SDL });
+
+    expect(screen.queryByRole("region", { name: "Parts of the imported SDL won't deploy as written" })).not.toBeInTheDocument();
+  });
+
+  it("shows no import warning when starting from the default deployment", () => {
+    setup({ initialSdl: undefined });
+
+    expect(screen.queryByRole("region", { name: "Parts of the imported SDL won't deploy as written" })).not.toBeInTheDocument();
+  });
+
+  it("hides the import warning once it is dismissed", async () => {
+    setup({ initialSdl: TWO_PLACEMENT_SDL });
+
+    await userEvent.click(screen.getByRole("button", { name: "Dismiss" }));
+
+    expect(screen.queryByRole("region", { name: "Parts of the imported SDL won't deploy as written" })).not.toBeInTheDocument();
+  });
+
+  it("warns about what deploying from the form changes in an SDL imported later", async () => {
+    const { SdlImportExport } = setup({ initialSdl: undefined });
+
+    await act(async () => {
+      (SdlImportExport as ReturnType<typeof vi.fn>).mock.calls[0][0].onImport(importDeploymentState(TWO_PLACEMENT_SDL));
+    });
+
+    expect(screen.getByRole("region", { name: "Parts of the imported SDL won't deploy as written" })).toBeInTheDocument();
+  });
+
   it("persists the imported sdl to the draft under the existing deployment name", async () => {
     const { SdlImportExport, save } = setup({ initialSdl: undefined, initialName: "my-app", Panes: ImportProbePanes });
     const state = importDeploymentState(TWO_SERVICE_SDL);
@@ -1023,6 +1067,7 @@ describe(ConfigureDeploymentForm.name, () => {
       ReviewAndDeployModal: ReviewAndDeployModal as never,
       DeployProgressOverlay: () => null,
       SdlImportExport: SdlImportExport as never,
+      SdlImportChangesBanner,
       usePlacementsWithBids: () => new Set<string>(),
       useFlag: () => false
     };

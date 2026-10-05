@@ -41,7 +41,15 @@ const VALID_SDL = [
 const sdlWithGpuUnits = (units: string) =>
   VALID_SDL.replace(
     ["        storage:", "          - size: 512Mi"].join("\n"),
-    ["        storage:", "          - size: 512Mi", "        gpu:", `          units: ${units}`, "          attributes:", "            vendor:", "              nvidia:"].join("\n")
+    [
+      "        storage:",
+      "          - size: 512Mi",
+      "        gpu:",
+      `          units: ${units}`,
+      "          attributes:",
+      "            vendor:",
+      "              nvidia:"
+    ].join("\n")
   );
 
 /** Two services sharing the `dcloud` placement name — the default (non-legacy) import dedupes them to one placement record. */
@@ -230,6 +238,25 @@ describe(importDeploymentState.name, () => {
     const { values } = importDeploymentState(sdlWithGpuUnits("4"));
 
     expect(values.services[0].profile).toMatchObject({ hasGpu: true, gpu: 4, gpuModels: [{ vendor: "nvidia" }] });
+  });
+
+  it("reports no changes for an SDL the form deploys as written", () => {
+    expect(importDeploymentState(VALID_SDL).changes).toEqual([]);
+  });
+
+  it("reports what deploying from the form changes in an SDL it cannot hold", () => {
+    const twoPlacementSdl = VALID_SDL.replace(
+      "  placement:\n",
+      "  placement:\n    west:\n      pricing:\n        web:\n          denom: uact\n          amount: 1000\n"
+    ).concat("\n    west:\n      profile: web\n      count: 1");
+
+    expect(importDeploymentState(twoPlacementSdl).changes).toEqual(['Placement "west" and the services it runs (web) are left out.']);
+  });
+
+  it("reports no changes for values the generator cannot write", () => {
+    const withoutStorage = VALID_SDL.replace("        storage:\n          - size: 512Mi", "        storage: []");
+
+    expect(importDeploymentState(withoutStorage).changes).toEqual([]);
   });
 
   it("throws NoVisibleServiceError for a service-less SDL", () => {
