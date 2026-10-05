@@ -56,6 +56,27 @@ describe(clusterProviders.name, () => {
     expect(clusters[1].providerIds).toEqual(["akash1large", "akash1small"]);
   });
 
+  it("seeds a pin with its largest provider even when a smaller one has an earlier address", () => {
+    const providers = [createProvider({ id: "akash1aaa", lat: 0, lng: 0, gpuCount: 0 }), createProvider({ id: "akash1zzz", lat: 0.1, lng: 0.1, gpuCount: 4 })];
+
+    const clusters = clusterProviders(providers, 1.2);
+
+    expect(clusters.map(cluster => cluster.id)).toEqual(["cluster-akash1zzz"]);
+    expect(clusters[0].providerIds).toEqual(["akash1zzz", "akash1aaa"]);
+  });
+
+  it("merges providers at the very same spot even with a zero radius", () => {
+    const providers = [
+      createProvider({ id: "akash1first", lat: 0, lng: 0 }),
+      createProvider({ id: "akash1second", lat: 0, lng: 0 }),
+      createProvider({ id: "akash1elsewhere", lat: 0.1, lng: 0.1 })
+    ];
+
+    const clusters = clusterProviders(providers, 0);
+
+    expect(clusters.map(cluster => cluster.providerIds)).toEqual([["akash1elsewhere"], ["akash1first", "akash1second"]]);
+  });
+
   it("averages longitudes across the antimeridian onto the near side", () => {
     const providers = [createProvider({ id: "akash1east", lat: 0, lng: 179.5 }), createProvider({ id: "akash1west", lat: 0, lng: -179.5 })];
 

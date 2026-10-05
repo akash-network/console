@@ -24,6 +24,18 @@ describe("ProviderPanel", () => {
     expect(within(list).getByText("64 vCPU")).toBeInTheDocument();
   });
 
+  it("leaves the GPUs out of a location's summary when none of its providers runs one", () => {
+    setup({ providers: [createSummary({ owner: "akash1a", gpuCount: 0 }), createSummary({ owner: "akash1b", gpuCount: 0 })] });
+
+    expect(screen.getByText("2 providers here. Zoom in to separate them on the globe.")).toBeInTheDocument();
+  });
+
+  it("names a GPU provider's GPUs generically when their model is unknown", () => {
+    setup({ providers: [createSummary({ owner: "akash1a", gpuCount: 4, gpuModels: [], location: null }), createSummary({ owner: "akash1b" })] });
+
+    expect(within(screen.getByRole("list", { name: "Providers at this location" })).getByText("4× GPU")).toBeInTheDocument();
+  });
+
   it("opens a provider picked from the location's list", async () => {
     const provider = createSummary({ owner: "akash1picked", name: "provider.picked.com" });
     const { onSelect } = setup({ providers: [provider, createSummary({ owner: "akash1other" })] });
@@ -72,6 +84,31 @@ describe("ProviderPanel", () => {
     expect(screen.getByText("Not measured yet")).toBeInTheDocument();
     expect(screen.getByText("Location unknown")).toBeInTheDocument();
     expect(screen.queryByText("Audited")).not.toBeInTheDocument();
+    expect(screen.getAllByRole("definition").map(definition => definition.textContent)).toEqual([
+      "—",
+      "CPU only",
+      "—",
+      "Not measured yet",
+      "16",
+      "Total capacity",
+      "64 GB",
+      "1 TB disk"
+    ]);
+  });
+
+  it("lists every GPU model a provider runs", () => {
+    const provider = createSummary({ gpuCount: 8, gpuModels: ["h100", "a100"] });
+    setup({ providers: [provider], selected: provider });
+
+    expect(screen.getByText("H100, A100")).toBeInTheDocument();
+  });
+
+  it("shows the region of an unaudited provider", () => {
+    const provider = createSummary({ locationRegion: "eu-central", isAudited: false });
+    setup({ providers: [provider], selected: provider });
+
+    expect(screen.getByText("EU Central")).toBeInTheDocument();
+    expect(screen.queryByText("Audited")).not.toBeInTheDocument();
   });
 
   it("adds the selected provider to the favorites", async () => {
@@ -81,13 +118,15 @@ describe("ProviderPanel", () => {
     await userEvent.click(screen.getByRole("button", { name: "Add to favorites" }));
 
     expect(onToggleFavorite).toHaveBeenCalledExactlyOnceWith("akash1liked");
+    expect(screen.getByRole("button", { name: "Add to favorites" }).querySelector("svg")).not.toHaveClass("fill-amber-400");
   });
 
-  it("offers to remove a favorite provider from the favorites", () => {
+  it("offers to remove a favorite provider from the favorites and fills its star", () => {
     const provider = createSummary({ owner: "akash1liked" });
     setup({ providers: [provider], selected: provider, favoriteProviders: ["akash1liked"] });
 
     expect(screen.getByRole("button", { name: "Remove from favorites" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Remove from favorites" }).querySelector("svg")).toHaveClass("fill-amber-400", "text-amber-400");
   });
 
   it("goes back to the location's list from a provider picked in it", async () => {

@@ -18,8 +18,32 @@ describe("ProviderFilterPopover", () => {
 
       await userEvent.click(screen.getByRole("button", { name: "Filter by region" }));
 
-      expect(screen.getByRole("checkbox", { name: /EU Central/ })).toHaveAttribute("aria-checked", "false");
-      expect(screen.getByRole("checkbox", { name: /NA US West/ })).toHaveTextContent("3");
+      expect(screen.getByRole("checkbox", { name: "EU Central 7" })).toHaveAttribute("aria-checked", "false");
+      expect(screen.getByRole("checkbox", { name: "NA US West 3" })).toBeInTheDocument();
+      expect(screen.queryByText("No regions match.")).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Clear" })).not.toBeInTheDocument();
+    });
+
+    it("leaves the trigger plain while no region is picked", () => {
+      setupRegion({ options: [{ value: "eu-central", count: 7 }], selected: [] });
+
+      const trigger = screen.getByRole("button", { name: "Filter by region" });
+      expect(trigger).toHaveAttribute("data-active", "false");
+      expect(trigger).toHaveTextContent(/^Region$/);
+    });
+
+    it("marks the trigger with how many regions are picked", () => {
+      setupRegion({
+        options: [
+          { value: "eu-central", count: 7 },
+          { value: "na-us-west", count: 3 }
+        ],
+        selected: ["eu-central", "na-us-west"]
+      });
+
+      const trigger = screen.getByRole("button", { name: "Filter by region, 2 selected" });
+      expect(trigger).toHaveAttribute("data-active", "true");
+      expect(trigger).toHaveTextContent(/^Region2$/);
     });
 
     it("adds a region the user ticks", async () => {
@@ -32,18 +56,58 @@ describe("ProviderFilterPopover", () => {
       });
 
       await userEvent.click(screen.getByRole("button", { name: "Filter by region, 1 selected" }));
+
+      expect(screen.getByText("1 region selected")).toBeInTheDocument();
       await userEvent.click(screen.getByRole("checkbox", { name: /EU Central/ }));
 
       expect(onChange).toHaveBeenCalledExactlyOnceWith(["na-us-west", "eu-central"]);
     });
 
-    it("removes a region the user unticks", async () => {
-      const { onChange } = setupRegion({ options: [{ value: "eu-central", count: 7 }], selected: ["eu-central"] });
+    it("removes a region the user unticks and keeps the others", async () => {
+      const { onChange } = setupRegion({
+        options: [
+          { value: "eu-central", count: 7 },
+          { value: "na-us-west", count: 3 }
+        ],
+        selected: ["eu-central", "na-us-west"]
+      });
 
       await userEvent.click(screen.getByRole("button", { name: /Filter by region/ }));
       await userEvent.click(screen.getByRole("checkbox", { name: /EU Central/ }));
 
-      expect(onChange).toHaveBeenCalledExactlyOnceWith([]);
+      expect(onChange).toHaveBeenCalledExactlyOnceWith(["na-us-west"]);
+    });
+
+    it("matches the typed text whatever its case and surrounding spaces", async () => {
+      setupRegion({
+        options: [
+          { value: "eu-central", count: 7 },
+          { value: "na-us-west", count: 3 }
+        ],
+        selected: []
+      });
+
+      await userEvent.click(screen.getByRole("button", { name: "Filter by region" }));
+      await userEvent.type(screen.getByRole("textbox", { name: "Search regions" }), "  EU CENTRAL ");
+
+      expect(screen.getByRole("checkbox", { name: /EU Central/ })).toBeInTheDocument();
+      expect(screen.queryByRole("checkbox", { name: /NA US West/ })).not.toBeInTheDocument();
+    });
+
+    it("matches a region by its code", async () => {
+      setupRegion({
+        options: [
+          { value: "eu-central", count: 7 },
+          { value: "na-us-west", count: 3 }
+        ],
+        selected: []
+      });
+
+      await userEvent.click(screen.getByRole("button", { name: "Filter by region" }));
+      await userEvent.type(screen.getByRole("textbox", { name: "Search regions" }), "us-west");
+
+      expect(screen.getByRole("checkbox", { name: /NA US West/ })).toBeInTheDocument();
+      expect(screen.queryByRole("checkbox", { name: /EU Central/ })).not.toBeInTheDocument();
     });
 
     it("narrows the regions to the typed text and says when none match", async () => {
@@ -89,6 +153,9 @@ describe("ProviderFilterPopover", () => {
       const { onChange } = setupGpu({ options: [{ value: "h100", count: 2 }], selected: [], isGpuOnly: false });
 
       await userEvent.click(screen.getByRole("button", { name: "Filter by gpu" }));
+
+      expect(screen.queryByText("No GPU models on the network right now.")).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Clear" })).not.toBeInTheDocument();
       await userEvent.click(screen.getByRole("checkbox", { name: "GPU providers only" }));
 
       expect(onChange).toHaveBeenCalledExactlyOnceWith({ isGpuOnly: true });
@@ -130,15 +197,35 @@ describe("ProviderFilterPopover", () => {
     });
   });
 
-  function setupRegion(input: { options: { value: string; count: number }[]; selected: string[] }) {
+  it("draws a column header trigger flat and a toolbar trigger as a bordered chip", () => {
+    setupRegion({ options: [], selected: [], variant: "header" });
+    setupGpu({ options: [], selected: [], isGpuOnly: false, variant: "toolbar" });
+
+    const headerTrigger = screen.getByRole("button", { name: "Filter by region" });
+    const toolbarTrigger = screen.getByRole("button", { name: "Filter by gpu" });
+    expect(headerTrigger).toHaveClass("rounded-md");
+    expect(headerTrigger).not.toHaveClass("border");
+    expect(toolbarTrigger).toHaveClass("rounded-lg", "border");
+    expect(toolbarTrigger).not.toHaveClass("rounded-md");
+  });
+
+  function setupRegion(input: { options: { value: string; count: number }[]; selected: string[]; variant?: "header" | "toolbar" }) {
     const onChange = vi.fn();
-    render(<RegionFilterPopover options={input.options} selected={input.selected} onChange={onChange} variant="header" />);
+    render(<RegionFilterPopover options={input.options} selected={input.selected} onChange={onChange} variant={input.variant ?? "header"} />);
     return { onChange };
   }
 
-  function setupGpu(input: { options: { value: string; count: number }[]; selected: string[]; isGpuOnly: boolean }) {
+  function setupGpu(input: { options: { value: string; count: number }[]; selected: string[]; isGpuOnly: boolean; variant?: "header" | "toolbar" }) {
     const onChange = vi.fn();
-    render(<GpuFilterPopover options={input.options} selected={input.selected} isGpuOnly={input.isGpuOnly} onChange={onChange} variant="toolbar" />);
+    render(
+      <GpuFilterPopover
+        options={input.options}
+        selected={input.selected}
+        isGpuOnly={input.isGpuOnly}
+        onChange={onChange}
+        variant={input.variant ?? "toolbar"}
+      />
+    );
     return { onChange };
   }
 });

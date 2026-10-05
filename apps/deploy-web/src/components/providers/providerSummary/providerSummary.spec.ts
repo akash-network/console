@@ -161,7 +161,7 @@ describe("providerSummary", () => {
 
   describe(formatBytes.name, () => {
     it("rounds sizes of ten units or more to whole units", () => {
-      expect(formatBytes(476e9)).toBe("476 GB");
+      expect(formatBytes(476.4e9)).toBe("476 GB");
     });
 
     it("keeps one decimal below ten units", () => {

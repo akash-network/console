@@ -1,6 +1,6 @@
 import type { ComponentProps } from "react";
 import { useImperativeHandle } from "react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { GlobeCluster } from "@src/components/providers/ProvidersGlobe/clusterProviders";
@@ -10,10 +10,15 @@ import { DEFAULT_FILTERS } from "./useProvidersExplorerModel";
 
 import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { ComponentMock } from "@tests/unit/mocks";
 
 type GlobeProps = ComponentProps<typeof DEPENDENCIES.ProvidersGlobe>;
 
 describe("ProvidersExplorer", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it("puts a pin on the globe for each located provider", () => {
     const { globe } = setup({
       locations: [
@@ -141,9 +146,21 @@ describe("ProvidersExplorer", () => {
     expect(screen.getByText("Provider view · drag to spin")).toBeInTheDocument();
   });
 
+  it("can zoom right up to the closest and the widest view", () => {
+    const { globe } = setup({});
+
+    act(() => globe.props().onZoomChange(0.96));
+    expect(screen.getByRole("button", { name: "Zoom in" })).toBeEnabled();
+
+    act(() => globe.props().onZoomChange(0.04));
+    expect(screen.getByRole("button", { name: "Zoom out" })).toBeEnabled();
+  });
+
   it.each([
     [0.1, "Regional view"],
-    [0.4, "Metro view"]
+    [0.25, "Metro view"],
+    [0.4, "Metro view"],
+    [0.6, "Provider view"]
   ])("names the zoom level %s the %s", (zoomLevel, label) => {
     const { globe } = setup({});
 
@@ -166,6 +183,52 @@ describe("ProvidersExplorer", () => {
     expect(globe.props().dim).toBe(true);
   });
 
+  it("lights the globe up again while replaying its intro", async () => {
+    const { globe } = setup({});
+    act(() => globe.props().onIntroDone());
+
+    await userEvent.click(screen.getByRole("button", { name: "Replay intro" }));
+    fireEvent.mouseLeave(screen.getByRole("region", { name: "Provider map" }));
+
+    expect(globe.props().dim).toBe(false);
+  });
+
+  it("fades the zoom readout with the globe and moves it aside for the panel", () => {
+    const { globe } = setup({ locations: [createLocation({ owner: "akash1alone" })] });
+    const readout = () => screen.getByText("Regional view · drag to spin").closest("div");
+
+    expect(readout()).toHaveClass("opacity-100");
+    expect(readout()).not.toHaveClass("-translate-x-[348px]");
+
+    act(() => globe.props().onIntroDone());
+    expect(readout()).toHaveClass("opacity-0");
+
+    fireEvent.mouseEnter(screen.getByRole("region", { name: "Provider map" }));
+    expect(readout()).toHaveClass("opacity-100");
+
+    fireEvent.mouseLeave(screen.getByRole("region", { name: "Provider map" }));
+    act(() => globe.props().onPick(createCluster({ providerIds: ["akash1alone"] })));
+    expect(readout()).toHaveClass("opacity-100", "-translate-x-[348px]");
+  });
+
+  it("leaves the zoom readout in place under the panel on narrow screens", () => {
+    const { globe } = setup({ isWide: false, locations: [createLocation({ owner: "akash1alone" })] });
+
+    act(() => globe.props().onPick(createCluster({ providerIds: ["akash1alone"] })));
+
+    expect(screen.getByText("Regional view · drag to spin").closest("div")).not.toHaveClass("-translate-x-[348px]");
+  });
+
+  it("makes the map taller while the panel is open", () => {
+    const { globe } = setup({ locations: [createLocation({ owner: "akash1alone" })] });
+
+    expect(screen.getByRole("region", { name: "Provider map" })).toHaveClass("h-[340px]");
+    act(() => globe.props().onPick(createCluster({ providerIds: ["akash1alone"] })));
+
+    expect(screen.getByRole("region", { name: "Provider map" })).toHaveClass("h-[440px]");
+    expect(screen.getByRole("region", { name: "Provider map" })).not.toHaveClass("h-[340px]");
+  });
+
   it("describes the pin under the pointer", () => {
     const { globe } = setup({});
 
@@ -177,6 +240,7 @@ describe("ProvidersExplorer", () => {
     act(() => globe.props().onHover(createCluster({ providerIds: ["akash1a"], gpuCount: 0, label: "Hesse, DE" })));
 
     expect(screen.getByText("1 provider · click to open")).toBeInTheDocument();
+    expect(screen.queryByText(/drag to spin/)).not.toBeInTheDocument();
   });
 
   it("explains the globe can't be shown and keeps the providers listed", () => {
@@ -186,7 +250,142 @@ describe("ProvidersExplorer", () => {
 
     expect(screen.getByText("The globe can't be shown in this browser. The providers are listed below.")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Zoom in" })).not.toBeInTheDocument();
+    expect(screen.queryByText(/drag to spin/)).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "provider.listed.com" })).toBeInTheDocument();
+  });
+
+  it("keeps the controls and the panel working before the globe hands over its controls", async () => {
+    const { globe } = setup({
+      hasGlobeControls: false,
+      locations: [createLocation({ owner: "akash1first", name: "provider.first.com" }), createLocation({ owner: "akash1second", name: "provider.second.com" })],
+      providers: [createListedProvider({ owner: "akash1row", name: "provider.row.com" })]
+    });
+    act(() => globe.props().onZoomChange(0.5));
+
+    await userEvent.click(screen.getByRole("button", { name: "Zoom in" }));
+    await userEvent.click(screen.getByRole("button", { name: "Zoom out" }));
+    act(() => globe.props().onPick(createCluster({ providerIds: ["akash1first", "akash1second"], label: "Missouri, US" })));
+    await userEvent.click(screen.getByRole("button", { name: /provider\.first\.com/ }));
+    await userEvent.click(screen.getByRole("button", { name: "Close" }));
+    await userEvent.click(screen.getByRole("button", { name: "provider.row.com" }));
+    await userEvent.click(screen.getByRole("button", { name: "Reset view" }));
+
+    expect(screen.queryByRole("complementary")).not.toBeInTheDocument();
+    expect(globe.controls.zoomBy).not.toHaveBeenCalled();
+  });
+
+  it("opens a provider without a position from a pin's list without turning the globe", async () => {
+    const { globe } = setup({
+      locations: [
+        createLocation({ owner: "akash1placed", name: "provider.placed.com" }),
+        createLocation({ owner: "akash1unplaced", name: "provider.unplaced.com", ipLat: null, ipLon: null })
+      ]
+    });
+    act(() => globe.props().onPick(createCluster({ providerIds: ["akash1placed", "akash1unplaced"] })));
+    globe.controls.focus.mockClear();
+
+    await userEvent.click(screen.getByRole("button", { name: /provider\.unplaced\.com/ }));
+
+    expect(screen.getByRole("complementary", { name: "Provider provider.unplaced.com" })).toBeInTheDocument();
+    expect(globe.controls.focus).not.toHaveBeenCalled();
+  });
+
+  it("closes the panel when resetting the view", async () => {
+    const { globe } = setup({ locations: [createLocation({ owner: "akash1alone" })] });
+    act(() => globe.props().onPick(createCluster({ providerIds: ["akash1alone"] })));
+
+    await userEvent.click(screen.getByRole("button", { name: "Reset view" }));
+
+    expect(screen.queryByRole("complementary")).not.toBeInTheDocument();
+    expect(globe.controls.resetView).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps the map controls beside the open panel on wide screens", () => {
+    const { globe } = setup({ locations: [createLocation({ owner: "akash1alone" })] });
+
+    act(() => globe.props().onPick(createCluster({ providerIds: ["akash1alone"] })));
+
+    expect(screen.getByRole("button", { name: "Zoom in" })).toBeInTheDocument();
+  });
+
+  it("brings the map into view when opening a provider from the table", async () => {
+    const scrollIntoView = vi.spyOn(HTMLElement.prototype, "scrollIntoView");
+    setup({ providers: [createListedProvider({ owner: "akash1row", name: "provider.row.com" })] });
+
+    await userEvent.click(screen.getByRole("button", { name: "provider.row.com" }));
+
+    expect(scrollIntoView).toHaveBeenCalledExactlyOnceWith({ behavior: "smooth", block: "start" });
+  });
+
+  it("jumps to the map without scrolling smoothly once the user asks for reduced motion", async () => {
+    const scrollIntoView = vi.spyOn(HTMLElement.prototype, "scrollIntoView");
+    const { rerender } = setup({ providers: [createListedProvider({ owner: "akash1row", name: "provider.row.com" })] });
+
+    rerender({ prefersReducedMotion: true });
+    await userEvent.click(screen.getByRole("button", { name: "provider.row.com" }));
+
+    expect(scrollIntoView).toHaveBeenCalledExactlyOnceWith({ behavior: "auto", block: "start" });
+  });
+
+  it("follows the providers and the map as they load", async () => {
+    const { globe, rerender } = setup({});
+
+    rerender({
+      locations: [
+        createLocation({ owner: "akash1a", name: "provider.a.com", ipCountryCode: "US" }),
+        createLocation({ owner: "akash1b", name: "provider.b.com", ipCountryCode: "US" }),
+        createLocation({ owner: "akash1c", name: "provider.c.com", ipCountryCode: "DE" })
+      ],
+      providers: [createListedProvider({ owner: "akash1row", name: "provider.row.com" })]
+    });
+
+    expect(globe.props().providers.map(provider => provider.id)).toEqual(["akash1a", "akash1b", "akash1c"]);
+    expect(screen.getByText("3 providers · 2 countries")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "provider.row.com" })).toBeInTheDocument();
+
+    act(() => globe.props().onPick(createCluster({ providerIds: ["akash1a", "akash1c"], label: "Somewhere" })));
+
+    expect(within(screen.getByRole("list", { name: "Providers at this location" })).getAllByRole("button")).toHaveLength(2);
+  });
+
+  it("shows the network stats once, in a column beside the globe on wide screens", () => {
+    setup({});
+
+    expect(screen.getAllByText("GPUs available")).toHaveLength(1);
+    expect(screen.getByText("GPUs available").closest("dl")).toHaveClass("flex-col");
+  });
+
+  it("shows the network stats once, in a row under the globe on narrow screens", () => {
+    setup({ isWide: false });
+
+    expect(screen.getAllByText("GPUs available")).toHaveLength(1);
+    expect(screen.getByText("GPUs available").closest("dl")).toHaveClass("grid-cols-3");
+  });
+
+  it("shows the table loading until the first providers arrive", () => {
+    setup({ hasLoadedProviders: false });
+
+    expect(screen.getByRole("table", { name: "Providers" })).toHaveAttribute("aria-busy", "true");
+  });
+
+  it("says when no provider matches once the search answers", () => {
+    setup({ providers: [], hasFilters: true });
+
+    expect(screen.getByRole("table", { name: "Providers" })).toHaveAttribute("aria-busy", "false");
+    expect(screen.getByText("No providers match those filters.")).toBeInTheDocument();
+  });
+
+  it.each([
+    ["wide", true, "header"],
+    ["narrow", false, "toolbar"]
+  ])("styles the region and GPU filters on %s screens for the table's %s", (_, isWide, variant) => {
+    const RegionFilterPopover = vi.fn(ComponentMock);
+    const GpuFilterPopover = vi.fn(ComponentMock);
+
+    setup({ isWide, dependencies: { RegionFilterPopover, GpuFilterPopover } });
+
+    expect(RegionFilterPopover).toHaveBeenCalledWith(expect.objectContaining({ variant }), expect.anything());
+    expect(GpuFilterPopover).toHaveBeenCalledWith(expect.objectContaining({ variant }), expect.anything());
   });
 
   it("skips the intro and its replay when the user prefers reduced motion", () => {
@@ -200,6 +399,18 @@ describe("ProvidersExplorer", () => {
     const { globe } = setup({ theme: "dark" });
 
     expect(globe.props().theme).toBe("dark");
+  });
+
+  it.each(["light", "system"])("draws the globe for the light theme when the theme is %s", theme => {
+    const { globe } = setup({ theme });
+
+    expect(globe.props().theme).toBe("light");
+  });
+
+  it("counts nothing over the map until providers are located", () => {
+    setup({ locations: [] });
+
+    expect(screen.queryByText(/countries/)).not.toBeInTheDocument();
   });
 
   it("counts the located providers and their countries", () => {
@@ -243,6 +454,7 @@ describe("ProvidersExplorer", () => {
     expect(screen.getAllByRole("textbox", { name: "Search providers" })).toHaveLength(1);
     expect(screen.queryByRole("columnheader", { name: "Region" })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Filter by region" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Zoom in" })).toBeInTheDocument();
   });
 
   it("covers the whole map with the panel on narrow screens and keeps the globe centered", () => {
@@ -363,12 +575,12 @@ describe("ProvidersExplorer", () => {
     return { id: "cluster-1", lat: 38.6, lng: -90.2, providerIds: [], gpuCount: 0, label: "Missouri, US", ...overrides };
   }
 
-  function createGlobe() {
+  function createGlobe(input: { hasControls: boolean }) {
     const controls = { zoomBy: vi.fn(), resetView: vi.fn(), focus: vi.fn() };
     let latestProps: GlobeProps | undefined;
     const ProvidersGlobe = (props: GlobeProps) => {
       latestProps = props;
-      useImperativeHandle(props.controlsRef, () => controls, []);
+      useImperativeHandle(input.hasControls ? props.controlsRef : undefined, () => controls, []);
       return <div>globe</div>;
     };
     return {
@@ -392,6 +604,8 @@ describe("ProvidersExplorer", () => {
     isWide?: boolean;
     prefersReducedMotion?: boolean;
     theme?: string;
+    hasGlobeControls?: boolean;
+    dependencies?: Partial<typeof DEPENDENCIES>;
   }) {
     const providers = input.providers ?? [];
     const model = Object.assign(mock<ReturnType<typeof DEPENDENCIES.useProvidersExplorerModel>>(), {
@@ -421,18 +635,26 @@ describe("ProvidersExplorer", () => {
       favoriteProviders: [],
       toggleFavorite: vi.fn()
     });
-    const globe = createGlobe();
+    const globe = createGlobe({ hasControls: input.hasGlobeControls ?? true });
+    const motion = { prefersReducedMotion: input.prefersReducedMotion ?? false };
     const dependencies: typeof DEPENDENCIES = {
       ...DEPENDENCIES,
       useProvidersExplorerModel: () => model,
       useTheme: () => input.theme ?? "light",
       useMediaQuery: () => input.isWide ?? true,
-      useReducedMotion: () => input.prefersReducedMotion ?? false,
-      ProvidersGlobe: globe.ProvidersGlobe
+      useReducedMotion: () => motion.prefersReducedMotion,
+      ProvidersGlobe: globe.ProvidersGlobe,
+      ...input.dependencies
     };
 
-    render(<ProvidersExplorer dependencies={dependencies} />);
+    const view = render(<ProvidersExplorer dependencies={dependencies} />);
+    const rerender = (changes: { locations?: ApiProviderLocation[]; providers?: ApiProviderList[]; prefersReducedMotion?: boolean }) => {
+      const { prefersReducedMotion = motion.prefersReducedMotion, ...modelChanges } = changes;
+      Object.assign(model, modelChanges);
+      motion.prefersReducedMotion = prefersReducedMotion;
+      view.rerender(<ProvidersExplorer dependencies={dependencies} />);
+    };
 
-    return { model, globe };
+    return { model, globe, rerender };
   }
 });

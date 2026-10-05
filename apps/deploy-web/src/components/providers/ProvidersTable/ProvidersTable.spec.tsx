@@ -29,9 +29,16 @@ describe("ProvidersTable", () => {
     expect(within(row).getByText("EU Central")).toBeInTheDocument();
     expect(within(row).getByText("H100")).toBeInTheDocument();
     expect(within(row).getByText("+2")).toBeInTheDocument();
+    expect(within(row).getByTitle("H100, A100, T4")).toBeInTheDocument();
     expect(within(row).getByText("8")).toBeInTheDocument();
     expect(within(row).getByText("128 vCPU · 512 GB")).toBeInTheDocument();
     expect(within(row).getByText("99.95%")).toBeInTheDocument();
+  });
+
+  it("shows a provider's only GPU model without counting other models", () => {
+    setup({ providers: [createSummary({ gpuCount: 2, gpuModels: ["h100"] })] });
+
+    expect(screen.getByTitle("H100")).toHaveTextContent(/^H100$/);
   });
 
   it("marks a provider without GPUs, region or measured uptime", () => {
@@ -42,11 +49,38 @@ describe("ProvidersTable", () => {
     expect(within(row).getAllByLabelText("None")).toHaveLength(3);
   });
 
+  it("shows only the providers' rows once they are loaded", () => {
+    setup({
+      providers: [createSummary({ owner: "akash1first", name: "provider.first.com" }), createSummary({ owner: "akash1second", name: "provider.second.com" })]
+    });
+
+    expect(screen.getByRole("table", { name: "Providers" })).toHaveAttribute("aria-busy", "false");
+    expect(getBodyRows()).toHaveLength(2);
+    expect(screen.queryByText("No providers match those filters.")).not.toBeInTheDocument();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
   it("puts the region and GPU filters in the column headers", () => {
     setup({ providers: [createSummary()], regionFilter: <button type="button">Region filter</button>, gpuFilter: <button type="button">GPU filter</button> });
 
     expect(screen.getByRole("columnheader", { name: "Region filter" })).toBeInTheDocument();
     expect(screen.getByRole("columnheader", { name: "GPU filter" })).toBeInTheDocument();
+  });
+
+  it("shows the column headers on wide screens", () => {
+    setup({ providers: [createSummary()] });
+
+    expect(getHeaderRowGroup()).not.toHaveClass("sr-only");
+  });
+
+  it("highlights the selected provider's row", () => {
+    setup({
+      providers: [createSummary({ owner: "akash1first", name: "provider.first.com" }), createSummary({ owner: "akash1second", name: "provider.second.com" })],
+      selectedOwner: "akash1second"
+    });
+
+    expect(screen.getByRole("row", { name: /provider\.second\.com/ })).toHaveAttribute("data-selected", "true");
+    expect(screen.getByRole("row", { name: /provider\.first\.com/ })).toHaveAttribute("data-selected", "false");
   });
 
   it("opens a provider's summary from its row and from its name", async () => {
@@ -80,13 +114,29 @@ describe("ProvidersTable", () => {
     setup({ providers: [], status: "ready", matchingProviderCount: 0 });
 
     expect(screen.getByText("No providers match those filters.")).toBeInTheDocument();
+    expect(getBodyRows()).toHaveLength(1);
   });
 
-  it("shows placeholder rows while the first page loads", () => {
+  it("shows placeholder rows across every column while the first page loads", () => {
     setup({ providers: [], status: "loading", matchingProviderCount: 0 });
 
     expect(screen.getByRole("table", { name: "Providers" })).toHaveAttribute("aria-busy", "true");
+    expect(getBodyRows().map(row => within(row).getAllByRole("cell").length)).toEqual([7, 7, 7, 7]);
     expect(screen.queryByText("No providers match those filters.")).not.toBeInTheDocument();
+  });
+
+  it("shows two-column placeholder rows on narrow screens", () => {
+    setup({ providers: [], status: "loading", matchingProviderCount: 0, isCompact: true });
+
+    expect(getBodyRows().map(row => within(row).getAllByRole("cell").length)).toEqual([2, 2, 2, 2]);
+  });
+
+  it("keeps the current rows instead of placeholders while another page loads", () => {
+    setup({ providers: [createSummary()], status: "loading", matchingProviderCount: 33, pageIndex: 1, pageCount: 4 });
+
+    expect(screen.getByRole("table", { name: "Providers" })).toHaveAttribute("aria-busy", "true");
+    expect(getBodyRows()).toHaveLength(1);
+    expect(screen.getByRole("row", { name: /provider\.example\.com/ })).toBeInTheDocument();
   });
 
   it("offers a retry when the providers can't be loaded", async () => {
@@ -97,6 +147,12 @@ describe("ProvidersTable", () => {
     await userEvent.click(screen.getByRole("button", { name: "Retry" }));
 
     expect(onRetry).toHaveBeenCalledTimes(1);
+  });
+
+  it("hides the pages when the providers can't be loaded", () => {
+    setup({ providers: [], status: "failed", matchingProviderCount: 33, pageIndex: 1, pageCount: 4 });
+
+    expect(screen.queryByRole("navigation", { name: "Providers pages" })).not.toBeInTheDocument();
   });
 
   it("pages through the providers ten at a time", async () => {
@@ -146,6 +202,7 @@ describe("ProvidersTable", () => {
     expect(within(row).getByText("19× RTX4000ADA +2")).toBeInTheDocument();
     expect(within(row).getByText("99%")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Region filter" })).not.toBeInTheDocument();
+    expect(getHeaderRowGroup()).toHaveClass("sr-only");
   });
 
   it("names a narrow row's GPUs plainly when it has one model, no model or none at all", () => {
@@ -180,6 +237,16 @@ describe("ProvidersTable", () => {
       coordinates: null,
       ...overrides
     };
+  }
+
+  function getHeaderRowGroup() {
+    const [header] = screen.getAllByRole("rowgroup");
+    return header;
+  }
+
+  function getBodyRows() {
+    const [, body] = screen.getAllByRole("rowgroup");
+    return within(body).getAllByRole("row");
   }
 
   function setup(input: Partial<ComponentProps<typeof ProvidersTable>> & { providers: ProviderSummary[] }) {

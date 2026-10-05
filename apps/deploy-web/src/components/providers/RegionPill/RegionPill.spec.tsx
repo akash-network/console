@@ -40,5 +40,9 @@ describe("RegionPill", () => {
       expect(formatRegionLabel("na-us-southwest")).toBe("NA US Southwest");
       expect(formatRegionLabel("northern-america")).toBe("Northern America");
     });
+
+    it("drops separators at either end of the region", () => {
+      expect(formatRegionLabel("-eu-central_ ")).toBe("EU Central");
+    });
   });
 });

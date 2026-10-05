@@ -51,6 +51,47 @@ describe(useProvidersExplorerModel.name, () => {
     expect(result.current.hasFilters).toBe(true);
   });
 
+  it.each([
+    ["offline providers", { isActiveOnly: false }],
+    ["unaudited providers", { isAuditedOnly: false }]
+  ])("counts showing %s as a filter without narrowing the pins", (_, change) => {
+    const { result } = setup({ locations: [createLocation({ owner: "akash1a" })] });
+
+    act(() => result.current.updateFilters(change));
+
+    expect(result.current).toMatchObject({ hasFilters: true, matchingLocationIds: null });
+  });
+
+  it.each([
+    ["regions", { regions: ["eu-central"] }],
+    ["GPU models", { gpuModels: ["h100"] }],
+    ["GPU providers only", { isGpuOnly: true }],
+    ["favorites", { isFavoritesOnly: true }]
+  ])("narrows the list and the pins by %s alone", (_, change) => {
+    const { result } = setup({ locations: [createLocation({ owner: "akash1a" })] });
+
+    act(() => result.current.updateFilters(change));
+
+    expect(result.current.hasFilters).toBe(true);
+    expect(result.current.matchingLocationIds).toBeInstanceOf(Set);
+  });
+
+  it("narrows the list and the pins by a search alone", () => {
+    const { result } = setup({ locations: [createLocation({ owner: "akash1a" })] });
+
+    act(() => result.current.changeSearch("akash1a"));
+
+    expect(result.current).toMatchObject({ hasFilters: true, matchingLocationIds: new Set(["akash1a"]) });
+  });
+
+  it("ignores a search made only of spaces", () => {
+    const { result } = setup({ locations: [createLocation({ owner: "akash1a" })] });
+
+    act(() => result.current.changeSearch("   "));
+
+    expect(result.current).toMatchObject({ hasFilters: false, matchingLocationIds: null });
+  });
+
   it("limits the search to the favorite providers, no more than the search accepts", () => {
     const favoriteProviders = Array.from({ length: MAX_SEARCHED_FAVORITES + 1 }, (_, index) => `akash1favorite${index}`);
     const { result, useProviderSearch } = setup({ favoriteProviders });
@@ -76,6 +117,28 @@ describe(useProvidersExplorerModel.name, () => {
     const { result } = setup({ page: createPage(providers, 23) });
 
     expect(result.current).toMatchObject({ providers, matchingProviderCount: 23, pageCount: 3, hasLoadedProviders: true, hasFailedToLoadProviders: false });
+  });
+
+  it("follows the providers, the map and the network numbers as they arrive", () => {
+    const { result, rerender, providerSearch, providerLocations, dashboard } = setup({ page: undefined, locations: undefined, dashboard: undefined });
+    const providers = [createProvider("akash1late")];
+    const locations = [createLocation({ owner: "akash1late", locationRegion: "eu-central", gpuModels: ["h100"], uptime30d: 0.9 })];
+
+    providerSearch.data = createPage(providers, 1);
+    providerLocations.data = locations;
+    dashboard.data = mock<DashboardData>({
+      now: mock<DashboardData["now"]>({ activeLeaseCount: 12 }),
+      networkCapacity: mock<DashboardData["networkCapacity"]>({ availableGPU: 3, activeProviderCount: 1, availableCPU: 4000 })
+    });
+    rerender();
+
+    expect(result.current).toMatchObject({
+      providers,
+      locations,
+      regionOptions: [{ value: "eu-central", count: 1 }],
+      gpuModelOptions: [{ value: "h100", count: 1 }],
+      networkStats: { availableGpuCount: 3, activeProviderCount: 1, availableVcpuCount: 4, activeLeaseCount: 12, averageUptime30d: 0.9 }
+    });
   });
 
   it("asks for the page the user moved to", () => {
@@ -106,15 +169,17 @@ describe(useProvidersExplorerModel.name, () => {
     );
   });
 
-  it("clears every filter and the search", () => {
+  it("clears every filter and the search, back on the first page", () => {
     const { result } = setup();
 
     act(() => result.current.changeSearch("europlots"));
     act(() => result.current.updateFilters({ regions: ["eu-central"], isAuditedOnly: false }));
+    act(() => result.current.changePageIndex(2));
     act(() => result.current.clearFilters());
 
     expect(result.current).toMatchObject({
       search: "",
+      pageIndex: 0,
       hasFilters: false,
       filters: { regions: [], gpuModels: [], isGpuOnly: false, isActiveOnly: true, isAuditedOnly: true, isFavoritesOnly: false }
     });
@@ -135,6 +200,18 @@ describe(useProvidersExplorerModel.name, () => {
     expect(result.current).toMatchObject({ hasFailedToLoadProviders: false, isLoadingProviders: true });
   });
 
+  it("keeps the providers it has when a later search fails", () => {
+    const { result } = setup({ isSearchFailed: true });
+
+    expect(result.current).toMatchObject({ hasFailedToLoadProviders: false, hasLoadedProviders: true });
+  });
+
+  it("reports neither providers nor a failure before the first search answers", () => {
+    const { result } = setup({ page: undefined });
+
+    expect(result.current).toMatchObject({ hasFailedToLoadProviders: false, hasLoadedProviders: false, providers: [] });
+  });
+
   it("asks for nothing on retry while filtering favorites without any", () => {
     const { result, refetchProviders } = setup({ favoriteProviders: [] });
 
@@ -149,18 +226,46 @@ describe(useProvidersExplorerModel.name, () => {
 
     result.current.retryLocations();
 
-    expect(result.current.hasFailedToLoadLocations).toBe(true);
+    expect(result.current).toMatchObject({ hasFailedToLoadLocations: true, locations: [] });
     expect(refetchLocations).toHaveBeenCalledTimes(1);
   });
 
+  it("doesn't report a failed provider map while it is still retrying", () => {
+    const { result } = setup({ locations: undefined, isLocatingFailed: true, isLocating: true });
+
+    expect(result.current.hasFailedToLoadLocations).toBe(false);
+  });
+
+  it("keeps the provider map it has when a later refresh fails", () => {
+    const { result } = setup({ locations: [createLocation({ owner: "akash1a" })], isLocatingFailed: true });
+
+    expect(result.current.hasFailedToLoadLocations).toBe(false);
+  });
+
+  it("reports no failed provider map once it loads", () => {
+    const { result } = setup({ locations: [createLocation({ owner: "akash1a" })] });
+
+    expect(result.current.hasFailedToLoadLocations).toBe(false);
+  });
+
   it("adds a provider to the favorites and removes it again", () => {
-    const { result, updateFavoriteProviders } = setup({ favoriteProviders: ["akash1kept"] });
+    const { result, updateFavoriteProviders } = setup({ favoriteProviders: ["akash1kept", "akash1gone"] });
 
     act(() => result.current.toggleFavorite("akash1new"));
-    expect(updateFavoriteProviders).toHaveBeenLastCalledWith(["akash1kept", "akash1new"]);
+    expect(updateFavoriteProviders).toHaveBeenLastCalledWith(["akash1kept", "akash1gone", "akash1new"]);
 
-    act(() => result.current.toggleFavorite("akash1kept"));
-    expect(updateFavoriteProviders).toHaveBeenLastCalledWith([]);
+    act(() => result.current.toggleFavorite("akash1gone"));
+    expect(updateFavoriteProviders).toHaveBeenLastCalledWith(["akash1kept"]);
+  });
+
+  it("toggles a favorite against the latest favorites", () => {
+    const { result, rerender, localNotes, updateFavoriteProviders } = setup({ favoriteProviders: [] });
+
+    localNotes.favoriteProviders = ["akash1saved"];
+    rerender();
+    act(() => result.current.toggleFavorite("akash1new"));
+
+    expect(updateFavoriteProviders).toHaveBeenLastCalledWith(["akash1saved", "akash1new"]);
   });
 
   it("offers the regions and GPU models on the map, most common first, keeping the picked ones", () => {
@@ -182,6 +287,28 @@ describe(useProvidersExplorerModel.name, () => {
     expect(result.current.gpuModelOptions).toEqual([
       { value: "h100", count: 2 },
       { value: "a100", count: 1 }
+    ]);
+  });
+
+  it("orders the regions and GPU models by how common they are, then by name", () => {
+    const locations = [
+      createLocation({ owner: "akash1a", locationRegion: "na-us-west", gpuModels: ["rtx4090"] }),
+      createLocation({ owner: "akash1b", locationRegion: "eu-west", gpuModels: ["h100"] }),
+      createLocation({ owner: "akash1c", locationRegion: "eu-central", gpuModels: ["a100"] }),
+      createLocation({ owner: "akash1d", locationRegion: "eu-west", gpuModels: ["h100", "a100"] }),
+      createLocation({ owner: "akash1e", locationRegion: "eu-central", gpuModels: [] })
+    ];
+    const { result } = setup({ locations });
+
+    expect(result.current.regionOptions).toEqual([
+      { value: "eu-central", count: 2 },
+      { value: "eu-west", count: 2 },
+      { value: "na-us-west", count: 1 }
+    ]);
+    expect(result.current.gpuModelOptions).toEqual([
+      { value: "a100", count: 2 },
+      { value: "h100", count: 2 },
+      { value: "rtx4090", count: 1 }
     ]);
   });
 
@@ -226,9 +353,36 @@ describe(useProvidersExplorerModel.name, () => {
     const { result } = setup({ locations, favoriteProviders: ["akash1favorite", "akash1other"] });
 
     act(() => result.current.updateFilters({ isFavoritesOnly: true, isAuditedOnly: false }));
-    act(() => result.current.changeSearch("akash1fav"));
+    act(() => result.current.changeSearch("  akash1fav  "));
 
     expect(result.current.matchingLocationIds).toEqual(new Set(["akash1favorite"]));
+  });
+
+  it("lights no pin of a provider left out of the favorites", () => {
+    const locations = [createLocation({ owner: "akash1favorite" }), createLocation({ owner: "akash1other" })];
+    const { result } = setup({ locations, favoriteProviders: ["akash1favorite"] });
+
+    act(() => result.current.updateFilters({ isFavoritesOnly: true }));
+
+    expect(result.current.matchingLocationIds).toEqual(new Set(["akash1favorite"]));
+  });
+
+  it("lights only the pins of providers with GPUs while showing GPU providers only", () => {
+    const locations = [createLocation({ owner: "akash1gpu", gpus: 1 }), createLocation({ owner: "akash1cpu", gpus: 0 })];
+    const { result } = setup({ locations });
+
+    act(() => result.current.updateFilters({ isGpuOnly: true }));
+
+    expect(result.current.matchingLocationIds).toEqual(new Set(["akash1gpu"]));
+  });
+
+  it("lights the pin of a provider running any of the picked GPU models", () => {
+    const locations = [createLocation({ owner: "akash1mixed", gpuModels: ["h100", "a100"] }), createLocation({ owner: "akash1other", gpuModels: ["rtx4090"] })];
+    const { result } = setup({ locations });
+
+    act(() => result.current.updateFilters({ gpuModels: ["H100"] }));
+
+    expect(result.current.matchingLocationIds).toEqual(new Set(["akash1mixed"]));
   });
 
   it("sums up the network from the dashboard and the located providers' uptime", () => {
@@ -239,7 +393,8 @@ describe(useProvidersExplorerModel.name, () => {
     const locations = [
       createLocation({ owner: "akash1a", uptime30d: 0.99 }),
       createLocation({ owner: "akash1b", uptime30d: 0.9 }),
-      createLocation({ owner: "akash1c", uptime30d: null })
+      createLocation({ owner: "akash1c", uptime30d: null }),
+      createLocation({ owner: "akash1d", uptime30d: undefined })
     ];
     const { result } = setup({ dashboard, locations });
 
@@ -300,6 +455,7 @@ describe(useProvidersExplorerModel.name, () => {
       isSearching?: boolean;
       isSearchFailed?: boolean;
       locations?: ApiProviderLocation[];
+      isLocating?: boolean;
       isLocatingFailed?: boolean;
       dashboard?: DashboardData;
     } = {}
@@ -317,7 +473,7 @@ describe(useProvidersExplorerModel.name, () => {
     const providerLocations = Object.assign(mock<ReturnType<typeof DEPENDENCIES.useProviderLocations>>(), {
       data: "locations" in input ? input.locations : [],
       isLoading: false,
-      isFetching: false,
+      isFetching: !!input.isLocating,
       isError: !!input.isLocatingFailed,
       refetch: refetchLocations
     });
@@ -337,6 +493,16 @@ describe(useProvidersExplorerModel.name, () => {
 
     const view = renderHook(() => useProvidersExplorerModel(dependencies));
 
-    return { ...view, useProviderSearch, refetchProviders, refetchLocations, updateFavoriteProviders };
+    return {
+      ...view,
+      useProviderSearch,
+      refetchProviders,
+      refetchLocations,
+      updateFavoriteProviders,
+      providerSearch,
+      providerLocations,
+      dashboard,
+      localNotes
+    };
   }
 });
