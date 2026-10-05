@@ -5,7 +5,7 @@ import { Hono } from "hono";
 import { container } from "tsyringe";
 
 import { APP_CONFIG } from "@src/providers/app-config.provider";
-import { bidScreeningRouter, healthzRouter, placementOptionsRouter, providerOutagesRouter } from "@src/routes";
+import { bidScreeningRouter, healthzRouter, placementOptionsRouter, providerOutagesRouter, providerRouter } from "@src/routes";
 import { HonoErrorHandlerService } from "@src/services/hono-error-handler/hono-error-handler.service";
 import { startServer } from "@src/services/start-server/start-server";
 import type { AppEnv } from "@src/types/app-context";
@@ -18,6 +18,7 @@ export async function bootstrap(): Promise<void> {
   app.route("/", bidScreeningRouter);
   app.route("/", providerOutagesRouter);
   app.route("/", placementOptionsRouter);
+  app.route("/", providerRouter);
   app.onError(container.resolve(HonoErrorHandlerService).handle);
 
   await startServer(app, createOtelLogger({ context: "REST" }), process, {

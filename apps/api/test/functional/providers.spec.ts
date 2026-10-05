@@ -4,12 +4,14 @@ import { faker } from "@faker-js/faker";
 import subDays from "date-fns/subDays";
 import map from "lodash/map";
 import nock from "nock";
+import type { CreationAttributes } from "sequelize";
 import { container } from "tsyringe";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 
 import { cacheEngine } from "@src/caching/helpers";
 import { AUDITOR, TRIAL_ATTRIBUTE } from "@src/deployment/config/provider.config";
 import type { ProviderListResponse, ProviderLocationsResponse, ProviderResponse, ProviderSearchResponse } from "@src/provider/http-schemas/provider.schema";
+import { PROVIDER_CONFIG } from "@src/provider/providers/config.provider";
 import { app, initDb } from "@src/rest-app";
 import { UserRepository } from "@src/user/repositories";
 
@@ -23,7 +25,8 @@ import {
   createProviderSeed,
   createProviderSnapshot,
   createProviderSnapshotNode,
-  createProviderSnapshotNodeCpu
+  createProviderSnapshotNodeCpu,
+  createProviderSnapshotNodeGpu
 } from "@test/seeders";
 import { seedDeploymentSetting } from "@test/seeders/db/deployment-setting.seeder";
 import { createLeaseGpuReading } from "@test/seeders/lease-gpu-reading.seeder";
@@ -239,6 +242,29 @@ describe("Providers", () => {
       ]);
     });
 
+    it("keeps providers in one of the requested regions that run one of the requested GPU models", async () => {
+      const [europeH100, europeCpuOnly, usH100] = await Promise.all([
+        createProviderInRegion("eu-central", ["h100"]),
+        createProviderInRegion("eu-central", []),
+        createProviderInRegion("na-us-west", ["h100"])
+      ]);
+      const addresses = [europeH100, europeCpuOnly, usH100].map(provider => provider.owner).join(",");
+
+      const response = await app.request(`/v1/provider-search?addresses=${addresses}&regions=eu-central,as-southeast&gpuModels=H100`);
+
+      const { data } = (await response.json()) as ProviderSearchResponse;
+      expect(response.status).toBe(200);
+      expect(map(data.providers, "owner")).toEqual([europeH100.owner]);
+    });
+
+    it("refuses more than 50 regions", async () => {
+      const regions = Array.from({ length: 51 }, (_, index) => `region-${index}`).join(",");
+
+      const response = await app.request(`/v1/provider-search?regions=${regions}`);
+
+      expect(response.status).toBe(400);
+    });
+
     it("refuses to sort by a wallet's leases without the wallet address", async () => {
       const response = await app.request("/v1/provider-search?sort=wallet-leases-desc");
 
@@ -254,7 +280,14 @@ describe("Providers", () => {
 
   describe("GET /v1/provider-locations", () => {
     it("locates online providers and leaves offline ones out", async () => {
-      const online = await createProvider({ isOnline: true, ipRegion: "Quebec", ipCountryCode: "CA", ipLat: "45.5", ipLon: "-73.6" });
+      const online = await createProviderInRegion("na-ca-central", ["h100", "h100", "a100"], {
+        isOnline: true,
+        ipRegion: "Quebec",
+        ipCountryCode: "CA",
+        ipLat: "45.5",
+        ipLon: "-73.6",
+        uptime30d: 0.995
+      });
       const offline = await createProvider({ isOnline: false });
 
       const response = await app.request("/v1/provider-locations");
@@ -268,7 +301,12 @@ describe("Providers", () => {
         ipRegion: "Quebec",
         ipCountryCode: "CA",
         ipLat: "45.5",
-        ipLon: "-73.6"
+        ipLon: "-73.6",
+        isAudited: true,
+        locationRegion: "na-ca-central",
+        uptime30d: 0.995,
+        gpuModels: ["h100", "a100"],
+        stats: expect.objectContaining({ gpu: expect.objectContaining({ available: 4, active: 2, pending: 0 }) })
       });
       expect(map(data, "owner")).not.toContain(offline.owner);
     });
@@ -361,6 +399,42 @@ describe("Providers", () => {
       ]);
     });
 
+    it("answers the reclamation window the provider inventory reports", async () => {
+      const provider = await createProvider();
+      nock(inventoryUrl())
+        .get(`/v1/providers/${provider.owner}`)
+        .reply(200, { owner: provider.owner, hostUri: provider.hostUri, isOnline: true, reclamationWindow: 86400 });
+
+      const response = await app.request(`/v1/providers/${provider.owner}`);
+
+      const data = (await response.json()) as ProviderResponse;
+      expect(response.status).toBe(200);
+      expect(data.reclamationWindow).toBe(86400);
+    });
+
+    it("answers a null reclamation window for a provider the inventory does not know", async () => {
+      const provider = await createProvider();
+      nock(inventoryUrl()).get(`/v1/providers/${provider.owner}`).reply(404, { message: "not found" });
+
+      const response = await app.request(`/v1/providers/${provider.owner}`);
+
+      const data = (await response.json()) as ProviderResponse;
+      expect(response.status).toBe(200);
+      expect(data.reclamationWindow).toBeNull();
+    });
+
+    it("still answers the provider without a reclamation window when the inventory fails", async () => {
+      const provider = await createProvider();
+      nock(inventoryUrl()).get(`/v1/providers/${provider.owner}`).reply(503);
+
+      const response = await app.request(`/v1/providers/${provider.owner}`);
+
+      const data = (await response.json()) as ProviderResponse;
+      expect(response.status).toBe(200);
+      expect(data.owner).toBe(provider.owner);
+      expect(data).not.toHaveProperty("reclamationWindow");
+    });
+
     it("lists no gpu drivers for a provider none of whose leases has been read", async () => {
       const provider = await createProvider();
 
@@ -372,6 +446,10 @@ describe("Providers", () => {
 
     function createOwner() {
       return container.resolve(UserRepository).create({ userId: faker.string.uuid() });
+    }
+
+    function inventoryUrl() {
+      return container.resolve(PROVIDER_CONFIG).PROVIDER_INVENTORY_API_URL;
     }
 
     async function createProviderWithNodeCpus(archs: (string | null)[], declaredArch: string | undefined) {
@@ -468,4 +546,17 @@ describe("Providers", () => {
       });
     });
   });
+
+  async function createProviderInRegion(region: string, gpuModels: string[], overrides: Partial<CreationAttributes<Provider>> = {}) {
+    const provider = await createProvider(overrides);
+    const snapshot = await createProviderSnapshot({ owner: provider.owner, isOnline: true, availableGPU: 4, activeGPU: 2, pendingGPU: 0 });
+    await provider.update({ lastSuccessfulSnapshotId: snapshot.id });
+    const node = await createProviderSnapshotNode({ snapshotId: snapshot.id });
+    await Promise.all([
+      ProviderAttribute.create({ provider: provider.owner, key: "location-region", value: region }),
+      ...gpuModels.map(name => createProviderSnapshotNodeGpu({ snapshotNodeId: node.id, vendor: "nvidia", name, interface: "SXM", memorySize: "80Gi" }))
+    ]);
+
+    return provider;
+  }
 });

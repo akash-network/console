@@ -82,6 +82,7 @@ export interface ProviderDetail extends ProviderList {
   reportedCpuArchs: string[];
   cpuArchAgreement: CpuArchAgreement;
   gpuDrivers: ProviderGpuDriver[];
+  reclamationWindow?: number | null;
   uptime: {
     id: string;
     isOnline: boolean;

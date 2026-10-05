@@ -56,6 +56,48 @@ describe(ProviderSearchService.name, () => {
       expect(result).toEqual({ providers: [favorite], total: 1 });
     });
 
+    it("keeps only providers in one of the given regions", async () => {
+      const inEurope = createProviderListItem({ locationRegion: "eu-central" });
+      const inUsWest = createProviderListItem({ locationRegion: "na-us-west" });
+      const { service } = setup({
+        providers: [inEurope, createProviderListItem({ locationRegion: "as-southeast" }), createProviderListItem({ locationRegion: null }), inUsWest]
+      });
+
+      const result = await service.search(createQuery({ regions: ["eu-central", "na-us-west"] }));
+
+      expect(result).toEqual({ providers: [inEurope, inUsWest], total: 2 });
+    });
+
+    it("keeps only providers with GPUs when asked for GPU providers", async () => {
+      const withGpus = createProviderListItem({ gpu: { available: 0, pending: 0, active: 2 } });
+      const { service } = setup({ providers: [createProviderListItem(), withGpus] });
+
+      const result = await service.search(createQuery({ gpu: true }));
+
+      expect(result.providers).toEqual([withGpus]);
+    });
+
+    it("keeps only providers without GPUs when asked for providers that have none", async () => {
+      const cpuOnly = createProviderListItem();
+      const { service } = setup({ providers: [createProviderListItem({ gpu: { available: 1, pending: 0, active: 0 } }), cpuOnly] });
+
+      const result = await service.search(createQuery({ gpu: false }));
+
+      expect(result.providers).toEqual([cpuOnly]);
+    });
+
+    it("keeps providers with any of the given GPU models, ignoring case", async () => {
+      const withH100 = createProviderListItem({ gpuModels: [createGpuModel("h100"), createGpuModel("t4")] });
+      const withA100 = createProviderListItem({ gpuModels: [createGpuModel("A100")] });
+      const { service } = setup({
+        providers: [withH100, createProviderListItem({ gpuModels: [createGpuModel("rtx4090")] }), createProviderListItem(), withA100]
+      });
+
+      const result = await service.search(createQuery({ gpuModels: ["H100", "a100"] }));
+
+      expect(result.providers).toEqual([withH100, withA100]);
+    });
+
     it("matches the search term against the host URI and the address, ignoring case", async () => {
       const byHost = createProviderListItem({ hostUri: "https://Provider.Europlots.com:8443" });
       const byAddress = createProviderListItem({ owner: "akash1europlotsowner" });
@@ -173,24 +215,59 @@ describe(ProviderSearchService.name, () => {
 
   describe("findOnlineLocations", () => {
     it("locates every online provider and none that is offline", async () => {
-      const online = createProviderListItem({
-        isOnline: true,
+      const stats = createStats();
+      const online = Object.assign(mock<ProviderList>(), {
+        owner: createAkashAddress(),
         name: "provider.example.com",
+        hostUri: "https://provider.example.com:8443",
+        isOnline: true,
         ipRegion: "Quebec",
         ipCountryCode: "CA",
         ipLat: "45.5",
-        ipLon: "-73.6"
+        ipLon: "-73.6",
+        isAudited: true,
+        locationRegion: "na-ca-central",
+        uptime30d: 0.995,
+        gpuModels: [createGpuModel("h100"), createGpuModel("h100", { ram: "94Gi" }), createGpuModel("a100")],
+        stats
       });
       const { service, providerService } = setup({ providers: [online, createProviderListItem({ isOnline: false })] });
 
       const locations = await service.findOnlineLocations();
 
       expect(locations).toEqual([
-        { owner: online.owner, name: "provider.example.com", hostUri: online.hostUri, ipRegion: "Quebec", ipCountryCode: "CA", ipLat: "45.5", ipLon: "-73.6" }
+        {
+          owner: online.owner,
+          name: "provider.example.com",
+          hostUri: "https://provider.example.com:8443",
+          ipRegion: "Quebec",
+          ipCountryCode: "CA",
+          ipLat: "45.5",
+          ipLon: "-73.6",
+          isAudited: true,
+          locationRegion: "na-ca-central",
+          uptime30d: 0.995,
+          gpuModels: ["h100", "a100"],
+          stats
+        }
       ]);
       expect(providerService.getProviderList).toHaveBeenCalledExactlyOnceWith(false);
     });
   });
+
+  function createGpuModel(model: string, overrides: Partial<ProviderList["gpuModels"][number]> = {}): ProviderList["gpuModels"][number] {
+    return { vendor: "nvidia", model, ram: "80Gi", interface: "SXM", ...overrides };
+  }
+
+  function createStats(): ProviderList["stats"] {
+    const item = (total: number) => ({ active: 1, available: total - 1, pending: 0, total });
+    return {
+      cpu: item(64000),
+      gpu: item(8),
+      memory: item(512),
+      storage: { ephemeral: item(1024), persistent: item(2048), total: item(3072) }
+    };
+  }
 
   function createQuery(overrides: Partial<ProviderSearchQuery> = {}): ProviderSearchQuery {
     return { sort: "active-leases-desc", skip: 0, limit: 100, ...overrides };
@@ -207,6 +284,8 @@ describe(ProviderSearchService.name, () => {
       isOnline: true,
       isAudited: true,
       leaseCount: 0,
+      locationRegion: null,
+      gpuModels: [],
       stats: mock<ProviderList["stats"]>({ gpu: { ...gpu, total: gpu.available + gpu.pending + gpu.active } }),
       ...fields
     });

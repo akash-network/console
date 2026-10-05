@@ -14,6 +14,7 @@ import type { Auditor } from "@src/provider/http-schemas/auditor.schema";
 import { ProviderRepository } from "@src/provider/repositories/provider/provider.repository";
 import { ProviderAuth, ProviderIdentity, ProviderProxyService } from "@src/provider/services/provider/provider-proxy.service";
 import { ProviderGpuDriverService } from "@src/provider/services/provider-gpu-driver/provider-gpu-driver.service";
+import { ProviderInventoryHttpService } from "@src/provider/services/provider-inventory-http/provider-inventory-http.service";
 import { ProviderJwtTokenService } from "@src/provider/services/provider-jwt-token/provider-jwt-token.service";
 import { ProviderDetail, ProviderList } from "@src/types/provider";
 import { toUTC } from "@src/utils";
@@ -61,6 +62,7 @@ export class ProviderService {
     private readonly auditorsService: AuditorService,
     private readonly jwtTokenService: ProviderJwtTokenService,
     private readonly providerGpuDriverService: ProviderGpuDriverService,
+    private readonly providerInventoryHttpService: ProviderInventoryHttpService,
     @inject(LOGGER_FACTORY) createLogger: CreateLogger
   ) {
     this.logger = createLogger({ context: ProviderService.name });
@@ -320,10 +322,11 @@ export class ProviderService {
         })
       : null;
 
-    const [auditors, providerAttributeSchema, gpuDrivers] = await Promise.all([
+    const [auditors, providerAttributeSchema, gpuDrivers, reclamationWindow] = await Promise.all([
       this.auditorsService.getAuditors(),
       this.providerAttributesSchemaService.getProviderAttributesSchema(),
-      this.providerGpuDriverService.findRecentDrivers(provider.owner)
+      this.providerGpuDriverService.findRecentDrivers(provider.owner),
+      this.#findReclamationWindowIfReadable(provider.owner)
     ]);
 
     const providerList = mapProviderToList(provider, providerAttributeSchema, auditors, lastSuccessfulSnapshot ?? undefined);
@@ -334,11 +337,21 @@ export class ProviderService {
       reportedCpuArchs,
       cpuArchAgreement: getCpuArchAgreement(providerList.hardwareCpuArch, reportedCpuArchs),
       gpuDrivers,
+      ...(reclamationWindow !== undefined && { reclamationWindow }),
       uptime: uptimeSnapshots.map(ps => ({
         id: ps.id,
         isOnline: ps.isOnline,
         checkDate: ps.checkDate
       }))
     };
+  }
+
+  async #findReclamationWindowIfReadable(owner: string): Promise<number | null | undefined> {
+    try {
+      return await this.providerInventoryHttpService.findReclamationWindow(owner);
+    } catch (error) {
+      this.logger.warn({ event: "PROVIDER_RECLAMATION_WINDOW_UNREADABLE", provider: owner, error });
+      return undefined;
+    }
   }
 }

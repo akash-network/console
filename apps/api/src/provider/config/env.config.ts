@@ -4,7 +4,8 @@ export const envSchema = z.object({
   PROVIDER_UPTIME_GRACE_PERIOD_MINUTES: z
     .number()
     .optional()
-    .default(3 * 60)
+    .default(3 * 60),
+  PROVIDER_INVENTORY_API_URL: z.string().url()
 });
 
 export type ProviderConfig = z.infer<typeof envSchema>;

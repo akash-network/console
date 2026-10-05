@@ -109,6 +109,8 @@ export const ProviderListResponseSchema = z.array(ProviderListItemSchema);
 export const PROVIDER_SEARCH_MAX_LIMIT = 100;
 /** Holds a long favorites list while keeping the query string well under common URL length limits. */
 export const PROVIDER_SEARCH_MAX_ADDRESSES = 100;
+export const PROVIDER_SEARCH_MAX_REGIONS = 50;
+export const PROVIDER_SEARCH_MAX_GPU_MODELS = 50;
 const PROVIDER_SEARCH_MAX_SEARCH_LENGTH = 200;
 
 export const ProviderSearchSortSchema = z.enum(["active-leases-desc", "active-leases-asc", "wallet-leases-desc", "wallet-active-leases-desc", "gpus-desc"]);
@@ -117,6 +119,18 @@ export type ProviderSearchSort = z.infer<typeof ProviderSearchSortSchema>;
 export const WALLET_LEASE_SORTS: readonly ProviderSearchSort[] = ["wallet-leases-desc", "wallet-active-leases-desc"];
 
 const BooleanFilterSchema = z.enum(["true", "false"]).transform(value => value === "true");
+
+function commaSeparatedListSchema(maxItems: number) {
+  return z
+    .string()
+    .transform(value =>
+      value
+        .split(",")
+        .map(item => item.trim())
+        .filter(Boolean)
+    )
+    .pipe(z.array(z.string()).min(1).max(maxItems));
+}
 
 export const ProviderSearchQuerySchema = z
   .object({
@@ -133,17 +147,24 @@ export const ProviderSearchQuerySchema = z
     audited: BooleanFilterSchema.optional().openapi({
       description: "Only audited providers when true, only unaudited ones when false, both when omitted."
     }),
-    addresses: z
-      .string()
-      .transform(value =>
-        value
-          .split(",")
-          .map(address => address.trim())
-          .filter(Boolean)
-      )
-      .pipe(z.array(z.string()).min(1).max(PROVIDER_SEARCH_MAX_ADDRESSES))
+    addresses: commaSeparatedListSchema(PROVIDER_SEARCH_MAX_ADDRESSES)
       .optional()
       .openapi({ description: `Comma-separated provider addresses the search is limited to, at most ${PROVIDER_SEARCH_MAX_ADDRESSES}.` }),
+    regions: commaSeparatedListSchema(PROVIDER_SEARCH_MAX_REGIONS)
+      .optional()
+      .openapi({
+        description: `Comma-separated location-region attribute values, at most ${PROVIDER_SEARCH_MAX_REGIONS}. Keeps providers in any of them.`,
+        example: "eu-central,na-us-west"
+      }),
+    gpu: BooleanFilterSchema.optional().openapi({
+      description: "Only providers with GPUs when true, only providers without any when false, both when omitted."
+    }),
+    gpuModels: commaSeparatedListSchema(PROVIDER_SEARCH_MAX_GPU_MODELS)
+      .optional()
+      .openapi({
+        description: `Comma-separated GPU model names, matched ignoring case, at most ${PROVIDER_SEARCH_MAX_GPU_MODELS}. Keeps providers with any of them.`,
+        example: "h100,a100"
+      }),
     sort: ProviderSearchSortSchema.default("active-leases-desc").openapi({
       description:
         "`active-leases-*` orders by the provider's active lease count, `wallet-leases-desc` and `wallet-active-leases-desc` by how many leases `walletAddress` holds on it, and `gpus-desc` by its GPU count across available, pending and active ones."
@@ -186,7 +207,12 @@ export const ProviderLocationsResponseSchema = z.object({
       ipRegion: z.string().nullable(),
       ipCountryCode: z.string().nullable(),
       ipLat: z.string().nullable(),
-      ipLon: z.string().nullable()
+      ipLon: z.string().nullable(),
+      isAudited: z.boolean(),
+      locationRegion: z.string().nullable().openapi({ description: "The provider's location-region attribute.", example: "eu-central" }),
+      uptime30d: z.number().nullable(),
+      gpuModels: z.array(z.string()).openapi({ description: "Distinct GPU model names across the provider's nodes.", example: ["h100", "a100"] }),
+      stats: ProviderStatsSchema
     })
   )
 });
@@ -264,7 +290,8 @@ export const ProviderResponseSchema = z.object({
       z.object({
         driverVersion: z.string(),
         cudaVersion: z.string().nullable().openapi({
-          description: "The newest CUDA version whose minimum Linux driver this driver meets, per NVIDIA's published driver requirements. Null when it meets none of them."
+          description:
+            "The newest CUDA version whose minimum Linux driver this driver meets, per NVIDIA's published driver requirements. Null when it meets none of them."
         }),
         lastSeenDate: z.string().openapi({ description: "The UTC day this driver was last read.", example: "2026-09-21" })
       })
@@ -288,6 +315,11 @@ export const ProviderResponseSchema = z.object({
   workloadSupportChia: z.boolean(),
   workloadSupportChiaCapabilities: z.array(z.string()),
   featEndpointIp: z.boolean(),
+  reclamationWindow: z.number().int().positive().nullable().optional().openapi({
+    description:
+      "Seconds of notice the provider gives before it reclaims leased capacity. Null when it advertises none; absent when the provider inventory could not be read.",
+    example: 86400
+  }),
   uptime: z.array(
     z.object({
       id: z.string(),

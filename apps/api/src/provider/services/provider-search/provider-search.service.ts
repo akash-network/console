@@ -5,7 +5,10 @@ import { type ProviderSearchQuery, type ProviderSearchSort, WALLET_LEASE_SORTS }
 import { ProviderService } from "@src/provider/services/provider/provider.service";
 import type { ProviderList } from "@src/types/provider";
 
-export type ProviderLocation = Pick<ProviderList, "owner" | "name" | "hostUri" | "ipRegion" | "ipCountryCode" | "ipLat" | "ipLon">;
+export type ProviderLocation = Pick<
+  ProviderList,
+  "owner" | "name" | "hostUri" | "ipRegion" | "ipCountryCode" | "ipLat" | "ipLon" | "isAudited" | "locationRegion" | "uptime30d" | "stats"
+> & { gpuModels: string[] };
 
 type WalletLeaseCounts = Map<string, ProviderLeaseCount>;
 
@@ -27,9 +30,7 @@ export class ProviderSearchService {
   async findOnlineLocations(): Promise<ProviderLocation[]> {
     const providers = await this.providerService.getProviderList(false);
 
-    return providers
-      .filter(provider => provider.isOnline)
-      .map(({ owner, name, hostUri, ipRegion, ipCountryCode, ipLat, ipLon }) => ({ owner, name, hostUri, ipRegion, ipCountryCode, ipLat, ipLon }));
+    return providers.filter(provider => provider.isOnline).map(toLocation);
   }
 
   async #countWalletLeases({ sort, walletAddress }: Pick<ProviderSearchQuery, "sort" | "walletAddress">): Promise<WalletLeaseCounts> {
@@ -43,14 +44,38 @@ export class ProviderSearchService {
   }
 }
 
-function createQueryMatcher({ search, online, audited, addresses }: ProviderSearchQuery): (provider: ProviderList) => boolean {
+function toLocation(provider: ProviderList): ProviderLocation {
+  const { owner, name, hostUri, ipRegion, ipCountryCode, ipLat, ipLon, isAudited, locationRegion, uptime30d, stats } = provider;
+
+  return {
+    owner,
+    name,
+    hostUri,
+    ipRegion,
+    ipCountryCode,
+    ipLat,
+    ipLon,
+    isAudited,
+    locationRegion,
+    uptime30d,
+    gpuModels: [...new Set(provider.gpuModels.map(gpu => gpu.model))],
+    stats
+  };
+}
+
+function createQueryMatcher({ search, online, audited, addresses, regions, gpu, gpuModels }: ProviderSearchQuery): (provider: ProviderList) => boolean {
   const term = search?.toLowerCase();
   const allowedAddresses = addresses && new Set(addresses);
+  const allowedRegions = regions && new Set(regions);
+  const wantedGpuModels = gpuModels && new Set(gpuModels.map(model => model.toLowerCase()));
 
   return provider =>
     (online === undefined || provider.isOnline === online) &&
     (audited === undefined || provider.isAudited === audited) &&
     (!allowedAddresses || allowedAddresses.has(provider.owner)) &&
+    (!allowedRegions || (!!provider.locationRegion && allowedRegions.has(provider.locationRegion))) &&
+    (gpu === undefined || hasGpus(provider) === gpu) &&
+    (!wantedGpuModels || provider.gpuModels.some(({ model }) => wantedGpuModels.has(model.toLowerCase()))) &&
     (!term || provider.hostUri.toLowerCase().includes(term) || provider.owner.includes(term));
 }
 
@@ -78,4 +103,8 @@ function activeLeasesOf(provider: ProviderList): number {
 
 function gpuCountOf({ stats: { gpu } }: ProviderList): number {
   return gpu.available + gpu.pending + gpu.active;
+}
+
+function hasGpus(provider: ProviderList): boolean {
+  return gpuCountOf(provider) > 0;
 }

@@ -46,6 +46,21 @@ export class ProviderInventoryRepository {
     }
   }
 
+  async findByOwner(owner: string): Promise<Pick<ProviderInventory, "owner" | "hostUri" | "isOnline" | "reclamationWindow"> | undefined> {
+    const [row] = await this.#driver
+      .getDb()
+      .select({
+        owner: providerInventory.owner,
+        hostUri: providerInventory.hostUri,
+        isOnline: providerInventory.isOnline,
+        reclamationWindow: providerInventory.reclamationWindow
+      })
+      .from(providerInventory)
+      .where(eq(providerInventory.owner, owner));
+
+    return row;
+  }
+
   async findAllOwners(): Promise<string[]> {
     const rows = await this.#driver.getDb().select({ owner: providerInventory.owner }).from(providerInventory);
     return rows.map(row => row.owner);
