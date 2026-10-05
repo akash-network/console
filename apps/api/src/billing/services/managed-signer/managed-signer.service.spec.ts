@@ -1260,6 +1260,29 @@ describe(ManagedSignerService.name, () => {
       expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "CREDITS_LOW_CHECK_ON_CLOSE_SCHEDULE_FAILED", walletId: wallet.id }));
     });
 
+    it("returns a landed transaction even when refreshing the wallet limits fails", async () => {
+      const wallet = createUserWallet({ userId: "user-123", feeAllowance: 100 });
+      const user = createUser({ userId: "user-123" });
+      const closeMessage = {
+        typeUrl: MsgCloseDeployment.$type,
+        value: Buffer.from(JSON.stringify({ id: { dseq: "123", owner: wallet.address } })).toString("base64")
+      };
+      const error = new Error("fee allowance read timed out");
+
+      const { service, logger } = setup({
+        findOneByUserId: vi.fn().mockResolvedValue(wallet),
+        findById: vi.fn().mockResolvedValue(user),
+        signAndBroadcastWithDerivedWallet: vi.fn().mockResolvedValue({ code: 0, hash: "tx-hash", rawLog: "success" }),
+        refreshUserWalletLimits: vi.fn().mockRejectedValue(error),
+        decode: vi.fn().mockReturnValue({ id: { dseq: "123", owner: wallet.address } })
+      });
+
+      const result = await service.executeDerivedEncodedTxByUserId("user-123", [closeMessage]);
+
+      expect(result).toEqual({ code: 0, hash: "tx-hash", transactionHash: "tx-hash", rawLog: "success" });
+      expect(logger.error).toHaveBeenCalledWith({ event: "WALLET_LIMITS_REFRESH_FAILED", walletId: wallet.id, error });
+    });
+
     it("delegates spend-time activation to the guard and surfaces its retriable 409", async () => {
       const wallet = createUserWallet({ userId: "user-123", activatedAt: null });
       const user = createUser({ userId: "user-123" });
