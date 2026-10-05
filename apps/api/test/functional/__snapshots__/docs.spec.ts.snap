@@ -18272,6 +18272,47 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                           "templates": {
                             "items": {
                               "properties": {
+                                "hardware": {
+                                  "description": "Absent when the template's SDL cannot be read",
+                                  "properties": {
+                                    "cpu": {
+                                      "description": "vCPUs across every service and replica",
+                                      "type": "number",
+                                    },
+                                    "gpu": {
+                                      "properties": {
+                                        "models": {
+                                          "description": "Model names, or a vendor name when any of its models will do; empty when any GPU will do",
+                                          "items": {
+                                            "type": "string",
+                                          },
+                                          "type": "array",
+                                        },
+                                        "units": {
+                                          "type": "number",
+                                        },
+                                      },
+                                      "required": [
+                                        "units",
+                                        "models",
+                                      ],
+                                      "type": "object",
+                                    },
+                                    "memoryBytes": {
+                                      "type": "number",
+                                    },
+                                    "storageBytes": {
+                                      "description": "Ephemeral and persistent storage combined",
+                                      "type": "number",
+                                    },
+                                  },
+                                  "required": [
+                                    "cpu",
+                                    "memoryBytes",
+                                    "storageBytes",
+                                  ],
+                                  "type": "object",
+                                },
                                 "id": {
                                   "type": "string",
                                 },

@@ -4,10 +4,39 @@ import { z } from "zod";
 
 import { cacheEngine } from "@src/caching/helpers";
 import type { CreateLogger } from "@src/core";
+import { GetTemplatesListResponseSchema } from "../../http-schemas/template.schema";
 import type { Category, Template } from "../../types/template";
 import type { TemplateFetcherService } from "../template-fetcher/template-fetcher.service";
 import type { FileSystemApi, TemplateTagsConfig } from "./template-gallery.service";
 import { TemplateGalleryService } from "./template-gallery.service";
+
+const GPU_SDL = `
+version: "2.0"
+services:
+  app:
+    image: comfyui
+profiles:
+  compute:
+    app:
+      resources:
+        cpu:
+          units: 6
+        memory:
+          size: 35Gi
+        gpu:
+          units: 1
+          attributes:
+            vendor:
+              nvidia:
+                - model: a100
+        storage:
+          size: 50Gi
+deployment:
+  app:
+    akash:
+      profile: app
+      count: 1
+`;
 
 describe(TemplateGalleryService.name, () => {
   afterEach(() => {
@@ -272,6 +301,41 @@ describe(TemplateGalleryService.name, () => {
       expect(resultTemplates.map((t: Template) => t.id)).toEqual(["t3", "t1", "t2"]);
     });
 
+    it("writes each template's hardware into the summary, leaving it out where the SDL cannot be read", async () => {
+      const { service, templateFetcher, fsMock } = setup();
+      const gpuTemplate = createTemplate({ id: "gpu", deploy: GPU_SDL });
+      const brokenTemplate = createTemplate({ id: "broken", deploy: "services: [unclosed" });
+      templateFetcher.fetchAwesomeAkashTemplates.mockResolvedValue([createCategory({ title: "AI", templates: [gpuTemplate, brokenTemplate] })]);
+      templateFetcher.fetchOmnibusTemplates.mockResolvedValue([createCategory({ title: "Blockchain", templates: [createTemplate({ id: "omnibus" })] })]);
+      fsMock.mkdir.mockResolvedValue(undefined);
+      fsMock.writeFile.mockResolvedValue(undefined);
+
+      await service.buildTemplateGalleryCache(GetTemplatesListResponseSchema.shape.data);
+
+      const summaryCall = fsMock.writeFile.mock.calls.find(call => String(call[0]).includes("templates-list.json"));
+      const summaryCategories: { title: string; templates: { id: string }[] }[] = JSON.parse(String(summaryCall![1])).data;
+      const summaryTemplates = summaryCategories.find(category => category.title === "AI")!.templates;
+      const summaryTemplateById = new Map(summaryTemplates.map(template => [template.id, template]));
+      expect(summaryTemplateById.get("gpu")).toMatchObject({
+        hardware: { cpu: 6, memoryBytes: 35 * 1024 ** 3, storageBytes: 50 * 1024 ** 3, gpu: { units: 1, models: ["a100"] } }
+      });
+      expect(summaryTemplateById.get("broken")).toBeDefined();
+      expect(summaryTemplateById.get("broken")).not.toHaveProperty("hardware");
+    });
+
+    it("keeps the hardware out of individual template files", async () => {
+      const { service, templateFetcher, fsMock } = setup();
+      const gpuTemplate = createTemplate({ id: "gpu", deploy: GPU_SDL });
+      templateFetcher.fetchAwesomeAkashTemplates.mockResolvedValue([createCategory({ title: "AI", templates: [gpuTemplate] })]);
+      templateFetcher.fetchOmnibusTemplates.mockResolvedValue([createCategory({ title: "Blockchain", templates: [createTemplate({ id: "omnibus" })] })]);
+      fsMock.mkdir.mockResolvedValue(undefined);
+      fsMock.writeFile.mockResolvedValue(undefined);
+
+      await service.buildTemplateGalleryCache(GetTemplatesListResponseSchema.shape.data);
+
+      expect(fsMock.writeFile).toHaveBeenCalledWith("/data/templates/v1/templates/gpu.json", JSON.stringify({ data: gpuTemplate }));
+    });
+
     it("writes individual template files", async () => {
       const { service, templateFetcher, fsMock } = setup();
       const template1 = { id: "t1", name: "Template 1" } as Template;
@@ -399,6 +463,21 @@ describe(TemplateGalleryService.name, () => {
         yield item;
       }
     } as unknown as FileSystemApi["glob"];
+  }
+
+  function createTemplate(overrides: Partial<Template> & { id: string }): Template {
+    return {
+      name: overrides.id,
+      path: overrides.id,
+      readme: "",
+      summary: `${overrides.id} summary`,
+      logoUrl: "https://example.com/logo.png",
+      deploy: "",
+      githubUrl: `https://github.com/akash-network/awesome-akash/tree/master/${overrides.id}`,
+      persistentStorageEnabled: false,
+      config: {},
+      ...overrides
+    };
   }
 
   function createCategory(overrides: Partial<Omit<Category, "templates">> & { templates?: Array<{ id: string; name?: string }> }): Category {

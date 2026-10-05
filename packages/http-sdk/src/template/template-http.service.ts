@@ -18,6 +18,13 @@ export interface TemplateOutput {
   };
 }
 
+export interface TemplateHardware {
+  cpu: number;
+  memoryBytes: number;
+  storageBytes: number;
+  gpu?: { units: number; models: string[] };
+}
+
 export interface TemplateOutputSummary {
   id: string;
   name: string;
@@ -25,6 +32,7 @@ export interface TemplateOutputSummary {
   summary: string;
   deploy: string;
   tags?: string[];
+  hardware?: TemplateHardware;
 }
 
 export interface TemplateCategory {
