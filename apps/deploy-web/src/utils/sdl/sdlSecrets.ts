@@ -92,7 +92,7 @@ export function resolveSdlSecrets(values: SdlBuilderFormValuesType, options: Res
   const taken = namesAlreadyReferencedIn(values.services);
   const held = new Set(options.heldNames ?? []);
   const references = new Map<string, string>();
-  const secretValues: SdlSecretValues = {};
+  const secretValues = new Map<string, string>();
   const unresolved: UnresolvedSdlSecret[] = [];
 
   function keepReference(slotKey: string, reference: string, location: { serviceTitle: string; label: string }) {
@@ -118,7 +118,7 @@ export function resolveSdlSecrets(values: SdlBuilderFormValuesType, options: Res
       if (value === "") {
         unresolved.push({ ...location, name, isKeptReference: false });
       } else {
-        secretValues[name] = value;
+        secretValues.set(name, value);
       }
     });
 
@@ -136,11 +136,11 @@ export function resolveSdlSecrets(values: SdlBuilderFormValuesType, options: Res
 
       const name = mintSecretName(field === "username" ? REGISTRY_USERNAME_SECRET_NAME : REGISTRY_PASSWORD_SECRET_NAME, taken);
       references.set(slotKey, secretReferenceOf(name));
-      secretValues[name] = value;
+      secretValues.set(name, value);
     });
   });
 
-  return { references, values: secretValues, unresolved };
+  return { references, values: Object.fromEntries(secretValues), unresolved };
 }
 
 /** The names of every secret reference an SDL carries in a service's env or registry credentials; none when it does not parse. */
