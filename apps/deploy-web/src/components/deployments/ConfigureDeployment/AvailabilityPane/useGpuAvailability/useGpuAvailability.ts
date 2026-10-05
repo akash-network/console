@@ -16,6 +16,8 @@ const NO_GPU_KEY = "no-gpu";
 
 export interface GpuAvailability {
   requestedLabel: string;
+  /** False while no service of the placement asks for a GPU, so the current request has no GPUs to count. */
+  requestsGpu: boolean;
   alternatives: GpuAvailabilityModel[];
   noGpuCount: number | null;
   isChecking: boolean;
@@ -51,6 +53,7 @@ export function useGpuAvailability(
 
   return {
     requestedLabel: requestedGpuLabel(requested, catalog),
+    requestsGpu: requested !== null,
     alternatives,
     noGpuCount: requested ? counts[candidates.length].count : null,
     isChecking,

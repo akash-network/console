@@ -1,11 +1,13 @@
 import type { FC, ReactNode } from "react";
 import { useId } from "react";
 import { Button, CustomTooltip } from "@akashnetwork/ui/components";
+import { cn } from "@akashnetwork/ui/utils";
 import { GpuIcon, InfoIcon, LoaderCircleIcon, MessageSquareIcon, PanelsTopLeftIcon } from "lucide-react";
 
 import { useNetworkProviderCount } from "@src/queries/useNetworkProviderCount";
-import { useScreenedProviders } from "@src/queries/useScreenedProviders";
+import { sumAvailableGpus, useScreenedProviders } from "@src/queries/useScreenedProviders";
 import type { PlacementType } from "@src/types";
+import { describeGpuAvailability } from "@src/utils/providerUtils";
 import { InvalidSpecReasons } from "../InvalidSpecReasons/InvalidSpecReasons";
 import type { GpuAvailabilityRow } from "./gpuAvailability/gpuAvailability";
 import { listGpuAvailabilityRows } from "./gpuAvailability/gpuAvailability";
@@ -63,6 +65,7 @@ export const AvailabilityPane: FC<Props> = ({
             <GpuAvailabilityCard
               gpuAvailability={gpuAvailability}
               requestedCount={screened.isLoading ? null : screened.providers.length}
+              requestedGpuCount={screened.isLoading || !gpuAvailability.requestsGpu ? null : sumAvailableGpus(screened.providers)}
               networkCount={network.count}
               CustomTooltip={d.CustomTooltip}
             />
@@ -218,14 +221,18 @@ function ProviderCountCard({ screened, networkCount, scope, InvalidSpecReasons }
 type GpuAvailabilityCardProps = {
   gpuAvailability: GpuAvailability;
   requestedCount: number | null;
+  requestedGpuCount: number | null;
   networkCount: number | null;
   CustomTooltip: typeof DEPENDENCIES.CustomTooltip;
 };
 
-function GpuAvailabilityCard({ gpuAvailability, requestedCount, networkCount, CustomTooltip }: GpuAvailabilityCardProps) {
+/** The column labels and every row share these columns, so each count lines up under its label. */
+const GPU_ROW_COLUMNS = "grid grid-cols-[minmax(0,9rem)_minmax(0,1fr)_4.5rem_2.5rem] items-center gap-3 border border-transparent px-2";
+
+function GpuAvailabilityCard({ gpuAvailability, requestedCount, requestedGpuCount, networkCount, CustomTooltip }: GpuAvailabilityCardProps) {
   const listId = useId();
   const { requestedLabel, alternatives, noGpuCount, isChecking, noOtherModelFits } = gpuAvailability;
-  const rows = listGpuAvailabilityRows({ requestedLabel, alternatives, noGpuCount, requestedCount, networkCount });
+  const rows = listGpuAvailabilityRows({ requestedLabel, alternatives, noGpuCount, requestedCount, requestedGpuCount, networkCount });
 
   return (
     <AvailabilityCard>
@@ -233,15 +240,23 @@ function GpuAvailabilityCard({ gpuAvailability, requestedCount, networkCount, Cu
         <GpuIcon className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
         <h3 className="text-sm font-semibold">GPU availability</h3>
         <span className="ml-auto flex">
-          <CustomTooltip title="Each number is how many providers could host this configuration if you switched to that model and kept everything else the same.">
+          <CustomTooltip title="Each row shows how many providers could host this configuration if you switched to that model and kept everything else the same, and how many of those GPUs they have free for it.">
             <InfoIcon className="h-3.5 w-3.5 cursor-help text-muted-foreground" aria-label="How these counts work" />
           </CustomTooltip>
         </span>
       </div>
       <div className="space-y-2 border-t border-zinc-200 pt-3 dark:border-zinc-800">
-        <p id={listId} className="font-mono text-[11px] uppercase tracking-wider text-muted-foreground">
-          If you switch model
-        </p>
+        <div className={cn(GPU_ROW_COLUMNS, "font-mono text-[11px] uppercase tracking-wider text-muted-foreground")}>
+          <p id={listId} className="col-span-2">
+            If you switch model
+          </p>
+          <span aria-hidden="true" className="text-right">
+            Providers
+          </span>
+          <span aria-hidden="true" className="text-right">
+            GPUs
+          </span>
+        </div>
         <ul aria-labelledby={listId} className="space-y-1">
           {rows.map(row => (
             <GpuRow key={row.key} row={row} />
@@ -263,7 +278,10 @@ function GpuRow({ row }: { row: GpuAvailabilityRow }) {
   return (
     <li
       aria-current={row.isCurrent || undefined}
-      className="group grid grid-cols-[minmax(0,9rem)_minmax(0,1fr)_2.5rem] items-center gap-3 rounded-md border border-transparent px-2 py-1.5 font-mono text-xs aria-[current=true]:border-zinc-300 aria-[current=true]:bg-muted aria-[current=true]:font-semibold dark:aria-[current=true]:border-zinc-700"
+      className={cn(
+        GPU_ROW_COLUMNS,
+        "group rounded-md py-1.5 font-mono text-xs aria-[current=true]:border-zinc-300 aria-[current=true]:bg-muted aria-[current=true]:font-semibold dark:aria-[current=true]:border-zinc-700"
+      )}
     >
       <span className="flex min-w-0 items-center gap-1.5">
         <span className="truncate">{row.label}</span>
@@ -272,8 +290,36 @@ function GpuRow({ row }: { row: GpuAvailabilityRow }) {
       <span className="h-2 overflow-hidden rounded-full bg-muted group-aria-[current=true]:bg-background" aria-hidden="true">
         <span className="block h-full rounded-full bg-muted-foreground/40 group-aria-[current=true]:bg-foreground" style={{ width: `${row.share * 100}%` }} />
       </span>
-      <span className="text-right">{row.providerCount ?? "…"}</span>
+      <GpuRowCounts providerCount={row.providerCount} gpuCount={row.gpuCount} />
     </li>
+  );
+}
+
+function GpuRowCounts({ providerCount, gpuCount }: Pick<GpuAvailabilityRow, "providerCount" | "gpuCount">) {
+  if (providerCount === null) {
+    return (
+      <>
+        <span aria-hidden="true" className="text-right">
+          …
+        </span>
+        <span aria-hidden="true" className="text-right">
+          …
+        </span>
+        <span className="sr-only">Checking</span>
+      </>
+    );
+  }
+
+  return (
+    <>
+      <span aria-hidden="true" className="text-right">
+        {providerCount}
+      </span>
+      <span aria-hidden="true" className="text-right">
+        {gpuCount ?? "–"}
+      </span>
+      <span className="sr-only">{describeGpuAvailability(providerCount, gpuCount)}</span>
+    </>
   );
 }
 

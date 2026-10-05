@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { formatProviderCount, providerDisplayName } from "./providerUtils";
+import { describeGpuAvailability, formatProviderCount, providerDisplayName } from "./providerUtils";
 
 describe(providerDisplayName.name, () => {
   it("prefers the organization when present", () => {
@@ -35,5 +35,19 @@ describe(formatProviderCount.name, () => {
 
   it("formats nothing when the count is unknown", () => {
     expect(formatProviderCount(undefined)).toBeUndefined();
+  });
+});
+
+describe(describeGpuAvailability.name, () => {
+  it("reads the free gpus on the providers", () => {
+    expect(describeGpuAvailability(3, 14)).toBe("14 free GPUs on 3 providers");
+  });
+
+  it("counts a single gpu and a single provider in the singular", () => {
+    expect(describeGpuAvailability(1, 1)).toBe("1 free GPU on 1 provider");
+  });
+
+  it("reads the providers alone while the gpu count is unknown", () => {
+    expect(describeGpuAvailability(2, null)).toBe("2 providers");
   });
 });
