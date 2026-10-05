@@ -15,11 +15,9 @@ import { useTemplates } from "@src/queries/useTemplateQuery";
 import { helloWorldTemplate } from "@src/utils/templates";
 import { domainName, UrlService } from "@src/utils/urlUtils";
 import { AgentModePanel } from "../AgentModePanel/AgentModePanel";
-import { LastConfigurationCard } from "../LastConfigurationCard/LastConfigurationCard";
 import { LegacyBuilderRedirect } from "../LegacyBuilderRedirect/LegacyBuilderRedirect";
 import { StartFromScratchCard } from "../StartFromScratchCard/StartFromScratchCard";
 import { UploadSdlButton } from "../UploadSdlButton/UploadSdlButton";
-import { useLastConfiguration } from "../useLastConfiguration/useLastConfiguration";
 
 const POPULAR_TEMPLATE_COUNT = 6;
 
@@ -28,18 +26,14 @@ const OVERLINE_CLASSES = "font-mono text-[11px] font-medium uppercase leading-4 
 const SECTION_LINK_CLASSES =
   "inline-flex items-center gap-1.5 whitespace-nowrap text-[12.5px] font-semibold text-muted-foreground transition-colors hover:text-foreground";
 
-const CARD_GRID_CLASSES = "grid grid-cols-1 gap-4 sm:grid-cols-2 min-[1100px]:grid-cols-3";
-
 export const DEPENDENCIES = {
   useRouter,
   useTemplates,
-  useLastConfiguration,
   Layout,
   CustomNextSeo,
   LegacyBuilderRedirect,
   AgentModePanel,
   UploadSdlButton,
-  LastConfigurationCard,
   StartFromScratchCard,
   TemplateCard,
   Skeleton
@@ -52,7 +46,6 @@ export const NewDeploymentPage: FC<Props> = ({ dependencies: d = DEPENDENCIES })
   const { analyticsService } = useServices();
   const router = d.useRouter();
   const { isLoading: isLoadingTemplates, templates } = d.useTemplates();
-  const lastConfiguration = d.useLastConfiguration();
   const popularTemplates = selectPopularTemplates(templates, POPULAR_TEMPLATE_COUNT);
 
   const startFromOwnContainer = () => {
@@ -83,21 +76,13 @@ export const NewDeploymentPage: FC<Props> = ({ dependencies: d = DEPENDENCIES })
             <div className="min-w-[min(280px,100%)] flex-1">
               <h1 className="text-2xl font-bold leading-9 tracking-[-0.02em] sm:text-[28px]">What do you want to deploy?</h1>
               <p className="mt-1 text-[13px] leading-5 text-muted-foreground">
-                Redeploy a previous configuration, start from scratch, or pick a template. Everything is editable in the next step.
+                Start from scratch or pick a template. Everything is editable in the next step.
               </p>
             </div>
             <d.UploadSdlButton />
           </header>
 
           <d.AgentModePanel />
-
-          {lastConfiguration && (
-            <PageSection title="Pick up where you left off" className="mt-10">
-              <div className={CARD_GRID_CLASSES}>
-                <d.LastConfigurationCard deployment={lastConfiguration.deployment} definition={lastConfiguration.definition} />
-              </div>
-            </PageSection>
-          )}
 
           <PageSection title="Start from scratch" className="mt-10">
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -133,7 +118,7 @@ export const NewDeploymentPage: FC<Props> = ({ dependencies: d = DEPENDENCIES })
               </>
             }
           >
-            <div className={CARD_GRID_CLASSES}>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 min-[1100px]:grid-cols-3">
               {popularTemplates.map(template => (
                 <d.TemplateCard key={template.id} template={template} isPopular={isPopularTemplate(template)} />
               ))}

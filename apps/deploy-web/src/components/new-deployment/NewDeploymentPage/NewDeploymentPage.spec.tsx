@@ -4,9 +4,7 @@ import { mock } from "vitest-mock-extended";
 
 import type { TemplateOutputSummaryWithCategory } from "@src/queries/useTemplateQuery";
 import type { AnalyticsService } from "@src/services/analytics/analytics.service";
-import type { ListedDeploymentDto } from "@src/types/deployment";
 import { UrlService } from "@src/utils/urlUtils";
-import type { LastConfiguration } from "../useLastConfiguration/useLastConfiguration";
 import { DEPENDENCIES, NewDeploymentPage } from "./NewDeploymentPage";
 
 import { render, screen } from "@testing-library/react";
@@ -42,24 +40,6 @@ describe("NewDeploymentPage", () => {
 
     expect(UploadSdlButton).toHaveBeenCalled();
     expect(AgentModePanel).toHaveBeenCalled();
-  });
-
-  it("shows the last configuration when there is one", () => {
-    const lastConfiguration: LastConfiguration = {
-      deployment: { dseq: "100" } as ListedDeploymentDto,
-      definition: { sdl: "sdl", name: "acme", source: "api" }
-    };
-    const { LastConfigurationCard } = setup({ lastConfiguration });
-
-    expect(screen.getByRole("region", { name: "Pick up where you left off" })).toBeInTheDocument();
-    expect(LastConfigurationCard).toHaveBeenCalledWith(lastConfiguration, expect.anything());
-  });
-
-  it("hides the last configuration section when there is none", () => {
-    const { LastConfigurationCard } = setup({ lastConfiguration: null });
-
-    expect(screen.queryByRole("region", { name: "Pick up where you left off" })).not.toBeInTheDocument();
-    expect(LastConfigurationCard).not.toHaveBeenCalled();
   });
 
   it("starts a blank configure screen for your own container", async () => {
@@ -134,7 +114,7 @@ describe("NewDeploymentPage", () => {
     return { id, name: id, summary: "", deploy: "", logoUrl: null, category: "General", tags };
   }
 
-  function setup(input: { lastConfiguration?: LastConfiguration | null; templates?: TemplateOutputSummaryWithCategory[]; isLoadingTemplates?: boolean }) {
+  function setup(input: { templates?: TemplateOutputSummaryWithCategory[]; isLoadingTemplates?: boolean }) {
     const push = vi.fn();
     const analyticsService = mock<AnalyticsService>();
     const router = mock<ReturnType<typeof DEPENDENCIES.useRouter>>({ push });
@@ -143,18 +123,15 @@ describe("NewDeploymentPage", () => {
     const LegacyBuilderRedirect = vi.fn(({ children }: PropsWithChildren) => <>{children}</>);
     const AgentModePanel = vi.fn(() => null);
     const UploadSdlButton = vi.fn(() => null);
-    const LastConfigurationCard = vi.fn<typeof DEPENDENCIES.LastConfigurationCard>(() => null);
     const TemplateCard = vi.fn<typeof DEPENDENCIES.TemplateCard>(() => null);
     const Skeleton = vi.fn<typeof DEPENDENCIES.Skeleton>(() => <div />);
     const dependencies = MockComponents(DEPENDENCIES, {
       useRouter: () => router,
       useTemplates: () => templatesResult,
-      useLastConfiguration: () => input.lastConfiguration ?? null,
       Layout: Layout as never,
       LegacyBuilderRedirect,
       AgentModePanel,
       UploadSdlButton,
-      LastConfigurationCard,
       StartFromScratchCard: DEPENDENCIES.StartFromScratchCard,
       TemplateCard,
       Skeleton
@@ -173,7 +150,6 @@ describe("NewDeploymentPage", () => {
       LegacyBuilderRedirect,
       AgentModePanel,
       UploadSdlButton,
-      LastConfigurationCard,
       TemplateCard,
       Skeleton,
       CustomNextSeo: dependencies.CustomNextSeo
