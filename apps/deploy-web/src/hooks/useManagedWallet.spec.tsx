@@ -4,7 +4,6 @@ import { UserProvider } from "@auth0/nextjs-auth0/client";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
-import { getStorageManagedWallet } from "@src/utils/walletUtils";
 import { useManagedWallet } from "./useManagedWallet";
 
 import { setupQuery } from "@tests/unit/query-client";
@@ -16,13 +15,13 @@ describe(useManagedWallet.name, () => {
     expect(result.current.managed.isInitializing).toBe(false);
   });
 
-  it("persists the queried wallet to storage", async () => {
+  it("hands back the queried wallet", async () => {
     const userId = "user-sync";
 
-    setup({ userId, apiWallet: buildApiWallet({ userId, address: "akash1queried", creditAmount: 25 }) });
+    const { result } = setup({ userId, apiWallet: buildApiWallet({ userId, address: "akash1queried", creditAmount: 25 }) });
 
     await vi.waitFor(() => {
-      expect(getStorageManagedWallet(userId)).toMatchObject({ address: "akash1queried", creditAmount: 25, isTrialing: true });
+      expect(result.current.managed.wallet).toMatchObject({ address: "akash1queried", creditAmount: 25, isTrialing: true });
     });
   });
 

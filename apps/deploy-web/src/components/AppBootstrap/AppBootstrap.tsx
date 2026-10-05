@@ -3,11 +3,14 @@ import { useEffect } from "react";
 
 import { useTrackInAppNavigation } from "@src/hooks/useHasInAppHistory";
 import { migrateLocalStorage } from "@src/utils/localStorage";
+import { forgetRetiredStorage } from "@src/utils/retiredStorage/retiredStorage";
 
 export const DEPENDENCIES = {
   useTrackInAppNavigation,
   // eslint-disable-next-line akash/dependencies-component-or-hook
-  migrateLocalStorage
+  migrateLocalStorage,
+  // eslint-disable-next-line akash/dependencies-component-or-hook
+  forgetRetiredStorage
 };
 
 type Props = {
@@ -24,6 +27,7 @@ export const AppBootstrap: React.FunctionComponent<Props> = ({ dependencies: d =
 
   useEffect(function applyLocalStorageMigrations() {
     d.migrateLocalStorage();
+    d.forgetRetiredStorage(window.localStorage);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

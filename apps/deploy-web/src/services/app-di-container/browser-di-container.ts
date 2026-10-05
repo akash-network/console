@@ -3,7 +3,6 @@ import { createProxy } from "@akashnetwork/react-query-proxy";
 import { browserEnvConfig } from "@src/config/browser-env.config";
 import { createApiSdk } from "@src/services/api-sdk/createApiSdk";
 import { ApiUrlService } from "@src/services/api-url/api-url.service";
-import * as walletUtils from "@src/utils/walletUtils";
 import { AuthService } from "../auth/auth/auth.service";
 import { PROXY_API_BASE_URL, withUserToken } from "../auth/auth/interceptors";
 import { createChildContainer } from "../container/createContainer";
@@ -42,7 +41,6 @@ export const services = createChildContainer(rootContainer, {
       ]
     }),
   authService: () => new AuthService(services.urlService, services.internalApiHttpClient),
-  storedWalletsService: () => walletUtils,
   deploymentLocalStorage: () => new DeploymentStorageService(localStorage, services.networkStore),
   deploymentNameBackfill: () => new DeploymentNameBackfillService(),
   windowLocation: () => window.location,

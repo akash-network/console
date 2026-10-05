@@ -5,7 +5,6 @@ export * from "./block";
 export * from "./deployment";
 export * from "./deploymentAlert";
 export * from "./deploymentBid";
-export * from "./localWallet";
 export * from "./managedWallet";
 export * from "./manifest";
 export * from "./notificationChannel";
