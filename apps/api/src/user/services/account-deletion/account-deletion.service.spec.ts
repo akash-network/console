@@ -60,8 +60,8 @@ describe(AccountDeletionService.name, () => {
       await service.initiate(user, { forfeitAcknowledged: false });
 
       const confirmUrl = sentConfirmUrl(notificationService);
-      const token = confirmUrl.searchParams.get("token")!;
-      expect(`${confirmUrl.origin}${confirmUrl.pathname}`).toBe(`${DEPLOY_WEB_BASE_URL}/user/confirm-delete`);
+      const token = new URLSearchParams(confirmUrl.hash.slice(1)).get("token")!;
+      expect(`${confirmUrl.origin}${confirmUrl.pathname}${confirmUrl.search}`).toBe(`${DEPLOY_WEB_BASE_URL}/user/confirm-delete`);
       expect(token).toMatch(/^[A-Za-z0-9_-]{43}$/);
       expect(tokenRepository.replaceForUser).toHaveBeenCalledWith({
         userId: user.id,

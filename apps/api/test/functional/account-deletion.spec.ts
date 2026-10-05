@@ -71,7 +71,8 @@ describe("Account deletion", () => {
       expect(sentNotifications).toHaveLength(1);
       const confirmUrl = new URL(sentNotifications[0].payload.actions[0].url);
       expect(confirmUrl.pathname).toBe("/user/confirm-delete");
-      const linkToken = confirmUrl.searchParams.get("token")!;
+      expect(confirmUrl.search).toBe("");
+      const linkToken = new URLSearchParams(confirmUrl.hash.slice(1)).get("token")!;
       expect(await tokenRepository.findByUserId(user.id)).toMatchObject({ tokenHash: sha256(linkToken), forfeitAcknowledged: false });
     });
 

@@ -159,7 +159,7 @@ export class AccountDeletionService {
   }
 
   private async sendConfirmationEmail(user: UserOutput, token: string, forfeitedBalanceUsd: number): Promise<void> {
-    const confirmUrl = `${this.deploymentConfig.get("DEPLOY_WEB_BASE_URL")}/user/confirm-delete?token=${token}`;
+    const confirmUrl = `${this.deploymentConfig.get("DEPLOY_WEB_BASE_URL")}/user/confirm-delete#token=${token}`;
 
     try {
       await this.notificationService.createNotification(
