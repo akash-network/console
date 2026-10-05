@@ -6,10 +6,11 @@ import { mock } from "vitest-mock-extended";
 import type { ProviderLookupService } from "@src/services/provider-lookup/provider-lookup.service";
 import type { ProviderProxyService } from "@src/services/provider-proxy/provider-proxy.service";
 import { SKIP_REPORTING_PROVIDER_POLL_FAILURE } from "@src/services/query-error-policy/query-error-policy";
+import type { DashboardData } from "@src/types/dashboard";
 import type { ApiProviderList, ApiProviderLocation, ProviderStatus, ProviderVersion } from "@src/types/provider";
 import { ApiUrlService } from "@src/utils/apiUtils";
 import type { ProviderSearchPage, ProviderSearchParams } from "./useProvidersQuery";
-import { useProviderLocations, useProvidersByAddresses, useProviderSearch, useProviderStatus } from "./useProvidersQuery";
+import { useDashboardData, useProviderLocations, useProvidersByAddresses, useProviderSearch, useProviderStatus } from "./useProvidersQuery";
 
 import { setupQuery } from "@tests/unit/query-client";
 
@@ -101,7 +102,19 @@ describe(useProviderSearch.name, () => {
 
     expect(result.current.data).toEqual(page);
     expect(httpClient.get).toHaveBeenCalledExactlyOnceWith(ApiUrlService.providerSearch(), {
-      params: { sort: "gpus-desc", online: true, addresses: "akash1first,akash1second", skip: 10, limit: 10 }
+      params: { sort: "gpus-desc", online: true, addresses: "akash1first,akash1second", regions: undefined, gpuModels: undefined, skip: 10, limit: 10 }
+    });
+  });
+
+  it("names the regions and GPU models in comma-separated values", async () => {
+    const { result, httpClient } = setup({
+      params: { sort: "active-leases-desc", regions: ["eu-central", "na-us-west"], gpu: true, gpuModels: ["h100", "a100"], skip: 0, limit: 10 }
+    });
+
+    await vi.waitFor(() => expect(result.current.isSuccess).toBe(true));
+
+    expect(httpClient.get).toHaveBeenCalledExactlyOnceWith(ApiUrlService.providerSearch(), {
+      params: { sort: "active-leases-desc", addresses: undefined, regions: "eu-central,na-us-west", gpu: true, gpuModels: "h100,a100", skip: 0, limit: 10 }
     });
   });
 
@@ -111,7 +124,7 @@ describe(useProviderSearch.name, () => {
     await vi.waitFor(() => expect(result.current.isSuccess).toBe(true));
 
     expect(httpClient.get).toHaveBeenCalledWith(ApiUrlService.providerSearch(), {
-      params: { sort: "active-leases-desc", addresses: undefined, skip: 0, limit: 10 }
+      params: { sort: "active-leases-desc", addresses: undefined, regions: undefined, gpuModels: undefined, skip: 0, limit: 10 }
     });
   });
 
@@ -197,4 +210,18 @@ describe(useProviderStatus.name, () => {
 
     return { ...view, providerProxy, provider, queryClient };
   }
+});
+
+describe(useDashboardData.name, () => {
+  it("answers the network dashboard numbers", async () => {
+    const dashboardData = mock<DashboardData>({ now: mock<DashboardData["now"]>({ activeLeaseCount: 678 }) });
+    const httpClient = mock<AxiosInstance>();
+    httpClient.get.mockResolvedValue({ data: dashboardData });
+
+    const { result } = setupQuery(() => useDashboardData(), { services: { publicConsoleApiHttpClient: () => httpClient } });
+
+    await vi.waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(result.current.data).toBe(dashboardData);
+    expect(httpClient.get).toHaveBeenCalledExactlyOnceWith(ApiUrlService.dashboardData());
+  });
 });

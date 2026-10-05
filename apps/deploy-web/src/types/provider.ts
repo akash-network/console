@@ -234,7 +234,10 @@ export interface ApiProviderList {
   featEndpointIp: boolean;
 }
 
-export type ApiProviderLocation = Pick<ApiProviderList, "owner" | "name" | "hostUri" | "ipRegion" | "ipCountryCode" | "ipLat" | "ipLon">;
+export type ApiProviderLocation = Pick<
+  ApiProviderList,
+  "owner" | "name" | "hostUri" | "ipRegion" | "ipCountryCode" | "ipLat" | "ipLon" | "isAudited" | "locationRegion" | "uptime30d" | "stats"
+> & { gpuModels: string[] };
 
 export interface ClientProviderList extends ApiProviderList {
   userLeases?: number;

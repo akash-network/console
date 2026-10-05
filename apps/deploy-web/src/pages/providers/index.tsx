@@ -1,7 +1,3 @@
-import { ProviderList } from "@src/components/providers/ProviderList";
-
-function ProvidersPage() {
-  return <ProviderList />;
-}
+import { ProvidersPage } from "@src/components/providers/ProvidersPage/ProvidersPage";
 
 export default ProvidersPage;

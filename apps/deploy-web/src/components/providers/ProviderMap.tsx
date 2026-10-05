@@ -12,7 +12,7 @@ import { UrlService } from "@src/utils/urlUtils";
 type Props = {
   initialZoom?: number;
   initialCoordinates?: Point;
-  providers: ApiProviderLocation[];
+  providers: Pick<ApiProviderLocation, "owner" | "name" | "ipRegion" | "ipCountryCode" | "ipLat" | "ipLon">[];
 };
 
 const minZoom = 1;

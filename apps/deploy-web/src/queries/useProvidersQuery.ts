@@ -4,6 +4,7 @@ import { keepPreviousData, useQueries, useQuery } from "@tanstack/react-query";
 import { useServices } from "@src/context/ServicesProvider";
 import { useScopedFetchProviderUrl } from "@src/hooks/useScopedFetchProviderUrl";
 import { SKIP_REPORTING_PROVIDER_POLL_FAILURE } from "@src/services/query-error-policy/query-error-policy";
+import type { DashboardData } from "@src/types/dashboard";
 import type {
   ApiProviderDetail,
   ApiProviderList,
@@ -77,15 +78,6 @@ export function useFirstReachableProvider(
   });
 }
 
-export function useNetworkCapacity(options = {}) {
-  const { publicConsoleApiHttpClient } = useServices();
-  return useQuery({
-    queryKey: QueryKeys.getNetworkCapacity(),
-    queryFn: () => publicConsoleApiHttpClient.get<NetworkCapacityStats>(ApiUrlService.networkCapacity()).then(response => response.data),
-    ...options
-  });
-}
-
 export interface NetworkCapacityStats {
   activeProviderCount: number;
   resources: {
@@ -142,6 +134,9 @@ export interface ProviderSearchParams {
   online?: boolean;
   audited?: boolean;
   addresses?: string[];
+  regions?: string[];
+  gpu?: boolean;
+  gpuModels?: string[];
   sort: ProviderSearchSort;
   walletAddress?: string;
   skip: number;
@@ -159,10 +154,20 @@ export function useProviderSearch(params: ProviderSearchParams, options: { enabl
     queryKey: QueryKeys.getProviderSearchKey(params),
     queryFn: () =>
       publicConsoleApiHttpClient
-        .get<{ data: ProviderSearchPage }>(ApiUrlService.providerSearch(), { params: { ...params, addresses: params.addresses?.join(",") } })
+        .get<{ data: ProviderSearchPage }>(ApiUrlService.providerSearch(), {
+          params: { ...params, addresses: params.addresses?.join(","), regions: params.regions?.join(","), gpuModels: params.gpuModels?.join(",") }
+        })
         .then(response => response.data.data),
     placeholderData: keepPreviousData,
     enabled: options.enabled
+  });
+}
+
+export function useDashboardData() {
+  const { publicConsoleApiHttpClient } = useServices();
+  return useQuery({
+    queryKey: QueryKeys.getDashboardDataKey(),
+    queryFn: () => publicConsoleApiHttpClient.get<DashboardData>(ApiUrlService.dashboardData()).then(response => response.data)
   });
 }
 
