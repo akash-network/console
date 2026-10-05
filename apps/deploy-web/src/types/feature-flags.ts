@@ -9,4 +9,5 @@ export type FeatureFlag =
   | "ui_sdl_proxy_http_options"
   | "ui_sdl_cpu_arch"
   | "fair_use_policy_gate"
-  | "ui_configure_two_panel";
+  | "ui_configure_two_panel"
+  | "account_deletion";
