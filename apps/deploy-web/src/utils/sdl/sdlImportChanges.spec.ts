@@ -1,3 +1,4 @@
+import { faker } from "@faker-js/faker";
 import { describe, expect, it } from "vitest";
 
 import { listSdlImportChanges } from "./sdlImportChanges";
@@ -100,7 +101,9 @@ describe(listSdlImportChanges.name, () => {
     },
     {
       field: "credentials",
-      changed: { serviceExtra: ["    credentials:", "      host: ghcr.io", "      username: alice", "      password: hunter22"] },
+      changed: {
+        serviceExtra: ["    credentials:", "      host: ghcr.io", "      username: alice", `      password: ${JSON.stringify(faker.internet.password())}`]
+      },
       expected: "different registry credentials"
     }
   ])("reports a service that gets $expected when its $field changes", ({ original, changed, expected }) => {
