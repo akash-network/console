@@ -8,7 +8,7 @@ import { ProvidersExplorer } from "@src/components/providers/ProvidersExplorer/P
 import { CustomNextSeo } from "@src/components/shared/CustomNextSeo";
 import { domainName, UrlService } from "@src/utils/urlUtils";
 
-export const BECOME_A_PROVIDER_URL = "https://akash.network/providers/";
+const BECOME_A_PROVIDER_URL = "https://akash.network/docs/providers/setup-and-installation/provider-playbook/";
 
 export const DEPENDENCIES = { Layout, CustomNextSeo, ProvidersExplorer };
 
