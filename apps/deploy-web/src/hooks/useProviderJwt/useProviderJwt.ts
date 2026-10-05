@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo } from "react";
 import { JwtTokenManager } from "@akashnetwork/chain-sdk/web";
 import { atom, useAtom } from "jotai";
 
@@ -6,7 +6,8 @@ import { useServices } from "@src/context/ServicesProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { useUser } from "@src/hooks/useUser";
 
-const JWT_TOKEN_ATOM = atom<string | null>(null);
+/** Held in memory only, because for half an hour the token opens a shell on any of the user's leases. */
+const ISSUED_TOKEN_ATOM = atom<{ userId: string; token: string } | null>(null);
 
 export const REFRESH_SKEW_SECONDS = 60;
 
@@ -17,23 +18,12 @@ export const DEPENDENCIES = {
 };
 
 export function useProviderJwt({ dependencies: d = DEPENDENCIES }: { dependencies?: typeof DEPENDENCIES } = {}): UseProviderJwtResult {
-  const { storedWalletsService, consoleApiHttpClient } = d.useServices();
+  const { consoleApiHttpClient } = d.useServices();
   const { hasWallet } = d.useWallet();
   const { user } = d.useUser();
   const userId = user?.id;
-  const [accessToken, setAccessToken] = useAtom(JWT_TOKEN_ATOM);
-  const [isHydrated, setIsHydrated] = useState(false);
-
-  useEffect(() => {
-    if (!userId) {
-      setAccessToken(null);
-      setIsHydrated(true);
-      return;
-    }
-    const token = storedWalletsService.getStorageManagedWallet(userId)?.token;
-    setAccessToken(token || null);
-    setIsHydrated(true);
-  }, [storedWalletsService, userId, setAccessToken]);
+  const [issuedToken, setIssuedToken] = useAtom(ISSUED_TOKEN_ATOM);
+  const accessToken = issuedToken && issuedToken.userId === userId ? issuedToken.token : null;
 
   const jwtTokenManager = useMemo(
     () =>
@@ -68,10 +58,9 @@ export function useProviderJwt({ dependencies: d = DEPENDENCIES }: { dependencie
     });
     const token = response.data.data.token;
 
-    storedWalletsService.updateStorageManagedWallet({ userId, token });
-    setAccessToken(token);
+    setIssuedToken({ userId, token });
     return token;
-  }, [hasWallet, userId, consoleApiHttpClient, storedWalletsService, setAccessToken]);
+  }, [hasWallet, userId, consoleApiHttpClient, setIssuedToken]);
 
   const generateScopedProviderToken = useCallback(
     async ({ provider, scope }: { provider: string; scope: readonly string[] }): Promise<string> => {
@@ -92,8 +81,6 @@ export function useProviderJwt({ dependencies: d = DEPENDENCIES }: { dependencie
         }
       });
 
-      // Intentionally not persisted to JWT_TOKEN_ATOM / managed-wallet storage: this is an ephemeral,
-      // single-provider token (e.g. for the attestation-quote endpoint), not the shared global token.
       return response.data.data.token;
     },
     [hasWallet, userId, consoleApiHttpClient]
@@ -106,10 +93,9 @@ export function useProviderJwt({ dependencies: d = DEPENDENCIES }: { dependencie
       },
       accessToken,
       generateToken,
-      generateScopedProviderToken,
-      isHydrated
+      generateScopedProviderToken
     }),
-    [accessToken, generateToken, generateScopedProviderToken, isHydrated]
+    [accessToken, generateToken, generateScopedProviderToken]
   );
 }
 
@@ -117,6 +103,6 @@ export interface UseProviderJwtResult {
   isTokenExpired: boolean;
   accessToken: string | null;
   generateToken: () => Promise<string>;
+  /** A single-provider token for one call, such as an attestation quote, which never replaces the shared token. */
   generateScopedProviderToken: (params: { provider: string; scope: readonly string[] }) => Promise<string>;
-  isHydrated: boolean;
 }

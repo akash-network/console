@@ -145,24 +145,25 @@ describe(useProviderCredentials.name, () => {
     expect(generateToken).toHaveBeenCalledTimes(1);
   });
 
-  it("does not auto-generate while not hydrated", async () => {
+  it("auto-generates a token when none is held", async () => {
     const generateToken = vi.fn().mockResolvedValue("new-token");
 
     setup({
       wallet: { hasWallet: true },
-      providerJwt: { accessToken: null, isTokenExpired: false, generateToken, isHydrated: false }
+      providerJwt: { accessToken: null, isTokenExpired: false, generateToken }
     });
 
-    await new Promise(resolve => setTimeout(resolve, 0));
-    expect(generateToken).not.toHaveBeenCalled();
+    await vi.waitFor(() => expect(generateToken).toHaveBeenCalledTimes(1));
   });
 
-  it("auto-generates after hydration completes with a missing token", async () => {
+  it("auto-generates a token once a wallet arrives after mount", async () => {
     const generateToken = vi.fn().mockResolvedValue("new-token");
+    const hasWalletRef = { current: false };
+    const { rerender } = setup({ providerJwt: { accessToken: null, isTokenExpired: false, generateToken }, hasWalletRef });
 
-    setup({
-      wallet: { hasWallet: true },
-      providerJwt: { accessToken: null, isTokenExpired: false, generateToken, isHydrated: true }
+    hasWalletRef.current = true;
+    await act(async () => {
+      rerender();
     });
 
     await vi.waitFor(() => expect(generateToken).toHaveBeenCalledTimes(1));
@@ -234,6 +235,7 @@ describe(useProviderCredentials.name, () => {
     providerJwt?: Partial<UseProviderJwtResult>;
     notificator?: Partial<ReturnType<typeof useNotificator>>;
     addressRef?: { current: string };
+    hasWalletRef?: { current: boolean };
     isTokenExpiredRef?: { current: boolean };
   }) {
     return setupQuery(() =>
@@ -244,13 +246,13 @@ describe(useProviderCredentials.name, () => {
             mock<ReturnType<typeof useWallet>>({
               hasWallet: true,
               ...input?.wallet,
+              ...(input?.hasWalletRef && { hasWallet: input.hasWalletRef.current }),
               address: input?.addressRef?.current ?? input?.wallet?.address ?? "akash1aaa"
             }),
           useProviderJwt: () => {
             const jwt = mock<UseProviderJwtResult>({
               accessToken: null,
               isTokenExpired: false,
-              isHydrated: true,
               generateToken: vi.fn().mockResolvedValue("generated-token"),
               ...input?.providerJwt
             });

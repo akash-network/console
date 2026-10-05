@@ -9,7 +9,6 @@ import { useUser } from "@src/hooks/useUser";
 import { useWhen } from "@src/hooks/useWhen";
 import { useBalances } from "@src/queries/useBalancesQuery";
 import { settingsIdAtom } from "@src/store/settingsStore";
-import { getStorageManagedWallet, updateStorageManagedWallet } from "@src/utils/walletUtils";
 import { BootLoading } from "../BootLoadingProvider/BootLoadingProvider";
 import { useServices } from "../ServicesProvider";
 import { deriveWalletIsLoading } from "./deriveWalletIsLoading";
@@ -50,7 +49,7 @@ export const WalletProviderContext = React.createContext<ContextType>({} as Cont
  * it would blank the app mid-onboarding.
  */
 export const WalletProvider: React.FC<{ children: React.ReactNode; dependencies?: typeof DEPENDENCIES }> = ({ children, dependencies: d = DEPENDENCIES }) => {
-  const { analyticsService, publicConfig: appConfig } = d.useServices();
+  const { analyticsService } = d.useServices();
 
   const [, setSettingsId] = useAtom(settingsIdAtom);
   const { user } = d.useUser();
@@ -64,8 +63,6 @@ export const WalletProvider: React.FC<{ children: React.ReactNode; dependencies?
   });
   const { signAndBroadcastTx, loadingState } = d.useSignAndBroadcast({ refetchBalances });
 
-  useWhen(walletAddress, syncStorageWallet);
-
   useWhen(hasWallet, () => {
     analyticsService.identify({ managedWallet: true });
     analyticsService.trackSwitch("connect_wallet", "managed", "Amplitude");
@@ -74,25 +71,6 @@ export const WalletProvider: React.FC<{ children: React.ReactNode; dependencies?
   useEffect(() => {
     setSettingsId(walletAddress || null);
   }, [walletAddress, setSettingsId]);
-
-  function syncStorageWallet(): void {
-    if (!managedWallet?.userId || !walletAddress) {
-      return;
-    }
-
-    const networkId = appConfig.NEXT_PUBLIC_MANAGED_WALLET_NETWORK_ID;
-    const stored = getStorageManagedWallet(managedWallet.userId, networkId);
-
-    if (!stored || stored.address !== walletAddress || !stored.selected) {
-      updateStorageManagedWallet({
-        address: walletAddress,
-        userId: managedWallet.userId,
-        creditAmount: managedWallet.creditAmount,
-        isTrialing: managedWallet.isTrialing,
-        selected: true
-      });
-    }
-  }
 
   return (
     <WalletProviderContext.Provider

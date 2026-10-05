@@ -40,7 +40,7 @@ export type UseProviderCredentialsDependencies = {
 export function useProviderCredentials({ dependencies: d = DEPENDENCIES }: UseProviderCredentialsDependencies = {}): UseProviderCredentialsResult {
   const { hasWallet, address } = d.useWallet();
   const jwt = d.useProviderJwt();
-  const { accessToken, isTokenExpired, isHydrated } = jwt;
+  const { accessToken, isTokenExpired } = jwt;
   const notificator = d.useNotificator();
 
   const isUsable = !!accessToken && !isTokenExpired;
@@ -93,9 +93,9 @@ export function useProviderCredentials({ dependencies: d = DEPENDENCIES }: UsePr
   );
 
   useEffect(() => {
-    if (!hasWallet || !isHydrated || isUsable || error) return;
+    if (!hasWallet || isUsable || error) return;
     ensureToken().catch(() => {});
-  }, [hasWallet, isHydrated, isUsable, error, ensureToken]);
+  }, [hasWallet, isUsable, error, ensureToken]);
 
   const credentials = useMemo(
     () =>
