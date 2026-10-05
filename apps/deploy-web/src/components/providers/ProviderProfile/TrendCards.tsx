@@ -109,15 +109,11 @@ export const UptimeCard: FC<{ provider: UptimeProvider }> = ({ provider }) => {
 const AreaChart: FC<{ series: number[]; className?: string }> = ({ series, className }) => {
   if (series.length < 2) return <p className="text-xs text-muted-foreground">Not enough history to draw yet.</p>;
 
-  const low = Math.min(...series) * 0.94;
-  const high = Math.max(...series) * 1.06 || 1;
-  const toPoint = (value: number, index: number) =>
-    `${((index / (series.length - 1)) * 100).toFixed(2)},${(32 - ((value - low) / (high - low || 1)) * 30).toFixed(2)}`;
-  const line = series.map((value, index) => `${index ? "L" : "M"}${toPoint(value, index)}`).join("");
+  const { line, area } = buildSparkline(series);
 
   return (
     <svg viewBox="0 0 100 34" preserveAspectRatio="none" className={cn("block h-[92px] w-full", className)} role="img" aria-label="Active leases over time">
-      <path d={`${line}L100,34L0,34Z`} fill="currentColor" fillOpacity={0.13} />
+      <path d={area} fill="currentColor" fillOpacity={0.13} />
       <path d={line} fill="none" stroke="currentColor" strokeWidth={1.1} vectorEffect="non-scaling-stroke" strokeLinejoin="round" />
     </svg>
   );
@@ -129,6 +125,16 @@ const ChartAxis: FC<{ start: string; end: string }> = ({ start, end }) => (
     <span>{end}</span>
   </div>
 );
+
+export function buildSparkline(series: number[]): { line: string; area: string } {
+  const low = Math.min(...series) * 0.94;
+  const high = Math.max(...series) * 1.06 || 1;
+  const toPoint = (value: number, index: number) =>
+    `${((index / (series.length - 1)) * 100).toFixed(2)},${(32 - ((value - low) / (high - low || 1)) * 30).toFixed(2)}`;
+  const line = series.map((value, index) => `${index ? "L" : "M"}${toPoint(value, index)}`).join("");
+
+  return { line, area: `${line}L100,34L0,34Z` };
+}
 
 function groupChecks(checks: ApiProviderDetail["uptime"]): CheckPeriod[] {
   const sorted = [...checks].sort((a, b) => new Date(a.checkDate).getTime() - new Date(b.checkDate).getTime());

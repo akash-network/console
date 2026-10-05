@@ -108,7 +108,7 @@ const HeaderCell: FC<{ className?: string; children: string }> = ({ className, c
 const Availability: FC<{ free: number; total: number }> = ({ free, total }) => (
   <span className="flex items-center gap-2">
     <span className="hidden h-[5px] w-full max-w-[110px] overflow-hidden rounded-full bg-muted sm:block" aria-hidden>
-      <span className="block h-full rounded-full bg-emerald-500" style={{ width: `${total > 0 ? (free / total) * 100 : 0}%` }} />
+      <span className="block h-full rounded-full bg-emerald-500" style={{ width: `${getFreePercentage(free, total)}%` }} />
     </span>
     <span className={cn("whitespace-nowrap font-mono text-[11.5px]", free === 0 ? "text-amber-700 dark:text-amber-500" : "text-foreground")}>
       {free === 0 ? "None free" : `${free} of ${total} free`}
@@ -116,7 +116,11 @@ const Availability: FC<{ free: number; total: number }> = ({ free, total }) => (
   </span>
 );
 
-function formatGpuMemory(ram: string): string {
+export function getFreePercentage(free: number, total: number): number {
+  return total > 0 ? (free / total) * 100 : 0;
+}
+
+export function formatGpuMemory(ram: string): string {
   const match = /^(\d+(?:\.\d+)?)\s*([KMGT])i?B?$/i.exec(ram.trim());
   return match ? `${match[1]} ${match[2].toUpperCase()}B` : ram;
 }

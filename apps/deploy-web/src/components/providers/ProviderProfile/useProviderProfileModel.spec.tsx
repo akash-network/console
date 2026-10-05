@@ -51,10 +51,15 @@ describe(useProviderProfileModel.name, () => {
     expect(result.current.isInactive).toBe(true);
   });
 
-  it("reads the Kubernetes version from the provider's status", () => {
-    const { result } = setup({ status: mock<ProviderStatusDto>({ kube: mock<ProviderStatusDto["kube"]>({ major: "1", minor: "32" }) }) });
+  it("reads the Kubernetes version from the provider's status, asking only once", () => {
+    const initialProvider = createProvider();
+    const { result, useProviderStatus } = setup({
+      initialProvider,
+      status: mock<ProviderStatusDto>({ kube: mock<ProviderStatusDto["kube"]>({ major: "1", minor: "32" }) })
+    });
 
     expect(result.current.kubeVersion).toBe("1.32");
+    expect(useProviderStatus).toHaveBeenCalledWith(initialProvider, { retry: false });
   });
 
   it("has no Kubernetes version while the provider's status is unknown", () => {
@@ -90,6 +95,22 @@ describe(useProviderProfileModel.name, () => {
     expect(result.current).toMatchObject({ gpuModels: null, isLoadingGpus: true });
   });
 
+  it("lists the GPU models once the inventory loads", () => {
+    const { result, rerenderWith } = setup({ gpuInventory: undefined, isLoadingGpus: true });
+
+    rerenderWith({
+      gpuInventory: {
+        gpus: {
+          total: { allocatable: 1, allocated: 0 },
+          details: { nvidia: [{ model: "h100", ram: "80Gi", interface: "SXM", allocatable: 1, allocated: 0 }] }
+        }
+      },
+      isLoadingGpus: false
+    });
+
+    expect(result.current.gpuModels).toEqual([{ vendor: "nvidia", model: "h100", ram: "80Gi", interface: "SXM", total: 1, free: 1 }]);
+  });
+
   it("summarizes the last 90 days of active leases and the change over 30 days", () => {
     const snapshots = Array.from({ length: 100 }, (_, day) => ({ date: `day-${day}`, value: day }));
     const { result } = setup({ activeLeasesGraph: { currentValue: 99, compareValue: 98, snapshots } });
@@ -113,6 +134,14 @@ describe(useProviderProfileModel.name, () => {
     expect(result.current.leaseTrend).toBeNull();
   });
 
+  it("summarizes the lease history once it loads", () => {
+    const { result, rerenderWith } = setup({ activeLeasesGraph: undefined });
+
+    rerenderWith({ activeLeasesGraph: { currentValue: 5, compareValue: 3, snapshots: [{ date: "day-0", value: 5 }] } });
+
+    expect(result.current.leaseTrend).toEqual({ current: 5, changeOver30Days: null, series: [5] });
+  });
+
   it("lists the wallet's active leases with this provider and names their deployments", () => {
     const leases = [
       createLease({ dseq: "1", provider: "akash1provider" }),
@@ -125,6 +154,14 @@ describe(useProviderProfileModel.name, () => {
     expect(result.current.getDeploymentName("1")).toBe("deployment-1");
     expect(useAllLeases).toHaveBeenCalledWith("akash1wallet", { state: "active", enabled: true });
     expect(useDeploymentNames).toHaveBeenLastCalledWith(["1", "3"]);
+  });
+
+  it("updates the wallet's leases with this provider when they change", () => {
+    const { result, rerenderWith } = setup({ leases: [createLease({ dseq: "1", provider: "akash1provider" })] });
+
+    rerenderWith({ leases: [createLease({ dseq: "1", provider: "akash1provider" }), createLease({ dseq: "2", provider: "akash1provider" })] });
+
+    expect(result.current.myLeases.map(lease => lease.dseq)).toEqual(["1", "2"]);
   });
 
   it("asks for no leases without a wallet", () => {
@@ -150,6 +187,15 @@ describe(useProviderProfileModel.name, () => {
     expect(updateFavoriteProviders).toHaveBeenLastCalledWith(["akash1kept"]);
   });
 
+  it("toggles the favorite against the latest favorites", () => {
+    const { result, rerenderWith, updateFavoriteProviders } = setup({ favoriteProviders: [] });
+
+    rerenderWith({ favoriteProviders: ["akash1provider"] });
+    act(() => result.current.toggleFavorite());
+
+    expect(updateFavoriteProviders).toHaveBeenLastCalledWith([]);
+  });
+
   function createProvider(overrides: Partial<ApiProviderDetail> = {}): ApiProviderDetail {
     return Object.assign(mock<ApiProviderDetail>(), { owner: "akash1provider", isOnline: true, lastOnlineDate: null, ...overrides });
   }
@@ -173,39 +219,43 @@ describe(useProviderProfileModel.name, () => {
   ) {
     const initialProvider = input.initialProvider ?? createProvider();
     const updateFavoriteProviders = vi.fn();
-    const providerDetail = Object.assign(mock<ReturnType<typeof DEPENDENCIES.useProviderDetail>>(), { data: input.freshProvider });
-    const providerStatus = Object.assign(mock<ReturnType<typeof DEPENDENCIES.useProviderStatus>>(), { data: "status" in input ? input.status : undefined });
-    const providerGpus = Object.assign(mock<ReturnType<typeof DEPENDENCIES.useProviderGpus>>(), {
-      data: input.gpuInventory,
-      isLoading: !!input.isLoadingGpus
-    });
-    const leasesGraph = Object.assign(mock<ReturnType<typeof DEPENDENCIES.useProviderActiveLeasesGraph>>(), { data: input.activeLeasesGraph });
-    const allLeases = Object.assign(mock<ReturnType<typeof DEPENDENCIES.useAllLeases>>(), { data: input.leases });
-    const wallet = Object.assign(mock<ReturnType<typeof DEPENDENCIES.useWallet>>(), { address: input.address ?? "akash1wallet" });
-    const localNotes = Object.assign(mock<ReturnType<typeof DEPENDENCIES.useLocalNotes>>(), {
-      favoriteProviders: input.favoriteProviders ?? [],
-      updateFavoriteProviders
-    });
-    const deploymentNames = Object.assign(mock<ReturnType<typeof DEPENDENCIES.useDeploymentNames>>(), {
-      getDeploymentName: (dseq: string) => `deployment-${dseq}`
-    });
-    const useProviderDetail = vi.fn(() => providerDetail);
-    const useAllLeases = vi.fn(() => allLeases);
-    const useDeploymentNames = vi.fn(() => deploymentNames);
 
-    const dependencies: typeof DEPENDENCIES = {
-      useProviderDetail,
-      useProviderStatus: () => providerStatus,
-      useProviderGpus: () => providerGpus,
-      useProviderActiveLeasesGraph: () => leasesGraph,
-      useAllLeases,
-      useWallet: () => wallet,
-      useLocalNotes: () => localNotes,
-      useDeploymentNames
+    const createDependencies = (state: typeof input) => {
+      const providerDetail = Object.assign(mock<ReturnType<typeof DEPENDENCIES.useProviderDetail>>(), { data: state.freshProvider });
+      const providerStatus = Object.assign(mock<ReturnType<typeof DEPENDENCIES.useProviderStatus>>(), { data: "status" in state ? state.status : undefined });
+      const providerGpus = Object.assign(mock<ReturnType<typeof DEPENDENCIES.useProviderGpus>>(), {
+        data: state.gpuInventory,
+        isLoading: !!state.isLoadingGpus
+      });
+      const leasesGraph = Object.assign(mock<ReturnType<typeof DEPENDENCIES.useProviderActiveLeasesGraph>>(), { data: state.activeLeasesGraph });
+      const allLeases = Object.assign(mock<ReturnType<typeof DEPENDENCIES.useAllLeases>>(), { data: state.leases });
+      const wallet = Object.assign(mock<ReturnType<typeof DEPENDENCIES.useWallet>>(), { address: state.address ?? "akash1wallet" });
+      const localNotes = Object.assign(mock<ReturnType<typeof DEPENDENCIES.useLocalNotes>>(), {
+        favoriteProviders: state.favoriteProviders ?? [],
+        updateFavoriteProviders
+      });
+      const deploymentNames = Object.assign(mock<ReturnType<typeof DEPENDENCIES.useDeploymentNames>>(), {
+        getDeploymentName: (dseq: string) => `deployment-${dseq}`
+      });
+
+      return {
+        useProviderDetail: vi.fn(() => providerDetail),
+        useProviderStatus: vi.fn(() => providerStatus),
+        useProviderGpus: () => providerGpus,
+        useProviderActiveLeasesGraph: () => leasesGraph,
+        useAllLeases: vi.fn(() => allLeases),
+        useWallet: () => wallet,
+        useLocalNotes: () => localNotes,
+        useDeploymentNames: vi.fn(() => deploymentNames)
+      } satisfies typeof DEPENDENCIES;
     };
 
-    const view = renderHook(() => useProviderProfileModel("akash1provider", initialProvider, dependencies));
+    const dependencies = createDependencies(input);
+    const view = renderHook(props => useProviderProfileModel("akash1provider", initialProvider, props.dependencies), {
+      initialProps: { dependencies: dependencies as typeof DEPENDENCIES }
+    });
+    const rerenderWith = (changes: typeof input) => view.rerender({ dependencies: createDependencies({ ...input, ...changes }) });
 
-    return { ...view, useProviderDetail, useAllLeases, useDeploymentNames, updateFavoriteProviders };
+    return { ...view, ...dependencies, updateFavoriteProviders, rerenderWith };
   }
 });

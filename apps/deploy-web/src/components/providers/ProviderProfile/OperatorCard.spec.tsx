@@ -24,6 +24,17 @@ describe("OperatorCard", () => {
     expect(screen.getByText("Kube 1.32")).toBeInTheDocument();
   });
 
+  it.each([
+    ["akash.network", "https://akash.network"],
+    ["http://akash.network", "http://akash.network"],
+    ["HTTPS://akash.network", "HTTPS://akash.network"],
+    ["akash.network/?from=https://console.akash.network", "https://akash.network/?from=https://console.akash.network"]
+  ])("links the website %s to %s", (website, href) => {
+    setup({ provider: { website } });
+
+    expect(within(row("Website")).getByRole("link", { name: website })).toHaveAttribute("href", href);
+  });
+
   it("shows an email that isn't an address without linking it", () => {
     setup({ provider: { email: "ask on discord" } });
 
@@ -58,6 +69,13 @@ describe("OperatorCard", () => {
 
     expect(row("CPU architecture")).toHaveTextContent("arm64");
     expect(screen.getByText("The nodes report arm64, which differs from the declared x86-64.")).toBeInTheDocument();
+  });
+
+  it("lists every CPU architecture the nodes report", () => {
+    setup({ provider: { reportedCpuArchs: ["arm64", "amd64"], hardwareCpuArch: "x86-64", cpuArchAgreement: "mismatch" } });
+
+    expect(row("CPU architecture")).toHaveTextContent(/^arm64, amd64$/);
+    expect(screen.getByText("The nodes report arm64, amd64, which differs from the declared x86-64.")).toBeInTheDocument();
   });
 
   it("falls back to the declared CPU architecture when the nodes report none", () => {

@@ -14,9 +14,11 @@ import type { ApiProviderDetail } from "@src/types/provider";
 import { ProfileCard, ProfileRow } from "./ProfileCard";
 
 const LOCATOR_SIZE = 240;
-/** Tilts the view a little north of the provider, so it sits just below the middle of the disc like a pin on a map. */
+/** Centers the view a little south of the provider, so its pin sits just above the middle of the disc. */
 const LOCATOR_TILT_DEGREES = 6;
 const MEGABITS_PER_GIGABIT = 1000;
+
+type LandTopology = Parameters<typeof feature>[0];
 
 export function useLandTopology() {
   return useQuery({ queryKey: QueryKeys.getLandTopologyKey(), queryFn: fetchLandTopology, staleTime: Infinity, retry: false });
@@ -60,22 +62,9 @@ export const LocationCard: FC<Props> = ({ provider, dependencies: d = DEPENDENCI
 const LocatorGlobe: FC<{ coordinates: ProviderCoordinates; useLandTopology: typeof useLandTopology }> = ({ coordinates, useLandTopology }) => {
   const { data: topology } = useLandTopology();
   const gradientId = useId();
-  const center = LOCATOR_SIZE / 2;
-  const radius = center - 4;
+  const { lat, lng } = coordinates;
 
-  const { landPath, graticulePath, pin } = useMemo(() => {
-    const projection = geoOrthographic()
-      .rotate([-coordinates.lng, -coordinates.lat + LOCATOR_TILT_DEGREES])
-      .scale(radius)
-      .translate([center, center])
-      .clipAngle(90);
-    const path = geoPath(projection);
-    return {
-      landPath: topology ? path(feature(topology, topology.objects.land)) : null,
-      graticulePath: path(geoGraticule10()),
-      pin: projection([coordinates.lng, coordinates.lat])
-    };
-  }, [topology, coordinates.lat, coordinates.lng, center, radius]);
+  const { center, radius, landPath, graticulePath, pin } = useMemo(() => projectLocator({ lat, lng }, topology), [topology, lat, lng]);
 
   return (
     <svg viewBox={`0 0 ${LOCATOR_SIZE} ${LOCATOR_SIZE}`} className="block h-auto w-full" role="img" aria-label="Where the provider is on the globe">
@@ -97,6 +86,25 @@ const LocatorGlobe: FC<{ coordinates: ProviderCoordinates; useLandTopology: type
     </svg>
   );
 };
+
+export function projectLocator(coordinates: ProviderCoordinates, topology: LandTopology | undefined) {
+  const center = LOCATOR_SIZE / 2;
+  const radius = center - 4;
+  const projection = geoOrthographic()
+    .rotate([-coordinates.lng, -coordinates.lat + LOCATOR_TILT_DEGREES])
+    .scale(radius)
+    .translate([center, center])
+    .clipAngle(90);
+  const path = geoPath(projection);
+
+  return {
+    center,
+    radius,
+    landPath: topology ? path(feature(topology, topology.objects.land)) : null,
+    graticulePath: path(geoGraticule10()),
+    pin: projection([coordinates.lng, coordinates.lat])
+  };
+}
 
 function formatBandwidth(downMbps: number, upMbps: number): string {
   if (!downMbps && !upMbps) return "—";

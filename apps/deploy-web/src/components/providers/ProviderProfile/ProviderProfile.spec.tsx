@@ -3,7 +3,7 @@ import { mock } from "vitest-mock-extended";
 
 import type { LeaseDto } from "@src/types/deployment";
 import type { ApiProviderDetail, StatsItem } from "@src/types/provider";
-import { UrlService } from "@src/utils/urlUtils";
+import { domainName, UrlService } from "@src/utils/urlUtils";
 import { DEPENDENCIES, ProviderProfile } from "./ProviderProfile";
 
 import { render, screen, within } from "@testing-library/react";
@@ -15,32 +15,52 @@ describe("ProviderProfile", () => {
     setup({});
 
     expect(screen.getByRole("link", { name: "All providers" })).toHaveAttribute("href", UrlService.providers());
-    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("provider.h100.example.com");
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(/^provider\.h100\.example\.com$/);
     expect(screen.getByText("Audited")).toBeInTheDocument();
     expect(screen.getByText("EU Central")).toBeInTheDocument();
     expect(screen.getByText("Hesse, DE")).toBeInTheDocument();
     expect(screen.queryByText("Inactive")).not.toBeInTheDocument();
   });
 
+  it("names the page after the provider for search engines", () => {
+    const { dependencies } = setup({});
+
+    expect(dependencies.CustomNextSeo.mock.calls[0][0]).toMatchObject({
+      title: "Provider provider.h100.example.com",
+      url: `${domainName}${UrlService.providerDetail("akash1abcdefghijklmnopqrstuvwxyz123")}`
+    });
+  });
+
   it("offers to copy the provider's address and URI", () => {
     setup({});
 
-    expect(screen.getByRole("button", { name: "Copy provider address" })).toHaveTextContent("akash1abc…xyz123");
-    expect(screen.getByRole("button", { name: "Copy provider URI" })).toHaveTextContent("provider.h100.example.com:8443");
+    expect(screen.getByRole("button", { name: "Copy provider address" })).toHaveTextContent(/^akash1abc…xyz123$/);
+    expect(screen.getByRole("button", { name: "Copy provider URI" })).toHaveTextContent(/^provider\.h100\.example\.com:8443$/);
+  });
+
+  it("shows a plain HTTP provider URI without its scheme", () => {
+    setup({ provider: { hostUri: "http://provider.example.com:8443" } });
+
+    expect(screen.getByRole("button", { name: "Copy provider URI" })).toHaveTextContent(/^provider\.example\.com:8443$/);
   });
 
   it("adds the provider to the favorites", async () => {
     const { model } = setup({});
+    const toggle = screen.getByRole("button", { name: "Add to favorites" });
 
-    await userEvent.click(screen.getByRole("button", { name: "Add to favorites" }));
+    await userEvent.click(toggle);
 
     expect(model.toggleFavorite).toHaveBeenCalledTimes(1);
+    expect(toggle).toHaveAttribute("aria-label", "Add to favorites");
+    expect(toggle).toHaveAttribute("title", "Add to favorites");
   });
 
   it("offers to remove a favorite provider from the favorites", () => {
     setup({ isFavorite: true });
 
-    expect(screen.getByRole("button", { name: "Remove from favorites" })).toBeInTheDocument();
+    const toggle = screen.getByRole("button", { name: "Remove from favorites" });
+    expect(toggle).toHaveAttribute("aria-label", "Remove from favorites");
+    expect(toggle).toHaveAttribute("title", "Remove from favorites");
   });
 
   it("shows the GPUs free now with the CPU and memory also free", () => {
@@ -112,6 +132,13 @@ describe("ProviderProfile", () => {
     expect(dependencies.LocationCard.mock.calls[0][0]).toMatchObject({ provider: model.provider });
     expect(dependencies.OperatorCard.mock.calls[0][0]).toMatchObject({ provider: model.provider, kubeVersion: "1.32" });
     expect(dependencies.RawAttributesCard.mock.calls[0][0]).toMatchObject({ attributes: model.provider.attributes });
+  });
+
+  it("passes the GPU drivers seen on Console leases to the inventory", () => {
+    const gpuDrivers = [{ driverVersion: "550.54.15", cudaVersion: "12.4", lastSeenDate: "2026-09-21" }];
+    const { dependencies } = setup({ provider: { gpuDrivers } });
+
+    expect(dependencies.GpuInventoryCard.mock.calls[0][0]).toMatchObject({ drivers: gpuDrivers });
   });
 
   it("lists the user's leases here only when there are some", () => {
