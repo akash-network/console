@@ -21,7 +21,8 @@ type Provider = Pick<
   | "akashVersion"
 >;
 
-const EMAIL_ADDRESS = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+/** Only plain address characters, so a provider-set email can't smuggle mailto parameters such as ?bcc= into the link. */
+const EMAIL_ADDRESS = /^[A-Za-z0-9._+-]+@[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)+$/;
 
 type Props = {
   provider: Provider;

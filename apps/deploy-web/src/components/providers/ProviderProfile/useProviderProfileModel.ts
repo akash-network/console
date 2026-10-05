@@ -11,6 +11,7 @@ import type { ProviderActiveLeasesGraph } from "@src/queries/useProvidersQuery";
 import { useProviderActiveLeasesGraph, useProviderDetail, useProviderStatus } from "@src/queries/useProvidersQuery";
 import type { ProviderGpuInventory } from "@src/types/gpu";
 import type { ApiProviderDetail } from "@src/types/provider";
+import { LIVE_LEASE_STATES } from "@src/utils/leaseUtils";
 
 export type GpuModelAvailability = {
   vendor: string;
@@ -51,7 +52,7 @@ export function useProviderProfileModel(owner: string, initialProvider: ApiProvi
   const { data: gpuInventory, isLoading: isLoadingGpus } = d.useProviderGpus(owner);
   const { data: activeLeasesGraph } = d.useProviderActiveLeasesGraph(owner);
   const { address } = d.useWallet();
-  const { data: walletLeases } = d.useAllLeases(address, { state: "active", enabled: !!address });
+  const { data: walletLeases } = d.useAllLeases(address, { state: LIVE_LEASE_STATES, enabled: !!address });
   const { favoriteProviders, updateFavoriteProviders } = d.useLocalNotes();
 
   const myLeases = useMemo(() => walletLeases?.filter(lease => lease.provider === owner) ?? [], [walletLeases, owner]);

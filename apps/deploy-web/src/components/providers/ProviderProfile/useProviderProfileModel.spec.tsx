@@ -142,7 +142,7 @@ describe(useProviderProfileModel.name, () => {
     expect(result.current.leaseTrend).toEqual({ current: 5, changeOver30Days: null, series: [5] });
   });
 
-  it("lists the wallet's active leases with this provider and names their deployments", () => {
+  it("lists the wallet's running leases with this provider, reclaiming ones included, and names their deployments", () => {
     const leases = [
       createLease({ dseq: "1", provider: "akash1provider" }),
       createLease({ dseq: "2", provider: "akash1other" }),
@@ -152,7 +152,7 @@ describe(useProviderProfileModel.name, () => {
 
     expect(result.current.myLeases.map(lease => lease.dseq)).toEqual(["1", "3"]);
     expect(result.current.getDeploymentName("1")).toBe("deployment-1");
-    expect(useAllLeases).toHaveBeenCalledWith("akash1wallet", { state: "active", enabled: true });
+    expect(useAllLeases).toHaveBeenCalledWith("akash1wallet", { state: ["active", "reclaiming"], enabled: true });
     expect(useDeploymentNames).toHaveBeenLastCalledWith(["1", "3"]);
   });
 
@@ -168,7 +168,7 @@ describe(useProviderProfileModel.name, () => {
     const { result, useAllLeases } = setup({ address: "", leases: undefined });
 
     expect(result.current.myLeases).toEqual([]);
-    expect(useAllLeases).toHaveBeenCalledWith("", { state: "active", enabled: false });
+    expect(useAllLeases).toHaveBeenCalledWith("", { state: ["active", "reclaiming"], enabled: false });
   });
 
   it("adds the provider to the favorites and removes it again", () => {

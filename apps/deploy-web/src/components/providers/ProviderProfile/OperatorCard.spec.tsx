@@ -35,6 +35,13 @@ describe("OperatorCard", () => {
     expect(within(row("Website")).getByRole("link", { name: website })).toHaveAttribute("href", href);
   });
 
+  it("shows an email that carries mailto parameters without linking it", () => {
+    setup({ provider: { email: "ops@akash.network?bcc=someone%40elsewhere.com" } });
+
+    expect(row("Email")).toHaveTextContent("ops@akash.network?bcc=someone%40elsewhere.com");
+    expect(within(row("Email")).queryByRole("link")).not.toBeInTheDocument();
+  });
+
   it("shows an email that isn't an address without linking it", () => {
     setup({ provider: { email: "ask on discord" } });
 
