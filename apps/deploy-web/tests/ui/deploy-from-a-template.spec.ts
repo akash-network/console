@@ -1,5 +1,6 @@
 import { expect, test } from "./fixture/base-test";
 import { DeployPage } from "./pages/DeployPage";
+import { TemplateDetailPage } from "./pages/TemplateDetailPage";
 
 test.use({ userType: "existing" });
 
@@ -23,7 +24,7 @@ test("user can choose a template on deployment page", async ({ page, context }) 
       const newPage = await context.newPage();
       await newPage.goto(new URL(href!, page.url()).href);
 
-      await expect(newPage.getByRole("heading", { level: 1, name: templateName })).toBeVisible({ timeout: 15_000 });
+      await expect(new TemplateDetailPage(newPage).title(templateName)).toBeVisible({ timeout: 15_000 });
       await newPage.getByRole("link", { name: "Deploy template" }).click();
 
       const deploymentName = await newPage.getByLabel("Deployment name").inputValue({ timeout: 15_000 });
