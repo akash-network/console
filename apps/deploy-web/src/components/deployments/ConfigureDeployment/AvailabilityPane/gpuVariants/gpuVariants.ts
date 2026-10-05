@@ -17,9 +17,20 @@ export function withGpuModel(
   const gpuServiceIndex = values.services.findIndex(service => isPlacementGpuService(service, placementId));
   const targetIndex =
     gpuServiceIndex === -1 ? values.services.findIndex(service => service.placementId === placementId && !isLogCollectorService(service)) : gpuServiceIndex;
-  if (targetIndex === -1) return values;
 
-  return { ...values, services: values.services.map((service, index) => (index === targetIndex ? switchGpuModel(service, model) : service)) };
+  return withServiceGpuModel(values, targetIndex, model);
+}
+
+/** A service already running that model keeps its pinned memory and interface, so its count stays the one the headline screens. */
+export function withServiceGpuModel(
+  values: SdlBuilderFormValuesType,
+  serviceIndex: number,
+  model: Pick<GpuModelCandidate, "vendor" | "name">
+): SdlBuilderFormValuesType {
+  const target = values.services[serviceIndex];
+  if (!target || runsGpuModel(target, model)) return values;
+
+  return { ...values, services: values.services.map((service, index) => (index === serviceIndex ? switchGpuModel(service, model) : service)) };
 }
 
 export function withoutGpu(values: SdlBuilderFormValuesType, placementId: string): SdlBuilderFormValuesType {
@@ -37,6 +48,11 @@ export function screeningRequestOf(values: SdlBuilderFormValuesType, placementNa
   } catch {
     return null;
   }
+}
+
+function runsGpuModel(service: Service, model: Pick<GpuModelCandidate, "vendor" | "name">): boolean {
+  const [firstModel] = service.profile.gpuModels ?? [];
+  return !!service.profile.hasGpu && (service.profile.gpu ?? 0) > 0 && firstModel?.vendor === model.vendor && firstModel?.name === model.name;
 }
 
 function switchGpuModel(service: Service, model: Pick<GpuModelCandidate, "vendor" | "name">): Service {
