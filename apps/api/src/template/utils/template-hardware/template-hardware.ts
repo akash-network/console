@@ -31,7 +31,7 @@ const sdlSchema = z.object({
 type Sdl = z.infer<typeof sdlSchema>;
 type ComputeResources = z.infer<typeof computeProfileSchema>["resources"];
 
-/** Totals an SDL across services and replicas without validating the rest of it, so a template the deploy flow can still import keeps its hardware; undefined when it cannot be read. */
+/** Reads only the resource fields, so a template that fails strict SDL validation still gets a hardware summary. */
 export function summarizeTemplateHardware(sdl: string): TemplateHardware | undefined {
   try {
     return totalHardware(sdlSchema.parse(yaml.raw(sdl)));
@@ -57,7 +57,7 @@ function totalHardware(sdl: Sdl): TemplateHardware {
       const units = resources.gpu ? parseCount(resources.gpu.units) * count : 0;
       if (units > 0) {
         gpuUnits += units;
-        listGpuModels(resources.gpu?.attributes?.vendor).forEach(model => gpuModels.add(model));
+        listGpuModels(resources.gpu?.attributes?.vendor).forEach(model => gpuModels.add(model.toLowerCase()));
       }
     }
   }

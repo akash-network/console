@@ -82,6 +82,20 @@ describe(summarizeTemplateHardware.name, () => {
     expect(hardware?.gpu).toEqual({ units: 1, models: [] });
   });
 
+  it("lists a model once when services spell it in different cases", () => {
+    const hardware = summarizeTemplateHardware(
+      sdl({
+        compute: {
+          web: resources({ gpu: { units: 1, attributes: { vendor: { nvidia: [{ model: "h100" }] } } } }),
+          worker: resources({ gpu: { units: 1, attributes: { vendor: { nvidia: [{ model: "H100" }] } } } })
+        },
+        deployment: { web: { akash: { profile: "web", count: 1 } }, worker: { akash: { profile: "worker", count: 1 } } }
+      })
+    );
+
+    expect(hardware?.gpu).toEqual({ units: 2, models: ["h100"] });
+  });
+
   it("leaves out GPU models of a service that asks for no GPU", () => {
     const hardware = summarizeTemplateHardware(
       sdl({
