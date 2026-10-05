@@ -18,17 +18,17 @@ export class ConfigureDeploymentPage {
   }
 
   /**
-   * Reaches the configure screen the way a user does — from the app home, opening the Deploy entry in whichever
-   * nav is rendered (the classic deployment-type/template picker), then choosing "Run Custom Container" (bring
-   * your own image), which routes on to configure — rather than deep-linking to the URL.
+   * Reaches the configure screen the way a user does: from the app home, opening the Deploy entry in whichever
+   * nav is rendered (the new deployment picker), then choosing "Bring your own container", which routes on to
+   * configure, rather than deep-linking to the URL.
    */
   async open() {
-    await this.openFromPicker("Run Custom Container");
+    await this.openFromPicker("Bring your own container");
   }
 
   /** The Container-VM entry: the same picker walk through the card that seeds an SSH-accessible linux VM. */
   async openContainerVm() {
-    await this.openFromPicker("Launch Container-VM");
+    await this.openFromPicker("Spin up a Linux machine");
   }
 
   /** The legacy Container-VM URL, kept alive for old links and bookmarks; it redirects onto configure. */
@@ -56,11 +56,10 @@ export class ConfigureDeploymentPage {
     return attempts;
   }
 
-  /** The picker cards are divs carrying only an aria-label, so getByLabel is the locator that reaches them. */
-  private async openFromPicker(cardLabel: string) {
+  private async openFromPicker(cardTitle: string) {
     await this.page.goto(`${testEnvConfig.BASE_URL}/`, { waitUntil: "commit" });
     await new AppNav(this.page).openDeploy();
-    await this.page.getByLabel(cardLabel).click({ timeout: 60_000 });
+    await this.page.getByRole("button", { name: cardTitle }).click({ timeout: 60_000 });
     await this.page.getByRole("heading", { name: "Configure your deployment" }).waitFor({ state: "visible", timeout: 30_000 });
   }
 

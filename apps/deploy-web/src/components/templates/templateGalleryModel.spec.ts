@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { EnhancedTemplateCategory, TemplateOutputSummaryWithCategory } from "@src/queries/useTemplateQuery";
-import { findSelectedCategory, isPopularTemplate, listUseCaseFilters, selectTemplateSections } from "./templateGalleryModel";
+import { findSelectedCategory, isPopularTemplate, listUseCaseFilters, selectPopularTemplates, selectTemplateSections } from "./templateGalleryModel";
 
 describe("templateGalleryModel", () => {
   describe(listUseCaseFilters.name, () => {
@@ -122,6 +122,29 @@ describe("templateGalleryModel", () => {
       const sections = selectTemplateSections({ categories, category: null, search: "" });
 
       expect(sections[0].templates.map(template => template.id)).toEqual(["b", "a", "c"]);
+    });
+  });
+
+  describe(selectPopularTemplates.name, () => {
+    it("picks the templates the gallery promotes first, up to the count", () => {
+      const templates = [
+        makeTemplate({ id: "plain" }),
+        makeTemplate({ id: "popular", tags: ["popular"] }),
+        makeTemplate({ id: "recommended", tags: ["recommended"] }),
+        makeTemplate({ id: "akash-network-awesome-akash-Razer-AIKit" })
+      ];
+
+      expect(selectPopularTemplates(templates, 3).map(template => template.id)).toEqual(["akash-network-awesome-akash-Razer-AIKit", "recommended", "popular"]);
+    });
+
+    it("offers a template listed under several categories once", () => {
+      const templates = [
+        makeTemplate({ id: "comfy", category: "AI - GPU", tags: ["popular"] }),
+        makeTemplate({ id: "comfy", category: "Images", tags: ["popular"] }),
+        makeTemplate({ id: "plain" })
+      ];
+
+      expect(selectPopularTemplates(templates, 6).map(template => template.id)).toEqual(["comfy", "plain"]);
     });
   });
 

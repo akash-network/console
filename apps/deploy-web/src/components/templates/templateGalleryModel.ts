@@ -45,6 +45,12 @@ export function selectTemplateSections(input: { categories: EnhancedTemplateCate
     .filter(section => section.templates.length > 0);
 }
 
+/** A template listed under several categories is offered once, ranked the way the gallery promotes it. */
+export function selectPopularTemplates(templates: TemplateOutputSummaryWithCategory[], count: number): TemplateOutputSummaryWithCategory[] {
+  const uniqueTemplates = [...new Map(templates.map(template => [template.id, template])).values()];
+  return sortByPromotion(uniqueTemplates).slice(0, count);
+}
+
 function toSearchTerms(search: string): string[] {
   return search.toLowerCase().match(/\S+/g) ?? [];
 }

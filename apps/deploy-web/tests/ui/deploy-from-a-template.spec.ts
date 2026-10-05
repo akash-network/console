@@ -9,26 +9,25 @@ test("user can choose a template on deployment page", async ({ page, context }) 
   const deploymentPage = new DeployPage(context, page);
   await deploymentPage.goto();
 
-  const templateList = page.getByLabel("Template list");
+  const templateCards = deploymentPage.popularTemplateCards();
+  await expect(templateCards.nth(0)).toBeVisible({ timeout: 15_000 });
 
-  await expect(templateList).toBeVisible();
-
-  const templateLinks = templateList.getByRole("link");
-  await expect(templateLinks.nth(0)).toBeVisible({ timeout: 15_000 });
-
-  const templateCount = await templateLinks.count();
+  const templateCount = await templateCards.count();
 
   for (let i = 0; i < templateCount; i++) {
-    const link = templateLinks.nth(i);
-    const linkText = (await link.textContent())?.split("\n")[0] ?? `template ${i}`;
+    const card = templateCards.nth(i);
+    const templateName = (await card.getByRole("heading").textContent()) ?? `template ${i}`;
 
-    await test.step(`verify template "${linkText}"`, async () => {
-      const href = await link.getAttribute("href");
+    await test.step(`verify template "${templateName}"`, async () => {
+      const href = await card.getAttribute("href");
       const newPage = await context.newPage();
       await newPage.goto(new URL(href!, page.url()).href);
 
-      const templateName = await newPage.getByLabel("Deployment name").inputValue({ timeout: 15_000 });
-      await expect(link).toContainText(templateName);
+      await expect(newPage.getByRole("heading", { level: 1, name: templateName })).toBeVisible({ timeout: 15_000 });
+      await newPage.getByRole("link", { name: "Deploy template" }).click();
+
+      const deploymentName = await newPage.getByLabel("Deployment name").inputValue({ timeout: 15_000 });
+      await expect(card).toContainText(deploymentName);
       await newPage.close();
     });
   }
