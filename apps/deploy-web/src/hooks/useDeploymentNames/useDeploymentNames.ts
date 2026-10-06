@@ -20,6 +20,7 @@ type Dseq = string | number | null | undefined;
 export interface DeploymentNames {
   /** The api's name first, then this browser's record, then null so each surface keeps its own placeholder. */
   getDeploymentName: (dseq: Dseq) => string | null;
+  isLoading: boolean;
 }
 
 type NamesLookup = { data: Record<string, string | null> } | null;
@@ -49,6 +50,10 @@ function splitIntoLookups(dseqs: string[]): string[][] {
   return lookups;
 }
 
+function combineLookups(lookups: Array<{ data?: NamesLookup; isLoading: boolean }>) {
+  return { names: collectNames(lookups), isLoading: lookups.some(lookup => lookup.isLoading) };
+}
+
 function collectNames(lookups: Array<{ data?: NamesLookup }>): Map<string, string | null> {
   const names = new Map<string, string | null>();
 
@@ -68,9 +73,9 @@ export function useDeploymentNames(dseqs: ReadonlyArray<Dseq>, dependencies = DE
   const address = useAtomValue(settingsIdAtom);
   const lookupKey = normalizeDseqs(dseqs).join(",");
   const lookups = useMemo(() => splitIntoLookups(lookupKey ? lookupKey.split(",") : []), [lookupKey]);
-  const apiNames = useQueries({
+  const { names: apiNames, isLoading } = useQueries({
     queries: lookups.map(dseq => api.v1.listDeploymentNames.queryOptions({ dseq }, { catchError: recoverWithNoNames })),
-    combine: collectNames
+    combine: combineLookups
   });
 
   dependencies.useDeploymentNameBackfill([...apiNames].map(([dseq, name]) => ({ dseq, name })));
@@ -84,5 +89,5 @@ export function useDeploymentNames(dseqs: ReadonlyArray<Dseq>, dependencies = DE
     [apiNames, deploymentLocalStorage, address]
   );
 
-  return { getDeploymentName };
+  return { getDeploymentName, isLoading };
 }

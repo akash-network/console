@@ -64,6 +64,30 @@ describe(useDeploymentNames.name, () => {
     expect(deploymentLocalStorage.get).not.toHaveBeenCalled();
   });
 
+  it("reports the names as loading until the api has answered", async () => {
+    const { result } = setup({ dseqs: ["100"], apiNames: { "100": "api-name" } });
+
+    expect(result.current.isLoading).toBe(true);
+    await vi.waitFor(() => expect(result.current.isLoading).toBe(false));
+  });
+
+  it("reports nothing loading when there is no deployment to name", () => {
+    const { result } = setup({ dseqs: [] });
+
+    expect(result.current.isLoading).toBe(false);
+  });
+
+  it.each([
+    { case: "refused", apiError: new ApiError(401, {}, "GET /v1/deployment-names → 401") },
+    { case: "failed on the server", apiError: new ApiError(500, {}, "GET /v1/deployment-names → 500") }
+  ])("stops loading once a lookup the api $case is settled", async ({ apiError }) => {
+    const { result, settleLookups } = setup({ dseqs: ["100"], apiError });
+
+    await settleLookups();
+
+    expect(result.current.isLoading).toBe(false);
+  });
+
   it("hands the api's answers to the backfill once they arrive", async () => {
     const { useDeploymentNameBackfill } = setup({ dseqs: ["100", "200"], apiNames: { "100": null, "200": "api-name" } });
 
