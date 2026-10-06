@@ -31,6 +31,19 @@ describe("DeploymentStatusBadge", () => {
     expect(screen.getByText("Closing")).toBeInTheDocument();
   });
 
+  it("drops the reclamation countdown from a deployment that is closing", () => {
+    const deadlineInOneDay = Math.floor(Date.now() / 1000) + 24 * 60 * 60;
+    const { CustomTooltip } = setup({
+      state: "active",
+      leases: [mock<LeaseDto>({ state: "reclaiming", reclamation: { deadline: deadlineInOneDay } })],
+      isClosing: true
+    });
+
+    expect(screen.getByText("Closing")).toBeInTheDocument();
+    expect(screen.queryByText("Closes in 24 hours.")).not.toBeInTheDocument();
+    expect(CustomTooltip).not.toHaveBeenCalled();
+  });
+
   it("reports a deployment as closed once it is, even before its close is reported done", () => {
     setup({ state: "closed", isClosing: true });
 

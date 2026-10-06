@@ -59,8 +59,7 @@ const CLOSING_STATUS = { label: "Closing", summaryLabel: "Closing", tone: "loadi
  * reclamation banner and deployment list show. A dead lease under a deployment that is still open reads as a
  * warning: the escrow is live and a redeploy brings the workload back, while a deployment that is itself
  * closed has nothing left to act on and reads as muted. A lease inside its reclamation grace period is live
- * but doomed, so it reads as "Reclaiming" rather than "Running". A close running in the background reads as
- * "Closing" until the chain reports the deployment closed, which can land a poll before the feed says so.
+ * but doomed, so it reads as "Reclaiming" rather than "Running".
  */
 export function getDeploymentStatus(state: string, leases?: LeaseDto[] | null, isClosing = false): { label: string; summaryLabel: string; tone: StatusTone } {
   if (isClosing && state === "active") return CLOSING_STATUS;
@@ -123,7 +122,7 @@ export const DeploymentStatusBadge: FC<DeploymentStatusBadgeProps> = ({
 }) => {
   const { label, summaryLabel, tone } = getDeploymentStatus(state, leases, isClosing);
   const isShortened = !!isSummarized && summaryLabel !== label;
-  const isBeingReclaimed = !!leases?.some(isReclaiming);
+  const isBeingReclaimed = !isClosing && !!leases?.some(isReclaiming);
 
   if (!isShortened && !isBeingReclaimed) return <StatusBadge label={label} tone={tone} className={className} />;
 
