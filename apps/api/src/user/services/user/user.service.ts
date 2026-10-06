@@ -199,14 +199,21 @@ export class UserService {
 
   async updateUserDetails(
     userId: string,
-    data: Pick<UserInput, "username" | "subscribedToNewsletter" | "bio" | "youtubeUsername" | "twitterUsername" | "githubUsername">
+    data: Pick<UserInput, "username" | "subscribedToNewsletter" | "bio" | "youtubeUsername" | "twitterUsername" | "githubUsername"> & {
+      subscribedToProductUpdates?: boolean;
+    }
   ): Promise<void> {
     const user = await this.userRepository.findById(userId);
     assert(user, 404, "User settings not found: " + userId);
 
+    const { subscribedToProductUpdates, ...details } = data;
     const changes: Partial<UserInput> = {
-      ...data
+      ...details
     };
+
+    if (subscribedToProductUpdates !== undefined) {
+      changes.productUpdatesUnsubscribedAt = subscribedToProductUpdates ? null : user.productUpdatesUnsubscribedAt ?? new Date();
+    }
 
     if (data.username && user.username !== data.username) {
       const existingUser = await this.userRepository.findOneBy({ username: data.username });

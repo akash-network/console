@@ -18530,6 +18530,11 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                           "nullable": true,
                           "type": "string",
                         },
+                        "productUpdatesUnsubscribedAt": {
+                          "format": "date-time",
+                          "nullable": true,
+                          "type": "string",
+                        },
                         "stripeCustomerId": {
                           "nullable": true,
                           "type": "string",
@@ -19780,6 +19785,11 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                           "nullable": true,
                           "type": "string",
                         },
+                        "productUpdatesUnsubscribedAt": {
+                          "format": "date-time",
+                          "nullable": true,
+                          "type": "string",
+                        },
                         "stripeCustomerId": {
                           "nullable": true,
                           "type": "string",
@@ -20239,6 +20249,9 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                     "type": "string",
                   },
                   "subscribedToNewsletter": {
+                    "type": "boolean",
+                  },
+                  "subscribedToProductUpdates": {
                     "type": "boolean",
                   },
                   "twitterUsername": {
