@@ -73,7 +73,7 @@ export const DeploymentArchive: FC<DeploymentArchiveProps> = ({
   if (!totalCount && deployments.length === 0) return null;
 
   return (
-    <Collapsible className="py-8">
+    <Collapsible defaultOpen className="py-8">
       <CollapsibleTrigger className="group inline-flex items-center gap-2 text-xs font-medium uppercase tracking-wider text-muted-foreground transition-colors hover:text-foreground">
         <NavArrowRight className="h-4 w-4 transition-transform group-data-[state=open]:rotate-90" />
         {totalCount === null ? "Archive" : `Archive // ${totalCount} closed`}

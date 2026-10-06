@@ -30,7 +30,7 @@ const BADGE_TONE_CLASS: Record<StatusTone, string> = {
   pending: "bg-amber-500/10 text-amber-600 dark:text-amber-400",
   loading: "bg-muted text-muted-foreground",
   warning: "bg-warning/10 text-warning",
-  closed: "bg-destructive/10 text-destructive"
+  closed: "bg-muted text-muted-foreground"
 };
 
 const DOT_TONE_CLASS: Record<StatusTone, string> = {
@@ -38,7 +38,7 @@ const DOT_TONE_CLASS: Record<StatusTone, string> = {
   pending: "bg-amber-500",
   loading: "bg-muted-foreground",
   warning: "bg-warning",
-  closed: "bg-destructive"
+  closed: "bg-muted-foreground"
 };
 
 export interface DeploymentStatusBadgeProps {
@@ -54,8 +54,8 @@ export interface DeploymentStatusBadgeProps {
  * of funds — so the chain state alone would keep claiming "Running" over a workload that is long gone. When
  * no lease is live, the badge speaks for the lease instead, reusing the same close-reason copy the
  * reclamation banner and deployment list show. A dead lease under a deployment that is still open reads as a
- * warning rather than destructive: the escrow is live and a redeploy brings the workload back, so the red
- * tone is kept for a deployment that is itself closed. A lease inside its reclamation grace period is live
+ * warning: the escrow is live and a redeploy brings the workload back, while a deployment that is itself
+ * closed has nothing left to act on and reads as muted. A lease inside its reclamation grace period is live
  * but doomed, so it reads as "Reclaiming" rather than "Running".
  */
 export function getDeploymentStatus(state: string, leases?: LeaseDto[] | null): { label: string; summaryLabel: string; tone: StatusTone } {
