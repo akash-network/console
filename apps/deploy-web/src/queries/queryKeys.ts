@@ -35,7 +35,8 @@ export class QueryKeys {
   static getBidListKey = (address: string, dseq: string) => ["BID_LIST", address, dseq];
   static getBidInfoKey = (address: string, dseq: string, gseq: number, oseq: number, provider: string) => ["BID_INFO", address, dseq, gseq, oseq, provider];
   static getProvidersKey = () => ["PROVIDERS"];
-  static getProviderSearchKey = (params: object) => ["PROVIDER_SEARCH", params];
+  static getAllProviderSearchesKey = () => ["PROVIDER_SEARCH"];
+  static getProviderSearchKey = (params: object) => [...QueryKeys.getAllProviderSearchesKey(), params];
   static getProviderLocationsKey = () => ["PROVIDER_LOCATIONS"];
   static getProviderByAddressKey = (address: string) => ["PROVIDER_BY_ADDRESS", address];
   static getProviderRegionsKey = () => ["PROVIDER_REGIONS"];

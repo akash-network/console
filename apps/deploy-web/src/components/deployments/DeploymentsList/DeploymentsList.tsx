@@ -66,7 +66,7 @@ export const DeploymentsList: React.FunctionComponent<Props> = ({ dependencies: 
 
       <div className="flex flex-col md:h-[calc(100dvh_-_var(--app-header-height,57px)_-_4px)]">
         {model.hasWallet && (
-          <div className="flex min-h-[60px] shrink-0 flex-wrap items-center gap-3 border-b border-border bg-background px-4 py-2.5 sm:px-6">
+          <div className="flex min-h-[60px] shrink-0 flex-wrap items-center gap-3 border-b border-border bg-background px-4 py-2 sm:px-6">
             <div className="mr-auto flex items-center gap-6">
               <h1 className="whitespace-nowrap text-xl font-bold leading-7 tracking-[-0.02em]">Deployments</h1>
 
