@@ -1,5 +1,6 @@
 import React from "react";
-import { Copyright, Discord, Github, X as TwitterX, Youtube } from "iconoir-react";
+import { DiscordLogo, GithubLogo, XLogo, YoutubeLogo } from "@akashnetwork/ui/components";
+import { Copyright } from "lucide-react";
 import Link from "next/link";
 
 import { UrlService } from "@src/utils/urlUtils";
@@ -32,9 +33,9 @@ export const Footer: React.FC<IFooterProps> = () => {
                 href="https://discord.gg/akash"
                 target="_blank"
                 rel="noreferrer"
-                className="block px-4 py-2 text-current transition-all duration-300 hover:text-primary [&>path]:fill-muted-foreground/20 hover:[&>path]:fill-primary"
+                className="hover:text-primary [&>path]:fill-muted-foreground/20 hover:[&>path]:fill-primary block px-4 py-2 text-current transition-all duration-300"
               >
-                <Discord className="mx-auto block h-6 w-6 text-5xl" />
+                <DiscordLogo className="mx-auto block h-6 w-6 text-5xl" />
               </a>
             </li>
             <li>
@@ -42,9 +43,9 @@ export const Footer: React.FC<IFooterProps> = () => {
                 href="https://twitter.com/akashnet"
                 target="_blank"
                 rel="noreferrer"
-                className="block px-4 py-2 text-current transition-all duration-300 hover:text-primary [&>path]:fill-muted-foreground/20 hover:[&>path]:fill-primary"
+                className="hover:text-primary [&>path]:fill-muted-foreground/20 hover:[&>path]:fill-primary block px-4 py-2 text-current transition-all duration-300"
               >
-                <TwitterX className="mx-auto block h-6 w-6 text-5xl" />
+                <XLogo className="mx-auto block h-6 w-6 text-5xl" />
               </a>
             </li>
             <li>
@@ -52,9 +53,9 @@ export const Footer: React.FC<IFooterProps> = () => {
                 href="https://youtube.com/@AkashNetwork?si=cd2P3ZlAa4gNQw0X?sub_confirmation=1"
                 target="_blank"
                 rel="noreferrer"
-                className="block px-4 py-2 text-current transition-all duration-300 hover:text-primary [&>path]:fill-muted-foreground/20 hover:[&>path]:fill-primary"
+                className="hover:text-primary [&>path]:fill-muted-foreground/20 hover:[&>path]:fill-primary block px-4 py-2 text-current transition-all duration-300"
               >
-                <Youtube className="mx-auto block h-6 w-6 text-5xl" />
+                <YoutubeLogo className="mx-auto block h-6 w-6 text-5xl" />
               </a>
             </li>
             <li>
@@ -62,39 +63,39 @@ export const Footer: React.FC<IFooterProps> = () => {
                 href="https://github.com/akash-network/console"
                 target="_blank"
                 rel="noreferrer"
-                className="block px-4 py-2 text-current transition-all duration-300 hover:text-primary [&>path]:fill-muted-foreground/20 hover:[&>path]:fill-primary"
+                className="hover:text-primary [&>path]:fill-muted-foreground/20 hover:[&>path]:fill-primary block px-4 py-2 text-current transition-all duration-300"
               >
-                <Github className="mx-auto block h-6 w-6 text-5xl" />
+                <GithubLogo className="mx-auto block h-6 w-6 text-5xl" />
               </a>
             </li>
           </ul>
 
           <div className="mb-4 mt-2 flex items-center sm:mb-0 sm:mt-0">
             <Link href={UrlService.termsOfService()} className="text-current">
-              <p className="text-sm text-muted-foreground">Terms of Service</p>
+              <p className="text-muted-foreground text-sm">Terms of Service</p>
             </Link>
 
             <div className="ml-4">
               <Link href={UrlService.privacyPolicy()} className="text-current">
-                <p className="text-sm text-muted-foreground">Privacy Policy</p>
+                <p className="text-muted-foreground text-sm">Privacy Policy</p>
               </Link>
             </div>
 
             <div className="ml-4">
               <Link href="#" className="text-current">
-                <p className="text-sm text-muted-foreground">FAQ</p>
+                <p className="text-muted-foreground text-sm">FAQ</p>
               </Link>
             </div>
 
             <div className="ml-4">
               <Link href="#" className="text-current">
-                <p className="text-sm text-muted-foreground">Contact</p>
+                <p className="text-muted-foreground text-sm">Contact</p>
               </Link>
             </div>
           </div>
 
-          <p className="flex items-center text-balance text-center text-sm leading-loose text-muted-foreground md:text-left">
-            <Copyright className="text-xs" />
+          <p className="text-muted-foreground flex items-center text-balance text-center text-sm leading-loose md:text-left">
+            <Copyright className="h-4 w-4" />
             &nbsp;Akash Network {year}
           </p>
         </div>

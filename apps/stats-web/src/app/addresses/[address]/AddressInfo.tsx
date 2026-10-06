@@ -1,7 +1,7 @@
 "use client";
 import React from "react";
 import { Address, Card, CardContent, CustomTooltip, Separator } from "@akashnetwork/ui/components";
-import { QrCode } from "iconoir-react";
+import { QrCode } from "lucide-react";
 import { useQRCode } from "next-qrcode";
 
 import { AKTAmount } from "@/components/AKTAmount";

@@ -2,7 +2,7 @@
 import React from "react";
 import { FormattedNumber } from "react-intl";
 import { Avatar, AvatarFallback, AvatarImage, Badge, Card, CardContent } from "@akashnetwork/ui/components";
-import { User } from "iconoir-react";
+import { User } from "lucide-react";
 
 import { AKTAmount } from "@/components/AKTAmount";
 import { LabelValue } from "@/components/LabelValue";

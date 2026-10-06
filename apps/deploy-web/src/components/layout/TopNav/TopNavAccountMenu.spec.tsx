@@ -38,13 +38,18 @@ describe(TopNavAccountMenu.name, () => {
     expect(screen.queryByText("Sign in")).not.toBeInTheDocument();
   });
 
-  it("navigates to profile settings when Profile is selected", async () => {
+  it.each([
+    { item: "Profile", path: "/user/settings" },
+    { item: "Privacy Policy", path: "/privacy-policy" },
+    { item: "Terms of Service", path: "/terms-of-service" },
+    { item: "Contact us", path: "/contact" }
+  ])("navigates to $path when $item is selected", async ({ item, path }) => {
     const { push } = setup({ username: "alice" });
 
     await userEvent.click(screen.getByRole("button", { name: /account menu/i }));
-    await userEvent.click(await screen.findByText("Profile"));
+    await userEvent.click(await screen.findByText(item));
 
-    expect(push).toHaveBeenCalledWith("/user/settings");
+    expect(push).toHaveBeenCalledWith(path);
   });
 
   it("opens the docs in a new tab when Docs is selected", async () => {

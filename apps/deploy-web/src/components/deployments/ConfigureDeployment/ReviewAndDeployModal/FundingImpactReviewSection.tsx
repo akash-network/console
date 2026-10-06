@@ -2,7 +2,7 @@
 import type { FC, ReactNode } from "react";
 import { useState } from "react";
 import { Button, Collapsible, CollapsibleContent, CollapsibleTrigger, Skeleton } from "@akashnetwork/ui/components";
-import { Flash, NavArrowDown } from "iconoir-react";
+import { ChevronDown, Zap } from "lucide-react";
 import Link from "next/link";
 
 import { BalanceBreakdownBar } from "@src/components/billing-usage/AccountBalanceOverview/BalanceBreakdownBar";
@@ -117,7 +117,7 @@ export const FundingImpactReviewSection: FC<Props> = ({ rows, runtimeLimitHours,
         </span>
         <span className="flex shrink-0 items-center gap-3">
           {badge && <span className={`rounded border px-2 py-0.5 font-mono text-xs uppercase tracking-wide ${BADGE_TONES[badge.tone]}`}>{badge.label}</span>}
-          <NavArrowDown className="h-4 w-4 text-muted-foreground transition-transform group-data-[state=open]:rotate-180" />
+          <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform group-data-[state=open]:rotate-180" />
         </span>
       </CollapsibleTrigger>
 
@@ -173,7 +173,7 @@ function renderStateDetails(impact: VisibleImpact, usd: (value: number) => React
     case "crosses-threshold":
       return (
         <Callout tone="warning">
-          <Flash className="h-4 w-4 shrink-0" />
+          <Zap className="h-4 w-4 shrink-0" />
           <span>
             Confirming drops available to <span className="font-medium">{impact.availableAfterUsd === null ? "—" : usd(impact.availableAfterUsd)}</span>, below
             your Auto Top-Up threshold of <span className="font-medium">{impact.thresholdUsd === null ? "—" : usd(impact.thresholdUsd)}</span>.{" "}

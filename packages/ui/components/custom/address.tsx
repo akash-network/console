@@ -1,7 +1,7 @@
 "use client";
 import type { ReactNode } from "react";
 import React, { useState } from "react";
-import { Copy } from "iconoir-react";
+import { Copy } from "lucide-react";
 import { useSnackbar } from "notistack";
 
 import { cn, copyTextToClipboard } from "../../utils";
@@ -52,7 +52,7 @@ export const Address: React.FunctionComponent<Props> = ({ address, isCopyable, d
       {...rest}
     >
       <span>{formattedAddress}</span>
-      {isCopyable && <Copy className={cn("ml-2 text-xs opacity-0", { ["opacity-100"]: isOver || showIcon })} />}
+      {isCopyable && <Copy className={cn("ml-2 h-4 w-4 opacity-0", { ["opacity-100"]: isOver || showIcon })} />}
     </span>
   );
 

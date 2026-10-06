@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Alert, AlertDescription, AlertTitle, Button, Input, Popup } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
 import { useQueryClient } from "@tanstack/react-query";
-import { ArrowUp, CheckCircle, Refresh, WarningTriangle } from "iconoir-react";
+import { ArrowUp, CircleCheck, RefreshCw, TriangleAlert } from "lucide-react";
 import { useRouter } from "next/router";
 import { z } from "zod";
 
@@ -392,7 +392,7 @@ const SettingsPage: React.FC = () => {
                 <>
                   <div className="mb-4 rounded-md border border-amber-200 bg-amber-50 p-3">
                     <div className="flex items-start">
-                      <WarningTriangle className="mr-2 mt-0.5 h-5 w-5 text-amber-500" />
+                      <TriangleAlert className="mr-2 mt-0.5 h-5 w-5 text-amber-500" />
                       <div>
                         <p className="font-medium text-amber-800">{getNodeUpgradeReason()}</p>
                         {/* <p className="text-sm text-amber-700 mt-1">Upgarding may cause temporary service interruption for bid engine.</p> */}
@@ -402,7 +402,7 @@ const SettingsPage: React.FC = () => {
                   <Button onClick={upgradeAkashNode} className="mt-2" disabled={isDisabled || isNodeUpgrading}>
                     {isNodeUpgrading ? (
                       <>
-                        <Refresh className="mr-2 h-4 w-4 animate-spin" />
+                        <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
                         Upgrading...
                       </>
                     ) : (
@@ -413,7 +413,7 @@ const SettingsPage: React.FC = () => {
               ) : (
                 <div className="mb-4 rounded-md border p-3">
                   <div className="flex items-start">
-                    <CheckCircle className="mr-2 mt-0.5 h-5 w-5 text-green-500" />
+                    <CircleCheck className="mr-2 mt-0.5 h-5 w-5 text-green-500" />
                     <div>
                       <p className="font-medium text-green-800">Your Akash Node is up to date</p>
                       <p className="mt-1 text-sm text-green-700">The upgrade button will be enabled when a new version is available.</p>
@@ -478,7 +478,7 @@ const SettingsPage: React.FC = () => {
                 <>
                   <div className="mb-4 rounded-md border border-amber-200 bg-amber-50 p-3">
                     <div className="flex items-start">
-                      <WarningTriangle className="mr-2 mt-0.5 h-5 w-5 text-amber-500" />
+                      <TriangleAlert className="mr-2 mt-0.5 h-5 w-5 text-amber-500" />
                       <div>
                         <p className="font-medium text-amber-800">
                           {upgradeStatus.provider.appVersion.desired.replace(/^v/, "")} introduces Gateway API and cert-manager. A one-time in-place migration
@@ -495,7 +495,7 @@ const SettingsPage: React.FC = () => {
                 <>
                   <div className="mb-4 rounded-md border border-amber-200 bg-amber-50 p-3">
                     <div className="flex items-start">
-                      <WarningTriangle className="mr-2 mt-0.5 h-5 w-5 text-amber-500" />
+                      <TriangleAlert className="mr-2 mt-0.5 h-5 w-5 text-amber-500" />
                       <div>
                         <p className="font-medium text-amber-800">{getProviderUpgradeReason()}</p>
                       </div>
@@ -504,7 +504,7 @@ const SettingsPage: React.FC = () => {
                   <Button onClick={upgradeProvider} className="mt-2" disabled={isDisabled || isProviderUpgrading}>
                     {isProviderUpgrading ? (
                       <>
-                        <Refresh className="mr-2 h-4 w-4 animate-spin" />
+                        <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
                         Upgrading...
                       </>
                     ) : (
@@ -515,7 +515,7 @@ const SettingsPage: React.FC = () => {
               ) : (
                 <div className="mb-4 rounded-md border p-3">
                   <div className="flex items-start">
-                    <CheckCircle className="mr-2 mt-0.5 h-5 w-5 text-green-500" />
+                    <CircleCheck className="mr-2 mt-0.5 h-5 w-5 text-green-500" />
                     <div>
                       <p className="font-medium text-green-800">Your Provider is up to date</p>
                       <p className="mt-1 text-sm text-green-700">The upgrade button will be enabled when a new version is available.</p>
@@ -619,7 +619,7 @@ const SettingsPage: React.FC = () => {
           {
             label: isUninstalling ? (
               <>
-                <Refresh className="mr-2 h-4 w-4 animate-spin" />
+                <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
                 Uninstalling...
               </>
             ) : (
@@ -644,7 +644,7 @@ const SettingsPage: React.FC = () => {
             <>
               <div className="rounded-md border border-red-500 p-4 dark:border-red-400">
                 <div className="flex items-center gap-2">
-                  <WarningTriangle className="h-4 w-4 text-red-500 dark:text-red-400" />
+                  <TriangleAlert className="h-4 w-4 text-red-500 dark:text-red-400" />
                   <span className="font-semibold text-red-500 dark:text-red-400">Warning</span>
                 </div>
                 <div className="mt-1 text-red-500 dark:text-red-400">This action is irreversible and will result in:</div>

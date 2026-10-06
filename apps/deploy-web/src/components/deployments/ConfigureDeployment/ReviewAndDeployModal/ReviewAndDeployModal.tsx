@@ -13,7 +13,7 @@ import {
   Snackbar,
   Spinner
 } from "@akashnetwork/ui/components";
-import { ArrowRight, Rocket } from "iconoir-react";
+import { ArrowRight, Rocket } from "lucide-react";
 import { useSnackbar } from "notistack";
 
 import { PricePerTimeUnit } from "@src/components/shared/PricePerTimeUnit";

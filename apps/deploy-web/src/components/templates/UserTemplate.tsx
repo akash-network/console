@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import { Button, buttonVariants, Card, CardContent, Popup } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
-import { Bin, Edit, Rocket } from "iconoir-react";
+import { Rocket, SquarePen, Trash } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
@@ -129,7 +129,7 @@ export const UserTemplate: React.FunctionComponent<Props> = ({ id, template }) =
           size="sm"
           className="space-x-2"
         >
-          <Rocket className="rotate-45 text-sm" />
+          <Rocket className="h-5 w-5 rotate-45" />
           <span className="whitespace-nowrap">Deploy</span>
         </Button>
 
@@ -165,7 +165,7 @@ export const UserTemplate: React.FunctionComponent<Props> = ({ id, template }) =
 
         {isCurrentUserTemplate && (
           <Button size="icon" variant="ghost" onClick={() => setIsShowingDelete(true)}>
-            <Bin />
+            <Trash className="h-5 w-5" />
           </Button>
         )}
       </div>
@@ -184,7 +184,7 @@ export const UserTemplate: React.FunctionComponent<Props> = ({ id, template }) =
             {isCurrentUserTemplate && (
               <div className="absolute right-4 top-4">
                 <Button onClick={() => setIsEditingDescription(true)} size="icon" variant="ghost">
-                  <Edit />
+                  <SquarePen className="h-5 w-5" />
                 </Button>
               </div>
             )}

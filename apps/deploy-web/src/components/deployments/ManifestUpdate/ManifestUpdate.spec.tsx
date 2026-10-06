@@ -166,7 +166,7 @@ describe(ManifestUpdate.name, () => {
         dependencies: { deploymentData: mock<typeof DEPENDENCIES.deploymentData>({ getManifestVersion: vi.fn().mockResolvedValue("a-different-hash") }) }
       });
 
-      await waitFor(() => expect(dependencies.WarningCircle).toHaveBeenCalled());
+      await waitFor(() => expect(dependencies.CircleAlert).toHaveBeenCalled());
     });
 
     it("renders for an api copy the chain has moved past, with no withheld-values notice standing in the way", async () => {
@@ -176,7 +176,7 @@ describe(ManifestUpdate.name, () => {
         dependencies: { deploymentData: mock<typeof DEPENDENCIES.deploymentData>({ getManifestVersion: vi.fn().mockResolvedValue("recorded-v1-hash") }) }
       });
 
-      await waitFor(() => expect(dependencies.WarningCircle).toHaveBeenCalled());
+      await waitFor(() => expect(dependencies.CircleAlert).toHaveBeenCalled());
       expect(screen.queryByText(/secret values withheld/i)).not.toBeInTheDocument();
       expect(screen.queryByText(/it looks like this deployment was created using another deploy tool/i)).not.toBeInTheDocument();
     });
@@ -196,7 +196,7 @@ describe(ManifestUpdate.name, () => {
       });
 
       await waitFor(() => expect(dependencies.SDLEditor).toHaveBeenCalled());
-      expect(dependencies.WarningCircle).not.toHaveBeenCalled();
+      expect(dependencies.CircleAlert).not.toHaveBeenCalled();
     });
 
     it("stops rendering when a refetch moves the definition from this browser to the api", async () => {
@@ -206,13 +206,13 @@ describe(ManifestUpdate.name, () => {
         dependencies: { deploymentData: mock<typeof DEPENDENCIES.deploymentData>({ getManifestVersion: vi.fn().mockResolvedValue("a-different-hash") }) }
       });
 
-      await waitFor(() => expect(dependencies.WarningCircle).toHaveBeenCalled());
+      await waitFor(() => expect(dependencies.CircleAlert).toHaveBeenCalled());
 
       rerenderDefinition({ sdl: "version: '2.0'", name: undefined, source: "api" });
-      dependencies.WarningCircle.mockClear();
+      dependencies.CircleAlert.mockClear();
       rerenderDefinition({ sdl: "version: '2.0'", name: undefined, source: "api" });
 
-      expect(dependencies.WarningCircle).not.toHaveBeenCalled();
+      expect(dependencies.CircleAlert).not.toHaveBeenCalled();
     });
 
     it("stops rendering once the api's copy is confirmed current, even while the editor holds unsaved edits", async () => {
@@ -222,13 +222,13 @@ describe(ManifestUpdate.name, () => {
         dependencies: { deploymentData: mock<typeof DEPENDENCIES.deploymentData>({ getManifestVersion: vi.fn().mockResolvedValue("a-different-hash") }) }
       });
 
-      await waitFor(() => expect(dependencies.WarningCircle).toHaveBeenCalled());
+      await waitFor(() => expect(dependencies.CircleAlert).toHaveBeenCalled());
 
       rerenderDefinition({ sdl: "version: '2.0'", name: undefined, source: "api" }, { editedManifest: "version: '2.0' # user edit" });
-      dependencies.WarningCircle.mockClear();
+      dependencies.CircleAlert.mockClear();
       rerenderDefinition({ sdl: "version: '2.0'", name: undefined, source: "api" }, { editedManifest: "version: '2.0' # user edit" });
 
-      expect(dependencies.WarningCircle).not.toHaveBeenCalled();
+      expect(dependencies.CircleAlert).not.toHaveBeenCalled();
     });
 
     it("renders for a browser copy whose env value is blank and whose version differs from the chain", async () => {
@@ -238,7 +238,7 @@ describe(ManifestUpdate.name, () => {
         dependencies: { deploymentData: mock<typeof DEPENDENCIES.deploymentData>({ getManifestVersion: vi.fn().mockResolvedValue("a-different-hash") }) }
       });
 
-      await waitFor(() => expect(dependencies.WarningCircle).toHaveBeenCalled());
+      await waitFor(() => expect(dependencies.CircleAlert).toHaveBeenCalled());
     });
 
     it("does not render for a copy whose values the api withheld", async () => {
@@ -250,7 +250,7 @@ describe(ManifestUpdate.name, () => {
 
       await continuePastTheNotice(dependencies);
 
-      expect(dependencies.WarningCircle).not.toHaveBeenCalled();
+      expect(dependencies.CircleAlert).not.toHaveBeenCalled();
     });
 
     it("does not render for a browser copy that agrees with the chain", async () => {
@@ -261,7 +261,7 @@ describe(ManifestUpdate.name, () => {
       });
 
       await waitFor(() => expect(dependencies.SDLEditor).toHaveBeenCalled());
-      expect(dependencies.WarningCircle).not.toHaveBeenCalled();
+      expect(dependencies.CircleAlert).not.toHaveBeenCalled();
     });
   });
 

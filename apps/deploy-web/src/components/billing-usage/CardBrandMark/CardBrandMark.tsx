@@ -1,6 +1,6 @@
 "use client";
 import React from "react";
-import { CreditCard } from "iconoir-react";
+import { CreditCard } from "lucide-react";
 
 /** Takes a Stripe card brand, or the payment method type for methods without a card such as Link. */
 export const CardBrandMark: React.FunctionComponent<{ brand?: string | null }> = ({ brand }) => (

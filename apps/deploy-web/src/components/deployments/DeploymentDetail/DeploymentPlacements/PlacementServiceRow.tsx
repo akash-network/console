@@ -2,7 +2,7 @@
 import type { FC, ReactNode } from "react";
 import { useState } from "react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger, Skeleton } from "@akashnetwork/ui/components";
-import { Box, Globe, Label, NavArrowDown, NavArrowRight } from "iconoir-react";
+import { Box, ChevronDown, ChevronRight, Globe, Tag } from "lucide-react";
 
 import type { ForwardedPort, LeaseServiceStatus, ServiceIp } from "@src/queries/useLeaseQuery";
 import type { LeaseDto } from "@src/types/deployment";
@@ -90,7 +90,7 @@ export const PlacementServiceRow: FC<PlacementServiceRowProps> = ({
     <Collapsible open={open} onOpenChange={handleOpenChange} className="overflow-hidden rounded-lg border">
       <div className="flex items-center gap-3 p-4">
         <CollapsibleTrigger className="flex shrink-0 items-center gap-3 text-left">
-          {open ? <NavArrowDown className="h-4 w-4 shrink-0" /> : <NavArrowRight className="h-4 w-4 shrink-0" />}
+          {open ? <ChevronDown className="h-4 w-4 shrink-0" /> : <ChevronRight className="h-4 w-4 shrink-0" />}
           {identity}
         </CollapsibleTrigger>
         {extras}
@@ -113,7 +113,7 @@ export const PlacementServiceRow: FC<PlacementServiceRowProps> = ({
           </ServiceDetailRow>
         ) : null}
         {portChips.length > 0 ? (
-          <ServiceDetailRow icon={<Label className="h-4 w-4" />} title="Ports">
+          <ServiceDetailRow icon={<Tag className="h-4 w-4" />} title="Ports">
             <PortChips items={portChips} />
           </ServiceDetailRow>
         ) : null}

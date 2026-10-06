@@ -13,7 +13,7 @@ import {
   TooltipContent,
   TooltipTrigger
 } from "@akashnetwork/ui/components";
-import { LogOut, MoreHoriz, Wallet } from "iconoir-react";
+import { Ellipsis, LogOut, Wallet } from "lucide-react";
 import Link from "next/link";
 
 import { useWallet } from "@src/context/WalletProvider";
@@ -34,13 +34,13 @@ export function WalletStatus() {
         <DropdownMenu modal={false}>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="icon">
-              <MoreHoriz />
+              <Ellipsis className="h-5 w-5" />
               <span className="sr-only">Toggle theme</span>
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             <DropdownMenuItem onClick={onDisconnectClick}>
-              <LogOut />
+              <LogOut className="h-4 w-4" />
               &nbsp;Disconnect Wallet
             </DropdownMenuItem>
           </DropdownMenuContent>
@@ -49,7 +49,7 @@ export function WalletStatus() {
 
       <div className="flex items-center text-left">
         <div className="flex items-center text-sm font-bold">
-          <Wallet className="text-xs" />
+          <Wallet className="h-4 w-4" />
           <Link className="ml-2 cursor-pointer leading-4" href={`https://stats.akash.network/addresses/${address}`} target="_blank">
             <Tooltip>
               <TooltipTrigger asChild>

@@ -38,7 +38,7 @@ export const SidebarRouteButton: React.FC<Props> = ({ route, className = "", isN
       >
         {!!route.icon && (
           <span className={cn("z-[100] min-w-0", { ["m-[initial]"]: isNavOpen, ["mx-auto"]: !isNavOpen })}>
-            {route.icon({ className: cn({ ["text-primary font-bold"]: isSelected, ["mx-auto"]: !isNavOpen }, "text-xs") })}
+            {route.icon({ className: cn({ ["text-primary font-bold"]: isSelected, ["mx-auto"]: !isNavOpen }, "h-5 w-5") })}
           </span>
         )}
         {isNavOpen && <span className="mb-1 ml-4 mt-1 min-w-0 flex-auto whitespace-nowrap">{route.title}</span>}

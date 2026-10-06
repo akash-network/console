@@ -2,7 +2,7 @@ import type { FC, MouseEvent } from "react";
 import { useId } from "react";
 import { FieldErrorMessage, InlineEditInput, useFieldError } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
-import { Plus, Trash } from "iconoir-react";
+import { Plus, Trash2 } from "lucide-react";
 
 import { RegionSelect } from "@src/components/sdl/RegionSelect/RegionSelect";
 import type { PlacementType } from "@src/types";
@@ -88,7 +88,7 @@ export const PlacementCard: FC<Props> = ({
           <PlacementSelectionBadge state={selectionState} />
           {canRemove && (
             <button type="button" aria-label="Remove placement" onClick={removePlacement} className="shrink-0 text-muted-foreground hover:text-foreground">
-              <Trash className="h-3.5 w-3.5" />
+              <Trash2 className="h-3.5 w-3.5" />
             </button>
           )}
         </div>

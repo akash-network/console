@@ -1,6 +1,6 @@
 "use client";
 import type { ComponentType } from "react";
-import { CreditCard, Key, MessageAlert, StatsUpSquare } from "iconoir-react";
+import { ChartColumnIncreasing, CreditCard, KeyRound, MessageSquareWarning } from "lucide-react";
 import { usePathname } from "next/navigation";
 
 import { UrlService } from "@src/utils/urlUtils";
@@ -27,8 +27,8 @@ export function useSettingsNavLinks({ dependencies: d = DEPENDENCIES }: { depend
 
   return [
     { title: "Billing", url: UrlService.billing(), isActive: isRouteActive(pathname, "/billing"), icon: CreditCard },
-    { title: "API Keys", url: UrlService.userApiKeys(), isActive: isRouteActive(pathname, "/user/api-keys"), icon: Key },
-    { title: "Usage", url: UrlService.usage(), isActive: isRouteActive(pathname, "/usage"), icon: StatsUpSquare },
-    { title: "Alerts", url: UrlService.alerts(), isActive: isRouteActive(pathname, "/alerts"), icon: MessageAlert }
+    { title: "API Keys", url: UrlService.userApiKeys(), isActive: isRouteActive(pathname, "/user/api-keys"), icon: KeyRound },
+    { title: "Usage", url: UrlService.usage(), isActive: isRouteActive(pathname, "/usage"), icon: ChartColumnIncreasing },
+    { title: "Alerts", url: UrlService.alerts(), isActive: isRouteActive(pathname, "/alerts"), icon: MessageSquareWarning }
   ];
 }

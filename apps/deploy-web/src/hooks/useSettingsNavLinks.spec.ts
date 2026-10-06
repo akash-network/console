@@ -25,6 +25,17 @@ describe(useSettingsNavLinks.name, () => {
     expect(links.find(link => link.title === "Billing")?.isActive).toBe(true);
   });
 
+  it.each([
+    { pathname: "/billing", active: "Billing" },
+    { pathname: "/user/api-keys", active: "API Keys" },
+    { pathname: "/usage", active: "Usage" },
+    { pathname: "/alerts", active: "Alerts" }
+  ])("marks only $active active on $pathname", ({ pathname, active }) => {
+    const links = setup({ pathname });
+
+    expect(links.filter(link => link.isActive).map(link => link.title)).toEqual([active]);
+  });
+
   it("treats sub-routes as active", () => {
     const links = setup({ pathname: "/alerts/notification-channels/new" });
 

@@ -13,8 +13,8 @@ import {
   SelectTrigger,
   SelectValue
 } from "@akashnetwork/ui/components";
-import { InfoCircle } from "iconoir-react";
 import { atom, useAtom } from "jotai";
+import { Info } from "lucide-react";
 import { z } from "zod";
 
 import { CpuFormControl } from "@src/components/sdl/CpuFormControl";
@@ -147,7 +147,7 @@ export const LogCollectorControl: FC<Props> = ({ serviceIndex, dependencies: d =
             </>
           }
         >
-          <InfoCircle className="ml-2 text-xs text-muted-foreground" />
+          <Info className="ml-2 h-4 w-4 text-muted-foreground" />
         </CustomTooltip>
       </div>
       <CheckboxWithLabel

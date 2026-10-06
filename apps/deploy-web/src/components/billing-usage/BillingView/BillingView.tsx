@@ -17,7 +17,7 @@ import {
 } from "@akashnetwork/ui/components";
 import type { PaginationState } from "@tanstack/react-table";
 import { endOfToday, startOfDay, subYears } from "date-fns";
-import { Calendar, Download, Page } from "iconoir-react";
+import { Calendar, Download, FileText } from "lucide-react";
 
 import { HISTORY_DATE_PRESETS, type HistoryDatePreset, type HistoryDateRange } from "@src/components/billing-usage/BillingContainer/historyDatePresets";
 import { SettingsSection } from "@src/components/layout/SettingsSection/SettingsSection";
@@ -107,7 +107,7 @@ export const BillingView: React.FC<BillingViewProps> = ({
           <BillingTableSkeleton />
         ) : data.length === 0 ? (
           <div className="flex flex-col items-center gap-2 px-6 py-10 text-center">
-            <Page className="h-[22px] w-[22px] text-muted-foreground" aria-hidden />
+            <FileText className="h-[22px] w-[22px] text-muted-foreground" aria-hidden />
             <p className="text-sm font-semibold">No payments in this period</p>
             <p className="text-xs text-muted-foreground">Payments, coupons and credits added to your balance show up here.</p>
           </div>
@@ -151,7 +151,7 @@ export const BillingView: React.FC<BillingViewProps> = ({
                         aria-label="View receipt"
                         className="inline-flex h-[34px] w-[34px] items-center justify-center rounded-lg text-foreground transition-colors hover:bg-muted"
                       >
-                        <Page className="h-[17px] w-[17px]" />
+                        <FileText className="h-[17px] w-[17px]" />
                       </a>
                     )}
                   </span>

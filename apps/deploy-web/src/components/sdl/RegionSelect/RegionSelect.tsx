@@ -1,7 +1,7 @@
 import type { FC } from "react";
 import { Controller, useFormContext } from "react-hook-form";
 import { cn } from "@akashnetwork/ui/utils";
-import { MapPin } from "iconoir-react";
+import { MapPin } from "lucide-react";
 
 import { SearchableMultiSelect } from "@src/components/shared/SearchableSelect/SearchableSelect";
 import { usePlacementOptions } from "@src/queries/usePlacementOptions";

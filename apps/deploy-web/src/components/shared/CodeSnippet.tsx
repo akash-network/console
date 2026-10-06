@@ -1,7 +1,7 @@
 "use client";
 import { useRef } from "react";
 import { Button, Snackbar } from "@akashnetwork/ui/components";
-import { Copy } from "iconoir-react";
+import { Copy } from "lucide-react";
 import { useSnackbar } from "notistack";
 
 import { copyTextToClipboard } from "@src/utils/copyClipboard";
@@ -24,7 +24,7 @@ export const CodeSnippet = ({ code }: React.PropsWithChildren<{ code: string }>)
     <pre className="relative rounded-sm bg-popover p-4 pt-6 text-sm">
       <div className="absolute left-0 top-0 flex w-full justify-end p-2">
         <Button aria-label="copy" aria-haspopup="true" onClick={onCopyClick} size="icon" variant="ghost" type="button">
-          <Copy />
+          <Copy className="h-5 w-5" />
         </Button>
       </div>
       <code ref={codeRef} onClick={onCodeClick} className="whitespace-pre-wrap break-words">

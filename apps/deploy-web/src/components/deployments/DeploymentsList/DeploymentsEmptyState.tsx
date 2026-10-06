@@ -2,7 +2,7 @@
 import type { FC, MouseEvent } from "react";
 import { Button } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
-import { Plus } from "iconoir-react";
+import { Plus } from "lucide-react";
 import Link from "next/link";
 
 import { useBlockchainStatus } from "@src/context/BlockchainStatusProvider";

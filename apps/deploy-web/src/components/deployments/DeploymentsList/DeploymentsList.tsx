@@ -14,7 +14,7 @@ import {
   ToggleGroupItem
 } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
-import { List, NavArrowRight, Refresh, Search, ViewGrid, Xmark } from "iconoir-react";
+import { ChevronRight, LayoutGrid, List, RefreshCw, Search, X } from "lucide-react";
 import Link from "next/link";
 import { NextSeo } from "next-seo";
 
@@ -97,19 +97,19 @@ export const DeploymentsList: React.FunctionComponent<Props> = ({ dependencies: 
                     endIcon={
                       !!model.search && (
                         <Button size="icon" variant="text" aria-label="Clear search" onClick={() => model.changeSearch("")}>
-                          <Xmark className="text-xs" />
+                          <X className="h-4 w-4" />
                         </Button>
                       )
                     }
                   />
 
                   <Button aria-label="Refresh deployments" onClick={model.refetchDeployments} size="icon" variant="ghost">
-                    <Refresh />
+                    <RefreshCw className="h-5 w-5" />
                   </Button>
 
                   <ToggleGroup type="single" value={model.viewMode} onValueChange={model.changeViewMode} variant="outline" className="gap-0 rounded-md border">
                     <ToggleGroupItem value="grid" aria-label="Grid view" className="rounded-r-none border-0">
-                      <ViewGrid className="h-4 w-4" />
+                      <LayoutGrid className="h-4 w-4" />
                     </ToggleGroupItem>
                     <ToggleGroupItem value="list" aria-label="List view" className="rounded-l-none border-0">
                       <List className="h-4 w-4" />
@@ -126,7 +126,7 @@ export const DeploymentsList: React.FunctionComponent<Props> = ({ dependencies: 
                   onClick={startNewDeploymentUnlessChainIsDown}
                 >
                   <span className="whitespace-nowrap">New deployment</span>
-                  <NavArrowRight className="h-4 w-4" />
+                  <ChevronRight className="h-4 w-4" />
                 </Link>
               )}
             </div>
@@ -139,7 +139,7 @@ export const DeploymentsList: React.FunctionComponent<Props> = ({ dependencies: 
               <div className="flex flex-col items-center justify-center gap-4 py-8">
                 <p className="text-muted-foreground">Couldn&apos;t load deployments.</p>
                 <Button variant="outline" size="sm" onClick={model.refetchDeployments}>
-                  <Refresh className="mr-2 h-4 w-4" />
+                  <RefreshCw className="mr-2 h-4 w-4" />
                   Retry
                 </Button>
               </div>

@@ -1,7 +1,7 @@
 import React from "react";
 import { buttonVariants } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
-import { ArrowLeft } from "iconoir-react";
+import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { NextSeo } from "next-seo";
 
@@ -20,7 +20,7 @@ const FiveHundred: React.FunctionComponent = () => {
 
         <div className="pt-6">
           <Link href={UrlService.home()} className={cn(buttonVariants({ variant: "default" }), "inline-flex items-center")}>
-            <ArrowLeft className="mr-4" />
+            <ArrowLeft className="mr-4 h-5 w-5" />
             Go to homepage
           </Link>
         </div>

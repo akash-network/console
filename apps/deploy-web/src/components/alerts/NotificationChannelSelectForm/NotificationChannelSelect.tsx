@@ -3,7 +3,7 @@ import React, { useState } from "react";
 import { useFormContext } from "react-hook-form";
 import { Button, FormField, FormLabel, Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
-import { Plus } from "iconoir-react";
+import { Plus } from "lucide-react";
 
 import { NotificationChannelDialog } from "@src/components/alerts/NotificationChannelDialog/NotificationChannelDialog";
 import type { ChildrenProps } from "@src/components/alerts/NotificationChannelsListContainer/NotificationChannelsListContainer";
@@ -65,7 +65,7 @@ export const NotificationChannelSelectView: FC<Props> = ({ name, isFetched, data
         />
         <div className="ml-4 flex h-10 items-center">
           <Button type="button" variant="outline" size="md" aria-label="Add notification channel" disabled={disabled} onClick={() => setIsAddingChannel(true)}>
-            <Plus />
+            <Plus className="h-5 w-5" />
           </Button>
         </div>
       </div>

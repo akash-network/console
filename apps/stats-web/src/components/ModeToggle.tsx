@@ -2,7 +2,7 @@
 import * as React from "react";
 import { useEffect, useState } from "react";
 import { Button, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@akashnetwork/ui/components";
-import { HalfMoon, SunLight } from "iconoir-react";
+import { Moon, Sun } from "lucide-react";
 import { useTheme } from "next-themes";
 
 import { cn } from "@/lib/utils";
@@ -28,8 +28,8 @@ export function ModeToggle() {
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" size="icon">
-          <SunLight className="rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" width="1.2rem" height="1.2rem" />
-          <HalfMoon className="absolute rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" width="1.2rem" height="1.2rem" />
+          <Sun className="rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" width="1.2rem" height="1.2rem" />
+          <Moon className="absolute rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" width="1.2rem" height="1.2rem" />
           <span className="sr-only">Toggle theme</span>
         </Button>
       </DropdownMenuTrigger>

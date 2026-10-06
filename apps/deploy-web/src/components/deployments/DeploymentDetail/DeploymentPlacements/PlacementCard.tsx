@@ -1,7 +1,7 @@
 "use client";
 import type { FC } from "react";
 import { useState } from "react";
-import { MapPin, NavArrowRight, Server } from "iconoir-react";
+import { ChevronRight, MapPin, Server } from "lucide-react";
 import Link from "next/link";
 
 import { useTeeResourceCarveouts } from "@src/hooks/useTeeResourceCarveouts";
@@ -114,7 +114,7 @@ export const PlacementCard: FC<PlacementCardProps> = ({
                   {region}
                 </span>
               )}
-              {region && providerName && <NavArrowRight className="h-3 w-3" />}
+              {region && providerName && <ChevronRight className="h-3 w-3" />}
               {providerName && provider && (
                 <Link href={UrlService.providerDetail(provider.owner)} className="inline-flex items-center gap-2 hover:text-foreground">
                   <Server className="h-3 w-3" />

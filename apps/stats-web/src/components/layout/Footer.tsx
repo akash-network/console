@@ -1,5 +1,5 @@
 "use client";
-import { Copyright } from "iconoir-react";
+import { Copyright } from "lucide-react";
 
 export function Footer({ version }: { version: string }) {
   const year = new Date().getFullYear();
@@ -8,7 +8,7 @@ export function Footer({ version }: { version: string }) {
     <footer className="py-6 md:px-8 md:py-0">
       <div className="container flex flex-col items-center justify-between gap-4 md:h-24 md:flex-row">
         <p className="flex items-center text-balance text-center text-sm leading-loose text-muted-foreground md:text-left">
-          <Copyright className="text-xs" />
+          <Copyright className="h-4 w-4" />
           &nbsp;Akash Network {year}
         </p>
 

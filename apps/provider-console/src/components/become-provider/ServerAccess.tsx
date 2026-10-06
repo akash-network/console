@@ -1,7 +1,7 @@
 "use client";
 import React, { useCallback, useState } from "react";
 import { Alert, AlertDescription, AlertTitle, Button, Input, Popup, Separator } from "@akashnetwork/ui/components";
-import { InfoCircle } from "iconoir-react";
+import { Info } from "lucide-react";
 
 import type { MachineAccess } from "@src/components/machine/MachineAccessForm";
 import type { NodeConfig } from "@src/components/shared/ProgressSidebar";
@@ -148,7 +148,7 @@ export const ServerAccess: React.FC<ServerAccessProps> = ({ onComplete }) => {
             <Alert>
               <div className="flex items-start gap-6">
                 <div className="pt-2">
-                  <InfoCircle className="h-6 w-6" />
+                  <Info className="h-6 w-6" />
                 </div>
                 <div className="flex-1">
                   <AlertTitle>Control Plane Nodes: {calculateNodeCounts(numberOfServers).controlPlane}</AlertTitle>

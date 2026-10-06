@@ -2,7 +2,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Spinner } from "@akashnetwork/ui/components";
 import { Elements, useElements, useStripe } from "@stripe/react-stripe-js";
-import { CheckCircle, Shield, WarningTriangle } from "iconoir-react";
+import { CircleCheck, Shield, TriangleAlert } from "lucide-react";
 import { useTheme } from "next-themes";
 
 import { useServices } from "@src/context/ServicesProvider/ServicesProvider";
@@ -138,7 +138,7 @@ const ThreeDSecureForm: React.FC<Omit<ThreeDSecureModalProps, "isOpen" | "onClos
     return (
       <div className="py-8 text-center">
         <div className="mb-4 flex justify-center">
-          <CheckCircle className="h-16 w-16 text-green-500" />
+          <CircleCheck className="h-16 w-16 text-green-500" />
         </div>
         <h3 className="mb-2 text-lg">Authentication Successful!</h3>
         <p className="text-muted-foreground">{successMessage}</p>
@@ -150,7 +150,7 @@ const ThreeDSecureForm: React.FC<Omit<ThreeDSecureModalProps, "isOpen" | "onClos
     return (
       <div className="space-y-4 py-8 text-center">
         <div className="mb-4 flex justify-center">
-          <WarningTriangle className="h-16 w-16 text-red-500" />
+          <TriangleAlert className="h-16 w-16 text-red-500" />
         </div>
         <h3 className="mb-2 text-lg">Authentication Failed</h3>
         <p className="text-muted-foreground">{errorMsg}</p>

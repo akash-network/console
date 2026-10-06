@@ -1,6 +1,6 @@
 "use client";
 import * as React from "react";
-import { HandCard } from "iconoir-react";
+import { HandCoins } from "lucide-react";
 
 import { AddFundsButton } from "@src/components/user/AddFundsButton";
 
@@ -69,7 +69,7 @@ const AddFunds = ({ dependencies: d = DEPENDENCIES }: { dependencies: typeof DEP
       className="w-full space-x-2"
       request={{ initialTab: "purchase", description: ADD_CREDITS_DESCRIPTION, context: "trial_deployment_badge" }}
     >
-      <HandCard className="text-xs" />
+      <HandCoins className="h-4 w-4" />
       <span className="whitespace-nowrap">Add Funds</span>
     </d.AddFundsButton>
   </div>

@@ -3,7 +3,7 @@ import type { FC, ReactNode } from "react";
 import { useMemo } from "react";
 import { Button, Card, CardContent, CustomTooltip, Skeleton } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
-import { EditPencil, InfoCircle } from "iconoir-react";
+import { Info, Pencil } from "lucide-react";
 
 import { useLocalNotes } from "@src/components/LocalNoteManager";
 import { ConfidentialComputeBadge } from "@src/components/shared/ConfidentialComputeBadge";
@@ -121,7 +121,7 @@ export const DeploymentDetailHeader: FC<DeploymentDetailHeaderProps> = ({
             className={cn("h-8 w-8", HOVER_REVEALED)}
             onClick={() => changeDeploymentName(deployment.dseq)}
           >
-            <EditPencil className="h-4 w-4" />
+            <Pencil className="h-4 w-4" />
           </Button>
         </div>
         <d.DeploymentVisitControl leases={leases ?? []} providers={providers} />
@@ -139,7 +139,7 @@ export const DeploymentDetailHeader: FC<DeploymentDetailHeaderProps> = ({
                   COST
                   {!!costPerBlockUDenom && (
                     <d.CostBreakdownTooltip perBlockUDenom={costPerBlockUDenom} denom={denom} gpuCount={liveGpuCount}>
-                      <InfoCircle width={12} height={12} className="text-muted-foreground" />
+                      <Info width={12} height={12} className="text-muted-foreground" />
                     </d.CostBreakdownTooltip>
                   )}
                 </span>
@@ -153,7 +153,7 @@ export const DeploymentDetailHeader: FC<DeploymentDetailHeaderProps> = ({
                   <span className="inline-flex items-center gap-1">
                     RUNTIME LIMIT
                     <d.CustomTooltip title="This deployment closes automatically once its runtime limit is reached. Unused funds are returned to your balance.">
-                      <InfoCircle width={12} height={12} className="text-muted-foreground" />
+                      <Info width={12} height={12} className="text-muted-foreground" />
                     </d.CustomTooltip>
                   </span>
                 }

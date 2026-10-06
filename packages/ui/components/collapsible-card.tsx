@@ -2,8 +2,7 @@
 
 import * as React from "react";
 import { useEffect, useRef, useState } from "react";
-import { InfoCircle, Lock } from "iconoir-react";
-import { ChevronDown, ChevronRight, ChevronUp } from "lucide-react";
+import { ChevronDown, ChevronRight, ChevronUp, Info, Lock } from "lucide-react";
 
 import { cn } from "../utils";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "./collapsible";
@@ -287,7 +286,7 @@ const CardInfoTooltip: React.FC<{ children: React.ReactNode }> = ({ children }) 
   <span className="flex items-center" onPointerDown={event => event.stopPropagation()} onClick={event => event.stopPropagation()} role="presentation">
     <TooltipProvider>
       <CustomTooltip title={children} className="text-muted-foreground max-w-[260px] p-3 text-left font-sans text-xs normal-case">
-        <InfoCircle className="text-muted-foreground h-4 w-4 cursor-help" aria-label="More information" />
+        <Info className="text-muted-foreground h-4 w-4 cursor-help" aria-label="More information" />
       </CustomTooltip>
     </TooltipProvider>
   </span>

@@ -3,7 +3,7 @@ import React, { type ReactNode, useCallback, useEffect, useMemo, useRef, useStat
 import type { PaymentMethod } from "@akashnetwork/http-sdk";
 import { CustomNoDivTooltip, Skeleton, Snackbar, Switch } from "@akashnetwork/ui/components";
 import { usePopup } from "@akashnetwork/ui/context";
-import { InfoCircle } from "iconoir-react";
+import { Info } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useSnackbar } from "notistack";
 
@@ -46,7 +46,7 @@ export const DEPENDENCIES = {
   Skeleton,
   Snackbar,
   Switch,
-  InfoCircle
+  Info
 };
 
 export const AutoRechargeRow: React.FunctionComponent<{ dependencies?: typeof DEPENDENCIES }> = ({ dependencies: d = DEPENDENCIES }) => {
@@ -186,7 +186,7 @@ export const AutoRechargeRow: React.FunctionComponent<{ dependencies?: typeof DE
             Auto Recharge
             <d.CustomNoDivTooltip title={AUTO_RECHARGE_TOOLTIP}>
               <span className="inline-flex cursor-help text-muted-foreground">
-                <d.InfoCircle className="h-[13px] w-[13px]" />
+                <d.Info className="h-[13px] w-[13px]" />
               </span>
             </d.CustomNoDivTooltip>
           </span>

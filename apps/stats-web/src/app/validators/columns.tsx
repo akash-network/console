@@ -3,7 +3,7 @@
 import { FormattedNumber } from "react-intl";
 import { Avatar, AvatarFallback, AvatarImage, Badge, DataTableColumnHeader } from "@akashnetwork/ui/components";
 import type { AccessorColumnDef } from "@tanstack/react-table";
-import { User } from "iconoir-react";
+import { User } from "lucide-react";
 import { z } from "zod";
 
 import { AKTLabel } from "@/components/AKTLabel";
@@ -42,7 +42,7 @@ export const columns: AccessorColumnDef<ValidatorRowType>[] = [
         <Avatar className="h-[26px] w-[26px]">
           <AvatarImage src={row.original.keybaseAvatarUrl} alt={row.original.moniker} />
           <AvatarFallback>
-            <User />
+            <User className="h-4 w-4" />
           </AvatarFallback>
         </Avatar>
 

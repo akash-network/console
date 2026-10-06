@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useIntl } from "react-intl";
 import { Button } from "@akashnetwork/ui/components";
-import { Xmark } from "iconoir-react";
+import { X } from "lucide-react";
 
 import { useChainMaintenanceDetails, useGenericBannerDetails, useTopBanner } from "@/hooks/useTopBanner";
 
@@ -51,7 +51,7 @@ function MaintenanceBanner({ onClose }: { onClose: () => void }) {
         Network upgrade scheduled{upgradeAt ? ` at ${upgradeAt}` : ""}. Stats will be stale until the upgrade is complete.
       </span>
       <Button variant="text" className="rounded-full text-primary-foreground hover:text-primary-foreground" size="icon" onClick={onClose}>
-        <Xmark />
+        <X className="h-5 w-5" />
       </Button>
     </div>
   );

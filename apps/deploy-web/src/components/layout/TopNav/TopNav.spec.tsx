@@ -65,6 +65,7 @@ describe(TopNav.name, () => {
 
     expect(screen.getByRole("link", { name: "Providers" })).toHaveAttribute("aria-current", "page");
     expect(screen.getByRole("link", { name: "Deployments" })).not.toHaveAttribute("aria-current");
+    expect(screen.getByRole("link", { name: "Templates" })).not.toHaveAttribute("aria-current");
   });
 
   it("marks Deployments active on the new deployment flow", () => {

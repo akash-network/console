@@ -17,7 +17,7 @@ import {
   SelectValue,
   Slider
 } from "@akashnetwork/ui/components";
-import { InfoCircle } from "iconoir-react";
+import { Info } from "lucide-react";
 
 import type { SdlBuilderFormValuesType, ServiceType } from "@src/types";
 import { storageUnits } from "@src/utils/akash/units";
@@ -61,7 +61,7 @@ export const EphemeralStorageFormControl: React.FunctionComponent<Props> = ({ co
                     </>
                   }
                 >
-                  <InfoCircle className="ml-2 text-xs text-muted-foreground" />
+                  <Info className="ml-2 h-4 w-4 text-muted-foreground" />
                 </CustomTooltip>
               </div>
 

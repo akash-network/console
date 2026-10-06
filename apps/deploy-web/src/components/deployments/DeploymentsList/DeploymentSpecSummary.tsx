@@ -1,8 +1,8 @@
 "use client";
 import type { FC, ReactNode } from "react";
-import { MdDeveloperBoard, MdMemory, MdSpeed, MdStorage } from "react-icons/md";
 import { CustomNoDivTooltip } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
+import { Cpu, Gpu, HardDrive, MemoryStick } from "lucide-react";
 
 import type { DeploymentDto } from "@src/types/deployment";
 import { roundDecimal } from "@src/utils/mathHelpers";
@@ -43,13 +43,25 @@ export const DeploymentSpecSummary: FC<DeploymentSpecSummaryProps> = ({
 
   return (
     <div className={cn("text-xs text-muted-foreground", layoutClasses.container, className)}>
-      <Spec label="vCPU" icon={<MdSpeed />} value={roundDecimal(deployment.cpuAmount, 2)} className={layoutClasses.spec} dependencies={d} />
-      <Spec label="Memory" icon={<MdMemory />} value={formatByteSize(deployment.memoryAmount)} className={layoutClasses.spec} dependencies={d} />
-      <Spec label="Storage" icon={<MdStorage />} value={formatByteSize(deployment.storageAmount)} className={layoutClasses.spec} dependencies={d} />
+      <Spec label="vCPU" icon={<Cpu className="h-3.5 w-3.5" />} value={roundDecimal(deployment.cpuAmount, 2)} className={layoutClasses.spec} dependencies={d} />
+      <Spec
+        label="Memory"
+        icon={<MemoryStick className="h-3.5 w-3.5" />}
+        value={formatByteSize(deployment.memoryAmount)}
+        className={layoutClasses.spec}
+        dependencies={d}
+      />
+      <Spec
+        label="Storage"
+        icon={<HardDrive className="h-3.5 w-3.5" />}
+        value={formatByteSize(deployment.storageAmount)}
+        className={layoutClasses.spec}
+        dependencies={d}
+      />
       {hasGpu && (
         <Spec
           label="GPU"
-          icon={<MdDeveloperBoard />}
+          icon={<Gpu className="h-3.5 w-3.5" />}
           value={formatGpuLabel(deployment.gpuAmount ?? 0, getDeploymentGpuModels(deployment.groups), resolvedGpus)}
           className={layoutClasses.spec}
           dependencies={d}
@@ -69,7 +81,7 @@ const Spec: FC<{ label: string; icon: ReactNode; value: string | number; classNa
 }) => (
   <d.CustomTooltip title={`${label}: ${value}`} className="p-3">
     <span className={cn("inline-flex cursor-help items-center gap-1.5", className)}>
-      <span className="shrink-0 text-sm" aria-hidden="true">
+      <span className="shrink-0" aria-hidden="true">
         {icon}
       </span>
       <span className="truncate" aria-label={label}>

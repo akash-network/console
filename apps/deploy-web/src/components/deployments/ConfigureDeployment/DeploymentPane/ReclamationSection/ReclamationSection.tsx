@@ -1,7 +1,7 @@
 import type { FC } from "react";
 import { Controller, useFormContext } from "react-hook-form";
 import { CustomTooltip, Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@akashnetwork/ui/components";
-import { InfoCircle } from "iconoir-react";
+import { Info } from "lucide-react";
 
 import type { ReclamationMinWindow, SdlBuilderFormValuesType } from "@src/types";
 
@@ -55,7 +55,7 @@ export const ReclamationSection: FC<Props> = ({ locked = false }) => {
             </>
           }
         >
-          <InfoCircle className="h-3.5 w-3.5" />
+          <Info className="h-3.5 w-3.5" />
         </CustomTooltip>
       </div>
 

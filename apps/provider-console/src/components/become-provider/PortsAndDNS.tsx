@@ -1,8 +1,8 @@
 "use client";
 import React, { useState } from "react";
 import { Button } from "@akashnetwork/ui/components";
-import { Check, InfoCircle, XmarkCircle } from "iconoir-react";
 import { useAtom } from "jotai";
+import { Check, CircleX, Info } from "lucide-react";
 
 import providerProcessStore from "@src/store/providerProcessStore";
 import restClient from "@src/utils/restClient";
@@ -104,7 +104,7 @@ export const PortsAndDNS: React.FC<PortsAndDNSProps> = ({ onComplete }) => {
           </div>
 
           <div className="mb-4 flex items-start gap-2 rounded-md bg-yellow-500/10 p-4 text-sm">
-            <InfoCircle className="mt-0.5 h-4 w-4 flex-shrink-0" />
+            <Info className="mt-0.5 h-4 w-4 flex-shrink-0" />
             <p>
               Please configure your firewall to allow incoming traffic on these ports. Port availability will be verified automatically when services are
               deployed.
@@ -120,11 +120,11 @@ export const PortsAndDNS: React.FC<PortsAndDNSProps> = ({ onComplete }) => {
             <div className="grid grid-cols-[40px_1fr_1fr] items-center gap-4 rounded border p-3">
               <div>
                 {dnsStatus.ingress === null ? (
-                  <InfoCircle className="text-muted-foreground h-4 w-4" />
+                  <Info className="text-muted-foreground h-4 w-4" />
                 ) : dnsStatus.ingress ? (
                   <Check className="h-4 w-4 text-green-500" />
                 ) : (
-                  <XmarkCircle className="h-4 w-4 text-red-500" />
+                  <CircleX className="h-4 w-4 text-red-500" />
                 )}
               </div>
               <div>*.ingress.{domainName}</div>
@@ -133,11 +133,11 @@ export const PortsAndDNS: React.FC<PortsAndDNSProps> = ({ onComplete }) => {
             <div className="grid grid-cols-[40px_1fr_1fr] items-center gap-4 rounded border p-3">
               <div>
                 {dnsStatus.provider === null ? (
-                  <InfoCircle className="text-muted-foreground h-4 w-4" />
+                  <Info className="text-muted-foreground h-4 w-4" />
                 ) : dnsStatus.provider ? (
                   <Check className="h-4 w-4 text-green-500" />
                 ) : (
-                  <XmarkCircle className="h-4 w-4 text-red-500" />
+                  <CircleX className="h-4 w-4 text-red-500" />
                 )}
               </div>
               <div>provider.{domainName}</div>
@@ -148,7 +148,7 @@ export const PortsAndDNS: React.FC<PortsAndDNSProps> = ({ onComplete }) => {
           {(!allDnsConfigured || dnsStatus.ingress === null) && (
             <>
               <div className="mb-4 flex items-start gap-2 rounded-md bg-yellow-500/10 p-4 text-sm">
-                <InfoCircle className="mt-0.5 h-4 w-4 flex-shrink-0" />
+                <Info className="mt-0.5 h-4 w-4 flex-shrink-0" />
                 <p>DNS changes can take up to 24-48 hours to fully propagate across the internet. You can verify the configuration using the button below.</p>
               </div>
 

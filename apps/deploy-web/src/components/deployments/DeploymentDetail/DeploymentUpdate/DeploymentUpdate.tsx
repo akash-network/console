@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { FormProvider, useForm } from "react-hook-form";
 import { Alert, Button, Skeleton } from "@akashnetwork/ui/components";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { InfoCircle } from "iconoir-react";
+import { Info } from "lucide-react";
 
 import { importDeploymentState } from "@src/components/deployments/ConfigureDeployment/importDeploymentState/importDeploymentState";
 import { isLogCollectorService } from "@src/components/sdl/LogCollectorControl/LogCollectorControl";
@@ -239,7 +239,7 @@ export const DeploymentUpdate: FC<DeploymentUpdateProps> = ({
 
 const LockedFieldsNotice: FC = () => (
   <div className="flex gap-3 rounded-xl border bg-card p-4 text-sm">
-    <InfoCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+    <Info className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
     <p className="text-muted-foreground">
       <span className="font-medium text-foreground">Some fields are locked after deploy.</span> You can update{" "}
       <span className="font-medium text-foreground">image</span>, <span className="font-medium text-foreground">variables & secrets</span>,{" "}

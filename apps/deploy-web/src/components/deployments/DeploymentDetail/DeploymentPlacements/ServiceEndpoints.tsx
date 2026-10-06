@@ -1,6 +1,6 @@
 import type { FC } from "react";
 import { cn } from "@akashnetwork/ui/utils";
-import { OpenInWindow } from "iconoir-react";
+import { ExternalLink } from "lucide-react";
 import Link from "next/link";
 
 import type { ForwardedPort, ServiceIp } from "@src/queries/useLeaseQuery";
@@ -28,7 +28,7 @@ export const ServiceUriLinks: FC<{ items: EndpointLink[] }> = ({ items }) => {
         item.href ? (
           <Link key={item.text} href={item.href} target="_blank" rel="noreferrer" className="inline-flex min-w-0 items-center gap-1 hover:text-foreground">
             <span className="truncate">{item.text}</span>
-            <OpenInWindow className="shrink-0 text-xs" />
+            <ExternalLink className="h-4 w-4 shrink-0" />
           </Link>
         ) : (
           <span key={item.text} className="truncate">

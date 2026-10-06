@@ -3,7 +3,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { Separator, Spinner } from "@akashnetwork/ui/components";
 import { LazyLog, ScrollFollow } from "@melloware/react-logviewer";
 import { EventSourcePolyfill } from "event-source-polyfill";
-import { ArrowDown, ArrowRight, Check, Xmark } from "iconoir-react";
+import { ArrowDown, ArrowRight, Check, X } from "lucide-react";
 
 import { browserEnvConfig } from "@src/config/browser-env.config";
 import { useProviderActionStatus } from "@src/queries/useProviderQuery";
@@ -243,7 +243,7 @@ export const ActivityLogDetails: React.FC<{ actionId: string | null }> = ({ acti
           <div className="flex items-center space-x-2">
             {actionDetails?.status === "in_progress" && <Spinner className="text-blue-500" size="small" />}
             {actionDetails?.status === "completed" && <Check className="h-5 w-5 text-green-500" />}
-            {actionDetails?.status === "failed" && <Xmark className="h-5 w-5 text-red-500" />}
+            {actionDetails?.status === "failed" && <X className="h-5 w-5 text-red-500" />}
             <span className="text-xl font-semibold">{actionDetails?.name}</span>
           </div>
           <Separator />
@@ -271,7 +271,7 @@ export const ActivityLogDetails: React.FC<{ actionId: string | null }> = ({ acti
                     {task.status === "completed" && <Check className="h-4 w-4 text-green-500" />}
                     {task.status === "in_progress" && <Spinner className="text-blue-500" size="small" />}
                     {task.status === "not_started" && <div className="h-5 w-5 rounded-full border-2"></div>}
-                    {task.status === "failed" && <Xmark className="h-4 w-4 text-red-500" />}
+                    {task.status === "failed" && <X className="h-4 w-4 text-red-500" />}
                   </div>
                 </div>
                 {openAccordions[index] && (

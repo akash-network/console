@@ -1,7 +1,7 @@
 "use client";
 import React from "react";
 import { Popover, PopoverContent, PopoverTrigger } from "@akashnetwork/ui/components";
-import { HelpCircle } from "iconoir-react";
+import { CircleQuestionMark } from "lucide-react";
 
 interface CredentialHelpProps {
   ariaLabel: string;
@@ -12,7 +12,7 @@ export const CredentialHelp: React.FC<CredentialHelpProps> = ({ ariaLabel, child
   <Popover>
     <PopoverTrigger asChild>
       <button type="button" aria-label={ariaLabel} className="text-muted-foreground hover:text-foreground inline-flex h-4 w-4 items-center justify-center">
-        <HelpCircle className="h-4 w-4" />
+        <CircleQuestionMark className="h-4 w-4" />
       </button>
     </PopoverTrigger>
     <PopoverContent align="start" className="w-96 text-xs">

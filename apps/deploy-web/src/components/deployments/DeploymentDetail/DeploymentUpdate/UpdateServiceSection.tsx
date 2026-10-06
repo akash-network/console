@@ -2,8 +2,7 @@
 import type { FC } from "react";
 import { useWatch } from "react-hook-form";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger, Input } from "@akashnetwork/ui/components";
-import { NavArrowDown, NavArrowRight } from "iconoir-react";
-import { LockIcon } from "lucide-react";
+import { ChevronDown, ChevronRight, LockIcon } from "lucide-react";
 
 import type { SdlBuilderFormValuesType } from "@src/types";
 import { UpdateImageSection } from "./UpdateImageSection";
@@ -24,7 +23,7 @@ export const UpdateServiceSection: FC<UpdateServiceSectionProps> = ({ serviceInd
   return (
     <Collapsible open={open} onOpenChange={onOpenChange} className="overflow-hidden rounded-lg border bg-background">
       <CollapsibleTrigger className="flex w-full items-center gap-3 px-4 py-3 text-left">
-        {open ? <NavArrowDown className="h-4 w-4 shrink-0" aria-hidden="true" /> : <NavArrowRight className="h-4 w-4 shrink-0" aria-hidden="true" />}
+        {open ? <ChevronDown className="h-4 w-4 shrink-0" aria-hidden="true" /> : <ChevronRight className="h-4 w-4 shrink-0" aria-hidden="true" />}
         <span className="text-base font-medium">{title}</span>
         <LockIcon className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
         <span className="ml-auto truncate font-mono text-sm text-muted-foreground">{imageTagOf(image)}</span>

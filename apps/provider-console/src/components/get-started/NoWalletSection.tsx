@@ -2,7 +2,7 @@
 import React, { useState } from "react";
 import { Alert, buttonVariants, Collapsible, CollapsibleContent, CollapsibleTrigger } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
-import { NavArrowLeft } from "iconoir-react";
+import { ChevronLeft } from "lucide-react";
 import Link from "next/link";
 
 import { UrlService } from "@src/utils/urlUtils";
@@ -16,7 +16,7 @@ export const NoWalletSection: React.FunctionComponent = () => {
   return (
     <div>
       <Link href={UrlService.getStartedWallet()} className={cn(buttonVariants({ variant: "text" }))}>
-        <NavArrowLeft className="mr-2 text-sm" />
+        <ChevronLeft className="mr-2 h-5 w-5" />
         Back
       </Link>
       <ul className="list-decimal space-y-2 py-4 pl-8">

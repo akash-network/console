@@ -4,6 +4,7 @@ export * from "./alert/alert";
 export * from "./avatar";
 export * from "./badge";
 export * from "./banner/banner";
+export * from "./brand-icons";
 export * from "./breadcrumb";
 export * from "./card";
 export * from "./checkbox";

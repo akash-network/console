@@ -7,7 +7,7 @@ import Step from "@mui/material/Step";
 import StepContent from "@mui/material/StepContent";
 import StepLabel from "@mui/material/StepLabel";
 import Stepper from "@mui/material/Stepper";
-import { Check, XmarkCircleSolid } from "iconoir-react";
+import { Check, CircleX } from "lucide-react";
 import Link from "next/link";
 
 import { useWallet } from "@src/context/WalletProvider";
@@ -80,7 +80,7 @@ export const GetStartedStepper: React.FunctionComponent = () => {
           {!isWalletConnected && (
             <div>
               <div className="my-4 flex items-center space-x-2">
-                <XmarkCircleSolid className="text-destructive" />
+                <CircleX className="text-destructive [&>path]:stroke-background fill-current" />
                 <span>Wallet is not connected</span>
               </div>
               <div className="my-4">

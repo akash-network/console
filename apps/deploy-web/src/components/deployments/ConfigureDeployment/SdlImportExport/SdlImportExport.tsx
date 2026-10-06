@@ -13,8 +13,7 @@ import {
 } from "@akashnetwork/ui/components";
 import { copyTextToClipboard } from "@akashnetwork/ui/utils";
 import { saveAs } from "file-saver";
-import { Settings } from "iconoir-react";
-import { DownloadIcon, UploadIcon } from "lucide-react";
+import { DownloadIcon, Settings, UploadIcon } from "lucide-react";
 import { useSnackbar } from "notistack";
 
 import { useServices } from "@src/context/ServicesProvider";
@@ -108,7 +107,7 @@ export const SdlImportExport: FC<Props> = ({ sdl, deploymentName, canImport, onI
           <d.CustomNoDivTooltip title={MENU_TRIGGER_LABEL}>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="icon" className="rounded-full" aria-label={MENU_TRIGGER_LABEL}>
-                <Settings />
+                <Settings className="h-5 w-5" />
               </Button>
             </DropdownMenuTrigger>
           </d.CustomNoDivTooltip>

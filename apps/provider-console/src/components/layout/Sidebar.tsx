@@ -1,26 +1,11 @@
 "use client";
 import type { ReactNode } from "react";
 import React, { useState } from "react";
-import { Button, buttonVariants, Separator } from "@akashnetwork/ui/components";
+import { Button, buttonVariants, DiscordLogo, GithubLogo, Separator, XLogo, YoutubeLogo } from "@akashnetwork/ui/components";
 import Drawer from "@mui/material/Drawer";
 import { useTheme as useMuiTheme } from "@mui/material/styles";
 import useMediaQuery from "@mui/material/useMediaQuery";
-import {
-  ClipboardCheck,
-  Cloud,
-  DatabaseCheck,
-  Discord,
-  Dollar,
-  Github,
-  Key,
-  ListSelect,
-  Menu,
-  MenuScale,
-  Settings,
-  X as TwitterX,
-  Youtube
-} from "iconoir-react";
-import { Home, OpenInWindow } from "iconoir-react";
+import { ClipboardCheck, Cloud, Database, DollarSign, ExternalLink, House, KeyRound, ListChecks, Menu, PanelLeftClose, Settings } from "lucide-react";
 import getConfig from "next/config";
 import Image from "next/image";
 import Link from "next/link";
@@ -58,7 +43,7 @@ export const Sidebar: React.FC<Props> = ({ isMobileOpen, handleDrawerToggle, isN
       routes: [
         {
           title: "Home",
-          icon: props => <Home {...props} />,
+          icon: props => <House {...props} />,
           url: UrlService.home(),
           activeRoutes: [UrlService.home()]
         },
@@ -77,21 +62,21 @@ export const Sidebar: React.FC<Props> = ({ isMobileOpen, handleDrawerToggle, isN
         },
         {
           title: "Pricing",
-          icon: props => <Dollar {...props} />,
+          icon: props => <DollarSign {...props} />,
           url: UrlService.pricing(),
           activeRoutes: [UrlService.pricing()],
           disabled: false
         },
         {
           title: "Attributes",
-          icon: props => <ListSelect {...props} />,
+          icon: props => <ListChecks {...props} />,
           url: UrlService.attributes(),
           activeRoutes: [UrlService.attributes()],
           disabled: false
         },
         {
           title: "Persistent Storage",
-          icon: props => <DatabaseCheck {...props} />,
+          icon: props => <Database {...props} />,
           url: UrlService.persistentStorage(),
           activeRoutes: [UrlService.persistentStorage()],
           disabled: false
@@ -105,7 +90,7 @@ export const Sidebar: React.FC<Props> = ({ isMobileOpen, handleDrawerToggle, isN
         },
         {
           title: "API Key",
-          icon: props => <Key {...props} />,
+          icon: props => <KeyRound {...props} />,
           url: UrlService.apiKeys(),
           activeRoutes: [UrlService.apiKeys()],
           disabled: false
@@ -131,28 +116,28 @@ export const Sidebar: React.FC<Props> = ({ isMobileOpen, handleDrawerToggle, isN
         },
         {
           title: "Stats",
-          icon: props => <OpenInWindow {...props} />,
+          icon: props => <ExternalLink {...props} />,
           url: "https://stats.akash.network",
           activeRoutes: [],
           target: "_blank"
         },
         {
           title: "Price Compare",
-          icon: props => <OpenInWindow {...props} />,
+          icon: props => <ExternalLink {...props} />,
           url: "https://akash.network/about/pricing/custom/",
           activeRoutes: [],
           target: "_blank"
         },
         {
           title: "API",
-          icon: props => <OpenInWindow {...props} />,
+          icon: props => <ExternalLink {...props} />,
           url: "https://console-api.akash.network/v1/swagger",
           activeRoutes: [],
           target: "_blank"
         },
         {
           title: "Docs",
-          icon: props => <OpenInWindow {...props} />,
+          icon: props => <ExternalLink {...props} />,
           url: "https://akash.network/docs",
           activeRoutes: [],
           target: "_blank"
@@ -203,7 +188,7 @@ export const Sidebar: React.FC<Props> = ({ isMobileOpen, handleDrawerToggle, isN
                 href="https://discord.akash.network"
                 className={cn(buttonVariants({ variant: "text", size: "icon" }), "h-8 w-8")}
               >
-                <Discord className="h-5 w-5" />
+                <DiscordLogo className="h-5 w-5" />
                 <span className="sr-only">Discord</span>
               </Link>
 
@@ -213,7 +198,7 @@ export const Sidebar: React.FC<Props> = ({ isMobileOpen, handleDrawerToggle, isN
                 href="https://twitter.com/akashnet"
                 className={cn(buttonVariants({ variant: "text", size: "icon" }), "h-8 w-8")}
               >
-                <TwitterX className="h-5 w-5" />
+                <XLogo className="h-5 w-5" />
                 <span className="sr-only">Twitter</span>
               </Link>
 
@@ -223,7 +208,7 @@ export const Sidebar: React.FC<Props> = ({ isMobileOpen, handleDrawerToggle, isN
                 href="https://youtube.com/@AkashNetwork?si=cd2P3ZlAa4gNQw0X?sub_confirmation=1"
                 className={cn(buttonVariants({ variant: "text", size: "icon" }), "h-8 w-8")}
               >
-                <Youtube className="h-5 w-5" />
+                <YoutubeLogo className="h-5 w-5" />
                 <span className="sr-only">Youtube</span>
               </Link>
 
@@ -233,7 +218,7 @@ export const Sidebar: React.FC<Props> = ({ isMobileOpen, handleDrawerToggle, isN
                 href="https://github.com/akash-network/console"
                 className={cn(buttonVariants({ variant: "text", size: "icon" }), "h-8 w-8")}
               >
-                <Github className="h-5 w-5" />
+                <GithubLogo className="h-5 w-5" />
                 <span className="sr-only">GitHub</span>
               </Link>
 
@@ -251,7 +236,7 @@ export const Sidebar: React.FC<Props> = ({ isMobileOpen, handleDrawerToggle, isN
         {!smallScreen && (
           <div className="border-muted-foreground/20 flex items-center justify-between border-t px-3 py-1">
             <Button size="icon" variant="ghost" onClick={onToggleMenuClick}>
-              {isNavOpen ? <MenuScale /> : <Menu />}
+              {isNavOpen ? <PanelLeftClose className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
             </Button>
           </div>
         )}

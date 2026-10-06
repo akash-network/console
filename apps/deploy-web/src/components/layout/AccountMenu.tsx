@@ -10,7 +10,7 @@ import {
   DropdownMenuTrigger,
   Spinner
 } from "@akashnetwork/ui/components";
-import { GraphUp, Key, LogOut, MultiplePages, Settings, Star, User } from "iconoir-react";
+import { ChartLine, Files, KeyRound, LogOut, Settings, Star, User } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 import { useServices } from "@src/context/ServicesProvider";
@@ -44,7 +44,7 @@ export function AccountMenu({ dependencies: d = DEPENDENCIES, minimal = false }:
               <DropdownMenuTrigger asChild>
                 <Button size="icon" variant="outline" className="h-9 w-9 cursor-pointer bg-accent" aria-label="Account menu">
                   <Avatar className="h-9 w-9">
-                    <AvatarFallback className="bg-transparent">{username ? username[0].toUpperCase() : <User />}</AvatarFallback>
+                    <AvatarFallback className="bg-transparent">{username ? username[0].toUpperCase() : <User className="h-5 w-5" />}</AvatarFallback>
                   </Avatar>
                 </Button>
               </DropdownMenuTrigger>
@@ -59,7 +59,7 @@ export function AccountMenu({ dependencies: d = DEPENDENCIES, minimal = false }:
                               onClick={() => router.push(urlService.userProfile(username))}
                               icon={
                                 <Avatar className="h-4 w-4">
-                                  <AvatarFallback className="text-xs">{username ? username[0].toUpperCase() : <User />}</AvatarFallback>
+                                  <AvatarFallback className="text-xs">{username ? username[0].toUpperCase() : <User className="h-3.5 w-3.5" />}</AvatarFallback>
                                 </Avatar>
                               }
                             >
@@ -67,29 +67,29 @@ export function AccountMenu({ dependencies: d = DEPENDENCIES, minimal = false }:
                             </CustomDropdownLinkItem>
                           )}
                           <DropdownMenuSeparator />
-                          <CustomDropdownLinkItem onClick={() => router.push(urlService.userSettings())} icon={<Settings />}>
+                          <CustomDropdownLinkItem onClick={() => router.push(urlService.userSettings())} icon={<Settings className="h-4 w-4" />}>
                             Profile Settings
                           </CustomDropdownLinkItem>
-                          <CustomDropdownLinkItem onClick={() => router.push(urlService.userApiKeys())} icon={<Key />}>
+                          <CustomDropdownLinkItem onClick={() => router.push(urlService.userApiKeys())} icon={<KeyRound className="h-4 w-4" />}>
                             API Keys
                           </CustomDropdownLinkItem>
                           {username && (
-                            <CustomDropdownLinkItem onClick={() => router.push(urlService.userProfile(username))} icon={<MultiplePages />}>
+                            <CustomDropdownLinkItem onClick={() => router.push(urlService.userProfile(username))} icon={<Files className="h-4 w-4" />}>
                               Templates
                             </CustomDropdownLinkItem>
                           )}
-                          <CustomDropdownLinkItem onClick={() => router.push(urlService.userFavorites())} icon={<Star />}>
+                          <CustomDropdownLinkItem onClick={() => router.push(urlService.userFavorites())} icon={<Star className="h-4 w-4" />}>
                             Favorites
                           </CustomDropdownLinkItem>
                           {user?.userId && (
-                            <CustomDropdownLinkItem onClick={() => router.push(urlService.billing())} icon={<GraphUp />}>
+                            <CustomDropdownLinkItem onClick={() => router.push(urlService.billing())} icon={<ChartLine className="h-4 w-4" />}>
                               Billing & Usage
                             </CustomDropdownLinkItem>
                           )}
                           <DropdownMenuSeparator />
                         </>
                       )}
-                      <CustomDropdownLinkItem onClick={() => authService.logout()} icon={<LogOut />}>
+                      <CustomDropdownLinkItem onClick={() => authService.logout()} icon={<LogOut className="h-4 w-4" />}>
                         Logout
                       </CustomDropdownLinkItem>
                     </div>

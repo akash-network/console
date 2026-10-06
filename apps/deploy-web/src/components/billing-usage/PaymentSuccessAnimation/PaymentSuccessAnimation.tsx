@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { FormattedNumber } from "react-intl";
 import { AnimatePresence, motion } from "framer-motion";
-import { CheckCircle, Sparks } from "iconoir-react";
+import { CircleCheck, Sparkles } from "lucide-react";
 
 interface PaymentSuccessAnimationProps {
   show: boolean;
@@ -131,7 +131,7 @@ export function PaymentSuccessAnimation({ show, amount, bonusAmount, onComplete 
                 transition={{ duration: 2, repeat: Number.POSITIVE_INFINITY, ease: "easeInOut" }}
                 className="rounded-full bg-green-500 p-4 text-white shadow-lg shadow-green-500/30"
               >
-                <CheckCircle className="h-16 w-16" strokeWidth={1.5} />
+                <CircleCheck className="h-16 w-16" strokeWidth={1.5} />
               </motion.div>
 
               {/* Sparkle effects around the icon */}
@@ -141,7 +141,7 @@ export function PaymentSuccessAnimation({ show, amount, bonusAmount, onComplete 
                 transition={{ delay: 0.5, duration: 1.5, repeat: Number.POSITIVE_INFINITY }}
                 className="absolute -right-2 -top-2"
               >
-                <Sparks className="h-6 w-6 text-yellow-400" />
+                <Sparkles className="h-6 w-6 text-yellow-400" />
               </motion.div>
 
               <motion.div
@@ -150,7 +150,7 @@ export function PaymentSuccessAnimation({ show, amount, bonusAmount, onComplete 
                 transition={{ delay: 1, duration: 1.5, repeat: Number.POSITIVE_INFINITY }}
                 className="absolute -bottom-2 -left-2"
               >
-                <Sparks className="h-4 w-4 text-blue-400" />
+                <Sparkles className="h-4 w-4 text-blue-400" />
               </motion.div>
             </motion.div>
 

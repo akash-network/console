@@ -2,7 +2,7 @@
 
 import { Badge, Button } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
-import { ArrowRight, Lock } from "iconoir-react";
+import { ArrowRight, Lock } from "lucide-react";
 import Image from "next/image";
 
 type DeploymentTemplatePickerCard = {

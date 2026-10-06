@@ -17,7 +17,7 @@ import {
   SelectValue,
   Slider
 } from "@akashnetwork/ui/components";
-import { InfoCircle } from "iconoir-react";
+import { Info } from "lucide-react";
 
 import type { SdlBuilderFormValuesType } from "@src/types";
 import { memoryUnits } from "@src/utils/akash/units";
@@ -55,7 +55,7 @@ export const MemoryFormControl: React.FunctionComponent<Props> = ({ control, ser
                     </>
                   }
                 >
-                  <InfoCircle className="ml-2 text-xs text-muted-foreground" />
+                  <Info className="ml-2 h-4 w-4 text-muted-foreground" />
                 </CustomTooltip>
               </div>
 

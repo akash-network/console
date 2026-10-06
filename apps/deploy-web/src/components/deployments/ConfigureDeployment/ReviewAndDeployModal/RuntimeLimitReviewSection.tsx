@@ -1,6 +1,6 @@
 import type { ChangeEvent, FC } from "react";
 import { CustomTooltip, Input, Switch } from "@akashnetwork/ui/components";
-import { InfoCircle } from "iconoir-react";
+import { Info } from "lucide-react";
 
 import { usePricing } from "@src/hooks/usePricing/usePricing";
 import { API_BLOCKS_PER_HOUR } from "@src/utils/deploymentUtils";
@@ -52,7 +52,7 @@ export const RuntimeLimitReviewSection: FC<Props> = ({ isLimited, onLimitedChang
             className="max-w-[280px] p-3 font-sans text-xs normal-case text-muted-foreground"
             title="Closes this deployment automatically after the set number of hours, counted from when it starts. Unused funds are returned to your balance."
           >
-            <InfoCircle className="h-3.5 w-3.5 text-muted-foreground" />
+            <Info className="h-3.5 w-3.5 text-muted-foreground" />
           </CustomTooltip>
         </div>
         <Switch checked={isLimited} onCheckedChange={toggleRuntimeLimit} aria-label="Runtime limit" />

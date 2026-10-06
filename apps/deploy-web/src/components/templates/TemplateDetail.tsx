@@ -3,9 +3,8 @@
 import type { FC, MouseEvent, ReactNode } from "react";
 import { useId } from "react";
 import type { PluggableList } from "react-markdown/lib/react-markdown";
-import { Avatar, AvatarFallback, AvatarImage, buttonVariants, Tabs, TabsContent, TabsList, TabsTrigger } from "@akashnetwork/ui/components";
+import { Avatar, AvatarFallback, AvatarImage, buttonVariants, GithubLogo, Tabs, TabsContent, TabsList, TabsTrigger } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
-import { Github } from "iconoir-react";
 import type { LucideIcon } from "lucide-react";
 import { ArrowLeft, ArrowRight, BookOpen, FileCode, FileText, LayoutTemplate } from "lucide-react";
 import Link from "next/link";
@@ -112,7 +111,7 @@ export const TemplateDetail: FC<TemplateDetailProps> = ({ template, dependencies
                   rel="noopener noreferrer"
                   className="ml-auto inline-flex min-w-0 items-center gap-1.5 font-mono text-[11px] text-muted-foreground transition-colors hover:text-foreground"
                 >
-                  <Github className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                  <GithubLogo className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
                   <span className="sr-only">View the source on GitHub: </span>
                   <span className="truncate">{repository}</span>
                 </a>

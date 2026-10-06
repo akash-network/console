@@ -3,7 +3,7 @@ import React, { useMemo, useState } from "react";
 import { FormattedNumber } from "react-intl";
 import { Button, Spinner } from "@akashnetwork/ui/components";
 import { Parser } from "@json2csv/plainjs";
-import { Download } from "iconoir-react";
+import { Download } from "lucide-react";
 import dynamic from "next/dynamic";
 
 import { DiffNumber } from "@/components/DiffNumber";
@@ -95,7 +95,7 @@ export default function GraphContainer({ snapshot }: IGraphProps) {
           {snapshotData && (
             <div className="mt-8 text-right">
               <Button variant="outline" color="secondary" onClick={onDownloadCSVClick}>
-                <Download />
+                <Download className="h-5 w-5" />
                 &nbsp;Download .CSV
               </Button>
             </div>

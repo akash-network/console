@@ -1,7 +1,7 @@
 "use client";
 import React from "react";
 import { Button, Card, CardContent, CardFooter, CardHeader, CardTitle, CustomTooltip } from "@akashnetwork/ui/components";
-import { GraphUp, HelpCircle } from "iconoir-react";
+import { ChartLine, CircleQuestionMark } from "lucide-react";
 
 import { DiffPercentageChip } from "@/components/DiffPercentageChip";
 import { Link } from "@/components/Link/Link";
@@ -25,7 +25,7 @@ export const StatsCard: React.FunctionComponent<IStatsCardProps> = ({ number, su
         <CardTitle className="text-sm font-medium leading-none text-muted-foreground">{text}</CardTitle>
         {tooltip && (
           <CustomTooltip title={tooltip}>
-            <HelpCircle className="ml-2 text-xs text-muted-foreground" />
+            <CircleQuestionMark className="ml-2 h-4 w-4 text-muted-foreground" />
           </CustomTooltip>
         )}
       </CardHeader>
@@ -58,7 +58,7 @@ export const StatsCard: React.FunctionComponent<IStatsCardProps> = ({ number, su
               variant="ghost"
             >
               <span className="mr-2">Graph</span>
-              <GraphUp className="text-xs" />
+              <ChartLine className="h-4 w-4" />
             </Button>
           </Link>
 

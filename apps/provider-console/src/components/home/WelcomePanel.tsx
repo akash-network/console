@@ -2,7 +2,7 @@
 import React, { useState } from "react";
 import { Avatar, AvatarFallback, Button, Card, CardContent, Collapsible, CollapsibleContent, CollapsibleTrigger } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
-import { Cloud, Learning, NavArrowDown, Rocket } from "iconoir-react";
+import { ChevronDown, Cloud, GraduationCap, Rocket } from "lucide-react";
 import Link from "next/link";
 
 import { UrlService } from "@src/utils/urlUtils";
@@ -15,7 +15,7 @@ export const WelcomePanel: React.FC = () => {
         <h2 className="text-3xl">Welcome to Akash Console!</h2>
         <CollapsibleTrigger asChild>
           <Button size="icon" variant="ghost" className="!m-0 rounded-full">
-            <NavArrowDown fontSize="1rem" className={cn("transition-all duration-100", { ["rotate-180"]: expanded })} />
+            <ChevronDown className={cn("transition-all duration-100", { ["rotate-180"]: expanded })} />
           </Button>
         </CollapsibleTrigger>
       </div>
@@ -55,7 +55,7 @@ export const WelcomePanel: React.FC = () => {
               <li className="flex items-center">
                 <Avatar className="h-12 w-12 rounded-md">
                   <AvatarFallback className="rounded-md">
-                    <Learning />
+                    <GraduationCap />
                   </AvatarFallback>
                 </Avatar>
 

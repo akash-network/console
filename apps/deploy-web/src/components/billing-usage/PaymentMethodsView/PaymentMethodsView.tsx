@@ -1,8 +1,7 @@
 import React from "react";
 import type { PaymentMethod } from "@akashnetwork/http-sdk";
 import { Alert, AlertDescription, AlertTitle, Button, Card, Skeleton } from "@akashnetwork/ui/components";
-import { CreditCard } from "iconoir-react";
-import { Plus, X } from "lucide-react";
+import { CreditCard, Plus, X } from "lucide-react";
 
 import { useBillingActions } from "@src/components/billing-usage/BillingActionsProvider/BillingActionsProvider";
 import { SettingsSection } from "@src/components/layout/SettingsSection/SettingsSection";

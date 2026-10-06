@@ -1,4 +1,4 @@
-import { ArrowLeft } from "iconoir-react";
+import { ArrowLeft } from "lucide-react";
 
 import { Link } from "@/components/Link/Link";
 import { PageContainer } from "@/components/PageContainer";
@@ -14,7 +14,7 @@ export default function FourOhFour() {
 
         <div className="pt-8">
           <Link href={UrlService.home()} className="inline-flex items-center text-2xl">
-            <ArrowLeft className="mr-4 text-lg" />
+            <ArrowLeft className="mr-4 h-7 w-7" />
             Go to homepage
           </Link>
         </div>
