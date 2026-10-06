@@ -42,6 +42,20 @@ describe(useFavoriteProviders.name, () => {
     await waitFor(() => expect(result.current.favoriteProviders).toEqual(["akash1kept", "akash1browser"]));
   });
 
+  it("keeps the moved favorites when the account's list, read before the move, answers after it", async () => {
+    const { result, browserFavoriteProviders, answerList, cachedFavorites } = setup({
+      accountFavorites: [],
+      browserFavorites: ["akash1browser"],
+      isListAnsweredByHand: true
+    });
+    await waitFor(() => expect(result.current.favoriteProviders).toEqual(["akash1browser"]));
+
+    await act(async () => answerList(0, []));
+
+    expect(cachedFavorites()).toEqual(["akash1browser"]);
+    expect(browserFavoriteProviders.forget).toHaveBeenCalledTimes(1);
+  });
+
   it("moves the browser's favorites once when the effect runs twice", async () => {
     const { createFavoriteProviders, browserFavoriteProviders } = setup({ accountFavorites: [], browserFavorites: ["akash1browser"], isStrict: true });
 
@@ -158,7 +172,10 @@ describe(useFavoriteProviders.name, () => {
     const pendingAnswers: ((answer: Answer) => void)[] = [];
     const answeredByHand = () => new Promise<Answer>(resolve => pendingAnswers.push(resolve));
 
-    const listFavoriteProviders = vi.fn(() => (input.isListAnsweredByHand ? new Promise<Answer>(() => undefined) : Promise.resolve(answerOf())));
+    const pendingListAnswers: ((answer: Answer) => void)[] = [];
+    const listFavoriteProviders = vi.fn(() =>
+      input.isListAnsweredByHand ? new Promise<Answer>(resolve => pendingListAnswers.push(resolve)) : Promise.resolve(answerOf())
+    );
     const createFavoriteProviders = vi.fn(({ data }: { data: { providerAddresses: string[] } }) => {
       if (input.createFailure) return Promise.reject(input.createFailure);
       if (input.isAnsweredByHand) return answeredByHand();
@@ -185,7 +202,19 @@ describe(useFavoriteProviders.name, () => {
       ...(input.isStrict ? { wrapper: ({ children }) => <StrictMode>{children}</StrictMode> } : {})
     });
     const answer = (index: number, providerAddresses: string[]) => pendingAnswers[index]({ data: { providerAddresses } });
+    const answerList = (index: number, providerAddresses: string[]) => pendingListAnswers[index]({ data: { providerAddresses } });
+    const cachedFavorites = () => queryClient.getQueryData<Answer>(api.v1.listFavoriteProviders.getKey())?.data.providerAddresses;
 
-    return { ...view, listFavoriteProviders, createFavoriteProviders, deleteFavoriteProvider, browserFavoriteProviders, answer, queryClient };
+    return {
+      ...view,
+      listFavoriteProviders,
+      createFavoriteProviders,
+      deleteFavoriteProvider,
+      browserFavoriteProviders,
+      answer,
+      answerList,
+      cachedFavorites,
+      queryClient
+    };
   }
 });

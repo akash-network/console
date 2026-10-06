@@ -26,9 +26,10 @@ export function useFavoriteProviders(dependencies = DEPENDENCIES) {
   const favoriteProviders = data ?? NO_FAVORITES;
   const hasStartedMoveRef = useRef(false);
 
-  /** An answer would hide a change still queued behind it until that one lands, so only the last change's answer is taken. */
+  /** Takes only the last queued change's answer, since an earlier one would hide the changes behind it, and drops any read it would otherwise land under. */
   const takeTheAccountList = useCallback(
-    (response: FavoriteProvidersResponse) => {
+    async (response: FavoriteProvidersResponse) => {
+      await queryClient.cancelQueries({ queryKey });
       const changesNotAnswered = queryClient.isMutating({ predicate: mutation => mutation.options.scope?.id === FAVORITES_CHANGES.id });
       if (changesNotAnswered <= 1) queryClient.setQueryData(queryKey, response);
     },
@@ -51,7 +52,7 @@ export function useFavoriteProviders(dependencies = DEPENDENCIES) {
     scope: FAVORITES_CHANGES,
     onSuccess: response => {
       browserFavoriteProviders.forget();
-      takeTheAccountList(response);
+      return takeTheAccountList(response);
     },
     onError: rereadTheAccountList
   });
