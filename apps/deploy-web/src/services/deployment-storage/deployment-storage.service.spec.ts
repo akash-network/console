@@ -1,5 +1,5 @@
 import type { NetworkStore } from "@akashnetwork/network-store";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import { toBase64 } from "@src/utils/encoding";
@@ -256,8 +256,46 @@ describe(DeploymentStorageService.name, () => {
     });
   });
 
-  function setup() {
-    const storage = mock<Storage>();
+  describe("dseqsOf", () => {
+    const copyKey = (address: string, copyDseq: string) => `testnet/${address}/deployments/${copyDseq}.data`;
+
+    it("lists the deployments this browser holds a copy of for the wallet", () => {
+      const { service } = setup({
+        keys: [
+          copyKey(walletAddress, "100"),
+          "theme",
+          copyKey(walletAddress, "200"),
+          copyKey("akash1other", "300"),
+          `mainnet/${walletAddress}/deployments/400.data`
+        ]
+      });
+
+      expect(service.dseqsOf(walletAddress)).toEqual(["100", "200"]);
+    });
+
+    it("leaves out a wallet whose address only starts like this one", () => {
+      const { service } = setup({ keys: [copyKey(`${walletAddress}ff`, "100")] });
+
+      expect(service.dseqsOf(walletAddress)).toEqual([]);
+    });
+
+    it("leaves out a key with no deployment in it", () => {
+      const { service } = setup({ keys: [copyKey(walletAddress, ""), `testnet/${walletAddress}/deployments/100.json`] });
+
+      expect(service.dseqsOf(walletAddress)).toEqual([]);
+    });
+
+    it("lists nothing without a wallet", () => {
+      const { service } = setup({ keys: [copyKey(walletAddress, "100")] });
+
+      expect(service.dseqsOf(null)).toEqual([]);
+      expect(service.dseqsOf("")).toEqual([]);
+    });
+  });
+
+  function setup(input: { keys?: string[] } = {}) {
+    const keys = input.keys ?? [];
+    const storage = mock<Storage>({ length: keys.length, key: vi.fn((index: number) => keys[index] ?? null) });
     const networkId = "testnet";
     const networkStore = mock<NetworkStore>({
       selectedNetworkId: networkId

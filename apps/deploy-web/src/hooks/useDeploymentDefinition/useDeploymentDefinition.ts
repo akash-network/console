@@ -57,7 +57,7 @@ function useManifestVersionOf(sdl: string | undefined): { version: string | null
 }
 
 /** A copy this browser cannot parse or hash is treated as one the chain does not run, rather than reported. */
-async function manifestVersionOrNull(sdl: string): Promise<string | null> {
+export async function manifestVersionOrNull(sdl: string): Promise<string | null> {
   try {
     return await deploymentData.getManifestVersion(yaml.load(sdl));
   } catch {

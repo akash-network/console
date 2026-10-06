@@ -119,6 +119,7 @@ export type AnalyticsEvent =
   | "add_credits_purchased"
   | "add_credits_cancelled"
   | "configure_page_viewed"
+  | "deployment_copies_checked"
   | "configure_preset_selected"
   | "configure_gpu_type_selected"
   | "configure_gpu_count_changed"
