@@ -37,9 +37,32 @@ jobs:
     timeout-minutes: 75
     env:
       BASE_URL: ${{ inputs.environment == 'staging' && vars.CONSOLE_WEB_BETA_URL || vars.CONSOLE_WEB_URL }}
+      RELEASE_TAG: ${{ inputs.app }}/v${{ inputs.appVersion }}
     steps:
+      # Test with the deployed release's own suite: the dispatch ref is main's tip, which can already expect newer behavior.
+      # Images built by dispatching reusable-build-image.yml directly have no release tag, so they keep the dispatch ref.
+      - name: Resolve the ref of the deployed release
+        id: tested-ref
+        run: | # shell
+          lookup_status=0
+          git ls-remote --exit-code "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY" "refs/tags/$RELEASE_TAG" > /dev/null || lookup_status=$?
+          case "$lookup_status" in
+            0)
+              echo "ref=$RELEASE_TAG" >> "$GITHUB_OUTPUT"
+              ;;
+            2)
+              echo "::warning::No $RELEASE_TAG tag found, testing with the dispatch ref $GITHUB_SHA instead"
+              echo "ref=$GITHUB_SHA" >> "$GITHUB_OUTPUT"
+              ;;
+            *)
+              echo "::error::Could not look up the $RELEASE_TAG tag (git ls-remote exited with $lookup_status)"
+              exit "$lookup_status"
+              ;;
+          esac
+
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
+          ref: ${{ steps.tested-ref.outputs.ref }}
           persist-credentials: false
 
       - if: ${{ inputs.app == 'console-api' }}
@@ -78,7 +101,7 @@ jobs:
       - if: ${{ inputs.app == 'console-web' }}
         uses: ./.github/actions/console-web-ui-testing
         with:
-          ref: console-web/v${{ inputs.appVersion }}
+          ref: ${{ steps.tested-ref.outputs.ref }}
           url: ${{ env.BASE_URL }}
           slack-webhook-url: ${{ secrets.FAILED_E2E_TESTS_SLACK_WEBHOOK_URL }}
           gh-user-to-slack-user: ${{ vars.GH_USER_TO_SLACK_USER }}
