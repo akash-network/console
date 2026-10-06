@@ -45,8 +45,19 @@ describe(useConfigureDraft.name, () => {
       expect(getConfigureDraft).not.toHaveBeenCalled();
     });
 
+    it("stays loaded once the minted id lands in the URL, since the account has nothing under it", async () => {
+      const { result, replace, getConfigureDraft, followReplacedUrl } = setup({ mintedDraftId: "minted" });
+      await waitFor(() => expect(replace).toHaveBeenCalled());
+
+      act(() => followReplacedUrl());
+
+      expect(result.current.isLoading).toBe(false);
+      expect(result.current.draftId).toBe("minted");
+      expect(getConfigureDraft).not.toHaveBeenCalled();
+    });
+
     it("continues under a new id when the account cannot answer for the URL's draft, so that draft is never overwritten", async () => {
-      const { result, replace, updateConfigureDraft } = setup({
+      const { result, replace, updateConfigureDraft, followReplacedUrl } = setup({
         intent: { draftId: "unreadable" },
         mintedDraftId: "fresh",
         failure: new ApiError(500, undefined, "GET /v1/configure-drafts/unreadable → 500")
@@ -55,6 +66,8 @@ describe(useConfigureDraft.name, () => {
       await waitFor(() => expect(result.current.draftId).toBe("fresh"));
       expect(result.current.persistedSdl).toBeUndefined();
       await waitFor(() => expect(replace).toHaveBeenCalledWith(expect.stringContaining("draftId=fresh"), undefined, { shallow: true }));
+      act(() => followReplacedUrl());
+      expect(result.current.isLoading).toBe(false);
 
       act(() => result.current.save("typed: sdl"));
       act(() => vi.advanceTimersByTime(SAVE_DELAY_MS));
@@ -399,12 +412,26 @@ describe(useConfigureDraft.name, () => {
       expect(next.result.current.persistedSdl).toBeUndefined();
     });
 
-    it("lets the next screen to open the draft read it again from the account", async () => {
-      const { result, queryClient, api } = await setupResumed();
+    it("leaves no copy of the discarded draft for the next screen to open", async () => {
+      const { result, deleteConfigureDraft, cachedAccountDraft } = await setupResumed();
 
       act(() => result.current.clear());
 
-      await waitFor(() => expect(queryClient.getQueryState(api.v1.getConfigureDraft.getKey({ draftId: "resumed" }))?.isInvalidated).toBe(true));
+      await waitFor(() => expect(deleteConfigureDraft).toHaveBeenCalled());
+      await waitFor(() => expect(cachedAccountDraft("resumed")).toBeNull());
+    });
+
+    it("leaves no copy of the discarded draft behind when a save lands during the discard", async () => {
+      const { result, updateConfigureDraft, deleteConfigureDraft, answerSave, cachedAccountDraft } = await setupResumed({ isSaveAnsweredByHand: true });
+      act(() => result.current.save("typed: sdl"));
+      await act(() => vi.advanceTimersByTimeAsync(SAVE_DELAY_MS));
+      await waitFor(() => expect(updateConfigureDraft).toHaveBeenCalledTimes(1));
+      act(() => result.current.clear());
+
+      act(() => answerSave(0));
+
+      await waitFor(() => expect(deleteConfigureDraft).toHaveBeenCalled());
+      await waitFor(() => expect(cachedAccountDraft("resumed")).toBeNull());
     });
   });
 
@@ -462,13 +489,31 @@ describe(useConfigureDraft.name, () => {
       useQueryClient: () => queryClient,
       mintDraftId: () => input.mintedDraftId ?? "minted-id"
     };
-    const intent: DeploymentIntent = { sdlStrategy: "edit", bidStrategy: "select", vm: false, ...input.intent };
+    let intent: DeploymentIntent = { sdlStrategy: "edit", bidStrategy: "select", vm: false, ...input.intent };
 
     const view = setupQuery(() => useConfigureDraft(intent, dependencies), { services: { api: () => api, queryClient: () => queryClient } });
     const legacyEntry = (draftId: string) => window.localStorage.getItem(`${LEGACY_DRAFT_KEY_PREFIX}${draftId}`);
+    const cachedAccountDraft = (draftId: string) => queryClient.getQueryData(api.v1.getConfigureDraft.getKey({ draftId }));
 
     const answerSave = (index: number) => pendingSaves[index]();
+    const followReplacedUrl = () => {
+      const [url] = replace.mock.lastCall as [string];
+      intent = { ...intent, draftId: new URL(url, "http://localhost").searchParams.get("draftId") ?? undefined };
+      view.rerender();
+    };
 
-    return { ...view, api, queryClient, replace, getConfigureDraft, updateConfigureDraft, deleteConfigureDraft, legacyEntry, answerSave };
+    return {
+      ...view,
+      api,
+      queryClient,
+      replace,
+      getConfigureDraft,
+      updateConfigureDraft,
+      deleteConfigureDraft,
+      legacyEntry,
+      cachedAccountDraft,
+      answerSave,
+      followReplacedUrl
+    };
   }
 });

@@ -115,16 +115,22 @@ export function useConfigureDraft(intent: DeploymentIntent, dependencies: typeof
   const stored = handedOver ?? accountDraft.data ?? legacyDraft;
   const isLoading = !!intent.draftId && !handedOver && accountDraft.isLoading;
 
+  const recordNoAccountDraft = useCallback(
+    (id: string) => queryClient.setQueryData(api.v1.getConfigureDraft.getKey({ draftId: id }), null),
+    [queryClient, api]
+  );
+
   const persistedToUrlRef = useRef<string>();
   useEffect(
-    function persistDraftIdInUrl() {
+    function persistMintedDraftIdInUrl() {
       if (isLoading || draftId === intent.draftId || persistedToUrlRef.current === draftId) {
         return;
       }
       persistedToUrlRef.current = draftId;
+      recordNoAccountDraft(draftId);
       router.replace(buildConfigureUrl({ ...intent, draftId }, intent.dseq, intent.bidStrategy), undefined, { shallow: true });
     },
-    [intent, draftId, isLoading, router]
+    [intent, draftId, isLoading, router, recordNoAccountDraft]
   );
 
   const draftChanges = useMemo(() => ({ id: `configure-draft:${draftId}` }), [draftId]);
@@ -138,7 +144,11 @@ export function useConfigureDraft(intent: DeploymentIntent, dependencies: typeof
       forgetLegacyDraft(storage, savedDraftId);
     }
   });
-  const { mutate: discardDraft } = api.v1.deleteConfigureDraft.useMutation({ scope: draftChanges, meta: SKIP_REPORTING_BELOW_SERVER_ERROR });
+  const { mutate: discardDraft } = api.v1.deleteConfigureDraft.useMutation({
+    scope: draftChanges,
+    meta: SKIP_REPORTING_BELOW_SERVER_ERROR,
+    onSuccess: (_response, { draftId: discardedDraftId }) => recordNoAccountDraft(discardedDraftId)
+  });
 
   const pendingSaveRef = useRef<ReturnType<typeof setTimeout>>();
   const pendingContentRef = useRef<ConfigureDraftContent>();
@@ -201,8 +211,7 @@ export function useConfigureDraft(intent: DeploymentIntent, dependencies: typeof
     handedOverDrafts.delete(draftId);
     forgetLegacyDraft(storage, draftId);
     discardDraft({ draftId });
-    void queryClient.invalidateQueries({ queryKey: api.v1.getConfigureDraft.getKey({ draftId }), refetchType: "none" });
-  }, [draftId, storage, discardDraft, queryClient, api]);
+  }, [draftId, storage, discardDraft]);
 
   return useMemo<ConfigureDraft>(
     () => ({
