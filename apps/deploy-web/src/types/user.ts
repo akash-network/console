@@ -16,6 +16,7 @@ export interface UserSettings {
   emailVerified?: boolean;
   onboardingSkippedAt?: string | null;
   fairUsePolicyAcceptedAt?: string | null;
+  productUpdatesUnsubscribedAt?: string | null;
 }
 
 export type CustomUserProfile = UserProfile & UserSettings;

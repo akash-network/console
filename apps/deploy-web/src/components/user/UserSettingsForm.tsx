@@ -23,7 +23,7 @@ const formSchema = z.object({
     .min(3, "Username must be at least 3 characters long")
     .max(40, "Username must be at most 40 characters long")
     .regex(/^[a-zA-Z0-9_-]*$/, "Username can only contain letters, numbers, dashes and underscores"),
-  subscribedToNewsletter: z.boolean().optional(),
+  subscribedToProductUpdates: z.boolean().optional(),
   bio: z.string().optional(),
   youtubeUsername: z.string().optional(),
   twitterUsername: z.string().optional(),
@@ -48,7 +48,7 @@ export const UserSettingsForm: FC<{ user: CustomUserProfile; dependencies?: type
     resolver: zodResolver(formSchema),
     values: {
       username: user.username ?? "",
-      subscribedToNewsletter: user.subscribedToNewsletter,
+      subscribedToProductUpdates: !user.productUpdatesUnsubscribedAt,
       bio: user.bio ?? "",
       youtubeUsername: user.youtubeUsername ?? "",
       twitterUsername: user.twitterUsername ?? "",
@@ -140,11 +140,11 @@ export const UserSettingsForm: FC<{ user: CustomUserProfile; dependencies?: type
                   }
                 />
                 <LabelValue
-                  label="Subscribed to newsletter"
+                  label="Product update emails"
                   value={
                     <div className="flex items-center">
                       <Controller
-                        name="subscribedToNewsletter"
+                        name="subscribedToProductUpdates"
                         control={control}
                         render={({ field }) => <Switch checked={field.value} onCheckedChange={field.onChange} />}
                       />

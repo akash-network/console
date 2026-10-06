@@ -13,9 +13,9 @@ import { MockComponents } from "@tests/unit/mocks";
 import { TestContainerProvider } from "@tests/unit/TestContainerProvider";
 
 describe(UserSettingsForm.name, () => {
-  it("saves the newsletter preference when the profile has no bio or social links", async () => {
+  it("saves settings when the profile has no bio or social links", async () => {
     const { saveSettings } = setup({
-      user: { bio: null, youtubeUsername: null, twitterUsername: null, githubUsername: null }
+      user: { bio: null, youtubeUsername: null, twitterUsername: null, githubUsername: null, productUpdatesUnsubscribedAt: null }
     });
 
     await userEvent.click(screen.getByRole("switch"));
@@ -24,7 +24,7 @@ describe(UserSettingsForm.name, () => {
     await waitFor(() =>
       expect(saveSettings).toHaveBeenCalledWith({
         username: "alice",
-        subscribedToNewsletter: true,
+        subscribedToProductUpdates: false,
         bio: "",
         youtubeUsername: "",
         twitterUsername: "",
@@ -34,9 +34,15 @@ describe(UserSettingsForm.name, () => {
     expect(screen.queryByText("Expected string, received null")).not.toBeInTheDocument();
   });
 
-  it("keeps the saved bio and social links when saving the newsletter preference", async () => {
+  it("keeps the saved bio and social links when opting back in to product update emails", async () => {
     const { saveSettings } = setup({
-      user: { bio: "Builds on Akash", youtubeUsername: "alice-yt", twitterUsername: "alice-x", githubUsername: "alice-gh" }
+      user: {
+        bio: "Builds on Akash",
+        youtubeUsername: "alice-yt",
+        twitterUsername: "alice-x",
+        githubUsername: "alice-gh",
+        productUpdatesUnsubscribedAt: "2026-10-05T18:31:47.000Z"
+      }
     });
 
     await userEvent.click(screen.getByRole("switch"));
@@ -45,13 +51,34 @@ describe(UserSettingsForm.name, () => {
     await waitFor(() =>
       expect(saveSettings).toHaveBeenCalledWith({
         username: "alice",
-        subscribedToNewsletter: true,
+        subscribedToProductUpdates: true,
         bio: "Builds on Akash",
         youtubeUsername: "alice-yt",
         twitterUsername: "alice-x",
         githubUsername: "alice-gh"
       })
     );
+  });
+
+  it("shows product update emails as on when the user has not opted out", () => {
+    setup({ user: { productUpdatesUnsubscribedAt: null } });
+
+    expect(screen.getByText("Product update emails")).toBeInTheDocument();
+    expect(screen.getByRole("switch")).toBeChecked();
+  });
+
+  it("shows product update emails as off when the user has opted out", () => {
+    setup({ user: { productUpdatesUnsubscribedAt: "2026-10-05T18:31:47.000Z" } });
+
+    expect(screen.getByRole("switch")).not.toBeChecked();
+  });
+
+  it("follows an opt-out made elsewhere once the profile refreshes", () => {
+    const { refreshUser } = setup({ user: { productUpdatesUnsubscribedAt: null } });
+
+    refreshUser({ productUpdatesUnsubscribedAt: "2026-10-05T18:31:47.000Z" });
+
+    expect(screen.getByRole("switch")).not.toBeChecked();
   });
 
   it("asks for a username when the profile has none", async () => {
@@ -73,23 +100,27 @@ describe(UserSettingsForm.name, () => {
   });
 
   function setup(input: { user: Partial<CustomUserProfile> }) {
-    const user = buildUser({ username: "alice", subscribedToNewsletter: false, ...input.user });
+    const user = buildUser({ username: "alice", ...input.user });
     const saveSettings = vi.fn();
     const useSaveSettings: typeof DEPENDENCIES.useSaveSettings = () =>
       mock<ReturnType<typeof DEPENDENCIES.useSaveSettings>>({ mutate: saveSettings, isPending: false });
     const useCustomUser: typeof DEPENDENCIES.useCustomUser = () => mock<ReturnType<typeof DEPENDENCIES.useCustomUser>>({ isLoading: false });
-
-    render(
-      <TestContainerProvider
-        services={{
-          consoleApiHttpClient: () => mock<HttpClient>(),
-          analyticsService: () => mock<AnalyticsService>()
-        }}
-      >
-        <UserSettingsForm user={user} dependencies={MockComponents(DEPENDENCIES, { useSaveSettings, useCustomUser })} />
+    const dependencies = MockComponents(DEPENDENCIES, { useSaveSettings, useCustomUser });
+    const services = {
+      consoleApiHttpClient: () => mock<HttpClient>(),
+      analyticsService: () => mock<AnalyticsService>()
+    };
+    const renderForm = (profile: CustomUserProfile) => (
+      <TestContainerProvider services={services}>
+        <UserSettingsForm user={profile} dependencies={dependencies} />
       </TestContainerProvider>
     );
 
-    return { saveSettings };
+    const { rerender } = render(renderForm(user));
+
+    return {
+      saveSettings,
+      refreshUser: (changes: Partial<CustomUserProfile>) => rerender(renderForm({ ...user, ...changes }))
+    };
   }
 });
