@@ -31,6 +31,7 @@ export interface DeploymentsCollectionProps {
   isLoading?: boolean;
   isSelectable?: boolean;
   selectedIds?: string[];
+  closingDseqs?: ReadonlySet<string>;
   onSelect?: (input: { id: string; isShiftPressed: boolean }) => void;
   onDeploymentClosed?: () => void;
   dependencies?: typeof DEPENDENCIES;
@@ -43,6 +44,7 @@ export const DeploymentsCollection: FC<DeploymentsCollectionProps> = ({
   isLoading,
   isSelectable,
   selectedIds,
+  closingDseqs,
   onSelect,
   onDeploymentClosed,
   dependencies: d = DEPENDENCIES
@@ -52,6 +54,7 @@ export const DeploymentsCollection: FC<DeploymentsCollectionProps> = ({
     providers,
     isSelectable,
     isSelected: selectedIds?.includes(deployment.dseq) ?? false,
+    isClosing: closingDseqs?.has(deployment.dseq) ?? false,
     onSelect,
     onDeploymentClosed
   });

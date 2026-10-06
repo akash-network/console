@@ -68,6 +68,18 @@ describe("DeploymentActionsMenu", () => {
     expect(screen.queryByRole("menuitem", { name: /Close/ })).not.toBeInTheDocument();
   });
 
+  it("shows close as already under way while the deployment's close runs in the background", async () => {
+    const { confirmCloseDeployment } = setup({ isClosing: true });
+
+    await openMenu();
+    const closing = screen.getByRole("menuitem", { name: /Closing…/ });
+    await userEvent.click(closing);
+
+    expect(closing).toHaveAttribute("aria-disabled", "true");
+    expect(screen.queryByRole("menuitem", { name: /^Close$/ })).not.toBeInTheDocument();
+    expect(confirmCloseDeployment).not.toHaveBeenCalled();
+  });
+
   it("confirms against the deployment the reader opened, and no other", async () => {
     const { confirmCloseDeployment } = setup({});
 
@@ -162,6 +174,7 @@ describe("DeploymentActionsMenu", () => {
     closeReason?: DeploymentCloseReasonInput | null;
     broadcastResponse?: unknown;
     onDeploymentClosed?: undefined;
+    isClosing?: boolean;
   }) {
     const changeDeploymentName = vi.fn();
     const signAndBroadcastTx = vi.fn().mockResolvedValue("broadcastResponse" in input ? input.broadcastResponse : { transactionHash: "0x1" });
@@ -184,6 +197,7 @@ describe("DeploymentActionsMenu", () => {
         <DeploymentActionsMenu
           deployment={mock<DeploymentDto>({ dseq: "100", state: input.state ?? "active" })}
           onDeploymentClosed={"onDeploymentClosed" in input ? input.onDeploymentClosed : onDeploymentClosed}
+          isClosing={input.isClosing}
           dependencies={MockComponents(DEPENDENCIES, { useLocalNotes, useWallet, useDeploymentDefinition, useCloseDeploymentConfirm, useRedeploy })}
         />
       </TestContainerProvider>

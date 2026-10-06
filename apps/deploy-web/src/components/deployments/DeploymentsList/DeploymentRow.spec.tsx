@@ -56,6 +56,26 @@ describe("DeploymentRow", () => {
     expect(screen.getByRole("checkbox", { name: "Select deployment acme" })).toBeChecked();
   });
 
+  describe("while the deployment's close runs in the background", () => {
+    it("shows the deployment as closing", () => {
+      const { DeploymentStatusBadge } = setup({ deployment: { dseq: "100" }, isClosing: true });
+
+      expect(DeploymentStatusBadge).toHaveBeenCalledWith(expect.objectContaining({ isClosing: true }), expect.anything());
+    });
+
+    it("offers no selection, so it cannot join a bulk close", () => {
+      setup({ deployment: { dseq: "100" }, isSelectable: true, isClosing: true });
+
+      expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
+    });
+
+    it("tells the actions menu the deployment is closing", () => {
+      const { DeploymentActionsMenu } = setup({ deployment: { dseq: "100" }, isClosing: true });
+
+      expect(DeploymentActionsMenu).toHaveBeenCalledWith(expect.objectContaining({ isClosing: true }), expect.anything());
+    });
+  });
+
   it("keeps the endpoints out of the row until they are asked for", () => {
     const { DeploymentEndpointsPanel } = setup({ deployment: { dseq: "100" }, endpoints: [endpoint("api.acmecorp.com")] });
 
@@ -130,6 +150,7 @@ describe("DeploymentRow", () => {
     deployment: Partial<ListedDeploymentDto> & { dseq: string };
     isSelectable?: boolean;
     isSelected?: boolean;
+    isClosing?: boolean;
     endpoints?: VisitEndpoint[];
   }) {
     let endpoints = input.endpoints ?? [];
@@ -148,6 +169,8 @@ describe("DeploymentRow", () => {
     ));
     const DeploymentEndpointsPanel = vi.fn<typeof DEPENDENCIES.DeploymentEndpointsPanel>(() => <div>endpoints panel</div>);
     const DeploymentBadges = vi.fn<typeof DEPENDENCIES.DeploymentBadges>(() => <div>badges</div>);
+    const DeploymentStatusBadge = vi.fn(() => <div>status</div>);
+    const DeploymentActionsMenu = vi.fn(() => <div>actions</div>);
 
     const providers: never[] = [];
     const onSelect = vi.fn();
@@ -161,8 +184,16 @@ describe("DeploymentRow", () => {
             providers={providers}
             isSelectable={input.isSelectable}
             isSelected={input.isSelected}
+            isClosing={input.isClosing}
             onSelect={onSelect}
-            dependencies={MockComponents(DEPENDENCIES, { useDeploymentReachability, DeploymentEndpoints, DeploymentEndpointsPanel, DeploymentBadges })}
+            dependencies={MockComponents(DEPENDENCIES, {
+              useDeploymentReachability,
+              DeploymentEndpoints,
+              DeploymentEndpointsPanel,
+              DeploymentBadges,
+              DeploymentStatusBadge,
+              DeploymentActionsMenu
+            })}
           />
         </tbody>
       </table>
@@ -179,6 +210,8 @@ describe("DeploymentRow", () => {
       DeploymentEndpoints,
       DeploymentEndpointsPanel,
       DeploymentBadges,
+      DeploymentStatusBadge,
+      DeploymentActionsMenu,
       rerenderWith(next: VisitEndpoint[]) {
         endpoints = next;
         rerender(renderRow());

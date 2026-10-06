@@ -161,6 +161,7 @@ export const DeploymentsList: React.FunctionComponent<Props> = ({ dependencies: 
                 isLoading={model.isInitialLoad}
                 isSelectable
                 selectedIds={model.selectedItemIds}
+                closingDseqs={model.closingDseqs}
                 onSelect={model.selectItem}
                 onDeploymentClosed={model.refetchDeployments}
               />

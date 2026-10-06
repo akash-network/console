@@ -68,6 +68,20 @@ describe("DeploymentsCollection", () => {
     expect(screen.getAllByRole("columnheader")).toHaveLength(5);
   });
 
+  it.each(["grid", "list"] as const)("marks the deployments whose close runs in the background in the %s view", viewMode => {
+    const { DeploymentCard, DeploymentRow } = setup({ viewMode, dseqs: ["100", "101"], closingDseqs: new Set(["101"]) });
+    const Item = viewMode === "grid" ? DeploymentCard : DeploymentRow;
+
+    expect(Item).toHaveBeenCalledWith(expect.objectContaining({ deployment: expect.objectContaining({ dseq: "100" }), isClosing: false }), expect.anything());
+    expect(Item).toHaveBeenCalledWith(expect.objectContaining({ deployment: expect.objectContaining({ dseq: "101" }), isClosing: true }), expect.anything());
+  });
+
+  it("treats a collection that names no closing deployments as none closing", () => {
+    const { DeploymentCard } = setup({ viewMode: "grid", dseqs: ["100"] });
+
+    expect(DeploymentCard).toHaveBeenCalledWith(expect.objectContaining({ isClosing: false }), expect.anything());
+  });
+
   it("passes the close callback through to every item", () => {
     const onDeploymentClosed = vi.fn();
     const { DeploymentCard } = setup({ viewMode: "grid", dseqs: ["100"], onDeploymentClosed });
@@ -81,6 +95,7 @@ describe("DeploymentsCollection", () => {
     isLoading?: boolean;
     selectedIds?: string[];
     isSelectable?: boolean;
+    closingDseqs?: ReadonlySet<string>;
     onDeploymentClosed?: () => void;
   }) {
     const DeploymentCard = vi.fn(() => <div>card</div>);
@@ -94,6 +109,7 @@ describe("DeploymentsCollection", () => {
         isLoading={input.isLoading}
         isSelectable={input.isSelectable ?? true}
         selectedIds={input.selectedIds}
+        closingDseqs={input.closingDseqs}
         onDeploymentClosed={input.onDeploymentClosed}
         dependencies={MockComponents(DEPENDENCIES, { DeploymentCard, DeploymentRow })}
       />

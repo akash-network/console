@@ -123,7 +123,27 @@ describe("DeploymentCard", () => {
     const onDeploymentClosed = vi.fn();
     const { DeploymentActionsMenu, deployment } = setup({ deployment: { dseq: "100" }, onDeploymentClosed });
 
-    expect(DeploymentActionsMenu).toHaveBeenCalledWith({ deployment, onDeploymentClosed }, expect.anything());
+    expect(DeploymentActionsMenu).toHaveBeenCalledWith({ deployment, onDeploymentClosed, isClosing: false }, expect.anything());
+  });
+
+  describe("while the deployment's close runs in the background", () => {
+    it("shows the deployment as closing", () => {
+      const { DeploymentStatusBadge } = setup({ deployment: { dseq: "100" }, isClosing: true });
+
+      expect(DeploymentStatusBadge).toHaveBeenCalledWith(expect.objectContaining({ isClosing: true }), expect.anything());
+    });
+
+    it("offers no selection, so it cannot join a bulk close", () => {
+      setup({ deployment: { dseq: "100" }, isSelectable: true, isClosing: true });
+
+      expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
+    });
+
+    it("tells the actions menu the deployment is closing", () => {
+      const { DeploymentActionsMenu } = setup({ deployment: { dseq: "100" }, isClosing: true });
+
+      expect(DeploymentActionsMenu).toHaveBeenCalledWith(expect.objectContaining({ isClosing: true }), expect.anything());
+    });
   });
 
   it("offers no selection when the collection cannot be acted on in bulk", () => {
@@ -145,6 +165,7 @@ describe("DeploymentCard", () => {
     reachability?: Partial<DeploymentReachability>;
     isSelectable?: boolean;
     isSelected?: boolean;
+    isClosing?: boolean;
     onDeploymentClosed?: () => void;
   }) {
     const leases = input.leases ?? [];
@@ -178,6 +199,7 @@ describe("DeploymentCard", () => {
         providers={providers}
         isSelectable={input.isSelectable}
         isSelected={input.isSelected}
+        isClosing={input.isClosing}
         onSelect={onSelect}
         onDeploymentClosed={input.onDeploymentClosed}
         dependencies={MockComponents(DEPENDENCIES, {

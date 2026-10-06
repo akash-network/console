@@ -24,10 +24,11 @@ export const DEPENDENCIES = {
 export interface DeploymentActionsMenuProps {
   deployment: Pick<DeploymentDto, "dseq" | "state">;
   onDeploymentClosed?: () => void;
+  isClosing?: boolean;
   dependencies?: typeof DEPENDENCIES;
 }
 
-export const DeploymentActionsMenu: FC<DeploymentActionsMenuProps> = ({ deployment, onDeploymentClosed, dependencies: d = DEPENDENCIES }) => {
+export const DeploymentActionsMenu: FC<DeploymentActionsMenuProps> = ({ deployment, onDeploymentClosed, isClosing, dependencies: d = DEPENDENCIES }) => {
   const [isOpen, setIsOpen] = useState(false);
   const { analyticsService } = useServices();
   const { changeDeploymentName } = d.useLocalNotes();
@@ -75,9 +76,9 @@ export const DeploymentActionsMenu: FC<DeploymentActionsMenuProps> = ({ deployme
           </DropdownMenuItem>
         )}
         {deployment.state === "active" && (
-          <DropdownMenuItem onSelect={closeDeployment}>
+          <DropdownMenuItem onSelect={closeDeployment} disabled={isClosing}>
             <SquareX className="mr-2 h-4 w-4" />
-            Close
+            {isClosing ? "Closing…" : "Close"}
           </DropdownMenuItem>
         )}
       </DropdownMenuContent>
