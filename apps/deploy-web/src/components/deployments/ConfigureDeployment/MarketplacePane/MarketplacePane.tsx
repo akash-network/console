@@ -33,7 +33,7 @@ interface Props {
   selectedPlacementId: string;
   selectedBidId?: string;
   onSelectProvider: (placementId: string, bidId: string) => void;
-  /** `expanded` is the full-width picker of the two panel layout: rows select their offer and the placement chips sit under the header. */
+  /** `expanded` is the full-width picker of the two panel layout: rows select their offer, the placement chips name the placement and the bid window toast reports the wait. */
   variant?: "pane" | "expanded";
   chips?: ReactNode;
   /** Replaces the waiting card, for a deployment whose wait for a first bid ran out. */
@@ -106,7 +106,7 @@ export const MarketplacePane: FC<Props> = ({
           >
             {isExpanded ? "Compute Marketplace" : "3. Compute Marketplace"}
           </h2>
-          <span className="ml-2 min-w-0 truncate font-mono text-sm font-semibold text-blue-500">• {placementName}</span>
+          {!isExpanded && <span className="ml-2 min-w-0 truncate font-mono text-sm font-semibold text-blue-500">• {placementName}</span>}
         </div>
         <d.ProviderSearchInput value={query} onChange={setQuery} onClear={clear} />
       </header>
@@ -124,7 +124,7 @@ export const MarketplacePane: FC<Props> = ({
         ) : (
           <div className="flex flex-col gap-4">
             {notice}
-            {awaitingBids && (
+            {awaitingBids && !isExpanded && (
               <div role="status" className="flex items-start gap-3 rounded-lg border border-zinc-300 bg-muted/40 p-4 dark:border-zinc-700">
                 <LoaderCircleIcon className="mt-0.5 h-5 w-5 shrink-0 animate-spin text-primary" aria-hidden="true" />
                 <div className="flex flex-col gap-1">

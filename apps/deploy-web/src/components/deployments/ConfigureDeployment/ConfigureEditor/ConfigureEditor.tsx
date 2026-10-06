@@ -3,12 +3,10 @@ import { useId } from "react";
 import { useFormState } from "react-hook-form";
 
 import type { SdlBuilderFormValuesType } from "@src/types";
-import { BackgroundCloseBanner } from "../BackgroundCloseBanner/BackgroundCloseBanner";
 import { DeploymentNameField } from "../DeploymentPane/DeploymentNameField/DeploymentNameField";
 import { ReclamationSection } from "../DeploymentPane/ReclamationSection/ReclamationSection";
 import { usePlacementManagerContext } from "../PlacementManagerProvider/PlacementManagerProvider";
 import { useConfigurationStatus } from "../useConfigurationStatus/useConfigurationStatus";
-import type { PendingClose } from "../useDeploymentFlow/useDeploymentFlow";
 import { PlacementFields } from "./PlacementFields/PlacementFields";
 import { PlacementTabs } from "./PlacementTabs/PlacementTabs";
 import { ServiceStack } from "./ServiceStack/ServiceStack";
@@ -20,8 +18,7 @@ export const DEPENDENCIES = {
   PlacementFields,
   ServiceStack,
   DeploymentNameField,
-  ReclamationSection,
-  BackgroundCloseBanner
+  ReclamationSection
 };
 
 type Props = {
@@ -30,8 +27,6 @@ type Props = {
   onSelectService: (serviceId: string) => void;
   deploymentName: string;
   onDeploymentNameChange: (value: string) => void;
-  pendingClose: PendingClose | null;
-  onRetryClose: () => void;
   toolbar: ReactNode;
   dependencies?: typeof DEPENDENCIES;
 };
@@ -43,8 +38,6 @@ export const ConfigureEditor: FC<Props> = ({
   onSelectService,
   deploymentName,
   onDeploymentNameChange,
-  pendingClose,
-  onRetryClose,
   toolbar,
   dependencies: d = DEPENDENCIES
 }) => {
@@ -82,7 +75,6 @@ export const ConfigureEditor: FC<Props> = ({
         </h2>
         {toolbar}
       </header>
-      {pendingClose && <d.BackgroundCloseBanner pendingClose={pendingClose} onRetry={onRetryClose} />}
       <div className="min-h-0 flex-1 overflow-y-auto p-4">
         <div className="mx-auto max-w-[720px] space-y-6">
           <div className="grid grid-cols-[repeat(auto-fit,minmax(14rem,1fr))] items-start gap-4">

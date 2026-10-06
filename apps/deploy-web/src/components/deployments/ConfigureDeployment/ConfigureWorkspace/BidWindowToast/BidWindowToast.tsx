@@ -8,6 +8,7 @@ import type { PlacementType } from "@src/types";
 import type { DeploymentFlowPhase } from "../../useDeploymentFlow/useDeploymentFlow";
 import { formatCountdown } from "../../useQuoteExpiry/formatCountdown";
 import type { QuoteExpiry } from "../../useQuoteExpiry/useQuoteExpiry";
+import { WorkspaceToast } from "../WorkspaceToast/WorkspaceToast";
 import type { BidWindowState } from "./bidWindowState";
 import { bidWindowState, hasBidsForEveryPlacement } from "./bidWindowState";
 
@@ -50,28 +51,26 @@ export const BidWindowToast: FC<Props> = ({ phase, dseq, sdl, placements, expiry
   const secondsLeft = state.kind !== "expired" && expiry ? expiry.secondsLeft : null;
 
   return (
-    <div className="fixed left-1/2 top-[calc(var(--app-header-height,57px)_+_1rem)] z-30 w-[min(28rem,calc(100vw-2rem))] -translate-x-1/2 rounded-lg border border-zinc-300 bg-popover p-4 shadow-lg dark:border-zinc-700">
-      <div className="flex items-start gap-3">
-        <StateIcon kind={state.kind} />
-        <div role="status" className="min-w-0 flex-1">
-          <p className="text-sm font-semibold">{copy.title}</p>
-          <p className="text-sm text-muted-foreground">{copy.subtitle}</p>
-        </div>
-        {secondsLeft !== null && (
-          <span aria-hidden="true" className={cn("font-mono text-sm tabular-nums", secondsLeft < 60 ? "text-destructive" : "text-muted-foreground")}>
-            {formatCountdown(secondsLeft)}
-          </span>
-        )}
-        <button
-          type="button"
-          aria-label="Dismiss"
-          onClick={() => setDismissed({ dseq, kind: state.kind })}
-          className="shrink-0 rounded text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-        >
-          <XIcon className="h-4 w-4" />
-        </button>
+    <WorkspaceToast>
+      <StateIcon kind={state.kind} />
+      <div role="status" className="min-w-0 flex-1">
+        <p className="text-sm font-semibold">{copy.title}</p>
+        <p className="text-sm text-muted-foreground">{copy.subtitle}</p>
       </div>
-    </div>
+      {secondsLeft !== null && (
+        <span aria-hidden="true" className={cn("font-mono text-sm tabular-nums", secondsLeft < 60 ? "text-destructive" : "text-muted-foreground")}>
+          {formatCountdown(secondsLeft)}
+        </span>
+      )}
+      <button
+        type="button"
+        aria-label="Dismiss"
+        onClick={() => setDismissed({ dseq, kind: state.kind })}
+        className="shrink-0 rounded text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+      >
+        <XIcon className="h-4 w-4" />
+      </button>
+    </WorkspaceToast>
   );
 };
 

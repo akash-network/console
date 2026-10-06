@@ -28,6 +28,7 @@ import type { DeploymentFlow } from "../useDeploymentFlow/useDeploymentFlow";
 import { useQuoteExpiry } from "../useQuoteExpiry/useQuoteExpiry";
 import { useRequestQuotes } from "../useRequestQuotes/useRequestQuotes";
 import { useRetryDeploy } from "../useRetryDeploy/useRetryDeploy";
+import { BackgroundCloseToast } from "./BackgroundCloseToast/BackgroundCloseToast";
 import { BidWindowToast } from "./BidWindowToast/BidWindowToast";
 import { ConfigureWorkspaceHeader } from "./ConfigureWorkspaceHeader/ConfigureWorkspaceHeader";
 import { LeaveConfigureButton } from "./LeaveConfigureButton/LeaveConfigureButton";
@@ -44,6 +45,7 @@ export const DEPENDENCIES = {
   LockedDeploymentRail,
   PlacementProviderChips,
   BidWindowToast,
+  BackgroundCloseToast,
   NoBidsNotice,
   SdlImportExport,
   ResetConfigurationButton,
@@ -195,6 +197,7 @@ export const ConfigureWorkspace: FC<Props> = ({
         <PlacementScreening key={placement.id} sdl={sdl} placement={placement} isEnabled={isEditable} useScreenedProviders={d.useScreenedProviders} />
       ))}
       <d.BidWindowToast phase={flow.phase} dseq={flow.dseq} sdl={sdl} placements={placements} expiry={expiry} noBidsReceived={flow.noBidsReceived} />
+      {isEditable && flow.pendingClose && <d.BackgroundCloseToast pendingClose={flow.pendingClose} onRetry={flow.actions.retryClose} />}
       <p aria-live="polite" className="sr-only">
         {announcement}
       </p>
@@ -228,8 +231,6 @@ export const ConfigureWorkspace: FC<Props> = ({
                     onSelectService={onSelectService}
                     deploymentName={deploymentName}
                     onDeploymentNameChange={onDeploymentNameChange}
-                    pendingClose={flow.pendingClose}
-                    onRetryClose={flow.actions.retryClose}
                     toolbar={
                       <div className="flex items-center gap-1">
                         <d.SdlImportExport variant="toolbar" sdl={sdl} deploymentName={deploymentName} canImport={isEditable} onImport={onImport} />
