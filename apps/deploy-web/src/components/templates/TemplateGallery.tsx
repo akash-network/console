@@ -142,7 +142,7 @@ const TemplateSectionView: FC<{ section: TemplateSection; dependencies: typeof D
       <h2 id={headingId} className={`${OVERLINE_CLASSES} pb-3 pt-2`}>
         {section.title}
       </h2>
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 min-[1400px]:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 min-[1400px]:grid-cols-3">
         {section.templates.map(template => (
           <d.TemplateCard key={template.id} template={template} isPopular={isPopularTemplate(template)} />
         ))}
