@@ -40,9 +40,22 @@ jobs:
       RELEASE_TAG: ${{ inputs.app }}/v${{ inputs.appVersion }}
     steps:
       # Test with the deployed release's own suite: the dispatch ref is main's tip, which can already expect newer behavior.
+      # Images built by dispatching reusable-build-image.yml directly have no release tag, so they keep the dispatch ref.
+      - name: Resolve the ref of the deployed release
+        id: tested-ref
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: | # shell
+          if gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$RELEASE_TAG" --silent; then
+            echo "ref=refs/tags/$RELEASE_TAG" >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning::No $RELEASE_TAG tag found, testing with the dispatch ref $GITHUB_SHA instead"
+            echo "ref=$GITHUB_SHA" >> "$GITHUB_OUTPUT"
+          fi
+
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
-          ref: refs/tags/${{ env.RELEASE_TAG }}
+          ref: ${{ steps.tested-ref.outputs.ref }}
           persist-credentials: false
 
       - if: ${{ inputs.app == 'console-api' }}
