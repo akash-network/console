@@ -1,13 +1,10 @@
 "use client";
-import { useEffect } from "react";
-
 import { DeploymentNameModal } from "./DeploymentNameModal";
-import { useInitFavoriteProviders, useLocalNotes } from "./useLocalNotes";
+import { useLocalNotes } from "./useLocalNotes";
 
 export const DEPENDENCIES = {
   DeploymentNameModal,
-  useLocalNotes,
-  useInitFavoriteProviders
+  useLocalNotes
 };
 
 interface Props {
@@ -16,15 +13,7 @@ interface Props {
 
 export function LocalNoteManager({ dependencies: d = DEPENDENCIES }: Props) {
   const { selectedDeploymentDseq, selectDeployment, deselectDeployment } = d.useLocalNotes();
-  const initFavoriteProviders = d.useInitFavoriteProviders();
   const resetSelectedDeployment = () => selectDeployment(null);
 
-  useEffect(() => {
-    initFavoriteProviders();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  return (
-    <d.DeploymentNameModal dseq={selectedDeploymentDseq} onClose={resetSelectedDeployment} onSaved={deselectDeployment} />
-  );
+  return <d.DeploymentNameModal dseq={selectedDeploymentDseq} onClose={resetSelectedDeployment} onSaved={deselectDeployment} />;
 }
