@@ -41,17 +41,17 @@ export const SettingsLayout: React.FunctionComponent<Props> = ({ title, descript
       <div className="min-h-0 min-w-0 flex-1 overflow-y-auto">
         {(title || headerActions) && (
           <div className="sticky top-0 z-30 flex min-h-[60px] items-center border-b border-border bg-background py-2.5">
-            <div className="mx-auto flex w-full max-w-[1180px] flex-wrap items-center justify-between gap-4 px-6">
+            <div className="container flex flex-wrap items-center justify-between gap-4 px-6">
               {title && <d.Title className="text-xl">{title}</d.Title>}
               {headerActions}
             </div>
           </div>
         )}
-        <div className="mx-auto w-full max-w-[1180px]">
-          {description && <p className="px-6 pt-5 text-sm text-muted-foreground">{description}</p>}
+        <div className="container px-6">
+          {description && <p className="pt-5 text-sm text-muted-foreground">{description}</p>}
 
           <ErrorBoundary FallbackComponent={ErrorFallback}>
-            <div className="space-y-6 p-6 pb-10">{children}</div>
+            <div className="space-y-6 pb-10 pt-6">{children}</div>
           </ErrorBoundary>
         </div>
       </div>

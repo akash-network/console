@@ -136,7 +136,7 @@ export const ProvidersExplorer: FC<Props> = ({ dependencies: d = DEPENDENCIES })
   );
 
   return (
-    <div className="flex flex-col gap-[18px] px-4 pb-8 pt-5 md:px-6">
+    <div className="flex flex-col gap-[18px] pb-8 pt-5">
       <section
         ref={heroRef}
         aria-label="Provider map"
