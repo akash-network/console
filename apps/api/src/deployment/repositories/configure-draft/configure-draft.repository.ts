@@ -1,4 +1,4 @@
-import { and, desc, eq, notInArray, sql } from "drizzle-orm";
+import { and, desc, eq, lte, notInArray, sql } from "drizzle-orm";
 import { singleton } from "tsyringe";
 
 import { type ApiPgDatabase, type ApiPgTables, InjectPg, InjectPgTable } from "@src/core/providers";
@@ -49,8 +49,20 @@ export class ConfigureDraftRepository extends BaseRepository<Table, ConfigureDra
       .set({ content: input.content, updatedAt: sql`now()` })
       .where(and(eq(this.table.userId, input.userId), eq(this.table.draftId, input.draftId)))
       .returning();
+    if (replaced) return { draft: replaced, isNew: false };
 
-    return { draft: replaced, isNew: false };
+    const [recreated] = await this.cursor.insert(this.table).values(input).returning();
+    return { draft: recreated, isNew: true };
+  }
+
+  /** Deletes the draft only if it was not saved after `savedBefore`, in one statement, so a save racing the expiry is kept. */
+  async deleteIfNotSavedSince(id: string, savedBefore: Date): Promise<boolean> {
+    const deleted = await this.cursor
+      .delete(this.table)
+      .where(and(eq(this.table.id, id), lte(this.table.updatedAt, savedBefore)))
+      .returning({ id: this.table.id });
+
+    return deleted.length > 0;
   }
 
   /** Keeps the user's most recently saved drafts and drops the rest, the way the browser bounded them before. */

@@ -21,21 +21,20 @@ describe(ExpireConfigureDraftHandler.name, () => {
     expect(handler.requiresPermission()).toEqual([]);
   });
 
-  it("deletes a draft last saved as long ago as drafts are kept", async () => {
-    const { handler, configureDraftRepository, jobQueueService, draft } = setup({ updatedAt: subDays(NOW, CONFIGURE_DRAFT_TTL_DAYS) });
+  it("deletes a draft unless it was saved within the time drafts are kept", async () => {
+    const { handler, configureDraftRepository, jobQueueService, draft } = setup({ isExpired: true });
 
     await handler.handle({ configureDraftId: draft.id, version: 1 });
 
-    expect(configureDraftRepository.deleteById).toHaveBeenCalledWith(draft.id);
+    expect(configureDraftRepository.deleteIfNotSavedSince).toHaveBeenCalledWith(draft.id, subDays(NOW, CONFIGURE_DRAFT_TTL_DAYS));
     expect(jobQueueService.enqueue).not.toHaveBeenCalled();
   });
 
   it("checks a draft saved since it was scheduled again at its new expiry", async () => {
-    const { handler, configureDraftRepository, jobQueueService, draft } = setup({ updatedAt: subDays(NOW, 1) });
+    const { handler, jobQueueService, draft } = setup({ updatedAt: subDays(NOW, 1) });
 
     await handler.handle({ configureDraftId: draft.id, version: 1 });
 
-    expect(configureDraftRepository.deleteById).not.toHaveBeenCalled();
     expect(jobQueueService.enqueue).toHaveBeenCalledWith(new ExpireConfigureDraft({ configureDraftId: draft.id }), {
       singletonKey: `expireConfigureDraft.${draft.id}`,
       startAfter: "2026-11-04T12:00:00.000Z"
@@ -43,15 +42,14 @@ describe(ExpireConfigureDraftHandler.name, () => {
   });
 
   it("does nothing for a draft already gone", async () => {
-    const { handler, configureDraftRepository, jobQueueService } = setup({ isGone: true });
+    const { handler, jobQueueService } = setup({ isGone: true });
 
     await handler.handle({ configureDraftId: faker.string.uuid(), version: 1 });
 
-    expect(configureDraftRepository.deleteById).not.toHaveBeenCalled();
     expect(jobQueueService.enqueue).not.toHaveBeenCalled();
   });
 
-  function setup(input: { updatedAt?: Date; isGone?: boolean } = {}) {
+  function setup(input: { updatedAt?: Date; isGone?: boolean; isExpired?: boolean } = {}) {
     vi.useFakeTimers({ now: NOW, toFake: ["Date"] });
 
     const draft: ConfigureDraftOutput = {
@@ -63,6 +61,7 @@ describe(ExpireConfigureDraftHandler.name, () => {
       updatedAt: input.updatedAt ?? NOW
     };
     const configureDraftRepository = mock<ConfigureDraftRepository>();
+    configureDraftRepository.deleteIfNotSavedSince.mockResolvedValue(!!input.isExpired);
     configureDraftRepository.findById.mockResolvedValue(input.isGone ? undefined : draft);
     const jobQueueService = mock<JobQueueService>();
 

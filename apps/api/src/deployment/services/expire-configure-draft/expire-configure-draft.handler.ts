@@ -1,4 +1,4 @@
-import { addHours } from "date-fns";
+import { addHours, subHours } from "date-fns";
 import { inject, singleton } from "tsyringe";
 
 import { type CreateLogger, type Job, JOB_NAME, type JobHandler, type JobPayload, type JobPermissions, LOGGER_FACTORY } from "@src/core";
@@ -45,19 +45,18 @@ export class ExpireConfigureDraftHandler implements JobHandler<ExpireConfigureDr
 
   /** A draft saved since this was scheduled is checked again when its new expiry comes, rather than dropped while still in use. */
   async handle({ configureDraftId }: JobPayload<ExpireConfigureDraft>): Promise<void> {
-    const draft = await this.configureDraftRepository.findById(configureDraftId);
-    if (!draft) return;
-
-    const expiresAt = configureDraftExpiryOf(draft.updatedAt);
-    if (expiresAt > new Date()) {
-      await this.jobQueueService.enqueue(new ExpireConfigureDraft({ configureDraftId }), {
-        singletonKey: expireConfigureDraftKeyFor(configureDraftId),
-        startAfter: expiresAt.toISOString()
-      });
+    const savedBefore = subHours(new Date(), CONFIGURE_DRAFT_TTL_DAYS * 24);
+    if (await this.configureDraftRepository.deleteIfNotSavedSince(configureDraftId, savedBefore)) {
+      this.logger.info({ event: "CONFIGURE_DRAFT_EXPIRED", configureDraftId });
       return;
     }
 
-    await this.configureDraftRepository.deleteById(configureDraftId);
-    this.logger.info({ event: "CONFIGURE_DRAFT_EXPIRED", configureDraftId });
+    const draft = await this.configureDraftRepository.findById(configureDraftId);
+    if (!draft) return;
+
+    await this.jobQueueService.enqueue(new ExpireConfigureDraft({ configureDraftId }), {
+      singletonKey: expireConfigureDraftKeyFor(configureDraftId),
+      startAfter: configureDraftExpiryOf(draft.updatedAt).toISOString()
+    });
   }
 }
