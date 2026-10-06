@@ -67,6 +67,19 @@ describe(DeploymentDetailHeader.name, () => {
     expect(screen.getByText("Running")).toBeInTheDocument();
   });
 
+  it("shows the deployment as closing while its close runs in the background", () => {
+    setup({ closingDseqs: ["1786440078202"] });
+
+    expect(screen.getByText("Closing")).toBeInTheDocument();
+    expect(screen.queryByText("Running")).not.toBeInTheDocument();
+  });
+
+  it("keeps showing the deployment as running while only other deployments are closing", () => {
+    setup({ closingDseqs: ["42"] });
+
+    expect(screen.getByText("Running")).toBeInTheDocument();
+  });
+
   it("opens the rename flow when the edit-name button is clicked", async () => {
     const { changeDeploymentName } = setup({});
 
@@ -315,6 +328,7 @@ describe(DeploymentDetailHeader.name, () => {
     gpuAmount?: number;
     groups?: DeploymentGroup[];
     isLoadingLeaseGpus?: boolean;
+    closingDseqs?: string[];
     dependencies?: Partial<typeof DEPENDENCIES>;
   }) {
     const changeDeploymentName = vi.fn();
@@ -373,6 +387,7 @@ describe(DeploymentDetailHeader.name, () => {
       CostRate,
       CostBreakdownTooltip,
       DeploymentVisitControl,
+      useClosingDeployments: () => new Set(input.closingDseqs ?? []),
       ...input.dependencies
     });
     const renderHeader = () => (

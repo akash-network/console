@@ -45,9 +45,12 @@ export interface DeploymentStatusBadgeProps {
   state: string;
   leases?: LeaseDto[] | null;
   isSummarized?: boolean;
+  isClosing?: boolean;
   className?: string;
   dependencies?: typeof DEPENDENCIES;
 }
+
+const CLOSING_STATUS = { label: "Closing", summaryLabel: "Closing", tone: "loading" } as const;
 
 /**
  * A deployment stays `active` on chain after its last lease dies — closed by the provider, reclaimed, or out
@@ -56,9 +59,12 @@ export interface DeploymentStatusBadgeProps {
  * reclamation banner and deployment list show. A dead lease under a deployment that is still open reads as a
  * warning: the escrow is live and a redeploy brings the workload back, while a deployment that is itself
  * closed has nothing left to act on and reads as muted. A lease inside its reclamation grace period is live
- * but doomed, so it reads as "Reclaiming" rather than "Running".
+ * but doomed, so it reads as "Reclaiming" rather than "Running". A close running in the background reads as
+ * "Closing" until the chain reports the deployment closed, which can land a poll before the feed says so.
  */
-export function getDeploymentStatus(state: string, leases?: LeaseDto[] | null): { label: string; summaryLabel: string; tone: StatusTone } {
+export function getDeploymentStatus(state: string, leases?: LeaseDto[] | null, isClosing = false): { label: string; summaryLabel: string; tone: StatusTone } {
+  if (isClosing && state === "active") return CLOSING_STATUS;
+
   const deploymentTone = STATUS_TONES[state] ?? "pending";
   const deadLease = leases?.length && !leases.some(isLeaseLive) ? selectLeaseToReportOn(leases) : undefined;
 
@@ -107,8 +113,15 @@ export const StatusBadge: FC<StatusBadgeProps> = ({ label, tone, className }) =>
   </span>
 );
 
-export const DeploymentStatusBadge: FC<DeploymentStatusBadgeProps> = ({ state, leases, isSummarized, className, dependencies: d = DEPENDENCIES }) => {
-  const { label, summaryLabel, tone } = getDeploymentStatus(state, leases);
+export const DeploymentStatusBadge: FC<DeploymentStatusBadgeProps> = ({
+  state,
+  leases,
+  isSummarized,
+  isClosing,
+  className,
+  dependencies: d = DEPENDENCIES
+}) => {
+  const { label, summaryLabel, tone } = getDeploymentStatus(state, leases, isClosing);
   const isShortened = !!isSummarized && summaryLabel !== label;
   const isBeingReclaimed = !!leases?.some(isReclaiming);
 

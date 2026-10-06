@@ -12,6 +12,7 @@ import { CostRate } from "@src/components/shared/CostRate";
 import { GpuInterconnectBadge } from "@src/components/shared/GpuInterconnectBadge";
 import { TrialDeploymentBadge } from "@src/components/shared/TrialDeploymentBadge";
 import { useWallet } from "@src/context/WalletProvider";
+import { useClosingDeployments } from "@src/hooks/useClosingDeployments/useClosingDeployments";
 import { useDeclaredGpuInterconnect } from "@src/hooks/useDeclaredGpuInterconnect";
 import { useDeclaredTeeTypes } from "@src/hooks/useDeclaredTeeTypes";
 import { useDeploymentDefinition } from "@src/hooks/useDeploymentDefinition/useDeploymentDefinition";
@@ -39,6 +40,7 @@ import { RuntimeLimitMeter } from "./RuntimeLimitMeter";
 
 export const DEPENDENCIES = {
   useLocalNotes,
+  useClosingDeployments,
   useDeploymentDefinition,
   useWallet,
   useDeploymentEscrowBalance,
@@ -82,6 +84,7 @@ export const DeploymentDetailHeader: FC<DeploymentDetailHeaderProps> = ({
   const { data: settings } = d.useDeploymentSettingQuery({ dseq: deployment.dseq, pollUntilRuntimeAnchored: true });
   const teeTypes = d.useDeclaredTeeTypes(deployment);
   const interconnect = d.useDeclaredGpuInterconnect(deployment);
+  const isClosing = d.useClosingDeployments().has(deployment.dseq);
 
   const liveLeases = useMemo(() => leases?.filter(isLeaseLive) ?? [], [leases]);
   const costPerBlockUDenom = liveLeases.reduce((sum, lease) => sum + parseFloat(lease.price.amount), 0);
@@ -107,7 +110,7 @@ export const DeploymentDetailHeader: FC<DeploymentDetailHeaderProps> = ({
     <div className="flex flex-col gap-6 py-6 lg:flex-row lg:items-start lg:justify-between">
       <div className="space-y-3">
         <div className="flex flex-wrap items-center gap-2">
-          <DeploymentStatusBadge state={deployment.state} leases={leases} />
+          <DeploymentStatusBadge state={deployment.state} leases={leases} isClosing={isClosing} />
           <d.ConfidentialComputeBadge teeTypes={teeTypes} />
           <d.GpuInterconnectBadge interconnect={interconnect} />
           {isTrialing && <d.TrialDeploymentBadge createdHeight={deployment.createdAt} />}
