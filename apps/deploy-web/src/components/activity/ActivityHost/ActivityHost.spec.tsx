@@ -89,6 +89,55 @@ describe(ActivityHost.name, () => {
     );
   });
 
+  it("names the deployment a close finished for", () => {
+    const pending = buildActivity({ status: "pending", meta: { dseq: "1234" } });
+    const { enqueueSnackbar, receive } = setup({ activities: [pending], names: { "1234": "storefront" } });
+
+    receive([{ ...pending, status: "succeeded" }]);
+
+    expect(enqueueSnackbar).toHaveBeenCalledWith(expect.objectContaining({ props: expect.objectContaining({ title: "“storefront” closed" }) }), {
+      variant: "success"
+    });
+  });
+
+  it("names the deployment a close failed for", () => {
+    const pending = buildActivity({ status: "pending", meta: { dseq: "1234" } });
+    const { enqueueSnackbar, receive } = setup({ activities: [pending], names: { "1234": "storefront" } });
+
+    receive([{ ...pending, status: "failed" }]);
+
+    expect(enqueueSnackbar).toHaveBeenCalledWith(expect.objectContaining({ props: expect.objectContaining({ title: "Couldn't close “storefront”" }) }), {
+      variant: "error"
+    });
+  });
+
+  it("looks up the names of the deployments its activities are about", () => {
+    const { useDeploymentNames } = setup({ activities: [buildActivity({ meta: { dseq: "1234" } }), buildActivity({ meta: { dseq: "5678" } })] });
+
+    expect(useDeploymentNames).toHaveBeenLastCalledWith(["1234", "5678"]);
+  });
+
+  it("looks up no names before the activities have loaded", () => {
+    const { useDeploymentNames } = setup({ activities: undefined });
+
+    expect(useDeploymentNames).toHaveBeenLastCalledWith([]);
+  });
+
+  it("holds an announcement until the names of the deployments have loaded", () => {
+    const finished = buildActivity({ status: "succeeded", meta: { dseq: "5678" } });
+    const { enqueueSnackbar, receive } = setup({ activities: [], names: { "5678": "storefront" } });
+
+    receive([finished], { isLoadingNames: true });
+    const announcedWhileLoading = enqueueSnackbar.mock.calls.length;
+    receive([finished]);
+
+    expect(announcedWhileLoading).toBe(0);
+    expect(enqueueSnackbar).toHaveBeenCalledTimes(1);
+    expect(enqueueSnackbar).toHaveBeenCalledWith(expect.objectContaining({ props: expect.objectContaining({ title: "“storefront” closed" }) }), {
+      variant: "success"
+    });
+  });
+
   it("asks the user to try again when a failed close carries no reason", () => {
     const pending = buildActivity({ status: "pending", meta: { dseq: "1234" } });
     const { enqueueSnackbar, receive } = setup({ activities: [pending] });
@@ -149,9 +198,15 @@ describe(ActivityHost.name, () => {
     return vi.mocked(queryClient.invalidateQueries).mock.calls.map(([filters]) => filters?.queryKey);
   }
 
-  function setup(input: { isEnabled?: boolean; isSignedIn?: boolean; activities?: Activity[]; address?: string } = {}) {
+  function setup(input: { isEnabled?: boolean; isSignedIn?: boolean; activities?: Activity[]; address?: string; names?: Record<string, string> } = {}) {
     const user = buildUser();
     let activities = input.activities;
+    let isLoadingNames = false;
+    const useDeploymentNames = vi.fn((() =>
+      mock<ReturnType<typeof DEPENDENCIES.useDeploymentNames>>({
+        getDeploymentName: dseq => input.names?.[String(dseq)] ?? null,
+        isLoading: isLoadingNames
+      })) as typeof DEPENDENCIES.useDeploymentNames);
     const useLatestActivitiesQuery = vi.fn((() =>
       Object.assign(mock<ReturnType<typeof DEPENDENCIES.useLatestActivitiesQuery>>(), { data: activities })) as typeof DEPENDENCIES.useLatestActivitiesQuery);
     const useFlag = vi.fn((() => input.isEnabled ?? true) as typeof DEPENDENCIES.useFlag);
@@ -166,6 +221,7 @@ describe(ActivityHost.name, () => {
       useUser: () => mock<ReturnType<typeof DEPENDENCIES.useUser>>({ user: input.isSignedIn === false ? undefined : user }),
       useWallet: () => mock<ReturnType<typeof DEPENDENCIES.useWallet>>({ address: input.address ?? OWNER }),
       useLatestActivitiesQuery,
+      useDeploymentNames,
       useSnackbar: () => ({ enqueueSnackbar, closeSnackbar: vi.fn() }),
       useQueryClient: () => queryClient
     };
@@ -177,11 +233,12 @@ describe(ActivityHost.name, () => {
     );
     const { rerender } = render(host());
 
-    const receive = (next: Activity[]) => {
+    const receive = (next: Activity[], { isLoadingNames: isLoadingNextNames = false }: { isLoadingNames?: boolean } = {}) => {
       activities = next;
+      isLoadingNames = isLoadingNextNames;
       rerender(host());
     };
 
-    return { useLatestActivitiesQuery, useFlag, enqueueSnackbar, queryClient, api, user, receive };
+    return { useLatestActivitiesQuery, useDeploymentNames, useFlag, enqueueSnackbar, queryClient, api, user, receive };
   }
 });

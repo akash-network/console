@@ -355,7 +355,9 @@ describe(useAccountBalanceOverview.name, () => {
     const useWalletSettingsQuery: typeof DEPENDENCIES.useWalletSettingsQuery = () => walletSettingsQuery;
 
     const getDeploymentName = (dseq: string | number | null | undefined) => input.names?.[String(dseq)] ?? null;
-    const useDeploymentNames = vi.fn<typeof DEPENDENCIES.useDeploymentNames>(() => ({ getDeploymentName }));
+    const useDeploymentNames = vi.fn<typeof DEPENDENCIES.useDeploymentNames>(() =>
+      mock<ReturnType<typeof DEPENDENCIES.useDeploymentNames>>({ getDeploymentName })
+    );
 
     const dependencies: typeof DEPENDENCIES = {
       useWallet,
