@@ -666,6 +666,34 @@ describe(DrainingDeploymentService.name, () => {
 
       expect(service.isCappedByRuntimeLimit({ runtimeEndsAt: null }, currentHeight)).toBe(false);
     });
+
+    it("measures the deadline against the runway it is given instead of the target", () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date("2025-01-01T12:00:00.000Z"));
+
+      try {
+        const { service, currentHeight } = setup();
+        const runtimeEndsAt = new Date(Date.now() + 12 * millisecondsInHour);
+
+        expect(service.isCappedByRuntimeLimit({ runtimeEndsAt }, currentHeight, 4)).toBe(false);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("reports no cap for a runtime deadline landing exactly at the runway", () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date("2025-01-01T12:00:00.000Z"));
+
+      try {
+        const { service, currentHeight } = setup();
+        const runtimeEndsAt = new Date(Date.now() + 4 * millisecondsInHour);
+
+        expect(service.isCappedByRuntimeLimit({ runtimeEndsAt }, currentHeight, 4)).toBe(false);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
   });
 
   describe("calculateAmountToTargetRunway", () => {
@@ -687,6 +715,14 @@ describe(DrainingDeploymentService.name, () => {
       const result = service.calculateAmountToTargetRunway({ blockRate: 50, predictedClosedHeight: currentHeight }, currentHeight);
 
       expect(result).toBe(1440000);
+    });
+
+    it("funds up to the runway it is given instead of the target", () => {
+      const { service, currentHeight } = setup();
+
+      const result = service.calculateAmountToTargetRunway({ blockRate: 50, predictedClosedHeight: currentHeight }, currentHeight, 4);
+
+      expect(result).toBe(50 * averageBlockCountInAnHour * 4);
     });
 
     it("caps an overdue deployment at the target instead of funding its arrears", () => {

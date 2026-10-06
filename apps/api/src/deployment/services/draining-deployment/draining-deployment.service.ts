@@ -301,11 +301,13 @@ export class DrainingDeploymentService {
    *
    * @param deployment - Deployment with its block rate, predicted closure height, and optional runtime deadline
    * @param currentHeight - Block height the funding run is scoped to
+   * @param runwayHours - Runway to fund up to, the steady-state target unless a caller funds a new lease to a shorter one
    * @returns Top-up amount in credits, or 0 when the deployment already holds the target
    */
   calculateAmountToTargetRunway(
     deployment: Pick<DrainingDeploymentOutput, "blockRate" | "predictedClosedHeight"> & { runtimeEndsAt?: Date | null },
-    currentHeight: number
+    currentHeight: number,
+    runwayHours: number = this.config.get("AUTO_TOP_UP_TARGET_RUNWAY_IN_H")
   ): number {
     const blockRate = Number(deployment.blockRate);
     const predictedClosedHeight = Number(deployment.predictedClosedHeight);
@@ -315,7 +317,7 @@ export class DrainingDeploymentService {
       return 0;
     }
 
-    const runwayTargetHeight = this.#getRunwayTargetHeight(currentHeight);
+    const runwayTargetHeight = this.#getRunwayTargetHeight(currentHeight, runwayHours);
     const targetHeight = deployment.runtimeEndsAt
       ? Math.min(runwayTargetHeight, this.#getRuntimeLimitHeight(deployment.runtimeEndsAt, currentHeight))
       : runwayTargetHeight;
@@ -325,16 +327,20 @@ export class DrainingDeploymentService {
   }
 
   /** A deposit the runtime limit shortened must not hold the funding cooldown, or extending that limit goes unfunded until the claim ages out. */
-  isCappedByRuntimeLimit(deployment: { runtimeEndsAt?: Date | null }, currentHeight: number): boolean {
+  isCappedByRuntimeLimit(
+    deployment: { runtimeEndsAt?: Date | null },
+    currentHeight: number,
+    runwayHours: number = this.config.get("AUTO_TOP_UP_TARGET_RUNWAY_IN_H")
+  ): boolean {
     if (!deployment.runtimeEndsAt) {
       return false;
     }
 
-    return this.#getRuntimeLimitHeight(deployment.runtimeEndsAt, currentHeight) < this.#getRunwayTargetHeight(currentHeight);
+    return this.#getRuntimeLimitHeight(deployment.runtimeEndsAt, currentHeight) < this.#getRunwayTargetHeight(currentHeight, runwayHours);
   }
 
-  #getRunwayTargetHeight(currentHeight: number): number {
-    return currentHeight + averageBlockCountInAnHour * this.config.get("AUTO_TOP_UP_TARGET_RUNWAY_IN_H");
+  #getRunwayTargetHeight(currentHeight: number, runwayHours: number): number {
+    return currentHeight + averageBlockCountInAnHour * runwayHours;
   }
 
   /**

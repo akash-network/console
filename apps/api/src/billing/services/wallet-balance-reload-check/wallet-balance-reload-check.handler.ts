@@ -299,7 +299,7 @@ export class WalletBalanceReloadCheckHandler implements JobHandler<WalletBalance
 
   /** A deployment-triggered check runs seconds after initial funding filled the escrow, so pricing a week there charges for a lease that may live an hour. */
   #getCoveragePeriodInMs(triggeredByDeployment: boolean): number {
-    return triggeredByDeployment ? this.deploymentConfig.get("AUTO_TOP_UP_TARGET_RUNWAY_IN_H") * millisecondsInHour : this.#RELOAD_COVERAGE_PERIOD_IN_MS;
+    return triggeredByDeployment ? this.deploymentConfig.get("AUTO_TOP_UP_INITIAL_RUNWAY_IN_H") * millisecondsInHour : this.#RELOAD_COVERAGE_PERIOD_IN_MS;
   }
 
   /** A failed charge keeps the claim, so a declining card re-attempts when the window reopens instead of on every spend event (CON-927). */

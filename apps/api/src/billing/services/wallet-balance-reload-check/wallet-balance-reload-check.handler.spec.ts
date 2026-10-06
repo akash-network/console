@@ -95,12 +95,12 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
       );
     });
 
-    it("covers only the escrow runway when a deployment triggered the check", async () => {
-      const { handler, drainingDeploymentService, job, jobMeta } = setup({ triggeredByDeployment: true, autoTopUpTargetRunwayInHours: 48 });
+    it("covers only the initial escrow runway when a deployment triggered the check", async () => {
+      const { handler, drainingDeploymentService, job, jobMeta } = setup({ triggeredByDeployment: true, autoTopUpInitialRunwayInHours: 4 });
 
       await handler.handle(job, jobMeta);
 
-      const expectedTargetDate = addMilliseconds(new Date(), 48 * millisecondsInHour);
+      const expectedTargetDate = addMilliseconds(new Date(), 4 * millisecondsInHour);
       const reloadTargetDate = drainingDeploymentService.calculateAllDeploymentCostUntilDate.mock.calls[0][1];
       expect(reloadTargetDate.getTime()).toBeCloseTo(expectedTargetDate.getTime(), -3);
     });
@@ -907,7 +907,7 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
     autoReloadMode?: "prediction" | "threshold";
     activeDeploymentCount?: number;
     triggeredByDeployment?: boolean;
-    autoTopUpTargetRunwayInHours?: number;
+    autoTopUpInitialRunwayInHours?: number;
     chargeClaimWon?: boolean;
     chargeRequiresAction?: boolean;
     secondsUntilWindowReopen?: number;
@@ -960,7 +960,7 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
     );
     const autoReloadPauseService = mock<AutoReloadPauseService>();
     autoReloadPauseService.calculateChargeCooldownMinutes.mockReturnValue(input?.chargeCooldownMinutes ?? 60);
-    const deploymentConfig = mockConfigService<DeploymentConfigService>({ AUTO_TOP_UP_TARGET_RUNWAY_IN_H: input?.autoTopUpTargetRunwayInHours ?? 48 });
+    const deploymentConfig = mockConfigService<DeploymentConfigService>({ AUTO_TOP_UP_INITIAL_RUNWAY_IN_H: input?.autoTopUpInitialRunwayInHours ?? 4 });
     const balancesService = mock<BalancesService>({
       ensure2floatingDigits: vi.fn().mockImplementation((amount: number) => amount)
     });

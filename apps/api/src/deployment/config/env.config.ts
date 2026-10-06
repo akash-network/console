@@ -1,3 +1,4 @@
+import { minutesInHour } from "date-fns/constants";
 import { z } from "zod";
 
 import { DEFAULT_BODY_LIMIT_BYTES } from "@src/core/config/body-limit.config";
@@ -78,6 +79,8 @@ export const envSchema = z
      * window is funded nothing and simply re-triggers, hence the schema check below.
      */
     AUTO_TOP_UP_TARGET_RUNWAY_IN_H: z.number({ coerce: true }).positive().finite().optional().default(48),
+    /** Runway a new lease is funded to at start; the sweep only takes it to the target once the funding cooldown lapses. */
+    AUTO_TOP_UP_INITIAL_RUNWAY_IN_H: z.number({ coerce: true }).positive().finite().optional().default(4),
     AUTO_TOP_UP_DEDUP_COOLDOWN_IN_MIN: z.number({ coerce: true }).positive().optional().default(60),
     /**
      * Dollar floor auto-funding leaves in the available deployment allowance so a user with credits left can still
@@ -196,6 +199,22 @@ export const envSchema = z
         code: z.ZodIssueCode.custom,
         path: ["AUTO_TOP_UP_TARGET_RUNWAY_IN_H"],
         message: `AUTO_TOP_UP_TARGET_RUNWAY_IN_H (${env.AUTO_TOP_UP_TARGET_RUNWAY_IN_H}) must be greater than AUTO_TOP_UP_LOOK_AHEAD_WINDOW_IN_H (${env.AUTO_TOP_UP_LOOK_AHEAD_WINDOW_IN_H}), otherwise a deployment triggering at the edge of the window is sized a zero deposit`
+      });
+    }
+
+    if (env.AUTO_TOP_UP_INITIAL_RUNWAY_IN_H > env.AUTO_TOP_UP_TARGET_RUNWAY_IN_H) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["AUTO_TOP_UP_INITIAL_RUNWAY_IN_H"],
+        message: `AUTO_TOP_UP_INITIAL_RUNWAY_IN_H (${env.AUTO_TOP_UP_INITIAL_RUNWAY_IN_H}) must not exceed AUTO_TOP_UP_TARGET_RUNWAY_IN_H (${env.AUTO_TOP_UP_TARGET_RUNWAY_IN_H}), otherwise a new lease starts with more runway than automatic funding ever keeps`
+      });
+    }
+
+    if (env.AUTO_TOP_UP_INITIAL_RUNWAY_IN_H * minutesInHour <= env.AUTO_TOP_UP_DEDUP_COOLDOWN_IN_MIN) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["AUTO_TOP_UP_INITIAL_RUNWAY_IN_H"],
+        message: `AUTO_TOP_UP_INITIAL_RUNWAY_IN_H (${env.AUTO_TOP_UP_INITIAL_RUNWAY_IN_H}) must outlast AUTO_TOP_UP_DEDUP_COOLDOWN_IN_MIN (${env.AUTO_TOP_UP_DEDUP_COOLDOWN_IN_MIN}), otherwise a new lease runs dry while its funding claim still holds the sweep off`
       });
     }
   });
