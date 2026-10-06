@@ -30,15 +30,17 @@ export const ProvidersPage: FC<Props> = ({ dependencies: d = DEPENDENCIES }) => 
       />
 
       <div className="flex h-[calc(100dvh_-_var(--app-header-height,57px)_-_4px)] flex-col">
-        <div className="flex min-h-[60px] shrink-0 items-center gap-4 border-b bg-background px-4 md:px-6">
-          <h1 className="whitespace-nowrap text-xl font-bold leading-7 tracking-[-0.02em]">Providers</h1>
-          <span className="flex-1" />
-          <Button asChild variant="outline" size="sm" className="gap-1.5 shadow-sm">
-            <a href={BECOME_A_PROVIDER_URL} target="_blank" rel="noopener noreferrer">
-              <Server className="h-3.5 w-3.5" aria-hidden />
-              Become a provider
-            </a>
-          </Button>
+        <div className="flex min-h-[60px] shrink-0 items-center border-b bg-background">
+          <div className="mx-auto flex w-full max-w-[1440px] items-center gap-4 px-4 md:px-6">
+            <h1 className="whitespace-nowrap text-xl font-bold leading-7 tracking-[-0.02em]">Providers</h1>
+            <span className="flex-1" />
+            <Button asChild variant="outline" size="sm" className="gap-1.5 shadow-sm">
+              <a href={BECOME_A_PROVIDER_URL} target="_blank" rel="noopener noreferrer">
+                <Server className="h-3.5 w-3.5" aria-hidden />
+                Become a provider
+              </a>
+            </Button>
+          </div>
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto">
