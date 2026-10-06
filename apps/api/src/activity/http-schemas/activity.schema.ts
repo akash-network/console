@@ -53,6 +53,14 @@ export const ListActivitiesResponseSchema = z.object({
   })
 });
 
+export const GetActivityParamsSchema = z.object({
+  id: z.string().uuid().openapi({ description: "The activity's id, as a background action's request returned it." })
+});
+
+export const GetActivityResponseSchema = z.object({
+  data: ActivitySchema
+});
+
 export const MarkActivitiesSeenResponseSchema = z.object({
   data: z.object({ unseenCount: UnseenCountSchema })
 });
@@ -73,3 +81,4 @@ export type ListActivitiesQuery = z.infer<typeof ListActivitiesQuerySchema>;
 export type ListActivitiesResponse = z.infer<typeof ListActivitiesResponseSchema>;
 export type MarkActivitiesSeenResponse = z.infer<typeof MarkActivitiesSeenResponseSchema>;
 export type MarkActivitiesSeenRequest = z.infer<typeof MarkActivitiesSeenRequestSchema>;
+export type GetActivityResponse = z.infer<typeof GetActivityResponseSchema>;

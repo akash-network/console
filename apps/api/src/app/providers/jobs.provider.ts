@@ -7,6 +7,7 @@ import { WalletCreditsLowCheckHandler } from "@src/billing/services/wallet-credi
 import type { AppInitializer } from "@src/core/providers/app-initializer";
 import { APP_INITIALIZER, ON_APP_START } from "@src/core/providers/app-initializer";
 import { JobQueueService } from "@src/core/services/job-queue/job-queue.service";
+import { CloseDeploymentHandler } from "@src/deployment/services/close-deployment/close-deployment.handler";
 import { DeleteUnbackedDeploymentSettingHandler } from "@src/deployment/services/delete-unbacked-deployment-setting/delete-unbacked-deployment-setting.handler";
 import { DetectLeaseGpusHandler } from "@src/deployment/services/detect-lease-gpus/detect-lease-gpus.handler";
 import { ReconcileManagedTxHandler } from "@src/deployment/services/reconcile-managed-tx/reconcile-managed-tx.handler";
@@ -55,6 +56,7 @@ export async function startJobQueues(): Promise<void> {
     container.resolve(CreditsAddedSlackAlertHandler),
     container.resolve(ActivateTrialHandler),
     container.resolve(DeleteUnbackedDeploymentSettingHandler),
+    container.resolve(CloseDeploymentHandler),
     container.resolve(RecordDeploymentSettingHandler),
     container.resolve(ReconcileManagedTxHandler),
     container.resolve(ProbeTrialDeploymentHandler),

@@ -6435,6 +6435,23 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/v1/activities/{id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Get one of the user's activities, for example to follow a close running in the background */
+    get: operations["getActivity"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/v1/activities/seen": {
     parameters: {
       query?: never;
@@ -8663,7 +8680,9 @@ export interface operations {
   };
   closeDeployment: {
     parameters: {
-      query?: never;
+      query?: {
+        async?: "true" | "false";
+      };
       header?: never;
       path: {
         /** @description Deployment sequence number */
@@ -8682,6 +8701,23 @@ export interface operations {
           "application/json": {
             data: {
               success: boolean;
+            };
+          };
+        };
+      };
+      /** @description The close passed every check and will finish in the background */
+      202: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            data: {
+              /**
+               * Format: uuid
+               * @description The activity that reports how the close ends.
+               */
+              activityId: string;
             };
           };
         };
@@ -11659,6 +11695,84 @@ export interface operations {
       };
       /** @description Unauthorized */
       401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  getActivity: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description The activity */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            data: {
+              /** Format: uuid */
+              id: string;
+              /**
+               * @description What the action was.
+               * @enum {string}
+               */
+              type: "deployment_close";
+              /**
+               * @description `pending` while the action is still being confirmed, then `succeeded` or `failed`.
+               * @enum {string}
+               */
+              status: "pending" | "succeeded" | "failed";
+              meta: {
+                /** @description The deployment the action was about. */
+                dseq?: string;
+                /** @description Reference of a pending action whose outcome is still being confirmed. */
+                txHash?: string;
+                /** @description Why a failed action did not go through. */
+                error?: {
+                  code: string;
+                  message: string;
+                };
+              };
+              /**
+               * Format: date-time
+               * @description When the user first marked the activity seen.
+               */
+              seenAt: string | null;
+              /** Format: date-time */
+              createdAt: string;
+              /** Format: date-time */
+              updatedAt: string;
+            };
+          };
+        };
+      };
+      /** @description The id is not a uuid */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description No activity of the user's has this id */
+      404: {
         headers: {
           [name: string]: unknown;
         };

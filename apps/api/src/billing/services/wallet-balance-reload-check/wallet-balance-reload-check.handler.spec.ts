@@ -950,7 +950,9 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
       ...(input?.triggeredByDeployment && { triggeredByDeployment: true })
     };
     const jobMeta: JobMeta = {
-      id: faker.string.uuid()
+      id: faker.string.uuid(),
+      retryCount: 0,
+      retryLimit: 5
     };
 
     const walletSettingRepository = mock<WalletSettingRepository>();

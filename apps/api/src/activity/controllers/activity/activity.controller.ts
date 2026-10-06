@@ -1,7 +1,9 @@
+import assert from "http-assert";
 import { singleton } from "tsyringe";
 
 import type {
   ActivityResponse,
+  GetActivityResponse,
   ListActivitiesQuery,
   ListActivitiesResponse,
   MarkActivitiesSeenRequest,
@@ -26,6 +28,14 @@ export class ActivityController {
         pagination: { limit: query.limit, hasMore, nextCursor }
       }
     };
+  }
+
+  @Protected([{ action: "read", subject: "Activity" }])
+  async getById(id: string): Promise<GetActivityResponse> {
+    const activity = await this.activityService.findById(id);
+    assert(activity, 404, "Activity not found");
+
+    return { data: toActivityResponse(activity) };
   }
 
   @Protected([{ action: "update", subject: "Activity" }])

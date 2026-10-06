@@ -243,6 +243,38 @@ describe(JobQueueService.name, () => {
     expect(waiting).toBe(true);
   });
 
+  it("finds the data of the job under the key while it waits and while a worker runs it", async () => {
+    const singletonKey = "row-1";
+    let release!: () => void;
+    const held = new Promise<void>(resolve => {
+      release = resolve;
+    });
+    const { jobQueue, handler, enqueue, findJob, jobType } = await setup({ queueName: "pending-data", handle: () => held });
+    await jobQueue.registerHandlers([handler]);
+    await enqueue({ singletonKey }, { activityId: "activity-1" });
+
+    const waiting = await jobQueue.findPendingJobData(jobType, singletonKey);
+    await jobQueue.startWorkers({ concurrency: 1, pollingIntervalSeconds: 0.5 });
+    await waitForJobState(findJob, "active");
+    const running = await jobQueue.findPendingJobData(jobType, singletonKey);
+
+    expect(waiting).toEqual({ activityId: "activity-1", version: 1 });
+    expect(running).toEqual({ activityId: "activity-1", version: 1 });
+    release();
+    await waitForJobState(findJob, "completed");
+  });
+
+  it("finds no data under the key once its job finished", async () => {
+    const singletonKey = "row-1";
+    const { jobQueue, handler, enqueue, findJob, jobType } = await setup({ queueName: "pending-data-finished" });
+    await jobQueue.registerHandlers([handler]);
+    await enqueue({ singletonKey }, { activityId: "activity-1" });
+    await jobQueue.startWorkers({ concurrency: 1, pollingIntervalSeconds: 0.5 });
+    await waitForJobState(findJob, "completed");
+
+    expect(await jobQueue.findPendingJobData(jobType, singletonKey)).toBeUndefined();
+  });
+
   it("logs a job failure pg-boss could not write under JOB_QUEUE_WORKER_ERROR and leaves the job active", async () => {
     const failureWithLoneSurrogate = new Error("handler failed with \ud800, which Postgres refuses inside jsonb");
     const { jobQueue, handler, enqueue, findJob } = await setup({ queueName: "unrecordable", handle: vi.fn().mockRejectedValue(failureWithLoneSurrogate) });
@@ -300,13 +332,14 @@ describe(JobQueueService.name, () => {
 
     return {
       jobQueue,
+      jobType: ScopedJob,
       handler: {
         accepts: ScopedJob,
         policy,
         requiresPermission: () => [],
         handle: input.handle ?? vi.fn().mockResolvedValue(undefined)
       } satisfies JobHandler<Job>,
-      enqueue: (options?: EnqueueOptions) => jobQueue.enqueue(new ScopedJob(), options),
+      enqueue: (options?: EnqueueOptions, data?: Record<string, unknown>) => jobQueue.enqueue(new ScopedJob(data), options),
       createLegacyQueue: (overrides?: { policy?: PgBossQueue["policy"] }) =>
         pgBoss.createQueue(queueName, { retryLimit: RETRY_LIMIT, retryBackoff: true, retryDelayMax: RETRY_DELAY_MAX_IN_SECONDS, policy, ...overrides }),
       findQueue: async () => {

@@ -2,6 +2,8 @@ import { container } from "tsyringe";
 
 import { ActivityController } from "@src/activity/controllers/activity/activity.controller";
 import {
+  GetActivityParamsSchema,
+  GetActivityResponseSchema,
   ListActivitiesQuerySchema,
   ListActivitiesResponseSchema,
   MarkActivitiesSeenRequestSchema,
@@ -30,6 +32,26 @@ const listActivitiesRoute = createRoute({
 
 activityRouter.openapi(listActivitiesRoute, async function routeListActivities(c) {
   return c.json(await container.resolve(ActivityController).list(c.req.valid("query")), 200);
+});
+
+const getActivityRoute = createRoute({
+  method: "get",
+  path: "/v1/activities/{id}",
+  operationId: "getActivity",
+  summary: "Get one of the user's activities, for example to follow a close running in the background",
+  tags: ["Activities"],
+  security: SECURITY_BEARER_OR_API_KEY,
+  request: { params: GetActivityParamsSchema },
+  responses: {
+    200: { description: "The activity", content: { "application/json": { schema: GetActivityResponseSchema } } },
+    400: { description: "The id is not a uuid" },
+    401: { description: "Unauthorized" },
+    404: { description: "No activity of the user's has this id" }
+  }
+});
+
+activityRouter.openapi(getActivityRoute, async function routeGetActivity(c) {
+  return c.json(await container.resolve(ActivityController).getById(c.req.valid("param").id), 200);
 });
 
 const markActivitiesSeenRoute = createRoute({

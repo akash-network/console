@@ -239,9 +239,26 @@ export const CloseDeploymentParamsSchema = z.object({
   dseq: DseqSchema.describe("Deployment sequence number")
 });
 
+export const CloseDeploymentQuerySchema = z.object({
+  async: z
+    .enum(["true", "false"])
+    .optional()
+    .transform(value => value === "true")
+    .openapi({
+      description:
+        "With `true`, the close finishes in the background: the request answers 202 with an `activityId` to follow at `GET /v1/activities/{id}` once every check that could refuse it has passed. It answers 200 as without it when the deployment was already closed or background closes are unavailable."
+    })
+});
+
 export const CloseDeploymentResponseSchema = z.object({
   data: z.object({
     success: z.boolean()
+  })
+});
+
+export const CloseDeploymentAcceptedResponseSchema = z.object({
+  data: z.object({
+    activityId: z.string().uuid().openapi({ description: "The activity that reports how the close ends." })
   })
 });
 
@@ -650,6 +667,8 @@ export type GetDeploymentResponse = z.infer<typeof GetDeploymentResponseSchema>;
 export type CreateDeploymentRequest = z.infer<typeof CreateDeploymentRequestSchema>;
 export type CreateDeploymentResponse = z.infer<typeof CreateDeploymentResponseSchema>;
 export type CloseDeploymentResponse = z.infer<typeof CloseDeploymentResponseSchema>;
+export type CloseDeploymentAcceptedResponse = z.infer<typeof CloseDeploymentAcceptedResponseSchema>;
+export type CloseDeploymentQuery = z.infer<typeof CloseDeploymentQuerySchema>;
 export type DepositDeploymentRequest = z.infer<typeof DepositDeploymentRequestSchema>;
 export type DepositDeploymentResponse = z.infer<typeof DepositDeploymentResponseSchema>;
 export type UpdateDeploymentRequest = z.infer<typeof UpdateDeploymentRequestSchema>;

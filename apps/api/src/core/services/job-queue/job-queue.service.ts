@@ -2,7 +2,7 @@ import { redactQueryError } from "@akashnetwork/logging";
 import { createMongoAbility, type MongoAbility, type RawRuleOf } from "@casl/ability";
 import { context, propagation, SpanStatusCode, trace } from "@opentelemetry/api";
 import {
-  Job as PgBossJob,
+  type JobWithMetadata as PgBossJobWithMetadata,
   PgBoss,
   Queue as PgBossQueue,
   type QueueResult as PgBossQueueResult,
@@ -275,6 +275,26 @@ export class JobQueueService implements Disposable {
     return new Set(result.rows.map(row => row.singleton_key));
   }
 
+  /** The data of the job under this key that has not finished: queued, waiting on a retry, or running. */
+  async findPendingJobData<T extends Job>(jobType: JobType<T>, singletonKey: string): Promise<JobPayload<T> | undefined> {
+    const connection = this.txService.getConnection();
+    const db = connection ? this.#toTransactionDb(connection) : await this.pgBoss.getDb();
+    const schema = this.coreConfig.get("POSTGRES_BACKGROUND_JOBS_SCHEMA");
+    const result = (await db.executeSql(
+      `
+        SELECT data
+        FROM ${schema}.job
+        WHERE name = $1
+          AND singleton_key = $2
+          AND state IN ('created', 'retry', 'active')
+        LIMIT 1
+      `,
+      [jobType[JOB_NAME], singletonKey]
+    )) as { rows: { data: JobPayload<T> }[] };
+
+    return result.rows[0]?.data;
+  }
+
   /** Singleton keys of the queue's jobs that finished at or after `since`, which reaches back only as far as pg-boss keeps finished jobs. */
   async findRecentlyFinishedSingletonKeys(query: { name: string; since: Date }): Promise<Set<string>> {
     const connection = this.txService.getConnection();
@@ -388,7 +408,8 @@ export class JobQueueService implements Disposable {
 
     const workerOptions = {
       ...options,
-      batchSize: 1
+      batchSize: 1,
+      includeMetadata: true as const
     };
     const jobs = this.handlers.map(async handler => {
       const queueName = handler.accepts[JOB_NAME];
@@ -424,7 +445,7 @@ export class JobQueueService implements Disposable {
               });
               try {
                 this.executionContextService.set("ABILITY", createMongoAbility<MongoAbility>(handler.requiresPermission(job.data)));
-                await handler.handle(job.data, { id: job.id });
+                await handler.handle(job.data, { id: job.id, retryCount: job.retryCount, retryLimit: job.retryLimit });
                 this.logger.info({
                   event: "JOB_DONE",
                   jobId: job.id
@@ -520,7 +541,8 @@ export type JobType<T extends Job> = {
   [JOB_NAME]: string;
 };
 
-export type JobMeta = Pick<PgBossJob, "id">;
+/** `retryCount` counts the retries already made, so the attempt that fails for good is the one where it equals `retryLimit`. */
+export type JobMeta = Pick<PgBossJobWithMetadata, "id" | "retryCount" | "retryLimit">;
 
 export type JobPermissions = RawRuleOf<MongoAbility>[];
 

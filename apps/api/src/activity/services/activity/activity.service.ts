@@ -29,6 +29,20 @@ export class ActivityService {
     }
   }
 
+  /** Not best-effort, unlike `record`: an activity opened for work still to come must fail the transaction that queues that work. */
+  async open(activity: NewActivity & { id: string }): Promise<void> {
+    await this.activityRepository.create(activity);
+  }
+
+  async isPending(id: string): Promise<boolean> {
+    return (await this.activityRepository.findById(id))?.status === "pending";
+  }
+
+  /** Guarded on `pending`, so a late or repeated settle never overwrites an outcome already recorded. */
+  async settle(id: string, { status, meta }: Pick<NewActivity, "status" | "meta">): Promise<void> {
+    await this.activityRepository.updateBy({ id, status: "pending" }, { status, meta });
+  }
+
   async list({ limit, cursor, status, type }: { limit: number; cursor?: string; status?: ActivityStatus; type?: ActivityType }): Promise<ActivityPage> {
     const after = cursor ? decodeActivityCursor(cursor) : undefined;
     const rows = await this.activityRepository.accessibleBy(this.authService.ability, "read").findPage({ limit: limit + 1, after, status, type });
@@ -36,6 +50,10 @@ export class ActivityService {
     const hasMore = rows.length > limit;
 
     return { activities, hasMore, nextCursor: hasMore ? encodeActivityCursor(activities[activities.length - 1]) : null };
+  }
+
+  async findById(id: string): Promise<ActivityOutput | undefined> {
+    return await this.activityRepository.accessibleBy(this.authService.ability, "read").findById(id);
   }
 
   async countUnseen(): Promise<number> {

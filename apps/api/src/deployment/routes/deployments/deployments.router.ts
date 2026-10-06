@@ -7,7 +7,9 @@ import { SECURITY_BEARER_OR_API_KEY, SECURITY_NONE } from "@src/core/services/op
 import { CREATE_DEPLOYMENT_BODY_LIMIT_BYTES } from "@src/deployment/config/sdl-secrets.config";
 import { DeploymentController } from "@src/deployment/controllers/deployment/deployment.controller";
 import {
+  CloseDeploymentAcceptedResponseSchema,
   CloseDeploymentParamsSchema,
+  CloseDeploymentQuerySchema,
   CloseDeploymentResponseSchema,
   CreateDeploymentDefinitionParamsSchema,
   CreateDeploymentDefinitionRequestSchema,
@@ -199,7 +201,8 @@ const deleteRoute = createRoute({
   tags: ["Deployments"],
   security: SECURITY_BEARER_OR_API_KEY,
   request: {
-    params: CloseDeploymentParamsSchema
+    params: CloseDeploymentParamsSchema,
+    query: CloseDeploymentQuerySchema
   },
   responses: {
     200: {
@@ -209,13 +212,21 @@ const deleteRoute = createRoute({
           schema: CloseDeploymentResponseSchema
         }
       }
+    },
+    202: {
+      description: "The close passed every check and will finish in the background",
+      content: {
+        "application/json": {
+          schema: CloseDeploymentAcceptedResponseSchema
+        }
+      }
     }
   }
 });
 deploymentsRouter.openapi(deleteRoute, async function routeCloseDeployment(c) {
   const { dseq } = c.req.valid("param");
-  const result = await container.resolve(DeploymentController).close(dseq);
-  return c.json(result, 200);
+  const result = await container.resolve(DeploymentController).close(dseq, c.req.valid("query"));
+  return "activityId" in result.data ? c.json({ data: result.data }, 202) : c.json({ data: result.data }, 200);
 });
 
 const depositRoute = createRoute({
