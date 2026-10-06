@@ -93,12 +93,15 @@ describe("DeploymentsList", () => {
     setup({ hasAnyDeployment: true }, { isBlockchainDown: true });
 
     expect(screen.getByRole("link", { name: /New deployment/ })).toHaveAttribute("aria-disabled", "true");
+    expect(screen.getByRole("link", { name: /New deployment/ })).toHaveClass("pointer-events-none", "opacity-50");
   });
 
   it("leaves the New deployment link enabled while the chain is up", () => {
     setup({ hasAnyDeployment: true }, { isBlockchainDown: false });
 
     expect(screen.getByRole("link", { name: /New deployment/ })).toHaveAttribute("aria-disabled", "false");
+    expect(screen.getByRole("link", { name: /New deployment/ })).not.toHaveClass("pointer-events-none");
+    expect(screen.getByRole("link", { name: /New deployment/ })).not.toHaveClass("opacity-50");
   });
 
   it("drops any staged SDL when a new deployment is started", async () => {

@@ -40,9 +40,11 @@ export const SettingsLayout: React.FunctionComponent<Props> = ({ title, descript
 
       <div className="min-h-0 min-w-0 flex-1 overflow-y-auto">
         {(title || headerActions) && (
-          <div className="sticky top-0 z-30 flex min-h-[60px] flex-wrap items-center justify-between gap-4 border-b border-border bg-background px-6 py-2.5">
-            {title && <d.Title className="text-xl">{title}</d.Title>}
-            {headerActions}
+          <div className="sticky top-0 z-30 flex min-h-[60px] items-center border-b border-border bg-background py-2.5">
+            <div className="mx-auto flex w-full max-w-[1180px] flex-wrap items-center justify-between gap-4 px-6">
+              {title && <d.Title className="text-xl">{title}</d.Title>}
+              {headerActions}
+            </div>
           </div>
         )}
         <div className="mx-auto w-full max-w-[1180px]">

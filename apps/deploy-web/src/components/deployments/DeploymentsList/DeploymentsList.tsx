@@ -66,68 +66,70 @@ export const DeploymentsList: React.FunctionComponent<Props> = ({ dependencies: 
 
       <div className="flex flex-col md:h-[calc(100dvh_-_var(--app-header-height,57px)_-_4px)]">
         {model.hasWallet && (
-          <div className="flex min-h-[60px] shrink-0 flex-wrap items-center gap-3 border-b border-border bg-background px-4 py-2 sm:px-6">
-            <div className="mr-auto flex items-center gap-6">
-              <h1 className="whitespace-nowrap text-xl font-bold leading-7 tracking-[-0.02em]">Deployments</h1>
+          <div className="flex min-h-[60px] shrink-0 items-center border-b border-border bg-background py-2">
+            <div className="container flex flex-wrap items-center gap-3 px-4 sm:px-6">
+              <div className="mr-auto flex items-center gap-6">
+                <h1 className="whitespace-nowrap text-xl font-bold leading-7 tracking-[-0.02em]">Deployments</h1>
 
-              {model.selectedItemIds.length > 0 && (
+                {model.selectedItemIds.length > 0 && (
+                  <>
+                    <Button onClick={model.closeSelectedDeployments} variant="outline" size="sm">
+                      Close selected ({model.selectedItemIds.length})
+                    </Button>
+                    <LinkTo className="text-sm" onClick={model.clearSelection}>
+                      Clear
+                    </LinkTo>
+                  </>
+                )}
+              </div>
+
+              {model.hasAnyDeployment && (
                 <>
-                  <Button onClick={model.closeSelectedDeployments} variant="outline" size="sm">
-                    Close selected ({model.selectedItemIds.length})
+                  <Input
+                    value={model.search}
+                    onChange={changeSearch}
+                    aria-label="Search deployments"
+                    placeholder="Search deployments"
+                    maxLength={MAX_SEARCH_LENGTH}
+                    className="w-full sm:w-64"
+                    type="text"
+                    startIcon={<Search className="ml-3 h-4 w-4 text-muted-foreground" />}
+                    endIcon={
+                      !!model.search && (
+                        <Button size="icon" variant="text" aria-label="Clear search" onClick={() => model.changeSearch("")}>
+                          <Xmark className="text-xs" />
+                        </Button>
+                      )
+                    }
+                  />
+
+                  <Button aria-label="Refresh deployments" onClick={model.refetchDeployments} size="icon" variant="ghost">
+                    <Refresh />
                   </Button>
-                  <LinkTo className="text-sm" onClick={model.clearSelection}>
-                    Clear
-                  </LinkTo>
+
+                  <ToggleGroup type="single" value={model.viewMode} onValueChange={model.changeViewMode} variant="outline" className="gap-0 rounded-md border">
+                    <ToggleGroupItem value="grid" aria-label="Grid view" className="rounded-r-none border-0">
+                      <ViewGrid className="h-4 w-4" />
+                    </ToggleGroupItem>
+                    <ToggleGroupItem value="list" aria-label="List view" className="rounded-l-none border-0">
+                      <List className="h-4 w-4" />
+                    </ToggleGroupItem>
+                  </ToggleGroup>
                 </>
               )}
+
+              {model.showNewDeploymentLink && (
+                <Link
+                  href={newDeploymentUrl()}
+                  className={cn("space-x-2", buttonVariants({ variant: "default" }), isBlockchainDown && "pointer-events-none opacity-50")}
+                  aria-disabled={isBlockchainDown}
+                  onClick={startNewDeploymentUnlessChainIsDown}
+                >
+                  <span className="whitespace-nowrap">New deployment</span>
+                  <NavArrowRight className="h-4 w-4" />
+                </Link>
+              )}
             </div>
-
-            {model.hasAnyDeployment && (
-              <>
-                <Input
-                  value={model.search}
-                  onChange={changeSearch}
-                  aria-label="Search deployments"
-                  placeholder="Search deployments"
-                  maxLength={MAX_SEARCH_LENGTH}
-                  className="w-full sm:w-64"
-                  type="text"
-                  startIcon={<Search className="ml-3 h-4 w-4 text-muted-foreground" />}
-                  endIcon={
-                    !!model.search && (
-                      <Button size="icon" variant="text" aria-label="Clear search" onClick={() => model.changeSearch("")}>
-                        <Xmark className="text-xs" />
-                      </Button>
-                    )
-                  }
-                />
-
-                <Button aria-label="Refresh deployments" onClick={model.refetchDeployments} size="icon" variant="ghost">
-                  <Refresh />
-                </Button>
-
-                <ToggleGroup type="single" value={model.viewMode} onValueChange={model.changeViewMode} variant="outline" className="gap-0 rounded-md border">
-                  <ToggleGroupItem value="grid" aria-label="Grid view" className="rounded-r-none border-0">
-                    <ViewGrid className="h-4 w-4" />
-                  </ToggleGroupItem>
-                  <ToggleGroupItem value="list" aria-label="List view" className="rounded-l-none border-0">
-                    <List className="h-4 w-4" />
-                  </ToggleGroupItem>
-                </ToggleGroup>
-              </>
-            )}
-
-            {model.showNewDeploymentLink && (
-              <Link
-                href={newDeploymentUrl()}
-                className={cn("space-x-2", buttonVariants({ variant: "default" }), isBlockchainDown && "pointer-events-none opacity-50")}
-                aria-disabled={isBlockchainDown}
-                onClick={startNewDeploymentUnlessChainIsDown}
-              >
-                <span className="whitespace-nowrap">New deployment</span>
-                <NavArrowRight className="h-4 w-4" />
-              </Link>
-            )}
           </div>
         )}
 
