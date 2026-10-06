@@ -39,7 +39,7 @@ import {
   withPinnedGpu
 } from "@src/utils/akash/gpu";
 import { validationConfig } from "@src/utils/akash/units";
-import { formatProviderCount } from "@src/utils/providerUtils";
+import { describeGpuAvailability } from "@src/utils/providerUtils";
 import { defaultGpuModel } from "@src/utils/sdl/data";
 import { describeCurrentConfiguration } from "../../HardwareRequestDialog/currentConfiguration";
 import { HardwareRequestDialog } from "../../HardwareRequestDialog/HardwareRequestDialog";
@@ -48,6 +48,7 @@ import { GpuInterconnectFields } from "../GpuInterconnectFields/GpuInterconnectF
 import { SELECT_TRUNCATE_VALUE } from "../selectStyles";
 import { UnlockGpusButton } from "../UnlockGpusButton/UnlockGpusButton";
 import { useServiceGpu } from "../useServiceGpu/useServiceGpu";
+import { useScreenedGpuModelCount } from "./useScreenedGpuModelCount/useScreenedGpuModelCount";
 import { summarizeGpu } from "./gpuSummary";
 
 export const DEPENDENCIES = {
@@ -58,7 +59,8 @@ export const DEPENDENCIES = {
   useServices,
   GpuModelFields,
   GpuInterconnectFields,
-  HardwareRequestDialog
+  HardwareRequestDialog,
+  useScreenedGpuModelCount
 };
 
 type Props = {
@@ -295,11 +297,13 @@ function GpuModelFields({
   const gpuInterface = useController({ control, name: `${basePath}.interface` });
 
   const choices = useGpuModelOptions({
+    serviceIndex,
     gpuVendors,
     gpuCatalog,
     availableGpus,
     isBlockedModel,
-    pinned: { vendor: vendor.field.value, name: name.field.value, memory: memory.field.value, interface: gpuInterface.field.value }
+    pinned: { vendor: vendor.field.value, name: name.field.value, memory: memory.field.value, interface: gpuInterface.field.value },
+    useScreenedGpuModelCount: d.useScreenedGpuModelCount
   });
 
   const selectGpuVendor = useCallback(
@@ -472,6 +476,7 @@ type FirstGpuModelPickerProps = ModelFieldsSharedProps & {
 
 /** Stands in for the first model while the service has no GPU entry, writing the whole entry on a pick so nothing registers a partial one. */
 function FirstGpuModelPicker({
+  serviceIndex,
   gpuVendors,
   gpuCatalog,
   availableGpus,
@@ -483,9 +488,18 @@ function FirstGpuModelPicker({
   locked = false,
   countField,
   capacityWarning,
-  onPick
+  onPick,
+  dependencies: d = DEPENDENCIES
 }: FirstGpuModelPickerProps) {
-  const choices = useGpuModelOptions({ gpuVendors, gpuCatalog, availableGpus, isBlockedModel, pinned: { vendor: defaultGpuModel.vendor } });
+  const choices = useGpuModelOptions({
+    serviceIndex,
+    gpuVendors,
+    gpuCatalog,
+    availableGpus,
+    isBlockedModel,
+    pinned: { vendor: defaultGpuModel.vendor },
+    useScreenedGpuModelCount: d.useScreenedGpuModelCount
+  });
 
   return (
     <div className="flex flex-col gap-3">
@@ -546,11 +560,7 @@ function GpuModelControl({ isLoading, isError, value, onChange, onRequestGpu, ch
           searchLabel="Search GPU models"
           searchPlaceholder="Search GPUs..."
           notFoundMessage="No models found."
-          optionsHeading={
-            choices.isAvailabilityKnown
-              ? { label: "Available", hintLabel: choices.hasFreeUnitCounts ? <AvailabilityColumnLabels /> : "Providers" }
-              : { label: "All models" }
-          }
+          optionsHeading={choices.isAvailabilityKnown ? { label: "Available", hintLabel: <AvailabilityColumnLabels /> } : { label: "All models" }}
           unavailableHeading="Others"
           emptyOption={{
             value: "",
@@ -611,15 +621,18 @@ function AvailabilityColumnLabels() {
   );
 }
 
-function AvailabilityHint({ providerCount, availableUnits }: { providerCount: number; availableUnits?: number }) {
-  if (availableUnits === undefined) {
+function AvailabilityHint({ providerCount, gpuCount }: { providerCount: number | null; gpuCount: number | null }) {
+  if (providerCount === null) {
     return (
-      <>
+      <span className={AVAILABILITY_COLUMNS}>
         <span aria-hidden="true" className="font-mono">
-          {providerCount}
+          …
         </span>
-        <span className="sr-only">{formatProviderCount(providerCount)}</span>
-      </>
+        <span aria-hidden="true" className="font-mono">
+          …
+        </span>
+        <span className="sr-only">Checking</span>
+      </span>
     );
   }
 
@@ -629,28 +642,39 @@ function AvailabilityHint({ providerCount, availableUnits }: { providerCount: nu
         {providerCount}
       </span>
       <span aria-hidden="true" className="font-mono">
-        {availableUnits}
+        {gpuCount ?? "–"}
       </span>
-      <span className="sr-only">{`${formatFreeGpuCount(availableUnits)} on ${formatProviderCount(providerCount)}`}</span>
+      <span className="sr-only">{describeGpuAvailability(providerCount, gpuCount)}</span>
     </span>
   );
 }
 
-function formatFreeGpuCount(count: number): string {
-  return `${count} free ${count === 1 ? "GPU" : "GPUs"}`;
+type ScreenedAvailabilityHintProps = {
+  serviceIndex: number;
+  vendor: string;
+  name: string;
+  useScreenedGpuModelCount: typeof DEPENDENCIES.useScreenedGpuModelCount;
+};
+
+/** Mounts only while the picker is open, so a closed picker never screens. */
+function ScreenedAvailabilityHint({ serviceIndex, vendor, name, useScreenedGpuModelCount }: ScreenedAvailabilityHintProps) {
+  const { count, gpuCount } = useScreenedGpuModelCount(serviceIndex, { vendor, name });
+  return <AvailabilityHint providerCount={count} gpuCount={gpuCount} />;
 }
 
 type GpuModelChoices = ReturnType<typeof useGpuModelOptions>;
 
 type GpuModelOptionsInput = {
+  serviceIndex: number;
   gpuVendors: GpuVendor[] | undefined;
   gpuCatalog?: GpuVendor[];
   availableGpus?: AvailableGpuVendor[];
   isBlockedModel: (vendor?: string | null, model?: string | null) => boolean;
   pinned: PinnedGpu;
+  useScreenedGpuModelCount: typeof DEPENDENCIES.useScreenedGpuModelCount;
 };
 
-function useGpuModelOptions({ gpuVendors, gpuCatalog, availableGpus, isBlockedModel, pinned }: GpuModelOptionsInput) {
+function useGpuModelOptions({ serviceIndex, gpuVendors, gpuCatalog, availableGpus, isBlockedModel, pinned, useScreenedGpuModelCount }: GpuModelOptionsInput) {
   const { vendor, name, memory, interface: gpuInterface } = pinned;
 
   const offeredVendors = useMemo(
@@ -687,9 +711,6 @@ function useGpuModelOptions({ gpuVendors, gpuCatalog, availableGpus, isBlockedMo
    */
   const anyModelBlocked = isBlockedModel(vendor, "");
 
-  /** An API from before free GPUs were counted serves none, and the picker then shows the provider count alone. */
-  const hasFreeUnitCounts = selectableModels.some(model => model.availableUnits !== undefined);
-
   const modelOptions = useMemo(
     () =>
       prioritizeGpuModels(selectableModels).map(model => {
@@ -699,7 +720,10 @@ function useGpuModelOptions({ gpuVendors, gpuCatalog, availableGpus, isBlockedMo
           value: model.name,
           disabled: blocked,
           keywords: [label, vendorLabel],
-          hint: model.providerCount === undefined ? undefined : <AvailabilityHint providerCount={model.providerCount} availableUnits={model.availableUnits} />,
+          hint:
+            model.providerCount === undefined || !vendor ? undefined : (
+              <ScreenedAvailabilityHint serviceIndex={serviceIndex} vendor={vendor} name={model.name} useScreenedGpuModelCount={useScreenedGpuModelCount} />
+            ),
           label: (
             <span className="flex items-center gap-1.5">
               {vendorLabel} {label}
@@ -708,7 +732,7 @@ function useGpuModelOptions({ gpuVendors, gpuCatalog, availableGpus, isBlockedMo
           )
         };
       }),
-    [selectableModels, isBlockedModel, vendor, vendorLabel]
+    [selectableModels, isBlockedModel, vendor, vendorLabel, serviceIndex, useScreenedGpuModelCount]
   );
 
   const unavailableModelOptions = useMemo(
@@ -719,17 +743,16 @@ function useGpuModelOptions({ gpuVendors, gpuCatalog, availableGpus, isBlockedMo
           value: model.name,
           keywords: [label, vendorLabel],
           label: `${vendorLabel} ${label}`,
-          hint: <AvailabilityHint providerCount={0} availableUnits={hasFreeUnitCounts ? 0 : undefined} />
+          hint: <AvailabilityHint providerCount={0} gpuCount={0} />
         };
       }),
-    [unavailableModels, vendorLabel, hasFreeUnitCounts]
+    [unavailableModels, vendorLabel]
   );
 
   const hasBlockedModel = selectableModels.some(model => isBlockedModel(vendor, model.name));
 
   return {
     isAvailabilityKnown: !!availableGpus?.length,
-    hasFreeUnitCounts,
     vendorOptions,
     showVendor,
     listedModels,

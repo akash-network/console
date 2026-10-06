@@ -6,7 +6,7 @@ import type { SdlBuilderFormValuesType } from "@src/types";
 import { defaultPlacement, defaultService } from "@src/utils/sdl/data";
 import { GPU_INTERCONNECT_CAPABILITY_KEY } from "@src/utils/sdl/gpuInterconnect";
 import { generateSdl } from "@src/utils/sdl/sdlGenerator";
-import { screeningRequestOf, withGpuModel, withoutGpu } from "./gpuVariants";
+import { screeningRequestOf, withGpuModel, withoutGpu, withServiceGpuModel } from "./gpuVariants";
 
 type Service = SdlBuilderFormValuesType["services"][number];
 
@@ -92,6 +92,54 @@ describe(withGpuModel.name, () => {
     const values = gpuForm({});
 
     expect(withGpuModel(values, "missing", H100)).toBe(values);
+  });
+});
+
+describe(withServiceGpuModel.name, () => {
+  it("switches the given service even while another service of its placement runs a gpu", () => {
+    const values = form([gpuService("p1", "web", [{ vendor: "nvidia", name: "a100" }]), cpuService("p1", "worker")]);
+
+    const switched = withServiceGpuModel(values, 1, H100);
+
+    expect(switched.services[0]).toBe(values.services[0]);
+    expect(switched.services[1].profile).toMatchObject({ hasGpu: true, gpu: 1, gpuModels: [{ vendor: "nvidia", name: "h100", memory: "", interface: "" }] });
+  });
+
+  it("leaves a service already running that model as it is, pins included", () => {
+    const values = gpuForm({ gpu: 2, gpuModels: [{ vendor: "nvidia", name: "h100", memory: "80Gi", interface: "sxm" }] });
+
+    expect(withServiceGpuModel(values, 0, H100)).toBe(values);
+  });
+
+  it.each([
+    ["switched off", { hasGpu: false, gpu: 1 }],
+    ["switched on with no units", { hasGpu: true, gpu: 0 }]
+  ])("turns on a gpu %s that already names the model", (_, gpuState) => {
+    const values = gpuForm({ ...gpuState, gpuModels: [{ vendor: "nvidia", name: "h100", memory: "80Gi", interface: "" }] });
+
+    expect(withServiceGpuModel(values, 0, H100).services[0].profile).toMatchObject({
+      hasGpu: true,
+      gpu: 1,
+      gpuModels: [{ vendor: "nvidia", name: "h100", memory: "", interface: "" }]
+    });
+  });
+
+  it("switches a running gpu that names no model yet", () => {
+    const values = gpuForm({ gpuModels: [] });
+
+    expect(withServiceGpuModel(values, 0, H100).services[0].profile.gpuModels).toEqual([{ vendor: "nvidia", name: "h100", memory: "", interface: "" }]);
+  });
+
+  it("switches a service running the same model name from another vendor", () => {
+    const values = gpuForm({ gpuModels: [{ vendor: "amd", name: "h100" }] });
+
+    expect(withServiceGpuModel(values, 0, H100).services[0].profile.gpuModels).toEqual([{ vendor: "nvidia", name: "h100", memory: "", interface: "" }]);
+  });
+
+  it("returns the form unchanged for a service it does not have", () => {
+    const values = gpuForm({});
+
+    expect(withServiceGpuModel(values, 3, H100)).toBe(values);
   });
 });
 
