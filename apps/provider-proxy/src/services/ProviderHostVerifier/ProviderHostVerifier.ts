@@ -65,23 +65,30 @@ export class ProviderHostVerifier {
   async #lookUpHostRecord(providerAddress: string, previousRecord: HostRecord | undefined): Promise<HostRecord> {
     let record: HostRecord;
     try {
-      record = { verified: true, origin: toOrigin(await this.#providerService.getHostUri(providerAddress)), checkedAt: this.#now() };
+      record = { verified: true, source: "chain", origin: toOrigin(await this.#providerService.getHostUri(providerAddress)), checkedAt: this.#now() };
     } catch {
-      record = previousRecord?.verified ? { ...previousRecord, checkedAt: this.#now() } : await this.#lookUpInventoryHostRecord(providerAddress);
+      record =
+        previousRecord?.verified && previousRecord.source === "chain"
+          ? this.#carryOver(previousRecord)
+          : await this.#lookUpInventoryHostRecord(providerAddress, previousRecord);
     }
 
     this.#hostRecords.set(providerAddress, record);
     return record;
   }
 
-  async #lookUpInventoryHostRecord(providerAddress: string): Promise<HostRecord> {
-    if (!this.#providerInventory) return { verified: false, checkedAt: this.#now() };
+  async #lookUpInventoryHostRecord(providerAddress: string, previousRecord: HostRecord | undefined): Promise<HostRecord> {
+    if (!this.#providerInventory) return this.#carryOver(previousRecord);
 
     try {
-      return { verified: true, origin: toOrigin(await this.#providerInventory.getHostUri(providerAddress)), checkedAt: this.#now() };
+      return { verified: true, source: "inventory", origin: toOrigin(await this.#providerInventory.getHostUri(providerAddress)), checkedAt: this.#now() };
     } catch {
-      return { verified: false, checkedAt: this.#now() };
+      return this.#carryOver(previousRecord);
     }
+  }
+
+  #carryOver(previousRecord: HostRecord | undefined): HostRecord {
+    return previousRecord?.verified ? { ...previousRecord, checkedAt: this.#now() } : { verified: false, checkedAt: this.#now() };
   }
 }
 
@@ -95,7 +102,7 @@ function toOrigin(hostUri: string | null): string | null {
   }
 }
 
-type HostRecord = { verified: true; origin: string | null; checkedAt: number } | { verified: false; checkedAt: number };
+type HostRecord = { verified: true; source: "chain" | "inventory"; origin: string | null; checkedAt: number } | { verified: false; checkedAt: number };
 
 export interface ProviderHostVerifierInstrumentation {
   onUnverifiedHost?(url: string, providerAddress: string): void;

@@ -314,19 +314,34 @@ describe(ProviderHostVerifier.name, () => {
         expect(providerInventory.getHostUri).not.toHaveBeenCalled();
       });
 
-      it("keeps the host the provider inventory reported without asking it again while chain cannot be queried", async () => {
+      it("asks the provider inventory again at the next recheck while chain cannot be queried", async () => {
         const clock = { now: Date.now() };
         const { verifier, providerService, providerInventory } = setup({ now: () => clock.now, withProviderInventory: true });
         providerService.getHostUri.mockRejectedValue(new Error("chain is halted"));
-        providerInventory.getHostUri.mockResolvedValue(REGISTERED_HOST);
+        providerInventory.getHostUri.mockResolvedValueOnce(null).mockResolvedValue(REGISTERED_HOST);
+
+        expect(await verifier.canProxyTo(`${REGISTERED_HOST}/status`, PROVIDER_ADDRESS)).toBe(false);
+        clock.now += ONE_MINUTE;
+        const result = await verifier.canProxyTo(`${REGISTERED_HOST}/status`, PROVIDER_ADDRESS);
+
+        expect(result).toBe(true);
+        expect(providerInventory.getHostUri).toHaveBeenCalledTimes(2);
+      });
+
+      it("keeps the host the provider inventory last reported when neither chain nor the provider inventory can be queried", async () => {
+        const clock = { now: Date.now() };
+        const { verifier, providerService, providerInventory } = setup({ now: () => clock.now, withProviderInventory: true });
+        providerService.getHostUri.mockRejectedValue(new Error("chain is halted"));
+        providerInventory.getHostUri.mockResolvedValueOnce(REGISTERED_HOST).mockRejectedValue(new Error("inventory is down"));
 
         await verifier.canProxyTo(`${REGISTERED_HOST}/status`, PROVIDER_ADDRESS);
+        clock.now += ONE_MINUTE;
+        expect(await verifier.canProxyTo(`${OTHER_HOST}/status`, PROVIDER_ADDRESS)).toBe(false);
         clock.now += THIRTY_MINUTES;
-        const result = await verifier.canProxyTo(`${OTHER_HOST}/status`, PROVIDER_ADDRESS);
+        const result = await verifier.canProxyTo(`${REGISTERED_HOST}/status`, PROVIDER_ADDRESS);
 
-        expect(result).toBe(false);
-        expect(providerService.getHostUri).toHaveBeenCalledTimes(2);
-        expect(providerInventory.getHostUri).toHaveBeenCalledTimes(1);
+        expect(result).toBe(true);
+        expect(providerInventory.getHostUri).toHaveBeenCalledTimes(3);
       });
 
       it("follows chain over the provider inventory once chain answers again", async () => {
