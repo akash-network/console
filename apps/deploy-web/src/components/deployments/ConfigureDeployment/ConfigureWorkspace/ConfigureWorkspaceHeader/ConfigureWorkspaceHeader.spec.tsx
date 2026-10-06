@@ -7,7 +7,7 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 describe(ConfigureWorkspaceHeader.name, () => {
-  it("titles the page beside the back control and summarizes the deployment's resources", () => {
+  it("titles the page under the back control and summarizes the deployment's resources", () => {
     setup({ ctaState: "request-quotes" });
 
     expect(screen.getByText("back control")).toBeInTheDocument();

@@ -17,15 +17,17 @@ type Props = {
 };
 
 export const ConfigureWorkspaceHeader: FC<Props> = ({ backButton, ctaState, onDeploy, onRetry, onCloseAndEdit, dependencies: d = DEPENDENCIES }) => (
-  <header className="flex flex-wrap items-center justify-between gap-x-8 gap-y-3">
-    <div className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)] items-center gap-x-2 gap-y-1">
-      <div className="flex">{backButton}</div>
-      <h1 className="text-xl leading-tight md:text-3xl md:leading-9">Configure your deployment</h1>
-      <p className="col-start-2 text-sm text-muted-foreground">In some instances, not all providers will submit a bid for your deployment.</p>
-    </div>
-    <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
-      <d.DeploymentResourceSummary className="gap-x-5 text-lg font-medium [&_svg]:h-5 [&_svg]:w-5" />
-      {ctaState !== "request-quotes" && <WorkspaceCta state={ctaState} onDeploy={onDeploy} onRetry={onRetry} onCloseAndEdit={onCloseAndEdit} />}
+  <header className="flex flex-col items-start gap-2.5">
+    {backButton}
+    <div className="flex w-full flex-wrap items-center justify-between gap-x-8 gap-y-3">
+      <div className="flex min-w-0 flex-col gap-1">
+        <h1 className="text-xl leading-tight md:text-3xl md:leading-9">Configure your deployment</h1>
+        <p className="text-sm text-muted-foreground">In some instances, not all providers will submit a bid for your deployment.</p>
+      </div>
+      <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
+        <d.DeploymentResourceSummary className="gap-x-5 text-lg font-medium [&_svg]:h-5 [&_svg]:w-5" />
+        {ctaState !== "request-quotes" && <WorkspaceCta state={ctaState} onDeploy={onDeploy} onRetry={onRetry} onCloseAndEdit={onCloseAndEdit} />}
+      </div>
     </div>
   </header>
 );

@@ -1,5 +1,5 @@
 "use client";
-import type { FC } from "react";
+import type { FC, MouseEvent } from "react";
 import { useId, useState } from "react";
 import {
   Button,
@@ -11,13 +11,13 @@ import {
   DialogV2Header,
   DialogV2Title
 } from "@akashnetwork/ui/components";
-import { NavArrowLeft } from "iconoir-react";
+import { ArrowLeft } from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 
-import { useHasInAppHistory } from "@src/hooks/useHasInAppHistory";
 import { UrlService } from "@src/utils/urlUtils";
 
-export const DEPENDENCIES = { useRouter, useHasInAppHistory, UrlService };
+export const DEPENDENCIES = { useRouter, UrlService };
 
 type Props = {
   needsConfirmation: boolean;
@@ -42,35 +42,31 @@ export const LeaveConfigureButton: FC<Props> = ({
   dependencies: d = DEPENDENCIES
 }) => {
   const router = d.useRouter();
-  const hasInAppHistory = d.useHasInAppHistory();
   const [isConfirming, setIsConfirming] = useState(false);
   const descriptionId = useId();
 
-  function requestLeave() {
-    if (needsConfirmation) {
-      setIsConfirming(true);
-    } else if (hasInAppHistory) {
-      router.back();
-    } else {
-      router.push(d.UrlService.onboardingPicker());
-    }
+  function confirmBeforeLeaving(event: MouseEvent<HTMLAnchorElement>) {
+    if (!needsConfirmation || isOpeningElsewhere(event)) return;
+    event.preventDefault();
+    setIsConfirming(true);
   }
 
   function discardAndLeave() {
     onDiscard();
     setIsConfirming(false);
-    if (hasInAppHistory) {
-      router.back();
-    } else {
-      router.replace(d.UrlService.onboardingPicker());
-    }
+    router.replace(d.UrlService.deploymentList());
   }
 
   return (
     <>
-      <Button type="button" variant="ghost" size="icon" aria-label="Back" onClick={requestLeave} className="-ml-2 text-muted-foreground">
-        <NavArrowLeft className="h-5 w-5" />
-      </Button>
+      <Link
+        href={d.UrlService.deploymentList()}
+        onClick={confirmBeforeLeaving}
+        className="inline-flex items-center gap-1.5 py-1 text-[13px] text-muted-foreground transition-colors hover:text-foreground"
+      >
+        <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />
+        Back to deployments
+      </Link>
       <DialogV2 open={isConfirming} onOpenChange={setIsConfirming}>
         <DialogV2Content className="max-w-md" aria-describedby={descriptionId}>
           <DialogV2Header>
@@ -100,3 +96,7 @@ export const LeaveConfigureButton: FC<Props> = ({
     </>
   );
 };
+
+function isOpeningElsewhere(event: MouseEvent<HTMLAnchorElement>): boolean {
+  return event.metaKey || event.ctrlKey || event.shiftKey || event.altKey;
+}
