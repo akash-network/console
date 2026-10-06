@@ -3399,6 +3399,12 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                     "providers": {
                       "items": {
                         "properties": {
+                          "availableGpus": {
+                            "description": "Free GPUs matching the request on nodes that can also fit one replica of it; 0 when the request asks for no GPU",
+                            "example": 4,
+                            "minimum": 0,
+                            "type": "integer",
+                          },
                           "createdAt": {
                             "description": "ISO 8601 timestamp marking when the provider was first enrolled in the inventory",
                             "example": "2026-01-01T00:00:00.000Z",
@@ -3471,6 +3477,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                           "createdAt",
                           "location",
                           "organization",
+                          "availableGpus",
                           "incidents",
                         ],
                         "type": "object",

@@ -1283,6 +1283,109 @@ describe(ClusterInventoryMatcherService.name, () => {
     });
   });
 
+  describe("countAvailableGpus", () => {
+    it("counts the free GPUs of the requested model on a node that fits a replica", () => {
+      const service = new ClusterInventoryMatcherService();
+      const cluster = makeCluster([{ ...roomyNode, gpuCount: 8n, gpuAllocated: 3n, gpuInfo: gpuInfos("a100", 8) }]);
+
+      expect(service.countAvailableGpus(cluster, a100Units())).toBe(5);
+    });
+
+    it("sums the free GPUs across every node that fits a replica", () => {
+      const service = new ClusterInventoryMatcherService();
+      const cluster = makeCluster([
+        { ...roomyNode, gpuCount: 4n, gpuAllocated: 1n, gpuInfo: gpuInfos("a100", 4) },
+        { ...roomyNode, gpuCount: 2n, gpuInfo: gpuInfos("a100", 2) }
+      ]);
+
+      expect(service.countAvailableGpus(cluster, a100Units())).toBe(5);
+    });
+
+    it("skips a node whose free disk cannot fit a replica, however many GPUs it has free", () => {
+      const service = new ClusterInventoryMatcherService();
+      const cluster = makeCluster([
+        { ...roomyNode, ephemeral: 306162202n, gpuCount: 3n, gpuInfo: gpuInfos("a100", 3) },
+        { ...roomyNode, gpuCount: 2n, gpuInfo: gpuInfos("a100", 2) }
+      ]);
+
+      expect(service.countAvailableGpus(cluster, a100Units({ ephemeral: 536870912n }))).toBe(2);
+    });
+
+    it("skips a node with fewer free GPUs than one replica asks for", () => {
+      const service = new ClusterInventoryMatcherService();
+      const cluster = makeCluster([
+        { ...roomyNode, gpuCount: 8n, gpuAllocated: 5n, gpuInfo: gpuInfos("a100", 8) },
+        { ...roomyNode, gpuCount: 4n, gpuInfo: gpuInfos("a100", 4) }
+      ]);
+
+      expect(service.countAvailableGpus(cluster, a100Units({ gpuUnits: 4n }))).toBe(4);
+    });
+
+    it("counts only the devices of the requested model on a mixed node", () => {
+      const service = new ClusterInventoryMatcherService();
+      const cluster = makeCluster([{ ...roomyNode, gpuCount: 6n, gpuInfo: [...gpuInfos("a100", 2), ...gpuInfos("h100", 4)] }]);
+
+      expect(service.countAvailableGpus(cluster, a100Units())).toBe(2);
+    });
+
+    it("counts every model of the vendor for a request naming no model", () => {
+      const service = new ClusterInventoryMatcherService();
+      const cluster = makeCluster([{ ...roomyNode, gpuCount: 6n, gpuInfo: [...gpuInfos("a100", 2), ...gpuInfos("h100", 4)] }]);
+
+      expect(service.countAvailableGpus(cluster, a100Units({ gpuAttributes: [{ key: "vendor/nvidia/model/*", value: "true" }] }))).toBe(6);
+    });
+
+    it("counts the matching devices of a node that reports unlimited GPU capacity", () => {
+      const service = new ClusterInventoryMatcherService();
+      const cluster = makeCluster([{ ...roomyNode, gpuCount: -1n, gpuInfo: gpuInfos("a100", 3) }]);
+
+      expect(service.countAvailableGpus(cluster, a100Units())).toBe(3);
+    });
+
+    it("counts a node once, for the GPU unit that draws the most from it", () => {
+      const service = new ClusterInventoryMatcherService();
+      const cluster = makeCluster([{ ...roomyNode, gpuCount: 6n, gpuInfo: [...gpuInfos("a100", 2), ...gpuInfos("h100", 4)] }]);
+      const units = [
+        buildResourceUnit({ id: 1, cpu: 1000n, memory: 1073741824n, gpuUnits: 1n, gpuAttributes: [gpuAttribute("a100")], storage: [], count: 1 }),
+        buildResourceUnit({ id: 2, cpu: 1000n, memory: 1073741824n, gpuUnits: 1n, gpuAttributes: [gpuAttribute("h100")], storage: [], count: 1 })
+      ];
+
+      expect(service.countAvailableGpus(cluster, units)).toBe(4);
+    });
+
+    it("counts only the GPU units of a request that also asks for a service without GPUs", () => {
+      const service = new ClusterInventoryMatcherService();
+      const cluster = makeCluster([{ ...roomyNode, gpuCount: 2n, gpuInfo: gpuInfos("a100", 2) }]);
+      const units = [
+        buildResourceUnit({ id: 1, cpu: 1000n, memory: 1073741824n, storage: [], count: 1 }),
+        buildResourceUnit({ id: 2, cpu: 1000n, memory: 1073741824n, gpuUnits: 1n, gpuAttributes: [gpuAttribute("a100")], storage: [], count: 1 })
+      ];
+
+      expect(service.countAvailableGpus(cluster, units)).toBe(2);
+    });
+
+    it("skips a node whose declared architecture the request does not ask for", () => {
+      const service = new ClusterInventoryMatcherService();
+      const cluster = makeCluster([{ ...roomyNode, gpuCount: 2n, gpuInfo: gpuInfos("a100", 2) }]);
+
+      expect(service.countAvailableGpus(cluster, a100Units(), { declaredCpuArch: "arm64" })).toBe(0);
+      expect(service.countAvailableGpus(cluster, a100Units(), { declaredCpuArch: "amd64" })).toBe(2);
+    });
+
+    it("returns 0 for a request that asks for no GPU", () => {
+      const service = new ClusterInventoryMatcherService();
+      const cluster = makeCluster([{ ...roomyNode, gpuCount: 2n, gpuInfo: gpuInfos("a100", 2) }]);
+
+      expect(service.countAvailableGpus(cluster, makeResourceUnits({ cpu: 1000n, memory: 1073741824n, ephemeral: 5368709120n, count: 1 }))).toBe(0);
+    });
+
+    it("returns 0 for a provider with no reported inventory", () => {
+      const service = new ClusterInventoryMatcherService();
+
+      expect(service.countAvailableGpus(undefined, a100Units())).toBe(0);
+    });
+  });
+
   describe("input immutability", () => {
     it("does not mutate the cluster argument on a successful match", () => {
       const service = new ClusterInventoryMatcherService();
@@ -1359,6 +1462,25 @@ describe(ClusterInventoryMatcherService.name, () => {
 });
 
 const roomyNode = { cpu: 8000n, memory: 17179869184n, ephemeral: 107374182400n };
+
+function gpuInfos(name: string, count: number): GpuInfo[] {
+  return Array.from({ length: count }, () => ({ vendor: "nvidia", name, modelId: "20b5", interface: "SXM4", memorySize: "80Gi" }));
+}
+
+function gpuAttribute(model: string): ResourceAttribute {
+  return { key: `vendor/nvidia/model/${model}`, value: "true" };
+}
+
+function a100Units(input: { ephemeral?: bigint; gpuUnits?: bigint; gpuAttributes?: ResourceAttribute[] } = {}) {
+  return makeResourceUnits({
+    cpu: 1000n,
+    memory: 1073741824n,
+    ephemeral: input.ephemeral ?? 5368709120n,
+    count: 1,
+    gpuUnits: input.gpuUnits ?? 1n,
+    gpuAttributes: input.gpuAttributes ?? [gpuAttribute("a100")]
+  });
+}
 
 function cpuInfo(arch: string): CpuInfo {
   return { vendor: "vendor", model: "model", arch };

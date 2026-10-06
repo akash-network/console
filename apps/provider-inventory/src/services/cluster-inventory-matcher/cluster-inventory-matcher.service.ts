@@ -1,6 +1,6 @@
 import { singleton } from "tsyringe";
 
-import { canAllocate } from "@src/domain/resource-pair/resource-pair";
+import { availableCapacity, canAllocate } from "@src/domain/resource-pair/resource-pair";
 import { type CpuArch, DEFAULT_CPU_ARCH, resolveNodeCpuArch } from "../../mappers/cpu-attribute-parser/cpu-attribute-parser";
 import { matchesGPU, type ParsedGPUAttributes } from "../../mappers/gpu-attribute-parser/gpu-attribute-parser";
 import type { ClusterState, MatchResult, NodeState, RequestedResourceUnit } from "../../types/inventory";
@@ -63,6 +63,29 @@ export class ClusterInventoryMatcherService {
     }
 
     return MATCHED;
+  }
+
+  /** A node lends its free matching GPUs to the count only when a whole replica of some GPU unit fits on it, so a node short on CPU, memory or disk counts none. */
+  countAvailableGpus(cluster: ClusterState | undefined, resourceUnits: RequestedResourceUnit[], provider: ProviderContext = NO_PROVIDER_CONTEXT): number {
+    const gpuUnits = resourceUnits.filter(unit => unit.resources.gpu.units > 0n);
+    if (!cluster || gpuUnits.length === 0) return 0;
+
+    let availableGpus = 0;
+    for (const node of cluster.nodes ?? EMPTY_NODES) {
+      const nodeArch = resolveNodeCpuArch(node.cpus, provider.declaredCpuArch);
+      availableGpus += Math.max(...gpuUnits.map(unit => this.#countNodeGpusFor(node, nodeArch, cluster.storage, unit)));
+    }
+
+    return availableGpus;
+  }
+
+  #countNodeGpusFor(node: NodeState, nodeArch: CpuArch | null, clusterStorage: ClusterState["storage"], unit: RequestedResourceUnit): number {
+    const replica = this.#tryAdjust(node, nodeArch, { cpu: 0n, mem: 0n, eph: 0n, gpu: 0n }, clusterStorage, Object.create(null), unit, { gpuSpecs: null });
+    if (!replica.nodeOk) return 0;
+
+    const matchingGpus = BigInt(countMatchingGpus(node, unit.resources.gpu.attributes));
+    const freeGpus = availableCapacity(node.gpu.quantity);
+    return Number(freeGpus < matchingGpus ? freeGpus : matchingGpus);
   }
 
   #tryAdjust(
@@ -157,6 +180,16 @@ export class ClusterInventoryMatcherService {
 
     return GPU_CHECK_FAIL;
   }
+}
+
+/** Resolves each device to a spec the way tryAdjustGPU does, so the count never includes a device the bid engine would skip. */
+function countMatchingGpus(node: NodeState, gpuSpecs: ParsedGPUAttributes[]): number {
+  const specsByModel = indexSpecsByModel(gpuSpecs);
+
+  return node.gpu.info.filter(info => {
+    const spec = specsByModel.get(modelKey(info.vendor, info.name)) ?? specsByModel.get(modelKey(info.vendor, "*"));
+    return !!spec && matchesGPU(spec, info);
+  }).length;
 }
 
 function indexSpecsByModel(gpuSpecs: ParsedGPUAttributes[]): Map<string, ParsedGPUAttributes> {

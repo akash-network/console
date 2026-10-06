@@ -84,23 +84,23 @@ export class BidScreeningService {
     return matched.map(candidate => this.#toResult(candidate, incidentsByOwner));
   }
 
-  #filterProviders(candidates: BidScreeningCandidate[], resourceUnits: RequestedResourceUnit[]): BidScreeningCandidate[] {
-    if (!candidates.length) return [];
-    if (!resourceUnits.length) return candidates;
-    const matched: BidScreeningCandidate[] = [];
+  #filterProviders(candidates: BidScreeningCandidate[], resourceUnits: RequestedResourceUnit[]): MatchedCandidate[] {
+    if (!resourceUnits.length) return candidates.map(candidate => ({ ...candidate, availableGpus: 0 }));
+    const matched: MatchedCandidate[] = [];
 
     for (const candidate of candidates) {
-      const matchResult = this.#matcher.match(candidate.cluster, resourceUnits, { declaredCpuArch: candidate.declaredCpuArch });
+      const provider = { declaredCpuArch: candidate.declaredCpuArch };
+      const matchResult = this.#matcher.match(candidate.cluster, resourceUnits, provider);
 
       if (matchResult.matched) {
-        matched.push(candidate);
+        matched.push({ ...candidate, availableGpus: this.#matcher.countAvailableGpus(candidate.cluster, resourceUnits, provider) });
       }
     }
 
     return matched;
   }
 
-  #toResult(candidate: BidScreeningCandidate, incidentsByOwner: Partial<Record<string, Omit<DailyDowntimeRow, "provider">[]>>): BidScreeningResult {
+  #toResult(candidate: MatchedCandidate, incidentsByOwner: Partial<Record<string, Omit<DailyDowntimeRow, "provider">[]>>): BidScreeningResult {
     return {
       owner: candidate.owner,
       hostUri: candidate.hostUri,
@@ -108,9 +108,14 @@ export class BidScreeningService {
       createdAt: candidate.createdAt,
       location: candidate.location,
       organization: candidate.organization,
+      availableGpus: candidate.availableGpus,
       incidents: incidentsByOwner[candidate.owner] ?? []
     };
   }
+}
+
+interface MatchedCandidate extends BidScreeningCandidate {
+  availableGpus: number;
 }
 
 export interface BidScreeningInput extends Omit<GroupSpecJSON, "name"> {
