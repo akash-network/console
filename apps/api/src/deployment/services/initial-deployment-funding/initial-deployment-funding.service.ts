@@ -104,7 +104,8 @@ export class InitialDeploymentFundingService {
     }
 
     const currentHeight = await this.blockHttpService.getCurrentHeight();
-    const lookAheadHeight = currentHeight + averageBlockCountInAnHour * this.deploymentConfig.get("AUTO_TOP_UP_LOOK_AHEAD_WINDOW_IN_H");
+    const initialRunwayHours = this.deploymentConfig.get("AUTO_TOP_UP_INITIAL_RUNWAY_IN_H");
+    const initialRunwayHeight = currentHeight + averageBlockCountInAnHour * initialRunwayHours;
 
     const userWallet = await this.userWalletRepository.findById(walletId);
 
@@ -128,17 +129,17 @@ export class InitialDeploymentFundingService {
       return;
     }
 
-    if (deployment.predictedClosedHeight > lookAheadHeight) {
+    if (deployment.predictedClosedHeight >= initialRunwayHeight) {
       this.instrumentation.recordSkipped("sufficient_runway", {
         dseq,
         address,
         predictedClosedHeight: deployment.predictedClosedHeight,
-        lookAheadHeight
+        initialRunwayHeight
       });
       return;
     }
 
-    const desiredAmount = this.drainingDeploymentService.calculateAmountToTargetRunway({ ...deployment, runtimeEndsAt }, currentHeight);
+    const desiredAmount = this.drainingDeploymentService.calculateAmountToTargetRunway({ ...deployment, runtimeEndsAt }, currentHeight, initialRunwayHours);
 
     if (desiredAmount <= 0 && runtimeEndsAt) {
       this.instrumentation.recordSkipped("runtime_limit_reached", { dseq, address, runtimeEndsAt });
@@ -177,7 +178,10 @@ export class InitialDeploymentFundingService {
       return false;
     }
 
-    return outcome.fundedToTarget && !this.drainingDeploymentService.isCappedByRuntimeLimit({ runtimeEndsAt }, currentHeight);
+    return (
+      outcome.fundedToTarget &&
+      !this.drainingDeploymentService.isCappedByRuntimeLimit({ runtimeEndsAt }, currentHeight, this.deploymentConfig.get("AUTO_TOP_UP_INITIAL_RUNWAY_IN_H"))
+    );
   }
 
   /** Shortens how long a held claim holds when nothing landed; the claim itself is what keeps a second deposit from happening, so a missing hash just lets it age out. */

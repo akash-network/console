@@ -137,6 +137,34 @@ describe("deployment envSchema", () => {
     });
   });
 
+  describe("AUTO_TOP_UP_INITIAL_RUNWAY_IN_H", () => {
+    it("defaults to 4 hours", () => {
+      expect(envSchema.parse(setup()).AUTO_TOP_UP_INITIAL_RUNWAY_IN_H).toBe(4);
+    });
+
+    it("accepts an initial runway equal to the target runway", () => {
+      expect(envSchema.parse(setup({ AUTO_TOP_UP_INITIAL_RUNWAY_IN_H: "48", AUTO_TOP_UP_TARGET_RUNWAY_IN_H: "48" })).AUTO_TOP_UP_INITIAL_RUNWAY_IN_H).toBe(48);
+    });
+
+    it("rejects an initial runway above the target runway", () => {
+      expectRejected(setup({ AUTO_TOP_UP_INITIAL_RUNWAY_IN_H: "49", AUTO_TOP_UP_TARGET_RUNWAY_IN_H: "48" }), "AUTO_TOP_UP_INITIAL_RUNWAY_IN_H");
+    });
+
+    it("accepts an initial runway that outlasts the funding cooldown", () => {
+      expect(envSchema.parse(setup({ AUTO_TOP_UP_INITIAL_RUNWAY_IN_H: "1.5", AUTO_TOP_UP_DEDUP_COOLDOWN_IN_MIN: "60" })).AUTO_TOP_UP_INITIAL_RUNWAY_IN_H).toBe(
+        1.5
+      );
+    });
+
+    it("rejects an initial runway that runs out by the end of the funding cooldown", () => {
+      expectRejected(setup({ AUTO_TOP_UP_INITIAL_RUNWAY_IN_H: "1", AUTO_TOP_UP_DEDUP_COOLDOWN_IN_MIN: "60" }), "AUTO_TOP_UP_INITIAL_RUNWAY_IN_H");
+    });
+
+    it("rejects an infinite initial runway", () => {
+      expectRejected(setup({ AUTO_TOP_UP_INITIAL_RUNWAY_IN_H: "Infinity" }), "AUTO_TOP_UP_INITIAL_RUNWAY_IN_H");
+    });
+  });
+
   describe("RUNTIME_LIMIT_WARNING_MIN_LIMIT_IN_H", () => {
     it("defaults to a lead of 6h and a minimum limit of 12h", () => {
       const result = envSchema.safeParse(setup());

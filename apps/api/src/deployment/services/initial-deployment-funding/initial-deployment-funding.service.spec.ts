@@ -25,7 +25,8 @@ import { createUserWallet } from "@test/seeders/user-wallet.seeder";
 
 describe(InitialDeploymentFundingService.name, () => {
   const CURRENT_HEIGHT = 1000;
-  const LOOK_AHEAD_HEIGHT = CURRENT_HEIGHT + 600 * 24;
+  const INITIAL_RUNWAY_IN_H = 4;
+  const INITIAL_RUNWAY_HEIGHT = CURRENT_HEIGHT + 600 * INITIAL_RUNWAY_IN_H;
   const MIN_DEPOSIT = 500_000;
   const DEDUP_COOLDOWN_IN_MIN = 60;
   const CLAIMED_AT = "2026-08-19 06:24:27.123456";
@@ -68,15 +69,31 @@ describe(InitialDeploymentFundingService.name, () => {
     expect(instrumentation.recordSkipped).toHaveBeenCalledWith("deployment_closed", expect.objectContaining({ dseq: "123", address: "akash1owner" }));
   });
 
-  it("skips funding when the deployment already has more runway than the look-ahead window", async () => {
+  it("skips funding when the deployment already holds the initial runway", async () => {
     const { service, drainingDeploymentService, managedSignerService, instrumentation, deploymentSettingRepository } = setup();
-    drainingDeploymentService.findLeases.mockResolvedValue([createDrainingDeployment({ predictedClosedHeight: LOOK_AHEAD_HEIGHT + 1 })]);
+    drainingDeploymentService.findLeases.mockResolvedValue([createDrainingDeployment({ predictedClosedHeight: INITIAL_RUNWAY_HEIGHT })]);
 
     await service.fundOnLeaseStarted({ walletId: 1, address: "akash1owner", dseq: "123" });
 
     expect(managedSignerService.executeDerivedTx).not.toHaveBeenCalled();
-    expect(instrumentation.recordSkipped).toHaveBeenCalledWith("sufficient_runway", expect.objectContaining({ dseq: "123", address: "akash1owner" }));
+    expect(instrumentation.recordSkipped).toHaveBeenCalledWith("sufficient_runway", {
+      dseq: "123",
+      address: "akash1owner",
+      predictedClosedHeight: INITIAL_RUNWAY_HEIGHT,
+      initialRunwayHeight: INITIAL_RUNWAY_HEIGHT
+    });
     expect(deploymentSettingRepository.startRuntimeCountdown).not.toHaveBeenCalled();
+  });
+
+  it("funds a deployment holding just under the initial runway", async () => {
+    const { service, drainingDeploymentService, managedSignerService, instrumentation } = setup();
+    drainingDeploymentService.findLeases.mockResolvedValue([createDrainingDeployment({ predictedClosedHeight: INITIAL_RUNWAY_HEIGHT - 1 })]);
+    drainingDeploymentService.calculateAmountToTargetRunway.mockReturnValue(50);
+
+    await service.fundOnLeaseStarted({ walletId: 1, address: "akash1owner", dseq: "123" });
+
+    expect(managedSignerService.executeDerivedTx).toHaveBeenCalledOnce();
+    expect(instrumentation.recordSkipped).not.toHaveBeenCalledWith("sufficient_runway", expect.anything());
   });
 
   it("deposits the calculated top-up amount and schedules a wallet reload", async () => {
@@ -100,7 +117,7 @@ describe(InitialDeploymentFundingService.name, () => {
     expect(instrumentation.recordDeposit).toHaveBeenCalledWith(500000, "uakt", expect.objectContaining({ dseq: "123", address: "akash1owner" }));
   });
 
-  it("sizes the deposit to the target runway from the same height as the look-ahead check", async () => {
+  it("sizes the deposit to the initial runway from the same height as the runway check", async () => {
     const { service, drainingDeploymentService, blockHttpService } = setup();
     const deployment = createDrainingDeployment();
     drainingDeploymentService.findLeases.mockResolvedValue([deployment]);
@@ -108,7 +125,11 @@ describe(InitialDeploymentFundingService.name, () => {
 
     await service.fundOnLeaseStarted({ walletId: 1, address: "akash1owner", dseq: "123" });
 
-    expect(drainingDeploymentService.calculateAmountToTargetRunway).toHaveBeenCalledWith({ ...deployment, runtimeEndsAt: null }, CURRENT_HEIGHT);
+    expect(drainingDeploymentService.calculateAmountToTargetRunway).toHaveBeenCalledWith(
+      { ...deployment, runtimeEndsAt: null },
+      CURRENT_HEIGHT,
+      INITIAL_RUNWAY_IN_H
+    );
     expect(blockHttpService.getCurrentHeight).toHaveBeenCalledTimes(1);
   });
 
@@ -161,7 +182,7 @@ describe(InitialDeploymentFundingService.name, () => {
 
   it("schedules a credits-low check when funding skips on sufficient runway", async () => {
     const { service, drainingDeploymentService, walletReloadJobService } = setup();
-    drainingDeploymentService.findLeases.mockResolvedValue([createDrainingDeployment({ predictedClosedHeight: LOOK_AHEAD_HEIGHT + 1 })]);
+    drainingDeploymentService.findLeases.mockResolvedValue([createDrainingDeployment({ predictedClosedHeight: INITIAL_RUNWAY_HEIGHT })]);
 
     await service.fundOnLeaseStarted({ walletId: 1, address: "akash1owner", dseq: "123" });
 
@@ -383,10 +404,10 @@ describe(InitialDeploymentFundingService.name, () => {
     expect(instrumentation.recordSkipped).toHaveBeenCalledWith("no_fee_allowance", expect.objectContaining({ dseq: "123", address: "akash1owner" }));
   });
 
-  it("starts the runtime countdown at lease start when the deployment has more runway than the look-ahead window", async () => {
+  it("starts the runtime countdown at lease start when the deployment already holds the initial runway", async () => {
     const { service, drainingDeploymentService, deploymentSettingRepository, managedSignerService, instrumentation } = setup();
     const runtimeEndsAt = new Date("2026-08-21T12:00:00.000Z");
-    drainingDeploymentService.findLeases.mockResolvedValue([createDrainingDeployment({ predictedClosedHeight: LOOK_AHEAD_HEIGHT + 1 })]);
+    drainingDeploymentService.findLeases.mockResolvedValue([createDrainingDeployment({ predictedClosedHeight: INITIAL_RUNWAY_HEIGHT })]);
     deploymentSettingRepository.findOneBy.mockResolvedValue(createDeploymentSetting({ runtimeLimitHours: 6, runtimeEndsAt: null }));
     deploymentSettingRepository.startRuntimeCountdown.mockResolvedValue(runtimeEndsAt);
 
@@ -409,7 +430,7 @@ describe(InitialDeploymentFundingService.name, () => {
     await service.fundOnLeaseStarted({ walletId: 1, address: "akash1owner", dseq: "123" });
 
     expect(deploymentSettingRepository.startRuntimeCountdown).toHaveBeenCalledWith("setting-1");
-    expect(drainingDeploymentService.calculateAmountToTargetRunway).toHaveBeenCalledWith({ ...deployment, runtimeEndsAt }, CURRENT_HEIGHT);
+    expect(drainingDeploymentService.calculateAmountToTargetRunway).toHaveBeenCalledWith({ ...deployment, runtimeEndsAt }, CURRENT_HEIGHT, INITIAL_RUNWAY_IN_H);
   });
 
   it("schedules the close job at the deadline it just anchored", async () => {
@@ -462,7 +483,7 @@ describe(InitialDeploymentFundingService.name, () => {
     await service.fundOnLeaseStarted({ walletId: 1, address: "akash1owner", dseq: "123" });
 
     expect(deploymentSettingRepository.startRuntimeCountdown).not.toHaveBeenCalled();
-    expect(drainingDeploymentService.calculateAmountToTargetRunway).toHaveBeenCalledWith({ ...deployment, runtimeEndsAt }, CURRENT_HEIGHT);
+    expect(drainingDeploymentService.calculateAmountToTargetRunway).toHaveBeenCalledWith({ ...deployment, runtimeEndsAt }, CURRENT_HEIGHT, INITIAL_RUNWAY_IN_H);
   });
 
   it("skips with runtime_limit_reached when the deployment is already funded to its deadline", async () => {
@@ -505,6 +526,18 @@ describe(InitialDeploymentFundingService.name, () => {
       expect(managedSignerService.executeDerivedTx).toHaveBeenCalledOnce();
       expect(instrumentation.recordDeposit).toHaveBeenCalledWith(500000, "uakt", expect.anything());
       expect(deploymentSettingRepository.releaseFundingClaim).toHaveBeenCalledExactlyOnceWith([{ id: "setting-1", claimedAt: CLAIMED_AT }]);
+    });
+
+    it("measures a runtime cap against the initial runway the deposit was sized to", async () => {
+      const { service, drainingDeploymentService, deploymentSettingRepository } = setup();
+      const runtimeEndsAt = new Date("2026-08-21T12:00:00.000Z");
+      drainingDeploymentService.findLeases.mockResolvedValue([createDrainingDeployment()]);
+      drainingDeploymentService.calculateAmountToTargetRunway.mockReturnValue(500000);
+      deploymentSettingRepository.findOneBy.mockResolvedValue(createDeploymentSetting({ runtimeLimitHours: 6, runtimeEndsAt }));
+
+      await service.fundOnLeaseStarted({ walletId: 1, address: "akash1owner", dseq: "123" });
+
+      expect(drainingDeploymentService.isCappedByRuntimeLimit).toHaveBeenCalledExactlyOnceWith({ runtimeEndsAt }, CURRENT_HEIGHT, INITIAL_RUNWAY_IN_H);
     });
 
     it("skips as recently funded when another pass holds the claim", async () => {
@@ -677,7 +710,7 @@ describe(InitialDeploymentFundingService.name, () => {
     const deploymentSettingRepository = mock<DeploymentSettingRepository>();
     const billingConfig = mockConfigService<BillingConfigService>({ DEPLOYMENT_GRANT_DENOM: "uakt" });
     const deploymentConfig = mockConfigService<DeploymentConfigService>({
-      AUTO_TOP_UP_LOOK_AHEAD_WINDOW_IN_H: 24,
+      AUTO_TOP_UP_INITIAL_RUNWAY_IN_H: INITIAL_RUNWAY_IN_H,
       AUTO_TOP_UP_DEDUP_COOLDOWN_IN_MIN: DEDUP_COOLDOWN_IN_MIN
     });
     const walletReloadJobService = mock<WalletReloadJobService>();
