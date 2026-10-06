@@ -332,6 +332,39 @@ describe(JobQueueService.name, () => {
     });
   });
 
+  describe("findPendingJobData", () => {
+    it("returns the data of the unfinished job under the key", async () => {
+      const { service, pgBoss, txService } = setup();
+      txService.getConnection.mockReturnValue(undefined);
+      const executeSql = vi.fn().mockResolvedValue({ rows: [{ data: { message: "hello", version: 1 } }] });
+      vi.spyOn(pgBoss, "getDb").mockReturnValue({ executeSql });
+
+      await expect(service.findPendingJobData(TestJob, "singleton-1")).resolves.toEqual({ message: "hello", version: 1 });
+
+      expect(executeSql).toHaveBeenCalledWith(expect.stringContaining("state IN ('created', 'retry', 'active')"), [TestJob[JOB_NAME], "singleton-1"]);
+    });
+
+    it("returns nothing when no unfinished job holds the key", async () => {
+      const { service, pgBoss, txService } = setup();
+      txService.getConnection.mockReturnValue(undefined);
+      vi.spyOn(pgBoss, "getDb").mockReturnValue({ executeSql: vi.fn().mockResolvedValue({ rows: [] }) });
+
+      await expect(service.findPendingJobData(TestJob, "singleton-1")).resolves.toBeUndefined();
+    });
+
+    it("reads the job on the ambient transaction connection when one is active", async () => {
+      const { service, pgBoss, txService } = setup();
+      const unsafe = vi.fn().mockResolvedValue([{ data: { message: "hello", version: 1 } }]);
+      txService.getConnection.mockReturnValue({ unsafe } as unknown as Sql);
+      const getDb = vi.spyOn(pgBoss, "getDb");
+
+      await expect(service.findPendingJobData(TestJob, "singleton-1")).resolves.toEqual({ message: "hello", version: 1 });
+
+      expect(unsafe).toHaveBeenCalledWith(expect.stringContaining("AND singleton_key = $2"), [TestJob[JOB_NAME], "singleton-1"]);
+      expect(getDb).not.toHaveBeenCalled();
+    });
+  });
+
   describe("findRecentlyFinishedSingletonKeys", () => {
     it("returns the singleton keys of the queue's jobs that finished since the instant given", async () => {
       const { service, pgBoss, txService } = setup();

@@ -1639,6 +1639,24 @@ describe("Deployments API", () => {
       expect(await findJobRows(CloseDeployment[JOB_NAME], { singletonKey: closeDeploymentKeyFor({ userId: user.id, dseq }) })).toHaveLength(1);
     });
 
+    it("answers a second background close with the activity the queued close will settle, even when a later close of the deployment was recorded", async () => {
+      const { user, userApiKeySecret, wallets } = await mockPersistedUser();
+      const dseq = createDseq();
+      await setupDeploymentInfoMock(wallets, dseq);
+      const first = (await (await closeInBackground(dseq, userApiKeySecret)).json()) as { data: { activityId: string } };
+      await activityRepository.create({
+        userId: user.id,
+        type: "deployment_close",
+        status: "failed",
+        meta: { dseq, error: { code: "close_failed", message: "Close failed" } },
+        createdAt: new Date(Date.now() + 60_000)
+      });
+
+      const second = await closeInBackground(dseq, userApiKeySecret);
+
+      expect(await second.json()).toEqual(first);
+    });
+
     it("refuses a background close on the request itself and queues nothing", async () => {
       const { user, userApiKeySecret, wallets } = await mockPersistedUser();
       const dseq = createDseq();

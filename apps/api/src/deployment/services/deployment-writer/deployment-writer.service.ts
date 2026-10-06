@@ -400,10 +400,10 @@ export class DeploymentWriterService {
   }
 
   async #closeInFlight(userId: string, dseq: string): Promise<string> {
-    const inFlight = await this.activityService.findLatest({ userId, type: "deployment_close", dseq });
+    const inFlight = await this.jobQueueService.findPendingJobData(CloseDeployment, closeDeploymentKeyFor({ userId, dseq }));
     if (!inFlight) throw createError(409, "This deployment is already being closed");
 
-    return inFlight.id;
+    return inFlight.activityId;
   }
 
   /**

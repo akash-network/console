@@ -275,6 +275,26 @@ export class JobQueueService implements Disposable {
     return new Set(result.rows.map(row => row.singleton_key));
   }
 
+  /** The data of the job under this key that has not finished: queued, waiting on a retry, or running. */
+  async findPendingJobData<T extends Job>(jobType: JobType<T>, singletonKey: string): Promise<JobPayload<T> | undefined> {
+    const connection = this.txService.getConnection();
+    const db = connection ? this.#toTransactionDb(connection) : await this.pgBoss.getDb();
+    const schema = this.coreConfig.get("POSTGRES_BACKGROUND_JOBS_SCHEMA");
+    const result = (await db.executeSql(
+      `
+        SELECT data
+        FROM ${schema}.job
+        WHERE name = $1
+          AND singleton_key = $2
+          AND state IN ('created', 'retry', 'active')
+        LIMIT 1
+      `,
+      [jobType[JOB_NAME], singletonKey]
+    )) as { rows: { data: JobPayload<T> }[] };
+
+    return result.rows[0]?.data;
+  }
+
   /** Singleton keys of the queue's jobs that finished at or after `since`, which reaches back only as far as pg-boss keeps finished jobs. */
   async findRecentlyFinishedSingletonKeys(query: { name: string; since: Date }): Promise<Set<string>> {
     const connection = this.txService.getConnection();

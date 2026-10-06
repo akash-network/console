@@ -34,10 +34,6 @@ export class ActivityService {
     await this.activityRepository.create(activity);
   }
 
-  async findLatest(query: { userId: string; type: ActivityType; dseq: string }): Promise<ActivityOutput | undefined> {
-    return await this.activityRepository.findLatestByDseq(query);
-  }
-
   async isPending(id: string): Promise<boolean> {
     return (await this.activityRepository.findById(id))?.status === "pending";
   }

@@ -41,7 +41,6 @@ import type { StaleManagedDeploymentsCleanerService } from "../stale-managed-dep
 import { DeploymentWriterService } from "./deployment-writer.service";
 
 import { mockConfigService } from "@test/mocks/config-service.mock";
-import { createActivity } from "@test/seeders/activity.seeder";
 import { createDeploymentInfoGroupSeed } from "@test/seeders/deployment-info.seeder";
 
 const ALIASED_FILLER = "x".repeat(4096);
@@ -1269,21 +1268,21 @@ describe(DeploymentWriterService.name, () => {
       expect(jobQueueService.enqueue).not.toHaveBeenCalled();
     });
 
-    it("answers with the close already in flight instead of queueing a second one", async () => {
+    it("answers with the activity of the close already in flight instead of queueing a second one", async () => {
       const { service, jobQueueService, activityService } = setup();
       jobQueueService.enqueue.mockResolvedValue(null);
-      activityService.findLatest.mockResolvedValue(createActivity({ id: "in-flight-activity" }));
+      jobQueueService.findPendingJobData.mockResolvedValue({ userId: "user-1", dseq: "100", activityId: "in-flight-activity", version: 1 });
 
       await expect(service.closeInBackgroundByUserIdAndDseq("user-1", "100")).resolves.toEqual({ activityId: "in-flight-activity" });
 
-      expect(activityService.findLatest).toHaveBeenCalledWith({ userId: "user-1", type: "deployment_close", dseq: "100" });
+      expect(jobQueueService.findPendingJobData).toHaveBeenCalledWith(CloseDeployment, closeDeploymentKeyFor({ userId: "user-1", dseq: "100" }));
       expect(activityService.open).not.toHaveBeenCalled();
     });
 
-    it("refuses with a 409 when a close is in flight but its activity cannot be found", async () => {
-      const { service, jobQueueService, activityService } = setup();
+    it("refuses with a 409 when the close in flight finished before its activity could be read", async () => {
+      const { service, jobQueueService } = setup();
       jobQueueService.enqueue.mockResolvedValue(null);
-      activityService.findLatest.mockResolvedValue(undefined);
+      jobQueueService.findPendingJobData.mockResolvedValue(undefined);
 
       await expect(service.closeInBackgroundByUserIdAndDseq("user-1", "100")).rejects.toMatchObject({
         status: 409,

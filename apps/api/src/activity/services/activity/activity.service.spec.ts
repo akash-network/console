@@ -55,17 +55,6 @@ describe(ActivityService.name, () => {
     });
   });
 
-  describe("findLatest", () => {
-    it("asks for the newest activity of that type about the deployment", async () => {
-      const { service, activityRepository } = setup();
-      const latest = createActivity();
-      activityRepository.findLatestByDseq.mockResolvedValue(latest);
-
-      expect(await service.findLatest({ userId: "user-1", type: "deployment_close", dseq: "100" })).toBe(latest);
-      expect(activityRepository.findLatestByDseq).toHaveBeenCalledWith({ userId: "user-1", type: "deployment_close", dseq: "100" });
-    });
-  });
-
   describe("isPending", () => {
     it.each([
       ["a pending activity", createActivity({ status: "pending" }), true],
