@@ -20,6 +20,7 @@ type Props = {
   placementCount: number;
   isReady: boolean;
   isSubmitting: boolean;
+  hasPlacementWithoutProviders: boolean;
   onChooseProvider: () => void;
   onRequestCompute: () => void;
   dependencies?: typeof DEPENDENCIES;
@@ -31,6 +32,7 @@ export const AvailabilityPane: FC<Props> = ({
   placementCount,
   isReady,
   isSubmitting,
+  hasPlacementWithoutProviders,
   onChooseProvider,
   onRequestCompute,
   dependencies: d = DEPENDENCIES
@@ -70,6 +72,12 @@ export const AvailabilityPane: FC<Props> = ({
       <footer className="shrink-0 border-t border-zinc-300 p-4 dark:border-zinc-700">
         <div className="mx-auto max-w-[720px] space-y-3">
           {!isReady && <p className="text-sm text-muted-foreground">Add a container image and hardware to every service on the left to deploy.</p>}
+          {hasPlacementWithoutProviders && (
+            <p className="text-sm text-muted-foreground">
+              {placementCount > 1 ? "No provider can host every placement right now." : "No provider can host this configuration right now."} Change the
+              resources or request compute.
+            </p>
+          )}
           <div className="grid grid-cols-[repeat(auto-fit,minmax(15rem,1fr))] gap-3">
             <FooterAction
               variant="outline"
@@ -83,7 +91,7 @@ export const AvailabilityPane: FC<Props> = ({
               icon={<PanelsTopLeftIcon className="h-5 w-5" />}
               title="Choose a provider"
               subtitle="Compare live bids yourself"
-              disabled={isSubmitting}
+              disabled={isSubmitting || hasPlacementWithoutProviders}
               onClick={onChooseProvider}
             />
           </div>

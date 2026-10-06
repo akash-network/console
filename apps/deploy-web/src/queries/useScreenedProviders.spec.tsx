@@ -12,6 +12,7 @@ import {
   SCREENING_DEBOUNCE_MS,
   toScreeningRequest,
   useCachedScreenedProviderCount,
+  useHasPlacementWithoutProviders,
   useScreenedProviderCounts,
   useScreenedProviders
 } from "./useScreenedProviders";
@@ -612,6 +613,96 @@ describe(useCachedScreenedProviderCount.name, () => {
     }
 
     return { result: view.result, countFor, screenProviders };
+  }
+});
+
+describe(useHasPlacementWithoutProviders.name, () => {
+  it("is true once a placement's spec has screened to no provider", async () => {
+    const { result } = setup({ screenedPlacements: ["west", "east"], providersByRegion: { "na-us-west": 2, "eu-west": 0 } });
+
+    await waitFor(() => expect(result.current.isScreened).toBe(true));
+
+    expect(result.current.hasPlacementWithoutProviders).toBe(true);
+  });
+
+  it("is false while every placement has a provider", async () => {
+    const { result } = setup({ screenedPlacements: ["west", "east"], providersByRegion: { "na-us-west": 2, "eu-west": 1 } });
+
+    await waitFor(() => expect(result.current.isScreened).toBe(true));
+
+    expect(result.current.hasPlacementWithoutProviders).toBe(false);
+  });
+
+  it("is false while a placement has not been screened yet", async () => {
+    const { result } = setup({ screenedPlacements: ["west"], providersByRegion: { "na-us-west": 2, "eu-west": 0 } });
+
+    await waitFor(() => expect(result.current.isScreened).toBe(true));
+
+    expect(result.current.hasPlacementWithoutProviders).toBe(false);
+  });
+
+  it("is true when none of the screened providers sits in a placement's picked regions", async () => {
+    const { result } = setup({
+      screenedPlacements: ["west", "east"],
+      providersByRegion: { "na-us-west": 2, "eu-west": 1 },
+      providerLocations: ["na-us-west", "na-us-west"],
+      placements: [{ name: "west", regions: ["eu-central", "eu-west"] }, { name: "east" }]
+    });
+
+    await waitFor(() => expect(result.current.isScreened).toBe(true));
+
+    expect(result.current.hasPlacementWithoutProviders).toBe(true);
+  });
+
+  it("is false for a placement the spec does not declare", async () => {
+    const { result } = setup({ screenedPlacements: ["west"], providersByRegion: { "na-us-west": 2 }, placements: [{ name: "west" }, { name: "north" }] });
+
+    await waitFor(() => expect(result.current.isScreened).toBe(true));
+
+    expect(result.current.hasPlacementWithoutProviders).toBe(false);
+  });
+
+  it("never screens on its own", async () => {
+    const { result, screenProviders } = setup({ screenedPlacements: ["west"], providersByRegion: { "na-us-west": 0, "eu-west": 0 } });
+
+    await waitFor(() => expect(result.current.isScreened).toBe(true));
+
+    expect(screenProviders).toHaveBeenCalledTimes(1);
+  });
+
+  function setup(input: {
+    screenedPlacements: Array<"west" | "east">;
+    providersByRegion: Record<string, number>;
+    providerLocations?: (string | null)[];
+    placements?: Array<{ name: string; regions?: readonly string[] }>;
+  }) {
+    const screenProviders = vi.fn(async (request: ScreeningRequest): Promise<ScreenedProvidersResponse> => {
+      const region = (request.requirements?.attributes ?? []).find(attribute => attribute.key === "location-region")!.value;
+      return {
+        providers: Array.from({ length: input.providersByRegion[region] }, (_, index) =>
+          buildScreenedProvider(input.providerLocations ? { location: input.providerLocations[index] } : {})
+        )
+      };
+    });
+    const api = createProxy({ v1: { screenProviders } }) as unknown as ReturnType<
+      NonNullable<NonNullable<NonNullable<Parameters<typeof setupQuery>[1]>["services"]>["api"]>
+    >;
+    const placements = input.placements ?? [{ name: "west" }, { name: "east" }];
+
+    const view = setupQuery(
+      () => {
+        const west = useScreenedProviders({ sdl: TWO_PLACEMENT_SDL, placementName: "west", enabled: input.screenedPlacements.includes("west") });
+        const east = useScreenedProviders({ sdl: TWO_PLACEMENT_SDL, placementName: "east", enabled: input.screenedPlacements.includes("east") });
+        const screened = input.screenedPlacements.map(name => (name === "west" ? west : east));
+        return {
+          hasPlacementWithoutProviders: useHasPlacementWithoutProviders(TWO_PLACEMENT_SDL, placements),
+          isScreened: screened.every(placement => !placement.isLoading)
+        };
+      },
+      { services: { api: () => api } }
+    );
+
+    return { result: view.result, screenProviders };
   }
 });
 

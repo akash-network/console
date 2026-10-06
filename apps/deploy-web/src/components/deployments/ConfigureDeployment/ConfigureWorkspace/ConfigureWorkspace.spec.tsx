@@ -72,6 +72,22 @@ describe(ConfigureWorkspace.name, () => {
       expect(dependencies.LockedDeploymentRail).not.toHaveBeenCalled();
     });
 
+    it("tells the availability panel once screening finds no provider for one of the placements", () => {
+      const { availabilityProps, useHasPlacementWithoutProviders } = setup({ hasPlacementWithoutProviders: true });
+
+      expect(availabilityProps().hasPlacementWithoutProviders).toBe(true);
+      expect(useHasPlacementWithoutProviders).toHaveBeenCalledWith("live-sdl", [
+        expect.objectContaining({ id: "p1", name: "placement-1" }),
+        expect.objectContaining({ id: "p2", name: "gpu-pool", regions: ["us-west", "eu-west"] })
+      ]);
+    });
+
+    it("lets the availability panel offer the provider choice while every placement has a provider", () => {
+      const { availabilityProps } = setup({ hasPlacementWithoutProviders: false });
+
+      expect(availabilityProps().hasPlacementWithoutProviders).toBe(false);
+    });
+
     it("tells the availability panel while a placement still needs configuring", () => {
       const { availabilityProps } = setup({ incompletePlacementId: "p1" });
 
@@ -338,6 +354,7 @@ describe(ConfigureWorkspace.name, () => {
     selectedServiceId?: string;
     noBidsReceived?: boolean;
     apiGpuModels?: string[];
+    hasPlacementWithoutProviders?: boolean;
   }) {
     const first = { ...defaultPlacement({ name: "placement-1" }), id: "p1", regions: [] };
     const second = { ...defaultPlacement({ name: "gpu-pool" }), id: "p2", regions: ["us-west", "eu-west"] };
@@ -361,6 +378,7 @@ describe(ConfigureWorkspace.name, () => {
       isInvalid: false,
       isRefreshing: false
     }));
+    const useHasPlacementWithoutProviders = vi.fn<typeof DEPENDENCIES.useHasPlacementWithoutProviders>(() => input.hasPlacementWithoutProviders ?? false);
     const onSelectService = vi.fn();
     const onSelectProvider = vi.fn();
     const onDeploy = vi.fn();
@@ -387,6 +405,7 @@ describe(ConfigureWorkspace.name, () => {
         placementStatus: placementId => (placementId === input.incompletePlacementId ? "incomplete" : "complete")
       }),
       useScreenedProviders,
+      useHasPlacementWithoutProviders,
       useServices: () => mock<ReturnType<typeof DEPENDENCIES.useServices>>({ analyticsService })
     });
     const flowIn = (phase: DeploymentFlow["phase"]) => {
@@ -437,6 +456,7 @@ describe(ConfigureWorkspace.name, () => {
       retryDeploy,
       useRequestQuotes,
       useScreenedProviders,
+      useHasPlacementWithoutProviders,
       onSelectService,
       onSelectProvider,
       onDeploy,

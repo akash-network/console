@@ -7,7 +7,7 @@ import { AnimatePresence, motion, MotionConfig } from "framer-motion";
 import { isLogCollectorService } from "@src/components/sdl/LogCollectorControl/LogCollectorControl";
 import { useServices } from "@src/context/ServicesProvider";
 import { useGpuModels } from "@src/queries/useGpuQuery";
-import { useScreenedProviders } from "@src/queries/useScreenedProviders";
+import { useHasPlacementWithoutProviders, useScreenedProviders } from "@src/queries/useScreenedProviders";
 import type { PlacementType, SdlBuilderFormValuesType } from "@src/types";
 import { AvailabilityPane } from "../AvailabilityPane/AvailabilityPane";
 import { ConfigureEditor } from "../ConfigureEditor/ConfigureEditor";
@@ -57,6 +57,7 @@ export const DEPENDENCIES = {
   useRetryDeploy,
   useConfigurationStatus,
   useScreenedProviders,
+  useHasPlacementWithoutProviders,
   useServices
 };
 
@@ -118,6 +119,7 @@ export const ConfigureWorkspace: FC<Props> = ({
   const retryDeploy = d.useRetryDeploy({ flow });
   const requestQuotes = d.useRequestQuotes({ flow, deploymentName: typedDeploymentName, onInvalid: revealFirstInvalidService });
   const { data: gpuCatalog } = d.useGpuModels();
+  const hasPlacementWithoutProviders = d.useHasPlacementWithoutProviders(sdl, placements);
   const [hardwareRequest, setHardwareRequest] = useState<HardwareRequest | null>(null);
   const panelsRef = useRef<HTMLDivElement>(null);
   const isEditable = flow.phase === "configuring" || flow.phase === "error";
@@ -285,6 +287,7 @@ export const ConfigureWorkspace: FC<Props> = ({
                     placementCount={placements.length}
                     isReady={isReady}
                     isSubmitting={isSubmitting}
+                    hasPlacementWithoutProviders={hasPlacementWithoutProviders}
                     onChooseProvider={chooseProvider}
                     onRequestCompute={() => requestCompute("footer", "gpu_model")}
                   />

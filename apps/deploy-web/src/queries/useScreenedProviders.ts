@@ -139,6 +139,19 @@ export function useCachedScreenedProviderCount() {
   );
 }
 
+/** Reads only what screening already answered for the current spec, so a placement still being screened, failing, or invalid never counts as unhostable. */
+export function useHasPlacementWithoutProviders(sdl: string, placements: ReadonlyArray<{ name: string; regions?: readonly string[] }>): boolean {
+  const { api } = useServices();
+  const requests = useMemo(() => placements.map(placement => toScreeningRequest(sdl, placement.name)), [sdl, placements]);
+  const results = useQueries({
+    queries: requests.map(request => api.v1.screenProviders.queryOptions(request ?? SKIPPED_SCREENING_REQUEST, { enabled: false }))
+  });
+
+  return results.some(
+    (result, index) => requests[index] !== null && !!result.data && inPickedRegions(result.data.providers, placements[index].regions).length === 0
+  );
+}
+
 /** Every caller builds its request here so equal specs share one query cache entry. */
 export function toScreeningRequest(sdl: string, placementName: string): ScreeningRequest | null {
   const placementRequest = buildPlacementScreeningRequest(sdl, placementName);
