@@ -505,6 +505,13 @@
       "when": 1791310556216,
       "tag": "0071_favorite_providers",
       "breakpoints": true
+    },
+    {
+      "idx": 72,
+      "version": "7",
+      "when": 1791330082616,
+      "tag": "0072_configure_drafts",
+      "breakpoints": true
     }
   ]
 }

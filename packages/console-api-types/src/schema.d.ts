@@ -6504,6 +6504,28 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/v1/configure-drafts/{draftId}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Read an unfinished deployment configuration the user saved */
+    get: operations["getConfigureDraft"];
+    /**
+     * Save an unfinished deployment configuration, creating the draft or replacing it
+     * @description A user keeps at most 20 drafts: saving a new one drops the least recently saved. A draft expires 30 days after it was last saved. Secret values never belong in a draft, only the references the SDL carries.
+     */
+    put: operations["updateConfigureDraft"];
+    post?: never;
+    /** Discard a saved deployment configuration */
+    delete: operations["deleteConfigureDraft"];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -11984,6 +12006,174 @@ export interface operations {
         };
       };
       /** @description Invalid request body */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  getConfigureDraft: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        draftId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description The draft as the account holds it */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            data: {
+              /** @description The SDL being edited, with secret values replaced by their references. */
+              sdl: string;
+              /** @description The SDL the session started from, which a reset goes back to. */
+              startingSdl?: string;
+              name?: string;
+              runtimeLimitHours?: number;
+              /** @description The deployment whose secrets a redeploy carries forward. */
+              inheritSecretsFrom?: string;
+              /** @description Regions picked per placement beyond the one the SDL can carry. */
+              placementRegions?: {
+                [key: string]: string[];
+              };
+              draftId: string;
+              /** Format: date-time */
+              updatedAt: string;
+            };
+          };
+        };
+      };
+      /** @description Invalid draft id */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description The user has no such draft, or it expired */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  updateConfigureDraft: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        draftId: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": {
+          data: {
+            /** @description The SDL being edited, with secret values replaced by their references. */
+            sdl: string;
+            /** @description The SDL the session started from, which a reset goes back to. */
+            startingSdl?: string;
+            name?: string;
+            runtimeLimitHours?: number;
+            /** @description The deployment whose secrets a redeploy carries forward. */
+            inheritSecretsFrom?: string;
+            /** @description Regions picked per placement beyond the one the SDL can carry. */
+            placementRegions?: {
+              [key: string]: string[];
+            };
+          };
+        };
+      };
+    };
+    responses: {
+      /** @description The draft as the account holds it */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            data: {
+              /** @description The SDL being edited, with secret values replaced by their references. */
+              sdl: string;
+              /** @description The SDL the session started from, which a reset goes back to. */
+              startingSdl?: string;
+              name?: string;
+              runtimeLimitHours?: number;
+              /** @description The deployment whose secrets a redeploy carries forward. */
+              inheritSecretsFrom?: string;
+              /** @description Regions picked per placement beyond the one the SDL can carry. */
+              placementRegions?: {
+                [key: string]: string[];
+              };
+              draftId: string;
+              /** Format: date-time */
+              updatedAt: string;
+            };
+          };
+        };
+      };
+      /** @description Invalid draft id or body */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  deleteConfigureDraft: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        draftId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description The draft is gone, or there was none */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Invalid draft id */
       400: {
         headers: {
           [name: string]: unknown;

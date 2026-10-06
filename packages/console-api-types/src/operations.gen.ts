@@ -320,7 +320,31 @@ export const operations = {
       hasBody: false
     },
     getActivity: { path: "/v1/activities/{id}", method: "get", operationId: "getActivity", pathParams: ["id"], queryParams: [], hasBody: false },
-    markActivitiesSeen: { path: "/v1/activities/seen", method: "post", operationId: "markActivitiesSeen", pathParams: [], queryParams: [], hasBody: true }
+    markActivitiesSeen: { path: "/v1/activities/seen", method: "post", operationId: "markActivitiesSeen", pathParams: [], queryParams: [], hasBody: true },
+    getConfigureDraft: {
+      path: "/v1/configure-drafts/{draftId}",
+      method: "get",
+      operationId: "getConfigureDraft",
+      pathParams: ["draftId"],
+      queryParams: [],
+      hasBody: false
+    },
+    updateConfigureDraft: {
+      path: "/v1/configure-drafts/{draftId}",
+      method: "put",
+      operationId: "updateConfigureDraft",
+      pathParams: ["draftId"],
+      queryParams: [],
+      hasBody: true
+    },
+    deleteConfigureDraft: {
+      path: "/v1/configure-drafts/{draftId}",
+      method: "delete",
+      operationId: "deleteConfigureDraft",
+      pathParams: ["draftId"],
+      queryParams: [],
+      hasBody: false
+    }
   },
   v2: {
     getDeploymentSetting: {

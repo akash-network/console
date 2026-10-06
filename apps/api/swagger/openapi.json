@@ -23009,6 +23009,318 @@
           }
         }
       }
+    },
+    "/v1/configure-drafts/{draftId}": {
+      "get": {
+        "operationId": "getConfigureDraft",
+        "summary": "Read an unfinished deployment configuration the user saved",
+        "tags": [
+          "Deployments"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,64}$",
+              "description": "The id the client gave the draft when it started the session."
+            },
+            "required": true,
+            "name": "draftId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The draft as the account holds it",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "sdl": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 524288,
+                          "description": "The SDL being edited, with secret values replaced by their references."
+                        },
+                        "startingSdl": {
+                          "type": "string",
+                          "maxLength": 524288,
+                          "description": "The SDL the session started from, which a reset goes back to."
+                        },
+                        "name": {
+                          "type": "string",
+                          "maxLength": 256
+                        },
+                        "runtimeLimitHours": {
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 8760
+                        },
+                        "inheritSecretsFrom": {
+                          "type": "string",
+                          "pattern": "^0*[1-9]\\d*$",
+                          "description": "The deployment whose secrets a redeploy carries forward."
+                        },
+                        "placementRegions": {
+                          "type": "object",
+                          "additionalProperties": {
+                            "type": "array",
+                            "items": {
+                              "type": "string",
+                              "maxLength": 64
+                            },
+                            "maxItems": 50
+                          },
+                          "description": "Regions picked per placement beyond the one the SDL can carry."
+                        },
+                        "draftId": {
+                          "type": "string"
+                        },
+                        "updatedAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        }
+                      },
+                      "required": [
+                        "sdl",
+                        "draftId",
+                        "updatedAt"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid draft id"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "The user has no such draft, or it expired"
+          }
+        }
+      },
+      "put": {
+        "operationId": "updateConfigureDraft",
+        "summary": "Save an unfinished deployment configuration, creating the draft or replacing it",
+        "description": "A user keeps at most 20 drafts: saving a new one drops the least recently saved. A draft expires 30 days after it was last saved. Secret values never belong in a draft, only the references the SDL carries.",
+        "tags": [
+          "Deployments"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,64}$",
+              "description": "The id the client gave the draft when it started the session."
+            },
+            "required": true,
+            "name": "draftId",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "data": {
+                    "type": "object",
+                    "properties": {
+                      "sdl": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 524288,
+                        "description": "The SDL being edited, with secret values replaced by their references."
+                      },
+                      "startingSdl": {
+                        "type": "string",
+                        "maxLength": 524288,
+                        "description": "The SDL the session started from, which a reset goes back to."
+                      },
+                      "name": {
+                        "type": "string",
+                        "maxLength": 256
+                      },
+                      "runtimeLimitHours": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 8760
+                      },
+                      "inheritSecretsFrom": {
+                        "type": "string",
+                        "pattern": "^0*[1-9]\\d*$",
+                        "description": "The deployment whose secrets a redeploy carries forward."
+                      },
+                      "placementRegions": {
+                        "type": "object",
+                        "additionalProperties": {
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "maxLength": 64
+                          },
+                          "maxItems": 50
+                        },
+                        "description": "Regions picked per placement beyond the one the SDL can carry."
+                      }
+                    },
+                    "required": [
+                      "sdl"
+                    ]
+                  }
+                },
+                "required": [
+                  "data"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The draft as the account holds it",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "sdl": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 524288,
+                          "description": "The SDL being edited, with secret values replaced by their references."
+                        },
+                        "startingSdl": {
+                          "type": "string",
+                          "maxLength": 524288,
+                          "description": "The SDL the session started from, which a reset goes back to."
+                        },
+                        "name": {
+                          "type": "string",
+                          "maxLength": 256
+                        },
+                        "runtimeLimitHours": {
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 8760
+                        },
+                        "inheritSecretsFrom": {
+                          "type": "string",
+                          "pattern": "^0*[1-9]\\d*$",
+                          "description": "The deployment whose secrets a redeploy carries forward."
+                        },
+                        "placementRegions": {
+                          "type": "object",
+                          "additionalProperties": {
+                            "type": "array",
+                            "items": {
+                              "type": "string",
+                              "maxLength": 64
+                            },
+                            "maxItems": 50
+                          },
+                          "description": "Regions picked per placement beyond the one the SDL can carry."
+                        },
+                        "draftId": {
+                          "type": "string"
+                        },
+                        "updatedAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        }
+                      },
+                      "required": [
+                        "sdl",
+                        "draftId",
+                        "updatedAt"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid draft id or body"
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        }
+      },
+      "delete": {
+        "operationId": "deleteConfigureDraft",
+        "summary": "Discard a saved deployment configuration",
+        "tags": [
+          "Deployments"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,64}$",
+              "description": "The id the client gave the draft when it started the session."
+            },
+            "required": true,
+            "name": "draftId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "The draft is gone, or there was none"
+          },
+          "400": {
+            "description": "Invalid draft id"
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        }
+      }
     }
   },
   "components": {
