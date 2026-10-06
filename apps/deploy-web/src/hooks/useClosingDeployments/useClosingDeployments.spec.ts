@@ -29,6 +29,15 @@ describe(useClosingDeployments.name, () => {
     expect(result.current).toEqual(new Set());
   });
 
+  it.each([
+    { case: "the activity center is off", isEnabled: false, isSignedIn: true },
+    { case: "no one is signed in", isEnabled: true, isSignedIn: false }
+  ])("lists nothing from activities still cached once $case", ({ isEnabled, isSignedIn }) => {
+    const { result } = setup({ activities: [buildActivity({ status: "pending", meta: { dseq: "1001" } })], isEnabled, isSignedIn });
+
+    expect(result.current).toEqual(new Set());
+  });
+
   it("follows the feed as a close starts and then lands", () => {
     const pending = buildActivity({ status: "pending", meta: { dseq: "1001" } });
     const { result, receive } = setup({ activities: [] });
