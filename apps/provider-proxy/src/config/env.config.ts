@@ -3,6 +3,7 @@ import { z } from "zod";
 export const appConfigSchema = z
   .object({
     REST_API_NODE_URL: z.string().url(),
+    PROVIDER_INVENTORY_API_URL: z.string().url().optional(),
     ALLOW_PROXY_TO_LOCAL_NETWORK: z
       .enum(["true", "false"])
       .default("false")

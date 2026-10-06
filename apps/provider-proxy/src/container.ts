@@ -8,6 +8,7 @@ import { appConfigSchema } from "./config/env.config";
 import { CertificateValidator, createCertificateValidatorInstrumentation } from "./services/CertificateValidator/CertificateValidator";
 import { createProviderConnectionTrackerInstrumentation, ProviderConnectionTracker } from "./services/ProviderConnectionTracker/ProviderConnectionTracker";
 import { createProviderHostVerifierInstrumentation, ProviderHostVerifier } from "./services/ProviderHostVerifier/ProviderHostVerifier";
+import { ProviderInventoryService } from "./services/ProviderInventoryService/ProviderInventoryService";
 import { ProviderProxy } from "./services/ProviderProxy";
 import { ProviderService } from "./services/ProviderService/ProviderService";
 import { WebsocketStats } from "./services/WebsocketStats";
@@ -38,6 +39,7 @@ export interface Container {
   wsLogger: LoggerService | undefined;
   appLogger: LoggerService | undefined;
   providerService: ProviderService;
+  providerInventoryService: ProviderInventoryService | undefined;
   appConfig: AppConfig;
 }
 
@@ -54,6 +56,9 @@ export function createContainer(untrustedConfig: Record<string, unknown>): Conta
     }
   });
   const providerService = new ProviderService(chainSdk, appLogger);
+  const providerInventoryService = appConfig.PROVIDER_INVENTORY_API_URL
+    ? new ProviderInventoryService(appConfig.PROVIDER_INVENTORY_API_URL, fetch, appLogger)
+    : undefined;
   const certificateValidator = new CertificateValidator(
     Date.now,
     providerService,
@@ -62,6 +67,7 @@ export function createContainer(untrustedConfig: Record<string, unknown>): Conta
   const providerHostVerifier = new ProviderHostVerifier(
     Date.now,
     providerService,
+    providerInventoryService,
     isLoggingDisabled ? undefined : createProviderHostVerifierInstrumentation(createOtelLogger({ name: "host-verifier" }))
   );
   const providerConnectionTracker = appConfig.PROVIDER_UNREACHABLE_TRACKING_ENABLED
@@ -93,6 +99,7 @@ export function createContainer(untrustedConfig: Record<string, unknown>): Conta
     wsLogger,
     appLogger,
     providerService,
+    providerInventoryService,
     appConfig
   };
 }
