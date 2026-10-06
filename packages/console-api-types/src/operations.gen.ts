@@ -211,6 +211,30 @@ export const operations = {
       queryParams: [],
       hasBody: true
     },
+    listFavoriteProviders: {
+      path: "/v1/favorite-providers",
+      method: "get",
+      operationId: "listFavoriteProviders",
+      pathParams: [],
+      queryParams: [],
+      hasBody: false
+    },
+    createFavoriteProviders: {
+      path: "/v1/favorite-providers",
+      method: "post",
+      operationId: "createFavoriteProviders",
+      pathParams: [],
+      queryParams: [],
+      hasBody: true
+    },
+    deleteFavoriteProvider: {
+      path: "/v1/favorite-providers/{providerAddress}",
+      method: "delete",
+      operationId: "deleteFavoriteProvider",
+      pathParams: ["providerAddress"],
+      queryParams: [],
+      hasBody: false
+    },
     createAlert: { path: "/v1/alerts", method: "post", operationId: "createAlert", pathParams: [], queryParams: [], hasBody: true },
     listAlerts: {
       path: "/v1/alerts",

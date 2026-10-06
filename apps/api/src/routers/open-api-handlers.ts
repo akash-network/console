@@ -57,6 +57,7 @@ import { templatesRouter } from "@src/template";
 import { transactionsRouter } from "@src/transaction";
 import {
   accountDeletionRouter,
+  favoriteProvidersRouter,
   getCurrentUserRouter,
   productUpdateUnsubscriptionsRouter,
   registerUserRouter,
@@ -127,5 +128,6 @@ export const openApiHonoHandlers: OpenApiHonoHandler[] = [
   placementOptionsRouter,
   attestationRouter,
   hardwareRequestRouter,
-  activityRouter
+  activityRouter,
+  favoriteProvidersRouter
 ];

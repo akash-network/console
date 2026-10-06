@@ -21308,6 +21308,211 @@
         }
       }
     },
+    "/v1/favorite-providers": {
+      "get": {
+        "operationId": "listFavoriteProviders",
+        "summary": "List the providers the user marked as favorites",
+        "tags": [
+          "Users"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The user's favorite providers",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "providerAddresses": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          },
+                          "description": "In the order they were added, oldest first."
+                        }
+                      },
+                      "required": [
+                        "providerAddresses"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        }
+      },
+      "post": {
+        "operationId": "createFavoriteProviders",
+        "summary": "Add providers to the user's favorites",
+        "tags": [
+          "Users"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "data": {
+                    "type": "object",
+                    "properties": {
+                      "providerAddresses": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        },
+                        "minItems": 1,
+                        "maxItems": 500,
+                        "description": "Providers to add. One already a favorite keeps its place. A user keeps at most 500."
+                      }
+                    },
+                    "required": [
+                      "providerAddresses"
+                    ]
+                  }
+                },
+                "required": [
+                  "data"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The user's favorite providers",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "providerAddresses": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          },
+                          "description": "In the order they were added, oldest first."
+                        }
+                      },
+                      "required": [
+                        "providerAddresses"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request body"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "422": {
+            "description": "The user would have more favorite providers than allowed"
+          }
+        }
+      }
+    },
+    "/v1/favorite-providers/{providerAddress}": {
+      "delete": {
+        "operationId": "deleteFavoriteProvider",
+        "summary": "Remove a provider from the user's favorites",
+        "tags": [
+          "Users"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "providerAddress",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The user's favorite providers",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "providerAddresses": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          },
+                          "description": "In the order they were added, oldest first."
+                        }
+                      },
+                      "required": [
+                        "providerAddresses"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid provider address"
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        }
+      }
+    },
     "/v1/alerts": {
       "post": {
         "operationId": "createAlert",
