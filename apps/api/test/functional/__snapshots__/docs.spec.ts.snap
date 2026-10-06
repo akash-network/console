@@ -11481,6 +11481,211 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
         ],
       },
     },
+    "/v1/favorite-providers": {
+      "get": {
+        "operationId": "listFavoriteProviders",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "properties": {
+                        "providerAddresses": {
+                          "description": "In the order they were added, oldest first.",
+                          "items": {
+                            "type": "string",
+                          },
+                          "type": "array",
+                        },
+                      },
+                      "required": [
+                        "providerAddresses",
+                      ],
+                      "type": "object",
+                    },
+                  },
+                  "required": [
+                    "data",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "The user's favorite providers",
+          },
+          "401": {
+            "description": "Unauthorized",
+          },
+        },
+        "security": [
+          {
+            "BearerAuth": [],
+          },
+          {
+            "ApiKeyAuth": [],
+          },
+        ],
+        "summary": "List the providers the user marked as favorites",
+        "tags": [
+          "Users",
+        ],
+      },
+      "post": {
+        "operationId": "createFavoriteProviders",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "data": {
+                    "properties": {
+                      "providerAddresses": {
+                        "description": "Providers to add. One already a favorite keeps its place. A user keeps at most 500.",
+                        "items": {
+                          "type": "string",
+                        },
+                        "maxItems": 500,
+                        "minItems": 1,
+                        "type": "array",
+                      },
+                    },
+                    "required": [
+                      "providerAddresses",
+                    ],
+                    "type": "object",
+                  },
+                },
+                "required": [
+                  "data",
+                ],
+                "type": "object",
+              },
+            },
+          },
+          "required": true,
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "properties": {
+                        "providerAddresses": {
+                          "description": "In the order they were added, oldest first.",
+                          "items": {
+                            "type": "string",
+                          },
+                          "type": "array",
+                        },
+                      },
+                      "required": [
+                        "providerAddresses",
+                      ],
+                      "type": "object",
+                    },
+                  },
+                  "required": [
+                    "data",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "The user's favorite providers",
+          },
+          "400": {
+            "description": "Invalid request body",
+          },
+          "401": {
+            "description": "Unauthorized",
+          },
+          "422": {
+            "description": "The user would have more favorite providers than allowed",
+          },
+        },
+        "security": [
+          {
+            "BearerAuth": [],
+          },
+          {
+            "ApiKeyAuth": [],
+          },
+        ],
+        "summary": "Add providers to the user's favorites",
+        "tags": [
+          "Users",
+        ],
+      },
+    },
+    "/v1/favorite-providers/{providerAddress}": {
+      "delete": {
+        "operationId": "deleteFavoriteProvider",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "providerAddress",
+            "required": true,
+            "schema": {
+              "type": "string",
+            },
+          },
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "properties": {
+                        "providerAddresses": {
+                          "description": "In the order they were added, oldest first.",
+                          "items": {
+                            "type": "string",
+                          },
+                          "type": "array",
+                        },
+                      },
+                      "required": [
+                        "providerAddresses",
+                      ],
+                      "type": "object",
+                    },
+                  },
+                  "required": [
+                    "data",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "The user's favorite providers",
+          },
+          "400": {
+            "description": "Invalid provider address",
+          },
+          "401": {
+            "description": "Unauthorized",
+          },
+        },
+        "security": [
+          {
+            "BearerAuth": [],
+          },
+          {
+            "ApiKeyAuth": [],
+          },
+        ],
+        "summary": "Remove a provider from the user's favorites",
+        "tags": [
+          "Users",
+        ],
+      },
+    },
     "/v1/gpu": {
       "get": {
         "parameters": [

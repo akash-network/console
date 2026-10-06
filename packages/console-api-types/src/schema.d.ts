@@ -6322,6 +6322,41 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/v1/favorite-providers": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List the providers the user marked as favorites */
+    get: operations["listFavoriteProviders"];
+    put?: never;
+    /** Add providers to the user's favorites */
+    post: operations["createFavoriteProviders"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/favorite-providers/{providerAddress}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    /** Remove a provider from the user's favorites */
+    delete: operations["deleteFavoriteProvider"];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/v1/alerts": {
     parameters: {
       query?: never;
@@ -10776,6 +10811,134 @@ export interface operations {
       };
       /** @description Too many requests sent recently */
       429: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  listFavoriteProviders: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description The user's favorite providers */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            data: {
+              /** @description In the order they were added, oldest first. */
+              providerAddresses: string[];
+            };
+          };
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  createFavoriteProviders: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": {
+          data: {
+            /** @description Providers to add. One already a favorite keeps its place. A user keeps at most 500. */
+            providerAddresses: string[];
+          };
+        };
+      };
+    };
+    responses: {
+      /** @description The user's favorite providers */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            data: {
+              /** @description In the order they were added, oldest first. */
+              providerAddresses: string[];
+            };
+          };
+        };
+      };
+      /** @description Invalid request body */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description The user would have more favorite providers than allowed */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  deleteFavoriteProvider: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        providerAddress: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description The user's favorite providers */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            data: {
+              /** @description In the order they were added, oldest first. */
+              providerAddresses: string[];
+            };
+          };
+        };
+      };
+      /** @description Invalid provider address */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Unauthorized */
+      401: {
         headers: {
           [name: string]: unknown;
         };

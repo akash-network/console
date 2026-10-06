@@ -498,6 +498,13 @@
       "when": 1791245565434,
       "tag": "0070_user_product_updates_unsubscribed_at",
       "breakpoints": true
+    },
+    {
+      "idx": 71,
+      "version": "7",
+      "when": 1791310556216,
+      "tag": "0071_favorite_providers",
+      "breakpoints": true
     }
   ]
 }
