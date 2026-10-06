@@ -66,3 +66,8 @@ export function formatProviderCount(count: number | undefined): string | undefin
   if (count === undefined) return undefined;
   return `${count} ${count === 1 ? "provider" : "providers"}`;
 }
+
+export function describeGpuAvailability(providerCount: number, gpuCount: number | null): string {
+  const providers = `${providerCount} ${providerCount === 1 ? "provider" : "providers"}`;
+  return gpuCount === null ? providers : `${gpuCount} free ${gpuCount === 1 ? "GPU" : "GPUs"} on ${providers}`;
+}

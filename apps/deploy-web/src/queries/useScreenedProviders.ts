@@ -40,6 +40,8 @@ export interface KeyedScreeningRequest {
 
 export interface ScreenedProviderCount {
   count: number | null;
+  /** Free GPUs of the requested kind across those providers, null while unknown. */
+  gpuCount: number | null;
   isLoading: boolean;
 }
 
@@ -105,18 +107,31 @@ export function useScreenedProviders({ sdl, placementName, regions, enabled = tr
 /** Keeps each key's last count while it is re-screened, because `useQueries` drops placeholder data when a query key changes. */
 export function useScreenedProviderCounts(requests: KeyedScreeningRequest[]): ScreenedProviderCount[] {
   const { api } = useServices();
-  const lastCountByKey = useRef(new Map<string, number>());
+  const lastCountByKey = useRef(new Map<string, Omit<ScreenedProviderCount, "isLoading">>());
   const results = useQueries({
     queries: requests.map(({ request }) => api.v1.screenProviders.queryOptions(request ?? SKIPPED_SCREENING_REQUEST, { enabled: request !== null }))
   });
 
   return results.map((result, index) => {
     const { key, request, regions } = requests[index];
-    if (request === null) return { count: null, isLoading: false };
-    const count = result.data && inPickedRegions(result.data.providers, regions).length;
-    if (count !== undefined) lastCountByKey.current.set(key, count);
-    return { count: count ?? lastCountByKey.current.get(key) ?? null, isLoading: result.isLoading };
+    if (request === null) return { count: null, gpuCount: null, isLoading: false };
+    if (result.data) {
+      const providers = inPickedRegions(result.data.providers, regions);
+      lastCountByKey.current.set(key, { count: providers.length, gpuCount: sumAvailableGpus(providers) });
+    }
+    return { count: null, gpuCount: null, ...lastCountByKey.current.get(key), isLoading: result.isLoading };
   });
+}
+
+/** Null while any provider comes from a screening API that predates the count, so a partial sum never reads as the total. */
+export function sumAvailableGpus(providers: ScreenedProvider[]): number | null {
+  let total = 0;
+  for (const provider of providers) {
+    const availableGpus: number | undefined = provider.availableGpus;
+    if (availableGpus === undefined) return null;
+    total += availableGpus;
+  }
+  return total;
 }
 
 /** Reads the screening already cached for each placement, so recording what screening promised never screens again. */

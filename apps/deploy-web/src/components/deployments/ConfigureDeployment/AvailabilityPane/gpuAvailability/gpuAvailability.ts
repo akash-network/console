@@ -21,12 +21,14 @@ export interface GpuAvailabilityModel {
   key: string;
   label: string;
   providerCount: number;
+  gpuCount: number | null;
 }
 
 export interface GpuAvailabilityRow {
   key: string;
   label: string;
   providerCount: number | null;
+  gpuCount: number | null;
   isCurrent: boolean;
   share: number;
 }
@@ -72,7 +74,8 @@ export function rankGpuAlternatives(
     .map((candidate, index) => ({
       key: candidate.key,
       label: gpuDisplayName(candidate.vendor, candidate.name, catalog),
-      providerCount: counts[index]?.count ?? 0
+      providerCount: counts[index]?.count ?? 0,
+      gpuCount: counts[index]?.gpuCount ?? null
     }))
     .filter(model => model.providerCount > 0)
     .sort((left, right) => right.providerCount - left.providerCount || left.label.localeCompare(right.label))
@@ -82,6 +85,7 @@ export function rankGpuAlternatives(
 type GpuAvailabilityRowsInput = {
   requestedLabel: string;
   requestedCount: number | null;
+  requestedGpuCount: number | null;
   alternatives: GpuAvailabilityModel[];
   noGpuCount: number | null;
   networkCount: number | null;
@@ -91,14 +95,15 @@ type GpuAvailabilityRowsInput = {
 export function listGpuAvailabilityRows({
   requestedLabel,
   requestedCount,
+  requestedGpuCount,
   alternatives,
   noGpuCount,
   networkCount
 }: GpuAvailabilityRowsInput): GpuAvailabilityRow[] {
-  const noGpuRows = noGpuCount ? [{ key: "no-gpu", label: NO_GPU_LABEL, providerCount: noGpuCount, isCurrent: false }] : [];
+  const noGpuRows = noGpuCount ? [{ key: "no-gpu", label: NO_GPU_LABEL, providerCount: noGpuCount, gpuCount: null, isCurrent: false }] : [];
   const rows = [
-    { key: "current", label: requestedLabel, providerCount: requestedCount, isCurrent: true },
-    ...alternatives.map(model => ({ key: model.key, label: model.label, providerCount: model.providerCount, isCurrent: false })),
+    { key: "current", label: requestedLabel, providerCount: requestedCount, gpuCount: requestedGpuCount, isCurrent: true },
+    ...alternatives.map(model => ({ ...model, isCurrent: false })),
     ...noGpuRows
   ];
   const scale = networkCount ?? Math.max(...rows.map(row => row.providerCount ?? 0));

@@ -123,10 +123,26 @@ describe(rankGpuAlternatives.name, () => {
   it("lists the models that fit, the most providers first, with their display names", () => {
     const models = rankGpuAlternatives([candidate("nvidia", "h100"), candidate("nvidia", "rtx4090"), candidate("nvidia", "a100")], counts([4, 9, 6]), CATALOG);
 
-    expect(models).toEqual([
+    expect(models.map(({ key, label, providerCount }) => ({ key, label, providerCount }))).toEqual([
       { key: "nvidia/rtx4090", label: "RTX 4090", providerCount: 9 },
       { key: "nvidia/a100", label: "A100", providerCount: 6 },
       { key: "nvidia/h100", label: "H100", providerCount: 4 }
+    ]);
+  });
+
+  it("carries each model's free gpu count, unknown while screening reports none", () => {
+    const models = rankGpuAlternatives(
+      [candidate("nvidia", "h100"), candidate("nvidia", "a100")],
+      [
+        { count: 3, gpuCount: 11, isLoading: false },
+        { count: 1, gpuCount: null, isLoading: false }
+      ],
+      CATALOG
+    );
+
+    expect(models.map(({ key, gpuCount }) => ({ key, gpuCount }))).toEqual([
+      { key: "nvidia/h100", gpuCount: 11 },
+      { key: "nvidia/a100", gpuCount: null }
     ]);
   });
 
@@ -159,24 +175,31 @@ describe(rankGpuAlternatives.name, () => {
   }
 
   function counts(values: (number | null)[]) {
-    return values.map(count => ({ count, isLoading: false }));
+    return values.map(count => ({ count, gpuCount: count, isLoading: false }));
   }
 });
 
 describe(listGpuAvailabilityRows.name, () => {
   const ALTERNATIVES = [
-    { key: "nvidia/a100", label: "A100", providerCount: 15 },
-    { key: "nvidia/t4", label: "T4", providerCount: 10 }
+    { key: "nvidia/a100", label: "A100", providerCount: 15, gpuCount: 40 },
+    { key: "nvidia/t4", label: "T4", providerCount: 10, gpuCount: null }
   ];
 
-  it("lists the current request with its live count first, then the alternatives and no gpu", () => {
-    const rows = listGpuAvailabilityRows({ requestedLabel: "H100", requestedCount: 16, alternatives: ALTERNATIVES, noGpuCount: 30, networkCount: 72 });
+  it("lists the current request with its live counts first, then the alternatives and no gpu", () => {
+    const rows = listGpuAvailabilityRows({
+      requestedLabel: "H100",
+      requestedCount: 16,
+      requestedGpuCount: 64,
+      alternatives: ALTERNATIVES,
+      noGpuCount: 30,
+      networkCount: 72
+    });
 
-    expect(rows.map(({ key, label, providerCount, isCurrent }) => ({ key, label, providerCount, isCurrent }))).toEqual([
-      { key: "current", label: "H100", providerCount: 16, isCurrent: true },
-      { key: "nvidia/a100", label: "A100", providerCount: 15, isCurrent: false },
-      { key: "nvidia/t4", label: "T4", providerCount: 10, isCurrent: false },
-      { key: "no-gpu", label: "No GPU", providerCount: 30, isCurrent: false }
+    expect(rows.map(({ key, label, providerCount, gpuCount, isCurrent }) => ({ key, label, providerCount, gpuCount, isCurrent }))).toEqual([
+      { key: "current", label: "H100", providerCount: 16, gpuCount: 64, isCurrent: true },
+      { key: "nvidia/a100", label: "A100", providerCount: 15, gpuCount: 40, isCurrent: false },
+      { key: "nvidia/t4", label: "T4", providerCount: 10, gpuCount: null, isCurrent: false },
+      { key: "no-gpu", label: "No GPU", providerCount: 30, gpuCount: null, isCurrent: false }
     ]);
   });
 
@@ -184,26 +207,59 @@ describe(listGpuAvailabilityRows.name, () => {
     ["unknown", null],
     ["zero", 0]
   ])("leaves no gpu out while its count is %s", (_, noGpuCount) => {
-    const rows = listGpuAvailabilityRows({ requestedLabel: "H100", requestedCount: 16, alternatives: ALTERNATIVES, noGpuCount, networkCount: 72 });
+    const rows = listGpuAvailabilityRows({
+      requestedLabel: "H100",
+      requestedGpuCount: null,
+      requestedCount: 16,
+      alternatives: ALTERNATIVES,
+      noGpuCount,
+      networkCount: 72
+    });
 
     expect(rows.map(row => row.key)).toEqual(["current", "nvidia/a100", "nvidia/t4"]);
   });
 
   it("sizes each bar as a share of the network total, capped at a full bar", () => {
-    const rows = listGpuAvailabilityRows({ requestedLabel: "H100", requestedCount: 30, alternatives: ALTERNATIVES, noGpuCount: null, networkCount: 20 });
+    const rows = listGpuAvailabilityRows({
+      requestedLabel: "H100",
+      requestedGpuCount: null,
+      requestedCount: 30,
+      alternatives: ALTERNATIVES,
+      noGpuCount: null,
+      networkCount: 20
+    });
 
     expect(rows.map(row => row.share)).toEqual([1, 0.75, 0.5]);
   });
 
   it("sizes each bar against the busiest row while the network total is unknown", () => {
-    const rows = listGpuAvailabilityRows({ requestedLabel: "H100", requestedCount: 5, alternatives: ALTERNATIVES, noGpuCount: null, networkCount: null });
+    const rows = listGpuAvailabilityRows({
+      requestedLabel: "H100",
+      requestedGpuCount: null,
+      requestedCount: 5,
+      alternatives: ALTERNATIVES,
+      noGpuCount: null,
+      networkCount: null
+    });
 
     expect(rows.map(row => row.share)).toEqual([1 / 3, 1, 2 / 3]);
   });
 
   it("draws no bar for a count still loading or a network without providers", () => {
-    expect(listGpuAvailabilityRows({ requestedLabel: "H100", requestedCount: null, alternatives: [], noGpuCount: null, networkCount: 20 })[0].share).toBe(0);
-    expect(listGpuAvailabilityRows({ requestedLabel: "H100", requestedCount: 0, alternatives: [], noGpuCount: null, networkCount: 0 })[0].share).toBe(0);
+    expect(
+      listGpuAvailabilityRows({
+        requestedLabel: "H100",
+        requestedGpuCount: null,
+        requestedCount: null,
+        alternatives: [],
+        noGpuCount: null,
+        networkCount: 20
+      })[0].share
+    ).toBe(0);
+    expect(
+      listGpuAvailabilityRows({ requestedLabel: "H100", requestedGpuCount: null, requestedCount: 0, alternatives: [], noGpuCount: null, networkCount: 0 })[0]
+        .share
+    ).toBe(0);
   });
 });
 

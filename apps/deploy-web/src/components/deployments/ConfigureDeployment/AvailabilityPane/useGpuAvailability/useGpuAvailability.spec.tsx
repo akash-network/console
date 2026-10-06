@@ -23,7 +23,8 @@ describe(useGpuAvailability.name, () => {
     const { result, screenedRequests, screenedKeys } = setup({ gpuModel: "h100", interconnect: true, screened: { a100: 2, t4: 0, [NO_GPU]: 25 } });
 
     expect(result.current.requestedLabel).toBe("H100");
-    expect(result.current.alternatives).toEqual([{ key: "nvidia/a100", label: "A100", providerCount: 2 }]);
+    expect(result.current.requestsGpu).toBe(true);
+    expect(result.current.alternatives).toEqual([{ key: "nvidia/a100", label: "A100", providerCount: 2, gpuCount: 8 }]);
     expect(result.current.noOtherModelFits).toBe(false);
     expect(screenedRequests().map(modelOf)).toEqual(["a100", "t4", NO_GPU]);
     expect(screenedKeys()).toEqual(["nvidia/a100", "nvidia/t4", "no-gpu"]);
@@ -42,6 +43,7 @@ describe(useGpuAvailability.name, () => {
     const { result, screenedRequests } = setup({ screened: { a100: 3, h100: 1, t4: 2 } });
 
     expect(result.current.requestedLabel).toBe("No GPU");
+    expect(result.current.requestsGpu).toBe(false);
     expect(result.current.noGpuCount).toBeNull();
     expect(result.current.alternatives.map(model => model.key)).toEqual(["nvidia/a100", "nvidia/t4", "nvidia/h100"]);
     expect(screenedRequests().map(modelOf)).toEqual(["a100", "h100", "t4"]);
@@ -154,7 +156,8 @@ describe(useGpuAvailability.name, () => {
     const useScreenedProviderCounts = vi.fn((requests: KeyedScreeningRequest[]) =>
       requests.map(({ request }) => {
         const model = request ? modelOf(request) : NO_GPU;
-        return { count: input.screened[model] ?? null, isLoading: input.loading?.includes(model) ?? false };
+        const count = input.screened[model] ?? null;
+        return { count, gpuCount: count === null ? null : count * 4, isLoading: input.loading?.includes(model) ?? false };
       })
     );
     const dependencies: typeof DEPENDENCIES = {

@@ -10,6 +10,7 @@ import {
   buildCatalogScreeningRequest,
   buildPlacementScreeningRequest,
   SCREENING_DEBOUNCE_MS,
+  sumAvailableGpus,
   toScreeningRequest,
   useCachedScreenedProviderCount,
   useHasPlacementWithoutProviders,
@@ -416,8 +417,8 @@ describe(useScreenedProviderCounts.name, () => {
 
     await waitFor(() =>
       expect(result.current.counts).toEqual([
-        { count: 2, isLoading: false },
-        { count: 0, isLoading: false }
+        { count: 2, gpuCount: 4, isLoading: false },
+        { count: 0, gpuCount: 0, isLoading: false }
       ])
     );
   });
@@ -434,8 +435,8 @@ describe(useScreenedProviderCounts.name, () => {
 
     await waitFor(() =>
       expect(result.current.counts).toEqual([
-        { count: 2, isLoading: false },
-        { count: 4, isLoading: false }
+        { count: 2, gpuCount: 4, isLoading: false },
+        { count: 4, gpuCount: 8, isLoading: false }
       ])
     );
   });
@@ -444,14 +445,14 @@ describe(useScreenedProviderCounts.name, () => {
     const { result, screenProviders } = setup({ requests: [{ key: "a", request: null }, keyed("b", "west")], providersByRegion: { west: 1 } });
 
     await waitFor(() => expect(result.current.counts[1].count).toBe(1));
-    expect(result.current.counts[0]).toEqual({ count: null, isLoading: false });
+    expect(result.current.counts[0]).toEqual({ count: null, gpuCount: null, isLoading: false });
     expect(screenProviders).toHaveBeenCalledTimes(1);
   });
 
   it("reports a request as loading until it is screened", () => {
     const { result } = setup({ requests: [keyed("a", "west")], providersByRegion: {}, pendingRegions: ["west"] });
 
-    expect(result.current.counts).toEqual([{ count: null, isLoading: true }]);
+    expect(result.current.counts).toEqual([{ count: null, gpuCount: null, isLoading: true }]);
   });
 
   it("keeps a key's last count while its changed request is screened", async () => {
@@ -460,7 +461,7 @@ describe(useScreenedProviderCounts.name, () => {
 
     rerender([keyed("a", "east")]);
 
-    await waitFor(() => expect(result.current.counts).toEqual([{ count: 2, isLoading: true }]));
+    await waitFor(() => expect(result.current.counts).toEqual([{ count: 2, gpuCount: 4, isLoading: true }]));
   });
 
   it("gives a new key no count until its request is screened", async () => {
@@ -469,7 +470,7 @@ describe(useScreenedProviderCounts.name, () => {
 
     rerender([keyed("b", "east")]);
 
-    await waitFor(() => expect(result.current.counts).toEqual([{ count: null, isLoading: true }]));
+    await waitFor(() => expect(result.current.counts).toEqual([{ count: null, gpuCount: null, isLoading: true }]));
   });
 
   it("forgets the count of a request that can no longer be screened", async () => {
@@ -478,7 +479,13 @@ describe(useScreenedProviderCounts.name, () => {
 
     rerender([{ key: "a", request: null }]);
 
-    expect(result.current.counts).toEqual([{ count: null, isLoading: false }]);
+    expect(result.current.counts).toEqual([{ count: null, gpuCount: null, isLoading: false }]);
+  });
+
+  it("counts no free gpus while a provider comes from a screening api that predates them", async () => {
+    const { result } = setup({ requests: [keyed("a", "west")], providersByRegion: { west: 2 }, withoutGpuCounts: true });
+
+    await waitFor(() => expect(result.current.counts).toEqual([{ count: 2, gpuCount: null, isLoading: false }]));
   });
 
   it("reuses the screening the provider count already ran for the same spec", async () => {
@@ -499,14 +506,18 @@ describe(useScreenedProviderCounts.name, () => {
     pendingRegions?: string[];
     alongsideHeadline?: string;
     providerLocations?: (string | null)[];
+    withoutGpuCounts?: boolean;
   }) {
     const screenProviders = vi.fn(async (request: ScreeningRequest): Promise<ScreenedProvidersResponse> => {
       const region = (request.requirements?.attributes ?? []).find(attribute => attribute.key === "location-region")!.value;
       if (input.pendingRegions?.includes(region)) return new Promise(() => {});
       return {
-        providers: Array.from({ length: input.providersByRegion[region] }, (_, index) =>
-          buildScreenedProvider(input.providerLocations ? { location: input.providerLocations[index] } : {})
-        )
+        providers: Array.from({ length: input.providersByRegion[region] }, (_, index) => {
+          const provider = buildScreenedProvider({ availableGpus: 2, ...(input.providerLocations ? { location: input.providerLocations[index] } : {}) });
+          if (!input.withoutGpuCounts) return provider;
+          const { availableGpus: _uncounted, ...fromOlderApi } = provider;
+          return fromOlderApi as ScreenedProvider;
+        })
       };
     });
     const api = createProxy({ v1: { screenProviders } }) as unknown as ReturnType<
@@ -537,6 +548,22 @@ describe(useScreenedProviderCounts.name, () => {
   function keyed(key: string, region: string): KeyedScreeningRequest {
     return { key, request: toScreeningRequest(sdlForRegion(region), "dcloud") };
   }
+});
+
+describe(sumAvailableGpus.name, () => {
+  it("adds up the free gpus of every provider", () => {
+    expect(sumAvailableGpus([buildScreenedProvider({ availableGpus: 3 }), buildScreenedProvider({ availableGpus: 11 })])).toBe(14);
+  });
+
+  it("counts no free gpus without providers", () => {
+    expect(sumAvailableGpus([])).toBe(0);
+  });
+
+  it("knows no total while any provider comes from a screening api that predates the count", () => {
+    const { availableGpus: _uncounted, ...fromOlderApi } = buildScreenedProvider();
+
+    expect(sumAvailableGpus([buildScreenedProvider({ availableGpus: 3 }), fromOlderApi as ScreenedProvider])).toBeNull();
+  });
 });
 
 describe(useCachedScreenedProviderCount.name, () => {
