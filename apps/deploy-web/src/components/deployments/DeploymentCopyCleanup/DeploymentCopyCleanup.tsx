@@ -11,9 +11,12 @@ import { deploymentCopyFateOf } from "./deploymentCopyFate";
 export const DEPENDENCIES = { useServices, useWallet, useQueryClient };
 
 interface CheckedCopy {
-  fate: DeploymentCopyFate;
+  fate: DeploymentCopyFate | "unreadable";
   isActive: boolean;
 }
+
+/** A copy that can't be read or judged is kept and counted, so one bad entry doesn't stop the copies after it from being checked. */
+const UNREADABLE_COPY: CheckedCopy = { fate: "unreadable", isActive: false };
 
 interface CopyAccess {
   recordOf: (dseq: string) => Promise<DeploymentRecord | null>;
@@ -27,7 +30,7 @@ interface CopyAccess {
  */
 export function DeploymentCopyCleanup({ dependencies: d = DEPENDENCIES }: { dependencies?: typeof DEPENDENCIES } = {}) {
   const { address } = d.useWallet();
-  const { api, deploymentLocalStorage, analyticsService, logger } = d.useServices();
+  const { api, deploymentLocalStorage, analyticsService } = d.useServices();
   const queryClient = d.useQueryClient();
   const checkedAddresses = useRef(new Set<string>());
 
@@ -49,12 +52,11 @@ export function DeploymentCopyCleanup({ dependencies: d = DEPENDENCIES }: { depe
         forget: dseq => deploymentLocalStorage.delete(address, dseq)
       };
 
-      checkCopiesOneAtATime(dseqs, copies).then(
-        checked => analyticsService.track("deployment_copies_checked", { category: "deployments", ...countsOf(checked) }),
-        error => logger.warn({ event: "DEPLOYMENT_COPY_CLEANUP_FAILED", error })
+      void checkCopiesOneAtATime(dseqs, copies).then(checked =>
+        analyticsService.track("deployment_copies_checked", { category: "deployments", ...countsOf(checked) })
       );
     },
-    [address, api, deploymentLocalStorage, analyticsService, logger, queryClient]
+    [address, api, deploymentLocalStorage, analyticsService, queryClient]
   );
 
   return null;
@@ -64,16 +66,21 @@ export function DeploymentCopyCleanup({ dependencies: d = DEPENDENCIES }: { depe
 async function checkCopiesOneAtATime(dseqs: string[], copies: CopyAccess): Promise<CheckedCopy[]> {
   const checked: CheckedCopy[] = [];
   for (const dseq of dseqs) {
-    const record = await copies.recordOf(dseq);
-    const fate = await deploymentCopyFateOf(copies.copyOf(dseq), record, manifestVersionOrNull);
-    if (fate === "forget") copies.forget(dseq);
-    checked.push({ fate, isActive: record?.deployment.state === "active" });
+    checked.push(await checkCopy(dseq, copies).catch(() => UNREADABLE_COPY));
   }
   return checked;
 }
 
+async function checkCopy(dseq: string, copies: CopyAccess): Promise<CheckedCopy> {
+  const copy = copies.copyOf(dseq);
+  const record = await copies.recordOf(dseq);
+  const fate = await deploymentCopyFateOf(copy, record, manifestVersionOrNull);
+  if (fate === "forget") copies.forget(dseq);
+  return { fate, isActive: record?.deployment.state === "active" };
+}
+
 function countsOf(checked: CheckedCopy[]) {
-  const countOf = (fate: DeploymentCopyFate) => checked.filter(copy => copy.fate === fate).length;
+  const countOf = (fate: CheckedCopy["fate"]) => checked.filter(copy => copy.fate === fate).length;
 
   return {
     copies: checked.length,
@@ -82,6 +89,7 @@ function countsOf(checked: CheckedCopy[]) {
     onlyInBrowserActive: checked.filter(copy => copy.fate === "only-in-browser" && copy.isActive).length,
     restoresVariables: countOf("restores-variables"),
     holdsName: countOf("holds-name"),
-    kept: countOf("keep")
+    kept: countOf("keep"),
+    unreadable: countOf("unreadable")
   };
 }

@@ -1,4 +1,3 @@
-import type { LoggerService } from "@akashnetwork/logging";
 import type { NetworkStore } from "@akashnetwork/network-store";
 import { ApiError } from "@akashnetwork/openapi-sdk";
 import { createProxy } from "@akashnetwork/react-query-proxy";
@@ -159,11 +158,17 @@ describe(DeploymentCopyCleanup.name, () => {
     await waitFor(() => expect(getDeployment).toHaveBeenCalledTimes(2));
   });
 
-  it("logs instead of reporting when a copy cannot be read", async () => {
-    const { logger, track } = setup({ copies: {}, unreadableCopies: ["100"], records: { "100": recordOf() } });
+  it("keeps a copy it cannot read without asking the api, counts it, and checks the copies after it", async () => {
+    const { storage, track, getDeployment } = setup({
+      copies: { "200": { manifest: PLAIN_SDL, name: "web" } },
+      unreadableCopies: ["100"],
+      records: { "100": recordOf(), "200": recordOf() }
+    });
 
-    await waitFor(() => expect(logger.warn).toHaveBeenCalledWith({ event: "DEPLOYMENT_COPY_CLEANUP_FAILED", error: expect.any(SyntaxError) }));
-    expect(track).not.toHaveBeenCalled();
+    await waitFor(() => expect(track).toHaveBeenCalledWith("deployment_copies_checked", reportOf({ copies: 2, forgotten: 1, unreadable: 1 })));
+    expect(storage.getItem(copyKey(ADDRESS, "100"))).toBe("{not json");
+    expect(storage.getItem(copyKey(ADDRESS, "200"))).toBeNull();
+    expect(getDeployment.mock.calls.map(([{ dseq }]) => dseq)).toEqual(["200"]);
   });
 
   function recordOf(overrides: Partial<DeploymentRecord> = {}): DeploymentRecord {
@@ -176,7 +181,9 @@ describe(DeploymentCopyCleanup.name, () => {
   }
 
   function reportOf(
-    counts: Partial<Record<"copies" | "forgotten" | "onlyInBrowser" | "onlyInBrowserActive" | "restoresVariables" | "holdsName" | "kept", number>>
+    counts: Partial<
+      Record<"copies" | "forgotten" | "onlyInBrowser" | "onlyInBrowserActive" | "restoresVariables" | "holdsName" | "kept" | "unreadable", number>
+    >
   ) {
     return {
       category: "deployments",
@@ -187,6 +194,7 @@ describe(DeploymentCopyCleanup.name, () => {
       restoresVariables: 0,
       holdsName: 0,
       kept: 0,
+      unreadable: 0,
       ...counts
     };
   }
@@ -205,9 +213,9 @@ describe(DeploymentCopyCleanup.name, () => {
     isAnsweredByHand?: boolean;
   }) {
     const entries = new Map<string, string>();
+    (input.unreadableCopies ?? []).forEach(dseq => entries.set(copyKey(ADDRESS, dseq), "{not json"));
     Object.entries(input.copies).forEach(([dseq, copy]) => entries.set(copyKey(ADDRESS, dseq), JSON.stringify(copy)));
     Object.entries(input.otherWalletCopies ?? {}).forEach(([dseq, copy]) => entries.set(copyKey("akash1other", dseq), JSON.stringify(copy)));
-    (input.unreadableCopies ?? []).forEach(dseq => entries.set(copyKey(ADDRESS, dseq), "{not json"));
     const storage: Storage = {
       get length() {
         return entries.size;
@@ -235,10 +243,9 @@ describe(DeploymentCopyCleanup.name, () => {
     );
     const api = createProxy({ v1: { getDeployment } }) as unknown as ReturnType<typeof DEPENDENCIES.useServices>["api"];
     const track = vi.fn();
-    const logger = mock<LoggerService>();
 
     /** `satisfies` type-checks the fields against the real container, but `api` is a recursive proxy that `mock<T>()` recurses into until the heap dies. */
-    const services = { api, deploymentLocalStorage, analyticsService: mock<AnalyticsService>({ track }), logger } satisfies Partial<
+    const services = { api, deploymentLocalStorage, analyticsService: mock<AnalyticsService>({ track }) } satisfies Partial<
       ReturnType<typeof DEPENDENCIES.useServices>
     >;
     const useServices: typeof DEPENDENCIES.useServices = () => services as unknown as ReturnType<typeof DEPENDENCIES.useServices>;
@@ -254,6 +261,6 @@ describe(DeploymentCopyCleanup.name, () => {
     };
     const answer = (dseq: string) => pendingAnswers.get(dseq)?.();
 
-    return { storage: { getItem: (key: string) => entries.get(key) ?? null }, getDeployment, track, logger, rerenderWith, answer };
+    return { storage: { getItem: (key: string) => entries.get(key) ?? null }, getDeployment, track, rerenderWith, answer };
   }
 });
