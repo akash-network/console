@@ -25,6 +25,31 @@ describe("DeploymentStatusBadge", () => {
     expect(screen.getByText("paused")).toBeInTheDocument();
   });
 
+  it("reports a deployment whose close is running in the background as closing", () => {
+    setup({ state: "active", leases: [mock<LeaseDto>({ state: "active" })], isClosing: true });
+
+    expect(screen.getByText("Closing")).toBeInTheDocument();
+  });
+
+  it("drops the reclamation countdown from a deployment that is closing", () => {
+    const deadlineInOneDay = Math.floor(Date.now() / 1000) + 24 * 60 * 60;
+    const { CustomTooltip } = setup({
+      state: "active",
+      leases: [mock<LeaseDto>({ state: "reclaiming", reclamation: { deadline: deadlineInOneDay } })],
+      isClosing: true
+    });
+
+    expect(screen.getByText("Closing")).toBeInTheDocument();
+    expect(screen.queryByText("Closes in 24 hours.")).not.toBeInTheDocument();
+    expect(CustomTooltip).not.toHaveBeenCalled();
+  });
+
+  it("reports a deployment as closed once it is, even before its close is reported done", () => {
+    setup({ state: "closed", isClosing: true });
+
+    expect(screen.getByText("Closed")).toBeInTheDocument();
+  });
+
   it("keeps reporting 'Running' while a lease is still live", () => {
     setup({ state: "active", leases: [mock<LeaseDto>({ state: "active" })] });
 
@@ -144,7 +169,7 @@ describe("DeploymentStatusBadge", () => {
     });
   });
 
-  function setup(input: { state: string; leases?: LeaseDto[]; isSummarized?: boolean }) {
+  function setup(input: { state: string; leases?: LeaseDto[]; isSummarized?: boolean; isClosing?: boolean }) {
     const CustomTooltip = vi.fn<typeof DEPENDENCIES.CustomTooltip>(({ title, children }) => (
       <>
         {title}
@@ -153,7 +178,13 @@ describe("DeploymentStatusBadge", () => {
     ));
 
     render(
-      <DeploymentStatusBadge state={input.state} leases={input.leases} isSummarized={input.isSummarized} dependencies={{ ...DEPENDENCIES, CustomTooltip }} />
+      <DeploymentStatusBadge
+        state={input.state}
+        leases={input.leases}
+        isSummarized={input.isSummarized}
+        isClosing={input.isClosing}
+        dependencies={{ ...DEPENDENCIES, CustomTooltip }}
+      />
     );
 
     return { ...input, CustomTooltip };

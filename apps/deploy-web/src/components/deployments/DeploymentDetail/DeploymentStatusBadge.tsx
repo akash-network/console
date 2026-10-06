@@ -45,9 +45,12 @@ export interface DeploymentStatusBadgeProps {
   state: string;
   leases?: LeaseDto[] | null;
   isSummarized?: boolean;
+  isClosing?: boolean;
   className?: string;
   dependencies?: typeof DEPENDENCIES;
 }
+
+const CLOSING_STATUS = { label: "Closing", summaryLabel: "Closing", tone: "loading" } as const;
 
 /**
  * A deployment stays `active` on chain after its last lease dies — closed by the provider, reclaimed, or out
@@ -58,7 +61,9 @@ export interface DeploymentStatusBadgeProps {
  * closed has nothing left to act on and reads as muted. A lease inside its reclamation grace period is live
  * but doomed, so it reads as "Reclaiming" rather than "Running".
  */
-export function getDeploymentStatus(state: string, leases?: LeaseDto[] | null): { label: string; summaryLabel: string; tone: StatusTone } {
+export function getDeploymentStatus(state: string, leases?: LeaseDto[] | null, isClosing = false): { label: string; summaryLabel: string; tone: StatusTone } {
+  if (isClosing && state === "active") return CLOSING_STATUS;
+
   const deploymentTone = STATUS_TONES[state] ?? "pending";
   const deadLease = leases?.length && !leases.some(isLeaseLive) ? selectLeaseToReportOn(leases) : undefined;
 
@@ -107,10 +112,17 @@ export const StatusBadge: FC<StatusBadgeProps> = ({ label, tone, className }) =>
   </span>
 );
 
-export const DeploymentStatusBadge: FC<DeploymentStatusBadgeProps> = ({ state, leases, isSummarized, className, dependencies: d = DEPENDENCIES }) => {
-  const { label, summaryLabel, tone } = getDeploymentStatus(state, leases);
+export const DeploymentStatusBadge: FC<DeploymentStatusBadgeProps> = ({
+  state,
+  leases,
+  isSummarized,
+  isClosing,
+  className,
+  dependencies: d = DEPENDENCIES
+}) => {
+  const { label, summaryLabel, tone } = getDeploymentStatus(state, leases, isClosing);
   const isShortened = !!isSummarized && summaryLabel !== label;
-  const isBeingReclaimed = !!leases?.some(isReclaiming);
+  const isBeingReclaimed = !isClosing && !!leases?.some(isReclaiming);
 
   if (!isShortened && !isBeingReclaimed) return <StatusBadge label={label} tone={tone} className={className} />;
 
