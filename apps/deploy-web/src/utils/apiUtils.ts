@@ -68,9 +68,6 @@ export class ApiUrlService {
   static proposals() {
     return `${this.baseApiUrl}/v1/proposals`;
   }
-  static apiProviders() {
-    return `${this.baseApiUrl}/v1/providers`;
-  }
   static templates() {
     return `${this.baseApiUrl}/v1/templates`;
   }
