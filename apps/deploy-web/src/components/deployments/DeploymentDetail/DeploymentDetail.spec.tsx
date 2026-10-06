@@ -173,11 +173,13 @@ describe("DeploymentDetail", () => {
   });
 
   it("seeds the configure draft with the values this browser gave back when redirecting a lease-less deployment", () => {
-    const { router } = setup({ leases: [], definition: { sdl: "version: '2.0' # withheld", restoredSdl: "version: '2.0' # restored", source: "api" } });
+    const { router, createConfigureDraft } = setup({
+      leases: [],
+      definition: { sdl: "version: '2.0' # withheld", restoredSdl: "version: '2.0' # restored", name: "web", source: "api" }
+    });
 
-    const draftId = new URL(router.replace.mock.calls[0][0] as string, "https://console.test").searchParams.get("draftId");
-    const draft = JSON.parse(localStorage.getItem(`configure-draft:${draftId}`) ?? "{}");
-    expect(draft.sdl).toBe("version: '2.0' # restored");
+    expect(createConfigureDraft).toHaveBeenCalledWith("version: '2.0' # restored", { name: "web" });
+    expect(router.replace).toHaveBeenCalledWith(expect.stringContaining("draftId=handed-over"));
   });
 
   it("redirects a lease-less deployment without a draft when the definition is absent despite an inspection-only api sdl", () => {
@@ -437,6 +439,7 @@ describe("DeploymentDetail", () => {
     ));
     const DeploymentSettings = vi.fn(() => <div>settings</div>);
     const DeploymentUpdate = vi.fn((_props: DeploymentUpdateProps) => <div>structured-update</div>);
+    const createConfigureDraft = vi.fn<typeof DEPENDENCIES.createConfigureDraft>(() => "handed-over");
 
     const dependencies = MockComponents(DEPENDENCIES, {
       useServices,
@@ -456,7 +459,8 @@ describe("DeploymentDetail", () => {
       DeploymentLeaseShell,
       ManifestUpdate,
       DeploymentSettings,
-      DeploymentUpdate
+      DeploymentUpdate,
+      createConfigureDraft
     });
     const { rerender } = render(<DeploymentDetail dseq="1786440078202" dependencies={dependencies} />);
 
@@ -464,6 +468,7 @@ describe("DeploymentDetail", () => {
       router,
       analyticsService,
       redeploy,
+      createConfigureDraft,
       ManifestUpdate,
       DeploymentUpdate,
       refetchDeployment,

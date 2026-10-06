@@ -24,6 +24,15 @@ describe(ConfigureDeployment.name, () => {
     expect(ConfigureDeploymentForm).not.toHaveBeenCalled();
   });
 
+  it("shows a loading state while a resumed draft is read, fetching no template meanwhile", () => {
+    const { ConfigureDeploymentForm, usePublicTemplate, ResumeDeploymentGuard } = setup({ templateId: "tpl-1", draftId: "resumed", isDraftLoading: true });
+
+    expect(screen.getByRole("status")).toBeInTheDocument();
+    expect(ConfigureDeploymentForm).not.toHaveBeenCalled();
+    expect(ResumeDeploymentGuard).not.toHaveBeenCalled();
+    expect(usePublicTemplate).toHaveBeenLastCalledWith(undefined);
+  });
+
   it("hydrates the form from the fetched template's SDL", () => {
     const { ConfigureDeploymentForm } = setup({
       templateId: "tpl-1",
@@ -346,6 +355,7 @@ describe(ConfigureDeployment.name, () => {
     sdlStrategy?: string;
     bidStrategy?: string;
     draftId?: string;
+    isDraftLoading?: boolean;
     persistedSdl?: string;
     persistedName?: string;
     template?: { isLoading?: boolean; isError?: boolean; data?: TemplateOutput };
@@ -367,6 +377,7 @@ describe(ConfigureDeployment.name, () => {
     const useConfigureDraft = vi.fn(() =>
       mock<ReturnType<typeof DEPENDENCIES.useConfigureDraft>>({
         draftId: input.draftId ?? "minted-id",
+        isLoading: !!input.isDraftLoading,
         persistedSdl: input.persistedSdl,
         persistedName: input.persistedName,
         save,
@@ -382,13 +393,14 @@ describe(ConfigureDeployment.name, () => {
     if (input.vm) query.vm = "true";
     const params = new URLSearchParams(query);
 
+    const ResumeDeploymentGuard = vi.fn(({ children }) => <>{children(input.resume ?? { activeLeases: [] })}</>);
     const dependencies: typeof DEPENDENCIES = {
       Layout: vi.fn(({ children }) => <div data-testid="layout-mock">{children}</div>) as never,
       NextSeo: vi.fn(() => null) as never,
       AutoDeployFlow: AutoDeployFlow as never,
       ConfigureDeploymentForm: ConfigureDeploymentForm as never,
       DeploymentFlowProvider: DeploymentFlowProvider as never,
-      ResumeDeploymentGuard: vi.fn(({ children }) => <>{children(input.resume ?? { activeLeases: [] })}</>) as never,
+      ResumeDeploymentGuard: ResumeDeploymentGuard as never,
       usePublicTemplate: usePublicTemplate as never,
       useUserTemplate: useUserTemplate as never,
       useConfigureDraft: useConfigureDraft as never,
@@ -419,6 +431,7 @@ describe(ConfigureDeployment.name, () => {
       usePublicTemplate,
       useUserTemplate,
       useConfigureDraft,
+      ResumeDeploymentGuard,
       enqueueSnackbar,
       rerenderWithTemplate
     };

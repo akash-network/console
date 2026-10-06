@@ -1,15 +1,19 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ApiError } from "@akashnetwork/openapi-sdk";
+import { useQueryClient } from "@tanstack/react-query";
 import { nanoid } from "nanoid";
 import { useRouter } from "next/router";
 
+import { useServices } from "@src/context/ServicesProvider";
+import { SKIP_REPORTING_BELOW_SERVER_ERROR } from "@src/services/query-error-policy/query-error-policy";
 import type { DeploymentIntent } from "../useDeploymentFlow/deploymentIntent";
 import { buildConfigureUrl } from "../useDeploymentFlow/useDeploymentFlow";
 
-/** Namespace for persisted configure drafts. Kept distinct from the wallet-scoped keys so it is unaffected by a wallet wipe. */
-const DRAFT_KEY_PREFIX = "configure-draft:";
+/** Where drafts lived before they moved to the account, read only so a session started before then can be picked up again. */
+export const LEGACY_DRAFT_KEY_PREFIX = "configure-draft:";
 
-/** Upper bound on retained drafts. On save, the least-recently-updated drafts beyond this are evicted so abandoned sessions can't grow storage unbounded. */
-const MAX_DRAFTS = 20;
+/** Lets typing settle before the draft is sent, since every save carries the whole SDL. */
+export const SAVE_DELAY_MS = 1000;
 
 export const DEPENDENCIES = {
   // eslint-disable-next-line akash/dependencies-component-or-hook
@@ -24,6 +28,8 @@ export const DEPENDENCIES = {
     }
   },
   useRouter,
+  useServices,
+  useQueryClient,
   // eslint-disable-next-line akash/dependencies-component-or-hook
   mintDraftId
 };
@@ -31,7 +37,7 @@ export const DEPENDENCIES = {
 /** The regions of each placement that picks several, by placement name, since the SDL can only carry a single one. */
 export type PlacementRegionPicks = Record<string, string[]>;
 
-interface StoredDraft {
+export interface ConfigureDraftContent {
   sdl: string;
   name?: string;
   runtimeLimitHours?: number;
@@ -40,7 +46,6 @@ interface StoredDraft {
   /** The SDL the session started from (a template, an upload or a redeploy), which a reset restores. */
   startingSdl?: string;
   placementRegions?: PlacementRegionPicks;
-  updatedAt: number;
 }
 
 export interface CreateConfigureDraftOptions {
@@ -51,7 +56,9 @@ export interface CreateConfigureDraftOptions {
 export interface ConfigureDraft {
   /** The active draft id: the URL's id when resuming a session, otherwise a freshly minted one pinned for this mount. */
   draftId: string;
-  /** The persisted SDL for the active draft, or undefined when none exists — a fresh session, an evicted draft, or a link opened in another browser. */
+  /** True while the account's copy of a resumed draft is still being read, when nothing about the draft is known yet. */
+  isLoading: boolean;
+  /** The persisted SDL for the active draft, or undefined when none exists: a fresh session, an expired draft, or another account's link. */
   persistedSdl: string | undefined;
   /** The persisted deployment name for the active draft, or undefined when none was saved. */
   persistedName: string | undefined;
@@ -63,163 +70,211 @@ export interface ConfigureDraft {
   persistedStartingSdl: string | undefined;
   /** The persisted picks of placements choosing several regions, or undefined when none were saved. */
   persistedPlacementRegions: PlacementRegionPicks | undefined;
-  /** Persists `sdl` (and the optional deployment `name`, `runtimeLimitHours`, `startingSdl` and `placementRegions`) as the working draft, then evicts the oldest drafts past the cap. */
+  /** Saves `sdl` (and the optional deployment `name`, `runtimeLimitHours`, `startingSdl` and `placementRegions`) as the working draft once typing settles. */
   save(sdl: string, name?: string, runtimeLimitHours?: number, startingSdl?: string, placementRegions?: PlacementRegionPicks): void;
   /** Forgets the deployment this draft inherits secrets from, once the console has said those secrets cannot be reused. */
   dropInheritance(): void;
-  /** Removes the persisted draft. */
+  /** Discards the draft, along with any save still waiting to be sent. */
   clear(): void;
 }
 
+/** Drafts started outside the screen wait here for it, since the account only learns of a draft from the screen's first save. */
+const handedOverDrafts = new Map<string, ConfigureDraftContent>();
+
 /**
- * Owns the configure screen's draft session. Resolves the active draft id from the intent: it reuses the id already in
- * the URL when resuming, otherwise mints one and writes it back into the URL (shallow) so a reload restores the same
- * working SDL instead of re-seeding from the template. It reads the persisted SDL for that id and exposes save/clear
- * bound to it. With no storage (SSR, or a blocked/full bucket) reads yield undefined and writes are safe no-ops, which
- * is also how a fresh session behaves. Callers given an intent that already carries a draft id (e.g. once the screen has
- * resolved it) get a plain read/save handle: nothing is minted and the URL is left untouched.
+ * Owns the configure screen's draft session, which the account keeps. Resolves the active draft id from the intent: it
+ * reuses the id already in the URL when resuming, otherwise mints one and writes it back into the URL (shallow) so a
+ * reload restores the same working SDL instead of re-seeding from the template. A draft the account cannot be asked
+ * about is left alone and the session continues under a new id, so the old one is never overwritten with a fresh start.
+ * Callers given an intent that already carries a draft id get a plain read/save handle: nothing is minted and the URL
+ * is left untouched.
  */
 export function useConfigureDraft(intent: DeploymentIntent, dependencies: typeof DEPENDENCIES = DEPENDENCIES): ConfigureDraft {
   const router = dependencies.useRouter();
+  const { api } = dependencies.useServices();
+  const queryClient = dependencies.useQueryClient();
   const storage = useMemo(() => dependencies.getStorage(), [dependencies]);
+  /** Read once per mount, so the screen keeps what it was handed even after its first save lets the account take over. */
+  const [handedOver] = useState(() => (intent.draftId ? handedOverDrafts.get(intent.draftId) : undefined));
+
+  const accountDraft = api.v1.getConfigureDraft.useQuery(
+    { draftId: intent.draftId ?? "" },
+    {
+      enabled: !!intent.draftId && !handedOver,
+      catchError: answerMissingDraftAsNone,
+      select: response => response?.data ?? null,
+      staleTime: Infinity,
+      refetchOnWindowFocus: false,
+      meta: SKIP_REPORTING_BELOW_SERVER_ERROR
+    }
+  );
 
   const mintedDraftIdRef = useRef<string>();
-  const draftId = intent.draftId ?? (mintedDraftIdRef.current ??= dependencies.mintDraftId());
-
-  const storedDraft = useMemo(() => readStoredDraft(storage, draftId), [storage, draftId]);
-  const persistedSdl = typeof storedDraft?.sdl === "string" ? storedDraft.sdl : undefined;
-  const persistedName = typeof storedDraft?.name === "string" ? storedDraft.name : undefined;
-  const persistedRuntimeLimitHours = typeof storedDraft?.runtimeLimitHours === "number" ? storedDraft.runtimeLimitHours : undefined;
-  const persistedInheritSecretsFrom = typeof storedDraft?.inheritSecretsFrom === "string" ? storedDraft.inheritSecretsFrom : undefined;
-  const persistedStartingSdl = typeof storedDraft?.startingSdl === "string" ? storedDraft.startingSdl : undefined;
-  const persistedPlacementRegions = typeof storedDraft?.placementRegions === "object" ? storedDraft.placementRegions ?? undefined : undefined;
+  const draftId = intent.draftId && !accountDraft.isError ? intent.draftId : (mintedDraftIdRef.current ??= dependencies.mintDraftId());
+  const legacyDraft = useMemo(() => (accountDraft.data === null ? readLegacyDraft(storage, draftId) : undefined), [accountDraft.data, storage, draftId]);
+  const stored = handedOver ?? accountDraft.data ?? legacyDraft;
+  const isLoading = !!intent.draftId && !handedOver && accountDraft.isLoading;
 
   const persistedToUrlRef = useRef<string>();
   useEffect(
     function persistDraftIdInUrl() {
-      if (intent.draftId || persistedToUrlRef.current === draftId) {
+      if (isLoading || draftId === intent.draftId || persistedToUrlRef.current === draftId) {
         return;
       }
       persistedToUrlRef.current = draftId;
       router.replace(buildConfigureUrl({ ...intent, draftId }, intent.dseq, intent.bidStrategy), undefined, { shallow: true });
     },
-    [intent, draftId, router]
+    [intent, draftId, isLoading, router]
   );
+
+  const draftChanges = useMemo(() => ({ id: `configure-draft:${draftId}` }), [draftId]);
+  /** Takes the answer in the mutation's own callback, which still runs when the screen that sent it is gone by then. */
+  const { mutate: sendDraft } = api.v1.updateConfigureDraft.useMutation({
+    scope: draftChanges,
+    meta: SKIP_REPORTING_BELOW_SERVER_ERROR,
+    onSuccess: (response, { draftId: savedDraftId }) => {
+      queryClient.setQueryData(api.v1.getConfigureDraft.getKey({ draftId: savedDraftId }), response);
+      handedOverDrafts.delete(savedDraftId);
+      forgetLegacyDraft(storage, savedDraftId);
+    }
+  });
+  const { mutate: discardDraft } = api.v1.deleteConfigureDraft.useMutation({ scope: draftChanges, meta: SKIP_REPORTING_BELOW_SERVER_ERROR });
+
+  const pendingSaveRef = useRef<ReturnType<typeof setTimeout>>();
+  const pendingContentRef = useRef<ConfigureDraftContent>();
+  const latestContentRef = useRef<ConfigureDraftContent>();
+  const lastSentRef = useRef<string>();
+  const isClearedRef = useRef(false);
+  const isInheritanceDroppedRef = useRef(false);
+  const inheritSecretsFrom = stored?.inheritSecretsFrom;
+
+  const sendNow = useCallback(
+    (content: ConfigureDraftContent) => {
+      clearTimeout(pendingSaveRef.current);
+      pendingContentRef.current = undefined;
+      const body = JSON.stringify(content);
+      if (isClearedRef.current || body === lastSentRef.current) return;
+
+      lastSentRef.current = body;
+      sendDraft({ draftId, data: content }, { onError: () => (lastSentRef.current = undefined) });
+    },
+    [draftId, sendDraft]
+  );
+
+  const save = useCallback(
+    (sdl: string, name?: string, runtimeLimitHours?: number, startingSdl?: string, placementRegions?: PlacementRegionPicks) => {
+      const content: ConfigureDraftContent = {
+        sdl,
+        name,
+        runtimeLimitHours,
+        startingSdl,
+        placementRegions,
+        inheritSecretsFrom: isInheritanceDroppedRef.current ? undefined : inheritSecretsFrom
+      };
+      clearTimeout(pendingSaveRef.current);
+      pendingContentRef.current = content;
+      latestContentRef.current = content;
+      pendingSaveRef.current = setTimeout(() => sendNow(content), SAVE_DELAY_MS);
+    },
+    [inheritSecretsFrom, sendNow]
+  );
+
+  useEffect(
+    function sendWhatIsStillWaitingOnLeave() {
+      return function flushPendingSave() {
+        if (pendingContentRef.current) sendNow(pendingContentRef.current);
+      };
+    },
+    [sendNow]
+  );
+
+  const dropInheritance = useCallback(() => {
+    isInheritanceDroppedRef.current = true;
+    const latest = latestContentRef.current ?? stored;
+    if (latest) sendNow({ ...latest, inheritSecretsFrom: undefined });
+  }, [sendNow, stored]);
+
+  const clear = useCallback(() => {
+    clearTimeout(pendingSaveRef.current);
+    pendingContentRef.current = undefined;
+    isClearedRef.current = true;
+    handedOverDrafts.delete(draftId);
+    forgetLegacyDraft(storage, draftId);
+    discardDraft({ draftId });
+    void queryClient.invalidateQueries({ queryKey: api.v1.getConfigureDraft.getKey({ draftId }), refetchType: "none" });
+  }, [draftId, storage, discardDraft, queryClient, api]);
 
   return useMemo<ConfigureDraft>(
     () => ({
       draftId,
-      persistedSdl,
-      persistedName,
-      persistedRuntimeLimitHours,
-      persistedInheritSecretsFrom,
-      persistedStartingSdl,
-      persistedPlacementRegions,
-      save: (sdl: string, name?: string, runtimeLimitHours?: number, startingSdl?: string, placementRegions?: PlacementRegionPicks) =>
-        saveDraft(storage, draftId, { sdl, name, runtimeLimitHours, startingSdl, placementRegions }),
-      dropInheritance: () => dropDraftInheritance(storage, draftId),
-      clear: () => clearDraft(storage, draftId)
+      isLoading,
+      persistedSdl: stored?.sdl,
+      persistedName: stored?.name,
+      persistedRuntimeLimitHours: stored?.runtimeLimitHours,
+      persistedInheritSecretsFrom: inheritSecretsFrom,
+      persistedStartingSdl: stored?.startingSdl,
+      persistedPlacementRegions: stored?.placementRegions,
+      save,
+      dropInheritance,
+      clear
     }),
-    [draftId, persistedSdl, persistedName, persistedRuntimeLimitHours, persistedInheritSecretsFrom, persistedStartingSdl, persistedPlacementRegions, storage]
+    [draftId, isLoading, stored, inheritSecretsFrom, save, dropInheritance, clear]
   );
 }
 
 /**
  * Starts a configure session from an SDL produced outside the screen (e.g. an uploaded file or a redeploy): mints a
- * draft id, persists the SDL (and the optional deployment `name` and `inheritSecretsFrom`) under it, both as the working
- * SDL and as the one a reset restores, and returns the id so the caller can route to `configure?draftId=<id>`. Uses the
- * same storage format as in-screen saves, so the configure screen restores it on arrival. Storage-safe: if storage is
- * blocked or full the write no-ops and the id is still returned (configure then seeds from its other sources), matching
- * how `saveDraft` already swallows failures.
+ * draft id, hands the SDL (and the optional deployment `name` and `inheritSecretsFrom`) over under it, both as the
+ * working SDL and as the one a reset restores, and returns the id so the caller can route to `configure?draftId=<id>`.
  */
 export function createConfigureDraft(sdl: string, options: CreateConfigureDraftOptions = {}, dependencies: typeof DEPENDENCIES = DEPENDENCIES): string {
   const draftId = dependencies.mintDraftId();
-  writeDraft(dependencies.getStorage(), draftId, { sdl, name: options.name, inheritSecretsFrom: options.inheritSecretsFrom, startingSdl: sdl });
+  handedOverDrafts.set(draftId, { sdl, name: options.name, inheritSecretsFrom: options.inheritSecretsFrom, startingSdl: sdl });
   return draftId;
 }
 
-/** Mints the id that keys a configure session's persisted draft. */
+/** Mints the id that keys a configure session's draft. */
 function mintDraftId(): string {
   return nanoid();
 }
 
-function keyOf(draftId: string): string {
-  return `${DRAFT_KEY_PREFIX}${draftId}`;
+/** A draft the account does not have is a fresh session, while any other refusal leaves the draft unknown. */
+function answerMissingDraftAsNone(error: Error): null {
+  if (error instanceof ApiError && error.status === 404) return null;
+  throw error;
 }
 
-/** Reads and parses the stored draft once; callers pluck `sdl`/`name` so a render reads and parses storage a single time. */
-function readStoredDraft(storage: Storage | undefined, draftId: string | undefined): StoredDraft | undefined {
-  if (!storage || !draftId) {
-    return undefined;
-  }
+function legacyKeyOf(draftId: string): string {
+  return `${LEGACY_DRAFT_KEY_PREFIX}${draftId}`;
+}
+
+function readLegacyDraft(storage: Storage | undefined, draftId: string): ConfigureDraftContent | undefined {
   try {
-    const raw = storage.getItem(keyOf(draftId));
-    return raw ? (JSON.parse(raw) as StoredDraft) : undefined;
+    const raw = storage?.getItem(legacyKeyOf(draftId));
+    const parsed = raw ? (JSON.parse(raw) as Record<string, unknown> | null) : undefined;
+    if (!parsed || typeof parsed.sdl !== "string") return undefined;
+
+    return {
+      sdl: parsed.sdl,
+      name: typeof parsed.name === "string" ? parsed.name : undefined,
+      runtimeLimitHours: typeof parsed.runtimeLimitHours === "number" ? parsed.runtimeLimitHours : undefined,
+      inheritSecretsFrom: typeof parsed.inheritSecretsFrom === "string" ? parsed.inheritSecretsFrom : undefined,
+      startingSdl: typeof parsed.startingSdl === "string" ? parsed.startingSdl : undefined,
+      placementRegions: isPlacementRegionPicks(parsed.placementRegions) ? parsed.placementRegions : undefined
+    };
   } catch {
     return undefined;
   }
 }
 
-/** An in-screen save carries the inheritance it found forward, because the redeploy that set it is not around to say so again. */
-function saveDraft(storage: Storage | undefined, draftId: string | undefined, entry: Omit<StoredDraft, "updatedAt" | "inheritSecretsFrom">): void {
-  const inheritSecretsFrom = readStoredDraft(storage, draftId)?.inheritSecretsFrom;
-  writeDraft(storage, draftId, { ...entry, inheritSecretsFrom });
+function isPlacementRegionPicks(value: unknown): value is PlacementRegionPicks {
+  return typeof value === "object" && value !== null && Object.values(value).every(regions => Array.isArray(regions));
 }
 
-function dropDraftInheritance(storage: Storage | undefined, draftId: string | undefined): void {
-  const stored = readStoredDraft(storage, draftId);
-  if (!stored) return;
-  const { inheritSecretsFrom: _dropped, updatedAt: _stale, ...kept } = stored;
-  writeDraft(storage, draftId, kept);
-}
-
-function writeDraft(storage: Storage | undefined, draftId: string | undefined, entry: Omit<StoredDraft, "updatedAt">): void {
-  if (!storage || !draftId) {
-    return;
-  }
+function forgetLegacyDraft(storage: Storage | undefined, draftId: string): void {
   try {
-    const stored: StoredDraft = { ...entry, updatedAt: Date.now() };
-    storage.setItem(keyOf(draftId), JSON.stringify(stored));
-    evictStaleDrafts(storage);
+    storage?.removeItem(legacyKeyOf(draftId));
   } catch {
     return;
-  }
-}
-
-function clearDraft(storage: Storage | undefined, draftId: string | undefined): void {
-  if (!storage || !draftId) {
-    return;
-  }
-  try {
-    storage.removeItem(keyOf(draftId));
-  } catch {
-    return;
-  }
-}
-
-/** Caps retained drafts at `MAX_DRAFTS`, dropping the least-recently-updated entries first. */
-function evictStaleDrafts(storage: Storage): void {
-  const entries = Object.keys(storage)
-    .filter(key => key.startsWith(DRAFT_KEY_PREFIX))
-    .map(key => ({ key, updatedAt: parseUpdatedAt(storage.getItem(key)) }));
-  if (entries.length <= MAX_DRAFTS) {
-    return;
-  }
-  entries
-    .sort((a, b) => b.updatedAt - a.updatedAt)
-    .slice(MAX_DRAFTS)
-    .forEach(entry => storage.removeItem(entry.key));
-}
-
-/** Recovers a draft's recency for eviction ordering, treating unreadable entries as oldest. */
-function parseUpdatedAt(raw: string | null): number {
-  if (!raw) {
-    return 0;
-  }
-  try {
-    const parsed = JSON.parse(raw) as StoredDraft;
-    return typeof parsed?.updatedAt === "number" ? parsed.updatedAt : 0;
-  } catch {
-    return 0;
   }
 }
