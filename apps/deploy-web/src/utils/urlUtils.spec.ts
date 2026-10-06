@@ -2,6 +2,12 @@ import { describe, expect, it } from "vitest";
 
 import { UrlService } from "./urlUtils";
 
+describe(UrlService.home.name, () => {
+  it("returns the deployments list", () => {
+    expect(UrlService.home()).toBe("/deployments");
+  });
+});
+
 describe(UrlService.billing.name, () => {
   it("returns /billing with no params by default", () => {
     expect(UrlService.billing()).toBe("/billing");

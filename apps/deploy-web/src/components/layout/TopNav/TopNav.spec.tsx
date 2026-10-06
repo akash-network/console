@@ -3,7 +3,7 @@ import { mock } from "vitest-mock-extended";
 
 import { DEPENDENCIES, TopNav } from "./TopNav";
 
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MockComponents } from "@tests/unit/mocks";
 
@@ -15,6 +15,34 @@ describe(TopNav.name, () => {
     expect(screen.getByRole("link", { name: "Providers" })).toHaveAttribute("href", "/providers");
     expect(screen.getByRole("link", { name: "Templates" })).toHaveAttribute("href", "/templates");
     expect(screen.getByRole("button", { name: /settings/i })).toBeInTheDocument();
+  });
+
+  it("links the logo to the deployments list", () => {
+    setup({ isAuthenticated: true });
+
+    expect(screen.getByRole("link", { name: "Akash Console home" })).toHaveAttribute("href", "/deployments");
+  });
+
+  it("links the mobile menu logo to the deployments list", async () => {
+    setup({ isAuthenticated: true });
+
+    await userEvent.click(screen.getByRole("button", { name: "Open navigation menu" }));
+
+    const mobileMenu = await screen.findByRole("dialog");
+    expect(within(mobileMenu).getByRole("link", { name: "Akash Console home" })).toHaveAttribute("href", "/deployments");
+  });
+
+  it("closes the mobile menu when its logo is clicked", async () => {
+    setup({ isAuthenticated: true });
+    await userEvent.click(screen.getByRole("button", { name: "Open navigation menu" }));
+    const mobileMenu = await screen.findByRole("dialog");
+    const stopNavigation = (event: Event) => event.preventDefault();
+    document.addEventListener("click", stopNavigation);
+
+    await userEvent.click(within(mobileMenu).getByRole("link", { name: "Akash Console home" }));
+    document.removeEventListener("click", stopNavigation);
+
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
   });
 
   it("hides nav links when signed out", () => {

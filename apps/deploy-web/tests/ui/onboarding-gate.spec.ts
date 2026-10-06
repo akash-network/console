@@ -67,8 +67,9 @@ test.describe("Onboarding gate — onboarded user", () => {
       await expect(page).toHaveURL(/\/deployments(\?|$)/, { timeout: 60_000 });
     });
 
-    await test.step("can open the app home — where a not-onboarded user is bounced", async () => {
+    await test.step("opening the app home lands on the deployments list — where a not-onboarded user is bounced", async () => {
       await visit(page, "/");
+      await expect(page).toHaveURL(/\/deployments(\?|$)/, { timeout: 60_000 });
       await expect(new AppNav(page).accountMenuButton()).toBeVisible({ timeout: 60_000 });
     });
   });

@@ -153,6 +153,11 @@ const nextConfig = {
   redirects: async () => {
     return [
       {
+        source: "/",
+        destination: "/deployments",
+        permanent: false
+      },
+      {
         source: "/sdl-builder",
         has: [{ type: "query", key: "id", value: "(?<userTemplateId>.+)" }],
         destination: "/new-deployment/configure?userTemplateId=:userTemplateId",
