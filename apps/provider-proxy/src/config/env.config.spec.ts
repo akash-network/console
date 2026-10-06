@@ -16,6 +16,12 @@ describe("appConfigSchema", () => {
     expect(result.success).toBe(true);
   });
 
+  it("rejects a provider inventory URL that is not a URL", () => {
+    const result = appConfigSchema.safeParse(setup({ PROVIDER_INVENTORY_API_URL: "provider-inventory" }));
+
+    expect(result.success).toBe(false);
+  });
+
   it("accepts the defaults", () => {
     const result = appConfigSchema.safeParse(setup({}));
 

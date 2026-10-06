@@ -1,12 +1,14 @@
 import { JwtTokenManager } from "@akashnetwork/chain-sdk";
 import { Secp256k1HdWallet } from "@cosmjs/amino";
 import { fromBech32, toBech32 } from "@cosmjs/encoding";
+import type { IncomingMessage, ServerResponse } from "http";
 import { setTimeout as wait } from "timers/promises";
 import type { TLSSocket } from "tls";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { createX509CertPair } from "../seeders/createX509CertPair";
 import { generateBech32, registerProviderHost, startChainApiServer, stopChainAPIServer } from "../setup/chainApiServer";
+import { startProviderInventoryApiServer, stopProviderInventoryApiServer } from "../setup/providerInventoryApiServer";
 import { startProviderServer, stopProviderServer } from "../setup/providerServer";
 import { request } from "../setup/proxyServer";
 import { startServer, stopServer } from "../setup/proxyServer";
@@ -15,7 +17,7 @@ describe("Provider HTTP proxy", () => {
   const ONE_HOUR = 60 * 60 * 1000;
 
   afterEach(async () => {
-    await Promise.all([stopServer(), stopProviderServer(), stopChainAPIServer()]);
+    await Promise.all([stopServer(), stopProviderServer(), stopChainAPIServer(), stopProviderInventoryApiServer()]);
   });
 
   it("exposes /status endpoint", async () => {
@@ -1100,14 +1102,7 @@ describe("Provider HTTP proxy", () => {
     it("proxies to a provider it has not looked up yet while chain cannot be queried", async () => {
       const providerAddress = generateBech32();
       const validCertPair = await createX509CertPair({ commonName: providerAddress });
-      const chainServer = await startChainApiServer([validCertPair.cert], {
-        interceptRequest(req, res) {
-          if (!req.url?.includes("/akash/provider/")) return false;
-          res.writeHead(503, { Connection: "close" });
-          res.end();
-          return true;
-        }
-      });
+      const chainServer = await startChainApiServer([validCertPair.cert], { interceptRequest: failProviderLookup });
       const { providerUrl } = await startProviderServer({ certPair: validCertPair });
       await startServer({ REST_API_NODE_URL: chainServer.url });
 
@@ -1119,6 +1114,48 @@ describe("Provider HTTP proxy", () => {
       expect(response.status).toBe(200);
       expect(await response.text()).toBe("Hello, World!");
     });
+
+    it("returns 400 without connecting when chain cannot be queried and the provider inventory has another host on record", async () => {
+      const providerAddress = generateBech32();
+      const validCertPair = await createX509CertPair({ commonName: providerAddress });
+      const chainServer = await startChainApiServer([validCertPair.cert], { interceptRequest: failProviderLookup });
+      const inventoryServer = await startProviderInventoryApiServer({ [providerAddress]: "https://provider.example.com:8443" });
+      const handleRequest = vi.fn((_, res) => res.end("Hello, World!"));
+      const { providerUrl } = await startProviderServer({ certPair: validCertPair, handlers: { "/200.txt": handleRequest } });
+      await startServer({ REST_API_NODE_URL: chainServer.url, PROVIDER_INVENTORY_API_URL: inventoryServer.url });
+
+      const response = await request("/", {
+        method: "POST",
+        body: JSON.stringify({ method: "GET", url: `${providerUrl}/200.txt`, providerAddress })
+      });
+
+      expect(response.status).toBe(400);
+      expect(handleRequest).not.toHaveBeenCalled();
+    });
+
+    it("proxies to the host the provider inventory has on record while chain cannot be queried", async () => {
+      const providerAddress = generateBech32();
+      const validCertPair = await createX509CertPair({ commonName: providerAddress });
+      const chainServer = await startChainApiServer([validCertPair.cert], { interceptRequest: failProviderLookup });
+      const { providerUrl } = await startProviderServer({ certPair: validCertPair });
+      const inventoryServer = await startProviderInventoryApiServer({ [providerAddress]: providerUrl });
+      await startServer({ REST_API_NODE_URL: chainServer.url, PROVIDER_INVENTORY_API_URL: inventoryServer.url });
+
+      const response = await request("/", {
+        method: "POST",
+        body: JSON.stringify({ method: "GET", url: `${providerUrl}/200.txt`, providerAddress })
+      });
+
+      expect(response.status).toBe(200);
+      expect(await response.text()).toBe("Hello, World!");
+    });
+
+    function failProviderLookup(req: IncomingMessage, res: ServerResponse): boolean {
+      if (!req.url?.includes("/akash/provider/")) return false;
+      res.writeHead(503, { Connection: "close" });
+      res.end();
+      return true;
+    }
   });
 
   describe("bounds the host lookup when chain never answers", () => {

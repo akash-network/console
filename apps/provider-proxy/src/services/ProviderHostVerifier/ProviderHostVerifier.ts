@@ -1,6 +1,7 @@
 import type { LoggerService } from "@akashnetwork/logging";
 import { LRUCache } from "lru-cache";
 
+import type { ProviderInventoryService } from "../ProviderInventoryService/ProviderInventoryService";
 import type { ProviderService } from "../ProviderService/ProviderService";
 
 const HOST_RECHECK_INTERVAL_MS = 30 * 60 * 1000;
@@ -10,18 +11,25 @@ const MIN_HOST_RECHECK_INTERVAL_MS = 60 * 1000;
 export class ProviderHostVerifier {
   /** Records outlive the recheck interval so the last host chain reported can stand in while chain cannot be queried. */
   readonly #hostRecords = new LRUCache<string, HostRecord>({ max: 100_000 });
-  readonly #inflightLookups: Record<string, Promise<string | null>> = {};
+  readonly #inflightRechecks: Record<string, Promise<HostRecord>> = {};
   readonly #now: () => number;
   readonly #providerService: ProviderService;
+  readonly #providerInventory?: ProviderInventoryService;
   readonly #instrumentation?: ProviderHostVerifierInstrumentation;
 
-  constructor(now: () => number, providerService: ProviderService, instrumentation?: ProviderHostVerifierInstrumentation) {
+  constructor(
+    now: () => number,
+    providerService: ProviderService,
+    providerInventory?: ProviderInventoryService,
+    instrumentation?: ProviderHostVerifierInstrumentation
+  ) {
     this.#now = now;
     this.#providerService = providerService;
+    this.#providerInventory = providerInventory;
     this.#instrumentation = instrumentation;
   }
 
-  /** A provider never seen before is allowed while chain cannot be queried, so deployments stay manageable through a chain outage. */
+  /** A provider never seen before is allowed while neither chain nor the provider inventory can be queried, so deployments stay manageable through a chain outage. */
   async canProxyTo(url: string, providerAddress: string): Promise<boolean> {
     const origin = new URL(url).origin;
     const cachedRecord = this.#hostRecords.get(providerAddress);
@@ -46,23 +54,33 @@ export class ProviderHostVerifier {
   }
 
   async #recheck(providerAddress: string, previousRecord: HostRecord | undefined): Promise<HostRecord> {
+    try {
+      this.#inflightRechecks[providerAddress] ??= this.#lookUpHostRecord(providerAddress, previousRecord);
+      return await this.#inflightRechecks[providerAddress];
+    } finally {
+      delete this.#inflightRechecks[providerAddress];
+    }
+  }
+
+  async #lookUpHostRecord(providerAddress: string, previousRecord: HostRecord | undefined): Promise<HostRecord> {
     let record: HostRecord;
     try {
-      record = { verified: true, origin: await this.#lookUpRegisteredOrigin(providerAddress), checkedAt: this.#now() };
+      record = { verified: true, origin: toOrigin(await this.#providerService.getHostUri(providerAddress)), checkedAt: this.#now() };
     } catch {
-      record = previousRecord?.verified ? { ...previousRecord, checkedAt: this.#now() } : { verified: false, checkedAt: this.#now() };
+      record = previousRecord?.verified ? { ...previousRecord, checkedAt: this.#now() } : await this.#lookUpInventoryHostRecord(providerAddress);
     }
 
     this.#hostRecords.set(providerAddress, record);
     return record;
   }
 
-  async #lookUpRegisteredOrigin(providerAddress: string): Promise<string | null> {
+  async #lookUpInventoryHostRecord(providerAddress: string): Promise<HostRecord> {
+    if (!this.#providerInventory) return { verified: false, checkedAt: this.#now() };
+
     try {
-      this.#inflightLookups[providerAddress] ??= this.#providerService.getHostUri(providerAddress).then(toOrigin);
-      return await this.#inflightLookups[providerAddress];
-    } finally {
-      delete this.#inflightLookups[providerAddress];
+      return { verified: true, origin: toOrigin(await this.#providerInventory.getHostUri(providerAddress)), checkedAt: this.#now() };
+    } catch {
+      return { verified: false, checkedAt: this.#now() };
     }
   }
 }

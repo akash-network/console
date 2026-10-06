@@ -3,6 +3,7 @@ import { setTimeout } from "timers/promises";
 import { describe, expect, it } from "vitest";
 import { mock } from "vitest-mock-extended";
 
+import type { ProviderInventoryService } from "../ProviderInventoryService/ProviderInventoryService";
 import type { ProviderService } from "../ProviderService/ProviderService";
 import type { ProviderHostVerifierInstrumentation } from "./ProviderHostVerifier";
 import { createProviderHostVerifierInstrumentation, ProviderHostVerifier } from "./ProviderHostVerifier";
@@ -180,7 +181,7 @@ describe(ProviderHostVerifier.name, () => {
       expect(providerService.getHostUri).toHaveBeenCalledTimes(2);
     });
 
-    it("allows a provider it has not looked up yet while chain cannot be queried", async () => {
+    it("allows a provider it has not looked up yet while chain cannot be queried and no provider inventory is configured", async () => {
       const { verifier, providerService } = setup();
       providerService.getHostUri.mockRejectedValue(new Error("chain is halted"));
 
@@ -237,14 +238,139 @@ describe(ProviderHostVerifier.name, () => {
       expect(results).toEqual([true, true, true]);
       expect(providerService.getHostUri).toHaveBeenCalledTimes(1);
     });
+
+    describe("when a provider inventory is configured", () => {
+      it("does not ask the provider inventory while chain answers", async () => {
+        const { verifier, providerService, providerInventory } = setup({ withProviderInventory: true });
+        providerService.getHostUri.mockResolvedValue(REGISTERED_HOST);
+
+        await verifier.canProxyTo(`${REGISTERED_HOST}/status`, PROVIDER_ADDRESS);
+
+        expect(providerInventory.getHostUri).not.toHaveBeenCalled();
+      });
+
+      it("allows a URL on the host the provider inventory has on record while chain cannot be queried", async () => {
+        const { verifier, providerService, providerInventory } = setup({ withProviderInventory: true });
+        providerService.getHostUri.mockRejectedValue(new Error("chain is halted"));
+        providerInventory.getHostUri.mockResolvedValue(REGISTERED_HOST);
+
+        expect(await verifier.canProxyTo(`${REGISTERED_HOST}/status`, PROVIDER_ADDRESS)).toBe(true);
+        expect(providerInventory.getHostUri).toHaveBeenCalledWith(PROVIDER_ADDRESS);
+      });
+
+      it("refuses a URL on another host than the provider inventory has on record while chain cannot be queried", async () => {
+        const { verifier, providerService, providerInventory, instrumentation } = setup({ withProviderInventory: true, withInstrumentation: true });
+        providerService.getHostUri.mockRejectedValue(new Error("chain is halted"));
+        providerInventory.getHostUri.mockResolvedValue(REGISTERED_HOST);
+
+        expect(await verifier.canProxyTo(`${OTHER_HOST}/status`, PROVIDER_ADDRESS)).toBe(false);
+        expect(instrumentation.onUnregisteredHost).toHaveBeenCalledWith(`${OTHER_HOST}/status`, PROVIDER_ADDRESS, REGISTERED_HOST);
+      });
+
+      it("refuses a provider the provider inventory has no record of while chain cannot be queried", async () => {
+        const { verifier, providerService, providerInventory } = setup({ withProviderInventory: true });
+        providerService.getHostUri.mockRejectedValue(new Error("chain is halted"));
+        providerInventory.getHostUri.mockResolvedValue(null);
+
+        expect(await verifier.canProxyTo(`${REGISTERED_HOST}/status`, PROVIDER_ADDRESS)).toBe(false);
+      });
+
+      it("allows a provider it has not looked up yet when neither chain nor the provider inventory can be queried", async () => {
+        const { verifier, providerService, providerInventory, instrumentation } = setup({ withProviderInventory: true, withInstrumentation: true });
+        providerService.getHostUri.mockRejectedValue(new Error("chain is halted"));
+        providerInventory.getHostUri.mockRejectedValue(new Error("inventory is down"));
+
+        expect(await verifier.canProxyTo(`${REGISTERED_HOST}/status`, PROVIDER_ADDRESS)).toBe(true);
+        expect(instrumentation.onUnverifiedHost).toHaveBeenCalledWith(`${REGISTERED_HOST}/status`, PROVIDER_ADDRESS);
+      });
+
+      it("asks the provider inventory again a minute after neither chain nor the provider inventory could be queried", async () => {
+        const clock = { now: Date.now() };
+        const { verifier, providerService, providerInventory } = setup({ now: () => clock.now, withProviderInventory: true });
+        providerService.getHostUri.mockRejectedValue(new Error("chain is halted"));
+        providerInventory.getHostUri.mockRejectedValueOnce(new Error("inventory is down")).mockResolvedValue(REGISTERED_HOST);
+
+        await verifier.canProxyTo(`${OTHER_HOST}/status`, PROVIDER_ADDRESS);
+        clock.now += ONE_MINUTE - 1;
+        expect(await verifier.canProxyTo(`${OTHER_HOST}/status`, PROVIDER_ADDRESS)).toBe(true);
+        expect(providerInventory.getHostUri).toHaveBeenCalledTimes(1);
+
+        clock.now += 1;
+        expect(await verifier.canProxyTo(`${OTHER_HOST}/status`, PROVIDER_ADDRESS)).toBe(false);
+        expect(providerInventory.getHostUri).toHaveBeenCalledTimes(2);
+      });
+
+      it("keeps the host chain last reported without asking the provider inventory while chain cannot be queried", async () => {
+        const clock = { now: Date.now() };
+        const { verifier, providerService, providerInventory } = setup({ now: () => clock.now, withProviderInventory: true });
+        providerService.getHostUri.mockResolvedValueOnce(REGISTERED_HOST).mockRejectedValue(new Error("chain is halted"));
+        providerInventory.getHostUri.mockResolvedValue(OTHER_HOST);
+
+        await verifier.canProxyTo(`${REGISTERED_HOST}/status`, PROVIDER_ADDRESS);
+        clock.now += THIRTY_MINUTES;
+        const result = await verifier.canProxyTo(`${REGISTERED_HOST}/status`, PROVIDER_ADDRESS);
+
+        expect(result).toBe(true);
+        expect(providerInventory.getHostUri).not.toHaveBeenCalled();
+      });
+
+      it("keeps the host the provider inventory reported without asking it again while chain cannot be queried", async () => {
+        const clock = { now: Date.now() };
+        const { verifier, providerService, providerInventory } = setup({ now: () => clock.now, withProviderInventory: true });
+        providerService.getHostUri.mockRejectedValue(new Error("chain is halted"));
+        providerInventory.getHostUri.mockResolvedValue(REGISTERED_HOST);
+
+        await verifier.canProxyTo(`${REGISTERED_HOST}/status`, PROVIDER_ADDRESS);
+        clock.now += THIRTY_MINUTES;
+        const result = await verifier.canProxyTo(`${OTHER_HOST}/status`, PROVIDER_ADDRESS);
+
+        expect(result).toBe(false);
+        expect(providerService.getHostUri).toHaveBeenCalledTimes(2);
+        expect(providerInventory.getHostUri).toHaveBeenCalledTimes(1);
+      });
+
+      it("follows chain over the provider inventory once chain answers again", async () => {
+        const clock = { now: Date.now() };
+        const { verifier, providerService, providerInventory } = setup({ now: () => clock.now, withProviderInventory: true });
+        providerService.getHostUri.mockRejectedValueOnce(new Error("chain is halted")).mockResolvedValue(OTHER_HOST);
+        providerInventory.getHostUri.mockResolvedValue(REGISTERED_HOST);
+
+        await verifier.canProxyTo(`${REGISTERED_HOST}/status`, PROVIDER_ADDRESS);
+        clock.now += ONE_MINUTE;
+        const result = await verifier.canProxyTo(`${OTHER_HOST}/status`, PROVIDER_ADDRESS);
+
+        expect(result).toBe(true);
+      });
+
+      it("asks the provider inventory once for concurrent requests while chain cannot be queried", async () => {
+        const { verifier, providerService, providerInventory } = setup({ withProviderInventory: true });
+        providerService.getHostUri.mockRejectedValue(new Error("chain is halted"));
+        providerInventory.getHostUri.mockImplementation(() => setTimeout(20, REGISTERED_HOST));
+
+        const results = await Promise.all([
+          verifier.canProxyTo(`${REGISTERED_HOST}/status`, PROVIDER_ADDRESS),
+          verifier.canProxyTo(`${REGISTERED_HOST}/logs`, PROVIDER_ADDRESS),
+          verifier.canProxyTo(`${OTHER_HOST}/events`, PROVIDER_ADDRESS)
+        ]);
+
+        expect(results).toEqual([true, true, false]);
+        expect(providerInventory.getHostUri).toHaveBeenCalledTimes(1);
+      });
+    });
   });
 
-  function setup(input?: { now?: () => number; withInstrumentation?: boolean }) {
+  function setup(input?: { now?: () => number; withInstrumentation?: boolean; withProviderInventory?: boolean }) {
     const providerService = mock<ProviderService>();
+    const providerInventory = mock<ProviderInventoryService>();
     const instrumentation = mock<ProviderHostVerifierInstrumentation>();
-    const verifier = new ProviderHostVerifier(input?.now ?? Date.now, providerService, input?.withInstrumentation ? instrumentation : undefined);
+    const verifier = new ProviderHostVerifier(
+      input?.now ?? Date.now,
+      providerService,
+      input?.withProviderInventory ? providerInventory : undefined,
+      input?.withInstrumentation ? instrumentation : undefined
+    );
 
-    return { verifier, providerService, instrumentation };
+    return { verifier, providerService, providerInventory, instrumentation };
   }
 });
 

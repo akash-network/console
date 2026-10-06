@@ -2,6 +2,7 @@ import { HttpLoggerInterceptor } from "@akashnetwork/logging/hono";
 import { describe, expect, it } from "vitest";
 
 import { CertificateValidator } from "./services/CertificateValidator/CertificateValidator";
+import { ProviderInventoryService } from "./services/ProviderInventoryService/ProviderInventoryService";
 import { ProviderProxy } from "./services/ProviderProxy";
 import { ProviderService } from "./services/ProviderService/ProviderService";
 import { WebsocketStats } from "./services/WebsocketStats";
@@ -24,6 +25,18 @@ describe(createContainer.name, () => {
     expect(container.appConfig.REST_API_NODE_URL).toBe("https://rest.example.com");
     expect(container.appConfig.PORT).toBe(3040);
     expect(container.appConfig.ALLOW_PROXY_TO_LOCAL_NETWORK).toBe(false);
+  });
+
+  it("builds a provider inventory client when its URL is configured", () => {
+    const container = setup({ REST_API_NODE_URL: "https://rest.akash.network", PROVIDER_INVENTORY_API_URL: "http://provider-inventory:3000" });
+
+    expect(container.providerInventoryService).toBeInstanceOf(ProviderInventoryService);
+  });
+
+  it("builds no provider inventory client when its URL is not configured", () => {
+    const container = setup();
+
+    expect(container.providerInventoryService).toBeUndefined();
   });
 
   it("disables loggers when running in the test environment", () => {
