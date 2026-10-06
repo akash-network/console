@@ -54,7 +54,7 @@ export const ProviderProfile: FC<Props> = ({ owner, initialProvider, dependencie
     <d.Layout disableContainer>
       <d.CustomNextSeo title={`Provider ${name}`} url={`${domainName}${UrlService.providerDetail(owner)}`} />
 
-      <div className="mx-auto flex w-full max-w-[1240px] flex-col gap-3.5 px-4 pb-9 pt-[22px] md:px-6">
+      <div className="container flex flex-col gap-3.5 px-4 pb-9 pt-[22px] md:px-6">
         <Link
           href={UrlService.providers()}
           className="-ml-1 inline-flex items-center gap-1.5 self-start rounded-md py-1 pl-1 pr-2 text-[12.5px] font-medium text-muted-foreground transition-colors hover:text-foreground"

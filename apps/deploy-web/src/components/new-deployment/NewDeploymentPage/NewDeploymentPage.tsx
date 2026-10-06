@@ -63,7 +63,7 @@ export const NewDeploymentPage: FC<Props> = ({ dependencies: d = DEPENDENCIES })
       <d.Layout isLoading={isLoadingTemplates} disableContainer>
         <d.CustomNextSeo title="New Deployment" url={`${domainName}${UrlService.newDeployment()}`} />
 
-        <div className="mx-auto w-full max-w-[1244px] px-4 pb-16 pt-6 sm:px-8 sm:pt-8">
+        <div className="container px-4 pb-16 pt-6 sm:px-6 sm:pt-8">
           <Link
             href={UrlService.deploymentList()}
             className="mb-2.5 inline-flex items-center gap-1.5 py-1 text-[13px] text-muted-foreground transition-colors hover:text-foreground"

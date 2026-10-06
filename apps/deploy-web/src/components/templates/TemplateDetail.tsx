@@ -56,7 +56,7 @@ export const TemplateDetail: FC<TemplateDetailProps> = ({ template, dependencies
 
   return (
     <d.Layout disableContainer>
-      <div className="mx-auto w-full max-w-[1244px] px-4 pb-16 pt-6 sm:px-8">
+      <div className="container px-4 pb-16 pt-6 sm:px-6">
         <Link
           href={UrlService.templates()}
           onClick={returnToPreviousPage}
