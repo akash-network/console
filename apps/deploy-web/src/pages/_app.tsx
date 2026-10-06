@@ -18,6 +18,7 @@ import { NavigationGuardProvider } from "next-navigation-guard";
 import type { NextSeoProps } from "next-seo/lib/types";
 import NProgress from "nprogress";
 
+import { ActivityHost } from "@src/components/activity/ActivityHost/ActivityHost";
 import { AccountCreatedTracker } from "@src/components/analytics/AccountCreatedTracker/AccountCreatedTracker";
 import { AppBootstrap } from "@src/components/AppBootstrap/AppBootstrap";
 import { RequireAuth } from "@src/components/auth/RequireAuth/RequireAuth";
@@ -75,6 +76,7 @@ const App: React.FunctionComponent<Props> = props => {
                 <PaymentPollingProvider>
                   <AddCreditsHost />
                   <CloseDeploymentConfirmHost />
+                  <ActivityHost />
                   <NavigationGuardProvider>
                     <RequireOnboarding isPublic={isPublic}>
                       <WaitForFeatureFlags>
