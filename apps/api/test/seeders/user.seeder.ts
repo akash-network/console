@@ -20,6 +20,7 @@ export function createUser({
   lastFingerprint = faker.word.noun(),
   onboardingSkippedAt = null,
   fairUsePolicyAcceptedAt = faker.date.recent(),
+  productUpdatesUnsubscribedAt = null,
   createdAt = faker.date.recent(),
   trial = false
 }: Partial<UserOutput> = {}): UserOutput {
@@ -41,6 +42,7 @@ export function createUser({
     lastFingerprint,
     onboardingSkippedAt,
     fairUsePolicyAcceptedAt,
+    productUpdatesUnsubscribedAt,
     createdAt,
     trial
   };

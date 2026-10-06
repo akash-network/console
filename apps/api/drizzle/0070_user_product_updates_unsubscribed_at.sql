@@ -1,0 +1,1 @@
+ALTER TABLE "userSetting" ADD COLUMN "product_updates_unsubscribed_at" timestamp with time zone;

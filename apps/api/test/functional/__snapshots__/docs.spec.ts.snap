@@ -13941,6 +13941,40 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
         ],
       },
     },
+    "/v1/product-update-unsubscriptions": {
+      "post": {
+        "operationId": "createProductUpdateUnsubscription",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "token",
+            "required": true,
+            "schema": {
+              "description": "The signed token from the unsubscribe link in a product update email",
+              "maxLength": 256,
+              "minLength": 1,
+              "type": "string",
+            },
+          },
+        ],
+        "responses": {
+          "204": {
+            "description": "The user no longer receives product update emails",
+          },
+          "400": {
+            "description": "The unsubscribe link is invalid",
+          },
+          "503": {
+            "description": "Unsubscribe links are not configured",
+          },
+        },
+        "security": [],
+        "summary": "Stop product update emails for the user an unsubscribe link was sent to, without signing in (RFC 8058 one-click)",
+        "tags": [
+          "Users",
+        ],
+      },
+    },
     "/v1/proposals": {
       "get": {
         "responses": {
