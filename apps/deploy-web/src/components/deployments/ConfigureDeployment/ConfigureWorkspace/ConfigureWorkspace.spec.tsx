@@ -60,7 +60,20 @@ describe(ConfigureWorkspace.name, () => {
     it("edits the deployment around the active placement", () => {
       const { editorProps } = setup({});
 
-      expect(editorProps()).toMatchObject({ selectedServiceId: "web", activePlacementId: "p2", deploymentName: "shown-name", pendingClose: null });
+      expect(editorProps()).toMatchObject({ selectedServiceId: "web", activePlacementId: "p2", deploymentName: "shown-name" });
+    });
+
+    it("follows the previous deployment closing in the background in a toast", () => {
+      const pendingClose = { dseq: "41", failed: false };
+      const { dependencies, flow } = setup({ pendingClose });
+
+      expect(dependencies.BackgroundCloseToast).toHaveBeenCalledWith({ pendingClose, onRetry: flow.actions.retryClose }, expect.anything());
+    });
+
+    it("shows no close toast while nothing closes in the background", () => {
+      const { dependencies } = setup({});
+
+      expect(dependencies.BackgroundCloseToast).not.toHaveBeenCalled();
     });
 
     it("shows the network availability of the active placement", () => {
@@ -285,6 +298,19 @@ describe(ConfigureWorkspace.name, () => {
       expect.objectContaining({ phase: "quoting", dseq: "42", sdl: "live-sdl", expiry: { secondsLeft: 0, isExpired: true }, noBidsReceived: false }),
       expect.anything()
     );
+  });
+
+  it("keeps a failed close in a toast once the create queued behind it gave up", () => {
+    const pendingClose = { dseq: "41", failed: true };
+    const { dependencies } = setup({ phase: "error", pendingClose });
+
+    expect(dependencies.BackgroundCloseToast).toHaveBeenCalledWith(expect.objectContaining({ pendingClose }), expect.anything());
+  });
+
+  it("leaves the toast to the bid window while the requested bids come in behind a close", () => {
+    const { dependencies } = setup({ phase: "creating", pendingClose: { dseq: "41", failed: false } });
+
+    expect(dependencies.BackgroundCloseToast).not.toHaveBeenCalled();
   });
 
   it("tells the bid window toast once the wait for a first bid ran out", () => {

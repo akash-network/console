@@ -208,6 +208,22 @@ describe(MarketplacePane.name, () => {
       expect(screen.getByText("placement chips")).toBeInTheDocument();
     });
 
+    it("leaves the placement name to the chips", () => {
+      setup({ variant: "expanded", placementName: "dcloud" });
+
+      expect(screen.queryByText("• dcloud")).not.toBeInTheDocument();
+    });
+
+    it.each(["creating", "quoting"] as const)(
+      "leaves the wait for a first bid to the bid window toast while the %s deployment still dims the providers",
+      phase => {
+        const { MarketplaceProvidersTable } = setup({ variant: "expanded", phase, offers: [buildOffer({ offerState: "searching" })] });
+
+        expect(screen.queryByRole("status")).not.toBeInTheDocument();
+        expect(MarketplaceProvidersTable).toHaveBeenCalledWith(expect.objectContaining({ isBusy: true }), expect.anything());
+      }
+    );
+
     it("lets rows select their offer", () => {
       const { MarketplaceProvidersTable } = setup({ variant: "expanded" });
 

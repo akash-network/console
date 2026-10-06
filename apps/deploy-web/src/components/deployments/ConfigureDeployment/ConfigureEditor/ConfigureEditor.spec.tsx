@@ -5,7 +5,6 @@ import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { PlacementType, SdlBuilderFormValuesType, ServiceType } from "@src/types";
-import type { PendingClose } from "../useDeploymentFlow/useDeploymentFlow";
 import type { IndexedService, PlacementManager } from "../usePlacementManager/usePlacementManager";
 import type { PlacementTabs } from "./PlacementTabs/PlacementTabs";
 import type { ServiceStack } from "./ServiceStack/ServiceStack";
@@ -20,19 +19,6 @@ describe(ConfigureEditor.name, () => {
 
     expect(screen.getByRole("heading", { name: "Deployment" })).toBeInTheDocument();
     expect(screen.getByText("toolbar")).toBeInTheDocument();
-  });
-
-  it("shows the previous deployment closing in the background", () => {
-    const pendingClose = { dseq: "1", failed: false };
-    const { BackgroundCloseBanner } = setup({ pendingClose });
-
-    expect(BackgroundCloseBanner).toHaveBeenCalledWith(expect.objectContaining({ pendingClose }), expect.anything());
-  });
-
-  it("shows no banner while nothing closes in the background", () => {
-    const { BackgroundCloseBanner } = setup({});
-
-    expect(BackgroundCloseBanner).not.toHaveBeenCalled();
   });
 
   it("hands every placement to the tabs with its status and the active one", () => {
@@ -122,7 +108,7 @@ describe(ConfigureEditor.name, () => {
     expect(addedServiceId).toBe("worker");
   });
 
-  function setup(input: { selectedServiceId?: string; activePlacementId?: string; pendingClose?: PendingClose }) {
+  function setup(input: { selectedServiceId?: string; activePlacementId?: string }) {
     const placements = [placement("p1", "placement-1"), placement("p2", "placement-2")];
     const servicesByPlacement: Record<string, IndexedService[]> = {
       p1: [indexed("web", "p1", 0), indexed("api", "p1", 1)],
@@ -160,8 +146,6 @@ describe(ConfigureEditor.name, () => {
           onSelectService={onSelectService}
           deploymentName="my-app"
           onDeploymentNameChange={vi.fn()}
-          pendingClose={input.pendingClose ?? null}
-          onRetryClose={vi.fn()}
           toolbar={<span>toolbar</span>}
           dependencies={dependencies}
         />
