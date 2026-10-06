@@ -30,6 +30,7 @@ export interface DeploymentCardProps {
   providers: ApiProviderList[] | undefined;
   isSelectable?: boolean;
   isSelected?: boolean;
+  isClosing?: boolean;
   onSelect?: (input: { id: string; isShiftPressed: boolean }) => void;
   onDeploymentClosed?: () => void;
   dependencies?: typeof DEPENDENCIES;
@@ -40,6 +41,7 @@ export const DeploymentCard: FC<DeploymentCardProps> = ({
   providers,
   isSelectable,
   isSelected,
+  isClosing = false,
   onSelect,
   onDeploymentClosed,
   dependencies: d = DEPENDENCIES
@@ -59,7 +61,7 @@ export const DeploymentCard: FC<DeploymentCardProps> = ({
           </Link>
 
           <div className="flex shrink-0 flex-wrap items-center justify-end gap-1.5">
-            <d.DeploymentStatusBadge state={deployment.state} leases={leases} isSummarized />
+            <d.DeploymentStatusBadge state={deployment.state} leases={leases} isSummarized isClosing={isClosing} />
             <d.DeploymentBadges deployment={deployment} />
           </div>
         </div>
@@ -79,7 +81,7 @@ export const DeploymentCard: FC<DeploymentCardProps> = ({
         <d.DeploymentSpecSummary deployment={deployment} resolvedGpus={resolveDeploymentGpus(deployment.leases)} className="min-w-0 flex-1" />
 
         <div className="flex shrink-0 items-center gap-1">
-          {isSelectable && (
+          {isSelectable && !isClosing && (
             <Checkbox
               aria-label={`Select deployment ${deployment.name || deployment.dseq}`}
               checked={isSelected}
@@ -88,7 +90,7 @@ export const DeploymentCard: FC<DeploymentCardProps> = ({
               onClick={event => onSelect?.({ id: deployment.dseq, isShiftPressed: event.shiftKey })}
             />
           )}
-          <d.DeploymentActionsMenu deployment={deployment} onDeploymentClosed={onDeploymentClosed} />
+          <d.DeploymentActionsMenu deployment={deployment} onDeploymentClosed={onDeploymentClosed} isClosing={isClosing} />
         </div>
       </div>
     </Card>

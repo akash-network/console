@@ -22,7 +22,7 @@ type TestConfig = {
 };
 
 const testSelection = async (config: TestConfig) => {
-  const result = setup();
+  const { result } = setup();
 
   config.clicks.forEach(({ id, isShiftPressed }) => {
     act(() => {
@@ -37,8 +37,30 @@ const testSelection = async (config: TestConfig) => {
 
 describe(useListSelection.name, () => {
   it("should not explode for an empty list", () => {
-    const result = setup({ ids: [] });
+    const { result } = setup({ ids: [] });
     expect(result.current.selectedItemIds).toEqual([]);
+  });
+
+  it("selects only the shift-clicked item once the item the range would start from has left the list", async () => {
+    const { result, rerender } = setup();
+    act(() => result.current.selectItem({ id: 2, isShiftPressed: false }));
+    rerender({ ids: range(0, 10).filter(id => id !== 2) });
+
+    act(() => result.current.selectItem({ id: 5, isShiftPressed: true }));
+
+    await vi.waitFor(() => {
+      expectSelectedItems(result.current.selectedItemIds, [5]);
+    });
+  });
+
+  it("extends a range from the first item of the list", async () => {
+    await testSelection({
+      clicks: [
+        { id: 0, isShiftPressed: false },
+        { id: 3, isShiftPressed: true }
+      ],
+      expectedItems: [0, 1, 2, 3]
+    });
   });
 
   it("can set a single item as selected", async () => {
@@ -157,6 +179,5 @@ describe(useListSelection.name, () => {
 });
 
 function setup({ ids }: UseListSelectionProps<number> = { ids: range(0, 10) }) {
-  const { result } = renderHook(() => useListSelection({ ids }));
-  return result;
+  return renderHook((props: UseListSelectionProps<number>) => useListSelection(props), { initialProps: { ids } });
 }

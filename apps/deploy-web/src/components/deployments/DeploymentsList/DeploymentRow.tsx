@@ -36,6 +36,7 @@ export interface DeploymentRowProps {
   providers: ApiProviderList[] | undefined;
   isSelectable?: boolean;
   isSelected?: boolean;
+  isClosing?: boolean;
   onSelect?: (input: { id: string; isShiftPressed: boolean }) => void;
   onDeploymentClosed?: () => void;
   dependencies?: typeof DEPENDENCIES;
@@ -46,6 +47,7 @@ export const DeploymentRow: FC<DeploymentRowProps> = ({
   providers,
   isSelectable,
   isSelected,
+  isClosing = false,
   onSelect,
   onDeploymentClosed,
   dependencies: d = DEPENDENCIES
@@ -61,7 +63,7 @@ export const DeploymentRow: FC<DeploymentRowProps> = ({
       <TableRow className={cn(isShowingEndpointPanel && "border-b-0")}>
         <TableCell>
           <div className="flex flex-wrap items-center gap-1.5">
-            <d.DeploymentStatusBadge state={deployment.state} leases={leases} isSummarized />
+            <d.DeploymentStatusBadge state={deployment.state} leases={leases} isSummarized isClosing={isClosing} />
             <d.DeploymentBadges deployment={deployment} />
           </div>
         </TableCell>
@@ -84,7 +86,7 @@ export const DeploymentRow: FC<DeploymentRowProps> = ({
         </TableCell>
         <TableCell className={CONTROLS_CELL}>
           <div className="flex items-center justify-end gap-1">
-            {isSelectable && (
+            {isSelectable && !isClosing && (
               <Checkbox
                 aria-label={`Select deployment ${deployment.name || deployment.dseq}`}
                 checked={isSelected}
@@ -93,7 +95,7 @@ export const DeploymentRow: FC<DeploymentRowProps> = ({
                 onClick={event => onSelect?.({ id: deployment.dseq, isShiftPressed: event.shiftKey })}
               />
             )}
-            <d.DeploymentActionsMenu deployment={deployment} onDeploymentClosed={onDeploymentClosed} />
+            <d.DeploymentActionsMenu deployment={deployment} onDeploymentClosed={onDeploymentClosed} isClosing={isClosing} />
           </div>
         </TableCell>
       </TableRow>

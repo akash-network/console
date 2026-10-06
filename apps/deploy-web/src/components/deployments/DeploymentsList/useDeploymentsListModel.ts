@@ -6,6 +6,7 @@ import { useAtom } from "jotai";
 import { useServices } from "@src/context/ServicesProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { useCloseDeploymentConfirm } from "@src/hooks/useCloseDeploymentConfirm";
+import { useClosingDeployments } from "@src/hooks/useClosingDeployments/useClosingDeployments";
 import { useListSelection } from "@src/hooks/useListSelection/useListSelection";
 import { useProvidersByAddresses } from "@src/queries/useProvidersQuery";
 import type { DeploymentsViewMode } from "@src/store/deploymentsViewStore";
@@ -20,7 +21,8 @@ export const DEPENDENCIES = {
   useProvidersByAddresses,
   useCloseDeploymentConfirm,
   useListSelection,
-  useDeploymentsListSource: useApiDeploymentsListSource
+  useDeploymentsListSource: useApiDeploymentsListSource,
+  useClosingDeployments
 };
 
 /** Must stay one of the sizes PaginationSizeSelector offers, or the selector renders blank. */
@@ -91,8 +93,12 @@ export function useDeploymentsListModel(dependencies: typeof DEPENDENCIES = DEPE
     [archive.isFetching, archivePageIndex, archivePageDeployments.length]
   );
 
-  const dseqs = useMemo(() => pageDeployments.map(deployment => deployment.dseq), [pageDeployments]);
-  const { selectedItemIds, selectItem, clearSelection } = d.useListSelection<string>({ ids: dseqs });
+  const closingDseqs = d.useClosingDeployments();
+  const selectableDseqs = useMemo(
+    () => pageDeployments.map(deployment => deployment.dseq).filter(dseq => !closingDseqs.has(dseq)),
+    [pageDeployments, closingDseqs]
+  );
+  const { selectedItemIds, selectItem, clearSelection } = d.useListSelection<string>({ ids: selectableDseqs });
 
   const changeSearch = useCallback((value: string) => {
     setSearch(value);
@@ -182,6 +188,7 @@ export function useDeploymentsListModel(dependencies: typeof DEPENDENCIES = DEPE
     /** Survives the page size growing past the last page, so the selector that did it stays on screen to undo it. */
     showPageSizeSelector: (hasPageResults || hasAnyArchived) && (isPaginated || isArchivePaginated || pageSize !== DEFAULT_PAGE_SIZE),
     isInitialLoad,
+    closingDseqs,
     selectedItemIds,
     selectItem,
     clearSelection,

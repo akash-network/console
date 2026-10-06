@@ -67,13 +67,15 @@ export const useListSelection = <T>({ ids }: UseListSelectionProps<T>) => {
 
   const selectItem = useCallback(
     ({ id, isShiftPressed }: { id: T; isShiftPressed: boolean }) => {
-      if (intervalSelectionAnchor && isShiftPressed) {
+      const isAnchorListed = intervalSelectionAnchor !== null && ids.includes(intervalSelectionAnchor);
+
+      if (isAnchorListed && isShiftPressed) {
         changeMultipleSelection(id);
       } else {
         toggleSingleSelection(id);
       }
     },
-    [intervalSelectionAnchor, changeMultipleSelection, toggleSingleSelection]
+    [ids, intervalSelectionAnchor, changeMultipleSelection, toggleSingleSelection]
   );
 
   const clearSelection = useCallback(() => {

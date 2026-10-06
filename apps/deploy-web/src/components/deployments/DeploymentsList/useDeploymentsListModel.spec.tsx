@@ -280,6 +280,33 @@ describe(useDeploymentsListModel.name, () => {
     });
   });
 
+  describe("while a deployment's close runs in the background", () => {
+    it("reports which deployments are closing", () => {
+      const { result } = setup({ active: [deployment("100"), deployment("101")], closingDseqs: ["101"] });
+
+      expect(result.current.closingDseqs).toEqual(new Set(["101"]));
+    });
+
+    it("keeps a closing deployment out of the selection", () => {
+      const { result } = setup({ active: [deployment("100"), deployment("101")], closingDseqs: ["101"] });
+
+      act(() => result.current.selectItem({ id: "100", isShiftPressed: false }));
+      act(() => result.current.selectItem({ id: "101", isShiftPressed: false }));
+
+      expect(result.current.selectedItemIds).toEqual(["100"]);
+    });
+
+    it("drops a selected deployment from the selection once its close starts", () => {
+      const { result, rerenderWith } = setup({ active: [deployment("100"), deployment("101")] });
+      act(() => result.current.selectItem({ id: "100", isShiftPressed: false }));
+      act(() => result.current.selectItem({ id: "101", isShiftPressed: false }));
+
+      rerenderWith({ closingDseqs: ["101"] });
+
+      expect(result.current.selectedItemIds).toEqual(["100"]);
+    });
+  });
+
   describe("closing the selected deployments", () => {
     it("signs one message per selected deployment, records why on each, and then clears the selection", async () => {
       const { result, signAndBroadcastTx, confirmCloseDeployment, recordCloseReason, refetch } = setup({ active: [deployment("100"), deployment("101")] });
@@ -766,6 +793,7 @@ describe(useDeploymentsListModel.name, () => {
     isSearchTooBroad?: boolean;
     isArchiveSearchTooBroad?: boolean;
     providers?: ApiProviderList[];
+    closingDseqs?: string[];
   };
 
   function setup(input: Input) {
@@ -818,7 +846,8 @@ describe(useDeploymentsListModel.name, () => {
       useProvidersByAddresses,
       useCloseDeploymentConfirm,
       useListSelection: DEPENDENCIES.useListSelection,
-      useDeploymentsListSource
+      useDeploymentsListSource,
+      useClosingDeployments: () => new Set(current.closingDseqs ?? [])
     };
 
     const store = createStore();

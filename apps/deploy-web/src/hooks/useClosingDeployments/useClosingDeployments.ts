@@ -10,15 +10,18 @@ export const DEPENDENCIES = { useFlag, useUser, useLatestActivitiesQuery };
 export function useClosingDeployments(dependencies: typeof DEPENDENCIES = DEPENDENCIES): ReadonlySet<string> {
   const isEnabled = dependencies.useFlag("notifications_activity_center");
   const { user } = dependencies.useUser();
-  const { data: activities } = dependencies.useLatestActivitiesQuery({ enabled: isEnabled && !!user?.userId });
+  const isFollowingFeed = isEnabled && !!user?.userId;
+  const { data: activities } = dependencies.useLatestActivitiesQuery({ enabled: isFollowingFeed });
 
   return useMemo(
     () =>
       new Set(
-        activities?.flatMap(activity =>
-          activity.type === "deployment_close" && activity.status === "pending" && activity.meta.dseq ? [activity.meta.dseq] : []
-        )
+        isFollowingFeed
+          ? activities?.flatMap(activity =>
+              activity.type === "deployment_close" && activity.status === "pending" && activity.meta.dseq ? [activity.meta.dseq] : []
+            )
+          : []
       ),
-    [activities]
+    [activities, isFollowingFeed]
   );
 }
