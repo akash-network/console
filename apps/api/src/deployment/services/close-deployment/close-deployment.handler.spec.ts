@@ -75,6 +75,17 @@ describe(CloseDeploymentHandler.name, () => {
     expect(activityService.settle).toHaveBeenCalledWith("activity-1", failedCloseActivityOf(KEY, failure));
   });
 
+  it("never records a close that went through as failed when writing its success fails on the last attempt", async () => {
+    const { handler, activityService } = setup();
+    const writeFailure = new Error("connection terminated");
+    activityService.settle.mockRejectedValueOnce(writeFailure);
+
+    await expect(handler.handle(PAYLOAD, { id: "job-1", retryCount: 8, retryLimit: 8 })).rejects.toBe(writeFailure);
+
+    expect(activityService.settle).toHaveBeenCalledTimes(1);
+    expect(activityService.settle).toHaveBeenCalledWith("activity-1", closedActivityOf(KEY));
+  });
+
   it("keeps a last attempt with an undecided outcome pending under its hash", async () => {
     const { handler, deploymentWriterService, activityService } = setup();
     const undecided = new TxOutcomeUnknownError("ABCDEF");
