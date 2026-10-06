@@ -113,7 +113,6 @@ export const DeploymentDetailHeader: FC<DeploymentDetailHeaderProps> = ({
           <DeploymentStatusBadge state={deployment.state} leases={leases} isClosing={isClosing} />
           <d.ConfidentialComputeBadge teeTypes={teeTypes} />
           <d.GpuInterconnectBadge interconnect={interconnect} />
-          {isTrialing && <d.TrialDeploymentBadge createdHeight={deployment.createdAt} />}
         </div>
         <div className="group flex items-center gap-2">
           <h1 className="text-3xl font-bold tracking-tight">{name}</h1>
@@ -171,6 +170,11 @@ export const DeploymentDetailHeader: FC<DeploymentDetailHeaderProps> = ({
                   <RuntimeLimitMeter countdown={runtimeLimitCountdown} />
                 </div>
               </SummaryItem>
+            )}
+            {isTrialing && (
+              <div>
+                <d.TrialDeploymentBadge createdHeight={deployment.createdAt} />
+              </div>
             )}
           </div>
           <div className="grid grid-cols-4 gap-x-10">

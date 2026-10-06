@@ -204,6 +204,13 @@ describe(DeploymentDetailHeader.name, () => {
     expect(screen.getByText("trial-badge")).toBeInTheDocument();
   });
 
+  it("places the trial badge in the summary's top row rather than beside the status badges", () => {
+    setup({ isTrialing: true });
+
+    expect(screen.getByText("trial-badge").parentElement?.parentElement).toHaveTextContent("TOTAL SERVICES");
+    expect(screen.getByText("tee-badge").parentElement).not.toHaveTextContent("trial-badge");
+  });
+
   it("hides the trial badge when the wallet is not trialing", () => {
     setup({ isTrialing: false });
 
