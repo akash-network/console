@@ -180,6 +180,49 @@ describe(UserService.name, () => {
     });
   });
 
+  describe("updateUserDetails", () => {
+    it("records the opt-out time when product updates are switched off", async () => {
+      const user = createUser({ productUpdatesUnsubscribedAt: null });
+      const { service, userRepository } = setup();
+      userRepository.findById.mockResolvedValue(user);
+
+      await service.updateUserDetails(user.id, { subscribedToProductUpdates: false });
+
+      expect(userRepository.updateById).toHaveBeenCalledWith(user.id, { productUpdatesUnsubscribedAt: expect.any(Date) });
+    });
+
+    it("keeps the original opt-out time when product updates stay switched off", async () => {
+      const unsubscribedAt = faker.date.past();
+      const user = createUser({ productUpdatesUnsubscribedAt: unsubscribedAt });
+      const { service, userRepository } = setup();
+      userRepository.findById.mockResolvedValue(user);
+
+      await service.updateUserDetails(user.id, { subscribedToProductUpdates: false });
+
+      expect(userRepository.updateById).toHaveBeenCalledWith(user.id, { productUpdatesUnsubscribedAt: unsubscribedAt });
+    });
+
+    it("clears the opt-out when product updates are switched back on", async () => {
+      const user = createUser({ productUpdatesUnsubscribedAt: faker.date.past() });
+      const { service, userRepository } = setup();
+      userRepository.findById.mockResolvedValue(user);
+
+      await service.updateUserDetails(user.id, { subscribedToProductUpdates: true });
+
+      expect(userRepository.updateById).toHaveBeenCalledWith(user.id, { productUpdatesUnsubscribedAt: null });
+    });
+
+    it("leaves the opt-out untouched when the product updates preference is not sent", async () => {
+      const user = createUser({ productUpdatesUnsubscribedAt: faker.date.past() });
+      const { service, userRepository } = setup();
+      userRepository.findById.mockResolvedValue(user);
+
+      await service.updateUserDetails(user.id, { bio: "Builds on Akash" });
+
+      expect(userRepository.updateById).toHaveBeenCalledWith(user.id, { bio: "Builds on Akash" });
+    });
+  });
+
   describe("skipOnboarding", () => {
     it("persists the skip time with a set-if-null guard so it is written once and never overwritten", async () => {
       const userId = faker.string.uuid();

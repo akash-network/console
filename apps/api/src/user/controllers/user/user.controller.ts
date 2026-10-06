@@ -59,6 +59,7 @@ export class UserController {
     youtubeUsername?: string | null;
     twitterUsername?: string | null;
     githubUsername?: string | null;
+    subscribedToProductUpdates?: boolean;
   }): Promise<void> {
     assert(this.authService.currentUser?.id, 401);
 

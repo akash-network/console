@@ -59,7 +59,8 @@ const updateSettingsRoute = createRoute({
             bio: z.string().max(5000).nullable().optional(),
             youtubeUsername: z.string().max(200).nullable().optional(),
             twitterUsername: z.string().max(200).nullable().optional(),
-            githubUsername: z.string().max(200).nullable().optional()
+            githubUsername: z.string().max(200).nullable().optional(),
+            subscribedToProductUpdates: z.boolean().optional()
           })
         }
       }
