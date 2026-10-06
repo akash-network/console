@@ -1,21 +1,21 @@
 import { expect, test } from "./fixture/base-test";
+import { AppNav } from "./pages/AppNav";
 import { BillingPage } from "./pages/BillingPage";
-import { HomePage } from "./pages/HomePage";
 
 const TOP_UP_AMOUNT = 100;
 
 test.describe("Managed wallet credits", () => {
   test.use({ userType: "existing" });
 
-  test("purchases credits via Add Funds", async ({ page }) => {
+  test("purchases credits via Add to Balance", async ({ page }) => {
     test.setTimeout(2 * 60 * 1000);
 
-    const homePage = new HomePage(page);
     const billingPage = new BillingPage(page);
 
-    await test.step("navigate to billing via Add Funds", async () => {
-      await homePage.getAddFundsLink().click();
+    await test.step("navigate to billing and open Add to Balance", async () => {
+      await new AppNav(page).openBilling();
       await billingPage.waitForPage();
+      await billingPage.openAddToBalance();
     });
 
     const balanceBefore = await test.step("read initial balance", async () => {

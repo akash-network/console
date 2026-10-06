@@ -23,6 +23,11 @@ export class AppNav {
     await this.deployLink().click();
   }
 
+  async openBilling() {
+    await this.page.getByRole("button", { name: /^settings$/i }).click();
+    await this.page.getByRole("menuitem", { name: /^billing$/i }).click();
+  }
+
   async openAlerts() {
     await this.page.getByRole("button", { name: /^settings$/i }).click();
     await this.page.getByRole("menuitem", { name: /^alerts$/i }).click();

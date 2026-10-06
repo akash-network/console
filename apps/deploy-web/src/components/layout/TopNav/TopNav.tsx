@@ -69,7 +69,7 @@ export function TopNav({ dependencies: d = DEPENDENCIES, minimal = false }: Prop
       <div className="flex h-14 items-center justify-between px-4 md:px-8">
         <div className="flex items-center gap-8">
           {!!theme && (
-            <Link className="flex items-center" href="/">
+            <Link className="flex items-center" href={UrlService.home()} aria-label="Akash Console home">
               <AkashLogo />
             </Link>
           )}
@@ -122,7 +122,7 @@ export function TopNav({ dependencies: d = DEPENDENCIES, minimal = false }: Prop
               <SheetContent side="left" className="w-[280px] p-0">
                 <div className="flex h-14 items-center border-b border-border px-4">
                   <SheetTitle asChild>
-                    <Link href="/" className="flex items-center" onClick={() => setIsMobileNavOpen(false)}>
+                    <Link href={UrlService.home()} aria-label="Akash Console home" className="flex items-center" onClick={() => setIsMobileNavOpen(false)}>
                       <AkashLogo />
                     </Link>
                   </SheetTitle>

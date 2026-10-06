@@ -9,6 +9,10 @@ export class BillingPage {
     await this.page.waitForURL(/\/billing/);
   }
 
+  async openAddToBalance() {
+    await this.page.getByRole("button", { name: /add to balance/i }).click();
+  }
+
   getAvailableBalance() {
     return this.page.locator('[aria-label="Available balance"]');
   }

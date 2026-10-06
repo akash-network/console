@@ -37,7 +37,7 @@ const getSafeReturnableUrl = (destination: string, currentLocation?: string, ext
   UrlReturnToStack.createReturnable(getSafeCurrentLocation(currentLocation), destination, { extraQueryParams: extraReturnToParams });
 
 export const UrlService = {
-  home: () => "/",
+  home: () => "/deployments",
   getStarted: () => "/get-started",
 
   priceCompare: () => "/price-compare",
