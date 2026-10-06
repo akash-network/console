@@ -7,10 +7,10 @@ export interface UserSettings {
   userId?: string;
   username?: string;
   subscribedToNewsletter?: boolean;
-  bio?: string;
-  youtubeUsername?: string;
-  twitterUsername?: string;
-  githubUsername?: string;
+  bio?: string | null;
+  youtubeUsername?: string | null;
+  twitterUsername?: string | null;
+  githubUsername?: string | null;
   planCode?: PlanCode;
   plan?: IPlan;
   emailVerified?: boolean;

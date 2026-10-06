@@ -10,7 +10,7 @@ import { useCustomUser } from "@src/hooks/useCustomUser";
 type UserProfileTab = "templates" | "favorites" | "settings";
 type Props = {
   username?: string;
-  bio?: string;
+  bio?: string | null;
   children?: ReactNode;
   page: UserProfileTab;
 };
