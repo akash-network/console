@@ -171,29 +171,26 @@ describe(useProviderProfileModel.name, () => {
     expect(useAllLeases).toHaveBeenCalledWith("", { state: ["active", "reclaiming"], enabled: false });
   });
 
-  it("adds the provider to the favorites and removes it again", () => {
-    const { result, updateFavoriteProviders } = setup({ favoriteProviders: ["akash1kept"] });
+  it("is not a favorite while the account's favorites leave it out", () => {
+    const { result } = setup({ favoriteProviders: ["akash1kept"] });
 
     expect(result.current.isFavorite).toBe(false);
-    act(() => result.current.toggleFavorite());
-    expect(updateFavoriteProviders).toHaveBeenLastCalledWith(["akash1kept", "akash1provider"]);
   });
 
-  it("removes a favorite provider from the favorites", () => {
-    const { result, updateFavoriteProviders } = setup({ favoriteProviders: ["akash1kept", "akash1provider"] });
+  it("is a favorite once the account's favorites name it", () => {
+    const { result, rerenderWith } = setup({ favoriteProviders: [] });
+
+    rerenderWith({ favoriteProviders: ["akash1kept", "akash1provider"] });
 
     expect(result.current.isFavorite).toBe(true);
-    act(() => result.current.toggleFavorite());
-    expect(updateFavoriteProviders).toHaveBeenLastCalledWith(["akash1kept"]);
   });
 
-  it("toggles the favorite against the latest favorites", () => {
-    const { result, rerenderWith, updateFavoriteProviders } = setup({ favoriteProviders: [] });
+  it("toggles the provider in the account's favorites", () => {
+    const { result, toggleFavorite } = setup({ favoriteProviders: ["akash1provider"] });
 
-    rerenderWith({ favoriteProviders: ["akash1provider"] });
     act(() => result.current.toggleFavorite());
 
-    expect(updateFavoriteProviders).toHaveBeenLastCalledWith([]);
+    expect(toggleFavorite).toHaveBeenCalledWith("akash1provider");
   });
 
   function createProvider(overrides: Partial<ApiProviderDetail> = {}): ApiProviderDetail {
@@ -218,7 +215,7 @@ describe(useProviderProfileModel.name, () => {
     } = {}
   ) {
     const initialProvider = input.initialProvider ?? createProvider();
-    const updateFavoriteProviders = vi.fn();
+    const toggleFavorite = vi.fn();
 
     const createDependencies = (state: typeof input) => {
       const providerDetail = Object.assign(mock<ReturnType<typeof DEPENDENCIES.useProviderDetail>>(), { data: state.freshProvider });
@@ -230,9 +227,9 @@ describe(useProviderProfileModel.name, () => {
       const leasesGraph = Object.assign(mock<ReturnType<typeof DEPENDENCIES.useProviderActiveLeasesGraph>>(), { data: state.activeLeasesGraph });
       const allLeases = Object.assign(mock<ReturnType<typeof DEPENDENCIES.useAllLeases>>(), { data: state.leases });
       const wallet = Object.assign(mock<ReturnType<typeof DEPENDENCIES.useWallet>>(), { address: state.address ?? "akash1wallet" });
-      const localNotes = Object.assign(mock<ReturnType<typeof DEPENDENCIES.useLocalNotes>>(), {
+      const favorites = Object.assign(mock<ReturnType<typeof DEPENDENCIES.useFavoriteProviders>>(), {
         favoriteProviders: state.favoriteProviders ?? [],
-        updateFavoriteProviders
+        toggleFavorite
       });
       const deploymentNames = Object.assign(mock<ReturnType<typeof DEPENDENCIES.useDeploymentNames>>(), {
         getDeploymentName: (dseq: string) => `deployment-${dseq}`
@@ -245,7 +242,7 @@ describe(useProviderProfileModel.name, () => {
         useProviderActiveLeasesGraph: () => leasesGraph,
         useAllLeases: vi.fn(() => allLeases),
         useWallet: () => wallet,
-        useLocalNotes: () => localNotes,
+        useFavoriteProviders: () => favorites,
         useDeploymentNames: vi.fn(() => deploymentNames)
       } satisfies typeof DEPENDENCIES;
     };
@@ -256,6 +253,6 @@ describe(useProviderProfileModel.name, () => {
     });
     const rerenderWith = (changes: typeof input) => view.rerender({ dependencies: createDependencies({ ...input, ...changes }) });
 
-    return { ...view, ...dependencies, updateFavoriteProviders, rerenderWith };
+    return { ...view, ...dependencies, toggleFavorite, rerenderWith };
   }
 });

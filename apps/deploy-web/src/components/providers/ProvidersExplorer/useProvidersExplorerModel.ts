@@ -1,8 +1,8 @@
 "use client";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-import { useLocalNotes } from "@src/components/LocalNoteManager";
 import { totalOf } from "@src/components/providers/providerSummary/providerSummary";
+import { useFavoriteProviders } from "@src/hooks/useFavoriteProviders/useFavoriteProviders";
 import { usePacedValue } from "@src/hooks/usePacedValue/usePacedValue";
 import { useDashboardData, useProviderLocations, useProviderSearch } from "@src/queries/useProvidersQuery";
 import type { ApiProviderLocation } from "@src/types/provider";
@@ -48,7 +48,7 @@ const HIGH_SURROGATE_AT_END = /[\uD800-\uDBFF]$/;
 const MILLICORES_PER_VCPU = 1000;
 
 export const DEPENDENCIES = {
-  useLocalNotes,
+  useFavoriteProviders,
   useProviderSearch,
   useProviderLocations,
   useDashboardData
@@ -56,7 +56,7 @@ export const DEPENDENCIES = {
 
 export function useProvidersExplorerModel(dependencies: typeof DEPENDENCIES = DEPENDENCIES) {
   const d = dependencies;
-  const { favoriteProviders, updateFavoriteProviders } = d.useLocalNotes();
+  const { favoriteProviders, toggleFavorite } = d.useFavoriteProviders();
   const [filters, setFilters] = useState<ProviderFilters>(DEFAULT_FILTERS);
   const [search, setSearch] = useState("");
   const [pageIndex, setPageIndex] = useState(0);
@@ -111,14 +111,6 @@ export function useProvidersExplorerModel(dependencies: typeof DEPENDENCIES = DE
     setSearch("");
     setPageIndex(0);
   }, []);
-
-  const toggleFavorite = useCallback(
-    (owner: string) => {
-      const isFavorite = favoriteProviders.includes(owner);
-      updateFavoriteProviders(isFavorite ? favoriteProviders.filter(favorite => favorite !== owner) : favoriteProviders.concat(owner));
-    },
-    [favoriteProviders, updateFavoriteProviders]
-  );
 
   const { refetch: refetchProviders } = providerSearch;
   const { refetch: refetchLocations } = providerLocations;

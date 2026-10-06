@@ -280,24 +280,12 @@ describe(useProvidersExplorerModel.name, () => {
     expect(result.current.hasFailedToLoadLocations).toBe(false);
   });
 
-  it("adds a provider to the favorites and removes it again", () => {
-    const { result, updateFavoriteProviders } = setup({ favoriteProviders: ["akash1kept", "akash1gone"] });
+  it("toggles a provider in the account's favorites", () => {
+    const { result, toggleFavorite } = setup({ favoriteProviders: ["akash1kept"] });
 
     act(() => result.current.toggleFavorite("akash1new"));
-    expect(updateFavoriteProviders).toHaveBeenLastCalledWith(["akash1kept", "akash1gone", "akash1new"]);
 
-    act(() => result.current.toggleFavorite("akash1gone"));
-    expect(updateFavoriteProviders).toHaveBeenLastCalledWith(["akash1kept"]);
-  });
-
-  it("toggles a favorite against the latest favorites", () => {
-    const { result, rerender, localNotes, updateFavoriteProviders } = setup({ favoriteProviders: [] });
-
-    localNotes.favoriteProviders = ["akash1saved"];
-    rerender();
-    act(() => result.current.toggleFavorite("akash1new"));
-
-    expect(updateFavoriteProviders).toHaveBeenLastCalledWith(["akash1saved", "akash1new"]);
+    expect(toggleFavorite).toHaveBeenCalledWith("akash1new");
   });
 
   it("offers the regions and GPU models on the map, most common first, keeping the picked ones", () => {
@@ -494,7 +482,7 @@ describe(useProvidersExplorerModel.name, () => {
   ) {
     const refetchProviders = vi.fn();
     const refetchLocations = vi.fn();
-    const updateFavoriteProviders = vi.fn();
+    const toggleFavorite = vi.fn();
     const providerSearch = Object.assign(mock<ReturnType<typeof DEPENDENCIES.useProviderSearch>>(), {
       data: "page" in input ? input.page : createPage([], 0),
       isFetching: !!input.isSearching,
@@ -510,14 +498,14 @@ describe(useProvidersExplorerModel.name, () => {
       refetch: refetchLocations
     });
     const dashboard = Object.assign(mock<ReturnType<typeof DEPENDENCIES.useDashboardData>>(), { data: input.dashboard });
-    const localNotes = Object.assign(mock<ReturnType<typeof DEPENDENCIES.useLocalNotes>>(), {
+    const favorites = Object.assign(mock<ReturnType<typeof DEPENDENCIES.useFavoriteProviders>>(), {
       favoriteProviders: input.favoriteProviders ?? [],
-      updateFavoriteProviders
+      toggleFavorite
     });
     const useProviderSearch = vi.fn((_params: ProviderSearchParams, _options?: { enabled?: boolean }) => providerSearch);
 
     const dependencies: typeof DEPENDENCIES = {
-      useLocalNotes: () => localNotes,
+      useFavoriteProviders: () => favorites,
       useProviderSearch,
       useProviderLocations: () => providerLocations,
       useDashboardData: () => dashboard
@@ -530,11 +518,10 @@ describe(useProvidersExplorerModel.name, () => {
       useProviderSearch,
       refetchProviders,
       refetchLocations,
-      updateFavoriteProviders,
+      toggleFavorite,
       providerSearch,
       providerLocations,
-      dashboard,
-      localNotes
+      dashboard
     };
   }
 });

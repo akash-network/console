@@ -2,9 +2,9 @@
 import { useCallback, useMemo } from "react";
 import { differenceInHours } from "date-fns";
 
-import { useLocalNotes } from "@src/components/LocalNoteManager";
 import { useWallet } from "@src/context/WalletProvider";
 import { useDeploymentNames } from "@src/hooks/useDeploymentNames/useDeploymentNames";
+import { useFavoriteProviders } from "@src/hooks/useFavoriteProviders/useFavoriteProviders";
 import { useProviderGpus } from "@src/queries/useGpuQuery";
 import { useAllLeases } from "@src/queries/useLeaseQuery";
 import type { ProviderActiveLeasesGraph } from "@src/queries/useProvidersQuery";
@@ -40,7 +40,7 @@ export const DEPENDENCIES = {
   useProviderActiveLeasesGraph,
   useAllLeases,
   useWallet,
-  useLocalNotes,
+  useFavoriteProviders,
   useDeploymentNames
 };
 
@@ -53,15 +53,13 @@ export function useProviderProfileModel(owner: string, initialProvider: ApiProvi
   const { data: activeLeasesGraph } = d.useProviderActiveLeasesGraph(owner);
   const { address } = d.useWallet();
   const { data: walletLeases } = d.useAllLeases(address, { state: LIVE_LEASE_STATES, enabled: !!address });
-  const { favoriteProviders, updateFavoriteProviders } = d.useLocalNotes();
+  const { favoriteProviders, toggleFavorite: toggleFavoriteOf } = d.useFavoriteProviders();
 
   const myLeases = useMemo(() => walletLeases?.filter(lease => lease.provider === owner) ?? [], [walletLeases, owner]);
   const { getDeploymentName } = d.useDeploymentNames(myLeases.map(lease => lease.dseq));
   const isFavorite = favoriteProviders.includes(owner);
 
-  const toggleFavorite = useCallback(() => {
-    updateFavoriteProviders(isFavorite ? favoriteProviders.filter(favorite => favorite !== owner) : favoriteProviders.concat(owner));
-  }, [isFavorite, favoriteProviders, updateFavoriteProviders, owner]);
+  const toggleFavorite = useCallback(() => toggleFavoriteOf(owner), [toggleFavoriteOf, owner]);
 
   return {
     provider,

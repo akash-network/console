@@ -69,46 +69,33 @@ describe(LocalNoteManager.name, () => {
     expect(selectDeployment).not.toHaveBeenCalled();
   });
 
-  it("initializes favorite providers on mount", () => {
-    const initFavoriteProviders = vi.fn();
-    setup({ initFavoriteProviders });
-
-    expect(initFavoriteProviders).toHaveBeenCalledTimes(1);
-  });
-
   function setup(input?: {
     dseq?: string | number | null;
     selectDeployment?: (dseq: string | number | null) => void;
     deselectDeployment?: (dseq: string | number) => void;
-    initFavoriteProviders?: () => void;
     dependencies?: Partial<typeof DEPENDENCIES>;
   }) {
     const dseq = input?.dseq ?? null;
     const selectDeployment = input?.selectDeployment ?? vi.fn();
     const deselectDeployment = input?.deselectDeployment ?? vi.fn();
-    const initFavoriteProviders = input?.initFavoriteProviders ?? vi.fn();
 
     const useLocalNotes: typeof DEPENDENCIES.useLocalNotes = () => ({
       changeDeploymentName: vi.fn(),
-      favoriteProviders: [],
-      updateFavoriteProviders: vi.fn(),
       selectedDeploymentDseq: dseq,
       selectDeployment,
       deselectDeployment
     });
-    const useInitFavoriteProviders: typeof DEPENDENCIES.useInitFavoriteProviders = () => initFavoriteProviders;
 
     render(
       <LocalNoteManager
         dependencies={{
           ...MockComponents(DEPENDENCIES, input?.dependencies),
           useLocalNotes,
-          useInitFavoriteProviders,
           ...input?.dependencies
         }}
       />
     );
 
-    return { selectDeployment, deselectDeployment, initFavoriteProviders };
+    return { selectDeployment, deselectDeployment };
   }
 });

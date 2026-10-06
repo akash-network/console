@@ -1,9 +1,4 @@
-import networkStore from "@src/store/networkStore";
 import type { ProviderStatus, ProviderStatusDto, ProviderVersion } from "@src/types/provider";
-
-export type LocalProviderData = {
-  favorites: string[];
-};
 
 export function providerStatusToDto(providerStatus: ProviderStatus, providerVersion: ProviderVersion): ProviderStatusDto {
   return {
@@ -18,24 +13,6 @@ export function providerStatusToDto(providerStatus: ProviderStatus, providerVers
     akash: providerVersion.akash,
     kube: providerVersion.kube
   };
-}
-
-export function getProviderLocalData(): LocalProviderData {
-  const dataStr = localStorage.getItem(`${networkStore.selectedNetworkId}/provider.data`);
-  if (!dataStr) {
-    return { favorites: [] };
-  }
-
-  const parsedData = JSON.parse(dataStr) as LocalProviderData;
-
-  return parsedData;
-}
-
-export function updateProviderLocalData(data: LocalProviderData) {
-  const oldData = getProviderLocalData();
-  const newData = { ...oldData, ...data };
-
-  localStorage.setItem(`${networkStore.selectedNetworkId}/provider.data`, JSON.stringify(newData));
 }
 
 export const getProviderNameFromUri = (uri: string) => {

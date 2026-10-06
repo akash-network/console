@@ -5,6 +5,7 @@ import { createApiSdk } from "@src/services/api-sdk/createApiSdk";
 import { ApiUrlService } from "@src/services/api-url/api-url.service";
 import { AuthService } from "../auth/auth/auth.service";
 import { PROXY_API_BASE_URL, withUserToken } from "../auth/auth/interceptors";
+import { BrowserFavoriteProvidersService } from "../browser-favorite-providers/browser-favorite-providers.service";
 import { createChildContainer } from "../container/createContainer";
 import { DeploymentNameBackfillService } from "../deployment-name-backfill/deployment-name-backfill.service";
 import { DeploymentStorageService } from "../deployment-storage/deployment-storage.service";
@@ -42,6 +43,7 @@ export const services = createChildContainer(rootContainer, {
     }),
   authService: () => new AuthService(services.urlService, services.internalApiHttpClient),
   deploymentLocalStorage: () => new DeploymentStorageService(localStorage, services.networkStore),
+  browserFavoriteProviders: () => new BrowserFavoriteProvidersService(localStorage, services.networkStore),
   deploymentNameBackfill: () => new DeploymentNameBackfillService(),
   windowLocation: () => window.location,
   windowHistory: () => window.history
