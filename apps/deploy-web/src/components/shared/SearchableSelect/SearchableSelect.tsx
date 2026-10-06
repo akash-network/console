@@ -31,6 +31,8 @@ export type SearchableSelectOption = {
 type EmptyOption = {
   value: string;
   label: ReactNode;
+  /** Secondary text at the end of the row (mirrors {@link SearchableSelectOption.hint}). */
+  hint?: ReactNode;
   /** Renders the row non-selectable and `aria-disabled` (mirrors {@link SearchableSelectOption.disabled}). */
   disabled?: boolean;
 };
@@ -141,6 +143,7 @@ const SearchableSelectList: FC<SharedProps & { selection: Selection }> = ({
 }) => {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
+  const emptyOptionHintId = useId();
   const filteredOptions = filterOptions(options, search);
   const filteredUnavailableOptions = filterOptions(unavailableOptions, search);
   const checkedValues = selection.isMultiple ? new Set(selection.values) : undefined;
@@ -192,6 +195,7 @@ const SearchableSelectList: FC<SharedProps & { selection: Selection }> = ({
                 value={EMPTY_OPTION_VALUE}
                 disabled={emptyOption.disabled}
                 aria-checked={checkedValues && !hasSelection}
+                aria-describedby={emptyOption.hint ? emptyOptionHintId : undefined}
                 onSelect={function selectEmptyOption() {
                   selection.clear(emptyOption.value);
                   closeAndResetSearch(false);
@@ -199,6 +203,7 @@ const SearchableSelectList: FC<SharedProps & { selection: Selection }> = ({
               >
                 {checkedValues && <CheckIndicator checked={!hasSelection} />}
                 {emptyOption.label}
+                {emptyOption.hint && <OptionHint id={emptyOptionHintId}>{emptyOption.hint}</OptionHint>}
               </CommandItem>
             )}
             {optionsHeading
@@ -262,14 +267,16 @@ const SearchableSelectItem: FC<{ option: SearchableSelectOption; checked?: boole
     >
       {checked !== undefined && <CheckIndicator checked={checked} />}
       {option.label}
-      {option.hint && (
-        <span id={hintId} aria-hidden="true" className="ml-auto shrink-0 pl-2 text-xs text-muted-foreground">
-          {option.hint}
-        </span>
-      )}
+      {option.hint && <OptionHint id={hintId}>{option.hint}</OptionHint>}
     </CommandItem>
   );
 };
+
+const OptionHint: FC<{ id: string; children: ReactNode }> = ({ id, children }) => (
+  <span id={id} aria-hidden="true" className="ml-auto shrink-0 pl-2 text-xs text-muted-foreground">
+    {children}
+  </span>
+);
 
 /** Case-insensitive substring match over each option's `value` and `keywords`; an empty/whitespace query returns every option. */
 export function filterOptions(options: SearchableSelectOption[], query: string): SearchableSelectOption[] {

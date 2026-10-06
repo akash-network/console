@@ -136,6 +136,22 @@ describe("SearchableSelect", () => {
     expect(await screen.findByRole("option", { name: "eu-west" })).toHaveAccessibleDescription("3 providers");
   });
 
+  it("describes the empty option with its hint", async () => {
+    const { user } = setup({ emptyOption: { value: "", label: "Any region", hint: "12 providers" } });
+
+    await user.click(screen.getByRole("combobox", { name: "Region" }));
+
+    expect(await screen.findByRole("option", { name: "Any region" })).toHaveAccessibleDescription("12 providers");
+  });
+
+  it("leaves the empty option undescribed without a hint", async () => {
+    const { user } = setup({ emptyOption: { value: "", label: "Any region" } });
+
+    await user.click(screen.getByRole("combobox", { name: "Region" }));
+
+    expect(await screen.findByRole("option", { name: "Any region" })).not.toHaveAttribute("aria-describedby");
+  });
+
   it("offers a single pick without checked state on its rows", async () => {
     const { user } = setup({ value: "eu-west", emptyOption: { value: "", label: "Any region" } });
 
@@ -298,7 +314,7 @@ describe("SearchableSelect", () => {
     optionsHeading?: { label: string; hintLabel?: string };
     unavailableHeading?: string;
     renderFooter?: (search: string, controls: { close: () => void }) => ReactNode;
-    emptyOption?: { value: string; label: string; disabled?: boolean };
+    emptyOption?: { value: string; label: string; hint?: string; disabled?: boolean };
     emptyTriggerLabel?: string;
     placeholder?: string;
     disabled?: boolean;

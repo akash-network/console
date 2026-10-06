@@ -33,6 +33,17 @@ export function withServiceGpuModel(
   return { ...values, services: values.services.map((service, index) => (index === serviceIndex ? switchGpuModel(service, model) : service)) };
 }
 
+/** Steps the GPU service whose model the pane names, as the count stepper would, so the current count screens what the headline does. */
+export function withGpuCount(values: SdlBuilderFormValuesType, placementId: string, count: number): SdlBuilderFormValuesType {
+  const gpuServiceIndex = values.services.findIndex(service => isPlacementGpuService(service, placementId));
+  if (gpuServiceIndex === -1) return values;
+
+  return {
+    ...values,
+    services: values.services.map((service, index) => (index === gpuServiceIndex ? { ...service, profile: { ...service.profile, gpu: count } } : service))
+  };
+}
+
 export function withoutGpu(values: SdlBuilderFormValuesType, placementId: string): SdlBuilderFormValuesType {
   return {
     ...values,

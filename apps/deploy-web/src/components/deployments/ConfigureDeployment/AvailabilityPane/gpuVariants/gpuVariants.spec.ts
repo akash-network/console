@@ -6,7 +6,7 @@ import type { SdlBuilderFormValuesType } from "@src/types";
 import { defaultPlacement, defaultService } from "@src/utils/sdl/data";
 import { GPU_INTERCONNECT_CAPABILITY_KEY } from "@src/utils/sdl/gpuInterconnect";
 import { generateSdl } from "@src/utils/sdl/sdlGenerator";
-import { screeningRequestOf, withGpuModel, withoutGpu, withServiceGpuModel } from "./gpuVariants";
+import { screeningRequestOf, withGpuCount, withGpuModel, withoutGpu, withServiceGpuModel } from "./gpuVariants";
 
 type Service = SdlBuilderFormValuesType["services"][number];
 
@@ -143,6 +143,41 @@ describe(withServiceGpuModel.name, () => {
   });
 });
 
+describe(withGpuCount.name, () => {
+  it("steps the placement's gpu service to the count and keeps its models and pins", () => {
+    const values = gpuForm({ gpuModels: [{ vendor: "nvidia", name: "h100", memory: "80Gi", interface: "sxm" }] });
+
+    const stepped = withGpuCount(values, "p1", 4);
+
+    expect(stepped.services[0].profile).toMatchObject({
+      hasGpu: true,
+      gpu: 4,
+      interconnect: {},
+      gpuModels: [{ vendor: "nvidia", name: "h100", memory: "80Gi", interface: "sxm" }]
+    });
+  });
+
+  it("steps only the first gpu service of the placement and leaves other placements alone", () => {
+    const otherPlacement = gpuService("p2", "other", [{ vendor: "nvidia", name: "t4" }]);
+    const worker = gpuService("p1", "worker", [{ vendor: "nvidia", name: "h100" }]);
+    const web = cpuService("p1", "web");
+    const values = form([otherPlacement, web, gpuService("p1", "trainer", [{ vendor: "nvidia", name: "a100" }]), worker]);
+
+    const stepped = withGpuCount(values, "p1", 8);
+
+    expect(stepped.services[0]).toBe(otherPlacement);
+    expect(stepped.services[1]).toBe(web);
+    expect(stepped.services[2].profile.gpu).toBe(8);
+    expect(stepped.services[3]).toBe(worker);
+  });
+
+  it("returns the form unchanged while no service of the placement runs a gpu", () => {
+    const values = form([cpuService("p1", "web"), gpuService("p2", "other", [{ vendor: "nvidia", name: "t4" }])]);
+
+    expect(withGpuCount(values, "p1", 2)).toBe(values);
+  });
+});
+
 describe(withoutGpu.name, () => {
   it("turns off every gpu of the placement and leaves other placements alone", () => {
     const otherPlacement = gpuService("p2", "other", [{ vendor: "nvidia", name: "t4" }]);
@@ -172,6 +207,14 @@ describe(screeningRequestOf.name, () => {
 
     expect(headlineRequest?.resources[0].resource.gpu.attributes).toContainEqual({ key: "vendor/nvidia/model/h100", value: "true" });
     expect(screeningRequestOf(withGpuModel(onA100, "p1", H100), "dcloud")).toEqual(headlineRequest);
+  });
+
+  it("sends the request the headline screens once the stepper has moved to that count", () => {
+    const onTwo = gpuForm({ gpu: 2, gpuModels: [{ vendor: "nvidia", name: "h100" }] });
+    const headlineRequest = toScreeningRequest(generateSdl(onTwo), "dcloud");
+
+    expect(headlineRequest?.resources[0].resource.gpu.units).toEqual({ val: "2" });
+    expect(screeningRequestOf(withGpuCount(gpuForm({ gpuModels: [{ vendor: "nvidia", name: "h100" }] }), "p1", 2), "dcloud")).toEqual(headlineRequest);
   });
 
   it("keeps the interconnect requirement on a switched model", () => {
