@@ -30,27 +30,35 @@ const formSchema = z.object({
   githubUsername: z.string().optional()
 });
 
-export const UserSettingsForm: FC<{ user: CustomUserProfile }> = ({ user }) => {
+export const DEPENDENCIES = {
+  Layout,
+  UserProfileLayout,
+  DeleteAccountSection,
+  useCustomUser,
+  useSaveSettings
+};
+
+export const UserSettingsForm: FC<{ user: CustomUserProfile; dependencies?: typeof DEPENDENCIES }> = ({ user, dependencies = DEPENDENCIES }) => {
+  const { Layout, UserProfileLayout, DeleteAccountSection, useCustomUser, useSaveSettings } = dependencies;
   const { consoleApiHttpClient, analyticsService } = useServices();
   const [isCheckingAvailability, setIsCheckingAvailability] = useState<boolean>(false);
   const [isAvailable, setIsAvailable] = useState<boolean | null>(null);
   const { isLoading } = useCustomUser();
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
-    defaultValues: {
-      username: "",
-      subscribedToNewsletter: false,
-      bio: "",
-      youtubeUsername: "",
-      twitterUsername: "",
-      githubUsername: ""
+    values: {
+      username: user.username ?? "",
+      subscribedToNewsletter: user.subscribedToNewsletter,
+      bio: user.bio ?? "",
+      youtubeUsername: user.youtubeUsername ?? "",
+      twitterUsername: user.twitterUsername ?? "",
+      githubUsername: user.githubUsername ?? ""
     }
   });
   const {
     getValues,
     register,
     handleSubmit,
-    setValue,
     control,
     watch,
     formState: { isDirty, errors }
@@ -60,17 +68,6 @@ export const UserSettingsForm: FC<{ user: CustomUserProfile }> = ({ user }) => {
 
   const isFormDisabled = isSaving;
   const canSave = !isFormDisabled && isDirty && isAvailable !== false;
-
-  useEffect(() => {
-    if (user) {
-      setValue("username", user.username || "");
-      setValue("subscribedToNewsletter", user.subscribedToNewsletter);
-      setValue("bio", user.bio);
-      setValue("youtubeUsername", user.youtubeUsername);
-      setValue("twitterUsername", user.twitterUsername);
-      setValue("githubUsername", user.githubUsername);
-    }
-  }, [user?.username, user?.subscribedToNewsletter, user?.bio, user?.youtubeUsername, user?.twitterUsername, user?.githubUsername]);
 
   useEffect(() => {
     if (user && username && username.length >= 3 && username.length <= 40 && username !== user.username) {
