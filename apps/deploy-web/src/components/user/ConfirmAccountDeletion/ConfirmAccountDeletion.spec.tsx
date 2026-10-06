@@ -34,7 +34,7 @@ describe(ConfirmAccountDeletion.name, () => {
     const { confirmAccountDeletion } = setup({ token: "link-token" });
 
     expect(screen.getByText("Delete your Akash Console account?")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Keep my account" })).toHaveAttribute("href", "/");
+    expect(screen.getByRole("link", { name: "Keep my account" })).toHaveAttribute("href", "/deployments");
     expect(confirmAccountDeletion).not.toHaveBeenCalled();
   });
 
@@ -50,7 +50,12 @@ describe(ConfirmAccountDeletion.name, () => {
   });
 
   it.each([
-    { outcome: "deletion is not available", error: new ApiError(404, { code: "not_found" }, "404"), title: "Account deletion isn't available", link: "/" },
+    {
+      outcome: "deletion is not available",
+      error: new ApiError(404, { code: "not_found" }, "404"),
+      title: "Account deletion isn't available",
+      link: "/deployments"
+    },
     { outcome: "the link expired", error: refusal(400, "expired_deletion_token"), title: "This link has expired", link: "/user/settings" },
     { outcome: "the link is not valid", error: refusal(400, "invalid_deletion_token"), title: "This link isn't valid", link: "/user/settings" },
     { outcome: "deployments are still active", error: refusal(409, "active_deployments"), title: "Close your deployments first", link: "/deployments" },
