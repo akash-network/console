@@ -17,7 +17,9 @@ import { DownloadIcon, Settings, UploadIcon } from "lucide-react";
 import { useSnackbar } from "notistack";
 
 import { useServices } from "@src/context/ServicesProvider";
+import { helloWorldTemplate } from "@src/utils/templates";
 import type { ImportedDeploymentState } from "../importDeploymentState/importDeploymentState";
+import type { ImportMeta } from "./ImportSdlDialog";
 import { ImportSdlDialog } from "./ImportSdlDialog";
 
 /** Narrowed to the single call signature used here so tests can supply a plain stub. */
@@ -50,7 +52,7 @@ export const SdlImportExport: FC<Props> = ({ sdl, deploymentName, canImport, onI
   const { enqueueSnackbar } = d.useSnackbar();
   const [isImportOpen, setImportOpen] = useState(false);
 
-  function handleImported(state: ImportedDeploymentState, meta: { method: "paste" | "file" }) {
+  function handleImported(state: ImportedDeploymentState, meta: ImportMeta) {
     onImport(state);
     analyticsService.track("configure_sdl_imported", { category: "deployments", method: meta.method });
     enqueueSnackbar(<d.Snackbar title="SDL imported" iconVariant="success" />, { variant: "success" });
@@ -113,7 +115,7 @@ export const SdlImportExport: FC<Props> = ({ sdl, deploymentName, canImport, onI
           </d.CustomNoDivTooltip>
           <DropdownMenuContent align="end">
             <DropdownMenuItem disabled={!canImport} onClick={() => setImportOpen(true)}>
-              Import Config
+              Import SDL
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             {exportItems}
@@ -121,7 +123,7 @@ export const SdlImportExport: FC<Props> = ({ sdl, deploymentName, canImport, onI
         </DropdownMenu>
       )}
 
-      {isImportOpen && <d.ImportSdlDialog onClose={() => setImportOpen(false)} onImport={handleImported} />}
+      {isImportOpen && <d.ImportSdlDialog onClose={() => setImportOpen(false)} onImport={handleImported} exampleSdl={helloWorldTemplate.content} />}
     </>
   );
 };

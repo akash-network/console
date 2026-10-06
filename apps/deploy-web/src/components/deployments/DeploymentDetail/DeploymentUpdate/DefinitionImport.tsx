@@ -151,7 +151,7 @@ export const DefinitionImport: FC<DefinitionImportProps> = ({ deployment, browse
       {isChoosing && (
         <d.ImportSdlDialog
           title="Import this deployment's SDL"
-          description="Paste the SDL this deployment was created with, or upload the file."
+          description="Paste the SDL this deployment was created with, or attach the file."
           onClose={() => setIsChoosing(false)}
           onImportSdl={sdl => review(sdl)}
         />
