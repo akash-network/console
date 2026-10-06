@@ -48,6 +48,18 @@ export class DeploymentStorageService {
     const key = genKey(this.networkStore.selectedNetworkId, walletAddress, dseq);
     this.storage.removeItem(key);
   }
+
+  /** Read off the storage keys, since no index of the copies was ever kept. */
+  dseqsOf(walletAddress: string | undefined | null): string[] {
+    if (!walletAddress) return [];
+
+    const prefix = keyPrefixOf(this.networkStore.selectedNetworkId, walletAddress);
+    const keys = Array.from({ length: this.storage.length }, (_, index) => this.storage.key(index));
+    return keys
+      .filter((key): key is string => key !== null && key.startsWith(prefix) && key.endsWith(KEY_SUFFIX))
+      .map(key => key.slice(prefix.length, -KEY_SUFFIX.length))
+      .filter(dseq => dseq.length > 0);
+  }
 }
 
 export interface LocalDeploymentData {
@@ -57,8 +69,14 @@ export interface LocalDeploymentData {
   manifestVersion: Uint8Array;
 }
 
+const KEY_SUFFIX = ".data";
+
 function genKey(networkId: string, walletAddress: string, dseq: string | number): string {
-  return `${networkId}/${walletAddress}/deployments/${dseq}.data`;
+  return `${keyPrefixOf(networkId, walletAddress)}${dseq}${KEY_SUFFIX}`;
+}
+
+function keyPrefixOf(networkId: string, walletAddress: string): string {
+  return `${networkId}/${walletAddress}/deployments/`;
 }
 
 function createUint8ArrayFromObject(obj: Record<string, number>): Uint8Array {
