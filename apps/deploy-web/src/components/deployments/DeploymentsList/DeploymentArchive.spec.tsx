@@ -9,28 +9,15 @@ import userEvent from "@testing-library/user-event";
 import { MockComponents } from "@tests/unit/mocks";
 
 describe("DeploymentArchive", () => {
-  it("announces how many deployments are archived without listing them", () => {
+  it("lists the archived deployments under a count of the whole archive without waiting for a click", () => {
     const { DeploymentsCollection } = setup({ count: 5 });
 
-    expect(screen.getByRole("button", { name: /Archive \/\/ 5 closed/ })).toBeInTheDocument();
-    expect(DeploymentsCollection).not.toHaveBeenCalled();
+    expect(screen.getByRole("button", { name: /Archive \/\/ 5 closed/ })).toHaveAttribute("data-state", "open");
+    expect(lastRenderedDeployments(DeploymentsCollection)).toHaveLength(5);
   });
 
-  it("lists the archived deployments once expanded", async () => {
-    const { DeploymentsCollection } = setup({ count: 2 });
-
-    await userEvent.click(screen.getByRole("button", { name: /Archive/ }));
-
-    expect(DeploymentsCollection).toHaveBeenCalledWith(
-      expect.objectContaining({ deployments: expect.arrayContaining([expect.anything()]) }),
-      expect.anything()
-    );
-  });
-
-  it("lists only the page it was given, counting the whole archive in the header", async () => {
+  it("lists only the page it was given, counting the whole archive in the header", () => {
     const { DeploymentsCollection } = setup({ count: 10, totalCount: 38 });
-
-    await userEvent.click(screen.getByRole("button", { name: /Archive/ }));
 
     expect(screen.getByRole("button", { name: /Archive \/\/ 38 closed/ })).toBeInTheDocument();
     expect(lastRenderedDeployments(DeploymentsCollection)).toHaveLength(10);
@@ -39,7 +26,6 @@ describe("DeploymentArchive", () => {
   it("pages through the archive on demand", async () => {
     const { onNextPage, onPreviousPage } = setup({ count: 10, totalCount: 38, isPaginated: true, hasNextPage: true, pageIndex: 1 });
 
-    await userEvent.click(screen.getByRole("button", { name: /Archive/ }));
     await userEvent.click(screen.getByRole("link", { name: "Go to next page" }));
     await userEvent.click(screen.getByRole("link", { name: "Go to previous page" }));
 
@@ -47,46 +33,46 @@ describe("DeploymentArchive", () => {
     expect(onPreviousPage).toHaveBeenCalled();
   });
 
-  it("opens the way back once there is a page to go back to", async () => {
+  it("opens the way back once there is a page to go back to", () => {
     setup({ count: 10, totalCount: 38, isPaginated: true, hasNextPage: true, pageIndex: 1 });
-
-    await userEvent.click(screen.getByRole("button", { name: /Archive/ }));
 
     expect(screen.getByRole("link", { name: "Go to previous page" })).not.toHaveAttribute("aria-disabled", "true");
   });
 
-  it("offers no pagination when the archive fits on a single page", async () => {
+  it("offers no pagination when the archive fits on a single page", () => {
     setup({ count: 5, totalCount: 5 });
-
-    await userEvent.click(screen.getByRole("button", { name: /Archive/ }));
 
     expect(screen.queryByRole("link", { name: "Go to next page" })).not.toBeInTheDocument();
   });
 
-  it("blocks the way back from the first page and the way on from the last", async () => {
+  it("blocks the way back from the first page and the way on from the last", () => {
     setup({ count: 10, totalCount: 38, isPaginated: true, hasNextPage: false });
-
-    await userEvent.click(screen.getByRole("button", { name: /Archive/ }));
 
     expect(screen.getByRole("link", { name: "Go to previous page" })).toHaveAttribute("aria-disabled", "true");
     expect(screen.getByRole("link", { name: "Go to next page" })).toHaveAttribute("aria-disabled", "true");
   });
 
-  it("collapses again on demand", async () => {
+  it("hides the archived deployments once collapsed", async () => {
     setup({ count: 2 });
-
-    await userEvent.click(screen.getByRole("button", { name: /Archive/ }));
-    expect(screen.getByRole("button", { name: /Archive/ })).toHaveAttribute("data-state", "open");
 
     await userEvent.click(screen.getByRole("button", { name: /Archive/ }));
 
     expect(screen.getByRole("button", { name: /Archive/ })).toHaveAttribute("data-state", "closed");
+    expect(screen.queryByText("collection")).not.toBeInTheDocument();
   });
 
-  it("renders the archive in the view the reader picked", async () => {
-    const { DeploymentsCollection } = setup({ count: 2, viewMode: "list" });
+  it("lists the archived deployments again once reopened", async () => {
+    setup({ count: 2 });
 
     await userEvent.click(screen.getByRole("button", { name: /Archive/ }));
+    await userEvent.click(screen.getByRole("button", { name: /Archive/ }));
+
+    expect(screen.getByRole("button", { name: /Archive/ })).toHaveAttribute("data-state", "open");
+    expect(screen.getByText("collection")).toBeInTheDocument();
+  });
+
+  it("renders the archive in the view the reader picked", () => {
+    const { DeploymentsCollection } = setup({ count: 2, viewMode: "list" });
 
     expect(DeploymentsCollection).toHaveBeenLastCalledWith(expect.objectContaining({ viewMode: "list" }), expect.anything());
   });
@@ -98,10 +84,8 @@ describe("DeploymentArchive", () => {
     expect(screen.queryByText(/closed/)).not.toBeInTheDocument();
   });
 
-  it("still lists the rows it has when the count is unknown", async () => {
+  it("still lists the rows it has when the count is unknown", () => {
     const { DeploymentsCollection } = setup({ count: 3, totalCount: null });
-
-    await userEvent.click(screen.getByRole("button", { name: "Archive" }));
 
     expect(lastRenderedDeployments(DeploymentsCollection)).toHaveLength(3);
   });
@@ -129,10 +113,11 @@ describe("DeploymentArchive", () => {
   });
 
   it("says the archive failed even when it still holds deployments from an earlier fetch", () => {
-    setup({ count: 5, isError: true });
+    const { DeploymentsCollection } = setup({ count: 5, isError: true });
 
     expect(screen.getByText("Couldn't load closed deployments.")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Archive \/\/ 5 closed/ })).not.toBeInTheDocument();
+    expect(DeploymentsCollection).not.toHaveBeenCalled();
   });
 
   it("keeps the failure on screen and blocks a second Retry while the first is in flight", async () => {
