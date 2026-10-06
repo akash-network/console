@@ -496,6 +496,31 @@ describe(GpuCard.name, () => {
       expect(useScreenedGpuModelCount).toHaveBeenCalledWith(0, { vendor: "nvidia", name: "a100" });
     });
 
+    it("counts the providers that could host this configuration with any gpu of the vendor", async () => {
+      const { user, useScreenedGpuModelCount } = setup({
+        hasGpu: true,
+        availableGpus: [{ vendor: "nvidia", models: [availableModel("t4", ["16Gi"], ["pcie"], 4, 40), availableModel("a100", ["80Gi"], ["sxm"], 2, 17)] }],
+        screened: { "": { count: 5, gpuCount: 51 } }
+      });
+
+      await user.click(screen.getByRole("combobox", { name: "GPU model" }));
+
+      expect(await screen.findByRole("option", { name: "Any GPU" })).toHaveAccessibleDescription("51 free GPUs on 5 providers");
+      expect(useScreenedGpuModelCount).toHaveBeenCalledWith(0, { vendor: "nvidia", name: "" });
+    });
+
+    it("counts any gpu before the service has a gpu model", async () => {
+      const { user } = setup({
+        gpuModels: [],
+        availableGpus: [{ vendor: "nvidia", models: [availableModel("t4", ["16Gi"], ["pcie"], 4, 40)] }],
+        screened: { "": { count: 4, gpuCount: 40 } }
+      });
+
+      await user.click(screen.getByRole("combobox", { name: "GPU model" }));
+
+      expect(await screen.findByRole("option", { name: "Any GPU" })).toHaveAccessibleDescription("40 free GPUs on 4 providers");
+    });
+
     it("marks a model as being checked until its screening answers", async () => {
       const { user } = setup({
         hasGpu: true,
@@ -550,6 +575,7 @@ describe(GpuCard.name, () => {
       const allModels = within(await screen.findByRole("group", { name: "All models" }));
 
       expect(allModels.getByRole("option", { name: "NVIDIA t4" })).not.toHaveAttribute("aria-describedby");
+      expect(screen.getByRole("option", { name: "Any GPU" })).not.toHaveAttribute("aria-describedby");
       expect(screen.queryByRole("group", { name: "Available" })).not.toBeInTheDocument();
       expect(screen.queryByText("Providers")).not.toBeInTheDocument();
     });

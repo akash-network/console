@@ -572,7 +572,8 @@ function GpuModelControl({ isLoading, isError, value, onChange, onRequestGpu, ch
               </span>
             ) : (
               "Any GPU"
-            )
+            ),
+            hint: choices.anyModelHint
           }}
           emptyTriggerLabel={emptyTriggerLabel}
           renderValue={modelName => choices.listedModels.find(model => model.name === modelName)?.displayName ?? modelName}
@@ -710,6 +711,11 @@ function useGpuModelOptions({ serviceIndex, gpuVendors, gpuCatalog, availableGpu
    * predicate treats the empty model as blocked when the vendor exposes any blocked model.
    */
   const anyModelBlocked = isBlockedModel(vendor, "");
+  const isAvailabilityKnown = !!availableGpus?.length;
+  const anyModelHint =
+    isAvailabilityKnown && vendor ? (
+      <ScreenedAvailabilityHint serviceIndex={serviceIndex} vendor={vendor} name="" useScreenedGpuModelCount={useScreenedGpuModelCount} />
+    ) : undefined;
 
   const modelOptions = useMemo(
     () =>
@@ -752,7 +758,7 @@ function useGpuModelOptions({ serviceIndex, gpuVendors, gpuCatalog, availableGpu
   const hasBlockedModel = selectableModels.some(model => isBlockedModel(vendor, model.name));
 
   return {
-    isAvailabilityKnown: !!availableGpus?.length,
+    isAvailabilityKnown,
     vendorOptions,
     showVendor,
     listedModels,
@@ -760,6 +766,7 @@ function useGpuModelOptions({ serviceIndex, gpuVendors, gpuCatalog, availableGpu
     memorySizes,
     interfaces,
     anyModelBlocked,
+    anyModelHint,
     modelOptions,
     unavailableModelOptions,
     hasBlockedModel

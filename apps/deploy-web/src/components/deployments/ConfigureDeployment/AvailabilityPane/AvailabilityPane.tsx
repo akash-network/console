@@ -13,8 +13,17 @@ import type { GpuAvailabilityRow } from "./gpuAvailability/gpuAvailability";
 import { listGpuAvailabilityRows } from "./gpuAvailability/gpuAvailability";
 import type { GpuAvailability } from "./useGpuAvailability/useGpuAvailability";
 import { useGpuAvailability } from "./useGpuAvailability/useGpuAvailability";
+import type { GpuQuantityAvailability } from "./useGpuQuantityAvailability/useGpuQuantityAvailability";
+import { useGpuQuantityAvailability } from "./useGpuQuantityAvailability/useGpuQuantityAvailability";
 
-export const DEPENDENCIES = { useScreenedProviders, useNetworkProviderCount, useGpuAvailability, CustomTooltip, InvalidSpecReasons };
+export const DEPENDENCIES = {
+  useScreenedProviders,
+  useNetworkProviderCount,
+  useGpuAvailability,
+  useGpuQuantityAvailability,
+  CustomTooltip,
+  InvalidSpecReasons
+};
 
 type Props = {
   sdl: string;
@@ -43,6 +52,7 @@ export const AvailabilityPane: FC<Props> = ({
   const screened = d.useScreenedProviders({ sdl, placementName: placement.name, regions: placement.regions });
   const network = d.useNetworkProviderCount();
   const gpuAvailability = d.useGpuAvailability(placement);
+  const gpuQuantities = d.useGpuQuantityAvailability(placement);
   const scope = placementCount > 1 ? "this placement" : "your deployment";
 
   return (
@@ -64,6 +74,7 @@ export const AvailabilityPane: FC<Props> = ({
           {!screened.isInvalid && !screened.isError && (
             <GpuAvailabilityCard
               gpuAvailability={gpuAvailability}
+              quantities={gpuQuantities}
               requestedCount={screened.isLoading ? null : screened.providers.length}
               requestedGpuCount={screened.isLoading || !gpuAvailability.requestsGpu ? null : sumAvailableGpus(screened.providers)}
               networkCount={network.count}
@@ -220,6 +231,7 @@ function ProviderCountCard({ screened, networkCount, scope, InvalidSpecReasons }
 
 type GpuAvailabilityCardProps = {
   gpuAvailability: GpuAvailability;
+  quantities: GpuQuantityAvailability[];
   requestedCount: number | null;
   requestedGpuCount: number | null;
   networkCount: number | null;
@@ -229,7 +241,7 @@ type GpuAvailabilityCardProps = {
 /** The column labels and every row share these columns, so each count lines up under its label. */
 const GPU_ROW_COLUMNS = "grid grid-cols-[minmax(0,9rem)_minmax(0,1fr)_4.5rem_2.5rem] items-center gap-3 border border-transparent px-2";
 
-function GpuAvailabilityCard({ gpuAvailability, requestedCount, requestedGpuCount, networkCount, CustomTooltip }: GpuAvailabilityCardProps) {
+function GpuAvailabilityCard({ gpuAvailability, quantities, requestedCount, requestedGpuCount, networkCount, CustomTooltip }: GpuAvailabilityCardProps) {
   const listId = useId();
   const { requestedLabel, alternatives, noGpuCount, isChecking, noOtherModelFits } = gpuAvailability;
   const rows = listGpuAvailabilityRows({ requestedLabel, alternatives, noGpuCount, requestedCount, requestedGpuCount, networkCount });
@@ -240,7 +252,7 @@ function GpuAvailabilityCard({ gpuAvailability, requestedCount, requestedGpuCoun
         <GpuIcon className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
         <h3 className="text-sm font-semibold">GPU availability</h3>
         <span className="ml-auto flex">
-          <CustomTooltip title="Each row shows how many providers could host this configuration if you switched to that model and kept everything else the same, and how many of those GPUs they have free for it.">
+          <CustomTooltip title="Each row shows how many providers could host this configuration if you switched to that model and kept everything else the same, and how many of those GPUs they have free for it. Each quantity tile does the same for that number of GPUs.">
             <InfoIcon className="h-3.5 w-3.5 cursor-help text-muted-foreground" aria-label="How these counts work" />
           </CustomTooltip>
         </span>
@@ -270,7 +282,49 @@ function GpuAvailabilityCard({ gpuAvailability, requestedCount, requestedGpuCoun
         )}
         {noOtherModelFits && <p className="px-2 text-xs text-muted-foreground">No other GPU model fits this configuration.</p>}
       </div>
+      {quantities.length > 0 && <GpuQuantityTiles requestedLabel={requestedLabel} quantities={quantities} />}
     </AvailabilityCard>
+  );
+}
+
+function GpuQuantityTiles({ requestedLabel, quantities }: { requestedLabel: string; quantities: GpuQuantityAvailability[] }) {
+  const headingId = useId();
+
+  return (
+    <div className="space-y-2 border-t border-zinc-200 pt-3 dark:border-zinc-800">
+      <p id={headingId} className="px-2 font-mono text-[11px] uppercase tracking-wider text-muted-foreground">
+        Providers by quantity · {requestedLabel}
+      </p>
+      <ul aria-labelledby={headingId} className="grid grid-cols-4 gap-2">
+        {quantities.map(quantity => (
+          <li
+            key={quantity.gpuCount}
+            aria-current={quantity.isCurrent || undefined}
+            className="space-y-0.5 rounded-md border border-zinc-200 px-1.5 py-2 text-center aria-[current=true]:border-foreground aria-[current=true]:bg-muted dark:border-zinc-800"
+          >
+            <p className="font-mono text-sm font-semibold">{quantity.gpuCount}× GPU</p>
+            <QuantityProviderCount providerCount={quantity.providerCount} />
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function QuantityProviderCount({ providerCount }: Pick<GpuQuantityAvailability, "providerCount">) {
+  if (providerCount === null) {
+    return (
+      <p className="text-xs text-muted-foreground">
+        <span aria-hidden="true">…</span>
+        <span className="sr-only">Checking</span>
+      </p>
+    );
+  }
+
+  return (
+    <p className="text-xs text-muted-foreground">
+      <span className="font-mono font-semibold text-foreground">{providerCount}</span> {providerCount === 1 ? "provider" : "providers"}
+    </p>
   );
 }
 

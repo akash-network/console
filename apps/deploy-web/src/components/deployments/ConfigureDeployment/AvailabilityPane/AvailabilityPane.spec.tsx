@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { ScreenedProvider } from "@src/queries/useScreenedProviders";
 import { defaultPlacement } from "@src/utils/sdl/data";
 import type { GpuAvailability } from "./useGpuAvailability/useGpuAvailability";
+import type { GpuQuantityAvailability } from "./useGpuQuantityAvailability/useGpuQuantityAvailability";
 import type { DEPENDENCIES } from "./AvailabilityPane";
 import { AvailabilityPane } from "./AvailabilityPane";
 
@@ -129,7 +130,7 @@ describe(AvailabilityPane.name, () => {
     expect(CustomTooltip).toHaveBeenCalledWith(
       expect.objectContaining({
         title:
-          "Each row shows how many providers could host this configuration if you switched to that model and kept everything else the same, and how many of those GPUs they have free for it."
+          "Each row shows how many providers could host this configuration if you switched to that model and kept everything else the same, and how many of those GPUs they have free for it. Each quantity tile does the same for that number of GPUs."
       }),
       expect.anything()
     );
@@ -158,6 +159,29 @@ describe(AvailabilityPane.name, () => {
     setup({});
 
     expect(screen.queryByText("No other GPU model fits this configuration.")).not.toBeInTheDocument();
+  });
+
+  it("counts the providers at each gpu quantity of the current request and marks the current one", () => {
+    const { useGpuQuantityAvailability } = setup({
+      gpuAvailability: { requestedLabel: "H100", requestsGpu: true },
+      gpuQuantities: [
+        { gpuCount: 1, providerCount: 9, isCurrent: false },
+        { gpuCount: 2, providerCount: 1, isCurrent: true },
+        { gpuCount: 4, providerCount: 0, isCurrent: false },
+        { gpuCount: 8, providerCount: null, isCurrent: false }
+      ]
+    });
+
+    const tiles = within(screen.getByRole("list", { name: "Providers by quantity · H100" })).getAllByRole("listitem");
+    expect(tiles.map(tile => tile.textContent)).toEqual(["1× GPU9 providers", "2× GPU1 provider", "4× GPU0 providers", "8× GPU…Checking"]);
+    expect(tiles.map(tile => tile.getAttribute("aria-current"))).toEqual([null, "true", null, null]);
+    expect(useGpuQuantityAvailability).toHaveBeenCalledWith(expect.objectContaining({ id: "p1", name: "gpu-pool" }));
+  });
+
+  it("leaves the quantities out while there is no gpu to count", () => {
+    setup({ gpuQuantities: [] });
+
+    expect(screen.queryByText(/Providers by quantity/)).not.toBeInTheDocument();
   });
 
   it("draws each gpu bar as a share of the network", () => {
@@ -246,6 +270,7 @@ describe(AvailabilityPane.name, () => {
     gpusPerProvider?: number | null;
     hasPlacementWithoutProviders?: boolean;
     gpuAvailability?: Partial<GpuAvailability>;
+    gpuQuantities?: GpuQuantityAvailability[];
   }) {
     const onChooseProvider = vi.fn();
     const onRequestCompute = vi.fn();
@@ -270,11 +295,13 @@ describe(AvailabilityPane.name, () => {
         ...input.gpuAvailability
       })
     );
+    const useGpuQuantityAvailability = vi.fn((): GpuQuantityAvailability[] => input.gpuQuantities ?? []);
     const CustomTooltip = vi.fn(ComponentMock);
     const dependencies: typeof DEPENDENCIES = {
       useScreenedProviders,
       useNetworkProviderCount: () => ({ count: input.networkCount === undefined ? 20 : input.networkCount, isLoading: false }),
       useGpuAvailability,
+      useGpuQuantityAvailability,
       CustomTooltip: CustomTooltip as never,
       InvalidSpecReasons: () => <p>Settings to fix</p>
     };
@@ -293,7 +320,7 @@ describe(AvailabilityPane.name, () => {
       />
     );
 
-    return { onChooseProvider, onRequestCompute, useScreenedProviders, useGpuAvailability, CustomTooltip };
+    return { onChooseProvider, onRequestCompute, useScreenedProviders, useGpuAvailability, useGpuQuantityAvailability, CustomTooltip };
   }
 });
 
