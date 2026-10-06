@@ -13,7 +13,7 @@ import {
   SheetTrigger
 } from "@akashnetwork/ui/components";
 import { cn, REMOVE_SCROLL_CLASS_NAMES } from "@akashnetwork/ui/utils";
-import { Cloud, Menu, MultiplePages, NavArrowDown, Server } from "iconoir-react";
+import { ChevronDown, Cloud, Files, Menu, Server } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -55,7 +55,7 @@ export function TopNav({ dependencies: d = DEPENDENCIES, minimal = false }: Prop
   const navLinks: TopNavLink[] = [
     { title: "Deployments", url: UrlService.deploymentList(), isActive: isRouteActive(pathname, "/deployments", "/new-deployment"), icon: Cloud },
     { title: "Providers", url: UrlService.providers(), isActive: isRouteActive(pathname, "/providers"), icon: Server },
-    { title: "Templates", url: UrlService.templates(), isActive: isRouteActive(pathname, "/templates"), icon: MultiplePages }
+    { title: "Templates", url: UrlService.templates(), isActive: isRouteActive(pathname, "/templates"), icon: Files }
   ];
 
   const settingsLinks = useSettingsNavLinks({ dependencies: { usePathname: d.usePathname } });
@@ -85,7 +85,7 @@ export function TopNav({ dependencies: d = DEPENDENCIES, minimal = false }: Prop
               <DropdownMenu modal={false}>
                 <DropdownMenuTrigger className={cn(desktopNavLinkClasses(isSettingsActive), "flex items-center gap-1")}>
                   Settings
-                  <NavArrowDown className="h-4 w-4" />
+                  <ChevronDown className="h-4 w-4" />
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="start" className="w-[160px]">
                   {settingsLinks.map(link => (
@@ -116,7 +116,7 @@ export function TopNav({ dependencies: d = DEPENDENCIES, minimal = false }: Prop
             <Sheet open={isMobileNavOpen} onOpenChange={setIsMobileNavOpen}>
               <SheetTrigger asChild>
                 <Button size="icon" variant="ghost" className="rounded-full md:hidden" aria-label="Open navigation menu">
-                  <Menu />
+                  <Menu className="h-5 w-5" />
                 </Button>
               </SheetTrigger>
               <SheetContent side="left" className="w-[280px] p-0">

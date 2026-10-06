@@ -11,7 +11,7 @@ import {
   Spinner
 } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
-import { Book, CloudSunny, LogOut, Page, Send, ShieldCheck, User } from "iconoir-react";
+import { Book, FileText, LogOut, Send, ShieldCheck, SunMoon, User } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 import { useServices } from "@src/context/ServicesProvider";
@@ -50,7 +50,7 @@ export function TopNavAccountMenu({ dependencies: d = DEPENDENCIES, minimal = fa
     { title: "Profile", icon: User, onClick: () => router.push(urlService.userSettings()) },
     { title: "Docs", icon: Book, onClick: () => window.open(DOCS_URL, "_blank", "noreferrer noopener") },
     { title: "Privacy Policy", icon: ShieldCheck, onClick: () => router.push(urlService.privacyPolicy()) },
-    { title: "Terms of Service", icon: Page, onClick: () => router.push(urlService.termsOfService()) },
+    { title: "Terms of Service", icon: FileText, onClick: () => router.push(urlService.termsOfService()) },
     { title: "Contact us", icon: Send, iconClassName: "-rotate-45", onClick: () => router.push(urlService.contact()) }
   ];
   const [profileLink, ...secondaryLinks] = links;
@@ -72,7 +72,7 @@ export function TopNavAccountMenu({ dependencies: d = DEPENDENCIES, minimal = fa
 
         <div className="flex items-center justify-between gap-2 rounded-md py-2 pl-3 pr-1 text-sm text-muted-foreground">
           <span className="flex items-center gap-3">
-            <CloudSunny className="h-5 w-5 shrink-0" />
+            <SunMoon className="h-5 w-5 shrink-0" />
             Theme
           </span>
           <d.ThemeToggle />
@@ -113,7 +113,7 @@ export function TopNavAccountMenu({ dependencies: d = DEPENDENCIES, minimal = fa
       <DropdownMenuTrigger asChild>
         <Button size="icon" variant="outline" className="h-9 w-9 cursor-pointer rounded-full bg-accent" aria-label="Account menu">
           <Avatar className="h-9 w-9">
-            <AvatarFallback className="bg-transparent">{username ? username[0].toUpperCase() : <User />}</AvatarFallback>
+            <AvatarFallback className="bg-transparent">{username ? username[0].toUpperCase() : <User className="h-5 w-5" />}</AvatarFallback>
           </Avatar>
         </Button>
       </DropdownMenuTrigger>
@@ -127,7 +127,7 @@ export function TopNavAccountMenu({ dependencies: d = DEPENDENCIES, minimal = fa
                 </CustomDropdownLinkItem>
                 <div className="relative flex items-center justify-between gap-3 py-1 pl-8 pr-2 text-sm">
                   <span className="absolute left-2 flex h-4 w-4 items-center justify-center">
-                    <CloudSunny />
+                    <SunMoon className="h-4 w-4" />
                   </span>
                   <span>Theme</span>
                   <d.ThemeToggle />
@@ -143,7 +143,7 @@ export function TopNavAccountMenu({ dependencies: d = DEPENDENCIES, minimal = fa
             <CustomDropdownLinkItem
               className="text-destructive hover:text-destructive focus:text-destructive"
               onClick={() => authService.logout()}
-              icon={<LogOut />}
+              icon={<LogOut className="h-4 w-4" />}
             >
               Log out
             </CustomDropdownLinkItem>

@@ -1,6 +1,6 @@
 import React from "react";
 import { Alert, AlertDescription, AlertTitle, Popup, Spinner } from "@akashnetwork/ui/components";
-import { WarningTriangle } from "iconoir-react";
+import { TriangleAlert } from "lucide-react";
 
 import type { KubeNode } from "@src/types/kubeNode";
 import { hasEtcdRole } from "@src/utils/nodeDistribution";
@@ -48,7 +48,7 @@ export const RemoveNodeDialog: React.FC<RemoveNodeDialogProps> = ({
     if (isEtcd && hasEvenEtcdNodes) {
       return (
         <Alert variant="warning" className="mt-4">
-          <WarningTriangle className="h-4 w-4" />
+          <TriangleAlert className="h-4 w-4" />
           <AlertTitle>Warning</AlertTitle>
           <AlertDescription>
             Removing this etcd node will leave your cluster with an even number of etcd nodes ({remainingEtcdNodes}). This could potentially cause a
@@ -60,7 +60,7 @@ export const RemoveNodeDialog: React.FC<RemoveNodeDialogProps> = ({
     } else if (isControlPlane && hasEvenControlNodes && !isEtcd) {
       return (
         <Alert variant="warning" className="mt-4">
-          <WarningTriangle className="h-4 w-4" />
+          <TriangleAlert className="h-4 w-4" />
           <AlertTitle>Warning</AlertTitle>
           <AlertDescription>
             Removing this control plane node will leave your cluster with an even number of control plane nodes ({remainingControlNodes}). This could

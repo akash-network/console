@@ -47,6 +47,29 @@ describe(AccountMenu.name, () => {
     expect(screen.queryByText("Profile Settings")).not.toBeInTheDocument();
   });
 
+  it("shows the user's capitalised initial next to their name in the menu", async () => {
+    setup({ username: "alice" });
+
+    await userEvent.click(screen.getByRole("button", { name: /account menu/i }));
+
+    expect(await screen.findByRole("menuitem", { name: /alice/ })).toHaveTextContent("Aalice");
+  });
+
+  it.each([
+    { item: "Profile Settings", path: "/user/settings" },
+    { item: "API Keys", path: "/user/api-keys" },
+    { item: "Templates", path: "/profile/alice" },
+    { item: "Favorites", path: "/user/settings/favorites" },
+    { item: "Billing & Usage", path: "/billing" }
+  ])("navigates to $path when $item is selected", async ({ item, path }) => {
+    const { push } = setup({ username: "alice", userId: "user-1" });
+
+    await userEvent.click(screen.getByRole("button", { name: /account menu/i }));
+    await userEvent.click(await screen.findByText(item));
+
+    expect(push).toHaveBeenCalledWith(path);
+  });
+
   it("calls authService.logout when Logout is selected", async () => {
     const { authService } = setup({ username: "bob" });
 

@@ -5,8 +5,8 @@ import { cn } from "@akashnetwork/ui/utils";
 import type { Monaco } from "@monaco-editor/react";
 import { useTheme as useMuiTheme } from "@mui/material/styles";
 import useMediaQuery from "@mui/material/useMediaQuery";
-import { Download, MoreHoriz } from "iconoir-react";
 import { isEqual } from "lodash";
+import { Download, Ellipsis } from "lucide-react";
 import type { editor } from "monaco-editor";
 
 import { CustomDropdownLinkItem } from "@src/components/shared/CustomDropdownLinkItem";
@@ -189,7 +189,7 @@ export const DeploymentLogs: React.FunctionComponent<Props> = ({ leases, selecte
                     <DropdownMenu modal={false}>
                       <DropdownMenuTrigger asChild>
                         <Button size="icon" variant="ghost" className="rounded-full">
-                          <MoreHoriz className="text-xs" />
+                          <Ellipsis className="h-4 w-4" />
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
@@ -206,7 +206,7 @@ export const DeploymentLogs: React.FunctionComponent<Props> = ({ leases, selecte
                         </CustomDropdownLinkItem>
                         <CustomDropdownLinkItem
                           onClick={onDownloadLogsClick}
-                          icon={isDownloadingLogs ? <Spinner /> : <Download />}
+                          icon={isDownloadingLogs ? <Spinner /> : <Download className="h-4 w-4" />}
                           disabled={isDownloadingLogs || !logText}
                         >
                           {selectedLogsMode === "logs" ? "Download logs" : "Download events"}

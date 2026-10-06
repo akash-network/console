@@ -1,7 +1,7 @@
 "use client";
 import type { FC } from "react";
 import { useState } from "react";
-import { MapPin, NavArrowRight, Server } from "iconoir-react";
+import { ChevronRight, MapPin, Server } from "lucide-react";
 
 import type { LeaseDto } from "@src/types/deployment";
 import type { ApiProviderList } from "@src/types/provider";
@@ -63,7 +63,7 @@ export const UpdatePlacementCard: FC<UpdatePlacementCardProps> = ({ position, na
                   {region}
                 </span>
               )}
-              {region && providerName && <NavArrowRight className="h-3 w-3" aria-hidden="true" />}
+              {region && providerName && <ChevronRight className="h-3 w-3" aria-hidden="true" />}
               {providerName && (
                 <span className="inline-flex items-center gap-2">
                   <Server className="h-3 w-3" aria-hidden="true" />

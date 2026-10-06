@@ -1,5 +1,5 @@
 import type { FC } from "react";
-import { CheckCircleSolid } from "iconoir-react";
+import { CircleCheck } from "lucide-react";
 
 /** Configuration progress of a service or placement. `partial` only occurs for placements. */
 export type ConfigStatus = "incomplete" | "partial" | "complete";
@@ -16,7 +16,7 @@ export const ConfigStatusIcon: FC<Props> = ({ status }) => {
   if (status === "complete") {
     return (
       <span role="img" aria-label="Complete" className="shrink-0 text-green-600">
-        <CheckCircleSolid className="h-3.5 w-3.5" />
+        <CircleCheck className="h-3.5 w-3.5 fill-current [&>path]:stroke-background" />
       </span>
     );
   }

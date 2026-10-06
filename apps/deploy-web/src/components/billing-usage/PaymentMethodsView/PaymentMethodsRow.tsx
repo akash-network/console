@@ -2,7 +2,7 @@ import React, { useCallback, useMemo, useState } from "react";
 import type { PaymentMethod } from "@akashnetwork/http-sdk";
 import { Button, DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "@akashnetwork/ui/components";
 import { ClickAwayListener } from "@mui/material";
-import { BadgeCheck, CheckCircle, MoreHoriz, Trash } from "iconoir-react";
+import { BadgeCheck, CircleCheck, Ellipsis, Trash2 } from "lucide-react";
 
 import { CardBrandMark } from "@src/components/billing-usage/CardBrandMark/CardBrandMark";
 import { CustomDropdownLinkItem } from "@src/components/shared/CustomDropdownLinkItem";
@@ -119,7 +119,7 @@ export const PaymentMethodsRow: React.FC<PaymentMethodsRowProps> = ({
               className="h-[30px] w-[30px] rounded-md text-muted-foreground"
               aria-label="Payment method actions"
             >
-              <MoreHoriz className="h-[17px] w-[17px]" />
+              <Ellipsis className="h-[17px] w-[17px]" />
             </d.Button>
           </d.DropdownMenuTrigger>
           <d.DropdownMenuContent
@@ -132,11 +132,11 @@ export const PaymentMethodsRow: React.FC<PaymentMethodsRowProps> = ({
             <d.ClickAwayListener onClickAway={() => setOpen(false)}>
               <div>
                 {canSetAsDefault && (
-                  <d.CustomDropdownLinkItem onClick={setPaymentAsDefault} icon={<CheckCircle fontSize="small" />}>
+                  <d.CustomDropdownLinkItem onClick={setPaymentAsDefault} icon={<CircleCheck className="h-4 w-4" />}>
                     Set as default
                   </d.CustomDropdownLinkItem>
                 )}
-                <d.CustomDropdownLinkItem onClick={removePaymentMethod} icon={<Trash fontSize="small" />}>
+                <d.CustomDropdownLinkItem onClick={removePaymentMethod} icon={<Trash2 className="h-4 w-4" />}>
                   Remove
                 </d.CustomDropdownLinkItem>
               </div>

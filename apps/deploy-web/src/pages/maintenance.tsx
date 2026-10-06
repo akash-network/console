@@ -1,5 +1,5 @@
 import React from "react";
-import { Tools } from "iconoir-react";
+import { Wrench } from "lucide-react";
 import { NextSeo } from "next-seo";
 
 import { Title } from "@src/components/shared/Title";
@@ -19,7 +19,7 @@ const Maintenance: React.FunctionComponent = () => {
           </Title>
 
           <div className="flex items-center justify-center pt-8">
-            <Tools className="text-4xl text-primary" />
+            <Wrench className="h-14 w-14 text-primary" />
           </div>
         </div>
       </div>

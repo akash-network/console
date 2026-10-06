@@ -3,7 +3,7 @@ import { useId } from "react";
 import { useFormState } from "react-hook-form";
 import { FieldErrorMessage, InlineEditInput, useFieldError } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
-import { Trash } from "iconoir-react";
+import { Trash2 } from "lucide-react";
 
 import type { SdlBuilderFormValuesType, ServiceType } from "@src/types";
 import { ConfigStatusIcon } from "../ConfigStatusIcon/ConfigStatusIcon";
@@ -68,7 +68,7 @@ export const ServiceRow: FC<Props> = ({ service, serviceIndex, isSelected, canRe
             onClick={removeWithoutSelecting}
             className="invisible flex h-5 shrink-0 items-center text-muted-foreground group-hover:visible hover:text-foreground focus-visible:visible"
           >
-            <Trash className="h-3.5 w-3.5" />
+            <Trash2 className="h-3.5 w-3.5" />
           </button>
         )}
       </div>

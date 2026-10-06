@@ -1,6 +1,6 @@
 import React, { useCallback } from "react";
 import { Separator, Spinner } from "@akashnetwork/ui/components";
-import { CheckCircle, XmarkCircle } from "iconoir-react";
+import { CircleCheck, CircleX } from "lucide-react";
 import { useRouter } from "next/router";
 
 import { formatTimeLapse } from "@src/utils/dateUtils";
@@ -24,11 +24,11 @@ interface StatusIconProps {
 const StatusIcon: React.FC<StatusIconProps> = ({ status }) => {
   switch (status) {
     case "completed":
-      return <CheckCircle className="text-green-500" />;
+      return <CircleCheck className="text-green-500" />;
     case "in_progress":
       return <Spinner size="small" />;
     case "failed":
-      return <XmarkCircle className="text-red-500" />;
+      return <CircleX className="text-red-500" />;
     default:
       return <div className="h-6 w-6 rounded-full border-2 border-gray-300" />;
   }

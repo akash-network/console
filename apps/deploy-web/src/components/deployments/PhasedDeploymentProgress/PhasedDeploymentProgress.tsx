@@ -2,8 +2,8 @@
 
 import { Button } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
-import { ArrowRight, Check } from "iconoir-react";
 import { capitalize } from "lodash";
+import { ArrowRight, Check } from "lucide-react";
 
 import { describeDepositShortfall, TOP_UP_PENDING_MESSAGE } from "@src/components/deployments/ConfigureDeployment/depositShortfall/depositShortfall";
 import type { DeployFailure } from "@src/hooks/useAutoDeploymentFlow/deployPhases";

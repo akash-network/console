@@ -1,7 +1,6 @@
 import type { FC } from "react";
 import { useId } from "react";
-import { WarningCircle } from "iconoir-react";
-import { XIcon } from "lucide-react";
+import { CircleAlert, XIcon } from "lucide-react";
 
 interface Props {
   changes: string[];
@@ -14,7 +13,7 @@ export const SdlImportChangesBanner: FC<Props> = ({ changes, onDismiss }) => {
 
   return (
     <section aria-labelledby={titleId} className="flex shrink-0 items-start gap-3 border-b border-warning/50 bg-warning/10 px-4 py-3">
-      <WarningCircle className="mt-0.5 h-4 w-4 shrink-0 text-warning" aria-hidden="true" />
+      <CircleAlert className="mt-0.5 h-4 w-4 shrink-0 text-warning" aria-hidden="true" />
       <div className="min-w-0 flex-1 space-y-1">
         <h2 id={titleId} className="text-sm font-medium">
           Parts of the imported SDL won't deploy as written

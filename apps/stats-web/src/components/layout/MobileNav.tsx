@@ -3,8 +3,8 @@ import "react-modern-drawer/dist/index.css";
 
 import { useState } from "react";
 import Drawer from "react-modern-drawer";
-import { Button } from "@akashnetwork/ui/components";
-import { ArrowUpRightSquare, Discord, FireFlame, Github, Menu, Rocket, StatsUpSquare, X as TwitterX } from "iconoir-react";
+import { Button, DiscordLogo, GithubLogo, XLogo } from "@akashnetwork/ui/components";
+import { ChartColumnIncreasing, Flame, Menu, Rocket, SquareArrowUpRight } from "lucide-react";
 import dynamic from "next/dynamic";
 
 import { AkashConsoleDarkLogo, AkashConsoleLightLogo } from "../icons/AkashConsoleLogo";
@@ -28,7 +28,7 @@ export function MobileNav() {
   return (
     <>
       <Button variant="ghost" className="text-md" onClick={() => toggleDrawer()}>
-        <Menu />
+        <Menu className="h-5 w-5" />
         <span className="sr-only">Toggle Menu</span>
       </Button>
 
@@ -41,7 +41,7 @@ export function MobileNav() {
               links={[
                 {
                   title: "Deploy",
-                  icon: <Rocket className="rotate-45" />,
+                  icon: <Rocket className="h-5 w-5 rotate-45" />,
                   variant: "default",
                   href: "https://console.akash.network",
                   isExternal: true,
@@ -49,19 +49,19 @@ export function MobileNav() {
                 },
                 {
                   title: "Dashboard",
-                  icon: <StatsUpSquare />,
+                  icon: <ChartColumnIncreasing className="h-5 w-5" />,
                   variant: "ghost",
                   href: "/"
                 },
                 {
                   title: "BME",
-                  icon: <FireFlame />,
+                  icon: <Flame className="h-5 w-5" />,
                   variant: "ghost",
                   href: "/bme"
                 },
                 {
                   title: "akash.network",
-                  icon: <ArrowUpRightSquare />,
+                  icon: <SquareArrowUpRight className="h-5 w-5" />,
                   variant: "ghost",
                   href: "https://akash.network",
                   isExternal: true,
@@ -78,21 +78,21 @@ export function MobileNav() {
             <div className="flex items-center justify-center pt-4">
               <Link target="_blank" rel="noreferrer" href="https://twitter.com/akashnet" className="text-foreground">
                 <Button variant="ghost" size="icon">
-                  <TwitterX width="1.2rem" height="1.2rem" />
+                  <XLogo width="1.2rem" height="1.2rem" />
                   <span className="sr-only">Twitter</span>
                 </Button>
               </Link>
 
               <Link target="_blank" rel="noreferrer" href="https://github.com/akash-network/console" className="text-foreground">
                 <Button variant="ghost" size="icon">
-                  <Github width="1.2rem" height="1.2rem" />
+                  <GithubLogo width="1.2rem" height="1.2rem" />
                   <span className="sr-only">GitHub</span>
                 </Button>
               </Link>
 
               <Link target="_blank" rel="noreferrer" href="https://discord.akash.network" className="text-foreground">
                 <Button variant="ghost" size="icon">
-                  <Discord width="1.2rem" height="1.2rem" />
+                  <DiscordLogo width="1.2rem" height="1.2rem" />
                   <span className="sr-only">Twitter</span>
                 </Button>
               </Link>

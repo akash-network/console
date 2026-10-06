@@ -2,7 +2,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Alert, AlertDescription, AlertTitle, Button, Spinner } from "@akashnetwork/ui/components";
 import { cn, copyTextToClipboard } from "@akashnetwork/ui/utils";
-import { Copy, Refresh, WarningCircle } from "iconoir-react";
+import { CircleAlert, Copy, RefreshCw } from "lucide-react";
 
 import { ViewPanel } from "@src/components/shared/ViewPanel";
 import { useServices } from "@src/context/ServicesProvider";
@@ -308,7 +308,7 @@ export const DeploymentLeaseShell: React.FunctionComponent<Props> = ({ leases, d
                         Copy output
                       </Button>
                       <Button onClick={resetShell} variant="outline" size="sm">
-                        <Refresh className="mr-2 h-4 w-4" />
+                        <RefreshCw className="mr-2 h-4 w-4" />
                         Reset shell
                       </Button>
                     </div>
@@ -325,7 +325,7 @@ export const DeploymentLeaseShell: React.FunctionComponent<Props> = ({ leases, d
               <ViewPanel stickToBottom className="overflow-hidden">
                 {isConnectionClosed ? (
                   <Alert variant="destructive" className="mt-6 bg-card">
-                    <WarningCircle className="mt-2 h-5 w-5" />
+                    <CircleAlert className="mt-2 h-5 w-5" />
                     <AlertTitle className="mb-4">Shell access unavailable</AlertTitle>
                     <AlertDescription className="text-primary">
                       <p>We recommend:</p>
@@ -337,7 +337,7 @@ export const DeploymentLeaseShell: React.FunctionComponent<Props> = ({ leases, d
                         <li>Verifying the provider is healthy</li>
                       </ul>
                       <Button onClick={resetShell} variant="default" size="sm" className="mt-4">
-                        <Refresh className="mr-2 h-4 w-4" />
+                        <RefreshCw className="mr-2 h-4 w-4" />
                         Reset shell
                       </Button>
                     </AlertDescription>

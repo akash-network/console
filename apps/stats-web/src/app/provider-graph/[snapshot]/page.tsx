@@ -1,6 +1,6 @@
 import React from "react";
 import { Button } from "@akashnetwork/ui/components";
-import { ArrowLeft } from "iconoir-react";
+import { ArrowLeft } from "lucide-react";
 import type { Metadata } from "next";
 
 import GraphContainer from "./GraphContainer";

@@ -1,7 +1,6 @@
 import type { FC } from "react";
 import { Button } from "@akashnetwork/ui/components";
-import { WarningCircle } from "iconoir-react";
-import { LoaderCircle } from "lucide-react";
+import { CircleAlert, LoaderCircle } from "lucide-react";
 
 import type { PendingClose } from "../useDeploymentFlow/useDeploymentFlow";
 
@@ -32,7 +31,7 @@ export const BackgroundCloseBanner: FC<Props> = ({ pendingClose, onRetry }) => {
   return (
     <div role="alert" className="flex shrink-0 flex-col items-start gap-1 border-b border-warning/50 bg-warning/10 px-4 py-3">
       <div className="flex items-center gap-2">
-        <WarningCircle className="h-4 w-4 text-warning" aria-hidden="true" />
+        <CircleAlert className="h-4 w-4 text-warning" aria-hidden="true" />
         <span className="text-sm font-medium">Your previous deployment is still open</span>
       </div>
       <p className="min-h-10 text-sm text-muted-foreground">{pendingClose.message ?? CLOSE_FAILED_FALLBACK}</p>

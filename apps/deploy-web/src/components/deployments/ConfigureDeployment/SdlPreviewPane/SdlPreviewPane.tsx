@@ -1,6 +1,6 @@
 import type { FC } from "react";
 import { useEffect } from "react";
-import { Xmark } from "iconoir-react";
+import { X } from "lucide-react";
 
 import { SDLEditor } from "@src/components/sdl/SDLEditor/SDLEditor";
 
@@ -55,7 +55,7 @@ export const SdlPreviewPane: FC<Props> = ({ sdl, isOpen, onOpen, onClose, depend
           aria-label="Close SDL preview"
           className="flex h-8 w-8 items-center justify-center rounded text-foreground hover:bg-accent"
         >
-          <Xmark className="h-5 w-5" />
+          <X className="h-5 w-5" />
         </button>
       </header>
       <div className="min-h-0 flex-1">

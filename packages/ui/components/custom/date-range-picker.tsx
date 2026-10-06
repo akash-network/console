@@ -4,7 +4,7 @@ import * as React from "react";
 import type { DateRange } from "react-day-picker";
 import { UI } from "react-day-picker";
 import { addDays, differenceInDays, format, isAfter, isBefore, isSameDay, max, min, startOfToday, subDays, subMonths, subYears } from "date-fns";
-import { Calendar as CalendarIcon, NavArrowDown, NavArrowLeft, NavArrowRight, NavArrowUp, Refresh, Xmark } from "iconoir-react";
+import { CalendarIcon, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, RefreshCw, X } from "lucide-react";
 
 import { useMediaQuery } from "../../hooks";
 import { cn } from "../../utils";
@@ -251,7 +251,7 @@ export function DateRangePicker({
             </PopoverTrigger>
             {selectedRange && (
               <Button variant="outline" size="icon" aria-label="Clear date selection" className="h-12 w-12 flex-shrink-0 rounded-md" onClick={clearSelection}>
-                <Xmark className="h-5 w-5" />
+                <X className="h-5 w-5" />
               </Button>
             )}
           </div>
@@ -262,7 +262,7 @@ export function DateRangePicker({
                   <CollapsibleTrigger asChild>
                     <Button variant="outline" className="h-12 w-full justify-between bg-transparent">
                       <span>Quick Select</span>
-                      {presetsOpen ? <NavArrowUp className="h-4 w-4" /> : <NavArrowDown className="h-4 w-4" />}
+                      {presetsOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                     </Button>
                   </CollapsibleTrigger>
                   <CollapsibleContent className="mt-2 space-y-2">
@@ -290,19 +290,19 @@ export function DateRangePicker({
                 <CollapsibleTrigger asChild>
                   <Button variant="outline" className="h-12 w-full justify-between bg-transparent">
                     <span>Select Month</span>
-                    {monthsOpen ? <NavArrowUp className="h-4 w-4" /> : <NavArrowDown className="h-4 w-4" />}
+                    {monthsOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                   </Button>
                 </CollapsibleTrigger>
                 <CollapsibleContent className="mt-4 space-y-3">
                   <div className="flex items-center justify-between">
                     <Button variant="outline" size="lg" onClick={() => changeYear(-1)} className="h-12 gap-1 px-6">
-                      <NavArrowLeft className="h-4 w-4" />
+                      <ChevronLeft className="h-4 w-4" />
                       {currentYear - 1}
                     </Button>
                     <span className="text-lg font-medium">{currentYear}</span>
                     <Button variant="outline" size="lg" onClick={() => changeYear(1)} className="h-12 gap-1 px-6">
                       {currentYear + 1}
-                      <NavArrowRight className="h-4 w-4" />
+                      <ChevronRight className="h-4 w-4" />
                     </Button>
                   </div>
                   <div className="grid grid-cols-2 gap-2">
@@ -347,7 +347,7 @@ export function DateRangePicker({
               <Separator />
               <div className="flex justify-between">
                 <Button variant="secondary" size="sm" onClick={() => setCalendarMonth(today)}>
-                  <Refresh width={12} className="mr-2" strokeWidth={2} />
+                  <RefreshCw width={12} className="mr-2" strokeWidth={2} />
                   Today
                 </Button>
 
@@ -389,7 +389,7 @@ export function DateRangePicker({
           </PopoverTrigger>
           {selectedRange && (
             <Button variant="outline" size="icon" aria-label="Clear date selection" className="flex-shrink-0 rounded-md" onClick={clearSelection}>
-              <Xmark className="h-4 w-4" />
+              <X className="h-4 w-4" />
             </Button>
           )}
         </div>
@@ -424,11 +424,11 @@ export function DateRangePicker({
 
               <div className="mb-3 flex items-center justify-between">
                 <Button variant="outline" size="sm" onClick={() => changeYear(-1)} className="h-7 w-7 p-0">
-                  <NavArrowLeft className="h-4 w-4" />
+                  <ChevronLeft className="h-4 w-4" />
                 </Button>
                 <span className="text-sm font-medium">{currentYear}</span>
                 <Button variant="outline" size="sm" onClick={() => changeYear(1)} className="h-7 w-7 p-0">
-                  <NavArrowRight className="h-4 w-4" />
+                  <ChevronRight className="h-4 w-4" />
                 </Button>
               </div>
               <div className="grid gap-1">
@@ -476,7 +476,7 @@ export function DateRangePicker({
               <Separator className="my-3" />
               <div className="flex justify-between">
                 <Button variant="secondary" size="sm" onClick={() => setCalendarMonth(today)}>
-                  <Refresh width={14} className="mr-2" strokeWidth={2} />
+                  <RefreshCw width={14} className="mr-2" strokeWidth={2} />
                   Today
                 </Button>
 

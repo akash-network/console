@@ -1,7 +1,7 @@
 "use client";
 import React from "react";
 import { Alert, AlertDescription, AlertTitle, Card, CardContent } from "@akashnetwork/ui/components";
-import { WarningCircle } from "iconoir-react";
+import { CircleAlert } from "lucide-react";
 import dynamic from "next/dynamic";
 
 import { AddressLink } from "@/components/AddressLink";
@@ -60,7 +60,7 @@ export function TransactionInfo({ transaction }: IProps) {
 
         {transaction.error && (
           <Alert variant="destructive">
-            <WarningCircle className="h-4 w-4" />
+            <CircleAlert className="h-4 w-4" />
             <AlertTitle>Error</AlertTitle>
             <AlertDescription>{transaction.error}</AlertDescription>
           </Alert>

@@ -4,7 +4,7 @@ import { Controller, useForm } from "react-hook-form";
 import { MdHighlightOff } from "react-icons/md";
 import { Alert, Button, Card, CardContent, Form, FormField, FormInput, Spinner, Switch, Textarea } from "@akashnetwork/ui/components";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { CheckCircle } from "iconoir-react";
+import { CircleCheck } from "lucide-react";
 import { NextSeo } from "next-seo";
 import { z } from "zod";
 
@@ -120,7 +120,7 @@ export const UserSettingsForm: FC<{ user: CustomUserProfile; dependencies?: type
                         <span className="flex flex-shrink-0 items-center whitespace-nowrap text-xs">
                           {!isCheckingAvailability && isAvailable && (
                             <>
-                              <CheckCircle className="text-green-600" />
+                              <CircleCheck className="h-4 w-4 text-green-600" />
                               &nbsp;Username is available
                             </>
                           )}

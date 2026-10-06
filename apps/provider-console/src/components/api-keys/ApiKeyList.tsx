@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { useIntl } from "react-intl";
 import { Button, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, Spinner } from "@akashnetwork/ui/components";
 import { copyTextToClipboard } from "@akashnetwork/ui/utils";
-import { Calendar, Clock, Copy, Eye, EyeClosed, Key, Trash } from "iconoir-react";
+import { Calendar, Clock, Copy, Eye, EyeOff, KeyRound, Trash2 } from "lucide-react";
 
 import type { ApiKey } from "@src/types/apiKey";
 
@@ -90,7 +90,7 @@ export const ApiKeyList: React.FC<ApiKeyListProps> = ({
             </div>
           ) : !hasApiKey ? (
             <div className="py-12 text-center">
-              <Key className="mx-auto mb-4 h-12 w-12 text-gray-400 dark:text-gray-500" />
+              <KeyRound className="mx-auto mb-4 h-12 w-12 text-gray-400 dark:text-gray-500" />
               <h3 className="mb-2 text-lg font-medium text-gray-900 dark:text-white">No API Key Available</h3>
               <p className="mb-4 text-gray-500 dark:text-gray-400">Create your first API key to start integrating with our services.</p>
               <Button onClick={onCreateApiKey} disabled={isCreating}>
@@ -136,7 +136,7 @@ export const ApiKeyList: React.FC<ApiKeyListProps> = ({
                 </div>
 
                 <Button variant="destructive" size="sm" onClick={() => updateApiKeyToDelete(apiKey)} disabled={isDeleting} className="flex items-center gap-2">
-                  <Trash className="h-4 w-4" />
+                  <Trash2 className="h-4 w-4" />
                   {isDeleting ? "Deleting..." : "Delete"}
                 </Button>
               </div>
@@ -147,7 +147,7 @@ export const ApiKeyList: React.FC<ApiKeyListProps> = ({
                   <h4 className="font-medium text-gray-900 dark:text-white">API Key</h4>
                   <div className="flex items-center gap-2">
                     <Button variant="outline" size="sm" onClick={() => setShowKey(v => !v)} className="flex items-center gap-2">
-                      {showKey ? <EyeClosed className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      {showKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                       {showKey ? "Hide" : "Show"}
                     </Button>
                     <Button

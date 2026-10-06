@@ -15,8 +15,8 @@ import {
   Textarea
 } from "@akashnetwork/ui/components";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Check, Copy, QuestionMark, RefreshDouble } from "iconoir-react";
 import { useAtom } from "jotai";
+import { Check, CircleQuestionMark, Copy, RefreshCw } from "lucide-react";
 import { useRouter } from "next/router";
 import { z } from "zod";
 
@@ -229,7 +229,7 @@ export const WalletImport: React.FC<WalletImportProps> = ({ onComplete }) => {
                                   <div
                                     className={`space-y-2 rounded-sm p-4 ${field.value === "seed" ? "bg-slate-900 text-white" : "bg-slate-700 text-gray-300"}`}
                                   >
-                                    <RefreshDouble />
+                                    <RefreshCw />
                                     <h4 className="text-md">Auto Import</h4>
                                     <p>
                                       Console will auto import your wallet into your control node of the provider. Please have wallet seed phrase handy to enter
@@ -252,7 +252,7 @@ export const WalletImport: React.FC<WalletImportProps> = ({ onComplete }) => {
                                       field.value === "manual" ? "bg-slate-900 text-white" : "bg-slate-700 text-gray-300"
                                     }`}
                                   >
-                                    <QuestionMark />
+                                    <CircleQuestionMark />
                                     <h4 className="text-md">Manual Import</h4>
                                     <p>
                                       You will need to manually import your wallet into your control node of the provider. Please follow the instruction in the
@@ -355,7 +355,7 @@ export const WalletImport: React.FC<WalletImportProps> = ({ onComplete }) => {
                 <div className="bg-secondary relative mt-2 rounded-md p-4">
                   <code className="text-sm">cd ~</code>
                   <Button variant="ghost" size="sm" className="absolute right-2 top-2" onClick={() => handleCopy("cd ~", setCopiedRootCommand)}>
-                    {copiedRootCommand ? <Check className="text-green-500" /> : <Copy />}
+                    {copiedRootCommand ? <Check className="h-5 w-5 text-green-500" /> : <Copy className="h-5 w-5" />}
                   </Button>
                 </div>
               </li>
@@ -377,7 +377,7 @@ export const WalletImport: React.FC<WalletImportProps> = ({ onComplete }) => {
                       )
                     }
                   >
-                    {copiedInstallCommand ? <Check className="text-green-500" /> : <Copy />}
+                    {copiedInstallCommand ? <Check className="h-5 w-5 text-green-500" /> : <Copy className="h-5 w-5" />}
                   </Button>
                 </div>
               </li>
@@ -391,7 +391,7 @@ export const WalletImport: React.FC<WalletImportProps> = ({ onComplete }) => {
                     className="absolute right-2 top-2"
                     onClick={() => handleCopy("~/bin/provider-services keys add provider --recover --keyring-backend file", setCopiedAddKeyCommand)}
                   >
-                    {copiedAddKeyCommand ? <Check className="text-green-500" /> : <Copy />}
+                    {copiedAddKeyCommand ? <Check className="h-5 w-5 text-green-500" /> : <Copy className="h-5 w-5" />}
                   </Button>
                 </div>
               </li>
@@ -413,7 +413,7 @@ export const WalletImport: React.FC<WalletImportProps> = ({ onComplete }) => {
                         className="absolute right-2 top-2"
                         onClick={() => handleCopy(providerProcess?.machines[0]?.systemInfo?.key_id || "", setCopiedPassphrase)}
                       >
-                        {copiedPassphrase ? <Check className="text-green-500" /> : <Copy />}
+                        {copiedPassphrase ? <Check className="h-5 w-5 text-green-500" /> : <Copy className="h-5 w-5" />}
                       </Button>
                     </div>
                   </li>

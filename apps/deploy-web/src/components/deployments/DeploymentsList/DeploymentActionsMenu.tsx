@@ -2,7 +2,7 @@
 import type { FC } from "react";
 import { useState } from "react";
 import { Button, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@akashnetwork/ui/components";
-import { Edit, MoreHoriz, Upload, XmarkSquare } from "iconoir-react";
+import { Ellipsis, SquarePen, SquareX, Upload } from "lucide-react";
 
 import { useLocalNotes } from "@src/components/LocalNoteManager";
 import { useServices } from "@src/context/ServicesProvider";
@@ -57,12 +57,12 @@ export const DeploymentActionsMenu: FC<DeploymentActionsMenuProps> = ({ deployme
     <DropdownMenu modal={false} open={isOpen} onOpenChange={setIsOpen}>
       <DropdownMenuTrigger asChild>
         <Button aria-label={`Actions for deployment ${deployment.dseq}`} size="icon" variant="ghost" className="rounded-full">
-          <MoreHoriz className="h-4 w-4" />
+          <Ellipsis className="h-4 w-4" />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" onClick={event => event.stopPropagation()}>
         <DropdownMenuItem onSelect={() => changeDeploymentName(deployment.dseq)}>
-          <Edit className="mr-2 h-4 w-4" />
+          <SquarePen className="mr-2 h-4 w-4" />
           Edit name
         </DropdownMenuItem>
         {canRedeploy && (
@@ -76,7 +76,7 @@ export const DeploymentActionsMenu: FC<DeploymentActionsMenuProps> = ({ deployme
         )}
         {deployment.state === "active" && (
           <DropdownMenuItem onSelect={closeDeployment}>
-            <XmarkSquare className="mr-2 h-4 w-4" />
+            <SquareX className="mr-2 h-4 w-4" />
             Close
           </DropdownMenuItem>
         )}

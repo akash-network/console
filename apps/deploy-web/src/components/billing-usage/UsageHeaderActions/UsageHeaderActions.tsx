@@ -1,7 +1,7 @@
 "use client";
 import React, { type FC } from "react";
 import { Button, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@akashnetwork/ui/components";
-import { Calendar, Download } from "iconoir-react";
+import { Calendar, Download } from "lucide-react";
 
 import { USAGE_DATE_PRESETS, type UsageDatePreset } from "@src/components/billing-usage/UsageContainer/usageDatePresets";
 

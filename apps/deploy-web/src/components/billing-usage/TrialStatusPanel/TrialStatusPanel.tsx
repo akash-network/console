@@ -1,7 +1,7 @@
 "use client";
 import React, { useState } from "react";
 import { Button, Card, Progress, Skeleton } from "@akashnetwork/ui/components";
-import { Clock, Cpu, Lock, Timer } from "iconoir-react";
+import { Clock, Cpu, Lock, Timer } from "lucide-react";
 
 import { AddCreditsSheet } from "@src/components/auth/AddCreditsSheet/AddCreditsSheet";
 import { BONUS_PERCENT, MAX_BONUS } from "@src/components/billing-usage/FirstPurchaseBonusAlert/FirstPurchaseBonusAlert";

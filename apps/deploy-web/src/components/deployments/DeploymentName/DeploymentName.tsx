@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { buttonVariants, CustomTooltip } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
-import { OpenInWindow } from "iconoir-react";
+import { ExternalLink } from "lucide-react";
 import Link from "next/link";
 
 import { LabelValueOld } from "@src/components/shared/LabelValueOld";
@@ -13,7 +13,7 @@ export const COMPONENTS = {
   CustomTooltip,
   LabelValue: LabelValueOld,
   Link,
-  OpenInWindow
+  ExternalLink
 };
 
 export type Props = {
@@ -58,7 +58,7 @@ export const DeploymentName: React.FunctionComponent<Props> = ({ deployment, dep
             (service.uris || []).map(uri => (
               <c.Link key={uri} href={`http://${uri}`} target="_blank" className="inline-flex items-center space-x-2 space-y-1 truncate text-sm">
                 <span>{uri}</span>
-                <c.OpenInWindow className="text-xs" />
+                <c.ExternalLink className="h-4 w-4" />
               </c.Link>
             ))
           )}

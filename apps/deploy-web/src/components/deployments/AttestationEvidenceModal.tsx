@@ -2,9 +2,8 @@
 import { useEffect, useState } from "react";
 import type { paths } from "@akashnetwork/console-api-types";
 import { Alert, Badge, Button, Collapsible, CollapsibleContent, CollapsibleTrigger, Popup, Spinner } from "@akashnetwork/ui/components";
-import { cn } from "@akashnetwork/ui/utils";
 import saveFileInBrowser from "file-saver";
-import { NavArrowDown } from "iconoir-react";
+import { ChevronDown } from "lucide-react";
 
 import { useServices } from "@src/context/ServicesProvider";
 import { useAttestationQuoteMutation } from "@src/queries/useAttestationQuoteMutation";
@@ -49,9 +48,9 @@ function ReportRow({ label, report, verdict }: { label: string; report: string; 
   return (
     <Collapsible open={open} onOpenChange={setOpen} className="rounded-md border">
       <CollapsibleTrigger asChild>
-        <Button type="button" variant="ghost" className="flex h-auto w-full items-center justify-between gap-2 p-3 normal-case">
+        <Button type="button" variant="ghost" className="group flex h-auto w-full items-center justify-between gap-2 p-3 normal-case">
           <span className="flex items-center gap-2">
-            <NavArrowDown fontSize="1rem" className={cn("transition-transform duration-100", { "rotate-180": open })} />
+            <ChevronDown className="transition-transform duration-100 group-data-[state=open]:rotate-180" />
             <span className="text-sm font-medium">{label}</span>
           </span>
           {verdict && <VerdictBadge verdict={verdict} />}

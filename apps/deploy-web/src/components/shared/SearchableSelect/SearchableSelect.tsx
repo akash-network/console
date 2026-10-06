@@ -13,7 +13,7 @@ import {
   PopoverTrigger
 } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
-import { Check, NavArrowDown } from "iconoir-react";
+import { Check, ChevronDown } from "lucide-react";
 
 export type SearchableSelectOption = {
   value: string;
@@ -183,7 +183,7 @@ const SearchableSelectList: FC<SharedProps & { selection: Selection }> = ({
             {leadingIcon}
             <span className="truncate">{hasSelection ? selection.renderLabel() : emptyTriggerLabel ?? emptyOption?.label ?? placeholder}</span>
           </span>
-          <NavArrowDown aria-hidden="true" className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+          <ChevronDown aria-hidden="true" className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
         </Button>
       </PopoverTrigger>
       <PopoverContent align="start" className={cn("w-[var(--radix-popover-trigger-width)] p-0", contentClassName)}>

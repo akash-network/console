@@ -2,7 +2,7 @@
 import React, { type ReactNode, useMemo, useState } from "react";
 import { Card, CustomNoDivTooltip, Skeleton } from "@akashnetwork/ui/components";
 import format from "date-fns/format";
-import { InfoCircle, NavArrowDown, Wallet } from "iconoir-react";
+import { ChevronDown, Info, Wallet } from "lucide-react";
 import Link from "next/link";
 
 import { UsdValue } from "@src/components/billing-usage/UsdValue/UsdValue";
@@ -19,8 +19,8 @@ export const DEPENDENCIES = {
   UsdValue,
   BalanceBreakdownBar,
   Wallet,
-  InfoCircle,
-  NavArrowDown,
+  Info,
+  ChevronDown,
   Link
 };
 
@@ -104,7 +104,7 @@ export const AccountBalanceOverview: React.FunctionComponent<{ footerAction?: Re
                 info={
                   <d.CustomNoDivTooltip title={ESCROW_TOOLTIP}>
                     <span className="inline-flex cursor-help text-muted-foreground">
-                      <d.InfoCircle className="h-[13px] w-[13px]" />
+                      <d.Info className="h-[13px] w-[13px]" />
                     </span>
                   </d.CustomNoDivTooltip>
                 }
@@ -143,7 +143,7 @@ export const AccountBalanceOverview: React.FunctionComponent<{ footerAction?: Re
                   onClick={() => setIsBreakdownOpen(open => !open)}
                   aria-expanded={isBreakdownOpen}
                 >
-                  <d.NavArrowDown className="h-3.5 w-3.5 transition-transform duration-150 group-aria-[expanded=false]:-rotate-90" aria-hidden />
+                  <d.ChevronDown className="h-3.5 w-3.5 transition-transform duration-150 group-aria-[expanded=false]:-rotate-90" aria-hidden />
                   {isBreakdownOpen ? "Hide breakdown" : "Show breakdown"}
                 </button>
               )}

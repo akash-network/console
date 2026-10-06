@@ -1,7 +1,7 @@
 import React, { useCallback, useState } from "react";
 import { Alert, AlertDescription, AlertTitle, Separator, Spinner } from "@akashnetwork/ui/components";
 import { useToast } from "@akashnetwork/ui/hooks";
-import { PcWarning } from "iconoir-react";
+import { MonitorX } from "lucide-react";
 
 import type { MachineAccess } from "@src/components/machine/MachineAccessForm";
 import { NodeTypeSelector } from "@src/components/shared/NodeTypeSelector";
@@ -268,7 +268,7 @@ export const NodeServerForm: React.FC<NodeServerFormProps> = ({ nodeCount, exist
 
             {nodeConfigs[currentNodeIndex].warning && (
               <Alert variant="warning">
-                <PcWarning className="h-4 w-4" />
+                <MonitorX className="h-4 w-4" />
                 <AlertTitle>Warning</AlertTitle>
                 <AlertDescription>{nodeConfigs[currentNodeIndex].warning}</AlertDescription>
               </Alert>

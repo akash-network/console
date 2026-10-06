@@ -2,7 +2,7 @@
 import type { FC } from "react";
 import { Skeleton } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
-import { ArrowUpRight, NavArrowDown } from "iconoir-react";
+import { ArrowUpRight, ChevronDown } from "lucide-react";
 
 import type { VisitEndpoint } from "../DeploymentDetail/DeploymentVisitControl/visitEndpoints";
 import type { UnreachableReason } from "./useDeploymentReachability";
@@ -66,7 +66,7 @@ export const DeploymentEndpoints: FC<DeploymentEndpointsProps> = ({ endpoints, i
       className={cn("group inline-flex items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-foreground", className)}
     >
       {endpoints.length} endpoints
-      <NavArrowDown className={cn("h-4 w-4 transition-transform", isExpanded && "rotate-180")} />
+      <ChevronDown className="h-4 w-4 transition-transform group-aria-expanded:rotate-180" />
     </button>
   );
 };

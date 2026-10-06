@@ -1,5 +1,5 @@
 import React, { useLayoutEffect, useRef } from "react";
-import { WarningTriangle } from "iconoir-react";
+import { TriangleAlert } from "lucide-react";
 import Link from "next/link";
 
 import { topBannerHeightCssVar } from "@src/utils/constants";
@@ -30,7 +30,7 @@ export function ProviderBuildDisabledBanner() {
   return (
     <div ref={bannerRef} className="fixed top-0 z-[60] w-full">
       <div role="note" className="bg-primary text-primary-foreground flex items-center justify-center gap-2 px-4 py-2 text-center text-xs">
-        <WarningTriangle className="h-4 w-4 flex-shrink-0" />
+        <TriangleAlert className="h-4 w-4 flex-shrink-0" />
         <span>
           Provider builds are disabled in Provider Console. Use the{" "}
           <Link href={PROVIDER_PLAYBOOK_URL} target="_blank" rel="noreferrer" className="text-primary-foreground font-semibold underline">

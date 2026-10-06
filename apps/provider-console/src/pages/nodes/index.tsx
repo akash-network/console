@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Button, Spinner } from "@akashnetwork/ui/components";
 import { useToast } from "@akashnetwork/ui/hooks";
-import { Plus } from "iconoir-react";
+import { Plus } from "lucide-react";
 
 import { Layout } from "@src/components/layout/Layout";
 import { AddNodeModal } from "@src/components/nodes/AddNodeModal";

@@ -2,7 +2,7 @@ import type { ForwardRefExoticComponent, RefAttributes, SVGProps } from "react";
 import { useCallback } from "react";
 import { Button, Snackbar } from "@akashnetwork/ui/components";
 import { copyTextToClipboard } from "@akashnetwork/ui/utils";
-import { Copy } from "iconoir-react";
+import { Copy } from "lucide-react";
 import { useSnackbar } from "notistack";
 
 interface Props {

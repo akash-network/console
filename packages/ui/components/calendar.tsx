@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { DayFlag, DayPicker, SelectionState, UI } from "react-day-picker";
-import { NavArrowDown, NavArrowLeft, NavArrowRight, NavArrowUp } from "iconoir-react";
+import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp } from "lucide-react";
 
 import { cn } from "../utils";
 import { buttonVariants } from "./button";
@@ -59,13 +59,13 @@ export const Calendar = ({ className, classNames, showOutsideDays = true, ...pro
 const Chevron = ({ orientation = "left" }) => {
   switch (orientation) {
     case "left":
-      return <NavArrowLeft className="h-4 w-4" />;
+      return <ChevronLeft className="h-4 w-4" />;
     case "right":
-      return <NavArrowRight className="h-4 w-4" />;
+      return <ChevronRight className="h-4 w-4" />;
     case "up":
-      return <NavArrowUp className="h-4 w-4" />;
+      return <ChevronUp className="h-4 w-4" />;
     case "down":
-      return <NavArrowDown className="h-4 w-4" />;
+      return <ChevronDown className="h-4 w-4" />;
     default:
       return null;
   }

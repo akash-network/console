@@ -1,7 +1,7 @@
 import { buttonVariants } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
 import * as Sentry from "@sentry/nextjs";
-import { NavArrowRight } from "iconoir-react";
+import { ChevronRight } from "lucide-react";
 import type { NextPage, NextPageContext } from "next";
 import Link from "next/link";
 import { NextSeo } from "next-seo";
@@ -30,7 +30,7 @@ const Error: NextPage<Props> = ({ statusCode }) => {
         <div className="pt-4">
           <Link className={cn(buttonVariants({ variant: "default" }), "inline-flex items-center")} href={UrlService.home()}>
             Go to homepage&nbsp;
-            <NavArrowRight className="text-sm" />
+            <ChevronRight className="h-5 w-5" />
           </Link>
         </div>
       </div>

@@ -1,6 +1,6 @@
 import type { FC, ReactNode } from "react";
 import { CustomTooltip } from "@akashnetwork/ui/components";
-import { InfoCircle } from "iconoir-react";
+import { Info } from "lucide-react";
 
 import { PRICE_DISPLAY_PRECISION, udenomToDenom } from "@src/utils/mathHelpers";
 import { perBlockToHourly } from "@src/utils/priceUtils";
@@ -57,7 +57,7 @@ export const CostBreakdownTooltip: FC<Props> = ({ perBlockUDenom, denom, gpuCoun
         </div>
       }
     >
-      {children ?? <InfoCircle data-row-click-ignore className="ml-2 text-xs text-muted-foreground" />}
+      {children ?? <Info data-row-click-ignore className="ml-2 h-4 w-4 text-muted-foreground" />}
     </CustomTooltip>
   );
 };

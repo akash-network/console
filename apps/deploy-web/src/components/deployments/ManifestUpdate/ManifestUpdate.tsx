@@ -3,8 +3,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { extractApiErrorMessage } from "@akashnetwork/openapi-sdk";
 import { Alert, Button, CustomTooltip, Snackbar } from "@akashnetwork/ui/components";
 import { useQueryClient as useQueryClientOriginal } from "@tanstack/react-query";
-import { InfoCircle, Upload, WarningCircle } from "iconoir-react";
 import yaml from "js-yaml";
+import { CircleAlert, Info, Upload } from "lucide-react";
 import { useSnackbar as useSnackbarOriginal } from "notistack";
 
 import { AddCreditsSnackbarContent } from "@src/components/billing-usage/AddCreditsSnackbarContent/AddCreditsSnackbarContent";
@@ -42,8 +42,8 @@ export const DEPENDENCIES = {
   LinkTo,
   ViewPanel,
   SDLEditor,
-  InfoCircle,
-  WarningCircle,
+  Info,
+  CircleAlert,
   DeploymentTabHeader,
   useWallet: useWalletOriginal,
   useBalances: useBalancesOriginal,
@@ -312,7 +312,7 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({
                 <div className="flex items-center gap-2">
                   {onRedeploy && (
                     <d.Button variant="outline" size="md" className="gap-1" type="button" disabled={isUpdating} onClick={onRedeploy}>
-                      <Upload className="text-xs" />
+                      <Upload className="h-4 w-4" />
                       Redeploy
                     </d.Button>
                   )}
@@ -336,7 +336,7 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({
                   </div>
                 }
               >
-                <d.InfoCircle className="text-xs text-muted-foreground" />
+                <d.Info className="h-4 w-4 text-muted-foreground" />
               </d.CustomTooltip>
 
               {!!deploymentVersion && deploymentVersion !== deployment.hash && (
@@ -347,7 +347,7 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({
                     </d.Alert>
                   }
                 >
-                  <d.WarningCircle className="text-xs text-warning" />
+                  <d.CircleAlert className="h-4 w-4 text-warning" />
                 </d.CustomTooltip>
               )}
             </d.DeploymentTabHeader>

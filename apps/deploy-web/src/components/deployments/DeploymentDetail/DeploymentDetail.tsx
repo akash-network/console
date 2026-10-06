@@ -3,7 +3,7 @@ import type { FC } from "react";
 import { useEffect, useMemo, useState } from "react";
 import { buttonVariants, Skeleton, Tabs, TabsList, TabsTrigger } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
-import { ArrowLeft } from "iconoir-react";
+import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { NextSeo } from "next-seo";
@@ -186,7 +186,7 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq, dependencies
           <p>This deployment does not exist or it was created using another wallet.</p>
           <div className="pt-4">
             <Link href={UrlService.home()} className={cn(buttonVariants({ variant: "default", size: "md" }), "inline-flex items-center space-x-2")}>
-              <ArrowLeft className="text-sm" />
+              <ArrowLeft className="h-5 w-5" />
               <span>Go to homepage</span>
             </Link>
           </div>

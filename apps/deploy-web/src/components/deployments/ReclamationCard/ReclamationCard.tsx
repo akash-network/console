@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { Alert, AlertDescription, AlertTitle, Button, buttonVariants, Spinner } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
-import { WarningTriangle } from "iconoir-react";
+import { TriangleAlert } from "lucide-react";
 import Link from "next/link";
 
 import { useWallet } from "@src/context/WalletProvider";
@@ -56,7 +56,7 @@ export const ReclamationCard: React.FunctionComponent<Props> = ({ lease, dseq, o
 
   return (
     <Alert variant="warning" className="p-4">
-      <WarningTriangle className="h-4 w-4" />
+      <TriangleAlert className="h-4 w-4" />
       <AlertTitle>{reasonLabel}</AlertTitle>
       <AlertDescription>
         <p>

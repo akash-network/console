@@ -16,8 +16,8 @@ import {
   Slider
 } from "@akashnetwork/ui/components";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ArrowDown } from "iconoir-react";
 import { useAtom } from "jotai";
+import { ArrowDown } from "lucide-react";
 import { z } from "zod";
 
 import { useControlMachine } from "@src/context/ControlMachineProvider";

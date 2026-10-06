@@ -1,7 +1,7 @@
 // External imports
 import React, { useCallback, useEffect, useState } from "react";
 import { Button } from "@akashnetwork/ui/components";
-import { Check, WarningTriangle, XmarkCircle } from "iconoir-react";
+import { Check, CircleX, TriangleAlert } from "lucide-react";
 
 // Internal imports
 import restClient from "@src/utils/restClient";
@@ -127,7 +127,7 @@ export const ProviderHealthCheck: React.FC<ProviderHealthCheckProps> = ({ provid
       {hasPortIssues && providerIp && (
         <div className="mb-2 rounded-md bg-yellow-100 p-4 text-yellow-700">
           <div className="flex">
-            <WarningTriangle className="mr-2 h-5 w-5" />
+            <TriangleAlert className="mr-2 h-5 w-5" />
             <div className="flex-1">
               <p className="font-medium">Some required ports are closed on your provider</p>
               <p className="text-sm">This may affect your provider&apos;s functionality and ability to accept deployments.</p>
@@ -141,7 +141,7 @@ export const ProviderHealthCheck: React.FC<ProviderHealthCheckProps> = ({ provid
                   <div className="space-y-1">
                     {portStatuses.map(status => (
                       <div key={status.port} className="flex items-center text-sm">
-                        {status.isOpen ? <Check className="mr-2 h-4 w-4 text-green-500" /> : <XmarkCircle className="mr-2 h-4 w-4 text-red-500" />}
+                        {status.isOpen ? <Check className="mr-2 h-4 w-4 text-green-500" /> : <CircleX className="mr-2 h-4 w-4 text-red-500" />}
                         <span>
                           Port {status.port}: {status.isOpen ? "Open" : "Closed"}
                         </span>
@@ -163,7 +163,7 @@ export const ProviderHealthCheck: React.FC<ProviderHealthCheckProps> = ({ provid
       {hasDnsIssues && providerIp && domain && (
         <div className="rounded-md bg-yellow-100 p-4 text-yellow-700">
           <div className="flex">
-            <WarningTriangle className="mr-2 h-5 w-5" />
+            <TriangleAlert className="mr-2 h-5 w-5" />
             <div className="flex-1">
               <p className="font-medium">DNS configuration issues detected</p>
               <p className="text-sm">Your DNS records may not be correctly configured or fully propagated yet.</p>
@@ -176,13 +176,13 @@ export const ProviderHealthCheck: React.FC<ProviderHealthCheckProps> = ({ provid
                   <div className="mb-2 text-sm font-medium text-gray-700">DNS Records Status:</div>
                   <div className="space-y-1">
                     <div className="flex items-center text-sm">
-                      {dnsStatus.provider ? <Check className="mr-2 h-4 w-4 text-green-500" /> : <XmarkCircle className="mr-2 h-4 w-4 text-red-500" />}
+                      {dnsStatus.provider ? <Check className="mr-2 h-4 w-4 text-green-500" /> : <CircleX className="mr-2 h-4 w-4 text-red-500" />}
                       <span>
                         provider.{domain}: {dnsStatus.provider ? "Configured" : "Not Configured"}
                       </span>
                     </div>
                     <div className="flex items-center text-sm">
-                      {dnsStatus.ingress ? <Check className="mr-2 h-4 w-4 text-green-500" /> : <XmarkCircle className="mr-2 h-4 w-4 text-red-500" />}
+                      {dnsStatus.ingress ? <Check className="mr-2 h-4 w-4 text-green-500" /> : <CircleX className="mr-2 h-4 w-4 text-red-500" />}
                       <span>
                         *.ingress.{domain}: {dnsStatus.ingress ? "Configured" : "Not Configured"}
                       </span>

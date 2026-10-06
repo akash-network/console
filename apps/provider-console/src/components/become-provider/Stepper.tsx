@@ -1,6 +1,6 @@
 "use client";
 import React from "react";
-import { Check } from "iconoir-react";
+import { Check } from "lucide-react";
 
 interface Step {
   id: number;

@@ -12,7 +12,7 @@ import {
   Skeleton
 } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
-import { Globe, NavArrowDown } from "iconoir-react";
+import { ChevronDown, Globe } from "lucide-react";
 
 import { CopyTextToClipboardButton } from "@src/components/shared/CopyTextToClipboardButton";
 import { useLeaseStatuses } from "@src/queries/useLeaseQuery";
@@ -82,7 +82,7 @@ const VisitControlView: FC<{
     return (
       <div className="flex items-center gap-2">
         <div className="inline-flex max-w-xs items-center gap-2 rounded-md border px-3 py-2 text-sm">
-          <Globe className="shrink-0 text-xs text-muted-foreground" />
+          <Globe className="h-4 w-4 shrink-0 text-muted-foreground" />
           <span className="truncate">{endpointLabel(endpoint)}</span>
         </div>
         <CopyTextToClipboardButton value={endpoint.href} aria-label="Copy URL" />
@@ -98,7 +98,7 @@ const VisitControlView: FC<{
       <DropdownMenuTrigger asChild>
         <Button variant="default" size="md" className="gap-1">
           Visit
-          <NavArrowDown className="h-4 w-4" />
+          <ChevronDown className="h-4 w-4" />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="min-w-80 rounded-xl p-2">

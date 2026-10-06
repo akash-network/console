@@ -7,7 +7,7 @@ import Step from "@mui/material/Step";
 import StepContent from "@mui/material/StepContent";
 import StepLabel from "@mui/material/StepLabel";
 import Stepper from "@mui/material/Stepper";
-import { Check, HandCard, Rocket, WarningCircle, XmarkCircleSolid } from "iconoir-react";
+import { Check, CircleAlert, CircleX, HandCoins, Rocket } from "lucide-react";
 import Link from "next/link";
 
 import { AddFundsLink } from "@src/components/user/AddFundsLink";
@@ -76,7 +76,7 @@ export const GetStartedStepper: React.FunctionComponent<{ dependencies?: typeof 
           <div className="flex items-center space-x-4">
             <div className="flex items-start gap-2">
               <d.AddFundsLink className={cn("hover:no-underline", buttonVariants({ variant: "default" }))} href={UrlService.billing({ openPayment: true })}>
-                <HandCard className="text-xs" />
+                <HandCoins className="h-4 w-4" />
                 <span className="m-2 whitespace-nowrap">Add Funds</span>
               </d.AddFundsLink>
             </div>
@@ -102,7 +102,7 @@ export const GetStartedStepper: React.FunctionComponent<{ dependencies?: typeof 
 
           {!hasWallet && (
             <div className="my-4 flex items-center space-x-2">
-              <XmarkCircleSolid className="text-destructive" />
+              <CircleX className="fill-current text-destructive [&>path]:stroke-background" />
               <span>Billing is not set up</span>
             </div>
           )}
@@ -113,7 +113,7 @@ export const GetStartedStepper: React.FunctionComponent<{ dependencies?: typeof 
                 <Check className="text-green-600" />
               ) : (
                 <CustomTooltip title="Add funds to your account to start deploying.">
-                  <WarningCircle className="text-warning" />
+                  <CircleAlert className="text-warning" />
                 </CustomTooltip>
               )}
               <span>
@@ -171,7 +171,7 @@ export const GetStartedStepper: React.FunctionComponent<{ dependencies?: typeof 
           </p>
           <div className="my-4 space-x-2">
             <Link className={cn("space-x-2", buttonVariants({ variant: "default" }))} href={UrlService.configureDeployment({ templateId: "hello-world" })}>
-              <Rocket className="rotate-45" />
+              <Rocket className="h-5 w-5 rotate-45" />
               <span>Deploy!</span>
             </Link>
 

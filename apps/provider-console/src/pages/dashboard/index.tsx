@@ -1,7 +1,7 @@
 "use client";
 import React, { useMemo } from "react";
 import { Separator, Spinner } from "@akashnetwork/ui/components";
-import { WarningTriangle } from "iconoir-react";
+import { TriangleAlert } from "lucide-react";
 import Link from "next/link";
 
 import { DashboardCardSkeleton } from "@src/components/dashboard/DashboardCardSkeleton";
@@ -34,7 +34,7 @@ const OfflineWarningBanner: React.FC = () => {
   return (
     <div className="mb-4 rounded-md bg-yellow-100 p-4 text-yellow-700">
       <div className="flex">
-        <WarningTriangle className="mr-2 h-5 w-5" />
+        <TriangleAlert className="mr-2 h-5 w-5" />
         <p>
           Warning: Your provider is currently offline.{" "}
           <Link href="/remedies" className="font-medium underline">
@@ -51,7 +51,7 @@ const AuditGuidanceBanner: React.FC = () => (
   <div className="border-border bg-card text-card-foreground mb-4 rounded-md border-2 p-4">
     <div className="flex flex-col gap-2">
       <div className="flex items-start">
-        <WarningTriangle className="text-warning mr-2 h-5 w-5" />
+        <TriangleAlert className="text-warning mr-2 h-5 w-5" />
         <div>
           <p className="font-semibold">Your provider is not audited yet!</p>
           <p className="mt-1">Audited providers receive significantly more workloads. Follow these steps to get audited:</p>

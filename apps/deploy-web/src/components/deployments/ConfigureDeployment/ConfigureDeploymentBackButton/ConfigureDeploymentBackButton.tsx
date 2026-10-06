@@ -2,7 +2,7 @@
 import type { FC } from "react";
 import { useCallback } from "react";
 import { Button } from "@akashnetwork/ui/components";
-import { NavArrowLeft } from "iconoir-react";
+import { ChevronLeft } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 import { useHasInAppHistory } from "@src/hooks/useHasInAppHistory";
@@ -37,7 +37,7 @@ export const ConfigureDeploymentBackButton: FC<Props> = ({ dependencies: d = DEP
 
   return (
     <Button type="button" variant="ghost" onClick={goBack} disabled={isDeploymentCreating} className="-ml-2 h-8 gap-1 px-2 text-muted-foreground">
-      <NavArrowLeft className="h-4 w-4" />
+      <ChevronLeft className="h-4 w-4" />
       Back
     </Button>
   );

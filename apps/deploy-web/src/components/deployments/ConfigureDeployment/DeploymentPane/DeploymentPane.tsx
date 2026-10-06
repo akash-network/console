@@ -1,7 +1,7 @@
 import type { FC } from "react";
 import { useState } from "react";
 import { Button, CustomTooltip } from "@akashnetwork/ui/components";
-import { InfoCircle, Plus, SidebarCollapse, SidebarExpand } from "iconoir-react";
+import { Info, PanelLeftClose, PanelLeftOpen, Plus } from "lucide-react";
 
 import { usePlacementsWithBids } from "@src/queries/usePlacementsWithBids";
 import { usePlacementManagerContext } from "../PlacementManagerProvider/PlacementManagerProvider";
@@ -50,7 +50,7 @@ export const DeploymentPane: FC<Props> = ({
     return (
       <aside aria-label="Deployment pane (minimized)" className="col-start-1 row-start-1 row-end-4 flex h-full min-h-0 w-[48px] flex-col items-center pt-2">
         <Button type="button" variant="ghost" onClick={toggle} aria-label="Show deployment pane" className="h-8 w-8 rounded p-0 text-foreground">
-          <SidebarExpand className="h-5 w-5" />
+          <PanelLeftOpen className="h-5 w-5" />
         </Button>
       </aside>
     );
@@ -63,7 +63,7 @@ export const DeploymentPane: FC<Props> = ({
           1. Deployment
         </h2>
         <Button type="button" variant="ghost" onClick={toggle} aria-label="Hide deployment pane" className="h-8 w-8 rounded p-0 text-foreground">
-          <SidebarCollapse className="h-5 w-5" />
+          <PanelLeftClose className="h-5 w-5" />
         </Button>
       </header>
       <div className="row-start-3 min-h-0 space-y-6 overflow-y-auto p-4">
@@ -76,7 +76,7 @@ export const DeploymentPane: FC<Props> = ({
               className="max-w-[260px] p-3 font-sans text-xs normal-case text-muted-foreground"
               title="A placement sets a region and bundles services that should share a provider. Each placement is deployed together to one provider."
             >
-              <InfoCircle className="h-3.5 w-3.5" />
+              <Info className="h-3.5 w-3.5" />
             </CustomTooltip>
           </div>
           <div className="space-y-4">

@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import { Button, Card, CardContent, Input } from "@akashnetwork/ui/components";
 import { fromBech32, normalizeBech32 } from "@cosmjs/encoding";
-import { Search, Xmark } from "iconoir-react";
+import { Search, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useMediaQuery } from "usehooks-ts";
 
@@ -127,13 +127,13 @@ const SearchBar: React.FunctionComponent = () => {
                 onClick={onClear}
                 className="bg-transparent text-gray-400 hover:bg-transparent hover:text-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
               >
-                <Xmark />
+                <X className="h-5 w-5" />
               </Button>
             )}
 
             {smallScreen ? (
               <Button variant="default" size="icon" type="submit" disabled={searchType === null || !hasSearchTerms} className="ml-2">
-                <Search />
+                <Search className="h-5 w-5" />
               </Button>
             ) : (
               <Button type="submit" disabled={searchType === null || !hasSearchTerms} className="ml-2">

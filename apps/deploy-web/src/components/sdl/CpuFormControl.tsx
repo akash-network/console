@@ -4,7 +4,7 @@ import type { Control } from "react-hook-form";
 import { MdSpeed } from "react-icons/md";
 import { CustomTooltip, FormField, FormItem, FormMessage, Input, Slider } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
-import { InfoCircle } from "iconoir-react";
+import { Info } from "lucide-react";
 
 import type { SdlBuilderFormValuesType, ServiceType } from "@src/types";
 import { validationConfig } from "@src/utils/akash/units";
@@ -43,7 +43,7 @@ export const CpuFormControl: React.FunctionComponent<Props> = ({ control, servic
                     </>
                   }
                 >
-                  <InfoCircle className="ml-2 text-xs text-muted-foreground" />
+                  <Info className="ml-2 h-4 w-4 text-muted-foreground" />
                 </CustomTooltip>
               </div>
               <Input

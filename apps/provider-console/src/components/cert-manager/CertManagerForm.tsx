@@ -18,7 +18,7 @@ import {
   Textarea
 } from "@akashnetwork/ui/components";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Eye, EyeClosed, Upload } from "iconoir-react";
+import { Eye, EyeOff, Upload } from "lucide-react";
 import { z } from "zod";
 
 import type { CertManagerPayload, DnsProvider } from "@src/types/certManager";
@@ -294,7 +294,7 @@ export const CertManagerForm: React.FC<CertManagerFormProps> = ({
                         aria-label={showCloudflareToken ? "Hide token" : "Show token"}
                         className="text-muted-foreground pr-3"
                       >
-                        {showCloudflareToken ? <EyeClosed className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        {showCloudflareToken ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                       </button>
                     }
                     {...field}

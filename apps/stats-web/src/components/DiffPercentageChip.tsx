@@ -1,7 +1,7 @@
 "use client";
 import React from "react";
 import { FormattedNumber } from "react-intl";
-import { ArrowDown, ArrowUp } from "iconoir-react";
+import { ArrowDown, ArrowUp } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 
@@ -25,7 +25,7 @@ export const DiffPercentageChip: React.FunctionComponent<DiffPercentageChipProps
         "text-base": size === "medium"
       })}
     >
-      {isPositiveDiff ? <ArrowUp className="text-xs" /> : <ArrowDown className="text-xs" />}
+      {isPositiveDiff ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />}
       <span className="ml-1">
         <FormattedNumber style="percent" maximumFractionDigits={2} value={Math.abs(value)} />
       </span>

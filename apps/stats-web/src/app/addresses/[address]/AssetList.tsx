@@ -15,7 +15,7 @@ import {
   TableHeader,
   TableRow
 } from "@akashnetwork/ui/components";
-import { HelpCircle } from "iconoir-react";
+import { CircleQuestionMark } from "lucide-react";
 
 import { FormattedDecimal } from "@/components/FormattedDecimal";
 import { getSplitText } from "@/hooks/useShortText";
@@ -55,7 +55,7 @@ export function AssetList({ addressDetail }: IProps) {
                         {asset.symbol || "Unknown"}
                         {asset.description && (
                           <CustomTooltip title={asset.description}>
-                            <HelpCircle className="ml-2" />
+                            <CircleQuestionMark className="ml-2 h-4 w-4" />
                           </CustomTooltip>
                         )}
                       </div>

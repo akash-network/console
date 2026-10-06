@@ -1,5 +1,5 @@
 import React from "react";
-import { Discord, Github, X as TwitterX, Youtube } from "iconoir-react";
+import { DiscordLogo, GithubLogo, XLogo, YoutubeLogo } from "@akashnetwork/ui/components";
 
 import Layout from "@src/components/layout/Layout";
 import { Title } from "@src/components/shared/Title";
@@ -27,7 +27,7 @@ const ContactPage: React.FunctionComponent = () => {
               target="_blank"
               className="block px-4 py-2 text-current transition-all duration-300 hover:text-primary [&>path]:fill-muted-foreground/20 hover:[&>path]:fill-primary"
             >
-              <Discord className="mx-auto block h-6 w-6 text-5xl" />
+              <DiscordLogo className="mx-auto block h-6 w-6 text-5xl" />
             </a>
           </li>
           <li>
@@ -36,7 +36,7 @@ const ContactPage: React.FunctionComponent = () => {
               target="_blank"
               className="block px-4 py-2 text-current transition-all duration-300 hover:text-primary [&>path]:fill-muted-foreground/20 hover:[&>path]:fill-primary"
             >
-              <Youtube className="mx-auto block h-6 w-6 text-5xl" />
+              <YoutubeLogo className="mx-auto block h-6 w-6 text-5xl" />
             </a>
           </li>
           <li>
@@ -45,7 +45,7 @@ const ContactPage: React.FunctionComponent = () => {
               target="_blank"
               className="block px-4 py-2 text-current transition-all duration-300 hover:text-primary [&>path]:fill-muted-foreground/20 hover:[&>path]:fill-primary"
             >
-              <TwitterX className="mx-auto block h-6 w-6 text-5xl" />
+              <XLogo className="mx-auto block h-6 w-6 text-5xl" />
             </a>
           </li>
           <li>
@@ -54,7 +54,7 @@ const ContactPage: React.FunctionComponent = () => {
               target="_blank"
               className="block px-4 py-2 text-current transition-all duration-300 hover:text-primary [&>path]:fill-muted-foreground/20 hover:[&>path]:fill-primary"
             >
-              <Github className="mx-auto block h-6 w-6 text-5xl" />
+              <GithubLogo className="mx-auto block h-6 w-6 text-5xl" />
             </a>
           </li>
         </ul>

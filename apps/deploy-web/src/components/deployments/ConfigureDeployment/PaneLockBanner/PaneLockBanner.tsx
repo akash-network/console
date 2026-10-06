@@ -1,6 +1,6 @@
 import type { FC } from "react";
 import { Button } from "@akashnetwork/ui/components";
-import { Lock } from "iconoir-react";
+import { Lock } from "lucide-react";
 
 interface Props {
   onCancelAndEdit: () => void;

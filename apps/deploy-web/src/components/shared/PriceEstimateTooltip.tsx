@@ -1,7 +1,7 @@
 "use client";
 import type { ReactNode } from "react";
 import { CustomTooltip } from "@akashnetwork/ui/components";
-import { InfoCircle } from "iconoir-react";
+import { Info } from "lucide-react";
 
 import { averageDaysInMonth } from "@src/utils/dateUtils";
 import { udenomToDenom } from "@src/utils/mathHelpers";
@@ -52,7 +52,7 @@ export const PriceEstimateTooltip: React.FunctionComponent<Props> = ({ value, de
         </div>
       }
     >
-      <InfoCircle className="ml-2 text-xs text-muted-foreground" />
+      <Info className="ml-2 h-4 w-4 text-muted-foreground" />
     </CustomTooltip>
   );
 };

@@ -64,12 +64,12 @@ describe(DeploymentTemplatePickerCard.name, () => {
   it("renders the noise overlay only when heroNoiseOverlaySrc is provided", () => {
     const { container, rerender } = setup({ heroNoiseOverlaySrc: "/noise.png" });
 
-    const overlay = container.querySelector("[aria-hidden]");
+    const overlay = container.querySelector("div[aria-hidden]");
     expect(overlay).not.toBeNull();
     expect(overlay).toHaveStyle({ backgroundImage: "url('/noise.png')" });
 
     rerender(<DeploymentTemplatePickerCard {...baseProps()} />);
-    expect(container.querySelector("[aria-hidden]")).toBeNull();
+    expect(container.querySelector("div[aria-hidden]")).toBeNull();
   });
 
   function baseProps(input?: Partial<Parameters<typeof DeploymentTemplatePickerCard>[0]>) {

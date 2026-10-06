@@ -14,7 +14,7 @@ import {
 } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
 import { differenceInDays, formatDistanceToNowStrict } from "date-fns";
-import { Trash } from "iconoir-react";
+import { Trash2 } from "lucide-react";
 
 import type { ControlMachineWithAddress } from "@src/types/controlMachine";
 import type { KubeNode } from "@src/types/kubeNode";
@@ -147,7 +147,7 @@ export const NodeListTable = ({ nodes, onRemoveNode, activeControlMachine, isNod
                             aria-label={`Remove node ${node.name}`}
                             disabled={!canRemoveNode(node) || !activeControlMachine || isNodeRemovalLoading}
                           >
-                            <Trash className={cn("h-4 w-4", canRemoveNode(node) ? "text-primary" : "text-muted-foreground")} />
+                            <Trash2 className={cn("h-4 w-4", canRemoveNode(node) ? "text-primary" : "text-muted-foreground")} />
                           </Button>
                         </div>
                       </TooltipTrigger>

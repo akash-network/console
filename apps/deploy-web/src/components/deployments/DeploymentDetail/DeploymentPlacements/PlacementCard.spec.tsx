@@ -98,6 +98,18 @@ describe(PlacementCard.name, () => {
     expect(screen.queryByText("us-east")).not.toBeInTheDocument();
   });
 
+  it("separates the region from the provider name when both are known", () => {
+    const { container } = setup({ provider: buildProvider({ region: "us-east" }) });
+
+    expect(container.querySelector("svg.lucide-chevron-right")).toBeInTheDocument();
+  });
+
+  it("drops the separator when the provider has not declared a region", () => {
+    const { container } = setup({ provider: buildProvider() });
+
+    expect(container.querySelector("svg.lucide-chevron-right")).not.toBeInTheDocument();
+  });
+
   it("hides expand all when the lease is closed", () => {
     setup({ lease: buildLease({ state: "closed" }), leaseStatus: null });
 

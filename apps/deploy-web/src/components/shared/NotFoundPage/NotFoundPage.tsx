@@ -1,7 +1,7 @@
 import React from "react";
 import { buttonVariants, Card, CardContent } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
-import { ArrowLeft, OpenInWindow } from "iconoir-react";
+import { ArrowLeft, ExternalLink } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/router";
 import { NextSeo } from "next-seo";
@@ -44,7 +44,7 @@ export const NotFoundPage: React.FunctionComponent<Props> = ({ dependencies: d =
         {isAuthenticated && (
           <div className="pt-6">
             <Link href={UrlService.home()} className={cn(buttonVariants({ variant: "default" }), "inline-flex items-center")}>
-              <ArrowLeft className="mr-4" />
+              <ArrowLeft className="mr-4 h-5 w-5" />
               Go to homepage
             </Link>
           </div>
@@ -63,7 +63,7 @@ export const NotFoundPage: React.FunctionComponent<Props> = ({ dependencies: d =
                 rel="noopener noreferrer"
                 className={cn(buttonVariants({ variant: "outline" }), "inline-flex items-center")}
               >
-                <OpenInWindow className="mr-2" />
+                <ExternalLink className="mr-2 h-5 w-5" />
                 Open the Console Air repo
               </Link>
             </CardContent>

@@ -2,7 +2,7 @@
 import React, { useMemo } from "react";
 import type { PaymentMethod } from "@akashnetwork/http-sdk";
 import { Badge, Button, Card, CardDescription, CardHeader, CardTitle, RadioGroupItem } from "@akashnetwork/ui/components";
-import { CheckCircle, CreditCard } from "iconoir-react";
+import { CircleCheck, CreditCard } from "lucide-react";
 
 import { capitalizeFirstLetter } from "@src/utils/stringUtils";
 
@@ -14,7 +14,7 @@ export const DEPENDENCIES = {
   CardHeader,
   CardTitle,
   RadioGroupItem,
-  CheckCircle,
+  CircleCheck,
   CreditCard
 };
 
@@ -116,7 +116,7 @@ export const PaymentMethodCard: React.FC<PaymentMethodCardProps> = ({
           <div className="flex items-center gap-2">
             {showValidationBadge && method.validated && (
               <d.Badge variant="success" className="flex items-center p-1">
-                <d.CheckCircle className="h-4 w-4" />
+                <d.CircleCheck className="h-4 w-4" />
               </d.Badge>
             )}
             <d.Button onClick={handleRemoveClick} variant="ghost" size="sm" disabled={isRemoving} className="text-muted-foreground">

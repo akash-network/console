@@ -1,6 +1,6 @@
 "use client";
 import type { ReactNode } from "react";
-import { Check, InfoCircle, WarningCircle, WarningTriangle } from "iconoir-react";
+import { Check, CircleAlert, Info, TriangleAlert } from "lucide-react";
 
 import { cn } from "../../utils";
 import { Spinner } from "../spinner";
@@ -38,13 +38,13 @@ export const Snackbar: React.FunctionComponent<Props> = ({ title, subTitle, icon
 const getIcon = (variant?: IconVariant) => {
   switch (variant) {
     case "info":
-      return <InfoCircle className="text-sm" />;
+      return <Info className="h-5 w-5" />;
     case "warning":
-      return <WarningTriangle className="text-sm" />;
+      return <TriangleAlert className="h-5 w-5" />;
     case "error":
-      return <WarningCircle className="text-sm" />;
+      return <CircleAlert className="h-5 w-5" />;
     case "success":
-      return <Check className="text-sm" />;
+      return <Check className="h-5 w-5" />;
 
     default:
       return null;

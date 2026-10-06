@@ -1,6 +1,6 @@
 "use client";
-import { Button } from "@akashnetwork/ui/components";
-import { Discord, Github, Rocket, X as TwitterX } from "iconoir-react";
+import { Button, DiscordLogo, GithubLogo, XLogo } from "@akashnetwork/ui/components";
+import { Rocket } from "lucide-react";
 
 import { AkashConsoleDarkLogo, AkashConsoleLightLogo } from "../icons/AkashConsoleLogo";
 import { ModeToggle } from "../ModeToggle";
@@ -55,21 +55,21 @@ export const Nav = () => {
           <nav className="hidden items-center md:flex">
             <Link target="_blank" rel="noreferrer" href="https://twitter.com/akashnet" className="text-foreground">
               <Button variant="ghost" size="icon">
-                <TwitterX width="1.2rem" height="1.2rem" />
+                <XLogo width="1.2rem" height="1.2rem" />
                 <span className="sr-only">Twitter</span>
               </Button>
             </Link>
 
             <Link target="_blank" rel="noreferrer" href="https://github.com/akash-network/console" className="text-foreground">
               <Button variant="ghost" size="icon">
-                <Github width="1.2rem" height="1.2rem" />
+                <GithubLogo width="1.2rem" height="1.2rem" />
                 <span className="sr-only">GitHub</span>
               </Button>
             </Link>
 
             <Link target="_blank" rel="noreferrer" href="https://discord.akash.network" className="text-foreground">
               <Button variant="ghost" size="icon">
-                <Discord width="1.2rem" height="1.2rem" />
+                <DiscordLogo width="1.2rem" height="1.2rem" />
                 <span className="sr-only">Twitter</span>
               </Button>
             </Link>
@@ -85,7 +85,7 @@ export const Nav = () => {
             <Link rel="noreferrer" href="https://console.akash.network" passHref target="_blank" className="ml-4">
               <Button variant="default" size="sm" className="h-[30px]">
                 Deploy
-                <Rocket className="ml-2 rotate-45" />
+                <Rocket className="ml-2 h-5 w-5 rotate-45" />
               </Button>
             </Link>
           </nav>

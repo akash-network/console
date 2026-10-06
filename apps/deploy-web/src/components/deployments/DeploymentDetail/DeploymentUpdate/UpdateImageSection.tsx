@@ -2,7 +2,7 @@
 import type { FC } from "react";
 import { useController, useFormContext, useWatch } from "react-hook-form";
 import { Button, Collapsible, CollapsibleContent, CollapsibleTrigger, Input } from "@akashnetwork/ui/components";
-import { NavArrowRight } from "iconoir-react";
+import { ChevronRight } from "lucide-react";
 
 import { supportedHosts } from "@src/components/deployments/ConfigureDeployment/ConfigurationPane/ImageCard/ImageCard";
 import type { SdlBuilderFormValuesType } from "@src/types";
@@ -55,7 +55,7 @@ export const UpdateImageSection: FC<UpdateImageSectionProps> = ({ serviceIndex, 
       {!isVm && (
         <Collapsible>
           <CollapsibleTrigger className="group flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
-            <NavArrowRight className="h-3 w-3 transition-transform group-data-[state=open]:rotate-90" aria-hidden="true" />
+            <ChevronRight className="h-3 w-3 transition-transform group-data-[state=open]:rotate-90" aria-hidden="true" />
             Private registry
           </CollapsibleTrigger>
           <CollapsibleContent className="pt-3">

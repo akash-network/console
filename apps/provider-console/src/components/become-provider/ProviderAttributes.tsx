@@ -25,8 +25,8 @@ import {
   TooltipTrigger
 } from "@akashnetwork/ui/components";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Plus, Trash } from "iconoir-react";
 import { useAtom } from "jotai";
+import { Plus, Trash2 } from "lucide-react";
 import { z } from "zod";
 
 import { useControlMachine } from "@src/context/ControlMachineProvider";
@@ -282,7 +282,7 @@ export const ProviderAttributes: React.FunctionComponent<ProviderAttributesProps
                         )}
                       />
                       <Button type="button" variant="outline" size="icon" onClick={() => remove(index)} disabled={isDefaultAttribute}>
-                        <Trash className="h-4 w-4" />
+                        <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
                   );

@@ -11,7 +11,7 @@ import {
   PaginationNext,
   PaginationPrevious
 } from "@akashnetwork/ui/components";
-import { NavArrowRight, Refresh } from "iconoir-react";
+import { ChevronRight, RefreshCw } from "lucide-react";
 
 import type { DeploymentsViewMode } from "@src/store/deploymentsViewStore";
 import type { ListedDeploymentDto } from "@src/types/deployment";
@@ -59,7 +59,7 @@ export const DeploymentArchive: FC<DeploymentArchiveProps> = ({
       <div className="flex flex-wrap items-center gap-3 py-8">
         <p className="text-sm text-muted-foreground">Couldn&apos;t load closed deployments.</p>
         <LoadingButton variant="outline" size="sm" loading={isRetrying} onClick={onRetry}>
-          <Refresh className="mr-2 h-4 w-4" />
+          <RefreshCw className="mr-2 h-4 w-4" />
           Retry
         </LoadingButton>
       </div>
@@ -75,7 +75,7 @@ export const DeploymentArchive: FC<DeploymentArchiveProps> = ({
   return (
     <Collapsible defaultOpen className="py-8">
       <CollapsibleTrigger className="group inline-flex items-center gap-2 text-xs font-medium uppercase tracking-wider text-muted-foreground transition-colors hover:text-foreground">
-        <NavArrowRight className="h-4 w-4 transition-transform group-data-[state=open]:rotate-90" />
+        <ChevronRight className="h-4 w-4 transition-transform group-data-[state=open]:rotate-90" />
         {totalCount === null ? "Archive" : `Archive // ${totalCount} closed`}
       </CollapsibleTrigger>
       <CollapsibleContent className="pt-4">

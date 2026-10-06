@@ -2,7 +2,7 @@
 import { useMemo } from "react";
 import { Alert, AlertDescription, AlertTitle, Button, buttonVariants } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
-import { WarningTriangle } from "iconoir-react";
+import { TriangleAlert } from "lucide-react";
 import Link from "next/link";
 
 import { isUsableDeploymentDefinition, sdlToRedeploy, useDeploymentDefinition } from "@src/hooks/useDeploymentDefinition/useDeploymentDefinition";
@@ -42,7 +42,7 @@ export const ReclamationBanner: React.FunctionComponent<Props> = ({ leases, dseq
 
   return (
     <Alert variant="warning" className={className}>
-      <WarningTriangle className="h-4 w-4" />
+      <TriangleAlert className="h-4 w-4" />
       <AlertTitle>This deployment is being reclaimed</AlertTitle>
       <AlertDescription>
         <p>

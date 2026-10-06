@@ -1,7 +1,7 @@
 "use client";
 import React from "react";
 import { useIntl } from "react-intl";
-import { Flash } from "iconoir-react";
+import { Zap } from "lucide-react";
 
 import type { EscrowedDeployment } from "./useAccountBalanceOverview";
 
@@ -107,7 +107,7 @@ export const BalanceBreakdownBar: React.FunctionComponent<{
                     style={{ left: `${marker.positionPct}%` }}
                     data-testid="balance-threshold-caption"
                   >
-                    <Flash className="h-3 w-3 shrink-0" />
+                    <Zap className="h-3 w-3 shrink-0" />
                     <span>
                       Tops up at <span className="font-medium text-foreground">{formatUsd(marker.amountUsd)}</span>
                     </span>

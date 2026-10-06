@@ -1,7 +1,7 @@
 "use client";
 import React, { useRef } from "react";
 import { styled } from "@mui/material/styles";
-import { Xmark } from "iconoir-react";
+import { X } from "lucide-react";
 import type { SnackbarKey } from "notistack";
 import { MaterialDesignContent, SnackbarProvider } from "notistack";
 import { blue, green } from "tailwindcss/colors";
@@ -55,7 +55,7 @@ export const CustomSnackbarProvider: React.FC<{ children: React.ReactNode }> = (
             variant="text"
             className="absolute right-2 top-2 h-6 w-6 rounded-full text-white hover:text-white/70"
           >
-            <Xmark className="text-xs" />
+            <X className="h-4 w-4" />
           </Button>
         </div>
       )}

@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { Button, Card, Separator, Tabs, TabsContent, TabsList, TabsTrigger } from "@akashnetwork/ui/components";
-import { Globe, RefreshCircle, Server, ShieldAlert } from "iconoir-react";
+import { Globe, RefreshCw, Server, ShieldAlert } from "lucide-react";
 import { useRouter } from "next/router";
 
 import { ProviderHealthCheck } from "@src/components/dashboard/ProviderHealthCheck";
@@ -47,7 +47,7 @@ const Remedies: React.FC = () => {
       <div className="flex items-center justify-between">
         <Title>Provider Troubleshooting</Title>
         <Button onClick={checkProviderStatus} disabled={isChecking} variant="outline" className="flex items-center gap-2">
-          <RefreshCircle className={`h-4 w-4 ${isChecking ? "animate-spin" : ""}`} />
+          <RefreshCw className={`h-4 w-4 ${isChecking ? "animate-spin" : ""}`} />
           Refresh Status
         </Button>
       </div>

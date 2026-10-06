@@ -1,7 +1,7 @@
 "use client";
 import type { Control, UseFieldArrayAppend } from "react-hook-form";
 import { Button, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@akashnetwork/ui/components";
-import { NavArrowDown } from "iconoir-react";
+import { ChevronDown } from "lucide-react";
 
 import type { SdlBuilderFormValuesType, ServiceType } from "@src/types";
 import { defaultPersistentStorage } from "@src/utils/sdl/data";
@@ -40,7 +40,7 @@ export const AddStorageButton: React.FunctionComponent<Props> = ({ services, ser
           <DropdownMenu modal={true}>
             <DropdownMenuTrigger asChild>
               <Button size="sm" data-testid="deployment-detail-dropdown" className="rounded-l-none rounded-r-md px-2" style={dropdownStyle}>
-                <NavArrowDown />
+                <ChevronDown className="h-5 w-5" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
