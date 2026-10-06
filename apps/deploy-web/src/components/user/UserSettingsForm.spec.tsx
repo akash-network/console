@@ -60,6 +60,26 @@ describe(UserSettingsForm.name, () => {
     );
   });
 
+  it("leaves the product update emails choice out when saving other settings", async () => {
+    const { saveSettings } = setup({
+      user: { bio: "Builds on Akash", youtubeUsername: "alice-yt", twitterUsername: "alice-x", githubUsername: null, productUpdatesUnsubscribedAt: null }
+    });
+
+    await userEvent.type(screen.getByPlaceholderText("https://github.com/"), "alice-gh");
+    await userEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() =>
+      expect(saveSettings).toHaveBeenCalledWith({
+        username: "alice",
+        bio: "Builds on Akash",
+        youtubeUsername: "alice-yt",
+        twitterUsername: "alice-x",
+        githubUsername: "alice-gh"
+      })
+    );
+    expect(saveSettings.mock.calls[0][0]).not.toHaveProperty("subscribedToProductUpdates");
+  });
+
   it("shows product update emails as on when the user has not opted out", () => {
     setup({ user: { productUpdatesUnsubscribedAt: null } });
 

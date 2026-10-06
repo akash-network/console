@@ -61,7 +61,7 @@ export const UserSettingsForm: FC<{ user: CustomUserProfile; dependencies?: type
     handleSubmit,
     control,
     watch,
-    formState: { isDirty, errors }
+    formState: { isDirty, dirtyFields, errors }
   } = form;
   const { mutate: saveSettings, isPending: isSaving } = useSaveSettings();
   const { username } = watch();
@@ -86,7 +86,8 @@ export const UserSettingsForm: FC<{ user: CustomUserProfile; dependencies?: type
   }, [user?.username, username]);
 
   async function onSubmit() {
-    saveSettings(getValues() as UserSettings);
+    const { subscribedToProductUpdates, ...settings } = getValues();
+    saveSettings((dirtyFields.subscribedToProductUpdates ? { ...settings, subscribedToProductUpdates } : settings) as UserSettings);
 
     analyticsService.track("user_settings_save", {
       category: "settings",
