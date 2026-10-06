@@ -103,10 +103,6 @@ export const DeploymentsList: React.FunctionComponent<Props> = ({ dependencies: 
                     }
                   />
 
-                  <Button aria-label="Refresh deployments" onClick={model.refetchDeployments} size="icon" variant="ghost">
-                    <RefreshCw className="h-5 w-5" />
-                  </Button>
-
                   <ToggleGroup type="single" value={model.viewMode} onValueChange={model.changeViewMode} variant="outline" className="gap-0 rounded-md border">
                     <ToggleGroupItem value="grid" aria-label="Grid view" className="rounded-r-none border-0">
                       <LayoutGrid className="h-4 w-4" />

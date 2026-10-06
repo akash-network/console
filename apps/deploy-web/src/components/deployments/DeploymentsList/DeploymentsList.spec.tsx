@@ -73,14 +73,6 @@ describe("DeploymentsList", () => {
     expect(changeSearch).toHaveBeenCalledWith("");
   });
 
-  it("refreshes on demand", async () => {
-    const { refetchDeployments } = setup({ hasAnyDeployment: true });
-
-    await userEvent.click(screen.getByRole("button", { name: "Refresh deployments" }));
-
-    expect(refetchDeployments).toHaveBeenCalled();
-  });
-
   it("switches to the list view on demand", async () => {
     const { changeViewMode } = setup({ hasAnyDeployment: true, viewMode: "grid" });
 
