@@ -237,6 +237,58 @@ describe(TxEventsService.name, () => {
       ]);
     });
 
+    it("extracts a lease closed event from the market module", async () => {
+      const { module } = await setup();
+      const service = module.get<TxEventsService>(TxEventsService);
+      const cometClient = module.get<MockProxy<Comet38Client>>(Comet38Client);
+      const blockResults: comet38.BlockResultsResponse = {
+        height: 1,
+        results: [
+          {
+            code: 0,
+            codespace: "",
+            data: Uint8Array.from([]),
+            events: [
+              {
+                type: "akash.market.v1.EventLeaseClosed",
+                attributes: [
+                  {
+                    key: "id",
+                    value:
+                      '{"owner":"akash1qh0f0h7jlq4x5gpxghrxvps5l09y7uuvcumcyd","dseq":"22350842","gseq":1,"oseq":1,"provider":"akash1provideraddressxxxxxxxxxxxxxxxxxxxxxx","bseq":0}'
+                  },
+                  { key: "reason", value: '"lease_closed_reason_manifest_timeout"' },
+                  { key: "msg_index", value: "0" }
+                ]
+              }
+            ],
+            gasWanted: 100000n,
+            gasUsed: 80000n
+          }
+        ],
+        validatorUpdates: [],
+        finalizeBlockEvents: []
+      };
+      cometClient.blockResults.mockResolvedValue(blockResults);
+
+      const result = await service.getBlockEvents(1, { source: "akash", module: "market", version: "v1", action: ["lease-closed"] });
+
+      expect(result).toEqual([
+        {
+          type: "akash.v1",
+          module: "market",
+          action: "lease-closed",
+          owner: "akash1qh0f0h7jlq4x5gpxghrxvps5l09y7uuvcumcyd",
+          dseq: "22350842",
+          gseq: 1,
+          oseq: 1,
+          provider: "akash1provideraddressxxxxxxxxxxxxxxxxxxxxxx",
+          bseq: 0,
+          reason: "lease_closed_reason_manifest_timeout"
+        }
+      ]);
+    });
+
     it("applies multiple filters in a single block fetch", async () => {
       const { module } = await setup();
       const service = module.get<TxEventsService>(TxEventsService);

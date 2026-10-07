@@ -79,6 +79,18 @@ describe(ChainEventsPollerService.name, () => {
           reason: "lease_closed_reason_unstable",
           deadline: "1749398400"
         }
+      },
+      {
+        eventName: eventKeyRegistry.eventLeaseClosed,
+        event: {
+          type: "akash.v1",
+          module: "market",
+          action: "lease-closed",
+          owner: "akash1qh0f0h7jlq4x5gpxghrxvps5l09y7uuvcumcyd",
+          dseq: "22350842",
+          provider: "akash1provideraddressxxxxxxxxxxxxxxxxxxxxxx",
+          reason: "lease_closed_reason_manifest_timeout"
+        }
       }
     ]);
   });
@@ -94,7 +106,7 @@ describe(ChainEventsPollerService.name, () => {
       CURRENT_HEIGHT + 1,
       expect.arrayContaining([
         { module: "deployment", version: "v1", source: "akash", action: ["deployment-closed"] },
-        { module: "market", version: "v1", source: "akash", action: ["lease-reclaim-started"] }
+        { module: "market", version: "v1", source: "akash", action: ["lease-reclaim-started", "lease-closed"] }
       ]),
       expect.any(AbortSignal)
     );
@@ -297,6 +309,15 @@ describe(ChainEventsPollerService.name, () => {
         provider: "akash1provideraddressxxxxxxxxxxxxxxxxxxxxxx",
         reason: "lease_closed_reason_unstable",
         deadline: "1749398400"
+      },
+      {
+        type: "akash.v1",
+        module: "market",
+        action: "lease-closed",
+        owner: "akash1qh0f0h7jlq4x5gpxghrxvps5l09y7uuvcumcyd",
+        dseq: "22350842",
+        provider: "akash1provideraddressxxxxxxxxxxxxxxxxxxxxxx",
+        reason: "lease_closed_reason_manifest_timeout"
       }
     ]);
 

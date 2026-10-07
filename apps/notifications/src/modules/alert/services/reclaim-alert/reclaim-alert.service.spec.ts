@@ -22,7 +22,7 @@ describe(ReclaimAlertService.name, () => {
 
       await service.alertFor(generateReclaimEvent(), onMessage);
 
-      expect(alertRepository.claimReclaimNotification).not.toHaveBeenCalled();
+      expect(alertRepository.claimNotification).not.toHaveBeenCalled();
       expect(onMessage).not.toHaveBeenCalled();
     });
 
@@ -32,14 +32,14 @@ describe(ReclaimAlertService.name, () => {
 
       await service.alertFor(generateReclaimEvent(), onMessage);
 
-      expect(alertRepository.claimReclaimNotification).not.toHaveBeenCalled();
+      expect(alertRepository.claimNotification).not.toHaveBeenCalled();
       expect(onMessage).not.toHaveBeenCalled();
     });
 
     it("skips when the reclaim notification was already claimed", async () => {
       const { service, alertRepository, onMessage } = await setup();
       alertRepository.findDeploymentClosedAlertByOwnerAndDseq.mockResolvedValue(generateGeneralAlert({ type: "CHAIN_EVENT", enabled: true }));
-      alertRepository.claimReclaimNotification.mockResolvedValue(undefined);
+      alertRepository.claimNotification.mockResolvedValue(undefined);
 
       await service.alertFor(generateReclaimEvent(), onMessage);
 
@@ -50,11 +50,11 @@ describe(ReclaimAlertService.name, () => {
       const { service, alertRepository, onMessage } = await setup();
       const alert = generateGeneralAlert({ type: "CHAIN_EVENT", enabled: true });
       alertRepository.findDeploymentClosedAlertByOwnerAndDseq.mockResolvedValue(alert);
-      alertRepository.claimReclaimNotification.mockResolvedValue(alert);
+      alertRepository.claimNotification.mockResolvedValue(alert);
 
       await service.alertFor(generateReclaimEvent({ dseq: "12345" }), onMessage);
 
-      expect(alertRepository.claimReclaimNotification).toHaveBeenCalledWith(alert.id);
+      expect(alertRepository.claimNotification).toHaveBeenCalledWith(alert.id, "reclaimNotifiedAt");
       expect(onMessage).toHaveBeenCalledTimes(1);
       expect(onMessage).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -71,7 +71,7 @@ describe(ReclaimAlertService.name, () => {
       const { service, alertRepository, onMessage } = await setup();
       const alert = generateGeneralAlert({ type: "CHAIN_EVENT", enabled: true });
       alertRepository.findDeploymentClosedAlertByOwnerAndDseq.mockResolvedValue(alert);
-      alertRepository.claimReclaimNotification.mockResolvedValue(alert);
+      alertRepository.claimNotification.mockResolvedValue(alert);
       const provider = mockAkashAddress();
 
       await service.alertFor(
