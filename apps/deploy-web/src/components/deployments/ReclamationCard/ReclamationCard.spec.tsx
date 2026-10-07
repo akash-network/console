@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
+import type { CloseOutcome } from "@src/hooks/useCloseDeployment/useCloseDeployment";
 import type { DeploymentDefinition } from "@src/hooks/useDeploymentDefinition/useDeploymentDefinition";
 import type { LeaseDto } from "@src/types/deployment";
 import { DEPENDENCIES, ReclamationCard } from "./ReclamationCard";
@@ -69,29 +70,81 @@ describe("ReclamationCard", () => {
     expect(screen.queryByRole("link", { name: "Start a new deployment" })).not.toBeInTheDocument();
   });
 
-  it("closes the deployment when confirmed", async () => {
+  it("closes the deployment when confirmed and refreshes once the close has landed", async () => {
     const onClosed = vi.fn();
-    const { wallet, confirm } = setup({ isConfirmed: true, onClosed });
+    const { closeDeployment, confirm } = setup({ isConfirmed: true, outcome: "closed", onClosed });
 
     await userEvent.click(screen.getByRole("button", { name: "Close & refund" }));
 
-    await waitFor(() => expect(wallet.signAndBroadcastTx).toHaveBeenCalled());
+    await waitFor(() => expect(onClosed).toHaveBeenCalled());
     expect(confirm.closeDeploymentConfirm).toHaveBeenCalledWith(["123"]);
-    expect(onClosed).toHaveBeenCalled();
+    expect(closeDeployment).toHaveBeenCalledWith("123");
+  });
+
+  it("leaves the refresh to the activity host while the close runs in the background", async () => {
+    const onClosed = vi.fn();
+    const { closeDeployment } = setup({ isConfirmed: true, outcome: "closing", onClosed });
+
+    await userEvent.click(screen.getByRole("button", { name: "Close & refund" }));
+
+    await waitFor(() => expect(closeDeployment).toHaveBeenCalled());
+    await waitFor(() => expect(screen.getByRole("button", { name: "Close & refund" })).toBeEnabled());
+    expect(onClosed).not.toHaveBeenCalled();
+  });
+
+  it("survives a close that lands with nothing to refresh", async () => {
+    const { closeDeployment } = setup({ isConfirmed: true, outcome: "closed" });
+
+    await userEvent.click(screen.getByRole("button", { name: "Close & refund" }));
+
+    await waitFor(() => expect(closeDeployment).toHaveBeenCalled());
+    await waitFor(() => expect(screen.getByRole("button", { name: "Close & refund" })).toBeEnabled());
+  });
+
+  it("keeps close disabled while the request to close is on its way", async () => {
+    setup({ isConfirmed: true, closeNeverAnswers: true });
+
+    await userEvent.click(screen.getByRole("button", { name: "Close & refund" }));
+
+    await waitFor(() => expect(screen.getByRole("button", { name: "Loading..." })).toBeDisabled());
   });
 
   it("does not close when the confirmation is declined", async () => {
-    const { wallet, confirm } = setup({ isConfirmed: false });
+    const { closeDeployment, confirm } = setup({ isConfirmed: false });
 
     await userEvent.click(screen.getByRole("button", { name: "Close & refund" }));
 
     await waitFor(() => expect(confirm.closeDeploymentConfirm).toHaveBeenCalled());
-    expect(wallet.signAndBroadcastTx).not.toHaveBeenCalled();
+    expect(closeDeployment).not.toHaveBeenCalled();
   });
 
-  function setup(input: { reason?: string; definition?: Partial<DeploymentDefinition>; isConfirmed?: boolean; onClosed?: () => void } = {}) {
-    const wallet = mock<ReturnType<typeof DEPENDENCIES.useWallet>>({ address: "akash1owner" });
-    wallet.signAndBroadcastTx.mockResolvedValue(true);
+  it("shows the close as under way and keeps it disabled while it runs in the background", () => {
+    setup({ closingDseqs: ["123"] });
+
+    expect(screen.getByRole("button", { name: "Closing…" })).toBeDisabled();
+    expect(screen.queryByRole("button", { name: "Close & refund" })).not.toBeInTheDocument();
+  });
+
+  it("keeps close available while only other deployments are closing", () => {
+    setup({ closingDseqs: ["42"] });
+
+    expect(screen.getByRole("button", { name: "Close & refund" })).toBeEnabled();
+  });
+
+  function setup(
+    input: {
+      reason?: string;
+      definition?: Partial<DeploymentDefinition>;
+      isConfirmed?: boolean;
+      outcome?: CloseOutcome;
+      closeNeverAnswers?: boolean;
+      closingDseqs?: string[];
+      onClosed?: () => void;
+    } = {}
+  ) {
+    const closeDeployment = input.closeNeverAnswers
+      ? vi.fn(() => new Promise<CloseOutcome>(() => undefined))
+      : vi.fn(async () => input.outcome ?? ("closing" as const));
 
     const confirm = mock<ReturnType<typeof DEPENDENCIES.useManagedDeploymentConfirm>>();
     confirm.closeDeploymentConfirm.mockResolvedValue(input.isConfirmed ?? true);
@@ -99,7 +152,8 @@ describe("ReclamationCard", () => {
     const definition: DeploymentDefinition = { sdl: "version: 2.0", name: undefined, source: "local", ...input.definition };
     const redeploy = vi.fn();
 
-    const useWallet: typeof DEPENDENCIES.useWallet = () => wallet;
+    const useCloseDeployment: typeof DEPENDENCIES.useCloseDeployment = () => closeDeployment;
+    const useClosingDeployments: typeof DEPENDENCIES.useClosingDeployments = () => new Set(input.closingDseqs ?? []);
     const useManagedDeploymentConfirm: typeof DEPENDENCIES.useManagedDeploymentConfirm = () => confirm;
     const useDeploymentDefinition: typeof DEPENDENCIES.useDeploymentDefinition = () => definition;
     const useRedeploy: typeof DEPENDENCIES.useRedeploy = () => redeploy;
@@ -122,10 +176,17 @@ describe("ReclamationCard", () => {
         lease={lease}
         dseq="123"
         onClosed={input.onClosed}
-        dependencies={MockComponents(DEPENDENCIES, { useWallet, useManagedDeploymentConfirm, useDeploymentDefinition, useRedeploy, useNewDeploymentUrl })}
+        dependencies={MockComponents(DEPENDENCIES, {
+          useCloseDeployment,
+          useClosingDeployments,
+          useManagedDeploymentConfirm,
+          useDeploymentDefinition,
+          useRedeploy,
+          useNewDeploymentUrl
+        })}
       />
     );
 
-    return { wallet, confirm, redeploy };
+    return { closeDeployment, confirm, redeploy };
   }
 });

@@ -5,16 +5,23 @@ import { cn } from "@akashnetwork/ui/utils";
 import { TriangleAlert } from "lucide-react";
 import Link from "next/link";
 
-import { useWallet } from "@src/context/WalletProvider";
+import { useCloseDeployment } from "@src/hooks/useCloseDeployment/useCloseDeployment";
+import { useClosingDeployments } from "@src/hooks/useClosingDeployments/useClosingDeployments";
 import { isUsableDeploymentDefinition, sdlToRedeploy, useDeploymentDefinition } from "@src/hooks/useDeploymentDefinition/useDeploymentDefinition";
 import { useManagedDeploymentConfirm } from "@src/hooks/useManagedDeploymentConfirm";
 import { useNewDeploymentUrl } from "@src/hooks/useNewDeploymentUrl/useNewDeploymentUrl";
 import { useRedeploy } from "@src/hooks/useRedeploy/useRedeploy";
 import type { LeaseDto } from "@src/types/deployment";
 import { getLeaseCloseReasonLabel } from "@src/utils/reclamationUtils";
-import { TransactionMessageData } from "@src/utils/TransactionMessageData";
 
-export const DEPENDENCIES = { useWallet, useManagedDeploymentConfirm, useDeploymentDefinition, useNewDeploymentUrl, useRedeploy };
+export const DEPENDENCIES = {
+  useCloseDeployment,
+  useClosingDeployments,
+  useManagedDeploymentConfirm,
+  useDeploymentDefinition,
+  useNewDeploymentUrl,
+  useRedeploy
+};
 
 type Props = {
   lease: LeaseDto;
@@ -29,12 +36,13 @@ type Props = {
  * deployment) + Redeploy. The live, still-running case is handled by ReclamationBanner.
  */
 export const ReclamationCard: React.FunctionComponent<Props> = ({ lease, dseq, onClosed, dependencies = DEPENDENCIES }) => {
-  const { useWallet, useManagedDeploymentConfirm, useDeploymentDefinition, useNewDeploymentUrl, useRedeploy } = dependencies;
-  const { address, signAndBroadcastTx } = useWallet();
+  const { useCloseDeployment, useClosingDeployments, useManagedDeploymentConfirm, useDeploymentDefinition, useNewDeploymentUrl, useRedeploy } = dependencies;
+  const closeDeployment = useCloseDeployment();
+  const isClosingInBackground = useClosingDeployments().has(dseq);
   const { closeDeploymentConfirm } = useManagedDeploymentConfirm();
   const newDeploymentUrl = useNewDeploymentUrl();
   const redeploy = useRedeploy();
-  const [isClosing, setIsClosing] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const reasonLabel = getLeaseCloseReasonLabel(lease.reclamation?.reason ?? lease.reason);
   const definition = useDeploymentDefinition(dseq, { acceptReferences: true });
@@ -44,13 +52,11 @@ export const ReclamationCard: React.FunctionComponent<Props> = ({ lease, dseq, o
     const isConfirmed = await closeDeploymentConfirm([dseq]);
     if (!isConfirmed) return;
 
-    setIsClosing(true);
+    setIsSubmitting(true);
     try {
-      const message = TransactionMessageData.getCloseDeploymentMsg(address, dseq);
-      const response = await signAndBroadcastTx([message]);
-      if (response) onClosed?.();
+      if ((await closeDeployment(dseq)) === "closed") onClosed?.();
     } finally {
-      setIsClosing(false);
+      setIsSubmitting(false);
     }
   };
 
@@ -63,8 +69,8 @@ export const ReclamationCard: React.FunctionComponent<Props> = ({ lease, dseq, o
           This deployment was stopped by the provider, so it&apos;s no longer running. Redeploy to get back online, or close it to recover any unused funds.
         </p>
         <div className="mt-3 flex flex-wrap items-center gap-2">
-          <Button variant="default" size="sm" onClick={confirmAndClose} disabled={isClosing}>
-            {isClosing ? <Spinner size="small" /> : "Close & refund"}
+          <Button variant="default" size="sm" onClick={confirmAndClose} disabled={isSubmitting || isClosingInBackground}>
+            {isSubmitting ? <Spinner size="small" /> : isClosingInBackground ? "Closing…" : "Close & refund"}
           </Button>
           {canRedeploy ? (
             <Button

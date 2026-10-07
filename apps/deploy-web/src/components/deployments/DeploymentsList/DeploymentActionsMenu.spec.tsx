@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { DeploymentCloseReasonInput } from "@src/components/deployments/CloseDeploymentDialog/closeDeploymentReasons";
+import type { CloseOutcome } from "@src/hooks/useCloseDeployment/useCloseDeployment";
 import type { DeploymentDefinition } from "@src/hooks/useDeploymentDefinition/useDeploymentDefinition";
 import type { AnalyticsService } from "@src/services/analytics/analytics.service";
 import type { DeploymentDto } from "@src/types/deployment";
@@ -89,16 +90,14 @@ describe("DeploymentActionsMenu", () => {
     expect(confirmCloseDeployment).toHaveBeenCalledWith({ dseqs: ["100"], name: "acme" });
   });
 
-  it("signs a close for that deployment, records why, and tells the list to refresh once it lands", async () => {
-    const { signAndBroadcastTx, onDeploymentClosed, recordCloseReason, analyticsService } = setup({});
+  it("closes that deployment, records why, and tells the list to refresh once it lands", async () => {
+    const { closeDeployment, onDeploymentClosed, recordCloseReason, analyticsService } = setup({ outcome: "closed" });
 
     await openMenu();
     await userEvent.click(screen.getByRole("menuitem", { name: /Close/ }));
 
     await vi.waitFor(() => expect(onDeploymentClosed).toHaveBeenCalled());
-    expect(signAndBroadcastTx).toHaveBeenCalledWith([
-      expect.objectContaining({ value: expect.objectContaining({ id: { owner: "akash1owner", dseq: BigInt(100) } }) })
-    ]);
+    expect(closeDeployment).toHaveBeenCalledWith("100");
     expect(recordCloseReason).toHaveBeenCalledWith(["100"], CLOSE_REASON);
     expect(analyticsService.track).toHaveBeenCalledWith("close_deployment", {
       category: "deployments",
@@ -107,25 +106,36 @@ describe("DeploymentActionsMenu", () => {
     });
   });
 
-  it("leaves the list alone when the transaction does not land", async () => {
-    const { signAndBroadcastTx, onDeploymentClosed, recordCloseReason, analyticsService } = setup({ broadcastResponse: undefined });
+  it("records why but leaves the refresh to the activity host while the close runs in the background", async () => {
+    const { onDeploymentClosed, recordCloseReason, analyticsService } = setup({ outcome: "closing" });
 
     await openMenu();
     await userEvent.click(screen.getByRole("menuitem", { name: /Close/ }));
 
-    await vi.waitFor(() => expect(signAndBroadcastTx).toHaveBeenCalled());
+    await vi.waitFor(() => expect(recordCloseReason).toHaveBeenCalledWith(["100"], CLOSE_REASON));
+    expect(analyticsService.track).toHaveBeenCalledWith("close_deployment", expect.objectContaining({ reason: "no_longer_needed" }));
+    expect(onDeploymentClosed).not.toHaveBeenCalled();
+  });
+
+  it("leaves the list alone when the deployment does not close", async () => {
+    const { closeDeployment, onDeploymentClosed, recordCloseReason, analyticsService } = setup({ outcome: "not_closed" });
+
+    await openMenu();
+    await userEvent.click(screen.getByRole("menuitem", { name: /Close/ }));
+
+    await vi.waitFor(() => expect(closeDeployment).toHaveBeenCalled());
     expect(onDeploymentClosed).not.toHaveBeenCalled();
     expect(recordCloseReason).not.toHaveBeenCalled();
     expect(analyticsService.track).not.toHaveBeenCalled();
   });
 
   it("survives a close on an archived card that has nothing to refresh", async () => {
-    const { signAndBroadcastTx } = setup({ onDeploymentClosed: undefined });
+    const { recordCloseReason } = setup({ outcome: "closed", onDeploymentClosed: undefined });
 
     await openMenu();
     await userEvent.click(screen.getByRole("menuitem", { name: /Close/ }));
 
-    await vi.waitFor(() => expect(signAndBroadcastTx).toHaveBeenCalled());
+    await vi.waitFor(() => expect(recordCloseReason).toHaveBeenCalled());
   });
 
   it("disables redeploy until the definition has resolved", async () => {
@@ -154,13 +164,13 @@ describe("DeploymentActionsMenu", () => {
   });
 
   it("leaves the list alone when the close is not confirmed", async () => {
-    const { signAndBroadcastTx, onDeploymentClosed, confirmCloseDeployment } = setup({ closeReason: null });
+    const { closeDeployment, onDeploymentClosed, confirmCloseDeployment } = setup({ closeReason: null });
 
     await openMenu();
     await userEvent.click(screen.getByRole("menuitem", { name: /Close/ }));
 
     await vi.waitFor(() => expect(confirmCloseDeployment).toHaveBeenCalled());
-    expect(signAndBroadcastTx).not.toHaveBeenCalled();
+    expect(closeDeployment).not.toHaveBeenCalled();
     expect(onDeploymentClosed).not.toHaveBeenCalled();
   });
 
@@ -172,12 +182,12 @@ describe("DeploymentActionsMenu", () => {
     state?: string;
     definition?: DeploymentDefinition;
     closeReason?: DeploymentCloseReasonInput | null;
-    broadcastResponse?: unknown;
+    outcome?: CloseOutcome;
     onDeploymentClosed?: undefined;
     isClosing?: boolean;
   }) {
     const changeDeploymentName = vi.fn();
-    const signAndBroadcastTx = vi.fn().mockResolvedValue("broadcastResponse" in input ? input.broadcastResponse : { transactionHash: "0x1" });
+    const closeDeployment = vi.fn(async () => input.outcome ?? ("closing" as const));
     const confirmCloseDeployment = vi.fn().mockResolvedValue("closeReason" in input ? input.closeReason : CLOSE_REASON);
     const recordCloseReason = vi.fn();
     const redeploy = vi.fn();
@@ -185,12 +195,12 @@ describe("DeploymentActionsMenu", () => {
     const analyticsService = mock<AnalyticsService>();
 
     const useLocalNotes: typeof DEPENDENCIES.useLocalNotes = () => mock<ReturnType<typeof DEPENDENCIES.useLocalNotes>>({ changeDeploymentName });
-    const useWallet: typeof DEPENDENCIES.useWallet = () => mock<ReturnType<typeof DEPENDENCIES.useWallet>>({ address: "akash1owner", signAndBroadcastTx });
     const useDeploymentDefinition = vi.fn<typeof DEPENDENCIES.useDeploymentDefinition>(
       () => input.definition ?? { sdl: "version: '2.0'", name: "acme", source: "local" }
     );
     const useCloseDeploymentConfirm: typeof DEPENDENCIES.useCloseDeploymentConfirm = () => ({ confirmCloseDeployment, recordCloseReason });
     const useRedeploy: typeof DEPENDENCIES.useRedeploy = () => redeploy;
+    const useCloseDeployment: typeof DEPENDENCIES.useCloseDeployment = () => closeDeployment;
 
     render(
       <TestContainerProvider services={{ analyticsService: () => analyticsService }}>
@@ -198,14 +208,14 @@ describe("DeploymentActionsMenu", () => {
           deployment={mock<DeploymentDto>({ dseq: "100", state: input.state ?? "active" })}
           onDeploymentClosed={"onDeploymentClosed" in input ? input.onDeploymentClosed : onDeploymentClosed}
           isClosing={input.isClosing}
-          dependencies={MockComponents(DEPENDENCIES, { useLocalNotes, useWallet, useDeploymentDefinition, useCloseDeploymentConfirm, useRedeploy })}
+          dependencies={MockComponents(DEPENDENCIES, { useLocalNotes, useDeploymentDefinition, useCloseDeploymentConfirm, useRedeploy, useCloseDeployment })}
         />
       </TestContainerProvider>
     );
 
     return {
       changeDeploymentName,
-      signAndBroadcastTx,
+      closeDeployment,
       redeploy,
       onDeploymentClosed,
       useDeploymentDefinition,
