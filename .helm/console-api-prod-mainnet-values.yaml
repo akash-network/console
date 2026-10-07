@@ -113,3 +113,9 @@ backgroundJobs:
     limits:
       # Boot is CPU-bound: the chart's 500m default stretches it to 20-30s.
       cpu: 2
+
+jobDefaults:
+  resources:
+    limits:
+      # Boot is CPU-bound: at the chart's 500m default a busy node slows it enough to time out the first DB connect.
+      cpu: 2
