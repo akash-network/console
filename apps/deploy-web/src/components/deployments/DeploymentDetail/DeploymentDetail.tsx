@@ -50,7 +50,9 @@ export const DEPENDENCIES = {
   DeploymentLeaseShell,
   ManifestUpdate,
   DeploymentSettings,
-  DeploymentUpdate
+  DeploymentUpdate,
+  // eslint-disable-next-line akash/dependencies-component-or-hook
+  createConfigureDraft
 };
 
 /** Matches Layout's default `container p-6` content column so every band lines up with the deployment list and the
@@ -120,11 +122,11 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq, dependencies
       if (definition.source === "resolving") return;
 
       if (leases && deployment?.state === "active" && leases.length === 0 && !deployment.groups?.some(g => g.state === "paused")) {
-        const draftId = isUsableDeploymentDefinition(definition) ? createConfigureDraft(sdlToRedeploy(definition), { name: definition.name }) : undefined;
+        const draftId = isUsableDeploymentDefinition(definition) ? d.createConfigureDraft(sdlToRedeploy(definition), { name: definition.name }) : undefined;
         router.replace(UrlService.configureDeployment({ dseq, draftId }));
       }
     },
-    [deployment?.state, deployment?.groups, definition.source, definition.sdl, definition.restoredSdl, definition.name, dseq, leases, router]
+    [deployment?.state, deployment?.groups, definition.source, definition.sdl, definition.restoredSdl, definition.name, dseq, leases, router, d]
   );
 
   const tabQuery = searchParams?.get("tab");

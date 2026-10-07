@@ -1,377 +1,533 @@
-import { describe, expect, it, vi } from "vitest";
+import { ApiError } from "@akashnetwork/openapi-sdk";
+import { createProxy } from "@akashnetwork/react-query-proxy";
+import { onlineManager, QueryClient } from "@tanstack/react-query";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { DeploymentIntent } from "../useDeploymentFlow/deploymentIntent";
-import type { DEPENDENCIES } from "./useConfigureDraft";
-import { createConfigureDraft, useConfigureDraft } from "./useConfigureDraft";
+import type { ConfigureDraftContent } from "./useConfigureDraft";
+import { createConfigureDraft, DEPENDENCIES, LEGACY_DRAFT_KEY_PREFIX, SAVE_DELAY_MS, useConfigureDraft } from "./useConfigureDraft";
 
-import { renderHook } from "@testing-library/react";
+import { act, waitFor } from "@testing-library/react";
+import { type RenderAppHookOptions, setupQuery } from "@tests/unit/query-client";
 
-const DRAFT_KEY_PREFIX = "configure-draft:";
+type ApiService = ReturnType<NonNullable<NonNullable<RenderAppHookOptions["services"]>["api"]>>;
+
+const ACCOUNT_DRAFT: ConfigureDraftContent = {
+  sdl: "account: sdl",
+  name: "web",
+  runtimeLimitHours: 24,
+  inheritSecretsFrom: "1234",
+  startingSdl: "starting: sdl",
+  placementRegions: { dcloud: ["us-east", "eu-west"] }
+};
 
 describe(useConfigureDraft.name, () => {
-  it("resolves the draft id from the URL when present", () => {
-    const { result, mintDraftId } = setup({ intent: { draftId: "draft-1" } });
-
-    expect(result.current.draftId).toBe("draft-1");
-    expect(mintDraftId).not.toHaveBeenCalled();
+  afterEach(() => {
+    vi.useRealTimers();
+    onlineManager.setOnline(true);
   });
 
-  it("mints a draft id when the URL carries none", () => {
-    const { result, mintDraftId } = setup({ mintedDraftId: "fresh-1" });
+  describe("draft id", () => {
+    it("resolves the draft id from the URL", async () => {
+      const { result, replace } = setup({ intent: { draftId: "from-url" }, accountDrafts: { "from-url": ACCOUNT_DRAFT } });
 
-    expect(result.current.draftId).toBe("fresh-1");
-    expect(mintDraftId).toHaveBeenCalledTimes(1);
-  });
-
-  it("writes a freshly minted id into the URL", () => {
-    const { replace } = setup({ mintedDraftId: "fresh-1" });
-
-    expect(replace).toHaveBeenCalledWith(expect.stringContaining("draftId=fresh-1"), undefined, { shallow: true });
-  });
-
-  it("does not rewrite the URL when it already carries a draft id", () => {
-    const { replace } = setup({ intent: { draftId: "draft-1" } });
-
-    expect(replace).not.toHaveBeenCalled();
-  });
-
-  it("exposes the persisted sdl for the active draft", () => {
-    const { result } = setup({ intent: { draftId: "draft-1" }, stored: { "draft-1": "version: '2.0'" } });
-
-    expect(result.current.persistedSdl).toBe("version: '2.0'");
-  });
-
-  it("has no persisted sdl when nothing is stored for the id", () => {
-    const { result } = setup({ intent: { draftId: "missing" } });
-
-    expect(result.current.persistedSdl).toBeUndefined();
-  });
-
-  it("saves the sdl for the active draft", () => {
-    const { result } = setup({ intent: { draftId: "draft-1" } });
-
-    result.current.save("version: '2.0'");
-
-    expect(storedSdl("draft-1")).toBe("version: '2.0'");
-  });
-
-  it("exposes the persisted name for the active draft", () => {
-    const { result } = setup({ intent: { draftId: "draft-1" }, storedName: { "draft-1": "my-app" } });
-
-    expect(result.current.persistedName).toBe("my-app");
-  });
-
-  it("has no persisted name when the stored draft omits one", () => {
-    const { result } = setup({ intent: { draftId: "draft-1" }, stored: { "draft-1": "version: '2.0'" } });
-
-    expect(result.current.persistedName).toBeUndefined();
-  });
-
-  it("saves the name alongside the sdl for the active draft", () => {
-    const { result } = setup({ intent: { draftId: "draft-1" } });
-
-    result.current.save("version: '2.0'", "my-app");
-
-    expect(storedName("draft-1")).toBe("my-app");
-  });
-
-  it("exposes the persisted runtime limit for the active draft", () => {
-    const { result } = setup({ intent: { draftId: "draft-1" }, storedRuntimeLimitHours: { "draft-1": 6 } });
-
-    expect(result.current.persistedRuntimeLimitHours).toBe(6);
-  });
-
-  it("has no persisted runtime limit when the stored draft omits one", () => {
-    const { result } = setup({ intent: { draftId: "draft-1" }, stored: { "draft-1": "version: '2.0'" } });
-
-    expect(result.current.persistedRuntimeLimitHours).toBeUndefined();
-  });
-
-  it("saves the runtime limit alongside the sdl for the active draft", () => {
-    const { result } = setup({ intent: { draftId: "draft-1" } });
-
-    result.current.save("version: '2.0'", "my-app", 6);
-
-    expect(storedRuntimeLimitHours("draft-1")).toBe(6);
-  });
-
-  it("exposes the persisted region picks for the active draft", () => {
-    const { result } = setup({
-      intent: { draftId: "draft-1" },
-      rawStored: { "draft-1": JSON.stringify({ sdl: "seeded", placementRegions: { dcloud: ["eu-west", "na-us-west"] }, updatedAt: 1 }) }
+      await waitFor(() => expect(result.current.isLoading).toBe(false));
+      expect(result.current.draftId).toBe("from-url");
+      expect(replace).not.toHaveBeenCalled();
     });
 
-    expect(result.current.persistedPlacementRegions).toEqual({ dcloud: ["eu-west", "na-us-west"] });
-  });
+    it("mints a draft id when the URL carries none and writes it into the URL", async () => {
+      const { result, replace, getConfigureDraft } = setup({ mintedDraftId: "minted" });
 
-  it("has no persisted region picks when the stored draft omits them or holds something else", () => {
-    const { result, rerender } = setup({
-      intent: { draftId: "draft-1" },
-      rawStored: {
-        "draft-1": JSON.stringify({ sdl: "seeded", updatedAt: 1 }),
-        "draft-2": JSON.stringify({ sdl: "seeded", placementRegions: null, updatedAt: 1 }),
-        "draft-3": JSON.stringify({ sdl: "seeded", placementRegions: "eu-west", updatedAt: 1 })
-      }
+      expect(result.current.draftId).toBe("minted");
+      expect(result.current.isLoading).toBe(false);
+      await waitFor(() => expect(replace).toHaveBeenCalledWith(expect.stringContaining("draftId=minted"), undefined, { shallow: true }));
+      expect(getConfigureDraft).not.toHaveBeenCalled();
     });
 
-    expect(result.current.persistedPlacementRegions).toBeUndefined();
+    it("stays loaded once the minted id lands in the URL, since the account has nothing under it", async () => {
+      const { result, replace, getConfigureDraft, followReplacedUrl } = setup({ mintedDraftId: "minted" });
+      await waitFor(() => expect(replace).toHaveBeenCalled());
 
-    rerender({ sdlStrategy: "edit", bidStrategy: "select", vm: false, draftId: "draft-2" });
-    expect(result.current.persistedPlacementRegions).toBeUndefined();
+      act(() => followReplacedUrl());
 
-    rerender({ sdlStrategy: "edit", bidStrategy: "select", vm: false, draftId: "draft-3" });
-    expect(result.current.persistedPlacementRegions).toBeUndefined();
-  });
-
-  it("saves the region picks alongside the sdl for the active draft", () => {
-    const { result } = setup({ intent: { draftId: "draft-1" } });
-
-    result.current.save("version: '2.0'", "my-app", 6, undefined, { dcloud: ["eu-west", "na-us-west"] });
-
-    expect(storedEntry("draft-1")).toEqual(
-      expect.objectContaining({ sdl: "version: '2.0'", name: "my-app", runtimeLimitHours: 6, placementRegions: { dcloud: ["eu-west", "na-us-west"] } })
-    );
-  });
-
-  it("exposes the deployment the draft inherits secrets from", () => {
-    const { result } = setup({
-      intent: { draftId: "draft-1" },
-      rawStored: { "draft-1": JSON.stringify({ sdl: "seeded", inheritSecretsFrom: "123", updatedAt: 1 }) }
+      expect(result.current.isLoading).toBe(false);
+      expect(result.current.draftId).toBe("minted");
+      expect(getConfigureDraft).not.toHaveBeenCalled();
     });
 
-    expect(result.current.persistedInheritSecretsFrom).toBe("123");
+    it("continues under a new id when the account cannot answer for the URL's draft, so that draft is never overwritten", async () => {
+      const { result, replace, updateConfigureDraft, followReplacedUrl } = setup({
+        intent: { draftId: "unreadable" },
+        mintedDraftId: "fresh",
+        failure: new ApiError(500, undefined, "GET /v1/configure-drafts/unreadable → 500")
+      });
+
+      await waitFor(() => expect(result.current.draftId).toBe("fresh"));
+      expect(result.current.persistedSdl).toBeUndefined();
+      await waitFor(() => expect(replace).toHaveBeenCalledWith(expect.stringContaining("draftId=fresh"), undefined, { shallow: true }));
+      act(() => followReplacedUrl());
+      expect(result.current.isLoading).toBe(false);
+
+      act(() => result.current.save("typed: sdl"));
+      act(() => vi.advanceTimersByTime(SAVE_DELAY_MS));
+
+      await waitFor(() => expect(updateConfigureDraft).toHaveBeenCalledWith({ draftId: "fresh", data: expect.objectContaining({ sdl: "typed: sdl" }) }));
+    });
   });
 
-  it("carries the inheritance forward when the sdl is saved again", () => {
-    const { result } = setup({
-      intent: { draftId: "draft-1" },
-      rawStored: { "draft-1": JSON.stringify({ sdl: "seeded", inheritSecretsFrom: "123", updatedAt: 1 }) }
+  describe("reading", () => {
+    it("reports loading while the account's draft is read, then exposes everything it holds", async () => {
+      const { result } = setup({ intent: { draftId: "resumed" }, accountDrafts: { resumed: ACCOUNT_DRAFT } });
+
+      expect(result.current.isLoading).toBe(true);
+      expect(result.current.persistedSdl).toBeUndefined();
+      await waitFor(() => expect(result.current.isLoading).toBe(false));
+      expect(result.current).toMatchObject({
+        persistedSdl: "account: sdl",
+        persistedName: "web",
+        persistedRuntimeLimitHours: 24,
+        persistedInheritSecretsFrom: "1234",
+        persistedStartingSdl: "starting: sdl",
+        persistedPlacementRegions: { dcloud: ["us-east", "eu-west"] }
+      });
     });
 
-    result.current.save("version: '2.0'", "my-app");
+    it("keeps loading while offline instead of starting a fresh session over the account's draft", async () => {
+      onlineManager.setOnline(false);
+      const { result, getConfigureDraft } = setup({ intent: { draftId: "resumed" }, accountDrafts: { resumed: ACCOUNT_DRAFT } });
 
-    expect(storedEntry("draft-1")).toEqual(expect.objectContaining({ sdl: "version: '2.0'", name: "my-app", inheritSecretsFrom: "123" }));
-  });
+      expect(result.current.isLoading).toBe(true);
+      expect(getConfigureDraft).not.toHaveBeenCalled();
 
-  it("exposes the sdl the draft started from", () => {
-    const { result } = setup({
-      intent: { draftId: "draft-1" },
-      rawStored: { "draft-1": JSON.stringify({ sdl: "edited", startingSdl: "template", updatedAt: 1 }) }
+      act(() => onlineManager.setOnline(true));
+
+      await waitFor(() => expect(result.current.persistedSdl).toBe("account: sdl"));
+      expect(result.current.isLoading).toBe(false);
     });
 
-    expect(result.current.persistedStartingSdl).toBe("template");
-  });
+    it("has nothing persisted for a draft the account does not have", async () => {
+      const { result } = setup({ intent: { draftId: "unknown" } });
 
-  it("has no starting sdl when the stored draft omits one", () => {
-    const { result } = setup({ intent: { draftId: "draft-1" }, stored: { "draft-1": "version: '2.0'" } });
-
-    expect(result.current.persistedStartingSdl).toBeUndefined();
-  });
-
-  it("saves the starting sdl alongside the working sdl", () => {
-    const { result } = setup({ intent: { draftId: "draft-1" } });
-
-    result.current.save("edited", "my-app", 6, "template");
-
-    expect(storedEntry("draft-1")).toEqual(expect.objectContaining({ sdl: "edited", name: "my-app", runtimeLimitHours: 6, startingSdl: "template" }));
-  });
-
-  it("forgets the inheritance on request and keeps the rest of the draft", () => {
-    const { result } = setup({
-      intent: { draftId: "draft-1" },
-      rawStored: { "draft-1": JSON.stringify({ sdl: "seeded", name: "my-app", inheritSecretsFrom: "123", updatedAt: 1 }) }
+      await waitFor(() => expect(result.current.isLoading).toBe(false));
+      expect(result.current.draftId).toBe("unknown");
+      expect(result.current.persistedSdl).toBeUndefined();
     });
 
-    result.current.dropInheritance();
+    it("picks up a draft this browser kept from before drafts moved to the account", async () => {
+      const { result } = setup({
+        intent: { draftId: "legacy" },
+        legacyDrafts: { legacy: JSON.stringify({ ...ACCOUNT_DRAFT, sdl: "browser: sdl", updatedAt: 1 }) }
+      });
 
-    expect(storedEntry("draft-1")).toEqual(expect.objectContaining({ sdl: "seeded", name: "my-app" }));
-    expect(storedEntry("draft-1")).not.toHaveProperty("inheritSecretsFrom");
-  });
-
-  it("clears the persisted draft", () => {
-    const { result } = setup({ intent: { draftId: "draft-1" }, stored: { "draft-1": "version: '2.0'" } });
-
-    result.current.clear();
-
-    expect(window.localStorage.getItem(`${DRAFT_KEY_PREFIX}draft-1`)).toBeNull();
-  });
-
-  it("follows the URL when it switches to a different draft on the same instance", () => {
-    const { result, rerender } = setup({
-      intent: { draftId: "draft-a" },
-      stored: { "draft-a": "sdl: a", "draft-b": "sdl: b" }
+      await waitFor(() => expect(result.current.persistedSdl).toBe("browser: sdl"));
+      expect(result.current).toMatchObject({
+        persistedName: "web",
+        persistedRuntimeLimitHours: 24,
+        persistedInheritSecretsFrom: "1234",
+        persistedStartingSdl: "starting: sdl",
+        persistedPlacementRegions: { dcloud: ["us-east", "eu-west"] }
+      });
     });
-    expect(result.current.persistedSdl).toBe("sdl: a");
 
-    rerender({ sdlStrategy: "edit", bidStrategy: "select", draftId: "draft-b", vm: false });
+    it("prefers the account's copy over one this browser still keeps", async () => {
+      const { result } = setup({
+        intent: { draftId: "both" },
+        accountDrafts: { both: ACCOUNT_DRAFT },
+        legacyDrafts: { both: JSON.stringify({ sdl: "browser: sdl" }) }
+      });
 
-    expect(result.current.draftId).toBe("draft-b");
-    expect(result.current.persistedSdl).toBe("sdl: b");
+      await waitFor(() => expect(result.current.persistedSdl).toBe("account: sdl"));
+    });
+
+    it.each([
+      ["an unreadable entry", "{not json"],
+      ["an entry without an sdl", JSON.stringify({ name: "web" })],
+      ["a null entry", "null"]
+    ])("ignores %s this browser kept", async (_case, raw) => {
+      const { result } = setup({ intent: { draftId: "broken" }, legacyDrafts: { broken: raw } });
+
+      await waitFor(() => expect(result.current.isLoading).toBe(false));
+      expect(result.current.persistedSdl).toBeUndefined();
+    });
+
+    it("leaves out fields this browser kept in a shape a draft never has", async () => {
+      const { result } = setup({
+        intent: { draftId: "odd" },
+        legacyDrafts: {
+          odd: JSON.stringify({
+            sdl: "browser: sdl",
+            name: 7,
+            runtimeLimitHours: "24",
+            inheritSecretsFrom: 1,
+            startingSdl: [],
+            placementRegions: { a: ["x"], b: "y" }
+          })
+        }
+      });
+
+      await waitFor(() => expect(result.current.persistedSdl).toBe("browser: sdl"));
+      expect(result.current).toMatchObject({
+        persistedName: undefined,
+        persistedRuntimeLimitHours: undefined,
+        persistedInheritSecretsFrom: undefined,
+        persistedStartingSdl: undefined,
+        persistedPlacementRegions: undefined
+      });
+    });
+
+    it("works without browser storage", async () => {
+      const { result } = setup({ intent: { draftId: "nostorage" }, getStorage: () => undefined });
+
+      await waitFor(() => expect(result.current.isLoading).toBe(false));
+      expect(result.current.persistedSdl).toBeUndefined();
+    });
+
+    it("exposes a draft handed over from outside the screen at once, without asking the account", () => {
+      const draftId = createConfigureDraft("uploaded: sdl", { name: "upload", inheritSecretsFrom: "99" }, mintingDependencies("handed-over"));
+      const { result, getConfigureDraft } = setup({ intent: { draftId } });
+
+      expect(result.current.isLoading).toBe(false);
+      expect(result.current).toMatchObject({
+        persistedSdl: "uploaded: sdl",
+        persistedStartingSdl: "uploaded: sdl",
+        persistedName: "upload",
+        persistedInheritSecretsFrom: "99"
+      });
+      expect(getConfigureDraft).not.toHaveBeenCalled();
+    });
   });
 
-  it("is a safe no-op when storage is unavailable", () => {
-    const { result } = setup({ intent: { draftId: "draft-1" }, getStorage: () => undefined });
+  describe("saving", () => {
+    it("sends the draft once typing settles, carrying the inheritance forward", async () => {
+      const { result, updateConfigureDraft } = await setupResumed();
 
-    expect(result.current.persistedSdl).toBeUndefined();
-    expect(() => result.current.save("sdl")).not.toThrow();
+      act(() => result.current.save("typed: sdl", "named", 12, "starting: sdl", { dcloud: ["us-east"] }));
+      act(() => vi.advanceTimersByTime(SAVE_DELAY_MS - 1));
+      expect(updateConfigureDraft).not.toHaveBeenCalled();
+      act(() => vi.advanceTimersByTime(1));
+
+      await waitFor(() =>
+        expect(updateConfigureDraft).toHaveBeenCalledWith({
+          draftId: "resumed",
+          data: {
+            sdl: "typed: sdl",
+            name: "named",
+            runtimeLimitHours: 12,
+            startingSdl: "starting: sdl",
+            placementRegions: { dcloud: ["us-east"] },
+            inheritSecretsFrom: "1234"
+          }
+        })
+      );
+    });
+
+    it("sends only the latest of saves made in quick succession", async () => {
+      const { result, updateConfigureDraft } = await setupResumed();
+
+      act(() => result.current.save("first: sdl"));
+      act(() => vi.advanceTimersByTime(SAVE_DELAY_MS / 2));
+      act(() => result.current.save("second: sdl"));
+      act(() => vi.advanceTimersByTime(SAVE_DELAY_MS));
+
+      await waitFor(() => expect(updateConfigureDraft).toHaveBeenCalledTimes(1));
+      expect(updateConfigureDraft).toHaveBeenCalledWith({ draftId: "resumed", data: expect.objectContaining({ sdl: "second: sdl" }) });
+    });
+
+    it("sends nothing for a save identical to the last one sent", async () => {
+      const { result, updateConfigureDraft } = await setupResumed();
+
+      act(() => result.current.save("same: sdl"));
+      act(() => vi.advanceTimersByTime(SAVE_DELAY_MS));
+      await waitFor(() => expect(updateConfigureDraft).toHaveBeenCalledTimes(1));
+      act(() => result.current.save("same: sdl"));
+      act(() => vi.advanceTimersByTime(SAVE_DELAY_MS));
+
+      await act(() => vi.advanceTimersByTimeAsync(SAVE_DELAY_MS));
+      expect(updateConfigureDraft).toHaveBeenCalledTimes(1);
+    });
+
+    it("sends a save again after the account refused it", async () => {
+      const { result, updateConfigureDraft } = await setupResumed({ saveFailure: new ApiError(500, undefined, "PUT → 500") });
+
+      act(() => result.current.save("same: sdl"));
+      act(() => vi.advanceTimersByTime(SAVE_DELAY_MS));
+      await waitFor(() => expect(updateConfigureDraft).toHaveBeenCalledTimes(1));
+      await new Promise(resolve => setTimeout(resolve, 0));
+      act(() => result.current.save("same: sdl"));
+      act(() => vi.advanceTimersByTime(SAVE_DELAY_MS));
+
+      await waitFor(() => expect(updateConfigureDraft).toHaveBeenCalledTimes(2));
+    });
+
+    it("forgets this browser's copy once the account has the draft, and reads the account's afterwards", async () => {
+      const { result, queryClient, getConfigureDraft, api, legacyEntry } = setup({
+        intent: { draftId: "legacy" },
+        legacyDrafts: { legacy: JSON.stringify({ sdl: "browser: sdl" }) }
+      });
+      await waitFor(() => expect(result.current.persistedSdl).toBe("browser: sdl"));
+
+      act(() => result.current.save("browser: sdl"));
+      act(() => vi.advanceTimersByTime(SAVE_DELAY_MS));
+
+      await waitFor(() => expect(legacyEntry("legacy")).toBeNull());
+      expect(queryClient.getQueryData(api.v1.getConfigureDraft.getKey({ draftId: "legacy" }))).toMatchObject({ data: { sdl: "browser: sdl" } });
+      expect(getConfigureDraft).toHaveBeenCalledTimes(1);
+    });
+
+    it("hands a draft from outside the screen to the account once its first save lands", async () => {
+      const draftId = createConfigureDraft("uploaded: sdl", {}, mintingDependencies("saved-upload"));
+      const first = setup({ intent: { draftId } });
+
+      act(() => first.result.current.save("typed: sdl"));
+      await act(() => vi.advanceTimersByTimeAsync(SAVE_DELAY_MS));
+      await waitFor(() => expect(first.updateConfigureDraft).toHaveBeenCalledTimes(1));
+      await waitFor(() => expect(first.queryClient.getQueryData(first.api.v1.getConfigureDraft.getKey({ draftId }))).toBeDefined());
+      const next = setup({ intent: { draftId } });
+
+      expect(next.result.current.isLoading).toBe(true);
+      await waitFor(() => expect(next.getConfigureDraft).toHaveBeenCalledWith({ draftId }));
+    });
+
+    it("sends a save still waiting when the screen goes away", async () => {
+      const { result, unmount, updateConfigureDraft } = await setupResumed();
+
+      act(() => result.current.save("leaving: sdl"));
+      unmount();
+
+      await waitFor(() => expect(updateConfigureDraft).toHaveBeenCalledWith({ draftId: "resumed", data: expect.objectContaining({ sdl: "leaving: sdl" }) }));
+    });
+
+    it("sends nothing when the screen goes away with nothing waiting", async () => {
+      const { unmount, updateConfigureDraft } = await setupResumed();
+
+      unmount();
+
+      await act(() => vi.advanceTimersByTimeAsync(SAVE_DELAY_MS));
+      expect(updateConfigureDraft).not.toHaveBeenCalled();
+    });
   });
 
-  it("degrades to a no-op when storage access throws", () => {
-    const blocked = mock<Storage>();
-    const reject = () => {
-      throw new DOMException("blocked", "SecurityError");
-    };
-    blocked.getItem.mockImplementation(reject);
-    blocked.setItem.mockImplementation(reject);
-    blocked.removeItem.mockImplementation(reject);
-    const { result } = setup({ intent: { draftId: "draft-1" }, getStorage: () => blocked });
+  describe("dropInheritance", () => {
+    it("sends the latest draft at once without the inheritance, and leaves it out of later saves", async () => {
+      const { result, updateConfigureDraft } = await setupResumed();
 
-    expect(result.current.persistedSdl).toBeUndefined();
-    expect(() => result.current.save("sdl")).not.toThrow();
-    expect(() => result.current.clear()).not.toThrow();
+      act(() => result.current.save("typed: sdl"));
+      act(() => result.current.dropInheritance());
+      await waitFor(() =>
+        expect(updateConfigureDraft).toHaveBeenCalledWith({
+          draftId: "resumed",
+          data: expect.objectContaining({ sdl: "typed: sdl", inheritSecretsFrom: undefined })
+        })
+      );
+      act(() => result.current.save("later: sdl"));
+      act(() => vi.advanceTimersByTime(SAVE_DELAY_MS));
+
+      await waitFor(() =>
+        expect(updateConfigureDraft).toHaveBeenLastCalledWith({
+          draftId: "resumed",
+          data: expect.objectContaining({ sdl: "later: sdl", inheritSecretsFrom: undefined })
+        })
+      );
+    });
+
+    it("keeps a save that was still waiting from bringing the inheritance back", async () => {
+      const { result, updateConfigureDraft } = await setupResumed();
+
+      act(() => result.current.save("typed: sdl"));
+      act(() => result.current.dropInheritance());
+      await act(() => vi.advanceTimersByTimeAsync(SAVE_DELAY_MS));
+
+      expect(updateConfigureDraft).toHaveBeenCalledTimes(1);
+      expect(updateConfigureDraft).toHaveBeenCalledWith({ draftId: "resumed", data: expect.objectContaining({ inheritSecretsFrom: undefined }) });
+    });
+
+    it("leaves the inheritance out of a save made before the account confirmed it was dropped", async () => {
+      const { result, updateConfigureDraft, answerSave } = await setupResumed({ isSaveAnsweredByHand: true });
+
+      act(() => result.current.dropInheritance());
+      await waitFor(() => expect(updateConfigureDraft).toHaveBeenCalledTimes(1));
+      act(() => result.current.save("later: sdl"));
+      await act(() => vi.advanceTimersByTimeAsync(SAVE_DELAY_MS));
+      act(() => answerSave(0));
+
+      await waitFor(() => expect(updateConfigureDraft).toHaveBeenCalledTimes(2));
+      expect(updateConfigureDraft).toHaveBeenLastCalledWith({
+        draftId: "resumed",
+        data: expect.objectContaining({ sdl: "later: sdl", inheritSecretsFrom: undefined })
+      });
+    });
+
+    it("sends the stored draft without the inheritance when nothing was saved yet", async () => {
+      const { result, updateConfigureDraft } = await setupResumed();
+
+      act(() => result.current.dropInheritance());
+
+      await waitFor(() =>
+        expect(updateConfigureDraft).toHaveBeenCalledWith({
+          draftId: "resumed",
+          data: expect.objectContaining({ sdl: "account: sdl", inheritSecretsFrom: undefined })
+        })
+      );
+    });
+
+    it("sends nothing for a session with no draft yet", async () => {
+      const { result, updateConfigureDraft } = setup({ mintedDraftId: "minted" });
+
+      act(() => result.current.dropInheritance());
+
+      await act(() => vi.advanceTimersByTimeAsync(SAVE_DELAY_MS));
+      expect(updateConfigureDraft).not.toHaveBeenCalled();
+    });
   });
 
-  it("ignores an unreadable entry instead of throwing", () => {
-    const { result } = setup({ intent: { draftId: "draft-1" }, rawStored: { "draft-1": "not json" } });
+  describe("clear", () => {
+    it("discards the draft at the account, along with this browser's copy and any save still waiting", async () => {
+      const { result, updateConfigureDraft, deleteConfigureDraft, legacyEntry } = setup({
+        intent: { draftId: "legacy" },
+        legacyDrafts: { legacy: JSON.stringify({ sdl: "browser: sdl" }) }
+      });
+      await waitFor(() => expect(result.current.persistedSdl).toBe("browser: sdl"));
 
-    expect(result.current.persistedSdl).toBeUndefined();
+      act(() => result.current.save("typed: sdl"));
+      act(() => result.current.clear());
+      act(() => result.current.save("after: sdl"));
+      act(() => vi.advanceTimersByTime(SAVE_DELAY_MS));
+
+      await waitFor(() => expect(deleteConfigureDraft).toHaveBeenCalledWith({ draftId: "legacy" }));
+      expect(legacyEntry("legacy")).toBeNull();
+      expect(updateConfigureDraft).not.toHaveBeenCalled();
+    });
+
+    it("discards the draft only once a save already sent has landed, so that save cannot bring it back", async () => {
+      const { result, updateConfigureDraft, deleteConfigureDraft, answerSave } = await setupResumed({ isSaveAnsweredByHand: true });
+
+      act(() => result.current.save("typed: sdl"));
+      await act(() => vi.advanceTimersByTimeAsync(SAVE_DELAY_MS));
+      await waitFor(() => expect(updateConfigureDraft).toHaveBeenCalledTimes(1));
+      act(() => result.current.clear());
+      await act(() => vi.advanceTimersByTimeAsync(SAVE_DELAY_MS));
+      expect(deleteConfigureDraft).not.toHaveBeenCalled();
+
+      act(() => answerSave(0));
+
+      await waitFor(() => expect(deleteConfigureDraft).toHaveBeenCalledWith({ draftId: "resumed" }));
+    });
+
+    it("lets go of a draft handed over from outside the screen", async () => {
+      const draftId = createConfigureDraft("uploaded: sdl", {}, mintingDependencies("discarded-upload"));
+      const first = setup({ intent: { draftId } });
+
+      act(() => first.result.current.clear());
+      const next = setup({ intent: { draftId } });
+
+      await waitFor(() => expect(next.result.current.isLoading).toBe(false));
+      expect(next.result.current.persistedSdl).toBeUndefined();
+    });
+
+    it("leaves no copy of the discarded draft for the next screen to open", async () => {
+      const { result, deleteConfigureDraft, cachedAccountDraft } = await setupResumed();
+
+      act(() => result.current.clear());
+
+      await waitFor(() => expect(deleteConfigureDraft).toHaveBeenCalled());
+      await waitFor(() => expect(cachedAccountDraft("resumed")).toBeNull());
+    });
+
+    it("leaves no copy of the discarded draft behind when a save lands during the discard", async () => {
+      const { result, updateConfigureDraft, deleteConfigureDraft, answerSave, cachedAccountDraft } = await setupResumed({ isSaveAnsweredByHand: true });
+      act(() => result.current.save("typed: sdl"));
+      await act(() => vi.advanceTimersByTimeAsync(SAVE_DELAY_MS));
+      await waitFor(() => expect(updateConfigureDraft).toHaveBeenCalledTimes(1));
+      act(() => result.current.clear());
+
+      act(() => answerSave(0));
+
+      await waitFor(() => expect(deleteConfigureDraft).toHaveBeenCalled());
+      await waitFor(() => expect(cachedAccountDraft("resumed")).toBeNull());
+    });
   });
 
-  it("caps the number of stored drafts, evicting the least recently updated", () => {
-    const { result, rerender } = setup({ intent: { draftId: "draft-0" } });
-    let clock = 1;
-    const nowSpy = vi.spyOn(Date, "now").mockImplementation(() => clock++);
-
-    for (let index = 0; index < 25; index++) {
-      rerender({ sdlStrategy: "edit", bidStrategy: "select", draftId: `draft-${index}`, vm: false });
-      result.current.save(`sdl-${index}`);
-    }
-    nowSpy.mockRestore();
-
-    expect(countDrafts()).toBe(20);
-    expect(window.localStorage.getItem(`${DRAFT_KEY_PREFIX}draft-0`)).toBeNull();
-    expect(window.localStorage.getItem(`${DRAFT_KEY_PREFIX}draft-24`)).not.toBeNull();
+  describe(createConfigureDraft.name, () => {
+    it("returns a freshly minted id", () => {
+      expect(createConfigureDraft("uploaded: sdl", {}, mintingDependencies("minted-for-upload"))).toBe("minted-for-upload");
+    });
   });
 
-  function storedSdl(draftId: string) {
-    const raw = window.localStorage.getItem(`${DRAFT_KEY_PREFIX}${draftId}`);
-    return raw ? (JSON.parse(raw) as { sdl: string }).sdl : undefined;
+  async function setupResumed(input: { saveFailure?: Error; isSaveAnsweredByHand?: boolean } = {}) {
+    const view = setup({ intent: { draftId: "resumed" }, accountDrafts: { resumed: ACCOUNT_DRAFT }, ...input });
+    await waitFor(() => expect(view.result.current.isLoading).toBe(false));
+    return view;
   }
 
-  function storedName(draftId: string) {
-    const raw = window.localStorage.getItem(`${DRAFT_KEY_PREFIX}${draftId}`);
-    return raw ? (JSON.parse(raw) as { name?: string }).name : undefined;
-  }
-
-  function storedRuntimeLimitHours(draftId: string) {
-    const raw = window.localStorage.getItem(`${DRAFT_KEY_PREFIX}${draftId}`);
-    return raw ? (JSON.parse(raw) as { runtimeLimitHours?: number }).runtimeLimitHours : undefined;
-  }
-
-  function countDrafts() {
-    return Object.keys(window.localStorage).filter(key => key.startsWith(DRAFT_KEY_PREFIX)).length;
-  }
-
-  function storedEntry(draftId: string) {
-    const raw = window.localStorage.getItem(`${DRAFT_KEY_PREFIX}${draftId}`);
-    return raw ? (JSON.parse(raw) as Record<string, unknown>) : undefined;
+  function mintingDependencies(draftId: string): typeof DEPENDENCIES {
+    return { ...DEPENDENCIES, mintDraftId: () => draftId };
   }
 
   function setup(input: {
     intent?: Partial<DeploymentIntent>;
-    stored?: Record<string, string>;
-    storedName?: Record<string, string>;
-    storedRuntimeLimitHours?: Record<string, number>;
-    rawStored?: Record<string, string>;
-    getStorage?: typeof DEPENDENCIES.getStorage;
+    accountDrafts?: Record<string, ConfigureDraftContent>;
+    legacyDrafts?: Record<string, string>;
+    failure?: Error;
+    saveFailure?: Error;
+    isSaveAnsweredByHand?: boolean;
     mintedDraftId?: string;
+    getStorage?: typeof DEPENDENCIES.getStorage;
   }) {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
     window.localStorage.clear();
-    Object.entries(input.stored ?? {}).forEach(([draftId, sdl]) =>
-      window.localStorage.setItem(`${DRAFT_KEY_PREFIX}${draftId}`, JSON.stringify({ sdl, updatedAt: 1 }))
-    );
-    Object.entries(input.storedName ?? {}).forEach(([draftId, name]) =>
-      window.localStorage.setItem(`${DRAFT_KEY_PREFIX}${draftId}`, JSON.stringify({ sdl: "seeded", name, updatedAt: 1 }))
-    );
-    Object.entries(input.storedRuntimeLimitHours ?? {}).forEach(([draftId, runtimeLimitHours]) =>
-      window.localStorage.setItem(`${DRAFT_KEY_PREFIX}${draftId}`, JSON.stringify({ sdl: "seeded", runtimeLimitHours, updatedAt: 1 }))
-    );
-    Object.entries(input.rawStored ?? {}).forEach(([draftId, raw]) => window.localStorage.setItem(`${DRAFT_KEY_PREFIX}${draftId}`, raw));
+    Object.entries(input.legacyDrafts ?? {}).forEach(([draftId, raw]) => window.localStorage.setItem(`${LEGACY_DRAFT_KEY_PREFIX}${draftId}`, raw));
 
+    const getConfigureDraft = vi.fn(({ draftId }: { draftId: string }) => {
+      if (input.failure) return Promise.reject(input.failure);
+      const draft = input.accountDrafts?.[draftId];
+      return draft
+        ? Promise.resolve({ data: { ...draft, draftId, updatedAt: "2026-10-06T12:00:00.000Z" } })
+        : Promise.reject(new ApiError(404, undefined, "→ 404"));
+    });
+    const pendingSaves: (() => void)[] = [];
+    const updateConfigureDraft = vi.fn(({ draftId, data }: { draftId: string; data: ConfigureDraftContent }) => {
+      if (input.saveFailure) return Promise.reject(input.saveFailure);
+      const answer = { data: { ...data, draftId, updatedAt: "2026-10-06T12:00:01.000Z" } };
+      return input.isSaveAnsweredByHand ? new Promise<typeof answer>(resolve => pendingSaves.push(() => resolve(answer))) : Promise.resolve(answer);
+    });
+    const deleteConfigureDraft = vi.fn(() => Promise.resolve(undefined));
+    const api = createProxy({ v1: { getConfigureDraft, updateConfigureDraft, deleteConfigureDraft } }) as unknown as ApiService;
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
     const replace = vi.fn();
-    const mintDraftId = vi.fn(() => input.mintedDraftId ?? "minted-id");
     const dependencies: typeof DEPENDENCIES = {
       getStorage: input.getStorage ?? (() => window.localStorage),
       useRouter: () => mock<ReturnType<typeof DEPENDENCIES.useRouter>>({ replace }),
-      mintDraftId
+      useServices: () => ({ api }) as unknown as ReturnType<typeof DEPENDENCIES.useServices>,
+      useQueryClient: () => queryClient,
+      mintDraftId: () => input.mintedDraftId ?? "minted-id"
     };
-    const initialProps: DeploymentIntent = { sdlStrategy: "edit", bidStrategy: "select", vm: false, ...input.intent };
+    let intent: DeploymentIntent = { sdlStrategy: "edit", bidStrategy: "select", vm: false, ...input.intent };
+
+    const view = setupQuery(() => useConfigureDraft(intent, dependencies), { services: { api: () => api, queryClient: () => queryClient } });
+    const legacyEntry = (draftId: string) => window.localStorage.getItem(`${LEGACY_DRAFT_KEY_PREFIX}${draftId}`);
+    const cachedAccountDraft = (draftId: string) => queryClient.getQueryData(api.v1.getConfigureDraft.getKey({ draftId }));
+
+    const answerSave = (index: number) => pendingSaves[index]();
+    const followReplacedUrl = () => {
+      const [url] = replace.mock.lastCall as [string];
+      intent = { ...intent, draftId: new URL(url, "http://localhost").searchParams.get("draftId") ?? undefined };
+      view.rerender();
+    };
 
     return {
-      ...renderHook((intent: DeploymentIntent) => useConfigureDraft(intent, dependencies), { initialProps }),
+      ...view,
+      api,
+      queryClient,
       replace,
-      mintDraftId
+      getConfigureDraft,
+      updateConfigureDraft,
+      deleteConfigureDraft,
+      legacyEntry,
+      cachedAccountDraft,
+      answerSave,
+      followReplacedUrl
     };
-  }
-});
-
-describe(createConfigureDraft.name, () => {
-  it("persists the sdl under a freshly minted id and returns that id", () => {
-    const { create } = setup({ mintedDraftId: "fresh-1" });
-
-    const draftId = create("version: '2.0'");
-
-    expect(draftId).toBe("fresh-1");
-    expect(readSdl("fresh-1")).toBe("version: '2.0'");
-  });
-
-  it("returns the minted id without throwing when storage is unavailable", () => {
-    const { create } = setup({ mintedDraftId: "fresh-1", getStorage: () => undefined });
-
-    expect(create("version: '2.0'")).toBe("fresh-1");
-  });
-
-  it("persists the deployment name alongside the sdl when one is given", () => {
-    const { create } = setup({ mintedDraftId: "fresh-1" });
-
-    create("version: '2.0'", { name: "my-app" });
-
-    expect(readEntry("fresh-1")).toEqual(expect.objectContaining({ sdl: "version: '2.0'", name: "my-app" }));
-  });
-
-  it("records the sdl as the one a reset restores", () => {
-    const { create } = setup({ mintedDraftId: "fresh-1" });
-
-    create("version: '2.0'");
-
-    expect(readEntry("fresh-1")).toEqual(expect.objectContaining({ startingSdl: "version: '2.0'" }));
-  });
-
-  it("persists the deployment to inherit secrets from alongside the sdl when one is given", () => {
-    const { create } = setup({ mintedDraftId: "fresh-1" });
-
-    create("version: '2.0'", { name: "my-app", inheritSecretsFrom: "123" });
-
-    expect(readEntry("fresh-1")).toEqual(expect.objectContaining({ sdl: "version: '2.0'", inheritSecretsFrom: "123" }));
-  });
-
-  function readSdl(draftId: string) {
-    return readEntry(draftId)?.sdl;
-  }
-
-  function readEntry(draftId: string) {
-    const raw = window.localStorage.getItem(`${DRAFT_KEY_PREFIX}${draftId}`);
-    return raw ? (JSON.parse(raw) as { sdl: string; name?: string; inheritSecretsFrom?: string; startingSdl?: string }) : undefined;
-  }
-
-  function setup(input: { mintedDraftId?: string; getStorage?: typeof DEPENDENCIES.getStorage }) {
-    window.localStorage.clear();
-    const dependencies: typeof DEPENDENCIES = {
-      getStorage: input.getStorage ?? (() => window.localStorage),
-      useRouter: () => mock<ReturnType<typeof DEPENDENCIES.useRouter>>({}),
-      mintDraftId: vi.fn(() => input.mintedDraftId ?? "minted-id")
-    };
-    return { create: (sdl: string, options?: Parameters<typeof createConfigureDraft>[1]) => createConfigureDraft(sdl, options, dependencies) };
   }
 });

@@ -64,8 +64,9 @@ export const ConfigureDeployment: FC<Props> = ({ dependencies: d = DEPENDENCIES 
   const deploySdl = useAtomValue(sdlStore.deploySdl);
   const hardcodedTemplate: TemplateCreation | undefined = templateId ? hardcodedTemplates.find(template => template.code === templateId) : undefined;
   const isDraftRestored = draft.persistedSdl !== undefined;
-  const fetchedTemplateId = isDraftRestored || hardcodedTemplate ? undefined : templateId;
-  const fetchedUserTemplateId = isDraftRestored ? undefined : intent.userTemplateId;
+  const isAwaitingDraft = draft.isLoading || isDraftRestored;
+  const fetchedTemplateId = isAwaitingDraft || hardcodedTemplate ? undefined : templateId;
+  const fetchedUserTemplateId = isAwaitingDraft ? undefined : intent.userTemplateId;
   const templateQuery = d.usePublicTemplate(fetchedTemplateId);
   const userTemplateQuery = d.useUserTemplate(fetchedUserTemplateId);
   const { enqueueSnackbar } = d.useSnackbar();
@@ -122,19 +123,21 @@ export const ConfigureDeployment: FC<Props> = ({ dependencies: d = DEPENDENCIES 
   // the single flow both branches share — keyed by the draft so a draft change remounts a fresh flow, while an
   // auto↔manual switch within one draft keeps it. It sits below the guard so the flow only mounts once the guard has
   // settled the dseq. The template-loading spinner stays above the provider so the trial isn't started mid-fetch.
+  const loadingScreen = (
+    <d.Layout background="white" disableContainer containerClassName="flex h-[calc(100vh-57px)] flex-col">
+      <d.NextSeo title="Configure your deployment" />
+      <div className="flex flex-1 items-center justify-center">
+        <Spinner size="large" />
+      </div>
+    </d.Layout>
+  );
+
+  if (draft.isLoading) return loadingScreen;
+
   return (
     <d.ResumeDeploymentGuard intent={resolvedIntent} canResume={isAutoDeploy && !!initialSdl}>
       {resume => {
-        if (isTemplateLoading) {
-          return (
-            <d.Layout background="white" disableContainer containerClassName="flex h-[calc(100vh-57px)] flex-col">
-              <d.NextSeo title="Configure your deployment" />
-              <div className="flex flex-1 items-center justify-center">
-                <Spinner size="large" />
-              </div>
-            </d.Layout>
-          );
-        }
+        if (isTemplateLoading) return loadingScreen;
 
         return (
           <d.DeploymentFlowProvider key={draft.draftId} intent={resolvedIntent}>
