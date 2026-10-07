@@ -6,19 +6,18 @@ import { Ellipsis, SquarePen, SquareX, Upload } from "lucide-react";
 
 import { useLocalNotes } from "@src/components/LocalNoteManager";
 import { useServices } from "@src/context/ServicesProvider";
-import { useWallet } from "@src/context/WalletProvider";
+import { useCloseDeployment } from "@src/hooks/useCloseDeployment/useCloseDeployment";
 import { useCloseDeploymentConfirm } from "@src/hooks/useCloseDeploymentConfirm";
 import { isUsableDeploymentDefinition, sdlToRedeploy, useDeploymentDefinition } from "@src/hooks/useDeploymentDefinition/useDeploymentDefinition";
 import { useRedeploy } from "@src/hooks/useRedeploy/useRedeploy";
 import type { DeploymentDto } from "@src/types/deployment";
-import { TransactionMessageData } from "@src/utils/TransactionMessageData";
 
 export const DEPENDENCIES = {
   useLocalNotes,
-  useWallet,
   useDeploymentDefinition,
   useCloseDeploymentConfirm,
-  useRedeploy
+  useRedeploy,
+  useCloseDeployment
 };
 
 export interface DeploymentActionsMenuProps {
@@ -32,25 +31,25 @@ export const DeploymentActionsMenu: FC<DeploymentActionsMenuProps> = ({ deployme
   const [isOpen, setIsOpen] = useState(false);
   const { analyticsService } = useServices();
   const { changeDeploymentName } = d.useLocalNotes();
-  const { address, signAndBroadcastTx } = d.useWallet();
   const { confirmCloseDeployment, recordCloseReason } = d.useCloseDeploymentConfirm();
+  const closeDeployment = d.useCloseDeployment();
   const redeploy = d.useRedeploy();
   /** Only once the menu is open, so a page of cards does not each fire a deployment read on mount. */
   const definition = d.useDeploymentDefinition(isOpen ? deployment.dseq : null, { acceptReferences: true });
   const isResolvingDefinition = definition.source === "resolving";
   const canRedeploy = isResolvingDefinition || isUsableDeploymentDefinition(definition);
 
-  const closeDeployment = async () => {
+  const confirmAndClose = async () => {
     setIsOpen(false);
 
     const closeReason = await confirmCloseDeployment({ dseqs: [deployment.dseq], name: definition.name });
     if (!closeReason) return;
 
-    const response = await signAndBroadcastTx([TransactionMessageData.getCloseDeploymentMsg(address, deployment.dseq)]);
-    if (!response) return;
+    const outcome = await closeDeployment(deployment.dseq);
+    if (outcome === "not_closed") return;
 
     recordCloseReason([deployment.dseq], closeReason);
-    onDeploymentClosed?.();
+    if (outcome === "closed") onDeploymentClosed?.();
     analyticsService.track("close_deployment", { category: "deployments", label: "Close deployment from list", reason: closeReason.closeReason });
   };
 
@@ -76,7 +75,7 @@ export const DeploymentActionsMenu: FC<DeploymentActionsMenuProps> = ({ deployme
           </DropdownMenuItem>
         )}
         {deployment.state === "active" && (
-          <DropdownMenuItem onSelect={closeDeployment} disabled={isClosing}>
+          <DropdownMenuItem onSelect={confirmAndClose} disabled={isClosing}>
             <SquareX className="mr-2 h-4 w-4" />
             {isClosing ? "Closing…" : "Close"}
           </DropdownMenuItem>
