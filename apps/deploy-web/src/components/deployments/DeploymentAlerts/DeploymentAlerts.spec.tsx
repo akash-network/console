@@ -199,6 +199,7 @@ describe(DeploymentAlertsView.name, () => {
     setup({ isClosedAlertFlagOn: false });
 
     expect(screen.queryByRole("checkbox", { name: "Deployment Closed" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { level: 3, name: "Types" })).not.toBeInTheDocument();
     expect(screen.getByRole("combobox", { name: "Notification channel" })).toBeInTheDocument();
   });
 

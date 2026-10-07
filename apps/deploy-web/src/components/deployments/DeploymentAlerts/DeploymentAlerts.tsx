@@ -126,12 +126,14 @@ export const DeploymentAlertsView: FC<ChildrenProps & Props> = ({
     <FormProvider {...form}>
       <form onSubmit={form.handleSubmit(submit)}>
         <Card className={CARD_CLASSES}>
-          <div className={CARD_BLOCK_CLASSES}>
-            <CardOverline>Types</CardOverline>
-            {isDeploymentClosedEnabled && <d.DeploymentCloseAlert disabled={isLocked} />}
-          </div>
+          {isDeploymentClosedEnabled && (
+            <div className={cn(CARD_BLOCK_CLASSES, "border-b")}>
+              <CardOverline>Types</CardOverline>
+              <d.DeploymentCloseAlert disabled={isLocked} />
+            </div>
+          )}
 
-          <div className={cn(CARD_BLOCK_CLASSES, "border-t")}>
+          <div className={CARD_BLOCK_CLASSES}>
             <CardOverline>Recipients</CardOverline>
             <div className="space-y-2">
               <d.NotificationChannelSelect name="deploymentClosed.notificationChannelId" disabled={isLocked} isLabelHidden />
