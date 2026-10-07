@@ -130,7 +130,7 @@ export const ResumeDeploymentGuard: FC<Props> = ({ intent, canResume, children, 
   }
 
   return (
-    <d.Layout background="white" disableContainer containerClassName="flex h-[calc(100vh-57px)] flex-col">
+    <d.Layout background="white" disableContainer containerClassName="flex h-[calc(100dvh_-_var(--app-header-height,57px)_-_4px)] flex-col">
       <div className="flex flex-1 items-center justify-center">
         <Spinner size="large" />
       </div>
