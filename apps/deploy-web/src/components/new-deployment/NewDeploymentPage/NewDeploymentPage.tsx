@@ -2,7 +2,7 @@
 import type { FC, ReactNode } from "react";
 import { useId } from "react";
 import { Skeleton } from "@akashnetwork/ui/components";
-import { ArrowLeft, ArrowRight } from "lucide-react";
+import { ArrowLeft, ArrowRight, Container, Terminal } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
@@ -18,6 +18,7 @@ import { AgentModePanel } from "../AgentModePanel/AgentModePanel";
 import { ImportSdlButton } from "../ImportSdlButton/ImportSdlButton";
 import { LegacyBuilderRedirect } from "../LegacyBuilderRedirect/LegacyBuilderRedirect";
 import { StartFromScratchCard } from "../StartFromScratchCard/StartFromScratchCard";
+import { ContainerSdlSnippet, SshSessionSnippet } from "../StartFromScratchSnippets/StartFromScratchSnippets";
 
 const POPULAR_TEMPLATE_COUNT = 6;
 
@@ -89,15 +90,17 @@ export const NewDeploymentPage: FC<Props> = ({ dependencies: d = DEPENDENCIES })
               <d.StartFromScratchCard
                 title="Bring your own container"
                 description="Run any Docker image from any registry. Configure ports, variables, and resources."
-                example="ghcr.io/you/app:latest"
-                artSrc="/images/new-deployment/byo-container.webp"
+                previewLabel="deploy.yaml"
+                previewIcon={Container}
+                preview={<ContainerSdlSnippet />}
                 onSelect={startFromOwnContainer}
               />
               <d.StartFromScratchCard
                 title="Spin up a Linux machine"
-                description="A stock Ubuntu image with SSH access, a clean box you can build on."
-                example="ubuntu 24.04 · ssh"
-                artSrc="/images/new-deployment/linux-machine.webp"
+                description="A clean Linux server with SSH access. Choose Ubuntu, CentOS Stream, Debian, or SuSE Leap."
+                previewLabel="ssh"
+                previewIcon={Terminal}
+                preview={<SshSessionSnippet />}
                 onSelect={startFromLinuxMachine}
               />
             </div>

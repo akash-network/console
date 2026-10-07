@@ -42,6 +42,19 @@ describe("NewDeploymentPage", () => {
     expect(AgentModePanel).toHaveBeenCalled();
   });
 
+  it("describes each way to start from scratch next to a preview of it", () => {
+    setup({});
+
+    expect(screen.getByRole("button", { name: "Bring your own container" })).toHaveAccessibleDescription(
+      "Run any Docker image from any registry. Configure ports, variables, and resources."
+    );
+    expect(screen.getByRole("button", { name: "Spin up a Linux machine" })).toHaveAccessibleDescription(
+      "A clean Linux server with SSH access. Choose Ubuntu, CentOS Stream, Debian, or SuSE Leap."
+    );
+    expect(screen.getByText("deploy.yaml")).toBeInTheDocument();
+    expect(screen.getByText("ssh")).toBeInTheDocument();
+  });
+
   it("starts a blank configure screen for your own container", async () => {
     const { push, analyticsService } = setup({});
 

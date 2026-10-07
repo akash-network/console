@@ -17,12 +17,16 @@ config.theme = {
         "0%, 76%, 88%, 100%": { transform: "translateY(0)" },
         "82%": { transform: "translateY(-3px)" },
         "94%": { transform: "translateY(-1px)" }
+      },
+      "terminal-cursor-blink": {
+        "50%": { opacity: "0" }
       }
     },
     animation: {
       ...config.theme?.extend?.animation,
       "akash-loading-shard": "akash-loading-shard 1.8s linear infinite",
-      "edit-nudge": "edit-nudge 4s ease-in-out 1s infinite"
+      "edit-nudge": "edit-nudge 4s ease-in-out 1s infinite",
+      "terminal-cursor-blink": "terminal-cursor-blink 1.1s steps(1) infinite"
     }
   }
 };
