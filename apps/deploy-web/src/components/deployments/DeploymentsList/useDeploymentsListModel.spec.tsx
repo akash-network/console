@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { DeploymentCloseReasonInput } from "@src/components/deployments/CloseDeploymentDialog/closeDeploymentReasons";
+import type { BulkCloseOutcome } from "@src/hooks/useCloseDeployments/useCloseDeployments";
 import type { AnalyticsService } from "@src/services/analytics/analytics.service";
 import sdlStore from "@src/store/sdlStore";
 import type { TemplateCreation } from "@src/types";
@@ -16,6 +17,7 @@ import { TestContainerProvider } from "@tests/unit/TestContainerProvider";
 
 const NO_PROVIDERS: ApiProviderList[] = [];
 const CLOSE_REASON: DeploymentCloseReasonInput = { closeReason: "migrating_elsewhere" };
+const NOTHING_CLOSED: BulkCloseOutcome = { closed: [], closing: [] };
 
 describe(useDeploymentsListModel.name, () => {
   it("asks the source for the first active page at the default size while nobody is searching", () => {
@@ -308,21 +310,53 @@ describe(useDeploymentsListModel.name, () => {
   });
 
   describe("closing the selected deployments", () => {
-    it("signs one message per selected deployment, records why on each, and then clears the selection", async () => {
-      const { result, signAndBroadcastTx, confirmCloseDeployment, recordCloseReason, refetch } = setup({ active: [deployment("100"), deployment("101")] });
+    it("closes every selected deployment, records why on each, and then clears the selection", async () => {
+      const { result, closeDeployments, confirmCloseDeployment, recordCloseReason, refetch } = setup({
+        active: [deployment("100"), deployment("101")],
+        closeOutcome: { closed: [], closing: ["100", "101"] }
+      });
 
       act(() => result.current.selectItem({ id: "100", isShiftPressed: false }));
       act(() => result.current.selectItem({ id: "101", isShiftPressed: false }));
       await act(async () => await result.current.closeSelectedDeployments());
 
       expect(confirmCloseDeployment).toHaveBeenCalledWith({ dseqs: ["100", "101"] });
-      expect(signAndBroadcastTx).toHaveBeenCalledWith([expect.anything(), expect.anything()]);
+      expect(closeDeployments).toHaveBeenCalledWith(["100", "101"]);
       expect(recordCloseReason).toHaveBeenCalledWith(["100", "101"], CLOSE_REASON);
-      expect(refetch).toHaveBeenCalled();
+      expect(refetch).not.toHaveBeenCalled();
       expect(result.current.selectedItemIds).toEqual([]);
     });
 
-    it("records how many deployments the landed close covered and why", async () => {
+    it("refreshes the list once some of the deployments have already closed", async () => {
+      const { result, refetch, recordCloseReason } = setup({
+        active: [deployment("100"), deployment("101")],
+        closeOutcome: { closed: ["101"], closing: ["100"] }
+      });
+
+      act(() => result.current.selectItem({ id: "100", isShiftPressed: false }));
+      act(() => result.current.selectItem({ id: "101", isShiftPressed: false }));
+      await act(async () => await result.current.closeSelectedDeployments());
+
+      expect(refetch).toHaveBeenCalled();
+      expect(recordCloseReason).toHaveBeenCalledWith(["101", "100"], CLOSE_REASON);
+    });
+
+    it("records why only for the deployments that closed, and keeps the rest selected", async () => {
+      const { result, recordCloseReason, analyticsService } = setup({
+        active: [deployment("100"), deployment("101")],
+        closeOutcome: { closed: [], closing: ["100"] }
+      });
+
+      act(() => result.current.selectItem({ id: "100", isShiftPressed: false }));
+      act(() => result.current.selectItem({ id: "101", isShiftPressed: false }));
+      await act(async () => await result.current.closeSelectedDeployments());
+
+      expect(recordCloseReason).toHaveBeenCalledWith(["100"], CLOSE_REASON);
+      expect(analyticsService.track).toHaveBeenCalledWith("close_deployment", expect.objectContaining({ count: 1 }));
+      expect(result.current.selectedItemIds).toContain("101");
+    });
+
+    it("records how many deployments the close covered and why", async () => {
       const { result, analyticsService } = setup({ active: [deployment("100"), deployment("101")] });
 
       act(() => result.current.selectItem({ id: "100", isShiftPressed: false }));
@@ -338,18 +372,18 @@ describe(useDeploymentsListModel.name, () => {
     });
 
     it("does nothing when the confirmation is declined", async () => {
-      const { result, signAndBroadcastTx, analyticsService } = setup({ active: [deployment("100")], closeReason: null });
+      const { result, closeDeployments, analyticsService } = setup({ active: [deployment("100")], closeReason: null });
 
       act(() => result.current.selectItem({ id: "100", isShiftPressed: false }));
       await act(async () => await result.current.closeSelectedDeployments());
 
-      expect(signAndBroadcastTx).not.toHaveBeenCalled();
+      expect(closeDeployments).not.toHaveBeenCalled();
       expect(analyticsService.track).not.toHaveBeenCalled();
       expect(result.current.selectedItemIds).toEqual(["100"]);
     });
 
-    it("records no close when the transaction does not land", async () => {
-      const { result, analyticsService, recordCloseReason } = setup({ active: [deployment("100")], broadcastResponse: false });
+    it("records no close when none of the deployments closed", async () => {
+      const { result, analyticsService, recordCloseReason } = setup({ active: [deployment("100")], closeOutcome: NOTHING_CLOSED });
 
       act(() => result.current.selectItem({ id: "100", isShiftPressed: false }));
       await act(async () => await result.current.closeSelectedDeployments());
@@ -358,8 +392,8 @@ describe(useDeploymentsListModel.name, () => {
       expect(analyticsService.track).not.toHaveBeenCalled();
     });
 
-    it("keeps the selection when the transaction does not land", async () => {
-      const { result, refetch } = setup({ active: [deployment("100")], broadcastResponse: false });
+    it("keeps the selection when none of the deployments closed", async () => {
+      const { result, refetch } = setup({ active: [deployment("100")], closeOutcome: NOTHING_CLOSED });
 
       act(() => result.current.selectItem({ id: "100", isShiftPressed: false }));
       await act(async () => await result.current.closeSelectedDeployments());
@@ -788,7 +822,7 @@ describe(useDeploymentsListModel.name, () => {
     isArchiveFetching?: boolean;
     isArchiveError?: boolean;
     closeReason?: DeploymentCloseReasonInput | null;
-    broadcastResponse?: boolean;
+    closeOutcome?: BulkCloseOutcome;
     appliedSearch?: string;
     isSearchTooBroad?: boolean;
     isArchiveSearchTooBroad?: boolean;
@@ -803,7 +837,7 @@ describe(useDeploymentsListModel.name, () => {
     const refetch = vi.fn();
     const confirmCloseDeployment = vi.fn(async () => ("closeReason" in current ? current.closeReason ?? null : CLOSE_REASON));
     const recordCloseReason = vi.fn();
-    const signAndBroadcastTx = vi.fn(async () => ("broadcastResponse" in current ? (current.broadcastResponse as boolean) : true));
+    const closeDeployments = vi.fn(async (dseqs: string[]) => current.closeOutcome ?? { closed: dseqs, closing: [] });
     const analyticsService = mock<AnalyticsService>();
 
     const useDeploymentsListSource = vi.fn(({ search, pageIndex, pageSize, archivePageIndex }: DeploymentsListSourceInput): DeploymentsListSource => {
@@ -835,8 +869,7 @@ describe(useDeploymentsListModel.name, () => {
     const useWallet: typeof DEPENDENCIES.useWallet = () =>
       mock<ReturnType<typeof DEPENDENCIES.useWallet>>({
         address: current.address ?? "akash1owner",
-        hasWallet: true,
-        signAndBroadcastTx
+        hasWallet: true
       });
     const useProvidersByAddresses = vi.fn(() => ({ data: current.providers ?? NO_PROVIDERS, isLoading: false, isFetching: false }));
     const useCloseDeploymentConfirm: typeof DEPENDENCIES.useCloseDeploymentConfirm = () => ({ confirmCloseDeployment, recordCloseReason });
@@ -847,7 +880,8 @@ describe(useDeploymentsListModel.name, () => {
       useCloseDeploymentConfirm,
       useListSelection: DEPENDENCIES.useListSelection,
       useDeploymentsListSource,
-      useClosingDeployments: () => new Set(current.closingDseqs ?? [])
+      useClosingDeployments: () => new Set(current.closingDseqs ?? []),
+      useCloseDeployments: () => closeDeployments
     };
 
     const store = createStore();
@@ -869,7 +903,7 @@ describe(useDeploymentsListModel.name, () => {
       refetch,
       confirmCloseDeployment,
       recordCloseReason,
-      signAndBroadcastTx,
+      closeDeployments,
       analyticsService,
       useDeploymentsListSource,
       useProvidersByAddresses

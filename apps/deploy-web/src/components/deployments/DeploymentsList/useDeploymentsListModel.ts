@@ -6,6 +6,7 @@ import { useAtom } from "jotai";
 import { useServices } from "@src/context/ServicesProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { useCloseDeploymentConfirm } from "@src/hooks/useCloseDeploymentConfirm";
+import { useCloseDeployments } from "@src/hooks/useCloseDeployments/useCloseDeployments";
 import { useClosingDeployments } from "@src/hooks/useClosingDeployments/useClosingDeployments";
 import { useListSelection } from "@src/hooks/useListSelection/useListSelection";
 import { useProvidersByAddresses } from "@src/queries/useProvidersQuery";
@@ -13,7 +14,6 @@ import type { DeploymentsViewMode } from "@src/store/deploymentsViewStore";
 import { deploymentsViewModeAtom } from "@src/store/deploymentsViewStore";
 import sdlStore from "@src/store/sdlStore";
 import { isLeaseLive } from "@src/utils/leaseUtils";
-import { TransactionMessageData } from "@src/utils/TransactionMessageData";
 import { useApiDeploymentsListSource } from "./useApiDeploymentsListSource";
 
 export const DEPENDENCIES = {
@@ -22,7 +22,8 @@ export const DEPENDENCIES = {
   useCloseDeploymentConfirm,
   useListSelection,
   useDeploymentsListSource: useApiDeploymentsListSource,
-  useClosingDeployments
+  useClosingDeployments,
+  useCloseDeployments
 };
 
 /** Must stay one of the sizes PaginationSizeSelector offers, or the selector renders blank. */
@@ -32,8 +33,9 @@ export const DEFAULT_PAGE_SIZE = MIN_PAGE_SIZE;
 export function useDeploymentsListModel(dependencies: typeof DEPENDENCIES = DEPENDENCIES) {
   const d = dependencies;
   const { analyticsService } = useServices();
-  const { address, signAndBroadcastTx, hasWallet } = d.useWallet();
+  const { address, hasWallet } = d.useWallet();
   const { confirmCloseDeployment, recordCloseReason } = d.useCloseDeploymentConfirm();
+  const closeDeployments = d.useCloseDeployments();
   const [, setDeploySdl] = useAtom(sdlStore.deploySdl);
   const [viewMode, setViewMode] = useAtom(deploymentsViewModeAtom);
 
@@ -128,20 +130,20 @@ export function useDeploymentsListModel(dependencies: typeof DEPENDENCIES = DEPE
     const closeReason = await confirmCloseDeployment({ dseqs: selectedItemIds });
     if (!closeReason) return;
 
-    const messages = selectedItemIds.map(dseq => TransactionMessageData.getCloseDeploymentMsg(address, `${dseq}`));
-    const response = await signAndBroadcastTx(messages);
-    if (!response) return;
+    const { closed, closing } = await closeDeployments(selectedItemIds);
+    const accepted = [...closed, ...closing];
+    if (accepted.length === 0) return;
 
-    recordCloseReason(selectedItemIds, closeReason);
-    refetchDeployments();
-    clearSelection();
+    recordCloseReason(accepted, closeReason);
+    if (closed.length > 0) refetchDeployments();
+    if (accepted.length === selectedItemIds.length) clearSelection();
     analyticsService.track("close_deployment", {
       category: "deployments",
       label: "Close selected deployments from list",
-      count: selectedItemIds.length,
+      count: accepted.length,
       reason: closeReason.closeReason
     });
-  }, [confirmCloseDeployment, recordCloseReason, selectedItemIds, address, signAndBroadcastTx, refetchDeployments, clearSelection, analyticsService]);
+  }, [confirmCloseDeployment, recordCloseReason, selectedItemIds, closeDeployments, refetchDeployments, clearSelection, analyticsService]);
 
   const startNewDeployment = useCallback(() => setDeploySdl(null), [setDeploySdl]);
 
