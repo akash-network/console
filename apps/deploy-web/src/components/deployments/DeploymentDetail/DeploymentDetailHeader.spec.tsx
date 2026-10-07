@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { DeploymentDefinition } from "@src/hooks/useDeploymentDefinition/useDeploymentDefinition";
+import type { LeaseServiceStatus, LeaseStatusDto } from "@src/queries/useLeaseQuery";
 import type { DeploymentDto, DeploymentGroup, LeaseDto } from "@src/types/deployment";
 import type { ApiProviderList } from "@src/types/provider";
 import { DEPENDENCIES, DeploymentDetailHeader } from "./DeploymentDetailHeader";
@@ -78,6 +79,31 @@ describe(DeploymentDetailHeader.name, () => {
     setup({ closingDseqs: ["42"] });
 
     expect(screen.getByText("Running")).toBeInTheDocument();
+  });
+
+  it("shows the deployment as starting while a service of a live lease has no ready replica", () => {
+    setup({ availableReplicasByService: { web: 1, worker: 0 } });
+
+    expect(screen.getByText("Starting")).toBeInTheDocument();
+    expect(screen.queryByText("Running")).not.toBeInTheDocument();
+  });
+
+  it("shows the deployment as loading rather than running until its provider has reported", () => {
+    setup({ availableReplicasByService: null });
+
+    expect(screen.getByText("Loading")).toBeInTheDocument();
+    expect(screen.queryByText("Running")).not.toBeInTheDocument();
+  });
+
+  it("asks the provider of each live lease what is running on it", () => {
+    const liveLease = mock<LeaseDto>({ id: "1", provider: "akash1live", state: "active" });
+    const liveLeaseProvider = mock<ApiProviderList>({ owner: "akash1live" });
+    const { useLeaseStatuses } = setup({
+      leases: [liveLease, mock<LeaseDto>({ id: "2", provider: "akash1gone", state: "closed" })],
+      providers: [mock<ApiProviderList>({ owner: "akash1gone" }), liveLeaseProvider]
+    });
+
+    expect(useLeaseStatuses).toHaveBeenCalledWith([{ lease: liveLease, provider: liveLeaseProvider }], { refetchInterval: 30_000 });
   });
 
   it("opens the rename flow when the edit-name button is clicked", async () => {
@@ -336,6 +362,7 @@ describe(DeploymentDetailHeader.name, () => {
     groups?: DeploymentGroup[];
     isLoadingLeaseGpus?: boolean;
     closingDseqs?: string[];
+    availableReplicasByService?: Record<string, number> | null;
     dependencies?: Partial<typeof DEPENDENCIES>;
   }) {
     const changeDeploymentName = vi.fn();
@@ -366,6 +393,21 @@ describe(DeploymentDetailHeader.name, () => {
     const CostRate = vi.fn(() => <div>cost-rate</div>);
     const CostBreakdownTooltip = vi.fn(({ children }: { children?: ReactNode }) => <span>cost-tooltip{children}</span>);
     const DeploymentVisitControl = vi.fn(() => <div>visit</div>);
+    const availableReplicasByService = input.availableReplicasByService === undefined ? { web: 1 } : input.availableReplicasByService;
+    const useLeaseStatuses = vi.fn<typeof DEPENDENCIES.useLeaseStatuses>(items =>
+      items.map(() =>
+        mock<ReturnType<typeof DEPENDENCIES.useLeaseStatuses>[number]>({
+          data: availableReplicasByService
+            ? mock<LeaseStatusDto>({
+                services: Object.fromEntries(
+                  Object.entries(availableReplicasByService).map(([name, available]) => [name, mock<LeaseServiceStatus>({ available })])
+                )
+              })
+            : undefined,
+          error: null
+        })
+      )
+    );
 
     const deployment = mock<DeploymentDto>({
       dseq: "1786440078202",
@@ -394,6 +436,7 @@ describe(DeploymentDetailHeader.name, () => {
       CostRate,
       CostBreakdownTooltip,
       DeploymentVisitControl,
+      useLeaseStatuses,
       useClosingDeployments: () => new Set(input.closingDseqs ?? []),
       ...input.dependencies
     });
@@ -411,6 +454,7 @@ describe(DeploymentDetailHeader.name, () => {
 
     return {
       changeDeploymentName,
+      useLeaseStatuses,
       CostRate,
       CostBreakdownTooltip,
       resolveDefinitionWith(sdl: string) {

@@ -1,9 +1,12 @@
+import type { AxiosResponse } from "axios";
+import { AxiosError } from "axios";
 import yaml from "js-yaml";
 import { describe, expect, it } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { LeaseServiceStatus } from "@src/queries/useLeaseQuery";
 import type { DeploymentGroup, DetectedLeaseGpus, OfferedLeaseGpus } from "@src/types/deployment";
+import type { LeaseStatusPoll } from "./placementModel";
 import {
   describeGpus,
   formatGpuLabel,
@@ -16,7 +19,8 @@ import {
   parseManifestServices,
   parseServicesByPlacement,
   resolveDeploymentGpus,
-  resolveLeaseGpus
+  resolveLeaseGpus,
+  summarizeWorkloadStatus
 } from "./placementModel";
 
 describe("placementModel", () => {
@@ -458,7 +462,52 @@ describe("placementModel", () => {
       expect(formatReplicaCount(mock<LeaseServiceStatus>({ available: 1 }))).toBeUndefined();
     });
   });
+
+  describe("summarizeWorkloadStatus", () => {
+    it("reports nothing when no live lease is polled", () => {
+      expect(summarizeWorkloadStatus([])).toBeUndefined();
+    });
+
+    it("reports running once every service of every lease has an available replica", () => {
+      expect(summarizeWorkloadStatus([buildPoll({ web: 1 }), buildPoll({ api: 2, worker: 1 })])).toBe("running");
+    });
+
+    it("reports starting while any service of any lease has no available replica", () => {
+      expect(summarizeWorkloadStatus([buildPoll({ web: 1 }), buildPoll({ api: 1, worker: 0 })])).toBe("starting");
+    });
+
+    it("reports loading while a lease status has not arrived, including one that cannot be asked for yet", () => {
+      expect(summarizeWorkloadStatus([buildPoll({ web: 1 }), buildPoll(undefined)])).toBe("loading");
+    });
+
+    it("reports starting over a lease status that has not arrived", () => {
+      expect(summarizeWorkloadStatus([buildPoll({ web: 0 }), buildPoll(undefined)])).toBe("starting");
+    });
+
+    it.each([502, 503])("reports unreachable over a starting service when a provider answers %s", status => {
+      const error = new AxiosError("Unavailable", String(status), undefined, undefined, mock<AxiosResponse>({ status }));
+
+      expect(summarizeWorkloadStatus([buildPoll({ web: 0 }), buildPoll(undefined, { error })])).toBe("unreachable");
+    });
+
+    it("ignores a failure that does not mean the provider is down", () => {
+      expect(summarizeWorkloadStatus([buildPoll({ web: 1 }, { error: new Error("Network Error") })])).toBe("running");
+    });
+
+    it("keeps reporting loading, as the service rows do, when a provider has no status for its lease", () => {
+      expect(summarizeWorkloadStatus([buildPoll(null)])).toBe("loading");
+    });
+  });
 });
+
+function buildPoll(availableByService: Record<string, number> | null | undefined, input?: { error?: unknown }): LeaseStatusPoll {
+  return {
+    data: availableByService && {
+      services: Object.fromEntries(Object.entries(availableByService).map(([name, available]) => [name, buildService({ available })]))
+    },
+    error: input?.error ?? null
+  };
+}
 
 function buildManifest(input: {
   services: Record<string, { image: string }>;

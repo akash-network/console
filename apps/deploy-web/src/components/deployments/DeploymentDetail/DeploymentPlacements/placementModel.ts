@@ -1,7 +1,8 @@
 import yaml from "js-yaml";
 import get from "lodash/get";
 
-import type { LeaseServiceStatus } from "@src/queries/useLeaseQuery";
+import type { LeaseServiceStatus, LeaseStatusDto } from "@src/queries/useLeaseQuery";
+import { isProviderUnavailableError } from "@src/services/query-error-policy/query-error-policy";
 import type { DeploymentGroup, DetectedLeaseGpus, LeaseDto, OfferedLeaseGpus } from "@src/types/deployment";
 import { getGpusFromAttributes } from "@src/utils/deploymentUtils";
 import { isLeaseLive } from "@src/utils/leaseUtils";
@@ -246,8 +247,29 @@ export function getServiceStatus(
 ): ServiceStatusView {
   if (!isLeaseLive({ state: leaseState }) || isReclaimed) return { label: "Closed", tone: "closed" };
   if (!service) return { label: "Loading", tone: "loading" };
-  if (service.available > 0) return { label: "Running", tone: "running" };
+  if (isServiceRunning(service)) return { label: "Running", tone: "running" };
   return { label: "Starting", tone: "pending" };
+}
+
+function isServiceRunning(service: Pick<LeaseServiceStatus, "available">): boolean {
+  return service.available > 0;
+}
+
+export type WorkloadStatus = "running" | "starting" | "loading" | "unreachable";
+
+export interface LeaseStatusPoll {
+  data?: Pick<LeaseStatusDto, "services"> | null;
+  error: unknown;
+}
+
+/** What the providers of a deployment's live leases report, worst first; like a service row, it only says "running" once every provider has reported. */
+export function summarizeWorkloadStatus(polls: LeaseStatusPoll[]): WorkloadStatus | undefined {
+  if (polls.length === 0) return undefined;
+  if (polls.some(poll => isProviderUnavailableError(poll.error))) return "unreachable";
+
+  const services = polls.flatMap(poll => Object.values(poll.data?.services ?? {}));
+  if (services.some(service => !isServiceRunning(service))) return "starting";
+  return polls.every(poll => poll.data) ? "running" : "loading";
 }
 
 /** `{available}/{total} replicas` for the collapsed service row; omitted until lease status has arrived. */

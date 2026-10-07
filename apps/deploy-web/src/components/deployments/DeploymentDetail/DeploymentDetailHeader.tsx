@@ -20,6 +20,7 @@ import { useDeploymentEscrowBalance } from "@src/hooks/useDeploymentEscrowBalanc
 import { useHasDeploymentStopped } from "@src/hooks/useHasDeploymentStopped";
 import { useTickingNow } from "@src/hooks/useTickingNow";
 import { useDeploymentSettingQuery } from "@src/queries/deploymentSettingsQuery";
+import { useLeaseStatuses } from "@src/queries/useLeaseQuery";
 import type { DeploymentDto, LeaseDto } from "@src/types/deployment";
 import type { ApiProviderList } from "@src/types/provider";
 import { isLeaseLive } from "@src/utils/leaseUtils";
@@ -32,7 +33,8 @@ import {
   getDeploymentGpuModels,
   parseManifestServices,
   parseServicesByPlacement,
-  resolveDeploymentGpus
+  resolveDeploymentGpus,
+  summarizeWorkloadStatus
 } from "./DeploymentPlacements/placementModel";
 import { DeploymentVisitControl } from "./DeploymentVisitControl/DeploymentVisitControl";
 import { DeploymentStatusBadge } from "./DeploymentStatusBadge";
@@ -47,6 +49,7 @@ export const DEPENDENCIES = {
   useDeploymentSettingQuery,
   useDeclaredTeeTypes,
   useDeclaredGpuInterconnect,
+  useLeaseStatuses,
   CostRate,
   CostBreakdownTooltip,
   DeploymentVisitControl,
@@ -87,6 +90,11 @@ export const DeploymentDetailHeader: FC<DeploymentDetailHeaderProps> = ({
   const isClosing = d.useClosingDeployments().has(deployment.dseq);
 
   const liveLeases = useMemo(() => leases?.filter(isLeaseLive) ?? [], [leases]);
+  const liveLeaseItems = useMemo(
+    () => liveLeases.map(lease => ({ lease, provider: providers.find(provider => provider.owner === lease.provider) })),
+    [liveLeases, providers]
+  );
+  const workload = summarizeWorkloadStatus(d.useLeaseStatuses(liveLeaseItems, { refetchInterval: 30_000 }));
   const costPerBlockUDenom = liveLeases.reduce((sum, lease) => sum + parseFloat(lease.price.amount), 0);
   const liveGpuCount = liveLeases.reduce((sum, lease) => sum + (lease.gpuAmount ?? 0), 0);
 
@@ -110,7 +118,7 @@ export const DeploymentDetailHeader: FC<DeploymentDetailHeaderProps> = ({
     <div className="flex flex-col gap-6 py-6 lg:flex-row lg:items-start lg:justify-between">
       <div className="space-y-3">
         <div className="flex flex-wrap items-center gap-2">
-          <DeploymentStatusBadge state={deployment.state} leases={leases} isClosing={isClosing} />
+          <DeploymentStatusBadge state={deployment.state} leases={leases} isClosing={isClosing} workload={workload} />
           <d.ConfidentialComputeBadge teeTypes={teeTypes} />
           <d.GpuInterconnectBadge interconnect={interconnect} />
         </div>

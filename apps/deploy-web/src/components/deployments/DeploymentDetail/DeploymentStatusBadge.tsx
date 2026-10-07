@@ -6,6 +6,7 @@ import { cn } from "@akashnetwork/ui/utils";
 import type { LeaseDto } from "@src/types/deployment";
 import { isLeaseLive } from "@src/utils/leaseUtils";
 import { classifyLeaseCloseReason, getClosedLeaseLabel, getClosedLeaseSummaryLabel, isProviderReclaimed, isReclaiming } from "@src/utils/reclamationUtils";
+import type { WorkloadStatus } from "./DeploymentPlacements/placementModel";
 import { ReclamationCountdown } from "./ReclamationCountdown";
 
 export type StatusTone = "running" | "pending" | "loading" | "warning" | "closed";
@@ -46,11 +47,18 @@ export interface DeploymentStatusBadgeProps {
   leases?: LeaseDto[] | null;
   isSummarized?: boolean;
   isClosing?: boolean;
+  workload?: WorkloadStatus;
   className?: string;
   dependencies?: typeof DEPENDENCIES;
 }
 
 const CLOSING_STATUS = { label: "Closing", summaryLabel: "Closing", tone: "loading" } as const;
+
+const WORKLOAD_STATUSES: Partial<Record<WorkloadStatus, { label: string; tone: StatusTone }>> = {
+  starting: { label: "Starting", tone: "pending" },
+  loading: { label: "Loading", tone: "loading" },
+  unreachable: { label: "Provider not responding", tone: "warning" }
+};
 
 /**
  * A deployment stays `active` on chain after its last lease dies — closed by the provider, reclaimed, or out
@@ -59,9 +67,15 @@ const CLOSING_STATUS = { label: "Closing", summaryLabel: "Closing", tone: "loadi
  * reclamation banner and deployment list show. A dead lease under a deployment that is still open reads as a
  * warning: the escrow is live and a redeploy brings the workload back, while a deployment that is itself
  * closed has nothing left to act on and reads as muted. A lease inside its reclamation grace period is live
- * but doomed, so it reads as "Reclaiming" rather than "Running".
+ * but doomed, so it reads as "Reclaiming" rather than "Running". A live lease is only "Running" once its
+ * provider reports a ready replica for every service, when the caller passes what the providers report.
  */
-export function getDeploymentStatus(state: string, leases?: LeaseDto[] | null, isClosing = false): { label: string; summaryLabel: string; tone: StatusTone } {
+export function getDeploymentStatus(
+  state: string,
+  leases?: LeaseDto[] | null,
+  isClosing = false,
+  workload?: WorkloadStatus
+): { label: string; summaryLabel: string; tone: StatusTone } {
   if (isClosing && state === "active") return CLOSING_STATUS;
 
   const deploymentTone = STATUS_TONES[state] ?? "pending";
@@ -69,6 +83,8 @@ export function getDeploymentStatus(state: string, leases?: LeaseDto[] | null, i
 
   if (!deadLease) {
     if (leases?.some(isReclaiming)) return { label: "Reclaiming", summaryLabel: "Reclaiming", tone: "warning" };
+    const workloadStatus = state === "active" && workload ? WORKLOAD_STATUSES[workload] : undefined;
+    if (workloadStatus) return { ...workloadStatus, summaryLabel: workloadStatus.label };
     const label = STATUS_LABELS[state] ?? state;
     return { label, summaryLabel: label, tone: deploymentTone };
   }
@@ -117,10 +133,11 @@ export const DeploymentStatusBadge: FC<DeploymentStatusBadgeProps> = ({
   leases,
   isSummarized,
   isClosing,
+  workload,
   className,
   dependencies: d = DEPENDENCIES
 }) => {
-  const { label, summaryLabel, tone } = getDeploymentStatus(state, leases, isClosing);
+  const { label, summaryLabel, tone } = getDeploymentStatus(state, leases, isClosing, workload);
   const isShortened = !!isSummarized && summaryLabel !== label;
   const isBeingReclaimed = !isClosing && !!leases?.some(isReclaiming);
 
