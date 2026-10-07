@@ -6,12 +6,11 @@ import { useWallet } from "@src/context/WalletProvider";
 import { useChainParam } from "@src/hooks/useChainParam/useChainParam";
 import { useBalances } from "@src/queries/useBalancesQuery";
 import { useBlock } from "@src/queries/useBlocksQuery";
-import { useAllLeases } from "@src/queries/useLeaseQuery";
+import { useSpendRateQuery } from "@src/queries/useSpendRateQuery";
 import walletStore from "@src/store/walletStore";
 import type { Balances } from "@src/types";
-import { isLeaseLive, LIVE_LEASE_STATES } from "@src/utils/leaseUtils";
 import { udenomToDenom } from "@src/utils/mathHelpers";
-import { getLeaseCostPerBlockUsdByDseq, getLiveEscrowBalance, uaktToAKT } from "@src/utils/priceUtils";
+import { getLiveEscrowBalance, uaktToAKT } from "@src/utils/priceUtils";
 import type { PricingContext } from "./usePricing/usePricing";
 import { usePricing } from "./usePricing/usePricing";
 import { useUsdcDenom } from "./useDenom";
@@ -117,21 +116,27 @@ export const useWalletBalance = (): WalletBalanceReturnType => {
   };
 };
 
+export const LIVE_ESCROW_DEPENDENCIES = { useSpendRateQuery, useBlock };
+
 /**
  * Both queries are gated on the wallet actually holding an escrow, so an account with nothing running pays
  * for neither: `useWalletBalance` is mounted app-wide through `PaymentPollingProvider`.
  */
-function useLiveEscrow(address: string, balances: Balances | null | undefined): LiveEscrowInput {
+export function useLiveEscrow(
+  address: string,
+  balances: Balances | null | undefined,
+  d: typeof LIVE_ESCROW_DEPENDENCIES = LIVE_ESCROW_DEPENDENCIES
+): LiveEscrowInput {
   const hasActiveDeployments = !!balances?.activeDeployments.length;
-  const { data: leases } = useAllLeases(address, { state: LIVE_LEASE_STATES, enabled: !!address && hasActiveDeployments });
-  const { data: latestBlock } = useBlock("latest", { refetchInterval: 30000, enabled: hasActiveDeployments });
+  const { data: perBlockUsdByDseq } = d.useSpendRateQuery({ enabled: !!address && hasActiveDeployments });
+  const { data: latestBlock } = d.useBlock("latest", { refetchInterval: 30000, enabled: hasActiveDeployments });
 
   return useMemo(
     () => ({
       latestBlockHeight: latestBlock ? Number(latestBlock.block.header.height) : undefined,
-      perBlockUsdByDseq: getLeaseCostPerBlockUsdByDseq(leases?.filter(isLeaseLive) ?? [])
+      perBlockUsdByDseq: perBlockUsdByDseq ?? new Map()
     }),
-    [leases, latestBlock]
+    [perBlockUsdByDseq, latestBlock]
   );
 }
 

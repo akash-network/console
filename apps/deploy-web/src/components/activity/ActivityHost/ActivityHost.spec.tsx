@@ -64,7 +64,8 @@ describe(ActivityHost.name, () => {
         QueryKeys.getAllLeasesKey(OWNER),
         QueryKeys.getBalancesKey(OWNER),
         QueryKeys.getManagedWalletKey(user.id),
-        QueryKeys.getWeeklyDeploymentCostKey()
+        QueryKeys.getWeeklyDeploymentCostKey(),
+        api.v1.getSpendRate.getKey()
       ])
     );
   });
@@ -189,6 +190,7 @@ describe(ActivityHost.name, () => {
     expect(invalidatedKeysOf(queryClient)).toEqual([
       api.v1.listDeployments.getKey(),
       QueryKeys.getWeeklyDeploymentCostKey(),
+      api.v1.getSpendRate.getKey(),
       api.v1.getDeployment.getKey({ dseq: "1234" }),
       QueryKeys.getManagedWalletKey(user.id)
     ]);
@@ -373,6 +375,7 @@ describe(ActivityHost.name, () => {
     const queryClient = mock<ReturnType<typeof DEPENDENCIES.useQueryClient>>();
     const api = mockDeep<AppDIContainer["api"]>();
     api.v1.listDeployments.getKey.mockReturnValue(["listDeployments"]);
+    api.v1.getSpendRate.getKey.mockReturnValue(["getSpendRate"]);
     api.v1.getDeployment.getKey.mockImplementation(request => ["getDeployment", request?.dseq ?? ""]);
 
     const dependencies: typeof DEPENDENCIES = {

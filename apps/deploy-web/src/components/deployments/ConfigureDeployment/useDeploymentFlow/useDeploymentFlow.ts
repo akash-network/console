@@ -722,6 +722,7 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
         analyticsService.track("send_manifest", { category: "deployments", label: "Send manifest after creating lease", dseq: activeDseq });
         queryClient.invalidateQueries({ queryKey: QueryKeys.getLeaseExistenceKey(owner) });
         queryClient.invalidateQueries({ queryKey: QueryKeys.getAllLeasesKey(owner) });
+        queryClient.invalidateQueries({ queryKey: api.v1.getSpendRate.getKey() });
         queryClient.invalidateQueries({ queryKey: QueryKeys.getDeploymentListKey(owner) });
         queryClient.invalidateQueries({ queryKey: api.v1.listDeployments.getKey() });
         setDeploySucceeded(true);

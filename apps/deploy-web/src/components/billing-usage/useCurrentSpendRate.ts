@@ -2,13 +2,12 @@
 import { useMemo } from "react";
 
 import { useWallet } from "@src/context/WalletProvider";
-import { useAllLeases } from "@src/queries/useLeaseQuery";
-import { isLeaseLive, LIVE_LEASE_STATES } from "@src/utils/leaseUtils";
-import { getLeaseCostPerBlockUsdByDseq, perBlockToHourly } from "@src/utils/priceUtils";
+import { useSpendRateQuery } from "@src/queries/useSpendRateQuery";
+import { perBlockToHourly } from "@src/utils/priceUtils";
 
 export const DEPENDENCIES = {
   useWallet,
-  useAllLeases
+  useSpendRateQuery
 };
 
 export type CurrentSpendRate = {
@@ -19,16 +18,17 @@ export type CurrentSpendRate = {
   isError: boolean;
 };
 
+const NOTHING_RUNNING = new Map<string, number>();
+
 export function useCurrentSpendRate({ dependencies: d = DEPENDENCIES }: { dependencies?: typeof DEPENDENCIES } = {}): CurrentSpendRate {
   const { address } = d.useWallet();
-  const { data: leases, isLoading, isError } = d.useAllLeases(address, { state: LIVE_LEASE_STATES, enabled: !!address });
-
-  const perBlockUsdByDseq = useMemo(() => getLeaseCostPerBlockUsdByDseq(leases?.filter(isLeaseLive) ?? []), [leases]);
+  const { data, isLoading, isError } = d.useSpendRateQuery({ enabled: !!address });
+  const perBlockUsdByDseq = data ?? NOTHING_RUNNING;
 
   const perBlockUsd = useMemo(
     () => [...perBlockUsdByDseq.values()].reduce((total, deploymentPerBlockUsd) => total + deploymentPerBlockUsd, 0),
     [perBlockUsdByDseq]
   );
 
-  return { perBlockUsdByDseq, perBlockUsd, perHourUsd: perBlockToHourly(perBlockUsd), isLoading, isError: isError && !leases };
+  return { perBlockUsdByDseq, perBlockUsd, perHourUsd: perBlockToHourly(perBlockUsd), isLoading, isError: isError && !data };
 }
