@@ -41,7 +41,7 @@ export class ReclaimAlertService {
       return;
     }
 
-    const claimedAlert = await this.alertRepository.claimReclaimNotification(alert.id);
+    const claimedAlert = await this.alertRepository.claimNotification(alert.id, "reclaimNotifiedAt");
 
     if (!claimedAlert) {
       this.loggerService.debug({ event: "RECLAIM_ALERT_SKIPPED", reason: "ALREADY_NOTIFIED", alertId: alert.id });

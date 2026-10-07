@@ -8,9 +8,11 @@ import { eventKeyRegistry } from "@src/common/config/event-key-registry.config";
 import { BrokerService } from "@src/infrastructure/broker";
 import { ChainBlockCreatedDto } from "@src/modules/alert/dto/chain-block-created.dto";
 import { EventClosedDeploymentDto } from "@src/modules/alert/dto/event-closed-deployment.dto";
+import { EventLeaseClosedDto } from "@src/modules/alert/dto/event-lease-closed.dto";
 import { EventLeaseReclaimStartedDto } from "@src/modules/alert/dto/event-lease-reclaim-started.dto";
 import { ChainAlertService } from "@src/modules/alert/services/chain-alert/chain-alert.service";
 import { DeploymentBalanceAlertsService } from "@src/modules/alert/services/deployment-balance-alerts/deployment-balance-alerts.service";
+import { LeaseClosedAlertService } from "@src/modules/alert/services/lease-closed-alert/lease-closed-alert.service";
 import { ReclaimAlertService } from "@src/modules/alert/services/reclaim-alert/reclaim-alert.service";
 import { WalletBalanceAlertsService } from "@src/modules/alert/services/wallet-balance-alerts/wallet-balance-alerts.service";
 import { ChainEventsHandler } from "./chain-events.handler";
@@ -49,6 +51,21 @@ describe(ChainEventsHandler.name, () => {
     });
   });
 
+  describe("processLeaseClosed", () => {
+    it("routes the lease closed event to the lease closed alert service and publishes notifications", async () => {
+      const { controller, leaseClosedAlertService, brokerService } = await setup();
+
+      const mockEvent = generateMock(EventLeaseClosedDto.schema);
+      const alertMessage = generateAlertMessage({});
+      leaseClosedAlertService.alertFor.mockImplementation((_, callback) => callback(alertMessage));
+
+      await controller.processLeaseClosed(mockEvent);
+
+      expect(leaseClosedAlertService.alertFor).toHaveBeenCalledWith(mockEvent, expect.any(Function));
+      expect(brokerService.publish).toHaveBeenCalledWith(eventKeyRegistry.createNotification, alertMessage);
+    });
+  });
+
   describe("processBlock", () => {
     it("processes wallet-balance alerts and does not evaluate deployment escrow-balance alerts", async () => {
       const { controller, deploymentBalanceAlertsService, walletBalanceAlertsService, brokerService } = await setup();
@@ -73,7 +90,8 @@ describe(ChainEventsHandler.name, () => {
         MockProvider(ChainAlertService),
         MockProvider(DeploymentBalanceAlertsService),
         MockProvider(WalletBalanceAlertsService),
-        MockProvider(ReclaimAlertService)
+        MockProvider(ReclaimAlertService),
+        MockProvider(LeaseClosedAlertService)
       ]
     }).compile();
 
@@ -83,6 +101,7 @@ describe(ChainEventsHandler.name, () => {
       deploymentBalanceAlertsService: module.get<MockProxy<DeploymentBalanceAlertsService>>(DeploymentBalanceAlertsService),
       walletBalanceAlertsService: module.get<MockProxy<WalletBalanceAlertsService>>(WalletBalanceAlertsService),
       reclaimAlertService: module.get<MockProxy<ReclaimAlertService>>(ReclaimAlertService),
+      leaseClosedAlertService: module.get<MockProxy<LeaseClosedAlertService>>(LeaseClosedAlertService),
       brokerService: module.get<MockProxy<BrokerService>>(BrokerService)
     };
   }

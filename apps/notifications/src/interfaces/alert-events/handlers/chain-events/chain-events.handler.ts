@@ -4,8 +4,10 @@ import { eventKeyRegistry } from "@src/common/config/event-key-registry.config";
 import { BrokerService, Handler } from "@src/infrastructure/broker";
 import { ChainBlockCreatedDto } from "@src/modules/alert/dto/chain-block-created.dto";
 import { EventClosedDeploymentDto } from "@src/modules/alert/dto/event-closed-deployment.dto";
+import { EventLeaseClosedDto } from "@src/modules/alert/dto/event-lease-closed.dto";
 import { EventLeaseReclaimStartedDto } from "@src/modules/alert/dto/event-lease-reclaim-started.dto";
 import { ChainAlertService } from "@src/modules/alert/services/chain-alert/chain-alert.service";
+import { LeaseClosedAlertService } from "@src/modules/alert/services/lease-closed-alert/lease-closed-alert.service";
 import { ReclaimAlertService } from "@src/modules/alert/services/reclaim-alert/reclaim-alert.service";
 import { WalletBalanceAlertsService } from "@src/modules/alert/services/wallet-balance-alerts/wallet-balance-alerts.service";
 
@@ -15,6 +17,7 @@ export class ChainEventsHandler {
     private readonly chainMessageAlertService: ChainAlertService,
     private readonly walletBalanceAlertsService: WalletBalanceAlertsService,
     private readonly reclaimAlertService: ReclaimAlertService,
+    private readonly leaseClosedAlertService: LeaseClosedAlertService,
     private readonly brokerService: BrokerService
   ) {}
 
@@ -42,5 +45,13 @@ export class ChainEventsHandler {
   })
   async processLeaseReclaimStarted(payload: EventLeaseReclaimStartedDto): Promise<void> {
     await this.reclaimAlertService.alertFor(payload, message => this.brokerService.publish(eventKeyRegistry.createNotification, message));
+  }
+
+  @Handler({
+    key: eventKeyRegistry.eventLeaseClosed,
+    dto: EventLeaseClosedDto
+  })
+  async processLeaseClosed(payload: EventLeaseClosedDto): Promise<void> {
+    await this.leaseClosedAlertService.alertFor(payload, message => this.brokerService.publish(eventKeyRegistry.createNotification, message));
   }
 }

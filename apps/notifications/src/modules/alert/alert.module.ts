@@ -12,6 +12,7 @@ import { DbHealthzService } from "@src/infrastructure/db/services/db-healthz/db-
 import { AlertRepository } from "@src/modules/alert/repositories/alert/alert.repository";
 import { ChainAlertService } from "@src/modules/alert/services/chain-alert/chain-alert.service";
 import { DeploymentAlertService } from "@src/modules/alert/services/deployment-alert/deployment-alert.service";
+import { LeaseClosedAlertService } from "@src/modules/alert/services/lease-closed-alert/lease-closed-alert.service";
 import { ReclaimAlertService } from "@src/modules/alert/services/reclaim-alert/reclaim-alert.service";
 import { WalletBalanceAlertsService } from "@src/modules/alert/services/wallet-balance-alerts/wallet-balance-alerts.service";
 import { HTTP_SDK_PROVIDERS } from "./providers/http-sdk.provider";
@@ -36,6 +37,7 @@ import * as schema from "./model-schemas";
     TemplateService,
     DeploymentAlertService,
     ReclaimAlertService,
+    LeaseClosedAlertService,
     DbHealthzService,
     ...HTTP_SDK_PROVIDERS
   ],
@@ -46,6 +48,7 @@ import * as schema from "./model-schemas";
     AlertRepository,
     DeploymentAlertService,
     ReclaimAlertService,
+    LeaseClosedAlertService,
     DbHealthzService
   ]
 })

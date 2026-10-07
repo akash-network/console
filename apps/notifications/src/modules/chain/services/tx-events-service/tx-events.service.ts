@@ -18,7 +18,7 @@ interface ProcessedEvent {
 /**
  * Supported blockchain event actions
  */
-type Action = "deployment-closed" | "deployment-created" | "lease-reclaim-started";
+type Action = "deployment-closed" | "deployment-created" | "lease-reclaim-started" | "lease-closed";
 
 /**
  * Filter criteria for blockchain events
@@ -47,7 +47,8 @@ export class TxEventsService {
   private readonly EVENT_ACTIONS: Record<string, string> = {
     EventDeploymentClosed: "deployment-closed",
     EventDeploymentCreated: "deployment-created",
-    EventLeaseReclaimStarted: "lease-reclaim-started"
+    EventLeaseReclaimStarted: "lease-reclaim-started",
+    EventLeaseClosed: "lease-closed"
   };
 
   private readonly ACTION_EVENTS: Record<string, string> = Object.fromEntries(Object.entries(this.EVENT_ACTIONS).map(([k, v]) => [v, k]));

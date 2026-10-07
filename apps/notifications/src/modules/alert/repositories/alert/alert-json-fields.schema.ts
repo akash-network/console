@@ -50,7 +50,8 @@ export const generalParamsSchema = z.object({
   dseq: dseqSchema,
   type: z.string(),
   suppressedBySystem: z.boolean().optional(),
-  reclaimNotifiedAt: z.string().optional()
+  reclaimNotifiedAt: z.string().optional(),
+  leaseClosedNotifiedAt: z.string().optional()
 });
 
 export const chainMessageTypeSchema = z.literal("CHAIN_MESSAGE");

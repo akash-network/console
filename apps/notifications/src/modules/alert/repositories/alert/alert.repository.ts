@@ -33,6 +33,10 @@ export type AlertOutput = GeneralAlertOutput | DeploymentBalanceAlertOutput | Wa
 
 export type AlertType = AlertOutput["type"];
 
+const NOTIFICATION_STAMPS = ["reclaimNotifiedAt", "leaseClosedNotifiedAt"] as const;
+
+export type NotificationStamp = (typeof NOTIFICATION_STAMPS)[number];
+
 export type AlertInputTypeMap = {
   DEPLOYMENT_BALANCE: DeploymentBalanceAlertInput;
   WALLET_BALANCE: WalletBalanceAlertInput;
@@ -184,7 +188,7 @@ export class AlertRepository {
    * background/system context with no CASL ability scope, so it is intentionally
    * not filtered by `whereAccessibleBy`.
    */
-  async findDeploymentClosedAlertByOwnerAndDseq(owner: string, dseq: string): Promise<AlertOutput | undefined> {
+  async findDeploymentClosedAlertByOwnerAndDseq(owner: string, dseq: string): Promise<GeneralAlertOutput | undefined> {
     const alert = await this.db.query.Alert.findFirst({
       where: and(
         eq(schema.Alert.type, "CHAIN_EVENT"),
@@ -195,25 +199,21 @@ export class AlertRepository {
       )
     });
 
-    return alert && this.toOutput(alert);
+    return alert && this.toOutput(alert as InternalAlertOutput & { type: "CHAIN_EVENT" });
   }
 
-  /**
-   * Atomically claims the reclaim notification for an alert by stamping
-   * `params.reclaimNotifiedAt`, but only if it has not been claimed before.
-   * Returns the updated alert when this call won the claim, or `undefined` when
-   * it was already claimed (replay / pg-boss redelivery) — making the reclaim
-   * email exactly-once.
-   */
-  async claimReclaimNotification(id: string): Promise<AlertOutput | undefined> {
+  /** Stamps `params[stamp]` only while the alert carries no notification stamp, so the reclaim and lease-closed emails go out at most once and never both. */
+  async claimNotification(id: string, stamp: NotificationStamp): Promise<AlertOutput | undefined> {
     return this.db.transaction(async transaction => {
       const [alert] = await transaction
         .update(schema.Alert)
         .set({
-          params: sql`COALESCE(${schema.Alert.params}, '{}'::jsonb) || jsonb_build_object('reclaimNotifiedAt', to_jsonb(NOW()))`,
+          params: sql`COALESCE(${schema.Alert.params}, '{}'::jsonb) || jsonb_build_object(${stamp}::text, to_jsonb(NOW()))`,
           updatedAt: sql`NOW()`
         })
-        .where(and(eq(schema.Alert.id, id), sql`NOT jsonb_exists(COALESCE(${schema.Alert.params}, '{}'::jsonb), 'reclaimNotifiedAt')`))
+        .where(
+          and(eq(schema.Alert.id, id), sql`NOT jsonb_exists_any(COALESCE(${schema.Alert.params}, '{}'::jsonb), ${sql.param(NOTIFICATION_STAMPS)}::text[])`)
+        )
         .returning();
 
       return alert && this.toOutput(alert);

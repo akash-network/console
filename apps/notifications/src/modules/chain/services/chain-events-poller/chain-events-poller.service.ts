@@ -149,7 +149,7 @@ export class ChainEventsPollerService implements OnApplicationBootstrap, OnModul
         nextBlockHeight,
         [
           { module: "deployment", version: "v1", source: "akash", action: ["deployment-closed"] },
-          { module: "market", version: "v1", source: "akash", action: ["lease-reclaim-started"] }
+          { module: "market", version: "v1", source: "akash", action: ["lease-reclaim-started", "lease-closed"] }
         ],
         this.signal
       );
