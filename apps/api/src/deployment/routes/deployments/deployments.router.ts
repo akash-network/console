@@ -24,6 +24,7 @@ import {
   GetDeploymentNamesResponseSchema,
   GetDeploymentParamsSchema,
   GetDeploymentResponseSchema,
+  GetSpendRateResponseSchema,
   GetWeeklyDeploymentCostResponseSchema,
   ListDeploymentsQuerySchema,
   ListDeploymentsResponseSchema,
@@ -759,5 +760,45 @@ const getWeeklyDeploymentCostRoute = createRoute({
 });
 deploymentsRouter.openapi(getWeeklyDeploymentCostRoute, async function routeGetWeeklyDeploymentCost(c) {
   const result = await container.resolve(DeploymentController).getWeeklyDeploymentCost();
+  return c.json(result, 200);
+});
+
+const getSpendRateRoute = createRoute({
+  method: "get",
+  path: "/v1/spend-rate",
+  summary: "Get what each running deployment costs per block",
+  // eslint-disable-next-line akash/operation-id-format
+  operationId: "getSpendRate",
+  tags: ["Deployments"],
+  security: SECURITY_BEARER_OR_API_KEY,
+  responses: {
+    200: {
+      description: "Returns the summed price per block of the live leases of each of the user's deployments",
+      content: {
+        "application/json": {
+          schema: GetSpendRateResponseSchema
+        }
+      }
+    },
+    403: {
+      description: "The user's wallet is not initialized yet",
+      content: {
+        "application/json": {
+          schema: ErrorResponseSchema
+        }
+      }
+    },
+    404: {
+      description: "The user has no wallet",
+      content: {
+        "application/json": {
+          schema: ErrorResponseSchema
+        }
+      }
+    }
+  }
+});
+deploymentsRouter.openapi(getSpendRateRoute, async function routeGetSpendRate(c) {
+  const result = await container.resolve(DeploymentController).getSpendRate();
   return c.json(result, 200);
 });

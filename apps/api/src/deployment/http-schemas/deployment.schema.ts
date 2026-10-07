@@ -664,6 +664,21 @@ export const GetWeeklyDeploymentCostResponseSchema = z.object({
   })
 });
 
+const DeploymentSpendRateSchema = z.object({
+  dseq: z.string(),
+  price: z.object({ denom: z.string(), amount: z.string() }).openapi({
+    description: "Summed price per block of the deployment's live leases in that denom, written as a lease writes its own price."
+  })
+});
+
+export const GetSpendRateResponseSchema = z.object({
+  data: z.object({
+    deployments: z.array(DeploymentSpendRateSchema).openapi({
+      description: "One entry per denom for each deployment holding at least one live lease. A deployment with no live lease is absent."
+    })
+  })
+});
+
 export type DeploymentResponse = z.infer<typeof DeploymentResponseSchema>;
 export type CreateLeaseResponse = z.infer<typeof CreateLeaseResponseSchema>;
 export type ConsoleSettings = z.infer<typeof ConsoleSettingsSchema>;
@@ -689,3 +704,5 @@ export type ListDeploymentsItem = z.infer<typeof DeploymentLeaseListItemSchema>;
 export type GetDeploymentNamesResponse = z.infer<typeof GetDeploymentNamesResponseSchema>;
 export type GetDeploymentByOwnerDseqResponse = z.infer<typeof GetDeploymentByOwnerDseqResponseSchema>;
 export type GetWeeklyDeploymentCostResponse = z.infer<typeof GetWeeklyDeploymentCostResponseSchema>;
+export type GetSpendRateResponse = z.infer<typeof GetSpendRateResponseSchema>;
+export type DeploymentSpendRate = z.infer<typeof DeploymentSpendRateSchema>;

@@ -151,6 +151,82 @@ describe(LeaseRepository.name, () => {
     });
   });
 
+  describe("sumLivePricesPerDeployment", () => {
+    it("sums the price of every live lease of each deployment the owner holds", async () => {
+      const { repository } = setup();
+      const [firstProvider, secondProvider] = await Promise.all([seedProvider(), seedProvider()]);
+      const owner = createAkashAddress();
+      const [web, worker] = await Promise.all([seedDeployment(owner), seedDeployment(owner)]);
+      await seedLease(web, { providerAddress: firstProvider, gseq: 1, price: 1.25, denom: "uact" });
+      await seedLease(web, { providerAddress: secondProvider, gseq: 2, price: 0.5, denom: "uact" });
+      await seedLease(worker, { providerAddress: firstProvider, price: 3, denom: "uact" });
+
+      const found = await repository.sumLivePricesPerDeployment(owner);
+
+      expect(found).toHaveLength(2);
+      expect(found).toEqual(
+        expect.arrayContaining([
+          { dseq: web.dseq, denom: "uact", price: 1.75 },
+          { dseq: worker.dseq, denom: "uact", price: 3 }
+        ])
+      );
+    });
+
+    it("leaves out closed leases, and a deployment whose leases are all closed", async () => {
+      const { repository } = setup();
+      const [openProvider, closedProvider] = await Promise.all([seedProvider(), seedProvider()]);
+      const owner = createAkashAddress();
+      const [running, closed] = await Promise.all([seedDeployment(owner), seedDeployment(owner)]);
+      await seedLease(running, { providerAddress: openProvider, gseq: 1, price: 2, denom: "uact" });
+      await seedLease(running, { providerAddress: closedProvider, gseq: 2, price: 5, denom: "uact", closedHeight: 10_000 });
+      await seedLease(closed, { providerAddress: openProvider, price: 9, denom: "uact", closedHeight: 10_000 });
+
+      const found = await repository.sumLivePricesPerDeployment(owner);
+
+      expect(found).toEqual([{ dseq: running.dseq, denom: "uact", price: 2 }]);
+    });
+
+    it("keeps the leases of a deployment priced in different denoms apart", async () => {
+      const { repository } = setup();
+      const [firstProvider, secondProvider] = await Promise.all([seedProvider(), seedProvider()]);
+      const owner = createAkashAddress();
+      const deployment = await seedDeployment(owner);
+      await seedLease(deployment, { providerAddress: firstProvider, gseq: 1, price: 2, denom: "uact" });
+      await seedLease(deployment, { providerAddress: secondProvider, gseq: 2, price: 4, denom: "uakt" });
+
+      const found = await repository.sumLivePricesPerDeployment(owner);
+
+      expect(found).toHaveLength(2);
+      expect(found).toEqual(
+        expect.arrayContaining([
+          { dseq: deployment.dseq, denom: "uact", price: 2 },
+          { dseq: deployment.dseq, denom: "uakt", price: 4 }
+        ])
+      );
+    });
+
+    it("leaves out the live leases of other owners", async () => {
+      const { repository } = setup();
+      const provider = await seedProvider();
+      const owner = createAkashAddress();
+      const [ours, theirs] = await Promise.all([seedDeployment(owner), seedDeployment()]);
+      await seedLease(ours, { providerAddress: provider, price: 2, denom: "uact" });
+      await seedLease(theirs, { providerAddress: provider, price: 8, denom: "uact" });
+
+      const found = await repository.sumLivePricesPerDeployment(owner);
+
+      expect(found).toEqual([{ dseq: ours.dseq, denom: "uact", price: 2 }]);
+    });
+
+    it("returns nothing for an owner holding no lease", async () => {
+      const { repository } = setup();
+
+      const found = await repository.sumLivePricesPerDeployment(createAkashAddress());
+
+      expect(found).toEqual([]);
+    });
+  });
+
   function setup() {
     return { repository: container.resolve(LeaseRepository) };
   }
@@ -161,14 +237,14 @@ async function seedProvider() {
   return provider.owner;
 }
 
-async function seedDeployment() {
-  const deployment = await createDeployment({ owner: createAkashAddress(), dseq: faker.string.numeric(10) });
+async function seedDeployment(owner = createAkashAddress()) {
+  const deployment = await createDeployment({ owner, dseq: faker.string.numeric(10) });
   return { id: deployment.id, owner: deployment.owner, dseq: deployment.dseq };
 }
 
 async function seedLease(
   deployment: { id: string; owner: string; dseq: string },
-  overrides: { providerAddress: string; gseq?: number; closedHeight?: number; price?: number }
+  overrides: { providerAddress: string; gseq?: number; closedHeight?: number; price?: number; denom?: string }
 ) {
   const gseq = overrides.gseq ?? 1;
   const group = await createDeploymentGroup({ deploymentId: deployment.id, owner: deployment.owner, dseq: deployment.dseq, gseq });
@@ -182,6 +258,7 @@ async function seedLease(
     oseq: 1,
     providerAddress: overrides.providerAddress,
     closedHeight: overrides.closedHeight,
-    price: overrides.price
+    price: overrides.price,
+    denom: overrides.denom
   });
 }

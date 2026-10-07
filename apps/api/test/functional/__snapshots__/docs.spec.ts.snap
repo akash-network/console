@@ -19320,6 +19320,140 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
         ],
       },
     },
+    "/v1/spend-rate": {
+      "get": {
+        "operationId": "getSpendRate",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "properties": {
+                        "deployments": {
+                          "description": "One entry per denom for each deployment holding at least one live lease. A deployment with no live lease is absent.",
+                          "items": {
+                            "properties": {
+                              "dseq": {
+                                "type": "string",
+                              },
+                              "price": {
+                                "description": "Summed price per block of the deployment's live leases in that denom, written as a lease writes its own price.",
+                                "properties": {
+                                  "amount": {
+                                    "type": "string",
+                                  },
+                                  "denom": {
+                                    "type": "string",
+                                  },
+                                },
+                                "required": [
+                                  "denom",
+                                  "amount",
+                                ],
+                                "type": "object",
+                              },
+                            },
+                            "required": [
+                              "dseq",
+                              "price",
+                            ],
+                            "type": "object",
+                          },
+                          "type": "array",
+                        },
+                      },
+                      "required": [
+                        "deployments",
+                      ],
+                      "type": "object",
+                    },
+                  },
+                  "required": [
+                    "data",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "Returns the summed price per block of the live leases of each of the user's deployments",
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "type": "string",
+                    },
+                    "error": {
+                      "type": "string",
+                    },
+                    "message": {
+                      "type": "string",
+                    },
+                    "type": {
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "code",
+                    "type",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "The user's wallet is not initialized yet",
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "type": "string",
+                    },
+                    "error": {
+                      "type": "string",
+                    },
+                    "message": {
+                      "type": "string",
+                    },
+                    "type": {
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "code",
+                    "type",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "The user has no wallet",
+          },
+        },
+        "security": [
+          {
+            "BearerAuth": [],
+          },
+          {
+            "ApiKeyAuth": [],
+          },
+        ],
+        "summary": "Get what each running deployment costs per block",
+        "tags": [
+          "Deployments",
+        ],
+      },
+    },
     "/v1/templates-list": {
       "get": {
         "responses": {
