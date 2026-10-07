@@ -194,6 +194,164 @@ describe(ActivityHost.name, () => {
     ]);
   });
 
+  describe("a bulk close", () => {
+    const BATCH_ID = "b47c4a2e-5f0d-4c1e-9a7b-2d3e4f5a6b7c";
+
+    function batchClose(dseq: string, status: Activity["status"] = "pending") {
+      return buildActivity({ id: `close-${dseq}`, status, meta: { dseq, batchId: BATCH_ID } });
+    }
+
+    it("announces nothing until every close in it has finished, then sums them up once", () => {
+      const { enqueueSnackbar, receive } = setup({ activities: [batchClose("1"), batchClose("2"), batchClose("3")] });
+
+      receive([batchClose("1", "succeeded"), batchClose("2", "succeeded"), batchClose("3")]);
+      const announcedWhileOneRuns = enqueueSnackbar.mock.calls.length;
+      receive([batchClose("1", "succeeded"), batchClose("2", "succeeded"), batchClose("3", "succeeded")]);
+      receive([batchClose("1", "succeeded"), batchClose("2", "succeeded"), batchClose("3", "succeeded")]);
+
+      expect(announcedWhileOneRuns).toBe(0);
+      expect(enqueueSnackbar).toHaveBeenCalledTimes(1);
+      expect(enqueueSnackbar).toHaveBeenCalledWith(
+        expect.objectContaining({
+          props: expect.objectContaining({ title: "3 deployments closed", subTitle: "They no longer run or cost anything.", iconVariant: "success" })
+        }),
+        { variant: "success" }
+      );
+    });
+
+    it("refreshes the data of each close as soon as it finishes, before the summary", () => {
+      const { queryClient, receive, api } = setup({ activities: [batchClose("1"), batchClose("2")] });
+
+      receive([batchClose("1", "succeeded"), batchClose("2")]);
+
+      expect(invalidatedKeysOf(queryClient)).toEqual(expect.arrayContaining([api.v1.getDeployment.getKey({ dseq: "1" })]));
+    });
+
+    it("names the deployments it could not close", () => {
+      const { enqueueSnackbar, receive } = setup({
+        activities: [batchClose("1"), batchClose("2"), batchClose("3")],
+        names: { "2": "storefront" }
+      });
+
+      receive([batchClose("1", "succeeded"), batchClose("2", "failed"), batchClose("3", "failed")]);
+
+      expect(enqueueSnackbar).toHaveBeenCalledWith(
+        expect.objectContaining({
+          props: expect.objectContaining({
+            title: "Closed 1 of 3 deployments",
+            subTitle: "Couldn't close “storefront” and deployment 3.",
+            iconVariant: "warning"
+          })
+        }),
+        { variant: "warning" }
+      );
+    });
+
+    it("names the one deployment it could not close", () => {
+      const { enqueueSnackbar, receive } = setup({ activities: [batchClose("1"), batchClose("2")], names: { "2": "storefront" } });
+
+      receive([batchClose("1", "succeeded"), batchClose("2", "failed")]);
+
+      expect(enqueueSnackbar).toHaveBeenCalledWith(
+        expect.objectContaining({ props: expect.objectContaining({ title: "Closed 1 of 2 deployments", subTitle: "Couldn't close “storefront”." }) }),
+        { variant: "warning" }
+      );
+    });
+
+    it("names all three deployments it could not close", () => {
+      const dseqs = ["1", "2", "3", "4"];
+      const { enqueueSnackbar, receive } = setup({ activities: dseqs.map(dseq => batchClose(dseq)) });
+
+      receive([batchClose("1", "succeeded"), batchClose("2", "failed"), batchClose("3", "failed"), batchClose("4", "failed")]);
+
+      expect(enqueueSnackbar).toHaveBeenCalledWith(
+        expect.objectContaining({ props: expect.objectContaining({ subTitle: "Couldn't close deployment 2, deployment 3 and deployment 4." }) }),
+        { variant: "warning" }
+      );
+    });
+
+    it("forgets a bulk close whose closes have all left the feed by the time it was sent", () => {
+      const { enqueueSnackbar, receive } = setup({ activities: [] });
+
+      receive([batchClose("1", "succeeded")], { closeBatchesBeingSent: [BATCH_ID] });
+      receive([]);
+
+      expect(enqueueSnackbar).not.toHaveBeenCalled();
+    });
+
+    it("names every deployment when none of them closed", () => {
+      const { enqueueSnackbar, receive } = setup({ activities: [batchClose("1"), batchClose("2")], names: { "1": "api" } });
+
+      receive([batchClose("1", "failed"), batchClose("2", "failed")]);
+
+      expect(enqueueSnackbar).toHaveBeenCalledWith(
+        expect.objectContaining({
+          props: expect.objectContaining({ title: "Couldn't close 2 deployments", subTitle: "Try closing “api” and deployment 2 again.", iconVariant: "error" })
+        }),
+        { variant: "error" }
+      );
+    });
+
+    it("names three deployments at most and counts the rest", () => {
+      const dseqs = ["1", "2", "3", "4", "5"];
+      const { enqueueSnackbar, receive } = setup({ activities: dseqs.map(dseq => batchClose(dseq)) });
+
+      receive(dseqs.map(dseq => batchClose(dseq, "failed")));
+
+      expect(enqueueSnackbar).toHaveBeenCalledWith(
+        expect.objectContaining({ props: expect.objectContaining({ subTitle: "Try closing deployment 1, deployment 2, deployment 3 and 2 more again." }) }),
+        { variant: "error" }
+      );
+    });
+
+    it("announces a bulk close of one deployment as that close", () => {
+      const { enqueueSnackbar, receive } = setup({ activities: [batchClose("1")], names: { "1": "storefront" } });
+
+      receive([batchClose("1", "succeeded")]);
+
+      expect(enqueueSnackbar).toHaveBeenCalledWith(expect.objectContaining({ props: expect.objectContaining({ title: "“storefront” closed" }) }), {
+        variant: "success"
+      });
+    });
+
+    it("waits while this tab is still sending the bulk close, then sums it up", () => {
+      const { enqueueSnackbar, receive } = setup({ activities: [] });
+
+      receive([batchClose("1", "succeeded"), batchClose("2", "succeeded")], { closeBatchesBeingSent: [BATCH_ID] });
+      const announcedWhileSending = enqueueSnackbar.mock.calls.length;
+      receive([batchClose("1", "succeeded"), batchClose("2", "succeeded")]);
+
+      expect(announcedWhileSending).toBe(0);
+      expect(enqueueSnackbar).toHaveBeenCalledTimes(1);
+      expect(enqueueSnackbar).toHaveBeenCalledWith(expect.objectContaining({ props: expect.objectContaining({ title: "2 deployments closed" }) }), {
+        variant: "success"
+      });
+    });
+
+    it("announces nothing for a bulk close that had already finished when it first heard of it", () => {
+      const { enqueueSnackbar, receive } = setup({ activities: [batchClose("1", "succeeded"), batchClose("2", "failed")] });
+
+      receive([batchClose("1", "succeeded"), batchClose("2", "failed")]);
+
+      expect(enqueueSnackbar).not.toHaveBeenCalled();
+    });
+
+    it("sums up two bulk closes apart", () => {
+      const other = buildActivity({ id: "other", status: "pending", meta: { dseq: "9", batchId: "f2c1a9b8-0d3e-4f5a-8b7c-6d5e4f3a2b1c" } });
+      const { enqueueSnackbar, receive } = setup({ activities: [batchClose("1"), batchClose("2"), other] });
+
+      receive([batchClose("1", "succeeded"), batchClose("2", "succeeded"), { ...other, status: "succeeded" }]);
+
+      expect(enqueueSnackbar).toHaveBeenCalledTimes(2);
+      expect(enqueueSnackbar).toHaveBeenCalledWith(expect.objectContaining({ props: expect.objectContaining({ title: "2 deployments closed" }) }), {
+        variant: "success"
+      });
+      expect(enqueueSnackbar).toHaveBeenCalledWith(expect.objectContaining({ props: expect.objectContaining({ title: "Deployment 9 closed" }) }), {
+        variant: "success"
+      });
+    });
+  });
+
   function invalidatedKeysOf(queryClient: ReturnType<typeof DEPENDENCIES.useQueryClient>) {
     return vi.mocked(queryClient.invalidateQueries).mock.calls.map(([filters]) => filters?.queryKey);
   }
@@ -202,6 +360,7 @@ describe(ActivityHost.name, () => {
     const user = buildUser();
     let activities = input.activities;
     let isLoadingNames = false;
+    let closeBatchesBeingSent: ReadonlySet<string> = new Set();
     const useDeploymentNames = vi.fn((() =>
       mock<ReturnType<typeof DEPENDENCIES.useDeploymentNames>>({
         getDeploymentName: dseq => input.names?.[String(dseq)] ?? null,
@@ -222,6 +381,7 @@ describe(ActivityHost.name, () => {
       useWallet: () => mock<ReturnType<typeof DEPENDENCIES.useWallet>>({ address: input.address ?? OWNER }),
       useLatestActivitiesQuery,
       useDeploymentNames,
+      useCloseBatchesBeingSent: () => closeBatchesBeingSent,
       useSnackbar: () => ({ enqueueSnackbar, closeSnackbar: vi.fn() }),
       useQueryClient: () => queryClient
     };
@@ -233,9 +393,10 @@ describe(ActivityHost.name, () => {
     );
     const { rerender } = render(host());
 
-    const receive = (next: Activity[], { isLoadingNames: isLoadingNextNames = false }: { isLoadingNames?: boolean } = {}) => {
+    const receive = (next: Activity[], options: { isLoadingNames?: boolean; closeBatchesBeingSent?: string[] } = {}) => {
       activities = next;
-      isLoadingNames = isLoadingNextNames;
+      isLoadingNames = options.isLoadingNames ?? false;
+      closeBatchesBeingSent = new Set(options.closeBatchesBeingSent);
       rerender(host());
     };
 
