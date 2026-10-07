@@ -34,15 +34,15 @@ export function checkSdlImport(sdl: string, readIntoForm?: (sdl: string) => unkn
     return { status: "invalid", reason: NOT_AN_SDL_REASON };
   }
 
+  const errors = validateSDL(document as SDLInput);
+  if (errors?.length) {
+    return { status: "invalid", reason: describeValidationErrors(errors) };
+  }
+
   try {
     readIntoForm?.(sdl);
   } catch (error) {
     return { status: "invalid", reason: describeImportError(error) };
-  }
-
-  const errors = validateSDL(document as SDLInput);
-  if (errors?.length) {
-    return { status: "invalid", reason: describeValidationErrors(errors) };
   }
 
   return { status: "valid", placements: summarizePlacements(document as SDLInput) };
