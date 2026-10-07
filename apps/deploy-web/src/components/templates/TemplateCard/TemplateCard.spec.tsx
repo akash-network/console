@@ -43,6 +43,7 @@ describe(TemplateCard.name, () => {
 
     expect(screen.getByRole("list", { name: "Hardware" })).toBeInTheDocument();
     expect(screen.getByTitle("GPU")).toHaveTextContent("1× A100");
+    expect(screen.getByTitle("GPU").querySelector("svg")).toHaveClass("lucide-gpu");
     expect(screen.getByTitle("vCPU")).toHaveTextContent("1.5");
     expect(screen.getByTitle("Memory")).toHaveTextContent("16 GiB");
     expect(screen.getByTitle("Storage")).toHaveTextContent("100 GiB");

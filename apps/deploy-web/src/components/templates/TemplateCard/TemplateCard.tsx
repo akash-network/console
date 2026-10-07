@@ -2,7 +2,7 @@
 import type { FC } from "react";
 import type { TemplateHardware } from "@akashnetwork/http-sdk";
 import type { LucideIcon } from "lucide-react";
-import { ArrowRight, Cpu, HardDrive, MemoryStick, Microchip } from "lucide-react";
+import { ArrowRight, Cpu, Gpu, HardDrive, MemoryStick } from "lucide-react";
 import Link from "next/link";
 
 import { formatBytes } from "@src/components/deployments/ConfigureDeployment/DeploymentResourceSummary/deploymentResources";
@@ -42,7 +42,7 @@ export const TemplateCard: FC<TemplateCardProps> = ({ template, isPopular }) => 
 
 const HardwareProfile: FC<{ hardware: TemplateHardware }> = ({ hardware }) => (
   <ul aria-label="Hardware" className="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-2">
-    {hardware.gpu && <HardwareStat icon={Microchip} label="GPU" value={describeGpu(hardware.gpu)} />}
+    {hardware.gpu && <HardwareStat icon={Gpu} label="GPU" value={describeGpu(hardware.gpu)} />}
     <HardwareStat icon={Cpu} label="vCPU" value={String(roundDecimal(hardware.cpu, 2))} />
     <HardwareStat icon={MemoryStick} label="Memory" value={formatBytes(hardware.memoryBytes)} />
     <HardwareStat icon={HardDrive} label="Storage" value={formatBytes(hardware.storageBytes)} />
