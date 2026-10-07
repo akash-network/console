@@ -1,5 +1,6 @@
 import type { DeploymentHttpService, DeploymentListResponse, LeaseHttpService } from "@akashnetwork/http-sdk";
 import { AxiosError } from "axios";
+import { ConnectionError } from "sequelize";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
@@ -603,6 +604,29 @@ describe(DeploymentReaderService.name, () => {
       expect(deploymentHttpService.findAll).not.toHaveBeenCalled();
     });
 
+    it("lists the archive from the chain when the console's index is unreachable", async () => {
+      const wallet = createUserWallet() as WalletInitialized;
+      const unreachable = new ConnectionError(new Error("connect ECONNREFUSED"));
+      const { service, deploymentHttpService, deploymentRepository, logger } = setup({ wallet, listedDseqs: ["100"], archiveError: unreachable });
+      deploymentRepository.countByOwnerAndState.mockRejectedValue(unreachable);
+
+      const result = await service.list({ query: { userId: wallet.userId }, state: "closed", skip: 0, limit: 10 });
+
+      expect(deploymentHttpService.findAll).toHaveBeenCalledWith(expect.objectContaining({ owner: wallet.address, state: "closed" }));
+      expect(result.deployments.map(({ deployment }) => deployment.id.dseq)).toEqual(["100"]);
+      expect(result.total).toBeNull();
+      expect(logger.warn).toHaveBeenCalledWith(expect.objectContaining({ event: "DEPLOYMENT_ARCHIVE_INDEX_UNREACHABLE", owner: wallet.address }));
+    });
+
+    it("fails the archive on an index error other than it being unreachable", async () => {
+      const wallet = createUserWallet() as WalletInitialized;
+      const broken = new Error("column does not exist");
+      const { service, deploymentHttpService } = setup({ wallet, archiveError: broken });
+
+      await expect(service.list({ query: { userId: wallet.userId }, state: "closed", skip: 0, limit: 10 })).rejects.toBe(broken);
+      expect(deploymentHttpService.findAll).not.toHaveBeenCalled();
+    });
+
     it("answers with the archive page, its count and whether another page follows as the index gave them", async () => {
       const wallet = createUserWallet() as WalletInitialized;
       const archived = { deployments: [], total: 62, hasMore: true };
@@ -1096,6 +1120,7 @@ describe(DeploymentReaderService.name, () => {
       leaseGpus?: Map<string, LeaseGpusByLease>;
       providers?: ProviderList[];
       archived?: Awaited<ReturnType<DeploymentArchiveReaderService["list"]>>;
+      archiveError?: Error;
     } = {}
   ) {
     const defaultWallet = createUserWallet() as WalletInitialized;
@@ -1177,7 +1202,9 @@ describe(DeploymentReaderService.name, () => {
     const leaseGpuService = mock<LeaseGpuService>();
     leaseGpuService.findForDeployments.mockResolvedValue(input.leaseGpus ?? new Map());
     const deploymentArchiveReaderService = mock<DeploymentArchiveReaderService>({
-      list: vi.fn().mockResolvedValue(input.archived ?? { deployments: [], total: 0, hasMore: false })
+      list: input.archiveError
+        ? vi.fn().mockRejectedValue(input.archiveError)
+        : vi.fn().mockResolvedValue(input.archived ?? { deployments: [], total: 0, hasMore: false })
     });
     const createLogger = vi.fn<CreateLogger>(() => mocks.logger);
 

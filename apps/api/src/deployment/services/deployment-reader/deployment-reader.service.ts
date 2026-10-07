@@ -15,7 +15,7 @@ import { PromisePool } from "@supercharge/promise-pool";
 import { AxiosError } from "axios";
 import assert from "http-assert";
 import { InternalServerError, UnprocessableEntity as UnprocessableEntityError } from "http-errors";
-import { Op } from "sequelize";
+import { ConnectionError, Op } from "sequelize";
 import { inject, singleton } from "tsyringe";
 
 import { AuthService } from "@src/auth/services/auth.service";
@@ -33,7 +33,7 @@ import {
 import { toDeploymentListItem, withLeaseGpus } from "@src/deployment/lib/deployment-list-item/deployment-list-item";
 import { DeploymentRepository } from "@src/deployment/repositories/deployment/deployment.repository";
 import { DeploymentSettingRepository, type ListedDeploymentSetting } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
-import { DeploymentArchiveReaderService } from "@src/deployment/services/deployment-archive-reader/deployment-archive-reader.service";
+import { type ArchivePageQuery, DeploymentArchiveReaderService } from "@src/deployment/services/deployment-archive-reader/deployment-archive-reader.service";
 import { FallbackLeaseReaderService } from "@src/deployment/services/fallback-lease-reader/fallback-lease-reader.service";
 import { LeaseGpuService } from "@src/deployment/services/lease-gpu/lease-gpu.service";
 import type { OnChainGroupSpec } from "@src/deployment/utils/changed-group-resources/changed-group-resources";
@@ -257,7 +257,8 @@ export class DeploymentReaderService {
     const { address: owner } = wallet;
 
     if (state === "closed") {
-      return await this.deploymentArchiveReaderService.list({ owner, userId: query.userId, skip, limit, reverse, search });
+      const archive = await this.#listArchiveFromIndex({ owner, userId: query.userId, skip, limit, reverse, search });
+      if (archive) return archive;
     }
 
     const {
@@ -291,6 +292,18 @@ export class DeploymentReaderService {
     );
 
     return { deployments, total, hasMore };
+  }
+
+  /** An unreachable index answers null so the archive is listed from the chain as before, rather than failing while the chain is up. */
+  async #listArchiveFromIndex(query: ArchivePageQuery) {
+    try {
+      return await this.deploymentArchiveReaderService.list(query);
+    } catch (error) {
+      if (!(error instanceof ConnectionError)) throw error;
+
+      this.logger.warn({ event: "DEPLOYMENT_ARCHIVE_INDEX_UNREACHABLE", owner: query.owner, error });
+      return null;
+    }
   }
 
   async #findPage({ owner, userId, state, skip, limit, reverse }: PageQuery) {
