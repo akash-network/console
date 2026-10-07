@@ -30,10 +30,12 @@ import {
   GetDeploymentResponse,
   ListDeploymentsItem
 } from "@src/deployment/http-schemas/deployment.schema";
+import { toDeploymentListItem, withLeaseGpus } from "@src/deployment/lib/deployment-list-item/deployment-list-item";
 import { DeploymentRepository } from "@src/deployment/repositories/deployment/deployment.repository";
 import { DeploymentSettingRepository, type ListedDeploymentSetting } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
+import { DeploymentArchiveReaderService } from "@src/deployment/services/deployment-archive-reader/deployment-archive-reader.service";
 import { FallbackLeaseReaderService } from "@src/deployment/services/fallback-lease-reader/fallback-lease-reader.service";
-import { leaseGpuKeyOf, type LeaseGpusByLease, LeaseGpuService } from "@src/deployment/services/lease-gpu/lease-gpu.service";
+import { LeaseGpuService } from "@src/deployment/services/lease-gpu/lease-gpu.service";
 import type { OnChainGroupSpec } from "@src/deployment/utils/changed-group-resources/changed-group-resources";
 import { ProviderService } from "@src/provider/services/provider/provider.service";
 import type { ProviderList } from "@src/types/provider";
@@ -77,6 +79,7 @@ export class DeploymentReaderService {
     private readonly deploymentRepository: DeploymentRepository,
     private readonly authService: AuthService,
     private readonly leaseGpuService: LeaseGpuService,
+    private readonly deploymentArchiveReaderService: DeploymentArchiveReaderService,
     @inject(LOGGER_FACTORY) createLogger: CreateLogger
   ) {
     this.logger = createLogger({ context: DeploymentReaderService.name });
@@ -253,6 +256,10 @@ export class DeploymentReaderService {
     const wallet = await this.walletReaderService.getWalletByUserId(query.userId);
     const { address: owner } = wallet;
 
+    if (state === "closed") {
+      return await this.deploymentArchiveReaderService.list({ owner, userId: query.userId, skip, limit, reverse, search });
+    }
+
     const {
       page,
       settings: pendingSettings,
@@ -274,21 +281,14 @@ export class DeploymentReaderService {
       this.leaseGpuService.findForDeployments({ userId: query.userId, dseqs: page.map(deployment => deployment.deployment.id.dseq) })
     ]);
 
-    const deployments = page.map((deployment, index) => {
-      const recorded = settings.get(deployment.deployment.id.dseq);
-
-      return {
-        deployment: deployment.deployment,
-        groups: deployment.groups,
-        leases: withLeaseGpus(
-          this.#fetchedLeasesAt(leaseResults, index).map(({ lease }) => lease),
-          leaseGpus.get(deployment.deployment.id.dseq)
-        ),
-        escrow_account: deployment.escrow_account,
-        name: recorded?.name ?? null,
-        settings: recorded ? toListedSettings(recorded) : null
-      };
-    });
+    const deployments = page.map((deployment, index) =>
+      toDeploymentListItem({
+        deployment,
+        leases: this.#fetchedLeasesAt(leaseResults, index).map(({ lease }) => lease),
+        setting: settings.get(deployment.deployment.id.dseq),
+        leaseGpus: leaseGpus.get(deployment.deployment.id.dseq)
+      })
+    );
 
     return { deployments, total, hasMore };
   }
@@ -701,15 +701,4 @@ function totalCovering({ countedTotal, skip, pageLength }: { countedTotal: numbe
   }
 
   return pageLength ? Math.max(countedTotal, skip + pageLength) : countedTotal;
-}
-
-function toListedSettings(setting: ListedDeploymentSetting) {
-  return { ...setting, runtimeEndsAt: setting.runtimeEndsAt?.toISOString() ?? null };
-}
-
-/** A lease the console recorded nothing for carries neither field at all, rather than an empty one that would read as "no gpu". */
-function withLeaseGpus<T extends { id: { gseq: number; oseq: number; provider: string } }>(leases: T[], byLease: LeaseGpusByLease | undefined): T[] {
-  if (!byLease?.size) return leases;
-
-  return leases.map(lease => ({ ...lease, ...byLease.get(leaseGpuKeyOf(lease.id)) }));
 }

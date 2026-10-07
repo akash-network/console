@@ -7537,7 +7537,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
             "name": "search",
             "required": false,
             "schema": {
-              "description": "Case-insensitive substring matched against each deployment's console name and its dseq. It spans every deployment in \`state\` before paging, so \`total\` and \`hasMore\` describe the matches rather than the state.",
+              "description": "Case-insensitive substring matched against each deployment's console name and its dseq. It spans every deployment in \`state\` before paging, so \`total\` and \`hasMore\` describe the matches rather than the state. A search of \`active\` deployments is refused past a cap on how many it spans; a search of the archive (\`closed\`) has no cap.",
               "maxLength": 256,
               "type": "string",
             },
@@ -8352,7 +8352,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                               "type": "number",
                             },
                             "total": {
-                              "description": "Deployments the owner holds in this state, counted from the console's own index, so it can briefly lag behind the list itself. Null when that index cannot answer, which leaves the count unknown rather than understated; page on \`hasMore\` regardless.",
+                              "description": "Deployments the owner holds in this state, counted from the console's own index. The archive (\`closed\`) is listed from that same index, so its count always agrees with its pages; \`active\` deployments are listed live, so their count can briefly lag behind the list. Null when the index cannot count the \`active\` deployments, which leaves the count unknown rather than understated; page on \`hasMore\` regardless.",
                               "nullable": true,
                               "type": "number",
                             },
@@ -8440,7 +8440,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                 },
               },
             },
-            "description": "The owner holds more deployments than a search spans. Page through them without a \`search\` instead",
+            "description": "The owner holds more \`active\` deployments than a search spans. Page through them without a \`search\` instead. A search of the archive (\`state=closed\`) is never refused this way",
           },
         },
         "security": [

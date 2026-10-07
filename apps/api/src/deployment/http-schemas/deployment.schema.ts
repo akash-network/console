@@ -485,7 +485,7 @@ export const ListDeploymentsQuerySchema = z.object({
     .transform(value => value || undefined)
     .openapi({
       description:
-        "Case-insensitive substring matched against each deployment's console name and its dseq. It spans every deployment in `state` before paging, so `total` and `hasMore` describe the matches rather than the state."
+        "Case-insensitive substring matched against each deployment's console name and its dseq. It spans every deployment in `state` before paging, so `total` and `hasMore` describe the matches rather than the state. A search of `active` deployments is refused past a cap on how many it spans; a search of the archive (`closed`) has no cap."
     }),
   skip: z.coerce.number().int().min(0).default(0).openapi({
     description: "Deployments to skip before the page begins."
@@ -509,7 +509,7 @@ export const ListDeploymentsResponseSchema = z.object({
     pagination: z.object({
       total: z.number().nullable().openapi({
         description:
-          "Deployments the owner holds in this state, counted from the console's own index, so it can briefly lag behind the list itself. Null when that index cannot answer, which leaves the count unknown rather than understated; page on `hasMore` regardless."
+          "Deployments the owner holds in this state, counted from the console's own index. The archive (`closed`) is listed from that same index, so its count always agrees with its pages; `active` deployments are listed live, so their count can briefly lag behind the list. Null when the index cannot count the `active` deployments, which leaves the count unknown rather than understated; page on `hasMore` regardless."
       }),
       skip: z.number(),
       limit: z.number(),

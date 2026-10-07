@@ -1,8 +1,9 @@
-import { and, asc, desc, eq, gt, gte, inArray, isNotNull, isNull, lt, lte, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gt, gte, ilike, inArray, isNotNull, isNull, lt, lte, or, sql } from "drizzle-orm";
 import { singleton } from "tsyringe";
 
 import { UserWallets, WalletSetting } from "@src/billing/model-schemas";
 import { assertBatchSize } from "@src/core/lib/batch-size/batch-size";
+import { containsPattern } from "@src/core/lib/like-pattern/like-pattern";
 import { type ApiPgDatabase, type ApiPgTables, InjectPg, InjectPgTable } from "@src/core/providers";
 import { type AbilityParams, BaseRepository } from "@src/core/repositories/base.repository";
 import { TxService } from "@src/core/services";
@@ -178,6 +179,16 @@ export class DeploymentSettingRepository extends BaseRepository<Table, Deploymen
       .where(this.whereAccessibleBy(and(eq(this.table.userId, userId), inArray(this.table.dseq, dseqs))));
 
     return new Map(rows.map(({ dseq, ...setting }) => [dseq, setting]));
+  }
+
+  /** Under the same double scoping as {@link findNamesByDseqs}; the null-name condition is what lets the partial index on named rows serve it. */
+  async findDseqsByNameContaining({ userId, text }: { userId: string; text: string }): Promise<string[]> {
+    const rows = await this.cursor
+      .select({ dseq: this.table.dseq })
+      .from(this.table)
+      .where(this.whereAccessibleBy(and(eq(this.table.userId, userId), isNotNull(this.table.name), ilike(this.table.name, containsPattern(text)))));
+
+    return rows.map(row => row.dseq);
   }
 
   /** Keyed by dseq and absent for a deployment with neither recorded, under the same double scoping as {@link findNamesByDseqs}. */
