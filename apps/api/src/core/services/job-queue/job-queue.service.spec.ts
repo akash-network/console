@@ -365,6 +365,43 @@ describe(JobQueueService.name, () => {
     });
   });
 
+  describe("findJob", () => {
+    it("returns when the job of the queue under the id finished", async () => {
+      const { service, pgBoss, txService } = setup();
+      const completedOn = new Date("2026-10-07T12:00:00.000Z");
+      txService.getConnection.mockReturnValue(undefined);
+      const executeSql = vi.fn().mockResolvedValue({ rows: [{ completed_on: completedOn }] });
+      vi.spyOn(pgBoss, "getDb").mockReturnValue({ executeSql });
+
+      await expect(service.findJob(TestJob, "job-1")).resolves.toEqual({ completedOn });
+
+      expect(executeSql).toHaveBeenCalledWith(expect.stringMatching(/SELECT completed_on\s+FROM \S+\.job\s+WHERE name = \$1\s+AND id = \$2/), [
+        TestJob[JOB_NAME],
+        "job-1"
+      ]);
+    });
+
+    it("returns nothing when the queue holds no job under the id", async () => {
+      const { service, pgBoss, txService } = setup();
+      txService.getConnection.mockReturnValue(undefined);
+      vi.spyOn(pgBoss, "getDb").mockReturnValue({ executeSql: vi.fn().mockResolvedValue({ rows: [] }) });
+
+      await expect(service.findJob(TestJob, "job-1")).resolves.toBeUndefined();
+    });
+
+    it("reads the job on the ambient transaction connection when one is active", async () => {
+      const { service, pgBoss, txService } = setup();
+      const unsafe = vi.fn().mockResolvedValue([{ completed_on: null }]);
+      txService.getConnection.mockReturnValue({ unsafe } as unknown as Sql);
+      const getDb = vi.spyOn(pgBoss, "getDb");
+
+      await expect(service.findJob(TestJob, "job-1")).resolves.toEqual({ completedOn: null });
+
+      expect(unsafe).toHaveBeenCalledWith(expect.stringContaining("AND id = $2"), [TestJob[JOB_NAME], "job-1"]);
+      expect(getDb).not.toHaveBeenCalled();
+    });
+  });
+
   describe("findRecentlyFinishedSingletonKeys", () => {
     it("returns the singleton keys of the queue's jobs that finished since the instant given", async () => {
       const { service, pgBoss, txService } = setup();

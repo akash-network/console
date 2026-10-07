@@ -275,6 +275,61 @@ describe(JobQueueService.name, () => {
     expect(await jobQueue.findPendingJobData(jobType, singletonKey)).toBeUndefined();
   });
 
+  it("reports a job as unfinished while it waits and while a worker runs it", async () => {
+    let release!: () => void;
+    const held = new Promise<void>(resolve => {
+      release = resolve;
+    });
+    const { jobQueue, handler, enqueue, findJob, jobType } = await setup({ queueName: "unfinished-by-id", handle: () => held });
+    await jobQueue.registerHandlers([handler]);
+    const id = (await enqueue()) as string;
+
+    const waiting = await jobQueue.findJob(jobType, id);
+    await jobQueue.startWorkers({ concurrency: 1, pollingIntervalSeconds: 0.5 });
+    await waitForJobState(findJob, "active");
+    const running = await jobQueue.findJob(jobType, id);
+
+    expect(waiting).toEqual({ completedOn: null });
+    expect(running).toEqual({ completedOn: null });
+    release();
+    await waitForJobState(findJob, "completed");
+  });
+
+  it("reports a job as unfinished while it waits on a retry", async () => {
+    const { jobQueue, handler, enqueue, findJob, jobType } = await setup({ queueName: "retrying-by-id", handle: vi.fn().mockRejectedValue(new Error("boom")) });
+    await jobQueue.registerHandlers([handler]);
+    const id = (await enqueue()) as string;
+    await jobQueue.startWorkers({ concurrency: 1, pollingIntervalSeconds: 0.5 });
+    await waitForJobState(findJob, "retry");
+
+    expect(await jobQueue.findJob(jobType, id)).toEqual({ completedOn: null });
+  });
+
+  it("reports when a job finished", async () => {
+    const { jobQueue, handler, enqueue, findJob, jobType } = await setup({ queueName: "finished-by-id" });
+    await jobQueue.registerHandlers([handler]);
+    const before = new Date();
+    const id = (await enqueue()) as string;
+    await jobQueue.startWorkers({ concurrency: 1, pollingIntervalSeconds: 0.5 });
+    await waitForJobState(findJob, "completed");
+
+    const { completedOn } = (await jobQueue.findJob(jobType, id)) as { completedOn: Date };
+
+    expect(completedOn.getTime()).toBeGreaterThanOrEqual(before.getTime() - 1000);
+    expect(completedOn.getTime()).toBeLessThanOrEqual(Date.now() + 1000);
+  });
+
+  it("finds no job under an id its queue never held", async () => {
+    const { jobQueue, handler, enqueue, jobType } = await setup({ queueName: "elsewhere-by-id" });
+    const otherQueue = await setup({ queueName: "other-queue-by-id" });
+    await jobQueue.registerHandlers([handler, otherQueue.handler]);
+    await enqueue();
+    const otherQueueId = (await otherQueue.enqueue()) as string;
+
+    expect(await jobQueue.findJob(jobType, otherQueueId)).toBeUndefined();
+    expect(await jobQueue.findJob(jobType, "6f1c2b9e-3d4a-4b5c-8e7f-9a0b1c2d3e4f")).toBeUndefined();
+  });
+
   it("logs a job failure pg-boss could not write under JOB_QUEUE_WORKER_ERROR and leaves the job active", async () => {
     const failureWithLoneSurrogate = new Error("handler failed with \ud800, which Postgres refuses inside jsonb");
     const { jobQueue, handler, enqueue, findJob } = await setup({ queueName: "unrecordable", handle: vi.fn().mockRejectedValue(failureWithLoneSurrogate) });

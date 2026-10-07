@@ -295,6 +295,25 @@ export class JobQueueService implements Disposable {
     return result.rows[0]?.data;
   }
 
+  /** `completedOn` stays null while the job is queued, waiting on a retry or running; a job pg-boss no longer keeps is not found. */
+  async findJob<T extends Job>(jobType: JobType<T>, id: string): Promise<{ completedOn: Date | null } | undefined> {
+    const connection = this.txService.getConnection();
+    const db = connection ? this.#toTransactionDb(connection) : await this.pgBoss.getDb();
+    const schema = this.coreConfig.get("POSTGRES_BACKGROUND_JOBS_SCHEMA");
+    const result = (await db.executeSql(
+      `
+        SELECT completed_on
+        FROM ${schema}.job
+        WHERE name = $1
+          AND id = $2
+      `,
+      [jobType[JOB_NAME], id]
+    )) as { rows: { completed_on: Date | null }[] };
+    const [job] = result.rows;
+
+    return job && { completedOn: job.completed_on };
+  }
+
   /** Singleton keys of the queue's jobs that finished at or after `since`, which reaches back only as far as pg-boss keeps finished jobs. */
   async findRecentlyFinishedSingletonKeys(query: { name: string; since: Date }): Promise<Set<string>> {
     const connection = this.txService.getConnection();
