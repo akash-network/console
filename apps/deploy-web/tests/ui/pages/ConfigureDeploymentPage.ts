@@ -84,12 +84,15 @@ export class ConfigureDeploymentPage {
     return download;
   }
 
-  /** The SDL persisted for the active configure draft, or null when none has been written yet. */
-  getPersistedDraft() {
-    return this.page.evaluate(() => {
-      const key = Object.keys(window.localStorage).find(item => item.startsWith("configure-draft:"));
-      return key ? window.localStorage.getItem(key) : null;
-    });
+  /** The account's answer to the first draft save carrying `sdlFragment`; arm it before the edit, since the save goes out once typing settles. */
+  waitForDraftSave(sdlFragment: string) {
+    return this.page.waitForResponse(
+      response =>
+        response.request().method() === "PUT" &&
+        /\/api\/proxy\/v1\/configure-drafts\/[^/?]+$/.test(response.url()) &&
+        (response.request().postData() ?? "").includes(sdlFragment),
+      { timeout: 30_000 }
+    );
   }
 
   async requestQuotes() {
