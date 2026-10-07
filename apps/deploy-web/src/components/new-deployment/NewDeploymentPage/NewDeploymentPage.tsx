@@ -15,9 +15,9 @@ import { useTemplates } from "@src/queries/useTemplateQuery";
 import { helloWorldTemplate } from "@src/utils/templates";
 import { domainName, UrlService } from "@src/utils/urlUtils";
 import { AgentModePanel } from "../AgentModePanel/AgentModePanel";
+import { ImportSdlButton } from "../ImportSdlButton/ImportSdlButton";
 import { LegacyBuilderRedirect } from "../LegacyBuilderRedirect/LegacyBuilderRedirect";
 import { StartFromScratchCard } from "../StartFromScratchCard/StartFromScratchCard";
-import { UploadSdlButton } from "../UploadSdlButton/UploadSdlButton";
 
 const POPULAR_TEMPLATE_COUNT = 6;
 
@@ -33,7 +33,7 @@ export const DEPENDENCIES = {
   CustomNextSeo,
   LegacyBuilderRedirect,
   AgentModePanel,
-  UploadSdlButton,
+  ImportSdlButton,
   StartFromScratchCard,
   TemplateCard,
   Skeleton
@@ -79,7 +79,7 @@ export const NewDeploymentPage: FC<Props> = ({ dependencies: d = DEPENDENCIES })
                 Start from scratch or pick a template. Everything is editable in the next step.
               </p>
             </div>
-            <d.UploadSdlButton />
+            <d.ImportSdlButton />
           </header>
 
           <d.AgentModePanel />

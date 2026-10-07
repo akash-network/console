@@ -35,10 +35,10 @@ describe("NewDeploymentPage", () => {
     expect(screen.getByRole("link", { name: "Back to deployments" })).toHaveAttribute("href", UrlService.deploymentList());
   });
 
-  it("offers an SDL upload and the agent setup to everyone", () => {
-    const { UploadSdlButton, AgentModePanel } = setup({});
+  it("offers an SDL import and the agent setup to everyone", () => {
+    const { ImportSdlButton, AgentModePanel } = setup({});
 
-    expect(UploadSdlButton).toHaveBeenCalled();
+    expect(ImportSdlButton).toHaveBeenCalled();
     expect(AgentModePanel).toHaveBeenCalled();
   });
 
@@ -122,7 +122,7 @@ describe("NewDeploymentPage", () => {
     const Layout = vi.fn(({ children }: PropsWithChildren) => <div>{children}</div>);
     const LegacyBuilderRedirect = vi.fn(({ children }: PropsWithChildren) => <>{children}</>);
     const AgentModePanel = vi.fn(() => null);
-    const UploadSdlButton = vi.fn(() => null);
+    const ImportSdlButton = vi.fn(() => null);
     const TemplateCard = vi.fn<typeof DEPENDENCIES.TemplateCard>(() => null);
     const Skeleton = vi.fn<typeof DEPENDENCIES.Skeleton>(() => <div />);
     const dependencies = MockComponents(DEPENDENCIES, {
@@ -131,7 +131,7 @@ describe("NewDeploymentPage", () => {
       Layout: Layout as never,
       LegacyBuilderRedirect,
       AgentModePanel,
-      UploadSdlButton,
+      ImportSdlButton,
       StartFromScratchCard: DEPENDENCIES.StartFromScratchCard,
       TemplateCard,
       Skeleton
@@ -149,7 +149,7 @@ describe("NewDeploymentPage", () => {
       Layout,
       LegacyBuilderRedirect,
       AgentModePanel,
-      UploadSdlButton,
+      ImportSdlButton,
       TemplateCard,
       Skeleton,
       CustomNextSeo: dependencies.CustomNextSeo

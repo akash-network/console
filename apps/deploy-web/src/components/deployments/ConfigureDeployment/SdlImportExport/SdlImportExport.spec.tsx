@@ -18,7 +18,7 @@ describe(SdlImportExport.name, () => {
     setup({});
 
     await openMenu();
-    await userEvent.click(screen.getByRole("menuitem", { name: /Import Config/ }));
+    await userEvent.click(screen.getByRole("menuitem", { name: /Import SDL/ }));
 
     expect(screen.getByRole("button", { name: "trigger import" })).toBeInTheDocument();
   });
@@ -28,20 +28,31 @@ describe(SdlImportExport.name, () => {
 
     await openMenu();
 
-    expect(screen.getByRole("menuitem", { name: /Import Config/ })).toHaveAttribute("aria-disabled", "true");
+    expect(screen.getByRole("menuitem", { name: /Import SDL/ })).toHaveAttribute("aria-disabled", "true");
   });
 
   it("applies the import, shows a snackbar, tracks the method, and closes the dialog", async () => {
     const { onImport, analyticsService, enqueueSnackbar } = setup({});
 
     await openMenu();
-    await userEvent.click(screen.getByRole("menuitem", { name: /Import Config/ }));
+    await userEvent.click(screen.getByRole("menuitem", { name: /Import SDL/ }));
     await userEvent.click(screen.getByRole("button", { name: "trigger import" }));
 
     expect(onImport).toHaveBeenCalledWith(IMPORTED_STATE);
     expect(analyticsService.track).toHaveBeenCalledWith("configure_sdl_imported", { category: "deployments", method: "file" });
     expect(enqueueSnackbar).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ variant: "success" }));
     expect(screen.queryByRole("button", { name: "trigger import" })).not.toBeInTheDocument();
+  });
+
+  it("closes the import dialog without importing", async () => {
+    const { onImport } = setup({});
+
+    await openMenu();
+    await userEvent.click(screen.getByRole("menuitem", { name: /Import SDL/ }));
+    await userEvent.click(screen.getByRole("button", { name: "close import" }));
+
+    expect(screen.queryByRole("button", { name: "trigger import" })).not.toBeInTheDocument();
+    expect(onImport).not.toHaveBeenCalled();
   });
 
   it("downloads the sdl as a yaml file named after the deployment", async () => {
@@ -142,9 +153,14 @@ describe(SdlImportExport.name, () => {
     const copyTextToClipboard = vi.fn<(text: string) => Promise<boolean>>().mockResolvedValue(input.canCopy ?? true);
 
     const ImportSdlDialog: typeof DEPENDENCIES.ImportSdlDialog = props => (
-      <button type="button" onClick={() => "onImport" in props && props.onImport(IMPORTED_STATE, { method: "file" })}>
-        trigger import
-      </button>
+      <>
+        <button type="button" onClick={() => "onImport" in props && props.onImport(IMPORTED_STATE, { method: "file" })}>
+          trigger import
+        </button>
+        <button type="button" onClick={props.onClose}>
+          close import
+        </button>
+      </>
     );
 
     render(
