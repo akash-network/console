@@ -1,10 +1,10 @@
 "use client";
-import type { FC, ReactNode } from "react";
+import type { FC } from "react";
 
+import { SettingsSection } from "@src/components/layout/SettingsSection/SettingsSection";
 import { useUser } from "@src/hooks/useUser";
 import { useDeploymentSettingQuery } from "@src/queries/deploymentSettingsQuery";
 import type { DeploymentDto, LeaseDto } from "@src/types/deployment";
-import { DeploymentTabHeader } from "../DeploymentTabHeader";
 import { DeploymentBillingSection } from "./DeploymentBillingSection";
 import { DeploymentDangerZone } from "./DeploymentDangerZone";
 import { DeploymentNotificationsSection } from "./DeploymentNotificationsSection";
@@ -32,7 +32,7 @@ export const DeploymentSettings: FC<DeploymentSettingsProps> = ({ deployment, le
   const showsBillingSection = !!settings?.runtimeLimitHours;
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-7">
       {showsBillingSection && (
         <SettingsSection title="Billing">
           <d.DeploymentBillingSection deployment={deployment} leases={leases} onFundsChanged={onDeploymentChange} />
@@ -44,17 +44,10 @@ export const DeploymentSettings: FC<DeploymentSettingsProps> = ({ deployment, le
       </SettingsSection>
 
       {isActive && (
-        <SettingsSection title="Danger Zone" destructive>
+        <SettingsSection title="Danger zone" destructive>
           <d.DeploymentDangerZone deployment={deployment} onClosed={onDeploymentChange} />
         </SettingsSection>
       )}
     </div>
   );
 };
-
-const SettingsSection: FC<{ title: string; destructive?: boolean; children: ReactNode }> = ({ title, destructive, children }) => (
-  <section>
-    <DeploymentTabHeader title={title} destructive={destructive} />
-    {children}
-  </section>
-);

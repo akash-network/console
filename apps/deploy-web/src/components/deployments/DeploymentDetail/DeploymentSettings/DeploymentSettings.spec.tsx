@@ -13,14 +13,14 @@ describe(DeploymentSettings.name, () => {
 
     expect(screen.getByText("notifications:true")).toBeInTheDocument();
     expect(screen.getByText("danger-zone")).toBeInTheDocument();
-    expect(screen.getByText("Danger Zone")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Danger zone" })).toBeInTheDocument();
   });
 
   it("hides the danger zone when the deployment is closed", () => {
     setup({ state: "closed", isSignedIn: true });
 
     expect(screen.queryByText("danger-zone")).not.toBeInTheDocument();
-    expect(screen.queryByText("Danger Zone")).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Danger zone" })).not.toBeInTheDocument();
   });
 
   it("disables notifications when the user is not signed in", () => {

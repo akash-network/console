@@ -30,6 +30,7 @@ export type ChildrenProps = {
   isSaving: boolean;
   isFetched: boolean;
   isError: boolean;
+  refetch: () => void;
 };
 
 export type Props = {
@@ -42,7 +43,7 @@ export const DeploymentAlertsContainer: FC<Props> = ({ children, deployment }) =
   const queryClient = useQueryClient();
   const notificator = useNotificator();
 
-  const { data, isLoading, isFetched, isError } = api.v1.listDeploymentAlerts.useQuery({ dseq: deployment.dseq });
+  const { data, isLoading, isFetched, isError, refetch } = api.v1.listDeploymentAlerts.useQuery({ dseq: deployment.dseq });
 
   const mutation = api.v1.upsertDeploymentAlert.useMutation();
 
@@ -81,7 +82,8 @@ export const DeploymentAlertsContainer: FC<Props> = ({ children, deployment }) =
         isLoading,
         isSaving: mutation.isPending,
         isFetched,
-        isError
+        isError,
+        refetch
       })}
     </>
   );

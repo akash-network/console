@@ -25,4 +25,25 @@ describe(SettingsSection.name, () => {
 
     expect(screen.getByRole("region", { name: "Your keys" })).toHaveTextContent("2 active keys");
   });
+
+  it("tints the title as destructive for a danger zone", () => {
+    render(
+      <SettingsSection title="Danger zone" destructive>
+        <p>close deployment</p>
+      </SettingsSection>
+    );
+
+    expect(screen.getByRole("heading", { level: 2, name: "Danger zone" })).toHaveClass("text-destructive");
+  });
+
+  it("keeps the title muted by default", () => {
+    render(
+      <SettingsSection title="Notifications">
+        <p>alerts</p>
+      </SettingsSection>
+    );
+
+    expect(screen.getByRole("heading", { level: 2, name: "Notifications" })).toHaveClass("text-muted-foreground");
+    expect(screen.getByRole("heading", { level: 2, name: "Notifications" })).not.toHaveClass("text-destructive");
+  });
 });
