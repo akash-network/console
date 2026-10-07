@@ -476,12 +476,12 @@ describe("placementModel", () => {
       expect(summarizeWorkloadStatus([buildPoll({ web: 1 }), buildPoll({ api: 1, worker: 0 })])).toBe("starting");
     });
 
-    it("reports loading while a lease status has not arrived and no service is known to be starting", () => {
-      expect(summarizeWorkloadStatus([buildPoll({ web: 1 }), buildPoll(undefined, { isLoading: true })])).toBe("loading");
+    it("reports loading while a lease status has not arrived, including one that cannot be asked for yet", () => {
+      expect(summarizeWorkloadStatus([buildPoll({ web: 1 }), buildPoll(undefined)])).toBe("loading");
     });
 
-    it("reports starting over a lease status that is still loading", () => {
-      expect(summarizeWorkloadStatus([buildPoll({ web: 0 }), buildPoll(undefined, { isLoading: true })])).toBe("starting");
+    it("reports starting over a lease status that has not arrived", () => {
+      expect(summarizeWorkloadStatus([buildPoll({ web: 0 }), buildPoll(undefined)])).toBe("starting");
     });
 
     it.each([502, 503])("reports unreachable over a starting service when a provider answers %s", status => {
@@ -494,19 +494,18 @@ describe("placementModel", () => {
       expect(summarizeWorkloadStatus([buildPoll({ web: 1 }, { error: new Error("Network Error") })])).toBe("running");
     });
 
-    it("leaves the status to the chain when a provider has no status for its lease", () => {
-      expect(summarizeWorkloadStatus([buildPoll(null)])).toBeUndefined();
+    it("keeps reporting loading, as the service rows do, when a provider has no status for its lease", () => {
+      expect(summarizeWorkloadStatus([buildPoll(null)])).toBe("loading");
     });
   });
 });
 
-function buildPoll(availableByService: Record<string, number> | null | undefined, input?: { isLoading?: boolean; error?: unknown }): LeaseStatusPoll {
+function buildPoll(availableByService: Record<string, number> | null | undefined, input?: { error?: unknown }): LeaseStatusPoll {
   return {
     data: availableByService && {
       services: Object.fromEntries(Object.entries(availableByService).map(([name, available]) => [name, buildService({ available })]))
     },
-    error: input?.error ?? null,
-    isLoading: input?.isLoading ?? false
+    error: input?.error ?? null
   };
 }
 

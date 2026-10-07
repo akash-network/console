@@ -88,6 +88,13 @@ describe(DeploymentDetailHeader.name, () => {
     expect(screen.queryByText("Running")).not.toBeInTheDocument();
   });
 
+  it("shows the deployment as loading rather than running until its provider has reported", () => {
+    setup({ availableReplicasByService: null });
+
+    expect(screen.getByText("Loading")).toBeInTheDocument();
+    expect(screen.queryByText("Running")).not.toBeInTheDocument();
+  });
+
   it("asks the provider of each live lease what is running on it", () => {
     const liveLease = mock<LeaseDto>({ id: "1", provider: "akash1live", state: "active" });
     const liveLeaseProvider = mock<ApiProviderList>({ owner: "akash1live" });
@@ -355,7 +362,7 @@ describe(DeploymentDetailHeader.name, () => {
     groups?: DeploymentGroup[];
     isLoadingLeaseGpus?: boolean;
     closingDseqs?: string[];
-    availableReplicasByService?: Record<string, number>;
+    availableReplicasByService?: Record<string, number> | null;
     dependencies?: Partial<typeof DEPENDENCIES>;
   }) {
     const changeDeploymentName = vi.fn();
@@ -386,15 +393,18 @@ describe(DeploymentDetailHeader.name, () => {
     const CostRate = vi.fn(() => <div>cost-rate</div>);
     const CostBreakdownTooltip = vi.fn(({ children }: { children?: ReactNode }) => <span>cost-tooltip{children}</span>);
     const DeploymentVisitControl = vi.fn(() => <div>visit</div>);
-    const availableReplicasByService = input.availableReplicasByService ?? { web: 1 };
+    const availableReplicasByService = input.availableReplicasByService === undefined ? { web: 1 } : input.availableReplicasByService;
     const useLeaseStatuses = vi.fn<typeof DEPENDENCIES.useLeaseStatuses>(items =>
       items.map(() =>
         mock<ReturnType<typeof DEPENDENCIES.useLeaseStatuses>[number]>({
-          data: mock<LeaseStatusDto>({
-            services: Object.fromEntries(Object.entries(availableReplicasByService).map(([name, available]) => [name, mock<LeaseServiceStatus>({ available })]))
-          }),
-          error: null,
-          isLoading: false
+          data: availableReplicasByService
+            ? mock<LeaseStatusDto>({
+                services: Object.fromEntries(
+                  Object.entries(availableReplicasByService).map(([name, available]) => [name, mock<LeaseServiceStatus>({ available })])
+                )
+              })
+            : undefined,
+          error: null
         })
       )
     );

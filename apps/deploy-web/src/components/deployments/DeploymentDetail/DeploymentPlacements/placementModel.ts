@@ -260,17 +260,16 @@ export type WorkloadStatus = "running" | "starting" | "loading" | "unreachable";
 export interface LeaseStatusPoll {
   data?: Pick<LeaseStatusDto, "services"> | null;
   error: unknown;
-  isLoading: boolean;
 }
 
-/** What the providers of a deployment's live leases report, worst first, so the header never claims more than a service row shows. */
+/** What the providers of a deployment's live leases report, worst first; like a service row, it only says "running" once every provider has reported. */
 export function summarizeWorkloadStatus(polls: LeaseStatusPoll[]): WorkloadStatus | undefined {
+  if (polls.length === 0) return undefined;
   if (polls.some(poll => isProviderUnavailableError(poll.error))) return "unreachable";
 
   const services = polls.flatMap(poll => Object.values(poll.data?.services ?? {}));
   if (services.some(service => !isServiceRunning(service))) return "starting";
-  if (polls.some(poll => poll.isLoading)) return "loading";
-  return services.length > 0 ? "running" : undefined;
+  return polls.every(poll => poll.data) ? "running" : "loading";
 }
 
 /** `{available}/{total} replicas` for the collapsed service row; omitted until lease status has arrived. */
