@@ -48,11 +48,6 @@ export class LeaseClosedAlertService {
       return;
     }
 
-    if (alert.params?.reclaimNotifiedAt) {
-      this.loggerService.debug({ event: "LEASE_CLOSED_ALERT_SKIPPED", reason: "RECLAIM_ALREADY_NOTIFIED", alertId: alert.id });
-      return;
-    }
-
     const claimedAlert = await this.alertRepository.claimNotification(alert.id, "leaseClosedNotifiedAt");
 
     if (!claimedAlert) {

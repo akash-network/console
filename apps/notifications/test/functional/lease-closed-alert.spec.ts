@@ -109,6 +109,54 @@ describe("lease closed alerts", () => {
     }
   });
 
+  it("does not send a reclaim email after the lease closed email", async () => {
+    const { module, controller, brokerService, db } = await setup();
+
+    try {
+      const owner = mockAkashAddress();
+      const dseq = generateDseq();
+      const [channel] = await db
+        .insert(NotificationChannel)
+        .values([generateNotificationChannel({})])
+        .returning();
+      await db.insert(schema.Alert).values([generateClosedAlert({ owner, dseq, notificationChannelId: channel.id })]);
+
+      await controller.processLeaseClosed(generateLeaseClosedEvent({ owner, dseq }));
+      await controller.processLeaseReclaimStarted(generateReclaimEvent({ owner, dseq }));
+
+      expect(brokerService.publish).toHaveBeenCalledTimes(1);
+      expect(brokerService.publish).toHaveBeenCalledWith(
+        eventKeyRegistry.createNotification,
+        expect.objectContaining({ payload: expect.objectContaining({ summary: `The lease for deployment ${dseq} was closed` }) })
+      );
+    } finally {
+      await module.close();
+    }
+  });
+
+  it("sends only one email when the reclaim and lease closed events are processed at once", async () => {
+    const { module, controller, brokerService, db } = await setup();
+
+    try {
+      const owner = mockAkashAddress();
+      const dseq = generateDseq();
+      const [channel] = await db
+        .insert(NotificationChannel)
+        .values([generateNotificationChannel({})])
+        .returning();
+      await db.insert(schema.Alert).values([generateClosedAlert({ owner, dseq, notificationChannelId: channel.id })]);
+
+      await Promise.all([
+        controller.processLeaseReclaimStarted(generateReclaimEvent({ owner, dseq })),
+        controller.processLeaseClosed(generateLeaseClosedEvent({ owner, dseq }))
+      ]);
+
+      expect(brokerService.publish).toHaveBeenCalledTimes(1);
+    } finally {
+      await module.close();
+    }
+  });
+
   it("does not send when the user switched the deployment-closed alert off", async () => {
     const { module, controller, brokerService, db } = await setup();
 

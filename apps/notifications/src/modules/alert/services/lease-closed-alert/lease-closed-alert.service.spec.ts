@@ -63,19 +63,7 @@ describe(LeaseClosedAlertService.name, () => {
       expect(loggerService.debug).toHaveBeenCalledWith({ event: "LEASE_CLOSED_ALERT_SKIPPED", reason: "OPTED_OUT", alertId: alert.id });
     });
 
-    it("skips when a reclaim email already warned about this deployment", async () => {
-      const { service, alertRepository, loggerService, onMessage } = await setup();
-      const alert = generateDeploymentClosedAlert({ reclaimNotifiedAt: new Date().toISOString() });
-      alertRepository.findDeploymentClosedAlertByOwnerAndDseq.mockResolvedValue(alert);
-
-      await service.alertFor(generateLeaseClosedEvent(), onMessage);
-
-      expect(alertRepository.claimNotification).not.toHaveBeenCalled();
-      expect(onMessage).not.toHaveBeenCalled();
-      expect(loggerService.debug).toHaveBeenCalledWith({ event: "LEASE_CLOSED_ALERT_SKIPPED", reason: "RECLAIM_ALREADY_NOTIFIED", alertId: alert.id });
-    });
-
-    it("skips when the lease closed notification was already claimed", async () => {
+    it("skips when this or the reclaim notification was already claimed", async () => {
       const { service, alertRepository, loggerService, onMessage } = await setup();
       const alert = generateDeploymentClosedAlert();
       alertRepository.findDeploymentClosedAlertByOwnerAndDseq.mockResolvedValue(alert);
@@ -144,15 +132,14 @@ describe(LeaseClosedAlertService.name, () => {
     };
   }
 
-  function generateDeploymentClosedAlert(input: { enabled?: boolean; suppressedBySystem?: boolean; reclaimNotifiedAt?: string } = {}): GeneralAlertOutput {
+  function generateDeploymentClosedAlert(input: { enabled?: boolean; suppressedBySystem?: boolean } = {}): GeneralAlertOutput {
     return generateGeneralAlert({
       type: "CHAIN_EVENT",
       enabled: input.enabled ?? true,
       params: {
         dseq: "12345",
         type: "DEPLOYMENT_CLOSED",
-        suppressedBySystem: input.suppressedBySystem,
-        reclaimNotifiedAt: input.reclaimNotifiedAt
+        suppressedBySystem: input.suppressedBySystem
       }
     });
   }

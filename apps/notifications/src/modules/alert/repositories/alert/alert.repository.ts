@@ -33,7 +33,9 @@ export type AlertOutput = GeneralAlertOutput | DeploymentBalanceAlertOutput | Wa
 
 export type AlertType = AlertOutput["type"];
 
-export type NotificationStamp = "reclaimNotifiedAt" | "leaseClosedNotifiedAt";
+const NOTIFICATION_STAMPS = ["reclaimNotifiedAt", "leaseClosedNotifiedAt"] as const;
+
+export type NotificationStamp = (typeof NOTIFICATION_STAMPS)[number];
 
 export type AlertInputTypeMap = {
   DEPLOYMENT_BALANCE: DeploymentBalanceAlertInput;
@@ -200,7 +202,7 @@ export class AlertRepository {
     return alert && this.toOutput(alert as InternalAlertOutput & { type: "CHAIN_EVENT" });
   }
 
-  /** Stamps `params[stamp]` only when it is absent, so a replayed or redelivered event can never send the same email twice. */
+  /** Stamps `params[stamp]` only while the alert carries no notification stamp, so the reclaim and lease-closed emails go out at most once and never both. */
   async claimNotification(id: string, stamp: NotificationStamp): Promise<AlertOutput | undefined> {
     return this.db.transaction(async transaction => {
       const [alert] = await transaction
@@ -209,7 +211,9 @@ export class AlertRepository {
           params: sql`COALESCE(${schema.Alert.params}, '{}'::jsonb) || jsonb_build_object(${stamp}::text, to_jsonb(NOW()))`,
           updatedAt: sql`NOW()`
         })
-        .where(and(eq(schema.Alert.id, id), sql`NOT jsonb_exists(COALESCE(${schema.Alert.params}, '{}'::jsonb), ${stamp}::text)`))
+        .where(
+          and(eq(schema.Alert.id, id), sql`NOT jsonb_exists_any(COALESCE(${schema.Alert.params}, '{}'::jsonb), ${sql.param(NOTIFICATION_STAMPS)}::text[])`)
+        )
         .returning();
 
       return alert && this.toOutput(alert);
