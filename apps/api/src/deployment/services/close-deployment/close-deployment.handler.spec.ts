@@ -45,6 +45,24 @@ describe(CloseDeploymentHandler.name, () => {
     expect(activityService.settle).toHaveBeenCalledWith("activity-1", closedActivityOf(KEY));
   });
 
+  it("keeps the bulk close it was part of when the close succeeds", async () => {
+    const { handler, activityService } = setup();
+
+    await handler.handle({ ...PAYLOAD, batchId: "batch-1" }, { id: "job-1", retryCount: 0, retryLimit: 8 });
+
+    expect(activityService.settle).toHaveBeenCalledWith("activity-1", closedActivityOf({ ...KEY, batchId: "batch-1" }));
+  });
+
+  it("keeps the bulk close it was part of when the last attempt fails", async () => {
+    const { handler, deploymentWriterService, activityService } = setup();
+    const failure = createError(400, "Deployment is not open");
+    deploymentWriterService.close.mockRejectedValue(failure);
+
+    await expect(handler.handle({ ...PAYLOAD, batchId: "batch-1" }, { id: "job-1", retryCount: 8, retryLimit: 8 })).rejects.toBe(failure);
+
+    expect(activityService.settle).toHaveBeenCalledWith("activity-1", failedCloseActivityOf({ ...KEY, batchId: "batch-1" }, failure));
+  });
+
   it("leaves an activity that is no longer pending alone", async () => {
     const { handler, deploymentWriterService, activityService } = setup({ pending: false });
 

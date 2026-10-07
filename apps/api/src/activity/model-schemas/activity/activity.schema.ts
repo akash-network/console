@@ -11,6 +11,7 @@ export type ActivityStatus = (typeof activityStatusEnum.enumValues)[number];
 
 export type ActivityMeta = {
   dseq?: string;
+  batchId?: string;
   txHash?: string;
   error?: { code: string; message: string };
 };

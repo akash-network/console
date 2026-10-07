@@ -142,7 +142,7 @@ export const operations = {
       method: "delete",
       operationId: "closeDeployment",
       pathParams: ["dseq"],
-      queryParams: ["async"],
+      queryParams: ["async", "batchId"],
       hasBody: false
     },
     updateDeployment: { path: "/v1/deployments/{dseq}", method: "put", operationId: "updateDeployment", pathParams: ["dseq"], queryParams: [], hasBody: true },

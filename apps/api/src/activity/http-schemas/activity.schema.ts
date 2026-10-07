@@ -18,6 +18,7 @@ export const ActivitySchema = z.object({
   status: ActivityStatusSchema,
   meta: z.object({
     dseq: z.string().optional().openapi({ description: "The deployment the action was about." }),
+    batchId: z.string().optional().openapi({ description: "The bulk close the action was part of, as its request named it." }),
     txHash: z.string().optional().openapi({ description: "Reference of a pending action whose outcome is still being confirmed." }),
     error: z.object({ code: z.string(), message: z.string() }).optional().openapi({ description: "Why a failed action did not go through." })
   }),
