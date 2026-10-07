@@ -12,6 +12,7 @@ import { mock, type MockProxy } from "vitest-mock-extended";
 import type { ActivityService } from "@src/activity/services/activity/activity.service";
 import type { WalletInitialized } from "@src/billing/repositories";
 import type { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
+import { TxOutcomeUnknownError } from "@src/billing/services/external-signer-http-sdk/tx-outcome.error";
 import type { ManagedSignerService } from "@src/billing/services/managed-signer/managed-signer.service";
 import type { RpcMessageService } from "@src/billing/services/rpc-message-service/rpc-message.service";
 import type { WalletReaderService } from "@src/billing/services/wallet-reader/wallet-reader.service";
@@ -1233,6 +1234,41 @@ describe(DeploymentWriterService.name, () => {
       await expect(service.closeByUserIdAndDseq("user-1", "100", { batchId: "batch-1" })).rejects.toBe(failure);
 
       expect(activityService.record).toHaveBeenCalledWith(failedCloseActivityOf({ userId: "user-1", dseq: "100", batchId: "batch-1" }, failure));
+    });
+
+    it("opens a close left undecided as pending with a check on it in one transaction, and still answers with the failure", async () => {
+      const { service, signerService, deploymentReaderService, txService, activityService, jobQueueService } = setup();
+      vi.useFakeTimers({ now: new Date("2026-01-01T00:00:00.000Z"), toFake: ["Date"] });
+      const undecided = new TxOutcomeUnknownError("ABCDEF");
+      signerService.executeDecodedTxByUserWallet.mockRejectedValue(undecided);
+      deploymentReaderService.findByWalletAndDseqWithoutProviderStatus.mockResolvedValue(deploymentData);
+      jobQueueService.enqueue.mockImplementation(async () => {
+        expect(txService.transaction).toHaveBeenCalledTimes(1);
+        return "reconcile-job-1";
+      });
+
+      await expect(service.closeByUserIdAndDseq("user-1", "100", { batchId: "batch-1" })).rejects.toBe(undecided);
+
+      const [[opened]] = activityService.open.mock.calls;
+      expect(opened).toEqual({ id: expect.any(String), ...failedCloseActivityOf({ userId: "user-1", dseq: "100", batchId: "batch-1" }, undecided) });
+      expect(jobQueueService.enqueue).toHaveBeenCalledWith(
+        new ReconcileDeploymentClose({ userId: "user-1", owner: wallet.address, dseq: "100", activityId: opened.id, batchId: "batch-1" }),
+        reconcileDeploymentCloseOptionsFor(opened.id, new Date("2026-01-01T00:00:00.000Z"))
+      );
+      expect(activityService.record).not.toHaveBeenCalled();
+    });
+
+    it("still answers with the failure of a close left undecided when it cannot be recorded", async () => {
+      const { service, signerService, deploymentReaderService, activityService, logger } = setup();
+      const undecided = new TxOutcomeUnknownError("ABCDEF");
+      const recordFailure = new Error("connection reset");
+      signerService.executeDecodedTxByUserWallet.mockRejectedValue(undecided);
+      deploymentReaderService.findByWalletAndDseqWithoutProviderStatus.mockResolvedValue(deploymentData);
+      activityService.open.mockRejectedValue(recordFailure);
+
+      await expect(service.closeByUserIdAndDseq("user-1", "100")).rejects.toBe(undecided);
+
+      expect(logger.error).toHaveBeenCalledWith({ event: "UNDECIDED_CLOSE_RECORD_FAILED", userId: "user-1", dseq: "100", error: recordFailure });
     });
 
     it("reads the deployment once before closing it", async () => {

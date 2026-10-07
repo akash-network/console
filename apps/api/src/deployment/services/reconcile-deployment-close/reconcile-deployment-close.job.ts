@@ -2,7 +2,7 @@ import { addMinutes } from "date-fns";
 
 import { type EnqueueOptions, type Job, JOB_NAME } from "@src/core";
 
-/** Records what became of a background close its job left pending, whether a worker restart lost the job or it ran out of retries on an undecided outcome. */
+/** Records what became of a close left pending: a request's close whose outcome was undecided, or a background close whose job was lost to a worker restart or ran out of retries on an undecided outcome. */
 export class ReconcileDeploymentClose implements Job {
   static readonly [JOB_NAME] = "ReconcileDeploymentClose";
   readonly name = ReconcileDeploymentClose[JOB_NAME];
@@ -15,7 +15,8 @@ export class ReconcileDeploymentClose implements Job {
       dseq: string;
       activityId: string;
       batchId?: string;
-      closeJobId: string;
+      /** Absent for a close the request performed itself, which has no job to wait for. */
+      closeJobId?: string;
     }
   ) {}
 }

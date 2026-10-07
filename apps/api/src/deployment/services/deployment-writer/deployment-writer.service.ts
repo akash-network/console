@@ -377,8 +377,24 @@ export class DeploymentWriterService {
       if (closed) await this.activityService.record(closedActivityOf({ userId, dseq, batchId }));
       return closed;
     } catch (error) {
-      await this.activityService.record(failedCloseActivityOf({ userId, dseq, batchId }, error));
+      await this.#recordFailedClose({ userId, owner: wallet.address, dseq, batchId }, error);
       throw error;
+    }
+  }
+
+  /** An undecided close opens its pending activity with a later check in one transaction, so it settles once its outcome is known; as with `record`, failing to write either is only logged. */
+  async #recordFailedClose(close: { userId: string; owner: string; dseq: string; batchId?: string }, error: unknown): Promise<void> {
+    const activity = failedCloseActivityOf(close, error);
+    if (activity.status !== "pending") return await this.activityService.record(activity);
+
+    try {
+      await this.txService.transaction(async () => {
+        const activityId = randomUUID();
+        await this.activityService.open({ id: activityId, ...activity });
+        await this.jobQueueService.enqueue(new ReconcileDeploymentClose({ ...close, activityId }), reconcileDeploymentCloseOptionsFor(activityId, new Date()));
+      });
+    } catch (recordError) {
+      this.logger.error({ event: "UNDECIDED_CLOSE_RECORD_FAILED", userId: close.userId, dseq: close.dseq, error: recordError });
     }
   }
 

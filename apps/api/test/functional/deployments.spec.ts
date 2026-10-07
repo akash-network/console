@@ -18,6 +18,7 @@ import { AuthService } from "@src/auth/services/auth.service";
 import type { UserWalletOutput } from "@src/billing/repositories";
 import { UserWalletRepository } from "@src/billing/repositories";
 import { ManagedSignerService } from "@src/billing/services";
+import { TxOutcomeUnknownError } from "@src/billing/services/external-signer-http-sdk/tx-outcome.error";
 import { BlockHttpService } from "@src/chain/services/block-http/block-http.service";
 import { CORE_CONFIG, JOB_NAME } from "@src/core";
 import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
@@ -1767,6 +1768,28 @@ describe("Deployments API", () => {
       expect(response.status).toBe(402);
       expect(broadcast).not.toHaveBeenCalled();
       expect(await activityRepository.find({ userId: user.id })).toEqual([]);
+    });
+
+    it("records a close whose outcome is undecided as pending under its hash, with a check queued to settle it", async () => {
+      const { user, userApiKeySecret, wallets } = await mockPersistedUser();
+      const dseq = createDseq();
+      await setupDeploymentInfoMock(wallets, dseq);
+      vi.spyOn(signerService, "executeDecodedTxByUserWallet").mockRejectedValueOnce(new TxOutcomeUnknownError("ABCDEF"));
+
+      const response = await app.request(`/v1/deployments/${dseq}`, {
+        method: "DELETE",
+        headers: new Headers({ "Content-Type": "application/json", "x-api-key": userApiKeySecret })
+      });
+
+      expect(response.status).toBe(504);
+      const [activity] = await activityRepository.find({ userId: user.id });
+      expect(activity).toMatchObject({ type: "deployment_close", status: "pending", meta: { dseq, txHash: "ABCDEF" } });
+      expect(await findJobRows(ReconcileDeploymentClose[JOB_NAME], { data: { activityId: activity.id } })).toEqual([
+        expect.objectContaining({
+          state: "created",
+          data: expect.objectContaining({ userId: user.id, owner: wallets[0].address, dseq, activityId: activity.id })
+        })
+      ]);
     });
 
     it("should close a deployment successfully", async () => {

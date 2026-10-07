@@ -38,7 +38,9 @@ export class ReconcileDeploymentCloseHandler implements JobHandler<ReconcileDepl
     await this.activityService.settle(data.activityId, isClosed ? closedActivityOf(data) : stillOpenActivityOf(data));
   }
 
-  async #mayCloseStillLand(closeJobId: string): Promise<boolean> {
+  async #mayCloseStillLand(closeJobId?: string): Promise<boolean> {
+    if (!closeJobId) return false;
+
     const closeJob = await this.jobQueueService.findJob(CloseDeployment, closeJobId);
     if (!closeJob) return false;
 

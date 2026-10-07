@@ -103,6 +103,16 @@ describe(ReconcileDeploymentCloseHandler.name, () => {
     expect(activityService.settle).toHaveBeenCalledWith("activity-1", closedActivityOf(DATA));
   });
 
+  it("reads the deployment straight away for a close the request performed itself, which no job waits on", async () => {
+    const { handler, activityService, jobQueueService } = setup({ deploymentState: "closed" });
+    const { closeJobId: _closeJobId, ...requestClose } = DATA;
+
+    await handler.handle({ ...requestClose, version: 1 });
+
+    expect(jobQueueService.findJob).not.toHaveBeenCalled();
+    expect(activityService.settle).toHaveBeenCalledWith("activity-1", closedActivityOf(requestClose));
+  });
+
   it("keeps the bulk close the close was part of in the activity it settles", async () => {
     const { handler, activityService } = setup({ deploymentState: "active" });
     const batchId = "b47c4a2e-5f0d-4c1e-9a7b-2d3e4f5a6b7c";

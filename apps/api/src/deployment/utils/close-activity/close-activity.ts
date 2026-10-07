@@ -5,7 +5,7 @@ import { isUnknownTxOutcome } from "@src/billing/services/external-signer-http-s
 
 type CloseKey = { userId: string; dseq: string; batchId?: string };
 
-const UNEXPLAINED_CLOSE_ERROR = { code: "close_failed", message: "The deployment could not be closed." };
+const UNEXPLAINED_CLOSE_ERROR = { code: "close_failed", message: "Something went wrong on our side. Try closing it again in a moment." };
 
 const STILL_OPEN_ERROR = { code: "close_incomplete", message: "The deployment is still open. Try closing it again." };
 
