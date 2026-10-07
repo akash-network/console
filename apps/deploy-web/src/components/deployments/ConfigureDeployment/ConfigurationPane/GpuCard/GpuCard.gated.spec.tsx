@@ -152,10 +152,11 @@ describe("GpuCard trial gate", () => {
       data: input.availableGpus && { regions: [], gpus: input.availableGpus }
     });
     const usePlacementOptions: typeof DEPENDENCIES.usePlacementOptions = () => placementOptionsQuery;
-    const useScreenedGpuModelCount: typeof DEPENDENCIES.useScreenedGpuModelCount = (_serviceIndex, model) => {
-      const offered = input.availableGpus?.flatMap(vendor => vendor.models).find(candidate => candidate.name === model.name);
-      return { count: offered?.providerCount ?? 0, gpuCount: offered?.availableUnits ?? 0, isLoading: false };
-    };
+    const useScreenedGpuModelCounts: typeof DEPENDENCIES.useScreenedGpuModelCounts = (_serviceIndex, models) =>
+      models.map(model => {
+        const offered = input.availableGpus?.flatMap(vendor => vendor.models).find(candidate => candidate.name === model.name);
+        return { count: offered?.providerCount ?? 0, gpuCount: offered?.availableUnits ?? 0, isLoading: false };
+      });
 
     const Wrapper = ({ children }: PropsWithChildren) => {
       const form = useForm<SdlBuilderFormValuesType>({ defaultValues: values, mode: "onChange" });
@@ -168,7 +169,7 @@ describe("GpuCard trial gate", () => {
           serviceIndex={0}
           isBlockedModel={input.isBlockedModel}
           onUnlock={input.onUnlock}
-          dependencies={{ ...DEPENDENCIES, useGpuModels, useFieldError, usePlacementOptions, useScreenedGpuModelCount }}
+          dependencies={{ ...DEPENDENCIES, useGpuModels, useFieldError, usePlacementOptions, useScreenedGpuModelCounts }}
         />
       </Wrapper>
     );

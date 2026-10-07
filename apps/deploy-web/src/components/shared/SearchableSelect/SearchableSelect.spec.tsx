@@ -307,6 +307,16 @@ describe("SearchableSelect", () => {
     expect(await screen.findByRole("button", { name: "Ask for nothing" })).toBeInTheDocument();
   });
 
+  it("reports when the popover opens and when a pick closes it", async () => {
+    const { user, onOpenChange } = setup({});
+
+    await user.click(screen.getByRole("combobox", { name: "Region" }));
+    expect(onOpenChange).toHaveBeenLastCalledWith(true);
+
+    await user.click(await screen.findByRole("option", { name: "eu-west" }));
+    expect(onOpenChange).toHaveBeenLastCalledWith(false);
+  });
+
   function setup(input: {
     value?: string;
     options?: SearchableSelectOption[];
@@ -321,6 +331,7 @@ describe("SearchableSelect", () => {
     renderValue?: (value: string) => ReactNode;
   }) {
     const onChange = vi.fn();
+    const onOpenChange = vi.fn();
     const Harness = () => {
       const [value, setValue] = useState(input.value ?? "");
       return (
@@ -335,6 +346,7 @@ describe("SearchableSelect", () => {
           optionsHeading={input.optionsHeading}
           unavailableHeading={input.unavailableHeading}
           renderFooter={input.renderFooter}
+          onOpenChange={onOpenChange}
           ariaLabel="Region"
           searchLabel="Search regions"
           searchPlaceholder="Search regions..."
@@ -350,7 +362,7 @@ describe("SearchableSelect", () => {
 
     render(<Harness />);
 
-    return { user: userEvent.setup(), onChange };
+    return { user: userEvent.setup(), onChange, onOpenChange };
   }
 });
 

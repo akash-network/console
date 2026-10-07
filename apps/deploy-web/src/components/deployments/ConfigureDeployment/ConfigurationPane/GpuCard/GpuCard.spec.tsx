@@ -483,21 +483,38 @@ describe(GpuCard.name, () => {
     });
 
     it("screens this service switched to each offered model, and only once the picker opens", async () => {
-      const { user, useScreenedGpuModelCount } = setup({
+      const { user, useScreenedGpuModelCounts } = setup({
         hasGpu: true,
         availableGpus: [{ vendor: "nvidia", models: [availableModel("t4", ["16Gi"], ["pcie"]), availableModel("a100", ["80Gi"], ["sxm"])] }]
       });
-      expect(useScreenedGpuModelCount).not.toHaveBeenCalled();
+      expect(useScreenedGpuModelCounts.mock.calls.flatMap(([, models]) => models)).toEqual([]);
 
       await user.click(screen.getByRole("combobox", { name: "GPU model" }));
       await screen.findByRole("option", { name: "NVIDIA t4" });
 
-      expect(useScreenedGpuModelCount).toHaveBeenCalledWith(0, { vendor: "nvidia", name: "t4" });
-      expect(useScreenedGpuModelCount).toHaveBeenCalledWith(0, { vendor: "nvidia", name: "a100" });
+      expect(useScreenedGpuModelCounts).toHaveBeenLastCalledWith(0, [
+        { vendor: "nvidia", name: "" },
+        { vendor: "nvidia", name: "t4" },
+        { vendor: "nvidia", name: "a100" }
+      ]);
+    });
+
+    it("stops screening once the picker closes", async () => {
+      const { user, useScreenedGpuModelCounts } = setup({
+        hasGpu: true,
+        availableGpus: [{ vendor: "nvidia", models: [availableModel("t4", ["16Gi"], ["pcie"])] }]
+      });
+
+      await user.click(screen.getByRole("combobox", { name: "GPU model" }));
+      await screen.findByRole("option", { name: "NVIDIA t4" });
+      await user.keyboard("{Escape}");
+
+      expect(screen.queryByRole("option", { name: "NVIDIA t4" })).not.toBeInTheDocument();
+      expect(useScreenedGpuModelCounts).toHaveBeenLastCalledWith(0, []);
     });
 
     it("counts the providers that could host this configuration with any gpu of the vendor", async () => {
-      const { user, useScreenedGpuModelCount } = setup({
+      const { user, useScreenedGpuModelCounts } = setup({
         hasGpu: true,
         availableGpus: [{ vendor: "nvidia", models: [availableModel("t4", ["16Gi"], ["pcie"], 4, 40), availableModel("a100", ["80Gi"], ["sxm"], 2, 17)] }],
         screened: { "": { count: 5, gpuCount: 51 } }
@@ -506,7 +523,7 @@ describe(GpuCard.name, () => {
       await user.click(screen.getByRole("combobox", { name: "GPU model" }));
 
       expect(await screen.findByRole("option", { name: "Any GPU" })).toHaveAccessibleDescription("51 free GPUs on 5 providers");
-      expect(useScreenedGpuModelCount).toHaveBeenCalledWith(0, { vendor: "nvidia", name: "" });
+      expect(useScreenedGpuModelCounts).toHaveBeenLastCalledWith(0, expect.arrayContaining([{ vendor: "nvidia", name: "" }]));
     });
 
     it("counts any gpu before the service has a gpu model", async () => {
@@ -519,6 +536,52 @@ describe(GpuCard.name, () => {
       await user.click(screen.getByRole("combobox", { name: "GPU model" }));
 
       expect(await screen.findByRole("option", { name: "Any GPU" })).toHaveAccessibleDescription("40 free GPUs on 4 providers");
+    });
+
+    it("lists an offered model no provider could host this configuration with among the others, out of reach", async () => {
+      const { user } = setup({
+        hasGpu: true,
+        availableGpus: [{ vendor: "nvidia", models: [availableModel("t4", ["16Gi"], ["pcie"]), availableModel("a100", ["80Gi"], ["sxm"], 2, 17)] }],
+        screened: { t4: { count: 0, gpuCount: 0 } }
+      });
+
+      await user.click(screen.getByRole("combobox", { name: "GPU model" }));
+      const available = within(await screen.findByRole("group", { name: "Available" }));
+      const others = within(screen.getByRole("group", { name: "Others" }));
+
+      expect(others.getByRole("option", { name: "NVIDIA t4" })).toHaveAttribute("aria-disabled", "true");
+      expect(others.getByRole("option", { name: "NVIDIA t4" })).toHaveAccessibleDescription("0 free GPUs on 0 providers");
+      expect(available.queryByRole("option", { name: "NVIDIA t4" })).not.toBeInTheDocument();
+      expect(available.getByRole("option", { name: "NVIDIA a100" })).toHaveAttribute("aria-disabled", "false");
+    });
+
+    it("keeps an offered model among the available ones while its screening has not answered", async () => {
+      const { user } = setup({
+        hasGpu: true,
+        availableGpus: [{ vendor: "nvidia", models: [availableModel("t4", ["16Gi"], ["pcie"])] }],
+        screened: { t4: { count: null, gpuCount: null, isLoading: true } }
+      });
+
+      await user.click(screen.getByRole("combobox", { name: "GPU model" }));
+      const available = within(await screen.findByRole("group", { name: "Available" }));
+
+      expect(available.getByRole("option", { name: "NVIDIA t4" })).toHaveAttribute("aria-disabled", "false");
+    });
+
+    it("lists the picked model among the others once no provider could host this configuration with it, while the card still shows it", async () => {
+      const { user } = setup({
+        hasGpu: true,
+        gpuModels: [{ vendor: "nvidia", name: "t4", memory: "", interface: "" }],
+        availableGpus: [{ vendor: "nvidia", models: [availableModel("t4", ["16Gi"], ["pcie"]), availableModel("a100", ["80Gi"], ["sxm"])] }],
+        screened: { t4: { count: 0, gpuCount: 0 } }
+      });
+
+      expect(screen.getByRole("combobox", { name: "GPU model" })).toHaveTextContent("t4");
+
+      await user.click(screen.getByRole("combobox", { name: "GPU model" }));
+      const others = within(await screen.findByRole("group", { name: "Others" }));
+
+      expect(others.getByRole("option", { name: "NVIDIA t4" })).toHaveAttribute("aria-disabled", "true");
     });
 
     it("marks a model as being checked until its screening answers", async () => {
@@ -1126,10 +1189,12 @@ describe(GpuCard.name, () => {
     const analyticsService = mock<AnalyticsService>();
     const useServices: typeof DEPENDENCIES.useServices = () => mock<ReturnType<typeof DEPENDENCIES.useServices>>({ analyticsService });
     const HardwareRequestDialog = vi.fn<typeof DEPENDENCIES.HardwareRequestDialog>(() => <div>Hardware request dialog</div>);
-    const useScreenedGpuModelCount = vi.fn<typeof DEPENDENCIES.useScreenedGpuModelCount>((_serviceIndex, model) => {
-      const offered = input.availableGpus?.find(vendor => vendor.vendor === model.vendor)?.models.find(candidate => candidate.name === model.name);
-      return { count: offered?.providerCount ?? 0, gpuCount: offered?.availableUnits ?? 0, isLoading: false, ...input.screened?.[model.name] };
-    });
+    const useScreenedGpuModelCounts = vi.fn<typeof DEPENDENCIES.useScreenedGpuModelCounts>((_serviceIndex, models) =>
+      models.map(model => {
+        const offered = input.availableGpus?.find(vendor => vendor.vendor === model.vendor)?.models.find(candidate => candidate.name === model.name);
+        return { count: offered?.providerCount ?? 0, gpuCount: offered?.availableUnits ?? 0, isLoading: false, ...input.screened?.[model.name] };
+      })
+    );
 
     let getValues: () => SdlBuilderFormValuesType = () => values;
     const Wrapper = ({ children }: PropsWithChildren) => {
@@ -1150,7 +1215,7 @@ describe(GpuCard.name, () => {
             useFieldError,
             useServices,
             HardwareRequestDialog,
-            useScreenedGpuModelCount,
+            useScreenedGpuModelCounts,
             ...input.dependencies
           }}
         />
@@ -1159,6 +1224,6 @@ describe(GpuCard.name, () => {
 
     const user = userEvent.setup();
 
-    return { user, getValues: () => getValues(), analyticsService, HardwareRequestDialog, useScreenedGpuModelCount };
+    return { user, getValues: () => getValues(), analyticsService, HardwareRequestDialog, useScreenedGpuModelCounts };
   }
 });

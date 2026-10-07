@@ -8,21 +8,26 @@ import { screeningRequestOf, withServiceGpuModel } from "../../../AvailabilityPa
 
 export const DEPENDENCIES = { useScreenedProviderCounts };
 
-/** Builds the request the availability pane sends for the same switch, so the picker and the pane read one cached screening. */
-export function useScreenedGpuModelCount(
+export type ScreenedGpuModel = { vendor: string; name: string };
+
+/** Builds the requests the availability pane sends for the same switches, so the picker and the pane read one cached screening per model. */
+export function useScreenedGpuModelCounts(
   serviceIndex: number,
-  model: { vendor: string; name: string },
+  models: readonly ScreenedGpuModel[],
   dependencies: typeof DEPENDENCIES = DEPENDENCIES
-): ScreenedProviderCount {
+): ScreenedProviderCount[] {
   const { control } = useFormContext<SdlBuilderFormValuesType>();
   const values = useWatch({ control }) as SdlBuilderFormValuesType;
   const placement = values.placements.find(candidate => candidate.id === values.services[serviceIndex]?.placementId);
-  const { vendor, name } = model;
-  const request = useMemo(
-    () => (placement ? screeningRequestOf(withServiceGpuModel(values, serviceIndex, { vendor, name }), placement.name) : null),
-    [placement, values, serviceIndex, vendor, name]
+  const requests = useMemo(
+    () =>
+      models.map(({ vendor, name }) => ({
+        key: `${vendor}/${name}`,
+        request: placement ? screeningRequestOf(withServiceGpuModel(values, serviceIndex, { vendor, name }), placement.name) : null,
+        regions: placement?.regions
+      })),
+    [models, placement, values, serviceIndex]
   );
-  const [count] = dependencies.useScreenedProviderCounts([{ key: `${vendor}/${name}`, request, regions: placement?.regions }]);
 
-  return count;
+  return dependencies.useScreenedProviderCounts(requests);
 }
