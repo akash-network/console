@@ -3,16 +3,12 @@ import type { Page } from "@playwright/test";
 export class DeploymentAlertsForm {
   constructor(readonly page: Page) {}
 
-  private getSection(label: string) {
-    return this.page.getByLabel(label);
-  }
-
   getCloseEnabledToggle() {
-    return this.getSection("Deployment Close").getByRole("checkbox", { name: /enabled/i });
+    return this.page.getByRole("checkbox", { name: "Deployment Closed" });
   }
 
   getCloseChannelSelect() {
-    return this.getSection("Deployment Close").getByRole("combobox").first();
+    return this.page.getByRole("combobox", { name: "Notification Channel" });
   }
 
   async saveChanges() {

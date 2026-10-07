@@ -24,6 +24,19 @@ describe(NotificationChannelSelectView.name, () => {
     expect(screen.queryByLabelText("Notification Channel")).toBeInTheDocument();
   });
 
+  it("keeps the label visible by default", () => {
+    setup();
+
+    expect(screen.getByText("Notification Channel")).not.toHaveClass("sr-only");
+  });
+
+  it("hides the label visually but keeps the select named when asked to", () => {
+    setup({ isLabelHidden: true });
+
+    expect(screen.getByText("Notification Channel")).toHaveClass("sr-only");
+    expect(screen.getByLabelText("Notification Channel")).toBeInTheDocument();
+  });
+
   it("disables select when disabled prop is true", () => {
     setup({ disabled: true });
 
@@ -93,7 +106,13 @@ describe(NotificationChannelSelectView.name, () => {
   });
 
   function setup(
-    input: { data?: NotificationChannelsOutput; disabled?: boolean; fieldError?: string; createdChannel?: ReturnType<typeof buildNotificationChannel> } = {}
+    input: {
+      data?: NotificationChannelsOutput;
+      disabled?: boolean;
+      isLabelHidden?: boolean;
+      fieldError?: string;
+      createdChannel?: ReturnType<typeof buildNotificationChannel>;
+    } = {}
   ) {
     const createdChannel = input.createdChannel ?? buildNotificationChannel();
     const NotificationChannelDialog: typeof DEPENDENCIES.NotificationChannelDialog = ({ onCreate, onClose }) => (
@@ -132,6 +151,7 @@ describe(NotificationChannelSelectView.name, () => {
           data={input.data || notificationChannels}
           isFetched={true}
           disabled={input.disabled}
+          isLabelHidden={input.isLabelHidden}
           dependencies={{ NotificationChannelDialog: vi.fn(NotificationChannelDialog) }}
         />
         <SelectedChannel />

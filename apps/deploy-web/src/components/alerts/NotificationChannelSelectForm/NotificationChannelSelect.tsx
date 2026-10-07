@@ -15,12 +15,13 @@ export const DEPENDENCIES = { NotificationChannelDialog };
 type ExternalProps = {
   name: string;
   disabled?: boolean;
+  isLabelHidden?: boolean;
 };
 
 type Props = Pick<ChildrenProps, "isFetched" | "data"> & ExternalProps & { dependencies?: typeof DEPENDENCIES };
 type NotificationChannel = ChildrenProps["data"][number];
 
-export const NotificationChannelSelectView: FC<Props> = ({ name, isFetched, data, disabled, dependencies: d = DEPENDENCIES }) => {
+export const NotificationChannelSelectView: FC<Props> = ({ name, isFetched, data, disabled, isLabelHidden, dependencies: d = DEPENDENCIES }) => {
   const { control, getFieldState, setValue } = useFormContext();
   const state = getFieldState(name);
   const [isAddingChannel, setIsAddingChannel] = useState(false);
@@ -34,7 +35,7 @@ export const NotificationChannelSelectView: FC<Props> = ({ name, isFetched, data
 
   return (
     <LoadingBlocker isLoading={!isFetched}>
-      <FormLabel htmlFor="notification-channel-id" className={cn({ "cursor-not-allowed text-red-500": state.error })}>
+      <FormLabel htmlFor="notification-channel-id" className={cn({ "cursor-not-allowed text-red-500": state.error, "sr-only": isLabelHidden })}>
         Notification Channel
       </FormLabel>
       <div className="flex">

@@ -79,6 +79,18 @@ describe(DeploymentAlertsContainer.name, () => {
     });
   });
 
+  it("reloads the deployment alerts on refetch", async () => {
+    const { mockFetch, child, dseq } = await setup();
+    const alertsRequestCount = () => mockFetch.mock.calls.filter(([url]) => String(url).includes(`/v1/deployment-alerts/${dseq}`)).length;
+    const initialRequestCount = alertsRequestCount();
+
+    await act(() => child.refetch());
+
+    await vi.waitFor(() => {
+      expect(alertsRequestCount()).toBe(initialRequestCount + 1);
+    });
+  });
+
   async function setup() {
     const rpcDeployment = buildRpcDeployment({
       denom: UACT_DENOM,
@@ -95,7 +107,7 @@ describe(DeploymentAlertsContainer.name, () => {
       }
     };
 
-    const mockFetch = vi.fn(() => Promise.resolve(jsonResponse({ dseq, alerts: {} })));
+    const mockFetch = vi.fn((..._args: Parameters<typeof fetch>) => Promise.resolve(jsonResponse({ dseq, alerts: {} })));
 
     const services = {
       queryClient: () => queryClient,

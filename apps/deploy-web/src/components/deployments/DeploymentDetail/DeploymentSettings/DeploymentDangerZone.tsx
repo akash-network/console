@@ -2,6 +2,7 @@
 import type { FC } from "react";
 import { useState } from "react";
 import { Button, Spinner } from "@akashnetwork/ui/components";
+import { Ban } from "lucide-react";
 
 import { useServices } from "@src/context/ServicesProvider";
 import { useCloseDeployment } from "@src/hooks/useCloseDeployment/useCloseDeployment";
@@ -54,17 +55,33 @@ export const DeploymentDangerZone: FC<DeploymentDangerZoneProps> = ({ deployment
   };
 
   return (
-    <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-destructive/50 bg-card p-6">
-      <div className="space-y-1">
-        <h3 className="font-semibold">Close this deployment</h3>
-        <p className="text-sm text-muted-foreground">
+    <div className="flex flex-wrap items-center justify-between gap-x-5 gap-y-3 rounded-xl border border-destructive/35 bg-card px-5 py-4 sm:px-[22px]">
+      <div className="min-w-0 flex-1 basis-60 space-y-1">
+        <h3 className="text-sm font-semibold">Close this deployment</h3>
+        <p className="text-[13px] leading-normal text-muted-foreground">
           {isClosingInBackground
             ? "This deployment is closing. You'll get a notification when it's done."
             : "Stop all services and permanently tear down this deployment. This action can't be undone."}
         </p>
       </div>
-      <Button variant="destructive" size="md" onClick={confirmAndClose} disabled={isSubmitting || isClosingInBackground} aria-label="Close deployment">
-        {isSubmitting ? <Spinner size="small" /> : isClosingInBackground ? "Closing…" : "Close deployment"}
+      <Button
+        variant="destructive"
+        size="md"
+        className="gap-1.5"
+        onClick={confirmAndClose}
+        disabled={isSubmitting || isClosingInBackground}
+        aria-label="Close deployment"
+      >
+        {isSubmitting ? (
+          <Spinner size="small" />
+        ) : isClosingInBackground ? (
+          "Closing…"
+        ) : (
+          <>
+            <Ban className="h-4 w-4" aria-hidden />
+            Close deployment
+          </>
+        )}
       </Button>
     </div>
   );

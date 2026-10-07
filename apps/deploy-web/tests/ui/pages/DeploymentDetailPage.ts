@@ -17,7 +17,7 @@ export class DeploymentDetailPage {
     const settingsTab = this.tab("Settings");
     await expect(settingsTab).toBeVisible({ timeout: LAYOUT_TIMEOUT_MS });
     await settingsTab.click();
-    await expect(this.page.getByText("Configure Alerts")).toBeVisible({ timeout: 10_000 });
+    await expect(this.page.getByRole("checkbox", { name: "Deployment Closed" })).toBeVisible({ timeout: 10_000 });
   }
 
   /**
