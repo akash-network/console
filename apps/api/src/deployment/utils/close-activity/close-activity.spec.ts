@@ -2,7 +2,7 @@ import createError from "http-errors";
 import { describe, expect, it } from "vitest";
 
 import { TxNotIncludedError, TxOutcomeUnknownError } from "@src/billing/services/external-signer-http-sdk/tx-outcome.error";
-import { closedActivityOf, failedCloseActivityOf } from "./close-activity";
+import { closedActivityOf, failedCloseActivityOf, stillOpenActivityOf } from "./close-activity";
 
 describe("close activity", () => {
   const KEY = { userId: "c0ffee00-0000-4000-8000-000000000001", dseq: "1234" };
@@ -20,6 +20,21 @@ describe("close activity", () => {
 
     it("carries the bulk close the close was part of", () => {
       expect(closedActivityOf({ ...KEY, batchId: BATCH_ID }).meta).toEqual({ dseq: "1234", batchId: BATCH_ID });
+    });
+  });
+
+  describe(stillOpenActivityOf.name, () => {
+    it("records the close as failed with a reason that asks for another close", () => {
+      expect(stillOpenActivityOf(KEY)).toEqual({
+        userId: KEY.userId,
+        type: "deployment_close",
+        status: "failed",
+        meta: { dseq: "1234", error: { code: "close_incomplete", message: "The deployment is still open. Try closing it again." } }
+      });
+    });
+
+    it("carries the bulk close the close was part of", () => {
+      expect(stillOpenActivityOf({ ...KEY, batchId: BATCH_ID }).meta).toMatchObject({ dseq: "1234", batchId: BATCH_ID });
     });
   });
 

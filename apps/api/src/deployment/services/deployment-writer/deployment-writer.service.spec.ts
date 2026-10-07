@@ -23,6 +23,10 @@ import type { DeploymentSettingRepository, DeploymentSettingsOutput } from "@src
 import { CLOSE_DEPLOYMENT_RETRY_OPTIONS, CloseDeployment, closeDeploymentKeyFor } from "@src/deployment/services/close-deployment/close-deployment.job";
 import { DeleteUnbackedDeploymentSetting } from "@src/deployment/services/delete-unbacked-deployment-setting/delete-unbacked-deployment-setting.handler";
 import type { LeaseGpuDetectionJobService } from "@src/deployment/services/lease-gpu-detection-job/lease-gpu-detection-job.service";
+import {
+  ReconcileDeploymentClose,
+  reconcileDeploymentCloseOptionsFrom
+} from "@src/deployment/services/reconcile-deployment-close/reconcile-deployment-close.job";
 import type { GenerateResolvedManifestResult, SdlManifest, SdlService } from "@src/deployment/services/sdl/sdl.service";
 import { SdlPatchService } from "@src/deployment/services/sdl-patch/sdl-patch.service";
 import { SdlReferenceService } from "@src/deployment/services/sdl-reference/sdl-reference.service";
@@ -1277,6 +1281,40 @@ describe(DeploymentWriterService.name, () => {
         expect.anything()
       );
       expect(activityService.open).toHaveBeenCalledWith(expect.objectContaining({ meta: { dseq: "100", batchId: "batch-1" } }));
+    });
+
+    it("queues a check on what became of the close in the same transaction, so a close whose job is lost still settles", async () => {
+      const { service, txService, jobQueueService } = setup();
+      vi.useFakeTimers({ now: new Date("2026-01-01T00:00:00.000Z"), toFake: ["Date"] });
+      jobQueueService.enqueue.mockImplementation(async job => {
+        expect(txService.transaction).toHaveBeenCalledTimes(1);
+        return job instanceof CloseDeployment ? "close-job-1" : "reconcile-job-1";
+      });
+
+      const queued = await service.closeInBackgroundByUserIdAndDseq("user-1", "100", { batchId: "batch-1" });
+
+      expect(jobQueueService.enqueue).toHaveBeenCalledWith(
+        new ReconcileDeploymentClose({
+          userId: "user-1",
+          owner: wallet.address,
+          dseq: "100",
+          activityId: queued!.activityId,
+          batchId: "batch-1",
+          closeJobId: "close-job-1"
+        }),
+        reconcileDeploymentCloseOptionsFrom(new Date("2026-01-01T00:00:00.000Z"))
+      );
+    });
+
+    it("queues no check when it joins the close already in flight", async () => {
+      const { service, jobQueueService } = setup();
+      jobQueueService.enqueue.mockResolvedValue(null);
+      jobQueueService.findPendingJobData.mockResolvedValue({ userId: "user-1", dseq: "100", activityId: "in-flight-activity", version: 1 });
+
+      await service.closeInBackgroundByUserIdAndDseq("user-1", "100");
+
+      expect(jobQueueService.enqueue).toHaveBeenCalledTimes(1);
+      expect(jobQueueService.enqueue).not.toHaveBeenCalledWith(expect.any(ReconcileDeploymentClose), expect.anything());
     });
 
     it("queues nothing when a refusal stops the close", async () => {

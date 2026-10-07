@@ -11,6 +11,7 @@ import { CloseDeploymentHandler } from "@src/deployment/services/close-deploymen
 import { DeleteUnbackedDeploymentSettingHandler } from "@src/deployment/services/delete-unbacked-deployment-setting/delete-unbacked-deployment-setting.handler";
 import { DetectLeaseGpusHandler } from "@src/deployment/services/detect-lease-gpus/detect-lease-gpus.handler";
 import { ExpireConfigureDraftHandler } from "@src/deployment/services/expire-configure-draft/expire-configure-draft.handler";
+import { ReconcileDeploymentCloseHandler } from "@src/deployment/services/reconcile-deployment-close/reconcile-deployment-close.handler";
 import { ReconcileManagedTxHandler } from "@src/deployment/services/reconcile-managed-tx/reconcile-managed-tx.handler";
 import { RecordDeploymentSettingHandler } from "@src/deployment/services/record-deployment-setting/record-deployment-setting.handler";
 import { RecordLeaseGpuOffersHandler } from "@src/deployment/services/record-lease-gpu-offers/record-lease-gpu-offers.handler";
@@ -58,6 +59,7 @@ export async function startJobQueues(): Promise<void> {
     container.resolve(ActivateTrialHandler),
     container.resolve(DeleteUnbackedDeploymentSettingHandler),
     container.resolve(CloseDeploymentHandler),
+    container.resolve(ReconcileDeploymentCloseHandler),
     container.resolve(RecordDeploymentSettingHandler),
     container.resolve(ReconcileManagedTxHandler),
     container.resolve(ProbeTrialDeploymentHandler),

@@ -27,6 +27,7 @@ import { DeploymentSettingRepository } from "@src/deployment/repositories/deploy
 import { CloseDeployment, closeDeploymentKeyFor } from "@src/deployment/services/close-deployment/close-deployment.job";
 import { DeploymentConfigService } from "@src/deployment/services/deployment-config/deployment-config.service";
 import { DeploymentReaderService } from "@src/deployment/services/deployment-reader/deployment-reader.service";
+import { ReconcileDeploymentClose } from "@src/deployment/services/reconcile-deployment-close/reconcile-deployment-close.job";
 import { SdlService } from "@src/deployment/services/sdl/sdl.service";
 import { SdlReferenceService } from "@src/deployment/services/sdl-reference/sdl-reference.service";
 import { SdlSecretsService } from "@src/deployment/services/sdl-secrets/sdl-secrets.service";
@@ -1624,6 +1625,22 @@ describe("Deployments API", () => {
         expect.objectContaining({ state: "created", data: expect.objectContaining({ userId: user.id, dseq, activityId: data.activityId }) })
       ]);
       expect(broadcast).not.toHaveBeenCalled();
+    });
+
+    it("queues a later check on what became of a background close, so its activity settles even if the close job is lost", async () => {
+      const { user, userApiKeySecret, wallets } = await mockPersistedUser();
+      const dseq = createDseq();
+      await setupDeploymentInfoMock(wallets, dseq);
+
+      const response = await closeInBackground(dseq, userApiKeySecret);
+      const { data } = (await response.json()) as { data: { activityId: string } };
+
+      const [check] = await findJobRows(ReconcileDeploymentClose[JOB_NAME], { data: { activityId: data.activityId } });
+      expect(check).toMatchObject({
+        state: "created",
+        data: { userId: user.id, owner: wallets[0].address, dseq, activityId: data.activityId, closeJobId: expect.any(String) }
+      });
+      expect(new Date(check.start_after).getTime()).toBeGreaterThan(Date.now());
     });
 
     it("answers a second background close of the same deployment with the close already in flight", async () => {

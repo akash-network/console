@@ -35,6 +35,10 @@ import {
   unbackedDeploymentSettingRetryOptions
 } from "@src/deployment/services/delete-unbacked-deployment-setting/delete-unbacked-deployment-setting.handler";
 import { LeaseGpuDetectionJobService } from "@src/deployment/services/lease-gpu-detection-job/lease-gpu-detection-job.service";
+import {
+  ReconcileDeploymentClose,
+  reconcileDeploymentCloseOptionsFrom
+} from "@src/deployment/services/reconcile-deployment-close/reconcile-deployment-close.job";
 import { SdlService } from "@src/deployment/services/sdl/sdl.service";
 import { SdlPatchService } from "@src/deployment/services/sdl-patch/sdl-patch.service";
 import { MAX_ECHOED_REFERENCE_LENGTH, SdlReferenceService } from "@src/deployment/services/sdl-reference/sdl-reference.service";
@@ -378,7 +382,7 @@ export class DeploymentWriterService {
     }
   }
 
-  /** Refusals still answer on the request; a close that passes them is queued in the same transaction as its pending activity, so every queued close has an activity to settle. */
+  /** Refusals still answer on the request; a close that passes them is queued in the same transaction as its pending activity and a later check on it, so every queued close has an activity to settle and the activity settles even if the close job is lost. */
   public async closeInBackgroundByUserIdAndDseq(
     userId: string,
     dseq: string,
@@ -399,6 +403,10 @@ export class DeploymentWriterService {
       if (!jobId) return { activityId: await this.#closeInFlight(userId, dseq) };
 
       await this.activityService.open({ id: activityId, userId, type: "deployment_close", status: "pending", meta: { dseq, batchId } });
+      await this.jobQueueService.enqueue(
+        new ReconcileDeploymentClose({ userId, owner: wallet.address, dseq, activityId, batchId, closeJobId: jobId }),
+        reconcileDeploymentCloseOptionsFrom(new Date())
+      );
       return { activityId };
     });
   }
