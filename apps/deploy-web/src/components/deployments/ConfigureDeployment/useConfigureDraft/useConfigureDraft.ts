@@ -109,16 +109,23 @@ export function useConfigureDraft(intent: DeploymentIntent, dependencies: typeof
     }
   );
 
-  const mintedDraftIdRef = useRef<string>();
-  const draftId = intent.draftId && !accountDraft.isError ? intent.draftId : (mintedDraftIdRef.current ??= dependencies.mintDraftId());
-  const legacyDraft = useMemo(() => (accountDraft.data === null ? readLegacyDraft(storage, draftId) : undefined), [accountDraft.data, storage, draftId]);
-  const stored = handedOver ?? accountDraft.data ?? legacyDraft;
-  const isLoading = !!intent.draftId && !handedOver && accountDraft.isPending;
-
   const recordNoAccountDraft = useCallback(
     (id: string) => queryClient.setQueryData(api.v1.getConfigureDraft.getKey({ draftId: id }), null),
     [queryClient, api]
   );
+
+  /** Records the minted id as having nothing on the account at once, since the form below asks about it before this screen's effects run. */
+  const mintFreshDraftId = () => {
+    const freshDraftId = dependencies.mintDraftId();
+    recordNoAccountDraft(freshDraftId);
+    return freshDraftId;
+  };
+
+  const mintedDraftIdRef = useRef<string>();
+  const draftId = intent.draftId && !accountDraft.isError ? intent.draftId : (mintedDraftIdRef.current ??= mintFreshDraftId());
+  const legacyDraft = useMemo(() => (accountDraft.data === null ? readLegacyDraft(storage, draftId) : undefined), [accountDraft.data, storage, draftId]);
+  const stored = handedOver ?? accountDraft.data ?? legacyDraft;
+  const isLoading = !!intent.draftId && !handedOver && accountDraft.isPending;
 
   const persistedToUrlRef = useRef<string>();
   useEffect(
@@ -127,10 +134,9 @@ export function useConfigureDraft(intent: DeploymentIntent, dependencies: typeof
         return;
       }
       persistedToUrlRef.current = draftId;
-      recordNoAccountDraft(draftId);
       router.replace(buildConfigureUrl({ ...intent, draftId }, intent.dseq, intent.bidStrategy), undefined, { shallow: true });
     },
-    [intent, draftId, isLoading, router, recordNoAccountDraft]
+    [intent, draftId, isLoading, router]
   );
 
   const draftChanges = useMemo(() => ({ id: `configure-draft:${draftId}` }), [draftId]);

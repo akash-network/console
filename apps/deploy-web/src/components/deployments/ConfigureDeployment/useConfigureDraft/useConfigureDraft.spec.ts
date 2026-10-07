@@ -1,6 +1,8 @@
+import type { ReactNode } from "react";
+import { createElement, Fragment } from "react";
 import { ApiError } from "@akashnetwork/openapi-sdk";
 import { createProxy } from "@akashnetwork/react-query-proxy";
-import { onlineManager, QueryClient } from "@tanstack/react-query";
+import { onlineManager, QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
@@ -54,6 +56,14 @@ describe(useConfigureDraft.name, () => {
 
       expect(result.current.isLoading).toBe(false);
       expect(result.current.draftId).toBe("minted");
+      expect(getConfigureDraft).not.toHaveBeenCalled();
+    });
+
+    it("asks the account nothing about a minted id from the form below the screen that minted it", async () => {
+      const { result, replace, getConfigureDraft } = setup({ intent: { draftId: "minted" }, mintedDraftId: "minted", isBelowMintingScreen: true });
+
+      expect(result.current.isLoading).toBe(false);
+      await waitFor(() => expect(replace).toHaveBeenCalledWith(expect.stringContaining("draftId=minted"), undefined, { shallow: true }));
       expect(getConfigureDraft).not.toHaveBeenCalled();
     });
 
@@ -474,6 +484,7 @@ describe(useConfigureDraft.name, () => {
     isSaveAnsweredByHand?: boolean;
     mintedDraftId?: string;
     getStorage?: typeof DEPENDENCIES.getStorage;
+    isBelowMintingScreen?: boolean;
   }) {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     window.localStorage.clear();
@@ -503,9 +514,17 @@ describe(useConfigureDraft.name, () => {
       useQueryClient: () => queryClient,
       mintDraftId: () => input.mintedDraftId ?? "minted-id"
     };
-    let intent: DeploymentIntent = { sdlStrategy: "edit", bidStrategy: "select", vm: false, ...input.intent };
+    const freshIntent: DeploymentIntent = { sdlStrategy: "edit", bidStrategy: "select", vm: false };
+    let intent: DeploymentIntent = { ...freshIntent, ...input.intent };
+    const MintingScreen = ({ children }: { children: ReactNode }) => {
+      useConfigureDraft(freshIntent, dependencies);
+      return createElement(Fragment, null, children);
+    };
+    const wrapper = input.isBelowMintingScreen
+      ? ({ children }: { children: ReactNode }) => createElement(QueryClientProvider, { client: queryClient }, createElement(MintingScreen, null, children))
+      : undefined;
 
-    const view = setupQuery(() => useConfigureDraft(intent, dependencies), { services: { api: () => api, queryClient: () => queryClient } });
+    const view = setupQuery(() => useConfigureDraft(intent, dependencies), { services: { api: () => api, queryClient: () => queryClient }, wrapper });
     const legacyEntry = (draftId: string) => window.localStorage.getItem(`${LEGACY_DRAFT_KEY_PREFIX}${draftId}`);
     const cachedAccountDraft = (draftId: string) => queryClient.getQueryData(api.v1.getConfigureDraft.getKey({ draftId }));
 
