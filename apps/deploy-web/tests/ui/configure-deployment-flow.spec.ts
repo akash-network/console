@@ -77,11 +77,12 @@ test.describe("Configure deployment — draft persistence", () => {
     const configure = new ConfigureDeploymentPage(page);
 
     await configure.open();
+    const draftSave = configure.waitForDraftSave("nginx:1.2.3-draft");
     await configure.fillImageName("nginx:1.2.3-draft");
 
     // a minted draft id is mirrored into the URL, and the working SDL is persisted (debounced) under it
     await page.waitForURL(/draftId=/, { timeout: 15_000 });
-    await expect.poll(() => configure.getPersistedDraft(), { timeout: 15_000 }).toContain("nginx:1.2.3-draft");
+    expect((await draftSave).ok()).toBe(true);
 
     await configure.reload();
 
