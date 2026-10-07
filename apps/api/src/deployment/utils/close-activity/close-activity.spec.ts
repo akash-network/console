@@ -83,14 +83,14 @@ describe("close activity", () => {
     it("hides the message of an error not meant for the caller", () => {
       expect(failedCloseActivityOf(KEY, createError(500, "connection to 10.0.0.4 refused")).meta.error).toEqual({
         code: "close_failed",
-        message: "The deployment could not be closed."
+        message: "Something went wrong on our side. Try closing it again in a moment."
       });
     });
 
     it("hides the message of an error that is not an HTTP error", () => {
       expect(failedCloseActivityOf(KEY, new Error("socket hang up")).meta.error).toEqual({
         code: "close_failed",
-        message: "The deployment could not be closed."
+        message: "Something went wrong on our side. Try closing it again in a moment."
       });
     });
   });
