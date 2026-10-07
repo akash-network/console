@@ -97,6 +97,12 @@ describe(checkSdlImport.name, () => {
     expect(check).toMatchObject({ status: "valid", placements: [{ name: "edge", region: undefined }, { name: "backup" }] });
   });
 
+  it("refuses a deployment that names a placement the profiles don't define, without reading it into a form", () => {
+    const check = checkSdlImport(VALID_SDL.replace("  api:\n    edge:\n      profile: web", "  api:\n    ghost:\n      profile: web"));
+
+    expect(check).toEqual({ status: "invalid", reason: "/profiles/placement: missing required property 'ghost'" });
+  });
+
   it("refuses yaml too deeply nested to read", () => {
     expect(checkSdlImport("[".repeat(100_000))).toEqual({ status: "invalid", reason: "This SDL couldn't be read. Check it and try again." });
   });
