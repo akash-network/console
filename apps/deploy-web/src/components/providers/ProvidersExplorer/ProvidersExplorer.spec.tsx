@@ -241,6 +241,12 @@ describe("ProvidersExplorer", () => {
     expect(screen.getByRole("region", { name: "Provider map" })).not.toHaveClass("h-[340px]");
   });
 
+  it("sizes the wide map to the open provider panel", () => {
+    setup({});
+
+    expect(screen.getByRole("region", { name: "Provider map" })).toHaveClass("lg:h-[368px]");
+  });
+
   it("describes the pin under the pointer", () => {
     const { globe } = setup({});
 

@@ -143,7 +143,7 @@ export const ProvidersExplorer: FC<Props> = ({ dependencies: d = DEPENDENCIES })
         onMouseEnter={() => setIsHeroEngaged(true)}
         onMouseLeave={() => setIsHeroEngaged(false)}
         className={cn(
-          "relative scroll-mt-5 overflow-hidden rounded-2xl border bg-[radial-gradient(120%_88%_at_50%_10%,hsl(var(--card))_0%,color-mix(in_oklab,hsl(var(--foreground))_4%,hsl(var(--card)))_58%,color-mix(in_oklab,hsl(var(--foreground))_8%,hsl(var(--card)))_100%)] shadow-sm lg:h-[400px] dark:bg-[radial-gradient(120%_88%_at_50%_12%,color-mix(in_oklab,hsl(var(--foreground))_6%,hsl(var(--card)))_0%,hsl(var(--background))_72%)]",
+          "relative scroll-mt-5 overflow-hidden rounded-2xl border bg-[radial-gradient(120%_88%_at_50%_10%,hsl(var(--card))_0%,color-mix(in_oklab,hsl(var(--foreground))_4%,hsl(var(--card)))_58%,color-mix(in_oklab,hsl(var(--foreground))_8%,hsl(var(--card)))_100%)] shadow-sm lg:h-[368px] dark:bg-[radial-gradient(120%_88%_at_50%_12%,color-mix(in_oklab,hsl(var(--foreground))_6%,hsl(var(--card)))_0%,hsl(var(--background))_72%)]",
           panel ? "h-[440px]" : "h-[340px]"
         )}
       >
