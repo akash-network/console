@@ -12,7 +12,7 @@ import { JOB_NAME } from "@src/core";
 import { CloseDeploymentHandler } from "@src/deployment/services/close-deployment/close-deployment.handler";
 import { CloseDeployment, closeDeploymentKeyFor } from "@src/deployment/services/close-deployment/close-deployment.job";
 import { ReconcileDeploymentCloseHandler } from "./reconcile-deployment-close.handler";
-import { ReconcileDeploymentClose } from "./reconcile-deployment-close.job";
+import { ReconcileDeploymentClose, reconcileDeploymentCloseKeyFor, reconcileDeploymentCloseOptionsFor } from "./reconcile-deployment-close.job";
 
 import { seedUserWithWallet } from "@test/seeders/db/user-with-wallet.seeder";
 import { createDeploymentInfoSeed } from "@test/seeders/deployment-info.seeder";
@@ -60,6 +60,15 @@ describe(ReconcileDeploymentCloseHandler.name, () => {
     expect(await findActivity()).toMatchObject({ status: "pending" });
   });
 
+  it("keeps one waiting check per activity when a second one is queued for it", async () => {
+    const { queueCheck, activityId } = await setup({ deploymentState: "active" });
+
+    await queueCheck();
+    await queueCheck();
+
+    expect(await findJobRows(ReconcileDeploymentClose[JOB_NAME], { data: { activityId } })).toHaveLength(1);
+  });
+
   it("leaves an activity its close already settled as it is", async () => {
     const { reconcile, findActivity, activityId, readDeployment } = await setup({ deploymentState: "active", status: "succeeded" });
 
@@ -89,8 +98,15 @@ describe(ReconcileDeploymentCloseHandler.name, () => {
           singletonKey: closeDeploymentKeyFor({ userId: wallet.userId, dseq }),
           startAfter: addMinutes(new Date(), 60).toISOString()
         })) as string,
+      queueCheck: async () =>
+        await enqueue(
+          new ReconcileDeploymentClose({ userId: wallet.userId, owner, dseq, activityId: activity.id, closeJobId: faker.string.uuid() }),
+          reconcileDeploymentCloseOptionsFor(activity.id, new Date())
+        ),
       reconcile: async ({ closeJobId }: { closeJobId: string }) => {
-        await enqueue(new ReconcileDeploymentClose({ userId: wallet.userId, owner, dseq, activityId: activity.id, closeJobId }));
+        await enqueue(new ReconcileDeploymentClose({ userId: wallet.userId, owner, dseq, activityId: activity.id, closeJobId }), {
+          singletonKey: reconcileDeploymentCloseKeyFor(activity.id)
+        });
         await startWorkers();
       },
       findActivity: async () => await activityRepository.findById(activity.id)

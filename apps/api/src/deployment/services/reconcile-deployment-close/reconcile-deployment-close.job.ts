@@ -31,6 +31,14 @@ const RECONCILE_DEPLOYMENT_CLOSE_RETRY_OPTIONS = {
   retryDelayMax: 5 * 60
 } satisfies EnqueueOptions;
 
-export function reconcileDeploymentCloseOptionsFrom(now: Date): EnqueueOptions {
-  return { startAfter: addMinutes(now, RECONCILE_DEPLOYMENT_CLOSE_DELAY_IN_MIN).toISOString(), ...RECONCILE_DEPLOYMENT_CLOSE_RETRY_OPTIONS };
+export function reconcileDeploymentCloseKeyFor(activityId: string): string {
+  return `reconcileDeploymentClose.${activityId}`;
+}
+
+export function reconcileDeploymentCloseOptionsFor(activityId: string, now: Date): EnqueueOptions {
+  return {
+    singletonKey: reconcileDeploymentCloseKeyFor(activityId),
+    startAfter: addMinutes(now, RECONCILE_DEPLOYMENT_CLOSE_DELAY_IN_MIN).toISOString(),
+    ...RECONCILE_DEPLOYMENT_CLOSE_RETRY_OPTIONS
+  };
 }

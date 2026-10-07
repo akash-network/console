@@ -23,6 +23,12 @@ describe(ReconcileDeploymentCloseHandler.name, () => {
     expect(handler.requiresPermission()).toEqual([]);
   });
 
+  it("keeps one waiting check per activity, so a run retried after queueing the next check queues no second one", () => {
+    const { handler } = setup();
+
+    expect(handler.policy).toBe("short");
+  });
+
   it("leaves alone an activity its close already settled", async () => {
     const { handler, activityService, jobQueueService, deploymentHttpService } = setup({ pending: false });
 
@@ -40,6 +46,7 @@ describe(ReconcileDeploymentCloseHandler.name, () => {
 
     expect(jobQueueService.findJob).toHaveBeenCalledWith(CloseDeployment, "job-1");
     expect(jobQueueService.enqueue).toHaveBeenCalledWith(new ReconcileDeploymentClose(DATA), {
+      singletonKey: "reconcileDeploymentClose.activity-1",
       startAfter: addMinutes(NOW, 5).toISOString(),
       retryLimit: 12,
       retryBackoff: true,

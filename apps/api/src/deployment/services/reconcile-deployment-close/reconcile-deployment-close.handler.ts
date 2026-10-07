@@ -6,11 +6,14 @@ import { ActivityService } from "@src/activity/services/activity/activity.servic
 import { type JobHandler, type JobPayload, type JobPermissions, JobQueueService } from "@src/core";
 import { CloseDeployment } from "@src/deployment/services/close-deployment/close-deployment.job";
 import { closedActivityOf, stillOpenActivityOf } from "@src/deployment/utils/close-activity/close-activity";
-import { RECONCILE_DEPLOYMENT_CLOSE_DELAY_IN_MIN, ReconcileDeploymentClose, reconcileDeploymentCloseOptionsFrom } from "./reconcile-deployment-close.job";
+import { RECONCILE_DEPLOYMENT_CLOSE_DELAY_IN_MIN, ReconcileDeploymentClose, reconcileDeploymentCloseOptionsFor } from "./reconcile-deployment-close.job";
 
 @singleton()
 export class ReconcileDeploymentCloseHandler implements JobHandler<ReconcileDeploymentClose> {
   public readonly accepts = ReconcileDeploymentClose;
+
+  /** One waiting check per activity, so a run retried after it already queued the next check queues no second one. */
+  public readonly policy = "short";
 
   constructor(
     private readonly activityService: ActivityService,
@@ -27,7 +30,7 @@ export class ReconcileDeploymentCloseHandler implements JobHandler<ReconcileDepl
     if (!(await this.activityService.isPending(data.activityId))) return;
 
     if (await this.#mayCloseStillLand(data.closeJobId)) {
-      await this.jobQueueService.enqueue(new ReconcileDeploymentClose(data), reconcileDeploymentCloseOptionsFrom(new Date()));
+      await this.jobQueueService.enqueue(new ReconcileDeploymentClose(data), reconcileDeploymentCloseOptionsFor(data.activityId, new Date()));
       return;
     }
 

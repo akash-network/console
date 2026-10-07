@@ -37,7 +37,7 @@ import {
 import { LeaseGpuDetectionJobService } from "@src/deployment/services/lease-gpu-detection-job/lease-gpu-detection-job.service";
 import {
   ReconcileDeploymentClose,
-  reconcileDeploymentCloseOptionsFrom
+  reconcileDeploymentCloseOptionsFor
 } from "@src/deployment/services/reconcile-deployment-close/reconcile-deployment-close.job";
 import { SdlService } from "@src/deployment/services/sdl/sdl.service";
 import { SdlPatchService } from "@src/deployment/services/sdl-patch/sdl-patch.service";
@@ -405,7 +405,7 @@ export class DeploymentWriterService {
       await this.activityService.open({ id: activityId, userId, type: "deployment_close", status: "pending", meta: { dseq, batchId } });
       await this.jobQueueService.enqueue(
         new ReconcileDeploymentClose({ userId, owner: wallet.address, dseq, activityId, batchId, closeJobId: jobId }),
-        reconcileDeploymentCloseOptionsFrom(new Date())
+        reconcileDeploymentCloseOptionsFor(activityId, new Date())
       );
       return { activityId };
     });

@@ -25,7 +25,7 @@ import { DeleteUnbackedDeploymentSetting } from "@src/deployment/services/delete
 import type { LeaseGpuDetectionJobService } from "@src/deployment/services/lease-gpu-detection-job/lease-gpu-detection-job.service";
 import {
   ReconcileDeploymentClose,
-  reconcileDeploymentCloseOptionsFrom
+  reconcileDeploymentCloseOptionsFor
 } from "@src/deployment/services/reconcile-deployment-close/reconcile-deployment-close.job";
 import type { GenerateResolvedManifestResult, SdlManifest, SdlService } from "@src/deployment/services/sdl/sdl.service";
 import { SdlPatchService } from "@src/deployment/services/sdl-patch/sdl-patch.service";
@@ -1302,7 +1302,7 @@ describe(DeploymentWriterService.name, () => {
           batchId: "batch-1",
           closeJobId: "close-job-1"
         }),
-        reconcileDeploymentCloseOptionsFrom(new Date("2026-01-01T00:00:00.000Z"))
+        reconcileDeploymentCloseOptionsFor(queued!.activityId, new Date("2026-01-01T00:00:00.000Z"))
       );
     });
 
