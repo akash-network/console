@@ -31,6 +31,7 @@ import {
   marketDataRouter,
   networkCapacityRouter
 } from "@src/dashboard";
+import { configureDraftsRouter } from "@src/deployment/routes/configure-drafts/configure-drafts.router";
 import { deploymentFundingConfigRouter } from "@src/deployment/routes/deployment-funding-config/deployment-funding-config.router";
 import { deploymentSettingRouter } from "@src/deployment/routes/deployment-setting/deployment-setting.router";
 import { deploymentsRouter } from "@src/deployment/routes/deployments/deployments.router";
@@ -129,5 +130,6 @@ export const openApiHonoHandlers: OpenApiHonoHandler[] = [
   attestationRouter,
   hardwareRequestRouter,
   activityRouter,
-  favoriteProvidersRouter
+  favoriteProvidersRouter,
+  configureDraftsRouter
 ];
