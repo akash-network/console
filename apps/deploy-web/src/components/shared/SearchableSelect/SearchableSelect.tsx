@@ -45,6 +45,7 @@ type SharedProps = {
   optionsHeading?: { label: string; hintLabel?: ReactNode };
   unavailableHeading?: string;
   renderFooter?: (search: string, controls: { close: () => void }) => ReactNode;
+  onOpenChange?: (open: boolean) => void;
   /** Accessible name of the trigger (which exposes `role="combobox"`). */
   ariaLabel: string;
   /** Accessible name of the search box inside the popover. */
@@ -129,6 +130,7 @@ const SearchableSelectList: FC<SharedProps & { selection: Selection }> = ({
   optionsHeading,
   unavailableHeading = "Unavailable",
   renderFooter,
+  onOpenChange,
   ariaLabel,
   searchLabel,
   searchPlaceholder,
@@ -151,6 +153,7 @@ const SearchableSelectList: FC<SharedProps & { selection: Selection }> = ({
 
   function closeAndResetSearch(nextOpen: boolean) {
     setOpen(nextOpen);
+    onOpenChange?.(nextOpen);
     if (!nextOpen) {
       setSearch("");
     }
