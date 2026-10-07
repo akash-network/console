@@ -9,14 +9,14 @@ import { type RenderAppHookOptions, setupQuery } from "@tests/unit/query-client"
 type ApiService = ReturnType<NonNullable<NonNullable<RenderAppHookOptions["services"]>["api"]>>;
 
 describe(useLatestActivitiesQuery.name, () => {
-  it("returns the newest 50 activities of the user", async () => {
+  it("returns the newest 100 activities of the user", async () => {
     const activities = [buildActivity({ status: "succeeded" }), buildActivity({ status: "failed" })];
     const { result, listActivities } = setup({ activities, enabled: true });
 
     await vi.waitFor(() => {
       expect(result.current.data).toEqual(activities);
     });
-    expect(listActivities).toHaveBeenCalledWith({ limit: 50 });
+    expect(listActivities).toHaveBeenCalledWith({ limit: 100 });
   });
 
   it("asks for nothing while disabled", async () => {
