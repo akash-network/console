@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { DeploymentGroup, LeaseDto } from "@src/types/deployment";
+import type { WorkloadStatus } from "./DeploymentPlacements/placementModel";
 import { DEPENDENCIES, DeploymentStatusBadge, getDeploymentStatus } from "./DeploymentStatusBadge";
 
 import { render, screen } from "@testing-library/react";
@@ -98,6 +99,13 @@ describe("DeploymentStatusBadge", () => {
     expect(screen.getByText("Running")).toBeInTheDocument();
   });
 
+  it("reports a live deployment as starting until its provider reports a ready replica for every service", () => {
+    setup({ state: "active", leases: [mock<LeaseDto>({ state: "active" })], workload: "starting" });
+
+    expect(screen.getByText("Starting")).toBeInTheDocument();
+    expect(screen.queryByText("Running")).not.toBeInTheDocument();
+  });
+
   describe("when summarised", () => {
     it("shortens a provider reason to who closed the lease, keeping the full reason on hover", () => {
       setup({ state: "active", leases: [mock<LeaseDto>({ state: "closed", reason: "lease_closed_reason_decommission" })], isSummarized: true });
@@ -123,6 +131,13 @@ describe("DeploymentStatusBadge", () => {
       setup({ state: "active", leases: [mock<LeaseDto>({ state: "reclaiming" })], isSummarized: true });
 
       expect(screen.getByText("Reclaiming")).toBeInTheDocument();
+    });
+
+    it("names a provider that is not responding in full, without a tooltip", () => {
+      const { CustomTooltip } = setup({ state: "active", leases: [mock<LeaseDto>({ state: "active" })], workload: "unreachable", isSummarized: true });
+
+      expect(screen.getByText("Provider not responding")).toBeInTheDocument();
+      expect(CustomTooltip).not.toHaveBeenCalled();
     });
 
     it("moves how long a reclaimed workload has left onto the badge instead of a second line", () => {
@@ -167,9 +182,38 @@ describe("DeploymentStatusBadge", () => {
 
       expect(status.tone).toBe("running");
     });
+
+    it.each([
+      { workload: "starting", label: "Starting", tone: "pending" },
+      { workload: "loading", label: "Loading", tone: "loading" },
+      { workload: "unreachable", label: "Provider not responding", tone: "warning" },
+      { workload: "running", label: "Running", tone: "running" }
+    ] as const)("reports '$label' for a live lease whose workload is $workload", ({ workload, label, tone }) => {
+      const status = getDeploymentStatus("active", [mock<LeaseDto>({ state: "active" })], false, workload);
+
+      expect(status).toEqual({ label, summaryLabel: label, tone });
+    });
+
+    it("reports a lease being reclaimed over what its workload is doing", () => {
+      const status = getDeploymentStatus("active", [mock<LeaseDto>({ state: "reclaiming" })], false, "starting");
+
+      expect(status.label).toBe("Reclaiming");
+    });
+
+    it("reports a close running in the background over what the workload is doing", () => {
+      const status = getDeploymentStatus("active", [mock<LeaseDto>({ state: "active" })], true, "starting");
+
+      expect(status.label).toBe("Closing");
+    });
+
+    it("ignores the workload of a deployment that is closed", () => {
+      const status = getDeploymentStatus("closed", [], false, "starting");
+
+      expect(status).toEqual({ label: "Closed", summaryLabel: "Closed", tone: "closed" });
+    });
   });
 
-  function setup(input: { state: string; leases?: LeaseDto[]; isSummarized?: boolean; isClosing?: boolean }) {
+  function setup(input: { state: string; leases?: LeaseDto[]; isSummarized?: boolean; isClosing?: boolean; workload?: WorkloadStatus }) {
     const CustomTooltip = vi.fn<typeof DEPENDENCIES.CustomTooltip>(({ title, children }) => (
       <>
         {title}
@@ -183,6 +227,7 @@ describe("DeploymentStatusBadge", () => {
         leases={input.leases}
         isSummarized={input.isSummarized}
         isClosing={input.isClosing}
+        workload={input.workload}
         dependencies={{ ...DEPENDENCIES, CustomTooltip }}
       />
     );
