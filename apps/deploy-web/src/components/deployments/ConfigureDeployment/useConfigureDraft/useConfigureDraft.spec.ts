@@ -1,6 +1,6 @@
 import { ApiError } from "@akashnetwork/openapi-sdk";
 import { createProxy } from "@akashnetwork/react-query-proxy";
-import { QueryClient } from "@tanstack/react-query";
+import { onlineManager, QueryClient } from "@tanstack/react-query";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
@@ -25,6 +25,7 @@ const ACCOUNT_DRAFT: ConfigureDraftContent = {
 describe(useConfigureDraft.name, () => {
   afterEach(() => {
     vi.useRealTimers();
+    onlineManager.setOnline(true);
   });
 
   describe("draft id", () => {
@@ -91,6 +92,19 @@ describe(useConfigureDraft.name, () => {
         persistedStartingSdl: "starting: sdl",
         persistedPlacementRegions: { dcloud: ["us-east", "eu-west"] }
       });
+    });
+
+    it("keeps loading while offline instead of starting a fresh session over the account's draft", async () => {
+      onlineManager.setOnline(false);
+      const { result, getConfigureDraft } = setup({ intent: { draftId: "resumed" }, accountDrafts: { resumed: ACCOUNT_DRAFT } });
+
+      expect(result.current.isLoading).toBe(true);
+      expect(getConfigureDraft).not.toHaveBeenCalled();
+
+      act(() => onlineManager.setOnline(true));
+
+      await waitFor(() => expect(result.current.persistedSdl).toBe("account: sdl"));
+      expect(result.current.isLoading).toBe(false);
     });
 
     it("has nothing persisted for a draft the account does not have", async () => {

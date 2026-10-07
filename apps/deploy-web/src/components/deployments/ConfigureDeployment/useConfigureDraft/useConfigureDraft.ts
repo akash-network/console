@@ -113,7 +113,7 @@ export function useConfigureDraft(intent: DeploymentIntent, dependencies: typeof
   const draftId = intent.draftId && !accountDraft.isError ? intent.draftId : (mintedDraftIdRef.current ??= dependencies.mintDraftId());
   const legacyDraft = useMemo(() => (accountDraft.data === null ? readLegacyDraft(storage, draftId) : undefined), [accountDraft.data, storage, draftId]);
   const stored = handedOver ?? accountDraft.data ?? legacyDraft;
-  const isLoading = !!intent.draftId && !handedOver && accountDraft.isLoading;
+  const isLoading = !!intent.draftId && !handedOver && accountDraft.isPending;
 
   const recordNoAccountDraft = useCallback(
     (id: string) => queryClient.setQueryData(api.v1.getConfigureDraft.getKey({ draftId: id }), null),
