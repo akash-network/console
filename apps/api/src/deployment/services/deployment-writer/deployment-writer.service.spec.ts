@@ -1212,6 +1212,25 @@ describe(DeploymentWriterService.name, () => {
       expect(activityService.record).toHaveBeenCalledWith(failedCloseActivityOf({ userId: "user-1", dseq: "100" }, failure));
     });
 
+    it("records the bulk close the close was part of", async () => {
+      const { service, activityService } = setup();
+
+      await service.closeByUserIdAndDseq("user-1", "100", { batchId: "batch-1" });
+
+      expect(activityService.record).toHaveBeenCalledWith(closedActivityOf({ userId: "user-1", dseq: "100", batchId: "batch-1" }));
+    });
+
+    it("records the bulk close a failed close was part of", async () => {
+      const { service, signerService, deploymentReaderService, activityService } = setup();
+      const failure = createError(400, "Deployment is not open");
+      signerService.executeDecodedTxByUserWallet.mockRejectedValue(failure);
+      deploymentReaderService.findByWalletAndDseqWithoutProviderStatus.mockResolvedValue(deploymentData);
+
+      await expect(service.closeByUserIdAndDseq("user-1", "100", { batchId: "batch-1" })).rejects.toBe(failure);
+
+      expect(activityService.record).toHaveBeenCalledWith(failedCloseActivityOf({ userId: "user-1", dseq: "100", batchId: "batch-1" }, failure));
+    });
+
     it("reads the deployment once before closing it", async () => {
       const { service, deploymentReaderService } = setup();
 
@@ -1246,6 +1265,18 @@ describe(DeploymentWriterService.name, () => {
         meta: { dseq: "100" }
       });
       expect(signerService.executeDecodedTxByUserWallet).not.toHaveBeenCalled();
+    });
+
+    it("hands the bulk close the close is part of to its job and its pending activity", async () => {
+      const { service, jobQueueService, activityService } = setup();
+
+      const queued = await service.closeInBackgroundByUserIdAndDseq("user-1", "100", { batchId: "batch-1" });
+
+      expect(jobQueueService.enqueue).toHaveBeenCalledWith(
+        new CloseDeployment({ userId: "user-1", dseq: "100", activityId: queued!.activityId, batchId: "batch-1" }),
+        expect.anything()
+      );
+      expect(activityService.open).toHaveBeenCalledWith(expect.objectContaining({ meta: { dseq: "100", batchId: "batch-1" } }));
     });
 
     it("queues nothing when a refusal stops the close", async () => {

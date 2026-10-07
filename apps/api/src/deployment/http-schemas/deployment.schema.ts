@@ -247,7 +247,11 @@ export const CloseDeploymentQuerySchema = z.object({
     .openapi({
       description:
         "With `true`, the close finishes in the background: the request answers 202 with an `activityId` to follow at `GET /v1/activities/{id}` once every check that could refuse it has passed. It answers 200 as without it when the deployment was already closed or background closes are unavailable."
-    })
+    }),
+  batchId: z.string().uuid().optional().openapi({
+    description:
+      "Groups this close with the other closes of one bulk close. The activity it records carries the id in `meta.batchId`, so a client can report the batch together. Any UUID the caller picks, sent with every close of the batch."
+  })
 });
 
 export const CloseDeploymentResponseSchema = z.object({

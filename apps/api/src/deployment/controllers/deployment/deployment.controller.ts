@@ -66,11 +66,11 @@ export class DeploymentController {
     const userId = this.authService.currentUser.id;
 
     if (query.async && this.featureFlagsService.isEnabled(FeatureFlags.BACKGROUND_DEPLOYMENT_CLOSE, { userId })) {
-      const queued = await this.deploymentWriterService.closeInBackgroundByUserIdAndDseq(userId, dseq);
+      const queued = await this.deploymentWriterService.closeInBackgroundByUserIdAndDseq(userId, dseq, { batchId: query.batchId });
       return queued ? { data: queued } : { data: { success: true } };
     }
 
-    await this.deploymentWriterService.closeByUserIdAndDseq(userId, dseq);
+    await this.deploymentWriterService.closeByUserIdAndDseq(userId, dseq, { batchId: query.batchId });
     return { data: { success: true } };
   }
 

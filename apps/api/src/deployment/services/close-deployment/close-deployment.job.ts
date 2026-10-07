@@ -11,6 +11,7 @@ export class CloseDeployment implements Job {
       userId: string;
       dseq: string;
       activityId: string;
+      batchId?: string;
     }
   ) {}
 }

@@ -361,7 +361,7 @@ export class DeploymentWriterService {
   }
 
   /** Refusals run before anything is recorded, and a close another request beat this one to is left for that request to record, so one close is one entry. */
-  public async closeByUserIdAndDseq(userId: string, dseq: string): Promise<boolean> {
+  public async closeByUserIdAndDseq(userId: string, dseq: string, { batchId }: { batchId?: string } = {}): Promise<boolean> {
     const wallet = await this.walletReaderService.getWalletByUserId(userId);
     const deployment = await this.deploymentReaderService.findByWalletAndDseqWithoutProviderStatus(wallet, dseq);
     if (deployment.deployment.state === "closed") return false;
@@ -370,16 +370,20 @@ export class DeploymentWriterService {
 
     try {
       const closed = await this.#closeOpen(wallet, deployment);
-      if (closed) await this.activityService.record(closedActivityOf({ userId, dseq }));
+      if (closed) await this.activityService.record(closedActivityOf({ userId, dseq, batchId }));
       return closed;
     } catch (error) {
-      await this.activityService.record(failedCloseActivityOf({ userId, dseq }, error));
+      await this.activityService.record(failedCloseActivityOf({ userId, dseq, batchId }, error));
       throw error;
     }
   }
 
   /** Refusals still answer on the request; a close that passes them is queued in the same transaction as its pending activity, so every queued close has an activity to settle. */
-  public async closeInBackgroundByUserIdAndDseq(userId: string, dseq: string): Promise<{ activityId: string } | undefined> {
+  public async closeInBackgroundByUserIdAndDseq(
+    userId: string,
+    dseq: string,
+    { batchId }: { batchId?: string } = {}
+  ): Promise<{ activityId: string } | undefined> {
     const wallet = await this.walletReaderService.getWalletByUserId(userId);
     const deployment = await this.deploymentReaderService.findByWalletAndDseqWithoutProviderStatus(wallet, dseq);
     if (deployment.deployment.state === "closed") return undefined;
@@ -388,13 +392,13 @@ export class DeploymentWriterService {
 
     return await this.txService.transaction(async () => {
       const activityId = randomUUID();
-      const jobId = await this.jobQueueService.enqueue(new CloseDeployment({ userId, dseq, activityId }), {
+      const jobId = await this.jobQueueService.enqueue(new CloseDeployment({ userId, dseq, activityId, batchId }), {
         singletonKey: closeDeploymentKeyFor({ userId, dseq }),
         ...CLOSE_DEPLOYMENT_RETRY_OPTIONS
       });
       if (!jobId) return { activityId: await this.#closeInFlight(userId, dseq) };
 
-      await this.activityService.open({ id: activityId, userId, type: "deployment_close", status: "pending", meta: { dseq } });
+      await this.activityService.open({ id: activityId, userId, type: "deployment_close", status: "pending", meta: { dseq, batchId } });
       return { activityId };
     });
   }

@@ -4738,6 +4738,16 @@
             "required": false,
             "name": "async",
             "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Groups this close with the other closes of one bulk close. The activity it records carries the id in `meta.batchId`, so a client can report the batch together. Any UUID the caller picks, sent with every close of the batch."
+            },
+            "required": false,
+            "name": "batchId",
+            "in": "query"
           }
         ],
         "responses": {
@@ -22677,6 +22687,10 @@
                                     "type": "string",
                                     "description": "The deployment the action was about."
                                   },
+                                  "batchId": {
+                                    "type": "string",
+                                    "description": "The bulk close the action was part of, as its request named it."
+                                  },
                                   "txHash": {
                                     "type": "string",
                                     "description": "Reference of a pending action whose outcome is still being confirmed."
@@ -22840,6 +22854,10 @@
                             "dseq": {
                               "type": "string",
                               "description": "The deployment the action was about."
+                            },
+                            "batchId": {
+                              "type": "string",
+                              "description": "The bulk close the action was part of, as its request named it."
                             },
                             "txHash": {
                               "type": "string",

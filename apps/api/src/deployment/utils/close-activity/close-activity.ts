@@ -3,21 +3,21 @@ import { isHttpError } from "http-errors";
 import type { NewActivity } from "@src/activity/model-schemas";
 import { isUnknownTxOutcome } from "@src/billing/services/external-signer-http-sdk/tx-outcome.error";
 
-type CloseKey = { userId: string; dseq: string };
+type CloseKey = { userId: string; dseq: string; batchId?: string };
 
 const UNEXPLAINED_CLOSE_ERROR = { code: "close_failed", message: "The deployment could not be closed." };
 
-export function closedActivityOf({ userId, dseq }: CloseKey): NewActivity {
-  return { userId, type: "deployment_close", status: "succeeded", meta: { dseq } };
+export function closedActivityOf({ userId, dseq, batchId }: CloseKey): NewActivity {
+  return { userId, type: "deployment_close", status: "succeeded", meta: { dseq, batchId } };
 }
 
 /** An undecided close stays pending under its hash, because calling it failed would invite a retry of a close that may have landed. */
-export function failedCloseActivityOf({ userId, dseq }: CloseKey, error: unknown): NewActivity {
+export function failedCloseActivityOf({ userId, dseq, batchId }: CloseKey, error: unknown): NewActivity {
   if (isUnknownTxOutcome(error)) {
-    return { userId, type: "deployment_close", status: "pending", meta: { dseq, txHash: error.txHash } };
+    return { userId, type: "deployment_close", status: "pending", meta: { dseq, batchId, txHash: error.txHash } };
   }
 
-  return { userId, type: "deployment_close", status: "failed", meta: { dseq, error: explanationOf(error) } };
+  return { userId, type: "deployment_close", status: "failed", meta: { dseq, batchId, error: explanationOf(error) } };
 }
 
 function explanationOf(error: unknown) {

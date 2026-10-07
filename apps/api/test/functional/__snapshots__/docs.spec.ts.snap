@@ -1596,6 +1596,10 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                               },
                               "meta": {
                                 "properties": {
+                                  "batchId": {
+                                    "description": "The bulk close the action was part of, as its request named it.",
+                                    "type": "string",
+                                  },
                                   "dseq": {
                                     "description": "The deployment the action was about.",
                                     "type": "string",
@@ -1863,6 +1867,10 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                         },
                         "meta": {
                           "properties": {
+                            "batchId": {
+                              "description": "The bulk close the action was part of, as its request named it.",
+                              "type": "string",
+                            },
                             "dseq": {
                               "description": "The deployment the action was about.",
                               "type": "string",
@@ -8745,6 +8753,16 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                 "true",
                 "false",
               ],
+              "type": "string",
+            },
+          },
+          {
+            "in": "query",
+            "name": "batchId",
+            "required": false,
+            "schema": {
+              "description": "Groups this close with the other closes of one bulk close. The activity it records carries the id in \`meta.batchId\`, so a client can report the batch together. Any UUID the caller picks, sent with every close of the batch.",
+              "format": "uuid",
               "type": "string",
             },
           },

@@ -8739,6 +8739,7 @@ export interface operations {
     parameters: {
       query?: {
         async?: "true" | "false";
+        batchId?: string;
       };
       header?: never;
       path: {
@@ -11840,6 +11841,8 @@ export interface operations {
                 meta: {
                   /** @description The deployment the action was about. */
                   dseq?: string;
+                  /** @description The bulk close the action was part of, as its request named it. */
+                  batchId?: string;
                   /** @description Reference of a pending action whose outcome is still being confirmed. */
                   txHash?: string;
                   /** @description Why a failed action did not go through. */
@@ -11921,6 +11924,8 @@ export interface operations {
               meta: {
                 /** @description The deployment the action was about. */
                 dseq?: string;
+                /** @description The bulk close the action was part of, as its request named it. */
+                batchId?: string;
                 /** @description Reference of a pending action whose outcome is still being confirmed. */
                 txHash?: string;
                 /** @description Why a failed action did not go through. */

@@ -6,6 +6,7 @@ import { closedActivityOf, failedCloseActivityOf } from "./close-activity";
 
 describe("close activity", () => {
   const KEY = { userId: "c0ffee00-0000-4000-8000-000000000001", dseq: "1234" };
+  const BATCH_ID = "b47c4a2e-5f0d-4c1e-9a7b-2d3e4f5a6b7c";
 
   describe(closedActivityOf.name, () => {
     it("records the close as succeeded for the deployment it closed", () => {
@@ -15,6 +16,10 @@ describe("close activity", () => {
         status: "succeeded",
         meta: { dseq: "1234" }
       });
+    });
+
+    it("carries the bulk close the close was part of", () => {
+      expect(closedActivityOf({ ...KEY, batchId: BATCH_ID }).meta).toEqual({ dseq: "1234", batchId: BATCH_ID });
     });
   });
 
@@ -35,6 +40,13 @@ describe("close activity", () => {
         status: "failed",
         meta: { dseq: "1234", error: { code: "tx_not_included", message: "The request expired and can no longer complete" } }
       });
+    });
+
+    it.each([
+      { status: "pending", error: new TxOutcomeUnknownError("ABCDEF") },
+      { status: "failed", error: new TxNotIncludedError("ABCDEF") }
+    ])("carries the bulk close into a close recorded as $status", ({ error }) => {
+      expect(failedCloseActivityOf({ ...KEY, batchId: BATCH_ID }, error).meta).toMatchObject({ dseq: "1234", batchId: BATCH_ID });
     });
 
     it("takes the code an error carries in its data over its own", () => {

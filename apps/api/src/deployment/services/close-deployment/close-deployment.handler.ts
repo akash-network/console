@@ -25,19 +25,19 @@ export class CloseDeploymentHandler implements JobHandler<CloseDeployment> {
   }
 
   /** A close is safe to repeat, so every failure is retried and only the last attempt settles the activity as failed. */
-  async handle({ userId, dseq, activityId }: JobPayload<CloseDeployment>, job?: JobMeta): Promise<void> {
+  async handle({ userId, dseq, activityId, batchId }: JobPayload<CloseDeployment>, job?: JobMeta): Promise<void> {
     if (!(await this.activityService.isPending(activityId))) return;
 
-    await this.#close({ userId, dseq, activityId }, job);
-    await this.activityService.settle(activityId, closedActivityOf({ userId, dseq }));
+    await this.#close({ userId, dseq, activityId, batchId }, job);
+    await this.activityService.settle(activityId, closedActivityOf({ userId, dseq, batchId }));
   }
 
-  async #close({ userId, dseq, activityId }: CloseDeployment["data"], job?: JobMeta): Promise<void> {
+  async #close({ userId, dseq, activityId, batchId }: CloseDeployment["data"], job?: JobMeta): Promise<void> {
     try {
       const wallet = await this.walletReaderService.getWalletByUserId(userId);
       await this.deploymentWriterService.close(wallet, dseq);
     } catch (error) {
-      if (isLastAttempt(job)) await this.activityService.settle(activityId, failedCloseActivityOf({ userId, dseq }, error));
+      if (isLastAttempt(job)) await this.activityService.settle(activityId, failedCloseActivityOf({ userId, dseq, batchId }, error));
       throw error;
     }
   }

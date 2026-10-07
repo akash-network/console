@@ -31,6 +31,15 @@ describe(CloseDeploymentHandler.name, () => {
     expect(await findActivity()).toMatchObject({ status: "succeeded", meta: { dseq } });
   });
 
+  it("keeps the bulk close the close was part of in the activity it settles", async () => {
+    const { wallet, dseq, closeInBackground, findActivity } = await setup({ batchId: "b47c4a2e-5f0d-4c1e-9a7b-2d3e4f5a6b7c" });
+
+    await closeInBackground();
+
+    await expectJobCompleted(CloseDeployment[JOB_NAME], { singletonKey: closeDeploymentKeyFor({ userId: wallet.userId, dseq }) });
+    expect(await findActivity()).toMatchObject({ status: "succeeded", meta: { dseq, batchId: "b47c4a2e-5f0d-4c1e-9a7b-2d3e4f5a6b7c" } });
+  });
+
   it("records the close as failed with its reason once the last attempt fails", async () => {
     const { close, closeInBackground, findActivity, waitForJobIn } = await setup();
     close.mockRejectedValue(createError(400, "Deployment is not open"));
@@ -51,12 +60,17 @@ describe(CloseDeploymentHandler.name, () => {
     expect(await findActivity()).toMatchObject({ status: "pending" });
   });
 
-  async function setup() {
+  async function setup(input: { batchId?: string } = {}) {
     const { enqueue, startWorkers } = await jobWorkers();
     const activityRepository = container.resolve(ActivityRepository);
     const { wallet } = await seedUserWithWallet();
     const dseq = faker.string.numeric(7);
-    const activity = await activityRepository.create({ userId: wallet.userId, type: "deployment_close", status: "pending", meta: { dseq } });
+    const activity = await activityRepository.create({
+      userId: wallet.userId,
+      type: "deployment_close",
+      status: "pending",
+      meta: { dseq, batchId: input.batchId }
+    });
     const close = vi.spyOn(container.resolve(DeploymentWriterService), "close").mockResolvedValue(true);
     const singletonKey = closeDeploymentKeyFor({ userId: wallet.userId, dseq });
 
@@ -65,7 +79,7 @@ describe(CloseDeploymentHandler.name, () => {
       dseq,
       close,
       closeInBackground: async (retryOverrides: EnqueueOptions = {}) => {
-        await enqueue(new CloseDeployment({ userId: wallet.userId, dseq, activityId: activity.id }), {
+        await enqueue(new CloseDeployment({ userId: wallet.userId, dseq, activityId: activity.id, batchId: input.batchId }), {
           singletonKey,
           ...CLOSE_DEPLOYMENT_RETRY_OPTIONS,
           ...retryOverrides

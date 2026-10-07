@@ -192,8 +192,8 @@ describe("Deployments API", () => {
     return { user, userApiKeySecret, wallets };
   }
 
-  async function closeInBackground(dseq: string, userApiKeySecret: string) {
-    return await app.request(`/v1/deployments/${dseq}?async=true`, {
+  async function closeInBackground(dseq: string, userApiKeySecret: string, { batchId }: { batchId?: string } = {}) {
+    return await app.request(`/v1/deployments/${dseq}?async=true${batchId ? `&batchId=${batchId}` : ""}`, {
       method: "DELETE",
       headers: new Headers({ "Content-Type": "application/json", "x-api-key": userApiKeySecret })
     });
@@ -1655,6 +1655,52 @@ describe("Deployments API", () => {
       const second = await closeInBackground(dseq, userApiKeySecret);
 
       expect(await second.json()).toEqual(first);
+    });
+
+    it("groups a background close into the bulk close its request names", async () => {
+      const { user, userApiKeySecret, wallets } = await mockPersistedUser();
+      const dseq = createDseq();
+      const batchId = faker.string.uuid();
+      await setupDeploymentInfoMock(wallets, dseq);
+
+      const response = await closeInBackground(dseq, userApiKeySecret, { batchId });
+      const { data } = (await response.json()) as { data: { activityId: string } };
+
+      expect(response.status).toBe(202);
+      expect(await activityRepository.findById(data.activityId)).toMatchObject({ status: "pending", meta: { dseq, batchId } });
+      expect(await findJobRows(CloseDeployment[JOB_NAME], { singletonKey: closeDeploymentKeyFor({ userId: user.id, dseq }) })).toEqual([
+        expect.objectContaining({ data: expect.objectContaining({ activityId: data.activityId, batchId }) })
+      ]);
+    });
+
+    it("groups a close made during the request into the bulk close its request names", async () => {
+      const { user, userApiKeySecret, wallets } = await mockPersistedUser();
+      const dseq = createDseq();
+      const batchId = faker.string.uuid();
+      await setupDeploymentInfoMock(wallets, dseq);
+      vi.spyOn(container.resolve(FeatureFlagsService), "isEnabled").mockReturnValue(false);
+      vi.spyOn(signerService, "executeDecodedTxByUserWallet").mockResolvedValueOnce({
+        code: 0,
+        hash: "test-hash",
+        transactionHash: "test-hash",
+        rawLog: "success"
+      });
+
+      const response = await closeInBackground(dseq, userApiKeySecret, { batchId });
+
+      expect(response.status).toBe(200);
+      expect(await activityRepository.find({ userId: user.id })).toEqual([expect.objectContaining({ status: "succeeded", meta: { dseq, batchId } })]);
+    });
+
+    it("refuses a bulk close id that is not a UUID", async () => {
+      const { user, userApiKeySecret, wallets } = await mockPersistedUser();
+      const dseq = createDseq();
+      await setupDeploymentInfoMock(wallets, dseq);
+
+      const response = await closeInBackground(dseq, userApiKeySecret, { batchId: "not-a-uuid" });
+
+      expect(response.status).toBe(400);
+      expect(await activityRepository.find({ userId: user.id })).toEqual([]);
     });
 
     it("refuses a background close on the request itself and queues nothing", async () => {
