@@ -11,20 +11,19 @@ import type { UserSettings } from "@src/types/user";
 import { ApiUrlService } from "@src/utils/apiUtils";
 import { QueryKeys } from "./queryKeys";
 
+export type UserSettingsUpdate = UserSettings & { subscribedToProductUpdates?: boolean };
+
 export function useSaveSettings() {
   const { consoleApiHttpClient, errorHandler } = useServices();
 
   const { enqueueSnackbar } = useSnackbar();
   const { checkSession } = useCustomUser();
 
-  return useMutation<AxiosResponse<unknown, unknown>, Error, UserSettings>({
+  return useMutation<AxiosResponse<unknown, unknown>, Error, UserSettingsUpdate>({
     mutationFn: async newSettings => {
       return consoleApiHttpClient.put("/v1/user/updateSettings", newSettings);
     },
-    onSuccess: () => {
-      enqueueSnackbar("Settings saved", { variant: "success" });
-      checkSession();
-    },
+    onSuccess: () => checkSession(),
     onError: error => {
       let message = "Error saving settings";
       if (axios.isAxiosError(error) && error.response?.data) {

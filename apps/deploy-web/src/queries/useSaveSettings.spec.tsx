@@ -16,7 +16,26 @@ import { act, screen } from "@testing-library/react";
 
 describe("Settings management", () => {
   describe(useSaveSettings.name, () => {
-    it("saves settings successfully, call checkSession and show success snackbar", async () => {
+    it("stays pending until the session refresh after saving finishes", async () => {
+      const consoleApiHttpClient = mock<HttpClient>();
+      consoleApiHttpClient.put.mockResolvedValue({ status: 200 });
+      let finishRefresh: (user: { email: string }) => void = () => {};
+      const fetchUser = vi
+        .fn()
+        .mockResolvedValueOnce({ email: "test@akash.network" })
+        .mockReturnValueOnce(new Promise(resolve => (finishRefresh = resolve)));
+      const { result } = setup({ services: { consoleApiHttpClient: () => consoleApiHttpClient }, fetchUser });
+
+      act(() => result.current.mutate({ username: "testuser" }));
+      await vi.waitFor(() => expect(fetchUser).toHaveBeenCalledTimes(2));
+
+      expect(result.current.isPending).toBe(true);
+
+      act(() => finishRefresh({ email: "test@akash.network" }));
+      await vi.waitFor(() => expect(result.current.isSuccess).toBe(true));
+    });
+
+    it("saves settings and refreshes the session", async () => {
       const newSettings = {
         username: "testuser",
         subscribedToNewsletter: true
@@ -38,7 +57,6 @@ describe("Settings management", () => {
       expect(consoleApiHttpClient.put).toHaveBeenCalledWith(expect.stringContaining("/v1/user/updateSettings"), newSettings);
       expect(fetchUser).toHaveBeenCalledTimes(2);
       expect(result.current.isSuccess).toBe(true);
-      expect(await screen.findByText(/Settings saved/i)).toBeInTheDocument();
     });
 
     it("handles error when saving settings and show error snackbar", async () => {
