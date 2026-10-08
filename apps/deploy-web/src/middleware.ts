@@ -10,6 +10,7 @@ import {
   getContentSecurityPolicyReportHeaders,
   isSampledForViolationReports
 } from "./lib/csp/csp";
+import { normalizeReferralCode, REFERRAL_COOKIE_MAX_AGE_SECONDS, REFERRAL_COOKIE_NAME } from "./lib/referral/referral-cookie";
 
 const logger = new LoggerService({ name: "middleware" });
 
@@ -75,6 +76,17 @@ export function middleware(request: NextRequest) {
       sameSite: "lax",
       secure: process.env.NODE_ENV === "production",
       maxAge: 60 * 60 * 24 * 365 // 1 year
+    });
+  }
+
+  const referralCode = normalizeReferralCode(request.nextUrl.searchParams.get("ref"));
+  if (referralCode) {
+    res.cookies.set(REFERRAL_COOKIE_NAME, referralCode, {
+      path: "/",
+      httpOnly: true,
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+      maxAge: REFERRAL_COOKIE_MAX_AGE_SECONDS
     });
   }
 
