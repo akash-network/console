@@ -299,6 +299,29 @@ describe(RefillService.name, () => {
       expect(analyticsService.track).toHaveBeenCalledWith(userId, "balance_refund", expect.objectContaining({ amount_cents: 100, amount_usd: 1 }));
     });
 
+    it("reports no shortfall when the allowance covers the whole reduction", async () => {
+      const { service, userWalletRepository, balancesService } = setup();
+      userWalletRepository.findOneBy.mockResolvedValue(createUserWallet({ userId, address: "akash1test..." }));
+      balancesService.retrieveDeploymentLimit.mockResolvedValue(1000000);
+
+      await expect(service.reduceWalletBalance(100, userId)).resolves.toEqual({ shortfallCents: 0 });
+    });
+
+    it("reports the part of the reduction the allowance could not cover", async () => {
+      const { service, userWalletRepository, balancesService } = setup();
+      userWalletRepository.findOneBy.mockResolvedValue(createUserWallet({ userId, address: "akash1test..." }));
+      balancesService.retrieveDeploymentLimit.mockResolvedValue(50000);
+
+      await expect(service.reduceWalletBalance(100, userId)).resolves.toEqual({ shortfallCents: 95 });
+    });
+
+    it("reports the whole reduction as a shortfall when the user has no wallet", async () => {
+      const { service, userWalletRepository } = setup();
+      userWalletRepository.findOneBy.mockResolvedValue(undefined);
+
+      await expect(service.reduceWalletBalance(100, userId)).resolves.toEqual({ shortfallCents: 100 });
+    });
+
     it("does nothing when wallet does not exist", async () => {
       const { service, userWalletRepository, managedUserWalletService, balancesService, analyticsService } = setup();
 

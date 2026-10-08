@@ -61,6 +61,14 @@ describe(StripeWebhookService.name, () => {
       expect(stripeTransaction.refundCharge).toHaveBeenCalledWith(event);
     });
 
+    it("routes charge.dispute.closed to markDisputeLost", async () => {
+      const { service, event, stripeTransaction } = setup("charge.dispute.closed");
+
+      await service.routeStripeEvent("sig", "body");
+
+      expect(stripeTransaction.markDisputeLost).toHaveBeenCalledWith(event);
+    });
+
     it("routes payment_method.attached to syncAttachedFromEvent", async () => {
       const { service, event, paymentMethodService } = setup("payment_method.attached");
 

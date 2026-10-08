@@ -610,6 +610,7 @@ describe(StripeTransactionService.name, () => {
       description: input.description ?? null,
       errorMessage: input.errorMessage ?? null,
       sourceTransactionId: input.sourceTransactionId ?? null,
+      disputeLostAt: input.disputeLostAt ?? null,
       createdAt: new Date(),
       updatedAt: new Date()
     }));

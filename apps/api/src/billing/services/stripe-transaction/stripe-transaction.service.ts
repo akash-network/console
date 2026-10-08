@@ -558,7 +558,7 @@ export class StripeTransactionService {
     return { settled: true, bonusAmount, toppedUpWallet };
   }
 
-  /** Runs before the payer's top-up: a failed enqueue after the chain grant would roll the settlement back and let the webhook retry credit the payer twice. */
+  /** Runs before the payer's wallet changes: a failed enqueue after the chain call would roll the write back and let the webhook retry move the payer's balance twice. */
   async #queueAffiliateCommissionSync(transaction: StripeTransactionOutput): Promise<void> {
     if (transaction.type !== "payment_intent") return;
 
@@ -888,6 +888,7 @@ export class StripeTransactionService {
       amountRefunded: params.amountRefunded,
       ...(isFullyRefunded ? { status: "refunded" } : {})
     });
+    await this.#queueAffiliateCommissionSync(transaction);
 
     await this.refillService.reduceWalletBalance(refundedAmount + bonusClawback, params.userId, {
       currency: transaction.currency,
@@ -913,6 +914,34 @@ export class StripeTransactionService {
       previouslyRefunded: transaction.amountRefunded,
       isFullyRefunded,
       transactionId: transaction.id
+    });
+  }
+
+  /** Leaves the payer's own balance as it is: the loss is recorded only so the affiliate commission on this charge is taken back. */
+  @WithTransaction()
+  async markDisputeLost(event: Stripe.ChargeDisputeClosedEvent): Promise<void> {
+    const dispute = event.data.object;
+    if (dispute.status !== "lost") return;
+
+    const chargeId = typeof dispute.charge === "string" ? dispute.charge : dispute.charge.id;
+    const transaction = await this.stripeTransactionRepository.findOneByAndLock({ stripeChargeId: chargeId });
+
+    if (!transaction) {
+      this.loggerService.warn({ event: "CHARGE_DISPUTE_LOST_NO_TRANSACTION", chargeId, disputeId: dispute.id });
+      return;
+    }
+
+    if (transaction.disputeLostAt) return;
+
+    await this.stripeTransactionRepository.updateById(transaction.id, { disputeLostAt: new Date(event.created * 1000) });
+    await this.#queueAffiliateCommissionSync(transaction);
+
+    this.loggerService.info({
+      event: "CHARGE_DISPUTE_LOST",
+      chargeId,
+      disputeId: dispute.id,
+      transactionId: transaction.id,
+      userId: transaction.userId
     });
   }
 

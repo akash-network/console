@@ -1,0 +1,1 @@
+ALTER TABLE "stripe_transactions" ADD COLUMN "dispute_lost_at" timestamp with time zone;
