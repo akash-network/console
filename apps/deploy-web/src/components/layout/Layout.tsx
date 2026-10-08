@@ -67,21 +67,18 @@ const LayoutApp: React.FunctionComponent<Props> = ({
   const { isStripped } = useOnboardingChrome();
 
   return (
-    <div className={cn("flex h-full flex-col", { "min-h-screen bg-white text-foreground dark:bg-background": background === "white" })}>
+    <div
+      data-background={background}
+      className="relative flex min-h-dvh flex-col overflow-x-clip data-[background=white]:bg-white data-[background=white]:text-foreground dark:data-[background=white]:bg-background"
+    >
       <div className="w-full flex-1" style={{ marginTop: `var(--app-header-height, ${ACCOUNT_BAR_HEIGHT + (hasBanner ? 40 : 0)}px)` }}>
-        <div className="h-full overflow-x-auto">
-          <TopNav minimal={isStripped} />
+        <TopNav minimal={isStripped} />
 
-          <div className="block h-full w-full flex-grow rounded-none md:flex">
-            <div className="h-full flex-grow overflow-x-auto">
-              <LinearLoadingSkeleton isLoading={isLoading} />
+        <LinearLoadingSkeleton isLoading={isLoading} />
 
-              <ErrorBoundary FallbackComponent={ErrorFallback}>
-                <div className={cn({ ["container p-6 pb-8"]: !disableContainer }, containerClassName)}>{children}</div>
-              </ErrorBoundary>
-            </div>
-          </div>
-        </div>
+        <ErrorBoundary FallbackComponent={ErrorFallback}>
+          <div className={cn({ ["container p-6 pb-8"]: !disableContainer }, containerClassName)}>{children}</div>
+        </ErrorBoundary>
       </div>
 
       <Suspense fallback={null}>

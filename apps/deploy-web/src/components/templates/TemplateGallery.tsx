@@ -53,12 +53,12 @@ export const TemplateGallery: FC<{ dependencies?: typeof DEPENDENCIES }> = ({ de
         description="Explore all the templates made by the community to easily deploy any docker container on the Akash Network."
       />
 
-      <div className="flex h-[calc(100dvh_-_var(--app-header-height,57px)_-_4px)] w-full flex-col">
+      <div className="flex w-full flex-col md:h-page-viewport">
         <div className="flex min-h-[60px] shrink-0 items-center gap-4 border-b border-border bg-background px-4 py-2.5 sm:px-6">
           <h1 className="text-xl font-bold tracking-tight">Templates</h1>
         </div>
 
-        <div className="flex min-h-0 flex-1">
+        <div className="flex md:min-h-0 md:flex-1">
           <nav
             aria-label="Filter by use case"
             className="hidden w-[232px] shrink-0 overflow-y-auto border-r border-border bg-background px-4 pb-8 pt-5 md:block"
@@ -67,7 +67,7 @@ export const TemplateGallery: FC<{ dependencies?: typeof DEPENDENCIES }> = ({ de
             <d.TemplateUseCaseNav filters={filters} selectedCategory={selectedCategory} onSelect={selectCategory} />
           </nav>
 
-          <div className="min-w-0 flex-1 overflow-y-auto">
+          <div className="min-w-0 flex-1 md:overflow-y-auto">
             <div className="flex flex-col gap-6 px-4 pb-8 pt-5 sm:px-6">
               <div className="flex flex-wrap items-center gap-2">
                 <Input

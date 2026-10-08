@@ -2,11 +2,22 @@ import createTailwindConfig from "@akashnetwork/ui/tailwind";
 
 const config = createTailwindConfig("deploy-web");
 
+/** The viewport height left to a page under the fixed header and the 4px loading bar the layout reserves. */
+const PAGE_VIEWPORT_HEIGHT = "calc(100dvh - var(--app-header-height, 57px) - 4px)";
+
 /** Boot overlay mark pulse (see AkashLoadingMark): each shard chases from dim (border) to lit (foreground). */
 config.theme = {
   ...config.theme,
   extend: {
     ...config.theme?.extend,
+    height: {
+      ...config.theme?.extend?.height,
+      "page-viewport": PAGE_VIEWPORT_HEIGHT
+    },
+    minHeight: {
+      ...config.theme?.extend?.minHeight,
+      "page-viewport": PAGE_VIEWPORT_HEIGHT
+    },
     keyframes: {
       ...config.theme?.extend?.keyframes,
       "akash-loading-shard": {

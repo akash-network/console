@@ -21,7 +21,7 @@ export const SettingsLayout: React.FunctionComponent<Props> = ({ title, descript
   const links = d.useSettingsNavLinks();
 
   return (
-    <div className="flex h-[calc(100dvh_-_var(--app-header-height,57px)_-_4px)] w-full flex-col md:flex-row">
+    <div className="flex w-full flex-col md:h-page-viewport md:flex-row">
       <nav
         aria-label="Settings"
         className="flex shrink-0 gap-1 overflow-x-auto border-b border-border px-4 py-3 md:w-[216px] md:flex-col md:overflow-y-auto md:border-b-0 md:border-r md:py-7"
@@ -38,9 +38,9 @@ export const SettingsLayout: React.FunctionComponent<Props> = ({ title, descript
         ))}
       </nav>
 
-      <div className="min-h-0 min-w-0 flex-1 overflow-y-auto">
+      <div className="min-w-0 flex-1 md:min-h-0 md:overflow-y-auto">
         {(title || headerActions) && (
-          <div className="sticky top-0 z-30 flex min-h-[60px] items-center border-b border-border bg-background py-2.5">
+          <div className="sticky top-[var(--app-header-height,57px)] z-30 flex min-h-[60px] items-center border-b border-border bg-background py-2.5 md:top-0">
             <div className="container flex flex-wrap items-center justify-between gap-4 px-6">
               {title && <d.Title className="text-xl">{title}</d.Title>}
               {headerActions}

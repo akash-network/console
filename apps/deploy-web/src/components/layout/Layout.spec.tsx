@@ -29,20 +29,34 @@ describe("Layout", () => {
     expect(screen.getByText("page content")).toBeInTheDocument();
   });
 
+  it("wraps children in the padded page container by default", () => {
+    setup({ children: <div>page content</div> });
+
+    expect(screen.getByText("page content").parentElement).toHaveClass("container");
+  });
+
+  it("renders children in the given container classes when disableContainer is set", () => {
+    setup({ children: <div>page content</div>, disableContainer: true, containerClassName: "flex h-page-viewport" });
+
+    const wrapper = screen.getByText("page content").parentElement;
+    expect(wrapper).not.toHaveClass("container");
+    expect(wrapper).toHaveClass("flex", "h-page-viewport");
+  });
+
   it("renders the top navigation", () => {
     const { dependencies } = setup({});
 
     expect(dependencies.TopNav).toHaveBeenCalledWith(expect.objectContaining({ minimal: false }), expect.anything());
   });
 
-  function setup(input: { isLoading?: boolean; children?: ReactNode }) {
+  function setup(input: { isLoading?: boolean; children?: ReactNode; disableContainer?: boolean; containerClassName?: string }) {
     const dependencies = MockComponents(DEPENDENCIES, {
       useOnboardingChrome: () => mock<ReturnType<typeof DEPENDENCIES.useOnboardingChrome>>({ isStripped: false }),
       useTopBanner: () => mock<ReturnType<typeof DEPENDENCIES.useTopBanner>>({ hasBanner: false })
     });
 
     render(
-      <Layout isLoading={input.isLoading} dependencies={dependencies}>
+      <Layout isLoading={input.isLoading} disableContainer={input.disableContainer} containerClassName={input.containerClassName} dependencies={dependencies}>
         {input.children}
       </Layout>
     );

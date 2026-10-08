@@ -29,7 +29,7 @@ export const ProvidersPage: FC<Props> = ({ dependencies: d = DEPENDENCIES }) => 
         description="Explore all the providers available on the Akash Network."
       />
 
-      <div className="flex h-[calc(100dvh_-_var(--app-header-height,57px)_-_4px)] flex-col">
+      <div className="flex flex-col md:h-page-viewport">
         <div className="flex min-h-[60px] shrink-0 items-center border-b bg-background">
           <div className="container flex items-center gap-4 px-4 md:px-6">
             <h1 className="whitespace-nowrap text-xl font-bold leading-7 tracking-[-0.02em]">Providers</h1>
@@ -43,7 +43,7 @@ export const ProvidersPage: FC<Props> = ({ dependencies: d = DEPENDENCIES }) => 
           </div>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto">
+        <div className="md:min-h-0 md:flex-1 md:overflow-y-auto">
           <div className="container px-4 md:px-6">
             <d.ProvidersExplorer />
           </div>

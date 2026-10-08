@@ -178,7 +178,7 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq, dependencies
     <d.Layout
       isLoading={isLoadingLeases || isLoadingDeployment || isLoadingProviders}
       disableContainer
-      containerClassName="flex min-h-[calc(100dvh_-_var(--app-header-height,57px)_-_4px)] flex-col pt-4"
+      containerClassName="flex min-h-page-viewport flex-col pt-4"
     >
       <d.NextSeo title={`Deployment detail #${dseq}`} />
 

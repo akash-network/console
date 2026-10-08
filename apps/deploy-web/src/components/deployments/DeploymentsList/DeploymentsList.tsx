@@ -64,7 +64,7 @@ export const DeploymentsList: React.FunctionComponent<Props> = ({ dependencies: 
     <d.Layout isLoading={model.isLoadingDeployments || model.isLoadingProviders} disableContainer>
       <NextSeo title="Deployments" />
 
-      <div className="flex flex-col md:h-[calc(100dvh_-_var(--app-header-height,57px)_-_4px)]">
+      <div className="flex flex-col md:h-page-viewport">
         {model.hasWallet && (
           <div className="flex min-h-[60px] shrink-0 items-center border-b border-border bg-background py-2">
             <div className="container flex flex-wrap items-center gap-3 px-4 sm:px-6">
