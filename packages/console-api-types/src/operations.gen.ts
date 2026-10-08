@@ -270,6 +270,7 @@ export const operations = {
       hasBody: false
     },
     getAffiliateProfile: { path: "/v1/affiliates/me", method: "get", operationId: "getAffiliateProfile", pathParams: [], queryParams: [], hasBody: false },
+    getReferral: { path: "/v1/referral", method: "get", operationId: "getReferral", pathParams: [], queryParams: [], hasBody: false },
     createAlert: { path: "/v1/alerts", method: "post", operationId: "createAlert", pathParams: [], queryParams: [], hasBody: true },
     listAlerts: {
       path: "/v1/alerts",

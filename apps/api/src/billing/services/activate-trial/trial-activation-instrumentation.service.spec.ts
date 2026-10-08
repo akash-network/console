@@ -67,11 +67,28 @@ describe(TrialActivationInstrumentationService.name, () => {
       const { service, activationLatency, analyticsService } = setup();
       const userId = faker.string.uuid();
 
-      service.recordActivated(userId, 9000);
+      service.recordActivated(userId, 9000, { isReferral: false, trialCreditsUsd: 1 });
 
       expect(activationLatency.record).toHaveBeenCalledWith(9000);
       expect(mockLogger.info).toHaveBeenCalledWith(expect.objectContaining({ event: "TRIAL_ACTIVATED", userId, latencyMs: 9000 }));
-      expect(analyticsService.track).toHaveBeenCalledWith(userId, "trial_started", { activation_latency_ms: 9000 });
+      expect(analyticsService.track).toHaveBeenCalledWith(userId, "trial_started", {
+        activation_latency_ms: 9000,
+        is_referral: false,
+        trial_credits_usd: 1
+      });
+    });
+
+    it("reports a referral trial start with its own credit amount", () => {
+      const { service, analyticsService } = setup();
+      const userId = faker.string.uuid();
+
+      service.recordActivated(userId, 9000, { isReferral: true, trialCreditsUsd: 5 });
+
+      expect(analyticsService.track).toHaveBeenCalledWith(userId, "trial_started", {
+        activation_latency_ms: 9000,
+        is_referral: true,
+        trial_credits_usd: 5
+      });
     });
   });
 

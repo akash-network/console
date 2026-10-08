@@ -19069,6 +19069,55 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
         ],
       },
     },
+    "/v1/referral": {
+      "get": {
+        "operationId": "getReferral",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "nullable": true,
+                      "properties": {
+                        "trialCreditsUsd": {
+                          "type": "number",
+                        },
+                      },
+                      "required": [
+                        "trialCreditsUsd",
+                      ],
+                      "type": "object",
+                    },
+                  },
+                  "required": [
+                    "data",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "The caller's referral trial credits, or null when they were not referred",
+          },
+          "401": {
+            "description": "Unauthorized",
+          },
+        },
+        "security": [
+          {
+            "BearerAuth": [],
+          },
+          {
+            "ApiKeyAuth": [],
+          },
+        ],
+        "summary": "Get the caller's referral trial credits",
+        "tags": [
+          "Affiliates",
+        ],
+      },
+    },
     "/v1/register-user": {
       "post": {
         "requestBody": {

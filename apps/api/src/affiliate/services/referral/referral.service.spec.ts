@@ -4,6 +4,7 @@ import { mock } from "vitest-mock-extended";
 
 import type { ReferralRepository } from "@src/affiliate/repositories/referral/referral.repository";
 import type { AffiliateService } from "@src/affiliate/services/affiliate/affiliate.service";
+import type { BillingConfig } from "@src/billing/providers";
 import type { AnalyticsService } from "@src/core/services/analytics/analytics.service";
 import type { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import { ReferralService } from "./referral.service";
@@ -79,6 +80,79 @@ describe(ReferralService.name, () => {
     });
   });
 
+  describe("getTrialDeploymentLimit", () => {
+    it("returns the referral trial deployment allowance when the user was referred", async () => {
+      const referral = createReferral({ referredUserId: "referred-user-id" });
+      const { service, referralRepository, billingConfig } = setup();
+      referralRepository.findByReferredUserId.mockResolvedValue(referral);
+
+      const result = await service.getTrialDeploymentLimit("referred-user-id");
+
+      expect(result).toBe(billingConfig.REFERRAL_TRIAL_DEPLOYMENT_ALLOWANCE_AMOUNT);
+    });
+
+    it("returns undefined when the user was never referred", async () => {
+      const { service, referralRepository } = setup();
+      referralRepository.findByReferredUserId.mockResolvedValue(undefined);
+
+      const result = await service.getTrialDeploymentLimit("not-referred-user-id");
+
+      expect(result).toBeUndefined();
+    });
+  });
+
+  describe("recordTrialGranted", () => {
+    it("records the granted deployment limit as trial credit cents on the referral", async () => {
+      const referral = createReferral({ referredUserId: "referred-user-id" });
+      const { service, referralRepository } = setup();
+      referralRepository.findByReferredUserId.mockResolvedValue(referral);
+
+      await service.recordTrialGranted("referred-user-id", 5_000_000);
+
+      expect(referralRepository.updateById).toHaveBeenCalledWith(referral.id, { trialCreditsCents: 500 });
+    });
+
+    it("does nothing when the user was never referred", async () => {
+      const { service, referralRepository } = setup();
+      referralRepository.findByReferredUserId.mockResolvedValue(undefined);
+
+      await service.recordTrialGranted("not-referred-user-id", 5_000_000);
+
+      expect(referralRepository.updateById).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("getReferral", () => {
+    it("returns null when the user was never referred", async () => {
+      const { service, referralRepository } = setup();
+      referralRepository.findByReferredUserId.mockResolvedValue(undefined);
+
+      const result = await service.getReferral("not-referred-user-id");
+
+      expect(result).toBeNull();
+    });
+
+    it("returns the recorded trial credits in dollars once the trial was granted", async () => {
+      const referral = createReferral({ referredUserId: "referred-user-id", trialCreditsCents: 500 });
+      const { service, referralRepository } = setup();
+      referralRepository.findByReferredUserId.mockResolvedValue(referral);
+
+      const result = await service.getReferral("referred-user-id");
+
+      expect(result).toEqual({ trialCreditsUsd: 5 });
+    });
+
+    it("falls back to the configured referral trial amount before the trial is granted", async () => {
+      const referral = createReferral({ referredUserId: "referred-user-id", trialCreditsCents: null });
+      const { service, referralRepository, billingConfig } = setup();
+      referralRepository.findByReferredUserId.mockResolvedValue(referral);
+
+      const result = await service.getReferral("referred-user-id");
+
+      expect(result).toEqual({ trialCreditsUsd: billingConfig.REFERRAL_TRIAL_DEPLOYMENT_ALLOWANCE_AMOUNT / 1_000_000 });
+    });
+  });
+
   it("creates the logger with the service context", () => {
     const { createLogger } = setup();
 
@@ -91,11 +165,12 @@ describe(ReferralService.name, () => {
     const analyticsService = mock<AnalyticsService>();
     const featureFlagsService = mock<FeatureFlagsService>();
     featureFlagsService.isEnabled.mockReturnValue(true);
+    const billingConfig = mock<BillingConfig>({ REFERRAL_TRIAL_DEPLOYMENT_ALLOWANCE_AMOUNT: 5_000_000 });
     const logger = mock<ReturnType<CreateLogger>>();
     const createLogger = vi.fn<CreateLogger>(() => logger);
 
-    const service = new ReferralService(referralRepository, affiliateService, analyticsService, featureFlagsService, createLogger);
+    const service = new ReferralService(referralRepository, affiliateService, analyticsService, featureFlagsService, billingConfig, createLogger);
 
-    return { service, referralRepository, affiliateService, analyticsService, featureFlagsService, logger, createLogger };
+    return { service, referralRepository, affiliateService, analyticsService, featureFlagsService, billingConfig, logger, createLogger };
   }
 });

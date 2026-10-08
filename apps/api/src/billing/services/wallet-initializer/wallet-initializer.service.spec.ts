@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { MockProxy } from "vitest-mock-extended";
 import { mock } from "vitest-mock-extended";
 
+import { ReferralService } from "@src/affiliate/services/referral/referral.service";
 import { AuthService } from "@src/auth/services/auth.service";
 import { TrialStarted } from "@src/billing/events/trial-started";
 import { TYPE_REGISTRY } from "@src/billing/providers/type-registry.provider";
@@ -154,14 +155,80 @@ describe(WalletInitializerService.name, () => {
       const wallet = createUserWallet({ userId, activatedAt: null });
       const getOrCreateWallet = vi.fn().mockResolvedValue({ wallet, isNew: false });
       const updateWalletById = vi.fn().mockImplementation(async (id, patch) => ({ ...wallet, ...patch }));
+      const chainWallet = createChainWallet({ limits: { deployment: 20_000_000, fees: 100_000 } });
 
       const di = setup({ userId, getOrCreateWallet, updateWalletById });
+      const managedUserWalletService = di.resolve(ManagedUserWalletService) as MockProxy<ManagedUserWalletService>;
+      managedUserWalletService.createAndAuthorizeTrialSpending.mockResolvedValue(chainWallet);
+
+      await di.resolve(WalletInitializerService).initializeAndGrantTrialLimits(userId);
+
+      expect(di.resolve(TrialActivationInstrumentationService).recordActivated).toHaveBeenCalledWith(userId, expect.any(Number), {
+        isReferral: false,
+        trialCreditsUsd: 20
+      });
+    });
+
+    it("grants the referral trial deployment limit and records it when the user was referred", async () => {
+      const userId = "test-user-id";
+      const wallet = createUserWallet({ userId, activatedAt: null });
+      const getOrCreateWallet = vi.fn().mockResolvedValue({ wallet, isNew: false });
+      const updateWalletById = vi.fn().mockImplementation(async (id, patch) => ({ ...wallet, ...patch }));
+      const chainWallet = createChainWallet({ limits: { deployment: 5_000_000, fees: 100_000 } });
+
+      const di = setup({ userId, getOrCreateWallet, updateWalletById, referralTrialDeploymentLimit: 5_000_000 });
+      const managedUserWalletService = di.resolve(ManagedUserWalletService) as MockProxy<ManagedUserWalletService>;
+      managedUserWalletService.createAndAuthorizeTrialSpending.mockResolvedValue(chainWallet);
+
+      await di.resolve(WalletInitializerService).initializeAndGrantTrialLimits(userId);
+
+      expect(managedUserWalletService.createAndAuthorizeTrialSpending).toHaveBeenCalledWith(di.resolve(ManagedSignerService), {
+        addressIndex: wallet.id,
+        deploymentLimit: 5_000_000
+      });
+      expect(di.resolve(ReferralService).recordTrialGranted).toHaveBeenCalledWith(userId, 5_000_000);
+      expect(di.resolve(TrialActivationInstrumentationService).recordActivated).toHaveBeenCalledWith(userId, expect.any(Number), {
+        isReferral: true,
+        trialCreditsUsd: 5
+      });
+    });
+
+    it("grants the standard trial deployment limit and records nothing when the user was not referred", async () => {
+      const userId = "test-user-id";
+      const wallet = createUserWallet({ userId, activatedAt: null });
+      const getOrCreateWallet = vi.fn().mockResolvedValue({ wallet, isNew: false });
+      const updateWalletById = vi.fn().mockImplementation(async (id, patch) => ({ ...wallet, ...patch }));
+
+      const di = setup({ userId, getOrCreateWallet, updateWalletById, referralTrialDeploymentLimit: undefined });
       const managedUserWalletService = di.resolve(ManagedUserWalletService) as MockProxy<ManagedUserWalletService>;
       managedUserWalletService.createAndAuthorizeTrialSpending.mockResolvedValue(createChainWallet());
 
       await di.resolve(WalletInitializerService).initializeAndGrantTrialLimits(userId);
 
-      expect(di.resolve(TrialActivationInstrumentationService).recordActivated).toHaveBeenCalledWith(userId, expect.any(Number));
+      expect(managedUserWalletService.createAndAuthorizeTrialSpending).toHaveBeenCalledWith(di.resolve(ManagedSignerService), {
+        addressIndex: wallet.id,
+        deploymentLimit: undefined
+      });
+      expect(di.resolve(ReferralService).recordTrialGranted).not.toHaveBeenCalled();
+    });
+
+    it("still enforces the fingerprint check for a referred user", async () => {
+      const user = createUser({ emailVerified: true, stripeCustomerId: faker.string.uuid(), lastFingerprint: "fp" });
+      const di = setup({ user, isProduction: true, hasDuplicateFingerprint: true, referralTrialDeploymentLimit: 5_000_000 });
+
+      await expect(di.resolve(WalletInitializerService).initializeAndGrantTrialLimits(user.id)).rejects.toThrow(/Unable to start trial/i);
+    });
+
+    it("still enforces the blocked email domain check for a referred user", async () => {
+      const user = createUser({ emailVerified: true });
+      const di = setup({
+        user,
+        isBlockedEmailDomain: true,
+        referralTrialDeploymentLimit: 5_000_000,
+        getOrCreateWallet: vi.fn().mockResolvedValue({ wallet: createUserWallet({ activatedAt: null }) })
+      });
+
+      await expect(di.resolve(WalletInitializerService).initializeAndGrantTrialLimits(user.id)).rejects.toThrow(TRIAL_BLOCKED_DOMAIN_MESSAGE);
     });
   });
 
@@ -229,6 +296,7 @@ describe(WalletInitializerService.name, () => {
     isProduction?: boolean;
     hasDuplicateFingerprint?: boolean;
     isBlockedEmailDomain?: boolean;
+    referralTrialDeploymentLimit?: number;
   }) {
     const di = container.createChildContainer();
     di.registerInstance(TYPE_REGISTRY, new Registry());
@@ -290,6 +358,13 @@ describe(WalletInitializerService.name, () => {
     di.registerInstance(
       BlockedEmailDomainService,
       mock<BlockedEmailDomainService>({ isBlockedEmail: vi.fn().mockResolvedValue(input?.isBlockedEmailDomain ?? false) })
+    );
+    di.registerInstance(
+      ReferralService,
+      mock<ReferralService>({
+        getTrialDeploymentLimit: vi.fn().mockResolvedValue(input?.referralTrialDeploymentLimit),
+        recordTrialGranted: vi.fn()
+      })
     );
 
     container.clearInstances();

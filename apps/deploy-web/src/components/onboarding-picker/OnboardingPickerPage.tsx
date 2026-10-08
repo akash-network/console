@@ -17,6 +17,7 @@ import { useServices } from "@src/context/ServicesProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { useEnsureTrialStarted } from "@src/hooks/useEnsureTrialStarted";
 import { useFlag } from "@src/hooks/useFlag";
+import { useReferralQuery } from "@src/queries/useReferralQuery";
 
 /**
  * Template ids the picker cards deploy. Each card redirects to the bid-screening (configure) view carrying its
@@ -37,6 +38,7 @@ export const DEPENDENCIES = {
   useEnsureTrialStarted,
   useServices,
   useFlag,
+  useReferralQuery,
   DeploymentTemplatePickerCard,
   AddCreditsSheet,
   OnboardingHeader,
@@ -52,7 +54,8 @@ export function OnboardingPickerPage({ dependencies: d = DEPENDENCIES }: Onboard
   const router = d.useRouter();
   const { isTrialing } = d.useWallet();
   const { publicConfig, urlService, analyticsService } = d.useServices();
-  const trialCreditsAmount = publicConfig.NEXT_PUBLIC_TRIAL_CREDITS_AMOUNT;
+  const { data: referral } = d.useReferralQuery();
+  const trialCreditsAmount = referral?.trialCreditsUsd ?? publicConfig.NEXT_PUBLIC_TRIAL_CREDITS_AMOUNT;
   const [addCreditsSheetReason, setAddCreditsSheetReason] = useState<"unlock-gpu" | "hackathon-coupon" | null>(null);
   const { isWalletReady } = d.useEnsureTrialStarted();
   const isHackathonsEnabled = d.useFlag("hackathons");
