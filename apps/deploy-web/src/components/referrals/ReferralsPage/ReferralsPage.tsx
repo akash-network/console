@@ -78,7 +78,7 @@ export function ReferralsPage({ dependencies: d = DEPENDENCIES }: Props = {}) {
       <d.SettingsLayout title="Referrals">
         <d.SettingsSection title="Your referral link">
           <div className="flex max-w-xl items-center gap-2">
-            <Input readOnly value={referralLink} aria-label="Referral link" onFocus={event => event.target.select()} />
+            <Input className="min-w-0 flex-1" readOnly value={referralLink} aria-label="Referral link" onFocus={event => event.target.select()} />
             <Button type="button" variant="outline" size="icon" aria-label="Copy referral link" onClick={copyReferralLink}>
               <CopyIcon className="h-4 w-4" aria-hidden />
             </Button>
