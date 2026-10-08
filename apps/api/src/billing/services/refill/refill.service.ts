@@ -49,6 +49,10 @@ export interface ToppedUpWallet {
   address: string;
 }
 
+export interface ReducedWalletBalance {
+  shortfallCents: number;
+}
+
 @singleton()
 export class RefillService {
   private readonly logger: ReturnType<CreateLogger>;
@@ -157,8 +161,13 @@ export class RefillService {
    * @param amountUsd - The amount in USD *cents* to reduce from the wallet (e.g. 10000 = $100)
    * @param payer - The member who paid and the organization that paid, read off the transaction
    * @param payment - Payment context attached to the `balance_refund` analytics event
+   * @returns The part of the amount, in cents, that the allowance could not cover, since it never goes below zero.
    */
-  async reduceWalletBalance(amountUsd: number, payer: WalletPayer, payment?: Pick<PaymentAnalyticsContext, "currency" | "transactionId">) {
+  async reduceWalletBalance(
+    amountUsd: number,
+    payer: WalletPayer,
+    payment?: Pick<PaymentAnalyticsContext, "currency" | "transactionId">
+  ): Promise<ReducedWalletBalance> {
     const { userId } = payer;
     const userWallet = payer.team
       ? await this.userWalletRepository.findOneByOrganizationId(payer.team.id)
@@ -166,7 +175,7 @@ export class RefillService {
 
     if (!userWallet || !userWallet.address) {
       this.logger.warn({ event: "WALLET_REDUCE_NO_WALLET", userId });
-      return;
+      return { shortfallCents: amountUsd };
     }
 
     await this.#assertNoCreditInFlight(userWallet.address);
@@ -181,6 +190,8 @@ export class RefillService {
       ...this.#organizationPropertiesOf(payer)
     });
     this.logger.info({ event: "WALLET_BALANCE_REDUCED", userId, amountUsd, previousLimit, nextLimit });
+
+    return { shortfallCents: Math.max(0, amountUsd * 10000 - previousLimit) / 10000 };
   }
 
   /** A credit still landing read the allowance before this debit could, so whichever grant landed second would overwrite the other; the refund is redelivered once the credit lands. */
