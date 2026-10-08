@@ -1,5 +1,6 @@
 import { container } from "tsyringe";
 
+import { SyncAffiliateCommissionHandler } from "@src/affiliate/services/affiliate-commission/sync-affiliate-commission.handler";
 import { ActivateTrialHandler } from "@src/billing/services/activate-trial/activate-trial.handler";
 import { WalletBalanceReloadCheckHandler } from "@src/billing/services/wallet-balance-reload-check/wallet-balance-reload-check.handler";
 import { WalletCreditsExhaustedCheckHandler } from "@src/billing/services/wallet-credits-exhausted-check/wallet-credits-exhausted-check.handler";
@@ -72,7 +73,8 @@ export async function startJobQueues(): Promise<void> {
     container.resolve(HardwareRequestEmailHandler),
     container.resolve(HardwareRequestSlackAlertHandler),
     container.resolve(PurgeDeletedAccountHandler),
-    container.resolve(ExpireConfigureDraftHandler)
+    container.resolve(ExpireConfigureDraftHandler),
+    container.resolve(SyncAffiliateCommissionHandler)
   ]);
 }
 

@@ -12,6 +12,7 @@ import type { RefillService } from "@src/billing/services/refill/refill.service"
 import { IDEMPOTENCY_KEY_MISMATCH_ERROR_MESSAGE, PAYMENT_IN_PROGRESS_ERROR_MESSAGE } from "@src/billing/services/stripe-error/stripe-error.service";
 import type { AnalyticsService } from "@src/core/services/analytics/analytics.service";
 import type { DomainEventsService } from "@src/core/services/domain-events/domain-events.service";
+import type { JobQueueService } from "@src/core/services/job-queue/job-queue.service";
 import type { TimerService } from "@src/core/services/timer/timer.service";
 import type { UserRepository } from "@src/user/repositories/user/user.repository";
 import { StripeTransactionService } from "./stripe-transaction.service";
@@ -582,6 +583,7 @@ describe(StripeTransactionService.name, () => {
       timerService,
       mock<UserRepository>(),
       mock<DomainEventsService>(),
+      mock<JobQueueService>(),
       mock<AnalyticsService>(),
       () => logger
     );

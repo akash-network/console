@@ -5,6 +5,7 @@ import createError, { isHttpError } from "http-errors";
 import Stripe from "stripe";
 import { inject, singleton } from "tsyringe";
 
+import { SyncAffiliateCommission } from "@src/affiliate/services/affiliate-commission/sync-affiliate-commission.job";
 import { FundDrainingDeploymentsCommand } from "@src/billing/commands/fund-draining-deployments.command";
 import type { CreditsAdded } from "@src/billing/events/credits-added";
 import { PaymentIntentResult } from "@src/billing/http-schemas/stripe.schema";
@@ -24,6 +25,7 @@ import { IDEMPOTENCY_KEY_MISMATCH_ERROR_MESSAGE, PAYMENT_IN_PROGRESS_ERROR_MESSA
 import { type CreateLogger, LOGGER_FACTORY, WithTransaction } from "@src/core";
 import { AnalyticsService } from "@src/core/services/analytics/analytics.service";
 import { DomainEventsService } from "@src/core/services/domain-events/domain-events.service";
+import { JobQueueService } from "@src/core/services/job-queue/job-queue.service";
 import { TimerService } from "@src/core/services/timer/timer.service";
 import { UserRepository } from "@src/user/repositories/user/user.repository";
 
@@ -115,6 +117,7 @@ export class StripeTransactionService {
     private readonly timerService: TimerService,
     private readonly userRepository: UserRepository,
     private readonly domainEventsService: DomainEventsService,
+    private readonly jobQueueService: JobQueueService,
     private readonly analyticsService: AnalyticsService,
     @inject(LOGGER_FACTORY) createLogger: CreateLogger
   ) {
@@ -525,6 +528,7 @@ export class StripeTransactionService {
       stripePaymentIntentId: params.stripePaymentIntentId,
       ...(bonusAmount > 0 ? { bonusAmount } : {})
     });
+    await this.#queueAffiliateCommissionSync(transaction);
 
     // Single combined top-up: two calls would double chain fees and race on retrieveDeploymentLimit.
     const toppedUpWallet = await this.refillService.topUpWallet(params.paymentAmount + bonusAmount, params.userId, {
@@ -552,6 +556,13 @@ export class StripeTransactionService {
     }
 
     return { settled: true, bonusAmount, toppedUpWallet };
+  }
+
+  /** Runs before the payer's top-up: a failed enqueue after the chain grant would roll the settlement back and let the webhook retry credit the payer twice. */
+  async #queueAffiliateCommissionSync(transaction: StripeTransactionOutput): Promise<void> {
+    if (transaction.type !== "payment_intent") return;
+
+    await this.jobQueueService.enqueue(new SyncAffiliateCommission({ transactionId: transaction.id }));
   }
 
   async settlePaymentIntent(event: Stripe.PaymentIntentSucceededEvent): Promise<SettlementOutcome> {

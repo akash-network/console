@@ -70,6 +70,21 @@ describe(RefillService.name, () => {
       expect(analyticsService.track).toHaveBeenCalledWith(unlockedWallet.userId, "account_restriction_lifted", { lifted_by: "payment" });
     });
 
+    it("credits the wallet but keeps its abuse lock when the top-up opts out of lifting it", async () => {
+      const { service, userWalletRepository, managedUserWalletService, walletInitializerService, balancesService, analyticsService } = setup();
+      const lockedWallet = createInitializedUserWallet({ userId, abuseLockedAt: new Date(), abuseLockedReason: "trial_abuse" });
+      walletInitializerService.ensureWallet.mockResolvedValue(lockedWallet);
+      userWalletRepository.claimActivation.mockResolvedValue(undefined);
+      balancesService.retrieveDeploymentLimit.mockResolvedValue(0);
+      userWalletRepository.clearAbuseLock.mockResolvedValue(true);
+
+      await service.topUpWallet(amountUsd, userId, { liftAbuseLock: false });
+
+      expect(managedUserWalletService.authorizeSpending).toHaveBeenCalled();
+      expect(userWalletRepository.clearAbuseLock).not.toHaveBeenCalled();
+      expect(analyticsService.track).not.toHaveBeenCalledWith(userId, "account_restriction_lifted", expect.anything());
+    });
+
     it("does not report a cleared lock when the wallet held none", async () => {
       const { service, userWalletRepository, walletInitializerService, balancesService, analyticsService, logger } = setup();
       walletInitializerService.ensureWallet.mockResolvedValue(createInitializedUserWallet({ userId }));
