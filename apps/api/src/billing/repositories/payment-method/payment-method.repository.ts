@@ -1,4 +1,5 @@
 import { and, count, eq, ne, sql } from "drizzle-orm";
+import { alias } from "drizzle-orm/pg-core";
 import { singleton } from "tsyringe";
 import { uuidv4 } from "unleash-client/lib/uuidv4";
 
@@ -43,6 +44,18 @@ export class PaymentMethodRepository extends BaseRepository<Table, PaymentMethod
       .where(this.whereAccessibleBy(eq(this.table.userId, userId)));
 
     return result?.count ?? 0;
+  }
+
+  async hasSharedFingerprint(userId: PaymentMethodOutput["userId"], otherUserId: PaymentMethodOutput["userId"]): Promise<boolean> {
+    const otherPaymentMethod = alias(this.table, "other_payment_method");
+    const [match] = await this.cursor
+      .select({ id: this.table.id })
+      .from(this.table)
+      .innerJoin(otherPaymentMethod, eq(otherPaymentMethod.fingerprint, this.table.fingerprint))
+      .where(this.whereAccessibleBy(and(eq(this.table.userId, userId), eq(otherPaymentMethod.userId, otherUserId))))
+      .limit(1);
+
+    return !!match;
   }
 
   async findDefaultByUserId(userId: PaymentMethodInput["userId"]) {

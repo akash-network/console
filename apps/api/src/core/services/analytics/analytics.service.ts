@@ -18,7 +18,8 @@ type AnalyticsEvent =
   | "account_deletion_blocked"
   | "account_deletion_confirmed"
   | "account_deletion_failed"
-  | "referral_signup";
+  | "referral_signup"
+  | "affiliate_commission_granted";
 
 @singleton()
 export class AnalyticsService {
