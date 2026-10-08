@@ -132,6 +132,13 @@ describe(BillingView.name, () => {
     expect(pill).toHaveAttribute("data-status", status);
   });
 
+  it("says a partially reversed commission was taken back", () => {
+    setup({ data: [createMockTransaction({ type: "affiliate_commission", amount: 500, amountRefunded: 500, status: "succeeded", cardLast4: null })] });
+
+    expect(cell(0, "Amount")).toHaveTextContent("5.00-5.00 taken back");
+    expect(cell(0, "Amount")).not.toHaveTextContent("refunded");
+  });
+
   it("labels a fully reversed affiliate commission as Reversed rather than Refunded", () => {
     setup({ data: [createMockTransaction({ type: "affiliate_commission", status: "refunded", cardLast4: null })] });
 

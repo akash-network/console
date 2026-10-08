@@ -228,7 +228,11 @@ const TransactionAmount: React.FC<{ transaction: BillingTransaction; usd: (cents
         {usd(amount, currency)}
       </span>
       {bonusAmount > 0 && <span className="block text-xs font-medium text-muted-foreground">+{usd(bonusAmount, currency)} bonus</span>}
-      {amountRefunded > 0 && <span className="block text-xs font-medium text-muted-foreground">-{usd(amountRefunded, currency)} refunded</span>}
+      {amountRefunded > 0 && (
+        <span className="block text-xs font-medium text-muted-foreground">
+          -{usd(amountRefunded, currency)} {type === "affiliate_commission" ? "taken back" : "refunded"}
+        </span>
+      )}
     </>
   );
 };
