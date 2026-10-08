@@ -56,14 +56,14 @@ export const AvailabilityPane: FC<Props> = ({
   const scope = placementCount > 1 ? "this placement" : "your deployment";
 
   return (
-    <section aria-labelledby={headingId} className="flex flex-col lg:h-full lg:min-h-0">
+    <section aria-labelledby={headingId} className="flex h-full min-h-0 flex-col">
       <header className="flex h-[52px] shrink-0 items-center justify-between gap-2 border-b border-zinc-300 px-4 dark:border-zinc-700">
         <h2 id={headingId} className="font-mono text-sm font-medium uppercase text-muted-foreground">
           Providers
         </h2>
         <span className="text-xs text-muted-foreground">Live view · nothing to select here</span>
       </header>
-      <div className="p-4 lg:min-h-0 lg:flex-1 lg:overflow-y-auto">
+      <div className="min-h-0 flex-1 overflow-y-auto p-4">
         <div className="mx-auto max-w-[720px] space-y-4">
           {placementCount > 1 && (
             <p className="font-mono text-xs text-muted-foreground">

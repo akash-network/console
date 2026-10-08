@@ -32,10 +32,12 @@ import { useRetryDeploy } from "../useRetryDeploy/useRetryDeploy";
 import { BackgroundCloseToast } from "./BackgroundCloseToast/BackgroundCloseToast";
 import { BidWindowToast } from "./BidWindowToast/BidWindowToast";
 import { ConfigureWorkspaceHeader } from "./ConfigureWorkspaceHeader/ConfigureWorkspaceHeader";
+import { DeploymentCostBar } from "./DeploymentCostBar/DeploymentCostBar";
 import { LeaveConfigureButton } from "./LeaveConfigureButton/LeaveConfigureButton";
 import { LockedDeploymentRail } from "./LockedDeploymentRail/LockedDeploymentRail";
 import { NoBidsNotice } from "./NoBidsNotice/NoBidsNotice";
 import { PlacementProviderChips } from "./PlacementProviderChips/PlacementProviderChips";
+import { ProvidersSheetBar } from "./ProvidersSheetBar/ProvidersSheetBar";
 
 export const DEPENDENCIES = {
   LeaveConfigureButton,
@@ -45,6 +47,8 @@ export const DEPENDENCIES = {
   MarketplacePane,
   LockedDeploymentRail,
   PlacementProviderChips,
+  ProvidersSheetBar,
+  DeploymentCostBar,
   BidWindowToast,
   BackgroundCloseToast,
   NoBidsNotice,
@@ -126,6 +130,7 @@ export const ConfigureWorkspace: FC<Props> = ({
   const { data: gpuCatalog } = d.useGpuModels();
   const hasPlacementWithoutProviders = d.useHasPlacementWithoutProviders(sdl, placements);
   const [hardwareRequest, setHardwareRequest] = useState<HardwareRequest | null>(null);
+  const [isProvidersSheetOpen, setIsProvidersSheetOpen] = useState(false);
   const panelsRef = useRef<HTMLDivElement>(null);
   const isEditable = flow.phase === "configuring" || flow.phase === "error";
   const view: View = isEditable ? "configure" : "pick";
@@ -147,11 +152,13 @@ export const ConfigureWorkspace: FC<Props> = ({
   }
 
   function chooseProvider() {
+    setIsProvidersSheetOpen(false);
     analyticsService.track("configure_choose_provider_clicked", { category: "deployments" });
     void requestQuotes();
   }
 
   function requestCompute(source: ComputeRequestSource, category: HardwareRequestCategory) {
+    setIsProvidersSheetOpen(false);
     analyticsService.track("configure_request_compute_clicked", { category: "deployments", source });
     const values = getValues();
     const serviceIndex = values.services.findIndex(service => service.id === selectedServiceId);
@@ -174,6 +181,19 @@ export const ConfigureWorkspace: FC<Props> = ({
     );
     if (serviceId) onSelectService(serviceId);
   }
+
+  const availabilityPane = (
+    <d.AvailabilityPane
+      sdl={sdl}
+      placement={selectedPlacement}
+      placementCount={placements.length}
+      isReady={isReady}
+      isSubmitting={isSubmitting}
+      hasPlacementWithoutProviders={hasPlacementWithoutProviders}
+      onChooseProvider={chooseProvider}
+      onRequestCompute={() => requestCompute("footer", "gpu_model")}
+    />
+  );
 
   return (
     <div className="relative flex min-h-0 flex-1 flex-col">
@@ -205,7 +225,7 @@ export const ConfigureWorkspace: FC<Props> = ({
       <p aria-live="polite" className="sr-only">
         {announcement}
       </p>
-      <div className="relative mt-6 flex flex-1 flex-col border-t border-zinc-300 dark:border-zinc-700 lg:min-h-0 lg:flex-row lg:overflow-x-auto">
+      <div className="relative mt-6 flex flex-1 flex-col border-t border-zinc-300 lg:min-h-0 lg:flex-row lg:overflow-x-auto dark:border-zinc-700">
         <MotionConfig reducedMotion="user" transition={PANEL_TRANSITION}>
           <div ref={panelsRef} className="relative flex flex-1 flex-col overflow-x-clip lg:min-h-0 lg:min-w-[980px] lg:flex-row lg:overflow-hidden">
             <AnimatePresence initial={false} mode="popLayout">
@@ -213,7 +233,7 @@ export const ConfigureWorkspace: FC<Props> = ({
                 <motion.div
                   key="rail"
                   data-panel="pick"
-                  className="shrink-0 border-b border-zinc-300 dark:border-zinc-700 lg:h-full lg:w-24 lg:border-b-0 lg:border-r"
+                  className="shrink-0 border-b border-zinc-300 lg:h-full lg:w-24 lg:border-b-0 lg:border-r dark:border-zinc-700"
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
@@ -224,7 +244,7 @@ export const ConfigureWorkspace: FC<Props> = ({
                 <motion.div
                   key="editor"
                   data-panel="configure"
-                  className="border-b border-zinc-300 dark:border-zinc-700 lg:h-full lg:min-w-[560px] lg:flex-1 lg:border-b-0 lg:border-r"
+                  className="border-zinc-300 lg:h-full lg:min-w-[560px] lg:flex-1 lg:border-r dark:border-zinc-700"
                   initial={{ opacity: 0, x: -32 }}
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: -32 }}
@@ -250,7 +270,7 @@ export const ConfigureWorkspace: FC<Props> = ({
                 <motion.div
                   key="marketplace"
                   data-panel="pick"
-                  className="min-w-0 pb-20 lg:h-full lg:flex-1 lg:pb-0"
+                  className="min-w-0 lg:h-full lg:flex-1"
                   initial={{ opacity: 0, x: "40%" }}
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: "40%" }}
@@ -281,27 +301,38 @@ export const ConfigureWorkspace: FC<Props> = ({
                 <motion.div
                   key="availability"
                   data-panel="configure"
-                  className="lg:h-full lg:min-w-[420px] lg:flex-1"
+                  className="hidden lg:block lg:h-full lg:min-w-[420px] lg:flex-1"
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
                 >
-                  <d.AvailabilityPane
-                    sdl={sdl}
-                    placement={selectedPlacement}
-                    placementCount={placements.length}
-                    isReady={isReady}
-                    isSubmitting={isSubmitting}
-                    hasPlacementWithoutProviders={hasPlacementWithoutProviders}
-                    onChooseProvider={chooseProvider}
-                    onRequestCompute={() => requestCompute("footer", "gpu_model")}
-                  />
+                  {availabilityPane}
                 </motion.div>
               )}
             </AnimatePresence>
           </div>
         </MotionConfig>
         {sdlPreview.isEnabled && <d.SdlPreviewPane sdl={previewSdl} isOpen={sdlPreview.isOpen} onOpen={sdlPreview.open} onClose={sdlPreview.close} />}
+      </div>
+      <div className="sticky bottom-0 z-20 border-t border-zinc-300 bg-background px-4 pb-[calc(0.75rem_+_env(safe-area-inset-bottom))] pt-3 shadow-[0_-10px_24px_-18px_rgba(0,0,0,0.25)] lg:hidden dark:border-zinc-700">
+        {ctaState === "request-quotes" ? (
+          <d.ProvidersSheetBar
+            isSheetOpen={isProvidersSheetOpen}
+            onSheetOpenChange={setIsProvidersSheetOpen}
+            sheet={availabilityPane}
+            isChooseProviderDisabled={isSubmitting || hasPlacementWithoutProviders}
+            onChooseProvider={chooseProvider}
+          />
+        ) : (
+          <d.DeploymentCostBar
+            ctaState={ctaState}
+            cost={cost}
+            expiry={expiry}
+            onDeploy={onDeploy}
+            onRetry={retryDeploy}
+            onCloseAndEdit={flow.actions.cancelAndEdit}
+          />
+        )}
       </div>
       {hardwareRequest && (
         <d.HardwareRequestDialog
