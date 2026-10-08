@@ -13,14 +13,14 @@ export const InvalidSpecReasons: FC = () => {
   if (reasons.length === 0) {
     return (
       <p className="text-sm text-muted-foreground">
-        Some settings on the left aren&apos;t valid yet. Check them to see which providers can host your deployment.
+        Some settings aren&apos;t valid yet. Check them to see which providers can host your deployment.
       </p>
     );
   }
 
   return (
     <div className="flex flex-col gap-1 text-sm text-muted-foreground">
-      <p>Fix these on the left to see which providers can host your deployment:</p>
+      <p>Fix these to see which providers can host your deployment:</p>
       <ul aria-label="Settings to fix" className="list-disc pl-4">
         {reasons.map(reason => (
           <li key={reason}>{reason}</li>

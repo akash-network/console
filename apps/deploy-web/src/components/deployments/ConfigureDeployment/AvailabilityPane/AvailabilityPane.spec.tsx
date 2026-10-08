@@ -204,7 +204,7 @@ describe(AvailabilityPane.name, () => {
 
     await userEvent.click(screen.getByRole("button", { name: "Choose a provider" }));
 
-    expect(screen.getByText("Add a container image and hardware to every service on the left to deploy.")).toBeInTheDocument();
+    expect(screen.getByText("Add a container image and hardware to every service to deploy.")).toBeInTheDocument();
     expect(onChooseProvider).toHaveBeenCalled();
   });
 

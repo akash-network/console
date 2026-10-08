@@ -201,15 +201,15 @@ export const ConfigureWorkspace: FC<Props> = ({
       <p aria-live="polite" className="sr-only">
         {announcement}
       </p>
-      <div className="relative mt-6 flex min-h-0 flex-1 overflow-x-auto border-t border-zinc-300 dark:border-zinc-700">
+      <div className="relative mt-6 flex flex-1 flex-col border-t border-zinc-300 dark:border-zinc-700 lg:min-h-0 lg:flex-row lg:overflow-x-auto">
         <MotionConfig reducedMotion="user" transition={PANEL_TRANSITION}>
-          <div ref={panelsRef} className="relative flex min-h-0 min-w-[980px] flex-1 overflow-hidden">
+          <div ref={panelsRef} className="relative flex flex-1 flex-col overflow-x-clip lg:min-h-0 lg:min-w-[980px] lg:flex-row lg:overflow-hidden">
             <AnimatePresence initial={false} mode="popLayout">
               {view === "pick" ? (
                 <motion.div
                   key="rail"
                   data-panel="pick"
-                  className="h-full w-24 shrink-0 border-r border-zinc-300 dark:border-zinc-700"
+                  className="shrink-0 border-b border-zinc-300 dark:border-zinc-700 lg:h-full lg:w-24 lg:border-b-0 lg:border-r"
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
@@ -220,7 +220,7 @@ export const ConfigureWorkspace: FC<Props> = ({
                 <motion.div
                   key="editor"
                   data-panel="configure"
-                  className="h-full min-w-[560px] flex-1 border-r border-zinc-300 dark:border-zinc-700"
+                  className="border-b border-zinc-300 dark:border-zinc-700 lg:h-full lg:min-w-[560px] lg:flex-1 lg:border-b-0 lg:border-r"
                   initial={{ opacity: 0, x: -32 }}
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: -32 }}
@@ -246,7 +246,7 @@ export const ConfigureWorkspace: FC<Props> = ({
                 <motion.div
                   key="marketplace"
                   data-panel="pick"
-                  className="h-full min-w-0 flex-1"
+                  className="min-w-0 pb-20 lg:h-full lg:flex-1 lg:pb-0"
                   initial={{ opacity: 0, x: "40%" }}
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: "40%" }}
@@ -277,7 +277,7 @@ export const ConfigureWorkspace: FC<Props> = ({
                 <motion.div
                   key="availability"
                   data-panel="configure"
-                  className="h-full min-w-[420px] flex-1"
+                  className="lg:h-full lg:min-w-[420px] lg:flex-1"
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}

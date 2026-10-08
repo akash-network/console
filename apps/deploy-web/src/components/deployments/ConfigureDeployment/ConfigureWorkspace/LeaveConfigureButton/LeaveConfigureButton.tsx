@@ -81,7 +81,7 @@ export const LeaveConfigureButton: FC<Props> = ({
               </li>
               {hasBids && <li>The bids providers have sent so far</li>}
             </ul>
-            {canEditInstead && <p className="text-sm text-muted-foreground">To change the configuration instead, use Edit on the left.</p>}
+            {canEditInstead && <p className="text-sm text-muted-foreground">To change the configuration instead, use Edit.</p>}
           </DialogV2Body>
           <DialogV2Footer className="flex items-center justify-end gap-2">
             <Button type="button" variant="ghost" onClick={() => setIsConfirming(false)}>

@@ -173,10 +173,10 @@ const CollapsibleCardBody = React.forwardRef<HTMLDivElement, Omit<CollapsibleCar
         onOpenChange={handleHeaderToggle}
         className={cn("bg-card w-full rounded-lg border border-zinc-300 dark:border-zinc-700", locked && "opacity-60", className)}
       >
-        <div className="relative flex h-12 items-center px-4">
+        <div className="group/header relative flex h-12 items-center px-4">
           <CollapsibleTrigger
             aria-label={triggerLabel}
-            className="focus-visible:ring-ring flex flex-1 items-center gap-2 self-stretch rounded outline-none focus-visible:ring-1"
+            className="focus-visible:ring-ring flex min-w-0 flex-1 items-center gap-2 self-stretch rounded outline-none focus-visible:ring-1"
           >
             <CardIcon icon={icon} />
             <CardTitle title={title} infoTooltip={infoTooltip} locked={locked} />
@@ -270,7 +270,7 @@ const CardIcon: React.FC<{ icon: React.ReactNode }> = ({ icon }) => (
 );
 
 const CardTitle: React.FC<{ title: string; infoTooltip?: React.ReactNode; locked?: boolean }> = ({ title, infoTooltip, locked }) => (
-  <div className="flex flex-1 items-center gap-2">
+  <div className="flex min-w-0 flex-1 items-center gap-2 group-has-[[data-header-control]]/header:mr-11">
     <span className="text-foreground truncate text-left text-base font-semibold">{title}</span>
     {locked && <Lock className="text-muted-foreground h-3.5 w-3.5 shrink-0" aria-label="Locked" />}
     {infoTooltip && <CardInfoTooltip>{infoTooltip}</CardInfoTooltip>}
@@ -300,7 +300,7 @@ const CardInfoTooltip: React.FC<{ children: React.ReactNode }> = ({ children }) 
  * collapse chevron be operated independently.
  */
 const CardHeaderControl: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <div className="pointer-events-none absolute right-2 top-1/2 z-10 flex -translate-y-1/2 items-center pr-8">
+  <div data-header-control className="pointer-events-none absolute right-2 top-1/2 z-10 flex -translate-y-1/2 items-center pr-8">
     <div className="pointer-events-auto flex items-center">{children}</div>
   </div>
 );

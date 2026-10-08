@@ -156,7 +156,7 @@ export const MarketplaceProvidersTable: FC<Props> = ({
       aria-busy={isBusy || undefined}
       className="overflow-hidden rounded-lg border border-zinc-300 bg-card shadow-sm transition-opacity aria-busy:opacity-60 dark:border-zinc-700"
     >
-      <Table className="table-fixed">
+      <Table className="min-w-[46rem] table-fixed md:min-w-0">
         <TableHeader>
           {table.getHeaderGroups().map(headerGroup => (
             <TableRow key={headerGroup.id} className="bg-muted/40 hover:bg-muted/40">
@@ -202,7 +202,7 @@ const SKELETON_COLUMNS = [
 function ProvidersTableSkeleton() {
   return (
     <div className="overflow-hidden rounded-lg border border-zinc-300 bg-card shadow-sm dark:border-zinc-700">
-      <Table className="table-fixed">
+      <Table className="min-w-[46rem] table-fixed md:min-w-0">
         <TableHeader>
           <TableRow className="bg-muted/40 hover:bg-muted/40">
             {SKELETON_COLUMNS.map(column => (

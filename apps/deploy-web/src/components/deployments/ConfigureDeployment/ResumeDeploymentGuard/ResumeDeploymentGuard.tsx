@@ -130,7 +130,7 @@ export const ResumeDeploymentGuard: FC<Props> = ({ intent, canResume, children, 
   }
 
   return (
-    <d.Layout background="white" disableContainer containerClassName="flex h-page-viewport flex-col">
+    <d.Layout background="white" disableContainer containerClassName="flex min-h-page-viewport flex-col lg:h-page-viewport">
       <div className="flex flex-1 items-center justify-center">
         <Spinner size="large" />
       </div>
