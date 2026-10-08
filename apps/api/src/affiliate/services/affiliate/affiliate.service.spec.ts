@@ -503,6 +503,17 @@ describe(AffiliateService.name, () => {
     expect(createLogger).toHaveBeenCalledWith({ context: AffiliateService.name });
   });
 
+  function createUniqueViolation(constraintName: string) {
+    const driverError = Object.assign(Object.create(PostgresError.prototype), {
+      name: "PostgresError",
+      code: "23505",
+      constraint_name: constraintName,
+      message: `duplicate key value violates unique constraint "${constraintName}"`
+    });
+
+    return new Error("Failed query: insert into affiliates", { cause: driverError });
+  }
+
   function setup(input: { billingConfig?: Partial<BillingConfig> } = {}) {
     const created = createAffiliate();
     const affiliateRepository = mock<AffiliateRepository>();
@@ -525,16 +536,5 @@ describe(AffiliateService.name, () => {
     const service = new AffiliateService(affiliateRepository, referralRepository, stripeTransactionRepository, userRepository, billingConfig, createLogger);
 
     return { service, affiliateRepository, referralRepository, stripeTransactionRepository, userRepository, billingConfig, logger, createLogger, created };
-  }
-
-  function createUniqueViolation(constraintName: string) {
-    const driverError = Object.assign(Object.create(PostgresError.prototype), {
-      name: "PostgresError",
-      code: "23505",
-      constraint_name: constraintName,
-      message: `duplicate key value violates unique constraint "${constraintName}"`
-    });
-
-    return new Error("Failed query: insert into affiliates", { cause: driverError });
   }
 });
