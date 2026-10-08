@@ -75,6 +75,26 @@ describe(UserController.name, () => {
 
       expect(userService.registerUser).not.toHaveBeenCalled();
     });
+
+    it("passes the referral code from the request through to the user service", async () => {
+      const { controller, userAuthTokenService, userService } = setup({ authorization: `Bearer ${faker.string.alphanumeric(40)}` });
+      userAuthTokenService.getValidUserId.mockResolvedValue("external-user-id");
+      userService.registerUser.mockResolvedValue(createRegisteredUser());
+
+      await controller.registerUser({ wantedUsername: faker.internet.userName(), referralCode: "friendcode" });
+
+      expect(userService.registerUser).toHaveBeenCalledWith(expect.objectContaining({ userId: "external-user-id", referralCode: "friendcode" }));
+    });
+
+    it("passes no referral code through when the request has none", async () => {
+      const { controller, userAuthTokenService, userService } = setup({ authorization: `Bearer ${faker.string.alphanumeric(40)}` });
+      userAuthTokenService.getValidUserId.mockResolvedValue("external-user-id");
+      userService.registerUser.mockResolvedValue(createRegisteredUser());
+
+      await controller.registerUser({ wantedUsername: faker.internet.userName() });
+
+      expect(userService.registerUser).toHaveBeenCalledWith(expect.objectContaining({ referralCode: undefined }));
+    });
   });
 
   describe("skipOnboarding", () => {
@@ -175,5 +195,10 @@ describe(UserController.name, () => {
     const controller = new UserController(authService, executionContextService, userService, userAuthTokenService, accountStatusService);
 
     return { controller, authService, executionContextService, userService, userAuthTokenService, accountStatusService };
+  }
+
+
+  function createRegisteredUser() {
+    return mock<Awaited<ReturnType<UserService["registerUser"]>>>({ isNewUser: true });
   }
 });

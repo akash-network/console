@@ -26,7 +26,8 @@ type AnalyticsEvent =
   | "gpu_request_first_reply"
   | "gpu_request_offer_published"
   | "gpu_request_accepted"
-  | "gpu_request_closed";
+  | "gpu_request_closed"
+  | "referral_signup";
 
 @singleton()
 export class AnalyticsService {

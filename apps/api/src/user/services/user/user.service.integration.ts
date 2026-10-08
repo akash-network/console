@@ -6,6 +6,7 @@ import { container } from "tsyringe";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
+import type { ReferralService } from "@src/affiliate/services/referral/referral.service";
 import type { Auth0Service } from "@src/auth/services/auth0/auth0.service";
 import type { EmailVerificationCodeService } from "@src/auth/services/email-verification-code/email-verification-code.service";
 import { VerifiedEmailService } from "@src/auth/services/verified-email/verified-email.service";
@@ -721,7 +722,8 @@ describe(UserService.name, () => {
       container.resolve(TxService),
       new VerifiedEmailService(auth0Service),
       container.resolve(HardwareRequestClaimService),
-      container.resolve(AccountStatusService)
+      container.resolve(AccountStatusService),
+      mock<ReferralService>({ attribute: vi.fn().mockResolvedValue(undefined) })
     );
 
     return {
