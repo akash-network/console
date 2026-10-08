@@ -9,6 +9,7 @@ import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
 import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import type { AppContext } from "@src/core/types/app-context";
 import type { NotificationsConfig } from "@src/notifications/config/env.config";
+import { NOTIFICATIONS_IDENTITY_HEADERS, stripIdentityHeaders } from "@src/notifications/lib/identity-headers/identity-headers";
 import { NOTIFICATIONS_CONFIG } from "@src/notifications/providers/notifications-config.provider";
 
 const notificationsApiProxy = new Hono();
@@ -16,10 +17,8 @@ const notificationsApiProxy = new Hono();
 export const createProxy =
   (authService: AuthService, userWalletRepository: UserWalletRepository, config: NotificationsConfig, fetchFn: typeof fetch) => async (c: AppContext) => {
     const { req } = c;
-    const headers = Object.fromEntries([...req.raw.headers.entries()].map(([k, v]) => [k.toLowerCase(), v]));
-
-    assert(!headers["x-user-id"], 403, "x-user-id header is not allowed");
-    assert(!headers["x-owner-address"], 403, "x-owner-address header is not allowed");
+    const clientHeaders = Object.fromEntries([...req.raw.headers.entries()].map(([k, v]) => [k.toLowerCase(), v]));
+    const headers = stripIdentityHeaders(clientHeaders);
 
     const subject = req.url.includes("/v1/notification-channels") ? "NotificationChannel" : "Alert";
     authService.throwUnlessCan("manage", subject);
@@ -30,14 +29,14 @@ export const createProxy =
     const isBodyAllowed = !["GET", "HEAD"].includes(req.method);
 
     const userId = authService.currentUser.id;
-    headers["x-user-id"] = userId;
+    headers[NOTIFICATIONS_IDENTITY_HEADERS.userId] = userId;
 
     const userWallet = await userWalletRepository.findOneByUserId(userId);
 
     assert(userWallet, 403, "User does not have a managed wallet");
 
     if (userWallet.address) {
-      headers["x-owner-address"] = userWallet.address;
+      headers[NOTIFICATIONS_IDENTITY_HEADERS.ownerAddress] = userWallet.address;
     }
 
     if (isBodyAllowed && !headers["content-type"]) {
