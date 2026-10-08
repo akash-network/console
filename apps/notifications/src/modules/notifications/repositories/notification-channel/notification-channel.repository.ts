@@ -1,3 +1,4 @@
+import { DrizzleAbility } from "@akashnetwork/drizzle-ability";
 import type { AnyAbility } from "@casl/ability";
 import { InjectDrizzle } from "@knaadh/nestjs-drizzle-pg";
 import { Injectable } from "@nestjs/common";
@@ -8,7 +9,6 @@ import { randomUUID } from "node:crypto";
 import { z } from "zod";
 
 import { DRIZZLE_PROVIDER_TOKEN } from "@src/infrastructure/db/config/db.config";
-import { DrizzleAbility } from "@src/lib/drizzle-ability/drizzle-ability";
 import * as schema from "../../model-schemas";
 
 export type AbilityParams = [AnyAbility, Parameters<AnyAbility["can"]>[0]];

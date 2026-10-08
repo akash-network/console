@@ -225,6 +225,7 @@ Reusable packages under [`packages/`](./packages) are shared across applications
 **Runtime libraries**
 
 - [`database`](./packages/database) - shared Drizzle schemas and DB code (chain + app).
+- [`drizzle-ability`](./packages/drizzle-ability) - turns CASL ability rules into Drizzle where clauses.
 - [`net`](./packages/net) - blockchain network configuration.
 - [`http-sdk`](./packages/http-sdk) - shared HTTP client layer.
 - [`logging`](./packages/logging) - Pino-based `LoggerService`.

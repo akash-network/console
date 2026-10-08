@@ -49,5 +49,6 @@ export default {
   "./packages/network-store/**/*.ts": "npm run validate:types -w packages/network-store",
   "./packages/http-sdk/**/*.ts": "npm run validate:types -w packages/http-sdk",
   "./packages/logging/**/*.ts": "npm run validate:types -w packages/logging",
+  "./packages/drizzle-ability/**/*.ts": "npm run validate:types -w packages/drizzle-ability",
   "./packages/database/**/*.ts": "npm run validate:types -w packages/database"
 };
