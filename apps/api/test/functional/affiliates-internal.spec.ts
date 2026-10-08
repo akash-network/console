@@ -2,6 +2,7 @@ import { faker } from "@faker-js/faker";
 import { container } from "tsyringe";
 import { describe, expect, it } from "vitest";
 
+import type { ApproveAffiliateResponse } from "@src/affiliate/http-schemas/affiliate-admin.schema";
 import { CORE_CONFIG } from "@src/core/providers/config.provider";
 import { app } from "@src/rest-app";
 import { UserRepository } from "@src/user/repositories";
@@ -59,7 +60,7 @@ describe("POST /internal/affiliates", () => {
   it("round-trips approving then revoking the same affiliate", async () => {
     const user = await seedUser();
     const approveResponse = await approve({ userId: user.id, actor: "ops@akash.network" });
-    const { data: approved } = await approveResponse.json();
+    const { data: approved } = (await approveResponse.json()) as ApproveAffiliateResponse;
 
     const revokeResponse = await revoke(approved.code, { actor: "ops@akash.network" });
 
