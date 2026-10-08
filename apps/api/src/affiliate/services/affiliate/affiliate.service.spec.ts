@@ -141,6 +141,7 @@ describe(AffiliateService.name, () => {
 
       await expect(service.approve({ userId: created.userId, actor: "ops@akash.network" })).rejects.toMatchObject({
         status: 500,
+        message: "Could not generate a unique affiliate code",
         errorCode: "affiliate_code_generation_failed"
       });
       expect(affiliateRepository.findByCode).toHaveBeenCalledTimes(5);
@@ -197,6 +198,14 @@ describe(AffiliateService.name, () => {
       affiliateRepository.create.mockRejectedValue(error);
 
       await expect(service.approve({ userId: created.userId, code: "some-code", actor: "ops@akash.network" })).rejects.toBe(error);
+    });
+
+    it("rethrows a create failure that is not a unique violation while generating a code", async () => {
+      const { service, affiliateRepository, created } = setup();
+      const error = new Error("connection reset");
+      affiliateRepository.create.mockRejectedValue(error);
+
+      await expect(service.approve({ userId: created.userId, actor: "ops@akash.network" })).rejects.toBe(error);
     });
 
     it("rejects with 409 when the user already has an active affiliate", async () => {
@@ -257,6 +266,16 @@ describe(AffiliateService.name, () => {
         message: "This code is already used by another affiliate",
         errorCode: "affiliate_code_taken"
       });
+    });
+
+    it("rethrows a re-approval update failure that is not a unique violation", async () => {
+      const { service, affiliateRepository, created } = setup();
+      const existing = createAffiliate({ userId: created.userId, code: "old-code", revokedAt: new Date().toISOString(), revokedBy: "ops@akash.network" });
+      affiliateRepository.findByUserId.mockResolvedValue(existing);
+      const error = new Error("connection reset");
+      affiliateRepository.updateById.mockRejectedValue(error);
+
+      await expect(service.approve({ userId: created.userId, actor: "ops@akash.network" })).rejects.toBe(error);
     });
   });
 
