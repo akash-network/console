@@ -600,6 +600,7 @@ export interface paths {
              * @example Europe/Paris
              */
             timezone?: string;
+            referralCode?: string;
           };
         };
       };

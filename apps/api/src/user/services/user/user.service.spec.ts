@@ -3,6 +3,7 @@ import { PostgresError } from "postgres";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
+import type { ReferralService } from "@src/affiliate/services/referral/referral.service";
 import { ACCOUNT_UNAVAILABLE_ERROR_CODE, ACCOUNT_UNAVAILABLE_MESSAGE } from "@src/auth/lib/account-unavailable/account-unavailable";
 import type { EmailVerificationCodeService } from "@src/auth/services/email-verification-code/email-verification-code.service";
 import type { VerifiedEmailService } from "@src/auth/services/verified-email/verified-email.service";
@@ -194,6 +195,53 @@ describe(UserService.name, () => {
       const result = await service.registerUser(createRegisterInput());
 
       expect(result.isNewUser).toBe(false);
+    });
+
+    it("attributes the referral when a new user registers with a referral code", async () => {
+      const user = createUser({ emailVerified: true });
+      const { service, userRepository, notificationService, referralService } = setup();
+      userRepository.upsertOnExternalIdConflict.mockResolvedValue({ user, wasInserted: true });
+      notificationService.createDefaultChannel.mockResolvedValue(undefined);
+
+      await service.registerUser(createRegisterInput({ referralCode: "friendcode" }));
+
+      expect(referralService.attribute).toHaveBeenCalledWith({ referredUserId: user.id, code: "friendcode" });
+    });
+
+    it("does not attribute a referral when the user already existed", async () => {
+      const user = createUser({ emailVerified: true });
+      const { service, userRepository, notificationService, referralService } = setup();
+      userRepository.upsertOnExternalIdConflict.mockResolvedValue({ user, wasInserted: false });
+      notificationService.createDefaultChannel.mockResolvedValue(undefined);
+
+      await service.registerUser(createRegisterInput({ referralCode: "friendcode" }));
+
+      expect(referralService.attribute).not.toHaveBeenCalled();
+    });
+
+    it("does not attribute a referral when no referral code is given", async () => {
+      const user = createUser({ emailVerified: true });
+      const { service, userRepository, notificationService, referralService } = setup();
+      userRepository.upsertOnExternalIdConflict.mockResolvedValue({ user, wasInserted: true });
+      notificationService.createDefaultChannel.mockResolvedValue(undefined);
+
+      await service.registerUser(createRegisterInput({ referralCode: undefined }));
+
+      expect(referralService.attribute).not.toHaveBeenCalled();
+    });
+
+    it("logs error but does not throw when referral attribution fails", async () => {
+      const user = createUser({ emailVerified: true });
+      const { service, userRepository, notificationService, referralService, logger } = setup();
+      const attributionError = new Error("insert failed");
+      userRepository.upsertOnExternalIdConflict.mockResolvedValue({ user, wasInserted: true });
+      notificationService.createDefaultChannel.mockResolvedValue(undefined);
+      referralService.attribute.mockRejectedValue(attributionError);
+
+      const result = await service.registerUser(createRegisterInput({ referralCode: "friendcode" }));
+
+      expect(result.id).toBe(user.id);
+      expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "FAILED_TO_ATTRIBUTE_REFERRAL", id: user.id, error: attributionError }));
     });
 
     it("ensures the user has a wallet even when the user already existed", async () => {
@@ -659,6 +707,7 @@ describe(UserService.name, () => {
     const verifiedEmailService = mock<VerifiedEmailService>({
       getEmail: vi.fn().mockResolvedValue(input.signInEmail === undefined ? { email: faker.internet.email(), emailVerified: true } : input.signInEmail)
     });
+    const referralService = mock<ReferralService>({ attribute: vi.fn().mockResolvedValue(undefined) });
 
     const hardwareRequestClaimService = mock<HardwareRequestClaimService>({ claimForVerifiedEmail: vi.fn().mockResolvedValue(undefined) });
     const service = new UserService(
@@ -674,7 +723,8 @@ describe(UserService.name, () => {
       personalOrganizationService,
       txService,
       verifiedEmailService,
-      hardwareRequestClaimService
+      hardwareRequestClaimService,
+      referralService
     );
 
     return {
@@ -692,7 +742,8 @@ describe(UserService.name, () => {
       personalOrganizationService,
       txService,
       verifiedEmailService,
-      organization
+      organization,
+      referralService
     };
   }
 
