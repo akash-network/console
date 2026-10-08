@@ -8235,7 +8235,7 @@ export interface operations {
               transactions: {
                 id: string;
                 /** @enum {string} */
-                type: "payment_intent" | "coupon_claim" | "manual_credit";
+                type: "payment_intent" | "coupon_claim" | "manual_credit" | "affiliate_commission";
                 amount: number;
                 amountRefunded: number;
                 bonusAmount?: number;

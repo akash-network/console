@@ -1615,7 +1615,8 @@
                                 "enum": [
                                   "payment_intent",
                                   "coupon_claim",
-                                  "manual_credit"
+                                  "manual_credit",
+                                  "affiliate_commission"
                                 ]
                               },
                               "amount": {

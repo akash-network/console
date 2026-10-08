@@ -526,6 +526,13 @@
       "when": 1791457328000,
       "tag": "0074_referrals",
       "breakpoints": true
+    },
+    {
+      "idx": 75,
+      "version": "7",
+      "when": 1791463643375,
+      "tag": "0075_affiliate_commission",
+      "breakpoints": true
     }
   ]
 }

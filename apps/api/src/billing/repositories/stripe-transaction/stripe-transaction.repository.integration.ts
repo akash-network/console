@@ -2,6 +2,7 @@ import { faker } from "@faker-js/faker";
 import { container } from "tsyringe";
 import { afterEach, describe, expect, it } from "vitest";
 
+import { TxService } from "@src/core/services/tx/tx.service";
 import { UserRepository } from "@src/user/repositories";
 import { type StripeTransactionInput, StripeTransactionRepository } from "./stripe-transaction.repository";
 
@@ -317,6 +318,96 @@ describe(StripeTransactionRepository.name, () => {
       await stripeTransactionRepository.create({ ...transactionInput(user.id), createdAt: earlier });
 
       await expect(stripeTransactionRepository.hasCompletedPaidTransactionBefore(faker.string.uuid())).resolves.toBe(false);
+    });
+  });
+
+  describe("createAffiliateCommission", () => {
+    it("creates a succeeded usd commission row crediting the affiliate for the source payment", async () => {
+      const { stripeTransactionRepository, createTestUser, createTestTransaction } = setup();
+      const affiliate = await createTestUser();
+      const sourcePayment = await createTestTransaction();
+
+      const commission = await stripeTransactionRepository.createAffiliateCommission({
+        userId: affiliate.id,
+        amount: 500,
+        sourceTransactionId: sourcePayment.id
+      });
+
+      expect(commission).toMatchObject({
+        userId: affiliate.id,
+        type: "affiliate_commission",
+        status: "succeeded",
+        currency: "usd",
+        description: "Affiliate commission",
+        amount: 500,
+        sourceTransactionId: sourcePayment.id
+      });
+    });
+
+    it("rejects a second commission for the same source transaction", async () => {
+      const { stripeTransactionRepository, createTestUser, createTestTransaction } = setup();
+      const affiliate = await createTestUser();
+      const sourcePayment = await createTestTransaction();
+      await stripeTransactionRepository.createAffiliateCommission({ userId: affiliate.id, amount: 500, sourceTransactionId: sourcePayment.id });
+
+      await expect(
+        stripeTransactionRepository.createAffiliateCommission({ userId: affiliate.id, amount: 500, sourceTransactionId: sourcePayment.id })
+      ).rejects.toThrow();
+    });
+  });
+
+  describe("findAffiliateCommissionBySource", () => {
+    it("finds the commission row created for the given source transaction", async () => {
+      const { stripeTransactionRepository, createTestUser, createTestTransaction } = setup();
+      const affiliate = await createTestUser();
+      const sourcePayment = await createTestTransaction();
+      const created = await stripeTransactionRepository.createAffiliateCommission({
+        userId: affiliate.id,
+        amount: 500,
+        sourceTransactionId: sourcePayment.id
+      });
+
+      const found = await stripeTransactionRepository.findAffiliateCommissionBySource(sourcePayment.id);
+
+      expect(found?.id).toBe(created.id);
+    });
+
+    it("returns undefined when no commission was created for the source transaction", async () => {
+      const { stripeTransactionRepository, createTestTransaction } = setup();
+      const sourcePayment = await createTestTransaction();
+
+      const found = await stripeTransactionRepository.findAffiliateCommissionBySource(sourcePayment.id);
+
+      expect(found).toBeUndefined();
+    });
+  });
+
+  describe("findAffiliateCommissionBySourceAndLock", () => {
+    it("finds the commission row inside a transaction", async () => {
+      const { stripeTransactionRepository, createTestUser, createTestTransaction } = setup();
+      const affiliate = await createTestUser();
+      const sourcePayment = await createTestTransaction();
+      const created = await stripeTransactionRepository.createAffiliateCommission({
+        userId: affiliate.id,
+        amount: 500,
+        sourceTransactionId: sourcePayment.id
+      });
+      const txService = container.resolve(TxService);
+
+      const found = await txService.transaction(async () => stripeTransactionRepository.findAffiliateCommissionBySourceAndLock(sourcePayment.id));
+
+      expect(found?.id).toBe(created.id);
+    });
+
+    it("returns undefined outside of a transaction", async () => {
+      const { stripeTransactionRepository, createTestUser, createTestTransaction } = setup();
+      const affiliate = await createTestUser();
+      const sourcePayment = await createTestTransaction();
+      await stripeTransactionRepository.createAffiliateCommission({ userId: affiliate.id, amount: 500, sourceTransactionId: sourcePayment.id });
+
+      const found = await stripeTransactionRepository.findAffiliateCommissionBySourceAndLock(sourcePayment.id);
+
+      expect(found).toBeUndefined();
     });
   });
 

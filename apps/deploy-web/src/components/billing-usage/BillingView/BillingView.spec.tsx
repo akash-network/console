@@ -72,7 +72,8 @@ describe(BillingView.name, () => {
   it.each([
     { type: "coupon_claim" as const, label: "Coupon" },
     { type: "manual_credit" as const, label: "Manual credit" },
-    { type: "payment_intent" as const, label: "Card payment" }
+    { type: "payment_intent" as const, label: "Card payment" },
+    { type: "affiliate_commission" as const, label: "Affiliate commission" }
   ])("names a $type without a card as $label with its description", ({ type, label }) => {
     setup({ data: [createMockTransaction({ type, cardLast4: null, description: "Hackathon credits" })] });
 
@@ -85,8 +86,8 @@ describe(BillingView.name, () => {
     expect(cell(0, "Account source")).toHaveTextContent(/^Coupon$/);
   });
 
-  it("reads coupons and manual credits as money in", () => {
-    setup({ data: [createMockTransaction({ type: "coupon_claim", amount: 2500, cardLast4: null })] });
+  it.each(["coupon_claim" as const, "manual_credit" as const, "affiliate_commission" as const])("reads a %s as money in", type => {
+    setup({ data: [createMockTransaction({ type, amount: 2500, cardLast4: null })] });
 
     const amount = within(cell(0, "Amount")).getByText(/25\.00/);
     expect(amount).toHaveTextContent("+25.00");

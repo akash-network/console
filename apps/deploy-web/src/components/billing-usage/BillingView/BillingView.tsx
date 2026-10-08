@@ -33,7 +33,8 @@ export const DEPENDENCIES = {
 const TRANSACTION_TYPE_LABELS: Record<BillingTransaction["type"], string> = {
   payment_intent: "Card payment",
   coupon_claim: "Coupon",
-  manual_credit: "Manual credit"
+  manual_credit: "Manual credit",
+  affiliate_commission: "Affiliate commission"
 };
 
 const STATUS_LABELS: Record<string, string> = {
@@ -50,7 +51,7 @@ const ROW_GRID =
   "grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-x-3 gap-y-1.5 px-5 sm:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_minmax(0,1.4fr)_minmax(0,1fr)_72px] sm:gap-y-0";
 
 /** Coupon claims and manual credits top up the wallet, so their amount reads as money in (green +). */
-const isCreditTransaction = (type: BillingTransaction["type"]) => type === "coupon_claim" || type === "manual_credit";
+const isCreditTransaction = (type: BillingTransaction["type"]) => type === "coupon_claim" || type === "manual_credit" || type === "affiliate_commission";
 
 export type BillingViewProps = {
   data: BillingTransaction[];
