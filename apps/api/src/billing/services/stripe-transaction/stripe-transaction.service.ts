@@ -5,7 +5,7 @@ import createError, { isHttpError } from "http-errors";
 import Stripe from "stripe";
 import { inject, singleton } from "tsyringe";
 
-import { SyncAffiliateCommission } from "@src/affiliate/services/affiliate-commission/sync-affiliate-commission.job";
+import { type AffiliateCommissionSyncTrigger, SyncAffiliateCommission } from "@src/affiliate/services/affiliate-commission/sync-affiliate-commission.job";
 import { FundDrainingDeploymentsCommand } from "@src/billing/commands/fund-draining-deployments.command";
 import { IssueCardPaymentInvoiceCommand } from "@src/billing/commands/issue-card-payment-invoice.command";
 import type { CreditsAdded } from "@src/billing/events/credits-added";
@@ -547,7 +547,7 @@ export class StripeTransactionService {
       receiptUrl: params.receiptUrl,
       stripePaymentIntentId: params.stripePaymentIntentId
     });
-    await this.#queueAffiliateCommissionSync(transaction);
+    await this.#queueAffiliateCommissionSync(transaction, "settlement");
 
     const bonusAmount = await this.firstPurchaseBonusService.recordGrant(transaction, eligibleBonusAmount);
 
@@ -584,10 +584,10 @@ export class StripeTransactionService {
   }
 
   /** Runs before the payer's wallet changes: a failed enqueue after the chain call would roll the write back and let the webhook retry move the payer's balance twice. */
-  async #queueAffiliateCommissionSync(transaction: StripeTransactionOutput): Promise<void> {
+  async #queueAffiliateCommissionSync(transaction: StripeTransactionOutput, trigger: AffiliateCommissionSyncTrigger): Promise<void> {
     if (transaction.type !== "payment_intent") return;
 
-    await this.jobQueueService.enqueue(new SyncAffiliateCommission({ transactionId: transaction.id }));
+    await this.jobQueueService.enqueue(new SyncAffiliateCommission({ transactionId: transaction.id, trigger }));
   }
 
   async settlePaymentIntent(event: Stripe.PaymentIntentSucceededEvent): Promise<SettlementOutcome> {
@@ -965,7 +965,7 @@ export class StripeTransactionService {
       amountRefunded: params.amountRefunded,
       ...(isFullyRefunded ? { status: "refunded" } : {})
     });
-    await this.#queueAffiliateCommissionSync(transaction);
+    await this.#queueAffiliateCommissionSync(transaction, "refund");
 
     const payer = payerOf(transaction, "user" in params.customerOwner ? params.customerOwner.user.id : undefined, payingTeam.team);
 
@@ -1014,7 +1014,7 @@ export class StripeTransactionService {
     if (transaction.disputeLostAt) return;
 
     await this.stripeTransactionRepository.updateById(transaction.id, { disputeLostAt: new Date(event.created * 1000) });
-    await this.#queueAffiliateCommissionSync(transaction);
+    await this.#queueAffiliateCommissionSync(transaction, "dispute");
 
     this.loggerService.info({
       event: "CHARGE_DISPUTE_LOST",

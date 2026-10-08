@@ -161,7 +161,7 @@ describe(StripeTransactionService.name, () => {
         })
       );
 
-      expect(jobQueueService.enqueue).toHaveBeenCalledWith(new SyncAffiliateCommission({ transactionId: internalTransaction.id }));
+      expect(jobQueueService.enqueue).toHaveBeenCalledWith(new SyncAffiliateCommission({ transactionId: internalTransaction.id, trigger: "settlement" }));
     });
 
     it("credits nothing when the affiliate commission sync cannot be queued, so the retried webhook credits the payer only once", async () => {
@@ -1377,7 +1377,7 @@ describe(StripeTransactionService.name, () => {
 
       await service.refundCharge(createChargeRefundedEvent({ id: "ch_123", customer: mockUser.stripeCustomerId!, amount_refunded: 4000, refunded: false }));
 
-      expect(jobQueueService.enqueue).toHaveBeenCalledExactlyOnceWith(new SyncAffiliateCommission({ transactionId: payment.id }));
+      expect(jobQueueService.enqueue).toHaveBeenCalledExactlyOnceWith(new SyncAffiliateCommission({ transactionId: payment.id, trigger: "refund" }));
     });
 
     it("debits nothing when the affiliate commission sync cannot be queued, so the retried webhook debits the payer only once", async () => {
@@ -1540,8 +1540,8 @@ describe(StripeTransactionService.name, () => {
   });
 
   describe("markDisputeLost", () => {
-    it("records the lost dispute on the card payment and queues its affiliate commission sync", async () => {
-      const { service, stripeTransactionRepository, jobQueueService, logger } = setup();
+    it("records the lost dispute on the card payment and queues its affiliate commission sync, leaving the payer's balance alone", async () => {
+      const { service, stripeTransactionRepository, refillService, jobQueueService, logger } = setup();
       const payment = generateDatabaseStripeTransaction({ type: "payment_intent", status: "succeeded", stripeChargeId: "ch_123", disputeLostAt: null });
       stripeTransactionRepository.findOneByAndLock.mockResolvedValue(payment);
 
@@ -1549,7 +1549,9 @@ describe(StripeTransactionService.name, () => {
 
       expect(stripeTransactionRepository.findOneByAndLock).toHaveBeenCalledWith({ stripeChargeId: "ch_123" });
       expect(stripeTransactionRepository.updateById).toHaveBeenCalledWith(payment.id, { disputeLostAt: new Date(DISPUTE_CLOSED_AT * 1000) });
-      expect(jobQueueService.enqueue).toHaveBeenCalledExactlyOnceWith(new SyncAffiliateCommission({ transactionId: payment.id }));
+      expect(jobQueueService.enqueue).toHaveBeenCalledExactlyOnceWith(new SyncAffiliateCommission({ transactionId: payment.id, trigger: "dispute" }));
+      expect(refillService.reduceWalletBalance).not.toHaveBeenCalled();
+      expect(refillService.topUpWallet).not.toHaveBeenCalled();
       expect(logger.info).toHaveBeenCalledWith({
         event: "CHARGE_DISPUTE_LOST",
         chargeId: "ch_123",

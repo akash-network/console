@@ -18,12 +18,12 @@ describe(SyncAffiliateCommissionHandler.name, () => {
     expect(handler.requiresPermission()).toEqual([]);
   });
 
-  it("syncs the commission of the payment named by the job", async () => {
+  it.each(["settlement", "refund", "dispute"] as const)("syncs the commission of the payment named by a %s job", async trigger => {
     const { handler, affiliateCommissionService } = setup();
 
-    await handler.handle({ transactionId: "payment-transaction-id", version: 1 });
+    await handler.handle({ transactionId: "payment-transaction-id", trigger, version: 1 });
 
-    expect(affiliateCommissionService.syncCommission).toHaveBeenCalledWith("payment-transaction-id");
+    expect(affiliateCommissionService.syncCommission).toHaveBeenCalledWith("payment-transaction-id", trigger);
   });
 
   function setup() {

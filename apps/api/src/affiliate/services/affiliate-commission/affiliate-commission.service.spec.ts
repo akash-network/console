@@ -29,12 +29,13 @@ describe(AffiliateCommissionService.name, () => {
           paymentAmount: 10000
         });
 
-      await service.syncCommission(payment.id);
+      await service.syncCommission(payment.id, "settlement");
 
       expect(stripeTransactionRepository.createAffiliateCommission).toHaveBeenCalledWith({
         userId: affiliate.userId,
         organizationId: affiliatePersonalOrganization.id,
         amount: 500,
+        amountRefunded: 0,
         sourceTransactionId: payment.id
       });
       expect(refillService.topUpWallet).toHaveBeenCalledWith(
@@ -56,14 +57,15 @@ describe(AffiliateCommissionService.name, () => {
         commissionId: commission.id,
         affiliateUserId: affiliate.userId,
         sourceTransactionId: payment.id,
-        amountCents: 500
+        amountCents: 500,
+        grossAmountCents: 500
       });
     });
 
     it("records the commission before crediting the affiliate's wallet", async () => {
       const { service, payment, stripeTransactionRepository, refillService } = setup();
 
-      await service.syncCommission(payment.id);
+      await service.syncCommission(payment.id, "settlement");
 
       expect(stripeTransactionRepository.createAffiliateCommission.mock.invocationCallOrder[0]).toBeLessThan(
         refillService.topUpWallet.mock.invocationCallOrder[0]
@@ -91,7 +93,7 @@ describe(AffiliateCommissionService.name, () => {
         return { walletId: 1, address: "akash1affiliate" };
       });
 
-      await service.syncCommission(payment.id);
+      await service.syncCommission(payment.id, "settlement");
 
       expect(stripeTransactionRepository.findOneByAndLock).toHaveBeenCalledWith({ id: payment.id });
       expect(ranInsideTransaction).toEqual({ lockPayment: true, topUpWallet: true });
@@ -105,7 +107,7 @@ describe(AffiliateCommissionService.name, () => {
     ])("rounds a $paymentAmount cent payment down to a $commissionAmount cent commission", async ({ paymentAmount, commissionAmount }) => {
       const { service, payment, affiliate, refillService } = setup({ paymentAmount });
 
-      await service.syncCommission(payment.id);
+      await service.syncCommission(payment.id, "settlement");
 
       expect(refillService.topUpWallet).toHaveBeenCalledWith(commissionAmount, expect.objectContaining({ userId: affiliate.userId }), expect.anything());
     });
@@ -113,7 +115,7 @@ describe(AffiliateCommissionService.name, () => {
     it("grants nothing when 5% of the payment rounds down to zero cents", async () => {
       const { service, payment, stripeTransactionRepository, refillService, logger } = setup({ paymentAmount: 19 });
 
-      await service.syncCommission(payment.id);
+      await service.syncCommission(payment.id, "settlement");
 
       expect(stripeTransactionRepository.createAffiliateCommission).not.toHaveBeenCalled();
       expect(refillService.topUpWallet).not.toHaveBeenCalled();
@@ -123,7 +125,7 @@ describe(AffiliateCommissionService.name, () => {
     it("checks the affiliate program flag for the affiliate who would be credited", async () => {
       const { service, payment, affiliate, featureFlagsService } = setup();
 
-      await service.syncCommission(payment.id);
+      await service.syncCommission(payment.id, "settlement");
 
       expect(featureFlagsService.isEnabled).toHaveBeenCalledWith(FeatureFlags.AFFILIATE_PROGRAM, { userId: affiliate.userId });
     });
@@ -131,7 +133,7 @@ describe(AffiliateCommissionService.name, () => {
     it("grants nothing while the affiliate program flag is off", async () => {
       const { service, payment, stripeTransactionRepository, refillService, logger } = setup({ isProgramEnabled: false });
 
-      await service.syncCommission(payment.id);
+      await service.syncCommission(payment.id, "settlement");
 
       expect(stripeTransactionRepository.createAffiliateCommission).not.toHaveBeenCalled();
       expect(refillService.topUpWallet).not.toHaveBeenCalled();
@@ -141,7 +143,7 @@ describe(AffiliateCommissionService.name, () => {
     it("grants nothing for a payer who was not referred", async () => {
       const { service, payment, referralRepository, stripeTransactionRepository, refillService, analyticsService, logger } = setup({ isReferred: false });
 
-      await service.syncCommission(payment.id);
+      await service.syncCommission(payment.id, "settlement");
 
       expect(referralRepository.findWithAffiliateByReferredUserId).toHaveBeenCalledWith(payment.userId);
       expect(stripeTransactionRepository.createAffiliateCommission).not.toHaveBeenCalled();
@@ -153,7 +155,7 @@ describe(AffiliateCommissionService.name, () => {
     it("grants nothing once the affiliate has been revoked", async () => {
       const { service, payment, stripeTransactionRepository, refillService, logger } = setup({ affiliateRevokedAt: new Date().toISOString() });
 
-      await service.syncCommission(payment.id);
+      await service.syncCommission(payment.id, "settlement");
 
       expect(stripeTransactionRepository.createAffiliateCommission).not.toHaveBeenCalled();
       expect(refillService.topUpWallet).not.toHaveBeenCalled();
@@ -166,7 +168,7 @@ describe(AffiliateCommissionService.name, () => {
         paymentCreatedAt: new Date("2026-01-15T10:00:00.000Z")
       });
 
-      await service.syncCommission(payment.id);
+      await service.syncCommission(payment.id, "settlement");
 
       expect(refillService.topUpWallet).toHaveBeenCalled();
     });
@@ -177,7 +179,7 @@ describe(AffiliateCommissionService.name, () => {
         paymentCreatedAt: new Date("2026-01-16T10:00:00.000Z")
       });
 
-      await service.syncCommission(payment.id);
+      await service.syncCommission(payment.id, "settlement");
 
       expect(stripeTransactionRepository.createAffiliateCommission).not.toHaveBeenCalled();
       expect(refillService.topUpWallet).not.toHaveBeenCalled();
@@ -193,7 +195,7 @@ describe(AffiliateCommissionService.name, () => {
         sharesPaymentMethod: true
       });
 
-      await service.syncCommission(payment.id);
+      await service.syncCommission(payment.id, "settlement");
 
       expect(paymentMethodRepository.hasSharedFingerprint).toHaveBeenCalledWith({ userId: payment.userId, organizationId: null }, affiliate.userId);
       expect(stripeTransactionRepository.createAffiliateCommission).not.toHaveBeenCalled();
@@ -208,7 +210,7 @@ describe(AffiliateCommissionService.name, () => {
         paymentOrganization: team
       });
 
-      await service.syncCommission(payment.id);
+      await service.syncCommission(payment.id, "settlement");
 
       expect(referralRepository.findWithAffiliateByReferredUserId).toHaveBeenCalledWith(referredUserId);
       expect(paymentMethodRepository.hasSharedFingerprint).toHaveBeenCalledWith({ userId: referredUserId, organizationId: team.id }, affiliate.userId);
@@ -225,7 +227,7 @@ describe(AffiliateCommissionService.name, () => {
       const personal = createOrganization({ type: "personal", createdByUserId: owner });
       const { service, payment, referralRepository, organizationRepository } = setup({ paymentOrganization: personal });
 
-      await service.syncCommission(payment.id);
+      await service.syncCommission(payment.id, "settlement");
 
       expect(organizationRepository.findById).toHaveBeenCalledWith(personal.id);
       expect(referralRepository.findWithAffiliateByReferredUserId).toHaveBeenCalledWith(owner);
@@ -237,7 +239,7 @@ describe(AffiliateCommissionService.name, () => {
     ])("grants nothing for a payment by an organization $case", async ({ paymentOrganization, isOrganizationGone }) => {
       const { service, payment, referralRepository, refillService, logger } = setup({ paymentOrganization, isOrganizationGone });
 
-      await service.syncCommission(payment.id);
+      await service.syncCommission(payment.id, "settlement");
 
       expect(referralRepository.findWithAffiliateByReferredUserId).not.toHaveBeenCalled();
       expect(refillService.topUpWallet).not.toHaveBeenCalled();
@@ -247,7 +249,7 @@ describe(AffiliateCommissionService.name, () => {
     it("records and credits the commission with no organization for an affiliate who has no personal organization yet", async () => {
       const { service, payment, affiliate, stripeTransactionRepository, refillService } = setup({ affiliateHasPersonalOrganization: false });
 
-      await service.syncCommission(payment.id);
+      await service.syncCommission(payment.id, "settlement");
 
       expect(stripeTransactionRepository.createAffiliateCommission).toHaveBeenCalledWith(expect.objectContaining({ organizationId: null }));
       expect(refillService.topUpWallet).toHaveBeenCalledWith(500, { userId: affiliate.userId, organizationId: null }, expect.anything());
@@ -258,7 +260,7 @@ describe(AffiliateCommissionService.name, () => {
         affiliateAbuseLockedAt: new Date()
       });
 
-      await service.syncCommission(payment.id);
+      await service.syncCommission(payment.id, "settlement");
 
       expect(userWalletRepository.findOneByUserId).toHaveBeenCalledWith(affiliate.userId);
       expect(stripeTransactionRepository.createAffiliateCommission).not.toHaveBeenCalled();
@@ -269,7 +271,7 @@ describe(AffiliateCommissionService.name, () => {
     it("grants the commission of an affiliate who has no wallet yet", async () => {
       const { service, payment, affiliate, refillService } = setup({ affiliateHasWallet: false });
 
-      await service.syncCommission(payment.id);
+      await service.syncCommission(payment.id, "settlement");
 
       expect(refillService.topUpWallet).toHaveBeenCalledWith(500, expect.objectContaining({ userId: affiliate.userId }), expect.anything());
     });
@@ -277,7 +279,7 @@ describe(AffiliateCommissionService.name, () => {
     it("does nothing when the payment already earned its commission", async () => {
       const { service, payment, stripeTransactionRepository, referralRepository, refillService } = setup({ hasCommission: true });
 
-      await service.syncCommission(payment.id);
+      await service.syncCommission(payment.id, "settlement");
 
       expect(stripeTransactionRepository.findAffiliateCommissionBySourceAndLock).toHaveBeenCalledWith(payment.id);
       expect(referralRepository.findWithAffiliateByReferredUserId).not.toHaveBeenCalled();
@@ -287,18 +289,71 @@ describe(AffiliateCommissionService.name, () => {
       expect(refillService.reduceWalletBalance).not.toHaveBeenCalled();
     });
 
-    it("grants the commission of a payment that was refunded after it settled", async () => {
-      const { service, payment, affiliate, refillService } = setup({ paymentStatus: "refunded", paymentAmount: 10000 });
+    it("grants only what is left of the commission of a payment partly refunded before its first sync", async () => {
+      const { service, payment, affiliate, affiliatePersonalOrganization, stripeTransactionRepository, refillService, analyticsService } = setup({
+        paymentAmount: 10000,
+        paymentAmountRefunded: 4000
+      });
 
-      await service.syncCommission(payment.id);
+      await service.syncCommission(payment.id, "settlement");
 
-      expect(refillService.topUpWallet).toHaveBeenCalledWith(500, expect.objectContaining({ userId: affiliate.userId }), expect.anything());
+      expect(stripeTransactionRepository.createAffiliateCommission).toHaveBeenCalledWith({
+        userId: affiliate.userId,
+        organizationId: affiliatePersonalOrganization.id,
+        amount: 500,
+        amountRefunded: 200,
+        sourceTransactionId: payment.id
+      });
+      expect(refillService.topUpWallet).toHaveBeenCalledExactlyOnceWith(
+        300,
+        { userId: affiliate.userId, organizationId: affiliatePersonalOrganization.id },
+        expect.anything()
+      );
+      expect(refillService.reduceWalletBalance).not.toHaveBeenCalled();
+      expect(stripeTransactionRepository.updateById).not.toHaveBeenCalled();
+      expect(analyticsService.track).toHaveBeenCalledWith(affiliate.userId, "affiliate_commission_granted", expect.objectContaining({ amount_cents: 300 }));
+    });
+
+    it("grants nothing for a payment fully refunded before its first sync", async () => {
+      const { service, payment, stripeTransactionRepository, refillService, logger } = setup({
+        paymentStatus: "refunded",
+        paymentAmount: 10000,
+        paymentAmountRefunded: 10000
+      });
+
+      await service.syncCommission(payment.id, "settlement");
+
+      expect(stripeTransactionRepository.createAffiliateCommission).not.toHaveBeenCalled();
+      expect(refillService.topUpWallet).not.toHaveBeenCalled();
+      expect(refillService.reduceWalletBalance).not.toHaveBeenCalled();
+      expect(logger.debug).toHaveBeenCalledWith({ event: "AFFILIATE_COMMISSION_SKIPPED", transactionId: payment.id, reason: "nothing_left_to_grant" });
+    });
+
+    it("grants nothing for a payment lost to a dispute before its first sync", async () => {
+      const { service, payment, stripeTransactionRepository, refillService, logger } = setup({ paymentDisputeLostAt: new Date() });
+
+      await service.syncCommission(payment.id, "settlement");
+
+      expect(stripeTransactionRepository.createAffiliateCommission).not.toHaveBeenCalled();
+      expect(refillService.topUpWallet).not.toHaveBeenCalled();
+      expect(logger.debug).toHaveBeenCalledWith({ event: "AFFILIATE_COMMISSION_SKIPPED", transactionId: payment.id, reason: "nothing_left_to_grant" });
+    });
+
+    it.each(["refund", "dispute"] as const)("grants nothing when a %s sync finds no commission to take back", async trigger => {
+      const { service, payment, referralRepository, stripeTransactionRepository, refillService } = setup({ paymentAmountRefunded: 4000 });
+
+      await service.syncCommission(payment.id, trigger);
+
+      expect(referralRepository.findWithAffiliateByReferredUserId).not.toHaveBeenCalled();
+      expect(stripeTransactionRepository.createAffiliateCommission).not.toHaveBeenCalled();
+      expect(refillService.topUpWallet).not.toHaveBeenCalled();
+      expect(refillService.reduceWalletBalance).not.toHaveBeenCalled();
     });
 
     it.each(["created", "pending", "requires_action", "failed", "canceled"] as const)("does nothing for a %s payment", async paymentStatus => {
       const { service, payment, stripeTransactionRepository, refillService } = setup({ paymentStatus });
 
-      await service.syncCommission(payment.id);
+      await service.syncCommission(payment.id, "settlement");
 
       expect(stripeTransactionRepository.findAffiliateCommissionBySourceAndLock).not.toHaveBeenCalled();
       expect(refillService.topUpWallet).not.toHaveBeenCalled();
@@ -307,7 +362,7 @@ describe(AffiliateCommissionService.name, () => {
     it.each(["coupon_claim", "manual_credit", "affiliate_commission"] as const)("does nothing for a %s transaction", async paymentType => {
       const { service, payment, stripeTransactionRepository, refillService } = setup({ paymentType });
 
-      await service.syncCommission(payment.id);
+      await service.syncCommission(payment.id, "settlement");
 
       expect(stripeTransactionRepository.findAffiliateCommissionBySourceAndLock).not.toHaveBeenCalled();
       expect(refillService.topUpWallet).not.toHaveBeenCalled();
@@ -317,7 +372,7 @@ describe(AffiliateCommissionService.name, () => {
       const { service, stripeTransactionRepository, refillService } = setup();
       stripeTransactionRepository.findOneByAndLock.mockResolvedValue(undefined);
 
-      await service.syncCommission("missing-transaction-id");
+      await service.syncCommission("missing-transaction-id", "settlement");
 
       expect(stripeTransactionRepository.findAffiliateCommissionBySourceAndLock).not.toHaveBeenCalled();
       expect(refillService.topUpWallet).not.toHaveBeenCalled();
@@ -327,7 +382,7 @@ describe(AffiliateCommissionService.name, () => {
       const { service, payment, stripeTransactionRepository, refillService, analyticsService, logger } = setup();
       stripeTransactionRepository.createAffiliateCommission.mockRejectedValue(createUniqueViolation("stripe_transactions_source_transaction_id_unique"));
 
-      await expect(service.syncCommission(payment.id)).resolves.toBeUndefined();
+      await expect(service.syncCommission(payment.id, "settlement")).resolves.toBeUndefined();
 
       expect(refillService.topUpWallet).not.toHaveBeenCalled();
       expect(analyticsService.track).not.toHaveBeenCalled();
@@ -339,7 +394,7 @@ describe(AffiliateCommissionService.name, () => {
       const error = new Error("connection terminated");
       stripeTransactionRepository.createAffiliateCommission.mockRejectedValue(error);
 
-      await expect(service.syncCommission(payment.id)).rejects.toBe(error);
+      await expect(service.syncCommission(payment.id, "settlement")).rejects.toBe(error);
 
       expect(refillService.topUpWallet).not.toHaveBeenCalled();
     });
@@ -349,7 +404,7 @@ describe(AffiliateCommissionService.name, () => {
       const error = new Error("signer unavailable");
       refillService.topUpWallet.mockRejectedValue(error);
 
-      await expect(service.syncCommission(payment.id)).rejects.toBe(error);
+      await expect(service.syncCommission(payment.id, "settlement")).rejects.toBe(error);
 
       expect(analyticsService.track).not.toHaveBeenCalled();
     });
@@ -363,7 +418,7 @@ describe(AffiliateCommissionService.name, () => {
           commissionAmount: 500
         });
 
-        await service.syncCommission(payment.id);
+        await service.syncCommission(payment.id, "refund");
 
         expect(stripeTransactionRepository.updateById).toHaveBeenCalledWith(commission.id, { amountRefunded: 200 });
         expect(refillService.reduceWalletBalance).toHaveBeenCalledWith(200, { userId: affiliate.userId, organizationId: commission.organizationId }, { currency: "usd", transactionId: commission.id });
@@ -395,7 +450,7 @@ describe(AffiliateCommissionService.name, () => {
           commissionAmountRefunded: 200
         });
 
-        await service.syncCommission(payment.id);
+        await service.syncCommission(payment.id, "refund");
 
         expect(stripeTransactionRepository.updateById).toHaveBeenCalledWith(commission.id, { amountRefunded: 500, status: "refunded" });
         expect(refillService.reduceWalletBalance).toHaveBeenCalledWith(300, expect.objectContaining({ userId: affiliate.userId }), { currency: "usd", transactionId: commission.id });
@@ -410,7 +465,7 @@ describe(AffiliateCommissionService.name, () => {
           commissionAmountRefunded: 200
         });
 
-        await service.syncCommission(payment.id);
+        await service.syncCommission(payment.id, "refund");
 
         expect(stripeTransactionRepository.updateById).not.toHaveBeenCalled();
         expect(refillService.reduceWalletBalance).not.toHaveBeenCalled();
@@ -425,7 +480,7 @@ describe(AffiliateCommissionService.name, () => {
           paymentAmountRefunded: 4000
         });
 
-        await service.syncCommission(payment.id);
+        await service.syncCommission(payment.id, "refund");
 
         expect(stripeTransactionRepository.updateById).not.toHaveBeenCalled();
         expect(refillService.reduceWalletBalance).not.toHaveBeenCalled();
@@ -440,7 +495,7 @@ describe(AffiliateCommissionService.name, () => {
           paymentAmountRefunded: 4000
         });
 
-        await service.syncCommission(payment.id);
+        await service.syncCommission(payment.id, "refund");
 
         expect(analyticsService.track).toHaveBeenCalledWith(
           affiliate.userId,
@@ -458,18 +513,19 @@ describe(AffiliateCommissionService.name, () => {
           commissionAmountRefunded: 200
         });
 
-        await service.syncCommission(payment.id);
+        await service.syncCommission(payment.id, "refund");
 
         expect(stripeTransactionRepository.updateById).not.toHaveBeenCalled();
         expect(refillService.reduceWalletBalance).not.toHaveBeenCalled();
       });
 
       it.each([
-        { paymentAmountRefunded: 1, expectedUpdates: [] },
-        { paymentAmountRefunded: 34, expectedUpdates: [{ amountRefunded: 1 }] },
+        { paymentAmountRefunded: 0, expectedUpdates: [] },
+        { paymentAmountRefunded: 1, expectedUpdates: [{ amountRefunded: 1 }] },
+        { paymentAmountRefunded: 34, expectedUpdates: [{ amountRefunded: 2 }] },
         { paymentAmountRefunded: 1000, expectedUpdates: [{ amountRefunded: 50 }] }
       ])(
-        "keeps the commission of a 1234 cent payment at 5% of what is left after a $paymentAmountRefunded cent refund, rounded down",
+        "keeps a 61 cent commission on a 1234 cent payment at its share of what is left after a $paymentAmountRefunded cent refund, rounded down",
         async ({ paymentAmountRefunded, expectedUpdates }) => {
           const { service, payment, stripeTransactionRepository } = setup({
             hasCommission: true,
@@ -478,11 +534,39 @@ describe(AffiliateCommissionService.name, () => {
             commissionAmount: 61
           });
 
-          await service.syncCommission(payment.id);
+          await service.syncCommission(payment.id, "refund");
 
           expect(stripeTransactionRepository.updateById.mock.calls.map(([, update]) => update)).toEqual(expectedUpdates);
         }
       );
+
+      it("takes back in proportion to the stored commission, whatever rate it was granted at", async () => {
+        const { service, payment, affiliate, commission, stripeTransactionRepository, refillService } = setup({
+          hasCommission: true,
+          paymentAmount: 10000,
+          paymentAmountRefunded: 5000,
+          commissionAmount: 1000
+        });
+
+        await service.syncCommission(payment.id, "refund");
+
+        expect(stripeTransactionRepository.updateById).toHaveBeenCalledWith(commission.id, { amountRefunded: 500 });
+        expect(refillService.reduceWalletBalance).toHaveBeenCalledWith(500, expect.objectContaining({ userId: affiliate.userId }), expect.anything());
+      });
+
+      it("never takes back more than the commission", async () => {
+        const { service, payment, affiliate, commission, stripeTransactionRepository, refillService } = setup({
+          hasCommission: true,
+          paymentAmount: 10000,
+          paymentAmountRefunded: 12000,
+          commissionAmount: 500
+        });
+
+        await service.syncCommission(payment.id, "refund");
+
+        expect(stripeTransactionRepository.updateById).toHaveBeenCalledWith(commission.id, { amountRefunded: 500, status: "refunded" });
+        expect(refillService.reduceWalletBalance).toHaveBeenCalledWith(500, expect.objectContaining({ userId: affiliate.userId }), expect.anything());
+      });
 
       it("takes back the whole commission when the payer lost a dispute", async () => {
         const { service, payment, affiliate, commission, stripeTransactionRepository, refillService, analyticsService, logger } = setup({
@@ -492,7 +576,7 @@ describe(AffiliateCommissionService.name, () => {
           commissionAmount: 500
         });
 
-        await service.syncCommission(payment.id);
+        await service.syncCommission(payment.id, "dispute");
 
         expect(stripeTransactionRepository.updateById).toHaveBeenCalledWith(commission.id, { amountRefunded: 500, status: "refunded" });
         expect(refillService.reduceWalletBalance).toHaveBeenCalledWith(500, expect.objectContaining({ userId: affiliate.userId }), { currency: "usd", transactionId: commission.id });
@@ -514,7 +598,7 @@ describe(AffiliateCommissionService.name, () => {
           commissionAmountRefunded: 200
         });
 
-        await service.syncCommission(payment.id);
+        await service.syncCommission(payment.id, "dispute");
 
         expect(refillService.reduceWalletBalance).toHaveBeenCalledWith(300, expect.objectContaining({ userId: affiliate.userId }), { currency: "usd", transactionId: commission.id });
       });
@@ -528,7 +612,7 @@ describe(AffiliateCommissionService.name, () => {
           commissionAmount: 500
         });
 
-        await service.syncCommission(payment.id);
+        await service.syncCommission(payment.id, "refund");
 
         expect(refillService.reduceWalletBalance).toHaveBeenCalledWith(500, expect.objectContaining({ userId: affiliate.userId }), expect.anything());
       });
@@ -542,25 +626,10 @@ describe(AffiliateCommissionService.name, () => {
           commissionAmount: 500
         });
 
-        await service.syncCommission(payment.id);
+        await service.syncCommission(payment.id, "refund");
 
         expect(featureFlagsService.isEnabled).not.toHaveBeenCalled();
         expect(refillService.reduceWalletBalance).toHaveBeenCalledWith(500, expect.objectContaining({ userId: affiliate.userId }), expect.anything());
-      });
-
-      it("grants and then takes back in the same sync the commission of a payment refunded before its first sync", async () => {
-        const { service, payment, affiliate, commission, stripeTransactionRepository, refillService } = setup({
-          paymentStatus: "refunded",
-          paymentAmount: 10000,
-          paymentAmountRefunded: 10000
-        });
-
-        await service.syncCommission(payment.id);
-
-        expect(refillService.topUpWallet).toHaveBeenCalledWith(500, expect.objectContaining({ userId: affiliate.userId }), expect.anything());
-        expect(stripeTransactionRepository.updateById).toHaveBeenCalledWith(commission.id, { amountRefunded: 500, status: "refunded" });
-        expect(refillService.reduceWalletBalance).toHaveBeenCalledWith(500, expect.objectContaining({ userId: affiliate.userId }), { currency: "usd", transactionId: commission.id });
-        expect(refillService.topUpWallet.mock.invocationCallOrder[0]).toBeLessThan(refillService.reduceWalletBalance.mock.invocationCallOrder[0]);
       });
 
       it("records the reversal before reducing the affiliate's wallet", async () => {
@@ -569,7 +638,7 @@ describe(AffiliateCommissionService.name, () => {
           paymentAmountRefunded: 4000
         });
 
-        await service.syncCommission(payment.id);
+        await service.syncCommission(payment.id, "refund");
 
         expect(stripeTransactionRepository.updateById.mock.invocationCallOrder[0]).toBeLessThan(refillService.reduceWalletBalance.mock.invocationCallOrder[0]);
       });
@@ -583,7 +652,7 @@ describe(AffiliateCommissionService.name, () => {
           shortfallCents: 120
         });
 
-        await service.syncCommission(payment.id);
+        await service.syncCommission(payment.id, "refund");
 
         expect(logger.info).toHaveBeenCalledWith(expect.objectContaining({ event: "AFFILIATE_COMMISSION_REVERSED", amountCents: 500, shortfallCents: 120 }));
       });
@@ -593,7 +662,7 @@ describe(AffiliateCommissionService.name, () => {
         const error = new Error("signer unavailable");
         refillService.reduceWalletBalance.mockRejectedValue(error);
 
-        await expect(service.syncCommission(payment.id)).rejects.toBe(error);
+        await expect(service.syncCommission(payment.id, "refund")).rejects.toBe(error);
 
         expect(analyticsService.track).not.toHaveBeenCalled();
       });
