@@ -41,6 +41,12 @@ describe("POST /internal/affiliates", () => {
     expect(response.headers.get("cache-control")).toBe("no-store");
   });
 
+  it("rejects approving an unknown userId", async () => {
+    const response = await approve({ userId: faker.string.uuid(), actor: "ops@akash.network" });
+
+    expect(response.status).toBe(404);
+  });
+
   it("rejects approving the same user twice with a conflict", async () => {
     const user = await seedUser();
     await approve({ userId: user.id, actor: "ops@akash.network" });
