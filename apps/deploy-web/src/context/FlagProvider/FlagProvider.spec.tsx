@@ -1,4 +1,5 @@
 import type { ComponentProps } from "react";
+import { FlagProvider as UnleashFlagProvider } from "@unleash/nextjs";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
@@ -6,6 +7,7 @@ import type { FLAG_CONTEXT_USER_SYNC_DEPENDENCIES, Props, WAIT_FOR_FEATURE_FLAGS
 import { FlagContextUserSync, FlagProvider, UNLEASH_READY_TIMEOUT_MS, WaitForFeatureFlags } from "./FlagProvider";
 
 import { act, render, screen } from "@testing-library/react";
+import { jsonResponse } from "@tests/unit/jsonResponse";
 
 type Components = NonNullable<Props["components"]>;
 
@@ -104,6 +106,23 @@ describe(FlagContextUserSync.name, () => {
     expect(client.updateContext).toHaveBeenCalledTimes(1);
   });
 
+  describe("when driving a real Unleash client", () => {
+    it("keeps the session id on the toggles request and only adds a user id while someone is signed in", async () => {
+      const { fetchToggles, rerenderWith } = await setupWithRealClient({ sessionId: "session-1" });
+
+      rerenderWith("user-1");
+      await vi.waitFor(() => expect(fetchToggles).toHaveBeenCalledTimes(2));
+      rerenderWith(undefined);
+      await vi.waitFor(() => expect(fetchToggles).toHaveBeenCalledTimes(3));
+
+      expect(fetchToggles.mock.calls.map(([url]) => Object.fromEntries(new URL(url).searchParams))).toEqual([
+        { appName: "console", environment: "test", sessionId: "session-1" },
+        { appName: "console", environment: "test", sessionId: "session-1", userId: "user-1" },
+        { appName: "console", environment: "test", sessionId: "session-1" }
+      ]);
+    });
+  });
+
   function setup(input: { contextUserId: string | undefined; userId: string | undefined }) {
     let contextUserId = input.contextUserId;
     const client = mock<ReturnType<typeof FLAG_CONTEXT_USER_SYNC_DEPENDENCIES.useUnleashClient>>();
@@ -119,6 +138,34 @@ describe(FlagContextUserSync.name, () => {
       client,
       rerenderWith: (userId: string | undefined) => rerender(<FlagContextUserSync userId={userId} dependencies={dependencies} />)
     };
+  }
+
+  async function setupWithRealClient(input: { sessionId: string }) {
+    const fetchToggles = vi.fn(async (_url: string) => jsonResponse({ toggles: [] }));
+    const config = {
+      url: "http://unleash.test/api/frontend",
+      clientKey: "test-client-key",
+      appName: "console",
+      environment: "test",
+      context: { sessionId: input.sessionId },
+      fetch: fetchToggles,
+      disableMetrics: true,
+      disableRefresh: true,
+      storageProvider: { get: async () => undefined, save: async () => undefined }
+    };
+    const renderTree = (userId: string | undefined) => (
+      <UnleashFlagProvider config={config}>
+        <FlagContextUserSync userId={userId} />
+        <WaitForFeatureFlags>
+          <div data-testid="flags-ready" />
+        </WaitForFeatureFlags>
+      </UnleashFlagProvider>
+    );
+
+    const { rerender } = render(renderTree(undefined));
+    await screen.findByTestId("flags-ready");
+
+    return { fetchToggles, rerenderWith: (userId: string | undefined) => rerender(renderTree(userId)) };
   }
 });
 
