@@ -5,15 +5,17 @@ import { describe, expect, it, vi } from "vitest";
 import { mock, mockDeep } from "vitest-mock-extended";
 
 import { QueryKeys } from "@src/queries/queryKeys";
+import type { Activity } from "@src/queries/useLatestActivitiesQuery";
 import { shouldReportError } from "@src/services/query-error-policy/query-error-policy";
 import { settingsIdAtom } from "@src/store/settingsStore";
 import { servicesPatchBetween } from "@src/utils/sdl/sdlServicesPatch";
 import { UrlService } from "@src/utils/urlUtils";
 import type { DeploymentIntent } from "./deploymentIntent";
-import type { DEPENDENCIES } from "./useDeploymentFlow";
+import type { DEPENDENCIES, DeploymentFlowActions } from "./useDeploymentFlow";
 import { buildConfigureUrl, useDeploymentFlow } from "./useDeploymentFlow";
 
 import { act, renderHook, waitFor } from "@testing-library/react";
+import { buildActivity } from "@tests/seeders/activity";
 
 const SEAL_CONTEXT = {
   kid: "sdl-secrets.v1",
@@ -352,7 +354,9 @@ describe(useDeploymentFlow.name, () => {
         manifestFromSdl: () => "M",
         deploymentResourcesFromSdl: () => ({ gpuAmount: 0, cpuAmount: 0, memoryAmount: 0, storageAmount: 0 }),
         sealSdlSecrets: async () => "SEALED",
-        servicesPatchBetween
+        servicesPatchBetween,
+        useFlag: () => false,
+        useLatestActivitiesQuery: () => mock<ReturnType<typeof DEPENDENCIES.useLatestActivitiesQuery>>({ data: undefined })
       };
       const { result, rerender } = renderDeploymentFlow({ sdlStrategy: "edit", bidStrategy: "select", dseq: "777", vm: false }, dependencies);
       act(() => vi.advanceTimersByTime(60_000));
@@ -460,7 +464,9 @@ describe(useDeploymentFlow.name, () => {
         manifestFromSdl: () => "M",
         deploymentResourcesFromSdl: () => ({ gpuAmount: 0, cpuAmount: 0, memoryAmount: 0, storageAmount: 0 }),
         sealSdlSecrets: async () => "SEALED",
-        servicesPatchBetween
+        servicesPatchBetween,
+        useFlag: () => false,
+        useLatestActivitiesQuery: () => mock<ReturnType<typeof DEPENDENCIES.useLatestActivitiesQuery>>({ data: undefined })
       };
       const { result, rerender } = renderDeploymentFlow({ sdlStrategy: "edit", bidStrategy: "select", dseq: "777", vm: false }, dependencies);
       expect(result.current.phase).toBe("quoting");
@@ -2050,6 +2056,216 @@ describe(useDeploymentFlow.name, () => {
     });
   });
 
+  describe("closing in the background", () => {
+    it("closes a cancelled deployment in the background while the activity center is on", () => {
+      const closeMutate = vi.fn();
+      const { result, useFlag } = setup({ intent: { sdlStrategy: "edit", bidStrategy: "select", dseq: "777" }, closeMutate, isClosingInBackground: true });
+
+      act(() => result.current.actions.cancelAndEdit());
+
+      expect(useFlag).toHaveBeenCalledWith("notifications_activity_center");
+      expect(closeMutate).toHaveBeenCalledWith({ dseq: "777", async: "true" }, expect.any(Object));
+    });
+
+    it("closes a cancelled deployment during the request while the activity center is off", () => {
+      const closeMutate = vi.fn();
+      const { result } = setup({ intent: { sdlStrategy: "edit", bidStrategy: "select", dseq: "777" }, closeMutate });
+
+      act(() => result.current.actions.cancelAndEdit());
+
+      expect(closeMutate).toHaveBeenCalledWith({ dseq: "777" }, expect.any(Object));
+    });
+
+    it.each([
+      { action: "closeAndFail", act: (actions: DeploymentFlowActions) => actions.closeAndFail("No provider matched") },
+      { action: "discard", act: (actions: DeploymentFlowActions) => actions.discard() }
+    ])("closes in the background when $action gives the deployment up", ({ act: giveUp }) => {
+      const closeMutate = vi.fn();
+      const { result } = setup({ intent: { sdlStrategy: "edit", bidStrategy: "select", dseq: "777" }, closeMutate, isClosingInBackground: true });
+
+      act(() => giveUp(result.current.actions));
+
+      expect(closeMutate).toHaveBeenCalledWith({ dseq: "777", async: "true" }, expect.any(Object));
+    });
+
+    it("retries a close left open in the background", () => {
+      const closeMutate = vi.fn((_args, options) => options.onError?.(new Error("close boom")));
+      const getDeploymentMutate = vi.fn((_args, options) => options.onSuccess?.({ data: { deployment: { state: "active" } } }));
+      const { result } = setup({
+        intent: { sdlStrategy: "edit", bidStrategy: "select", dseq: "777" },
+        closeMutate,
+        getDeploymentMutate,
+        isClosingInBackground: true
+      });
+      act(() => result.current.actions.cancelAndEdit());
+
+      act(() => result.current.actions.retryClose());
+
+      expect(closeMutate).toHaveBeenLastCalledWith({ dseq: "777", async: "true" }, expect.any(Object));
+    });
+
+    it("keeps reporting the close as settling once the api accepts it, and has the feed fetch it", () => {
+      const closeMutate = vi.fn((_args, options) => options.onSuccess?.({ data: { activityId: "activity-1" } }));
+      const { result, queryClient, useLatestActivitiesQuery } = setup({
+        intent: { sdlStrategy: "edit", bidStrategy: "select", dseq: "777" },
+        closeMutate,
+        isClosingInBackground: true
+      });
+
+      act(() => result.current.actions.cancelAndEdit());
+
+      expect(result.current.pendingClose).toEqual({ dseq: "777", failed: false });
+      expect(queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: ["v1", "listActivities"] });
+      expect(queryClient.invalidateQueries).not.toHaveBeenCalledWith({ queryKey: QueryKeys.getBalancesKey("akash1owner") });
+      expect(useLatestActivitiesQuery).toHaveBeenLastCalledWith({ enabled: true });
+    });
+
+    it("leaves the feed alone while no close is running in the background", () => {
+      const { useLatestActivitiesQuery } = setup({ intent: { sdlStrategy: "edit", bidStrategy: "select", dseq: "777" }, isClosingInBackground: true });
+
+      expect(useLatestActivitiesQuery).toHaveBeenLastCalledWith({ enabled: false });
+    });
+
+    it("waits while the feed still reports the close running", () => {
+      const closeMutate = vi.fn((_args, options) => options.onSuccess?.({ data: { activityId: "activity-1" } }));
+      const { result, feed, rerender } = setup({
+        intent: { sdlStrategy: "edit", bidStrategy: "select", dseq: "777" },
+        closeMutate,
+        isClosingInBackground: true
+      });
+      act(() => result.current.actions.cancelAndEdit());
+
+      feed.activities = [buildActivity({ id: "activity-2", status: "succeeded" }), buildActivity({ id: "activity-1", status: "pending" })];
+      rerender();
+
+      expect(result.current.pendingClose).toEqual({ dseq: "777", failed: false });
+    });
+
+    it("clears the close and refreshes the balance and lists once the feed reports it closed", () => {
+      const closeMutate = vi.fn((_args, options) => options.onSuccess?.({ data: { activityId: "activity-1" } }));
+      const { result, feed, rerender, queryClient, useLatestActivitiesQuery } = setup({
+        intent: { sdlStrategy: "edit", bidStrategy: "select", dseq: "777" },
+        closeMutate,
+        isClosingInBackground: true
+      });
+      act(() => result.current.actions.cancelAndEdit());
+
+      feed.activities = [buildActivity({ id: "activity-1", status: "succeeded" })];
+      rerender();
+
+      expect(result.current.pendingClose).toBeNull();
+      expect(queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: QueryKeys.getBalancesKey("akash1owner") });
+      expect(useLatestActivitiesQuery).toHaveBeenLastCalledWith({ enabled: false });
+    });
+
+    it("reports the deployment still open, with the feed's reason, once its background close fails", () => {
+      const closeMutate = vi.fn((_args, options) => options.onSuccess?.({ data: { activityId: "activity-1" } }));
+      const { result, feed, rerender } = setup({
+        intent: { sdlStrategy: "edit", bidStrategy: "select", dseq: "777" },
+        closeMutate,
+        isClosingInBackground: true
+      });
+      act(() => result.current.actions.cancelAndEdit());
+
+      feed.activities = [
+        buildActivity({
+          id: "activity-1",
+          status: "failed",
+          meta: { dseq: "777", error: { code: "close_incomplete", message: "The deployment is still open. Try closing it again." } }
+        })
+      ];
+      rerender();
+
+      expect(result.current.pendingClose).toEqual({ dseq: "777", failed: true, message: "The deployment is still open. Try closing it again." });
+      expect(result.current.phase).toBe("configuring");
+    });
+
+    it("reports a close the api refused without a reason as still open with no message", () => {
+      const closeMutate = vi.fn((_args, options) => options.onError?.(new Error("network down")));
+      const getDeploymentMutate = vi.fn((_args, options) => options.onSuccess?.({ data: { deployment: { state: "active" } } }));
+      const { result } = setup({
+        intent: { sdlStrategy: "edit", bidStrategy: "select", dseq: "777" },
+        closeMutate,
+        getDeploymentMutate,
+        isClosingInBackground: true
+      });
+
+      act(() => result.current.actions.cancelAndEdit());
+
+      expect(result.current.pendingClose).toEqual({ dseq: "777", failed: true, message: undefined });
+      expect(result.current.pendingClose).not.toHaveProperty("message", null);
+    });
+
+    it("clears the close at once when the api closed the deployment during the request", () => {
+      const closeMutate = vi.fn((_args, options) => options.onSuccess?.({ data: { success: true } }));
+      const { result } = setup({ intent: { sdlStrategy: "edit", bidStrategy: "select", dseq: "777" }, closeMutate, isClosingInBackground: true });
+
+      act(() => result.current.actions.cancelAndEdit());
+
+      expect(result.current.pendingClose).toBeNull();
+    });
+
+    it("closes a deployment still closing in the background during the request before creating, so two are never open at once", async () => {
+      const closeCalls: Array<{ args: unknown; options: { onSuccess?: (result: unknown) => void } }> = [];
+      const closeMutate = vi.fn((args, options) => closeCalls.push({ args, options }));
+      const createMutate = vi.fn((_args, options) => options.onSuccess?.({ data: { dseq: "1000", manifest: "m" } }));
+      const { result } = setup({ intent: { sdlStrategy: "edit", bidStrategy: "select", dseq: "777" }, closeMutate, createMutate, isClosingInBackground: true });
+      act(() => result.current.actions.cancelAndEdit());
+      act(() => closeCalls[0].options.onSuccess?.({ data: { activityId: "activity-1" } }));
+
+      act(() => result.current.actions.requestQuotes("sdl"));
+      await settleSeal();
+      expect(createMutate).not.toHaveBeenCalled();
+      act(() => closeCalls[1].options.onSuccess?.({ data: { success: true } }));
+      await settleSeal();
+
+      expect(closeCalls[1].args).toEqual({ dseq: "777" });
+      expect(createMutate).toHaveBeenCalledTimes(1);
+      expect(result.current.dseq).toBe("1000");
+    });
+
+    it("closes during the request a deployment whose background close the api accepts while a create waits on it", async () => {
+      const closeCalls: Array<{ args: unknown; options: { onSuccess?: (result: unknown) => void } }> = [];
+      const closeMutate = vi.fn((args, options) => closeCalls.push({ args, options }));
+      const createMutate = vi.fn((_args, options) => options.onSuccess?.({ data: { dseq: "1000", manifest: "m" } }));
+      const { result } = setup({ intent: { sdlStrategy: "edit", bidStrategy: "select", dseq: "777" }, closeMutate, createMutate, isClosingInBackground: true });
+      act(() => result.current.actions.cancelAndEdit());
+      act(() => result.current.actions.requestQuotes("sdl"));
+
+      act(() => closeCalls[0].options.onSuccess?.({ data: { activityId: "activity-1" } }));
+      act(() => closeCalls[1].options.onSuccess?.({ data: { success: true } }));
+      await settleSeal();
+
+      expect(closeCalls[1].args).toEqual({ dseq: "777" });
+      expect(createMutate).toHaveBeenCalledTimes(1);
+    });
+
+    it("ignores the outcome of a background close a later close took over", async () => {
+      const closeCalls: Array<{ options: { onSuccess?: (result: unknown) => void } }> = [];
+      const closeMutate = vi.fn((_args, options) => closeCalls.push({ options }));
+      const createMutate = vi.fn();
+      const { result, feed, rerender, useLatestActivitiesQuery } = setup({
+        intent: { sdlStrategy: "edit", bidStrategy: "select", dseq: "777" },
+        closeMutate,
+        createMutate,
+        isClosingInBackground: true
+      });
+      act(() => result.current.actions.cancelAndEdit());
+      act(() => closeCalls[0].options.onSuccess?.({ data: { activityId: "activity-1" } }));
+      act(() => result.current.actions.requestQuotes("sdl"));
+      expect(useLatestActivitiesQuery).toHaveBeenLastCalledWith({ enabled: false });
+      act(() => closeCalls[1].options.onSuccess?.({ data: { success: true } }));
+      await settleSeal();
+
+      feed.activities = [
+        buildActivity({ id: "activity-1", status: "failed", meta: { dseq: "777", error: { code: "close_failed", message: "Something went wrong" } } })
+      ];
+      rerender();
+
+      expect(result.current.pendingClose).toBeNull();
+    });
+  });
+
   function setup(input: {
     intent?: { sdlStrategy: "default" | "edit"; bidStrategy: "auto" | "select"; dseq?: string; templateId?: string; draftId?: string; vm?: boolean };
     replace?: ReturnType<typeof vi.fn>;
@@ -2058,8 +2274,14 @@ describe(useDeploymentFlow.name, () => {
     getDeploymentMutate?: ReturnType<typeof vi.fn>;
     sealSdlSecrets?: typeof DEPENDENCIES.sealSdlSecrets;
     sealContextMutateAsync?: ReturnType<typeof vi.fn>;
+    isClosingInBackground?: boolean;
   }) {
     const intent = { vm: false, ...(input.intent ?? { sdlStrategy: "edit" as const, bidStrategy: "select" as const, dseq: undefined }) };
+    const feed: { activities?: Activity[] } = {};
+    const useFlag = vi.fn((_flag: string) => input.isClosingInBackground ?? false);
+    const useLatestActivitiesQuery = vi.fn((_options: { enabled: boolean }) =>
+      mock<ReturnType<typeof DEPENDENCIES.useLatestActivitiesQuery>>({ data: feed.activities })
+    );
     const queryClient = mock<ReturnType<typeof DEPENDENCIES.useQueryClient>>();
     const createDeployment = mockMutation(input.createMutate);
     const closeDeployment = mockMutation(input.closeMutate);
@@ -2075,11 +2297,16 @@ describe(useDeploymentFlow.name, () => {
       manifestFromSdl: () => "manifest",
       deploymentResourcesFromSdl: () => ({ gpuAmount: 0, cpuAmount: 0, memoryAmount: 0, storageAmount: 0 }),
       sealSdlSecrets,
-      servicesPatchBetween
+      servicesPatchBetween,
+      useFlag,
+      useLatestActivitiesQuery
     };
     return {
       services,
       ...renderDeploymentFlow(intent, dependencies),
+      feed,
+      useFlag,
+      useLatestActivitiesQuery,
       analyticsService: services.analyticsService,
       queryClient,
       createDeployment,
@@ -2127,7 +2354,9 @@ describe(useDeploymentFlow.name, () => {
       manifestFromSdl: input?.manifestFromSdl ?? (() => "M"),
       deploymentResourcesFromSdl: input?.deploymentResourcesFromSdl ?? (() => ({ gpuAmount: 0, cpuAmount: 0, memoryAmount: 0, storageAmount: 0 })),
       sealSdlSecrets,
-      servicesPatchBetween: input?.servicesPatchBetween ?? servicesPatchBetween
+      servicesPatchBetween: input?.servicesPatchBetween ?? servicesPatchBetween,
+      useFlag: () => false,
+      useLatestActivitiesQuery: () => mock<ReturnType<typeof DEPENDENCIES.useLatestActivitiesQuery>>({ data: undefined })
     };
     const utils = renderDeploymentFlow(intent, dependencies, input?.settingsId);
     return {
@@ -2152,7 +2381,9 @@ describe(useDeploymentFlow.name, () => {
       manifestFromSdl: () => "M",
       deploymentResourcesFromSdl: () => ({ gpuAmount: 0, cpuAmount: 0, memoryAmount: 0, storageAmount: 0 }),
       sealSdlSecrets: async () => "SEALED",
-      servicesPatchBetween
+      servicesPatchBetween,
+      useFlag: () => false,
+      useLatestActivitiesQuery: () => mock<ReturnType<typeof DEPENDENCIES.useLatestActivitiesQuery>>({ data: undefined })
     };
     return {
       ...renderDeploymentFlow({ sdlStrategy: "edit", bidStrategy: "select", dseq: "777", vm: false }, dependencies),
@@ -2190,6 +2421,7 @@ describe(useDeploymentFlow.name, () => {
     services.api.v1.updateDeployment.useMutation.mockReturnValue((mutations?.updateDeployment ?? mockMutation()) as never);
     services.api.v1.getDeployment.useMutation.mockReturnValue((mutations?.getDeployment ?? mockMutation()) as never);
     services.api.v1.listDeployments.getKey.mockReturnValue(["v1", "listDeployments"]);
+    services.api.v1.listActivities.getKey.mockReturnValue(["v1", "listActivities"]);
     return services;
   }
 
