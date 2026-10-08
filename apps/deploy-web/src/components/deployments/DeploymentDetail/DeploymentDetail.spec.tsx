@@ -1,5 +1,5 @@
 import type { ReactElement } from "react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, onTestFinished, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { DeploymentDefinition } from "@src/hooks/useDeploymentDefinition/useDeploymentDefinition";
@@ -230,6 +230,51 @@ describe("DeploymentDetail", () => {
     setup();
 
     expect(screen.getAllByRole("tab").map(tab => tab.textContent)).toEqual(["Details", "Update", "Logs", "Events", "Shell", "Settings"]);
+  });
+
+  describe("when the tabs overflow their strip", () => {
+    it("scrolls the strip to center a tab picked past its right edge", async () => {
+      setup();
+      const strip = screen.getByRole("tablist");
+      const settings = screen.getByRole("tab", { name: "Settings" });
+      placeBox(strip, { left: 10, width: 300 });
+      placeBox(settings, { left: 400, width: 60 });
+
+      await userEvent.click(settings);
+
+      expect(strip.scrollLeft).toBe(270);
+    });
+
+    it("scrolls the strip back to center a tab picked past its left edge", async () => {
+      setup({ tab: "SETTINGS" });
+      const strip = screen.getByRole("tablist");
+      const details = screen.getByRole("tab", { name: "Details" });
+      strip.scrollLeft = 400;
+      placeBox(strip, { left: 0, width: 300 });
+      placeBox(details, { left: -150, width: 60 });
+
+      await userEvent.click(details);
+
+      expect(strip.scrollLeft).toBe(130);
+    });
+
+    it("centers the tab from the url once the strip appears after the page loads", () => {
+      const placedBoxes = vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function (this: HTMLElement) {
+        if (this.getAttribute("role") === "tablist") return mock<DOMRect>({ left: 0, width: 300 });
+        if (this.textContent === "Shell") return mock<DOMRect>({ left: 360, width: 50 });
+        return mock<DOMRect>({ left: 150, width: 0 });
+      });
+      onTestFinished(() => placedBoxes.mockRestore());
+      const { rerenderWith } = setup({ tab: "SHELL", isLeasesLoaded: false });
+
+      rerenderWith({ isLeasesLoaded: true });
+
+      expect(screen.getByRole("tablist").scrollLeft).toBe(235);
+    });
+
+    function placeBox(element: HTMLElement, box: { left: number; width: number }) {
+      vi.spyOn(element, "getBoundingClientRect").mockReturnValue(mock<DOMRect>(box));
+    }
   });
 
   describe("on the Update tab", () => {
@@ -480,9 +525,10 @@ describe("DeploymentDetail", () => {
         leaseGpus = next;
         rerender(<DeploymentDetail dseq="1786440078202" dependencies={dependencies} />);
       },
-      rerenderWith(next: { deployment?: DeploymentDto; leases?: LeaseDto[] }) {
+      rerenderWith(next: { deployment?: DeploymentDto; leases?: LeaseDto[]; isLeasesLoaded?: boolean }) {
         currentDeployment = next.deployment ?? currentDeployment;
         if (next.leases) Object.assign(leaseList, { data: next.leases });
+        if (next.isLeasesLoaded !== undefined) Object.assign(leaseList, { isSuccess: next.isLeasesLoaded });
         rerender(<DeploymentDetail dseq="1786440078202" dependencies={dependencies} />);
       }
     };

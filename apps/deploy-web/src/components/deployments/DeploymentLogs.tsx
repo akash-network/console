@@ -1,7 +1,6 @@
 "use client";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Button, Checkbox, CheckboxWithLabel, DropdownMenu, DropdownMenuContent, DropdownMenuTrigger, Spinner } from "@akashnetwork/ui/components";
-import { cn } from "@akashnetwork/ui/utils";
 import type { Monaco } from "@monaco-editor/react";
 import { useTheme as useMuiTheme } from "@mui/material/styles";
 import useMediaQuery from "@mui/material/useMediaQuery";
@@ -166,21 +165,19 @@ export const DeploymentLogs: React.FunctionComponent<Props> = ({ leases, selecte
         <>
           {selectedLease && (
             <>
-              <div className="flex min-h-[50px] items-center gap-4">
-                <div className="flex items-center">
+              <div className="flex min-h-[50px] flex-wrap items-center gap-x-4 gap-y-2 pb-2 sm:pb-0">
+                <div className="flex flex-wrap items-center gap-2">
                   {(leases?.length || 0) > 1 && <LeaseSelect leases={leases || []} defaultValue={selectedLease.id} onSelectedChange={handleLeaseChange} />}
 
                   {services?.length > 0 && (
-                    <div className={cn({ ["ml-2"]: (leases?.length || 0) > 1 })}>
-                      <SelectCheckbox
-                        options={services}
-                        selected={selectedServices}
-                        onSelectedChange={setSelectedServices}
-                        label="Services"
-                        placeholder="Select services"
-                        disabled={selectedLogsMode !== "logs"}
-                      />
-                    </div>
+                    <SelectCheckbox
+                      options={services}
+                      selected={selectedServices}
+                      onSelectedChange={setSelectedServices}
+                      label="Services"
+                      placeholder="Select services"
+                      disabled={selectedLogsMode !== "logs"}
+                    />
                   )}
                 </div>
 

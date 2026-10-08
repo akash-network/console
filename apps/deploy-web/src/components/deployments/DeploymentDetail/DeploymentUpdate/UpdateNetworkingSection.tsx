@@ -37,17 +37,17 @@ export const UpdateNetworkingSection: FC<UpdateNetworkingSectionProps> = ({ serv
     <div className="flex flex-col gap-3">
       <UpdateSectionRule title="Networking & runtime" />
       <Tabs value={tab} onValueChange={value => setTab(value as NetworkingTab)} className="rounded-lg border">
-        <TabsList className="grid h-auto w-full auto-cols-fr grid-flow-col rounded-b-none rounded-t-lg bg-muted p-1">
-          <TabsTrigger value="ports" className="gap-2">
+        <TabsList className="grid h-auto w-full rounded-b-none rounded-t-lg bg-muted p-1 sm:auto-cols-fr sm:grid-flow-col">
+          <TabsTrigger value="ports" className="justify-start gap-2 px-3 sm:justify-center sm:px-6">
             <GlobeIcon className="h-4 w-4" aria-hidden="true" />
             Ports <span className="text-muted-foreground">{expose.length}</span>
           </TabsTrigger>
-          <TabsTrigger value="variables" className="gap-2">
+          <TabsTrigger value="variables" className="justify-start gap-2 px-3 sm:justify-center sm:px-6">
             <KeyRoundIcon className="h-4 w-4" aria-hidden="true" />
             Vars & secrets <span className="text-muted-foreground">{variableCount}</span>
           </TabsTrigger>
           {!isVm && (
-            <TabsTrigger value="command" className="gap-2">
+            <TabsTrigger value="command" className="justify-start gap-2 px-3 sm:justify-center sm:px-6">
               <TerminalIcon className="h-4 w-4" aria-hidden="true" />
               Command
             </TabsTrigger>
