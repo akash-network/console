@@ -239,6 +239,25 @@ describe(proxyRequest.name, () => {
       expect(passedHeaders.get("x-custom")).toBe("custom-value");
     });
 
+    it("omits request headers listed in omitRequestHeaders", async () => {
+      const { mockFetch } = await setup({
+        reqHeaders: {
+          "x-organization-id": "request-value",
+          "x-custom": "value"
+        },
+        omitRequestHeaders: ["x-organization-id"],
+        fetchResponse: {
+          status: 200,
+          headers: new Headers(),
+          body: null
+        }
+      });
+
+      const passedHeaders = mockFetch.mock.calls[0]![1]!.headers!;
+      expect(passedHeaders.has("x-organization-id")).toBe(false);
+      expect(passedHeaders.get("x-custom")).toBe("value");
+    });
+
     it("filters hop-by-hop headers from response", async () => {
       const { res } = await setup({
         fetchResponse: {
@@ -425,6 +444,7 @@ describe(proxyRequest.name, () => {
     requestBody?: string;
     reqHeaders?: Record<string, string | string[] | undefined>;
     customHeaders?: HeadersInit;
+    omitRequestHeaders?: string[];
     fetchResponse?: {
       status: number;
       headers: Headers;
@@ -514,6 +534,7 @@ describe(proxyRequest.name, () => {
       timeout: input.timeout,
       signal: input.signal,
       headers: input.customHeaders,
+      omitRequestHeaders: input.omitRequestHeaders,
       fetch: mockFetch as unknown as typeof globalThis.fetch
     });
 
