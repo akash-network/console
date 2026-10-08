@@ -34,7 +34,8 @@ export class UserController {
       subscribedToNewsletter: !!data.subscribedToNewsletter,
       ip: httpVars.clientInfo?.ip,
       userAgent: httpVars.clientInfo?.userAgent,
-      fingerprint: httpVars.clientInfo?.fingerprint
+      fingerprint: httpVars.clientInfo?.fingerprint,
+      referralCode: data.referralCode
     });
     return { data: user, isNewUser };
   }
