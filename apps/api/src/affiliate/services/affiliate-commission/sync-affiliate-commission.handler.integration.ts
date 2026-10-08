@@ -8,7 +8,7 @@ import { PaymentMethodRepository, StripeTransactionRepository, UserWalletReposit
 import { RefillService } from "@src/billing/services/refill/refill.service";
 import { JOB_NAME } from "@src/core";
 import { SyncAffiliateCommissionHandler } from "./sync-affiliate-commission.handler";
-import { SyncAffiliateCommission } from "./sync-affiliate-commission.job";
+import { type AffiliateCommissionSyncTrigger, SyncAffiliateCommission } from "./sync-affiliate-commission.job";
 
 import { seedUser, seedUserWithWallet } from "@test/seeders/db/user-with-wallet.seeder";
 import { expectJobCompleted, useJobWorkers } from "@test/services/job-queue-harness";
@@ -68,10 +68,35 @@ describe(SyncAffiliateCommissionHandler.name, () => {
     const stripeTransactionRepository = container.resolve(StripeTransactionRepository);
     const commission = await stripeTransactionRepository.createAffiliateCommission({ userId: affiliateUser.id, amount: 500, sourceTransactionId: payment.id });
 
-    await syncCommissionOf(payment.id);
+    await syncCommissionOf(payment.id, "refund");
 
     await expect(stripeTransactionRepository.findById(commission.id)).resolves.toMatchObject({ status: "succeeded", amount: 500, amountRefunded: 200 });
     expect(reduceWalletBalance).toHaveBeenCalledWith(200, affiliateUser.id, { currency: "usd", transactionId: commission.id });
+  });
+
+  it("records nothing when a refund sync finds no commission to take back", async () => {
+    const { payment, topUpWallet, reduceWalletBalance, syncCommissionOf } = await setup({ paymentAmountRefunded: 4000 });
+
+    await syncCommissionOf(payment.id, "refund");
+
+    await expect(container.resolve(StripeTransactionRepository).findAffiliateCommissionBySource(payment.id)).resolves.toBeUndefined();
+    expect(topUpWallet).not.toHaveBeenCalled();
+    expect(reduceWalletBalance).not.toHaveBeenCalled();
+  });
+
+  it("grants only what is left of the commission when the payment was partly refunded before the settlement sync ran", async () => {
+    const { payment, affiliateUser, topUpWallet, reduceWalletBalance, syncCommissionOf } = await setup({ paymentAmount: 10000, paymentAmountRefunded: 4000 });
+
+    await syncCommissionOf(payment.id);
+
+    await expect(container.resolve(StripeTransactionRepository).findAffiliateCommissionBySource(payment.id)).resolves.toMatchObject({
+      userId: affiliateUser.id,
+      status: "succeeded",
+      amount: 500,
+      amountRefunded: 200
+    });
+    expect(topUpWallet).toHaveBeenCalledExactlyOnceWith(300, affiliateUser.id, expect.anything());
+    expect(reduceWalletBalance).not.toHaveBeenCalled();
   });
 
   it("records nothing for a payment that has not settled", async () => {
@@ -105,8 +130,8 @@ describe(SyncAffiliateCommissionHandler.name, () => {
     const topUpWallet = vi.spyOn(container.resolve(RefillService), "topUpWallet").mockResolvedValue({ walletId: affiliateWallet.id, address });
     const reduceWalletBalance = vi.spyOn(container.resolve(RefillService), "reduceWalletBalance").mockResolvedValue({ shortfallCents: 0 });
 
-    async function syncCommissionOf(transactionId: string) {
-      await enqueue(new SyncAffiliateCommission({ transactionId }));
+    async function syncCommissionOf(transactionId: string, trigger: AffiliateCommissionSyncTrigger = "settlement") {
+      await enqueue(new SyncAffiliateCommission({ transactionId, trigger }));
       await startWorkers();
       await expectJobCompleted(SyncAffiliateCommission[JOB_NAME], { data: { transactionId } });
     }

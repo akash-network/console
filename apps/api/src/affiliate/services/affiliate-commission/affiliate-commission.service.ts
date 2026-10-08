@@ -17,6 +17,7 @@ import { AnalyticsService } from "@src/core/services/analytics/analytics.service
 import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
 import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import { TxService } from "@src/core/services/tx/tx.service";
+import type { AffiliateCommissionSyncTrigger } from "./sync-affiliate-commission.job";
 
 type SkipReason =
   | "not_referred"
@@ -24,6 +25,7 @@ type SkipReason =
   | "affiliate_revoked"
   | "commission_window_ended"
   | "below_one_cent"
+  | "nothing_left_to_grant"
   | "affiliate_abuse_locked"
   | "shared_payment_method";
 
@@ -46,38 +48,44 @@ export class AffiliateCommissionService {
   }
 
   /** Holds the payment row lock until commit, so syncs of one payment run in turn and each sees the commission the previous one recorded. */
-  async syncCommission(transactionId: string): Promise<void> {
+  async syncCommission(transactionId: string, trigger: AffiliateCommissionSyncTrigger): Promise<void> {
     await this.txService.transaction(async () => {
       const payment = await this.stripeTransactionRepository.findOneByAndLock({ id: transactionId });
       if (!payment || payment.type !== "payment_intent" || !SETTLED_TRANSACTION_STATUSES.has(payment.status)) return;
 
-      const commission = (await this.stripeTransactionRepository.findAffiliateCommissionBySourceAndLock(payment.id)) ?? (await this.#grant(payment));
-      if (!commission) return;
-
-      await this.#reconcileReversal(payment, commission);
+      const commission = await this.stripeTransactionRepository.findAffiliateCommissionBySourceAndLock(payment.id);
+      if (commission) await this.#reconcileReversal(payment, commission);
+      else if (trigger === "settlement") await this.#grant(payment);
     });
   }
 
-  async #grant(payment: StripeTransactionOutput): Promise<StripeTransactionOutput | undefined> {
+  /** Credits only what is left after refunds already recorded on the payment, so the top-up stays the grant's single and last chain write. */
+  async #grant(payment: StripeTransactionOutput): Promise<void> {
     const attribution = await this.referralRepository.findWithAffiliateByReferredUserId(payment.userId);
     if (!attribution) return this.#skip(payment, "not_referred");
 
     const { affiliate } = attribution;
     const amount = Math.floor((payment.amount * AFFILIATE_COMMISSION_PERCENT) / 100);
-    const skipReason = await this.#findSkipReason(payment, attribution, amount);
+    const grantedAmount = this.#keptCommission(amount, payment);
+    const skipReason = await this.#findSkipReason(payment, attribution, { amount, grantedAmount });
     if (skipReason) return this.#skip(payment, skipReason);
 
-    const commission = await this.#recordCommission({ userId: affiliate.userId, amount, sourceTransactionId: payment.id });
-    if (!commission) return undefined;
+    const commission = await this.#recordCommission({
+      userId: affiliate.userId,
+      amount,
+      amountRefunded: amount - grantedAmount,
+      sourceTransactionId: payment.id
+    });
+    if (!commission) return;
 
-    await this.refillService.topUpWallet(amount, affiliate.userId, {
+    await this.refillService.topUpWallet(grantedAmount, affiliate.userId, {
       endTrial: false,
       liftAbuseLock: false,
       payment: { source: "affiliate_commission", transactionId: commission.id, currency: "usd" }
     });
 
     this.analyticsService.track(affiliate.userId, "affiliate_commission_granted", {
-      amount_cents: amount,
+      amount_cents: grantedAmount,
       source_transaction_id: payment.id,
       referred_user_id: payment.userId
     });
@@ -86,17 +94,21 @@ export class AffiliateCommissionService {
       commissionId: commission.id,
       affiliateUserId: affiliate.userId,
       sourceTransactionId: payment.id,
-      amountCents: amount
+      amountCents: grantedAmount,
+      grossAmountCents: amount
     });
-
-    return commission;
   }
 
-  async #findSkipReason(payment: StripeTransactionOutput, { referral, affiliate }: ReferralWithAffiliate, amount: number): Promise<SkipReason | undefined> {
+  async #findSkipReason(
+    payment: StripeTransactionOutput,
+    { referral, affiliate }: ReferralWithAffiliate,
+    { amount, grantedAmount }: { amount: number; grantedAmount: number }
+  ): Promise<SkipReason | undefined> {
     if (!this.featureFlagsService.isEnabled(FeatureFlags.AFFILIATE_PROGRAM, { userId: affiliate.userId })) return "program_disabled";
     if (affiliate.revokedAt) return "affiliate_revoked";
     if (isAfter(payment.createdAt, addMonths(new Date(referral.createdAt), AFFILIATE_COMMISSION_MONTHS))) return "commission_window_ended";
     if (amount <= 0) return "below_one_cent";
+    if (grantedAmount <= 0) return "nothing_left_to_grant";
     if (await this.#isWalletAbuseLocked(affiliate.userId)) return "affiliate_abuse_locked";
     if (await this.paymentMethodRepository.hasSharedFingerprint(payment.userId, affiliate.userId)) return "shared_payment_method";
 
@@ -109,7 +121,12 @@ export class AffiliateCommissionService {
   }
 
   /** The payment row lock already serializes syncs, so a unique violation here means a commission landed outside that lock and must not be credited twice. */
-  async #recordCommission(input: { userId: string; amount: number; sourceTransactionId: string }): Promise<StripeTransactionOutput | undefined> {
+  async #recordCommission(input: {
+    userId: string;
+    amount: number;
+    amountRefunded: number;
+    sourceTransactionId: string;
+  }): Promise<StripeTransactionOutput | undefined> {
     try {
       return await this.stripeTransactionRepository.createAffiliateCommission(input);
     } catch (error) {
@@ -122,9 +139,8 @@ export class AffiliateCommissionService {
 
   /** Recomputes what the commission should be from what the payer still paid, so a redelivered refund or a repeated sync takes back nothing twice. */
   async #reconcileReversal(payment: StripeTransactionOutput, commission: StripeTransactionOutput): Promise<void> {
-    const netPaid = payment.disputeLostAt ? 0 : payment.amount - payment.amountRefunded;
-    const targetNet = Math.floor((netPaid * AFFILIATE_COMMISSION_PERCENT) / 100);
-    const targetReversed = Math.max(commission.amountRefunded, commission.amount - targetNet);
+    const keptAmount = this.#keptCommission(commission.amount, payment);
+    const targetReversed = Math.min(commission.amount, Math.max(commission.amountRefunded, commission.amount - keptAmount));
     const delta = targetReversed - commission.amountRefunded;
     if (delta <= 0) return;
 
@@ -153,8 +169,13 @@ export class AffiliateCommissionService {
     });
   }
 
-  #skip(payment: StripeTransactionOutput, reason: SkipReason): undefined {
+  /** Scales the commission by the share of the payment the payer still paid, so a refund never takes back more than its share whatever rate the commission was granted at. */
+  #keptCommission(commissionAmount: number, payment: StripeTransactionOutput): number {
+    const netPaid = payment.disputeLostAt ? 0 : payment.amount - payment.amountRefunded;
+    return Math.floor((commissionAmount * netPaid) / payment.amount);
+  }
+
+  #skip(payment: StripeTransactionOutput, reason: SkipReason): void {
     this.#logger.debug({ event: "AFFILIATE_COMMISSION_SKIPPED", transactionId: payment.id, reason });
-    return undefined;
   }
 }

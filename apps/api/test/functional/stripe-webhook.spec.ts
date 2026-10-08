@@ -836,11 +836,13 @@ describe("Stripe webhook", () => {
         const disputedPayment = await stripeTransactionRepository.findById(payment.id);
         const commission = await stripeTransactionRepository.findAffiliateCommissionBySource(payment.id);
         const affiliateWallet = await userWalletsQuery.findFirst({ where: eq(userWalletsTable.userId, affiliateUser.id) });
+        const payerWallet = await userWalletsQuery.findFirst({ where: eq(userWalletsTable.userId, user.id) });
 
         expect(response.status).toBe(200);
         expect(disputedPayment?.disputeLostAt).toEqual(new Date(DISPUTE_CLOSED_AT * 1000));
         expect(commission).toMatchObject({ status: "refunded", amount: 500, amountRefunded: 500 });
         expect(affiliateWallet?.deploymentAllowance).toBe("0.00");
+        expect(payerWallet?.deploymentAllowance).toBe(`${billingConfig.TRIAL_DEPLOYMENT_ALLOWANCE_AMOUNT}.00`);
       });
 
       it("keeps the referring affiliate's commission when Console wins the dispute", async () => {

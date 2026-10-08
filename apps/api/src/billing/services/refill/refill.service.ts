@@ -120,14 +120,14 @@ export class RefillService {
    * @param amountUsd - The amount in USD *cents* to reduce from the wallet (e.g. 10000 = $100)
    * @param userId - The ID of the user to reduce the wallet for
    * @param payment - Payment context attached to the `balance_refund` analytics event
-   * @returns The part of the amount, in cents, that the allowance could not cover, since it never goes below zero.
+   * @returns The part of the amount the allowance could not cover, in cents rounded up, since the allowance never goes below zero.
    */
   async reduceWalletBalance(
     amountUsd: number,
     userId: UserWalletOutput["userId"],
     payment?: Pick<PaymentAnalyticsContext, "currency" | "transactionId">
   ): Promise<ReducedWalletBalance> {
-    const userWallet = await this.userWalletRepository.findOneBy({ userId });
+    const userWallet = await this.lockExistingWallet(userId);
 
     if (!userWallet || !userWallet.address) {
       this.logger.warn({ event: "WALLET_REDUCE_NO_WALLET", userId });
@@ -155,7 +155,7 @@ export class RefillService {
     });
     this.logger.info({ event: "WALLET_BALANCE_REDUCED", userId, amountUsd, previousLimit: currentLimit, nextLimit });
 
-    return { shortfallCents: Math.max(0, reductionAmount - currentLimit) / 10000 };
+    return { shortfallCents: Math.ceil(Math.max(0, reductionAmount - currentLimit) / 10000) };
   }
 
   /** A failed clear is logged instead of thrown: authorizeSpending has already raised the on-chain allowance, so rolling the settlement back would let a webhook retry credit the same charge twice. */
@@ -168,6 +168,14 @@ export class RefillService {
     } catch (error) {
       this.logger.error({ event: "WALLET_ABUSE_LOCK_CLEAR_FAILED", walletId: userWallet.id, userId: userWallet.userId, error });
     }
+  }
+
+  /** Holds the wallet row until the caller commits, so a reduction and a credit of the same wallet each start from the limit the other one wrote. */
+  private async lockExistingWallet(userId: UserWalletOutput["userId"]) {
+    const userWallet = await this.userWalletRepository.findOneBy({ userId });
+    if (!userWallet) return undefined;
+
+    return (await this.userWalletRepository.findOneByAndLock({ id: userWallet.id })) ?? userWallet;
   }
 
   /** Holds the wallet row until the settlement commits, so an abuse wipe of the same wallet waits for it instead of revoking between this grant and its bookkeeping. */
