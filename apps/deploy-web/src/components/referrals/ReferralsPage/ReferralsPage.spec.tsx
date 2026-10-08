@@ -105,6 +105,31 @@ describe(ReferralsPage.name, () => {
     expect(row).toHaveTextContent("5.00");
   });
 
+  it("labels the commission table columns", () => {
+    setup({
+      isAffiliateProgramEnabled: true,
+      profile: buildProfile({
+        commissions: [{ id: "commission-1", createdAt: "2024-06-10T12:00:00.000Z", amountUsd: 5, reversedUsd: 0 }]
+      })
+    });
+
+    expect(screen.getAllByRole("columnheader").map(header => header.textContent)).toEqual(["Date", "Amount", "Taken back"]);
+  });
+
+  it("shows a dash in place of a deduction when nothing was taken back", () => {
+    setup({
+      isAffiliateProgramEnabled: true,
+      profile: buildProfile({
+        commissions: [{ id: "commission-1", createdAt: "2024-06-10T12:00:00.000Z", amountUsd: 5, reversedUsd: 0 }]
+      })
+    });
+
+    const row = screen.getByRole("row", { name: /6\/10\/2024/ });
+
+    expect(row).toHaveTextContent("—");
+    expect(row).not.toHaveTextContent("-5.00");
+  });
+
   it("shows a reversed commission's taken-back amount as a deduction", () => {
     setup({
       isAffiliateProgramEnabled: true,
