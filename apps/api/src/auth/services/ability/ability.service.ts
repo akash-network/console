@@ -30,7 +30,8 @@ export class AbilityService {
       { action: "create", subject: "HardwareRequest", conditions: { userId: "${user.id}" } },
       { action: ["read", "update"], subject: "Activity", conditions: { userId: "${user.id}" } },
       { action: "manage", subject: "FavoriteProvider", conditions: { userId: "${user.id}" } },
-      { action: "manage", subject: "ConfigureDraft", conditions: { userId: "${user.id}" } }
+      { action: "manage", subject: "ConfigureDraft", conditions: { userId: "${user.id}" } },
+      { action: "read", subject: "Affiliate", conditions: { userId: "${user.id}" } }
     ],
     REGULAR_PAYING_USER: [
       { action: ["read", "sign"], subject: "UserWallet", conditions: { userId: "${user.id}" } },
@@ -48,7 +49,8 @@ export class AbilityService {
       { action: "create", subject: "HardwareRequest", conditions: { userId: "${user.id}" } },
       { action: ["read", "update"], subject: "Activity", conditions: { userId: "${user.id}" } },
       { action: "manage", subject: "FavoriteProvider", conditions: { userId: "${user.id}" } },
-      { action: "manage", subject: "ConfigureDraft", conditions: { userId: "${user.id}" } }
+      { action: "manage", subject: "ConfigureDraft", conditions: { userId: "${user.id}" } },
+      { action: "read", subject: "Affiliate", conditions: { userId: "${user.id}" } }
     ],
     SUPER_USER: [{ action: "manage", subject: "all" }]
   };

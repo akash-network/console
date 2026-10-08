@@ -2588,6 +2588,75 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
         ],
       },
     },
+    "/v1/affiliates/me": {
+      "get": {
+        "operationId": "getAffiliateProfile",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "nullable": true,
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                        },
+                        "terms": {
+                          "properties": {
+                            "commissionMonths": {
+                              "type": "number",
+                            },
+                            "commissionPercent": {
+                              "type": "number",
+                            },
+                            "referralTrialCreditsUsd": {
+                              "type": "number",
+                            },
+                          },
+                          "required": [
+                            "commissionPercent",
+                            "commissionMonths",
+                            "referralTrialCreditsUsd",
+                          ],
+                          "type": "object",
+                        },
+                      },
+                      "required": [
+                        "code",
+                        "terms",
+                      ],
+                      "type": "object",
+                    },
+                  },
+                  "required": [
+                    "data",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "The caller's affiliate profile, or null when they are not an approved affiliate",
+          },
+          "401": {
+            "description": "Unauthorized",
+          },
+        },
+        "security": [
+          {
+            "BearerAuth": [],
+          },
+          {
+            "ApiKeyAuth": [],
+          },
+        ],
+        "summary": "Get the caller's affiliate profile",
+        "tags": [
+          "Affiliates",
+        ],
+      },
+    },
     "/v1/api-keys": {
       "get": {
         "operationId": "listApiKeys",
