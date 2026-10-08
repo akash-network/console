@@ -100,9 +100,14 @@ export class RefillService {
    * @param amountUsd - The amount in USD *cents* to top up the wallet with (e.g. 10000 = $100)
    * @param payer - The member who paid and the organization paying, read off the transaction
    * @param options.payment - The payment credited, whose remaining context is attached to the `balance_top_up` analytics event
+   * @param options.liftAbuseLock - Whether the credit clears the wallet's abuse lock (default true), which only money the user paid themselves should do
    * @returns The credited wallet's identifiers, so the caller can fund its draining deployments after the credit commits.
    */
-  async topUpWallet(amountUsd: number, payer: WalletPayer, options: { endTrial?: boolean; payment: CreditedPayment }): Promise<ToppedUpWallet> {
+  async topUpWallet(
+    amountUsd: number,
+    payer: WalletPayer,
+    options: { endTrial?: boolean; liftAbuseLock?: boolean; payment: CreditedPayment }
+  ): Promise<ToppedUpWallet> {
     const { userId } = payer;
     const userWallet = await this.lockActivatedWallet(payer);
 
@@ -114,7 +119,10 @@ export class RefillService {
     });
 
     await this.balancesService.refreshUserWalletLimits(userWallet, { endTrial: options.endTrial ?? true });
-    await this.clearAbuseLockOnPayment(userWallet, userId);
+
+    if (options.liftAbuseLock ?? true) {
+      await this.clearAbuseLockOnPayment(userWallet, userId);
+    }
 
     this.#trackFor(userId, "balance_top_up", {
       amount_cents: amountUsd,

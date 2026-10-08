@@ -1,6 +1,7 @@
 import { container } from "tsyringe";
 
 import { PurgeExpiredActivitiesHandler } from "@src/activity/services/purge-expired-activities/purge-expired-activities.handler";
+import { SyncAffiliateCommissionHandler } from "@src/affiliate/services/affiliate-commission/sync-affiliate-commission.handler";
 import { ApiKeyExpiryReminderHandler } from "@src/auth/services/api-key-expiry-reminder/api-key-expiry-reminder.handler";
 import { ActivateTrialHandler } from "@src/billing/services/activate-trial/activate-trial.handler";
 import { CardPaymentInvoiceHandler } from "@src/billing/services/card-payment-invoice/card-payment-invoice.handler";
@@ -152,7 +153,8 @@ export async function startJobQueues(): Promise<void> {
     container.resolve(RecordUnmetGpuScreeningHandler),
     container.resolve(ClassifyFeedbackHandler),
     container.resolve(ClassifyConversationHandler),
-    container.resolve(SweepFeedbackHandler)
+    container.resolve(SweepFeedbackHandler),
+    container.resolve(SyncAffiliateCommissionHandler)
   ]);
 }
 

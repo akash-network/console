@@ -4,8 +4,9 @@ import { and, eq } from "drizzle-orm";
 import nock from "nock";
 import stripe from "stripe";
 import { container } from "tsyringe";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
+import { startJobQueues } from "@src/app/providers/jobs.provider";
 import { AuthService } from "@src/auth/services/auth.service";
 import { UserAuthTokenService } from "@src/auth/services/user-auth-token/user-auth-token.service";
 import { BILLING_CONFIG } from "@src/billing/providers";
@@ -40,6 +41,10 @@ function isoSeconds(epochMs: number) {
 describe("Organization billing", () => {
   const db = container.resolve<ApiPgDatabase>(POSTGRES_DB);
   const registry = container.resolve<Registry>(TYPE_REGISTRY);
+
+  beforeAll(async () => {
+    await startJobQueues();
+  }, 20_000);
 
   afterEach(() => {
     vi.restoreAllMocks();
