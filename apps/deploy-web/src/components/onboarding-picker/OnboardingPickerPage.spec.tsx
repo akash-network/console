@@ -28,10 +28,16 @@ describe(OnboardingPickerPage.name, () => {
     expect(titles).toEqual(["Hello world", "Space Agent", "LLM Chatbot"]);
   });
 
-  it("renders the trial credit amount from public config", () => {
-    setup({ trialCreditsAmount: 1 });
+  it("renders the trial credit amount from public config when the user was not referred", () => {
+    setup({ trialCreditsAmount: 1, referral: undefined });
 
     expect(screen.getByText("$1 in free trial credits")).toBeInTheDocument();
+  });
+
+  it("renders the referral trial credit amount instead of the public config amount when the user was referred", () => {
+    setup({ trialCreditsAmount: 1, referral: { trialCreditsUsd: 5 } });
+
+    expect(screen.getByText("$5 in free trial credits")).toBeInTheDocument();
   });
 
   it("renders the first-purchase bonus offer", () => {
@@ -348,6 +354,7 @@ describe(OnboardingPickerPage.name, () => {
       isTrialing?: boolean;
       isHackathonsEnabled?: boolean;
       trialCreditsAmount?: number;
+      referral?: { trialCreditsUsd: number };
       dependencies?: Partial<typeof DEPENDENCIES>;
     } = {}
   ) {
@@ -367,6 +374,7 @@ describe(OnboardingPickerPage.name, () => {
     );
     const useWallet: typeof DEPENDENCIES.useWallet = () => mock<ReturnType<typeof DEPENDENCIES.useWallet>>({ isTrialing });
     const useFlag: typeof DEPENDENCIES.useFlag = flag => (flag === "hackathons" ? isHackathonsEnabled : false);
+    const useReferralQuery: typeof DEPENDENCIES.useReferralQuery = () => mock<ReturnType<typeof DEPENDENCIES.useReferralQuery>>({ data: input.referral });
     const analyticsService = mock<AnalyticsService>();
     const useServices: typeof DEPENDENCIES.useServices = () =>
       mock<ReturnType<typeof DEPENDENCIES.useServices>>({
@@ -383,6 +391,7 @@ describe(OnboardingPickerPage.name, () => {
           useEnsureTrialStarted,
           useWallet,
           useFlag,
+          useReferralQuery,
           useServices,
           ...input.dependencies
         })}
