@@ -147,6 +147,20 @@ describe(ActivityHistoryPage.name, () => {
     expect(screen.getByRole("link", { name: "Go to previous page" })).toHaveAttribute("aria-disabled", "false");
   });
 
+  it("holds both paging controls while the page it moved to is still loading", async () => {
+    setup({
+      pages: {
+        first: { activities: [buildActivity()], nextCursor: "cursor-2" },
+        "cursor-2": { activities: [buildActivity()], nextCursor: "cursor-2", isPlaceholderData: true }
+      }
+    });
+
+    await userEvent.click(screen.getByRole("link", { name: "Go to next page" }));
+
+    expect(screen.getByRole("link", { name: "Go to next page" })).toHaveAttribute("aria-disabled", "true");
+    expect(screen.getByRole("link", { name: "Go to previous page" })).toHaveAttribute("aria-disabled", "true");
+  });
+
   it("leaves paging out while everything fits on one page", () => {
     setup({ pages: { first: { activities: [buildActivity()], nextCursor: null } } });
 
@@ -202,7 +216,7 @@ describe(ActivityHistoryPage.name, () => {
   }
 
   function setup(input: {
-    pages?: Record<string, { activities: Activity[]; nextCursor?: string | null }>;
+    pages?: Record<string, { activities: Activity[]; nextCursor?: string | null; isPlaceholderData?: boolean }>;
     names?: Record<string, string>;
     isLoading?: boolean;
     isError?: boolean;
@@ -214,6 +228,7 @@ describe(ActivityHistoryPage.name, () => {
       return Object.assign(mock<ReturnType<typeof DEPENDENCIES.useActivityHistoryQuery>>(), {
         data: page && { activities: page.activities, nextCursor: page.nextCursor ?? null },
         isLoading: input.isLoading ?? false,
+        isPlaceholderData: page?.isPlaceholderData ?? false,
         isError: input.isError ?? false,
         refetch
       });

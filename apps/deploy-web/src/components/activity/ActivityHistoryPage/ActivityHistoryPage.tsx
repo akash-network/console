@@ -42,7 +42,7 @@ export function ActivityHistoryPage({ dependencies: d = DEPENDENCIES }: { depend
   const [type, setType] = useState<Activity["type"]>();
   const [olderPageCursors, setOlderPageCursors] = useState<string[]>([]);
   const cursor = olderPageCursors.at(-1);
-  const { data, isError, refetch } = d.useActivityHistoryQuery({ status, type, cursor });
+  const { data, isError, isPlaceholderData, refetch } = d.useActivityHistoryQuery({ status, type, cursor });
   const activities = data?.activities ?? [];
   const nextCursor = data?.nextCursor ?? null;
   const { getDeploymentName } = d.useDeploymentNames(activities.map(activity => activity.meta.dseq));
@@ -122,10 +122,10 @@ export function ActivityHistoryPage({ dependencies: d = DEPENDENCIES }: { depend
               <Pagination className="pt-6">
                 <PaginationContent>
                   <PaginationItem>
-                    <PaginationPrevious onClick={showNewerPage} disabled={!hasNewerPage} />
+                    <PaginationPrevious onClick={showNewerPage} disabled={!hasNewerPage || isPlaceholderData} />
                   </PaginationItem>
                   <PaginationItem>
-                    <PaginationNext onClick={showOlderPage} disabled={!nextCursor} />
+                    <PaginationNext onClick={showOlderPage} disabled={!nextCursor || isPlaceholderData} />
                   </PaginationItem>
                 </PaginationContent>
               </Pagination>
