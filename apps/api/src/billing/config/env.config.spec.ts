@@ -49,6 +49,20 @@ describe("envSchema", () => {
     });
   });
 
+  describe("REFERRAL_TRIAL_DEPLOYMENT_ALLOWANCE_AMOUNT", () => {
+    it("defaults to 5000000 when absent", () => {
+      const result = setup({});
+      expect(result.success).toBe(true);
+      expect(result.data?.REFERRAL_TRIAL_DEPLOYMENT_ALLOWANCE_AMOUNT).toBe(5000000);
+    });
+
+    it("coerces a string value", () => {
+      const result = setup({ REFERRAL_TRIAL_DEPLOYMENT_ALLOWANCE_AMOUNT: "7500000" });
+      expect(result.success).toBe(true);
+      expect(result.data?.REFERRAL_TRIAL_DEPLOYMENT_ALLOWANCE_AMOUNT).toBe(7500000);
+    });
+  });
+
   describe("MASTER_WALLET_MAX_MINT_UAKT", () => {
     it("rejects a negative value", () => {
       const result = setup({ MASTER_WALLET_MAX_MINT_UAKT: "-1" });
