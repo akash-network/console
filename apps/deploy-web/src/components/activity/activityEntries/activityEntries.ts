@@ -26,20 +26,20 @@ export function activityEntriesOf(activities: Activity[], labelDeployment: Label
 
     const { batchId } = activity.meta;
     if (!batchId) {
-      entries.push(singleEntryOf(activity, labelDeployment));
+      entries.push(activityEntryOf(activity, labelDeployment));
       continue;
     }
     if (listedBatchIds.has(batchId)) continue;
 
     listedBatchIds.add(batchId);
     const batch = activities.filter(member => member.meta.batchId === batchId);
-    entries.push(batch.length === 1 ? singleEntryOf(activity, labelDeployment) : batchEntryOf(batchId, batch, labelDeployment));
+    entries.push(batch.length === 1 ? activityEntryOf(activity, labelDeployment) : batchEntryOf(batchId, batch, labelDeployment));
   }
 
   return entries;
 }
 
-function singleEntryOf({ id, status, meta, createdAt }: Activity, labelDeployment: LabelDeployment): ActivityEntry {
+export function activityEntryOf({ id, status, meta, createdAt }: Activity, labelDeployment: LabelDeployment): ActivityEntry {
   const deployment = labelDeployment(meta.dseq);
   const href = meta.dseq ? UrlService.deploymentDetails(meta.dseq, status === "failed" ? "SETTINGS" : undefined) : UrlService.deploymentList();
 

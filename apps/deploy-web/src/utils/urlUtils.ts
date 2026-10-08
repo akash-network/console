@@ -73,6 +73,7 @@ export const UrlService = {
   // Deploy
   onboardingPicker: ({ redeemCoupon }: { redeemCoupon?: boolean } = {}) => `/onboarding${appendSearchParams({ redeemCoupon })}`,
   deploymentList: () => `/deployments`,
+  activity: () => "/activity",
   deploymentDetails: (dseq: string, tab?: string, logsMode?: string) => `/deployments/${dseq}${appendSearchParams({ tab, logsMode })}`,
   templates: (category?: string | null, search?: string) => `/templates${appendSearchParams({ category, search })}`,
   templateDetails: (templateId: string) => `/templates/${templateId}`,
