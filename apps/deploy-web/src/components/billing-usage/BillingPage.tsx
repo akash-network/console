@@ -20,7 +20,7 @@ export const BillingPage: FC = () => {
   const isBackgroundLoading = useBillingBackgroundLoading();
 
   return (
-    <Layout isLoading={isBackgroundLoading} disableContainer containerClassName="flex h-full flex-col justify-between">
+    <Layout background="dots" isLoading={isBackgroundLoading} disableContainer containerClassName="flex h-full flex-col justify-between">
       <NextSeo title="Billing" />
       <SettingsLayout
         title="Billing"

@@ -380,7 +380,7 @@ const FilterChip: FC<{ label: string; isOn: boolean; onToggle: () => void }> = (
     type="button"
     aria-pressed={isOn}
     onClick={onToggle}
-    className="inline-flex h-[26px] items-center whitespace-nowrap rounded-lg border px-[9px] text-[11.5px] font-medium text-muted-foreground transition-colors aria-pressed:border-foreground aria-pressed:bg-foreground aria-pressed:text-background hover:text-foreground"
+    className="inline-flex h-[26px] items-center whitespace-nowrap rounded-lg border bg-card px-[9px] text-[11.5px] font-medium text-muted-foreground transition-colors aria-pressed:border-foreground aria-pressed:bg-foreground aria-pressed:text-background hover:text-foreground"
   >
     {label}
   </button>

@@ -61,7 +61,7 @@ export const DeploymentsList: React.FunctionComponent<Props> = ({ dependencies: 
   };
 
   return (
-    <d.Layout isLoading={model.isLoadingDeployments || model.isLoadingProviders} disableContainer>
+    <d.Layout background="dots" isLoading={model.isLoadingDeployments || model.isLoadingProviders} disableContainer>
       <NextSeo title="Deployments" />
 
       <div className="flex flex-col md:h-page-viewport">

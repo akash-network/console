@@ -1,6 +1,18 @@
 import createTailwindConfig from "@akashnetwork/ui/tailwind";
+import type { PluginCreator } from "tailwindcss/types/config";
 
 const config = createTailwindConfig("deploy-web");
+
+const dotGridBackground: PluginCreator = ({ addUtilities }) => {
+  addUtilities({
+    ".bg-dots": {
+      backgroundImage: "radial-gradient(circle, hsl(var(--foreground) / 0.035) 2px, transparent 2px)",
+      backgroundSize: "26px 26px"
+    }
+  });
+};
+
+config.plugins = [...(config.plugins ?? []), dotGridBackground];
 
 /** The viewport height left to a page under the fixed header and the 4px loading bar the layout reserves. */
 const PAGE_VIEWPORT_HEIGHT = "calc(100dvh - var(--app-header-height, 57px) - 4px)";

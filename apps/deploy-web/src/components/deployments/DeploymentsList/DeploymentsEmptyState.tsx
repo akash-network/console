@@ -38,7 +38,7 @@ export const DeploymentsEmptyState: FC<DeploymentsEmptyStateProps> = ({
   };
 
   return (
-    <div className="flex flex-col items-center justify-center rounded-xl border border-dashed px-6 py-20 text-center">
+    <div className="flex flex-col items-center justify-center rounded-xl border border-dashed bg-card px-6 py-20 text-center">
       <p className="font-mono text-xs uppercase tracking-[0.2em] text-muted-foreground">
         {hasDeployments ? "0 active deployments" : "0 deployments on the supercloud"}
       </p>

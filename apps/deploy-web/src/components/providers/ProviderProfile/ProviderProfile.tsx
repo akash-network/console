@@ -51,7 +51,7 @@ export const ProviderProfile: FC<Props> = ({ owner, initialProvider, dependencie
   const freeMemoryBytes = provider.stats.memory.available;
 
   return (
-    <d.Layout disableContainer>
+    <d.Layout background="dots" disableContainer>
       <d.CustomNextSeo title={`Provider ${name}`} url={`${domainName}${UrlService.providerDetail(owner)}`} />
 
       <div className="container flex flex-col gap-3.5 px-4 pb-9 pt-[22px] md:px-6">

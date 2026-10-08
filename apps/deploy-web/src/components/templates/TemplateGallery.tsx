@@ -46,7 +46,7 @@ export const TemplateGallery: FC<{ dependencies?: typeof DEPENDENCIES }> = ({ de
   };
 
   return (
-    <d.Layout isLoading={isLoading} disableContainer containerClassName="flex h-full flex-col">
+    <d.Layout background="dots" isLoading={isLoading} disableContainer containerClassName="flex h-full flex-col">
       <d.CustomNextSeo
         title="Template Gallery"
         url={`${domainName}${UrlService.templates()}`}

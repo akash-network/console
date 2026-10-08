@@ -22,7 +22,7 @@ export const ProvidersPage: FC<Props> = ({ dependencies: d = DEPENDENCIES }) => 
   const isSearchingProviders = d.useIsFetching({ queryKey: QueryKeys.getAllProviderSearchesKey() }) > 0;
 
   return (
-    <d.Layout isLoading={isSearchingProviders} disableContainer>
+    <d.Layout background="dots" isLoading={isSearchingProviders} disableContainer>
       <d.CustomNextSeo
         title="Providers"
         url={`${domainName}${UrlService.providers()}`}

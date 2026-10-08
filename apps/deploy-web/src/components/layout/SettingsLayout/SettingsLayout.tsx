@@ -24,7 +24,7 @@ export const SettingsLayout: React.FunctionComponent<Props> = ({ title, descript
     <div className="flex w-full flex-col md:h-page-viewport md:flex-row">
       <nav
         aria-label="Settings"
-        className="flex shrink-0 gap-1 overflow-x-auto border-b border-border px-4 py-3 md:w-[216px] md:flex-col md:overflow-y-auto md:border-b-0 md:border-r md:py-7"
+        className="flex shrink-0 gap-1 overflow-x-auto border-b border-border bg-background px-4 py-3 md:w-[216px] md:flex-col md:overflow-y-auto md:border-b-0 md:border-r md:py-7"
       >
         {links.map(link => (
           <d.Link

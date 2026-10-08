@@ -70,7 +70,7 @@ export const DeploymentsCollection: FC<DeploymentsCollectionProps> = ({
   }
 
   return (
-    <div className="overflow-x-auto rounded-md border">
+    <div className="overflow-x-auto rounded-md border bg-card">
       <Table className={TABLE_LAYOUT}>
         <TableHeader>
           <TableRow>

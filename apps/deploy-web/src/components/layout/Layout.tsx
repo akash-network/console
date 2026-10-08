@@ -25,7 +25,7 @@ type Props = {
   isLoading?: boolean;
   disableContainer?: boolean;
   containerClassName?: string;
-  background?: "default" | "white";
+  background?: "default" | "white" | "dots";
   children?: ReactNode;
   dependencies?: typeof DEPENDENCIES;
 };
@@ -69,7 +69,7 @@ const LayoutApp: React.FunctionComponent<Props> = ({
   return (
     <div
       data-background={background}
-      className="relative flex min-h-dvh flex-col overflow-x-clip data-[background=white]:bg-white data-[background=white]:text-foreground dark:data-[background=white]:bg-background"
+      className="relative flex min-h-dvh flex-col overflow-x-clip data-[background=white]:bg-white data-[background=white]:text-foreground data-[background=dots]:bg-dots dark:data-[background=white]:bg-background"
     >
       <div className="w-full flex-1" style={{ marginTop: `var(--app-header-height, ${ACCOUNT_BAR_HEIGHT + (hasBanner ? 40 : 0)}px)` }}>
         <TopNav minimal={isStripped} />

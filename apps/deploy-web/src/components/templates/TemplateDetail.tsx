@@ -54,7 +54,7 @@ export const TemplateDetail: FC<TemplateDetailProps> = ({ template, dependencies
   };
 
   return (
-    <d.Layout disableContainer>
+    <d.Layout background="dots" disableContainer>
       <div className="container px-4 pb-16 pt-6 sm:px-6">
         <Link
           href={UrlService.templates()}
