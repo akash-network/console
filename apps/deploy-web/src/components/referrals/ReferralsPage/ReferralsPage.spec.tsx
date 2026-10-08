@@ -73,6 +73,19 @@ describe(ReferralsPage.name, () => {
     });
   });
 
+  it("checks the affiliate_program flag and enables the profile query only when it is on", () => {
+    const { useFlag, useAffiliateProfileQuery } = setup({ isAffiliateProgramEnabled: true, profile: buildProfile() });
+
+    expect(useFlag).toHaveBeenCalledWith("affiliate_program");
+    expect(useAffiliateProfileQuery).toHaveBeenCalledWith({ enabled: true });
+  });
+
+  it("disables the profile query when the flag is off", () => {
+    const { useAffiliateProfileQuery } = setup({ isAffiliateProgramEnabled: false });
+
+    expect(useAffiliateProfileQuery).toHaveBeenCalledWith({ enabled: false });
+  });
+
   function buildProfile(overrides: Partial<AffiliateProfile> = {}): AffiliateProfile {
     return { code: "friendcode", terms: { commissionPercent: 5, commissionMonths: 12, referralTrialCreditsUsd: 5 }, ...overrides };
   }
@@ -85,23 +98,26 @@ describe(ReferralsPage.name, () => {
 
     const SettingsLayout = vi.fn<typeof DEPENDENCIES.SettingsLayout>(({ children }) => <>{children}</>);
     const Layout = vi.fn<typeof DEPENDENCIES.Layout>(({ children }) => <>{children}</>);
+    const useFlag = vi.fn<typeof DEPENDENCIES.useFlag>(() => input.isAffiliateProgramEnabled);
+    const useAffiliateProfileQuery = vi.fn<typeof DEPENDENCIES.useAffiliateProfileQuery>(() =>
+      Object.assign(mock<ReturnType<typeof DEPENDENCIES.useAffiliateProfileQuery>>(), {
+        data: input.profile === undefined ? null : input.profile,
+        isLoading: input.isLoading ?? false
+      })
+    );
 
     const dependencies = MockComponents(DEPENDENCIES, {
       Layout,
       SettingsLayout,
       useRouter: () => mock<ReturnType<typeof DEPENDENCIES.useRouter>>(mockRouter),
       useSnackbar: () => mock<ReturnType<typeof DEPENDENCIES.useSnackbar>>({ enqueueSnackbar }),
-      useFlag: () => input.isAffiliateProgramEnabled,
-      useAffiliateProfileQuery: () =>
-        Object.assign(mock<ReturnType<typeof DEPENDENCIES.useAffiliateProfileQuery>>(), {
-          data: input.profile === undefined ? null : input.profile,
-          isLoading: input.isLoading ?? false
-        }),
+      useFlag,
+      useAffiliateProfileQuery,
       copyTextToClipboard
     });
 
     render(<ReferralsPage dependencies={dependencies} />);
 
-    return { user, mockRouter, enqueueSnackbar, copyTextToClipboard, SettingsLayout, Layout };
+    return { user, mockRouter, enqueueSnackbar, copyTextToClipboard, SettingsLayout, Layout, useFlag, useAffiliateProfileQuery };
   }
 });
