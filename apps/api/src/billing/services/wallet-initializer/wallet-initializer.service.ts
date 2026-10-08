@@ -105,6 +105,11 @@ export class WalletInitializerService {
 
     const deploymentLimit = await this.referralService.getTrialDeploymentLimit(user.id);
     const chainWallet = await this.walletManager.createAndAuthorizeTrialSpending(this.managedSignerService, { addressIndex: userWallet.id, deploymentLimit });
+
+    if (deploymentLimit !== undefined) {
+      await this.referralService.recordTrialGranted(user.id, deploymentLimit);
+    }
+
     const activatedWallet = await wallets.updateById(
       userWallet.id,
       {
@@ -114,10 +119,6 @@ export class WalletInitializerService {
       },
       { returning: true }
     );
-
-    if (deploymentLimit !== undefined) {
-      await this.referralService.recordTrialGranted(user.id, deploymentLimit);
-    }
 
     return { wallet: activatedWallet, isNew: true, isReferral: deploymentLimit !== undefined };
   }
