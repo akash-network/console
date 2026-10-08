@@ -142,6 +142,16 @@ describe(ReferralService.name, () => {
       expect(result).toEqual({ trialCreditsUsd: 5 });
     });
 
+    it("returns zero trial credits when the recorded amount is exactly zero cents", async () => {
+      const referral = createReferral({ referredUserId: "referred-user-id", trialCreditsCents: 0 });
+      const { service, referralRepository } = setup();
+      referralRepository.findByReferredUserId.mockResolvedValue(referral);
+
+      const result = await service.getReferral("referred-user-id");
+
+      expect(result).toEqual({ trialCreditsUsd: 0 });
+    });
+
     it("falls back to the configured referral trial amount before the trial is granted", async () => {
       const referral = createReferral({ referredUserId: "referred-user-id", trialCreditsCents: null });
       const { service, referralRepository, billingConfig } = setup();

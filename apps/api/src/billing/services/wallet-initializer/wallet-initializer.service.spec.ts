@@ -152,7 +152,7 @@ describe(WalletInitializerService.name, () => {
 
     it("records activation instrumentation on successful activation", async () => {
       const userId = "test-user-id";
-      const wallet = createUserWallet({ userId, activatedAt: null });
+      const wallet = createUserWallet({ userId, createdAt: new Date(Date.now() - 5_000), activatedAt: null });
       const getOrCreateWallet = vi.fn().mockResolvedValue({ wallet, isNew: false });
       const updateWalletById = vi.fn().mockImplementation(async (id, patch) => ({ ...wallet, ...patch }));
       const chainWallet = createChainWallet({ limits: { deployment: 20_000_000, fees: 100_000 } });
@@ -163,10 +163,11 @@ describe(WalletInitializerService.name, () => {
 
       await di.resolve(WalletInitializerService).initializeAndGrantTrialLimits(userId);
 
-      expect(di.resolve(TrialActivationInstrumentationService).recordActivated).toHaveBeenCalledWith(userId, expect.any(Number), {
-        isReferral: false,
-        trialCreditsUsd: 20
-      });
+      const recordActivated = vi.mocked(di.resolve(TrialActivationInstrumentationService).recordActivated);
+      const [, latencyMs, trial] = recordActivated.mock.calls[0];
+      expect(latencyMs).toBeGreaterThanOrEqual(0);
+      expect(latencyMs).toBeLessThan(60_000);
+      expect(trial).toEqual({ isReferral: false, trialCreditsUsd: 20 });
     });
 
     it("grants the referral trial deployment limit and records it when the user was referred", async () => {
