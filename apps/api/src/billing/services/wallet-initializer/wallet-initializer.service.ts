@@ -1,6 +1,7 @@
 import assert from "http-assert";
 import { singleton } from "tsyringe";
 
+import { ReferralService } from "@src/affiliate/services/referral/referral.service";
 import { TrialStarted } from "@src/billing/events/trial-started";
 import {
   isWalletInitialized,
@@ -23,6 +24,8 @@ import { BlockedEmailDomainService } from "@src/workload-abuse/services/blocked-
 import { DeletedAccountAbuseLockService } from "@src/workload-abuse/services/deleted-account-abuse-lock/deleted-account-abuse-lock.service";
 import { ManagedUserWalletService } from "../managed-user-wallet/managed-user-wallet.service";
 
+const MICRO_DENOM_PER_UNIT = 1_000_000;
+
 /** Names the domain, unlike the registration refusal: only a verified account holder sees it, and support needs to be able to act on it. */
 export const TRIAL_BLOCKED_DOMAIN_MESSAGE = "Trial is not available for this email domain. Please contact support for assistance.";
 
@@ -40,7 +43,8 @@ export class WalletInitializerService {
     private readonly trialValidationService: TrialValidationService,
     private readonly blockedEmailDomainService: BlockedEmailDomainService,
     private readonly deletedAccountAbuseLockService: DeletedAccountAbuseLockService,
-    private readonly txService: TxService
+    private readonly txService: TxService,
+    private readonly referralService: ReferralService
   ) {}
 
   async #assertNoDuplicateFingerprint(user: UserOutput): Promise<void> {
@@ -74,13 +78,19 @@ export class WalletInitializerService {
     if (!activation.isNew) return activatedWallet;
 
     await this.domainEvents.publish(new TrialStarted({ userId }));
-    this.trialActivationInstrumentation.recordActivated(userId, Date.now() - new Date(activation.wallet.createdAt).getTime());
+    this.trialActivationInstrumentation.recordActivated(userId, Date.now() - new Date(activation.wallet.createdAt).getTime(), {
+      isReferral: activation.isReferral,
+      trialCreditsUsd: activation.wallet.deploymentAllowance / MICRO_DENOM_PER_UNIT
+    });
 
     return activatedWallet;
   }
 
   /** Holds the wallet row until the grant is saved, so an activation running alongside for the same user finds it activated and grants nothing. */
-  async #grantTrialLimitsOnce(userWallet: WalletInitialized, user: UserOutput): Promise<{ wallet: UserWalletOutput; isNew: boolean }> {
+  async #grantTrialLimitsOnce(
+    userWallet: WalletInitialized,
+    user: UserOutput
+  ): Promise<{ wallet: UserWalletOutput; isNew: false } | { wallet: UserWalletOutput; isNew: true; isReferral: boolean }> {
     const wallets = this.userWalletRepository.unscoped("wallet-provisioning");
     const lockedWallet = await wallets.findOneByAndLock({ id: userWallet.id }, { strength: "no key update" });
 
@@ -90,7 +100,8 @@ export class WalletInitializerService {
     const deletedAccountLockReason = await this.deletedAccountAbuseLockService.findLockReasonOf(user);
     if (deletedAccountLockReason) return { wallet: await wallets.activateLockedForAbuse(userWallet.id, deletedAccountLockReason), isNew: false };
 
-    const chainWallet = await this.walletManager.createAndAuthorizeTrialSpending(this.managedSignerService, { addressIndex: userWallet.id });
+    const deploymentLimit = await this.referralService.getTrialDeploymentLimit(user.id);
+    const chainWallet = await this.walletManager.createAndAuthorizeTrialSpending(this.managedSignerService, { addressIndex: userWallet.id, deploymentLimit });
     const activatedWallet = await wallets.updateById(
       userWallet.id,
       {
@@ -101,7 +112,11 @@ export class WalletInitializerService {
       { returning: true }
     );
 
-    return { wallet: activatedWallet, isNew: true };
+    if (deploymentLimit !== undefined) {
+      await this.referralService.recordTrialGranted(user.id, deploymentLimit);
+    }
+
+    return { wallet: activatedWallet, isNew: true, isReferral: deploymentLimit !== undefined };
   }
 
   #toPublic(wallet: WalletInitialized & { userId: string }): UserWalletPublicOutput {
