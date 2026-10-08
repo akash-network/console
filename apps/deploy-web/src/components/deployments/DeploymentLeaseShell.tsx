@@ -1,7 +1,7 @@
 "use client";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Alert, AlertDescription, AlertTitle, Button, Spinner } from "@akashnetwork/ui/components";
-import { cn, copyTextToClipboard } from "@akashnetwork/ui/utils";
+import { copyTextToClipboard } from "@akashnetwork/ui/utils";
 import { CircleAlert, Copy, RefreshCw } from "lucide-react";
 
 import { ViewPanel } from "@src/components/shared/ViewPanel";
@@ -286,20 +286,18 @@ export const DeploymentLeaseShell: React.FunctionComponent<Props> = ({ leases, d
             <>
               {!isConnectionClosed && (
                 <>
-                  <div className="flex min-h-[50px] items-center gap-4">
-                    <div className="flex items-center">
+                  <div className="flex min-h-[50px] flex-wrap items-center gap-x-4 gap-y-2 pb-2 sm:pb-0">
+                    <div className="flex flex-wrap items-center gap-2">
                       {(leases?.length || 0) > 1 && (
                         <d.LeaseSelect leases={leases || []} defaultValue={selectedLease.id} onSelectedChange={handleLeaseChange} />
                       )}
 
                       {services?.length > 0 && selectedService && (
-                        <div className={cn({ ["ml-2"]: (leases?.length || 0) > 1 })}>
-                          <d.ServiceSelect services={services} defaultValue={selectedService} onSelectedChange={onSelectedServiceChange} />
-                        </div>
+                        <d.ServiceSelect services={services} defaultValue={selectedService} onSelectedChange={onSelectedServiceChange} />
                       )}
                     </div>
 
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
                       <Button onClick={onDownloadFileClick} variant="default" size="sm" disabled={!isConnectionEstablished}>
                         Download file
                       </Button>

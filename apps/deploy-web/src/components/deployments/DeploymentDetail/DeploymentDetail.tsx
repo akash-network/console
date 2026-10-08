@@ -1,6 +1,6 @@
 "use client";
 import type { FC } from "react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { buttonVariants, Skeleton, Tabs, TabsList, TabsTrigger } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
 import { ArrowLeft } from "lucide-react";
@@ -59,6 +59,11 @@ export const DEPENDENCIES = {
  *  other pages. Sits inside each full-bleed wrapper, so the header, tab labels and tab body all share one left edge. */
 const PAGE_BAND = "container px-6";
 
+/** The rule under the tabs is an inset shadow rather than a border, so the active underline can still cover it inside the scrolling strip. */
+const TAB_STRIP_FRAME = "border-t shadow-[inset_0_-1px_0_hsl(var(--border))]";
+
+const TAB_STRIP = cn(PAGE_BAND, "flex h-auto justify-start gap-6 overflow-x-auto rounded-none border-0 bg-transparent py-0 scrollbar-none sm:gap-8");
+
 const TABS = ["DETAILS", "UPDATE", "LOGS", "EVENTS", "SHELL", "SETTINGS"] as const;
 type Tab = (typeof TABS)[number];
 
@@ -85,6 +90,7 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq, dependencies
 
   const [activeTab, setActiveTab] = useState<Tab>("DETAILS");
   const [editedManifest, setEditedManifest] = useState<string | null>(null);
+  const tabStripRef = useRef<HTMLDivElement>(null);
 
   const { data: deployment, isFetching: isLoadingDeployment, refetch: getDeploymentDetail, error: deploymentError } = d.useDeploymentDetail(address, dseq);
   const {
@@ -135,6 +141,15 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq, dependencies
       setActiveTab(tabQuery as Tab);
     }
   }, [tabQuery]);
+
+  useEffect(
+    function revealActiveTab() {
+      const tabStrip = tabStripRef.current;
+      const activeTrigger = tabStrip?.querySelector("[role=tab][data-state=active]");
+      if (tabStrip && activeTrigger) scrollIntoStrip(tabStrip, activeTrigger);
+    },
+    [activeTab, showsPageSkeleton]
+  );
 
   async function loadDeploymentDetail() {
     if (!isLoadingDeployment) {
@@ -206,13 +221,13 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq, dependencies
           </div>
 
           <Tabs value={activeTab} onValueChange={value => changeTab(value as Tab)} className="flex flex-1 flex-col">
-            <div className="border-b border-t">
-              <TabsList className={cn("flex h-auto justify-start gap-8 rounded-none border-0 bg-transparent py-0", PAGE_BAND)}>
+            <div className={TAB_STRIP_FRAME}>
+              <TabsList ref={tabStripRef} className={TAB_STRIP}>
                 {TABS.map(tab => (
                   <TabsTrigger
                     key={tab}
                     value={tab}
-                    className="-mb-px whitespace-nowrap rounded-none border-b-2 border-transparent bg-transparent px-1 pb-3 pt-3 text-base font-medium text-muted-foreground shadow-none data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none"
+                    className="whitespace-nowrap rounded-none border-b-2 border-transparent bg-transparent px-1 pb-3 pt-3 text-base font-medium text-muted-foreground shadow-none data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none"
                   >
                     {TAB_LABELS[tab]}
                   </TabsTrigger>
@@ -263,6 +278,13 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq, dependencies
     </d.Layout>
   );
 };
+
+/** Centers the tab by scrolling only the strip, because `scrollIntoView` would also scroll the page down to a strip below the fold. */
+function scrollIntoStrip(strip: Element, tab: Element) {
+  const stripBox = strip.getBoundingClientRect();
+  const tabBox = tab.getBoundingClientRect();
+  strip.scrollLeft += tabBox.left + tabBox.width / 2 - (stripBox.left + stripBox.width / 2);
+}
 
 const TabInactiveState: FC<{ label?: string }> = ({ label = "Available when the deployment is active." }) => (
   <div className="py-12 text-center text-sm text-muted-foreground">{label}</div>
