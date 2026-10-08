@@ -15176,6 +15176,18 @@ export interface operations {
                 commissionMonths: number;
                 referralTrialCreditsUsd: number;
               };
+              stats: {
+                signups: number;
+                payingUsers: number;
+                totalCommissionUsd: number;
+                monthCommissionUsd: number;
+              };
+              commissions: {
+                id: string;
+                createdAt: string;
+                amountUsd: number;
+                reversedUsd: number;
+              }[];
             } | null;
           };
         };
