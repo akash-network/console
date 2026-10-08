@@ -5,6 +5,7 @@ import createError, { isHttpError } from "http-errors";
 import Stripe from "stripe";
 import { inject, singleton } from "tsyringe";
 
+import { SyncAffiliateCommission } from "@src/affiliate/services/affiliate-commission/sync-affiliate-commission.job";
 import { FundDrainingDeploymentsCommand } from "@src/billing/commands/fund-draining-deployments.command";
 import { IssueCardPaymentInvoiceCommand } from "@src/billing/commands/issue-card-payment-invoice.command";
 import type { CreditsAdded } from "@src/billing/events/credits-added";
@@ -29,6 +30,7 @@ import { AnalyticsService } from "@src/core/services/analytics/analytics.service
 import { DomainEventsService } from "@src/core/services/domain-events/domain-events.service";
 import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
 import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
+import { JobQueueService } from "@src/core/services/job-queue/job-queue.service";
 import { TimerService } from "@src/core/services/timer/timer.service";
 import { type OrganizationOutput, OrganizationRepository } from "@src/organization/repositories/organization/organization.repository";
 
@@ -126,6 +128,7 @@ export class StripeTransactionService {
     private readonly timerService: TimerService,
     private readonly payerService: PayerService,
     private readonly domainEventsService: DomainEventsService,
+    private readonly jobQueueService: JobQueueService,
     private readonly analyticsService: AnalyticsService,
     private readonly organizationRepository: OrganizationRepository,
     private readonly featureFlagsService: FeatureFlagsService,
@@ -544,6 +547,7 @@ export class StripeTransactionService {
       receiptUrl: params.receiptUrl,
       stripePaymentIntentId: params.stripePaymentIntentId
     });
+    await this.#queueAffiliateCommissionSync(transaction);
 
     const bonusAmount = await this.firstPurchaseBonusService.recordGrant(transaction, eligibleBonusAmount);
 
@@ -577,6 +581,13 @@ export class StripeTransactionService {
     }
 
     return { settled: true, bonusAmount, toppedUpWallet, actingUserId };
+  }
+
+  /** Runs before the payer's top-up: a failed enqueue after the chain grant would roll the settlement back and let the webhook retry credit the payer twice. */
+  async #queueAffiliateCommissionSync(transaction: StripeTransactionOutput): Promise<void> {
+    if (transaction.type !== "payment_intent") return;
+
+    await this.jobQueueService.enqueue(new SyncAffiliateCommission({ transactionId: transaction.id }));
   }
 
   async settlePaymentIntent(event: Stripe.PaymentIntentSucceededEvent): Promise<SettlementOutcome> {

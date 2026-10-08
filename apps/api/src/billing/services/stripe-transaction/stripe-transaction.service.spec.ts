@@ -14,6 +14,7 @@ import { IDEMPOTENCY_KEY_MISMATCH_ERROR_MESSAGE, PAYMENT_IN_PROGRESS_ERROR_MESSA
 import type { AnalyticsService } from "@src/core/services/analytics/analytics.service";
 import type { DomainEventsService } from "@src/core/services/domain-events/domain-events.service";
 import type { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
+import type { JobQueueService } from "@src/core/services/job-queue/job-queue.service";
 import type { TimerService } from "@src/core/services/timer/timer.service";
 import type { OrganizationRepository } from "@src/organization/repositories/organization/organization.repository";
 import { StripeTransactionService } from "./stripe-transaction.service";
@@ -584,6 +585,7 @@ describe(StripeTransactionService.name, () => {
       timerService,
       mock<PayerService>(),
       mock<DomainEventsService>(),
+      mock<JobQueueService>(),
       mock<AnalyticsService>(),
       mock<OrganizationRepository>(),
       mock<FeatureFlagsService>(),
