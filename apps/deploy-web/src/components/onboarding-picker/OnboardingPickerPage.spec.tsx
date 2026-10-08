@@ -30,16 +30,27 @@ describe(OnboardingPickerPage.name, () => {
     expect(titles).toEqual(["Hello world", "Space Agent", "LLM Chatbot"]);
   });
 
-  it("renders the trial credit amount from public config when the user was not referred", () => {
-    setup({ trialCreditsAmount: 1, referral: undefined });
+  it("renders the trial credit amount from public config when the referral lookup settles without a referral", () => {
+    const { container } = setup({ trialCreditsAmount: 1, referral: undefined, isReferralLoading: false });
 
     expect(screen.getByText("$1 in free trial credits")).toBeInTheDocument();
+    expect(container).toHaveTextContent(
+      "We've provided you with $1 in free trial credits. This covers a couple of smaller deployments so you can see how easy it is. Purchase your first credits"
+    );
   });
 
   it("renders the referral trial credit amount instead of the public config amount when the user was referred", () => {
-    setup({ trialCreditsAmount: 1, referral: { trialCreditsUsd: 5 } });
+    setup({ trialCreditsAmount: 1, referral: { trialCreditsUsd: 5 }, isReferralLoading: false });
 
     expect(screen.getByText("$5 in free trial credits")).toBeInTheDocument();
+  });
+
+  it("does not render the trial credit amount while the referral lookup is loading", () => {
+    const { container } = setup({ trialCreditsAmount: 1, referral: undefined, isReferralLoading: true });
+
+    expect(screen.queryByText(/in free trial credits/)).not.toBeInTheDocument();
+    expect(container).not.toHaveTextContent("We've provided you with");
+    expect(container).toHaveTextContent("Purchase your first credits to unlock our full experience");
   });
 
   it("renders the first-purchase bonus offer", () => {
@@ -620,6 +631,7 @@ describe(OnboardingPickerPage.name, () => {
       isOutOfCredit?: boolean;
       trialCreditsAmount?: number;
       referral?: { trialCreditsUsd: number };
+      isReferralLoading?: boolean;
       dependencies?: Partial<typeof DEPENDENCIES>;
     } = {}
   ) {
@@ -645,7 +657,8 @@ describe(OnboardingPickerPage.name, () => {
       onboarding_intent_first: input.isIntentFirst ?? false
     };
     const useFlag: typeof DEPENDENCIES.useFlag = flag => flags[flag] ?? false;
-    const useReferralQuery: typeof DEPENDENCIES.useReferralQuery = () => mock<ReturnType<typeof DEPENDENCIES.useReferralQuery>>({ data: input.referral });
+    const useReferralQuery: typeof DEPENDENCIES.useReferralQuery = () =>
+      mock<ReturnType<typeof DEPENDENCIES.useReferralQuery>>(input.isReferralLoading ? { isLoading: true } : { data: input.referral, isLoading: false });
     const analyticsService = mock<AnalyticsService>();
     const useServices: typeof DEPENDENCIES.useServices = () =>
       mock<ReturnType<typeof DEPENDENCIES.useServices>>({
