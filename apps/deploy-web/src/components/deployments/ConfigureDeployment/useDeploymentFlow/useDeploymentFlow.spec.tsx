@@ -1739,13 +1739,14 @@ describe(useDeploymentFlow.name, () => {
       expect(analyticsService.track).toHaveBeenCalledWith("cancel_during_create", { category: "deployments" });
     });
 
-    it("tracks cancelled_deployment_auto_close_failed when the late auto-close fails", async () => {
+    it("tracks close_deployment_failed when the close of a create cancelled in flight fails", async () => {
       let resolveCreate: ((result: { data: { dseq: string; manifest: string } }) => void) | undefined;
       const createMutate = vi.fn((_args, options) => {
         resolveCreate = options.onSuccess;
       });
       const closeMutate = vi.fn((_args, options) => options.onError?.(new Error("auto close boom")));
-      const { result, analyticsService } = setup({ createMutate, closeMutate });
+      const getDeploymentMutate = vi.fn((_args, options) => options.onSuccess?.({ data: { deployment: { state: "active" } } }));
+      const { result, analyticsService } = setup({ createMutate, closeMutate, getDeploymentMutate });
 
       act(() => result.current.actions.requestQuotes("sdl"));
 
@@ -1753,7 +1754,7 @@ describe(useDeploymentFlow.name, () => {
       act(() => result.current.actions.cancelAndEdit());
       act(() => resolveCreate?.({ data: { dseq: "999", manifest: "m" } }));
 
-      expect(analyticsService.track).toHaveBeenCalledWith("cancelled_deployment_auto_close_failed", { category: "deployments", dseq: "999" });
+      expect(analyticsService.track).toHaveBeenCalledWith("close_deployment_failed", { category: "deployments", dseq: "999", verifiedClosed: false });
     });
 
     it("closes the still-open deployment before creating when requesting quotes with a live dseq", async () => {
@@ -1923,6 +1924,14 @@ describe(useDeploymentFlow.name, () => {
     it("does not track cancel_during_create when cancelling a deployment that already exists", () => {
       const closeMutate = vi.fn();
       const { result, analyticsService } = setup({ intent: { sdlStrategy: "edit", bidStrategy: "select", dseq: "777" }, closeMutate });
+
+      act(() => result.current.actions.cancelAndEdit());
+
+      expect(analyticsService.track).not.toHaveBeenCalledWith("cancel_during_create", { category: "deployments" });
+    });
+
+    it("does not track cancel_during_create when nothing is being created", () => {
+      const { result, analyticsService } = setup({});
 
       act(() => result.current.actions.cancelAndEdit());
 
@@ -2312,6 +2321,175 @@ describe(useDeploymentFlow.name, () => {
     });
   });
 
+  describe("a create cancelled while still in flight", () => {
+    it("reports its deployment as closing once it lands", async () => {
+      const creates = deferredMutate();
+      const { result } = setup({ createMutate: creates.mutate, closeMutate: vi.fn() });
+      act(() => result.current.actions.requestQuotes("sdl"));
+      await settleSeal();
+      act(() => result.current.actions.cancelAndEdit());
+
+      act(() => creates.calls[0].options.onSuccess?.({ data: { dseq: "999", manifest: "m" } }));
+
+      expect(result.current.pendingClose).toEqual({ dseq: "999", failed: false });
+    });
+
+    it("reports its deployment still open once its close fails, and closes it again on retry", async () => {
+      const creates = deferredMutate();
+      const closeMutate = vi.fn((_args, options) => options.onError?.(new Error("close boom")));
+      const getDeploymentMutate = vi.fn((_args, options) => options.onSuccess?.({ data: { deployment: { state: "active" } } }));
+      const { result } = setup({ createMutate: creates.mutate, closeMutate, getDeploymentMutate });
+      act(() => result.current.actions.requestQuotes("sdl"));
+      await settleSeal();
+      act(() => result.current.actions.cancelAndEdit());
+      act(() => creates.calls[0].options.onSuccess?.({ data: { dseq: "999", manifest: "m" } }));
+      expect(result.current.pendingClose).toMatchObject({ dseq: "999", failed: true });
+
+      act(() => result.current.actions.retryClose());
+
+      expect(closeMutate).toHaveBeenCalledTimes(2);
+      expect(closeMutate).toHaveBeenLastCalledWith({ dseq: "999" }, expect.any(Object));
+    });
+
+    it("closes its deployment in the background with the activity center on", async () => {
+      const creates = deferredMutate();
+      const closeMutate = vi.fn();
+      const { result } = setup({ createMutate: creates.mutate, closeMutate, isClosingInBackground: true });
+      act(() => result.current.actions.requestQuotes("sdl"));
+      await settleSeal();
+      act(() => result.current.actions.cancelAndEdit());
+
+      act(() => creates.calls[0].options.onSuccess?.({ data: { dseq: "999", manifest: "m" } }));
+
+      expect(closeMutate).toHaveBeenCalledWith({ dseq: "999", async: "true" }, expect.any(Object));
+    });
+
+    it("holds the next create until it lands", async () => {
+      const creates = deferredMutate();
+      const { result } = setup({ createMutate: creates.mutate });
+      act(() => result.current.actions.requestQuotes("sdl"));
+      await settleSeal();
+      act(() => result.current.actions.cancelAndEdit());
+
+      act(() => result.current.actions.requestQuotes("sdl-2"));
+      await settleSeal();
+
+      expect(creates.mutate).toHaveBeenCalledTimes(1);
+      expect(result.current.phase).toBe("creating");
+    });
+
+    it("closes its deployment during the request before the held create runs, so two are never open at once", async () => {
+      const creates = deferredMutate();
+      const closes = deferredMutate();
+      const { result } = setup({ createMutate: creates.mutate, closeMutate: closes.mutate, isClosingInBackground: true });
+      act(() => result.current.actions.requestQuotes("sdl"));
+      await settleSeal();
+      act(() => result.current.actions.cancelAndEdit());
+      act(() => result.current.actions.requestQuotes("sdl-2"));
+      await settleSeal();
+
+      act(() => creates.calls[0].options.onSuccess?.({ data: { dseq: "999", manifest: "m" } }));
+      expect(closes.calls[0].args).toEqual({ dseq: "999" });
+      expect(creates.mutate).toHaveBeenCalledTimes(1);
+      act(() => closes.calls[0].options.onSuccess?.({ data: { success: true } }));
+      await settleSeal();
+
+      expect(creates.mutate).toHaveBeenCalledTimes(2);
+      expect(creates.calls[1].args).toEqual({ data: expect.objectContaining({ sdl: "sdl-2" }) });
+    });
+
+    it("runs the held create once it fails without opening a deployment, and reports nothing about it", async () => {
+      const creates = deferredMutate();
+      const { result } = setup({ createMutate: creates.mutate });
+      act(() => result.current.actions.requestQuotes("sdl"));
+      await settleSeal();
+      act(() => result.current.actions.cancelAndEdit());
+      act(() => result.current.actions.requestQuotes("sdl-2"));
+
+      act(() => creates.calls[0].options.onError?.(new Error("create boom")));
+      await settleSeal();
+
+      expect(creates.mutate).toHaveBeenCalledTimes(2);
+      expect(result.current.error).toBeUndefined();
+      expect(result.current.phase).toBe("creating");
+    });
+
+    it("sends the next create straight out once it fails without opening a deployment", async () => {
+      const creates = deferredMutate();
+      const { result } = setup({ createMutate: creates.mutate });
+      act(() => result.current.actions.requestQuotes("sdl"));
+      await settleSeal();
+      act(() => result.current.actions.cancelAndEdit());
+      act(() => creates.calls[0].options.onError?.(new Error("create boom")));
+
+      act(() => result.current.actions.requestQuotes("sdl-2"));
+      await settleSeal();
+
+      expect(creates.mutate).toHaveBeenCalledTimes(2);
+      expect(creates.calls[1].args).toEqual({ data: expect.objectContaining({ sdl: "sdl-2" }) });
+    });
+
+    it("drops the held create and shows the close error when its deployment stays open", async () => {
+      const creates = deferredMutate();
+      const closeMutate = vi.fn((_args, options) => options.onError?.(new Error("close boom")));
+      const getDeploymentMutate = vi.fn((_args, options) => options.onSuccess?.({ data: { deployment: { state: "active" } } }));
+      const { result } = setup({ createMutate: creates.mutate, closeMutate, getDeploymentMutate });
+      act(() => result.current.actions.requestQuotes("sdl"));
+      await settleSeal();
+      act(() => result.current.actions.cancelAndEdit());
+      act(() => result.current.actions.requestQuotes("sdl-2"));
+
+      act(() => creates.calls[0].options.onSuccess?.({ data: { dseq: "999", manifest: "m" } }));
+      await settleSeal();
+
+      expect(creates.mutate).toHaveBeenCalledTimes(1);
+      expect(result.current.phase).toBe("error");
+      expect(result.current.error?.kind).toBe("close");
+      expect(result.current.pendingClose).toMatchObject({ dseq: "999", failed: true });
+    });
+
+    it("drops the held create when it is cancelled too", async () => {
+      const creates = deferredMutate();
+      const closeMutate = vi.fn((_args, options) => options.onSuccess?.({ data: { success: true } }));
+      const { result } = setup({ createMutate: creates.mutate, closeMutate });
+      act(() => result.current.actions.requestQuotes("sdl"));
+      await settleSeal();
+      act(() => result.current.actions.cancelAndEdit());
+      act(() => result.current.actions.requestQuotes("sdl-2"));
+      act(() => result.current.actions.cancelAndEdit());
+
+      act(() => creates.calls[0].options.onSuccess?.({ data: { dseq: "999", manifest: "m" } }));
+      await settleSeal();
+
+      expect(closeMutate).toHaveBeenCalledWith({ dseq: "999" }, expect.any(Object));
+      expect(creates.mutate).toHaveBeenCalledTimes(1);
+      expect(result.current.phase).toBe("configuring");
+    });
+
+    it("tracks cancel_during_create once when the create cancelled next was still held behind it", async () => {
+      const creates = deferredMutate();
+      const { result, analyticsService } = setup({ createMutate: creates.mutate });
+      act(() => result.current.actions.requestQuotes("sdl"));
+      await settleSeal();
+      act(() => result.current.actions.cancelAndEdit());
+      act(() => result.current.actions.requestQuotes("sdl-2"));
+
+      act(() => result.current.actions.cancelAndEdit());
+
+      expect(analyticsService.track.mock.calls.filter(([event]) => event === "cancel_during_create")).toHaveLength(1);
+    });
+
+    it("closes in the background what it opens once the page is gone, with the activity center on", () => {
+      const { result, services, closeDeployment } = setup({ createMutate: vi.fn(), isClosingInBackground: true });
+      act(() => result.current.actions.requestQuotes("sdl"));
+
+      act(() => result.current.actions.discard());
+      act(() => hookOptionsOf(services.api.v1.createDeployment.useMutation).onSuccess?.({ data: { dseq: "999", manifest: "m" } }));
+
+      expect(closeDeployment.mutate).toHaveBeenCalledWith({ dseq: "999", async: "true" });
+    });
+  });
+
   function setup(input: {
     intent?: { sdlStrategy: "default" | "edit"; bidStrategy: "auto" | "select"; dseq?: string; templateId?: string; draftId?: string; vm?: boolean };
     replace?: ReturnType<typeof vi.fn>;
@@ -2439,6 +2617,14 @@ describe(useDeploymentFlow.name, () => {
 
   async function settleSeal() {
     await act(async () => {});
+  }
+
+  function deferredMutate() {
+    const calls: Array<{ args: unknown; options: { onSuccess?: (result: unknown) => void; onError?: (cause: unknown) => void } }> = [];
+    const mutate = vi.fn((args: unknown, options: (typeof calls)[number]["options"]) => {
+      calls.push({ args, options });
+    });
+    return { mutate, calls };
   }
 
   function mockMutation(mutate: ReturnType<typeof vi.fn> = vi.fn(), mutateAsync: ReturnType<typeof vi.fn> = vi.fn()) {

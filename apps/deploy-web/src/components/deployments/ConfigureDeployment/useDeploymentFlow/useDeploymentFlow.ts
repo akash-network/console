@@ -182,11 +182,12 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
   const settingsId = useAtomValue(settingsIdAtom);
   /** Read by hook-level mutation callbacks, which still run once the page is gone and its own callbacks no longer do. */
   const discardedRef = useRef(false);
+  const isClosingInBackground = dependencies.useFlag("notifications_activity_center");
   const createDeployment = api.v1.createDeployment.useMutation({
     ...walletProvisioningRetry,
     meta: SKIP_REPORTING_REFUSED_CREATE,
     onSuccess: function closeWhatADiscardedCreateOpened(result) {
-      if (discardedRef.current) closeDeployment.mutate({ dseq: result.data.dseq });
+      if (discardedRef.current) closeDeployment.mutate(closeRequestFor(result.data.dseq, isClosingInBackground));
     }
   });
   const closeDeployment = api.v1.closeDeployment.useMutation({
@@ -213,7 +214,6 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
   const [pendingClose, setPendingClose] = useState<PendingClose | null>(null);
   const [noBidsReceived, setNoBidsReceived] = useState(false);
 
-  const isClosingInBackground = dependencies.useFlag("notifications_activity_center");
   /** A close the api took on in the background, followed through the activity feed until it settles; `token` is the close that started it. */
   const [backgroundClose, setBackgroundClose] = useState<{ dseq: string; token: number; activityId: string } | null>(null);
   const { data: activities } = dependencies.useLatestActivitiesQuery({ enabled: backgroundClose !== null });
@@ -235,7 +235,10 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
   /** The dseq of the close in flight. Read synchronously so a create can never overlap one and open a second deployment. */
   const closingDseqRef = useRef<string | null>(null);
 
-  /** The create waiting on that close, run once the deployment is verified gone and dropped when it is not. */
+  /** A second create sent while one is out would take over its callbacks, leaving whatever the first opens unclosed, so the next create waits for it. */
+  const createInFlightRef = useRef(false);
+
+  /** The create waiting on that close or create, run once the deployment is verified gone and dropped when it is not. */
   const queuedCreateRef = useRef<(() => void) | null>(null);
 
   /** Pins a close's outcome to the close that started it, so a superseded one can never settle a newer session. */
@@ -427,7 +430,7 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
         queryClient.invalidateQueries({ queryKey: api.v1.listActivities.getKey() });
       }
 
-      closeDeployment.mutate(inBackground ? { dseq: dseqToClose, async: "true" } : { dseq: dseqToClose }, {
+      closeDeployment.mutate(closeRequestFor(dseqToClose, inBackground), {
         onSuccess: function followOrSettle(result) {
           const activityId = inBackground ? acceptedActivityIdOf(result.data) : undefined;
           if (activityId) followInBackground(activityId);
@@ -467,9 +470,9 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
   );
 
   /**
-   * A still-open deployment is closed first and a create fired mid-close waits on it rather than racing it, so only one
-   * deployment is ever open. The typed values are sealed to the console's current key first, and a seal the api reports
-   * stale is remade once against a fresh key.
+   * A still-open deployment is closed first, and a create fired mid-close or while an abandoned create is still out waits
+   * on it rather than racing it, so only one deployment is ever open. The typed values are sealed to the console's
+   * current key first, and a seal the api reports stale is remade once against a fresh key.
    */
   const requestQuotes = useCallback(
     function requestQuotes(sdl: string, options: RequestQuotesOptions = {}) {
@@ -485,17 +488,17 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
         return attempt === createAttemptRef.current;
       }
 
+      function runQueuedCreate() {
+        const queuedCreate = queuedCreateRef.current;
+        queuedCreateRef.current = null;
+        queuedCreate?.();
+      }
+
       function onCreated(result: { data: { dseq: string; manifest: string } }) {
+        createInFlightRef.current = false;
         if (!isCurrentAttempt()) {
           if (discardedRef.current) return;
-          closeDeployment.mutate(
-            { dseq: result.data.dseq },
-            {
-              onError: function trackAutoCloseFailure() {
-                analyticsService.track("cancelled_deployment_auto_close_failed", { category: "deployments", dseq: result.data.dseq });
-              }
-            }
-          );
+          startClose(result.data.dseq, queuedCreateRef.current ? "now" : "in-background");
           return;
         }
         setDseq(result.data.dseq);
@@ -523,12 +526,17 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
       const inheritance = options.inheritSecretsFrom ? { inheritSecretsFrom: options.inheritSecretsFrom } : {};
 
       function submitCreate(sealed: { sealedSecrets?: string }, canResealOnce: boolean) {
+        createInFlightRef.current = true;
         createDeployment.mutate(
           { data: { sdl, ...namePayload(options.name), ...sealed, ...inheritance, deposit: DEFAULT_DEPOSIT } },
           {
             onSuccess: onCreated,
             onError: function retryOrFail(cause: unknown) {
-              if (!isCurrentAttempt()) return;
+              createInFlightRef.current = false;
+              if (!isCurrentAttempt()) {
+                runQueuedCreate();
+                return;
+              }
               if (isInheritedSecretsUnreadable(cause)) {
                 setError({ message: extractApiErrorMessage(cause) ?? undefined, kind: "inherited-unreadable" });
                 setPhase("error");
@@ -571,7 +579,7 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
         return;
       }
 
-      if (closingDseqRef.current) {
+      if (closingDseqRef.current || createInFlightRef.current) {
         setPhase("creating");
         queuedCreateRef.current = create;
         return;
@@ -579,7 +587,7 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
 
       create();
     },
-    [createDeployment, closeDeployment, sealSecrets, dseq, strandedDseq, backgroundClose, router, analyticsService, startClose]
+    [createDeployment, sealSecrets, dseq, strandedDseq, backgroundClose, router, analyticsService, startClose]
   );
 
   /**
@@ -590,9 +598,9 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
     function cancelAndEdit() {
       router.replace(buildConfigureUrl(intentRef.current, undefined, bidStrategy), undefined, { shallow: true });
       createAttemptRef.current += 1;
+      const isCreateOutstanding = phase === "creating" && !queuedCreateRef.current;
       queuedCreateRef.current = null;
       const dseqToClose = dseq ?? strandedDseq;
-      const isCreateOutstanding = phase === "creating" && !closingDseqRef.current;
       if (!dseqToClose && isCreateOutstanding) analyticsService.track("cancel_during_create", { category: "deployments" });
       resetToConfiguring();
       if (dseqToClose) startClose(dseqToClose, "in-background");
@@ -834,6 +842,10 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
     pendingClose,
     actions: { requestQuotes, cancelAndEdit, closeAndFail, retryClose, discard, setBidStrategy, refreshQuotes, retry, selectProvider, clearSelection, deploy }
   };
+}
+
+function closeRequestFor(dseq: string, inBackground: boolean): { dseq: string; async?: "true" } {
+  return inBackground ? { dseq, async: "true" } : { dseq };
 }
 
 /** The activity the api answered a background close with; a close it already made during the request answers without one. */
