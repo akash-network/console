@@ -239,7 +239,12 @@ export class StripeTransactionRepository extends BaseRepository<Table, StripeTra
   }
 
   /** Stores the commission as a `stripe_transactions` row so billing history and CSV export pick it up unchanged. */
-  async createAffiliateCommission(input: { userId: string; amount: number; sourceTransactionId: string }): Promise<StripeTransactionOutput> {
+  async createAffiliateCommission(input: {
+    userId: string;
+    amount: number;
+    amountRefunded?: number;
+    sourceTransactionId: string;
+  }): Promise<StripeTransactionOutput> {
     return this.create({
       userId: input.userId,
       type: "affiliate_commission",
@@ -247,6 +252,7 @@ export class StripeTransactionRepository extends BaseRepository<Table, StripeTra
       currency: "usd",
       description: "Affiliate commission",
       amount: input.amount,
+      amountRefunded: input.amountRefunded ?? 0,
       sourceTransactionId: input.sourceTransactionId
     });
   }

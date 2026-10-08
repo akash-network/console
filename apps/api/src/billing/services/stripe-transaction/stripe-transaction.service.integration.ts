@@ -26,6 +26,8 @@ import { createTestUser } from "@test/seeders/user-test.seeder";
  * database.
  */
 describe(StripeTransactionService.name, () => {
+  const DISPUTE_CLOSED_AT = 1791460000;
+
   describe("settlePaymentIntent", () => {
     it("tops up wallet and updates transaction on successful payment", async () => {
       const { service, userRepository, stripeTransactionRepository, refillService, stripe, domainEventsService, toppedUpWallet } = setup();
@@ -102,7 +104,7 @@ describe(StripeTransactionService.name, () => {
         })
       );
 
-      expect(jobQueueService.enqueue).toHaveBeenCalledWith(new SyncAffiliateCommission({ transactionId: internalTransaction.id }));
+      expect(jobQueueService.enqueue).toHaveBeenCalledWith(new SyncAffiliateCommission({ transactionId: internalTransaction.id, trigger: "settlement" }));
     });
 
     it("credits nothing when the affiliate commission sync cannot be queued, so the retried webhook credits the payer only once", async () => {
@@ -953,7 +955,7 @@ describe(StripeTransactionService.name, () => {
       stripeTransactionRepository.findOneByAndLock.mockResolvedValue(
         generateDatabaseStripeTransaction({ id: transactionId, status: "succeeded", amountRefunded: 0 })
       );
-      refillService.reduceWalletBalance.mockResolvedValue();
+      refillService.reduceWalletBalance.mockResolvedValue({ shortfallCents: 0 });
 
       await service.refundCharge(createChargeRefundedEvent({ id: chargeId, customer: mockUser.stripeCustomerId!, amount_refunded: 5000, refunded: true }));
 
@@ -972,7 +974,7 @@ describe(StripeTransactionService.name, () => {
       stripeTransactionRepository.findOneByAndLock.mockResolvedValue(
         generateDatabaseStripeTransaction({ id: transactionId, status: "succeeded", amountRefunded: 3000 })
       );
-      refillService.reduceWalletBalance.mockResolvedValue();
+      refillService.reduceWalletBalance.mockResolvedValue({ shortfallCents: 0 });
 
       await service.refundCharge(createChargeRefundedEvent({ id: "ch_123", customer: mockUser.stripeCustomerId!, amount_refunded: 8000, refunded: false }));
 
@@ -981,7 +983,7 @@ describe(StripeTransactionService.name, () => {
     });
 
     it("handles duplicate webhook delivery idempotently", async () => {
-      const { service, userRepository, stripeTransactionRepository, refillService } = setup();
+      const { service, userRepository, stripeTransactionRepository, refillService, jobQueueService } = setup();
       const mockUser = createTestUser();
 
       userRepository.findOneBy.mockResolvedValue(mockUser);
@@ -993,6 +995,46 @@ describe(StripeTransactionService.name, () => {
 
       expect(stripeTransactionRepository.updateById).not.toHaveBeenCalled();
       expect(refillService.reduceWalletBalance).not.toHaveBeenCalled();
+      expect(jobQueueService.enqueue).not.toHaveBeenCalled();
+    });
+
+    it("queues the affiliate commission sync of a refunded card payment", async () => {
+      const { service, userRepository, stripeTransactionRepository, jobQueueService } = setup();
+      const mockUser = createTestUser();
+      const payment = generateDatabaseStripeTransaction({ type: "payment_intent", status: "succeeded", amount: 10000, amountRefunded: 0 });
+      userRepository.findOneBy.mockResolvedValue(mockUser);
+      stripeTransactionRepository.findOneByAndLock.mockResolvedValue(payment);
+
+      await service.refundCharge(createChargeRefundedEvent({ id: "ch_123", customer: mockUser.stripeCustomerId!, amount_refunded: 4000, refunded: false }));
+
+      expect(jobQueueService.enqueue).toHaveBeenCalledExactlyOnceWith(new SyncAffiliateCommission({ transactionId: payment.id, trigger: "refund" }));
+    });
+
+    it("debits nothing when the affiliate commission sync cannot be queued, so the retried webhook debits the payer only once", async () => {
+      const { service, userRepository, stripeTransactionRepository, refillService, jobQueueService } = setup();
+      const mockUser = createTestUser();
+      const error = new Error("Queue SyncAffiliateCommission does not exist");
+      userRepository.findOneBy.mockResolvedValue(mockUser);
+      stripeTransactionRepository.findOneByAndLock.mockResolvedValue(generateDatabaseStripeTransaction({ type: "payment_intent", status: "succeeded" }));
+      jobQueueService.enqueue.mockRejectedValue(error);
+
+      await expect(
+        service.refundCharge(createChargeRefundedEvent({ id: "ch_123", customer: mockUser.stripeCustomerId!, amount_refunded: 4000, refunded: false }))
+      ).rejects.toBe(error);
+
+      expect(refillService.reduceWalletBalance).not.toHaveBeenCalled();
+    });
+
+    it("does not queue an affiliate commission sync for a refunded coupon_claim charge", async () => {
+      const { service, userRepository, stripeTransactionRepository, refillService, jobQueueService } = setup();
+      const mockUser = createTestUser();
+      userRepository.findOneBy.mockResolvedValue(mockUser);
+      stripeTransactionRepository.findOneByAndLock.mockResolvedValue(generateDatabaseStripeTransaction({ type: "coupon_claim", status: "succeeded" }));
+
+      await service.refundCharge(createChargeRefundedEvent({ id: "ch_123", customer: mockUser.stripeCustomerId!, amount_refunded: 4000, refunded: false }));
+
+      expect(refillService.reduceWalletBalance).toHaveBeenCalled();
+      expect(jobQueueService.enqueue).not.toHaveBeenCalled();
     });
 
     it("returns early when customer ID is missing", async () => {
@@ -1028,7 +1070,7 @@ describe(StripeTransactionService.name, () => {
     });
 
     it("returns early when transaction is not in succeeded state", async () => {
-      const { service, userRepository, stripeTransactionRepository, refillService } = setup();
+      const { service, userRepository, stripeTransactionRepository, refillService, jobQueueService } = setup();
       const mockUser = createTestUser();
 
       userRepository.findOneBy.mockResolvedValue(mockUser);
@@ -1038,6 +1080,7 @@ describe(StripeTransactionService.name, () => {
 
       expect(stripeTransactionRepository.updateById).not.toHaveBeenCalled();
       expect(refillService.reduceWalletBalance).not.toHaveBeenCalled();
+      expect(jobQueueService.enqueue).not.toHaveBeenCalled();
     });
 
     it("claws back the first-purchase bonus on top of a full refund", async () => {
@@ -1085,6 +1128,92 @@ describe(StripeTransactionService.name, () => {
 
       expect(refillService.reduceWalletBalance).toHaveBeenCalledWith(4000, mockUser.id, { currency: "usd", transactionId });
       expect(stripeTransactionRepository.updateById).toHaveBeenCalledWith(transactionId, { amountRefunded: 4000 });
+    });
+  });
+
+  describe("markDisputeLost", () => {
+    it("records the lost dispute on the card payment and queues its affiliate commission sync, leaving the payer's balance alone", async () => {
+      const { service, stripeTransactionRepository, refillService, jobQueueService, logger } = setup();
+      const payment = generateDatabaseStripeTransaction({ type: "payment_intent", status: "succeeded", stripeChargeId: "ch_123", disputeLostAt: null });
+      stripeTransactionRepository.findOneByAndLock.mockResolvedValue(payment);
+
+      await service.markDisputeLost(createChargeDisputeClosedEvent({ id: "dp_123", charge: "ch_123", status: "lost" }, DISPUTE_CLOSED_AT));
+
+      expect(stripeTransactionRepository.findOneByAndLock).toHaveBeenCalledWith({ stripeChargeId: "ch_123" });
+      expect(stripeTransactionRepository.updateById).toHaveBeenCalledWith(payment.id, { disputeLostAt: new Date(DISPUTE_CLOSED_AT * 1000) });
+      expect(jobQueueService.enqueue).toHaveBeenCalledExactlyOnceWith(new SyncAffiliateCommission({ transactionId: payment.id, trigger: "dispute" }));
+      expect(refillService.reduceWalletBalance).not.toHaveBeenCalled();
+      expect(refillService.topUpWallet).not.toHaveBeenCalled();
+      expect(logger.info).toHaveBeenCalledWith({
+        event: "CHARGE_DISPUTE_LOST",
+        chargeId: "ch_123",
+        disputeId: "dp_123",
+        transactionId: payment.id,
+        userId: payment.userId
+      });
+    });
+
+    it("records the lost dispute of a charge Stripe sent expanded", async () => {
+      const { service, stripeTransactionRepository } = setup();
+      const payment = generateDatabaseStripeTransaction({ type: "payment_intent", status: "succeeded", stripeChargeId: "ch_123" });
+      stripeTransactionRepository.findOneByAndLock.mockResolvedValue(payment);
+
+      await service.markDisputeLost(createChargeDisputeClosedEvent({ id: "dp_123", charge: { id: "ch_123" } as Stripe.Charge, status: "lost" }));
+
+      expect(stripeTransactionRepository.findOneByAndLock).toHaveBeenCalledWith({ stripeChargeId: "ch_123" });
+    });
+
+    it.each(["won", "warning_closed"] as const)("ignores a dispute closed as %s", async status => {
+      const { service, stripeTransactionRepository, jobQueueService } = setup();
+
+      await service.markDisputeLost(createChargeDisputeClosedEvent({ id: "dp_123", charge: "ch_123", status }));
+
+      expect(stripeTransactionRepository.findOneByAndLock).not.toHaveBeenCalled();
+      expect(stripeTransactionRepository.updateById).not.toHaveBeenCalled();
+      expect(jobQueueService.enqueue).not.toHaveBeenCalled();
+    });
+
+    it("ignores a lost dispute on a charge with no recorded transaction", async () => {
+      const { service, stripeTransactionRepository, jobQueueService, logger } = setup();
+      stripeTransactionRepository.findOneByAndLock.mockResolvedValue(undefined);
+
+      await service.markDisputeLost(createChargeDisputeClosedEvent({ id: "dp_123", charge: "ch_unknown", status: "lost" }));
+
+      expect(stripeTransactionRepository.updateById).not.toHaveBeenCalled();
+      expect(jobQueueService.enqueue).not.toHaveBeenCalled();
+      expect(logger.warn).toHaveBeenCalledWith({ event: "CHARGE_DISPUTE_LOST_NO_TRANSACTION", chargeId: "ch_unknown", disputeId: "dp_123" });
+    });
+
+    it("neither records nor queues anything again when the lost dispute is already recorded", async () => {
+      const { service, stripeTransactionRepository, jobQueueService } = setup();
+      stripeTransactionRepository.findOneByAndLock.mockResolvedValue(
+        generateDatabaseStripeTransaction({ type: "payment_intent", status: "succeeded", stripeChargeId: "ch_123", disputeLostAt: new Date() })
+      );
+
+      await service.markDisputeLost(createChargeDisputeClosedEvent({ id: "dp_123", charge: "ch_123", status: "lost" }));
+
+      expect(stripeTransactionRepository.updateById).not.toHaveBeenCalled();
+      expect(jobQueueService.enqueue).not.toHaveBeenCalled();
+    });
+
+    it.each(["coupon_claim", "manual_credit"] as const)("records the lost dispute without queuing an affiliate commission sync for a %s charge", async type => {
+      const { service, stripeTransactionRepository, jobQueueService } = setup();
+      const transaction = generateDatabaseStripeTransaction({ type, status: "succeeded", stripeChargeId: "ch_123" });
+      stripeTransactionRepository.findOneByAndLock.mockResolvedValue(transaction);
+
+      await service.markDisputeLost(createChargeDisputeClosedEvent({ id: "dp_123", charge: "ch_123", status: "lost" }));
+
+      expect(stripeTransactionRepository.updateById).toHaveBeenCalledWith(transaction.id, { disputeLostAt: expect.any(Date) });
+      expect(jobQueueService.enqueue).not.toHaveBeenCalled();
+    });
+
+    it("fails the delivery when the affiliate commission sync cannot be queued, so Stripe retries it", async () => {
+      const { service, stripeTransactionRepository, jobQueueService } = setup();
+      const error = new Error("Queue SyncAffiliateCommission does not exist");
+      stripeTransactionRepository.findOneByAndLock.mockResolvedValue(generateDatabaseStripeTransaction({ type: "payment_intent", status: "succeeded" }));
+      jobQueueService.enqueue.mockRejectedValue(error);
+
+      await expect(service.markDisputeLost(createChargeDisputeClosedEvent({ id: "dp_123", charge: "ch_123", status: "lost" }))).rejects.toBe(error);
     });
   });
 
@@ -1179,6 +1308,18 @@ describe(StripeTransactionService.name, () => {
         } as Stripe.Charge
       }
     } as Stripe.ChargeRefundedEvent;
+  }
+
+  function createChargeDisputeClosedEvent(
+    dispute: Pick<Stripe.Dispute, "id" | "charge" | "status">,
+    created = DISPUTE_CLOSED_AT
+  ): Stripe.ChargeDisputeClosedEvent {
+    return {
+      id: "evt_123",
+      type: "charge.dispute.closed",
+      created,
+      data: { object: dispute as Stripe.Dispute }
+    } as Stripe.ChargeDisputeClosedEvent;
   }
 
   function createInvoicePaymentSucceededEvent(invoice: Partial<Stripe.Invoice>): Stripe.InvoicePaymentSucceededEvent {

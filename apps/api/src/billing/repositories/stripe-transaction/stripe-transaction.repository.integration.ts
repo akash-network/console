@@ -340,8 +340,24 @@ describe(StripeTransactionRepository.name, () => {
         currency: "usd",
         description: "Affiliate commission",
         amount: 500,
+        amountRefunded: 0,
         sourceTransactionId: sourcePayment.id
       });
+    });
+
+    it("records the part of the commission already taken back when the source payment was partly refunded", async () => {
+      const { stripeTransactionRepository, createTestUser, createTestTransaction } = setup();
+      const affiliate = await createTestUser();
+      const sourcePayment = await createTestTransaction();
+
+      const commission = await stripeTransactionRepository.createAffiliateCommission({
+        userId: affiliate.id,
+        amount: 500,
+        amountRefunded: 200,
+        sourceTransactionId: sourcePayment.id
+      });
+
+      expect(commission).toMatchObject({ status: "succeeded", amount: 500, amountRefunded: 200 });
     });
 
     it("rejects a second commission for the same source transaction", async () => {

@@ -44,6 +44,7 @@ export const StripeTransactions = pgTable(
     description: varchar("description", { length: 500 }),
     errorMessage: varchar("error_message", { length: 1000 }),
     sourceTransactionId: uuid("source_transaction_id").references((): AnyPgColumn => StripeTransactions.id, { onDelete: "set null" }),
+    disputeLostAt: timestamp("dispute_lost_at", { withTimezone: true }),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull()
   },

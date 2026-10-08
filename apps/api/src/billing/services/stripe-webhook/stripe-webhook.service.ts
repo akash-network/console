@@ -52,6 +52,9 @@ export class StripeWebhookService {
         case "charge.refunded":
           await this.stripeTransaction.refundCharge(event);
           break;
+        case "charge.dispute.closed":
+          await this.stripeTransaction.markDisputeLost(event);
+          break;
         case "payment_method.attached":
           await this.paymentMethodService.syncAttachedFromEvent(event);
           break;
