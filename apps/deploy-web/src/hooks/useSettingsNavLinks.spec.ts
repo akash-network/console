@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { mock } from "vitest-mock-extended";
 
+import type { AffiliateProfile } from "@src/queries/useAffiliateProfileQuery";
 import type { OrganizationOutput } from "@src/types/organization";
 import type { DEPENDENCIES } from "./useSettingsNavLinks";
 import { useSettingsNavLinks } from "./useSettingsNavLinks";
@@ -8,7 +9,7 @@ import { useSettingsNavLinks } from "./useSettingsNavLinks";
 import { renderHook } from "@testing-library/react";
 
 describe(useSettingsNavLinks.name, () => {
-  it("includes every settings item", () => {
+  it("includes every settings item when the affiliate program is off", () => {
     const links = setup({});
 
     expect(links.map(link => link.title)).toEqual(["Billing", "API Keys", "Usage", "Alerts"]);
@@ -82,6 +83,17 @@ describe(useSettingsNavLinks.name, () => {
 
       expect(links.map(link => link.title)).toEqual(["Billing", "API Keys", "Usage", "Alerts"]);
     });
+
+    it("keeps Referrals for an affiliate whose active team hides billing from them", () => {
+      const links = setup({
+        isOrganizationsEnabled: true,
+        organization: { type: "team", role: "member" },
+        isAffiliateProgramEnabled: true,
+        affiliateProfile: buildAffiliateProfile()
+      });
+
+      expect(links.map(link => link.title)).toEqual(["General", "Members", "API Keys", "Alerts", "Referrals"]);
+    });
   });
 
   it("ignores the active organization while organizations are disabled", () => {
@@ -90,14 +102,50 @@ describe(useSettingsNavLinks.name, () => {
     expect(links.map(link => link.title)).toEqual(["Billing", "API Keys", "Usage", "Alerts"]);
   });
 
-  function setup(input: { pathname?: string; isOrganizationsEnabled?: boolean; organization?: Pick<OrganizationOutput, "type" | "role"> }) {
+  it("excludes Referrals when the flag is on but the caller has no affiliate profile", () => {
+    const links = setup({ isAffiliateProgramEnabled: true, affiliateProfile: null });
+
+    expect(links.map(link => link.title)).not.toContain("Referrals");
+  });
+
+  it("excludes Referrals when the caller has a profile but the flag is off", () => {
+    const links = setup({ isAffiliateProgramEnabled: false, affiliateProfile: buildAffiliateProfile() });
+
+    expect(links.map(link => link.title)).not.toContain("Referrals");
+  });
+
+  it("includes Referrals when the flag is on and the caller has an affiliate profile", () => {
+    const links = setup({ isAffiliateProgramEnabled: true, affiliateProfile: buildAffiliateProfile() });
+
+    expect(links.map(link => link.title)).toEqual(["Billing", "API Keys", "Usage", "Alerts", "Referrals"]);
+  });
+
+  it("marks Referrals active on the referrals route", () => {
+    const links = setup({ pathname: "/referrals", isAffiliateProgramEnabled: true, affiliateProfile: buildAffiliateProfile() });
+
+    expect(links.filter(link => link.isActive).map(link => link.title)).toEqual(["Referrals"]);
+  });
+
+  function buildAffiliateProfile(): AffiliateProfile {
+    return { code: "friendcode", terms: { commissionPercent: 5, commissionMonths: 12, referralTrialCreditsUsd: 5 } };
+  }
+
+  function setup(input: {
+    pathname?: string;
+    isOrganizationsEnabled?: boolean;
+    isAffiliateProgramEnabled?: boolean;
+    organization?: Pick<OrganizationOutput, "type" | "role">;
+    affiliateProfile?: AffiliateProfile | null;
+  }) {
+    const enabledFlags = { organizations: input.isOrganizationsEnabled ?? false, affiliate_program: input.isAffiliateProgramEnabled ?? false };
     const dependencies: typeof DEPENDENCIES = {
       usePathname: () => input.pathname ?? "/",
-      useFlag: () => input.isOrganizationsEnabled ?? false,
+      useFlag: flag => enabledFlags[flag as keyof typeof enabledFlags] ?? false,
       useActiveOrganization: () =>
         mock<ReturnType<typeof DEPENDENCIES.useActiveOrganization>>({
           activeOrganization: input.organization ? mock<OrganizationOutput>({ id: "org-1", ...input.organization }) : undefined
-        })
+        }),
+      useAffiliateProfileQuery: () => Object.assign(mock<ReturnType<typeof DEPENDENCIES.useAffiliateProfileQuery>>(), { data: input.affiliateProfile ?? null })
     };
 
     return renderHook(() => useSettingsNavLinks({ dependencies })).result.current;

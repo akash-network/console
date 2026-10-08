@@ -25314,6 +25314,83 @@
         }
       }
     },
+    "/v1/affiliates/me": {
+      "get": {
+        "summary": "Get the caller's affiliate profile",
+        "operationId": "getAffiliateProfile",
+        "tags": [
+          "Affiliates"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The caller's affiliate profile, or null when they are not an approved affiliate",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "nullable": true,
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "terms": {
+                          "type": "object",
+                          "properties": {
+                            "commissionPercent": {
+                              "type": "number"
+                            },
+                            "commissionMonths": {
+                              "type": "number"
+                            },
+                            "referralTrialCreditsUsd": {
+                              "type": "number"
+                            }
+                          },
+                          "required": [
+                            "commissionPercent",
+                            "commissionMonths",
+                            "referralTrialCreditsUsd"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "terms"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ]
+      }
+    },
     "/v1/organizations": {
       "get": {
         "operationId": "listOrganizations",
