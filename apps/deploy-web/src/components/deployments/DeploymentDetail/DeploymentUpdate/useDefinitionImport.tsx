@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { extractApiErrorCode, extractApiErrorMessage, isApiError } from "@akashnetwork/openapi-sdk";
+import { extractApiErrorMessage, isApiError } from "@akashnetwork/openapi-sdk";
 import { Snackbar } from "@akashnetwork/ui/components";
 import { useQueryClient } from "@tanstack/react-query";
 import { useSnackbar } from "notistack";
@@ -7,6 +7,8 @@ import { useSnackbar } from "notistack";
 import { useServices } from "@src/context/ServicesProvider";
 import type { RecordableDefinition } from "@src/utils/sdl/recordableDefinition";
 import { sealSdlSecrets } from "@src/utils/sdl/sealSdlSecrets";
+import type { DefinitionSealing } from "@src/utils/sdl/sendSealedDefinition";
+import { isDefinitionAlreadyRecorded, isDefinitionMismatch, sendSealedDefinition } from "@src/utils/sdl/sendSealedDefinition";
 import { isStaleProviderVersion, STALE_PROVIDER_VERSION_FALLBACK_MESSAGE } from "@src/utils/updateDeploymentFailure";
 
 export const DEPENDENCIES = {
@@ -19,9 +21,6 @@ export const DEPENDENCIES = {
 
 const HTTP_BAD_REQUEST = 400;
 const HTTP_FORBIDDEN = 403;
-const HTTP_CONFLICT = 409;
-const DEFINITION_MISMATCH_ERROR_CODE = "deployment_definition_mismatch";
-const DEFINITION_EXISTS_ERROR_CODE = "deployment_definition_exists";
 const SAVE_FAILURE_MESSAGE = "Something went wrong while saving the configuration. Please try again.";
 const UPDATE_FAILURE_MESSAGE = "Something went wrong while updating the deployment. Please try again.";
 
@@ -30,22 +29,12 @@ export interface DefinitionImportInput {
   onImported: () => void;
 }
 
-function hasErrorCode(cause: unknown, code: string): boolean {
-  return isApiError(cause) && extractApiErrorCode(cause) === code;
-}
-
-/** Only the definition and stale-provider conflicts are named; every other 409 on these routes answers a seal made against a retired key. */
-function isStaleSeal(cause: unknown): boolean {
-  return isApiError(cause) && cause.status === HTTP_CONFLICT && !hasErrorCode(cause, DEFINITION_EXISTS_ERROR_CODE) && !isStaleProviderVersion(cause);
-}
-
 /** The review is where a document the api refused can be fixed, so its words go there rather than into a toast. */
 function refusalOf(cause: unknown): string | null {
   if (!isApiError(cause) || (cause.status !== HTTP_BAD_REQUEST && cause.status !== HTTP_FORBIDDEN)) return null;
   return extractApiErrorMessage(cause) ?? null;
 }
 
-/** Every seal is bound to the sdl it travels with, since both routes take the document whole. */
 export function useDefinitionImport({ dseq, onImported }: DefinitionImportInput, d = DEPENDENCIES) {
   const { api, analyticsService } = useServices();
   const { enqueueSnackbar } = d.useSnackbar();
@@ -56,18 +45,10 @@ export function useDefinitionImport({ dseq, onImported }: DefinitionImportInput,
   const [isSaving, setIsSaving] = useState(false);
   const [mismatch, setMismatch] = useState(false);
   const [refusal, setRefusal] = useState<string | null>(null);
-
-  async function sendSealed(definition: RecordableDefinition, send: (sealedSecrets: string) => Promise<unknown>, canResealOnce: boolean): Promise<void> {
-    const context = await getSdlSecretsContext.mutateAsync();
-    const sealedSecrets = await d.sealSdlSecrets({ context: context.data, sdl: definition.sdl, secrets: definition.secrets });
-
-    try {
-      await send(sealedSecrets);
-    } catch (cause) {
-      if (!canResealOnce || !isStaleSeal(cause)) throw cause;
-      await sendSealed(definition, send, false);
-    }
-  }
+  const sealing: DefinitionSealing = {
+    contextOf: async () => (await getSdlSecretsContext.mutateAsync()).data,
+    seal: d.sealSdlSecrets
+  };
 
   function takeUpTheRecordedDefinition() {
     queryClient.invalidateQueries({ queryKey: api.v1.getDeployment.getKey({ dseq }) });
@@ -90,7 +71,7 @@ export function useDefinitionImport({ dseq, onImported }: DefinitionImportInput,
     setMismatch(false);
 
     try {
-      await sendSealed(definition, sealedSecrets => createDefinition.mutateAsync({ dseq, data: { sdl: definition.sdl, sealedSecrets } }), true);
+      await sendSealedDefinition(definition, sealing, sealedSecrets => createDefinition.mutateAsync({ dseq, data: { sdl: definition.sdl, sealedSecrets } }));
     } catch (cause) {
       setIsSaving(false);
       reportRecordFailure(cause);
@@ -105,12 +86,12 @@ export function useDefinitionImport({ dseq, onImported }: DefinitionImportInput,
   }
 
   function reportRecordFailure(cause: unknown) {
-    if (hasErrorCode(cause, DEFINITION_MISMATCH_ERROR_CODE)) {
+    if (isDefinitionMismatch(cause)) {
       setMismatch(true);
       return;
     }
 
-    if (hasErrorCode(cause, DEFINITION_EXISTS_ERROR_CODE)) {
+    if (isDefinitionAlreadyRecorded(cause)) {
       takeUpTheRecordedDefinition();
       enqueueSnackbar(<d.Snackbar title="Already saved" subTitle="This deployment's configuration was already saved to your account." iconVariant="info" />, {
         variant: "info"
@@ -125,7 +106,7 @@ export function useDefinitionImport({ dseq, onImported }: DefinitionImportInput,
     startSaving();
 
     try {
-      await sendSealed(definition, sealedSecrets => updateDeployment.mutateAsync({ dseq, data: { sdl: definition.sdl, sealedSecrets } }), true);
+      await sendSealedDefinition(definition, sealing, sealedSecrets => updateDeployment.mutateAsync({ dseq, data: { sdl: definition.sdl, sealedSecrets } }));
     } catch (cause) {
       setIsSaving(false);
       reportUpdateFailure(cause);

@@ -23,6 +23,7 @@ const SEALED_CREDENTIALS_SDL =
   'version: "2.0"\nservices:\n  web:\n    image: nginx\n    credentials:\n      host: docker.io\n      username: someone\n      password: "ac-secret://s0_c_password"\n    env:\n      - "TOKEN=from-the-api"\n';
 const BLANK_ENV_SDL = 'version: "2.0"\nservices:\n  web:\n    image: nginx\n    env:\n      - "TOKEN="\n';
 const PARTLY_BLANK_ENV_SDL = 'version: "2.0"\nservices:\n  web:\n    image: nginx\n    env:\n      - "TOKEN="\n      - "REGION=us-east-1"\n';
+const AFTER_THE_LAST_RESTORE_DAY = new Date("2026-11-10T00:00:00Z");
 const REFERENCE_BESIDE_BLANK_ENV_SDL = 'version: "2.0"\nservices:\n  web:\n    image: nginx\n    env:\n      - "TOKEN=ac-secret://s0_e0"\n      - "VAEURLS="\n';
 
 describe(useDeploymentDefinition.name, () => {
@@ -221,6 +222,26 @@ describe(useDeploymentDefinition.name, () => {
       expect(result.current.restoredSdl).toContain("TOKEN=from-this-browser");
     });
 
+    it("restores nothing once the last day this browser offers the restore is over", async () => {
+      const { result } = setup({ apiSdl: WITHHELD_VALUES_SDL, localSdl: LOCAL_SDL, acceptReferences: true, now: AFTER_THE_LAST_RESTORE_DAY });
+
+      await vi.waitFor(() => expect(result.current.source).toBe("api"));
+      expect(result.current.sdl).toBe(WITHHELD_VALUES_SDL);
+      expect(result.current.restoredSdl).toBeUndefined();
+    });
+
+    it("does not wait on this browser's copy once the last day of the restore is over", async () => {
+      const { result } = setup({
+        apiSdl: WITHHELD_VALUES_SDL,
+        localSdl: LOCAL_SDL,
+        acceptReferences: true,
+        isReadingBrowserCopy: true,
+        now: AFTER_THE_LAST_RESTORE_DAY
+      });
+
+      await vi.waitFor(() => expect(result.current.source).toBe("api"));
+    });
+
     it("restores nothing from a copy of this browser's the chain has moved past", async () => {
       const { result } = setup({ apiSdl: WITHHELD_VALUES_SDL, localSdl: LOCAL_SDL, acceptReferences: true, browserCopyVersion: "an-older-version" });
 
@@ -387,6 +408,7 @@ describe(useDeploymentDefinition.name, () => {
     apiCopyVersion?: string;
     isReadingApiCopy?: boolean;
     hashesCopies?: boolean;
+    now?: Date;
   }) {
     const chainManifestVersion = input.chainManifestVersion ?? "on-chain-version";
     const recordedManifestVersion = input.recordedManifestVersion ?? chainManifestVersion;
@@ -428,13 +450,14 @@ describe(useDeploymentDefinition.name, () => {
       };
     };
     const useManifestVersionOf = input.hashesCopies ? DEPENDENCIES.useManifestVersionOf : readCopyVersion;
+    const now = () => input.now ?? new Date("2026-10-08T12:00:00Z");
 
     const { result } = setupQuery(
       () =>
         useDeploymentDefinition(
           input.dseq === undefined ? "123" : input.dseq,
           { acceptReferences: input.acceptReferences },
-          { useServices, useWallet, useResolvedDeploymentName: useResolvedName, useManifestVersionOf }
+          { useServices, useWallet, useResolvedDeploymentName: useResolvedName, useManifestVersionOf, now }
         ),
       {
         services: { api: () => api, deploymentLocalStorage: () => deploymentLocalStorage, queryClient: () => queryClient }

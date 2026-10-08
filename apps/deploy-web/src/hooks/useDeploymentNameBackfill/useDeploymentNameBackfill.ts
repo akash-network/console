@@ -16,6 +16,10 @@ export interface ApiDeploymentName {
   name: string | null;
 }
 
+export function backfilledNameOf(name: string | undefined): string | undefined {
+  return name?.trim().slice(0, MAX_DEPLOYMENT_NAME_LENGTH);
+}
+
 /** The deployments to record, sorted and deduplicated into one value, so a surface re-rendering with the same answers asks for nothing again. */
 function toUnnamedKey(apiNames: ReadonlyArray<ApiDeploymentName>): string {
   return [...new Set(apiNames.filter(({ name }) => name === null).map(({ dseq }) => dseq))].sort().join(",");
@@ -38,7 +42,7 @@ export function useDeploymentNameBackfill(apiNames: ReadonlyArray<ApiDeploymentN
       if (!address || !unnamedKey) return;
 
       for (const dseq of unnamedKey.split(",")) {
-        const name = deploymentLocalStorage.get(address, dseq)?.name?.trim().slice(0, MAX_DEPLOYMENT_NAME_LENGTH);
+        const name = backfilledNameOf(deploymentLocalStorage.get(address, dseq)?.name);
 
         if (!name) continue;
 

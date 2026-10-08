@@ -8,6 +8,7 @@ import { useWallet } from "@src/context/WalletProvider";
 import { useResolvedDeploymentName } from "@src/hooks/useResolvedDeploymentName/useResolvedDeploymentName";
 import { QueryKeys } from "@src/queries/queryKeys";
 import { deploymentData } from "@src/utils/deploymentData";
+import { isBrowserRestoreOffered } from "@src/utils/sdl/browserRestoreDeadline";
 import {
   hasEnvProtectedByDefault,
   isStoredSdlRedeployable,
@@ -27,7 +28,7 @@ export interface DeploymentDefinition {
   manifestVersion?: string;
   /** Whether the console holds a definition of its own, usable here or not; unknown until the api has answered. */
   isRecordedByConsole?: boolean;
-  /** The api's copy with the env values it sealed on its own filled from this browser, present only while this browser's copy is the one the chain runs. */
+  /** The api's copy with the env values it sealed on its own filled from this browser, present only while this browser's copy is the one the chain runs and the restore is still offered. */
   restoredSdl?: string;
 }
 
@@ -65,7 +66,14 @@ export async function manifestVersionOrNull(sdl: string): Promise<string | null>
   }
 }
 
-export const DEPENDENCIES = { useServices, useWallet, useResolvedDeploymentName, useManifestVersionOf };
+export const DEPENDENCIES = {
+  useServices,
+  useWallet,
+  useResolvedDeploymentName,
+  useManifestVersionOf,
+  // eslint-disable-next-line akash/dependencies-component-or-hook
+  now: () => new Date()
+};
 
 export interface DeploymentDefinitionOptions {
   /** Takes the api's copy even where it withholds values as references, for a caller that hands the SDL to Configure rather than signing it. */
@@ -112,9 +120,10 @@ export function useDeploymentDefinition(
   const isRecordedByConsole = query.data ? !!consoleSettings : undefined;
   const name = dependencies.useResolvedDeploymentName(dseq);
   const acceptReferences = !!options.acceptReferences;
+  const isRestoreOffered = isBrowserRestoreOffered(dependencies.now());
   const mayRestoreFromBrowser = useMemo(
-    () => acceptReferences && isApiCopyOnChain && !!apiSdl && !!localSdl && hasEnvProtectedByDefault(apiSdl),
-    [acceptReferences, isApiCopyOnChain, apiSdl, localSdl]
+    () => acceptReferences && isRestoreOffered && isApiCopyOnChain && !!apiSdl && !!localSdl && hasEnvProtectedByDefault(apiSdl),
+    [acceptReferences, isRestoreOffered, isApiCopyOnChain, apiSdl, localSdl]
   );
   const browserCopyVersion = dependencies.useManifestVersionOf(mayRestoreFromBrowser ? localSdl : undefined);
   const isReadingBrowserCopy = mayRestoreFromBrowser && browserCopyVersion.isReading;

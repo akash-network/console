@@ -80,6 +80,49 @@ describe(DeploymentNameBackfillService.name, () => {
     expect(retry.run).not.toHaveBeenCalled();
   });
 
+  it("tells the caller once its backfill landed", async () => {
+    const { service, backfill } = setup();
+    const only = backfill();
+
+    const isSent = service.enqueue(OWNER, "100", only.run);
+    await vi.waitFor(() => expect(only.run).toHaveBeenCalled());
+    only.finish();
+
+    await expect(isSent).resolves.toBe(true);
+  });
+
+  it("tells the caller when the api refused its backfill", async () => {
+    const { service, backfill } = setup();
+    const failing = backfill();
+
+    const isSent = service.enqueue(OWNER, "100", failing.run);
+    await vi.waitFor(() => expect(failing.run).toHaveBeenCalled());
+    failing.fail();
+
+    await expect(isSent).resolves.toBe(false);
+  });
+
+  it("tells a caller asking again within the session that it sent nothing", async () => {
+    const { service, backfill } = setup();
+    const first = backfill();
+
+    service.enqueue(OWNER, "100", first.run);
+
+    await expect(service.enqueue(OWNER, "100", backfill().run)).resolves.toBe(false);
+  });
+
+  it("tells the caller of a queued backfill dropped for a rename that it sent nothing", async () => {
+    const { service, backfill } = setup();
+    const inFlight = backfill();
+    const queued = backfill();
+
+    service.enqueue(OWNER, "100", inFlight.run);
+    const isSent = service.enqueue(OWNER, "200", queued.run);
+    await service.preempt(OWNER, "200");
+
+    await expect(isSent).resolves.toBe(false);
+  });
+
   it("drops a queued backfill for the deployment being renamed", async () => {
     const { service, backfill, flush } = setup();
     const inFlight = backfill();

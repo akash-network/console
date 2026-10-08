@@ -745,6 +745,12 @@ describe(DeploymentUpdate.name, () => {
       expect(screen.queryByRole("button", { name: /^Restore/ })).not.toBeInTheDocument();
     });
 
+    it("says until when this browser offers to restore them", () => {
+      setup({ definition: { sdl: PROTECTED_SDL, restoredSdl: STORED_SDL } });
+
+      expect(screen.getByText(/You can restore them from this browser until November 9, 2026\./)).toBeInTheDocument();
+    });
+
     it("explains why their values are hidden when this browser holds no copy of them", () => {
       setup({ definition: { sdl: PROTECTED_SDL } });
 
