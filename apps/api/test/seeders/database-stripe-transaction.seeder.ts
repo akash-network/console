@@ -24,6 +24,7 @@ export function generateDatabaseStripeTransaction(overrides: Partial<StripeTrans
     receiptUrl: null,
     description: null,
     errorMessage: null,
+    sourceTransactionId: null,
     createdAt: faker.date.recent(),
     updatedAt: faker.date.recent()
   };

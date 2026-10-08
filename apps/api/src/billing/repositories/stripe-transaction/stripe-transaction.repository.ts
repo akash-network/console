@@ -238,6 +238,27 @@ export class StripeTransactionRepository extends BaseRepository<Table, StripeTra
     return total;
   }
 
+  /** Stores the commission as a `stripe_transactions` row so billing history and CSV export pick it up unchanged. */
+  async createAffiliateCommission(input: { userId: string; amount: number; sourceTransactionId: string }): Promise<StripeTransactionOutput> {
+    return this.create({
+      userId: input.userId,
+      type: "affiliate_commission",
+      status: "succeeded",
+      currency: "usd",
+      description: "Affiliate commission",
+      amount: input.amount,
+      sourceTransactionId: input.sourceTransactionId
+    });
+  }
+
+  async findAffiliateCommissionBySource(sourceTransactionId: string): Promise<StripeTransactionOutput | undefined> {
+    return this.findOneBy({ sourceTransactionId, type: "affiliate_commission" });
+  }
+
+  async findAffiliateCommissionBySourceAndLock(sourceTransactionId: string): Promise<StripeTransactionOutput | undefined> {
+    return this.findOneByAndLock({ sourceTransactionId, type: "affiliate_commission" });
+  }
+
   async sumAmountByUserId(userId: string, options?: { startDate?: Date; endDate?: Date; status?: StripeTransactionStatus }): Promise<number> {
     const conditions: SQL[] = [eq(this.table.userId, userId)];
 

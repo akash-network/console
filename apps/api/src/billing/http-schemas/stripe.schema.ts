@@ -134,7 +134,7 @@ export const ApplyCouponResponseSchema = z.object({
 
 export const TransactionSchema = z.object({
   id: z.string(),
-  type: z.enum(["payment_intent", "coupon_claim", "manual_credit"]),
+  type: z.enum(["payment_intent", "coupon_claim", "manual_credit", "affiliate_commission"]),
   amount: z.number(),
   /** Cumulative amount refunded on this transaction, in cents. */
   amountRefunded: z.number(),

@@ -72,7 +72,8 @@ describe(BillingView.name, () => {
   it.each([
     { type: "coupon_claim" as const, label: "Coupon" },
     { type: "manual_credit" as const, label: "Manual credit" },
-    { type: "payment_intent" as const, label: "Card payment" }
+    { type: "payment_intent" as const, label: "Card payment" },
+    { type: "affiliate_commission" as const, label: "Affiliate commission" }
   ])("names a $type without a card as $label with its description", ({ type, label }) => {
     setup({ data: [createMockTransaction({ type, cardLast4: null, description: "Hackathon credits" })] });
 
@@ -85,8 +86,8 @@ describe(BillingView.name, () => {
     expect(cell(0, "Account source")).toHaveTextContent(/^Coupon$/);
   });
 
-  it("reads coupons and manual credits as money in", () => {
-    setup({ data: [createMockTransaction({ type: "coupon_claim", amount: 2500, cardLast4: null })] });
+  it.each(["coupon_claim" as const, "manual_credit" as const, "affiliate_commission" as const])("reads a %s as money in", type => {
+    setup({ data: [createMockTransaction({ type, amount: 2500, cardLast4: null })] });
 
     const amount = within(cell(0, "Amount")).getByText(/25\.00/);
     expect(amount).toHaveTextContent("+25.00");
@@ -129,6 +130,33 @@ describe(BillingView.name, () => {
 
     const pill = within(cell(0, "Status")).getByText(label);
     expect(pill).toHaveAttribute("data-status", status);
+  });
+
+  it("says a partially reversed commission was taken back", () => {
+    setup({ data: [createMockTransaction({ type: "affiliate_commission", amount: 500, amountRefunded: 500, status: "succeeded", cardLast4: null })] });
+
+    expect(cell(0, "Amount")).toHaveTextContent("5.00-5.00 taken back");
+    expect(cell(0, "Amount")).not.toHaveTextContent("refunded");
+  });
+
+  it("labels a fully reversed affiliate commission as Reversed rather than Refunded", () => {
+    setup({ data: [createMockTransaction({ type: "affiliate_commission", status: "refunded", cardLast4: null })] });
+
+    const pill = within(cell(0, "Status")).getByText("Reversed");
+    expect(pill).toHaveAttribute("data-status", "refunded");
+    expect(within(cell(0, "Status")).queryByText("Refunded")).not.toBeInTheDocument();
+  });
+
+  it("labels a partially reversed affiliate commission as Successful", () => {
+    setup({ data: [createMockTransaction({ type: "affiliate_commission", status: "succeeded", amountRefunded: 100, cardLast4: null })] });
+
+    expect(cell(0, "Status")).toHaveTextContent(/^Successful$/);
+  });
+
+  it("labels a refunded card payment as Refunded", () => {
+    setup({ data: [createMockTransaction({ type: "payment_intent", status: "refunded" })] });
+
+    expect(cell(0, "Status")).toHaveTextContent(/^Refunded$/);
   });
 
   it("links to the receipt in a new tab", () => {

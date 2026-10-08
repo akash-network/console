@@ -1,5 +1,5 @@
 import { relations, sql } from "drizzle-orm";
-import { index, integer, pgEnum, pgTable, timestamp, uniqueIndex, uuid, varchar } from "drizzle-orm/pg-core";
+import { type AnyPgColumn, index, integer, pgEnum, pgTable, timestamp, uniqueIndex, uuid, varchar } from "drizzle-orm/pg-core";
 
 import { Users } from "@src/user/model-schemas";
 
@@ -13,7 +13,7 @@ export const stripeTransactionStatusEnum = pgEnum("stripe_transaction_status", [
   "canceled"
 ]);
 
-export const stripeTransactionTypeEnum = pgEnum("stripe_transaction_type", ["payment_intent", "coupon_claim", "manual_credit"]);
+export const stripeTransactionTypeEnum = pgEnum("stripe_transaction_type", ["payment_intent", "coupon_claim", "manual_credit", "affiliate_commission"]);
 
 export const StripeTransactions = pgTable(
   "stripe_transactions",
@@ -43,6 +43,7 @@ export const StripeTransactions = pgTable(
     receiptUrl: varchar("receipt_url", { length: 2048 }),
     description: varchar("description", { length: 500 }),
     errorMessage: varchar("error_message", { length: 1000 }),
+    sourceTransactionId: uuid("source_transaction_id").references((): AnyPgColumn => StripeTransactions.id, { onDelete: "set null" }),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull()
   },
@@ -60,6 +61,10 @@ export const StripeTransactions = pgTable(
     stripeIdempotencyKeyUnique: uniqueIndex("stripe_transactions_stripe_idempotency_key_unique")
       .on(table.stripeIdempotencyKey)
       .where(sql`${table.stripeIdempotencyKey} IS NOT NULL`),
+    /** At most one commission row per source payment, so a commission sync can never double-grant it. */
+    sourceTransactionIdUnique: uniqueIndex("stripe_transactions_source_transaction_id_unique")
+      .on(table.sourceTransactionId)
+      .where(sql`${table.sourceTransactionId} IS NOT NULL`),
     userIdIdx: index("stripe_transactions_user_id_idx").on(table.userId),
     stripePaymentIntentIdIdx: index("stripe_transactions_stripe_payment_intent_id_idx").on(table.stripePaymentIntentId),
     stripeChargeIdIdx: index("stripe_transactions_stripe_charge_id_idx").on(table.stripeChargeId),

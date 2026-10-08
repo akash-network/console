@@ -607,6 +607,7 @@ describe(StripeTransactionService.name, () => {
       receiptUrl: input.receiptUrl ?? null,
       description: input.description ?? null,
       errorMessage: input.errorMessage ?? null,
+      sourceTransactionId: input.sourceTransactionId ?? null,
       createdAt: new Date(),
       updatedAt: new Date()
     }));
