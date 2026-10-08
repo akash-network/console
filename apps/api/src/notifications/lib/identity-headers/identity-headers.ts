@@ -1,4 +1,4 @@
-/** Every header the api mints for the notifications service is listed here, so the proxy drops any copy a client sends. */
+/** Identity headers reserved for the notifications service, which the proxy strips from clients and mints from the request context. */
 export const NOTIFICATIONS_IDENTITY_HEADERS = {
   userId: "x-user-id",
   ownerAddress: "x-owner-address",
