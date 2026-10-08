@@ -22,7 +22,7 @@ describe("POST /api/auth/email-code-verify", () => {
     });
 
     expect(sessionService.verifyEmailCode).toHaveBeenCalledWith({ email: "user@example.com", code: "123456" });
-    expect(sessionService.createLocalUser).toHaveBeenCalledWith(session, { timezone: undefined });
+    expect(sessionService.createLocalUser).toHaveBeenCalledWith(session, { timezone: undefined, referralCode: undefined });
     expect(setSession).toHaveBeenCalled();
     expect(sessionService.createLocalUser.mock.invocationCallOrder[0]).toBeLessThan(setSession.mock.invocationCallOrder[0]);
     expect(res.status).toHaveBeenCalledWith(204);
@@ -36,7 +36,7 @@ describe("POST /api/auth/email-code-verify", () => {
       cookies: { [BROWSER_TIMEZONE_COOKIE_NAME]: "Europe/Paris" }
     });
 
-    expect(sessionService.createLocalUser).toHaveBeenCalledWith(session, { timezone: "Europe/Paris" });
+    expect(sessionService.createLocalUser).toHaveBeenCalledWith(session, { timezone: "Europe/Paris", referralCode: undefined });
   });
 
   it("merges the local user settings into the session before persisting it", async () => {
@@ -126,6 +126,27 @@ describe("POST /api/auth/email-code-verify", () => {
     expect(res.status).toHaveBeenCalledWith(403);
     expect(sessionService.verifyEmailCode).not.toHaveBeenCalled();
     expect(setSession).not.toHaveBeenCalled();
+  });
+
+  it("forwards the referral cookie to createLocalUser", async () => {
+    const session = Object.assign(new Session({ sub: "auth0|email|abc", email: "user@example.com" }), { accessToken: "at" });
+    const { sessionService } = await callHandler({
+      body: { email: "user@example.com", code: "123456", captchaToken: "tok" },
+      verifyResult: Ok(session),
+      cookies: { console_referral: "creator" }
+    });
+
+    expect(sessionService.createLocalUser).toHaveBeenCalledWith(session, { timezone: undefined, referralCode: "creator" });
+  });
+
+  it("omits the referral code when no cookie is present", async () => {
+    const session = Object.assign(new Session({ sub: "auth0|email|abc", email: "user@example.com" }), { accessToken: "at" });
+    const { sessionService } = await callHandler({
+      body: { email: "user@example.com", code: "123456", captchaToken: "tok" },
+      verifyResult: Ok(session)
+    });
+
+    expect(sessionService.createLocalUser).toHaveBeenCalledWith(session, { timezone: undefined, referralCode: undefined });
   });
 
   async function callHandler(input: {

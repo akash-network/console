@@ -84,6 +84,7 @@ export class SessionService {
     captchaToken?: string;
     testingClientToken?: string;
     timezone?: string;
+    referralCode?: string;
   }): Promise<
     Result<
       Session,
@@ -137,7 +138,7 @@ export class SessionService {
 
     if (result.ok) {
       const session = result.val;
-      const { userSettings } = await this.createLocalUser(result.val, { timezone: input.timezone });
+      const { userSettings } = await this.createLocalUser(result.val, { timezone: input.timezone, referralCode: input.referralCode });
       session.user = { ...session.user, nickname: userSettings.username };
       return Ok(session);
     }
@@ -227,7 +228,7 @@ export class SessionService {
   /**
    * This method calls idempotent API call to create a local user in the database.
    */
-  async createLocalUser(session: Session, browser: { timezone?: string } = {}): Promise<{ userSettings: UserSettings; isNewUser: boolean }> {
+  async createLocalUser(session: Session, browser: { timezone?: string; referralCode?: string } = {}): Promise<{ userSettings: UserSettings; isNewUser: boolean }> {
     const user_metadata = session.user["https://console.akash.network/user_metadata"];
     const headers: Record<string, string> = {
       Authorization: `Bearer ${session.accessToken}`
@@ -238,7 +239,8 @@ export class SessionService {
       {
         wantedUsername: session.user.nickname,
         subscribedToNewsletter: user_metadata?.subscribedToNewsletter === "true",
-        timezone: browser.timezone
+        timezone: browser.timezone,
+        ...(browser.referralCode ? { referralCode: browser.referralCode } : {})
       },
       {
         headers

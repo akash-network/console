@@ -17,6 +17,7 @@ import { isInvalidSessionError } from "@src/lib/auth0/isInvalidSessionError/isIn
 import { loadSessionProfile } from "@src/lib/auth0/loadSessionProfile/loadSessionProfile";
 import { readBrowserTimezone } from "@src/lib/browser-timezone/browser-timezone-cookie";
 import { defineApiHandler } from "@src/lib/nextjs/defineApiHandler/defineApiHandler";
+import { readReferralCode } from "@src/lib/referral/referral-cookie";
 import type { AppServices } from "@src/services/app-di-container/server-di-container.service";
 import { rewriteLocalRedirect } from "@src/services/auth/auth/rewrite-local-redirect";
 import type { SeverityLevel } from "@src/services/error-handler/error-handler.service";
@@ -49,7 +50,7 @@ const authHandler = once((services: AppServices) =>
         await handleCallback(req, res, {
           afterCallback: async (req: NextApiRequest, res: NextApiResponse, session: Session) => {
             try {
-              const { userSettings, isNewUser } = await services.sessionService.createLocalUser(session, { timezone: readBrowserTimezone(req) });
+              const { userSettings, isNewUser } = await services.sessionService.createLocalUser(session, { timezone: readBrowserTimezone(req), referralCode: readReferralCode(req.cookies) });
               session.user = { ...session.user, ...userSettings };
               if (isNewUser) setAccountCreatedCookie(res);
             } catch (error) {
