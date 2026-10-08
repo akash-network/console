@@ -30,11 +30,14 @@ export class ReferralService {
   }
 
   async attribute({ referredUserId, code }: AttributeReferralInput): Promise<void> {
-    if (!this.featureFlagsService.isEnabled(FeatureFlags.AFFILIATE_PROGRAM)) return;
-
     const affiliate = await this.affiliateService.findActiveByCode(code);
     if (!affiliate) {
       this.logger.debug({ event: "REFERRAL_CODE_IGNORED", code, reason: "unknown_or_revoked" });
+      return;
+    }
+
+    if (!this.featureFlagsService.isEnabled(FeatureFlags.AFFILIATE_PROGRAM, { userId: affiliate.userId })) {
+      this.logger.debug({ event: "REFERRAL_CODE_IGNORED", code, reason: "program_disabled" });
       return;
     }
 
