@@ -22,13 +22,10 @@ describe(ConfigureWorkspaceHeader.name, () => {
     expect(screen.queryByRole("button")).not.toBeInTheDocument();
   });
 
-  it.each<[DeployCtaState, string]>([
-    ["requesting", "Requesting…"],
-    ["select-providers", "Select providers to deploy"]
-  ])("shows a disabled %s action", (ctaState, name) => {
-    setup({ ctaState });
+  it("shows the bid phase action beside the resources", () => {
+    setup({ ctaState: "select-providers" });
 
-    expect(screen.getByRole("button", { name })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Select providers to deploy" })).toBeDisabled();
   });
 
   it.each<[DeployCtaState, string, "onDeploy" | "onRetry" | "onCloseAndEdit"]>([

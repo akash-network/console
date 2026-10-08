@@ -14,10 +14,12 @@ import type { DeploymentCost } from "../useDeploymentCost/useDeploymentCost";
 import type { DeploymentIntent } from "../useDeploymentFlow/deploymentIntent";
 import type { DeploymentFlow, DeploymentFlowActions } from "../useDeploymentFlow/useDeploymentFlow";
 import type { ConfigureWorkspaceHeader } from "./ConfigureWorkspaceHeader/ConfigureWorkspaceHeader";
+import type { DeploymentCostBar } from "./DeploymentCostBar/DeploymentCostBar";
 import type { LeaveConfigureButton } from "./LeaveConfigureButton/LeaveConfigureButton";
 import type { LockedDeploymentRail } from "./LockedDeploymentRail/LockedDeploymentRail";
 import type { NoBidsNotice } from "./NoBidsNotice/NoBidsNotice";
 import type { PlacementProviderChips } from "./PlacementProviderChips/PlacementProviderChips";
+import type { ProvidersSheetBar } from "./ProvidersSheetBar/ProvidersSheetBar";
 import { ConfigureWorkspace, DEPENDENCIES } from "./ConfigureWorkspace";
 
 import { act, render, screen, waitFor } from "@testing-library/react";
@@ -179,6 +181,63 @@ describe(ConfigureWorkspace.name, () => {
       expect(useScreenedProviders).toHaveBeenCalledWith({ sdl: "live-sdl", placementName: "placement-1", regions: [], enabled: true });
       expect(useScreenedProviders).toHaveBeenCalledWith({ sdl: "live-sdl", placementName: "gpu-pool", regions: ["us-west", "eu-west"], enabled: true });
     });
+
+    it("keeps the availability of the active placement in a sheet behind the bottom bar", () => {
+      const { sheetBarProps, sheetPaneProps, dependencies } = setup({});
+
+      expect((sheetBarProps().sheet as ReactElement).type).toBe(dependencies.AvailabilityPane);
+      expect(sheetPaneProps()).toMatchObject({ sdl: "live-sdl", placementCount: 2, isReady: true, isSubmitting: false, hasPlacementWithoutProviders: false });
+      expect(sheetPaneProps().placement).toMatchObject({ id: "p2", name: "gpu-pool" });
+      expect(sheetBarProps().isSheetOpen).toBe(false);
+      expect(dependencies.DeploymentCostBar).not.toHaveBeenCalled();
+    });
+
+    it.each([true, false])("holds the provider choice in the bottom bar while a placement without providers is %s", hasPlacementWithoutProviders => {
+      const { sheetBarProps } = setup({ hasPlacementWithoutProviders });
+
+      expect(sheetBarProps().isChooseProviderDisabled).toBe(hasPlacementWithoutProviders);
+    });
+
+    it("tracks the choice of a provider from the bottom bar and requests bids", () => {
+      const { sheetBarProps, requestQuotes, analyticsService } = setup({});
+
+      act(() => sheetBarProps().onChooseProvider());
+
+      expect(analyticsService.track).toHaveBeenCalledWith("configure_choose_provider_clicked", { category: "deployments" });
+      expect(requestQuotes).toHaveBeenCalled();
+    });
+
+    it("opens the providers sheet and closes it before requesting bids from it", () => {
+      const { sheetBarProps, sheetPaneProps, requestQuotes } = setup({});
+
+      act(() => sheetBarProps().onSheetOpenChange(true));
+      expect(sheetBarProps().isSheetOpen).toBe(true);
+
+      act(() => sheetPaneProps().onChooseProvider());
+
+      expect(sheetBarProps().isSheetOpen).toBe(false);
+      expect(requestQuotes).toHaveBeenCalled();
+    });
+
+    it("closes the providers sheet before asking for compute from it", () => {
+      const { sheetBarProps, sheetPaneProps, analyticsService } = setup({});
+      act(() => sheetBarProps().onSheetOpenChange(true));
+
+      act(() => sheetPaneProps().onRequestCompute());
+
+      expect(sheetBarProps().isSheetOpen).toBe(false);
+      expect(analyticsService.track).toHaveBeenCalledWith("configure_request_compute_clicked", { category: "deployments", source: "footer" });
+      expect(screen.getByText("Hardware request dialog")).toBeInTheDocument();
+    });
+
+    it("closes the providers sheet when it asks to", () => {
+      const { sheetBarProps } = setup({});
+      act(() => sheetBarProps().onSheetOpenChange(true));
+
+      act(() => sheetBarProps().onSheetOpenChange(false));
+
+      expect(sheetBarProps().isSheetOpen).toBe(false);
+    });
   });
 
   describe("once bids are requested", () => {
@@ -263,6 +322,21 @@ describe(ConfigureWorkspace.name, () => {
       const { useScreenedProviders } = setup({ phase: "quoting" });
 
       expect(useScreenedProviders).toHaveBeenCalledWith(expect.objectContaining({ placementName: "gpu-pool", enabled: false }));
+    });
+
+    it("swaps the bottom bar for the deployment cost, the bid window and the bid phase action", () => {
+      const cost = { minPerBlock: 1, maxPerBlock: 2, denom: "uact" };
+      const { costBarProps, onDeploy, retryDeploy, flow, dependencies } = setup({ phase: "quoting", allPlacementsHaveBids: true, expired: true, cost });
+
+      expect(costBarProps()).toMatchObject({
+        ctaState: "select-providers",
+        cost,
+        expiry: { secondsLeft: 0, isExpired: true },
+        onDeploy,
+        onRetry: retryDeploy,
+        onCloseAndEdit: flow.actions.cancelAndEdit
+      });
+      expect(dependencies.ProvidersSheetBar).not.toHaveBeenCalled();
     });
   });
 
@@ -507,6 +581,12 @@ describe(ConfigureWorkspace.name, () => {
       headerProps: () => dependencies.ConfigureWorkspaceHeader.mock.calls.at(-1)?.[0] as ComponentProps<typeof ConfigureWorkspaceHeader>,
       editorProps: () => dependencies.ConfigureEditor.mock.calls.at(-1)?.[0] as ComponentProps<typeof ConfigureEditor>,
       availabilityProps: () => dependencies.AvailabilityPane.mock.calls.at(-1)?.[0] as ComponentProps<typeof AvailabilityPane>,
+      sheetBarProps: () => dependencies.ProvidersSheetBar.mock.calls.at(-1)?.[0] as ComponentProps<typeof ProvidersSheetBar>,
+      sheetPaneProps: () => {
+        const sheetBar = dependencies.ProvidersSheetBar.mock.calls.at(-1)?.[0] as ComponentProps<typeof ProvidersSheetBar>;
+        return (sheetBar.sheet as ReactElement).props as ComponentProps<typeof AvailabilityPane>;
+      },
+      costBarProps: () => dependencies.DeploymentCostBar.mock.calls.at(-1)?.[0] as ComponentProps<typeof DeploymentCostBar>,
       railProps: () => dependencies.LockedDeploymentRail.mock.calls.at(-1)?.[0] as ComponentProps<typeof LockedDeploymentRail>,
       marketplaceProps: () => dependencies.MarketplacePane.mock.calls.at(-1)?.[0] as ComponentProps<typeof MarketplacePane>,
       chipsProps: () => {
