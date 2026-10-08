@@ -1,6 +1,7 @@
 import { relations, sql } from "drizzle-orm";
 import { boolean, index, pgTable, timestamp, uniqueIndex, uuid, varchar } from "drizzle-orm/pg-core";
 
+import { Organizations } from "@src/organization/model-schemas/organization/organization.schema";
 import { Users } from "@src/user/model-schemas";
 
 export const PaymentMethods = pgTable(
@@ -13,6 +14,7 @@ export const PaymentMethods = pgTable(
     userId: uuid("user_id")
       .references(() => Users.id, { onDelete: "cascade" })
       .notNull(),
+    organizationId: uuid("organization_id").references(() => Organizations.id),
     fingerprint: varchar("fingerprint", { length: 255 }).notNull(),
     paymentMethodId: varchar("payment_method_id", { length: 255 }).notNull(),
     isValidated: boolean("is_validated").default(false).notNull(),
@@ -28,6 +30,7 @@ export const PaymentMethods = pgTable(
     fingerprintIdx: index("payment_methods_fingerprint_idx").on(table.fingerprint),
     userIdIdx: index("payment_methods_user_id_idx").on(table.userId),
     userIdIsValidatedIdx: index("payment_methods_user_id_is_validated_idx").on(table.userId, table.isValidated),
+    organizationIdIdx: index("payment_methods_organization_id_idx").on(table.organizationId),
     userIdFingerprintPaymentMethodIdIdx: index("payment_methods_user_id_fingerprint_payment_method_id_idx").on(
       table.userId,
       table.fingerprint,

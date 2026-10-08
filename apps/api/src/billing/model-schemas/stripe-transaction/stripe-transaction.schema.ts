@@ -1,6 +1,7 @@
 import { relations, sql } from "drizzle-orm";
 import { index, integer, pgEnum, pgTable, timestamp, uniqueIndex, uuid, varchar } from "drizzle-orm/pg-core";
 
+import { Organizations } from "@src/organization/model-schemas/organization/organization.schema";
 import { Users } from "@src/user/model-schemas";
 
 export const stripeTransactionStatusEnum = pgEnum("stripe_transaction_status", [
@@ -25,6 +26,8 @@ export const StripeTransactions = pgTable(
     userId: uuid("user_id")
       .references(() => Users.id, { onDelete: "cascade" })
       .notNull(),
+    /** The organization that paid; `user_id` stays the member who acted. */
+    organizationId: uuid("organization_id").references(() => Organizations.id),
     type: stripeTransactionTypeEnum("type").notNull(),
     status: stripeTransactionStatusEnum("status").notNull().default("created"),
     amount: integer("amount").notNull(), // Amount in cents
@@ -61,6 +64,7 @@ export const StripeTransactions = pgTable(
       .on(table.stripeIdempotencyKey)
       .where(sql`${table.stripeIdempotencyKey} IS NOT NULL`),
     userIdIdx: index("stripe_transactions_user_id_idx").on(table.userId),
+    organizationIdIdx: index("stripe_transactions_organization_id_idx").on(table.organizationId),
     stripePaymentIntentIdIdx: index("stripe_transactions_stripe_payment_intent_id_idx").on(table.stripePaymentIntentId),
     stripeChargeIdIdx: index("stripe_transactions_stripe_charge_id_idx").on(table.stripeChargeId),
     stripeCouponIdIdx: index("stripe_transactions_stripe_coupon_id_idx").on(table.stripeCouponId),

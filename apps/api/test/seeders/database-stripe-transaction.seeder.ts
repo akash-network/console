@@ -6,6 +6,7 @@ export function generateDatabaseStripeTransaction(overrides: Partial<StripeTrans
   const baseTransaction: StripeTransactionOutput = {
     id: faker.string.uuid(),
     userId: faker.string.uuid(),
+    organizationId: null,
     type: "payment_intent",
     status: "created",
     amount: faker.number.int({ min: 1000, max: 100000 }),

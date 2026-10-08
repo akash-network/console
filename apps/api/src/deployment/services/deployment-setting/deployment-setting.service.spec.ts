@@ -601,6 +601,8 @@ describe(DeploymentSettingService.name, () => {
     return {
       id: faker.string.uuid(),
       userId: faker.string.uuid(),
+      organizationId: null,
+      projectId: null,
       dseq: faker.string.numeric(6),
       autoTopUpEnabled: false,
       closed: false,

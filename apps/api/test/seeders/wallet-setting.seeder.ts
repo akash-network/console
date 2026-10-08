@@ -7,6 +7,7 @@ export const generateWalletSetting = (overrides: Partial<WalletSettingOutput>) =
     id: faker.string.uuid(),
     userId: faker.string.uuid(),
     walletId: faker.number.int({ min: 1, max: 1000 }),
+    organizationId: null,
     autoReloadEnabled: faker.datatype.boolean(),
     autoReloadMode: "prediction" as const,
     autoReloadThreshold: faker.number.int({ min: 500, max: 100000 }),

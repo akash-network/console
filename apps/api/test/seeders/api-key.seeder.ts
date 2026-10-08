@@ -5,6 +5,8 @@ import type { ApiKeyOutput } from "@src/auth/repositories/api-key/api-key.reposi
 export function createApiKey({
   id = faker.string.uuid(),
   userId = faker.string.uuid(),
+  organizationId = null,
+  projectId = null,
   name = faker.company.name(),
   hashedKey = faker.string.alphanumeric(64),
   keyFormat = `ac.sk.test.${faker.string.alphanumeric(15)}`,
@@ -16,6 +18,8 @@ export function createApiKey({
   return {
     id,
     userId,
+    organizationId,
+    projectId,
     name,
     hashedKey,
     keyFormat,

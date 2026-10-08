@@ -667,6 +667,8 @@ describe(InitialDeploymentFundingService.name, () => {
     return {
       id: "setting-1",
       userId: "user-1",
+      organizationId: null,
+      projectId: null,
       dseq: "123",
       autoTopUpEnabled: true,
       closed: false,
