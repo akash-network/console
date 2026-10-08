@@ -364,21 +364,35 @@ export class DeploymentWriterService {
     }
   }
 
-  /** Refusals run before anything is recorded, and a close another request beat this one to is left for that request to record, so one close is one entry. */
+  /** Refusals record nothing, a close another request beat this one to is that request's to record, and a background close already running keeps its entry, so one close is one entry. */
   public async closeByUserIdAndDseq(userId: string, dseq: string, { batchId }: { batchId?: string } = {}): Promise<boolean> {
     const wallet = await this.walletReaderService.getWalletByUserId(userId);
     const deployment = await this.deploymentReaderService.findByWalletAndDseqWithoutProviderStatus(wallet, dseq);
     if (deployment.deployment.state === "closed") return false;
 
     await this.signerService.assertCanBroadcast(userId, [this.#closeMessageFor(wallet, deployment)]);
+    const backgroundClose = await this.jobQueueService.findPendingJobData(CloseDeployment, closeDeploymentKeyFor({ userId, dseq }));
 
     try {
       const closed = await this.#closeOpen(wallet, deployment);
-      if (closed) await this.activityService.record(closedActivityOf({ userId, dseq, batchId }));
+      if (closed) await this.#recordClosed({ userId, dseq, batchId }, backgroundClose);
       return closed;
     } catch (error) {
-      await this.#recordFailedClose({ userId, owner: wallet.address, dseq, batchId }, error);
+      if (!backgroundClose) await this.#recordFailedClose({ userId, owner: wallet.address, dseq, batchId }, error);
       throw error;
+    }
+  }
+
+  /** The deployment is closed by now, so this close outranks a background close that already gave up on it, and as with `record` a failed write is only logged. */
+  async #recordClosed(close: { userId: string; dseq: string; batchId?: string }, backgroundClose?: CloseDeployment["data"]): Promise<void> {
+    if (!backgroundClose) return await this.activityService.record(closedActivityOf(close));
+
+    try {
+      await this.activityService.settle(backgroundClose.activityId, closedActivityOf({ ...close, batchId: backgroundClose.batchId }), {
+        from: ["pending", "failed"]
+      });
+    } catch (error) {
+      this.logger.error({ event: "BACKGROUND_CLOSE_SETTLE_FAILED", userId: close.userId, dseq: close.dseq, activityId: backgroundClose.activityId, error });
     }
   }
 

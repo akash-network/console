@@ -75,7 +75,15 @@ describe(ActivityService.name, () => {
 
       await service.settle("activity-1", createNewActivity({ status: "succeeded", meta: { dseq: "100" } }));
 
-      expect(activityRepository.updateBy).toHaveBeenCalledWith({ id: "activity-1", status: "pending" }, { status: "succeeded", meta: { dseq: "100" } });
+      expect(activityRepository.updateByIdIfStatusIn).toHaveBeenCalledWith("activity-1", ["pending"], { status: "succeeded", meta: { dseq: "100" } });
+    });
+
+    it("writes the outcome over the statuses the caller allows instead", async () => {
+      const { service, activityRepository } = setup();
+
+      await service.settle("activity-1", createNewActivity({ status: "succeeded", meta: { dseq: "100" } }), { from: ["pending", "failed"] });
+
+      expect(activityRepository.updateByIdIfStatusIn).toHaveBeenCalledWith("activity-1", ["pending", "failed"], { status: "succeeded", meta: { dseq: "100" } });
     });
   });
 
