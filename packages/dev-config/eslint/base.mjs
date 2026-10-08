@@ -73,7 +73,7 @@ export default [
         {
           additionalVerbs: {
             get: { collection: ["export"] },
-            post: { collection: ["deposit", "screen", "apply", "validate", "confirm", "accept", "mark"] },
+            post: { collection: ["deposit", "screen", "apply", "validate", "confirm", "accept", "mark", "approve", "revoke"] },
             patch: { single: ["patch"] },
             delete: { single: ["close"] }
           }
