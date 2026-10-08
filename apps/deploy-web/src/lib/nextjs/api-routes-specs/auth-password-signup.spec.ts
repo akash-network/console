@@ -64,6 +64,22 @@ describe("POST /api/auth/password-signup", () => {
     expect(logger.warn).toHaveBeenCalledWith(expect.objectContaining({ event: "PASSWORD_SIGNUP_ERROR" }));
   });
 
+  it("forwards the referral cookie to signUp", async () => {
+    const { sessionService } = await callHandler({
+      body: VALID_BODY,
+      signUpResult: Ok(new Session({ sub: "auth0|abc" })),
+      cookies: { console_referral: "creator" }
+    });
+
+    expect(sessionService.signUp).toHaveBeenCalledWith(expect.objectContaining({ referralCode: "creator" }));
+  });
+
+  it("omits the referral code when no cookie is present", async () => {
+    const { sessionService } = await callHandler({ body: VALID_BODY, signUpResult: Ok(new Session({ sub: "auth0|abc" })) });
+
+    expect(sessionService.signUp).toHaveBeenCalledWith(expect.objectContaining({ referralCode: undefined }));
+  });
+
   async function callHandler(input: {
     body: object;
     signUpResult: Awaited<ReturnType<SessionService["signUp"]>>;
