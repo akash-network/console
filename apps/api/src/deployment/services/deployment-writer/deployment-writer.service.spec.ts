@@ -1236,6 +1236,47 @@ describe(DeploymentWriterService.name, () => {
       expect(activityService.record).toHaveBeenCalledWith(failedCloseActivityOf({ userId: "user-1", dseq: "100", batchId: "batch-1" }, failure));
     });
 
+    it("settles the background close already running for the deployment instead of recording a second entry for the same close", async () => {
+      const { service, jobQueueService, activityService } = setup();
+      jobQueueService.findPendingJobData.mockResolvedValue({
+        userId: "user-1",
+        dseq: "100",
+        activityId: "background-activity",
+        batchId: "batch-1",
+        version: 1
+      });
+
+      await expect(service.closeByUserIdAndDseq("user-1", "100")).resolves.toBe(true);
+
+      expect(jobQueueService.findPendingJobData).toHaveBeenCalledWith(CloseDeployment, closeDeploymentKeyFor({ userId: "user-1", dseq: "100" }));
+      expect(activityService.settle).toHaveBeenCalledWith("background-activity", closedActivityOf({ userId: "user-1", dseq: "100", batchId: "batch-1" }));
+      expect(activityService.record).not.toHaveBeenCalled();
+    });
+
+    it("looks for a background close before closing, so one that finishes during the close is still joined rather than doubled", async () => {
+      const { service, signerService, jobQueueService } = setup();
+
+      await service.closeByUserIdAndDseq("user-1", "100");
+
+      expect(jobQueueService.findPendingJobData.mock.invocationCallOrder[0]).toBeLessThan(
+        signerService.executeDecodedTxByUserWallet.mock.invocationCallOrder[0]
+      );
+    });
+
+    it("records nothing for a failed close while a background close of the deployment carries on, since that close settles its own entry", async () => {
+      const { service, signerService, deploymentReaderService, jobQueueService, activityService } = setup();
+      const failure = createError(400, "Deployment is not open");
+      signerService.executeDecodedTxByUserWallet.mockRejectedValue(failure);
+      deploymentReaderService.findByWalletAndDseqWithoutProviderStatus.mockResolvedValue(deploymentData);
+      jobQueueService.findPendingJobData.mockResolvedValue({ userId: "user-1", dseq: "100", activityId: "background-activity", version: 1 });
+
+      await expect(service.closeByUserIdAndDseq("user-1", "100")).rejects.toBe(failure);
+
+      expect(activityService.record).not.toHaveBeenCalled();
+      expect(activityService.open).not.toHaveBeenCalled();
+      expect(activityService.settle).not.toHaveBeenCalled();
+    });
+
     it("opens a close left undecided as pending with a check on it in one transaction, and still answers with the failure", async () => {
       const { service, signerService, deploymentReaderService, txService, activityService, jobQueueService } = setup();
       vi.useFakeTimers({ now: new Date("2026-01-01T00:00:00.000Z"), toFake: ["Date"] });
