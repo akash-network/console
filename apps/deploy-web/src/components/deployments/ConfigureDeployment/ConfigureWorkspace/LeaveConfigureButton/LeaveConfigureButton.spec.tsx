@@ -40,7 +40,7 @@ describe(LeaveConfigureButton.name, () => {
         .getAllByRole("listitem")
         .map(item => item.textContent)
     ).toEqual(["my-app, with 2 services across 1 placement", "The bids providers have sent so far"]);
-    expect(within(dialog).getByText("To change the configuration instead, use Edit on the left.")).toBeInTheDocument();
+    expect(within(dialog).getByText("To change the configuration instead, use Edit.")).toBeInTheDocument();
   });
 
   it.each(["metaKey", "ctrlKey", "shiftKey", "altKey"] as const)(
@@ -73,7 +73,7 @@ describe(LeaveConfigureButton.name, () => {
         .getAllByRole("listitem")
         .map(item => item.textContent)
     ).toEqual(["Your deployment, with 1 service across 2 placements"]);
-    expect(within(dialog).queryByText(/use Edit on the left/)).not.toBeInTheDocument();
+    expect(within(dialog).queryByText("To change the configuration instead, use Edit.")).not.toBeInTheDocument();
   });
 
   it("keeps configuring when the discard is declined", async () => {

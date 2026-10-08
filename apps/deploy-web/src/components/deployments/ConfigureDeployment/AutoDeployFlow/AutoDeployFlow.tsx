@@ -52,7 +52,7 @@ export const AutoDeployFlow: FC<Props> = ({ templateName, sdl, resume, flow, dep
   });
 
   return (
-    <d.Layout background="white" disableContainer containerClassName="flex h-page-viewport flex-col">
+    <d.Layout background="white" disableContainer containerClassName="flex min-h-page-viewport flex-col lg:h-page-viewport">
       <d.PhasedDeployProgressScene
         templateName={templateName}
         state={state}

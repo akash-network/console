@@ -27,7 +27,7 @@ export const DeployProgressOverlay: FC<Props> = ({ providerAddress, activePhase 
   const { state, progressPercent, phases } = d.usePhasedDeployProgress(activePhase);
   return (
     <d.PhasedDeployProgressScene
-      className="absolute inset-0 z-20 overflow-hidden bg-white dark:bg-background"
+      className="fixed inset-x-0 bottom-0 top-[var(--app-header-height,57px)] z-20 overflow-hidden bg-white dark:bg-background lg:absolute lg:inset-0"
       templateName={deploymentName?.trim() || "your deployment"}
       state={state}
       progressPercent={progressPercent}

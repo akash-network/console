@@ -68,14 +68,14 @@ export const ConfigureEditor: FC<Props> = ({
   }
 
   return (
-    <section aria-labelledby={headingId} className="flex h-full min-h-0 flex-col">
+    <section aria-labelledby={headingId} className="flex flex-col lg:h-full lg:min-h-0">
       <header className="flex h-[52px] shrink-0 items-center justify-between gap-2 border-b border-zinc-300 px-4 dark:border-zinc-700">
         <h2 id={headingId} tabIndex={-1} className="font-mono text-sm font-medium uppercase text-muted-foreground outline-none">
           Deployment
         </h2>
         {toolbar}
       </header>
-      <div className="min-h-0 flex-1 overflow-y-auto p-4">
+      <div className="p-4 lg:min-h-0 lg:flex-1 lg:overflow-y-auto">
         <div className="mx-auto max-w-[720px] space-y-6">
           <div className="grid grid-cols-[repeat(auto-fit,minmax(14rem,1fr))] items-start gap-4">
             <d.DeploymentNameField value={deploymentName} onChange={onDeploymentNameChange} />

@@ -96,7 +96,7 @@ export const MarketplacePane: FC<Props> = ({
   );
 
   return (
-    <section aria-labelledby="configure-marketplace-pane-heading" className="flex h-full min-h-0 flex-col">
+    <section aria-labelledby="configure-marketplace-pane-heading" className="flex flex-col lg:h-full lg:min-h-0">
       <header className="flex h-[52px] shrink-0 items-center justify-between gap-4 border-b border-zinc-300 px-4 dark:border-zinc-700">
         <div className="flex min-w-0 items-center">
           <h2
@@ -111,7 +111,7 @@ export const MarketplacePane: FC<Props> = ({
         <d.ProviderSearchInput value={query} onChange={setQuery} onClear={clear} />
       </header>
       {chips}
-      <div className="flex-1 overflow-y-auto p-4">
+      <div className="p-4 lg:flex-1 lg:overflow-y-auto">
         {hasFailedWithoutData ? (
           <p role="alert" className="text-sm text-muted-foreground">
             Failed to load providers. Please try again.

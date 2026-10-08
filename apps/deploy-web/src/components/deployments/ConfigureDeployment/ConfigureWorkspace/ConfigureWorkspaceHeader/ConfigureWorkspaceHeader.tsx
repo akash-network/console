@@ -39,7 +39,16 @@ type WorkspaceCtaProps = {
   onCloseAndEdit: () => void;
 };
 
-function WorkspaceCta({ state, onDeploy, onRetry, onCloseAndEdit }: WorkspaceCtaProps) {
+/** Pinned to the bottom of the screen below lg, where the header scrolls away with the page; the provider picker leaves room for it. */
+function WorkspaceCta(props: WorkspaceCtaProps) {
+  return (
+    <div className="fixed inset-x-0 bottom-0 z-20 grid border-t border-zinc-300 bg-background px-4 py-3 dark:border-zinc-700 lg:static lg:z-auto lg:border-0 lg:bg-transparent lg:p-0">
+      <WorkspaceCtaButton {...props} />
+    </div>
+  );
+}
+
+function WorkspaceCtaButton({ state, onDeploy, onRetry, onCloseAndEdit }: WorkspaceCtaProps) {
   const className = "h-10 shrink-0 gap-2 px-6";
   switch (state) {
     case "requesting":

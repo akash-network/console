@@ -15,7 +15,7 @@ describe(InvalidSpecReasons.name, () => {
 
     const reasons = within(screen.getByRole("list", { name: "Settings to fix" })).getAllByRole("listitem");
 
-    expect(screen.getByText("Fix these on the left to see which providers can host your deployment:")).toBeInTheDocument();
+    expect(screen.getByText("Fix these to see which providers can host your deployment:")).toBeInTheDocument();
     expect(reasons.map(reason => reason.textContent)).toEqual([
       "tetris: Registry username is required.",
       "tetris: Registry password must be at least 6 characters."
@@ -34,7 +34,7 @@ describe(InvalidSpecReasons.name, () => {
   it("asks the user to check the settings when the form names nothing to fix", () => {
     setup({ service: { title: "tetris" } });
 
-    expect(screen.getByText("Some settings on the left aren't valid yet. Check them to see which providers can host your deployment.")).toBeInTheDocument();
+    expect(screen.getByText("Some settings aren't valid yet. Check them to see which providers can host your deployment.")).toBeInTheDocument();
     expect(screen.queryByRole("list")).not.toBeInTheDocument();
   });
 

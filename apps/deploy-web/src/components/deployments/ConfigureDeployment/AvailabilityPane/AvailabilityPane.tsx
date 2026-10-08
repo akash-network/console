@@ -56,14 +56,14 @@ export const AvailabilityPane: FC<Props> = ({
   const scope = placementCount > 1 ? "this placement" : "your deployment";
 
   return (
-    <section aria-labelledby={headingId} className="flex h-full min-h-0 flex-col">
+    <section aria-labelledby={headingId} className="flex flex-col lg:h-full lg:min-h-0">
       <header className="flex h-[52px] shrink-0 items-center justify-between gap-2 border-b border-zinc-300 px-4 dark:border-zinc-700">
         <h2 id={headingId} className="font-mono text-sm font-medium uppercase text-muted-foreground">
           Providers
         </h2>
         <span className="text-xs text-muted-foreground">Live view · nothing to select here</span>
       </header>
-      <div className="min-h-0 flex-1 overflow-y-auto p-4">
+      <div className="p-4 lg:min-h-0 lg:flex-1 lg:overflow-y-auto">
         <div className="mx-auto max-w-[720px] space-y-4">
           {placementCount > 1 && (
             <p className="font-mono text-xs text-muted-foreground">
@@ -85,7 +85,7 @@ export const AvailabilityPane: FC<Props> = ({
       </div>
       <footer className="shrink-0 border-t border-zinc-300 p-4 dark:border-zinc-700">
         <div className="mx-auto max-w-[720px] space-y-3">
-          {!isReady && <p className="text-sm text-muted-foreground">Add a container image and hardware to every service on the left to deploy.</p>}
+          {!isReady && <p className="text-sm text-muted-foreground">Add a container image and hardware to every service to deploy.</p>}
           {hasPlacementWithoutProviders && (
             <p className="text-sm text-muted-foreground">
               {placementCount > 1 ? "No provider can host every placement right now." : "No provider can host this configuration right now."} Change the
