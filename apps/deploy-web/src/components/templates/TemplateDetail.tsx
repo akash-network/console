@@ -88,7 +88,7 @@ export const TemplateDetail: FC<TemplateDetailProps> = ({ template, dependencies
         </header>
 
         <div className="mt-[22px] grid items-start gap-5 min-[1080px]:grid-cols-[minmax(0,1fr)_300px]">
-          <Tabs defaultValue="readme" className="min-w-0 overflow-hidden rounded-[14px] border border-border bg-card shadow-sm">
+          <Tabs defaultValue="readme" className="-mx-4 min-w-0 overflow-hidden border-y border-border bg-card shadow-sm sm:mx-0 sm:rounded-[14px] sm:border-x">
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-border bg-foreground/[0.03] px-3 py-1.5 sm:px-[18px]">
               <TabsList aria-label="Template files" className="h-auto flex-wrap gap-0.5 bg-transparent p-0">
                 <FileTab value="readme" icon={FileText}>
@@ -127,7 +127,7 @@ export const TemplateDetail: FC<TemplateDetailProps> = ({ template, dependencies
                 {template.readme}
               </d.Markdown>
             </TabsContent>
-            <TabsContent value="sdl" className="mt-0 h-[70vh] min-h-[420px] p-3">
+            <TabsContent value="sdl" className="mt-0 h-[70vh] min-h-[420px] sm:p-3">
               <d.SDLEditor height="100%" value={template.deploy || ""} readonly />
             </TabsContent>
             {template.guide && (

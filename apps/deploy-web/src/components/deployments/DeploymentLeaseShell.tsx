@@ -18,6 +18,7 @@ import type { LeaseDto } from "@src/types/deployment";
 import { LeaseShellCode } from "@src/types/shell";
 import { forEachGeneratedItem } from "@src/utils/array";
 import { keepSelectedLease } from "@src/utils/leaseUtils";
+import { EDGE_TO_EDGE_ON_PHONES } from "./DeploymentDetail/pageBand";
 import { LeaseSelect } from "./LeaseSelect";
 import { ProviderAuthFallback } from "./ProviderAuthGate";
 import { ServiceSelect } from "./ServiceSelect";
@@ -320,30 +321,32 @@ export const DeploymentLeaseShell: React.FunctionComponent<Props> = ({ leases, d
                 </>
               )}
 
-              <ViewPanel stickToBottom className="overflow-hidden">
-                {isConnectionClosed ? (
-                  <Alert variant="destructive" className="mt-6 bg-card">
-                    <CircleAlert className="mt-2 h-5 w-5" />
-                    <AlertTitle className="mb-4">Shell access unavailable</AlertTitle>
-                    <AlertDescription className="text-primary">
-                      <p>We recommend:</p>
-                      <ul className="mt-2 list-disc space-y-1 pl-5">
-                        <li>Reviewing your service logs to confirm the container is running normally</li>
-                        <li>Checking your manifest to ensure shell access is enabled (e.g., exec is configured)</li>
-                        <li>Waiting briefly if the deployment was just created</li>
-                        <li>Redeploying if the container appears stuck or unresponsive</li>
-                        <li>Verifying the provider is healthy</li>
-                      </ul>
-                      <Button onClick={resetShell} variant="default" size="sm" className="mt-4">
-                        <RefreshCw className="mr-2 h-4 w-4" />
-                        Reset shell
-                      </Button>
-                    </AlertDescription>
-                  </Alert>
-                ) : (
-                  <d.XTerm ref={terminalRef} onKey={onTerminalKey} onTerminalPaste={onTerminalPaste} />
-                )}
-              </ViewPanel>
+              <div className={EDGE_TO_EDGE_ON_PHONES}>
+                <ViewPanel stickToBottom className="overflow-hidden">
+                  {isConnectionClosed ? (
+                    <Alert variant="destructive" className="mt-6 bg-card">
+                      <CircleAlert className="mt-2 h-5 w-5" />
+                      <AlertTitle className="mb-4">Shell access unavailable</AlertTitle>
+                      <AlertDescription className="text-primary">
+                        <p>We recommend:</p>
+                        <ul className="mt-2 list-disc space-y-1 pl-5">
+                          <li>Reviewing your service logs to confirm the container is running normally</li>
+                          <li>Checking your manifest to ensure shell access is enabled (e.g., exec is configured)</li>
+                          <li>Waiting briefly if the deployment was just created</li>
+                          <li>Redeploying if the container appears stuck or unresponsive</li>
+                          <li>Verifying the provider is healthy</li>
+                        </ul>
+                        <Button onClick={resetShell} variant="default" size="sm" className="mt-4">
+                          <RefreshCw className="mr-2 h-4 w-4" />
+                          Reset shell
+                        </Button>
+                      </AlertDescription>
+                    </Alert>
+                  ) : (
+                    <d.XTerm ref={terminalRef} className="[&>.terminal]:px-2 sm:[&>.terminal]:px-0" onKey={onTerminalKey} onTerminalPaste={onTerminalPaste} />
+                  )}
+                </ViewPanel>
+              </div>
             </>
           )}
         </>

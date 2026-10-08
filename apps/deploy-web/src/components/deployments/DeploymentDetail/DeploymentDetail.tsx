@@ -29,6 +29,7 @@ import { DeploymentPlacements } from "./DeploymentPlacements/DeploymentPlacement
 import { DeploymentSettings } from "./DeploymentSettings/DeploymentSettings";
 import { DeploymentUpdate } from "./DeploymentUpdate/DeploymentUpdate";
 import { DeploymentDetailHeader } from "./DeploymentDetailHeader";
+import { PAGE_BAND } from "./pageBand";
 
 export const DEPENDENCIES = {
   useServices,
@@ -54,10 +55,6 @@ export const DEPENDENCIES = {
   // eslint-disable-next-line akash/dependencies-component-or-hook
   createConfigureDraft
 };
-
-/** Matches Layout's default `container p-6` content column so every band lines up with the deployment list and the
- *  other pages. Sits inside each full-bleed wrapper, so the header, tab labels and tab body all share one left edge. */
-const PAGE_BAND = "container px-6";
 
 /** The rule under the tabs is an inset shadow rather than a border, so the active underline can still cover it inside the scrolling strip. */
 const TAB_STRIP_FRAME = "border-t shadow-[inset_0_-1px_0_hsl(var(--border))]";

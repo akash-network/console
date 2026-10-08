@@ -31,6 +31,7 @@ import {
 } from "@src/utils/updateDeploymentFailure";
 import { SDLEditor } from "../../sdl/SDLEditor/SDLEditor";
 import { DeploymentTabHeader } from "../DeploymentDetail/DeploymentTabHeader";
+import { EDGE_TO_EDGE_ON_PHONES } from "../DeploymentDetail/pageBand";
 
 export const DEPENDENCIES = {
   Alert,
@@ -354,11 +355,13 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({
 
             {editorAlertMessage && <d.Alert variant="warning">{editorAlertMessage}</d.Alert>}
 
-            <d.LinearLoadingSkeleton isLoading={isUpdating} />
+            <div className={EDGE_TO_EDGE_ON_PHONES}>
+              <d.LinearLoadingSkeleton isLoading={isUpdating} />
 
-            <d.ViewPanel stickToBottom style={{ overflow: "hidden" }}>
-              <d.SDLEditor value={editedManifest} onChange={handleTextChange} onValidate={() => setParsingError(null)} />
-            </d.ViewPanel>
+              <d.ViewPanel stickToBottom style={{ overflow: "hidden" }}>
+                <d.SDLEditor value={editedManifest} onChange={handleTextChange} onValidate={() => setParsingError(null)} />
+              </d.ViewPanel>
+            </div>
           </div>
         </>
       )}
