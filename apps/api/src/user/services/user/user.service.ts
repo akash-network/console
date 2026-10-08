@@ -11,7 +11,10 @@ import { WalletInitializerService } from "@src/billing/services/wallet-initializ
 import { type CreateLogger, LOGGER_FACTORY } from "@src/core/providers/logging.provider";
 import { getPostgresError, isUniqueViolation } from "@src/core/repositories/base.repository";
 import { AnalyticsService } from "@src/core/services/analytics/analytics.service";
+import { TxService } from "@src/core/services/tx/tx.service";
 import { NotificationService } from "@src/notifications/services/notification/notification.service";
+import type { OrganizationOutput } from "@src/organization/repositories/organization/organization.repository";
+import { PersonalOrganizationService } from "@src/organization/services/personal-organization/personal-organization.service";
 import { DataKeyService } from "@src/secret/services/data-key/data-key.service";
 import { BlockedEmailDomainService } from "@src/workload-abuse/services/blocked-email-domain/blocked-email-domain.service";
 import { UserInput, type UserOutput, UserRepository } from "../../repositories/user/user.repository";
@@ -30,7 +33,9 @@ export class UserService {
     private readonly walletInitializer: WalletInitializerService,
     private readonly trialActivationJobService: TrialActivationJobService,
     private readonly dataKeyService: DataKeyService,
-    private readonly blockedEmailDomainService: BlockedEmailDomainService
+    private readonly blockedEmailDomainService: BlockedEmailDomainService,
+    private readonly personalOrganizationService: PersonalOrganizationService,
+    private readonly txService: TxService
   ) {
     this.logger = createLogger({ context: UserService.name });
   }
@@ -61,7 +66,7 @@ export class UserService {
       lastFingerprint: data.fingerprint
     };
 
-    const { user, wasInserted } = await this.upsertUser({
+    const { user, wasInserted, organization } = await this.upsertUser({
       ...userDetails,
       username: data.wantedUsername
     });
@@ -74,6 +79,10 @@ export class UserService {
 
     await this.walletInitializer.ensureWallet(user.id).catch(error => {
       this.logger.error({ event: "FAILED_TO_ENSURE_USER_WALLET", id: user.id, error });
+    });
+
+    await this.personalOrganizationService.adoptUserRows(user, organization).catch(error => {
+      this.logger.error({ event: "FAILED_TO_ADOPT_USER_ROWS", id: user.id, organizationId: organization.id, error });
     });
 
     await this.ensureDataKeyBestEffort(user.id);
@@ -141,9 +150,15 @@ export class UserService {
     });
   }
 
-  private async upsertUser(userDetails: UpdateUserInput, attempt = 0): Promise<{ user: UserOutput; wasInserted: boolean }> {
+  /** One transaction for the user row and its personal organization, so a user never exists without one. */
+  private async upsertUser(userDetails: UpdateUserInput, attempt = 0): Promise<{ user: UserOutput; wasInserted: boolean; organization: OrganizationOutput }> {
     try {
-      return await this.userRepository.upsertOnExternalIdConflict(userDetails);
+      return await this.txService.transaction(async () => {
+        const { user, wasInserted } = await this.userRepository.upsertOnExternalIdConflict(userDetails);
+        const organization = await this.personalOrganizationService.ensureForUser(user);
+
+        return { user, wasInserted, organization };
+      });
     } catch (error) {
       if (userDetails.username && isUniqueViolation(error) && getPostgresError(error)?.constraint_name?.includes("username") && attempt < 10) {
         return this.upsertUser(

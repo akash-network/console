@@ -18,5 +18,7 @@ export * from "./validator.seeder";
 export * from "./stripe-test-data.seeder";
 export * from "./stripe-transaction-test.seeder";
 export * from "./user-test.seeder";
+export * from "./organization.seeder";
 export * from "./db/deployment-setting.seeder";
+export * from "./db/organization.seeder";
 export * from "./db/user-with-wallet.seeder";
