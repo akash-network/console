@@ -567,7 +567,8 @@ const listRoute = createRoute({
       }
     },
     422: {
-      description: "The owner holds more deployments than a search spans. Page through them without a `search` instead",
+      description:
+        "The owner holds more `active` deployments than a search spans. Page through them without a `search` instead. A search of the archive (`state=closed`) is refused this way only while the console's index is unreachable",
       content: {
         "application/json": {
           schema: ErrorResponseSchema

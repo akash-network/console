@@ -4,7 +4,6 @@ import { useIsFetching } from "@tanstack/react-query";
 import { useServices } from "@src/context/ServicesProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { QueryKeys } from "@src/queries/queryKeys";
-import { LIVE_LEASE_STATES } from "@src/utils/leaseUtils";
 
 export const DEPENDENCIES = { useServices, useWallet, useIsFetching };
 
@@ -27,12 +26,16 @@ export function useBillingBackgroundLoading(d: typeof DEPENDENCIES = DEPENDENCIE
   const exactKeys = [
     QueryKeys.getBalancesKey(address),
     QueryKeys.getAllLeasesKey(address),
-    QueryKeys.getAllLeasesKey(address, LIVE_LEASE_STATES),
     QueryKeys.getPaymentMethodsKey(),
     QueryKeys.getWeeklyDeploymentCostKey()
   ].filter(key => key.length > 0);
 
-  const prefixes = [api.v1.getWalletSettings.getKey(), api.v1.getDefaultPaymentMethod.getKey(), api.v1.listStripeTransactions.getKey()];
+  const prefixes = [
+    api.v1.getWalletSettings.getKey(),
+    api.v1.getDefaultPaymentMethod.getKey(),
+    api.v1.listStripeTransactions.getKey(),
+    api.v1.getSpendRate.getKey()
+  ];
 
   const backgroundFetchingCount = d.useIsFetching({
     predicate: query =>

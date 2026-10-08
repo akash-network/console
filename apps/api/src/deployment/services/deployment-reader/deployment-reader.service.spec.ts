@@ -1,5 +1,6 @@
 import type { DeploymentHttpService, DeploymentListResponse, LeaseHttpService } from "@akashnetwork/http-sdk";
 import { AxiosError } from "axios";
+import { ConnectionError } from "sequelize";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
@@ -13,6 +14,7 @@ import type {
   DeploymentSettingsOutput,
   ListedDeploymentSetting
 } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
+import type { DeploymentArchiveReaderService } from "@src/deployment/services/deployment-archive-reader/deployment-archive-reader.service";
 import {
   type FallbackDeploymentReaderService,
   UNKNOWN_DB_PLACEHOLDER
@@ -560,22 +562,79 @@ describe(DeploymentReaderService.name, () => {
       expect(deployments[0].settings).toMatchObject({ runtimeLimitHours: 5, runtimeEndsAt: null });
     });
 
-    it("asks the chain for the state the caller named", async () => {
+    it("asks the chain for active deployments when the caller names no state", async () => {
       const wallet = createUserWallet() as WalletInitialized;
-      const { service, deploymentHttpService } = setup({ wallet, listedDseqs: ["100"] });
+      const { service, deploymentHttpService, deploymentArchiveReaderService } = setup({ wallet, listedDseqs: ["100"] });
 
-      await service.list({ query: { userId: wallet.userId }, state: "closed", skip: 0, limit: 10 });
+      await service.list({ query: { userId: wallet.userId }, skip: 0, limit: 10 });
 
-      expect(deploymentHttpService.findAll).toHaveBeenCalledWith(expect.objectContaining({ owner: wallet.address, state: "closed" }));
+      expect(deploymentHttpService.findAll).toHaveBeenCalledWith(expect.objectContaining({ owner: wallet.address, state: "active" }));
+      expect(deploymentArchiveReaderService.list).not.toHaveBeenCalled();
     });
 
-    it("counts the state the caller named rather than the default", async () => {
+    it("serves the archive from the console's index, asking the chain nothing", async () => {
       const wallet = createUserWallet() as WalletInitialized;
-      const { service, deploymentRepository } = setup({ wallet, listedDseqs: ["100"] });
+      const { service, deploymentHttpService, leaseHttpService, deploymentRepository, deploymentArchiveReaderService } = setup({
+        wallet,
+        listedDseqs: ["100"]
+      });
 
-      await service.list({ query: { userId: wallet.userId }, state: "closed", skip: 0, limit: 10 });
+      await service.list({ query: { userId: wallet.userId }, state: "closed", skip: 25, limit: 10, reverse: true });
 
-      expect(deploymentRepository.countByOwnerAndState).toHaveBeenCalledWith(wallet.address, "closed");
+      expect(deploymentArchiveReaderService.list).toHaveBeenCalledWith({
+        owner: wallet.address,
+        userId: wallet.userId,
+        skip: 25,
+        limit: 10,
+        reverse: true,
+        search: undefined
+      });
+      expect(deploymentHttpService.findAll).not.toHaveBeenCalled();
+      expect(leaseHttpService.list).not.toHaveBeenCalled();
+      expect(deploymentRepository.countByOwnerAndState).not.toHaveBeenCalled();
+    });
+
+    it("hands a search of the archive to the console's index rather than sweeping the chain", async () => {
+      const wallet = createUserWallet() as WalletInitialized;
+      const { service, deploymentHttpService, deploymentArchiveReaderService } = setup({ wallet });
+
+      await service.list({ query: { userId: wallet.userId }, state: "closed", skip: 0, limit: 10, search: "web" });
+
+      expect(deploymentArchiveReaderService.list).toHaveBeenCalledWith(expect.objectContaining({ search: "web", reverse: false }));
+      expect(deploymentHttpService.findAll).not.toHaveBeenCalled();
+    });
+
+    it("lists the archive from the chain when the console's index is unreachable", async () => {
+      const wallet = createUserWallet() as WalletInitialized;
+      const unreachable = new ConnectionError(new Error("connect ECONNREFUSED"));
+      const { service, deploymentHttpService, deploymentRepository, logger } = setup({ wallet, listedDseqs: ["100"], archiveError: unreachable });
+      deploymentRepository.countByOwnerAndState.mockRejectedValue(unreachable);
+
+      const result = await service.list({ query: { userId: wallet.userId }, state: "closed", skip: 0, limit: 10 });
+
+      expect(deploymentHttpService.findAll).toHaveBeenCalledWith(expect.objectContaining({ owner: wallet.address, state: "closed" }));
+      expect(result.deployments.map(({ deployment }) => deployment.id.dseq)).toEqual(["100"]);
+      expect(result.total).toBeNull();
+      expect(logger.warn).toHaveBeenCalledWith(expect.objectContaining({ event: "DEPLOYMENT_ARCHIVE_INDEX_UNREACHABLE", owner: wallet.address }));
+    });
+
+    it("fails the archive on an index error other than it being unreachable", async () => {
+      const wallet = createUserWallet() as WalletInitialized;
+      const broken = new Error("column does not exist");
+      const { service, deploymentHttpService } = setup({ wallet, archiveError: broken });
+
+      await expect(service.list({ query: { userId: wallet.userId }, state: "closed", skip: 0, limit: 10 })).rejects.toBe(broken);
+      expect(deploymentHttpService.findAll).not.toHaveBeenCalled();
+    });
+
+    it("answers with the archive page, its count and whether another page follows as the index gave them", async () => {
+      const wallet = createUserWallet() as WalletInitialized;
+      const archived = { deployments: [], total: 62, hasMore: true };
+      const { service } = setup({ wallet, archived });
+
+      const result = await service.list({ query: { userId: wallet.userId }, state: "closed", skip: 0, limit: 10 });
+
+      expect(result).toEqual(archived);
     });
 
     it("asks the chain for the newest deployments first when the caller reverses the order", async () => {
@@ -601,9 +660,9 @@ describe(DeploymentReaderService.name, () => {
       const { service, deploymentHttpService, fallbackDeploymentReaderService } = setup({ wallet, listedDseqs: ["100"] });
       deploymentHttpService.findAll.mockRejectedValue(createNetworkError("ECONNRESET"));
 
-      await service.list({ query: { userId: wallet.userId }, state: "closed", skip: 0, limit: 10, reverse: true });
+      await service.list({ query: { userId: wallet.userId }, state: "active", skip: 0, limit: 10, reverse: true });
 
-      expect(fallbackDeploymentReaderService.findAll).toHaveBeenCalledWith(expect.objectContaining({ state: "closed", reverse: true }));
+      expect(fallbackDeploymentReaderService.findAll).toHaveBeenCalledWith(expect.objectContaining({ state: "active", reverse: true }));
     });
 
     it("returns the resource groups the chain described for each deployment", async () => {
@@ -1060,6 +1119,8 @@ describe(DeploymentReaderService.name, () => {
       deploymentCount?: number;
       leaseGpus?: Map<string, LeaseGpusByLease>;
       providers?: ProviderList[];
+      archived?: Awaited<ReturnType<DeploymentArchiveReaderService["list"]>>;
+      archiveError?: Error;
     } = {}
   ) {
     const defaultWallet = createUserWallet() as WalletInitialized;
@@ -1140,6 +1201,11 @@ describe(DeploymentReaderService.name, () => {
     const authService = mock<AuthService>({ ability: mock<AuthService["ability"]>() });
     const leaseGpuService = mock<LeaseGpuService>();
     leaseGpuService.findForDeployments.mockResolvedValue(input.leaseGpus ?? new Map());
+    const deploymentArchiveReaderService = mock<DeploymentArchiveReaderService>({
+      list: input.archiveError
+        ? vi.fn().mockRejectedValue(input.archiveError)
+        : vi.fn().mockResolvedValue(input.archived ?? { deployments: [], total: 0, hasMore: false })
+    });
     const createLogger = vi.fn<CreateLogger>(() => mocks.logger);
 
     const service = new DeploymentReaderService(
@@ -1154,6 +1220,7 @@ describe(DeploymentReaderService.name, () => {
       deploymentRepository,
       authService,
       leaseGpuService,
+      deploymentArchiveReaderService,
       createLogger
     );
 
@@ -1166,7 +1233,8 @@ describe(DeploymentReaderService.name, () => {
       scopedDeploymentSettingRepository,
       deploymentRepository,
       authService,
-      leaseGpuService
+      leaseGpuService,
+      deploymentArchiveReaderService
     };
   }
 });

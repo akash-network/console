@@ -211,6 +211,22 @@ export class LeaseRepository implements DrainingDeploymentLeaseSource {
     }));
   }
 
+  /** Every lease of a page of deployments in one read rather than one per deployment, open or closed, in the order the chain keys them. */
+  async findByDeployments({ owner, dseqs }: { owner: string; dseqs: string[] }): Promise<Lease[]> {
+    if (!dseqs.length) return [];
+
+    return await Lease.findAll({
+      where: { owner, dseq: { [Op.in]: dseqs } },
+      order: [
+        ["dseq", "ASC"],
+        ["gseq", "ASC"],
+        ["oseq", "ASC"],
+        ["providerAddress", "ASC"],
+        ["bseq", "ASC"]
+      ]
+    });
+  }
+
   /**
    * Finds leases with pagination support and optional filtering.
    * Supports filtering by owner, dseq, gseq, oseq, provider, and state.
