@@ -9353,11 +9353,11 @@ export interface operations {
                 } | null;
               }[];
               pagination: {
-                /** @description Deployments the owner holds in this state, counted from the console's chain index, so it can trail the chain by a block. Null when that index cannot answer, which leaves the count unknown rather than understated; page on `hasMore` regardless. */
+                /** @description Deployments the owner holds in this state, counted from the console's own index. The archive (`closed`) is listed from that same index, so its count always agrees with its pages; `active` deployments are listed live, so their count can briefly lag behind the list. Null when the index cannot answer, which leaves the count unknown rather than understated; page on `hasMore` regardless. */
                 total: number | null;
                 skip: number;
                 limit: number;
-                /** @description Whether the chain offered a cursor to a further page. */
+                /** @description Whether a further page exists. */
                 hasMore: boolean;
               };
             };
@@ -9378,7 +9378,7 @@ export interface operations {
           };
         };
       };
-      /** @description The owner holds more deployments than a search spans. Page through them without a `search` instead */
+      /** @description The owner holds more `active` deployments than a search spans. Page through them without a `search` instead. A search of the archive (`state=closed`) is refused this way only while the console's index is unreachable */
       422: {
         headers: {
           [name: string]: unknown;

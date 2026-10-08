@@ -1,0 +1,1 @@
+CREATE INDEX "deployment_settings_user_id_named_idx" ON "deployment_settings" USING btree ("user_id") WHERE "deployment_settings"."name" IS NOT NULL;

@@ -281,6 +281,142 @@ describe(DeploymentRepository.name, () => {
     });
   });
 
+  describe("findClosedPage", () => {
+    it("returns the owner's closed deployments, newest dseq first by number rather than by text, when reversed", async () => {
+      const { repository, owner } = setup();
+      await seedClosedDeployments(owner, ["9", "100", "10"]);
+
+      const { deployments } = await repository.findClosedPage({ owner, skip: 0, limit: 10, reverse: true });
+
+      expect(deployments.map(deployment => deployment.dseq)).toEqual(["100", "10", "9"]);
+    });
+
+    it("returns the oldest dseq first when not reversed", async () => {
+      const { repository, owner } = setup();
+      await seedClosedDeployments(owner, ["100", "9", "10"]);
+
+      const { deployments } = await repository.findClosedPage({ owner, skip: 0, limit: 10, reverse: false });
+
+      expect(deployments.map(deployment => deployment.dseq)).toEqual(["9", "10", "100"]);
+    });
+
+    it("leaves out open deployments and the closed deployments of other owners", async () => {
+      const { repository, owner } = setup();
+      await seedClosedDeployments(owner, ["1"]);
+      await createDeployment({ owner, dseq: "2", closedHeight: undefined });
+      await seedClosedDeployments(createAkashAddress(), ["3"]);
+
+      const { deployments, total } = await repository.findClosedPage({ owner, skip: 0, limit: 10, reverse: true });
+
+      expect(deployments.map(deployment => deployment.dseq)).toEqual(["1"]);
+      expect(total).toBe(1);
+    });
+
+    it("pages through the closed deployments and counts every one of them", async () => {
+      const { repository, owner } = setup();
+      await seedClosedDeployments(owner, ["1", "2", "3", "4"]);
+
+      const { deployments, total } = await repository.findClosedPage({ owner, skip: 1, limit: 2, reverse: false });
+
+      expect(deployments.map(deployment => deployment.dseq)).toEqual(["2", "3"]);
+      expect(total).toBe(4);
+    });
+
+    it("still counts the closed deployments for a page past the end of them", async () => {
+      const { repository, owner } = setup();
+      await seedClosedDeployments(owner, ["1", "2"]);
+
+      const { deployments, total } = await repository.findClosedPage({ owner, skip: 10, limit: 2, reverse: false });
+
+      expect(deployments).toEqual([]);
+      expect(total).toBe(2);
+    });
+
+    it("counts nothing for an owner with no closed deployment", async () => {
+      const { repository, owner } = setup();
+
+      await expect(repository.findClosedPage({ owner, skip: 0, limit: 10, reverse: false })).resolves.toEqual({ deployments: [], total: 0 });
+    });
+
+    it("returns each deployment with its groups and their resources", async () => {
+      const { repository, owner } = setup();
+      const [deployment] = await seedClosedDeployments(owner, ["1"]);
+      const group = await createDeploymentGroup({ deploymentId: deployment.id, owner, dseq: deployment.dseq, gseq: 1 });
+      await createDeploymentGroupResource({ deploymentGroupId: group.id, cpuUnits: 500, gpuVendor: "nvidia", gpuModel: "h100" });
+
+      const { deployments } = await repository.findClosedPage({ owner, skip: 0, limit: 10, reverse: false });
+
+      expect(deployments[0].deploymentGroups).toHaveLength(1);
+      expect(deployments[0].deploymentGroups[0].deploymentGroupResources).toMatchObject([{ cpuUnits: 500, gpuVendor: "nvidia", gpuModel: "h100" }]);
+    });
+
+    it("keeps the deployments whose dseq contains the search, and counts only them", async () => {
+      const { repository, owner } = setup();
+      await seedClosedDeployments(owner, ["1234", "5678", "9123"]);
+
+      const { deployments, total } = await repository.findClosedPage({
+        owner,
+        skip: 0,
+        limit: 10,
+        reverse: false,
+        search: { dseqContaining: "123", dseqs: [] }
+      });
+
+      expect(deployments.map(deployment => deployment.dseq)).toEqual(["1234", "9123"]);
+      expect(total).toBe(2);
+    });
+
+    it("keeps the deployments the search names by dseq alongside those whose dseq contains it", async () => {
+      const { repository, owner } = setup();
+      await seedClosedDeployments(owner, ["1234", "5678", "9999"]);
+
+      const { deployments } = await repository.findClosedPage({
+        owner,
+        skip: 0,
+        limit: 10,
+        reverse: false,
+        search: { dseqContaining: "123", dseqs: ["5678"] }
+      });
+
+      expect(deployments.map(deployment => deployment.dseq)).toEqual(["1234", "5678"]);
+    });
+
+    it("matches a wildcard in the search only against itself", async () => {
+      const { repository, owner } = setup();
+      await seedClosedDeployments(owner, ["1234"]);
+
+      const { deployments, total } = await repository.findClosedPage({
+        owner,
+        skip: 0,
+        limit: 10,
+        reverse: false,
+        search: { dseqContaining: "%", dseqs: [] }
+      });
+
+      expect(deployments).toEqual([]);
+      expect(total).toBe(0);
+    });
+
+    it("counts the matches of a search for a page past the end of them", async () => {
+      const { repository, owner } = setup();
+      await seedClosedDeployments(owner, ["1234", "5678"]);
+
+      const { total } = await repository.findClosedPage({
+        owner,
+        skip: 10,
+        limit: 10,
+        reverse: false,
+        search: { dseqContaining: "123", dseqs: ["5678"] }
+      });
+
+      expect(total).toBe(2);
+    });
+
+    async function seedClosedDeployments(owner: string, dseqs: string[]) {
+      return await Promise.all(dseqs.map(dseq => createDeployment({ owner, dseq, closedHeight: 5_000_000 })));
+    }
+  });
+
   describe("countActiveByOwner", () => {
     const WINDOW = { startDate: "2025-03-01", endDate: "2025-03-31" };
 

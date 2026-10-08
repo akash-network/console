@@ -1,4 +1,5 @@
 import { manifestToSortedJSON, type SDLInput, yaml } from "@akashnetwork/chain-sdk";
+import { Deployment } from "@akashnetwork/database/dbSchemas/akash";
 import type { Bid, DeploymentInfo } from "@akashnetwork/http-sdk";
 import { faker } from "@faker-js/faker";
 import createError, { NotFound } from "http-errors";
@@ -27,7 +28,7 @@ import { deploymentListMaxLimit } from "@src/deployment/http-schemas/deployment.
 import { DeploymentSettingRepository } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
 import { CloseDeployment, closeDeploymentKeyFor } from "@src/deployment/services/close-deployment/close-deployment.job";
 import { DeploymentConfigService } from "@src/deployment/services/deployment-config/deployment-config.service";
-import { DeploymentReaderService } from "@src/deployment/services/deployment-reader/deployment-reader.service";
+import { DeploymentReaderService, MAX_SEARCHABLE_DEPLOYMENTS } from "@src/deployment/services/deployment-reader/deployment-reader.service";
 import { ReconcileDeploymentClose } from "@src/deployment/services/reconcile-deployment-close/reconcile-deployment-close.job";
 import { SdlService } from "@src/deployment/services/sdl/sdl.service";
 import { SdlReferenceService } from "@src/deployment/services/sdl-reference/sdl-reference.service";
@@ -46,12 +47,15 @@ import { createApiKey } from "@test/seeders/api-key.seeder";
 import { createBid } from "@test/seeders/bid.seeder";
 import { createDseq, seedDeploymentSetting } from "@test/seeders/db/deployment-setting.seeder";
 import { createDeployment } from "@test/seeders/deployment.seeder";
+import { createDeploymentGroup } from "@test/seeders/deployment-group.seeder";
+import { createDeploymentGroupResource } from "@test/seeders/deployment-group-resource.seeder";
 import {
   createDeploymentInfoErrorSeed,
   createDeploymentInfoGroupSeed,
   createDeploymentInfoGroupsFromSdl,
   createDeploymentInfoSeed
 } from "@test/seeders/deployment-info.seeder";
+import { createLease } from "@test/seeders/lease.seeder";
 import { createManyLeaseApiResponses } from "@test/seeders/lease-api-response.seeder";
 import { createLeaseGpuOffer } from "@test/seeders/lease-gpu-offer.seeder";
 import { createLeaseGpuReading } from "@test/seeders/lease-gpu-reading.seeder";
@@ -178,12 +182,12 @@ describe("Deployments API", () => {
    * deployment now records what that deployment is, and that record is FK-bound to the user. `mockUser`
    * fakes the user, and only suits paths that never record a definition.
    */
-  async function mockPersistedUser() {
+  async function mockPersistedUser({ address = "akash13265twfqejnma6cc93rw5dxk4cldyz2zyy8cdm" }: { address?: string } = {}) {
     const dbUser = await userRepository.create({ userId: faker.string.uuid() });
     const userApiKeySecret = faker.word.noun();
     const user = createUser({ id: dbUser.id, userId: dbUser.userId ?? undefined });
     const apiKey = createApiKey({ userId: dbUser.id });
-    const wallets = [createUserWallet({ userId: dbUser.id, address: "akash13265twfqejnma6cc93rw5dxk4cldyz2zyy8cdm" })];
+    const wallets = [createUserWallet({ userId: dbUser.id, address })];
 
     currentUser = user;
     knownUsers[dbUser.id] = user;
@@ -763,29 +767,175 @@ describe("Deployments API", () => {
       expect(result.data.pagination).toMatchObject({ limit: deploymentListMaxLimit, skip: 0 });
     });
 
-    it("asks the chain for closed deployments, newest first, when the caller says so", async () => {
-      const { userApiKeySecret, wallets } = await mockUser();
-      const deployments = setupDeploymentListMock(wallets, 1, "closed");
-      const requestedUris: string[] = [];
+    it("lists closed deployments from the console's index, newest first, with their count, asking the chain nothing", async () => {
+      const { userApiKeySecret, address, chainRequests } = await setupArchive();
+      const [, middle, newest] = await seedClosedDeployments(address, 3);
+      await createDeployment({ owner: address, dseq: String(Number(newest.dseq) + 1), closedHeight: undefined });
 
-      nock(container.resolve(CORE_CONFIG).REST_API_NODE_URL)
-        .persist()
-        .get(/\/akash\/deployment\/v1beta4\/deployments\/list\?.*/)
-        .reply(200, function replyToDeploymentList(uri) {
-          requestedUris.push(uri);
-          return { deployments, pagination: { total: String(deployments.length), next_key: null } };
-        });
-
-      const response = await app.request("/v1/deployments?state=closed&reverse=true", {
+      const response = await app.request("/v1/deployments?state=closed&reverse=true&limit=2", {
         method: "GET",
         headers: new Headers({ "Content-Type": "application/json", "x-api-key": userApiKeySecret })
       });
 
       expect(response.status).toBe(200);
-      const requested = new URL(requestedUris[0], "http://chain").searchParams;
-      expect(requested.get("filters.state")).toBe("closed");
-      expect(requested.get("pagination.reverse")).toBe("true");
+      const result = (await response.json()) as ListResult;
+      expect(result.data.deployments.map(item => item.deployment.id.dseq)).toEqual([newest.dseq, middle.dseq]);
+      expect(result.data.deployments.map(item => item.deployment.state)).toEqual(["closed", "closed"]);
+      expect(result.data.pagination).toEqual({ total: 3, skip: 0, limit: 2, hasMore: true });
+      expect(chainRequests).toEqual([]);
     });
+
+    it("lists the oldest closed deployment first unless the caller reverses the order, and pages on from there", async () => {
+      const { userApiKeySecret, address } = await setupArchive();
+      const [, middle, newest] = await seedClosedDeployments(address, 3);
+
+      const response = await app.request("/v1/deployments?state=closed&skip=1&limit=2", {
+        method: "GET",
+        headers: new Headers({ "Content-Type": "application/json", "x-api-key": userApiKeySecret })
+      });
+
+      expect(response.status).toBe(200);
+      const result = (await response.json()) as ListResult;
+      expect(result.data.deployments.map(item => item.deployment.id.dseq)).toEqual([middle.dseq, newest.dseq]);
+      expect(result.data.pagination).toEqual({ total: 3, skip: 1, limit: 2, hasMore: false });
+    });
+
+    it("returns each archived deployment's resources and leases as the console's index holds them", async () => {
+      const { userApiKeySecret, address, chainRequests } = await setupArchive();
+      const [deployment] = await seedClosedDeployments(address, 1);
+      const group = await createDeploymentGroup({ deploymentId: deployment.id, owner: address, dseq: deployment.dseq, gseq: 1 });
+      await createDeploymentGroupResource({ deploymentGroupId: group.id, cpuUnits: 500, gpuUnits: 1, gpuVendor: "nvidia", gpuModel: "h100" });
+      const provider = await createProvider();
+      await createLease({
+        deploymentId: deployment.id,
+        deploymentGroupId: group.id,
+        owner: address,
+        dseq: deployment.dseq,
+        gseq: 1,
+        oseq: 1,
+        bseq: 2,
+        providerAddress: provider.owner,
+        createdHeight: 100,
+        closedHeight: 200,
+        denom: "uact"
+      });
+
+      const response = await app.request("/v1/deployments?state=closed", {
+        method: "GET",
+        headers: new Headers({ "Content-Type": "application/json", "x-api-key": userApiKeySecret })
+      });
+
+      expect(response.status).toBe(200);
+      const result = (await response.json()) as ListResult;
+      const [item] = result.data.deployments;
+      expect(item.groups[0].group_spec.resources[0].resource).toMatchObject({
+        cpu: { units: { val: "500" } },
+        gpu: { units: { val: "1" }, attributes: [{ key: "vendor/nvidia/model/h100", value: "true" }] }
+      });
+      expect(item.leases).toEqual([
+        expect.objectContaining({
+          id: { owner: address, dseq: deployment.dseq, gseq: 1, oseq: 1, provider: provider.owner, bseq: 2 },
+          state: "closed",
+          created_at: "100",
+          closed_on: "200"
+        })
+      ]);
+      expect(chainRequests).toEqual([]);
+    });
+
+    it("searches the whole archive by the name the console holds, whatever case it is typed in, and counts the matches", async () => {
+      const { userApiKeySecret, user, address, chainRequests } = await setupArchive();
+      const [named, otherNamed] = await seedClosedDeployments(address, 3);
+      const deploymentSettingRepository = container.resolve(DeploymentSettingRepository);
+      await deploymentSettingRepository.upsertName({ userId: user.id, dseq: named.dseq, name: "my-web-app" });
+      await deploymentSettingRepository.upsertName({ userId: user.id, dseq: otherNamed.dseq, name: "database" });
+
+      const response = await app.request("/v1/deployments?state=closed&search=WEB", {
+        method: "GET",
+        headers: new Headers({ "Content-Type": "application/json", "x-api-key": userApiKeySecret })
+      });
+
+      expect(response.status).toBe(200);
+      const result = (await response.json()) as ListResult;
+      expect(result.data.deployments.map(item => [item.deployment.id.dseq, item.name])).toEqual([[named.dseq, "my-web-app"]]);
+      expect(result.data.pagination).toMatchObject({ total: 1, hasMore: false });
+      expect(chainRequests).toEqual([]);
+    });
+
+    it("searches the whole archive by dseq", async () => {
+      const { userApiKeySecret, address } = await setupArchive();
+      const [, sought] = await seedClosedDeployments(address, 3);
+
+      const response = await app.request(`/v1/deployments?state=closed&search=${sought.dseq}`, {
+        method: "GET",
+        headers: new Headers({ "Content-Type": "application/json", "x-api-key": userApiKeySecret })
+      });
+
+      expect(response.status).toBe(200);
+      const result = (await response.json()) as ListResult;
+      expect(result.data.deployments.map(item => item.deployment.id.dseq)).toEqual([sought.dseq]);
+      expect(result.data.pagination).toMatchObject({ total: 1, hasMore: false });
+    });
+
+    it("searches an archive holding more deployments than an active search spans rather than refusing it", async () => {
+      const { userApiKeySecret, user, address } = await setupArchive();
+      const firstDseq = faker.number.int({ min: 10_000_000, max: 20_000_000 });
+      await Deployment.bulkCreate(
+        Array.from({ length: MAX_SEARCHABLE_DEPLOYMENTS + 1 }, (_, index) => ({
+          owner: address,
+          dseq: String(firstDseq + index),
+          createdHeight: 100,
+          closedHeight: 200,
+          balance: 0,
+          deposit: 0,
+          denom: "uact",
+          withdrawnAmount: 0
+        }))
+      );
+      const sought = String(firstDseq + MAX_SEARCHABLE_DEPLOYMENTS);
+      await container.resolve(DeploymentSettingRepository).upsertName({ userId: user.id, dseq: sought, name: "needle" });
+
+      const response = await app.request("/v1/deployments?state=closed&search=needle", {
+        method: "GET",
+        headers: new Headers({ "Content-Type": "application/json", "x-api-key": userApiKeySecret })
+      });
+
+      expect(response.status).toBe(200);
+      const result = (await response.json()) as ListResult;
+      expect(result.data.deployments.map(item => item.deployment.id.dseq)).toEqual([sought]);
+    });
+
+    type ListResult = {
+      data: {
+        deployments: (DeploymentInfo & { leases: Record<string, unknown>[]; name: string | null })[];
+        pagination: { total: number | null; skip: number; limit: number; hasMore: boolean };
+      };
+    };
+
+    async function setupArchive() {
+      const address = createAkashAddress();
+      const { userApiKeySecret, user } = await mockPersistedUser({ address });
+      const chainRequests: string[] = [];
+      nock(container.resolve(CORE_CONFIG).REST_API_NODE_URL)
+        .persist()
+        .get(/.*/)
+        .reply(503, function recordChainRequest(uri) {
+          chainRequests.push(uri);
+          return { code: 14, message: "unavailable" };
+        });
+
+      return { userApiKeySecret, user, address, chainRequests };
+    }
+
+    async function seedClosedDeployments(owner: string, count: number) {
+      const firstDseq = faker.number.int({ min: 1_000_000, max: 9_000_000 });
+      const deployments = [];
+      for (let index = 0; index < count; index++) {
+        deployments.push(await createDeployment({ owner, dseq: String(firstDseq + index), closedHeight: 5_000_000 }));
+      }
+
+      return deployments;
+    }
 
     it("returns each listed deployment's resource groups", async () => {
       const { userApiKeySecret, wallets } = await mockUser();

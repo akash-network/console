@@ -39,6 +39,12 @@ export class FallbackLeaseReaderService {
     };
   }
 
+  async findByDeployments({ owner, dseqs }: { owner: string; dseqs: string[] }): Promise<FallbackLeaseListResponse["leases"]> {
+    const leases = await this.leaseRepository.findByDeployments({ owner, dseqs });
+
+    return leases.map(lease => this.transformLease(lease));
+  }
+
   private transformLease(lease: Lease): FallbackLeaseListResponse["leases"][number] {
     const isActive = !lease.closedHeight;
     const state = isActive ? "active" : "closed";
@@ -52,7 +58,7 @@ export class FallbackLeaseReaderService {
           gseq: lease.gseq,
           oseq: lease.oseq,
           provider: lease.providerAddress,
-          bseq: 0 // Default value since bseq is not available in the database lease
+          bseq: lease.bseq
         },
         state,
         price: {

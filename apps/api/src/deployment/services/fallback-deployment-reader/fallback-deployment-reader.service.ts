@@ -1,4 +1,5 @@
 import { Deployment, DeploymentGroup, DeploymentGroupResource } from "@akashnetwork/database/dbSchemas/akash";
+import type { DeploymentInfo } from "@akashnetwork/http-sdk";
 import { inject, singleton } from "tsyringe";
 
 import { USDC_IBC_DENOMS } from "@src/billing/config/network.config";
@@ -6,7 +7,7 @@ import { cacheResponse, Memoize } from "@src/caching/helpers";
 import MemoryCacheEngine from "@src/caching/memoryCacheEngine";
 import type { CoreConfig } from "@src/core/providers/config.provider";
 import { CORE_CONFIG } from "@src/core/providers/config.provider";
-import { DeploymentRepository } from "@src/deployment/repositories/deployment/deployment.repository";
+import { type ClosedDeploymentPageQuery, DeploymentRepository } from "@src/deployment/repositories/deployment/deployment.repository";
 import { DatabaseDeploymentListParams } from "@src/deployment/repositories/deployment/deployment.repository";
 import { RestAkashDeploymentInfoResponse } from "@src/types/rest/akashDeploymentInfoResponse";
 import { RestAkashDeploymentListResponse } from "@src/types/rest/akashDeploymentListResponse";
@@ -41,58 +42,7 @@ export class FallbackDeploymentReaderService {
 
     const { count: total, rows: deployments } = await this.deploymentRepository.findDeploymentsWithPagination(params);
 
-    const transformedDeployments = await Promise.all(
-      (deployments || []).map(async deployment => {
-        const groups = this.transformDeploymentGroups(deployment);
-
-        return {
-          deployment: {
-            id: {
-              owner: deployment.owner || "",
-              dseq: deployment.dseq || ""
-            },
-            state: deployment.closedHeight ? "closed" : "active",
-            hash: UNKNOWN_DB_PLACEHOLDER,
-            created_at: (deployment.createdHeight ?? 0).toString()
-          },
-          groups,
-          escrow_account: {
-            id: {
-              scope: "deployment",
-              xid: `${deployment.owner || ""}/${deployment.dseq || ""}`
-            },
-            state: {
-              owner: deployment.owner || "",
-              state: deployment.closedHeight ? "closed" : "open",
-              transferred: [
-                {
-                  denom: this.mapDenom(deployment.denom || "uakt"),
-                  amount: (deployment.withdrawnAmount ?? 0).toFixed(18)
-                }
-              ],
-              settled_at: (deployment.lastWithdrawHeight ?? deployment.createdHeight ?? 0).toString(),
-              funds: [
-                {
-                  denom: this.mapDenom(deployment.denom || "uakt"),
-                  amount: (deployment.balance ?? 0).toFixed(18)
-                }
-              ],
-              deposits: [
-                {
-                  owner: deployment.owner || "",
-                  height: (deployment.createdHeight ?? 0).toString(),
-                  source: "balance",
-                  balance: {
-                    denom: this.mapDenom(deployment.denom || "uakt"),
-                    amount: (deployment.balance ?? 0).toFixed(18)
-                  }
-                }
-              ]
-            }
-          }
-        };
-      })
-    );
+    const transformedDeployments = deployments.map(deployment => this.#toDeploymentInfo(deployment));
 
     // Calculate next_key similar to HTTP service
     const offset = key ? parseInt(key, 10) || 0 : skip;
@@ -112,55 +62,42 @@ export class FallbackDeploymentReaderService {
   async findByOwnerAndDseq(owner: string, dseq: string): Promise<RestAkashDeploymentInfoResponse | null> {
     const deployment = await this.deploymentRepository.findByIdWithGroups(owner, dseq);
 
-    if (!deployment) {
-      return null;
-    }
+    return deployment ? this.#toDeploymentInfo(deployment) : null;
+  }
 
-    const groups = this.transformDeploymentGroups(deployment);
+  async findClosedPage(query: ClosedDeploymentPageQuery): Promise<{ deployments: DeploymentInfo[]; total: number }> {
+    const { deployments, total } = await this.deploymentRepository.findClosedPage(query);
+
+    return { deployments: deployments.map(deployment => this.#toDeploymentInfo(deployment)), total };
+  }
+
+  #toDeploymentInfo(deployment: Deployment): DeploymentInfo {
+    const owner = deployment.owner || "";
+    const dseq = deployment.dseq || "";
+    const denom = this.mapDenom(deployment.denom || "uakt");
+    const createdHeight = (deployment.createdHeight ?? 0).toString();
+    const balance = { denom, amount: (deployment.balance ?? 0).toFixed(18) };
 
     return {
       deployment: {
-        id: {
-          owner: deployment.owner || "",
-          dseq: deployment.dseq || ""
-        },
+        id: { owner, dseq },
         state: deployment.closedHeight ? "closed" : "active",
         hash: UNKNOWN_DB_PLACEHOLDER,
-        created_at: (deployment.createdHeight ?? 0).toString()
+        created_at: createdHeight
       },
-      groups,
+      groups: this.transformDeploymentGroups(deployment),
       escrow_account: {
         id: {
           scope: "deployment",
-          xid: `${deployment.owner || ""}/${deployment.dseq || ""}`
+          xid: `${owner}/${dseq}`
         },
         state: {
-          owner: deployment.owner || "",
+          owner,
           state: deployment.closedHeight ? "closed" : "open",
-          transferred: [
-            {
-              denom: this.mapDenom(deployment.denom || "uakt"),
-              amount: (deployment.withdrawnAmount ?? 0).toFixed(18)
-            }
-          ],
+          transferred: [{ denom, amount: (deployment.withdrawnAmount ?? 0).toFixed(18) }],
           settled_at: (deployment.lastWithdrawHeight ?? deployment.createdHeight ?? 0).toString(),
-          funds: [
-            {
-              denom: this.mapDenom(deployment.denom || "uakt"),
-              amount: (deployment.balance ?? 0).toFixed(18)
-            }
-          ],
-          deposits: [
-            {
-              owner: deployment.owner || "",
-              height: (deployment.createdHeight ?? 0).toString(),
-              source: "balance",
-              balance: {
-                denom: this.mapDenom(deployment.denom || "uakt"),
-                amount: (deployment.balance ?? 0).toFixed(18)
-              }
-            }
-          ]
+          funds: [balance],
+          deposits: [{ owner, height: createdHeight, source: "balance", balance }]
         }
       }
     };
@@ -213,7 +150,7 @@ export class FallbackDeploymentReaderService {
                   units: {
                     val: (resource.gpuUnits ?? 0).toString()
                   },
-                  attributes: []
+                  attributes: gpuAttributesOf(resource)
                 },
                 endpoints: [
                   {
@@ -246,4 +183,9 @@ export class FallbackDeploymentReaderService {
     }
     return denom;
   }
+}
+
+/** The indexer keeps a gpu's vendor and model only when the chain named exactly one, storing a wildcard model as null, so this is the attribute the chain held. */
+function gpuAttributesOf({ gpuVendor, gpuModel }: DeploymentGroupResource): { key: string; value: string }[] {
+  return gpuVendor ? [{ key: `vendor/${gpuVendor}/model/${gpuModel ?? "*"}`, value: "true" }] : [];
 }
