@@ -5,7 +5,7 @@ import type { AffiliateProfile } from "@src/queries/useAffiliateProfileQuery";
 import { getBaseUrl, UrlService } from "@src/utils/urlUtils";
 import { DEPENDENCIES, ReferralsPage } from "./ReferralsPage";
 
-import { render, screen } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MockComponents } from "@tests/unit/mocks";
 
@@ -37,6 +37,16 @@ describe(ReferralsPage.name, () => {
     expect(mockRouter.replace).not.toHaveBeenCalled();
     expect(SettingsLayout.mock.lastCall?.[0].title).toBe("Referrals");
     expect(screen.getByLabelText("Referral link")).toHaveValue(`${getBaseUrl()}/?ref=friendcode`);
+  });
+
+  it("selects the whole referral link when the field gets focus", () => {
+    setup({ isAffiliateProgramEnabled: true, profile: buildProfile({ code: "friendcode" }) });
+    const field = screen.getByLabelText<HTMLInputElement>("Referral link");
+
+    act(() => field.focus());
+
+    expect(field.selectionStart).toBe(0);
+    expect(field.selectionEnd).toBe(field.value.length);
   });
 
   it("shows the terms using the values the api returned", () => {
