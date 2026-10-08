@@ -96,6 +96,24 @@ describe(ManifestUpdate.name, () => {
     expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "MANIFEST_VERSION_READ_FAILED" }));
   });
 
+  it("clears the parsing error once the editor validates the manifest", async () => {
+    const { dependencies } = setup({
+      definition: { sdl: "version: '2.0'", source: "local" },
+      dependencies: {
+        deploymentData: mock<typeof DEPENDENCIES.deploymentData>({
+          getManifestVersion: vi.fn().mockRejectedValue(new Error("parse error"))
+        })
+      }
+    });
+    await waitFor(() => expect(screen.getByText("Error getting manifest version.")).toBeInTheDocument());
+
+    act(() => {
+      dependencies.SDLEditor.mock.lastCall?.[0].onValidate?.({ isValid: true });
+    });
+
+    expect(screen.queryByText("Error getting manifest version.")).not.toBeInTheDocument();
+  });
+
   it("seeds the editor from the api definition, never from this browser's copy", async () => {
     const onManifestChange = vi.fn();
     setup({

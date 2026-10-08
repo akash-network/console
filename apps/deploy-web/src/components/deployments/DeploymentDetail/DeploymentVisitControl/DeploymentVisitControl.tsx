@@ -1,17 +1,7 @@
 "use client";
 import type { FC } from "react";
 import { useEffect, useMemo, useState } from "react";
-import {
-  Button,
-  buttonVariants,
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuTrigger,
-  Skeleton
-} from "@akashnetwork/ui/components";
-import { cn } from "@akashnetwork/ui/utils";
+import { Button, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger, Skeleton } from "@akashnetwork/ui/components";
 import { ChevronDown, Globe } from "lucide-react";
 
 import { CopyTextToClipboardButton } from "@src/components/shared/CopyTextToClipboardButton";
@@ -61,9 +51,9 @@ export const DeploymentVisitControl: FC<DeploymentVisitControlProps> = ({ leases
 
   if (!hasWaitExpired && endpoints.length === 0 && statuses.some(status => status.isPending)) {
     return (
-      <div className="flex items-center gap-2" data-testid="visit-control-skeleton">
-        <d.Skeleton className="h-9 w-64 max-w-xs" />
-        <d.Skeleton className="h-9 w-16" />
+      <div className="flex flex-wrap items-center gap-2" data-testid="visit-control-skeleton">
+        <d.Skeleton className="h-9 min-w-0 flex-1 sm:w-64 sm:max-w-xs sm:flex-none" />
+        <d.Skeleton className="h-9 w-full sm:w-16" />
       </div>
     );
   }
@@ -80,15 +70,17 @@ const VisitControlView: FC<{
   if (endpoints.length === 1) {
     const endpoint = endpoints[0];
     return (
-      <div className="flex items-center gap-2">
-        <div className="inline-flex max-w-xs items-center gap-2 rounded-md border px-3 py-2 text-sm">
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="flex min-w-0 flex-1 items-center gap-2 rounded-md border px-3 py-2 text-sm sm:max-w-xs sm:flex-none">
           <Globe className="h-4 w-4 shrink-0 text-muted-foreground" />
           <span className="truncate">{endpointLabel(endpoint)}</span>
         </div>
         <CopyTextToClipboardButton value={endpoint.href} aria-label="Copy URL" />
-        <a href={endpoint.href} target="_blank" rel="noreferrer" className={cn(buttonVariants({ variant: "default", size: "md" }))}>
-          Visit
-        </a>
+        <Button asChild variant="default" size="md" className="w-full sm:w-auto">
+          <a href={endpoint.href} target="_blank" rel="noreferrer">
+            Visit
+          </a>
+        </Button>
       </div>
     );
   }
@@ -96,7 +88,7 @@ const VisitControlView: FC<{
   return (
     <DropdownMenu modal={false}>
       <DropdownMenuTrigger asChild>
-        <Button variant="default" size="md" className="gap-1">
+        <Button variant="default" size="md" className="w-full gap-1 sm:w-auto">
           Visit
           <ChevronDown className="h-4 w-4" />
         </Button>

@@ -23,6 +23,7 @@ import { useLeaseStatus } from "@src/queries/useLeaseQuery";
 import { useProvidersByAddresses } from "@src/queries/useProvidersQuery";
 import type { LeaseDto } from "@src/types/deployment";
 import { keepSelectedLease } from "@src/utils/leaseUtils";
+import { EDGE_TO_EDGE_ON_PHONES } from "./DeploymentDetail/pageBand";
 import { LeaseSelect } from "./LeaseSelect";
 import { LogStreamDisconnectedBar, LogStreamPlaceholder } from "./LogStreamPlaceholder";
 import { ProviderAuthFallback } from "./ProviderAuthGate";
@@ -229,22 +230,24 @@ export const DeploymentLogs: React.FunctionComponent<Props> = ({ leases, selecte
                 )}
               </div>
 
-              {isDisconnectedWithOutput && <LogStreamDisconnectedBar onRetry={reconnect} />}
+              <div className={EDGE_TO_EDGE_ON_PHONES}>
+                {isDisconnectedWithOutput && <LogStreamDisconnectedBar onRetry={reconnect} />}
 
-              <LinearLoadingSkeleton isLoading={status === "connecting" || isResolvingStream} />
+                <LinearLoadingSkeleton isLoading={status === "connecting" || isResolvingStream} />
 
-              <ViewPanel stickToBottom className="relative" style={{ overflow: "hidden" }}>
-                <Editor
-                  value={logText}
-                  language={selectedLogsMode === "logs" ? "log" : "k8s-events"}
-                  onMount={handleEditorDidMount}
-                  options={{
-                    readOnly: true
-                  }}
-                />
+                <ViewPanel stickToBottom className="relative" style={{ overflow: "hidden" }}>
+                  <Editor
+                    value={logText}
+                    language={selectedLogsMode === "logs" ? "log" : "k8s-events"}
+                    onMount={handleEditorDidMount}
+                    options={{
+                      readOnly: true
+                    }}
+                  />
 
-                {emptyStreamStatus && <LogStreamPlaceholder mode={selectedLogsMode} status={emptyStreamStatus} onRetry={reconnect} />}
-              </ViewPanel>
+                  {emptyStreamStatus && <LogStreamPlaceholder mode={selectedLogsMode} status={emptyStreamStatus} onRetry={reconnect} />}
+                </ViewPanel>
+              </div>
             </>
           )}
         </>
