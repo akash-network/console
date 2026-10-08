@@ -22,7 +22,7 @@ export const ProfilePage: FC<Props> = ({ user, dependencies: d = DEPENDENCIES })
   const { isLoading } = d.useCustomUser();
 
   return (
-    <d.Layout isLoading={isLoading} disableContainer>
+    <d.Layout background="dots" isLoading={isLoading} disableContainer>
       <d.NextSeo title="Profile" />
 
       <div className="flex h-[calc(100dvh_-_var(--app-header-height,57px)_-_4px)] flex-col">

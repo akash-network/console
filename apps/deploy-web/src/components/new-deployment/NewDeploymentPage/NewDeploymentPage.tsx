@@ -61,7 +61,7 @@ export const NewDeploymentPage: FC<Props> = ({ dependencies: d = DEPENDENCIES })
 
   return (
     <d.LegacyBuilderRedirect>
-      <d.Layout isLoading={isLoadingTemplates} disableContainer>
+      <d.Layout background="dots" isLoading={isLoadingTemplates} disableContainer>
         <d.CustomNextSeo title="New Deployment" url={`${domainName}${UrlService.newDeployment()}`} />
 
         <div className="container px-4 pb-16 pt-6 sm:px-6 sm:pt-8">

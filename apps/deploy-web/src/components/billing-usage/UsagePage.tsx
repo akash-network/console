@@ -9,7 +9,7 @@ import { SettingsLayout } from "@src/components/layout/SettingsLayout/SettingsLa
 
 export const UsagePage: FC = () => {
   return (
-    <Layout disableContainer containerClassName="flex h-full flex-col justify-between">
+    <Layout background="dots" disableContainer containerClassName="flex h-full flex-col justify-between">
       <NextSeo title="Usage" />
       <UsageContainer>
         {({ onExport, canExport, ...props }) => (

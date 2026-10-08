@@ -30,7 +30,7 @@ export const AlertsPage: FC<{ dependencies?: typeof DEPENDENCIES }> = ({ depende
   const [isAddingChannel, setIsAddingChannel] = useState(false);
 
   return (
-    <d.Layout disableContainer containerClassName="flex h-full flex-col justify-between">
+    <d.Layout background="dots" disableContainer containerClassName="flex h-full flex-col justify-between">
       <NextSeo title="Alerts" />
       <d.SettingsLayout
         title="Alerts"
