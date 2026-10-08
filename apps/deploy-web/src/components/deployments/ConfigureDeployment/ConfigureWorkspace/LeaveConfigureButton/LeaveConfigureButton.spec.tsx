@@ -1,3 +1,4 @@
+import type { ComponentProps } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
@@ -9,15 +10,31 @@ import { fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 describe(LeaveConfigureButton.name, () => {
-  it("follows the link to the deployments list when nothing needs discarding", () => {
+  it("follows the link to the deployment types when nothing needs discarding", () => {
     const { clickAndReportPrevented } = setup({ needsConfirmation: false });
-    const backLink = screen.getByRole("link", { name: "Back to deployments" });
+    const backLink = screen.getByRole("link", { name: "Back to deployment types" });
 
     const wasPrevented = clickAndReportPrevented(backLink);
 
     expect(wasPrevented).toBe(false);
-    expect(backLink).toHaveAttribute("href", UrlService.deploymentList());
+    expect(backLink).toHaveAttribute("href", UrlService.newDeployment());
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it.each([
+    [
+      "a gallery template returns to its page",
+      { templateId: "akash-network-awesome-akash-comfyui" },
+      "Back to template",
+      "/templates/akash-network-awesome-akash-comfyui"
+    ],
+    ["a user template returns to its page", { userTemplateId: "user-template-1" }, "Back to template", "/template/user-template-1"],
+    ["hello world has no gallery page, so it returns to the deployment types", { templateId: "hello-world" }, "Back to deployment types", "/new-deployment"],
+    ["the empty template has no gallery page, so it returns to the deployment types", { templateId: "empty" }, "Back to deployment types", "/new-deployment"]
+  ])("%s", (_, intent, label, href) => {
+    setup({ needsConfirmation: false, intent });
+
+    expect(screen.getByRole("link", { name: label })).toHaveAttribute("href", href);
   });
 
   it("asks before discarding a pending deployment and names what is lost", () => {
@@ -30,7 +47,7 @@ describe(LeaveConfigureButton.name, () => {
       canEditInstead: true
     });
 
-    const wasPrevented = clickAndReportPrevented(screen.getByRole("link", { name: "Back to deployments" }));
+    const wasPrevented = clickAndReportPrevented(screen.getByRole("link", { name: "Back to deployment types" }));
 
     expect(wasPrevented).toBe(true);
     const dialog = screen.getByRole("dialog", { name: "Leave and discard this deployment?" });
@@ -44,11 +61,11 @@ describe(LeaveConfigureButton.name, () => {
   });
 
   it.each(["metaKey", "ctrlKey", "shiftKey", "altKey"] as const)(
-    "leaves a click with %s to the browser without asking, since opening the list elsewhere discards nothing",
+    "leaves a click with %s to the browser without asking, since opening the destination elsewhere discards nothing",
     modifier => {
       const { clickAndReportPrevented } = setup({ needsConfirmation: true });
 
-      const wasPrevented = clickAndReportPrevented(screen.getByRole("link", { name: "Back to deployments" }), { [modifier]: true });
+      const wasPrevented = clickAndReportPrevented(screen.getByRole("link", { name: "Back to deployment types" }), { [modifier]: true });
 
       expect(wasPrevented).toBe(false);
       expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
@@ -65,7 +82,7 @@ describe(LeaveConfigureButton.name, () => {
       canEditInstead: false
     });
 
-    clickAndReportPrevented(screen.getByRole("link", { name: "Back to deployments" }));
+    clickAndReportPrevented(screen.getByRole("link", { name: "Back to deployment types" }));
 
     const dialog = screen.getByRole("dialog");
     expect(
@@ -79,7 +96,7 @@ describe(LeaveConfigureButton.name, () => {
   it("keeps configuring when the discard is declined", async () => {
     const { router, onDiscard, clickAndReportPrevented } = setup({ needsConfirmation: true });
 
-    clickAndReportPrevented(screen.getByRole("link", { name: "Back to deployments" }));
+    clickAndReportPrevented(screen.getByRole("link", { name: "Back to deployment types" }));
     await userEvent.click(screen.getByRole("button", { name: "Keep configuring" }));
 
     expect(onDiscard).not.toHaveBeenCalled();
@@ -87,19 +104,29 @@ describe(LeaveConfigureButton.name, () => {
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
-  it("replaces the page with the deployments list after a discard, so browser back never returns to the closed deployment", async () => {
+  it("replaces the page with the deployment types after a discard, so browser back never returns to the closed deployment", async () => {
     const { router, onDiscard, clickAndReportPrevented } = setup({ needsConfirmation: true });
 
-    clickAndReportPrevented(screen.getByRole("link", { name: "Back to deployments" }));
+    clickAndReportPrevented(screen.getByRole("link", { name: "Back to deployment types" }));
     await userEvent.click(screen.getByRole("button", { name: "Discard and leave" }));
 
     expect(onDiscard).toHaveBeenCalled();
-    expect(router.replace).toHaveBeenCalledWith(UrlService.deploymentList());
+    expect(router.replace).toHaveBeenCalledWith(UrlService.newDeployment());
     expect(router.push).not.toHaveBeenCalled();
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
+  it("replaces the page with the template it started from after a discard", async () => {
+    const { router, clickAndReportPrevented } = setup({ needsConfirmation: true, intent: { templateId: "akash-network-awesome-akash-comfyui" } });
+
+    clickAndReportPrevented(screen.getByRole("link", { name: "Back to template" }));
+    await userEvent.click(screen.getByRole("button", { name: "Discard and leave" }));
+
+    expect(router.replace).toHaveBeenCalledWith(UrlService.templateDetails("akash-network-awesome-akash-comfyui"));
+  });
+
   function setup(input: {
+    intent?: ComponentProps<typeof LeaveConfigureButton>["intent"];
     needsConfirmation: boolean;
     deploymentName?: string;
     serviceCount?: number;
@@ -113,6 +140,7 @@ describe(LeaveConfigureButton.name, () => {
 
     const { container } = render(
       <LeaveConfigureButton
+        intent={input.intent ?? {}}
         needsConfirmation={input.needsConfirmation}
         deploymentName={input.deploymentName ?? "my-app"}
         serviceCount={input.serviceCount ?? 1}

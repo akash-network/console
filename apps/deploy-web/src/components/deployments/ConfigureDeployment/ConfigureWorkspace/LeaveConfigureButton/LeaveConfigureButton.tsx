@@ -15,11 +15,14 @@ import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
+import { hardcodedTemplates } from "@src/utils/templates";
 import { UrlService } from "@src/utils/urlUtils";
+import type { DeploymentIntent } from "../../useDeploymentFlow/deploymentIntent";
 
 export const DEPENDENCIES = { useRouter, UrlService };
 
 type Props = {
+  intent: Pick<DeploymentIntent, "templateId" | "userTemplateId">;
   needsConfirmation: boolean;
   deploymentName: string;
   serviceCount: number;
@@ -32,6 +35,7 @@ type Props = {
 
 /** Leaving after a discard replaces the entry instead of pushing one, so the browser's back button never returns to the closed deployment. */
 export const LeaveConfigureButton: FC<Props> = ({
+  intent,
   needsConfirmation,
   deploymentName,
   serviceCount,
@@ -44,6 +48,7 @@ export const LeaveConfigureButton: FC<Props> = ({
   const router = d.useRouter();
   const [isConfirming, setIsConfirming] = useState(false);
   const descriptionId = useId();
+  const destination = destinationFor(intent, d.UrlService);
 
   function confirmBeforeLeaving(event: MouseEvent<HTMLAnchorElement>) {
     if (!needsConfirmation || isOpeningElsewhere(event)) return;
@@ -54,18 +59,18 @@ export const LeaveConfigureButton: FC<Props> = ({
   function discardAndLeave() {
     onDiscard();
     setIsConfirming(false);
-    router.replace(d.UrlService.deploymentList());
+    router.replace(destination.href);
   }
 
   return (
     <>
       <Link
-        href={d.UrlService.deploymentList()}
+        href={destination.href}
         onClick={confirmBeforeLeaving}
         className="inline-flex items-center gap-1.5 py-1 text-[13px] text-muted-foreground transition-colors hover:text-foreground"
       >
         <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />
-        Back to deployments
+        {destination.label}
       </Link>
       <DialogV2 open={isConfirming} onOpenChange={setIsConfirming}>
         <DialogV2Content className="max-w-md" aria-describedby={descriptionId}>
@@ -96,6 +101,16 @@ export const LeaveConfigureButton: FC<Props> = ({
     </>
   );
 };
+
+function destinationFor({ templateId, userTemplateId }: Props["intent"], urlService: typeof UrlService): { href: string; label: string } {
+  if (templateId && hasGalleryPage(templateId)) return { href: urlService.templateDetails(templateId), label: "Back to template" };
+  if (userTemplateId) return { href: urlService.template(userTemplateId), label: "Back to template" };
+  return { href: urlService.newDeployment(), label: "Back to deployment types" };
+}
+
+function hasGalleryPage(templateId: string): boolean {
+  return !hardcodedTemplates.some(template => template.code === templateId);
+}
 
 function isOpeningElsewhere(event: MouseEvent<HTMLAnchorElement>): boolean {
   return event.metaKey || event.ctrlKey || event.shiftKey || event.altKey;

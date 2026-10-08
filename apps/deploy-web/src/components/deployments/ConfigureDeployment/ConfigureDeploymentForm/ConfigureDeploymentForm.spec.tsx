@@ -745,11 +745,12 @@ describe(ConfigureDeploymentForm.name, () => {
       expect(analyticsService.track).toHaveBeenCalledWith("configure_page_viewed", { category: "deployments", layout: "two_panel" });
     });
 
-    it("hands the workspace the live sdl, the active placement and both deployment names", () => {
-      const { ConfigureWorkspace } = setup({ initialSdl: VALID_SDL, initialName: "my-app", apiDerivedName: "web", twoPanel: true });
+    it("hands the workspace the intent, the live sdl, the active placement and both deployment names", () => {
+      const { ConfigureWorkspace } = setup({ initialSdl: VALID_SDL, initialName: "my-app", apiDerivedName: "web", twoPanel: true, draftId: "draft-1" });
 
       expect(ConfigureWorkspace).toHaveBeenCalledWith(
         expect.objectContaining({
+          intent: { sdlStrategy: "edit", bidStrategy: "select", dseq: undefined, draftId: "draft-1", vm: false },
           sdl: sealedSdlOf(VALID_SDL),
           previewSdl: sealedSdlOf(VALID_SDL),
           selectedServiceId: expect.any(String),
