@@ -1,49 +1,125 @@
-import React from "react";
+import type { ComponentProps } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
-import type { useUser } from "@src/hooks/useUser";
-import type { WAIT_FOR_FEATURE_FLAGS_DEPENDENCIES } from "./FlagProvider";
-import { FlagProvider, UNLEASH_READY_TIMEOUT_MS, WaitForFeatureFlags } from "./FlagProvider";
+import type { FLAG_CONTEXT_USER_SYNC_DEPENDENCIES, Props, WAIT_FOR_FEATURE_FLAGS_DEPENDENCIES } from "./FlagProvider";
+import { FlagContextUserSync, FlagProvider, UNLEASH_READY_TIMEOUT_MS, WaitForFeatureFlags } from "./FlagProvider";
 
 import { act, render, screen } from "@testing-library/react";
 
+type Components = NonNullable<Props["components"]>;
+
 describe(FlagProvider.name, () => {
   it("passes userId from useUser to the custom FlagProvider", () => {
-    const customFlagProvider = ({ config, children }: any) => (
-      <div data-testid="flag-provider">
-        {config.context.userId}
-        {children}
-      </div>
-    );
-    const customUseUser = () =>
-      mock<ReturnType<typeof useUser>>({
-        user: { id: "my-user-id" } as never,
-        isLoading: false
-      });
+    setup({ userId: "my-user-id" });
 
-    const { getByTestId } = render(
-      <FlagProvider components={{ FlagProvider: customFlagProvider, useUser: customUseUser }}>
-        <div data-testid="child" />
-      </FlagProvider>
-    );
+    expect(screen.getByTestId("flag-provider").textContent).toContain("my-user-id");
+    expect(screen.getByTestId("child")).toBeInTheDocument();
+  });
 
-    expect(getByTestId("flag-provider").textContent).toContain("my-user-id");
-    expect(getByTestId("child")).toBeInTheDocument();
+  it("hands the signed-in user to the flag context sync", () => {
+    setup({ userId: "my-user-id" });
+
+    expect(screen.getByTestId("flag-context-user-sync").textContent).toBe("my-user-id");
   });
 
   it("renders children without waiting for feature flags", () => {
-    const customFlagProvider = ({ children }: any) => <>{children}</>;
-    const customUseUser = () => mock<ReturnType<typeof useUser>>({ user: undefined, isLoading: true });
+    setup({ isLoading: true });
 
-    const { getByTestId } = render(
-      <FlagProvider components={{ FlagProvider: customFlagProvider, useUser: customUseUser }}>
+    expect(screen.getByTestId("child")).toBeInTheDocument();
+  });
+
+  function setup(input: { userId?: string; isLoading?: boolean }) {
+    const FlagProviderStub = ({ config, children }: ComponentProps<Components["FlagProvider"]>) => (
+      <div data-testid="flag-provider">
+        {config?.context?.userId}
+        {children}
+      </div>
+    );
+    const FlagContextUserSyncStub = ({ userId }: ComponentProps<Components["FlagContextUserSync"]>) => <div data-testid="flag-context-user-sync">{userId}</div>;
+    const useUser: Components["useUser"] = () =>
+      mock<ReturnType<Components["useUser"]>>({
+        user: input.userId ? { id: input.userId } : undefined,
+        isLoading: input.isLoading ?? false
+      });
+
+    render(
+      <FlagProvider components={{ FlagProvider: FlagProviderStub, FlagContextUserSync: FlagContextUserSyncStub, useUser }}>
         <div data-testid="child" />
       </FlagProvider>
     );
+  }
+});
 
-    expect(getByTestId("child")).toBeInTheDocument();
+describe(FlagContextUserSync.name, () => {
+  it("leaves the flag context alone when it already names the signed-in user", () => {
+    const { client } = setup({ contextUserId: "user-1", userId: "user-1" });
+
+    expect(client.updateContext).not.toHaveBeenCalled();
   });
+
+  it("leaves the flag context alone while nobody is signed in", () => {
+    const { client } = setup({ contextUserId: undefined, userId: undefined });
+
+    expect(client.updateContext).not.toHaveBeenCalled();
+  });
+
+  it("identifies a user who signs in after the client was built", () => {
+    const { client, rerenderWith } = setup({ contextUserId: undefined, userId: undefined });
+
+    rerenderWith("user-1");
+
+    expect(client.updateContext).toHaveBeenCalledTimes(1);
+    expect(client.updateContext).toHaveBeenCalledWith({ userId: "user-1" });
+  });
+
+  it("identifies a user the client was built without", () => {
+    const { client } = setup({ contextUserId: undefined, userId: "user-1" });
+
+    expect(client.updateContext).toHaveBeenCalledWith({ userId: "user-1" });
+  });
+
+  it("switches the flag context to the next user who signs in", () => {
+    const { client, rerenderWith } = setup({ contextUserId: "user-1", userId: "user-1" });
+
+    rerenderWith("user-2");
+
+    expect(client.updateContext).toHaveBeenCalledWith({ userId: "user-2" });
+  });
+
+  it("drops the user from the flag context on sign-out", () => {
+    const { client, rerenderWith } = setup({ contextUserId: "user-1", userId: "user-1" });
+
+    rerenderWith(undefined);
+
+    expect(client.updateContext).toHaveBeenCalledWith({ userId: undefined });
+  });
+
+  it("does not repeat the update on re-renders with the same user", () => {
+    const { client, rerenderWith } = setup({ contextUserId: undefined, userId: undefined });
+
+    rerenderWith("user-1");
+    rerenderWith("user-1");
+
+    expect(client.updateContext).toHaveBeenCalledTimes(1);
+  });
+
+  function setup(input: { contextUserId: string | undefined; userId: string | undefined }) {
+    let contextUserId = input.contextUserId;
+    const client = mock<ReturnType<typeof FLAG_CONTEXT_USER_SYNC_DEPENDENCIES.useUnleashClient>>();
+    client.getContext.mockImplementation(() => ({ appName: "console", userId: contextUserId }));
+    client.updateContext.mockImplementation(async ({ userId }) => {
+      contextUserId = userId;
+    });
+    const dependencies = { useUnleashClient: () => client };
+
+    const { rerender } = render(<FlagContextUserSync userId={input.userId} dependencies={dependencies} />);
+
+    return {
+      client,
+      rerenderWith: (userId: string | undefined) => rerender(<FlagContextUserSync userId={userId} dependencies={dependencies} />)
+    };
+  }
 });
 
 describe(WaitForFeatureFlags.name, () => {
