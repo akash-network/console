@@ -1,5 +1,5 @@
 import { relations, sql } from "drizzle-orm";
-import { index, integer, pgEnum, pgTable, timestamp, uniqueIndex, uuid, varchar } from "drizzle-orm/pg-core";
+import { type AnyPgColumn, index, integer, pgEnum, pgTable, timestamp, uniqueIndex, uuid, varchar } from "drizzle-orm/pg-core";
 
 import { Organizations } from "@src/organization/model-schemas/organization/organization.schema";
 import { Users } from "@src/user/model-schemas";
@@ -14,7 +14,7 @@ export const stripeTransactionStatusEnum = pgEnum("stripe_transaction_status", [
   "canceled"
 ]);
 
-export const stripeTransactionTypeEnum = pgEnum("stripe_transaction_type", ["payment_intent", "coupon_claim", "manual_credit"]);
+export const stripeTransactionTypeEnum = pgEnum("stripe_transaction_type", ["payment_intent", "coupon_claim", "manual_credit", "affiliate_commission"]);
 
 /** Holds a person to one first-purchase bonus, refunded or not, whichever organization they paid for. */
 export const ONE_FIRST_PURCHASE_BONUS_PER_USER_INDEX = "stripe_transactions_user_id_first_purchase_bonus_unique";
@@ -48,6 +48,7 @@ export const StripeTransactions = pgTable(
     receiptUrl: varchar("receipt_url", { length: 2048 }),
     description: varchar("description", { length: 500 }),
     errorMessage: varchar("error_message", { length: 1000 }),
+    sourceTransactionId: uuid("source_transaction_id").references((): AnyPgColumn => StripeTransactions.id),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull()
   },
@@ -69,6 +70,9 @@ export const StripeTransactions = pgTable(
     oneFirstPurchaseBonusPerUser: uniqueIndex(ONE_FIRST_PURCHASE_BONUS_PER_USER_INDEX)
       .on(table.userId)
       .where(sql`${table.bonusAmount} > 0`),
+    sourceTransactionIdUnique: uniqueIndex("stripe_transactions_source_transaction_id_unique")
+      .on(table.sourceTransactionId)
+      .where(sql`${table.sourceTransactionId} IS NOT NULL`),
     userIdIdx: index("stripe_transactions_user_id_idx").on(table.userId),
     organizationIdIdx: index("stripe_transactions_organization_id_idx").on(table.organizationId),
     stripePaymentIntentIdIdx: index("stripe_transactions_stripe_payment_intent_id_idx").on(table.stripePaymentIntentId),
