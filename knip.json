@@ -102,6 +102,9 @@
       ],
       "ignoreDependencies": ["eslint-plugin-akash", "next", "secretlint-rule-akash-no-mnemonic"]
     },
+    "packages/drizzle-ability": {
+      "project": ["src/**/*.ts"]
+    },
     "packages/env-loader": {},
     "packages/http-sdk": {
       "project": ["src/**/*.ts"]

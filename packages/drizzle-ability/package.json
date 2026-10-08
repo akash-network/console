@@ -1,0 +1,33 @@
+{
+  "name": "@akashnetwork/drizzle-ability",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Turns CASL ability rules into Drizzle where clauses",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/akash-network/console"
+  },
+  "license": "Apache-2.0",
+  "author": "Akash Network",
+  "exports": {
+    ".": "./src/index.ts",
+    "./package.json": "./package.json"
+  },
+  "main": "src/index.ts",
+  "scripts": {
+    "format": "prettier --write ./*.{ts,json} **/*.{ts,json}",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "validate:types": "tsc -p tsconfig.build.json --noEmit && echo"
+  },
+  "dependencies": {
+    "@casl/ability": "^6.8.1",
+    "@ucast/core": "^1.10.2",
+    "drizzle-orm": "^0.45.2"
+  },
+  "devDependencies": {
+    "@akashnetwork/dev-config": "*",
+    "vitest": "^4.1.5"
+  }
+}
