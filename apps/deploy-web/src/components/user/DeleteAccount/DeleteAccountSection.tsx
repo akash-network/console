@@ -2,7 +2,10 @@
 import type { FC } from "react";
 import { useState } from "react";
 import { Button } from "@akashnetwork/ui/components";
+import { Trash2 } from "lucide-react";
 
+import { SettingsCard, SettingsRow } from "@src/components/layout/SettingsCard/SettingsCard";
+import { SettingsSection } from "@src/components/layout/SettingsSection/SettingsSection";
 import { useServices } from "@src/context/ServicesProvider";
 import { useFlag } from "@src/hooks/useFlag";
 import { DeleteAccountDialog } from "./DeleteAccountDialog";
@@ -28,17 +31,16 @@ export const DeleteAccountSection: FC<Props> = ({ email, dependencies: d = DEPEN
 
   return (
     <>
-      <section className="mt-6 flex flex-wrap items-center justify-between gap-4 rounded-xl border border-destructive/50 bg-card p-6">
-        <div className="space-y-1">
-          <h3 className="font-semibold">Delete account</h3>
-          <p className="text-sm text-muted-foreground">
-            Permanently delete your Akash Console account and everything stored with it. This can&apos;t be undone.
-          </p>
-        </div>
-        <Button type="button" variant="destructive" onClick={openDialog}>
-          Delete account
-        </Button>
-      </section>
+      <SettingsSection title="Danger zone">
+        <SettingsCard destructive>
+          <SettingsRow label="Delete account" description="Permanently delete your Akash Console account and everything stored with it. This can't be undone.">
+            <Button type="button" variant="destructive" size="md" className="gap-1.5" onClick={openDialog}>
+              <Trash2 className="h-4 w-4" aria-hidden />
+              Delete account
+            </Button>
+          </SettingsRow>
+        </SettingsCard>
+      </SettingsSection>
       {isDialogOpen && <d.DeleteAccountDialog email={email} onClose={() => setIsDialogOpen(false)} />}
     </>
   );

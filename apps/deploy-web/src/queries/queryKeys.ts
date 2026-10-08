@@ -21,6 +21,7 @@ export class QueryKeys {
   static getPublicTemplateKey = (id: string) => ["PUBLIC_TEMPLATE", id];
   static getUserTemplatesKey = (username: string) => ["USER_TEMPLATES", username];
   static getUserFavoriteTemplatesKey = (userId: string) => ["USER_FAVORITES_TEMPLATES", userId];
+  static getUsernameAvailabilityKey = (username: string) => ["USERNAME_AVAILABILITY", username];
   // Deploy
   static getDeploymentListKey = (address: string, state?: string) => (state ? ["DEPLOYMENT_LIST", address, state] : ["DEPLOYMENT_LIST", address]);
   static getDeploymentDetailKey = (address: string, dseq?: string) => ["DEPLOYMENT_DETAIL", address, dseq].filter(Boolean);

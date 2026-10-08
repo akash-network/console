@@ -23,6 +23,12 @@ describe(DeleteAccountSection.name, () => {
     expect(screen.queryByRole("button", { name: "Delete account" })).not.toBeInTheDocument();
   });
 
+  it("offers account deletion under Danger zone", () => {
+    setup({ isEnabled: true });
+
+    expect(screen.getByRole("region", { name: "Danger zone" })).toContainElement(screen.getByRole("button", { name: "Delete account" }));
+  });
+
   it("opens the deletion dialog for the user's email and reports it", async () => {
     const { user, DeleteAccountDialog, analyticsService } = setup({ isEnabled: true });
     expect(DeleteAccountDialog).not.toHaveBeenCalled();
