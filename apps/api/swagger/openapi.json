@@ -23310,11 +23310,62 @@
                             "commissionMonths",
                             "referralTrialCreditsUsd"
                           ]
+                        },
+                        "stats": {
+                          "type": "object",
+                          "properties": {
+                            "signups": {
+                              "type": "number"
+                            },
+                            "payingUsers": {
+                              "type": "number"
+                            },
+                            "totalCommissionUsd": {
+                              "type": "number"
+                            },
+                            "monthCommissionUsd": {
+                              "type": "number"
+                            }
+                          },
+                          "required": [
+                            "signups",
+                            "payingUsers",
+                            "totalCommissionUsd",
+                            "monthCommissionUsd"
+                          ]
+                        },
+                        "commissions": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string"
+                              },
+                              "createdAt": {
+                                "type": "string"
+                              },
+                              "amountUsd": {
+                                "type": "number"
+                              },
+                              "reversedUsd": {
+                                "type": "number"
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "createdAt",
+                              "amountUsd",
+                              "reversedUsd"
+                            ]
+                          }
                         }
                       },
                       "required": [
                         "code",
-                        "terms"
+                        "terms",
+                        "stats",
+                        "commissions"
                       ]
                     }
                   },

@@ -268,6 +268,32 @@ export class StripeTransactionRepository extends BaseRepository<Table, StripeTra
     return this.findOneByAndLock({ sourceTransactionId, type: "affiliate_commission" });
   }
 
+  /** Nets each row's amount against its own amountRefunded before summing, so a partly reversed commission counts for only what the affiliate kept. */
+  async sumAffiliateCommissionNet(userId: string, since?: Date): Promise<number> {
+    const conditions: SQL[] = [eq(this.table.userId, userId), eq(this.table.type, "affiliate_commission")];
+
+    if (since) {
+      conditions.push(gte(this.table.createdAt, since));
+    }
+
+    const items = await this.cursor.query.StripeTransactions.findMany({
+      where: this.whereAccessibleBy(and(...conditions)),
+      columns: { amount: true, amountRefunded: true }
+    });
+
+    return items.reduce((sum, item) => sum + (item.amount - item.amountRefunded), 0);
+  }
+
+  async findAffiliateCommissions(userId: string, limit = 100): Promise<StripeTransactionOutput[]> {
+    return this.toOutputList(
+      await this.cursor.query.StripeTransactions.findMany({
+        where: this.whereAccessibleBy(and(eq(this.table.userId, userId), eq(this.table.type, "affiliate_commission"))),
+        orderBy: [desc(this.table.createdAt)],
+        limit
+      })
+    );
+  }
+
   async sumAmountByUserId(userId: string, options?: { startDate?: Date; endDate?: Date; status?: StripeTransactionStatus }): Promise<number> {
     const conditions: SQL[] = [eq(this.table.userId, userId)];
 

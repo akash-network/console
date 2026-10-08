@@ -1,11 +1,14 @@
-import { eq } from "drizzle-orm";
+import { and, count, countDistinct, eq, exists, inArray } from "drizzle-orm";
 import { singleton } from "tsyringe";
 
 import { Affiliates } from "@src/affiliate/model-schemas";
 import type { AffiliateDbOutput, AffiliateOutput } from "@src/affiliate/repositories/affiliate/affiliate.repository";
+import { StripeTransactions } from "@src/billing/model-schemas";
 import { type ApiPgDatabase, type ApiPgTables, InjectPg, InjectPgTable } from "@src/core/providers";
 import { type AbilityParams, BaseRepository } from "@src/core/repositories/base.repository";
 import { TxService } from "@src/core/services";
+
+const PAYING_PAYMENT_STATUSES = ["succeeded", "refunded"] as const;
 
 type Table = ApiPgTables["Referrals"];
 export type ReferralInput = Partial<Table["$inferInsert"]>;
@@ -35,6 +38,43 @@ export class ReferralRepository extends BaseRepository<Table, ReferralInput, Ref
 
   async findByReferredUserId(referredUserId: string): Promise<ReferralOutput | undefined> {
     return this.findOneBy({ referredUserId } as Partial<ReferralOutput>);
+  }
+
+  async countByAffiliate(affiliateId: string): Promise<number> {
+    const [{ total }] = await this.cursor
+      .select({ total: count() })
+      .from(this.table)
+      .where(this.whereAccessibleBy(eq(this.table.affiliateId, affiliateId)));
+
+    return total;
+  }
+
+  /** Counts distinct referred users with a settled `payment_intent` of their own, so a referral with several card payments still counts once. */
+  async countPayingByAffiliate(affiliateId: string): Promise<number> {
+    const [{ total }] = await this.cursor
+      .select({ total: countDistinct(this.table.referredUserId) })
+      .from(this.table)
+      .where(
+        this.whereAccessibleBy(
+          and(
+            eq(this.table.affiliateId, affiliateId),
+            exists(
+              this.cursor
+                .select({ id: StripeTransactions.id })
+                .from(StripeTransactions)
+                .where(
+                  and(
+                    eq(StripeTransactions.userId, this.table.referredUserId),
+                    eq(StripeTransactions.type, "payment_intent"),
+                    inArray(StripeTransactions.status, PAYING_PAYMENT_STATUSES)
+                  )
+                )
+            )
+          )
+        )
+      );
+
+    return total;
   }
 
   async findWithAffiliateByReferredUserId(referredUserId: string): Promise<ReferralWithAffiliate | undefined> {

@@ -2603,6 +2603,55 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                         "code": {
                           "type": "string",
                         },
+                        "commissions": {
+                          "items": {
+                            "properties": {
+                              "amountUsd": {
+                                "type": "number",
+                              },
+                              "createdAt": {
+                                "type": "string",
+                              },
+                              "id": {
+                                "type": "string",
+                              },
+                              "reversedUsd": {
+                                "type": "number",
+                              },
+                            },
+                            "required": [
+                              "id",
+                              "createdAt",
+                              "amountUsd",
+                              "reversedUsd",
+                            ],
+                            "type": "object",
+                          },
+                          "type": "array",
+                        },
+                        "stats": {
+                          "properties": {
+                            "monthCommissionUsd": {
+                              "type": "number",
+                            },
+                            "payingUsers": {
+                              "type": "number",
+                            },
+                            "signups": {
+                              "type": "number",
+                            },
+                            "totalCommissionUsd": {
+                              "type": "number",
+                            },
+                          },
+                          "required": [
+                            "signups",
+                            "payingUsers",
+                            "totalCommissionUsd",
+                            "monthCommissionUsd",
+                          ],
+                          "type": "object",
+                        },
                         "terms": {
                           "properties": {
                             "commissionMonths": {
@@ -2626,6 +2675,8 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                       "required": [
                         "code",
                         "terms",
+                        "stats",
+                        "commissions",
                       ],
                       "type": "object",
                     },

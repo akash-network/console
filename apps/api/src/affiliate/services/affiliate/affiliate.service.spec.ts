@@ -4,11 +4,14 @@ import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { AffiliateRepository } from "@src/affiliate/repositories/affiliate/affiliate.repository";
+import type { ReferralRepository } from "@src/affiliate/repositories/referral/referral.repository";
 import type { BillingConfig } from "@src/billing/providers";
+import type { StripeTransactionRepository } from "@src/billing/repositories";
 import type { UserRepository } from "@src/user/repositories";
 import { AffiliateService } from "./affiliate.service";
 
 import { createAffiliate } from "@test/seeders/affiliate.seeder";
+import { generateDatabaseStripeTransaction } from "@test/seeders/database-stripe-transaction.seeder";
 import { createUser } from "@test/seeders/user.seeder";
 
 describe(AffiliateService.name, () => {
@@ -406,7 +409,9 @@ describe(AffiliateService.name, () => {
       const { service, affiliateRepository } = setup({ billingConfig: { REFERRAL_TRIAL_DEPLOYMENT_ALLOWANCE_AMOUNT: 5_000_000 } });
       affiliateRepository.findByUserId.mockResolvedValue(active);
 
-      await expect(service.getProfile(active.userId)).resolves.toEqual({
+      const profile = await service.getProfile(active.userId);
+
+      expect(profile).toMatchObject({
         code: "friendcode",
         terms: { commissionPercent: 5, commissionMonths: 12, referralTrialCreditsUsd: 5 }
       });
@@ -420,6 +425,75 @@ describe(AffiliateService.name, () => {
       const profile = await service.getProfile(active.userId);
 
       expect(profile?.terms.referralTrialCreditsUsd).toBe(7.5);
+    });
+
+    it("counts signups and paying users from the referral repository for the affiliate's own id", async () => {
+      const active = createAffiliate({ revokedAt: null });
+      const { service, affiliateRepository, referralRepository } = setup();
+      affiliateRepository.findByUserId.mockResolvedValue(active);
+      referralRepository.countByAffiliate.mockResolvedValue(9);
+      referralRepository.countPayingByAffiliate.mockResolvedValue(4);
+
+      const profile = await service.getProfile(active.userId);
+
+      expect(referralRepository.countByAffiliate).toHaveBeenCalledWith(active.id);
+      expect(referralRepository.countPayingByAffiliate).toHaveBeenCalledWith(active.id);
+      expect(profile?.stats).toMatchObject({ signups: 9, payingUsers: 4 });
+    });
+
+    it("converts the total and month-to-date net commission sums from cents to usd for the affiliate's user id", async () => {
+      const active = createAffiliate({ revokedAt: null });
+      const { service, affiliateRepository, stripeTransactionRepository } = setup();
+      affiliateRepository.findByUserId.mockResolvedValue(active);
+      stripeTransactionRepository.sumAffiliateCommissionNet.mockImplementation(async (_userId, since) => (since ? 450 : 1250));
+
+      const profile = await service.getProfile(active.userId);
+
+      expect(stripeTransactionRepository.sumAffiliateCommissionNet).toHaveBeenCalledWith(active.userId);
+      expect(stripeTransactionRepository.sumAffiliateCommissionNet).toHaveBeenCalledWith(active.userId, expect.any(Date));
+      expect(profile?.stats).toMatchObject({ totalCommissionUsd: 12.5, monthCommissionUsd: 4.5 });
+    });
+
+    it("passes the first instant of the current UTC month as the month boundary", async () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date("2024-06-15T18:30:00Z"));
+      const active = createAffiliate({ revokedAt: null });
+      const { service, affiliateRepository, stripeTransactionRepository } = setup();
+      affiliateRepository.findByUserId.mockResolvedValue(active);
+
+      await service.getProfile(active.userId);
+
+      expect(stripeTransactionRepository.sumAffiliateCommissionNet).toHaveBeenCalledWith(active.userId, new Date("2024-06-01T00:00:00.000Z"));
+      vi.useRealTimers();
+    });
+
+    it("maps each commission row to its gross and reversed usd amounts without the referred user's identity", async () => {
+      const active = createAffiliate({ revokedAt: null });
+      const { service, affiliateRepository, stripeTransactionRepository } = setup();
+      affiliateRepository.findByUserId.mockResolvedValue(active);
+      const commission = generateDatabaseStripeTransaction({
+        id: "commission-1",
+        createdAt: new Date("2024-06-10T12:00:00Z"),
+        amount: 500,
+        amountRefunded: 150
+      });
+      stripeTransactionRepository.findAffiliateCommissions.mockResolvedValue([commission]);
+
+      const profile = await service.getProfile(active.userId);
+
+      expect(stripeTransactionRepository.findAffiliateCommissions).toHaveBeenCalledWith(active.userId);
+      expect(profile?.commissions).toEqual([{ id: "commission-1", createdAt: "2024-06-10T12:00:00.000Z", amountUsd: 5, reversedUsd: 1.5 }]);
+    });
+
+    it("returns an empty commissions list when the affiliate has none", async () => {
+      const active = createAffiliate({ revokedAt: null });
+      const { service, affiliateRepository, stripeTransactionRepository } = setup();
+      affiliateRepository.findByUserId.mockResolvedValue(active);
+      stripeTransactionRepository.findAffiliateCommissions.mockResolvedValue([]);
+
+      const profile = await service.getProfile(active.userId);
+
+      expect(profile?.commissions).toEqual([]);
     });
   });
 
@@ -436,15 +510,21 @@ describe(AffiliateService.name, () => {
     affiliateRepository.findByCode.mockResolvedValue(undefined);
     affiliateRepository.create.mockResolvedValue(created);
     affiliateRepository.updateById.mockResolvedValue(created as never);
+    const referralRepository = mock<ReferralRepository>();
+    referralRepository.countByAffiliate.mockResolvedValue(0);
+    referralRepository.countPayingByAffiliate.mockResolvedValue(0);
+    const stripeTransactionRepository = mock<StripeTransactionRepository>();
+    stripeTransactionRepository.sumAffiliateCommissionNet.mockResolvedValue(0);
+    stripeTransactionRepository.findAffiliateCommissions.mockResolvedValue([]);
     const userRepository = mock<UserRepository>();
     userRepository.findById.mockImplementation(async id => createUser({ id }));
     const billingConfig = mock<BillingConfig>({ REFERRAL_TRIAL_DEPLOYMENT_ALLOWANCE_AMOUNT: 5_000_000, ...input.billingConfig });
     const logger = mock<ReturnType<CreateLogger>>();
     const createLogger = vi.fn<CreateLogger>(() => logger);
 
-    const service = new AffiliateService(affiliateRepository, userRepository, billingConfig, createLogger);
+    const service = new AffiliateService(affiliateRepository, referralRepository, stripeTransactionRepository, userRepository, billingConfig, createLogger);
 
-    return { service, affiliateRepository, userRepository, billingConfig, logger, createLogger, created };
+    return { service, affiliateRepository, referralRepository, stripeTransactionRepository, userRepository, billingConfig, logger, createLogger, created };
   }
 
   function createUniqueViolation(constraintName: string) {
