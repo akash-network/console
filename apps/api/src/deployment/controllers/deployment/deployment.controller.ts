@@ -18,6 +18,7 @@ import {
   GetDeploymentByOwnerDseqResponse,
   GetDeploymentNamesResponse,
   GetDeploymentResponse,
+  GetSpendRateResponse,
   GetWeeklyDeploymentCostResponse,
   ListDeploymentsResponseSchema,
   ListWithResourcesParams,
@@ -31,6 +32,7 @@ import {
 import { DeploymentReaderService } from "@src/deployment/services/deployment-reader/deployment-reader.service";
 import { DeploymentWriterService } from "@src/deployment/services/deployment-writer/deployment-writer.service";
 import { DrainingDeploymentService } from "@src/deployment/services/draining-deployment/draining-deployment.service";
+import { SpendRateService } from "@src/deployment/services/spend-rate/spend-rate.service";
 
 @singleton()
 export class DeploymentController {
@@ -39,7 +41,8 @@ export class DeploymentController {
     private readonly deploymentWriterService: DeploymentWriterService,
     private readonly authService: AuthService,
     private readonly drainingDeploymentService: DrainingDeploymentService,
-    private readonly featureFlagsService: FeatureFlagsService
+    private readonly featureFlagsService: FeatureFlagsService,
+    private readonly spendRateService: SpendRateService
   ) {}
 
   @Protected([{ action: "sign", subject: "UserWallet" }])
@@ -144,5 +147,11 @@ export class DeploymentController {
   async getWeeklyDeploymentCost(): Promise<GetWeeklyDeploymentCostResponse> {
     const weeklyCost = await this.drainingDeploymentService.calculateWeeklyDeploymentCost(this.authService.currentUser.id, this.authService.ability);
     return { data: { weeklyCost } };
+  }
+
+  @Protected([{ action: "read", subject: "UserWallet" }])
+  async getSpendRate(): Promise<GetSpendRateResponse> {
+    const deployments = await this.spendRateService.findByUserId(this.authService.currentUser.id);
+    return { data: { deployments } };
   }
 }

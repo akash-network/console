@@ -2757,6 +2757,23 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/v1/spend-rate": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Get what each running deployment costs per block */
+    get: operations["getSpendRate"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/v1/sdl-secrets-context": {
     parameters: {
       query?: never;
@@ -9777,6 +9794,66 @@ export interface operations {
       };
       /** @description The key management service, or the version the deployment runs, could not be read. Transient and worth retrying */
       503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            error: string;
+            message: string;
+            code: string;
+            type: string;
+          };
+        };
+      };
+    };
+  };
+  getSpendRate: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Returns the summed price per block of the live leases of each of the user's deployments */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            data: {
+              /** @description One entry per denom for each deployment holding at least one live lease. A deployment with no live lease is absent. */
+              deployments: {
+                dseq: string;
+                /** @description Summed price per block of the deployment's live leases in that denom, written as a lease writes its own price. */
+                price: {
+                  denom: string;
+                  amount: string;
+                };
+              }[];
+            };
+          };
+        };
+      };
+      /** @description The user's wallet is not initialized yet */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            error: string;
+            message: string;
+            code: string;
+            type: string;
+          };
+        };
+      };
+      /** @description The user has no wallet */
+      404: {
         headers: {
           [name: string]: unknown;
         };

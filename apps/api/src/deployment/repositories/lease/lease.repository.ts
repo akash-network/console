@@ -29,6 +29,12 @@ export interface ProviderLeaseCount {
   activeLeaseCount: number;
 }
 
+export interface LivePricePerDeployment {
+  dseq: string;
+  denom: string;
+  price: number;
+}
+
 export interface DatabaseLeaseListParams {
   owner?: string;
   dseq?: string;
@@ -95,6 +101,19 @@ export class LeaseRepository implements DrainingDeploymentLeaseSource {
       FROM lease l
       WHERE l."owner" = :owner
       GROUP BY l."providerAddress"`,
+      { type: QueryTypes.SELECT, replacements: { owner } }
+    );
+  }
+
+  /** A lease a provider is reclaiming still bills, so it counts as live until the indexer sees it close. */
+  async sumLivePricesPerDeployment(owner: string): Promise<LivePricePerDeployment[]> {
+    return await this.#chainDb.query<LivePricePerDeployment>(
+      `/* lease:livePricePerDeployment */
+      SELECT l."dseq"::text AS "dseq", l."denom", SUM(l."price")::double precision AS "price"
+      FROM lease l
+      WHERE l."owner" = :owner
+        AND l."closedHeight" IS NULL
+      GROUP BY l."dseq", l."denom"`,
       { type: QueryTypes.SELECT, replacements: { owner } }
     );
   }
