@@ -110,6 +110,34 @@ describe(ActivityRepository.name, () => {
     });
   });
 
+  describe("updateByIdIfStatusIn", () => {
+    it("updates the activity only while it is in one of the given statuses", async () => {
+      const { repository, createUser, seed } = setup();
+      const owner = await createUser();
+      const failed = await seed(owner.id, { status: "failed" });
+      const succeeded = await seed(owner.id, { status: "succeeded" });
+      const outcome = { status: "succeeded" as const, meta: { dseq: "100" } };
+
+      await repository.updateByIdIfStatusIn(failed.id, ["pending", "failed"], outcome);
+      await repository.updateByIdIfStatusIn(succeeded.id, ["pending", "failed"], { status: "failed", meta: { dseq: "200" } });
+
+      expect(await repository.findById(failed.id)).toMatchObject(outcome);
+      expect(await repository.findById(succeeded.id)).toMatchObject({ status: "succeeded", meta: succeeded.meta });
+    });
+
+    it("updates no activity but the one with the given id", async () => {
+      const { repository, createUser, seed } = setup();
+      const owner = await createUser();
+      const target = await seed(owner.id, { status: "pending" });
+      const bystander = await seed(owner.id, { status: "pending" });
+
+      await repository.updateByIdIfStatusIn(target.id, ["pending"], { status: "succeeded" });
+
+      expect(await repository.findById(target.id)).toMatchObject({ status: "succeeded" });
+      expect(await repository.findById(bystander.id)).toMatchObject({ status: "pending" });
+    });
+  });
+
   function setup() {
     const repository = container.resolve(ActivityRepository);
     const userRepository = container.resolve(UserRepository);

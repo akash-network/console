@@ -383,10 +383,17 @@ export class DeploymentWriterService {
     }
   }
 
+  /** The deployment is closed by now, so this close outranks a background close that already gave up on it, and as with `record` a failed write is only logged. */
   async #recordClosed(close: { userId: string; dseq: string; batchId?: string }, backgroundClose?: CloseDeployment["data"]): Promise<void> {
     if (!backgroundClose) return await this.activityService.record(closedActivityOf(close));
 
-    await this.activityService.settle(backgroundClose.activityId, closedActivityOf({ ...close, batchId: backgroundClose.batchId }));
+    try {
+      await this.activityService.settle(backgroundClose.activityId, closedActivityOf({ ...close, batchId: backgroundClose.batchId }), {
+        from: ["pending", "failed"]
+      });
+    } catch (error) {
+      this.logger.error({ event: "BACKGROUND_CLOSE_SETTLE_FAILED", userId: close.userId, dseq: close.dseq, activityId: backgroundClose.activityId, error });
+    }
   }
 
   /** An undecided close opens its pending activity with a later check in one transaction, so it settles once its outcome is known; as with `record`, failing to write either is only logged. */

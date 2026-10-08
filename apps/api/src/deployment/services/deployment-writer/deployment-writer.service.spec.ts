@@ -1249,8 +1249,29 @@ describe(DeploymentWriterService.name, () => {
       await expect(service.closeByUserIdAndDseq("user-1", "100")).resolves.toBe(true);
 
       expect(jobQueueService.findPendingJobData).toHaveBeenCalledWith(CloseDeployment, closeDeploymentKeyFor({ userId: "user-1", dseq: "100" }));
-      expect(activityService.settle).toHaveBeenCalledWith("background-activity", closedActivityOf({ userId: "user-1", dseq: "100", batchId: "batch-1" }));
+      expect(activityService.settle).toHaveBeenCalledWith("background-activity", closedActivityOf({ userId: "user-1", dseq: "100", batchId: "batch-1" }), {
+        from: ["pending", "failed"]
+      });
       expect(activityService.record).not.toHaveBeenCalled();
+    });
+
+    it("logs a failed settle of the background close's entry and still answers that the deployment closed", async () => {
+      const { service, jobQueueService, activityService, logger } = setup();
+      const settleFailure = new Error("connection reset");
+      jobQueueService.findPendingJobData.mockResolvedValue({ userId: "user-1", dseq: "100", activityId: "background-activity", version: 1 });
+      activityService.settle.mockRejectedValue(settleFailure);
+
+      await expect(service.closeByUserIdAndDseq("user-1", "100")).resolves.toBe(true);
+
+      expect(logger.error).toHaveBeenCalledWith({
+        event: "BACKGROUND_CLOSE_SETTLE_FAILED",
+        userId: "user-1",
+        dseq: "100",
+        activityId: "background-activity",
+        error: settleFailure
+      });
+      expect(activityService.record).not.toHaveBeenCalled();
+      expect(activityService.open).not.toHaveBeenCalled();
     });
 
     it("looks for a background close before closing, so one that finishes during the close is still joined rather than doubled", async () => {

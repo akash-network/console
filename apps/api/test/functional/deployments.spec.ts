@@ -1758,6 +1758,34 @@ describe("Deployments API", () => {
       ]);
     });
 
+    it("settles the background close's entry as succeeded when its last attempt gave up just before a close during a request went through", async () => {
+      const { user, userApiKeySecret, wallets } = await mockPersistedUser();
+      const dseq = createDseq();
+      await setupDeploymentInfoMock(wallets, dseq);
+      const queued = (await (await closeInBackground(dseq, userApiKeySecret)).json()) as { data: { activityId: string } };
+      await activityRepository.updateById(queued.data.activityId, {
+        status: "failed",
+        meta: { dseq, error: { code: "close_failed", message: "Close failed" } }
+      });
+      await setupDeploymentInfoMock(wallets, dseq);
+      vi.spyOn(signerService, "executeDecodedTxByUserWallet").mockResolvedValueOnce({
+        code: 0,
+        hash: "test-hash",
+        transactionHash: "test-hash",
+        rawLog: "success"
+      });
+
+      const response = await app.request(`/v1/deployments/${dseq}`, {
+        method: "DELETE",
+        headers: new Headers({ "Content-Type": "application/json", "x-api-key": userApiKeySecret })
+      });
+
+      expect(response.status).toBe(200);
+      expect(await activityRepository.find({ userId: user.id })).toEqual([
+        expect.objectContaining({ id: queued.data.activityId, type: "deployment_close", status: "succeeded", meta: { dseq } })
+      ]);
+    });
+
     it("closes the deployment during the request when background closes are switched off", async () => {
       const { user, userApiKeySecret, wallets } = await mockPersistedUser();
       const dseq = createDseq();

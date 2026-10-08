@@ -77,6 +77,13 @@ export class ActivityRepository extends BaseRepository<Table, ActivityInput, Act
       .where(this.whereAccessibleBy(and(isNull(this.table.seenAt), selected)));
   }
 
+  async updateByIdIfStatusIn(id: string, statuses: ActivityStatus[], payload: ActivityInput): Promise<void> {
+    await this.cursor
+      .update(this.table)
+      .set({ ...payload, updatedAt: sql`now()` })
+      .where(this.whereAccessibleBy(and(eq(this.table.id, id), inArray(this.table.status, statuses))));
+  }
+
   #isOlderThan({ createdAt, id }: ActivityPosition) {
     const at = new Date(createdAt);
     return or(lt(this.table.createdAt, at), and(eq(this.table.createdAt, at), lt(this.table.id, id)));

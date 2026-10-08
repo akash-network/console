@@ -38,9 +38,9 @@ export class ActivityService {
     return (await this.activityRepository.findById(id))?.status === "pending";
   }
 
-  /** Guarded on `pending`, so a late or repeated settle never overwrites an outcome already recorded. */
-  async settle(id: string, { status, meta }: Pick<NewActivity, "status" | "meta">): Promise<void> {
-    await this.activityRepository.updateBy({ id, status: "pending" }, { status, meta });
+  /** Guarded on `pending` unless told otherwise, so a late or repeated settle never overwrites an outcome already recorded. */
+  async settle(id: string, { status, meta }: Pick<NewActivity, "status" | "meta">, { from = ["pending"] }: { from?: ActivityStatus[] } = {}): Promise<void> {
+    await this.activityRepository.updateByIdIfStatusIn(id, from, { status, meta });
   }
 
   async list({ limit, cursor, status, type }: { limit: number; cursor?: string; status?: ActivityStatus; type?: ActivityType }): Promise<ActivityPage> {
