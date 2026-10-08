@@ -4,13 +4,16 @@ import { inject, singleton } from "tsyringe";
 import { generateAffiliateCode, normalizeAffiliateCode } from "@src/affiliate/lib/affiliate-code/affiliate-code";
 import { AFFILIATE_COMMISSION_MONTHS, AFFILIATE_COMMISSION_PERCENT } from "@src/affiliate/lib/affiliate-terms/affiliate-terms";
 import { type AffiliateOutput, AffiliateRepository } from "@src/affiliate/repositories/affiliate/affiliate.repository";
+import { ReferralRepository } from "@src/affiliate/repositories/referral/referral.repository";
 import { type BillingConfig, InjectBillingConfig } from "@src/billing/providers";
+import { StripeTransactionRepository } from "@src/billing/repositories";
 import { type CreateLogger, LOGGER_FACTORY } from "@src/core/providers/logging.provider";
 import { getPostgresError, isUniqueViolation } from "@src/core/repositories/base.repository";
 import { UserRepository } from "@src/user/repositories";
 
 const MAX_GENERATED_CODE_ATTEMPTS = 5;
 const MICRO_DENOM_PER_UNIT = 1_000_000;
+const CENTS_PER_USD = 100;
 
 export type ApproveAffiliateInput = { userId?: string; email?: string; code?: string; actor: string };
 export type RevokeAffiliateInput = { code: string; actor: string };
@@ -21,6 +24,18 @@ export type AffiliateProfile = {
     commissionMonths: number;
     referralTrialCreditsUsd: number;
   };
+  stats: {
+    signups: number;
+    payingUsers: number;
+    totalCommissionUsd: number;
+    monthCommissionUsd: number;
+  };
+  commissions: {
+    id: string;
+    createdAt: string;
+    amountUsd: number;
+    reversedUsd: number;
+  }[];
 };
 
 @singleton()
@@ -29,6 +44,8 @@ export class AffiliateService {
 
   constructor(
     private readonly affiliateRepository: AffiliateRepository,
+    private readonly referralRepository: ReferralRepository,
+    private readonly stripeTransactionRepository: StripeTransactionRepository,
     private readonly userRepository: UserRepository,
     @InjectBillingConfig() private readonly billingConfig: BillingConfig,
     @inject(LOGGER_FACTORY) createLogger: CreateLogger
@@ -88,14 +105,40 @@ export class AffiliateService {
     const affiliate = await this.findActiveByUserId(userId);
     if (!affiliate) return null;
 
+    const currentMonthStart = this.#currentUtcMonthStart();
+    const [signups, payingUsers, totalCommissionCents, monthCommissionCents, commissions] = await Promise.all([
+      this.referralRepository.countByAffiliate(affiliate.id),
+      this.referralRepository.countPayingByAffiliate(affiliate.id),
+      this.stripeTransactionRepository.sumAffiliateCommissionNet(affiliate.userId),
+      this.stripeTransactionRepository.sumAffiliateCommissionNet(affiliate.userId, currentMonthStart),
+      this.stripeTransactionRepository.findAffiliateCommissions(affiliate.userId)
+    ]);
+
     return {
       code: affiliate.code,
       terms: {
         commissionPercent: AFFILIATE_COMMISSION_PERCENT,
         commissionMonths: AFFILIATE_COMMISSION_MONTHS,
         referralTrialCreditsUsd: this.billingConfig.REFERRAL_TRIAL_DEPLOYMENT_ALLOWANCE_AMOUNT / MICRO_DENOM_PER_UNIT
-      }
+      },
+      stats: {
+        signups,
+        payingUsers,
+        totalCommissionUsd: totalCommissionCents / CENTS_PER_USD,
+        monthCommissionUsd: monthCommissionCents / CENTS_PER_USD
+      },
+      commissions: commissions.map(commission => ({
+        id: commission.id,
+        createdAt: commission.createdAt.toISOString(),
+        amountUsd: commission.amount / CENTS_PER_USD,
+        reversedUsd: commission.amountRefunded / CENTS_PER_USD
+      }))
     };
+  }
+
+  #currentUtcMonthStart(): Date {
+    const now = new Date();
+    return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
   }
 
   async #resolveUserId({ userId, email }: { userId?: string; email?: string }): Promise<string> {

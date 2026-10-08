@@ -94,7 +94,12 @@ describe(useSettingsNavLinks.name, () => {
   });
 
   function buildAffiliateProfile(): AffiliateProfile {
-    return { code: "friendcode", terms: { commissionPercent: 5, commissionMonths: 12, referralTrialCreditsUsd: 5 } };
+    return {
+      code: "friendcode",
+      terms: { commissionPercent: 5, commissionMonths: 12, referralTrialCreditsUsd: 5 },
+      stats: { signups: 0, payingUsers: 0, totalCommissionUsd: 0, monthCommissionUsd: 0 },
+      commissions: []
+    };
   }
 
   function setup(input: { pathname?: string; isAffiliateProgramEnabled?: boolean; affiliateProfile?: AffiliateProfile | null; isSignedIn?: boolean }) {
