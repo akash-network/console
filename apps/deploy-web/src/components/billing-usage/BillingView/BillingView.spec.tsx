@@ -132,6 +132,26 @@ describe(BillingView.name, () => {
     expect(pill).toHaveAttribute("data-status", status);
   });
 
+  it("labels a fully reversed affiliate commission as Reversed rather than Refunded", () => {
+    setup({ data: [createMockTransaction({ type: "affiliate_commission", status: "refunded", cardLast4: null })] });
+
+    const pill = within(cell(0, "Status")).getByText("Reversed");
+    expect(pill).toHaveAttribute("data-status", "refunded");
+    expect(within(cell(0, "Status")).queryByText("Refunded")).not.toBeInTheDocument();
+  });
+
+  it("labels a partially reversed affiliate commission as Successful", () => {
+    setup({ data: [createMockTransaction({ type: "affiliate_commission", status: "succeeded", amountRefunded: 100, cardLast4: null })] });
+
+    expect(cell(0, "Status")).toHaveTextContent(/^Successful$/);
+  });
+
+  it("labels a refunded card payment as Refunded", () => {
+    setup({ data: [createMockTransaction({ type: "payment_intent", status: "refunded" })] });
+
+    expect(cell(0, "Status")).toHaveTextContent(/^Refunded$/);
+  });
+
   it("links to the receipt in a new tab", () => {
     setup({ data: [createMockTransaction({ receiptUrl: "https://example.com/receipt" })] });
 
