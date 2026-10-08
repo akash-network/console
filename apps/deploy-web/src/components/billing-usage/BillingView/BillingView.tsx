@@ -46,6 +46,13 @@ const STATUS_LABELS: Record<string, string> = {
 
 const COLUMN_HEADERS = ["Date", "Amount", "Account source", "Status", "Receipt"];
 
+/** A fully taken-back commission is reversed, not refunded: no money goes back to the affiliate. */
+const getStatusLabel = ({ type, status }: BillingTransaction) => {
+  if (type === "affiliate_commission" && status === "refunded") return "Reversed";
+
+  return STATUS_LABELS[status] ?? capitalizeFirstLetter(status);
+};
+
 /** Phones lay a row out as date and amount over source, status and receipt; wider screens give each its own column. */
 const ROW_GRID =
   "grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-x-3 gap-y-1.5 px-5 sm:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_minmax(0,1.4fr)_minmax(0,1fr)_72px] sm:gap-y-0";
@@ -140,7 +147,7 @@ export const BillingView: React.FC<BillingViewProps> = ({
                       data-status={transaction.status}
                       className="inline-flex rounded-full bg-muted px-3 py-[3px] text-xs font-medium text-muted-foreground data-[status=failed]:bg-destructive/15 data-[status=pending]:bg-warning/15 data-[status=refunded]:bg-blue-50 data-[status=succeeded]:bg-success/15 data-[status=failed]:text-destructive data-[status=pending]:text-warning data-[status=refunded]:text-blue-600 data-[status=succeeded]:text-success dark:data-[status=refunded]:bg-blue-400/10 dark:data-[status=refunded]:text-blue-400"
                     >
-                      {STATUS_LABELS[transaction.status] ?? capitalizeFirstLetter(transaction.status)}
+                      {getStatusLabel(transaction)}
                     </span>
                   </span>
                   <span role="cell" className="justify-self-end sm:justify-self-start">
