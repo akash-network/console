@@ -59,7 +59,7 @@ describe(ActivityBell.name, () => {
     await open();
 
     expect(useDeploymentNames).toHaveBeenCalledWith(["1", "2"]);
-    const entries = screen.getAllByRole("menuitem");
+    const entries = entryItems();
     expect(entries.map(entry => entry.getAttribute("href"))).toEqual(["/deployments/1", "/deployments/2"]);
     expect(entries[0]).toHaveTextContent("Closed “web-api”");
     expect(entries[1]).toHaveTextContent("Closing deployment 2");
@@ -70,7 +70,7 @@ describe(ActivityBell.name, () => {
 
     await open();
 
-    expect(within(screen.getByRole("menuitem")).getByRole("status")).toBeInTheDocument();
+    expect(within(entryItems()[0]).getByRole("status")).toBeInTheDocument();
   });
 
   it("shows why an entry failed and links it to where the deployment can be closed again", async () => {
@@ -80,7 +80,7 @@ describe(ActivityBell.name, () => {
 
     await open();
 
-    const entry = screen.getByRole("menuitem");
+    const [entry] = entryItems();
     expect(entry).toHaveTextContent("Couldn't close deployment 1");
     expect(entry).toHaveTextContent("The deployment is still open.");
     expect(entry).toHaveAttribute("href", "/deployments/1?tab=SETTINGS");
@@ -91,7 +91,7 @@ describe(ActivityBell.name, () => {
 
     await open();
 
-    expect(screen.getByRole("menuitem")).toHaveTextContent("5 minutes ago");
+    expect(entryItems()[0]).toHaveTextContent("5 minutes ago");
   });
 
   it("lists at most 10 entries", async () => {
@@ -99,7 +99,7 @@ describe(ActivityBell.name, () => {
 
     await open();
 
-    expect(screen.getAllByRole("menuitem")).toHaveLength(10);
+    expect(entryItems()).toHaveLength(10);
   });
 
   it("says so when there is no activity yet", async () => {
@@ -108,7 +108,7 @@ describe(ActivityBell.name, () => {
     await open();
 
     expect(screen.getByText("No activity yet")).toBeInTheDocument();
-    expect(screen.queryByRole("menuitem")).not.toBeInTheDocument();
+    expect(entryItems()).toHaveLength(0);
   });
 
   it("shows it is loading before the feed first answers", async () => {
@@ -134,8 +134,16 @@ describe(ActivityBell.name, () => {
 
     await open();
 
-    expect(screen.getByRole("menuitem")).toHaveTextContent("Closed deployment 1");
+    expect(entryItems()[0]).toHaveTextContent("Closed deployment 1");
     expect(screen.queryByText("Couldn't load your activity")).not.toBeInTheDocument();
+  });
+
+  it("links to the full activity history", async () => {
+    setup({ activities: [buildActivity()] });
+
+    await open();
+
+    expect(screen.getByRole("menuitem", { name: "See all activity" })).toHaveAttribute("href", "/activity");
   });
 
   it("marks everything up to the newest entry seen once opened", async () => {
@@ -162,6 +170,10 @@ describe(ActivityBell.name, () => {
 
     expect(queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: ["listActivities"] });
   });
+
+  function entryItems() {
+    return screen.queryAllByRole("menuitem").filter(item => item.textContent !== "See all activity");
+  }
 
   async function open() {
     await userEvent.click(screen.getByRole("button", { name: /^Activity/ }));

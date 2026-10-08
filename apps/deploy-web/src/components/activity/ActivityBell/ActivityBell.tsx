@@ -10,17 +10,18 @@ import {
   Spinner
 } from "@akashnetwork/ui/components";
 import { useQueryClient } from "@tanstack/react-query";
-import formatDistanceToNowStrict from "date-fns/formatDistanceToNowStrict";
-import { Bell, CircleCheck, CircleX, TriangleAlert } from "lucide-react";
+import { Bell, TriangleAlert } from "lucide-react";
 import Link from "next/link";
 
+import { activityEntriesOf, type ActivityEntry } from "@src/components/activity/activityEntries/activityEntries";
+import { ActivityEntryContent } from "@src/components/activity/ActivityEntryContent/ActivityEntryContent";
 import { deploymentLabelOf } from "@src/components/activity/activityLabels/activityLabels";
 import { useServices } from "@src/context/ServicesProvider";
 import { useDeploymentNames } from "@src/hooks/useDeploymentNames/useDeploymentNames";
 import { useFlag } from "@src/hooks/useFlag";
 import { useUser } from "@src/hooks/useUser";
 import { useActivityFeedQuery } from "@src/queries/useLatestActivitiesQuery";
-import { activityEntriesOf, type ActivityEntry } from "./activityEntries";
+import { UrlService } from "@src/utils/urlUtils";
 
 export const DEPENDENCIES = { useFlag, useUser, useActivityFeedQuery, useDeploymentNames, useQueryClient };
 
@@ -76,6 +77,10 @@ export function ActivityBell({ dependencies: d = DEPENDENCIES }: { dependencies?
         <DropdownMenuLabel className="px-4 py-3">Activity</DropdownMenuLabel>
         <DropdownMenuSeparator className="m-0" />
         <ActivityList entries={entries} isLoaded={!!feed} isError={isError} />
+        <DropdownMenuSeparator className="m-0" />
+        <DropdownMenuItem asChild className="cursor-pointer justify-center rounded-none px-4 py-2.5 text-sm font-medium">
+          <Link href={UrlService.activity()}>See all activity</Link>
+        </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   );
@@ -123,23 +128,8 @@ function ActivityEntryRow({ entry }: { entry: ActivityEntry }) {
   return (
     <DropdownMenuItem asChild className="cursor-pointer items-start gap-3 rounded-none px-4 py-2.5">
       <Link href={entry.href}>
-        <span className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center">
-          <ActivityStatusIcon status={entry.status} />
-        </span>
-        <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-          <span className="break-words text-sm font-medium leading-5">{entry.title}</span>
-          {entry.detail && <span className="break-words text-xs text-muted-foreground">{entry.detail}</span>}
-          <span className="text-xs text-muted-foreground">{formatDistanceToNowStrict(new Date(entry.createdAt), { addSuffix: true })}</span>
-        </span>
+        <ActivityEntryContent entry={entry} />
       </Link>
     </DropdownMenuItem>
   );
-}
-
-function ActivityStatusIcon({ status }: { status: ActivityEntry["status"] }) {
-  if (status === "pending") return <Spinner size="small" />;
-  if (status === "succeeded") return <CircleCheck className="h-4 w-4 text-green-600" />;
-  if (status === "partial") return <TriangleAlert className="h-4 w-4 text-warning" />;
-
-  return <CircleX className="h-4 w-4 text-destructive" />;
 }
