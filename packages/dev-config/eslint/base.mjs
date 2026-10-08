@@ -88,7 +88,9 @@ export default [
                 "decline",
                 "publish",
                 "withdraw",
-                "request"
+                "request",
+                "approve",
+                "revoke"
               ]
             },
             patch: { single: ["patch"] },
