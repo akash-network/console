@@ -6,8 +6,10 @@ import { bodyLimit } from "hono/body-limit";
 import type { PathItemObject, PathsObject } from "openapi3-ts/oas30";
 
 import { DEFAULT_BODY_LIMIT_BYTES } from "@src/core/config/body-limit.config";
+import type { FeatureFlagValue } from "@src/core/services/feature-flags/feature-flags";
 import { type CacheConfig, cacheControlMiddleware } from "@src/middlewares/cacheControlMiddleware/cacheControlMiddleware";
 import { contentTypeMiddleware } from "@src/middlewares/contentTypeMiddleware/contentTypeMiddleware";
+import { requireFeatureFlag } from "@src/middlewares/feature-flag-gate/feature-flag-gate.middleware";
 
 export interface ExtendedRouteConfig<R extends RouteConfig> {
   /**
@@ -44,10 +46,24 @@ export function createRoute<
     hiddenInOpenApiDocs?: boolean;
     /** Request-body properties this route accepts and validates but does not publish, for a capability that works before it is announced. */
     undocumentedRequestFields?: readonly string[];
+    /** Answers like an unmatched path, before any other middleware or validation runs, until this flag is on for the caller. */
+    featureFlag?: FeatureFlagValue;
   }
 >(routeConfig: R) {
-  const { cache, bodyLimit: bodyLimitOptions, additionalContentTypes, hiddenInOpenApiDocs, undocumentedRequestFields, ...openApiConfig } = routeConfig;
+  const {
+    cache,
+    bodyLimit: bodyLimitOptions,
+    additionalContentTypes,
+    hiddenInOpenApiDocs,
+    undocumentedRequestFields,
+    featureFlag,
+    ...openApiConfig
+  } = routeConfig;
   let middlewares: MiddlewareHandler[] = [];
+
+  if (featureFlag) {
+    middlewares.push(requireFeatureFlag(featureFlag));
+  }
 
   if (routeConfig.method !== "get" && routeConfig.method !== "head") {
     middlewares.push(
@@ -94,7 +110,7 @@ export function createRoute<
     UNDOCUMENTED_REQUEST_FIELDS.set(operationId, undocumentedRequestFields);
   }
 
-  return createOpenApiRoute(openApiConfig as Omit<R, "cache" | "hiddenInOpenApiDocs">);
+  return createOpenApiRoute(openApiConfig as Omit<R, "cache" | "hiddenInOpenApiDocs" | "featureFlag">);
 }
 
 /** Every generated spec has to run its paths through this, or `hiddenInOpenApiDocs` silently documents the route it was meant to hide. */

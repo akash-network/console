@@ -6,6 +6,9 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import { AuthService } from "../../../auth/services/auth.service";
+import type { FeatureFlagValue } from "../../services/feature-flags/feature-flags";
+import { FeatureFlags } from "../../services/feature-flags/feature-flags";
+import { FeatureFlagsService } from "../../services/feature-flags/feature-flags.service";
 import { SECURITY_NONE } from "../../services/openapi-docs/openapi-security";
 import { createRoute, HIDDEN_ROUTES } from "./create-route";
 
@@ -220,6 +223,52 @@ describe(createRoute.name, () => {
     });
   });
 
+  describe("when featureFlag is set", () => {
+    it("runs the feature flag gate before every other middleware of the route", async () => {
+      const existingMiddleware = vi.fn() as unknown as MiddlewareHandler;
+      const { route, ctx, next, notFound } = setup({
+        method: "post",
+        path: "/test",
+        featureFlag: FeatureFlags.ORGANIZATIONS,
+        featureFlagOn: false,
+        request: {
+          body: {
+            content: {
+              "application/json": {
+                schema: { type: "object" as const }
+              }
+            }
+          }
+        },
+        middleware: [existingMiddleware]
+      });
+
+      const middlewares = route.middleware as MiddlewareHandler[];
+      expect(middlewares).toHaveLength(4);
+
+      await middlewares[0](ctx, next);
+
+      expect(notFound).toHaveBeenCalledOnce();
+      expect(next).not.toHaveBeenCalled();
+    });
+
+    it("lets the request past the gate when the flag is on for the caller", async () => {
+      const { route, ctx, next, notFound, featureFlagsService } = setup({
+        method: "get",
+        path: "/test",
+        featureFlag: FeatureFlags.ORGANIZATIONS,
+        featureFlagOn: true
+      });
+
+      const middlewares = route.middleware as MiddlewareHandler[];
+      await middlewares[0](ctx, next);
+
+      expect(featureFlagsService.isEnabled).toHaveBeenCalledWith(FeatureFlags.ORGANIZATIONS);
+      expect(next).toHaveBeenCalled();
+      expect(notFound).not.toHaveBeenCalled();
+    });
+  });
+
   describe("when hiddenInOpenApiDocs is true", () => {
     it("registers the explicit operationId (not the METHOD path) in HIDDEN_ROUTES so the served spec can strip it", () => {
       createRoute({
@@ -280,11 +329,17 @@ describe(createRoute.name, () => {
     middleware?: MiddlewareHandler[];
     contentType?: string | null;
     currentUser?: { userId: string };
+    featureFlag?: FeatureFlagValue;
+    featureFlagOn?: boolean;
   }) {
     const mockAuthService = mock<AuthService>({
       safeCurrentUser: input.currentUser
     });
     container.registerInstance(AuthService, mockAuthService);
+
+    const featureFlagsService = mock<FeatureFlagsService>();
+    featureFlagsService.isEnabled.mockReturnValue(input.featureFlagOn ?? false);
+    container.registerInstance(FeatureFlagsService, featureFlagsService);
 
     const route = createRoute({
       method: input.method,
@@ -297,6 +352,7 @@ describe(createRoute.name, () => {
       additionalContentTypes: input.additionalContentTypes,
       request: input.request,
       middleware: input.middleware,
+      featureFlag: input.featureFlag,
       responses: {
         200: { description: "OK" }
       }
@@ -304,6 +360,7 @@ describe(createRoute.name, () => {
 
     const responseHeaders = new Map<string, string>();
     const json = vi.fn();
+    const notFound = vi.fn().mockReturnValue(new Response(null, { status: 404 }));
 
     const ctx = {
       req: {
@@ -329,13 +386,14 @@ describe(createRoute.name, () => {
           responseHeaders.set(name, value);
         }
       },
-      json
+      json,
+      notFound
     } as unknown as Context;
 
     const next = vi.fn().mockResolvedValue(undefined) as Mock<Next>;
 
     const getHeader = (name: string) => responseHeaders.get(name);
 
-    return { route, ctx, next, getHeader, json };
+    return { route, ctx, next, getHeader, json, notFound, featureFlagsService };
   }
 });
