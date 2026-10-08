@@ -24,6 +24,7 @@ import { useSdlPreviewPanel } from "../SdlPreviewPane/useSdlPreviewPanel";
 import { firstInvalidServiceId, serviceIdOfPlacement } from "../serviceSelection/serviceSelection";
 import { useConfigurationStatus } from "../useConfigurationStatus/useConfigurationStatus";
 import { useDeploymentCost } from "../useDeploymentCost/useDeploymentCost";
+import type { DeploymentIntent } from "../useDeploymentFlow/deploymentIntent";
 import type { DeploymentFlow } from "../useDeploymentFlow/useDeploymentFlow";
 import { useQuoteExpiry } from "../useQuoteExpiry/useQuoteExpiry";
 import { useRequestQuotes } from "../useRequestQuotes/useRequestQuotes";
@@ -72,6 +73,7 @@ type ComputeRequestSource = "footer" | "no_bids_notice";
 type HardwareRequest = { configuration: HardwareRequestConfiguration; category: HardwareRequestCategory; gpuModel: string };
 
 type Props = {
+  intent: DeploymentIntent;
   flow: DeploymentFlow;
   sdl: string;
   previewSdl: string;
@@ -92,6 +94,7 @@ type Props = {
 
 /** The view follows the flow phase alone, so resuming a deployment, the no-bid timeout and Edit all land on the right panels. */
 export const ConfigureWorkspace: FC<Props> = ({
+  intent,
   flow,
   sdl,
   previewSdl,
@@ -178,6 +181,7 @@ export const ConfigureWorkspace: FC<Props> = ({
         <d.ConfigureWorkspaceHeader
           backButton={
             <d.LeaveConfigureButton
+              intent={intent}
               needsConfirmation={!isEditable || !!flow.pendingClose}
               deploymentName={deploymentName}
               serviceCount={services.filter(service => !isLogCollectorService(service)).length}

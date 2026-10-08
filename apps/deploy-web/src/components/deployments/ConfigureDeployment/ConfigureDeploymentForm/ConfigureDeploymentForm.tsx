@@ -351,6 +351,7 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, initialName, in
               {importChanges.length > 0 && <d.SdlImportChangesBanner changes={importChanges} onDismiss={() => setImportChanges([])} />}
               {isTwoPanel ? (
                 <d.ConfigureWorkspace
+                  intent={intent}
                   flow={flow}
                   sdl={liveSdl}
                   previewSdl={previewSdl}

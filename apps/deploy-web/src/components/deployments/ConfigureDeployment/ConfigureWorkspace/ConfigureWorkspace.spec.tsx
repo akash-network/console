@@ -11,6 +11,7 @@ import type { AvailabilityPane } from "../AvailabilityPane/AvailabilityPane";
 import type { ConfigureEditor } from "../ConfigureEditor/ConfigureEditor";
 import type { MarketplacePane } from "../MarketplacePane/MarketplacePane";
 import type { DeploymentCost } from "../useDeploymentCost/useDeploymentCost";
+import type { DeploymentIntent } from "../useDeploymentFlow/deploymentIntent";
 import type { DeploymentFlow, DeploymentFlowActions } from "../useDeploymentFlow/useDeploymentFlow";
 import type { ConfigureWorkspaceHeader } from "./ConfigureWorkspaceHeader/ConfigureWorkspaceHeader";
 import type { LeaveConfigureButton } from "./LeaveConfigureButton/LeaveConfigureButton";
@@ -265,6 +266,12 @@ describe(ConfigureWorkspace.name, () => {
     });
   });
 
+  it("hands the back button the intent, so it returns to where the deployment started", () => {
+    const { leaveProps, intent } = setup({});
+
+    expect(leaveProps().intent).toBe(intent);
+  });
+
   it("leaves without asking while the deployment is only being configured", () => {
     const { leaveProps } = setup({});
 
@@ -452,8 +459,10 @@ describe(ConfigureWorkspace.name, () => {
       const form = useForm<SdlBuilderFormValuesType>({ defaultValues: values });
       return <FormProvider {...form}>{children}</FormProvider>;
     };
+    const intent: DeploymentIntent = { templateId: "akash-network-awesome-akash-comfyui", sdlStrategy: "edit", bidStrategy: "select", vm: false };
     const workspace = (currentFlow: DeploymentFlow) => (
       <ConfigureWorkspace
+        intent={intent}
         flow={currentFlow}
         sdl="live-sdl"
         previewSdl="preview-sdl"
@@ -476,6 +485,7 @@ describe(ConfigureWorkspace.name, () => {
 
     return {
       dependencies,
+      intent,
       flow,
       analyticsService,
       requestQuotes,
