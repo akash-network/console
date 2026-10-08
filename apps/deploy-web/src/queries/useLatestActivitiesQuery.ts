@@ -18,16 +18,16 @@ export function activityPollIntervalOf(response: ListActivitiesResponse | undefi
 }
 
 export function useLatestActivitiesQuery(options: { enabled: boolean }) {
-  return useLatestActivitiesResponse(options, response => response.data.activities);
+  return useLatestActivitiesResponse(options, response => response.data.activities, { polls: true });
 }
 
-/** Read off the same request as the activities, so showing the count costs no extra polling. */
-export function useUnseenActivityCountQuery(options: { enabled: boolean }) {
-  return useLatestActivitiesResponse(options, response => response.data.unseenCount);
+/** Every observer polls on its own timer, so a reader of the feed the activity host already polls must not add one. */
+export function useActivityFeedQuery(options: { enabled: boolean }) {
+  return useLatestActivitiesResponse(options, response => ({ activities: response.data.activities, unseenCount: response.data.unseenCount }), { polls: false });
 }
 
 /** React Query pauses interval refetches while the tab is hidden, so a background tab stops checking until it is shown again. */
-function useLatestActivitiesResponse<T>(options: { enabled: boolean }, select: (response: ListActivitiesResponse) => T) {
+function useLatestActivitiesResponse<T>(options: { enabled: boolean }, select: (response: ListActivitiesResponse) => T, { polls }: { polls: boolean }) {
   const { api } = useServices();
 
   return api.v1.listActivities.useQuery(
@@ -35,7 +35,7 @@ function useLatestActivitiesResponse<T>(options: { enabled: boolean }, select: (
     {
       enabled: options.enabled,
       select,
-      refetchInterval: query => activityPollIntervalOf(query.state.data)
+      refetchInterval: polls ? query => activityPollIntervalOf(query.state.data) : false
     }
   );
 }

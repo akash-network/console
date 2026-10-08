@@ -14,11 +14,10 @@ import { TestContainerProvider } from "@tests/unit/TestContainerProvider";
 
 describe(ActivityBell.name, () => {
   it("renders nothing while the activity center is off", () => {
-    const { useLatestActivitiesQuery, useUnseenActivityCountQuery } = setup({ isEnabled: false });
+    const { useActivityFeedQuery } = setup({ isEnabled: false });
 
     expect(screen.queryByRole("button", { name: /activity/i })).not.toBeInTheDocument();
-    expect(useLatestActivitiesQuery).toHaveBeenCalledWith({ enabled: false });
-    expect(useUnseenActivityCountQuery).toHaveBeenCalledWith({ enabled: false });
+    expect(useActivityFeedQuery).toHaveBeenCalledWith({ enabled: false });
   });
 
   it("renders nothing for a signed-out visitor", () => {
@@ -112,6 +111,33 @@ describe(ActivityBell.name, () => {
     expect(screen.queryByRole("menuitem")).not.toBeInTheDocument();
   });
 
+  it("shows it is loading before the feed first answers", async () => {
+    setup({ feed: "loading" });
+
+    await open();
+
+    expect(screen.getByRole("status", { name: "Loading activity" })).toBeInTheDocument();
+    expect(screen.queryByText("No activity yet")).not.toBeInTheDocument();
+  });
+
+  it("says the feed could not be loaded rather than that there is no activity", async () => {
+    setup({ feed: "failed" });
+
+    await open();
+
+    expect(screen.getByText("Couldn't load your activity")).toBeInTheDocument();
+    expect(screen.queryByText("No activity yet")).not.toBeInTheDocument();
+  });
+
+  it("keeps listing the entries it has when a later refresh fails", async () => {
+    setup({ activities: [buildActivity({ status: "succeeded", meta: { dseq: "1" } })], isRefreshFailing: true });
+
+    await open();
+
+    expect(screen.getByRole("menuitem")).toHaveTextContent("Closed deployment 1");
+    expect(screen.queryByText("Couldn't load your activity")).not.toBeInTheDocument();
+  });
+
   it("marks everything up to the newest entry seen once opened", async () => {
     const newest = buildActivity({ createdAt: "2026-10-08T10:00:00.000Z" });
     const { markSeen } = setup({ activities: [newest, buildActivity({ createdAt: "2026-10-08T09:00:00.000Z" })], unseenCount: 2 });
@@ -141,31 +167,35 @@ describe(ActivityBell.name, () => {
     await userEvent.click(screen.getByRole("button", { name: /^Activity/ }));
   }
 
-  function setup(input: { isEnabled?: boolean; isSignedIn?: boolean; activities?: Activity[]; unseenCount?: number; names?: Record<string, string> }) {
+  function setup(input: {
+    isEnabled?: boolean;
+    isSignedIn?: boolean;
+    activities?: Activity[];
+    unseenCount?: number;
+    names?: Record<string, string>;
+    feed?: "loading" | "failed";
+    isRefreshFailing?: boolean;
+  }) {
     const markSeen = vi.fn();
     const queryClient = mock<ReturnType<typeof DEPENDENCIES.useQueryClient>>();
     const api = mockDeep<AppDIContainer["api"]>();
     api.v1.listActivities.getKey.mockReturnValue(["listActivities"]);
     api.v1.markActivitiesSeen.useMutation.mockReturnValue(mock<ReturnType<typeof api.v1.markActivitiesSeen.useMutation>>({ mutate: markSeen }));
-    const useUnseenActivityCountQuery = vi.fn((() =>
-      Object.assign(mock<ReturnType<typeof DEPENDENCIES.useUnseenActivityCountQuery>>(), {
-        data: input.unseenCount ?? 0
-      })) as typeof DEPENDENCIES.useUnseenActivityCountQuery);
     const useDeploymentNames = vi.fn((() =>
       mock<ReturnType<typeof DEPENDENCIES.useDeploymentNames>>({
         getDeploymentName: dseq => input.names?.[String(dseq)] ?? null,
         isLoading: false
       })) as typeof DEPENDENCIES.useDeploymentNames);
-    const useLatestActivitiesQuery = vi.fn((() =>
-      Object.assign(mock<ReturnType<typeof DEPENDENCIES.useLatestActivitiesQuery>>(), {
-        data: input.activities ?? [buildActivity()]
-      })) as typeof DEPENDENCIES.useLatestActivitiesQuery);
+    const useActivityFeedQuery = vi.fn((() =>
+      Object.assign(mock<ReturnType<typeof DEPENDENCIES.useActivityFeedQuery>>(), {
+        data: input.feed ? undefined : { activities: input.activities ?? [buildActivity()], unseenCount: input.unseenCount ?? 0 },
+        isError: input.feed === "failed" || !!input.isRefreshFailing
+      })) as typeof DEPENDENCIES.useActivityFeedQuery);
 
     const dependencies: typeof DEPENDENCIES = {
       useFlag: flag => flag === "notifications_activity_center" && (input.isEnabled ?? true),
       useUser: () => mock<ReturnType<typeof DEPENDENCIES.useUser>>({ user: input.isSignedIn === false ? undefined : buildUser() }),
-      useLatestActivitiesQuery,
-      useUnseenActivityCountQuery,
+      useActivityFeedQuery,
       useDeploymentNames,
       useQueryClient: () => queryClient
     };
@@ -176,6 +206,6 @@ describe(ActivityBell.name, () => {
       </TestContainerProvider>
     );
 
-    return { markSeen, api, queryClient, useLatestActivitiesQuery, useUnseenActivityCountQuery, useDeploymentNames };
+    return { markSeen, api, queryClient, useActivityFeedQuery, useDeploymentNames };
   }
 });

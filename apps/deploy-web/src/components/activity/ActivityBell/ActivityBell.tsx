@@ -19,10 +19,10 @@ import { useServices } from "@src/context/ServicesProvider";
 import { useDeploymentNames } from "@src/hooks/useDeploymentNames/useDeploymentNames";
 import { useFlag } from "@src/hooks/useFlag";
 import { useUser } from "@src/hooks/useUser";
-import { useLatestActivitiesQuery, useUnseenActivityCountQuery } from "@src/queries/useLatestActivitiesQuery";
+import { useActivityFeedQuery } from "@src/queries/useLatestActivitiesQuery";
 import { activityEntriesOf, type ActivityEntry } from "./activityEntries";
 
-export const DEPENDENCIES = { useFlag, useUser, useLatestActivitiesQuery, useUnseenActivityCountQuery, useDeploymentNames, useQueryClient };
+export const DEPENDENCIES = { useFlag, useUser, useActivityFeedQuery, useDeploymentNames, useQueryClient };
 
 const MAX_LISTED_ENTRIES = 10;
 
@@ -35,8 +35,9 @@ export function ActivityBell({ dependencies: d = DEPENDENCIES }: { dependencies?
   const isShown = isEnabled && !!user?.userId;
   const { api } = useServices();
   const queryClient = d.useQueryClient();
-  const { data: activities = [] } = d.useLatestActivitiesQuery({ enabled: isShown });
-  const { data: unseenCount = 0 } = d.useUnseenActivityCountQuery({ enabled: isShown });
+  const { data: feed, isError } = d.useActivityFeedQuery({ enabled: isShown });
+  const activities = feed?.activities ?? [];
+  const unseenCount = feed?.unseenCount ?? 0;
   const { getDeploymentName } = d.useDeploymentNames(activities.map(activity => activity.meta.dseq));
   const markSeen = api.v1.markActivitiesSeen.useMutation({
     onSuccess: function refreshUnseenCount() {
@@ -74,21 +75,47 @@ export function ActivityBell({ dependencies: d = DEPENDENCIES }: { dependencies?
       <DropdownMenuContent align="end" collisionPadding={16} className="w-[min(22rem,calc(100vw-2rem))] p-0">
         <DropdownMenuLabel className="px-4 py-3">Activity</DropdownMenuLabel>
         <DropdownMenuSeparator className="m-0" />
-        {entries.length === 0 ? (
-          <div className="flex flex-col items-center gap-1 px-6 py-10 text-center">
-            <Bell className="mb-2 h-6 w-6 text-muted-foreground" />
-            <p className="text-sm font-medium">No activity yet</p>
-            <p className="text-xs text-muted-foreground">When you close a deployment, you can follow how it goes here.</p>
-          </div>
-        ) : (
-          <div className="max-h-[min(28rem,70vh)] overflow-y-auto py-1">
-            {entries.map(entry => (
-              <ActivityEntryRow key={entry.id} entry={entry} />
-            ))}
-          </div>
-        )}
+        <ActivityList entries={entries} isLoaded={!!feed} isError={isError} />
       </DropdownMenuContent>
     </DropdownMenu>
+  );
+}
+
+function ActivityList({ entries, isLoaded, isError }: { entries: ActivityEntry[]; isLoaded: boolean; isError: boolean }) {
+  if (!isLoaded && isError) {
+    return (
+      <div className="flex flex-col items-center gap-1 px-6 py-10 text-center">
+        <TriangleAlert className="mb-2 h-6 w-6 text-muted-foreground" />
+        <p className="text-sm font-medium">Couldn't load your activity</p>
+        <p className="text-xs text-muted-foreground">Try again in a moment.</p>
+      </div>
+    );
+  }
+
+  if (!isLoaded) {
+    return (
+      <div className="flex justify-center px-6 py-10" role="status" aria-label="Loading activity">
+        <Spinner size="small" />
+      </div>
+    );
+  }
+
+  if (entries.length === 0) {
+    return (
+      <div className="flex flex-col items-center gap-1 px-6 py-10 text-center">
+        <Bell className="mb-2 h-6 w-6 text-muted-foreground" />
+        <p className="text-sm font-medium">No activity yet</p>
+        <p className="text-xs text-muted-foreground">When you close a deployment, you can follow how it goes here.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="max-h-[min(28rem,70vh)] overflow-y-auto py-1">
+      {entries.map(entry => (
+        <ActivityEntryRow key={entry.id} entry={entry} />
+      ))}
+    </div>
   );
 }
 
