@@ -106,7 +106,7 @@ export function OnboardingPickerPage({ dependencies: d = DEPENDENCIES }: Onboard
         <title>Onboarding | Akash Console</title>
         <meta name="description" content="Deploy your first app on Akash Network with our onboarding flow. Get a live URL in about 30 seconds." />
       </Head>
-      <div className="flex min-h-screen flex-col bg-background">
+      <div className="flex min-h-dvh flex-col bg-background">
         <d.OnboardingHeader>
           {showHackathonEntry && (
             <d.Button onClick={() => setAddCreditsSheetReason("hackathon-coupon")} variant="ghost" size="sm">

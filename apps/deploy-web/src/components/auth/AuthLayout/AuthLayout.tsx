@@ -28,7 +28,7 @@ interface Props {
 
 export function AuthLayout({ children, topRightContent, dependencies: d = DEPENDENCIES }: Props) {
   return (
-    <div className="relative flex h-screen">
+    <div className="relative flex min-h-dvh lg:h-dvh">
       <div className="dark relative hidden flex-col px-10 py-14 text-[hsl(var(--foreground))] lg:flex lg:w-1/2">
         <div aria-hidden className="pointer-events-none absolute inset-0 bg-[#141414]" />
         <div
@@ -65,7 +65,7 @@ export function AuthLayout({ children, topRightContent, dependencies: d = DEPEND
         </footer>
       </div>
 
-      <div className="relative z-10 flex w-full flex-1 items-center justify-center overflow-y-auto bg-white px-3 py-4 lg:p-0 dark:bg-[#0a0a0a]">{children}</div>
+      <div className="relative z-10 flex w-full flex-1 items-center justify-center bg-white px-3 py-4 lg:overflow-y-auto lg:p-0 dark:bg-[#0a0a0a]">{children}</div>
     </div>
   );
 }

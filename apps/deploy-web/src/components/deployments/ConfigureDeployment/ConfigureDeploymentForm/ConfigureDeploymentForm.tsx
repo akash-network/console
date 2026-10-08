@@ -342,7 +342,7 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, initialName, in
   const isEditable = flow.phase === "configuring" || flow.phase === "error";
 
   return (
-    <d.Layout background="white" disableContainer containerClassName="flex h-[calc(100dvh_-_var(--app-header-height,57px)_-_4px)] flex-col">
+    <d.Layout background="white" disableContainer containerClassName="flex h-page-viewport flex-col">
       <d.NextSeo title="Configure your deployment" />
       <FormProvider {...form}>
         <PlacementManagerProvider onSelectService={setSelectedServiceId}>

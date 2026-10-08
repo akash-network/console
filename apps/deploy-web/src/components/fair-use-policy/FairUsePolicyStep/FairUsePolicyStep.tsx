@@ -21,7 +21,7 @@ const TITLE_ID = "fair-use-policy-title";
 /** The onboarding-flow presentation of the policy prompt: a page of its own rather than a modal over an empty page. */
 export function FairUsePolicyStep({ onAccept, isAccepting, dependencies: d = DEPENDENCIES }: Props) {
   return (
-    <div className="flex min-h-screen flex-col bg-background">
+    <div className="flex min-h-dvh flex-col bg-background">
       <d.OnboardingHeader />
 
       <div className="flex flex-1 items-center justify-center px-4 py-8">

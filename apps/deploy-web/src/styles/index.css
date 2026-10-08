@@ -1,12 +1,11 @@
 html {
-  scroll-padding-top: 57px;
+  scroll-padding-top: var(--app-header-height, 57px);
   -webkit-font-smoothing: auto;
   height: 100%;
   width: 100%;
 }
 
 body {
-  height: calc(100% - 57px) !important;
   padding: 0 !important;
   font-family:
     var(--font-geist-sans),
