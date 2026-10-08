@@ -227,6 +227,7 @@ async function executeCliHandler(name: string, handler: () => Promise<unknown>, 
           onboardingSkippedAt: null,
           fairUsePolicyAcceptedAt: null,
           productUpdatesUnsubscribedAt: null,
+          lastUsedOrganizationId: null,
           userId: "system:cli-user",
           username: "___cli_user___",
           trial: false

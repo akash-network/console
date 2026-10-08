@@ -21,6 +21,7 @@ export function createUser({
   onboardingSkippedAt = null,
   fairUsePolicyAcceptedAt = faker.date.recent(),
   productUpdatesUnsubscribedAt = null,
+  lastUsedOrganizationId = null,
   createdAt = faker.date.recent(),
   trial = false
 }: Partial<UserOutput> = {}): UserOutput {
@@ -43,6 +44,7 @@ export function createUser({
     onboardingSkippedAt,
     fairUsePolicyAcceptedAt,
     productUpdatesUnsubscribedAt,
+    lastUsedOrganizationId,
     createdAt,
     trial
   };
