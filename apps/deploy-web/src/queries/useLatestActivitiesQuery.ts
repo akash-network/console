@@ -17,16 +17,25 @@ export function activityPollIntervalOf(response: ListActivitiesResponse | undefi
   return response?.data.activities.some(activity => activity.status === "pending") ? PENDING_ACTIVITY_POLL_MS : IDLE_ACTIVITY_POLL_MS;
 }
 
-/** React Query pauses interval refetches while the tab is hidden, so a background tab stops checking until it is shown again. */
 export function useLatestActivitiesQuery(options: { enabled: boolean }) {
+  return useLatestActivitiesResponse(options, response => response.data.activities, { polls: true });
+}
+
+/** Every observer polls on its own timer, so a reader of the feed the activity host already polls must not add one. */
+export function useActivityFeedQuery(options: { enabled: boolean }) {
+  return useLatestActivitiesResponse(options, response => ({ activities: response.data.activities, unseenCount: response.data.unseenCount }), { polls: false });
+}
+
+/** React Query pauses interval refetches while the tab is hidden, so a background tab stops checking until it is shown again. */
+function useLatestActivitiesResponse<T>(options: { enabled: boolean }, select: (response: ListActivitiesResponse) => T, { polls }: { polls: boolean }) {
   const { api } = useServices();
 
   return api.v1.listActivities.useQuery(
     { limit: LATEST_ACTIVITIES_LIMIT },
     {
       enabled: options.enabled,
-      select: response => response.data.activities,
-      refetchInterval: query => activityPollIntervalOf(query.state.data)
+      select,
+      refetchInterval: polls ? query => activityPollIntervalOf(query.state.data) : false
     }
   );
 }

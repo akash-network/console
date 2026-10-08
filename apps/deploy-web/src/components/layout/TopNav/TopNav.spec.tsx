@@ -45,6 +45,19 @@ describe(TopNav.name, () => {
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
   });
 
+  it("shows the activity bell to a signed-in user", () => {
+    setup({ isAuthenticated: true });
+
+    expect(screen.getByRole("button", { name: "Activity" })).toBeInTheDocument();
+  });
+
+  it("leaves the activity bell out when signed out and in minimal mode", () => {
+    setup({ isAuthenticated: false });
+    setup({ isAuthenticated: true, minimal: true });
+
+    expect(screen.queryByRole("button", { name: "Activity" })).not.toBeInTheDocument();
+  });
+
   it("hides nav links when signed out", () => {
     setup({ isAuthenticated: false });
 
@@ -101,7 +114,8 @@ describe(TopNav.name, () => {
         }),
       usePathname: () => input.pathname ?? "/",
       useCookieTheme: () => "light",
-      TopNavAccountMenu: accountMenu
+      TopNavAccountMenu: accountMenu,
+      ActivityBell: () => <button type="button">Activity</button>
     });
 
     render(<TopNav dependencies={dependencies} minimal={input.minimal} />);
