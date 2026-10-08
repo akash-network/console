@@ -7,13 +7,15 @@ import type { Activity } from "@src/queries/useLatestActivitiesQuery";
 import type { DEPENDENCIES } from "./ActivityHost";
 import { ActivityHost } from "./ActivityHost";
 
-import { render } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { buildActivity } from "@tests/seeders/activity";
 import { buildUser } from "@tests/seeders/user";
 import { TestContainerProvider } from "@tests/unit/TestContainerProvider";
 
 describe(ActivityHost.name, () => {
   const OWNER = "akash1owner";
+  const TOAST_KEY = "toast-1";
 
   it("asks for no activities while the activity center is switched off", () => {
     const { useLatestActivitiesQuery, useFlag } = setup({ isEnabled: false });
@@ -88,6 +90,27 @@ describe(ActivityHost.name, () => {
       }),
       { variant: "error" }
     );
+  });
+
+  it("opens the deployment a close finished for from its toast, and dismisses the toast", async () => {
+    const pending = buildActivity({ status: "pending", meta: { dseq: "1234" } });
+    const { receive, followToastAction, push, closeSnackbar } = setup({ activities: [pending] });
+
+    receive([{ ...pending, status: "succeeded" }]);
+    await followToastAction("View deployment");
+
+    expect(push).toHaveBeenCalledWith("/deployments/1234");
+    expect(closeSnackbar).toHaveBeenCalledWith(TOAST_KEY);
+  });
+
+  it("opens the settings where a failed close can be tried again from its toast", async () => {
+    const pending = buildActivity({ status: "pending", meta: { dseq: "1234" } });
+    const { receive, followToastAction, push } = setup({ activities: [pending] });
+
+    receive([{ ...pending, status: "failed" }]);
+    await followToastAction("Open settings");
+
+    expect(push).toHaveBeenCalledWith("/deployments/1234?tab=SETTINGS");
   });
 
   it("names the deployment a close finished for", () => {
@@ -219,6 +242,25 @@ describe(ActivityHost.name, () => {
         }),
         { variant: "success" }
       );
+    });
+
+    it("opens the deployments list from its summary, and dismisses the summary", async () => {
+      const { receive, followToastAction, push, closeSnackbar } = setup({ activities: [batchClose("1"), batchClose("2")] });
+
+      receive([batchClose("1", "succeeded"), batchClose("2", "failed")]);
+      await followToastAction("View deployments");
+
+      expect(push).toHaveBeenCalledWith("/deployments");
+      expect(closeSnackbar).toHaveBeenCalledWith(TOAST_KEY);
+    });
+
+    it("opens the deployment of a bulk close of one from its toast", async () => {
+      const { receive, followToastAction, push } = setup({ activities: [batchClose("1")] });
+
+      receive([batchClose("1", "succeeded")]);
+      await followToastAction("View deployment");
+
+      expect(push).toHaveBeenCalledWith("/deployments/1");
     });
 
     it("refreshes the data of each close as soon as it finishes, before the summary", () => {
@@ -371,7 +413,9 @@ describe(ActivityHost.name, () => {
     const useLatestActivitiesQuery = vi.fn((() =>
       Object.assign(mock<ReturnType<typeof DEPENDENCIES.useLatestActivitiesQuery>>(), { data: activities })) as typeof DEPENDENCIES.useLatestActivitiesQuery);
     const useFlag = vi.fn((() => input.isEnabled ?? true) as typeof DEPENDENCIES.useFlag);
-    const enqueueSnackbar = vi.fn();
+    const enqueueSnackbar = vi.fn().mockReturnValue(TOAST_KEY);
+    const closeSnackbar = vi.fn();
+    const push = vi.fn();
     const queryClient = mock<ReturnType<typeof DEPENDENCIES.useQueryClient>>();
     const api = mockDeep<AppDIContainer["api"]>();
     api.v1.listDeployments.getKey.mockReturnValue(["listDeployments"]);
@@ -385,8 +429,9 @@ describe(ActivityHost.name, () => {
       useLatestActivitiesQuery,
       useDeploymentNames,
       useCloseBatchesBeingSent: () => closeBatchesBeingSent,
-      useSnackbar: () => ({ enqueueSnackbar, closeSnackbar: vi.fn() }),
-      useQueryClient: () => queryClient
+      useSnackbar: () => ({ enqueueSnackbar, closeSnackbar }),
+      useQueryClient: () => queryClient,
+      useRouter: () => mock<ReturnType<typeof DEPENDENCIES.useRouter>>({ push })
     };
 
     const host = () => (
@@ -403,6 +448,11 @@ describe(ActivityHost.name, () => {
       rerender(host());
     };
 
-    return { useLatestActivitiesQuery, useDeploymentNames, useFlag, enqueueSnackbar, queryClient, api, user, receive };
+    const followToastAction = async (name: string) => {
+      render(<>{enqueueSnackbar.mock.lastCall?.[0]}</>);
+      await userEvent.click(screen.getByRole("button", { name }));
+    };
+
+    return { useLatestActivitiesQuery, useDeploymentNames, useFlag, enqueueSnackbar, closeSnackbar, push, queryClient, api, user, receive, followToastAction };
   }
 });
