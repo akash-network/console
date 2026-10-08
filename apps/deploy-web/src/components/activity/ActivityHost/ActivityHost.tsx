@@ -118,6 +118,7 @@ export function ActivityHost({ dependencies: d = DEPENDENCIES }: { dependencies?
         return [
           api.v1.listDeployments.getKey(),
           QueryKeys.getWeeklyDeploymentCostKey(),
+          api.v1.getSpendRate.getKey(),
           ...(dseq ? [api.v1.getDeployment.getKey({ dseq })] : []),
           ...(address ? [QueryKeys.getDeploymentListKey(address), QueryKeys.getAllLeasesKey(address), QueryKeys.getBalancesKey(address)] : []),
           ...(address && dseq ? [QueryKeys.getDeploymentDetailKey(address, dseq), QueryKeys.getLeasesKey(address, dseq)] : []),

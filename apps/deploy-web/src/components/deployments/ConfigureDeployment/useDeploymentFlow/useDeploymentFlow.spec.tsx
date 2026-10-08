@@ -634,6 +634,22 @@ describe(useDeploymentFlow.name, () => {
     expect(queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: services.api.v1.listDeployments.getKey() });
   });
 
+  it("refreshes the account's spend rate on lease success, so its totals count the new deployment", async () => {
+    const createDeployment = mockMutation();
+    createDeployment.mutate.mockImplementation((_i, o) => o.onSuccess({ data: { dseq: "555", manifest: "M" } }));
+    const createLease = mockMutation();
+    createLease.mutate.mockImplementation((_i, o) => o.onSuccess(deployedResult("akash1owner")));
+    const { result, queryClient } = renderFlow({ createDeployment, createLease });
+
+    act(() => result.current.actions.requestQuotes("sdl"));
+
+    await settleSeal();
+    act(() => result.current.actions.selectProvider("placement-1", "akash1a/555/1/3"));
+    act(() => result.current.actions.deploy("sdl"));
+
+    expect(queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: ["v1", "getSpendRate"] });
+  });
+
   it("returns to quoting and surfaces a retryable deploy error when the lease request fails", async () => {
     const createDeployment = mockMutation();
     createDeployment.mutate.mockImplementation((_i, o) => o.onSuccess({ data: { dseq: "555", manifest: "M" } }));
@@ -2452,6 +2468,7 @@ describe(useDeploymentFlow.name, () => {
     services.api.v1.getDeployment.useMutation.mockReturnValue((mutations?.getDeployment ?? mockMutation()) as never);
     services.api.v1.listDeployments.getKey.mockReturnValue(["v1", "listDeployments"]);
     services.api.v1.listActivities.getKey.mockReturnValue(["v1", "listActivities"]);
+    services.api.v1.getSpendRate.getKey.mockReturnValue(["v1", "getSpendRate"]);
     return services;
   }
 
