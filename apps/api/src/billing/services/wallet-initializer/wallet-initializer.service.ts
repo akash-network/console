@@ -1,6 +1,7 @@
 import assert from "http-assert";
 import { singleton } from "tsyringe";
 
+import { ReferralService } from "@src/affiliate/services/referral/referral.service";
 import { TrialStarted } from "@src/billing/events/trial-started";
 import { isWalletInitialized, type UserWalletPublicOutput, UserWalletRepository, type WalletInitialized } from "@src/billing/repositories";
 import { TrialActivationInstrumentationService } from "@src/billing/services/activate-trial/trial-activation-instrumentation.service";
@@ -13,6 +14,8 @@ import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-fl
 import { UserOutput, UserRepository } from "@src/user/repositories";
 import { BlockedEmailDomainService } from "@src/workload-abuse/services/blocked-email-domain/blocked-email-domain.service";
 import { ManagedUserWalletService } from "../managed-user-wallet/managed-user-wallet.service";
+
+const MICRO_DENOM_PER_UNIT = 1_000_000;
 
 /** Names the domain, unlike the registration refusal: only a verified account holder sees it, and support needs to be able to act on it. */
 export const TRIAL_BLOCKED_DOMAIN_MESSAGE = "Trial is not available for this email domain. Please contact support for assistance.";
@@ -29,7 +32,8 @@ export class WalletInitializerService {
     private readonly userRepository: UserRepository,
     private readonly trialActivationInstrumentation: TrialActivationInstrumentationService,
     private readonly trialValidationService: TrialValidationService,
-    private readonly blockedEmailDomainService: BlockedEmailDomainService
+    private readonly blockedEmailDomainService: BlockedEmailDomainService,
+    private readonly referralService: ReferralService
   ) {}
 
   async #assertNoDuplicateFingerprint(user: UserOutput): Promise<void> {
@@ -68,7 +72,13 @@ export class WalletInitializerService {
 
     await this.#assertEmailDomainNotBlocked(user);
 
-    const chainWallet = await this.walletManager.createAndAuthorizeTrialSpending(this.managedSignerService, { addressIndex: userWallet.id });
+    const deploymentLimit = await this.referralService.getTrialDeploymentLimit(userId);
+    const chainWallet = await this.walletManager.createAndAuthorizeTrialSpending(this.managedSignerService, { addressIndex: userWallet.id, deploymentLimit });
+
+    if (deploymentLimit !== undefined) {
+      await this.referralService.recordTrialGranted(userId, deploymentLimit);
+    }
+
     const activatedWallet = await this.userWalletRepository.updateById(
       userWallet.id,
       {
@@ -80,7 +90,10 @@ export class WalletInitializerService {
     );
 
     await this.domainEvents.publish(new TrialStarted({ userId }));
-    this.trialActivationInstrumentation.recordActivated(userId, Date.now() - new Date(activatedWallet.createdAt).getTime());
+    this.trialActivationInstrumentation.recordActivated(userId, Date.now() - new Date(activatedWallet.createdAt).getTime(), {
+      isReferral: deploymentLimit !== undefined,
+      trialCreditsUsd: chainWallet.limits.deployment / MICRO_DENOM_PER_UNIT
+    });
 
     return this.#toPublic({ ...activatedWallet, address: userWallet.address });
   }

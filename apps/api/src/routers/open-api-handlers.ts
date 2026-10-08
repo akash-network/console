@@ -1,6 +1,6 @@
 import { activityRouter } from "@src/activity";
 import { addressRouter } from "@src/address";
-import { affiliateProfileRouter } from "@src/affiliate";
+import { affiliateProfileRouter, referralRouter } from "@src/affiliate";
 import { apiKeysRouter, sendVerificationCodeRouter, sendVerificationEmailRouter, signupRouter, verifyEmailCodeRouter } from "@src/auth";
 import { verifyEmailRouter } from "@src/auth/routes/verify-email/verify-email.router";
 import { bidsRouter } from "@src/bid/routes/bids/bids.router";
@@ -133,5 +133,6 @@ export const openApiHonoHandlers: OpenApiHonoHandler[] = [
   activityRouter,
   favoriteProvidersRouter,
   configureDraftsRouter,
-  affiliateProfileRouter
+  affiliateProfileRouter,
+  referralRouter
 ];

@@ -23330,6 +23330,55 @@
         }
       }
     },
+    "/v1/referral": {
+      "get": {
+        "summary": "Get the caller's referral trial credits",
+        "operationId": "getReferral",
+        "tags": [
+          "Affiliates"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The caller's referral trial credits, or null when they were not referred",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "nullable": true,
+                      "properties": {
+                        "trialCreditsUsd": {
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "trialCreditsUsd"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        }
+      }
+    },
     "/v1/alerts": {
       "post": {
         "operationId": "createAlert",

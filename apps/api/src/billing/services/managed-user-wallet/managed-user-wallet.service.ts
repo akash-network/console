@@ -52,11 +52,11 @@ export class ManagedUserWalletService {
     this.logger = createLogger({ context: ManagedUserWalletService.name });
   }
 
-  async createAndAuthorizeTrialSpending(signer: ManagedSignerService, { addressIndex }: { addressIndex: number }) {
+  async createAndAuthorizeTrialSpending(signer: ManagedSignerService, { addressIndex, deploymentLimit }: { addressIndex: number; deploymentLimit?: number }) {
     const address = await this.txManagerService.getDerivedWalletAddress(addressIndex);
 
     const limits = {
-      deployment: this.config.TRIAL_DEPLOYMENT_ALLOWANCE_AMOUNT,
+      deployment: deploymentLimit ?? this.config.TRIAL_DEPLOYMENT_ALLOWANCE_AMOUNT,
       fees: this.config.TRIAL_FEES_ALLOWANCE_AMOUNT
     };
     await this.authorizeSpending(signer, {

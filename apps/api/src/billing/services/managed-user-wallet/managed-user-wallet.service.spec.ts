@@ -87,6 +87,27 @@ describe(ManagedUserWalletService.name, () => {
     });
   });
 
+  describe("createAndAuthorizeTrialSpending", () => {
+    it("authorizes the configured trial deployment limit when no explicit limit is given", async () => {
+      const { service, signer, config, rpcMessageService } = setup();
+
+      const result = await service.createAndAuthorizeTrialSpending(signer, { addressIndex: 1 });
+
+      expect(rpcMessageService.getDepositDeploymentGrantMsg).toHaveBeenCalledWith(expect.objectContaining({ limit: config.TRIAL_DEPLOYMENT_ALLOWANCE_AMOUNT }));
+      expect(result.limits.deployment).toBe(config.TRIAL_DEPLOYMENT_ALLOWANCE_AMOUNT);
+    });
+
+    it("authorizes the explicit deployment limit instead of the configured trial amount", async () => {
+      const { service, signer, config, rpcMessageService } = setup();
+
+      const result = await service.createAndAuthorizeTrialSpending(signer, { addressIndex: 1, deploymentLimit: 5_000_000 });
+
+      expect(rpcMessageService.getDepositDeploymentGrantMsg).toHaveBeenCalledWith(expect.objectContaining({ limit: 5_000_000 }));
+      expect(result.limits.deployment).toBe(5_000_000);
+      expect(result.limits.deployment).not.toBe(config.TRIAL_DEPLOYMENT_ALLOWANCE_AMOUNT);
+    });
+  });
+
   describe("fee grant silent-drop recovery", () => {
     it("verifies the grant landed after a batched revoke+grant tx", async () => {
       const { service, signer, rpcMessageService, authzHttpService, logger } = setup();

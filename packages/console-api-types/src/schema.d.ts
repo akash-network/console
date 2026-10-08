@@ -6732,6 +6732,23 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/v1/referral": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Get the caller's referral trial credits */
+    get: operations["getReferral"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/v1/alerts": {
     parameters: {
       query?: never;
@@ -11796,6 +11813,37 @@ export interface operations {
                 commissionMonths: number;
                 referralTrialCreditsUsd: number;
               };
+            } | null;
+          };
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  getReferral: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description The caller's referral trial credits, or null when they were not referred */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            data: {
+              trialCreditsUsd: number;
             } | null;
           };
         };

@@ -66,9 +66,13 @@ export class TrialActivationInstrumentationService {
   }
 
   /** Recorded once, at the moment a wallet is newly activated, so the latency histogram isn't double-counted on idempotent re-runs. */
-  recordActivated(userId: UserOutput["id"], latencyMs: number): void {
+  recordActivated(userId: UserOutput["id"], latencyMs: number, trial: { isReferral: boolean; trialCreditsUsd: number }): void {
     this.activationLatency.record(latencyMs);
     this.logger.info({ event: "TRIAL_ACTIVATED", userId, latencyMs });
-    this.analyticsService.track(userId, "trial_started", { activation_latency_ms: latencyMs });
+    this.analyticsService.track(userId, "trial_started", {
+      activation_latency_ms: latencyMs,
+      is_referral: trial.isReferral,
+      trial_credits_usd: trial.trialCreditsUsd
+    });
   }
 }
