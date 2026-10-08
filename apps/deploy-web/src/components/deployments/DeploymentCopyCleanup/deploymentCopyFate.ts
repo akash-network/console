@@ -15,11 +15,16 @@ export interface DeploymentRecord {
 
 type ManifestVersionOf = (sdl: string) => Promise<string | null>;
 
+export interface CopyJudging {
+  manifestVersionOf: ManifestVersionOf;
+  isBrowserRestoreOffered: boolean;
+}
+
 /** Mirrors how the deployment page picks a definition, so a copy goes only once nothing there would still read it. */
 export async function deploymentCopyFateOf(
   copy: DeploymentCopy,
   record: DeploymentRecord | null,
-  manifestVersionOf: ManifestVersionOf
+  { manifestVersionOf, isBrowserRestoreOffered }: CopyJudging
 ): Promise<DeploymentCopyFate> {
   if (!record) return "keep";
   if (!copy.manifest) return holdsUnsentName(copy, record) ? "holds-name" : "forget";
@@ -27,7 +32,7 @@ export async function deploymentCopyFateOf(
   const { consoleSettings, deployment } = record;
   if (!consoleSettings) return "only-in-browser";
   if (!(await isOnChain(consoleSettings, deployment.hash, manifestVersionOf))) return "keep";
-  if (await restoresVariables(copy.manifest, consoleSettings.sdl, deployment.hash, manifestVersionOf)) return "restores-variables";
+  if (isBrowserRestoreOffered && (await restoresVariables(copy.manifest, consoleSettings.sdl, deployment.hash, manifestVersionOf))) return "restores-variables";
   if (holdsUnsentName(copy, record)) return "holds-name";
 
   return "forget";

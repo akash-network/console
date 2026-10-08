@@ -37,6 +37,12 @@ describe(useDeploymentNameBackfill.name, () => {
     expect(patchDeployment).not.toHaveBeenCalled();
   });
 
+  it("goes on to the next deployment when this browser holds no copy of one", async () => {
+    const { patchDeployment } = setup({ apiNames: [answered("100", null), answered("200", null)], localNames: { "200": "local-name" } });
+
+    await vi.waitFor(() => expect(patchDeployment).toHaveBeenCalledExactlyOnceWith({ dseq: "200", data: { name: "local-name" } }));
+  });
+
   it("records nothing until the app knows which wallet the names belong to", () => {
     const { patchDeployment } = setup({ apiNames: [answered("100", null)], localNames: { "100": "local-name" }, address: null });
 

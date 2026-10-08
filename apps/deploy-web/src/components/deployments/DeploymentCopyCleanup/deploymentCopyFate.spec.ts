@@ -77,6 +77,21 @@ describe(deploymentCopyFateOf.name, () => {
     );
   });
 
+  it("forgets a copy kept to restore protected variables once this browser no longer offers the restore", async () => {
+    const { fateOf, manifestVersionOf } = setup({ versions: { [PLAIN_SDL]: CHAIN_HASH }, isBrowserRestoreOffered: false });
+
+    expect(await fateOf({ manifest: PLAIN_SDL }, recordOf({ consoleSettings: { sdl: PROTECTED_SDL, manifestVersion: CHAIN_HASH } }))).toBe("forget");
+    expect(manifestVersionOf).not.toHaveBeenCalledWith(PLAIN_SDL);
+  });
+
+  it("still keeps a copy for the name it holds once this browser no longer offers the restore", async () => {
+    const { fateOf } = setup({ versions: { [PLAIN_SDL]: CHAIN_HASH }, isBrowserRestoreOffered: false });
+
+    expect(
+      await fateOf({ manifest: PLAIN_SDL, name: "web" }, recordOf({ name: null, consoleSettings: { sdl: PROTECTED_SDL, manifestVersion: CHAIN_HASH } }))
+    ).toBe("holds-name");
+  });
+
   it("forgets a copy that no longer matches the chain, since nothing can be restored from it", async () => {
     const { fateOf } = setup({ versions: { [PLAIN_SDL]: "older-hash" } });
 
@@ -104,9 +119,11 @@ describe(deploymentCopyFateOf.name, () => {
     };
   }
 
-  function setup(input: { versions?: Record<string, string> } = {}) {
+  function setup(input: { versions?: Record<string, string>; isBrowserRestoreOffered?: boolean } = {}) {
     const manifestVersionOf = vi.fn(async (sdl: string) => input.versions?.[sdl] ?? null);
-    const fateOf = (copy: Parameters<typeof deploymentCopyFateOf>[0], record: DeploymentRecord | null) => deploymentCopyFateOf(copy, record, manifestVersionOf);
+    const isBrowserRestoreOffered = input.isBrowserRestoreOffered ?? true;
+    const fateOf = (copy: Parameters<typeof deploymentCopyFateOf>[0], record: DeploymentRecord | null) =>
+      deploymentCopyFateOf(copy, record, { manifestVersionOf, isBrowserRestoreOffered });
 
     return { fateOf, manifestVersionOf };
   }

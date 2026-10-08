@@ -7,11 +7,12 @@ import { Alert, Button } from "@akashnetwork/ui/components";
 import { importDeploymentState } from "@src/components/deployments/ConfigureDeployment/importDeploymentState/importDeploymentState";
 import { isLogCollectorService } from "@src/components/sdl/LogCollectorControl/LogCollectorControl";
 import type { ServiceType } from "@src/types";
+import { BROWSER_RESTORE_LAST_DAY } from "@src/utils/sdl/browserRestoreDeadline";
 import type { DeploymentUpdateFormValues } from "./deploymentUpdateFormSchema";
 import { holdsVariablesProtectedByDefault, restoredEnvOf } from "./protectedVariables";
 
-const RESTORABLE_NOTICE =
-  "The console kept this deployment's variables as secrets when it was created, so their values are hidden. This browser still has them: restore them as plain variables, then update the deployment to keep them that way.";
+const LAST_RESTORE_DAY = new Intl.DateTimeFormat("en-US", { dateStyle: "long", timeZone: "UTC" }).format(BROWSER_RESTORE_LAST_DAY);
+const RESTORABLE_NOTICE = `The console kept this deployment's variables as secrets when it was created, so their values are hidden. This browser still has them: restore them as plain variables, then update the deployment to keep them that way. You can restore them from this browser until ${LAST_RESTORE_DAY}.`;
 const UNRESTORABLE_NOTICE =
   "The console kept this deployment's variables as secrets when it was created, so their values can't be shown. To make one a plain variable again, remove it and add it back as a variable.";
 
