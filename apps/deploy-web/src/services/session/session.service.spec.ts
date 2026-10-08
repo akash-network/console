@@ -280,6 +280,47 @@ describe(SessionService.name, () => {
       expect(session.user.nickname).toBe(createdUser.username);
       expect(session.user[USER_METADATA_KEY]).toEqual(tokenPayload[USER_METADATA_KEY]);
     });
+
+    it("forwards the referral code to createLocalUser", async () => {
+      const email = "user@example.com";
+      const password = "StrongPassword123!";
+      const tokenPayload = {
+        sub: "auth0|user-456",
+        nickname: "TokenUser",
+        email,
+        email_verified: true,
+        [USER_METADATA_KEY]: { subscribedToNewsletter: "true" }
+      };
+      const idToken = createIdToken(tokenPayload);
+      const createdUser: UserSettings = { username: "registered-user", subscribedToNewsletter: true };
+
+      const { service, externalHttpClient, consoleApiHttpClient } = setup();
+
+      consoleApiHttpClient.post.mockResolvedValueOnce({ status: 200, data: {}, headers: {} });
+      externalHttpClient.post.mockResolvedValueOnce({
+        status: 200,
+        data: {
+          access_token: "access-token",
+          refresh_token: "refresh-token",
+          id_token: idToken,
+          scope: "openid profile email offline_access",
+          expires_in: 3_600,
+          token_type: "Bearer"
+        },
+        headers: {}
+      });
+      externalHttpClient.get.mockResolvedValueOnce({ status: 200, data: {}, headers: {} });
+      consoleApiHttpClient.post.mockResolvedValueOnce({ data: { data: createdUser } });
+
+      await service.signUp({ email, password, referralCode: "creator" });
+
+      expect(consoleApiHttpClient.post).toHaveBeenNthCalledWith(
+        2,
+        "/v1/register-user",
+        expect.objectContaining({ referralCode: "creator" }),
+        expect.anything()
+      );
+    });
   });
 
   describe("createLocalUser", () => {
@@ -322,6 +363,52 @@ describe(SessionService.name, () => {
         }
       );
       expect(result).toEqual({ userSettings: expectedSettings, isNewUser: true });
+    });
+
+    it("adds the referral code to the request body when provided", async () => {
+      const claims = {
+        sub: "auth0|user-789",
+        nickname: "PreferredName",
+        email: "local@example.com",
+        email_verified: true,
+        [USER_METADATA_KEY]: { subscribedToNewsletter: "true" }
+      };
+      const session = new Session(claims);
+      Object.assign(session, { accessToken: "local-access-token", user: { ...claims } });
+
+      const { service, consoleApiHttpClient } = setup();
+      consoleApiHttpClient.post.mockResolvedValueOnce({
+        data: { data: { username: "PreferredName", subscribedToNewsletter: true }, isNewUser: true }
+      });
+
+      await service.createLocalUser(session, { referralCode: "creator" });
+
+      expect(consoleApiHttpClient.post).toHaveBeenCalledWith("/v1/register-user", expect.objectContaining({ referralCode: "creator" }), expect.anything());
+    });
+
+    it("omits the referral code from the request body when absent", async () => {
+      const claims = {
+        sub: "auth0|user-789",
+        nickname: "PreferredName",
+        email: "local@example.com",
+        email_verified: true,
+        [USER_METADATA_KEY]: { subscribedToNewsletter: "true" }
+      };
+      const session = new Session(claims);
+      Object.assign(session, { accessToken: "local-access-token", user: { ...claims } });
+
+      const { service, consoleApiHttpClient } = setup();
+      consoleApiHttpClient.post.mockResolvedValueOnce({
+        data: { data: { username: "PreferredName", subscribedToNewsletter: true }, isNewUser: true }
+      });
+
+      await service.createLocalUser(session);
+
+      expect(consoleApiHttpClient.post).toHaveBeenCalledWith(
+        "/v1/register-user",
+        expect.not.objectContaining({ referralCode: expect.anything() }),
+        expect.anything()
+      );
     });
   });
 

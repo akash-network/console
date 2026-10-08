@@ -14,6 +14,7 @@ import { getStateMismatchReturnTo } from "@src/lib/auth0/getStateMismatchReturnT
 import { isAccessTokenExpired } from "@src/lib/auth0/isAccessTokenExpired/isAccessTokenExpired";
 import { isInvalidSessionError } from "@src/lib/auth0/isInvalidSessionError/isInvalidSessionError";
 import { defineApiHandler } from "@src/lib/nextjs/defineApiHandler/defineApiHandler";
+import { readReferralCode } from "@src/lib/referral/referral-cookie";
 import type { AppServices } from "@src/services/app-di-container/server-di-container.service";
 import { rewriteLocalRedirect } from "@src/services/auth/auth/rewrite-local-redirect";
 import type { SeverityLevel } from "@src/services/error-handler/error-handler.service";
@@ -46,7 +47,7 @@ const authHandler = once((services: AppServices) =>
         await handleCallback(req, res, {
           afterCallback: async (req: NextApiRequest, res: NextApiResponse, session: Session) => {
             try {
-              const { userSettings, isNewUser } = await services.sessionService.createLocalUser(session);
+              const { userSettings, isNewUser } = await services.sessionService.createLocalUser(session, { referralCode: readReferralCode(req.cookies) });
               session.user = { ...session.user, ...userSettings };
               if (isNewUser) setAccountCreatedCookie(res);
             } catch (error) {
