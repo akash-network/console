@@ -1,4 +1,5 @@
 import type { CreateLogger } from "@akashnetwork/logging";
+import { PostgresError } from "postgres";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
@@ -81,6 +82,18 @@ describe(AffiliateService.name, () => {
       });
     });
 
+    it("rejects with 404 when the given userId does not exist", async () => {
+      const { service, userRepository, affiliateRepository } = setup();
+      userRepository.findById.mockResolvedValue(undefined);
+
+      await expect(service.approve({ userId: "missing-user-id", actor: "ops@akash.network" })).rejects.toMatchObject({
+        status: 404,
+        message: "No user with this id was found",
+        errorCode: "affiliate_user_not_found"
+      });
+      expect(affiliateRepository.findByUserId).not.toHaveBeenCalled();
+    });
+
     it("trims and lowercases a custom code before storing it", async () => {
       const { service, affiliateRepository, created } = setup();
 
@@ -134,6 +147,58 @@ describe(AffiliateService.name, () => {
       expect(affiliateRepository.create).not.toHaveBeenCalled();
     });
 
+    it("converts a concurrent user_id conflict on create into a 409, for a given code", async () => {
+      const { service, affiliateRepository, created } = setup();
+      affiliateRepository.create.mockRejectedValue(createUniqueViolation("affiliates_user_id_unique"));
+
+      await expect(service.approve({ userId: created.userId, code: "taken-later", actor: "ops@akash.network" })).rejects.toMatchObject({
+        status: 409,
+        message: "This user is already an approved affiliate",
+        errorCode: "affiliate_already_approved"
+      });
+    });
+
+    it("converts a concurrent code conflict on create into a 409, for a given code", async () => {
+      const { service, affiliateRepository, created } = setup();
+      affiliateRepository.create.mockRejectedValue(createUniqueViolation("affiliates_code_unique"));
+
+      await expect(service.approve({ userId: created.userId, code: "raced-code", actor: "ops@akash.network" })).rejects.toMatchObject({
+        status: 409,
+        message: "This code is already used by another affiliate",
+        errorCode: "affiliate_code_taken"
+      });
+    });
+
+    it("converts a concurrent user_id conflict while generating a code into a 409 without retrying", async () => {
+      const { service, affiliateRepository, created } = setup();
+      affiliateRepository.create.mockRejectedValue(createUniqueViolation("affiliates_user_id_unique"));
+
+      await expect(service.approve({ userId: created.userId, actor: "ops@akash.network" })).rejects.toMatchObject({
+        status: 409,
+        message: "This user is already an approved affiliate",
+        errorCode: "affiliate_already_approved"
+      });
+      expect(affiliateRepository.create).toHaveBeenCalledTimes(1);
+    });
+
+    it("retries generating a code when the write races another insert of the same candidate", async () => {
+      const { service, affiliateRepository, created } = setup();
+      affiliateRepository.create.mockRejectedValueOnce(createUniqueViolation("affiliates_code_unique")).mockResolvedValueOnce(created);
+
+      const result = await service.approve({ userId: created.userId, actor: "ops@akash.network" });
+
+      expect(result).toEqual(created);
+      expect(affiliateRepository.create).toHaveBeenCalledTimes(2);
+    });
+
+    it("rethrows a create failure that is not a unique violation", async () => {
+      const { service, affiliateRepository, created } = setup();
+      const error = new Error("connection reset");
+      affiliateRepository.create.mockRejectedValue(error);
+
+      await expect(service.approve({ userId: created.userId, code: "some-code", actor: "ops@akash.network" })).rejects.toBe(error);
+    });
+
     it("rejects with 409 when the user already has an active affiliate", async () => {
       const { service, affiliateRepository, created } = setup();
       affiliateRepository.findByUserId.mockResolvedValue(createAffiliate({ userId: created.userId, revokedAt: null }));
@@ -179,6 +244,19 @@ describe(AffiliateService.name, () => {
       await service.approve({ userId: created.userId, code: "same-code", actor: "new-ops@akash.network" });
 
       expect(affiliateRepository.updateById).toHaveBeenCalledWith(existing.id, expect.objectContaining({ code: "same-code" }), { returning: true });
+    });
+
+    it("converts a concurrent code conflict on re-approval into a 409", async () => {
+      const { service, affiliateRepository, created } = setup();
+      const existing = createAffiliate({ userId: created.userId, code: "old-code", revokedAt: new Date().toISOString(), revokedBy: "ops@akash.network" });
+      affiliateRepository.findByUserId.mockResolvedValue(existing);
+      affiliateRepository.updateById.mockRejectedValue(createUniqueViolation("affiliates_code_unique"));
+
+      await expect(service.approve({ userId: created.userId, code: "new-code", actor: "ops@akash.network" })).rejects.toMatchObject({
+        status: 409,
+        message: "This code is already used by another affiliate",
+        errorCode: "affiliate_code_taken"
+      });
     });
   });
 
@@ -302,11 +380,23 @@ describe(AffiliateService.name, () => {
     affiliateRepository.create.mockResolvedValue(created);
     affiliateRepository.updateById.mockResolvedValue(created as never);
     const userRepository = mock<UserRepository>();
+    userRepository.findById.mockImplementation(async id => createUser({ id }));
     const logger = mock<ReturnType<CreateLogger>>();
     const createLogger = vi.fn<CreateLogger>(() => logger);
 
     const service = new AffiliateService(affiliateRepository, userRepository, createLogger);
 
     return { service, affiliateRepository, userRepository, logger, createLogger, created };
+  }
+
+  function createUniqueViolation(constraintName: string) {
+    const driverError = Object.assign(Object.create(PostgresError.prototype), {
+      name: "PostgresError",
+      code: "23505",
+      constraint_name: constraintName,
+      message: `duplicate key value violates unique constraint "${constraintName}"`
+    });
+
+    return new Error("Failed query: insert into affiliates", { cause: driverError });
   }
 });
