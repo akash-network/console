@@ -1,0 +1,118 @@
+"use client";
+import {
+  Button,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+  Spinner
+} from "@akashnetwork/ui/components";
+import { useQueryClient } from "@tanstack/react-query";
+import formatDistanceToNowStrict from "date-fns/formatDistanceToNowStrict";
+import { Bell, CircleCheck, CircleX, TriangleAlert } from "lucide-react";
+import Link from "next/link";
+
+import { deploymentLabelOf } from "@src/components/activity/activityLabels/activityLabels";
+import { useServices } from "@src/context/ServicesProvider";
+import { useDeploymentNames } from "@src/hooks/useDeploymentNames/useDeploymentNames";
+import { useFlag } from "@src/hooks/useFlag";
+import { useUser } from "@src/hooks/useUser";
+import { useLatestActivitiesQuery, useUnseenActivityCountQuery } from "@src/queries/useLatestActivitiesQuery";
+import { activityEntriesOf, type ActivityEntry } from "./activityEntries";
+
+export const DEPENDENCIES = { useFlag, useUser, useLatestActivitiesQuery, useUnseenActivityCountQuery, useDeploymentNames, useQueryClient };
+
+const MAX_LISTED_ENTRIES = 10;
+
+const MAX_COUNTED_UNSEEN = 9;
+
+/** The newest of the user's actions in the top navigation: how many they haven't seen, and how each one went. */
+export function ActivityBell({ dependencies: d = DEPENDENCIES }: { dependencies?: typeof DEPENDENCIES }) {
+  const isEnabled = d.useFlag("notifications_activity_center");
+  const { user } = d.useUser();
+  const isShown = isEnabled && !!user?.userId;
+  const { api } = useServices();
+  const queryClient = d.useQueryClient();
+  const { data: activities = [] } = d.useLatestActivitiesQuery({ enabled: isShown });
+  const { data: unseenCount = 0 } = d.useUnseenActivityCountQuery({ enabled: isShown });
+  const { getDeploymentName } = d.useDeploymentNames(activities.map(activity => activity.meta.dseq));
+  const markSeen = api.v1.markActivitiesSeen.useMutation({
+    onSuccess: function refreshUnseenCount() {
+      queryClient.invalidateQueries({ queryKey: api.v1.listActivities.getKey() });
+    }
+  });
+
+  if (!isShown) return null;
+
+  const entries = activityEntriesOf(activities, dseq => deploymentLabelOf(getDeploymentName(dseq), dseq), MAX_LISTED_ENTRIES);
+
+  /** Marks up to the newest entry rather than up to now, so an action that lands while the list is open still counts as unseen. */
+  function markListedSeen(isOpen: boolean) {
+    const newest = activities[0];
+    if (!isOpen || unseenCount === 0 || !newest) return;
+
+    markSeen.mutate({ data: { upTo: newest.createdAt } });
+  }
+
+  return (
+    <DropdownMenu modal={false} onOpenChange={markListedSeen}>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" size="icon" className="relative rounded-full" aria-label={unseenCount > 0 ? `Activity, ${unseenCount} unseen` : "Activity"}>
+          <Bell className="h-5 w-5" />
+          {unseenCount > 0 && (
+            <span
+              aria-hidden="true"
+              className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-semibold leading-none text-primary-foreground"
+            >
+              {unseenCount > MAX_COUNTED_UNSEEN ? `${MAX_COUNTED_UNSEEN}+` : unseenCount}
+            </span>
+          )}
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" collisionPadding={16} className="w-[min(22rem,calc(100vw-2rem))] p-0">
+        <DropdownMenuLabel className="px-4 py-3">Activity</DropdownMenuLabel>
+        <DropdownMenuSeparator className="m-0" />
+        {entries.length === 0 ? (
+          <div className="flex flex-col items-center gap-1 px-6 py-10 text-center">
+            <Bell className="mb-2 h-6 w-6 text-muted-foreground" />
+            <p className="text-sm font-medium">No activity yet</p>
+            <p className="text-xs text-muted-foreground">When you close a deployment, you can follow how it goes here.</p>
+          </div>
+        ) : (
+          <div className="max-h-[min(28rem,70vh)] overflow-y-auto py-1">
+            {entries.map(entry => (
+              <ActivityEntryRow key={entry.id} entry={entry} />
+            ))}
+          </div>
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
+function ActivityEntryRow({ entry }: { entry: ActivityEntry }) {
+  return (
+    <DropdownMenuItem asChild className="cursor-pointer items-start gap-3 rounded-none px-4 py-2.5">
+      <Link href={entry.href}>
+        <span className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center">
+          <ActivityStatusIcon status={entry.status} />
+        </span>
+        <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+          <span className="break-words text-sm font-medium leading-5">{entry.title}</span>
+          {entry.detail && <span className="break-words text-xs text-muted-foreground">{entry.detail}</span>}
+          <span className="text-xs text-muted-foreground">{formatDistanceToNowStrict(new Date(entry.createdAt), { addSuffix: true })}</span>
+        </span>
+      </Link>
+    </DropdownMenuItem>
+  );
+}
+
+function ActivityStatusIcon({ status }: { status: ActivityEntry["status"] }) {
+  if (status === "pending") return <Spinner size="small" />;
+  if (status === "succeeded") return <CircleCheck className="h-4 w-4 text-green-600" />;
+  if (status === "partial") return <TriangleAlert className="h-4 w-4 text-warning" />;
+
+  return <CircleX className="h-4 w-4 text-destructive" />;
+}

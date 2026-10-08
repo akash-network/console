@@ -5,6 +5,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import upperFirst from "lodash/upperFirst";
 import { useSnackbar } from "notistack";
 
+import { deploymentLabelOf, listOf } from "@src/components/activity/activityLabels/activityLabels";
 import { useServices } from "@src/context/ServicesProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { useCloseBatchesBeingSent } from "@src/hooks/useCloseBatches/useCloseBatches";
@@ -30,9 +31,6 @@ type FinishedActivity = Activity & { status: Exclude<Activity["status"], "pendin
 type Announcement = { title: string; subTitle: string; variant: "success" | "warning" | "error" };
 
 type LabelDeployment = (dseq: string | undefined) => string;
-
-/** A summary naming more deployments than this gets too long to read in a toast, so the rest are counted instead. */
-const MAX_NAMED_DEPLOYMENTS = 3;
 
 const ANNOUNCEMENTS: Record<Activity["type"], (activity: FinishedActivity, labelDeployment: LabelDeployment) => Announcement> = {
   deployment_close: ({ status, meta }, labelDeployment) => {
@@ -110,8 +108,7 @@ export function ActivityHost({ dependencies: d = DEPENDENCIES }: { dependencies?
       }
 
       function labelDeployment(dseq: string | undefined) {
-        const name = getDeploymentName(dseq);
-        return name ? `“${name}”` : `deployment ${dseq}`;
+        return deploymentLabelOf(getDeploymentName(dseq), dseq);
       }
 
       function queryKeysChangedBy({ meta: { dseq } }: Activity): QueryKey[] {
@@ -141,10 +138,4 @@ function findFinishedSince(lastSeenStatuses: Map<string, Activity["status"]>, ac
 function finishedBatchOf(activities: Activity[], batchId: string): FinishedActivity[] | undefined {
   const batch = activities.filter(activity => activity.meta.batchId === batchId);
   return batch.every((activity): activity is FinishedActivity => activity.status !== "pending") ? batch : undefined;
-}
-
-function listOf(labels: string[]): string {
-  if (labels.length > MAX_NAMED_DEPLOYMENTS) return `${labels.slice(0, MAX_NAMED_DEPLOYMENTS).join(", ")} and ${labels.length - MAX_NAMED_DEPLOYMENTS} more`;
-
-  return labels.length === 1 ? labels[0] : `${labels.slice(0, -1).join(", ")} and ${labels[labels.length - 1]}`;
 }

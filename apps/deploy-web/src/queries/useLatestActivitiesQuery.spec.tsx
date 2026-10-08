@@ -1,7 +1,13 @@
 import { createProxy } from "@akashnetwork/react-query-proxy";
 import { describe, expect, it, vi } from "vitest";
 
-import { activityPollIntervalOf, IDLE_ACTIVITY_POLL_MS, PENDING_ACTIVITY_POLL_MS, useLatestActivitiesQuery } from "./useLatestActivitiesQuery";
+import {
+  activityPollIntervalOf,
+  IDLE_ACTIVITY_POLL_MS,
+  PENDING_ACTIVITY_POLL_MS,
+  useLatestActivitiesQuery,
+  useUnseenActivityCountQuery
+} from "./useLatestActivitiesQuery";
 
 import { buildActivity } from "@tests/seeders/activity";
 import { type RenderAppHookOptions, setupQuery } from "@tests/unit/query-client";
@@ -28,6 +34,20 @@ describe(useLatestActivitiesQuery.name, () => {
     expect(listActivities).not.toHaveBeenCalled();
   });
 
+  describe(useUnseenActivityCountQuery.name, () => {
+    it("returns how many activities the user has not seen, from the same request as the activities", async () => {
+      const listActivities = vi.fn().mockResolvedValue(responseOf([buildActivity()], 7));
+      const api = createProxy({ v1: { listActivities } }) as unknown as ApiService;
+
+      const { result } = setupQuery(() => useUnseenActivityCountQuery({ enabled: true }), { services: { api: () => api } });
+
+      await vi.waitFor(() => {
+        expect(result.current.data).toBe(7);
+      });
+      expect(listActivities).toHaveBeenCalledWith({ limit: 100 });
+    });
+  });
+
   describe(activityPollIntervalOf.name, () => {
     it("polls often while an activity is still pending", () => {
       expect(activityPollIntervalOf(responseOf([buildActivity({ status: "succeeded" }), buildActivity({ status: "pending" })]))).toBe(PENDING_ACTIVITY_POLL_MS);
@@ -46,8 +66,8 @@ describe(useLatestActivitiesQuery.name, () => {
     });
   });
 
-  function responseOf(activities: ReturnType<typeof buildActivity>[]) {
-    return { data: { activities, unseenCount: 0, pagination: { limit: 50, hasMore: false, nextCursor: null } } };
+  function responseOf(activities: ReturnType<typeof buildActivity>[], unseenCount = 0) {
+    return { data: { activities, unseenCount, pagination: { limit: 50, hasMore: false, nextCursor: null } } };
   }
 
   function setup(input: { activities: ReturnType<typeof buildActivity>[]; enabled: boolean }) {
