@@ -8,6 +8,7 @@ import { AffiliateRepository } from "@src/affiliate/repositories/affiliate/affil
 import { ReferralRepository } from "@src/affiliate/repositories/referral/referral.repository";
 import { Auth0Service } from "@src/auth/services/auth0/auth0.service";
 import { UserAuthTokenService } from "@src/auth/services/user-auth-token/user-auth-token.service";
+import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
 import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import { app } from "@src/rest-app";
 import { UserRepository } from "@src/user/repositories/user/user.repository";
@@ -61,8 +62,22 @@ describe("POST /v1/register-user referral attribution", () => {
     await expect(referralRepository.findByReferredUserId(initialBody.data.id)).resolves.toBeUndefined();
   });
 
+  it("attributes a sign-up when the affiliate program is rolled out only to the referring affiliate", async () => {
+    const affiliate = await seedAffiliate();
+    vi.spyOn(container.resolve(FeatureFlagsService), "isEnabled").mockImplementation(
+      (flag, context) => flag !== FeatureFlags.AFFILIATE_PROGRAM || context?.userId === affiliate.userId
+    );
+    const { token } = stubToken();
+
+    const response = await register({ token, referralCode: affiliate.code });
+    const body = (await response.json()) as RegisterUserResponse;
+
+    expect(response.status).toBe(200);
+    await expect(referralRepository.findByReferredUserId(body.data.id)).resolves.toMatchObject({ affiliateId: affiliate.id });
+  });
+
   it("does not create a referral row when the affiliate program flag is off", async () => {
-    vi.spyOn(container.resolve(FeatureFlagsService), "isEnabled").mockReturnValue(false);
+    vi.spyOn(container.resolve(FeatureFlagsService), "isEnabled").mockImplementation(flag => flag !== FeatureFlags.AFFILIATE_PROGRAM);
     const { token } = stubToken();
     const affiliate = await seedAffiliate();
 
