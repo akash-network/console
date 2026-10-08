@@ -11,7 +11,7 @@ const GUARDED_PATH = "/guarded";
 const GUARDED_BODY = "reached the handler";
 const NOT_FOUND_BODY = "nothing here";
 
-describe("requireFeatureFlag", () => {
+describe(requireFeatureFlag.name, () => {
   afterEach(() => {
     container.clearInstances();
   });

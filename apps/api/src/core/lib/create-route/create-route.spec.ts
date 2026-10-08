@@ -10,7 +10,7 @@ import type { FeatureFlagValue } from "../../services/feature-flags/feature-flag
 import { FeatureFlags } from "../../services/feature-flags/feature-flags";
 import { FeatureFlagsService } from "../../services/feature-flags/feature-flags.service";
 import { SECURITY_NONE } from "../../services/openapi-docs/openapi-security";
-import { createRoute, HIDDEN_ROUTES } from "./create-route";
+import { createRoute, HIDDEN_ROUTES, stripHiddenOperations } from "./create-route";
 
 describe(createRoute.name, () => {
   afterEach(() => {
@@ -266,6 +266,36 @@ describe(createRoute.name, () => {
       expect(featureFlagsService.isEnabled).toHaveBeenCalledWith(FeatureFlags.ORGANIZATIONS);
       expect(next).toHaveBeenCalled();
       expect(notFound).not.toHaveBeenCalled();
+    });
+
+    it("leaves the route out of the served OpenAPI docs", () => {
+      createRoute({
+        method: "get",
+        path: "/gated-resources",
+        operationId: "listGatedResources",
+        summary: "Test",
+        tags: ["Test"],
+        security: SECURITY_NONE,
+        featureFlag: FeatureFlags.ORGANIZATIONS,
+        responses: { 200: { description: "OK" } }
+      });
+
+      expect(stripHiddenOperations({ "/gated-resources": { get: { operationId: "listGatedResources", responses: {} } } })).toEqual({});
+    });
+
+    it("leaves a route without an operationId out of the served OpenAPI docs under its method and path", () => {
+      createRoute({
+        method: "post",
+        path: "/gated-without-operation-id",
+        summary: "Test",
+        tags: ["Test"],
+        security: SECURITY_NONE,
+        featureFlag: FeatureFlags.ORGANIZATIONS,
+        responses: { 200: { description: "OK" } }
+      });
+
+      expect(HIDDEN_ROUTES.has("POST /gated-without-operation-id")).toBe(true);
+      expect(stripHiddenOperations({ "/gated-without-operation-id": { post: { responses: {} } } })).toEqual({});
     });
   });
 

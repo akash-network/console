@@ -27,7 +27,7 @@ export interface ExtendedRouteConfig<R extends RouteConfig> {
 
 const NO_CACHE = cacheControlMiddleware({ maxAge: 0 });
 
-/** Operation ids of routes declared with `hiddenInOpenApiDocs`, stripped by `stripHiddenOperations` before any spec is served. */
+/** Operation ids of routes declared with `hiddenInOpenApiDocs` or `featureFlag`, stripped by `stripHiddenOperations` before any spec is served. */
 export const HIDDEN_ROUTES = new Set<string>();
 
 /** Request-body properties, per operation, that are validated as normal but left out of every generated document. */
@@ -46,7 +46,7 @@ export function createRoute<
     hiddenInOpenApiDocs?: boolean;
     /** Request-body properties this route accepts and validates but does not publish, for a capability that works before it is announced. */
     undocumentedRequestFields?: readonly string[];
-    /** Answers like an unmatched path, before any other middleware or validation runs, until this flag is on for the caller. */
+    /** Answers like an unmatched path, before any other middleware or validation runs, until this flag is on for the caller, and stays out of the served OpenAPI docs. */
     featureFlag?: FeatureFlagValue;
   }
 >(routeConfig: R) {
@@ -102,7 +102,7 @@ export function createRoute<
 
   const operationId = openApiConfig.operationId ?? `${openApiConfig.method?.toUpperCase() || "UNKNOWN"} ${openApiConfig.path}`;
 
-  if (hiddenInOpenApiDocs) {
+  if (hiddenInOpenApiDocs || featureFlag) {
     HIDDEN_ROUTES.add(operationId);
   }
 
