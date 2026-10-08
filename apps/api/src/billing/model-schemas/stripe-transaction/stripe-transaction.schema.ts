@@ -70,6 +70,7 @@ export const StripeTransactions = pgTable(
     oneFirstPurchaseBonusPerUser: uniqueIndex(ONE_FIRST_PURCHASE_BONUS_PER_USER_INDEX)
       .on(table.userId)
       .where(sql`${table.bonusAmount} > 0`),
+    /** At most one commission row per source payment, so a commission sync can never double-grant it. */
     sourceTransactionIdUnique: uniqueIndex("stripe_transactions_source_transaction_id_unique")
       .on(table.sourceTransactionId)
       .where(sql`${table.sourceTransactionId} IS NOT NULL`),
