@@ -1,4 +1,5 @@
 import { faker } from "@faker-js/faker";
+import { PostgresError } from "postgres";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
@@ -9,7 +10,9 @@ import type { TrialActivationJobService } from "@src/billing/services/trial-acti
 import type { WalletInitializerService } from "@src/billing/services/wallet-initializer/wallet-initializer.service";
 import type { CreateLogger } from "@src/core/providers/logging.provider";
 import type { AnalyticsService } from "@src/core/services/analytics/analytics.service";
+import type { TxService } from "@src/core/services/tx/tx.service";
 import type { NotificationService } from "@src/notifications/services/notification/notification.service";
+import type { PersonalOrganizationService } from "@src/organization/services/personal-organization/personal-organization.service";
 import type { DataKeyService } from "@src/secret/services/data-key/data-key.service";
 import type { UserRepository } from "@src/user/repositories/user/user.repository";
 import type { BlockedEmailDomainService } from "@src/workload-abuse/services/blocked-email-domain/blocked-email-domain.service";
@@ -17,6 +20,7 @@ import type { RegisterUserInput } from "./user.service";
 import { UserService } from "./user.service";
 
 import { createDataKey } from "@test/seeders/data-key.seeder";
+import { createAdoptedRowCounts, createOrganization } from "@test/seeders/organization.seeder";
 import { createUser } from "@test/seeders/user.seeder";
 import { createUserWallet } from "@test/seeders/user-wallet.seeder";
 
@@ -178,6 +182,87 @@ describe(UserService.name, () => {
       expect(result.id).toBe(user.id);
       expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "FAILED_TO_ENSURE_USER_WALLET", id: user.id, error: walletError }));
     });
+
+    it("creates the user's personal organization inside the transaction that upserts the user", async () => {
+      const user = createUser({ emailVerified: true });
+      const { service, userRepository, notificationService, personalOrganizationService, txService } = setup();
+      const order: string[] = [];
+      txService.transaction.mockImplementation(async cb => {
+        order.push("begin");
+        const result = await cb();
+        order.push("commit");
+        return result;
+      });
+      userRepository.upsertOnExternalIdConflict.mockImplementation(async () => {
+        order.push("upsert");
+        return { user, wasInserted: true };
+      });
+      personalOrganizationService.ensureForUser.mockImplementation(async () => {
+        order.push("organization");
+        return createOrganization();
+      });
+      notificationService.createDefaultChannel.mockResolvedValue(undefined);
+
+      await service.registerUser(createRegisterInput({ emailVerified: true }));
+
+      expect(order).toEqual(["begin", "upsert", "organization", "commit"]);
+      expect(personalOrganizationService.ensureForUser).toHaveBeenCalledWith(user);
+    });
+
+    it("fails the registration when the personal organization cannot be created", async () => {
+      const user = createUser();
+      const { service, userRepository, personalOrganizationService, walletInitializerService } = setup();
+      userRepository.upsertOnExternalIdConflict.mockResolvedValue({ user, wasInserted: true });
+      personalOrganizationService.ensureForUser.mockRejectedValue(new Error("organizations are down"));
+
+      await expect(service.registerUser(createRegisterInput())).rejects.toThrow("organizations are down");
+
+      expect(walletInitializerService.ensureWallet).not.toHaveBeenCalled();
+      expect(personalOrganizationService.adoptUserRows).not.toHaveBeenCalled();
+    });
+
+    it("retries the whole registration with an adjusted username when the wanted one is taken", async () => {
+      const user = createUser({ emailVerified: true });
+      const { service, userRepository, notificationService, personalOrganizationService, txService } = setup();
+      userRepository.upsertOnExternalIdConflict.mockRejectedValueOnce(createUsernameTakenError()).mockResolvedValueOnce({ user, wasInserted: true });
+      notificationService.createDefaultChannel.mockResolvedValue(undefined);
+
+      await service.registerUser(createRegisterInput({ wantedUsername: "taken", emailVerified: true }));
+
+      expect(txService.transaction).toHaveBeenCalledTimes(2);
+      expect(userRepository.upsertOnExternalIdConflict.mock.calls.map(([input]) => input.username)).toEqual(["taken", expect.stringMatching(/^taken\d{4}$/)]);
+      expect(personalOrganizationService.ensureForUser).toHaveBeenCalledOnce();
+    });
+
+    it("files the user's existing rows into the personal organization once the wallet exists", async () => {
+      const user = createUser({ emailVerified: true });
+      const { service, userRepository, notificationService, personalOrganizationService, walletInitializerService, organization } = setup();
+      userRepository.upsertOnExternalIdConflict.mockResolvedValue({ user, wasInserted: false });
+      notificationService.createDefaultChannel.mockResolvedValue(undefined);
+
+      await service.registerUser(createRegisterInput({ emailVerified: true }));
+
+      expect(personalOrganizationService.adoptUserRows).toHaveBeenCalledWith(user, organization);
+      expect(walletInitializerService.ensureWallet.mock.invocationCallOrder[0]).toBeLessThan(
+        personalOrganizationService.adoptUserRows.mock.invocationCallOrder[0]
+      );
+    });
+
+    it("logs error but does not throw when filing the user's rows fails", async () => {
+      const user = createUser({ emailVerified: true });
+      const { service, userRepository, notificationService, personalOrganizationService, organization, logger } = setup();
+      const adoptionError = new Error("stamping failed");
+      userRepository.upsertOnExternalIdConflict.mockResolvedValue({ user, wasInserted: false });
+      notificationService.createDefaultChannel.mockResolvedValue(undefined);
+      personalOrganizationService.adoptUserRows.mockRejectedValue(adoptionError);
+
+      const result = await service.registerUser(createRegisterInput({ emailVerified: true }));
+
+      expect(result.id).toBe(user.id);
+      expect(logger.error).toHaveBeenCalledWith(
+        expect.objectContaining({ event: "FAILED_TO_ADOPT_USER_ROWS", id: user.id, organizationId: organization.id, error: adoptionError })
+      );
+    });
   });
 
   describe("updateUserDetails", () => {
@@ -265,6 +350,12 @@ describe(UserService.name, () => {
     const trialActivationJobService = mock<TrialActivationJobService>({ schedule: vi.fn().mockResolvedValue(undefined) });
     const dataKeyService = mock<DataKeyService>({ ensureDataKey: vi.fn().mockResolvedValue(createDataKey()) });
     const blockedEmailDomainService = mock<BlockedEmailDomainService>({ isBlockedEmail: vi.fn().mockResolvedValue(false) });
+    const organization = createOrganization({ type: "personal" });
+    const personalOrganizationService = mock<PersonalOrganizationService>({
+      ensureForUser: vi.fn().mockResolvedValue(organization),
+      adoptUserRows: vi.fn().mockResolvedValue(createAdoptedRowCounts())
+    });
+    const txService = mock<TxService>({ transaction: vi.fn(cb => cb()) });
 
     const service = new UserService(
       userRepository,
@@ -276,7 +367,9 @@ describe(UserService.name, () => {
       walletInitializerService,
       trialActivationJobService,
       dataKeyService,
-      blockedEmailDomainService
+      blockedEmailDomainService,
+      personalOrganizationService,
+      txService
     );
 
     return {
@@ -290,8 +383,22 @@ describe(UserService.name, () => {
       auth0Service,
       emailVerificationCodeService,
       walletInitializerService,
-      dataKeyService
+      dataKeyService,
+      personalOrganizationService,
+      txService,
+      organization
     };
+  }
+
+  function createUsernameTakenError() {
+    const driverError = Object.assign(Object.create(PostgresError.prototype), {
+      name: "PostgresError",
+      code: "23505",
+      constraint_name: "userSetting_username_unique",
+      message: 'duplicate key value violates unique constraint "userSetting_username_unique"'
+    });
+
+    return new Error("Failed query: insert into userSetting", { cause: driverError });
   }
 
   function createRegisterInput(overrides: Partial<RegisterUserInput> = {}): RegisterUserInput {

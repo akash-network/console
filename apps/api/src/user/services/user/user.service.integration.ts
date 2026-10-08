@@ -11,8 +11,13 @@ import type { TrialActivationJobService } from "@src/billing/services/trial-acti
 import type { WalletInitializerService } from "@src/billing/services/wallet-initializer/wallet-initializer.service";
 import type { CreateLogger } from "@src/core/providers/logging.provider";
 import type { AnalyticsService } from "@src/core/services/analytics/analytics.service";
+import { TxService } from "@src/core/services/tx/tx.service";
 import type { SdlSecretsSealingKeyService } from "@src/deployment/services/sdl-secrets-sealing-key/sdl-secrets-sealing-key.service";
 import type { NotificationService } from "@src/notifications/services/notification/notification.service";
+import { OrganizationRepository } from "@src/organization/repositories/organization/organization.repository";
+import { OrganizationMemberRepository } from "@src/organization/repositories/organization-member/organization-member.repository";
+import { ProjectRepository } from "@src/organization/repositories/project/project.repository";
+import { PersonalOrganizationService } from "@src/organization/services/personal-organization/personal-organization.service";
 import { DataKeyRepository } from "@src/secret/repositories/data-key/data-key.repository";
 import { DataKeyService } from "@src/secret/services/data-key/data-key.service";
 import { UserRepository } from "@src/user/repositories/user/user.repository";
@@ -20,10 +25,31 @@ import type { BlockedEmailDomainService } from "@src/workload-abuse/services/blo
 import type { RegisterUserInput } from "./user.service";
 import { UserService } from "./user.service";
 
+import { createAdoptedRowCounts } from "@test/seeders/organization.seeder";
 import { createUserWallet } from "@test/seeders/user-wallet.seeder";
 
 describe(UserService.name, () => {
   describe("registerUser", () => {
+    it("gives the registered user a personal organization they own, with a default project", async () => {
+      const { service, organizationRepository, organizationMemberRepository, projectRepository } = setup();
+
+      const result = await service.registerUser(createRegisterInput());
+
+      const organization = await organizationRepository.findPersonalByUserId(result.id);
+      expect(organization).toMatchObject({ type: "personal", name: result.username, createdByUserId: result.id });
+      expect(await organizationMemberRepository.findOneBy({ organizationId: organization?.id, userId: result.id })).toMatchObject({ role: "owner" });
+      expect(await projectRepository.findDefaultByOrganizationId(organization?.id as string)).toMatchObject({ slug: "default", isDefault: true });
+    });
+
+    it("creates no user when the personal organization cannot be created", async () => {
+      const { service, userRepository } = setup({ ensureForUser: vi.fn().mockRejectedValue(new Error("organizations are down")) });
+      const input = createRegisterInput();
+
+      await expect(service.registerUser(input)).rejects.toThrow("organizations are down");
+
+      expect(await userRepository.findByUserId(input.userId)).toBeUndefined();
+    });
+
     it("registers a new user", async () => {
       const createDefaultNotificationChannel = vi.fn(() => Promise.resolve());
       const { service, analyticsService, logger } = setup({ createDefaultNotificationChannel });
@@ -453,6 +479,7 @@ describe(UserService.name, () => {
   function setup(input?: {
     createDefaultNotificationChannel?: NotificationService["createDefaultChannel"];
     ensureDataKey?: DataKeyService["ensureDataKey"];
+    ensureForUser?: PersonalOrganizationService["ensureForUser"];
     isBlockedEmail?: boolean;
   }) {
     const analyticsService = mock<AnalyticsService>();
@@ -469,6 +496,9 @@ describe(UserService.name, () => {
     const sealingKeyService = mock<SdlSecretsSealingKeyService>();
     sealingKeyService.peekSealingKey.mockReturnValue({ kid: "sdl-secrets.v1", publicKey, jwk: { kty: "RSA", n: n!, e: e!, use: "enc", alg: "RSA-OAEP-256" } });
     const dataKeyService = new DataKeyService(dataKeyRepository, sealingKeyService, createLogger);
+    const personalOrganizationService = input?.ensureForUser
+      ? mock<PersonalOrganizationService>({ ensureForUser: input.ensureForUser, adoptUserRows: vi.fn().mockResolvedValue(createAdoptedRowCounts()) })
+      : container.resolve(PersonalOrganizationService);
     const service = new UserService(
       userRepository,
       analyticsService,
@@ -483,9 +513,22 @@ describe(UserService.name, () => {
       walletInitializerService,
       mock<TrialActivationJobService>({ schedule: vi.fn().mockResolvedValue(undefined) }),
       input?.ensureDataKey ? mock<DataKeyService>({ ensureDataKey: input.ensureDataKey }) : dataKeyService,
-      mock<BlockedEmailDomainService>({ isBlockedEmail: vi.fn().mockResolvedValue(input?.isBlockedEmail ?? false) })
+      mock<BlockedEmailDomainService>({ isBlockedEmail: vi.fn().mockResolvedValue(input?.isBlockedEmail ?? false) }),
+      personalOrganizationService,
+      container.resolve(TxService)
     );
 
-    return { service, analyticsService, logger, auth0Service, userRepository, walletInitializerService, dataKeyRepository };
+    return {
+      service,
+      analyticsService,
+      logger,
+      auth0Service,
+      userRepository,
+      walletInitializerService,
+      dataKeyRepository,
+      organizationRepository: container.resolve(OrganizationRepository),
+      organizationMemberRepository: container.resolve(OrganizationMemberRepository),
+      projectRepository: container.resolve(ProjectRepository)
+    };
   }
 });
