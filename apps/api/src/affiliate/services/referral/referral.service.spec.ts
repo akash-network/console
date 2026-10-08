@@ -5,6 +5,7 @@ import { mock } from "vitest-mock-extended";
 import type { ReferralRepository } from "@src/affiliate/repositories/referral/referral.repository";
 import type { AffiliateService } from "@src/affiliate/services/affiliate/affiliate.service";
 import type { AnalyticsService } from "@src/core/services/analytics/analytics.service";
+import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
 import type { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import { ReferralService } from "./referral.service";
 
@@ -13,14 +14,27 @@ import { createReferral } from "@test/seeders/referral.seeder";
 
 describe(ReferralService.name, () => {
   describe("attribute", () => {
-    it("does nothing when the affiliate program flag is off", async () => {
-      const { service, affiliateService, referralRepository, featureFlagsService } = setup();
+    it("checks the affiliate program flag for the affiliate who owns the code", async () => {
+      const affiliate = createAffiliate({ code: "friendcode" });
+      const { service, affiliateService, featureFlagsService } = setup();
+      affiliateService.findActiveByCode.mockResolvedValue(affiliate);
+
+      await service.attribute({ referredUserId: "referred-user-id", code: "friendcode" });
+
+      expect(featureFlagsService.isEnabled).toHaveBeenCalledWith(FeatureFlags.AFFILIATE_PROGRAM, { userId: affiliate.userId });
+    });
+
+    it("logs REFERRAL_CODE_IGNORED and inserts nothing when the affiliate program flag is off for the affiliate", async () => {
+      const affiliate = createAffiliate({ code: "friendcode" });
+      const { service, affiliateService, referralRepository, analyticsService, featureFlagsService, logger } = setup();
+      affiliateService.findActiveByCode.mockResolvedValue(affiliate);
       featureFlagsService.isEnabled.mockReturnValue(false);
 
       await service.attribute({ referredUserId: "referred-user-id", code: "friendcode" });
 
-      expect(affiliateService.findActiveByCode).not.toHaveBeenCalled();
       expect(referralRepository.createIfAbsent).not.toHaveBeenCalled();
+      expect(analyticsService.track).not.toHaveBeenCalled();
+      expect(logger.debug).toHaveBeenCalledWith({ event: "REFERRAL_CODE_IGNORED", code: "friendcode", reason: "program_disabled" });
     });
 
     it("logs REFERRAL_CODE_IGNORED and inserts nothing for an unknown, malformed or revoked code", async () => {
