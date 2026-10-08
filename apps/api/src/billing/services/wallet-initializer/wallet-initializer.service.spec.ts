@@ -192,6 +192,29 @@ describe(WalletInitializerService.name, () => {
         isReferral: true,
         trialCreditsUsd: 5
       });
+
+      const recordTrialGrantedOrder = vi.mocked(di.resolve(ReferralService).recordTrialGranted).mock.invocationCallOrder[0];
+      const updateWalletByIdOrder = vi.mocked(updateWalletById).mock.invocationCallOrder[0];
+      expect(recordTrialGrantedOrder).toBeLessThan(updateWalletByIdOrder);
+    });
+
+    it("leaves the wallet unactivated and propagates the error when recording the referral trial fails", async () => {
+      const userId = "test-user-id";
+      const wallet = createUserWallet({ userId, activatedAt: null });
+      const getOrCreateWallet = vi.fn().mockResolvedValue({ wallet, isNew: false });
+      const updateWalletById = vi.fn().mockImplementation(async (id, patch) => ({ ...wallet, ...patch }));
+      const chainWallet = createChainWallet({ limits: { deployment: 5_000_000, fees: 100_000 } });
+
+      const di = setup({ userId, getOrCreateWallet, updateWalletById, referralTrialDeploymentLimit: 5_000_000 });
+      const managedUserWalletService = di.resolve(ManagedUserWalletService) as MockProxy<ManagedUserWalletService>;
+      managedUserWalletService.createAndAuthorizeTrialSpending.mockResolvedValue(chainWallet);
+      vi.mocked(di.resolve(ReferralService).recordTrialGranted).mockRejectedValue(new Error("referral record failed"));
+
+      await expect(di.resolve(WalletInitializerService).initializeAndGrantTrialLimits(userId)).rejects.toThrow("referral record failed");
+
+      expect(updateWalletById).not.toHaveBeenCalled();
+      expect(di.resolve(DomainEventsService).publish).not.toHaveBeenCalled();
+      expect(di.resolve(TrialActivationInstrumentationService).recordActivated).not.toHaveBeenCalled();
     });
 
     it("grants the standard trial deployment limit and records nothing when the user was not referred", async () => {
