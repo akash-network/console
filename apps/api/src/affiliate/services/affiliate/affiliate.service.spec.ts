@@ -53,20 +53,32 @@ describe(AffiliateService.name, () => {
       const { service, userRepository } = setup();
       userRepository.find.mockResolvedValue([]);
 
-      await expect(service.approve({ email: "nobody@example.com", actor: "ops@akash.network" })).rejects.toMatchObject({ status: 404 });
+      await expect(service.approve({ email: "nobody@example.com", actor: "ops@akash.network" })).rejects.toMatchObject({
+        status: 404,
+        message: "No user with this email was found",
+        errorCode: "affiliate_user_not_found"
+      });
     });
 
     it("rejects with 409 when several users share the email", async () => {
       const { service, userRepository } = setup();
       userRepository.find.mockResolvedValue([createUser(), createUser()]);
 
-      await expect(service.approve({ email: "shared@example.com", actor: "ops@akash.network" })).rejects.toMatchObject({ status: 409 });
+      await expect(service.approve({ email: "shared@example.com", actor: "ops@akash.network" })).rejects.toMatchObject({
+        status: 409,
+        message: "Several users share this email; approve by userId instead",
+        errorCode: "affiliate_email_ambiguous"
+      });
     });
 
     it("rejects with 400 when neither a userId nor an email is given", async () => {
       const { service } = setup();
 
-      await expect(service.approve({ actor: "ops@akash.network" })).rejects.toMatchObject({ status: 400 });
+      await expect(service.approve({ actor: "ops@akash.network" })).rejects.toMatchObject({
+        status: 400,
+        message: "Provide a userId or an email",
+        errorCode: "affiliate_user_required"
+      });
     });
 
     it("trims and lowercases a custom code before storing it", async () => {
@@ -80,7 +92,11 @@ describe(AffiliateService.name, () => {
     it.each(["a", "-ab", "has space"])("rejects with 400 for the invalid code %j", async invalidCode => {
       const { service, affiliateRepository, created } = setup();
 
-      await expect(service.approve({ userId: created.userId, code: invalidCode, actor: "ops@akash.network" })).rejects.toMatchObject({ status: 400 });
+      await expect(service.approve({ userId: created.userId, code: invalidCode, actor: "ops@akash.network" })).rejects.toMatchObject({
+        status: 400,
+        message: "Invalid affiliate code",
+        errorCode: "affiliate_code_invalid"
+      });
       expect(affiliateRepository.create).not.toHaveBeenCalled();
     });
 
@@ -88,7 +104,11 @@ describe(AffiliateService.name, () => {
       const { service, affiliateRepository, created } = setup();
       affiliateRepository.findByCode.mockResolvedValue(createAffiliate({ id: "another-affiliate-id" }));
 
-      await expect(service.approve({ userId: created.userId, code: "taken", actor: "ops@akash.network" })).rejects.toMatchObject({ status: 409 });
+      await expect(service.approve({ userId: created.userId, code: "taken", actor: "ops@akash.network" })).rejects.toMatchObject({
+        status: 409,
+        message: "This code is already used by another affiliate",
+        errorCode: "affiliate_code_taken"
+      });
       expect(affiliateRepository.create).not.toHaveBeenCalled();
     });
 
@@ -102,11 +122,27 @@ describe(AffiliateService.name, () => {
       expect(affiliateRepository.create).toHaveBeenCalledTimes(1);
     });
 
+    it("gives up generating a unique code after exhausting its attempts", async () => {
+      const { service, affiliateRepository, created } = setup();
+      affiliateRepository.findByCode.mockResolvedValue(createAffiliate({ id: "another-affiliate-id" }));
+
+      await expect(service.approve({ userId: created.userId, actor: "ops@akash.network" })).rejects.toMatchObject({
+        status: 500,
+        errorCode: "affiliate_code_generation_failed"
+      });
+      expect(affiliateRepository.findByCode).toHaveBeenCalledTimes(5);
+      expect(affiliateRepository.create).not.toHaveBeenCalled();
+    });
+
     it("rejects with 409 when the user already has an active affiliate", async () => {
       const { service, affiliateRepository, created } = setup();
       affiliateRepository.findByUserId.mockResolvedValue(createAffiliate({ userId: created.userId, revokedAt: null }));
 
-      await expect(service.approve({ userId: created.userId, actor: "ops@akash.network" })).rejects.toMatchObject({ status: 409 });
+      await expect(service.approve({ userId: created.userId, actor: "ops@akash.network" })).rejects.toMatchObject({
+        status: 409,
+        message: "This user is already an approved affiliate",
+        errorCode: "affiliate_already_approved"
+      });
       expect(affiliateRepository.create).not.toHaveBeenCalled();
     });
 
@@ -133,6 +169,17 @@ describe(AffiliateService.name, () => {
 
       expect(affiliateRepository.updateById).toHaveBeenCalledWith(existing.id, expect.objectContaining({ code: "new-code" }), { returning: true });
     });
+
+    it("re-approves with the same code already assigned to the affiliate", async () => {
+      const { service, affiliateRepository, created } = setup();
+      const existing = createAffiliate({ userId: created.userId, code: "same-code", revokedAt: new Date().toISOString(), revokedBy: "ops@akash.network" });
+      affiliateRepository.findByUserId.mockResolvedValue(existing);
+      affiliateRepository.findByCode.mockResolvedValue(existing);
+
+      await service.approve({ userId: created.userId, code: "same-code", actor: "new-ops@akash.network" });
+
+      expect(affiliateRepository.updateById).toHaveBeenCalledWith(existing.id, expect.objectContaining({ code: "same-code" }), { returning: true });
+    });
   });
 
   describe("revoke", () => {
@@ -140,13 +187,21 @@ describe(AffiliateService.name, () => {
       const { service, affiliateRepository } = setup();
       affiliateRepository.findByCode.mockResolvedValue(undefined);
 
-      await expect(service.revoke({ code: "unknown", actor: "ops@akash.network" })).rejects.toMatchObject({ status: 404 });
+      await expect(service.revoke({ code: "unknown", actor: "ops@akash.network" })).rejects.toMatchObject({
+        status: 404,
+        message: "No affiliate with this code was found",
+        errorCode: "affiliate_not_found"
+      });
     });
 
     it("rejects with 404 for a malformed code without reaching the repository", async () => {
       const { service, affiliateRepository } = setup();
 
-      await expect(service.revoke({ code: "a", actor: "ops@akash.network" })).rejects.toMatchObject({ status: 404 });
+      await expect(service.revoke({ code: "a", actor: "ops@akash.network" })).rejects.toMatchObject({
+        status: 404,
+        message: "No affiliate with this code was found",
+        errorCode: "affiliate_not_found"
+      });
       expect(affiliateRepository.findByCode).not.toHaveBeenCalled();
     });
 
@@ -231,6 +286,12 @@ describe(AffiliateService.name, () => {
 
       await expect(service.findActiveByUserId("some-user-id")).resolves.toBeUndefined();
     });
+  });
+
+  it("creates the logger with the service context", () => {
+    const { createLogger } = setup();
+
+    expect(createLogger).toHaveBeenCalledWith({ context: AffiliateService.name });
   });
 
   function setup() {
