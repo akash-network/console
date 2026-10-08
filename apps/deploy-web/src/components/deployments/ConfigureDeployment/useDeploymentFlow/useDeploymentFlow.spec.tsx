@@ -2180,6 +2180,36 @@ describe(useDeploymentFlow.name, () => {
       expect(result.current.phase).toBe("configuring");
     });
 
+    it("tracks close_deployment_failed once the feed reports a background close failed", () => {
+      const closeMutate = vi.fn((_args, options) => options.onSuccess?.({ data: { activityId: "activity-1" } }));
+      const { result, feed, rerender, analyticsService } = setup({
+        intent: { sdlStrategy: "edit", bidStrategy: "select", dseq: "777" },
+        closeMutate,
+        isClosingInBackground: true
+      });
+      act(() => result.current.actions.cancelAndEdit());
+
+      feed.activities = [buildActivity({ id: "activity-1", status: "failed" })];
+      rerender();
+
+      expect(analyticsService.track).toHaveBeenCalledWith("close_deployment_failed", { category: "deployments", dseq: "777", verifiedClosed: false });
+    });
+
+    it("tracks no close failure once the feed reports a background close succeeded", () => {
+      const closeMutate = vi.fn((_args, options) => options.onSuccess?.({ data: { activityId: "activity-1" } }));
+      const { result, feed, rerender, analyticsService } = setup({
+        intent: { sdlStrategy: "edit", bidStrategy: "select", dseq: "777" },
+        closeMutate,
+        isClosingInBackground: true
+      });
+      act(() => result.current.actions.cancelAndEdit());
+
+      feed.activities = [buildActivity({ id: "activity-1", status: "succeeded" })];
+      rerender();
+
+      expect(analyticsService.track).not.toHaveBeenCalledWith("close_deployment_failed", expect.anything());
+    });
+
     it("reports a close the api refused without a reason as still open with no message", () => {
       const closeMutate = vi.fn((_args, options) => options.onError?.(new Error("network down")));
       const getDeploymentMutate = vi.fn((_args, options) => options.onSuccess?.({ data: { deployment: { state: "active" } } }));

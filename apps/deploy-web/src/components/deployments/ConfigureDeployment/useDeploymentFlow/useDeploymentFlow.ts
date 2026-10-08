@@ -447,9 +447,11 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
       const activity = activities?.find(({ id }) => id === backgroundClose.activityId);
       if (!activity || activity.status === "pending") return;
       setBackgroundClose(null);
-      settleClose(backgroundClose.dseq, backgroundClose.token, activity.status === "succeeded", activity.meta.error?.message);
+      const verifiedClosed = activity.status === "succeeded";
+      if (!verifiedClosed) analyticsService.track("close_deployment_failed", { category: "deployments", dseq: backgroundClose.dseq, verifiedClosed });
+      settleClose(backgroundClose.dseq, backgroundClose.token, verifiedClosed, activity.meta.error?.message);
     },
-    [activities, backgroundClose, settleClose]
+    [activities, backgroundClose, settleClose, analyticsService]
   );
 
   /** A deployment this session opened that is known to be still open with no close in flight: the next create closes it first. */
