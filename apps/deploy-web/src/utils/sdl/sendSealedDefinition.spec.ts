@@ -1,11 +1,12 @@
 import { ApiError } from "@akashnetwork/openapi-sdk";
+import { faker } from "@faker-js/faker";
 import { describe, expect, it, vi } from "vitest";
 
 import type { RecordableDefinition } from "./recordableDefinition";
 import type { SdlSecretsSealContext } from "./sealSdlSecrets";
 import { isDefinitionAlreadyRecorded, isDefinitionMismatch, sendSealedDefinition } from "./sendSealedDefinition";
 
-const DEFINITION: RecordableDefinition = { sdl: 'version: "2.0"\nservices: {}\n', secrets: { DATABASE_PASSWORD: "hunter2hunter2" } };
+const DEFINITION: RecordableDefinition = { sdl: 'version: "2.0"\nservices: {}\n', secrets: { DATABASE_PASSWORD: faker.internet.password() } };
 const CONTEXT: SdlSecretsSealContext = { kid: "sdl-secrets.v1", sub: "user-1", jwk: { kty: "RSA", n: "n", e: "AQAB" } };
 const STALE_SEAL = new ApiError(409, { message: "The sealing key is no longer current", code: "conflict" }, "POST → 409");
 const ALREADY_RECORDED = new ApiError(409, { message: "The console already holds a definition", code: "deployment_definition_exists" }, "POST → 409");
