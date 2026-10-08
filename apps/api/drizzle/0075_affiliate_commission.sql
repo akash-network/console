@@ -1,4 +1,4 @@
 ALTER TYPE "public"."stripe_transaction_type" ADD VALUE 'affiliate_commission';--> statement-breakpoint
 ALTER TABLE "stripe_transactions" ADD COLUMN "source_transaction_id" uuid;--> statement-breakpoint
-ALTER TABLE "stripe_transactions" ADD CONSTRAINT "stripe_transactions_source_transaction_id_stripe_transactions_id_fk" FOREIGN KEY ("source_transaction_id") REFERENCES "public"."stripe_transactions"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "stripe_transactions" ADD CONSTRAINT "stripe_transactions_source_transaction_id_stripe_transactions_id_fk" FOREIGN KEY ("source_transaction_id") REFERENCES "public"."stripe_transactions"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 CREATE UNIQUE INDEX "stripe_transactions_source_transaction_id_unique" ON "stripe_transactions" USING btree ("source_transaction_id") WHERE "stripe_transactions"."source_transaction_id" IS NOT NULL;

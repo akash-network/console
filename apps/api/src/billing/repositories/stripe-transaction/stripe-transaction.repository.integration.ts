@@ -354,6 +354,31 @@ describe(StripeTransactionRepository.name, () => {
         stripeTransactionRepository.createAffiliateCommission({ userId: affiliate.id, amount: 500, sourceTransactionId: sourcePayment.id })
       ).rejects.toThrow();
     });
+
+    it("survives deleting the referred user, with its source transaction id severed to null", async () => {
+      const { stripeTransactionRepository, userRepository, createTestUser } = setup();
+      const affiliate = await createTestUser();
+      const referredUser = await createTestUser();
+      const sourcePayment = await stripeTransactionRepository.create({
+        userId: referredUser.id,
+        type: "payment_intent",
+        status: "succeeded",
+        amount: 10000,
+        currency: "usd"
+      });
+      const commission = await stripeTransactionRepository.createAffiliateCommission({
+        userId: affiliate.id,
+        amount: 500,
+        sourceTransactionId: sourcePayment.id
+      });
+
+      await userRepository.deleteById(referredUser.id);
+
+      await expect(stripeTransactionRepository.findById(commission.id)).resolves.toMatchObject({
+        userId: affiliate.id,
+        sourceTransactionId: null
+      });
+    });
   });
 
   describe("findAffiliateCommissionBySource", () => {

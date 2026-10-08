@@ -43,7 +43,7 @@ export const StripeTransactions = pgTable(
     receiptUrl: varchar("receipt_url", { length: 2048 }),
     description: varchar("description", { length: 500 }),
     errorMessage: varchar("error_message", { length: 1000 }),
-    sourceTransactionId: uuid("source_transaction_id").references((): AnyPgColumn => StripeTransactions.id),
+    sourceTransactionId: uuid("source_transaction_id").references((): AnyPgColumn => StripeTransactions.id, { onDelete: "set null" }),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull()
   },
