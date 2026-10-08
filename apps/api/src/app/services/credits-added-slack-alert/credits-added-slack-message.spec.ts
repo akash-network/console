@@ -14,7 +14,8 @@ describe(buildCreditsAddedSlackMessage.name, () => {
     { source: "payment_intent", isAutoRecharge: false, label: ":credit_card: *Card purchase*" },
     { source: "payment_intent", isAutoRecharge: true, label: ":repeat: *Auto-recharge*" },
     { source: "coupon_claim", isAutoRecharge: false, label: ":ticket: *Coupon claim*" },
-    { source: "manual_credit", isAutoRecharge: false, label: ":gift: *Admin credit*" }
+    { source: "manual_credit", isAutoRecharge: false, label: ":gift: *Admin credit*" },
+    { source: "affiliate_commission", isAutoRecharge: false, label: ":handshake: *Affiliate commission*" }
   ] as const)(
     "labels a $source credit (auto-recharge: $isAutoRecharge) from a returning customer with the credited amount in bold",
     ({ source, isAutoRecharge, label }) => {
@@ -35,7 +36,8 @@ describe(buildCreditsAddedSlackMessage.name, () => {
 
   it.each([
     { source: "coupon_claim", label: ":ticket: *Coupon claim*" },
-    { source: "manual_credit", label: ":gift: *Admin credit*" }
+    { source: "manual_credit", label: ":gift: *Admin credit*" },
+    { source: "affiliate_commission", label: ":handshake: *Affiliate commission*" }
   ] as const)("says a $source buyer who never paid has no paid purchase yet rather than calling them a customer", ({ source, label }) => {
     const message = setup({ event: { source }, hasPaidBefore: false });
 

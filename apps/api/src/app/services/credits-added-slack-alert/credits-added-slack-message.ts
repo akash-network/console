@@ -13,6 +13,8 @@ function describeSource(event: EventPayload<CreditsAdded>): string {
       return ":ticket: *Coupon claim*";
     case "manual_credit":
       return ":gift: *Admin credit*";
+    case "affiliate_commission":
+      return ":handshake: *Affiliate commission*";
   }
 }
 
