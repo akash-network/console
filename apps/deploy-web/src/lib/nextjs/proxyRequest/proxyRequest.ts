@@ -50,6 +50,8 @@ interface ProxyOptions {
    */
   timeout?: number;
   headers?: HeadersInit;
+  /** Lowercase names of incoming request headers that are never forwarded, even when `headers` does not override them. */
+  omitRequestHeaders?: string[];
   fetch?: typeof globalThis.fetch;
   onError?: (error: Error) => void;
 }
@@ -64,6 +66,7 @@ async function forwardRequestStream(req: NextApiRequest, res: NextApiResponse, o
     const lowKey = key.toLowerCase();
     if (lowKey === "host" || lowKey === "connection" || lowKey === "cookie") return;
     if (HEADERS_TO_SKIP.has(lowKey)) return;
+    if (options.omitRequestHeaders?.includes(lowKey)) return;
     if (!Array.isArray(value)) {
       headers.set(key, value);
       return;

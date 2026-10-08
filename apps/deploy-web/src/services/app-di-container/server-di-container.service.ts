@@ -6,6 +6,7 @@ import { createGetSessionWithRefresh } from "@src/lib/auth0/getSessionWithRefres
 import { setSession } from "@src/lib/auth0/setSession/setSession";
 import { proxyRequest } from "@src/lib/nextjs/proxyRequest/proxyRequest";
 import { createApiSdk } from "@src/services/api-sdk/createApiSdk";
+import { activeOrganizationForwardingInterceptor } from "../active-organization-forwarding/active-organization-forwarding.interceptor";
 import { ApiUrlService } from "../api-url/api-url.service";
 import { clientIpForwardingInterceptor } from "../client-ip-forwarding/client-ip-forwarding.interceptor";
 import { createChildContainer } from "../container/createContainer";
@@ -19,7 +20,7 @@ const rootContainer = createAppRootContainer({
   runtimeEnv: "nodejs",
   BASE_PROVIDER_PROXY_URL: serverEnvConfig.NEXT_PUBLIC_PROVIDER_PROXY_URL,
   MANAGED_WALLET_NETWORK_ID: serverEnvConfig.NEXT_PUBLIC_MANAGED_WALLET_NETWORK_ID,
-  globalRequestMiddleware: clientIpForwardingInterceptor,
+  globalRequestMiddleware: config => activeOrganizationForwardingInterceptor(clientIpForwardingInterceptor(config)),
   apiUrlService: () => new ApiUrlService(serverEnvConfig)
 });
 

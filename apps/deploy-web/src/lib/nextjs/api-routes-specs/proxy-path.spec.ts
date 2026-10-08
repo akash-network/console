@@ -41,11 +41,35 @@ describe("proxy [...path] handler", () => {
     expect(getForwardedHeaders(proxyRequest)["cf-connecting-ip"]).toBe("127.0.0.1");
   });
 
+  it("forwards the console_org cookie as x-organization-id", async () => {
+    const { proxyRequest } = await setup({ session: null, headers: { cookie: "theme=dark; console_org=acme-corp" } });
+
+    expect(getForwardedHeaders(proxyRequest)["x-organization-id"]).toBe("acme-corp");
+  });
+
+  it("sends no x-organization-id when there is no console_org cookie", async () => {
+    const { proxyRequest } = await setup({ session: null, headers: { cookie: "theme=dark" } });
+
+    expect(getForwardedHeaders(proxyRequest)["x-organization-id"]).toBeUndefined();
+  });
+
+  it("drops a console_org cookie whose value is not an organization id", async () => {
+    const { proxyRequest } = await setup({ session: null, headers: { cookie: "console_org=Acme%20Corp" } });
+
+    expect(getForwardedHeaders(proxyRequest)["x-organization-id"]).toBeUndefined();
+  });
+
+  it("never lets a client-supplied x-organization-id through", async () => {
+    const { proxyRequest } = await setup({ session: null, headers: { "x-organization-id": "other-org" } });
+
+    expect(proxyRequest.mock.calls[0]![2].omitRequestHeaders).toEqual(["x-organization-id"]);
+  });
+
   function getForwardedHeaders(proxyRequest: Mock): Record<string, string> {
     return proxyRequest.mock.calls[0]![2].headers as Record<string, string>;
   }
 
-  async function setup(input: { session: Session | null }) {
+  async function setup(input: { session: Session | null; headers?: Record<string, string> }) {
     const proxyRequest = vi.fn().mockResolvedValue(undefined);
     const getSession = vi.fn().mockResolvedValue(input.session);
     const logger = mock<LoggerService>();
@@ -60,7 +84,7 @@ describe("proxy [...path] handler", () => {
       cookies: {},
       socket: mock<Socket>({ remoteAddress: "127.0.0.1" })
     });
-    req.headers = {};
+    req.headers = input.headers ?? {};
     const res = mock<NextApiResponse>();
 
     req[REQ_SERVICES_KEY] = {
