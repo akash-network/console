@@ -1991,6 +1991,10 @@
                   },
                   "subscribedToNewsletter": {
                     "type": "boolean"
+                  },
+                  "referralCode": {
+                    "type": "string",
+                    "maxLength": 64
                   }
                 },
                 "required": [

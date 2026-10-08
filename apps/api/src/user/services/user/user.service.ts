@@ -3,6 +3,7 @@ import createError from "http-errors";
 import randomInt from "lodash/random";
 import { inject, singleton } from "tsyringe";
 
+import { ReferralService } from "@src/affiliate/services/referral/referral.service";
 import { ACCOUNT_UNAVAILABLE_ERROR_CODE, ACCOUNT_UNAVAILABLE_MESSAGE } from "@src/auth/lib/account-unavailable/account-unavailable";
 import { Auth0Service } from "@src/auth/services/auth0/auth0.service";
 import { EmailVerificationCodeService } from "@src/auth/services/email-verification-code/email-verification-code.service";
@@ -30,7 +31,8 @@ export class UserService {
     private readonly walletInitializer: WalletInitializerService,
     private readonly trialActivationJobService: TrialActivationJobService,
     private readonly dataKeyService: DataKeyService,
-    private readonly blockedEmailDomainService: BlockedEmailDomainService
+    private readonly blockedEmailDomainService: BlockedEmailDomainService,
+    private readonly referralService: ReferralService
   ) {
     this.logger = createLogger({ context: UserService.name });
   }
@@ -77,6 +79,12 @@ export class UserService {
     });
 
     await this.ensureDataKeyBestEffort(user.id);
+
+    if (wasInserted && data.referralCode) {
+      await this.referralService.attribute({ referredUserId: user.id, code: data.referralCode }).catch(error => {
+        this.logger.error({ event: "FAILED_TO_ATTRIBUTE_REFERRAL", id: user.id, error });
+      });
+    }
 
     if (user.emailVerified) {
       await this.trialActivationJobService.schedule(user.id).catch(error => {
@@ -269,4 +277,5 @@ export interface RegisterUserInput {
   ip: string;
   userAgent: string;
   fingerprint: string;
+  referralCode?: string;
 }

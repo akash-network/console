@@ -519,6 +519,13 @@
       "when": 1791445153485,
       "tag": "0073_affiliates",
       "breakpoints": true
+    },
+    {
+      "idx": 74,
+      "version": "7",
+      "when": 1791457328000,
+      "tag": "0074_referrals",
+      "breakpoints": true
     }
   ]
 }

@@ -2,6 +2,7 @@ import { faker } from "@faker-js/faker";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
+import type { ReferralService } from "@src/affiliate/services/referral/referral.service";
 import { ACCOUNT_UNAVAILABLE_ERROR_CODE, ACCOUNT_UNAVAILABLE_MESSAGE } from "@src/auth/lib/account-unavailable/account-unavailable";
 import type { Auth0Service } from "@src/auth/services/auth0/auth0.service";
 import type { EmailVerificationCodeService } from "@src/auth/services/email-verification-code/email-verification-code.service";
@@ -123,6 +124,53 @@ describe(UserService.name, () => {
       const result = await service.registerUser(createRegisterInput({ emailVerified: true }));
 
       expect(result.isNewUser).toBe(false);
+    });
+
+    it("attributes the referral when a new user registers with a referral code", async () => {
+      const user = createUser({ emailVerified: true });
+      const { service, userRepository, notificationService, referralService } = setup();
+      userRepository.upsertOnExternalIdConflict.mockResolvedValue({ user, wasInserted: true });
+      notificationService.createDefaultChannel.mockResolvedValue(undefined);
+
+      await service.registerUser(createRegisterInput({ emailVerified: true, referralCode: "friendcode" }));
+
+      expect(referralService.attribute).toHaveBeenCalledWith({ referredUserId: user.id, code: "friendcode" });
+    });
+
+    it("does not attribute a referral when the user already existed", async () => {
+      const user = createUser({ emailVerified: true });
+      const { service, userRepository, notificationService, referralService } = setup();
+      userRepository.upsertOnExternalIdConflict.mockResolvedValue({ user, wasInserted: false });
+      notificationService.createDefaultChannel.mockResolvedValue(undefined);
+
+      await service.registerUser(createRegisterInput({ emailVerified: true, referralCode: "friendcode" }));
+
+      expect(referralService.attribute).not.toHaveBeenCalled();
+    });
+
+    it("does not attribute a referral when no referral code is given", async () => {
+      const user = createUser({ emailVerified: true });
+      const { service, userRepository, notificationService, referralService } = setup();
+      userRepository.upsertOnExternalIdConflict.mockResolvedValue({ user, wasInserted: true });
+      notificationService.createDefaultChannel.mockResolvedValue(undefined);
+
+      await service.registerUser(createRegisterInput({ emailVerified: true, referralCode: undefined }));
+
+      expect(referralService.attribute).not.toHaveBeenCalled();
+    });
+
+    it("logs error but does not throw when referral attribution fails", async () => {
+      const user = createUser({ emailVerified: true });
+      const { service, userRepository, notificationService, referralService, logger } = setup();
+      const attributionError = new Error("insert failed");
+      userRepository.upsertOnExternalIdConflict.mockResolvedValue({ user, wasInserted: true });
+      notificationService.createDefaultChannel.mockResolvedValue(undefined);
+      referralService.attribute.mockRejectedValue(attributionError);
+
+      const result = await service.registerUser(createRegisterInput({ emailVerified: true, referralCode: "friendcode" }));
+
+      expect(result.id).toBe(user.id);
+      expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "FAILED_TO_ATTRIBUTE_REFERRAL", id: user.id, error: attributionError }));
     });
 
     it("ensures the user has a wallet even when the user already existed", async () => {
@@ -265,6 +313,7 @@ describe(UserService.name, () => {
     const trialActivationJobService = mock<TrialActivationJobService>({ schedule: vi.fn().mockResolvedValue(undefined) });
     const dataKeyService = mock<DataKeyService>({ ensureDataKey: vi.fn().mockResolvedValue(createDataKey()) });
     const blockedEmailDomainService = mock<BlockedEmailDomainService>({ isBlockedEmail: vi.fn().mockResolvedValue(false) });
+    const referralService = mock<ReferralService>({ attribute: vi.fn().mockResolvedValue(undefined) });
 
     const service = new UserService(
       userRepository,
@@ -276,7 +325,8 @@ describe(UserService.name, () => {
       walletInitializerService,
       trialActivationJobService,
       dataKeyService,
-      blockedEmailDomainService
+      blockedEmailDomainService,
+      referralService
     );
 
     return {
@@ -290,7 +340,8 @@ describe(UserService.name, () => {
       auth0Service,
       emailVerificationCodeService,
       walletInitializerService,
-      dataKeyService
+      dataKeyService,
+      referralService
     };
   }
 

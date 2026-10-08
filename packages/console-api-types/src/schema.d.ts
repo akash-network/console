@@ -604,6 +604,7 @@ export interface paths {
             email: string;
             emailVerified: boolean;
             subscribedToNewsletter?: boolean;
+            referralCode?: string;
           };
         };
       };
