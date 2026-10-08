@@ -60,13 +60,13 @@ describe(AddCreditsSheet.name, () => {
     expect(analyticsService.track).toHaveBeenCalledWith("add_credits_opened", { category: "billing", context: "skip-trial" });
   });
 
-  it("tracks a purchase when the tabs report completion", () => {
+  it("leaves tracking the purchase to the purchase form when the tabs report completion", () => {
     const { analyticsService, dependencies } = setup({ open: true });
     const tabsProps = dependencies.AddCreditsTabs.mock.calls.at(-1)![0] as Parameters<typeof DEPENDENCIES.AddCreditsTabs>[0];
 
     act(() => tabsProps.onDone(250, "Acme", 10));
 
-    expect(analyticsService.track).toHaveBeenCalledWith("add_credits_purchased", { category: "billing", amount: 250, context: undefined });
+    expect(analyticsService.track).not.toHaveBeenCalledWith("add_credits_purchased", expect.anything());
   });
 
   it("tracks a cancellation when the sheet is closed without a purchase", () => {
@@ -93,6 +93,12 @@ describe(AddCreditsSheet.name, () => {
     const { dependencies } = setup({ open: true, initialTab: "coupon" });
 
     expect(dependencies.AddCreditsTabs).toHaveBeenCalledWith(expect.objectContaining({ initialTab: "coupon" }), expect.anything());
+  });
+
+  it("threads where the sheet was opened from to the tabs", () => {
+    const { dependencies } = setup({ open: true, context: "skip-trial" });
+
+    expect(dependencies.AddCreditsTabs).toHaveBeenCalledWith(expect.objectContaining({ context: "skip-trial" }), expect.anything());
   });
 
   it("blocks closing while the tabs report a payment in progress", () => {

@@ -44,6 +44,14 @@ describe(AddCreditsTabs.name, () => {
     expect(RedeemCouponForm.mock.calls[0][0]).toEqual(expect.objectContaining({ onRedeemed }));
   });
 
+  it("forwards where the modal was opened from to the purchase form", () => {
+    const AddCreditsForm = vi.fn((_props: Parameters<typeof DEPENDENCIES.AddCreditsForm>[0]) => <div>purchase-form</div>);
+
+    setup({ context: "auto_deploy_needs_funds", dependencies: { AddCreditsForm } });
+
+    expect(AddCreditsForm.mock.calls[0][0]).toEqual(expect.objectContaining({ context: "auto_deploy_needs_funds" }));
+  });
+
   it("forwards aggregated processing state to the parent", () => {
     const onProcessingChange = vi.fn();
 
@@ -68,6 +76,7 @@ describe(AddCreditsTabs.name, () => {
 
   function setup(input: {
     initialTab?: "purchase" | "coupon";
+    context?: string;
     onDone?: (amount: number, organization?: string) => void;
     onRedeemed?: () => void;
     onProcessingChange?: (isProcessing: boolean) => void;
@@ -76,6 +85,7 @@ describe(AddCreditsTabs.name, () => {
     return render(
       <AddCreditsTabs
         initialTab={input.initialTab}
+        context={input.context}
         onDone={input.onDone ?? vi.fn()}
         onRedeemed={input.onRedeemed}
         onProcessingChange={input.onProcessingChange}
