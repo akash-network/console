@@ -54,7 +54,7 @@ export function OnboardingPickerPage({ dependencies: d = DEPENDENCIES }: Onboard
   const router = d.useRouter();
   const { isTrialing } = d.useWallet();
   const { publicConfig, urlService, analyticsService } = d.useServices();
-  const { data: referral } = d.useReferralQuery();
+  const { data: referral, isLoading: isReferralLoading } = d.useReferralQuery();
   const trialCreditsAmount = referral?.trialCreditsUsd ?? publicConfig.NEXT_PUBLIC_TRIAL_CREDITS_AMOUNT;
   const [addCreditsSheetReason, setAddCreditsSheetReason] = useState<"unlock-gpu" | "hackathon-coupon" | null>(null);
   const { isWalletReady } = d.useEnsureTrialStarted();
@@ -124,10 +124,15 @@ export function OnboardingPickerPage({ dependencies: d = DEPENDENCIES }: Onboard
             <div className="flex flex-col gap-1.5">
               <h1 className="text-3xl leading-9 text-foreground">Let&apos;s deploy your first app</h1>
               <p className="max-w-2xl text-sm leading-5 text-muted-foreground">
-                We&apos;ve provided you with <span className="font-medium text-blue-600 dark:text-blue-400">${trialCreditsAmount} in free trial credits</span>.
-                This covers a couple of smaller deployments so you can see how easy it is. Purchase your first credits to unlock our full experience - up to $
-                {MAX_BONUS} free credits, full GPU access and 30 day deployments. Plus, get {BONUS_PERCENT}% in bonus credits on your first purchase, up to $
-                {MAX_BONUS}. Pick a template to get a live URL in about 30 seconds.
+                {!isReferralLoading && (
+                  <>
+                    We&apos;ve provided you with{" "}
+                    <span className="font-medium text-blue-600 dark:text-blue-400">${trialCreditsAmount} in free trial credits</span>. This covers a couple of
+                    smaller deployments so you can see how easy it is.{" "}
+                  </>
+                )}
+                Purchase your first credits to unlock our full experience - up to ${MAX_BONUS} free credits, full GPU access and 30 day deployments. Plus, get{" "}
+                {BONUS_PERCENT}% in bonus credits on your first purchase, up to ${MAX_BONUS}. Pick a template to get a live URL in about 30 seconds.
               </p>
             </div>
 
