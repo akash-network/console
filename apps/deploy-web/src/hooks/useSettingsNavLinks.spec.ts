@@ -50,6 +50,12 @@ describe(useSettingsNavLinks.name, () => {
     expect(links.map(link => link.title)).not.toContain("Referrals");
   });
 
+  it("excludes Referrals when the flag is on but the caller is not signed in", () => {
+    const { links } = setup({ isAffiliateProgramEnabled: true, isSignedIn: false });
+
+    expect(links.map(link => link.title)).not.toContain("Referrals");
+  });
+
   it("excludes Referrals when the caller has a profile but the flag is off", () => {
     const { links } = setup({ isAffiliateProgramEnabled: false, affiliateProfile: buildAffiliateProfile() });
 
@@ -91,10 +97,12 @@ describe(useSettingsNavLinks.name, () => {
     return { code: "friendcode", terms: { commissionPercent: 5, commissionMonths: 12, referralTrialCreditsUsd: 5 } };
   }
 
-  function setup(input: { pathname?: string; isAffiliateProgramEnabled?: boolean; affiliateProfile?: AffiliateProfile | null }) {
+  function setup(input: { pathname?: string; isAffiliateProgramEnabled?: boolean; affiliateProfile?: AffiliateProfile | null; isSignedIn?: boolean }) {
     const useFlag = vi.fn<typeof DEPENDENCIES.useFlag>(() => input.isAffiliateProgramEnabled ?? false);
     const useAffiliateProfileQuery = vi.fn<typeof DEPENDENCIES.useAffiliateProfileQuery>(() =>
-      Object.assign(mock<ReturnType<typeof DEPENDENCIES.useAffiliateProfileQuery>>(), { data: input.affiliateProfile ?? null })
+      Object.assign(mock<ReturnType<typeof DEPENDENCIES.useAffiliateProfileQuery>>(), {
+        data: input.isSignedIn === false ? undefined : input.affiliateProfile ?? null
+      })
     );
     const dependencies: Partial<typeof DEPENDENCIES> = {
       usePathname: () => input.pathname ?? "/",
