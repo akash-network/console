@@ -5,7 +5,9 @@ import { useAtomValue } from "jotai";
 import { useRouter } from "next/router";
 
 import { useServices } from "@src/context/ServicesProvider";
+import { useFlag } from "@src/hooks/useFlag";
 import { QueryKeys } from "@src/queries/queryKeys";
+import { useLatestActivitiesQuery } from "@src/queries/useLatestActivitiesQuery";
 import { BID_POLL_INTERVAL, useListBids } from "@src/queries/useListBids";
 import { SKIP_REPORTING_REFUSED_INPUT } from "@src/services/query-error-policy/query-error-policy";
 import { settingsIdAtom } from "@src/store/settingsStore";
@@ -155,6 +157,8 @@ export const DEPENDENCIES = {
   useListBids,
   useRouter,
   useQueryClient,
+  useFlag,
+  useLatestActivitiesQuery,
   // eslint-disable-next-line akash/dependencies-component-or-hook
   manifestFromSdl,
   // eslint-disable-next-line akash/dependencies-component-or-hook
@@ -208,6 +212,11 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
   const [deploySucceeded, setDeploySucceeded] = useState(false);
   const [pendingClose, setPendingClose] = useState<PendingClose | null>(null);
   const [noBidsReceived, setNoBidsReceived] = useState(false);
+
+  const isClosingInBackground = dependencies.useFlag("notifications_activity_center");
+  /** A close the api took on in the background, followed through the activity feed until it settles; `token` is the close that started it. */
+  const [backgroundClose, setBackgroundClose] = useState<{ dseq: string; token: number; activityId: string } | null>(null);
+  const { data: activities } = dependencies.useLatestActivitiesQuery({ enabled: backgroundClose !== null });
 
   const intentRef = useRef(intent);
   intentRef.current = intent;
@@ -350,7 +359,7 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
 
   /** A failure only becomes an error scene when a create was queued behind it, so a purely background one leaves the phase alone. */
   const settleClose = useCallback(
-    function settleClose(closedDseq: string, token: number, verifiedClosed: boolean, cause?: unknown) {
+    function settleClose(closedDseq: string, token: number, verifiedClosed: boolean, message?: string) {
       if (token !== closeTokenRef.current) return;
       closingDseqRef.current = null;
       const queuedCreate = queuedCreateRef.current;
@@ -363,7 +372,6 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
         return;
       }
 
-      const message = extractApiErrorMessage(cause) ?? undefined;
       setPendingClose({ dseq: closedDseq, failed: true, message });
       if (!queuedCreate) return;
       setError({ message, kind: "close" });
@@ -382,7 +390,7 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
       function settle(verifiedClosed: boolean) {
         if (token !== closeTokenRef.current) return;
         analyticsService.track("close_deployment_failed", { category: "deployments", dseq: dseqToVerify, verifiedClosed });
-        settleClose(dseqToVerify, token, verifiedClosed, cause);
+        settleClose(dseqToVerify, token, verifiedClosed, extractApiErrorMessage(cause) ?? undefined);
       }
       getDeployment.mutate(
         { dseq: dseqToVerify },
@@ -399,25 +407,51 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
     [getDeployment, analyticsService, settleClose]
   );
 
-  /** The only close path, so one mutex and one queue cover both a cancel's background close and a pre-create close. */
+  /** The only close path, so one mutex and one queue cover every close; one a create waits on is made during the request, so only one deployment is ever open. */
   const startClose = useCallback(
-    function startClose(dseqToClose: string) {
+    function startClose(dseqToClose: string, timing: "in-background" | "now" = "now") {
       const token = ++closeTokenRef.current;
       closingDseqRef.current = dseqToClose;
+      setBackgroundClose(null);
       setPendingClose({ dseq: dseqToClose, failed: false });
-      closeDeployment.mutate(
-        { dseq: dseqToClose },
-        {
-          onSuccess: function onClosed() {
-            settleClose(dseqToClose, token, true);
-          },
-          onError: function onCloseFailed(cause: unknown) {
-            verifyCloseOutcome(dseqToClose, token, cause);
-          }
+      const inBackground = timing === "in-background" && isClosingInBackground;
+
+      function followInBackground(activityId: string) {
+        if (token !== closeTokenRef.current) return;
+        if (queuedCreateRef.current) {
+          startClose(dseqToClose);
+          return;
         }
-      );
+        closingDseqRef.current = null;
+        setBackgroundClose({ dseq: dseqToClose, token, activityId });
+        queryClient.invalidateQueries({ queryKey: api.v1.listActivities.getKey() });
+      }
+
+      closeDeployment.mutate(inBackground ? { dseq: dseqToClose, async: "true" } : { dseq: dseqToClose }, {
+        onSuccess: function followOrSettle(result) {
+          const activityId = inBackground ? acceptedActivityIdOf(result.data) : undefined;
+          if (activityId) followInBackground(activityId);
+          else settleClose(dseqToClose, token, true);
+        },
+        onError: function onCloseFailed(cause: unknown) {
+          verifyCloseOutcome(dseqToClose, token, cause);
+        }
+      });
     },
-    [closeDeployment, settleClose, verifyCloseOutcome]
+    [closeDeployment, settleClose, verifyCloseOutcome, isClosingInBackground, queryClient, api]
+  );
+
+  useEffect(
+    function settleBackgroundCloseFromFeed() {
+      if (!backgroundClose) return;
+      const activity = activities?.find(({ id }) => id === backgroundClose.activityId);
+      if (!activity || activity.status === "pending") return;
+      setBackgroundClose(null);
+      const verifiedClosed = activity.status === "succeeded";
+      if (!verifiedClosed) analyticsService.track("close_deployment_failed", { category: "deployments", dseq: backgroundClose.dseq, verifiedClosed });
+      settleClose(backgroundClose.dseq, backgroundClose.token, verifiedClosed, activity.meta.error?.message);
+    },
+    [activities, backgroundClose, settleClose, analyticsService]
   );
 
   /** A deployment this session opened that is known to be still open with no close in flight: the next create closes it first. */
@@ -528,7 +562,7 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
         void sealAndSubmit(true);
       }
 
-      const openDseq = dseq ?? strandedDseq;
+      const openDseq = dseq ?? strandedDseq ?? backgroundClose?.dseq;
       if (openDseq) {
         setPhase("creating");
         setDseq(null);
@@ -545,7 +579,7 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
 
       create();
     },
-    [createDeployment, closeDeployment, sealSecrets, dseq, strandedDseq, router, analyticsService, startClose]
+    [createDeployment, closeDeployment, sealSecrets, dseq, strandedDseq, backgroundClose, router, analyticsService, startClose]
   );
 
   /**
@@ -561,7 +595,7 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
       const isCreateOutstanding = phase === "creating" && !closingDseqRef.current;
       if (!dseqToClose && isCreateOutstanding) analyticsService.track("cancel_during_create", { category: "deployments" });
       resetToConfiguring();
-      if (dseqToClose) startClose(dseqToClose);
+      if (dseqToClose) startClose(dseqToClose, "in-background");
     },
     [dseq, strandedDseq, phase, router, bidStrategy, analyticsService, resetToConfiguring, startClose]
   );
@@ -579,7 +613,7 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
       clearDeploymentState();
       setError({ message, kind: "no-match" });
       setPhase("error");
-      if (dseqToClose) startClose(dseqToClose);
+      if (dseqToClose) startClose(dseqToClose, "in-background");
     },
     [dseq, strandedDseq, router, clearDeploymentState, startClose]
   );
@@ -587,7 +621,7 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
   const retryClose = useCallback(
     function retryClose() {
       if (!strandedDseq) return;
-      startClose(strandedDseq);
+      startClose(strandedDseq, "in-background");
     },
     [strandedDseq, startClose]
   );
@@ -599,7 +633,7 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
       createAttemptRef.current += 1;
       queuedCreateRef.current = null;
       const dseqToClose = dseq ?? strandedDseq;
-      if (dseqToClose && closingDseqRef.current !== dseqToClose) startClose(dseqToClose);
+      if (dseqToClose && closingDseqRef.current !== dseqToClose) startClose(dseqToClose, "in-background");
     },
     [dseq, strandedDseq, startClose]
   );
@@ -799,6 +833,11 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
     pendingClose,
     actions: { requestQuotes, cancelAndEdit, closeAndFail, retryClose, discard, setBidStrategy, refreshQuotes, retry, selectProvider, clearSelection, deploy }
   };
+}
+
+/** The activity the api answered a background close with; a close it already made during the request answers without one. */
+function acceptedActivityIdOf(data: object): string | undefined {
+  return "activityId" in data && typeof data.activityId === "string" ? data.activityId : undefined;
 }
 
 /** The api refuses a blank name rather than reading it as "unnamed", so a name the user left empty is left out of the request entirely. */
