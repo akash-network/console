@@ -212,6 +212,16 @@ export const operations = {
       queryParams: [],
       hasBody: true
     },
+    listActivities: {
+      path: "/v1/activities",
+      method: "get",
+      operationId: "listActivities",
+      pathParams: [],
+      queryParams: ["limit", "cursor", "status", "type"],
+      hasBody: false
+    },
+    getActivity: { path: "/v1/activities/{id}", method: "get", operationId: "getActivity", pathParams: ["id"], queryParams: [], hasBody: false },
+    markActivitiesSeen: { path: "/v1/activities/seen", method: "post", operationId: "markActivitiesSeen", pathParams: [], queryParams: [], hasBody: true },
     listFavoriteProviders: {
       path: "/v1/favorite-providers",
       method: "get",
@@ -233,6 +243,30 @@ export const operations = {
       method: "delete",
       operationId: "deleteFavoriteProvider",
       pathParams: ["providerAddress"],
+      queryParams: [],
+      hasBody: false
+    },
+    getConfigureDraft: {
+      path: "/v1/configure-drafts/{draftId}",
+      method: "get",
+      operationId: "getConfigureDraft",
+      pathParams: ["draftId"],
+      queryParams: [],
+      hasBody: false
+    },
+    updateConfigureDraft: {
+      path: "/v1/configure-drafts/{draftId}",
+      method: "put",
+      operationId: "updateConfigureDraft",
+      pathParams: ["draftId"],
+      queryParams: [],
+      hasBody: true
+    },
+    deleteConfigureDraft: {
+      path: "/v1/configure-drafts/{draftId}",
+      method: "delete",
+      operationId: "deleteConfigureDraft",
+      pathParams: ["draftId"],
       queryParams: [],
       hasBody: false
     },
@@ -309,40 +343,6 @@ export const operations = {
       method: "get",
       operationId: "listDeploymentAlerts",
       pathParams: ["dseq"],
-      queryParams: [],
-      hasBody: false
-    },
-    listActivities: {
-      path: "/v1/activities",
-      method: "get",
-      operationId: "listActivities",
-      pathParams: [],
-      queryParams: ["limit", "cursor", "status", "type"],
-      hasBody: false
-    },
-    getActivity: { path: "/v1/activities/{id}", method: "get", operationId: "getActivity", pathParams: ["id"], queryParams: [], hasBody: false },
-    markActivitiesSeen: { path: "/v1/activities/seen", method: "post", operationId: "markActivitiesSeen", pathParams: [], queryParams: [], hasBody: true },
-    getConfigureDraft: {
-      path: "/v1/configure-drafts/{draftId}",
-      method: "get",
-      operationId: "getConfigureDraft",
-      pathParams: ["draftId"],
-      queryParams: [],
-      hasBody: false
-    },
-    updateConfigureDraft: {
-      path: "/v1/configure-drafts/{draftId}",
-      method: "put",
-      operationId: "updateConfigureDraft",
-      pathParams: ["draftId"],
-      queryParams: [],
-      hasBody: true
-    },
-    deleteConfigureDraft: {
-      path: "/v1/configure-drafts/{draftId}",
-      method: "delete",
-      operationId: "deleteConfigureDraft",
-      pathParams: ["draftId"],
       queryParams: [],
       hasBody: false
     }

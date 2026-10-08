@@ -103,6 +103,10 @@ export const DeploymentSettings = pgTable(
       .where(sql`${table.sealedSecrets} IS NOT NULL`),
     detectedGpusIdx: index("deployment_settings_detected_gpus_idx")
       .using("gin", sql`${table.detectedGpus} jsonb_path_ops`)
-      .where(sql`${table.detectedGpus} IS NOT NULL`)
+      .where(sql`${table.detectedGpus} IS NOT NULL`),
+    /** Backs a search of one user's deployments by name, so it reads that user's named rows and not the table. */
+    userIdNamedIdx: index("deployment_settings_user_id_named_idx")
+      .on(table.userId)
+      .where(sql`${table.name} IS NOT NULL`)
   })
 );

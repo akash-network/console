@@ -1,10 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
-import { UACT_DENOM, UAKT_DENOM } from "@src/config/denom.config";
+import { UAKT_DENOM } from "@src/config/denom.config";
 import type { Balances } from "@src/types";
-import type { LeaseDto } from "@src/types/deployment";
-import { LIVE_LEASE_STATES } from "@src/utils/leaseUtils";
 import type { DEPENDENCIES as SPEND_RATE_DEPENDENCIES } from "../useCurrentSpendRate";
 import { useCurrentSpendRate } from "../useCurrentSpendRate";
 import type { DEPENDENCIES } from "./useAccountBalanceOverview";
@@ -73,33 +71,24 @@ describe(useAccountBalanceOverview.name, () => {
     expect(result.current.lastsUntil).toBeNull();
   });
 
-  it("computes each deployment's hourly burn rate from its live leases", () => {
+  it("computes each deployment's hourly burn rate from what it costs per block", () => {
     const { result } = setup({
       deployments: [
         { dseq: "1", fundsUsd: 200 },
         { dseq: "2", fundsUsd: 100 }
       ],
-      leases: [{ dseq: "1", amount: "1000000" }]
+      perBlockUsdByDseq: { "1": 1 }
     });
 
     expect(result.current.deployments[0].perHourUsd).toBeGreaterThan(0);
     expect(result.current.deployments[1].perHourUsd).toBe(0);
-  });
-
-  it("loads active and reclaiming leases for spend", () => {
-    const { useAllLeases } = setup({ hasLiveLease: true });
-
-    expect(useAllLeases).toHaveBeenCalledWith("akash1abc", expect.objectContaining({ state: LIVE_LEASE_STATES, enabled: true }));
-  });
-
-  it("includes reclaiming leases in hourly spend", () => {
-    const { result } = setup({
-      deployments: [{ dseq: "1", fundsUsd: 200 }],
-      leases: [{ dseq: "1", amount: "1000000", state: "reclaiming" }]
-    });
-
-    expect(result.current.deployments[0].perHourUsd).toBeGreaterThan(0);
     expect(result.current.perHour).toBeGreaterThan(0);
+  });
+
+  it("asks for the account's spend rate once the wallet has an address", () => {
+    const { useSpendRateQuery } = setup({ hasLiveLease: true });
+
+    expect(useSpendRateQuery).toHaveBeenCalledWith({ enabled: true });
   });
 
   it("passes through the auto reload setting", () => {
@@ -182,7 +171,7 @@ describe(useAccountBalanceOverview.name, () => {
   it("nets what the provider earned since settlement off the escrow amount", () => {
     const { result } = setup({
       deployments: [{ dseq: "1", fundsUsd: 100, settledAt: 1000 }],
-      leases: [{ dseq: "1", amount: "1000000" }],
+      perBlockUsdByDseq: { "1": 1 },
       latestBlockHeight: 1050
     });
 
@@ -193,7 +182,7 @@ describe(useAccountBalanceOverview.name, () => {
   it("reports the settled amount for a deployment that settled at the current height", () => {
     const { result } = setup({
       deployments: [{ dseq: "1", fundsUsd: 100, settledAt: 1050 }],
-      leases: [{ dseq: "1", amount: "1000000" }],
+      perBlockUsdByDseq: { "1": 1 },
       latestBlockHeight: 1050
     });
 
@@ -203,7 +192,7 @@ describe(useAccountBalanceOverview.name, () => {
   it("reports the settled amount for a deployment with no live lease", () => {
     const { result } = setup({
       deployments: [{ dseq: "1", fundsUsd: 100, settledAt: 1000 }],
-      leases: [],
+      perBlockUsdByDseq: {},
       latestBlockHeight: 1050
     });
 
@@ -213,7 +202,7 @@ describe(useAccountBalanceOverview.name, () => {
   it("reports the settled amount while the latest block height is unknown", () => {
     const { result } = setup({
       deployments: [{ dseq: "1", fundsUsd: 100, settledAt: 1000 }],
-      leases: [{ dseq: "1", amount: "1000000" }]
+      perBlockUsdByDseq: { "1": 1 }
     });
 
     expect(result.current.deployments[0].escrowUsd).toBe(100);
@@ -223,13 +212,13 @@ describe(useAccountBalanceOverview.name, () => {
     const settled = setup({
       totalUsd: 500,
       deployments: [{ dseq: "1", fundsUsd: 100, settledAt: 1050 }],
-      leases: [{ dseq: "1", amount: "1000000" }],
+      perBlockUsdByDseq: { "1": 1 },
       latestBlockHeight: 1050
     });
     const accrued = setup({
       totalUsd: 500,
       deployments: [{ dseq: "1", fundsUsd: 100, settledAt: 1000 }],
-      leases: [{ dseq: "1", amount: "1000000" }],
+      perBlockUsdByDseq: { "1": 1 },
       latestBlockHeight: 1050
     });
 
@@ -272,7 +261,7 @@ describe(useAccountBalanceOverview.name, () => {
     deployments?: Array<{ dseq: string; fundsUsd: number; settledAt?: number }>;
     latestBlockHeight?: number;
     names?: Record<string, string>;
-    leases?: Array<{ dseq: string; amount?: string; state?: string }>;
+    perBlockUsdByDseq?: Record<string, number>;
     hasLiveLease?: boolean;
     autoReloadEnabled?: boolean;
     autoReloadPausedAt?: string | null;
@@ -304,14 +293,7 @@ describe(useAccountBalanceOverview.name, () => {
       deploymentGrants: []
     });
 
-    const leaseFixtures = input.leases ?? (input.hasLiveLease ? [{ dseq: "live", amount: "1000000" }] : []);
-    const leases = leaseFixtures.map(lease =>
-      Object.assign(mock<LeaseDto>(), {
-        dseq: lease.dseq,
-        state: lease.state ?? "active",
-        price: { denom: UACT_DENOM, amount: lease.amount ?? "1000000" }
-      })
-    );
+    const perBlockUsdByDseq = new Map(Object.entries(input.perBlockUsdByDseq ?? (input.hasLiveLease ? { live: 1 } : {})));
 
     const useWallet: typeof DEPENDENCIES.useWallet = () => Object.assign(mock<ReturnType<typeof DEPENDENCIES.useWallet>>(), { address: "akash1abc" });
 
@@ -336,8 +318,8 @@ describe(useAccountBalanceOverview.name, () => {
     });
     const useBalances: typeof DEPENDENCIES.useBalances = () => balancesQuery;
 
-    const leasesQuery = Object.assign(mock<ReturnType<typeof SPEND_RATE_DEPENDENCIES.useAllLeases>>(), { data: leases });
-    const useAllLeases = vi.fn<typeof SPEND_RATE_DEPENDENCIES.useAllLeases>(() => leasesQuery);
+    const spendRateQuery = Object.assign(mock<ReturnType<typeof SPEND_RATE_DEPENDENCIES.useSpendRateQuery>>(), { data: perBlockUsdByDseq });
+    const useSpendRateQuery = vi.fn<typeof SPEND_RATE_DEPENDENCIES.useSpendRateQuery>(() => spendRateQuery);
 
     const blockQuery = Object.assign(mock<ReturnType<typeof DEPENDENCIES.useBlock>>(), {
       data: input.latestBlockHeight === undefined ? undefined : { block: { header: { height: String(input.latestBlockHeight) } } }
@@ -364,12 +346,12 @@ describe(useAccountBalanceOverview.name, () => {
       usePricing,
       useAutoReloadMode,
       useBalances,
-      useCurrentSpendRate: () => useCurrentSpendRate({ dependencies: { useWallet, useAllLeases } }),
+      useCurrentSpendRate: () => useCurrentSpendRate({ dependencies: { useWallet, useSpendRateQuery } }),
       useBlock,
       useWalletSettingsQuery,
       useDeploymentNames
     };
 
-    return { ...renderHook(() => useAccountBalanceOverview({ dependencies })), useAllLeases, useBlock, useDeploymentNames };
+    return { ...renderHook(() => useAccountBalanceOverview({ dependencies })), useSpendRateQuery, useBlock, useDeploymentNames };
   }
 });

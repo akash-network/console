@@ -2,7 +2,6 @@ import type { useIsFetching } from "@tanstack/react-query";
 import { describe, expect, it } from "vitest";
 
 import { QueryKeys } from "@src/queries/queryKeys";
-import { LIVE_LEASE_STATES } from "@src/utils/leaseUtils";
 import type { DEPENDENCIES } from "./useBillingBackgroundLoading";
 import { useBillingBackgroundLoading } from "./useBillingBackgroundLoading";
 
@@ -17,10 +16,10 @@ describe(useBillingBackgroundLoading.name, () => {
     expect(isMatching(QueryKeys.getAllLeasesKey(ADDRESS), { hasData: true })).toBe(true);
   });
 
-  it("counts a background refetch of the live-leases query used for billing spend", () => {
+  it("counts a background refetch of the spend rate billing reads its spend from", () => {
     const { isMatching } = setup();
 
-    expect(isMatching(QueryKeys.getAllLeasesKey(ADDRESS, LIVE_LEASE_STATES), { hasData: true })).toBe(true);
+    expect(isMatching(["v1", "getSpendRate"], { hasData: true })).toBe(true);
   });
 
   it("ignores the lease-existence probe even though it extends the all-leases key", () => {
@@ -56,7 +55,8 @@ describe(useBillingBackgroundLoading.name, () => {
           v1: {
             getWalletSettings: { getKey: () => ["v1", "getWalletSettings"] },
             getDefaultPaymentMethod: { getKey: () => ["v1", "getDefaultPaymentMethod"] },
-            listStripeTransactions: { getKey: () => ["v1", "listStripeTransactions"] }
+            listStripeTransactions: { getKey: () => ["v1", "listStripeTransactions"] },
+            getSpendRate: { getKey: () => ["v1", "getSpendRate"] }
           }
         }
       }),

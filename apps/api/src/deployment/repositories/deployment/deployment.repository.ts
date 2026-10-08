@@ -5,6 +5,7 @@ import { FindAndCountOptions, FindOptions, literal, Op, QueryTypes, type Sequeli
 import { inject, singleton } from "tsyringe";
 
 import { CHAIN_DB } from "@src/chain";
+import { containsPattern } from "@src/core/lib/like-pattern/like-pattern";
 
 export interface StaleDeploymentsOptions {
   staleBeforeHeight: number;
@@ -67,6 +68,27 @@ export interface DeploymentKey {
 export interface DeploymentClosureState extends DeploymentKey {
   isClosed: boolean;
 }
+
+/** Keeps a deployment whose dseq contains `dseqContaining` or that `dseqs` names, which is how a name matched elsewhere reaches this table. */
+export interface ClosedDeploymentSearch {
+  dseqContaining: string;
+  dseqs: string[];
+}
+
+export interface ClosedDeploymentPageQuery {
+  owner: string;
+  skip: number;
+  limit: number;
+  reverse: boolean;
+  search?: ClosedDeploymentSearch;
+}
+
+/** The search is optional, so a null pattern turns its whole condition off rather than the query being assembled from pieces. */
+const CLOSED_DEPLOYMENTS_OF_OWNER = `
+  FROM deployment d
+  WHERE d."owner" = $1
+    AND d."closedHeight" IS NOT NULL
+    AND ($2::text IS NULL OR d."dseq" LIKE $2 OR d."dseq" = ANY($3::text[]))`;
 
 @singleton()
 export class DeploymentRepository {
@@ -261,6 +283,46 @@ export class DeploymentRepository {
         }
       ]
     });
+  }
+
+  /** The page and its count come from one statement, so they always agree; only a page past the end needs a second read to be counted. */
+  async findClosedPage({ owner, skip, limit, reverse, search }: ClosedDeploymentPageQuery): Promise<{ deployments: Deployment[]; total: number }> {
+    const filter = [owner, search ? containsPattern(search.dseqContaining) : null, search?.dseqs ?? []];
+    const page = await this.#chainDb.query<{ id: string; total: number }>(
+      `/* deployment:closedPageByOwner */
+      SELECT d."id", (COUNT(*) OVER ())::int AS "total"
+      ${CLOSED_DEPLOYMENTS_OF_OWNER}
+      ORDER BY d."dseq"::numeric ${reverse ? "DESC" : "ASC"}
+      LIMIT $4 OFFSET $5`,
+      { bind: [...filter, limit, skip], type: QueryTypes.SELECT }
+    );
+
+    if (page.length === 0) {
+      return { deployments: [], total: skip > 0 ? await this.#countClosed(filter) : 0 };
+    }
+
+    return { deployments: await this.#findWithGroupsInOrder(page.map(row => row.id)), total: page[0].total };
+  }
+
+  async #countClosed(filter: unknown[]): Promise<number> {
+    const [{ total }] = await this.#chainDb.query<{ total: number }>(
+      `/* deployment:closedCountByOwner */
+      SELECT COUNT(*)::int AS "total"
+      ${CLOSED_DEPLOYMENTS_OF_OWNER}`,
+      { bind: filter, type: QueryTypes.SELECT }
+    );
+
+    return total;
+  }
+
+  async #findWithGroupsInOrder(ids: string[]): Promise<Deployment[]> {
+    const deployments = await Deployment.findAll({
+      where: { id: ids },
+      include: [{ model: DeploymentGroup, include: [{ model: DeploymentGroupResource, separate: true }] }]
+    });
+    const byId = new Map(deployments.map(deployment => [deployment.id, deployment]));
+
+    return ids.flatMap(id => byId.get(id) ?? []);
   }
 
   async findDeploymentsWithPagination(params: DatabaseDeploymentListParams): Promise<{ count: number; rows: Deployment[] }> {

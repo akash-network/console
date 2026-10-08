@@ -1,12 +1,14 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import { UACT_DENOM } from "@src/config/denom.config";
 import type { Balances } from "@src/types";
 import type { DeploymentDto } from "@src/types/deployment";
 import { udenomToDenom } from "@src/utils/mathHelpers";
-import type { LiveEscrowInput } from "./useWalletBalance";
-import { computeWalletBalance } from "./useWalletBalance";
+import type { LIVE_ESCROW_DEPENDENCIES, LiveEscrowInput } from "./useWalletBalance";
+import { computeWalletBalance, useLiveEscrow } from "./useWalletBalance";
+
+import { renderHook } from "@testing-library/react";
 
 describe(computeWalletBalance.name, () => {
   it("reports the settled escrow when no live escrow input is given", () => {
@@ -84,5 +86,61 @@ describe(computeWalletBalance.name, () => {
     };
 
     return { balances, liveEscrow, udenomToUsd: (amount: string | number, denom: string) => (denom === UACT_DENOM ? udenomToDenom(amount, 6) : 0) };
+  }
+});
+
+describe(useLiveEscrow.name, () => {
+  it("asks for neither the spend rate nor the latest block while the wallet holds no escrow", () => {
+    const { useSpendRateQuery, useBlock } = setup({ activeDseqs: [] });
+
+    expect(useSpendRateQuery).toHaveBeenCalledWith({ enabled: false });
+    expect(useBlock).toHaveBeenCalledWith("latest", expect.objectContaining({ enabled: false }));
+  });
+
+  it("asks for the spend rate and the latest block once the wallet holds an escrow", () => {
+    const { useSpendRateQuery, useBlock } = setup({ activeDseqs: ["1"] });
+
+    expect(useSpendRateQuery).toHaveBeenCalledWith({ enabled: true });
+    expect(useBlock).toHaveBeenCalledWith("latest", expect.objectContaining({ enabled: true }));
+  });
+
+  it("waits for a wallet address before asking for the spend rate", () => {
+    const { useSpendRateQuery } = setup({ activeDseqs: ["1"], address: "" });
+
+    expect(useSpendRateQuery).toHaveBeenCalledWith({ enabled: false });
+  });
+
+  it("hands on what each deployment costs per block alongside the latest height", () => {
+    const { result } = setup({ activeDseqs: ["1"], perBlockUsdByDseq: { "1": 0.02 }, latestBlockHeight: 1100 });
+
+    expect(result.current.latestBlockHeight).toBe(1100);
+    expect(Object.fromEntries(result.current.perBlockUsdByDseq)).toEqual({ "1": 0.02 });
+  });
+
+  it("reports no spend and no height before either has loaded", () => {
+    const { result } = setup({ activeDseqs: ["1"] });
+
+    expect(result.current.latestBlockHeight).toBeUndefined();
+    expect(result.current.perBlockUsdByDseq.size).toBe(0);
+  });
+
+  function setup(input: { activeDseqs: string[]; address?: string; perBlockUsdByDseq?: Record<string, number>; latestBlockHeight?: number }) {
+    const balances = Object.assign(mock<Balances>(), {
+      activeDeployments: input.activeDseqs.map(dseq => mock<DeploymentDto>({ dseq }))
+    });
+
+    const spendRateQuery = Object.assign(mock<ReturnType<typeof LIVE_ESCROW_DEPENDENCIES.useSpendRateQuery>>(), {
+      data: input.perBlockUsdByDseq ? new Map(Object.entries(input.perBlockUsdByDseq)) : undefined
+    });
+    const useSpendRateQuery = vi.fn<typeof LIVE_ESCROW_DEPENDENCIES.useSpendRateQuery>(() => spendRateQuery);
+
+    const blockQuery = Object.assign(mock<ReturnType<typeof LIVE_ESCROW_DEPENDENCIES.useBlock>>(), {
+      data: input.latestBlockHeight === undefined ? undefined : { block: { header: { height: String(input.latestBlockHeight) } } }
+    });
+    const useBlock = vi.fn<typeof LIVE_ESCROW_DEPENDENCIES.useBlock>(() => blockQuery);
+
+    const hook = renderHook(() => useLiveEscrow(input.address ?? "akash1abc", balances, { useSpendRateQuery, useBlock }));
+
+    return { ...hook, useSpendRateQuery, useBlock };
   }
 });

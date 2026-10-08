@@ -798,6 +798,60 @@ describe(DeploymentSettingRepository.name, () => {
     });
   });
 
+  describe("findDseqsByNameContaining", () => {
+    it("returns the dseqs of the deployments whose name contains the text, whatever its case", async () => {
+      const { deploymentSettingRepository, user, abilityFor } = await setup();
+      const [web, otherWeb, database] = [newDseq(), newDseq(), newDseq()];
+      await deploymentSettingRepository.upsertName({ userId: user.id, dseq: web, name: "My Web App" });
+      await deploymentSettingRepository.upsertName({ userId: user.id, dseq: otherWeb, name: "webhooks" });
+      await deploymentSettingRepository.upsertName({ userId: user.id, dseq: database, name: "database" });
+
+      const dseqs = await deploymentSettingRepository.accessibleBy(abilityFor(user), "read").findDseqsByNameContaining({ userId: user.id, text: "web" });
+
+      expect(dseqs.sort()).toEqual([web, otherWeb].sort());
+    });
+
+    it("matches a wildcard in the text only against itself", async () => {
+      const { deploymentSettingRepository, user, abilityFor } = await setup();
+      const [discounted, plain] = [newDseq(), newDseq()];
+      await deploymentSettingRepository.upsertName({ userId: user.id, dseq: discounted, name: "50%_off" });
+      await deploymentSettingRepository.upsertName({ userId: user.id, dseq: plain, name: "500 off" });
+
+      const dseqs = await deploymentSettingRepository.accessibleBy(abilityFor(user), "read").findDseqsByNameContaining({ userId: user.id, text: "0%_" });
+
+      expect(dseqs).toEqual([discounted]);
+    });
+
+    it("leaves out a deployment the console holds no name for", async () => {
+      const { deploymentSettingRepository, user, abilityFor } = await setup();
+      const unnamed = newDseq();
+      await deploymentSettingRepository.upsertDefinition({ userId: user.id, dseq: unnamed, sdl: SDL, manifestVersion: "BAUG" });
+
+      const dseqs = await deploymentSettingRepository.accessibleBy(abilityFor(user), "read").findDseqsByNameContaining({ userId: user.id, text: "" });
+
+      expect(dseqs).not.toContain(unnamed);
+    });
+
+    it("leaves out the deployments another user named", async () => {
+      const { deploymentSettingRepository, user, trialUser, abilityFor } = await setup();
+      const theirs = newDseq();
+      await deploymentSettingRepository.upsertName({ userId: trialUser.id, dseq: theirs, name: "web" });
+
+      const dseqs = await deploymentSettingRepository.accessibleBy(abilityFor(user), "read").findDseqsByNameContaining({ userId: user.id, text: "web" });
+
+      expect(dseqs).toEqual([]);
+    });
+
+    it("reads nothing for a user the caller's ability excludes", async () => {
+      const { deploymentSettingRepository, user, trialUser, abilityFor } = await setup();
+      await deploymentSettingRepository.upsertName({ userId: user.id, dseq: newDseq(), name: "web" });
+
+      const dseqs = await deploymentSettingRepository.accessibleBy(abilityFor(trialUser), "read").findDseqsByNameContaining({ userId: user.id, text: "web" });
+
+      expect(dseqs).toEqual([]);
+    });
+  });
+
   describe("findLeaseGpus", () => {
     it("reads the gpu readings and offers of a whole page in one query, keyed by dseq", async () => {
       const { deploymentSettingRepository, user, abilityFor } = await setup();
