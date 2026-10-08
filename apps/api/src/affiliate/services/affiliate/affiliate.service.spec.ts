@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { AffiliateRepository } from "@src/affiliate/repositories/affiliate/affiliate.repository";
+import type { BillingConfig } from "@src/billing/providers";
 import type { UserRepository } from "@src/user/repositories";
 import { AffiliateService } from "./affiliate.service";
 
@@ -385,13 +386,50 @@ describe(AffiliateService.name, () => {
     });
   });
 
+  describe("getProfile", () => {
+    it("returns null for a user who has never been an affiliate", async () => {
+      const { service, affiliateRepository } = setup();
+      affiliateRepository.findByUserId.mockResolvedValue(undefined);
+
+      await expect(service.getProfile("some-user-id")).resolves.toBeNull();
+    });
+
+    it("returns null for a revoked affiliate", async () => {
+      const { service, affiliateRepository } = setup();
+      affiliateRepository.findByUserId.mockResolvedValue(createAffiliate({ revokedAt: new Date().toISOString() }));
+
+      await expect(service.getProfile("some-user-id")).resolves.toBeNull();
+    });
+
+    it("returns the code and fixed commission terms for an active affiliate", async () => {
+      const active = createAffiliate({ code: "friendcode", revokedAt: null });
+      const { service, affiliateRepository } = setup({ billingConfig: { REFERRAL_TRIAL_DEPLOYMENT_ALLOWANCE_AMOUNT: 5_000_000 } });
+      affiliateRepository.findByUserId.mockResolvedValue(active);
+
+      await expect(service.getProfile(active.userId)).resolves.toEqual({
+        code: "friendcode",
+        terms: { commissionPercent: 5, commissionMonths: 12, referralTrialCreditsUsd: 5 }
+      });
+    });
+
+    it("converts the referral trial allowance from micro-denom to usd", async () => {
+      const active = createAffiliate({ revokedAt: null });
+      const { service, affiliateRepository } = setup({ billingConfig: { REFERRAL_TRIAL_DEPLOYMENT_ALLOWANCE_AMOUNT: 7_500_000 } });
+      affiliateRepository.findByUserId.mockResolvedValue(active);
+
+      const profile = await service.getProfile(active.userId);
+
+      expect(profile?.terms.referralTrialCreditsUsd).toBe(7.5);
+    });
+  });
+
   it("creates the logger with the service context", () => {
     const { createLogger } = setup();
 
     expect(createLogger).toHaveBeenCalledWith({ context: AffiliateService.name });
   });
 
-  function setup() {
+  function setup(input: { billingConfig?: Partial<BillingConfig> } = {}) {
     const created = createAffiliate();
     const affiliateRepository = mock<AffiliateRepository>();
     affiliateRepository.findByUserId.mockResolvedValue(undefined);
@@ -400,12 +438,13 @@ describe(AffiliateService.name, () => {
     affiliateRepository.updateById.mockResolvedValue(created as never);
     const userRepository = mock<UserRepository>();
     userRepository.findById.mockImplementation(async id => createUser({ id }));
+    const billingConfig = mock<BillingConfig>({ REFERRAL_TRIAL_DEPLOYMENT_ALLOWANCE_AMOUNT: 5_000_000, ...input.billingConfig });
     const logger = mock<ReturnType<CreateLogger>>();
     const createLogger = vi.fn<CreateLogger>(() => logger);
 
-    const service = new AffiliateService(affiliateRepository, userRepository, createLogger);
+    const service = new AffiliateService(affiliateRepository, userRepository, billingConfig, createLogger);
 
-    return { service, affiliateRepository, userRepository, logger, createLogger, created };
+    return { service, affiliateRepository, userRepository, billingConfig, logger, createLogger, created };
   }
 
   function createUniqueViolation(constraintName: string) {

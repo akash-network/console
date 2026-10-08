@@ -89,9 +89,24 @@ describe(TopNav.name, () => {
     expect(screen.getByRole("menuitem", { name: "API Keys" })).toHaveAttribute("href", "/user/api-keys");
     expect(screen.getByRole("menuitem", { name: "Usage" })).toHaveAttribute("href", "/usage");
     expect(screen.getByRole("menuitem", { name: "Alerts" })).toHaveAttribute("href", "/alerts");
+    expect(screen.queryByRole("menuitem", { name: "Referrals" })).not.toBeInTheDocument();
   });
 
-  function setup(input: { isAuthenticated?: boolean; minimal?: boolean; pathname?: string }) {
+  it("shows Referrals when the affiliate program is enabled and the caller has a profile", async () => {
+    setup({ isAuthenticated: true, isAffiliateProgramEnabled: true, hasAffiliateProfile: true });
+
+    await userEvent.click(screen.getByRole("button", { name: /settings/i }));
+
+    expect(await screen.findByRole("menuitem", { name: "Referrals" })).toHaveAttribute("href", "/referrals");
+  });
+
+  function setup(input: {
+    isAuthenticated?: boolean;
+    minimal?: boolean;
+    pathname?: string;
+    isAffiliateProgramEnabled?: boolean;
+    hasAffiliateProfile?: boolean;
+  }) {
     const accountMenu = vi.fn<typeof DEPENDENCIES.TopNavAccountMenu>(() => <></>);
 
     const dependencies = MockComponents(DEPENDENCIES, {
@@ -101,6 +116,11 @@ describe(TopNav.name, () => {
         }),
       usePathname: () => input.pathname ?? "/",
       useCookieTheme: () => "light",
+      useFlag: () => input.isAffiliateProgramEnabled ?? false,
+      useAffiliateProfileQuery: () =>
+        Object.assign(mock<ReturnType<typeof DEPENDENCIES.useAffiliateProfileQuery>>(), {
+          data: input.hasAffiliateProfile ? { code: "friendcode", terms: { commissionPercent: 5, commissionMonths: 12, referralTrialCreditsUsd: 5 } } : null
+        }),
       TopNavAccountMenu: accountMenu
     });
 

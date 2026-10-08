@@ -2,15 +2,26 @@ import createError from "http-errors";
 import { inject, singleton } from "tsyringe";
 
 import { generateAffiliateCode, normalizeAffiliateCode } from "@src/affiliate/lib/affiliate-code/affiliate-code";
+import { AFFILIATE_COMMISSION_MONTHS, AFFILIATE_COMMISSION_PERCENT } from "@src/affiliate/lib/affiliate-terms/affiliate-terms";
 import { type AffiliateOutput, AffiliateRepository } from "@src/affiliate/repositories/affiliate/affiliate.repository";
+import { type BillingConfig, InjectBillingConfig } from "@src/billing/providers";
 import { type CreateLogger, LOGGER_FACTORY } from "@src/core/providers/logging.provider";
 import { getPostgresError, isUniqueViolation } from "@src/core/repositories/base.repository";
 import { UserRepository } from "@src/user/repositories";
 
 const MAX_GENERATED_CODE_ATTEMPTS = 5;
+const MICRO_DENOM_PER_UNIT = 1_000_000;
 
 export type ApproveAffiliateInput = { userId?: string; email?: string; code?: string; actor: string };
 export type RevokeAffiliateInput = { code: string; actor: string };
+export type AffiliateProfile = {
+  code: string;
+  terms: {
+    commissionPercent: number;
+    commissionMonths: number;
+    referralTrialCreditsUsd: number;
+  };
+};
 
 @singleton()
 export class AffiliateService {
@@ -19,6 +30,7 @@ export class AffiliateService {
   constructor(
     private readonly affiliateRepository: AffiliateRepository,
     private readonly userRepository: UserRepository,
+    @InjectBillingConfig() private readonly billingConfig: BillingConfig,
     @inject(LOGGER_FACTORY) createLogger: CreateLogger
   ) {
     this.logger = createLogger({ context: AffiliateService.name });
@@ -70,6 +82,20 @@ export class AffiliateService {
   async findActiveByUserId(userId: string): Promise<AffiliateOutput | undefined> {
     const affiliate = await this.affiliateRepository.findByUserId(userId);
     return affiliate && !affiliate.revokedAt ? affiliate : undefined;
+  }
+
+  async getProfile(userId: string): Promise<AffiliateProfile | null> {
+    const affiliate = await this.findActiveByUserId(userId);
+    if (!affiliate) return null;
+
+    return {
+      code: affiliate.code,
+      terms: {
+        commissionPercent: AFFILIATE_COMMISSION_PERCENT,
+        commissionMonths: AFFILIATE_COMMISSION_MONTHS,
+        referralTrialCreditsUsd: this.billingConfig.REFERRAL_TRIAL_DEPLOYMENT_ALLOWANCE_AMOUNT / MICRO_DENOM_PER_UNIT
+      }
+    };
   }
 
   async #resolveUserId({ userId, email }: { userId?: string; email?: string }): Promise<string> {
