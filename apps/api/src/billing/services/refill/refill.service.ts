@@ -165,13 +165,11 @@ export class RefillService {
    * @param amountUsd - The amount in USD *cents* to reduce from the wallet (e.g. 10000 = $100)
    * @param payer - The member who paid and the organization that paid, read off the transaction
    * @param refund - The refunded payment, which keys the debit and is attached to the `balance_refund` analytics event
-   * @returns The part of the amount, in cents, that the allowance could not cover, since it never goes below zero.
+   * @returns The part of the amount the allowance could not cover, in cents rounded up, since the allowance never goes below zero.
    */
   async reduceWalletBalance(amountUsd: number, payer: WalletPayer, refund: RefundedPayment): Promise<ReducedWalletBalance> {
     const { userId } = payer;
-    const userWallet = payer.team
-      ? await this.userWalletRepository.findOneByOrganizationId(payer.team.id)
-      : await this.userWalletRepository.findOneBy({ userId: this.#ownWalletUserIdOf(payer) });
+    const userWallet = await this.lockExistingWallet(payer);
 
     if (!userWallet || !userWallet.address) {
       this.logger.warn({ event: "WALLET_REDUCE_NO_WALLET", userId });
@@ -191,7 +189,7 @@ export class RefillService {
     });
     this.logger.info({ event: "WALLET_BALANCE_REDUCED", userId, amountUsd, previousLimit: debit?.previousLimit, nextLimit: debit?.nextLimit });
 
-    return { shortfallCents: debit ? Math.max(0, amountUsd * 10000 - debit.previousLimit) / 10000 : 0 };
+    return { shortfallCents: debit ? Math.ceil(Math.max(0, amountUsd * 10000 - debit.previousLimit) / 10000) : 0 };
   }
 
   /** A credit still landing read the allowance before this debit could, so whichever grant landed second would overwrite the other; the refund is redelivered once the credit lands. */
@@ -230,6 +228,16 @@ export class RefillService {
     } catch (error) {
       this.logger.error({ event: "WALLET_ABUSE_LOCK_CLEAR_FAILED", walletId: userWallet.id, userId, error });
     }
+  }
+
+  /** Holds the wallet row until the caller commits, so a reduction and a credit of the same wallet each start from the limit the other one wrote. */
+  private async lockExistingWallet(payer: WalletPayer) {
+    const userWallet = payer.team
+      ? await this.userWalletRepository.findOneByOrganizationId(payer.team.id)
+      : await this.userWalletRepository.findOneBy({ userId: this.#ownWalletUserIdOf(payer) });
+    if (!userWallet) return undefined;
+
+    return (await this.userWalletRepository.findOneByAndLock({ id: userWallet.id })) ?? userWallet;
   }
 
   /** Holds the wallet row until the settlement commits, so an abuse wipe or a team deletion of the same wallet waits for it instead of acting between this grant and its bookkeeping. */

@@ -362,6 +362,7 @@ export class StripeTransactionRepository extends OrgScopedRepository<Table, Stri
     userId: string;
     organizationId?: string | null;
     amount: number;
+    amountRefunded?: number;
     sourceTransactionId: string;
   }): Promise<StripeTransactionOutput> {
     return this.create({
@@ -372,6 +373,7 @@ export class StripeTransactionRepository extends OrgScopedRepository<Table, Stri
       currency: "usd",
       description: "Affiliate commission",
       amount: input.amount,
+      amountRefunded: input.amountRefunded ?? 0,
       sourceTransactionId: input.sourceTransactionId
     });
   }
