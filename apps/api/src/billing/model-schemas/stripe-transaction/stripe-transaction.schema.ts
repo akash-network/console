@@ -61,8 +61,7 @@ export const StripeTransactions = pgTable(
     stripeIdempotencyKeyUnique: uniqueIndex("stripe_transactions_stripe_idempotency_key_unique")
       .on(table.stripeIdempotencyKey)
       .where(sql`${table.stripeIdempotencyKey} IS NOT NULL`),
-    // Partial unique index: at most one commission row per source payment, so a commission sync can
-    // never double-grant for the same `payment_intent` transaction. Non-commission rows leave it null.
+    /** At most one commission row per source payment, so a commission sync can never double-grant it. */
     sourceTransactionIdUnique: uniqueIndex("stripe_transactions_source_transaction_id_unique")
       .on(table.sourceTransactionId)
       .where(sql`${table.sourceTransactionId} IS NOT NULL`),

@@ -238,10 +238,7 @@ export class StripeTransactionRepository extends BaseRepository<Table, StripeTra
     return total;
   }
 
-  /**
-   * Grants an affiliate their commission on a referred payment as a `stripe_transactions` row, so
-   * billing history, CSV export and refund-style bookkeeping fall out of the existing table for free.
-   */
+  /** Stores the commission as a `stripe_transactions` row so billing history and CSV export pick it up unchanged. */
   async createAffiliateCommission(input: { userId: string; amount: number; sourceTransactionId: string }): Promise<StripeTransactionOutput> {
     return this.create({
       userId: input.userId,
