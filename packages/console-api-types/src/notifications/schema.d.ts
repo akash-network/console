@@ -907,7 +907,7 @@ export interface operations {
         limit?: number;
         /** @description Page number */
         page?: number;
-        /** @description Chain message type, used in conjunction with dseq to filter alerts liked to a specific deployment */
+        /** @description Matches the alert's `params.type` (not its top-level `type`), such as `DEPLOYMENT_CLOSED`. Used with `dseq` to filter the alerts linked to a specific deployment. */
         type?: string;
         /** @description Linked deployment's dseq */
         dseq?: string;

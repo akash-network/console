@@ -112,6 +112,7 @@ export interface paths {
         content: {
           "application/json": {
             data: {
+              /** Format: uuid */
               userId: string;
               messages: {
                 /** @enum {string} */
@@ -630,6 +631,8 @@ export interface paths {
                 onboardingSkippedAt?: string | null;
                 /** Format: date-time */
                 fairUsePolicyAcceptedAt?: string | null;
+                /** Format: date-time */
+                productUpdatesUnsubscribedAt?: string | null;
               };
               isNewUser: boolean;
             };
@@ -683,6 +686,8 @@ export interface paths {
                 onboardingSkippedAt?: string | null;
                 /** Format: date-time */
                 fairUsePolicyAcceptedAt?: string | null;
+                /** Format: date-time */
+                productUpdatesUnsubscribedAt?: string | null;
               };
             };
           };
@@ -770,6 +775,7 @@ export interface paths {
             youtubeUsername?: string | null;
             twitterUsername?: string | null;
             githubUsername?: string | null;
+            subscribedToProductUpdates?: boolean;
           };
         };
       };
@@ -1877,7 +1883,10 @@ export interface paths {
         content: {
           "application/json": {
             data: {
-              /** @description User ID */
+              /**
+               * Format: uuid
+               * @description User ID
+               */
               userId: string;
               /** @description Deployment sequence number */
               dseq: string;
@@ -2037,7 +2046,7 @@ export interface paths {
     head?: never;
     /**
      * Patch a deployment
-     * @description Patches the SDL the console stored for this deployment, or renames the deployment, or both; the SDL is never accepted from the request. Only the services named are touched. A `name` on its own touches no definition, so it renames a deployment the console holds no SDL for and neither broadcasts nor pushes a manifest. Such a rename also reports every lease `status` as null, because it asks no provider for one. A patched environment variable is re-appended to its service's env list, so the order shown by GET may differ afterwards. A replaced secret takes effect when the deployment is next updated on chain, not in the workload already running. The definition is recorded before the chain transaction is broadcast, so a broadcast that fails leaves the console describing a manifest version the chain never saw. Re-sending the identical request repairs that: it recomputes the same manifest version, is accepted rather than refused, and goes on to broadcast and push the manifest.
+     * @description Patches the SDL the console stored for this deployment, or renames the deployment, or both; the SDL is never accepted from the request. Only the services named are touched. A `name` on its own touches no definition, so it renames a deployment the console holds no SDL for and sends neither a deployment update nor a manifest. Such a rename also reports every lease `status` as null, because it asks no provider for one. A patched environment variable is re-appended to its service's env list, so the order shown by GET may differ afterwards. A replaced secret takes effect through the deployment update this patch sends, not in the workload already running. The definition is recorded before the deployment update is sent, so an update that fails leaves the console describing a manifest version the deployment was never updated to. Re-sending the identical request repairs that: it recomputes the same manifest version, is accepted rather than refused, and goes on to send the update and push the manifest. A seal bound to the SDL is the exception: the first attempt replaced the SDL it was sealed against, so the same `sealedSecrets` answer 403 until the same values are sealed against the SDL GET now returns.
      */
     patch: operations["patchDeployment"];
     trace?: never;
@@ -2800,7 +2809,10 @@ export interface paths {
     };
     get?: never;
     put?: never;
-    /** Create leases and send manifest */
+    /**
+     * Create leases and send manifest
+     * @description Creates the leases, then sends each provider its manifest. If a provider refuses the manifest once its lease exists, the error carries code `manifest_not_delivered` and the status the provider path produced. Send the same request again to retry the manifest, or close the deployment to stop paying for it.
+     */
     post: operations["createLease"];
     delete?: never;
     options?: never;
@@ -3373,6 +3385,259 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/v1/provider-search": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Search providers, one page at a time.
+     * @description Filters and sorts every provider on the network, then answers the requested page along with how many providers matched.
+     */
+    get: {
+      parameters: {
+        query?: {
+          search?: string;
+          online?: "true" | "false";
+          audited?: "true" | "false";
+          addresses?: string;
+          regions?: string;
+          gpu?: "true" | "false";
+          gpuModels?: string;
+          sort?: "active-leases-desc" | "active-leases-asc" | "wallet-leases-desc" | "wallet-active-leases-desc" | "gpus-desc";
+          walletAddress?: string;
+          skip?: number | null;
+          limit?: number;
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description Returns a page of the providers matching the search */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              data: {
+                providers: {
+                  owner: string;
+                  name: string | null;
+                  hostUri: string;
+                  createdHeight: number;
+                  email?: string | null;
+                  website?: string | null;
+                  lastCheckDate?: string | null;
+                  deploymentCount?: number | null;
+                  leaseCount?: number | null;
+                  cosmosSdkVersion: string;
+                  akashVersion: string;
+                  ipRegion: string | null;
+                  ipRegionCode: string | null;
+                  ipCountry: string | null;
+                  ipCountryCode: string | null;
+                  ipLat: string | null;
+                  ipLon: string | null;
+                  uptime1d: number | null;
+                  uptime7d: number | null;
+                  uptime30d: number | null;
+                  isValidVersion: boolean;
+                  isOnline: boolean;
+                  lastOnlineDate: string | null;
+                  isAudited: boolean;
+                  stats: {
+                    cpu: {
+                      active: number;
+                      available: number;
+                      pending: number;
+                    };
+                    gpu: {
+                      active: number;
+                      available: number;
+                      pending: number;
+                    };
+                    memory: {
+                      active: number;
+                      available: number;
+                      pending: number;
+                    };
+                    storage: {
+                      ephemeral: {
+                        active: number;
+                        available: number;
+                        pending: number;
+                      };
+                      persistent: {
+                        active: number;
+                        available: number;
+                        pending: number;
+                      };
+                    };
+                  };
+                  gpuModels: {
+                    vendor: string;
+                    model: string;
+                    ram: string;
+                    interface: string;
+                  }[];
+                  attributes: {
+                    key: string;
+                    value: string;
+                    auditedBy: string[];
+                  }[];
+                  host: string | null;
+                  organization: string | null;
+                  statusPage: string | null;
+                  locationRegion: string | null;
+                  country: string | null;
+                  city: string | null;
+                  timezone: string | null;
+                  locationType: string | null;
+                  hostingProvider: string | null;
+                  hardwareCpu: string | null;
+                  hardwareCpuArch: string | null;
+                  hardwareGpuVendor: string | null;
+                  hardwareGpuModels: string[] | null;
+                  hardwareDisk: string[] | null;
+                  featPersistentStorage: boolean;
+                  featPersistentStorageType: string[] | null;
+                  hardwareMemory: string | null;
+                  networkProvider: string | null;
+                  networkSpeedDown: number;
+                  networkSpeedUp: number;
+                  tier: string | null;
+                  featEndpointCustomDomain: boolean;
+                  workloadSupportChia: boolean;
+                  workloadSupportChiaCapabilities: string[] | null;
+                  featEndpointIp: boolean;
+                }[];
+                pagination: {
+                  /** @description Providers matching the filters. */
+                  total: number;
+                  skip: number;
+                  limit: number;
+                  /** @description Whether a further page exists. */
+                  hasMore: boolean;
+                };
+              };
+            };
+          };
+        };
+        /** @description Invalid search parameters */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content?: never;
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/provider-locations": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get where each online provider is.
+     * @description Locates every online provider by its IP address, for drawing providers on a map without loading the full provider list.
+     */
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description Returns the location of every online provider */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              data: {
+                owner: string;
+                name: string | null;
+                hostUri: string;
+                ipRegion: string | null;
+                ipCountryCode: string | null;
+                ipLat: string | null;
+                ipLon: string | null;
+                isAudited: boolean;
+                /**
+                 * @description The provider's location-region attribute.
+                 * @example eu-central
+                 */
+                locationRegion: string | null;
+                uptime30d: number | null;
+                /**
+                 * @description Distinct GPU model names across the provider's nodes.
+                 * @example [
+                 *       "h100",
+                 *       "a100"
+                 *     ]
+                 */
+                gpuModels: string[];
+                stats: {
+                  cpu: {
+                    active: number;
+                    available: number;
+                    pending: number;
+                  };
+                  gpu: {
+                    active: number;
+                    available: number;
+                    pending: number;
+                  };
+                  memory: {
+                    active: number;
+                    available: number;
+                    pending: number;
+                  };
+                  storage: {
+                    ephemeral: {
+                      active: number;
+                      available: number;
+                      pending: number;
+                    };
+                    persistent: {
+                      active: number;
+                      available: number;
+                      pending: number;
+                    };
+                  };
+                };
+              }[];
+            };
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/v1/providers/{address}": {
     parameters: {
       query?: never;
@@ -3520,6 +3785,11 @@ export interface paths {
               workloadSupportChia: boolean;
               workloadSupportChiaCapabilities: string[];
               featEndpointIp: boolean;
+              /**
+               * @description Seconds of notice the provider gives before it reclaims leased capacity. Null when it advertises none; absent when the provider inventory could not be read.
+               * @example 86400
+               */
+              reclamationWindow?: number | null;
               uptime: {
                 id: string;
                 isOnline: boolean;
@@ -5914,6 +6184,19 @@ export interface paths {
                   logoUrl: string | null;
                   summary: string;
                   tags?: string[];
+                  /** @description Absent when the template's SDL cannot be read */
+                  hardware?: {
+                    /** @description vCPUs across every service and replica */
+                    cpu: number;
+                    memoryBytes: number;
+                    /** @description Ephemeral and persistent storage combined */
+                    storageBytes: number;
+                    gpu?: {
+                      units: number;
+                      /** @description Model names, or a vendor name when any of its models will do; empty when any GPU will do */
+                      models: string[];
+                    };
+                  };
                 }[];
               }[];
             };
@@ -6240,7 +6523,7 @@ export interface paths {
       path?: never;
       cookie?: never;
     };
-    /** Get blockchain reachability status */
+    /** Get Akash Network reachability status */
     get: {
       parameters: {
         query?: never;
@@ -6250,13 +6533,14 @@ export interface paths {
       };
       requestBody?: never;
       responses: {
-        /** @description Returns blockchain reachability status */
+        /** @description Returns whether the Akash Network is reachable */
         200: {
           headers: {
             [name: string]: unknown;
           };
           content: {
             "application/json": {
+              /** @description Whether the console can reach the Akash Network right now. */
               isBlockchainReachable: boolean;
             };
           };
@@ -6339,6 +6623,57 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/v1/activities": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List the user's recent actions and their outcomes, newest first, with how many are still unseen */
+    get: operations["listActivities"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/activities/{id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Get one of the user's activities, for example to follow a close running in the background */
+    get: operations["getActivity"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/activities/seen": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Mark activities seen, either by id or every one created up to a time */
+    post: operations["markActivitiesSeen"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/v1/favorite-providers": {
     parameters: {
       query?: never;
@@ -6369,6 +6704,28 @@ export interface paths {
     post?: never;
     /** Remove a provider from the user's favorites */
     delete: operations["deleteFavoriteProvider"];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/configure-drafts/{draftId}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Read an unfinished deployment configuration the user saved */
+    get: operations["getConfigureDraft"];
+    /**
+     * Save an unfinished deployment configuration, creating the draft or replacing it
+     * @description A user keeps at most 20 drafts: saving a new one drops the least recently saved. A draft expires 30 days after it was last saved. Secret values never belong in a draft, only the references the SDL carries.
+     */
+    put: operations["updateConfigureDraft"];
+    post?: never;
+    /** Discard a saved deployment configuration */
+    delete: operations["deleteConfigureDraft"];
     options?: never;
     head?: never;
     patch?: never;
@@ -6465,79 +6822,6 @@ export interface paths {
     put?: never;
     post: operations["upsertDeploymentAlert"];
     delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/v1/activities": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    /** List the user's recent actions and their outcomes, newest first, with how many are still unseen */
-    get: operations["listActivities"];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/v1/activities/{id}": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    /** Get one of the user's activities, for example to follow a close running in the background */
-    get: operations["getActivity"];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/v1/activities/seen": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    /** Mark activities seen, either by id or every one created up to a time */
-    post: operations["markActivitiesSeen"];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/v1/configure-drafts/{draftId}": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    /** Read an unfinished deployment configuration the user saved */
-    get: operations["getConfigureDraft"];
-    /**
-     * Save an unfinished deployment configuration, creating the draft or replacing it
-     * @description A user keeps at most 20 drafts: saving a new one drops the least recently saved. A draft expires 30 days after it was last saved. Secret values never belong in a draft, only the references the SDL carries.
-     */
-    put: operations["updateConfigureDraft"];
-    post?: never;
-    /** Discard a saved deployment configuration */
-    delete: operations["deleteConfigureDraft"];
     options?: never;
     head?: never;
     patch?: never;
@@ -8392,7 +8676,7 @@ export interface operations {
                   deadline?: string;
                   reason?: string;
                 };
-                /** @description GPUs the console observed running inside this lease's containers, as distinct from the models its group requested on chain. Absent until the console has looked, and for a lease it cannot look inside. */
+                /** @description GPUs the console observed running inside this lease's containers, as distinct from the models its group requested. Absent until the console has looked, and for a lease it cannot look inside. */
                 detectedGpus?: {
                   services: {
                     service: string;
@@ -8500,7 +8784,7 @@ export interface operations {
               consoleSettings: {
                 /** @description The SDL the console stored for this deployment. Re-serialized YAML, so not byte-identical to the submitted document. */
                 sdl: string;
-                /** @description Base64 of the manifest version this deployment commits on chain. Deliberately not a hash of the `sdl` above. */
+                /** @description Base64 of the manifest version the console recorded for this deployment. Deliberately not a hash of the `sdl` above. */
                 manifestVersion: string;
               } | null;
             };
@@ -8574,7 +8858,7 @@ export interface operations {
                   deadline?: string;
                   reason?: string;
                 };
-                /** @description GPUs the console observed running inside this lease's containers, as distinct from the models its group requested on chain. Absent until the console has looked, and for a lease it cannot look inside. */
+                /** @description GPUs the console observed running inside this lease's containers, as distinct from the models its group requested. Absent until the console has looked, and for a lease it cannot look inside. */
                 detectedGpus?: {
                   services: {
                     service: string;
@@ -8834,7 +9118,7 @@ export interface operations {
                   [key: string]: {
                     /** @description Moves the container port the workload listens on. The entry is still addressed by the port it declares today. Refused onto a port the service already exposes, and on an endpoint reached through a leased IP. */
                     port?: number;
-                    /** @description Moves the port the endpoint is reached on. Refused when it would change the endpoint's kind on chain (a public TCP endpoint moving onto or off port 80), onto a port another endpoint of the service uses, and on an endpoint reached through a leased IP. */
+                    /** @description Moves the port the endpoint is reached on. Refused when it would change the endpoint's kind (a public TCP endpoint moving onto or off port 80), onto a port another endpoint of the service uses, and on an endpoint reached through a leased IP. */
                     as?: number;
                     /** @description Custom domains. Replaces the existing list. Emptying it is rejected by providers that do not generate a hostname of their own, which leaves the patch recorded but undeployed. */
                     accept?: string[];
@@ -8858,7 +9142,7 @@ export interface operations {
                 };
               };
             };
-            /** @description Renames the deployment. Supplied on its own it is the only patch that touches no definition, so it works on a deployment the console holds no SDL for and neither broadcasts nor pushes a manifest. */
+            /** @description Renames the deployment. Supplied on its own it is the only patch that touches no definition, so it works on a deployment the console holds no SDL for and sends neither a deployment update nor a manifest. */
             name?: string;
             /** @description Compact JWE sealing a flat name-to-value map, as on create, but holding only the names this patch replaces. Omitted names keep the values the deployment already stores. Its presence also says which values are secret, as on create: a patch carrying a seal stores the env values it writes as submitted, while one carrying none seals them. A seal of an empty map is how a caller writes plain variables without replacing any secret. */
             sealedSecrets?: string;
@@ -8910,7 +9194,7 @@ export interface operations {
                   deadline?: string;
                   reason?: string;
                 };
-                /** @description GPUs the console observed running inside this lease's containers, as distinct from the models its group requested on chain. Absent until the console has looked, and for a lease it cannot look inside. */
+                /** @description GPUs the console observed running inside this lease's containers, as distinct from the models its group requested. Absent until the console has looked, and for a lease it cannot look inside. */
                 detectedGpus?: {
                   services: {
                     service: string;
@@ -9014,13 +9298,13 @@ export interface operations {
               };
               /** @description The name this deployment carries, or null for one created before the console recorded names. */
               name: string | null;
-              /** @description Base64 manifest version this patch recorded and committed on chain. Absent for a rename, which records none. */
+              /** @description Base64 manifest version this patch recorded, which the deployment is now on. Absent for a rename, which records none. */
               manifestVersion?: string;
             };
           };
         };
       };
-      /** @description The patch names a service, port or volume the stored SDL does not declare, supplies a secret name it does not reference, leaves a reference with no value, moves a container port onto one the service already exposes, or moves a port in a way that would change its endpoint kind on chain */
+      /** @description The patch names a service, port or volume the stored SDL does not declare, supplies a secret name it does not reference, leaves a reference with no value, moves a container port onto one the service already exposes, or moves a port in a way that would change its endpoint kind */
       400: {
         headers: {
           [name: string]: unknown;
@@ -9034,7 +9318,21 @@ export interface operations {
           };
         };
       };
-      /** @description No SDL is recorded for this deployment, so there is nothing to patch. A rename answers this only when the chain holds no such deployment for the caller, since it needs no recorded SDL */
+      /** @description The `sealedSecrets` value was sealed for a different user, or bound to a different SDL than the one the console stores for this deployment, as a seal made before an earlier patch of it was recorded is */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            error: string;
+            message: string;
+            code: string;
+            type: string;
+          };
+        };
+      };
+      /** @description No SDL is recorded for this deployment, so there is nothing to patch. A rename answers this only when the caller has no such deployment, since it needs no recorded SDL */
       404: {
         headers: {
           [name: string]: unknown;
@@ -9050,6 +9348,20 @@ export interface operations {
       };
       /** @description The deployment definition changed between this patch reading it and writing it. A patch naming no `ifManifestVersion` is guarded on the version it read, so a concurrent patch produces this too. Re-sending the identical patch is not a conflict, because the version it recomputes is the one the row already holds. `code` is `deployment_definition_changed` for this case, which a reload of the definition cures; a 409 without it answers a seal made against a retired key, which a fresh seal cures */
       409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            error: string;
+            message: string;
+            code: string;
+            type: string;
+          };
+        };
+      };
+      /** @description The SDL recorded for this deployment no longer declares the groups, compute resources, replica counts or globally exposed ports the deployment holds, as a full-SDL update can leave it: `code` is `deployment_resources_changed`, and nothing is recorded, no deployment update is sent and no provider is contacted */
+      422: {
         headers: {
           [name: string]: unknown;
         };
@@ -9190,7 +9502,7 @@ export interface operations {
                     deadline?: string;
                     reason?: string;
                   };
-                  /** @description GPUs the console observed running inside this lease's containers, as distinct from the models its group requested on chain. Absent until the console has looked, and for a lease it cannot look inside. */
+                  /** @description GPUs the console observed running inside this lease's containers, as distinct from the models its group requested. Absent until the console has looked, and for a lease it cannot look inside. */
                   detectedGpus?: {
                     services: {
                       service: string;
@@ -9263,7 +9575,7 @@ export interface operations {
                 };
                 /** @description The name this deployment carries, or null for one created before the console recorded names. */
                 name: string | null;
-                /** @description The resource groups the deployment declares on chain, as the chain describes them. */
+                /** @description The resource groups the deployment declares, as recorded for it rather than as its SDL spells them. */
                 groups: {
                   id: {
                     owner: string;
@@ -9348,7 +9660,7 @@ export interface operations {
                    * @description When the runtime limit expires, or null for a limit no lease has anchored yet.
                    */
                   runtimeEndsAt: string | null;
-                  /** @description The console's own bookkeeping, which can trail the chain. `deployment.state` is what the chain says. */
+                  /** @description The console's own bookkeeping, which can trail `deployment.state`. Trust `deployment.state` when the two disagree. */
                   closed: boolean;
                 } | null;
               }[];
@@ -9576,7 +9888,7 @@ export interface operations {
                   deadline?: string;
                   reason?: string;
                 };
-                /** @description GPUs the console observed running inside this lease's containers, as distinct from the models its group requested on chain. Absent until the console has looked, and for a lease it cannot look inside. */
+                /** @description GPUs the console observed running inside this lease's containers, as distinct from the models its group requested. Absent until the console has looked, and for a lease it cannot look inside. */
                 detectedGpus?: {
                   services: {
                     service: string;
@@ -9982,7 +10294,7 @@ export interface operations {
                   deadline?: string;
                   reason?: string;
                 };
-                /** @description GPUs the console observed running inside this lease's containers, as distinct from the models its group requested on chain. Absent until the console has looked, and for a lease it cannot look inside. */
+                /** @description GPUs the console observed running inside this lease's containers, as distinct from the models its group requested. Absent until the console has looked, and for a lease it cannot look inside. */
                 detectedGpus?: {
                   services: {
                     service: string;
@@ -10084,6 +10396,23 @@ export interface operations {
                   }[];
                 };
               };
+            };
+          };
+        };
+      };
+      /** @description A provider could not be reached. With code `provider_unreachable` no lease was created, so choose another bid. With code `manifest_not_delivered` the lease exists, as described above. */
+      502: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            error: string;
+            message: string;
+            code: string;
+            type: string;
+            data?: {
+              [key: string]: unknown;
             };
           };
         };
@@ -10241,6 +10570,119 @@ export interface operations {
       };
     };
   };
+  listProviders: {
+    parameters: {
+      query?: {
+        scope?: "all" | "trial";
+        addresses?: string;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Returns a list of providers */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            owner: string;
+            name: string | null;
+            hostUri: string;
+            createdHeight: number;
+            email?: string | null;
+            website?: string | null;
+            lastCheckDate?: string | null;
+            deploymentCount?: number | null;
+            leaseCount?: number | null;
+            cosmosSdkVersion: string;
+            akashVersion: string;
+            ipRegion: string | null;
+            ipRegionCode: string | null;
+            ipCountry: string | null;
+            ipCountryCode: string | null;
+            ipLat: string | null;
+            ipLon: string | null;
+            uptime1d: number | null;
+            uptime7d: number | null;
+            uptime30d: number | null;
+            isValidVersion: boolean;
+            isOnline: boolean;
+            lastOnlineDate: string | null;
+            isAudited: boolean;
+            stats: {
+              cpu: {
+                active: number;
+                available: number;
+                pending: number;
+              };
+              gpu: {
+                active: number;
+                available: number;
+                pending: number;
+              };
+              memory: {
+                active: number;
+                available: number;
+                pending: number;
+              };
+              storage: {
+                ephemeral: {
+                  active: number;
+                  available: number;
+                  pending: number;
+                };
+                persistent: {
+                  active: number;
+                  available: number;
+                  pending: number;
+                };
+              };
+            };
+            gpuModels: {
+              vendor: string;
+              model: string;
+              ram: string;
+              interface: string;
+            }[];
+            attributes: {
+              key: string;
+              value: string;
+              auditedBy: string[];
+            }[];
+            host: string | null;
+            organization: string | null;
+            statusPage: string | null;
+            locationRegion: string | null;
+            country: string | null;
+            city: string | null;
+            timezone: string | null;
+            locationType: string | null;
+            hostingProvider: string | null;
+            hardwareCpu: string | null;
+            hardwareCpuArch: string | null;
+            hardwareGpuVendor: string | null;
+            hardwareGpuModels: string[] | null;
+            hardwareDisk: string[] | null;
+            featPersistentStorage: boolean;
+            featPersistentStorageType: string[] | null;
+            hardwareMemory: string | null;
+            networkProvider: string | null;
+            networkSpeedDown: number;
+            networkSpeedUp: number;
+            tier: string | null;
+            featEndpointCustomDomain: boolean;
+            workloadSupportChia: boolean;
+            workloadSupportChiaCapabilities: string[] | null;
+            featEndpointIp: boolean;
+          }[];
+        };
+      };
+    };
+  };
   listGpuPrices: {
     parameters: {
       query?: never;
@@ -10285,90 +10727,6 @@ export interface operations {
               } | null;
             }[];
           };
-        };
-      };
-    };
-  };
-  listProviders: {
-    parameters: {
-      query?: {
-        scope?: "all" | "trial";
-        addresses?: string;
-      };
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Returns a list of providers */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": {
-            owner: string;
-            name: string | null;
-            hostUri: string;
-            createdHeight: number;
-            email?: string | null;
-            website?: string | null;
-            lastCheckDate?: string | null;
-            deploymentCount?: number | null;
-            leaseCount?: number | null;
-            cosmosSdkVersion: string;
-            akashVersion: string;
-            ipRegion: string | null;
-            ipRegionCode: string | null;
-            ipCountry: string | null;
-            ipCountryCode: string | null;
-            ipLat: string | null;
-            ipLon: string | null;
-            uptime1d: number | null;
-            uptime7d: number | null;
-            uptime30d: number | null;
-            isValidVersion: boolean;
-            isOnline: boolean;
-            lastOnlineDate: string | null;
-            isAudited: boolean;
-            gpuModels: {
-              vendor: string;
-              model: string;
-              ram: string;
-              interface: string;
-            }[];
-            attributes: {
-              key: string;
-              value: string;
-              auditedBy: string[];
-            }[];
-            host: string | null;
-            organization: string | null;
-            statusPage: string | null;
-            locationRegion: string | null;
-            country: string | null;
-            city: string | null;
-            timezone: string | null;
-            locationType: string | null;
-            hostingProvider: string | null;
-            hardwareCpu: string | null;
-            hardwareCpuArch: string | null;
-            hardwareGpuVendor: string | null;
-            hardwareGpuModels: string[] | null;
-            hardwareDisk: string[] | null;
-            featPersistentStorage: boolean;
-            featPersistentStorageType: string[] | null;
-            hardwareMemory: string | null;
-            networkProvider: string | null;
-            networkSpeedDown: number;
-            networkSpeedUp: number;
-            tier: string | null;
-            featEndpointCustomDomain: boolean;
-            workloadSupportChia: boolean;
-            workloadSupportChiaCapabilities: string[] | null;
-            featEndpointIp: boolean;
-          }[];
         };
       };
     };
@@ -10954,6 +11312,230 @@ export interface operations {
       };
     };
   };
+  listActivities: {
+    parameters: {
+      query?: {
+        limit?: number;
+        cursor?: string;
+        status?: "pending" | "succeeded" | "failed";
+        type?: "deployment_close";
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description One page of activities */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            data: {
+              /** @description Newest first. */
+              activities: {
+                /** Format: uuid */
+                id: string;
+                /**
+                 * @description What the action was.
+                 * @enum {string}
+                 */
+                type: "deployment_close";
+                /**
+                 * @description `pending` while the action is still being confirmed, then `succeeded` or `failed`.
+                 * @enum {string}
+                 */
+                status: "pending" | "succeeded" | "failed";
+                meta: {
+                  /** @description The deployment the action was about. */
+                  dseq?: string;
+                  /** @description The bulk close the action was part of, as its request named it. */
+                  batchId?: string;
+                  /** @description Reference of a pending action whose outcome is still being confirmed. */
+                  txHash?: string;
+                  /** @description Why a failed action did not go through. */
+                  error?: {
+                    code: string;
+                    message: string;
+                  };
+                };
+                /**
+                 * Format: date-time
+                 * @description When the user first marked the activity seen.
+                 */
+                seenAt: string | null;
+                /** Format: date-time */
+                createdAt: string;
+                /** Format: date-time */
+                updatedAt: string;
+              }[];
+              /** @description Activities the user has not marked seen, whatever the filters. */
+              unseenCount: number;
+              pagination: {
+                limit: number;
+                /** @description Whether a further page exists. */
+                hasMore: boolean;
+                /** @description Pass it as `cursor` to read the next page. Null on the last page. */
+                nextCursor: string | null;
+              };
+            };
+          };
+        };
+      };
+      /** @description Invalid query or cursor */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  getActivity: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description The activity */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            data: {
+              /** Format: uuid */
+              id: string;
+              /**
+               * @description What the action was.
+               * @enum {string}
+               */
+              type: "deployment_close";
+              /**
+               * @description `pending` while the action is still being confirmed, then `succeeded` or `failed`.
+               * @enum {string}
+               */
+              status: "pending" | "succeeded" | "failed";
+              meta: {
+                /** @description The deployment the action was about. */
+                dseq?: string;
+                /** @description The bulk close the action was part of, as its request named it. */
+                batchId?: string;
+                /** @description Reference of a pending action whose outcome is still being confirmed. */
+                txHash?: string;
+                /** @description Why a failed action did not go through. */
+                error?: {
+                  code: string;
+                  message: string;
+                };
+              };
+              /**
+               * Format: date-time
+               * @description When the user first marked the activity seen.
+               */
+              seenAt: string | null;
+              /** Format: date-time */
+              createdAt: string;
+              /** Format: date-time */
+              updatedAt: string;
+            };
+          };
+        };
+      };
+      /** @description The id is not a uuid */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description No activity of the user's has this id */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  markActivitiesSeen: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": {
+          data:
+            | {
+                /** @description The activities to mark seen. */
+                ids: string[];
+              }
+            | {
+                /**
+                 * Format: date-time
+                 * @description Marks every activity created at or before this time.
+                 */
+                upTo: string;
+              };
+        };
+      };
+    };
+    responses: {
+      /** @description How many activities are still unseen */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            data: {
+              /** @description Activities the user has not marked seen, whatever the filters. */
+              unseenCount: number;
+            };
+          };
+        };
+      };
+      /** @description Invalid request body */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
   listFavoriteProviders: {
     parameters: {
       query?: never;
@@ -11082,6 +11664,174 @@ export interface operations {
       };
     };
   };
+  getConfigureDraft: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        draftId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description The draft as the account holds it */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            data: {
+              /** @description The SDL being edited, with secret values replaced by their references. */
+              sdl: string;
+              /** @description The SDL the session started from, which a reset goes back to. */
+              startingSdl?: string;
+              name?: string;
+              runtimeLimitHours?: number;
+              /** @description The deployment whose secrets a redeploy carries forward. */
+              inheritSecretsFrom?: string;
+              /** @description Regions picked per placement beyond the one the SDL can carry. */
+              placementRegions?: {
+                [key: string]: string[];
+              };
+              draftId: string;
+              /** Format: date-time */
+              updatedAt: string;
+            };
+          };
+        };
+      };
+      /** @description Invalid draft id */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description The user has no such draft, or it expired */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  updateConfigureDraft: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        draftId: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": {
+          data: {
+            /** @description The SDL being edited, with secret values replaced by their references. */
+            sdl: string;
+            /** @description The SDL the session started from, which a reset goes back to. */
+            startingSdl?: string;
+            name?: string;
+            runtimeLimitHours?: number;
+            /** @description The deployment whose secrets a redeploy carries forward. */
+            inheritSecretsFrom?: string;
+            /** @description Regions picked per placement beyond the one the SDL can carry. */
+            placementRegions?: {
+              [key: string]: string[];
+            };
+          };
+        };
+      };
+    };
+    responses: {
+      /** @description The draft as the account holds it */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            data: {
+              /** @description The SDL being edited, with secret values replaced by their references. */
+              sdl: string;
+              /** @description The SDL the session started from, which a reset goes back to. */
+              startingSdl?: string;
+              name?: string;
+              runtimeLimitHours?: number;
+              /** @description The deployment whose secrets a redeploy carries forward. */
+              inheritSecretsFrom?: string;
+              /** @description Regions picked per placement beyond the one the SDL can carry. */
+              placementRegions?: {
+                [key: string]: string[];
+              };
+              draftId: string;
+              /** Format: date-time */
+              updatedAt: string;
+            };
+          };
+        };
+      };
+      /** @description Invalid draft id or body */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  deleteConfigureDraft: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        draftId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description The draft is gone, or there was none */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Invalid draft id */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
   listAlerts: {
     parameters: {
       query?: {
@@ -11089,7 +11839,7 @@ export interface operations {
         limit?: number;
         /** @description Page number */
         page?: number;
-        /** @description Chain message type, used in conjunction with dseq to filter alerts liked to a specific deployment */
+        /** @description Matches the alert's `params.type` (not its top-level `type`), such as `DEPLOYMENT_CLOSED`. Used with `dseq` to filter the alerts linked to a specific deployment. */
         type?: string;
         /** @description Linked deployment's dseq */
         dseq?: string;
@@ -11876,398 +12626,6 @@ export interface operations {
         content: {
           "application/json": components["schemas"]["InternalServerErrorResponse"];
         };
-      };
-    };
-  };
-  listActivities: {
-    parameters: {
-      query?: {
-        limit?: number;
-        cursor?: string;
-        status?: "pending" | "succeeded" | "failed";
-        type?: "deployment_close";
-      };
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description One page of activities */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": {
-            data: {
-              /** @description Newest first. */
-              activities: {
-                /** Format: uuid */
-                id: string;
-                /**
-                 * @description What the action was.
-                 * @enum {string}
-                 */
-                type: "deployment_close";
-                /**
-                 * @description `pending` while the action is still being confirmed, then `succeeded` or `failed`.
-                 * @enum {string}
-                 */
-                status: "pending" | "succeeded" | "failed";
-                meta: {
-                  /** @description The deployment the action was about. */
-                  dseq?: string;
-                  /** @description The bulk close the action was part of, as its request named it. */
-                  batchId?: string;
-                  /** @description Reference of a pending action whose outcome is still being confirmed. */
-                  txHash?: string;
-                  /** @description Why a failed action did not go through. */
-                  error?: {
-                    code: string;
-                    message: string;
-                  };
-                };
-                /**
-                 * Format: date-time
-                 * @description When the user first marked the activity seen.
-                 */
-                seenAt: string | null;
-                /** Format: date-time */
-                createdAt: string;
-                /** Format: date-time */
-                updatedAt: string;
-              }[];
-              /** @description Activities the user has not marked seen, whatever the filters. */
-              unseenCount: number;
-              pagination: {
-                limit: number;
-                /** @description Whether a further page exists. */
-                hasMore: boolean;
-                /** @description Pass it as `cursor` to read the next page. Null on the last page. */
-                nextCursor: string | null;
-              };
-            };
-          };
-        };
-      };
-      /** @description Invalid query or cursor */
-      400: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-      /** @description Unauthorized */
-      401: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-    };
-  };
-  getActivity: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        id: string;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description The activity */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": {
-            data: {
-              /** Format: uuid */
-              id: string;
-              /**
-               * @description What the action was.
-               * @enum {string}
-               */
-              type: "deployment_close";
-              /**
-               * @description `pending` while the action is still being confirmed, then `succeeded` or `failed`.
-               * @enum {string}
-               */
-              status: "pending" | "succeeded" | "failed";
-              meta: {
-                /** @description The deployment the action was about. */
-                dseq?: string;
-                /** @description The bulk close the action was part of, as its request named it. */
-                batchId?: string;
-                /** @description Reference of a pending action whose outcome is still being confirmed. */
-                txHash?: string;
-                /** @description Why a failed action did not go through. */
-                error?: {
-                  code: string;
-                  message: string;
-                };
-              };
-              /**
-               * Format: date-time
-               * @description When the user first marked the activity seen.
-               */
-              seenAt: string | null;
-              /** Format: date-time */
-              createdAt: string;
-              /** Format: date-time */
-              updatedAt: string;
-            };
-          };
-        };
-      };
-      /** @description The id is not a uuid */
-      400: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-      /** @description Unauthorized */
-      401: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-      /** @description No activity of the user's has this id */
-      404: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-    };
-  };
-  markActivitiesSeen: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        "application/json": {
-          data:
-            | {
-                /** @description The activities to mark seen. */
-                ids: string[];
-              }
-            | {
-                /**
-                 * Format: date-time
-                 * @description Marks every activity created at or before this time.
-                 */
-                upTo: string;
-              };
-        };
-      };
-    };
-    responses: {
-      /** @description How many activities are still unseen */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": {
-            data: {
-              /** @description Activities the user has not marked seen, whatever the filters. */
-              unseenCount: number;
-            };
-          };
-        };
-      };
-      /** @description Invalid request body */
-      400: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-      /** @description Unauthorized */
-      401: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-    };
-  };
-  getConfigureDraft: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        draftId: string;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description The draft as the account holds it */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": {
-            data: {
-              /** @description The SDL being edited, with secret values replaced by their references. */
-              sdl: string;
-              /** @description The SDL the session started from, which a reset goes back to. */
-              startingSdl?: string;
-              name?: string;
-              runtimeLimitHours?: number;
-              /** @description The deployment whose secrets a redeploy carries forward. */
-              inheritSecretsFrom?: string;
-              /** @description Regions picked per placement beyond the one the SDL can carry. */
-              placementRegions?: {
-                [key: string]: string[];
-              };
-              draftId: string;
-              /** Format: date-time */
-              updatedAt: string;
-            };
-          };
-        };
-      };
-      /** @description Invalid draft id */
-      400: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-      /** @description Unauthorized */
-      401: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-      /** @description The user has no such draft, or it expired */
-      404: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-    };
-  };
-  updateConfigureDraft: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        draftId: string;
-      };
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        "application/json": {
-          data: {
-            /** @description The SDL being edited, with secret values replaced by their references. */
-            sdl: string;
-            /** @description The SDL the session started from, which a reset goes back to. */
-            startingSdl?: string;
-            name?: string;
-            runtimeLimitHours?: number;
-            /** @description The deployment whose secrets a redeploy carries forward. */
-            inheritSecretsFrom?: string;
-            /** @description Regions picked per placement beyond the one the SDL can carry. */
-            placementRegions?: {
-              [key: string]: string[];
-            };
-          };
-        };
-      };
-    };
-    responses: {
-      /** @description The draft as the account holds it */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": {
-            data: {
-              /** @description The SDL being edited, with secret values replaced by their references. */
-              sdl: string;
-              /** @description The SDL the session started from, which a reset goes back to. */
-              startingSdl?: string;
-              name?: string;
-              runtimeLimitHours?: number;
-              /** @description The deployment whose secrets a redeploy carries forward. */
-              inheritSecretsFrom?: string;
-              /** @description Regions picked per placement beyond the one the SDL can carry. */
-              placementRegions?: {
-                [key: string]: string[];
-              };
-              draftId: string;
-              /** Format: date-time */
-              updatedAt: string;
-            };
-          };
-        };
-      };
-      /** @description Invalid draft id or body */
-      400: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-      /** @description Unauthorized */
-      401: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-    };
-  };
-  deleteConfigureDraft: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        draftId: string;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description The draft is gone, or there was none */
-      204: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-      /** @description Invalid draft id */
-      400: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-      /** @description Unauthorized */
-      401: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
       };
     };
   };
