@@ -10,6 +10,9 @@ import { InitialDeploymentFundingInstrumentationService } from "@src/deployment/
 export class FundDeploymentHandler implements JobHandler<FundDeploymentCommand> {
   public readonly accepts = FundDeploymentCommand;
 
+  /** One funding job per deployment across queued, retrying and running, so a lease followed up twice deposits once; a `standard` queue ignores the key. */
+  public readonly policy = "exclusive";
+
   public readonly concurrency = 2;
 
   private readonly logger: ReturnType<CreateLogger>;

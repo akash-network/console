@@ -26,6 +26,9 @@ export class CloseTrialDeployment implements Job {
 export class CloseTrialDeploymentHandler implements JobHandler<CloseTrialDeployment> {
   public readonly accepts = CloseTrialDeployment;
 
+  /** One close per trial deployment queued and one running, which is how a lease announced twice learns its close is already scheduled. */
+  public readonly policy = "stately";
+
   public readonly concurrency = 2;
 
   private readonly logger: ReturnType<CreateLogger>;

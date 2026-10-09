@@ -9,6 +9,7 @@ import type { EventPayload } from "@src/core";
 import { DOMAIN_EVENT_NAME } from "@src/core";
 import type { CreateLogger } from "@src/core/providers/logging.provider";
 import type { JobQueueService } from "@src/core/services/job-queue/job-queue.service";
+import type { TxService } from "@src/core/services/tx/tx.service";
 import { NotificationJob } from "@src/notifications/services/notification-handler/notification.handler";
 import type { TrialWorkloadProbeJobService } from "@src/workload-abuse/services/trial-workload-probe-job/trial-workload-probe-job.service";
 import { CloseTrialDeployment } from "../close-trial-deployment/close-trial-deployment.handler";
@@ -209,6 +210,51 @@ describe(TrialDeploymentLeaseCreatedHandler.name, () => {
     );
   });
 
+  it("sends no notification again for a lease whose deployment already has its close queued", async () => {
+    const wallet = createUserWallet({ isTrialing: true });
+    const { handler, jobQueueService, probeJobService, logger } = setup({
+      findWalletById: vi.fn().mockResolvedValue(wallet),
+      enqueueJob: vi.fn(async job => (job instanceof CloseTrialDeployment ? null : "job-id"))
+    });
+
+    await handler.handle({ walletId: wallet.id, dseq: "test-dseq", createdAt: new Date().toISOString(), version: 1, isFirstLease: true });
+
+    expect(jobQueueService.enqueue).toHaveBeenCalledOnce();
+    expect(jobQueueService.enqueue).toHaveBeenCalledWith(expect.any(CloseTrialDeployment), expect.anything());
+    expect(logger.debug).toHaveBeenCalledWith({
+      event: "SKIP_TRIAL_DEPLOYMENT_CLOSING_TRIAL",
+      reason: "Trial deployment close is already scheduled",
+      domainEvent: TrialDeploymentLeaseCreated[DOMAIN_EVENT_NAME],
+      dseq: "test-dseq",
+      walletId: wallet.id
+    });
+    expect(probeJobService.scheduleInitial).toHaveBeenCalledOnce();
+  });
+
+  it("queues the close ahead of its notifications, all in one transaction", async () => {
+    const wallet = createUserWallet({ isTrialing: true });
+    const enqueuedInTransaction: boolean[] = [];
+    let inTransaction = false;
+    const { handler, jobQueueService, txService } = setup({
+      findWalletById: vi.fn().mockResolvedValue(wallet),
+      enqueueJob: vi.fn(async () => {
+        enqueuedInTransaction.push(inTransaction);
+        return "job-id";
+      })
+    });
+    txService.transaction.mockImplementation(async callback => {
+      inTransaction = true;
+      const result = await callback();
+      inTransaction = false;
+      return result;
+    });
+
+    await handler.handle({ walletId: wallet.id, dseq: "test-dseq", createdAt: new Date().toISOString(), version: 1, isFirstLease: true });
+
+    expect(enqueuedInTransaction).toEqual([true, true, true]);
+    expect(jobQueueService.enqueue.mock.calls[0][0]).toBeInstanceOf(CloseTrialDeployment);
+  });
+
   it("creates the logger with the service context", () => {
     const { createLogger } = setup();
 
@@ -259,13 +305,16 @@ describe(TrialDeploymentLeaseCreatedHandler.name, () => {
       }),
       logger: mock<ReturnType<CreateLogger>>(),
       jobQueueService: mock<JobQueueService>({
-        enqueue: input?.enqueueJob ?? vi.fn().mockResolvedValue(undefined)
+        enqueue: input?.enqueueJob ?? vi.fn().mockResolvedValue("job-id")
       }),
       billingConfig: mockConfigService<BillingConfigService>({
         TRIAL_DEPLOYMENT_CLEANUP_HOURS: input?.trialDeploymentLifetimeInHours ?? 24,
         CONSOLE_WEB_PAYMENT_LINK: PAYMENT_LINK
       }),
-      probeJobService: mock<TrialWorkloadProbeJobService>()
+      probeJobService: mock<TrialWorkloadProbeJobService>(),
+      txService: mock<TxService>({
+        transaction: vi.fn(async callback => await callback())
+      })
     };
 
     const createLogger = vi.fn<CreateLogger>(() => mocks.logger);
@@ -275,7 +324,8 @@ describe(TrialDeploymentLeaseCreatedHandler.name, () => {
       createLogger,
       mocks.jobQueueService,
       mocks.billingConfig,
-      mocks.probeJobService
+      mocks.probeJobService,
+      mocks.txService
     );
 
     return { handler, createLogger, ...mocks };

@@ -1,5 +1,6 @@
 import "@src/app/providers/jobs.provider";
 
+import { addHours } from "date-fns";
 import { container } from "tsyringe";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -48,6 +49,16 @@ describe(FundDeploymentHandler.name, () => {
     expect(await findCreditsLowCheck()).toBeUndefined();
   });
 
+  it("refuses a second funding job for the same deployment while the first is still queued", async () => {
+    const { queueFundingForLater } = await setup({ lease: "missing" });
+
+    const first = await queueFundingForLater();
+    const second = await queueFundingForLater();
+
+    expect(first).toEqual(expect.any(String));
+    expect(second).toBeNull();
+  });
+
   async function setup(input: { lease: "closed" | "missing"; autoReload?: boolean }) {
     const { enqueue, startWorkers } = await jobWorkers();
     const { user, wallet, address } = await seedUserWithWallet();
@@ -67,6 +78,8 @@ describe(FundDeploymentHandler.name, () => {
     const fundingKey = `fundDeployment.${wallet.id}.${dseq}`;
 
     return {
+      queueFundingForLater: () =>
+        enqueue(new FundDeploymentCommand({ walletId: wallet.id, address, dseq }), { singletonKey: fundingKey, startAfter: addHours(new Date(), 1).toISOString() }),
       findCreditsLowCheck: async () => (await findJobRows(WalletCreditsLowCheck[JOB_NAME], { singletonKey: `${WalletCreditsLowCheck.name}.${user.id}` }))[0],
       dispatchFundDeployment: async () => {
         await enqueue(new FundDeploymentCommand({ walletId: wallet.id, address, dseq }), { singletonKey: fundingKey });

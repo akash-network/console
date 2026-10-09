@@ -9,6 +9,9 @@ import { NotificationService } from "@src/notifications/services/notification/no
 export class EnableDeploymentAlertHandler implements JobHandler<EnableDeploymentAlertCommand> {
   public readonly accepts = EnableDeploymentAlertCommand;
 
+  /** One job per deployment across queued, retrying and running, because the alert upsert reads before it writes and two at once would create two alerts. */
+  public readonly policy = "exclusive";
+
   public readonly concurrency = 2;
 
   private readonly logger: ReturnType<CreateLogger>;

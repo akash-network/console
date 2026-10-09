@@ -16,6 +16,8 @@ import { startJobQueues } from "@src/app/providers/jobs.provider";
 import type { ApiKeyOutput } from "@src/auth/repositories/api-key/api-key.repository";
 import { ApiKeyAuthService } from "@src/auth/services/api-key/api-key-auth.service";
 import { AuthService } from "@src/auth/services/auth.service";
+import { EnableDeploymentAlertCommand } from "@src/billing/commands/enable-deployment-alert.command";
+import { FundDeploymentCommand } from "@src/billing/commands/fund-deployment.command";
 import type { UserWalletOutput } from "@src/billing/repositories";
 import { UserWalletRepository } from "@src/billing/repositories";
 import { ManagedSignerService } from "@src/billing/services";
@@ -182,12 +184,12 @@ describe("Deployments API", () => {
    * deployment now records what that deployment is, and that record is FK-bound to the user. `mockUser`
    * fakes the user, and only suits paths that never record a definition.
    */
-  async function mockPersistedUser({ address = "akash13265twfqejnma6cc93rw5dxk4cldyz2zyy8cdm" }: { address?: string } = {}) {
+  async function mockPersistedUser({ address = "akash13265twfqejnma6cc93rw5dxk4cldyz2zyy8cdm", isTrialing }: { address?: string; isTrialing?: boolean } = {}) {
     const dbUser = await userRepository.create({ userId: faker.string.uuid() });
     const userApiKeySecret = faker.word.noun();
     const user = createUser({ id: dbUser.id, userId: dbUser.userId ?? undefined });
     const apiKey = createApiKey({ userId: dbUser.id });
-    const wallets = [createUserWallet({ userId: dbUser.id, address })];
+    const wallets = [createUserWallet({ userId: dbUser.id, address, isTrialing })];
 
     currentUser = user;
     knownUsers[dbUser.id] = user;
@@ -2834,6 +2836,74 @@ describe("Deployments API", () => {
       expect(sent[0]).not.toBe(CLIENT_MANIFEST);
     });
 
+    it("completes a lease an earlier attempt landed, queueing its funding and alert once however often it is requested", async () => {
+      const { userApiKeySecret, user, wallets } = await mockPersistedUser({ isTrialing: false });
+      const dseq = createDseq();
+      const provider = createAkashAddress();
+      await recordDefinition({ user, dseq, sdl: sdlMock("hello-world-sdl.yml") });
+      mockLeaseChain({ wallets, dseq, leasedTo: provider });
+
+      const first = await postLeases({ userApiKeySecret, dseq, manifest: CLIENT_MANIFEST, provider });
+      const second = await postLeases({ userApiKeySecret, dseq, manifest: CLIENT_MANIFEST, provider });
+
+      expect([first.status, second.status]).toEqual([200, 200]);
+      expect(signerService.executeDerivedDecodedTxByUserId).not.toHaveBeenCalled();
+      expect(providerService.sendManifest).toHaveBeenCalledTimes(2);
+      expect(await followUpJobsOf(dseq, wallets[0])).toEqual({ funding: 1, alert: 1 });
+    });
+
+    it("reports success for a retry whose lease a lagging node hid, rather than refusing its bid as no longer open", async () => {
+      const { userApiKeySecret, user, wallets } = await mockPersistedUser({ isTrialing: false });
+      const dseq = createDseq();
+      const provider = createAkashAddress();
+      const leasedBid = createBid({ owner: wallets[0].address!, dseq, gseq: 1, oseq: 1, provider });
+      leasedBid.bid.state = "active";
+      await recordDefinition({ user, dseq, sdl: sdlMock("hello-world-sdl.yml") });
+      hideLeasesOnce({ wallets, dseq });
+      mockLeaseChain({ wallets, dseq, leasedTo: provider, bids: [leasedBid] });
+
+      const response = await postLeases({ userApiKeySecret, dseq, manifest: CLIENT_MANIFEST, provider });
+
+      expect(response.status).toBe(200);
+      expect(signerService.executeDerivedDecodedTxByUserId).not.toHaveBeenCalled();
+      expect(providerService.sendManifest).toHaveBeenCalledTimes(1);
+      expect(await followUpJobsOf(dseq, wallets[0])).toEqual({ funding: 1, alert: 1 });
+    });
+
+    it("answers an attempt the signer could not settle as undecided, then completes its lease on the retry", async () => {
+      const { userApiKeySecret, user, wallets } = await mockPersistedUser({ isTrialing: false });
+      const dseq = createDseq();
+      const provider = createAkashAddress();
+      await recordDefinition({ user, dseq, sdl: sdlMock("hello-world-sdl.yml") });
+      hideLeasesOnce({ wallets, dseq, times: 2 });
+      mockLeaseChain({ wallets, dseq, leasedTo: provider });
+      vi.mocked(signerService.executeDerivedDecodedTxByUserId).mockRejectedValueOnce(new TxOutcomeUnknownError("tx-hash"));
+
+      const undecided = await postLeases({ userApiKeySecret, dseq, manifest: CLIENT_MANIFEST, provider });
+      const retry = await postLeases({ userApiKeySecret, dseq, manifest: CLIENT_MANIFEST, provider });
+
+      expect([undecided.status, retry.status]).toEqual([504, 200]);
+      expect(signerService.executeDerivedDecodedTxByUserId).toHaveBeenCalledTimes(1);
+      expect(providerService.sendManifest).toHaveBeenCalledTimes(1);
+      expect(await followUpJobsOf(dseq, wallets[0])).toEqual({ funding: 1, alert: 1 });
+    });
+
+    function hideLeasesOnce({ wallets, dseq, times = 1 }: { wallets: UserWalletOutput[]; dseq: string; times?: number }) {
+      nock(container.resolve(CORE_CONFIG).REST_API_NODE_URL)
+        .get(`/akash/market/${marketVersion}/leases/list?filters.owner=${wallets[0].address}&filters.dseq=${dseq}`)
+        .times(times)
+        .reply(200, { leases: [], pagination: { next_key: null, total: "0" } });
+    }
+
+    async function followUpJobsOf(dseq: string, wallet: UserWalletOutput) {
+      const [funding, alert] = await Promise.all([
+        findJobRows(FundDeploymentCommand[JOB_NAME], { singletonKey: `FundDeploymentCommand.${dseq}.${wallet.id}` }),
+        findJobRows(EnableDeploymentAlertCommand[JOB_NAME], { singletonKey: `EnableDeploymentAlertCommand.${dseq}.${wallet.id}` })
+      ]);
+
+      return { funding: funding.length, alert: alert.length };
+    }
+
     function sdlMock(name: string) {
       return fs.readFileSync(path.resolve(__dirname, `../mocks/${name}`), "utf8");
     }
@@ -2876,17 +2946,19 @@ describe("Deployments API", () => {
       dseq,
       deploymentFound = true,
       leaseExists = true,
-      bids = []
+      bids = [],
+      leasedTo
     }: {
       wallets: UserWalletOutput[];
       dseq: string;
       deploymentFound?: boolean;
       leaseExists?: boolean;
       bids?: Bid[];
+      leasedTo?: string;
     }) {
       const address = wallets[0].address;
       const restUrl = container.resolve(CORE_CONFIG).REST_API_NODE_URL;
-      const leases = leaseExists ? createManyLeaseApiResponses(1, { owner: address!, dseq, state: "active" }) : [];
+      const leases = leaseExists ? createManyLeaseApiResponses(1, { owner: address!, dseq, state: "active", ...(leasedTo && { gseq: 1, oseq: 1, provider: leasedTo }) }) : [];
 
       nock(restUrl)
         .persist()

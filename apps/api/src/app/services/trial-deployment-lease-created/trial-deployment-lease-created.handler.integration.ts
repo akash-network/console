@@ -1,6 +1,6 @@
 import "@src/app/providers/jobs.provider";
 
-import { addHours } from "date-fns";
+import { addHours, addMinutes } from "date-fns";
 import nock from "nock";
 import { container } from "tsyringe";
 import { afterEach, describe, expect, it } from "vitest";
@@ -70,6 +70,18 @@ describe(TrialDeploymentLeaseCreatedHandler.name, () => {
     expect(await findCongratulationJobs()).toHaveLength(0);
   });
 
+  it("schedules the close and its notifications once however often the lease is announced", async () => {
+    const { leaseCreatedAt, leaseCreated, awaitCongratulations, findCloseJobs, findWarningJobs, findCongratulationJobs } = await setup({ isFirstLease: true });
+
+    await leaseCreated();
+    await awaitCongratulations();
+    await leaseCreated(addMinutes(leaseCreatedAt, 5));
+
+    expect(await findCloseJobs()).toHaveLength(1);
+    expect(await findWarningJobs()).toHaveLength(1);
+    expect(await findCongratulationJobs()).toHaveLength(1);
+  });
+
   it("schedules nothing for a wallet that has left the trial", async () => {
     const { leaseCreated, findCloseJob, findWarningJob } = await setup({ isTrialing: false });
 
@@ -127,17 +139,19 @@ describe(TrialDeploymentLeaseCreatedHandler.name, () => {
       findWarningJob: () => findJobBySingletonKey(NotificationJob[JOB_NAME], `notification.beforeCloseTrialDeployment.${dseq}.${wallet.id}`),
       awaitCongratulations: () => expectJobCompleted(NotificationJob[JOB_NAME], { singletonKey: `notification.trialFirstDeploymentLeaseCreated.${wallet.id}` }),
       findCongratulationJobs: () => findJobRows(NotificationJob[JOB_NAME], { singletonKey: `notification.trialFirstDeploymentLeaseCreated.${wallet.id}` }),
-      leaseCreated: async () => {
+      findCloseJobs: () => findJobRows(CloseTrialDeployment[JOB_NAME], { singletonKey: `closeTrialDeployment.${dseq}.${wallet.id}` }),
+      findWarningJobs: () => findJobRows(NotificationJob[JOB_NAME], { singletonKey: `notification.beforeCloseTrialDeployment.${dseq}.${wallet.id}` }),
+      leaseCreated: async (announcedAt = leaseCreatedAt) => {
         await enqueue(
           new TrialDeploymentLeaseCreated({
             walletId: wallet.id,
             dseq,
-            createdAt: leaseCreatedAt.toISOString(),
+            createdAt: announcedAt.toISOString(),
             isFirstLease: input.isFirstLease ?? false
           })
         );
         await startWorkers();
-        await expectJobCompleted(TrialDeploymentLeaseCreated[DOMAIN_EVENT_NAME], { data: { dseq } });
+        await expectJobCompleted(TrialDeploymentLeaseCreated[DOMAIN_EVENT_NAME], { data: { dseq, createdAt: announcedAt.toISOString() } });
       }
     };
   }

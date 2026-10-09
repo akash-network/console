@@ -297,6 +297,12 @@ describe(CloseTrialDeploymentHandler.name, () => {
     expect(handler.requiresPermission()).toEqual([]);
   });
 
+  it("declares the stately policy, so a trial deployment has one close queued however often its lease is announced", () => {
+    const { handler } = setup();
+
+    expect(handler.policy).toBe("stately");
+  });
+
   function setup(input?: {
     findWalletById?: UserWalletRepository["findById"];
     enqueueJob?: JobQueueService["enqueue"];

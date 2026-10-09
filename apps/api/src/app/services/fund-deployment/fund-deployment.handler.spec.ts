@@ -55,6 +55,12 @@ describe(FundDeploymentHandler.name, () => {
     expect(handler.requiresPermission()).toEqual([]);
   });
 
+  it("declares the exclusive policy, so a lease followed up twice queues one funding job across queued, retrying and running", () => {
+    const { handler } = setup();
+
+    expect(handler.policy).toBe("exclusive");
+  });
+
   function setup(params?: { initialDeploymentFundingService?: Partial<InitialDeploymentFundingService> }) {
     const initialDeploymentFundingService = mock<InitialDeploymentFundingService>({
       fundOnLeaseStarted: vi.fn().mockResolvedValue(undefined),
