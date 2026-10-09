@@ -3,6 +3,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { type DeepMockProxy, mock, mockDeep, type MockProxy } from "vitest-mock-extended";
 
 import type { CreateLogger } from "@src/core/providers/logging.provider";
+import type { DeploymentSettingRepository } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
+import type { OrganizationOutput, OrganizationRepository } from "@src/organization/repositories/organization/organization.repository";
 import type { UserOutput, UserRepository } from "@src/user/repositories";
 import type { NotificationsApiClient, NotificationsInternalApiClient } from "../../providers/notifications-api.provider";
 import { type CreateNotificationInput, NotificationService } from "./notification.service";
@@ -48,9 +50,35 @@ describe(NotificationService.name, () => {
 
       expect(api.v1.createDefaultNotificationChannel).toHaveBeenCalledTimes(2);
     });
+
+    it("attributes the default channel to the user's personal organization", async () => {
+      const { service, api, organizationRepository } = setup();
+      organizationRepository.findPersonalByUserId.mockResolvedValue(mock<OrganizationOutput>({ id: "personal-organization-1" }));
+      api.v1.createDefaultNotificationChannel.mockResolvedValue({} as never);
+
+      await service.createDefaultChannel({ id: "user-1", email: "user@example.com" });
+
+      expect(api.v1.createDefaultNotificationChannel).toHaveBeenCalledWith(expect.anything(), {
+        headers: { "x-user-id": "user-1", "x-organization-id": "personal-organization-1" }
+      });
+    });
   });
 
   describe("createNotification", () => {
+    it("attributes the notification to the user's personal organization when they have one", async () => {
+      const { service, apiInternal, organizationRepository } = setup();
+      const personalOrganization = mock<OrganizationOutput>({ id: "personal-organization-1" });
+      organizationRepository.findPersonalByUserId.mockResolvedValue(personalOrganization);
+      apiInternal.v1.createNotification.mockResolvedValue({} as never);
+
+      await service.createNotification({ notificationId: "n-1", payload: { summary: "s", description: "d" }, user: { id: "user-1" } });
+
+      expect(organizationRepository.findPersonalByUserId).toHaveBeenCalledWith("user-1");
+      expect(apiInternal.v1.createNotification).toHaveBeenCalledWith(expect.anything(), {
+        headers: { "x-user-id": "user-1", "x-organization-id": "personal-organization-1" }
+      });
+    });
+
     it("sends notification via the internal client", async () => {
       vi.useFakeTimers();
       const { service, apiInternal } = setup();
@@ -190,6 +218,47 @@ describe(NotificationService.name, () => {
   });
 
   describe("autoEnableDeploymentAlert", () => {
+    it("files the alert into the organization and project of the deployment", async () => {
+      const { service, api, userRepository, deploymentSettingRepository } = setup();
+      userRepository.findById.mockResolvedValue({ id: "user-1", email: "user@example.com" } as UserOutput);
+      api.v1.listNotificationChannels.mockResolvedValue({ data: [{ id: "channel-1" }] } as never);
+      deploymentSettingRepository.findTenancy.mockResolvedValue({ organizationId: "organization-1", projectId: "project-1" });
+
+      await service.autoEnableDeploymentAlert({ userId: "user-1", walletAddress: "akash1abc", dseq: "123" });
+
+      expect(deploymentSettingRepository.findTenancy).toHaveBeenCalledWith({ userId: "user-1", dseq: "123" });
+      expect(api.v1.upsertDeploymentAlert).toHaveBeenCalledWith(expect.anything(), {
+        headers: { "x-user-id": "user-1", "x-organization-id": "organization-1", "x-project-id": "project-1", "x-owner-address": "akash1abc" }
+      });
+    });
+
+    it("files the alert into the organization of a deployment that has no project", async () => {
+      const { service, api, userRepository, deploymentSettingRepository } = setup();
+      userRepository.findById.mockResolvedValue({ id: "user-1", email: "user@example.com" } as UserOutput);
+      api.v1.listNotificationChannels.mockResolvedValue({ data: [{ id: "channel-1" }] } as never);
+      deploymentSettingRepository.findTenancy.mockResolvedValue({ organizationId: "organization-1", projectId: null });
+
+      await service.autoEnableDeploymentAlert({ userId: "user-1", walletAddress: "akash1abc", dseq: "123" });
+
+      expect(api.v1.upsertDeploymentAlert).toHaveBeenCalledWith(expect.anything(), {
+        headers: { "x-user-id": "user-1", "x-organization-id": "organization-1", "x-owner-address": "akash1abc" }
+      });
+    });
+
+    it("files the alert into the user's personal organization when the deployment is not filed anywhere", async () => {
+      const { service, api, userRepository, organizationRepository, deploymentSettingRepository } = setup();
+      userRepository.findById.mockResolvedValue({ id: "user-1", email: "user@example.com" } as UserOutput);
+      api.v1.listNotificationChannels.mockResolvedValue({ data: [{ id: "channel-1" }] } as never);
+      deploymentSettingRepository.findTenancy.mockResolvedValue({ organizationId: null, projectId: null });
+      organizationRepository.findPersonalByUserId.mockResolvedValue(mock<OrganizationOutput>({ id: "personal-organization-1" }));
+
+      await service.autoEnableDeploymentAlert({ userId: "user-1", walletAddress: "akash1abc", dseq: "123" });
+
+      expect(api.v1.upsertDeploymentAlert).toHaveBeenCalledWith(expect.anything(), {
+        headers: { "x-user-id": "user-1", "x-organization-id": "personal-organization-1", "x-owner-address": "akash1abc" }
+      });
+    });
+
     it("creates default channel when no channels exist, then upserts only the deployment-closed alert", async () => {
       const { service, api, userRepository } = setup();
 
@@ -294,8 +363,10 @@ describe(NotificationService.name, () => {
     const apiInternal = overrides?.apiInternal ?? mockDeep<NotificationsInternalApiClient>();
     const userRepository = overrides?.userRepository ?? mock<UserRepository>();
     const logger = overrides?.logger ?? mock<ReturnType<CreateLogger>>();
-    const service = new NotificationService(api, apiInternal, userRepository, () => logger);
+    const organizationRepository = mock<OrganizationRepository>();
+    const deploymentSettingRepository = mock<DeploymentSettingRepository>();
+    const service = new NotificationService(api, apiInternal, userRepository, organizationRepository, deploymentSettingRepository, () => logger);
 
-    return { service, api, apiInternal, userRepository, logger };
+    return { service, api, apiInternal, userRepository, organizationRepository, deploymentSettingRepository, logger };
   }
 });

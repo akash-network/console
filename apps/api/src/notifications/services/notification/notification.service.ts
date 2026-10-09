@@ -3,6 +3,9 @@ import { ExponentialBackoff, handleAll, retry, type RetryPolicy } from "cockatie
 import { inject, singleton } from "tsyringe";
 
 import { type CreateLogger, LOGGER_FACTORY } from "@src/core/providers/logging.provider";
+import { DeploymentSettingRepository } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
+import { NOTIFICATIONS_IDENTITY_HEADERS } from "@src/notifications/lib/identity-headers/identity-headers";
+import { OrganizationRepository } from "@src/organization/repositories/organization/organization.repository";
 import { UserRepository } from "@src/user/repositories";
 import type { NotificationsApiClient, NotificationsInternalApiClient, NotificationsInternalOperationDefs } from "../../providers/notifications-api.provider";
 import { NOTIFICATIONS_API_CLIENT, NOTIFICATIONS_INTERNAL_API_CLIENT } from "../../providers/notifications-api.provider";
@@ -16,6 +19,8 @@ export class NotificationService {
     @inject(NOTIFICATIONS_API_CLIENT) private readonly notificationsApi: NotificationsApiClient,
     @inject(NOTIFICATIONS_INTERNAL_API_CLIENT) private readonly notificationsInternalApi: NotificationsInternalApiClient,
     private readonly userRepository: UserRepository,
+    private readonly organizationRepository: OrganizationRepository,
+    private readonly deploymentSettingRepository: DeploymentSettingRepository,
     @inject(LOGGER_FACTORY) createLogger: CreateLogger
   ) {
     this.#logger = createLogger({ context: "NotificationService" });
@@ -31,9 +36,10 @@ export class NotificationService {
   async createNotification(input: CreateNotificationInput): Promise<void> {
     const { user, ...notification } = input;
     let defaultChannelCreated = false;
+    const headers = await this.#userIdentityHeaders(user.id);
     await this.#retryPolicy.execute(async () => {
       try {
-        await this.notificationsInternalApi.v1.createNotification(notification, { headers: { "x-user-id": user.id } });
+        await this.notificationsInternalApi.v1.createNotification(notification, { headers });
       } catch (error) {
         if (!defaultChannelCreated && extractApiErrorCode(error) === "NOTIFICATION_CHANNEL_NOT_FOUND" && user.email) {
           await this.createDefaultChannel(user);
@@ -45,11 +51,12 @@ export class NotificationService {
   }
 
   async createDefaultChannel(user: UserInput): Promise<void> {
+    const headers = await this.#userIdentityHeaders(user.id);
     await this.#retryPolicy.execute(async () => {
       try {
         await this.notificationsApi.v1.createDefaultNotificationChannel(
           { data: { name: "Default", type: "email", config: { addresses: [user.email!] } } },
-          { headers: { "x-user-id": user.id } }
+          { headers }
         );
       } catch (error) {
         throw new Error("Failed to create default notification channel", { cause: error });
@@ -105,6 +112,7 @@ export class NotificationService {
   }
 
   private async upsertDeploymentClosedAlert(input: { userId: string; walletAddress: string; dseq: string; channelId: string }) {
+    const headers = await this.#deploymentIdentityHeaders(input);
     await this.#retryPolicy.execute(async () =>
       this.notificationsApi.v1.upsertDeploymentAlert(
         {
@@ -115,9 +123,29 @@ export class NotificationService {
             }
           }
         },
-        { headers: { "x-owner-address": input.walletAddress, "x-user-id": input.userId } }
+        { headers: { ...headers, [NOTIFICATIONS_IDENTITY_HEADERS.ownerAddress]: input.walletAddress } }
       )
     );
+  }
+
+  /** Attributes what the user writes outside a request to their personal organization, which keeps transactional emails on their own default channel. */
+  async #userIdentityHeaders(userId: string): Promise<Record<string, string>> {
+    const organization = await this.organizationRepository.findPersonalByUserId(userId);
+    const headers = { [NOTIFICATIONS_IDENTITY_HEADERS.userId]: userId };
+
+    return organization ? { ...headers, [NOTIFICATIONS_IDENTITY_HEADERS.organizationId]: organization.id } : headers;
+  }
+
+  async #deploymentIdentityHeaders({ userId, dseq }: { userId: string; dseq: string }): Promise<Record<string, string>> {
+    const tenancy = await this.deploymentSettingRepository.findTenancy({ userId, dseq });
+
+    if (!tenancy?.organizationId) {
+      return this.#userIdentityHeaders(userId);
+    }
+
+    const headers = { [NOTIFICATIONS_IDENTITY_HEADERS.userId]: userId, [NOTIFICATIONS_IDENTITY_HEADERS.organizationId]: tenancy.organizationId };
+
+    return tenancy.projectId ? { ...headers, [NOTIFICATIONS_IDENTITY_HEADERS.projectId]: tenancy.projectId } : headers;
   }
 }
 

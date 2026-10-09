@@ -21,6 +21,7 @@ export type DeploymentSettingsOutput = Omit<DeploymentSettingsDbOutput, "created
   updatedAt: string;
 };
 
+export type DeploymentTenancy = Pick<DeploymentSettingsDbOutput, "organizationId" | "projectId">;
 export type RecentNvidiaDriver = { driverVersion: string; lastSeenDate: string };
 
 const NVIDIA_PROBE_SOURCE = "nvidia-smi" satisfies GpuProbeSource;
@@ -182,6 +183,17 @@ export class DeploymentSettingRepository extends BaseRepository<Table, Deploymen
   }
 
   /** Under the same double scoping as {@link findNamesByDseqs}; the null-name condition is what lets the partial index on named rows serve it. */
+  /** Where a user's deployment is filed, absent when the console holds no row for it. */
+  async findTenancy({ userId, dseq }: { userId: string; dseq: string }): Promise<DeploymentTenancy | undefined> {
+    const [tenancy] = await this.cursor
+      .select({ organizationId: this.table.organizationId, projectId: this.table.projectId })
+      .from(this.table)
+      .where(and(eq(this.table.userId, userId), eq(this.table.dseq, dseq)))
+      .limit(1);
+
+    return tenancy;
+  }
+
   async findDseqsByNameContaining({ userId, text }: { userId: string; text: string }): Promise<string[]> {
     const rows = await this.cursor
       .select({ dseq: this.table.dseq })

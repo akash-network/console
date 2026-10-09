@@ -4,29 +4,42 @@ import { container } from "tsyringe";
 
 import { AuthService } from "@src/auth/services/auth.service";
 import { UserWalletRepository } from "@src/billing/repositories";
+import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
 import type { FeatureFlagValue } from "@src/core/services/feature-flags/feature-flags";
 import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
 import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import type { AppContext } from "@src/core/types/app-context";
+import { DeploymentSettingRepository } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
 import type { NotificationsConfig } from "@src/notifications/config/env.config";
-import { NOTIFICATIONS_IDENTITY_HEADERS, stripIdentityHeaders } from "@src/notifications/lib/identity-headers/identity-headers";
+import { NOTIFICATIONS_IDENTITY_HEADERS, organizationIdentityHeaders, stripIdentityHeaders } from "@src/notifications/lib/identity-headers/identity-headers";
 import { NOTIFICATIONS_CONFIG } from "@src/notifications/providers/notifications-config.provider";
 
 const notificationsApiProxy = new Hono();
 
+export interface ProxyDependencies {
+  authService: AuthService;
+  userWalletRepository: UserWalletRepository;
+  deploymentSettingRepository: DeploymentSettingRepository;
+  executionContextService: ExecutionContextService;
+  config: NotificationsConfig;
+  fetchFn: typeof fetch;
+}
+
+const DEPLOYMENT_ALERTS_PATH = /^\/v1\/deployment-alerts\/([^/]+)$/;
+
 export const createProxy =
-  (authService: AuthService, userWalletRepository: UserWalletRepository, config: NotificationsConfig, fetchFn: typeof fetch) => async (c: AppContext) => {
+  ({ authService, userWalletRepository, deploymentSettingRepository, executionContextService, config, fetchFn }: ProxyDependencies) =>
+  async (c: AppContext) => {
     const { req } = c;
     const clientHeaders = Object.fromEntries([...req.raw.headers.entries()].map(([k, v]) => [k.toLowerCase(), v]));
     const headers = stripIdentityHeaders(clientHeaders);
+    const isBodyAllowed = !["GET", "HEAD"].includes(req.method);
 
     const subject = req.url.includes("/v1/notification-channels") ? "NotificationChannel" : "Alert";
-    authService.throwUnlessCan("manage", subject);
+    authService.throwUnlessCan(isBodyAllowed ? "manage" : "read", subject);
 
     const url = new URL(req.url);
     const targetUrl = config.NOTIFICATIONS_API_BASE_URL + url.pathname + url.search;
-
-    const isBodyAllowed = !["GET", "HEAD"].includes(req.method);
 
     const userId = authService.currentUser.id;
     headers[NOTIFICATIONS_IDENTITY_HEADERS.userId] = userId;
@@ -37,6 +50,21 @@ export const createProxy =
 
     if (userWallet.address) {
       headers[NOTIFICATIONS_IDENTITY_HEADERS.ownerAddress] = userWallet.address;
+    }
+
+    const organizationContext = executionContextService.get("ORGANIZATION_CONTEXT");
+
+    if (organizationContext) {
+      Object.assign(headers, organizationIdentityHeaders(organizationContext));
+    }
+
+    const projectId =
+      isBodyAllowed && organizationContext
+        ? await projectOfTargetedDeployment(deploymentSettingRepository, { pathname: url.pathname, userId, organizationId: organizationContext.organizationId })
+        : null;
+
+    if (projectId) {
+      headers[NOTIFICATIONS_IDENTITY_HEADERS.projectId] = projectId;
     }
 
     if (isBodyAllowed && !headers["content-type"]) {
@@ -52,7 +80,29 @@ export const createProxy =
     });
   };
 
-const proxyRoute = createProxy(container.resolve(AuthService), container.resolve(UserWalletRepository), container.resolve(NOTIFICATIONS_CONFIG), fetch);
+async function projectOfTargetedDeployment(
+  deploymentSettingRepository: DeploymentSettingRepository,
+  { pathname, userId, organizationId }: { pathname: string; userId: string; organizationId: string }
+): Promise<string | null> {
+  const dseq = pathname.match(DEPLOYMENT_ALERTS_PATH)?.[1];
+
+  if (!dseq) {
+    return null;
+  }
+
+  const deployment = await deploymentSettingRepository.findTenancy({ userId, dseq });
+
+  return deployment?.organizationId === organizationId ? deployment.projectId : null;
+}
+
+const proxyRoute = createProxy({
+  authService: container.resolve(AuthService),
+  userWalletRepository: container.resolve(UserWalletRepository),
+  deploymentSettingRepository: container.resolve(DeploymentSettingRepository),
+  executionContextService: container.resolve(ExecutionContextService),
+  config: container.resolve(NOTIFICATIONS_CONFIG),
+  fetchFn: fetch
+});
 const proxyRouteIfEnabled = (featureFlag: FeatureFlagValue) => {
   return async (c: AppContext) => {
     if (!container.resolve(FeatureFlagsService).isEnabled(featureFlag)) return c.json({ error: "MethodNotAllowed" }, 405);
