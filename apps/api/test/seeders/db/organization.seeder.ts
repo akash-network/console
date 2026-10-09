@@ -11,6 +11,7 @@ import { seedUser } from "./user-with-wallet.seeder";
 type OrganizationInsert = ApiPgTables["Organizations"]["$inferInsert"];
 type OrganizationMemberInsert = ApiPgTables["OrganizationMembers"]["$inferInsert"];
 type ProjectInsert = ApiPgTables["Projects"]["$inferInsert"];
+type ProjectMemberInsert = ApiPgTables["ProjectMembers"]["$inferInsert"];
 
 export async function seedOrganization(overrides: Partial<OrganizationInsert> = {}) {
   const db = container.resolve<ApiPgDatabase>(POSTGRES_DB);
@@ -49,6 +50,16 @@ export async function seedProject(overrides: Partial<ProjectInsert> & Pick<Proje
     .returning();
 
   return project;
+}
+
+export async function seedProjectMember(overrides: Partial<ProjectMemberInsert> & Pick<ProjectMemberInsert, "organizationId" | "projectId" | "userId">) {
+  const db = container.resolve<ApiPgDatabase>(POSTGRES_DB);
+  const [member] = await db
+    .insert(resolveTable("ProjectMembers"))
+    .values({ role: "member", ...overrides })
+    .returning();
+
+  return member;
 }
 
 export async function seedOrganizationWithOwner({ user: userOverrides, ...overrides }: Partial<OrganizationInsert> & { user?: UserInput } = {}) {

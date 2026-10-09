@@ -99,6 +99,8 @@ describe("Route behind a feature flag", () => {
   });
 
   it("answers unauthorized to an anonymous caller once the flag is on for everyone", async () => {
+    vi.spyOn(featureFlagsService, "isEnabled").mockReturnValue(true);
+
     const response = await probe({}, validBody());
 
     expect(response.status).toBe(401);

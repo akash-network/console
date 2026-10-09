@@ -1,13 +1,22 @@
-import { and, eq } from "drizzle-orm";
+import { and, asc, eq, isNull, or, type SQL } from "drizzle-orm";
 import { singleton } from "tsyringe";
 
 import { type ApiPgDatabase, type ApiPgTables, InjectPg, InjectPgTable } from "@src/core/providers";
 import { type AbilityParams, BaseRepository } from "@src/core/repositories/base.repository";
 import { TxService } from "@src/core/services";
+import { Organizations } from "@src/organization/model-schemas/organization/organization.schema";
+import type { OrganizationRole } from "@src/organization/model-schemas/organization-member/organization-member.schema";
 
 type Table = ApiPgTables["OrganizationMembers"];
 export type OrganizationMemberInput = Table["$inferInsert"];
 export type OrganizationMemberOutput = Table["$inferSelect"];
+
+export type OrganizationLookup = { id: string } | { slug: string } | { idOrSlug: string } | { type: "personal" };
+
+export interface Membership {
+  role: OrganizationRole;
+  organization: ApiPgTables["Organizations"]["$inferSelect"];
+}
 
 @singleton()
 export class OrganizationMemberRepository extends BaseRepository<Table, OrganizationMemberInput, OrganizationMemberOutput> {
@@ -51,4 +60,35 @@ export class OrganizationMemberRepository extends BaseRepository<Table, Organiza
 
     return this.toOutputList(owners);
   }
+
+  async findActiveMembership(userId: OrganizationMemberOutput["userId"], lookup: OrganizationLookup): Promise<Membership | undefined> {
+    const [membership] = await this.#selectActiveMemberships(and(eq(this.table.userId, userId), organizationMatching(userId, lookup)));
+
+    return membership;
+  }
+
+  async findActiveMemberships(userId: OrganizationMemberOutput["userId"]): Promise<Membership[]> {
+    return await this.#selectActiveMemberships(eq(this.table.userId, userId)).orderBy(
+      asc(Organizations.type),
+      asc(Organizations.createdAt),
+      asc(Organizations.id)
+    );
+  }
+
+  #selectActiveMemberships(where: SQL | undefined) {
+    return this.cursor
+      .select({ role: this.table.role, organization: Organizations })
+      .from(this.table)
+      .innerJoin(Organizations, eq(Organizations.id, this.table.organizationId))
+      .where(and(where, isNull(Organizations.deletedAt)))
+      .$dynamic();
+  }
+}
+
+function organizationMatching(userId: string, lookup: OrganizationLookup): SQL | undefined {
+  if ("id" in lookup) return eq(Organizations.id, lookup.id);
+  if ("slug" in lookup) return eq(Organizations.slug, lookup.slug);
+  if ("idOrSlug" in lookup) return or(eq(Organizations.id, lookup.idOrSlug), eq(Organizations.slug, lookup.idOrSlug));
+
+  return and(eq(Organizations.type, "personal"), eq(Organizations.createdByUserId, userId));
 }
