@@ -16,6 +16,7 @@ interface TenantConditions {
   belowOwnerInOrg: MongoQuery;
   inScope: MongoQuery;
   projectsInScope: MongoQuery;
+  organizationWide: MongoQuery;
   ownInOrg: MongoQuery;
 }
 
@@ -49,7 +50,7 @@ const ROLE_RULES: Record<OrganizationRole, (conditions: TenantConditions, contex
     { action: "manage", subject: PROJECT_RESOURCES, conditions: inScope }
   ],
   billing: ({ inOrg }) => [
-    { action: "read", subject: "Project", conditions: inOrg },
+    { action: "read", subject: ["Project", "OrganizationActivity"], conditions: inOrg },
     { action: "manage", subject: ["WalletSetting", "PaymentMethod", "StripePayment"], conditions: inOrg }
   ],
   viewer: ({ inOrg, inScope, projectsInScope, ownInOrg }) => [
@@ -122,14 +123,17 @@ function tenantConditionsOf(user: RuleUser, { organizationId, projectScope }: Or
     belowOwnerInOrg: { ...inOrg, role: { $in: ROLES_BELOW_OWNER } },
     inScope: projectIds ? { ...inOrg, projectId: { $in: projectIds } } : inOrg,
     projectsInScope: projectIds ? { ...inOrg, id: { $in: projectIds } } : inOrg,
+    organizationWide: { ...inOrg, projectId: null },
     ownInOrg: { ...inOrg, userId: user.id }
   };
 }
 
-function everyMemberRules({ organization, inOrg, ownInOrg }: TenantConditions): AbilityRule[] {
+function everyMemberRules({ organization, inOrg, inScope, organizationWide, ownInOrg }: TenantConditions): AbilityRule[] {
   return [
     { action: "read", subject: "Organization", conditions: organization },
     { action: "read", subject: ["OrganizationMember", "UserWallet"], conditions: inOrg },
+    { action: "read", subject: "OrganizationActivity", conditions: inScope },
+    { action: "read", subject: "OrganizationActivity", conditions: organizationWide },
     { action: "manage", subject: "ApiKey", conditions: ownInOrg }
   ];
 }
