@@ -1,5 +1,6 @@
 import "@src/app/providers/jobs.provider";
 
+import { addHours } from "date-fns";
 import nock from "nock";
 import { container } from "tsyringe";
 import { afterEach, describe, expect, it } from "vitest";
@@ -57,6 +58,16 @@ describe(EnableDeploymentAlertHandler.name, () => {
     expect(upsertedAlerts()).toHaveLength(0);
   });
 
+  it("refuses a second alert job for the same deployment while the first is still queued", async () => {
+    const { queueAlertForLater } = await setup();
+
+    const first = await queueAlertForLater();
+    const second = await queueAlertForLater();
+
+    expect(first).toEqual(expect.any(String));
+    expect(second).toBeNull();
+  });
+
   async function setup(input: { email?: string | null; hasChannel?: boolean } = {}) {
     const { enqueue, startWorkers } = await jobWorkers();
     const baseUrl = container.resolve(NOTIFICATIONS_CONFIG).NOTIFICATIONS_API_BASE_URL as string;
@@ -106,6 +117,11 @@ describe(EnableDeploymentAlertHandler.name, () => {
       dseq,
       createdChannels: () => createdChannels,
       upsertedAlerts: () => upserted,
+      queueAlertForLater: () =>
+        enqueue(new EnableDeploymentAlertCommand({ userId: user.id, walletAddress, dseq }), {
+          singletonKey: `enableDeploymentAlert.${user.id}.${dseq}`,
+          startAfter: addHours(new Date(), 1).toISOString()
+        }),
       enableAlert: async () => {
         await enqueue(new EnableDeploymentAlertCommand({ userId: user.id, walletAddress, dseq }), {
           singletonKey: `enableDeploymentAlert.${user.id}.${dseq}`

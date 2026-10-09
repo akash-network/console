@@ -39,6 +39,12 @@ describe(EnableDeploymentAlertHandler.name, () => {
     expect(handler.requiresPermission()).toEqual([]);
   });
 
+  it("declares the exclusive policy, so a lease followed up twice queues one alert job across queued, retrying and running", () => {
+    const { handler } = setup();
+
+    expect(handler.policy).toBe("exclusive");
+  });
+
   function setup(params?: { notificationService?: Partial<NotificationService>; logger?: Partial<ReturnType<CreateLogger>> }) {
     const notificationService = mock<NotificationService>({
       autoEnableDeploymentAlert: vi.fn().mockResolvedValue(undefined),
