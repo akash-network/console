@@ -37,6 +37,8 @@ type DeploymentSettingWithEstimatedTopUpAmount = Omit<
   | "offeredGpus"
   | "closeReason"
   | "closeReasonDetails"
+  | "organizationId"
+  | "projectId"
 > & {
   estimatedTopUpAmount: number;
   topUpFrequencyMs: number;
@@ -362,6 +364,8 @@ export class DeploymentSettingService {
       offeredGpus,
       closeReason,
       closeReasonDetails,
+      organizationId,
+      projectId,
       ...rest
     } = params;
     const setting = { ...rest, runtimeEndsAt: runtimeEndsAt?.toISOString() ?? null };
