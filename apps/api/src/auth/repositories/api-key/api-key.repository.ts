@@ -3,8 +3,9 @@ import { and } from "drizzle-orm";
 import { singleton } from "tsyringe";
 
 import { type ApiPgDatabase, type ApiPgTables, InjectPg, InjectPgTable } from "@src/core/providers";
-import { type AbilityParams, BaseRepository } from "@src/core/repositories/base.repository";
+import { OrgScopedRepository } from "@src/core/repositories/org-scoped.repository";
 import { TxService } from "@src/core/services";
+import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
 
 type Table = ApiPgTables["ApiKeys"];
 export type ApiKeyInput = Partial<Table["$inferInsert"]>;
@@ -18,17 +19,18 @@ export type ApiKeyOutput = Omit<ApiKeyDbOutput, "createdAt" | "updatedAt" | "exp
 };
 
 @singleton()
-export class ApiKeyRepository extends BaseRepository<Table, ApiKeyInput, ApiKeyOutput> {
+export class ApiKeyRepository extends OrgScopedRepository<Table, ApiKeyInput, ApiKeyOutput> {
   constructor(
     @InjectPg() protected readonly pg: ApiPgDatabase,
     @InjectPgTable("ApiKeys") protected readonly table: Table,
-    protected readonly txManager: TxService
+    protected readonly txManager: TxService,
+    protected readonly executionContextService: ExecutionContextService
   ) {
-    super(pg, table, txManager, "ApiKey", "ApiKeys");
+    super(pg, table, txManager, executionContextService, "ApiKey", "ApiKeys");
   }
 
-  accessibleBy(...abilityParams: AbilityParams) {
-    return new ApiKeyRepository(this.pg, this.table, this.txManager).withAbility(...abilityParams) as this;
+  protected newInstance() {
+    return new ApiKeyRepository(this.pg, this.table, this.txManager, this.executionContextService) as this;
   }
 
   async findBcryptKeysByKeyFormat(keyFormat: string): Promise<ApiKeyOutput[]> {
@@ -36,7 +38,7 @@ export class ApiKeyRepository extends BaseRepository<Table, ApiKeyInput, ApiKeyO
     const items = await this.cursor
       .select()
       .from(this.table)
-      .where(and(eq(this.table.keyFormat, keyFormat), isBcryptHashSql));
+      .where(this.unscoped("api-key-authentication").whereAccessibleBy(and(eq(this.table.keyFormat, keyFormat), isBcryptHashSql)));
     return this.toOutputList(items);
   }
 
@@ -45,7 +47,9 @@ export class ApiKeyRepository extends BaseRepository<Table, ApiKeyInput, ApiKeyO
       .update(this.table)
       .set({ lastUsedAt: sql`now()` })
       .where(
-        and(eq(this.table.id, id), or(isNull(this.table.lastUsedAt), lt(this.table.lastUsedAt, sql`now() - make_interval(secs => ${throttleTimeSeconds})`)))
+        this.whereAccessibleBy(
+          and(eq(this.table.id, id), or(isNull(this.table.lastUsedAt), lt(this.table.lastUsedAt, sql`now() - make_interval(secs => ${throttleTimeSeconds})`)))
+        )
       );
   }
 
@@ -53,7 +57,7 @@ export class ApiKeyRepository extends BaseRepository<Table, ApiKeyInput, ApiKeyO
     await this.cursor
       .update(this.table)
       .set({ hashedKey })
-      .where(and(eq(this.table.id, id), ne(this.table.hashedKey, hashedKey)));
+      .where(this.unscoped("api-key-authentication").whereAccessibleBy(and(eq(this.table.id, id), ne(this.table.hashedKey, hashedKey))));
   }
 
   protected toOutput(payload: ApiKeyDbOutput): ApiKeyOutput {

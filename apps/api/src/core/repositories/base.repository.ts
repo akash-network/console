@@ -11,7 +11,7 @@ import type { ApiPgDatabase, ApiPgTables, ApiTransaction, TxService } from "@src
 
 export type AbilityParams = [AnyAbility, Parameters<AnyAbility["can"]>[0]];
 
-interface MutationOptions {
+export interface MutationOptions {
   returning: true;
 }
 
@@ -51,6 +51,10 @@ export abstract class BaseRepository<
     this.ability = new DrizzleAbility(this.table, ability, action, this.entityName);
     this.#abilityParams = [ability, action];
     return this;
+  }
+
+  protected get abilityParams(): AbilityParams | undefined {
+    return this.#abilityParams;
   }
 
   protected whereAccessibleBy(where: SQL | undefined) {
@@ -281,7 +285,7 @@ type TablesOnly<T> = {
 };
 
 type TableName<T extends PgTableWithColumns<any>> = T extends PgTableWithColumns<infer TableConfig> ? TableConfig["name"] : never;
-type TableNameInSchema<T extends PgTableWithColumns<any>> = {
+export type TableNameInSchema<T extends PgTableWithColumns<any>> = {
   [K in keyof TablesOnly<ApiPgTables> as TableName<ApiPgTables[K]>]: K;
 }[TableName<T>];
 
