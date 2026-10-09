@@ -4,6 +4,7 @@ import { inject, singleton } from "tsyringe";
 import { type CreateLogger, LOGGER_FACTORY } from "@src/core/providers/logging.provider";
 import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
 import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
+import type { OrganizationContext } from "@src/organization/types/organization-context";
 import type { UserOutput } from "@src/user/repositories";
 import { type AbilityRule, enabledRules, legacyRules, organizationRules, SUPER_USER_RULES } from "./ability-rules";
 import { ShadowedAbility } from "./shadowed-ability";
@@ -34,13 +35,22 @@ export class AbilityService {
       return this.#toAbility(legacyRules(user));
     }
 
-    const organizationAbility = this.#toAbility(organizationRules(user, organizationContext));
-
     if (organizationContext.mode === "organization") {
-      return organizationAbility;
+      return this.#toAbility(organizationRules(user, organizationContext));
     }
 
-    return new ShadowedAbility(enabledRules(legacyRules(user), this.featureFlagsService), organizationAbility, this.#logger);
+    return this.#legacyAbilityWithOrganizationShadow(user, organizationContext);
+  }
+
+  #legacyAbilityWithOrganizationShadow(user: UserOutput, organizationContext: OrganizationContext) {
+    const legacyAbilityRules = enabledRules(legacyRules(user), this.featureFlagsService);
+
+    try {
+      return new ShadowedAbility(legacyAbilityRules, this.#toAbility(organizationRules(user, organizationContext)), this.#logger);
+    } catch (error) {
+      this.#logger.error({ event: "ORGANIZATION_ABILITY_SHADOW_FAILED", error });
+      return createMongoAbility(legacyAbilityRules);
+    }
   }
 
   #toAbility(rules: AbilityRule[]) {
