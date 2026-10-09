@@ -2,7 +2,7 @@ import { faker } from "@faker-js/faker";
 
 import type { OrganizationOutput } from "@src/organization/repositories/organization/organization.repository";
 import type { AdoptedRowCounts } from "@src/organization/repositories/organization-adoption/organization-adoption.repository";
-import type { OrganizationMemberOutput } from "@src/organization/repositories/organization-member/organization-member.repository";
+import type { OrganizationMemberOutput, OrganizationMemberWithUser } from "@src/organization/repositories/organization-member/organization-member.repository";
 import type { ProjectOutput } from "@src/organization/repositories/project/project.repository";
 
 export function createOrganizationSlug() {
@@ -32,6 +32,17 @@ export function createOrganizationMember({
   updatedAt = faker.date.recent()
 }: Partial<OrganizationMemberOutput> = {}): OrganizationMemberOutput {
   return { id, organizationId, userId, role, createdAt, updatedAt };
+}
+
+export function createOrganizationMemberWithUser({
+  id = faker.string.uuid(),
+  userId = faker.string.uuid(),
+  role = "member",
+  createdAt = faker.date.recent(),
+  username = faker.internet.userName(),
+  email = faker.internet.email()
+}: Partial<OrganizationMemberWithUser> = {}): OrganizationMemberWithUser {
+  return { id, userId, role, createdAt, username, email };
 }
 
 export function createProject({
