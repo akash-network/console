@@ -1,91 +1,59 @@
-import { createMongoAbility, RawRule } from "@casl/ability";
-import type { TemplateExecutor } from "lodash";
-import template from "lodash/template";
-import { singleton } from "tsyringe";
+import { createMongoAbility, type MongoAbility } from "@casl/ability";
+import { inject, singleton } from "tsyringe";
 
-import { FeatureFlagValue } from "@src/core/services/feature-flags/feature-flags";
+import { type CreateLogger, LOGGER_FACTORY } from "@src/core/providers/logging.provider";
+import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
 import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
+import type { OrganizationContext } from "@src/organization/types/organization-context";
 import type { UserOutput } from "@src/user/repositories";
+import { type AbilityRule, enabledRules, legacyRules, organizationRules, SUPER_USER_RULES } from "./ability-rules";
+import { ShadowedAbility } from "./shadowed-ability";
 
 type Role = "REGULAR_USER" | "REGULAR_PAYING_USER" | "SUPER_USER";
 
 @singleton()
 export class AbilityService {
   readonly EMPTY_ABILITY = createMongoAbility([]);
+  readonly #logger: ReturnType<CreateLogger>;
 
-  private readonly RULES: Record<Role, Array<RawRule & { enabledIf?: FeatureFlagValue }>> = {
-    REGULAR_USER: [
-      { action: ["read", "sign"], subject: "UserWallet", conditions: { userId: "${user.id}" } },
-      { action: "manage", subject: "WalletSetting", conditions: { userId: "${user.id}" } },
-      { action: "read", subject: "User", conditions: { id: "${user.id}" } },
-      { action: "verify-email", subject: "User", conditions: { email: "${user.email}" } },
-      { action: ["create", "read", "delete"], subject: "StripePayment" },
-      { action: "manage", subject: "PaymentMethod", conditions: { userId: "${user.id}" } },
-      { action: "create", subject: "VerificationEmail", conditions: { id: "${user.id}" } },
-      { action: "manage", subject: "DeploymentSetting", conditions: { userId: "${user.id}" } },
-      { action: "read", subject: "LeaseGpu", conditions: { userId: "${user.id}" } },
-      { action: "manage", subject: "ApiKey", conditions: { userId: "${user.id}" } },
-      { action: "manage", subject: "Alert", conditions: { userId: "${user.id}" } },
-      { action: "manage", subject: "NotificationChannel", conditions: { userId: "${user.id}" } },
-      { action: "create", subject: "HardwareRequest", conditions: { userId: "${user.id}" } },
-      { action: ["read", "update"], subject: "Activity", conditions: { userId: "${user.id}" } },
-      { action: "manage", subject: "FavoriteProvider", conditions: { userId: "${user.id}" } },
-      { action: "manage", subject: "ConfigureDraft", conditions: { userId: "${user.id}" } }
-    ],
-    REGULAR_PAYING_USER: [
-      { action: ["read", "sign"], subject: "UserWallet", conditions: { userId: "${user.id}" } },
-      { action: "manage", subject: "WalletSetting", conditions: { userId: "${user.id}" } },
-      { action: "read", subject: "User", conditions: { id: "${user.id}" } },
-      { action: "verify-email", subject: "User", conditions: { email: "${user.email}" } },
-      { action: ["create", "read", "delete"], subject: "StripePayment" },
-      { action: "manage", subject: "PaymentMethod", conditions: { userId: "${user.id}" } },
-      { action: "create", subject: "VerificationEmail", conditions: { id: "${user.id}" } },
-      { action: "manage", subject: "DeploymentSetting", conditions: { userId: "${user.id}" } },
-      { action: "read", subject: "LeaseGpu", conditions: { userId: "${user.id}" } },
-      { action: "manage", subject: "ApiKey", conditions: { userId: "${user.id}" } },
-      { action: "manage", subject: "Alert", conditions: { userId: "${user.id}" } },
-      { action: "manage", subject: "NotificationChannel", conditions: { userId: "${user.id}" } },
-      { action: "create", subject: "HardwareRequest", conditions: { userId: "${user.id}" } },
-      { action: ["read", "update"], subject: "Activity", conditions: { userId: "${user.id}" } },
-      { action: "manage", subject: "FavoriteProvider", conditions: { userId: "${user.id}" } },
-      { action: "manage", subject: "ConfigureDraft", conditions: { userId: "${user.id}" } }
-    ],
-    SUPER_USER: [{ action: "manage", subject: "all" }]
-  };
-
-  private compiledRules?: Record<Role, TemplateExecutor>;
-
-  constructor(private readonly featureFlagsService: FeatureFlagsService) {
-    this.featureFlagsService.onChanged(() => {
-      this.compiledRules = undefined;
-    });
+  constructor(
+    private readonly featureFlagsService: FeatureFlagsService,
+    private readonly executionContextService: ExecutionContextService,
+    @inject(LOGGER_FACTORY) createLogger: CreateLogger
+  ) {
+    this.#logger = createLogger({ context: AbilityService.name });
   }
 
-  getAbilityFor(role: Role, user: UserOutput) {
-    const compiledRules = this.compileRules();
-    return this.toAbility(compiledRules[role]({ user }));
+  getAbilityFor(role: Role, user: UserOutput): MongoAbility {
+    if (role === "SUPER_USER") {
+      return this.#toAbility(SUPER_USER_RULES);
+    }
+
+    const organizationContext = this.executionContextService.hasContext() ? this.executionContextService.get("ORGANIZATION_CONTEXT") : undefined;
+
+    if (!organizationContext) {
+      return this.#toAbility(legacyRules(user));
+    }
+
+    if (organizationContext.mode === "organization") {
+      return this.#toAbility(organizationRules(user, organizationContext));
+    }
+
+    return this.#legacyAbilityWithOrganizationShadow(user, organizationContext);
   }
 
-  private compileRules() {
-    this.compiledRules ??= (Object.keys(this.RULES) as Role[]).reduce(
-      (acc, role) => {
-        const rules = this.RULES[role].reduce<RawRule[]>((acc, { enabledIf, ...rule }) => {
-          if (!enabledIf || this.featureFlagsService.isEnabled(enabledIf)) {
-            acc.push(rule);
-          }
-          return acc;
-        }, []);
+  #legacyAbilityWithOrganizationShadow(user: UserOutput, organizationContext: OrganizationContext) {
+    const legacyAbilityRules = enabledRules(legacyRules(user), this.featureFlagsService);
 
-        acc[role] = template(JSON.stringify(rules));
-        return acc;
-      },
-      {} as Record<Role, TemplateExecutor>
-    );
-
-    return this.compiledRules;
+    try {
+      return new ShadowedAbility(legacyAbilityRules, this.#toAbility(organizationRules(user, organizationContext)), this.#logger);
+    } catch (error) {
+      this.#logger.error({ event: "ORGANIZATION_ABILITY_SHADOW_FAILED", error });
+      return createMongoAbility(legacyAbilityRules);
+    }
   }
 
-  private toAbility(raw: string) {
-    return createMongoAbility(JSON.parse(raw));
+  #toAbility(rules: AbilityRule[]) {
+    return createMongoAbility(enabledRules(rules, this.featureFlagsService));
   }
 }
