@@ -4,7 +4,13 @@ import { type CreateLogger, LOGGER_FACTORY } from "@src/core/providers/logging.p
 import { TxService } from "@src/core/services/tx/tx.service";
 import { personalOrganizationName, personalOrganizationSlug } from "@src/organization/lib/personal-organization/personal-organization";
 import { type OrganizationOutput, OrganizationRepository } from "@src/organization/repositories/organization/organization.repository";
-import { type AdoptedRowCounts, OrganizationAdoptionRepository } from "@src/organization/repositories/organization-adoption/organization-adoption.repository";
+import {
+  ADOPTABLE_TABLES,
+  type AdoptableTable,
+  type AdoptedRowCounts,
+  type AdoptUserRowsInput,
+  OrganizationAdoptionRepository
+} from "@src/organization/repositories/organization-adoption/organization-adoption.repository";
 import { OrganizationMemberRepository } from "@src/organization/repositories/organization-member/organization-member.repository";
 import { ProjectRepository } from "@src/organization/repositories/project/project.repository";
 import type { UserOutput } from "@src/user/repositories/user/user.repository";
@@ -48,18 +54,30 @@ export class PersonalOrganizationService {
       throw new Error(`Organization ${organization.id} has no default project to file the rows of user ${user.id} into`);
     }
 
-    const counts = await this.organizationAdoptionRepository.adoptUserRows({
-      userId: user.id,
-      externalUserId: user.userId,
-      organizationId: organization.id,
-      projectId: project.id
-    });
+    const input: AdoptUserRowsInput = { userId: user.id, externalUserId: user.userId, organizationId: organization.id, projectId: project.id };
+    const adopted: [AdoptableTable, number][] = [];
+
+    for (const table of ADOPTABLE_TABLES) {
+      adopted.push([table, await this.#adoptRowsOf(table, input)]);
+    }
+
+    const counts = Object.fromEntries(adopted) as AdoptedRowCounts;
 
     if (Object.values(counts).some(count => count > 0)) {
       this.#logger.info({ event: "USER_ROWS_ADOPTED_INTO_PERSONAL_ORGANIZATION", userId: user.id, organizationId: organization.id, ...counts });
     }
 
     return counts;
+  }
+
+  /** A failure on one table counts as nothing adopted there, so it never keeps the user's other rows out of the organization. */
+  async #adoptRowsOf(table: AdoptableTable, input: AdoptUserRowsInput): Promise<number> {
+    try {
+      return await this.organizationAdoptionRepository.adoptRows(table, input);
+    } catch (error) {
+      this.#logger.error({ event: "USER_ROWS_ADOPTION_FAILED", table, userId: input.userId, organizationId: input.organizationId, error });
+      return 0;
+    }
   }
 
   async #ensureOrganization(user: PersonalOrganizationUser): Promise<OrganizationOutput> {

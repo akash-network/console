@@ -12,15 +12,11 @@ export interface AdoptUserRowsInput {
   projectId: string;
 }
 
-export interface AdoptedRowCounts {
-  userWallets: number;
-  walletSettings: number;
-  paymentMethods: number;
-  stripeTransactions: number;
-  deploymentSettings: number;
-  apiKeys: number;
-  templates: number;
-}
+export const ADOPTABLE_TABLES = ["userWallets", "walletSettings", "paymentMethods", "stripeTransactions", "deploymentSettings", "apiKeys", "templates"] as const;
+
+export type AdoptableTable = (typeof ADOPTABLE_TABLES)[number];
+
+export type AdoptedRowCounts = Record<AdoptableTable, number>;
 
 /** Every statement only touches rows that have no organization yet, which is what lets the whole pass be re-run. */
 @singleton()
@@ -41,54 +37,61 @@ export class OrganizationAdoptionRepository {
     return this.txManager.getPgTx() || this.pg;
   }
 
-  async adoptUserRows({ userId, externalUserId, organizationId, projectId }: AdoptUserRowsInput): Promise<AdoptedRowCounts> {
+  async adoptRows(table: AdoptableTable, { userId, externalUserId, organizationId, projectId }: AdoptUserRowsInput): Promise<number> {
     const { userWallets, walletSettings, paymentMethods, stripeTransactions, deploymentSettings, apiKeys, templates } = this;
 
-    return {
-      userWallets: (
-        await this.#cursor
-          .update(userWallets)
-          .set({ organizationId })
-          .where(and(eq(userWallets.userId, userId), isNull(userWallets.organizationId)))
-      ).count,
-      walletSettings: (
-        await this.#cursor
-          .update(walletSettings)
-          .set({ organizationId })
-          .where(and(eq(walletSettings.userId, userId), isNull(walletSettings.organizationId)))
-      ).count,
-      paymentMethods: (
-        await this.#cursor
-          .update(paymentMethods)
-          .set({ organizationId })
-          .where(and(eq(paymentMethods.userId, userId), isNull(paymentMethods.organizationId)))
-      ).count,
-      stripeTransactions: (
-        await this.#cursor
-          .update(stripeTransactions)
-          .set({ organizationId })
-          .where(and(eq(stripeTransactions.userId, userId), isNull(stripeTransactions.organizationId)))
-      ).count,
-      deploymentSettings: (
-        await this.#cursor
-          .update(deploymentSettings)
-          .set({ organizationId, projectId })
-          .where(and(eq(deploymentSettings.userId, userId), isNull(deploymentSettings.organizationId)))
-      ).count,
-      apiKeys: (
-        await this.#cursor
-          .update(apiKeys)
-          .set({ organizationId, projectId })
-          .where(and(eq(apiKeys.userId, userId), isNull(apiKeys.organizationId)))
-      ).count,
-      templates: externalUserId
-        ? (
-            await this.#cursor
-              .update(templates)
-              .set({ organizationId, projectId })
-              .where(and(eq(templates.userId, externalUserId), isNull(templates.organizationId)))
-          ).count
-        : 0
-    };
+    switch (table) {
+      case "userWallets":
+        return (
+          await this.#cursor
+            .update(userWallets)
+            .set({ organizationId })
+            .where(and(eq(userWallets.userId, userId), isNull(userWallets.organizationId)))
+        ).count;
+      case "walletSettings":
+        return (
+          await this.#cursor
+            .update(walletSettings)
+            .set({ organizationId })
+            .where(and(eq(walletSettings.userId, userId), isNull(walletSettings.organizationId)))
+        ).count;
+      case "paymentMethods":
+        return (
+          await this.#cursor
+            .update(paymentMethods)
+            .set({ organizationId })
+            .where(and(eq(paymentMethods.userId, userId), isNull(paymentMethods.organizationId)))
+        ).count;
+      case "stripeTransactions":
+        return (
+          await this.#cursor
+            .update(stripeTransactions)
+            .set({ organizationId })
+            .where(and(eq(stripeTransactions.userId, userId), isNull(stripeTransactions.organizationId)))
+        ).count;
+      case "deploymentSettings":
+        return (
+          await this.#cursor
+            .update(deploymentSettings)
+            .set({ organizationId, projectId })
+            .where(and(eq(deploymentSettings.userId, userId), isNull(deploymentSettings.organizationId)))
+        ).count;
+      case "apiKeys":
+        return (
+          await this.#cursor
+            .update(apiKeys)
+            .set({ organizationId, projectId })
+            .where(and(eq(apiKeys.userId, userId), isNull(apiKeys.organizationId)))
+        ).count;
+      case "templates":
+        if (!externalUserId) return 0;
+
+        return (
+          await this.#cursor
+            .update(templates)
+            .set({ organizationId, projectId })
+            .where(and(eq(templates.userId, externalUserId), isNull(templates.organizationId)))
+        ).count;
+    }
   }
 }

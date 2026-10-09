@@ -6,7 +6,12 @@ import type { TxService } from "@src/core/services/tx/tx.service";
 import { FALLBACK_PERSONAL_ORGANIZATION_NAME } from "@src/organization/lib/personal-organization/personal-organization";
 import { MAX_ORGANIZATION_NAME_LENGTH } from "@src/organization/model-schemas/organization/organization.schema";
 import type { OrganizationRepository } from "@src/organization/repositories/organization/organization.repository";
-import type { OrganizationAdoptionRepository } from "@src/organization/repositories/organization-adoption/organization-adoption.repository";
+import {
+  ADOPTABLE_TABLES,
+  type AdoptableTable,
+  type AdoptedRowCounts,
+  type OrganizationAdoptionRepository
+} from "@src/organization/repositories/organization-adoption/organization-adoption.repository";
 import type { OrganizationMemberRepository } from "@src/organization/repositories/organization-member/organization-member.repository";
 import type { ProjectRepository } from "@src/organization/repositories/project/project.repository";
 import { MAX_PERSONAL_SLUG_COLLISIONS, PersonalOrganizationService } from "./personal-organization.service";
@@ -130,20 +135,37 @@ describe(PersonalOrganizationService.name, () => {
   });
 
   describe("adoptUserRows", () => {
-    it("stamps the user's rows with the organization and its default project", async () => {
+    it("stamps the user's rows in every table with the organization and its default project", async () => {
       const user = createUser();
-      const { service, organization, project, organizationAdoptionRepository } = setup();
-      const counts = createAdoptedRowCounts({ userWallets: 1, deploymentSettings: 3 });
-      organizationAdoptionRepository.adoptUserRows.mockResolvedValue(counts);
+      const adopted = createAdoptedRowCounts({ userWallets: 1, deploymentSettings: 3 });
+      const { service, organization, project, organizationAdoptionRepository } = setup({ adopted });
 
       const result = await service.adoptUserRows(user, organization);
 
-      expect(result).toBe(counts);
-      expect(organizationAdoptionRepository.adoptUserRows).toHaveBeenCalledWith({
+      expect(result).toEqual(adopted);
+      const input = { userId: user.id, externalUserId: user.userId, organizationId: organization.id, projectId: project.id };
+      expect(organizationAdoptionRepository.adoptRows.mock.calls).toEqual(ADOPTABLE_TABLES.map(table => [table, input]));
+    });
+
+    it("still files the other tables when one of them fails, and logs the failure", async () => {
+      const user = createUser();
+      const error = new Error("lock timeout");
+      const { service, organization, organizationAdoptionRepository, logger } = setup();
+      organizationAdoptionRepository.adoptRows.mockImplementation(async table => {
+        if (table === "walletSettings") throw error;
+        return 1;
+      });
+
+      const result = await service.adoptUserRows(user, organization);
+
+      expect(result).toEqual({ userWallets: 1, walletSettings: 0, paymentMethods: 1, stripeTransactions: 1, deploymentSettings: 1, apiKeys: 1, templates: 1 });
+      expect(logger.error).toHaveBeenCalledTimes(1);
+      expect(logger.error).toHaveBeenCalledWith({
+        event: "USER_ROWS_ADOPTION_FAILED",
+        table: "walletSettings",
         userId: user.id,
-        externalUserId: user.userId,
         organizationId: organization.id,
-        projectId: project.id
+        error
       });
     });
 
@@ -154,13 +176,12 @@ describe(PersonalOrganizationService.name, () => {
 
       await expect(service.adoptUserRows(user, organization)).rejects.toThrow(/no default project/);
 
-      expect(organizationAdoptionRepository.adoptUserRows).not.toHaveBeenCalled();
+      expect(organizationAdoptionRepository.adoptRows).not.toHaveBeenCalled();
     });
 
     it("logs what was adopted when any row was", async () => {
       const user = createUser();
-      const { service, organization, organizationAdoptionRepository, logger } = setup();
-      organizationAdoptionRepository.adoptUserRows.mockResolvedValue(createAdoptedRowCounts({ deploymentSettings: 3 }));
+      const { service, organization, logger } = setup({ adopted: { deploymentSettings: 3 } });
 
       await service.adoptUserRows(user, organization);
 
@@ -181,6 +202,7 @@ describe(PersonalOrganizationService.name, () => {
       await service.adoptUserRows(user, organization);
 
       expect(logger.info).not.toHaveBeenCalled();
+      expect(logger.error).not.toHaveBeenCalled();
     });
   });
 
@@ -190,7 +212,8 @@ describe(PersonalOrganizationService.name, () => {
     expect(createLogger).toHaveBeenCalledWith({ context: PersonalOrganizationService.name });
   });
 
-  function setup(input: { isNew?: boolean } = {}) {
+  function setup(input: { isNew?: boolean; adopted?: Partial<AdoptedRowCounts> } = {}) {
+    const adopted = createAdoptedRowCounts(input.adopted);
     const organization = createOrganization({ type: "personal" });
     const project = createProject({ organizationId: organization.id, isDefault: true });
     const organizationRepository = mock<OrganizationRepository>({
@@ -201,7 +224,7 @@ describe(PersonalOrganizationService.name, () => {
       createDefaultUnlessExists: vi.fn().mockResolvedValue(undefined),
       findDefaultByOrganizationId: vi.fn().mockResolvedValue(project)
     });
-    const organizationAdoptionRepository = mock<OrganizationAdoptionRepository>({ adoptUserRows: vi.fn().mockResolvedValue(createAdoptedRowCounts()) });
+    const organizationAdoptionRepository = mock<OrganizationAdoptionRepository>({ adoptRows: vi.fn(async (table: AdoptableTable) => adopted[table]) });
     const txService = mock<TxService>({ transaction: vi.fn(cb => cb()) });
     const logger = mock<ReturnType<CreateLogger>>();
     const createLogger = vi.fn<CreateLogger>(() => logger);
