@@ -6,6 +6,7 @@ import { mock } from "vitest-mock-extended";
 import type { CreateLogger } from "@src/core/providers/logging.provider";
 import type { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
 import type { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
+import type { OrganizationRole } from "@src/organization/model-schemas/organization-member/organization-member.schema";
 import type { OrganizationContext } from "@src/organization/types/organization-context";
 import { AbilityService } from "./ability.service";
 import { legacyRules, organizationRules } from "./ability-rules";
@@ -94,6 +95,23 @@ describe(AbilityService.name, () => {
       expect(logger.warn).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ allowedBy: "legacy" }));
     });
 
+    it("falls back to today's rules and reports the failure when the organization rules cannot be built in legacy mode", () => {
+      const { service, user, logger } = setup({ organizationContext: createOrganizationContext({ mode: "legacy", role: unknownRole() }) });
+
+      const ability = service.getAbilityFor("REGULAR_USER", user);
+
+      expect(ability).not.toBeInstanceOf(ShadowedAbility);
+      expect(ability.rules).toEqual(legacyRules(user));
+      expect(logger.error).toHaveBeenCalledExactlyOnceWith({ event: "ORGANIZATION_ABILITY_SHADOW_FAILED", error: expect.any(TypeError) });
+    });
+
+    it("fails when the organization rules cannot be built in organization mode", () => {
+      const { service, user, logger } = setup({ organizationContext: createOrganizationContext({ mode: "organization", role: unknownRole() }) });
+
+      expect(() => service.getAbilityFor("REGULAR_USER", user)).toThrow(TypeError);
+      expect(logger.error).not.toHaveBeenCalled();
+    });
+
     it("rebuilds the rules on every call so a mode change applies to the next request", () => {
       const legacyContext = createOrganizationContext({ mode: "legacy" });
       const organizationContext: OrganizationContext = { ...legacyContext, mode: "organization" };
@@ -113,6 +131,11 @@ describe(AbilityService.name, () => {
 
     expect(createLogger).toHaveBeenCalledWith({ context: AbilityService.name });
   });
+
+  function unknownRole() {
+    const role: string = "auditor";
+    return role as OrganizationRole;
+  }
 
   function setup(input: { organizationContext?: OrganizationContext; hasContext?: boolean } = {}) {
     const user = createUser();
