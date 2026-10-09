@@ -18,11 +18,13 @@ import { ChevronRight, LayoutGrid, List, RefreshCw, Search, X } from "lucide-rea
 import Link from "next/link";
 import { NextSeo } from "next-seo";
 
+import { RecentActivity } from "@src/components/activity/RecentActivity/RecentActivity";
 import { ProjectScopeProvider } from "@src/components/projects/ProjectScope/ProjectScope";
 import { SectionLabel } from "@src/components/projects/SectionLabel/SectionLabel";
 import { ViewOnlyNotice } from "@src/components/projects/ViewOnlyNotice/ViewOnlyNotice";
 import { LinkTo } from "@src/components/shared/LinkTo";
 import { useBlockchainStatus } from "@src/context/BlockchainStatusProvider";
+import { useFlag } from "@src/hooks/useFlag";
 import { useNewDeploymentUrl } from "@src/hooks/useNewDeploymentUrl/useNewDeploymentUrl";
 import { useProjectAccess } from "@src/hooks/useProjectAccess/useProjectAccess";
 import { useProjectsUi } from "@src/hooks/useProjectsUi/useProjectsUi";
@@ -40,11 +42,13 @@ export const DEPENDENCIES = {
   useBlockchainStatus,
   useNewDeploymentUrl,
   useProjectAccess,
+  useFlag,
   Layout,
   DeploymentsEmptyState,
   ViewOnlyNotice,
   DeploymentsCollection,
   DeploymentArchive,
+  RecentActivity,
   useProjectsUi,
   NextSeo
 };
@@ -69,6 +73,7 @@ export const DeploymentsList: React.FunctionComponent<Props> = ({ project, depen
   const { canChangeDeployments } = d.useProjectsUi();
   const access = d.useProjectAccess();
   const canDeploy = canChangeDeployments && (project ? access.canManageDeployments(project.id) : access.canDeployAnywhere);
+  const isShowingRecentActivity = d.useFlag("notifications_activity_center");
 
   const changeSearch = (event: ChangeEvent<HTMLInputElement>) => model.changeSearch(event.target.value);
 
@@ -241,7 +246,7 @@ export const DeploymentsList: React.FunctionComponent<Props> = ({ project, depen
           <div className="container p-6 pb-8">
             {project ? (
               <ProjectScopeProvider value={project.id}>
-                <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
+                <WithSideColumn aside={project.aside}>
                   <section aria-label="Deployments" className="min-w-0">
                     <SectionLabel
                       rightSlot={
@@ -252,9 +257,12 @@ export const DeploymentsList: React.FunctionComponent<Props> = ({ project, depen
                     </SectionLabel>
                     {content}
                   </section>
-                  <aside className="min-w-0 space-y-6">{project.aside}</aside>
-                </div>
+                </WithSideColumn>
               </ProjectScopeProvider>
+            ) : isShowingRecentActivity ? (
+              <WithSideColumn aside={<d.RecentActivity />}>
+                <div className="min-w-0">{content}</div>
+              </WithSideColumn>
             ) : (
               content
             )}
@@ -264,3 +272,12 @@ export const DeploymentsList: React.FunctionComponent<Props> = ({ project, depen
     </d.Layout>
   );
 };
+
+function WithSideColumn({ aside, children }: { aside: ReactNode; children: ReactNode }) {
+  return (
+    <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
+      {children}
+      <aside className="min-w-0 space-y-6">{aside}</aside>
+    </div>
+  );
+}

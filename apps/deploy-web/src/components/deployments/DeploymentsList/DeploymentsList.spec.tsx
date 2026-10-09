@@ -91,9 +91,41 @@ describe("DeploymentsList", () => {
 
       expect(screen.getByRole("link", { name: /New deployment/ })).toBeInTheDocument();
     });
+
+    it("keeps the project's own side column rather than the recent activity once the activity center is on", () => {
+      const { RecentActivity } = setup({ hasPageResults: true }, { project, isActivityCenterOn: true });
+
+      expect(within(screen.getByRole("complementary")).getByText("project activity")).toBeInTheDocument();
+      expect(RecentActivity).not.toHaveBeenCalled();
+    });
   });
 
   describe("when no project is in scope", () => {
+    it("shows the recent activity in a side column beside the deployments once the activity center is on", () => {
+      setup({ hasPageResults: true }, { isActivityCenterOn: true });
+
+      const sideColumn = screen.getByRole("complementary");
+      expect(within(sideColumn).getByRole("region", { name: "Recent activity" })).toBeInTheDocument();
+      expect(within(sideColumn).queryByText("collection")).not.toBeInTheDocument();
+      expect(sideColumn.previousElementSibling).toContainElement(screen.getByText("collection"));
+      expect(sideColumn.parentElement).toHaveClass("grid", "lg:grid-cols-[minmax(0,1fr)_320px]");
+    });
+
+    it("leaves the deployments column unlabelled beside the recent activity, since the page title already names the list", () => {
+      setup({ hasPageResults: true, activeTotal: 3 }, { isActivityCenterOn: true });
+
+      expect(screen.queryByRole("region", { name: "Deployments" })).not.toBeInTheDocument();
+      expect(screen.queryByText("3 active")).not.toBeInTheDocument();
+    });
+
+    it("lists the deployments without a side column while the activity center is off", () => {
+      const { RecentActivity } = setup({ hasPageResults: true }, { isActivityCenterOn: false });
+
+      expect(RecentActivity).not.toHaveBeenCalled();
+      expect(screen.queryByRole("complementary")).not.toBeInTheDocument();
+      expect(screen.getByText("collection")).toBeInTheDocument();
+    });
+
     it("offers no new deployment to a caller who may deploy into no project", () => {
       setup({}, { access: { canDeployAnywhere: false } });
 
@@ -508,6 +540,7 @@ describe("DeploymentsList", () => {
       project?: DeploymentsListProject;
       canChangeDeployments?: boolean;
       access?: Partial<ReturnType<typeof DEPENDENCIES.useProjectAccess>>;
+      isActivityCenterOn?: boolean;
     } = {}
   ) {
     const changeSearch = vi.fn();
@@ -592,11 +625,13 @@ describe("DeploymentsList", () => {
         ...options.access
       });
     const ViewOnlyNotice = vi.fn((_props: { reason: string }) => <div>view only</div>);
+    const useFlag: typeof DEPENDENCIES.useFlag = flag => flag === "notifications_activity_center" && !!options.isActivityCenterOn;
 
     const Layout = vi.fn(({ children }: { children?: React.ReactNode; isLoading?: boolean }) => <div>{children}</div>);
     const DeploymentsEmptyState = vi.fn((_props: DeploymentsEmptyStateProps) => <div>empty state</div>);
     const DeploymentsCollection = vi.fn((_props: DeploymentsCollectionProps) => <div>collection</div>);
     const DeploymentArchive = vi.fn(() => <div>archive</div>);
+    const RecentActivity = vi.fn(() => <section aria-label="Recent activity" />);
 
     render(
       <DeploymentsList
@@ -606,11 +641,13 @@ describe("DeploymentsList", () => {
           useBlockchainStatus,
           useNewDeploymentUrl,
           useProjectAccess,
+          useFlag,
           Layout,
           DeploymentsEmptyState,
           ViewOnlyNotice,
           DeploymentsCollection,
           DeploymentArchive,
+          RecentActivity,
           NextSeo,
           useProjectsUi
         })}
@@ -634,6 +671,7 @@ describe("DeploymentsList", () => {
       DeploymentsEmptyState,
       DeploymentsCollection,
       DeploymentArchive,
+      RecentActivity,
       NextSeo,
       useDeploymentsListModel,
       newDeploymentUrl
