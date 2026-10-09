@@ -8,6 +8,8 @@ import createError from "http-errors";
 import { randomUUID } from "node:crypto";
 import { inject, singleton } from "tsyringe";
 
+import { deploymentCloseDedupeKeyOf } from "@src/activity/lib/dedupe-key/dedupe-key";
+import { isDedupeKeyTaken } from "@src/activity/repositories/activity/activity.repository";
 import { ActivityService } from "@src/activity/services/activity/activity.service";
 import type { UserWalletOutput, WalletInitialized } from "@src/billing/repositories";
 import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
@@ -47,7 +49,7 @@ import { SdlSecretsDerivationService } from "@src/deployment/services/sdl-secret
 import { SdlSecretsInheritanceService } from "@src/deployment/services/sdl-secrets-inheritance/sdl-secrets-inheritance.service";
 import type { SdlSecrets } from "@src/deployment/services/sdl-secrets-unsealer/sdl-secrets-unsealer.service";
 import { findGroupWithChangedResources, type OnChainGroupSpec } from "@src/deployment/utils/changed-group-resources/changed-group-resources";
-import { closedActivityOf, failedCloseActivityOf } from "@src/deployment/utils/close-activity/close-activity";
+import { closedActivityOf, failedCloseActivityOf, pendingCloseActivityOf } from "@src/deployment/utils/close-activity/close-activity";
 import { deriveDeploymentName } from "@src/deployment/utils/deployment-name/deployment-name";
 import type { StorableSdl, StoredSdlPosition, StoredSdlRefusal } from "@src/deployment/utils/sdl-for-storage/sdl-for-storage";
 import { parseSdlForStorage, sdlForStorage } from "@src/deployment/utils/sdl-for-storage/sdl-for-storage";
@@ -396,7 +398,7 @@ export class DeploymentWriterService {
     }
   }
 
-  /** An undecided close opens its pending activity with a later check in one transaction, so it settles once its outcome is known; as with `record`, failing to write either is only logged. */
+  /** An undecided close opens its pending activity with a later check in one transaction, so it settles once its outcome is known; another close of the deployment already holding the entry settles it instead, and as with `record`, failing to write either is only logged. */
   async #recordFailedClose(close: { userId: string; owner: string; dseq: string; batchId?: string }, error: unknown): Promise<void> {
     const activity = failedCloseActivityOf(close, error);
     if (activity.status !== "pending") return await this.activityService.record(activity);
@@ -408,6 +410,7 @@ export class DeploymentWriterService {
         await this.jobQueueService.enqueue(new ReconcileDeploymentClose({ ...close, activityId }), reconcileDeploymentCloseOptionsFor(activityId, new Date()));
       });
     } catch (recordError) {
+      if (isDedupeKeyTaken(recordError)) return;
       this.logger.error({ event: "UNDECIDED_CLOSE_RECORD_FAILED", userId: close.userId, dseq: close.dseq, error: recordError });
     }
   }
@@ -424,6 +427,15 @@ export class DeploymentWriterService {
 
     await this.signerService.assertCanBroadcast(userId, [this.#closeMessageFor(wallet, deployment)]);
 
+    try {
+      return await this.#queueClose({ userId, owner: wallet.address, dseq, batchId });
+    } catch (error) {
+      if (!isDedupeKeyTaken(error)) throw error;
+      return await this.#joinRecordedClose(userId, dseq);
+    }
+  }
+
+  async #queueClose({ userId, owner, dseq, batchId }: { userId: string; owner: string; dseq: string; batchId?: string }): Promise<{ activityId: string }> {
     return await this.txService.transaction(async () => {
       const activityId = randomUUID();
       const jobId = await this.jobQueueService.enqueue(new CloseDeployment({ userId, dseq, activityId, batchId }), {
@@ -432,9 +444,9 @@ export class DeploymentWriterService {
       });
       if (!jobId) return { activityId: await this.#closeInFlight(userId, dseq) };
 
-      await this.activityService.open({ id: activityId, userId, type: "deployment_close", status: "pending", meta: { dseq, batchId } });
+      await this.activityService.open({ id: activityId, ...pendingCloseActivityOf({ userId, dseq, batchId }) });
       await this.jobQueueService.enqueue(
-        new ReconcileDeploymentClose({ userId, owner: wallet.address, dseq, activityId, batchId, closeJobId: jobId }),
+        new ReconcileDeploymentClose({ userId, owner, dseq, activityId, batchId, closeJobId: jobId }),
         reconcileDeploymentCloseOptionsFor(activityId, new Date())
       );
       return { activityId };
@@ -446,6 +458,14 @@ export class DeploymentWriterService {
     if (!inFlight) throw createError(409, "This deployment is already being closed");
 
     return inFlight.activityId;
+  }
+
+  /** Another close of the deployment, the user's own or one Console made, already holds its entry: one still pending is followed like a close in flight, and one that succeeded answers as a deployment already closed. */
+  async #joinRecordedClose(userId: string, dseq: string): Promise<{ activityId: string } | undefined> {
+    const recorded = await this.activityService.findByDedupeKey(userId, deploymentCloseDedupeKeyOf(dseq));
+    if (!recorded) throw createError(409, "This deployment is already being closed");
+
+    return recorded.status === "pending" ? { activityId: recorded.id } : undefined;
   }
 
   /**

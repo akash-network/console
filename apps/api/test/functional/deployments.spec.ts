@@ -33,6 +33,7 @@ import { ReconcileDeploymentClose } from "@src/deployment/services/reconcile-dep
 import { SdlService } from "@src/deployment/services/sdl/sdl.service";
 import { SdlReferenceService } from "@src/deployment/services/sdl-reference/sdl-reference.service";
 import { SdlSecretsService } from "@src/deployment/services/sdl-secrets/sdl-secrets.service";
+import { failedCloseActivityOf, systemClosedActivityOf } from "@src/deployment/utils/close-activity/close-activity";
 import { MAX_DEPLOYMENT_NAME_LENGTH } from "@src/deployment/utils/deployment-name/deployment-name";
 import { ProviderService } from "@src/provider/services/provider/provider.service";
 import { app } from "@src/rest-app";
@@ -1934,6 +1935,55 @@ describe("Deployments API", () => {
       expect(await activityRepository.find({ userId: user.id })).toEqual([
         expect.objectContaining({ id: queued.data.activityId, type: "deployment_close", status: "succeeded", meta: { dseq } })
       ]);
+    });
+
+    it("adds no entry of its own to a background close of a deployment Console has just closed, so the close shows once", async () => {
+      const { user, userApiKeySecret, wallets } = await mockPersistedUser();
+      const dseq = createDseq();
+      await setupDeploymentInfoMock(wallets, dseq);
+      const consolesClose = await activityRepository.create(systemClosedActivityOf({ userId: user.id, dseq, reason: "runtime_limit_reached" }));
+
+      const response = await closeInBackground(dseq, userApiKeySecret);
+
+      expect(response.status).toBe(200);
+      expect(await response.json()).toEqual({ data: { success: true } });
+      expect(await activityRepository.find({ userId: user.id })).toEqual([consolesClose]);
+      expect(await findJobRows(CloseDeployment[JOB_NAME], { singletonKey: closeDeploymentKeyFor({ userId: user.id, dseq }) })).toEqual([]);
+    });
+
+    it("adds no entry of its own to a close made during the request when Console's close of the deployment is already recorded", async () => {
+      const { user, userApiKeySecret, wallets } = await mockPersistedUser();
+      const dseq = createDseq();
+      await setupDeploymentInfoMock(wallets, dseq);
+      const consolesClose = await activityRepository.create(systemClosedActivityOf({ userId: user.id, dseq, reason: "trial_ended" }));
+      vi.spyOn(signerService, "executeDecodedTxByUserWallet").mockResolvedValueOnce({
+        code: 0,
+        hash: "test-hash",
+        transactionHash: "test-hash",
+        rawLog: "success"
+      });
+
+      const response = await app.request(`/v1/deployments/${dseq}`, {
+        method: "DELETE",
+        headers: new Headers({ "Content-Type": "application/json", "x-api-key": userApiKeySecret })
+      });
+
+      expect(response.status).toBe(200);
+      expect(await activityRepository.find({ userId: user.id })).toEqual([consolesClose]);
+    });
+
+    it("follows a close of the deployment still pending under its hash instead of queueing another", async () => {
+      const { user, userApiKeySecret, wallets } = await mockPersistedUser();
+      const dseq = createDseq();
+      await setupDeploymentInfoMock(wallets, dseq);
+      const undecided = await activityRepository.create(failedCloseActivityOf({ userId: user.id, dseq }, new TxOutcomeUnknownError("ABCDEF")));
+
+      const response = await closeInBackground(dseq, userApiKeySecret);
+
+      expect(response.status).toBe(202);
+      expect(await response.json()).toEqual({ data: { activityId: undecided.id } });
+      expect(await activityRepository.find({ userId: user.id })).toEqual([undecided]);
+      expect(await findJobRows(CloseDeployment[JOB_NAME], { singletonKey: closeDeploymentKeyFor({ userId: user.id, dseq }) })).toEqual([]);
     });
 
     it("closes the deployment during the request when background closes are switched off", async () => {

@@ -7,10 +7,12 @@ export function createActivity({
   userId = faker.string.uuid(),
   type = "deployment_close",
   status = "succeeded",
+  initiator = "user",
   meta = { dseq: faker.number.int({ min: 100000, max: 999999 }).toString() },
+  dedupeKey = null,
   seenAt = null,
   createdAt = faker.date.recent().toISOString(),
   updatedAt = createdAt
 }: Partial<ActivityOutput> = {}): ActivityOutput {
-  return { id, userId, type, status, meta, seenAt, createdAt, updatedAt };
+  return { id, userId, type, status, initiator, meta, dedupeKey, seenAt, createdAt, updatedAt };
 }

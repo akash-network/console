@@ -5,6 +5,8 @@ import nock from "nock";
 import { container } from "tsyringe";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
+import { deploymentCloseDedupeKeyOf } from "@src/activity/lib/dedupe-key/dedupe-key";
+import { ActivityRepository } from "@src/activity/repositories/activity/activity.repository";
 import { UserWalletRepository } from "@src/billing/repositories";
 import { CHAIN_DB } from "@src/chain";
 import { JOB_NAME, JobQueueService } from "@src/core";
@@ -47,6 +49,31 @@ describe(CloseUnreachableProviderDeploymentHandler.name, () => {
     expect(sentNotifications()).toHaveLength(1);
   });
 
+  it("records the close in the owner's feed as Console's, because the provider stopped responding", async () => {
+    const { closeUnreachable, findActivities, deployment } = await setup();
+
+    await closeUnreachable();
+
+    expect(await findActivities()).toEqual([
+      expect.objectContaining({
+        type: "deployment_close",
+        status: "succeeded",
+        initiator: "system",
+        meta: { dseq: deployment.dseq, reason: "provider_unreachable" },
+        dedupeKey: deploymentCloseDedupeKeyOf(deployment.dseq)
+      })
+    ]);
+  });
+
+  it("adds nothing to the feed when the close had already landed on chain", async () => {
+    const { closeUnreachable, awaitClosedNotice, findActivities } = await setup({ alreadyClosedOnChain: true });
+
+    await closeUnreachable();
+    await awaitClosedNotice();
+
+    expect(await findActivities()).toEqual([]);
+  });
+
   it("records nothing when the email it must queue alongside cannot be queued", async () => {
     const { dispatchCloseUnreachable, awaitCloseRetrying, findSetting, failNoticeEnqueue } = await setup();
     failNoticeEnqueue();
@@ -85,7 +112,7 @@ describe(CloseUnreachableProviderDeploymentHandler.name, () => {
   });
 
   it("records nothing and tries again later when the escrow cannot be settled", async () => {
-    const { closeUnreachable, close, findSetting, findClosedNotice, findPendingCloseJob } = await setup();
+    const { closeUnreachable, close, findSetting, findClosedNotice, findPendingCloseJob, findActivities } = await setup();
     close.mockRejectedValue(new Error(`failed to execute message: ${UNSETTLEABLE_ESCROW}`));
 
     await closeUnreachable();
@@ -93,6 +120,7 @@ describe(CloseUnreachableProviderDeploymentHandler.name, () => {
     expect(await findSetting()).toBeUndefined();
     expect(await findClosedNotice()).toBeUndefined();
     expect(await findPendingCloseJob()).toBeDefined();
+    expect(await findActivities()).toEqual([]);
   });
 
   async function setup(input: { alsoOnHealthyProvider?: boolean; leaseAlreadyClosed?: boolean; alreadyClosedOnChain?: boolean } = {}) {
@@ -128,6 +156,7 @@ describe(CloseUnreachableProviderDeploymentHandler.name, () => {
       close,
       sentNotifications,
       findSetting: () => deploymentSettingRepository.findOneBy({ userId: user.id, dseq: deployment.dseq }),
+      findActivities: () => container.resolve(ActivityRepository).find({ userId: user.id }),
       findClosedNotice: async () => (await findJobRows(NotificationJob[JOB_NAME], { singletonKey: noticeKey }))[0],
       findPendingCloseJob: async () =>
         (await findJobRows(CloseUnreachableProviderDeploymentCommand[JOB_NAME], { singletonKey: commandKey, state: "created" }))[0],

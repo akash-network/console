@@ -4,6 +4,7 @@ import createError from "http-errors";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
+import type { ActivityService } from "@src/activity/services/activity/activity.service";
 import type { BillingConfig } from "@src/billing/providers";
 import type { ManagedWalletRef, UserWalletRepository } from "@src/billing/repositories";
 import type { ManagedUserWalletService, RpcMessageService } from "@src/billing/services";
@@ -16,6 +17,7 @@ import type { BlockHttpService } from "@src/chain/services/block-http/block-http
 import type { CreateLogger } from "@src/core/providers/logging.provider";
 import { ErrorService } from "@src/core/services/error/error.service";
 import type { DeploymentRepository, StaleDeployment } from "@src/deployment/repositories/deployment/deployment.repository";
+import { systemClosedActivityOf } from "@src/deployment/utils/close-activity/close-activity";
 import { StaleManagedDeploymentsCleanerService } from "./stale-managed-deployments-cleaner.service";
 
 import { createUserWallet } from "@test/seeders/user-wallet.seeder";
@@ -78,12 +80,24 @@ describe(StaleManagedDeploymentsCleanerService.name, () => {
 
     it("splits a wallet's orphans across transactions so one close batch cannot outgrow a block", async () => {
       const dseqs = Array.from({ length: 45 }, (_, index) => String(index + 1));
-      const { service, managedSignerService, wallet } = setup({ staleDeployments: dseqs });
+      const { service, managedSignerService, activityService, wallet } = setup({ staleDeployments: dseqs });
 
       await service.cleanUpForWallet(wallet, 0);
 
       expect(managedSignerService.executeDerivedTx).toHaveBeenCalledTimes(3);
       expect(managedSignerService.executeDerivedTx.mock.calls.map(([, messages]) => messages.length)).toEqual([20, 20, 5]);
+      expect(activityService.record).toHaveBeenCalledTimes(45);
+    });
+
+    it("records each deployment the tx closed in the owner's feed as Console's, because it had no lease", async () => {
+      const { service, activityService, wallet } = setup({ staleDeployments: ["1", "2"] });
+
+      await service.cleanUpForWallet(wallet, 0);
+
+      expect(activityService.record.mock.calls).toEqual([
+        [systemClosedActivityOf({ userId: wallet.userId, dseq: "1", reason: "no_lease" })],
+        [systemClosedActivityOf({ userId: wallet.userId, dseq: "2", reason: "no_lease" })]
+      ]);
     });
   });
 
@@ -103,6 +117,18 @@ describe(StaleManagedDeploymentsCleanerService.name, () => {
       expect(logger.info).toHaveBeenCalledWith({ event: "DEPLOYMENT_CLEAN_UP_SUCCESS", owner: OWNER, alreadyClosedCount: 1 });
     });
 
+    it("records only the deployments the landed tx closed, leaving out the one it dropped as already closed", async () => {
+      const executeDerivedTx = vi.fn().mockRejectedValueOnce(buildDeploymentClosedAppError(1)).mockResolvedValueOnce(buildOkTx());
+      const { service, activityService, wallet } = setup({ staleDeployments: ["1", "2", "3"], executeDerivedTx });
+
+      await service.cleanUpForWallet(wallet, 0);
+
+      expect(activityService.record.mock.calls).toEqual([
+        [systemClosedActivityOf({ userId: wallet.userId, dseq: "1", reason: "no_lease" })],
+        [systemClosedActivityOf({ userId: wallet.userId, dseq: "3", reason: "no_lease" })]
+      ]);
+    });
+
     it("resolves quietly when the wallet's only orphan is already closed and the error carries no index", async () => {
       const executeDerivedTx = vi.fn().mockRejectedValueOnce(buildDeploymentClosedAppError());
       const { service, logger, errorLogger, wallet } = setup({ staleDeployments: ["7"], executeDerivedTx });
@@ -118,11 +144,12 @@ describe(StaleManagedDeploymentsCleanerService.name, () => {
 
     it("reports success without an error when the whole batch is already closed", async () => {
       const executeDerivedTx = vi.fn().mockRejectedValue(buildDeploymentClosedAppError(0));
-      const { service, logger, errorLogger, wallet } = setup({ staleDeployments: ["1", "2"], executeDerivedTx });
+      const { service, logger, errorLogger, activityService, wallet } = setup({ staleDeployments: ["1", "2"], executeDerivedTx });
 
       await service.cleanUpForWallet(wallet, 0);
 
       expect(executeDerivedTx).toHaveBeenCalledTimes(2);
+      expect(activityService.record).not.toHaveBeenCalled();
       expect(logger.info).toHaveBeenCalledWith({ event: "DEPLOYMENT_CLEAN_UP_SUCCESS", owner: OWNER, alreadyClosedCount: 2 });
       expect(logger.error).not.toHaveBeenCalled();
       expect(errorLogger.error).not.toHaveBeenCalled();
@@ -229,11 +256,12 @@ describe(StaleManagedDeploymentsCleanerService.name, () => {
 
     it("logs the unsettleable event when the re-broadcast after a drop hits the escrow underflow", async () => {
       const executeDerivedTx = vi.fn().mockRejectedValueOnce(buildDeploymentClosedAppError(0)).mockRejectedValueOnce(buildUnsettleableAppError());
-      const { service, logger, wallet } = setup({ staleDeployments: ["1", "2"], executeDerivedTx });
+      const { service, logger, activityService, wallet } = setup({ staleDeployments: ["1", "2"], executeDerivedTx });
 
       await service.cleanUpForWallet(wallet, 0);
 
       expect(executeDerivedTx).toHaveBeenCalledTimes(2);
+      expect(activityService.record).not.toHaveBeenCalled();
       expect(logger.info).toHaveBeenCalledWith({ event: "DEPLOYMENT_CLEAN_UP_ALREADY_CLOSED", owner: OWNER, dseq: "1" });
       expect(logger.error).toHaveBeenCalledWith(UNSETTLEABLE_LOG);
     });
@@ -279,6 +307,21 @@ describe(StaleManagedDeploymentsCleanerService.name, () => {
       expect(managedSignerService.executeDerivedTx).toHaveBeenCalledWith(22, [expect.objectContaining({ value: expect.objectContaining({ dseq: "3" }) })]);
     });
 
+    it("records each owner's closes in that owner's own feed", async () => {
+      const { service, activityService } = setup({
+        orphans: [
+          { owner: "akash1a", dseq: "1" },
+          { owner: "akash1b", dseq: "2" }
+        ],
+        walletIdsByAddress: { akash1a: 11, akash1b: 22 }
+      });
+
+      await service.cleanup({ concurrency: 1, dryRun: false });
+
+      expect(activityService.record).toHaveBeenCalledWith(systemClosedActivityOf({ userId: "user-of-akash1a", dseq: "1", reason: "no_lease" }));
+      expect(activityService.record).toHaveBeenCalledWith(systemClosedActivityOf({ userId: "user-of-akash1b", dseq: "2", reason: "no_lease" }));
+    });
+
     it("broadcasts nothing for a batch that holds no orphan", async () => {
       const { service, managedSignerService } = setup({ walletBatches: [4], orphans: [] });
 
@@ -288,12 +331,13 @@ describe(StaleManagedDeploymentsCleanerService.name, () => {
     });
 
     it("reports what it would close without broadcasting on a dry run", async () => {
-      const { service, managedSignerService, logger } = setup({ orphans: [{ owner: OWNER, dseq: "9" }] });
+      const { service, managedSignerService, activityService, logger } = setup({ orphans: [{ owner: OWNER, dseq: "9" }] });
 
       const result = await service.cleanup({ concurrency: 1, dryRun: true });
 
       expect(result.ok).toBe(true);
       expect(managedSignerService.executeDerivedTx).not.toHaveBeenCalled();
+      expect(activityService.record).not.toHaveBeenCalled();
       expect(logger.info).toHaveBeenCalledWith({ event: "DEPLOYMENT_CLEAN_UP_WOULD_CLOSE", owner: OWNER, dseqs: ["9"] });
     });
 
@@ -448,11 +492,15 @@ describe(StaleManagedDeploymentsCleanerService.name, () => {
     const orphans = input?.orphans ?? (input?.staleDeployments ?? ["456"]).map(dseq => ({ owner: OWNER, dseq }));
     const walletIdsByAddress = input?.walletIdsByAddress ?? { [OWNER]: wallet.id };
 
+    const userIdOf = (address: string) => (address === OWNER ? wallet.userId : `user-of-${address}`);
     const walletBatches: ManagedWalletRef[][] = input?.walletBatches
       ? input.walletBatches.map((size, batch) =>
-          Array.from({ length: size }, (_, index) => ({ id: 1000 + batch * 10 + index, address: `akash1owner${batch}${index}` }))
+          Array.from({ length: size }, (_, index) => {
+            const address = `akash1owner${batch}${index}`;
+            return { id: 1000 + batch * 10 + index, userId: userIdOf(address), address };
+          })
         )
-      : [Object.entries(walletIdsByAddress).map(([address, id]) => ({ id, address }))];
+      : [Object.entries(walletIdsByAddress).map(([address, id]) => ({ id, userId: userIdOf(address), address }))];
 
     const userWalletRepository = mock<UserWalletRepository>({
       findManagedIteratively: vi.fn(async function* () {
@@ -474,6 +522,7 @@ describe(StaleManagedDeploymentsCleanerService.name, () => {
     const createErrorLogger = vi.fn<CreateLogger>(() => errorLogger);
     const errorService = new ErrorService(createErrorLogger);
     const chainErrorService = new ChainErrorService(mock<BalanceHttpService>(), mock<BillingConfigService>(), mock<TxManagerService>());
+    const activityService = mock<ActivityService>();
 
     const currentHeight = input?.currentHeight ?? 1_000_000;
     blockRepository.getLatestProcessedHeight.mockResolvedValue(currentHeight);
@@ -492,6 +541,7 @@ describe(StaleManagedDeploymentsCleanerService.name, () => {
       managedUserWalletService,
       errorService,
       chainErrorService,
+      activityService,
       createLogger
     );
 
@@ -506,6 +556,7 @@ describe(StaleManagedDeploymentsCleanerService.name, () => {
       managedSignerService,
       managedUserWalletService,
       chainErrorService,
+      activityService,
       logger,
       createLogger,
       errorLogger,

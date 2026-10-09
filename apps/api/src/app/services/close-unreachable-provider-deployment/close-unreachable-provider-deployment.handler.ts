@@ -1,6 +1,7 @@
 import { differenceInDays, minutesToMilliseconds } from "date-fns";
 import { inject, singleton } from "tsyringe";
 
+import { ActivityService } from "@src/activity/services/activity/activity.service";
 import { UserWalletRepository } from "@src/billing/repositories";
 import { ChainErrorService } from "@src/billing/services/chain-error/chain-error.service";
 import { type CreateLogger, type JobHandler, type JobPayload, type JobPermissions, JobQueueService, LOGGER_FACTORY } from "@src/core";
@@ -14,6 +15,7 @@ import {
   type CloseUnreachableProviderDeploymentTarget,
   UnreachableProviderDeploymentsCloserService
 } from "@src/deployment/services/unreachable-provider-deployments-closer/unreachable-provider-deployments-closer.service";
+import { systemClosedActivityOf } from "@src/deployment/utils/close-activity/close-activity";
 import { NotificationJob } from "@src/notifications/services/notification-handler/notification.handler";
 
 /** How long a close the chain is not ready to settle waits before it is tried again. */
@@ -40,6 +42,7 @@ export class CloseUnreachableProviderDeploymentHandler implements JobHandler<Clo
     private readonly jobQueueService: JobQueueService,
     private readonly txService: TxService,
     private readonly config: DeploymentConfigService,
+    private readonly activityService: ActivityService,
     @inject(LOGGER_FACTORY) createLogger: CreateLogger
   ) {
     this.logger = createLogger({ context: CloseUnreachableProviderDeploymentHandler.name });
@@ -91,6 +94,10 @@ export class CloseUnreachableProviderDeploymentHandler implements JobHandler<Clo
       throw error;
     }
 
+    if (closedByUs) {
+      await this.activityService.record(systemClosedActivityOf({ userId: wallet.userId, dseq, reason: "provider_unreachable" }));
+    }
+
     await this.#recordAndNotify(deployment, wallet);
 
     if (!closedByUs) {
@@ -106,7 +113,7 @@ export class CloseUnreachableProviderDeploymentHandler implements JobHandler<Clo
     });
   }
 
-  /** One transaction, so a deployment is never recorded as closed without the email explaining it queued alongside, and never told twice. */
+  /** One transaction, so a deployment is never recorded as closed without the email explaining it queued alongside, and never told twice; the feed entry stays out of it, because a failed feed write must neither roll back nor retry a close that happened. */
   async #recordAndNotify(deployment: DarkDeployment, wallet: { id: number; userId: string }): Promise<void> {
     await this.txService.transaction(async () => {
       await this.deploymentSettingRepository.markClosed({ userId: wallet.userId, dseq: deployment.dseq });

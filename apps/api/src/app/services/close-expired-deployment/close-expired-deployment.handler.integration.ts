@@ -5,12 +5,15 @@ import { eq } from "drizzle-orm";
 import { container } from "tsyringe";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { deploymentCloseDedupeKeyOf } from "@src/activity/lib/dedupe-key/dedupe-key";
+import { ActivityRepository } from "@src/activity/repositories/activity/activity.repository";
 import type { ApiPgDatabase } from "@src/core";
 import { JOB_NAME, POSTGRES_DB, resolveTable } from "@src/core";
 import { CloseExpiredDeploymentCommand } from "@src/deployment/commands/close-expired-deployment.command";
 import { DeploymentCloseJobService } from "@src/deployment/services/deployment-close-job/deployment-close-job.service";
 import { DeploymentConfigService } from "@src/deployment/services/deployment-config/deployment-config.service";
 import { DeploymentWriterService } from "@src/deployment/services/deployment-writer/deployment-writer.service";
+import { closedActivityOf } from "@src/deployment/utils/close-activity/close-activity";
 import { CloseExpiredDeploymentHandler } from "./close-expired-deployment.handler";
 
 import { seedDeploymentSetting } from "@test/seeders/db/deployment-setting.seeder";
@@ -34,6 +37,52 @@ describe(CloseExpiredDeploymentHandler.name, () => {
 
     expect(close).toHaveBeenCalledWith(expect.objectContaining({ address: expect.any(String) }), dseq);
     expect((await findSetting()).closed).toBe(true);
+  });
+
+  it("records the close in the owner's feed as Console's, because the runtime limit was reached", async () => {
+    const { dseq, closeExpired, findActivities } = await setup();
+
+    await closeExpired();
+
+    expect(await findActivities()).toEqual([
+      expect.objectContaining({
+        type: "deployment_close",
+        status: "succeeded",
+        initiator: "system",
+        meta: { dseq, reason: "runtime_limit_reached" },
+        dedupeKey: deploymentCloseDedupeKeyOf(dseq),
+        seenAt: null
+      })
+    ]);
+  });
+
+  it("adds nothing to the feed when the owner's own close of the deployment is already there, so the close shows once", async () => {
+    const { userId, dseq, closeExpired, findActivities } = await setup();
+    const usersClose = await container.resolve(ActivityRepository).create(closedActivityOf({ userId, dseq }));
+
+    await closeExpired();
+
+    expect(await findActivities()).toEqual([usersClose]);
+  });
+
+  it("adds nothing to the feed when the deployment had already closed, but still marks the setting closed", async () => {
+    const { closeExpired, close, findSetting, findActivities } = await setup();
+    close.mockResolvedValue(false);
+
+    await closeExpired();
+
+    expect(await findActivities()).toEqual([]);
+    expect((await findSetting()).closed).toBe(true);
+  });
+
+  it("still marks the setting closed when the feed entry cannot be written", async () => {
+    const { closeExpired, findSetting, findActivities } = await setup();
+    vi.spyOn(container.resolve(ActivityRepository), "createUnlessDuplicate").mockRejectedValue(new Error("connection terminated"));
+
+    await closeExpired();
+
+    expect((await findSetting()).closed).toBe(true);
+    expect(await findActivities()).toEqual([]);
   });
 
   it("reschedules itself for a deadline that has since moved out", async () => {
@@ -116,9 +165,11 @@ describe(CloseExpiredDeploymentHandler.name, () => {
     const singletonKey = DeploymentCloseJobService.singletonKey(setting.id);
 
     return {
+      userId: user.id,
       dseq: setting.dseq,
       runtimeEndsAt: runtimeEndsAt as Date,
       close,
+      findActivities: () => container.resolve(ActivityRepository).find({ userId: user.id }),
       findSetting: async () => {
         const [row] = await db.select().from(deploymentSettingsTable).where(eq(deploymentSettingsTable.id, setting.id));
 

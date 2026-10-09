@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
+import type { ActivityService } from "@src/activity/services/activity/activity.service";
 import type { UserWalletRepository } from "@src/billing/repositories";
 import type { ChainErrorService } from "@src/billing/services/chain-error/chain-error.service";
 import type { CreateLogger, JobPayload, JobQueueService } from "@src/core";
@@ -11,6 +12,7 @@ import type { DeploymentSettingRepository, DeploymentSettingsOutput } from "@src
 import type { DeploymentConfigService } from "@src/deployment/services/deployment-config/deployment-config.service";
 import type { DeploymentWriterService } from "@src/deployment/services/deployment-writer/deployment-writer.service";
 import type { UnreachableProviderDeploymentsCloserService } from "@src/deployment/services/unreachable-provider-deployments-closer/unreachable-provider-deployments-closer.service";
+import { systemClosedActivityOf } from "@src/deployment/utils/close-activity/close-activity";
 import { CloseUnreachableProviderDeploymentHandler } from "./close-unreachable-provider-deployment.handler";
 
 import { mockConfigService } from "@test/mocks/config-service.mock";
@@ -38,6 +40,23 @@ describe(CloseUnreachableProviderDeploymentHandler.name, () => {
 
     expect(deploymentWriterService.close).toHaveBeenCalledWith(expect.objectContaining({ address: OWNER }), DSEQ);
     expect(deploymentSettingRepository.markClosed).toHaveBeenCalledWith({ userId: USER_ID, dseq: DSEQ });
+  });
+
+  it("records the close in the owner's feed as Console's, because the provider stopped responding", async () => {
+    const { handler, activityService } = setup();
+
+    await handler.handle(aPayload());
+
+    expect(activityService.record).toHaveBeenCalledWith(systemClosedActivityOf({ userId: USER_ID, dseq: DSEQ, reason: "provider_unreachable" }));
+  });
+
+  it("keeps the feed entry of a close it made when the transaction that marks it closed fails, so the retry neither loses nor repeats it", async () => {
+    const { handler, activityService, txService } = setup();
+    txService.transaction.mockRejectedValue(new Error("deadlock detected"));
+
+    await expect(handler.handle(aPayload())).rejects.toThrow("deadlock detected");
+
+    expect(activityService.record).toHaveBeenCalledTimes(1);
   });
 
   it("tells the owner which host went dark and for how long", async () => {
@@ -94,7 +113,7 @@ describe(CloseUnreachableProviderDeploymentHandler.name, () => {
   });
 
   it("tries again later when the chain will not settle the escrow yet", async () => {
-    const { handler, closeJobService, deploymentSettingRepository, jobQueueService } = setup({
+    const { handler, closeJobService, deploymentSettingRepository, jobQueueService, activityService } = setup({
       closeError: new Error("escrow not settled"),
       isUnsettleable: true
     });
@@ -104,6 +123,7 @@ describe(CloseUnreachableProviderDeploymentHandler.name, () => {
     expect(closeJobService.schedule).toHaveBeenCalledWith({ owner: OWNER, dseq: DSEQ }, { startAfter: expect.any(Date) });
     expect(deploymentSettingRepository.markClosed).not.toHaveBeenCalled();
     expect(jobQueueService.enqueue).not.toHaveBeenCalled();
+    expect(activityService.record).not.toHaveBeenCalled();
   });
 
   it("throws any other close failure so the queue retries it", async () => {
@@ -120,6 +140,14 @@ describe(CloseUnreachableProviderDeploymentHandler.name, () => {
 
     expect(deploymentSettingRepository.markClosed).toHaveBeenCalledWith({ userId: USER_ID, dseq: DSEQ });
     expect(jobQueueService.enqueue).toHaveBeenCalledTimes(1);
+  });
+
+  it("adds nothing to the feed for a close that had already landed on chain, since only the close that went through records itself", async () => {
+    const { handler, activityService } = setup({ alreadyClosedOnChain: true });
+
+    await handler.handle(aPayload());
+
+    expect(activityService.record).not.toHaveBeenCalled();
   });
 
   it("queues the email in the same transaction as the record, so neither can land without the other", async () => {
@@ -188,6 +216,7 @@ describe(CloseUnreachableProviderDeploymentHandler.name, () => {
     txService.transaction.mockImplementation(async callback => await callback());
 
     const config = mockConfigService<DeploymentConfigService>({ DEPLOY_WEB_BASE_URL });
+    const activityService = mock<ActivityService>();
     const logger = mock<ReturnType<CreateLogger>>();
     const createLogger = vi.fn<CreateLogger>(() => logger);
 
@@ -200,6 +229,7 @@ describe(CloseUnreachableProviderDeploymentHandler.name, () => {
       jobQueueService,
       txService,
       config,
+      activityService,
       createLogger
     );
 
@@ -212,6 +242,7 @@ describe(CloseUnreachableProviderDeploymentHandler.name, () => {
       chainErrorService,
       jobQueueService,
       txService,
+      activityService,
       logger
     };
   }

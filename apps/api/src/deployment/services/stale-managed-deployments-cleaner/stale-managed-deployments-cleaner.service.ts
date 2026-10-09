@@ -4,6 +4,7 @@ import { chunk } from "lodash";
 import { Err, Ok, Result } from "ts-results";
 import { inject, singleton } from "tsyringe";
 
+import { ActivityService } from "@src/activity/services/activity/activity.service";
 import { type BillingConfig, InjectBillingConfig } from "@src/billing/providers";
 import { type ManagedWalletRef, UserWalletOutput, UserWalletRepository } from "@src/billing/repositories";
 import { ManagedUserWalletService, RpcMessageService } from "@src/billing/services";
@@ -15,6 +16,7 @@ import { type CreateLogger, LOGGER_FACTORY } from "@src/core";
 import { ErrorService } from "@src/core/services/error/error.service";
 import { DeploymentRepository, type StaleDeployment, type StaleDeploymentsOutput } from "@src/deployment/repositories/deployment/deployment.repository";
 import { CleanUpStaleDeploymentsParams } from "@src/deployment/types/state-deployments";
+import { systemClosedActivityOf } from "@src/deployment/utils/close-activity/close-activity";
 import { averageBlockTime, COSMOS_TX_CODE_OK } from "@src/utils/constants";
 
 /** Bounds how many already-closed deployments one owner's pass drops; the batch left after the last drop is still broadcast once. */
@@ -56,6 +58,7 @@ export class StaleManagedDeploymentsCleanerService {
     private readonly managedUserWalletService: ManagedUserWalletService,
     private readonly errorService: ErrorService,
     private readonly chainErrorService: ChainErrorService,
+    private readonly activityService: ActivityService,
     @inject(LOGGER_FACTORY) createLogger: CreateLogger
   ) {
     this.logger = createLogger({ context: StaleManagedDeploymentsCleanerService.name });
@@ -102,7 +105,7 @@ export class StaleManagedDeploymentsCleanerService {
 
   async cleanUpForWallet(wallet: UserWalletOutput, maxLiveBlocks: number = this.MAX_LIVE_BLOCKS) {
     const staleBeforeHeight = (await this.blockRepository.getLatestProcessedHeight()) - maxLiveBlocks;
-    const managedWallet = { id: wallet.id, address: wallet.address! };
+    const managedWallet = { id: wallet.id, userId: wallet.userId, address: wallet.address! };
     const deployments = await this.deploymentRepository.findStaleDeployments({ owners: [managedWallet.address], staleBeforeHeight });
 
     await this.#closeDeploymentsWithoutActiveLease(managedWallet, deployments);
@@ -198,6 +201,7 @@ export class StaleManagedDeploymentsCleanerService {
       const failure = await this.closeDeployments(wallet, messages);
 
       if (!failure) {
+        await this.#recordClosed(wallet, remaining);
         break;
       }
 
@@ -227,6 +231,13 @@ export class StaleManagedDeploymentsCleanerService {
     }
 
     return closedDeploymentsDropped;
+  }
+
+  /** Only what the landed tx closed, never a deployment dropped for being closed already, because whoever closed that one reports it. */
+  async #recordClosed(wallet: ManagedWalletRef, deployments: StaleDeploymentsOutput[]): Promise<void> {
+    for (const { dseq } of deployments) {
+      await this.activityService.record(systemClosedActivityOf({ userId: wallet.userId, dseq, reason: "no_lease" }));
+    }
   }
 
   /** Returns the failure rather than throwing so the caller classifies a rejected estimate and a reverted tx alike. */

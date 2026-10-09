@@ -11348,6 +11348,11 @@ export interface operations {
                  * @enum {string}
                  */
                 status: "pending" | "succeeded" | "failed";
+                /**
+                 * @description Who started the action: `user` for the user's own request, `system` for a close Console made on the user's behalf.
+                 * @enum {string}
+                 */
+                initiator: "user" | "system";
                 meta: {
                   /** @description The deployment the action was about. */
                   dseq?: string;
@@ -11360,6 +11365,11 @@ export interface operations {
                     code: string;
                     message: string;
                   };
+                  /**
+                   * @description Why Console closed the deployment, on a close it made on the user's behalf: `runtime_limit_reached` (the runtime limit set for it ran out), `trial_ended` (the trial it ran on ended), `provider_unreachable` (its provider stopped responding) or `no_lease` (it had no lease, and closing it returned its deposit).
+                   * @enum {string}
+                   */
+                  reason?: "runtime_limit_reached" | "trial_ended" | "provider_unreachable" | "no_lease";
                 };
                 /**
                  * Format: date-time
@@ -11431,6 +11441,11 @@ export interface operations {
                * @enum {string}
                */
               status: "pending" | "succeeded" | "failed";
+              /**
+               * @description Who started the action: `user` for the user's own request, `system` for a close Console made on the user's behalf.
+               * @enum {string}
+               */
+              initiator: "user" | "system";
               meta: {
                 /** @description The deployment the action was about. */
                 dseq?: string;
@@ -11443,6 +11458,11 @@ export interface operations {
                   code: string;
                   message: string;
                 };
+                /**
+                 * @description Why Console closed the deployment, on a close it made on the user's behalf: `runtime_limit_reached` (the runtime limit set for it ran out), `trial_ended` (the trial it ran on ended), `provider_unreachable` (its provider stopped responding) or `no_lease` (it had no lease, and closing it returned its deposit).
+                 * @enum {string}
+                 */
+                reason?: "runtime_limit_reached" | "trial_ended" | "provider_unreachable" | "no_lease";
               };
               /**
                * Format: date-time

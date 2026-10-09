@@ -1,10 +1,10 @@
-import { and, count, desc, eq, inArray, isNull, lt, lte, or, sql } from "drizzle-orm";
+import { and, count, desc, eq, inArray, isNotNull, isNull, lt, lte, or, sql } from "drizzle-orm";
 import { singleton } from "tsyringe";
 
 import type { ActivityPosition } from "@src/activity/lib/activity-cursor/activity-cursor";
-import type { ActivityStatus, ActivityType } from "@src/activity/model-schemas";
+import { ACTIVITIES_DEDUPE_KEY_INDEX, type ActivityStatus, type ActivityType } from "@src/activity/model-schemas";
 import { type ApiPgDatabase, type ApiPgTables, InjectPg, InjectPgTable } from "@src/core/providers";
-import { type AbilityParams, BaseRepository } from "@src/core/repositories/base.repository";
+import { type AbilityParams, BaseRepository, getPostgresError, isUniqueViolation } from "@src/core/repositories/base.repository";
 import { TxService } from "@src/core/services";
 
 type Table = ApiPgTables["Activities"];
@@ -19,6 +19,10 @@ export type ActivityOutput = Omit<ActivityDbOutput, "seenAt" | "createdAt" | "up
 
 export type ActivitySelection = { ids: string[] } | { upTo: string };
 
+export function isDedupeKeyTaken(error: unknown): boolean {
+  return isUniqueViolation(error) && getPostgresError(error)?.constraint_name === ACTIVITIES_DEDUPE_KEY_INDEX;
+}
+
 @singleton()
 export class ActivityRepository extends BaseRepository<Table, ActivityInput, ActivityOutput> {
   constructor(
@@ -31,6 +35,18 @@ export class ActivityRepository extends BaseRepository<Table, ActivityInput, Act
 
   accessibleBy(...abilityParams: AbilityParams) {
     return new ActivityRepository(this.pg, this.table, this.txManager).withAbility(...abilityParams) as this;
+  }
+
+  /** Writes nothing when another of the user's rows already holds the dedupe key, which is how two reports of one outcome stay one row. */
+  async createUnlessDuplicate(input: Table["$inferInsert"]): Promise<ActivityOutput | undefined> {
+    this.ability?.throwUnlessCanExecute(input);
+    const [created] = await this.cursor
+      .insert(this.table)
+      .values(input)
+      .onConflictDoNothing({ target: [this.table.userId, this.table.dedupeKey], where: isNotNull(this.table.dedupeKey) })
+      .returning();
+
+    return created && this.toOutput(created);
   }
 
   /** Newest first, ordered by id within a shared timestamp so that a page boundary falling inside one millisecond neither skips nor repeats a row. */

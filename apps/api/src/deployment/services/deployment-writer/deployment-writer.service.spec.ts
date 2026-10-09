@@ -9,6 +9,7 @@ import { randomUUID } from "node:crypto";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { mock, type MockProxy } from "vitest-mock-extended";
 
+import { ACTIVITIES_DEDUPE_KEY_INDEX } from "@src/activity/model-schemas";
 import type { ActivityService } from "@src/activity/services/activity/activity.service";
 import type { WalletInitialized } from "@src/billing/repositories";
 import type { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
@@ -46,7 +47,9 @@ import type { StaleManagedDeploymentsCleanerService } from "../stale-managed-dep
 import { DeploymentWriterService } from "./deployment-writer.service";
 
 import { mockConfigService } from "@test/mocks/config-service.mock";
+import { createActivity } from "@test/seeders/activity.seeder";
 import { createDeploymentInfoGroupSeed } from "@test/seeders/deployment-info.seeder";
+import { createUniqueViolation } from "@test/seeders/unique-violation.seeder";
 
 const ALIASED_FILLER = "x".repeat(4096);
 const ENV_VALUE = faker.string.alphanumeric(24);
@@ -1333,6 +1336,19 @@ describe(DeploymentWriterService.name, () => {
       expect(logger.error).toHaveBeenCalledWith({ event: "UNDECIDED_CLOSE_RECORD_FAILED", userId: "user-1", dseq: "100", error: recordFailure });
     });
 
+    it("leaves a close left undecided to the close of the deployment already holding its entry, and still answers with the failure", async () => {
+      const { service, signerService, deploymentReaderService, activityService, logger } = setup();
+      const undecided = new TxOutcomeUnknownError("ABCDEF");
+      signerService.executeDecodedTxByUserWallet.mockRejectedValue(undecided);
+      deploymentReaderService.findByWalletAndDseqWithoutProviderStatus.mockResolvedValue(deploymentData);
+      activityService.open.mockRejectedValue(createUniqueViolation(ACTIVITIES_DEDUPE_KEY_INDEX));
+
+      await expect(service.closeByUserIdAndDseq("user-1", "100")).rejects.toBe(undecided);
+
+      expect(logger.error).not.toHaveBeenCalled();
+      expect(activityService.record).not.toHaveBeenCalled();
+    });
+
     it("reads the deployment once before closing it", async () => {
       const { service, deploymentReaderService } = setup();
 
@@ -1364,7 +1380,9 @@ describe(DeploymentWriterService.name, () => {
         userId: "user-1",
         type: "deployment_close",
         status: "pending",
-        meta: { dseq: "100" }
+        initiator: "user",
+        meta: { dseq: "100" },
+        dedupeKey: "deployment_close.100"
       });
       expect(signerService.executeDecodedTxByUserWallet).not.toHaveBeenCalled();
     });
@@ -1456,6 +1474,48 @@ describe(DeploymentWriterService.name, () => {
         message: "This deployment is already being closed"
       });
     });
+
+    it("follows a close of the deployment already recorded as pending instead of queueing a second one", async () => {
+      const { service, activityService } = setup();
+      const recorded = createActivity({ userId: "user-1", status: "pending", meta: { dseq: "100", txHash: "ABCDEF" }, dedupeKey: "deployment_close.100" });
+      activityService.open.mockRejectedValue(createUniqueViolation(ACTIVITIES_DEDUPE_KEY_INDEX));
+      activityService.findByDedupeKey.mockResolvedValue(recorded);
+
+      await expect(service.closeInBackgroundByUserIdAndDseq("user-1", "100")).resolves.toEqual({ activityId: recorded.id });
+
+      expect(activityService.findByDedupeKey).toHaveBeenCalledWith("user-1", "deployment_close.100");
+    });
+
+    it("answers as for a deployment already closed when a close of it is already recorded as succeeded, Console's own included", async () => {
+      const { service, activityService } = setup();
+      activityService.open.mockRejectedValue(createUniqueViolation(ACTIVITIES_DEDUPE_KEY_INDEX));
+      activityService.findByDedupeKey.mockResolvedValue(
+        createActivity({ userId: "user-1", status: "succeeded", initiator: "system", meta: { dseq: "100", reason: "no_lease" } })
+      );
+
+      await expect(service.closeInBackgroundByUserIdAndDseq("user-1", "100")).resolves.toBeUndefined();
+    });
+
+    it("refuses with a 409 when the close holding the deployment's entry gave it up before it could be read", async () => {
+      const { service, activityService } = setup();
+      activityService.open.mockRejectedValue(createUniqueViolation(ACTIVITIES_DEDUPE_KEY_INDEX));
+      activityService.findByDedupeKey.mockResolvedValue(undefined);
+
+      await expect(service.closeInBackgroundByUserIdAndDseq("user-1", "100")).rejects.toMatchObject({
+        status: 409,
+        message: "This deployment is already being closed"
+      });
+    });
+
+    it("lets any other failure to queue the close through", async () => {
+      const { service, activityService } = setup();
+      const failure = new Error("connection reset");
+      activityService.open.mockRejectedValue(failure);
+
+      await expect(service.closeInBackgroundByUserIdAndDseq("user-1", "100")).rejects.toBe(failure);
+
+      expect(activityService.findByDedupeKey).not.toHaveBeenCalled();
+    });
   });
 
   describe("close", () => {
@@ -1487,6 +1547,16 @@ describe(DeploymentWriterService.name, () => {
 
       expect(rpcMessageService.getCloseDeploymentMsg).toHaveBeenCalledWith(wallet.address, "100");
       expect(signerService.executeDecodedTxByUserWallet).toHaveBeenCalledWith(wallet, [closeMsg]);
+    });
+
+    it("writes nothing to the activity feed, which each caller of a close decides on for itself", async () => {
+      const { service, activityService } = setup();
+
+      await service.close(wallet, "100");
+
+      expect(activityService.record).not.toHaveBeenCalled();
+      expect(activityService.open).not.toHaveBeenCalled();
+      expect(activityService.settle).not.toHaveBeenCalled();
     });
 
     it("does not broadcast a close tx when the deployment is already closed", async () => {

@@ -30,9 +30,10 @@ export function isWalletInitialized(wallet: UserWalletOutput): wallet is WalletI
   return !!wallet.address;
 }
 
-/** All a sweep needs to close a deployment on a wallet's behalf: the address it owns on chain and the index the signer derives it from. */
+/** All a sweep needs to close a deployment on a wallet's behalf: the address it owns on chain, the index the signer derives it from and the user whose feed records the close. */
 export interface ManagedWalletRef {
   id: UserWalletOutput["id"];
+  userId: UserWalletOutput["userId"];
   address: string;
 }
 
@@ -255,7 +256,7 @@ export class UserWalletRepository extends BaseRepository<ApiPgTables["UserWallet
 
     while (true) {
       const batch = await this.cursor
-        .select({ id: this.table.id, address: this.table.address })
+        .select({ id: this.table.id, userId: this.table.userId, address: this.table.address })
         .from(this.table)
         .where(this.whereAccessibleBy(and(isNotNull(this.table.address), ...(cursor === undefined ? [] : [gt(this.table.id, cursor)]))))
         .orderBy(asc(this.table.id))

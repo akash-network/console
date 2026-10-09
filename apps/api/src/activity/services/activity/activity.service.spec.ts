@@ -3,7 +3,7 @@ import { faker } from "@faker-js/faker";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
-import type { NewActivity } from "@src/activity/model-schemas";
+import { ACTIVITIES_DEDUPE_KEY_INDEX, type NewActivity } from "@src/activity/model-schemas";
 import type { ActivityRepository } from "@src/activity/repositories/activity/activity.repository";
 import type { AuthService } from "@src/auth/services/auth.service";
 import type { CreateLogger } from "@src/core";
@@ -11,22 +11,40 @@ import { encodeActivityCursor } from "../../lib/activity-cursor/activity-cursor"
 import { ActivityService } from "./activity.service";
 
 import { createActivity } from "@test/seeders/activity.seeder";
+import { createUniqueViolation } from "@test/seeders/unique-violation.seeder";
 
 describe(ActivityService.name, () => {
   describe("record", () => {
-    it("stores the activity", async () => {
-      const { service, activityRepository } = setup();
+    it("stores the activity unless another row already holds its dedupe key", async () => {
+      const { service, activityRepository, logger } = setup();
       const activity = createNewActivity();
+      activityRepository.createUnlessDuplicate.mockResolvedValue(createActivity());
 
       await service.record(activity);
 
-      expect(activityRepository.create).toHaveBeenCalledWith(activity);
+      expect(activityRepository.createUnlessDuplicate).toHaveBeenCalledWith(activity);
+      expect(logger.info).not.toHaveBeenCalled();
+    });
+
+    it("says so when another row already reports the outcome, without failing the action", async () => {
+      const { service, activityRepository, logger } = setup();
+      const activity = createNewActivity({ dedupeKey: "deployment_close.1234" });
+      activityRepository.createUnlessDuplicate.mockResolvedValue(undefined);
+
+      await expect(service.record(activity)).resolves.toBeUndefined();
+
+      expect(logger.info).toHaveBeenCalledWith({
+        event: "ACTIVITY_RECORD_DEDUPED",
+        userId: activity.userId,
+        type: "deployment_close",
+        dedupeKey: "deployment_close.1234"
+      });
     });
 
     it("logs a failed write instead of failing the action that already happened", async () => {
       const { service, activityRepository, logger, createLogger } = setup();
       const error = new Error("connection reset");
-      activityRepository.create.mockRejectedValue(error);
+      activityRepository.createUnlessDuplicate.mockRejectedValue(error);
       const activity = createNewActivity({ status: "failed" });
 
       await expect(service.record(activity)).resolves.toBeUndefined();
@@ -69,13 +87,28 @@ describe(ActivityService.name, () => {
     });
   });
 
+  describe("findByDedupeKey", () => {
+    it("reads the user's row holding the dedupe key", async () => {
+      const { service, activityRepository } = setup();
+      const activity = createActivity({ dedupeKey: "deployment_close.100" });
+      activityRepository.findOneBy.mockResolvedValue(activity);
+
+      expect(await service.findByDedupeKey(activity.userId, "deployment_close.100")).toBe(activity);
+      expect(activityRepository.findOneBy).toHaveBeenCalledWith({ userId: activity.userId, dedupeKey: "deployment_close.100" });
+    });
+  });
+
   describe("settle", () => {
-    it("writes the outcome only onto an activity that is still pending", async () => {
+    it("writes the outcome and its dedupe key only onto an activity that is still pending", async () => {
       const { service, activityRepository } = setup();
 
-      await service.settle("activity-1", createNewActivity({ status: "succeeded", meta: { dseq: "100" } }));
+      await service.settle("activity-1", createNewActivity({ status: "succeeded", meta: { dseq: "100" }, dedupeKey: "deployment_close.100" }));
 
-      expect(activityRepository.updateByIdIfStatusIn).toHaveBeenCalledWith("activity-1", ["pending"], { status: "succeeded", meta: { dseq: "100" } });
+      expect(activityRepository.updateByIdIfStatusIn).toHaveBeenCalledWith("activity-1", ["pending"], {
+        status: "succeeded",
+        meta: { dseq: "100" },
+        dedupeKey: "deployment_close.100"
+      });
     });
 
     it("writes the outcome over the statuses the caller allows instead", async () => {
@@ -83,7 +116,35 @@ describe(ActivityService.name, () => {
 
       await service.settle("activity-1", createNewActivity({ status: "succeeded", meta: { dseq: "100" } }), { from: ["pending", "failed"] });
 
-      expect(activityRepository.updateByIdIfStatusIn).toHaveBeenCalledWith("activity-1", ["pending", "failed"], { status: "succeeded", meta: { dseq: "100" } });
+      expect(activityRepository.updateByIdIfStatusIn).toHaveBeenCalledWith("activity-1", ["pending", "failed"], {
+        status: "succeeded",
+        meta: { dseq: "100" },
+        dedupeKey: null
+      });
+    });
+
+    it("leaves the activity as it was when another row already holds the dedupe key it would take", async () => {
+      const { service, activityRepository, logger } = setup();
+      activityRepository.updateByIdIfStatusIn.mockRejectedValue(createUniqueViolation(ACTIVITIES_DEDUPE_KEY_INDEX));
+
+      await expect(
+        service.settle("activity-1", createNewActivity({ status: "succeeded", dedupeKey: "deployment_close.100" }), { from: ["pending", "failed"] })
+      ).resolves.toBeUndefined();
+
+      expect(logger.info).toHaveBeenCalledWith({
+        event: "ACTIVITY_SETTLE_DEDUPED",
+        activityId: "activity-1",
+        status: "succeeded",
+        dedupeKey: "deployment_close.100"
+      });
+    });
+
+    it("lets any other failed write through", async () => {
+      const { service, activityRepository } = setup();
+      const error = createUniqueViolation("activities_pkey");
+      activityRepository.updateByIdIfStatusIn.mockRejectedValue(error);
+
+      await expect(service.settle("activity-1", createNewActivity())).rejects.toBe(error);
     });
   });
 
@@ -163,7 +224,7 @@ describe(ActivityService.name, () => {
   });
 
   function createNewActivity(overrides: Partial<NewActivity> = {}): NewActivity {
-    return { userId: faker.string.uuid(), type: "deployment_close", status: "succeeded", meta: { dseq: "1234" }, ...overrides };
+    return { userId: faker.string.uuid(), type: "deployment_close", status: "succeeded", initiator: "user", meta: { dseq: "1234" }, dedupeKey: null, ...overrides };
   }
 
   function setup() {

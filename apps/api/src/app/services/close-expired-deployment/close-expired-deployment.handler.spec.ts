@@ -3,6 +3,7 @@ import { hoursToMilliseconds, minutesToMilliseconds } from "date-fns";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
+import type { ActivityService } from "@src/activity/services/activity/activity.service";
 import type { UserWalletRepository } from "@src/billing/repositories";
 import type { ChainErrorService } from "@src/billing/services/chain-error/chain-error.service";
 import type { CreateLogger, JobPayload } from "@src/core";
@@ -11,6 +12,7 @@ import type { DeploymentSettingRepository, DeploymentSettingsOutput } from "@src
 import type { DeploymentCloseJobService } from "@src/deployment/services/deployment-close-job/deployment-close-job.service";
 import type { DeploymentConfigService } from "@src/deployment/services/deployment-config/deployment-config.service";
 import type { DeploymentWriterService } from "@src/deployment/services/deployment-writer/deployment-writer.service";
+import { systemClosedActivityOf } from "@src/deployment/utils/close-activity/close-activity";
 import { CloseExpiredDeploymentHandler } from "./close-expired-deployment.handler";
 
 import { mockConfigService } from "@test/mocks/config-service.mock";
@@ -33,6 +35,36 @@ describe(CloseExpiredDeploymentHandler.name, () => {
 
     expect(deploymentWriterService.close).toHaveBeenCalledWith(expect.objectContaining({ address }), setting.dseq);
     expect(deploymentSettingRepository.updateById).toHaveBeenCalledWith(setting.id, { closed: true });
+  });
+
+  it("records the close in the owner's feed as Console's, because the runtime limit was reached", async () => {
+    const setting = createSetting();
+    const { handler, activityService } = setup({ setting });
+
+    await handler.handle(createPayload(setting));
+
+    expect(activityService.record).toHaveBeenCalledWith(systemClosedActivityOf({ userId: setting.userId, dseq: setting.dseq, reason: "runtime_limit_reached" }));
+  });
+
+  it("records nothing but still marks the setting closed when the deployment had already closed, since whoever closed it reports that close", async () => {
+    const setting = createSetting();
+    const { handler, activityService, deploymentSettingRepository } = setup({ setting, closedByThisJob: false });
+
+    await handler.handle(createPayload(setting));
+
+    expect(activityService.record).not.toHaveBeenCalled();
+    expect(deploymentSettingRepository.updateById).toHaveBeenCalledWith(setting.id, { closed: true });
+  });
+
+  it("records the close before marking the setting closed, so a retry after a failed mark cannot lose it", async () => {
+    const setting = createSetting();
+    const { handler, activityService, deploymentSettingRepository } = setup({ setting });
+    const markFailure = new Error("connection terminated");
+    deploymentSettingRepository.updateById.mockRejectedValue(markFailure);
+
+    await expect(handler.handle(createPayload(setting))).rejects.toBe(markFailure);
+
+    expect(activityService.record).toHaveBeenCalledTimes(1);
   });
 
   it("does nothing when the setting no longer exists", async () => {
@@ -91,7 +123,7 @@ describe(CloseExpiredDeploymentHandler.name, () => {
 
   it("retries later without closing when the escrow cannot be settled yet", async () => {
     const setting = createSetting();
-    const { handler, deploymentSettingRepository, deploymentCloseJobService } = setup({
+    const { handler, deploymentSettingRepository, deploymentCloseJobService, activityService } = setup({
       setting,
       closeError: new Error("escrow not settled"),
       isUnsettleable: true
@@ -100,6 +132,7 @@ describe(CloseExpiredDeploymentHandler.name, () => {
     await handler.handle(createPayload(setting));
 
     expect(deploymentSettingRepository.updateById).not.toHaveBeenCalled();
+    expect(activityService.record).not.toHaveBeenCalled();
     expectRetriedLater(deploymentCloseJobService, setting);
   });
 
@@ -173,6 +206,7 @@ describe(CloseExpiredDeploymentHandler.name, () => {
       setting?: DeploymentSettingsOutput;
       address?: string | null;
       closeError?: Error;
+      closedByThisJob?: boolean;
       isUnsettleable?: boolean;
       dryRun?: boolean;
     } = {}
@@ -182,6 +216,7 @@ describe(CloseExpiredDeploymentHandler.name, () => {
     const deploymentWriterService = mock<DeploymentWriterService>();
     const deploymentCloseJobService = mock<DeploymentCloseJobService>();
     const chainErrorService = mock<ChainErrorService>();
+    const activityService = mock<ActivityService>();
     const deploymentConfig = mockConfigService<DeploymentConfigService>({
       CLOSE_EXPIRED_DEPLOYMENTS_DRY_RUN: input.dryRun ? "true" : "false"
     });
@@ -196,6 +231,8 @@ describe(CloseExpiredDeploymentHandler.name, () => {
 
     if (input.closeError) {
       deploymentWriterService.close.mockRejectedValue(input.closeError);
+    } else {
+      deploymentWriterService.close.mockResolvedValue(input.closedByThisJob ?? true);
     }
 
     const handler = new CloseExpiredDeploymentHandler(
@@ -205,6 +242,7 @@ describe(CloseExpiredDeploymentHandler.name, () => {
       deploymentCloseJobService,
       chainErrorService,
       deploymentConfig,
+      activityService,
       createLogger
     );
 
@@ -216,6 +254,7 @@ describe(CloseExpiredDeploymentHandler.name, () => {
       deploymentCloseJobService,
       chainErrorService,
       deploymentConfig,
+      activityService,
       logger,
       createLogger
     };

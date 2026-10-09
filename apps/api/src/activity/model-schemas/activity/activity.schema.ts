@@ -1,27 +1,38 @@
 import { sql } from "drizzle-orm";
-import { index, jsonb, pgEnum, pgTable, timestamp, uuid } from "drizzle-orm/pg-core";
+import { index, jsonb, pgEnum, pgTable, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
 
 import { Users } from "@src/user/model-schemas";
 
 export const activityTypeEnum = pgEnum("activity_type", ["deployment_close"]);
 export const activityStatusEnum = pgEnum("activity_status", ["pending", "succeeded", "failed"]);
+export const activityInitiatorEnum = pgEnum("activity_initiator", ["user", "system"]);
 
 export type ActivityType = (typeof activityTypeEnum.enumValues)[number];
 export type ActivityStatus = (typeof activityStatusEnum.enumValues)[number];
+export type ActivityInitiator = (typeof activityInitiatorEnum.enumValues)[number];
+
+export const SYSTEM_CLOSE_REASONS = ["runtime_limit_reached", "trial_ended", "provider_unreachable", "no_lease"] as const;
+
+export type SystemCloseReason = (typeof SYSTEM_CLOSE_REASONS)[number];
 
 export type ActivityMeta = {
   dseq?: string;
   batchId?: string;
   txHash?: string;
   error?: { code: string; message: string };
+  reason?: SystemCloseReason;
 };
 
 export type NewActivity = {
   userId: string;
   type: ActivityType;
   status: ActivityStatus;
+  initiator: ActivityInitiator;
   meta: ActivityMeta;
+  dedupeKey: string | null;
 };
+
+export const ACTIVITIES_DEDUPE_KEY_INDEX = "activities_user_id_dedupe_key_idx";
 
 export const Activities = pgTable(
   "activities",
@@ -35,7 +46,10 @@ export const Activities = pgTable(
       .notNull(),
     type: activityTypeEnum("type").notNull(),
     status: activityStatusEnum("status").notNull(),
+    initiator: activityInitiatorEnum("initiator").notNull().default("user"),
     meta: jsonb("meta").$type<ActivityMeta>().notNull().default({}),
+    /** Unique per user while set, so every writer reporting the same outcome lands on one row; a failed attempt clears it so a retry can open its own. */
+    dedupeKey: text("dedupe_key"),
     seenAt: timestamp("seen_at", { withTimezone: true }),
     /** Millisecond precision so the page cursor, which round-trips through a JS Date, names a row exactly. */
     createdAt: timestamp("created_at", { withTimezone: true, precision: 3 }).defaultNow().notNull(),
@@ -45,6 +59,9 @@ export const Activities = pgTable(
     userIdCreatedAtIdIdx: index("activities_user_id_created_at_id_idx").on(table.userId, table.createdAt, table.id),
     userIdUnseenIdx: index("activities_user_id_unseen_idx")
       .on(table.userId)
-      .where(sql`${table.seenAt} IS NULL`)
+      .where(sql`${table.seenAt} IS NULL`),
+    userIdDedupeKeyIdx: uniqueIndex(ACTIVITIES_DEDUPE_KEY_INDEX)
+      .on(table.userId, table.dedupeKey)
+      .where(sql`${table.dedupeKey} IS NOT NULL`)
   })
 );

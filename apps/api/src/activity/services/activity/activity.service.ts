@@ -2,7 +2,12 @@ import { inject, singleton } from "tsyringe";
 
 import { decodeActivityCursor, encodeActivityCursor } from "@src/activity/lib/activity-cursor/activity-cursor";
 import type { ActivityStatus, ActivityType, NewActivity } from "@src/activity/model-schemas";
-import { type ActivityOutput, ActivityRepository, type ActivitySelection } from "@src/activity/repositories/activity/activity.repository";
+import {
+  type ActivityOutput,
+  ActivityRepository,
+  type ActivitySelection,
+  isDedupeKeyTaken
+} from "@src/activity/repositories/activity/activity.repository";
 import { AuthService } from "@src/auth/services/auth.service";
 import { type CreateLogger, LOGGER_FACTORY } from "@src/core";
 
@@ -23,13 +28,14 @@ export class ActivityService {
   /** The action has already happened by the time it is recorded, so a failed write is logged rather than failing the request that performed it. */
   async record(activity: NewActivity): Promise<void> {
     try {
-      await this.activityRepository.create(activity);
+      const recorded = await this.activityRepository.createUnlessDuplicate(activity);
+      if (!recorded) this.#logger.info({ event: "ACTIVITY_RECORD_DEDUPED", userId: activity.userId, type: activity.type, dedupeKey: activity.dedupeKey });
     } catch (error) {
       this.#logger.error({ event: "ACTIVITY_RECORD_FAILED", userId: activity.userId, type: activity.type, status: activity.status, error });
     }
   }
 
-  /** Not best-effort, unlike `record`: an activity opened for work still to come must fail the transaction that queues that work. */
+  /** Not best-effort, unlike `record`: an activity opened for work still to come must fail the transaction that queues that work, including when another row already holds its dedupe key. */
   async open(activity: NewActivity & { id: string }): Promise<void> {
     await this.activityRepository.create(activity);
   }
@@ -38,9 +44,22 @@ export class ActivityService {
     return (await this.activityRepository.findById(id))?.status === "pending";
   }
 
-  /** Guarded on `pending` unless told otherwise, so a late or repeated settle never overwrites an outcome already recorded. */
-  async settle(id: string, { status, meta }: Pick<NewActivity, "status" | "meta">, { from = ["pending"] }: { from?: ActivityStatus[] } = {}): Promise<void> {
-    await this.activityRepository.updateByIdIfStatusIn(id, from, { status, meta });
+  async findByDedupeKey(userId: string, dedupeKey: string): Promise<ActivityOutput | undefined> {
+    return await this.activityRepository.findOneBy({ userId, dedupeKey });
+  }
+
+  /** Guarded on `pending` unless told otherwise, so a late or repeated settle never overwrites an outcome already recorded, and left undone when another row already holds the dedupe key, since that row reports the same outcome. */
+  async settle(
+    id: string,
+    { status, meta, dedupeKey }: Pick<NewActivity, "status" | "meta" | "dedupeKey">,
+    { from = ["pending"] }: { from?: ActivityStatus[] } = {}
+  ): Promise<void> {
+    try {
+      await this.activityRepository.updateByIdIfStatusIn(id, from, { status, meta, dedupeKey });
+    } catch (error) {
+      if (!isDedupeKeyTaken(error)) throw error;
+      this.#logger.info({ event: "ACTIVITY_SETTLE_DEDUPED", activityId: id, status, dedupeKey });
+    }
   }
 
   async list({ limit, cursor, status, type }: { limit: number; cursor?: string; status?: ActivityStatus; type?: ActivityType }): Promise<ActivityPage> {

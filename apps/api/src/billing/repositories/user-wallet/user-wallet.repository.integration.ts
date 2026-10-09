@@ -315,7 +315,7 @@ describe(UserWalletRepository.name, () => {
   });
 
   describe("findManagedIteratively", () => {
-    it("yields every wallet that holds an address, in id order across batches", async () => {
+    it("yields every wallet that holds an address with the user it belongs to, in id order across batches", async () => {
       const { createWallet, collectYielded } = await setupManagedWallets();
       const first = await createWallet();
       const second = await createWallet();
@@ -324,9 +324,9 @@ describe(UserWalletRepository.name, () => {
       const yielded = await collectYielded([first, second, third], 2);
 
       expect(yielded).toEqual([
-        { id: first.id, address: first.address },
-        { id: second.id, address: second.address },
-        { id: third.id, address: third.address }
+        { id: first.id, userId: first.userId, address: first.address },
+        { id: second.id, userId: second.userId, address: second.address },
+        { id: third.id, userId: third.userId, address: third.address }
       ]);
     });
 
@@ -337,7 +337,7 @@ describe(UserWalletRepository.name, () => {
 
       const yielded = await collectYielded([addressless, managed], 10);
 
-      expect(yielded).toEqual([{ id: managed.id, address: managed.address }]);
+      expect(yielded).toEqual([{ id: managed.id, userId: managed.userId, address: managed.address }]);
     });
 
     it("caps every batch at the batch size", async () => {

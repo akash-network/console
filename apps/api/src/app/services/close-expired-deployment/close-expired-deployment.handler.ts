@@ -1,6 +1,7 @@
 import { minutesToMilliseconds } from "date-fns";
 import { inject, singleton } from "tsyringe";
 
+import { ActivityService } from "@src/activity/services/activity/activity.service";
 import { UserWalletRepository } from "@src/billing/repositories";
 import { ChainErrorService } from "@src/billing/services/chain-error/chain-error.service";
 import { type CreateLogger, type JobHandler, type JobPayload, type JobPermissions, LOGGER_FACTORY } from "@src/core";
@@ -9,6 +10,7 @@ import { DeploymentSettingRepository } from "@src/deployment/repositories/deploy
 import { type CloseExpiredDeploymentTarget, DeploymentCloseJobService } from "@src/deployment/services/deployment-close-job/deployment-close-job.service";
 import { DeploymentConfigService } from "@src/deployment/services/deployment-config/deployment-config.service";
 import { DeploymentWriterService } from "@src/deployment/services/deployment-writer/deployment-writer.service";
+import { systemClosedActivityOf } from "@src/deployment/utils/close-activity/close-activity";
 
 /** How long a close that could not go through yet waits before it is tried again. */
 const RETRY_DELAY_MS = minutesToMilliseconds(15);
@@ -49,6 +51,7 @@ export class CloseExpiredDeploymentHandler implements JobHandler<CloseExpiredDep
     private readonly deploymentCloseJobService: DeploymentCloseJobService,
     private readonly chainErrorService: ChainErrorService,
     private readonly deploymentConfig: DeploymentConfigService,
+    private readonly activityService: ActivityService,
     @inject(LOGGER_FACTORY) createLogger: CreateLogger
   ) {
     this.logger = createLogger({ context: CloseExpiredDeploymentHandler.name });
@@ -93,8 +96,10 @@ export class CloseExpiredDeploymentHandler implements JobHandler<CloseExpiredDep
       return;
     }
 
+    let closedByThisJob: boolean;
+
     try {
-      await this.deploymentWriterService.close({ ...wallet, address: wallet.address }, dseq);
+      closedByThisJob = await this.deploymentWriterService.close({ ...wallet, address: wallet.address }, dseq);
     } catch (error) {
       if (error instanceof Error && this.chainErrorService.isUnsettleableDeploymentError(error)) {
         this.logger.warn({
@@ -107,6 +112,10 @@ export class CloseExpiredDeploymentHandler implements JobHandler<CloseExpiredDep
         return;
       }
       throw error;
+    }
+
+    if (closedByThisJob) {
+      await this.activityService.record(systemClosedActivityOf({ userId, dseq, reason: "runtime_limit_reached" }));
     }
 
     await this.deploymentSettingRepository.updateById(deploymentSettingId, { closed: true });

@@ -44,6 +44,6 @@ export class ActivityController {
   }
 }
 
-function toActivityResponse({ id, type, status, meta, seenAt, createdAt, updatedAt }: ActivityOutput): ActivityResponse {
-  return { id, type, status, meta, seenAt, createdAt, updatedAt };
+function toActivityResponse({ id, type, status, initiator, meta, seenAt, createdAt, updatedAt }: ActivityOutput): ActivityResponse {
+  return { id, type, status, initiator, meta, seenAt, createdAt, updatedAt };
 }

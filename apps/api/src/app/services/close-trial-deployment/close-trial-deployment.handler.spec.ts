@@ -1,8 +1,9 @@
 import type { BalanceHttpService, DeploymentHttpService } from "@akashnetwork/http-sdk";
 import createError from "http-errors";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
+import type { ActivityService } from "@src/activity/services/activity/activity.service";
 import type { UserWalletRepository } from "@src/billing/repositories";
 import type { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import { ChainErrorService } from "@src/billing/services/chain-error/chain-error.service";
@@ -11,6 +12,7 @@ import type { CreateLogger } from "@src/core/providers/logging.provider";
 import { JOB_NAME, type JobPayload, type JobQueueService } from "@src/core/services/job-queue/job-queue.service";
 import type { GetDeploymentResponse } from "@src/deployment/http-schemas/deployment.schema";
 import type { DeploymentWriterService } from "@src/deployment/services/deployment-writer/deployment-writer.service";
+import { systemClosedActivityOf } from "@src/deployment/utils/close-activity/close-activity";
 import { NotificationJob } from "@src/notifications/services/notification-handler/notification.handler";
 import { CloseTrialDeployment, CloseTrialDeploymentHandler } from "./close-trial-deployment.handler";
 
@@ -20,6 +22,12 @@ import { createUserWallet } from "@test/seeders/user-wallet.seeder";
 const PAYMENT_LINK = "https://console.akash.network/billing?payment=true";
 
 describe(CloseTrialDeploymentHandler.name, () => {
+  it("runs one close per deployment at a time so a duplicate job cannot broadcast concurrently", () => {
+    const { handler } = setup();
+
+    expect(handler.policy).toBe("stately");
+  });
+
   it("logs warning and returns early when wallet is not found", async () => {
     const { handler, userWalletRepository, jobQueueService, logger, deploymentWriterService } = setup({
       findWalletById: vi.fn().mockResolvedValue(null)
@@ -125,6 +133,24 @@ describe(CloseTrialDeploymentHandler.name, () => {
     expect(logger.debug).not.toHaveBeenCalled();
   });
 
+  it("records the close in the owner's feed as Console's, because the trial ended", async () => {
+    const wallet = createUserWallet({ id: 123, userId: "user-123", address: "akash1test", isTrialing: true });
+    const { handler, activityService } = setup({ findWalletById: vi.fn().mockResolvedValue(wallet) });
+
+    await handler.handle({ walletId: wallet.id, dseq: "test-dseq", version: 1 });
+
+    expect(activityService.record).toHaveBeenCalledWith(systemClosedActivityOf({ userId: "user-123", dseq: "test-dseq", reason: "trial_ended" }));
+  });
+
+  it("records nothing but still tells the owner when the deployment had already closed, since whoever closed it reports that close", async () => {
+    const { handler, activityService, jobQueueService } = setup({ closeDeployment: vi.fn().mockResolvedValue(false) });
+
+    await handler.handle({ walletId: 123, dseq: "test-dseq", version: 1 });
+
+    expect(activityService.record).not.toHaveBeenCalled();
+    expect(jobQueueService.enqueue).toHaveBeenCalledWith(expect.any(NotificationJob), expect.anything());
+  });
+
   it("logs debug and skips close and notification when deployment is already closed", async () => {
     const wallet = createUserWallet({
       id: 123,
@@ -133,7 +159,7 @@ describe(CloseTrialDeploymentHandler.name, () => {
       isTrialing: true
     });
 
-    const { handler, deploymentWriterService, jobQueueService, logger } = setup({
+    const { handler, deploymentWriterService, jobQueueService, activityService, logger } = setup({
       findWalletById: vi.fn().mockResolvedValue(wallet),
       findDeployment: vi.fn().mockResolvedValue({ deployment: { state: "closed" } } as GetDeploymentResponse["data"])
     });
@@ -148,6 +174,7 @@ describe(CloseTrialDeploymentHandler.name, () => {
 
     expect(deploymentWriterService.close).not.toHaveBeenCalled();
     expect(jobQueueService.enqueue).not.toHaveBeenCalled();
+    expect(activityService.record).not.toHaveBeenCalled();
     expect(logger.debug).toHaveBeenCalledWith({
       event: "SKIP_CLOSE_TRIAL_DEPLOYMENT_JOB",
       reason: "Deployment is not active",
@@ -186,7 +213,11 @@ describe(CloseTrialDeploymentHandler.name, () => {
     expect(jobQueueService.enqueue).not.toHaveBeenCalled();
   });
 
-  it("logs unsettleable event and skips retry and notification when escrow cannot be settled", async () => {
+  it("logs the unsettleable event and tries again later, recording and telling nothing yet, when escrow cannot be settled", async () => {
+    vi.useFakeTimers({ now: new Date("2026-10-08T12:00:00.000Z"), toFake: ["Date"] });
+    onTestFinished(() => {
+      vi.useRealTimers();
+    });
     const wallet = createUserWallet({
       id: 123,
       userId: "user-123",
@@ -198,7 +229,7 @@ describe(CloseTrialDeploymentHandler.name, () => {
       originalError: new Error("Query failed with (6): rpc error: code = Unknown desc = recovered: negative decimal coin amount: -2.000000000000000000")
     });
 
-    const { handler, jobQueueService, logger } = setup({
+    const { handler, jobQueueService, activityService, logger } = setup({
       findWalletById: vi.fn().mockResolvedValue(wallet),
       findDeployment: vi.fn().mockResolvedValue({ deployment: { state: "active" } } as GetDeploymentResponse["data"]),
       closeDeployment: vi.fn().mockRejectedValue(closeError)
@@ -212,7 +243,12 @@ describe(CloseTrialDeploymentHandler.name, () => {
 
     await expect(handler.handle(payload)).resolves.toBeUndefined();
 
-    expect(jobQueueService.enqueue).not.toHaveBeenCalled();
+    expect(jobQueueService.enqueue).toHaveBeenCalledTimes(1);
+    expect(jobQueueService.enqueue).toHaveBeenCalledWith(new CloseTrialDeployment({ walletId: wallet.id, dseq: "test-dseq" }), {
+      singletonKey: `closeTrialDeployment.test-dseq.${wallet.id}`,
+      startAfter: "2026-10-08T12:15:00.000Z"
+    });
+    expect(activityService.record).not.toHaveBeenCalled();
     expect(logger.error).toHaveBeenCalledWith({
       event: "CLOSE_TRIAL_DEPLOYMENT_UNSETTLEABLE",
       reason: "Deployment escrow cannot be settled yet; chain rejects close until it settles",
@@ -322,7 +358,7 @@ describe(CloseTrialDeploymentHandler.name, () => {
         enqueue: input?.enqueueJob ?? vi.fn().mockResolvedValue(undefined)
       }),
       deploymentWriterService: mock<DeploymentWriterService>({
-        close: input?.closeDeployment ?? vi.fn().mockResolvedValue(undefined)
+        close: input?.closeDeployment ?? vi.fn().mockResolvedValue(true)
       }),
       deploymentService: mock<DeploymentHttpService>({
         findByOwnerAndDseq: input?.findDeployment ?? vi.fn().mockResolvedValue({ deployment: { state: "active" } })
@@ -331,7 +367,8 @@ describe(CloseTrialDeploymentHandler.name, () => {
         TRIAL_DEPLOYMENT_CLEANUP_HOURS: input?.trialDeploymentLifetimeInHours ?? 24,
         CONSOLE_WEB_PAYMENT_LINK: PAYMENT_LINK
       }),
-      chainErrorService: new ChainErrorService(mock<BalanceHttpService>(), mock<BillingConfigService>(), mock<TxManagerService>())
+      chainErrorService: new ChainErrorService(mock<BalanceHttpService>(), mock<BillingConfigService>(), mock<TxManagerService>()),
+      activityService: mock<ActivityService>()
     };
 
     const createLogger = vi.fn<CreateLogger>(() => mocks.logger);
@@ -343,7 +380,8 @@ describe(CloseTrialDeploymentHandler.name, () => {
       mocks.deploymentWriterService,
       mocks.deploymentService,
       mocks.billingConfig,
-      mocks.chainErrorService
+      mocks.chainErrorService,
+      mocks.activityService
     );
 
     return { handler, createLogger, ...mocks };

@@ -1,6 +1,7 @@
 import { isHttpError } from "http-errors";
 
-import type { NewActivity } from "@src/activity/model-schemas";
+import { deploymentCloseDedupeKeyOf } from "@src/activity/lib/dedupe-key/dedupe-key";
+import type { ActivityMeta, ActivityStatus, NewActivity, SystemCloseReason } from "@src/activity/model-schemas";
 import { isUnknownTxOutcome } from "@src/billing/services/external-signer-http-sdk/tx-outcome.error";
 
 type CloseKey = { userId: string; dseq: string; batchId?: string };
@@ -9,21 +10,34 @@ const UNEXPLAINED_CLOSE_ERROR = { code: "close_failed", message: "Something went
 
 const STILL_OPEN_ERROR = { code: "close_incomplete", message: "The deployment is still open. Try closing it again." };
 
-export function closedActivityOf({ userId, dseq, batchId }: CloseKey): NewActivity {
-  return { userId, type: "deployment_close", status: "succeeded", meta: { dseq, batchId } };
+/** A failed close gives up the dedupe key, so the next close of the deployment can open its own row while at most one pending or succeeded row stands for it. */
+function userCloseActivityOf({ userId, dseq }: CloseKey, status: ActivityStatus, meta: ActivityMeta): NewActivity {
+  return { userId, type: "deployment_close", status, initiator: "user", meta, dedupeKey: status === "failed" ? null : deploymentCloseDedupeKeyOf(dseq) };
 }
 
-export function stillOpenActivityOf({ userId, dseq, batchId }: CloseKey): NewActivity {
-  return { userId, type: "deployment_close", status: "failed", meta: { dseq, batchId, error: STILL_OPEN_ERROR } };
+export function pendingCloseActivityOf(key: CloseKey): NewActivity {
+  return userCloseActivityOf(key, "pending", { dseq: key.dseq, batchId: key.batchId });
+}
+
+export function closedActivityOf(key: CloseKey): NewActivity {
+  return userCloseActivityOf(key, "succeeded", { dseq: key.dseq, batchId: key.batchId });
+}
+
+export function systemClosedActivityOf({ userId, dseq, reason }: { userId: string; dseq: string; reason: SystemCloseReason }): NewActivity {
+  return { userId, type: "deployment_close", status: "succeeded", initiator: "system", meta: { dseq, reason }, dedupeKey: deploymentCloseDedupeKeyOf(dseq) };
+}
+
+export function stillOpenActivityOf(key: CloseKey): NewActivity {
+  return userCloseActivityOf(key, "failed", { dseq: key.dseq, batchId: key.batchId, error: STILL_OPEN_ERROR });
 }
 
 /** An undecided close stays pending under its hash, because calling it failed would invite a retry of a close that may have landed. */
-export function failedCloseActivityOf({ userId, dseq, batchId }: CloseKey, error: unknown): NewActivity {
+export function failedCloseActivityOf(key: CloseKey, error: unknown): NewActivity {
   if (isUnknownTxOutcome(error)) {
-    return { userId, type: "deployment_close", status: "pending", meta: { dseq, batchId, txHash: error.txHash } };
+    return userCloseActivityOf(key, "pending", { dseq: key.dseq, batchId: key.batchId, txHash: error.txHash });
   }
 
-  return { userId, type: "deployment_close", status: "failed", meta: { dseq, batchId, error: explanationOf(error) } };
+  return userCloseActivityOf(key, "failed", { dseq: key.dseq, batchId: key.batchId, error: explanationOf(error) });
 }
 
 function explanationOf(error: unknown) {
