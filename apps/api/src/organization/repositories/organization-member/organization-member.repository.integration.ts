@@ -54,6 +54,16 @@ describe(OrganizationMemberRepository.name, () => {
       expect(await repository.findActiveMembership(user.id, { type: "personal" })).toEqual({ role: "owner", organization: personal });
     });
 
+    it("finds the user's membership by a value that is either the organization id or its slug", async () => {
+      const { repository, user, organization } = await setup();
+      await seedOrganizationMember({ organizationId: organization.id, userId: user.id, role: "admin" });
+      const uuidSlugged = await seedOrganization({ slug: faker.string.uuid() });
+      await seedOrganizationMember({ organizationId: uuidSlugged.id, userId: user.id, role: "viewer" });
+
+      expect(await repository.findActiveMembership(user.id, { idOrSlug: organization.id })).toEqual({ role: "admin", organization });
+      expect(await repository.findActiveMembership(user.id, { idOrSlug: uuidSlugged.slug })).toEqual({ role: "viewer", organization: uuidSlugged });
+    });
+
     it("finds nothing in an organization the user does not belong to", async () => {
       const { repository, user } = await setup();
       const { organization } = await seedOrganizationWithOwner();
