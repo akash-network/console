@@ -1,6 +1,8 @@
+import type { NextApiResponse } from "next";
 import { describe, expect, it } from "vitest";
+import { mock } from "vitest-mock-extended";
 
-import { readActiveOrganizationCookie, serializeActiveOrganizationCookie } from "./active-organization-cookie";
+import { expireActiveOrganizationCookie, readActiveOrganizationCookie, serializeActiveOrganizationCookie } from "./active-organization-cookie";
 
 describe(readActiveOrganizationCookie.name, () => {
   it("returns the console_org cookie value from a cookie header", () => {
@@ -46,10 +48,57 @@ describe(readActiveOrganizationCookie.name, () => {
 
 describe(serializeActiveOrganizationCookie.name, () => {
   it("builds a site-wide lax cookie that lasts a year", () => {
-    expect(serializeActiveOrganizationCookie("acme-corp")).toBe("console_org=acme-corp; Path=/; Max-Age=31536000; SameSite=Lax");
+    expect(serializeActiveOrganizationCookie("acme-corp", { protocol: "http:" })).toBe("console_org=acme-corp; Path=/; Max-Age=31536000; SameSite=Lax");
+  });
+
+  it("marks the cookie as secure when the page is served over https", () => {
+    expect(serializeActiveOrganizationCookie("acme-corp", { protocol: "https:" })).toBe(
+      "console_org=acme-corp; Path=/; Max-Age=31536000; SameSite=Lax; Secure"
+    );
+  });
+
+  it("reads the protocol of the current page by default", () => {
+    expect(serializeActiveOrganizationCookie("acme-corp")).toBe(serializeActiveOrganizationCookie("acme-corp", window.location));
   });
 
   it("writes a value that readActiveOrganizationCookie reads back", () => {
-    expect(readActiveOrganizationCookie(serializeActiveOrganizationCookie("acme-corp"))).toBe("acme-corp");
+    expect(readActiveOrganizationCookie(serializeActiveOrganizationCookie("acme-corp", { protocol: "https:" }))).toBe("acme-corp");
   });
+});
+
+describe(expireActiveOrganizationCookie.name, () => {
+  it("expires the console_org cookie", () => {
+    const { res } = setup({});
+
+    expireActiveOrganizationCookie(res);
+
+    expect(res.setHeader).toHaveBeenCalledWith("Set-Cookie", ["console_org=; Path=/; Max-Age=0; SameSite=Lax"]);
+  });
+
+  it("keeps a cookie already set on the response", () => {
+    const { res } = setup({ existing: "appSession=; Path=/" });
+
+    expireActiveOrganizationCookie(res);
+
+    expect(res.setHeader).toHaveBeenCalledWith("Set-Cookie", ["appSession=; Path=/", "console_org=; Path=/; Max-Age=0; SameSite=Lax"]);
+  });
+
+  it("keeps every cookie already set on the response", () => {
+    const { res } = setup({ existing: ["appSession=; Path=/", "appSession.0=; Path=/"] });
+
+    expireActiveOrganizationCookie(res);
+
+    expect(res.setHeader).toHaveBeenCalledWith("Set-Cookie", [
+      "appSession=; Path=/",
+      "appSession.0=; Path=/",
+      "console_org=; Path=/; Max-Age=0; SameSite=Lax"
+    ]);
+  });
+
+  function setup(input: { existing?: string | string[] }) {
+    const res = mock<NextApiResponse>();
+    res.getHeader.calledWith("Set-Cookie").mockReturnValue(input.existing);
+
+    return { res };
+  }
 });

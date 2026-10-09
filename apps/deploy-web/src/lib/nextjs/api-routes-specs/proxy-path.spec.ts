@@ -8,6 +8,7 @@ import { mock } from "vitest-mock-extended";
 import type { Session } from "@src/lib/auth0";
 import type { NextApiRequestWithServices } from "@src/lib/nextjs/defineApiHandler/defineApiHandler";
 import { REQ_SERVICES_KEY } from "@src/lib/nextjs/defineApiHandler/defineApiHandler";
+import { proxyRequest as forwardRequest } from "@src/lib/nextjs/proxyRequest/proxyRequest";
 import handler from "@src/pages/api/proxy/[...path]";
 import type { ApiUrlService } from "@src/services/api-url/api-url.service";
 import { services } from "@src/services/app-di-container/server-di-container.service";
@@ -60,17 +61,28 @@ describe("proxy [...path] handler", () => {
   });
 
   it("never lets a client-supplied x-organization-id through", async () => {
-    const { proxyRequest } = await setup({ session: null, headers: { "x-organization-id": "other-org" } });
+    const { upstreamFetch } = await setup({ session: null, headers: { "x-organization-id": "other-org" } });
 
-    expect(proxyRequest.mock.calls[0]![2].omitRequestHeaders).toEqual(["x-organization-id"]);
+    expect(getUpstreamHeaders(upstreamFetch).has("x-organization-id")).toBe(false);
+  });
+
+  it("sends the console_org cookie value to the API instead of a client-supplied x-organization-id", async () => {
+    const { upstreamFetch } = await setup({ session: null, headers: { cookie: "console_org=acme-corp", "x-organization-id": "other-org" } });
+
+    expect(getUpstreamHeaders(upstreamFetch).get("x-organization-id")).toBe("acme-corp");
   });
 
   function getForwardedHeaders(proxyRequest: Mock): Record<string, string> {
     return proxyRequest.mock.calls[0]![2].headers as Record<string, string>;
   }
 
+  function getUpstreamHeaders(upstreamFetch: Mock<typeof fetch>): Headers {
+    return upstreamFetch.mock.calls[0]![1]!.headers as Headers;
+  }
+
   async function setup(input: { session: Session | null; headers?: Record<string, string> }) {
-    const proxyRequest = vi.fn().mockResolvedValue(undefined);
+    const upstreamFetch = vi.fn<typeof fetch>(async () => new Response(null, { status: 204 }));
+    const proxyRequest = vi.fn<typeof services.proxyRequest>((req, res, options) => forwardRequest(req, res, { ...options, fetch: upstreamFetch }));
     const getSession = vi.fn().mockResolvedValue(input.session);
     const logger = mock<LoggerService>();
 
@@ -99,6 +111,6 @@ describe("proxy [...path] handler", () => {
 
     await handler(req, res);
 
-    return { proxyRequest, getSession, logger, req, res };
+    return { proxyRequest, upstreamFetch, getSession, logger, req, res };
   }
 });
