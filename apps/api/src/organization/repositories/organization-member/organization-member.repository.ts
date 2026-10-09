@@ -7,10 +7,16 @@ import { TxService } from "@src/core/services";
 import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
 import { Organizations } from "@src/organization/model-schemas/organization/organization.schema";
 import type { OrganizationRole } from "@src/organization/model-schemas/organization-member/organization-member.schema";
+import { Users } from "@src/user/model-schemas/user/user.schema";
 
 type Table = ApiPgTables["OrganizationMembers"];
 export type OrganizationMemberInput = Table["$inferInsert"];
 export type OrganizationMemberOutput = Table["$inferSelect"];
+
+export type OrganizationMemberWithUser = Pick<OrganizationMemberOutput, "id" | "userId" | "role" | "createdAt"> & {
+  username: string | null;
+  email: string | null;
+};
 
 export type OrganizationLookup = { id: string } | { slug: string } | { idOrSlug: string } | { type: "personal" };
 
@@ -59,9 +65,36 @@ export class OrganizationMemberRepository extends OrgScopedRepository<Table, Org
       .select()
       .from(this.table)
       .where(this.whereAccessibleBy(and(eq(this.table.organizationId, organizationId), eq(this.table.role, "owner"))))
+      .orderBy(asc(this.table.id))
       .for("update");
 
     return this.toOutputList(owners);
+  }
+
+  async findAllWithUsers(organizationId: OrganizationMemberOutput["organizationId"]): Promise<OrganizationMemberWithUser[]> {
+    return await this.#selectWithUsers(eq(this.table.organizationId, organizationId)).orderBy(asc(this.table.createdAt), asc(this.table.id));
+  }
+
+  async findWithUserById(id: OrganizationMemberOutput["id"]): Promise<OrganizationMemberWithUser | undefined> {
+    const [member] = await this.#selectWithUsers(eq(this.table.id, id));
+
+    return member;
+  }
+
+  #selectWithUsers(where: SQL) {
+    return this.cursor
+      .select({
+        id: this.table.id,
+        userId: this.table.userId,
+        role: this.table.role,
+        createdAt: this.table.createdAt,
+        username: Users.username,
+        email: Users.email
+      })
+      .from(this.table)
+      .innerJoin(Users, eq(Users.id, this.table.userId))
+      .where(this.whereAccessibleBy(where))
+      .$dynamic();
   }
 
   async findActiveMembership(userId: OrganizationMemberOutput["userId"], lookup: OrganizationLookup): Promise<Membership | undefined> {
