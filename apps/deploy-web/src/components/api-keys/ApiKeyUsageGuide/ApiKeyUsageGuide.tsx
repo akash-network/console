@@ -100,7 +100,7 @@ export const ApiKeyUsageGuide: FC = () => (
                 </>
               }
             >
-              <CommandBlock label="akt deploy commands" lines={["akt sdl init web > deploy.yaml", "akt deploy deploy.yaml --deposit 5"]} />
+              <CommandBlock label="akt deploy commands" lines={["akt sdl init web > deploy.yaml", "akt deploy deploy.yaml"]} />
             </SetupStep>
           </ol>
         </TabsContent>

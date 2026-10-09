@@ -30,7 +30,7 @@ describe("ApiKeyUsageGuide", () => {
 
     expect(screen.getByLabelText("akt install command")).toHaveTextContent("brew install akash-network/tap/akt");
     expect(screen.getByLabelText("akt login commands").textContent).toBe("akt context create console --deploy-via console --set-current\nakt console login");
-    expect(screen.getByLabelText("akt deploy commands").textContent).toBe("akt sdl init web > deploy.yaml\nakt deploy deploy.yaml --deposit 5");
+    expect(screen.getByLabelText("akt deploy commands").textContent).toBe("akt sdl init web > deploy.yaml\nakt deploy deploy.yaml");
     expect(screen.queryByLabelText("skill install command")).not.toBeInTheDocument();
   });
 
