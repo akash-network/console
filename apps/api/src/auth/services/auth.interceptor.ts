@@ -13,6 +13,11 @@ import { cacheRegistry, nominalEntrySizing } from "@src/caching/cache-registry";
 import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
 import type { AuthMethod } from "@src/core/types/app-context";
 import type { HonoInterceptor } from "@src/core/types/hono-interceptor.type";
+import {
+  ORGANIZATION_ID_HEADER,
+  OrganizationContextResolver,
+  PROJECT_ID_HEADER
+} from "@src/organization/services/organization-context/organization-context.resolver";
 import { UserOutput, UserRepository } from "@src/user/repositories";
 import { ApiKeyOutput, ApiKeyRepository } from "../repositories/api-key/api-key.repository";
 import { ApiKeyAuthService } from "./api-key/api-key-auth.service";
@@ -46,7 +51,8 @@ export class AuthInterceptor implements HonoInterceptor {
     private readonly userAuthService: UserAuthTokenService,
     private readonly apiKeyRepository: ApiKeyRepository,
     private readonly apiKeyAuthService: ApiKeyAuthService,
-    private readonly executionContextService: ExecutionContextService
+    private readonly executionContextService: ExecutionContextService,
+    private readonly organizationContextResolver: OrganizationContextResolver
   ) {
     cacheRegistry.register("AuthInterceptor#lastUserActivity", this.lastUserActivityCache);
   }
@@ -77,24 +83,18 @@ export class AuthInterceptor implements HonoInterceptor {
 
         if (userId) {
           const currentUser = await this.userRepository.findByUserId(userId);
-          await this.auth(currentUser);
+          await this.auth(currentUser, c);
           c.set("user", currentUser);
           return await this.#nextWithUserContext(currentUser, next);
         }
 
         if (apiKey) {
-          try {
-            const apiKeyOutput = await this.apiKeyAuthService.getAndValidateApiKeyFromHeader(apiKey);
-            const currentUser = await this.userRepository.findById(apiKeyOutput.userId);
+          const { apiKeyOutput, currentUser } = await this.#authenticateApiKey(apiKey);
 
-            await Promise.all([currentUser ? this.markApiKeyAsUsed(apiKeyOutput) : null, this.auth(currentUser)]);
-            c.set("user", currentUser);
+          await Promise.all([currentUser ? this.markApiKeyAsUsed(apiKeyOutput) : null, this.auth(currentUser, c, apiKeyOutput)]);
+          c.set("user", currentUser);
 
-            return await this.#nextWithUserContext(currentUser, next);
-          } catch (error) {
-            this.logger.error(error);
-            throw new Unauthorized("Invalid API key");
-          }
+          return await this.#nextWithUserContext(currentUser, next);
         }
 
         this.authService.ability = this.abilityService.EMPTY_ABILITY;
@@ -127,11 +127,30 @@ export class AuthInterceptor implements HonoInterceptor {
     return await otelContext.with(contextWithBaggage, () => next());
   }
 
-  private async auth(user?: UserOutput) {
+  async #authenticateApiKey(apiKey: string) {
+    try {
+      const apiKeyOutput = await this.apiKeyAuthService.getAndValidateApiKeyFromHeader(apiKey);
+      return { apiKeyOutput, currentUser: await this.userRepository.findById(apiKeyOutput.userId) };
+    } catch (error) {
+      this.logger.error(error);
+      throw new Unauthorized("Invalid API key");
+    }
+  }
+
+  private async auth(user: UserOutput | undefined, c: Context, apiKey?: ApiKeyOutput) {
     this.authService.currentUser = user;
     if (user) {
+      const [organizationContext] = await Promise.all([
+        this.organizationContextResolver.resolve({
+          user,
+          apiKey,
+          organizationHeader: c.req.header(ORGANIZATION_ID_HEADER),
+          projectHeader: c.req.header(PROJECT_ID_HEADER)
+        }),
+        this.markUserAsActive(user.id)
+      ]);
+      this.executionContextService.set("ORGANIZATION_CONTEXT", organizationContext);
       this.authService.ability = this.abilityService.getAbilityFor(this.getUserRole(user), user);
-      await this.markUserAsActive(user.id);
     } else {
       this.authService.ability = this.abilityService.EMPTY_ABILITY;
     }

@@ -7,7 +7,8 @@ export const FeatureFlags = {
   BLOCKED_EMAIL_DOMAIN_ENFORCEMENT: "blocked_email_domain_enforcement",
   ACCOUNT_DELETION: "account_deletion",
   BACKGROUND_DEPLOYMENT_CLOSE: "background_deployment_close",
-  ORGANIZATIONS: "organizations"
+  ORGANIZATIONS: "organizations",
+  ORGANIZATIONS_ENFORCE: "organizations_enforce"
 } as const;
 
 export type FeatureFlagValue = (typeof FeatureFlags)[keyof typeof FeatureFlags];
