@@ -23,5 +23,6 @@
   "src/middlewares/internal-token/internal-token.middleware.spec.ts",
   "src/middlewares/privateMiddleware.spec.ts",
   "src/secret/services/data-key-unwrapper/data-key-unwrapper.service.spec.ts",
-  "src/services/db/networkRevenueService.spec.ts"
+  "src/services/db/networkRevenueService.spec.ts",
+  "src/user/controllers/user/user.controller.spec.ts"
 ]

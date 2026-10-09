@@ -42,8 +42,9 @@ export class UserController {
   @Protected([{ action: "read", subject: "User" }])
   async getCurrentUser(): Promise<{ data: UserSchema }> {
     assert(this.authService.currentUser, 401);
+    const { lastUsedOrganizationId, ...user } = this.authService.currentUser;
 
-    return { data: this.authService.currentUser as UserSchema };
+    return { data: user as UserSchema };
   }
 
   async getUserByUsername(username: string) {
