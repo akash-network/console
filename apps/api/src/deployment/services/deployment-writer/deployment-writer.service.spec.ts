@@ -2,6 +2,7 @@ import type { SDLInput, ValidationError } from "@akashnetwork/chain-sdk";
 import { yaml } from "@akashnetwork/chain-sdk";
 import { DeploymentReclamation, MsgAccountDeposit } from "@akashnetwork/chain-sdk/private-types/akash.v1";
 import { MsgCloseDeployment, MsgCreateDeployment, MsgUpdateDeployment } from "@akashnetwork/chain-sdk/private-types/akash.v1beta4";
+import type { BalanceHttpService, DeploymentHttpService } from "@akashnetwork/http-sdk";
 import type { AnyAbility } from "@casl/ability";
 import { faker } from "@faker-js/faker";
 import createError, { NotFound } from "http-errors";
@@ -12,9 +13,11 @@ import { mock, type MockProxy } from "vitest-mock-extended";
 import type { ActivityService } from "@src/activity/services/activity/activity.service";
 import type { WalletInitialized } from "@src/billing/repositories";
 import type { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
-import { TxOutcomeUnknownError } from "@src/billing/services/external-signer-http-sdk/tx-outcome.error";
+import { ChainErrorService } from "@src/billing/services/chain-error/chain-error.service";
+import { TxNotIncludedError, TxOutcomeUnknownError } from "@src/billing/services/external-signer-http-sdk/tx-outcome.error";
 import type { ManagedSignerService } from "@src/billing/services/managed-signer/managed-signer.service";
-import type { RpcMessageService } from "@src/billing/services/rpc-message-service/rpc-message.service";
+import { RpcMessageService } from "@src/billing/services/rpc-message-service/rpc-message.service";
+import type { TxManagerService } from "@src/billing/services/tx-manager/tx-manager.service";
 import type { WalletReaderService } from "@src/billing/services/wallet-reader/wallet-reader.service";
 import type { CreateLogger, JobQueueService, TxService } from "@src/core";
 import { JOB_NAME } from "@src/core";
@@ -37,16 +40,17 @@ import type { SdlSecretsInheritanceService } from "@src/deployment/services/sdl-
 import type { SdlSecrets } from "@src/deployment/services/sdl-secrets-unsealer/sdl-secrets-unsealer.service";
 import type { OnChainGroupSpec } from "@src/deployment/utils/changed-group-resources/changed-group-resources";
 import { closedActivityOf, failedCloseActivityOf } from "@src/deployment/utils/close-activity/close-activity";
+import { decodeCreateDeploymentMessage, encodeCreateDeploymentMessage } from "@src/deployment/utils/create-deployment-message/create-deployment-message";
 import type { ProviderService } from "@src/provider/services/provider/provider.service";
 import { SECRET_UNREADABLE_ERROR_MESSAGE } from "@src/secret/config/secret-at-rest.config";
 import type { TrialWorkloadProbeJobService } from "@src/workload-abuse/services/trial-workload-probe-job/trial-workload-probe-job.service";
 import type { DeploymentConfigService } from "../deployment-config/deployment-config.service";
 import type { DeploymentReaderService } from "../deployment-reader/deployment-reader.service";
 import type { StaleManagedDeploymentsCleanerService } from "../stale-managed-deployments-cleaner/stale-managed-deployments-cleaner.service";
-import { DeploymentWriterService } from "./deployment-writer.service";
+import { type AcceptedDeploymentCreate, DeploymentWriterService } from "./deployment-writer.service";
 
 import { mockConfigService } from "@test/mocks/config-service.mock";
-import { createDeploymentInfoGroupSeed } from "@test/seeders/deployment-info.seeder";
+import { createDeploymentInfoErrorSeed, createDeploymentInfoGroupSeed, createDeploymentInfoSeed } from "@test/seeders/deployment-info.seeder";
 
 const ALIASED_FILLER = "x".repeat(4096);
 const ENV_VALUE = faker.string.alphanumeric(24);
@@ -59,6 +63,9 @@ const RETRY_LIMIT = 47;
 const RETRY_DELAY_MAX_IN_MIN = 30;
 const RETRY_DELAY_IN_SEC = 30;
 const COMPENSATION_JOB_ID = faker.string.uuid();
+const RECORDED_VERSION = Buffer.from(new Uint8Array([4, 5, 6])).toString("base64");
+const ACCEPTED_DSEQ = "1748400000000";
+const ADOPTED_TX = { code: 0, hash: "", transactionHash: "", rawLog: "" };
 const SEAL = `${faker.string.alphanumeric(16)}.${faker.string.alphanumeric(16)}`;
 const SEALED_TOKEN = `${faker.string.alphanumeric(16)}.${faker.string.alphanumeric(16)}`;
 
@@ -150,6 +157,12 @@ ${Array.from({ length: 24 }, (_, level) => `        a${level + 1}: &a${level + 1
 
 const CLIENT_SEAL = "client.seal.aaa.bbb.ccc";
 
+function deploymentExistsError() {
+  return createError(400, "Failed to create deployment: Deployment with provided dseq and owner already exists", {
+    originalError: new Error("failed to execute message; message index: 0: Deployment exists")
+  });
+}
+
 const SOURCE_DSEQ = "1420000000001";
 
 /** Answers one reference from the request while leaving credentials in the clear, so a create stores both what was supplied and what the console took out. */
@@ -237,10 +250,9 @@ describe(DeploymentWriterService.name, () => {
       vi.spyOn(Date, "now").mockReturnValue(dseq);
       const txResult = { code: 0, transactionHash: "tx-hash", hash: "tx-hash", rawLog: "" };
       signerService.executeDerivedDecodedTxByUserId.mockResolvedValue(txResult);
-      const createMsg = { typeUrl: "/create", value: MsgCreateDeployment.fromPartial({}) };
-      rpcMessageService.getCreateDeploymentMsg.mockReturnValue(createMsg);
 
       const result = await service.create({ userId: "user-1", sdl: "valid-sdl" });
+      const [createMsg] = rpcMessageService.getCreateDeploymentMsg.mock.results.map(({ value }) => value);
 
       expect(result.dseq).toBe(dseq.toString());
       expect(result.signTx).toBe(txResult);
@@ -784,7 +796,7 @@ describe(DeploymentWriterService.name, () => {
     });
 
     it("goes on with the create when the queue refused the compensation because one is already waiting for the row", async () => {
-      const { service, signerService, logger } = setup({ compensationEnqueued: false, compensationAlreadyWaiting: true });
+      const { service, signerService, logger } = setup({ compensationEnqueued: false, compensationWaiting: true });
       vi.spyOn(Date, "now").mockReturnValue(1748400000000);
 
       await expect(service.create({ userId: "user-1", sdl: SDL_WITH_SECRETS, deposit: 5 })).resolves.toMatchObject({ dseq: "1748400000000" });
@@ -796,7 +808,7 @@ describe(DeploymentWriterService.name, () => {
     });
 
     it("asks for a compensation still waiting under the key the create would have enqueued, and not due before the signer could have given up", async () => {
-      const { service, jobQueueService } = setup({ compensationEnqueued: false, compensationAlreadyWaiting: true });
+      const { service, jobQueueService } = setup({ compensationEnqueued: false, compensationWaiting: true });
       vi.spyOn(Date, "now").mockReturnValue(1748400000000);
 
       await service.create({ userId: "user-1", sdl: SDL_WITH_SECRETS, deposit: 5 });
@@ -864,6 +876,18 @@ describe(DeploymentWriterService.name, () => {
       expect(logger.warn).toHaveBeenCalledWith(
         expect.objectContaining({ event: "UNBACKED_DEPLOYMENT_SETTING_COMPENSATION_CANCEL_FAILED", userId: "user-1", dseq: "1748400000000" })
       );
+    });
+
+    it("answers with the deployment when the chain refuses the create as one that already exists at the recorded version", async () => {
+      const { service, signerService } = setup({ onChainVersion: RECORDED_VERSION });
+      vi.spyOn(Date, "now").mockReturnValue(Number(ACCEPTED_DSEQ));
+      signerService.executeDerivedDecodedTxByUserId.mockRejectedValue(deploymentExistsError());
+
+      await expect(service.create({ userId: "user-1", sdl: SDL_WITH_SECRETS })).resolves.toEqual({
+        dseq: ACCEPTED_DSEQ,
+        manifest: expect.stringContaining("test-group"),
+        signTx: ADOPTED_TX
+      });
     });
 
     it("keeps the recorded definition when the create tx fails to broadcast", async () => {
@@ -1154,6 +1178,238 @@ describe(DeploymentWriterService.name, () => {
           expect(deploymentSettingRepository.upsertDefinition).not.toHaveBeenCalled();
           expect(signerService.executeDerivedDecodedTxByUserId).not.toHaveBeenCalled();
         });
+      });
+    });
+  });
+
+  describe("acceptCreate", () => {
+    it("records the definition and its compensation without sending anything to the chain", async () => {
+      const { service, deploymentSettingRepository, jobQueueService, signerService } = setup();
+
+      await service.acceptCreate({ userId: "user-1", sdl: SDL_WITH_SECRETS });
+
+      expect(deploymentSettingRepository.upsertDefinition).toHaveBeenCalledTimes(1);
+      expect(jobQueueService.enqueue).toHaveBeenCalledWith(expect.any(DeleteUnbackedDeploymentSetting), expect.anything());
+      expect(signerService.executeDerivedDecodedTxByUserId).not.toHaveBeenCalled();
+      expect(jobQueueService.cancelCreatedBy).not.toHaveBeenCalled();
+    });
+
+    it("hands over who creates which deployment and the very message it checked, in a form a job payload keeps intact", async () => {
+      const { service, signerService } = setup();
+      vi.spyOn(Date, "now").mockReturnValue(Number(ACCEPTED_DSEQ));
+
+      const { accepted } = await service.acceptCreate({ userId: "user-1", sdl: SDL_WITH_SECRETS, sealedSecrets: SEAL });
+      const [, [checked]] = signerService.assertCanBroadcast.mock.calls[0];
+
+      expect(accepted).toEqual({ userId: "user-1", dseq: ACCEPTED_DSEQ, message: expect.any(String) });
+      expect(decodeCreateDeploymentMessage(JSON.parse(JSON.stringify(accepted)).message)).toEqual(checked);
+    });
+  });
+
+  describe("createOnChain", () => {
+    it("broadcasts the accepted message and retires the compensation", async () => {
+      const { service, signerService, jobQueueService, accepted } = setup();
+      const txResult = { code: 0, transactionHash: "tx-hash", hash: "tx-hash", rawLog: "" };
+      signerService.executeDerivedDecodedTxByUserId.mockResolvedValue(txResult);
+
+      await expect(service.createOnChain(accepted)).resolves.toBe(txResult);
+
+      expect(signerService.executeDerivedDecodedTxByUserId).toHaveBeenCalledWith("user-1", [decodeCreateDeploymentMessage(accepted.message)]);
+      expect(jobQueueService.cancelCreatedBy).toHaveBeenCalledWith({
+        name: DeleteUnbackedDeploymentSetting[JOB_NAME],
+        singletonKey: `deleteUnbackedDeploymentSetting.user-1.${ACCEPTED_DSEQ}`
+      });
+    });
+
+    it("sends a first attempt to the chain without reading it first", async () => {
+      const { service, signerService, deploymentHttpService, accepted } = setup({ onChainVersion: RECORDED_VERSION });
+
+      await service.createOnChain(accepted);
+
+      expect(deploymentHttpService.findByOwnerAndDseq).not.toHaveBeenCalled();
+      expect(signerService.executeDerivedDecodedTxByUserId).toHaveBeenCalledTimes(1);
+      expect(signerService.followUpLandedTx).not.toHaveBeenCalled();
+    });
+
+    it("refuses without sending anything once the compensation has deleted the definition", async () => {
+      const { service, signerService, deploymentSettingRepository, logger, accepted } = setup({ definitionDeleted: true });
+
+      await expect(service.createOnChain(accepted)).rejects.toMatchObject({
+        status: 409,
+        errorCode: "deployment_create_expired",
+        message: "This deployment request expired before it reached the chain. Create the deployment again."
+      });
+
+      expect(deploymentSettingRepository.findOneBy).toHaveBeenCalledWith({ userId: "user-1", dseq: ACCEPTED_DSEQ });
+      expect(signerService.executeDerivedDecodedTxByUserId).not.toHaveBeenCalled();
+      expect(logger.warn).toHaveBeenCalledWith({ event: "DEPLOYMENT_CREATE_EXPIRED", userId: "user-1", dseq: ACCEPTED_DSEQ });
+    });
+
+    it("refuses without sending anything once its compensation is no longer safely waiting", async () => {
+      const { service, signerService, jobQueueService, accepted } = setup({ compensationWaiting: false });
+
+      await expect(service.createOnChain(accepted)).rejects.toMatchObject({ status: 409, errorCode: "deployment_create_expired" });
+
+      expect(signerService.executeDerivedDecodedTxByUserId).not.toHaveBeenCalled();
+      expect(jobQueueService.cancelCreatedBy).not.toHaveBeenCalled();
+    });
+
+    it("asks for the request's own compensation, not due before the signer could have given up", async () => {
+      const { service, jobQueueService, accepted } = setup();
+      vi.spyOn(Date, "now").mockReturnValue(Number(ACCEPTED_DSEQ));
+
+      await service.createOnChain(accepted);
+
+      expect(jobQueueService.hasWaitingSingleton).toHaveBeenCalledWith({
+        name: DeleteUnbackedDeploymentSetting[JOB_NAME],
+        singletonKey: `deleteUnbackedDeploymentSetting.user-1.${ACCEPTED_DSEQ}`,
+        notDueBefore: new Date(Number(ACCEPTED_DSEQ) + SIGNER_REQUEST_TIMEOUT_MS)
+      });
+    });
+
+    it("reads nothing from the chain for a failure that does not say the deployment exists", async () => {
+      const { service, signerService, deploymentHttpService, accepted } = setup({ onChainVersion: RECORDED_VERSION });
+      const failure = new Error("broadcast failed");
+      signerService.executeDerivedDecodedTxByUserId.mockRejectedValue(failure);
+
+      await expect(service.createOnChain(accepted)).rejects.toBe(failure);
+
+      expect(deploymentHttpService.findByOwnerAndDseq).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      { outcome: "unknown", error: new TxOutcomeUnknownError("ABC123") },
+      { outcome: "not included", error: new TxNotIncludedError("ABC123") }
+    ])("answers an undecided $outcome outcome as it is, leaving the compensation for a retry to settle", async ({ error }) => {
+      const { service, signerService, jobQueueService, deploymentHttpService, accepted } = setup({ onChainVersion: RECORDED_VERSION });
+      signerService.executeDerivedDecodedTxByUserId.mockRejectedValue(error);
+
+      await expect(service.createOnChain(accepted)).rejects.toBe(error);
+
+      expect(deploymentHttpService.findByOwnerAndDseq).not.toHaveBeenCalled();
+      expect(jobQueueService.cancelCreatedBy).not.toHaveBeenCalled();
+    });
+
+    describe("when the chain refuses it as a deployment that already exists", () => {
+      it("adopts the deployment at the version the request recorded, following it up and retiring the compensation once each", async () => {
+        const { service, signerService, jobQueueService, accepted } = setup({ onChainVersion: RECORDED_VERSION });
+        signerService.executeDerivedDecodedTxByUserId.mockRejectedValue(deploymentExistsError());
+
+        await expect(service.createOnChain(accepted)).resolves.toEqual(ADOPTED_TX);
+
+        expect(signerService.followUpLandedTx).toHaveBeenCalledTimes(1);
+        expect(signerService.followUpLandedTx).toHaveBeenCalledWith(wallet, [decodeCreateDeploymentMessage(accepted.message)]);
+        expect(jobQueueService.cancelCreatedBy).toHaveBeenCalledTimes(1);
+      });
+
+      it("reads the deployment the message creates", async () => {
+        const { service, signerService, deploymentHttpService, accepted } = setup({ onChainVersion: RECORDED_VERSION });
+        signerService.executeDerivedDecodedTxByUserId.mockRejectedValue(deploymentExistsError());
+
+        await service.createOnChain(accepted);
+
+        expect(deploymentHttpService.findByOwnerAndDseq).toHaveBeenCalledWith(wallet.address, ACCEPTED_DSEQ);
+      });
+
+      it("answers the refusal when the deployment under that dseq is at another version", async () => {
+        const { service, signerService, jobQueueService, accepted } = setup({ onChainVersion: Buffer.from("another version").toString("base64") });
+        const refusal = deploymentExistsError();
+        signerService.executeDerivedDecodedTxByUserId.mockRejectedValue(refusal);
+
+        await expect(service.createOnChain(accepted)).rejects.toBe(refusal);
+
+        expect(signerService.followUpLandedTx).not.toHaveBeenCalled();
+        expect(jobQueueService.cancelCreatedBy).not.toHaveBeenCalled();
+      });
+
+      it("answers the refusal when the chain reports no such deployment", async () => {
+        const { service, signerService, accepted } = setup();
+        const refusal = deploymentExistsError();
+        signerService.executeDerivedDecodedTxByUserId.mockRejectedValue(refusal);
+
+        await expect(service.createOnChain(accepted)).rejects.toBe(refusal);
+
+        expect(signerService.followUpLandedTx).not.toHaveBeenCalled();
+      });
+
+      it("answers the refusal rather than the failed read when the deployment cannot be read", async () => {
+        const { service, signerService, deploymentHttpService, accepted } = setup();
+        const refusal = deploymentExistsError();
+        signerService.executeDerivedDecodedTxByUserId.mockRejectedValue(refusal);
+        deploymentHttpService.findByOwnerAndDseq.mockRejectedValue(new Error("socket hang up"));
+
+        await expect(service.createOnChain(accepted)).rejects.toBe(refusal);
+      });
+    });
+
+    describe("on a retry", () => {
+      it("adopts the deployment an undecided attempt created, without sending it again", async () => {
+        const { service, signerService, jobQueueService, logger, accepted } = setup({ onChainVersion: RECORDED_VERSION });
+        signerService.executeDerivedDecodedTxByUserId.mockRejectedValueOnce(new TxOutcomeUnknownError("ABC123"));
+        await expect(service.createOnChain(accepted)).rejects.toBeInstanceOf(TxOutcomeUnknownError);
+
+        await expect(service.createOnChain(accepted, { retry: true })).resolves.toEqual(ADOPTED_TX);
+
+        expect(signerService.executeDerivedDecodedTxByUserId).toHaveBeenCalledTimes(1);
+        expect(signerService.followUpLandedTx).toHaveBeenCalledTimes(1);
+        expect(jobQueueService.cancelCreatedBy).toHaveBeenCalledTimes(1);
+        expect(logger.info).toHaveBeenCalledWith({ event: "DEPLOYMENT_CREATE_ADOPTED", userId: "user-1", dseq: ACCEPTED_DSEQ });
+      });
+
+      it("adopts even once the compensation stopped waiting, since it sends nothing", async () => {
+        const { service, signerService, accepted } = setup({ onChainVersion: RECORDED_VERSION, compensationWaiting: false });
+
+        await expect(service.createOnChain(accepted, { retry: true })).resolves.toEqual(ADOPTED_TX);
+
+        expect(signerService.executeDerivedDecodedTxByUserId).not.toHaveBeenCalled();
+      });
+
+      it("sends the create again when the chain holds no deployment under its dseq", async () => {
+        const { service, signerService, jobQueueService, accepted } = setup();
+        const txResult = { code: 0, transactionHash: "tx-hash", hash: "tx-hash", rawLog: "" };
+        signerService.executeDerivedDecodedTxByUserId.mockResolvedValue(txResult);
+
+        await expect(service.createOnChain(accepted, { retry: true })).resolves.toBe(txResult);
+
+        expect(signerService.followUpLandedTx).not.toHaveBeenCalled();
+        expect(jobQueueService.cancelCreatedBy).toHaveBeenCalledTimes(1);
+      });
+
+      it("sends nothing when the chain cannot be read", async () => {
+        const { service, signerService, deploymentHttpService, accepted } = setup();
+        const unreadable = new Error("socket hang up");
+        deploymentHttpService.findByOwnerAndDseq.mockRejectedValue(unreadable);
+
+        await expect(service.createOnChain(accepted, { retry: true })).rejects.toBe(unreadable);
+
+        expect(signerService.executeDerivedDecodedTxByUserId).not.toHaveBeenCalled();
+      });
+
+      it("still refuses once the compensation has deleted the definition, reading nothing", async () => {
+        const { service, deploymentHttpService, accepted } = setup({ definitionDeleted: true, onChainVersion: RECORDED_VERSION });
+
+        await expect(service.createOnChain(accepted, { retry: true })).rejects.toMatchObject({ status: 409, errorCode: "deployment_create_expired" });
+
+        expect(deploymentHttpService.findByOwnerAndDseq).not.toHaveBeenCalled();
+      });
+
+      it("never adopts a deployment the definition recorded no version for", async () => {
+        const { service, signerService, accepted } = setup({ recordedVersion: null, onChainVersion: RECORDED_VERSION });
+
+        await service.createOnChain(accepted, { retry: true });
+
+        expect(signerService.followUpLandedTx).not.toHaveBeenCalled();
+        expect(signerService.executeDerivedDecodedTxByUserId).toHaveBeenCalledTimes(1);
+      });
+
+      it("keeps the compensation for the next retry when the follow-up work of an adopted deployment fails", async () => {
+        const { service, signerService, jobQueueService, accepted } = setup({ onChainVersion: RECORDED_VERSION });
+        const failure = new Error("queue down");
+        signerService.followUpLandedTx.mockRejectedValue(failure);
+
+        await expect(service.createOnChain(accepted, { retry: true })).rejects.toBe(failure);
+
+        expect(jobQueueService.cancelCreatedBy).not.toHaveBeenCalled();
       });
     });
   });
@@ -2842,7 +3098,9 @@ describe(DeploymentWriterService.name, () => {
         mock<SdlSecretsInheritanceService>(),
         probeJobService,
         leaseGpuDetectionJobService,
-        mock<ActivityService>()
+        mock<ActivityService>(),
+        mock<DeploymentHttpService>(),
+        mock<ChainErrorService>()
       );
 
       function sealedFor() {
@@ -3101,7 +3359,10 @@ describe(DeploymentWriterService.name, () => {
     defaultDeposit?: number;
     transactionRuns?: boolean;
     compensationEnqueued?: boolean;
-    compensationAlreadyWaiting?: boolean;
+    compensationWaiting?: boolean;
+    definitionDeleted?: boolean;
+    recordedVersion?: string | null;
+    onChainVersion?: string;
     manifestVersion?: Uint8Array;
     received?: SdlSecrets;
     inherited?: SdlSecrets;
@@ -3119,12 +3380,14 @@ describe(DeploymentWriterService.name, () => {
     definitionRecordedConcurrently?: boolean;
   }) {
     const signerService = mock<ManagedSignerService>();
-    const rpcMessageService = mock<RpcMessageService>();
     const sdlService = mock<SdlService>();
     const billingConfig: MockProxy<BillingConfigService> = mockConfigService<BillingConfigService>({
       DEPLOYMENT_GRANT_DENOM: "uakt",
       TX_SIGNER_REQUEST_TIMEOUT_MS: SIGNER_REQUEST_TIMEOUT_MS
     });
+    const rpcMessageService = mock<RpcMessageService>();
+    const messageBuilder = new RpcMessageService(billingConfig);
+    rpcMessageService.getCreateDeploymentMsg.mockImplementation(options => messageBuilder.getCreateDeploymentMsg(options));
     const providerService = mock<ProviderService>();
     const deploymentReaderService = mock<DeploymentReaderService>();
     const walletReaderService = mock<WalletReaderService>();
@@ -3140,6 +3403,9 @@ describe(DeploymentWriterService.name, () => {
     });
     const deploymentSettingRepository = mock<DeploymentSettingRepository>();
     deploymentSettingRepository.upsertDefinition.mockResolvedValue(DEPLOYMENT_SETTING_ID);
+    deploymentSettingRepository.findOneBy.mockResolvedValue(
+      input?.definitionDeleted ? undefined : mock<DeploymentSettingsOutput>({ manifestVersion: input?.recordedVersion === undefined ? RECORDED_VERSION : input.recordedVersion })
+    );
     const scopedSettingRepository = mock<DeploymentSettingRepository>();
     scopedSettingRepository.findOneBy.mockResolvedValue(
       "sourceSetting" in (input ?? {})
@@ -3156,7 +3422,22 @@ describe(DeploymentWriterService.name, () => {
     txService.transaction.mockImplementation(async cb => (input?.transactionRuns === false ? (undefined as never) : await cb()));
     const jobQueueService = mock<JobQueueService>();
     jobQueueService.enqueue.mockResolvedValue(input?.compensationEnqueued === false ? null : COMPENSATION_JOB_ID);
-    jobQueueService.hasWaitingSingleton.mockResolvedValue(input?.compensationAlreadyWaiting ?? false);
+    jobQueueService.hasWaitingSingleton.mockResolvedValue(input?.compensationWaiting ?? input?.compensationEnqueued !== false);
+    const deploymentHttpService = mock<DeploymentHttpService>();
+    deploymentHttpService.findByOwnerAndDseq.mockResolvedValue(
+      input?.onChainVersion
+        ? createDeploymentInfoSeed({ owner: wallet.address, dseq: ACCEPTED_DSEQ, version: input.onChainVersion })
+        : createDeploymentInfoErrorSeed({ code: 5, message: "deployment not found" })
+    );
+    const chainErrorService = new ChainErrorService(mock<BalanceHttpService>(), billingConfig, mock<TxManagerService>());
+    const accepted: AcceptedDeploymentCreate = {
+      userId: wallet.userId,
+      dseq: ACCEPTED_DSEQ,
+      message: encodeCreateDeploymentMessage(
+        messageBuilder.getCreateDeploymentMsg({ owner: wallet.address, dseq: ACCEPTED_DSEQ, groups: [], hash: new Uint8Array([4, 5, 6]), denom: "uakt", amount: 500_000 })
+          .value
+      )
+    };
 
     const sdlSecretsService = mock<SdlSecretsService>();
     /** Real rather than doubled, because what every stored-sdl assertion below measures is the document this produces. */
@@ -3225,7 +3506,9 @@ describe(DeploymentWriterService.name, () => {
       sdlSecretsInheritanceService,
       probeJobService,
       leaseGpuDetectionJobService,
-      activityService
+      activityService,
+      deploymentHttpService,
+      chainErrorService
     );
 
     function storedSecrets() {
@@ -3254,6 +3537,8 @@ describe(DeploymentWriterService.name, () => {
       probeJobService,
       leaseGpuDetectionJobService,
       activityService,
+      deploymentHttpService,
+      accepted,
       ability: mock<AnyAbility>(),
       storedSecrets
     };

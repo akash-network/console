@@ -1376,6 +1376,31 @@ describe(ManagedSignerService.name, () => {
     });
   });
 
+  describe("followUpLandedTx", () => {
+    it("records a create found already landed, refreshes the wallet limits and schedules the reload once each, sending nothing", async () => {
+      const wallet = createUserWallet({ userId: "user-123", isTrialing: false });
+      const createMessage: EncodeObject = {
+        typeUrl: `/${MsgCreateDeployment.$type}`,
+        value: MsgCreateDeployment.fromPartial({ id: { owner: wallet.address!, dseq: 123 } })
+      };
+      const { service, domainEvents, balancesService, walletReloadJobService, txManagerService } = setup();
+
+      await service.followUpLandedTx(wallet, [createMessage]);
+
+      expect(domainEvents.publish).toHaveBeenCalledTimes(1);
+      const [event, options] = vi.mocked(domainEvents.publish).mock.calls[0];
+      expect(event).toBeInstanceOf(RecordDeploymentSetting);
+      expect(event.data).toEqual({ userId: "user-123", dseq: "123" });
+      expect(options).toEqual({ singletonKey: "recordDeploymentSetting.user-123.123" });
+      expect(balancesService.refreshUserWalletLimits).toHaveBeenCalledTimes(1);
+      expect(balancesService.refreshUserWalletLimits).toHaveBeenCalledWith(wallet);
+      expect(walletReloadJobService.scheduleImmediate).toHaveBeenCalledTimes(1);
+      expect(walletReloadJobService.scheduleImmediate).toHaveBeenCalledWith({ userId: "user-123" });
+      expect(balancesService.retrieveDeploymentLimit).not.toHaveBeenCalled();
+      expect(txManagerService.signAndBroadcastWithDerivedWallet).not.toHaveBeenCalled();
+    });
+  });
+
   describe("executeFundingTx", () => {
     it("signs and broadcasts with funding wallet", async () => {
       const messages: EncodeObject[] = [{ typeUrl: MsgCreateDeployment.$type, value: MsgCreateDeployment.fromPartial({}) }];

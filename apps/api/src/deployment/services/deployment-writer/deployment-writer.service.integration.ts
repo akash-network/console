@@ -12,10 +12,14 @@ import {
   DeleteUnbackedDeploymentSetting,
   DeleteUnbackedDeploymentSettingHandler
 } from "@src/deployment/services/delete-unbacked-deployment-setting/delete-unbacked-deployment-setting.handler";
-import { DeploymentWriterService } from "./deployment-writer.service";
+import {
+  RecordDeploymentSetting,
+  RecordDeploymentSettingHandler
+} from "@src/deployment/services/record-deployment-setting/record-deployment-setting.handler";
+import { type AcceptedDeploymentCreate, DeploymentWriterService } from "./deployment-writer.service";
 
 import { seedUserWithWallet } from "@test/seeders/db/user-with-wallet.seeder";
-import { findJobRows, type JobRow, makeJobDue, runAsUser, useJobWorkers } from "@test/services/job-queue-harness";
+import { expectJobCompleted, findJobRows, type JobRow, makeJobDue, runAsUser, useJobWorkers } from "@test/services/job-queue-harness";
 
 const SDL = `version: "2.0"
 services:
@@ -53,7 +57,11 @@ const RETRY_LIMIT = 47;
 const RETRY_DELAY_IN_SECONDS = 30;
 const RETRY_DELAY_MAX_IN_SECONDS = 30 * 60;
 
-const jobWorkers = useJobWorkers(() => [container.resolve(DeleteUnbackedDeploymentSettingHandler)]);
+const DEPLOYMENT_INFO_PATH = "/akash/deployment/v1beta4/deployments/info";
+const LATEST_BLOCK_PATH = "/cosmos/base/tendermint/v1beta1/blocks/latest";
+const ABSENT_FROM_CHAIN = { code: 5, message: "codespace deployment code 4: Deployment not found", details: [] };
+
+const jobWorkers = useJobWorkers(() => [container.resolve(DeleteUnbackedDeploymentSettingHandler), container.resolve(RecordDeploymentSettingHandler)]);
 
 type CompensationPayload = { deploymentSettingId: string; owner: string; dseq: string; version: number };
 
@@ -179,6 +187,59 @@ describe(DeploymentWriterService.name, () => {
     expect(gap).toBeLessThanOrEqual(secondsToMilliseconds(RETRY_DELAY_MAX_IN_SECONDS));
   });
 
+  describe("creating an accepted deployment on chain", () => {
+    it("sends a retry the chain holds no deployment for, and retires the compensation it still waits on", async () => {
+      const { user, acceptDeployment, createOnChain, answerDeploymentInfoWith, broadcast, findCompensation } = await setup();
+      const { accepted } = await acceptDeployment();
+      answerDeploymentInfoWith(accepted, 404, ABSENT_FROM_CHAIN);
+
+      await expect(createOnChain(accepted, { retry: true })).resolves.toMatchObject({ transactionHash: "tx-hash" });
+
+      expect(broadcast).toHaveBeenCalledTimes(1);
+      expect((await findCompensation(user.id, accepted.dseq)).state).toBe("cancelled");
+    });
+
+    it("adopts on a retry the deployment an earlier attempt created, recording it and retiring the compensation without sending it again", async () => {
+      const { user, acceptDeployment, createOnChain, answerDeploymentInfoWith, broadcast, findCompensation, findSetting } = await setup();
+      const { accepted } = await acceptDeployment();
+      const { manifestVersion } = await findSetting(accepted.dseq);
+      answerDeploymentInfoWith(accepted, 200, { deployment: { id: { dseq: accepted.dseq }, state: "active", hash: manifestVersion }, groups: [], escrow_account: null });
+
+      await expect(createOnChain(accepted, { retry: true })).resolves.toEqual({ code: 0, hash: "", transactionHash: "", rawLog: "" });
+
+      expect(broadcast).not.toHaveBeenCalled();
+      expect((await findCompensation(user.id, accepted.dseq)).state).toBe("cancelled");
+      expect(await findJobRows(RecordDeploymentSetting[JOB_NAME], { singletonKey: `recordDeploymentSetting.${user.id}.${accepted.dseq}` })).toHaveLength(1);
+    });
+
+    it("sends nothing once the compensation is due to judge the record, leaving the record for it", async () => {
+      const { user, acceptDeployment, createOnChain, broadcast, findSetting } = await setup();
+      const { accepted } = await acceptDeployment();
+      await makeJobDue(DeleteUnbackedDeploymentSetting[JOB_NAME], { singletonKey: `deleteUnbackedDeploymentSetting.${user.id}.${accepted.dseq}` });
+
+      await expect(createOnChain(accepted)).rejects.toMatchObject({ status: 409, errorCode: "deployment_create_expired" });
+
+      expect(broadcast).not.toHaveBeenCalled();
+      expect(await findSetting(accepted.dseq)).toBeDefined();
+    });
+
+    it("sends nothing once the compensation has deleted the record of a create that never reached the chain", async () => {
+      const { user, acceptDeployment, createOnChain, answerDeploymentInfoWith, answerLatestBlockAt, broadcast, findSetting, startWorkers } = await setup();
+      const { accepted } = await acceptDeployment();
+      const compensationKey = `deleteUnbackedDeploymentSetting.${user.id}.${accepted.dseq}`;
+      answerLatestBlockAt(new Date(Date.now() + minutesToMilliseconds(GRACE_IN_MIN)));
+      answerDeploymentInfoWith(accepted, 404, ABSENT_FROM_CHAIN);
+      await makeJobDue(DeleteUnbackedDeploymentSetting[JOB_NAME], { singletonKey: compensationKey });
+      await startWorkers();
+      await expectJobCompleted(DeleteUnbackedDeploymentSetting[JOB_NAME], { singletonKey: compensationKey });
+      expect(await findSetting(accepted.dseq)).toBeUndefined();
+
+      await expect(createOnChain(accepted, { retry: true })).rejects.toMatchObject({ status: 409, errorCode: "deployment_create_expired" });
+
+      expect(broadcast).not.toHaveBeenCalled();
+    });
+  });
+
   function jobTable() {
     return sql`${sql.identifier(container.resolve(CoreConfigService).get("POSTGRES_BACKGROUND_JOBS_SCHEMA"))}.job`;
   }
@@ -201,7 +262,8 @@ describe(DeploymentWriterService.name, () => {
       .mockResolvedValue({ code: 0, transactionHash: "tx-hash", hash: "tx-hash", rawLog: "" });
     vi.spyOn(container.resolve(ManagedSignerService), "assertCanBroadcast").mockResolvedValue(undefined);
 
-    const { user } = await seedUserWithWallet();
+    const { user, address } = await seedUserWithWallet();
+    const restApiNodeUrl = container.resolve(CoreConfigService).get("REST_API_NODE_URL");
 
     async function findCompensation(userId: string, dseq: string) {
       const rows = await findCompensations(userId);
@@ -251,11 +313,23 @@ describe(DeploymentWriterService.name, () => {
     }
 
     function failEveryChainQuery() {
-      nock(container.resolve(CoreConfigService).get("REST_API_NODE_URL"))
+      nock(restApiNodeUrl)
         .persist()
         .get(/.*/)
         .query(true)
         .replyWithError(Object.assign(new Error("socket hang up"), { code: "ECONNRESET" }));
+    }
+
+    function answerDeploymentInfoWith({ dseq }: AcceptedDeploymentCreate, status: number, body: nock.Body) {
+      nock(restApiNodeUrl).get(DEPLOYMENT_INFO_PATH).query({ "id.owner": address, "id.dseq": dseq }).reply(status, body);
+    }
+
+    function answerLatestBlockAt(time: Date) {
+      nock(restApiNodeUrl)
+        .persist()
+        .get(LATEST_BLOCK_PATH)
+        .query(true)
+        .reply(200, { block_id: {}, block: { header: { height: "28343549", time: time.toISOString(), chain_id: "akashnet-2" } } });
     }
 
     const writer = container.resolve(DeploymentWriterService);
@@ -264,8 +338,20 @@ describe(DeploymentWriterService.name, () => {
       return await runAsUser(user, () => writer.create({ userId: user.id, sdl: SDL, deposit: 5 }));
     }
 
+    async function acceptDeployment() {
+      return await runAsUser(user, () => writer.acceptCreate({ userId: user.id, sdl: SDL }));
+    }
+
+    async function createOnChain(accepted: AcceptedDeploymentCreate, options?: { retry?: boolean }) {
+      return await runAsUser(user, () => writer.createOnChain(accepted, options));
+    }
+
     return {
       createDeployment,
+      acceptDeployment,
+      createOnChain,
+      answerDeploymentInfoWith,
+      answerLatestBlockAt,
       findCompensations,
       txService,
       user,
