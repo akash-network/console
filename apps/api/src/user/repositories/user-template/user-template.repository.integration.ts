@@ -2,8 +2,13 @@ import { faker } from "@faker-js/faker";
 import { container } from "tsyringe";
 import { afterEach, describe, expect, it } from "vitest";
 
+import { type ApiPgDatabase, POSTGRES_DB, resolveTable } from "@src/core";
+import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
 import { UserRepository } from "@src/user/repositories/user/user.repository";
 import { type TemplateInput, UserTemplateRepository } from "./user-template.repository";
+
+import { seedOrganization } from "@test/seeders/db/organization.seeder";
+import { createOrganizationContext } from "@test/seeders/organization-context.seeder";
 
 describe(UserTemplateRepository.name, () => {
   const createdUserIds: string[] = [];
@@ -138,6 +143,28 @@ describe(UserTemplateRepository.name, () => {
   });
 
   describe("addFavorite", () => {
+    it("records no favorite on a private template of another user", async () => {
+      const { userTemplateRepository } = setup();
+      const author = await createTestUser();
+      const reader = await createTestUser();
+      const template = await createTestTemplate({ userId: author.userId! });
+
+      await userTemplateRepository.addFavorite(reader.userId!, template.id);
+
+      expect(await userTemplateRepository.isFavorite(template.id, reader.userId!)).toBe(false);
+    });
+
+    it("records a favorite on a public template of another user", async () => {
+      const { userTemplateRepository } = setup();
+      const author = await createTestUser();
+      const reader = await createTestUser();
+      const template = await createTestTemplate({ userId: author.userId!, isPublic: true });
+
+      await userTemplateRepository.addFavorite(reader.userId!, template.id);
+
+      expect(await userTemplateRepository.isFavorite(template.id, reader.userId!)).toBe(true);
+    });
+
     it("adds favorite for user and template", async () => {
       const { userTemplateRepository } = setup();
       const user = await createTestUser();
@@ -162,7 +189,81 @@ describe(UserTemplateRepository.name, () => {
     });
   });
 
+  describe("findReadableById", () => {
+    it("returns a public template to anyone, signed in or not", async () => {
+      const { userTemplateRepository } = setup();
+      const author = await createTestUser();
+      const reader = await createTestUser();
+      const template = await createTestTemplate({ userId: author.userId!, isPublic: true });
+
+      expect(await userTemplateRepository.findReadableById(template.id, reader.userId!)).toMatchObject({ id: template.id });
+      expect(await userTemplateRepository.findReadableById(template.id, "")).toMatchObject({ id: template.id });
+    });
+
+    it("returns a private template to its author", async () => {
+      const { userTemplateRepository } = setup();
+      const author = await createTestUser();
+      const template = await createTestTemplate({ userId: author.userId! });
+
+      expect(await userTemplateRepository.findReadableById(template.id, author.userId!)).toMatchObject({ id: template.id, username: author.username });
+    });
+
+    it("keeps a private template from another user and from anonymous visitors", async () => {
+      const { userTemplateRepository } = setup();
+      const author = await createTestUser();
+      const reader = await createTestUser();
+      const template = await createTestTemplate({ userId: author.userId! });
+
+      expect(await userTemplateRepository.findReadableById(template.id, reader.userId!)).toBeUndefined();
+      expect(await userTemplateRepository.findReadableById(template.id, "")).toBeUndefined();
+    });
+
+    it("returns a private template to its author only inside the active organization, in organization mode", async () => {
+      const { userTemplateRepository } = setup();
+      const author = await createTestUser();
+      const [active, other] = await Promise.all([seedOrganization(), seedOrganization()]);
+      const activeTemplate = await createTestTemplate({ userId: author.userId! }, active.id);
+      const otherTemplate = await createTestTemplate({ userId: author.userId! }, other.id);
+
+      const [readable, hidden] = await runInOrganization(active.id, () =>
+        Promise.all([
+          userTemplateRepository.findReadableById(activeTemplate.id, author.userId!),
+          userTemplateRepository.findReadableById(otherTemplate.id, author.userId!)
+        ])
+      );
+
+      expect(readable).toMatchObject({ id: activeTemplate.id });
+      expect(hidden).toBeUndefined();
+    });
+
+    it("keeps a private template from another member of the same organization, in organization mode", async () => {
+      const { userTemplateRepository } = setup();
+      const author = await createTestUser();
+      const colleague = await createTestUser();
+      const organization = await seedOrganization();
+      const template = await createTestTemplate({ userId: author.userId! }, organization.id);
+
+      const result = await runInOrganization(organization.id, () => userTemplateRepository.findReadableById(template.id, colleague.userId!));
+
+      expect(result).toBeUndefined();
+    });
+  });
+
   describe("getFavoriteTemplates", () => {
+    it("leaves out another user's private template marked as favorite", async () => {
+      const { userTemplateRepository } = setup();
+      const author = await createTestUser();
+      const reader = await createTestUser();
+      const privateTemplate = await createTestTemplate({ userId: author.userId! });
+      const publicTemplate = await createTestTemplate({ userId: author.userId!, isPublic: true });
+      await recordFavorite({ userId: reader.userId!, templateId: privateTemplate.id });
+      await recordFavorite({ userId: reader.userId!, templateId: publicTemplate.id });
+
+      const results = await userTemplateRepository.getFavoriteTemplates(reader.userId!);
+
+      expect(results.map(t => t.id)).toEqual([publicTemplate.id]);
+    });
+
     it("returns all favorite templates for user", async () => {
       const { userTemplateRepository } = setup();
       const user = await createTestUser();
@@ -465,22 +566,40 @@ describe(UserTemplateRepository.name, () => {
     return user;
   }
 
-  async function createTestTemplate(overrides: { userId: string } & Partial<TemplateInput>) {
+  async function createTestTemplate(overrides: { userId: string } & Partial<TemplateInput>, organizationId?: string) {
     const { userId, ...data } = overrides;
     const { userTemplateRepository } = setup();
-    const id = await userTemplateRepository.upsert(undefined, userId, {
-      sdl: faker.lorem.paragraph(),
-      title: faker.lorem.words(3),
-      description: faker.lorem.sentence(),
-      cpu: faker.number.int({ min: 1000, max: 10000 }),
-      ram: faker.number.int({ min: 1000000, max: 10000000 }),
-      storage: faker.number.int({ min: 1000000, max: 100000000 }),
-      isPublic: false,
-      ...data
-    });
+    const upsert = () =>
+      userTemplateRepository.upsert(undefined, userId, {
+        sdl: faker.lorem.paragraph(),
+        title: faker.lorem.words(3),
+        description: faker.lorem.sentence(),
+        cpu: faker.number.int({ min: 1000, max: 10000 }),
+        ram: faker.number.int({ min: 1000000, max: 10000000 }),
+        storage: faker.number.int({ min: 1000000, max: 100000000 }),
+        isPublic: false,
+        ...data
+      });
+    const id = organizationId ? await runInOrganization(organizationId, upsert) : await upsert();
     const template = await userTemplateRepository.findById(id);
     createdTemplateIds.push(id);
     return template!;
+  }
+
+  async function recordFavorite({ userId, templateId }: { userId: string; templateId: string }) {
+    await container
+      .resolve<ApiPgDatabase>(POSTGRES_DB)
+      .insert(resolveTable("TemplateFavorites"))
+      .values({ id: faker.string.uuid(), userId, templateId, addedDate: new Date() });
+  }
+
+  async function runInOrganization<R>(organizationId: string, run: () => Promise<R>) {
+    const executionContextService = container.resolve(ExecutionContextService);
+
+    return await executionContextService.runWithContext(async () => {
+      executionContextService.set("ORGANIZATION_CONTEXT", createOrganizationContext({ organizationId }));
+      return await run();
+    });
   }
 
   async function createTestFavorite(params: { userId: string; templateId: string }) {

@@ -8,29 +8,30 @@ import { UserTemplatesService } from "./user-templates.service";
 
 describe(UserTemplatesService.name, () => {
   describe("getTemplateById", () => {
-    it("returns null when template is not found", async () => {
+    it("returns null when no template with that id is readable by an anonymous visitor", async () => {
       const { service, userTemplateRepository } = setup();
       const templateId = faker.string.uuid();
 
-      userTemplateRepository.findById.mockResolvedValue(undefined);
+      userTemplateRepository.findReadableById.mockResolvedValue(undefined);
 
       const result = await service.getTemplateById(templateId);
 
       expect(result).toBeNull();
-      expect(userTemplateRepository.findById).toHaveBeenCalledWith(templateId);
+      expect(userTemplateRepository.findReadableById).toHaveBeenCalledWith(templateId, "");
     });
 
-    it("returns null when template is private and user is not the owner", async () => {
+    it("returns null when the template is not readable by the requesting user", async () => {
       const { service, userTemplateRepository } = setup();
       const templateId = faker.string.uuid();
-      const ownerId = faker.string.uuid();
       const requestingUserId = faker.string.uuid();
 
-      userTemplateRepository.findById.mockResolvedValue(createTemplateOutput({ id: templateId, userId: ownerId, isPublic: false }));
+      userTemplateRepository.findReadableById.mockResolvedValue(undefined);
 
       const result = await service.getTemplateById(templateId, requestingUserId);
 
       expect(result).toBeNull();
+      expect(userTemplateRepository.findReadableById).toHaveBeenCalledWith(templateId, requestingUserId);
+      expect(userTemplateRepository.isFavorite).not.toHaveBeenCalled();
     });
 
     it("returns template without isFavorite when userId is not provided", async () => {
@@ -38,7 +39,7 @@ describe(UserTemplatesService.name, () => {
       const templateId = faker.string.uuid();
       const template = createTemplateOutput({ id: templateId, isPublic: true });
 
-      userTemplateRepository.findById.mockResolvedValue(template);
+      userTemplateRepository.findReadableById.mockResolvedValue(template);
 
       const result = await service.getTemplateById(templateId);
 
@@ -52,7 +53,7 @@ describe(UserTemplatesService.name, () => {
       const userId = faker.string.uuid();
       const template = createTemplateOutput({ id: templateId, isPublic: true });
 
-      userTemplateRepository.findById.mockResolvedValue(template);
+      userTemplateRepository.findReadableById.mockResolvedValue(template);
       userTemplateRepository.isFavorite.mockResolvedValue(true);
 
       const result = await service.getTemplateById(templateId, userId);
@@ -67,7 +68,7 @@ describe(UserTemplatesService.name, () => {
       const userId = faker.string.uuid();
       const template = createTemplateOutput({ id: templateId, userId, isPublic: false });
 
-      userTemplateRepository.findById.mockResolvedValue(template);
+      userTemplateRepository.findReadableById.mockResolvedValue(template);
       userTemplateRepository.isFavorite.mockResolvedValue(false);
 
       const result = await service.getTemplateById(templateId, userId);

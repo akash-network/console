@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, or, type SQL } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 import { singleton } from "tsyringe";
 
@@ -51,12 +51,11 @@ export class UserTemplateRepository extends OrgScopedRepository<ApiPgTables["Tem
   }
 
   async findById(id: string): Promise<TemplateOutput | undefined> {
-    const item = await this.cursor.query.Templates.findFirst({
-      where: this.whereAccessibleBy(eq(this.table.id, id)),
-      with: { user: { columns: { username: true } } }
-    });
-    if (!item) return undefined;
-    return this.#toFullOutput(item, item.user?.username);
+    return await this.#findOne(this.whereAccessibleBy(eq(this.table.id, id)));
+  }
+
+  async findReadableById(id: string, readerUserId: string): Promise<TemplateOutput | undefined> {
+    return await this.#findOne(and(eq(this.table.id, id), this.#readableBy(readerUserId)));
   }
 
   async findAllByUserId(userId: string): Promise<TemplateOutput[]> {
@@ -98,6 +97,8 @@ export class UserTemplateRepository extends OrgScopedRepository<ApiPgTables["Tem
   }
 
   async addFavorite(userId: string, templateId: string): Promise<void> {
+    if (!(await this.findReadableById(templateId, userId))) return;
+
     await this.cursor.insert(this.favoriteTable).values({ id: randomUUID(), userId, templateId, addedDate: new Date() }).onConflictDoNothing();
   }
 
@@ -123,7 +124,7 @@ export class UserTemplateRepository extends OrgScopedRepository<ApiPgTables["Tem
       .from(this.favoriteTable)
       .innerJoin(this.table, eq(this.favoriteTable.templateId, this.table.id))
       .innerJoin(Users, eq(this.table.userId, Users.userId))
-      .where(eq(this.favoriteTable.userId, userId));
+      .where(and(eq(this.favoriteTable.userId, userId), this.#readableBy(userId)));
     return items.map(item => this.#toFullOutput(item, item.username));
   }
 
@@ -135,7 +136,10 @@ export class UserTemplateRepository extends OrgScopedRepository<ApiPgTables["Tem
       });
 
       if (existing) {
-        await this.cursor.update(this.table).set(data).where(eq(this.table.id, existing.id));
+        await this.cursor
+          .update(this.table)
+          .set(data)
+          .where(this.whereAccessibleBy(and(eq(this.table.id, existing.id), eq(this.table.userId, userId))));
         return existing.id;
       }
     }
@@ -169,6 +173,24 @@ export class UserTemplateRepository extends OrgScopedRepository<ApiPgTables["Tem
 
   protected toOutput(payload: Partial<TemplateRow>): TemplateOutput {
     return this.#toFullOutput(payload as TemplateRow, "");
+  }
+
+  async #findOne(where: SQL | undefined): Promise<TemplateOutput | undefined> {
+    const item = await this.cursor.query.Templates.findFirst({
+      where,
+      with: { user: { columns: { username: true } } }
+    });
+    if (!item) return undefined;
+    return this.#toFullOutput(item, item.user?.username);
+  }
+
+  /** Public templates are readable by anyone; a private one only by its author, and only inside the active organization in organization mode. */
+  #readableBy(readerUserId: string) {
+    return or(eq(this.table.isPublic, true), this.#privateTemplatesOf(readerUserId));
+  }
+
+  #privateTemplatesOf(readerUserId: string) {
+    return readerUserId ? this.whereInOrganization(eq(this.table.userId, readerUserId)) : undefined;
   }
 
   #toFullOutput(template: Partial<TemplateRow>, username?: string | null): TemplateOutput {
