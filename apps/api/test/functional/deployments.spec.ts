@@ -2264,7 +2264,7 @@ describe("Deployments API", () => {
         rawLog: "success"
       };
 
-      vi.spyOn(signerService, "executeDerivedDecodedTxByUserId").mockResolvedValueOnce(mockTxResult);
+      vi.spyOn(signerService, "executeDecodedTxByUserWallet").mockResolvedValueOnce(mockTxResult);
 
       const yml = fs.readFileSync(path.resolve(__dirname, "../mocks/hello-world-sdl.yml"), "utf8");
 
@@ -2293,7 +2293,7 @@ describe("Deployments API", () => {
       await setupDeploymentInfoMock(wallets, dseq);
       const deploymentSettingRepository = container.resolve(DeploymentSettingRepository);
       await deploymentSettingRepository.upsertDefinition({ userId: user.id, dseq, sdl: HELLO_WORLD_SDL, manifestVersion: "BAUG" });
-      const broadcast = vi.spyOn(signerService, "executeDerivedDecodedTxByUserId");
+      const broadcast = vi.spyOn(signerService, "executeDecodedTxByUserWallet");
 
       const response = await app.request(`/v1/deployments/${dseq}`, {
         method: "PUT",
@@ -2324,7 +2324,7 @@ describe("Deployments API", () => {
       expect(await response.json()).toMatchObject({
         message: 'Invalid SDL: memory or storage size "1073741824" must be a number with a unit, such as 512Mi or 1Gi'
       });
-      expect(signerService.executeDerivedDecodedTxByUserId).not.toHaveBeenCalled();
+      expect(signerService.executeDecodedTxByUserWallet).not.toHaveBeenCalled();
       expect(providerService.sendManifest).not.toHaveBeenCalled();
       expect(await deploymentSettingRepository.findOneBy({ userId: user.id, dseq })).toMatchObject({ sdl: HELLO_WORLD_SDL, manifestVersion: "BAUG" });
     });

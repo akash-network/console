@@ -21,7 +21,7 @@ import type { ApiPgDatabase } from "@src/core";
 import { CORE_CONFIG, JOB_NAME, POSTGRES_DB, resolveTable } from "@src/core";
 import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
 import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
-import type { DeploymentResponse } from "@src/deployment/http-schemas/deployment.schema";
+import type { DeploymentResponse, PatchDeploymentResponse } from "@src/deployment/http-schemas/deployment.schema";
 import { DeploymentReaderService } from "@src/deployment/services/deployment-reader/deployment-reader.service";
 import type { OrganizationRole } from "@src/organization/model-schemas/organization-member/organization-member.schema";
 import { ProviderService } from "@src/provider/services/provider/provider.service";
@@ -340,6 +340,50 @@ describe("Deployment projects", () => {
 
       return { funding, alert };
     }
+  });
+
+  describe("PATCH /v1/deployments/{dseq}", () => {
+    it("saves a member's update to a deployment another member filed and applies it with the organization's wallet", async () => {
+      const { request, team, otherProject, owner, caller, signer, teamWallet } = await setupCaller({ role: "member", grants: ["other"] });
+      const deployment = await seedDeploymentSetting({
+        userId: owner.id,
+        organizationId: team.id,
+        projectId: otherProject.id,
+        sdl: SDL,
+        manifestVersion: "BAUG"
+      });
+      const chain = mock<DeploymentResponse>({
+        deployment: { state: "active", id: { dseq: deployment.dseq }, hash: "BAUG" },
+        leases: [{ id: { provider: "akash1provider" } }]
+      });
+      const deploymentReader = container.resolve(DeploymentReaderService);
+      vi.spyOn(deploymentReader, "findWithGroupSpecsByWalletAndDseq").mockResolvedValue({ deployment: chain, groupSpecs: null });
+      vi.spyOn(deploymentReader, "findByWalletAndDseq").mockResolvedValue(chain);
+      const broadcast = vi
+        .spyOn(signer, "executeDecodedTxByUserWallet")
+        .mockResolvedValue({ code: 0, hash: "tx-hash", transactionHash: "tx-hash", rawLog: "" });
+      const providerService = container.resolve(ProviderService);
+      vi.spyOn(providerService, "toProviderAuth").mockResolvedValue({ type: "jwt", token: "provider-token" });
+      const pushManifest = vi.spyOn(providerService, "sendManifest").mockResolvedValue(true);
+
+      const response = await request(`/v1/deployments/${deployment.dseq}`, {
+        method: "PATCH",
+        body: { data: { services: { web: { image: "nginx:1.27.1-alpine" } } } }
+      });
+      const { data } = (await response.json()) as PatchDeploymentResponse;
+
+      expect(response.status).toBe(200);
+      expect(await deploymentRow(owner.id, deployment.dseq)).toMatchObject({
+        sdl: expect.stringContaining("image: nginx:1.27.1-alpine"),
+        manifestVersion: data.manifestVersion
+      });
+      expect(broadcast).toHaveBeenCalledWith(
+        expect.objectContaining({ id: teamWallet.id, userId: null, organizationId: team.id }),
+        [expect.objectContaining({ typeUrl: expect.stringContaining("MsgUpdateDeployment") })],
+        { actingUserId: caller.id }
+      );
+      expect(pushManifest).toHaveBeenCalledWith(expect.objectContaining({ provider: "akash1provider", dseq: deployment.dseq }));
+    });
   });
 
   describe("PATCH /v1/deployments/{dseq}/project", () => {
