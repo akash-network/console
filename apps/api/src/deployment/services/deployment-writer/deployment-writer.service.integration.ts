@@ -1,21 +1,36 @@
+import { createMongoAbility, type MongoAbility } from "@casl/ability";
+import { faker } from "@faker-js/faker";
 import { minutesToMilliseconds, secondsToMilliseconds } from "date-fns";
 import { eq, sql } from "drizzle-orm";
 import nock from "nock";
+import { randomUUID } from "node:crypto";
 import { container } from "tsyringe";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { ManagedSignerService } from "@src/billing/services/managed-signer/managed-signer.service";
-import type { ApiPgDatabase } from "@src/core";
+import type { ApiPgDatabase, JobPermissions } from "@src/core";
 import { JOB_NAME, POSTGRES_DB, resolveTable, TxService } from "@src/core";
 import { CoreConfigService } from "@src/core/services/core-config/core-config.service";
+import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
+import type { DeploymentResponse } from "@src/deployment/http-schemas/deployment.schema";
+import { DeploymentSettingRepository } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
 import {
   DeleteUnbackedDeploymentSetting,
   DeleteUnbackedDeploymentSettingHandler
 } from "@src/deployment/services/delete-unbacked-deployment-setting/delete-unbacked-deployment-setting.handler";
+import { DeploymentReaderService } from "@src/deployment/services/deployment-reader/deployment-reader.service";
+import { SdlService } from "@src/deployment/services/sdl/sdl.service";
+import { SdlSecretsService } from "@src/deployment/services/sdl-secrets/sdl-secrets.service";
+import { ProviderService } from "@src/provider/services/provider/provider.service";
 import { DeploymentWriterService } from "./deployment-writer.service";
 
+import { registerFakeSdlSecretsKms, warmSealingKeyAsBootWould } from "@test/mocks/sdl-secrets-kms.mock";
+import { createDseq } from "@test/seeders/db/deployment-setting.seeder";
 import { seedUserWithWallet } from "@test/seeders/db/user-with-wallet.seeder";
+import { createUser } from "@test/seeders/user.seeder";
 import { findJobRows, type JobRow, makeJobDue, runAsUser, useJobWorkers } from "@test/services/job-queue-harness";
+
+registerFakeSdlSecretsKms();
 
 const SDL = `version: "2.0"
 services:
@@ -47,6 +62,10 @@ deployment:
     dcloud:
       profile: web
       count: 1`;
+
+const SAVED_SDL = SDL.replace("image: nginx", "image: nginx\n    env:\n      - API_TOKEN=ac-secret://API_TOKEN");
+
+const LEASE_PROVIDER = "akash1provider";
 
 const GRACE_IN_MIN = 60;
 const RETRY_LIMIT = 47;
@@ -177,6 +196,102 @@ describe(DeploymentWriterService.name, () => {
     const gap = new Date(rescheduled.start_after).getTime() - Date.now();
     expect(gap).toBeGreaterThan(secondsToMilliseconds(RETRY_DELAY_IN_SECONDS) * 0.8);
     expect(gap).toBeLessThanOrEqual(secondsToMilliseconds(RETRY_DELAY_MAX_IN_SECONDS));
+  });
+
+  describe("applySavedPatch", () => {
+    it("applies a saved patch as the background user under only the rules a job declares, opening the stored token itself", async () => {
+      const { user, saved, secretValue, applyAsBackgroundJob, broadcast, pushManifest } = await setup();
+
+      await applyAsBackgroundJob(saved, rulesFor(user.id));
+
+      const [[signingWallet, [update]]] = broadcast.mock.calls;
+      expect(signingWallet).toMatchObject({ userId: user.id });
+      expect(Buffer.from(update.value.hash).toString("base64")).toBe(saved.manifestVersion);
+      expect(pushManifest).toHaveBeenCalledWith(
+        expect.objectContaining({ provider: LEASE_PROVIDER, dseq: saved.dseq, manifest: expect.stringContaining(`API_TOKEN=${secretValue}`) })
+      );
+    });
+
+    it("cannot read the saved definition of a deployment whose owner the job's rules do not cover", async () => {
+      const { saved, applyAsBackgroundJob, broadcast, pushManifest } = await setup();
+
+      await expect(applyAsBackgroundJob(saved, rulesFor(randomUUID()))).rejects.toMatchObject({
+        status: 404,
+        message: expect.stringContaining("no SDL recorded by the console")
+      });
+      expect(broadcast).not.toHaveBeenCalled();
+      expect(pushManifest).not.toHaveBeenCalled();
+    });
+
+    function rulesFor(userId: string): JobPermissions {
+      return [
+        { action: "sign", subject: "UserWallet", conditions: { userId } },
+        { action: "read", subject: "DeploymentSetting", conditions: { userId } }
+      ];
+    }
+
+    async function setup() {
+      await jobWorkers();
+      await warmSealingKeyAsBootWould();
+
+      const { user, address } = await seedUserWithWallet();
+      const dseq = createDseq();
+      const secretValue = faker.string.alphanumeric(24);
+      const secrets = { API_TOKEN: secretValue };
+      const sealedSecrets = await runAsUser(user, () => container.resolve(SdlSecretsService).sealForStorage({ userId: user.id, dseq, secrets }));
+      const manifestVersion = await savedVersionOf(SAVED_SDL, secrets);
+      await container.resolve(DeploymentSettingRepository).upsertDefinition({ userId: user.id, dseq, sdl: SAVED_SDL, manifestVersion, sealedSecrets });
+
+      vi.spyOn(container.resolve(DeploymentReaderService), "findByWalletAndDseqWithoutProviderStatus").mockResolvedValue(
+        chainHoldingAnOlderVersion(address, dseq)
+      );
+      const broadcast = vi
+        .spyOn(container.resolve(ManagedSignerService), "executeDecodedTxByUserWallet")
+        .mockResolvedValue({ code: 0, hash: "tx-hash", transactionHash: "tx-hash", rawLog: "" });
+      const pushManifest = vi.spyOn(container.resolve(ProviderService), "sendManifest").mockResolvedValue(true);
+      vi.spyOn(container.resolve(ProviderService), "toProviderAuth").mockResolvedValue({ type: "jwt", token: "provider-token" });
+
+      async function applyAsBackgroundJob(patch: { userId: string; dseq: string; manifestVersion: string }, rules: JobPermissions) {
+        const executionContextService = container.resolve(ExecutionContextService);
+        const ability = createMongoAbility<MongoAbility>(rules);
+
+        await executionContextService.runWithContext(async () => {
+          executionContextService.set("CURRENT_USER", createUser({ id: "bg-job-user", userId: "system:bg-job-user" }));
+          executionContextService.set("ABILITY", ability);
+
+          await container.resolve(DeploymentWriterService).applySavedPatch(patch, ability);
+        });
+      }
+
+      return { user, saved: { userId: user.id, dseq, manifestVersion }, secretValue, applyAsBackgroundJob, broadcast, pushManifest };
+    }
+
+    async function savedVersionOf(sdl: string, secrets: Record<string, string>) {
+      const resolved = await container.resolve(SdlService).generateResolvedManifest({ sdl, secrets });
+      if (!resolved.ok) throw new Error(`The saved sdl does not resolve: ${resolved.value.map(error => error.message).join(", ")}`);
+
+      return Buffer.from(resolved.value.manifestVersion).toString("base64");
+    }
+
+    function chainHoldingAnOlderVersion(owner: string, dseq: string): DeploymentResponse {
+      return {
+        deployment: { id: { owner, dseq }, state: "active", hash: Buffer.from("an older version").toString("base64"), created_at: "1" },
+        leases: [
+          {
+            id: { owner, dseq, gseq: 1, oseq: 1, provider: LEASE_PROVIDER, bseq: 1 },
+            state: "active",
+            price: { denom: "uakt", amount: "1000" },
+            created_at: "1",
+            closed_on: "",
+            status: null
+          }
+        ],
+        escrow_account: {
+          id: { scope: "deployment", xid: dseq },
+          state: { owner, state: "open", transferred: [], settled_at: "0", funds: [], deposits: [] }
+        }
+      };
+    }
   });
 
   function jobTable() {
