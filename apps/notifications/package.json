@@ -37,6 +37,7 @@
   },
   "dependencies": {
     "@akashnetwork/chain-sdk": "1.0.0-alpha.45",
+    "@akashnetwork/drizzle-ability": "*",
     "@akashnetwork/env-loader": "*",
     "@akashnetwork/http-sdk": "*",
     "@akashnetwork/instrumentation": "*",

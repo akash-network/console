@@ -25,6 +25,7 @@ The monorepo contains multiple applications and shared packages:
 - `packages/database` - Database shared package (Drizzle ORM schemas)
 - `packages/dev-config` - Shared ESLint, TypeScript, and Prettier configs
 - `packages/docker` - Docker build utilities
+- `packages/drizzle-ability` - Turns CASL ability rules into Drizzle where clauses
 - `packages/env-loader` - Environment variable loading (uses `@dotenvx/dotenvx`)
 - `packages/http-sdk` - HTTP client SDK
 - `packages/instrumentation` - OpenTelemetry instrumentation setup

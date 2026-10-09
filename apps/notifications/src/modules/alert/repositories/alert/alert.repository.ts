@@ -1,3 +1,4 @@
+import { DrizzleAbility } from "@akashnetwork/drizzle-ability";
 import { AnyAbility } from "@casl/ability";
 import { permittedFieldsOf } from "@casl/ability/extra";
 import { InjectDrizzle } from "@knaadh/nestjs-drizzle-pg";
@@ -8,7 +9,6 @@ import type { SQL } from "drizzle-orm/sql/sql";
 import difference from "lodash/difference";
 
 import { DRIZZLE_PROVIDER_TOKEN } from "@src/infrastructure/db/config/db.config";
-import { DrizzleAbility } from "@src/lib/drizzle-ability/drizzle-ability";
 import { NotificationChannel } from "@src/modules/notifications/model-schemas";
 import * as schema from "../../model-schemas";
 import type { DeploymentBalanceJsonFields, GeneralJsonFields, WalletBalanceJsonFields } from "./alert-json-fields.schema";
