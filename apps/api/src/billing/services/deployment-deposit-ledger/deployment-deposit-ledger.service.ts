@@ -36,8 +36,10 @@ import { ProjectBudgetEnforcementService } from "@src/organization/services/proj
 import { COSMOS_TX_CODE_OK } from "@src/utils/constants";
 
 export type DepositRecordingOptions = {
-  /** The project a create signed by its caller is filed into, which its deposit is judged against. */
+  /** The project a create is filed into, which its deposit is judged against. */
   filingProjectId?: string;
+  /** The member a job signs for, which a request takes from its signed-in member instead. */
+  actorUserId?: string;
 };
 
 export const INVALID_DEPOSIT_ERROR_CODE = "invalid_deposit";
@@ -252,7 +254,7 @@ export class DeploymentDepositLedgerService {
   async #unpricedRowsOf(wallet: OrganizationWallet, deposits: SignedDeposit[], options: DepositRecordingOptions, createdAt: Date): Promise<UnpricedDeposit[]> {
     const { organizationId } = wallet;
     const projectIds = await this.#projectIdsOf(organizationId, wallet.address, deposits, options);
-    const actorUserId = this.#actorUserId();
+    const actorUserId = this.#actorUserId(options);
 
     return deposits.map(({ signer: _signer, ...deposit }, index) => ({ ...deposit, organizationId, projectId: projectIds[index], actorUserId, createdAt }));
   }
@@ -339,9 +341,9 @@ export class DeploymentDepositLedgerService {
     return this.executionContextService.hasContext() ? this.executionContextService.get("ORGANIZATION_CONTEXT") : undefined;
   }
 
-  /** Only a request made by a signed-in member has an actor; jobs sign on the organization's behalf. */
-  #actorUserId(): string | null {
-    if (!this.#requestContext()) return null;
+  /** A request's actor is its signed-in member; a job has one only when it signs on a member's behalf, otherwise it signs for the organization. */
+  #actorUserId({ actorUserId }: DepositRecordingOptions): string | null {
+    if (!this.#requestContext()) return actorUserId ?? null;
 
     return this.executionContextService.get("CURRENT_USER")?.id ?? null;
   }

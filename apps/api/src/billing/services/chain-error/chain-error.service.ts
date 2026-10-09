@@ -10,6 +10,8 @@ import { TxManagerService } from "@src/billing/services/tx-manager/tx-manager.se
 
 const ESCROW_SETTLEMENT_UNDERFLOW_MESSAGE = "negative decimal coin amount" as const;
 
+const DEPLOYMENT_EXISTS_MESSAGE = "deployment exists" as const;
+
 /** cosmos-sdk reworded this between v0.45 ("%s not allowed to pay fees from %s") and v0.53 ("%s does not allow to pay fees for %s"); mainnet emits the latter. */
 const FEE_GRANT_REFUSED_MESSAGE = "does not allow to pay fees";
 
@@ -61,7 +63,7 @@ export class ChainErrorService {
       code: 400,
       message: "Console trial expired"
     },
-    "Deployment exists": {
+    [DEPLOYMENT_EXISTS_MESSAGE]: {
       code: 400,
       message: "Deployment with provided dseq and owner already exists"
     },
@@ -230,6 +232,16 @@ export class ChainErrorService {
     const messages = [error.message, originalError instanceof Error ? originalError.message : undefined];
 
     return messages.some(message => message?.includes(FEE_GRANT_REFUSED_MESSAGE));
+  }
+
+  /** `toAppError` rewords this refusal, so it is recognised on `originalError`, which keeps the chain's own words. */
+  public isDeploymentExistsError(error: unknown): boolean {
+    if (!(error instanceof Error)) return false;
+
+    const originalError = (error as { originalError?: unknown }).originalError;
+    const messages = [error.message, originalError instanceof Error ? originalError.message : undefined];
+
+    return messages.some(message => message?.toLowerCase().includes(DEPLOYMENT_EXISTS_MESSAGE));
   }
 
   public async isMasterWalletInsufficientFundsError(error: Error) {

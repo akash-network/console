@@ -57,8 +57,13 @@ type ExecuteTxOptions = {
   suppliedByCaller?: boolean;
   /** Who the transaction is signed for, recorded against what it creates when the wallet belongs to an organization rather than a user. */
   actingUserId?: string;
+  /** The project a create the console built was filed into when it was accepted; a create its caller signs is filed here instead. */
+  filingProjectId?: string;
   consoleClose?: ConsoleClose;
 };
+
+/** Who a landed transaction was signed for and where the deployments it creates are filed. */
+type LandedTxFiling = Pick<ExecuteTxOptions, "actingUserId" | "filingProjectId">;
 
 const INSUFFICIENT_DEPOSIT_BALANCE_MESSAGE = "Not enough balance to cover the deployment deposit. Add credits or turn on auto recharge to continue.";
 const INSUFFICIENT_DEPOSIT_BALANCE_RELOADING_MESSAGE =
@@ -189,7 +194,7 @@ export class ManagedSignerService {
     }
 
     await this.#assertBroadcastable(userWallet, messages);
-    const filingProjectId = options?.suppliedByCaller ? await this.#filingProjectOf(messages) : undefined;
+    const filingProjectId = options?.suppliedByCaller ? await this.#filingProjectOf(messages) : options?.filingProjectId;
 
     const actingUserId = userWallet.userId ?? options?.actingUserId;
     const createLeaseMessage: { typeUrl: string; value: MsgCreateLease } | undefined = messages.find(message => message.typeUrl.endsWith(".MsgCreateLease"));
@@ -198,7 +203,7 @@ export class ManagedSignerService {
     let tx: Awaited<ReturnType<ManagedSignerService["executeDerivedTx"]>>;
 
     try {
-      tx = await this.executeDerivedTx(userWallet.id, messages, { filingProjectId });
+      tx = await this.executeDerivedTx(userWallet.id, messages, { filingProjectId, actorUserId: actingUserId });
 
       if (tx.code !== COSMOS_TX_CODE_OK) {
         this.logger.error({ event: "TX_LANDED_WITH_NON_ZERO_CODE", txHash: tx.hash, code: tx.code, rawLog: tx.rawLog });
@@ -215,10 +220,7 @@ export class ManagedSignerService {
       await this.#followUpLease(userWallet, { dseq: createLeaseMessage.value.bidId!.dseq.toString(), isFirstLease, actingUserId });
     }
 
-    await this.#recordCreatedDeployments(userWallet, messages, actingUserId, filingProjectId);
-
-    await this.#refreshWalletLimits(userWallet);
-    await this.#ensureAutoReloadSchedule(userWallet, messages);
+    await this.followUpLandedTx(userWallet, messages, { actingUserId, filingProjectId });
     await this.#scheduleCreditsLowCheckOnClose(userWallet, messages);
 
     const result = pick(tx, ["code", "hash", "transactionHash", "rawLog"]) as Pick<IndexedTx, "code" | "hash" | "rawLog">;
@@ -271,6 +273,13 @@ export class ManagedSignerService {
     }
 
     await this.#publishLeaseGpuRead(userWallet, dseq);
+  }
+
+  /** Also run for a create a retry finds already landed, so every effect it sets off must stay safe to repeat. */
+  async followUpLandedTx(userWallet: UserWalletOutput, messages: EncodeObject[], filing: LandedTxFiling): Promise<void> {
+    await this.#recordCreatedDeployments(userWallet, messages, filing.actingUserId, filing.filingProjectId);
+    await this.#refreshWalletLimits(userWallet);
+    await this.#ensureAutoReloadSchedule(userWallet, messages);
   }
 
   /** The transaction has already landed, so a failed refresh is logged rather than reported as a failure the caller might retry. */

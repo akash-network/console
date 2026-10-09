@@ -684,7 +684,7 @@ describe(ManagedSignerService.name, () => {
 
         await service.executeDecodedTxByUserWallet(wallet, messages, { suppliedByCaller: true });
 
-        expect(depositLedger.recordPending).toHaveBeenCalledWith(wallet.id, messages, { filingProjectId: projectId });
+        expect(depositLedger.recordPending).toHaveBeenCalledWith(wallet.id, messages, { filingProjectId: projectId, actorUserId: wallet.userId });
       });
 
       it("resolves no project for a supplied transaction that creates no deployment", async () => {
@@ -706,6 +706,20 @@ describe(ManagedSignerService.name, () => {
       const [event] = vi.mocked(domainEvents.publish).mock.calls.find(([published]) => published instanceof RecordDeploymentSetting)!;
       expect(resolveFilingProject).not.toHaveBeenCalled();
       expect(event.data).toEqual({ userId: wallet.userId, dseq: "123", organizationId: wallet.organizationId, projectId: undefined });
+    });
+
+    it("files a create the console built into the project it was accepted for, for the member it names", async () => {
+      const projectId = faker.string.uuid();
+      const resolveFilingProject = vi.fn();
+      const { service, domainEvents, depositLedger, wallet } = setupForTeam({ resolveFilingProject });
+      const messages = [createDeploymentMessageFor(123)];
+
+      await service.executeDecodedTxByUserWallet(wallet, messages, { actingUserId: "member-1", filingProjectId: projectId });
+
+      const [event] = vi.mocked(domainEvents.publish).mock.calls.find(([published]) => published instanceof RecordDeploymentSetting)!;
+      expect(resolveFilingProject).not.toHaveBeenCalled();
+      expect(event.data).toEqual({ userId: "member-1", dseq: "123", organizationId: wallet.organizationId, projectId });
+      expect(depositLedger.recordPending).toHaveBeenCalledWith(wallet.id, messages, { filingProjectId: projectId, actorUserId: "member-1" });
     });
 
     it("records a deployment a trialing wallet created, so converting to paid needs no repair", async () => {
@@ -1707,6 +1721,41 @@ describe(ManagedSignerService.name, () => {
 
       expect(depositLedger.recordFailed).toHaveBeenCalledWith(deposits, signerError);
       expect(depositLedger.recordLanded).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("followUpLandedTx", () => {
+    it("records a create found already landed for its member, refreshes the wallet limits and schedules the reload once each, sending nothing", async () => {
+      const wallet = createUserWallet({ userId: "user-123", isTrialing: false, organizationId: faker.string.uuid() });
+      const projectId = faker.string.uuid();
+      const { service, domainEvents, balancesService, walletReloadJobService, txManagerService } = setup();
+
+      await service.followUpLandedTx(wallet, [createMessageFor(123)], { actingUserId: "user-123", filingProjectId: projectId });
+
+      expect(domainEvents.publish).toHaveBeenCalledTimes(1);
+      const [event, options] = vi.mocked(domainEvents.publish).mock.calls[0];
+      expect(event).toBeInstanceOf(RecordDeploymentSetting);
+      expect(event.data).toEqual({ userId: "user-123", dseq: "123", organizationId: wallet.organizationId, projectId });
+      expect(options).toEqual({ singletonKey: "recordDeploymentSetting.user-123.123" });
+      expect(balancesService.refreshUserWalletLimits).toHaveBeenCalledTimes(1);
+      expect(balancesService.refreshUserWalletLimits).toHaveBeenCalledWith(wallet);
+      expect(walletReloadJobService.scheduleImmediate).toHaveBeenCalledTimes(1);
+      expect(walletReloadJobService.scheduleImmediate).toHaveBeenCalledWith({ userId: "user-123" });
+      expect(balancesService.retrieveDeploymentLimit).not.toHaveBeenCalled();
+      expect(txManagerService.signAndBroadcastWithDerivedWallet).not.toHaveBeenCalled();
+    });
+
+    it("records a team wallet's create for the acting member and schedules the reload by wallet", async () => {
+      const wallet = createOrganizationWallet({ activatedAt: new Date() });
+      const projectId = faker.string.uuid();
+      const { service, domainEvents, walletReloadJobService } = setup();
+
+      await service.followUpLandedTx(wallet, [createMessageFor(123)], { actingUserId: "member-1", filingProjectId: projectId });
+
+      const [event, options] = vi.mocked(domainEvents.publish).mock.calls[0];
+      expect(event.data).toEqual({ userId: "member-1", dseq: "123", organizationId: wallet.organizationId, projectId });
+      expect(options).toEqual({ singletonKey: "recordDeploymentSetting.member-1.123" });
+      expect(walletReloadJobService.scheduleImmediate).toHaveBeenCalledWith({ walletId: wallet.id });
     });
   });
 

@@ -20,6 +20,8 @@ const USDC_IBC_DENOMS = {
 const FEE_GRANT_NOT_FOUND =
   "Broadcasting transaction failed with code 38 (codespace: sdk). Log: akash1master does not allow to pay fees for akash1user: fee-grant not found: not found";
 
+const DEPLOYMENT_EXISTS = "failed to execute message; message index: 0: Deployment exists";
+
 describe(ChainErrorService.name, () => {
   describe("toAppError", () => {
     const encodeMessages: EncodeObject[] = [];
@@ -610,6 +612,37 @@ describe(ChainErrorService.name, () => {
       const { service } = setup();
 
       expect(service.isFeeGrantRefusedError({ message: FEE_GRANT_NOT_FOUND })).toBe(false);
+    });
+  });
+
+  describe("isDeploymentExistsError", () => {
+    const createDeploymentMessages: EncodeObject[] = [{ typeUrl: "/akash.deployment.v1beta4.MsgCreateDeployment", value: {} }];
+
+    it("returns true for the chain's refusal of a create whose owner and dseq already name a deployment", () => {
+      const { service } = setup();
+
+      expect(service.isDeploymentExistsError(new Error(DEPLOYMENT_EXISTS))).toBe(true);
+    });
+
+    it("returns true once toAppError has reworded the refusal into its 400", async () => {
+      const { service } = setup();
+
+      const appError = await service.toAppError(new Error(DEPLOYMENT_EXISTS), createDeploymentMessages);
+
+      expect(appError).toMatchObject({ status: 400, message: "Failed to create deployment: Deployment with provided dseq and owner already exists" });
+      expect(service.isDeploymentExistsError(appError)).toBe(true);
+    });
+
+    it("returns false for an unrelated chain error", () => {
+      const { service } = setup();
+
+      expect(service.isDeploymentExistsError(new Error("failed to execute message; message index: 0: Deployment closed"))).toBe(false);
+    });
+
+    it("returns false for a value that is not an error, even one carrying the wording", () => {
+      const { service } = setup();
+
+      expect(service.isDeploymentExistsError({ message: DEPLOYMENT_EXISTS })).toBe(false);
     });
   });
 
