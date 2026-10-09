@@ -58,10 +58,6 @@ export class FeatureFlagsService implements Disposable, AppInitializer {
     return unleashCookie?.replace(this.UNLEASH_COOKIE_KEY, "");
   }
 
-  onChanged(callback: () => void) {
-    this.client?.on("changed", callback);
-  }
-
   async initialize(): Promise<void> {
     if (this.configService.get("FEATURE_FLAGS_ENABLE_ALL")) return;
 
