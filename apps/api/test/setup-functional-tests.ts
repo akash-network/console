@@ -1,12 +1,17 @@
 import "reflect-metadata";
 
 import { container } from "tsyringe";
-import { afterAll, afterEach, beforeAll, beforeEach, expect } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, expect, vi } from "vitest";
 
 import { cacheEngine } from "@src/caching/helpers";
 import MemoryCacheEngine from "@src/caching/memoryCacheEngine";
 import { RAW_APP_CONFIG } from "@src/core/providers/raw-app-config.provider";
+import { FeatureFlags, type FeatureFlagValue } from "@src/core/services/feature-flags/feature-flags";
+import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import { TestDatabaseService } from "./services/test-database.service";
+
+/** Every other flag is on in functional tests; these switch authorization to organization rules, which the suite's fixtures predate. */
+const ORGANIZATION_ROLLOUT_FLAGS: FeatureFlagValue[] = [FeatureFlags.ORGANIZATIONS, FeatureFlags.ORGANIZATIONS_ENFORCE];
 
 const testPath = expect.getState().testPath;
 const dbService = new TestDatabaseService(testPath!);
@@ -54,7 +59,12 @@ afterAll(async () => {
 
 beforeEach(() => {
   MemoryCacheEngine.clearAllCaches();
+  keepOrganizationRolloutFlagsOffByDefault();
 });
+
+function keepOrganizationRolloutFlagsOffByDefault() {
+  vi.spyOn(container.resolve(FeatureFlagsService), "isEnabled").mockImplementation(flag => !ORGANIZATION_ROLLOUT_FLAGS.includes(flag));
+}
 
 afterEach(() => {
   MemoryCacheEngine.clearAllCaches();

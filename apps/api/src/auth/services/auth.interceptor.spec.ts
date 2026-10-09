@@ -1,13 +1,15 @@
+import { faker } from "@faker-js/faker";
 import { type Span, trace } from "@opentelemetry/api";
 import { Hono } from "hono";
-import { isHttpError } from "http-errors";
+import createError, { isHttpError } from "http-errors";
 import { container as globalContainer } from "tsyringe";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
-import { ApiKeyRepository } from "@src/auth/repositories/api-key/api-key.repository";
+import { type ApiKeyOutput, ApiKeyRepository } from "@src/auth/repositories/api-key/api-key.repository";
 import { ApiKeyAuthService } from "@src/auth/services/api-key/api-key-auth.service";
 import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
+import { OrganizationContextResolver } from "@src/organization/services/organization-context/organization-context.resolver";
 import type { UserOutput } from "@src/user/repositories/user/user.repository";
 import { UserRepository } from "@src/user/repositories/user/user.repository";
 import { AbilityService } from "./ability/ability.service";
@@ -15,6 +17,8 @@ import { UserAuthTokenService } from "./user-auth-token/user-auth-token.service"
 import { AuthInterceptor } from "./auth.interceptor";
 import { AuthService } from "./auth.service";
 
+import { createApiKey } from "@test/seeders/api-key.seeder";
+import { createOrganizationContext } from "@test/seeders/organization-context.seeder";
 import { createUser } from "@test/seeders/user.seeder";
 
 describe(AuthInterceptor.name, () => {
@@ -172,6 +176,62 @@ describe(AuthInterceptor.name, () => {
     });
   });
 
+  describe("Organization context", () => {
+    it("stores the organization context resolved for a signed-in user before building the ability", async () => {
+      const user = createUser();
+      const projectId = faker.string.uuid();
+      const { callInterceptor, organizationContextResolver, executionContextService, abilityService, organizationContext } = setup({
+        user,
+        headers: { "x-organization-id": "acme", "x-project-id": projectId }
+      });
+
+      await callInterceptor();
+
+      expect(organizationContextResolver.resolve).toHaveBeenCalledWith({ user, apiKey: undefined, organizationHeader: "acme", projectHeader: projectId });
+      expect(executionContextService.set).toHaveBeenCalledWith("ORGANIZATION_CONTEXT", organizationContext);
+      expect(executionContextService.set.mock.invocationCallOrder[0]).toBeLessThan(abilityService.getAbilityFor.mock.invocationCallOrder[0]);
+    });
+
+    it("resolves an API key request with the organization and project the key is bound to", async () => {
+      const user = createUser();
+      const apiKeyOutput = createApiKey({ userId: user.id, organizationId: faker.string.uuid(), projectId: faker.string.uuid() });
+      const { callInterceptor, organizationContextResolver, executionContextService, organizationContext } = setup({ apiKey: "123", user, apiKeyOutput });
+
+      const response = await callInterceptor();
+
+      expect(response.status).toBe(200);
+      expect(organizationContextResolver.resolve).toHaveBeenCalledWith({ user, apiKey: apiKeyOutput, organizationHeader: undefined, projectHeader: undefined });
+      expect(executionContextService.set).toHaveBeenCalledWith("ORGANIZATION_CONTEXT", organizationContext);
+    });
+
+    it("answers an API key request with the organization context's rejection rather than as an invalid key", async () => {
+      const { callInterceptor, abilityService } = setup({ apiKey: "123", user: createUser(), organizationContextRejection: createError(400, "Mismatch") });
+
+      const response = await callInterceptor();
+
+      expect(response.status).toBe(400);
+      expect(abilityService.getAbilityFor).not.toHaveBeenCalled();
+    });
+
+    it("answers a signed-in request with the organization context's rejection", async () => {
+      const { callInterceptor } = setup({ user: createUser(), organizationContextRejection: createError(403, "Forbidden") });
+
+      const response = await callInterceptor();
+
+      expect(response.status).toBe(403);
+    });
+
+    it("resolves no organization context for an anonymous request", async () => {
+      const { callInterceptor, organizationContextResolver, executionContextService } = setup();
+
+      const response = await callInterceptor();
+
+      expect(response.status).toBe(200);
+      expect(organizationContextResolver.resolve).not.toHaveBeenCalled();
+      expect(executionContextService.set).not.toHaveBeenCalled();
+    });
+  });
+
   function setup(input?: SetupInput) {
     const di = globalContainer.createChildContainer();
     const requestSpan = mock<Span>();
@@ -179,7 +239,15 @@ describe(AuthInterceptor.name, () => {
     onTestFinished(() => getActiveSpan.mockRestore());
     const observedAuthMethods: unknown[] = [];
 
-    di.registerInstance(AbilityService, mock());
+    const abilityService = mock<AbilityService>();
+    di.registerInstance(AbilityService, abilityService);
+    const organizationContext = createOrganizationContext();
+    const organizationContextResolver = mock<OrganizationContextResolver>({
+      resolve: input?.organizationContextRejection
+        ? vi.fn().mockRejectedValue(input.organizationContextRejection)
+        : vi.fn().mockResolvedValue(organizationContext)
+    });
+    di.registerInstance(OrganizationContextResolver, organizationContextResolver);
     di.registerInstance(
       UserRepository,
       mock<UserRepository>({
@@ -211,28 +279,27 @@ describe(AuthInterceptor.name, () => {
           if (input?.apiKeyBehavior === "throw") {
             throw new Error("Invalid API key");
           }
-          return { id: "123", userId: input?.user?.id };
+          return input?.apiKeyOutput ?? { id: "123", userId: input?.user?.id };
         })
       })
     );
     di.register(AuthInterceptor, { useClass: AuthInterceptor });
-    di.register(ExecutionContextService, {
-      useValue: mock<ExecutionContextService>({
-        get: key =>
-          (
-            ({
-              HTTP_CONTEXT: {
-                var: {
-                  clientInfo: {
-                    ip: "127.0.0.1",
-                    fingerprint: "123"
-                  }
+    const executionContextService = mock<ExecutionContextService>({
+      get: key =>
+        (
+          ({
+            HTTP_CONTEXT: {
+              var: {
+                clientInfo: {
+                  ip: "127.0.0.1",
+                  fingerprint: "123"
                 }
               }
-            }) as any
-          )[key]
-      })
+            }
+          }) as any
+        )[key]
     });
+    di.register(ExecutionContextService, { useValue: executionContextService });
 
     const app = new Hono<{ Variables: { authMethod?: string } }>()
       .onError((error, c) => {
@@ -247,7 +314,7 @@ describe(AuthInterceptor.name, () => {
       })
       .use(di.resolve(AuthInterceptor).intercept())
       .get("/", c => c.text("Ok"));
-    const headers: Record<string, string> = {};
+    const headers: Record<string, string> = { ...input?.headers };
 
     if (input?.bearer) {
       headers.authorization = input.bearer;
@@ -261,6 +328,10 @@ describe(AuthInterceptor.name, () => {
 
     return {
       di,
+      abilityService,
+      executionContextService,
+      organizationContextResolver,
+      organizationContext,
       requestSpan,
       observedAuthMethods,
       callInterceptor: () =>
@@ -277,5 +348,8 @@ describe(AuthInterceptor.name, () => {
     tokenBehavior?: "null" | "throw";
     apiKeyBehavior?: "throw";
     withoutRequestSpan?: boolean;
+    apiKeyOutput?: ApiKeyOutput;
+    headers?: Record<string, string>;
+    organizationContextRejection?: Error;
   }
 });

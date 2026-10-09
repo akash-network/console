@@ -1,9 +1,11 @@
+import { and, eq, isNull } from "drizzle-orm";
 import { singleton } from "tsyringe";
 
 import { type ApiPgDatabase, type ApiPgTables, InjectPg, InjectPgTable } from "@src/core/providers";
 import { type AbilityParams, BaseRepository } from "@src/core/repositories/base.repository";
 import { TxService } from "@src/core/services";
 import { DEFAULT_PROJECT_NAME, DEFAULT_PROJECT_SLUG } from "@src/organization/model-schemas/project/project.schema";
+import { ProjectMembers } from "@src/organization/model-schemas/project-member/project-member.schema";
 
 type Table = ApiPgTables["Projects"];
 export type ProjectInput = Table["$inferInsert"];
@@ -34,5 +36,19 @@ export class ProjectRepository extends BaseRepository<Table, ProjectInput, Proje
 
   async findDefaultByOrganizationId(organizationId: ProjectOutput["organizationId"]): Promise<ProjectOutput | undefined> {
     return this.findOneBy({ organizationId, isDefault: true });
+  }
+
+  async findActive(organizationId: ProjectOutput["organizationId"], id: ProjectOutput["id"]): Promise<ProjectOutput | undefined> {
+    return this.findOneBy({ id, organizationId, deletedAt: null });
+  }
+
+  async findActiveIdsGrantedTo(organizationId: ProjectOutput["organizationId"], userId: string): Promise<string[]> {
+    const projects = await this.cursor
+      .select({ id: this.table.id })
+      .from(this.table)
+      .innerJoin(ProjectMembers, and(eq(ProjectMembers.projectId, this.table.id), eq(ProjectMembers.userId, userId)))
+      .where(and(eq(this.table.organizationId, organizationId), isNull(this.table.deletedAt)));
+
+    return projects.map(project => project.id);
   }
 }
