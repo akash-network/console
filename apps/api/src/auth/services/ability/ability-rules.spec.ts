@@ -180,6 +180,10 @@ describe("ability rules", () => {
       expect(ability.can("verify-email", subject("User", { email: null }))).toBe(false);
       expect(ability.can("verify-email", subject("User", { email: "" }))).toBe(true);
     });
+
+    it("grants nothing to a user without an id", () => {
+      expect(legacyRules(createUser({ id: "" }))).toEqual([]);
+    });
   });
 
   describe(organizationRules.name, () => {
@@ -236,10 +240,62 @@ describe("ability rules", () => {
       expect(pick(outside, PROJECT_RESOURCES)).toEqual({ DeploymentSetting: NONE, Template: NONE, Alert: NONE, NotificationChannel: NONE });
     });
 
+    it.each(ROLES)("applies the organization rules of the %s role to the Organization subject only", role => {
+      const { ability, organizationId, user } = setup({ role });
+      const otherSubjects = ORGANIZATION_SUBJECTS.filter(subjectType => subjectType !== "Organization");
+
+      const granted = Object.fromEntries(
+        otherSubjects.map(subjectType => [
+          subjectType,
+          allowedActions(ability, subject(subjectType, { id: organizationId, organizationId: faker.string.uuid(), userId: user.id }))
+        ])
+      );
+
+      expect(granted).toEqual(Object.fromEntries(otherSubjects.map(subjectType => [subjectType, NONE])));
+    });
+
     it("lets the owner of a personal organization update it but not delete it", () => {
       const { ability, organizationId } = setup({ role: "owner", organizationType: "personal" });
 
       expect(allowedActions(ability, subject("Organization", { id: organizationId }))).toEqual(["read", "update"]);
+    });
+
+    it.each(["OrganizationMember", "OrganizationInvitation"])("lets the admin role read but never write a %s that names the owner role", subjectType => {
+      const { ability, organizationId, user } = setup({ role: "admin" });
+
+      expect(allowedActions(ability, subject(subjectType, { organizationId, userId: user.id, role: "owner" }))).toEqual(READ);
+    });
+
+    it.each(["OrganizationMember", "OrganizationInvitation"])("lets the admin role write a %s only when it names a role below owner", subjectType => {
+      const { ability, organizationId, user } = setup({ role: "admin" });
+
+      expect(allowedActions(ability, subject(subjectType, { organizationId, userId: user.id }))).toEqual(READ);
+      expect(allowedActions(ability, subject(subjectType, { organizationId, userId: user.id, role: "billing" }))).toEqual(MANAGE);
+    });
+
+    it.each(["OrganizationMember", "OrganizationInvitation"])("lets the owner role manage a %s that names the owner role", subjectType => {
+      const { ability, organizationId, user } = setup({ role: "owner" });
+
+      expect(allowedActions(ability, subject(subjectType, { organizationId, userId: user.id, role: "owner" }))).toEqual(MANAGE);
+    });
+
+    it("grants nothing for a context without an organization id or a user without an id", () => {
+      const { user, context } = setup({ role: "owner" });
+
+      expect(organizationRules(user, { ...context, organizationId: "" })).toEqual([]);
+      expect(organizationRules({ ...user, id: "" }, context)).toEqual([]);
+    });
+
+    it("ignores blank ids in a project grant list", () => {
+      const { ability, organizationId, user } = setup({ role: "member", projectScope: { kind: "projects", projectIds: [""] } });
+
+      expect(pick(actionsBySubject(ability, { organizationId, projectId: "", userId: user.id }), ["Project", ...PROJECT_RESOURCES])).toEqual({
+        Project: NONE,
+        DeploymentSetting: NONE,
+        Template: NONE,
+        Alert: NONE,
+        NotificationChannel: NONE
+      });
     });
 
     it.each(ROLES)("keeps the API keys of other members out of reach of the %s role", role => {
@@ -304,7 +360,7 @@ describe("ability rules", () => {
   function rowOf(subjectType: string, row: { organizationId: string; projectId: string | null; userId: string }) {
     const idBySubject: Record<string, string | null> = { Organization: row.organizationId, Project: row.projectId };
 
-    return subject(subjectType, { ...row, id: idBySubject[subjectType] ?? faker.string.uuid() });
+    return subject(subjectType, { ...row, role: "member", id: idBySubject[subjectType] ?? faker.string.uuid() });
   }
 
   function allowedActions(ability: MongoAbility, row: ReturnType<typeof subject>) {
