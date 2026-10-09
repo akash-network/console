@@ -1,3 +1,5 @@
+import type { NextApiResponse } from "next";
+
 export const ACTIVE_ORGANIZATION_COOKIE_NAME = "console_org";
 export const ACTIVE_ORGANIZATION_HEADER_NAME = "x-organization-id";
 
@@ -17,6 +19,14 @@ export function readActiveOrganizationCookie(cookieHeader: string | null | undef
   return value && ACTIVE_ORGANIZATION_ID_PATTERN.test(value) ? value : undefined;
 }
 
-export function serializeActiveOrganizationCookie(organizationId: string): string {
-  return `${ACTIVE_ORGANIZATION_COOKIE_NAME}=${organizationId}; Path=/; Max-Age=${ACTIVE_ORGANIZATION_COOKIE_MAX_AGE_SECONDS}; SameSite=Lax`;
+export function serializeActiveOrganizationCookie(organizationId: string, location: Pick<Location, "protocol"> = window.location): string {
+  const cookie = `${ACTIVE_ORGANIZATION_COOKIE_NAME}=${organizationId}; Path=/; Max-Age=${ACTIVE_ORGANIZATION_COOKIE_MAX_AGE_SECONDS}; SameSite=Lax`;
+
+  return location.protocol === "https:" ? `${cookie}; Secure` : cookie;
+}
+
+export function expireActiveOrganizationCookie(res: NextApiResponse): void {
+  const existing = res.getHeader("Set-Cookie");
+  const existingCookies = Array.isArray(existing) ? existing.map(String) : existing ? [String(existing)] : [];
+  res.setHeader("Set-Cookie", [...existingCookies, `${ACTIVE_ORGANIZATION_COOKIE_NAME}=; Path=/; Max-Age=0; SameSite=Lax`]);
 }

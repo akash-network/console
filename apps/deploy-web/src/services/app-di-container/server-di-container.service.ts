@@ -6,7 +6,10 @@ import { createGetSessionWithRefresh } from "@src/lib/auth0/getSessionWithRefres
 import { setSession } from "@src/lib/auth0/setSession/setSession";
 import { proxyRequest } from "@src/lib/nextjs/proxyRequest/proxyRequest";
 import { createApiSdk } from "@src/services/api-sdk/createApiSdk";
-import { activeOrganizationForwardingInterceptor } from "../active-organization-forwarding/active-organization-forwarding.interceptor";
+import {
+  activeOrganizationForwardingInterceptor,
+  createActiveOrganizationForwardingFetch
+} from "../active-organization-forwarding/active-organization-forwarding.interceptor";
 import { ApiUrlService } from "../api-url/api-url.service";
 import { clientIpForwardingInterceptor } from "../client-ip-forwarding/client-ip-forwarding.interceptor";
 import { createChildContainer } from "../container/createContainer";
@@ -20,7 +23,7 @@ const rootContainer = createAppRootContainer({
   runtimeEnv: "nodejs",
   BASE_PROVIDER_PROXY_URL: serverEnvConfig.NEXT_PUBLIC_PROVIDER_PROXY_URL,
   MANAGED_WALLET_NETWORK_ID: serverEnvConfig.NEXT_PUBLIC_MANAGED_WALLET_NETWORK_ID,
-  globalRequestMiddleware: config => activeOrganizationForwardingInterceptor(clientIpForwardingInterceptor(config)),
+  globalRequestMiddleware: clientIpForwardingInterceptor,
   apiUrlService: () => new ApiUrlService(serverEnvConfig)
 });
 
@@ -37,22 +40,25 @@ export const services = createChildContainer(rootContainer, {
   featureFlagService: () => new FeatureFlagService(unleashModule, serverEnvConfig),
   api: () =>
     createApiSdk({
-      baseUrl: services.apiUrlService.getBaseApiUrlFor(services.privateConfig.NEXT_PUBLIC_MANAGED_WALLET_NETWORK_ID)
+      baseUrl: services.apiUrlService.getBaseApiUrlFor(services.privateConfig.NEXT_PUBLIC_MANAGED_WALLET_NETWORK_ID),
+      fetch: createActiveOrganizationForwardingFetch()
     }),
   privateConfig: () => Object.freeze(serverEnvConfig),
-  consoleApiHttpClient: () => services.applyAxiosInterceptors(services.createAxios()),
+  consoleApiHttpClient: () => services.applyAxiosInterceptors(services.createAxios(), { request: [activeOrganizationForwardingInterceptor] }),
+  sessionApiHttpClient: () =>
+    services.applyAxiosInterceptors(
+      services.createAxios({
+        baseURL: services.apiUrlService.getBaseApiUrlFor(services.privateConfig.NEXT_PUBLIC_MANAGED_WALLET_NETWORK_ID),
+        headers: {
+          "Content-Type": "application/json; charset=utf-8",
+          Accept: "application/json"
+        }
+      })
+    ),
   sessionService: () =>
     new SessionService(
       services.externalApiHttpClient,
-      services.applyAxiosInterceptors(
-        services.createAxios({
-          baseURL: services.apiUrlService.getBaseApiUrlFor(services.privateConfig.NEXT_PUBLIC_MANAGED_WALLET_NETWORK_ID),
-          headers: {
-            "Content-Type": "application/json; charset=utf-8",
-            Accept: "application/json"
-          }
-        })
-      ),
+      services.sessionApiHttpClient,
       {
         ISSUER_BASE_URL: services.privateConfig.AUTH0_ISSUER_BASE_URL,
         CLIENT_ID: services.privateConfig.AUTH0_CLIENT_ID,
