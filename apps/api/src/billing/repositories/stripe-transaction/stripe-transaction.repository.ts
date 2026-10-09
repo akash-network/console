@@ -3,8 +3,9 @@ import { alias } from "drizzle-orm/pg-core";
 import { singleton } from "tsyringe";
 
 import { type ApiPgDatabase, type ApiPgTables, InjectPg, InjectPgTable } from "@src/core/providers";
-import { type AbilityParams, BaseRepository } from "@src/core/repositories/base.repository";
+import { OrgScopedRepository } from "@src/core/repositories/org-scoped.repository";
 import { TxService } from "@src/core/services";
+import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
 import { Users } from "@src/user/model-schemas";
 
 type Table = ApiPgTables["StripeTransactions"];
@@ -39,17 +40,18 @@ export interface FindTransactionsOptions {
 }
 
 @singleton()
-export class StripeTransactionRepository extends BaseRepository<Table, StripeTransactionInput, StripeTransactionOutput> {
+export class StripeTransactionRepository extends OrgScopedRepository<Table, StripeTransactionInput, StripeTransactionOutput> {
   constructor(
     @InjectPg() protected readonly pg: ApiPgDatabase,
     @InjectPgTable("StripeTransactions") protected readonly table: Table,
-    protected readonly txManager: TxService
+    protected readonly txManager: TxService,
+    protected readonly executionContextService: ExecutionContextService
   ) {
-    super(pg, table, txManager, "StripeTransaction", "StripeTransactions");
+    super(pg, table, txManager, executionContextService, "StripeTransaction", "StripeTransactions");
   }
 
-  accessibleBy(...abilityParams: AbilityParams) {
-    return new StripeTransactionRepository(this.pg, this.table, this.txManager).withAbility(...abilityParams) as this;
+  protected newInstance() {
+    return new StripeTransactionRepository(this.pg, this.table, this.txManager, this.executionContextService) as this;
   }
 
   async findByUserId(options: FindTransactionsOptions): Promise<StripeTransactionOutput[]> {
@@ -133,7 +135,7 @@ export class StripeTransactionRepository extends BaseRepository<Table, StripeTra
       return { transaction: existing, isNew: false };
     }
 
-    const [created] = await this.cursor.insert(this.table).values(input).onConflictDoNothing().returning();
+    const [created] = await this.cursor.insert(this.table).values(this.attributeToOrganization(input)).onConflictDoNothing().returning();
 
     if (created) {
       return { transaction: this.toOutput(created), isNew: true };
@@ -154,11 +156,11 @@ export class StripeTransactionRepository extends BaseRepository<Table, StripeTra
    * row, or undefined when the guard suppressed the write.
    */
   async updateByIdUnlessSettled(id: StripeTransactionOutput["id"], update: Partial<StripeTransactionInput>): Promise<StripeTransactionOutput | undefined> {
-    const [item] = await this.cursor
-      .update(this.table)
-      .set({ ...update, updatedAt: sql`now()` })
-      .where(and(eq(this.table.id, id), notInArray(this.table.status, [...SETTLED_TRANSACTION_STATUSES])))
-      .returning();
+    const [item] = await this.updateWhere(
+      this.whereAccessibleBy(and(eq(this.table.id, id), notInArray(this.table.status, [...SETTLED_TRANSACTION_STATUSES]))),
+      update,
+      { returning: true }
+    );
 
     return item ? this.toOutput(item) : undefined;
   }
@@ -210,7 +212,11 @@ export class StripeTransactionRepository extends BaseRepository<Table, StripeTra
             this.cursor
               .select({ id: this.table.id })
               .from(this.table)
-              .where(and(eq(this.table.userId, Users.id), eq(this.table.type, "payment_intent"), inArray(this.table.status, ["succeeded", "refunded"])))
+              .where(
+                this.unscoped("email-domain-account-checks").whereAccessibleBy(
+                  and(eq(this.table.userId, Users.id), eq(this.table.type, "payment_intent"), inArray(this.table.status, ["succeeded", "refunded"]))
+                )
+              )
           )
         )
       )

@@ -9,6 +9,7 @@ import { describe, expect, it } from "vitest";
 import { AbilityService } from "@src/auth/services/ability/ability.service";
 import type { ApiPgDatabase } from "@src/core";
 import { POSTGRES_DB, resolveTable } from "@src/core";
+import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
 import { TxService } from "@src/core/services/tx/tx.service";
 import { SDL_MAX_LENGTH } from "@src/deployment/config/sdl.config";
 import { MAX_RUNTIME_LIMIT_INCREMENT_HOURS } from "@src/deployment/http-schemas/runtime-limit";
@@ -18,8 +19,10 @@ import { DeploymentSettingRepository } from "./deployment-setting.repository";
 
 import { createAkashAddress } from "@test/seeders/akash-address.seeder";
 import { seedDeploymentSetting } from "@test/seeders/db/deployment-setting.seeder";
+import { seedOrganizationMember, seedOrganizationWithOwner, seedProject } from "@test/seeders/db/organization.seeder";
 import { createLeaseGpuOffer } from "@test/seeders/lease-gpu-offer.seeder";
 import { createLeaseGpuReading } from "@test/seeders/lease-gpu-reading.seeder";
+import { createOrganizationContext } from "@test/seeders/organization-context.seeder";
 
 const COOLDOWN_MINUTES = 60;
 const SDL = "version: '2.0'";
@@ -1833,6 +1836,89 @@ describe(DeploymentSettingRepository.name, () => {
     });
   });
 
+  describe("in organization mode", () => {
+    it("refuses to overwrite the definition another organization holds under the same dseq and user", async () => {
+      const { deploymentSettingRepository, runInOrganization, active, foreignSetting } = await setupOrganizations();
+
+      await expect(
+        runInOrganization(active, () =>
+          deploymentSettingRepository.upsertDefinition({ userId: foreignSetting.userId, dseq: foreignSetting.dseq, sdl: SDL, manifestVersion: "BBBB" })
+        )
+      ).rejects.toMatchObject({ status: 403 });
+      expect(await deploymentSettingRepository.findById(foreignSetting.id)).toMatchObject({ sdl: null, manifestVersion: null });
+    });
+
+    it("refuses to rename a deployment another organization holds under the same dseq and user", async () => {
+      const { deploymentSettingRepository, runInOrganization, active, foreignSetting } = await setupOrganizations();
+
+      await expect(
+        runInOrganization(active, () =>
+          deploymentSettingRepository.upsertName({ userId: foreignSetting.userId, dseq: foreignSetting.dseq, name: "taken over" })
+        )
+      ).rejects.toMatchObject({ status: 403 });
+      expect(await deploymentSettingRepository.findById(foreignSetting.id)).toMatchObject({ name: "theirs" });
+    });
+
+    it("records no definition onto a row another organization holds", async () => {
+      const { deploymentSettingRepository, runInOrganization, active, foreignSetting } = await setupOrganizations();
+
+      const recorded = await runInOrganization(active, () =>
+        deploymentSettingRepository.recordDefinitionIfAbsent({
+          userId: foreignSetting.userId,
+          dseq: foreignSetting.dseq,
+          sdl: SDL,
+          manifestVersion: "BBBB",
+          sealedSecrets: null,
+          closed: false
+        })
+      );
+
+      expect(recorded).toBeUndefined();
+      expect(await deploymentSettingRepository.findById(foreignSetting.id)).toMatchObject({ sdl: null });
+    });
+
+    it("leaves another organization's deployment open when marking a deployment closed", async () => {
+      const { deploymentSettingRepository, runInOrganization, active, foreignSetting } = await setupOrganizations();
+
+      await runInOrganization(active, () => deploymentSettingRepository.markClosed({ userId: foreignSetting.userId, dseq: foreignSetting.dseq }));
+
+      expect(await deploymentSettingRepository.findById(foreignSetting.id)).toMatchObject({ closed: false });
+    });
+
+    it("renames a deployment inside the member's project scope", async () => {
+      const { deploymentSettingRepository, runAsMember, member, active } = await setupOrganizations();
+      const setting = await seedDeploymentSetting({ userId: member.id, organizationId: active.organization.id, projectId: active.project.id });
+
+      const name = await runAsMember(ability =>
+        deploymentSettingRepository.accessibleBy(ability, "update").upsertName({ userId: member.id, dseq: setting.dseq, name: "renamed" })
+      );
+
+      expect(name).toBe("renamed");
+    });
+
+    it("refuses to rename a deployment outside the member's project scope", async () => {
+      const { deploymentSettingRepository, runAsMember, member, active, otherProject } = await setupOrganizations();
+      const setting = await seedDeploymentSetting({ userId: member.id, organizationId: active.organization.id, projectId: otherProject.id, name: "kept" });
+
+      await expect(
+        runAsMember(ability =>
+          deploymentSettingRepository.accessibleBy(ability, "update").upsertName({ userId: member.id, dseq: setting.dseq, name: "renamed" })
+        )
+      ).rejects.toMatchObject({ status: 403 });
+      expect(await deploymentSettingRepository.findById(setting.id)).toMatchObject({ name: "kept" });
+    });
+
+    it("refuses to create a row the member's project scope does not cover and writes nothing", async () => {
+      const { deploymentSettingRepository, runAsMember, member } = await setupOrganizations();
+      const dseq = newDseq();
+
+      await expect(
+        runAsMember(ability => deploymentSettingRepository.accessibleBy(ability, "update").upsertName({ userId: member.id, dseq, name: "renamed" }))
+      ).rejects.toThrow(ForbiddenError);
+      expect(await deploymentSettingRepository.findOneBy({ userId: member.id, dseq })).toBeUndefined();
+    });
+  });
+
   describe("recordDefinitionIfAbsent", () => {
     it("records the definition of a running deployment the console holds no row for, funded like any other", async () => {
       const { deploymentSettingRepository, user, sealedToken } = await setup();
@@ -2044,6 +2130,45 @@ describe(DeploymentSettingRepository.name, () => {
       return { deploymentSettingRepository, seedSecretsOwner, backdateUpdatedAt };
     }
   });
+
+  async function setupOrganizations() {
+    const deploymentSettingRepository = container.resolve(DeploymentSettingRepository);
+    const executionContextService = container.resolve(ExecutionContextService);
+    const abilityService = container.resolve(AbilityService);
+    const [active, foreign] = await Promise.all([seedOrganizationWithOwner(), seedOrganizationWithOwner()]);
+    const member = await container.resolve(UserRepository).create({ userId: faker.string.uuid() });
+    await seedOrganizationMember({ organizationId: active.organization.id, userId: member.id, role: "member" });
+    const otherProject = await seedProject({ organizationId: active.organization.id });
+    const foreignSetting = await seedDeploymentSetting({
+      userId: active.user.id,
+      organizationId: foreign.organization.id,
+      projectId: foreign.project.id,
+      name: "theirs"
+    });
+
+    function runInOrganization<R>(tenant: { organization: { id: string } }, run: () => Promise<R>) {
+      return executionContextService.runWithContext(async () => {
+        executionContextService.set("ORGANIZATION_CONTEXT", createOrganizationContext({ organizationId: tenant.organization.id }));
+        return await run();
+      });
+    }
+
+    function runAsMember<R>(run: (ability: ReturnType<AbilityService["getAbilityFor"]>) => Promise<R>) {
+      return executionContextService.runWithContext(async () => {
+        executionContextService.set(
+          "ORGANIZATION_CONTEXT",
+          createOrganizationContext({
+            organizationId: active.organization.id,
+            role: "member",
+            projectScope: { kind: "projects", projectIds: [active.project.id] }
+          })
+        );
+        return await run(abilityService.getAbilityFor("REGULAR_USER", member));
+      });
+    }
+
+    return { deploymentSettingRepository, runInOrganization, runAsMember, active, member, otherProject, foreignSetting };
+  }
 
   async function setup() {
     const userRepository = container.resolve(UserRepository);

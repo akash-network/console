@@ -15,8 +15,8 @@ dashboardRouter.get("/stats", async c => {
 
   const [userCount, publicTemplateCount, privateTemplateCount] = await Promise.all([
     userRepository.count(),
-    templateRepository.count({ isPublic: true }),
-    templateRepository.count({ isPublic: false })
+    templateRepository.unscoped("platform-statistics").count({ isPublic: true }),
+    templateRepository.unscoped("platform-statistics").count({ isPublic: false })
   ]);
 
   return c.json({

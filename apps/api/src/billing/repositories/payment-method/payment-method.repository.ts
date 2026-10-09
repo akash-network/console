@@ -3,25 +3,28 @@ import { singleton } from "tsyringe";
 import { uuidv4 } from "unleash-client/lib/uuidv4";
 
 import { type ApiPgDatabase, type ApiPgTables, InjectPg, InjectPgTable } from "@src/core/providers";
-import { type AbilityParams, BaseRepository, isUniqueViolation } from "@src/core/repositories/base.repository";
+import { isUniqueViolation } from "@src/core/repositories/base.repository";
+import { OrgScopedRepository } from "@src/core/repositories/org-scoped.repository";
 import { type ApiTransaction, TxService } from "@src/core/services";
+import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
 
 type Table = ApiPgTables["PaymentMethods"];
 export type PaymentMethodInput = ApiPgTables["PaymentMethods"]["$inferInsert"];
 export type PaymentMethodOutput = ApiPgTables["PaymentMethods"]["$inferSelect"];
 
 @singleton()
-export class PaymentMethodRepository extends BaseRepository<Table, PaymentMethodInput, PaymentMethodOutput> {
+export class PaymentMethodRepository extends OrgScopedRepository<Table, PaymentMethodInput, PaymentMethodOutput> {
   constructor(
     @InjectPg() protected readonly pg: ApiPgDatabase,
     @InjectPgTable("PaymentMethods") protected readonly table: Table,
-    protected readonly txManager: TxService
+    protected readonly txManager: TxService,
+    protected readonly executionContextService: ExecutionContextService
   ) {
-    super(pg, table, txManager, "PaymentMethod", "PaymentMethods");
+    super(pg, table, txManager, executionContextService, "PaymentMethod", "PaymentMethods");
   }
 
-  accessibleBy(...abilityParams: AbilityParams) {
-    return new PaymentMethodRepository(this.pg, this.table, this.txManager).withAbility(...abilityParams) as this;
+  protected newInstance() {
+    return new PaymentMethodRepository(this.pg, this.table, this.txManager, this.executionContextService) as this;
   }
 
   async findByUserId(userId: PaymentMethodOutput["userId"]) {
@@ -128,10 +131,12 @@ export class PaymentMethodRepository extends BaseRepository<Table, PaymentMethod
     try {
       const [newRecord] = await this.cursor
         .insert(this.table)
-        .values({
-          ...input,
-          isDefault
-        })
+        .values(
+          this.attributeToOrganization({
+            ...input,
+            isDefault
+          })
+        )
         .onConflictDoNothing({
           target: [this.table.fingerprint, this.table.paymentMethodId]
         })
@@ -147,10 +152,12 @@ export class PaymentMethodRepository extends BaseRepository<Table, PaymentMethod
       if (isUniqueViolation(error)) {
         const [retryRecord] = await this.cursor
           .insert(this.table)
-          .values({
-            ...input,
-            isDefault: false
-          })
+          .values(
+            this.attributeToOrganization({
+              ...input,
+              isDefault: false
+            })
+          )
           .onConflictDoNothing({
             target: [this.table.fingerprint, this.table.paymentMethodId]
           })

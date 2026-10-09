@@ -5,8 +5,9 @@ import { singleton } from "tsyringe";
 
 import { StripeTransactions } from "@src/billing/model-schemas";
 import { type ApiPgDatabase, type ApiPgTables, InjectPg, InjectPgTable } from "@src/core/providers";
-import { type AbilityParams, BaseRepository } from "@src/core/repositories/base.repository";
+import { OrgScopedRepository } from "@src/core/repositories/org-scoped.repository";
 import { TxService } from "@src/core/services";
+import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
 import { Users } from "@src/user/model-schemas";
 
 export type DbCreateUserWalletInput = ApiPgTables["UserWallets"]["$inferInsert"];
@@ -53,27 +54,29 @@ export interface UserWalletPublicOutput {
 }
 
 @singleton()
-export class UserWalletRepository extends BaseRepository<ApiPgTables["UserWallets"], UserWalletInput, UserWalletOutput> {
+export class UserWalletRepository extends OrgScopedRepository<ApiPgTables["UserWallets"], UserWalletInput, UserWalletOutput> {
   constructor(
     @InjectPg() protected readonly pg: ApiPgDatabase,
     @InjectPgTable("UserWallets") protected readonly table: ApiPgTables["UserWallets"],
-    protected readonly txManager: TxService
+    protected readonly txManager: TxService,
+    protected readonly executionContextService: ExecutionContextService
   ) {
-    super(pg, table, txManager, "UserWallet", "UserWallets");
+    super(pg, table, txManager, executionContextService, "UserWallet", "UserWallets");
   }
 
-  accessibleBy(...abilityParams: AbilityParams) {
-    return new UserWalletRepository(this.pg, this.table, this.txManager).withAbility(...abilityParams) as this;
+  protected newInstance() {
+    return new UserWalletRepository(this.pg, this.table, this.txManager, this.executionContextService) as this;
   }
 
   async getOrCreate(input: { userId: Exclude<UserWalletInput["userId"], undefined | null> }): Promise<{ wallet: UserWalletOutput; isNew: boolean }> {
     const foundWallet = await this.findOneByUserId(input.userId);
     if (foundWallet) return { wallet: foundWallet, isNew: false };
 
-    this.ability?.throwUnlessCanExecute(input);
+    const values = this.attributeToOrganization(input);
+    this.ability?.throwUnlessCanExecute(values);
     const [newWallet] = await this.cursor
       .insert(this.table)
-      .values(input)
+      .values(values)
       .onConflictDoNothing({
         target: [this.table.userId]
       })
@@ -92,10 +95,10 @@ export class UserWalletRepository extends BaseRepository<ApiPgTables["UserWallet
   }
 
   async create(input: Pick<DbCreateUserWalletInput, "userId" | "address">) {
-    const value = {
+    const value = this.attributeToOrganization({
       userId: input.userId,
       address: input.address
-    };
+    });
 
     this.ability?.throwUnlessCanExecute(value);
     const [item] = await this.cursor.insert(this.table).values(value).returning();
@@ -188,22 +191,24 @@ export class UserWalletRepository extends BaseRepository<ApiPgTables["UserWallet
       .from(this.table)
       .innerJoin(Users, eq(Users.id, this.table.userId))
       .where(
-        and(
-          sql`lower(${Users.email}) LIKE ${"%@"} || ${domain}`,
-          eq(this.table.isTrialing, true),
-          isNull(this.table.abuseLockedAt),
-          ne(this.table.id, options.excludeWalletId),
-          notExists(
-            this.cursor
-              .select({ id: StripeTransactions.id })
-              .from(StripeTransactions)
-              .where(
-                and(
-                  eq(StripeTransactions.userId, Users.id),
-                  eq(StripeTransactions.type, "payment_intent"),
-                  inArray(StripeTransactions.status, ["succeeded", "refunded"])
+        this.unscoped("email-domain-account-checks").whereAccessibleBy(
+          and(
+            sql`lower(${Users.email}) LIKE ${"%@"} || ${domain}`,
+            eq(this.table.isTrialing, true),
+            isNull(this.table.abuseLockedAt),
+            ne(this.table.id, options.excludeWalletId),
+            notExists(
+              this.cursor
+                .select({ id: StripeTransactions.id })
+                .from(StripeTransactions)
+                .where(
+                  and(
+                    eq(StripeTransactions.userId, Users.id),
+                    eq(StripeTransactions.type, "payment_intent"),
+                    inArray(StripeTransactions.status, ["succeeded", "refunded"])
+                  )
                 )
-              )
+            )
           )
         )
       )
@@ -280,7 +285,10 @@ export class UserWalletRepository extends BaseRepository<ApiPgTables["UserWallet
   }
 
   async payingUserCount() {
-    const [{ count: payingUserCount }] = await this.cursor.select({ count: count() }).from(this.table).where(eq(this.table.isTrialing, false));
+    const [{ count: payingUserCount }] = await this.cursor
+      .select({ count: count() })
+      .from(this.table)
+      .where(this.unscoped("platform-statistics").whereAccessibleBy(eq(this.table.isTrialing, false)));
     return payingUserCount;
   }
 
