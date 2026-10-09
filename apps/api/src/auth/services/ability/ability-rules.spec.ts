@@ -11,7 +11,7 @@ import { PaymentMethods, StripeTransactions, UserWallets, WalletSetting } from "
 import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
 import type { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import { DeploymentSettings } from "@src/deployment/model-schemas";
-import { OrganizationInvitations, OrganizationMembers, Organizations, ProjectMembers, Projects } from "@src/organization/model-schemas";
+import { OrganizationActivities, OrganizationInvitations, OrganizationMembers, Organizations, ProjectMembers, Projects } from "@src/organization/model-schemas";
 import type { OrganizationType } from "@src/organization/model-schemas/organization/organization.schema";
 import type { OrganizationRole } from "@src/organization/model-schemas/organization-member/organization-member.schema";
 import type { ProjectScope } from "@src/organization/types/organization-context";
@@ -39,7 +39,8 @@ const ORGANIZATION_SUBJECTS = [
   "PaymentMethod",
   "StripePayment",
   ...PROJECT_RESOURCES,
-  "ApiKey"
+  "ApiKey",
+  "OrganizationActivity"
 ];
 
 const ROLE_TABLE: Record<OrganizationRole, Record<string, string[]>> = {
@@ -49,6 +50,7 @@ const ROLE_TABLE: Record<OrganizationRole, Record<string, string[]>> = {
     OrganizationInvitation: MANAGE,
     Project: MANAGE,
     ProjectMember: MANAGE,
+    OrganizationActivity: READ,
     UserWallet: READ_SIGN,
     WalletSetting: MANAGE,
     PaymentMethod: MANAGE,
@@ -65,6 +67,7 @@ const ROLE_TABLE: Record<OrganizationRole, Record<string, string[]>> = {
     OrganizationInvitation: MANAGE,
     Project: MANAGE,
     ProjectMember: MANAGE,
+    OrganizationActivity: READ,
     UserWallet: READ_SIGN,
     WalletSetting: READ,
     PaymentMethod: READ,
@@ -81,6 +84,7 @@ const ROLE_TABLE: Record<OrganizationRole, Record<string, string[]>> = {
     OrganizationInvitation: NONE,
     Project: READ,
     ProjectMember: READ,
+    OrganizationActivity: READ,
     UserWallet: READ_SIGN,
     WalletSetting: READ,
     PaymentMethod: NONE,
@@ -97,6 +101,7 @@ const ROLE_TABLE: Record<OrganizationRole, Record<string, string[]>> = {
     OrganizationInvitation: NONE,
     Project: READ,
     ProjectMember: NONE,
+    OrganizationActivity: READ,
     UserWallet: READ,
     WalletSetting: MANAGE,
     PaymentMethod: MANAGE,
@@ -113,6 +118,7 @@ const ROLE_TABLE: Record<OrganizationRole, Record<string, string[]>> = {
     OrganizationInvitation: NONE,
     Project: READ,
     ProjectMember: READ,
+    OrganizationActivity: READ,
     UserWallet: READ,
     WalletSetting: READ,
     PaymentMethod: NONE,
@@ -139,7 +145,8 @@ const SUBJECT_TABLES: Record<string, PgTableWithColumns<any>> = {
   StripePayment: StripeTransactions,
   DeploymentSetting: DeploymentSettings,
   Template: Templates,
-  ApiKey: ApiKeys
+  ApiKey: ApiKeys,
+  OrganizationActivity: OrganizationActivities
 };
 
 describe("ability rules", () => {
@@ -208,7 +215,30 @@ describe("ability rules", () => {
 
       const granted = actionsBySubject(ability, { organizationId, projectId: faker.string.uuid(), userId: user.id });
 
-      expect(pick(granted, ["Project", ...PROJECT_RESOURCES])).toEqual({ Project: NONE, DeploymentSetting: NONE, Template: NONE, Alert: NONE, NotificationChannel: NONE });
+      expect(pick(granted, ["Project", "OrganizationActivity", ...PROJECT_RESOURCES])).toEqual({
+        Project: NONE,
+        OrganizationActivity: NONE,
+        DeploymentSetting: NONE,
+        Template: NONE,
+        Alert: NONE,
+        NotificationChannel: NONE
+      });
+    });
+
+    it.each(ROLES)("lets the %s role read the activities about the whole organization", role => {
+      const { ability, organizationId, user } = setup({ role, projectScope: { kind: "projects", projectIds: [] } });
+
+      const organizationWide = actionsBySubject(ability, { organizationId, projectId: null, userId: user.id });
+
+      expect(organizationWide.OrganizationActivity).toEqual(READ);
+    });
+
+    it("lets the billing role read the activities of every project", () => {
+      const { ability, organizationId, user } = setup({ role: "billing" });
+
+      const granted = actionsBySubject(ability, { organizationId, projectId: faker.string.uuid(), userId: user.id });
+
+      expect(granted.OrganizationActivity).toEqual(READ);
     });
 
     it("lets a member granted no projects reach no project resource", () => {
@@ -217,7 +247,13 @@ describe("ability rules", () => {
       const granted = actionsBySubject(ability, { organizationId, projectId: faker.string.uuid(), userId: user.id });
       const unfiled = actionsBySubject(ability, { organizationId, projectId: null, userId: user.id });
 
-      expect(pick(granted, ["Project", ...PROJECT_RESOURCES])).toEqual({ Project: NONE, DeploymentSetting: NONE, Template: NONE, Alert: NONE, NotificationChannel: NONE });
+      expect(pick(granted, ["Project", ...PROJECT_RESOURCES])).toEqual({
+        Project: NONE,
+        DeploymentSetting: NONE,
+        Template: NONE,
+        Alert: NONE,
+        NotificationChannel: NONE
+      });
       expect(pick(unfiled, PROJECT_RESOURCES)).toEqual({ DeploymentSetting: NONE, Template: NONE, Alert: NONE, NotificationChannel: NONE });
     });
 
@@ -226,7 +262,13 @@ describe("ability rules", () => {
 
       const granted = actionsBySubject(ability, { organizationId, projectId: faker.string.uuid(), userId: user.id });
 
-      expect(pick(granted, ["Project", ...PROJECT_RESOURCES])).toEqual({ Project: MANAGE, DeploymentSetting: MANAGE, Template: MANAGE, Alert: MANAGE, NotificationChannel: MANAGE });
+      expect(pick(granted, ["Project", ...PROJECT_RESOURCES])).toEqual({
+        Project: MANAGE,
+        DeploymentSetting: MANAGE,
+        Template: MANAGE,
+        Alert: MANAGE,
+        NotificationChannel: MANAGE
+      });
     });
 
     it.each(["owner", "admin"] as const)("keeps the %s role to the projects of a narrowed scope", role => {
@@ -238,6 +280,7 @@ describe("ability rules", () => {
 
       expect(pick(inside, PROJECT_RESOURCES)).toEqual({ DeploymentSetting: MANAGE, Template: MANAGE, Alert: MANAGE, NotificationChannel: MANAGE });
       expect(pick(outside, PROJECT_RESOURCES)).toEqual({ DeploymentSetting: NONE, Template: NONE, Alert: NONE, NotificationChannel: NONE });
+      expect([inside.OrganizationActivity, outside.OrganizationActivity]).toEqual([READ, NONE]);
     });
 
     it.each(ROLES)("applies the organization rules of the %s role to the Organization subject only", role => {

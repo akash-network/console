@@ -12,6 +12,7 @@ type OrganizationInsert = ApiPgTables["Organizations"]["$inferInsert"];
 type OrganizationMemberInsert = ApiPgTables["OrganizationMembers"]["$inferInsert"];
 type ProjectInsert = ApiPgTables["Projects"]["$inferInsert"];
 type ProjectMemberInsert = ApiPgTables["ProjectMembers"]["$inferInsert"];
+type OrganizationActivityInsert = ApiPgTables["OrganizationActivities"]["$inferInsert"];
 
 export async function seedOrganization(overrides: Partial<OrganizationInsert> = {}) {
   const db = container.resolve<ApiPgDatabase>(POSTGRES_DB);
@@ -60,6 +61,16 @@ export async function seedProjectMember(overrides: Partial<ProjectMemberInsert> 
     .returning();
 
   return member;
+}
+
+export async function seedOrganizationActivity(overrides: Partial<OrganizationActivityInsert> & Pick<OrganizationActivityInsert, "organizationId">) {
+  const db = container.resolve<ApiPgDatabase>(POSTGRES_DB);
+  const [activity] = await db
+    .insert(resolveTable("OrganizationActivities"))
+    .values({ type: "organization_created", payload: { organizationName: faker.company.name() }, ...overrides })
+    .returning();
+
+  return activity;
 }
 
 export async function seedOrganizationWithOwner({ user: userOverrides, ...overrides }: Partial<OrganizationInsert> & { user?: UserInput } = {}) {

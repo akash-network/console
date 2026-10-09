@@ -526,6 +526,13 @@
       "when": 1791562399189,
       "tag": "0074_organizations",
       "breakpoints": true
+    },
+    {
+      "idx": 75,
+      "version": "7",
+      "when": 1791580002035,
+      "tag": "0075_organization_activities",
+      "breakpoints": true
     }
   ]
 }
