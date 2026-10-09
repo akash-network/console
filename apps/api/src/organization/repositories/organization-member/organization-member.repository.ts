@@ -1,4 +1,4 @@
-import { and, asc, eq, isNull, type SQL } from "drizzle-orm";
+import { and, asc, eq, isNull, or, type SQL } from "drizzle-orm";
 import { singleton } from "tsyringe";
 
 import { type ApiPgDatabase, type ApiPgTables, InjectPg, InjectPgTable } from "@src/core/providers";
@@ -11,7 +11,7 @@ type Table = ApiPgTables["OrganizationMembers"];
 export type OrganizationMemberInput = Table["$inferInsert"];
 export type OrganizationMemberOutput = Table["$inferSelect"];
 
-export type OrganizationLookup = { id: string } | { slug: string } | { type: "personal" };
+export type OrganizationLookup = { id: string } | { slug: string } | { idOrSlug: string } | { type: "personal" };
 
 export interface Membership {
   role: OrganizationRole;
@@ -88,6 +88,7 @@ export class OrganizationMemberRepository extends BaseRepository<Table, Organiza
 function organizationMatching(userId: string, lookup: OrganizationLookup): SQL | undefined {
   if ("id" in lookup) return eq(Organizations.id, lookup.id);
   if ("slug" in lookup) return eq(Organizations.slug, lookup.slug);
+  if ("idOrSlug" in lookup) return or(eq(Organizations.id, lookup.idOrSlug), eq(Organizations.slug, lookup.idOrSlug));
 
   return and(eq(Organizations.type, "personal"), eq(Organizations.createdByUserId, userId));
 }

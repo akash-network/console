@@ -26,9 +26,18 @@ export const PROJECT_FORBIDDEN_ERROR_CODE = "project_forbidden";
 
 export const LAST_USED_ORGANIZATION_THROTTLE_MS = millisecondsInMinute;
 const MAX_TRACKED_USERS = 1e5;
-const LAST_USED_ORGANIZATION_ENTRY_BYTES = 64;
+const LAST_USED_ORGANIZATION_ENTRY_BYTES = 128;
+const PERSONAL_MEMBERSHIP_ENTRY_BYTES = 512;
 
 const uuidSchema = z.string().uuid();
+
+function isUuid(value: string) {
+  return uuidSchema.safeParse(value).success;
+}
+
+function normalizeHeader(value: string | undefined) {
+  return value?.trim().toLowerCase() || undefined;
+}
 
 export interface OrganizationContextRequest {
   user: Pick<UserOutput, "id" | "username" | "lastUsedOrganizationId">;
@@ -53,6 +62,11 @@ export class OrganizationContextResolver {
     ttl: LAST_USED_ORGANIZATION_THROTTLE_MS,
     ...nominalEntrySizing(MAX_TRACKED_USERS, LAST_USED_ORGANIZATION_ENTRY_BYTES)
   });
+  /** A personal membership never changes: its single owner cannot leave it and it cannot be deleted. */
+  readonly #personalMemberships = new LRUCache<string, Membership>({
+    max: MAX_TRACKED_USERS,
+    ...nominalEntrySizing(MAX_TRACKED_USERS, PERSONAL_MEMBERSHIP_ENTRY_BYTES)
+  });
 
   constructor(
     private readonly featureFlagsService: FeatureFlagsService,
@@ -64,6 +78,7 @@ export class OrganizationContextResolver {
   ) {
     this.#logger = createLogger({ context: OrganizationContextResolver.name });
     cacheRegistry.register("OrganizationContextResolver#lastUsedOrganizationWrittenAt", this.#lastUsedOrganizationWrittenAt);
+    cacheRegistry.register("OrganizationContextResolver#personalMemberships", this.#personalMemberships);
   }
 
   async resolve(request: OrganizationContextRequest): Promise<OrganizationContext | undefined> {
@@ -75,10 +90,11 @@ export class OrganizationContextResolver {
       return await this.#resolvePersonalContext(request.user, mode);
     }
 
-    const { role, organization } = await this.#resolveMembership(request);
+    const { role, organization } = await this.#resolveMembership(request.user, request.apiKey, normalizeHeader(request.organizationHeader));
     const roleScope = await this.#projectScopeOf(role, organization.id, request.user.id);
     const keyScope = request.apiKey?.projectId ? narrowTo(roleScope, request.apiKey.projectId) : roleScope;
-    const projectScope = request.projectHeader ? await this.#narrowToRequestedProject(keyScope, organization.id, request.projectHeader) : keyScope;
+    const projectHeader = normalizeHeader(request.projectHeader);
+    const projectScope = projectHeader ? await this.#narrowToRequestedProject(keyScope, organization.id, projectHeader) : keyScope;
 
     return { organizationId: organization.id, organizationType: organization.type, role, projectScope, mode };
   }
@@ -95,7 +111,11 @@ export class OrganizationContextResolver {
     }
   }
 
-  async #resolveMembership({ user, apiKey, organizationHeader }: OrganizationContextRequest): Promise<Membership> {
+  async #resolveMembership(
+    user: OrganizationContextRequest["user"],
+    apiKey: OrganizationContextRequest["apiKey"],
+    organizationHeader: string | undefined
+  ): Promise<Membership> {
     if (apiKey) {
       const membership = apiKey.organizationId
         ? await this.organizationMemberRepository.findActiveMembership(user.id, { id: apiKey.organizationId })
@@ -110,7 +130,7 @@ export class OrganizationContextResolver {
     }
 
     if (organizationHeader) {
-      const lookup = uuidSchema.safeParse(organizationHeader).success ? { id: organizationHeader } : { slug: organizationHeader };
+      const lookup = isUuid(organizationHeader) ? { idOrSlug: organizationHeader } : { slug: organizationHeader };
       const membership = await this.organizationMemberRepository.findActiveMembership(user.id, lookup);
       assertMember(membership);
       this.#rememberLastUsedOrganization(user, membership.organization.id);
@@ -118,16 +138,29 @@ export class OrganizationContextResolver {
       return membership;
     }
 
-    const lastUsedMembership =
-      user.lastUsedOrganizationId && (await this.organizationMemberRepository.findActiveMembership(user.id, { id: user.lastUsedOrganizationId }));
+    if (user.lastUsedOrganizationId) {
+      const lastUsedMembership = await this.organizationMemberRepository.findActiveMembership(user.id, { id: user.lastUsedOrganizationId });
 
-    return lastUsedMembership || (await this.#personalMembership(user));
+      if (lastUsedMembership) return lastUsedMembership;
+
+      this.#forgetLastUsedOrganization(user.id, user.lastUsedOrganizationId);
+    }
+
+    return await this.#personalMembership(user);
   }
 
   async #personalMembership(user: OrganizationContextRequest["user"]): Promise<Membership> {
-    const membership = await this.organizationMemberRepository.findActiveMembership(user.id, { type: "personal" });
+    const cached = this.#personalMemberships.get(user.id);
 
-    return membership ?? { role: "owner", organization: await this.personalOrganizationService.ensureForUser(user) };
+    if (cached) return cached;
+
+    const membership = (await this.organizationMemberRepository.findActiveMembership(user.id, { type: "personal" })) ?? {
+      role: "owner",
+      organization: await this.personalOrganizationService.ensureForUser(user)
+    };
+    this.#personalMemberships.set(user.id, membership);
+
+    return membership;
   }
 
   async #projectScopeOf(role: OrganizationRole, organizationId: string, userId: string): Promise<ProjectScope> {
@@ -148,21 +181,28 @@ export class OrganizationContextResolver {
   }
 
   async #isReachable(scope: ProjectScope, organizationId: string, projectId: string): Promise<boolean> {
-    if (!uuidSchema.safeParse(projectId).success) return false;
+    if (!isUuid(projectId)) return false;
     if (scope.kind === "projects") return scope.projectIds.includes(projectId);
 
     return !!(await this.projectRepository.findActive(organizationId, projectId));
   }
 
   #rememberLastUsedOrganization(user: OrganizationContextRequest["user"], organizationId: string): void {
+    const throttleKey = `${user.id}:${organizationId}`;
     const now = Date.now();
-    const writtenAt = this.#lastUsedOrganizationWrittenAt.get(user.id);
+    const writtenAt = this.#lastUsedOrganizationWrittenAt.get(throttleKey);
 
     if (user.lastUsedOrganizationId === organizationId || (writtenAt !== undefined && now - writtenAt < LAST_USED_ORGANIZATION_THROTTLE_MS)) return;
 
-    this.#lastUsedOrganizationWrittenAt.set(user.id, now);
+    this.#lastUsedOrganizationWrittenAt.set(throttleKey, now);
     this.userRepository.updateById(user.id, { lastUsedOrganizationId: organizationId }).catch(error => {
       this.#logger.warn({ event: "LAST_USED_ORGANIZATION_UPDATE_FAILED", userId: user.id, organizationId, error });
+    });
+  }
+
+  #forgetLastUsedOrganization(userId: string, organizationId: string): void {
+    this.userRepository.updateBy({ id: userId, lastUsedOrganizationId: organizationId }, { lastUsedOrganizationId: null }).catch(error => {
+      this.#logger.warn({ event: "LAST_USED_ORGANIZATION_CLEAR_FAILED", userId, organizationId, error });
     });
   }
 }

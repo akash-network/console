@@ -165,14 +165,28 @@ describe(OrganizationContextResolver.name, () => {
       await expect(resolution).rejects.toMatchObject({ status: 400, errorCode: ORGANIZATION_MISMATCH_ERROR_CODE });
     });
 
-    it("accepts an organization header naming the key's organization by id or by slug", async () => {
+    it("accepts an organization header naming the key's organization by id or by slug, whatever its case", async () => {
       const { resolver, team, user } = setup({});
       const apiKey = { organizationId: team.organization.id, projectId: null };
 
-      const byId = await resolver.resolve({ user, apiKey, organizationHeader: team.organization.id });
-      const bySlug = await resolver.resolve({ user, apiKey, organizationHeader: team.organization.slug });
+      const byId = await resolver.resolve({ user, apiKey, organizationHeader: ` ${team.organization.id.toUpperCase()}` });
+      const bySlug = await resolver.resolve({ user, apiKey, organizationHeader: team.organization.slug.toUpperCase() });
 
       expect([byId?.organizationId, bySlug?.organizationId]).toEqual([team.organization.id, team.organization.id]);
+    });
+
+    it("reaches every project with an owner's key bound to an organization but no project", async () => {
+      const { resolver, personal, user } = setup({});
+
+      const context = await resolver.resolve({ user, apiKey: { organizationId: personal.organization.id, projectId: null } });
+
+      expect(context).toEqual({
+        organizationId: personal.organization.id,
+        organizationType: "personal",
+        role: "owner",
+        projectScope: { kind: "all" },
+        mode: "organization"
+      });
     });
 
     it("rejects a key whose owner no longer belongs to its organization", async () => {
@@ -205,7 +219,7 @@ describe(OrganizationContextResolver.name, () => {
         projectScope: { kind: "projects", projectIds: [] },
         mode: "organization"
       });
-      expect(organizationMemberRepository.findActiveMembership).toHaveBeenCalledWith(user.id, { id: team.organization.id });
+      expect(organizationMemberRepository.findActiveMembership).toHaveBeenCalledWith(user.id, { idOrSlug: team.organization.id });
     });
 
     it("looks up a header that is not a uuid by slug", async () => {
@@ -215,6 +229,36 @@ describe(OrganizationContextResolver.name, () => {
 
       expect(context?.organizationId).toBe(team.organization.id);
       expect(organizationMemberRepository.findActiveMembership).toHaveBeenCalledWith(user.id, { slug: team.organization.slug });
+    });
+
+    it("matches the header whatever its case and surrounding spaces", async () => {
+      const { resolver, team, user, organizationMemberRepository } = setup({});
+
+      const byId = await resolver.resolve({ user, organizationHeader: ` ${team.organization.id.toUpperCase()} ` });
+      const bySlug = await resolver.resolve({ user, organizationHeader: team.organization.slug.toUpperCase() });
+
+      expect([byId?.organizationId, bySlug?.organizationId]).toEqual([team.organization.id, team.organization.id]);
+      expect(organizationMemberRepository.findActiveMembership.mock.calls).toEqual([
+        [user.id, { idOrSlug: team.organization.id }],
+        [user.id, { slug: team.organization.slug }]
+      ]);
+    });
+
+    it("resolves an organization whose slug is shaped like a uuid", async () => {
+      const { resolver, team, user } = setup({});
+      team.organization.slug = faker.string.uuid();
+
+      const context = await resolver.resolve({ user, organizationHeader: team.organization.slug });
+
+      expect(context?.organizationId).toBe(team.organization.id);
+    });
+
+    it("treats a blank header as no header", async () => {
+      const { resolver, personal, user } = setup({});
+
+      const context = await resolver.resolve({ user, organizationHeader: "  " });
+
+      expect(context?.organizationId).toBe(personal.organization.id);
     });
 
     it("rejects an organization the caller does not belong to", async () => {
@@ -243,20 +287,22 @@ describe(OrganizationContextResolver.name, () => {
       expect(userRepository.updateById).not.toHaveBeenCalled();
     });
 
-    it("remembers the last used organization at most once per user within the throttle window", async () => {
+    it("remembers each named organization at most once per user within the throttle window", async () => {
       vi.useFakeTimers();
       try {
         const { resolver, team, personal, userRepository, user } = setup({});
+        const teamWrite = [user.id, { lastUsedOrganizationId: team.organization.id }];
+        const personalWrite = [user.id, { lastUsedOrganizationId: personal.organization.id }];
 
         await resolver.resolve({ user, organizationHeader: team.organization.id });
         await resolver.resolve({ user, organizationHeader: personal.organization.id });
+        await resolver.resolve({ user, organizationHeader: team.organization.id });
+        const writesWithinWindow = [...userRepository.updateById.mock.calls];
         vi.advanceTimersByTime(LAST_USED_ORGANIZATION_THROTTLE_MS);
         await resolver.resolve({ user, organizationHeader: team.organization.id });
 
-        expect(userRepository.updateById.mock.calls).toEqual([
-          [user.id, { lastUsedOrganizationId: team.organization.id }],
-          [user.id, { lastUsedOrganizationId: team.organization.id }]
-        ]);
+        expect(writesWithinWindow).toEqual([teamWrite, personalWrite]);
+        expect(userRepository.updateById.mock.calls).toEqual([teamWrite, personalWrite, teamWrite]);
       } finally {
         vi.useRealTimers();
       }
@@ -291,13 +337,67 @@ describe(OrganizationContextResolver.name, () => {
       expect(context?.organizationId).toBe(team.organization.id);
     });
 
-    it("falls back to the personal organization once the caller left the last used one", async () => {
-      const { resolver, personal } = setup({});
+    it("falls back to the personal organization and forgets the last used one once the caller left it", async () => {
+      const { resolver, personal, userRepository } = setup({});
       const user = createUser({ lastUsedOrganizationId: faker.string.uuid() });
 
       const context = await resolver.resolve({ user });
 
       expect(context).toMatchObject({ organizationId: personal.organization.id, role: "owner", projectScope: { kind: "all" } });
+      expect(userRepository.updateBy).toHaveBeenCalledWith(
+        { id: user.id, lastUsedOrganizationId: user.lastUsedOrganizationId },
+        { lastUsedOrganizationId: null }
+      );
+    });
+
+    it("logs a failed attempt to forget the last used organization without failing the request", async () => {
+      const { resolver, personal, userRepository, logger } = setup({});
+      const user = createUser({ lastUsedOrganizationId: faker.string.uuid() });
+      const error = new Error("connection reset");
+      userRepository.updateBy.mockRejectedValue(error);
+
+      const context = await resolver.resolve({ user });
+
+      expect(context?.organizationId).toBe(personal.organization.id);
+      await vi.waitFor(() =>
+        expect(logger.warn).toHaveBeenCalledWith({
+          event: "LAST_USED_ORGANIZATION_CLEAR_FAILED",
+          userId: user.id,
+          organizationId: user.lastUsedOrganizationId,
+          error
+        })
+      );
+    });
+
+    it("keeps the last used organization while the caller still belongs to it", async () => {
+      const { resolver, team, userRepository } = setup({});
+      const user = createUser({ lastUsedOrganizationId: team.organization.id });
+
+      await resolver.resolve({ user });
+
+      expect(userRepository.updateBy).not.toHaveBeenCalled();
+    });
+
+    it("reads the personal organization once per user", async () => {
+      const { resolver, personal, user, organizationMemberRepository } = setup({});
+
+      await resolver.resolve({ user });
+      const context = await resolver.resolve({ user });
+
+      expect(context?.organizationId).toBe(personal.organization.id);
+      expect(organizationMemberRepository.findActiveMembership).toHaveBeenCalledTimes(1);
+    });
+
+    it("creates the personal organization once per user", async () => {
+      const { resolver, personalOrganizationService, user } = setup({ organizationsOn: false, withoutPersonalMembership: true });
+      const created = createOrganization({ type: "personal", createdByUserId: user.id });
+      personalOrganizationService.ensureForUser.mockResolvedValue(created);
+
+      await resolver.resolve({ user });
+      const context = await resolver.resolve({ user });
+
+      expect(context?.organizationId).toBe(created.id);
+      expect(personalOrganizationService.ensureForUser).toHaveBeenCalledTimes(1);
     });
 
     it("resolves the personal organization when nothing was used before", async () => {
@@ -370,11 +470,11 @@ describe(OrganizationContextResolver.name, () => {
       await expect(resolution).rejects.toMatchObject({ status: 403, errorCode: PROJECT_FORBIDDEN_ERROR_CODE });
     });
 
-    it("narrows the granted projects down to the named one", async () => {
+    it("narrows the granted projects down to the named one, whatever its case", async () => {
       const grantedProjectIds = [faker.string.uuid(), faker.string.uuid()];
       const { resolver, team, user, projectRepository } = setup({ teamRole: "member", grantedProjectIds });
 
-      const context = await resolver.resolve({ user, organizationHeader: team.organization.id, projectHeader: grantedProjectIds[0] });
+      const context = await resolver.resolve({ user, organizationHeader: team.organization.id, projectHeader: ` ${grantedProjectIds[0].toUpperCase()} ` });
 
       expect(context?.projectScope).toEqual({ kind: "projects", projectIds: [grantedProjectIds[0]] });
       expect(projectRepository.findActive).not.toHaveBeenCalled();
@@ -433,6 +533,7 @@ describe(OrganizationContextResolver.name, () => {
       findActiveMembership: vi.fn(async (_userId, lookup) =>
         memberships.find(({ organization }) => {
           if ("id" in lookup) return organization.id === lookup.id;
+          if ("idOrSlug" in lookup) return organization.id === lookup.idOrSlug || organization.slug === lookup.idOrSlug;
           if ("slug" in lookup) return organization.slug === lookup.slug;
           return organization.type === "personal";
         })
@@ -443,7 +544,7 @@ describe(OrganizationContextResolver.name, () => {
       findActive: vi.fn().mockResolvedValue(undefined)
     });
     const personalOrganizationService = mock<PersonalOrganizationService>();
-    const userRepository = mock<UserRepository>({ updateById: vi.fn().mockResolvedValue(undefined) });
+    const userRepository = mock<UserRepository>({ updateById: vi.fn().mockResolvedValue(undefined), updateBy: vi.fn().mockResolvedValue(undefined) });
     const logger = mock<ReturnType<CreateLogger>>();
     const createLogger = vi.fn<CreateLogger>(() => logger);
 

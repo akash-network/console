@@ -90,10 +90,10 @@ describe("Organizations", () => {
       expect(await activeOrganizationIdOf(response)).toBe(team.id);
     });
 
-    it("runs the request in an organization named by slug", async () => {
+    it("runs the request in an organization named by slug, whatever its case", async () => {
       const { team, bearer } = await setupCaller({});
 
-      const response = await listOrganizations({ authorization: bearer, "x-organization-id": team.slug });
+      const response = await listOrganizations({ authorization: bearer, "x-organization-id": team.slug.toUpperCase() });
 
       expect(await activeOrganizationIdOf(response)).toBe(team.id);
     });
@@ -139,7 +139,7 @@ describe("Organizations", () => {
       expect(await activeOrganizationIdOf(response)).toBe(team.id);
     });
 
-    it("falls back to the personal organization once the caller left the one used last", async () => {
+    it("falls back to the personal organization and forgets the one used last once the caller left it", async () => {
       const { personal, bearer, user } = await setupCaller({});
       const { organization: left } = await seedOrganizationWithOwner();
       await userRepository.updateById(user.id, { lastUsedOrganizationId: left.id });
@@ -147,6 +147,7 @@ describe("Organizations", () => {
       const response = await listOrganizations({ authorization: bearer });
 
       expect(await activeOrganizationIdOf(response)).toBe(personal.id);
+      await vi.waitFor(async () => expect((await userRepository.findById(user.id))?.lastUsedOrganizationId).toBeNull());
     });
   });
 
@@ -158,6 +159,24 @@ describe("Organizations", () => {
       const response = await listOrganizations({ "x-api-key": apiKey });
 
       expect(await activeOrganizationIdOf(response)).toBe(team.id);
+    });
+
+    it("accepts an organization header naming the key's own organization in upper case", async () => {
+      const { team, user } = await setupCaller({});
+      const apiKey = await seedApiKey({ userId: user.id, organizationId: team.id });
+
+      const response = await listOrganizations({ "x-api-key": apiKey, "x-organization-id": team.id.toUpperCase() });
+
+      expect(await activeOrganizationIdOf(response)).toBe(team.id);
+    });
+
+    it("reaches every project of the organization with an owner's key bound to no project", async () => {
+      const { personal, personalProject, user } = await setupCaller({});
+      const apiKey = await seedApiKey({ userId: user.id, organizationId: personal.id });
+
+      const response = await listOrganizations({ "x-api-key": apiKey, "x-project-id": personalProject.id });
+
+      expect(await activeOrganizationIdOf(response)).toBe(personal.id);
     });
 
     it("rejects an organization header naming another organization than the key's", async () => {
@@ -256,7 +275,11 @@ describe("Organizations", () => {
   }
 
   async function setupCaller(input: { organizationsOn?: boolean; teamRole?: OrganizationRole }) {
-    const { user, organization: personal } = await seedOrganizationWithOwner({
+    const {
+      user,
+      organization: personal,
+      project: personalProject
+    } = await seedOrganizationWithOwner({
       type: "personal",
       user: { userId: `auth0|${faker.string.alphanumeric(24)}`, username: `user-${faker.string.alphanumeric(12)}` }
     });
@@ -265,6 +288,6 @@ describe("Organizations", () => {
     const bearer = signIn(user.userId!);
     enableOrganizationsFor(input.organizationsOn === false ? [] : [user.id]);
 
-    return { user, personal, team, bearer };
+    return { user, personal, personalProject, team, bearer };
   }
 });
