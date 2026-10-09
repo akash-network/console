@@ -148,23 +148,48 @@ export abstract class BaseRepository<
   }
 
   async updateManyById(ids: Output["id"][], payload: Partial<Input>): Promise<void> {
-    await this.cursor.update(this.table).set(this.toUpdateSet(payload)).where(inArray(this.table.id, ids));
+    await this.updateWhere(this.whereAccessibleBy(inArray(this.table.id, ids)), payload);
   }
 
   async updateBy(query: Partial<Output>, payload: Partial<Input>, options?: MutationOptions): Promise<undefined | Output>;
   async updateBy(query: Partial<Output>, payload: Partial<Input>): Promise<void>;
   async updateBy(query: Partial<Output>, payload: Partial<Input>, options?: MutationOptions): Promise<void | Output> {
-    const cursor = this.cursor.update(this.table).set(this.toUpdateSet(payload)).where(this.queryToWhere(query));
+    const [item] = await this.updateWhere(this.queryToWhere(query), payload, options);
 
-    if (options?.returning) {
-      const [item] = await cursor.returning();
-      if (!item) return undefined;
-      return this.toOutput(item);
+    if (!options?.returning || !item) return undefined;
+
+    return this.toOutput(item);
+  }
+
+  /** The where clause only vets rows as they were, so with an ability attached every row is checked again as written, in the same transaction. */
+  protected async updateWhere(where: SQL | undefined, payload: Partial<Input>, options?: MutationOptions): Promise<T["$inferSelect"][]> {
+    const set = this.toUpdateSet(payload);
+
+    if (!this.ability) {
+      const statement = this.cursor.update(this.table).set(set).where(where);
+
+      if (options?.returning) return await statement.returning();
+
+      await statement;
+
+      return [];
     }
 
-    await cursor;
+    return await this.writeChecked(cursor => cursor.update(this.table).set(set).where(where).returning());
+  }
 
-    return undefined;
+  /** With an ability attached, runs a write that returns whole rows in a transaction and rejects it when any written row falls outside the rules. */
+  protected async writeChecked(write: (cursor: ApiPgDatabase | ApiTransaction) => Promise<T["$inferSelect"][]>): Promise<T["$inferSelect"][]> {
+    const ability = this.ability;
+
+    if (!ability) return await write(this.cursor);
+
+    return await this.ensureTransaction(async tx => {
+      const rows = await write(tx);
+      rows.forEach(row => ability.throwUnlessCanExecute(row));
+
+      return rows;
+    });
   }
 
   async deleteById(id: Output["id"] | Output["id"][]): Promise<void> {
