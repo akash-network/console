@@ -26,6 +26,7 @@ export const ApiKeys = pgTable(
     lastUsedAt: timestamp("last_used_at")
   },
   table => ({
+    userIdIdx: index("api_keys_user_id_idx").on(table.userId),
     organizationIdProjectIdIdx: index("api_keys_organization_id_project_id_idx").on(table.organizationId, table.projectId),
     projectFk: foreignKey({
       name: "api_keys_organization_id_project_id_fk",

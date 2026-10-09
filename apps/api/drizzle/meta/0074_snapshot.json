@@ -1,5 +1,5 @@
 {
-  "id": "619d4d8a-009c-43c2-8a03-14aedb31749f",
+  "id": "006fb648-5734-494e-9915-c426d4a7a138",
   "prevId": "d6bee72c-f36d-4c5e-8345-3a6cec7ddf40",
   "version": "7",
   "dialect": "postgresql",
@@ -1743,6 +1743,22 @@
           "method": "btree",
           "with": {}
         },
+        "deployment_settings_user_id_unadopted_idx": {
+          "name": "deployment_settings_user_id_unadopted_idx",
+          "columns": [
+            {
+              "expression": "user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "where": "\"deployment_settings\".\"organization_id\" IS NULL",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
         "deployment_settings_organization_id_project_id_idx": {
           "name": "deployment_settings_organization_id_project_id_idx",
           "columns": [
@@ -2007,6 +2023,21 @@
         }
       },
       "indexes": {
+        "api_keys_user_id_idx": {
+          "name": "api_keys_user_id_idx",
+          "columns": [
+            {
+              "expression": "user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
         "api_keys_organization_id_project_id_idx": {
           "name": "api_keys_organization_id_project_id_idx",
           "columns": [

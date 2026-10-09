@@ -112,6 +112,10 @@ export const DeploymentSettings = pgTable(
     userIdNamedIdx: index("deployment_settings_user_id_named_idx")
       .on(table.userId)
       .where(sql`${table.name} IS NOT NULL`),
+    /** Backs filing a user's rows into their personal organization on every login, so it reads only the rows still waiting for one. */
+    userIdUnadoptedIdx: index("deployment_settings_user_id_unadopted_idx")
+      .on(table.userId)
+      .where(sql`${table.organizationId} IS NULL`),
     organizationIdProjectIdIdx: index("deployment_settings_organization_id_project_id_idx").on(table.organizationId, table.projectId),
     projectFk: foreignKey({
       name: "deployment_settings_organization_id_project_id_fk",
