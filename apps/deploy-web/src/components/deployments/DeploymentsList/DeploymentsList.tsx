@@ -18,8 +18,10 @@ import { ChevronRight, LayoutGrid, List, RefreshCw, Search, X } from "lucide-rea
 import Link from "next/link";
 import { NextSeo } from "next-seo";
 
+import { RecentActivity } from "@src/components/activity/RecentActivity/RecentActivity";
 import { LinkTo } from "@src/components/shared/LinkTo";
 import { useBlockchainStatus } from "@src/context/BlockchainStatusProvider";
+import { useFlag } from "@src/hooks/useFlag";
 import { useNewDeploymentUrl } from "@src/hooks/useNewDeploymentUrl/useNewDeploymentUrl";
 import Layout from "../../layout/Layout";
 import { DeploymentArchive } from "./DeploymentArchive";
@@ -34,10 +36,12 @@ export const DEPENDENCIES = {
   useDeploymentsListModel,
   useBlockchainStatus,
   useNewDeploymentUrl,
+  useFlag,
   Layout,
   DeploymentsEmptyState,
   DeploymentsCollection,
-  DeploymentArchive
+  DeploymentArchive,
+  RecentActivity
 };
 
 interface Props {
@@ -48,6 +52,9 @@ export const DeploymentsList: React.FunctionComponent<Props> = ({ dependencies: 
   const model = d.useDeploymentsListModel();
   const { isBlockchainDown } = d.useBlockchainStatus();
   const newDeploymentUrl = d.useNewDeploymentUrl();
+  const isShowingRecentActivity = d.useFlag("notifications_activity_center");
+  /** Beside the recent activity, a third card per row would leave every card too narrow. */
+  const maxColumns = isShowingRecentActivity ? 2 : 3;
 
   const changeSearch = (event: ChangeEvent<HTMLInputElement>) => model.changeSearch(event.target.value);
 
@@ -130,76 +137,82 @@ export const DeploymentsList: React.FunctionComponent<Props> = ({ dependencies: 
         )}
 
         <div className="md:min-h-0 md:flex-1 md:overflow-y-auto">
-          <div className="container p-6 pb-8">
-            {model.showErrorState && (
-              <div className="flex flex-col items-center justify-center gap-4 py-8">
-                <p className="text-muted-foreground">Couldn&apos;t load deployments.</p>
-                <Button variant="outline" size="sm" onClick={model.refetchDeployments}>
-                  <RefreshCw className="mr-2 h-4 w-4" />
-                  Retry
-                </Button>
-              </div>
-            )}
+          <div className={cn("container p-6 pb-8", isShowingRecentActivity && "grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]")}>
+            <div className="min-w-0">
+              {model.showErrorState && (
+                <div className="flex flex-col items-center justify-center gap-4 py-8">
+                  <p className="text-muted-foreground">Couldn&apos;t load deployments.</p>
+                  <Button variant="outline" size="sm" onClick={model.refetchDeployments}>
+                    <RefreshCw className="mr-2 h-4 w-4" />
+                    Retry
+                  </Button>
+                </div>
+              )}
 
-            {model.hasSettledWithoutActiveDeployments && (
-              <d.DeploymentsEmptyState
-                onDeployClick={model.startNewDeployment}
-                hasDeployments={model.hasAnyArchived}
-                showTemplatesButton={!model.hasAnyArchived}
-              />
-            )}
+              {model.hasSettledWithoutActiveDeployments && (
+                <d.DeploymentsEmptyState
+                  onDeployClick={model.startNewDeployment}
+                  hasDeployments={model.hasAnyArchived}
+                  showTemplatesButton={!model.hasAnyArchived}
+                />
+              )}
 
-            {(model.hasPageResults || model.isInitialLoad) && (
-              <d.DeploymentsCollection
-                deployments={model.pageDeployments}
+              {(model.hasPageResults || model.isInitialLoad) && (
+                <d.DeploymentsCollection
+                  deployments={model.pageDeployments}
+                  providers={model.providers}
+                  viewMode={model.viewMode}
+                  isLoading={model.isInitialLoad}
+                  isSelectable
+                  selectedIds={model.selectedItemIds}
+                  closingDseqs={model.closingDseqs}
+                  onSelect={model.selectItem}
+                  onDeploymentClosed={model.refetchDeployments}
+                  maxColumns={maxColumns}
+                />
+              )}
+
+              {model.showNoSearchResults && <p className="py-6">No deployment found.</p>}
+
+              {model.showSearchTooBroad && <p className="py-6">Too many deployments to search through. Clear the search to page through them instead.</p>}
+
+              {model.showPageSizeSelector && (
+                <div className="flex flex-col items-center justify-between px-2 py-8 md:flex-row md:space-x-4">
+                  <PaginationSizeSelector pageSize={model.pageSize} setPageSize={model.changePageSize} />
+                  {model.isPaginated && (
+                    <Pagination>
+                      <PaginationContent>
+                        <PaginationItem>
+                          <PaginationPrevious onClick={model.goToPreviousPage} disabled={model.pageIndex === 0} />
+                        </PaginationItem>
+                        <PaginationItem>
+                          <PaginationNext onClick={model.goToNextPage} disabled={!model.hasNextPage} />
+                        </PaginationItem>
+                      </PaginationContent>
+                    </Pagination>
+                  )}
+                </div>
+              )}
+
+              <d.DeploymentArchive
+                deployments={model.archivePageDeployments}
+                totalCount={model.archiveTotal}
                 providers={model.providers}
                 viewMode={model.viewMode}
-                isLoading={model.isInitialLoad}
-                isSelectable
-                selectedIds={model.selectedItemIds}
-                closingDseqs={model.closingDseqs}
-                onSelect={model.selectItem}
-                onDeploymentClosed={model.refetchDeployments}
+                isError={model.showArchiveError}
+                isSearchTooBroad={model.showArchiveSearchTooBroad}
+                isRetrying={model.isRetryingArchive}
+                onRetry={model.refetchDeployments}
+                pageIndex={model.archivePageIndex}
+                hasNextPage={model.hasNextArchivePage}
+                isPaginated={model.isArchivePaginated}
+                onPreviousPage={model.goToPreviousArchivePage}
+                onNextPage={model.goToNextArchivePage}
+                maxColumns={maxColumns}
               />
-            )}
+            </div>
 
-            {model.showNoSearchResults && <p className="py-6">No deployment found.</p>}
-
-            {model.showSearchTooBroad && <p className="py-6">Too many deployments to search through. Clear the search to page through them instead.</p>}
-
-            {model.showPageSizeSelector && (
-              <div className="flex flex-col items-center justify-between px-2 py-8 md:flex-row md:space-x-4">
-                <PaginationSizeSelector pageSize={model.pageSize} setPageSize={model.changePageSize} />
-                {model.isPaginated && (
-                  <Pagination>
-                    <PaginationContent>
-                      <PaginationItem>
-                        <PaginationPrevious onClick={model.goToPreviousPage} disabled={model.pageIndex === 0} />
-                      </PaginationItem>
-                      <PaginationItem>
-                        <PaginationNext onClick={model.goToNextPage} disabled={!model.hasNextPage} />
-                      </PaginationItem>
-                    </PaginationContent>
-                  </Pagination>
-                )}
-              </div>
-            )}
-
-            <d.DeploymentArchive
-              deployments={model.archivePageDeployments}
-              totalCount={model.archiveTotal}
-              providers={model.providers}
-              viewMode={model.viewMode}
-              isError={model.showArchiveError}
-              isSearchTooBroad={model.showArchiveSearchTooBroad}
-              isRetrying={model.isRetryingArchive}
-              onRetry={model.refetchDeployments}
-              pageIndex={model.archivePageIndex}
-              hasNextPage={model.hasNextArchivePage}
-              isPaginated={model.isArchivePaginated}
-              onPreviousPage={model.goToPreviousArchivePage}
-              onNextPage={model.goToNextArchivePage}
-            />
+            {isShowingRecentActivity && <d.RecentActivity />}
           </div>
         </div>
       </div>

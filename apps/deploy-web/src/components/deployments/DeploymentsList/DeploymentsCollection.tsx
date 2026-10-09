@@ -1,6 +1,7 @@
 "use client";
 import type { FC } from "react";
 import { Card, Skeleton, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@akashnetwork/ui/components";
+import { cn } from "@akashnetwork/ui/utils";
 
 import type { DeploymentsViewMode } from "@src/store/deploymentsViewStore";
 import type { ListedDeploymentDto } from "@src/types/deployment";
@@ -34,6 +35,7 @@ export interface DeploymentsCollectionProps {
   closingDseqs?: ReadonlySet<string>;
   onSelect?: (input: { id: string; isShiftPressed: boolean }) => void;
   onDeploymentClosed?: () => void;
+  maxColumns?: 2 | 3;
   dependencies?: typeof DEPENDENCIES;
 }
 
@@ -47,6 +49,7 @@ export const DeploymentsCollection: FC<DeploymentsCollectionProps> = ({
   closingDseqs,
   onSelect,
   onDeploymentClosed,
+  maxColumns = 3,
   dependencies: d = DEPENDENCIES
 }) => {
   const itemProps = (deployment: ListedDeploymentDto) => ({
@@ -61,7 +64,7 @@ export const DeploymentsCollection: FC<DeploymentsCollectionProps> = ({
 
   if (viewMode === "grid") {
     return (
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+      <div className={cn("grid grid-cols-1 gap-4 md:grid-cols-2", maxColumns === 3 && "xl:grid-cols-3")}>
         {isLoading
           ? LOADING_PLACEHOLDERS.map(key => <CardPlaceholder key={key} />)
           : deployments.map(deployment => <d.DeploymentCard key={deployment.dseq} {...itemProps(deployment)} />)}

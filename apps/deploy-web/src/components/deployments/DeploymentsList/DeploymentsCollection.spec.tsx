@@ -15,6 +15,20 @@ describe("DeploymentsCollection", () => {
     expect(DeploymentRow).not.toHaveBeenCalled();
   });
 
+  it("lays the grid out up to three cards per row", () => {
+    setup({ viewMode: "grid", dseqs: ["100"] });
+
+    expect(gridOf(screen.getByText("card"))).toHaveClass("grid-cols-1", "md:grid-cols-2", "xl:grid-cols-3");
+  });
+
+  it("stops the grid at two cards per row when it shares the page with another column", () => {
+    setup({ viewMode: "grid", dseqs: ["100"], maxColumns: 2 });
+
+    const grid = gridOf(screen.getByText("card"));
+    expect(grid).toHaveClass("grid-cols-1", "md:grid-cols-2");
+    expect(grid).not.toHaveClass("xl:grid-cols-3");
+  });
+
   it("renders a labelled table in the list view", () => {
     const { DeploymentRow, DeploymentCard } = setup({ viewMode: "list", dseqs: ["100"] });
 
@@ -89,6 +103,10 @@ describe("DeploymentsCollection", () => {
     expect(DeploymentCard).toHaveBeenCalledWith(expect.objectContaining({ onDeploymentClosed }), expect.anything());
   });
 
+  function gridOf(card: HTMLElement) {
+    return card.parentElement;
+  }
+
   function setup(input: {
     viewMode: DeploymentsViewMode;
     dseqs: string[];
@@ -97,6 +115,7 @@ describe("DeploymentsCollection", () => {
     isSelectable?: boolean;
     closingDseqs?: ReadonlySet<string>;
     onDeploymentClosed?: () => void;
+    maxColumns?: 2 | 3;
   }) {
     const DeploymentCard = vi.fn(() => <div>card</div>);
     const DeploymentRow = vi.fn(() => <tr />);
@@ -111,6 +130,7 @@ describe("DeploymentsCollection", () => {
         selectedIds={input.selectedIds}
         closingDseqs={input.closingDseqs}
         onDeploymentClosed={input.onDeploymentClosed}
+        maxColumns={input.maxColumns}
         dependencies={MockComponents(DEPENDENCIES, { DeploymentCard, DeploymentRow })}
       />
     );

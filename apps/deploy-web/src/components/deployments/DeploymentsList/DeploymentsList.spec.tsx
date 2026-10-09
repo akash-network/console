@@ -317,6 +317,33 @@ describe("DeploymentsList", () => {
     expect(Layout).toHaveBeenCalledWith(expect.objectContaining({ isLoading: false }), expect.anything());
   });
 
+  it("shows the recent activity beside the deployments once the activity center is on", () => {
+    setup({ hasPageResults: true }, { isActivityCenterOn: true });
+
+    const deployments = screen.getByText("collection").parentElement;
+    const recentActivity = screen.getByRole("complementary", { name: "Recent activity" });
+    expect(recentActivity.previousElementSibling).toBe(deployments);
+    expect(recentActivity.parentElement).toHaveClass("grid", "grid-cols-1", "lg:grid-cols-[minmax(0,1fr)_20rem]");
+  });
+
+  it("stops the deployments at two cards per row beside the recent activity", () => {
+    const { DeploymentsCollection, DeploymentArchive } = setup({ hasPageResults: true }, { isActivityCenterOn: true });
+
+    expect(DeploymentsCollection).toHaveBeenCalledWith(expect.objectContaining({ maxColumns: 2 }), expect.anything());
+    expect(DeploymentArchive).toHaveBeenCalledWith(expect.objectContaining({ maxColumns: 2 }), expect.anything());
+  });
+
+  it("leaves the page as it was while the activity center is off", () => {
+    const { DeploymentsCollection, DeploymentArchive, RecentActivity } = setup({ hasPageResults: true }, { isActivityCenterOn: false });
+
+    expect(RecentActivity).not.toHaveBeenCalled();
+    const pageBody = screen.getByText("collection").parentElement?.parentElement;
+    expect(pageBody).toHaveClass("container", "p-6", "pb-8");
+    expect(pageBody).not.toHaveClass("grid");
+    expect(DeploymentsCollection).toHaveBeenCalledWith(expect.objectContaining({ maxColumns: 3 }), expect.anything());
+    expect(DeploymentArchive).toHaveBeenCalledWith(expect.objectContaining({ maxColumns: 3 }), expect.anything());
+  });
+
   function namedDeployment(dseq: string) {
     return mock<ListedDeploymentDto>({ dseq, state: "closed" });
   }
@@ -340,7 +367,7 @@ describe("DeploymentsList", () => {
     expect(screen.queryByText(/Too many deployments to search through/)).not.toBeInTheDocument();
   });
 
-  function setup(modelOverrides: Partial<Model>, options: { isBlockchainDown?: boolean } = {}) {
+  function setup(modelOverrides: Partial<Model>, options: { isBlockchainDown?: boolean; isActivityCenterOn?: boolean } = {}) {
     const changeSearch = vi.fn();
     const changeViewMode = vi.fn();
     const refetchDeployments = vi.fn();
@@ -407,11 +434,13 @@ describe("DeploymentsList", () => {
     const useBlockchainStatus: typeof DEPENDENCIES.useBlockchainStatus = () =>
       mock<ReturnType<typeof DEPENDENCIES.useBlockchainStatus>>({ isBlockchainDown: options.isBlockchainDown ?? false });
     const useNewDeploymentUrl: typeof DEPENDENCIES.useNewDeploymentUrl = () => () => "/new-deployment";
+    const useFlag: typeof DEPENDENCIES.useFlag = flag => flag === "notifications_activity_center" && !!options.isActivityCenterOn;
 
     const Layout = vi.fn(({ children }: { children?: React.ReactNode; isLoading?: boolean }) => <div>{children}</div>);
     const DeploymentsEmptyState = vi.fn(() => <div>empty state</div>);
     const DeploymentsCollection = vi.fn((_props: DeploymentsCollectionProps) => <div>collection</div>);
     const DeploymentArchive = vi.fn(() => <div>archive</div>);
+    const RecentActivity = vi.fn(() => <aside aria-label="Recent activity" />);
 
     render(
       <DeploymentsList
@@ -419,10 +448,12 @@ describe("DeploymentsList", () => {
           useDeploymentsListModel,
           useBlockchainStatus,
           useNewDeploymentUrl,
+          useFlag,
           Layout,
           DeploymentsEmptyState,
           DeploymentsCollection,
-          DeploymentArchive
+          DeploymentArchive,
+          RecentActivity
         })}
       />
     );
@@ -441,7 +472,8 @@ describe("DeploymentsList", () => {
       Layout,
       DeploymentsEmptyState,
       DeploymentsCollection,
-      DeploymentArchive
+      DeploymentArchive,
+      RecentActivity
     };
   }
 });
