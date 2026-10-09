@@ -40,7 +40,9 @@ export class AlertController {
     return Ok({
       data: await this.alertRepository.accessibleBy(this.authService.ability, "create").create({
         ...data,
-        userId: this.authService.userId
+        userId: this.authService.userId,
+        organizationId: this.authService.organizationId,
+        projectId: this.authService.projectId
       })
     });
   }

@@ -47,7 +47,7 @@ export class JobsController {
     const notificationChannelRepository = this.notificationChannelRepository.accessibleBy(this.authService.ability, "read");
     const notificationChannel = job.notificationChannelId
       ? await notificationChannelRepository.findById(job.notificationChannelId)
-      : await notificationChannelRepository.findDefaultByUserId(this.authService.userId);
+      : await notificationChannelRepository.findDefault(this.authService.defaultChannelOwner);
 
     if (!notificationChannel) {
       return Err(

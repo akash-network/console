@@ -27,6 +27,54 @@ describe(AuthService.name, () => {
     });
   });
 
+  describe("organizationId and projectId", () => {
+    it("returns the organization and project minted for the request", async () => {
+      const organizationId = faker.string.uuid();
+      const projectId = faker.string.uuid();
+      const { service } = await setup({ headers: { "x-user-id": faker.string.uuid(), "x-organization-id": organizationId, "x-project-id": projectId } });
+
+      expect(service.organizationId).toBe(organizationId);
+      expect(service.projectId).toBe(projectId);
+    });
+
+    it("returns null when none is minted", async () => {
+      const { service } = await setup({ headers: { "x-user-id": faker.string.uuid() } });
+
+      expect(service.organizationId).toBeNull();
+      expect(service.projectId).toBeNull();
+    });
+
+    it("throws if the identity headers are malformed", async () => {
+      const { service } = await setup({ headers: { "x-user-id": faker.string.uuid(), "x-organization-id": "acme" } });
+
+      expect(() => service.organizationId).toThrow(UnauthorizedException);
+    });
+  });
+
+  describe("defaultChannelOwner", () => {
+    it("names the organization when its rules apply", async () => {
+      const organizationId = faker.string.uuid();
+      const { service } = await setup({
+        headers: {
+          "x-user-id": faker.string.uuid(),
+          "x-organization-id": organizationId,
+          "x-organization-role": "admin",
+          "x-project-scope": JSON.stringify({ kind: "all" })
+        }
+      });
+
+      expect(service.defaultChannelOwner).toEqual({ kind: "organization", organizationId });
+    });
+
+    it("names the user within the minted organization otherwise", async () => {
+      const userId = faker.string.uuid();
+      const organizationId = faker.string.uuid();
+      const { service } = await setup({ headers: { "x-user-id": userId, "x-organization-id": organizationId } });
+
+      expect(service.defaultChannelOwner).toEqual({ kind: "user", userId, organizationId });
+    });
+  });
+
   describe("ability", () => {
     it("returns ability from request", async () => {
       const ability = {} as MongoAbility;

@@ -4,6 +4,8 @@ import { REQUEST } from "@nestjs/core";
 import { Request } from "express";
 
 import { LoggerService } from "@src/common/services/logger/logger.service";
+import type { DefaultChannelOwner } from "@src/modules/notifications/repositories/notification-channel/notification-channel.repository";
+import { readRequestIdentity, type RequestIdentity } from "./request-identity";
 
 declare module "express" {
   export interface Request {
@@ -16,12 +18,21 @@ declare module "express" {
 })
 export class AuthService {
   get userId(): string {
-    if (!this.request.headers["x-user-id"]) {
-      this.loggerService.error("User is not authorized");
-      throw new UnauthorizedException();
-    }
+    return this.#identity.userId;
+  }
 
-    return this.request.headers["x-user-id"] as string;
+  get organizationId(): string | null {
+    return this.#identity.organizationId;
+  }
+
+  get projectId(): string | null {
+    return this.#identity.projectId;
+  }
+
+  get defaultChannelOwner(): DefaultChannelOwner {
+    const { userId, organizationId, membership } = this.#identity;
+
+    return membership ? { kind: "organization", organizationId: membership.organizationId } : { kind: "user", userId, organizationId };
   }
 
   get ability(): MongoAbility {
@@ -30,6 +41,17 @@ export class AuthService {
       throw new UnauthorizedException();
     }
     return this.request.ability;
+  }
+
+  get #identity(): RequestIdentity {
+    const identity = readRequestIdentity(this.request.headers);
+
+    if (!identity) {
+      this.loggerService.error("User is not authorized");
+      throw new UnauthorizedException();
+    }
+
+    return identity;
   }
 
   constructor(

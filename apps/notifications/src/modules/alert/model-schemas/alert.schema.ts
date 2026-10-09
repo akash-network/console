@@ -15,6 +15,8 @@ export const Alert = pgTable(
       .notNull()
       .default(sql`uuid_generate_v4()`),
     userId: uuid("user_id").notNull(),
+    organizationId: uuid("organization_id"),
+    projectId: uuid("project_id"),
     notificationChannelId: uuid("notification_channel_id")
       .notNull()
       .references(() => NotificationChannel.id),
@@ -32,6 +34,7 @@ export const Alert = pgTable(
   },
   table => [
     index("idx_alerts_user_id").on(table.userId),
+    index("idx_alerts_organization_id_project_id").on(table.organizationId, table.projectId),
     index("idx_alerts_notification_channel_id").on(table.notificationChannelId),
     index("idx_alerts_status").on(table.status),
     index("idx_alerts_min_block_height_id").on(table.minBlockHeight, table.id),

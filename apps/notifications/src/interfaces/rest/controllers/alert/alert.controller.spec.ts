@@ -25,8 +25,8 @@ import { generateWalletBalanceAlert } from "@test/seeders/wallet-balance-alert.s
 
 describe(AlertController.name, () => {
   describe("createAlert", () => {
-    it("should call alertRepository.create() and return the created alert", async () => {
-      const { controller, alertRepository, userId } = await setup();
+    it("creates the alert stamped with the request's user, organization and project", async () => {
+      const { controller, alertRepository, userId, organizationId, projectId } = await setup();
 
       const input = generateMock(chainMessageCreateInputSchema);
       const output = generateGeneralAlert({});
@@ -37,7 +37,9 @@ describe(AlertController.name, () => {
 
       expect(alertRepository.create).toHaveBeenCalledWith({
         ...input,
-        userId
+        userId,
+        organizationId,
+        projectId
       });
       expect(result).toEqual(Ok({ data: output }));
     });
@@ -255,15 +257,21 @@ describe(AlertController.name, () => {
     alertRepository: MockProxy<AlertRepository>;
     notificationChannelRepository: MockProxy<NotificationChannelRepository>;
     userId: string;
+    organizationId: string;
+    projectId: string;
   }> {
     const userId = faker.string.uuid();
+    const organizationId = faker.string.uuid();
+    const projectId = faker.string.uuid();
     const module: TestingModule = await Test.createTestingModule({
       controllers: [AlertController],
       providers: [
         {
           provide: AuthService,
           useValue: {
-            userId
+            userId,
+            organizationId,
+            projectId
           }
         },
         MockProvider(AlertRepository),
@@ -290,6 +298,8 @@ describe(AlertController.name, () => {
       controller: module.get(AlertController),
       app,
       userId,
+      organizationId,
+      projectId,
       alertRepository,
       notificationChannelRepository
     };

@@ -7,6 +7,8 @@ import { mockAkashAddress } from "@test/seeders/akash-address.seeder";
 export const generateWalletBalanceAlert = ({
   id = faker.string.uuid(),
   userId = faker.string.uuid(),
+  organizationId = null,
+  projectId = null,
   notificationChannelId = faker.string.uuid(),
   name = faker.lorem.word({ length: { min: 3, max: 12 } }),
   summary = faker.lorem.sentence(),
@@ -30,6 +32,8 @@ export const generateWalletBalanceAlert = ({
     type: "WALLET_BALANCE",
     id,
     userId,
+    organizationId,
+    projectId,
     notificationChannelId,
     name,
     summary,

@@ -2,7 +2,7 @@ import { DrizzleAbility } from "@akashnetwork/drizzle-ability";
 import type { AnyAbility } from "@casl/ability";
 import { InjectDrizzle } from "@knaadh/nestjs-drizzle-pg";
 import { Injectable } from "@nestjs/common";
-import { and, count, eq, isNull, sql } from "drizzle-orm";
+import { and, count, eq, isNull, or, sql } from "drizzle-orm";
 import { NodePgDatabase } from "drizzle-orm/node-postgres";
 import type { SQL } from "drizzle-orm/sql/sql";
 import { randomUUID } from "node:crypto";
@@ -27,6 +27,9 @@ type InternalNotificationChannelOutput = typeof schema.NotificationChannel.$infe
 export type NotificationChannelOutput = Omit<InternalNotificationChannelOutput, "config" | "deletedAt"> & {
   config: NotificationChannelConfig;
 };
+
+/** Who a default channel belongs to: the organization when its rules apply, otherwise the user within their personal organization. */
+export type DefaultChannelOwner = { kind: "organization"; organizationId: string } | { kind: "user"; userId: string; organizationId: string | null };
 
 export type PaginateOptions = {
   limit?: number;
@@ -81,25 +84,45 @@ export class NotificationChannelRepository {
     return notificationChannel && this.toOutput(notificationChannel);
   }
 
-  async findDefaultByUserId(userId: NotificationChannelOutput["userId"]): Promise<NotificationChannelOutput | undefined> {
+  async findDefault(owner: DefaultChannelOwner): Promise<NotificationChannelOutput | undefined> {
     const notificationChannel = await this.db.query.NotificationChannel.findFirst({
-      where: this.whereAccessibleBy(this.nonDeleted(and(eq(schema.NotificationChannel.userId, userId), eq(schema.NotificationChannel.isDefault, true))))
+      where: this.whereAccessibleBy(this.#liveDefaultOf(owner))
     });
 
     return notificationChannel && this.toOutput(notificationChannel);
   }
 
-  async createDefaultChannel(input: NotificationChannelInput): Promise<void> {
+  /** Checks for an existing default before inserting because an unattributed default and an organization default sit under different unique indexes. */
+  async createDefaultChannel(input: NotificationChannelInput, owner: DefaultChannelOwner): Promise<void> {
+    this.ability?.throwUnlessCanExecute(input);
+
+    const existingDefault = await this.db.query.NotificationChannel.findFirst({ where: this.#liveDefaultOf(owner) });
+
+    if (existingDefault) {
+      return;
+    }
+
     await this.db
       .insert(schema.NotificationChannel)
       .values({
         ...this.toInput(input),
         isDefault: true
       })
-      .onConflictDoNothing({
-        target: [schema.NotificationChannel.userId, schema.NotificationChannel.isDefault],
-        where: and(eq(schema.NotificationChannel.isDefault, true), isNull(schema.NotificationChannel.deletedAt))
-      });
+      .onConflictDoNothing();
+  }
+
+  #liveDefaultOf(owner: DefaultChannelOwner): SQL | undefined {
+    const ownedBy =
+      owner.kind === "organization"
+        ? eq(schema.NotificationChannel.organizationId, owner.organizationId)
+        : and(
+            eq(schema.NotificationChannel.userId, owner.userId),
+            owner.organizationId
+              ? or(eq(schema.NotificationChannel.organizationId, owner.organizationId), isNull(schema.NotificationChannel.organizationId))
+              : undefined
+          );
+
+    return this.nonDeleted(and(ownedBy, eq(schema.NotificationChannel.isDefault, true)));
   }
 
   async paginate(options: PaginateNotificationChannelsOptions): Promise<PaginatedResult<NotificationChannelOutput>> {
