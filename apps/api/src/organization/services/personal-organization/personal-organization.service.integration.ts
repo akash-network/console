@@ -58,7 +58,7 @@ describe(PersonalOrganizationService.name, () => {
   });
 
   describe("adoptUserRows", () => {
-    it("files the user's rows into the organization and its default project without touching anyone else's", async () => {
+    it("files the user's rows into the organization, deployments and templates into its default project, without touching anyone else's", async () => {
       const { service, user, projectRepository, seedOwnedRows, readOrganizationIds } = await setup();
       const stranger = await setup();
       const rows = await seedOwnedRows(user);
@@ -75,7 +75,7 @@ describe(PersonalOrganizationService.name, () => {
         paymentMethods: { organizationId: organization.id },
         stripeTransactions: { organizationId: organization.id },
         deploymentSettings: { organizationId: organization.id, projectId: project?.id },
-        apiKeys: { organizationId: organization.id, projectId: project?.id },
+        apiKeys: { organizationId: organization.id, projectId: null },
         templates: { organizationId: organization.id, projectId: project?.id }
       });
       expect(await readOrganizationIds(strangerRows)).toEqual({

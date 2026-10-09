@@ -80,7 +80,7 @@ export class OrganizationAdoptionRepository {
         return (
           await this.#cursor
             .update(apiKeys)
-            .set({ organizationId, projectId })
+            .set({ organizationId })
             .where(and(eq(apiKeys.userId, userId), isNull(apiKeys.organizationId)))
         ).count;
       case "templates":
