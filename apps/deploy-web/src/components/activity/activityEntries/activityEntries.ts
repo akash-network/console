@@ -1,6 +1,6 @@
+import { activityDestinationOf, SUMMARY_DESTINATION } from "@src/components/activity/activityDestinations/activityDestinations";
 import { listOf } from "@src/components/activity/activityLabels/activityLabels";
 import type { Activity } from "@src/queries/useLatestActivitiesQuery";
-import { UrlService } from "@src/utils/urlUtils";
 
 /** `partial` is a bulk close that closed some of its deployments and not others. */
 export type ActivityEntryStatus = Activity["status"] | "partial";
@@ -39,9 +39,10 @@ export function activityEntriesOf(activities: Activity[], labelDeployment: Label
   return entries;
 }
 
-export function activityEntryOf({ id, status, meta, createdAt }: Activity, labelDeployment: LabelDeployment): ActivityEntry {
+export function activityEntryOf(activity: Activity, labelDeployment: LabelDeployment): ActivityEntry {
+  const { id, status, meta, createdAt } = activity;
   const deployment = labelDeployment(meta.dseq);
-  const href = meta.dseq ? UrlService.deploymentDetails(meta.dseq, status === "failed" ? "SETTINGS" : undefined) : UrlService.deploymentList();
+  const { href } = activityDestinationOf(activity);
 
   if (status === "pending") return { id, status, title: `Closing ${deployment}`, href, createdAt };
   if (status === "succeeded") return { id, status, title: `Closed ${deployment}`, href, createdAt };
@@ -50,7 +51,7 @@ export function activityEntryOf({ id, status, meta, createdAt }: Activity, label
 }
 
 function batchEntryOf(batchId: string, batch: Activity[], labelDeployment: LabelDeployment): ActivityEntry {
-  const common = { id: `batch:${batchId}`, href: UrlService.deploymentList(), createdAt: batch[0].createdAt };
+  const common = { id: `batch:${batchId}`, href: SUMMARY_DESTINATION.href, createdAt: batch[0].createdAt };
   const notClosed = batch.filter(activity => activity.status === "failed").map(activity => labelDeployment(activity.meta.dseq));
 
   if (batch.some(activity => activity.status === "pending")) return { ...common, status: "pending", title: `Closing ${batch.length} deployments` };

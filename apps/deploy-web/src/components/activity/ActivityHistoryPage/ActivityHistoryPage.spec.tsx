@@ -69,6 +69,21 @@ describe(ActivityHistoryPage.name, () => {
     expect(entries[1]).toHaveTextContent("Couldn't close deployment 2");
   });
 
+  it("links each close of a bulk close to its own deployment, a failed one to where it can be closed again", () => {
+    setup({
+      pages: {
+        first: {
+          activities: [
+            buildActivity({ status: "succeeded", meta: { dseq: "1", batchId: "batch-1" } }),
+            buildActivity({ status: "failed", meta: { dseq: "2", batchId: "batch-1" } })
+          ]
+        }
+      }
+    });
+
+    expect(entryItems().map(entry => within(entry).getByRole("link").getAttribute("href"))).toEqual(["/deployments/1", "/deployments/2?tab=SETTINGS"]);
+  });
+
   it("filters to entries still in progress", async () => {
     const { useActivityHistoryQuery } = setup({});
 

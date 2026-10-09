@@ -86,6 +86,21 @@ describe(ActivityBell.name, () => {
     expect(entry).toHaveAttribute("href", "/deployments/1?tab=SETTINGS");
   });
 
+  it("links a bulk close to the deployments list", async () => {
+    setup({
+      activities: [
+        buildActivity({ status: "succeeded", meta: { dseq: "1", batchId: "batch-1" } }),
+        buildActivity({ status: "failed", meta: { dseq: "2", batchId: "batch-1" } })
+      ]
+    });
+
+    await open();
+
+    const [entry] = entryItems();
+    expect(entry).toHaveTextContent("Closed 1 of 2 deployments");
+    expect(entry).toHaveAttribute("href", "/deployments");
+  });
+
   it("shows how long ago each entry happened", async () => {
     setup({ activities: [buildActivity({ status: "succeeded", createdAt: new Date(Date.now() - 5 * 60_000).toISOString() })] });
 

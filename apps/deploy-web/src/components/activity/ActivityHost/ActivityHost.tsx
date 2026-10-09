@@ -1,10 +1,13 @@
 import { useEffect, useRef } from "react";
-import { Snackbar } from "@akashnetwork/ui/components";
+import { Button, Snackbar } from "@akashnetwork/ui/components";
 import type { QueryKey } from "@tanstack/react-query";
 import { useQueryClient } from "@tanstack/react-query";
 import upperFirst from "lodash/upperFirst";
+import { useRouter } from "next/navigation";
+import type { SnackbarKey } from "notistack";
 import { useSnackbar } from "notistack";
 
+import { type ActivityDestination, activityDestinationOf, SUMMARY_DESTINATION } from "@src/components/activity/activityDestinations/activityDestinations";
 import { deploymentLabelOf, listOf } from "@src/components/activity/activityLabels/activityLabels";
 import { useServices } from "@src/context/ServicesProvider";
 import { useWallet } from "@src/context/WalletProvider";
@@ -23,7 +26,8 @@ export const DEPENDENCIES = {
   useDeploymentNames,
   useCloseBatchesBeingSent,
   useSnackbar,
-  useQueryClient
+  useQueryClient,
+  useRouter
 };
 
 type FinishedActivity = Activity & { status: Exclude<Activity["status"], "pending"> };
@@ -69,7 +73,8 @@ export function ActivityHost({ dependencies: d = DEPENDENCIES }: { dependencies?
   const { address } = d.useWallet();
   const { api } = useServices();
   const queryClient = d.useQueryClient();
-  const { enqueueSnackbar } = d.useSnackbar();
+  const { enqueueSnackbar, closeSnackbar } = d.useSnackbar();
+  const router = d.useRouter();
   const { data: activities } = d.useLatestActivitiesQuery({ enabled: isEnabled && !!user?.userId });
   const { getDeploymentName, isLoading: isLoadingDeploymentNames } = d.useDeploymentNames(activities?.map(activity => activity.meta.dseq) ?? []);
   const closeBatchesBeingSent = d.useCloseBatchesBeingSent();
@@ -89,7 +94,7 @@ export function ActivityHost({ dependencies: d = DEPENDENCIES }: { dependencies?
         }
 
         if (activity.meta.batchId) batchesToSumUp.current.add(activity.meta.batchId);
-        else announce(ANNOUNCEMENTS[activity.type](activity, labelDeployment));
+        else announceActivity(activity);
       }
 
       for (const batchId of batchesToSumUp.current) {
@@ -100,11 +105,26 @@ export function ActivityHost({ dependencies: d = DEPENDENCIES }: { dependencies?
 
         batchesToSumUp.current.delete(batchId);
         const [first, ...rest] = batch;
-        if (first) announce(rest.length === 0 ? ANNOUNCEMENTS[first.type](first, labelDeployment) : BATCH_ANNOUNCEMENTS[first.type](batch, labelDeployment));
+        if (!first) continue;
+
+        if (rest.length === 0) announceActivity(first);
+        else announce(BATCH_ANNOUNCEMENTS[first.type](batch, labelDeployment), SUMMARY_DESTINATION);
       }
 
-      function announce({ title, subTitle, variant }: Announcement) {
-        enqueueSnackbar(<Snackbar title={title} subTitle={subTitle} iconVariant={variant} />, { variant });
+      function announceActivity(activity: FinishedActivity) {
+        announce(ANNOUNCEMENTS[activity.type](activity, labelDeployment), activityDestinationOf(activity));
+      }
+
+      function announce({ title, subTitle, variant }: Announcement, destination: ActivityDestination) {
+        const key = enqueueSnackbar(
+          <ActivityToast title={title} subTitle={subTitle} iconVariant={variant} actionLabel={destination.label} onAction={() => follow(destination, key)} />,
+          { variant }
+        );
+      }
+
+      function follow({ href }: ActivityDestination, key: SnackbarKey) {
+        router.push(href);
+        closeSnackbar(key);
       }
 
       function labelDeployment(dseq: string | undefined) {
@@ -123,10 +143,51 @@ export function ActivityHost({ dependencies: d = DEPENDENCIES }: { dependencies?
         ];
       }
     },
-    [activities, isLoadingDeploymentNames, getDeploymentName, closeBatchesBeingSent, address, api, enqueueSnackbar, queryClient, user?.id]
+    [
+      activities,
+      isLoadingDeploymentNames,
+      getDeploymentName,
+      closeBatchesBeingSent,
+      address,
+      api,
+      enqueueSnackbar,
+      closeSnackbar,
+      router,
+      queryClient,
+      user?.id
+    ]
   );
 
   return null;
+}
+
+function ActivityToast({
+  title,
+  subTitle,
+  iconVariant,
+  actionLabel,
+  onAction
+}: {
+  title: string;
+  subTitle: string;
+  iconVariant: Announcement["variant"];
+  actionLabel: string;
+  onAction: () => void;
+}) {
+  return (
+    <Snackbar
+      title={title}
+      iconVariant={iconVariant}
+      subTitle={
+        <>
+          <div>{subTitle}</div>
+          <Button className="mt-2 h-7 px-3 text-xs" onClick={onAction}>
+            {actionLabel}
+          </Button>
+        </>
+      }
+    />
+  );
 }
 
 /** An action never seen before counts too, so one that started and finished between two checks is still announced. */
