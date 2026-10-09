@@ -26,7 +26,7 @@ interface AddCreditsSheetProps {
   onRedeemed?: () => void;
   initialTab?: AddCreditsTab;
   description?: React.ReactNode;
-  /** Where the sheet was opened from (e.g. the onboarding reason); sent with the lifecycle events for funnel segmentation. */
+  /** Where the sheet was opened from (e.g. the onboarding reason); sent with the lifecycle and payment events for funnel segmentation. */
   context?: string;
   dependencies?: typeof DEPENDENCIES;
 }
@@ -68,7 +68,6 @@ export function AddCreditsSheet({
 
   const completePurchase = (amount: number, organization?: string, bonusAmount?: number) => {
     completedRef.current = true;
-    analyticsService.track("add_credits_purchased", { category: "billing", amount, context });
     onDone(amount, organization, bonusAmount);
   };
 
@@ -85,7 +84,15 @@ export function AddCreditsSheet({
           <d.SheetDescription className="text-sm leading-5 text-muted-foreground">{description}</d.SheetDescription>
         </d.SheetHeader>
 
-        {open && <d.AddCreditsTabs initialTab={initialTab} onDone={completePurchase} onRedeemed={completeRedemption} onProcessingChange={setIsProcessing} />}
+        {open && (
+          <d.AddCreditsTabs
+            initialTab={initialTab}
+            context={context}
+            onDone={completePurchase}
+            onRedeemed={completeRedemption}
+            onProcessingChange={setIsProcessing}
+          />
+        )}
       </d.SheetContent>
     </d.Sheet>
   );

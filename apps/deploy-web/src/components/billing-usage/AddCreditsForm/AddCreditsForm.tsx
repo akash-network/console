@@ -67,6 +67,7 @@ export const DEPENDENCIES = {
 interface AddCreditsFormProps {
   onDone: (amount: number, organization?: string, bonusAmount?: number) => void;
   onProcessingChange?: (isProcessing: boolean) => void;
+  context?: string;
   dependencies?: typeof DEPENDENCIES;
 }
 
@@ -74,7 +75,10 @@ interface PaymentAnalytics {
   amount: number;
   type: string;
   isSavedMethod: boolean;
+  context?: string;
 }
+
+type ThreeDSecureResult = "succeeded" | "failed";
 
 type PaymentFailureStage = "payment_method_setup" | "charge_declined" | "charge_error" | "three_d_secure" | "confirmation_timeout" | "trial_activation_timeout";
 
@@ -110,7 +114,7 @@ interface PendingCharge {
  * saved payment method instead of re-confirming a consumed intent. Each charge
  * carries a replay-safe idempotency key managed by useTopUpAttemptKey.
  */
-export function AddCreditsForm({ onDone, onProcessingChange, dependencies: d = DEPENDENCIES }: AddCreditsFormProps) {
+export function AddCreditsForm({ onDone, onProcessingChange, context, dependencies: d = DEPENDENCIES }: AddCreditsFormProps) {
   const { data: setupIntent, mutate: createSetupIntent, status: setupIntentStatus, reset: resetSetupIntent } = d.useSetupIntentMutation();
   const { user } = d.useUser();
   const { pollForPayment, isPolling, lastOutcome } = d.usePaymentPolling();
@@ -171,10 +175,10 @@ export function AddCreditsForm({ onDone, onProcessingChange, dependencies: d = D
 
   const describeSelectedPayment = (): PaymentAnalytics => {
     if (isNewCard) {
-      return { amount, type: lastPaymentTypeRef.current ?? "card", isSavedMethod: false };
+      return { amount, type: lastPaymentTypeRef.current ?? "card", isSavedMethod: false, context };
     }
     const savedMethod = paymentMethods?.find(method => method.id === selectedMethodId);
-    return { amount, type: toPaymentMethodType(savedMethod?.type ?? "unknown"), isSavedMethod: true };
+    return { amount, type: toPaymentMethodType(savedMethod?.type ?? "unknown"), isSavedMethod: true, context };
   };
 
   const submit: FormEventHandler<HTMLFormElement> = async e => {
@@ -246,12 +250,17 @@ export function AddCreditsForm({ onDone, onProcessingChange, dependencies: d = D
     [refreshPaymentMethods]
   );
 
+  const trackThreeDSecureCompleted = (result: ThreeDSecureResult) => {
+    analyticsService.track("add_credits_3ds_completed", { category: "billing", ...threeDSecureAnalyticsRef.current, result });
+  };
+
   const threeDSecure = d.use3DSecure({
     onSuccess: function onThreeDSecureSuccess() {
-      analyticsService.track("add_credits_3ds_completed", { category: "billing", ...threeDSecureAnalyticsRef.current });
+      trackThreeDSecureCompleted("succeeded");
       pollForPayment();
     },
     onError: function onThreeDSecureError(message) {
+      trackThreeDSecureCompleted("failed");
       trackPaymentFailed(threeDSecureAnalyticsRef.current, "three_d_secure");
       finalizeFailure(message);
     },
@@ -344,6 +353,7 @@ export function AddCreditsForm({ onDone, onProcessingChange, dependencies: d = D
       attempt.clear();
       setCharge(null);
       setIsProcessing(false);
+      analyticsService.track("add_credits_purchased", { category: "billing", ...charge.analytics });
 
       const { amount, organization } = charge;
       void (async function completeWithGrantedBonus() {
@@ -362,7 +372,7 @@ export function AddCreditsForm({ onDone, onProcessingChange, dependencies: d = D
         onDone(amount, organization, bonusAmount);
       })();
     },
-    [isPolling, lastOutcome, isTrialing, charge, releaseChargeKeepingAttempt, finalizeFailure, trackPaymentFailed, attempt, onDone, stripe]
+    [isPolling, lastOutcome, isTrialing, charge, releaseChargeKeepingAttempt, finalizeFailure, trackPaymentFailed, attempt, onDone, stripe, analyticsService]
   );
 
   useEffect(
