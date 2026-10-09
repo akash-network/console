@@ -1,3 +1,4 @@
+import type { LoggerService } from "@akashnetwork/logging";
 import { createMongoAbility, ForbiddenError } from "@casl/ability";
 import { faker } from "@faker-js/faker";
 import { DrizzleQueryError } from "drizzle-orm";
@@ -6,6 +7,7 @@ import postgres from "postgres";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
+import { ShadowedAbility } from "@src/auth/services/ability/shadowed-ability";
 import type { ApiPgDatabase } from "@src/core/providers";
 import { BaseRepository } from "@src/core/repositories/base.repository";
 import type { ApiTransaction, TxService } from "@src/core/services";
@@ -180,8 +182,74 @@ describe(BaseRepository.name, () => {
     });
   });
 
+  describe("under a shadowed ability", () => {
+    it.each(shadowedReads())("reports a row %s returns that only the legacy rules allow", async (_, read) => {
+      const userId = faker.string.uuid();
+      const { dataKeyRepository, respondWith, logger } = setupWithRows({ inTransaction: true });
+      respondWith(createDataKey({ userId }));
+
+      await read(dataKeyRepository.accessibleBy(shadowedAbilityOver(userId, faker.string.uuid(), logger), "read"));
+
+      expect(logger.warn).toHaveBeenCalledExactlyOnceWith({
+        event: "ORGANIZATION_ABILITY_SHADOW_MISMATCH",
+        action: "read",
+        subjectType: "DataKey",
+        allowedBy: "legacy"
+      });
+    });
+
+    it("stays quiet about rows both rule sets allow", async () => {
+      const dataKey = createDataKey();
+      const { dataKeyRepository, respondWith, logger } = setupWithRows();
+      respondWith(dataKey);
+
+      await dataKeyRepository.accessibleBy(shadowedAbilityOver(dataKey.userId, dataKey.userId, logger), "read").find();
+
+      expect(logger.warn).not.toHaveBeenCalled();
+    });
+
+    it("leaves rows read with only some of their columns uncompared", async () => {
+      const userId = faker.string.uuid();
+      const { dataKeyRepository, respondWith, logger } = setupWithRows();
+      respondWith(createDataKey({ userId }));
+
+      await dataKeyRepository.accessibleBy(shadowedAbilityOver(userId, faker.string.uuid(), logger), "read").find({}, { select: ["id"] });
+
+      expect(logger.warn).not.toHaveBeenCalled();
+    });
+
+    it("does not consult an ability that shadows nothing row by row", async () => {
+      const userId = faker.string.uuid();
+      const { dataKeyRepository, respondWith } = setupWithRows();
+      respondWith(createDataKey({ userId }));
+      const ability = abilityOver(userId);
+      const can = vi.spyOn(ability, "can");
+
+      await dataKeyRepository.accessibleBy(ability, "read").find();
+
+      expect(can).not.toHaveBeenCalled();
+    });
+  });
+
+  function shadowedReads(): Array<[string, (repository: DataKeyRepository) => Promise<unknown>]> {
+    return [
+      ["findById", repository => repository.findById(faker.string.uuid())],
+      ["findOneBy", repository => repository.findOneBy({ wrappedByKid: "kms-v1" })],
+      ["findOneByAndLock", repository => repository.findOneByAndLock({ wrappedByKid: "kms-v1" })],
+      ["find", repository => repository.find()],
+      ["paginate", repository => repository.paginate({}, async () => {})],
+      ["deleteBy", repository => repository.deleteBy({ wrappedByKid: "kms-v1" }, { returning: true })]
+    ];
+  }
+
   function abilityOver(userId: string) {
     return createMongoAbility([{ action: ["read", "update"], subject: "DataKey", conditions: { userId } }]);
+  }
+
+  function shadowedAbilityOver(legacyUserId: string, organizationUserId: string, logger: LoggerService) {
+    const organizationAbility = createMongoAbility([{ action: "read", subject: "DataKey", conditions: { userId: organizationUserId } }]);
+
+    return new ShadowedAbility([{ action: "read", subject: "DataKey", conditions: { userId: legacyUserId } }], organizationAbility, logger);
   }
 
   function createDataKey(overrides: Partial<DataKeyOutput> = {}): DataKeyOutput {
@@ -202,9 +270,10 @@ describe(BaseRepository.name, () => {
     const pg = db as unknown as ApiPgDatabase;
     const txManager = mock<TxService>();
     txManager.getPgTx.mockReturnValue(input.inTransaction ? (db as unknown as ApiTransaction) : undefined);
+    const logger = mock<LoggerService>();
     const dataKeyRepository = new DataKeyRepository(pg, DataKeys, txManager);
 
-    return { dataKeyRepository, executedQueries, respondWith };
+    return { dataKeyRepository, executedQueries, respondWith, logger };
   }
 
   async function executeAgainstStubbedDriver(run: () => Promise<unknown>) {
