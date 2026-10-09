@@ -1,3 +1,4 @@
+SET lock_timeout = '3s';--> statement-breakpoint
 CREATE TYPE "public"."organization_type" AS ENUM('personal', 'team');--> statement-breakpoint
 CREATE TYPE "public"."organization_role" AS ENUM('owner', 'admin', 'member', 'billing', 'viewer');--> statement-breakpoint
 CREATE TYPE "public"."organization_invitation_status" AS ENUM('pending', 'accepted', 'revoked');--> statement-breakpoint
@@ -96,21 +97,24 @@ CREATE UNIQUE INDEX "organization_invitations_organization_id_email_pending_uniq
 CREATE UNIQUE INDEX "projects_organization_id_slug_unique" ON "projects" USING btree ("organization_id","slug") WHERE "projects"."deleted_at" IS NULL;--> statement-breakpoint
 CREATE UNIQUE INDEX "projects_organization_id_default_unique" ON "projects" USING btree ("organization_id") WHERE "projects"."is_default" = true;--> statement-breakpoint
 CREATE INDEX "project_members_user_id_idx" ON "project_members" USING btree ("user_id");--> statement-breakpoint
-ALTER TABLE "user_wallets" ADD CONSTRAINT "user_wallets_organization_id_organizations_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."organizations"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "payment_methods" ADD CONSTRAINT "payment_methods_organization_id_organizations_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."organizations"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "stripe_transactions" ADD CONSTRAINT "stripe_transactions_organization_id_organizations_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."organizations"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "wallet_settings" ADD CONSTRAINT "wallet_settings_organization_id_organizations_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."organizations"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "userSetting" ADD CONSTRAINT "userSetting_last_used_organization_id_organizations_id_fk" FOREIGN KEY ("last_used_organization_id") REFERENCES "public"."organizations"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "template" ADD CONSTRAINT "template_organization_id_organizations_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."organizations"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "template" ADD CONSTRAINT "template_organization_id_project_id_fk" FOREIGN KEY ("organization_id","project_id") REFERENCES "public"."projects"("organization_id","id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "deployment_settings" ADD CONSTRAINT "deployment_settings_organization_id_organizations_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."organizations"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "deployment_settings" ADD CONSTRAINT "deployment_settings_organization_id_project_id_fk" FOREIGN KEY ("organization_id","project_id") REFERENCES "public"."projects"("organization_id","id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "api_keys" ADD CONSTRAINT "api_keys_organization_id_organizations_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."organizations"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "api_keys" ADD CONSTRAINT "api_keys_organization_id_project_id_fk" FOREIGN KEY ("organization_id","project_id") REFERENCES "public"."projects"("organization_id","id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "user_wallets" ADD CONSTRAINT "user_wallets_organization_id_organizations_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."organizations"("id") ON DELETE no action ON UPDATE no action NOT VALID;--> statement-breakpoint
+ALTER TABLE "payment_methods" ADD CONSTRAINT "payment_methods_organization_id_organizations_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."organizations"("id") ON DELETE no action ON UPDATE no action NOT VALID;--> statement-breakpoint
+ALTER TABLE "stripe_transactions" ADD CONSTRAINT "stripe_transactions_organization_id_organizations_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."organizations"("id") ON DELETE no action ON UPDATE no action NOT VALID;--> statement-breakpoint
+ALTER TABLE "wallet_settings" ADD CONSTRAINT "wallet_settings_organization_id_organizations_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."organizations"("id") ON DELETE no action ON UPDATE no action NOT VALID;--> statement-breakpoint
+ALTER TABLE "userSetting" ADD CONSTRAINT "userSetting_last_used_organization_id_organizations_id_fk" FOREIGN KEY ("last_used_organization_id") REFERENCES "public"."organizations"("id") ON DELETE set null ON UPDATE no action NOT VALID;--> statement-breakpoint
+ALTER TABLE "template" ADD CONSTRAINT "template_organization_id_organizations_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."organizations"("id") ON DELETE no action ON UPDATE no action NOT VALID;--> statement-breakpoint
+ALTER TABLE "template" ADD CONSTRAINT "template_organization_id_project_id_fk" FOREIGN KEY ("organization_id","project_id") REFERENCES "public"."projects"("organization_id","id") ON DELETE no action ON UPDATE no action NOT VALID;--> statement-breakpoint
+ALTER TABLE "deployment_settings" ADD CONSTRAINT "deployment_settings_organization_id_organizations_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."organizations"("id") ON DELETE no action ON UPDATE no action NOT VALID;--> statement-breakpoint
+ALTER TABLE "deployment_settings" ADD CONSTRAINT "deployment_settings_organization_id_project_id_fk" FOREIGN KEY ("organization_id","project_id") REFERENCES "public"."projects"("organization_id","id") ON DELETE no action ON UPDATE no action NOT VALID;--> statement-breakpoint
+ALTER TABLE "api_keys" ADD CONSTRAINT "api_keys_organization_id_organizations_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."organizations"("id") ON DELETE no action ON UPDATE no action NOT VALID;--> statement-breakpoint
+ALTER TABLE "api_keys" ADD CONSTRAINT "api_keys_organization_id_project_id_fk" FOREIGN KEY ("organization_id","project_id") REFERENCES "public"."projects"("organization_id","id") ON DELETE no action ON UPDATE no action NOT VALID;--> statement-breakpoint
 CREATE UNIQUE INDEX "user_wallets_organization_id_unique" ON "user_wallets" USING btree ("organization_id") WHERE "user_wallets"."organization_id" IS NOT NULL;--> statement-breakpoint
 CREATE INDEX "payment_methods_organization_id_idx" ON "payment_methods" USING btree ("organization_id");--> statement-breakpoint
 CREATE INDEX "stripe_transactions_organization_id_idx" ON "stripe_transactions" USING btree ("organization_id");--> statement-breakpoint
 CREATE INDEX "wallet_settings_organization_id_idx" ON "wallet_settings" USING btree ("organization_id");--> statement-breakpoint
 CREATE INDEX "template_organization_id_project_id_idx" ON "template" USING btree ("organization_id","project_id");--> statement-breakpoint
+CREATE INDEX "deployment_settings_user_id_unadopted_idx" ON "deployment_settings" USING btree ("user_id") WHERE "deployment_settings"."organization_id" IS NULL;--> statement-breakpoint
 CREATE INDEX "deployment_settings_organization_id_project_id_idx" ON "deployment_settings" USING btree ("organization_id","project_id");--> statement-breakpoint
-CREATE INDEX "api_keys_organization_id_project_id_idx" ON "api_keys" USING btree ("organization_id","project_id");
+CREATE INDEX "api_keys_user_id_idx" ON "api_keys" USING btree ("user_id");--> statement-breakpoint
+CREATE INDEX "api_keys_organization_id_project_id_idx" ON "api_keys" USING btree ("organization_id","project_id");--> statement-breakpoint
+RESET lock_timeout;
