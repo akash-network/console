@@ -10,6 +10,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import type { ApiPgDatabase } from "@src/core";
 import { JOB_NAME, POSTGRES_DB, resolveTable } from "@src/core";
 import { CoreConfigService } from "@src/core/services/core-config/core-config.service";
+import { PersonalOrganizationService } from "@src/organization/services/personal-organization/personal-organization.service";
 import { AccountDeletionTokenRepository } from "@src/user/repositories/account-deletion-token/account-deletion-token.repository";
 import { UserTemplateRepository } from "@src/user/repositories/user-template/user-template.repository";
 import { PurgeDeletedAccount, PurgeDeletedAccountHandler } from "@src/user/services/purge-deleted-account/purge-deleted-account.handler";
@@ -50,7 +51,10 @@ describe(AccountDeletionService.name, () => {
       workloadProbeEvidence: 0,
       accountDeletionTokens: 0,
       templates: 0,
-      templateFavorites: 0
+      templateFavorites: 0,
+      organizations: 0,
+      organizationMembers: 0,
+      projects: 0
     });
     expect(await countRowsOwnedBy(bystander)).toEqual({
       users: 1,
@@ -66,7 +70,10 @@ describe(AccountDeletionService.name, () => {
       workloadProbeEvidence: 1,
       accountDeletionTokens: 0,
       templates: 2,
-      templateFavorites: 0
+      templateFavorites: 0,
+      organizations: 1,
+      organizationMembers: 1,
+      projects: 1
     });
     const [blockedDomain] = await db
       .select()
@@ -105,6 +112,7 @@ describe(AccountDeletionService.name, () => {
     await jobWorkers();
     const db = container.resolve<ApiPgDatabase>(POSTGRES_DB);
     const templateRepository = container.resolve(UserTemplateRepository);
+    const personalOrganizationService = container.resolve(PersonalOrganizationService);
     const restApiNodeUrl = container.resolve(CoreConfigService).get("REST_API_NODE_URL");
 
     const account = await seedAccount();
@@ -157,7 +165,10 @@ describe(AccountDeletionService.name, () => {
       await db.insert(resolveTable("BlockedEmailDomains")).values({ domain: blockedDomain, triggeredByUserId: user.id });
       const templateId = await templateRepository.upsert(null, user.userId!, templateInput());
 
-      return { user, wallet, address, blockedDomain, templateId };
+      const organization = await personalOrganizationService.ensureForUser(user);
+      await personalOrganizationService.adoptUserRows(user, organization);
+
+      return { user, wallet, address, blockedDomain, templateId, organization };
     }
 
     function templateInput() {
@@ -173,7 +184,7 @@ describe(AccountDeletionService.name, () => {
         .reply(200, { deployments, pagination: { next_key: null, total: String(deployments.length) } });
     }
 
-    async function countRowsOwnedBy({ user, wallet }: Awaited<ReturnType<typeof seedAccount>>) {
+    async function countRowsOwnedBy({ user, wallet, organization }: Awaited<ReturnType<typeof seedAccount>>) {
       const count = async (table: PgTable, where: SQL) => {
         const [row] = await db
           .select({ count: sql<number>`count(*)::int` })
@@ -196,7 +207,10 @@ describe(AccountDeletionService.name, () => {
         workloadProbeEvidence: await count(resolveTable("WorkloadProbeEvidence"), eq(resolveTable("WorkloadProbeEvidence").walletId, wallet.id)),
         accountDeletionTokens: await count(resolveTable("AccountDeletionTokens"), eq(resolveTable("AccountDeletionTokens").userId, user.id)),
         templates: await count(resolveTable("Templates"), eq(resolveTable("Templates").userId, user.userId!)),
-        templateFavorites: await count(resolveTable("TemplateFavorites"), eq(resolveTable("TemplateFavorites").userId, user.userId!))
+        templateFavorites: await count(resolveTable("TemplateFavorites"), eq(resolveTable("TemplateFavorites").userId, user.userId!)),
+        organizations: await count(resolveTable("Organizations"), eq(resolveTable("Organizations").id, organization.id)),
+        organizationMembers: await count(resolveTable("OrganizationMembers"), eq(resolveTable("OrganizationMembers").organizationId, organization.id)),
+        projects: await count(resolveTable("Projects"), eq(resolveTable("Projects").organizationId, organization.id))
       };
     }
 

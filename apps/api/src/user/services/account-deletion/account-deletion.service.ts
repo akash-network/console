@@ -12,6 +12,7 @@ import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-fl
 import { DeploymentConfigService } from "@src/deployment/services/deployment-config/deployment-config.service";
 import { NotificationService } from "@src/notifications/services/notification/notification.service";
 import { accountDeletionConfirmationNotification } from "@src/notifications/services/notification-templates/account-deletion-confirmation-notification";
+import { OrganizationRepository } from "@src/organization/repositories/organization/organization.repository";
 import { AccountDeletionTokenRepository } from "@src/user/repositories/account-deletion-token/account-deletion-token.repository";
 import { type UserOutput, UserRepository } from "@src/user/repositories/user/user.repository";
 import { UserTemplateRepository } from "@src/user/repositories/user-template/user-template.repository";
@@ -42,6 +43,7 @@ export class AccountDeletionService {
     private readonly userWalletRepository: UserWalletRepository,
     private readonly userTemplateRepository: UserTemplateRepository,
     private readonly workloadProbeEvidenceRepository: WorkloadProbeEvidenceRepository,
+    private readonly organizationRepository: OrganizationRepository,
     private readonly notificationService: NotificationService,
     private readonly jobQueueService: JobQueueService,
     private readonly txService: TxService,
@@ -175,17 +177,19 @@ export class AccountDeletionService {
     }
   }
 
-  /** Templates and favorites key on the Auth0 id and probe evidence on the wallet id, so no foreign key cascades them with the user row. */
+  /** Templates, favorites, probe evidence and the personal organization have no foreign key that cascades them with the user row. */
   private async eraseAccount(user: UserOutput): Promise<boolean> {
     return await this.txService.transaction(async () => {
       const lockedUser = await this.userRepository.findOneByAndLock({ id: user.id });
       if (!lockedUser) return false;
 
       const wallet = await this.userWalletRepository.findOneByUserId(user.id);
+      const personalOrganization = await this.organizationRepository.findPersonalByUserId(user.id);
 
       if (lockedUser.userId) await this.userTemplateRepository.deleteAllOwnedBy(lockedUser.userId);
       if (wallet) await this.workloadProbeEvidenceRepository.deleteByWalletId(wallet.id);
       await this.userRepository.deleteById(user.id);
+      if (personalOrganization) await this.organizationRepository.deleteById(personalOrganization.id);
 
       await this.jobQueueService.enqueue(
         new PurgeDeletedAccount({ userId: user.id, auth0UserId: lockedUser.userId, stripeCustomerId: lockedUser.stripeCustomerId }),

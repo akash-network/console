@@ -11,6 +11,7 @@ import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
 import type { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import type { DeploymentConfigService } from "@src/deployment/services/deployment-config/deployment-config.service";
 import type { CreateNotificationInput, NotificationService } from "@src/notifications/services/notification/notification.service";
+import type { OrganizationRepository } from "@src/organization/repositories/organization/organization.repository";
 import type {
   AccountDeletionTokenOutput,
   AccountDeletionTokenRepository
@@ -26,6 +27,7 @@ import type { WorkloadProbeEvidenceRepository } from "@src/workload-abuse/reposi
 import { AccountDeletionService, DELETION_LINK_TTL_MINUTES } from "./account-deletion.service";
 
 import { mockConfigService } from "@test/mocks/config-service.mock";
+import { createOrganization } from "@test/seeders/organization.seeder";
 import { createUser } from "@test/seeders/user.seeder";
 import { createUserWallet } from "@test/seeders/user-wallet.seeder";
 
@@ -266,6 +268,25 @@ describe(AccountDeletionService.name, () => {
       expect(userRepository.deleteById).toHaveBeenCalled();
     });
 
+    it("deletes the user's personal organization once the user row is gone", async () => {
+      const { service, user, personalOrganization, organizationRepository, userRepository } = setup({ storedToken: {} });
+
+      await service.confirm({ token: "link-token" });
+
+      expect(organizationRepository.findPersonalByUserId).toHaveBeenCalledWith(user.id);
+      expect(organizationRepository.deleteById).toHaveBeenCalledWith(personalOrganization.id);
+      expect(userRepository.deleteById.mock.invocationCallOrder[0]).toBeLessThan(organizationRepository.deleteById.mock.invocationCallOrder[0]);
+    });
+
+    it("skips the organization cleanup for a user without a personal organization", async () => {
+      const { service, organizationRepository, userRepository } = setup({ storedToken: {}, hasPersonalOrganization: false });
+
+      await service.confirm({ token: "link-token" });
+
+      expect(organizationRepository.deleteById).not.toHaveBeenCalled();
+      expect(userRepository.deleteById).toHaveBeenCalled();
+    });
+
     it("does nothing when a concurrent confirmation already deleted the user", async () => {
       const { service, userRepository, jobQueueService, analyticsService, logger } = setup({ storedToken: {}, lockedUserGone: true });
 
@@ -394,10 +415,12 @@ describe(AccountDeletionService.name, () => {
       userGone?: boolean;
       lockedUserGone?: boolean;
       emailFails?: Error;
+      hasPersonalOrganization?: boolean;
     } = {}
   ) {
     const user = createUser(input.user);
     const wallet = input.wallet === null ? undefined : input.wallet ?? createUserWallet({ userId: user.id });
+    const personalOrganization = createOrganization({ type: "personal", createdByUserId: user.id });
     const tokenFor = (overrides: Partial<AccountDeletionTokenOutput>): AccountDeletionTokenOutput => ({
       id: faker.string.uuid(),
       userId: user.id,
@@ -426,6 +449,8 @@ describe(AccountDeletionService.name, () => {
 
     const userTemplateRepository = mock<UserTemplateRepository>();
     const workloadProbeEvidenceRepository = mock<WorkloadProbeEvidenceRepository>();
+    const organizationRepository = mock<OrganizationRepository>();
+    organizationRepository.findPersonalByUserId.mockResolvedValue(input.hasPersonalOrganization === false ? undefined : personalOrganization);
 
     const notificationService = mock<NotificationService>();
     if (input.emailFails) notificationService.createNotification.mockRejectedValue(input.emailFails);
@@ -449,6 +474,7 @@ describe(AccountDeletionService.name, () => {
       userWalletRepository,
       userTemplateRepository,
       workloadProbeEvidenceRepository,
+      organizationRepository,
       notificationService,
       jobQueueService,
       txService,
@@ -461,11 +487,13 @@ describe(AccountDeletionService.name, () => {
     return {
       service,
       user,
+      personalOrganization,
       tokenRepository,
       eligibilityService,
       userRepository,
       userTemplateRepository,
       workloadProbeEvidenceRepository,
+      organizationRepository,
       notificationService,
       jobQueueService,
       txService,
