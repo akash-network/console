@@ -111,6 +111,8 @@ describe(DeploymentSettingController.name, () => {
     const setting = {
       id: faker.string.uuid(),
       userId: user.id,
+      organizationId: null,
+      projectId: null,
       dseq: faker.string.numeric(6),
       autoTopUpEnabled: faker.datatype.boolean(),
       closed: false,

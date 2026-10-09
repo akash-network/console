@@ -161,6 +161,8 @@ describe("Balances", () => {
     const apiKeyData = {
       id: faker.string.uuid(),
       userId: userWithId.id,
+      organizationId: null,
+      projectId: null,
       hashedKey: await apiKeyGenerator.hashApiKey(apiKey),
       keyFormat: apiKeyGenerator.obfuscateApiKey(apiKey),
       name: "test",

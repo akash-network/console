@@ -2,6 +2,7 @@ import { relations, sql } from "drizzle-orm";
 import { boolean, index, integer, pgEnum, pgTable, timestamp, unique, uuid } from "drizzle-orm/pg-core";
 
 import { UserWallets } from "@src/billing/model-schemas/user-wallet/user-wallet.schema";
+import { Organizations } from "@src/organization/model-schemas/organization/organization.schema";
 import { Users } from "@src/user/model-schemas";
 
 export const autoReloadModeEnum = pgEnum("auto_reload_mode", ["prediction", "threshold"]);
@@ -19,6 +20,7 @@ export const WalletSetting = pgTable(
     userId: uuid("user_id")
       .references(() => Users.id, { onDelete: "cascade" })
       .notNull(),
+    organizationId: uuid("organization_id").references(() => Organizations.id),
     autoReloadEnabled: boolean("auto_reload_enabled").default(false).notNull(),
     /**
      * Defaults to the predicted-spend rule so rows that predate this column keep the behavior their owner
@@ -42,7 +44,8 @@ export const WalletSetting = pgTable(
   },
   table => ({
     walletIdUnique: unique("wallet_settings_wallet_id_unique").on(table.walletId),
-    userIdIdx: index("wallet_settings_user_id_idx").on(table.userId)
+    userIdIdx: index("wallet_settings_user_id_idx").on(table.userId),
+    organizationIdIdx: index("wallet_settings_organization_id_idx").on(table.organizationId)
   })
 );
 

@@ -6,6 +6,7 @@ import { createAkashAddress } from "./akash-address.seeder";
 export function createUserWallet({
   id = faker.number.int({ min: 0, max: 1000 }),
   userId = faker.string.uuid(),
+  organizationId = null,
   address = createAkashAddress(),
   deploymentAllowance = faker.number.float({ min: 0, max: 1000000 }),
   feeAllowance = faker.number.float({ min: 0, max: 1000000 }),
@@ -23,6 +24,7 @@ export function createUserWallet({
   return {
     id,
     userId,
+    organizationId,
     address,
     deploymentAllowance,
     feeAllowance,
