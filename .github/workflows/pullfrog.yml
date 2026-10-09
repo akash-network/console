@@ -30,6 +30,8 @@ jobs:
         uses: pullfrog/pullfrog@ad4283a862b8377cb525a0f5bf30f17c023b18ea # v0.1.98
         with:
           prompt: ${{ inputs.prompt }}
+          # routes runs to the OPENAI_COMPATIBLE_* endpoint below; a model picked in the Pullfrog console overrides it
+          model: openai-compatible/byok
         env:
           # AkashML through its OpenAI-compatible endpoint (https://docs.pullfrog.com/openai-compatible)
           OPENAI_COMPATIBLE_BASE_URL: https://api.akashml.com/v1
