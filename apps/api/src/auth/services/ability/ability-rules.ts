@@ -3,7 +3,7 @@ import type { MongoAbility, MongoQuery, RawRuleOf } from "@casl/ability";
 import type { FeatureFlagValue } from "@src/core/services/feature-flags/feature-flags";
 import type { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import { type OrganizationRole, organizationRoleEnum } from "@src/organization/model-schemas/organization-member/organization-member.schema";
-import type { OrganizationContext } from "@src/organization/types/organization-context";
+import type { OrganizationContext, ProjectScope } from "@src/organization/types/organization-context";
 import type { UserOutput } from "@src/user/repositories";
 
 export type AbilityRule = RawRuleOf<MongoAbility> & { enabledIf?: FeatureFlagValue };
@@ -16,6 +16,11 @@ interface TenantConditions {
   belowOwnerInOrg: MongoQuery;
   inScope: MongoQuery;
   projectsInScope: MongoQuery;
+  writableInScope: MongoQuery;
+  administeredProjects: MongoQuery;
+  grantsOfAdministeredProjects: MongoQuery;
+  othersGrantsOfAdministeredProjects: MongoQuery;
+  administersAnyProject: boolean;
   organizationWide: MongoQuery;
   ownInOrg: MongoQuery;
 }
@@ -26,36 +31,39 @@ const PROJECT_RESOURCES = ["DeploymentSetting", "Template", "Alert", "Notificati
 const ROLES_BELOW_OWNER = organizationRoleEnum.enumValues.filter(role => role !== "owner");
 
 const ROLE_RULES: Record<OrganizationRole, (conditions: TenantConditions, context: OrganizationContext) => AbilityRule[]> = {
-  owner: ({ organization, inOrg, inScope }, { organizationType }) => [
+  owner: ({ organization, inOrg, inScope, writableInScope, grantsOfAdministeredProjects }, { organizationType }) => [
     { action: organizationType === "team" ? ["update", "delete"] : "update", subject: "Organization", conditions: organization },
-    { action: "manage", subject: ["OrganizationMember", "OrganizationInvitation", "Project", "ProjectMember"], conditions: inOrg },
+    { action: "manage", subject: ["OrganizationMember", "OrganizationInvitation", "Project"], conditions: inOrg },
+    { action: "manage", subject: "ProjectMember", conditions: grantsOfAdministeredProjects },
     { action: "sign", subject: "UserWallet", conditions: inOrg },
     { action: "manage", subject: ["WalletSetting", "PaymentMethod", "StripePayment"], conditions: inOrg },
-    { action: "manage", subject: PROJECT_RESOURCES, conditions: inScope }
+    ...projectResourceRules({ inScope, writableInScope })
   ],
-  admin: ({ organization, inOrg, belowOwnerInOrg, inScope }) => [
+  admin: ({ organization, inOrg, belowOwnerInOrg, inScope, writableInScope, grantsOfAdministeredProjects }) => [
     { action: "update", subject: "Organization", conditions: organization },
     { action: "read", subject: "OrganizationInvitation", conditions: inOrg },
     { action: "manage", subject: ["OrganizationMember", "OrganizationInvitation"], conditions: belowOwnerInOrg },
-    { action: "manage", subject: ["Project", "ProjectMember"], conditions: inOrg },
+    { action: "manage", subject: "Project", conditions: inOrg },
+    { action: "manage", subject: "ProjectMember", conditions: grantsOfAdministeredProjects },
     { action: "sign", subject: "UserWallet", conditions: inOrg },
     { action: "read", subject: ["WalletSetting", "PaymentMethod", "StripePayment"], conditions: inOrg },
-    { action: "manage", subject: PROJECT_RESOURCES, conditions: inScope }
+    ...projectResourceRules({ inScope, writableInScope })
   ],
-  member: ({ inOrg, inScope, projectsInScope, ownInOrg }) => [
-    { action: "read", subject: "Project", conditions: projectsInScope },
-    { action: "read", subject: "ProjectMember", conditions: ownInOrg },
-    { action: "sign", subject: "UserWallet", conditions: inOrg },
-    { action: "read", subject: "WalletSetting", conditions: inOrg },
-    { action: "manage", subject: PROJECT_RESOURCES, conditions: inScope }
+  member: conditions => [
+    { action: "read", subject: "Project", conditions: conditions.projectsInScope },
+    { action: "read", subject: "ProjectMember", conditions: conditions.inScope },
+    ...projectAdministrationRules(conditions),
+    { action: "sign", subject: "UserWallet", conditions: conditions.inOrg },
+    { action: "read", subject: "WalletSetting", conditions: conditions.inOrg },
+    ...projectResourceRules(conditions)
   ],
   billing: ({ inOrg }) => [
     { action: "read", subject: "Project", conditions: inOrg },
     { action: "manage", subject: ["WalletSetting", "PaymentMethod", "StripePayment"], conditions: inOrg }
   ],
-  viewer: ({ inOrg, inScope, projectsInScope, ownInOrg }) => [
+  viewer: ({ inOrg, inScope, projectsInScope }) => [
     { action: "read", subject: "Project", conditions: projectsInScope },
-    { action: "read", subject: "ProjectMember", conditions: ownInOrg },
+    { action: "read", subject: "ProjectMember", conditions: inScope },
     { action: "read", subject: "WalletSetting", conditions: inOrg },
     { action: "read", subject: PROJECT_RESOURCES, conditions: inScope }
   ]
@@ -115,7 +123,12 @@ function hasEveryId(...ids: Array<string | null | undefined>) {
 
 function tenantConditionsOf(user: RuleUser, { organizationId, projectScope }: OrganizationContext): TenantConditions {
   const inOrg = { organizationId };
-  const projectIds = projectScope.kind === "projects" ? projectScope.projectIds.filter(projectId => hasEveryId(projectId)) : undefined;
+  const listed = (pick: (scope: Extract<ProjectScope, { kind: "projects" }>) => readonly string[]) =>
+    projectScope.kind === "projects" ? pick(projectScope).filter(projectId => hasEveryId(projectId)) : undefined;
+  const projectIds = listed(scope => scope.projectIds);
+  const writableProjectIds = listed(scope => scope.writableProjectIds)?.filter(projectId => projectIds?.includes(projectId));
+  const adminProjectIds = listed(scope => scope.adminProjectIds)?.filter(projectId => writableProjectIds?.includes(projectId));
+  const grantsOfAdministeredProjects = adminProjectIds ? { ...inOrg, projectId: { $in: adminProjectIds } } : inOrg;
 
   return {
     organization: { id: organizationId },
@@ -123,9 +136,30 @@ function tenantConditionsOf(user: RuleUser, { organizationId, projectScope }: Or
     belowOwnerInOrg: { ...inOrg, role: { $in: ROLES_BELOW_OWNER } },
     inScope: projectIds ? { ...inOrg, projectId: { $in: projectIds } } : inOrg,
     projectsInScope: projectIds ? { ...inOrg, id: { $in: projectIds } } : inOrg,
+    writableInScope: writableProjectIds ? { ...inOrg, projectId: { $in: writableProjectIds } } : inOrg,
+    administeredProjects: adminProjectIds ? { ...inOrg, id: { $in: adminProjectIds } } : inOrg,
+    grantsOfAdministeredProjects,
+    othersGrantsOfAdministeredProjects: { ...grantsOfAdministeredProjects, userId: { $nin: [user.id] } },
+    administersAnyProject: !adminProjectIds || adminProjectIds.length > 0,
     organizationWide: { ...inOrg, projectId: null },
     ownInOrg: { ...inOrg, userId: user.id }
   };
+}
+
+function projectResourceRules({ inScope, writableInScope }: Pick<TenantConditions, "inScope" | "writableInScope">): AbilityRule[] {
+  return [
+    { action: "read", subject: PROJECT_RESOURCES, conditions: inScope },
+    { action: "manage", subject: PROJECT_RESOURCES, conditions: writableInScope }
+  ];
+}
+
+function projectAdministrationRules({ administeredProjects, othersGrantsOfAdministeredProjects, administersAnyProject }: TenantConditions): AbilityRule[] {
+  if (!administersAnyProject) return [];
+
+  return [
+    { action: "update", subject: "Project", conditions: administeredProjects },
+    { action: "manage", subject: "ProjectMember", conditions: othersGrantsOfAdministeredProjects }
+  ];
 }
 
 function everyMemberRules({ organization, inOrg, inScope, organizationWide, ownInOrg }: TenantConditions): AbilityRule[] {

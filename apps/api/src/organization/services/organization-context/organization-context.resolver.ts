@@ -11,8 +11,9 @@ import { ORGANIZATION_FORBIDDEN_ERROR_CODE } from "@src/core/repositories/org-sc
 import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
 import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import type { OrganizationRole } from "@src/organization/model-schemas/organization-member/organization-member.schema";
+import type { ProjectRole } from "@src/organization/model-schemas/project-member/project-member.schema";
 import { type Membership, OrganizationMemberRepository } from "@src/organization/repositories/organization-member/organization-member.repository";
-import { ProjectRepository } from "@src/organization/repositories/project/project.repository";
+import { type ProjectGrantOfUser, ProjectRepository } from "@src/organization/repositories/project/project.repository";
 import { PersonalOrganizationService } from "@src/organization/services/personal-organization/personal-organization.service";
 import type { AuthorizationMode, OrganizationContext, ProjectScope } from "@src/organization/types/organization-context";
 import type { UserOutput } from "@src/user/repositories/user/user.repository";
@@ -46,13 +47,17 @@ export interface OrganizationContextRequest {
   projectHeader?: string;
 }
 
-const PROJECT_SCOPE_BY_ROLE: Record<OrganizationRole, "all" | "grants" | "none"> = {
+const PROJECT_SCOPE_BY_ROLE: Record<OrganizationRole, "all" | "grants" | "readOnlyGrants" | "none"> = {
   owner: "all",
   admin: "all",
   member: "grants",
-  viewer: "grants",
+  viewer: "readOnlyGrants",
   billing: "none"
 };
+
+const WRITING_PROJECT_ROLES: readonly ProjectRole[] = ["member", "admin"];
+
+const NO_PROJECTS: ProjectScope = { kind: "projects", projectIds: [], writableProjectIds: [], adminProjectIds: [] };
 
 @singleton()
 export class OrganizationContextResolver {
@@ -92,7 +97,7 @@ export class OrganizationContextResolver {
 
     const { role, organization } = await this.#resolveMembership(request.user, request.apiKey, normalizeHeader(request.organizationHeader));
     const roleScope = await this.#projectScopeOf(role, organization.id, request.user.id);
-    const keyScope = request.apiKey?.projectId ? narrowTo(roleScope, request.apiKey.projectId) : roleScope;
+    const keyScope = request.apiKey?.projectId ? await this.#narrowToKeyProject(roleScope, organization.id, request.apiKey.projectId) : roleScope;
     const projectHeader = normalizeHeader(request.projectHeader);
     const projectScope = projectHeader ? await this.#narrowToRequestedProject(keyScope, organization.id, projectHeader) : keyScope;
 
@@ -167,9 +172,13 @@ export class OrganizationContextResolver {
     const scope = PROJECT_SCOPE_BY_ROLE[role];
 
     if (scope === "all") return { kind: "all" };
-    if (scope === "none") return { kind: "projects", projectIds: [] };
+    if (scope === "none") return NO_PROJECTS;
 
-    return { kind: "projects", projectIds: await this.projectRepository.findActiveIdsGrantedTo(organizationId, userId) };
+    return scopeOfGrants(await this.projectRepository.findActiveGrantsOf(organizationId, userId), { readOnly: scope === "readOnlyGrants" });
+  }
+
+  async #narrowToKeyProject(scope: ProjectScope, organizationId: string, projectId: string): Promise<ProjectScope> {
+    return (await this.#isReachable(scope, organizationId, projectId)) ? narrowTo(scope, projectId) : NO_PROJECTS;
   }
 
   async #narrowToRequestedProject(scope: ProjectScope, organizationId: string, projectId: string): Promise<ProjectScope> {
@@ -177,7 +186,7 @@ export class OrganizationContextResolver {
       throw createError(403, "The project is not reachable in this organization", { errorCode: PROJECT_FORBIDDEN_ERROR_CODE });
     }
 
-    return { kind: "projects", projectIds: [projectId] };
+    return narrowTo(scope, projectId);
   }
 
   async #isReachable(scope: ProjectScope, organizationId: string, projectId: string): Promise<boolean> {
@@ -213,6 +222,28 @@ function assertMember(membership: Membership | undefined): asserts membership is
   }
 }
 
+function scopeOfGrants(grants: ProjectGrantOfUser[], { readOnly }: { readOnly: boolean }): ProjectScope {
+  const writable = readOnly ? [] : grants.filter(({ role }) => WRITING_PROJECT_ROLES.includes(role));
+
+  return {
+    kind: "projects",
+    projectIds: grants.map(({ projectId }) => projectId),
+    writableProjectIds: writable.map(({ projectId }) => projectId),
+    adminProjectIds: writable.filter(({ role }) => role === "admin").map(({ projectId }) => projectId)
+  };
+}
+
 function narrowTo(scope: ProjectScope, projectId: string): ProjectScope {
-  return { kind: "projects", projectIds: scope.kind === "all" ? [projectId] : scope.projectIds.filter(id => id === projectId) };
+  if (scope.kind === "all") {
+    return { kind: "projects", projectIds: [projectId], writableProjectIds: [projectId], adminProjectIds: [projectId] };
+  }
+
+  const keep = (projectIds: readonly string[]) => projectIds.filter(id => id === projectId);
+
+  return {
+    kind: "projects",
+    projectIds: keep(scope.projectIds),
+    writableProjectIds: keep(scope.writableProjectIds),
+    adminProjectIds: keep(scope.adminProjectIds)
+  };
 }

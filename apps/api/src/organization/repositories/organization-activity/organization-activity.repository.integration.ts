@@ -8,7 +8,7 @@ import type { UserOutput } from "@src/user/repositories";
 import { OrganizationActivityRepository, type OrganizationActivityWithActor } from "./organization-activity.repository";
 
 import { seedOrganizationActivity, seedOrganizationWithOwner, seedProject } from "@test/seeders/db/organization.seeder";
-import { createOrganizationContext } from "@test/seeders/organization-context.seeder";
+import { createOrganizationContext, createProjectsScope } from "@test/seeders/organization-context.seeder";
 
 describe(OrganizationActivityRepository.name, () => {
   describe("findPage", () => {
@@ -67,9 +67,8 @@ describe(OrganizationActivityRepository.name, () => {
       const { organization: foreign } = await seedOrganizationWithOwner();
       await seedOrganizationActivity({ organizationId: foreign.id });
 
-      const page = await runIn(
-        { user: owner, organizationId: organization.id, role: "member", projectScope: { kind: "projects", projectIds: [granted.id] } },
-        ability => repository.accessibleBy(ability, "read").findPage({ limit: 10 })
+      const page = await runIn({ user: owner, organizationId: organization.id, role: "member", projectScope: createProjectsScope([granted.id]) }, ability =>
+        repository.accessibleBy(ability, "read").findPage({ limit: 10 })
       );
 
       expect(page.map(({ id }) => id)).toEqual([inGranted.id, organizationWide.id]);

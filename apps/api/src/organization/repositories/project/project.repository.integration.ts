@@ -16,7 +16,7 @@ import { ProjectRepository } from "./project.repository";
 
 import { seedOrganization, seedOrganizationMember, seedOrganizationWithOwner, seedProject, seedProjectMember } from "@test/seeders/db/organization.seeder";
 import { seedUser } from "@test/seeders/db/user-with-wallet.seeder";
-import { createOrganizationContext } from "@test/seeders/organization-context.seeder";
+import { createOrganizationContext, createProjectsScope } from "@test/seeders/organization-context.seeder";
 
 describe(ProjectRepository.name, () => {
   describe("createDefaultUnlessExists", () => {
@@ -84,8 +84,8 @@ describe(ProjectRepository.name, () => {
     });
   });
 
-  describe("findActiveIdsGrantedTo", () => {
-    it("lists the live projects of the organization granted to the user and nothing else", async () => {
+  describe("findActiveGrantsOf", () => {
+    it("lists the live projects of the organization granted to the user with the project role and nothing else", async () => {
       const { repository, organization, user } = await setup();
       const colleague = await seedUser({ userId: faker.string.uuid() });
       await seedOrganizationMember({ organizationId: organization.id, userId: user.id });
@@ -94,7 +94,7 @@ describe(ProjectRepository.name, () => {
       const deleted = await seedProject({ organizationId: organization.id, deletedAt: new Date() });
       const colleagueOnly = await seedProject({ organizationId: organization.id });
       await seedProject({ organizationId: organization.id });
-      await seedProjectMember({ organizationId: organization.id, projectId: granted.id, userId: user.id });
+      await seedProjectMember({ organizationId: organization.id, projectId: granted.id, userId: user.id, role: "admin" });
       await seedProjectMember({ organizationId: organization.id, projectId: deleted.id, userId: user.id });
       await seedProjectMember({ organizationId: organization.id, projectId: colleagueOnly.id, userId: colleague.id });
       const other = await seedOrganization({ createdByUserId: user.id });
@@ -102,7 +102,18 @@ describe(ProjectRepository.name, () => {
       const otherProject = await seedProject({ organizationId: other.id });
       await seedProjectMember({ organizationId: other.id, projectId: otherProject.id, userId: user.id });
 
-      expect(await repository.findActiveIdsGrantedTo(organization.id, user.id)).toEqual([granted.id]);
+      expect(await repository.findActiveGrantsOf(organization.id, user.id)).toEqual([{ projectId: granted.id, role: "admin" }]);
+    });
+  });
+
+  describe("findActiveGrantsOf with an organization role reaching every project or none", () => {
+    it.each(["owner", "admin", "billing"] as const)("ignores the grants a %s still holds", async role => {
+      const { repository, organization, user } = await setup();
+      await seedOrganizationMember({ organizationId: organization.id, userId: user.id, role });
+      const project = await seedProject({ organizationId: organization.id });
+      await seedProjectMember({ organizationId: organization.id, projectId: project.id, userId: user.id, role: "admin" });
+
+      expect(await repository.findActiveGrantsOf(organization.id, user.id)).toEqual([]);
     });
   });
 
@@ -162,9 +173,8 @@ describe(ProjectRepository.name, () => {
       const granted = await seedProject({ organizationId: organization.id });
       await seedProject({ organizationId: organization.id });
 
-      const projects = await runIn(
-        { user, organizationId: organization.id, role: "member", projectScope: { kind: "projects", projectIds: [granted.id] } },
-        ability => repository.accessibleBy(ability, "read").findActiveWithCreator()
+      const projects = await runIn({ user, organizationId: organization.id, role: "member", projectScope: createProjectsScope([granted.id]) }, ability =>
+        repository.accessibleBy(ability, "read").findActiveWithCreator()
       );
 
       expect(projects.map(({ id }) => id)).toEqual([granted.id]);

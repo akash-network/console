@@ -13,7 +13,7 @@ import { AbilityService } from "./ability.service";
 import { createDseq, seedDeploymentSetting } from "@test/seeders/db/deployment-setting.seeder";
 import { seedOrganization, seedOrganizationMember, seedProject } from "@test/seeders/db/organization.seeder";
 import { seedUser } from "@test/seeders/db/user-with-wallet.seeder";
-import { createOrganizationContext } from "@test/seeders/organization-context.seeder";
+import { createOrganizationContext, createProjectsScope } from "@test/seeders/organization-context.seeder";
 
 describe(AbilityService.name, () => {
   describe("on deployment settings", () => {
@@ -22,7 +22,7 @@ describe(AbilityService.name, () => {
       const ability = await abilityFor(member, {
         organizationId: organization.id,
         role: "member",
-        projectScope: { kind: "projects", projectIds: [projects[0].id, projects[2].id] }
+        projectScope: createProjectsScope([projects[0].id, projects[2].id])
       });
 
       expect(await readableIds(ability)).toEqual([rowsByProject[0].id, rowsByProject[2].id].sort());
@@ -30,7 +30,7 @@ describe(AbilityService.name, () => {
 
     it("shows a member granted no projects nothing", async () => {
       const { readableIds, member, organization } = await setup();
-      const ability = await abilityFor(member, { organizationId: organization.id, role: "member", projectScope: { kind: "projects", projectIds: [] } });
+      const ability = await abilityFor(member, { organizationId: organization.id, role: "member", projectScope: createProjectsScope([]) });
 
       expect(await readableIds(ability)).toEqual([]);
     });
@@ -54,7 +54,7 @@ describe(AbilityService.name, () => {
       const ability = await abilityFor(member, {
         organizationId: organization.id,
         role: "viewer",
-        projectScope: { kind: "projects", projectIds: [projects[1].id, projects[3].id] }
+        projectScope: createProjectsScope([projects[1].id, projects[3].id])
       });
 
       expect(await readableIds(ability)).toEqual([rowsByProject[1].id, rowsByProject[3].id].sort());
@@ -65,7 +65,7 @@ describe(AbilityService.name, () => {
 
     it("lets a member create a deployment setting only in a project it was granted", async () => {
       const { repository, member, organization, projects } = await setup();
-      const ability = await abilityFor(member, { organizationId: organization.id, role: "member", projectScope: { kind: "projects", projectIds: [projects[0].id] } });
+      const ability = await abilityFor(member, { organizationId: organization.id, role: "member", projectScope: createProjectsScope([projects[0].id]) });
 
       const created = await repository
         .accessibleBy(ability, "create")

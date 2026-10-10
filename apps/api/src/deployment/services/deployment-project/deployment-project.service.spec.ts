@@ -17,7 +17,7 @@ import type { OrganizationActivityService } from "@src/organization/services/org
 import type { AuthorizationMode, ProjectScope } from "@src/organization/types/organization-context";
 import { DeploymentProjectService, PROJECT_REQUIRED_ERROR_CODE } from "./deployment-project.service";
 
-import { createOrganizationContext } from "@test/seeders/organization-context.seeder";
+import { createOrganizationContext, createProjectsScope } from "@test/seeders/organization-context.seeder";
 import { createUser } from "@test/seeders/user.seeder";
 
 describe(DeploymentProjectService.name, () => {
@@ -70,7 +70,7 @@ describe(DeploymentProjectService.name, () => {
     it("files into the one project the caller is held to when the request names none", async () => {
       const soleProjectId = faker.string.uuid();
       const { service, projectRepository, project } = setup({
-        projectScope: { kind: "projects", projectIds: [soleProjectId] },
+        projectScope: createProjectsScope([soleProjectId]),
         scopedProjectIds: [soleProjectId]
       });
       projectRepository.findOneBy.mockResolvedValue({ ...project, id: soleProjectId });
@@ -80,8 +80,21 @@ describe(DeploymentProjectService.name, () => {
       expect(projectRepository.findOneBy).toHaveBeenCalledWith({ id: soleProjectId, deletedAt: null });
     });
 
+    it("files into the one project the caller may write to among the projects it reads", async () => {
+      const [readOnlyProjectId, writableProjectId] = [faker.string.uuid(), faker.string.uuid()];
+      const { service, projectRepository, project } = setup({
+        projectScope: createProjectsScope([readOnlyProjectId, writableProjectId], { writableProjectIds: [writableProjectId] }),
+        scopedProjectIds: [writableProjectId]
+      });
+      projectRepository.findOneBy.mockResolvedValue({ ...project, id: writableProjectId });
+
+      await expect(service.resolveFilingProject()).resolves.toBe(writableProjectId);
+
+      expect(projectRepository.findOneBy).toHaveBeenCalledWith({ id: writableProjectId, deletedAt: null });
+    });
+
     it("files into the default project for a caller reaching several projects", async () => {
-      const { service, projectRepository, project } = setup({ projectScope: { kind: "projects", projectIds: [faker.string.uuid(), faker.string.uuid()] } });
+      const { service, projectRepository, project } = setup({ projectScope: createProjectsScope([faker.string.uuid(), faker.string.uuid()]) });
 
       await expect(service.resolveFilingProject()).resolves.toBe(project.id);
 
@@ -89,7 +102,7 @@ describe(DeploymentProjectService.name, () => {
     });
 
     it("asks for a project when the one project the caller is held to is gone", async () => {
-      const { service, projectRepository } = setup({ projectScope: { kind: "projects", projectIds: [faker.string.uuid()] } });
+      const { service, projectRepository } = setup({ projectScope: createProjectsScope([faker.string.uuid()]) });
       projectRepository.findOneBy.mockResolvedValue(undefined);
 
       await expect(service.resolveFilingProject()).rejects.toMatchObject({ status: 400, errorCode: PROJECT_REQUIRED_ERROR_CODE });
@@ -251,7 +264,7 @@ describe(DeploymentProjectService.name, () => {
 
     it("holds a lookup that may not cross organizations to the projects the request is narrowed to", async () => {
       const projectIds = [faker.string.uuid()];
-      const { service, deploymentSettingRepository, context } = setup({ projectScope: { kind: "projects", projectIds } });
+      const { service, deploymentSettingRepository, context } = setup({ projectScope: createProjectsScope(projectIds) });
       deploymentSettingRepository.findLocation.mockResolvedValue(mock<DeploymentLocation>());
 
       await service.findLocation("1234", { acrossOrganizations: false });

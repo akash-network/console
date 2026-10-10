@@ -47,7 +47,7 @@ export class DeploymentProjectService {
       return project.id;
     }
 
-    const soleProjectId = soleProjectInScope(context);
+    const soleProjectId = soleWritableProjectInScope(context);
     const fallback = await this.projectRepository.findOneBy(soleProjectId ? { id: soleProjectId, deletedAt: null } : { isDefault: true, deletedAt: null });
 
     if (!fallback || !this.#canFileInto(context, fallback.id)) {
@@ -153,7 +153,7 @@ export class DeploymentProjectService {
   }
 }
 
-/** A caller held to one project, a project-bound API key or a narrowing header for instance, deploys there rather than into a default project it cannot reach. */
-function soleProjectInScope({ projectScope }: OrganizationContext): string | undefined {
-  return projectScope.kind === "projects" && projectScope.projectIds.length === 1 ? projectScope.projectIds[0] : undefined;
+/** A caller who may write to one project only, through a project-bound API key, a narrowing header or its grants, deploys there rather than into a default project. */
+function soleWritableProjectInScope({ projectScope }: OrganizationContext): string | undefined {
+  return projectScope.kind === "projects" && projectScope.writableProjectIds.length === 1 ? projectScope.writableProjectIds[0] : undefined;
 }
