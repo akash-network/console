@@ -42,9 +42,9 @@ const ROLE_RULES: Record<OrganizationRole, (conditions: TenantConditions, contex
     { action: "read", subject: ["WalletSetting", "PaymentMethod", "StripePayment"], conditions: inOrg },
     { action: "manage", subject: PROJECT_RESOURCES, conditions: inScope }
   ],
-  member: ({ inOrg, inScope, projectsInScope, ownInOrg }) => [
+  member: ({ inOrg, inScope, projectsInScope }) => [
     { action: "read", subject: "Project", conditions: projectsInScope },
-    { action: "read", subject: "ProjectMember", conditions: ownInOrg },
+    { action: "read", subject: "ProjectMember", conditions: inScope },
     { action: "sign", subject: "UserWallet", conditions: inOrg },
     { action: "read", subject: "WalletSetting", conditions: inOrg },
     { action: "manage", subject: PROJECT_RESOURCES, conditions: inScope }
@@ -53,9 +53,9 @@ const ROLE_RULES: Record<OrganizationRole, (conditions: TenantConditions, contex
     { action: "read", subject: "Project", conditions: inOrg },
     { action: "manage", subject: ["WalletSetting", "PaymentMethod", "StripePayment"], conditions: inOrg }
   ],
-  viewer: ({ inOrg, inScope, projectsInScope, ownInOrg }) => [
+  viewer: ({ inOrg, inScope, projectsInScope }) => [
     { action: "read", subject: "Project", conditions: projectsInScope },
-    { action: "read", subject: "ProjectMember", conditions: ownInOrg },
+    { action: "read", subject: "ProjectMember", conditions: inScope },
     { action: "read", subject: "WalletSetting", conditions: inOrg },
     { action: "read", subject: PROJECT_RESOURCES, conditions: inScope }
   ]

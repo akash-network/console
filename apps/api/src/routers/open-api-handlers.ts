@@ -39,7 +39,7 @@ import { getSDLSecretsContextRouter } from "@src/deployment/routes/get-sdl-secre
 import { leasesRouter } from "@src/deployment/routes/leases/leases.router";
 import { gpuRouter } from "@src/gpu";
 import { hardwareRequestRouter } from "@src/hardware-request";
-import { organizationActivitiesRouter, organizationsRouter, projectsRouter } from "@src/organization";
+import { organizationActivitiesRouter, organizationsRouter, projectMembersRouter, projectsRouter } from "@src/organization";
 import { placementOptionsRouter } from "@src/placement-options";
 import { pricingRouter } from "@src/pricing";
 import { proposalsRouter } from "@src/proposal";
@@ -135,5 +135,6 @@ export const openApiHonoHandlers: OpenApiHonoHandler[] = [
   configureDraftsRouter,
   organizationsRouter,
   projectsRouter,
-  organizationActivitiesRouter
+  organizationActivitiesRouter,
+  projectMembersRouter
 ];

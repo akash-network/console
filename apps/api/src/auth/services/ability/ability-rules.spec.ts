@@ -215,8 +215,9 @@ describe("ability rules", () => {
 
       const granted = actionsBySubject(ability, { organizationId, projectId: faker.string.uuid(), userId: user.id });
 
-      expect(pick(granted, ["Project", "OrganizationActivity", ...PROJECT_RESOURCES])).toEqual({
+      expect(pick(granted, ["Project", "ProjectMember", "OrganizationActivity", ...PROJECT_RESOURCES])).toEqual({
         Project: NONE,
+        ProjectMember: NONE,
         OrganizationActivity: NONE,
         DeploymentSetting: NONE,
         Template: NONE,
@@ -347,10 +348,10 @@ describe("ability rules", () => {
       expect(allowedActions(ability, subject("ApiKey", { organizationId, userId: faker.string.uuid() }))).toEqual(NONE);
     });
 
-    it.each(["member", "viewer"] as const)("lets the %s role read only its own project grants", role => {
+    it.each(["member", "viewer"] as const)("lets the %s role read who else was granted the projects it reaches", role => {
       const { ability, organizationId, grantedProjectId } = setup({ role });
 
-      expect(allowedActions(ability, subject("ProjectMember", { organizationId, projectId: grantedProjectId, userId: faker.string.uuid() }))).toEqual(NONE);
+      expect(allowedActions(ability, subject("ProjectMember", { organizationId, projectId: grantedProjectId, userId: faker.string.uuid() }))).toEqual(READ);
     });
 
     it.each(ROLES)("keeps user-keyed subjects on the user id for the %s role", role => {

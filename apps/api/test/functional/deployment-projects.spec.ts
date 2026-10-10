@@ -132,6 +132,19 @@ describe("Deployment projects", () => {
       expect(signer.executeDerivedDecodedTxByUserId).not.toHaveBeenCalled();
     });
 
+    it("asks a member granted several projects but not the default one to choose, recording and broadcasting nothing", async () => {
+      const { request, team, caller, signer } = await setupCaller({ role: "member", grants: ["other"] });
+      const third = await seedProject({ organizationId: team.id });
+      await seedProjectMember({ organizationId: team.id, projectId: third.id, userId: caller.id });
+
+      const response = await request("/v1/deployments", { method: "POST", body: { data: { sdl: SDL } } });
+
+      expect(response.status).toBe(400);
+      expect(await response.json()).toMatchObject({ code: "project_required" });
+      expect(await deploymentRowsOf(caller.id)).toEqual([]);
+      expect(signer.executeDerivedDecodedTxByUserId).not.toHaveBeenCalled();
+    });
+
     it("answers 404 to a member deploying into a project they were not granted", async () => {
       const { request, otherProject, caller, signer } = await setupCaller({ role: "member", grants: ["default"] });
 
