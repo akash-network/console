@@ -83,6 +83,19 @@ export class LeaseGpuService {
     }
   }
 
+  /** As {@link findForDeployments}, keyed by deployment setting id, so rows filed by other members of an organization are read too. */
+  async findForDeploymentSettings(ids: string[]): Promise<Map<string, LeaseGpusByLease>> {
+    try {
+      const storedBySetting = await this.deploymentSettingRepository.accessibleBy(this.authService.ability, "read").findLeaseGpusByIds(ids);
+      const index = [...storedBySetting.values()].some(stored => stored.readings.length) ? await this.gpuCatalogService.getIndex() : null;
+
+      return new Map([...storedBySetting].map(([id, stored]) => [id, this.#byLease(stored, index)]));
+    } catch (error) {
+      this.logger.warn({ event: "LEASE_GPU_READ_FAILED", deploymentSettingIds: ids, error });
+      return new Map();
+    }
+  }
+
   async #findForDeployments({ userId, dseqs }: { userId: string; dseqs: string[] }): Promise<Map<string, LeaseGpusByLease>> {
     if (!dseqs.length) return new Map();
 

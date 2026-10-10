@@ -29,6 +29,7 @@ import {
   UpdateDeploymentRequest,
   UpdateDeploymentResponse
 } from "@src/deployment/http-schemas/deployment.schema";
+import { DeploymentListService } from "@src/deployment/services/deployment-list/deployment-list.service";
 import { DeploymentReaderService } from "@src/deployment/services/deployment-reader/deployment-reader.service";
 import { DeploymentWriterService } from "@src/deployment/services/deployment-writer/deployment-writer.service";
 import { DrainingDeploymentService } from "@src/deployment/services/draining-deployment/draining-deployment.service";
@@ -42,7 +43,8 @@ export class DeploymentController {
     private readonly authService: AuthService,
     private readonly drainingDeploymentService: DrainingDeploymentService,
     private readonly featureFlagsService: FeatureFlagsService,
-    private readonly spendRateService: SpendRateService
+    private readonly spendRateService: SpendRateService,
+    private readonly deploymentListService: DeploymentListService
   ) {}
 
   @Protected([{ action: "sign", subject: "UserWallet" }])
@@ -105,26 +107,18 @@ export class DeploymentController {
     return { data: result };
   }
 
-  @Protected([{ action: "sign", subject: "UserWallet" }])
-  async list({ state, reverse, search, skip, limit }: ListDeploymentsQuery): Promise<z.infer<typeof ListDeploymentsResponseSchema>> {
-    const { deployments, total, hasMore } = await this.deploymentReaderService.list({
-      query: {
-        userId: this.authService.currentUser.id
-      },
-      state,
-      reverse,
-      search,
-      skip,
-      limit
-    });
+  /** Readable by every member of an organization, so a role that may see no deployment gets an empty list rather than a refusal. */
+  @Protected([{ action: "read", subject: "UserWallet" }])
+  async list(query: ListDeploymentsQuery): Promise<z.infer<typeof ListDeploymentsResponseSchema>> {
+    const { deployments, total, hasMore } = await this.deploymentListService.list(query);
 
     return {
       data: {
         deployments,
         pagination: {
           total,
-          skip,
-          limit,
+          skip: query.skip,
+          limit: query.limit,
           hasMore
         }
       }

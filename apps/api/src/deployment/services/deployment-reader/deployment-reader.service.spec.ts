@@ -214,6 +214,47 @@ describe(DeploymentReaderService.name, () => {
     });
   });
 
+  describe("findListedByOwnerAndDseq", () => {
+    it("reads the deployment and its leases by the address that owns it", async () => {
+      const owner = createAkashAddress();
+      const dseq = "12345";
+      const deploymentInfo = createDeploymentInfoSeed({ owner, dseq });
+      const lease = createLeaseApiResponse({ owner, dseq });
+      const { service, deploymentHttpService, leaseHttpService } = setup({ leases: [lease] });
+      deploymentHttpService.findByOwnerAndDseq.mockResolvedValue(deploymentInfo);
+
+      const result = await service.findListedByOwnerAndDseq(owner, dseq);
+
+      expect(result).toEqual({
+        deployment: { deployment: deploymentInfo.deployment, groups: deploymentInfo.groups, escrow_account: deploymentInfo.escrow_account },
+        leases: [lease.lease]
+      });
+      expect(deploymentHttpService.findByOwnerAndDseq).toHaveBeenCalledWith(owner, dseq);
+      expect(leaseHttpService.list).toHaveBeenCalledWith({ owner, dseq });
+    });
+
+    it("answers null for a deployment the chain does not hold", async () => {
+      const { service, deploymentHttpService } = setup();
+      deploymentHttpService.findByOwnerAndDseq.mockResolvedValue({ code: 5, message: "deployment not found", details: [] });
+
+      await expect(service.findListedByOwnerAndDseq(createAkashAddress(), "12345")).resolves.toBeNull();
+    });
+
+    it("fails on any other refusal", async () => {
+      const { service, deploymentHttpService } = setup();
+      deploymentHttpService.findByOwnerAndDseq.mockResolvedValue({ code: 3, message: "invalid owner", details: [] });
+
+      await expect(service.findListedByOwnerAndDseq(createAkashAddress(), "12345")).rejects.toMatchObject({ status: 500 });
+    });
+
+    it("fails on an error that is not an http error", async () => {
+      const { service, deploymentHttpService } = setup();
+      deploymentHttpService.findByOwnerAndDseq.mockRejectedValue(new Error("unexpected"));
+
+      await expect(service.findListedByOwnerAndDseq(createAkashAddress(), "12345")).rejects.toThrow("unexpected");
+    });
+  });
+
   describe("findWithGroupSpecsByWalletAndDseq", () => {
     it("returns the group specs the chain holds beside the deployment", async () => {
       const wallet = createUserWallet() as WalletInitialized;

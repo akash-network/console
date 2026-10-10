@@ -7566,6 +7566,16 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
               "type": "integer",
             },
           },
+          {
+            "in": "query",
+            "name": "projectId",
+            "required": false,
+            "schema": {
+              "description": "Lists only the deployments filed in this project. A project the caller cannot reach lists nothing, like one that does not exist. Ignored while organizations are not enabled for the caller.",
+              "format": "uuid",
+              "type": "string",
+            },
+          },
         ],
         "responses": {
           "200": {
@@ -8290,6 +8300,12 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                               },
                               "name": {
                                 "description": "The name this deployment carries, or null for one created before the console recorded names.",
+                                "nullable": true,
+                                "type": "string",
+                              },
+                              "projectId": {
+                                "description": "Project the deployment is filed in, or null for one the console has not filed. Present only while organizations are enabled for the caller.",
+                                "format": "uuid",
                                 "nullable": true,
                                 "type": "string",
                               },

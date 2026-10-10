@@ -204,6 +204,38 @@ describe(LeaseGpuService.name, () => {
     expect(deploymentSettingRepository.accessibleBy).not.toHaveBeenCalled();
   });
 
+  describe("findForDeploymentSettings", () => {
+    it("resolves what each row recorded, keyed by its id, through the caller's own ability", async () => {
+      const { service, deploymentSettingRepository, scoped, authService } = setup({ readings: [] });
+      scoped.findLeaseGpusByIds.mockResolvedValue(new Map([["setting-1", { readings: [reading()], offers: [] }]]));
+
+      const bySetting = await service.findForDeploymentSettings(["setting-1", "setting-2"]);
+
+      expect(bySetting.get("setting-1")?.get(`1/1/${PROVIDER}`)?.detectedGpus).toMatchObject({ services: [{ service: "web", gpus: [{ model: "h100" }] }] });
+      expect(bySetting.has("setting-2")).toBe(false);
+      expect(deploymentSettingRepository.accessibleBy).toHaveBeenCalledWith(authService.ability, "read");
+      expect(scoped.findLeaseGpusByIds).toHaveBeenCalledWith(["setting-1", "setting-2"]);
+    });
+
+    it("loads no catalog for rows only offers were recorded for", async () => {
+      const { service, scoped, gpuCatalogService } = setup({ readings: [] });
+      scoped.findLeaseGpusByIds.mockResolvedValue(new Map([["setting-1", { readings: [], offers: [createLeaseGpuOffer()] }]]));
+
+      await service.findForDeploymentSettings(["setting-1"]);
+
+      expect(gpuCatalogService.getIndex).not.toHaveBeenCalled();
+    });
+
+    it("leaves the field off rather than failing the list when the rows cannot be read", async () => {
+      const { service, scoped, logger } = setup({ readings: [] });
+      scoped.findLeaseGpusByIds.mockRejectedValue(new Error("connection terminated"));
+
+      await expect(service.findForDeploymentSettings(["setting-1"])).resolves.toEqual(new Map());
+
+      expect(logger.warn).toHaveBeenCalledWith(expect.objectContaining({ event: "LEASE_GPU_READ_FAILED", deploymentSettingIds: ["setting-1"] }));
+    });
+  });
+
   it("reads through the caller's own ability", async () => {
     const { service, deploymentSettingRepository, scoped, authService } = setup({ readings: [reading()] });
 

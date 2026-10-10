@@ -39,6 +39,20 @@ const NVIDIA_PROBE_SOURCE = "nvidia-smi" satisfies GpuProbeSource;
 /** What a deployment list shows about a deployment, as distinct from the fuller row a single settings read answers with. */
 export type ListedDeploymentSetting = Pick<DeploymentSettingsDbOutput, "name" | "closed" | "runtimeLimitHours" | "runtimeEndsAt">;
 
+export type ReachableDeployment = {
+  id: string;
+  dseq: string;
+  owner: string;
+  projectId: string | null;
+  setting: ListedDeploymentSetting;
+};
+
+export type ReachableDeploymentQuery = {
+  organizationId: string;
+  projectId?: string;
+  search?: string;
+};
+
 /** A won auto-funding claim: the deployment setting id and the exact marker the claim wrote. */
 export type FundingClaim = {
   id: string;
@@ -215,6 +229,54 @@ export class DeploymentSettingRepository extends OrgScopedRepository<Table, Depl
     return new Map(rows.map(({ dseq, setting }) => [dseq, setting]));
   }
 
+  /** Keyed by dseq and absent for a dseq with no row, under the same double scoping as {@link findNamesByDseqs}. */
+  async findProjectIdsByDseqs({ userId, dseqs }: { userId: string; dseqs: string[] }): Promise<Map<string, string | null>> {
+    if (dseqs.length === 0) {
+      return new Map();
+    }
+
+    const rows = await this.cursor
+      .select({ dseq: this.table.dseq, ...this.#ruleColumns })
+      .from(this.table)
+      .where(this.whereAccessibleBy(and(eq(this.table.userId, userId), inArray(this.table.dseq, dseqs))));
+    this.compareWithShadow(rows);
+
+    return new Map(rows.map(row => [row.dseq, row.projectId]));
+  }
+
+  /** Every row of the organization the caller's rules reach, with the address owning its deployment on chain, oldest first. */
+  async findReachable({ organizationId, projectId, search }: ReachableDeploymentQuery): Promise<ReachableDeployment[]> {
+    const rows = await this.cursor
+      .select({
+        id: this.table.id,
+        dseq: this.table.dseq,
+        owner: sql<string>`${UserWallets.address}`,
+        setting: {
+          name: this.table.name,
+          closed: this.table.closed,
+          runtimeLimitHours: this.table.runtimeLimitHours,
+          runtimeEndsAt: this.table.runtimeEndsAt
+        },
+        ...this.#ruleColumns
+      })
+      .from(this.table)
+      .innerJoin(UserWallets, eq(UserWallets.userId, this.table.userId))
+      .where(
+        this.whereAccessibleBy(
+          and(
+            eq(this.table.organizationId, organizationId),
+            isNotNull(UserWallets.address),
+            projectId ? eq(this.table.projectId, projectId) : undefined,
+            search ? or(ilike(this.table.name, containsPattern(search)), ilike(this.table.dseq, containsPattern(search))) : undefined
+          )
+        )
+      )
+      .orderBy(asc(this.table.createdAt), asc(this.table.id));
+    this.compareWithShadow(rows);
+
+    return rows.map(({ id, dseq, owner, projectId, setting }) => ({ id, dseq, owner, projectId, setting }));
+  }
+
   /** Under the same double scoping as {@link findNamesByDseqs}; the null-name condition is what lets the partial index on named rows serve it. */
   async findDseqsByNameContaining({ userId, text }: { userId: string; text: string }): Promise<string[]> {
     const rows = await this.cursor
@@ -273,6 +335,21 @@ export class DeploymentSettingRepository extends OrgScopedRepository<Table, Depl
     this.compareWithShadow(rows);
 
     return new Map(rows.map(row => [row.dseq, { readings: row.detectedGpus ?? [], offers: row.offeredGpus ?? [] }]));
+  }
+
+  /** As {@link findLeaseGpus}, keyed by row id for rows that other members of the organization may have filed. */
+  async findLeaseGpusByIds(ids: string[]): Promise<Map<string, StoredLeaseGpus>> {
+    if (ids.length === 0) {
+      return new Map();
+    }
+
+    const rows = await this.cursor
+      .select({ id: this.table.id, detectedGpus: this.table.detectedGpus, offeredGpus: this.table.offeredGpus, ...this.#ruleColumns })
+      .from(this.table)
+      .where(this.whereAccessibleBy(and(inArray(this.table.id, ids), or(isNotNull(this.table.detectedGpus), isNotNull(this.table.offeredGpus)))));
+    this.compareWithShadow(rows);
+
+    return new Map(rows.map(row => [row.id, { readings: row.detectedGpus ?? [], offers: row.offeredGpus ?? [] }]));
   }
 
   /** Newest first, one entry per driver version reported by at least `minOwners` deployment owners, with the UTC day it was last read. */

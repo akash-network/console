@@ -14,7 +14,7 @@ import {
 import { PromisePool } from "@supercharge/promise-pool";
 import { AxiosError } from "axios";
 import assert from "http-assert";
-import { InternalServerError, UnprocessableEntity as UnprocessableEntityError } from "http-errors";
+import { InternalServerError, isHttpError, UnprocessableEntity as UnprocessableEntityError } from "http-errors";
 import { ConnectionError, Op } from "sequelize";
 import { inject, singleton } from "tsyringe";
 
@@ -181,6 +181,19 @@ export class DeploymentReaderService {
     const groupSpecs = deployment.hash === UNKNOWN_DB_PLACEHOLDER ? null : groups.map(group => group.group_spec);
 
     return { deployment: { deployment, leases: leases.map(lease => ({ ...lease, status: null })), escrow_account }, groupSpecs };
+  }
+
+  /** Read by the address owning the deployment rather than the caller's wallet; null when the chain holds no such deployment. */
+  public async findListedByOwnerAndDseq(owner: string, dseq: string): Promise<{ deployment: DeploymentInfo; leases: RpcLease["lease"][] } | null> {
+    try {
+      const { deployment, groups, escrow_account, leases } = await this.#findOnChain(owner, dseq);
+
+      return { deployment: { deployment, groups, escrow_account }, leases };
+    } catch (error) {
+      if (isHttpError(error) && error.status === 404) return null;
+
+      throw error;
+    }
   }
 
   async #findOnChain(owner: string, dseq: string) {
