@@ -204,6 +204,24 @@ describe(AuthInterceptor.name, () => {
       expect(executionContextService.set).toHaveBeenCalledWith("ORGANIZATION_CONTEXT", organizationContext);
     });
 
+    it("keeps the API key a request authenticated with for the rest of the request", async () => {
+      const user = createUser();
+      const apiKeyOutput = createApiKey({ userId: user.id, projectId: faker.string.uuid() });
+      const { callInterceptor, executionContextService } = setup({ apiKey: "123", user, apiKeyOutput });
+
+      await callInterceptor();
+
+      expect(executionContextService.set).toHaveBeenCalledWith("CURRENT_API_KEY", apiKeyOutput);
+    });
+
+    it("keeps no API key for a signed-in request", async () => {
+      const { callInterceptor, executionContextService } = setup({ user: createUser() });
+
+      await callInterceptor();
+
+      expect(executionContextService.set).toHaveBeenCalledWith("CURRENT_API_KEY", undefined);
+    });
+
     it("answers an API key request with the organization context's rejection rather than as an invalid key", async () => {
       const { callInterceptor, abilityService } = setup({ apiKey: "123", user: createUser(), organizationContextRejection: createError(400, "Mismatch") });
 
