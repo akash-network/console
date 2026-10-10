@@ -263,8 +263,9 @@ describe("ability rules", () => {
 
       const granted = actionsBySubject(ability, { organizationId, projectId: faker.string.uuid(), userId: user.id });
 
-      expect(pick(granted, ["Project", ...PROJECT_RESOURCES])).toEqual({
+      expect(pick(granted, ["Project", "ProjectMember", ...PROJECT_RESOURCES])).toEqual({
         Project: MANAGE,
+        ProjectMember: MANAGE,
         DeploymentSetting: MANAGE,
         Template: MANAGE,
         Alert: MANAGE,
@@ -279,8 +280,20 @@ describe("ability rules", () => {
       const inside = actionsBySubject(ability, { organizationId, projectId: narrowedProjectId, userId: user.id });
       const outside = actionsBySubject(ability, { organizationId, projectId: faker.string.uuid(), userId: user.id });
 
-      expect(pick(inside, PROJECT_RESOURCES)).toEqual({ DeploymentSetting: MANAGE, Template: MANAGE, Alert: MANAGE, NotificationChannel: MANAGE });
-      expect(pick(outside, PROJECT_RESOURCES)).toEqual({ DeploymentSetting: NONE, Template: NONE, Alert: NONE, NotificationChannel: NONE });
+      expect(pick(inside, ["ProjectMember", ...PROJECT_RESOURCES])).toEqual({
+        ProjectMember: MANAGE,
+        DeploymentSetting: MANAGE,
+        Template: MANAGE,
+        Alert: MANAGE,
+        NotificationChannel: MANAGE
+      });
+      expect(pick(outside, ["ProjectMember", ...PROJECT_RESOURCES])).toEqual({
+        ProjectMember: NONE,
+        DeploymentSetting: NONE,
+        Template: NONE,
+        Alert: NONE,
+        NotificationChannel: NONE
+      });
       expect([inside.OrganizationActivity, outside.OrganizationActivity]).toEqual([READ, NONE]);
     });
 

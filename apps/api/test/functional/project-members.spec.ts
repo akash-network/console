@@ -3,7 +3,8 @@ import { and, eq } from "drizzle-orm";
 import { container } from "tsyringe";
 import { afterAll, afterEach, describe, expect, it, vi } from "vitest";
 
-import { AuthService } from "@src/auth/services/auth.service";
+import { ApiKeyRepository } from "@src/auth/repositories/api-key/api-key.repository";
+import { ApiKeyGeneratorService } from "@src/auth/services/api-key/api-key-generator.service";
 import { UserAuthTokenService } from "@src/auth/services/user-auth-token/user-auth-token.service";
 import type { ApiPgDatabase } from "@src/core";
 import { POSTGRES_DB, resolveTable } from "@src/core";
@@ -109,7 +110,10 @@ describe("Project members", () => {
       const caller = await addMember(role);
       const grantee = await addMember("member");
 
-      const response = await actAs(caller)("/v1/project-members", { method: "POST", body: { data: { projectId: project.id, userId: grantee.id, role: "member" } } });
+      const response = await actAs(caller)("/v1/project-members", {
+        method: "POST",
+        body: { data: { projectId: project.id, userId: grantee.id, role: "member" } }
+      });
 
       expect(response.status).toBe(201);
       expect(await response.json()).toEqual({
@@ -153,7 +157,10 @@ describe("Project members", () => {
       await seedProjectMember({ organizationId: team.id, projectId: project.id, userId: caller.id, role: "admin" });
       const grantee = await addMember("member");
 
-      const response = await actAs(caller)("/v1/project-members", { method: "POST", body: { data: { projectId: project.id, userId: grantee.id, role: "member" } } });
+      const response = await actAs(caller)("/v1/project-members", {
+        method: "POST",
+        body: { data: { projectId: project.id, userId: grantee.id, role: "member" } }
+      });
 
       expect(response.status).toBe(403);
       expect(await grantsOf(grantee.id)).toEqual([]);
@@ -163,7 +170,10 @@ describe("Project members", () => {
       const { project, owner, actAs, addMember } = await setup();
       const grantee = await addMember(role);
 
-      const response = await actAs(owner)("/v1/project-members", { method: "POST", body: { data: { projectId: project.id, userId: grantee.id, role: "member" } } });
+      const response = await actAs(owner)("/v1/project-members", {
+        method: "POST",
+        body: { data: { projectId: project.id, userId: grantee.id, role: "member" } }
+      });
 
       expect(response.status).toBe(409);
       expect(await response.json()).toMatchObject({ code: "implicit_project_access" });
@@ -174,7 +184,10 @@ describe("Project members", () => {
       const { project, owner, actAs, addMember } = await setup();
       const grantee = await addMember("billing");
 
-      const response = await actAs(owner)("/v1/project-members", { method: "POST", body: { data: { projectId: project.id, userId: grantee.id, role: "viewer" } } });
+      const response = await actAs(owner)("/v1/project-members", {
+        method: "POST",
+        body: { data: { projectId: project.id, userId: grantee.id, role: "viewer" } }
+      });
 
       expect(response.status).toBe(409);
       expect(await response.json()).toMatchObject({ code: "billing_role_not_grantable" });
@@ -215,7 +228,10 @@ describe("Project members", () => {
       const { project, owner, actAs, addMember } = await setup();
       const grantee = await addMember("member");
 
-      const response = await actAs(owner)("/v1/project-members", { method: "POST", body: { data: { projectId: project.id, userId: grantee.id, role: "owner" } } });
+      const response = await actAs(owner)("/v1/project-members", {
+        method: "POST",
+        body: { data: { projectId: project.id, userId: grantee.id, role: "owner" } }
+      });
 
       expect(response.status).toBe(400);
     });
@@ -224,7 +240,10 @@ describe("Project members", () => {
       const { project, owner, actAs, addMember } = await setup({ organizationsOn: false });
       const grantee = await addMember("member");
 
-      const response = await actAs(owner)("/v1/project-members", { method: "POST", body: { data: { projectId: project.id, userId: grantee.id, role: "member" } } });
+      const response = await actAs(owner)("/v1/project-members", {
+        method: "POST",
+        body: { data: { projectId: project.id, userId: grantee.id, role: "member" } }
+      });
 
       expect(response.status).toBe(404);
       expect(await grantsOf(grantee.id)).toEqual([]);
@@ -306,12 +325,51 @@ describe("Project members", () => {
     });
   });
 
+  describe("when the request is limited to one project", () => {
+    it("answers 404 to an owner's project-bound API key for the grants of another project", async () => {
+      const { team, project, defaultProject, owner, addMember } = await setup();
+      const apiKey = await seedApiKey({ userId: owner.id, organizationId: team.id, projectId: defaultProject.id });
+      const grantee = await addMember("member");
+      const grant = await seedProjectMember({ organizationId: team.id, projectId: project.id, userId: grantee.id, role: "viewer" });
+      const outsider = await addMember("member");
+
+      const responses = await Promise.all([
+        requestWithKey(apiKey, `/v1/projects/${project.id}/members`),
+        requestWithKey(apiKey, "/v1/project-members", { method: "POST", body: { data: { projectId: project.id, userId: outsider.id, role: "admin" } } }),
+        requestWithKey(apiKey, `/v1/project-members/${grant.id}`, { method: "PATCH", body: { data: { role: "admin" } } }),
+        requestWithKey(apiKey, `/v1/project-members/${grant.id}`, { method: "DELETE" })
+      ]);
+
+      expect(responses.map(({ status }) => status)).toEqual([404, 404, 404, 404]);
+      expect(await grantsOf(outsider.id)).toEqual([]);
+      expect(await grantRow(grant.id)).toMatchObject({ role: "viewer" });
+    });
+
+    it("answers 404 to an admin whose header narrows the request to another project", async () => {
+      const { project, defaultProject, actAs, addMember } = await setup();
+      const caller = await addMember("admin");
+      const grantee = await addMember("member");
+
+      const response = await actAs(caller)("/v1/project-members", {
+        method: "POST",
+        body: { data: { projectId: project.id, userId: grantee.id, role: "member" } },
+        headers: { "x-project-id": defaultProject.id }
+      });
+
+      expect(response.status).toBe(404);
+      expect(await grantsOf(grantee.id)).toEqual([]);
+    });
+  });
+
   describe("when access is revoked", () => {
     it("refuses the member's very next request on the project", async () => {
       const { team, project, owner, actAs, addMember } = await setup();
       const member = await addMember("member");
       const deployment = await seedDeploymentSetting({ userId: owner.id, organizationId: team.id, projectId: project.id, autoTopUpEnabled: false });
-      const granted = await actAs(owner)("/v1/project-members", { method: "POST", body: { data: { projectId: project.id, userId: member.id, role: "member" } } });
+      const granted = await actAs(owner)("/v1/project-members", {
+        method: "POST",
+        body: { data: { projectId: project.id, userId: member.id, role: "member" } }
+      });
       const { data: grant } = (await granted.json()) as { data: { id: string } };
 
       const beforeRevoke = await Promise.all([
@@ -361,9 +419,7 @@ describe("Project members", () => {
       const notGranted = await seedDeploymentSetting({ userId: owner.id, organizationId: team.id, projectId: defaultProject.id, autoTopUpEnabled: false });
 
       const projects = await actAs(member)("/v1/projects");
-      const settings = await Promise.all(
-        [granted, notGranted].map(({ dseq }) => actAs(member)(`/v2/deployment-settings/${dseq}?userId=${owner.id}`))
-      );
+      const settings = await Promise.all([granted, notGranted].map(({ dseq }) => actAs(member)(`/v2/deployment-settings/${dseq}?userId=${owner.id}`)));
       const defaultProjectResponse = await actAs(member)(`/v1/projects/${defaultProject.id}`);
 
       expect((await projects.json()) as { data: { id: string }[] }).toMatchObject({ data: [{ id: project.id }] });
@@ -435,6 +491,27 @@ describe("Project members", () => {
     return await seedProjectMember({ organizationId: foreign.id, projectId: foreignProject.id, userId: grantee.id, role: "member" });
   }
 
+  function requestWithKey(apiKey: string, path: string, init: { method?: string; body?: unknown } = {}) {
+    return app.request(path, {
+      method: init.method ?? "GET",
+      headers: { "x-api-key": apiKey, "content-type": "application/json" },
+      body: init.body === undefined ? undefined : JSON.stringify(init.body)
+    });
+  }
+
+  async function seedApiKey(input: { userId: string; organizationId: string; projectId: string }) {
+    const apiKeyGenerator = container.resolve(ApiKeyGeneratorService);
+    const apiKey = apiKeyGenerator.generateApiKey();
+    await container.resolve(ApiKeyRepository).create({
+      ...input,
+      hashedKey: apiKeyGenerator.hashApiKeySha256(apiKey),
+      keyFormat: apiKeyGenerator.obfuscateApiKey(apiKey),
+      name: "ci"
+    });
+
+    return apiKey;
+  }
+
   async function seedTemplate(input: { userId: string; organizationId: string; projectId: string }) {
     const [template] = await container
       .resolve<ApiPgDatabase>(POSTGRES_DB)
@@ -453,20 +530,20 @@ describe("Project members", () => {
     const { user: owner, organization: team, project: defaultProject } = await seedOrganizationWithOwner({ user: createSignedUpUserInput() });
     const project = await seedProject({ organizationId: team.id });
     const tokens = new Map<string, string>();
-    const flaggedUserIds: string[] = [];
 
-    vi.spyOn(container.resolve(UserAuthTokenService), "getValidUserId").mockImplementation(async header => tokens.get(header.replace(/^Bearer +/i, "")) ?? null);
-    vi.spyOn(container.resolve(FeatureFlagsService), "isEnabled").mockImplementation((flag, context) => {
+    vi.spyOn(container.resolve(UserAuthTokenService), "getValidUserId").mockImplementation(
+      async header => tokens.get(header.replace(/^Bearer +/i, "")) ?? null
+    );
+    vi.spyOn(container.resolve(FeatureFlagsService), "isEnabled").mockImplementation(flag => {
       if (flag === FeatureFlags.ORGANIZATIONS_ENFORCE) return false;
       if (flag !== FeatureFlags.ORGANIZATIONS) return true;
 
-      return flaggedUserIds.includes(context?.userId ?? container.resolve(AuthService).safeCurrentUser?.id ?? "");
+      return input.organizationsOn !== false;
     });
 
     const signIn = (user: UserOutput) => {
       const token = faker.string.alphanumeric(40);
       tokens.set(token, user.userId!);
-      if (input.organizationsOn !== false) flaggedUserIds.push(user.id);
 
       return `Bearer ${token}`;
     };
@@ -474,10 +551,10 @@ describe("Project members", () => {
     const actAs = (user: UserOutput) => {
       const authorization = signIn(user);
 
-      return (path: string, init: { method?: string; body?: unknown } = {}) =>
+      return (path: string, init: { method?: string; body?: unknown; headers?: Record<string, string> } = {}) =>
         app.request(path, {
           method: init.method ?? "GET",
-          headers: { authorization, "x-organization-id": team.id, "content-type": "application/json" },
+          headers: { authorization, "x-organization-id": team.id, "content-type": "application/json", ...init.headers },
           body: init.body === undefined ? undefined : JSON.stringify(init.body)
         });
     };

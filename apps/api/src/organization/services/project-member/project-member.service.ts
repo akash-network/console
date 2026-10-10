@@ -1,3 +1,4 @@
+import { subject } from "@casl/ability";
 import createError from "http-errors";
 import { singleton } from "tsyringe";
 
@@ -8,7 +9,7 @@ import {
   type OrganizationMemberOutput,
   OrganizationMemberRepository
 } from "@src/organization/repositories/organization-member/organization-member.repository";
-import { ProjectRepository } from "@src/organization/repositories/project/project.repository";
+import { type ProjectOutput, ProjectRepository } from "@src/organization/repositories/project/project.repository";
 import { ProjectMemberRepository, type ProjectMemberWithUser } from "@src/organization/repositories/project-member/project-member.repository";
 import { OrganizationActivityService } from "@src/organization/services/organization-activity/organization-activity.service";
 
@@ -35,7 +36,7 @@ export class ProjectMemberService {
 
   async list(projectId: string): Promise<ProjectMemberWithUser[]> {
     const project = await this.projectRepository.accessibleBy(this.authService.ability, "read").findOneBy({ id: projectId, deletedAt: null });
-    assertProjectFound(project);
+    this.#assertGrantsReachable(project, "read");
 
     return await this.projectMemberRepository.accessibleBy(this.authService.ability, "read").findOfLiveProjects({ projectId });
   }
@@ -45,7 +46,7 @@ export class ProjectMemberService {
 
     return await this.txService.transaction(async () => {
       const project = await this.projectRepository.accessibleBy(ability, "read").findActiveAndLock(projectId);
-      assertProjectFound(project);
+      this.#assertGrantsReachable(project, "create");
       const { organizationId } = project;
       assertGrantable(await this.organizationMemberRepository.findOneByAndLock({ organizationId, userId }));
 
@@ -95,11 +96,14 @@ export class ProjectMemberService {
       });
     });
   }
-}
 
-function assertProjectFound<T>(project: T | undefined): asserts project is T {
-  if (!project) {
-    throw createError(404, "Project not found");
+  #assertGrantsReachable(project: ProjectOutput | undefined, action: "read" | "create"): asserts project is ProjectOutput {
+    const reachable =
+      project && this.authService.ability.can(action, subject("ProjectMember", { organizationId: project.organizationId, projectId: project.id }));
+
+    if (!reachable) {
+      throw createError(404, "Project not found");
+    }
   }
 }
 

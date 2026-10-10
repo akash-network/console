@@ -28,7 +28,8 @@ const ROLES_BELOW_OWNER = organizationRoleEnum.enumValues.filter(role => role !=
 const ROLE_RULES: Record<OrganizationRole, (conditions: TenantConditions, context: OrganizationContext) => AbilityRule[]> = {
   owner: ({ organization, inOrg, inScope }, { organizationType }) => [
     { action: organizationType === "team" ? ["update", "delete"] : "update", subject: "Organization", conditions: organization },
-    { action: "manage", subject: ["OrganizationMember", "OrganizationInvitation", "Project", "ProjectMember"], conditions: inOrg },
+    { action: "manage", subject: ["OrganizationMember", "OrganizationInvitation", "Project"], conditions: inOrg },
+    { action: "manage", subject: "ProjectMember", conditions: inScope },
     { action: "sign", subject: "UserWallet", conditions: inOrg },
     { action: "manage", subject: ["WalletSetting", "PaymentMethod", "StripePayment"], conditions: inOrg },
     { action: "manage", subject: PROJECT_RESOURCES, conditions: inScope }
@@ -37,7 +38,8 @@ const ROLE_RULES: Record<OrganizationRole, (conditions: TenantConditions, contex
     { action: "update", subject: "Organization", conditions: organization },
     { action: "read", subject: "OrganizationInvitation", conditions: inOrg },
     { action: "manage", subject: ["OrganizationMember", "OrganizationInvitation"], conditions: belowOwnerInOrg },
-    { action: "manage", subject: ["Project", "ProjectMember"], conditions: inOrg },
+    { action: "manage", subject: "Project", conditions: inOrg },
+    { action: "manage", subject: "ProjectMember", conditions: inScope },
     { action: "sign", subject: "UserWallet", conditions: inOrg },
     { action: "read", subject: ["WalletSetting", "PaymentMethod", "StripePayment"], conditions: inOrg },
     { action: "manage", subject: PROJECT_RESOURCES, conditions: inScope }

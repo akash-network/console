@@ -1,3 +1,4 @@
+import { Ability, type MongoAbility, type RawRuleOf } from "@casl/ability";
 import { faker } from "@faker-js/faker";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
@@ -6,7 +7,7 @@ import type { AuthService } from "@src/auth/services/auth.service";
 import type { TxService } from "@src/core/services/tx/tx.service";
 import type { OrganizationRole } from "@src/organization/model-schemas/organization-member/organization-member.schema";
 import type { OrganizationMemberRepository } from "@src/organization/repositories/organization-member/organization-member.repository";
-import type { ProjectRepository } from "@src/organization/repositories/project/project.repository";
+import type { ProjectOutput, ProjectRepository } from "@src/organization/repositories/project/project.repository";
 import type { ProjectMemberRepository } from "@src/organization/repositories/project-member/project-member.repository";
 import type { OrganizationActivityService } from "@src/organization/services/organization-activity/organization-activity.service";
 import {
@@ -39,6 +40,23 @@ describe(ProjectMemberService.name, () => {
 
       await expect(service.list(faker.string.uuid())).rejects.toMatchObject({ status: 404, message: "Project not found" });
       expect(projectMemberRepository.findOfLiveProjects).not.toHaveBeenCalled();
+    });
+
+    it("answers not found like a missing project when the project's grants are beyond the caller's reach", async () => {
+      const { service, projectMemberRepository, project } = setup({
+        grantRules: ({ organizationId }) => [{ action: "manage", subject: "ProjectMember", conditions: { organizationId, projectId: faker.string.uuid() } }]
+      });
+
+      await expect(service.list(project.id)).rejects.toMatchObject({ status: 404, message: "Project not found" });
+      expect(projectMemberRepository.findOfLiveProjects).not.toHaveBeenCalled();
+    });
+
+    it("lists to a caller who may only read the project's grants", async () => {
+      const { service, grant, project } = setup({
+        grantRules: ({ organizationId, id }) => [{ action: "read", subject: "ProjectMember", conditions: { organizationId, projectId: id } }]
+      });
+
+      expect(await service.list(project.id)).toEqual([grant]);
     });
   });
 
@@ -104,6 +122,28 @@ describe(ProjectMemberService.name, () => {
       expect(projectMemberRepository.createUnlessExists).not.toHaveBeenCalled();
     });
 
+    it("answers not found like a missing project when the caller may only read the project's grants", async () => {
+      const { service, organizationMemberRepository, projectMemberRepository, project } = setup({
+        grantRules: ({ organizationId, id }) => [{ action: "read", subject: "ProjectMember", conditions: { organizationId, projectId: id } }]
+      });
+
+      await expect(service.create({ projectId: project.id, userId: faker.string.uuid(), role: "member" })).rejects.toMatchObject({
+        status: 404,
+        message: "Project not found"
+      });
+      expect(organizationMemberRepository.findOneByAndLock).not.toHaveBeenCalled();
+      expect(projectMemberRepository.createUnlessExists).not.toHaveBeenCalled();
+    });
+
+    it("answers not found like a missing project when the project is outside the request's project scope", async () => {
+      const { service, organizationMemberRepository, project } = setup({
+        grantRules: ({ organizationId }) => [{ action: "manage", subject: "ProjectMember", conditions: { organizationId, projectId: { $in: [] } } }]
+      });
+
+      await expect(service.create({ projectId: project.id, userId: faker.string.uuid(), role: "member" })).rejects.toMatchObject({ status: 404 });
+      expect(organizationMemberRepository.findOneByAndLock).not.toHaveBeenCalled();
+    });
+
     it("answers not found when the user is no member of the project's organization", async () => {
       const { service, organizationMemberRepository, projectMemberRepository, organizationActivityService, project } = setup();
       organizationMemberRepository.findOneByAndLock.mockResolvedValue(undefined);
@@ -121,7 +161,8 @@ describe(ProjectMemberService.name, () => {
 
       await expect(service.create({ projectId: project.id, userId: grant.userId, role: "member" })).rejects.toMatchObject({
         status: 409,
-        errorCode: IMPLICIT_PROJECT_ACCESS_ERROR_CODE
+        errorCode: IMPLICIT_PROJECT_ACCESS_ERROR_CODE,
+        message: "Owners and admins already reach every project"
       });
       expect(projectMemberRepository.createUnlessExists).not.toHaveBeenCalled();
     });
@@ -131,7 +172,8 @@ describe(ProjectMemberService.name, () => {
 
       await expect(service.create({ projectId: project.id, userId: grant.userId, role: "member" })).rejects.toMatchObject({
         status: 409,
-        errorCode: BILLING_ROLE_NOT_GRANTABLE_ERROR_CODE
+        errorCode: BILLING_ROLE_NOT_GRANTABLE_ERROR_CODE,
+        message: "Billing members have no project access to grant"
       });
       expect(projectMemberRepository.createUnlessExists).not.toHaveBeenCalled();
     });
@@ -142,7 +184,8 @@ describe(ProjectMemberService.name, () => {
 
       await expect(service.create({ projectId: project.id, userId: grant.userId, role: "member" })).rejects.toMatchObject({
         status: 409,
-        errorCode: ALREADY_GRANTED_ERROR_CODE
+        errorCode: ALREADY_GRANTED_ERROR_CODE,
+        message: "This member already has access to the project"
       });
       expect(projectMemberRepository.findOfLiveProjects).not.toHaveBeenCalled();
       expect(organizationActivityService.record).not.toHaveBeenCalled();
@@ -223,10 +266,11 @@ describe(ProjectMemberService.name, () => {
     });
   });
 
-  function setup(input: { targetRole?: OrganizationRole } = {}) {
+  function setup(input: { targetRole?: OrganizationRole; grantRules?: (project: ProjectOutput) => RawRuleOf<MongoAbility>[] } = {}) {
     const user = createUser();
-    const ability = mock<AuthService["ability"]>();
     const project = createProject();
+    const grantRules = input.grantRules ?? (({ organizationId }) => [{ action: "manage", subject: "ProjectMember", conditions: { organizationId } }]);
+    const ability = new Ability(grantRules(project));
     const grant = createProjectMemberWithUser({ organizationId: project.organizationId, projectId: project.id });
     const projectRepository = mock<ProjectRepository>({
       findOneBy: vi.fn().mockResolvedValue(project),
@@ -246,7 +290,8 @@ describe(ProjectMemberService.name, () => {
         .mockResolvedValue(createOrganizationMember({ organizationId: project.organizationId, userId: grant.userId, role: input.targetRole ?? "member" }))
     });
     const organizationActivityService = mock<OrganizationActivityService>();
-    const authService = mock<AuthService>({ ability, currentUser: user });
+    const authService = mock<AuthService>({ currentUser: user });
+    authService.ability = ability;
     const txService = mock<TxService>({ transaction: vi.fn(callback => callback()) });
 
     const service = new ProjectMemberService(
