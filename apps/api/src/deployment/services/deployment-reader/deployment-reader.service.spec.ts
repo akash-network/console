@@ -126,7 +126,7 @@ describe(DeploymentReaderService.name, () => {
 
       await service.findByUserIdAndDseq(wallet.userId, "12345");
 
-      expect(scopedDeploymentSettingRepository.findOneBy).toHaveBeenCalledTimes(1);
+      expect(scopedDeploymentSettingRepository.findOneOfWallet).toHaveBeenCalledTimes(1);
     });
 
     it("reads the console settings under the caller's own ability and user id", async () => {
@@ -135,7 +135,7 @@ describe(DeploymentReaderService.name, () => {
       await service.findByUserIdAndDseq(wallet.userId, "12345");
 
       expect(deploymentSettingRepository.accessibleBy).toHaveBeenCalledWith(authService.ability, "read");
-      expect(scopedDeploymentSettingRepository.findOneBy).toHaveBeenCalledWith({ userId: wallet.userId, dseq: "12345" });
+      expect(scopedDeploymentSettingRepository.findOneOfWallet).toHaveBeenCalledWith(wallet, "12345");
     });
 
     it("reads the console settings without waiting for the chain to answer", async () => {
@@ -145,7 +145,7 @@ describe(DeploymentReaderService.name, () => {
 
       deploymentHttpService.findByOwnerAndDseq.mockImplementation(async () => {
         await Promise.resolve();
-        settingsWereReadBeforeTheChainAnswered = scopedDeploymentSettingRepository.findOneBy.mock.calls.length > 0;
+        settingsWereReadBeforeTheChainAnswered = scopedDeploymentSettingRepository.findOneOfWallet.mock.calls.length > 0;
         return deploymentInfo;
       });
 
@@ -395,7 +395,7 @@ describe(DeploymentReaderService.name, () => {
 
       expect(deploymentSettingRepository.accessibleBy).toHaveBeenCalledWith(authService.ability, "read");
       expect(scopedDeploymentSettingRepository.findListedSettings).toHaveBeenCalledTimes(1);
-      expect(scopedDeploymentSettingRepository.findListedSettings).toHaveBeenCalledWith({ userId: wallet.userId, dseqs: ["100", "200"] });
+      expect(scopedDeploymentSettingRepository.findListedSettings).toHaveBeenCalledWith({ wallet, dseqs: ["100", "200"] });
     });
 
     it("gives each listed deployment the leases fetched for that deployment alone", async () => {
@@ -583,7 +583,7 @@ describe(DeploymentReaderService.name, () => {
 
       expect(deploymentArchiveReaderService.list).toHaveBeenCalledWith({
         owner: wallet.address,
-        userId: wallet.userId,
+        wallet,
         skip: 25,
         limit: 10,
         reverse: true,
@@ -794,7 +794,7 @@ describe(DeploymentReaderService.name, () => {
       await service.list({ query: { userId: wallet.userId }, skip: 0, limit: 10, search: "web" });
 
       expect(scopedDeploymentSettingRepository.findListedSettings).toHaveBeenCalledTimes(1);
-      expect(scopedDeploymentSettingRepository.findListedSettings).toHaveBeenCalledWith({ userId: wallet.userId, dseqs: ["100", "200"] });
+      expect(scopedDeploymentSettingRepository.findListedSettings).toHaveBeenCalledWith({ wallet, dseqs: ["100", "200"] });
     });
 
     it("refuses a search over more deployments than it will span", async () => {
@@ -899,7 +899,7 @@ describe(DeploymentReaderService.name, () => {
       await service.findNames(wallet.userId, ["100", "200"]);
 
       expect(deploymentSettingRepository.accessibleBy).toHaveBeenCalledWith(authService.ability, "read");
-      expect(scopedDeploymentSettingRepository.findNamesByDseqs).toHaveBeenCalledExactlyOnceWith({ userId: wallet.userId, dseqs: ["100", "200"] });
+      expect(scopedDeploymentSettingRepository.findNamesByDseqs).toHaveBeenCalledExactlyOnceWith({ wallet, dseqs: ["100", "200"] });
     });
 
     it("reads nothing when asked about no deployment", async () => {
@@ -1172,14 +1172,15 @@ describe(DeploymentReaderService.name, () => {
       }),
       messageService: mock<MessageService>(),
       walletReaderService: mock<WalletReaderService>({
-        getWalletByUserId: vi.fn().mockResolvedValue(wallet)
+        getWalletByUserId: vi.fn().mockResolvedValue(wallet),
+        findReadableWalletByUserId: vi.fn().mockResolvedValue(wallet)
       }),
       logger: mock<ReturnType<CreateLogger>>()
     };
 
     const recorded = input.recorded === undefined ? { sdl: "version: '2.0'", manifestVersion: "BAUG", name: null } : input.recorded;
     const scopedDeploymentSettingRepository = mock<DeploymentSettingRepository>({
-      findOneBy: vi.fn().mockResolvedValue(recorded ? mock<DeploymentSettingsOutput>({ ...recorded, name: recorded.name ?? null }) : undefined),
+      findOneOfWallet: vi.fn().mockResolvedValue(recorded ? mock<DeploymentSettingsOutput>({ ...recorded, name: recorded.name ?? null }) : undefined),
       findNamesByDseqs: vi.fn().mockResolvedValue(new Map(Object.entries(input.names ?? {}))),
       findListedSettings: vi
         .fn()

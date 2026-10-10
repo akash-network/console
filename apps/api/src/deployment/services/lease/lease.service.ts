@@ -115,8 +115,7 @@ export class LeaseService {
     }
   }
 
-  /** Called before anything is broadcast, so a definition the console cannot re-derive costs no lease on chain and no provider a partial send. */
-  /** Every deployment is checked against the caller's projects before its manifest is read, a lease is signed or a provider is sent anything. */
+  /** Runs before anything is broadcast or sent, checking each deployment against the caller's projects and refusing a definition the console cannot re-derive. */
   async #manifestsByDseq(
     leases: CreateLeaseRequest["leases"],
     { wallet, userId }: { wallet: WalletInitialized; userId: string },

@@ -96,6 +96,23 @@ describe(JwtTokenController.name, () => {
         expect(providerJwtTokenService.generateJwtToken).not.toHaveBeenCalled();
       });
 
+      it("refuses a token meant to outlive an hour", async () => {
+        const user = createUser();
+        const { controller, authService, userWalletRepository, providerJwtTokenService, signerService, wallet } = setup({
+          user,
+          organizationContext: projectScoped
+        });
+        authService.currentUser = user;
+        userWalletRepository.accessibleBy.mockReturnThis();
+        userWalletRepository.findOneUsedBy.mockResolvedValue(wallet);
+
+        const result = await controller.createJwtToken({ ...granularPayload([{ dseq: 1 }]), ttl: 3601 });
+
+        expect(result.err && result.val).toMatchObject({ status: 400, message: "ttl must be at most 3600 seconds" });
+        expect(signerService.assertDeploymentsInProjectScope).not.toHaveBeenCalled();
+        expect(providerJwtTokenService.generateJwtToken).not.toHaveBeenCalled();
+      });
+
       function granularPayload(deployments: { dseq: number }[]): CreateJwtTokenRequest {
         return {
           ttl: 3600,
@@ -105,6 +122,22 @@ describe(JwtTokenController.name, () => {
           }
         };
       }
+    });
+
+    it("grants a token of any lifetime to a caller who reaches every project", async () => {
+      const user = createUser();
+      const { controller, authService, userWalletRepository, providerJwtTokenService, jwtToken, wallet } = setup({
+        user,
+        organizationContext: createOrganizationContext({ projectScope: { kind: "all" } })
+      });
+      authService.currentUser = user;
+      userWalletRepository.accessibleBy.mockReturnThis();
+      userWalletRepository.findOneUsedBy.mockResolvedValue(wallet);
+      providerJwtTokenService.generateJwtToken.mockResolvedValue(Ok(jwtToken));
+
+      const result = await controller.createJwtToken({ ...createPayload(), ttl: 86400 });
+
+      expect(result.unwrap()).toEqual({ token: jwtToken });
     });
 
     it("grants any lease access to a caller who reaches every project", async () => {

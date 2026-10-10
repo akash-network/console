@@ -11,6 +11,8 @@ import { PROJECT_FORBIDDEN_ERROR_CODE } from "@src/organization/services/organiz
 import { CreateJwtTokenRequest, CreateJwtTokenResponse } from "../../http-schemas/jwt-token.schema";
 import { ProviderJwtTokenService } from "../../services/provider-jwt-token/provider-jwt-token.service";
 
+const MAX_PROJECT_LIMITED_TTL_SECONDS = 3600;
+
 @singleton()
 export class JwtTokenController {
   constructor(
@@ -28,6 +30,8 @@ export class JwtTokenController {
     if (!wallet) return Err(new BadRequest("User does not have a wallet"));
 
     if (this.#isLimitedToProjects()) {
+      if (payload.ttl > MAX_PROJECT_LIMITED_TTL_SECONDS) return Err(new BadRequest(`ttl must be at most ${MAX_PROJECT_LIMITED_TTL_SECONDS} seconds`));
+
       const dseqs = deploymentsNamedBy(payload.leases);
       if (!dseqs) return Err(createError(403, "Name the deployments the token is for", { errorCode: PROJECT_FORBIDDEN_ERROR_CODE }));
 

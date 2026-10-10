@@ -51,6 +51,10 @@ export class WalletReaderService {
     return userWallet;
   }
 
+  async findReadableWalletByUserId(userId: string): Promise<UserWalletOutput | undefined> {
+    return await this.userWalletRepository.accessibleBy(this.authService.ability, "read").findOneUsedBy(userId);
+  }
+
   async getWalletById(walletId: number): Promise<WalletInitialized> {
     const userWallet = await this.userWalletRepository.accessibleBy(this.authService.ability, "sign").findById(walletId);
     assert(userWallet, 404, "UserWallet Not Found");
