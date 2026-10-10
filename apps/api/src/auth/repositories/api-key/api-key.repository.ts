@@ -47,7 +47,7 @@ export class ApiKeyRepository extends OrgScopedRepository<Table, ApiKeyInput, Ap
       .update(this.table)
       .set({ lastUsedAt: sql`now()` })
       .where(
-        this.whereAccessibleBy(
+        this.unscoped("api-key-authentication").whereAccessibleBy(
           and(eq(this.table.id, id), or(isNull(this.table.lastUsedAt), lt(this.table.lastUsedAt, sql`now() - make_interval(secs => ${throttleTimeSeconds})`)))
         )
       );
