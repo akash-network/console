@@ -1,7 +1,7 @@
 import { ForbiddenError } from "@casl/ability";
 import { faker } from "@faker-js/faker";
 import { hoursToMilliseconds } from "date-fns";
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import { randomBytes } from "node:crypto";
 import { container } from "tsyringe";
 import { describe, expect, it } from "vitest";
@@ -120,6 +120,47 @@ describe(DeploymentSettingRepository.name, () => {
 
       expect(await deploymentSettingRepository.claimForFunding([settingId], COOLDOWN_MINUTES)).toEqual([{ id: settingId, claimedAt: expect.any(String) }]);
     });
+  });
+
+  describe("findOpenInProject and markAsClosedInProject", () => {
+    it("read and close only the open rows of the project inside the organization they name", async () => {
+      const deploymentSettingRepository = container.resolve(DeploymentSettingRepository);
+      const [tenant, foreign] = await Promise.all([seedOrganizationWithOwner(), seedOrganizationWithOwner()]);
+      const address = createAkashAddress();
+      await container
+        .resolve<ApiPgDatabase>(POSTGRES_DB)
+        .insert(resolveTable("UserWallets"))
+        .values({ userId: tenant.user.id, address, deploymentAllowance: "0", feeAllowance: "0", isTrialing: false });
+      const otherProject = await seedProject({ organizationId: tenant.organization.id });
+      const inProject = { userId: tenant.user.id, organizationId: tenant.organization.id, projectId: tenant.project.id };
+      const open = await seedDeploymentSetting(inProject);
+      await seedDeploymentSetting({ ...inProject, closed: true });
+      const inOtherProject = await seedDeploymentSetting({ ...inProject, projectId: otherProject.id });
+      const foreignSetting = await seedDeploymentSetting({ userId: foreign.user.id, organizationId: foreign.organization.id, projectId: foreign.project.id });
+      const projectKey = { organizationId: tenant.organization.id, projectId: tenant.project.id };
+
+      const found = await deploymentSettingRepository.findOpenInProject(projectKey);
+      const foundAcrossOrganizations = await deploymentSettingRepository.findOpenInProject({
+        organizationId: tenant.organization.id,
+        projectId: foreign.project.id
+      });
+      await deploymentSettingRepository.markAsClosedInProject(projectKey, [open.id, inOtherProject.id, foreignSetting.id]);
+
+      expect(found).toEqual([{ id: open.id, userId: tenant.user.id, dseq: open.dseq, address, createdAt: open.createdAt }]);
+      expect(foundAcrossOrganizations).toEqual([]);
+      expect(await closedById([open.id, inOtherProject.id, foreignSetting.id])).toEqual({
+        [open.id]: true,
+        [inOtherProject.id]: false,
+        [foreignSetting.id]: false
+      });
+    });
+
+    async function closedById(ids: string[]) {
+      const table = resolveTable("DeploymentSettings");
+      const rows = await container.resolve<ApiPgDatabase>(POSTGRES_DB).select({ id: table.id, closed: table.closed }).from(table).where(inArray(table.id, ids));
+
+      return Object.fromEntries(rows.map(({ id, closed }) => [id, closed]));
+    }
   });
 
   describe("releaseFundingClaim", () => {

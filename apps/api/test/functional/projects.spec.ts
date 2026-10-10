@@ -334,15 +334,31 @@ describe("Projects", () => {
       expect(await projectRow(project.id)).toMatchObject({ deletedAt: null });
     });
 
-    it("answers not found for a project of another organization and leaves it in place", async () => {
+    it("answers not found for a project of another organization and leaves it and its deployments in place", async () => {
       const { request } = await setupCaller({ role: "owner" });
-      const { organization: other } = await seedOrganizationWithOwner();
+      const { user: otherOwner, organization: other } = await seedOrganizationWithOwner();
       const foreign = await seedProject({ organizationId: other.id });
+      const foreignDeployment = await seedDeploymentClosedOnChain({ userId: otherOwner.id, organizationId: other.id, projectId: foreign.id });
 
       const response = await request(`/v1/projects/${foreign.id}`, { method: "DELETE" });
 
       expect(response.status).toBe(404);
       expect(await projectRow(foreign.id)).toMatchObject({ deletedAt: null });
+      expect(await deploymentSettingRow(foreignDeployment.id)).toMatchObject({ closed: false });
+    });
+
+    it("closes only the active organization's deployments of the project it deletes", async () => {
+      const { request, team, user } = await setupCaller({ role: "owner" });
+      const project = await seedProject({ organizationId: team.id });
+      const own = await seedDeploymentClosedOnChain({ userId: user.id, organizationId: team.id, projectId: project.id });
+      const { user: otherOwner, organization: other, project: otherProject } = await seedOrganizationWithOwner();
+      const foreign = await seedDeploymentClosedOnChain({ userId: otherOwner.id, organizationId: other.id, projectId: otherProject.id, dseq: own.dseq });
+
+      const response = await request(`/v1/projects/${project.id}`, { method: "DELETE" });
+
+      expect(response.status).toBe(204);
+      expect(await deploymentSettingRow(own.id)).toMatchObject({ closed: true });
+      expect(await deploymentSettingRow(foreign.id)).toMatchObject({ closed: false });
     });
 
     it("answers like an unknown path while organizations are off for the caller", async () => {
@@ -372,6 +388,14 @@ describe("Projects", () => {
     const [row] = await container.resolve<ApiPgDatabase>(POSTGRES_DB).select().from(deploymentSettings).where(eq(deploymentSettings.id, id));
 
     return row;
+  }
+
+  async function seedDeploymentClosedOnChain(input: { userId: string; organizationId: string; projectId: string; dseq?: string }) {
+    const address = await seedWallet(input.userId);
+    const setting = await seedDeploymentSetting(input);
+    await createDeployment({ owner: address, dseq: setting.dseq, closedHeight: 5_000_000 });
+
+    return setting;
   }
 
   async function seedWallet(userId: string) {
