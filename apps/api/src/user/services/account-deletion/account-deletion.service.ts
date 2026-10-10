@@ -192,7 +192,12 @@ export class AccountDeletionService {
       if (personalOrganization) await this.organizationRepository.deleteById(personalOrganization.id);
 
       await this.jobQueueService.enqueue(
-        new PurgeDeletedAccount({ userId: user.id, auth0UserId: lockedUser.userId, stripeCustomerId: lockedUser.stripeCustomerId }),
+        new PurgeDeletedAccount({
+          userId: user.id,
+          auth0UserId: lockedUser.userId,
+          stripeCustomerId: lockedUser.stripeCustomerId,
+          personalOrganizationId: personalOrganization?.id ?? null
+        }),
         PURGE_DELETED_ACCOUNT_RETRY_OPTIONS
       );
 

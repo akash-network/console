@@ -182,7 +182,6 @@ export class DeploymentSettingRepository extends BaseRepository<Table, Deploymen
     return new Map(rows.map(({ dseq, ...setting }) => [dseq, setting]));
   }
 
-  /** Under the same double scoping as {@link findNamesByDseqs}; the null-name condition is what lets the partial index on named rows serve it. */
   /** Where a user's deployment is filed, absent when the console holds no row for it. */
   async findTenancy({ userId, dseq }: { userId: string; dseq: string }): Promise<DeploymentTenancy | undefined> {
     const [tenancy] = await this.cursor
@@ -194,6 +193,7 @@ export class DeploymentSettingRepository extends BaseRepository<Table, Deploymen
     return tenancy;
   }
 
+  /** Under the same double scoping as {@link findNamesByDseqs}; the null-name condition is what lets the partial index on named rows serve it. */
   async findDseqsByNameContaining({ userId, text }: { userId: string; text: string }): Promise<string[]> {
     const rows = await this.cursor
       .select({ dseq: this.table.dseq })

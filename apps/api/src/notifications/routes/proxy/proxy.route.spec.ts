@@ -129,11 +129,33 @@ describe("createProxy", () => {
     expect(forwardedHeaders(fetchMock)["x-project-id"]).toBe(projectId);
   });
 
-  it("mints no project for a deployment filed in another organization", async () => {
+  it("answers 404 without forwarding a write to the alerts of a deployment filed in another organization", async () => {
     const { handler, context, fetchMock } = setupProxyTest({
       path: "/v1/deployment-alerts/1234",
       organizationContext: createOrganizationContext({ mode: "organization" }),
       tenancy: { organizationId: faker.string.uuid(), projectId: faker.string.uuid() }
+    });
+
+    await expect(handler(context)).rejects.toMatchObject({ status: 404 });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("mints no project for a deployment not filed in any organization yet", async () => {
+    const { handler, context, fetchMock } = setupProxyTest({
+      path: "/v1/deployment-alerts/1234",
+      organizationContext: createOrganizationContext({ mode: "organization" }),
+      tenancy: { organizationId: null, projectId: null }
+    });
+
+    await handler(context);
+
+    expect(forwardedHeaders(fetchMock)).not.toHaveProperty("x-project-id");
+  });
+
+  it("mints no project for a deployment the console holds no row for", async () => {
+    const { handler, context, fetchMock } = setupProxyTest({
+      path: "/v1/deployment-alerts/1234",
+      organizationContext: createOrganizationContext({ mode: "organization" })
     });
 
     await handler(context);

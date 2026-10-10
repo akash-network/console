@@ -200,9 +200,18 @@ describe(NotificationService.name, () => {
       const { service, apiInternal } = setup();
       apiInternal.v1.purge.mockResolvedValueOnce(undefined as never);
 
-      await service.purgeUserData("user-1");
+      await service.purgeUserData("user-1", "personal-organization-1");
 
-      expect(apiInternal.v1.purge).toHaveBeenCalledWith({ userId: "user-1" });
+      expect(apiInternal.v1.purge).toHaveBeenCalledWith({ userId: "user-1" }, { headers: { "x-organization-id": "personal-organization-1" } });
+    });
+
+    it("names no organization for a user who had no personal organization", async () => {
+      const { service, apiInternal } = setup();
+      apiInternal.v1.purge.mockResolvedValueOnce(undefined as never);
+
+      await service.purgeUserData("user-1", null);
+
+      expect(apiInternal.v1.purge).toHaveBeenCalledWith({ userId: "user-1" }, { headers: {} });
     });
 
     it("retries when the notifications service fails", async () => {
@@ -211,7 +220,7 @@ describe(NotificationService.name, () => {
       apiInternal.v1.purge.mockRejectedValueOnce(new ApiError(503, { message: "unavailable" }, "POST /internal/v1/users/user-1/purge → 503"));
       apiInternal.v1.purge.mockResolvedValueOnce(undefined as never);
 
-      await Promise.all([service.purgeUserData("user-1"), vi.runAllTimersAsync()]);
+      await Promise.all([service.purgeUserData("user-1", null), vi.runAllTimersAsync()]);
 
       expect(apiInternal.v1.purge).toHaveBeenCalledTimes(2);
     });
@@ -230,6 +239,25 @@ describe(NotificationService.name, () => {
       expect(api.v1.upsertDeploymentAlert).toHaveBeenCalledWith(expect.anything(), {
         headers: { "x-user-id": "user-1", "x-organization-id": "organization-1", "x-project-id": "project-1", "x-owner-address": "akash1abc" }
       });
+    });
+
+    it("picks a channel among those of the deployment's organization, preferring the default one", async () => {
+      const { service, api, userRepository, organizationRepository, deploymentSettingRepository } = setup();
+      userRepository.findById.mockResolvedValue({ id: "user-1", email: "user@example.com" } as UserOutput);
+      deploymentSettingRepository.findTenancy.mockResolvedValue({ organizationId: null, projectId: null });
+      organizationRepository.findPersonalByUserId.mockResolvedValue(mock<OrganizationOutput>({ id: "personal-organization-1" }));
+      api.v1.listNotificationChannels.mockResolvedValue({ data: [{ id: "other-channel" }, { id: "default-channel", isDefault: true }] } as never);
+
+      await service.autoEnableDeploymentAlert({ userId: "user-1", walletAddress: "akash1abc", dseq: "123" });
+
+      expect(api.v1.listNotificationChannels).toHaveBeenCalledWith(
+        { page: 1, limit: 100 },
+        { headers: { "x-user-id": "user-1", "x-organization-id": "personal-organization-1" } }
+      );
+      expect(api.v1.upsertDeploymentAlert).toHaveBeenCalledWith(
+        { dseq: "123", data: { alerts: { deploymentClosed: { notificationChannelId: "default-channel", enabled: true } } } },
+        expect.anything()
+      );
     });
 
     it("files the alert into the organization of a deployment that has no project", async () => {

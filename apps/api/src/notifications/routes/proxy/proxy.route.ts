@@ -92,7 +92,9 @@ async function projectOfTargetedDeployment(
 
   const deployment = await deploymentSettingRepository.findTenancy({ userId, dseq });
 
-  return deployment?.organizationId === organizationId ? deployment.projectId : null;
+  assert(!deployment?.organizationId || deployment.organizationId === organizationId, 404, "Deployment not found");
+
+  return deployment?.projectId ?? null;
 }
 
 const proxyRoute = createProxy({
