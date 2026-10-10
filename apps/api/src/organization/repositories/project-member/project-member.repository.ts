@@ -23,4 +23,19 @@ export class ProjectMemberRepository extends OrgScopedRepository<Table, ProjectM
   protected newInstance() {
     return new ProjectMemberRepository(this.pg, this.table, this.txManager, this.executionContextService) as this;
   }
+
+  /** Skips every project the user already holds a grant in, so a repeated call never aborts the caller's transaction. */
+  async createManyUnlessExist(inputs: Pick<ProjectMemberInput, "organizationId" | "projectId" | "userId" | "role">[]): Promise<ProjectMemberOutput[]> {
+    if (inputs.length === 0) return [];
+
+    const values = await Promise.all(inputs.map(input => this.attributeToOrganization(input)));
+    values.forEach(value => this.ability?.throwUnlessCanExecute(value));
+    const created = await this.cursor
+      .insert(this.table)
+      .values(values)
+      .onConflictDoNothing({ target: [this.table.projectId, this.table.userId] })
+      .returning();
+
+    return this.toOutputList(created);
+  }
 }
