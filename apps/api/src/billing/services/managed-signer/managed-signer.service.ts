@@ -253,7 +253,9 @@ export class ManagedSignerService {
   async #recordCreatedDeployments(userWallet: UserWalletOutput, messages: EncodeObject[]) {
     for (const dseq of this.#findDeploymentDseqs(messages, ".MsgCreateDeployment")) {
       const key = { userId: userWallet.userId, dseq: dseq.toString() };
-      await this.domainEvents.publish(new RecordDeploymentSetting(key), { singletonKey: recordDeploymentSettingKeyFor(key) });
+      await this.domainEvents.publish(new RecordDeploymentSetting({ ...key, organizationId: userWallet.organizationId }), {
+        singletonKey: recordDeploymentSettingKeyFor(key)
+      });
     }
   }
 
@@ -261,7 +263,7 @@ export class ManagedSignerService {
   async #recordClosedDeployments(userWallet: UserWalletOutput, messages: EncodeObject[]) {
     for (const dseq of this.#findDeploymentDseqs(messages, ".MsgCloseDeployment")) {
       try {
-        await this.deploymentSettingRepository.markClosed({ userId: userWallet.userId, dseq: dseq.toString() });
+        await this.deploymentSettingRepository.markClosed({ userId: userWallet.userId, dseq: dseq.toString(), organizationId: userWallet.organizationId });
       } catch (error) {
         this.logger.error({ event: "CLOSED_DEPLOYMENT_RECORD_FAILED", userId: userWallet.userId, dseq: dseq.toString(), error });
       }

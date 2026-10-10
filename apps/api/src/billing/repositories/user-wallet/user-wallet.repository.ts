@@ -72,7 +72,7 @@ export class UserWalletRepository extends OrgScopedRepository<ApiPgTables["UserW
     const foundWallet = await this.findOneByUserId(input.userId);
     if (foundWallet) return { wallet: foundWallet, isNew: false };
 
-    const values = this.attributeToOrganization(input);
+    const values = await this.attributeToOrganization(input);
     this.ability?.throwUnlessCanExecute(values);
     const [newWallet] = await this.cursor
       .insert(this.table)
@@ -91,11 +91,11 @@ export class UserWalletRepository extends OrgScopedRepository<ApiPgTables["UserW
 
     // race condition, wallet was created by another call
     const wallet = await this.findOneByUserId(input.userId);
-    return { wallet: wallet!, isNew: false };
+    return { wallet: this.requireWrittenRow(wallet), isNew: false };
   }
 
   async create(input: Pick<DbCreateUserWalletInput, "userId" | "address">) {
-    const value = this.attributeToOrganization({
+    const value = await this.attributeToOrganization({
       userId: input.userId,
       address: input.address
     });
@@ -114,7 +114,10 @@ export class UserWalletRepository extends OrgScopedRepository<ApiPgTables["UserW
       .where(this.whereAccessibleBy(and(eq(this.table.id, id), isNull(this.table.activatedAt))))
       .returning();
 
-    return claimed ? this.toOutput(claimed) : undefined;
+    if (!claimed) return undefined;
+    this.compareWithShadow([claimed]);
+
+    return this.toOutput(claimed);
   }
 
   /** Re-checks both windows in SQL so a concurrent check that read the credits low still wins by clearing `creditsSufficientSince`. */
@@ -237,6 +240,7 @@ export class UserWalletRepository extends OrgScopedRepository<ApiPgTables["UserW
 
     const userWallet = await this.cursor.query.UserWallets.findFirst({ where: this.whereAccessibleBy(eq(this.table.userId, userId)) });
     if (!userWallet) return undefined;
+    this.compareWithShadow([userWallet]);
 
     return this.toOutput(userWallet);
   }
@@ -244,6 +248,7 @@ export class UserWalletRepository extends OrgScopedRepository<ApiPgTables["UserW
   async findOneByAddress(address: string) {
     const userWallet = await this.cursor.query.UserWallets.findFirst({ where: this.whereAccessibleBy(eq(this.table.address, address)) });
     if (!userWallet) return undefined;
+    this.compareWithShadow([userWallet]);
 
     return this.toOutput(userWallet);
   }
@@ -251,7 +256,7 @@ export class UserWalletRepository extends OrgScopedRepository<ApiPgTables["UserW
   async findByAddresses(addresses: string[]) {
     if (addresses.length === 0) return [];
 
-    return this.toOutputList(await this.cursor.query.UserWallets.findMany({ where: this.whereAccessibleBy(inArray(this.table.address, addresses)) }));
+    return this.#comparedList(await this.cursor.query.UserWallets.findMany({ where: this.whereAccessibleBy(inArray(this.table.address, addresses)) }));
   }
 
   /** Keyset-paged on the primary key and projected to what a close needs, because a sweep reads every managed wallet to find the few that own an orphan. */
@@ -281,7 +286,7 @@ export class UserWalletRepository extends OrgScopedRepository<ApiPgTables["UserW
 
   async findByUserId(userId: UserWalletOutput["userId"] | UserWalletOutput["userId"][]) {
     const where = Array.isArray(userId) ? inArray(this.table.userId, userId as string[]) : eq(this.table.userId, userId as string);
-    return this.toOutputList(await this.cursor.query.UserWallets.findMany({ where: this.whereAccessibleBy(where) }));
+    return this.#comparedList(await this.cursor.query.UserWallets.findMany({ where: this.whereAccessibleBy(where) }));
   }
 
   async payingUserCount() {
@@ -290,6 +295,12 @@ export class UserWalletRepository extends OrgScopedRepository<ApiPgTables["UserW
       .from(this.table)
       .where(this.unscoped("platform-statistics").whereAccessibleBy(eq(this.table.isTrialing, false)));
     return payingUserCount;
+  }
+
+  #comparedList(rows: DbUserWalletOutput[]) {
+    this.compareWithShadow(rows);
+
+    return this.toOutputList(rows);
   }
 
   protected toOutput(dbOutput: DbUserWalletOutput): UserWalletOutput {

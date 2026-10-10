@@ -135,7 +135,11 @@ export class StripeTransactionRepository extends OrgScopedRepository<Table, Stri
       return { transaction: existing, isNew: false };
     }
 
-    const [created] = await this.cursor.insert(this.table).values(this.attributeToOrganization(input)).onConflictDoNothing().returning();
+    const [created] = await this.cursor
+      .insert(this.table)
+      .values(await this.attributeToOrganization(input))
+      .onConflictDoNothing()
+      .returning();
 
     if (created) {
       return { transaction: this.toOutput(created), isNew: true };
@@ -143,11 +147,7 @@ export class StripeTransactionRepository extends OrgScopedRepository<Table, Stri
 
     const winner = await this.findOneBy({ stripeIdempotencyKey: input.stripeIdempotencyKey, userId: input.userId });
 
-    if (!winner) {
-      throw new Error(`Stripe transaction not found after idempotency key conflict resolution. userId: ${input.userId}`);
-    }
-
-    return { transaction: winner, isNew: false };
+    return { transaction: this.requireWrittenRow(winner), isNew: false };
   }
 
   /**

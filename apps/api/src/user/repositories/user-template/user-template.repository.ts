@@ -50,11 +50,11 @@ export class UserTemplateRepository extends OrgScopedRepository<ApiPgTables["Tem
     return new UserTemplateRepository(this.pg, this.table, this.favoriteTable, this.txManager, this.executionContextService) as this;
   }
 
-  async findById(id: string): Promise<TemplateOutput | undefined> {
-    return await this.#findOne(this.whereAccessibleBy(eq(this.table.id, id)));
+  protected get filesIntoProjects() {
+    return true;
   }
 
-  async findReadableById(id: string, readerUserId: string): Promise<TemplateOutput | undefined> {
+  async findById(id: string, readerUserId = ""): Promise<TemplateOutput | undefined> {
     return await this.#findOne(and(eq(this.table.id, id), this.#readableBy(readerUserId)));
   }
 
@@ -97,7 +97,7 @@ export class UserTemplateRepository extends OrgScopedRepository<ApiPgTables["Tem
   }
 
   async addFavorite(userId: string, templateId: string): Promise<void> {
-    if (!(await this.findReadableById(templateId, userId))) return;
+    if (!(await this.findById(templateId, userId))) return;
 
     await this.cursor.insert(this.favoriteTable).values({ id: randomUUID(), userId, templateId, addedDate: new Date() }).onConflictDoNothing();
   }
@@ -146,7 +146,7 @@ export class UserTemplateRepository extends OrgScopedRepository<ApiPgTables["Tem
 
     const [created] = await this.cursor
       .insert(this.table)
-      .values(this.attributeToOrganization({ ...data, id: randomUUID(), userId, copiedFromId: id || undefined }))
+      .values(await this.attributeToOrganization({ ...data, id: randomUUID(), userId, copiedFromId: id || undefined }))
       .returning({ id: this.table.id });
     return created.id;
   }

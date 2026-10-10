@@ -1,4 +1,5 @@
 import { faker } from "@faker-js/faker";
+import { eq } from "drizzle-orm";
 import { container } from "tsyringe";
 import { afterEach, describe, expect, it } from "vitest";
 
@@ -35,7 +36,7 @@ describe(UserTemplateRepository.name, () => {
       const user = await createTestUser();
       const template = await createTestTemplate({ userId: user.userId! });
 
-      const result = await userTemplateRepository.findById(template.id);
+      const result = await userTemplateRepository.findById(template.id, user.userId!);
 
       expect(result).toMatchObject({
         id: template.id,
@@ -103,7 +104,7 @@ describe(UserTemplateRepository.name, () => {
 
       await userTemplateRepository.deleteById(template.id, user.userId!);
 
-      const deleted = await userTemplateRepository.findById(template.id);
+      const deleted = await findStoredTemplate(template.id);
       expect(deleted).toBeUndefined();
     });
 
@@ -115,7 +116,7 @@ describe(UserTemplateRepository.name, () => {
 
       await userTemplateRepository.deleteById(template.id, user2.userId!);
 
-      const stillExists = await userTemplateRepository.findById(template.id);
+      const stillExists = await findStoredTemplate(template.id);
       expect(stillExists).toBeDefined();
     });
   });
@@ -189,15 +190,15 @@ describe(UserTemplateRepository.name, () => {
     });
   });
 
-  describe("findReadableById", () => {
+  describe("findById for a reader", () => {
     it("returns a public template to anyone, signed in or not", async () => {
       const { userTemplateRepository } = setup();
       const author = await createTestUser();
       const reader = await createTestUser();
       const template = await createTestTemplate({ userId: author.userId!, isPublic: true });
 
-      expect(await userTemplateRepository.findReadableById(template.id, reader.userId!)).toMatchObject({ id: template.id });
-      expect(await userTemplateRepository.findReadableById(template.id, "")).toMatchObject({ id: template.id });
+      expect(await userTemplateRepository.findById(template.id, reader.userId!)).toMatchObject({ id: template.id });
+      expect(await userTemplateRepository.findById(template.id, "")).toMatchObject({ id: template.id });
     });
 
     it("returns a private template to its author", async () => {
@@ -205,7 +206,7 @@ describe(UserTemplateRepository.name, () => {
       const author = await createTestUser();
       const template = await createTestTemplate({ userId: author.userId! });
 
-      expect(await userTemplateRepository.findReadableById(template.id, author.userId!)).toMatchObject({ id: template.id, username: author.username });
+      expect(await userTemplateRepository.findById(template.id, author.userId!)).toMatchObject({ id: template.id, username: author.username });
     });
 
     it("keeps a private template from another user and from anonymous visitors", async () => {
@@ -214,8 +215,8 @@ describe(UserTemplateRepository.name, () => {
       const reader = await createTestUser();
       const template = await createTestTemplate({ userId: author.userId! });
 
-      expect(await userTemplateRepository.findReadableById(template.id, reader.userId!)).toBeUndefined();
-      expect(await userTemplateRepository.findReadableById(template.id, "")).toBeUndefined();
+      expect(await userTemplateRepository.findById(template.id, reader.userId!)).toBeUndefined();
+      expect(await userTemplateRepository.findById(template.id, "")).toBeUndefined();
     });
 
     it("returns a private template to its author only inside the active organization, in organization mode", async () => {
@@ -226,10 +227,7 @@ describe(UserTemplateRepository.name, () => {
       const otherTemplate = await createTestTemplate({ userId: author.userId! }, other.id);
 
       const [readable, hidden] = await runInOrganization(active.id, () =>
-        Promise.all([
-          userTemplateRepository.findReadableById(activeTemplate.id, author.userId!),
-          userTemplateRepository.findReadableById(otherTemplate.id, author.userId!)
-        ])
+        Promise.all([userTemplateRepository.findById(activeTemplate.id, author.userId!), userTemplateRepository.findById(otherTemplate.id, author.userId!)])
       );
 
       expect(readable).toMatchObject({ id: activeTemplate.id });
@@ -243,7 +241,7 @@ describe(UserTemplateRepository.name, () => {
       const organization = await seedOrganization();
       const template = await createTestTemplate({ userId: author.userId! }, organization.id);
 
-      const result = await runInOrganization(organization.id, () => userTemplateRepository.findReadableById(template.id, colleague.userId!));
+      const result = await runInOrganization(organization.id, () => userTemplateRepository.findById(template.id, colleague.userId!));
 
       expect(result).toBeUndefined();
     });
@@ -320,7 +318,7 @@ describe(UserTemplateRepository.name, () => {
       const templateId = await userTemplateRepository.upsert(undefined, user.userId!, templateData);
       createdTemplateIds.push(templateId);
 
-      const template = await userTemplateRepository.findById(templateId);
+      const template = await findStoredTemplate(templateId);
       expect(template).toBeDefined();
       expect(template?.title).toBe(templateData.title);
       expect(template?.sdl).toBe(templateData.sdl);
@@ -341,7 +339,7 @@ describe(UserTemplateRepository.name, () => {
       const templateId = await userTemplateRepository.upsert(null, user.userId!, templateData);
       createdTemplateIds.push(templateId);
 
-      const template = await userTemplateRepository.findById(templateId);
+      const template = await findStoredTemplate(templateId);
       expect(template).toBeDefined();
     });
 
@@ -361,7 +359,7 @@ describe(UserTemplateRepository.name, () => {
       const templateId = await userTemplateRepository.upsert(template.id, user.userId!, templateData);
 
       expect(templateId).toBe(template.id);
-      const updatedTemplate = await userTemplateRepository.findById(template.id);
+      const updatedTemplate = await findStoredTemplate(template.id);
       expect(updatedTemplate?.title).toBe(newTitle);
     });
 
@@ -382,7 +380,7 @@ describe(UserTemplateRepository.name, () => {
       createdTemplateIds.push(newTemplateId);
 
       expect(newTemplateId).not.toBe(originalTemplate.id);
-      const newTemplate = await userTemplateRepository.findById(newTemplateId);
+      const newTemplate = await findStoredTemplate(newTemplateId);
       expect(newTemplate?.userId).toBe(user2.userId);
     });
 
@@ -404,8 +402,8 @@ describe(UserTemplateRepository.name, () => {
       createdTemplateIds.push(copyId);
 
       expect(copyId).not.toBe(originalTemplate.id);
-      expect(await userTemplateRepository.findById(copyId)).toMatchObject({ userId: copier.userId, title: submittedTemplate.title });
-      expect(await userTemplateRepository.findById(originalTemplate.id)).toMatchObject({ userId: owner.userId, title: originalTemplate.title });
+      expect(await findStoredTemplate(copyId)).toMatchObject({ userId: copier.userId, title: submittedTemplate.title });
+      expect(await findStoredTemplate(originalTemplate.id)).toMatchObject({ userId: owner.userId, title: originalTemplate.title });
     });
 
     it("updates isPublic when provided", async () => {
@@ -422,7 +420,7 @@ describe(UserTemplateRepository.name, () => {
         isPublic: true
       });
 
-      const updatedTemplate = await userTemplateRepository.findById(template.id);
+      const updatedTemplate = await findStoredTemplate(template.id);
       expect(updatedTemplate?.isPublic).toBe(true);
     });
 
@@ -441,7 +439,7 @@ describe(UserTemplateRepository.name, () => {
         description: newDescription
       });
 
-      const updatedTemplate = await userTemplateRepository.findById(template.id);
+      const updatedTemplate = await findStoredTemplate(template.id);
       expect(updatedTemplate?.description).toBe(newDescription);
     });
   });
@@ -459,7 +457,7 @@ describe(UserTemplateRepository.name, () => {
         description: newDescription
       });
 
-      const updatedTemplate = await userTemplateRepository.findById(template.id);
+      const updatedTemplate = await findStoredTemplate(template.id);
       expect(updatedTemplate?.title).toBe(newTitle);
       expect(updatedTemplate?.description).toBe(newDescription);
     });
@@ -474,7 +472,7 @@ describe(UserTemplateRepository.name, () => {
         title: faker.lorem.words(3)
       });
 
-      const unchangedTemplate = await userTemplateRepository.findById(template.id);
+      const unchangedTemplate = await findStoredTemplate(template.id);
       expect(unchangedTemplate?.title).toBe(template.title);
     });
   });
@@ -581,9 +579,15 @@ describe(UserTemplateRepository.name, () => {
         ...data
       });
     const id = organizationId ? await runInOrganization(organizationId, upsert) : await upsert();
-    const template = await userTemplateRepository.findById(id);
+    const template = await findStoredTemplate(id);
     createdTemplateIds.push(id);
     return template!;
+  }
+
+  async function findStoredTemplate(id: string) {
+    const templates = resolveTable("Templates");
+
+    return await container.resolve<ApiPgDatabase>(POSTGRES_DB).query.Templates.findFirst({ where: eq(templates.id, id) });
   }
 
   async function recordFavorite({ userId, templateId }: { userId: string; templateId: string }) {

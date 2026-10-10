@@ -11,7 +11,7 @@ export class UserTemplatesService {
   }
 
   async getTemplateById(id: string, userId: string = ""): Promise<(TemplateOutput & { isFavorite?: boolean }) | null> {
-    const template = await this.#userTemplateRepository.findReadableById(id, userId);
+    const template = await this.#userTemplateRepository.findById(id, userId);
     if (!template) return null;
 
     if (userId) {

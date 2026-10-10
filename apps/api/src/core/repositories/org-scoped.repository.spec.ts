@@ -22,6 +22,12 @@ class ExposedProjectMemberRepository extends ProjectMemberRepository {
   }
 }
 
+class ProjectFilingRepository extends ExposedProjectMemberRepository {
+  protected get filesIntoProjects() {
+    return true;
+  }
+}
+
 describe(OrgScopedRepository.name, () => {
   describe("in organization mode", () => {
     it.each(scopedOperations())("narrows %s to the active organization", async (_, operation) => {
@@ -151,6 +157,64 @@ describe(OrgScopedRepository.name, () => {
     });
   });
 
+  describe("on a table whose rows belong to a project", () => {
+    it("files an insert that names no project into the active organization's default project", async () => {
+      const context = createOrganizationContext();
+      const defaultProjectId = faker.string.uuid();
+      const { repository, executedQueries, respondWith, runInContext } = setup({ context, filesIntoProjects: true });
+      respondWith({ id: defaultProjectId });
+
+      await runInContext(() => repository.create(createProjectMemberInput({ projectId: undefined })));
+
+      expect(executedQueries).toEqual([
+        expect.objectContaining({
+          query: expect.stringMatching(/from "projects" where .*"is_default" = \$/),
+          params: expect.arrayContaining([context.organizationId, true])
+        }),
+        expect.objectContaining({ query: expect.stringContaining("insert"), params: expect.arrayContaining([context.organizationId, defaultProjectId]) })
+      ]);
+    });
+
+    it("keeps the project an insert names", async () => {
+      const projectId = faker.string.uuid();
+      const { repository, executedQueries, runInContext } = setup({ context: createOrganizationContext({ mode: "legacy" }), filesIntoProjects: true });
+
+      await runInContext(() => repository.create(createProjectMemberInput({ projectId })));
+
+      expect(executedQueries).toEqual([expect.objectContaining({ query: expect.stringContaining("insert"), params: expect.arrayContaining([projectId]) })]);
+    });
+
+    it("files a row a job names the organization of into that organization's default project", async () => {
+      const organizationId = faker.string.uuid();
+      const defaultProjectId = faker.string.uuid();
+      const { repository, executedQueries, respondWith } = setup({ filesIntoProjects: true });
+      respondWith({ id: defaultProjectId });
+
+      await repository.create(createProjectMemberInput({ organizationId, projectId: undefined }));
+
+      expect(executedQueries[1]).toEqual(expect.objectContaining({ params: expect.arrayContaining([organizationId, defaultProjectId]) }));
+    });
+
+    it("leaves the project unset when the organization has no default project", async () => {
+      const context = createOrganizationContext();
+      const { repository, executedQueries, runInContext } = setup({ context, filesIntoProjects: true });
+
+      await runInContext(() => repository.create(createProjectMemberInput({ projectId: undefined })));
+
+      expect(executedQueries).toHaveLength(2);
+      expect(executedQueries[1].query).toMatch(/^insert into "project_members" \("id", "organization_id", "project_id"/);
+      expect(executedQueries[1].query).toMatch(/values \(default, \$1, default,/);
+    });
+
+    it("inserts rows that name no organization as given", async () => {
+      const { repository, executedQueries } = setup({ filesIntoProjects: true });
+
+      await repository.create(createProjectMemberInput({ projectId: undefined }));
+
+      expect(executedQueries).toEqual([expect.objectContaining({ query: expect.stringContaining("insert") })]);
+    });
+  });
+
   describe("requireWrittenRow", () => {
     it("hands back the row an upsert wrote", () => {
       const { repository } = setup({});
@@ -257,13 +321,14 @@ describe(OrgScopedRepository.name, () => {
     return { projectId: faker.string.uuid(), userId: faker.string.uuid(), role: "member", ...overrides } as ProjectMemberInput;
   }
 
-  function setup(input: { context?: OrganizationContext; inTransaction?: boolean }) {
+  function setup(input: { context?: OrganizationContext; inTransaction?: boolean; filesIntoProjects?: boolean }) {
     const { db, executedQueries, respondWith } = stubPgDriver({ schema: { ProjectMembers }, table: ProjectMembers });
     const pg = db as unknown as ApiPgDatabase;
     const txManager = mock<TxService>();
     txManager.getPgTx.mockReturnValue(input.inTransaction ? (db as unknown as ApiTransaction) : undefined);
     const executionContextService = new ExecutionContextService(vi.fn(() => mock()));
-    const repository = new ExposedProjectMemberRepository(pg, ProjectMembers, txManager, executionContextService);
+    const Repository = input.filesIntoProjects ? ProjectFilingRepository : ExposedProjectMemberRepository;
+    const repository = new Repository(pg, ProjectMembers, txManager, executionContextService);
     const runInContext = <R>(run: () => Promise<R>) =>
       executionContextService.runWithContext(async () => {
         executionContextService.set("ORGANIZATION_CONTEXT", input.context);

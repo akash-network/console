@@ -14,6 +14,7 @@ import {
 } from "@src/core/repositories/base.repository";
 import type { UnscopedReason } from "@src/core/repositories/unscoped-reasons";
 import type { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
+import { Projects } from "@src/organization/model-schemas/project/project.schema";
 import type { OrganizationContext } from "@src/organization/types/organization-context";
 
 export const ORGANIZATION_FORBIDDEN_ERROR_CODE = "organization_forbidden";
@@ -21,6 +22,8 @@ export const ORGANIZATION_FORBIDDEN_ERROR_CODE = "organization_forbidden";
 type OrganizationScopedTable = PgTableWithColumns<any> & { organizationId: PgColumn };
 
 type OrganizationAttributed = { organizationId?: string | null };
+
+type ProjectAttributed = { projectId?: string | null };
 
 /** Narrows queries to the active organization in organization mode and holds writes to it in any mode; `unscoped` is the only way out. */
 export abstract class OrgScopedRepository<
@@ -55,7 +58,7 @@ export abstract class OrgScopedRepository<
   }
 
   async create(input: Input): Promise<Output> {
-    return await super.create(this.attributeToOrganization(input));
+    return await super.create(await this.attributeToOrganization(input));
   }
 
   /** The organization a scoped query is narrowed to, absent outside organization mode and on an unscoped repository. */
@@ -75,18 +78,25 @@ export abstract class OrgScopedRepository<
     return super.whereAccessibleBy(this.whereInOrganization(where));
   }
 
-  protected attributeToOrganization<V extends object>(values: V): V {
-    const context = this.#organizationContext;
-
-    if (!context) return values;
-
-    const organizationId = (values as OrganizationAttributed).organizationId ?? context.organizationId;
-    this.#assertActiveOrganization(organizationId, context);
-
-    return { ...values, organizationId };
+  /** Tables whose rows belong to a project override this, so a row written without one lands in its organization's default project. */
+  protected get filesIntoProjects(): boolean {
+    return false;
   }
 
-  /** An upsert whose conflict branch was filtered out came back empty because the row it hit lies outside the active organization or the caller's rules. */
+  protected async attributeToOrganization<V extends object>(values: V): Promise<V> {
+    const context = this.#organizationContext;
+    const organizationId = (values as OrganizationAttributed).organizationId ?? context?.organizationId;
+
+    if (context) {
+      this.#assertActiveOrganization(organizationId, context);
+    }
+
+    if (!organizationId) return values;
+
+    return { ...values, organizationId, ...(await this.#defaultProjectUnlessNamed(values, organizationId)) };
+  }
+
+  /** A write or conflict re-read that came back empty hit a row outside the active organization or the caller's rules. */
   protected requireWrittenRow<R>(row: R | undefined): R {
     if (!row) {
       throw this.#forbiddenOrganization();
@@ -109,7 +119,19 @@ export abstract class OrgScopedRepository<
     return this.executionContextService.get("ORGANIZATION_CONTEXT");
   }
 
-  #assertActiveOrganization(organizationId: string, context: OrganizationContext) {
+  async #defaultProjectUnlessNamed(values: object, organizationId: string): Promise<{ projectId?: string }> {
+    if (!this.filesIntoProjects || (values as ProjectAttributed).projectId) return {};
+
+    const [project] = await this.cursor
+      .select({ id: Projects.id })
+      .from(Projects)
+      .where(and(eq(Projects.organizationId, organizationId), eq(Projects.isDefault, true)))
+      .limit(1);
+
+    return project ? { projectId: project.id } : {};
+  }
+
+  #assertActiveOrganization(organizationId: string | null | undefined, context: OrganizationContext) {
     if (organizationId !== context.organizationId) {
       throw this.#forbiddenOrganization();
     }
