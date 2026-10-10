@@ -3,11 +3,11 @@ import Stripe from "stripe";
 import { inject, singleton } from "tsyringe";
 
 import { STRIPE_CLIENT } from "@src/billing/providers/stripe-client.provider";
-import { StripeTransactionOutput } from "@src/billing/repositories";
+import { StripeTransactionOutput, StripeTransactionRepository } from "@src/billing/repositories";
 import { CustomerService } from "@src/billing/services/customer/customer.service";
+import { billingOwnerOf, type Payer } from "@src/billing/services/payer/payer";
 import { StripeTransactionService } from "@src/billing/services/stripe-transaction/stripe-transaction.service";
 import { type CreateLogger, LOGGER_FACTORY } from "@src/core";
-import type { UserOutput } from "@src/user/repositories/user/user.repository";
 
 @singleton()
 export class CouponRedemptionService {
@@ -17,6 +17,7 @@ export class CouponRedemptionService {
     @inject(STRIPE_CLIENT) private readonly stripe: Stripe,
     private readonly customerService: CustomerService,
     private readonly stripeTransactionService: StripeTransactionService,
+    private readonly stripeTransactionRepository: StripeTransactionRepository,
     @inject(LOGGER_FACTORY) createLogger: CreateLogger
   ) {
     this.loggerService = createLogger({ context: CouponRedemptionService.name });
@@ -39,7 +40,7 @@ export class CouponRedemptionService {
   }
 
   async redeemCoupon(
-    currentUser: UserOutput,
+    payer: Payer,
     couponCode: string
   ): Promise<{
     coupon: Stripe.Coupon | Stripe.PromotionCode;
@@ -57,7 +58,7 @@ export class CouponRedemptionService {
       }
 
       return this.redeemCouponOrPromotionCode({
-        currentUser,
+        payer,
         couponOrPromotion: promotionCode,
         coupon,
         updateField: "promotion_code",
@@ -71,7 +72,7 @@ export class CouponRedemptionService {
 
     if (matchingCoupon) {
       return this.redeemCouponOrPromotionCode({
-        currentUser,
+        payer,
         couponOrPromotion: matchingCoupon,
         coupon: matchingCoupon,
         updateField: "coupon",
@@ -82,14 +83,23 @@ export class CouponRedemptionService {
     throw new Error("No valid promotion code or coupon found with the provided code");
   }
 
+  /** Stripe limits a coupon per customer and every organization pays with its own, so a person's claims under any other payer count too. */
+  async #assertNotClaimedForAnotherPayer(payer: Payer, couponId: string): Promise<void> {
+    const isClaimed = await this.stripeTransactionRepository.hasCouponClaimOutside({ userId: payer.user.id, couponId, owner: billingOwnerOf(payer) });
+
+    if (isClaimed) {
+      throw new Error("Promotion code has already been used");
+    }
+  }
+
   private async redeemCouponOrPromotionCode({
-    currentUser,
+    payer,
     couponOrPromotion,
     coupon,
     updateField,
     updateId
   }: {
-    currentUser: UserOutput;
+    payer: Payer;
     couponOrPromotion: Stripe.Coupon | Stripe.PromotionCode;
     coupon: Stripe.Coupon;
     updateField: "promotion_code" | "coupon";
@@ -125,10 +135,12 @@ export class CouponRedemptionService {
 
     const amountToAdd = coupon.amount_off; // amount_off is already in cents
 
+    await this.#assertNotClaimedForAnotherPayer(payer, coupon.id);
+
     // Ensure the user has a Stripe customer only once the coupon is known to be redeemable. Brand-new
     // accounts may not have one yet since it is created lazily by the add-payment-method flow (see
     // getStripeCustomerId); provisioning it earlier would create customers for invalid/unsupported coupons.
-    const stripeCustomerId = await this.customerService.getStripeCustomerId(currentUser);
+    const stripeCustomerId = await this.customerService.getStripeCustomerId(payer);
 
     let invoice: Stripe.Invoice | undefined;
 
@@ -141,7 +153,7 @@ export class CouponRedemptionService {
 
       this.loggerService.info({
         event: "INVOICE_CREATED_WITH_DISCOUNT",
-        userId: currentUser.id,
+        userId: payer.user.id,
         invoiceId: invoice.id,
         discountType: updateField
       });
@@ -155,7 +167,8 @@ export class CouponRedemptionService {
       });
 
       const transaction = await this.stripeTransactionService.recordCouponClaim({
-        userId: currentUser.id,
+        userId: payer.user.id,
+        organizationId: payer.organizationId,
         amount: amountToAdd,
         currency: coupon.currency ?? "usd",
         couponId: coupon.id,
@@ -168,7 +181,7 @@ export class CouponRedemptionService {
 
       this.loggerService.info({
         event: "INVOICE_FINALIZED_AND_PAID",
-        userId: currentUser.id,
+        userId: payer.user.id,
         invoiceId: invoice.id,
         status: invoice.status,
         amountDue: invoice.amount_due,
@@ -188,7 +201,7 @@ export class CouponRedemptionService {
 
       this.loggerService.error({
         event: "COUPON_APPLICATION_FAILED",
-        userId: currentUser.id,
+        userId: payer.user.id,
         couponId: updateId,
         error,
         isInvoiceRolledBack

@@ -169,7 +169,7 @@ export class WalletSettingService {
 
       const { ability } = this.authService;
       assert(
-        await this.paymentMethodService.getDefaultPaymentMethod({ ...user, stripeCustomerId }, ability),
+        await this.paymentMethodService.getDefaultPaymentMethod({ user, stripeCustomerId }, ability),
         403,
         "Default payment method is required to enable automatic wallet balance reload"
       );

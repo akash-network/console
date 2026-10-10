@@ -6,6 +6,7 @@ export const UNSCOPED_REASONS = [
   "email-domain-account-checks",
   "gpu-driver-statistics",
   "own-memberships",
+  "per-person-billing-limits",
   "personal-organization-provisioning",
   "platform-statistics",
   "public-templates",

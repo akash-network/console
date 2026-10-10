@@ -533,6 +533,13 @@
       "when": 1791579879986,
       "tag": "0075_wallet_belongs_to_organization",
       "breakpoints": true
+    },
+    {
+      "idx": 76,
+      "version": "7",
+      "when": 1791656317219,
+      "tag": "0076_payment_method_default_per_organization",
+      "breakpoints": true
     }
   ]
 }

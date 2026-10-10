@@ -2,6 +2,7 @@ import { and, count, eq, ne, sql } from "drizzle-orm";
 import { singleton } from "tsyringe";
 import { uuidv4 } from "unleash-client/lib/uuidv4";
 
+import { type BillingOwner, ownedBy } from "@src/billing/lib/billing-owner/billing-owner";
 import { type ApiPgDatabase, type ApiPgTables, InjectPg, InjectPgTable } from "@src/core/providers";
 import { isUniqueViolation } from "@src/core/repositories/base.repository";
 import { OrgScopedRepository } from "@src/core/repositories/org-scoped.repository";
@@ -27,30 +28,44 @@ export class PaymentMethodRepository extends OrgScopedRepository<Table, PaymentM
     return new PaymentMethodRepository(this.pg, this.table, this.txManager, this.executionContextService) as this;
   }
 
-  async findByUserId(userId: PaymentMethodOutput["userId"]) {
-    const paymentMethods = await this.cursor.query.PaymentMethods.findMany({
-      where: this.whereAccessibleBy(eq(this.table.userId, userId))
-    });
+  async findByOwner(owner: BillingOwner): Promise<PaymentMethodOutput[]> {
+    const paymentMethods = await this.cursor.select().from(this.table).where(this.whereAccessibleBy(ownedBy(this.table, owner)));
     this.compareWithShadow(paymentMethods);
 
     return this.toOutputList(paymentMethods);
   }
 
-  async markAsValidated(paymentMethodId: string, userId: string) {
-    return await this.updateBy({ paymentMethodId, userId }, { isValidated: true });
+  async findOneOwnedBy(owner: BillingOwner, paymentMethodId: string): Promise<PaymentMethodOutput | undefined> {
+    const [paymentMethod] = await this.cursor
+      .select()
+      .from(this.table)
+      .where(this.whereAccessibleBy(and(ownedBy(this.table, owner), eq(this.table.paymentMethodId, paymentMethodId))))
+      .limit(1);
+
+    return paymentMethod && this.toOutput(paymentMethod);
   }
 
-  async countByUserId(userId: PaymentMethodOutput["userId"]) {
+  async findDefaultByOwner(owner: BillingOwner): Promise<PaymentMethodOutput | undefined> {
+    const [paymentMethod] = await this.cursor
+      .select()
+      .from(this.table)
+      .where(this.whereAccessibleBy(and(ownedBy(this.table, owner), eq(this.table.isDefault, true))))
+      .limit(1);
+
+    return paymentMethod && this.toOutput(paymentMethod);
+  }
+
+  async markAsValidated(paymentMethodId: string, owner: BillingOwner) {
+    await this.updateWhere(this.whereAccessibleBy(and(ownedBy(this.table, owner), eq(this.table.paymentMethodId, paymentMethodId))), { isValidated: true });
+  }
+
+  async countByOwner(owner: BillingOwner) {
     const [result] = await this.cursor
       .select({ count: count() })
       .from(this.table)
-      .where(this.whereAccessibleBy(eq(this.table.userId, userId)));
+      .where(this.whereAccessibleBy(ownedBy(this.table, owner)));
 
     return result?.count ?? 0;
-  }
-
-  async findDefaultByUserId(userId: PaymentMethodInput["userId"]) {
-    return this.findOneBy({ userId, isDefault: true });
   }
 
   async markAsDefault(paymentMethodId: string) {
@@ -102,19 +117,33 @@ export class PaymentMethodRepository extends OrgScopedRepository<Table, PaymentM
       .where(and(this.queryToWhere({ isDefault: true }), ne(this.table.id, excludedId)));
   }
 
-  async deleteByFingerprint(fingerprint: string, paymentMethodId: string, userId: string) {
-    return await this.deleteBy({ fingerprint, paymentMethodId, userId });
+  async deleteByFingerprint(fingerprint: string, paymentMethodId: string, owner: BillingOwner): Promise<boolean> {
+    const deleted = await this.cursor
+      .delete(this.table)
+      .where(this.whereAccessibleBy(and(ownedBy(this.table, owner), eq(this.table.fingerprint, fingerprint), eq(this.table.paymentMethodId, paymentMethodId))))
+      .returning({ id: this.table.id });
+
+    return deleted.length > 0;
   }
 
   /**
    * Upserts a payment method - gets existing or creates new.
    * Handles idempotency for webhook retries using onConflictDoNothing.
-   * Automatically sets isDefault=true if this is the user's first payment method.
+   * Automatically sets isDefault=true if this is the owner's first payment method.
    *
    * Also handles race conditions where two concurrent requests both try to set isDefault=true,
-   * which would violate the partial unique constraint on (userId, isDefault) WHERE isDefault=true.
+   * which would violate the partial unique constraints allowing one default per owner.
    */
-  async upsert(input: { userId: string; fingerprint: string; paymentMethodId: string }): Promise<{ paymentMethod: PaymentMethodOutput; isNew: boolean }> {
+  async upsert({
+    owner,
+    ...input
+  }: {
+    userId: string;
+    organizationId?: string;
+    owner: BillingOwner;
+    fingerprint: string;
+    paymentMethodId: string;
+  }): Promise<{ paymentMethod: PaymentMethodOutput; isNew: boolean }> {
     // Check if already exists (idempotency fast path)
     const existing = await this.findOneBy({
       fingerprint: input.fingerprint,
@@ -125,8 +154,8 @@ export class PaymentMethodRepository extends OrgScopedRepository<Table, PaymentM
       return { paymentMethod: existing, isNew: false };
     }
 
-    // Determine isDefault BEFORE insert - first payment method for user should be default
-    const existingCount = await this.countByUserId(input.userId);
+    // Determine isDefault BEFORE insert - first payment method for the owner should be default
+    const existingCount = await this.countByOwner(owner);
     const isDefault = existingCount === 0;
 
     try {
@@ -147,8 +176,8 @@ export class PaymentMethodRepository extends OrgScopedRepository<Table, PaymentM
         return { paymentMethod: this.toOutput(newRecord), isNew: true };
       }
     } catch (error) {
-      // Handle race condition: another request set isDefault=true for this user concurrently,
-      // violating the partial unique constraint on (userId, isDefault) WHERE isDefault=true.
+      // Handle race condition: another request set isDefault=true for this owner concurrently,
+      // violating a partial unique constraint on its default payment method.
       // In this case, retry the insert with isDefault=false.
       if (isUniqueViolation(error)) {
         const [retryRecord] = await this.cursor

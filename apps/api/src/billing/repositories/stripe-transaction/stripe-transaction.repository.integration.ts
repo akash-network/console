@@ -5,6 +5,8 @@ import { afterEach, describe, expect, it } from "vitest";
 import { UserRepository } from "@src/user/repositories";
 import { type StripeTransactionInput, StripeTransactionRepository } from "./stripe-transaction.repository";
 
+import { seedOrganizationWithOwner } from "@test/seeders/db/organization.seeder";
+
 describe(StripeTransactionRepository.name, () => {
   describe("findByChargeIds", () => {
     it("returns transactions matching the given charge ids with their bonus amounts", async () => {
@@ -334,6 +336,59 @@ describe(StripeTransactionRepository.name, () => {
       currency: "usd"
     };
   }
+
+  describe("hasCouponClaimOutside", () => {
+    it("sees a claim the person made for themselves when they redeem the same coupon for a team", async () => {
+      const { stripeTransactionRepository, createTestUser } = setup();
+      const { organization: team } = await seedOrganizationWithOwner();
+      const user = await createTestUser();
+      await stripeTransactionRepository.create({ userId: user.id, type: "coupon_claim", status: "succeeded", amount: 1000, stripeCouponId: "coupon_1" });
+
+      await expect(
+        stripeTransactionRepository.hasCouponClaimOutside({ userId: user.id, couponId: "coupon_1", owner: { organizationId: team.id } })
+      ).resolves.toBe(true);
+      await expect(stripeTransactionRepository.hasCouponClaimOutside({ userId: user.id, couponId: "coupon_1", owner: { userId: user.id } })).resolves.toBe(
+        false
+      );
+    });
+
+    it("sees a claim the person made for a team when they redeem the same coupon for themselves or another team", async () => {
+      const { stripeTransactionRepository, createTestUser } = setup();
+      const [{ organization: team }, { organization: otherTeam }] = await Promise.all([seedOrganizationWithOwner(), seedOrganizationWithOwner()]);
+      const user = await createTestUser();
+      await stripeTransactionRepository.create({
+        userId: user.id,
+        organizationId: team.id,
+        type: "coupon_claim",
+        status: "pending",
+        amount: 1000,
+        stripeCouponId: "coupon_1"
+      });
+
+      await expect(stripeTransactionRepository.hasCouponClaimOutside({ userId: user.id, couponId: "coupon_1", owner: { userId: user.id } })).resolves.toBe(
+        true
+      );
+      await expect(
+        stripeTransactionRepository.hasCouponClaimOutside({ userId: user.id, couponId: "coupon_1", owner: { organizationId: otherTeam.id } })
+      ).resolves.toBe(true);
+      await expect(
+        stripeTransactionRepository.hasCouponClaimOutside({ userId: user.id, couponId: "coupon_1", owner: { organizationId: team.id } })
+      ).resolves.toBe(false);
+    });
+
+    it("ignores another coupon, another person and a claim that never went through", async () => {
+      const { stripeTransactionRepository, createTestUser } = setup();
+      const { organization: team } = await seedOrganizationWithOwner();
+      const [user, otherUser] = await Promise.all([createTestUser(), createTestUser()]);
+      await stripeTransactionRepository.create({ userId: user.id, type: "coupon_claim", status: "succeeded", amount: 1000, stripeCouponId: "coupon_2" });
+      await stripeTransactionRepository.create({ userId: otherUser.id, type: "coupon_claim", status: "succeeded", amount: 1000, stripeCouponId: "coupon_1" });
+      await stripeTransactionRepository.create({ userId: user.id, type: "coupon_claim", status: "failed", amount: 1000, stripeCouponId: "coupon_1" });
+
+      await expect(
+        stripeTransactionRepository.hasCouponClaimOutside({ userId: user.id, couponId: "coupon_1", owner: { organizationId: team.id } })
+      ).resolves.toBe(false);
+    });
+  });
 
   describe("hasPaidUserWithEmailDomain", () => {
     it.each([

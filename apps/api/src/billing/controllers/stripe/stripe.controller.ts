@@ -24,6 +24,8 @@ import { UserWalletRepository } from "@src/billing/repositories";
 import { AutoReloadPauseService } from "@src/billing/services/auto-reload-pause/auto-reload-pause.service";
 import { CouponRedemptionService } from "@src/billing/services/coupon-redemption/coupon-redemption.service";
 import { CustomerService } from "@src/billing/services/customer/customer.service";
+import { billingOwnerOf, isPayingPayer, type Payer } from "@src/billing/services/payer/payer";
+import { PayerService } from "@src/billing/services/payer/payer.service";
 import { PaymentMethodService } from "@src/billing/services/payment-method/payment-method.service";
 import { StripeService } from "@src/billing/services/stripe/stripe.service";
 import { StripeErrorService } from "@src/billing/services/stripe-error/stripe-error.service";
@@ -52,6 +54,7 @@ export class StripeController {
     private readonly customerService: CustomerService,
     private readonly walletSettingService: WalletSettingService,
     private readonly autoReloadPauseService: AutoReloadPauseService,
+    private readonly payerService: PayerService,
     @inject(LOGGER_FACTORY) createLogger: CreateLogger
   ) {
     this.logger = createLogger({ context: StripeController.name });
@@ -64,11 +67,10 @@ export class StripeController {
 
   @Protected([{ action: "create", subject: "StripePayment" }])
   async createSetupIntent(): Promise<{ data: { clientSecret: string | null } }> {
-    const { currentUser } = this.authService;
+    const payer = await this.payerService.getCurrentPayer();
 
-    const stripeCustomerId = await this.customerService.getStripeCustomerId(currentUser);
-    const userWallet = await this.userWalletRepository.findOneByUserId(currentUser.id);
-    const isFreeTrial = userWallet?.isTrialing ?? true;
+    const stripeCustomerId = await this.customerService.getStripeCustomerId(payer);
+    const isFreeTrial = !payer.team && ((await this.userWalletRepository.findOneUsedBy(payer.user.id))?.isTrialing ?? true);
 
     const setupIntent = await this.stripe.createSetupIntent(stripeCustomerId, { isFreeTrial });
     return { data: { clientSecret: setupIntent.client_secret } };
@@ -77,10 +79,10 @@ export class StripeController {
   @Protected([{ action: "update", subject: "PaymentMethod" }])
   async markAsDefault(input: PaymentMethodMarkAsDefaultInput): Promise<void> {
     const { ability } = this.authService;
-    const currentUser = this.authService.getCurrentPayingUser();
+    const payer = await this.payerService.getCurrentPayingPayer();
 
-    await this.paymentMethodService.markPaymentMethodAsDefault(input.data.id, currentUser, ability);
-    await this.#resumeAutoReloadAfterDefaultChange(currentUser.id);
+    await this.paymentMethodService.markPaymentMethodAsDefault(input.data.id, payer, ability);
+    await this.#resumeAutoReloadAfterDefaultChange(payer);
   }
 
   /**
@@ -88,27 +90,29 @@ export class StripeController {
    * stays paused until the next payment method change, and the user can still turn auto top-up off
    * and on again to lift it.
    */
-  async #resumeAutoReloadAfterDefaultChange(userId: string): Promise<void> {
+  async #resumeAutoReloadAfterDefaultChange(payer: Payer): Promise<void> {
+    if (payer.team) return;
+
     try {
-      await this.autoReloadPauseService.resume(userId);
+      await this.autoReloadPauseService.resume(payer.user.id);
     } catch (error) {
-      this.logger.error({ event: "AUTO_RELOAD_RESUME_AFTER_DEFAULT_CHANGE_FAILED", userId, error });
+      this.logger.error({ event: "AUTO_RELOAD_RESUME_AFTER_DEFAULT_CHANGE_FAILED", userId: payer.user.id, error });
     }
   }
 
   @Protected([{ action: "read", subject: "PaymentMethod" }])
   async getDefaultPaymentMethod(): Promise<PaymentMethodResponse> {
     const { ability } = this.authService;
-    const currentUser = this.authService.getCurrentPayingUser({ strict: false });
+    const payer = await this.payerService.getCurrentPayer();
 
-    if (!currentUser) {
+    if (!isPayingPayer(payer)) {
       throw new HTTPException(404, {
         message: "PaymentMethod not found",
         cause: "User does not have a Stripe customer ID"
       });
     }
 
-    const paymentMethod = await this.paymentMethodService.getDefaultPaymentMethod(currentUser, ability);
+    const paymentMethod = await this.paymentMethodService.getDefaultPaymentMethod(payer, ability);
 
     assert(paymentMethod, 404, "PaymentMethod not found");
 
@@ -117,10 +121,10 @@ export class StripeController {
 
   @Protected([{ action: "read", subject: "PaymentMethod" }])
   async getPaymentMethods(): Promise<PaymentMethodsResponse> {
-    const currentUser = this.authService.getCurrentPayingUser({ strict: false });
+    const payer = await this.payerService.getCurrentPayer();
 
-    if (currentUser) {
-      const paymentMethods = await this.paymentMethodService.getPaymentMethods(currentUser, this.authService.ability);
+    if (isPayingPayer(payer)) {
+      const paymentMethods = await this.paymentMethodService.getPaymentMethods(payer, this.authService.ability);
       return { data: paymentMethods };
     }
 
@@ -129,10 +133,10 @@ export class StripeController {
 
   @Protected([{ action: "create", subject: "StripePayment" }])
   async confirmPayment(params: ConfirmPaymentRequest["data"]): Promise<ConfirmPaymentResponse> {
-    const currentUser = this.authService.getCurrentPayingUser();
+    const payer = await this.payerService.getCurrentPayingPayer();
 
     try {
-      const data = await this.topUpService.topUp(currentUser, {
+      const data = await this.topUpService.topUp(payer, {
         amount: params.amount,
         paymentMethodId: params.paymentMethodId,
         idempotencyKey: params.idempotencyKey,
@@ -159,16 +163,18 @@ export class StripeController {
       error?: { message: string };
     };
   }> {
-    const { currentUser } = this.authService;
-
     assert(params.couponId, 400, "Coupon ID is required");
     assert(params.userId, 400, "User ID is required");
 
-    const userWallet = await this.userWalletRepository.findOneByUserId(currentUser.id);
-    await this.trialActivationJobService.assertActivated({ userId: currentUser.id, activatedAt: userWallet?.activatedAt });
+    const payer = await this.payerService.getCurrentPayer();
+
+    if (!payer.team) {
+      const userWallet = await this.userWalletRepository.findOneUsedBy(payer.user.id);
+      await this.trialActivationJobService.assertActivated({ userId: payer.user.id, activatedAt: userWallet?.activatedAt });
+    }
 
     try {
-      const result = await this.couponRedemptionService.redeemCoupon(currentUser, params.couponId);
+      const result = await this.couponRedemptionService.redeemCoupon(payer, params.couponId);
 
       if (params.awaitResolved) {
         const transaction = await this.stripeTransaction.resolveTransaction(result.transactionId);
@@ -189,20 +195,20 @@ export class StripeController {
 
   @Protected([{ action: "delete", subject: "StripePayment" }])
   async removePaymentMethod(paymentMethodId: string): Promise<void> {
-    const currentUser = this.authService.getCurrentPayingUser();
+    const payer = await this.payerService.getCurrentPayingPayer();
 
     try {
       // Verify payment method ownership
       const paymentMethod = await this.stripe.retrievePaymentMethod(paymentMethodId);
       const customerId = typeof paymentMethod.customer === "string" ? paymentMethod.customer : paymentMethod.customer?.id;
-      assert(customerId === currentUser.stripeCustomerId, 403, "Payment method does not belong to the user");
+      assert(customerId === payer.stripeCustomerId, 403, "Payment method does not belong to the user");
 
-      const wasDefault = await this.paymentMethodService.isDefaultPaymentMethod(paymentMethodId, currentUser.id);
+      const wasDefault = await this.paymentMethodService.isDefaultPaymentMethod(paymentMethodId, billingOwnerOf(payer));
 
       await this.stripe.detachPaymentMethod(paymentMethodId);
 
       if (wasDefault) {
-        await this.#disableAutoReloadAfterDefaultRemoval(currentUser.id);
+        await this.#disableAutoReloadAfterDefaultRemoval(payer);
       }
     } catch (error: unknown) {
       if (this.stripeErrorService.isKnownError(error, "payment")) {
@@ -218,11 +224,13 @@ export class StripeController {
    * method), so a failed auto reload disable must not fail the request. The stale "enabled with no
    * default card" state self-heals on the next default payment method read.
    */
-  async #disableAutoReloadAfterDefaultRemoval(userId: string): Promise<void> {
+  async #disableAutoReloadAfterDefaultRemoval(payer: Payer): Promise<void> {
+    if (payer.team) return;
+
     try {
-      await this.walletSettingService.disableAutoReload(userId);
+      await this.walletSettingService.disableAutoReload(payer.user.id);
     } catch (error) {
-      this.logger.error({ event: "AUTO_RELOAD_DISABLE_AFTER_REMOVAL_FAILED", userId, error });
+      this.logger.error({ event: "AUTO_RELOAD_DISABLE_AFTER_REMOVAL_FAILED", userId: payer.user.id, error });
     }
   }
 
@@ -252,17 +260,17 @@ export class StripeController {
   }: {
     data: { paymentMethodId: string; paymentIntentId: string };
   }): Promise<{ success: boolean }> {
-    const { currentUser } = this.authService;
+    const { stripeCustomerId } = await this.payerService.getCurrentPayer();
 
-    assert(currentUser.stripeCustomerId, 400, "Payment method is not configured for this user");
+    assert(stripeCustomerId, 400, "Payment method is not configured for this user");
 
     try {
       // Verify payment method ownership
       const paymentMethod = await this.stripe.retrievePaymentMethod(paymentMethodId);
       const customerId = typeof paymentMethod.customer === "string" ? paymentMethod.customer : paymentMethod.customer?.id;
-      assert(customerId === currentUser.stripeCustomerId, 403, "Payment method does not belong to the user");
+      assert(customerId === stripeCustomerId, 403, "Payment method does not belong to the user");
 
-      return await this.paymentMethodService.validatePaymentMethodAfter3DS(currentUser.stripeCustomerId, paymentMethodId, paymentIntentId);
+      return await this.paymentMethodService.validatePaymentMethodAfter3DS(stripeCustomerId, paymentMethodId, paymentIntentId);
     } catch (error: unknown) {
       if (this.stripeErrorService.isKnownError(error, "payment")) {
         throw this.stripeErrorService.toAppError(error, "payment");
@@ -274,10 +282,10 @@ export class StripeController {
 
   @Protected([{ action: "create", subject: "StripePayment" }])
   async updateCustomerOrganization(input: UpdateCustomerOrganizationRequest): Promise<void> {
-    const { currentUser } = this.authService;
+    const { stripeCustomerId } = await this.payerService.getCurrentPayer();
 
-    assert(currentUser.stripeCustomerId, 400, "Payment method is not configured for this user");
+    assert(stripeCustomerId, 400, "Payment method is not configured for this user");
 
-    await this.customerService.updateCustomerOrganization(currentUser.stripeCustomerId, input.organization);
+    await this.customerService.updateCustomerOrganization(stripeCustomerId, input.organization);
   }
 }
