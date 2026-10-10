@@ -33,11 +33,12 @@ describe(DeploymentOrganizationActivityService.name, () => {
     });
 
     it("files nothing for a deployment the console holds no row for", async () => {
-      const { service, organizationActivityService, key } = setup({ deployment: null });
+      const { service, organizationActivityService, logger, key } = setup({ deployment: null });
 
       await service.recordCreated(key);
 
       expect(organizationActivityService.recordForDeployment).not.toHaveBeenCalled();
+      expect(logger.error).not.toHaveBeenCalled();
     });
 
     it("files nothing for a deployment not yet filed into an organization", async () => {

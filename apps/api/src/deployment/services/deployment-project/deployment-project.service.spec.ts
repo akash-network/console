@@ -191,7 +191,10 @@ describe(DeploymentProjectService.name, () => {
     it("refuses with 403 outside organization mode", async () => {
       const { service, txService, deployment, target } = setup({ mode: "legacy" });
 
-      await expect(service.move(deployment.dseq, target.id)).rejects.toMatchObject({ status: 403 });
+      await expect(service.move(deployment.dseq, target.id)).rejects.toMatchObject({
+        status: 403,
+        message: "Deployments are filed into projects of an organization and this request runs in none"
+      });
 
       expect(txService.transaction).not.toHaveBeenCalled();
     });
@@ -277,7 +280,7 @@ describe(DeploymentProjectService.name, () => {
     const context = createOrganizationContext({ role: input?.role ?? "owner", mode: input?.mode ?? "organization", projectScope: input?.projectScope });
     const projectConditions = input?.scopedProjectIds ? { projectId: { $in: input.scopedProjectIds } } : {};
     const ability = createMongoAbility<MongoAbility>([
-      { action: "manage", subject: "DeploymentSetting", conditions: { organizationId: context.organizationId, ...projectConditions } }
+      { action: "create", subject: "DeploymentSetting", conditions: { organizationId: context.organizationId, ...projectConditions } }
     ]);
     const project = mock<ProjectOutput>({ id: faker.string.uuid(), organizationId: context.organizationId, name: faker.word.noun() });
     const target = mock<ProjectOutput>({ id: faker.string.uuid(), organizationId: context.organizationId, name: faker.word.noun() });
@@ -300,7 +303,7 @@ describe(DeploymentProjectService.name, () => {
     const authService = mock<AuthService>({ currentUser: user });
     authService.ability = ability;
     const executionContextService = mock<ExecutionContextService>();
-    executionContextService.get.mockReturnValue(input?.withoutContext ? undefined : context);
+    executionContextService.get.calledWith("ORGANIZATION_CONTEXT").mockReturnValue(input?.withoutContext ? undefined : context);
     const txService = mock<TxService>();
     txService.transaction.mockImplementation(async callback => await callback());
 
