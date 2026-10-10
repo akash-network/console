@@ -85,17 +85,23 @@ export const createProxy =
 
 /** The deployment a request names, through the deployment alerts path, the alerts dseq filter or a new alert's params. */
 function targetedDseq(method: string, url: URL, body: string | undefined): string | undefined {
-  const fromPath = url.pathname.match(DEPLOYMENT_ALERTS_PATH)?.[1];
+  const pathname = withoutTrailingSlashes(url.pathname);
+  const fromPath = pathname.match(DEPLOYMENT_ALERTS_PATH)?.[1];
 
   if (fromPath) {
     return decodeURIComponent(fromPath);
   }
 
-  if (url.pathname !== ALERTS_PATH) {
+  if (pathname !== ALERTS_PATH) {
     return undefined;
   }
 
   return method === "GET" ? url.searchParams.get("dseq") ?? undefined : dseqOfAlertBody(body);
+}
+
+/** The notifications service routes a path with trailing slashes like the one without, so the checks must too. */
+function withoutTrailingSlashes(pathname: string): string {
+  return pathname.replace(/\/+$/, "");
 }
 
 function dseqOfAlertBody(body: string | undefined): string | undefined {
