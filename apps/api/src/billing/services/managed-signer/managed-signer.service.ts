@@ -161,6 +161,7 @@ export class ManagedSignerService {
     rawLog: string;
   }> {
     await this.#assertBroadcastable(userWallet, messages);
+    const filingProjectId = options?.suppliedByCaller ? await this.#filingProjectOf(messages) : undefined;
 
     const createLeaseMessage: { typeUrl: string; value: MsgCreateLease } | undefined = messages.find(message => message.typeUrl.endsWith(".MsgCreateLease"));
     const hasCreateTrialLeaseMessage = userWallet.isTrialing && !!createLeaseMessage;
@@ -219,7 +220,7 @@ export class ManagedSignerService {
       await this.#publishLeaseGpuRead(userWallet, leasedDseq);
     }
 
-    await this.#recordCreatedDeployments(userWallet, messages);
+    await this.#recordCreatedDeployments(userWallet, messages, filingProjectId);
 
     await this.#refreshWalletLimits(userWallet);
     await this.#ensureAutoReloadSchedule(userWallet.userId, messages);
@@ -258,15 +259,20 @@ export class ManagedSignerService {
   }
 
   /** A create broadcast here never passes through the deployment API that would record it, so the record is written from the landed transaction. */
-  async #recordCreatedDeployments(userWallet: UserWalletOutput, messages: EncodeObject[]) {
-    const projectId = this.deploymentProjectService.soleProjectOfRequest(userWallet.organizationId);
-
+  async #recordCreatedDeployments(userWallet: UserWalletOutput, messages: EncodeObject[], projectId: string | undefined) {
     for (const dseq of this.#findDeploymentDseqs(messages, ".MsgCreateDeployment")) {
       const key = { userId: userWallet.userId, dseq: dseq.toString() };
       await this.domainEvents.publish(new RecordDeploymentSetting({ ...key, organizationId: userWallet.organizationId, projectId }), {
         singletonKey: recordDeploymentSettingKeyFor(key)
       });
     }
+  }
+
+  /** A create the caller signs directly is refused before signing when it could not be filed into a project the caller reaches. */
+  async #filingProjectOf(messages: EncodeObject[]): Promise<string | undefined> {
+    if (!this.#getCreateDeploymentMessages(messages).length) return undefined;
+
+    return await this.deploymentProjectService.resolveFilingProject();
   }
 
   /** No close path writes this record, and it runs before the other post-broadcast work so a rejected publish cannot drop an accepted close. */

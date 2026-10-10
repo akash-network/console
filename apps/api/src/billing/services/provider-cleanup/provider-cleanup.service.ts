@@ -1,4 +1,5 @@
 import { createOtelLogger } from "@akashnetwork/logging/otel";
+import type { EncodeObject } from "@cosmjs/proto-signing";
 import { singleton } from "tsyringe";
 
 import { type BillingConfig, InjectBillingConfig } from "@src/billing/providers";
@@ -11,6 +12,7 @@ import { ErrorService } from "@src/core/services/error/error.service";
 import { ProviderCleanupSummarizer } from "@src/deployment/lib/provider-cleanup-summarizer/provider-cleanup-summarizer";
 import { DeploymentRepository } from "@src/deployment/repositories/deployment/deployment.repository";
 import { DeploymentOrganizationActivityService } from "@src/deployment/services/deployment-organization-activity/deployment-organization-activity.service";
+import { COSMOS_TX_CODE_OK } from "@src/utils/constants";
 
 @singleton()
 export class ProviderCleanupService {
@@ -60,7 +62,7 @@ export class ProviderCleanupService {
 
       try {
         if (!options.dryRun) {
-          await this.managedSignerService.executeDerivedTx(wallet.id, [message]);
+          await this.#broadcastClose(wallet.id, message);
           await this.#recordClosed(wallet, deployment.dseq);
           this.logger.info({ event: "PROVIDER_CLEAN_UP_SUCCESS" });
         }
@@ -75,7 +77,7 @@ export class ProviderCleanupService {
             fees: this.config.FEE_ALLOWANCE_REFILL_AMOUNT
           }
         });
-        await this.managedSignerService.executeDerivedTx(wallet.id, [message]);
+        await this.#broadcastClose(wallet.id, message);
         await this.#recordClosed(wallet, deployment.dseq);
         this.logger.info({ event: "PROVIDER_CLEAN_UP_SUCCESS" });
       } finally {
@@ -84,6 +86,14 @@ export class ProviderCleanupService {
     });
 
     await Promise.all(closeAllWalletStaleDeployments);
+  }
+
+  async #broadcastClose(walletId: number, message: EncodeObject): Promise<void> {
+    const tx = await this.managedSignerService.executeDerivedTx(walletId, [message]);
+
+    if (tx.code !== COSMOS_TX_CODE_OK) {
+      throw new Error(`Close tx ${tx.hash} failed on-chain with code ${tx.code}: ${tx.rawLog}`);
+    }
   }
 
   async #recordClosed(wallet: UserWalletOutput, dseq: string): Promise<void> {

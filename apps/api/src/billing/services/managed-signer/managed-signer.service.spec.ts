@@ -609,34 +609,49 @@ describe(ManagedSignerService.name, () => {
       expect(options).toEqual({ singletonKey: `recordDeploymentSetting.${wallet.userId}.123` });
     });
 
-    it("records a created deployment into the one project the request is held to", async () => {
-      const wallet = createUserWallet({
-        userId: "user-123",
-        feeAllowance: 100,
-        deploymentAllowance: 100,
-        isTrialing: false,
-        organizationId: faker.string.uuid()
-      });
-      const projectId = faker.string.uuid();
-      const deploymentMessage: EncodeObject = {
-        typeUrl: MsgCreateDeployment.$type,
-        value: MsgCreateDeployment.fromPartial({ id: { owner: "akash1test", dseq: 123 } })
-      };
-      const soleProjectOfRequest = vi.fn().mockReturnValue(projectId);
-      const { service, domainEvents } = setup({
-        findOneByUserId: vi.fn().mockResolvedValue(wallet),
-        findById: vi.fn().mockResolvedValue(createUser({ userId: "user-123" })),
-        signAndBroadcastWithDerivedWallet: vi.fn().mockResolvedValue({ code: 0, hash: "tx-hash", rawLog: "success" }),
-        refreshUserWalletLimits: vi.fn().mockResolvedValue(undefined),
-        publish: vi.fn().mockResolvedValue(undefined),
-        soleProjectOfRequest
+    describe("for a create the caller supplied", () => {
+      it("records it into the project the request resolves to, resolved before signing", async () => {
+        const projectId = faker.string.uuid();
+        const resolveFilingProject = vi.fn().mockResolvedValue(projectId);
+        const { service, domainEvents, txManagerService, wallet } = setupForFiling({ resolveFilingProject });
+
+        await service.executeDecodedTxByUserWallet(wallet, [createMessageFor(123)], { suppliedByCaller: true });
+
+        const [event] = vi.mocked(domainEvents.publish).mock.calls.find(([published]) => published instanceof RecordDeploymentSetting)!;
+        expect(resolveFilingProject).toHaveBeenCalledWith();
+        expect(event.data).toEqual({ userId: wallet.userId, dseq: "123", organizationId: wallet.organizationId, projectId });
+        expect(resolveFilingProject.mock.invocationCallOrder[0]).toBeLessThan(txManagerService.signAndBroadcastWithDerivedWallet.mock.invocationCallOrder[0]);
       });
 
-      await service.executeDerivedDecodedTxByUserId("user-123", [deploymentMessage]);
+      it("refuses it before signing when no project the caller reaches can take it", async () => {
+        const refusal = createError(400, "Choose a project to deploy into", { errorCode: "project_required" });
+        const { service, domainEvents, txManagerService, wallet } = setupForFiling({ resolveFilingProject: vi.fn().mockRejectedValue(refusal) });
+
+        await expect(service.executeDecodedTxByUserWallet(wallet, [createMessageFor(123)], { suppliedByCaller: true })).rejects.toBe(refusal);
+
+        expect(txManagerService.signAndBroadcastWithDerivedWallet).not.toHaveBeenCalled();
+        expect(domainEvents.publish).not.toHaveBeenCalled();
+      });
+
+      it("resolves no project for a supplied transaction that creates no deployment", async () => {
+        const resolveFilingProject = vi.fn();
+        const { service, wallet } = setupForFiling({ resolveFilingProject });
+
+        await service.executeDecodedTxByUserWallet(wallet, [closeMessageFor(123)], { suppliedByCaller: true });
+
+        expect(resolveFilingProject).not.toHaveBeenCalled();
+      });
+    });
+
+    it("resolves no project for a create the console built, which the deployment API already filed", async () => {
+      const resolveFilingProject = vi.fn();
+      const { service, domainEvents, wallet } = setupForFiling({ resolveFilingProject });
+
+      await service.executeDecodedTxByUserWallet(wallet, [createMessageFor(123)]);
 
       const [event] = vi.mocked(domainEvents.publish).mock.calls.find(([published]) => published instanceof RecordDeploymentSetting)!;
-      expect(soleProjectOfRequest).toHaveBeenCalledWith(wallet.organizationId);
-      expect(event.data).toEqual({ userId: wallet.userId, dseq: "123", organizationId: wallet.organizationId, projectId });
+      expect(resolveFilingProject).not.toHaveBeenCalled();
+      expect(event.data).toEqual({ userId: wallet.userId, dseq: "123", organizationId: wallet.organizationId, projectId: undefined });
     });
 
     it("records a deployment a trialing wallet created, so converting to paid needs no repair", async () => {
@@ -1547,6 +1562,28 @@ describe(ManagedSignerService.name, () => {
     });
   }
 
+  function createMessageFor(dseq: number): EncodeObject {
+    return {
+      typeUrl: MsgCreateDeployment.$type,
+      value: MsgCreateDeployment.fromPartial({ id: { owner: "akash1test", dseq } })
+    };
+  }
+
+  function setupForFiling(input: { resolveFilingProject: DeploymentProjectService["resolveFilingProject"] }) {
+    const wallet = createUserWallet({ userId: "user-123", feeAllowance: 100, deploymentAllowance: 100, isTrialing: false, organizationId: faker.string.uuid() });
+    const mocks = setup({
+      findOneByUserId: vi.fn().mockResolvedValue(wallet),
+      findById: vi.fn().mockResolvedValue(createUser({ userId: "user-123" })),
+      retrieveDeploymentLimit: vi.fn().mockResolvedValue(100),
+      signAndBroadcastWithDerivedWallet: vi.fn().mockResolvedValue({ code: 0, hash: "tx-hash", rawLog: "success" }),
+      refreshUserWalletLimits: vi.fn().mockResolvedValue(undefined),
+      publish: vi.fn().mockResolvedValue(undefined),
+      resolveFilingProject: input.resolveFilingProject
+    });
+
+    return { ...mocks, wallet };
+  }
+
   function setupForCreate(
     input: { deploymentLimit: number; walletDeploymentAllowance?: number } & Omit<NonNullable<Parameters<typeof setup>[0]>, "retrieveDeploymentLimit">
   ) {
@@ -1581,7 +1618,7 @@ describe(ManagedSignerService.name, () => {
     hasLeases?: LeaseHttpService["hasLeases"];
     scheduleImmediate?: WalletReloadJobService["scheduleImmediate"];
     markClosed?: DeploymentSettingRepository["markClosed"];
-    soleProjectOfRequest?: DeploymentProjectService["soleProjectOfRequest"];
+    resolveFilingProject?: DeploymentProjectService["resolveFilingProject"];
     decode?: Registry["decode"];
   }) {
     const mocks = {
@@ -1638,7 +1675,7 @@ describe(ManagedSignerService.name, () => {
         markClosed: input?.markClosed ?? vi.fn()
       }),
       deploymentProjectService: mock<DeploymentProjectService>({
-        soleProjectOfRequest: input?.soleProjectOfRequest ?? vi.fn()
+        resolveFilingProject: input?.resolveFilingProject ?? vi.fn()
       }),
       deploymentOrganizationActivityService: mock<DeploymentOrganizationActivityService>({
         recordClosed: vi.fn()
