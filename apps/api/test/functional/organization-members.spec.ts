@@ -187,6 +187,15 @@ describe("Organization members", () => {
 
       expect(response.status).toBe(400);
     });
+
+    it("rejects a request without a JSON body", async () => {
+      const { organization, owner, target, membershipOf, request } = await setup({ callerRole: "owner", targetRole: "member" });
+
+      const response = await request("PATCH", `/v1/organization-members/${membershipOf(target).id}`, { asUser: owner, organizationId: organization.id });
+
+      expect(response.status).toBe(400);
+      expect(await memberRepository.findById(membershipOf(target).id)).toMatchObject({ role: "member" });
+    });
   });
 
   describe("DELETE /v1/organization-members/{id}", () => {
@@ -335,15 +344,13 @@ describe("Organization members", () => {
     }
 
     async function request(method: string, path: string, options: { asUser: UserOutput; organizationId: string; body?: unknown }) {
-      return await app.request(path, {
-        method,
-        headers: {
-          authorization: `Bearer ${tokenByUserId.get(options.asUser.id)}`,
-          "x-organization-id": options.organizationId,
-          "content-type": "application/json"
-        },
-        body: options.body === undefined ? undefined : JSON.stringify(options.body)
-      });
+      const headers = { authorization: `Bearer ${tokenByUserId.get(options.asUser.id)}`, "x-organization-id": options.organizationId };
+
+      if (options.body === undefined) {
+        return await app.request(path, { method, headers });
+      }
+
+      return await app.request(path, { method, headers: { ...headers, "content-type": "application/json" }, body: JSON.stringify(options.body) });
     }
 
     return { organization, personal, owner, caller, target, membershipOf, request };

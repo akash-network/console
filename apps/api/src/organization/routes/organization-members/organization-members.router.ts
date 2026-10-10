@@ -50,7 +50,7 @@ const updateOrganizationMemberRoute = createRoute({
   featureFlag: FeatureFlags.ORGANIZATIONS,
   request: {
     params: OrganizationMemberParamsSchema,
-    body: { content: { "application/json": { schema: UpdateOrganizationMemberRequestSchema } } }
+    body: { required: true, content: { "application/json": { schema: UpdateOrganizationMemberRequestSchema } } }
   },
   responses: {
     200: { description: "The updated member", content: { "application/json": { schema: OrganizationMemberResponseSchema } } },
