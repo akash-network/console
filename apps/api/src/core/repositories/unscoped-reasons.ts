@@ -5,6 +5,7 @@ export const UNSCOPED_REASONS = [
   "api-key-authentication",
   "email-domain-account-checks",
   "gpu-driver-statistics",
+  "invitation-by-token",
   "invitation-email-limits",
   "own-memberships",
   "personal-organization-provisioning",
