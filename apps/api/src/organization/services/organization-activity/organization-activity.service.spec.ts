@@ -30,6 +30,25 @@ describe(OrganizationActivityService.name, () => {
     });
   });
 
+  describe("recordForDeployment", () => {
+    it("files the activity into the deployment's organization, outside the one the request runs in", async () => {
+      const { service, organizationActivityRepository, unscopedRepository } = setup();
+      const activity = {
+        organizationId: faker.string.uuid(),
+        projectId: faker.string.uuid(),
+        type: "deployment_closed" as const,
+        actorUserId: null,
+        payload: { dseq: "1234", name: "web", reason: "provider_unreachable" }
+      };
+
+      await service.recordForDeployment(activity);
+
+      expect(organizationActivityRepository.unscoped).toHaveBeenCalledWith("deployment-activity");
+      expect(unscopedRepository.create).toHaveBeenCalledWith(activity);
+      expect(organizationActivityRepository.create).not.toHaveBeenCalled();
+    });
+  });
+
   describe("list", () => {
     it("reads one activity past the page within the caller's rules and points the next page at the last one shown", async () => {
       const activities = [createOrganizationActivity(), createOrganizationActivity(), createOrganizationActivity()];
@@ -75,11 +94,13 @@ describe(OrganizationActivityService.name, () => {
   function setup(input: { activities?: OrganizationActivityWithActor[] } = {}) {
     const ability = mock<AuthService["ability"]>();
     const organizationActivityRepository = mock<OrganizationActivityRepository>({ findPage: vi.fn().mockResolvedValue(input.activities ?? []) });
+    const unscopedRepository = mock<OrganizationActivityRepository>();
     organizationActivityRepository.accessibleBy.mockReturnValue(organizationActivityRepository);
+    organizationActivityRepository.unscoped.mockReturnValue(unscopedRepository);
     const authService = mock<AuthService>({ ability });
 
     const service = new OrganizationActivityService(organizationActivityRepository, authService);
 
-    return { service, organizationActivityRepository, ability };
+    return { service, organizationActivityRepository, unscopedRepository, ability };
   }
 });

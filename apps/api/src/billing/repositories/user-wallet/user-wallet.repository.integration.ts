@@ -324,9 +324,9 @@ describe(UserWalletRepository.name, () => {
       const yielded = await collectYielded([first, second, third], 2);
 
       expect(yielded).toEqual([
-        { id: first.id, address: first.address },
-        { id: second.id, address: second.address },
-        { id: third.id, address: third.address }
+        { id: first.id, address: first.address, userId: first.userId },
+        { id: second.id, address: second.address, userId: second.userId },
+        { id: third.id, address: third.address, userId: third.userId }
       ]);
     });
 
@@ -337,7 +337,7 @@ describe(UserWalletRepository.name, () => {
 
       const yielded = await collectYielded([addressless, managed], 10);
 
-      expect(yielded).toEqual([{ id: managed.id, address: managed.address }]);
+      expect(yielded).toEqual([{ id: managed.id, address: managed.address, userId: managed.userId }]);
     });
 
     it("caps every batch at the batch size", async () => {

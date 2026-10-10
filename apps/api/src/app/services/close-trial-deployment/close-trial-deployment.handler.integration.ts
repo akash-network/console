@@ -32,7 +32,7 @@ describe(CloseTrialDeploymentHandler.name, () => {
     await closeTrialDeployment();
     await awaitClosedNotice();
 
-    expect(close).toHaveBeenCalledWith(expect.objectContaining({ id: walletId }), dseq);
+    expect(close).toHaveBeenCalledWith(expect.objectContaining({ id: walletId }), dseq, { reason: "trial_ended" });
     expect(sentNotifications()).toHaveLength(1);
   });
 

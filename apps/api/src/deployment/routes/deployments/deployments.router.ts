@@ -2,10 +2,12 @@ import { z } from "@hono/zod-openapi";
 import { container } from "tsyringe";
 
 import { createRoute } from "@src/core/lib/create-route/create-route";
+import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
 import { OpenApiHonoHandler } from "@src/core/services/open-api-hono-handler/open-api-hono-handler";
 import { SECURITY_BEARER_OR_API_KEY, SECURITY_NONE } from "@src/core/services/openapi-docs/openapi-security";
 import { CREATE_DEPLOYMENT_BODY_LIMIT_BYTES } from "@src/deployment/config/sdl-secrets.config";
 import { DeploymentController } from "@src/deployment/controllers/deployment/deployment.controller";
+import { DeploymentProjectController } from "@src/deployment/controllers/deployment-project/deployment-project.controller";
 import {
   CloseDeploymentAcceptedResponseSchema,
   CloseDeploymentParamsSchema,
@@ -38,12 +40,19 @@ import {
   UpdateDeploymentResponseSchema
 } from "@src/deployment/http-schemas/deployment.schema";
 import {
+  DeploymentProjectParamsSchema,
+  GetDeploymentLocationResponseSchema,
+  UpdateDeploymentProjectRequestSchema,
+  UpdateDeploymentProjectResponseSchema
+} from "@src/deployment/http-schemas/deployment-project.schema";
+import {
   FallbackDeploymentInfoQuerySchema,
   FallbackDeploymentInfoResponseSchema,
   FallbackDeploymentListQuerySchema,
   FallbackDeploymentListResponseSchema
 } from "@src/deployment/http-schemas/deployment-rpc.schema";
 import { FallbackDeploymentReaderService } from "@src/deployment/services/fallback-deployment-reader/fallback-deployment-reader.service";
+import { PROJECT_ID_HEADER } from "@src/organization/services/organization-context/organization-context.resolver";
 
 export const deploymentsRouter = new OpenApiHonoHandler();
 
@@ -146,7 +155,7 @@ const postRoute = createRoute({
     },
     400: {
       description:
-        "The SDL leaves a secret reference with no value from either `sealedSecrets` or the deployment named by `inheritSecretsFrom`, supplies a name no service references, would carry more secrets than one deployment may hold, or carries a `sealedSecrets` value that is malformed, tampered with, expired or not a flat object of string values",
+        "The SDL leaves a secret reference with no value from either `sealedSecrets` or the deployment named by `inheritSecretsFrom`, supplies a name no service references, would carry more secrets than one deployment may hold, or carries a `sealedSecrets` value that is malformed, tampered with, expired or not a flat object of string values. With `code` `project_required`, a project is needed",
       content: {
         "application/json": {
           schema: ErrorResponseSchema
@@ -162,7 +171,8 @@ const postRoute = createRoute({
       }
     },
     404: {
-      description: "No deployment of yours matches `inheritSecretsFrom`. Deliberately says nothing about whether that deployment exists",
+      description:
+        "No deployment of yours matches `inheritSecretsFrom`. Deliberately says nothing about whether that deployment exists. Also returned for an unknown `projectId`",
       content: {
         "application/json": {
           schema: ErrorResponseSchema
@@ -802,4 +812,50 @@ const getSpendRateRoute = createRoute({
 deploymentsRouter.openapi(getSpendRateRoute, async function routeGetSpendRate(c) {
   const result = await container.resolve(DeploymentController).getSpendRate();
   return c.json(result, 200);
+});
+
+const updateDeploymentProjectRoute = createRoute({
+  method: "patch",
+  path: "/v1/deployments/{dseq}/project",
+  operationId: "updateDeploymentProject",
+  summary: "Move a deployment to another project of the active organization",
+  tags: ["Deployments"],
+  security: SECURITY_BEARER_OR_API_KEY,
+  featureFlag: FeatureFlags.ORGANIZATIONS,
+  request: {
+    params: DeploymentProjectParamsSchema,
+    body: { required: true, content: { "application/json": { schema: UpdateDeploymentProjectRequestSchema } } }
+  },
+  responses: {
+    200: { description: "The project the deployment is now filed into", content: { "application/json": { schema: UpdateDeploymentProjectResponseSchema } } },
+    401: { description: "Unauthorized" },
+    403: { description: "The caller's role in the active organization does not allow it" },
+    404: { description: "No deployment or project with this id in the caller's reach" }
+  }
+});
+deploymentsRouter.openapi(updateDeploymentProjectRoute, async function routeUpdateDeploymentProject(c) {
+  const { dseq } = c.req.valid("param");
+  const { data } = c.req.valid("json");
+  return c.json(await container.resolve(DeploymentProjectController).move(dseq, data), 200);
+});
+
+const getDeploymentLocationRoute = createRoute({
+  method: "get",
+  path: "/v1/deployment-locations/{dseq}",
+  operationId: "getDeploymentLocation",
+  summary: "Find the organization and project a deployment is filed into, among the caller's organizations",
+  tags: ["Deployments"],
+  security: SECURITY_BEARER_OR_API_KEY,
+  featureFlag: FeatureFlags.ORGANIZATIONS,
+  request: { params: DeploymentProjectParamsSchema },
+  responses: {
+    200: { description: "Where the deployment is filed", content: { "application/json": { schema: GetDeploymentLocationResponseSchema } } },
+    401: { description: "Unauthorized" },
+    404: { description: "No deployment with this dseq in the caller's reach" }
+  }
+});
+deploymentsRouter.openapi(getDeploymentLocationRoute, async function routeGetDeploymentLocation(c) {
+  const { dseq } = c.req.valid("param");
+  const acrossOrganizations = c.get("authMethod") === "bearer" && !c.req.header(PROJECT_ID_HEADER);
+  return c.json(await container.resolve(DeploymentProjectController).findLocation(dseq, { acrossOrganizations }), 200);
 });

@@ -31,7 +31,7 @@ describe(CloseExpiredDeploymentHandler.name, () => {
 
     await handler.handle(createPayload(setting));
 
-    expect(deploymentWriterService.close).toHaveBeenCalledWith(expect.objectContaining({ address }), setting.dseq);
+    expect(deploymentWriterService.close).toHaveBeenCalledWith(expect.objectContaining({ address }), setting.dseq, { reason: "runtime_limit_reached" });
     expect(deploymentSettingRepository.updateById).toHaveBeenCalledWith(setting.id, { closed: true });
   });
 

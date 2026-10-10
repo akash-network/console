@@ -1,10 +1,14 @@
 import { faker } from "@faker-js/faker";
+import { eq } from "drizzle-orm";
 import { container } from "tsyringe";
 import { describe, expect, it } from "vitest";
 
 import { AbilityService } from "@src/auth/services/ability/ability.service";
+import type { ApiPgDatabase } from "@src/core";
+import { POSTGRES_DB, resolveTable } from "@src/core";
 import { getPostgresError } from "@src/core/repositories/base.repository";
 import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
+import { TxService } from "@src/core/services/tx/tx.service";
 import { DEFAULT_PROJECT_NAME, DEFAULT_PROJECT_SLUG, PROJECT_NAME_UNIQUE_INDEX } from "@src/organization/model-schemas/project/project.schema";
 import type { OrganizationContext } from "@src/organization/types/organization-context";
 import type { UserOutput } from "@src/user/repositories";
@@ -176,6 +180,58 @@ describe(ProjectRepository.name, () => {
       );
 
       expect(projects).toEqual([{ ...wanted, createdBy: null }]);
+    });
+  });
+
+  describe("findActiveAndLock", () => {
+    it("holds the live project it finds until the transaction ends, so a delete cannot take it meanwhile", async () => {
+      const { repository, organization, user, runIn } = await setup();
+      const project = await seedProject({ organizationId: organization.id });
+      const txService = container.resolve(TxService);
+      const db = container.resolve<ApiPgDatabase>(POSTGRES_DB);
+      const projects = resolveTable("Projects");
+
+      const { found, concurrentLock } = await runIn({ user, organizationId: organization.id, role: "owner" }, () =>
+        txService.transaction(async () => {
+          const found = await repository.findActiveAndLock(project.id);
+          const concurrentLock = await db
+            .select({ id: projects.id })
+            .from(projects)
+            .where(eq(projects.id, project.id))
+            .for("update", { noWait: true })
+            .then(
+              () => "acquired",
+              (error: unknown) => (error as { cause?: { code?: string } }).cause?.code
+            );
+
+          return { found, concurrentLock };
+        })
+      );
+
+      expect(found).toEqual(project);
+      expect(concurrentLock).toBe("55P03");
+    });
+
+    it("finds no deleted project", async () => {
+      const { repository, organization, user, runIn } = await setup();
+      const deleted = await seedProject({ organizationId: organization.id, deletedAt: new Date() });
+
+      const found = await runIn({ user, organizationId: organization.id, role: "owner" }, () =>
+        container.resolve(TxService).transaction(() => repository.findActiveAndLock(deleted.id))
+      );
+
+      expect(found).toBeUndefined();
+    });
+
+    it("finds no project of another organization", async () => {
+      const { repository, organization, user, runIn } = await setup();
+      const { project: foreign } = await seedOrganizationWithOwner();
+
+      const found = await runIn({ user, organizationId: organization.id, role: "owner" }, () =>
+        container.resolve(TxService).transaction(() => repository.findActiveAndLock(foreign.id))
+      );
+
+      expect(found).toBeUndefined();
     });
   });
 

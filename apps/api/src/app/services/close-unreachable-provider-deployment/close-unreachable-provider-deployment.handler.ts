@@ -76,7 +76,7 @@ export class CloseUnreachableProviderDeploymentHandler implements JobHandler<Clo
     let closedByUs: boolean;
 
     try {
-      closedByUs = await this.deploymentWriterService.close({ ...wallet, address: wallet.address }, dseq);
+      closedByUs = await this.deploymentWriterService.close({ ...wallet, address: wallet.address }, dseq, { reason: "provider_unreachable" });
     } catch (error) {
       if (error instanceof Error && this.chainErrorService.isUnsettleableDeploymentError(error)) {
         this.logger.warn({

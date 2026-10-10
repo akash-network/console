@@ -77,6 +77,17 @@ export class ProjectRepository extends OrgScopedRepository<Table, ProjectInput, 
     return this.unscoped("active-organization-resolution").findOneBy({ id, organizationId, deletedAt: null });
   }
 
+  /** Holds the project against a concurrent delete until the caller's transaction ends, so nothing is filed into a project being deleted. */
+  async findActiveAndLock(id: ProjectOutput["id"]): Promise<ProjectOutput | undefined> {
+    const [project] = await this.cursor
+      .select()
+      .from(this.table)
+      .where(this.whereAccessibleBy(and(eq(this.table.id, id), isNull(this.table.deletedAt))))
+      .for("share");
+
+    return project && this.toOutput(project);
+  }
+
   async findActiveIdsGrantedTo(organizationId: ProjectOutput["organizationId"], userId: string): Promise<string[]> {
     const projects = await this.cursor
       .select({ id: this.table.id })

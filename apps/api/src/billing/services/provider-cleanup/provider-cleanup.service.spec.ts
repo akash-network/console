@@ -13,6 +13,7 @@ import type { TxManagerService } from "@src/billing/services/tx-manager/tx-manag
 import type { CreateLogger } from "@src/core/providers/logging.provider";
 import { ErrorService } from "@src/core/services/error/error.service";
 import type { DeploymentRepository, StaleDeploymentsOutput } from "@src/deployment/repositories/deployment/deployment.repository";
+import type { DeploymentOrganizationActivityService } from "@src/deployment/services/deployment-organization-activity/deployment-organization-activity.service";
 import { ProviderCleanupService } from "./provider-cleanup.service";
 
 import { createUserWallet } from "@test/seeders/user-wallet.seeder";
@@ -33,6 +34,63 @@ describe(ProviderCleanupService.name, () => {
     expect(managedSignerService.executeDerivedTx).toHaveBeenCalledTimes(2);
     expect(managedSignerService.executeDerivedTx).toHaveBeenLastCalledWith(wallet.id, [CLOSE_MSG]);
     expect(errorLogger.error).not.toHaveBeenCalled();
+  });
+
+  it("files a close it made in the organization feed as closed by the console", async () => {
+    const { service, wallet, managedSignerService, deploymentOrganizationActivityService } = setup();
+    managedSignerService.executeDerivedTx.mockResolvedValueOnce(buildOkTx());
+
+    await service.cleanup({ provider: PROVIDER, concurrency: 1, dryRun: false });
+
+    expect(deploymentOrganizationActivityService.recordClosed).toHaveBeenCalledWith({ userId: wallet.userId, dseq: "1" }, { actorUserId: null, reason: null });
+  });
+
+  it("files a close it retried after refilling fees in the organization feed", async () => {
+    const { service, wallet, managedSignerService, deploymentOrganizationActivityService } = setup();
+    managedSignerService.executeDerivedTx.mockRejectedValueOnce(new Error(FEE_GRANT_REFUSED)).mockResolvedValueOnce(buildOkTx());
+
+    await service.cleanup({ provider: PROVIDER, concurrency: 1, dryRun: false });
+
+    expect(deploymentOrganizationActivityService.recordClosed).toHaveBeenCalledTimes(1);
+    expect(deploymentOrganizationActivityService.recordClosed).toHaveBeenCalledWith({ userId: wallet.userId, dseq: "1" }, { actorUserId: null, reason: null });
+  });
+
+  it("files nothing in the organization feed on a dry run or a failed close", async () => {
+    const { service, managedSignerService, deploymentOrganizationActivityService } = setup();
+    managedSignerService.executeDerivedTx.mockRejectedValueOnce(new Error("account sequence mismatch"));
+
+    await service.cleanup({ provider: PROVIDER, concurrency: 1, dryRun: true });
+    await service.cleanup({ provider: PROVIDER, concurrency: 1, dryRun: false });
+
+    expect(deploymentOrganizationActivityService.recordClosed).not.toHaveBeenCalled();
+  });
+
+  it("reports a close that landed with a failing code, filing nothing in the organization feed", async () => {
+    const { service, managedSignerService, managedUserWalletService, deploymentOrganizationActivityService, errorLogger } = setup();
+    managedSignerService.executeDerivedTx.mockResolvedValueOnce(mock<IndexedTx>({ code: 11, hash: "tx-hash", rawLog: "out of gas" }));
+
+    await service.cleanup({ provider: PROVIDER, concurrency: 1, dryRun: false });
+
+    expect(deploymentOrganizationActivityService.recordClosed).not.toHaveBeenCalled();
+    expect(managedUserWalletService.authorizeSpending).not.toHaveBeenCalled();
+    expect(errorLogger.error).toHaveBeenCalledWith(
+      expect.objectContaining({
+        event: "PROVIDER_CLEAN_UP_ERROR",
+        error: expect.objectContaining({ message: "Close tx tx-hash failed on-chain with code 11: out of gas" })
+      })
+    );
+  });
+
+  it("reports a retried close that landed with a failing code, filing nothing in the organization feed", async () => {
+    const { service, managedSignerService, deploymentOrganizationActivityService, errorLogger } = setup();
+    managedSignerService.executeDerivedTx
+      .mockRejectedValueOnce(new Error(FEE_GRANT_REFUSED))
+      .mockResolvedValueOnce(mock<IndexedTx>({ code: 5, hash: "tx-hash", rawLog: "insufficient funds" }));
+
+    await service.cleanup({ provider: PROVIDER, concurrency: 1, dryRun: false });
+
+    expect(deploymentOrganizationActivityService.recordClosed).not.toHaveBeenCalled();
+    expect(errorLogger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "PROVIDER_CLEAN_UP_ERROR" }));
   });
 
   it("reports any other close failure for the wallet without refilling its fees", async () => {
@@ -67,6 +125,7 @@ describe(ProviderCleanupService.name, () => {
     const errorLogger = mock<ReturnType<CreateLogger>>();
     const errorService = new ErrorService(vi.fn<CreateLogger>(() => errorLogger));
     const chainErrorService = new ChainErrorService(mock<BalanceHttpService>(), mock<BillingConfigService>(), mock<TxManagerService>());
+    const deploymentOrganizationActivityService = mock<DeploymentOrganizationActivityService>();
 
     const service = new ProviderCleanupService(
       config,
@@ -76,9 +135,10 @@ describe(ProviderCleanupService.name, () => {
       deploymentRepository,
       rpcMessageService,
       errorService,
-      chainErrorService
+      chainErrorService,
+      deploymentOrganizationActivityService
     );
 
-    return { service, wallet, managedSignerService, managedUserWalletService, errorLogger };
+    return { service, wallet, managedSignerService, managedUserWalletService, deploymentOrganizationActivityService, errorLogger };
   }
 });

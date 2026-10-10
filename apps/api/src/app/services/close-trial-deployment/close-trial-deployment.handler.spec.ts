@@ -101,7 +101,7 @@ describe(CloseTrialDeploymentHandler.name, () => {
     await handler.handle(payload);
 
     expect(userWalletRepository.findById).toHaveBeenCalledWith(payload.walletId);
-    expect(deploymentWriterService.close).toHaveBeenCalledWith(wallet, payload.dseq);
+    expect(deploymentWriterService.close).toHaveBeenCalledWith(wallet, payload.dseq, { reason: "trial_ended" });
 
     expect(jobQueueService.enqueue).toHaveBeenCalledWith(
       new NotificationJob({
