@@ -13,6 +13,7 @@ import { ExecutionContextService } from "@src/core/services/execution-context/ex
 import { TxService } from "@src/core/services/tx/tx.service";
 import { SDL_MAX_LENGTH } from "@src/deployment/config/sdl.config";
 import { MAX_RUNTIME_LIMIT_INCREMENT_HOURS } from "@src/deployment/http-schemas/runtime-limit";
+import type { OrganizationContext } from "@src/organization/types/organization-context";
 import type { UserOutput } from "@src/user/repositories";
 import { UserRepository } from "@src/user/repositories";
 import { DeploymentSettingRepository } from "./deployment-setting.repository";
@@ -29,6 +30,7 @@ const SDL = "version: '2.0'";
 const OUTAGE_STARTED_AT = "2026-08-01T00:00:00.000Z";
 const LATER_OUTAGE_STARTED_AT = "2026-08-20T00:00:00.000Z";
 const WARNING_WINDOW = { leadHours: 6, minLimitHours: 12 };
+const WINDOW = { limit: 100, recentMinutes: 10 };
 
 /** Shaped like the compact JWE the column will really carry — five base64url segments — and generated per call so no test can pin a literal. */
 function newSealedToken() {
@@ -1877,6 +1879,273 @@ describe(DeploymentSettingRepository.name, () => {
     });
   });
 
+  describe("findUnclosedReachable", () => {
+    it("reads the unflagged rows of the projects a member was granted, with the address owning each on chain", async () => {
+      const { deploymentSettingRepository, runAsMember, seedWalletOf, active, member, otherProject } = await setupOrganizations();
+      const [ownerAddress, memberAddress] = [await seedWalletOf(active.user.id), await seedWalletOf(member.id)];
+      const inActiveOrganization = { organizationId: active.organization.id, projectId: active.project.id };
+      const colleagues = await seedDeploymentSetting({ ...inActiveOrganization, userId: active.user.id });
+      const own = await seedDeploymentSetting({ ...inActiveOrganization, userId: member.id });
+      await seedDeploymentSetting({ ...inActiveOrganization, userId: active.user.id, closed: true });
+      await seedDeploymentSetting({ ...inActiveOrganization, userId: active.user.id, projectId: otherProject.id });
+
+      const unclosed = await runAsMember(ability =>
+        deploymentSettingRepository.accessibleBy(ability, "read").findUnclosedReachable({ organizationId: active.organization.id }, WINDOW)
+      );
+
+      expect(unclosed).toHaveLength(2);
+      expect(unclosed).toEqual(
+        expect.arrayContaining([
+          { id: colleagues.id, dseq: colleagues.dseq, owner: ownerAddress, isRecent: true },
+          { id: own.id, dseq: own.dseq, owner: memberAddress, isRecent: true }
+        ])
+      );
+    });
+
+    it("marks as recent only a row filed within the window", async () => {
+      const { deploymentSettingRepository, runAs, seedWalletOf, active } = await setupOrganizations();
+      await seedWalletOf(active.user.id);
+      const inActiveOrganization = { userId: active.user.id, organizationId: active.organization.id, projectId: active.project.id };
+      const fresh = await seedDeploymentSetting(inActiveOrganization);
+      const old = await seedDeploymentSetting(inActiveOrganization);
+      await backdate(old.id, "11 minutes");
+
+      const unclosed = await runAs(active.user, { role: "owner" }, ability =>
+        deploymentSettingRepository.accessibleBy(ability, "read").findUnclosedReachable({ organizationId: active.organization.id }, WINDOW)
+      );
+
+      expect(Object.fromEntries(unclosed.map(({ id, isRecent }) => [id, isRecent]))).toEqual({ [fresh.id]: true, [old.id]: false });
+    });
+
+    it("reads no more rows than its limit", async () => {
+      const { deploymentSettingRepository, runAs, seedWalletOf, active } = await setupOrganizations();
+      await seedWalletOf(active.user.id);
+      for (let index = 0; index < 3; index++) {
+        await seedDeploymentSetting({ userId: active.user.id, organizationId: active.organization.id, projectId: active.project.id });
+      }
+
+      const unclosed = await runAs(active.user, { role: "owner" }, ability =>
+        deploymentSettingRepository.accessibleBy(ability, "read").findUnclosedReachable({ organizationId: active.organization.id }, { ...WINDOW, limit: 2 })
+      );
+
+      expect(unclosed).toHaveLength(2);
+    });
+
+    it("leaves out rows of a deleted project, rows whose user holds no wallet address, and other organizations even when named", async () => {
+      const { deploymentSettingRepository, runAs, seedWalletOf, active, foreign, member, otherProject } = await setupOrganizations();
+      await seedWalletOf(active.user.id);
+      await seedDeploymentSetting({ userId: active.user.id, organizationId: active.organization.id, projectId: otherProject.id });
+      await seedDeploymentSetting({ userId: member.id, organizationId: active.organization.id, projectId: active.project.id });
+      await softDelete(otherProject.id);
+      const read = (organizationId: string) =>
+        runAs(active.user, { role: "owner" }, ability => deploymentSettingRepository.accessibleBy(ability, "read").findUnclosedReachable({ organizationId }, WINDOW));
+
+      expect(await read(active.organization.id)).toEqual([]);
+      expect(await read(foreign.organization.id)).toEqual([]);
+    });
+  });
+
+  describe("findReachablePage", () => {
+    it("pages the named rows in numeric dseq order, either way, and counts them all", async () => {
+      const { deploymentSettingRepository, runAs, seedWalletOf, active } = await setupOrganizations();
+      await seedWalletOf(active.user.id);
+      const rows: Array<{ id: string }> = [];
+      for (const dseq of ["100", "9", "1000", "10"]) {
+        rows.push(await seedDeploymentSetting({ userId: active.user.id, organizationId: active.organization.id, projectId: active.project.id, dseq }));
+      }
+      const page = (reverse: boolean) =>
+        runAs(active.user, { role: "owner" }, ability =>
+          deploymentSettingRepository
+            .accessibleBy(ability, "read")
+            .findReachablePage({ organizationId: active.organization.id, among: { ids: rows.map(({ id }) => id) }, reverse, skip: 1, limit: 2 })
+        );
+
+      const [oldestFirst, newestFirst] = [await page(false), await page(true)];
+
+      expect(oldestFirst.deployments.map(({ dseq }) => dseq)).toEqual(["10", "100"]);
+      expect(newestFirst.deployments.map(({ dseq }) => dseq)).toEqual(["100", "10"]);
+      expect(oldestFirst.total).toBe(4);
+    });
+
+    it("returns the console's settings, project and owning address of each row", async () => {
+      const { deploymentSettingRepository, runAsMember, seedWalletOf, active } = await setupOrganizations();
+      const address = await seedWalletOf(active.user.id);
+      const row = await seedDeploymentSetting({
+        userId: active.user.id,
+        organizationId: active.organization.id,
+        projectId: active.project.id,
+        name: "web",
+        runtimeLimitHours: 4
+      });
+
+      const page = await runAsMember(ability =>
+        deploymentSettingRepository
+          .accessibleBy(ability, "read")
+          .findReachablePage({ organizationId: active.organization.id, among: { ids: [row.id] }, reverse: false, skip: 0, limit: 10 })
+      );
+
+      expect(page).toEqual({
+        deployments: [
+          {
+            id: row.id,
+            dseq: row.dseq,
+            owner: address,
+            projectId: active.project.id,
+            setting: { name: "web", closed: false, runtimeLimitHours: 4, runtimeEndsAt: null }
+          }
+        ],
+        total: 1
+      });
+    });
+
+    it("draws a closed page from every row flagged closed plus the named ones", async () => {
+      const { deploymentSettingRepository, runAs, seedWalletOf, active } = await setupOrganizations();
+      await seedWalletOf(active.user.id);
+      const inActiveOrganization = { userId: active.user.id, organizationId: active.organization.id, projectId: active.project.id };
+      const flagged = await seedDeploymentSetting({ ...inActiveOrganization, dseq: "1", closed: true });
+      const drifted = await seedDeploymentSetting({ ...inActiveOrganization, dseq: "2" });
+      await seedDeploymentSetting({ ...inActiveOrganization, dseq: "3" });
+
+      const page = await runAs(active.user, { role: "owner" }, ability =>
+        deploymentSettingRepository
+          .accessibleBy(ability, "read")
+          .findReachablePage({ organizationId: active.organization.id, among: { flaggedClosedOrIds: [drifted.id] }, reverse: false, skip: 0, limit: 10 })
+      );
+
+      expect(page.deployments.map(({ id }) => id)).toEqual([flagged.id, drifted.id]);
+      expect(page.total).toBe(2);
+    });
+
+    it("keeps to the projects a member reaches and to the project it names", async () => {
+      const { deploymentSettingRepository, runAsMember, seedWalletOf, active, otherProject } = await setupOrganizations();
+      await seedWalletOf(active.user.id);
+      const granted = await seedDeploymentSetting({ userId: active.user.id, organizationId: active.organization.id, projectId: active.project.id });
+      const notGranted = await seedDeploymentSetting({ userId: active.user.id, organizationId: active.organization.id, projectId: otherProject.id });
+      const page = (projectId?: string) =>
+        runAsMember(ability =>
+          deploymentSettingRepository.accessibleBy(ability, "read").findReachablePage({
+            organizationId: active.organization.id,
+            projectId,
+            among: { ids: [granted.id, notGranted.id] },
+            reverse: false,
+            skip: 0,
+            limit: 10
+          })
+        );
+
+      const [unfiltered, inGranted, inOther] = [await page(), await page(active.project.id), await page(otherProject.id)];
+
+      expect(unfiltered.deployments.map(({ id }) => id)).toEqual([granted.id]);
+      expect(inGranted.deployments.map(({ id }) => id)).toEqual([granted.id]);
+      expect(inOther).toEqual({ deployments: [], total: 0 });
+    });
+
+    it("matches a search against the name in any case and against the dseq, taking wildcards literally", async () => {
+      const { deploymentSettingRepository, runAs, seedWalletOf, active } = await setupOrganizations();
+      await seedWalletOf(active.user.id);
+      const inActiveOrganization = { userId: active.user.id, organizationId: active.organization.id, projectId: active.project.id };
+      const named = await seedDeploymentSetting({ ...inActiveOrganization, name: "My-Web-App", dseq: "1000001" });
+      const numbered = await seedDeploymentSetting({ ...inActiveOrganization, dseq: "7654321" });
+      const other = await seedDeploymentSetting({ ...inActiveOrganization, name: "database", dseq: "1000002" });
+      const search = async (text: string) => {
+        const page = await runAs(active.user, { role: "owner" }, ability =>
+          deploymentSettingRepository.accessibleBy(ability, "read").findReachablePage({
+            organizationId: active.organization.id,
+            search: text,
+            among: { ids: [named.id, numbered.id, other.id] },
+            reverse: false,
+            skip: 0,
+            limit: 10
+          })
+        );
+
+        return page.deployments.map(({ id }) => id);
+      };
+
+      expect(await search("web")).toEqual([named.id]);
+      expect(await search("54321")).toEqual([numbered.id]);
+      expect(await search("%")).toEqual([]);
+    });
+
+    it("leaves out rows of a deleted project, however they are asked for", async () => {
+      const { deploymentSettingRepository, runAs, seedWalletOf, active, otherProject } = await setupOrganizations();
+      await seedWalletOf(active.user.id);
+      const inDeleted = await seedDeploymentSetting({ userId: active.user.id, organizationId: active.organization.id, projectId: otherProject.id, closed: true });
+      await softDelete(otherProject.id);
+      const page = (projectId?: string) =>
+        runAs(active.user, { role: "owner" }, ability =>
+          deploymentSettingRepository
+            .accessibleBy(ability, "read")
+            .findReachablePage({ organizationId: active.organization.id, projectId, among: { flaggedClosedOrIds: [inDeleted.id] }, reverse: false, skip: 0, limit: 10 })
+        );
+
+      expect(await page()).toEqual({ deployments: [], total: 0 });
+      expect(await page(otherProject.id)).toEqual({ deployments: [], total: 0 });
+    });
+  });
+
+  describe("findProjectIdsByDseqs", () => {
+    it("answers the project of each dseq the user holds in the active organization", async () => {
+      const { deploymentSettingRepository, runAs, active, otherProject, foreignSetting } = await setupOrganizations();
+      const filed = await seedDeploymentSetting({ userId: active.user.id, organizationId: active.organization.id, projectId: otherProject.id });
+      const unfiled = await seedDeploymentSetting({ userId: active.user.id, organizationId: active.organization.id });
+
+      const projectIds = await runAs(active.user, { role: "owner", organizationType: "personal" }, ability =>
+        deploymentSettingRepository
+          .accessibleBy(ability, "read")
+          .findProjectIdsByDseqs({ userId: active.user.id, dseqs: [filed.dseq, unfiled.dseq, foreignSetting.dseq] })
+      );
+
+      expect(projectIds).toEqual(
+        new Map([
+          [filed.dseq, otherProject.id],
+          [unfiled.dseq, null]
+        ])
+      );
+    });
+
+    it("issues no query at all for a page with no deployments on it", async () => {
+      const { deploymentSettingRepository, runAs, active } = await setupOrganizations();
+
+      const projectIds = await runAs(active.user, { role: "owner" }, ability =>
+        deploymentSettingRepository.accessibleBy(ability, "read").findProjectIdsByDseqs({ userId: active.user.id, dseqs: [] })
+      );
+
+      expect(projectIds.size).toBe(0);
+    });
+  });
+
+  describe("findLeaseGpusByIds", () => {
+    it("reads what rows filed by others in a granted project recorded, keyed by row id", async () => {
+      const { deploymentSettingRepository, runAsMember, active, otherProject } = await setupOrganizations();
+      const [reading, offer] = [createLeaseGpuReading(), createLeaseGpuOffer()];
+      const inActiveOrganization = { userId: active.user.id, organizationId: active.organization.id, projectId: active.project.id };
+      const read = await seedDeploymentSetting({ ...inActiveOrganization, detectedGpus: [reading] });
+      const offered = await seedDeploymentSetting({ ...inActiveOrganization, offeredGpus: [offer] });
+      const unrecorded = await seedDeploymentSetting(inActiveOrganization);
+      const notGranted = await seedDeploymentSetting({ ...inActiveOrganization, projectId: otherProject.id, detectedGpus: [reading] });
+
+      const stored = await runAsMember(ability =>
+        deploymentSettingRepository.accessibleBy(ability, "read").findLeaseGpusByIds([read.id, offered.id, unrecorded.id, notGranted.id])
+      );
+
+      expect(stored).toEqual(
+        new Map([
+          [read.id, { readings: [reading], offers: [] }],
+          [offered.id, { readings: [], offers: [offer] }]
+        ])
+      );
+    });
+
+    it("issues no query at all for no rows", async () => {
+      const { deploymentSettingRepository, runAsMember } = await setupOrganizations();
+
+      const stored = await runAsMember(ability => deploymentSettingRepository.accessibleBy(ability, "read").findLeaseGpusByIds([]));
+
+      expect(stored.size).toBe(0);
+    });
+  });
+
   describe("findLocation", () => {
     it("locates a deployment of an organization the user owns, with the project it is filed into", async () => {
       const { deploymentSettingRepository } = await setupOrganizations();
@@ -2351,7 +2620,42 @@ describe(DeploymentSettingRepository.name, () => {
       });
     }
 
-    return { deploymentSettingRepository, runInOrganization, runAsMember, active, member, otherProject, foreignSetting };
+    function runAs<R>(
+      user: UserOutput,
+      context: Partial<OrganizationContext>,
+      run: (ability: ReturnType<AbilityService["getAbilityFor"]>) => Promise<R>
+    ) {
+      return executionContextService.runWithContext(async () => {
+        executionContextService.set("ORGANIZATION_CONTEXT", createOrganizationContext({ organizationId: active.organization.id, ...context }));
+        return await run(abilityService.getAbilityFor("REGULAR_USER", user));
+      });
+    }
+
+    async function seedWalletOf(userId: string) {
+      const address = createAkashAddress();
+      await container
+        .resolve<ApiPgDatabase>(POSTGRES_DB)
+        .insert(resolveTable("UserWallets"))
+        .values({ userId, address, deploymentAllowance: "0", feeAllowance: "0", isTrialing: false });
+
+      return address;
+    }
+
+    return { deploymentSettingRepository, runInOrganization, runAsMember, runAs, seedWalletOf, active, foreign, member, otherProject, foreignSetting };
+  }
+
+  async function backdate(id: string, age: string) {
+    const table = resolveTable("DeploymentSettings");
+    await container
+      .resolve<ApiPgDatabase>(POSTGRES_DB)
+      .update(table)
+      .set({ createdAt: sql`now() - ${age}::interval` })
+      .where(eq(table.id, id));
+  }
+
+  async function softDelete(projectId: string) {
+    const table = resolveTable("Projects");
+    await container.resolve<ApiPgDatabase>(POSTGRES_DB).update(table).set({ deletedAt: new Date() }).where(eq(table.id, projectId));
   }
 
   async function setup() {

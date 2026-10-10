@@ -7566,6 +7566,16 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
               "type": "integer",
             },
           },
+          {
+            "in": "query",
+            "name": "projectId",
+            "required": false,
+            "schema": {
+              "description": "Lists only the deployments filed in this project. A project the caller cannot reach lists nothing, like one that does not exist. Ignored outside organization mode.",
+              "format": "uuid",
+              "type": "string",
+            },
+          },
         ],
         "responses": {
           "200": {
@@ -8293,6 +8303,12 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                                 "nullable": true,
                                 "type": "string",
                               },
+                              "projectId": {
+                                "description": "Project the deployment is filed in, or null for one the console has not filed. Present only for requests in organization mode.",
+                                "format": "uuid",
+                                "nullable": true,
+                                "type": "string",
+                              },
                               "settings": {
                                 "description": "What the console holds about this deployment, or null when it holds nothing.",
                                 "nullable": true,
@@ -8440,7 +8456,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                 },
               },
             },
-            "description": "The owner holds more \`active\` deployments than a search spans. Page through them without a \`search\` instead. A search of the archive (\`state=closed\`) is refused this way only while the console's index is unreachable",
+            "description": "The owner holds more \`active\` deployments than a search spans. Page through them without a \`search\` instead. A search of the archive (\`state=closed\`) is refused this way only while the console's index is unreachable. In organization mode, a list that would have to check more open deployments than that cap is refused the same way; narrow it with \`projectId\`",
           },
         },
         "security": [

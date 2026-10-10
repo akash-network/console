@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, gt, gte, ilike, inArray, isNotNull, isNull, lt, lte, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gt, gte, ilike, inArray, isNotNull, isNull, lt, lte, or, type SQL, sql } from "drizzle-orm";
 import { singleton } from "tsyringe";
 
 import { UserWallets, WalletSetting } from "@src/billing/model-schemas";
@@ -12,7 +12,7 @@ import { mergeLeaseGpuOffers } from "@src/deployment/lib/lease-gpu-offers/lease-
 import { mergeLeaseGpuReadings } from "@src/deployment/lib/lease-gpu-readings/lease-gpu-readings";
 import type { GpuProbeSource, LeaseGpuOffer, LeaseGpuReading } from "@src/deployment/model-schemas";
 import { NVIDIA_DRIVER_VERSION } from "@src/gpu/lib/cuda-version/cuda-version";
-import { OrganizationMembers, type OrganizationRole, Organizations, ProjectMembers } from "@src/organization/model-schemas";
+import { OrganizationMembers, type OrganizationRole, Organizations, ProjectMembers, Projects } from "@src/organization/model-schemas";
 import { Users } from "@src/user/model-schemas";
 
 type Table = ApiPgTables["DeploymentSettings"];
@@ -38,6 +38,27 @@ const NVIDIA_PROBE_SOURCE = "nvidia-smi" satisfies GpuProbeSource;
 
 /** What a deployment list shows about a deployment, as distinct from the fuller row a single settings read answers with. */
 export type ListedDeploymentSetting = Pick<DeploymentSettingsDbOutput, "name" | "closed" | "runtimeLimitHours" | "runtimeEndsAt">;
+
+export type ReachableDeployment = {
+  id: string;
+  dseq: string;
+  owner: string;
+  projectId: string | null;
+  setting: ListedDeploymentSetting;
+};
+
+export type ReachableDeploymentQuery = {
+  organizationId: string;
+  projectId?: string;
+  search?: string;
+};
+
+export type UnclosedReachableDeployment = { id: string; dseq: string; owner: string; isRecent: boolean };
+
+/** The rows a page is drawn from: the named ones, or every row flagged closed plus the named ones. */
+export type ReachablePageScope = { ids: string[] } | { flaggedClosedOrIds: string[] };
+
+export type ReachablePageQuery = ReachableDeploymentQuery & { among: ReachablePageScope; reverse: boolean; skip: number; limit: number };
 
 /** A won auto-funding claim: the deployment setting id and the exact marker the claim wrote. */
 export type FundingClaim = {
@@ -215,6 +236,99 @@ export class DeploymentSettingRepository extends OrgScopedRepository<Table, Depl
     return new Map(rows.map(({ dseq, setting }) => [dseq, setting]));
   }
 
+  /** Keyed by dseq and absent for a dseq with no row, under the same double scoping as {@link findNamesByDseqs}. */
+  async findProjectIdsByDseqs({ userId, dseqs }: { userId: string; dseqs: string[] }): Promise<Map<string, string | null>> {
+    if (dseqs.length === 0) {
+      return new Map();
+    }
+
+    const rows = await this.cursor
+      .select({ dseq: this.table.dseq, ...this.#ruleColumns })
+      .from(this.table)
+      .where(this.whereAccessibleBy(and(eq(this.table.userId, userId), inArray(this.table.dseq, dseqs))));
+    this.compareWithShadow(rows);
+
+    return new Map(rows.map(row => [row.dseq, row.projectId]));
+  }
+
+  /** At most `limit` reachable rows not flagged closed, with the address owning each on chain; `isRecent` marks a row filed within `recentMinutes`. */
+  async findUnclosedReachable(
+    query: ReachableDeploymentQuery,
+    { limit, recentMinutes }: { limit: number; recentMinutes: number }
+  ): Promise<UnclosedReachableDeployment[]> {
+    const rows = await this.cursor
+      .select({
+        id: this.table.id,
+        dseq: this.table.dseq,
+        owner: sql<string>`${UserWallets.address}`,
+        isRecent: sql<boolean>`coalesce(${this.table.createdAt} > now() - make_interval(mins => ${recentMinutes}), false)`,
+        ...this.#ruleColumns
+      })
+      .from(this.table)
+      .innerJoin(UserWallets, eq(UserWallets.userId, this.table.userId))
+      .leftJoin(Projects, eq(Projects.id, this.table.projectId))
+      .where(this.#whereReachable(query, eq(this.table.closed, false)))
+      .limit(limit);
+    this.compareWithShadow(rows);
+
+    return rows.map(({ id, dseq, owner, isRecent }) => ({ id, dseq, owner, isRecent }));
+  }
+
+  /** One page of reachable rows in dseq order, with the address owning each on chain, and how many rows the page is drawn from. */
+  async findReachablePage({ among, reverse, skip, limit, ...query }: ReachablePageQuery): Promise<{ deployments: ReachableDeployment[]; total: number }> {
+    const where = this.#whereReachable(
+      query,
+      "ids" in among ? inArray(this.table.id, among.ids) : or(eq(this.table.closed, true), inArray(this.table.id, among.flaggedClosedOrIds))
+    );
+    const order = reverse ? desc : asc;
+    const significantDseq = sql`ltrim(${this.table.dseq}, '0')`;
+    const [rows, [{ total }]] = await Promise.all([
+      this.cursor
+        .select({
+          id: this.table.id,
+          dseq: this.table.dseq,
+          owner: sql<string>`${UserWallets.address}`,
+          setting: {
+            name: this.table.name,
+            closed: this.table.closed,
+            runtimeLimitHours: this.table.runtimeLimitHours,
+            runtimeEndsAt: this.table.runtimeEndsAt
+          },
+          ...this.#ruleColumns
+        })
+        .from(this.table)
+        .innerJoin(UserWallets, eq(UserWallets.userId, this.table.userId))
+        .leftJoin(Projects, eq(Projects.id, this.table.projectId))
+        .where(where)
+        .orderBy(order(sql`length(${significantDseq})`), order(significantDseq), order(UserWallets.address))
+        .limit(limit)
+        .offset(skip),
+      this.cursor
+        .select({ total: sql<number>`count(*)::int` })
+        .from(this.table)
+        .innerJoin(UserWallets, eq(UserWallets.userId, this.table.userId))
+        .leftJoin(Projects, eq(Projects.id, this.table.projectId))
+        .where(where)
+    ]);
+    this.compareWithShadow(rows);
+
+    return { deployments: rows.map(({ id, dseq, owner, projectId, setting }) => ({ id, dseq, owner, projectId, setting })), total };
+  }
+
+  /** Bounded to the organization it names, and leaves out rows filed in a deleted project so a deleted project lists like one that never existed. */
+  #whereReachable({ organizationId, projectId, search }: ReachableDeploymentQuery, ...conditions: Array<SQL | undefined>) {
+    return this.whereAccessibleBy(
+      and(
+        eq(this.table.organizationId, organizationId),
+        isNotNull(UserWallets.address),
+        isNull(Projects.deletedAt),
+        projectId ? eq(this.table.projectId, projectId) : undefined,
+        search ? or(ilike(this.table.name, containsPattern(search)), ilike(this.table.dseq, containsPattern(search))) : undefined,
+        ...conditions
+      )
+    );
+  }
+
   /** Under the same double scoping as {@link findNamesByDseqs}; the null-name condition is what lets the partial index on named rows serve it. */
   async findDseqsByNameContaining({ userId, text }: { userId: string; text: string }): Promise<string[]> {
     const rows = await this.cursor
@@ -273,6 +387,21 @@ export class DeploymentSettingRepository extends OrgScopedRepository<Table, Depl
     this.compareWithShadow(rows);
 
     return new Map(rows.map(row => [row.dseq, { readings: row.detectedGpus ?? [], offers: row.offeredGpus ?? [] }]));
+  }
+
+  /** As {@link findLeaseGpus}, keyed by row id for rows that other members of the organization may have filed. */
+  async findLeaseGpusByIds(ids: string[]): Promise<Map<string, StoredLeaseGpus>> {
+    if (ids.length === 0) {
+      return new Map();
+    }
+
+    const rows = await this.cursor
+      .select({ id: this.table.id, detectedGpus: this.table.detectedGpus, offeredGpus: this.table.offeredGpus, ...this.#ruleColumns })
+      .from(this.table)
+      .where(this.whereAccessibleBy(and(inArray(this.table.id, ids), or(isNotNull(this.table.detectedGpus), isNotNull(this.table.offeredGpus)))));
+    this.compareWithShadow(rows);
+
+    return new Map(rows.map(row => [row.id, { readings: row.detectedGpus ?? [], offers: row.offeredGpus ?? [] }]));
   }
 
   /** Newest first, one entry per driver version reported by at least `minOwners` deployment owners, with the UTC day it was last read. */

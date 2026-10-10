@@ -160,6 +160,9 @@ const DeploymentLeaseListItemSchema = DeploymentResponseSchema.extend({
   }),
   settings: ListedDeploymentSettingsSchema.nullable().openapi({
     description: "What the console holds about this deployment, or null when it holds nothing."
+  }),
+  projectId: z.string().uuid().nullable().optional().openapi({
+    description: "Project the deployment is filed in, or null for one the console has not filed. Present only for requests in organization mode."
   })
 });
 
@@ -501,7 +504,10 @@ export const ListDeploymentsQuerySchema = z.object({
     .default(deploymentListMaxLimit)
     .openapi({
       description: `Deployments per page, at most ${deploymentListMaxLimit}. Omitting it pages from the start rather than returning every deployment, so page on while \`hasMore\` is true.`
-    })
+    }),
+  projectId: z.string().uuid().optional().openapi({
+    description: "Lists only the deployments filed in this project. A project the caller cannot reach lists nothing, like one that does not exist. Ignored outside organization mode."
+  })
 });
 
 export type ListDeploymentsQuery = z.infer<typeof ListDeploymentsQuerySchema>;
