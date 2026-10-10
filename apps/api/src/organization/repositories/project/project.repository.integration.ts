@@ -3,8 +3,9 @@ import { container } from "tsyringe";
 import { describe, expect, it } from "vitest";
 
 import { AbilityService } from "@src/auth/services/ability/ability.service";
+import { getPostgresError } from "@src/core/repositories/base.repository";
 import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
-import { DEFAULT_PROJECT_NAME, DEFAULT_PROJECT_SLUG } from "@src/organization/model-schemas/project/project.schema";
+import { DEFAULT_PROJECT_NAME, DEFAULT_PROJECT_SLUG, PROJECT_NAME_UNIQUE_INDEX } from "@src/organization/model-schemas/project/project.schema";
 import type { OrganizationContext } from "@src/organization/types/organization-context";
 import type { UserOutput } from "@src/user/repositories";
 import { ProjectRepository } from "./project.repository";
@@ -98,6 +99,34 @@ describe(ProjectRepository.name, () => {
       await seedProjectMember({ organizationId: other.id, projectId: otherProject.id, userId: user.id });
 
       expect(await repository.findActiveIdsGrantedTo(organization.id, user.id)).toEqual([granted.id]);
+    });
+  });
+
+  describe("createWithFirstFreeSlug", () => {
+    it("takes the first slug no live project of the organization holds", async () => {
+      const { repository, organization } = await setup();
+      await seedProject({ organizationId: organization.id, name: "Web", slug: "web" });
+      await seedProject({ organizationId: organization.id, name: "Old web", slug: "web-2", deletedAt: new Date() });
+
+      const created = await repository.createWithFirstFreeSlug({ organizationId: organization.id, name: "web!" }, ["web", "web-2", "web-3"]);
+
+      expect(created).toMatchObject({ organizationId: organization.id, name: "web!", slug: "web-2" });
+    });
+
+    it("returns nothing when every slug is taken", async () => {
+      const { repository, organization } = await setup();
+      await seedProject({ organizationId: organization.id, name: "Web", slug: "web" });
+
+      expect(await repository.createWithFirstFreeSlug({ organizationId: organization.id, name: "web!" }, ["web"])).toBeUndefined();
+    });
+
+    it("rejects a name a live project of the organization already has, whatever its case", async () => {
+      const { repository, organization } = await setup();
+      await seedProject({ organizationId: organization.id, name: "Web", slug: "web" });
+
+      const failure = await repository.createWithFirstFreeSlug({ organizationId: organization.id, name: "WEB" }, ["other"]).catch(error => error);
+
+      expect(getPostgresError(failure)?.constraint_name).toBe(PROJECT_NAME_UNIQUE_INDEX);
     });
   });
 

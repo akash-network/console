@@ -50,7 +50,7 @@ const ROLE_RULES: Record<OrganizationRole, (conditions: TenantConditions, contex
     { action: "manage", subject: PROJECT_RESOURCES, conditions: inScope }
   ],
   billing: ({ inOrg }) => [
-    { action: "read", subject: ["Project", "OrganizationActivity"], conditions: inOrg },
+    { action: "read", subject: "Project", conditions: inOrg },
     { action: "manage", subject: ["WalletSetting", "PaymentMethod", "StripePayment"], conditions: inOrg }
   ],
   viewer: ({ inOrg, inScope, projectsInScope, ownInOrg }) => [

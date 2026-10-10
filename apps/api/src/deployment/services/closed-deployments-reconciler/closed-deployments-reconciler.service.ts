@@ -5,6 +5,7 @@ import { inject, singleton } from "tsyringe";
 import { type CreateLogger, JOB_NAME, JobQueueService, LOGGER_FACTORY } from "@src/core";
 import { MetricsService } from "@src/core/services/metrics/metrics.service";
 import type { DryRunOptions } from "@src/core/types/console";
+import { closureKey, normalizeDseq } from "@src/deployment/lib/deployment-closure-key/deployment-closure-key";
 import { DeploymentRepository } from "@src/deployment/repositories/deployment/deployment.repository";
 import { DeploymentSettingRepository, type OpenDeployment } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
 import {
@@ -31,15 +32,6 @@ type ReconcileTally = BatchOutcome & {
   scanned: number;
   failedBatches: number;
 };
-
-/** Stripped as text rather than through `Number`, which a dseq above 2^53 would not survive intact. */
-function normalizeDseq(dseq: string): string {
-  return dseq.replace(/^0+(?=\d)/, "");
-}
-
-function closureKey({ owner, dseq }: { owner: string; dseq: string }): string {
-  return `${owner}/${normalizeDseq(dseq)}`;
-}
 
 @singleton()
 export class ClosedDeploymentsReconcilerService {

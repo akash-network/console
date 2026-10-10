@@ -12,9 +12,11 @@ import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-fl
 import type { OrganizationRole } from "@src/organization/model-schemas/organization-member/organization-member.schema";
 import { app } from "@src/rest-app";
 
+import { createAkashAddress } from "@test/seeders/akash-address.seeder";
 import { seedDeploymentSetting } from "@test/seeders/db/deployment-setting.seeder";
 import { seedOrganizationMember, seedOrganizationWithOwner, seedProject, seedProjectMember } from "@test/seeders/db/organization.seeder";
 import { seedUser } from "@test/seeders/db/user-with-wallet.seeder";
+import { createDeployment } from "@test/seeders/deployment.seeder";
 
 describe("Projects", () => {
   afterEach(() => {
@@ -131,12 +133,28 @@ describe("Projects", () => {
       expect(response.status).toBe(201);
     });
 
-    it("refuses a name without a letter or number", async () => {
+    it("gives distinct names that share a slug numbered slugs", async () => {
+      const { request, team } = await setupCaller({ role: "owner" });
+      const longPrefix = "a".repeat(40);
+      await seedProject({ organizationId: team.id, name: "Web App", slug: "web-app" });
+      await seedProject({ organizationId: team.id, name: `${longPrefix}-one`, slug: longPrefix });
+
+      const responses = await Promise.all(["web-app", `${longPrefix}-two`].map(name => request("/v1/projects", { method: "POST", body: { data: { name } } })));
+
+      expect(responses.map(({ status }) => status)).toEqual([201, 201]);
+      expect(await Promise.all(responses.map(async response => ((await response.json()) as { data: { slug: string } }).data.slug))).toEqual([
+        "web-app-2",
+        `${"a".repeat(38)}-2`
+      ]);
+    });
+
+    it("accepts a name without a latin letter or digit under a generated slug", async () => {
       const { request } = await setupCaller({ role: "owner" });
 
-      const response = await request("/v1/projects", { method: "POST", body: { data: { name: "!!!" } } });
+      const response = await request("/v1/projects", { method: "POST", body: { data: { name: "プロジェクト" } } });
 
-      expect(response.status).toBe(400);
+      expect(response.status).toBe(201);
+      expect(await response.json()).toMatchObject({ data: { name: "プロジェクト", slug: expect.stringMatching(/^project-[0-9a-f]{8}$/) } });
     });
 
     it("answers like an unknown path while organizations are off for the caller", async () => {
@@ -190,14 +208,14 @@ describe("Projects", () => {
   });
 
   describe("PATCH /v1/projects/{id}", () => {
-    it.each(["owner", "admin"] as const)("lets the %s rename a project and change its description", async role => {
+    it.each(["owner", "admin"] as const)("lets the %s rename a project, keeping its slug, and change its description", async role => {
       const { request, team } = await setupCaller({ role });
       const project = await seedProject({ organizationId: team.id, description: "Old" });
 
       const response = await request(`/v1/projects/${project.id}`, { method: "PATCH", body: { data: { name: "Checkout API", description: null } } });
 
       expect(response.status).toBe(200);
-      expect(await response.json()).toMatchObject({ data: { id: project.id, name: "Checkout API", slug: "checkout-api", description: null } });
+      expect(await response.json()).toMatchObject({ data: { id: project.id, name: "Checkout API", slug: project.slug, description: null } });
     });
 
     it.each(["member", "viewer", "billing"] as const)("refuses to let a %s rename a project", async role => {
@@ -261,16 +279,48 @@ describe("Projects", () => {
       expect(await response.json()).toMatchObject({ code: "project_is_default" });
     });
 
-    it("refuses to delete a project that still holds an open deployment", async () => {
+    it("refuses to delete a project whose deployment is still open on chain and closes the ones the chain reports closed", async () => {
       const { request, team, user } = await setupCaller({ role: "owner" });
       const project = await seedProject({ organizationId: team.id });
-      await seedDeploymentSetting({ userId: user.id, organizationId: team.id, projectId: project.id });
+      const address = await seedWallet(user.id);
+      const openOnChain = await seedDeploymentSetting({ userId: user.id, organizationId: team.id, projectId: project.id });
+      const closedOnChain = await seedDeploymentSetting({ userId: user.id, organizationId: team.id, projectId: project.id });
+      await createDeployment({ owner: address, dseq: openOnChain.dseq });
+      await createDeployment({ owner: address, dseq: closedOnChain.dseq, closedHeight: 5_000_000 });
 
       const response = await request(`/v1/projects/${project.id}`, { method: "DELETE" });
 
       expect(response.status).toBe(409);
       expect(await response.json()).toMatchObject({ code: "project_not_empty" });
       expect(await projectRow(project.id)).toMatchObject({ deletedAt: null });
+      expect(await deploymentSettingRow(openOnChain.id)).toMatchObject({ closed: false });
+      expect(await deploymentSettingRow(closedOnChain.id)).toMatchObject({ closed: true });
+    });
+
+    it("deletes a project whose deployments the console still holds open once the chain reports them closed", async () => {
+      const { request, team, user } = await setupCaller({ role: "owner" });
+      const project = await seedProject({ organizationId: team.id });
+      const address = await seedWallet(user.id);
+      const setting = await seedDeploymentSetting({ userId: user.id, organizationId: team.id, projectId: project.id });
+      await createDeployment({ owner: address, dseq: setting.dseq, closedHeight: 5_000_000 });
+
+      const response = await request(`/v1/projects/${project.id}`, { method: "DELETE" });
+
+      expect(response.status).toBe(204);
+      expect(await projectRow(project.id)).toMatchObject({ deletedAt: expect.any(Date) });
+      expect(await deploymentSettingRow(setting.id)).toMatchObject({ closed: true });
+    });
+
+    it("refuses to delete a project holding an open deployment the chain has no record of", async () => {
+      const { request, team, user } = await setupCaller({ role: "owner" });
+      const project = await seedProject({ organizationId: team.id });
+      await seedWallet(user.id);
+      await seedDeploymentSetting({ userId: user.id, organizationId: team.id, projectId: project.id });
+
+      const response = await request(`/v1/projects/${project.id}`, { method: "DELETE" });
+
+      expect(response.status).toBe(409);
+      expect(await response.json()).toMatchObject({ code: "project_not_empty" });
     });
 
     it.each(["member", "viewer", "billing"] as const)("refuses to let a %s delete a project", async role => {
@@ -315,6 +365,23 @@ describe("Projects", () => {
     const [row] = await container.resolve<ApiPgDatabase>(POSTGRES_DB).select().from(projects).where(eq(projects.id, id));
 
     return row;
+  }
+
+  async function deploymentSettingRow(id: string) {
+    const deploymentSettings = resolveTable("DeploymentSettings");
+    const [row] = await container.resolve<ApiPgDatabase>(POSTGRES_DB).select().from(deploymentSettings).where(eq(deploymentSettings.id, id));
+
+    return row;
+  }
+
+  async function seedWallet(userId: string) {
+    const address = createAkashAddress();
+    await container
+      .resolve<ApiPgDatabase>(POSTGRES_DB)
+      .insert(resolveTable("UserWallets"))
+      .values({ userId, address, deploymentAllowance: "0", feeAllowance: "0", isTrialing: false });
+
+    return address;
   }
 
   async function activitiesOfProject(projectId: string) {

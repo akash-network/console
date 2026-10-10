@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, isNull } from "drizzle-orm";
+import { and, asc, desc, eq, isNull, sql } from "drizzle-orm";
 import { singleton } from "tsyringe";
 
 import { type ApiPgDatabase, type ApiPgTables, InjectPg, InjectPgTable } from "@src/core/providers";
@@ -39,6 +39,23 @@ export class ProjectRepository extends OrgScopedRepository<Table, ProjectInput, 
     const [created] = await this.cursor.insert(this.table).values(values).onConflictDoNothing().returning();
 
     return created && this.toOutput(created);
+  }
+
+  /** Takes the first slug no live project of the organization holds; a name already in use still fails with a unique violation. */
+  async createWithFirstFreeSlug(input: Omit<ProjectInput, "slug">, slugs: string[]): Promise<ProjectOutput | undefined> {
+    for (const slug of slugs) {
+      const values = await this.attributeToOrganization({ ...input, slug });
+      this.ability?.throwUnlessCanExecute(values);
+      const [created] = await this.cursor
+        .insert(this.table)
+        .values(values)
+        .onConflictDoNothing({ target: [this.table.organizationId, this.table.slug], where: sql`${this.table.deletedAt} IS NULL` })
+        .returning();
+
+      if (created) return this.toOutput(created);
+    }
+
+    return undefined;
   }
 
   async findDefaultByOrganizationId(organizationId: ProjectOutput["organizationId"]): Promise<ProjectOutput | undefined> {

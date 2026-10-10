@@ -96,6 +96,17 @@ describe("Organization activities", () => {
       expect(idsOf(await response.json())).toEqual([inGranted.id, organizationWide.id]);
     });
 
+    it("shows billing only the activities about the whole organization", async () => {
+      const { listActivities, team } = await setupCaller({ role: "billing" });
+      const project = await seedProject({ organizationId: team.id });
+      const organizationWide = await seedOrganizationActivity({ organizationId: team.id });
+      await seedOrganizationActivity({ organizationId: team.id, projectId: project.id, type: "deployment_created", payload: { dseq: "1", name: "web" } });
+
+      const response = await listActivities({});
+
+      expect(idsOf(await response.json())).toEqual([organizationWide.id]);
+    });
+
     it("refuses a cursor it did not hand out", async () => {
       const { listActivities } = await setupCaller({ role: "owner" });
 

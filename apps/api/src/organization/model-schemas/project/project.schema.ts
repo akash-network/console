@@ -12,6 +12,8 @@ export const MAX_PROJECT_DESCRIPTION_LENGTH = 140;
 export const DEFAULT_PROJECT_NAME = "default";
 export const DEFAULT_PROJECT_SLUG = "default";
 
+export const PROJECT_NAME_UNIQUE_INDEX = "projects_organization_id_name_unique";
+
 export const Projects = pgTable(
   "projects",
   {
@@ -36,6 +38,9 @@ export const Projects = pgTable(
     organizationIdIdUnique: unique("projects_organization_id_id_unique").on(table.organizationId, table.id),
     organizationIdSlugUnique: uniqueIndex("projects_organization_id_slug_unique")
       .on(table.organizationId, table.slug)
+      .where(sql`${table.deletedAt} IS NULL`),
+    organizationIdNameUnique: uniqueIndex(PROJECT_NAME_UNIQUE_INDEX)
+      .on(table.organizationId, sql`lower(${table.name})`)
       .where(sql`${table.deletedAt} IS NULL`),
     organizationIdDefaultUnique: uniqueIndex("projects_organization_id_default_unique")
       .on(table.organizationId)

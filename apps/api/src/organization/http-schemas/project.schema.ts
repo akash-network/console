@@ -1,6 +1,5 @@
 import { z } from "@hono/zod-openapi";
 
-import { toSlug } from "@src/organization/lib/slug/slug";
 import { MAX_PROJECT_DESCRIPTION_LENGTH, MAX_PROJECT_NAME_LENGTH } from "@src/organization/model-schemas/project/project.schema";
 
 const ProjectNameSchema = z
@@ -8,15 +7,14 @@ const ProjectNameSchema = z
   .trim()
   .min(1)
   .max(MAX_PROJECT_NAME_LENGTH)
-  .refine(name => toSlug(name).length > 0, { message: "A project name needs at least one letter or number" })
-  .openapi({ description: "Also gives the project its slug, which must be unique within the organization.", example: "checkout-api" });
+  .openapi({ description: "Unique within the organization, whatever its case.", example: "checkout-api" });
 
 const ProjectDescriptionSchema = z.string().trim().max(MAX_PROJECT_DESCRIPTION_LENGTH);
 
 export const ProjectSchema = z.object({
   id: z.string().uuid(),
   name: z.string(),
-  slug: z.string(),
+  slug: z.string().openapi({ description: "Set from the name when the project is created and kept through renames." }),
   description: z.string().nullable(),
   isDefault: z.boolean(),
   createdAt: z.string().datetime(),

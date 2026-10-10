@@ -52,6 +52,12 @@ export const OrganizationActivities = pgTable(
       table.createdAt.desc(),
       table.id.desc()
     ),
+    organizationIdProjectIdCreatedAtIdIdx: index("organization_activities_organization_id_project_id_created_at_id_idx").on(
+      table.organizationId,
+      table.projectId,
+      table.createdAt.desc(),
+      table.id.desc()
+    ),
     projectFk: foreignKey({
       name: "organization_activities_organization_id_project_id_fk",
       columns: [table.organizationId, table.projectId],
