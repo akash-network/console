@@ -2,6 +2,10 @@ import { faker } from "@faker-js/faker";
 
 import type { OrganizationOutput } from "@src/organization/repositories/organization/organization.repository";
 import type { AdoptedRowCounts } from "@src/organization/repositories/organization-adoption/organization-adoption.repository";
+import type {
+  OrganizationInvitationOutput,
+  OrganizationInvitationWithInviter
+} from "@src/organization/repositories/organization-invitation/organization-invitation.repository";
 import type { OrganizationMemberOutput, OrganizationMemberWithUser } from "@src/organization/repositories/organization-member/organization-member.repository";
 import type { ProjectOutput } from "@src/organization/repositories/project/project.repository";
 
@@ -71,4 +75,51 @@ export function createAdoptedRowCounts(overrides: Partial<AdoptedRowCounts> = {}
     templates: 0,
     ...overrides
   };
+}
+
+export function createOrganizationInvitation({
+  id = faker.string.uuid(),
+  organizationId = faker.string.uuid(),
+  email = faker.internet.email().toLowerCase(),
+  role = "member",
+  projectGrants = [],
+  tokenHash = faker.string.hexadecimal({ length: 64, casing: "lower", prefix: "" }),
+  status = "pending",
+  expiresAt = faker.date.soon({ days: 7 }),
+  invitedByUserId = faker.string.uuid(),
+  acceptedByUserId = null,
+  acceptedAt = null,
+  revokedAt = null,
+  createdAt = faker.date.recent(),
+  updatedAt = faker.date.recent()
+}: Partial<OrganizationInvitationOutput> = {}): OrganizationInvitationOutput {
+  return {
+    id,
+    organizationId,
+    email,
+    role,
+    projectGrants,
+    tokenHash,
+    status,
+    expiresAt,
+    invitedByUserId,
+    acceptedByUserId,
+    acceptedAt,
+    revokedAt,
+    createdAt,
+    updatedAt
+  };
+}
+
+export function createOrganizationInvitationWithInviter({
+  id = faker.string.uuid(),
+  organizationId = faker.string.uuid(),
+  email = faker.internet.email().toLowerCase(),
+  role = "member",
+  projectGrants = [],
+  createdAt = faker.date.recent(),
+  expiresAt = faker.date.soon({ days: 7 }),
+  invitedBy = { id: faker.string.uuid(), username: faker.internet.userName() }
+}: Partial<OrganizationInvitationWithInviter> = {}): OrganizationInvitationWithInviter {
+  return { id, organizationId, email, role, projectGrants, createdAt, expiresAt, invitedBy };
 }

@@ -1,4 +1,5 @@
 import { faker } from "@faker-js/faker";
+import { addDays } from "date-fns";
 import { container } from "tsyringe";
 
 import type { ApiPgDatabase, ApiPgTables } from "@src/core";
@@ -12,6 +13,8 @@ type OrganizationInsert = ApiPgTables["Organizations"]["$inferInsert"];
 type OrganizationMemberInsert = ApiPgTables["OrganizationMembers"]["$inferInsert"];
 type ProjectInsert = ApiPgTables["Projects"]["$inferInsert"];
 type ProjectMemberInsert = ApiPgTables["ProjectMembers"]["$inferInsert"];
+type OrganizationInvitationInsert = ApiPgTables["OrganizationInvitations"]["$inferInsert"];
+type OrganizationInvitationEmailInsert = ApiPgTables["OrganizationInvitationEmails"]["$inferInsert"];
 
 export async function seedOrganization(overrides: Partial<OrganizationInsert> = {}) {
   const db = container.resolve<ApiPgDatabase>(POSTGRES_DB);
@@ -60,6 +63,31 @@ export async function seedProjectMember(overrides: Partial<ProjectMemberInsert> 
     .returning();
 
   return member;
+}
+
+export async function seedOrganizationInvitation(overrides: Partial<OrganizationInvitationInsert> & Pick<OrganizationInvitationInsert, "organizationId">) {
+  const db = container.resolve<ApiPgDatabase>(POSTGRES_DB);
+  const [invitation] = await db
+    .insert(resolveTable("OrganizationInvitations"))
+    .values({
+      email: faker.internet.email().toLowerCase(),
+      role: "member",
+      tokenHash: faker.string.hexadecimal({ length: 64, casing: "lower", prefix: "" }),
+      expiresAt: addDays(new Date(), 7),
+      ...overrides
+    })
+    .returning();
+
+  return invitation;
+}
+
+export async function seedOrganizationInvitationEmail(
+  overrides: Partial<OrganizationInvitationEmailInsert> & Pick<OrganizationInvitationEmailInsert, "organizationId" | "invitationId">
+) {
+  const db = container.resolve<ApiPgDatabase>(POSTGRES_DB);
+  const [send] = await db.insert(resolveTable("OrganizationInvitationEmails")).values(overrides).returning();
+
+  return send;
 }
 
 export async function seedOrganizationWithOwner({ user: userOverrides, ...overrides }: Partial<OrganizationInsert> & { user?: UserInput } = {}) {

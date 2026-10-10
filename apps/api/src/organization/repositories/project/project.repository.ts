@@ -1,4 +1,4 @@
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq, inArray, isNull } from "drizzle-orm";
 import { singleton } from "tsyringe";
 
 import { type ApiPgDatabase, type ApiPgTables, InjectPg, InjectPgTable } from "@src/core/providers";
@@ -42,6 +42,15 @@ export class ProjectRepository extends OrgScopedRepository<Table, ProjectInput, 
 
   async findActive(organizationId: ProjectOutput["organizationId"], id: ProjectOutput["id"]): Promise<ProjectOutput | undefined> {
     return this.unscoped("active-organization-resolution").findOneBy({ id, organizationId, deletedAt: null });
+  }
+
+  async findActiveIdsAmong(organizationId: ProjectOutput["organizationId"], ids: ProjectOutput["id"][]): Promise<string[]> {
+    const projects = await this.cursor
+      .select({ id: this.table.id })
+      .from(this.table)
+      .where(this.whereAccessibleBy(and(eq(this.table.organizationId, organizationId), inArray(this.table.id, ids), isNull(this.table.deletedAt))));
+
+    return projects.map(project => project.id);
   }
 
   async findActiveIdsGrantedTo(organizationId: ProjectOutput["organizationId"], userId: string): Promise<string[]> {

@@ -42,6 +42,20 @@ describe(OrganizationMemberRepository.name, () => {
     });
   });
 
+  describe("findEmailsOfMembers", () => {
+    it("returns the given addresses that belong to members of the organization, ignoring case", async () => {
+      const { repository, organization } = await setup();
+      const member = await seedUser({ userId: faker.string.uuid(), email: "Jane.Member@Example.com" });
+      await seedOrganizationMember({ organizationId: organization.id, userId: member.id });
+      await seedUser({ userId: faker.string.uuid(), email: "joe@example.com" });
+      const { user: foreignMember } = await seedOrganizationWithOwner({ user: { email: "ann@example.com" } });
+
+      const emails = await repository.findEmailsOfMembers(organization.id, ["jane.member@example.com", "joe@example.com", foreignMember.email!]);
+
+      expect(emails).toEqual(["jane.member@example.com"]);
+    });
+  });
+
   describe("findActiveMembership", () => {
     it("finds the user's membership by organization id, by slug and as their personal organization", async () => {
       const { repository, user, organization } = await setup();

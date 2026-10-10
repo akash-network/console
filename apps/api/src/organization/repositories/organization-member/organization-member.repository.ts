@@ -1,4 +1,4 @@
-import { and, asc, eq, isNull, or, type SQL } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull, or, type SQL, sql } from "drizzle-orm";
 import { singleton } from "tsyringe";
 
 import { type ApiPgDatabase, type ApiPgTables, InjectPg, InjectPgTable } from "@src/core/providers";
@@ -95,6 +95,16 @@ export class OrganizationMemberRepository extends OrgScopedRepository<Table, Org
       .innerJoin(Users, eq(Users.id, this.table.userId))
       .where(this.whereAccessibleBy(where))
       .$dynamic();
+  }
+
+  async findEmailsOfMembers(organizationId: OrganizationMemberOutput["organizationId"], emails: string[]): Promise<string[]> {
+    const members = await this.cursor
+      .select({ email: sql<string>`lower(${Users.email})` })
+      .from(this.table)
+      .innerJoin(Users, eq(Users.id, this.table.userId))
+      .where(this.whereAccessibleBy(and(eq(this.table.organizationId, organizationId), inArray(sql`lower(${Users.email})`, emails))));
+
+    return members.map(member => member.email);
   }
 
   async findActiveMembership(userId: OrganizationMemberOutput["userId"], lookup: OrganizationLookup): Promise<Membership | undefined> {

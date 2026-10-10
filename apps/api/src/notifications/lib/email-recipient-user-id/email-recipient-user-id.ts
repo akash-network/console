@@ -4,8 +4,8 @@ const UUID_V8_VERSION = "8";
 const RFC_4122_VARIANT_BITS = 0x8;
 const VARIANT_MASK = 0x3;
 
-/** Notification channels belong to a user id, so the support mailbox gets one derived from its address, and changing the address opens a new channel instead of reusing the old one. */
-export function supportMailboxUserId(email: string): string {
+/** Notification channels belong to a user id, so an address with no account behind it gets one derived from the address itself. */
+export function emailRecipientUserId(email: string): string {
   const hex = createHash("sha256").update(email.trim().toLowerCase()).digest("hex");
   const variant = ((parseInt(hex[16], 16) & VARIANT_MASK) | RFC_4122_VARIANT_BITS).toString(16);
 
