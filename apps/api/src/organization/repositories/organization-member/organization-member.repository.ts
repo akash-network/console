@@ -36,7 +36,7 @@ export class OrganizationMemberRepository extends OrgScopedRepository<Table, Org
 
   /** Returns nothing when the user is already a member, so a repeated call never aborts the caller's transaction. */
   async createUnlessExists(input: Pick<OrganizationMemberInput, "organizationId" | "userId" | "role">): Promise<OrganizationMemberOutput | undefined> {
-    const values = this.attributeToOrganization(input);
+    const values = await this.attributeToOrganization(input);
     this.ability?.throwUnlessCanExecute(values);
     const [created] = await this.cursor
       .insert(this.table)

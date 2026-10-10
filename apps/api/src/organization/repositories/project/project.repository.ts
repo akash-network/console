@@ -29,7 +29,7 @@ export class ProjectRepository extends OrgScopedRepository<Table, ProjectInput, 
 
   /** Returns nothing when the organization already has its default project, so a repeated call never aborts the caller's transaction. */
   async createDefaultUnlessExists(input: Pick<ProjectInput, "organizationId" | "createdByUserId">): Promise<ProjectOutput | undefined> {
-    const values = this.attributeToOrganization({ ...input, name: DEFAULT_PROJECT_NAME, slug: DEFAULT_PROJECT_SLUG, isDefault: true });
+    const values = await this.attributeToOrganization({ ...input, name: DEFAULT_PROJECT_NAME, slug: DEFAULT_PROJECT_SLUG, isDefault: true });
     this.ability?.throwUnlessCanExecute(values);
     const [created] = await this.cursor.insert(this.table).values(values).onConflictDoNothing().returning();
 

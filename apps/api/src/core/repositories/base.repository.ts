@@ -85,7 +85,7 @@ export abstract class BaseRepository<
       where: this.whereAccessibleBy(eq(this.table.id, id))
     });
     if (!item) return undefined;
-    this.#compareWithShadowAbility([item]);
+    this.compareWithShadow([item]);
     return this.toOutput(item);
   }
 
@@ -94,7 +94,7 @@ export abstract class BaseRepository<
       where: this.queryToWhere(query)
     });
     if (!item) return undefined;
-    this.#compareWithShadowAbility([item]);
+    this.compareWithShadow([item]);
     return this.toOutput(item);
   }
 
@@ -107,7 +107,7 @@ export abstract class BaseRepository<
       .limit(1)
       .for("update");
     if (!items || items.length === 0) return undefined;
-    this.#compareWithShadowAbility(items);
+    this.compareWithShadow(items);
     return this.toOutput(items[0]);
   }
 
@@ -131,7 +131,7 @@ export abstract class BaseRepository<
     const items = await this.queryCursor.findMany(params);
 
     if (!params.columns) {
-      this.#compareWithShadowAbility(items);
+      this.compareWithShadow(items);
     }
 
     return this.toOutputList(items);
@@ -148,7 +148,7 @@ export abstract class BaseRepository<
 
     while (hasNextPage) {
       const rows = await this.queryCursor.findMany({ ...params, offset });
-      this.#compareWithShadowAbility(rows);
+      this.compareWithShadow(rows);
       const items = this.toOutputList(rows);
       offset += items.length;
       hasNextPage = items.length === params.limit;
@@ -231,7 +231,7 @@ export abstract class BaseRepository<
     if (options?.returning) {
       const [item] = await cursor.returning();
       if (!item) return undefined;
-      this.#compareWithShadowAbility([item]);
+      this.compareWithShadow([item]);
       return this.toOutput(item);
     }
 
@@ -252,7 +252,7 @@ export abstract class BaseRepository<
   }
 
   /** Legacy filters pick the rows, so asking the shadowed ability about each one is what reports the rows organization rules would hide. */
-  #compareWithShadowAbility(rows: Array<T["$inferSelect"]>) {
+  protected compareWithShadow(rows: Array<Partial<T["$inferSelect"]>>) {
     const [ability, action] = this.#abilityParams ?? [];
 
     if (!(ability instanceof ShadowedAbility)) return;

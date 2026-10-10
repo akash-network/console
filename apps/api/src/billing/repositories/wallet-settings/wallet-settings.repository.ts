@@ -52,7 +52,7 @@ export class WalletSettingRepository extends OrgScopedRepository<Table, WalletSe
 
   /** Returns nothing when the wallet already has a setting, because a failed insert would abort the caller's transaction. */
   async createUnlessExists(input: DbWalletSettingInput): Promise<WalletSettingOutput | undefined> {
-    const values = this.attributeToOrganization(input);
+    const values = await this.attributeToOrganization(input);
     this.ability?.throwUnlessCanExecute(values);
     const [created] = await this.cursor.insert(this.table).values(values).onConflictDoNothing({ target: this.table.walletId }).returning();
 
@@ -73,6 +73,7 @@ export class WalletSettingRepository extends OrgScopedRepository<Table, WalletSe
     });
 
     if (!walletSetting) return undefined;
+    this.compareWithShadow([walletSetting]);
 
     return walletSetting;
   }

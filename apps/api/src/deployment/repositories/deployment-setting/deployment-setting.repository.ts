@@ -6,7 +6,7 @@ import { assertBatchSize } from "@src/core/lib/batch-size/batch-size";
 import { containsPattern } from "@src/core/lib/like-pattern/like-pattern";
 import { type ApiPgDatabase, type ApiPgTables, InjectPg, InjectPgTable } from "@src/core/providers";
 import { OrgScopedRepository } from "@src/core/repositories/org-scoped.repository";
-import { TxService } from "@src/core/services";
+import { type ApiTransaction, TxService } from "@src/core/services";
 import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
 import { mergeLeaseGpuOffers } from "@src/deployment/lib/lease-gpu-offers/lease-gpu-offers";
 import { mergeLeaseGpuReadings } from "@src/deployment/lib/lease-gpu-readings/lease-gpu-readings";
@@ -113,6 +113,14 @@ export type AutoTopUpDeployment = {
  */
 const AUTO_TOP_UP_ENABLED_BY_DEFAULT = true;
 
+/** Writers without a request context name the organization, and the project when they know it, so the row is filed where a request would have filed it. */
+export type DeploymentSettingOwner = {
+  userId: string;
+  dseq: string;
+  organizationId?: string | null;
+  projectId?: string | null;
+};
+
 @singleton()
 export class DeploymentSettingRepository extends OrgScopedRepository<Table, DeploymentSettingsInput, DeploymentSettingsOutput> {
   constructor(
@@ -126,6 +134,15 @@ export class DeploymentSettingRepository extends OrgScopedRepository<Table, Depl
 
   protected newInstance() {
     return new DeploymentSettingRepository(this.pg, this.table, this.txManager, this.executionContextService) as this;
+  }
+
+  protected get filesIntoProjects() {
+    return true;
+  }
+
+  /** The columns both rule sets condition on, selected by partial reads so their rows can be shadow-compared. */
+  get #ruleColumns() {
+    return { userId: this.table.userId, organizationId: this.table.organizationId, projectId: this.table.projectId };
   }
 
   /**
@@ -152,9 +169,10 @@ export class DeploymentSettingRepository extends OrgScopedRepository<Table, Depl
     }
 
     const rows = await this.cursor
-      .select({ dseq: this.table.dseq, name: this.table.name })
+      .select({ dseq: this.table.dseq, name: this.table.name, ...this.#ruleColumns })
       .from(this.table)
       .where(this.whereAccessibleBy(and(eq(this.table.userId, userId), inArray(this.table.dseq, dseqs))));
+    this.compareWithShadow(rows);
 
     return new Map(rows.map(row => [row.dseq, row.name]));
   }
@@ -172,23 +190,28 @@ export class DeploymentSettingRepository extends OrgScopedRepository<Table, Depl
     const rows = await this.cursor
       .select({
         dseq: this.table.dseq,
-        name: this.table.name,
-        closed: this.table.closed,
-        runtimeLimitHours: this.table.runtimeLimitHours,
-        runtimeEndsAt: this.table.runtimeEndsAt
+        setting: {
+          name: this.table.name,
+          closed: this.table.closed,
+          runtimeLimitHours: this.table.runtimeLimitHours,
+          runtimeEndsAt: this.table.runtimeEndsAt
+        },
+        ...this.#ruleColumns
       })
       .from(this.table)
       .where(this.whereAccessibleBy(and(eq(this.table.userId, userId), inArray(this.table.dseq, dseqs))));
+    this.compareWithShadow(rows);
 
-    return new Map(rows.map(({ dseq, ...setting }) => [dseq, setting]));
+    return new Map(rows.map(({ dseq, setting }) => [dseq, setting]));
   }
 
   /** Under the same double scoping as {@link findNamesByDseqs}; the null-name condition is what lets the partial index on named rows serve it. */
   async findDseqsByNameContaining({ userId, text }: { userId: string; text: string }): Promise<string[]> {
     const rows = await this.cursor
-      .select({ dseq: this.table.dseq })
+      .select({ dseq: this.table.dseq, ...this.#ruleColumns })
       .from(this.table)
       .where(this.whereAccessibleBy(and(eq(this.table.userId, userId), isNotNull(this.table.name), ilike(this.table.name, containsPattern(text)))));
+    this.compareWithShadow(rows);
 
     return rows.map(row => row.dseq);
   }
@@ -200,13 +223,15 @@ export class DeploymentSettingRepository extends OrgScopedRepository<Table, Depl
     }
 
     const rows = await this.cursor
-      .select({ dseq: this.table.dseq, detectedGpus: this.table.detectedGpus, offeredGpus: this.table.offeredGpus })
+      .select({ dseq: this.table.dseq, detectedGpus: this.table.detectedGpus, offeredGpus: this.table.offeredGpus, ...this.#ruleColumns })
       .from(this.table)
       .where(
         this.whereAccessibleBy(
           and(eq(this.table.userId, userId), inArray(this.table.dseq, dseqs), or(isNotNull(this.table.detectedGpus), isNotNull(this.table.offeredGpus)))
         )
       );
+
+    this.compareWithShadow(rows);
 
     return new Map(rows.map(row => [row.dseq, { readings: row.detectedGpus ?? [], offers: row.offeredGpus ?? [] }]));
   }
@@ -658,28 +683,26 @@ export class DeploymentSettingRepository extends OrgScopedRepository<Table, Depl
     sealedSecrets?: string | null;
     name?: string;
   }): Promise<string> {
-    const [row] = await this.writeChecked(cursor =>
+    const values = await this.attributeToOrganization({
+      userId,
+      dseq,
+      autoTopUpEnabled: AUTO_TOP_UP_ENABLED_BY_DEFAULT,
+      sdl,
+      manifestVersion,
+      runtimeLimitHours,
+      sealedSecrets,
+      name
+    });
+    const upsert = (cursor: ApiPgDatabase | ApiTransaction) =>
       cursor
         .insert(this.table)
-        .values(
-          this.attributeToOrganization({
-            userId,
-            dseq,
-            autoTopUpEnabled: AUTO_TOP_UP_ENABLED_BY_DEFAULT,
-            sdl,
-            manifestVersion,
-            runtimeLimitHours,
-            sealedSecrets,
-            name
-          })
-        )
+        .values(values)
         .onConflictDoUpdate({
           target: [this.table.dseq, this.table.userId],
           set: { sdl, manifestVersion, runtimeLimitHours, sealedSecrets, name, updatedAt: sql`now()` },
           setWhere: this.whereAccessibleBy(undefined)
-        })
-        .returning()
-    );
+        });
+    const [row] = this.ability ? await this.writeChecked(cursor => upsert(cursor).returning()) : await upsert(this.cursor).returning({ id: this.table.id });
 
     return this.requireWrittenRow(row).id;
   }
@@ -736,7 +759,7 @@ export class DeploymentSettingRepository extends OrgScopedRepository<Table, Depl
     sealedSecrets: string | null;
     closed: boolean;
   }): Promise<string | undefined> {
-    const values = this.attributeToOrganization({
+    const values = await this.attributeToOrganization({
       userId,
       dseq,
       autoTopUpEnabled: closed ? false : AUTO_TOP_UP_ENABLED_BY_DEFAULT,
@@ -774,21 +797,25 @@ export class DeploymentSettingRepository extends OrgScopedRepository<Table, Depl
    * a browser. Keyed on (dseq, userId) with the caller's own id, so it can only ever write the caller's own row.
    */
   async upsertName({ userId, dseq, name }: { userId: string; dseq: string; name: string }): Promise<string | null> {
-    const [row] = await this.writeChecked(cursor =>
+    const values = await this.attributeToOrganization({ userId, dseq, autoTopUpEnabled: AUTO_TOP_UP_ENABLED_BY_DEFAULT, name });
+    const upsert = (cursor: ApiPgDatabase | ApiTransaction) =>
       cursor
         .insert(this.table)
-        .values(this.attributeToOrganization({ userId, dseq, autoTopUpEnabled: AUTO_TOP_UP_ENABLED_BY_DEFAULT, name }))
-        .onConflictDoUpdate({ target: [this.table.dseq, this.table.userId], set: { name, updatedAt: sql`now()` }, setWhere: this.whereAccessibleBy(undefined) })
-        .returning()
-    );
+        .values(values)
+        .onConflictDoUpdate({
+          target: [this.table.dseq, this.table.userId],
+          set: { name, updatedAt: sql`now()` },
+          setWhere: this.whereAccessibleBy(undefined)
+        });
+    const [row] = this.ability ? await this.writeChecked(cursor => upsert(cursor).returning()) : await upsert(this.cursor).returning({ name: this.table.name });
 
     return this.requireWrittenRow(row).name;
   }
 
-  async createDefaultIfMissing({ userId, dseq }: { userId: string; dseq: string }): Promise<boolean> {
+  async createDefaultIfMissing({ userId, dseq, organizationId, projectId }: DeploymentSettingOwner): Promise<boolean> {
     const rows = await this.cursor
       .insert(this.table)
-      .values(this.attributeToOrganization({ userId, dseq, autoTopUpEnabled: AUTO_TOP_UP_ENABLED_BY_DEFAULT }))
+      .values(await this.attributeToOrganization({ userId, dseq, organizationId, projectId, autoTopUpEnabled: AUTO_TOP_UP_ENABLED_BY_DEFAULT }))
       .onConflictDoNothing({ target: [this.table.dseq, this.table.userId] })
       .returning({ id: this.table.id });
 
@@ -850,7 +877,10 @@ export class DeploymentSettingRepository extends OrgScopedRepository<Table, Depl
       )
       .returning();
 
-    return row ? this.toOutput(row) : undefined;
+    if (!row) return undefined;
+    this.compareWithShadow([row]);
+
+    return this.toOutput(row);
   }
 
   /**
@@ -933,7 +963,7 @@ export class DeploymentSettingRepository extends OrgScopedRepository<Table, Depl
     const [claimed] = await this.cursor
       .insert(this.table)
       .values(
-        this.attributeToOrganization({
+        await this.attributeToOrganization({
           userId,
           dseq,
           autoTopUpEnabled: false,
@@ -968,10 +998,10 @@ export class DeploymentSettingRepository extends OrgScopedRepository<Table, Depl
    * every later sweep would try to close it again. Such a row is written with funding off, since a
    * closed deployment has nothing to fund.
    */
-  async markClosed({ userId, dseq }: { userId: string; dseq: string }): Promise<void> {
+  async markClosed({ userId, dseq, organizationId }: DeploymentSettingOwner): Promise<void> {
     await this.cursor
       .insert(this.table)
-      .values(this.attributeToOrganization({ userId, dseq, autoTopUpEnabled: false, closed: true }))
+      .values(await this.attributeToOrganization({ userId, dseq, organizationId, autoTopUpEnabled: false, closed: true }))
       .onConflictDoUpdate({
         target: [this.table.dseq, this.table.userId],
         set: { closed: true, updatedAt: sql`now()` },

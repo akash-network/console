@@ -28,11 +28,12 @@ export class PaymentMethodRepository extends OrgScopedRepository<Table, PaymentM
   }
 
   async findByUserId(userId: PaymentMethodOutput["userId"]) {
-    return this.toOutputList(
-      await this.cursor.query.PaymentMethods.findMany({
-        where: this.whereAccessibleBy(eq(this.table.userId, userId))
-      })
-    );
+    const paymentMethods = await this.cursor.query.PaymentMethods.findMany({
+      where: this.whereAccessibleBy(eq(this.table.userId, userId))
+    });
+    this.compareWithShadow(paymentMethods);
+
+    return this.toOutputList(paymentMethods);
   }
 
   async markAsValidated(paymentMethodId: string, userId: string) {
@@ -132,7 +133,7 @@ export class PaymentMethodRepository extends OrgScopedRepository<Table, PaymentM
       const [newRecord] = await this.cursor
         .insert(this.table)
         .values(
-          this.attributeToOrganization({
+          await this.attributeToOrganization({
             ...input,
             isDefault
           })
@@ -153,7 +154,7 @@ export class PaymentMethodRepository extends OrgScopedRepository<Table, PaymentM
         const [retryRecord] = await this.cursor
           .insert(this.table)
           .values(
-            this.attributeToOrganization({
+            await this.attributeToOrganization({
               ...input,
               isDefault: false
             })
@@ -177,12 +178,6 @@ export class PaymentMethodRepository extends OrgScopedRepository<Table, PaymentM
       paymentMethodId: input.paymentMethodId
     });
 
-    if (!paymentMethod) {
-      throw new Error(
-        `Payment method not found after upsert conflict resolution. ` + `fingerprint: ${input.fingerprint}, paymentMethodId: ${input.paymentMethodId}`
-      );
-    }
-
-    return { paymentMethod, isNew: false };
+    return { paymentMethod: this.requireWrittenRow(paymentMethod), isNew: false };
   }
 }

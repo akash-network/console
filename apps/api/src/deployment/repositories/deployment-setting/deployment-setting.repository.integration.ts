@@ -1885,6 +1885,32 @@ describe(DeploymentSettingRepository.name, () => {
       expect(await deploymentSettingRepository.findById(foreignSetting.id)).toMatchObject({ closed: false });
     });
 
+    it("lets the owner rename a deployment a job recorded for their organization", async () => {
+      const { deploymentSettingRepository, runInOrganization, active } = await setupOrganizations();
+      const dseq = newDseq();
+      await deploymentSettingRepository.createDefaultIfMissing({ userId: active.user.id, dseq, organizationId: active.organization.id });
+
+      const name = await runInOrganization(active, () => deploymentSettingRepository.upsertName({ userId: active.user.id, dseq, name: "renamed" }));
+
+      expect(name).toBe("renamed");
+      expect(await deploymentSettingRepository.findOneBy({ userId: active.user.id, dseq })).toMatchObject({
+        organizationId: active.organization.id,
+        projectId: active.project.id
+      });
+    });
+
+    it("files a deployment created in a request into the active organization's default project", async () => {
+      const { deploymentSettingRepository, runInOrganization, active } = await setupOrganizations();
+      const dseq = newDseq();
+
+      await runInOrganization(active, () => deploymentSettingRepository.upsertDefinition({ userId: active.user.id, dseq, sdl: SDL, manifestVersion: "AAAA" }));
+
+      expect(await deploymentSettingRepository.findOneBy({ userId: active.user.id, dseq })).toMatchObject({
+        organizationId: active.organization.id,
+        projectId: active.project.id
+      });
+    });
+
     it("renames a deployment inside the member's project scope", async () => {
       const { deploymentSettingRepository, runAsMember, member, active } = await setupOrganizations();
       const setting = await seedDeploymentSetting({ userId: member.id, organizationId: active.organization.id, projectId: active.project.id });
@@ -1908,12 +1934,15 @@ describe(DeploymentSettingRepository.name, () => {
       expect(await deploymentSettingRepository.findById(setting.id)).toMatchObject({ name: "kept" });
     });
 
-    it("refuses to create a row the member's project scope does not cover and writes nothing", async () => {
-      const { deploymentSettingRepository, runAsMember, member } = await setupOrganizations();
+    it("refuses to create a row in a project the member's scope does not cover and writes nothing", async () => {
+      const { deploymentSettingRepository, runAsMember, member, otherProject } = await setupOrganizations();
       const dseq = newDseq();
 
       await expect(
-        runAsMember(ability => deploymentSettingRepository.accessibleBy(ability, "update").upsertName({ userId: member.id, dseq, name: "renamed" }))
+        runAsMember(
+          ability => deploymentSettingRepository.accessibleBy(ability, "update").upsertName({ userId: member.id, dseq, name: "renamed" }),
+          [otherProject.id]
+        )
       ).rejects.toThrow(ForbiddenError);
       expect(await deploymentSettingRepository.findOneBy({ userId: member.id, dseq })).toBeUndefined();
     });
@@ -2153,14 +2182,14 @@ describe(DeploymentSettingRepository.name, () => {
       });
     }
 
-    function runAsMember<R>(run: (ability: ReturnType<AbilityService["getAbilityFor"]>) => Promise<R>) {
+    function runAsMember<R>(run: (ability: ReturnType<AbilityService["getAbilityFor"]>) => Promise<R>, projectIds = [active.project.id]) {
       return executionContextService.runWithContext(async () => {
         executionContextService.set(
           "ORGANIZATION_CONTEXT",
           createOrganizationContext({
             organizationId: active.organization.id,
             role: "member",
-            projectScope: { kind: "projects", projectIds: [active.project.id] }
+            projectScope: { kind: "projects", projectIds }
           })
         );
         return await run(abilityService.getAbilityFor("REGULAR_USER", member));

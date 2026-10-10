@@ -24,6 +24,7 @@ const DOWN_SINCE = "2026-07-01T00:00:00.000Z";
 const NOW = "2026-07-31T00:00:00.000Z";
 const DAYS_DOWN = 30;
 const WALLET_ID = 7;
+const ORGANIZATION_ID = "0b6f7c2e-3d4a-4e5f-8a9b-1c2d3e4f5a6b";
 const USER_ID = "user-1";
 
 describe(CloseUnreachableProviderDeploymentHandler.name, () => {
@@ -37,7 +38,7 @@ describe(CloseUnreachableProviderDeploymentHandler.name, () => {
     await handler.handle(aPayload());
 
     expect(deploymentWriterService.close).toHaveBeenCalledWith(expect.objectContaining({ address: OWNER }), DSEQ);
-    expect(deploymentSettingRepository.markClosed).toHaveBeenCalledWith({ userId: USER_ID, dseq: DSEQ });
+    expect(deploymentSettingRepository.markClosed).toHaveBeenCalledWith({ userId: USER_ID, dseq: DSEQ, organizationId: ORGANIZATION_ID });
   });
 
   it("tells the owner which host went dark and for how long", async () => {
@@ -118,7 +119,7 @@ describe(CloseUnreachableProviderDeploymentHandler.name, () => {
 
     await handler.handle(aPayload());
 
-    expect(deploymentSettingRepository.markClosed).toHaveBeenCalledWith({ userId: USER_ID, dseq: DSEQ });
+    expect(deploymentSettingRepository.markClosed).toHaveBeenCalledWith({ userId: USER_ID, dseq: DSEQ, organizationId: ORGANIZATION_ID });
     expect(jobQueueService.enqueue).toHaveBeenCalledTimes(1);
   });
 
@@ -160,7 +161,7 @@ describe(CloseUnreachableProviderDeploymentHandler.name, () => {
   ) {
     const userWalletRepository = mock<UserWalletRepository>();
     userWalletRepository.findOneByAddress.mockResolvedValue(
-      input.wallet === null ? undefined : createUserWallet({ id: WALLET_ID, userId: USER_ID, address: OWNER })
+      input.wallet === null ? undefined : createUserWallet({ id: WALLET_ID, userId: USER_ID, address: OWNER, organizationId: ORGANIZATION_ID })
     );
 
     const deploymentSettingRepository = mock<DeploymentSettingRepository>();
