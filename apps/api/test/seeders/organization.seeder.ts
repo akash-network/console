@@ -1,6 +1,7 @@
 import { faker } from "@faker-js/faker";
 
 import type { OrganizationOutput } from "@src/organization/repositories/organization/organization.repository";
+import type { OrganizationActivityWithActor } from "@src/organization/repositories/organization-activity/organization-activity.repository";
 import type { AdoptedRowCounts } from "@src/organization/repositories/organization-adoption/organization-adoption.repository";
 import type { OrganizationMemberOutput } from "@src/organization/repositories/organization-member/organization-member.repository";
 import type { ProjectOutput } from "@src/organization/repositories/project/project.repository";
@@ -47,6 +48,19 @@ export function createProject({
   updatedAt = faker.date.recent()
 }: Partial<ProjectOutput> = {}): ProjectOutput {
   return { id, organizationId, name, slug, description, isDefault, createdByUserId, deletedAt, createdAt, updatedAt };
+}
+
+export function createOrganizationActivity({
+  id = faker.string.uuid(),
+  organizationId = faker.string.uuid(),
+  projectId = faker.string.uuid(),
+  actorUserId = faker.string.uuid(),
+  type = "project_created",
+  payload = { projectName: faker.word.noun() },
+  createdAt = faker.date.recent(),
+  actor = actorUserId ? { id: actorUserId, username: faker.internet.userName() } : null
+}: Partial<OrganizationActivityWithActor> = {}): OrganizationActivityWithActor {
+  return { id, organizationId, projectId, actorUserId, type, payload, createdAt, actor };
 }
 
 export function createAdoptedRowCounts(overrides: Partial<AdoptedRowCounts> = {}): AdoptedRowCounts {
