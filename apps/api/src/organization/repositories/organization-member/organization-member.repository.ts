@@ -1,4 +1,4 @@
-import { and, asc, eq, inArray, isNull, or, type SQL, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull, ne, or, type SQL, sql } from "drizzle-orm";
 import { singleton } from "tsyringe";
 
 import { type ApiPgDatabase, type ApiPgTables, InjectPg, InjectPgTable } from "@src/core/providers";
@@ -111,6 +111,19 @@ export class OrganizationMemberRepository extends OrgScopedRepository<Table, Org
     const [membership] = await this.#selectActiveMemberships(and(eq(this.table.userId, userId), organizationMatching(userId, lookup)));
 
     return membership;
+  }
+
+  /** Compares names case-insensitively, among the organizations the user still belongs to that are not deleted. */
+  async isMemberOfOrganizationNamed(userId: OrganizationMemberOutput["userId"], name: string, exceptOrganizationId?: string): Promise<boolean> {
+    const [membership] = await this.#selectActiveMemberships(
+      and(
+        eq(this.table.userId, userId),
+        sql`lower(${Organizations.name}) = lower(${name})`,
+        exceptOrganizationId ? ne(Organizations.id, exceptOrganizationId) : undefined
+      )
+    ).limit(1);
+
+    return !!membership;
   }
 
   async findActiveMemberships(userId: OrganizationMemberOutput["userId"]): Promise<Membership[]> {
