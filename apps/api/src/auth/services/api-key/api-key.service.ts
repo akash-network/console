@@ -91,7 +91,6 @@ export class ApiKeyService {
     return projectId;
   }
 
-  /** The organization context only enforces a key's project while organizations are on for its owner. */
   async #isBindable(projectId: string): Promise<boolean> {
     const context = this.executionContextService.get("ORGANIZATION_CONTEXT");
 

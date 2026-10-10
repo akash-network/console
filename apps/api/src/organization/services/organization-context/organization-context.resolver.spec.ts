@@ -44,12 +44,60 @@ describe(OrganizationContextResolver.name, () => {
       expect(projectRepository.findActive).not.toHaveBeenCalled();
     });
 
-    it("ignores the organization an API key is bound to", async () => {
-      const { resolver, personal, team, user } = setup({ organizationsOn: false });
+    it("rejects an API key bound to another organization than the personal one", async () => {
+      const { resolver, team, user } = setup({ organizationsOn: false });
 
-      const context = await resolver.resolve({ user, apiKey: { organizationId: team.organization.id, projectId: faker.string.uuid() } });
+      const resolution = resolver.resolve({ user, apiKey: { organizationId: team.organization.id, projectId: null } });
 
-      expect(context).toMatchObject({ organizationId: personal.organization.id, role: "owner", projectScope: { kind: "all" } });
+      await expect(resolution).rejects.toMatchObject({
+        status: 403,
+        errorCode: ORGANIZATION_FORBIDDEN_ERROR_CODE,
+        message: "The API key belongs to an organization this request cannot run in"
+      });
+    });
+
+    it("rejects an API key bound to another organization than the personal one once enforcement is on", async () => {
+      const { resolver, team, user } = setup({ organizationsOn: false, enforceOn: true });
+
+      const resolution = resolver.resolve({ user, apiKey: { organizationId: team.organization.id, projectId: faker.string.uuid() } });
+
+      await expect(resolution).rejects.toMatchObject({ status: 403, errorCode: ORGANIZATION_FORBIDDEN_ERROR_CODE });
+    });
+
+    it("reaches every project of the personal organization with an API key bound to it or to no organization", async () => {
+      const { resolver, personal, user } = setup({ organizationsOn: false });
+
+      const [boundToPersonal, boundToNone] = await Promise.all([
+        resolver.resolve({ user, apiKey: { organizationId: personal.organization.id, projectId: null } }),
+        resolver.resolve({ user, apiKey: { organizationId: null, projectId: null } })
+      ]);
+
+      expect(boundToPersonal).toEqual({
+        organizationId: personal.organization.id,
+        organizationType: "personal",
+        role: "owner",
+        projectScope: { kind: "all" },
+        mode: "legacy"
+      });
+      expect(boundToNone).toEqual(boundToPersonal);
+    });
+
+    it("narrows every project down to the one an API key is bound to, with or without enforcement", async () => {
+      const { resolver, personal, user } = setup({ organizationsOn: false });
+      const { resolver: enforcingResolver, personal: enforcedPersonal, user: enforcedUser } = setup({ organizationsOn: false, enforceOn: true });
+      const projectId = faker.string.uuid();
+
+      const [context, enforcedContext] = await Promise.all([
+        resolver.resolve({ user, apiKey: { organizationId: personal.organization.id, projectId } }),
+        enforcingResolver.resolve({ user: enforcedUser, apiKey: { organizationId: enforcedPersonal.organization.id, projectId } })
+      ]);
+
+      expect(context).toMatchObject({ organizationId: personal.organization.id, projectScope: { kind: "projects", projectIds: [projectId] }, mode: "legacy" });
+      expect(enforcedContext).toMatchObject({
+        organizationId: enforcedPersonal.organization.id,
+        projectScope: { kind: "projects", projectIds: [projectId] },
+        mode: "organization"
+      });
     });
 
     it("leaves the request without an organization context when the personal organization cannot be resolved", async () => {

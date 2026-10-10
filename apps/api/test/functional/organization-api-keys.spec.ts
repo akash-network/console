@@ -201,6 +201,70 @@ describe("Organization API keys", () => {
     });
   });
 
+  describe("a key while organizations are off for its owner", () => {
+    it("is rejected when bound to a team organization", async () => {
+      const { user, team } = await setup({ organizationsOn: false });
+      const { apiKey } = await seedApiKey({ userId: user.id, organizationId: team.id });
+
+      const response = await listKeys({ "x-api-key": apiKey });
+
+      expect(response.status).toBe(403);
+      expect(await response.json()).toMatchObject({ code: "organization_forbidden" });
+    });
+
+    it("is rejected when bound to a team organization once enforcement is on", async () => {
+      const { user, team } = await setup({ organizationsOn: false, enforceOn: true });
+      const { apiKey } = await seedApiKey({ userId: user.id, organizationId: team.id });
+
+      const response = await listKeys({ "x-api-key": apiKey });
+
+      expect(response.status).toBe(403);
+      expect(await response.json()).toMatchObject({ code: "organization_forbidden" });
+    });
+
+    it("keeps working when bound to the personal organization or to none", async () => {
+      const { user, personal } = await setup({ organizationsOn: false });
+      const [{ apiKey: personalKey }, { apiKey: legacyKey }] = await Promise.all([
+        seedApiKey({ userId: user.id, organizationId: personal.id }),
+        seedApiKey({ userId: user.id, organizationId: null })
+      ]);
+
+      const [personalResponse, legacyResponse] = await Promise.all([listKeys({ "x-api-key": personalKey }), listKeys({ "x-api-key": legacyKey })]);
+
+      expect(personalResponse.status).toBe(200);
+      expect(legacyResponse.status).toBe(200);
+    });
+
+    it("reaches only the project it is bound to once enforcement is on", async () => {
+      const { user, personal, personalProject } = await setup({ organizationsOn: false, enforceOn: true });
+      const ciProject = await seedProject({ organizationId: personal.id });
+      const [inProject, outsideProject] = await Promise.all([
+        seedDeploymentSetting({ userId: user.id, organizationId: personal.id, projectId: ciProject.id, autoTopUpEnabled: false }),
+        seedDeploymentSetting({ userId: user.id, organizationId: personal.id, projectId: personalProject.id, autoTopUpEnabled: false })
+      ]);
+      const { apiKey } = await seedApiKey({ userId: user.id, organizationId: personal.id, projectId: ciProject.id });
+
+      const [inProjectResponse, outsideProjectResponse] = await Promise.all([
+        getDeploymentSetting(inProject, { "x-api-key": apiKey }),
+        getDeploymentSetting(outsideProject, { "x-api-key": apiKey })
+      ]);
+
+      expect(inProjectResponse.status).toBe(200);
+      expect(outsideProjectResponse.status).toBe(404);
+    });
+
+    it("keeps reaching the project it is bound to while enforcement is off", async () => {
+      const { user, personal } = await setup({ organizationsOn: false });
+      const ciProject = await seedProject({ organizationId: personal.id });
+      const setting = await seedDeploymentSetting({ userId: user.id, organizationId: personal.id, projectId: ciProject.id, autoTopUpEnabled: false });
+      const { apiKey } = await seedApiKey({ userId: user.id, organizationId: personal.id, projectId: ciProject.id });
+
+      const response = await getDeploymentSetting(setting, { "x-api-key": apiKey });
+
+      expect(response.status).toBe(200);
+    });
+  });
+
   describe("a key of an organization member", () => {
     it("loses the projects its owner was not granted once the owner is demoted to member", async () => {
       const { user, team, teamProject, membership } = await setup({ teamRole: "owner" });
@@ -287,16 +351,16 @@ describe("Organization API keys", () => {
     return `Bearer ${token}`;
   }
 
-  function enableOrganizationsFor(userIds: string[]) {
+  function enableOrganizationsFor(userIds: string[], isEnforced: boolean) {
     vi.spyOn(container.resolve(FeatureFlagsService), "isEnabled").mockImplementation((flag, context) => {
-      if (flag === FeatureFlags.ORGANIZATIONS_ENFORCE) return false;
+      if (flag === FeatureFlags.ORGANIZATIONS_ENFORCE) return isEnforced;
       if (flag !== FeatureFlags.ORGANIZATIONS) return true;
 
       return userIds.includes(context?.userId ?? container.resolve(AuthService).safeCurrentUser?.id ?? "");
     });
   }
 
-  async function setup(input: { organizationsOn?: boolean; teamRole?: OrganizationRole }) {
+  async function setup(input: { organizationsOn?: boolean; enforceOn?: boolean; teamRole?: OrganizationRole }) {
     const {
       user,
       organization: personal,
@@ -308,7 +372,7 @@ describe("Organization API keys", () => {
     const { user: teamOwner, organization: team, project: teamProject } = await seedOrganizationWithOwner();
     const membership = await seedOrganizationMember({ organizationId: team.id, userId: user.id, role: input.teamRole ?? "admin" });
     const bearer = signIn(user.userId!);
-    enableOrganizationsFor(input.organizationsOn === false ? [] : [user.id]);
+    enableOrganizationsFor(input.organizationsOn === false ? [] : [user.id], !!input.enforceOn);
 
     return { user, personal, personalProject, team, teamOwner, teamProject, membership, bearer };
   }
