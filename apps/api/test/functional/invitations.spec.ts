@@ -4,6 +4,8 @@ import { and, eq } from "drizzle-orm";
 import { container } from "tsyringe";
 import { afterAll, afterEach, describe, expect, it, vi } from "vitest";
 
+import { ApiKeyRepository } from "@src/auth/repositories/api-key/api-key.repository";
+import { ApiKeyGeneratorService } from "@src/auth/services/api-key/api-key-generator.service";
 import { UserAuthTokenService } from "@src/auth/services/user-auth-token/user-auth-token.service";
 import { type ApiPgDatabase, POSTGRES_DB, resolveTable } from "@src/core";
 import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
@@ -220,6 +222,33 @@ describe("Invitations", () => {
       expect(await membershipsOf(invitee)).toEqual([expect.objectContaining({ role: "viewer" })]);
     });
 
+    it("refuses an API key and writes nothing", async () => {
+      const { invite, seedInvitee, seedApiKey, request, membershipsOf, userOf } = await setup({});
+      const invitee = await seedInvitee();
+      const apiKey = await seedApiKey(invitee);
+      const { token, invitation } = await invite({ email: invitee.email!, role: "admin" });
+
+      const response = await request("/v1/invitations/accept", { apiKey, body: { data: { token } } });
+
+      expect(response.status).toBe(403);
+      expect(await response.json()).toMatchObject({ code: "session_required" });
+      expect(await membershipsOf(invitee)).toEqual([]);
+      expect(await userOf(invitee)).toMatchObject({ lastUsedOrganizationId: null });
+      expect(await invitationOf(invitation.id)).toMatchObject({ status: "pending", acceptedByUserId: null });
+    });
+
+    it("asks an invitee whose matching email is not verified to confirm", async () => {
+      const { invite, seedInvitee, request, membershipsOf } = await setup({});
+      const invitee = await seedInvitee({ emailVerified: false });
+      const { token } = await invite({ email: invitee.email!, role: "member" });
+
+      const response = await request("/v1/invitations/accept", { asUser: invitee, body: { data: { token } } });
+
+      expect(response.status).toBe(409);
+      expect(await response.json()).toMatchObject({ code: "invitation_email_mismatch" });
+      expect(await membershipsOf(invitee)).toEqual([]);
+    });
+
     it("refuses a signed-out caller", async () => {
       const { invite, request } = await setup({});
       const { token } = await invite({});
@@ -273,6 +302,7 @@ describe("Invitations", () => {
     const Users = resolveTable("Users");
     const externalUserIdByToken = new Map<string, string>();
     const bearerByUserId = new Map<string, string>();
+    const personalOrganizationIdByUserId = new Map<string, string>();
     const { organization, user: owner } = await seedOrganizationWithOwner({
       user: { userId: `auth0|${faker.string.alphanumeric(24)}`, username: `owner-${faker.string.alphanumeric(12)}` }
     });
@@ -288,17 +318,19 @@ describe("Invitations", () => {
       return input.organizationsOn !== false;
     });
 
-    async function seedInvitee(overrides: { email?: string } = {}) {
+    async function seedInvitee(overrides: { email?: string; emailVerified?: boolean } = {}) {
       const user = await seedUser({
         userId: `auth0|${faker.string.alphanumeric(24)}`,
         username: `user-${faker.string.alphanumeric(12)}`,
-        email: overrides.email ?? faker.internet.email().toLowerCase()
+        email: overrides.email ?? faker.internet.email().toLowerCase(),
+        emailVerified: overrides.emailVerified ?? true
       });
       const personal = await seedOrganization({ type: "personal", createdByUserId: user.id });
       await seedOrganizationMember({ organizationId: personal.id, userId: user.id, role: "owner" });
       const bearer = faker.string.alphanumeric(40);
       externalUserIdByToken.set(bearer, user.userId!);
       bearerByUserId.set(user.id, bearer);
+      personalOrganizationIdByUserId.set(user.id, personal.id);
 
       return user;
     }
@@ -315,11 +347,15 @@ describe("Invitations", () => {
       return { token, invitation };
     }
 
-    async function request(path: string, options: { asUser?: UserOutput; organizationId?: string; body: unknown }) {
+    async function request(path: string, options: { asUser?: UserOutput; apiKey?: string; organizationId?: string; body: unknown }) {
       const headers: Record<string, string> = { "content-type": "application/json" };
 
       if (options.asUser) {
         headers.authorization = `Bearer ${bearerByUserId.get(options.asUser.id)}`;
+      }
+
+      if (options.apiKey) {
+        headers["x-api-key"] = options.apiKey;
       }
 
       if (options.organizationId) {
@@ -327,6 +363,20 @@ describe("Invitations", () => {
       }
 
       return await app.request(path, { method: "POST", headers, body: JSON.stringify(options.body) });
+    }
+
+    async function seedApiKey(user: UserOutput) {
+      const apiKeyGenerator = container.resolve(ApiKeyGeneratorService);
+      const apiKey = apiKeyGenerator.generateApiKey();
+      await container.resolve(ApiKeyRepository).create({
+        userId: user.id,
+        organizationId: personalOrganizationIdByUserId.get(user.id),
+        hashedKey: apiKeyGenerator.hashApiKeySha256(apiKey),
+        keyFormat: apiKeyGenerator.obfuscateApiKey(apiKey),
+        name: "ci"
+      });
+
+      return apiKey;
     }
 
     async function membershipsOf(user: UserOutput) {
@@ -346,6 +396,6 @@ describe("Invitations", () => {
       return row;
     }
 
-    return { organization, project, owner, invite, seedInvitee, request, membershipsOf, grantsOf, userOf };
+    return { organization, project, owner, invite, seedInvitee, seedApiKey, request, membershipsOf, grantsOf, userOf };
   }
 });

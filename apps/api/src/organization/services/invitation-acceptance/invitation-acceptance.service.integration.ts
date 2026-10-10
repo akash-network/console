@@ -119,7 +119,7 @@ describe(InvitationAcceptanceService.name, () => {
     const personalOrganizationIds = new Map<string, string>();
 
     async function seedInvitee() {
-      const user = await seedUser({ userId: `auth0|${faker.string.alphanumeric(24)}`, email: faker.internet.email().toLowerCase() });
+      const user = await seedUser({ userId: `auth0|${faker.string.alphanumeric(24)}`, email: faker.internet.email().toLowerCase(), emailVerified: true });
       const personal = await seedOrganization({ type: "personal", createdByUserId: user.id });
       await seedOrganizationMember({ organizationId: personal.id, userId: user.id, role: "owner" });
       personalOrganizationIds.set(user.id, personal.id);

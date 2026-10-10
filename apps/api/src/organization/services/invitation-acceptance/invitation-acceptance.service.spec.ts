@@ -156,18 +156,19 @@ describe(InvitationAcceptanceService.name, () => {
     });
 
     it.each([
-      { case: "another email", email: "joe@example.com" },
-      { case: "no email", email: null }
-    ])("refuses an invitee with $case until they confirm", async ({ email }) => {
+      { case: "another email", email: "joe@example.com", emailVerified: true },
+      { case: "no email", email: null, emailVerified: true },
+      { case: "the invited email not verified", email: "jane@example.com", emailVerified: false }
+    ])("refuses an invitee with $case until they confirm", async ({ email, emailVerified }) => {
       const { service, unscopedRepositories, userRepository } = setup({
         invitation: createOrganizationInvitation({ email: "jane@example.com" }),
-        invitee: { email }
+        invitee: { email, emailVerified }
       });
 
       await expect(service.acceptInvitation({ token: createInvitationToken() })).rejects.toMatchObject({
         status: 409,
         errorCode: INVITATION_EMAIL_MISMATCH_ERROR_CODE,
-        message: "The invitation was sent to another email address"
+        message: "The invitation was sent to an email address this account has not verified"
       });
       expect(unscopedRepositories.members.createUnlessExists).not.toHaveBeenCalled();
       expect(unscopedRepositories.invitations.updateById).not.toHaveBeenCalled();
@@ -288,7 +289,7 @@ describe(InvitationAcceptanceService.name, () => {
     liveProjectIds?: string[];
     context?: OrganizationContext | null;
   }) {
-    const invitee = createUser({ email: input.invitation?.email ?? faker.internet.email(), ...input.invitee });
+    const invitee = createUser({ email: input.invitation?.email ?? faker.internet.email(), emailVerified: true, ...input.invitee });
     const unscopedRepositories = {
       invitations: mock<OrganizationInvitationRepository>({
         findPreviewByTokenHash: vi.fn().mockResolvedValue(input.preview),

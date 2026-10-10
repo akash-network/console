@@ -34,7 +34,7 @@ export interface AcceptInvitationInput {
   confirmEmailMismatch?: boolean;
 }
 
-type Invitee = Pick<UserOutput, "id" | "email">;
+type Invitee = Pick<UserOutput, "id" | "email" | "emailVerified">;
 
 @singleton()
 export class InvitationAcceptanceService {
@@ -134,13 +134,13 @@ function assertAcceptable(invitation: OrganizationInvitationOutput, status: Invi
     throw createError(410, "The invitation has expired", { errorCode: INVITATION_EXPIRED_ERROR_CODE });
   }
 
-  if (status === "pending" && !confirmEmailMismatch && !isInvitedAddress(invitation, invitee)) {
-    throw createError(409, "The invitation was sent to another email address", { errorCode: INVITATION_EMAIL_MISMATCH_ERROR_CODE });
+  if (status === "pending" && !confirmEmailMismatch && !isVerifiedInvitedAddress(invitation, invitee)) {
+    throw createError(409, "The invitation was sent to an email address this account has not verified", { errorCode: INVITATION_EMAIL_MISMATCH_ERROR_CODE });
   }
 }
 
-function isInvitedAddress(invitation: OrganizationInvitationOutput, invitee: Invitee): boolean {
-  return invitee.email?.trim().toLowerCase() === invitation.email;
+function isVerifiedInvitedAddress(invitation: OrganizationInvitationOutput, invitee: Invitee): boolean {
+  return invitee.emailVerified && invitee.email?.trim().toLowerCase() === invitation.email;
 }
 
 function alreadyAccepted() {

@@ -3,7 +3,7 @@ import { container } from "tsyringe";
 import { createRoute } from "@src/core/lib/create-route/create-route";
 import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
 import { OpenApiHonoHandler } from "@src/core/services/open-api-hono-handler/open-api-hono-handler";
-import { SECURITY_BEARER_OR_API_KEY, SECURITY_NONE } from "@src/core/services/openapi-docs/openapi-security";
+import { SECURITY_BEARER, SECURITY_NONE } from "@src/core/services/openapi-docs/openapi-security";
 import { InvitationController } from "@src/organization/controllers/invitation/invitation.controller";
 import {
   AcceptInvitationRequestSchema,
@@ -47,7 +47,7 @@ const acceptInvitationRoute = createRoute({
   operationId: "acceptInvitation",
   summary: "Join the organization of an invitation with the role and project access it grants",
   tags: ["Organizations"],
-  security: SECURITY_BEARER_OR_API_KEY,
+  security: SECURITY_BEARER,
   featureFlag: FeatureFlags.ORGANIZATIONS,
   request: {
     body: { required: true, content: { "application/json": { schema: AcceptInvitationRequestSchema } } }
@@ -56,6 +56,7 @@ const acceptInvitationRoute = createRoute({
     200: { description: "The organization the caller now belongs to", content: { "application/json": { schema: AcceptInvitationResponseSchema } } },
     400: { description: "The token is not an invitation token" },
     401: { description: "Unauthorized" },
+    403: { description: "Requested with an API key instead of a signed-in session" },
     404: { description: "No invitation has this token" },
     409: { description: "The invitation was sent to another email address and the caller did not confirm, or someone else already accepted it" },
     410: { description: "The invitation expired or was revoked" }
@@ -65,5 +66,5 @@ const acceptInvitationRoute = createRoute({
 invitationsRouter.openapi(acceptInvitationRoute, async function routeAcceptInvitation(c) {
   const { data } = c.req.valid("json");
 
-  return c.json(await container.resolve(InvitationController).accept(data), 200);
+  return c.json(await container.resolve(InvitationController).accept(data, { authMethod: c.get("authMethod") }), 200);
 });

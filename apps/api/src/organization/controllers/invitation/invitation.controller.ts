@@ -1,6 +1,8 @@
+import assert from "http-assert";
 import { singleton } from "tsyringe";
 
 import { Protected } from "@src/auth/services/auth.service";
+import type { AuthMethod } from "@src/core/types/app-context";
 import { toOrganizationResponse } from "@src/organization/controllers/organization/organization.controller";
 import type {
   AcceptInvitationRequest,
@@ -21,7 +23,9 @@ export class InvitationController {
   }
 
   @Protected()
-  async accept(input: AcceptInvitationRequest["data"]): Promise<AcceptInvitationResponse> {
+  async accept(input: AcceptInvitationRequest["data"], origin: { authMethod?: AuthMethod }): Promise<AcceptInvitationResponse> {
+    assert(origin.authMethod === "bearer", 403, "An invitation can only be accepted from a signed-in Console session.", { errorCode: "session_required" });
+
     return { data: toOrganizationResponse(await this.invitationAcceptanceService.acceptInvitation(input)) };
   }
 }
