@@ -1,8 +1,10 @@
-import { defineAbility } from "@casl/ability";
 import type { CustomDecorator } from "@nestjs/common";
 import { CallHandler, ExecutionContext, Injectable, NestInterceptor, SetMetadata, UnauthorizedException } from "@nestjs/common";
 import { Observable, of } from "rxjs";
 import { Err } from "ts-results";
+
+import { abilityFor } from "@src/interfaces/rest/services/auth/request-ability";
+import { readRequestIdentity } from "@src/interfaces/rest/services/auth/request-identity";
 
 const UNPROTECTED = "UNPROTECTED";
 export const Unprotected = (): CustomDecorator<typeof UNPROTECTED> => SetMetadata(UNPROTECTED, true);
@@ -17,18 +19,13 @@ export class AuthInterceptor implements NestInterceptor {
     }
 
     const request = context.switchToHttp().getRequest();
-    const userId = request.headers["x-user-id"];
+    const identity = readRequestIdentity(request.headers);
 
-    if (!userId) {
+    if (!identity) {
       return of(Err(new UnauthorizedException()));
     }
 
-    request.ability = defineAbility(can => {
-      can("manage", "NotificationChannel", { userId });
-      can(["create", "read", "delete"], "Alert", { userId });
-      can("update", "Alert", ["enabled", "name", "notificationChannelId", "conditions"], { userId });
-      can("manage", "DeploymentAlert", { userId });
-    });
+    request.ability = abilityFor(identity);
 
     return next.handle();
   }

@@ -74,7 +74,8 @@ export class NotificationChannelController {
       data: await this.notificationChannelRepository.accessibleBy(this.authService.ability, "create").create({
         ...data,
         isDefault: data.isDefault ?? false,
-        userId: this.authService.userId
+        userId: this.authService.userId,
+        organizationId: this.authService.organizationId
       })
     });
   }
@@ -83,10 +84,12 @@ export class NotificationChannelController {
   @HttpCode(204)
   @ApiNoContentResponse({ description: "Creates the default notification channel only if it doesn't exist." })
   async createDefaultNotificationChannel(@Body() { data }: NotificationChannelCreateDefaultInput): Promise<Result<void, unknown>> {
-    await this.notificationChannelRepository.accessibleBy(this.authService.ability, "create").createDefaultChannel({
-      ...data,
-      userId: this.authService.userId
-    });
+    await this.notificationChannelRepository
+      .accessibleBy(this.authService.ability, "create")
+      .createDefaultChannel(
+        { ...data, userId: this.authService.userId, organizationId: this.authService.organizationId },
+        this.authService.defaultChannelOwner
+      );
 
     return Ok(undefined);
   }

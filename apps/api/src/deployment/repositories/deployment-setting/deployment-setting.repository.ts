@@ -11,6 +11,7 @@ import { mergeLeaseGpuOffers } from "@src/deployment/lib/lease-gpu-offers/lease-
 import { mergeLeaseGpuReadings } from "@src/deployment/lib/lease-gpu-readings/lease-gpu-readings";
 import type { GpuProbeSource, LeaseGpuOffer, LeaseGpuReading } from "@src/deployment/model-schemas";
 import { NVIDIA_DRIVER_VERSION } from "@src/gpu/lib/cuda-version/cuda-version";
+import { Organizations, type OrganizationType } from "@src/organization/model-schemas/organization/organization.schema";
 import { Users } from "@src/user/model-schemas";
 
 type Table = ApiPgTables["DeploymentSettings"];
@@ -21,6 +22,7 @@ export type DeploymentSettingsOutput = Omit<DeploymentSettingsDbOutput, "created
   updatedAt: string;
 };
 
+export type DeploymentTenancy = Pick<DeploymentSettingsDbOutput, "organizationId" | "projectId"> & { organizationType: OrganizationType | null };
 export type RecentNvidiaDriver = { driverVersion: string; lastSeenDate: string };
 
 const NVIDIA_PROBE_SOURCE = "nvidia-smi" satisfies GpuProbeSource;
@@ -179,6 +181,28 @@ export class DeploymentSettingRepository extends BaseRepository<Table, Deploymen
       .where(this.whereAccessibleBy(and(eq(this.table.userId, userId), inArray(this.table.dseq, dseqs))));
 
     return new Map(rows.map(({ dseq, ...setting }) => [dseq, setting]));
+  }
+
+  /** Where a user's deployment is filed, absent when the console holds no row for it. */
+  async findTenancy({ userId, dseq }: { userId: string; dseq: string }): Promise<DeploymentTenancy | undefined> {
+    const [tenancy] = await this.cursor
+      .select({ organizationId: this.table.organizationId, organizationType: Organizations.type, projectId: this.table.projectId })
+      .from(this.table)
+      .leftJoin(Organizations, eq(Organizations.id, this.table.organizationId))
+      .where(and(eq(this.table.userId, userId), eq(this.table.dseq, dseq)))
+      .limit(1);
+
+    return tenancy;
+  }
+
+  /** The projects of the organization's deployments with this dseq, one per owner holding it. */
+  async findProjectIdsByDseq({ organizationId, dseq }: { organizationId: string; dseq: string }): Promise<(string | null)[]> {
+    const rows = await this.cursor
+      .select({ projectId: this.table.projectId })
+      .from(this.table)
+      .where(and(eq(this.table.organizationId, organizationId), eq(this.table.dseq, dseq)));
+
+    return rows.map(row => row.projectId);
   }
 
   /** Under the same double scoping as {@link findNamesByDseqs}; the null-name condition is what lets the partial index on named rows serve it. */

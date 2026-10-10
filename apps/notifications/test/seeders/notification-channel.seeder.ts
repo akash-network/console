@@ -8,6 +8,7 @@ export const generateNotificationChannel = ({
   id = faker.string.uuid(),
   name = faker.lorem.word(),
   userId = faker.string.uuid(),
+  organizationId = null,
   type = faker.helpers.arrayElement<NotificationChannelOutput["type"]>(["email"]),
   config = generateMock(notificationChannelConfigSchema),
   isDefault = faker.datatype.boolean(),
@@ -17,6 +18,7 @@ export const generateNotificationChannel = ({
   return {
     id,
     userId,
+    organizationId,
     name,
     type,
     config,

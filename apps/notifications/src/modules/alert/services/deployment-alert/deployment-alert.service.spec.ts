@@ -32,13 +32,17 @@ describe(DeploymentAlertService.name, () => {
         })
         .mockResolvedValueOnce(output);
       const userId = faker.string.uuid();
+      const organizationId = faker.string.uuid();
+      const projectId = faker.string.uuid();
 
-      const result = await service.upsert(input, { ability: {} as MongoAbility, userId });
+      const result = await service.upsert(input, { ability: {} as MongoAbility, userId, organizationId, projectId });
 
       expect(result).toEqual(Ok(output));
       expect(alertRepository.create).toHaveBeenCalledWith({
         name: `Deployment ${input.dseq} balance`,
         userId,
+        organizationId,
+        projectId,
         notificationChannelId: input.alerts.deploymentBalance.notificationChannelId,
         enabled: input.alerts.deploymentBalance.enabled,
         type: "DEPLOYMENT_BALANCE",
@@ -57,6 +61,8 @@ describe(DeploymentAlertService.name, () => {
       expect(alertRepository.create).toHaveBeenCalledWith({
         name: `Deployment ${input.dseq} closed`,
         userId,
+        organizationId,
+        projectId,
         notificationChannelId: input.alerts.deploymentClosed.notificationChannelId,
         enabled: input.alerts.deploymentClosed.enabled,
         type: "CHAIN_EVENT",
@@ -113,7 +119,7 @@ describe(DeploymentAlertService.name, () => {
       vi.spyOn(service, "get").mockResolvedValueOnce(existing).mockResolvedValueOnce(output);
       const userId = faker.string.uuid();
 
-      const result = await service.upsert(input, { ability: {} as MongoAbility, userId });
+      const result = await service.upsert(input, { ability: {} as MongoAbility, userId, organizationId: null, projectId: null });
 
       expect(result).toEqual(Ok(output));
       expect(alertRepository.updateById).toHaveBeenCalledWith(existing.alerts.deploymentBalance.id, {
@@ -148,7 +154,7 @@ describe(DeploymentAlertService.name, () => {
 
       vi.spyOn(service, "get").mockResolvedValue(existing);
 
-      const result = await service.upsert(input, { ability: {} as MongoAbility, userId: faker.string.uuid() });
+      const result = await service.upsert(input, { ability: {} as MongoAbility, userId: faker.string.uuid(), organizationId: null, projectId: null });
 
       expect(result.ok).toBe(true);
       expect(alertRepository.updateById).toHaveBeenCalledWith(existing.alerts.deploymentClosed.id, {
@@ -174,7 +180,7 @@ describe(DeploymentAlertService.name, () => {
 
       vi.spyOn(service, "get").mockResolvedValue(existing);
 
-      const result = await service.upsert(input, { ability: {} as MongoAbility, userId: faker.string.uuid() });
+      const result = await service.upsert(input, { ability: {} as MongoAbility, userId: faker.string.uuid(), organizationId: null, projectId: null });
 
       expect(result.ok).toBe(false);
       expect(alertRepository.updateById).not.toHaveBeenCalled();

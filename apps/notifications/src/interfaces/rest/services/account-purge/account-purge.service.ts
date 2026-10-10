@@ -25,10 +25,10 @@ export class AccountPurgeService {
    * Wraps both deletes in a single transaction so partial state is impossible.
    * Alerts are deleted before channels — alerts FK channels with no cascade.
    */
-  async purge(userId: string): Promise<AccountPurgeResult> {
+  async purge(userId: string, personalOrganizationId: string | null): Promise<AccountPurgeResult> {
     return this.db.transaction(async tx => {
-      const alertsDeleted = await this.alertRepository.deleteAllByUserId(userId, tx);
-      const channelsDeleted = await this.notificationChannelRepository.deleteAllByUserId(userId, tx);
+      const alertsDeleted = await this.alertRepository.deletePersonalByUserId(userId, personalOrganizationId, tx);
+      const channelsDeleted = await this.notificationChannelRepository.deletePersonalByUserId(userId, personalOrganizationId, tx);
       return { alertsDeleted, channelsDeleted };
     });
   }

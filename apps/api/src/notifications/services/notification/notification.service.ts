@@ -3,9 +3,20 @@ import { ExponentialBackoff, handleAll, retry, type RetryPolicy } from "cockatie
 import { inject, singleton } from "tsyringe";
 
 import { type CreateLogger, LOGGER_FACTORY } from "@src/core/providers/logging.provider";
+import { DeploymentSettingRepository } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
+import { NOTIFICATIONS_IDENTITY_HEADERS } from "@src/notifications/lib/identity-headers/identity-headers";
+import { OrganizationRepository } from "@src/organization/repositories/organization/organization.repository";
 import { UserRepository } from "@src/user/repositories";
 import type { NotificationsApiClient, NotificationsInternalApiClient, NotificationsInternalOperationDefs } from "../../providers/notifications-api.provider";
 import { NOTIFICATIONS_API_CLIENT, NOTIFICATIONS_INTERNAL_API_CLIENT } from "../../providers/notifications-api.provider";
+
+const CHANNELS_CONSIDERED_FOR_AUTO_ENABLED_ALERTS = 100;
+
+const TEAM_DEPLOYMENT_ALERTS_CHANNEL_NAME = "Deployment alerts";
+
+function preferredChannelId(channels: { id: string; isDefault?: boolean }[] | undefined): string | undefined {
+  return (channels?.find(channel => channel.isDefault) ?? channels?.[0])?.id;
+}
 
 @singleton()
 export class NotificationService {
@@ -16,6 +27,8 @@ export class NotificationService {
     @inject(NOTIFICATIONS_API_CLIENT) private readonly notificationsApi: NotificationsApiClient,
     @inject(NOTIFICATIONS_INTERNAL_API_CLIENT) private readonly notificationsInternalApi: NotificationsInternalApiClient,
     private readonly userRepository: UserRepository,
+    private readonly organizationRepository: OrganizationRepository,
+    private readonly deploymentSettingRepository: DeploymentSettingRepository,
     @inject(LOGGER_FACTORY) createLogger: CreateLogger
   ) {
     this.#logger = createLogger({ context: "NotificationService" });
@@ -31,9 +44,10 @@ export class NotificationService {
   async createNotification(input: CreateNotificationInput): Promise<void> {
     const { user, ...notification } = input;
     let defaultChannelCreated = false;
+    const headers = await this.#userIdentityHeaders(user.id);
     await this.#retryPolicy.execute(async () => {
       try {
-        await this.notificationsInternalApi.v1.createNotification(notification, { headers: { "x-user-id": user.id } });
+        await this.notificationsInternalApi.v1.createNotification(notification, { headers });
       } catch (error) {
         if (!defaultChannelCreated && extractApiErrorCode(error) === "NOTIFICATION_CHANNEL_NOT_FOUND" && user.email) {
           await this.createDefaultChannel(user);
@@ -45,11 +59,12 @@ export class NotificationService {
   }
 
   async createDefaultChannel(user: UserInput): Promise<void> {
+    const headers = await this.#userIdentityHeaders(user.id);
     await this.#retryPolicy.execute(async () => {
       try {
         await this.notificationsApi.v1.createDefaultNotificationChannel(
           { data: { name: "Default", type: "email", config: { addresses: [user.email!] } } },
-          { headers: { "x-user-id": user.id } }
+          { headers }
         );
       } catch (error) {
         throw new Error("Failed to create default notification channel", { cause: error });
@@ -57,8 +72,10 @@ export class NotificationService {
     });
   }
 
-  async purgeUserData(userId: string): Promise<void> {
-    await this.#retryPolicy.execute(async () => this.notificationsInternalApi.v1.purge({ userId }));
+  /** The personal organization tells the notifications service which of the user's rows to purge: those of team organizations stay with them. */
+  async purgeUserData(userId: string, personalOrganizationId: string | null): Promise<void> {
+    const headers: Record<string, string> = personalOrganizationId ? { [NOTIFICATIONS_IDENTITY_HEADERS.organizationId]: personalOrganizationId } : {};
+    await this.#retryPolicy.execute(async () => this.notificationsInternalApi.v1.purge({ userId }, { headers }));
   }
 
   async autoEnableDeploymentAlert(input: AutoEnableDeploymentAlertInput): Promise<void> {
@@ -68,22 +85,21 @@ export class NotificationService {
       return;
     }
 
-    const channelId = await this.getOrCreateNotificationChannelId(input.userId, user.email);
+    const deploymentHeaders = await this.#deploymentIdentityHeaders(input);
+    const channelId =
+      deploymentHeaders[NOTIFICATIONS_IDENTITY_HEADERS.organizationType] === "team"
+        ? await this.#getOrCreateTeamChannelId(deploymentHeaders, user.email)
+        : await this.getOrCreateNotificationChannelId(deploymentHeaders, input.userId, user.email);
     if (!channelId) {
       this.#logger.warn({ event: "SKIP_AUTO_ENABLE_ALERT", reason: "No channel found after creation", userId: input.userId });
       return;
     }
 
-    await this.upsertDeploymentClosedAlert({
-      userId: input.userId,
-      walletAddress: input.walletAddress,
-      dseq: input.dseq,
-      channelId
-    });
+    await this.upsertDeploymentClosedAlert(deploymentHeaders, { walletAddress: input.walletAddress, dseq: input.dseq, channelId });
   }
 
-  private async getOrCreateNotificationChannelId(userId: string, email: string): Promise<string | undefined> {
-    let channels = await this.getNotificationChannels(userId);
+  private async getOrCreateNotificationChannelId(deploymentHeaders: Record<string, string>, userId: string, email: string): Promise<string | undefined> {
+    let channels = await this.getNotificationChannels(deploymentHeaders);
 
     if (!channels?.data?.length) {
       // Treat the create as best-effort: a concurrent autoEnableDeploymentAlert for the
@@ -92,19 +108,39 @@ export class NotificationService {
       await this.createDefaultChannel({ id: userId, email }).catch(error => {
         this.#logger.debug({ event: "AUTO_ENABLE_ALERT_CHANNEL_CREATE_FAILED", userId, error });
       });
-      channels = await this.getNotificationChannels(userId);
+      channels = await this.getNotificationChannels(deploymentHeaders);
     }
 
-    return channels?.data?.[0]?.id;
+    return preferredChannelId(channels?.data);
   }
 
-  private async getNotificationChannels(userId: string) {
+  /** Notifies whoever deployed, through a channel of the deployment's organization, until teams choose their deployment alert recipients; re-lists after creating so concurrent leases converge on the oldest channel. */
+  async #getOrCreateTeamChannelId(deploymentHeaders: Record<string, string>, email: string): Promise<string> {
+    const channels = await this.getNotificationChannels(deploymentHeaders);
+    const existingChannelId = preferredChannelId(channels?.data);
+
+    if (existingChannelId) {
+      return existingChannelId;
+    }
+
+    const { data: created } = await this.#retryPolicy.execute(async () =>
+      this.notificationsApi.v1.createNotificationChannel(
+        { data: { name: TEAM_DEPLOYMENT_ALERTS_CHANNEL_NAME, type: "email", config: { addresses: [email] }, isDefault: false } },
+        { headers: deploymentHeaders }
+      )
+    );
+    const channelsAfterCreate = await this.getNotificationChannels(deploymentHeaders);
+
+    return preferredChannelId(channelsAfterCreate?.data) ?? created.id;
+  }
+
+  private async getNotificationChannels(headers: Record<string, string>) {
     return this.#retryPolicy.execute(async () => {
-      return this.notificationsApi.v1.listNotificationChannels({ page: 1, limit: 1 }, { headers: { "x-user-id": userId } });
+      return this.notificationsApi.v1.listNotificationChannels({ page: 1, limit: CHANNELS_CONSIDERED_FOR_AUTO_ENABLED_ALERTS }, { headers });
     });
   }
 
-  private async upsertDeploymentClosedAlert(input: { userId: string; walletAddress: string; dseq: string; channelId: string }) {
+  private async upsertDeploymentClosedAlert(headers: Record<string, string>, input: { walletAddress: string; dseq: string; channelId: string }) {
     await this.#retryPolicy.execute(async () =>
       this.notificationsApi.v1.upsertDeploymentAlert(
         {
@@ -115,9 +151,34 @@ export class NotificationService {
             }
           }
         },
-        { headers: { "x-owner-address": input.walletAddress, "x-user-id": input.userId } }
+        { headers: { ...headers, [NOTIFICATIONS_IDENTITY_HEADERS.ownerAddress]: input.walletAddress } }
       )
     );
+  }
+
+  /** Attributes what the user writes outside a request to their personal organization, which keeps transactional emails on their own default channel. */
+  async #userIdentityHeaders(userId: string): Promise<Record<string, string>> {
+    const organization = await this.organizationRepository.findPersonalByUserId(userId);
+    const headers = { [NOTIFICATIONS_IDENTITY_HEADERS.userId]: userId };
+
+    return organization
+      ? { ...headers, [NOTIFICATIONS_IDENTITY_HEADERS.organizationId]: organization.id, [NOTIFICATIONS_IDENTITY_HEADERS.organizationType]: organization.type }
+      : headers;
+  }
+
+  async #deploymentIdentityHeaders({ userId, dseq }: { userId: string; dseq: string }): Promise<Record<string, string>> {
+    const tenancy = await this.deploymentSettingRepository.findTenancy({ userId, dseq });
+
+    if (!tenancy?.organizationId) {
+      return this.#userIdentityHeaders(userId);
+    }
+
+    return {
+      [NOTIFICATIONS_IDENTITY_HEADERS.userId]: userId,
+      [NOTIFICATIONS_IDENTITY_HEADERS.organizationId]: tenancy.organizationId,
+      ...(tenancy.organizationType && { [NOTIFICATIONS_IDENTITY_HEADERS.organizationType]: tenancy.organizationType }),
+      ...(tenancy.projectId && { [NOTIFICATIONS_IDENTITY_HEADERS.projectId]: tenancy.projectId })
+    };
   }
 }
 

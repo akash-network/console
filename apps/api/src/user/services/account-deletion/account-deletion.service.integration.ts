@@ -94,6 +94,7 @@ describe(AccountDeletionService.name, () => {
       userId: account.user.id,
       auth0UserId: account.user.userId,
       stripeCustomerId: account.user.stripeCustomerId,
+      personalOrganizationId: account.organization.id,
       version: 1
     });
   });

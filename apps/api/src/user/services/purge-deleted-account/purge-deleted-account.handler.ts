@@ -17,6 +17,7 @@ export class PurgeDeletedAccount implements Job {
       userId: string;
       auth0UserId: string | null;
       stripeCustomerId: string | null;
+      personalOrganizationId?: string | null;
     }
   ) {}
 }
@@ -53,7 +54,7 @@ export class PurgeDeletedAccountHandler implements JobHandler<PurgeDeletedAccoun
 
   /** Every step is idempotent, so a retry after a partial failure safely repeats the steps that already succeeded. */
   async handle(payload: JobPayload<PurgeDeletedAccount>): Promise<void> {
-    const { userId, auth0UserId, stripeCustomerId } = payload;
+    const { userId, auth0UserId, stripeCustomerId, personalOrganizationId = null } = payload;
     const failedSteps: PurgeStep[] = [];
 
     const runStep = async (step: PurgeStep, purge: () => Promise<void>) => {
@@ -71,7 +72,7 @@ export class PurgeDeletedAccountHandler implements JobHandler<PurgeDeletedAccoun
       }
     };
 
-    await runStep("notifications", () => this.notificationService.purgeUserData(userId));
+    await runStep("notifications", () => this.notificationService.purgeUserData(userId, personalOrganizationId));
     if (auth0UserId) await runStep("auth0", () => this.auth0Service.deleteUser(auth0UserId));
     if (stripeCustomerId) await runStep("stripe", () => this.customerService.deleteCustomer(stripeCustomerId));
 

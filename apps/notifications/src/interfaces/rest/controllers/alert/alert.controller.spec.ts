@@ -25,8 +25,8 @@ import { generateWalletBalanceAlert } from "@test/seeders/wallet-balance-alert.s
 
 describe(AlertController.name, () => {
   describe("createAlert", () => {
-    it("should call alertRepository.create() and return the created alert", async () => {
-      const { controller, alertRepository, userId } = await setup();
+    it("creates the alert stamped with the request's user, organization and project", async () => {
+      const { controller, alertRepository, userId, organizationId, projectId } = await setup();
 
       const input = generateMock(chainMessageCreateInputSchema);
       const output = generateGeneralAlert({});
@@ -37,19 +37,21 @@ describe(AlertController.name, () => {
 
       expect(alertRepository.create).toHaveBeenCalledWith({
         ...input,
-        userId
+        userId,
+        organizationId,
+        projectId
       });
       expect(result).toEqual(Ok({ data: output }));
     });
 
     it("throws NotFoundException and does not create when the notification channel is not owned by the user", async () => {
-      const { controller, alertRepository, notificationChannelRepository } = await setup();
+      const { controller, alertRepository, notificationChannelRepository, organizationId } = await setup();
 
       const input = generateMock(chainMessageCreateInputSchema);
-      notificationChannelRepository.findById.mockResolvedValue(undefined);
+      notificationChannelRepository.findAttachableById.mockResolvedValue(undefined);
 
       await expect(controller.createAlert({ data: input })).rejects.toThrow("Notification channel not found");
-      expect(notificationChannelRepository.findById).toHaveBeenCalledWith(input.notificationChannelId);
+      expect(notificationChannelRepository.findAttachableById).toHaveBeenCalledWith(input.notificationChannelId, { organizationId, acceptsUnattributed: true });
       expect(alertRepository.create).not.toHaveBeenCalled();
     });
   });
@@ -86,14 +88,14 @@ describe(AlertController.name, () => {
     });
 
     it("throws NotFoundException and does not update when the notification channel is not owned by the user", async () => {
-      const { controller, alertRepository, notificationChannelRepository } = await setup();
+      const { controller, alertRepository, notificationChannelRepository, organizationId } = await setup();
 
       const id = faker.string.uuid();
       const input = generateMock(chainMessageCreateInputSchema);
-      notificationChannelRepository.findById.mockResolvedValue(undefined);
+      notificationChannelRepository.findAttachableById.mockResolvedValue(undefined);
 
       await expect(controller.updateAlert(id, { data: input })).rejects.toThrow("Notification channel not found");
-      expect(notificationChannelRepository.findById).toHaveBeenCalledWith(input.notificationChannelId);
+      expect(notificationChannelRepository.findAttachableById).toHaveBeenCalledWith(input.notificationChannelId, { organizationId, acceptsUnattributed: true });
       expect(alertRepository.updateById).not.toHaveBeenCalled();
     });
 
@@ -255,15 +257,22 @@ describe(AlertController.name, () => {
     alertRepository: MockProxy<AlertRepository>;
     notificationChannelRepository: MockProxy<NotificationChannelRepository>;
     userId: string;
+    organizationId: string;
+    projectId: string;
   }> {
     const userId = faker.string.uuid();
+    const organizationId = faker.string.uuid();
+    const projectId = faker.string.uuid();
     const module: TestingModule = await Test.createTestingModule({
       controllers: [AlertController],
       providers: [
         {
           provide: AuthService,
           useValue: {
-            userId
+            userId,
+            organizationId,
+            projectId,
+            reachesUnattributedRows: true
           }
         },
         MockProvider(AlertRepository),
@@ -277,7 +286,7 @@ describe(AlertController.name, () => {
 
     const notificationChannelRepository = module.get<MockProxy<NotificationChannelRepository>>(NotificationChannelRepository);
     notificationChannelRepository.accessibleBy.mockReturnValue(notificationChannelRepository);
-    notificationChannelRepository.findById.mockResolvedValue(mock<NotificationChannelOutput>());
+    notificationChannelRepository.findAttachableById.mockResolvedValue(mock<NotificationChannelOutput>());
 
     const app = module.createNestApplication();
     app.enableVersioning();
@@ -290,6 +299,8 @@ describe(AlertController.name, () => {
       controller: module.get(AlertController),
       app,
       userId,
+      organizationId,
+      projectId,
       alertRepository,
       notificationChannelRepository
     };

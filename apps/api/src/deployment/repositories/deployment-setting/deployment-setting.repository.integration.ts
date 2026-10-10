@@ -18,6 +18,7 @@ import { DeploymentSettingRepository } from "./deployment-setting.repository";
 
 import { createAkashAddress } from "@test/seeders/akash-address.seeder";
 import { seedDeploymentSetting } from "@test/seeders/db/deployment-setting.seeder";
+import { seedOrganization, seedProject } from "@test/seeders/db/organization.seeder";
 import { createLeaseGpuOffer } from "@test/seeders/lease-gpu-offer.seeder";
 import { createLeaseGpuReading } from "@test/seeders/lease-gpu-reading.seeder";
 
@@ -732,6 +733,52 @@ describe(DeploymentSettingRepository.name, () => {
       const settings = await deploymentSettingRepository.accessibleBy(abilityFor(user), "read").findListedSettings({ userId: user.id, dseqs: [] });
 
       expect(settings.size).toBe(0);
+    });
+  });
+
+  describe("findTenancy", () => {
+    it("reads the organization, its type and the project a user's deployment is filed in", async () => {
+      const { deploymentSettingRepository, user } = await setup();
+      const organization = await seedOrganization();
+      const project = await seedProject({ organizationId: organization.id });
+      const dseq = newDseq();
+      await seedDeploymentSetting({ userId: user.id, dseq, organizationId: organization.id, projectId: project.id });
+
+      const tenancy = await deploymentSettingRepository.findTenancy({ userId: user.id, dseq });
+
+      expect(tenancy).toEqual({ organizationId: organization.id, organizationType: "team", projectId: project.id });
+    });
+
+    it("ignores another user's deployment with the same dseq", async () => {
+      const { deploymentSettingRepository, user, trialUser } = await setup();
+      const dseq = newDseq();
+      await seedDeploymentSetting({ userId: trialUser.id, dseq, organizationId: (await seedOrganization()).id });
+
+      expect(await deploymentSettingRepository.findTenancy({ userId: user.id, dseq })).toBeUndefined();
+    });
+  });
+
+  describe("findProjectIdsByDseq", () => {
+    it("reads the projects of the organization's deployments with the dseq", async () => {
+      const { deploymentSettingRepository, user, trialUser } = await setup();
+      const organization = await seedOrganization();
+      const project = await seedProject({ organizationId: organization.id });
+      const dseq = newDseq();
+      await seedDeploymentSetting({ userId: user.id, dseq, organizationId: organization.id, projectId: project.id });
+      await seedDeploymentSetting({ userId: trialUser.id, dseq, organizationId: organization.id });
+      await seedDeploymentSetting({ userId: user.id, dseq: newDseq(), organizationId: organization.id, projectId: project.id });
+
+      const projectIds = await deploymentSettingRepository.findProjectIdsByDseq({ organizationId: organization.id, dseq });
+
+      expect(projectIds.sort()).toEqual([project.id, null].sort());
+    });
+
+    it("ignores the deployments of other organizations", async () => {
+      const { deploymentSettingRepository, user } = await setup();
+      const dseq = newDseq();
+      await seedDeploymentSetting({ userId: user.id, dseq, organizationId: (await seedOrganization()).id });
+
+      expect(await deploymentSettingRepository.findProjectIdsByDseq({ organizationId: (await seedOrganization()).id, dseq })).toEqual([]);
     });
   });
 

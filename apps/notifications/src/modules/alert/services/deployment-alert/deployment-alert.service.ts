@@ -49,8 +49,12 @@ export type DeploymentAlertOutput = {
 
 type AuthMeta = {
   userId: string;
+  organizationId: string | null;
+  projectId: string | null;
   ability: MongoAbility;
 };
+
+type AlertOwnership = Pick<AuthMeta, "userId" | "organizationId" | "projectId">;
 
 interface RepositoryAlert {
   id: string;
@@ -119,7 +123,7 @@ export class DeploymentAlertService {
         }
       });
     } else {
-      await this.alertRepository.accessibleBy(auth.ability, "create", "DeploymentAlert").create(this.toBalanceRepositoryInput(input, auth.userId));
+      await this.alertRepository.accessibleBy(auth.ability, "create", "DeploymentAlert").create(this.toBalanceRepositoryInput(input, auth));
     }
   }
 
@@ -136,16 +140,21 @@ export class DeploymentAlertService {
         enabled: input.enabled
       });
     } else {
-      await this.alertRepository.accessibleBy(auth.ability, "create", "DeploymentAlert").create(this.toClosedRepositoryInput(input, auth.userId));
+      await this.alertRepository.accessibleBy(auth.ability, "create", "DeploymentAlert").create(this.toClosedRepositoryInput(input, auth));
     }
   }
 
-  private toBalanceRepositoryInput(input: DeploymentBalanceAlertInput & { dseq: string; owner: string }, userId: string): AlertInput {
+  private toBalanceRepositoryInput(
+    input: DeploymentBalanceAlertInput & { dseq: string; owner: string },
+    { userId, organizationId, projectId }: AlertOwnership
+  ): AlertInput {
     const { dseq, owner, threshold, notificationChannelId, enabled } = input;
     const consoleLink = this.getConsoleLink(dseq);
     return {
       name: `Deployment ${dseq} balance`,
       userId,
+      organizationId,
+      projectId,
       notificationChannelId,
       enabled,
       type: "DEPLOYMENT_BALANCE",
@@ -175,11 +184,16 @@ export class DeploymentAlertService {
     return `{{#if (eq data.cause "DEPLOYMENT_CLOSED")}}${templates.suspended}{{else}}{{#if (eq alert.next.status "TRIGGERED")}}${templates.triggered}{{else}}${templates.recovered}{{/if}}{{/if}}`;
   }
 
-  private toClosedRepositoryInput(input: DeploymentClosedAlertInput & { dseq: string; owner: string }, userId: string): AlertInput {
+  private toClosedRepositoryInput(
+    input: DeploymentClosedAlertInput & { dseq: string; owner: string },
+    { userId, organizationId, projectId }: AlertOwnership
+  ): AlertInput {
     const { dseq, owner, notificationChannelId, enabled } = input;
     return {
       name: `Deployment ${dseq} closed`,
       userId,
+      organizationId,
+      projectId,
       notificationChannelId,
       enabled,
       type: "CHAIN_EVENT",
