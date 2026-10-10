@@ -4,9 +4,9 @@ import { container } from "tsyringe";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { JOB_NAME } from "@src/core";
-import { supportMailboxUserId } from "@src/hardware-request/lib/support-mailbox-user-id/support-mailbox-user-id";
 import { HARDWARE_REQUEST_CONFIG } from "@src/hardware-request/providers/config.provider";
 import { HardwareRequestRepository } from "@src/hardware-request/repositories/hardware-request/hardware-request.repository";
+import { emailRecipientUserId } from "@src/notifications/lib/email-recipient-user-id/email-recipient-user-id";
 import { NOTIFICATIONS_CONFIG } from "@src/notifications/providers/notifications-config.provider";
 import { UserRepository } from "@src/user/repositories";
 import { HardwareRequestEmailHandler, HardwareRequestEmailJob } from "./hardware-request-email.handler";
@@ -33,7 +33,7 @@ describe(HardwareRequestEmailHandler.name, () => {
 
     expect(notifications).toEqual([
       {
-        userId: supportMailboxUserId(mailboxEmail),
+        userId: emailRecipientUserId(mailboxEmail),
         body: {
           notificationId: `hardwareRequest.${hardwareRequest.id}`,
           payload: {
@@ -61,7 +61,7 @@ describe(HardwareRequestEmailHandler.name, () => {
 
     expect(channels).toEqual([
       {
-        userId: supportMailboxUserId(mailboxEmail),
+        userId: emailRecipientUserId(mailboxEmail),
         body: { data: { name: "Default", type: "email", config: { addresses: [mailboxEmail] } } }
       }
     ]);
