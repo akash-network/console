@@ -19,7 +19,7 @@ export class AccountDeletionEligibilityService {
   ) {}
 
   async assess(userId: string): Promise<AccountDeletionEligibility> {
-    const wallet = await this.userWalletRepository.findOneByUserId(userId);
+    const wallet = await this.userWalletRepository.unscoped("account-deletion").findOneByUserId(userId);
     const isTrialing = wallet?.isTrialing ?? true;
 
     if (!wallet?.address) {
