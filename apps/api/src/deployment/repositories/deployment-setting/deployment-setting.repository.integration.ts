@@ -758,6 +758,30 @@ describe(DeploymentSettingRepository.name, () => {
     });
   });
 
+  describe("findProjectIdsByDseq", () => {
+    it("reads the projects of the organization's deployments with the dseq", async () => {
+      const { deploymentSettingRepository, user, trialUser } = await setup();
+      const organization = await seedOrganization();
+      const project = await seedProject({ organizationId: organization.id });
+      const dseq = newDseq();
+      await seedDeploymentSetting({ userId: user.id, dseq, organizationId: organization.id, projectId: project.id });
+      await seedDeploymentSetting({ userId: trialUser.id, dseq, organizationId: organization.id });
+      await seedDeploymentSetting({ userId: user.id, dseq: newDseq(), organizationId: organization.id, projectId: project.id });
+
+      const projectIds = await deploymentSettingRepository.findProjectIdsByDseq({ organizationId: organization.id, dseq });
+
+      expect(projectIds.sort()).toEqual([project.id, null].sort());
+    });
+
+    it("ignores the deployments of other organizations", async () => {
+      const { deploymentSettingRepository, user } = await setup();
+      const dseq = newDseq();
+      await seedDeploymentSetting({ userId: user.id, dseq, organizationId: (await seedOrganization()).id });
+
+      expect(await deploymentSettingRepository.findProjectIdsByDseq({ organizationId: (await seedOrganization()).id, dseq })).toEqual([]);
+    });
+  });
+
   describe("findNamesByDseqs", () => {
     it("reads the names of a whole page in one query, keyed by dseq", async () => {
       const { deploymentSettingRepository, user, abilityFor } = await setup();

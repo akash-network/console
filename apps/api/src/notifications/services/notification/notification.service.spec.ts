@@ -271,7 +271,7 @@ describe(NotificationService.name, () => {
       const teamHeaders = { "x-user-id": "user-1", "x-organization-id": "organization-1", "x-organization-type": "team", "x-project-id": "project-1" };
       userRepository.findById.mockResolvedValue({ id: "user-1", email: "user@example.com" } as UserOutput);
       deploymentSettingRepository.findTenancy.mockResolvedValue({ organizationId: "organization-1", organizationType: "team", projectId: "project-1" });
-      api.v1.listNotificationChannels.mockResolvedValue({ data: [] } as never);
+      api.v1.listNotificationChannels.mockResolvedValueOnce({ data: [] } as never).mockResolvedValueOnce({ data: [{ id: "team-channel" }] } as never);
       api.v1.createNotificationChannel.mockResolvedValue({ data: { id: "team-channel" } } as never);
 
       await service.autoEnableDeploymentAlert({ userId: "user-1", walletAddress: "akash1abc", dseq: "123" });
@@ -286,6 +286,54 @@ describe(NotificationService.name, () => {
         { dseq: "123", data: { alerts: { deploymentClosed: { notificationChannelId: "team-channel", enabled: true } } } },
         { headers: { ...teamHeaders, "x-owner-address": "akash1abc" } }
       );
+    });
+
+    it("converges on the oldest team channel when a concurrent lease created one too", async () => {
+      const { service, api, userRepository, deploymentSettingRepository } = setup();
+      userRepository.findById.mockResolvedValue({ id: "user-1", email: "user@example.com" } as UserOutput);
+      deploymentSettingRepository.findTenancy.mockResolvedValue({ organizationId: "organization-1", organizationType: "team", projectId: null });
+      api.v1.listNotificationChannels
+        .mockResolvedValueOnce({ data: [] } as never)
+        .mockResolvedValueOnce({ data: [{ id: "concurrent-channel" }, { id: "created-channel" }] } as never);
+      api.v1.createNotificationChannel.mockResolvedValue({ data: { id: "created-channel" } } as never);
+
+      await service.autoEnableDeploymentAlert({ userId: "user-1", walletAddress: "akash1abc", dseq: "123" });
+
+      expect(api.v1.upsertDeploymentAlert).toHaveBeenCalledWith(
+        { dseq: "123", data: { alerts: { deploymentClosed: { notificationChannelId: "concurrent-channel", enabled: true } } } },
+        expect.anything()
+      );
+    });
+
+    it("falls back to the created team channel when the re-list does not show it yet", async () => {
+      const { service, api, userRepository, deploymentSettingRepository } = setup();
+      userRepository.findById.mockResolvedValue({ id: "user-1", email: "user@example.com" } as UserOutput);
+      deploymentSettingRepository.findTenancy.mockResolvedValue({ organizationId: "organization-1", organizationType: "team", projectId: null });
+      api.v1.listNotificationChannels.mockResolvedValue({ data: [] } as never);
+      api.v1.createNotificationChannel.mockResolvedValue({ data: { id: "created-channel" } } as never);
+
+      await service.autoEnableDeploymentAlert({ userId: "user-1", walletAddress: "akash1abc", dseq: "123" });
+
+      expect(api.v1.upsertDeploymentAlert).toHaveBeenCalledWith(
+        { dseq: "123", data: { alerts: { deploymentClosed: { notificationChannelId: "created-channel", enabled: true } } } },
+        expect.anything()
+      );
+    });
+
+    it("retries creating the team channel when the notifications service fails", async () => {
+      vi.useFakeTimers();
+      const { service, api, userRepository, deploymentSettingRepository } = setup();
+      userRepository.findById.mockResolvedValue({ id: "user-1", email: "user@example.com" } as UserOutput);
+      deploymentSettingRepository.findTenancy.mockResolvedValue({ organizationId: "organization-1", organizationType: "team", projectId: null });
+      api.v1.listNotificationChannels.mockResolvedValue({ data: [] } as never);
+      api.v1.createNotificationChannel
+        .mockRejectedValueOnce(new ApiError(503, { message: "unavailable" }, "POST /v1/notification-channels → 503"))
+        .mockResolvedValueOnce({ data: { id: "created-channel" } } as never);
+
+      await Promise.all([service.autoEnableDeploymentAlert({ userId: "user-1", walletAddress: "akash1abc", dseq: "123" }), vi.runAllTimersAsync()]);
+
+      expect(api.v1.createNotificationChannel).toHaveBeenCalledTimes(2);
+      vi.useRealTimers();
     });
 
     it("uses the deployer's channel of a team deployment's organization when they have one", async () => {

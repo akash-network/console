@@ -114,7 +114,7 @@ export class NotificationService {
     return preferredChannelId(channels?.data);
   }
 
-  /** Notifies whoever deployed, through a channel of the deployment's organization, until teams choose their deployment alert recipients. */
+  /** Notifies whoever deployed, through a channel of the deployment's organization, until teams choose their deployment alert recipients; re-lists after creating so concurrent leases converge on the oldest channel. */
   async #getOrCreateTeamChannelId(deploymentHeaders: Record<string, string>, email: string): Promise<string> {
     const channels = await this.getNotificationChannels(deploymentHeaders);
     const existingChannelId = preferredChannelId(channels?.data);
@@ -123,12 +123,15 @@ export class NotificationService {
       return existingChannelId;
     }
 
-    const { data } = await this.notificationsApi.v1.createNotificationChannel(
-      { data: { name: TEAM_DEPLOYMENT_ALERTS_CHANNEL_NAME, type: "email", config: { addresses: [email] }, isDefault: false } },
-      { headers: deploymentHeaders }
+    const { data: created } = await this.#retryPolicy.execute(async () =>
+      this.notificationsApi.v1.createNotificationChannel(
+        { data: { name: TEAM_DEPLOYMENT_ALERTS_CHANNEL_NAME, type: "email", config: { addresses: [email] }, isDefault: false } },
+        { headers: deploymentHeaders }
+      )
     );
+    const channelsAfterCreate = await this.getNotificationChannels(deploymentHeaders);
 
-    return data.id;
+    return preferredChannelId(channelsAfterCreate?.data) ?? created.id;
   }
 
   private async getNotificationChannels(headers: Record<string, string>) {

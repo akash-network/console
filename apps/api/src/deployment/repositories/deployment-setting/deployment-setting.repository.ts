@@ -195,6 +195,16 @@ export class DeploymentSettingRepository extends BaseRepository<Table, Deploymen
     return tenancy;
   }
 
+  /** The projects of the organization's deployments with this dseq, one per owner holding it. */
+  async findProjectIdsByDseq({ organizationId, dseq }: { organizationId: string; dseq: string }): Promise<(string | null)[]> {
+    const rows = await this.cursor
+      .select({ projectId: this.table.projectId })
+      .from(this.table)
+      .where(and(eq(this.table.organizationId, organizationId), eq(this.table.dseq, dseq)));
+
+    return rows.map(row => row.projectId);
+  }
+
   /** Under the same double scoping as {@link findNamesByDseqs}; the null-name condition is what lets the partial index on named rows serve it. */
   async findDseqsByNameContaining({ userId, text }: { userId: string; text: string }): Promise<string[]> {
     const rows = await this.cursor

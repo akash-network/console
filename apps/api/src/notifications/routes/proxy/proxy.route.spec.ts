@@ -177,6 +177,110 @@ describe("createProxy", () => {
     expect(forwardedHeaders(write.fetchMock)).not.toHaveProperty("x-project-id");
   });
 
+  describe("when the caller's scope is limited to some projects", () => {
+    it("answers 404 without forwarding a read of a deployment filed in a project outside the scope", async () => {
+      const organizationContext = memberContext([faker.string.uuid()]);
+      const { handler, context, fetchMock, deploymentSettingRepository } = setupProxyTest({
+        method: "GET",
+        path: "/v1/deployment-alerts/1234",
+        organizationContext,
+        projectIdsByDseq: [faker.string.uuid(), null]
+      });
+
+      await expect(handler(context)).rejects.toMatchObject({ status: 404 });
+      expect(deploymentSettingRepository.findProjectIdsByDseq).toHaveBeenCalledWith({ organizationId: organizationContext.organizationId, dseq: "1234" });
+      expect(fetchMock).not.toHaveBeenCalled();
+    });
+
+    it("forwards a read of a deployment filed in a project of the scope", async () => {
+      const projectId = faker.string.uuid();
+      const { handler, context, fetchMock } = setupProxyTest({
+        method: "GET",
+        path: "/v1/deployment-alerts/1234",
+        organizationContext: memberContext([projectId]),
+        projectIdsByDseq: [faker.string.uuid(), projectId]
+      });
+
+      await handler(context);
+
+      expect(fetchMock).toHaveBeenCalled();
+      expect(forwardedHeaders(fetchMock)).not.toHaveProperty("x-project-id");
+    });
+
+    it("answers 404 without forwarding a read of the alerts filtered on a deployment outside the scope", async () => {
+      const { handler, context, fetchMock, deploymentSettingRepository } = setupProxyTest({
+        method: "GET",
+        path: "/v1/alerts?dseq=1234",
+        organizationContext: memberContext([faker.string.uuid()])
+      });
+
+      await expect(handler(context)).rejects.toMatchObject({ status: 404 });
+      expect(deploymentSettingRepository.findProjectIdsByDseq).toHaveBeenCalledWith(expect.objectContaining({ dseq: "1234" }));
+      expect(fetchMock).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      { case: "filed in a project outside the scope", projectId: faker.string.uuid() },
+      { case: "filed in no project", projectId: null }
+    ])("answers 404 without forwarding a write on a deployment $case", async ({ projectId }) => {
+      const organizationContext = memberContext([faker.string.uuid()]);
+      const { handler, context, fetchMock } = setupProxyTest({
+        path: "/v1/deployment-alerts/1234",
+        organizationContext,
+        tenancy: { organizationId: organizationContext.organizationId, organizationType: "team", projectId }
+      });
+
+      await expect(handler(context)).rejects.toMatchObject({ status: 404 });
+      expect(fetchMock).not.toHaveBeenCalled();
+    });
+
+    it("files a new alert naming a deployment of the scope into its project", async () => {
+      const projectId = faker.string.uuid();
+      const organizationContext = memberContext([projectId]);
+      const { handler, context, fetchMock, deploymentSettingRepository, userId } = setupProxyTest({
+        path: "/v1/alerts",
+        organizationContext,
+        body: { data: { params: { dseq: "1234" } } },
+        tenancy: { organizationId: organizationContext.organizationId, organizationType: "team", projectId }
+      });
+
+      await handler(context);
+
+      expect(deploymentSettingRepository.findTenancy).toHaveBeenCalledWith({ userId, dseq: "1234" });
+      expect(forwardedHeaders(fetchMock)["x-project-id"]).toBe(projectId);
+    });
+
+    it("answers 404 without forwarding a new alert naming a deployment outside the scope", async () => {
+      const organizationContext = memberContext([faker.string.uuid()]);
+      const { handler, context, fetchMock } = setupProxyTest({
+        path: "/v1/alerts",
+        organizationContext,
+        body: { data: { params: { dseq: "1234" } } },
+        tenancy: { organizationId: organizationContext.organizationId, organizationType: "team", projectId: faker.string.uuid() }
+      });
+
+      await expect(handler(context)).rejects.toMatchObject({ status: 404 });
+      expect(fetchMock).not.toHaveBeenCalled();
+    });
+
+    it.each([{ data: { params: { dseq: 1234 } } }, "not json"])("looks up no deployment for an alert body that names none (%j)", async body => {
+      const { handler, context, fetchMock, deploymentSettingRepository } = setupProxyTest({
+        path: "/v1/alerts",
+        organizationContext: memberContext([faker.string.uuid()]),
+        body
+      });
+
+      await handler(context);
+
+      expect(deploymentSettingRepository.findTenancy).not.toHaveBeenCalled();
+      expect(fetchMock).toHaveBeenCalled();
+    });
+
+    function memberContext(projectIds: string[]): OrganizationContext {
+      return createOrganizationContext({ mode: "organization", role: "member", projectScope: { kind: "projects", projectIds } });
+    }
+  });
+
   it("looks up no project without an organization context", async () => {
     const { handler, context, deploymentSettingRepository } = setupProxyTest({ path: "/v1/deployment-alerts/1234" });
 
@@ -206,13 +310,15 @@ describe("createProxy", () => {
     clientHeaders?: Record<string, string>;
     organizationContext?: OrganizationContext;
     tenancy?: DeploymentTenancy;
+    projectIdsByDseq?: (string | null)[];
+    body?: unknown;
   };
 
   function setupProxyTest(options: SetupOptions = {}) {
     const method = options.method ?? "POST";
     const path = options.path ?? (method === "GET" ? "/v1/notification-channels" : "/v1/alerts");
-    const fullUrl = `http://localhost${path}?q=${faker.string.alpha(5)}`;
-    const body = { data: faker.lorem.word() };
+    const fullUrl = `http://localhost${path}${path.includes("?") ? "&" : "?"}q=${faker.string.alpha(5)}`;
+    const body = options.body ?? { data: faker.lorem.word() };
     const userId = faker.string.uuid();
 
     const authService = mock<AuthService>({
@@ -239,6 +345,7 @@ describe("createProxy", () => {
     executionContextService.get.calledWith("ORGANIZATION_CONTEXT").mockReturnValue(options.organizationContext);
     const deploymentSettingRepository = mock<DeploymentSettingRepository>();
     deploymentSettingRepository.findTenancy.mockResolvedValue(options.tenancy);
+    deploymentSettingRepository.findProjectIdsByDseq.mockResolvedValue(options.projectIdsByDseq ?? []);
 
     const handler = createProxy({ authService, userWalletRepository, deploymentSettingRepository, executionContextService, config, fetchFn: fetchMock });
 
@@ -249,7 +356,7 @@ describe("createProxy", () => {
         raw: {
           headers: new Headers({ "x-custom": faker.internet.domainWord(), ...options.clientHeaders })
         },
-        text: async () => JSON.stringify(body)
+        text: async () => (typeof body === "string" ? body : JSON.stringify(body))
       },
       get: vi.fn().mockReturnValue(undefined)
     } as unknown as AppContext;

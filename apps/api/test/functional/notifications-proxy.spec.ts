@@ -14,7 +14,7 @@ import { app } from "@src/rest-app";
 
 import { createAkashAddress } from "@test/seeders/akash-address.seeder";
 import { createDseq, seedDeploymentSetting } from "@test/seeders/db/deployment-setting.seeder";
-import { seedOrganization, seedOrganizationMember } from "@test/seeders/db/organization.seeder";
+import { seedOrganization, seedOrganizationMember, seedProject, seedProjectMember } from "@test/seeders/db/organization.seeder";
 import { seedUserWithWallet } from "@test/seeders/db/user-with-wallet.seeder";
 
 describe("Notifications proxy", () => {
@@ -116,6 +116,33 @@ describe("Notifications proxy", () => {
 
     expect(response.status).toBe(403);
     expect(forwarded.reached()).toBe(false);
+  });
+
+  it("keeps a member limited to some projects away from the alerts of a deployment in another project", async () => {
+    const { user } = await setup();
+    const organization = await seedOrganization();
+    const [grantedProject, otherProject] = [await seedProject({ organizationId: organization.id }), await seedProject({ organizationId: organization.id })];
+    await seedOrganizationMember({ organizationId: organization.id, userId: user.id, role: "member" });
+    await seedProjectMember({ organizationId: organization.id, projectId: grantedProject.id, userId: user.id });
+    const [grantedDseq, otherDseq] = [createDseq(), createDseq()];
+    await seedDeploymentSetting({ userId: user.id, dseq: grantedDseq, organizationId: organization.id, projectId: grantedProject.id });
+    await seedDeploymentSetting({ userId: user.id, dseq: otherDseq, organizationId: organization.id, projectId: otherProject.id });
+    const apiKey = await persistApiKeyFor(user.id, organization.id);
+    enableOrganizations();
+    const grantedRead = interceptNotifications("get", `/v1/deployment-alerts/${grantedDseq}`);
+    const otherRead = interceptNotifications("get", `/v1/deployment-alerts/${otherDseq}`);
+
+    const grantedResponse = await app.request(`/v1/deployment-alerts/${grantedDseq}`, { headers: { "x-api-key": apiKey } });
+    const otherResponse = await app.request(`/v1/deployment-alerts/${otherDseq}`, { headers: { "x-api-key": apiKey } });
+
+    expect(grantedResponse.status).toBe(200);
+    expect(grantedRead.headers()).toMatchObject({
+      "x-organization-id": organization.id,
+      "x-organization-role": "member",
+      "x-project-scope": JSON.stringify({ kind: "projects", projectIds: [grantedProject.id] })
+    });
+    expect(otherResponse.status).toBe(404);
+    expect(otherRead.reached()).toBe(false);
   });
 
   function enableOrganizations() {

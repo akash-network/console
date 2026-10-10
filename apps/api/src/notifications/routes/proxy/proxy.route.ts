@@ -13,6 +13,7 @@ import { DeploymentSettingRepository } from "@src/deployment/repositories/deploy
 import type { NotificationsConfig } from "@src/notifications/config/env.config";
 import { NOTIFICATIONS_IDENTITY_HEADERS, organizationIdentityHeaders, stripIdentityHeaders } from "@src/notifications/lib/identity-headers/identity-headers";
 import { NOTIFICATIONS_CONFIG } from "@src/notifications/providers/notifications-config.provider";
+import type { OrganizationContext, ProjectScope } from "@src/organization/types/organization-context";
 
 const notificationsApiProxy = new Hono();
 
@@ -26,6 +27,8 @@ export interface ProxyDependencies {
 }
 
 const DEPLOYMENT_ALERTS_PATH = /^\/v1\/deployment-alerts\/([^/]+)$/;
+
+const ALERTS_PATH = "/v1/alerts";
 
 export const createProxy =
   ({ authService, userWalletRepository, deploymentSettingRepository, executionContextService, config, fetchFn }: ProxyDependencies) =>
@@ -58,9 +61,11 @@ export const createProxy =
       Object.assign(headers, organizationIdentityHeaders(organizationContext));
     }
 
+    const body = isBodyAllowed ? await req.text() : undefined;
+    const dseq = targetedDseq(req.method, url, body);
     const projectId =
-      isBodyAllowed && organizationContext
-        ? await projectOfTargetedDeployment(deploymentSettingRepository, { pathname: url.pathname, userId, organizationId: organizationContext.organizationId })
+      organizationContext && dseq
+        ? await projectOfReachableDeployment(deploymentSettingRepository, { dseq, userId, context: organizationContext, isWrite: isBodyAllowed })
         : null;
 
     if (projectId) {
@@ -71,8 +76,6 @@ export const createProxy =
       headers["content-type"] = "application/json";
     }
 
-    const body = isBodyAllowed ? await req.text() : undefined;
-
     return fetchFn(targetUrl, {
       method: req.method,
       headers,
@@ -80,21 +83,58 @@ export const createProxy =
     });
   };
 
-async function projectOfTargetedDeployment(
-  deploymentSettingRepository: DeploymentSettingRepository,
-  { pathname, userId, organizationId }: { pathname: string; userId: string; organizationId: string }
-): Promise<string | null> {
-  const dseq = pathname.match(DEPLOYMENT_ALERTS_PATH)?.[1];
+/** The deployment a request names, through the deployment alerts path, the alerts dseq filter or a new alert's params. */
+function targetedDseq(method: string, url: URL, body: string | undefined): string | undefined {
+  const fromPath = url.pathname.match(DEPLOYMENT_ALERTS_PATH)?.[1];
 
-  if (!dseq) {
-    return null;
+  if (fromPath) {
+    return decodeURIComponent(fromPath);
   }
 
-  const deployment = await deploymentSettingRepository.findTenancy({ userId, dseq });
+  if (url.pathname !== ALERTS_PATH) {
+    return undefined;
+  }
 
-  assert(!deployment?.organizationId || deployment.organizationId === organizationId, 404, "Deployment not found");
+  return method === "GET" ? url.searchParams.get("dseq") ?? undefined : dseqOfAlertBody(body);
+}
 
-  return deployment?.projectId ?? null;
+function dseqOfAlertBody(body: string | undefined): string | undefined {
+  try {
+    const dseq = JSON.parse(body ?? "")?.data?.params?.dseq;
+    return typeof dseq === "string" ? dseq : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/** Answers 404 for a deployment outside the caller's organization or project scope, and returns the project a write files into. */
+async function projectOfReachableDeployment(
+  deploymentSettingRepository: DeploymentSettingRepository,
+  { dseq, userId, context, isWrite }: { dseq: string; userId: string; context: OrganizationContext; isWrite: boolean }
+): Promise<string | null> {
+  if (isWrite) {
+    const deployment = await deploymentSettingRepository.findTenancy({ userId, dseq });
+    const isFiledElsewhere = !!deployment?.organizationId && deployment.organizationId !== context.organizationId;
+
+    assert(!isFiledElsewhere && isInScope(deployment?.projectId ?? null, context.projectScope), 404, "Deployment not found");
+
+    return deployment?.projectId ?? null;
+  }
+
+  if (context.projectScope.kind === "projects") {
+    const projectIds = await deploymentSettingRepository.findProjectIdsByDseq({ organizationId: context.organizationId, dseq });
+    assert(
+      projectIds.some(projectId => isInScope(projectId, context.projectScope)),
+      404,
+      "Deployment not found"
+    );
+  }
+
+  return null;
+}
+
+function isInScope(projectId: string | null, scope: ProjectScope): boolean {
+  return scope.kind === "all" || (projectId !== null && scope.projectIds.includes(projectId));
 }
 
 const proxyRoute = createProxy({
