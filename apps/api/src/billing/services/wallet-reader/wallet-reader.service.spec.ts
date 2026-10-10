@@ -74,6 +74,29 @@ describe(WalletReaderService.name, () => {
     });
   });
 
+  describe("getReadableWalletByUserId", () => {
+    it("returns the wallet the user acts through when the caller may read it", async () => {
+      const wallet = createUserWallet({ userId: "user-1" });
+      const { service, userWalletRepository } = setup({ wallet });
+
+      await expect(service.getReadableWalletByUserId("user-1")).resolves.toBe(wallet);
+      expect(userWalletRepository.accessibleBy).toHaveBeenCalledWith(expect.anything(), "read");
+      expect(userWalletRepository.findOneUsedBy).toHaveBeenCalledWith("user-1");
+    });
+
+    it("answers 404 when there is no wallet the caller may read", async () => {
+      const { service } = setup({ wallet: undefined });
+
+      await expect(service.getReadableWalletByUserId("user-1")).rejects.toMatchObject({ status: 404, message: "UserWallet Not Found" });
+    });
+
+    it("answers 403 when the wallet has no address yet", async () => {
+      const { service } = setup({ wallet: createUserWallet({ address: null }) });
+
+      await expect(service.getReadableWalletByUserId("user-1")).rejects.toMatchObject({ status: 403, message: "UserWallet is not initialized" });
+    });
+  });
+
   describe("getWalletById", () => {
     it("returns the wallet the caller may sign with", async () => {
       const wallet = createOrganizationWallet();

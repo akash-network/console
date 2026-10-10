@@ -2272,6 +2272,18 @@ describe(DeploymentSettingRepository.name, () => {
       await expect(deploymentSettingRepository.findDseqsByNameContaining({ wallet: teamWallet, text: "team" })).resolves.toEqual([teamDeployment.dseq]);
     });
 
+    it("answers with the row a team deployment was first filed under when two members filed it", async () => {
+      const { deploymentSettingRepository, teamWallet, teamDeployment, team } = await setupTeamDeployment();
+      const laterMember = await seedUser();
+      await seedDeploymentSetting({ userId: laterMember.id, organizationId: team.id, dseq: teamDeployment.dseq, name: "later" });
+      await deploymentSettingRepository.upsertName({ userId: teamDeployment.userId, dseq: teamDeployment.dseq, name: "first" });
+      const dseqs = [teamDeployment.dseq];
+
+      await expect(deploymentSettingRepository.findOneOfWallet(teamWallet, teamDeployment.dseq)).resolves.toMatchObject({ id: teamDeployment.id });
+      expect(await deploymentSettingRepository.findNamesByDseqs({ wallet: teamWallet, dseqs })).toEqual(new Map([[teamDeployment.dseq, "first"]]));
+      expect((await deploymentSettingRepository.findListedSettings({ wallet: teamWallet, dseqs })).get(teamDeployment.dseq)).toMatchObject({ name: "first" });
+    });
+
     it("resolves another member's key to the row a team deployment was first filed under", async () => {
       const { deploymentSettingRepository, member, teamDeployment, team } = await setupTeamDeployment();
       const otherMember = await seedUser();
