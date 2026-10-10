@@ -7,10 +7,8 @@ import type { LucideIcon } from "lucide-react";
 import { KeyRoundIcon, MoreHorizontalIcon, ShieldAlertIcon, Trash2Icon, TriangleAlertIcon } from "lucide-react";
 
 import type { ApiKeyExpiryStatus } from "@src/components/api-keys/apiKeyExpiry/apiKeyExpiry";
-import { getApiKeyExpiryStatus } from "@src/components/api-keys/apiKeyExpiry/apiKeyExpiry";
+import { API_KEY_DATE_FORMAT, getApiKeyExpiryStatus } from "@src/components/api-keys/apiKeyExpiry/apiKeyExpiry";
 import { SettingsSection } from "@src/components/layout/SettingsSection/SettingsSection";
-
-const API_KEY_DATE_FORMAT = "MMM d, yyyy";
 
 const EXPIRY_BADGE_LABELS: Partial<Record<ApiKeyExpiryStatus, string>> = {
   expiringSoon: "Expiring soon",

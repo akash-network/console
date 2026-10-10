@@ -6,6 +6,7 @@ export * from "./badge";
 export * from "./banner/banner";
 export * from "./brand-icons";
 export * from "./breadcrumb";
+export * from "./calendar";
 export * from "./card";
 export * from "./checkbox";
 export * from "./collapsible";

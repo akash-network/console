@@ -1,9 +1,10 @@
 "use client";
 import type { FC } from "react";
-import { useId } from "react";
+import { useId, useState } from "react";
 import { useForm } from "react-hook-form";
 import {
   Button,
+  Calendar,
   DialogV2,
   DialogV2Body,
   DialogV2Content,
@@ -18,6 +19,9 @@ import {
   FormItem,
   FormLabel,
   LoadingButton,
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
   Select,
   SelectContent,
   SelectItem,
@@ -27,12 +31,20 @@ import {
 } from "@akashnetwork/ui/components";
 import { copyTextToClipboard } from "@akashnetwork/ui/utils";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { format } from "date-fns";
 import { CalendarIcon, CopyIcon, KeyRoundIcon, TriangleAlertIcon } from "lucide-react";
 import { useSnackbar } from "notistack";
 import { z } from "zod";
 
 import type { ApiKeyLifetimeDays } from "@src/components/api-keys/apiKeyExpiry/apiKeyExpiry";
-import { API_KEY_LIFETIMES, DEFAULT_API_KEY_LIFETIME_DAYS, getApiKeyExpiryDate } from "@src/components/api-keys/apiKeyExpiry/apiKeyExpiry";
+import {
+  API_KEY_DATE_FORMAT,
+  API_KEY_LIFETIMES,
+  DEFAULT_API_KEY_LIFETIME_DAYS,
+  getApiKeyExpiryDate,
+  getCustomApiKeyExpiryDate,
+  getCustomApiKeyExpiryDayRange
+} from "@src/components/api-keys/apiKeyExpiry/apiKeyExpiry";
 import { useServices } from "@src/context/ServicesProvider";
 import { useCreateApiKey } from "@src/queries/useApiKeysQuery";
 
@@ -43,13 +55,16 @@ export const DEPENDENCIES = {
 
 export const MAX_API_KEY_NAME_LENGTH = 40;
 
+const CUSTOM_LIFETIME = "custom";
+
 const newApiKeySchema = z.object({
   name: z
     .string()
     .trim()
     .min(1, { message: "Name is required." })
     .max(MAX_API_KEY_NAME_LENGTH, { message: `Name must be ${MAX_API_KEY_NAME_LENGTH} characters or fewer.` }),
-  lifetimeDays: z.custom<ApiKeyLifetimeDays>()
+  lifetime: z.custom<ApiKeyLifetimeDays | typeof CUSTOM_LIFETIME>(),
+  customExpiryDay: z.date()
 });
 
 type NewApiKeyValues = z.infer<typeof newApiKeySchema>;
@@ -65,14 +80,17 @@ export const CreateApiKeyDialog: FC<Props> = ({ onClose, dependencies: d = DEPEN
   const { mutate: createApiKey, data: createdApiKey, isPending } = d.useCreateApiKey();
   const isDismissible = !isPending && !createdApiKey?.apiKey;
 
-  const createKey = ({ name, lifetimeDays }: NewApiKeyValues) => {
+  const createKey = ({ name, lifetime, customExpiryDay }: NewApiKeyValues) => {
     analyticsService.track("create_api_key", {
       category: "settings",
       label: "Create API key"
     });
 
+    const now = new Date();
+    const expiresAt = lifetime === CUSTOM_LIFETIME ? getCustomApiKeyExpiryDate(customExpiryDay, now) : getApiKeyExpiryDate(lifetime, now);
+
     createApiKey(
-      { name, expiresAt: getApiKeyExpiryDate(lifetimeDays, new Date()) },
+      { name, expiresAt },
       {
         onError: () => {
           enqueueSnackbar(<Snackbar title="Couldn't create the API key" subTitle="Try again in a moment." iconVariant="error" />, { variant: "error" });
@@ -113,9 +131,14 @@ type NewApiKeyStepProps = {
 const NewApiKeyStep: FC<NewApiKeyStepProps> = ({ isCreating, onCreate, onCancel }) => {
   const formId = useId();
   const form = useForm<NewApiKeyValues>({
-    defaultValues: { name: "", lifetimeDays: DEFAULT_API_KEY_LIFETIME_DAYS },
+    defaultValues: {
+      name: "",
+      lifetime: DEFAULT_API_KEY_LIFETIME_DAYS,
+      customExpiryDay: getCustomApiKeyExpiryDayRange(new Date()).earliest
+    },
     resolver: zodResolver(newApiKeySchema)
   });
+  const isCustomLifetime = form.watch("lifetime") === CUSTOM_LIFETIME;
 
   return (
     <>
@@ -135,11 +158,11 @@ const NewApiKeyStep: FC<NewApiKeyStepProps> = ({ isCreating, onCreate, onCancel 
 
             <FormField
               control={form.control}
-              name="lifetimeDays"
+              name="lifetime"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Expiration</FormLabel>
-                  <Select value={String(field.value)} onValueChange={value => field.onChange(Number(value))}>
+                  <Select value={String(field.value)} onValueChange={value => field.onChange(value === CUSTOM_LIFETIME ? value : Number(value))}>
                     <FormControl>
                       <SelectTrigger>
                         <div className="flex items-center gap-2">
@@ -154,11 +177,25 @@ const NewApiKeyStep: FC<NewApiKeyStepProps> = ({ isCreating, onCreate, onCancel 
                           {lifetime.label}
                         </SelectItem>
                       ))}
+                      <SelectItem value={CUSTOM_LIFETIME}>Custom date</SelectItem>
                     </SelectContent>
                   </Select>
                 </FormItem>
               )}
             />
+
+            {isCustomLifetime && (
+              <FormField
+                control={form.control}
+                name="customExpiryDay"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="sr-only">Expiration date</FormLabel>
+                    <CustomExpiryDayPicker value={field.value} onChange={field.onChange} />
+                  </FormItem>
+                )}
+              />
+            )}
 
             <div className="flex items-start gap-2 rounded-lg border border-warning/30 bg-warning/5 px-3 py-2.5 text-[12.5px] leading-[18px] text-muted-foreground">
               <TriangleAlertIcon className="mt-0.5 h-3.5 w-3.5 shrink-0 text-warning" aria-hidden />
@@ -181,6 +218,37 @@ const NewApiKeyStep: FC<NewApiKeyStepProps> = ({ isCreating, onCreate, onCancel 
         </LoadingButton>
       </DialogV2Footer>
     </>
+  );
+};
+
+type CustomExpiryDayPickerProps = {
+  value: Date;
+  onChange: (day: Date) => void;
+};
+
+const CustomExpiryDayPicker: FC<CustomExpiryDayPickerProps> = ({ value, onChange }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const { earliest, latest } = getCustomApiKeyExpiryDayRange(new Date());
+
+  const selectDay = (day: Date) => {
+    onChange(day);
+    setIsOpen(false);
+  };
+
+  return (
+    <Popover open={isOpen} onOpenChange={setIsOpen}>
+      <PopoverTrigger asChild>
+        <FormControl>
+          <Button type="button" variant="outline" className="w-full justify-start gap-2 bg-popover px-3 font-normal dark:bg-popover">
+            <CalendarIcon className="h-4 w-4 text-muted-foreground" aria-hidden />
+            {format(value, API_KEY_DATE_FORMAT)}
+          </Button>
+        </FormControl>
+      </PopoverTrigger>
+      <PopoverContent align="start" className="w-auto p-0">
+        <Calendar mode="single" required selected={value} onSelect={selectDay} defaultMonth={value} disabled={[{ before: earliest }, { after: latest }]} />
+      </PopoverContent>
+    </Popover>
   );
 };
 

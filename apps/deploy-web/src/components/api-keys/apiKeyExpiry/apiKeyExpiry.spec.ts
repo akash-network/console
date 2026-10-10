@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { getApiKeyExpiryDate, getApiKeyExpiryStatus } from "./apiKeyExpiry";
+import { getApiKeyExpiryDate, getApiKeyExpiryStatus, getCustomApiKeyExpiryDate, getCustomApiKeyExpiryDayRange } from "./apiKeyExpiry";
 
 const NOW = new Date("2026-10-02T12:00:00.000Z");
 
@@ -11,6 +11,23 @@ describe("apiKeyExpiry", () => {
 
       expect(getApiKeyExpiryDate(30, now)).toEqual(new Date(2026, 10, 1, 12));
       expect(getApiKeyExpiryDate(365, now)).toEqual(new Date(2027, 9, 2, 12));
+    });
+  });
+
+  describe(getCustomApiKeyExpiryDate.name, () => {
+    it("expires on the picked day at the current time of day", () => {
+      const now = new Date(2026, 9, 9, 15, 30);
+
+      expect(getCustomApiKeyExpiryDate(new Date(2026, 9, 10), now)).toEqual(new Date(2026, 9, 10, 15, 30));
+      expect(getCustomApiKeyExpiryDate(new Date(2026, 11, 25), now)).toEqual(new Date(2026, 11, 25, 15, 30));
+    });
+  });
+
+  describe(getCustomApiKeyExpiryDayRange.name, () => {
+    it("ranges from tomorrow to one year out", () => {
+      const now = new Date(2026, 9, 9, 15, 30);
+
+      expect(getCustomApiKeyExpiryDayRange(now)).toEqual({ earliest: new Date(2026, 9, 10, 15, 30), latest: new Date(2027, 9, 9, 15, 30) });
     });
   });
 
