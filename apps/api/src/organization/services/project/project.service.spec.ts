@@ -194,8 +194,8 @@ describe(ProjectService.name, () => {
 
       expect(projectRepository.accessibleBy).toHaveBeenCalledWith(ability, "delete");
       expect(projectRepository.findOneByAndLock).toHaveBeenCalledWith({ id: project.id, deletedAt: null });
-      expect(deploymentSettingRepository.findOpenByProjectId).toHaveBeenCalledWith(project.id);
-      expect(deploymentSettingRepository.count).toHaveBeenCalledWith({ projectId: project.id, closed: false });
+      expect(deploymentSettingRepository.findOpenInProject).toHaveBeenCalledWith({ organizationId: project.organizationId, projectId: project.id });
+      expect(deploymentSettingRepository.count).toHaveBeenCalledWith({ organizationId: project.organizationId, projectId: project.id, closed: false });
       expect(projectRepository.updateById).toHaveBeenCalledWith(project.id, { deletedAt: expect.any(Date) });
     });
 
@@ -214,7 +214,10 @@ describe(ProjectService.name, () => {
         { owner: paddedDseq.address, dseq: "123" },
         { owner: unpadded.address, dseq: unpadded.dseq }
       ]);
-      expect(deploymentSettingRepository.markAsClosed).toHaveBeenCalledWith([paddedDseq.id, unpadded.id]);
+      expect(deploymentSettingRepository.markAsClosedInProject).toHaveBeenCalledWith({ organizationId: project.organizationId, projectId: project.id }, [
+        paddedDseq.id,
+        unpadded.id
+      ]);
       expect(projectRepository.updateById).toHaveBeenCalled();
     });
 
@@ -238,7 +241,9 @@ describe(ProjectService.name, () => {
       });
 
       await expect(service.delete(project.id)).rejects.toMatchObject({ status: 409, errorCode: "project_not_empty" });
-      expect(deploymentSettingRepository.markAsClosed).toHaveBeenCalledWith([closedOnChain.id]);
+      expect(deploymentSettingRepository.markAsClosedInProject).toHaveBeenCalledWith({ organizationId: project.organizationId, projectId: project.id }, [
+        closedOnChain.id
+      ]);
       expect(committed).toHaveBeenCalled();
       expect(projectRepository.updateById).not.toHaveBeenCalled();
     });
@@ -248,7 +253,7 @@ describe(ProjectService.name, () => {
       projectRepository.findOneByAndLock.mockResolvedValue(undefined);
 
       await expect(service.delete(faker.string.uuid())).rejects.toMatchObject({ status: 404 });
-      expect(deploymentSettingRepository.findOpenByProjectId).not.toHaveBeenCalled();
+      expect(deploymentSettingRepository.findOpenInProject).not.toHaveBeenCalled();
       expect(projectRepository.updateById).not.toHaveBeenCalled();
     });
 
@@ -257,7 +262,7 @@ describe(ProjectService.name, () => {
       projectRepository.findOneByAndLock.mockResolvedValue({ ...project, isDefault: true });
 
       await expect(service.delete(project.id)).rejects.toMatchObject({ status: 409, errorCode: "project_is_default" });
-      expect(deploymentSettingRepository.findOpenByProjectId).not.toHaveBeenCalled();
+      expect(deploymentSettingRepository.findOpenInProject).not.toHaveBeenCalled();
       expect(projectRepository.updateById).not.toHaveBeenCalled();
     });
   });
@@ -301,7 +306,7 @@ describe(ProjectService.name, () => {
     });
     projectRepository.accessibleBy.mockReturnValue(projectRepository);
     const deploymentSettingRepository = mock<DeploymentSettingRepository>({
-      findOpenByProjectId: vi.fn().mockResolvedValue(input.openDeployments ?? []),
+      findOpenInProject: vi.fn().mockResolvedValue(input.openDeployments ?? []),
       count: vi.fn().mockResolvedValue(0)
     });
     const deploymentRepository = mock<DeploymentRepository>({ findClosureStates: vi.fn().mockResolvedValue([]) });

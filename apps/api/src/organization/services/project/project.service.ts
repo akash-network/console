@@ -102,8 +102,9 @@ export class ProjectService {
         throw createError(409, "The default project cannot be deleted", { errorCode: "project_is_default" });
       }
 
-      await this.#closeDeploymentsEndedOnChain(id);
-      const stillOpen = await this.deploymentSettingRepository.count({ projectId: id, closed: false });
+      const projectKey = { organizationId: project.organizationId, projectId: project.id };
+      await this.#closeDeploymentsEndedOnChain(projectKey);
+      const stillOpen = await this.deploymentSettingRepository.count({ ...projectKey, closed: false });
 
       if (stillOpen === 0) {
         await repository.updateById(id, { deletedAt: new Date() });
@@ -118,14 +119,15 @@ export class ProjectService {
   }
 
   /** The closed flag only catches up with deployments closed outside the console on the next reconcile, so the chain decides what still counts as open. */
-  async #closeDeploymentsEndedOnChain(projectId: string): Promise<void> {
-    const deployments = await this.deploymentSettingRepository.findOpenByProjectId(projectId);
+  async #closeDeploymentsEndedOnChain(projectKey: { organizationId: string; projectId: string }): Promise<void> {
+    const deployments = await this.deploymentSettingRepository.findOpenInProject(projectKey);
     const closureStates = await this.deploymentRepository.findClosureStates(
       deployments.map(({ address, dseq }) => ({ owner: address, dseq: normalizeDseq(dseq) }))
     );
     const closedOnChain = new Set(closureStates.filter(({ isClosed }) => isClosed).map(closureKey));
 
-    await this.deploymentSettingRepository.markAsClosed(
+    await this.deploymentSettingRepository.markAsClosedInProject(
+      projectKey,
       deployments.filter(({ address, dseq }) => closedOnChain.has(closureKey({ owner: address, dseq }))).map(({ id }) => id)
     );
   }

@@ -335,7 +335,7 @@ export class DeploymentSettingRepository extends OrgScopedRepository<Table, Depl
   }
 
   /** Keyset-paged on `id`, the leading column of `id_auto_top_up_enabled_closed_idx`, so each batch stays an index scan. */
-  async findOpenByProjectId(projectId: string): Promise<OpenDeployment[]> {
+  async findOpenInProject({ organizationId, projectId }: { organizationId: string; projectId: string }): Promise<OpenDeployment[]> {
     const deployments = await this.cursor
       .select({
         id: this.table.id,
@@ -346,9 +346,24 @@ export class DeploymentSettingRepository extends OrgScopedRepository<Table, Depl
       })
       .from(this.table)
       .innerJoin(UserWallets, eq(this.table.userId, UserWallets.userId))
-      .where(this.whereAccessibleBy(and(eq(this.table.projectId, projectId), eq(this.table.closed, false), isNotNull(UserWallets.address))));
+      .where(
+        this.whereAccessibleBy(
+          and(eq(this.table.organizationId, organizationId), eq(this.table.projectId, projectId), eq(this.table.closed, false), isNotNull(UserWallets.address))
+        )
+      );
 
     return deployments as OpenDeployment[];
+  }
+
+  async markAsClosedInProject({ organizationId, projectId }: { organizationId: string; projectId: string }, ids: string[]): Promise<void> {
+    if (!ids.length) {
+      return;
+    }
+
+    await this.updateWhere(
+      this.whereAccessibleBy(and(eq(this.table.organizationId, organizationId), eq(this.table.projectId, projectId), inArray(this.table.id, ids))),
+      { closed: true }
+    );
   }
 
   async *findOpenDeploymentsIteratively({ batchSize }: { batchSize: number }): AsyncGenerator<OpenDeployment[]> {
