@@ -21,11 +21,11 @@ export class ApiKeyService {
   ) {}
 
   async findAll(): Promise<ApiKeyOutput[]> {
-    return await this.apiKeyRepository.accessibleBy(this.authService.ability, "read").find(this.#reachableKeys());
+    return await this.apiKeyRepository.accessibleBy(this.authService.ability, "read").find({ userId: this.authService.currentUser.id });
   }
 
   async findById(id: string): Promise<ApiKeyOutput | undefined> {
-    const key = await this.apiKeyRepository.accessibleBy(this.authService.ability, "read").findOneBy({ id, ...this.#reachableKeys() });
+    const key = await this.apiKeyRepository.accessibleBy(this.authService.ability, "read").findOneBy({ id, userId: this.authService.currentUser.id });
 
     if (!key) return undefined;
 
@@ -33,7 +33,7 @@ export class ApiKeyService {
   }
 
   async create(input: ApiKeyInput): Promise<ApiKeyOutput & { apiKey: string }> {
-    const projectId = await this.#bindableProjectId(input.projectId ?? this.authService.currentApiKey?.projectId);
+    const projectId = await this.#bindableProjectId(input.projectId);
     const apiKey = this.apiKeyGenerator.generateApiKey();
     const hashedKey = this.apiKeyGenerator.hashApiKeySha256(apiKey);
     const obfuscatedKey = this.apiKeyGenerator.obfuscateApiKey(apiKey);
@@ -62,7 +62,7 @@ export class ApiKeyService {
 
     const updated = await this.apiKeyRepository
       .accessibleBy(this.authService.ability, "update")
-      .updateBy({ id, ...this.#reachableKeys() }, updateData, { returning: true });
+      .updateBy({ id, userId: this.authService.currentUser.id }, updateData, { returning: true });
 
     if (!updated) return undefined;
 
@@ -72,14 +72,7 @@ export class ApiKeyService {
   }
 
   async delete(id: string): Promise<void> {
-    await this.apiKeyRepository.accessibleBy(this.authService.ability, "delete").deleteBy({ id, ...this.#reachableKeys() }, { returning: true });
-  }
-
-  #reachableKeys(): Pick<ApiKeyInput, "userId" | "projectId"> {
-    const userId = this.authService.currentUser.id;
-    const projectId = this.authService.currentApiKey?.projectId;
-
-    return projectId ? { userId, projectId } : { userId };
+    await this.apiKeyRepository.accessibleBy(this.authService.ability, "delete").deleteBy({ id, userId: this.authService.currentUser.id }, { returning: true });
   }
 
   async #bindableProjectId(projectId: string | null | undefined): Promise<string | null> {

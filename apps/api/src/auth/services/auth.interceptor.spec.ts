@@ -207,19 +207,19 @@ describe(AuthInterceptor.name, () => {
     it("keeps the API key a request authenticated with for the rest of the request", async () => {
       const user = createUser();
       const apiKeyOutput = createApiKey({ userId: user.id, projectId: faker.string.uuid() });
-      const { callInterceptor, di } = setup({ apiKey: "123", user, apiKeyOutput });
+      const { callInterceptor, executionContextService } = setup({ apiKey: "123", user, apiKeyOutput });
 
       await callInterceptor();
 
-      expect(di.resolve(AuthService).currentApiKey).toBe(apiKeyOutput);
+      expect(executionContextService.set).toHaveBeenCalledWith("CURRENT_API_KEY", apiKeyOutput);
     });
 
     it("keeps no API key for a signed-in request", async () => {
-      const { callInterceptor, di } = setup({ user: createUser() });
+      const { callInterceptor, executionContextService } = setup({ user: createUser() });
 
       await callInterceptor();
 
-      expect(di.resolve(AuthService).currentApiKey).toBeUndefined();
+      expect(executionContextService.set).toHaveBeenCalledWith("CURRENT_API_KEY", undefined);
     });
 
     it("answers an API key request with the organization context's rejection rather than as an invalid key", async () => {

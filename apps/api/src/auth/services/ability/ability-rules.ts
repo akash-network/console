@@ -1,5 +1,6 @@
 import type { MongoAbility, MongoQuery, RawRuleOf } from "@casl/ability";
 
+import type { ApiKeyOutput } from "@src/auth/repositories/api-key/api-key.repository";
 import type { FeatureFlagValue } from "@src/core/services/feature-flags/feature-flags";
 import type { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import { type OrganizationRole, organizationRoleEnum } from "@src/organization/model-schemas/organization-member/organization-member.schema";
@@ -20,6 +21,19 @@ interface TenantConditions {
 }
 
 const PROJECT_RESOURCES = ["DeploymentSetting", "Template", "Alert", "NotificationChannel"];
+
+/** Subjects that span the whole organization: a request made with a project-bound API key only reads the organization and its own project among them. */
+export const ORGANIZATION_LEVEL_SUBJECTS: readonly string[] = [
+  "Organization",
+  "OrganizationMember",
+  "OrganizationInvitation",
+  "Project",
+  "ProjectMember",
+  "WalletSetting",
+  "PaymentMethod",
+  "StripePayment",
+  "ApiKey"
+];
 
 /** An allow-list rather than `$ne: "owner"`, which CASL also matches against a payload that names no role. */
 const ROLES_BELOW_OWNER = organizationRoleEnum.enumValues.filter(role => role !== "owner");
@@ -80,14 +94,30 @@ export function legacyRules(user: RuleUser): AbilityRule[] {
   ];
 }
 
-export function organizationRules(user: RuleUser, context: OrganizationContext): AbilityRule[] {
+export function organizationRules(user: RuleUser, context: OrganizationContext, apiKey?: Pick<ApiKeyOutput, "projectId">): AbilityRule[] {
   if (!hasEveryId(user.id, context.organizationId)) {
     return [];
   }
 
   const conditions = tenantConditionsOf(user, context);
+  const rules = [...userKeyedRules(user), ...everyMemberRules(conditions), ...ROLE_RULES[context.role](conditions, context)];
 
-  return [...userKeyedRules(user), ...everyMemberRules(conditions), ...ROLE_RULES[context.role](conditions, context)];
+  return apiKey?.projectId ? [...withoutOrganizationLevelSubjects(rules), ...projectBoundKeyRules(conditions)] : rules;
+}
+
+function withoutOrganizationLevelSubjects(rules: AbilityRule[]): AbilityRule[] {
+  return rules.flatMap(rule => {
+    const subjects = [rule.subject].flat().filter(subjectType => !ORGANIZATION_LEVEL_SUBJECTS.includes(subjectType as string));
+
+    return subjects.length ? [{ ...rule, subject: subjects }] : [];
+  });
+}
+
+function projectBoundKeyRules({ organization, projectsInScope }: TenantConditions): AbilityRule[] {
+  return [
+    { action: "read", subject: "Organization", conditions: organization },
+    { action: "read", subject: "Project", conditions: projectsInScope }
+  ];
 }
 
 export function enabledRules(rules: AbilityRule[], featureFlags: Pick<FeatureFlagsService, "isEnabled">): RawRuleOf<MongoAbility>[] {

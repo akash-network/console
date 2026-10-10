@@ -12,6 +12,7 @@ import { AbilityService } from "./ability.service";
 import { legacyRules, organizationRules } from "./ability-rules";
 import { ShadowedAbility } from "./shadowed-ability";
 
+import { createApiKey } from "@test/seeders/api-key.seeder";
 import { createOrganizationContext } from "@test/seeders/organization-context.seeder";
 import { createUser } from "@test/seeders/user.seeder";
 
@@ -65,6 +66,19 @@ describe(AbilityService.name, () => {
       expect(ability.rules).toEqual(organizationRules(user, organizationContext));
       expect(ability.can("read", subject("DeploymentSetting", { userId: user.id, organizationId: null }))).toBe(false);
       expect(logger.warn).not.toHaveBeenCalled();
+    });
+
+    it("builds the organization rules for the API key the request authenticated with", () => {
+      const projectId = faker.string.uuid();
+      const organizationContext = createOrganizationContext({ mode: "organization", role: "admin", projectScope: { kind: "projects", projectIds: [projectId] } });
+      const { service, user, executionContextService } = setup({ organizationContext });
+      const apiKey = createApiKey({ userId: user.id, organizationId: organizationContext.organizationId, projectId });
+      executionContextService.get.calledWith("CURRENT_API_KEY").mockReturnValue(apiKey);
+
+      const ability = service.getAbilityFor("REGULAR_USER", user);
+
+      expect(ability.rules).toEqual(organizationRules(user, organizationContext, apiKey));
+      expect(ability.can("read", subject("ApiKey", { userId: user.id, organizationId: organizationContext.organizationId }))).toBe(false);
     });
 
     it("keeps today's rules authoritative in legacy mode and reports where the organization rules disagree", () => {

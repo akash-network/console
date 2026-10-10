@@ -16,7 +16,7 @@ import type { OrganizationType } from "@src/organization/model-schemas/organizat
 import type { OrganizationRole } from "@src/organization/model-schemas/organization-member/organization-member.schema";
 import type { ProjectScope } from "@src/organization/types/organization-context";
 import { Templates } from "@src/user/model-schemas";
-import { type AbilityRule, enabledRules, legacyRules, organizationRules } from "./ability-rules";
+import { type AbilityRule, enabledRules, legacyRules, ORGANIZATION_LEVEL_SUBJECTS, organizationRules } from "./ability-rules";
 
 import { createOrganizationContext } from "@test/seeders/organization-context.seeder";
 import { createUser } from "@test/seeders/user.seeder";
@@ -329,6 +329,80 @@ describe("ability rules", () => {
         expect(() => new DrizzleAbility(SUBJECT_TABLES[subjectType], ability, "read", subjectType)).not.toThrow();
       });
     });
+
+    describe("for a request made with an API key bound to a project", () => {
+      it.each(ROLES)("lets a %s key read the organization and its project but reach no other organization-level subject", role => {
+        const projectId = faker.string.uuid();
+        const { ability, organizationId, user } = setup({ role, projectScope: { kind: "projects", projectIds: [projectId] }, apiKeyProjectId: projectId });
+
+        const granted = actionsBySubject(ability, { organizationId, projectId, userId: user.id });
+
+        expect(pick(granted, [...ORGANIZATION_LEVEL_SUBJECTS])).toEqual({
+          Organization: READ,
+          OrganizationMember: NONE,
+          OrganizationInvitation: NONE,
+          Project: READ,
+          ProjectMember: NONE,
+          WalletSetting: NONE,
+          PaymentMethod: NONE,
+          StripePayment: NONE,
+          ApiKey: NONE
+        });
+      });
+
+      it.each(["owner", "admin", "member"] as const)("keeps the project work of a %s key inside its project", role => {
+        const projectId = faker.string.uuid();
+        const { ability, organizationId, user } = setup({ role, projectScope: { kind: "projects", projectIds: [projectId] }, apiKeyProjectId: projectId });
+
+        const inside = actionsBySubject(ability, { organizationId, projectId, userId: user.id });
+        const outside = actionsBySubject(ability, { organizationId, projectId: faker.string.uuid(), userId: user.id });
+
+        expect(pick(inside, ["UserWallet", ...PROJECT_RESOURCES])).toEqual({
+          UserWallet: READ_SIGN,
+          DeploymentSetting: MANAGE,
+          Template: MANAGE,
+          Alert: MANAGE,
+          NotificationChannel: MANAGE
+        });
+        expect(pick(outside, ["Project", ...PROJECT_RESOURCES])).toEqual({
+          Project: NONE,
+          DeploymentSetting: NONE,
+          Template: NONE,
+          Alert: NONE,
+          NotificationChannel: NONE
+        });
+      });
+
+      it("grants its reads of the organization and its project on those two subjects only", () => {
+        const projectId = faker.string.uuid();
+        const { ability, organizationId } = setup({ role: "owner", projectScope: { kind: "projects", projectIds: [projectId] }, apiKeyProjectId: projectId });
+        const otherSubjects = ORGANIZATION_LEVEL_SUBJECTS.filter(subjectType => subjectType !== "Organization" && subjectType !== "Project");
+
+        const granted = Object.fromEntries(
+          otherSubjects.map(subjectType => [
+            subjectType,
+            [organizationId, projectId].flatMap(id => allowedActions(ability, subject(subjectType, { id, organizationId, userId: faker.string.uuid() })))
+          ])
+        );
+
+        expect(granted).toEqual(Object.fromEntries(otherSubjects.map(subjectType => [subjectType, NONE])));
+      });
+
+      it("keeps every rule it grants tied to at least one subject", () => {
+        const projectId = faker.string.uuid();
+        const { user, context } = setup({ role: "owner", projectScope: { kind: "projects", projectIds: [projectId] } });
+
+        const rules = organizationRules(user, context, { projectId });
+
+        expect(rules.filter(rule => [rule.subject].flat().length === 0)).toEqual([]);
+      });
+
+      it("leaves the rules of a key bound to no project unchanged", () => {
+        const { user, context } = setup({ role: "admin" });
+
+        expect(organizationRules(user, context, { projectId: null })).toEqual(organizationRules(user, context));
+      });
+    });
   });
 
   describe(enabledRules.name, () => {
@@ -371,7 +445,7 @@ describe("ability rules", () => {
     return Object.fromEntries(subjectTypes.map(subjectType => [subjectType, granted[subjectType]]));
   }
 
-  function setup(input: { role: OrganizationRole; projectScope?: ProjectScope; organizationType?: OrganizationType }) {
+  function setup(input: { role: OrganizationRole; projectScope?: ProjectScope; organizationType?: OrganizationType; apiKeyProjectId?: string }) {
     const user = createUser();
     const grantedProjectId = faker.string.uuid();
     const defaultScopes: Record<OrganizationRole, ProjectScope> = {
@@ -386,7 +460,7 @@ describe("ability rules", () => {
       organizationType: input.organizationType ?? "team",
       projectScope: input.projectScope ?? defaultScopes[input.role]
     });
-    const ability = createMongoAbility(organizationRules(user, context));
+    const ability = createMongoAbility(organizationRules(user, context, input.apiKeyProjectId ? { projectId: input.apiKeyProjectId } : undefined));
 
     return { user, context, ability, organizationId: context.organizationId, grantedProjectId };
   }

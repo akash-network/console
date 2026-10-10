@@ -3,7 +3,7 @@ import { faker } from "@faker-js/faker";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
-import type { ApiKeyOutput, ApiKeyRepository } from "@src/auth/repositories/api-key/api-key.repository";
+import type { ApiKeyRepository } from "@src/auth/repositories/api-key/api-key.repository";
 import type { AuthService } from "@src/auth/services/auth.service";
 import type { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
 import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
@@ -31,21 +31,11 @@ describe(ApiKeyService.name, () => {
       expect(apiKeyRepository.accessibleBy).toHaveBeenCalledWith(ability, "read");
       expect(apiKeyRepository.find).toHaveBeenCalledWith({ userId: user.id });
     });
-
-    it("lists only the keys bound to the project of the key the request authenticated with", async () => {
-      const projectId = faker.string.uuid();
-      const { service, apiKeyRepository, user } = setup({ currentApiKey: createApiKey({ projectId }) });
-      apiKeyRepository.find.mockResolvedValue([]);
-
-      await service.findAll();
-
-      expect(apiKeyRepository.find).toHaveBeenCalledWith({ userId: user.id, projectId });
-    });
   });
 
   describe("findById", () => {
     it("finds a key among the caller's keys", async () => {
-      const { service, apiKeyRepository, ability, user } = setup({ currentApiKey: createApiKey({ projectId: null }) });
+      const { service, apiKeyRepository, ability, user } = setup();
       const key = createApiKey({ userId: user.id });
       apiKeyRepository.findOneBy.mockResolvedValue(key);
 
@@ -54,18 +44,6 @@ describe(ApiKeyService.name, () => {
       expect(result).toBe(key);
       expect(apiKeyRepository.accessibleBy).toHaveBeenCalledWith(ability, "read");
       expect(apiKeyRepository.findOneBy).toHaveBeenCalledWith({ id: key.id, userId: user.id });
-    });
-
-    it("finds a key only among the keys bound to the project of the key the request authenticated with", async () => {
-      const projectId = faker.string.uuid();
-      const { service, apiKeyRepository, user } = setup({ currentApiKey: createApiKey({ projectId }) });
-      const id = faker.string.uuid();
-      apiKeyRepository.findOneBy.mockResolvedValue(undefined);
-
-      const result = await service.findById(id);
-
-      expect(result).toBeUndefined();
-      expect(apiKeyRepository.findOneBy).toHaveBeenCalledWith({ id, userId: user.id, projectId });
     });
   });
 
@@ -112,16 +90,6 @@ describe(ApiKeyService.name, () => {
 
       await service.create({ name: "ci", projectId: project.id });
 
-      expect(apiKeyRepository.create).toHaveBeenCalledWith(expect.objectContaining({ projectId: project.id }));
-    });
-
-    it("binds the key to the project of the key the request authenticated with when no project is requested", async () => {
-      const project = createProject();
-      const { service, apiKeyRepository, projectRepository } = setup({ project, currentApiKey: createApiKey({ projectId: project.id }) });
-
-      await service.create({ name: "ci" });
-
-      expect(projectRepository.findOneBy).toHaveBeenCalledWith({ id: project.id, deletedAt: null });
       expect(apiKeyRepository.create).toHaveBeenCalledWith(expect.objectContaining({ projectId: project.id }));
     });
 
@@ -184,18 +152,6 @@ describe(ApiKeyService.name, () => {
       expect(apiKeyRepository.accessibleBy).toHaveBeenCalledWith(ability, "update");
       expect(apiKeyRepository.updateBy).toHaveBeenCalledWith({ id: key.id, userId: user.id }, { name: "renamed", expiresAt: undefined }, { returning: true });
     });
-
-    it("updates a key only among the keys bound to the project of the key the request authenticated with", async () => {
-      const projectId = faker.string.uuid();
-      const { service, apiKeyRepository, user } = setup({ currentApiKey: createApiKey({ projectId }) });
-      const id = faker.string.uuid();
-      apiKeyRepository.updateBy.mockResolvedValue(undefined);
-
-      const result = await service.update(id, { name: "renamed" });
-
-      expect(result).toBeUndefined();
-      expect(apiKeyRepository.updateBy).toHaveBeenCalledWith({ id, userId: user.id, projectId }, expect.anything(), { returning: true });
-    });
   });
 
   describe("delete", () => {
@@ -208,21 +164,10 @@ describe(ApiKeyService.name, () => {
       expect(apiKeyRepository.accessibleBy).toHaveBeenCalledWith(ability, "delete");
       expect(apiKeyRepository.deleteBy).toHaveBeenCalledWith({ id, userId: user.id }, { returning: true });
     });
-
-    it("deletes a key only among the keys bound to the project of the key the request authenticated with", async () => {
-      const projectId = faker.string.uuid();
-      const { service, apiKeyRepository, user } = setup({ currentApiKey: createApiKey({ projectId }) });
-      const id = faker.string.uuid();
-
-      await service.delete(id);
-
-      expect(apiKeyRepository.deleteBy).toHaveBeenCalledWith({ id, userId: user.id, projectId }, { returning: true });
-    });
   });
 
   function setup(
     input: {
-      currentApiKey?: ApiKeyOutput;
       project?: ProjectOutput;
       organizationContext?: OrganizationContext | null;
       organizationsOn?: boolean;
@@ -236,7 +181,7 @@ describe(ApiKeyService.name, () => {
     const projectRepository = mock<ProjectRepository>();
     projectRepository.accessibleBy.mockReturnValue(projectRepository);
     projectRepository.findOneBy.mockResolvedValue(input.project);
-    const authService = mock<AuthService>({ currentUser: user, ability, currentApiKey: input.currentApiKey });
+    const authService = mock<AuthService>({ currentUser: user, ability });
     const apiKeyGenerator = mock<ApiKeyGeneratorService>({
       generateApiKey: vi.fn().mockReturnValue("ac.sk.test.generated"),
       hashApiKeySha256: vi.fn().mockReturnValue("hashed-key"),

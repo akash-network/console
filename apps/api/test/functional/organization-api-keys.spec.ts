@@ -89,17 +89,6 @@ describe("Organization API keys", () => {
       expect(grantedResponse.status).toBe(201);
     });
 
-    it("keeps a key created with a project-bound key inside that project", async () => {
-      const { user, team } = await setup({});
-      const ciProject = await seedProject({ organizationId: team.id });
-      const { apiKey } = await seedApiKey({ userId: user.id, organizationId: team.id, projectId: ciProject.id });
-
-      const response = await createKey({ "x-api-key": apiKey }, {});
-
-      expect(response.status).toBe(201);
-      expect(await response.json()).toMatchObject({ data: { organizationId: team.id, projectId: ciProject.id } });
-    });
-
     it("binds a key to the personal organization while organizations are off for the caller", async () => {
       const { personal, bearer } = await setup({ organizationsOn: false });
 
@@ -132,18 +121,6 @@ describe("Organization API keys", () => {
       expect(await response.json()).toEqual({
         data: [expect.objectContaining({ id: teamKey.key.id, organizationId: team.id, projectId: null })]
       });
-    });
-
-    it("lists only the keys of its own project to a project-bound key", async () => {
-      const { user, team } = await setup({});
-      const ciProject = await seedProject({ organizationId: team.id });
-      await seedApiKey({ userId: user.id, organizationId: team.id });
-      const { apiKey } = await seedApiKey({ userId: user.id, organizationId: team.id, projectId: ciProject.id });
-
-      const response = await listKeys({ "x-api-key": apiKey });
-
-      expect(response.status).toBe(200);
-      expect(await response.json()).toEqual({ data: [expect.objectContaining({ organizationId: team.id, projectId: ciProject.id })] });
     });
 
     it("lists every key of the caller while organizations are off for the caller", async () => {
@@ -198,6 +175,44 @@ describe("Organization API keys", () => {
 
       expect(await walletAddressesOf(personalResponse)).toEqual([personalWallet.address]);
       expect(await walletAddressesOf(teamResponse)).toEqual([]);
+    });
+  });
+
+  describe("an admin's key bound to a project", () => {
+    it("is refused the organization-level routes", async () => {
+      const { user, team } = await setup({ teamRole: "admin" });
+      const ciProject = await seedProject({ organizationId: team.id });
+      const { apiKey } = await seedApiKey({ userId: user.id, organizationId: team.id, projectId: ciProject.id });
+      const headers = { "x-api-key": apiKey };
+
+      const responses = await Promise.all([
+        listKeys(headers),
+        createKey(headers, {}),
+        app.request("/v1/wallet-settings", { headers }),
+        app.request("/v1/stripe/payment-methods", { headers })
+      ]);
+
+      expect(responses.map(response => response.status)).toEqual([403, 403, 403, 403]);
+    });
+
+    it("works on its project and nowhere else", async () => {
+      const { user, team, teamProject } = await setup({ teamRole: "admin" });
+      const ciProject = await seedProject({ organizationId: team.id });
+      const [inProject, outsideProject] = await Promise.all([
+        seedDeploymentSetting({ userId: user.id, organizationId: team.id, projectId: ciProject.id, autoTopUpEnabled: false }),
+        seedDeploymentSetting({ userId: user.id, organizationId: team.id, projectId: teamProject.id, autoTopUpEnabled: false })
+      ]);
+      const { apiKey } = await seedApiKey({ userId: user.id, organizationId: team.id, projectId: ciProject.id });
+
+      const [inProjectResponse, outsideProjectResponse, organizationsResponse] = await Promise.all([
+        getDeploymentSetting(inProject, { "x-api-key": apiKey }),
+        getDeploymentSetting(outsideProject, { "x-api-key": apiKey }),
+        app.request("/v1/organizations", { headers: { "x-api-key": apiKey } })
+      ]);
+
+      expect(inProjectResponse.status).toBe(200);
+      expect(outsideProjectResponse.status).toBe(404);
+      expect(organizationsResponse.status).toBe(200);
     });
   });
 
