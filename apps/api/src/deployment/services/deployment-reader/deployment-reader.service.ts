@@ -90,7 +90,7 @@ export class DeploymentReaderService {
   }
 
   public async findByUserIdAndDseq(userId: string, dseq: string): Promise<GetDeploymentResponse["data"]> {
-    const wallet = await this.walletReaderService.getWalletByUserId(userId);
+    const wallet = await this.walletReaderService.getReadableWalletByUserId(userId);
     const [deployment, recorded, leaseGpus] = await Promise.all([
       this.findByWalletAndDseq(wallet, dseq),
       this.findRecorded(wallet, dseq),
@@ -105,10 +105,9 @@ export class DeploymentReaderService {
    * nothing. The chain knows only the manifest, so the SDL that produced it is ours to remember or lose; this is
    * what lets a deployment created on one device be read back on another.
    *
-   * Scoped twice over, because the (dseq, userId) unique means two users holding the same dseq is an ordinary
-   * state rather than a collision: the query names the caller's own id, and `accessibleBy` ANDs the same
-   * condition into the SQL from the caller's ability. Either alone would be enough today; together they mean a
-   * later refactor has to defeat both to leak one user's SDL to another.
+   * Scoped twice over, because two owners holding the same dseq is an ordinary state rather than a collision:
+   * the query names the wallet the deployment belongs to, and `accessibleBy` ANDs the caller's ability into the
+   * SQL. Together they mean a later refactor has to defeat both to leak one owner's SDL to another.
    *
    * A row with no `sdl` is reported as nothing recorded rather than as a partial record. Settings reads create
    * rows lazily and deployments predating the recording leave both columns null, so an absent SDL is the common
@@ -147,7 +146,7 @@ export class DeploymentReaderService {
   /** Answers every dseq asked about, with null where the console holds no name, so a caller never has to tell a missing row from an unnamed one. */
   public async findNames(userId: string, dseqs: string[]): Promise<Record<string, string | null>> {
     const wallet = await this.walletReaderService.findReadableWalletByUserId(userId);
-    const names = wallet ? await this.findNamesFor(wallet, dseqs) : new Map<string, string | null>();
+    const names = await this.findNamesFor(wallet ?? { userId, organizationId: null }, dseqs);
 
     return Object.fromEntries(dseqs.map(dseq => [dseq, names.get(dseq) ?? null]));
   }
@@ -258,7 +257,7 @@ export class DeploymentReaderService {
     reverse?: boolean;
     search?: string;
   }): Promise<{ deployments: ListDeploymentsItem[]; total: number | null; hasMore: boolean }> {
-    const wallet = await this.walletReaderService.getWalletByUserId(query.userId);
+    const wallet = await this.walletReaderService.getReadableWalletByUserId(query.userId);
     const { address: owner } = wallet;
 
     if (state === "closed") {

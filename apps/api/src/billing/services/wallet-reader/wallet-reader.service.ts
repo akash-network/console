@@ -51,6 +51,14 @@ export class WalletReaderService {
     return userWallet;
   }
 
+  async getReadableWalletByUserId(userId: string): Promise<WalletInitialized> {
+    const userWallet = await this.findReadableWalletByUserId(userId);
+    assert(userWallet, 404, "UserWallet Not Found");
+    assert(isWalletInitialized(userWallet), 403, "UserWallet is not initialized");
+
+    return userWallet;
+  }
+
   async findReadableWalletByUserId(userId: string): Promise<UserWalletOutput | undefined> {
     return await this.userWalletRepository.accessibleBy(this.authService.ability, "read").findOneUsedBy(userId);
   }

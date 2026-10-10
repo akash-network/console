@@ -1024,7 +1024,34 @@ describe(DeploymentWriterService.name, () => {
       });
 
       it("looks the source up as the caller's own deployment", async () => {
-        const { service, sdlSecretsInheritanceService } = setup({ inherited: { API_TOKEN: "a", DATABASE_URL: "b" } });
+        const { service, sdlSecretsInheritanceService, deploymentSettingRepository } = setup({ inherited: { API_TOKEN: "a", DATABASE_URL: "b" } });
+
+        await service.create({ userId: "user-1", sdl: SDL_OF_A_REDEPLOY, inheritSecretsFrom: SOURCE_DSEQ });
+
+        expect(sdlSecretsInheritanceService.open).toHaveBeenCalledWith({ userId: "user-1", dseq: SOURCE_DSEQ });
+        expect(deploymentSettingRepository.findOneOfWallet).not.toHaveBeenCalled();
+      });
+
+      it("opens an organization's source under the member who filed it", async () => {
+        const { service, sdlSecretsInheritanceService, deploymentSettingRepository, walletReaderService } = setup({
+          inherited: { API_TOKEN: "a", DATABASE_URL: "b" }
+        });
+        const organizationWallet = { ...wallet, userId: null, organizationId: "organization-1" };
+        walletReaderService.getWalletByUserId.mockResolvedValue(organizationWallet);
+        deploymentSettingRepository.findOneOfWallet.mockResolvedValue(mock<DeploymentSettingsOutput>({ userId: "filer-1" }));
+
+        await service.create({ userId: "user-1", sdl: SDL_OF_A_REDEPLOY, inheritSecretsFrom: SOURCE_DSEQ });
+
+        expect(deploymentSettingRepository.findOneOfWallet).toHaveBeenCalledWith(organizationWallet, SOURCE_DSEQ);
+        expect(sdlSecretsInheritanceService.open).toHaveBeenCalledWith({ userId: "filer-1", dseq: SOURCE_DSEQ });
+      });
+
+      it("opens an organization's source nobody filed under the caller", async () => {
+        const { service, sdlSecretsInheritanceService, deploymentSettingRepository, walletReaderService } = setup({
+          inherited: { API_TOKEN: "a", DATABASE_URL: "b" }
+        });
+        walletReaderService.getWalletByUserId.mockResolvedValue({ ...wallet, userId: null, organizationId: "organization-1" });
+        deploymentSettingRepository.findOneOfWallet.mockResolvedValue(undefined);
 
         await service.create({ userId: "user-1", sdl: SDL_OF_A_REDEPLOY, inheritSecretsFrom: SOURCE_DSEQ });
 

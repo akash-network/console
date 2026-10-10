@@ -181,9 +181,9 @@ export class DeploymentSettingRepository extends OrgScopedRepository<Table, Depl
    * The names for one page of deployments, keyed by dseq and absent for a dseq with no row. One query for the
    * page rather than one per deployment, since a list of 100 would otherwise be 100 round trips.
    *
-   * Scoped twice over like the single read, by the caller's own id and by `accessibleBy` from their ability,
-   * because the (dseq, userId) unique means two users holding the same dseq is an ordinary state: a query
-   * naming only the dseqs would answer with another user's names.
+   * Scoped twice over like the single read, by the wallet the deployments belong to and by `accessibleBy` from
+   * the caller's ability, because two owners holding the same dseq is an ordinary state: a query naming only the
+   * dseqs would answer with another owner's names.
    */
   async findNamesByDseqs({ wallet, dseqs }: { wallet: DeploymentWallet; dseqs: string[] }): Promise<Map<string, string | null>> {
     if (dseqs.length === 0) {

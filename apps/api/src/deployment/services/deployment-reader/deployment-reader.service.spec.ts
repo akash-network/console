@@ -877,6 +877,16 @@ describe(DeploymentReaderService.name, () => {
   });
 
   describe("findNames", () => {
+    it("reads the names under the user's own id when no wallet is found", async () => {
+      const { service, scopedDeploymentSettingRepository, walletReaderService } = setup({ names: { "100": "web" } });
+      vi.mocked(walletReaderService.findReadableWalletByUserId).mockResolvedValue(undefined);
+
+      const names = await service.findNames("user-9", ["100"]);
+
+      expect(scopedDeploymentSettingRepository.findNamesByDseqs).toHaveBeenCalledWith({ wallet: { userId: "user-9", organizationId: null }, dseqs: ["100"] });
+      expect(names).toEqual({ "100": "web" });
+    });
+
     it("answers every dseq asked about, with null for one the console never recorded", async () => {
       const { service, wallet } = setup({ names: { "100": "web" } });
 
@@ -1172,7 +1182,7 @@ describe(DeploymentReaderService.name, () => {
       }),
       messageService: mock<MessageService>(),
       walletReaderService: mock<WalletReaderService>({
-        getWalletByUserId: vi.fn().mockResolvedValue(wallet),
+        getReadableWalletByUserId: vi.fn().mockResolvedValue(wallet),
         findReadableWalletByUserId: vi.fn().mockResolvedValue(wallet)
       }),
       logger: mock<ReturnType<CreateLogger>>()

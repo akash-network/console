@@ -349,6 +349,13 @@ export class DeploymentSettingService {
     }
   }
 
+  /** The wallet that owns the deployment a row was filed for, which is the organization's for a team deployment whoever filed it. */
+  async #ownerWalletOf({ id }: Pick<DeploymentSettingsOutput, "id">) {
+    const walletId = await this.deploymentSettingRepository.findOwnerWalletId(id);
+
+    return walletId === undefined ? undefined : await this.userWalletRepository.findById(walletId);
+  }
+
   /**
    * `lastFundedAt`, `runtimeEndingNotifiedFor` and `providerUnreachableNotifiedFor` are internal sweep markers and stay
    * out of the API payload. So do `sdl`, `sealedSecrets` and `manifestVersion`: they are what the console remembers a
@@ -358,13 +365,6 @@ export class DeploymentSettingService {
    * served on the deployment read, next to the lease they describe. `closeReason` and `closeReasonDetails` are feedback
    * the user gave us, not state any client acts on.
    */
-  /** The wallet that owns the deployment a row was filed for, which is the organization's for a team deployment whoever filed it. */
-  async #ownerWalletOf({ id }: Pick<DeploymentSettingsOutput, "id">) {
-    const walletId = await this.deploymentSettingRepository.findOwnerWalletId(id);
-
-    return walletId === undefined ? undefined : await this.userWalletRepository.findById(walletId);
-  }
-
   async withEstimatedTopUpAmount(params: DeploymentSettingsOutput): Promise<DeploymentSettingWithEstimatedTopUpAmount>;
   async withEstimatedTopUpAmount(params: undefined): Promise<undefined>;
   async withEstimatedTopUpAmount(params?: DeploymentSettingsOutput): Promise<DeploymentSettingWithEstimatedTopUpAmount | undefined> {

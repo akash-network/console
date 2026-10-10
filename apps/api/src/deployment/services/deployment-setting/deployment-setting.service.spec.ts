@@ -565,6 +565,28 @@ describe(DeploymentSettingService.name, () => {
       );
     });
 
+    it("funds an extended deployment from the wallet that owns its row, not the caller's", async () => {
+      const { service, deploymentSettingRepository, userWalletRepository, domainEvents } = setup();
+      const params = { userId: faker.string.uuid(), dseq: faker.string.numeric(6) };
+      const ownerWallet = createOrganizationWallet();
+      const extended = createDeploymentSettingsOutput({ ...params, runtimeLimitHours: 24, runtimeEndsAt: faker.date.future() });
+
+      deploymentSettingRepository.accessibleBy.mockReturnValue(deploymentSettingRepository);
+      deploymentSettingRepository.findOneBy.mockResolvedValue(createDeploymentSettingsOutput({ ...params, runtimeLimitHours: 12 }));
+      deploymentSettingRepository.applyRuntimeLimit.mockResolvedValue(extended);
+      deploymentSettingRepository.findOwnerWalletId.mockResolvedValue(ownerWallet.id);
+      userWalletRepository.findById.mockResolvedValue(ownerWallet);
+
+      await service.upsert(params, { runtimeLimitHours: 24 });
+
+      expect(deploymentSettingRepository.findOwnerWalletId).toHaveBeenCalledWith(extended.id);
+      expect(userWalletRepository.findById).toHaveBeenCalledWith(ownerWallet.id);
+      expect(domainEvents.publish).toHaveBeenCalledWith(
+        expect.objectContaining({ data: { walletId: ownerWallet.id, address: ownerWallet.address, dseq: params.dseq } }),
+        { singletonKey: `${FundDeploymentCommand.name}.${params.dseq}.${ownerWallet.id}` }
+      );
+    });
+
     it("does not publish a funding command for an unanchored deployment", async () => {
       const { service, deploymentSettingRepository, domainEvents } = setup();
       const params = { userId: faker.string.uuid(), dseq: faker.string.numeric(6) };
