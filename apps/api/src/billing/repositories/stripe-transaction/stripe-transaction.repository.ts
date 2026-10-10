@@ -2,6 +2,7 @@ import { and, count, desc, eq, exists, gte, inArray, lt, lte, notInArray, SQL, s
 import { alias } from "drizzle-orm/pg-core";
 import { singleton } from "tsyringe";
 
+import { type BillingOwner, ownedBy } from "@src/billing/lib/billing-owner/billing-owner";
 import { type ApiPgDatabase, type ApiPgTables, InjectPg, InjectPgTable } from "@src/core/providers";
 import { OrgScopedRepository } from "@src/core/repositories/org-scoped.repository";
 import { TxService } from "@src/core/services";
@@ -163,6 +164,27 @@ export class StripeTransactionRepository extends OrgScopedRepository<Table, Stri
     );
 
     return item ? this.toOutput(item) : undefined;
+  }
+
+  /** Reads every organization, so a coupon a person claimed under one payer is seen when they redeem it under another. */
+  async hasCouponClaimOutside(input: { userId: string; couponId: string; owner: BillingOwner }): Promise<boolean> {
+    const [claim] = await this.cursor
+      .select({ id: this.table.id })
+      .from(this.table)
+      .where(
+        this.unscoped("per-person-billing-limits").whereAccessibleBy(
+          and(
+            eq(this.table.userId, input.userId),
+            eq(this.table.type, "coupon_claim"),
+            eq(this.table.stripeCouponId, input.couponId),
+            inArray(this.table.status, ["pending", ...SETTLED_TRANSACTION_STATUSES]),
+            sql`not coalesce(${ownedBy(this.table, input.owner)}, false)`
+          )
+        )
+      )
+      .limit(1);
+
+    return !!claim;
   }
 
   /**

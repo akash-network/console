@@ -8,12 +8,12 @@ import { mock } from "vitest-mock-extended";
 
 import type { StripeTransactionRepository } from "@src/billing/repositories";
 import type { FirstPurchaseBonusService } from "@src/billing/services/first-purchase-bonus/first-purchase-bonus.service";
+import type { PayerService } from "@src/billing/services/payer/payer.service";
 import type { RefillService } from "@src/billing/services/refill/refill.service";
 import { IDEMPOTENCY_KEY_MISMATCH_ERROR_MESSAGE, PAYMENT_IN_PROGRESS_ERROR_MESSAGE } from "@src/billing/services/stripe-error/stripe-error.service";
 import type { AnalyticsService } from "@src/core/services/analytics/analytics.service";
 import type { DomainEventsService } from "@src/core/services/domain-events/domain-events.service";
 import type { TimerService } from "@src/core/services/timer/timer.service";
-import type { UserRepository } from "@src/user/repositories/user/user.repository";
 import { StripeTransactionService } from "./stripe-transaction.service";
 
 import { generateDatabaseStripeTransaction } from "@test/seeders/database-stripe-transaction.seeder";
@@ -580,7 +580,7 @@ describe(StripeTransactionService.name, () => {
       mock<RefillService>(),
       mock<FirstPurchaseBonusService>(),
       timerService,
-      mock<UserRepository>(),
+      mock<PayerService>(),
       mock<DomainEventsService>(),
       mock<AnalyticsService>(),
       () => logger

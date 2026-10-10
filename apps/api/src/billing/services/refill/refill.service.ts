@@ -9,6 +9,7 @@ import { ManagedUserWalletService } from "@src/billing/services/managed-user-wal
 import { WalletInitializerService } from "@src/billing/services/wallet-initializer/wallet-initializer.service";
 import { type CreateLogger, LOGGER_FACTORY } from "@src/core/providers/logging.provider";
 import { AnalyticsService } from "@src/core/services/analytics/analytics.service";
+import { type OrganizationOutput, OrganizationRepository } from "@src/organization/repositories/organization/organization.repository";
 
 export interface PaymentAnalyticsContext {
   currency?: string;
@@ -19,6 +20,12 @@ export interface PaymentAnalyticsContext {
   isAutoRecharge?: boolean;
   /** First-purchase bonus included in the topped-up amount, in cents. */
   bonusAmountCents?: number;
+}
+
+/** Who a credit or a debit is for: the member who acted and the organization that paid. */
+export interface WalletPayer {
+  userId: string;
+  organizationId?: string | null;
 }
 
 /** Identifiers of the wallet a top-up credited, so callers can fund its draining deployments once the credit has committed. */
@@ -39,6 +46,7 @@ export class RefillService {
     private readonly balancesService: BalancesService,
     private readonly walletInitializerService: WalletInitializerService,
     private readonly analyticsService: AnalyticsService,
+    private readonly organizationRepository: OrganizationRepository,
     @inject(LOGGER_FACTORY) createLogger: CreateLogger
   ) {
     this.logger = createLogger({ context: RefillService.name });
@@ -69,12 +77,13 @@ export class RefillService {
   /**
    * Top up the wallet with the given amount in USD
    * @param amountUsd - The amount in USD *cents* to top up the wallet with (e.g. 10000 = $100)
-   * @param userId - The ID of the user to top up the wallet for
+   * @param payer - The member who paid and the organization paying, read off the transaction
    * @param options.payment - Payment context attached to the `balance_top_up` analytics event
    * @returns The credited wallet's identifiers, so the caller can fund its draining deployments after the credit commits.
    */
-  async topUpWallet(amountUsd: number, userId: string, options: { endTrial?: boolean; payment?: PaymentAnalyticsContext } = {}): Promise<ToppedUpWallet> {
-    const userWallet = await this.lockActivatedWallet(userId);
+  async topUpWallet(amountUsd: number, payer: WalletPayer, options: { endTrial?: boolean; payment?: PaymentAnalyticsContext } = {}): Promise<ToppedUpWallet> {
+    const { userId } = payer;
+    const userWallet = await this.lockActivatedWallet(payer);
     const currentLimit = await this.balancesService.retrieveDeploymentLimit(userWallet);
 
     const nextLimit = currentLimit + amountUsd * 10000;
@@ -106,11 +115,13 @@ export class RefillService {
   /**
    * Reduce the wallet balance (e.g., for refunds)
    * @param amountUsd - The amount in USD *cents* to reduce from the wallet (e.g. 10000 = $100)
-   * @param userId - The ID of the user to reduce the wallet for
+   * @param payer - The member who paid and the organization that paid, read off the transaction
    * @param payment - Payment context attached to the `balance_refund` analytics event
    */
-  async reduceWalletBalance(amountUsd: number, userId: string, payment?: Pick<PaymentAnalyticsContext, "currency" | "transactionId">) {
-    const userWallet = await this.userWalletRepository.findOneBy({ userId });
+  async reduceWalletBalance(amountUsd: number, payer: WalletPayer, payment?: Pick<PaymentAnalyticsContext, "currency" | "transactionId">) {
+    const { userId } = payer;
+    const team = await this.#teamOf(payer);
+    const userWallet = team ? await this.userWalletRepository.findOneByOrganizationId(team.id) : await this.userWalletRepository.findOneBy({ userId });
 
     if (!userWallet || !userWallet.address) {
       this.logger.warn({ event: "WALLET_REDUCE_NO_WALLET", userId });
@@ -152,8 +163,8 @@ export class RefillService {
   }
 
   /** Holds the wallet row until the settlement commits, so an abuse wipe of the same wallet waits for it instead of revoking between this grant and its bookkeeping. */
-  private async lockActivatedWallet(userId: string) {
-    const userWallet = await this.ensureActivatedWallet(userId);
+  private async lockActivatedWallet(payer: WalletPayer) {
+    const userWallet = await this.ensureActivatedWallet(payer);
 
     return (await this.userWalletRepository.findOneByAndLock({ id: userWallet.id })) ?? userWallet;
   }
@@ -163,9 +174,21 @@ export class RefillService {
    * funding with real money must activate a wallet even when the user never started a trial.
    * The activation claim no-ops for already-activated wallets.
    */
-  private async ensureActivatedWallet(userId: string) {
-    const userWallet = await this.walletInitializerService.ensureWallet(userId);
+  private async ensureActivatedWallet(payer: WalletPayer) {
+    const team = await this.#teamOf(payer);
+    const userWallet = team
+      ? await this.walletInitializerService.ensureTeamWallet(team, payer.userId)
+      : await this.walletInitializerService.ensureWallet(payer.userId);
 
     return (await this.userWalletRepository.claimActivation(userWallet.id)) ?? userWallet;
+  }
+
+  /** A team organization pays into its own wallet; any other payment funds the wallet of the user who made it. */
+  async #teamOf(payer: WalletPayer): Promise<OrganizationOutput | undefined> {
+    if (!payer.organizationId) return undefined;
+
+    const organization = await this.organizationRepository.findById(payer.organizationId);
+
+    return organization?.type === "team" ? organization : undefined;
   }
 }

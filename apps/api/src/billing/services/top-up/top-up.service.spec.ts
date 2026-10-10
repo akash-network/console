@@ -4,7 +4,6 @@ import { describe, expect, it } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { UserWalletOutput, UserWalletRepository } from "@src/billing/repositories";
-import type { PayingUser } from "@src/billing/services/paying-user/paying-user";
 import type { PaymentMethodService } from "@src/billing/services/payment-method/payment-method.service";
 import type { StripeTransactionService } from "@src/billing/services/stripe-transaction/stripe-transaction.service";
 import type { TrialActivationJobService } from "@src/billing/services/trial-activation-job/trial-activation-job.service";
@@ -12,13 +11,13 @@ import type { TrialValidationService } from "@src/billing/services/trial-validat
 import { TopUpService } from "./top-up.service";
 
 import { generateDatabaseStripeTransaction } from "@test/seeders/database-stripe-transaction.seeder";
-import { createUser } from "@test/seeders/user.seeder";
+import { createTeamPayer, createUserPayer } from "@test/seeders/payer.seeder";
 
 describe(TopUpService.name, () => {
   describe("topUp", () => {
     it("throws a retriable 409 without charging when the wallet is still provisioning", async () => {
       const { service, stripeTransactionService, trialActivationJobService, userWalletRepository, payingUser } = setup();
-      userWalletRepository.findOneByUserId.mockResolvedValue(mock<UserWalletOutput>({ activatedAt: null }));
+      userWalletRepository.findOneUsedBy.mockResolvedValue(mock<UserWalletOutput>({ activatedAt: null }));
       trialActivationJobService.assertActivated.mockRejectedValue(createError(409, "provisioning", { errorCode: "wallet_provisioning" }));
 
       await expect(service.topUp(payingUser, { paymentMethodId: faker.string.uuid(), amount: 100 })).rejects.toMatchObject({
@@ -68,7 +67,7 @@ describe(TopUpService.name, () => {
     it("validates the top-up amount against the wallet before contacting Stripe", async () => {
       const { service, stripeTransactionService, userWalletRepository, trialValidationService, paymentMethodService, payingUser } = setup();
       const wallet = mock<UserWalletOutput>({ isTrialing: true });
-      userWalletRepository.findOneByUserId.mockResolvedValue(wallet);
+      userWalletRepository.findOneUsedBy.mockResolvedValue(wallet);
       paymentMethodService.hasPaymentMethod.mockResolvedValue(true);
       stripeTransactionService.createPaymentIntent.mockResolvedValue({
         success: true,
@@ -84,7 +83,7 @@ describe(TopUpService.name, () => {
 
     it("propagates the amount-validation rejection without ever calling Stripe", async () => {
       const { service, stripeTransactionService, userWalletRepository, trialValidationService, paymentMethodService, payingUser } = setup();
-      userWalletRepository.findOneByUserId.mockResolvedValue(mock<UserWalletOutput>({ isTrialing: true }));
+      userWalletRepository.findOneUsedBy.mockResolvedValue(mock<UserWalletOutput>({ isTrialing: true }));
       const trialError = Object.assign(new Error("First top-up must be at least $100 while on the free trial."), { status: 402 });
       trialValidationService.validateTopUpAmount.mockImplementation(() => {
         throw trialError;
@@ -97,7 +96,7 @@ describe(TopUpService.name, () => {
 
     it("forwards an undefined wallet to amount validation when no wallet exists", async () => {
       const { service, stripeTransactionService, userWalletRepository, trialValidationService, paymentMethodService, payingUser } = setup();
-      userWalletRepository.findOneByUserId.mockResolvedValue(undefined);
+      userWalletRepository.findOneUsedBy.mockResolvedValue(undefined);
       paymentMethodService.hasPaymentMethod.mockResolvedValue(true);
       stripeTransactionService.createPaymentIntent.mockResolvedValue({
         success: true,
@@ -190,7 +189,7 @@ describe(TopUpService.name, () => {
       await service.topUp(payingUser, { paymentMethodId: faker.string.uuid(), amount: 100, idempotencyKey: clientKey });
 
       expect(stripeTransactionService.createPaymentIntent).toHaveBeenCalledWith(
-        expect.objectContaining({ idempotencyKey: `topup_${payingUser.id}_${clientKey}` })
+        expect.objectContaining({ idempotencyKey: `topup_${payingUser.user.id}_${clientKey}` })
       );
     });
 
@@ -211,9 +210,38 @@ describe(TopUpService.name, () => {
     });
   });
 
+  describe("when a team organization pays", () => {
+    it("charges the team's customer for the team, under its own idempotency key namespace", async () => {
+      const { service, stripeTransactionService, paymentMethodService, trialActivationJobService, userWalletRepository } = setup();
+      const payer = createTeamPayer();
+      const clientKey = faker.string.uuid();
+      userWalletRepository.findOneUsedBy.mockResolvedValue(mock<UserWalletOutput>({ userId: null, activatedAt: null, isTrialing: false }));
+      paymentMethodService.hasPaymentMethod.mockResolvedValue(true);
+      stripeTransactionService.createPaymentIntent.mockResolvedValue({
+        success: true,
+        paymentIntentId: faker.string.uuid(),
+        transactionId: faker.string.uuid(),
+        transactionStatus: "pending"
+      });
+
+      await service.topUp(payer, { paymentMethodId: "pm_1", amount: 100, idempotencyKey: clientKey });
+
+      expect(userWalletRepository.findOneUsedBy).toHaveBeenCalledWith(payer.user.id);
+      expect(trialActivationJobService.assertActivated).not.toHaveBeenCalled();
+      expect(paymentMethodService.hasPaymentMethod).toHaveBeenCalledWith("pm_1", payer);
+      expect(stripeTransactionService.createPaymentIntent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          userId: payer.user.id,
+          organizationId: payer.team!.id,
+          customer: payer.stripeCustomerId,
+          idempotencyKey: `org_topup_${payer.team!.id}_${payer.user.id}_${clientKey}`
+        })
+      );
+    });
+  });
+
   function setup() {
-    const user = createUser();
-    const payingUser: PayingUser = { ...user, stripeCustomerId: user.stripeCustomerId! };
+    const payingUser = createUserPayer();
     const userWalletRepository = mock<UserWalletRepository>();
     const trialActivationJobService = mock<TrialActivationJobService>();
     const trialValidationService = mock<TrialValidationService>();
