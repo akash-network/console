@@ -74,6 +74,17 @@ describe(ProjectRepository.name, () => {
     });
   });
 
+  describe("findActiveIdsAmong", () => {
+    it("keeps only the ids of live projects of the organization", async () => {
+      const { repository, organization, user } = await setup();
+      const live = await seedProject({ organizationId: organization.id });
+      const deleted = await seedProject({ organizationId: organization.id, deletedAt: new Date() });
+      const foreign = await seedProject({ organizationId: (await seedOrganization({ createdByUserId: user.id })).id });
+
+      expect(await repository.findActiveIdsAmong(organization.id, [live.id, deleted.id, foreign.id, faker.string.uuid()])).toEqual([live.id]);
+    });
+  });
+
   describe("findActiveIdsGrantedTo", () => {
     it("lists the live projects of the organization granted to the user and nothing else", async () => {
       const { repository, organization, user } = await setup();

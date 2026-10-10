@@ -526,6 +526,13 @@
       "when": 1791562399189,
       "tag": "0074_organizations",
       "breakpoints": true
+    },
+    {
+      "idx": 75,
+      "version": "7",
+      "when": 1791617233345,
+      "tag": "0075_organization_invitation_emails",
+      "breakpoints": true
     }
   ]
 }
