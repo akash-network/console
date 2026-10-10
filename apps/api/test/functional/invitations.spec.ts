@@ -222,6 +222,20 @@ describe("Invitations", () => {
       expect(await membershipsOf(invitee)).toEqual([expect.objectContaining({ role: "viewer" })]);
     });
 
+    it("refuses a member who confirmed another address and leaves the invitation pending", async () => {
+      const { organization, invite, seedInvitee, request, membershipsOf } = await setup({});
+      const member = await seedInvitee();
+      await seedOrganizationMember({ organizationId: organization.id, userId: member.id, role: "viewer" });
+      const { token, invitation } = await invite({ email: "jane@example.com", role: "admin" });
+
+      const response = await request("/v1/invitations/accept", { asUser: member, body: { data: { token, confirmEmailMismatch: true } } });
+
+      expect(response.status).toBe(409);
+      expect(await response.json()).toMatchObject({ code: "already_member" });
+      expect(await membershipsOf(member)).toEqual([expect.objectContaining({ role: "viewer" })]);
+      expect(await invitationOf(invitation.id)).toMatchObject({ status: "pending", acceptedByUserId: null });
+    });
+
     it("refuses an API key and writes nothing", async () => {
       const { invite, seedInvitee, seedApiKey, request, membershipsOf, userOf } = await setup({});
       const invitee = await seedInvitee();

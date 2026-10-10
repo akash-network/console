@@ -18,6 +18,7 @@ import { OrganizationMemberRepository } from "@src/organization/repositories/org
 import { ProjectRepository } from "@src/organization/repositories/project/project.repository";
 import { ProjectMemberRepository } from "@src/organization/repositories/project-member/project-member.repository";
 import type { CallerMembership } from "@src/organization/services/organization/organization.service";
+import { ALREADY_MEMBER_ERROR_CODE } from "@src/organization/services/organization-invitation/organization-invitation.service";
 import type { UserOutput } from "@src/user/repositories/user/user.repository";
 import { UserRepository } from "@src/user/repositories/user/user.repository";
 
@@ -98,13 +99,15 @@ export class InvitationAcceptanceService {
     return invitation;
   }
 
-  /** A user who already belongs to the organization keeps their role and project grants. */
+  /** A user who already belongs to the organization keeps their role and project grants, and consumes only an invitation sent to their verified address. */
   async #join(invitation: OrganizationInvitationOutput, invitee: Invitee): Promise<void> {
     const { id, organizationId, role } = invitation;
     const membership = await this.organizationMemberRepository.unscoped("invitation-by-token").createUnlessExists({ organizationId, userId: invitee.id, role });
 
     if (membership) {
       await this.#grantProjects(invitation, invitee);
+    } else if (!isVerifiedInvitedAddress(invitation, invitee)) {
+      throw createError(409, "Already a member of the organization", { errorCode: ALREADY_MEMBER_ERROR_CODE });
     }
 
     await this.invitationRepository

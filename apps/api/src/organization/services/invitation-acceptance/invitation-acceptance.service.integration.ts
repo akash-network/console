@@ -150,6 +150,20 @@ describe(InvitationAcceptanceService.name, () => {
       expect(await container.resolve(OrganizationMemberRepository).count({ organizationId: organization.id, userId: invitee.id })).toBe(0);
     });
 
+    it("joins the invitee without grants when every granted project was deleted before acceptance", async () => {
+      const { service, organization, invite, seedInvitee, runAs, grantsOf } = await setup();
+      const deletedProjects = await Promise.all([1, 2].map(() => seedProject({ organizationId: organization.id, deletedAt: new Date() })));
+      const invitee = await seedInvitee();
+      const { token } = await invite({
+        email: invitee.email!,
+        role: "member",
+        projectGrants: deletedProjects.map(project => ({ projectId: project.id, role: "viewer" as const }))
+      });
+
+      await expect(runAs(invitee, () => service.acceptInvitation({ token }))).resolves.toMatchObject({ role: "member", organization: { id: organization.id } });
+      expect(await grantsOf(invitee)).toEqual([]);
+    });
+
     it("keeps the role of an invitee who already belongs to the organization", async () => {
       const { service, organization, invite, seedInvitee, runAs } = await setup();
       const invitee = await seedInvitee();
