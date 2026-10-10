@@ -29,6 +29,7 @@ import {
   type ConsoleClose,
   DeploymentOrganizationActivityService
 } from "@src/deployment/services/deployment-organization-activity/deployment-organization-activity.service";
+import { DeploymentProjectService } from "@src/deployment/services/deployment-project/deployment-project.service";
 import { RecordDeploymentSetting, recordDeploymentSettingKeyFor } from "@src/deployment/services/record-deployment-setting/record-deployment-setting.handler";
 import { UserRepository } from "@src/user/repositories";
 import { COSMOS_TX_CODE_OK } from "@src/utils/constants";
@@ -87,6 +88,7 @@ export class ManagedSignerService {
     private readonly deploymentSettingRepository: DeploymentSettingRepository,
     private readonly depositRefusalCache: DeploymentDepositRefusalCache,
     private readonly deploymentOrganizationActivityService: DeploymentOrganizationActivityService,
+    private readonly deploymentProjectService: DeploymentProjectService,
     @inject(LOGGER_FACTORY) createLogger: CreateLogger
   ) {
     this.logger = createLogger({ context: ManagedSignerService.name });
@@ -257,9 +259,11 @@ export class ManagedSignerService {
 
   /** A create broadcast here never passes through the deployment API that would record it, so the record is written from the landed transaction. */
   async #recordCreatedDeployments(userWallet: UserWalletOutput, messages: EncodeObject[]) {
+    const projectId = this.deploymentProjectService.soleProjectOfRequest(userWallet.organizationId);
+
     for (const dseq of this.#findDeploymentDseqs(messages, ".MsgCreateDeployment")) {
       const key = { userId: userWallet.userId, dseq: dseq.toString() };
-      await this.domainEvents.publish(new RecordDeploymentSetting({ ...key, organizationId: userWallet.organizationId }), {
+      await this.domainEvents.publish(new RecordDeploymentSetting({ ...key, organizationId: userWallet.organizationId, projectId }), {
         singletonKey: recordDeploymentSettingKeyFor(key)
       });
     }

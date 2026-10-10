@@ -29,6 +29,7 @@ import type { DomainEventsService } from "@src/core/services/domain-events/domai
 import type { FeatureFlagValue } from "@src/core/services/feature-flags/feature-flags";
 import type { DeploymentSettingRepository } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
 import type { DeploymentOrganizationActivityService } from "@src/deployment/services/deployment-organization-activity/deployment-organization-activity.service";
+import type { DeploymentProjectService } from "@src/deployment/services/deployment-project/deployment-project.service";
 import { RecordDeploymentSetting } from "@src/deployment/services/record-deployment-setting/record-deployment-setting.handler";
 import type { UserOutput, UserRepository } from "@src/user/repositories";
 import { createAkashAddress } from "../../../../test/seeders";
@@ -606,6 +607,36 @@ describe(ManagedSignerService.name, () => {
       const [event, options] = vi.mocked(domainEvents.publish).mock.calls.find(([published]) => published instanceof RecordDeploymentSetting)!;
       expect(event.data).toEqual({ userId: wallet.userId, dseq: "123", organizationId: wallet.organizationId });
       expect(options).toEqual({ singletonKey: `recordDeploymentSetting.${wallet.userId}.123` });
+    });
+
+    it("records a created deployment into the one project the request is held to", async () => {
+      const wallet = createUserWallet({
+        userId: "user-123",
+        feeAllowance: 100,
+        deploymentAllowance: 100,
+        isTrialing: false,
+        organizationId: faker.string.uuid()
+      });
+      const projectId = faker.string.uuid();
+      const deploymentMessage: EncodeObject = {
+        typeUrl: MsgCreateDeployment.$type,
+        value: MsgCreateDeployment.fromPartial({ id: { owner: "akash1test", dseq: 123 } })
+      };
+      const soleProjectOfRequest = vi.fn().mockReturnValue(projectId);
+      const { service, domainEvents } = setup({
+        findOneByUserId: vi.fn().mockResolvedValue(wallet),
+        findById: vi.fn().mockResolvedValue(createUser({ userId: "user-123" })),
+        signAndBroadcastWithDerivedWallet: vi.fn().mockResolvedValue({ code: 0, hash: "tx-hash", rawLog: "success" }),
+        refreshUserWalletLimits: vi.fn().mockResolvedValue(undefined),
+        publish: vi.fn().mockResolvedValue(undefined),
+        soleProjectOfRequest
+      });
+
+      await service.executeDerivedDecodedTxByUserId("user-123", [deploymentMessage]);
+
+      const [event] = vi.mocked(domainEvents.publish).mock.calls.find(([published]) => published instanceof RecordDeploymentSetting)!;
+      expect(soleProjectOfRequest).toHaveBeenCalledWith(wallet.organizationId);
+      expect(event.data).toEqual({ userId: wallet.userId, dseq: "123", organizationId: wallet.organizationId, projectId });
     });
 
     it("records a deployment a trialing wallet created, so converting to paid needs no repair", async () => {
@@ -1550,6 +1581,7 @@ describe(ManagedSignerService.name, () => {
     hasLeases?: LeaseHttpService["hasLeases"];
     scheduleImmediate?: WalletReloadJobService["scheduleImmediate"];
     markClosed?: DeploymentSettingRepository["markClosed"];
+    soleProjectOfRequest?: DeploymentProjectService["soleProjectOfRequest"];
     decode?: Registry["decode"];
   }) {
     const mocks = {
@@ -1605,6 +1637,9 @@ describe(ManagedSignerService.name, () => {
       deploymentSettingRepository: mock<DeploymentSettingRepository>({
         markClosed: input?.markClosed ?? vi.fn()
       }),
+      deploymentProjectService: mock<DeploymentProjectService>({
+        soleProjectOfRequest: input?.soleProjectOfRequest ?? vi.fn()
+      }),
       deploymentOrganizationActivityService: mock<DeploymentOrganizationActivityService>({
         recordClosed: vi.fn()
       }),
@@ -1639,6 +1674,7 @@ describe(ManagedSignerService.name, () => {
       mocks.deploymentSettingRepository,
       new DeploymentDepositRefusalCache(mocks.billingConfigService),
       mocks.deploymentOrganizationActivityService,
+      mocks.deploymentProjectService,
       createLogger
     );
 

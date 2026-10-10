@@ -57,6 +57,13 @@ export class DeploymentProjectService {
     return fallback.id;
   }
 
+  /** The one project a request in the given organization is held to, for a deployment it creates without naming one. */
+  soleProjectOfRequest(organizationId: string | null): string | undefined {
+    const context = this.#organizationModeContext();
+
+    return context?.organizationId === organizationId ? soleProjectInScope(context) : undefined;
+  }
+
   /** Must run inside the transaction that files the deployment, which then holds the project until it commits. */
   async holdFilingProject(projectId: string): Promise<void> {
     if (!(await this.projectRepository.findActiveAndLock(projectId))) {
@@ -137,7 +144,7 @@ export class DeploymentProjectService {
   }
 
   #organizationModeContext(): OrganizationContext | undefined {
-    const context = this.executionContextService.get("ORGANIZATION_CONTEXT");
+    const context = this.executionContextService.hasContext() ? this.executionContextService.get("ORGANIZATION_CONTEXT") : undefined;
 
     return context?.mode === "organization" ? context : undefined;
   }
