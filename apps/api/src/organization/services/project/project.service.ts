@@ -2,11 +2,14 @@ import createError from "http-errors";
 import { singleton } from "tsyringe";
 
 import { AuthService } from "@src/auth/services/auth.service";
-import { isUniqueViolation } from "@src/core/repositories/base.repository";
+import { getPostgresError } from "@src/core/repositories/base.repository";
 import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
 import { TxService } from "@src/core/services/tx/tx.service";
+import { closureKey, normalizeDseq } from "@src/deployment/lib/deployment-closure-key/deployment-closure-key";
+import { DeploymentRepository } from "@src/deployment/repositories/deployment/deployment.repository";
 import { DeploymentSettingRepository } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
-import { toSlug } from "@src/organization/lib/slug/slug";
+import { slugCandidates } from "@src/organization/lib/slug/slug";
+import { PROJECT_NAME_UNIQUE_INDEX } from "@src/organization/model-schemas/project/project.schema";
 import { type ProjectInput, ProjectRepository, type ProjectWithCreator } from "@src/organization/repositories/project/project.repository";
 import { OrganizationActivityService } from "@src/organization/services/organization-activity/organization-activity.service";
 
@@ -15,11 +18,14 @@ export interface ProjectChanges {
   description?: string | null;
 }
 
+const FALLBACK_PROJECT_SLUG_PREFIX = "project";
+
 @singleton()
 export class ProjectService {
   constructor(
     private readonly projectRepository: ProjectRepository,
     private readonly deploymentSettingRepository: DeploymentSettingRepository,
+    private readonly deploymentRepository: DeploymentRepository,
     private readonly organizationActivityService: OrganizationActivityService,
     private readonly authService: AuthService,
     private readonly executionContextService: ExecutionContextService,
@@ -47,14 +53,16 @@ export class ProjectService {
 
     const project = await this.txService.transaction(async () => {
       const created = await rejectTakenName(() =>
-        repository.create({
-          organizationId,
-          name: input.name,
-          slug: toSlug(input.name),
-          description: input.description || null,
-          createdByUserId: userId
-        })
+        repository.createWithFirstFreeSlug(
+          { organizationId, name: input.name, description: input.description || null, createdByUserId: userId },
+          slugCandidates(input.name, FALLBACK_PROJECT_SLUG_PREFIX)
+        )
       );
+
+      if (!created) {
+        throw new Error("Every slug candidate for the project is taken");
+      }
+
       await this.organizationActivityService.record({
         organizationId,
         type: "project_created",
@@ -83,7 +91,7 @@ export class ProjectService {
   async delete(id: string): Promise<void> {
     const repository = this.projectRepository.accessibleBy(this.authService.ability, "delete");
 
-    await this.txService.transaction(async () => {
+    const openDeployments = await this.txService.transaction(async () => {
       const project = await repository.findOneByAndLock({ id, deletedAt: null });
 
       if (!project) {
@@ -94,14 +102,32 @@ export class ProjectService {
         throw createError(409, "The default project cannot be deleted", { errorCode: "project_is_default" });
       }
 
-      const openDeployments = await this.deploymentSettingRepository.count({ projectId: id, closed: false });
+      await this.#closeDeploymentsEndedOnChain(id);
+      const stillOpen = await this.deploymentSettingRepository.count({ projectId: id, closed: false });
 
-      if (openDeployments > 0) {
-        throw createError(409, "Move or close the project's deployments before deleting it", { errorCode: "project_not_empty" });
+      if (stillOpen === 0) {
+        await repository.updateById(id, { deletedAt: new Date() });
       }
 
-      await repository.updateById(id, { deletedAt: new Date() });
+      return stillOpen;
     });
+
+    if (openDeployments > 0) {
+      throw createError(409, "Move or close the project's deployments before deleting it", { errorCode: "project_not_empty" });
+    }
+  }
+
+  /** The closed flag only catches up with deployments closed outside the console on the next reconcile, so the chain decides what still counts as open. */
+  async #closeDeploymentsEndedOnChain(projectId: string): Promise<void> {
+    const deployments = await this.deploymentSettingRepository.findOpenByProjectId(projectId);
+    const closureStates = await this.deploymentRepository.findClosureStates(
+      deployments.map(({ address, dseq }) => ({ owner: address, dseq: normalizeDseq(dseq) }))
+    );
+    const closedOnChain = new Set(closureStates.filter(({ isClosed }) => isClosed).map(closureKey));
+
+    await this.deploymentSettingRepository.markAsClosed(
+      deployments.filter(({ address, dseq }) => closedOnChain.has(closureKey({ owner: address, dseq }))).map(({ id }) => id)
+    );
   }
 
   #activeOrganizationId(): string {
@@ -117,7 +143,7 @@ export class ProjectService {
 
 function toChangedFields({ name, description }: ProjectChanges): Partial<ProjectInput> {
   return {
-    ...(name !== undefined && { name, slug: toSlug(name) }),
+    ...(name !== undefined && { name }),
     ...(description !== undefined && { description: description || null })
   };
 }
@@ -126,7 +152,7 @@ async function rejectTakenName<T>(write: () => Promise<T>): Promise<T> {
   try {
     return await write();
   } catch (error) {
-    if (isUniqueViolation(error)) {
+    if (getPostgresError(error)?.constraint_name === PROJECT_NAME_UNIQUE_INDEX) {
       throw createError(409, "A project with this name already exists", { errorCode: "project_name_taken" });
     }
 

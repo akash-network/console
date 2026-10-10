@@ -1,5 +1,5 @@
 {
-  "id": "ab46e98d-473d-42ce-9b5e-56ce0636d8b3",
+  "id": "d62cbab4-e504-4792-a932-b7e97fce9ce4",
   "prevId": "006fb648-5734-494e-9915-c426d4a7a138",
   "version": "7",
   "dialect": "postgresql",
@@ -3430,6 +3430,28 @@
           "method": "btree",
           "with": {}
         },
+        "projects_organization_id_name_unique": {
+          "name": "projects_organization_id_name_unique",
+          "columns": [
+            {
+              "expression": "organization_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "lower(\"name\")",
+              "asc": true,
+              "isExpression": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"projects\".\"deleted_at\" IS NULL",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
         "projects_organization_id_default_unique": {
           "name": "projects_organization_id_default_unique",
           "columns": [
@@ -3662,6 +3684,39 @@
           "columns": [
             {
               "expression": "organization_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": false,
+              "nulls": "last"
+            },
+            {
+              "expression": "id",
+              "isExpression": false,
+              "asc": false,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "organization_activities_organization_id_project_id_created_at_id_idx": {
+          "name": "organization_activities_organization_id_project_id_created_at_id_idx",
+          "columns": [
+            {
+              "expression": "organization_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "project_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"

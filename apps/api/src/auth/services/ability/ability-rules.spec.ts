@@ -101,7 +101,7 @@ const ROLE_TABLE: Record<OrganizationRole, Record<string, string[]>> = {
     OrganizationInvitation: NONE,
     Project: READ,
     ProjectMember: NONE,
-    OrganizationActivity: READ,
+    OrganizationActivity: NONE,
     UserWallet: READ,
     WalletSetting: MANAGE,
     PaymentMethod: MANAGE,
@@ -233,12 +233,12 @@ describe("ability rules", () => {
       expect(organizationWide.OrganizationActivity).toEqual(READ);
     });
 
-    it("lets the billing role read the activities of every project", () => {
+    it("keeps the billing role to the activities about the whole organization", () => {
       const { ability, organizationId, user } = setup({ role: "billing" });
 
       const granted = actionsBySubject(ability, { organizationId, projectId: faker.string.uuid(), userId: user.id });
 
-      expect(granted.OrganizationActivity).toEqual(READ);
+      expect(granted.OrganizationActivity).toEqual(NONE);
     });
 
     it("lets a member granted no projects reach no project resource", () => {

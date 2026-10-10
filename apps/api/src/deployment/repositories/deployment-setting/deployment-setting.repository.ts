@@ -335,6 +335,22 @@ export class DeploymentSettingRepository extends OrgScopedRepository<Table, Depl
   }
 
   /** Keyset-paged on `id`, the leading column of `id_auto_top_up_enabled_closed_idx`, so each batch stays an index scan. */
+  async findOpenByProjectId(projectId: string): Promise<OpenDeployment[]> {
+    const deployments = await this.cursor
+      .select({
+        id: this.table.id,
+        userId: this.table.userId,
+        dseq: this.table.dseq,
+        address: UserWallets.address,
+        createdAt: this.table.createdAt
+      })
+      .from(this.table)
+      .innerJoin(UserWallets, eq(this.table.userId, UserWallets.userId))
+      .where(this.whereAccessibleBy(and(eq(this.table.projectId, projectId), eq(this.table.closed, false), isNotNull(UserWallets.address))));
+
+    return deployments as OpenDeployment[];
+  }
+
   async *findOpenDeploymentsIteratively({ batchSize }: { batchSize: number }): AsyncGenerator<OpenDeployment[]> {
     let cursor: string | undefined;
 

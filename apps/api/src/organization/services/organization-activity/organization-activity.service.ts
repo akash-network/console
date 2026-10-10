@@ -35,16 +35,6 @@ export class OrganizationActivityService {
     await this.organizationActivityRepository.create(activity);
   }
 
-  /** A new organization is not yet the one the request runs in, so its first activity is filed into it explicitly. */
-  async recordOrganizationCreated(organization: { id: string; name: string }, actorUserId: string): Promise<void> {
-    await this.organizationActivityRepository.unscoped("organization-provisioning").create({
-      organizationId: organization.id,
-      actorUserId,
-      type: "organization_created",
-      payload: { organizationName: organization.name } satisfies OrganizationActivityPayloads["organization_created"]
-    });
-  }
-
   async list({ limit, cursor, projectId }: { limit: number; cursor?: string; projectId?: string }): Promise<OrganizationActivityPage> {
     const after = cursor ? decodeActivityCursor(cursor) : undefined;
     const rows = await this.organizationActivityRepository.accessibleBy(this.authService.ability, "read").findPage({ limit: limit + 1, after, projectId });
