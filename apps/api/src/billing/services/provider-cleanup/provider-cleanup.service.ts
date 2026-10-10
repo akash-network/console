@@ -10,6 +10,7 @@ import { type ProviderCleanupParams } from "@src/billing/types/provider-cleanup"
 import { ErrorService } from "@src/core/services/error/error.service";
 import { ProviderCleanupSummarizer } from "@src/deployment/lib/provider-cleanup-summarizer/provider-cleanup-summarizer";
 import { DeploymentRepository } from "@src/deployment/repositories/deployment/deployment.repository";
+import { DeploymentOrganizationActivityService } from "@src/deployment/services/deployment-organization-activity/deployment-organization-activity.service";
 
 @singleton()
 export class ProviderCleanupService {
@@ -23,7 +24,8 @@ export class ProviderCleanupService {
     private readonly deploymentRepository: DeploymentRepository,
     private readonly rpcMessageService: RpcMessageService,
     private readonly errorService: ErrorService,
-    private readonly chainErrorService: ChainErrorService
+    private readonly chainErrorService: ChainErrorService,
+    private readonly deploymentOrganizationActivityService: DeploymentOrganizationActivityService
   ) {}
 
   async cleanup(options: ProviderCleanupParams) {
@@ -59,6 +61,7 @@ export class ProviderCleanupService {
       try {
         if (!options.dryRun) {
           await this.managedSignerService.executeDerivedTx(wallet.id, [message]);
+          await this.#recordClosed(wallet, deployment.dseq);
           this.logger.info({ event: "PROVIDER_CLEAN_UP_SUCCESS" });
         }
       } catch (error) {
@@ -73,6 +76,7 @@ export class ProviderCleanupService {
           }
         });
         await this.managedSignerService.executeDerivedTx(wallet.id, [message]);
+        await this.#recordClosed(wallet, deployment.dseq);
         this.logger.info({ event: "PROVIDER_CLEAN_UP_SUCCESS" });
       } finally {
         summary.inc("deploymentCount");
@@ -80,5 +84,9 @@ export class ProviderCleanupService {
     });
 
     await Promise.all(closeAllWalletStaleDeployments);
+  }
+
+  async #recordClosed(wallet: UserWalletOutput, dseq: string): Promise<void> {
+    await this.deploymentOrganizationActivityService.recordClosed({ userId: wallet.userId, dseq }, { actorUserId: null, reason: null });
   }
 }

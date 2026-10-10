@@ -14,6 +14,7 @@ import { BlockHttpService } from "@src/chain/services/block-http/block-http.serv
 import { type CreateLogger, LOGGER_FACTORY } from "@src/core";
 import { ErrorService } from "@src/core/services/error/error.service";
 import { DeploymentRepository, type StaleDeployment, type StaleDeploymentsOutput } from "@src/deployment/repositories/deployment/deployment.repository";
+import { DeploymentOrganizationActivityService } from "@src/deployment/services/deployment-organization-activity/deployment-organization-activity.service";
 import { CleanUpStaleDeploymentsParams } from "@src/deployment/types/state-deployments";
 import { averageBlockTime, COSMOS_TX_CODE_OK } from "@src/utils/constants";
 
@@ -56,6 +57,7 @@ export class StaleManagedDeploymentsCleanerService {
     private readonly managedUserWalletService: ManagedUserWalletService,
     private readonly errorService: ErrorService,
     private readonly chainErrorService: ChainErrorService,
+    private readonly deploymentOrganizationActivityService: DeploymentOrganizationActivityService,
     @inject(LOGGER_FACTORY) createLogger: CreateLogger
   ) {
     this.logger = createLogger({ context: StaleManagedDeploymentsCleanerService.name });
@@ -102,7 +104,7 @@ export class StaleManagedDeploymentsCleanerService {
 
   async cleanUpForWallet(wallet: UserWalletOutput, maxLiveBlocks: number = this.MAX_LIVE_BLOCKS) {
     const staleBeforeHeight = (await this.blockRepository.getLatestProcessedHeight()) - maxLiveBlocks;
-    const managedWallet = { id: wallet.id, address: wallet.address! };
+    const managedWallet = { id: wallet.id, address: wallet.address!, userId: wallet.userId };
     const deployments = await this.deploymentRepository.findStaleDeployments({ owners: [managedWallet.address], staleBeforeHeight });
 
     await this.#closeDeploymentsWithoutActiveLease(managedWallet, deployments);
@@ -198,6 +200,7 @@ export class StaleManagedDeploymentsCleanerService {
       const failure = await this.closeDeployments(wallet, messages);
 
       if (!failure) {
+        await this.#recordClosed(wallet, remaining);
         break;
       }
 
@@ -252,6 +255,12 @@ export class StaleManagedDeploymentsCleanerService {
       } catch (retryError) {
         return retryError;
       }
+    }
+  }
+
+  async #recordClosed(wallet: ManagedWalletRef, deployments: StaleDeploymentsOutput[]): Promise<void> {
+    for (const { dseq } of deployments) {
+      await this.deploymentOrganizationActivityService.recordClosed({ userId: wallet.userId, dseq }, { actorUserId: null, reason: null });
     }
   }
 

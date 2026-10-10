@@ -16,6 +16,7 @@ import type { BlockHttpService } from "@src/chain/services/block-http/block-http
 import type { CreateLogger } from "@src/core/providers/logging.provider";
 import { ErrorService } from "@src/core/services/error/error.service";
 import type { DeploymentRepository, StaleDeployment } from "@src/deployment/repositories/deployment/deployment.repository";
+import type { DeploymentOrganizationActivityService } from "@src/deployment/services/deployment-organization-activity/deployment-organization-activity.service";
 import { StaleManagedDeploymentsCleanerService } from "./stale-managed-deployments-cleaner.service";
 
 import { createUserWallet } from "@test/seeders/user-wallet.seeder";
@@ -101,6 +102,33 @@ describe(StaleManagedDeploymentsCleanerService.name, () => {
       ]);
       expect(logger.info).toHaveBeenCalledWith({ event: "DEPLOYMENT_CLEAN_UP_ALREADY_CLOSED", owner: OWNER, dseq: "2" });
       expect(logger.info).toHaveBeenCalledWith({ event: "DEPLOYMENT_CLEAN_UP_SUCCESS", owner: OWNER, alreadyClosedCount: 1 });
+    });
+
+    it("files only the deployments the cleanup closed itself in the organization feed, as closed by the console", async () => {
+      const executeDerivedTx = vi.fn().mockRejectedValueOnce(buildDeploymentClosedAppError(1)).mockResolvedValueOnce(buildOkTx());
+      const { service, deploymentOrganizationActivityService, wallet } = setup({ staleDeployments: ["1", "2", "3"], executeDerivedTx });
+
+      await service.cleanUpForWallet(wallet, 0);
+
+      expect(deploymentOrganizationActivityService.recordClosed.mock.calls).toEqual([
+        [
+          { userId: wallet.userId, dseq: "1" },
+          { actorUserId: null, reason: null }
+        ],
+        [
+          { userId: wallet.userId, dseq: "3" },
+          { actorUserId: null, reason: null }
+        ]
+      ]);
+    });
+
+    it("files nothing in the organization feed when the close cannot land", async () => {
+      const executeDerivedTx = vi.fn().mockRejectedValue(new Error("node unreachable"));
+      const { service, deploymentOrganizationActivityService, wallet } = setup({ staleDeployments: ["1"], executeDerivedTx });
+
+      await expect(service.cleanUpForWallet(wallet, 0)).rejects.toThrow("node unreachable");
+
+      expect(deploymentOrganizationActivityService.recordClosed).not.toHaveBeenCalled();
     });
 
     it("resolves quietly when the wallet's only orphan is already closed and the error carries no index", async () => {
@@ -450,9 +478,13 @@ describe(StaleManagedDeploymentsCleanerService.name, () => {
 
     const walletBatches: ManagedWalletRef[][] = input?.walletBatches
       ? input.walletBatches.map((size, batch) =>
-          Array.from({ length: size }, (_, index) => ({ id: 1000 + batch * 10 + index, address: `akash1owner${batch}${index}` }))
+          Array.from({ length: size }, (_, index) => ({
+            id: 1000 + batch * 10 + index,
+            address: `akash1owner${batch}${index}`,
+            userId: `user-${batch}${index}`
+          }))
         )
-      : [Object.entries(walletIdsByAddress).map(([address, id]) => ({ id, address }))];
+      : [Object.entries(walletIdsByAddress).map(([address, id]) => ({ id, address, userId: id === wallet.id ? wallet.userId : `user-${id}` }))];
 
     const userWalletRepository = mock<UserWalletRepository>({
       findManagedIteratively: vi.fn(async function* () {
@@ -474,6 +506,7 @@ describe(StaleManagedDeploymentsCleanerService.name, () => {
     const createErrorLogger = vi.fn<CreateLogger>(() => errorLogger);
     const errorService = new ErrorService(createErrorLogger);
     const chainErrorService = new ChainErrorService(mock<BalanceHttpService>(), mock<BillingConfigService>(), mock<TxManagerService>());
+    const deploymentOrganizationActivityService = mock<DeploymentOrganizationActivityService>();
 
     const currentHeight = input?.currentHeight ?? 1_000_000;
     blockRepository.getLatestProcessedHeight.mockResolvedValue(currentHeight);
@@ -492,6 +525,7 @@ describe(StaleManagedDeploymentsCleanerService.name, () => {
       managedUserWalletService,
       errorService,
       chainErrorService,
+      deploymentOrganizationActivityService,
       createLogger
     );
 
@@ -506,6 +540,7 @@ describe(StaleManagedDeploymentsCleanerService.name, () => {
       managedSignerService,
       managedUserWalletService,
       chainErrorService,
+      deploymentOrganizationActivityService,
       logger,
       createLogger,
       errorLogger,
