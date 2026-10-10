@@ -87,7 +87,7 @@ export class OrganizationContextResolver {
       isOrganizationsOn || this.featureFlagsService.isEnabled(FeatureFlags.ORGANIZATIONS_ENFORCE, { userId: request.user.id }) ? "organization" : "legacy";
 
     if (!isOrganizationsOn) {
-      return await this.#resolvePersonalContext(request.user, mode);
+      return await this.#resolvePersonalContext(request, mode);
     }
 
     const { role, organization } = await this.#resolveMembership(request.user, request.apiKey, normalizeHeader(request.organizationHeader));
@@ -99,12 +99,35 @@ export class OrganizationContextResolver {
     return { organizationId: organization.id, organizationType: organization.type, role, projectScope, mode };
   }
 
-  async #resolvePersonalContext(user: OrganizationContextRequest["user"], mode: AuthorizationMode): Promise<OrganizationContext | undefined> {
+  async #resolvePersonalContext({ user, apiKey }: OrganizationContextRequest, mode: AuthorizationMode): Promise<OrganizationContext | undefined> {
+    const membership = await this.#personalMembershipUnlessUnavailable(user, mode, apiKey);
+
+    if (!membership) return undefined;
+
+    const { organization } = membership;
+
+    if (apiKey?.organizationId && apiKey.organizationId !== organization.id) {
+      throw createError(403, "The API key belongs to an organization this request cannot run in", { errorCode: ORGANIZATION_FORBIDDEN_ERROR_CODE });
+    }
+
+    if (apiKey?.projectId && mode === "legacy") {
+      throw createError(403, "The API key is limited to a project this request cannot be limited to", { errorCode: PROJECT_FORBIDDEN_ERROR_CODE });
+    }
+
+    const projectScope: ProjectScope = apiKey?.projectId ? { kind: "projects", projectIds: [apiKey.projectId] } : { kind: "all" };
+
+    return { organizationId: organization.id, organizationType: organization.type, role: "owner", projectScope, mode };
+  }
+
+  async #personalMembershipUnlessUnavailable(
+    user: OrganizationContextRequest["user"],
+    mode: AuthorizationMode,
+    apiKey: OrganizationContextRequest["apiKey"]
+  ): Promise<Membership | undefined> {
     try {
-      const { organization } = await this.#personalMembership(user);
-      return { organizationId: organization.id, organizationType: organization.type, role: "owner", projectScope: { kind: "all" }, mode };
+      return await this.#personalMembership(user);
     } catch (error) {
-      if (mode === "organization") throw error;
+      if (mode === "organization" || apiKey?.organizationId || apiKey?.projectId) throw error;
 
       this.#logger.error({ event: "PERSONAL_ORGANIZATION_CONTEXT_UNAVAILABLE", userId: user.id, error });
       return undefined;

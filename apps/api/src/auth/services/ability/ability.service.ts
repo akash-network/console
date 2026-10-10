@@ -36,7 +36,7 @@ export class AbilityService {
     }
 
     if (organizationContext.mode === "organization") {
-      return this.#toAbility(organizationRules(user, organizationContext));
+      return this.#toAbility(organizationRules(user, organizationContext, this.executionContextService.get("CURRENT_API_KEY")));
     }
 
     return this.#legacyAbilityWithOrganizationShadow(user, organizationContext);
