@@ -6,7 +6,7 @@ import { OrgScopedRepository } from "@src/core/repositories/org-scoped.repositor
 import { TxService } from "@src/core/services";
 import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
 import { DEFAULT_PROJECT_NAME, DEFAULT_PROJECT_SLUG } from "@src/organization/model-schemas/project/project.schema";
-import { ProjectMembers } from "@src/organization/model-schemas/project-member/project-member.schema";
+import { ProjectMembers, type ProjectRole } from "@src/organization/model-schemas/project-member/project-member.schema";
 import { Users } from "@src/user/model-schemas/user/user.schema";
 
 type Table = ApiPgTables["Projects"];
@@ -16,6 +16,8 @@ export type ProjectOutput = Table["$inferSelect"];
 export type ProjectCreator = { id: string; username: string | null };
 
 export type ProjectWithCreator = ProjectOutput & { createdBy: ProjectCreator | null };
+
+export type ProjectGrantOfUser = { projectId: string; role: ProjectRole };
 
 @singleton()
 export class ProjectRepository extends OrgScopedRepository<Table, ProjectInput, ProjectOutput> {
@@ -88,15 +90,13 @@ export class ProjectRepository extends OrgScopedRepository<Table, ProjectInput, 
     return project && this.toOutput(project);
   }
 
-  async findActiveIdsGrantedTo(organizationId: ProjectOutput["organizationId"], userId: string): Promise<string[]> {
-    const projects = await this.cursor
-      .select({ id: this.table.id })
+  async findActiveGrantsOf(organizationId: ProjectOutput["organizationId"], userId: string): Promise<ProjectGrantOfUser[]> {
+    return await this.cursor
+      .select({ projectId: this.table.id, role: ProjectMembers.role })
       .from(this.table)
       .innerJoin(ProjectMembers, and(eq(ProjectMembers.projectId, this.table.id), eq(ProjectMembers.userId, userId)))
       .where(
         this.unscoped("active-organization-resolution").whereAccessibleBy(and(eq(this.table.organizationId, organizationId), isNull(this.table.deletedAt)))
       );
-
-    return projects.map(project => project.id);
   }
 }

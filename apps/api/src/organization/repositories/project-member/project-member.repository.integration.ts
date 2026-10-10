@@ -14,7 +14,7 @@ import { ProjectMemberRepository } from "./project-member.repository";
 
 import { seedOrganizationMember, seedOrganizationWithOwner, seedProject, seedProjectMember } from "@test/seeders/db/organization.seeder";
 import { seedUser } from "@test/seeders/db/user-with-wallet.seeder";
-import { createOrganizationContext } from "@test/seeders/organization-context.seeder";
+import { createOrganizationContext, createProjectsScope } from "@test/seeders/organization-context.seeder";
 
 describe(ProjectMemberRepository.name, () => {
   describe("createUnlessExists", () => {
@@ -66,6 +66,20 @@ describe(ProjectMemberRepository.name, () => {
       ]);
     });
 
+    it("leaves out the grants held by people whose organization role is neither member nor viewer", async () => {
+      const { repository, organization, project, member } = await setup();
+      const kept = await seedProjectMember({ organizationId: organization.id, projectId: project.id, userId: member.id });
+      for (const role of ["owner", "admin", "billing"] as const) {
+        const holder = await seedUser({ userId: faker.string.uuid() });
+        await seedOrganizationMember({ organizationId: organization.id, userId: holder.id, role });
+        await seedProjectMember({ organizationId: organization.id, projectId: project.id, userId: holder.id });
+      }
+
+      const grants = await repository.findOfLiveProjects({ projectId: project.id });
+
+      expect(grants.map(({ id }) => id)).toEqual([kept.id]);
+    });
+
     it("finds a grant by id and leaves out the grants of deleted projects", async () => {
       const { repository, organization, member } = await setup();
       const deleted = await seedProject({ organizationId: organization.id, deletedAt: new Date() });
@@ -86,7 +100,7 @@ describe(ProjectMemberRepository.name, () => {
       await seedOrganizationMember({ organizationId: foreign.id, userId: member.id, role: "member" });
       await seedProjectMember({ organizationId: foreign.id, projectId: foreignProject.id, userId: member.id });
 
-      const grants = await runIn({ user: member, organizationId: organization.id, role: "member", projectScope: { kind: "projects", projectIds: [project.id] } }, ability =>
+      const grants = await runIn({ user: member, organizationId: organization.id, role: "member", projectScope: createProjectsScope([project.id]) }, ability =>
         repository.accessibleBy(ability, "read").findOfLiveProjects({})
       );
 

@@ -11,6 +11,7 @@ import { POSTGRES_DB, resolveTable } from "@src/core";
 import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
 import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import type { OrganizationRole } from "@src/organization/model-schemas/organization-member/organization-member.schema";
+import type { ProjectRole } from "@src/organization/model-schemas/project-member/project-member.schema";
 import { app } from "@src/rest-app";
 import type { UserOutput } from "@src/user/repositories";
 
@@ -63,6 +64,19 @@ describe("Project members", () => {
 
       expect(response.status).toBe(200);
       expect(userIdsOf(await response.json())).toEqual([caller.id, colleague.id]);
+    });
+
+    it("leaves out the grants of people whose organization role reaches every project or none", async () => {
+      const { team, project, owner, actAs, addMember } = await setup();
+      const grantee = await addMember("member");
+      const kept = await seedProjectMember({ organizationId: team.id, projectId: project.id, userId: grantee.id });
+      for (const role of ["admin", "billing"] as const) {
+        await seedProjectMember({ organizationId: team.id, projectId: project.id, userId: (await addMember(role)).id });
+      }
+
+      const response = await actAs(owner)(`/v1/projects/${project.id}/members`);
+
+      expect(userIdsOf(await response.json())).toEqual([kept.userId]);
     });
 
     it("answers 404 to a member for a project it was not granted", async () => {
@@ -151,10 +165,14 @@ describe("Project members", () => {
       expect(await grantsOf(grantee.id)).toEqual([expect.objectContaining({ projectId: defaultProject.id, role: "viewer" })]);
     });
 
-    it.each<OrganizationRole>(["member", "viewer", "billing"])("refuses to let a %s grant access", async role => {
+    it.each<[OrganizationRole, ProjectRole]>([
+      ["member", "member"],
+      ["viewer", "admin"],
+      ["billing", "admin"]
+    ])("refuses to let a %s holding the %s project role grant access", async (role, projectRole) => {
       const { team, project, actAs, addMember } = await setup();
       const caller = await addMember(role);
-      await seedProjectMember({ organizationId: team.id, projectId: project.id, userId: caller.id, role: "admin" });
+      await seedProjectMember({ organizationId: team.id, projectId: project.id, userId: caller.id, role: projectRole });
       const grantee = await addMember("member");
 
       const response = await actAs(caller)("/v1/project-members", {
@@ -264,10 +282,10 @@ describe("Project members", () => {
       expect(await grantsOf(grantee.id)).toEqual([expect.objectContaining({ id: grant.id, role: "admin" })]);
     });
 
-    it("refuses a member granted the project and leaves the grant as it was", async () => {
+    it("refuses a member holding the member project role and leaves the grant as it was", async () => {
       const { team, project, actAs, addMember } = await setup();
       const caller = await addMember("member");
-      await seedProjectMember({ organizationId: team.id, projectId: project.id, userId: caller.id, role: "admin" });
+      await seedProjectMember({ organizationId: team.id, projectId: project.id, userId: caller.id, role: "member" });
       const grant = await seedProjectMember({ organizationId: team.id, projectId: project.id, userId: (await addMember("member")).id, role: "viewer" });
 
       const response = await actAs(caller)(`/v1/project-members/${grant.id}`, { method: "PATCH", body: { data: { role: "admin" } } });
@@ -322,6 +340,127 @@ describe("Project members", () => {
 
       expect(response.status).toBe(404);
       expect(await grantRow(foreignGrant.id)).toBeDefined();
+    });
+  });
+
+  describe("as a project admin", () => {
+    it("grants a member access to the project it administers and records it there", async () => {
+      const { team, project, actAs, addMember } = await setup();
+      const caller = await addMember("member");
+      await seedProjectMember({ organizationId: team.id, projectId: project.id, userId: caller.id, role: "admin" });
+      const grantee = await addMember("viewer");
+
+      const response = await actAs(caller)("/v1/project-members", {
+        method: "POST",
+        body: { data: { projectId: project.id, userId: grantee.id, role: "admin" } }
+      });
+
+      expect(response.status).toBe(201);
+      expect(await grantsOf(grantee.id)).toEqual([expect.objectContaining({ projectId: project.id, role: "admin" })]);
+      expect(await activitiesOfProject(project.id)).toEqual([expect.objectContaining({ actorUserId: caller.id, type: "member_granted" })]);
+    });
+
+    it("changes and revokes the other grants of the project it administers", async () => {
+      const { team, project, actAs, addMember } = await setup();
+      const caller = await addMember("member");
+      await seedProjectMember({ organizationId: team.id, projectId: project.id, userId: caller.id, role: "admin" });
+      const changed = await seedProjectMember({ organizationId: team.id, projectId: project.id, userId: (await addMember("member")).id, role: "viewer" });
+      const revoked = await seedProjectMember({ organizationId: team.id, projectId: project.id, userId: (await addMember("member")).id });
+
+      const patched = await actAs(caller)(`/v1/project-members/${changed.id}`, { method: "PATCH", body: { data: { role: "member" } } });
+      const deleted = await actAs(caller)(`/v1/project-members/${revoked.id}`, { method: "DELETE" });
+
+      expect([patched.status, deleted.status]).toEqual([200, 204]);
+      expect(await grantRow(changed.id)).toMatchObject({ role: "member" });
+      expect(await grantRow(revoked.id)).toBeUndefined();
+    });
+
+    it("cannot grant itself, change or revoke its own grant", async () => {
+      const { team, project, actAs, addMember } = await setup();
+      const caller = await addMember("member");
+      const own = await seedProjectMember({ organizationId: team.id, projectId: project.id, userId: caller.id, role: "admin" });
+      const other = await seedProject({ organizationId: team.id });
+      await seedProjectMember({ organizationId: team.id, projectId: other.id, userId: caller.id, role: "viewer" });
+
+      const responses = await Promise.all([
+        actAs(caller)("/v1/project-members", { method: "POST", body: { data: { projectId: project.id, userId: caller.id, role: "admin" } } }),
+        actAs(caller)(`/v1/project-members/${own.id}`, { method: "PATCH", body: { data: { role: "viewer" } } }),
+        actAs(caller)(`/v1/project-members/${own.id}`, { method: "DELETE" })
+      ]);
+
+      expect(responses.map(({ status }) => status)).toEqual([403, 404, 404]);
+      expect(await grantRow(own.id)).toMatchObject({ role: "admin" });
+    });
+
+    it.each<[OrganizationRole, string]>([
+      ["owner", "implicit_project_access"],
+      ["admin", "implicit_project_access"],
+      ["billing", "billing_role_not_grantable"]
+    ])("cannot grant an organization %s", async (targetRole, code) => {
+      const { team, project, actAs, addMember } = await setup();
+      const caller = await addMember("member");
+      await seedProjectMember({ organizationId: team.id, projectId: project.id, userId: caller.id, role: "admin" });
+      const grantee = await addMember(targetRole);
+
+      const response = await actAs(caller)("/v1/project-members", {
+        method: "POST",
+        body: { data: { projectId: project.id, userId: grantee.id, role: "viewer" } }
+      });
+
+      expect(response.status).toBe(409);
+      expect(await response.json()).toMatchObject({ code });
+    });
+
+    it("answers 404 for the grants of a project it only views", async () => {
+      const { team, project, defaultProject, actAs, addMember } = await setup();
+      const caller = await addMember("member");
+      await seedProjectMember({ organizationId: team.id, projectId: project.id, userId: caller.id, role: "admin" });
+      await seedProjectMember({ organizationId: team.id, projectId: defaultProject.id, userId: caller.id, role: "viewer" });
+      const grantee = await addMember("member");
+
+      const response = await actAs(caller)("/v1/project-members", {
+        method: "POST",
+        body: { data: { projectId: defaultProject.id, userId: grantee.id, role: "member" } }
+      });
+
+      expect(response.status).toBe(404);
+      expect(await grantsOf(grantee.id)).toEqual([]);
+    });
+
+    it("renames the project it administers but cannot delete it", async () => {
+      const { team, project, actAs, addMember } = await setup();
+      const caller = await addMember("member");
+      await seedProjectMember({ organizationId: team.id, projectId: project.id, userId: caller.id, role: "admin" });
+
+      const renamed = await actAs(caller)(`/v1/projects/${project.id}`, { method: "PATCH", body: { data: { name: "Renamed by its admin" } } });
+      const deleted = await actAs(caller)(`/v1/projects/${project.id}`, { method: "DELETE" });
+
+      expect([renamed.status, deleted.status]).toEqual([200, 403]);
+      expect(await renamed.json()).toMatchObject({ data: { id: project.id, name: "Renamed by its admin" } });
+    });
+
+    it("stays read-only as an organization viewer", async () => {
+      const { team, project, owner, actAs, addMember } = await setup();
+      const caller = await addMember("viewer");
+      await seedProjectMember({ organizationId: team.id, projectId: project.id, userId: caller.id, role: "admin" });
+      const grantee = await addMember("member");
+      const deployment = await seedDeploymentSetting({
+        userId: owner.id,
+        organizationId: team.id,
+        projectId: project.id,
+        autoTopUpEnabled: false,
+        closed: true
+      });
+
+      const responses = await Promise.all([
+        actAs(caller)(`/v1/projects/${project.id}/members`),
+        actAs(caller)("/v1/project-members", { method: "POST", body: { data: { projectId: project.id, userId: grantee.id, role: "member" } } }),
+        actAs(caller)(`/v1/projects/${project.id}`, { method: "PATCH", body: { data: { name: "Renamed by a viewer" } } }),
+        actAs(caller)(`/v2/deployment-settings/${deployment.dseq}?userId=${owner.id}`, { method: "PATCH", body: { data: { closeReason: "other" } } })
+      ]);
+
+      expect(responses.map(({ status }) => status)).toEqual([200, 403, 403, 403]);
+      expect(await grantsOf(grantee.id)).toEqual([]);
     });
   });
 
@@ -427,6 +566,32 @@ describe("Project members", () => {
       expect(defaultProjectResponse.status).toBe(404);
     });
 
+    it.each<[ProjectRole, number, string | null]>([
+      ["viewer", 404, null],
+      ["member", 200, "other"],
+      ["admin", 200, "other"]
+    ])("answers %s project role holders changing the project's deployment settings with %s", async (projectRole, status, closeReason) => {
+      const { team, project, owner, actAs, addMember } = await setup();
+      const member = await addMember("member");
+      await seedProjectMember({ organizationId: team.id, projectId: project.id, userId: member.id, role: projectRole });
+      const deployment = await seedDeploymentSetting({
+        userId: owner.id,
+        organizationId: team.id,
+        projectId: project.id,
+        autoTopUpEnabled: false,
+        closed: true
+      });
+
+      const read = await actAs(member)(`/v2/deployment-settings/${deployment.dseq}?userId=${owner.id}`);
+      const changed = await actAs(member)(`/v2/deployment-settings/${deployment.dseq}?userId=${owner.id}`, {
+        method: "PATCH",
+        body: { data: { closeReason: "other" } }
+      });
+
+      expect([read.status, changed.status]).toEqual([200, status]);
+      expect(await deploymentSettingRow(deployment.id)).toMatchObject({ closeReason });
+    });
+
     it("keeps colleagues' private templates private, granted project or not", async () => {
       const { team, project, defaultProject, owner, actAs, addMember } = await setup();
       const member = await addMember("member");
@@ -473,6 +638,13 @@ describe("Project members", () => {
   async function grantRow(id: string) {
     const grants = resolveTable("ProjectMembers");
     const [row] = await container.resolve<ApiPgDatabase>(POSTGRES_DB).select().from(grants).where(eq(grants.id, id));
+
+    return row;
+  }
+
+  async function deploymentSettingRow(id: string) {
+    const settings = resolveTable("DeploymentSettings");
+    const [row] = await container.resolve<ApiPgDatabase>(POSTGRES_DB).select().from(settings).where(eq(settings.id, id));
 
     return row;
   }

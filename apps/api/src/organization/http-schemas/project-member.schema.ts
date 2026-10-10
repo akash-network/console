@@ -2,7 +2,10 @@ import { z } from "@hono/zod-openapi";
 
 import { projectRoleEnum } from "@src/organization/model-schemas/project-member/project-member.schema";
 
-const ProjectRoleSchema = z.enum(projectRoleEnum.enumValues);
+const ProjectRoleSchema = z.enum(projectRoleEnum.enumValues).openapi({
+  description:
+    "`viewer` reads the project; `member` also deploys into it and changes its deployments, templates and alerts; `admin` also renames it and manages the other grants on it. An organization viewer only reads, whatever the project role."
+});
 
 export const ProjectMemberSchema = z.object({
   id: z.string().uuid().openapi({ description: "The grant id, used to change or revoke it." }),
@@ -24,7 +27,7 @@ export const ProjectMemberParamsSchema = z.object({
 export const CreateProjectMemberRequestSchema = z.object({
   data: z.object({
     projectId: z.string().uuid(),
-    userId: z.string().uuid().openapi({ description: "A member or viewer of the active organization." }),
+    userId: z.string().uuid().openapi({ description: "A member or viewer of the active organization other than the caller." }),
     role: ProjectRoleSchema
   })
 });

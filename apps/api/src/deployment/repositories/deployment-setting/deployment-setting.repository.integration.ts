@@ -22,7 +22,7 @@ import { seedDeploymentSetting } from "@test/seeders/db/deployment-setting.seede
 import { seedOrganizationMember, seedOrganizationWithOwner, seedProject, seedProjectMember } from "@test/seeders/db/organization.seeder";
 import { createLeaseGpuOffer } from "@test/seeders/lease-gpu-offer.seeder";
 import { createLeaseGpuReading } from "@test/seeders/lease-gpu-reading.seeder";
-import { createOrganizationContext } from "@test/seeders/organization-context.seeder";
+import { createOrganizationContext, createProjectsScope } from "@test/seeders/organization-context.seeder";
 
 const COOLDOWN_MINUTES = 60;
 const SDL = "version: '2.0'";
@@ -2344,7 +2344,7 @@ describe(DeploymentSettingRepository.name, () => {
           createOrganizationContext({
             organizationId: active.organization.id,
             role: "member",
-            projectScope: { kind: "projects", projectIds }
+            projectScope: createProjectsScope(projectIds)
           })
         );
         return await run(abilityService.getAbilityFor("REGULAR_USER", member));

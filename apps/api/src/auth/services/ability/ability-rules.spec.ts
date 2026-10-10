@@ -14,11 +14,12 @@ import { DeploymentSettings } from "@src/deployment/model-schemas";
 import { OrganizationActivities, OrganizationInvitations, OrganizationMembers, Organizations, ProjectMembers, Projects } from "@src/organization/model-schemas";
 import type { OrganizationType } from "@src/organization/model-schemas/organization/organization.schema";
 import type { OrganizationRole } from "@src/organization/model-schemas/organization-member/organization-member.schema";
+import type { ProjectRole } from "@src/organization/model-schemas/project-member/project-member.schema";
 import type { ProjectScope } from "@src/organization/types/organization-context";
 import { Templates } from "@src/user/model-schemas";
 import { type AbilityRule, enabledRules, legacyRules, organizationRules } from "./ability-rules";
 
-import { createOrganizationContext } from "@test/seeders/organization-context.seeder";
+import { createOrganizationContext, createProjectsScope } from "@test/seeders/organization-context.seeder";
 import { createUser } from "@test/seeders/user.seeder";
 
 const ACTIONS = ["read", "create", "update", "delete", "sign"];
@@ -227,7 +228,7 @@ describe("ability rules", () => {
     });
 
     it.each(ROLES)("lets the %s role read the activities about the whole organization", role => {
-      const { ability, organizationId, user } = setup({ role, projectScope: { kind: "projects", projectIds: [] } });
+      const { ability, organizationId, user } = setup({ role, projectScope: createProjectsScope([]) });
 
       const organizationWide = actionsBySubject(ability, { organizationId, projectId: null, userId: user.id });
 
@@ -243,7 +244,7 @@ describe("ability rules", () => {
     });
 
     it("lets a member granted no projects reach no project resource", () => {
-      const { ability, organizationId, user } = setup({ role: "member", projectScope: { kind: "projects", projectIds: [] } });
+      const { ability, organizationId, user } = setup({ role: "member", projectScope: createProjectsScope([]) });
 
       const granted = actionsBySubject(ability, { organizationId, projectId: faker.string.uuid(), userId: user.id });
       const unfiled = actionsBySubject(ability, { organizationId, projectId: null, userId: user.id });
@@ -275,7 +276,10 @@ describe("ability rules", () => {
 
     it.each(["owner", "admin"] as const)("keeps the %s role to the projects of a narrowed scope", role => {
       const narrowedProjectId = faker.string.uuid();
-      const { ability, organizationId, user } = setup({ role, projectScope: { kind: "projects", projectIds: [narrowedProjectId] } });
+      const { ability, organizationId, user } = setup({
+        role,
+        projectScope: createProjectsScope([narrowedProjectId], { adminProjectIds: [narrowedProjectId] })
+      });
 
       const inside = actionsBySubject(ability, { organizationId, projectId: narrowedProjectId, userId: user.id });
       const outside = actionsBySubject(ability, { organizationId, projectId: faker.string.uuid(), userId: user.id });
@@ -344,7 +348,7 @@ describe("ability rules", () => {
     });
 
     it("ignores blank ids in a project grant list", () => {
-      const { ability, organizationId, user } = setup({ role: "member", projectScope: { kind: "projects", projectIds: [""] } });
+      const { ability, organizationId, user } = setup({ role: "member", projectScope: createProjectsScope([""]) });
 
       expect(pick(actionsBySubject(ability, { organizationId, projectId: "", userId: user.id }), ["Project", ...PROJECT_RESOURCES])).toEqual({
         Project: NONE,
@@ -378,7 +382,7 @@ describe("ability rules", () => {
     });
 
     it.each(ROLES)("names only columns that exist on each subject's table for the %s role", role => {
-      const { ability } = setup({ role, projectScope: { kind: "projects", projectIds: [faker.string.uuid()] } });
+      const { ability } = setup({ role, projectScope: createProjectsScope([faker.string.uuid()]) });
       const readableSubjects = Object.keys(SUBJECT_TABLES).filter(subjectType => ability.can("read", subjectType));
 
       expect(readableSubjects.length).toBeGreaterThan(0);
@@ -410,6 +414,76 @@ describe("ability rules", () => {
     });
   });
 
+  describe("project roles", () => {
+    const READ_ONLY_IN_PROJECT = { Project: READ, ProjectMember: READ, DeploymentSetting: READ, Template: READ, Alert: READ, NotificationChannel: READ };
+
+    it.each<[ProjectRole, Record<string, string[]>]>([
+      ["viewer", READ_ONLY_IN_PROJECT],
+      ["member", { Project: READ, ProjectMember: READ, DeploymentSetting: MANAGE, Template: MANAGE, Alert: MANAGE, NotificationChannel: MANAGE }],
+      ["admin", { Project: ["read", "update"], ProjectMember: MANAGE, DeploymentSetting: MANAGE, Template: MANAGE, Alert: MANAGE, NotificationChannel: MANAGE }]
+    ])("gives an organization member granted the %s project role these actions in that project", (projectRole, expected) => {
+      const projectId = faker.string.uuid();
+      const { ability, organizationId } = setup({ role: "member", projectScope: projectRoleScope(projectRole, projectId) });
+
+      const granted = actionsBySubject(ability, { organizationId, projectId, userId: faker.string.uuid() });
+
+      expect(pick(granted, Object.keys(expected))).toEqual(expected);
+      expect(pick(granted, ["Organization", "OrganizationMember", "OrganizationInvitation"])).toEqual({
+        Organization: READ,
+        OrganizationMember: READ,
+        OrganizationInvitation: NONE
+      });
+    });
+
+    it.each<ProjectRole>(["viewer", "member", "admin"])("keeps an organization viewer granted the %s project role to reading", projectRole => {
+      const projectId = faker.string.uuid();
+      const { ability, organizationId } = setup({ role: "viewer", projectScope: projectRoleScope(projectRole, projectId) });
+
+      const granted = actionsBySubject(ability, { organizationId, projectId, userId: faker.string.uuid() });
+
+      expect(pick(granted, Object.keys(READ_ONLY_IN_PROJECT))).toEqual(READ_ONLY_IN_PROJECT);
+    });
+
+    it("keeps a project admin from changing its own grant", () => {
+      const projectId = faker.string.uuid();
+      const { ability, organizationId, user } = setup({ role: "member", projectScope: projectRoleScope("admin", projectId) });
+
+      expect(allowedActions(ability, subject("ProjectMember", { organizationId, projectId, userId: user.id }))).toEqual(READ);
+    });
+
+    it("keeps a project admin's powers to the projects it administers", () => {
+      const administered = faker.string.uuid();
+      const viewed = faker.string.uuid();
+      const { ability, organizationId } = setup({
+        role: "member",
+        projectScope: createProjectsScope([administered, viewed], { writableProjectIds: [administered], adminProjectIds: [administered] })
+      });
+
+      const granted = actionsBySubject(ability, { organizationId, projectId: viewed, userId: faker.string.uuid() });
+
+      expect(pick(granted, Object.keys(READ_ONLY_IN_PROJECT))).toEqual(READ_ONLY_IN_PROJECT);
+    });
+
+    it("gives an organization member administering no project no way to manage grants or rename projects", () => {
+      const { ability } = setup({ role: "member" });
+
+      expect([ability.can("create", "ProjectMember"), ability.can("update", "Project")]).toEqual([false, false]);
+    });
+
+    it.each<OrganizationRole>(["owner", "admin"])("lets the %s manage the grants of every project its request reaches", role => {
+      const { ability, organizationId, user } = setup({ role });
+
+      expect(allowedActions(ability, subject("ProjectMember", { organizationId, projectId: faker.string.uuid(), userId: user.id }))).toEqual(MANAGE);
+    });
+
+    function projectRoleScope(projectRole: ProjectRole, projectId: string) {
+      return createProjectsScope([projectId], {
+        writableProjectIds: projectRole === "viewer" ? [] : [projectId],
+        adminProjectIds: projectRole === "admin" ? [projectId] : []
+      });
+    }
+  });
+
   function actionsBySubject(ability: MongoAbility, row: { organizationId: string; projectId: string | null; userId: string }) {
     return Object.fromEntries(ORGANIZATION_SUBJECTS.map(subjectType => [subjectType, allowedActions(ability, rowOf(subjectType, row))]));
   }
@@ -434,9 +508,9 @@ describe("ability rules", () => {
     const defaultScopes: Record<OrganizationRole, ProjectScope> = {
       owner: { kind: "all" },
       admin: { kind: "all" },
-      member: { kind: "projects", projectIds: [grantedProjectId] },
-      billing: { kind: "projects", projectIds: [] },
-      viewer: { kind: "projects", projectIds: [grantedProjectId] }
+      member: createProjectsScope([grantedProjectId]),
+      billing: createProjectsScope([]),
+      viewer: createProjectsScope([grantedProjectId])
     };
     const context = createOrganizationContext({
       role: input.role,

@@ -17,8 +17,8 @@ import {
 export const projectMembersRouter = new OpenApiHonoHandler();
 
 const UNAUTHORIZED = { description: "Unauthorized" };
-const FORBIDDEN = { description: "Only owners and admins of the active organization manage project access" };
-const GRANT_NOT_FOUND = { description: "No grant with this id on a live project of the active organization" };
+const FORBIDDEN = { description: "The caller cannot manage access to projects of the active organization" };
+const GRANT_NOT_FOUND = { description: "No grant with this id the caller can manage" };
 
 const listProjectMembersRoute = createRoute({
   method: "get",
@@ -47,7 +47,7 @@ const createProjectMemberRoute = createRoute({
   method: "post",
   path: "/v1/project-members",
   operationId: "createProjectMember",
-  summary: "Grant a member or viewer of the active organization access to a project",
+  summary: "Grant a member or viewer of the active organization a role on a project",
   tags: ["Projects"],
   security: SECURITY_BEARER_OR_API_KEY,
   featureFlag: FeatureFlags.ORGANIZATIONS,
@@ -59,7 +59,7 @@ const createProjectMemberRoute = createRoute({
     400: { description: "The body is not valid" },
     401: UNAUTHORIZED,
     403: FORBIDDEN,
-    404: { description: "No such project or member in the active organization" },
+    404: { description: "No such project within the caller's reach, or no such member in the active organization" },
     409: {
       description:
         "The user already has access to the project (`already_granted`), reaches every project as an owner or admin (`implicit_project_access`) or is a billing member (`billing_role_not_grantable`)"
@@ -77,7 +77,7 @@ const updateProjectMemberRoute = createRoute({
   method: "patch",
   path: "/v1/project-members/{id}",
   operationId: "updateProjectMember",
-  summary: "Change the role a grant gives on its project",
+  summary: "Change the project role a grant gives",
   tags: ["Projects"],
   security: SECURITY_BEARER_OR_API_KEY,
   featureFlag: FeatureFlags.ORGANIZATIONS,

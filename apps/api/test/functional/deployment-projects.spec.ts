@@ -145,6 +145,29 @@ describe("Deployment projects", () => {
       expect(signer.executeDerivedDecodedTxByUserId).not.toHaveBeenCalled();
     });
 
+    it("answers 404 to a member deploying into a project where they hold the viewer project role, recording and broadcasting nothing", async () => {
+      const { request, team, otherProject, caller, signer } = await setupCaller({ role: "member" });
+      await seedProjectMember({ organizationId: team.id, projectId: otherProject.id, userId: caller.id, role: "viewer" });
+
+      const response = await request("/v1/deployments", { method: "POST", body: { data: { sdl: SDL, projectId: otherProject.id } } });
+
+      expect(response.status).toBe(404);
+      expect(await deploymentRowsOf(caller.id)).toEqual([]);
+      expect(signer.executeDerivedDecodedTxByUserId).not.toHaveBeenCalled();
+    });
+
+    it("files a member's deployment naming no project into the one project they may write to", async () => {
+      const { request, team, defaultProject, otherProject, caller } = await setupCaller({ role: "member" });
+      await seedProjectMember({ organizationId: team.id, projectId: defaultProject.id, userId: caller.id, role: "viewer" });
+      await seedProjectMember({ organizationId: team.id, projectId: otherProject.id, userId: caller.id, role: "admin" });
+
+      const response = await request("/v1/deployments", { method: "POST", body: { data: { sdl: SDL } } });
+      const { data } = (await response.json()) as { data: { dseq: string } };
+
+      expect(response.status).toBe(201);
+      expect(await deploymentRow(caller.id, data.dseq)).toMatchObject({ projectId: otherProject.id });
+    });
+
     it("answers 404 to a member deploying into a project they were not granted", async () => {
       const { request, otherProject, caller, signer } = await setupCaller({ role: "member", grants: ["default"] });
 

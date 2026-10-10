@@ -218,10 +218,14 @@ describe("Projects", () => {
       expect(await response.json()).toMatchObject({ data: { id: project.id, name: "Checkout API", slug: project.slug, description: null } });
     });
 
-    it.each(["member", "viewer", "billing"] as const)("refuses to let a %s rename a project", async role => {
+    it.each([
+      ["member", "member"],
+      ["viewer", "admin"],
+      ["billing", "admin"]
+    ] as const)("refuses to let a %s holding the %s project role rename a project", async (role, projectRole) => {
       const { request, team, user } = await setupCaller({ role });
       const project = await seedProject({ organizationId: team.id });
-      await seedProjectMember({ organizationId: team.id, projectId: project.id, userId: user.id, role: "admin" });
+      await seedProjectMember({ organizationId: team.id, projectId: project.id, userId: user.id, role: projectRole });
 
       const response = await request(`/v1/projects/${project.id}`, { method: "PATCH", body: { data: { name: "renamed" } } });
 

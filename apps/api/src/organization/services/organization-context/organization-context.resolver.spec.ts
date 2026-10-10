@@ -8,7 +8,7 @@ import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
 import type { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import type { OrganizationRole } from "@src/organization/model-schemas/organization-member/organization-member.schema";
 import type { Membership, OrganizationMemberRepository } from "@src/organization/repositories/organization-member/organization-member.repository";
-import type { ProjectRepository } from "@src/organization/repositories/project/project.repository";
+import type { ProjectGrantOfUser, ProjectRepository } from "@src/organization/repositories/project/project.repository";
 import type { PersonalOrganizationService } from "@src/organization/services/personal-organization/personal-organization.service";
 import type { UserRepository } from "@src/user/repositories/user/user.repository";
 import {
@@ -139,7 +139,7 @@ describe(OrganizationContextResolver.name, () => {
 
       const context = await resolver.resolve({ user, apiKey: { organizationId: team.organization.id, projectId } });
 
-      expect(context?.projectScope).toEqual({ kind: "projects", projectIds: [projectId] });
+      expect(context?.projectScope).toEqual({ kind: "projects", projectIds: [projectId], writableProjectIds: [projectId], adminProjectIds: [projectId] });
     });
 
     it("keeps the key's project only when the caller's grants still reach it", async () => {
@@ -149,8 +149,13 @@ describe(OrganizationContextResolver.name, () => {
       const reached = await resolver.resolve({ user, apiKey: { organizationId: team.organization.id, projectId: grantedProjectIds[1] } });
       const unreached = await resolver.resolve({ user, apiKey: { organizationId: team.organization.id, projectId: faker.string.uuid() } });
 
-      expect(reached?.projectScope).toEqual({ kind: "projects", projectIds: [grantedProjectIds[1]] });
-      expect(unreached?.projectScope).toEqual({ kind: "projects", projectIds: [] });
+      expect(reached?.projectScope).toEqual({
+        kind: "projects",
+        projectIds: [grantedProjectIds[1]],
+        writableProjectIds: [grantedProjectIds[1]],
+        adminProjectIds: []
+      });
+      expect(unreached?.projectScope).toEqual({ kind: "projects", projectIds: [], writableProjectIds: [], adminProjectIds: [] });
     });
 
     it("rejects an organization header naming another organization than the key's", async () => {
@@ -216,7 +221,7 @@ describe(OrganizationContextResolver.name, () => {
         organizationId: team.organization.id,
         organizationType: "team",
         role: "billing",
-        projectScope: { kind: "projects", projectIds: [] },
+        projectScope: { kind: "projects", projectIds: [], writableProjectIds: [], adminProjectIds: [] },
         mode: "organization"
       });
       expect(organizationMemberRepository.findActiveMembership).toHaveBeenCalledWith(user.id, { idOrSlug: team.organization.id });
@@ -427,17 +432,36 @@ describe(OrganizationContextResolver.name, () => {
       const context = await resolver.resolve({ user, organizationHeader: team.organization.id });
 
       expect(context?.projectScope).toEqual({ kind: "all" });
-      expect(projectRepository.findActiveIdsGrantedTo).not.toHaveBeenCalled();
+      expect(projectRepository.findActiveGrantsOf).not.toHaveBeenCalled();
     });
 
-    it.each<OrganizationRole>(["member", "viewer"])("reaches the granted projects as %s", async role => {
-      const grantedProjectIds = [faker.string.uuid()];
-      const { resolver, team, user, projectRepository } = setup({ teamRole: role, grantedProjectIds });
+    it("reaches the granted projects as member, writing where the project role allows and administering where it is admin", async () => {
+      const grants = (["viewer", "member", "admin"] as const).map(role => ({ projectId: faker.string.uuid(), role }));
+      const { resolver, team, user, projectRepository } = setup({ teamRole: "member", grants });
 
       const context = await resolver.resolve({ user, organizationHeader: team.organization.id });
 
-      expect(context?.projectScope).toEqual({ kind: "projects", projectIds: grantedProjectIds });
-      expect(projectRepository.findActiveIdsGrantedTo).toHaveBeenCalledWith(team.organization.id, user.id);
+      expect(context?.projectScope).toEqual({
+        kind: "projects",
+        projectIds: grants.map(({ projectId }) => projectId),
+        writableProjectIds: [grants[1].projectId, grants[2].projectId],
+        adminProjectIds: [grants[2].projectId]
+      });
+      expect(projectRepository.findActiveGrantsOf).toHaveBeenCalledWith(team.organization.id, user.id);
+    });
+
+    it("reaches the granted projects as viewer for reading only, whatever the project roles", async () => {
+      const grants = (["viewer", "member", "admin"] as const).map(role => ({ projectId: faker.string.uuid(), role }));
+      const { resolver, team, user } = setup({ teamRole: "viewer", grants });
+
+      const context = await resolver.resolve({ user, organizationHeader: team.organization.id });
+
+      expect(context?.projectScope).toEqual({
+        kind: "projects",
+        projectIds: grants.map(({ projectId }) => projectId),
+        writableProjectIds: [],
+        adminProjectIds: []
+      });
     });
 
     it("reaches no project as billing", async () => {
@@ -445,8 +469,8 @@ describe(OrganizationContextResolver.name, () => {
 
       const context = await resolver.resolve({ user, organizationHeader: team.organization.id });
 
-      expect(context?.projectScope).toEqual({ kind: "projects", projectIds: [] });
-      expect(projectRepository.findActiveIdsGrantedTo).not.toHaveBeenCalled();
+      expect(context?.projectScope).toEqual({ kind: "projects", projectIds: [], writableProjectIds: [], adminProjectIds: [] });
+      expect(projectRepository.findActiveGrantsOf).not.toHaveBeenCalled();
     });
   });
 
@@ -458,7 +482,7 @@ describe(OrganizationContextResolver.name, () => {
 
       const context = await resolver.resolve({ user, organizationHeader: team.organization.id, projectHeader: project.id });
 
-      expect(context?.projectScope).toEqual({ kind: "projects", projectIds: [project.id] });
+      expect(context?.projectScope).toEqual({ kind: "projects", projectIds: [project.id], writableProjectIds: [project.id], adminProjectIds: [project.id] });
       expect(projectRepository.findActive).toHaveBeenCalledWith(team.organization.id, project.id);
     });
 
@@ -470,13 +494,21 @@ describe(OrganizationContextResolver.name, () => {
       await expect(resolution).rejects.toMatchObject({ status: 403, errorCode: PROJECT_FORBIDDEN_ERROR_CODE });
     });
 
-    it("narrows the granted projects down to the named one, whatever its case", async () => {
-      const grantedProjectIds = [faker.string.uuid(), faker.string.uuid()];
-      const { resolver, team, user, projectRepository } = setup({ teamRole: "member", grantedProjectIds });
+    it("narrows the granted projects and their write levels down to the named one, whatever its case", async () => {
+      const grants = [
+        { projectId: faker.string.uuid(), role: "admin" as const },
+        { projectId: faker.string.uuid(), role: "admin" as const }
+      ];
+      const { resolver, team, user, projectRepository } = setup({ teamRole: "member", grants });
 
-      const context = await resolver.resolve({ user, organizationHeader: team.organization.id, projectHeader: ` ${grantedProjectIds[0].toUpperCase()} ` });
+      const context = await resolver.resolve({ user, organizationHeader: team.organization.id, projectHeader: ` ${grants[0].projectId.toUpperCase()} ` });
 
-      expect(context?.projectScope).toEqual({ kind: "projects", projectIds: [grantedProjectIds[0]] });
+      expect(context?.projectScope).toEqual({
+        kind: "projects",
+        projectIds: [grants[0].projectId],
+        writableProjectIds: [grants[0].projectId],
+        adminProjectIds: [grants[0].projectId]
+      });
       expect(projectRepository.findActive).not.toHaveBeenCalled();
     });
 
@@ -517,6 +549,7 @@ describe(OrganizationContextResolver.name, () => {
     enforceOn?: boolean;
     teamRole?: OrganizationRole;
     grantedProjectIds?: string[];
+    grants?: ProjectGrantOfUser[];
     withoutPersonalMembership?: boolean;
   }) {
     const user: OrganizationContextRequest["user"] = createUser();
@@ -540,7 +573,7 @@ describe(OrganizationContextResolver.name, () => {
       )
     });
     const projectRepository = mock<ProjectRepository>({
-      findActiveIdsGrantedTo: vi.fn().mockResolvedValue(input.grantedProjectIds ?? []),
+      findActiveGrantsOf: vi.fn().mockResolvedValue(input.grants ?? (input.grantedProjectIds ?? []).map(projectId => ({ projectId, role: "member" }))),
       findActive: vi.fn().mockResolvedValue(undefined)
     });
     const personalOrganizationService = mock<PersonalOrganizationService>();
