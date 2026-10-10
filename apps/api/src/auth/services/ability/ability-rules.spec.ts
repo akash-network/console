@@ -444,6 +444,39 @@ describe("ability rules", () => {
       expect(pick(granted, Object.keys(READ_ONLY_IN_PROJECT))).toEqual(READ_ONLY_IN_PROJECT);
     });
 
+    it("never writes to or administers a project the request cannot read, whatever the write levels name", () => {
+      const [readable, unreadable] = [faker.string.uuid(), faker.string.uuid()];
+      const { ability, organizationId } = setup({
+        role: "member",
+        projectScope: createProjectsScope([readable], { writableProjectIds: [readable, unreadable], adminProjectIds: [unreadable] })
+      });
+
+      const outside = actionsBySubject(ability, { organizationId, projectId: unreadable, userId: faker.string.uuid() });
+      const inside = actionsBySubject(ability, { organizationId, projectId: readable, userId: faker.string.uuid() });
+
+      expect(pick(outside, ["Project", "ProjectMember", ...PROJECT_RESOURCES])).toEqual({
+        Project: NONE,
+        ProjectMember: NONE,
+        DeploymentSetting: NONE,
+        Template: NONE,
+        Alert: NONE,
+        NotificationChannel: NONE
+      });
+      expect(pick(inside, ["Project", "ProjectMember", "DeploymentSetting"])).toEqual({ Project: READ, ProjectMember: READ, DeploymentSetting: MANAGE });
+    });
+
+    it("administers only projects the request may also write to", () => {
+      const projectId = faker.string.uuid();
+      const { ability, organizationId } = setup({
+        role: "member",
+        projectScope: createProjectsScope([projectId], { writableProjectIds: [], adminProjectIds: [projectId] })
+      });
+
+      const granted = actionsBySubject(ability, { organizationId, projectId, userId: faker.string.uuid() });
+
+      expect(pick(granted, Object.keys(READ_ONLY_IN_PROJECT))).toEqual(READ_ONLY_IN_PROJECT);
+    });
+
     it("keeps a project admin from changing its own grant", () => {
       const projectId = faker.string.uuid();
       const { ability, organizationId, user } = setup({ role: "member", projectScope: projectRoleScope("admin", projectId) });

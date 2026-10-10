@@ -126,8 +126,8 @@ function tenantConditionsOf(user: RuleUser, { organizationId, projectScope }: Or
   const listed = (pick: (scope: Extract<ProjectScope, { kind: "projects" }>) => readonly string[]) =>
     projectScope.kind === "projects" ? pick(projectScope).filter(projectId => hasEveryId(projectId)) : undefined;
   const projectIds = listed(scope => scope.projectIds);
-  const writableProjectIds = listed(scope => scope.writableProjectIds);
-  const adminProjectIds = listed(scope => scope.adminProjectIds);
+  const writableProjectIds = listed(scope => scope.writableProjectIds)?.filter(projectId => projectIds?.includes(projectId));
+  const adminProjectIds = listed(scope => scope.adminProjectIds)?.filter(projectId => writableProjectIds?.includes(projectId));
   const grantsOfAdministeredProjects = adminProjectIds ? { ...inOrg, projectId: { $in: adminProjectIds } } : inOrg;
 
   return {

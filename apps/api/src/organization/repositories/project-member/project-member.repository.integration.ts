@@ -100,11 +100,13 @@ describe(ProjectMemberRepository.name, () => {
       await seedOrganizationMember({ organizationId: foreign.id, userId: member.id, role: "member" });
       await seedProjectMember({ organizationId: foreign.id, projectId: foreignProject.id, userId: member.id });
 
-      const grants = await runIn({ user: member, organizationId: organization.id, role: "member", projectScope: createProjectsScope([project.id]) }, ability =>
-        repository.accessibleBy(ability, "read").findOfLiveProjects({})
+      const grantsByProject = await runIn(
+        { user: member, organizationId: organization.id, role: "member", projectScope: createProjectsScope([project.id]) },
+        ability =>
+          Promise.all([project, hidden, foreignProject].map(({ id }) => repository.accessibleBy(ability, "read").findOfLiveProjects({ projectId: id })))
       );
 
-      expect(grants.map(({ id }) => id)).toEqual([reached.id]);
+      expect(grantsByProject.map(grants => grants.map(({ id }) => id))).toEqual([[reached.id], [], []]);
     });
   });
 

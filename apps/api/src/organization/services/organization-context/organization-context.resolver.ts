@@ -57,6 +57,8 @@ const PROJECT_SCOPE_BY_ROLE: Record<OrganizationRole, "all" | "grants" | "readOn
 
 const WRITING_PROJECT_ROLES: readonly ProjectRole[] = ["member", "admin"];
 
+const NO_PROJECTS: ProjectScope = { kind: "projects", projectIds: [], writableProjectIds: [], adminProjectIds: [] };
+
 @singleton()
 export class OrganizationContextResolver {
   readonly #logger: ReturnType<CreateLogger>;
@@ -95,7 +97,7 @@ export class OrganizationContextResolver {
 
     const { role, organization } = await this.#resolveMembership(request.user, request.apiKey, normalizeHeader(request.organizationHeader));
     const roleScope = await this.#projectScopeOf(role, organization.id, request.user.id);
-    const keyScope = request.apiKey?.projectId ? narrowTo(roleScope, request.apiKey.projectId) : roleScope;
+    const keyScope = request.apiKey?.projectId ? await this.#narrowToKeyProject(roleScope, organization.id, request.apiKey.projectId) : roleScope;
     const projectHeader = normalizeHeader(request.projectHeader);
     const projectScope = projectHeader ? await this.#narrowToRequestedProject(keyScope, organization.id, projectHeader) : keyScope;
 
@@ -170,9 +172,13 @@ export class OrganizationContextResolver {
     const scope = PROJECT_SCOPE_BY_ROLE[role];
 
     if (scope === "all") return { kind: "all" };
-    if (scope === "none") return scopeOfGrants([], { readOnly: true });
+    if (scope === "none") return NO_PROJECTS;
 
     return scopeOfGrants(await this.projectRepository.findActiveGrantsOf(organizationId, userId), { readOnly: scope === "readOnlyGrants" });
+  }
+
+  async #narrowToKeyProject(scope: ProjectScope, organizationId: string, projectId: string): Promise<ProjectScope> {
+    return (await this.#isReachable(scope, organizationId, projectId)) ? narrowTo(scope, projectId) : NO_PROJECTS;
   }
 
   async #narrowToRequestedProject(scope: ProjectScope, organizationId: string, projectId: string): Promise<ProjectScope> {

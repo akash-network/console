@@ -1,12 +1,13 @@
-import { and, asc, desc, eq, isNull, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { singleton } from "tsyringe";
 
 import { type ApiPgDatabase, type ApiPgTables, InjectPg, InjectPgTable } from "@src/core/providers";
 import { OrgScopedRepository } from "@src/core/repositories/org-scoped.repository";
 import { TxService } from "@src/core/services";
 import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
+import { OrganizationMembers } from "@src/organization/model-schemas/organization-member/organization-member.schema";
 import { DEFAULT_PROJECT_NAME, DEFAULT_PROJECT_SLUG } from "@src/organization/model-schemas/project/project.schema";
-import { ProjectMembers, type ProjectRole } from "@src/organization/model-schemas/project-member/project-member.schema";
+import { GRANT_HOLDING_ORGANIZATION_ROLES, ProjectMembers, type ProjectRole } from "@src/organization/model-schemas/project-member/project-member.schema";
 import { Users } from "@src/user/model-schemas/user/user.schema";
 
 type Table = ApiPgTables["Projects"];
@@ -95,6 +96,14 @@ export class ProjectRepository extends OrgScopedRepository<Table, ProjectInput, 
       .select({ projectId: this.table.id, role: ProjectMembers.role })
       .from(this.table)
       .innerJoin(ProjectMembers, and(eq(ProjectMembers.projectId, this.table.id), eq(ProjectMembers.userId, userId)))
+      .innerJoin(
+        OrganizationMembers,
+        and(
+          eq(OrganizationMembers.organizationId, ProjectMembers.organizationId),
+          eq(OrganizationMembers.userId, ProjectMembers.userId),
+          inArray(OrganizationMembers.role, GRANT_HOLDING_ORGANIZATION_ROLES)
+        )
+      )
       .where(
         this.unscoped("active-organization-resolution").whereAccessibleBy(and(eq(this.table.organizationId, organizationId), isNull(this.table.deletedAt)))
       );

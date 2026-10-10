@@ -133,13 +133,23 @@ describe(OrganizationContextResolver.name, () => {
       expect(context).toMatchObject({ organizationId: personal.organization.id, role: "owner" });
     });
 
-    it("narrows every project down to the one the key is bound to", async () => {
+    it("narrows every project down to the live one the key is bound to", async () => {
+      const { resolver, team, user, projectRepository } = setup({ teamRole: "owner" });
+      const project = createProject({ organizationId: team.organization.id });
+      projectRepository.findActive.mockResolvedValue(project);
+
+      const context = await resolver.resolve({ user, apiKey: { organizationId: team.organization.id, projectId: project.id } });
+
+      expect(context?.projectScope).toEqual({ kind: "projects", projectIds: [project.id], writableProjectIds: [project.id], adminProjectIds: [project.id] });
+      expect(projectRepository.findActive).toHaveBeenCalledWith(team.organization.id, project.id);
+    });
+
+    it("narrows a key bound to a project that is no longer live to no project at all", async () => {
       const { resolver, team, user } = setup({ teamRole: "owner" });
-      const projectId = faker.string.uuid();
 
-      const context = await resolver.resolve({ user, apiKey: { organizationId: team.organization.id, projectId } });
+      const context = await resolver.resolve({ user, apiKey: { organizationId: team.organization.id, projectId: faker.string.uuid() } });
 
-      expect(context?.projectScope).toEqual({ kind: "projects", projectIds: [projectId], writableProjectIds: [projectId], adminProjectIds: [projectId] });
+      expect(context?.projectScope).toEqual({ kind: "projects", projectIds: [], writableProjectIds: [], adminProjectIds: [] });
     });
 
     it("keeps the key's project only when the caller's grants still reach it", async () => {

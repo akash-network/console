@@ -67,9 +67,8 @@ describe(OrganizationActivityRepository.name, () => {
       const { organization: foreign } = await seedOrganizationWithOwner();
       await seedOrganizationActivity({ organizationId: foreign.id });
 
-      const page = await runIn(
-        { user: owner, organizationId: organization.id, role: "member", projectScope: createProjectsScope([granted.id]) },
-        ability => repository.accessibleBy(ability, "read").findPage({ limit: 10 })
+      const page = await runIn({ user: owner, organizationId: organization.id, role: "member", projectScope: createProjectsScope([granted.id]) }, ability =>
+        repository.accessibleBy(ability, "read").findPage({ limit: 10 })
       );
 
       expect(page.map(({ id }) => id)).toEqual([inGranted.id, organizationWide.id]);

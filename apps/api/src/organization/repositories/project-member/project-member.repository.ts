@@ -5,12 +5,10 @@ import { type ApiPgDatabase, type ApiPgTables, InjectPg, InjectPgTable } from "@
 import { OrgScopedRepository } from "@src/core/repositories/org-scoped.repository";
 import { TxService } from "@src/core/services";
 import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
-import { OrganizationMembers, type OrganizationRole } from "@src/organization/model-schemas/organization-member/organization-member.schema";
+import { OrganizationMembers } from "@src/organization/model-schemas/organization-member/organization-member.schema";
 import { Projects } from "@src/organization/model-schemas/project/project.schema";
+import { GRANT_HOLDING_ORGANIZATION_ROLES } from "@src/organization/model-schemas/project-member/project-member.schema";
 import { Users } from "@src/user/model-schemas/user/user.schema";
-
-/** Owners and admins reach every project and billing reaches none, so a grant they still hold has no effect. */
-export const GRANTABLE_ORGANIZATION_ROLES: OrganizationRole[] = ["member", "viewer"];
 
 type Table = ApiPgTables["ProjectMembers"];
 export type ProjectMemberInput = Table["$inferInsert"];
@@ -46,23 +44,19 @@ export class ProjectMemberRepository extends OrgScopedRepository<Table, ProjectM
     return created && this.toOutput(created);
   }
 
-  async findOfLiveProjects(query: { id?: ProjectMemberOutput["id"]; projectId?: ProjectMemberOutput["projectId"] }): Promise<ProjectMemberWithUser[]> {
+  async findOfLiveProjects(query: { id: ProjectMemberOutput["id"] } | { projectId: ProjectMemberOutput["projectId"] }): Promise<ProjectMemberWithUser[]> {
     const rows = await this.cursor
       .select({ grant: this.table, username: Users.username, email: Users.email })
       .from(this.table)
       .innerJoin(Projects, and(eq(Projects.organizationId, this.table.organizationId), eq(Projects.id, this.table.projectId)))
       .innerJoin(Users, eq(Users.id, this.table.userId))
-      .innerJoin(
-        OrganizationMembers,
-        and(eq(OrganizationMembers.organizationId, this.table.organizationId), eq(OrganizationMembers.userId, this.table.userId))
-      )
+      .innerJoin(OrganizationMembers, and(eq(OrganizationMembers.organizationId, this.table.organizationId), eq(OrganizationMembers.userId, this.table.userId)))
       .where(
         this.whereAccessibleBy(
           and(
             isNull(Projects.deletedAt),
-            inArray(OrganizationMembers.role, GRANTABLE_ORGANIZATION_ROLES),
-            query.id ? eq(this.table.id, query.id) : undefined,
-            query.projectId ? eq(this.table.projectId, query.projectId) : undefined
+            inArray(OrganizationMembers.role, GRANT_HOLDING_ORGANIZATION_ROLES),
+            "id" in query ? eq(this.table.id, query.id) : eq(this.table.projectId, query.projectId)
           )
         )
       )
