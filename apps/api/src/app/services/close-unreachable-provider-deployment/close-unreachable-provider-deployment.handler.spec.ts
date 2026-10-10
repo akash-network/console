@@ -37,7 +37,7 @@ describe(CloseUnreachableProviderDeploymentHandler.name, () => {
 
     await handler.handle(aPayload());
 
-    expect(deploymentWriterService.close).toHaveBeenCalledWith(expect.objectContaining({ address: OWNER }), DSEQ);
+    expect(deploymentWriterService.close).toHaveBeenCalledWith(expect.objectContaining({ address: OWNER }), DSEQ, { reason: "provider_unreachable" });
     expect(deploymentSettingRepository.markClosed).toHaveBeenCalledWith({ userId: USER_ID, dseq: DSEQ, organizationId: ORGANIZATION_ID });
   });
 

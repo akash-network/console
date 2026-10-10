@@ -28,6 +28,7 @@ import type { CreateLogger } from "@src/core";
 import type { DomainEventsService } from "@src/core/services/domain-events/domain-events.service";
 import type { FeatureFlagValue } from "@src/core/services/feature-flags/feature-flags";
 import type { DeploymentSettingRepository } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
+import type { DeploymentOrganizationActivityService } from "@src/deployment/services/deployment-organization-activity/deployment-organization-activity.service";
 import { RecordDeploymentSetting } from "@src/deployment/services/record-deployment-setting/record-deployment-setting.handler";
 import type { UserOutput, UserRepository } from "@src/user/repositories";
 import { createAkashAddress } from "../../../../test/seeders";
@@ -693,14 +694,56 @@ describe(ManagedSignerService.name, () => {
       expect(deploymentSettingRepository.markClosed).toHaveBeenCalledWith({ userId: "user-123", dseq: "456", organizationId: null });
     });
 
+    it("credits every close the owner signed to the owner in the organization feed", async () => {
+      const { service, deploymentOrganizationActivityService } = setupForClose();
+
+      await service.executeDerivedDecodedTxByUserId("user-123", [closeMessageFor(123), closeMessageFor(456)]);
+
+      expect(deploymentOrganizationActivityService.recordClosed).toHaveBeenCalledTimes(2);
+      expect(deploymentOrganizationActivityService.recordClosed).toHaveBeenCalledWith(
+        { userId: "user-123", dseq: "123" },
+        { actorUserId: "user-123", reason: null }
+      );
+      expect(deploymentOrganizationActivityService.recordClosed).toHaveBeenCalledWith(
+        { userId: "user-123", dseq: "456" },
+        { actorUserId: "user-123", reason: null }
+      );
+    });
+
+    it("credits a close the console made on its own to no one, with the reason it gave", async () => {
+      const { service, deploymentOrganizationActivityService } = setupForClose();
+      const wallet = createUserWallet({ userId: "user-123", feeAllowance: 100, deploymentAllowance: 100, isTrialing: false });
+
+      await service.executeDecodedTxByUserWallet(wallet, [closeMessageFor(123)], { consoleClose: { reason: "runtime_limit_reached" } });
+
+      expect(deploymentOrganizationActivityService.recordClosed).toHaveBeenCalledWith(
+        { userId: "user-123", dseq: "123" },
+        { actorUserId: null, reason: "runtime_limit_reached" }
+      );
+    });
+
+    it("still files a close in the organization feed when recording it as closed failed", async () => {
+      const { service, deploymentOrganizationActivityService } = setupForClose({
+        markClosed: vi.fn().mockRejectedValue(new Error("database unavailable"))
+      });
+
+      await service.executeDerivedDecodedTxByUserId("user-123", [closeMessageFor(123)]);
+
+      expect(deploymentOrganizationActivityService.recordClosed).toHaveBeenCalledWith(
+        { userId: "user-123", dseq: "123" },
+        { actorUserId: "user-123", reason: null }
+      );
+    });
+
     it("records nothing closed when the close reverted on chain", async () => {
-      const { service, deploymentSettingRepository } = setupForClose({
+      const { service, deploymentSettingRepository, deploymentOrganizationActivityService } = setupForClose({
         signAndBroadcastWithDerivedWallet: vi.fn().mockResolvedValue({ code: 11, hash: "tx-hash", rawLog: "out of gas" })
       });
 
       await expect(service.executeDerivedDecodedTxByUserId("user-123", [closeMessageFor(123)])).rejects.toThrow("out of gas");
 
       expect(deploymentSettingRepository.markClosed).not.toHaveBeenCalled();
+      expect(deploymentOrganizationActivityService.recordClosed).not.toHaveBeenCalled();
     });
 
     it("records nothing closed for a transaction that closes no deployment", async () => {
@@ -1562,6 +1605,9 @@ describe(ManagedSignerService.name, () => {
       deploymentSettingRepository: mock<DeploymentSettingRepository>({
         markClosed: input?.markClosed ?? vi.fn()
       }),
+      deploymentOrganizationActivityService: mock<DeploymentOrganizationActivityService>({
+        recordClosed: vi.fn()
+      }),
       logger: mock<ReturnType<CreateLogger>>({
         error: vi.fn(),
         warn: vi.fn(),
@@ -1592,6 +1638,7 @@ describe(ManagedSignerService.name, () => {
       mocks.trialActivationJobService,
       mocks.deploymentSettingRepository,
       new DeploymentDepositRefusalCache(mocks.billingConfigService),
+      mocks.deploymentOrganizationActivityService,
       createLogger
     );
 

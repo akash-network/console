@@ -50,7 +50,7 @@ describe(EnforceTrialAbuseHandler.name, () => {
     expect((await findWallet())?.abuseLockedAt).toBeInstanceOf(Date);
     expect((await findDetection(detection.id))?.action).toBe("enforced");
     expect((await findProbeJob("11"))?.state).toBe("cancelled");
-    expect(close).toHaveBeenCalledWith(expect.objectContaining({ id: wallet.id }), "11");
+    expect(close).toHaveBeenCalledWith(expect.objectContaining({ id: wallet.id }), "11", { reason: null });
     expect(executeFundingTx).toHaveBeenCalledTimes(2);
   });
 

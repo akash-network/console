@@ -25,6 +25,10 @@ import { WalletReloadJobService } from "@src/billing/services/wallet-reload-job/
 import { type CreateLogger, LOGGER_FACTORY } from "@src/core";
 import { DomainEventsService } from "@src/core/services/domain-events/domain-events.service";
 import { DeploymentSettingRepository } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
+import {
+  type ConsoleClose,
+  DeploymentOrganizationActivityService
+} from "@src/deployment/services/deployment-organization-activity/deployment-organization-activity.service";
 import { RecordDeploymentSetting, recordDeploymentSettingKeyFor } from "@src/deployment/services/record-deployment-setting/record-deployment-setting.handler";
 import { UserRepository } from "@src/user/repositories";
 import { COSMOS_TX_CODE_OK } from "@src/utils/constants";
@@ -38,6 +42,7 @@ type StringifiedEncodeObject = Omit<EncodeObject, "value"> & { value: string };
 
 type ExecuteTxOptions = {
   suppliedByCaller?: boolean;
+  consoleClose?: ConsoleClose;
 };
 
 const SPENDING_TXS = [MsgCreateDeployment, MsgAccountDeposit];
@@ -81,6 +86,7 @@ export class ManagedSignerService {
     private readonly trialActivationJobService: TrialActivationJobService,
     private readonly deploymentSettingRepository: DeploymentSettingRepository,
     private readonly depositRefusalCache: DeploymentDepositRefusalCache,
+    private readonly deploymentOrganizationActivityService: DeploymentOrganizationActivityService,
     @inject(LOGGER_FACTORY) createLogger: CreateLogger
   ) {
     this.logger = createLogger({ context: ManagedSignerService.name });
@@ -172,7 +178,7 @@ export class ManagedSignerService {
       throw options?.suppliedByCaller ? this.chainErrorService.exposeSignerRefusal(error) : error;
     }
 
-    await this.#recordClosedDeployments(userWallet, messages);
+    await this.#recordClosedDeployments(userWallet, messages, options?.consoleClose);
 
     if (hasCreateTrialLeaseMessage) {
       await this.domainEvents.publish(
@@ -260,13 +266,19 @@ export class ManagedSignerService {
   }
 
   /** No close path writes this record, and it runs before the other post-broadcast work so a rejected publish cannot drop an accepted close. */
-  async #recordClosedDeployments(userWallet: UserWalletOutput, messages: EncodeObject[]) {
+  async #recordClosedDeployments(userWallet: UserWalletOutput, messages: EncodeObject[], consoleClose?: ConsoleClose) {
+    const closer = consoleClose ? { actorUserId: null, reason: consoleClose.reason } : { actorUserId: userWallet.userId, reason: null };
+
     for (const dseq of this.#findDeploymentDseqs(messages, ".MsgCloseDeployment")) {
+      const key = { userId: userWallet.userId, dseq: dseq.toString() };
+
       try {
-        await this.deploymentSettingRepository.markClosed({ userId: userWallet.userId, dseq: dseq.toString(), organizationId: userWallet.organizationId });
+        await this.deploymentSettingRepository.markClosed({ ...key, organizationId: userWallet.organizationId });
       } catch (error) {
-        this.logger.error({ event: "CLOSED_DEPLOYMENT_RECORD_FAILED", userId: userWallet.userId, dseq: dseq.toString(), error });
+        this.logger.error({ event: "CLOSED_DEPLOYMENT_RECORD_FAILED", ...key, error });
       }
+
+      await this.deploymentOrganizationActivityService.recordClosed(key, closer);
     }
   }
 

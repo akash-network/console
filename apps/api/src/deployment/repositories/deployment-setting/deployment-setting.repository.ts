@@ -12,6 +12,7 @@ import { mergeLeaseGpuOffers } from "@src/deployment/lib/lease-gpu-offers/lease-
 import { mergeLeaseGpuReadings } from "@src/deployment/lib/lease-gpu-readings/lease-gpu-readings";
 import type { GpuProbeSource, LeaseGpuOffer, LeaseGpuReading } from "@src/deployment/model-schemas";
 import { NVIDIA_DRIVER_VERSION } from "@src/gpu/lib/cuda-version/cuda-version";
+import { OrganizationMembers, type OrganizationRole, Organizations, ProjectMembers } from "@src/organization/model-schemas";
 import { Users } from "@src/user/model-schemas";
 
 type Table = ApiPgTables["DeploymentSettings"];
@@ -23,6 +24,12 @@ export type DeploymentSettingsOutput = Omit<DeploymentSettingsDbOutput, "created
 };
 
 export type RecentNvidiaDriver = { driverVersion: string; lastSeenDate: string };
+
+export type DeploymentLocation = { organizationId: string; organizationSlug: string; projectId: string | null };
+
+const ROLES_REACHING_EVERY_PROJECT: OrganizationRole[] = ["owner", "admin"];
+
+const ROLES_REACHING_GRANTED_PROJECTS: OrganizationRole[] = ["member", "viewer"];
 
 const NVIDIA_PROBE_SOURCE = "nvidia-smi" satisfies GpuProbeSource;
 
@@ -214,6 +221,31 @@ export class DeploymentSettingRepository extends OrgScopedRepository<Table, Depl
     this.compareWithShadow(rows);
 
     return rows.map(row => row.dseq);
+  }
+
+  /** Reads across every organization the user belongs to, which no active organization covers, preferring the user's own deployment when two share the dseq. */
+  async findLocation({ userId, dseq }: { userId: string; dseq: string }): Promise<DeploymentLocation | undefined> {
+    const [location] = await this.cursor
+      .select({ organizationId: Organizations.id, organizationSlug: Organizations.slug, projectId: this.table.projectId })
+      .from(this.table)
+      .innerJoin(Organizations, and(eq(Organizations.id, this.table.organizationId), isNull(Organizations.deletedAt)))
+      .innerJoin(OrganizationMembers, and(eq(OrganizationMembers.organizationId, Organizations.id), eq(OrganizationMembers.userId, userId)))
+      .leftJoin(ProjectMembers, and(eq(ProjectMembers.projectId, this.table.projectId), eq(ProjectMembers.userId, userId)))
+      .where(
+        this.unscoped("deployment-location").whereAccessibleBy(
+          and(
+            eq(this.table.dseq, dseq),
+            or(
+              inArray(OrganizationMembers.role, ROLES_REACHING_EVERY_PROJECT),
+              and(inArray(OrganizationMembers.role, ROLES_REACHING_GRANTED_PROJECTS), isNotNull(ProjectMembers.id))
+            )
+          )
+        )
+      )
+      .orderBy(desc(eq(this.table.userId, userId)), desc(this.table.createdAt))
+      .limit(1);
+
+    return location;
   }
 
   /** Keyed by dseq and absent for a deployment with neither recorded, under the same double scoping as {@link findNamesByDseqs}. */
@@ -704,7 +736,8 @@ export class DeploymentSettingRepository extends OrgScopedRepository<Table, Depl
     manifestVersion,
     runtimeLimitHours,
     sealedSecrets,
-    name
+    name,
+    projectId
   }: {
     userId: string;
     dseq: string;
@@ -713,6 +746,7 @@ export class DeploymentSettingRepository extends OrgScopedRepository<Table, Depl
     runtimeLimitHours?: number;
     sealedSecrets?: string | null;
     name?: string;
+    projectId?: string;
   }): Promise<string> {
     const values = await this.attributeToOrganization({
       userId,
@@ -722,7 +756,8 @@ export class DeploymentSettingRepository extends OrgScopedRepository<Table, Depl
       manifestVersion,
       runtimeLimitHours,
       sealedSecrets,
-      name
+      name,
+      projectId
     });
     const upsert = (cursor: ApiPgDatabase | ApiTransaction) =>
       cursor

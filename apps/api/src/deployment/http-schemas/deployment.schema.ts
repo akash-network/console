@@ -223,7 +223,11 @@ export const CreateDeploymentRequestSchema = z.object({
       .optional()
       .openapi({
         description: `Optional runtime limit in hours (1 to ${MAX_RUNTIME_LIMIT_INCREMENT_HOURS}), counted from lease start. Automatic funding keeps the deployment running until the limit, then the deployment is closed automatically and unused funds are returned. Extend a limit with PATCH /v2/deployment-settings/{dseq}. Omit for always-on funding.`
-      })
+      }),
+    projectId: z.string().uuid().optional().openapi({
+      description:
+        "Project of the active organization to file this deployment into. Omit it to use the one project the request is limited to, such as the project of a project-bound API key, or else the organization's default project. Ignored for accounts without organizations."
+    })
   })
 });
 

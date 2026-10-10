@@ -32,7 +32,7 @@ describe(CloseExpiredDeploymentHandler.name, () => {
 
     await closeExpired();
 
-    expect(close).toHaveBeenCalledWith(expect.objectContaining({ address: expect.any(String) }), dseq);
+    expect(close).toHaveBeenCalledWith(expect.objectContaining({ address: expect.any(String) }), dseq, { reason: "runtime_limit_reached" });
     expect((await findSetting()).closed).toBe(true);
   });
 

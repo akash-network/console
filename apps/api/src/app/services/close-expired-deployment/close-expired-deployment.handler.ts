@@ -94,7 +94,7 @@ export class CloseExpiredDeploymentHandler implements JobHandler<CloseExpiredDep
     }
 
     try {
-      await this.deploymentWriterService.close({ ...wallet, address: wallet.address }, dseq);
+      await this.deploymentWriterService.close({ ...wallet, address: wallet.address }, dseq, { reason: "runtime_limit_reached" });
     } catch (error) {
       if (error instanceof Error && this.chainErrorService.isUnsettleableDeploymentError(error)) {
         this.logger.warn({

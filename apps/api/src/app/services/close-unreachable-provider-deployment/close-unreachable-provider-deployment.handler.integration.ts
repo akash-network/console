@@ -42,7 +42,7 @@ describe(CloseUnreachableProviderDeploymentHandler.name, () => {
     await closeUnreachable();
     await awaitClosedNotice();
 
-    expect(close).toHaveBeenCalledWith(expect.objectContaining({ address: deployment.owner }), deployment.dseq);
+    expect(close).toHaveBeenCalledWith(expect.objectContaining({ address: deployment.owner }), deployment.dseq, { reason: "provider_unreachable" });
     expect((await findSetting())?.closed).toBe(true);
     expect(sentNotifications()).toHaveLength(1);
   });
