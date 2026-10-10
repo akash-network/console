@@ -32,8 +32,8 @@ export class InvitationEmailLimiter {
   async assertWithinLimits({ organizationId, senderId, emails }: { organizationId: string; senderId: string; emails: string[] }): Promise<void> {
     if (emails.length === 0) return;
 
-    await this.organizationRepository.findOneByAndLock({ id: organizationId });
-    await this.userRepository.findOneByAndLock({ id: senderId });
+    await this.organizationRepository.findOneByAndLock({ id: organizationId }, { strength: "no key update" });
+    await this.userRepository.findOneByAndLock({ id: senderId }, { strength: "no key update" });
     const windowStart = new Date(Date.now() - WINDOW_MS);
     const organizationSends = await this.emailRepository.findSendsSince({ organizationId }, windowStart);
     const senderSends = await this.emailRepository.findSendsSince({ sentByUserId: senderId }, windowStart);

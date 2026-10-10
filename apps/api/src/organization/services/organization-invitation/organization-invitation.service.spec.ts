@@ -100,7 +100,7 @@ describe(OrganizationInvitationService.name, () => {
 
       await service.createInvitations({ emails: ["jane@example.com"], role: "member" });
 
-      expect(organizationRepository.findOneByAndLock).toHaveBeenCalledWith({ id: context.organizationId });
+      expect(organizationRepository.findOneByAndLock).toHaveBeenCalledWith({ id: context.organizationId }, { strength: "no key update" });
       expect(organizationRepository.findOneByAndLock.mock.invocationCallOrder[0]).toBeLessThan(
         invitationRepository.findPendingWithInviters.mock.invocationCallOrder[0]
       );

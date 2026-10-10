@@ -98,14 +98,15 @@ export abstract class BaseRepository<
     return this.toOutput(item);
   }
 
-  async findOneByAndLock(query?: Partial<Output>): Promise<Output | undefined> {
+  /** `no key update` still serializes lockers but lets foreign key checks on the row through. */
+  async findOneByAndLock(query?: Partial<Output>, { strength = "update" }: { strength?: "update" | "no key update" } = {}): Promise<Output | undefined> {
     const items: T["$inferSelect"][] | undefined = await this.txManager
       .getPgTx()
       ?.select()
       .from(this.table as PgTable)
       .where(this.queryToWhere(query))
       .limit(1)
-      .for("update");
+      .for(strength);
     if (!items || items.length === 0) return undefined;
     this.compareWithShadow(items);
     return this.toOutput(items[0]);

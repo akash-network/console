@@ -66,7 +66,7 @@ export class OrganizationInvitationEmailHandler implements JobHandler<Organizati
         return;
       }
 
-      await this.notificationService.createNotification(
+      await this.notificationService.createNotificationOnce(
         organizationInvitationEmailNotification({
           invitation,
           organizationName: organization.name,

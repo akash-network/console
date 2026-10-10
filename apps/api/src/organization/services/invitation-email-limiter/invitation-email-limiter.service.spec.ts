@@ -27,8 +27,8 @@ describe(InvitationEmailLimiter.name, () => {
 
       await limiter.assertWithinLimits({ organizationId, senderId, emails: ["jane@example.com"] });
 
-      expect(userRepository.findOneByAndLock).toHaveBeenCalledWith({ id: senderId });
-      expect(organizationRepository.findOneByAndLock).toHaveBeenCalledWith({ id: organizationId });
+      expect(userRepository.findOneByAndLock).toHaveBeenCalledWith({ id: senderId }, { strength: "no key update" });
+      expect(organizationRepository.findOneByAndLock).toHaveBeenCalledWith({ id: organizationId }, { strength: "no key update" });
       expect(organizationRepository.findOneByAndLock.mock.invocationCallOrder[0]).toBeLessThan(userRepository.findOneByAndLock.mock.invocationCallOrder[0]);
       expect(emailRepository.findSendsSince).toHaveBeenCalledWith({ organizationId }, WINDOW_START);
       expect(emailRepository.findSendsSince).toHaveBeenCalledWith({ sentByUserId: senderId }, WINDOW_START);

@@ -163,6 +163,70 @@ describe(NotificationService.name, () => {
     });
   });
 
+  describe("createNotificationOnce", () => {
+    const input: CreateNotificationInput = {
+      notificationId: "n-1",
+      user: { id: "user-1", email: "user@example.com" },
+      payload: { summary: "s", description: "d" }
+    };
+    const channelMissing = new ApiError(400, { code: "NOTIFICATION_CHANNEL_NOT_FOUND" }, "POST /internal/v1/jobs/notification → 400");
+
+    it("sends the notification once on behalf of the user", async () => {
+      const { service, apiInternal } = setup();
+      apiInternal.v1.createNotification.mockResolvedValue(undefined as never);
+
+      await service.createNotificationOnce(input);
+
+      expect(apiInternal.v1.createNotification).toHaveBeenCalledTimes(1);
+      expect(apiInternal.v1.createNotification).toHaveBeenCalledWith(
+        { notificationId: "n-1", payload: { summary: "s", description: "d" } },
+        { headers: { "x-user-id": "user-1" } }
+      );
+    });
+
+    it("fails without retrying when the notification cannot be sent", async () => {
+      const { service, apiInternal, api } = setup();
+      const error = new Error("unavailable");
+      apiInternal.v1.createNotification.mockRejectedValue(error);
+
+      await expect(service.createNotificationOnce(input)).rejects.toMatchObject({ message: "Failed to create notification", cause: error });
+      expect(apiInternal.v1.createNotification).toHaveBeenCalledTimes(1);
+      expect(api.v1.createDefaultNotificationChannel).not.toHaveBeenCalled();
+    });
+
+    it("opens the user's default channel and sends again once when the channel is missing", async () => {
+      const { service, api, apiInternal } = setup();
+      apiInternal.v1.createNotification.mockRejectedValueOnce(channelMissing).mockResolvedValueOnce(undefined as never);
+      api.v1.createDefaultNotificationChannel.mockResolvedValue({} as never);
+
+      await service.createNotificationOnce(input);
+
+      expect(api.v1.createDefaultNotificationChannel).toHaveBeenCalledWith(
+        { data: { name: "Default", type: "email", config: { addresses: ["user@example.com"] } } },
+        { headers: { "x-user-id": "user-1" } }
+      );
+      expect(apiInternal.v1.createNotification).toHaveBeenCalledTimes(2);
+    });
+
+    it("fails when the notification still cannot be sent after opening the channel", async () => {
+      const { service, api, apiInternal } = setup();
+      apiInternal.v1.createNotification.mockRejectedValue(channelMissing);
+      api.v1.createDefaultNotificationChannel.mockResolvedValue({} as never);
+
+      await expect(service.createNotificationOnce(input)).rejects.toMatchObject({ cause: channelMissing });
+      expect(apiInternal.v1.createNotification).toHaveBeenCalledTimes(2);
+      expect(api.v1.createDefaultNotificationChannel).toHaveBeenCalledTimes(1);
+    });
+
+    it("does not open a channel for a user without an email", async () => {
+      const { service, api, apiInternal } = setup();
+      apiInternal.v1.createNotification.mockRejectedValue(channelMissing);
+
+      await expect(service.createNotificationOnce({ ...input, user: { id: "user-1", email: null } })).rejects.toMatchObject({ cause: channelMissing });
+      expect(api.v1.createDefaultNotificationChannel).not.toHaveBeenCalled();
+    });
+  });
+
   describe("purgeUserData", () => {
     afterEach(() => {
       vi.useRealTimers();
