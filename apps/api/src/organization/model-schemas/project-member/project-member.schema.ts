@@ -9,7 +9,7 @@ export const projectRoleEnum = pgEnum("project_role", ["admin", "member", "viewe
 export type ProjectRole = (typeof projectRoleEnum.enumValues)[number];
 
 /** Owners and admins reach every project and billing reaches none, so a grant they still hold has no effect. */
-export const GRANT_HOLDING_ORGANIZATION_ROLES: OrganizationRole[] = ["member", "viewer"];
+export const GRANT_HOLDING_ORGANIZATION_ROLES: readonly OrganizationRole[] = ["member", "viewer"];
 
 export const ProjectMembers = pgTable(
   "project_members",

@@ -146,7 +146,6 @@ function tenantConditionsOf(user: RuleUser, { organizationId, projectScope }: Or
   };
 }
 
-/** Reading follows every reachable project, writing only the projects the request may change. */
 function projectResourceRules({ inScope, writableInScope }: Pick<TenantConditions, "inScope" | "writableInScope">): AbilityRule[] {
   return [
     { action: "read", subject: PROJECT_RESOURCES, conditions: inScope },
@@ -154,7 +153,6 @@ function projectResourceRules({ inScope, writableInScope }: Pick<TenantCondition
   ];
 }
 
-/** A project admin renames its projects and manages who else reaches them, never its own grant. */
 function projectAdministrationRules({ administeredProjects, othersGrantsOfAdministeredProjects, administersAnyProject }: TenantConditions): AbilityRule[] {
   if (!administersAnyProject) return [];
 
