@@ -350,9 +350,9 @@ export class ManagedSignerService {
 
   /** An organization's deployment keeps the row it was first filed under, so the caller's projects are checked before that row is read or written for them. */
   async filedUserIdOf(userWallet: UserWalletOutput, actingUserId: string, dseq: string): Promise<string> {
-    if (userWallet.userId !== null) return actingUserId;
-
     await this.assertDeploymentsInProjectScope(userWallet, [dseq]);
+
+    if (userWallet.userId !== null) return actingUserId;
 
     return (await this.deploymentSettingRepository.findOneOfWallet(userWallet, dseq))?.userId ?? actingUserId;
   }

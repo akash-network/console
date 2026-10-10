@@ -29,7 +29,7 @@ describe(LeaseGpuService.name, () => {
   it("resolves a reading to the catalog model and its branded label", async () => {
     const { service } = setup({ readings: [reading()] });
 
-    const byDeployment = await service.findForDeployments({ userId: "user-1", dseqs: [DSEQ] });
+    const byDeployment = await service.findForDeployments({ wallet: { userId: "user-1", organizationId: null }, dseqs: [DSEQ] });
 
     expect(byDeployment.get(DSEQ)?.get(`1/1/${PROVIDER}`)?.detectedGpus).toEqual({
       services: [{ service: "web", gpus: [{ vendor: "nvidia", model: "h100", displayName: "H100", memoryMb: 81559, interface: "sxm", count: 1 }] }],
@@ -41,7 +41,9 @@ describe(LeaseGpuService.name, () => {
   it("shows an unlisted card by what its driver called it", async () => {
     const { service } = setup({ readings: [reading({ gpus: [{ rawName: "Some Future Card", pciDeviceId: null, memoryMb: 1024, count: 2 }] })] });
 
-    const detected = (await service.findForDeployments({ userId: "user-1", dseqs: [DSEQ] })).get(DSEQ)?.get(`1/1/${PROVIDER}`)?.detectedGpus;
+    const detected = (await service.findForDeployments({ wallet: { userId: "user-1", organizationId: null }, dseqs: [DSEQ] }))
+      .get(DSEQ)
+      ?.get(`1/1/${PROVIDER}`)?.detectedGpus;
 
     expect(detected?.services[0].gpus[0]).toEqual({
       vendor: null,
@@ -57,7 +59,9 @@ describe(LeaseGpuService.name, () => {
     const rawName = "X".repeat(120);
     const { service } = setup({ readings: [reading({ gpus: [{ rawName, pciDeviceId: null, memoryMb: 0, count: 1 }] })] });
 
-    const detected = (await service.findForDeployments({ userId: "user-1", dseqs: [DSEQ] })).get(DSEQ)?.get(`1/1/${PROVIDER}`)?.detectedGpus;
+    const detected = (await service.findForDeployments({ wallet: { userId: "user-1", organizationId: null }, dseqs: [DSEQ] }))
+      .get(DSEQ)
+      ?.get(`1/1/${PROVIDER}`)?.detectedGpus;
 
     expect(detected?.services[0].gpus[0].displayName).toHaveLength(48);
   });
@@ -65,7 +69,9 @@ describe(LeaseGpuService.name, () => {
   it("groups every service of one lease under that lease, in name order whatever order they were stored in", async () => {
     const { service } = setup({ readings: [reading(), reading({ service: "trainer" })] });
 
-    const detected = (await service.findForDeployments({ userId: "user-1", dseqs: [DSEQ] })).get(DSEQ)?.get(`1/1/${PROVIDER}`)?.detectedGpus;
+    const detected = (await service.findForDeployments({ wallet: { userId: "user-1", organizationId: null }, dseqs: [DSEQ] }))
+      .get(DSEQ)
+      ?.get(`1/1/${PROVIDER}`)?.detectedGpus;
 
     expect(detected?.services.map(entry => entry.service)).toEqual(["trainer", "web"]);
   });
@@ -75,7 +81,9 @@ describe(LeaseGpuService.name, () => {
     const newer = reading({ service: "trainer", driverVersion: "560.28.03", detectedAt: "2026-09-21T12:00:00.000Z" });
     const { service } = setup({ readings: [older, newer] });
 
-    const detected = (await service.findForDeployments({ userId: "user-1", dseqs: [DSEQ] })).get(DSEQ)?.get(`1/1/${PROVIDER}`)?.detectedGpus;
+    const detected = (await service.findForDeployments({ wallet: { userId: "user-1", organizationId: null }, dseqs: [DSEQ] }))
+      .get(DSEQ)
+      ?.get(`1/1/${PROVIDER}`)?.detectedGpus;
 
     expect(detected).toMatchObject({ detectedAt: "2026-09-21T12:00:00.000Z", driverVersion: "560.28.03" });
   });
@@ -85,7 +93,9 @@ describe(LeaseGpuService.name, () => {
     const newer = reading({ service: "trainer", driverVersion: null, detectedAt: "2026-09-21T12:00:00.000Z" });
     const { service } = setup({ readings: [newer, older] });
 
-    const detected = (await service.findForDeployments({ userId: "user-1", dseqs: [DSEQ] })).get(DSEQ)?.get(`1/1/${PROVIDER}`)?.detectedGpus;
+    const detected = (await service.findForDeployments({ wallet: { userId: "user-1", organizationId: null }, dseqs: [DSEQ] }))
+      .get(DSEQ)
+      ?.get(`1/1/${PROVIDER}`)?.detectedGpus;
 
     expect(detected).toMatchObject({ detectedAt: "2026-09-21T12:00:00.000Z", driverVersion: "550.54.15" });
   });
@@ -93,7 +103,9 @@ describe(LeaseGpuService.name, () => {
   it("reports no driver when none of the lease's readings named one", async () => {
     const { service } = setup({ readings: [reading({ source: "none", gpus: [], driverVersion: null })] });
 
-    const detected = (await service.findForDeployments({ userId: "user-1", dseqs: [DSEQ] })).get(DSEQ)?.get(`1/1/${PROVIDER}`)?.detectedGpus;
+    const detected = (await service.findForDeployments({ wallet: { userId: "user-1", organizationId: null }, dseqs: [DSEQ] }))
+      .get(DSEQ)
+      ?.get(`1/1/${PROVIDER}`)?.detectedGpus;
 
     expect(detected).toEqual({ services: [{ service: "web", gpus: [] }], driverVersion: null, detectedAt: "2026-09-21T10:00:00.000Z" });
   });
@@ -101,7 +113,7 @@ describe(LeaseGpuService.name, () => {
   it("keeps the leases of one deployment apart", async () => {
     const { service } = setup({ readings: [reading(), reading({ gseq: 2, provider: "akash1other" })] });
 
-    const byLease = (await service.findForDeployments({ userId: "user-1", dseqs: [DSEQ] })).get(DSEQ);
+    const byLease = (await service.findForDeployments({ wallet: { userId: "user-1", organizationId: null }, dseqs: [DSEQ] })).get(DSEQ);
 
     expect([...(byLease?.keys() ?? [])]).toEqual([`1/1/${PROVIDER}`, "2/1/akash1other"]);
   });
@@ -109,7 +121,9 @@ describe(LeaseGpuService.name, () => {
   it("still answers with the raw names when the catalog cannot be reached", async () => {
     const { service } = setup({ readings: [reading()], index: null });
 
-    const detected = (await service.findForDeployments({ userId: "user-1", dseqs: [DSEQ] })).get(DSEQ)?.get(`1/1/${PROVIDER}`)?.detectedGpus;
+    const detected = (await service.findForDeployments({ wallet: { userId: "user-1", organizationId: null }, dseqs: [DSEQ] }))
+      .get(DSEQ)
+      ?.get(`1/1/${PROVIDER}`)?.detectedGpus;
 
     expect(detected?.services[0].gpus[0]).toMatchObject({ model: null, displayName: "NVIDIA H100 80GB HBM3" });
   });
@@ -118,7 +132,7 @@ describe(LeaseGpuService.name, () => {
     const { service, scoped, logger } = setup({ readings: [] });
     scoped.findLeaseGpus.mockRejectedValue(new Error("connection terminated"));
 
-    await expect(service.findForDeployments({ userId: "user-1", dseqs: [DSEQ] })).resolves.toEqual(new Map());
+    await expect(service.findForDeployments({ wallet: { userId: "user-1", organizationId: null }, dseqs: [DSEQ] })).resolves.toEqual(new Map());
 
     expect(logger.warn).toHaveBeenCalledWith(expect.objectContaining({ event: "LEASE_GPU_READ_FAILED", userId: "user-1", dseqs: [DSEQ] }));
   });
@@ -127,13 +141,13 @@ describe(LeaseGpuService.name, () => {
     const malformed = reading({ gpus: [{ rawName: null as unknown as string, pciDeviceId: null, memoryMb: 0, count: 1 }] });
     const { service } = setup({ readings: [malformed] });
 
-    await expect(service.findForDeployments({ userId: "user-1", dseqs: [DSEQ] })).resolves.toEqual(new Map());
+    await expect(service.findForDeployments({ wallet: { userId: "user-1", organizationId: null }, dseqs: [DSEQ] })).resolves.toEqual(new Map());
   });
 
   it("loads no catalog when nothing is recorded for the deployments", async () => {
     const { service, gpuCatalogService } = setup({ readings: [] });
 
-    await expect(service.findForDeployments({ userId: "user-1", dseqs: [DSEQ] })).resolves.toEqual(new Map());
+    await expect(service.findForDeployments({ wallet: { userId: "user-1", organizationId: null }, dseqs: [DSEQ] })).resolves.toEqual(new Map());
     expect(gpuCatalogService.getIndex).not.toHaveBeenCalled();
   });
 
@@ -146,7 +160,7 @@ describe(LeaseGpuService.name, () => {
       });
       const { service } = setup({ readings: [], offers: [offer] });
 
-      const byLease = (await service.findForDeployments({ userId: "user-1", dseqs: [DSEQ] })).get(DSEQ);
+      const byLease = (await service.findForDeployments({ wallet: { userId: "user-1", organizationId: null }, dseqs: [DSEQ] })).get(DSEQ);
 
       expect(byLease?.get(`1/1/${PROVIDER}`)).toEqual({
         offeredGpus: {
@@ -159,7 +173,9 @@ describe(LeaseGpuService.name, () => {
     it("serves the offer next to the probe's reading of the same lease", async () => {
       const { service } = setup({ readings: [reading()], offers: [createLeaseGpuOffer({ provider: PROVIDER })] });
 
-      const leaseGpus = (await service.findForDeployments({ userId: "user-1", dseqs: [DSEQ] })).get(DSEQ)?.get(`1/1/${PROVIDER}`);
+      const leaseGpus = (await service.findForDeployments({ wallet: { userId: "user-1", organizationId: null }, dseqs: [DSEQ] }))
+        .get(DSEQ)
+        ?.get(`1/1/${PROVIDER}`);
 
       expect(leaseGpus?.detectedGpus?.services[0].gpus[0].displayName).toBe("H100");
       expect(leaseGpus?.offeredGpus?.gpus[0].displayName).toBe("RTX 4060 Ti");
@@ -174,7 +190,9 @@ describe(LeaseGpuService.name, () => {
         ])
       });
 
-      const leaseGpus = (await service.findForDeployments({ userId: "user-1", dseqs: [DSEQ, "67890"] })).get(DSEQ)?.get(`1/1/${PROVIDER}`);
+      const leaseGpus = (await service.findForDeployments({ wallet: { userId: "user-1", organizationId: null }, dseqs: [DSEQ, "67890"] }))
+        .get(DSEQ)
+        ?.get(`1/1/${PROVIDER}`);
 
       expect(leaseGpus?.detectedGpus?.services[0].gpus[0].displayName).toBe("H100");
     });
@@ -182,7 +200,7 @@ describe(LeaseGpuService.name, () => {
     it("loads no catalog for a deployment only its offers are recorded for", async () => {
       const { service, gpuCatalogService } = setup({ readings: [], offers: [createLeaseGpuOffer({ provider: PROVIDER })] });
 
-      await service.findForDeployments({ userId: "user-1", dseqs: [DSEQ] });
+      await service.findForDeployments({ wallet: { userId: "user-1", organizationId: null }, dseqs: [DSEQ] });
 
       expect(gpuCatalogService.getIndex).not.toHaveBeenCalled();
     });
@@ -191,7 +209,9 @@ describe(LeaseGpuService.name, () => {
       const offer = createLeaseGpuOffer({ provider: PROVIDER, resources: [{ resourceId: 1, replicas: 1, unitsPerReplica: 1, attributes: [] }] });
       const { service } = setup({ readings: [], offers: [offer] });
 
-      const leaseGpus = (await service.findForDeployments({ userId: "user-1", dseqs: [DSEQ] })).get(DSEQ)?.get(`1/1/${PROVIDER}`);
+      const leaseGpus = (await service.findForDeployments({ wallet: { userId: "user-1", organizationId: null }, dseqs: [DSEQ] }))
+        .get(DSEQ)
+        ?.get(`1/1/${PROVIDER}`);
 
       expect(leaseGpus?.offeredGpus?.gpus).toEqual([]);
     });
@@ -200,17 +220,17 @@ describe(LeaseGpuService.name, () => {
   it("reads nothing for an empty deployment list", async () => {
     const { service, deploymentSettingRepository } = setup({ readings: [] });
 
-    await expect(service.findForDeployments({ userId: "user-1", dseqs: [] })).resolves.toEqual(new Map());
+    await expect(service.findForDeployments({ wallet: { userId: "user-1", organizationId: null }, dseqs: [] })).resolves.toEqual(new Map());
     expect(deploymentSettingRepository.accessibleBy).not.toHaveBeenCalled();
   });
 
   it("reads through the caller's own ability", async () => {
     const { service, deploymentSettingRepository, scoped, authService } = setup({ readings: [reading()] });
 
-    await service.findForDeployments({ userId: "user-1", dseqs: [DSEQ] });
+    await service.findForDeployments({ wallet: { userId: "user-1", organizationId: null }, dseqs: [DSEQ] });
 
     expect(deploymentSettingRepository.accessibleBy).toHaveBeenCalledWith(authService.ability, "read");
-    expect(scoped.findLeaseGpus).toHaveBeenCalledWith({ userId: "user-1", dseqs: [DSEQ] });
+    expect(scoped.findLeaseGpus).toHaveBeenCalledWith({ wallet: { userId: "user-1", organizationId: null }, dseqs: [DSEQ] });
   });
 
   function setup(input: { readings: LeaseGpuReading[]; offers?: LeaseGpuOffer[]; byDeployment?: Map<string, StoredLeaseGpus>; index?: null }) {

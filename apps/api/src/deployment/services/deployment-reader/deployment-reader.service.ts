@@ -32,7 +32,11 @@ import {
 } from "@src/deployment/http-schemas/deployment.schema";
 import { toDeploymentListItem, withLeaseGpus } from "@src/deployment/lib/deployment-list-item/deployment-list-item";
 import { DeploymentRepository } from "@src/deployment/repositories/deployment/deployment.repository";
-import { DeploymentSettingRepository, type ListedDeploymentSetting } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
+import {
+  DeploymentSettingRepository,
+  type DeploymentWallet,
+  type ListedDeploymentSetting
+} from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
 import { type ArchivePageQuery, DeploymentArchiveReaderService } from "@src/deployment/services/deployment-archive-reader/deployment-archive-reader.service";
 import { FallbackLeaseReaderService } from "@src/deployment/services/fallback-lease-reader/fallback-lease-reader.service";
 import { LeaseGpuService } from "@src/deployment/services/lease-gpu/lease-gpu.service";
@@ -56,7 +60,7 @@ type LoadDeploymentPage = (pagination: SweepPagination) => Promise<DeploymentLis
 
 interface PageQuery {
   owner: string;
-  userId: string;
+  wallet: DeploymentWallet;
   state: DeploymentListState;
   skip: number;
   limit: number;
@@ -89,8 +93,8 @@ export class DeploymentReaderService {
     const wallet = await this.walletReaderService.getWalletByUserId(userId);
     const [deployment, recorded, leaseGpus] = await Promise.all([
       this.findByWalletAndDseq(wallet, dseq),
-      this.findRecorded(userId, dseq),
-      this.leaseGpuService.findForDeployments({ userId, dseqs: [dseq] })
+      this.findRecorded(wallet, dseq),
+      this.leaseGpuService.findForDeployments({ wallet, dseqs: [dseq] })
     ]);
 
     return { ...deployment, ...recorded, leases: withLeaseGpus(deployment.leases, leaseGpus.get(dseq)) };
@@ -111,8 +115,8 @@ export class DeploymentReaderService {
    * case and not a broken one. The name is read off the same row and reported on its own, so a deployment
    * carrying a name but no definition still answers with the name.
    */
-  private async findRecorded(userId: string, dseq: string): Promise<{ name: string | null; consoleSettings: ConsoleSettings | null }> {
-    const setting = await this.deploymentSettingRepository.accessibleBy(this.authService.ability, "read").findOneBy({ userId, dseq });
+  private async findRecorded(wallet: DeploymentWallet, dseq: string): Promise<{ name: string | null; consoleSettings: ConsoleSettings | null }> {
+    const setting = await this.deploymentSettingRepository.accessibleBy(this.authService.ability, "read").findOneOfWallet(wallet, dseq);
     const name = setting?.name ?? null;
 
     if (!setting?.sdl || !setting.manifestVersion) {
@@ -123,26 +127,27 @@ export class DeploymentReaderService {
   }
 
   /** Under the same double scoping as the single read, and skipped entirely for an empty page so a list with nothing on it costs no query. */
-  private async findNamesFor(userId: string, dseqs: string[]): Promise<Map<string, string | null>> {
+  private async findNamesFor(wallet: DeploymentWallet, dseqs: string[]): Promise<Map<string, string | null>> {
     if (dseqs.length === 0) {
       return new Map();
     }
 
-    return await this.deploymentSettingRepository.accessibleBy(this.authService.ability, "read").findNamesByDseqs({ userId, dseqs });
+    return await this.deploymentSettingRepository.accessibleBy(this.authService.ability, "read").findNamesByDseqs({ wallet, dseqs });
   }
 
   /** As {@link findNamesFor}, for the fuller record a list shows. The name rides the same row, so a list joining these needs no second lookup. */
-  private async findSettingsFor(userId: string, dseqs: string[]): Promise<Map<string, ListedDeploymentSetting>> {
+  private async findSettingsFor(wallet: DeploymentWallet, dseqs: string[]): Promise<Map<string, ListedDeploymentSetting>> {
     if (dseqs.length === 0) {
       return new Map();
     }
 
-    return await this.deploymentSettingRepository.accessibleBy(this.authService.ability, "read").findListedSettings({ userId, dseqs });
+    return await this.deploymentSettingRepository.accessibleBy(this.authService.ability, "read").findListedSettings({ wallet, dseqs });
   }
 
   /** Answers every dseq asked about, with null where the console holds no name, so a caller never has to tell a missing row from an unnamed one. */
   public async findNames(userId: string, dseqs: string[]): Promise<Record<string, string | null>> {
-    const names = await this.findNamesFor(userId, dseqs);
+    const wallet = await this.walletReaderService.findReadableWalletByUserId(userId);
+    const names = wallet ? await this.findNamesFor(wallet, dseqs) : new Map<string, string | null>();
 
     return Object.fromEntries(dseqs.map(dseq => [dseq, names.get(dseq) ?? null]));
   }
@@ -257,7 +262,7 @@ export class DeploymentReaderService {
     const { address: owner } = wallet;
 
     if (state === "closed") {
-      const archive = await this.#listArchiveFromIndex({ owner, userId: query.userId, skip, limit, reverse, search });
+      const archive = await this.#listArchiveFromIndex({ owner, wallet, skip, limit, reverse, search });
       if (archive) return archive;
     }
 
@@ -267,8 +272,8 @@ export class DeploymentReaderService {
       total,
       hasMore
     } = search
-      ? await this.#findMatchingPage({ owner, userId: query.userId, state, skip, limit, reverse, search })
-      : await this.#findPage({ owner, userId: query.userId, state, skip, limit, reverse });
+      ? await this.#findMatchingPage({ owner, wallet, state, skip, limit, reverse, search })
+      : await this.#findPage({ owner, wallet, state, skip, limit, reverse });
 
     const [{ results: leaseResults }, settings, leaseGpus] = await Promise.all([
       PromisePool.withConcurrency(100)
@@ -279,7 +284,7 @@ export class DeploymentReaderService {
         })
         .process(async deployment => this.getLeaseList({ owner, dseq: deployment.deployment.id.dseq })),
       pendingSettings,
-      this.leaseGpuService.findForDeployments({ userId: query.userId, dseqs: page.map(deployment => deployment.deployment.id.dseq) })
+      this.leaseGpuService.findForDeployments({ wallet, dseqs: page.map(deployment => deployment.deployment.id.dseq) })
     ]);
 
     const deployments = page.map((deployment, index) =>
@@ -306,7 +311,7 @@ export class DeploymentReaderService {
     }
   }
 
-  async #findPage({ owner, userId, state, skip, limit, reverse }: PageQuery) {
+  async #findPage({ owner, wallet, state, skip, limit, reverse }: PageQuery) {
     const [response, countedTotal] = await Promise.all([
       this.getDeploymentsList({ owner, state, pagination: { offset: skip, limit, reverse } }),
       this.#countDeployments(owner, state)
@@ -316,7 +321,7 @@ export class DeploymentReaderService {
     return {
       page,
       settings: this.findSettingsFor(
-        userId,
+        wallet,
         page.map(deployment => deployment.deployment.id.dseq)
       ),
       total: totalCovering({ countedTotal, skip, pageLength: page.length }),
@@ -338,10 +343,10 @@ export class DeploymentReaderService {
    * A name lives in the console's database and a deployment on chain, so neither side can filter on both: the whole
    * of the requested state is loaded, matched, and only then paged. Leases are still fetched for the page alone.
    */
-  async #findMatchingPage({ owner, userId, state, skip, limit, reverse, search }: PageQuery & { search: string }) {
+  async #findMatchingPage({ owner, wallet, state, skip, limit, reverse, search }: PageQuery & { search: string }) {
     const everyDeployment = await this.#loadEveryDeployment(owner, state);
     const settings = await this.findSettingsFor(
-      userId,
+      wallet,
       everyDeployment.map(({ deployment }) => deployment.id.dseq)
     );
 

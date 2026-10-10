@@ -185,7 +185,7 @@ export class DeploymentSettingRepository extends OrgScopedRepository<Table, Depl
    * because the (dseq, userId) unique means two users holding the same dseq is an ordinary state: a query
    * naming only the dseqs would answer with another user's names.
    */
-  async findNamesByDseqs({ userId, dseqs }: { userId: string; dseqs: string[] }): Promise<Map<string, string | null>> {
+  async findNamesByDseqs({ wallet, dseqs }: { wallet: DeploymentWallet; dseqs: string[] }): Promise<Map<string, string | null>> {
     if (dseqs.length === 0) {
       return new Map();
     }
@@ -193,7 +193,8 @@ export class DeploymentSettingRepository extends OrgScopedRepository<Table, Depl
     const rows = await this.cursor
       .select({ dseq: this.table.dseq, name: this.table.name, ...this.#ruleColumns })
       .from(this.table)
-      .where(this.whereAccessibleBy(and(eq(this.table.userId, userId), inArray(this.table.dseq, dseqs))));
+      .where(this.whereAccessibleBy(and(this.#filedFor(wallet), inArray(this.table.dseq, dseqs))))
+      .orderBy(...this.#lastFiledFirst);
     this.compareWithShadow(rows);
 
     return new Map(rows.map(row => [row.dseq, row.name]));
@@ -204,7 +205,7 @@ export class DeploymentSettingRepository extends OrgScopedRepository<Table, Depl
    * under the same double scoping as {@link findNamesByDseqs}. The name is read off the same row, so a list
    * joining these needs no separate name lookup.
    */
-  async findListedSettings({ userId, dseqs }: { userId: string; dseqs: string[] }): Promise<Map<string, ListedDeploymentSetting>> {
+  async findListedSettings({ wallet, dseqs }: { wallet: DeploymentWallet; dseqs: string[] }): Promise<Map<string, ListedDeploymentSetting>> {
     if (dseqs.length === 0) {
       return new Map();
     }
@@ -221,25 +222,26 @@ export class DeploymentSettingRepository extends OrgScopedRepository<Table, Depl
         ...this.#ruleColumns
       })
       .from(this.table)
-      .where(this.whereAccessibleBy(and(eq(this.table.userId, userId), inArray(this.table.dseq, dseqs))));
+      .where(this.whereAccessibleBy(and(this.#filedFor(wallet), inArray(this.table.dseq, dseqs))))
+      .orderBy(...this.#lastFiledFirst);
     this.compareWithShadow(rows);
 
     return new Map(rows.map(({ dseq, setting }) => [dseq, setting]));
   }
 
   /** Under the same double scoping as {@link findNamesByDseqs}; the null-name condition is what lets the partial index on named rows serve it. */
-  async findDseqsByNameContaining({ userId, text }: { userId: string; text: string }): Promise<string[]> {
+  async findDseqsByNameContaining({ wallet, text }: { wallet: DeploymentWallet; text: string }): Promise<string[]> {
     const rows = await this.cursor
       .select({ dseq: this.table.dseq, ...this.#ruleColumns })
       .from(this.table)
-      .where(this.whereAccessibleBy(and(eq(this.table.userId, userId), isNotNull(this.table.name), ilike(this.table.name, containsPattern(text)))));
+      .where(this.whereAccessibleBy(and(this.#filedFor(wallet), isNotNull(this.table.name), ilike(this.table.name, containsPattern(text)))));
     this.compareWithShadow(rows);
 
     return rows.map(row => row.dseq);
   }
 
   /** Keyed by dseq and absent for a deployment with neither recorded, under the same double scoping as {@link findNamesByDseqs}. */
-  async findLeaseGpus({ userId, dseqs }: { userId: string; dseqs: string[] }): Promise<Map<string, StoredLeaseGpus>> {
+  async findLeaseGpus({ wallet, dseqs }: { wallet: DeploymentWallet; dseqs: string[] }): Promise<Map<string, StoredLeaseGpus>> {
     if (dseqs.length === 0) {
       return new Map();
     }
@@ -249,9 +251,10 @@ export class DeploymentSettingRepository extends OrgScopedRepository<Table, Depl
       .from(this.table)
       .where(
         this.whereAccessibleBy(
-          and(eq(this.table.userId, userId), inArray(this.table.dseq, dseqs), or(isNotNull(this.table.detectedGpus), isNotNull(this.table.offeredGpus)))
+          and(this.#filedFor(wallet), inArray(this.table.dseq, dseqs), or(isNotNull(this.table.detectedGpus), isNotNull(this.table.offeredGpus)))
         )
-      );
+      )
+      .orderBy(...this.#lastFiledFirst);
 
     this.compareWithShadow(rows);
 
@@ -339,6 +342,11 @@ export class DeploymentSettingRepository extends OrgScopedRepository<Table, Depl
       .where(this.whereAccessibleBy(eq(this.table.id, id)));
 
     return row?.walletId;
+  }
+
+  /** Rows of one deployment come back newest first, so the row it was first filed under is the one a map keyed by dseq keeps. */
+  get #lastFiledFirst() {
+    return [desc(this.table.createdAt), desc(this.table.id)];
   }
 
   /** An ownerless wallet matches no row rather than every row with a null column. */

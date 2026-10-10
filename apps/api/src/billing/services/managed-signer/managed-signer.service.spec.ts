@@ -1641,12 +1641,19 @@ describe(ManagedSignerService.name, () => {
   describe("filedUserIdOf", () => {
     const projectScoped = createOrganizationContext({ role: "member", projectScope: { kind: "projects", projectIds: ["project-a"] } });
 
-    it("files a personal wallet's deployment under the acting user without looking anything up", async () => {
-      const { service, deploymentSettingRepository } = setup({ organizationContext: projectScoped });
+    it("files a personal wallet's deployment under the acting user once the caller's projects reach it", async () => {
+      const wallet = createUserWallet({ userId: "user-1" });
+      const { service, deploymentSettingRepository } = setup({ organizationContext: projectScoped, filedIds: ["setting-1"], reachableIds: ["setting-1"] });
 
-      await expect(service.filedUserIdOf(createUserWallet({ userId: "user-1" }), "user-1", "123")).resolves.toBe("user-1");
-      expect(deploymentSettingRepository.findIdsOfWallet).not.toHaveBeenCalled();
+      await expect(service.filedUserIdOf(wallet, "user-1", "123")).resolves.toBe("user-1");
+      expect(deploymentSettingRepository.findIdsOfWallet).toHaveBeenCalledWith(wallet, "123");
       expect(deploymentSettingRepository.findOneOfWallet).not.toHaveBeenCalled();
+    });
+
+    it("refuses a personal wallet's deployment filed outside the caller's projects", async () => {
+      const { service } = setup({ organizationContext: projectScoped, filedIds: ["setting-1"], reachableIds: [] });
+
+      await expect(service.filedUserIdOf(createUserWallet({ userId: "user-1" }), "user-1", "123")).rejects.toMatchObject({ status: 403 });
     });
 
     it("resolves an organization's deployment to the member who filed it once the caller's projects reach it", async () => {

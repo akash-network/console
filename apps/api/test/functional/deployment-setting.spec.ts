@@ -12,7 +12,6 @@ import { UserRepository } from "@src/user/repositories/user/user.repository";
 
 import { createAkashAddress } from "@test/seeders/akash-address.seeder";
 import { createDrainingDeployment } from "@test/seeders/draining-deployment.seeder";
-import { createUserWallet } from "@test/seeders/user-wallet.seeder";
 
 /** Shaped like the compact JWE the column really carries, and generated per call so no test can pin a literal. */
 function newSealedToken() {
@@ -643,7 +642,7 @@ describe("Deployment Settings", () => {
     const walletAddress = createAkashAddress();
     const token = faker.string.alphanumeric(40);
 
-    const wallet = createUserWallet({ userId: user.id, address: walletAddress });
+    const wallet = await userWalletRepository.create({ userId: user.id, address: walletAddress });
 
     vi.spyOn(userAuthTokenService, "getValidUserId").mockResolvedValue(user.userId);
     vi.spyOn(userWalletRepository, "accessibleBy").mockReturnValue(userWalletRepository);

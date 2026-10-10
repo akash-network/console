@@ -204,7 +204,7 @@ export class DeploymentSettingService {
     });
 
     if (setting.runtimeEndsAt) {
-      await this.#requestImmediateFunding(params.userId, params.dseq);
+      await this.#requestImmediateFunding(setting);
       await this.#rescheduleCloseJob(setting);
     }
 
@@ -279,7 +279,7 @@ export class DeploymentSettingService {
     });
 
     if (existing?.runtimeEndsAt) {
-      await this.#requestImmediateFunding(params.userId, params.dseq);
+      await this.#requestImmediateFunding(setting);
       await this.#cancelCloseJob(existing);
     }
 
@@ -300,9 +300,9 @@ export class DeploymentSettingService {
    * not turn a successful request into a 500 that invites a retry the increase-only rule would reject.
    * The hourly sweep is the fallback.
    */
-  async #requestImmediateFunding(userId: string, dseq: string): Promise<void> {
+  async #requestImmediateFunding({ id, userId, dseq }: Pick<DeploymentSettingsOutput, "id" | "userId" | "dseq">): Promise<void> {
     try {
-      const wallet = await this.userWalletRepository.findOneUsedBy(userId);
+      const wallet = await this.#ownerWalletOf({ id });
 
       if (!wallet?.address) {
         this.logger.warn({ event: "RUNTIME_LIMIT_FUNDING_SKIPPED", reason: "WALLET_NOT_FOUND", dseq, userId });
@@ -358,6 +358,13 @@ export class DeploymentSettingService {
    * served on the deployment read, next to the lease they describe. `closeReason` and `closeReasonDetails` are feedback
    * the user gave us, not state any client acts on.
    */
+  /** The wallet that owns the deployment a row was filed for, which is the organization's for a team deployment whoever filed it. */
+  async #ownerWalletOf({ id }: Pick<DeploymentSettingsOutput, "id">) {
+    const walletId = await this.deploymentSettingRepository.findOwnerWalletId(id);
+
+    return walletId === undefined ? undefined : await this.userWalletRepository.findById(walletId);
+  }
+
   async withEstimatedTopUpAmount(params: DeploymentSettingsOutput): Promise<DeploymentSettingWithEstimatedTopUpAmount>;
   async withEstimatedTopUpAmount(params: undefined): Promise<undefined>;
   async withEstimatedTopUpAmount(params?: DeploymentSettingsOutput): Promise<DeploymentSettingWithEstimatedTopUpAmount | undefined> {
@@ -388,7 +395,8 @@ export class DeploymentSettingService {
       return { ...setting, estimatedTopUpAmount: 0, topUpFrequencyMs: this.topUpFrequencyMs, sdl };
     }
 
-    const estimatedTopUpAmount = await this.drainingDeploymentService.calculateTopUpAmountForDseqAndUserId(setting.dseq, setting.userId);
+    const wallet = await this.#ownerWalletOf(params);
+    const estimatedTopUpAmount = wallet?.address ? await this.drainingDeploymentService.calculateTopUpAmountForDseqAndOwner(setting.dseq, wallet.address) : 0;
     if (estimatedTopUpAmount < 0) {
       this.logger.warn({
         event: "ESTIMATED_TOP_UP_AMOUNT_NEGATIVE",

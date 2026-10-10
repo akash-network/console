@@ -90,9 +90,7 @@ export class UserWalletRepository extends OrgScopedRepository<ApiPgTables["UserW
     const [newWallet] = await this.cursor
       .insert(this.table)
       .values({ userId: input.userId, createdByUserId: input.userId, organizationId: personalOrganizationIdOf(input.userId) })
-      .onConflictDoNothing({
-        target: [this.table.userId]
-      })
+      .onConflictDoNothing()
       .returning();
 
     if (newWallet) {

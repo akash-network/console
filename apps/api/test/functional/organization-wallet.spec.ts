@@ -13,6 +13,8 @@ import { type ApiPgDatabase, CORE_CONFIG, POSTGRES_DB, resolveTable } from "@src
 import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
 import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import type { OrganizationRole } from "@src/organization/model-schemas/organization-member/organization-member.schema";
+import { OrganizationRepository } from "@src/organization/repositories/organization/organization.repository";
+import { ProjectRepository } from "@src/organization/repositories/project/project.repository";
 import { app } from "@src/rest-app";
 
 import { createAkashAddress } from "@test/seeders/akash-address.seeder";
@@ -153,6 +155,50 @@ describe("Organization wallet", () => {
     });
   });
 
+  describe("PUT /v1/deployments/{dseq}", () => {
+    it("refuses a caller narrowed to one project of their personal organization who updates a deployment filed in another, writing nothing", async () => {
+      const { user, token, findRowsOf } = await setup();
+      const personal = await container.resolve(OrganizationRepository).findPersonalByUserId(user.id);
+      const defaultProject = await container
+        .resolve(ProjectRepository)
+        .unscoped("personal-organization-provisioning")
+        .findDefaultByOrganizationId(personal!.id);
+      const otherProject = await seedProject({ organizationId: personal!.id });
+      await seedDeploymentSetting({ userId: user.id, organizationId: personal!.id, projectId: defaultProject!.id, dseq: "123", sdl: "version: '2.0'" });
+
+      const response = await app.request("/v1/deployments/123", {
+        method: "PUT",
+        body: JSON.stringify({ data: { sdl: "version: '2.0'\nservices: {}" } }),
+        headers: { "Content-Type": "application/json", authorization: `Bearer ${token}`, "x-organization-id": personal!.id, "x-project-id": otherProject.id }
+      });
+
+      expect(response.status).toBe(403);
+      expect(await findRowsOf(personal!.id, "123")).toEqual([expect.objectContaining({ sdl: "version: '2.0'" })]);
+    });
+  });
+
+  describe("POST /v1/create-jwt-token", () => {
+    it("refuses a token meant to outlive an hour to a caller narrowed to one project", async () => {
+      const { user, token } = await setup();
+      const personal = await container.resolve(OrganizationRepository).findPersonalByUserId(user.id);
+      const project = await seedProject({ organizationId: personal!.id });
+
+      const response = await app.request("/v1/create-jwt-token", {
+        method: "POST",
+        body: JSON.stringify({
+          data: {
+            ttl: 7200,
+            leases: { access: "granular", permissions: [{ provider: createAkashAddress(), access: "granular", deployments: [{ dseq: 123, scope: ["logs"] }] }] }
+          }
+        }),
+        headers: { "Content-Type": "application/json", authorization: `Bearer ${token}`, "x-organization-id": personal!.id, "x-project-id": project.id }
+      });
+
+      expect(response.status).toBe(400);
+      expect(await response.json()).toMatchObject({ message: "ttl must be at most 3600 seconds" });
+    });
+  });
+
   describe("PATCH /v2/deployment-settings/{dseq}", () => {
     it("changes the one row a team deployment was filed under when another member changes it", async () => {
       const { token, team, findTeamRows } = await setup();
@@ -250,16 +296,17 @@ describe("Organization wallet", () => {
 
     enableOrganizationsFor(input.organizationsOn === false ? [] : [user.id]);
 
-    const findTeamRows = async (dseq: string) => {
+    const findRowsOf = async (organizationId: string, dseq: string) => {
       const settings = resolveTable("DeploymentSettings");
       return await container
         .resolve<ApiPgDatabase>(POSTGRES_DB)
         .select()
         .from(settings)
-        .where(and(eq(settings.organizationId, team.id), eq(settings.dseq, dseq)));
+        .where(and(eq(settings.organizationId, organizationId), eq(settings.dseq, dseq)));
     };
+    const findTeamRows = async (dseq: string) => await findRowsOf(team.id, dseq);
 
-    return { user, token, wallet, team, teamWallet: { ...teamWallet, address: teamWallet.address as string }, signedIndexes, findTeamRows };
+    return { user, token, wallet, team, teamWallet: { ...teamWallet, address: teamWallet.address as string }, signedIndexes, findTeamRows, findRowsOf };
   }
 
   function enableOrganizationsFor(userIds: string[]) {

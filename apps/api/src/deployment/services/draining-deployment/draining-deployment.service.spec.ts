@@ -942,53 +942,32 @@ describe(DrainingDeploymentService.name, () => {
     });
   });
 
-  describe("calculateTopUpAmountForDseqAndUserId", () => {
+  describe("calculateTopUpAmountForDseqAndOwner", () => {
     it("calculates top up amount for valid deployment", async () => {
-      const userId = faker.string.uuid();
       const dseq = faker.string.numeric(6);
       const address = createAkashAddress();
       const deployment = createDrainingDeployment();
-      const userWallet = createUserWallet({ address });
       const expectedTopUpAmount = 100000;
 
-      const { service, userWalletRepository, leaseRepository } = setup();
-      userWalletRepository.findOneUsedBy.mockResolvedValue(userWallet);
+      const { service, leaseRepository } = setup();
       leaseRepository.findOneByDseqAndOwner.mockResolvedValue(deployment);
       vi.spyOn(service, "calculateSteadyStateTopUpAmount").mockReturnValue(expectedTopUpAmount);
 
-      const amount = await service.calculateTopUpAmountForDseqAndUserId(dseq, userId);
+      const amount = await service.calculateTopUpAmountForDseqAndOwner(dseq, address);
 
-      expect(userWalletRepository.findOneUsedBy).toHaveBeenCalledWith(userId);
       expect(leaseRepository.findOneByDseqAndOwner).toHaveBeenCalledWith(dseq, address);
       expect(service.calculateSteadyStateTopUpAmount).toHaveBeenCalledWith(deployment);
       expect(amount).toBe(expectedTopUpAmount);
     });
 
-    it("returns 0 when user wallet not found", async () => {
-      const userId = faker.string.uuid();
-      const dseq = faker.string.numeric(6);
-      const { service, userWalletRepository, leaseRepository } = setup();
-      userWalletRepository.findOneUsedBy.mockResolvedValue(undefined);
-
-      const amount = await service.calculateTopUpAmountForDseqAndUserId(dseq, userId);
-
-      expect(userWalletRepository.findOneUsedBy).toHaveBeenCalledWith(userId);
-      expect(leaseRepository.findOneByDseqAndOwner).not.toHaveBeenCalled();
-      expect(amount).toBe(0);
-    });
-
     it("returns 0 when lease not found", async () => {
-      const userId = faker.string.uuid();
       const dseq = faker.string.numeric(6);
       const address = createAkashAddress();
-      const userWallet = createUserWallet({ address });
-      const { service, userWalletRepository, leaseRepository } = setup();
-      userWalletRepository.findOneUsedBy.mockResolvedValue(userWallet);
+      const { service, leaseRepository } = setup();
       leaseRepository.findOneByDseqAndOwner.mockResolvedValue(null);
 
-      const amount = await service.calculateTopUpAmountForDseqAndUserId(dseq, userId);
+      const amount = await service.calculateTopUpAmountForDseqAndOwner(dseq, address);
 
-      expect(userWalletRepository.findOneUsedBy).toHaveBeenCalledWith(userId);
       expect(leaseRepository.findOneByDseqAndOwner).toHaveBeenCalledWith(dseq, address);
       expect(amount).toBe(0);
     });
