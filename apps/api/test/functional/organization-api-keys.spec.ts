@@ -253,15 +253,23 @@ describe("Organization API keys", () => {
       expect(outsideProjectResponse.status).toBe(404);
     });
 
-    it("keeps reaching the project it is bound to while enforcement is off", async () => {
-      const { user, personal } = await setup({ organizationsOn: false });
+    it("is rejected when bound to a project while enforcement is off", async () => {
+      const { user, personal, personalProject } = await setup({ organizationsOn: false });
       const ciProject = await seedProject({ organizationId: personal.id });
-      const setting = await seedDeploymentSetting({ userId: user.id, organizationId: personal.id, projectId: ciProject.id, autoTopUpEnabled: false });
+      const [inProject, outsideProject] = await Promise.all([
+        seedDeploymentSetting({ userId: user.id, organizationId: personal.id, projectId: ciProject.id, autoTopUpEnabled: false }),
+        seedDeploymentSetting({ userId: user.id, organizationId: personal.id, projectId: personalProject.id, autoTopUpEnabled: false })
+      ]);
       const { apiKey } = await seedApiKey({ userId: user.id, organizationId: personal.id, projectId: ciProject.id });
 
-      const response = await getDeploymentSetting(setting, { "x-api-key": apiKey });
+      const [inProjectResponse, outsideProjectResponse] = await Promise.all([
+        getDeploymentSetting(inProject, { "x-api-key": apiKey }),
+        getDeploymentSetting(outsideProject, { "x-api-key": apiKey })
+      ]);
 
-      expect(response.status).toBe(200);
+      expect(inProjectResponse.status).toBe(403);
+      expect(outsideProjectResponse.status).toBe(403);
+      expect(await outsideProjectResponse.json()).toMatchObject({ code: "project_forbidden" });
     });
   });
 

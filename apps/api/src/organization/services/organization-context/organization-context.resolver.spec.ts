@@ -82,21 +82,28 @@ describe(OrganizationContextResolver.name, () => {
       expect(boundToNone).toEqual(boundToPersonal);
     });
 
-    it("narrows every project down to the one an API key is bound to, with or without enforcement", async () => {
-      const { resolver, personal, user } = setup({ organizationsOn: false });
-      const { resolver: enforcingResolver, personal: enforcedPersonal, user: enforcedUser } = setup({ organizationsOn: false, enforceOn: true });
+    it("narrows every project down to the one an API key is bound to once enforcement is on", async () => {
+      const { resolver, personal, user } = setup({ organizationsOn: false, enforceOn: true });
       const projectId = faker.string.uuid();
 
-      const [context, enforcedContext] = await Promise.all([
-        resolver.resolve({ user, apiKey: { organizationId: personal.organization.id, projectId } }),
-        enforcingResolver.resolve({ user: enforcedUser, apiKey: { organizationId: enforcedPersonal.organization.id, projectId } })
-      ]);
+      const context = await resolver.resolve({ user, apiKey: { organizationId: personal.organization.id, projectId } });
 
-      expect(context).toMatchObject({ organizationId: personal.organization.id, projectScope: { kind: "projects", projectIds: [projectId] }, mode: "legacy" });
-      expect(enforcedContext).toMatchObject({
-        organizationId: enforcedPersonal.organization.id,
+      expect(context).toMatchObject({
+        organizationId: personal.organization.id,
         projectScope: { kind: "projects", projectIds: [projectId] },
         mode: "organization"
+      });
+    });
+
+    it("rejects an API key bound to a project while enforcement is off", async () => {
+      const { resolver, personal, user } = setup({ organizationsOn: false });
+
+      const resolution = resolver.resolve({ user, apiKey: { organizationId: personal.organization.id, projectId: faker.string.uuid() } });
+
+      await expect(resolution).rejects.toMatchObject({
+        status: 403,
+        errorCode: PROJECT_FORBIDDEN_ERROR_CODE,
+        message: "The API key is limited to a project this request cannot be limited to"
       });
     });
 
@@ -105,10 +112,23 @@ describe(OrganizationContextResolver.name, () => {
       const error = new Error("insert failed");
       personalOrganizationService.ensureForUser.mockRejectedValue(error);
 
-      const context = await resolver.resolve({ user });
+      const [context, unboundKeyContext] = await Promise.all([
+        resolver.resolve({ user }),
+        resolver.resolve({ user, apiKey: { organizationId: null, projectId: null } })
+      ]);
 
       expect(context).toBeUndefined();
+      expect(unboundKeyContext).toBeUndefined();
       expect(logger.error).toHaveBeenCalledWith({ event: "PERSONAL_ORGANIZATION_CONTEXT_UNAVAILABLE", userId: user.id, error });
+    });
+
+    it("fails an API key request bound to an organization or a project when the personal organization cannot be resolved", async () => {
+      const { resolver, personalOrganizationService, team, user } = setup({ organizationsOn: false, withoutPersonalMembership: true });
+      const error = new Error("insert failed");
+      personalOrganizationService.ensureForUser.mockRejectedValue(error);
+
+      await expect(resolver.resolve({ user, apiKey: { organizationId: team.organization.id, projectId: null } })).rejects.toBe(error);
+      await expect(resolver.resolve({ user, apiKey: { organizationId: null, projectId: faker.string.uuid() } })).rejects.toBe(error);
     });
 
     it("fails the request when the personal organization cannot be resolved once enforcement is on", async () => {

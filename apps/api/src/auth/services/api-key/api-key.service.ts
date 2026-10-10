@@ -75,7 +75,6 @@ export class ApiKeyService {
     await this.apiKeyRepository.accessibleBy(this.authService.ability, "delete").deleteBy({ id, ...this.#reachableKeys() }, { returning: true });
   }
 
-  /** A request made with a project-bound key only reaches keys bound to that same project. */
   #reachableKeys(): Pick<ApiKeyInput, "userId" | "projectId"> {
     const userId = this.authService.currentUser.id;
     const projectId = this.authService.currentApiKey?.projectId;
