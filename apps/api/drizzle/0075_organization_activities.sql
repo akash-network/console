@@ -15,4 +15,5 @@ ALTER TABLE "organization_activities" ADD CONSTRAINT "organization_activities_ac
 ALTER TABLE "organization_activities" ADD CONSTRAINT "organization_activities_organization_id_project_id_fk" FOREIGN KEY ("organization_id","project_id") REFERENCES "public"."projects"("organization_id","id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 CREATE INDEX "organization_activities_organization_id_created_at_id_idx" ON "organization_activities" USING btree ("organization_id","created_at" DESC NULLS LAST,"id" DESC NULLS LAST);--> statement-breakpoint
 CREATE INDEX "organization_activities_organization_id_project_id_created_at_id_idx" ON "organization_activities" USING btree ("organization_id","project_id","created_at" DESC NULLS LAST,"id" DESC NULLS LAST);--> statement-breakpoint
-CREATE UNIQUE INDEX "projects_organization_id_name_unique" ON "projects" USING btree ("organization_id",lower("name")) WHERE "projects"."deleted_at" IS NULL;
+CREATE UNIQUE INDEX "projects_organization_id_name_unique" ON "projects" USING btree ("organization_id",lower("name")) WHERE "projects"."deleted_at" IS NULL;--> statement-breakpoint
+RESET lock_timeout;

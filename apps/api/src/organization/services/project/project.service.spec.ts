@@ -193,6 +193,7 @@ describe(ProjectService.name, () => {
       await service.delete(project.id);
 
       expect(projectRepository.accessibleBy).toHaveBeenCalledWith(ability, "delete");
+      expect(projectRepository.findOneBy).toHaveBeenCalledWith({ id: project.id, deletedAt: null });
       expect(projectRepository.findOneByAndLock).toHaveBeenCalledWith({ id: project.id, deletedAt: null });
       expect(deploymentSettingRepository.findOpenInProject).toHaveBeenCalledWith({ organizationId: project.organizationId, projectId: project.id });
       expect(deploymentSettingRepository.count).toHaveBeenCalledWith({ organizationId: project.organizationId, projectId: project.id, closed: false });
@@ -221,7 +222,7 @@ describe(ProjectService.name, () => {
       expect(projectRepository.updateById).toHaveBeenCalled();
     });
 
-    it("refuses while a deployment is still open on chain and keeps the ones it found closed", async () => {
+    it("refuses while a deployment is still open on chain, after closing the ones it found closed outside the transaction", async () => {
       const closedOnChain = createOpenDeployment();
       const openOnChain = createOpenDeployment();
       const unindexed = createOpenDeployment();
@@ -233,36 +234,58 @@ describe(ProjectService.name, () => {
         { owner: openOnChain.address, dseq: openOnChain.dseq, isClosed: false }
       ]);
       deploymentSettingRepository.count.mockResolvedValue(2);
-      const committed = vi.fn();
+      let inTransaction = false;
       txService.transaction.mockImplementation(async callback => {
-        const result = await callback();
-        committed();
-        return result;
+        inTransaction = true;
+        try {
+          return await callback();
+        } finally {
+          inTransaction = false;
+        }
       });
+      const closedInTransaction = vi.fn();
+      deploymentSettingRepository.markAsClosedInProject.mockImplementation(async () => closedInTransaction(inTransaction));
 
       await expect(service.delete(project.id)).rejects.toMatchObject({ status: 409, errorCode: "project_not_empty" });
       expect(deploymentSettingRepository.markAsClosedInProject).toHaveBeenCalledWith({ organizationId: project.organizationId, projectId: project.id }, [
         closedOnChain.id
       ]);
-      expect(committed).toHaveBeenCalled();
+      expect(closedInTransaction).toHaveBeenCalledWith(false);
       expect(projectRepository.updateById).not.toHaveBeenCalled();
     });
 
     it("answers not found when no active project with this id is within the caller's rules", async () => {
-      const { service, projectRepository, deploymentSettingRepository } = setup();
-      projectRepository.findOneByAndLock.mockResolvedValue(undefined);
+      const { service, projectRepository, deploymentSettingRepository, txService } = setup();
+      projectRepository.findOneBy.mockResolvedValue(undefined);
 
       await expect(service.delete(faker.string.uuid())).rejects.toMatchObject({ status: 404 });
       expect(deploymentSettingRepository.findOpenInProject).not.toHaveBeenCalled();
-      expect(projectRepository.updateById).not.toHaveBeenCalled();
+      expect(txService.transaction).not.toHaveBeenCalled();
     });
 
     it("refuses to delete the default project", async () => {
-      const { service, projectRepository, deploymentSettingRepository, project } = setup();
-      projectRepository.findOneByAndLock.mockResolvedValue({ ...project, isDefault: true });
+      const { service, projectRepository, deploymentSettingRepository, txService, project } = setup();
+      projectRepository.findOneBy.mockResolvedValue({ ...project, isDefault: true });
 
       await expect(service.delete(project.id)).rejects.toMatchObject({ status: 409, errorCode: "project_is_default" });
       expect(deploymentSettingRepository.findOpenInProject).not.toHaveBeenCalled();
+      expect(txService.transaction).not.toHaveBeenCalled();
+    });
+
+    it("answers not found when the project is deleted before the transaction locks it", async () => {
+      const { service, projectRepository, deploymentSettingRepository, project } = setup();
+      projectRepository.findOneByAndLock.mockResolvedValue(undefined);
+
+      await expect(service.delete(project.id)).rejects.toMatchObject({ status: 404 });
+      expect(deploymentSettingRepository.count).not.toHaveBeenCalled();
+      expect(projectRepository.updateById).not.toHaveBeenCalled();
+    });
+
+    it("refuses when the project became the default before the transaction locks it", async () => {
+      const { service, projectRepository, project } = setup();
+      projectRepository.findOneByAndLock.mockResolvedValue({ ...project, isDefault: true });
+
+      await expect(service.delete(project.id)).rejects.toMatchObject({ status: 409, errorCode: "project_is_default" });
       expect(projectRepository.updateById).not.toHaveBeenCalled();
     });
   });
@@ -302,6 +325,7 @@ describe(ProjectService.name, () => {
       findActiveWithCreator: vi.fn().mockResolvedValue([project]),
       createWithFirstFreeSlug: vi.fn().mockResolvedValue(project),
       updateBy: vi.fn().mockResolvedValue(project),
+      findOneBy: vi.fn().mockResolvedValue(project),
       findOneByAndLock: vi.fn().mockResolvedValue(project)
     });
     projectRepository.accessibleBy.mockReturnValue(projectRepository);
