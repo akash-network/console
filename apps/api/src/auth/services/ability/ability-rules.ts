@@ -22,7 +22,7 @@ interface TenantConditions {
 
 const PROJECT_RESOURCES = ["DeploymentSetting", "Template", "Alert", "NotificationChannel"];
 
-/** Subjects that span the whole organization: a request made with a project-bound API key only reads the organization and its own project among them. */
+/** A project-bound API key keeps no rule on these beyond reading its organization and its project. */
 export const ORGANIZATION_LEVEL_SUBJECTS: readonly string[] = [
   "Organization",
   "OrganizationMember",

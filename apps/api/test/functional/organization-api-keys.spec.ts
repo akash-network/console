@@ -213,6 +213,7 @@ describe("Organization API keys", () => {
       expect(inProjectResponse.status).toBe(200);
       expect(outsideProjectResponse.status).toBe(404);
       expect(organizationsResponse.status).toBe(200);
+      expect(await organizationsResponse.json()).toEqual({ data: [expect.objectContaining({ id: team.id, isActive: true })] });
     });
   });
 
