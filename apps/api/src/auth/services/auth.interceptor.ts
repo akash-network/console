@@ -139,6 +139,7 @@ export class AuthInterceptor implements HonoInterceptor {
 
   private async auth(user: UserOutput | undefined, c: Context, apiKey?: ApiKeyOutput) {
     this.authService.currentUser = user;
+    this.authService.currentApiKey = apiKey;
     if (user) {
       const [organizationContext] = await Promise.all([
         this.organizationContextResolver.resolve({

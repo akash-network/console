@@ -1,23 +1,31 @@
+import assert from "http-assert";
 import { singleton } from "tsyringe";
 
 import { ApiKeyInput, ApiKeyOutput, ApiKeyRepository } from "@src/auth/repositories/api-key/api-key.repository";
 import { AuthService } from "@src/auth/services/auth.service";
+import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
+import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
+import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
+import { ProjectRepository } from "@src/organization/repositories/project/project.repository";
 import { ApiKeyGeneratorService } from "./api-key-generator.service";
 
 @singleton()
 export class ApiKeyService {
   constructor(
     private readonly apiKeyRepository: ApiKeyRepository,
+    private readonly projectRepository: ProjectRepository,
     private readonly authService: AuthService,
-    private readonly apiKeyGenerator: ApiKeyGeneratorService
+    private readonly apiKeyGenerator: ApiKeyGeneratorService,
+    private readonly executionContextService: ExecutionContextService,
+    private readonly featureFlagsService: FeatureFlagsService
   ) {}
 
   async findAll(): Promise<ApiKeyOutput[]> {
-    return await this.apiKeyRepository.accessibleBy(this.authService.ability, "read").find({ userId: this.authService.currentUser.id });
+    return await this.apiKeyRepository.accessibleBy(this.authService.ability, "read").find(this.#reachableKeys());
   }
 
   async findById(id: string): Promise<ApiKeyOutput | undefined> {
-    const key = await this.apiKeyRepository.accessibleBy(this.authService.ability, "read").findOneBy({ id, userId: this.authService.currentUser.id });
+    const key = await this.apiKeyRepository.accessibleBy(this.authService.ability, "read").findOneBy({ id, ...this.#reachableKeys() });
 
     if (!key) return undefined;
 
@@ -25,6 +33,7 @@ export class ApiKeyService {
   }
 
   async create(input: ApiKeyInput): Promise<ApiKeyOutput & { apiKey: string }> {
+    const projectId = await this.#bindableProjectId(input.projectId ?? this.authService.currentApiKey?.projectId);
     const apiKey = this.apiKeyGenerator.generateApiKey();
     const hashedKey = this.apiKeyGenerator.hashApiKeySha256(apiKey);
     const obfuscatedKey = this.apiKeyGenerator.obfuscateApiKey(apiKey);
@@ -32,6 +41,7 @@ export class ApiKeyService {
     const created = await this.apiKeyRepository.accessibleBy(this.authService.ability, "create").create({
       ...input,
       userId: this.authService.currentUser.id,
+      projectId,
       hashedKey,
       keyFormat: obfuscatedKey,
       expiresAt: input.expiresAt ? new Date(input.expiresAt) : undefined,
@@ -52,7 +62,7 @@ export class ApiKeyService {
 
     const updated = await this.apiKeyRepository
       .accessibleBy(this.authService.ability, "update")
-      .updateBy({ id, userId: this.authService.currentUser.id }, updateData, { returning: true });
+      .updateBy({ id, ...this.#reachableKeys() }, updateData, { returning: true });
 
     if (!updated) return undefined;
 
@@ -62,6 +72,32 @@ export class ApiKeyService {
   }
 
   async delete(id: string): Promise<void> {
-    await this.apiKeyRepository.accessibleBy(this.authService.ability, "delete").deleteBy({ id, userId: this.authService.currentUser.id }, { returning: true });
+    await this.apiKeyRepository.accessibleBy(this.authService.ability, "delete").deleteBy({ id, ...this.#reachableKeys() }, { returning: true });
+  }
+
+  /** A request made with a project-bound key only reaches keys bound to that same project. */
+  #reachableKeys(): Pick<ApiKeyInput, "userId" | "projectId"> {
+    const userId = this.authService.currentUser.id;
+    const projectId = this.authService.currentApiKey?.projectId;
+
+    return projectId ? { userId, projectId } : { userId };
+  }
+
+  async #bindableProjectId(projectId: string | null | undefined): Promise<string | null> {
+    if (!projectId) return null;
+
+    assert(await this.#isBindable(projectId), 404, "Project not found");
+
+    return projectId;
+  }
+
+  /** The organization context only enforces a key's project while organizations are on for its owner. */
+  async #isBindable(projectId: string): Promise<boolean> {
+    const context = this.executionContextService.get("ORGANIZATION_CONTEXT");
+
+    if (!context || !this.featureFlagsService.isEnabled(FeatureFlags.ORGANIZATIONS, { userId: this.authService.currentUser.id })) return false;
+    if (context.projectScope.kind === "projects" && !context.projectScope.projectIds.includes(projectId)) return false;
+
+    return !!(await this.projectRepository.accessibleBy(this.authService.ability, "read").findOneBy({ id: projectId, deletedAt: null }));
   }
 }

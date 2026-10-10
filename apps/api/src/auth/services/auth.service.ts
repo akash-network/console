@@ -2,6 +2,7 @@ import { Ability, subject } from "@casl/ability";
 import assert from "http-assert";
 import { container, Lifecycle, scoped } from "tsyringe";
 
+import type { ApiKeyOutput } from "@src/auth/repositories/api-key/api-key.repository";
 import { assertIsPayingUser, isPayingUser, PayingUser } from "@src/billing/services/paying-user/paying-user";
 import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
 import { UserOutput } from "@src/user/repositories";
@@ -25,6 +26,14 @@ export class AuthService {
     assert(user, 401);
 
     return user;
+  }
+
+  set currentApiKey(apiKey: ApiKeyOutput | undefined) {
+    this.executionContextService.set("CURRENT_API_KEY", apiKey);
+  }
+
+  get currentApiKey(): ApiKeyOutput | undefined {
+    return this.executionContextService.get("CURRENT_API_KEY");
   }
 
   getCurrentPayingUser(): PayingUser;

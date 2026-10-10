@@ -7,7 +7,13 @@ export const ApiKeyHiddenSchema = z.object({
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime(),
   lastUsedAt: z.string().datetime().nullable(),
-  keyFormat: z.string()
+  keyFormat: z.string(),
+  organizationId: z
+    .string()
+    .uuid()
+    .nullable()
+    .openapi({ description: "The organization the key acts in. Null for a key created before organizations, which acts in its owner's personal organization." }),
+  projectId: z.string().uuid().nullable().openapi({ description: "The only project the key reaches, or null when it reaches every project its owner can." })
 });
 
 export const ApiKeyVisibleSchema = ApiKeyHiddenSchema.extend({
@@ -23,7 +29,8 @@ export const CreateApiKeySchema = z.object({
     .refine(date => date > new Date(), {
       message: "Expiration date must be in the future"
     })
-    .optional()
+    .optional(),
+  projectId: z.string().uuid().optional().openapi({ description: "Limits the key to one project of the organization it is created in." })
 });
 
 export const UpdateApiKeySchema = z.object({
