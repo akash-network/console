@@ -113,35 +113,6 @@ describe(DeploymentProjectService.name, () => {
     });
   });
 
-  describe("soleProjectOfRequest", () => {
-    it("names the one project a request in the organization is held to", () => {
-      const projectId = faker.string.uuid();
-      const { service, context } = setup({ projectScope: { kind: "projects", projectIds: [projectId] } });
-
-      expect(service.soleProjectOfRequest(context.organizationId)).toBe(projectId);
-    });
-
-    it("names none for a request reaching several projects or every one", () => {
-      const several = setup({ projectScope: { kind: "projects", projectIds: [faker.string.uuid(), faker.string.uuid()] } });
-      const every = setup();
-
-      expect(several.service.soleProjectOfRequest(several.context.organizationId)).toBeUndefined();
-      expect(every.service.soleProjectOfRequest(every.context.organizationId)).toBeUndefined();
-    });
-
-    it("names none for another organization than the request runs in, outside organization mode or outside a request", () => {
-      const scope = { kind: "projects" as const, projectIds: [faker.string.uuid()] };
-      const other = setup({ projectScope: scope });
-      const legacy = setup({ projectScope: scope, mode: "legacy" });
-      const job = setup({ projectScope: scope, withoutContext: true });
-
-      expect(other.service.soleProjectOfRequest(faker.string.uuid())).toBeUndefined();
-      expect(other.service.soleProjectOfRequest(null)).toBeUndefined();
-      expect(legacy.service.soleProjectOfRequest(legacy.context.organizationId)).toBeUndefined();
-      expect(job.service.soleProjectOfRequest(job.context.organizationId)).toBeUndefined();
-    });
-  });
-
   describe("holdFilingProject", () => {
     it("holds the live project it is given", async () => {
       const { service, projectRepository, project } = setup();

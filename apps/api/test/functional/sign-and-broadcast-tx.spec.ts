@@ -1,20 +1,30 @@
 import { certificateManager, generateManifest, generateManifestVersion, yaml } from "@akashnetwork/chain-sdk";
 import { MsgCreateCertificate, Source } from "@akashnetwork/chain-sdk/private-types/akash.v1";
 import type { Registry } from "@cosmjs/proto-signing";
+import { and, eq } from "drizzle-orm";
 import nock from "nock";
 import fs from "node:fs";
 import path from "node:path";
 import { container } from "tsyringe";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { ApiKeyRepository } from "@src/auth/repositories/api-key/api-key.repository";
+import { ApiKeyGeneratorService } from "@src/auth/services/api-key/api-key-generator.service";
+import { AuthService } from "@src/auth/services/auth.service";
 import { BILLING_CONFIG } from "@src/billing/providers";
 import { TYPE_REGISTRY } from "@src/billing/providers/type-registry.provider";
 import { BlockHttpService } from "@src/chain/services/block-http/block-http.service";
-import { CORE_CONFIG } from "@src/core";
+import type { ApiPgDatabase } from "@src/core";
+import { CORE_CONFIG, POSTGRES_DB, resolveTable } from "@src/core";
+import { DomainEventsService } from "@src/core/services/domain-events/domain-events.service";
+import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
+import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
+import { RecordDeploymentSetting } from "@src/deployment/services/record-deployment-setting/record-deployment-setting.handler";
 import { app } from "@src/rest-app";
 import { certVersion, deploymentVersion } from "@src/utils/constants";
 
 import { createAkashAddress } from "@test/seeders/akash-address.seeder";
+import { seedProject } from "@test/seeders/db/organization.seeder";
 import { createDeploymentGrantResponseSeed } from "@test/seeders/deployment-grant-response.seeder";
 import { createDeploymentListResponseSeed } from "@test/seeders/deployment-list-response.seeder";
 import { createFeeAllowanceResponse } from "@test/seeders/fee-allowance-response.seeder";
@@ -47,6 +57,25 @@ describe("Tx Sign", () => {
 
       expect(res.status).toBe(200);
       expect(result).toMatchObject({ data: { code: 0, transactionHash: expect.any(String), hash: expect.any(String) } });
+    });
+
+    it("records a deployment a project-bound API key creates into that key's project", async () => {
+      const { user, wallet } = await setup({ deploymentAllowance: DEPLOYMENT_DEPOSIT_UDENOM });
+      const { organization } = await personalMembershipOf(user.id);
+      const project = await seedProject({ organizationId: organization.id });
+      const apiKey = await seedApiKey({ userId: user.id, organizationId: organization.id, projectId: project.id });
+      enableOrganizationsFor(user.id);
+      const publish = vi.spyOn(container.resolve(DomainEventsService), "publish");
+
+      const res = await app.request("/v1/tx", {
+        method: "POST",
+        body: await createMessageForDeployment(user.id, wallet.address),
+        headers: { "Content-Type": "application/json", "x-api-key": apiKey }
+      });
+
+      expect(res.status).toBe(200);
+      const records = publish.mock.calls.map(([event]) => event).filter(event => event instanceof RecordDeploymentSetting);
+      expect(records.map(({ data }) => data)).toEqual([expect.objectContaining({ userId: user.id, organizationId: organization.id, projectId: project.id })]);
     });
 
     it("responds with 402 Payment Required when the deployment allowance cannot cover the deposit", async () => {
@@ -208,6 +237,40 @@ describe("Tx Sign", () => {
       expect(await res.json()).toMatchObject({ error: "ForbiddenError", code: "forbidden", message: signerRefusal });
     });
   });
+
+  async function personalMembershipOf(userId: string) {
+    const [members, organizations] = [resolveTable("OrganizationMembers"), resolveTable("Organizations")];
+    const [membership] = await container
+      .resolve<ApiPgDatabase>(POSTGRES_DB)
+      .select({ organization: organizations })
+      .from(members)
+      .innerJoin(organizations, and(eq(organizations.id, members.organizationId), eq(organizations.type, "personal")))
+      .where(eq(members.userId, userId));
+
+    return membership;
+  }
+
+  async function seedApiKey(input: { userId: string; organizationId: string; projectId: string }) {
+    const apiKeyGenerator = container.resolve(ApiKeyGeneratorService);
+    const apiKey = apiKeyGenerator.generateApiKey();
+    await container.resolve(ApiKeyRepository).create({
+      ...input,
+      hashedKey: apiKeyGenerator.hashApiKeySha256(apiKey),
+      keyFormat: apiKeyGenerator.obfuscateApiKey(apiKey),
+      name: "ci"
+    });
+
+    return apiKey;
+  }
+
+  function enableOrganizationsFor(userId: string) {
+    vi.spyOn(container.resolve(FeatureFlagsService), "isEnabled").mockImplementation((flag, context) => {
+      if (flag === FeatureFlags.ORGANIZATIONS_ENFORCE) return false;
+      if (flag !== FeatureFlags.ORGANIZATIONS) return true;
+
+      return (context?.userId ?? container.resolve(AuthService).safeCurrentUser?.id) === userId;
+    });
+  }
 
   async function createMessagePayload(userId: string, address: string) {
     const { cert, publicKey } = await certificateManager.generatePEM(address);

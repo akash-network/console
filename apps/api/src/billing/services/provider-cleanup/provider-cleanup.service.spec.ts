@@ -65,6 +65,34 @@ describe(ProviderCleanupService.name, () => {
     expect(deploymentOrganizationActivityService.recordClosed).not.toHaveBeenCalled();
   });
 
+  it("reports a close that landed with a failing code, filing nothing in the organization feed", async () => {
+    const { service, managedSignerService, managedUserWalletService, deploymentOrganizationActivityService, errorLogger } = setup();
+    managedSignerService.executeDerivedTx.mockResolvedValueOnce(mock<IndexedTx>({ code: 11, hash: "tx-hash", rawLog: "out of gas" }));
+
+    await service.cleanup({ provider: PROVIDER, concurrency: 1, dryRun: false });
+
+    expect(deploymentOrganizationActivityService.recordClosed).not.toHaveBeenCalled();
+    expect(managedUserWalletService.authorizeSpending).not.toHaveBeenCalled();
+    expect(errorLogger.error).toHaveBeenCalledWith(
+      expect.objectContaining({
+        event: "PROVIDER_CLEAN_UP_ERROR",
+        error: expect.objectContaining({ message: "Close tx tx-hash failed on-chain with code 11: out of gas" })
+      })
+    );
+  });
+
+  it("reports a retried close that landed with a failing code, filing nothing in the organization feed", async () => {
+    const { service, managedSignerService, deploymentOrganizationActivityService, errorLogger } = setup();
+    managedSignerService.executeDerivedTx
+      .mockRejectedValueOnce(new Error(FEE_GRANT_REFUSED))
+      .mockResolvedValueOnce(mock<IndexedTx>({ code: 5, hash: "tx-hash", rawLog: "insufficient funds" }));
+
+    await service.cleanup({ provider: PROVIDER, concurrency: 1, dryRun: false });
+
+    expect(deploymentOrganizationActivityService.recordClosed).not.toHaveBeenCalled();
+    expect(errorLogger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "PROVIDER_CLEAN_UP_ERROR" }));
+  });
+
   it("reports any other close failure for the wallet without refilling its fees", async () => {
     const failure = new Error("account sequence mismatch");
     const { service, managedSignerService, managedUserWalletService, errorLogger } = setup();
