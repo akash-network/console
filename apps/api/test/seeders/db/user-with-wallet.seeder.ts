@@ -26,5 +26,5 @@ export async function seedUserWithWallet({ user: userOverrides, ...overrides }: 
     })
     .returning();
 
-  return { user, wallet, address: wallet.address as string };
+  return { user, wallet: { ...wallet, userId: user.id }, address: wallet.address as string };
 }

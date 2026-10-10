@@ -2,7 +2,13 @@ import assert from "http-assert";
 import { singleton } from "tsyringe";
 
 import { TrialStarted } from "@src/billing/events/trial-started";
-import { isWalletInitialized, type UserWalletPublicOutput, UserWalletRepository, type WalletInitialized } from "@src/billing/repositories";
+import {
+  isWalletInitialized,
+  type UserWalletOutput,
+  type UserWalletPublicOutput,
+  UserWalletRepository,
+  type WalletInitialized
+} from "@src/billing/repositories";
 import { TrialActivationInstrumentationService } from "@src/billing/services/activate-trial/trial-activation-instrumentation.service";
 import { ManagedSignerService } from "@src/billing/services/managed-signer/managed-signer.service";
 import { StripeService } from "@src/billing/services/stripe/stripe.service";
@@ -10,6 +16,7 @@ import { TrialValidationService } from "@src/billing/services/trial-validation/t
 import { DomainEventsService } from "@src/core/services/domain-events/domain-events.service";
 import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
 import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
+import type { OrganizationOutput } from "@src/organization/repositories/organization/organization.repository";
 import { UserOutput, UserRepository } from "@src/user/repositories";
 import { BlockedEmailDomainService } from "@src/workload-abuse/services/blocked-email-domain/blocked-email-domain.service";
 import { ManagedUserWalletService } from "../managed-user-wallet/managed-user-wallet.service";
@@ -64,7 +71,7 @@ export class WalletInitializerService {
     await this.#assertNoDuplicateFingerprint(user);
 
     const userWallet = await this.ensureWallet(userId);
-    if (userWallet.activatedAt) return this.#toPublic(userWallet);
+    if (userWallet.activatedAt) return this.#toPublic({ ...userWallet, userId });
 
     await this.#assertEmailDomainNotBlocked(user);
 
@@ -82,10 +89,10 @@ export class WalletInitializerService {
     await this.domainEvents.publish(new TrialStarted({ userId }));
     this.trialActivationInstrumentation.recordActivated(userId, Date.now() - new Date(activatedWallet.createdAt).getTime());
 
-    return this.#toPublic({ ...activatedWallet, address: userWallet.address });
+    return this.#toPublic({ ...activatedWallet, userId, address: userWallet.address });
   }
 
-  #toPublic(wallet: WalletInitialized): UserWalletPublicOutput {
+  #toPublic(wallet: WalletInitialized & { userId: string }): UserWalletPublicOutput {
     return this.userWalletRepository.toPublic(wallet, this.trialValidationService.getTrialWindow(wallet));
   }
 
@@ -97,10 +104,27 @@ export class WalletInitializerService {
    */
   async ensureWallet(userId: string): Promise<WalletInitialized> {
     const { wallet } = await this.userWalletRepository.getOrCreate({ userId });
+
+    return await this.#withDerivedAddress(wallet);
+  }
+
+  /** Idempotent like {@link ensureWallet}: a team organization's wallet starts without a trial, ready to fund as soon as the organization exists. */
+  async ensureTeamWallet(organization: Pick<OrganizationOutput, "id" | "type">, createdByUserId: string): Promise<WalletInitialized> {
+    if (organization.type !== "team") {
+      throw new Error(`Organization ${organization.id} is not a team organization; a personal organization uses its owner's wallet`);
+    }
+
+    const { wallet } = await this.userWalletRepository.getOrCreateForOrganization({ organizationId: organization.id, createdByUserId });
+
+    return await this.#withDerivedAddress(wallet);
+  }
+
+  /** The address is derived from the row id and written outside the active organization, which is not the new wallet's when a team is being created. */
+  async #withDerivedAddress(wallet: UserWalletOutput): Promise<WalletInitialized> {
     if (isWalletInitialized(wallet)) return wallet;
 
     const { address } = await this.walletManager.createWallet({ addressIndex: wallet.id });
-    await this.userWalletRepository.updateById(wallet.id, { address });
+    await this.userWalletRepository.unscoped("wallet-provisioning").updateById(wallet.id, { address });
     return { ...wallet, address };
   }
 }

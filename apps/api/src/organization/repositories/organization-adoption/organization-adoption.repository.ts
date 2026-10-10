@@ -1,4 +1,4 @@
-import { and, eq, isNull, or } from "drizzle-orm";
+import { and, eq, isNull, or, sql } from "drizzle-orm";
 import { singleton } from "tsyringe";
 
 import { type ApiPgDatabase, type ApiPgTables, InjectPg, InjectPgTable } from "@src/core/providers";
@@ -58,7 +58,7 @@ export class OrganizationAdoptionRepository {
         return (
           await this.#cursor
             .update(userWallets)
-            .set({ organizationId })
+            .set({ organizationId, createdByUserId: sql`coalesce(${userWallets.createdByUserId}, ${userWallets.userId})` })
             .where(and(eq(userWallets.userId, userId), isNull(userWallets.organizationId)))
         ).count;
       case "walletSettings":

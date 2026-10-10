@@ -5,10 +5,15 @@ import { container } from "tsyringe";
 import { describe, expect, it } from "vitest";
 
 import { StripeTransactionRepository } from "@src/billing/repositories/stripe-transaction/stripe-transaction.repository";
-import { UserRepository } from "@src/user/repositories";
+import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
+import { PersonalOrganizationService } from "@src/organization/services/personal-organization/personal-organization.service";
+import type { OrganizationContext } from "@src/organization/types/organization-context";
+import { type UserOutput, UserRepository } from "@src/user/repositories";
 import { UserWalletRepository } from "./user-wallet.repository";
 
 import { createAkashAddress } from "@test/seeders/akash-address.seeder";
+import { seedOrganizationWithOwner } from "@test/seeders/db/organization.seeder";
+import { createOrganizationContext } from "@test/seeders/organization-context.seeder";
 
 const RECOVERY_WINDOWS = { confirmWindowMinutes: 30, resendCooldownHours: 168 };
 
@@ -232,6 +237,111 @@ describe(UserWalletRepository.name, () => {
       expect(ids).toContain(wallet.id);
       expect(ids).not.toContain(lockedWallet.id);
     });
+
+    it("refills a team organization's wallet but not a wallet left without user or organization", async () => {
+      const { userWalletRepository, wallet: ownerless, user: deletedUser } = await setup();
+      const { organization, user } = await seedOrganizationWithOwner();
+      const { wallet: teamWallet } = await userWalletRepository.getOrCreateForOrganization({ organizationId: organization.id, createdByUserId: user.id });
+      await container.resolve(UserRepository).deleteById(deletedUser.id);
+      for (const id of [ownerless.id, teamWallet.id]) {
+        await userWalletRepository.updateById(id, { activatedAt: new Date(), feeAllowance: 0, address: createAkashAddress() });
+      }
+
+      const draining = await userWalletRepository.findDrainingWallets({ fee: 1_000, trialExpirationDays: 30 });
+
+      const ids = draining.map(candidate => candidate.id);
+      expect(ids).toContain(teamWallet.id);
+      expect(ids).not.toContain(ownerless.id);
+    });
+  });
+
+  describe("payingUserCount", () => {
+    it("counts paying users, not team organizations' wallets", async () => {
+      const { userWalletRepository, wallet } = await setup();
+      const before = await userWalletRepository.payingUserCount();
+      const { organization, user } = await seedOrganizationWithOwner();
+      await userWalletRepository.getOrCreateForOrganization({ organizationId: organization.id, createdByUserId: user.id });
+      await userWalletRepository.updateById(wallet.id, { isTrialing: false });
+
+      expect(await userWalletRepository.payingUserCount()).toBe(before + 1);
+    });
+  });
+
+  describe("findOneUsedBy", () => {
+    it("finds the user's own wallet without an organization context", async () => {
+      const { userWalletRepository, wallet, user } = await setup();
+
+      await expect(userWalletRepository.findOneUsedBy(user.id)).resolves.toMatchObject({ id: wallet.id });
+    });
+
+    it("finds the user's own wallet in legacy mode, whichever organization is active", async () => {
+      const { userWalletRepository, wallet, user } = await setup();
+      const { organization: team } = await seedOrganizationWithOwner();
+
+      const found = await inOrganization({ user, organizationId: team.id, organizationType: "team", mode: "legacy" }, () =>
+        userWalletRepository.findOneUsedBy(user.id)
+      );
+
+      expect(found).toMatchObject({ id: wallet.id });
+    });
+
+    it("finds the active team organization's wallet in organization mode", async () => {
+      const { userWalletRepository, user } = await setup();
+      const { organization: team, user: teamOwner } = await seedOrganizationWithOwner();
+      const { wallet: teamWallet } = await userWalletRepository.getOrCreateForOrganization({ organizationId: team.id, createdByUserId: teamOwner.id });
+
+      const found = await inOrganization({ user, organizationId: team.id, organizationType: "team" }, () => userWalletRepository.findOneUsedBy(user.id));
+
+      expect(found).toMatchObject({ id: teamWallet.id, userId: null });
+    });
+
+    it("finds no wallet for another user than the one the request is authenticated as", async () => {
+      const { userWalletRepository, user } = await setup();
+      const { user: otherUser } = await setup();
+      const { organization: team, user: teamOwner } = await seedOrganizationWithOwner();
+      await userWalletRepository.getOrCreateForOrganization({ organizationId: team.id, createdByUserId: teamOwner.id });
+
+      const found = await inOrganization({ user, organizationId: team.id, organizationType: "team" }, () => userWalletRepository.findOneUsedBy(otherUser.id));
+
+      expect(found).toBeUndefined();
+    });
+
+    it("finds the personal wallet when the personal organization is active in organization mode", async () => {
+      const { userWalletRepository, wallet, user } = await setup();
+      const personal = await container.resolve(PersonalOrganizationService).ensureForUser(user);
+      await container.resolve(PersonalOrganizationService).adoptUserRows(user, personal);
+
+      const found = await inOrganization({ user, organizationId: personal.id, organizationType: "personal" }, () =>
+        userWalletRepository.findOneUsedBy(user.id)
+      );
+
+      expect(found).toMatchObject({ id: wallet.id, userId: user.id, organizationId: personal.id });
+    });
+  });
+
+  describe("getOrCreateForOrganization", () => {
+    it("returns the organization's wallet again instead of creating a second one", async () => {
+      const { userWalletRepository } = await setup();
+      const { organization, user } = await seedOrganizationWithOwner();
+
+      const first = await userWalletRepository.getOrCreateForOrganization({ organizationId: organization.id, createdByUserId: user.id });
+      const second = await userWalletRepository.getOrCreateForOrganization({ organizationId: organization.id, createdByUserId: user.id });
+
+      expect(first).toMatchObject({ isNew: true, wallet: { userId: null, organizationId: organization.id, createdByUserId: user.id, isTrialing: false } });
+      expect(second).toEqual({ isNew: false, wallet: first.wallet });
+    });
+  });
+
+  describe("detachFromOrganization", () => {
+    it("keeps the wallet row with its id and address once its organization lets go of it", async () => {
+      const { userWalletRepository, wallet, user } = await setup();
+      const personal = await container.resolve(PersonalOrganizationService).ensureForUser(user);
+      await container.resolve(PersonalOrganizationService).adoptUserRows(user, personal);
+
+      await userWalletRepository.detachFromOrganization(wallet.id);
+
+      await expect(userWalletRepository.findById(wallet.id)).resolves.toMatchObject({ id: wallet.id, address: wallet.address, organizationId: null });
+    });
   });
 
   describe("findLockableTrialWalletsByEmailDomain", () => {
@@ -387,10 +497,22 @@ describe(UserWalletRepository.name, () => {
     async function createWalletOnDomain(overrides: Parameters<UserWalletRepository["updateById"]>[1], onDomain = domain) {
       const user = await userRepository.create({ userId: faker.string.uuid(), email: `${faker.string.alphanumeric(10)}@${onDomain}` });
       const created = await userWalletRepository.create({ userId: user.id, address: createAkashAddress() });
-      return await userWalletRepository.updateById(created.id, { isTrialing: true, abuseLockedAt: null, ...overrides }, { returning: true });
+      const wallet = await userWalletRepository.updateById(created.id, { isTrialing: true, abuseLockedAt: null, ...overrides }, { returning: true });
+      return { ...wallet, userId: user.id };
     }
 
     return { domain, createWalletOnDomain, userRepository, userWalletRepository, stripeTransactionRepository };
+  }
+
+  async function inOrganization<R>(context: Partial<OrganizationContext> & { user: UserOutput }, run: () => Promise<R>): Promise<R> {
+    const executionContextService = container.resolve(ExecutionContextService);
+    const { user, ...organizationContext } = context;
+
+    return await executionContextService.runWithContext(async () => {
+      executionContextService.set("CURRENT_USER", user);
+      executionContextService.set("ORGANIZATION_CONTEXT", createOrganizationContext(organizationContext));
+      return await run();
+    });
   }
 
   async function setup(input: { creditsLowNotifiedAt?: Date; creditsSufficientSince?: Date; creditsLowSince?: Date } = {}) {

@@ -120,7 +120,7 @@ describe(UnreachableProviderDeploymentsCloserService.name, () => {
         outages: [anOutage({})],
         leases: [aLease({}), aLease({ owner: "akash1other", dseq: "999" })]
       });
-      deploymentSettingRepository.findOneBy.mockRejectedValueOnce(new Error("connection reset"));
+      deploymentSettingRepository.findOneOfWallet.mockRejectedValueOnce(new Error("connection reset"));
 
       const result = await service.closeUnreachableProviderDeployments({ dryRun: false });
 
@@ -224,7 +224,7 @@ describe(UnreachableProviderDeploymentsCloserService.name, () => {
     );
 
     const deploymentSettingRepository = mock<DeploymentSettingRepository>();
-    deploymentSettingRepository.findOneBy.mockResolvedValue(input.setting);
+    deploymentSettingRepository.findOneOfWallet.mockResolvedValue(input.setting);
 
     const jobQueueService = mock<JobQueueService>();
     jobQueueService.enqueue.mockResolvedValue("job-id");

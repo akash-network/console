@@ -320,8 +320,8 @@ describe(LeaseGpuDetectionService.name, () => {
     });
 
     const deploymentSettingRepository = mock<DeploymentSettingRepository>();
-    deploymentSettingRepository.findOneBy.mockResolvedValue(
-      (input.sdl === null ? { sdl: null } : { sdl: "sdl-text" }) as Awaited<ReturnType<DeploymentSettingRepository["findOneBy"]>>
+    deploymentSettingRepository.findOneOfWallet.mockResolvedValue(
+      (input.sdl === null ? { sdl: null } : { sdl: "sdl-text" }) as Awaited<ReturnType<DeploymentSettingRepository["findOneOfWallet"]>>
     );
 
     const sdlService = mock<SdlService>();

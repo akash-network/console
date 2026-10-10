@@ -126,7 +126,7 @@ export class UnreachableProviderDeploymentsNotifierService {
       return false;
     }
 
-    const setting = await this.deploymentSettingRepository.findOneBy({ userId: wallet.userId, dseq: deployment.dseq });
+    const setting = await this.deploymentSettingRepository.findOneOfWallet(wallet, deployment.dseq);
 
     if (setting?.providerUnreachableNotifiedFor?.toISOString() === deployment.downSince) {
       this.logger.debug({
@@ -138,14 +138,15 @@ export class UnreachableProviderDeploymentsNotifierService {
       return false;
     }
 
-    const user = await this.userRepository.findById(wallet.userId);
+    const recipientUserId = wallet.userId ?? setting?.userId;
+    const user = recipientUserId ? await this.userRepository.findById(recipientUserId) : undefined;
 
     if (!user?.email) {
       this.logger.warn({
         event: "UNREACHABLE_PROVIDER_DEPLOYMENT_SKIPPED",
         reason: "USER_HAS_NO_EMAIL",
         dseq: deployment.dseq,
-        userId: wallet.userId
+        userId: recipientUserId
       });
       return false;
     }
@@ -161,7 +162,7 @@ export class UnreachableProviderDeploymentsNotifierService {
       return false;
     }
 
-    const claim = { userId: wallet.userId, dseq: deployment.dseq, downSinceMarker: deployment.downSince };
+    const claim = { userId: user.id, dseq: deployment.dseq, downSinceMarker: deployment.downSince };
     const claimed = await this.deploymentSettingRepository.claimProviderUnreachableNotification(claim);
 
     if (!claimed) {

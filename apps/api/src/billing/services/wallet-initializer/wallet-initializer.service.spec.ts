@@ -24,7 +24,7 @@ import { TRIAL_BLOCKED_DOMAIN_MESSAGE, WalletInitializerService } from "./wallet
 
 import { createChainWallet } from "@test/seeders/chain-wallet.seeder";
 import { createUser } from "@test/seeders/user.seeder";
-import { createUserWallet } from "@test/seeders/user-wallet.seeder";
+import { createOrganizationWallet, createUserWallet } from "@test/seeders/user-wallet.seeder";
 
 describe(WalletInitializerService.name, () => {
   describe("initializeAndGrantTrialLimits", () => {
@@ -220,8 +220,54 @@ describe(WalletInitializerService.name, () => {
     });
   });
 
+  describe("ensureTeamWallet", () => {
+    it("creates the team organization's wallet and saves a derived address", async () => {
+      const organizationId = faker.string.uuid();
+      const creatorId = faker.string.uuid();
+      const bareWallet = createOrganizationWallet({ organizationId, address: null as unknown as string, activatedAt: null });
+      const getOrCreateOrganizationWallet = vi.fn().mockResolvedValue({ wallet: bareWallet, isNew: true });
+      const updateWalletById = vi.fn().mockImplementation(async (id, patch) => ({ ...bareWallet, ...patch }));
+
+      const di = setup({ getOrCreateOrganizationWallet, updateWalletById });
+      const managedUserWalletService = di.resolve(ManagedUserWalletService) as MockProxy<ManagedUserWalletService>;
+      managedUserWalletService.createWallet.mockResolvedValue({ address: "akash1team" });
+
+      const result = await di.resolve(WalletInitializerService).ensureTeamWallet({ id: organizationId, type: "team" }, creatorId);
+
+      expect(getOrCreateOrganizationWallet).toHaveBeenCalledWith({ organizationId, createdByUserId: creatorId });
+      expect(managedUserWalletService.createWallet).toHaveBeenCalledWith({ addressIndex: bareWallet.id });
+      expect(updateWalletById).toHaveBeenCalledWith(bareWallet.id, { address: "akash1team" });
+      expect(result).toMatchObject({ id: bareWallet.id, address: "akash1team", userId: null, isTrialing: false });
+    });
+
+    it("returns the existing team wallet without deriving an address again", async () => {
+      const existingWallet = createOrganizationWallet();
+      const getOrCreateOrganizationWallet = vi.fn().mockResolvedValue({ wallet: existingWallet, isNew: false });
+      const updateWalletById = vi.fn();
+
+      const di = setup({ getOrCreateOrganizationWallet, updateWalletById });
+
+      const result = await di.resolve(WalletInitializerService).ensureTeamWallet({ id: existingWallet.organizationId!, type: "team" }, faker.string.uuid());
+
+      expect(di.resolve(ManagedUserWalletService).createWallet).not.toHaveBeenCalled();
+      expect(updateWalletById).not.toHaveBeenCalled();
+      expect(result).toEqual(existingWallet);
+    });
+
+    it("refuses a personal organization, whose wallet is its owner's", async () => {
+      const getOrCreateOrganizationWallet = vi.fn();
+      const di = setup({ getOrCreateOrganizationWallet });
+
+      await expect(di.resolve(WalletInitializerService).ensureTeamWallet({ id: faker.string.uuid(), type: "personal" }, faker.string.uuid())).rejects.toThrow(
+        /is not a team organization/
+      );
+      expect(getOrCreateOrganizationWallet).not.toHaveBeenCalled();
+    });
+  });
+
   function setup(input?: {
     getOrCreateWallet?: UserWalletRepository["getOrCreate"];
+    getOrCreateOrganizationWallet?: UserWalletRepository["getOrCreateForOrganization"];
     updateWalletById?: UserWalletRepository["updateById"];
     deleteWalletById?: UserWalletRepository["deleteById"];
     userId?: string;
@@ -237,9 +283,13 @@ describe(WalletInitializerService.name, () => {
       UserWalletRepository,
       mock<UserWalletRepository>({
         getOrCreate: input?.getOrCreateWallet,
+        getOrCreateForOrganization: input?.getOrCreateOrganizationWallet,
         updateById: input?.updateWalletById,
         deleteById: input?.deleteWalletById ?? vi.fn(),
         accessibleBy() {
+          return this as unknown as UserWalletRepository;
+        },
+        unscoped() {
           return this as unknown as UserWalletRepository;
         },
         toPublic: (value, trialWindow) => ({

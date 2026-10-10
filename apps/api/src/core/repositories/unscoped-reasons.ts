@@ -8,7 +8,8 @@ export const UNSCOPED_REASONS = [
   "own-memberships",
   "personal-organization-provisioning",
   "platform-statistics",
-  "public-templates"
+  "public-templates",
+  "wallet-provisioning"
 ] as const;
 
 export type UnscopedReason = (typeof UNSCOPED_REASONS)[number];

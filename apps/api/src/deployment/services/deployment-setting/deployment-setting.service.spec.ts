@@ -77,6 +77,49 @@ describe(DeploymentSettingService.name, () => {
     });
   });
 
+  describe("when another member already filed the deployment", () => {
+    it("writes the row the deployment was filed under", async () => {
+      const { service, deploymentSettingRepository } = setup();
+      const filedKey = { userId: faker.string.uuid(), dseq: faker.string.numeric(6) };
+      const existing = createDeploymentSettingsOutput({ ...filedKey, runtimeLimitHours: null });
+      deploymentSettingRepository.findFiledKey.mockResolvedValue({ key: filedKey, isFiled: true });
+      deploymentSettingRepository.accessibleBy.mockReturnValue(deploymentSettingRepository);
+      deploymentSettingRepository.findOneBy.mockResolvedValue(existing);
+      deploymentSettingRepository.applyRuntimeLimit.mockResolvedValue(createDeploymentSettingsOutput({ ...filedKey, runtimeLimitHours: 12 }));
+
+      await service.upsert({ userId: faker.string.uuid(), dseq: filedKey.dseq }, { runtimeLimitHours: 12 });
+
+      expect(deploymentSettingRepository.accessibleBy).toHaveBeenCalledWith(expect.anything(), "update");
+      expect(deploymentSettingRepository.findOneBy).toHaveBeenCalledWith(filedKey);
+      expect(deploymentSettingRepository.applyRuntimeLimit).toHaveBeenCalledWith(expect.objectContaining(filedKey));
+    });
+
+    it("answers 404 and files nothing when the caller cannot reach the filed row", async () => {
+      const { service, deploymentSettingRepository } = setup();
+      const filedKey = { userId: faker.string.uuid(), dseq: faker.string.numeric(6) };
+      deploymentSettingRepository.findFiledKey.mockResolvedValue({ key: filedKey, isFiled: true });
+      deploymentSettingRepository.accessibleBy.mockReturnValue(deploymentSettingRepository);
+      deploymentSettingRepository.findOneBy.mockResolvedValue(undefined);
+
+      await expect(service.create({ userId: faker.string.uuid(), dseq: filedKey.dseq, runtimeLimitHours: 5 })).rejects.toMatchObject({ status: 404 });
+
+      expect(deploymentSettingRepository.create).not.toHaveBeenCalled();
+      expect(deploymentSettingRepository.updateBy).not.toHaveBeenCalled();
+    });
+
+    it("reads the row the deployment was filed under", async () => {
+      const { service, deploymentSettingRepository } = setup();
+      const filedKey = { userId: faker.string.uuid(), dseq: faker.string.numeric(6) };
+      deploymentSettingRepository.findFiledKey.mockResolvedValue({ key: filedKey, isFiled: true });
+      deploymentSettingRepository.accessibleBy.mockReturnValue(deploymentSettingRepository);
+      deploymentSettingRepository.findOneBy.mockResolvedValue(undefined);
+
+      await service.findByUserIdAndDseq({ userId: faker.string.uuid(), dseq: filedKey.dseq });
+
+      expect(deploymentSettingRepository.findOneBy).toHaveBeenCalledWith(filedKey);
+    });
+  });
+
   describe("upsert with a runtime limit", () => {
     it("sets a first limit on an unlimited deployment", async () => {
       const { service, deploymentSettingRepository } = setup();
@@ -348,7 +391,7 @@ describe(DeploymentSettingService.name, () => {
         createDeploymentSettingsOutput({ ...params, runtimeLimitHours: 12, runtimeEndsAt: faker.date.future() })
       );
       deploymentSettingRepository.updateBy.mockResolvedValue(createDeploymentSettingsOutput({ ...params, runtimeLimitHours: null }) as never);
-      userWalletRepository.findOneByUserId.mockResolvedValue(wallet);
+      userWalletRepository.findOneUsedBy.mockResolvedValue(wallet);
 
       await service.upsert(params, { runtimeLimitHours: null });
 
@@ -382,7 +425,7 @@ describe(DeploymentSettingService.name, () => {
       deploymentSettingRepository.accessibleBy.mockReturnValue(deploymentSettingRepository);
       deploymentSettingRepository.findOneBy.mockResolvedValue(createDeploymentSettingsOutput({ ...params, runtimeLimitHours: 12 }));
       deploymentSettingRepository.applyRuntimeLimit.mockResolvedValue(extended);
-      userWalletRepository.findOneByUserId.mockResolvedValue(createUserWallet({ userId: params.userId }));
+      userWalletRepository.findOneUsedBy.mockResolvedValue(createUserWallet({ userId: params.userId }));
 
       await service.upsert(params, { runtimeLimitHours: 24 });
 
@@ -415,7 +458,7 @@ describe(DeploymentSettingService.name, () => {
       deploymentSettingRepository.accessibleBy.mockReturnValue(deploymentSettingRepository);
       deploymentSettingRepository.findOneBy.mockResolvedValue(existing);
       deploymentSettingRepository.updateBy.mockResolvedValue(createDeploymentSettingsOutput({ ...params, runtimeLimitHours: null }) as never);
-      userWalletRepository.findOneByUserId.mockResolvedValue(createUserWallet({ userId: params.userId }));
+      userWalletRepository.findOneUsedBy.mockResolvedValue(createUserWallet({ userId: params.userId }));
 
       await service.upsert(params, { runtimeLimitHours: null });
 
@@ -444,7 +487,7 @@ describe(DeploymentSettingService.name, () => {
       deploymentSettingRepository.applyRuntimeLimit.mockResolvedValue(
         createDeploymentSettingsOutput({ ...params, runtimeLimitHours: 24, runtimeEndsAt: faker.date.future() })
       );
-      userWalletRepository.findOneByUserId.mockResolvedValue(createUserWallet({ userId: params.userId }));
+      userWalletRepository.findOneUsedBy.mockResolvedValue(createUserWallet({ userId: params.userId }));
       deploymentCloseJobService.schedule.mockRejectedValue(new Error("queue unavailable"));
 
       const result = await service.upsert(params, { runtimeLimitHours: 24 });
@@ -461,7 +504,7 @@ describe(DeploymentSettingService.name, () => {
         createDeploymentSettingsOutput({ ...params, runtimeLimitHours: 12, runtimeEndsAt: faker.date.future() })
       );
       deploymentSettingRepository.updateBy.mockResolvedValue(createDeploymentSettingsOutput({ ...params, runtimeLimitHours: null }) as never);
-      userWalletRepository.findOneByUserId.mockResolvedValue(createUserWallet({ userId: params.userId }));
+      userWalletRepository.findOneUsedBy.mockResolvedValue(createUserWallet({ userId: params.userId }));
       deploymentCloseJobService.cancel.mockRejectedValue(new Error("queue unavailable"));
 
       const result = await service.upsert(params, { runtimeLimitHours: null });
@@ -481,7 +524,7 @@ describe(DeploymentSettingService.name, () => {
       deploymentSettingRepository.applyRuntimeLimit.mockResolvedValue(
         createDeploymentSettingsOutput({ ...params, runtimeLimitHours: 24, runtimeEndsAt: faker.date.future() })
       );
-      userWalletRepository.findOneByUserId.mockResolvedValue(wallet);
+      userWalletRepository.findOneUsedBy.mockResolvedValue(wallet);
 
       await service.upsert(params, { runtimeLimitHours: 24 });
 
@@ -543,7 +586,7 @@ describe(DeploymentSettingService.name, () => {
       deploymentSettingRepository.applyRuntimeLimit.mockResolvedValue(
         createDeploymentSettingsOutput({ ...params, runtimeLimitHours: 24, runtimeEndsAt: faker.date.future() })
       );
-      userWalletRepository.findOneByUserId.mockResolvedValue(undefined);
+      userWalletRepository.findOneUsedBy.mockResolvedValue(undefined);
 
       const result = await service.upsert(params, { runtimeLimitHours: 24 });
 
@@ -560,7 +603,7 @@ describe(DeploymentSettingService.name, () => {
       deploymentSettingRepository.applyRuntimeLimit.mockResolvedValue(
         createDeploymentSettingsOutput({ ...params, runtimeLimitHours: 24, runtimeEndsAt: faker.date.future() })
       );
-      userWalletRepository.findOneByUserId.mockRejectedValue(new Error("connection terminated"));
+      userWalletRepository.findOneUsedBy.mockRejectedValue(new Error("connection terminated"));
 
       const result = await service.upsert(params, { runtimeLimitHours: 24 });
 
@@ -627,6 +670,7 @@ describe(DeploymentSettingService.name, () => {
 
   function setup() {
     const deploymentSettingRepository = mock<DeploymentSettingRepository>();
+    deploymentSettingRepository.findFiledKey.mockImplementation(async key => ({ key, isFiled: false }));
     const authService = mock<AuthService>();
     const drainingDeploymentService = mock<DrainingDeploymentService>();
     const walletReloadJobService = mock<WalletReloadJobService>();

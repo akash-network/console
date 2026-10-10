@@ -24,12 +24,13 @@ export class WalletReaderService {
     private readonly trialValidationService: TrialValidationService
   ) {}
 
+  /** An organization's wallet is listed under the user who asked for it, since it belongs to no user. */
   async getWallets(query: GetWalletOptions): Promise<UserWalletPublicOutput[]> {
-    const wallets = await this.userWalletRepository.accessibleBy(this.authService.ability, "read").find(query);
+    const wallet = await this.userWalletRepository.accessibleBy(this.authService.ability, "read").findOneUsedBy(query.userId);
 
-    return wallets
-      .filter((wallet): wallet is WalletInitialized => wallet.activatedAt !== null && isWalletInitialized(wallet))
-      .map(wallet => this.userWalletRepository.toPublic(wallet, this.trialValidationService.getTrialWindow(wallet)));
+    if (!wallet?.activatedAt || !isWalletInitialized(wallet)) return [];
+
+    return [this.userWalletRepository.toPublic({ ...wallet, userId: wallet.userId ?? query.userId }, this.trialValidationService.getTrialWindow(wallet))];
   }
 
   async getWalletByUserId(userId: string): Promise<WalletInitialized>;
@@ -38,13 +39,21 @@ export class WalletReaderService {
   async getWalletByUserId(userId: string, options?: { isInitialised: boolean }): Promise<UserWalletOutput | WalletInitialized> {
     const { ability } = this.authService;
 
-    const userWallet = await this.userWalletRepository.accessibleBy(ability, "sign").findOneByUserId(userId);
+    const userWallet = await this.userWalletRepository.accessibleBy(ability, "sign").findOneUsedBy(userId);
     assert(userWallet, 404, "UserWallet Not Found");
 
     if (options?.isInitialised) {
       return userWallet;
     }
 
+    assert(isWalletInitialized(userWallet), 403, "UserWallet is not initialized");
+
+    return userWallet;
+  }
+
+  async getWalletById(walletId: number): Promise<WalletInitialized> {
+    const userWallet = await this.userWalletRepository.accessibleBy(this.authService.ability, "sign").findById(walletId);
+    assert(userWallet, 404, "UserWallet Not Found");
     assert(isWalletInitialized(userWallet), 403, "UserWallet is not initialized");
 
     return userWallet;

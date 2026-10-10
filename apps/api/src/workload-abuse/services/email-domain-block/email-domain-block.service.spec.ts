@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
-import type { UserWalletRepository, WalletInitialized } from "@src/billing/repositories";
+import type { UserWalletRepository } from "@src/billing/repositories";
 import type { StripeTransactionRepository } from "@src/billing/repositories/stripe-transaction/stripe-transaction.repository";
 import type { CreateLogger } from "@src/core";
 import type { JobQueueService } from "@src/core";
@@ -16,7 +16,7 @@ import { DOMAIN_BLOCK_REASON, EmailDomainBlockService } from "./email-domain-blo
 import { mockConfigService } from "@test/mocks/config-service.mock";
 import { createBlockedEmailDomain } from "@test/seeders/blocked-email-domain.seeder";
 import { createUser } from "@test/seeders/user.seeder";
-import { createUserWallet } from "@test/seeders/user-wallet.seeder";
+import { createInitializedUserWallet } from "@test/seeders/user-wallet.seeder";
 
 describe(EmailDomainBlockService.name, () => {
   describe("blockDomainOf", () => {
@@ -307,7 +307,7 @@ describe(EmailDomainBlockService.name, () => {
   }) {
     const raceWinner =
       input?.raceWinner && input.raceWinner !== "gone" ? createBlockedEmailDomain({ domain: "attacker.com", status: input.raceWinner }) : undefined;
-    const wallet = createUserWallet({ isTrialing: true }) as WalletInitialized;
+    const wallet = createInitializedUserWallet({ isTrialing: true });
     const user = createUser({ id: wallet.userId, email: input?.email === undefined ? "miner@attacker.com" : (input.email as string) });
 
     const userRepository = mock<UserRepository>({

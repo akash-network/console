@@ -129,6 +129,9 @@ describe("Deployments API", () => {
       findOneByUserId: async (id: string) => {
         return Promise.resolve(knownWallets[id][0]);
       },
+      findOneUsedBy: async (id: string) => {
+        return Promise.resolve(knownWallets[id][0]);
+      },
       findFirst: async () => {
         return Promise.resolve(knownWallets[currentUser.id][0]);
       }

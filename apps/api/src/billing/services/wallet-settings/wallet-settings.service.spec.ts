@@ -274,7 +274,7 @@ describe(WalletSettingService.name, () => {
     const walletSettingRepository = mock<WalletSettingRepository>();
     walletSettingRepository.accessibleBy.mockReturnValue(walletSettingRepository);
     const userWalletRepository = mock<UserWalletRepository>();
-    userWalletRepository.findOneByUserId.mockResolvedValue(userWallet);
+    userWalletRepository.findOneUsedBy.mockResolvedValue(userWallet);
     const userRepository = mock<UserRepository>();
     userRepository.findById.mockResolvedValue(userWithStripe);
     const paymentMethod = { ...generatePaymentMethod(), validated: true };

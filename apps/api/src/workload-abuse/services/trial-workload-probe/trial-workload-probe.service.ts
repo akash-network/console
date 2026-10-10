@@ -77,7 +77,7 @@ export class TrialWorkloadProbeService {
 
     const sources: EvidenceSource[] = [];
     const shellEvidence: ShellEvidence[] = [];
-    const setting = await this.deploymentSettingRepository.findOneBy({ userId: input.wallet.userId, dseq: input.dseq });
+    const setting = await this.deploymentSettingRepository.findOneOfWallet(input.wallet, input.dseq);
     if (setting?.sdl) sources.push({ kind: "sdl", text: setting.sdl });
 
     const probedLeases: ProbedLease[] = [];

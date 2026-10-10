@@ -9,11 +9,12 @@ export const UserWallets = pgTable(
   "user_wallets",
   {
     id: serial("id").primaryKey(),
+    /** The personal wallet's owner; null on a team organization's wallet and once its owner is deleted, so the wallet row and its derivation index survive. */
     userId: uuid("user_id")
-      .references(() => Users.id, { onDelete: "cascade" })
-      .unique()
-      .notNull(),
+      .references(() => Users.id, { onDelete: "set null" })
+      .unique(),
     organizationId: uuid("organization_id").references(() => Organizations.id),
+    createdByUserId: uuid("created_by_user_id").references(() => Users.id, { onDelete: "set null" }),
     address: varchar("address").unique(),
     deploymentAllowance: allowance("deployment_allowance"),
     feeAllowance: allowance("fee_allowance"),

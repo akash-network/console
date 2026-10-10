@@ -73,11 +73,7 @@ export class RefillService {
    * @param options.payment - Payment context attached to the `balance_top_up` analytics event
    * @returns The credited wallet's identifiers, so the caller can fund its draining deployments after the credit commits.
    */
-  async topUpWallet(
-    amountUsd: number,
-    userId: UserWalletOutput["userId"],
-    options: { endTrial?: boolean; payment?: PaymentAnalyticsContext } = {}
-  ): Promise<ToppedUpWallet> {
+  async topUpWallet(amountUsd: number, userId: string, options: { endTrial?: boolean; payment?: PaymentAnalyticsContext } = {}): Promise<ToppedUpWallet> {
     const userWallet = await this.lockActivatedWallet(userId);
     const currentLimit = await this.balancesService.retrieveDeploymentLimit(userWallet);
 
@@ -89,7 +85,7 @@ export class RefillService {
     });
 
     await this.balancesService.refreshUserWalletLimits(userWallet, { endTrial: options.endTrial ?? true });
-    await this.clearAbuseLockOnPayment(userWallet);
+    await this.clearAbuseLockOnPayment(userWallet, userId);
 
     this.analyticsService.track(userId, "balance_top_up", {
       amount_cents: amountUsd,
@@ -113,7 +109,7 @@ export class RefillService {
    * @param userId - The ID of the user to reduce the wallet for
    * @param payment - Payment context attached to the `balance_refund` analytics event
    */
-  async reduceWalletBalance(amountUsd: number, userId: UserWalletOutput["userId"], payment?: Pick<PaymentAnalyticsContext, "currency" | "transactionId">) {
+  async reduceWalletBalance(amountUsd: number, userId: string, payment?: Pick<PaymentAnalyticsContext, "currency" | "transactionId">) {
     const userWallet = await this.userWalletRepository.findOneBy({ userId });
 
     if (!userWallet || !userWallet.address) {
@@ -144,19 +140,19 @@ export class RefillService {
   }
 
   /** A failed clear is logged instead of thrown: authorizeSpending has already raised the on-chain allowance, so rolling the settlement back would let a webhook retry credit the same charge twice. */
-  private async clearAbuseLockOnPayment(userWallet: UserWalletOutput) {
+  private async clearAbuseLockOnPayment(userWallet: UserWalletOutput, userId: string) {
     try {
       if (!(await this.userWalletRepository.clearAbuseLock(userWallet.id))) return;
 
-      this.logger.info({ event: "WALLET_ABUSE_LOCK_CLEARED", walletId: userWallet.id, userId: userWallet.userId });
-      this.analyticsService.track(userWallet.userId, "account_restriction_lifted", { lifted_by: "payment" });
+      this.logger.info({ event: "WALLET_ABUSE_LOCK_CLEARED", walletId: userWallet.id, userId });
+      this.analyticsService.track(userId, "account_restriction_lifted", { lifted_by: "payment" });
     } catch (error) {
-      this.logger.error({ event: "WALLET_ABUSE_LOCK_CLEAR_FAILED", walletId: userWallet.id, userId: userWallet.userId, error });
+      this.logger.error({ event: "WALLET_ABUSE_LOCK_CLEAR_FAILED", walletId: userWallet.id, userId, error });
     }
   }
 
   /** Holds the wallet row until the settlement commits, so an abuse wipe of the same wallet waits for it instead of revoking between this grant and its bookkeeping. */
-  private async lockActivatedWallet(userId: UserWalletOutput["userId"]) {
+  private async lockActivatedWallet(userId: string) {
     const userWallet = await this.ensureActivatedWallet(userId);
 
     return (await this.userWalletRepository.findOneByAndLock({ id: userWallet.id })) ?? userWallet;
@@ -167,7 +163,7 @@ export class RefillService {
    * funding with real money must activate a wallet even when the user never started a trial.
    * The activation claim no-ops for already-activated wallets.
    */
-  private async ensureActivatedWallet(userId: UserWalletOutput["userId"]) {
+  private async ensureActivatedWallet(userId: string) {
     const userWallet = await this.walletInitializerService.ensureWallet(userId);
 
     return (await this.userWalletRepository.claimActivation(userWallet.id)) ?? userWallet;

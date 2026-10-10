@@ -26,12 +26,29 @@ describe(CloseDeploymentHandler.name, () => {
     expect(handler.requiresPermission(PAYLOAD)).toEqual([{ action: "sign", subject: "UserWallet", conditions: { userId: "user-1" } }]);
   });
 
+  it("asks only for the right to sign with the organization's wallet the close names", () => {
+    const { handler } = setup();
+
+    expect(handler.requiresPermission({ ...PAYLOAD, walletId: 7 })).toEqual([{ action: "sign", subject: "UserWallet", conditions: { id: 7 } }]);
+  });
+
+  it("closes with the organization's wallet the close names", async () => {
+    const { handler, walletReaderService, deploymentWriterService, wallet } = setup();
+
+    await handler.handle({ ...PAYLOAD, walletId: 7 }, { id: "job-1", retryCount: 0, retryLimit: 8 });
+
+    expect(walletReaderService.getWalletById).toHaveBeenCalledWith(7);
+    expect(walletReaderService.getWalletByUserId).not.toHaveBeenCalled();
+    expect(deploymentWriterService.close).toHaveBeenCalledWith(wallet, "100");
+  });
+
   it("closes the deployment and records the close as succeeded", async () => {
     const { handler, walletReaderService, deploymentWriterService, activityService, wallet } = setup();
 
     await handler.handle(PAYLOAD, { id: "job-1", retryCount: 0, retryLimit: 8 });
 
     expect(walletReaderService.getWalletByUserId).toHaveBeenCalledWith("user-1");
+    expect(walletReaderService.getWalletById).not.toHaveBeenCalled();
     expect(deploymentWriterService.close).toHaveBeenCalledWith(wallet, "100");
     expect(activityService.settle).toHaveBeenCalledWith("activity-1", closedActivityOf(KEY));
   });
@@ -118,6 +135,7 @@ describe(CloseDeploymentHandler.name, () => {
     const wallet = mock<WalletInitialized>({ userId: "user-1", address: "akash1owner" });
     const walletReaderService = mock<WalletReaderService>();
     walletReaderService.getWalletByUserId.mockResolvedValue(wallet);
+    walletReaderService.getWalletById.mockResolvedValue(wallet);
     const deploymentWriterService = mock<DeploymentWriterService>();
     deploymentWriterService.close.mockResolvedValue(true);
     const activityService = mock<ActivityService>();

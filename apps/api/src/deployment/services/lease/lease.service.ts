@@ -4,6 +4,7 @@ import { HTTPException } from "hono/http-exception";
 import createError, { isHttpError } from "http-errors";
 import { inject, singleton } from "tsyringe";
 
+import type { WalletInitialized } from "@src/billing/repositories";
 import { ManagedSignerService, RpcMessageService } from "@src/billing/services";
 import { ChainErrorService } from "@src/billing/services/chain-error/chain-error.service";
 import { WalletReaderService } from "@src/billing/services/wallet-reader/wallet-reader.service";
@@ -38,7 +39,7 @@ export class LeaseService {
   public async createLeasesAndSendManifest({ leases, manifest, userId }: CreateLeaseRequest & { userId: string }): Promise<DeploymentResponse> {
     const wallet = await this.walletReaderService.getWalletByUserId(userId);
     const dseq = leases[0].dseq;
-    const manifests = await this.#manifestsByDseq(leases, userId, manifest);
+    const manifests = await this.#manifestsByDseq(leases, { wallet, userId }, manifest);
 
     // Leases for all groups are created in one tx, so one existing lease means all exist:
     // skip creation when already on-chain to keep retries idempotent.
@@ -56,7 +57,7 @@ export class LeaseService {
         })
       );
 
-      await this.signerService.executeDerivedDecodedTxByUserId(wallet.userId, leaseMessages);
+      await this.signerService.executeDerivedDecodedTxByUserId(userId, leaseMessages);
     }
 
     const deployment = await this.deploymentReaderService.findByWalletAndDseqWithoutProviderStatus(wallet, dseq);
@@ -115,13 +116,19 @@ export class LeaseService {
   }
 
   /** Called before anything is broadcast, so a definition the console cannot re-derive costs no lease on chain and no provider a partial send. */
-  async #manifestsByDseq(leases: CreateLeaseRequest["leases"], userId: string, requested: string | undefined): Promise<Map<string, string>> {
+  /** Every deployment is checked against the caller's projects before its manifest is read, a lease is signed or a provider is sent anything. */
+  async #manifestsByDseq(
+    leases: CreateLeaseRequest["leases"],
+    { wallet, userId }: { wallet: WalletInitialized; userId: string },
+    requested: string | undefined
+  ): Promise<Map<string, string>> {
     const manifests = new Map<string, string>();
 
     for (const { dseq } of leases) {
       if (manifests.has(dseq)) continue;
 
-      const derivedManifest = await this.leaseManifestService.deriveFor({ dseq, userId });
+      const filedUserId = await this.signerService.filedUserIdOf(wallet, userId, dseq);
+      const derivedManifest = await this.leaseManifestService.deriveFor({ dseq, userId: filedUserId });
       const manifest = derivedManifest ?? requested;
       if (!derivedManifest && requested) {
         this.#logger.warn({ event: "LEASE_MANIFEST_FALLBACK_USED", dseq });

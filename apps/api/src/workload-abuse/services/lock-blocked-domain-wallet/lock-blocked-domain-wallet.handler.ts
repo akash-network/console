@@ -1,6 +1,6 @@
 import { inject, singleton } from "tsyringe";
 
-import { isWalletInitialized, UserWalletRepository, type WalletInitialized } from "@src/billing/repositories";
+import { isPersonalWallet, isWalletInitialized, type PersonalWallet, UserWalletRepository } from "@src/billing/repositories";
 import { type CreateLogger, type Job, JOB_NAME, type JobHandler, type JobPayload, type JobPermissions, LOGGER_FACTORY } from "@src/core";
 import { UserRepository } from "@src/user/repositories";
 import { extractEmailDomain } from "@src/workload-abuse/lib/email-domain/email-domain";
@@ -61,7 +61,7 @@ export class LockBlockedDomainWalletHandler implements JobHandler<LockBlockedDom
     const context = { job: LockBlockedDomainWallet[JOB_NAME], walletId, domain };
     const wallet = await this.userWalletRepository.findById(walletId);
 
-    if (!wallet || !isWalletInitialized(wallet)) {
+    if (!wallet || !isWalletInitialized(wallet) || !isPersonalWallet(wallet)) {
       this.#skip("WALLET_NOT_FOUND", context);
       return;
     }
@@ -98,7 +98,7 @@ export class LockBlockedDomainWalletHandler implements JobHandler<LockBlockedDom
   }
 
   /** Counted and logged the way the detection path counts its own failures, so a sweep failing on the chain is as visible as a wipe the probe triggered. */
-  async #wipe(wallet: WalletInitialized, context: Record<string, unknown>): Promise<EnforcementOutcome | null> {
+  async #wipe(wallet: PersonalWallet, context: Record<string, unknown>): Promise<EnforcementOutcome | null> {
     try {
       return await this.enforcementService.wipeTrialWallet(wallet, BLOCKED_DOMAIN_LOCK_REASON);
     } catch (error) {

@@ -715,7 +715,7 @@ describe(TopUpManagedDeploymentsService.name, () => {
       const results = await db
         .select()
         .from(deploymentSettingsTable)
-        .where(and(eq(deploymentSettingsTable.dseq, dseq), eq(deploymentSettingsTable.userId, wallet.userId)));
+        .where(and(eq(deploymentSettingsTable.dseq, dseq), eq(deploymentSettingsTable.userId, wallet.userId as string)));
 
       return results[0];
     }

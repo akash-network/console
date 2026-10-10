@@ -1381,6 +1381,18 @@ describe(DeploymentWriterService.name, () => {
       expect(activityService.open).toHaveBeenCalledWith(expect.objectContaining({ meta: { dseq: "100", batchId: "batch-1" } }));
     });
 
+    it("names the organization's wallet on the close, since the job cannot find it from the user", async () => {
+      const { service, jobQueueService, walletReaderService } = setup();
+      walletReaderService.getWalletByUserId.mockResolvedValue({ ...wallet, id: 77, userId: null, organizationId: "organization-1" });
+
+      const queued = await service.closeInBackgroundByUserIdAndDseq("user-1", "100");
+
+      expect(jobQueueService.enqueue).toHaveBeenCalledWith(
+        new CloseDeployment({ userId: "user-1", dseq: "100", activityId: queued!.activityId, walletId: 77 }),
+        expect.anything()
+      );
+    });
+
     it("queues a check on what became of the close in the same transaction, so a close whose job is lost still settles", async () => {
       const { service, txService, jobQueueService } = setup();
       vi.useFakeTimers({ now: new Date("2026-01-01T00:00:00.000Z"), toFake: ["Date"] });
@@ -1575,6 +1587,28 @@ describe(DeploymentWriterService.name, () => {
   });
 
   describe("updateByUserIdAndDseq", () => {
+    it("writes nothing to an organization's deployment outside the caller's projects", async () => {
+      const { service, signerService, walletReaderService, deploymentSettingRepository, sdlSecretsService } = setup();
+      walletReaderService.getWalletByUserId.mockResolvedValue({ ...wallet, userId: null, organizationId: "organization-1" });
+      signerService.filedUserIdOf.mockRejectedValue(createError(403, "outside"));
+
+      await expect(service.updateByUserIdAndDseq("user-1", "100", { sdl: "valid-sdl" })).rejects.toMatchObject({ status: 403 });
+
+      expect(sdlSecretsService.sealForStorage).not.toHaveBeenCalled();
+      expect(deploymentSettingRepository.upsertDefinition).not.toHaveBeenCalled();
+    });
+
+    it("records an organization's deployment under the member who filed it", async () => {
+      const { service, walletReaderService, deploymentSettingRepository, sdlSecretsService, signerService } = setup();
+      walletReaderService.getWalletByUserId.mockResolvedValue({ ...wallet, userId: null, organizationId: "organization-1" });
+      signerService.filedUserIdOf.mockResolvedValue("filer-1");
+
+      await service.updateByUserIdAndDseq("user-1", "100", { sdl: "valid-sdl" });
+
+      expect(sdlSecretsService.sealForStorage).toHaveBeenCalledWith(expect.objectContaining({ userId: "filer-1", dseq: "100" }));
+      expect(deploymentSettingRepository.upsertDefinition).toHaveBeenCalledWith(expect.objectContaining({ userId: "filer-1", dseq: "100" }));
+    });
+
     it("asks no provider for a lease status it discards before sending the manifest", async () => {
       const { service, deploymentReaderService } = setup();
 
@@ -2599,6 +2633,28 @@ describe(DeploymentWriterService.name, () => {
     });
 
     describe("a patch carrying only a name", () => {
+      it("writes an organization's deployment under the member who filed it, once the caller's projects reach it", async () => {
+        const { service, ability, deploymentSettingRepository, walletReaderService, signerService } = setup({ setting: undefined });
+        const organizationWallet = { ...wallet, userId: null, organizationId: "organization-1" };
+        walletReaderService.getWalletByUserId.mockResolvedValue(organizationWallet);
+        signerService.filedUserIdOf.mockResolvedValue("filer-1");
+
+        await service.patchByUserIdAndDseq("user-1", "1234", { name: "renamed" }, ability);
+
+        expect(signerService.filedUserIdOf).toHaveBeenCalledWith(organizationWallet, "user-1", "1234");
+        expect(deploymentSettingRepository.upsertName).toHaveBeenCalledWith({ userId: "filer-1", dseq: "1234", name: "renamed" });
+      });
+
+      it("writes nothing to an organization's deployment outside the caller's projects", async () => {
+        const { service, ability, deploymentSettingRepository, walletReaderService, signerService } = setup({ setting: undefined });
+        walletReaderService.getWalletByUserId.mockResolvedValue({ ...wallet, userId: null, organizationId: "organization-1" });
+        signerService.filedUserIdOf.mockRejectedValue(createError(403, "outside"));
+
+        await expect(service.patchByUserIdAndDseq("user-1", "1234", { name: "renamed" }, ability)).rejects.toMatchObject({ status: 403 });
+
+        expect(deploymentSettingRepository.upsertName).not.toHaveBeenCalled();
+      });
+
       it("writes the name against a row that may not exist yet", async () => {
         const { service, ability, deploymentSettingRepository } = setup({ setting: undefined });
 
@@ -2814,6 +2870,7 @@ describe(DeploymentWriterService.name, () => {
 
       const providerService = mock<ProviderService>();
       const signerService = mock<ManagedSignerService>();
+      signerService.filedUserIdOf.mockImplementation(async (_wallet, actingUserId) => actingUserId);
       const logger = mock<ReturnType<CreateLogger>>();
       const createLogger: CreateLogger = () => logger;
 
@@ -2854,6 +2911,7 @@ describe(DeploymentWriterService.name, () => {
         ability,
         deploymentSettingRepository: scoped,
         unscopedDeploymentSettingRepository: deploymentSettingRepository,
+        walletReaderService,
         deploymentReaderService,
         sdlService,
         sdlSecretsService,
@@ -2870,6 +2928,18 @@ describe(DeploymentWriterService.name, () => {
 
   describe("recordDefinitionByUserIdAndDseq", () => {
     const COMMITTED_VERSION = new Uint8Array([1, 2, 3]);
+
+    it("records nothing for an organization's deployment outside the caller's projects", async () => {
+      const { service, signerService, walletReaderService, scopedSettingRepository, sdlSecretsService, ability } = setup({ sourceSetting: undefined });
+      walletReaderService.getWalletByUserId.mockResolvedValue({ ...wallet, userId: null, organizationId: "organization-1" });
+      signerService.filedUserIdOf.mockRejectedValue(createError(403, "outside"));
+
+      await expect(service.recordDefinitionByUserIdAndDseq("user-1", "100", { sdl: SDL_WITH_SECRETS }, ability)).rejects.toMatchObject({ status: 403 });
+
+      expect(scopedSettingRepository.findOneBy).not.toHaveBeenCalled();
+      expect(sdlSecretsService.sealForStorage).not.toHaveBeenCalled();
+      expect(scopedSettingRepository.recordDefinitionIfAbsent).not.toHaveBeenCalled();
+    });
 
     it("records the stored sdl, the manifest version the chain commits and the token it sealed", async () => {
       const { service, scopedSettingRepository, ability } = setup({
@@ -3119,6 +3189,7 @@ describe(DeploymentWriterService.name, () => {
     definitionRecordedConcurrently?: boolean;
   }) {
     const signerService = mock<ManagedSignerService>();
+    signerService.filedUserIdOf.mockImplementation(async (_wallet, actingUserId) => actingUserId);
     const rpcMessageService = mock<RpcMessageService>();
     const sdlService = mock<SdlService>();
     const billingConfig: MockProxy<BillingConfigService> = mockConfigService<BillingConfigService>({

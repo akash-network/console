@@ -45,7 +45,7 @@ export class RecordLeaseGpuOffersHandler implements JobHandler<RecordLeaseGpuOff
 
     if (!liveLeases) throw new Error(`No live lease of deployment ${dseq} is visible on chain yet`);
 
-    if (offers.length && !(await this.deploymentSettingRepository.mergeGpuOffers({ userId: wallet.userId, dseq, offers }))) {
+    if (offers.length && !(await this.deploymentSettingRepository.mergeGpuOffers({ wallet, dseq, offers }))) {
       throw new Error(`Deployment ${dseq} has no settings row to hold its gpu offers yet`);
     }
 
