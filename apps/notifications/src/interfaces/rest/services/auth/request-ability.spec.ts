@@ -7,11 +7,12 @@ import type { OrganizationRole, ProjectScope } from "./request-identity";
 
 describe(abilityFor.name, () => {
   describe("without an organization membership", () => {
-    it("lets a user manage their own channels and alerts only", () => {
+    it("lets a user manage their own channels and alerts only, even within the same organization", () => {
       const userId = faker.string.uuid();
-      const ability = abilityFor({ userId, organizationId: faker.string.uuid(), projectId: null, membership: null });
+      const organizationId = faker.string.uuid();
+      const ability = abilityFor({ userId, organizationId, projectId: null, membership: null });
       const own = { userId };
-      const others = { userId: faker.string.uuid() };
+      const others = { userId: faker.string.uuid(), organizationId };
 
       expect(ability.can("manage", subject("NotificationChannel", { ...own }))).toBe(true);
       expect(ability.can("delete", subject("Alert", { ...own }))).toBe(true);
@@ -31,10 +32,29 @@ describe(abilityFor.name, () => {
   });
 
   describe("with an organization membership", () => {
-    it.each(["owner", "admin", "member"] as const)("lets %s manage channels of the organization and alerts in reach", role => {
+    it.each(["owner", "admin"] as const)("lets %s manage every channel of the organization", role => {
+      const { ability, organizationId } = setup({ role, scope: "granted" });
+
+      expect(ability.can("update", subject("NotificationChannel", { organizationId, userId: faker.string.uuid() }))).toBe(true);
+      expect(ability.can("delete", subject("NotificationChannel", { organizationId, userId: faker.string.uuid() }))).toBe(true);
+    });
+
+    it("lets a member read every channel of the organization and change only their own", () => {
+      const { ability, organizationId, userId } = setup({ role: "member", scope: "granted" });
+      const othersChannel = { organizationId, userId: faker.string.uuid() };
+      const ownChannel = { organizationId, userId };
+
+      expect(ability.can("read", subject("NotificationChannel", { ...othersChannel }))).toBe(true);
+      expect(ability.can("update", subject("NotificationChannel", { ...othersChannel }))).toBe(false);
+      expect(ability.can("delete", subject("NotificationChannel", { ...othersChannel }))).toBe(false);
+      expect(ability.can("create", subject("NotificationChannel", { ...ownChannel }))).toBe(true);
+      expect(ability.can("update", subject("NotificationChannel", { ...ownChannel }))).toBe(true);
+      expect(ability.can("create", subject("NotificationChannel", { organizationId: faker.string.uuid(), userId }))).toBe(false);
+    });
+
+    it.each(["owner", "admin", "member"] as const)("lets %s manage alerts in reach", role => {
       const { ability, organizationId, grantedProjectId } = setup({ role, scope: "granted" });
 
-      expect(ability.can("manage", subject("NotificationChannel", { organizationId, userId: faker.string.uuid() }))).toBe(true);
       expect(ability.can("create", subject("Alert", { organizationId, projectId: grantedProjectId }))).toBe(true);
       expect(ability.can("delete", subject("Alert", { organizationId, projectId: grantedProjectId }))).toBe(true);
       expect(ability.can("update", subject("Alert", { organizationId, projectId: grantedProjectId }), "conditions")).toBe(true);
@@ -48,6 +68,16 @@ describe(abilityFor.name, () => {
       expect(ability.can("read", subject("Alert", { organizationId, projectId: faker.string.uuid() }))).toBe(false);
       expect(ability.can("read", subject("Alert", { organizationId, projectId: null }))).toBe(false);
       expect(ability.can("read", subject("DeploymentAlert", { organizationId, projectId: faker.string.uuid() }))).toBe(false);
+    });
+
+    it.each(["member", "viewer"] as const)("gives a %s without granted projects no alert at all", role => {
+      const { ability, organizationId } = setup({ role, scope: "none" });
+
+      for (const projectId of [faker.string.uuid(), null]) {
+        expect(ability.can("read", subject("Alert", { organizationId, projectId }))).toBe(false);
+        expect(ability.can("read", subject("DeploymentAlert", { organizationId, projectId }))).toBe(false);
+        expect(ability.can("create", subject("Alert", { organizationId, projectId }))).toBe(false);
+      }
     });
 
     it("reaches every project of the organization with an unrestricted scope", () => {
@@ -77,26 +107,33 @@ describe(abilityFor.name, () => {
       expect(ability.can("update", subject("DeploymentAlert", { ...alert }))).toBe(false);
     });
 
-    it("gives billing no access to channels or alerts", () => {
-      const { ability } = setup({ role: "billing", scope: "granted" });
+    it.each(["all", "granted"] as const)("gives billing no access to channels or alerts whatever its scope (%s)", scope => {
+      const { ability, organizationId, grantedProjectId, userId } = setup({ role: "billing", scope });
 
-      expect(ability.can("read", "NotificationChannel")).toBe(false);
-      expect(ability.can("read", "Alert")).toBe(false);
-      expect(ability.can("read", "DeploymentAlert")).toBe(false);
+      for (const action of ["read", "create", "update", "delete"]) {
+        expect(ability.can(action, subject("NotificationChannel", { organizationId, userId }))).toBe(false);
+        expect(ability.can(action, subject("Alert", { organizationId, projectId: grantedProjectId, userId }))).toBe(false);
+        expect(ability.can(action, subject("DeploymentAlert", { organizationId, projectId: grantedProjectId, userId }))).toBe(false);
+      }
     });
   });
 
-  function setup(input: { role: OrganizationRole; scope: "all" | "granted" }) {
+  function setup(input: { role: OrganizationRole; scope: "all" | "granted" | "none" }) {
+    const userId = faker.string.uuid();
     const organizationId = faker.string.uuid();
     const grantedProjectId = faker.string.uuid();
-    const projectScope: ProjectScope = input.scope === "all" ? { kind: "all" } : { kind: "projects", projectIds: [grantedProjectId] };
+    const projectScopes: Record<typeof input.scope, ProjectScope> = {
+      all: { kind: "all" },
+      granted: { kind: "projects", projectIds: [grantedProjectId] },
+      none: { kind: "projects", projectIds: [] }
+    };
     const ability = abilityFor({
-      userId: faker.string.uuid(),
+      userId,
       organizationId,
       projectId: null,
-      membership: { organizationId, role: input.role, projectScope }
+      membership: { organizationId, role: input.role, projectScope: projectScopes[input.scope] }
     });
 
-    return { ability, organizationId, grantedProjectId };
+    return { ability, organizationId, grantedProjectId, userId };
   }
 });

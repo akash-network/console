@@ -104,6 +104,47 @@ describe("Organization-scoped alerts and notification channels", () => {
     expect([alertsRes.status, channelsRes.status]).toEqual([403, 403]);
   });
 
+  it("lists no alert to a member without granted projects", async () => {
+    const { app, db, organizationId, projectId, channelId } = await setup();
+    await db
+      .insert(Alert)
+      .values([
+        generateGeneralAlert({ notificationChannelId: channelId, organizationId, projectId, params: deploymentParams() }),
+        generateGeneralAlert({ notificationChannelId: channelId, organizationId, projectId: null, params: deploymentParams() })
+      ]);
+
+    const res = await request(app.getHttpServer())
+      .get("/v1/alerts")
+      .set(memberHeaders({ organizationId, role: "member", projectIds: [] }));
+    await app.close();
+
+    expect(res.status).toBe(200);
+    expect(res.body.data).toEqual([]);
+  });
+
+  it("lets a member change only the channels they created", async () => {
+    const { app, organizationId, channelId } = await setup();
+    const member = memberHeaders({ organizationId, role: "member", projectIds: [] });
+    const server = app.getHttpServer();
+
+    const readRes = await request(server).get(`/v1/notification-channels/${channelId}`).set(member);
+    const updateOthersRes = await request(server)
+      .patch(`/v1/notification-channels/${channelId}`)
+      .set(member)
+      .send({ data: { name: "renamed" } });
+    const createRes = await request(server)
+      .post("/v1/notification-channels")
+      .set(member)
+      .send({ data: { name: "Mine", type: "email", config: { addresses: [faker.internet.email()] } } });
+    const updateOwnRes = await request(server)
+      .patch(`/v1/notification-channels/${createRes.body.data.id}`)
+      .set(member)
+      .send({ data: { name: "renamed" } });
+    await app.close();
+
+    expect([readRes.status, updateOthersRes.status, createRes.status, updateOwnRes.status]).toEqual([200, 404, 201, 200]);
+  });
+
   it("keeps a single default notification channel per organization", async () => {
     const { app, organizationId } = await setup();
     const createDefault = (headers: Record<string, string>) =>

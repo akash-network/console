@@ -22,13 +22,47 @@ describe(AuthInterceptor.name, () => {
     expect(request.ability).toBeUndefined();
   });
 
-  it("rejects a request whose identity headers are missing or malformed", async () => {
-    const { interceptor, context, next } = setup({ headers: { "x-user-id": faker.string.uuid(), "x-organization-id": "acme" } });
+  it.each<{ case: string; headers: Record<string, string> }>([
+    { case: "no user", headers: { "x-organization-id": faker.string.uuid() } },
+    { case: "an organization that is not a uuid", headers: { "x-user-id": faker.string.uuid(), "x-organization-id": "acme" } },
+    {
+      case: "a role without an organization",
+      headers: { "x-user-id": faker.string.uuid(), "x-organization-role": "owner", "x-project-scope": JSON.stringify({ kind: "all" }) }
+    },
+    {
+      case: "an unknown role",
+      headers: {
+        "x-user-id": faker.string.uuid(),
+        "x-organization-id": faker.string.uuid(),
+        "x-organization-role": "root",
+        "x-project-scope": JSON.stringify({ kind: "all" })
+      }
+    },
+    {
+      case: "a role without a project scope",
+      headers: { "x-user-id": faker.string.uuid(), "x-organization-id": faker.string.uuid(), "x-organization-role": "member" }
+    },
+    {
+      case: "a project scope that is not JSON",
+      headers: { "x-user-id": faker.string.uuid(), "x-organization-id": faker.string.uuid(), "x-organization-role": "member", "x-project-scope": "all" }
+    },
+    {
+      case: "a project scope of an unknown kind",
+      headers: {
+        "x-user-id": faker.string.uuid(),
+        "x-organization-id": faker.string.uuid(),
+        "x-organization-role": "member",
+        "x-project-scope": JSON.stringify({ kind: "everything" })
+      }
+    }
+  ])("rejects a request with $case", async ({ headers }) => {
+    const { interceptor, context, next, request } = setup({ headers });
 
     const result = (await firstValueFrom(await interceptor.intercept(context, next))) as Result<never, UnauthorizedException>;
 
     expect(result.val).toBeInstanceOf(UnauthorizedException);
     expect(next.handle).not.toHaveBeenCalled();
+    expect(request.ability).toBeUndefined();
   });
 
   it("builds the ability of the organization membership the api minted", async () => {
