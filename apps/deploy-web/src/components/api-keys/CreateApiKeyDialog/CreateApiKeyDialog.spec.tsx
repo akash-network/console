@@ -71,6 +71,18 @@ describe("CreateApiKeyDialog", () => {
     expect(newApiKey.expiresAt).toEqual(new Date(2026, 9, 10, 12));
   });
 
+  it("still creates a key one day out when the dialog stays open past midnight", async () => {
+    const { user, createApiKey } = setup({ now: new Date(2026, 9, 9, 23, 50) });
+
+    await user.type(screen.getByLabelText("Name"), "Overnight");
+    await pickCustomExpiry(user);
+    vi.setSystemTime(new Date(2026, 9, 10, 0, 5));
+    await user.click(screen.getByRole("button", { name: "Create key" }));
+
+    const [newApiKey] = createApiKey.mock.lastCall as [NewApiKey];
+    expect(newApiKey.expiresAt).toEqual(new Date(2026, 9, 11, 0, 5));
+  });
+
   it("creates a key that expires on the custom date the user picks", async () => {
     const { user, createApiKey } = setup({ now: new Date(2026, 9, 9, 12) });
 

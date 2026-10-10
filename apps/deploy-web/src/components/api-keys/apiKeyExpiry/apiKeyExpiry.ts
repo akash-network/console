@@ -1,5 +1,7 @@
 import { addDays, differenceInCalendarDays, isAfter } from "date-fns";
 
+export const MIN_CUSTOM_API_KEY_LIFETIME_DAYS = 1;
+
 export const MAX_API_KEY_LIFETIME_DAYS = 365;
 
 export const API_KEY_LIFETIMES = [
@@ -23,11 +25,12 @@ export function getApiKeyExpiryDate(lifetimeDays: number, now: Date) {
 }
 
 export function getCustomApiKeyExpiryDate(expiryDay: Date, now: Date) {
-  return getApiKeyExpiryDate(differenceInCalendarDays(expiryDay, now), now);
+  const lifetimeDays = Math.max(differenceInCalendarDays(expiryDay, now), MIN_CUSTOM_API_KEY_LIFETIME_DAYS);
+  return getApiKeyExpiryDate(lifetimeDays, now);
 }
 
 export function getCustomApiKeyExpiryDayRange(now: Date) {
-  return { earliest: addDays(now, 1), latest: addDays(now, MAX_API_KEY_LIFETIME_DAYS) };
+  return { earliest: addDays(now, MIN_CUSTOM_API_KEY_LIFETIME_DAYS), latest: addDays(now, MAX_API_KEY_LIFETIME_DAYS) };
 }
 
 export function getApiKeyExpiryStatus(expiresAt: string | null, now: Date): ApiKeyExpiryStatus {

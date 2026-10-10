@@ -21,6 +21,12 @@ describe("apiKeyExpiry", () => {
       expect(getCustomApiKeyExpiryDate(new Date(2026, 9, 10), now)).toEqual(new Date(2026, 9, 10, 15, 30));
       expect(getCustomApiKeyExpiryDate(new Date(2026, 11, 25), now)).toEqual(new Date(2026, 11, 25, 15, 30));
     });
+
+    it("expires one day out when the picked day is no longer in the future", () => {
+      const justAfterMidnight = new Date(2026, 9, 10, 0, 5);
+
+      expect(getCustomApiKeyExpiryDate(new Date(2026, 9, 10), justAfterMidnight)).toEqual(new Date(2026, 9, 11, 0, 5));
+    });
   });
 
   describe(getCustomApiKeyExpiryDayRange.name, () => {
