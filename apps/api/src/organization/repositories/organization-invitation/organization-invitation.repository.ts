@@ -103,44 +103,12 @@ export class OrganizationInvitationRepository extends OrgScopedRepository<Table,
         expiresAt: this.table.expiresAt
       })
       .from(this.table)
-      .innerJoin(Organizations, this.#liveOrganizationOfInvitation())
+      .innerJoin(Organizations, and(eq(Organizations.id, this.table.organizationId), isNull(Organizations.deletedAt)))
       .leftJoin(Users, eq(Users.id, this.table.invitedByUserId))
       .where(this.whereAccessibleBy(eq(this.table.tokenHash, tokenHash)))
       .limit(1);
 
     return preview;
-  }
-
-  /** Locks the organization row, then the invitation row, the order every invitation write takes, without blocking inserts that reference either row. */
-  async findByTokenHashAndLock(tokenHash: OrganizationInvitationOutput["tokenHash"]): Promise<OrganizationInvitationOutput | undefined> {
-    const tx = this.txManager.getPgTx();
-
-    if (!tx) {
-      throw new Error("An invitation can only be locked inside a transaction");
-    }
-
-    const [unlocked] = await tx
-      .select({ organizationId: this.table.organizationId })
-      .from(this.table)
-      .where(this.whereAccessibleBy(eq(this.table.tokenHash, tokenHash)))
-      .limit(1);
-
-    if (!unlocked) return undefined;
-
-    await tx.select({ id: Organizations.id }).from(Organizations).where(eq(Organizations.id, unlocked.organizationId)).for("no key update");
-    const [row] = await tx
-      .select({ invitation: this.table })
-      .from(this.table)
-      .innerJoin(Organizations, this.#liveOrganizationOfInvitation())
-      .where(this.whereAccessibleBy(eq(this.table.tokenHash, tokenHash)))
-      .limit(1)
-      .for("no key update", { of: this.table });
-
-    return row && this.toOutput(row.invitation);
-  }
-
-  #liveOrganizationOfInvitation(): SQL | undefined {
-    return and(eq(Organizations.id, this.table.organizationId), isNull(Organizations.deletedAt));
   }
 
   /** Swaps the token only while the invitation still carries the expected one, so a token issued in between is never overwritten. */

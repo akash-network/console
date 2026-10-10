@@ -8,6 +8,7 @@ import { ExecutionContextService } from "@src/core/services/execution-context/ex
 import { TxService } from "@src/core/services/tx/tx.service";
 import { hashInvitationToken } from "@src/organization/lib/invitation-token/invitation-token";
 import type { OrganizationInvitationStatus } from "@src/organization/model-schemas/organization-invitation/organization-invitation.schema";
+import { OrganizationRepository } from "@src/organization/repositories/organization/organization.repository";
 import {
   type OrganizationInvitationOutput,
   type OrganizationInvitationPreview,
@@ -40,6 +41,7 @@ type Invitee = Pick<UserOutput, "id" | "email" | "emailVerified">;
 export class InvitationAcceptanceService {
   constructor(
     private readonly invitationRepository: OrganizationInvitationRepository,
+    private readonly organizationRepository: OrganizationRepository,
     private readonly organizationMemberRepository: OrganizationMemberRepository,
     private readonly projectRepository: ProjectRepository,
     private readonly projectMemberRepository: ProjectMemberRepository,
@@ -61,8 +63,7 @@ export class InvitationAcceptanceService {
     const invitee = this.authService.currentUser;
 
     const membership = await this.txService.transaction(async () => {
-      const invitation = await this.invitationRepository.unscoped("invitation-by-token").findByTokenHashAndLock(hashInvitationToken(token));
-      assert(invitation, 404, "Invitation not found");
+      const invitation = await this.#lockInvitation(token);
       const status = invitationStatusOf(invitation);
       assertAcceptable(invitation, status, invitee, confirmEmailMismatch);
 
@@ -82,6 +83,19 @@ export class InvitationAcceptanceService {
     });
 
     return { ...membership, isActive: membership.organization.id === this.executionContextService.get("ORGANIZATION_CONTEXT")?.organizationId };
+  }
+
+  /** Locks the organization row, then the invitation row, the order every invitation write takes, without blocking inserts that reference either row. */
+  async #lockInvitation(token: string): Promise<OrganizationInvitationOutput> {
+    const invitations = this.invitationRepository.unscoped("invitation-by-token");
+    const tokenHash = hashInvitationToken(token);
+    const found = await invitations.findOneBy({ tokenHash });
+    const organization =
+      found && (await this.organizationRepository.findOneByAndLock({ id: found.organizationId, deletedAt: null }, { strength: "no key update" }));
+    const invitation = organization && (await invitations.findOneByAndLock({ tokenHash }, { strength: "no key update" }));
+    assert(invitation, 404, "Invitation not found");
+
+    return invitation;
   }
 
   /** A user who already belongs to the organization keeps their role and project grants. */

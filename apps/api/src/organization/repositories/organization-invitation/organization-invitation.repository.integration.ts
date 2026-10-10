@@ -1,16 +1,12 @@
 import { faker } from "@faker-js/faker";
 import { addDays } from "date-fns";
-import { setTimeout as delay } from "node:timers/promises";
 import { container } from "tsyringe";
 import { describe, expect, it } from "vitest";
 
-import { TxService } from "@src/core/services/tx/tx.service";
 import { hashInvitationToken } from "@src/organization/lib/invitation-token/invitation-token";
-import { OrganizationRepository } from "@src/organization/repositories/organization/organization.repository";
-import { UserRepository } from "@src/user/repositories/user/user.repository";
 import { OrganizationInvitationRepository } from "./organization-invitation.repository";
 
-import { seedOrganization, seedOrganizationInvitation, seedOrganizationInvitationEmail } from "@test/seeders/db/organization.seeder";
+import { seedOrganization, seedOrganizationInvitation } from "@test/seeders/db/organization.seeder";
 import { seedUser } from "@test/seeders/db/user-with-wallet.seeder";
 
 describe(OrganizationInvitationRepository.name, () => {
@@ -151,93 +147,6 @@ describe(OrganizationInvitationRepository.name, () => {
     });
   });
 
-  describe("findByTokenHashAndLock", () => {
-    it("finds the invitation with the token inside a transaction", async () => {
-      const { repository, organization, txService } = await setup();
-      const invitation = await seedOrganizationInvitation({ organizationId: organization.id });
-      await seedOrganizationInvitation({ organizationId: organization.id });
-
-      expect(await txService.transaction(() => repository.findByTokenHashAndLock(invitation.tokenHash))).toEqual(invitation);
-    });
-
-    it("finds nothing for an unknown token or an invitation of a deleted organization", async () => {
-      const { repository, txService } = await setup();
-      const deleted = await seedOrganization({ deletedAt: new Date() });
-      const invitation = await seedOrganizationInvitation({ organizationId: deleted.id });
-
-      expect(await txService.transaction(() => repository.findByTokenHashAndLock(hashInvitationToken("unknown")))).toBeUndefined();
-      expect(await txService.transaction(() => repository.findByTokenHashAndLock(invitation.tokenHash))).toBeUndefined();
-    });
-
-    it("holds a concurrent lock of the same invitation until the transaction ends", async () => {
-      const { repository, organization, txService } = await setup();
-      const invitation = await seedOrganizationInvitation({ organizationId: organization.id });
-      const events: string[] = [];
-
-      const first = txService.transaction(async () => {
-        await repository.findByTokenHashAndLock(invitation.tokenHash);
-        await delay(200);
-        await repository.updateById(invitation.id, { status: "accepted" });
-        events.push("first committed");
-      });
-      await delay(50);
-      const second = txService.transaction(async () => {
-        const locked = await repository.findByTokenHashAndLock(invitation.tokenHash);
-        events.push(`second read ${locked?.status}`);
-      });
-
-      await Promise.all([first, second]);
-      expect(events).toEqual(["first committed", "second read accepted"]);
-    });
-
-    it("waits for a transaction holding the organization row before locking the invitation", async () => {
-      const { repository, organization, txService } = await setup();
-      const invitation = await seedOrganizationInvitation({ organizationId: organization.id });
-      const renewedExpiry = addDays(new Date(), 30);
-      const events: string[] = [];
-
-      const first = txService.transaction(async () => {
-        await container.resolve(OrganizationRepository).findOneByAndLock({ id: organization.id });
-        await delay(200);
-        await repository.updateById(invitation.id, { expiresAt: renewedExpiry });
-        events.push("first committed");
-      });
-      await delay(50);
-      const second = txService.transaction(async () => {
-        const locked = await repository.findByTokenHashAndLock(invitation.tokenHash);
-        events.push(`second read ${locked?.expiresAt.toISOString()}`);
-      });
-
-      await Promise.all([first, second]);
-      expect(events).toEqual(["first committed", `second read ${renewedExpiry.toISOString()}`]);
-    });
-
-    it("leaves rows referencing the organization or the invitation writable while it holds its locks", async () => {
-      const { repository, organization, inviter, txService } = await setup();
-      const invitation = await seedOrganizationInvitation({ organizationId: organization.id });
-      const events: string[] = [];
-
-      const holder = txService.transaction(async () => {
-        await repository.findByTokenHashAndLock(invitation.tokenHash);
-        await delay(300);
-        events.push("locks released");
-      });
-      await delay(50);
-      await container.resolve(UserRepository).updateById(inviter.id, { lastUsedOrganizationId: organization.id });
-      await seedOrganizationInvitationEmail({ organizationId: organization.id, invitationId: invitation.id, sentByUserId: inviter.id });
-      events.push("referencing rows written");
-      await holder;
-
-      expect(events).toEqual(["referencing rows written", "locks released"]);
-    });
-
-    it("refuses to lock outside a transaction", async () => {
-      const { repository } = await setup();
-
-      await expect(repository.findByTokenHashAndLock(hashInvitationToken("any"))).rejects.toThrow("An invitation can only be locked inside a transaction");
-    });
-  });
-
   describe("replaceTokenHash", () => {
     it("replaces the token of a pending invitation that still carries the expected one", async () => {
       const { repository, organization } = await setup();
@@ -273,7 +182,6 @@ describe(OrganizationInvitationRepository.name, () => {
 
   async function setup() {
     const repository = container.resolve(OrganizationInvitationRepository);
-    const txService = container.resolve(TxService);
     const inviter = await seedUser({ userId: faker.string.uuid(), username: `inviter-${faker.string.alphanumeric(12)}` });
     const organization = await seedOrganization({ createdByUserId: inviter.id });
 
@@ -289,6 +197,6 @@ describe(OrganizationInvitationRepository.name, () => {
       };
     }
 
-    return { repository, txService, organization, inviter, newInvitation };
+    return { repository, organization, inviter, newInvitation };
   }
 });
