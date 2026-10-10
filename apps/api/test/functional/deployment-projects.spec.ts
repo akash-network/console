@@ -4,6 +4,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { container } from "tsyringe";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
+import { mock } from "vitest-mock-extended";
 
 import { startJobQueues } from "@src/app/providers/jobs.provider";
 import { ApiKeyRepository } from "@src/auth/repositories/api-key/api-key.repository";
@@ -11,10 +12,13 @@ import { ApiKeyGeneratorService } from "@src/auth/services/api-key/api-key-gener
 import { AuthService } from "@src/auth/services/auth.service";
 import { UserAuthTokenService } from "@src/auth/services/user-auth-token/user-auth-token.service";
 import { ManagedSignerService } from "@src/billing/services";
+import { BalancesService } from "@src/billing/services/balances/balances.service";
 import type { ApiPgDatabase } from "@src/core";
 import { POSTGRES_DB, resolveTable } from "@src/core";
 import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
 import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
+import type { DeploymentResponse } from "@src/deployment/http-schemas/deployment.schema";
+import { DeploymentReaderService } from "@src/deployment/services/deployment-reader/deployment-reader.service";
 import type { OrganizationRole } from "@src/organization/model-schemas/organization-member/organization-member.schema";
 import { app } from "@src/rest-app";
 
@@ -167,14 +171,18 @@ describe("Deployment projects", () => {
       expect(await deploymentRowsOf(caller.id)).toEqual([]);
     });
 
-    it("ignores the project it names while organizations are off for the caller", async () => {
+    it("ignores the project it names while organizations are off, filing into the personal default project and its feed", async () => {
       const { request, otherProject, caller } = await setupCaller({ role: "owner", organizationsOn: false });
 
-      const response = await request("/v1/deployments", { method: "POST", body: { data: { sdl: SDL, projectId: otherProject.id } } });
+      const response = await request("/v1/deployments", { method: "POST", body: { data: { sdl: SDL, name: "web", projectId: otherProject.id } } });
       const { data } = (await response.json()) as { data: { dseq: string } };
+      const personalDefault = await personalDefaultProjectOf(caller.id);
 
       expect(response.status).toBe(201);
-      expect((await deploymentRow(caller.id, data.dseq))?.projectId).not.toBe(otherProject.id);
+      expect(await deploymentRow(caller.id, data.dseq)).toMatchObject({ organizationId: personalDefault.organizationId, projectId: personalDefault.id });
+      expect(await activitiesOfProject(personalDefault.id)).toEqual([
+        expect.objectContaining({ type: "deployment_created", actorUserId: caller.id, payload: { dseq: data.dseq, name: "web" } })
+      ]);
     });
 
     it("answers 400 for a project id that is not a uuid", async () => {
@@ -183,6 +191,27 @@ describe("Deployment projects", () => {
       const response = await request("/v1/deployments", { method: "POST", body: { data: { sdl: SDL, projectId: "web" } } });
 
       expect(response.status).toBe(400);
+    });
+  });
+
+  describe("DELETE /v1/deployments/{dseq}", () => {
+    it("records the close in the deployment's project, credited to the caller", async () => {
+      const { request, team, otherProject, caller, signer } = await setupCaller({ role: "member", grants: ["other"] });
+      const deployment = await seedDeploymentSetting({ userId: caller.id, organizationId: team.id, projectId: otherProject.id, name: "api" });
+      vi.spyOn(container.resolve(DeploymentReaderService), "findByWalletAndDseqWithoutProviderStatus").mockResolvedValue(
+        mock<DeploymentResponse>({ deployment: { state: "active", id: { dseq: deployment.dseq } } })
+      );
+      vi.spyOn(signer, "ensureFeeGrants").mockResolvedValue(5_000_000);
+      vi.spyOn(signer, "executeDerivedTx").mockResolvedValue(mock<Awaited<ReturnType<ManagedSignerService["executeDerivedTx"]>>>({ code: 0, hash: "tx-hash" }));
+      vi.spyOn(container.resolve(BalancesService), "refreshUserWalletLimits").mockResolvedValue(undefined);
+
+      const response = await request(`/v1/deployments/${deployment.dseq}`, { method: "DELETE" });
+
+      expect(response.status).toBe(200);
+      expect(await deploymentRow(caller.id, deployment.dseq)).toMatchObject({ closed: true });
+      expect(await activitiesOfProject(otherProject.id)).toEqual([
+        expect.objectContaining({ type: "deployment_closed", actorUserId: caller.id, payload: { dseq: deployment.dseq, name: "api", reason: null } })
+      ]);
     });
   });
 
@@ -384,6 +413,19 @@ describe("Deployment projects", () => {
     const settings = resolveTable("DeploymentSettings");
 
     return await container.resolve<ApiPgDatabase>(POSTGRES_DB).select().from(settings).where(eq(settings.userId, userId));
+  }
+
+  async function personalDefaultProjectOf(userId: string) {
+    const [members, organizations, projects] = [resolveTable("OrganizationMembers"), resolveTable("Organizations"), resolveTable("Projects")];
+    const [{ project }] = await container
+      .resolve<ApiPgDatabase>(POSTGRES_DB)
+      .select({ project: projects })
+      .from(members)
+      .innerJoin(organizations, and(eq(organizations.id, members.organizationId), eq(organizations.type, "personal")))
+      .innerJoin(projects, and(eq(projects.organizationId, organizations.id), eq(projects.isDefault, true)))
+      .where(eq(members.userId, userId));
+
+    return project;
   }
 
   async function activitiesOfProject(projectId: string) {

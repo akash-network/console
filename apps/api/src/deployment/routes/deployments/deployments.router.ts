@@ -155,7 +155,7 @@ const postRoute = createRoute({
     },
     400: {
       description:
-        "The SDL leaves a secret reference with no value from either `sealedSecrets` or the deployment named by `inheritSecretsFrom`, supplies a name no service references, would carry more secrets than one deployment may hold, or carries a `sealedSecrets` value that is malformed, tampered with, expired or not a flat object of string values. With `code` `project_required`, no `projectId` was given and the request is neither limited to one project nor able to reach the organization's default project",
+        "The SDL leaves a secret reference with no value from either `sealedSecrets` or the deployment named by `inheritSecretsFrom`, supplies a name no service references, would carry more secrets than one deployment may hold, or carries a `sealedSecrets` value that is malformed, tampered with, expired or not a flat object of string values. With `code` `project_required`, a project is needed",
       content: {
         "application/json": {
           schema: ErrorResponseSchema
@@ -172,7 +172,7 @@ const postRoute = createRoute({
     },
     404: {
       description:
-        "No deployment of yours matches `inheritSecretsFrom`. Deliberately says nothing about whether that deployment exists. Also answered when `projectId` names no project of the active organization within the caller's reach",
+        "No deployment of yours matches `inheritSecretsFrom`. Deliberately says nothing about whether that deployment exists. Also returned for an unknown `projectId`",
       content: {
         "application/json": {
           schema: ErrorResponseSchema

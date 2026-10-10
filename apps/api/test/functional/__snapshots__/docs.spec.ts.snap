@@ -8482,7 +8482,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                         "type": "string",
                       },
                       "projectId": {
-                        "description": "Project of the active organization to file this deployment into. Omit it to use the one project the request is limited to, such as the project of a project-bound API key, or else the organization's default project. Ignored for accounts without organizations.",
+                        "description": "Project to file the deployment in.",
                         "format": "uuid",
                         "type": "string",
                       },
@@ -8596,7 +8596,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                 },
               },
             },
-            "description": "The SDL leaves a secret reference with no value from either \`sealedSecrets\` or the deployment named by \`inheritSecretsFrom\`, supplies a name no service references, would carry more secrets than one deployment may hold, or carries a \`sealedSecrets\` value that is malformed, tampered with, expired or not a flat object of string values. With \`code\` \`project_required\`, no \`projectId\` was given and the request is neither limited to one project nor able to reach the organization's default project",
+            "description": "The SDL leaves a secret reference with no value from either \`sealedSecrets\` or the deployment named by \`inheritSecretsFrom\`, supplies a name no service references, would carry more secrets than one deployment may hold, or carries a \`sealedSecrets\` value that is malformed, tampered with, expired or not a flat object of string values. With \`code\` \`project_required\`, a project is needed",
           },
           "403": {
             "content": {
@@ -8656,7 +8656,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                 },
               },
             },
-            "description": "No deployment of yours matches \`inheritSecretsFrom\`. Deliberately says nothing about whether that deployment exists. Also answered when \`projectId\` names no project of the active organization within the caller's reach",
+            "description": "No deployment of yours matches \`inheritSecretsFrom\`. Deliberately says nothing about whether that deployment exists. Also returned for an unknown \`projectId\`",
           },
           "409": {
             "content": {

@@ -18,14 +18,14 @@ type FiledDeployment = DeploymentSettingsOutput & { organizationId: string };
 
 @singleton()
 export class DeploymentOrganizationActivityService {
-  private readonly logger: ReturnType<CreateLogger>;
+  readonly #logger: ReturnType<CreateLogger>;
 
   constructor(
     private readonly deploymentSettingRepository: DeploymentSettingRepository,
     private readonly organizationActivityService: OrganizationActivityService,
     @inject(LOGGER_FACTORY) createLogger: CreateLogger
   ) {
-    this.logger = createLogger({ context: DeploymentOrganizationActivityService.name });
+    this.#logger = createLogger({ context: DeploymentOrganizationActivityService.name });
   }
 
   async recordCreated(key: DeploymentKey): Promise<void> {
@@ -61,7 +61,7 @@ export class DeploymentOrganizationActivityService {
 
       await record({ ...deployment, organizationId: deployment.organizationId });
     } catch (error) {
-      this.logger.error({ event: "DEPLOYMENT_ORGANIZATION_ACTIVITY_RECORD_FAILED", ...key, type, error });
+      this.#logger.error({ event: "DEPLOYMENT_ORGANIZATION_ACTIVITY_RECORD_FAILED", ...key, type, error });
     }
   }
 }
