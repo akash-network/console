@@ -29,8 +29,7 @@ export class UserRepository extends BaseRepository<ApiPgTables["Users"], UserInp
   }
 
   async create(input: UserInput = {}): Promise<UserOutput> {
-    const [item] = await this.cursor.insert(this.table).values(input).returning();
-    return this.toOutput(item);
+    return await super.create(input);
   }
 
   @Trace()
@@ -73,6 +72,7 @@ export class UserRepository extends BaseRepository<ApiPgTables["Users"], UserInp
 
   async upsertOnExternalIdConflict(data: UserInput): Promise<{ user: UserOutput; wasInserted: boolean }> {
     const { username, ...withoutUsername } = data;
+    this.ability?.throwUnlessCanExecute(data);
 
     // ON CONFLICT DO NOTHING returns a row only to the call whose insert actually created it, so
     // the unique constraint — not a race-prone read-before-write — decides who is the creator.
@@ -87,7 +87,11 @@ export class UserRepository extends BaseRepository<ApiPgTables["Users"], UserInp
     }
 
     // Existing user: refresh the same mutable fields the previous upsert kept up to date.
-    const [updated] = await this.cursor.update(this.table).set(withoutUsername).where(eq(this.table.userId, data.userId!)).returning();
+    const [updated] = await this.cursor
+      .update(this.table)
+      .set(withoutUsername)
+      .where(this.whereAccessibleBy(eq(this.table.userId, data.userId!)))
+      .returning();
     if (!updated) {
       // The row existed at INSERT time but is gone now — only possible via a concurrent delete.
       throw new Error(`Failed to upsert user: no row to update for userId ${data.userId}`);

@@ -1,3 +1,4 @@
+import { createMongoAbility, ForbiddenError } from "@casl/ability";
 import { faker } from "@faker-js/faker";
 import subDays from "date-fns/subDays";
 import { container } from "tsyringe";
@@ -98,6 +99,26 @@ describe(UserRepository.name, () => {
       expect(first.wasInserted).toBe(true);
       expect(second.wasInserted).toBe(false);
       expect(second.user.id).toBe(first.user.id);
+    });
+
+    it("refuses a user the attached ability may not write, and writes nothing", async () => {
+      const { userRepository } = setup();
+      const input = newUserInput();
+      const ability = createMongoAbility([{ action: "create", subject: "User", conditions: { userId: faker.string.uuid() } }]);
+
+      await expect(userRepository.accessibleBy(ability, "create").upsertOnExternalIdConflict(input)).rejects.toThrow(ForbiddenError);
+      expect(await userRepository.findByUserId(input.userId)).toBeUndefined();
+    });
+  });
+
+  describe("create", () => {
+    it("refuses a user the attached ability may not create, and writes nothing", async () => {
+      const { userRepository } = setup();
+      const userId = faker.string.uuid();
+      const ability = createMongoAbility([{ action: "create", subject: "User", conditions: { userId: faker.string.uuid() } }]);
+
+      await expect(userRepository.accessibleBy(ability, "create").create({ userId })).rejects.toThrow(ForbiddenError);
+      expect(await userRepository.findByUserId(userId)).toBeUndefined();
     });
   });
 

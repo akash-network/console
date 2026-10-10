@@ -1,9 +1,15 @@
 import { faker } from "@faker-js/faker";
+import { eq } from "drizzle-orm";
 import { container } from "tsyringe";
 import { afterEach, describe, expect, it } from "vitest";
 
+import { type ApiPgDatabase, POSTGRES_DB, resolveTable } from "@src/core";
+import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
 import { UserRepository } from "@src/user/repositories/user/user.repository";
 import { type TemplateInput, UserTemplateRepository } from "./user-template.repository";
+
+import { seedOrganization } from "@test/seeders/db/organization.seeder";
+import { createOrganizationContext } from "@test/seeders/organization-context.seeder";
 
 describe(UserTemplateRepository.name, () => {
   const createdUserIds: string[] = [];
@@ -30,7 +36,7 @@ describe(UserTemplateRepository.name, () => {
       const user = await createTestUser();
       const template = await createTestTemplate({ userId: user.userId! });
 
-      const result = await userTemplateRepository.findById(template.id);
+      const result = await userTemplateRepository.findById(template.id, user.userId!);
 
       expect(result).toMatchObject({
         id: template.id,
@@ -98,7 +104,7 @@ describe(UserTemplateRepository.name, () => {
 
       await userTemplateRepository.deleteById(template.id, user.userId!);
 
-      const deleted = await userTemplateRepository.findById(template.id);
+      const deleted = await findStoredTemplate(template.id);
       expect(deleted).toBeUndefined();
     });
 
@@ -110,7 +116,7 @@ describe(UserTemplateRepository.name, () => {
 
       await userTemplateRepository.deleteById(template.id, user2.userId!);
 
-      const stillExists = await userTemplateRepository.findById(template.id);
+      const stillExists = await findStoredTemplate(template.id);
       expect(stillExists).toBeDefined();
     });
   });
@@ -138,6 +144,28 @@ describe(UserTemplateRepository.name, () => {
   });
 
   describe("addFavorite", () => {
+    it("records no favorite on a private template of another user", async () => {
+      const { userTemplateRepository } = setup();
+      const author = await createTestUser();
+      const reader = await createTestUser();
+      const template = await createTestTemplate({ userId: author.userId! });
+
+      await userTemplateRepository.addFavorite(reader.userId!, template.id);
+
+      expect(await userTemplateRepository.isFavorite(template.id, reader.userId!)).toBe(false);
+    });
+
+    it("records a favorite on a public template of another user", async () => {
+      const { userTemplateRepository } = setup();
+      const author = await createTestUser();
+      const reader = await createTestUser();
+      const template = await createTestTemplate({ userId: author.userId!, isPublic: true });
+
+      await userTemplateRepository.addFavorite(reader.userId!, template.id);
+
+      expect(await userTemplateRepository.isFavorite(template.id, reader.userId!)).toBe(true);
+    });
+
     it("adds favorite for user and template", async () => {
       const { userTemplateRepository } = setup();
       const user = await createTestUser();
@@ -162,7 +190,78 @@ describe(UserTemplateRepository.name, () => {
     });
   });
 
+  describe("findById for a reader", () => {
+    it("returns a public template to anyone, signed in or not", async () => {
+      const { userTemplateRepository } = setup();
+      const author = await createTestUser();
+      const reader = await createTestUser();
+      const template = await createTestTemplate({ userId: author.userId!, isPublic: true });
+
+      expect(await userTemplateRepository.findById(template.id, reader.userId!)).toMatchObject({ id: template.id });
+      expect(await userTemplateRepository.findById(template.id, "")).toMatchObject({ id: template.id });
+    });
+
+    it("returns a private template to its author", async () => {
+      const { userTemplateRepository } = setup();
+      const author = await createTestUser();
+      const template = await createTestTemplate({ userId: author.userId! });
+
+      expect(await userTemplateRepository.findById(template.id, author.userId!)).toMatchObject({ id: template.id, username: author.username });
+    });
+
+    it("keeps a private template from another user and from anonymous visitors", async () => {
+      const { userTemplateRepository } = setup();
+      const author = await createTestUser();
+      const reader = await createTestUser();
+      const template = await createTestTemplate({ userId: author.userId! });
+
+      expect(await userTemplateRepository.findById(template.id, reader.userId!)).toBeUndefined();
+      expect(await userTemplateRepository.findById(template.id, "")).toBeUndefined();
+    });
+
+    it("returns a private template to its author only inside the active organization, in organization mode", async () => {
+      const { userTemplateRepository } = setup();
+      const author = await createTestUser();
+      const [active, other] = await Promise.all([seedOrganization(), seedOrganization()]);
+      const activeTemplate = await createTestTemplate({ userId: author.userId! }, active.id);
+      const otherTemplate = await createTestTemplate({ userId: author.userId! }, other.id);
+
+      const [readable, hidden] = await runInOrganization(active.id, () =>
+        Promise.all([userTemplateRepository.findById(activeTemplate.id, author.userId!), userTemplateRepository.findById(otherTemplate.id, author.userId!)])
+      );
+
+      expect(readable).toMatchObject({ id: activeTemplate.id });
+      expect(hidden).toBeUndefined();
+    });
+
+    it("keeps a private template from another member of the same organization, in organization mode", async () => {
+      const { userTemplateRepository } = setup();
+      const author = await createTestUser();
+      const colleague = await createTestUser();
+      const organization = await seedOrganization();
+      const template = await createTestTemplate({ userId: author.userId! }, organization.id);
+
+      const result = await runInOrganization(organization.id, () => userTemplateRepository.findById(template.id, colleague.userId!));
+
+      expect(result).toBeUndefined();
+    });
+  });
+
   describe("getFavoriteTemplates", () => {
+    it("leaves out another user's private template marked as favorite", async () => {
+      const { userTemplateRepository } = setup();
+      const author = await createTestUser();
+      const reader = await createTestUser();
+      const privateTemplate = await createTestTemplate({ userId: author.userId! });
+      const publicTemplate = await createTestTemplate({ userId: author.userId!, isPublic: true });
+      await recordFavorite({ userId: reader.userId!, templateId: privateTemplate.id });
+      await recordFavorite({ userId: reader.userId!, templateId: publicTemplate.id });
+
+      const results = await userTemplateRepository.getFavoriteTemplates(reader.userId!);
+
+      expect(results.map(t => t.id)).toEqual([publicTemplate.id]);
+    });
+
     it("returns all favorite templates for user", async () => {
       const { userTemplateRepository } = setup();
       const user = await createTestUser();
@@ -219,7 +318,7 @@ describe(UserTemplateRepository.name, () => {
       const templateId = await userTemplateRepository.upsert(undefined, user.userId!, templateData);
       createdTemplateIds.push(templateId);
 
-      const template = await userTemplateRepository.findById(templateId);
+      const template = await findStoredTemplate(templateId);
       expect(template).toBeDefined();
       expect(template?.title).toBe(templateData.title);
       expect(template?.sdl).toBe(templateData.sdl);
@@ -240,7 +339,7 @@ describe(UserTemplateRepository.name, () => {
       const templateId = await userTemplateRepository.upsert(null, user.userId!, templateData);
       createdTemplateIds.push(templateId);
 
-      const template = await userTemplateRepository.findById(templateId);
+      const template = await findStoredTemplate(templateId);
       expect(template).toBeDefined();
     });
 
@@ -260,7 +359,7 @@ describe(UserTemplateRepository.name, () => {
       const templateId = await userTemplateRepository.upsert(template.id, user.userId!, templateData);
 
       expect(templateId).toBe(template.id);
-      const updatedTemplate = await userTemplateRepository.findById(template.id);
+      const updatedTemplate = await findStoredTemplate(template.id);
       expect(updatedTemplate?.title).toBe(newTitle);
     });
 
@@ -281,7 +380,7 @@ describe(UserTemplateRepository.name, () => {
       createdTemplateIds.push(newTemplateId);
 
       expect(newTemplateId).not.toBe(originalTemplate.id);
-      const newTemplate = await userTemplateRepository.findById(newTemplateId);
+      const newTemplate = await findStoredTemplate(newTemplateId);
       expect(newTemplate?.userId).toBe(user2.userId);
     });
 
@@ -303,8 +402,8 @@ describe(UserTemplateRepository.name, () => {
       createdTemplateIds.push(copyId);
 
       expect(copyId).not.toBe(originalTemplate.id);
-      expect(await userTemplateRepository.findById(copyId)).toMatchObject({ userId: copier.userId, title: submittedTemplate.title });
-      expect(await userTemplateRepository.findById(originalTemplate.id)).toMatchObject({ userId: owner.userId, title: originalTemplate.title });
+      expect(await findStoredTemplate(copyId)).toMatchObject({ userId: copier.userId, title: submittedTemplate.title });
+      expect(await findStoredTemplate(originalTemplate.id)).toMatchObject({ userId: owner.userId, title: originalTemplate.title });
     });
 
     it("updates isPublic when provided", async () => {
@@ -321,7 +420,7 @@ describe(UserTemplateRepository.name, () => {
         isPublic: true
       });
 
-      const updatedTemplate = await userTemplateRepository.findById(template.id);
+      const updatedTemplate = await findStoredTemplate(template.id);
       expect(updatedTemplate?.isPublic).toBe(true);
     });
 
@@ -340,7 +439,7 @@ describe(UserTemplateRepository.name, () => {
         description: newDescription
       });
 
-      const updatedTemplate = await userTemplateRepository.findById(template.id);
+      const updatedTemplate = await findStoredTemplate(template.id);
       expect(updatedTemplate?.description).toBe(newDescription);
     });
   });
@@ -358,7 +457,7 @@ describe(UserTemplateRepository.name, () => {
         description: newDescription
       });
 
-      const updatedTemplate = await userTemplateRepository.findById(template.id);
+      const updatedTemplate = await findStoredTemplate(template.id);
       expect(updatedTemplate?.title).toBe(newTitle);
       expect(updatedTemplate?.description).toBe(newDescription);
     });
@@ -373,7 +472,7 @@ describe(UserTemplateRepository.name, () => {
         title: faker.lorem.words(3)
       });
 
-      const unchangedTemplate = await userTemplateRepository.findById(template.id);
+      const unchangedTemplate = await findStoredTemplate(template.id);
       expect(unchangedTemplate?.title).toBe(template.title);
     });
   });
@@ -465,22 +564,46 @@ describe(UserTemplateRepository.name, () => {
     return user;
   }
 
-  async function createTestTemplate(overrides: { userId: string } & Partial<TemplateInput>) {
+  async function createTestTemplate(overrides: { userId: string } & Partial<TemplateInput>, organizationId?: string) {
     const { userId, ...data } = overrides;
     const { userTemplateRepository } = setup();
-    const id = await userTemplateRepository.upsert(undefined, userId, {
-      sdl: faker.lorem.paragraph(),
-      title: faker.lorem.words(3),
-      description: faker.lorem.sentence(),
-      cpu: faker.number.int({ min: 1000, max: 10000 }),
-      ram: faker.number.int({ min: 1000000, max: 10000000 }),
-      storage: faker.number.int({ min: 1000000, max: 100000000 }),
-      isPublic: false,
-      ...data
-    });
-    const template = await userTemplateRepository.findById(id);
+    const upsert = () =>
+      userTemplateRepository.upsert(undefined, userId, {
+        sdl: faker.lorem.paragraph(),
+        title: faker.lorem.words(3),
+        description: faker.lorem.sentence(),
+        cpu: faker.number.int({ min: 1000, max: 10000 }),
+        ram: faker.number.int({ min: 1000000, max: 10000000 }),
+        storage: faker.number.int({ min: 1000000, max: 100000000 }),
+        isPublic: false,
+        ...data
+      });
+    const id = organizationId ? await runInOrganization(organizationId, upsert) : await upsert();
+    const template = await findStoredTemplate(id);
     createdTemplateIds.push(id);
     return template!;
+  }
+
+  async function findStoredTemplate(id: string) {
+    const templates = resolveTable("Templates");
+
+    return await container.resolve<ApiPgDatabase>(POSTGRES_DB).query.Templates.findFirst({ where: eq(templates.id, id) });
+  }
+
+  async function recordFavorite({ userId, templateId }: { userId: string; templateId: string }) {
+    await container
+      .resolve<ApiPgDatabase>(POSTGRES_DB)
+      .insert(resolveTable("TemplateFavorites"))
+      .values({ id: faker.string.uuid(), userId, templateId, addedDate: new Date() });
+  }
+
+  async function runInOrganization<R>(organizationId: string, run: () => Promise<R>) {
+    const executionContextService = container.resolve(ExecutionContextService);
+
+    return await executionContextService.runWithContext(async () => {
+      executionContextService.set("ORGANIZATION_CONTEXT", createOrganizationContext({ organizationId }));
+      return await run();
+    });
   }
 
   async function createTestFavorite(params: { userId: string; templateId: string }) {

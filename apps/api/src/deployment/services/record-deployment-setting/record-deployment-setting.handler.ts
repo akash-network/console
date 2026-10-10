@@ -1,7 +1,7 @@
 import { inject, singleton } from "tsyringe";
 
 import { type CreateLogger, type Job, JOB_NAME, type JobHandler, type JobPayload, type JobPermissions, LOGGER_FACTORY } from "@src/core";
-import { DeploymentSettingRepository } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
+import { type DeploymentSettingOwner, DeploymentSettingRepository } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
 
 /** Records a deployment created through the transaction endpoint, which bypasses the deployment API and so leaves the funding sweep with no row to find. */
 export class RecordDeploymentSetting implements Job {
@@ -9,12 +9,7 @@ export class RecordDeploymentSetting implements Job {
   readonly name = RecordDeploymentSetting[JOB_NAME];
   readonly version = 1;
 
-  constructor(
-    public readonly data: {
-      userId: string;
-      dseq: string;
-    }
-  ) {}
+  constructor(public readonly data: DeploymentSettingOwner) {}
 }
 
 /** Keyed by the row's natural key so a retried broadcast of the same deployment enqueues one job, not two. */

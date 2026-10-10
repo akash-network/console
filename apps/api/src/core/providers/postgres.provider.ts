@@ -106,8 +106,8 @@ container.register(POSTGRES_DB, {
 });
 
 type TableName = keyof typeof schema;
-const tableNames = Object.keys(schema) as TableName[];
-tableNames.forEach(key => container.register(key, { useValue: schema[key] }));
+export const API_PG_TABLE_NAMES = Object.keys(schema) as TableName[];
+API_PG_TABLE_NAMES.forEach(key => container.register(key, { useValue: schema[key] }));
 
 export const InjectPgTable = (name: TableName) => inject(name);
 export const InjectPg = () => inject(POSTGRES_DB);

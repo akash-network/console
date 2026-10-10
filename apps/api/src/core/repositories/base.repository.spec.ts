@@ -1,16 +1,22 @@
+import type { LoggerService } from "@akashnetwork/logging";
+import { createMongoAbility, ForbiddenError } from "@casl/ability";
+import { faker } from "@faker-js/faker";
 import { DrizzleQueryError } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
+import { ShadowedAbility } from "@src/auth/services/ability/shadowed-ability";
 import type { ApiPgDatabase } from "@src/core/providers";
 import { BaseRepository } from "@src/core/repositories/base.repository";
-import type { TxService } from "@src/core/services";
+import type { ApiTransaction, TxService } from "@src/core/services";
 import { DataKeys } from "@src/secret/model-schemas";
-import { DataKeyRepository } from "@src/secret/repositories/data-key/data-key.repository";
+import { type DataKeyOutput, DataKeyRepository } from "@src/secret/repositories/data-key/data-key.repository";
 import { Users } from "@src/user/model-schemas";
 import { UserRepository } from "@src/user/repositories";
+
+import { stubPgDriver } from "@test/services/stubbed-pg-driver";
 
 const DATA_KEY_ID = "6e4c9a2c-0f1d-4a3b-9c5e-7d8f0a1b2c3d";
 const OTHER_DATA_KEY_ID = "f1a2b3c4-d5e6-4789-9abc-def012345678";
@@ -102,6 +108,173 @@ describe(BaseRepository.name, () => {
       ]);
     });
   });
+
+  describe("updateBy with rows coming back", () => {
+    it("returns the updated row when asked to", async () => {
+      const dataKey = createDataKey();
+      const { dataKeyRepository, respondWith, executedQueries } = setupWithRows();
+      respondWith(dataKey);
+
+      const updated = await dataKeyRepository.updateBy({ id: dataKey.id }, { wrappedByKid: "kms-v2" }, { returning: true });
+
+      expect(updated).toMatchObject({ id: dataKey.id, userId: dataKey.userId });
+      expect(executedQueries).toEqual([expect.objectContaining({ query: expect.stringContaining("returning") })]);
+    });
+
+    it("returns nothing when no row matched", async () => {
+      const { dataKeyRepository } = setupWithRows();
+
+      const updated = await dataKeyRepository.updateBy({ id: faker.string.uuid() }, { wrappedByKid: "kms-v2" }, { returning: true });
+
+      expect(updated).toBeUndefined();
+    });
+
+    it("returns nothing and asks for no rows when not asked to return the row", async () => {
+      const dataKey = createDataKey();
+      const { dataKeyRepository, respondWith, executedQueries } = setupWithRows();
+      respondWith(dataKey);
+
+      const updated = await dataKeyRepository.updateBy({ id: dataKey.id }, { wrappedByKid: "kms-v2" });
+
+      expect(updated).toBeUndefined();
+      expect(executedQueries).toEqual([expect.objectContaining({ query: expect.not.stringContaining("returning") })]);
+    });
+  });
+
+  describe("with an ability attached", () => {
+    it("checks every updated row again as written, inside a transaction", async () => {
+      const userId = faker.string.uuid();
+      const dataKey = createDataKey({ userId });
+      const { dataKeyRepository, respondWith, executedQueries } = setupWithRows();
+      respondWith(dataKey);
+
+      const updated = await dataKeyRepository
+        .accessibleBy(abilityOver(userId), "update")
+        .updateBy({ id: dataKey.id }, { wrappedByKid: "kms-v2" }, { returning: true });
+
+      expect(updated).toMatchObject({ id: dataKey.id });
+      expect(executedQueries).toEqual([
+        { query: "begin", params: [] },
+        expect.objectContaining({ query: expect.stringMatching(/where .*"user_id" = \$.* returning/), params: expect.arrayContaining([userId]) })
+      ]);
+    });
+
+    it("rejects an update whose written row falls outside the rules", async () => {
+      const { dataKeyRepository, respondWith } = setupWithRows();
+      respondWith(createDataKey());
+
+      await expect(
+        dataKeyRepository.accessibleBy(abilityOver(faker.string.uuid()), "update").updateById(faker.string.uuid(), { wrappedByKid: "kms-v2" })
+      ).rejects.toThrow(ForbiddenError);
+    });
+
+    it("filters a bulk update by the ability and checks every row it wrote", async () => {
+      const userId = faker.string.uuid();
+      const { dataKeyRepository, respondWith, executedQueries } = setupWithRows();
+      respondWith(createDataKey({ userId }), createDataKey());
+
+      await expect(
+        dataKeyRepository.accessibleBy(abilityOver(userId), "update").updateManyById([faker.string.uuid(), faker.string.uuid()], { wrappedByKid: "kms-v2" })
+      ).rejects.toThrow(ForbiddenError);
+      expect(executedQueries[1]).toEqual(
+        expect.objectContaining({ query: expect.stringMatching(/"id" in \(.*"user_id" = \$/), params: expect.arrayContaining([userId]) })
+      );
+    });
+  });
+
+  describe("under a shadowed ability", () => {
+    it.each(shadowedReads())("reports a row %s returns that only the legacy rules allow", async (_, read) => {
+      const userId = faker.string.uuid();
+      const { dataKeyRepository, respondWith, logger } = setupWithRows({ inTransaction: true });
+      respondWith(createDataKey({ userId }));
+
+      await read(dataKeyRepository.accessibleBy(shadowedAbilityOver(userId, faker.string.uuid(), logger), "read"));
+
+      expect(logger.warn).toHaveBeenCalledExactlyOnceWith({
+        event: "ORGANIZATION_ABILITY_SHADOW_MISMATCH",
+        action: "read",
+        subjectType: "DataKey",
+        allowedBy: "legacy"
+      });
+    });
+
+    it("stays quiet about rows both rule sets allow", async () => {
+      const dataKey = createDataKey();
+      const { dataKeyRepository, respondWith, logger } = setupWithRows();
+      respondWith(dataKey);
+
+      await dataKeyRepository.accessibleBy(shadowedAbilityOver(dataKey.userId, dataKey.userId, logger), "read").find();
+
+      expect(logger.warn).not.toHaveBeenCalled();
+    });
+
+    it("leaves rows read with only some of their columns uncompared", async () => {
+      const userId = faker.string.uuid();
+      const { dataKeyRepository, respondWith, logger } = setupWithRows();
+      respondWith(createDataKey({ userId }));
+
+      await dataKeyRepository.accessibleBy(shadowedAbilityOver(userId, faker.string.uuid(), logger), "read").find({}, { select: ["id"] });
+
+      expect(logger.warn).not.toHaveBeenCalled();
+    });
+
+    it("does not consult an ability that shadows nothing row by row", async () => {
+      const userId = faker.string.uuid();
+      const { dataKeyRepository, respondWith } = setupWithRows();
+      respondWith(createDataKey({ userId }));
+      const ability = abilityOver(userId);
+      const can = vi.spyOn(ability, "can");
+
+      await dataKeyRepository.accessibleBy(ability, "read").find();
+
+      expect(can).not.toHaveBeenCalled();
+    });
+  });
+
+  function shadowedReads(): Array<[string, (repository: DataKeyRepository) => Promise<unknown>]> {
+    return [
+      ["findById", repository => repository.findById(faker.string.uuid())],
+      ["findOneBy", repository => repository.findOneBy({ wrappedByKid: "kms-v1" })],
+      ["findOneByAndLock", repository => repository.findOneByAndLock({ wrappedByKid: "kms-v1" })],
+      ["find", repository => repository.find()],
+      ["paginate", repository => repository.paginate({}, async () => {})],
+      ["deleteBy", repository => repository.deleteBy({ wrappedByKid: "kms-v1" }, { returning: true })]
+    ];
+  }
+
+  function abilityOver(userId: string) {
+    return createMongoAbility([{ action: ["read", "update"], subject: "DataKey", conditions: { userId } }]);
+  }
+
+  function shadowedAbilityOver(legacyUserId: string, organizationUserId: string, logger: LoggerService) {
+    const organizationAbility = createMongoAbility([{ action: "read", subject: "DataKey", conditions: { userId: organizationUserId } }]);
+
+    return new ShadowedAbility([{ action: "read", subject: "DataKey", conditions: { userId: legacyUserId } }], organizationAbility, logger);
+  }
+
+  function createDataKey(overrides: Partial<DataKeyOutput> = {}): DataKeyOutput {
+    return {
+      id: faker.string.uuid(),
+      userId: faker.string.uuid(),
+      wrappedKey: faker.string.alphanumeric(32),
+      wrappedByKid: "kms-v1",
+      retiredAt: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      ...overrides
+    };
+  }
+
+  function setupWithRows(input: { inTransaction?: boolean } = {}) {
+    const { db, executedQueries, respondWith } = stubPgDriver({ schema: { DataKeys }, table: DataKeys });
+    const pg = db as unknown as ApiPgDatabase;
+    const txManager = mock<TxService>();
+    txManager.getPgTx.mockReturnValue(input.inTransaction ? (db as unknown as ApiTransaction) : undefined);
+    const logger = mock<LoggerService>();
+    const dataKeyRepository = new DataKeyRepository(pg, DataKeys, txManager);
+
+    return { dataKeyRepository, executedQueries, respondWith, logger };
+  }
 
   async function executeAgainstStubbedDriver(run: () => Promise<unknown>) {
     await expect(run()).rejects.toThrow(DrizzleQueryError);

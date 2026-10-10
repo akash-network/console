@@ -212,16 +212,18 @@ describe(AccountDeletionService.name, () => {
   describe("confirm", () => {
     it("deletes the account the link was sent for and queues the cleanup outside the database", async () => {
       const wallet = createUserWallet();
-      const { service, user, userRepository, userTemplateRepository, workloadProbeEvidenceRepository, jobQueueService, txService } = setup({
-        wallet,
-        storedToken: {}
-      });
+      const { service, user, userRepository, userWalletRepository, userTemplateRepository, workloadProbeEvidenceRepository, jobQueueService, txService } =
+        setup({
+          wallet,
+          storedToken: {}
+        });
 
       await service.confirm({ token: "link-token" });
 
       expect(txService.transaction).toHaveBeenCalledTimes(1);
       expect(userRepository.findOneByAndLock).toHaveBeenCalledWith({ id: user.id });
       expect(userTemplateRepository.deleteAllOwnedBy).toHaveBeenCalledWith(user.userId);
+      expect(userWalletRepository.unscoped).toHaveBeenCalledWith("account-deletion");
       expect(workloadProbeEvidenceRepository.deleteByWalletId).toHaveBeenCalledWith(wallet.id);
       expect(userRepository.deleteById).toHaveBeenCalledWith(user.id);
       expect(jobQueueService.enqueue).toHaveBeenCalledWith(
@@ -446,6 +448,7 @@ describe(AccountDeletionService.name, () => {
 
     const userWalletRepository = mock<UserWalletRepository>();
     userWalletRepository.findOneByUserId.mockResolvedValue(wallet);
+    userWalletRepository.unscoped.mockReturnValue(userWalletRepository);
 
     const userTemplateRepository = mock<UserTemplateRepository>();
     const workloadProbeEvidenceRepository = mock<WorkloadProbeEvidenceRepository>();
@@ -491,6 +494,7 @@ describe(AccountDeletionService.name, () => {
       tokenRepository,
       eligibilityService,
       userRepository,
+      userWalletRepository,
       userTemplateRepository,
       workloadProbeEvidenceRepository,
       organizationRepository,

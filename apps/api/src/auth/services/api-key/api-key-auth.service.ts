@@ -44,7 +44,7 @@ export class ApiKeyAuthService {
 
   private async findApiKey(apiKey: string): Promise<ApiKeyOutput | undefined> {
     const sha256Hash = this.apiKeyGenerator.hashApiKeySha256(apiKey);
-    const keyBySha256 = await this.apiKeyRepository.findOneBy({ hashedKey: sha256Hash });
+    const keyBySha256 = await this.apiKeyRepository.unscoped("api-key-authentication").findOneBy({ hashedKey: sha256Hash });
     if (keyBySha256) return keyBySha256;
 
     const key = await this.findMatchingKeyByBcrypt(apiKey);

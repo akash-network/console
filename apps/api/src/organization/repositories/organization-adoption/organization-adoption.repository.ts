@@ -1,4 +1,4 @@
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq, isNull, or } from "drizzle-orm";
 import { singleton } from "tsyringe";
 
 import { type ApiPgDatabase, type ApiPgTables, InjectPg, InjectPgTable } from "@src/core/providers";
@@ -12,11 +12,24 @@ export interface AdoptUserRowsInput {
   projectId: string;
 }
 
-export const ADOPTABLE_TABLES = ["userWallets", "walletSettings", "paymentMethods", "stripeTransactions", "deploymentSettings", "apiKeys", "templates"] as const;
+export const ADOPTABLE_TABLES = [
+  "userWallets",
+  "walletSettings",
+  "paymentMethods",
+  "stripeTransactions",
+  "deploymentSettings",
+  "apiKeys",
+  "templates"
+] as const;
 
 export type AdoptableTable = (typeof ADOPTABLE_TABLES)[number];
 
 export type AdoptedRowCounts = Record<AdoptableTable, number>;
+
+/** Rows with no organization yet, or already in this organization but in no project, which is what lets the whole pass be re-run. */
+function unfiled(table: ApiPgTables["DeploymentSettings"] | ApiPgTables["Templates"], organizationId: string) {
+  return or(isNull(table.organizationId), and(eq(table.organizationId, organizationId), isNull(table.projectId)));
+}
 
 /** Every statement only touches rows that have no organization yet, which is what lets the whole pass be re-run. */
 @singleton()
@@ -74,7 +87,7 @@ export class OrganizationAdoptionRepository {
           await this.#cursor
             .update(deploymentSettings)
             .set({ organizationId, projectId })
-            .where(and(eq(deploymentSettings.userId, userId), isNull(deploymentSettings.organizationId)))
+            .where(and(eq(deploymentSettings.userId, userId), unfiled(deploymentSettings, organizationId)))
         ).count;
       case "apiKeys":
         return (
@@ -90,7 +103,7 @@ export class OrganizationAdoptionRepository {
           await this.#cursor
             .update(templates)
             .set({ organizationId, projectId })
-            .where(and(eq(templates.userId, externalUserId), isNull(templates.organizationId)))
+            .where(and(eq(templates.userId, externalUserId), unfiled(templates, organizationId)))
         ).count;
     }
   }

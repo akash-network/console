@@ -40,15 +40,19 @@ export class PersonalOrganizationService {
   async ensureForUser(user: PersonalOrganizationUser): Promise<OrganizationOutput> {
     return await this.txService.transaction(async () => {
       const organization = await this.#ensureOrganization(user);
-      await this.organizationMemberRepository.createUnlessExists({ organizationId: organization.id, userId: user.id, role: "owner" });
-      await this.projectRepository.createDefaultUnlessExists({ organizationId: organization.id, createdByUserId: user.id });
+      await this.organizationMemberRepository
+        .unscoped("personal-organization-provisioning")
+        .createUnlessExists({ organizationId: organization.id, userId: user.id, role: "owner" });
+      await this.projectRepository
+        .unscoped("personal-organization-provisioning")
+        .createDefaultUnlessExists({ organizationId: organization.id, createdByUserId: user.id });
 
       return organization;
     });
   }
 
   async adoptUserRows(user: AdoptableUser, organization: Pick<OrganizationOutput, "id">): Promise<AdoptedRowCounts> {
-    const project = await this.projectRepository.findDefaultByOrganizationId(organization.id);
+    const project = await this.projectRepository.unscoped("personal-organization-provisioning").findDefaultByOrganizationId(organization.id);
 
     if (!project) {
       throw new Error(`Organization ${organization.id} has no default project to file the rows of user ${user.id} into`);

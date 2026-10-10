@@ -3,33 +3,37 @@ import { singleton } from "tsyringe";
 import { uuidv4 } from "unleash-client/lib/uuidv4";
 
 import { type ApiPgDatabase, type ApiPgTables, InjectPg, InjectPgTable } from "@src/core/providers";
-import { type AbilityParams, BaseRepository, isUniqueViolation } from "@src/core/repositories/base.repository";
+import { isUniqueViolation } from "@src/core/repositories/base.repository";
+import { OrgScopedRepository } from "@src/core/repositories/org-scoped.repository";
 import { type ApiTransaction, TxService } from "@src/core/services";
+import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
 
 type Table = ApiPgTables["PaymentMethods"];
 export type PaymentMethodInput = ApiPgTables["PaymentMethods"]["$inferInsert"];
 export type PaymentMethodOutput = ApiPgTables["PaymentMethods"]["$inferSelect"];
 
 @singleton()
-export class PaymentMethodRepository extends BaseRepository<Table, PaymentMethodInput, PaymentMethodOutput> {
+export class PaymentMethodRepository extends OrgScopedRepository<Table, PaymentMethodInput, PaymentMethodOutput> {
   constructor(
     @InjectPg() protected readonly pg: ApiPgDatabase,
     @InjectPgTable("PaymentMethods") protected readonly table: Table,
-    protected readonly txManager: TxService
+    protected readonly txManager: TxService,
+    protected readonly executionContextService: ExecutionContextService
   ) {
-    super(pg, table, txManager, "PaymentMethod", "PaymentMethods");
+    super(pg, table, txManager, executionContextService, "PaymentMethod", "PaymentMethods");
   }
 
-  accessibleBy(...abilityParams: AbilityParams) {
-    return new PaymentMethodRepository(this.pg, this.table, this.txManager).withAbility(...abilityParams) as this;
+  protected newInstance() {
+    return new PaymentMethodRepository(this.pg, this.table, this.txManager, this.executionContextService) as this;
   }
 
   async findByUserId(userId: PaymentMethodOutput["userId"]) {
-    return this.toOutputList(
-      await this.cursor.query.PaymentMethods.findMany({
-        where: this.whereAccessibleBy(eq(this.table.userId, userId))
-      })
-    );
+    const paymentMethods = await this.cursor.query.PaymentMethods.findMany({
+      where: this.whereAccessibleBy(eq(this.table.userId, userId))
+    });
+    this.compareWithShadow(paymentMethods);
+
+    return this.toOutputList(paymentMethods);
   }
 
   async markAsValidated(paymentMethodId: string, userId: string) {
@@ -128,10 +132,12 @@ export class PaymentMethodRepository extends BaseRepository<Table, PaymentMethod
     try {
       const [newRecord] = await this.cursor
         .insert(this.table)
-        .values({
-          ...input,
-          isDefault
-        })
+        .values(
+          await this.attributeToOrganization({
+            ...input,
+            isDefault
+          })
+        )
         .onConflictDoNothing({
           target: [this.table.fingerprint, this.table.paymentMethodId]
         })
@@ -147,10 +153,12 @@ export class PaymentMethodRepository extends BaseRepository<Table, PaymentMethod
       if (isUniqueViolation(error)) {
         const [retryRecord] = await this.cursor
           .insert(this.table)
-          .values({
-            ...input,
-            isDefault: false
-          })
+          .values(
+            await this.attributeToOrganization({
+              ...input,
+              isDefault: false
+            })
+          )
           .onConflictDoNothing({
             target: [this.table.fingerprint, this.table.paymentMethodId]
           })
@@ -170,12 +178,6 @@ export class PaymentMethodRepository extends BaseRepository<Table, PaymentMethod
       paymentMethodId: input.paymentMethodId
     });
 
-    if (!paymentMethod) {
-      throw new Error(
-        `Payment method not found after upsert conflict resolution. ` + `fingerprint: ${input.fingerprint}, paymentMethodId: ${input.paymentMethodId}`
-      );
-    }
-
-    return { paymentMethod, isNew: false };
+    return { paymentMethod: this.requireWrittenRow(paymentMethod), isNew: false };
   }
 }

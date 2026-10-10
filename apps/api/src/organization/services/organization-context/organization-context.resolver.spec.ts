@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { CreateLogger } from "@src/core/providers/logging.provider";
+import { ORGANIZATION_FORBIDDEN_ERROR_CODE } from "@src/core/repositories/org-scoped.repository";
 import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
 import type { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import type { OrganizationRole } from "@src/organization/model-schemas/organization-member/organization-member.schema";
@@ -12,7 +13,6 @@ import type { PersonalOrganizationService } from "@src/organization/services/per
 import type { UserRepository } from "@src/user/repositories/user/user.repository";
 import {
   LAST_USED_ORGANIZATION_THROTTLE_MS,
-  ORGANIZATION_FORBIDDEN_ERROR_CODE,
   ORGANIZATION_MISMATCH_ERROR_CODE,
   type OrganizationContextRequest,
   OrganizationContextResolver,

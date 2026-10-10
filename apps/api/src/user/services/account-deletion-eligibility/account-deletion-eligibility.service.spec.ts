@@ -59,9 +59,19 @@ describe(AccountDeletionEligibilityService.name, () => {
     expect(eligibility).toEqual({ activeDeploymentDseqs: [], isTrialing: true, forfeitableBalanceUsd: 0 });
   });
 
+  it("assesses the same wallet the account deletion erases, whichever organization the request is active in", async () => {
+    const { service, userWalletRepository } = setup({ wallet: undefined });
+
+    await service.assess("user-123");
+
+    expect(userWalletRepository.unscoped).toHaveBeenCalledWith("account-deletion");
+    expect(userWalletRepository.findOneByUserId).toHaveBeenCalledWith("user-123");
+  });
+
   function setup(input: { wallet: UserWalletOutput | undefined; activeDseqs?: string[]; balanceUsd?: number }) {
     const userWalletRepository = mock<UserWalletRepository>();
     userWalletRepository.findOneByUserId.mockResolvedValue(input.wallet);
+    userWalletRepository.unscoped.mockReturnValue(userWalletRepository);
 
     const deploymentHttpService = mock<DeploymentHttpService>();
     const deployments = (input.activeDseqs ?? []).map(dseq => createDeploymentInfoSeed({ dseq, owner: input.wallet?.address ?? undefined, state: "active" }));
