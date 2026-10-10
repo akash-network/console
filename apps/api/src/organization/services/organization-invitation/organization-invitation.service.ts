@@ -68,7 +68,7 @@ export class OrganizationInvitationService {
     await this.#assertProjectsInOrganization(organizationId, projectGrants);
 
     await this.txService.transaction(async () => {
-      await this.organizationRepository.findOneByAndLock({ id: organizationId });
+      await this.organizationRepository.findOneByAndLock({ id: organizationId }, { strength: "no key update" });
       await this.#assertNoneAreMembers(organizationId, emails);
       const pending = await this.invitationRepository.findPendingWithInviters(organizationId, { emails });
       const pendingEmails = new Set(pending.map(invitation => invitation.email));

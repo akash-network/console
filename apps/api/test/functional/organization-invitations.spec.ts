@@ -313,7 +313,7 @@ describe("Organization invitations", () => {
       expect(await invitationRepository.count({ organizationId: organization.id, email: "jane@example.com" })).toBe(0);
     });
 
-    it("refuses to invite an address again once it was emailed too often recently, revoked invitations included", async () => {
+    it("refuses to invite an address that was emailed too often recently", async () => {
       const { organization, owner, request } = await setup({ callerRole: "owner" });
       const invite = () =>
         request("POST", "/v1/organization-invitations", {
@@ -330,7 +330,9 @@ describe("Organization invitations", () => {
 
       expect(response.status).toBe(429);
       expect(await invitationRepository.count({ organizationId: organization.id, email: "jane@example.com", status: "pending" })).toBe(0);
-      expect(await invitationRepository.count({ organizationId: organization.id, email: "jane@example.com", status: "revoked" })).toBe(INVITATION_EMAIL_LIMITS.perAddress);
+      expect(await invitationRepository.count({ organizationId: organization.id, email: "jane@example.com", status: "revoked" })).toBe(
+        INVITATION_EMAIL_LIMITS.perAddress
+      );
     });
 
     it("answers like an unknown path while organizations are off for the caller", async () => {
