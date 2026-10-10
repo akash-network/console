@@ -7,9 +7,10 @@ import { describe, expect, it } from "vitest";
 import { TxService } from "@src/core/services/tx/tx.service";
 import { hashInvitationToken } from "@src/organization/lib/invitation-token/invitation-token";
 import { OrganizationRepository } from "@src/organization/repositories/organization/organization.repository";
+import { UserRepository } from "@src/user/repositories/user/user.repository";
 import { OrganizationInvitationRepository } from "./organization-invitation.repository";
 
-import { seedOrganization, seedOrganizationInvitation } from "@test/seeders/db/organization.seeder";
+import { seedOrganization, seedOrganizationInvitation, seedOrganizationInvitationEmail } from "@test/seeders/db/organization.seeder";
 import { seedUser } from "@test/seeders/db/user-with-wallet.seeder";
 
 describe(OrganizationInvitationRepository.name, () => {
@@ -209,6 +210,25 @@ describe(OrganizationInvitationRepository.name, () => {
 
       await Promise.all([first, second]);
       expect(events).toEqual(["first committed", `second read ${renewedExpiry.toISOString()}`]);
+    });
+
+    it("leaves rows referencing the organization or the invitation writable while it holds its locks", async () => {
+      const { repository, organization, inviter, txService } = await setup();
+      const invitation = await seedOrganizationInvitation({ organizationId: organization.id });
+      const events: string[] = [];
+
+      const holder = txService.transaction(async () => {
+        await repository.findByTokenHashAndLock(invitation.tokenHash);
+        await delay(300);
+        events.push("locks released");
+      });
+      await delay(50);
+      await container.resolve(UserRepository).updateById(inviter.id, { lastUsedOrganizationId: organization.id });
+      await seedOrganizationInvitationEmail({ organizationId: organization.id, invitationId: invitation.id, sentByUserId: inviter.id });
+      events.push("referencing rows written");
+      await holder;
+
+      expect(events).toEqual(["referencing rows written", "locks released"]);
     });
 
     it("refuses to lock outside a transaction", async () => {

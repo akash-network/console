@@ -111,7 +111,7 @@ export class OrganizationInvitationRepository extends OrgScopedRepository<Table,
     return preview;
   }
 
-  /** Locks the organization row, then the invitation row, the order every invitation write takes, until the ambient transaction ends. */
+  /** Locks the organization row, then the invitation row, the order every invitation write takes, without blocking inserts that reference either row. */
   async findByTokenHashAndLock(tokenHash: OrganizationInvitationOutput["tokenHash"]): Promise<OrganizationInvitationOutput | undefined> {
     const tx = this.txManager.getPgTx();
 
@@ -127,14 +127,14 @@ export class OrganizationInvitationRepository extends OrgScopedRepository<Table,
 
     if (!unlocked) return undefined;
 
-    await tx.select({ id: Organizations.id }).from(Organizations).where(eq(Organizations.id, unlocked.organizationId)).for("update");
+    await tx.select({ id: Organizations.id }).from(Organizations).where(eq(Organizations.id, unlocked.organizationId)).for("no key update");
     const [row] = await tx
       .select({ invitation: this.table })
       .from(this.table)
       .innerJoin(Organizations, this.#liveOrganizationOfInvitation())
       .where(this.whereAccessibleBy(eq(this.table.tokenHash, tokenHash)))
       .limit(1)
-      .for("update", { of: this.table });
+      .for("no key update", { of: this.table });
 
     return row && this.toOutput(row.invitation);
   }
