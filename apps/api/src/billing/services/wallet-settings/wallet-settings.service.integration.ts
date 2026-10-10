@@ -22,7 +22,7 @@ import { seedUserWithWallet } from "@test/seeders/db/user-with-wallet.seeder";
 import { seedWalletSetting } from "@test/seeders/db/wallet-setting.seeder";
 import { generatePaymentMethod } from "@test/seeders/payment-method.seeder";
 import { createUser } from "@test/seeders/user.seeder";
-import { createUserWallet } from "@test/seeders/user-wallet.seeder";
+import { createOrganizationWallet, createUserWallet } from "@test/seeders/user-wallet.seeder";
 import { generateWalletSetting } from "@test/seeders/wallet-setting.seeder";
 
 describe(WalletSettingService.name, () => {
@@ -83,7 +83,7 @@ describe(WalletSettingService.name, () => {
 
       expect(result).toEqual(toPublicSetting(newSetting));
       expect(walletSettingRepository.findOneByAndLock).toHaveBeenCalledWith({ userId: user.id });
-      expect(userWalletRepository.findOneByUserId).toHaveBeenCalledWith(user.id);
+      expect(userWalletRepository.findOneUsedBy).toHaveBeenCalledWith(user.id);
       expect(walletSettingRepository.createUnlessExists).toHaveBeenCalledWith({
         userId: user.id,
         walletId: userWallet.id,
@@ -111,7 +111,7 @@ describe(WalletSettingService.name, () => {
 
       expect(result).toEqual(toPublicSetting(newSetting));
       expect(walletSettingRepository.findOneByAndLock).toHaveBeenCalledWith({ userId: user.id });
-      expect(userWalletRepository.findOneByUserId).toHaveBeenCalledWith(user.id);
+      expect(userWalletRepository.findOneUsedBy).toHaveBeenCalledWith(user.id);
       expect(walletSettingRepository.createUnlessExists).toHaveBeenCalledWith({
         userId: user.id,
         walletId: userWallet.id,
@@ -254,13 +254,25 @@ describe(WalletSettingService.name, () => {
     it("throws 404 when user wallet not found during create", async () => {
       const { user, userWalletRepository, walletSettingRepository, service } = setup();
       walletSettingRepository.findOneByAndLock.mockResolvedValue(undefined);
-      userWalletRepository.findOneByUserId.mockResolvedValue(undefined);
+      userWalletRepository.findOneUsedBy.mockResolvedValue(undefined);
 
       await expect(() =>
         service.upsertWalletSetting(user.id, {
           autoReloadEnabled: true
         })
       ).rejects.toThrow("UserWallet Not Found");
+    });
+
+    it("refuses to set up auto reload for an organization's wallet", async () => {
+      const { user, userWalletRepository, walletSettingRepository, service } = setup();
+      walletSettingRepository.findOneByAndLock.mockResolvedValue(undefined);
+      userWalletRepository.findOneUsedBy.mockResolvedValue(createOrganizationWallet());
+
+      await expect(service.upsertWalletSetting(user.id, { autoReloadEnabled: true })).rejects.toMatchObject({
+        status: 409,
+        errorCode: "organization_auto_reload_unavailable"
+      });
+      expect(walletSettingRepository.createUnlessExists).not.toHaveBeenCalled();
     });
 
     describe("when two saves overlap", () => {
@@ -344,7 +356,7 @@ describe(WalletSettingService.name, () => {
     const walletSettingRepository = mock<WalletSettingRepository>();
     walletSettingRepository.accessibleBy.mockReturnValue(walletSettingRepository);
     const userWalletRepository = mock<UserWalletRepository>();
-    userWalletRepository.findOneByUserId.mockResolvedValue(userWallet);
+    userWalletRepository.findOneUsedBy.mockResolvedValue(userWallet);
     const userRepository = mock<UserRepository>();
     userRepository.findById.mockResolvedValue(userWithStripe);
     const paymentMethod = { ...generatePaymentMethod(), validated: true };

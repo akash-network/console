@@ -1,6 +1,6 @@
 import { inject, singleton } from "tsyringe";
 
-import { UserWalletRepository, type WalletInitialized } from "@src/billing/repositories";
+import { type PersonalWallet, UserWalletRepository, type WalletInitialized } from "@src/billing/repositories";
 import { StripeTransactionRepository } from "@src/billing/repositories/stripe-transaction/stripe-transaction.repository";
 import { type CreateLogger, JOB_NAME, JobQueueService, LOGGER_FACTORY } from "@src/core";
 import { UserRepository } from "@src/user/repositories";
@@ -44,7 +44,7 @@ export class EmailDomainBlockService {
   }
 
   /** Throws: it runs on the queue, where a transient failure is worth a retry rather than a lost block. */
-  async blockDomainOf(wallet: WalletInitialized): Promise<void> {
+  async blockDomainOf(wallet: PersonalWallet): Promise<void> {
     const user = await this.userRepository.findById(wallet.userId);
     const domain = extractEmailDomain(user?.email);
 

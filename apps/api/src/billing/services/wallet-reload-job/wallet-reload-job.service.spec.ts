@@ -363,6 +363,16 @@ describe(WalletReloadJobService.name, () => {
       expectCreditsLowCheckScheduled(jobQueueService, userWallet.userId);
       expect(jobQueueService.enqueue).not.toHaveBeenCalledWith(expect.any(WalletBalanceReloadCheck), expect.anything());
     });
+
+    it("enqueues nothing for a wallet that cannot be found", async () => {
+      const { service, walletSettingRepository, userWalletRepository, jobQueueService } = setup();
+      walletSettingRepository.findOneBy.mockResolvedValue(undefined);
+      userWalletRepository.findOneBy.mockResolvedValue(undefined);
+
+      await service.scheduleCreditsLowCheckIfAutoReloadOff({ walletId: 1 });
+
+      expect(jobQueueService.enqueue).not.toHaveBeenCalled();
+    });
   });
 
   describe("scheduleCreditsLowCheck", () => {

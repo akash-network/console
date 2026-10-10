@@ -824,7 +824,8 @@ describe("PATCH /v1/deployments/{dseq}", () => {
     vi.spyOn(userWalletRepository, "accessibleBy").mockReturnValue(
       mock<UserWalletRepository>({
         findByUserId: async () => wallets,
-        findOneByUserId: async () => wallets[0]
+        findOneByUserId: async () => wallets[0],
+        findOneUsedBy: async () => wallets[0]
       })
     );
     vi.spyOn(signerService, "executeDerivedDecodedTxByUserId").mockResolvedValue({

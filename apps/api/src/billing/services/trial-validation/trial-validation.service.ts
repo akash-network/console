@@ -170,7 +170,7 @@ export class TrialValidationService {
     if (!messages.some(message => message.typeUrl === `/${MsgCreateDeployment.$type}`)) return;
     if (!this.featureFlagsService.isEnabled(FeatureFlags.FAIR_USE_POLICY_GATE)) return;
 
-    const user = await this.userRepository.findById(userWallet.userId);
+    const user = userWallet.userId ? await this.userRepository.findById(userWallet.userId) : undefined;
 
     if (user?.fairUsePolicyAcceptedAt) return;
 

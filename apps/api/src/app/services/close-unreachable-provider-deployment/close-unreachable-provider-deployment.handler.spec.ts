@@ -14,7 +14,7 @@ import type { UnreachableProviderDeploymentsCloserService } from "@src/deploymen
 import { CloseUnreachableProviderDeploymentHandler } from "./close-unreachable-provider-deployment.handler";
 
 import { mockConfigService } from "@test/mocks/config-service.mock";
-import { createUserWallet } from "@test/seeders/user-wallet.seeder";
+import { createOrganizationWallet, createUserWallet } from "@test/seeders/user-wallet.seeder";
 
 const DEPLOY_WEB_BASE_URL = "https://console.akash.network";
 const OWNER = "akash1owner";
@@ -73,6 +73,29 @@ describe(CloseUnreachableProviderDeploymentHandler.name, () => {
     await handler.handle(aPayload());
 
     expect(deploymentWriterService.close).not.toHaveBeenCalled();
+  });
+
+  it("records a team deployment's close and tells the member who filed it", async () => {
+    const { handler, deploymentWriterService, deploymentSettingRepository, jobQueueService } = setup({
+      teamWallet: true,
+      setting: mock<DeploymentSettingsOutput>({ closed: false, userId: "member-2" })
+    });
+
+    await handler.handle(aPayload());
+
+    expect(deploymentWriterService.close).toHaveBeenCalledWith(expect.objectContaining({ id: WALLET_ID, userId: null }), DSEQ);
+    expect(deploymentSettingRepository.markClosed).toHaveBeenCalledWith({ userId: "member-2", dseq: DSEQ, organizationId: ORGANIZATION_ID });
+    expect(jobQueueService.enqueue).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ userId: "member-2" }) }), expect.anything());
+  });
+
+  it("closes a team deployment nobody filed without telling anyone", async () => {
+    const { handler, deploymentWriterService, deploymentSettingRepository, jobQueueService } = setup({ teamWallet: true });
+
+    await handler.handle(aPayload());
+
+    expect(deploymentWriterService.close).toHaveBeenCalled();
+    expect(deploymentSettingRepository.markClosed).not.toHaveBeenCalled();
+    expect(jobQueueService.enqueue).not.toHaveBeenCalled();
   });
 
   it("skips a deployment already recorded as closed", async () => {
@@ -152,6 +175,7 @@ describe(CloseUnreachableProviderDeploymentHandler.name, () => {
   function setup(
     input: {
       wallet?: null;
+      teamWallet?: boolean;
       setting?: DeploymentSettingsOutput;
       stillDark?: DarkDeployment | null;
       closeError?: Error;
@@ -161,11 +185,15 @@ describe(CloseUnreachableProviderDeploymentHandler.name, () => {
   ) {
     const userWalletRepository = mock<UserWalletRepository>();
     userWalletRepository.findOneByAddress.mockResolvedValue(
-      input.wallet === null ? undefined : createUserWallet({ id: WALLET_ID, userId: USER_ID, address: OWNER, organizationId: ORGANIZATION_ID })
+      input.wallet === null
+        ? undefined
+        : input.teamWallet
+          ? createOrganizationWallet({ id: WALLET_ID, address: OWNER, organizationId: ORGANIZATION_ID })
+          : createUserWallet({ id: WALLET_ID, userId: USER_ID, address: OWNER, organizationId: ORGANIZATION_ID })
     );
 
     const deploymentSettingRepository = mock<DeploymentSettingRepository>();
-    deploymentSettingRepository.findOneBy.mockResolvedValue(input.setting);
+    deploymentSettingRepository.findOneOfWallet.mockResolvedValue(input.setting);
 
     const deploymentWriterService = mock<DeploymentWriterService>();
     if (input.closeError) {

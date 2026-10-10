@@ -177,18 +177,20 @@ export class AccountDeletionService {
     }
   }
 
-  /** Templates, favorites, probe evidence and the personal organization have no foreign key that cascades them with the user row. */
+  /** Templates, favorites, probe evidence and the personal organization have no foreign key that cascades them with the user row; the wallet row is kept, without owner, so its address stays on record. */
   private async eraseAccount(user: UserOutput): Promise<boolean> {
     return await this.txService.transaction(async () => {
       const lockedUser = await this.userRepository.findOneByAndLock({ id: user.id });
       if (!lockedUser) return false;
 
-      const wallet = await this.userWalletRepository.unscoped("account-deletion").findOneByUserId(user.id);
+      const userWallets = this.userWalletRepository.unscoped("account-deletion");
+      const wallet = await userWallets.findOneByUserId(user.id);
       const personalOrganization = await this.organizationRepository.findPersonalByUserId(user.id);
 
       if (lockedUser.userId) await this.userTemplateRepository.deleteAllOwnedBy(lockedUser.userId);
       if (wallet) await this.workloadProbeEvidenceRepository.deleteByWalletId(wallet.id);
       await this.userRepository.deleteById(user.id);
+      if (wallet) await userWallets.detachFromOrganization(wallet.id);
       if (personalOrganization) await this.organizationRepository.deleteById(personalOrganization.id);
 
       await this.jobQueueService.enqueue(

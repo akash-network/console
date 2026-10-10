@@ -114,7 +114,7 @@ export class InitialDeploymentFundingService {
       return;
     }
 
-    const deploymentSetting = await this.deploymentSettingRepository.findOneBy({ userId: userWallet.userId, dseq });
+    const deploymentSetting = await this.deploymentSettingRepository.findOneOfWallet(userWallet, dseq);
     const runtimeEndsAt = await this.startRuntimeCountdown(deploymentSetting);
 
     if (deploymentSetting && runtimeEndsAt) {

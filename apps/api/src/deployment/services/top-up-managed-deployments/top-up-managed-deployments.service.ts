@@ -208,19 +208,25 @@ export class TopUpManagedDeploymentsService {
 
   /** Runs after the funding attempt whatever its outcome, since an owner whose funding just failed is among the likeliest to be low. */
   async #ensureCreditsLowTransitionChecked(owner: AutoTopUpOwnerDeployments, currentHeight: number): Promise<void> {
+    const { userId } = owner;
+
+    if (!userId) {
+      return;
+    }
+
     try {
       if (owner.autoReloadEnabled || owner.isTrialing) {
         return;
       }
 
       if (owner.drainingDeployments.length || (await this.#needsCreditsLowTransition(owner, currentHeight))) {
-        await this.walletReloadService.scheduleCreditsLowCheck(owner.userId, { withCleanup: true });
+        await this.walletReloadService.scheduleCreditsLowCheck(userId, { withCleanup: true });
       }
     } catch (error: unknown) {
       this.instrumentation.recordCreditsLowScheduleError({ walletId: owner.walletId, error });
 
       try {
-        await this.walletReloadService.scheduleCreditsLowCheck(owner.userId, { withCleanup: true });
+        await this.walletReloadService.scheduleCreditsLowCheck(userId, { withCleanup: true });
       } catch {
         return;
       }
@@ -245,14 +251,14 @@ export class TopUpManagedDeploymentsService {
   async #warnOfClosureForLackOfCredits(unfundable: DrainingDeployment[], options: DryRunOptions, currentHeight: number): Promise<void> {
     const firstClosing = minBy(unfundable, deployment => deployment.predictedClosedHeight);
 
-    if (!firstClosing || options.dryRun || firstClosing.isWalletAutoTopUpEnabled || firstClosing.walletIsTrialing) {
+    if (!firstClosing?.walletUserId || options.dryRun || firstClosing.isWalletAutoTopUpEnabled || firstClosing.walletIsTrialing) {
       return;
     }
 
     const runwayMinutes = this.drainingDeploymentService.calculateRunwayMinutesAfterDeposit(firstClosing, 0, currentHeight);
 
     await this.walletReloadService.scheduleCreditsExhaustedCheck({
-      userId: firstClosing.userId,
+      userId: firstClosing.walletUserId,
       firstClosingDseq: firstClosing.dseq,
       unfundedDeploymentCount: unfundable.length,
       firstClosureAt: addMinutes(new Date(), runwayMinutes).toISOString()

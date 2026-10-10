@@ -89,6 +89,28 @@ describe(CloseExpiredDeploymentHandler.name, () => {
     expectRetriedLater(deploymentCloseJobService, setting);
   });
 
+  it("closes with the wallet that owns the deployment, which is the organization's for a team deployment", async () => {
+    const setting = createSetting();
+    const { handler, deploymentSettingRepository, userWalletRepository, deploymentWriterService, wallet } = setup({ setting });
+
+    await handler.handle(createPayload(setting));
+
+    expect(deploymentSettingRepository.findOwnerWalletId).toHaveBeenCalledWith(setting.id);
+    expect(userWalletRepository.findById).toHaveBeenCalledWith(wallet.id);
+    expect(deploymentWriterService.close).toHaveBeenCalledWith(expect.objectContaining({ id: wallet.id, address: wallet.address }), setting.dseq);
+  });
+
+  it("retries later without closing when no wallet owns the deployment", async () => {
+    const setting = createSetting();
+    const { handler, userWalletRepository, deploymentWriterService, deploymentCloseJobService } = setup({ setting, hasOwnerWallet: false });
+
+    await handler.handle(createPayload(setting));
+
+    expect(userWalletRepository.findById).not.toHaveBeenCalled();
+    expect(deploymentWriterService.close).not.toHaveBeenCalled();
+    expectRetriedLater(deploymentCloseJobService, setting);
+  });
+
   it("retries later without closing when the escrow cannot be settled yet", async () => {
     const setting = createSetting();
     const { handler, deploymentSettingRepository, deploymentCloseJobService } = setup({
@@ -172,6 +194,7 @@ describe(CloseExpiredDeploymentHandler.name, () => {
     input: {
       setting?: DeploymentSettingsOutput;
       address?: string | null;
+      hasOwnerWallet?: boolean;
       closeError?: Error;
       isUnsettleable?: boolean;
       dryRun?: boolean;
@@ -189,9 +212,9 @@ describe(CloseExpiredDeploymentHandler.name, () => {
     const createLogger = vi.fn<CreateLogger>(() => logger);
 
     deploymentSettingRepository.findOneBy.mockResolvedValue(input.setting);
-    userWalletRepository.findOneByUserId.mockResolvedValue(
-      createUserWallet({ address: input.address === null ? null : input.address ?? createAkashAddress() })
-    );
+    const wallet = createUserWallet({ address: input.address === null ? null : input.address ?? createAkashAddress() });
+    deploymentSettingRepository.findOwnerWalletId.mockResolvedValue(input.hasOwnerWallet === false ? undefined : wallet.id);
+    userWalletRepository.findById.mockResolvedValue(wallet);
     chainErrorService.isUnsettleableDeploymentError.mockReturnValue(input.isUnsettleable ?? false);
 
     if (input.closeError) {
@@ -210,6 +233,7 @@ describe(CloseExpiredDeploymentHandler.name, () => {
 
     return {
       handler,
+      wallet,
       deploymentSettingRepository,
       userWalletRepository,
       deploymentWriterService,

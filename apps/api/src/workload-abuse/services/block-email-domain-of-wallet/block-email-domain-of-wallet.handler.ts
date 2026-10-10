@@ -1,6 +1,6 @@
 import { inject, singleton } from "tsyringe";
 
-import { isWalletInitialized, UserWalletRepository } from "@src/billing/repositories";
+import { isPersonalWallet, isWalletInitialized, UserWalletRepository } from "@src/billing/repositories";
 import { type CreateLogger, type Job, JOB_NAME, type JobHandler, type JobPayload, type JobPermissions, LOGGER_FACTORY } from "@src/core";
 import { EmailDomainBlockService } from "@src/workload-abuse/services/email-domain-block/email-domain-block.service";
 import { WorkloadAbuseInstrumentationService } from "@src/workload-abuse/services/workload-abuse-instrumentation/workload-abuse-instrumentation.service";
@@ -53,7 +53,7 @@ export class BlockEmailDomainOfWalletHandler implements JobHandler<BlockEmailDom
     const { walletId } = payload;
     const wallet = await this.userWalletRepository.findById(walletId);
 
-    if (!wallet || !isWalletInitialized(wallet)) {
+    if (!wallet || !isWalletInitialized(wallet) || !isPersonalWallet(wallet)) {
       this.instrumentation.recordDomainBlock("skipped", "wallet_not_found");
       this.logger.warn({ event: "EMAIL_DOMAIN_AUTO_BLOCK_SKIPPED", reason: "wallet_not_found", walletId });
       return;

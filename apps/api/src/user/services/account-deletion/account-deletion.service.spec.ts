@@ -226,6 +226,7 @@ describe(AccountDeletionService.name, () => {
       expect(userWalletRepository.unscoped).toHaveBeenCalledWith("account-deletion");
       expect(workloadProbeEvidenceRepository.deleteByWalletId).toHaveBeenCalledWith(wallet.id);
       expect(userRepository.deleteById).toHaveBeenCalledWith(user.id);
+      expect(userWalletRepository.detachFromOrganization).toHaveBeenCalledWith(wallet.id);
       expect(jobQueueService.enqueue).toHaveBeenCalledWith(
         new PurgeDeletedAccount({ userId: user.id, auth0UserId: user.userId, stripeCustomerId: user.stripeCustomerId }),
         PURGE_DELETED_ACCOUNT_RETRY_OPTIONS

@@ -2,7 +2,7 @@ import { AuthzHttpService, DeploymentHttpService } from "@akashnetwork/http-sdk"
 import type { EncodeObject } from "@cosmjs/proto-signing";
 import { inject, singleton } from "tsyringe";
 
-import { UserWalletRepository, type WalletInitialized } from "@src/billing/repositories";
+import { type PersonalWallet, UserWalletRepository, type WalletInitialized } from "@src/billing/repositories";
 import { ChainErrorService } from "@src/billing/services/chain-error/chain-error.service";
 import { ManagedSignerService } from "@src/billing/services/managed-signer/managed-signer.service";
 import { RpcMessageService } from "@src/billing/services/rpc-message-service/rpc-message.service";
@@ -58,7 +58,7 @@ export class TrialAbuseEnforcementService {
     this.logger = createLogger({ context: TrialAbuseEnforcementService.name });
   }
 
-  async enforce(input: { wallet: WalletInitialized; detectionId: string }): Promise<EnforcementOutcome | null> {
+  async enforce(input: { wallet: PersonalWallet; detectionId: string }): Promise<EnforcementOutcome | null> {
     const { wallet, detectionId } = input;
     await this.detectionRepository.updateById(detectionId, { action: "enforcing", enforcementError: null, updatedAt: new Date() });
 
@@ -102,7 +102,7 @@ export class TrialAbuseEnforcementService {
   }
 
   /** The wipe without the detection bookkeeping, for a wallet caught by its email domain rather than by its own workload. */
-  async wipeTrialWallet(wallet: WalletInitialized, reason: AbuseLockReason): Promise<EnforcementOutcome | null> {
+  async wipeTrialWallet(wallet: PersonalWallet, reason: AbuseLockReason): Promise<EnforcementOutcome | null> {
     const outcome = await this.txService.transaction(() => this.#wipeUnlessPaid(wallet, reason));
 
     if (outcome) {

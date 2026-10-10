@@ -3,7 +3,7 @@ import { inject, singleton } from "tsyringe";
 import { isWalletInitialized, UserWalletRepository } from "@src/billing/repositories";
 import { type CreateLogger, JOB_NAME, type JobHandler, type JobPayload, type JobPermissions, LOGGER_FACTORY } from "@src/core";
 import type { LeaseGpuReading } from "@src/deployment/model-schemas";
-import { DeploymentSettingRepository } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
+import { DeploymentSettingRepository, type DeploymentWallet } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
 import { DeploymentConfigService } from "@src/deployment/services/deployment-config/deployment-config.service";
 import { LeaseGpuDetectionService } from "@src/deployment/services/lease-gpu-detection/lease-gpu-detection.service";
 import { DetectLeaseGpus, LeaseGpuDetectionJobService } from "@src/deployment/services/lease-gpu-detection-job/lease-gpu-detection-job.service";
@@ -52,7 +52,7 @@ export class DetectLeaseGpusHandler implements JobHandler<DetectLeaseGpus> {
     }
 
     const report = await this.detectionService.detect({ wallet, dseq });
-    const recorded = await this.#record({ userId: wallet.userId, dseq, readings: report.readings });
+    const recorded = await this.#record({ wallet, dseq, readings: report.readings });
 
     this.logger.info({
       event: "LEASE_GPU_DETECTION_RAN",
@@ -69,7 +69,7 @@ export class DetectLeaseGpusHandler implements JobHandler<DetectLeaseGpus> {
   }
 
   /** A deployment the console holds no settings row for has nowhere to keep a reading, so the job comes back for it rather than settling. */
-  async #record(input: { userId: string; dseq: string; readings: LeaseGpuReading[] }): Promise<boolean> {
+  async #record(input: { wallet: DeploymentWallet; dseq: string; readings: LeaseGpuReading[] }): Promise<boolean> {
     if (!input.readings.length) return true;
 
     return await this.deploymentSettingRepository.mergeGpuReadings(input);
