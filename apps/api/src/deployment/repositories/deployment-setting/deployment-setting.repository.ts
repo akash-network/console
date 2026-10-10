@@ -334,7 +334,6 @@ export class DeploymentSettingRepository extends OrgScopedRepository<Table, Depl
     return this.#findAutoTopUpDeployments(address);
   }
 
-  /** Keyset-paged on `id`, the leading column of `id_auto_top_up_enabled_closed_idx`, so each batch stays an index scan. */
   async findOpenInProject({ organizationId, projectId }: { organizationId: string; projectId: string }): Promise<OpenDeployment[]> {
     const deployments = await this.cursor
       .select({
@@ -366,6 +365,7 @@ export class DeploymentSettingRepository extends OrgScopedRepository<Table, Depl
     );
   }
 
+  /** Keyset-paged on `id`, the leading column of `id_auto_top_up_enabled_closed_idx`, so each batch stays an index scan. */
   async *findOpenDeploymentsIteratively({ batchSize }: { batchSize: number }): AsyncGenerator<OpenDeployment[]> {
     let cursor: string | undefined;
 

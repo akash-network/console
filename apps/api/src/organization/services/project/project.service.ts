@@ -10,7 +10,7 @@ import { DeploymentRepository } from "@src/deployment/repositories/deployment/de
 import { DeploymentSettingRepository } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
 import { slugCandidates } from "@src/organization/lib/slug/slug";
 import { PROJECT_NAME_UNIQUE_INDEX } from "@src/organization/model-schemas/project/project.schema";
-import { type ProjectInput, ProjectRepository, type ProjectWithCreator } from "@src/organization/repositories/project/project.repository";
+import { type ProjectInput, type ProjectOutput, ProjectRepository, type ProjectWithCreator } from "@src/organization/repositories/project/project.repository";
 import { OrganizationActivityService } from "@src/organization/services/organization-activity/organization-activity.service";
 
 export interface ProjectChanges {
@@ -90,32 +90,19 @@ export class ProjectService {
 
   async delete(id: string): Promise<void> {
     const repository = this.projectRepository.accessibleBy(this.authService.ability, "delete");
+    const project = assertDeletable(await repository.findOneBy({ id, deletedAt: null }));
+    const projectKey = { organizationId: project.organizationId, projectId: project.id };
+    await this.#closeDeploymentsEndedOnChain(projectKey);
 
-    const openDeployments = await this.txService.transaction(async () => {
-      const project = await repository.findOneByAndLock({ id, deletedAt: null });
+    await this.txService.transaction(async () => {
+      assertDeletable(await repository.findOneByAndLock({ id, deletedAt: null }));
 
-      if (!project) {
-        throw createError(404, "Project not found");
+      if ((await this.deploymentSettingRepository.count({ ...projectKey, closed: false })) > 0) {
+        throw createError(409, "Move or close the project's deployments before deleting it", { errorCode: "project_not_empty" });
       }
 
-      if (project.isDefault) {
-        throw createError(409, "The default project cannot be deleted", { errorCode: "project_is_default" });
-      }
-
-      const projectKey = { organizationId: project.organizationId, projectId: project.id };
-      await this.#closeDeploymentsEndedOnChain(projectKey);
-      const stillOpen = await this.deploymentSettingRepository.count({ ...projectKey, closed: false });
-
-      if (stillOpen === 0) {
-        await repository.updateById(id, { deletedAt: new Date() });
-      }
-
-      return stillOpen;
+      await repository.updateById(id, { deletedAt: new Date() });
     });
-
-    if (openDeployments > 0) {
-      throw createError(409, "Move or close the project's deployments before deleting it", { errorCode: "project_not_empty" });
-    }
   }
 
   /** The closed flag only catches up with deployments closed outside the console on the next reconcile, so the chain decides what still counts as open. */
@@ -141,6 +128,18 @@ export class ProjectService {
 
     return context.organizationId;
   }
+}
+
+function assertDeletable(project: ProjectOutput | undefined): ProjectOutput {
+  if (!project) {
+    throw createError(404, "Project not found");
+  }
+
+  if (project.isDefault) {
+    throw createError(409, "The default project cannot be deleted", { errorCode: "project_is_default" });
+  }
+
+  return project;
 }
 
 function toChangedFields({ name, description }: ProjectChanges): Partial<ProjectInput> {
