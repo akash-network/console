@@ -155,7 +155,7 @@ describe("Organization-scoped alerts and notification channels", () => {
 
     const responses = await Promise.all([
       createDefault(memberHeaders({ organizationId, role: "owner" })),
-      createDefault(memberHeaders({ organizationId, role: "member", projectIds: [] }))
+      createDefault(memberHeaders({ organizationId, role: "admin" }))
     ]);
     const listRes = await request(app.getHttpServer())
       .get("/v1/notification-channels")
@@ -179,10 +179,51 @@ describe("Organization-scoped alerts and notification channels", () => {
       ])
       .returning();
 
-    const res = await request(app.getHttpServer()).get("/v1/notification-channels").set({ "x-user-id": userId, "x-organization-id": personalOrganizationId });
+    const res = await request(app.getHttpServer())
+      .get("/v1/notification-channels")
+      .set({ "x-user-id": userId, "x-organization-id": personalOrganizationId, "x-organization-type": "personal" });
     await app.close();
 
     expect(res.body.data.map((channel: { id: string }) => channel.id).sort()).toEqual([personal.id, unattributed.id].sort());
+  });
+
+  it.each([
+    { shape: "before the backfill", channelOrganization: () => null },
+    { shape: "after the backfill", channelOrganization: () => faker.string.uuid() }
+  ])("files a team deployment's alert on a channel of the team, $shape", async ({ channelOrganization }) => {
+    const { app, db, chainApi } = await setup();
+    const userId = faker.string.uuid();
+    const organizationId = faker.string.uuid();
+    const teamHeaders = { "x-user-id": userId, "x-organization-id": organizationId, "x-organization-type": "team" };
+    const [personalChannel] = await db
+      .insert(NotificationChannel)
+      .values([generateNotificationChannel({ userId, organizationId: channelOrganization(), isDefault: true })])
+      .returning();
+    const dseq = String(faker.number.int());
+    const owner = mockAkashAddress();
+    chainApi.get("/akash/deployment/v1beta4/deployments/info").query({ "id.owner": owner, "id.dseq": dseq }).reply(200, {});
+    const server = app.getHttpServer();
+    const upsertClosedAlert = (notificationChannelId: string) =>
+      request(server)
+        .post(`/v1/deployment-alerts/${dseq}`)
+        .set({ ...teamHeaders, "x-owner-address": owner })
+        .send({ data: { alerts: { deploymentClosed: { notificationChannelId, enabled: true } } } });
+
+    const listRes = await request(server).get("/v1/notification-channels").set(teamHeaders);
+    const personalAttachRes = await upsertClosedAlert(personalChannel.id);
+    const createRes = await request(server)
+      .post("/v1/notification-channels")
+      .set(teamHeaders)
+      .send({ data: { name: "Deployment alerts", type: "email", config: { addresses: [faker.internet.email()] }, isDefault: false } });
+    const teamAttachRes = await upsertClosedAlert(createRes.body.data.id);
+    const alerts = await db.select().from(Alert).where(eq(Alert.userId, userId));
+    await app.close();
+
+    expect(listRes.body.data).toEqual([]);
+    expect(personalAttachRes.status).toBe(404);
+    expect(createRes.status).toBe(201);
+    expect(teamAttachRes.status).toBe(201);
+    expect(alerts).toEqual([expect.objectContaining({ organizationId, notificationChannelId: createRes.body.data.id })]);
   });
 
   it("refuses to point a deployment alert at the user's channel of another organization", async () => {
@@ -205,6 +246,20 @@ describe("Organization-scoped alerts and notification channels", () => {
 
     expect(res.status).toBe(404);
     expect(alerts).toEqual([]);
+  });
+
+  it("keeps a member from creating the organization's default channel", async () => {
+    const { app, db, organizationId } = await setup();
+
+    const res = await request(app.getHttpServer())
+      .post("/v1/notification-channels/default")
+      .set(memberHeaders({ organizationId, role: "member", projectIds: [] }))
+      .send({ data: { name: "Default", type: "email", config: { addresses: [faker.internet.email()] } } });
+    const defaults = await db.select().from(NotificationChannel).where(eq(NotificationChannel.isDefault, true));
+    await app.close();
+
+    expect(res.status).toBe(403);
+    expect(defaults.filter(channel => channel.organizationId === organizationId)).toEqual([]);
   });
 
   it("keeps a member from renaming the organization's default channel", async () => {
@@ -263,6 +318,7 @@ describe("Organization-scoped alerts and notification channels", () => {
     return {
       "x-user-id": faker.string.uuid(),
       "x-organization-id": input.organizationId,
+      "x-organization-type": "team",
       "x-organization-role": input.role,
       "x-project-scope": JSON.stringify(input.projectIds ? { kind: "projects", projectIds: input.projectIds } : { kind: "all" })
     };

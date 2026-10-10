@@ -1,7 +1,7 @@
 import type { MongoAbility, MongoQuery } from "@casl/ability";
 import { AbilityBuilder, createMongoAbility } from "@casl/ability";
 
-import type { OrganizationMembership, OrganizationRole, RequestIdentity } from "./request-identity";
+import { type OrganizationMembership, type OrganizationRole, reachesUnattributedRows, type RequestIdentity } from "./request-identity";
 
 type Builder = AbilityBuilder<MongoAbility>;
 
@@ -25,14 +25,14 @@ export function abilityFor(identity: RequestIdentity): MongoAbility {
   return builder.build();
 }
 
-/** Keyed on the user as before organizations, narrowed to the minted organization and the rows not yet attributed to one. */
-function defineUserRules({ can }: Builder, { userId, organizationId }: RequestIdentity): void {
-  const ownedRows: MongoQuery[] = organizationId
-    ? [
-        { userId, organizationId },
-        { userId, organizationId: null }
-      ]
-    : [{ userId }];
+/** Keyed on the user as before organizations, narrowed to the minted organization and, in a personal one, the rows not yet attributed to any. */
+function defineUserRules({ can }: Builder, identity: RequestIdentity): void {
+  const { userId, organizationId } = identity;
+  const ownedRows: MongoQuery[] = organizationId ? [{ userId, organizationId }] : [{ userId }];
+
+  if (organizationId && reachesUnattributedRows(identity)) {
+    ownedRows.push({ userId, organizationId: null });
+  }
 
   for (const owned of ownedRows) {
     can("manage", "NotificationChannel", owned);
@@ -61,7 +61,7 @@ function defineOrganizationRules({ can, cannot }: Builder, { organizationId, rol
     can("manage", "NotificationChannel", inOrganization);
   } else {
     can("manage", "NotificationChannel", { organizationId, userId });
-    cannot(["update", "delete"], "NotificationChannel", { isDefault: true });
+    cannot(["create", "update", "delete"], "NotificationChannel", { isDefault: true });
   }
 
   can(["create", "delete"], "Alert", inScope);

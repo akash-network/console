@@ -130,7 +130,7 @@ export class AlertController {
   private async assertOwnsNotificationChannel(notificationChannelId: string): Promise<void> {
     const channel = await this.notificationChannelRepository
       .accessibleBy(this.authService.ability, "read")
-      .findAttachableById(notificationChannelId, this.authService.organizationId);
+      .findAttachableById(notificationChannelId, this.#attachTarget);
 
     if (!channel) {
       throw new NotFoundException("Notification channel not found");
@@ -139,5 +139,9 @@ export class AlertController {
 
   private toResponse(alert: AlertOutput | undefined): Result<AlertOutputResponse, NotFoundException> {
     return alert ? Ok({ data: alert }) : Err(new NotFoundException("Alert not found"));
+  }
+
+  get #attachTarget() {
+    return { organizationId: this.authService.organizationId, acceptsUnattributed: this.authService.reachesUnattributedRows };
   }
 }

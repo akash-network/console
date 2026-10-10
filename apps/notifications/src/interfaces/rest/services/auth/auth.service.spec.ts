@@ -66,12 +66,30 @@ describe(AuthService.name, () => {
       expect(service.defaultChannelOwner).toEqual({ kind: "organization", organizationId });
     });
 
-    it("names the user within the minted organization otherwise", async () => {
+    it("names the user within their personal organization", async () => {
       const userId = faker.string.uuid();
       const organizationId = faker.string.uuid();
-      const { service } = await setup({ headers: { "x-user-id": userId, "x-organization-id": organizationId } });
+      const { service } = await setup({ headers: { "x-user-id": userId, "x-organization-id": organizationId, "x-organization-type": "personal" } });
 
       expect(service.defaultChannelOwner).toEqual({ kind: "user", userId, organizationId });
+      expect(service.reachesUnattributedRows).toBe(true);
+    });
+
+    it("names the user alone when no organization is minted", async () => {
+      const userId = faker.string.uuid();
+      const { service } = await setup({ headers: { "x-user-id": userId } });
+
+      expect(service.defaultChannelOwner).toEqual({ kind: "user", userId, organizationId: null });
+    });
+
+    it.each(["team", undefined])("names the organization of type %s even without organization rules", async organizationType => {
+      const organizationId = faker.string.uuid();
+      const { service } = await setup({
+        headers: { "x-user-id": faker.string.uuid(), "x-organization-id": organizationId, ...(organizationType && { "x-organization-type": organizationType }) }
+      });
+
+      expect(service.defaultChannelOwner).toEqual({ kind: "organization", organizationId });
+      expect(service.reachesUnattributedRows).toBe(false);
     });
   });
 

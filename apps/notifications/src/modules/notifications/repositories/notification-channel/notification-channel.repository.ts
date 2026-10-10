@@ -93,13 +93,15 @@ export class NotificationChannelRepository {
     return notificationChannel && this.toOutput(notificationChannel);
   }
 
-  /** A channel an alert of the given organization may notify: one the caller can reach, filed in that organization or in none. */
-  async findAttachableById(id: NotificationChannelOutput["id"], organizationId: string | null): Promise<NotificationChannelOutput | undefined> {
+  /** A channel an alert of the given organization may notify: one the caller can reach, filed in that organization, or in none when the alert may be. */
+  async findAttachableById(
+    id: NotificationChannelOutput["id"],
+    { organizationId, acceptsUnattributed }: { organizationId: string | null; acceptsUnattributed: boolean }
+  ): Promise<NotificationChannelOutput | undefined> {
     const notificationChannel = await this.findById(id);
+    const isAttachable = notificationChannel?.organizationId === organizationId || (acceptsUnattributed && notificationChannel?.organizationId === null);
 
-    return notificationChannel && (notificationChannel.organizationId === null || notificationChannel.organizationId === organizationId)
-      ? notificationChannel
-      : undefined;
+    return isAttachable ? notificationChannel : undefined;
   }
 
   async findDefault(owner: DefaultChannelOwner): Promise<NotificationChannelOutput | undefined> {
@@ -112,7 +114,7 @@ export class NotificationChannelRepository {
 
   /** Checks for an existing default before inserting because an unattributed default and an organization default sit under different unique indexes. */
   async createDefaultChannel(input: NotificationChannelInput, owner: DefaultChannelOwner): Promise<void> {
-    this.ability?.throwUnlessCanExecute(input);
+    this.ability?.throwUnlessCanExecute({ ...input, isDefault: true });
 
     const existingDefault = await this.db.query.NotificationChannel.findFirst({ where: this.#liveDefaultOf(owner) });
 

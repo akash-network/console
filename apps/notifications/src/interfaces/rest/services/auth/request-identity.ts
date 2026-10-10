@@ -4,6 +4,7 @@ import { z } from "zod";
 export const IDENTITY_HEADERS = {
   userId: "x-user-id",
   organizationId: "x-organization-id",
+  organizationType: "x-organization-type",
   organizationRole: "x-organization-role",
   projectScope: "x-project-scope",
   projectId: "x-project-id"
@@ -16,7 +17,11 @@ const projectScopeSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("projects"), projectIds: z.array(z.string().uuid()) })
 ]);
 
+const organizationTypeSchema = z.enum(["personal", "team"]);
+
 export type OrganizationRole = z.infer<typeof organizationRoleSchema>;
+
+export type OrganizationType = z.infer<typeof organizationTypeSchema>;
 
 export type ProjectScope = z.infer<typeof projectScopeSchema>;
 
@@ -29,6 +34,8 @@ export interface OrganizationMembership {
 export interface RequestIdentity {
   userId: string;
   organizationId: string | null;
+  /** Null when the api minted none, which counts as a team organization wherever the difference matters. */
+  organizationType: OrganizationType | null;
   projectId: string | null;
   /** Set only when the api enforces organization rules for the request, which it signals by minting the role. */
   membership: OrganizationMembership | null;
@@ -38,6 +45,7 @@ const identityHeadersSchema = z
   .object({
     [IDENTITY_HEADERS.userId]: z.string().min(1),
     [IDENTITY_HEADERS.organizationId]: z.string().uuid().optional(),
+    [IDENTITY_HEADERS.organizationType]: organizationTypeSchema.optional(),
     [IDENTITY_HEADERS.projectId]: z.string().uuid().optional(),
     [IDENTITY_HEADERS.organizationRole]: organizationRoleSchema.optional(),
     [IDENTITY_HEADERS.projectScope]: z.string().optional()
@@ -45,7 +53,12 @@ const identityHeadersSchema = z
   .transform((headers, context): RequestIdentity => {
     const organizationId = headers[IDENTITY_HEADERS.organizationId] ?? null;
     const role = headers[IDENTITY_HEADERS.organizationRole];
-    const identity = { userId: headers[IDENTITY_HEADERS.userId], organizationId, projectId: headers[IDENTITY_HEADERS.projectId] ?? null };
+    const identity = {
+      userId: headers[IDENTITY_HEADERS.userId],
+      organizationId,
+      organizationType: headers[IDENTITY_HEADERS.organizationType] ?? null,
+      projectId: headers[IDENTITY_HEADERS.projectId] ?? null
+    };
 
     if (!role) {
       return { ...identity, membership: null };
@@ -73,4 +86,9 @@ export function readRequestIdentity(headers: IncomingHttpHeaders): RequestIdenti
   const result = identityHeadersSchema.safeParse(headers);
 
   return result.success ? result.data : undefined;
+}
+
+/** Rows filed in no organization predate organizations and belong to their owner's personal one, so only a request in no organization or in a personal one reaches them. */
+export function reachesUnattributedRows({ organizationId, organizationType }: Pick<RequestIdentity, "organizationId" | "organizationType">): boolean {
+  return organizationId === null || organizationType === "personal";
 }

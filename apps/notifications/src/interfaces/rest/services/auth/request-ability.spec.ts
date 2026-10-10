@@ -10,7 +10,7 @@ describe(abilityFor.name, () => {
     it("lets a user manage their own channels and alerts only, even within the same organization", () => {
       const userId = faker.string.uuid();
       const organizationId = faker.string.uuid();
-      const ability = abilityFor({ userId, organizationId, projectId: null, membership: null });
+      const ability = abilityFor({ userId, organizationId, organizationType: "personal", projectId: null, membership: null });
       const own = { userId, organizationId };
       const others = { userId: faker.string.uuid(), organizationId };
 
@@ -22,9 +22,9 @@ describe(abilityFor.name, () => {
       expect(ability.can("read", subject("DeploymentAlert", { ...others }))).toBe(false);
     });
 
-    it("reaches the user's rows in the minted organization and the unattributed ones, not those of other organizations", () => {
+    it("reaches the user's rows in their personal organization and the unattributed ones, not those of other organizations", () => {
       const userId = faker.string.uuid();
-      const ability = abilityFor({ userId, organizationId: faker.string.uuid(), projectId: null, membership: null });
+      const ability = abilityFor({ userId, organizationId: faker.string.uuid(), organizationType: "personal", projectId: null, membership: null });
       const unattributed = { userId, organizationId: null };
       const elsewhere = { userId, organizationId: faker.string.uuid() };
 
@@ -35,9 +35,20 @@ describe(abilityFor.name, () => {
       expect(ability.can("read", subject("DeploymentAlert", { ...elsewhere }))).toBe(false);
     });
 
+    it.each(["team", null] as const)("keeps the unattributed rows out of reach in an organization of type %s", organizationType => {
+      const userId = faker.string.uuid();
+      const organizationId = faker.string.uuid();
+      const ability = abilityFor({ userId, organizationId, organizationType, projectId: null, membership: null });
+
+      expect(ability.can("read", subject("NotificationChannel", { userId, organizationId }))).toBe(true);
+      expect(ability.can("read", subject("NotificationChannel", { userId, organizationId: null }))).toBe(false);
+      expect(ability.can("read", subject("Alert", { userId, organizationId: null }))).toBe(false);
+      expect(ability.can("read", subject("DeploymentAlert", { userId, organizationId: null }))).toBe(false);
+    });
+
     it("keeps the rules keyed on the user alone when no organization is minted", () => {
       const userId = faker.string.uuid();
-      const ability = abilityFor({ userId, organizationId: null, projectId: null, membership: null });
+      const ability = abilityFor({ userId, organizationId: null, organizationType: null, projectId: null, membership: null });
 
       expect(ability.can("manage", subject("NotificationChannel", { userId, organizationId: faker.string.uuid() }))).toBe(true);
       expect(ability.can("read", subject("Alert", { userId: faker.string.uuid() }))).toBe(false);
@@ -45,7 +56,7 @@ describe(abilityFor.name, () => {
 
     it("limits alert updates to the editable fields", () => {
       const userId = faker.string.uuid();
-      const ability = abilityFor({ userId, organizationId: null, projectId: null, membership: null });
+      const ability = abilityFor({ userId, organizationId: null, organizationType: null, projectId: null, membership: null });
 
       expect(ability.can("update", subject("Alert", { userId }), "enabled")).toBe(true);
       expect(ability.can("update", subject("Alert", { userId }), "userId")).toBe(false);
@@ -60,14 +71,14 @@ describe(abilityFor.name, () => {
       expect(ability.can("delete", subject("NotificationChannel", { organizationId, userId: faker.string.uuid() }))).toBe(true);
     });
 
-    it("keeps a member from changing the organization's default channel even when they created it", () => {
+    it("keeps a member from creating or changing the organization's default channel", () => {
       const { ability, organizationId, userId } = setup({ role: "member", scope: "granted" });
       const defaultChannel = { organizationId, userId, isDefault: true };
 
       expect(ability.can("read", subject("NotificationChannel", { ...defaultChannel }))).toBe(true);
       expect(ability.can("update", subject("NotificationChannel", { ...defaultChannel }))).toBe(false);
       expect(ability.can("delete", subject("NotificationChannel", { ...defaultChannel }))).toBe(false);
-      expect(ability.can("create", subject("NotificationChannel", { ...defaultChannel }))).toBe(true);
+      expect(ability.can("create", subject("NotificationChannel", { ...defaultChannel }))).toBe(false);
     });
 
     it.each(["owner", "admin"] as const)("lets %s change the organization's default channel", role => {
@@ -167,6 +178,7 @@ describe(abilityFor.name, () => {
     const ability = abilityFor({
       userId,
       organizationId,
+      organizationType: "team",
       projectId: null,
       membership: { organizationId, role: input.role, projectScope: projectScopes[input.scope] }
     });

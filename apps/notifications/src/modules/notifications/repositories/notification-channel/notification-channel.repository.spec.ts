@@ -96,25 +96,55 @@ describe(NotificationChannelRepository.name, () => {
       ).rejects.toThrow(ForbiddenError);
       expect(await liveDefaultsOf(repository, { organizationId })).toHaveLength(0);
     });
+
+    it("checks the ability against a default channel whatever the input says", async () => {
+      const { repository } = await setup();
+      const organizationId = faker.string.uuid();
+      const ability = createMongoAbility([
+        { action: "create", subject: "NotificationChannel", conditions: { organizationId } },
+        { action: "create", subject: "NotificationChannel", conditions: { isDefault: true }, inverted: true }
+      ]);
+
+      await expect(
+        repository
+          .accessibleBy(ability, "create")
+          .createDefaultChannel({ ...channelInput({ organizationId }), isDefault: false }, { kind: "organization", organizationId })
+      ).rejects.toThrow(ForbiddenError);
+      expect(await liveDefaultsOf(repository, { organizationId })).toHaveLength(0);
+    });
   });
 
   describe("findAttachableById", () => {
-    it("returns a channel of the alert's organization or of none", async () => {
+    it("returns a channel of the alert's organization", async () => {
       const { repository } = await setup();
       const organizationId = faker.string.uuid();
-      const inOrganization = await repository.create(channelInput({ organizationId }));
-      const unattributed = await repository.create(channelInput({}));
+      const channel = await repository.create(channelInput({ organizationId }));
 
-      expect(await repository.findAttachableById(inOrganization.id, organizationId)).toMatchObject({ id: inOrganization.id });
-      expect(await repository.findAttachableById(unattributed.id, organizationId)).toMatchObject({ id: unattributed.id });
+      expect(await repository.findAttachableById(channel.id, { organizationId, acceptsUnattributed: false })).toMatchObject({ id: channel.id });
+    });
+
+    it("returns an unattributed channel only when the alert may notify one", async () => {
+      const { repository } = await setup();
+      const organizationId = faker.string.uuid();
+      const channel = await repository.create(channelInput({}));
+
+      expect(await repository.findAttachableById(channel.id, { organizationId, acceptsUnattributed: true })).toMatchObject({ id: channel.id });
+      expect(await repository.findAttachableById(channel.id, { organizationId: null, acceptsUnattributed: true })).toMatchObject({ id: channel.id });
+      expect(await repository.findAttachableById(channel.id, { organizationId, acceptsUnattributed: false })).toBeUndefined();
     });
 
     it("refuses a channel of another organization", async () => {
       const { repository } = await setup();
       const channel = await repository.create(channelInput({ organizationId: faker.string.uuid() }));
 
-      expect(await repository.findAttachableById(channel.id, faker.string.uuid())).toBeUndefined();
-      expect(await repository.findAttachableById(channel.id, null)).toBeUndefined();
+      expect(await repository.findAttachableById(channel.id, { organizationId: faker.string.uuid(), acceptsUnattributed: true })).toBeUndefined();
+      expect(await repository.findAttachableById(channel.id, { organizationId: null, acceptsUnattributed: true })).toBeUndefined();
+    });
+
+    it("refuses a channel that does not exist", async () => {
+      const { repository } = await setup();
+
+      expect(await repository.findAttachableById(faker.string.uuid(), { organizationId: null, acceptsUnattributed: true })).toBeUndefined();
     });
   });
 

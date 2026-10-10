@@ -51,7 +51,7 @@ describe(AlertController.name, () => {
       notificationChannelRepository.findAttachableById.mockResolvedValue(undefined);
 
       await expect(controller.createAlert({ data: input })).rejects.toThrow("Notification channel not found");
-      expect(notificationChannelRepository.findAttachableById).toHaveBeenCalledWith(input.notificationChannelId, organizationId);
+      expect(notificationChannelRepository.findAttachableById).toHaveBeenCalledWith(input.notificationChannelId, { organizationId, acceptsUnattributed: true });
       expect(alertRepository.create).not.toHaveBeenCalled();
     });
   });
@@ -95,7 +95,7 @@ describe(AlertController.name, () => {
       notificationChannelRepository.findAttachableById.mockResolvedValue(undefined);
 
       await expect(controller.updateAlert(id, { data: input })).rejects.toThrow("Notification channel not found");
-      expect(notificationChannelRepository.findAttachableById).toHaveBeenCalledWith(input.notificationChannelId, organizationId);
+      expect(notificationChannelRepository.findAttachableById).toHaveBeenCalledWith(input.notificationChannelId, { organizationId, acceptsUnattributed: true });
       expect(alertRepository.updateById).not.toHaveBeenCalled();
     });
 
@@ -271,7 +271,8 @@ describe(AlertController.name, () => {
           useValue: {
             userId,
             organizationId,
-            projectId
+            projectId,
+            reachesUnattributedRows: true
           }
         },
         MockProvider(AlertRepository),

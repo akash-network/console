@@ -115,9 +115,13 @@ export class DeploymentAlertController {
     );
 
     for (const channelId of channelIds) {
-      if (!(await notificationChannelRepository.findAttachableById(channelId, this.authService.organizationId))) {
+      if (!(await notificationChannelRepository.findAttachableById(channelId, this.#attachTarget))) {
         throw new NotFoundException("Notification channel not found");
       }
     }
+  }
+
+  get #attachTarget() {
+    return { organizationId: this.authService.organizationId, acceptsUnattributed: this.authService.reachesUnattributedRows };
   }
 }

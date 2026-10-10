@@ -1,13 +1,13 @@
 import { faker } from "@faker-js/faker";
 import { describe, expect, it } from "vitest";
 
-import { readRequestIdentity } from "./request-identity";
+import { reachesUnattributedRows, readRequestIdentity } from "./request-identity";
 
 describe(readRequestIdentity.name, () => {
   it("reads a user without an organization", () => {
     const userId = faker.string.uuid();
 
-    expect(readRequestIdentity({ "x-user-id": userId })).toEqual({ userId, organizationId: null, projectId: null, membership: null });
+    expect(readRequestIdentity({ "x-user-id": userId })).toEqual({ userId, organizationId: null, organizationType: null, projectId: null, membership: null });
   });
 
   it("reads the organization and project to stamp without a membership when no role is minted", () => {
@@ -16,6 +16,7 @@ describe(readRequestIdentity.name, () => {
     expect(readRequestIdentity({ ...headers, "x-project-scope": JSON.stringify({ kind: "all" }) })).toEqual({
       userId,
       organizationId,
+      organizationType: "personal",
       projectId,
       membership: null
     });
@@ -28,6 +29,7 @@ describe(readRequestIdentity.name, () => {
     expect(readRequestIdentity({ ...headers, "x-organization-role": "member", "x-project-scope": JSON.stringify(projectScope) })).toEqual({
       userId,
       organizationId,
+      organizationType: "personal",
       projectId,
       membership: { organizationId, role: "member", projectScope }
     });
@@ -41,6 +43,18 @@ describe(readRequestIdentity.name, () => {
       role: "owner",
       projectScope: { kind: "all" }
     });
+  });
+
+  it("reads no organization type when none is minted", () => {
+    const { headers } = setup();
+
+    expect(readRequestIdentity({ ...headers, "x-organization-type": undefined })?.organizationType).toBeNull();
+  });
+
+  it("rejects an organization type that does not exist", () => {
+    const { headers } = setup();
+
+    expect(readRequestIdentity({ ...headers, "x-organization-type": "enterprise" })).toBeUndefined();
   });
 
   it("rejects a request without a user", () => {
@@ -86,8 +100,20 @@ describe(readRequestIdentity.name, () => {
     const userId = faker.string.uuid();
     const organizationId = faker.string.uuid();
     const projectId = faker.string.uuid();
-    const headers = { "x-user-id": userId, "x-organization-id": organizationId, "x-project-id": projectId };
+    const headers = { "x-user-id": userId, "x-organization-id": organizationId, "x-organization-type": "personal", "x-project-id": projectId };
 
     return { headers, userId, organizationId, projectId };
   }
+});
+
+describe(reachesUnattributedRows.name, () => {
+  it("reaches the unattributed rows from no organization or from a personal one", () => {
+    expect(reachesUnattributedRows({ organizationId: null, organizationType: null })).toBe(true);
+    expect(reachesUnattributedRows({ organizationId: faker.string.uuid(), organizationType: "personal" })).toBe(true);
+  });
+
+  it("keeps them out of reach from a team organization or one of unknown type", () => {
+    expect(reachesUnattributedRows({ organizationId: faker.string.uuid(), organizationType: "team" })).toBe(false);
+    expect(reachesUnattributedRows({ organizationId: faker.string.uuid(), organizationType: null })).toBe(false);
+  });
 });

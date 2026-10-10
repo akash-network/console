@@ -39,7 +39,10 @@ describe(DeploymentAlertController.name, () => {
 
     await expect(controller.upsertDeploymentAlert("1234", input)).rejects.toThrow(NotFoundException);
     expect(notificationChannelRepository.accessibleBy).toHaveBeenCalledWith(authService.ability, "read");
-    expect(notificationChannelRepository.findAttachableById).toHaveBeenCalledWith(expect.any(String), authService.organizationId);
+    expect(notificationChannelRepository.findAttachableById).toHaveBeenCalledWith(expect.any(String), {
+      organizationId: authService.organizationId,
+      acceptsUnattributed: false
+    });
     expect(service.upsert).not.toHaveBeenCalled();
   });
 
@@ -77,7 +80,7 @@ describe(DeploymentAlertController.name, () => {
       providers: [
         MockProvider(DeploymentAlertService),
         MockProvider(NotificationChannelRepository),
-        MockProvider(AuthService, { organizationId: faker.string.uuid() })
+        MockProvider(AuthService, { organizationId: faker.string.uuid(), reachesUnattributedRows: false })
       ]
     }).compile();
     const notificationChannelRepository = module.get<MockProxy<NotificationChannelRepository>>(NotificationChannelRepository);

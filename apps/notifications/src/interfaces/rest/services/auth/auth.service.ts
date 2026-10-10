@@ -5,7 +5,7 @@ import { Request } from "express";
 
 import { LoggerService } from "@src/common/services/logger/logger.service";
 import type { DefaultChannelOwner } from "@src/modules/notifications/repositories/notification-channel/notification-channel.repository";
-import { readRequestIdentity, type RequestIdentity } from "./request-identity";
+import { reachesUnattributedRows, readRequestIdentity, type RequestIdentity } from "./request-identity";
 
 declare module "express" {
   export interface Request {
@@ -29,10 +29,19 @@ export class AuthService {
     return this.#identity.projectId;
   }
 
-  get defaultChannelOwner(): DefaultChannelOwner {
-    const { userId, organizationId, membership } = this.#identity;
+  get reachesUnattributedRows(): boolean {
+    return reachesUnattributedRows(this.#identity);
+  }
 
-    return membership ? { kind: "organization", organizationId: membership.organizationId } : { kind: "user", userId, organizationId };
+  /** A team organization has one default whoever asks; a personal one keeps its owner's default, unattributed included. */
+  get defaultChannelOwner(): DefaultChannelOwner {
+    const identity = this.#identity;
+
+    if (identity.organizationId && (identity.membership || !reachesUnattributedRows(identity))) {
+      return { kind: "organization", organizationId: identity.organizationId };
+    }
+
+    return { kind: "user", userId: identity.userId, organizationId: identity.organizationId };
   }
 
   get ability(): MongoAbility {
