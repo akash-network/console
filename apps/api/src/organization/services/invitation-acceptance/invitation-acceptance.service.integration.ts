@@ -1,23 +1,27 @@
 import { faker } from "@faker-js/faker";
 import { eq } from "drizzle-orm";
+import { setTimeout as delay } from "node:timers/promises";
 import { container } from "tsyringe";
 import { describe, expect, it } from "vitest";
 
 import { AbilityService } from "@src/auth/services/ability/ability.service";
 import { type ApiPgDatabase, POSTGRES_DB, resolveTable } from "@src/core";
 import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
+import { TxService } from "@src/core/services/tx/tx.service";
 import { createInvitationToken, hashInvitationToken } from "@src/organization/lib/invitation-token/invitation-token";
 import type { ProjectGrant } from "@src/organization/model-schemas/organization-invitation/organization-invitation.schema";
 import type { OrganizationRole } from "@src/organization/model-schemas/organization-member/organization-member.schema";
+import { OrganizationRepository } from "@src/organization/repositories/organization/organization.repository";
 import { OrganizationInvitationRepository } from "@src/organization/repositories/organization-invitation/organization-invitation.repository";
 import { OrganizationMemberRepository } from "@src/organization/repositories/organization-member/organization-member.repository";
 import type { UserOutput } from "@src/user/repositories";
 import { UserRepository } from "@src/user/repositories";
-import { INVITATION_ALREADY_ACCEPTED_ERROR_CODE, InvitationAcceptanceService } from "./invitation-acceptance.service";
+import { INVITATION_ALREADY_ACCEPTED_ERROR_CODE, INVITATION_REVOKED_ERROR_CODE, InvitationAcceptanceService } from "./invitation-acceptance.service";
 
 import {
   seedOrganization,
   seedOrganizationInvitation,
+  seedOrganizationInvitationEmail,
   seedOrganizationMember,
   seedOrganizationWithOwner,
   seedProject
@@ -96,6 +100,56 @@ describe(InvitationAcceptanceService.name, () => {
       expect(await container.resolve(OrganizationInvitationRepository).count({ organizationId: organization.id, acceptedByUserId: invitee.id })).toBe(2);
     });
 
+    it("waits for an invitation write holding the organization row and sees its outcome", async () => {
+      const { service, organization, invite, seedInvitee, runAs, txService } = await setup();
+      const invitee = await seedInvitee();
+      const { token, invitation } = await invite({ email: invitee.email!, role: "member" });
+
+      const revocation = txService.transaction(async () => {
+        await container.resolve(OrganizationRepository).findOneByAndLock({ id: organization.id }, { strength: "no key update" });
+        await delay(200);
+        await container.resolve(OrganizationInvitationRepository).updateById(invitation.id, { status: "revoked", revokedAt: new Date() });
+      });
+      await delay(50);
+      const acceptance = runAs(invitee, () => service.acceptInvitation({ token }));
+
+      await revocation;
+      await expect(acceptance).rejects.toMatchObject({ status: 410, errorCode: INVITATION_REVOKED_ERROR_CODE });
+      expect(await container.resolve(OrganizationMemberRepository).count({ organizationId: organization.id, userId: invitee.id })).toBe(0);
+    });
+
+    it("leaves rows referencing the organization or the invitation writable while an acceptance holds its locks", async () => {
+      const { service, organization, owner, invite, seedInvitee, runAs, txService } = await setup();
+      const invitee = await seedInvitee();
+      const { token, invitation } = await invite({ email: invitee.email!, role: "member" });
+      const events: string[] = [];
+
+      const acceptance = runAs(invitee, () =>
+        txService.transaction(async () => {
+          await service.acceptInvitation({ token });
+          await delay(300);
+          events.push("acceptance committed");
+        })
+      );
+      await delay(100);
+      await container.resolve(UserRepository).updateById(owner.id, { lastUsedOrganizationId: organization.id });
+      await seedOrganizationInvitationEmail({ organizationId: organization.id, invitationId: invitation.id, sentByUserId: owner.id });
+      events.push("referencing rows written");
+      await acceptance;
+
+      expect(events).toEqual(["referencing rows written", "acceptance committed"]);
+    });
+
+    it("answers not found for an invitation of a deleted organization", async () => {
+      const { service, organization, invite, seedInvitee, runAs } = await setup();
+      const invitee = await seedInvitee();
+      const { token } = await invite({ email: invitee.email!, role: "member" });
+      await container.resolve(OrganizationRepository).updateById(organization.id, { deletedAt: new Date() });
+
+      await expect(runAs(invitee, () => service.acceptInvitation({ token }))).rejects.toMatchObject({ status: 404 });
+      expect(await container.resolve(OrganizationMemberRepository).count({ organizationId: organization.id, userId: invitee.id })).toBe(0);
+    });
+
     it("keeps the role of an invitee who already belongs to the organization", async () => {
       const { service, organization, invite, seedInvitee, runAs } = await setup();
       const invitee = await seedInvitee();
@@ -111,6 +165,7 @@ describe(InvitationAcceptanceService.name, () => {
 
   async function setup() {
     const service = container.resolve(InvitationAcceptanceService);
+    const txService = container.resolve(TxService);
     const executionContextService = container.resolve(ExecutionContextService);
     const abilityService = container.resolve(AbilityService);
     const db = container.resolve<ApiPgDatabase>(POSTGRES_DB);
@@ -156,6 +211,6 @@ describe(InvitationAcceptanceService.name, () => {
       return await db.select().from(ProjectMembers).where(eq(ProjectMembers.userId, user.id));
     }
 
-    return { service, organization, project, invite, seedInvitee, runAs, grantsOf };
+    return { service, txService, organization, owner, project, invite, seedInvitee, runAs, grantsOf };
   }
 });

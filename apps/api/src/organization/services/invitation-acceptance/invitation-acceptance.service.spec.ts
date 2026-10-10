@@ -7,6 +7,7 @@ import type { AuthService } from "@src/auth/services/auth.service";
 import type { TxService } from "@src/core/services";
 import type { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
 import { createInvitationToken, hashInvitationToken } from "@src/organization/lib/invitation-token/invitation-token";
+import type { OrganizationOutput, OrganizationRepository } from "@src/organization/repositories/organization/organization.repository";
 import type {
   OrganizationInvitationOutput,
   OrganizationInvitationPreview,
@@ -71,16 +72,22 @@ describe(InvitationAcceptanceService.name, () => {
           { projectId: deletedProjectId, role: "member" }
         ]
       });
-      const { service, invitee, txService, invitationRepository, unscopedRepositories, organizationMemberRepository, userRepository } = setup({
-        invitation,
-        liveProjectIds: [grantedProjectId]
-      });
+      const { service, invitee, txService, invitationRepository, organizationRepository, unscopedRepositories, organizationMemberRepository, userRepository } =
+        setup({
+          invitation,
+          liveProjectIds: [grantedProjectId]
+        });
 
       await service.acceptInvitation({ token });
 
       expect(txService.transaction).toHaveBeenCalledTimes(1);
       expect(invitationRepository.unscoped).toHaveBeenCalledWith("invitation-by-token");
-      expect(unscopedRepositories.invitations.findByTokenHashAndLock).toHaveBeenCalledWith(hashInvitationToken(token));
+      expect(unscopedRepositories.invitations.findOneBy).toHaveBeenCalledWith({ tokenHash: hashInvitationToken(token) });
+      expect(organizationRepository.findOneByAndLock).toHaveBeenCalledWith({ id: invitation.organizationId, deletedAt: null }, { strength: "no key update" });
+      expect(unscopedRepositories.invitations.findOneByAndLock).toHaveBeenCalledWith({ tokenHash: hashInvitationToken(token) }, { strength: "no key update" });
+      expect(organizationRepository.findOneByAndLock.mock.invocationCallOrder[0]).toBeLessThan(
+        unscopedRepositories.invitations.findOneByAndLock.mock.invocationCallOrder[0]
+      );
       expect(unscopedRepositories.members.createUnlessExists).toHaveBeenCalledWith({
         organizationId: invitation.organizationId,
         userId: invitee.id,
@@ -188,7 +195,8 @@ describe(InvitationAcceptanceService.name, () => {
     it("answers the organization again to the invitee who already accepted, without writing a membership", async () => {
       const { service, invitee, unscopedRepositories, userRepository } = setup({ invitation: undefined });
       const invitation = createOrganizationInvitation({ status: "accepted", acceptedByUserId: invitee.id, email: "someone-else@example.com" });
-      unscopedRepositories.invitations.findByTokenHashAndLock.mockResolvedValue(invitation);
+      unscopedRepositories.invitations.findOneBy.mockResolvedValue(invitation);
+      unscopedRepositories.invitations.findOneByAndLock.mockResolvedValue(invitation);
 
       await expect(service.acceptInvitation({ token: createInvitationToken() })).resolves.toMatchObject({ isActive: false });
       expect(unscopedRepositories.members.createUnlessExists).not.toHaveBeenCalled();
@@ -198,9 +206,9 @@ describe(InvitationAcceptanceService.name, () => {
 
     it("refuses the invitee who accepted and was removed since", async () => {
       const { service, invitee, unscopedRepositories, userRepository } = setup({ invitation: undefined, membership: null });
-      unscopedRepositories.invitations.findByTokenHashAndLock.mockResolvedValue(
-        createOrganizationInvitation({ status: "accepted", acceptedByUserId: invitee.id })
-      );
+      const invitation = createOrganizationInvitation({ status: "accepted", acceptedByUserId: invitee.id });
+      unscopedRepositories.invitations.findOneBy.mockResolvedValue(invitation);
+      unscopedRepositories.invitations.findOneByAndLock.mockResolvedValue(invitation);
 
       await expect(service.acceptInvitation({ token: createInvitationToken() })).rejects.toMatchObject({
         status: 409,
@@ -243,10 +251,26 @@ describe(InvitationAcceptanceService.name, () => {
     });
 
     it("answers not found for an unknown token", async () => {
-      const { service, organizationMemberRepository } = setup({ invitation: undefined });
+      const { service, organizationRepository, organizationMemberRepository } = setup({ invitation: undefined });
 
       await expect(service.acceptInvitation({ token: createInvitationToken() })).rejects.toMatchObject({ status: 404, message: "Invitation not found" });
+      expect(organizationRepository.findOneByAndLock).not.toHaveBeenCalled();
       expect(organizationMemberRepository.findActiveMembership).not.toHaveBeenCalled();
+    });
+
+    it("answers not found for an invitation of a deleted organization", async () => {
+      const { service, unscopedRepositories } = setup({ invitation: createOrganizationInvitation(), organization: null });
+
+      await expect(service.acceptInvitation({ token: createInvitationToken() })).rejects.toMatchObject({ status: 404, message: "Invitation not found" });
+      expect(unscopedRepositories.invitations.findOneByAndLock).not.toHaveBeenCalled();
+      expect(unscopedRepositories.members.createUnlessExists).not.toHaveBeenCalled();
+    });
+
+    it("answers not found when the token stopped matching before the invitation was locked", async () => {
+      const { service, unscopedRepositories } = setup({ invitation: createOrganizationInvitation(), lockedInvitation: null });
+
+      await expect(service.acceptInvitation({ token: createInvitationToken() })).rejects.toMatchObject({ status: 404, message: "Invitation not found" });
+      expect(unscopedRepositories.members.createUnlessExists).not.toHaveBeenCalled();
     });
   });
 
@@ -288,12 +312,15 @@ describe(InvitationAcceptanceService.name, () => {
     isAlreadyMember?: boolean;
     liveProjectIds?: string[];
     context?: OrganizationContext | null;
+    organization?: OrganizationOutput | null;
+    lockedInvitation?: OrganizationInvitationOutput | null;
   }) {
     const invitee = createUser({ email: input.invitation?.email ?? faker.internet.email(), emailVerified: true, ...input.invitee });
     const unscopedRepositories = {
       invitations: mock<OrganizationInvitationRepository>({
         findPreviewByTokenHash: vi.fn().mockResolvedValue(input.preview),
-        findByTokenHashAndLock: vi.fn().mockResolvedValue(input.invitation)
+        findOneBy: vi.fn().mockResolvedValue(input.invitation),
+        findOneByAndLock: vi.fn().mockResolvedValue(input.lockedInvitation === undefined ? input.invitation : input.lockedInvitation ?? undefined)
       }),
       members: mock<OrganizationMemberRepository>({
         createUnlessExists: vi.fn().mockResolvedValue(input.isAlreadyMember ? undefined : { id: faker.string.uuid() })
@@ -312,6 +339,9 @@ describe(InvitationAcceptanceService.name, () => {
     projectRepository.unscoped.calledWith("invitation-by-token").mockReturnValue(unscopedRepositories.projects);
     const projectMemberRepository = mock<ProjectMemberRepository>();
     projectMemberRepository.unscoped.calledWith("invitation-by-token").mockReturnValue(unscopedRepositories.projectMembers);
+    const organizationRepository = mock<OrganizationRepository>({
+      findOneByAndLock: vi.fn().mockResolvedValue(input.organization === undefined ? createOrganization() : input.organization ?? undefined)
+    });
     const userRepository = mock<UserRepository>();
     const authService = mock<AuthService>({ currentUser: invitee });
     const executionContextService = mock<ExecutionContextService>();
@@ -321,6 +351,7 @@ describe(InvitationAcceptanceService.name, () => {
     const txService = mock<TxService>({ transaction: vi.fn(cb => cb()) });
     const service = new InvitationAcceptanceService(
       invitationRepository,
+      organizationRepository,
       organizationMemberRepository,
       projectRepository,
       projectMemberRepository,
@@ -330,6 +361,6 @@ describe(InvitationAcceptanceService.name, () => {
       txService
     );
 
-    return { service, invitee, txService, invitationRepository, organizationMemberRepository, userRepository, unscopedRepositories };
+    return { service, invitee, txService, invitationRepository, organizationRepository, organizationMemberRepository, userRepository, unscopedRepositories };
   }
 });
