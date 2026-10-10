@@ -45,7 +45,7 @@ export class DeploymentController {
     private readonly spendRateService: SpendRateService
   ) {}
 
-  @Protected([{ action: "sign", subject: "UserWallet" }])
+  @Protected([{ action: "read", subject: "UserWallet" }])
   async findByDseq(dseq: string): Promise<GetDeploymentResponse> {
     const deployment = await this.deploymentReaderService.findByUserIdAndDseq(this.authService.currentUser.id, dseq);
     return { data: deployment };
@@ -105,7 +105,7 @@ export class DeploymentController {
     return { data: result };
   }
 
-  @Protected([{ action: "sign", subject: "UserWallet" }])
+  @Protected([{ action: "read", subject: "UserWallet" }])
   async list({ state, reverse, search, skip, limit }: ListDeploymentsQuery): Promise<z.infer<typeof ListDeploymentsResponseSchema>> {
     const { deployments, total, hasMore } = await this.deploymentReaderService.list({
       query: {

@@ -1,7 +1,9 @@
-import { and, asc, desc, eq, gt, gte, ilike, inArray, isNotNull, isNull, lt, lte, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gt, gte, ilike, inArray, isNotNull, isNull, lt, lte, or, type SQL, sql } from "drizzle-orm";
+import { alias } from "drizzle-orm/pg-core";
 import { singleton } from "tsyringe";
 
 import { UserWallets, WalletSetting } from "@src/billing/model-schemas";
+import type { UserWalletOutput } from "@src/billing/repositories/user-wallet/user-wallet.repository";
 import { assertBatchSize } from "@src/core/lib/batch-size/batch-size";
 import { containsPattern } from "@src/core/lib/like-pattern/like-pattern";
 import { type ApiPgDatabase, type ApiPgTables, InjectPg, InjectPgTable } from "@src/core/providers";
@@ -10,8 +12,9 @@ import { type ApiTransaction, TxService } from "@src/core/services";
 import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
 import { mergeLeaseGpuOffers } from "@src/deployment/lib/lease-gpu-offers/lease-gpu-offers";
 import { mergeLeaseGpuReadings } from "@src/deployment/lib/lease-gpu-readings/lease-gpu-readings";
-import type { GpuProbeSource, LeaseGpuOffer, LeaseGpuReading } from "@src/deployment/model-schemas";
+import { DeploymentSettings, type GpuProbeSource, type LeaseGpuOffer, type LeaseGpuReading } from "@src/deployment/model-schemas";
 import { NVIDIA_DRIVER_VERSION } from "@src/gpu/lib/cuda-version/cuda-version";
+import { Organizations } from "@src/organization/model-schemas/organization/organization.schema";
 import { Users } from "@src/user/model-schemas";
 
 type Table = ApiPgTables["DeploymentSettings"];
@@ -25,6 +28,23 @@ export type DeploymentSettingsOutput = Omit<DeploymentSettingsDbOutput, "created
 export type RecentNvidiaDriver = { driverVersion: string; lastSeenDate: string };
 
 const NVIDIA_PROBE_SOURCE = "nvidia-smi" satisfies GpuProbeSource;
+
+/** The wallet a deployment's settings row is looked up for: a team wallet files its deployments under its organization, any other wallet under its user. */
+export type DeploymentWallet = Pick<UserWalletOutput, "userId" | "organizationId">;
+
+const OWNER_WALLET_ALIAS = "deployment_owner_wallet";
+const TeamOrganizations = alias(Organizations, "deployment_team_organization");
+const OwnerWallets = alias(UserWallets, OWNER_WALLET_ALIAS);
+const ownerWalletsTable = sql`${UserWallets} as ${sql.identifier(OWNER_WALLET_ALIAS)}`;
+const isFiledInTeam = and(eq(TeamOrganizations.id, DeploymentSettings.organizationId), eq(TeamOrganizations.type, "team"));
+const ownerWalletId = sql`case when ${TeamOrganizations.id} is null
+  then (
+    select ${OwnerWallets.id} from ${ownerWalletsTable}
+    where ${OwnerWallets.userId} = ${DeploymentSettings.userId}
+      and (${OwnerWallets.organizationId} is null or ${DeploymentSettings.organizationId} is null or ${OwnerWallets.organizationId} = ${DeploymentSettings.organizationId})
+  )
+  else (select ${OwnerWallets.id} from ${ownerWalletsTable} where ${OwnerWallets.organizationId} = ${DeploymentSettings.organizationId})
+end`;
 
 /** What a deployment list shows about a deployment, as distinct from the fuller row a single settings read answers with. */
 export type ListedDeploymentSetting = Pick<DeploymentSettingsDbOutput, "name" | "closed" | "runtimeLimitHours" | "runtimeEndsAt">;
@@ -95,6 +115,8 @@ export type AutoTopUpDeployment = {
   id: string;
   userId: string;
   walletId: number;
+  /** Null for an organization's wallet, whose credit warnings are not tied to a user. */
+  walletUserId: string | null;
   dseq: string;
   address: string;
   isWalletAutoTopUpEnabled: boolean;
@@ -159,11 +181,11 @@ export class DeploymentSettingRepository extends OrgScopedRepository<Table, Depl
    * The names for one page of deployments, keyed by dseq and absent for a dseq with no row. One query for the
    * page rather than one per deployment, since a list of 100 would otherwise be 100 round trips.
    *
-   * Scoped twice over like the single read, by the caller's own id and by `accessibleBy` from their ability,
-   * because the (dseq, userId) unique means two users holding the same dseq is an ordinary state: a query
-   * naming only the dseqs would answer with another user's names.
+   * Scoped twice over like the single read, by the wallet the deployments belong to and by `accessibleBy` from
+   * the caller's ability, because two owners holding the same dseq is an ordinary state: a query naming only the
+   * dseqs would answer with another owner's names.
    */
-  async findNamesByDseqs({ userId, dseqs }: { userId: string; dseqs: string[] }): Promise<Map<string, string | null>> {
+  async findNamesByDseqs({ wallet, dseqs }: { wallet: DeploymentWallet; dseqs: string[] }): Promise<Map<string, string | null>> {
     if (dseqs.length === 0) {
       return new Map();
     }
@@ -171,7 +193,8 @@ export class DeploymentSettingRepository extends OrgScopedRepository<Table, Depl
     const rows = await this.cursor
       .select({ dseq: this.table.dseq, name: this.table.name, ...this.#ruleColumns })
       .from(this.table)
-      .where(this.whereAccessibleBy(and(eq(this.table.userId, userId), inArray(this.table.dseq, dseqs))));
+      .where(this.whereAccessibleBy(and(this.#filedFor(wallet), inArray(this.table.dseq, dseqs))))
+      .orderBy(...this.#lastFiledFirst);
     this.compareWithShadow(rows);
 
     return new Map(rows.map(row => [row.dseq, row.name]));
@@ -182,7 +205,7 @@ export class DeploymentSettingRepository extends OrgScopedRepository<Table, Depl
    * under the same double scoping as {@link findNamesByDseqs}. The name is read off the same row, so a list
    * joining these needs no separate name lookup.
    */
-  async findListedSettings({ userId, dseqs }: { userId: string; dseqs: string[] }): Promise<Map<string, ListedDeploymentSetting>> {
+  async findListedSettings({ wallet, dseqs }: { wallet: DeploymentWallet; dseqs: string[] }): Promise<Map<string, ListedDeploymentSetting>> {
     if (dseqs.length === 0) {
       return new Map();
     }
@@ -199,25 +222,26 @@ export class DeploymentSettingRepository extends OrgScopedRepository<Table, Depl
         ...this.#ruleColumns
       })
       .from(this.table)
-      .where(this.whereAccessibleBy(and(eq(this.table.userId, userId), inArray(this.table.dseq, dseqs))));
+      .where(this.whereAccessibleBy(and(this.#filedFor(wallet), inArray(this.table.dseq, dseqs))))
+      .orderBy(...this.#lastFiledFirst);
     this.compareWithShadow(rows);
 
     return new Map(rows.map(({ dseq, setting }) => [dseq, setting]));
   }
 
   /** Under the same double scoping as {@link findNamesByDseqs}; the null-name condition is what lets the partial index on named rows serve it. */
-  async findDseqsByNameContaining({ userId, text }: { userId: string; text: string }): Promise<string[]> {
+  async findDseqsByNameContaining({ wallet, text }: { wallet: DeploymentWallet; text: string }): Promise<string[]> {
     const rows = await this.cursor
       .select({ dseq: this.table.dseq, ...this.#ruleColumns })
       .from(this.table)
-      .where(this.whereAccessibleBy(and(eq(this.table.userId, userId), isNotNull(this.table.name), ilike(this.table.name, containsPattern(text)))));
+      .where(this.whereAccessibleBy(and(this.#filedFor(wallet), isNotNull(this.table.name), ilike(this.table.name, containsPattern(text)))));
     this.compareWithShadow(rows);
 
     return rows.map(row => row.dseq);
   }
 
   /** Keyed by dseq and absent for a deployment with neither recorded, under the same double scoping as {@link findNamesByDseqs}. */
-  async findLeaseGpus({ userId, dseqs }: { userId: string; dseqs: string[] }): Promise<Map<string, StoredLeaseGpus>> {
+  async findLeaseGpus({ wallet, dseqs }: { wallet: DeploymentWallet; dseqs: string[] }): Promise<Map<string, StoredLeaseGpus>> {
     if (dseqs.length === 0) {
       return new Map();
     }
@@ -227,9 +251,10 @@ export class DeploymentSettingRepository extends OrgScopedRepository<Table, Depl
       .from(this.table)
       .where(
         this.whereAccessibleBy(
-          and(eq(this.table.userId, userId), inArray(this.table.dseq, dseqs), or(isNotNull(this.table.detectedGpus), isNotNull(this.table.offeredGpus)))
+          and(this.#filedFor(wallet), inArray(this.table.dseq, dseqs), or(isNotNull(this.table.detectedGpus), isNotNull(this.table.offeredGpus)))
         )
-      );
+      )
+      .orderBy(...this.#lastFiledFirst);
 
     this.compareWithShadow(rows);
 
@@ -273,9 +298,65 @@ export class DeploymentSettingRepository extends OrgScopedRepository<Table, Depl
       .limit(limit);
   }
 
+  /** The row a deployment was first filed under, which is the one every member of an organization reads and writes. */
+  async findOneOfWallet(wallet: DeploymentWallet, dseq: string): Promise<DeploymentSettingsOutput | undefined> {
+    const [row] = await this.cursor
+      .select()
+      .from(this.table)
+      .where(this.whereAccessibleBy(and(this.#filedFor(wallet), eq(this.table.dseq, dseq))))
+      .orderBy(asc(this.table.createdAt), asc(this.table.id))
+      .limit(1);
+
+    return row && this.toOutput(row);
+  }
+
+  async findIdsOfWallet(wallet: DeploymentWallet, dseq: string): Promise<string[]> {
+    const rows = await this.cursor
+      .select({ id: this.table.id })
+      .from(this.table)
+      .where(this.whereAccessibleBy(and(this.#filedFor(wallet), eq(this.table.dseq, dseq))));
+
+    return rows.map(row => row.id);
+  }
+
+  /** In organization mode a deployment keeps the row it was first filed under, so a key naming another member resolves to that row. */
+  async findFiledKey(key: { userId: string; dseq: string }): Promise<{ key: { userId: string; dseq: string }; isFiled: boolean }> {
+    if (!this.scopedOrganizationId) return { key, isFiled: false };
+
+    const [filed] = await this.cursor
+      .select({ userId: this.table.userId })
+      .from(this.table)
+      .where(this.whereInOrganization(eq(this.table.dseq, key.dseq)))
+      .orderBy(asc(this.table.createdAt), asc(this.table.id))
+      .limit(1);
+
+    return filed ? { key: { userId: filed.userId, dseq: key.dseq }, isFiled: true } : { key, isFiled: false };
+  }
+
+  async findOwnerWalletId(id: DeploymentSettingsOutput["id"]): Promise<number | undefined> {
+    const [row] = await this.cursor
+      .select({ walletId: UserWallets.id })
+      .from(this.table)
+      .leftJoin(TeamOrganizations, isFiledInTeam)
+      .innerJoin(UserWallets, eq(UserWallets.id, ownerWalletId))
+      .where(this.whereAccessibleBy(eq(this.table.id, id)));
+
+    return row?.walletId;
+  }
+
+  /** Rows of one deployment come back newest first, so the row it was first filed under is the one a map keyed by dseq keeps. */
+  get #lastFiledFirst() {
+    return [desc(this.table.createdAt), desc(this.table.id)];
+  }
+
+  /** An ownerless wallet matches no row rather than every row with a null column. */
+  #filedFor(wallet: DeploymentWallet): SQL {
+    return wallet.userId ? eq(this.table.userId, wallet.userId) : sql`${this.table.organizationId} = ${wallet.organizationId}`;
+  }
+
   /** Merges under a row lock so a reading lands on what is stored now, and returns false when the deployment has no row to hold it. */
-  async mergeGpuReadings({ userId, dseq, readings }: { userId: string; dseq: string; readings: LeaseGpuReading[] }): Promise<boolean> {
-    const ofDeployment = this.whereAccessibleBy(and(eq(this.table.userId, userId), eq(this.table.dseq, dseq)));
+  async mergeGpuReadings({ wallet, dseq, readings }: { wallet: DeploymentWallet; dseq: string; readings: LeaseGpuReading[] }): Promise<boolean> {
+    const ofDeployment = this.whereAccessibleBy(and(this.#filedFor(wallet), eq(this.table.dseq, dseq)));
 
     return await this.ensureTransaction(async tx => {
       const [row] = await tx.select({ detectedGpus: this.table.detectedGpus }).from(this.table).where(ofDeployment).for("update");
@@ -294,8 +375,8 @@ export class DeploymentSettingRepository extends OrgScopedRepository<Table, Depl
   }
 
   /** Merges under a row lock like {@link mergeGpuReadings}, and returns false when the deployment has no row to hold the offers. */
-  async mergeGpuOffers({ userId, dseq, offers }: { userId: string; dseq: string; offers: LeaseGpuOffer[] }): Promise<boolean> {
-    const ofDeployment = this.whereAccessibleBy(and(eq(this.table.userId, userId), eq(this.table.dseq, dseq)));
+  async mergeGpuOffers({ wallet, dseq, offers }: { wallet: DeploymentWallet; dseq: string; offers: LeaseGpuOffer[] }): Promise<boolean> {
+    const ofDeployment = this.whereAccessibleBy(and(this.#filedFor(wallet), eq(this.table.dseq, dseq)));
 
     return await this.ensureTransaction(async tx => {
       const [row] = await tx.select({ offeredGpus: this.table.offeredGpus }).from(this.table).where(ofDeployment).for("update");
@@ -349,7 +430,8 @@ export class DeploymentSettingRepository extends OrgScopedRepository<Table, Depl
         })
         .from(this.table)
         .innerJoin(Users, eq(this.table.userId, Users.id))
-        .innerJoin(UserWallets, eq(Users.id, UserWallets.userId))
+        .leftJoin(TeamOrganizations, isFiledInTeam)
+        .innerJoin(UserWallets, eq(UserWallets.id, ownerWalletId))
         .where(this.whereAccessibleBy(and(eq(this.table.closed, false), isNotNull(UserWallets.address), ...(cursor ? [gt(this.table.id, cursor)] : []))))
         .orderBy(asc(this.table.id))
         .limit(batchSize);
@@ -448,6 +530,7 @@ export class DeploymentSettingRepository extends OrgScopedRepository<Table, Depl
         userId: this.table.userId,
         dseq: this.table.dseq,
         walletId: UserWallets.id,
+        walletUserId: UserWallets.userId,
         address: UserWallets.address,
         isWalletAutoTopUpEnabled: sql<boolean>`coalesce(${WalletSetting.autoReloadEnabled} and ${WalletSetting.autoReloadPausedAt} is null, false)`,
         walletIsTrialing: sql<boolean>`coalesce(${UserWallets.isTrialing}, true)`,
@@ -460,7 +543,8 @@ export class DeploymentSettingRepository extends OrgScopedRepository<Table, Depl
       })
       .from(this.table)
       .leftJoin(Users, eq(this.table.userId, Users.id))
-      .innerJoin(UserWallets, eq(Users.id, UserWallets.userId))
+      .leftJoin(TeamOrganizations, isFiledInTeam)
+      .innerJoin(UserWallets, eq(UserWallets.id, ownerWalletId))
       .leftJoin(WalletSetting, eq(UserWallets.id, WalletSetting.walletId))
       .where(this.whereAccessibleBy(and(...clauses)))
       .orderBy(desc(this.table.id));
@@ -479,7 +563,8 @@ export class DeploymentSettingRepository extends OrgScopedRepository<Table, Depl
         createdAt: this.table.createdAt
       })
       .from(this.table)
-      .innerJoin(UserWallets, eq(UserWallets.userId, this.table.userId))
+      .leftJoin(TeamOrganizations, isFiledInTeam)
+      .innerJoin(UserWallets, eq(UserWallets.id, ownerWalletId))
       .where(
         this.whereAccessibleBy(
           and(
@@ -510,7 +595,8 @@ export class DeploymentSettingRepository extends OrgScopedRepository<Table, Depl
         hasOfferedGpus: sql<boolean>`${this.table.offeredGpus} is not null`
       })
       .from(this.table)
-      .innerJoin(UserWallets, eq(UserWallets.userId, this.table.userId))
+      .leftJoin(TeamOrganizations, isFiledInTeam)
+      .innerJoin(UserWallets, eq(UserWallets.id, ownerWalletId))
       .where(
         this.whereAccessibleBy(
           and(
@@ -576,7 +662,8 @@ export class DeploymentSettingRepository extends OrgScopedRepository<Table, Depl
       })
       .from(this.table)
       .leftJoin(Users, eq(this.table.userId, Users.id))
-      .innerJoin(UserWallets, eq(Users.id, UserWallets.userId))
+      .leftJoin(TeamOrganizations, isFiledInTeam)
+      .innerJoin(UserWallets, eq(UserWallets.id, ownerWalletId))
       .where(
         this.whereAccessibleBy(
           and(

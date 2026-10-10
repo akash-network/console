@@ -86,6 +86,11 @@ type StoredSdlValues =
   /** Only a registry credential is, a seal having already said which of the rest are secret. */
   | "only-credentials-sealed";
 
+/** A background close cannot find an organization's wallet from the user who asked for it, so the job names the wallet. */
+function organizationWalletOf(wallet: WalletInitialized): { walletId?: number } {
+  return wallet.userId === null ? { walletId: wallet.id } : {};
+}
+
 function storedValuesFor(input: { sealedSecrets?: string }): StoredSdlValues {
   return input.sealedSecrets ? "only-credentials-sealed" : "every-value-sealed";
 }
@@ -148,7 +153,7 @@ export class DeploymentWriterService {
 
     const wallet = await this.walletReaderService.getWalletByUserId(input.userId);
     const depositInDollars = this.deploymentConfig.get("DEPLOYMENT_DEFAULT_DEPOSIT");
-    const inherited = await this.#inheritedSecretsOf(input);
+    const inherited = await this.#inheritedSecretsOf(input, wallet);
     const supplied = await this.#receiveSecrets(input, inherited);
     const stored = this.#storedSecretsOf({ inherited, supplied, derived }, storedDocument);
 
@@ -169,12 +174,12 @@ export class DeploymentWriterService {
       await this.reclaimTrialOrphanedDeployments(wallet);
     }
 
-    await this.signerService.assertCanBroadcast(wallet.userId, [message]);
+    await this.signerService.assertCanBroadcast(input.userId, [message]);
 
-    const sealedSecrets = await this.sdlSecretsService.sealForStorage({ userId: wallet.userId, dseq, secrets: stored });
+    const sealedSecrets = await this.sdlSecretsService.sealForStorage({ userId: input.userId, dseq, secrets: stored });
 
     await this.recordDefinitionWithCompensation({
-      userId: wallet.userId,
+      userId: input.userId,
       owner: wallet.address,
       dseq,
       sdl,
@@ -184,9 +189,9 @@ export class DeploymentWriterService {
       name: input.name ?? deriveDeploymentName(manifest.groups)
     });
 
-    const result = await this.signerService.executeDerivedDecodedTxByUserId(wallet.userId, [message]);
+    const result = await this.signerService.executeDerivedDecodedTxByUserId(input.userId, [message]);
 
-    await this.retireCompensation({ userId: wallet.userId, dseq: dseq.toString() });
+    await this.retireCompensation({ userId: input.userId, dseq: dseq.toString() });
 
     return {
       dseq: dseq.toString(),
@@ -325,11 +330,14 @@ export class DeploymentWriterService {
     this.sdlSecretsService.assertStorable(kept, "carried");
   }
 
-  /** Refused before the dseq is minted, so a source that cannot be found or whose token will not open spends no dseq and leaves nothing recorded. */
-  async #inheritedSecretsOf(input: { userId: string; inheritSecretsFrom?: string }): Promise<SdlSecrets> {
+  /** Refused before the dseq is minted, so a source that cannot be found or whose token will not open spends no dseq and leaves nothing recorded; an organization's source opens under the member it was filed by. */
+  async #inheritedSecretsOf(input: { userId: string; inheritSecretsFrom?: string }, wallet: UserWalletOutput): Promise<SdlSecrets> {
     if (!input.inheritSecretsFrom) return {};
 
-    return await this.sdlSecretsInheritanceService.open({ userId: input.userId, dseq: input.inheritSecretsFrom });
+    const dseq = input.inheritSecretsFrom;
+    const userId = wallet.userId === null ? (await this.deploymentSettingRepository.findOneOfWallet(wallet, dseq))?.userId ?? input.userId : input.userId;
+
+    return await this.sdlSecretsInheritanceService.open({ userId, dseq });
   }
 
   /** Carries none of the document and attaches no parse error as a cause, because a `js-yaml` message quotes the line it failed on and the error handler logs the whole chain. */
@@ -426,7 +434,7 @@ export class DeploymentWriterService {
 
     return await this.txService.transaction(async () => {
       const activityId = randomUUID();
-      const jobId = await this.jobQueueService.enqueue(new CloseDeployment({ userId, dseq, activityId, batchId }), {
+      const jobId = await this.jobQueueService.enqueue(new CloseDeployment({ userId, dseq, activityId, batchId, ...organizationWalletOf(wallet) }), {
         singletonKey: closeDeploymentKeyFor({ userId, dseq }),
         ...CLOSE_DEPLOYMENT_RETRY_OPTIONS
       });
@@ -493,7 +501,7 @@ export class DeploymentWriterService {
       signer: wallet.address
     });
 
-    await this.signerService.executeDerivedDecodedTxByUserId(wallet.userId, [message]);
+    await this.signerService.executeDerivedDecodedTxByUserId(options.userId, [message]);
 
     return await this.deploymentReaderService.findByWalletAndDseq(wallet, options.dseq);
   }
@@ -508,6 +516,7 @@ export class DeploymentWriterService {
     this.logger.warn({ event: "DEPRECATED_UPDATE_DEPLOYMENT_ENDPOINT_USED", userId, dseq });
 
     const wallet = await this.walletReaderService.getWalletByUserId(userId);
+    const filedUserId = await this.signerService.filedUserIdOf(wallet, userId, dseq);
     const { sdl, storedDocument, derived } = this.#storedSdlOf(input.sdl, storedValuesFor(input), dseq);
     const supplied = input.sealedSecrets ? await this.#receiveSecrets(input, {}) : {};
     const stored = this.#storedSecretsOf({ inherited: {}, supplied, derived }, storedDocument);
@@ -515,11 +524,11 @@ export class DeploymentWriterService {
     const { manifestVersion, manifest } = await this.#resolveSdl(input.sdl, { secrets: supplied, isTrialing: !!wallet.isTrialing });
     const { deployment, groupSpecs } = await this.deploymentReaderService.findWithGroupSpecsByWalletAndDseq(wallet, dseq);
     this.#assertResourcesUnchanged(manifest.groupSpecs, groupSpecs);
-    const sealedSecrets = await this.sdlSecretsService.sealForStorage({ userId: wallet.userId, dseq, secrets: stored });
+    const sealedSecrets = await this.sdlSecretsService.sealForStorage({ userId: filedUserId, dseq, secrets: stored });
 
-    await this.recordDefinition({ userId: wallet.userId, dseq, sdl, manifestVersion, sealedSecrets, name: input.name });
+    await this.recordDefinition({ userId: filedUserId, dseq, sdl, manifestVersion, sealedSecrets, name: input.name });
 
-    await this.ensureDeploymentIsUpToDate(wallet, dseq, manifestVersion, deployment);
+    await this.ensureDeploymentIsUpToDate({ userId, wallet }, dseq, manifestVersion, deployment);
     const auth = { walletId: wallet.id };
     await this.sendManifestToProviders({ auth, dseq, manifest: manifestToSortedJSON(manifest.groups), leases: deployment.leases });
     await this.restartTrialWorkloadProbe(wallet, dseq);
@@ -547,10 +556,9 @@ export class DeploymentWriterService {
       return await this.#renameByUserIdAndDseq(userId, dseq, input.name, ability);
     }
 
-    const [wallet, stored] = await Promise.all([
-      this.walletReaderService.getWalletByUserId(userId),
-      this.#findStoredDefinition({ userId, dseq }, ability, NOT_PATCHABLE_MESSAGE)
-    ]);
+    const wallet = await this.walletReaderService.getWalletByUserId(userId);
+    const filedUserId = await this.signerService.filedUserIdOf(wallet, userId, dseq);
+    const stored = await this.#findStoredDefinition({ userId: filedUserId, dseq }, ability, NOT_PATCHABLE_MESSAGE);
     const parsed = this.#parseStored(stored.sdl, { userId, dseq });
     const document = parsed.document;
 
@@ -561,7 +569,7 @@ export class DeploymentWriterService {
 
     const [supplied, held] = await Promise.all([
       input.sealedSecrets ? this.sdlSecretsService.receiveForMerge({ rawSdl: stored.sdl, sealedSecrets: input.sealedSecrets }) : {},
-      stored.sealedSecrets ? this.sdlSecretsService.openStored({ userId, dseq, sealedSecrets: stored.sealedSecrets }) : {}
+      stored.sealedSecrets ? this.sdlSecretsService.openStored({ userId: filedUserId, dseq, sealedSecrets: stored.sealedSecrets }) : {}
     ]);
     const merged = this.#mergeAndPrune({ held, supplied, derived }, document);
 
@@ -570,10 +578,10 @@ export class DeploymentWriterService {
     this.#assertResourcesUnchanged(manifest.groupSpecs, groupSpecs);
 
     const recordedVersion = Buffer.from(manifestVersion).toString("base64");
-    const sealedSecrets = await this.sdlSecretsService.sealForStorage({ userId, dseq, secrets: merged });
+    const sealedSecrets = await this.sdlSecretsService.sealForStorage({ userId: filedUserId, dseq, secrets: merged });
 
     const recorded = await this.deploymentSettingRepository.accessibleBy(ability, "update").replaceDefinitionIfVersionMatches({
-      userId,
+      userId: filedUserId,
       dseq,
       sdl: patchedSdl,
       manifestVersion: recordedVersion,
@@ -595,7 +603,7 @@ export class DeploymentWriterService {
       guarded: input.ifManifestVersion !== undefined
     });
 
-    await this.ensureDeploymentIsUpToDate(wallet, dseq, manifestVersion, deployment);
+    await this.ensureDeploymentIsUpToDate({ userId, wallet }, dseq, manifestVersion, deployment);
     await this.sendManifestToProviders({
       auth: { walletId: wallet.id },
       dseq,
@@ -618,9 +626,10 @@ export class DeploymentWriterService {
     ability: AnyAbility
   ): Promise<CreateDeploymentDefinitionResponse["data"]> {
     const { sdl, storedDocument, derived } = this.#storedSdlOf(input.sdl, storedValuesFor(input), dseq);
-    await this.#assertNoDefinitionRecorded({ userId, dseq }, ability);
-
     const wallet = await this.walletReaderService.getWalletByUserId(userId);
+    const filedUserId = await this.signerService.filedUserIdOf(wallet, userId, dseq);
+    await this.#assertNoDefinitionRecorded({ userId: filedUserId, dseq }, ability);
+
     const deployment = await this.deploymentReaderService.findByWalletAndDseqWithoutProviderStatus(wallet, dseq);
     const runningVersion = this.#runningVersionOf(deployment);
     const supplied = await this.#receiveSecrets(input, {});
@@ -629,12 +638,12 @@ export class DeploymentWriterService {
     const recordedVersion = Buffer.from(manifestVersion).toString("base64");
     this.#assertIsRunningVersion(recordedVersion, runningVersion, { userId, dseq });
 
-    const sealedSecrets = await this.sdlSecretsService.sealForStorage({ userId, dseq, secrets: stored });
+    const sealedSecrets = await this.sdlSecretsService.sealForStorage({ userId: filedUserId, dseq, secrets: stored });
     const closed = deployment.deployment.state === "closed";
     const recorded = await this.#reportingPersistenceFailure({ userId, dseq, hasSealedSecrets: !!sealedSecrets }, () =>
       this.deploymentSettingRepository
         .accessibleBy(ability, "update")
-        .recordDefinitionIfAbsent({ userId, dseq, sdl, manifestVersion: recordedVersion, sealedSecrets, closed })
+        .recordDefinitionIfAbsent({ userId: filedUserId, dseq, sdl, manifestVersion: recordedVersion, sealedSecrets, closed })
     );
 
     if (!recorded) {
@@ -705,9 +714,10 @@ export class DeploymentWriterService {
    */
   async #renameByUserIdAndDseq(userId: string, dseq: string, name: string, ability: AnyAbility): Promise<PatchDeploymentResponse["data"]> {
     const wallet = await this.walletReaderService.getWalletByUserId(userId);
+    const filedUserId = await this.signerService.filedUserIdOf(wallet, userId, dseq);
     const deployment = await this.deploymentReaderService.findByWalletAndDseqWithoutProviderStatus(wallet, dseq);
 
-    const persistedName = await this.deploymentSettingRepository.accessibleBy(ability, "update").upsertName({ userId, dseq, name });
+    const persistedName = await this.deploymentSettingRepository.accessibleBy(ability, "update").upsertName({ userId: filedUserId, dseq, name });
 
     this.logger.info({ event: "DEPLOYMENT_RENAMED", userId, dseq });
 
@@ -841,7 +851,12 @@ export class DeploymentWriterService {
     return createError(400, `Invalid SDL: ${errors.map(error => error.message).join(", ")}`);
   }
 
-  private async ensureDeploymentIsUpToDate(wallet: UserWalletOutput, dseq: string, manifestVersion: Uint8Array, deployment: DeploymentResponse): Promise<void> {
+  private async ensureDeploymentIsUpToDate(
+    { userId, wallet }: { userId: string; wallet: UserWalletOutput },
+    dseq: string,
+    manifestVersion: Uint8Array,
+    deployment: DeploymentResponse
+  ): Promise<void> {
     if (Buffer.from(manifestVersion).toString("base64") !== deployment.deployment.hash) {
       const message = this.rpcMessageService.getUpdateDeploymentMsg({
         owner: wallet.address!,
@@ -849,7 +864,7 @@ export class DeploymentWriterService {
         hash: manifestVersion
       });
 
-      await this.signerService.executeDerivedDecodedTxByUserId(wallet.userId, [message]);
+      await this.signerService.executeDerivedDecodedTxByUserId(userId, [message]);
     }
   }
 

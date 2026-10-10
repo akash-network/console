@@ -1586,6 +1586,20 @@ describe(TopUpManagedDeploymentsService.name, () => {
   });
 
   describe("when funding leaves deployments unfunded for lack of credits", () => {
+    it("warns nobody about an organization's wallet, whose credit warnings are not tied to a user", async () => {
+      const { service, drainingDeploymentService, cachedBalanceService, walletReloadService } = setup();
+      const deployments = createOwnerDeployments([3000, 900]).map(deployment => ({ ...deployment, walletUserId: null }));
+
+      mockOwnerYields(drainingDeploymentService, createOwnerYield(deployments, { userId: null }));
+      drainingDeploymentService.calculateAmountToTargetRunway.mockReturnValue(1_000_000);
+      cachedBalanceService.get.mockResolvedValue(mock<CachedBalance>({ spendable: 0 }));
+
+      await service.topUpDeployments({ dryRun: false });
+
+      expect(walletReloadService.scheduleCreditsExhaustedCheck).not.toHaveBeenCalled();
+      expect(walletReloadService.scheduleCreditsLowCheck).not.toHaveBeenCalled();
+    });
+
     it("warns the owner of a wallet with nothing spendable about the deployment that closes first", async () => {
       const { service, drainingDeploymentService, cachedBalanceService, walletReloadService } = setup();
       const [later, first, last] = createOwnerDeployments([3000, 900, 4000]);
@@ -1601,7 +1615,7 @@ describe(TopUpManagedDeploymentsService.name, () => {
 
       expect(drainingDeploymentService.calculateRunwayMinutesAfterDeposit).toHaveBeenCalledWith(first, 0, CURRENT_BLOCK_HEIGHT);
       expect(walletReloadService.scheduleCreditsExhaustedCheck).toHaveBeenCalledExactlyOnceWith({
-        userId: first.userId,
+        userId: first.walletUserId,
         firstClosingDseq: first.dseq,
         unfundedDeploymentCount: 3,
         firstClosureAt: expect.any(String)

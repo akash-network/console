@@ -12,6 +12,8 @@ import { type CreateLogger, LOGGER_FACTORY } from "@src/core/providers/logging.p
 import { AnalyticsService } from "@src/core/services/analytics/analytics.service";
 import { UserOutput, UserRepository } from "@src/user/repositories";
 
+export const ORGANIZATION_AUTO_RELOAD_UNAVAILABLE_ERROR_CODE = "organization_auto_reload_unavailable";
+
 /**
  * Saving auto top-up settings is the user asking us to try the card again, so it lifts a pause left
  * by repeated declines. Clearing the charge marker too is what lets the next check charge straight
@@ -130,9 +132,12 @@ export class WalletSettingService {
   }
 
   async #create(userId: UserOutput["id"], settings: WalletSettingInput): Promise<{ prev?: WalletSettingOutput; next: WalletSettingOutput }> {
-    const userWallet = await this.userWalletRepository.findOneByUserId(userId);
+    const userWallet = await this.userWalletRepository.findOneUsedBy(userId);
 
     assert(userWallet, 404, "UserWallet Not Found");
+    assert(userWallet.userId !== null, 409, "Auto reload is not available for an organization's wallet yet", {
+      errorCode: ORGANIZATION_AUTO_RELOAD_UNAVAILABLE_ERROR_CODE
+    });
 
     const created = await this.walletSettingRepository.accessibleBy(this.authService.ability, "create").createUnlessExists({
       userId,

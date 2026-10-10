@@ -8,6 +8,7 @@ import { type ApiPgDatabase, type ApiPgTables, InjectPg, InjectPgTable } from "@
 import { OrgScopedRepository } from "@src/core/repositories/org-scoped.repository";
 import { TxService } from "@src/core/services";
 import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
+import { Organizations } from "@src/organization/model-schemas/organization/organization.schema";
 import { Users } from "@src/user/model-schemas";
 
 export type DbCreateUserWalletInput = ApiPgTables["UserWallets"]["$inferInsert"];
@@ -31,6 +32,17 @@ export function isWalletInitialized(wallet: UserWalletOutput): wallet is WalletI
   return !!wallet.address;
 }
 
+/** A wallet that still belongs to a user, which every trial wallet does until its user is deleted. */
+export type PersonalWallet = WalletInitialized & { userId: string };
+
+export function isPersonalWallet(wallet: WalletInitialized): wallet is PersonalWallet {
+  return wallet.userId !== null;
+}
+
+function personalOrganizationIdOf(userId: string) {
+  return sql`(select ${Organizations.id} from ${Organizations} where ${Organizations.createdByUserId} = ${userId} and ${Organizations.type} = 'personal')`;
+}
+
 /** All a sweep needs to close a deployment on a wallet's behalf: the address it owns on chain and the index the signer derives it from. */
 export interface ManagedWalletRef {
   id: UserWalletOutput["id"];
@@ -44,7 +56,7 @@ export interface TrialWindow {
 
 export interface UserWalletPublicOutput {
   id: UserWalletOutput["id"];
-  userId: UserWalletOutput["userId"];
+  userId: string;
   address: WalletInitialized["address"];
   creditAmount: UserWalletOutput["creditAmount"];
   isTrialing: boolean;
@@ -68,18 +80,17 @@ export class UserWalletRepository extends OrgScopedRepository<ApiPgTables["UserW
     return new UserWalletRepository(this.pg, this.table, this.txManager, this.executionContextService) as this;
   }
 
-  async getOrCreate(input: { userId: Exclude<UserWalletInput["userId"], undefined | null> }): Promise<{ wallet: UserWalletOutput; isNew: boolean }> {
-    const foundWallet = await this.findOneByUserId(input.userId);
+  /** The user's own wallet whichever organization is active, filed into the user's personal organization when it is created. */
+  async getOrCreate(input: { userId: string }): Promise<{ wallet: UserWalletOutput; isNew: boolean }> {
+    const repository = this.unscoped("wallet-provisioning");
+    const foundWallet = await repository.findOneByUserId(input.userId);
     if (foundWallet) return { wallet: foundWallet, isNew: false };
 
-    const values = await this.attributeToOrganization(input);
-    this.ability?.throwUnlessCanExecute(values);
+    this.ability?.throwUnlessCanExecute({ userId: input.userId });
     const [newWallet] = await this.cursor
       .insert(this.table)
-      .values(values)
-      .onConflictDoNothing({
-        target: [this.table.userId]
-      })
+      .values({ userId: input.userId, createdByUserId: input.userId, organizationId: personalOrganizationIdOf(input.userId) })
+      .onConflictDoNothing()
       .returning();
 
     if (newWallet) {
@@ -89,8 +100,30 @@ export class UserWalletRepository extends OrgScopedRepository<ApiPgTables["UserW
       };
     }
 
-    // race condition, wallet was created by another call
-    const wallet = await this.findOneByUserId(input.userId);
+    const wallet = await repository.findOneByUserId(input.userId);
+    return { wallet: this.requireWrittenRow(wallet), isNew: false };
+  }
+
+  /** A team organization's wallet belongs to no user and never trials; the organization's partial unique index decides who creates it. */
+  async getOrCreateForOrganization(input: { organizationId: string; createdByUserId: string }): Promise<{ wallet: UserWalletOutput; isNew: boolean }> {
+    const repository = this.unscoped("wallet-provisioning");
+    const foundWallet = await repository.findOneByOrganizationId(input.organizationId);
+    if (foundWallet) return { wallet: foundWallet, isNew: false };
+
+    const [newWallet] = await this.cursor
+      .insert(this.table)
+      .values({ userId: null, organizationId: input.organizationId, createdByUserId: input.createdByUserId, isTrialing: false })
+      .onConflictDoNothing({
+        target: [this.table.organizationId],
+        where: isNotNull(this.table.organizationId)
+      })
+      .returning();
+
+    if (newWallet) {
+      return { wallet: this.toOutput(newWallet), isNew: true };
+    }
+
+    const wallet = await repository.findOneByOrganizationId(input.organizationId);
     return { wallet: this.requireWrittenRow(wallet), isNew: false };
   }
 
@@ -173,7 +206,8 @@ export class UserWalletRepository extends OrgScopedRepository<ApiPgTables["UserW
             isNotNull(this.table.activatedAt),
             isNull(this.table.abuseLockedAt),
             lte(this.table.feeAllowance, thresholds.fee.toString()),
-            or(and(eq(this.table.isTrialing, true), gt(this.table.activatedAt, trialWindowStart)), eq(this.table.isTrialing, false))
+            or(and(eq(this.table.isTrialing, true), gt(this.table.activatedAt, trialWindowStart)), eq(this.table.isTrialing, false)),
+            or(isNotNull(this.table.userId), isNotNull(this.table.organizationId))
           )
         )
       })
@@ -190,7 +224,7 @@ export class UserWalletRepository extends OrgScopedRepository<ApiPgTables["UserW
     options: { excludeWalletId: number; limit: number }
   ): Promise<Array<{ walletId: number; userId: string }>> {
     return await this.cursor
-      .select({ walletId: this.table.id, userId: this.table.userId })
+      .select({ walletId: this.table.id, userId: Users.id })
       .from(this.table)
       .innerJoin(Users, eq(Users.id, this.table.userId))
       .where(
@@ -245,6 +279,33 @@ export class UserWalletRepository extends OrgScopedRepository<ApiPgTables["UserW
     return this.toOutput(userWallet);
   }
 
+  async findOneByOrganizationId(organizationId: string) {
+    const wallet = await this.cursor.query.UserWallets.findFirst({ where: this.whereAccessibleBy(eq(this.table.organizationId, organizationId)) });
+    if (!wallet) return undefined;
+    this.compareWithShadow([wallet]);
+
+    return this.toOutput(wallet);
+  }
+
+  /** The wallet a user acts through: the active organization's in organization mode, only for the user the request is authenticated as, and the user's own otherwise. */
+  @Trace()
+  async findOneUsedBy(userId: string) {
+    const organizationId = this.scopedOrganizationId;
+
+    if (!organizationId) return await this.findOneByUserId(userId);
+    if (this.executionContextService.get("CURRENT_USER")?.id !== userId) return undefined;
+
+    return await this.findOneByOrganizationId(organizationId);
+  }
+
+  /** Keeps the wallet row, and with it the derivation index of its address, when the organization it was filed into is deleted. */
+  async detachFromOrganization(id: UserWalletOutput["id"]): Promise<void> {
+    await this.cursor
+      .update(this.table)
+      .set({ organizationId: null })
+      .where(this.whereAccessibleBy(eq(this.table.id, id)));
+  }
+
   async findOneByAddress(address: string) {
     const userWallet = await this.cursor.query.UserWallets.findFirst({ where: this.whereAccessibleBy(eq(this.table.address, address)) });
     if (!userWallet) return undefined;
@@ -293,7 +354,7 @@ export class UserWalletRepository extends OrgScopedRepository<ApiPgTables["UserW
     const [{ count: payingUserCount }] = await this.cursor
       .select({ count: count() })
       .from(this.table)
-      .where(this.unscoped("platform-statistics").whereAccessibleBy(eq(this.table.isTrialing, false)));
+      .where(this.unscoped("platform-statistics").whereAccessibleBy(and(eq(this.table.isTrialing, false), isNotNull(this.table.userId))));
     return payingUserCount;
   }
 
@@ -328,7 +389,7 @@ export class UserWalletRepository extends OrgScopedRepository<ApiPgTables["UserW
     return dbInput;
   }
 
-  toPublic(output: WalletInitialized, trialWindow: TrialWindow = { trialEndsAt: null, trialDurationDays: null }): UserWalletPublicOutput {
+  toPublic(output: WalletInitialized & { userId: string }, trialWindow: TrialWindow = { trialEndsAt: null, trialDurationDays: null }): UserWalletPublicOutput {
     return {
       id: output.id,
       userId: output.userId,

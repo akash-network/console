@@ -6,10 +6,10 @@ import { cacheRegistry, nominalEntrySizing } from "@src/caching/cache-registry";
 import { BillingConfigService } from "../billing-config/billing-config.service";
 
 const MAX_TRACKED_WALLETS = 10_000;
-/** A few numbers under a user id, so the registry ranks this cache far below the ones holding response payloads. */
+/** A few numbers under a wallet id, so the registry ranks this cache far below the ones holding response payloads. */
 const ENTRY_BYTES = 128;
 
-type RefusedWallet = Pick<UserWalletOutput, "userId" | "deploymentAllowance">;
+type RefusedWallet = Pick<UserWalletOutput, "id" | "deploymentAllowance">;
 
 export interface CachedDepositRefusal {
   chainDeploymentAllowance: number;
@@ -26,7 +26,7 @@ interface DepositRefusalEntry {
 
 @singleton()
 export class DeploymentDepositRefusalCache {
-  readonly #entries: LRUCache<string, DepositRefusalEntry>;
+  readonly #entries: LRUCache<number, DepositRefusalEntry>;
 
   constructor(billingConfigService: BillingConfigService) {
     this.#entries = new LRUCache({
@@ -38,14 +38,14 @@ export class DeploymentDepositRefusalCache {
   }
 
   find(userWallet: RefusedWallet, requiredDeposit: number): CachedDepositRefusal | undefined {
-    const entry = this.#entries.get(userWallet.userId);
+    const entry = this.#entries.get(userWallet.id);
 
     if (!entry) {
       return undefined;
     }
 
     if (entry.walletDeploymentAllowanceSnapshot !== userWallet.deploymentAllowance) {
-      this.#entries.delete(userWallet.userId);
+      this.#entries.delete(userWallet.id);
       return undefined;
     }
 
@@ -58,22 +58,22 @@ export class DeploymentDepositRefusalCache {
     return {
       chainDeploymentAllowance: entry.chainDeploymentAllowance,
       suppressedAttempts: entry.suppressedAttempts,
-      retryAfterSeconds: this.#getRetryAfterSeconds(userWallet.userId)
+      retryAfterSeconds: this.#getRetryAfterSeconds(userWallet.id)
     };
   }
 
   remember(userWallet: RefusedWallet, chainDeploymentAllowance: number): { retryAfterSeconds: number } {
-    this.#entries.set(userWallet.userId, {
+    this.#entries.set(userWallet.id, {
       chainDeploymentAllowance,
       walletDeploymentAllowanceSnapshot: userWallet.deploymentAllowance,
       suppressedAttempts: 0
     });
 
-    return { retryAfterSeconds: this.#getRetryAfterSeconds(userWallet.userId) };
+    return { retryAfterSeconds: this.#getRetryAfterSeconds(userWallet.id) };
   }
 
-  #getRetryAfterSeconds(userId: string): number {
-    return Math.max(1, Math.ceil(this.#entries.getRemainingTTL(userId) / 1000));
+  #getRetryAfterSeconds(walletId: number): number {
+    return Math.max(1, Math.ceil(this.#entries.getRemainingTTL(walletId) / 1000));
   }
 }
 

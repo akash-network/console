@@ -12,6 +12,8 @@ export class CloseDeployment implements Job {
       dseq: string;
       activityId: string;
       batchId?: string;
+      /** Names the wallet to close with when it belongs to an organization, which the job cannot resolve from the user. */
+      walletId?: number;
     }
   ) {}
 }

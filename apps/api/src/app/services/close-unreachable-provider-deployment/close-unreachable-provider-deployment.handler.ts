@@ -59,7 +59,7 @@ export class CloseUnreachableProviderDeploymentHandler implements JobHandler<Clo
       return;
     }
 
-    const setting = await this.deploymentSettingRepository.findOneBy({ userId: wallet.userId, dseq });
+    const setting = await this.deploymentSettingRepository.findOneOfWallet(wallet, dseq);
 
     if (setting?.closed) {
       this.logger.debug({ event: "UNREACHABLE_PROVIDER_DEPLOYMENT_CLOSE_SKIPPED", reason: "ALREADY_CLOSED", dseq, owner });
@@ -91,7 +91,13 @@ export class CloseUnreachableProviderDeploymentHandler implements JobHandler<Clo
       throw error;
     }
 
-    await this.#recordAndNotify(deployment, wallet);
+    const filingUserId = wallet.userId ?? setting?.userId;
+
+    if (filingUserId) {
+      await this.#recordAndNotify(deployment, { id: wallet.id, userId: filingUserId, organizationId: wallet.organizationId });
+    } else {
+      this.logger.warn({ event: "UNREACHABLE_PROVIDER_DEPLOYMENT_CLOSE_UNNOTIFIED", reason: "NO_FILING_USER", dseq, owner });
+    }
 
     if (!closedByUs) {
       this.logger.info({ event: "UNREACHABLE_PROVIDER_DEPLOYMENT_CLOSE_LANDED_ELSEWHERE", dseq, owner });

@@ -64,7 +64,8 @@ export class DeploymentSettingService {
 
   /** A read persists nothing: a row written for whatever dseq a client asks about is backed by no deployment, and nothing can ever close it. */
   async findByUserIdAndDseq(params: FindDeploymentSettingParams): Promise<DeploymentSettingWithEstimatedTopUpAmount | undefined> {
-    const setting = await this.deploymentSettingRepository.accessibleBy(this.authService.ability, "read").findOneBy(params);
+    const { key } = await this.deploymentSettingRepository.findFiledKey(params);
+    const setting = await this.deploymentSettingRepository.accessibleBy(this.authService.ability, "read").findOneBy(key);
 
     return setting && (await this.withEstimatedTopUpAmount(setting));
   }
@@ -78,7 +79,7 @@ export class DeploymentSettingService {
    */
   async create(input: FindDeploymentSettingParams & DeploymentSettingChange): Promise<DeploymentSettingWithEstimatedTopUpAmount> {
     const { userId, dseq, ...change } = input;
-    const setting = await this.#writeReconcilingConcurrentCreate({ userId, dseq }, change);
+    const setting = await this.#writeReconcilingConcurrentCreate(await this.#filedKeyReachableBy({ userId, dseq }), change);
     const result = await this.withEstimatedTopUpAmount(setting);
 
     if (result.autoTopUpEnabled) {
@@ -94,12 +95,25 @@ export class DeploymentSettingService {
     assert(input.runtimeLimitHours === undefined || !recordsCloseReason, 400, "Change the runtime limit and record a close reason in separate requests");
 
     try {
-      const setting = recordsCloseReason ? await this.#recordCloseReason(params, input) : await this.#writeReconcilingConcurrentCreate(params, input);
+      const key = await this.#filedKeyReachableBy(params);
+      const setting = recordsCloseReason ? await this.#recordCloseReason(key, input) : await this.#writeReconcilingConcurrentCreate(key, input);
       return this.withEstimatedTopUpAmount(setting);
     } catch (error) {
       assert(!(error instanceof ForbiddenError), 404, "Deployment setting not found");
       throw error;
     }
+  }
+
+  /** An organization's deployment keeps the row it was first filed under, and a caller who cannot reach that row may not file a second one. */
+  async #filedKeyReachableBy(params: FindDeploymentSettingParams): Promise<FindDeploymentSettingParams> {
+    const { key, isFiled } = await this.deploymentSettingRepository.findFiledKey(params);
+
+    if (isFiled) {
+      const reachable = await this.deploymentSettingRepository.accessibleBy(this.authService.ability, "update").findOneBy(key);
+      assert(reachable, 404, "Deployment setting not found");
+    }
+
+    return key;
   }
 
   /** A row created here would default to open and auto-funded, which the top-up sweep would then pick up for a deployment that is already closed. */
@@ -190,7 +204,7 @@ export class DeploymentSettingService {
     });
 
     if (setting.runtimeEndsAt) {
-      await this.#requestImmediateFunding(params.userId, params.dseq);
+      await this.#requestImmediateFunding(setting);
       await this.#rescheduleCloseJob(setting);
     }
 
@@ -265,7 +279,7 @@ export class DeploymentSettingService {
     });
 
     if (existing?.runtimeEndsAt) {
-      await this.#requestImmediateFunding(params.userId, params.dseq);
+      await this.#requestImmediateFunding(setting);
       await this.#cancelCloseJob(existing);
     }
 
@@ -286,9 +300,9 @@ export class DeploymentSettingService {
    * not turn a successful request into a 500 that invites a retry the increase-only rule would reject.
    * The hourly sweep is the fallback.
    */
-  async #requestImmediateFunding(userId: string, dseq: string): Promise<void> {
+  async #requestImmediateFunding({ id, userId, dseq }: Pick<DeploymentSettingsOutput, "id" | "userId" | "dseq">): Promise<void> {
     try {
-      const wallet = await this.userWalletRepository.findOneByUserId(userId);
+      const wallet = await this.#ownerWalletOf({ id });
 
       if (!wallet?.address) {
         this.logger.warn({ event: "RUNTIME_LIMIT_FUNDING_SKIPPED", reason: "WALLET_NOT_FOUND", dseq, userId });
@@ -335,6 +349,13 @@ export class DeploymentSettingService {
     }
   }
 
+  /** The wallet that owns the deployment a row was filed for, which is the organization's for a team deployment whoever filed it. */
+  async #ownerWalletOf({ id }: Pick<DeploymentSettingsOutput, "id">) {
+    const walletId = await this.deploymentSettingRepository.findOwnerWalletId(id);
+
+    return walletId === undefined ? undefined : await this.userWalletRepository.findById(walletId);
+  }
+
   /**
    * `lastFundedAt`, `runtimeEndingNotifiedFor` and `providerUnreachableNotifiedFor` are internal sweep markers and stay
    * out of the API payload. So do `sdl`, `sealedSecrets` and `manifestVersion`: they are what the console remembers a
@@ -374,7 +395,8 @@ export class DeploymentSettingService {
       return { ...setting, estimatedTopUpAmount: 0, topUpFrequencyMs: this.topUpFrequencyMs, sdl };
     }
 
-    const estimatedTopUpAmount = await this.drainingDeploymentService.calculateTopUpAmountForDseqAndUserId(setting.dseq, setting.userId);
+    const wallet = await this.#ownerWalletOf(params);
+    const estimatedTopUpAmount = wallet?.address ? await this.drainingDeploymentService.calculateTopUpAmountForDseqAndOwner(setting.dseq, wallet.address) : 0;
     if (estimatedTopUpAmount < 0) {
       this.logger.warn({
         event: "ESTIMATED_TOP_UP_AMOUNT_NEGATIVE",

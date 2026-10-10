@@ -1,6 +1,6 @@
 import { inject, singleton } from "tsyringe";
 
-import { isWalletInitialized, UserWalletRepository } from "@src/billing/repositories";
+import { isPersonalWallet, isWalletInitialized, UserWalletRepository } from "@src/billing/repositories";
 import { type CreateLogger, type Job, JOB_NAME, type JobHandler, type JobPayload, type JobPermissions, JobQueueService, LOGGER_FACTORY } from "@src/core";
 import { WorkloadAbuseDetectionRepository } from "@src/workload-abuse/repositories/workload-abuse-detection/workload-abuse-detection.repository";
 import {
@@ -59,7 +59,7 @@ export class EnforceTrialAbuseHandler implements JobHandler<EnforceTrialAbuse> {
     const context = { job: EnforceTrialAbuse[JOB_NAME], walletId, detectionId };
     const wallet = await this.userWalletRepository.findById(walletId);
 
-    if (!wallet || !isWalletInitialized(wallet)) {
+    if (!wallet || !isWalletInitialized(wallet) || !isPersonalWallet(wallet)) {
       this.logger.warn({ event: "TRIAL_WORKLOAD_ABUSE_ENFORCEMENT_SKIPPED", reason: "WALLET_NOT_FOUND", ...context });
       this.instrumentation.recordEnforcement("skipped");
       return;

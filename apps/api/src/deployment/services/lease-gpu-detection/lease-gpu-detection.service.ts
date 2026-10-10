@@ -65,7 +65,7 @@ export class LeaseGpuDetectionService {
     if (!leases) return CHAIN_UNAVAILABLE;
     if (leases.length === 0) return { status: "no_live_lease", readings: [], complete: false };
 
-    const sdl = await this.#findStoredSdl(input.wallet.userId, input.dseq);
+    const sdl = await this.#findStoredSdl(input.wallet, input.dseq);
     const reads: LeaseRead[] = [];
 
     for (const lease of leases) {
@@ -119,8 +119,8 @@ export class LeaseGpuDetectionService {
     }
   }
 
-  async #findStoredSdl(userId: string, dseq: string): Promise<SDLInput | undefined> {
-    const setting = await this.deploymentSettingRepository.findOneBy({ userId, dseq });
+  async #findStoredSdl(wallet: WalletInitialized, dseq: string): Promise<SDLInput | undefined> {
+    const setting = await this.deploymentSettingRepository.findOneOfWallet(wallet, dseq);
     if (!setting?.sdl) return undefined;
 
     const parsed = this.sdlService.parse(setting.sdl);

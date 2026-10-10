@@ -17,7 +17,7 @@ import { DeploymentSettingService } from "./deployment-setting.service";
 import { mockConfigService } from "@test/mocks/config-service.mock";
 import { createLeaseGpuOffer } from "@test/seeders/lease-gpu-offer.seeder";
 import { createLeaseGpuReading } from "@test/seeders/lease-gpu-reading.seeder";
-import { createUserWallet } from "@test/seeders/user-wallet.seeder";
+import { createOrganizationWallet, createUserWallet } from "@test/seeders/user-wallet.seeder";
 
 describe(DeploymentSettingService.name, () => {
   describe("findByUserIdAndDseq", () => {
@@ -74,6 +74,80 @@ describe(DeploymentSettingService.name, () => {
 
       expect(result).toBeUndefined();
       expect(deploymentSettingRepository.create).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("when another member already filed the deployment", () => {
+    it("writes the row the deployment was filed under", async () => {
+      const { service, deploymentSettingRepository } = setup();
+      const filedKey = { userId: faker.string.uuid(), dseq: faker.string.numeric(6) };
+      const existing = createDeploymentSettingsOutput({ ...filedKey, runtimeLimitHours: null });
+      deploymentSettingRepository.findFiledKey.mockResolvedValue({ key: filedKey, isFiled: true });
+      deploymentSettingRepository.accessibleBy.mockReturnValue(deploymentSettingRepository);
+      deploymentSettingRepository.findOneBy.mockResolvedValue(existing);
+      deploymentSettingRepository.applyRuntimeLimit.mockResolvedValue(createDeploymentSettingsOutput({ ...filedKey, runtimeLimitHours: 12 }));
+
+      await service.upsert({ userId: faker.string.uuid(), dseq: filedKey.dseq }, { runtimeLimitHours: 12 });
+
+      expect(deploymentSettingRepository.accessibleBy).toHaveBeenCalledWith(expect.anything(), "update");
+      expect(deploymentSettingRepository.findOneBy).toHaveBeenCalledWith(filedKey);
+      expect(deploymentSettingRepository.applyRuntimeLimit).toHaveBeenCalledWith(expect.objectContaining(filedKey));
+    });
+
+    it("answers 404 and files nothing when the caller cannot reach the filed row", async () => {
+      const { service, deploymentSettingRepository } = setup();
+      const filedKey = { userId: faker.string.uuid(), dseq: faker.string.numeric(6) };
+      deploymentSettingRepository.findFiledKey.mockResolvedValue({ key: filedKey, isFiled: true });
+      deploymentSettingRepository.accessibleBy.mockReturnValue(deploymentSettingRepository);
+      deploymentSettingRepository.findOneBy.mockResolvedValue(undefined);
+
+      await expect(service.create({ userId: faker.string.uuid(), dseq: filedKey.dseq, runtimeLimitHours: 5 })).rejects.toMatchObject({ status: 404 });
+
+      expect(deploymentSettingRepository.create).not.toHaveBeenCalled();
+      expect(deploymentSettingRepository.updateBy).not.toHaveBeenCalled();
+    });
+
+    it("estimates funding from the wallet that owns the deployment, not the caller's", async () => {
+      const { service, deploymentSettingRepository, userWalletRepository, drainingDeploymentService } = setup();
+      const filed = createDeploymentSettingsOutput({ autoTopUpEnabled: true });
+      const ownerWallet = createOrganizationWallet();
+      deploymentSettingRepository.findFiledKey.mockResolvedValue({ key: { userId: filed.userId, dseq: filed.dseq }, isFiled: true });
+      deploymentSettingRepository.accessibleBy.mockReturnValue(deploymentSettingRepository);
+      deploymentSettingRepository.findOneBy.mockResolvedValue(filed);
+      deploymentSettingRepository.findOwnerWalletId.mockResolvedValue(ownerWallet.id);
+      userWalletRepository.findById.mockResolvedValue(ownerWallet);
+      drainingDeploymentService.calculateTopUpAmountForDseqAndOwner.mockResolvedValue(42);
+
+      const result = await service.findByUserIdAndDseq({ userId: faker.string.uuid(), dseq: filed.dseq });
+
+      expect(deploymentSettingRepository.findOwnerWalletId).toHaveBeenCalledWith(filed.id);
+      expect(drainingDeploymentService.calculateTopUpAmountForDseqAndOwner).toHaveBeenCalledWith(filed.dseq, ownerWallet.address);
+      expect(result).toMatchObject({ estimatedTopUpAmount: 42 });
+    });
+
+    it("estimates nothing when no wallet owns the deployment", async () => {
+      const { service, deploymentSettingRepository, drainingDeploymentService } = setup();
+      const filed = createDeploymentSettingsOutput({ autoTopUpEnabled: true });
+      deploymentSettingRepository.accessibleBy.mockReturnValue(deploymentSettingRepository);
+      deploymentSettingRepository.findOneBy.mockResolvedValue(filed);
+      deploymentSettingRepository.findOwnerWalletId.mockResolvedValue(undefined);
+
+      const result = await service.findByUserIdAndDseq({ userId: filed.userId, dseq: filed.dseq });
+
+      expect(drainingDeploymentService.calculateTopUpAmountForDseqAndOwner).not.toHaveBeenCalled();
+      expect(result).toMatchObject({ estimatedTopUpAmount: 0 });
+    });
+
+    it("reads the row the deployment was filed under", async () => {
+      const { service, deploymentSettingRepository } = setup();
+      const filedKey = { userId: faker.string.uuid(), dseq: faker.string.numeric(6) };
+      deploymentSettingRepository.findFiledKey.mockResolvedValue({ key: filedKey, isFiled: true });
+      deploymentSettingRepository.accessibleBy.mockReturnValue(deploymentSettingRepository);
+      deploymentSettingRepository.findOneBy.mockResolvedValue(undefined);
+
+      await service.findByUserIdAndDseq({ userId: faker.string.uuid(), dseq: filedKey.dseq });
+
+      expect(deploymentSettingRepository.findOneBy).toHaveBeenCalledWith(filedKey);
     });
   });
 
@@ -348,7 +422,7 @@ describe(DeploymentSettingService.name, () => {
         createDeploymentSettingsOutput({ ...params, runtimeLimitHours: 12, runtimeEndsAt: faker.date.future() })
       );
       deploymentSettingRepository.updateBy.mockResolvedValue(createDeploymentSettingsOutput({ ...params, runtimeLimitHours: null }) as never);
-      userWalletRepository.findOneByUserId.mockResolvedValue(wallet);
+      userWalletRepository.findById.mockResolvedValue(wallet);
 
       await service.upsert(params, { runtimeLimitHours: null });
 
@@ -382,7 +456,7 @@ describe(DeploymentSettingService.name, () => {
       deploymentSettingRepository.accessibleBy.mockReturnValue(deploymentSettingRepository);
       deploymentSettingRepository.findOneBy.mockResolvedValue(createDeploymentSettingsOutput({ ...params, runtimeLimitHours: 12 }));
       deploymentSettingRepository.applyRuntimeLimit.mockResolvedValue(extended);
-      userWalletRepository.findOneByUserId.mockResolvedValue(createUserWallet({ userId: params.userId }));
+      userWalletRepository.findById.mockResolvedValue(createUserWallet({ userId: params.userId }));
 
       await service.upsert(params, { runtimeLimitHours: 24 });
 
@@ -415,7 +489,7 @@ describe(DeploymentSettingService.name, () => {
       deploymentSettingRepository.accessibleBy.mockReturnValue(deploymentSettingRepository);
       deploymentSettingRepository.findOneBy.mockResolvedValue(existing);
       deploymentSettingRepository.updateBy.mockResolvedValue(createDeploymentSettingsOutput({ ...params, runtimeLimitHours: null }) as never);
-      userWalletRepository.findOneByUserId.mockResolvedValue(createUserWallet({ userId: params.userId }));
+      userWalletRepository.findById.mockResolvedValue(createUserWallet({ userId: params.userId }));
 
       await service.upsert(params, { runtimeLimitHours: null });
 
@@ -444,7 +518,7 @@ describe(DeploymentSettingService.name, () => {
       deploymentSettingRepository.applyRuntimeLimit.mockResolvedValue(
         createDeploymentSettingsOutput({ ...params, runtimeLimitHours: 24, runtimeEndsAt: faker.date.future() })
       );
-      userWalletRepository.findOneByUserId.mockResolvedValue(createUserWallet({ userId: params.userId }));
+      userWalletRepository.findById.mockResolvedValue(createUserWallet({ userId: params.userId }));
       deploymentCloseJobService.schedule.mockRejectedValue(new Error("queue unavailable"));
 
       const result = await service.upsert(params, { runtimeLimitHours: 24 });
@@ -461,7 +535,7 @@ describe(DeploymentSettingService.name, () => {
         createDeploymentSettingsOutput({ ...params, runtimeLimitHours: 12, runtimeEndsAt: faker.date.future() })
       );
       deploymentSettingRepository.updateBy.mockResolvedValue(createDeploymentSettingsOutput({ ...params, runtimeLimitHours: null }) as never);
-      userWalletRepository.findOneByUserId.mockResolvedValue(createUserWallet({ userId: params.userId }));
+      userWalletRepository.findById.mockResolvedValue(createUserWallet({ userId: params.userId }));
       deploymentCloseJobService.cancel.mockRejectedValue(new Error("queue unavailable"));
 
       const result = await service.upsert(params, { runtimeLimitHours: null });
@@ -481,13 +555,35 @@ describe(DeploymentSettingService.name, () => {
       deploymentSettingRepository.applyRuntimeLimit.mockResolvedValue(
         createDeploymentSettingsOutput({ ...params, runtimeLimitHours: 24, runtimeEndsAt: faker.date.future() })
       );
-      userWalletRepository.findOneByUserId.mockResolvedValue(wallet);
+      userWalletRepository.findById.mockResolvedValue(wallet);
 
       await service.upsert(params, { runtimeLimitHours: 24 });
 
       expect(domainEvents.publish).toHaveBeenCalledWith(
         expect.objectContaining({ data: { walletId: wallet.id, address: wallet.address, dseq: params.dseq } }),
         { singletonKey: `${FundDeploymentCommand.name}.${params.dseq}.${wallet.id}` }
+      );
+    });
+
+    it("funds an extended deployment from the wallet that owns its row, not the caller's", async () => {
+      const { service, deploymentSettingRepository, userWalletRepository, domainEvents } = setup();
+      const params = { userId: faker.string.uuid(), dseq: faker.string.numeric(6) };
+      const ownerWallet = createOrganizationWallet();
+      const extended = createDeploymentSettingsOutput({ ...params, runtimeLimitHours: 24, runtimeEndsAt: faker.date.future() });
+
+      deploymentSettingRepository.accessibleBy.mockReturnValue(deploymentSettingRepository);
+      deploymentSettingRepository.findOneBy.mockResolvedValue(createDeploymentSettingsOutput({ ...params, runtimeLimitHours: 12 }));
+      deploymentSettingRepository.applyRuntimeLimit.mockResolvedValue(extended);
+      deploymentSettingRepository.findOwnerWalletId.mockResolvedValue(ownerWallet.id);
+      userWalletRepository.findById.mockResolvedValue(ownerWallet);
+
+      await service.upsert(params, { runtimeLimitHours: 24 });
+
+      expect(deploymentSettingRepository.findOwnerWalletId).toHaveBeenCalledWith(extended.id);
+      expect(userWalletRepository.findById).toHaveBeenCalledWith(ownerWallet.id);
+      expect(domainEvents.publish).toHaveBeenCalledWith(
+        expect.objectContaining({ data: { walletId: ownerWallet.id, address: ownerWallet.address, dseq: params.dseq } }),
+        { singletonKey: `${FundDeploymentCommand.name}.${params.dseq}.${ownerWallet.id}` }
       );
     });
 
@@ -543,7 +639,7 @@ describe(DeploymentSettingService.name, () => {
       deploymentSettingRepository.applyRuntimeLimit.mockResolvedValue(
         createDeploymentSettingsOutput({ ...params, runtimeLimitHours: 24, runtimeEndsAt: faker.date.future() })
       );
-      userWalletRepository.findOneByUserId.mockResolvedValue(undefined);
+      userWalletRepository.findById.mockResolvedValue(undefined);
 
       const result = await service.upsert(params, { runtimeLimitHours: 24 });
 
@@ -560,7 +656,7 @@ describe(DeploymentSettingService.name, () => {
       deploymentSettingRepository.applyRuntimeLimit.mockResolvedValue(
         createDeploymentSettingsOutput({ ...params, runtimeLimitHours: 24, runtimeEndsAt: faker.date.future() })
       );
-      userWalletRepository.findOneByUserId.mockRejectedValue(new Error("connection terminated"));
+      userWalletRepository.findById.mockRejectedValue(new Error("connection terminated"));
 
       const result = await service.upsert(params, { runtimeLimitHours: 24 });
 
@@ -627,6 +723,8 @@ describe(DeploymentSettingService.name, () => {
 
   function setup() {
     const deploymentSettingRepository = mock<DeploymentSettingRepository>();
+    deploymentSettingRepository.findFiledKey.mockImplementation(async key => ({ key, isFiled: false }));
+    deploymentSettingRepository.findOwnerWalletId.mockResolvedValue(7);
     const authService = mock<AuthService>();
     const drainingDeploymentService = mock<DrainingDeploymentService>();
     const walletReloadJobService = mock<WalletReloadJobService>();

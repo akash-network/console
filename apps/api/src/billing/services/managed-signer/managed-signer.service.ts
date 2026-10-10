@@ -1,5 +1,5 @@
-import { MsgAccountDeposit } from "@akashnetwork/chain-sdk/private-types/akash.v1";
-import { MsgCloseDeployment, MsgCreateDeployment } from "@akashnetwork/chain-sdk/private-types/akash.v1beta4";
+import { MsgAccountDeposit, MsgCreateCertificate, Scope } from "@akashnetwork/chain-sdk/private-types/akash.v1";
+import { MsgCloseDeployment, MsgCreateDeployment, MsgUpdateDeployment } from "@akashnetwork/chain-sdk/private-types/akash.v1beta4";
 import { MsgCreateLease } from "@akashnetwork/chain-sdk/private-types/akash.v1beta5";
 import { LeaseHttpService } from "@akashnetwork/http-sdk";
 import { Trace, withSpan } from "@akashnetwork/instrumentation";
@@ -21,11 +21,13 @@ import { type UserWalletOutput, UserWalletRepository } from "@src/billing/reposi
 import { ManagedUserWalletService } from "@src/billing/services/managed-user-wallet/managed-user-wallet.service";
 import { TrialActivationJobService } from "@src/billing/services/trial-activation-job/trial-activation-job.service";
 import { TxManagerService } from "@src/billing/services/tx-manager/tx-manager.service";
-import { WalletReloadJobService } from "@src/billing/services/wallet-reload-job/wallet-reload-job.service";
+import { type WalletReloadImmediateInput, WalletReloadJobService } from "@src/billing/services/wallet-reload-job/wallet-reload-job.service";
 import { type CreateLogger, LOGGER_FACTORY } from "@src/core";
 import { DomainEventsService } from "@src/core/services/domain-events/domain-events.service";
+import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
 import { DeploymentSettingRepository } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
 import { RecordDeploymentSetting, recordDeploymentSettingKeyFor } from "@src/deployment/services/record-deployment-setting/record-deployment-setting.handler";
+import { PROJECT_FORBIDDEN_ERROR_CODE } from "@src/organization/services/organization-context/organization-context.resolver";
 import { UserRepository } from "@src/user/repositories";
 import { COSMOS_TX_CODE_OK } from "@src/utils/constants";
 import { BalancesService } from "../balances/balances.service";
@@ -38,6 +40,8 @@ type StringifiedEncodeObject = Omit<EncodeObject, "value"> & { value: string };
 
 type ExecuteTxOptions = {
   suppliedByCaller?: boolean;
+  /** Who the transaction is signed for, recorded against what it creates when the wallet belongs to an organization rather than a user. */
+  actingUserId?: string;
 };
 
 const SPENDING_TXS = [MsgCreateDeployment, MsgAccountDeposit];
@@ -45,6 +49,8 @@ const SPENDING_TXS = [MsgCreateDeployment, MsgAccountDeposit];
 const INSUFFICIENT_DEPOSIT_BALANCE_MESSAGE = "Not enough balance to cover the deployment deposit. Add credits or turn on auto recharge to continue.";
 const INSUFFICIENT_DEPOSIT_BALANCE_RELOADING_MESSAGE =
   "Not enough balance to cover the deployment deposit. A top up from your saved payment method is on the way, so try again in a moment.";
+const MESSAGE_SIGNER_MISMATCH_ERROR_CODE = "message_signer_mismatch";
+const UNFUNDED_WALLET_MESSAGE = "This wallet has not been funded yet. Add credits to continue.";
 const INSUFFICIENT_BALANCE_ERROR_CODE = "insufficient_balance";
 const BALANCE_TOP_UP_PENDING_ERROR_CODE = "balance_top_up_pending";
 
@@ -81,6 +87,7 @@ export class ManagedSignerService {
     private readonly trialActivationJobService: TrialActivationJobService,
     private readonly deploymentSettingRepository: DeploymentSettingRepository,
     private readonly depositRefusalCache: DeploymentDepositRefusalCache,
+    private readonly executionContextService: ExecutionContextService,
     @inject(LOGGER_FACTORY) createLogger: CreateLogger
   ) {
     this.logger = createLogger({ context: ManagedSignerService.name });
@@ -107,14 +114,14 @@ export class ManagedSignerService {
     }
   }
 
-  async executeDerivedEncodedTxByUserId(userId: UserWalletOutput["userId"], messages: StringifiedEncodeObject[]) {
+  async executeDerivedEncodedTxByUserId(userId: string, messages: StringifiedEncodeObject[]) {
     const decoded = this.decodeMessages(messages);
     return await this.executeDerivedDecodedTxByUserId(userId, decoded, { suppliedByCaller: true });
   }
 
   @Trace()
   async executeDerivedDecodedTxByUserId(
-    userId: UserWalletOutput["userId"],
+    userId: string,
     messages: EncodeObject[],
     options?: ExecuteTxOptions
   ): Promise<{
@@ -123,19 +130,19 @@ export class ManagedSignerService {
     transactionHash: string;
     rawLog: string;
   }> {
-    return this.executeDecodedTxByUserWallet(await this.#findSigningWallet(userId), messages, options);
+    return this.executeDecodedTxByUserWallet(await this.#findSigningWallet(userId), messages, { ...options, actingUserId: userId });
   }
 
   /** Every refusal the broadcast would raise before signing, for a caller that must not record anything a refusal would strand. */
   @Trace()
-  async assertCanBroadcast(userId: UserWalletOutput["userId"], messages: EncodeObject[]): Promise<void> {
+  async assertCanBroadcast(userId: string, messages: EncodeObject[]): Promise<void> {
     await this.#assertBroadcastable(await this.#findSigningWallet(userId), messages);
   }
 
-  async #findSigningWallet(userId: UserWalletOutput["userId"]): Promise<UserWalletOutput> {
+  async #findSigningWallet(userId: string): Promise<UserWalletOutput> {
     assert(userId, 404, "User Not Found");
 
-    const userWallet = await this.userWalletRepository.accessibleBy(this.authService.ability, "sign").findOneByUserId(userId);
+    const userWallet = await this.userWalletRepository.accessibleBy(this.authService.ability, "sign").findOneUsedBy(userId);
     assert(userWallet, 404, "UserWallet Not Found");
 
     return userWallet;
@@ -152,8 +159,13 @@ export class ManagedSignerService {
     transactionHash: string;
     rawLog: string;
   }> {
+    if (options?.suppliedByCaller) {
+      this.#assertSignedByWallet(userWallet, messages);
+    }
+
     await this.#assertBroadcastable(userWallet, messages);
 
+    const actingUserId = userWallet.userId ?? options?.actingUserId;
     const createLeaseMessage: { typeUrl: string; value: MsgCreateLease } | undefined = messages.find(message => message.typeUrl.endsWith(".MsgCreateLease"));
     const hasCreateTrialLeaseMessage = userWallet.isTrialing && !!createLeaseMessage;
     const hasLeases = hasCreateTrialLeaseMessage ? await this.leaseHttpService.hasLeases(userWallet.address!) : null;
@@ -172,7 +184,7 @@ export class ManagedSignerService {
       throw options?.suppliedByCaller ? this.chainErrorService.exposeSignerRefusal(error) : error;
     }
 
-    await this.#recordClosedDeployments(userWallet, messages);
+    await this.#recordClosedDeployments(userWallet, messages, actingUserId);
 
     if (hasCreateTrialLeaseMessage) {
       await this.domainEvents.publish(
@@ -188,13 +200,15 @@ export class ManagedSignerService {
     if (createLeaseMessage) {
       const leasedDseq = createLeaseMessage.value.bidId!.dseq.toString();
 
-      await this.domainEvents.publish(
-        new EnableDeploymentAlertCommand({
-          userId: userWallet.userId,
-          walletAddress: userWallet.address!,
-          dseq: leasedDseq
-        })
-      );
+      if (actingUserId) {
+        await this.domainEvents.publish(
+          new EnableDeploymentAlertCommand({
+            userId: actingUserId,
+            walletAddress: userWallet.address!,
+            dseq: leasedDseq
+          })
+        );
+      }
 
       if (!userWallet.isTrialing) {
         const dseq = createLeaseMessage.value.bidId!.dseq.toString();
@@ -211,10 +225,10 @@ export class ManagedSignerService {
       await this.#publishLeaseGpuRead(userWallet, leasedDseq);
     }
 
-    await this.#recordCreatedDeployments(userWallet, messages);
+    await this.#recordCreatedDeployments(userWallet, messages, actingUserId);
 
     await this.#refreshWalletLimits(userWallet);
-    await this.#ensureAutoReloadSchedule(userWallet.userId, messages);
+    await this.#ensureAutoReloadSchedule(userWallet, messages);
     await this.#scheduleCreditsLowCheckOnClose(userWallet, messages);
 
     const result = pick(tx, ["code", "hash", "transactionHash", "rawLog"]) as Pick<IndexedTx, "code" | "hash" | "rawLog">;
@@ -250,9 +264,11 @@ export class ManagedSignerService {
   }
 
   /** A create broadcast here never passes through the deployment API that would record it, so the record is written from the landed transaction. */
-  async #recordCreatedDeployments(userWallet: UserWalletOutput, messages: EncodeObject[]) {
+  async #recordCreatedDeployments(userWallet: UserWalletOutput, messages: EncodeObject[], actingUserId: string | undefined) {
+    if (!actingUserId) return;
+
     for (const dseq of this.#findDeploymentDseqs(messages, ".MsgCreateDeployment")) {
-      const key = { userId: userWallet.userId, dseq: dseq.toString() };
+      const key = { userId: actingUserId, dseq: dseq.toString() };
       await this.domainEvents.publish(new RecordDeploymentSetting({ ...key, organizationId: userWallet.organizationId }), {
         singletonKey: recordDeploymentSettingKeyFor(key)
       });
@@ -260,12 +276,17 @@ export class ManagedSignerService {
   }
 
   /** No close path writes this record, and it runs before the other post-broadcast work so a rejected publish cannot drop an accepted close. */
-  async #recordClosedDeployments(userWallet: UserWalletOutput, messages: EncodeObject[]) {
+  async #recordClosedDeployments(userWallet: UserWalletOutput, messages: EncodeObject[], actingUserId: string | undefined) {
     for (const dseq of this.#findDeploymentDseqs(messages, ".MsgCloseDeployment")) {
       try {
-        await this.deploymentSettingRepository.markClosed({ userId: userWallet.userId, dseq: dseq.toString(), organizationId: userWallet.organizationId });
+        const filedByUserId =
+          userWallet.userId ?? (await this.deploymentSettingRepository.findOneOfWallet(userWallet, dseq.toString()))?.userId ?? actingUserId;
+
+        if (filedByUserId) {
+          await this.deploymentSettingRepository.markClosed({ userId: filedByUserId, dseq: dseq.toString(), organizationId: userWallet.organizationId });
+        }
       } catch (error) {
-        this.logger.error({ event: "CLOSED_DEPLOYMENT_RECORD_FAILED", userId: userWallet.userId, dseq: dseq.toString(), error });
+        this.logger.error({ event: "CLOSED_DEPLOYMENT_RECORD_FAILED", userId: userWallet.userId, walletId: userWallet.id, dseq: dseq.toString(), error });
       }
     }
   }
@@ -278,9 +299,9 @@ export class ManagedSignerService {
       .filter((dseq): dseq is bigint => dseq !== undefined);
   }
 
-  async #ensureAutoReloadSchedule(userId: UserWalletOutput["userId"], messages: EncodeObject[]) {
+  async #ensureAutoReloadSchedule(userWallet: UserWalletOutput, messages: EncodeObject[]) {
     if (this.#hasSpendingTx(messages)) {
-      await this.walletReloadJobService.scheduleImmediate({ userId });
+      await this.walletReloadJobService.scheduleImmediate(reloadTargetOf(userWallet));
     }
   }
 
@@ -302,6 +323,7 @@ export class ManagedSignerService {
   }
 
   async #assertBroadcastable(userWallet: UserWalletOutput, messages: EncodeObject[]): Promise<void> {
+    await this.assertDeploymentsInProjectScope(userWallet, existingDeploymentDseqsOf(messages));
     await this.#assertActivatedForSpending(userWallet, messages);
     await this.#validateBalances(userWallet, messages);
     await Promise.all([
@@ -314,6 +336,45 @@ export class ManagedSignerService {
     ]);
   }
 
+  /** Every message of a caller's transaction names the accounts it acts for, which must all be the wallet the server chose to sign with. */
+  #assertSignedByWallet(userWallet: UserWalletOutput, messages: EncodeObject[]) {
+    const isSignedByWallet = messages.every(message => {
+      const accounts = accountsActedForBy(message);
+      return accounts !== undefined && accounts.length > 0 && accounts.every(account => account === userWallet.address);
+    });
+
+    if (!isSignedByWallet) {
+      throw createError(403, "Every message must be signed by the wallet of the active organization", { errorCode: MESSAGE_SIGNER_MISMATCH_ERROR_CODE });
+    }
+  }
+
+  /** An organization's deployment keeps the row it was first filed under, so the caller's projects are checked before that row is read or written for them. */
+  async filedUserIdOf(userWallet: UserWalletOutput, actingUserId: string, dseq: string): Promise<string> {
+    await this.assertDeploymentsInProjectScope(userWallet, [dseq]);
+
+    if (userWallet.userId !== null) return actingUserId;
+
+    return (await this.deploymentSettingRepository.findOneOfWallet(userWallet, dseq))?.userId ?? actingUserId;
+  }
+
+  /** The organization's wallet signs for every project, so a caller limited to some projects may only act on a deployment every row of which is filed in them. */
+  async assertDeploymentsInProjectScope(userWallet: UserWalletOutput, dseqs: readonly string[]): Promise<void> {
+    const organizationContext = this.executionContextService.hasContext() ? this.executionContextService.get("ORGANIZATION_CONTEXT") : undefined;
+
+    if (organizationContext?.mode !== "organization" || organizationContext.projectScope.kind === "all") return;
+
+    for (const dseq of new Set(dseqs)) {
+      const [filed, reachable] = await Promise.all([
+        this.deploymentSettingRepository.findIdsOfWallet(userWallet, dseq),
+        this.deploymentSettingRepository.accessibleBy(this.authService.ability, "update").findIdsOfWallet(userWallet, dseq)
+      ]);
+
+      if (filed.length === 0 || reachable.length < filed.length) {
+        throw createError(403, "This deployment is outside the projects you can manage", { errorCode: PROJECT_FORBIDDEN_ERROR_CODE });
+      }
+    }
+  }
+
   /**
    * A managed wallet gets its address at registration but can only broadcast a spending tx once the trial is
    * activated and its on-chain grants are provisioned (in the background, see {@link WalletInitializerService}).
@@ -324,7 +385,12 @@ export class ManagedSignerService {
   async #assertActivatedForSpending(userWallet: UserWalletOutput, messages: EncodeObject[]) {
     if (!this.#hasSpendingTx(messages)) return;
 
-    await this.trialActivationJobService.assertActivated(userWallet);
+    if (userWallet.userId === null) {
+      assert(userWallet.activatedAt, 402, UNFUNDED_WALLET_MESSAGE, { errorCode: INSUFFICIENT_BALANCE_ERROR_CODE });
+      return;
+    }
+
+    await this.trialActivationJobService.assertActivated({ userId: userWallet.userId, activatedAt: userWallet.activatedAt });
   }
 
   /** Fee allowance always comes from the chain and the deployment allowance only when a create is present, since the row can lag behind the chain. */
@@ -465,7 +531,7 @@ export class ManagedSignerService {
    */
   async #scheduleReloadForInsufficientBalance(userWallet: UserWalletOutput): Promise<boolean> {
     try {
-      return await this.walletReloadJobService.scheduleImmediate({ userId: userWallet.userId }, { triggeredByDeployment: true });
+      return await this.walletReloadJobService.scheduleImmediate(reloadTargetOf(userWallet), { triggeredByDeployment: true });
     } catch (error) {
       this.logger.error({ event: "INSUFFICIENT_BALANCE_RELOAD_SCHEDULE_FAILED", userId: userWallet.userId, error });
       return false;
@@ -512,5 +578,55 @@ export class ManagedSignerService {
         throw new BadRequest(`Failed to decode message at index ${index} (typeUrl: ${message.typeUrl})`);
       }
     });
+  }
+}
+
+/** Auto recharge is set up per user on a personal wallet; an organization's wallet is found by its id. */
+function reloadTargetOf(userWallet: UserWalletOutput): WalletReloadImmediateInput {
+  return userWallet.userId ? { userId: userWallet.userId } : { walletId: userWallet.id };
+}
+
+type MessageValue = Record<string, any> | undefined;
+
+/** The accounts each message type a caller may send acts for, read from the decoded message that is signed; any other type has none and is refused. */
+const ACCOUNTS_ACTED_FOR: Record<string, (value: MessageValue) => unknown[]> = {
+  [MsgCreateDeployment.$type]: value => [value?.id?.owner],
+  [MsgUpdateDeployment.$type]: value => [value?.id?.owner],
+  [MsgCloseDeployment.$type]: value => [value?.id?.owner],
+  [MsgCreateLease.$type]: value => [value?.bidId?.owner],
+  [MsgCreateCertificate.$type]: value => [value?.owner],
+  [MsgAccountDeposit.$type]: value => (value?.id?.scope === Scope.deployment ? [value?.signer, ownerOfDeploymentEscrow(value)] : [])
+};
+
+function typeOf({ typeUrl }: EncodeObject): string {
+  return typeUrl.startsWith("/") ? typeUrl.slice(1) : typeUrl;
+}
+
+function accountsActedForBy(message: EncodeObject): unknown[] | undefined {
+  return ACCOUNTS_ACTED_FOR[typeOf(message)]?.(message.value);
+}
+
+function ownerOfDeploymentEscrow(value: MessageValue): string | undefined {
+  return typeof value?.id?.xid === "string" ? value.id.xid.split("/")[0] : undefined;
+}
+
+function existingDeploymentDseqsOf(messages: EncodeObject[]): string[] {
+  return messages.map(existingDeploymentDseqOf).filter((dseq): dseq is string => dseq !== undefined);
+}
+
+/** The deployment a message acts on once it exists; a create names one that does not exist yet. */
+function existingDeploymentDseqOf(message: EncodeObject): string | undefined {
+  const { value } = message;
+
+  switch (typeOf(message)) {
+    case MsgCloseDeployment.$type:
+    case MsgUpdateDeployment.$type:
+      return value?.id?.dseq?.toString();
+    case MsgCreateLease.$type:
+      return value?.bidId?.dseq?.toString();
+    case MsgAccountDeposit.$type:
+      return value?.id?.scope === Scope.deployment && typeof value.id.xid === "string" ? value.id.xid.split("/")[1] : undefined;
+    default:
+      return undefined;
   }
 }

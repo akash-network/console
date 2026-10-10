@@ -19,6 +19,7 @@ import { UserRepository } from "@src/user/repositories";
 import { ClosedDeploymentsReconcilerService } from "./closed-deployments-reconciler.service";
 
 import { createAkashAddress } from "@test/seeders/akash-address.seeder";
+import { seedOrganizationMember, seedOrganizationWithOwner } from "@test/seeders/db/organization.seeder";
 import { createDeployment } from "@test/seeders/deployment.seeder";
 
 type CompensationJobRow = { state: string; priority: number; data: { deploymentSettingId: string; owner: string; dseq: string } };
@@ -137,6 +138,29 @@ describe(ClosedDeploymentsReconcilerService.name, () => {
     expect(await readClosed(settled.id)).toBe(false);
   });
 
+  it("checks a deployment a member created in a team against the organization's wallet, not the member's", async () => {
+    const { service, recordDeployment, readClosed, findCompensation, graceInMinutes } = await setup();
+    const running = await recordDeployment({ autoTopUpEnabled: true, closedOnChain: false, recordedMinutesAgo: graceInMinutes + 1, inTeam: true });
+    const settled = await recordDeployment({ autoTopUpEnabled: true, closedOnChain: true, inTeam: true });
+
+    await service.reconcileClosedDeployments({ dryRun: false });
+
+    expect(await readClosed(running.id)).toBe(false);
+    expect(await findCompensation(running)).toEqual([]);
+    expect(await readClosed(settled.id)).toBe(true);
+  });
+
+  it("hands a team record the chain never saw to the compensation queue with the organization's wallet as owner", async () => {
+    const { service, recordDeployment, findCompensation, graceInMinutes } = await setup();
+    const unbacked = await recordDeployment({ autoTopUpEnabled: true, closedOnChain: null, recordedMinutesAgo: graceInMinutes + 1, inTeam: true });
+
+    await service.reconcileClosedDeployments({ dryRun: false });
+
+    expect(await findCompensation(unbacked)).toEqual([
+      { state: "created", priority: -1, data: { deploymentSettingId: unbacked.id, owner: unbacked.address, dseq: unbacked.dseq } }
+    ]);
+  });
+
   it("converges a set larger than one batch", async () => {
     const { service, recordDeployment, readClosed } = await setup();
     const settled = await Promise.all(Array.from({ length: 5 }, () => recordDeployment({ autoTopUpEnabled: faker.datatype.boolean(), closedOnChain: true })));
@@ -162,25 +186,37 @@ describe(ClosedDeploymentsReconcilerService.name, () => {
     const user = await userRepository.create({ userId: faker.string.uuid() });
     const address = createAkashAddress();
     await db.insert(userWalletsTable).values({ userId: user.id, address, deploymentAllowance: "0", feeAllowance: "0", isTrialing: false });
+    const { organization: team } = await seedOrganizationWithOwner();
+    await seedOrganizationMember({ organizationId: team.id, userId: user.id });
+    const teamAddress = createAkashAddress();
+    await db.insert(userWalletsTable).values({ userId: null, organizationId: team.id, address: teamAddress, isTrialing: false });
 
-    async function recordDeployment(input: { autoTopUpEnabled: boolean; closedOnChain: boolean | null; padDseq?: boolean; recordedMinutesAgo?: number }) {
+    async function recordDeployment(input: {
+      autoTopUpEnabled: boolean;
+      closedOnChain: boolean | null;
+      padDseq?: boolean;
+      recordedMinutesAgo?: number;
+      inTeam?: boolean;
+    }) {
       const dseq = faker.number.int({ min: 100_000, max: 9_999_999 }).toString();
+      const owner = input.inTeam ? teamAddress : address;
 
       if (input.closedOnChain !== null) {
-        await createDeployment({ owner: address, dseq, closedHeight: input.closedOnChain ? 5_000_000 : undefined });
+        await createDeployment({ owner, dseq, closedHeight: input.closedOnChain ? 5_000_000 : undefined });
       }
 
       const [setting] = await db
         .insert(deploymentSettingsTable)
         .values({
           userId: user.id,
+          organizationId: input.inTeam ? team.id : null,
           dseq: input.padDseq ? `000${dseq}` : dseq,
           autoTopUpEnabled: input.autoTopUpEnabled,
           createdAt: subMinutes(new Date(), input.recordedMinutesAgo ?? 0)
         })
         .returning({ id: deploymentSettingsTable.id, dseq: deploymentSettingsTable.dseq });
 
-      return { ...setting, address };
+      return { ...setting, address: owner };
     }
 
     async function readClosed(id: string) {

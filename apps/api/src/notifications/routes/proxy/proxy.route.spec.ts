@@ -77,7 +77,7 @@ describe("createProxy", () => {
     const owner = createAkashAddress();
 
     const userWalletRepository = mock<UserWalletRepository>({
-      async findOneByUserId() {
+      async findOneUsedBy() {
         return {
           address: owner
         } as any;

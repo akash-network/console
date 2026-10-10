@@ -215,12 +215,13 @@ describe(InitialDeploymentFundingService.name, () => {
     const { service, drainingDeploymentService, userWalletRepository, deploymentSettingRepository, managedSignerService, logger } = setup();
     drainingDeploymentService.findLeases.mockResolvedValue([createDrainingDeployment()]);
     drainingDeploymentService.calculateAmountToTargetRunway.mockReturnValue(500000);
-    userWalletRepository.findById.mockResolvedValue(createUserWallet({ id: 1, address: "akash1owner", userId: "user-1" }));
-    deploymentSettingRepository.findOneBy.mockResolvedValue(mock<DeploymentSettingsOutput>({ autoTopUpEnabled: false }));
+    const wallet = createUserWallet({ id: 1, address: "akash1owner", userId: "user-1" });
+    userWalletRepository.findById.mockResolvedValue(wallet);
+    deploymentSettingRepository.findOneOfWallet.mockResolvedValue(mock<DeploymentSettingsOutput>({ autoTopUpEnabled: false }));
 
     await service.fundOnLeaseStarted({ walletId: 1, address: "akash1owner", dseq: "123" });
 
-    expect(deploymentSettingRepository.findOneBy).toHaveBeenCalledWith({ userId: "user-1", dseq: "123" });
+    expect(deploymentSettingRepository.findOneOfWallet).toHaveBeenCalledWith(wallet, "123");
     expect(managedSignerService.executeDerivedTx).not.toHaveBeenCalled();
     expect(logger.info).toHaveBeenCalledWith(expect.objectContaining({ event: "INITIAL_FUNDING_SKIPPED", reason: "AUTO_TOP_UP_DISABLED" }));
   });
@@ -229,7 +230,9 @@ describe(InitialDeploymentFundingService.name, () => {
     const { service, drainingDeploymentService, userWalletRepository, deploymentSettingRepository, managedSignerService } = setup();
     drainingDeploymentService.findLeases.mockResolvedValue([createDrainingDeployment()]);
     userWalletRepository.findById.mockResolvedValue(createUserWallet({ id: 1, address: "akash1owner", userId: "user-1" }));
-    deploymentSettingRepository.findOneBy.mockResolvedValue(createDeploymentSetting({ runtimeLimitHours: 6, runtimeEndsAt: null, autoTopUpEnabled: false }));
+    deploymentSettingRepository.findOneOfWallet.mockResolvedValue(
+      createDeploymentSetting({ runtimeLimitHours: 6, runtimeEndsAt: null, autoTopUpEnabled: false })
+    );
 
     await service.fundOnLeaseStarted({ walletId: 1, address: "akash1owner", dseq: "123" });
 
@@ -241,7 +244,7 @@ describe(InitialDeploymentFundingService.name, () => {
     const { service, drainingDeploymentService, deploymentSettingRepository, managedSignerService } = setup();
     drainingDeploymentService.findLeases.mockResolvedValue([createDrainingDeployment()]);
     drainingDeploymentService.calculateAmountToTargetRunway.mockReturnValue(500000);
-    deploymentSettingRepository.findOneBy.mockResolvedValue(mock<DeploymentSettingsOutput>({ autoTopUpEnabled: true }));
+    deploymentSettingRepository.findOneOfWallet.mockResolvedValue(mock<DeploymentSettingsOutput>({ autoTopUpEnabled: true }));
 
     await service.fundOnLeaseStarted({ walletId: 1, address: "akash1owner", dseq: "123" });
 
@@ -408,7 +411,7 @@ describe(InitialDeploymentFundingService.name, () => {
     const { service, drainingDeploymentService, deploymentSettingRepository, managedSignerService, instrumentation } = setup();
     const runtimeEndsAt = new Date("2026-08-21T12:00:00.000Z");
     drainingDeploymentService.findLeases.mockResolvedValue([createDrainingDeployment({ predictedClosedHeight: INITIAL_RUNWAY_HEIGHT })]);
-    deploymentSettingRepository.findOneBy.mockResolvedValue(createDeploymentSetting({ runtimeLimitHours: 6, runtimeEndsAt: null }));
+    deploymentSettingRepository.findOneOfWallet.mockResolvedValue(createDeploymentSetting({ runtimeLimitHours: 6, runtimeEndsAt: null }));
     deploymentSettingRepository.startRuntimeCountdown.mockResolvedValue(runtimeEndsAt);
 
     await service.fundOnLeaseStarted({ walletId: 1, address: "akash1owner", dseq: "123" });
@@ -424,7 +427,7 @@ describe(InitialDeploymentFundingService.name, () => {
     const runtimeEndsAt = new Date("2026-08-21T12:00:00.000Z");
     drainingDeploymentService.findLeases.mockResolvedValue([deployment]);
     drainingDeploymentService.calculateAmountToTargetRunway.mockReturnValue(500000);
-    deploymentSettingRepository.findOneBy.mockResolvedValue(createDeploymentSetting({ runtimeLimitHours: 6, runtimeEndsAt: null }));
+    deploymentSettingRepository.findOneOfWallet.mockResolvedValue(createDeploymentSetting({ runtimeLimitHours: 6, runtimeEndsAt: null }));
     deploymentSettingRepository.startRuntimeCountdown.mockResolvedValue(runtimeEndsAt);
 
     await service.fundOnLeaseStarted({ walletId: 1, address: "akash1owner", dseq: "123" });
@@ -438,7 +441,7 @@ describe(InitialDeploymentFundingService.name, () => {
     const runtimeEndsAt = new Date("2026-08-21T12:00:00.000Z");
     drainingDeploymentService.findLeases.mockResolvedValue([createDrainingDeployment()]);
     drainingDeploymentService.calculateAmountToTargetRunway.mockReturnValue(500000);
-    deploymentSettingRepository.findOneBy.mockResolvedValue(createDeploymentSetting({ runtimeLimitHours: 6, runtimeEndsAt: null }));
+    deploymentSettingRepository.findOneOfWallet.mockResolvedValue(createDeploymentSetting({ runtimeLimitHours: 6, runtimeEndsAt: null }));
     deploymentSettingRepository.startRuntimeCountdown.mockResolvedValue(runtimeEndsAt);
 
     await service.fundOnLeaseStarted({ walletId: 1, address: "akash1owner", dseq: "123" });
@@ -453,7 +456,7 @@ describe(InitialDeploymentFundingService.name, () => {
     const { service, drainingDeploymentService, deploymentSettingRepository, deploymentCloseJobService } = setup();
     drainingDeploymentService.findLeases.mockResolvedValue([createDrainingDeployment()]);
     drainingDeploymentService.calculateAmountToTargetRunway.mockReturnValue(500000);
-    deploymentSettingRepository.findOneBy.mockResolvedValue(createDeploymentSetting({ runtimeLimitHours: null }));
+    deploymentSettingRepository.findOneOfWallet.mockResolvedValue(createDeploymentSetting({ runtimeLimitHours: null }));
 
     await service.fundOnLeaseStarted({ walletId: 1, address: "akash1owner", dseq: "123" });
 
@@ -463,7 +466,7 @@ describe(InitialDeploymentFundingService.name, () => {
   it("fails the funding job when the close job cannot be scheduled", async () => {
     const { service, drainingDeploymentService, deploymentSettingRepository, deploymentCloseJobService, managedSignerService } = setup();
     drainingDeploymentService.findLeases.mockResolvedValue([createDrainingDeployment()]);
-    deploymentSettingRepository.findOneBy.mockResolvedValue(createDeploymentSetting({ runtimeLimitHours: 6, runtimeEndsAt: null }));
+    deploymentSettingRepository.findOneOfWallet.mockResolvedValue(createDeploymentSetting({ runtimeLimitHours: 6, runtimeEndsAt: null }));
     deploymentSettingRepository.startRuntimeCountdown.mockResolvedValue(new Date("2026-08-21T12:00:00.000Z"));
     deploymentCloseJobService.schedule.mockRejectedValue(new Error("queue unavailable"));
 
@@ -478,7 +481,7 @@ describe(InitialDeploymentFundingService.name, () => {
     const runtimeEndsAt = new Date("2026-08-21T12:00:00.000Z");
     drainingDeploymentService.findLeases.mockResolvedValue([deployment]);
     drainingDeploymentService.calculateAmountToTargetRunway.mockReturnValue(500000);
-    deploymentSettingRepository.findOneBy.mockResolvedValue(createDeploymentSetting({ runtimeLimitHours: 6, runtimeEndsAt }));
+    deploymentSettingRepository.findOneOfWallet.mockResolvedValue(createDeploymentSetting({ runtimeLimitHours: 6, runtimeEndsAt }));
 
     await service.fundOnLeaseStarted({ walletId: 1, address: "akash1owner", dseq: "123" });
 
@@ -491,7 +494,7 @@ describe(InitialDeploymentFundingService.name, () => {
     const runtimeEndsAt = new Date("2026-08-21T12:00:00.000Z");
     drainingDeploymentService.findLeases.mockResolvedValue([createDrainingDeployment()]);
     drainingDeploymentService.calculateAmountToTargetRunway.mockReturnValue(0);
-    deploymentSettingRepository.findOneBy.mockResolvedValue(createDeploymentSetting({ runtimeLimitHours: 6, runtimeEndsAt }));
+    deploymentSettingRepository.findOneOfWallet.mockResolvedValue(createDeploymentSetting({ runtimeLimitHours: 6, runtimeEndsAt }));
 
     await service.fundOnLeaseStarted({ walletId: 1, address: "akash1owner", dseq: "123" });
 
@@ -505,7 +508,7 @@ describe(InitialDeploymentFundingService.name, () => {
       const { service, drainingDeploymentService, deploymentSettingRepository, managedSignerService } = setup();
       drainingDeploymentService.findLeases.mockResolvedValue([createDrainingDeployment()]);
       drainingDeploymentService.calculateAmountToTargetRunway.mockReturnValue(500000);
-      deploymentSettingRepository.findOneBy.mockResolvedValue(createDeploymentSetting());
+      deploymentSettingRepository.findOneOfWallet.mockResolvedValue(createDeploymentSetting());
 
       await service.fundOnLeaseStarted({ walletId: 1, address: "akash1owner", dseq: "123" });
 
@@ -519,7 +522,7 @@ describe(InitialDeploymentFundingService.name, () => {
       drainingDeploymentService.findLeases.mockResolvedValue([createDrainingDeployment()]);
       drainingDeploymentService.calculateAmountToTargetRunway.mockReturnValue(500000);
       drainingDeploymentService.isCappedByRuntimeLimit.mockReturnValue(true);
-      deploymentSettingRepository.findOneBy.mockResolvedValue(createDeploymentSetting());
+      deploymentSettingRepository.findOneOfWallet.mockResolvedValue(createDeploymentSetting());
 
       await service.fundOnLeaseStarted({ walletId: 1, address: "akash1owner", dseq: "123" });
 
@@ -533,7 +536,7 @@ describe(InitialDeploymentFundingService.name, () => {
       const runtimeEndsAt = new Date("2026-08-21T12:00:00.000Z");
       drainingDeploymentService.findLeases.mockResolvedValue([createDrainingDeployment()]);
       drainingDeploymentService.calculateAmountToTargetRunway.mockReturnValue(500000);
-      deploymentSettingRepository.findOneBy.mockResolvedValue(createDeploymentSetting({ runtimeLimitHours: 6, runtimeEndsAt }));
+      deploymentSettingRepository.findOneOfWallet.mockResolvedValue(createDeploymentSetting({ runtimeLimitHours: 6, runtimeEndsAt }));
 
       await service.fundOnLeaseStarted({ walletId: 1, address: "akash1owner", dseq: "123" });
 
@@ -544,7 +547,7 @@ describe(InitialDeploymentFundingService.name, () => {
       const { service, drainingDeploymentService, deploymentSettingRepository, cachedBalanceService, managedSignerService, instrumentation } = setup();
       drainingDeploymentService.findLeases.mockResolvedValue([createDrainingDeployment()]);
       drainingDeploymentService.calculateAmountToTargetRunway.mockReturnValue(500000);
-      deploymentSettingRepository.findOneBy.mockResolvedValue(createDeploymentSetting());
+      deploymentSettingRepository.findOneOfWallet.mockResolvedValue(createDeploymentSetting());
       deploymentSettingRepository.claimForFunding.mockResolvedValue([]);
 
       await service.fundOnLeaseStarted({ walletId: 1, address: "akash1owner", dseq: "123" });
@@ -559,7 +562,7 @@ describe(InitialDeploymentFundingService.name, () => {
       const { service, drainingDeploymentService, deploymentSettingRepository, cachedBalanceService, managedSignerService, instrumentation } = setup();
       drainingDeploymentService.findLeases.mockResolvedValue([createDrainingDeployment()]);
       drainingDeploymentService.calculateAmountToTargetRunway.mockReturnValue(500000);
-      deploymentSettingRepository.findOneBy.mockResolvedValue(createDeploymentSetting());
+      deploymentSettingRepository.findOneOfWallet.mockResolvedValue(createDeploymentSetting());
       cachedBalanceService.getFresh.mockResolvedValue(new CachedBalance(300000, { headroom: 0, minDeposit: MIN_DEPOSIT }));
 
       await service.fundOnLeaseStarted({ walletId: 1, address: "akash1owner", dseq: "123" });
@@ -573,7 +576,7 @@ describe(InitialDeploymentFundingService.name, () => {
       const { service, drainingDeploymentService, deploymentSettingRepository, managedSignerService } = setup();
       drainingDeploymentService.findLeases.mockResolvedValue([createDrainingDeployment()]);
       drainingDeploymentService.calculateAmountToTargetRunway.mockReturnValue(500000);
-      deploymentSettingRepository.findOneBy.mockResolvedValue(createDeploymentSetting());
+      deploymentSettingRepository.findOneOfWallet.mockResolvedValue(createDeploymentSetting());
       managedSignerService.executeDerivedTx.mockRejectedValue(new Error("network down"));
 
       await expect(service.fundOnLeaseStarted({ walletId: 1, address: "akash1owner", dseq: "123" })).rejects.toThrow("network down");
@@ -585,7 +588,7 @@ describe(InitialDeploymentFundingService.name, () => {
       const { service, drainingDeploymentService, deploymentSettingRepository, managedSignerService, instrumentation } = setup();
       drainingDeploymentService.findLeases.mockResolvedValue([createDrainingDeployment()]);
       drainingDeploymentService.calculateAmountToTargetRunway.mockReturnValue(500000);
-      deploymentSettingRepository.findOneBy.mockResolvedValue(createDeploymentSetting());
+      deploymentSettingRepository.findOneOfWallet.mockResolvedValue(createDeploymentSetting());
       managedSignerService.executeDerivedTx.mockRejectedValue(new TxOutcomeUnknownError("tx-hash"));
 
       await service.fundOnLeaseStarted({ walletId: 1, address: "akash1owner", dseq: "123" });
@@ -598,7 +601,7 @@ describe(InitialDeploymentFundingService.name, () => {
       const { service, drainingDeploymentService, deploymentSettingRepository, managedSignerService, reconcileManagedTxJobService } = setup();
       drainingDeploymentService.findLeases.mockResolvedValue([createDrainingDeployment()]);
       drainingDeploymentService.calculateAmountToTargetRunway.mockReturnValue(500000);
-      deploymentSettingRepository.findOneBy.mockResolvedValue(createDeploymentSetting());
+      deploymentSettingRepository.findOneOfWallet.mockResolvedValue(createDeploymentSetting());
       managedSignerService.executeDerivedTx.mockRejectedValue(new TxOutcomeUnknownError("tx-hash"));
 
       await service.fundOnLeaseStarted({ walletId: 1, address: "akash1owner", dseq: "123" });
@@ -614,7 +617,7 @@ describe(InitialDeploymentFundingService.name, () => {
       const { service, drainingDeploymentService, deploymentSettingRepository, cachedBalanceService, instrumentation } = setup();
       drainingDeploymentService.findLeases.mockResolvedValue([createDrainingDeployment()]);
       drainingDeploymentService.calculateAmountToTargetRunway.mockReturnValue(500000);
-      deploymentSettingRepository.findOneBy.mockResolvedValue(createDeploymentSetting());
+      deploymentSettingRepository.findOneOfWallet.mockResolvedValue(createDeploymentSetting());
       cachedBalanceService.getFresh.mockResolvedValue(new CachedBalance(0, { headroom: 0, minDeposit: MIN_DEPOSIT }));
 
       await service.fundOnLeaseStarted({ walletId: 1, address: "akash1owner", dseq: "123" });
@@ -627,7 +630,7 @@ describe(InitialDeploymentFundingService.name, () => {
       const { service, drainingDeploymentService, deploymentSettingRepository, cachedBalanceService, logger } = setup();
       drainingDeploymentService.findLeases.mockResolvedValue([createDrainingDeployment()]);
       drainingDeploymentService.calculateAmountToTargetRunway.mockReturnValue(500000);
-      deploymentSettingRepository.findOneBy.mockResolvedValue(createDeploymentSetting());
+      deploymentSettingRepository.findOneOfWallet.mockResolvedValue(createDeploymentSetting());
       cachedBalanceService.getFresh.mockResolvedValue(new CachedBalance(0, { headroom: 0, minDeposit: MIN_DEPOSIT }));
       deploymentSettingRepository.releaseFundingClaim.mockRejectedValue(new Error("connection terminated"));
 
@@ -640,7 +643,7 @@ describe(InitialDeploymentFundingService.name, () => {
       const { service, drainingDeploymentService, deploymentSettingRepository, managedSignerService, logger } = setup();
       drainingDeploymentService.findLeases.mockResolvedValue([createDrainingDeployment()]);
       drainingDeploymentService.calculateAmountToTargetRunway.mockReturnValue(500000);
-      deploymentSettingRepository.findOneBy.mockResolvedValue(createDeploymentSetting());
+      deploymentSettingRepository.findOneOfWallet.mockResolvedValue(createDeploymentSetting());
       managedSignerService.executeDerivedTx.mockRejectedValue(new Error("Bad status on response: 503"));
       deploymentSettingRepository.releaseFundingClaim.mockRejectedValue(new Error("connection terminated"));
       logger.error.mockImplementation(() => {
@@ -654,7 +657,7 @@ describe(InitialDeploymentFundingService.name, () => {
       const { service, drainingDeploymentService, deploymentSettingRepository, managedSignerService } = setup();
       drainingDeploymentService.findLeases.mockResolvedValue([createDrainingDeployment()]);
       drainingDeploymentService.calculateAmountToTargetRunway.mockReturnValue(500000);
-      deploymentSettingRepository.findOneBy.mockResolvedValue(undefined);
+      deploymentSettingRepository.findOneOfWallet.mockResolvedValue(undefined);
 
       await service.fundOnLeaseStarted({ walletId: 1, address: "akash1owner", dseq: "123" });
 

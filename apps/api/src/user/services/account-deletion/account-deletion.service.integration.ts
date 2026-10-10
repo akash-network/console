@@ -82,6 +82,19 @@ describe(AccountDeletionService.name, () => {
     expect(blockedDomain.triggeredByUserId).toBeNull();
   });
 
+  it("keeps the account's wallet row without an owner, so its derivation index and address stay on record", async () => {
+    const { service, db, account, token, answerActiveDeployments } = await setup();
+    answerActiveDeployments([]);
+
+    await service.confirm({ token });
+
+    const wallets = await db
+      .select()
+      .from(resolveTable("UserWallets"))
+      .where(eq(resolveTable("UserWallets").id, account.wallet.id));
+    expect(wallets).toEqual([expect.objectContaining({ id: account.wallet.id, address: account.address, userId: null, organizationId: null })]);
+  });
+
   it("queues the cleanup of the identity and payment records the database cannot reach", async () => {
     const { service, account, token, answerActiveDeployments } = await setup();
     answerActiveDeployments([]);
