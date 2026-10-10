@@ -37,6 +37,7 @@ describe("Notifications proxy", () => {
         "x-user-id": faker.string.uuid(),
         "x-owner-address": createAkashAddress(),
         "x-organization-id": faker.string.uuid(),
+        "x-organization-type": "team",
         "x-organization-role": "owner",
         "x-project-scope": "all",
         "x-project-id": faker.string.uuid()
@@ -47,7 +48,8 @@ describe("Notifications proxy", () => {
     expect(forwarded.headers()).toMatchObject({
       "x-user-id": user.id,
       "x-owner-address": address,
-      "x-organization-id": await personalOrganizationIdOf(user.id)
+      "x-organization-id": await personalOrganizationIdOf(user.id),
+      "x-organization-type": "personal"
     });
     expect(forwarded.headers()).not.toHaveProperty("x-organization-role");
     expect(forwarded.headers()).not.toHaveProperty("x-project-scope");

@@ -11,6 +11,7 @@ import { mergeLeaseGpuOffers } from "@src/deployment/lib/lease-gpu-offers/lease-
 import { mergeLeaseGpuReadings } from "@src/deployment/lib/lease-gpu-readings/lease-gpu-readings";
 import type { GpuProbeSource, LeaseGpuOffer, LeaseGpuReading } from "@src/deployment/model-schemas";
 import { NVIDIA_DRIVER_VERSION } from "@src/gpu/lib/cuda-version/cuda-version";
+import { Organizations, type OrganizationType } from "@src/organization/model-schemas/organization/organization.schema";
 import { Users } from "@src/user/model-schemas";
 
 type Table = ApiPgTables["DeploymentSettings"];
@@ -21,7 +22,7 @@ export type DeploymentSettingsOutput = Omit<DeploymentSettingsDbOutput, "created
   updatedAt: string;
 };
 
-export type DeploymentTenancy = Pick<DeploymentSettingsDbOutput, "organizationId" | "projectId">;
+export type DeploymentTenancy = Pick<DeploymentSettingsDbOutput, "organizationId" | "projectId"> & { organizationType: OrganizationType | null };
 export type RecentNvidiaDriver = { driverVersion: string; lastSeenDate: string };
 
 const NVIDIA_PROBE_SOURCE = "nvidia-smi" satisfies GpuProbeSource;
@@ -185,8 +186,9 @@ export class DeploymentSettingRepository extends BaseRepository<Table, Deploymen
   /** Where a user's deployment is filed, absent when the console holds no row for it. */
   async findTenancy({ userId, dseq }: { userId: string; dseq: string }): Promise<DeploymentTenancy | undefined> {
     const [tenancy] = await this.cursor
-      .select({ organizationId: this.table.organizationId, projectId: this.table.projectId })
+      .select({ organizationId: this.table.organizationId, organizationType: Organizations.type, projectId: this.table.projectId })
       .from(this.table)
+      .leftJoin(Organizations, eq(Organizations.id, this.table.organizationId))
       .where(and(eq(this.table.userId, userId), eq(this.table.dseq, dseq)))
       .limit(1);
 

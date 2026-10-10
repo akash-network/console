@@ -12,6 +12,12 @@ import { NOTIFICATIONS_API_CLIENT, NOTIFICATIONS_INTERNAL_API_CLIENT } from "../
 
 const CHANNELS_CONSIDERED_FOR_AUTO_ENABLED_ALERTS = 100;
 
+const TEAM_DEPLOYMENT_ALERTS_CHANNEL_NAME = "Deployment alerts";
+
+function preferredChannelId(channels: { id: string; isDefault?: boolean }[] | undefined): string | undefined {
+  return (channels?.find(channel => channel.isDefault) ?? channels?.[0])?.id;
+}
+
 @singleton()
 export class NotificationService {
   readonly #logger: ReturnType<CreateLogger>;
@@ -80,7 +86,10 @@ export class NotificationService {
     }
 
     const deploymentHeaders = await this.#deploymentIdentityHeaders(input);
-    const channelId = await this.getOrCreateNotificationChannelId(deploymentHeaders, input.userId, user.email);
+    const channelId =
+      deploymentHeaders[NOTIFICATIONS_IDENTITY_HEADERS.organizationType] === "team"
+        ? await this.#getOrCreateTeamChannelId(deploymentHeaders, user.email)
+        : await this.getOrCreateNotificationChannelId(deploymentHeaders, input.userId, user.email);
     if (!channelId) {
       this.#logger.warn({ event: "SKIP_AUTO_ENABLE_ALERT", reason: "No channel found after creation", userId: input.userId });
       return;
@@ -102,7 +111,24 @@ export class NotificationService {
       channels = await this.getNotificationChannels(deploymentHeaders);
     }
 
-    return (channels?.data?.find(channel => channel.isDefault) ?? channels?.data?.[0])?.id;
+    return preferredChannelId(channels?.data);
+  }
+
+  /** Notifies whoever deployed, through a channel of the deployment's organization, until teams choose their deployment alert recipients. */
+  async #getOrCreateTeamChannelId(deploymentHeaders: Record<string, string>, email: string): Promise<string> {
+    const channels = await this.getNotificationChannels(deploymentHeaders);
+    const existingChannelId = preferredChannelId(channels?.data);
+
+    if (existingChannelId) {
+      return existingChannelId;
+    }
+
+    const { data } = await this.notificationsApi.v1.createNotificationChannel(
+      { data: { name: TEAM_DEPLOYMENT_ALERTS_CHANNEL_NAME, type: "email", config: { addresses: [email] }, isDefault: false } },
+      { headers: deploymentHeaders }
+    );
+
+    return data.id;
   }
 
   private async getNotificationChannels(headers: Record<string, string>) {
@@ -132,7 +158,9 @@ export class NotificationService {
     const organization = await this.organizationRepository.findPersonalByUserId(userId);
     const headers = { [NOTIFICATIONS_IDENTITY_HEADERS.userId]: userId };
 
-    return organization ? { ...headers, [NOTIFICATIONS_IDENTITY_HEADERS.organizationId]: organization.id } : headers;
+    return organization
+      ? { ...headers, [NOTIFICATIONS_IDENTITY_HEADERS.organizationId]: organization.id, [NOTIFICATIONS_IDENTITY_HEADERS.organizationType]: organization.type }
+      : headers;
   }
 
   async #deploymentIdentityHeaders({ userId, dseq }: { userId: string; dseq: string }): Promise<Record<string, string>> {
@@ -142,9 +170,12 @@ export class NotificationService {
       return this.#userIdentityHeaders(userId);
     }
 
-    const headers = { [NOTIFICATIONS_IDENTITY_HEADERS.userId]: userId, [NOTIFICATIONS_IDENTITY_HEADERS.organizationId]: tenancy.organizationId };
-
-    return tenancy.projectId ? { ...headers, [NOTIFICATIONS_IDENTITY_HEADERS.projectId]: tenancy.projectId } : headers;
+    return {
+      [NOTIFICATIONS_IDENTITY_HEADERS.userId]: userId,
+      [NOTIFICATIONS_IDENTITY_HEADERS.organizationId]: tenancy.organizationId,
+      ...(tenancy.organizationType && { [NOTIFICATIONS_IDENTITY_HEADERS.organizationType]: tenancy.organizationType }),
+      ...(tenancy.projectId && { [NOTIFICATIONS_IDENTITY_HEADERS.projectId]: tenancy.projectId })
+    };
   }
 }
 

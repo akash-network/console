@@ -5,6 +5,7 @@ export const NOTIFICATIONS_IDENTITY_HEADERS = {
   userId: "x-user-id",
   ownerAddress: "x-owner-address",
   organizationId: "x-organization-id",
+  organizationType: "x-organization-type",
   organizationRole: "x-organization-role",
   projectScope: "x-project-scope",
   projectId: "x-project-id"
@@ -18,7 +19,10 @@ export function stripIdentityHeaders(headers: Record<string, string>): Record<st
 
 /** The role and project scope travel only when organization rules are authoritative, which is how the notifications service tells the two modes apart. */
 export function organizationIdentityHeaders(context: OrganizationContext): Record<string, string> {
-  const headers = { [NOTIFICATIONS_IDENTITY_HEADERS.organizationId]: context.organizationId };
+  const headers = {
+    [NOTIFICATIONS_IDENTITY_HEADERS.organizationId]: context.organizationId,
+    [NOTIFICATIONS_IDENTITY_HEADERS.organizationType]: context.organizationType
+  };
 
   if (context.mode === "legacy") {
     return headers;

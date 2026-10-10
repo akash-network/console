@@ -120,7 +120,7 @@ describe("createProxy", () => {
     const { handler, context, fetchMock, deploymentSettingRepository, userId } = setupProxyTest({
       path: "/v1/deployment-alerts/1234",
       organizationContext,
-      tenancy: { organizationId: organizationContext.organizationId, projectId }
+      tenancy: { organizationId: organizationContext.organizationId, organizationType: "team", projectId }
     });
 
     await handler(context);
@@ -133,7 +133,7 @@ describe("createProxy", () => {
     const { handler, context, fetchMock } = setupProxyTest({
       path: "/v1/deployment-alerts/1234",
       organizationContext: createOrganizationContext({ mode: "organization" }),
-      tenancy: { organizationId: faker.string.uuid(), projectId: faker.string.uuid() }
+      tenancy: { organizationId: faker.string.uuid(), organizationType: "team", projectId: faker.string.uuid() }
     });
 
     await expect(handler(context)).rejects.toMatchObject({ status: 404 });
@@ -144,7 +144,7 @@ describe("createProxy", () => {
     const { handler, context, fetchMock } = setupProxyTest({
       path: "/v1/deployment-alerts/1234",
       organizationContext: createOrganizationContext({ mode: "organization" }),
-      tenancy: { organizationId: null, projectId: null }
+      tenancy: { organizationId: null, organizationType: null, projectId: null }
     });
 
     await handler(context);
@@ -165,7 +165,7 @@ describe("createProxy", () => {
 
   it("looks up no project when reading deployment alerts or writing other alerts", async () => {
     const organizationContext = createOrganizationContext({ mode: "organization" });
-    const tenancy = { organizationId: organizationContext.organizationId, projectId: faker.string.uuid() };
+    const tenancy: DeploymentTenancy = { organizationId: organizationContext.organizationId, organizationType: "team", projectId: faker.string.uuid() };
     const read = setupProxyTest({ method: "GET", path: "/v1/deployment-alerts/1234", organizationContext, tenancy });
     const write = setupProxyTest({ path: "/v1/alerts", organizationContext, tenancy });
 

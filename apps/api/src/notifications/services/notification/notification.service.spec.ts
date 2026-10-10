@@ -53,13 +53,13 @@ describe(NotificationService.name, () => {
 
     it("attributes the default channel to the user's personal organization", async () => {
       const { service, api, organizationRepository } = setup();
-      organizationRepository.findPersonalByUserId.mockResolvedValue(mock<OrganizationOutput>({ id: "personal-organization-1" }));
+      organizationRepository.findPersonalByUserId.mockResolvedValue(mock<OrganizationOutput>({ id: "personal-organization-1", type: "personal" }));
       api.v1.createDefaultNotificationChannel.mockResolvedValue({} as never);
 
       await service.createDefaultChannel({ id: "user-1", email: "user@example.com" });
 
       expect(api.v1.createDefaultNotificationChannel).toHaveBeenCalledWith(expect.anything(), {
-        headers: { "x-user-id": "user-1", "x-organization-id": "personal-organization-1" }
+        headers: { "x-user-id": "user-1", "x-organization-id": "personal-organization-1", "x-organization-type": "personal" }
       });
     });
   });
@@ -67,7 +67,7 @@ describe(NotificationService.name, () => {
   describe("createNotification", () => {
     it("attributes the notification to the user's personal organization when they have one", async () => {
       const { service, apiInternal, organizationRepository } = setup();
-      const personalOrganization = mock<OrganizationOutput>({ id: "personal-organization-1" });
+      const personalOrganization = mock<OrganizationOutput>({ id: "personal-organization-1", type: "personal" });
       organizationRepository.findPersonalByUserId.mockResolvedValue(personalOrganization);
       apiInternal.v1.createNotification.mockResolvedValue({} as never);
 
@@ -75,7 +75,7 @@ describe(NotificationService.name, () => {
 
       expect(organizationRepository.findPersonalByUserId).toHaveBeenCalledWith("user-1");
       expect(apiInternal.v1.createNotification).toHaveBeenCalledWith(expect.anything(), {
-        headers: { "x-user-id": "user-1", "x-organization-id": "personal-organization-1" }
+        headers: { "x-user-id": "user-1", "x-organization-id": "personal-organization-1", "x-organization-type": "personal" }
       });
     });
 
@@ -231,31 +231,74 @@ describe(NotificationService.name, () => {
       const { service, api, userRepository, deploymentSettingRepository } = setup();
       userRepository.findById.mockResolvedValue({ id: "user-1", email: "user@example.com" } as UserOutput);
       api.v1.listNotificationChannels.mockResolvedValue({ data: [{ id: "channel-1" }] } as never);
-      deploymentSettingRepository.findTenancy.mockResolvedValue({ organizationId: "organization-1", projectId: "project-1" });
+      deploymentSettingRepository.findTenancy.mockResolvedValue({ organizationId: "organization-1", organizationType: "team", projectId: "project-1" });
 
       await service.autoEnableDeploymentAlert({ userId: "user-1", walletAddress: "akash1abc", dseq: "123" });
 
       expect(deploymentSettingRepository.findTenancy).toHaveBeenCalledWith({ userId: "user-1", dseq: "123" });
       expect(api.v1.upsertDeploymentAlert).toHaveBeenCalledWith(expect.anything(), {
-        headers: { "x-user-id": "user-1", "x-organization-id": "organization-1", "x-project-id": "project-1", "x-owner-address": "akash1abc" }
+        headers: {
+          "x-user-id": "user-1",
+          "x-organization-id": "organization-1",
+          "x-organization-type": "team",
+          "x-project-id": "project-1",
+          "x-owner-address": "akash1abc"
+        }
       });
     });
 
     it("picks a channel among those of the deployment's organization, preferring the default one", async () => {
       const { service, api, userRepository, organizationRepository, deploymentSettingRepository } = setup();
       userRepository.findById.mockResolvedValue({ id: "user-1", email: "user@example.com" } as UserOutput);
-      deploymentSettingRepository.findTenancy.mockResolvedValue({ organizationId: null, projectId: null });
-      organizationRepository.findPersonalByUserId.mockResolvedValue(mock<OrganizationOutput>({ id: "personal-organization-1" }));
+      deploymentSettingRepository.findTenancy.mockResolvedValue({ organizationId: null, organizationType: null, projectId: null });
+      organizationRepository.findPersonalByUserId.mockResolvedValue(mock<OrganizationOutput>({ id: "personal-organization-1", type: "personal" }));
       api.v1.listNotificationChannels.mockResolvedValue({ data: [{ id: "other-channel" }, { id: "default-channel", isDefault: true }] } as never);
 
       await service.autoEnableDeploymentAlert({ userId: "user-1", walletAddress: "akash1abc", dseq: "123" });
 
       expect(api.v1.listNotificationChannels).toHaveBeenCalledWith(
         { page: 1, limit: 100 },
-        { headers: { "x-user-id": "user-1", "x-organization-id": "personal-organization-1" } }
+        { headers: { "x-user-id": "user-1", "x-organization-id": "personal-organization-1", "x-organization-type": "personal" } }
       );
       expect(api.v1.upsertDeploymentAlert).toHaveBeenCalledWith(
         { dseq: "123", data: { alerts: { deploymentClosed: { notificationChannelId: "default-channel", enabled: true } } } },
+        expect.anything()
+      );
+    });
+
+    it("creates a channel for the deployer in a team deployment's organization when they have none there", async () => {
+      const { service, api, userRepository, deploymentSettingRepository } = setup();
+      const teamHeaders = { "x-user-id": "user-1", "x-organization-id": "organization-1", "x-organization-type": "team", "x-project-id": "project-1" };
+      userRepository.findById.mockResolvedValue({ id: "user-1", email: "user@example.com" } as UserOutput);
+      deploymentSettingRepository.findTenancy.mockResolvedValue({ organizationId: "organization-1", organizationType: "team", projectId: "project-1" });
+      api.v1.listNotificationChannels.mockResolvedValue({ data: [] } as never);
+      api.v1.createNotificationChannel.mockResolvedValue({ data: { id: "team-channel" } } as never);
+
+      await service.autoEnableDeploymentAlert({ userId: "user-1", walletAddress: "akash1abc", dseq: "123" });
+
+      expect(api.v1.listNotificationChannels).toHaveBeenCalledWith(expect.anything(), { headers: teamHeaders });
+      expect(api.v1.createNotificationChannel).toHaveBeenCalledWith(
+        { data: { name: "Deployment alerts", type: "email", config: { addresses: ["user@example.com"] }, isDefault: false } },
+        { headers: teamHeaders }
+      );
+      expect(api.v1.createDefaultNotificationChannel).not.toHaveBeenCalled();
+      expect(api.v1.upsertDeploymentAlert).toHaveBeenCalledWith(
+        { dseq: "123", data: { alerts: { deploymentClosed: { notificationChannelId: "team-channel", enabled: true } } } },
+        { headers: { ...teamHeaders, "x-owner-address": "akash1abc" } }
+      );
+    });
+
+    it("uses the deployer's channel of a team deployment's organization when they have one", async () => {
+      const { service, api, userRepository, deploymentSettingRepository } = setup();
+      userRepository.findById.mockResolvedValue({ id: "user-1", email: "user@example.com" } as UserOutput);
+      deploymentSettingRepository.findTenancy.mockResolvedValue({ organizationId: "organization-1", organizationType: "team", projectId: null });
+      api.v1.listNotificationChannels.mockResolvedValue({ data: [{ id: "team-channel" }] } as never);
+
+      await service.autoEnableDeploymentAlert({ userId: "user-1", walletAddress: "akash1abc", dseq: "123" });
+
+      expect(api.v1.createNotificationChannel).not.toHaveBeenCalled();
+      expect(api.v1.upsertDeploymentAlert).toHaveBeenCalledWith(
+        { dseq: "123", data: { alerts: { deploymentClosed: { notificationChannelId: "team-channel", enabled: true } } } },
         expect.anything()
       );
     });
@@ -264,12 +307,12 @@ describe(NotificationService.name, () => {
       const { service, api, userRepository, deploymentSettingRepository } = setup();
       userRepository.findById.mockResolvedValue({ id: "user-1", email: "user@example.com" } as UserOutput);
       api.v1.listNotificationChannels.mockResolvedValue({ data: [{ id: "channel-1" }] } as never);
-      deploymentSettingRepository.findTenancy.mockResolvedValue({ organizationId: "organization-1", projectId: null });
+      deploymentSettingRepository.findTenancy.mockResolvedValue({ organizationId: "organization-1", organizationType: "team", projectId: null });
 
       await service.autoEnableDeploymentAlert({ userId: "user-1", walletAddress: "akash1abc", dseq: "123" });
 
       expect(api.v1.upsertDeploymentAlert).toHaveBeenCalledWith(expect.anything(), {
-        headers: { "x-user-id": "user-1", "x-organization-id": "organization-1", "x-owner-address": "akash1abc" }
+        headers: { "x-user-id": "user-1", "x-organization-id": "organization-1", "x-organization-type": "team", "x-owner-address": "akash1abc" }
       });
     });
 
@@ -277,13 +320,13 @@ describe(NotificationService.name, () => {
       const { service, api, userRepository, organizationRepository, deploymentSettingRepository } = setup();
       userRepository.findById.mockResolvedValue({ id: "user-1", email: "user@example.com" } as UserOutput);
       api.v1.listNotificationChannels.mockResolvedValue({ data: [{ id: "channel-1" }] } as never);
-      deploymentSettingRepository.findTenancy.mockResolvedValue({ organizationId: null, projectId: null });
-      organizationRepository.findPersonalByUserId.mockResolvedValue(mock<OrganizationOutput>({ id: "personal-organization-1" }));
+      deploymentSettingRepository.findTenancy.mockResolvedValue({ organizationId: null, organizationType: null, projectId: null });
+      organizationRepository.findPersonalByUserId.mockResolvedValue(mock<OrganizationOutput>({ id: "personal-organization-1", type: "personal" }));
 
       await service.autoEnableDeploymentAlert({ userId: "user-1", walletAddress: "akash1abc", dseq: "123" });
 
       expect(api.v1.upsertDeploymentAlert).toHaveBeenCalledWith(expect.anything(), {
-        headers: { "x-user-id": "user-1", "x-organization-id": "personal-organization-1", "x-owner-address": "akash1abc" }
+        headers: { "x-user-id": "user-1", "x-organization-id": "personal-organization-1", "x-organization-type": "personal", "x-owner-address": "akash1abc" }
       });
     });
 

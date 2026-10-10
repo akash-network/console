@@ -21,7 +21,15 @@ describe(stripIdentityHeaders.name, () => {
 
   it("reserves the user, organization and project headers", () => {
     expect(Object.values(NOTIFICATIONS_IDENTITY_HEADERS)).toEqual(
-      expect.arrayContaining(["x-user-id", "x-owner-address", "x-organization-id", "x-organization-role", "x-project-scope", "x-project-id"])
+      expect.arrayContaining([
+        "x-user-id",
+        "x-owner-address",
+        "x-organization-id",
+        "x-organization-type",
+        "x-organization-role",
+        "x-project-scope",
+        "x-project-id"
+      ])
     );
   });
 });
@@ -30,7 +38,7 @@ describe(organizationIdentityHeaders.name, () => {
   it("names only the organization while legacy rules apply", () => {
     const context = createOrganizationContext({ mode: "legacy" });
 
-    expect(organizationIdentityHeaders(context)).toEqual({ "x-organization-id": context.organizationId });
+    expect(organizationIdentityHeaders(context)).toEqual({ "x-organization-id": context.organizationId, "x-organization-type": context.organizationType });
   });
 
   it("names the organization, role and project scope while organization rules apply", () => {
@@ -38,6 +46,7 @@ describe(organizationIdentityHeaders.name, () => {
 
     expect(organizationIdentityHeaders(context)).toEqual({
       "x-organization-id": context.organizationId,
+      "x-organization-type": context.organizationType,
       "x-organization-role": "viewer",
       "x-project-scope": JSON.stringify(context.projectScope)
     });

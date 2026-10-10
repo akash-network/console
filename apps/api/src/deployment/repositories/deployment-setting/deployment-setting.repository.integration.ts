@@ -737,7 +737,7 @@ describe(DeploymentSettingRepository.name, () => {
   });
 
   describe("findTenancy", () => {
-    it("reads the organization and project a user's deployment is filed in", async () => {
+    it("reads the organization, its type and the project a user's deployment is filed in", async () => {
       const { deploymentSettingRepository, user } = await setup();
       const organization = await seedOrganization();
       const project = await seedProject({ organizationId: organization.id });
@@ -746,7 +746,7 @@ describe(DeploymentSettingRepository.name, () => {
 
       const tenancy = await deploymentSettingRepository.findTenancy({ userId: user.id, dseq });
 
-      expect(tenancy).toEqual({ organizationId: organization.id, projectId: project.id });
+      expect(tenancy).toEqual({ organizationId: organization.id, organizationType: "team", projectId: project.id });
     });
 
     it("ignores another user's deployment with the same dseq", async () => {
