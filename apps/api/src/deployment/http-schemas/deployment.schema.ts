@@ -162,7 +162,7 @@ const DeploymentLeaseListItemSchema = DeploymentResponseSchema.extend({
     description: "What the console holds about this deployment, or null when it holds nothing."
   }),
   projectId: z.string().uuid().nullable().optional().openapi({
-    description: "Project the deployment is filed in, or null for one the console has not filed. Present only while organizations are enabled for the caller."
+    description: "Project the deployment is filed in, or null for one the console has not filed. Present only for requests in organization mode."
   })
 });
 
@@ -506,7 +506,7 @@ export const ListDeploymentsQuerySchema = z.object({
       description: `Deployments per page, at most ${deploymentListMaxLimit}. Omitting it pages from the start rather than returning every deployment, so page on while \`hasMore\` is true.`
     }),
   projectId: z.string().uuid().optional().openapi({
-    description: "Lists only the deployments filed in this project. A project the caller cannot reach lists nothing, like one that does not exist. Ignored while organizations are not enabled for the caller."
+    description: "Lists only the deployments filed in this project. A project the caller cannot reach lists nothing, like one that does not exist. Ignored outside organization mode."
   })
 });
 

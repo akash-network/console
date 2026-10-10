@@ -1,4 +1,5 @@
 import { faker } from "@faker-js/faker";
+import { eq, sql } from "drizzle-orm";
 import nock from "nock";
 import { container } from "tsyringe";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
@@ -133,16 +134,78 @@ describe("Deployment list by project", () => {
       expect(response.status).toBe(400);
     });
 
-    it("splits deployments by the state the chain index holds, whatever the console's own flag says", async () => {
+    it("lists a deployment closed on chain as closed even when the console has not flagged it yet", async () => {
       const { request, defaultProject, deploy } = await setupCaller({ role: "owner" });
-      const running = await deploy({ projectId: defaultProject.id, flaggedClosed: true });
-      const closed = await deploy({ projectId: defaultProject.id, closedOnChain: true });
+      const running = await deploy({ projectId: defaultProject.id });
+      const flagged = await deploy({ projectId: defaultProject.id, flaggedClosed: true, closedOnChain: true });
+      const unflagged = await deploy({ projectId: defaultProject.id, closedOnChain: true });
 
       const active = await list(request, "/v1/deployments?state=active");
       const archived = await list(request, "/v1/deployments?state=closed");
 
       expect(active.body.data.deployments.map(item => [item.deployment.id.dseq, item.deployment.state])).toEqual([[running.dseq, "active"]]);
-      expect(archived.body.data.deployments.map(item => [item.deployment.id.dseq, item.deployment.state])).toEqual([[closed.dseq, "closed"]]);
+      expect(archived.body.data.deployments.map(item => [item.deployment.id.dseq, item.deployment.state])).toEqual([
+        [flagged.dseq, "closed"],
+        [unflagged.dseq, "closed"]
+      ]);
+      expect(archived.body.data.pagination.total).toBe(2);
+    });
+
+    it("lists a deployment filed moments ago as active before the chain index has seen it, and leaves out an older one it never saw", async () => {
+      const { request, defaultProject, deploy, backdate } = await setupCaller({ role: "owner" });
+      const fresh = await deploy({ projectId: defaultProject.id, indexed: false });
+      const stale = await deploy({ projectId: defaultProject.id, indexed: false });
+      await backdate(stale.id, "11 minutes");
+      const onChain = createDeploymentInfoSeed({ owner: fresh.owner, dseq: fresh.dseq, state: "active" });
+      nock(container.resolve(CORE_CONFIG).REST_API_NODE_URL)
+        .get(`/akash/deployment/${deploymentVersion}/deployments/info?id.owner=${fresh.owner}&id.dseq=${fresh.dseq}`)
+        .reply(200, onChain)
+        .get(`/akash/market/${marketVersion}/leases/list?filters.owner=${fresh.owner}&filters.dseq=${fresh.dseq}`)
+        .reply(200, { leases: [], pagination: { next_key: null, total: "0" } });
+
+      const { body } = await list(request, "/v1/deployments", { chainUnavailable: false });
+
+      expect(dseqsOf(body)).toEqual([fresh.dseq]);
+      expect(body.data.pagination.total).toBe(1);
+    });
+
+    it("lists nothing of a deleted project, whether named or not", async () => {
+      const { request, defaultProject, otherProject, deploy } = await setupCaller({ role: "owner" });
+      const kept = await deploy({ projectId: defaultProject.id });
+      await deploy({ projectId: otherProject.id, flaggedClosed: true, closedOnChain: true });
+      await deploy({ projectId: otherProject.id });
+      await softDelete(otherProject.id);
+
+      const everyProject = await list(request, "/v1/deployments");
+      const archive = await list(request, "/v1/deployments?state=closed");
+      const deleted = await list(request, `/v1/deployments?projectId=${otherProject.id}`);
+
+      expect(dseqsOf(everyProject.body)).toEqual([kept.dseq]);
+      expect(archive.body.data).toEqual(EMPTY_PAGE);
+      expect(deleted.body.data).toEqual(EMPTY_PAGE);
+    });
+
+    it("lists nothing to a member granted no project", async () => {
+      const { request, defaultProject, otherProject, deploy } = await setupCaller({ role: "member" });
+      await deploy({ projectId: defaultProject.id, by: "colleague" });
+      await deploy({ projectId: otherProject.id, by: "colleague" });
+
+      const { status, body } = await list(request, "/v1/deployments");
+
+      expect(status).toBe(200);
+      expect(body.data).toEqual(EMPTY_PAGE);
+    });
+
+    it("keeps to the project a header narrows the request to", async () => {
+      const { request, defaultProject, otherProject, deploy } = await setupCaller({ role: "admin" });
+      await deploy({ projectId: defaultProject.id });
+      const inOther = await deploy({ projectId: otherProject.id });
+
+      const narrowed = await list(requestPath => request(requestPath, { "x-project-id": otherProject.id }), "/v1/deployments");
+      const narrowedElsewhere = await list(requestPath => request(requestPath, { "x-project-id": otherProject.id }), `/v1/deployments?projectId=${defaultProject.id}`);
+
+      expect(dseqsOf(narrowed.body)).toEqual([inOther.dseq]);
+      expect(narrowedElsewhere.body.data).toEqual(EMPTY_PAGE);
     });
 
     it("searches the names of the deployments the caller reaches, whatever case it is typed in", async () => {
@@ -182,10 +245,14 @@ describe("Deployment list by project", () => {
       const inOther = await deploy({ projectId: otherProject.id });
       const apiKey = await seedApiKey({ userId: owner.id, organizationId: team.id, projectId: otherProject.id });
 
-      const { status, body } = await list(requestPath => app.request(requestPath, { headers: { "x-api-key": apiKey } }), "/v1/deployments");
+      const withKey: SendRequest = requestPath => app.request(requestPath, { headers: { "x-api-key": apiKey } });
+
+      const { status, body } = await list(withKey, "/v1/deployments");
+      const elsewhere = await list(withKey, `/v1/deployments?projectId=${defaultProject.id}`);
 
       expect(status).toBe(200);
       expect(dseqsOf(body)).toEqual([inOther.dseq]);
+      expect(elsewhere.body.data).toEqual(EMPTY_PAGE);
     });
 
     it("reads each listed deployment from the chain by the address that owns it", async () => {
@@ -317,25 +384,46 @@ describe("Deployment list by project", () => {
       by = "caller",
       name,
       flaggedClosed = false,
-      closedOnChain = false
+      closedOnChain = false,
+      indexed = true
     }: {
       projectId: string;
       by?: "caller" | "colleague";
       name?: string;
       flaggedClosed?: boolean;
       closedOnChain?: boolean;
+      indexed?: boolean;
     }) {
       const dseq = String(nextDseq++);
-      await seedDeploymentSetting({ userId: deployers[by], organizationId: team.id, projectId, dseq, name, closed: flaggedClosed });
-      await createDeployment({ owner: addresses[by], dseq, closedHeight: closedOnChain ? 5_000_000 : undefined });
+      const row = await seedDeploymentSetting({ userId: deployers[by], organizationId: team.id, projectId, dseq, name, closed: flaggedClosed });
+      if (indexed) {
+        await createDeployment({ owner: addresses[by], dseq, closedHeight: closedOnChain ? 5_000_000 : undefined });
+      }
 
-      return { dseq, owner: addresses[by] };
+      return { id: row.id, dseq, owner: addresses[by] };
     }
 
-    const request: SendRequest = requestPath =>
-      app.request(requestPath, { method: "GET", headers: { authorization, "content-type": "application/json", "x-organization-id": team.id } });
+    async function backdate(id: string, age: string) {
+      const table = resolveTable("DeploymentSettings");
+      await container
+        .resolve<ApiPgDatabase>(POSTGRES_DB)
+        .update(table)
+        .set({ createdAt: sql`now() - ${age}::interval` })
+        .where(eq(table.id, id));
+    }
 
-    return { request, team, defaultProject, otherProject, owner, deploy };
+    const request = (requestPath: string, headers: Record<string, string> = {}) =>
+      app.request(requestPath, {
+        method: "GET",
+        headers: { authorization, "content-type": "application/json", "x-organization-id": team.id, ...headers }
+      });
+
+    return { request, team, defaultProject, otherProject, owner, deploy, backdate };
+  }
+
+  async function softDelete(projectId: string) {
+    const table = resolveTable("Projects");
+    await container.resolve<ApiPgDatabase>(POSTGRES_DB).update(table).set({ deletedAt: new Date() }).where(eq(table.id, projectId));
   }
 
   async function setupPersonalCaller() {

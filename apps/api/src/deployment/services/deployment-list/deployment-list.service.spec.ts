@@ -1,17 +1,23 @@
 import { createMongoAbility, type MongoAbility } from "@casl/ability";
 import { faker } from "@faker-js/faker";
-import { describe, expect, it } from "vitest";
+import { ConnectionError } from "sequelize";
+import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { AuthService } from "@src/auth/services/auth.service";
+import type { CreateLogger } from "@src/core";
 import type { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
 import type { ListDeploymentsItem, ListDeploymentsQuery } from "@src/deployment/http-schemas/deployment.schema";
 import type { DeploymentClosureState, DeploymentRepository } from "@src/deployment/repositories/deployment/deployment.repository";
-import type { DeploymentSettingRepository, ReachableDeployment } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
-import type { DeploymentReaderService } from "@src/deployment/services/deployment-reader/deployment-reader.service";
+import type {
+  DeploymentSettingRepository,
+  ReachableDeployment,
+  UnclosedReachableDeployment
+} from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
+import { type DeploymentReaderService, MAX_SEARCHABLE_DEPLOYMENTS } from "@src/deployment/services/deployment-reader/deployment-reader.service";
 import type { LeaseGpusByLease, LeaseGpuService } from "@src/deployment/services/lease-gpu/lease-gpu.service";
 import type { OrganizationContext } from "@src/organization/types/organization-context";
-import { DeploymentListService } from "./deployment-list.service";
+import { DeploymentListService, UNINDEXED_DEPLOYMENT_GRACE_MINUTES } from "./deployment-list.service";
 
 import { createAkashAddress } from "@test/seeders/akash-address.seeder";
 import { createDeploymentInfoSeed } from "@test/seeders/deployment-info.seeder";
@@ -65,7 +71,7 @@ describe(DeploymentListService.name, () => {
       await service.list(query({ projectId }));
 
       expect(deploymentReaderService.list).not.toHaveBeenCalled();
-      expect(scopedSettingRepository.findReachable).toHaveBeenCalled();
+      expect(scopedSettingRepository.findUnclosedReachable).toHaveBeenCalled();
     });
   });
 
@@ -74,92 +80,107 @@ describe(DeploymentListService.name, () => {
       const { service, scopedSettingRepository } = setup({ context: { role: "billing" }, canReadDeployments: false });
 
       await expect(service.list(query())).resolves.toEqual({ deployments: [], total: 0, hasMore: false });
-      expect(scopedSettingRepository.findReachable).not.toHaveBeenCalled();
+      expect(scopedSettingRepository.findUnclosedReachable).not.toHaveBeenCalled();
     });
 
-    it("asks for the rows of the active organization the caller reaches through their own ability, with the project and search filters", async () => {
+    it("reads at most one row past the cap of the unflagged rows the caller reaches, through their own ability and filters", async () => {
       const { service, deploymentSettingRepository, scopedSettingRepository, authService, context } = setup();
       const projectId = faker.string.uuid();
 
       await service.list(query({ projectId, search: "web" }));
 
       expect(deploymentSettingRepository.accessibleBy).toHaveBeenCalledWith(authService.ability, "read");
-      expect(scopedSettingRepository.findReachable).toHaveBeenCalledWith({ organizationId: context.organizationId, projectId, search: "web" });
+      expect(scopedSettingRepository.findUnclosedReachable).toHaveBeenCalledWith(
+        { organizationId: context.organizationId, projectId, search: "web" },
+        { limit: MAX_SEARCHABLE_DEPLOYMENTS + 1, recentMinutes: UNINDEXED_DEPLOYMENT_GRACE_MINUTES }
+      );
     });
 
-    it("keeps the deployments the chain index holds in the requested state, leaving out those it has not indexed", async () => {
-      const [open, closed, unindexed] = [reachable({ dseq: "1" }), reachable({ dseq: "2" }), reachable({ dseq: "3" })];
-      const { service, deploymentRepository } = setup({ reachable: [open, closed, unindexed], closedDseqs: ["2"], indexedDseqs: ["1", "2"] });
+    it("refuses with 422 when more unflagged rows than the cap would have to be checked, logging it", async () => {
+      const { service, scopedSettingRepository, logger, context } = setup({ unclosed: Array.from({ length: MAX_SEARCHABLE_DEPLOYMENTS + 1 }, () => unclosedRow()) });
 
-      const [active, archived] = [await service.list(query({ state: "active" })), await service.list(query({ state: "closed" }))];
+      await expect(service.list(query({ state: "closed" }))).rejects.toMatchObject({ status: 422 });
+      expect(scopedSettingRepository.findReachablePage).not.toHaveBeenCalled();
+      expect(logger.warn).toHaveBeenCalledWith(expect.objectContaining({ event: "DEPLOYMENT_LIST_TOO_LARGE", organizationId: context.organizationId }));
+    });
 
-      expect(dseqsOf(active)).toEqual(["1"]);
-      expect(dseqsOf(archived)).toEqual(["2"]);
-      expect(deploymentRepository.findClosureStates).toHaveBeenCalledWith([open, closed, unindexed].map(({ owner, dseq }) => ({ owner, dseq })));
+    it("lists as many unflagged rows as the cap allows", async () => {
+      const { service, scopedSettingRepository } = setup({ unclosed: Array.from({ length: MAX_SEARCHABLE_DEPLOYMENTS }, () => unclosedRow()) });
+
+      await service.list(query());
+
+      expect(scopedSettingRepository.findReachablePage).toHaveBeenCalled();
+    });
+
+    it("draws an active page from the rows the index holds open and the recent ones it has not seen yet", async () => {
+      const [open, closed, recent, stale] = [unclosedRow({ dseq: "1" }), unclosedRow({ dseq: "2" }), unclosedRow({ dseq: "3", isRecent: true }), unclosedRow({ dseq: "4" })];
+      const { service, scopedSettingRepository, deploymentRepository, context } = setup({
+        unclosed: [open, closed, recent, stale],
+        indexedDseqs: ["1", "2"],
+        closedDseqs: ["2"]
+      });
+
+      await service.list(query({ state: "active", reverse: true, skip: 20, limit: 10, search: "web" }));
+
+      expect(deploymentRepository.findClosureStates).toHaveBeenCalledWith([open, closed, recent, stale].map(({ owner, dseq }) => ({ owner, dseq })));
+      expect(scopedSettingRepository.findReachablePage).toHaveBeenCalledWith({
+        organizationId: context.organizationId,
+        projectId: undefined,
+        search: "web",
+        among: { ids: [open.id, recent.id] },
+        reverse: true,
+        skip: 20,
+        limit: 10
+      });
+    });
+
+    it("draws a closed page from the rows flagged closed and those the index holds closed", async () => {
+      const [open, closed, recent] = [unclosedRow({ dseq: "1" }), unclosedRow({ dseq: "2", isRecent: true }), unclosedRow({ dseq: "3", isRecent: true })];
+      const { service, scopedSettingRepository } = setup({ unclosed: [open, closed, recent], indexedDseqs: ["1", "2"], closedDseqs: ["2"] });
+
+      await service.list(query({ state: "closed" }));
+
+      expect(scopedSettingRepository.findReachablePage).toHaveBeenCalledWith(expect.objectContaining({ among: { flaggedClosedOrIds: [closed.id] } }));
     });
 
     it("asks the index for each dseq without leading zeros and still matches it", async () => {
-      const padded = reachable({ dseq: "0042" });
-      const { service, deploymentRepository } = setup({ reachable: [padded], indexedDseqs: ["42"] });
+      const padded = unclosedRow({ dseq: "0042" });
+      const { service, scopedSettingRepository, deploymentRepository } = setup({ unclosed: [padded], indexedDseqs: ["42"] });
 
-      const page = await service.list(query());
+      await service.list(query());
 
       expect(deploymentRepository.findClosureStates).toHaveBeenCalledWith([{ owner: padded.owner, dseq: "42" }]);
-      expect(dseqsOf(page)).toEqual(["0042"]);
+      expect(scopedSettingRepository.findReachablePage).toHaveBeenCalledWith(expect.objectContaining({ among: { ids: [padded.id] } }));
     });
 
-    it("orders by dseq as a number, newest first when reversed", async () => {
-      const rows = ["100", "9", "10"].map(dseq => reachable({ dseq }));
-      const { service } = setup({ reachable: rows, indexedDseqs: ["100", "9", "10"] });
+    it("fails rather than guessing the state when the index cannot be reached", async () => {
+      const { service, deploymentRepository, scopedSettingRepository } = setup({ unclosed: [unclosedRow()] });
+      deploymentRepository.findClosureStates.mockRejectedValue(new ConnectionError(new Error("connection refused")));
 
-      const [oldestFirst, newestFirst] = [await service.list(query()), await service.list(query({ reverse: true }))];
-
-      expect(dseqsOf(oldestFirst)).toEqual(["9", "10", "100"]);
-      expect(dseqsOf(newestFirst)).toEqual(["100", "10", "9"]);
+      await expect(service.list(query())).rejects.toBeInstanceOf(ConnectionError);
+      expect(scopedSettingRepository.findReachablePage).not.toHaveBeenCalled();
     });
 
-    it("orders deployments of different owners sharing a dseq by owner", async () => {
-      const [later, earlier] = [reachable({ dseq: "7", owner: "akash1b" }), reachable({ dseq: "7", owner: "akash1a" })];
-      const { service } = setup({ reachable: [later, earlier], indexedDseqs: ["7"] });
+    it.each([
+      { skip: 0, limit: 2, total: 3, hasMore: true },
+      { skip: 1, limit: 2, total: 3, hasMore: false },
+      { skip: 2, limit: 2, total: 3, hasMore: false }
+    ])("reports another page after skip $skip and limit $limit of $total only when one is left", async ({ skip, limit, total, hasMore }) => {
+      const { service, scopedSettingRepository } = setup();
+      scopedSettingRepository.findReachablePage.mockResolvedValue({ deployments: [], total });
 
-      const page = await service.list(query());
-
-      expect(page.deployments.map(({ deployment }) => deployment.id.owner)).toEqual(["akash1a", "akash1b"]);
-    });
-
-    it("pages the matching deployments and counts all of them", async () => {
-      const rows = ["1", "2", "3", "4", "5"].map(dseq => reachable({ dseq }));
-      const { service, deploymentReaderService } = setup({ reachable: rows, indexedDseqs: ["1", "2", "3", "4", "5"] });
-
-      const [middle, last] = [await service.list(query({ skip: 2, limit: 2 })), await service.list(query({ skip: 4, limit: 2 }))];
-
-      expect(middle).toMatchObject({ total: 5, hasMore: true });
-      expect(dseqsOf(middle)).toEqual(["3", "4"]);
-      expect(last).toMatchObject({ total: 5, hasMore: false });
-      expect(dseqsOf(last)).toEqual(["5"]);
-      expect(deploymentReaderService.findListedByOwnerAndDseq).toHaveBeenCalledTimes(3);
-    });
-
-    it("lists a deployment two rows of the organization file only once, as the first row files it", async () => {
-      const owner = createAkashAddress();
-      const [first, second] = [reachable({ dseq: "8", owner }), reachable({ dseq: "8", owner })];
-      const { service } = setup({ reachable: [first, second], indexedDseqs: ["8"] });
-
-      const page = await service.list(query());
-
-      expect(page).toMatchObject({ total: 1, deployments: [{ projectId: first.projectId }] });
+      await expect(service.list(query({ skip, limit }))).resolves.toEqual({ deployments: [], total, hasMore });
     });
 
     it("reads each deployment of the page from the chain by its owner, with the console's settings, gpus and project", async () => {
       const row = reachable({ dseq: "11", setting: { name: "web", closed: false, runtimeLimitHours: 4, runtimeEndsAt: null } });
-      const { service, deploymentReaderService, leaseGpuService } = setup({ reachable: [row], indexedDseqs: ["11"] });
-      const onChain = deploymentReaderService.findListedByOwnerAndDseq.mock.results;
+      const { service, deploymentReaderService, leaseGpuService } = setup({ page: [row] });
       const leaseGpus: LeaseGpusByLease = new Map([["1/1/akash1provider", { offeredGpus: { gpus: [], recordedAt: "2026-10-01T00:00:00.000Z" } }]]);
       leaseGpuService.findForDeploymentSettings.mockResolvedValue(new Map([[row.id, leaseGpus]]));
 
       const page = await service.list(query());
 
-      const listed = await onChain[0].value;
+      const listed = await deploymentReaderService.findListedByOwnerAndDseq.mock.results[0].value;
       expect(deploymentReaderService.findListedByOwnerAndDseq).toHaveBeenCalledWith(row.owner, "11");
       expect(leaseGpuService.findForDeploymentSettings).toHaveBeenCalledWith([row.id]);
       expect(page.deployments).toEqual([
@@ -175,19 +196,31 @@ describe(DeploymentListService.name, () => {
       ]);
     });
 
-    it("leaves out a deployment of the page the chain no longer holds", async () => {
-      const [gone, kept] = [reachable({ dseq: "1" }), reachable({ dseq: "2" })];
-      const { service, deploymentReaderService } = setup({ reachable: [gone, kept], indexedDseqs: ["1", "2"] });
-      deploymentReaderService.findListedByOwnerAndDseq.mockResolvedValueOnce(null);
+    it("keeps the page's order and leaves out a deployment the chain no longer holds", async () => {
+      const [first, gone, last] = [reachable({ dseq: "1" }), reachable({ dseq: "2" }), reachable({ dseq: "3" })];
+      const { service, deploymentReaderService } = setup({ page: [first, gone, last] });
+      const findListed = deploymentReaderService.findListedByOwnerAndDseq.getMockImplementation()!;
+      deploymentReaderService.findListedByOwnerAndDseq.mockImplementation(async (owner, dseq) => (dseq === "2" ? null : await findListed(owner, dseq)));
 
       const page = await service.list(query());
 
-      expect(dseqsOf(page)).toEqual(["2"]);
+      expect(page.deployments.map(({ deployment }) => deployment.id.dseq)).toEqual(["1", "3"]);
+    });
+
+    it("fails the list when a deployment of the page cannot be read", async () => {
+      const { service, deploymentReaderService } = setup({ page: [reachable()] });
+      deploymentReaderService.findListedByOwnerAndDseq.mockRejectedValue(new Error("chain refused"));
+
+      await expect(service.list(query())).rejects.toThrow("chain refused");
     });
   });
 
   function query(overrides: Partial<ListDeploymentsQuery> = {}): ListDeploymentsQuery {
     return { state: "active", reverse: false, skip: 0, limit: 10, ...overrides };
+  }
+
+  function unclosedRow(overrides: Partial<UnclosedReachableDeployment> = {}): UnclosedReachableDeployment {
+    return { id: faker.string.uuid(), dseq: faker.string.numeric(8), owner: createAkashAddress(), isRecent: false, ...overrides };
   }
 
   function reachable(overrides: Partial<ReachableDeployment> = {}): ReachableDeployment {
@@ -207,18 +240,15 @@ describe(DeploymentListService.name, () => {
     return { ...info, leases: [], name: null, settings: null };
   }
 
-  function dseqsOf(page: { deployments: ListDeploymentsItem[] }) {
-    return page.deployments.map(({ deployment }) => deployment.id.dseq);
-  }
-
   function setup(
     input: {
       context?: Partial<OrganizationContext>;
       withoutContext?: boolean;
       canReadDeployments?: boolean;
-      reachable?: ReachableDeployment[];
+      unclosed?: UnclosedReachableDeployment[];
       indexedDseqs?: string[];
       closedDseqs?: string[];
+      page?: ReachableDeployment[];
     } = {}
   ) {
     const user = createUser();
@@ -235,15 +265,14 @@ describe(DeploymentListService.name, () => {
     const walletPage = { deployments: [], total: 0, hasMore: false };
     const deploymentReaderService = mock<DeploymentReaderService>();
     deploymentReaderService.list.mockResolvedValue(walletPage);
-    deploymentReaderService.findListedByOwnerAndDseq.mockImplementation(async (owner, dseq) => {
-      const info = createDeploymentInfoSeed({ owner, dseq });
+    deploymentReaderService.findListedByOwnerAndDseq.mockImplementation(async (owner, dseq) => ({
+      deployment: createDeploymentInfoSeed({ owner, dseq }),
+      leases: [createLeaseApiResponse({ owner, dseq }).lease]
+    }));
 
-      return { deployment: info, leases: [createLeaseApiResponse({ owner, dseq }).lease] };
-    });
-
-    const reachableRows = input.reachable ?? [];
     const scopedSettingRepository = mock<DeploymentSettingRepository>();
-    scopedSettingRepository.findReachable.mockResolvedValue(reachableRows);
+    scopedSettingRepository.findUnclosedReachable.mockResolvedValue(input.unclosed ?? []);
+    scopedSettingRepository.findReachablePage.mockResolvedValue({ deployments: input.page ?? [], total: input.page?.length ?? 0 });
     scopedSettingRepository.findProjectIdsByDseqs.mockResolvedValue(new Map());
     const deploymentSettingRepository = mock<DeploymentSettingRepository>();
     deploymentSettingRepository.accessibleBy.mockReturnValue(scopedSettingRepository);
@@ -257,6 +286,7 @@ describe(DeploymentListService.name, () => {
 
     const leaseGpuService = mock<LeaseGpuService>();
     leaseGpuService.findForDeploymentSettings.mockResolvedValue(new Map());
+    const logger = mock<ReturnType<CreateLogger>>();
 
     const service = new DeploymentListService(
       deploymentReaderService,
@@ -264,7 +294,8 @@ describe(DeploymentListService.name, () => {
       deploymentRepository,
       leaseGpuService,
       authService,
-      executionContextService
+      executionContextService,
+      vi.fn<CreateLogger>(() => logger)
     );
 
     return {
@@ -273,6 +304,7 @@ describe(DeploymentListService.name, () => {
       context,
       authService,
       walletPage,
+      logger,
       deploymentReaderService,
       deploymentSettingRepository,
       scopedSettingRepository,
