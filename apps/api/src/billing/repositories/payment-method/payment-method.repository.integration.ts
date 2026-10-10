@@ -2,6 +2,7 @@ import { faker } from "@faker-js/faker";
 import { container } from "tsyringe";
 import { describe, expect, it } from "vitest";
 
+import { TxService } from "@src/core/services";
 import { PaymentMethodRepository } from "./payment-method.repository";
 
 import { seedOrganizationMember, seedOrganizationWithOwner } from "@test/seeders/db/organization.seeder";
@@ -29,7 +30,52 @@ describe(PaymentMethodRepository.name, () => {
     });
   });
 
+  describe("markAsDefault", () => {
+    it("moves a user's own default without touching the default of a team the user added a card to", async () => {
+      const { repository, member, team } = await setup();
+      const first = await repository.upsert({ userId: member.id, owner: { userId: member.id }, ...card() });
+      const second = await repository.upsert({ userId: member.id, owner: { userId: member.id }, ...card() });
+      const teamCard = await repository.upsert({ userId: member.id, organizationId: team.id, owner: { organizationId: team.id }, ...card() });
+
+      const marked = await repository.markAsDefault(second.paymentMethod.paymentMethodId, { userId: member.id });
+
+      expect(marked).toMatchObject({ id: second.paymentMethod.id, isDefault: true });
+      expect(await repository.findById(first.paymentMethod.id)).toMatchObject({ isDefault: false });
+      expect(await repository.findById(teamCard.paymentMethod.id)).toMatchObject({ isDefault: true });
+    });
+
+    it("finds nothing to mark among another owner's cards", async () => {
+      const { repository, member, team } = await setup();
+      const teamCard = await repository.upsert({ userId: member.id, organizationId: team.id, owner: { organizationId: team.id }, ...card() });
+
+      expect(await repository.markAsDefault(teamCard.paymentMethod.paymentMethodId, { userId: member.id })).toBeUndefined();
+    });
+  });
+
+  describe("createAsDefault", () => {
+    it("makes a new team card the team's default without touching the member's own default", async () => {
+      const { repository, member, team } = await setup();
+      const own = await repository.upsert({ userId: member.id, owner: { userId: member.id }, ...card() });
+      const firstTeamCard = await repository.upsert({ userId: member.id, organizationId: team.id, owner: { organizationId: team.id }, ...card() });
+
+      const created = await container
+        .resolve(TxService)
+        .transaction(() => repository.createAsDefault({ owner: { organizationId: team.id }, userId: member.id, organizationId: team.id, ...card() }));
+
+      expect(created).toMatchObject({ isDefault: true, organizationId: team.id });
+      expect(await repository.findById(firstTeamCard.paymentMethod.id)).toMatchObject({ isDefault: false });
+      expect(await repository.findById(own.paymentMethod.id)).toMatchObject({ isDefault: true });
+    });
+  });
+
   describe("findByOwner", () => {
+    it("leaves a card not yet filed under any organization out of a team's cards", async () => {
+      const { repository, member, team } = await setup();
+      await repository.upsert({ userId: member.id, owner: { userId: member.id }, ...card() });
+
+      expect(await repository.findByOwner({ organizationId: team.id })).toEqual([]);
+    });
+
     it("reads a team's cards whoever added them, and a user's own cards without the ones the user added for a team", async () => {
       const { repository, member, owner, team } = await setup();
       const own = await repository.upsert({ userId: member.id, owner: { userId: member.id }, ...card() });

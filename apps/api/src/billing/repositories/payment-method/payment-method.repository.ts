@@ -68,16 +68,16 @@ export class PaymentMethodRepository extends OrgScopedRepository<Table, PaymentM
     return result?.count ?? 0;
   }
 
-  async markAsDefault(paymentMethodId: string) {
+  async markAsDefault(paymentMethodId: string, owner: BillingOwner) {
     return this.ensureTransaction(async tx => {
-      const nextDefaultQuery = this.queryToWhere({ paymentMethodId });
-      const nextDefault = await tx.query.PaymentMethods.findFirst({ where: nextDefaultQuery, columns: { id: true } });
+      const nextDefaultQuery = this.whereAccessibleBy(and(ownedBy(this.table, owner), eq(this.table.paymentMethodId, paymentMethodId)));
+      const [nextDefault] = await tx.select({ id: this.table.id }).from(this.table).where(nextDefaultQuery).limit(1);
 
       if (!nextDefault) {
         return;
       }
 
-      await this.#unmarkAsDefaultExcluding(nextDefault.id, tx);
+      await this.#unmarkAsDefaultExcluding(nextDefault.id, owner, tx);
 
       const [output] = await tx
         .update(this.table)
@@ -92,10 +92,10 @@ export class PaymentMethodRepository extends OrgScopedRepository<Table, PaymentM
     });
   }
 
-  async createAsDefault(input: Omit<PaymentMethodInput, "id" | "isDefault">) {
+  async createAsDefault({ owner, ...input }: Omit<PaymentMethodInput, "id" | "isDefault"> & { owner: BillingOwner }) {
     return this.ensureTransaction(async tx => {
       const id = uuidv4();
-      await this.#unmarkAsDefaultExcluding(id, tx);
+      await this.#unmarkAsDefaultExcluding(id, owner, tx);
 
       const output = await this.create({
         ...input,
@@ -107,14 +107,14 @@ export class PaymentMethodRepository extends OrgScopedRepository<Table, PaymentM
     });
   }
 
-  async #unmarkAsDefaultExcluding(excludedId: PaymentMethodOutput["id"], tx: ApiTransaction) {
+  async #unmarkAsDefaultExcluding(excludedId: PaymentMethodOutput["id"], owner: BillingOwner, tx: ApiTransaction) {
     await tx
       .update(this.table)
       .set({
         isDefault: false,
         updatedAt: sql`now()`
       })
-      .where(and(this.queryToWhere({ isDefault: true }), ne(this.table.id, excludedId)));
+      .where(this.whereAccessibleBy(and(ownedBy(this.table, owner), eq(this.table.isDefault, true), ne(this.table.id, excludedId))));
   }
 
   async deleteByFingerprint(fingerprint: string, paymentMethodId: string, owner: BillingOwner): Promise<boolean> {
@@ -145,10 +145,7 @@ export class PaymentMethodRepository extends OrgScopedRepository<Table, PaymentM
     paymentMethodId: string;
   }): Promise<{ paymentMethod: PaymentMethodOutput; isNew: boolean }> {
     // Check if already exists (idempotency fast path)
-    const existing = await this.findOneBy({
-      fingerprint: input.fingerprint,
-      paymentMethodId: input.paymentMethodId
-    });
+    const existing = await this.#findOwned(owner, input);
 
     if (existing) {
       return { paymentMethod: existing, isNew: false };
@@ -202,11 +199,22 @@ export class PaymentMethodRepository extends OrgScopedRepository<Table, PaymentM
     }
 
     // Race condition: record was created by a concurrent request
-    const paymentMethod = await this.findOneBy({
-      fingerprint: input.fingerprint,
-      paymentMethodId: input.paymentMethodId
-    });
+    const paymentMethod = await this.#findOwned(owner, input);
 
     return { paymentMethod: this.requireWrittenRow(paymentMethod), isNew: false };
+  }
+
+  async #findOwned(owner: BillingOwner, input: { fingerprint: string; paymentMethodId: string }): Promise<PaymentMethodOutput | undefined> {
+    const [paymentMethod] = await this.cursor
+      .select()
+      .from(this.table)
+      .where(
+        this.whereAccessibleBy(
+          and(ownedBy(this.table, owner), eq(this.table.fingerprint, input.fingerprint), eq(this.table.paymentMethodId, input.paymentMethodId))
+        )
+      )
+      .limit(1);
+
+    return paymentMethod && this.toOutput(paymentMethod);
   }
 }

@@ -248,7 +248,8 @@ export class PaymentMethodService {
 
     assert(remote, 404, "Payment method not found", { source: "stripe" });
 
-    const local = await this.paymentMethodRepository.accessibleBy(ability, "update").markAsDefault(paymentMethodId);
+    const owner = billingOwnerOf(payer);
+    const local = await this.paymentMethodRepository.accessibleBy(ability, "update").markAsDefault(paymentMethodId, owner);
 
     if (local) {
       return { ...remote, validated: local.isValidated, isDefault: local.isDefault };
@@ -259,6 +260,7 @@ export class PaymentMethodService {
     assert(fingerprint, 403, "Payment method cannot be set as default. No identifiable fingerprint found.");
 
     const newLocal = await this.paymentMethodRepository.accessibleBy(ability, "create").createAsDefault({
+      owner,
       userId: payer.user.id,
       organizationId: payer.organizationId,
       fingerprint,

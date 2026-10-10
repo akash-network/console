@@ -81,7 +81,7 @@ describe(PaymentMethodService.name, () => {
 
       const result = await service.markPaymentMethodAsDefault("pm_1", user, ability);
 
-      expect(paymentMethodRepository.markAsDefault).toHaveBeenCalledWith("pm_1");
+      expect(paymentMethodRepository.markAsDefault).toHaveBeenCalledWith("pm_1", { userId: "user_1" });
       expect(update).not.toHaveBeenCalled();
       expect(paymentMethodRepository.createAsDefault).not.toHaveBeenCalled();
       expect(result).toEqual({ ...remote, validated: local.isValidated, isDefault: local.isDefault });
@@ -98,7 +98,13 @@ describe(PaymentMethodService.name, () => {
 
       const result = await service.markPaymentMethodAsDefault("pm_1", user, ability);
 
-      expect(paymentMethodRepository.createAsDefault).toHaveBeenCalledWith({ userId: "user_1", organizationId: "org_1", fingerprint: "fp_1", paymentMethodId: "pm_1" });
+      expect(paymentMethodRepository.createAsDefault).toHaveBeenCalledWith({
+        owner: { userId: "user_1" },
+        userId: "user_1",
+        organizationId: "org_1",
+        fingerprint: "fp_1",
+        paymentMethodId: "pm_1"
+      });
       expect(result).toEqual({ ...remote, validated: created.isValidated, isDefault: created.isDefault });
     });
 
