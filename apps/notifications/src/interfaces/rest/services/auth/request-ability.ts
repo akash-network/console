@@ -3,7 +3,7 @@ import { AbilityBuilder, createMongoAbility } from "@casl/ability";
 
 import type { OrganizationMembership, OrganizationRole, RequestIdentity } from "./request-identity";
 
-type Can = AbilityBuilder<MongoAbility>["can"];
+type Builder = AbilityBuilder<MongoAbility>;
 
 const UPDATABLE_ALERT_FIELDS = ["enabled", "name", "notificationChannelId", "conditions"];
 
@@ -17,22 +17,32 @@ export function abilityFor(identity: RequestIdentity): MongoAbility {
   const builder = new AbilityBuilder<MongoAbility>(createMongoAbility);
 
   if (identity.membership) {
-    defineOrganizationRules(builder.can, identity.membership, identity.userId);
+    defineOrganizationRules(builder, identity.membership, identity.userId);
   } else {
-    defineUserRules(builder.can, identity.userId);
+    defineUserRules(builder, identity);
   }
 
   return builder.build();
 }
 
-function defineUserRules(can: Can, userId: string): void {
-  can("manage", "NotificationChannel", { userId });
-  can(["create", "read", "delete"], "Alert", { userId });
-  can("update", "Alert", UPDATABLE_ALERT_FIELDS, { userId });
-  can("manage", "DeploymentAlert", { userId });
+/** Keyed on the user as before organizations, narrowed to the minted organization and the rows not yet attributed to one. */
+function defineUserRules({ can }: Builder, { userId, organizationId }: RequestIdentity): void {
+  const ownedRows: MongoQuery[] = organizationId
+    ? [
+        { userId, organizationId },
+        { userId, organizationId: null }
+      ]
+    : [{ userId }];
+
+  for (const owned of ownedRows) {
+    can("manage", "NotificationChannel", owned);
+    can(["create", "read", "delete"], "Alert", owned);
+    can("update", "Alert", UPDATABLE_ALERT_FIELDS, owned);
+    can("manage", "DeploymentAlert", owned);
+  }
 }
 
-function defineOrganizationRules(can: Can, { organizationId, role, projectScope }: OrganizationMembership, userId: string): void {
+function defineOrganizationRules({ can, cannot }: Builder, { organizationId, role, projectScope }: OrganizationMembership, userId: string): void {
   if (!ROLES_READING_ALERTS.includes(role)) {
     return;
   }
@@ -47,7 +57,13 @@ function defineOrganizationRules(can: Can, { organizationId, role, projectScope 
     return;
   }
 
-  can("manage", "NotificationChannel", ROLES_MANAGING_EVERY_CHANNEL.includes(role) ? inOrganization : { organizationId, userId });
+  if (ROLES_MANAGING_EVERY_CHANNEL.includes(role)) {
+    can("manage", "NotificationChannel", inOrganization);
+  } else {
+    can("manage", "NotificationChannel", { organizationId, userId });
+    cannot(["update", "delete"], "NotificationChannel", { isDefault: true });
+  }
+
   can(["create", "delete"], "Alert", inScope);
   can("update", "Alert", UPDATABLE_ALERT_FIELDS, inScope);
   can("manage", "DeploymentAlert", inScope);

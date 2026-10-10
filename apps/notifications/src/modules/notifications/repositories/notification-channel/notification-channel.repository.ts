@@ -4,6 +4,7 @@ import { InjectDrizzle } from "@knaadh/nestjs-drizzle-pg";
 import { Injectable } from "@nestjs/common";
 import { and, count, eq, isNull, or, sql } from "drizzle-orm";
 import { NodePgDatabase } from "drizzle-orm/node-postgres";
+import type { AnyPgColumn } from "drizzle-orm/pg-core";
 import type { SQL } from "drizzle-orm/sql/sql";
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
@@ -27,6 +28,14 @@ type InternalNotificationChannelOutput = typeof schema.NotificationChannel.$infe
 export type NotificationChannelOutput = Omit<InternalNotificationChannelOutput, "config" | "deletedAt"> & {
   config: NotificationChannelConfig;
 };
+
+export function inOrganizationOrUnattributed(column: AnyPgColumn, organizationId: string | null): SQL | undefined {
+  return organizationId ? or(eq(column, organizationId), isNull(column)) : isNull(column);
+}
+
+export function userChannelsWithin(userId: string, organizationId: string | null): SQL | undefined {
+  return and(eq(schema.NotificationChannel.userId, userId), inOrganizationOrUnattributed(schema.NotificationChannel.organizationId, organizationId));
+}
 
 /** Who a default channel belongs to: the organization when its rules apply, otherwise the user within their personal organization. */
 export type DefaultChannelOwner = { kind: "organization"; organizationId: string } | { kind: "user"; userId: string; organizationId: string | null };
@@ -84,6 +93,15 @@ export class NotificationChannelRepository {
     return notificationChannel && this.toOutput(notificationChannel);
   }
 
+  /** A channel an alert of the given organization may notify: one the caller can reach, filed in that organization or in none. */
+  async findAttachableById(id: NotificationChannelOutput["id"], organizationId: string | null): Promise<NotificationChannelOutput | undefined> {
+    const notificationChannel = await this.findById(id);
+
+    return notificationChannel && (notificationChannel.organizationId === null || notificationChannel.organizationId === organizationId)
+      ? notificationChannel
+      : undefined;
+  }
+
   async findDefault(owner: DefaultChannelOwner): Promise<NotificationChannelOutput | undefined> {
     const notificationChannel = await this.db.query.NotificationChannel.findFirst({
       where: this.whereAccessibleBy(this.#liveDefaultOf(owner))
@@ -115,12 +133,7 @@ export class NotificationChannelRepository {
     const ownedBy =
       owner.kind === "organization"
         ? eq(schema.NotificationChannel.organizationId, owner.organizationId)
-        : and(
-            eq(schema.NotificationChannel.userId, owner.userId),
-            owner.organizationId
-              ? or(eq(schema.NotificationChannel.organizationId, owner.organizationId), isNull(schema.NotificationChannel.organizationId))
-              : undefined
-          );
+        : userChannelsWithin(owner.userId, owner.organizationId);
 
     return this.nonDeleted(and(ownedBy, eq(schema.NotificationChannel.isDefault, true)));
   }
@@ -198,10 +211,11 @@ export class NotificationChannelRepository {
     return notificationChannel && this.toOutput(notificationChannel);
   }
 
-  async deleteAllByUserId(userId: string, tx: NodePgDatabase<typeof schema> = this.db): Promise<number> {
+  /** Leaves the channels the user created for team organizations to those organizations. */
+  async deletePersonalByUserId(userId: string, personalOrganizationId: string | null, tx: NodePgDatabase<typeof schema> = this.db): Promise<number> {
     const deleted = await tx
       .delete(schema.NotificationChannel)
-      .where(eq(schema.NotificationChannel.userId, userId))
+      .where(userChannelsWithin(userId, personalOrganizationId))
       .returning({ id: schema.NotificationChannel.id });
 
     return deleted.length;

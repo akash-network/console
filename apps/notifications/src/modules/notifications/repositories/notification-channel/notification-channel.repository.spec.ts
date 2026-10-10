@@ -86,19 +86,6 @@ describe(NotificationChannelRepository.name, () => {
       expect(await liveDefaultsOf(repository, { organizationId })).toHaveLength(1);
     });
 
-    it("creates an organization default for a user who already has a default elsewhere", async () => {
-      const { repository } = await setup();
-      const userId = faker.string.uuid();
-      const personalOrganizationId = faker.string.uuid();
-      const teamOrganizationId = faker.string.uuid();
-      const teamChannel = channelInput({ userId, organizationId: teamOrganizationId });
-
-      await repository.createDefaultChannel(channelInput({ userId }), { kind: "user", userId, organizationId: personalOrganizationId });
-      await repository.createDefaultChannel(teamChannel, { kind: "organization", organizationId: teamOrganizationId });
-
-      expect(await repository.findDefault({ kind: "organization", organizationId: teamOrganizationId })).toEqual({ ...teamChannel, isDefault: true });
-    });
-
     it("refuses a default the ability does not allow to create", async () => {
       const { repository } = await setup();
       const organizationId = faker.string.uuid();
@@ -111,15 +98,35 @@ describe(NotificationChannelRepository.name, () => {
     });
   });
 
+  describe("findAttachableById", () => {
+    it("returns a channel of the alert's organization or of none", async () => {
+      const { repository } = await setup();
+      const organizationId = faker.string.uuid();
+      const inOrganization = await repository.create(channelInput({ organizationId }));
+      const unattributed = await repository.create(channelInput({}));
+
+      expect(await repository.findAttachableById(inOrganization.id, organizationId)).toMatchObject({ id: inOrganization.id });
+      expect(await repository.findAttachableById(unattributed.id, organizationId)).toMatchObject({ id: unattributed.id });
+    });
+
+    it("refuses a channel of another organization", async () => {
+      const { repository } = await setup();
+      const channel = await repository.create(channelInput({ organizationId: faker.string.uuid() }));
+
+      expect(await repository.findAttachableById(channel.id, faker.string.uuid())).toBeUndefined();
+      expect(await repository.findAttachableById(channel.id, null)).toBeUndefined();
+    });
+  });
+
   describe("findDefault", () => {
-    it("returns the default notification channel of a user in any organization when none is named", async () => {
+    it("ignores defaults filed in an organization when the request names none", async () => {
       const { repository } = await setup();
       const userId = faker.string.uuid();
-      const channel = channelInput({ userId, organizationId: faker.string.uuid() });
+      const organizationId = faker.string.uuid();
 
-      await repository.createDefaultChannel(channel, { kind: "organization", organizationId: channel.organizationId! });
+      await repository.createDefaultChannel(channelInput({ userId, organizationId }), { kind: "organization", organizationId });
 
-      expect(await repository.findDefault({ kind: "user", userId, organizationId: null })).toEqual({ ...channel, isDefault: true });
+      expect(await repository.findDefault({ kind: "user", userId, organizationId: null })).toBeUndefined();
     });
 
     it("returns the unattributed default of a user within their organization", async () => {

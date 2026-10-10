@@ -128,7 +128,9 @@ export class AlertController {
   }
 
   private async assertOwnsNotificationChannel(notificationChannelId: string): Promise<void> {
-    const channel = await this.notificationChannelRepository.accessibleBy(this.authService.ability, "read").findById(notificationChannelId);
+    const channel = await this.notificationChannelRepository
+      .accessibleBy(this.authService.ability, "read")
+      .findAttachableById(notificationChannelId, this.authService.organizationId);
 
     if (!channel) {
       throw new NotFoundException("Notification channel not found");

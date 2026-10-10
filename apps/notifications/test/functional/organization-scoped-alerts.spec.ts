@@ -166,6 +166,64 @@ describe("Organization-scoped alerts and notification channels", () => {
     expect(listRes.body.data.filter((channel: { isDefault: boolean }) => channel.isDefault)).toHaveLength(1);
   });
 
+  it("lists a user only their channels of the minted organization and the unattributed ones", async () => {
+    const { app, db } = await setup();
+    const userId = faker.string.uuid();
+    const personalOrganizationId = faker.string.uuid();
+    const [personal, unattributed] = await db
+      .insert(NotificationChannel)
+      .values([
+        generateNotificationChannel({ userId, organizationId: personalOrganizationId, isDefault: false }),
+        generateNotificationChannel({ userId, isDefault: false }),
+        generateNotificationChannel({ userId, organizationId: faker.string.uuid(), isDefault: false })
+      ])
+      .returning();
+
+    const res = await request(app.getHttpServer()).get("/v1/notification-channels").set({ "x-user-id": userId, "x-organization-id": personalOrganizationId });
+    await app.close();
+
+    expect(res.body.data.map((channel: { id: string }) => channel.id).sort()).toEqual([personal.id, unattributed.id].sort());
+  });
+
+  it("refuses to point a deployment alert at the user's channel of another organization", async () => {
+    const { app, db, chainApi } = await setup();
+    const userId = faker.string.uuid();
+    const [teamChannel] = await db
+      .insert(NotificationChannel)
+      .values([generateNotificationChannel({ userId, organizationId: faker.string.uuid(), isDefault: false })])
+      .returning();
+    const dseq = String(faker.number.int());
+    const owner = mockAkashAddress();
+    chainApi.get("/akash/deployment/v1beta4/deployments/info").query({ "id.owner": owner, "id.dseq": dseq }).reply(200, {});
+
+    const res = await request(app.getHttpServer())
+      .post(`/v1/deployment-alerts/${dseq}`)
+      .set({ "x-user-id": userId, "x-organization-id": faker.string.uuid(), "x-owner-address": owner })
+      .send({ data: { alerts: { deploymentClosed: { notificationChannelId: teamChannel.id, enabled: true } } } });
+    const alerts = await db.select().from(Alert).where(eq(Alert.userId, userId));
+    await app.close();
+
+    expect(res.status).toBe(404);
+    expect(alerts).toEqual([]);
+  });
+
+  it("keeps a member from renaming the organization's default channel", async () => {
+    const { app, db, organizationId } = await setup();
+    const member = memberHeaders({ organizationId, role: "member", projectIds: [] });
+    const [defaultChannel] = await db
+      .insert(NotificationChannel)
+      .values([generateNotificationChannel({ userId: member["x-user-id"], organizationId, isDefault: true })])
+      .returning();
+
+    const res = await request(app.getHttpServer())
+      .patch(`/v1/notification-channels/${defaultChannel.id}`)
+      .set(member)
+      .send({ data: { name: "renamed" } });
+    await app.close();
+
+    expect(res.status).toBe(404);
+  });
+
   it("keeps channels user-scoped and stamps their organization when no membership is minted", async () => {
     const { app, db } = await setup();
     const organizationId = faker.string.uuid();

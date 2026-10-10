@@ -27,6 +27,9 @@ export const NotificationChannel = pgTable(
     index("idx_notification_channels_organization_id").on(table.organizationId),
     uniqueIndex("idx_notification_channels_user_id_is_default")
       .on(table.userId, table.isDefault)
+      .where(sql`is_default = true and deleted_at is null`),
+    uniqueIndex("idx_notification_channels_unattributed_user_id_is_default")
+      .on(table.userId, table.isDefault)
       .where(sql`is_default = true and deleted_at is null and organization_id is null`),
     uniqueIndex("idx_notification_channels_organization_id_is_default")
       .on(table.organizationId, table.isDefault)
