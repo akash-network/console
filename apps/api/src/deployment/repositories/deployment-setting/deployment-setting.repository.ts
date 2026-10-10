@@ -27,6 +27,9 @@ export type RecentNvidiaDriver = { driverVersion: string; lastSeenDate: string }
 
 export type DeploymentLocation = { organizationId: string; organizationSlug: string; projectId: string | null };
 
+/** One organization and, when the request is narrowed, the projects of it a location lookup may answer for. */
+export type DeploymentReach = { organizationId: string; projectIds?: readonly string[] };
+
 const ROLES_REACHING_EVERY_PROJECT: OrganizationRole[] = ["owner", "admin"];
 
 const ROLES_REACHING_GRANTED_PROJECTS: OrganizationRole[] = ["member", "viewer"];
@@ -223,8 +226,10 @@ export class DeploymentSettingRepository extends OrgScopedRepository<Table, Depl
     return rows.map(row => row.dseq);
   }
 
-  /** Reads across every organization the user belongs to, which no active organization covers, preferring the user's own deployment when two share the dseq. */
-  async findLocation({ userId, dseq }: { userId: string; dseq: string }): Promise<DeploymentLocation | undefined> {
+  /** Reads across every organization the user belongs to unless held `within` one, which no active organization covers, preferring the user's own deployment when two share the dseq. */
+  async findLocation({ userId, dseq, within }: { userId: string; dseq: string; within?: DeploymentReach }): Promise<DeploymentLocation | undefined> {
+    if (within?.projectIds?.length === 0) return undefined;
+
     const [location] = await this.cursor
       .select({ organizationId: Organizations.id, organizationSlug: Organizations.slug, projectId: this.table.projectId })
       .from(this.table)
@@ -235,6 +240,8 @@ export class DeploymentSettingRepository extends OrgScopedRepository<Table, Depl
         this.unscoped("deployment-location").whereAccessibleBy(
           and(
             eq(this.table.dseq, dseq),
+            within && eq(this.table.organizationId, within.organizationId),
+            within?.projectIds && inArray(this.table.projectId, [...within.projectIds]),
             or(
               inArray(OrganizationMembers.role, ROLES_REACHING_EVERY_PROJECT),
               and(inArray(OrganizationMembers.role, ROLES_REACHING_GRANTED_PROJECTS), isNotNull(ProjectMembers.id))

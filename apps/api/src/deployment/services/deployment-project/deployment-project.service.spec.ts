@@ -6,7 +6,11 @@ import { mock } from "vitest-mock-extended";
 import type { AuthService } from "@src/auth/services/auth.service";
 import type { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
 import type { TxService } from "@src/core/services/tx/tx.service";
-import type { DeploymentSettingRepository, DeploymentSettingsOutput } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
+import type {
+  DeploymentLocation,
+  DeploymentSettingRepository,
+  DeploymentSettingsOutput
+} from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
 import type { OrganizationRole } from "@src/organization/model-schemas/organization-member/organization-member.schema";
 import type { ProjectOutput, ProjectRepository } from "@src/organization/repositories/project/project.repository";
 import type { OrganizationActivityService } from "@src/organization/services/organization-activity/organization-activity.service";
@@ -226,16 +230,39 @@ describe(DeploymentProjectService.name, () => {
       const location = { organizationId: faker.string.uuid(), organizationSlug: faker.lorem.slug(), projectId: faker.string.uuid() };
       deploymentSettingRepository.findLocation.mockResolvedValue(location);
 
-      await expect(service.findLocation("1234")).resolves.toEqual(location);
+      await expect(service.findLocation("1234", { acrossOrganizations: true })).resolves.toEqual(location);
 
-      expect(deploymentSettingRepository.findLocation).toHaveBeenCalledWith({ userId: user.id, dseq: "1234" });
+      expect(deploymentSettingRepository.findLocation).toHaveBeenCalledWith({ userId: user.id, dseq: "1234", within: undefined });
+    });
+
+    it("holds a lookup that may not cross organizations to the active organization", async () => {
+      const { service, deploymentSettingRepository, context } = setup();
+      deploymentSettingRepository.findLocation.mockResolvedValue(mock<DeploymentLocation>());
+
+      await service.findLocation("1234", { acrossOrganizations: false });
+
+      expect(deploymentSettingRepository.findLocation).toHaveBeenCalledWith(
+        expect.objectContaining({ within: { organizationId: context.organizationId, projectIds: undefined } })
+      );
+    });
+
+    it("holds a lookup that may not cross organizations to the projects the request is narrowed to", async () => {
+      const projectIds = [faker.string.uuid()];
+      const { service, deploymentSettingRepository, context } = setup({ projectScope: { kind: "projects", projectIds } });
+      deploymentSettingRepository.findLocation.mockResolvedValue(mock<DeploymentLocation>());
+
+      await service.findLocation("1234", { acrossOrganizations: false });
+
+      expect(deploymentSettingRepository.findLocation).toHaveBeenCalledWith(
+        expect.objectContaining({ within: { organizationId: context.organizationId, projectIds } })
+      );
     });
 
     it("refuses with 404 a deployment in none of the caller's organizations", async () => {
       const { service, deploymentSettingRepository } = setup();
       deploymentSettingRepository.findLocation.mockResolvedValue(undefined);
 
-      await expect(service.findLocation("1234")).rejects.toMatchObject({ status: 404, message: "Deployment not found" });
+      await expect(service.findLocation("1234", { acrossOrganizations: true })).rejects.toMatchObject({ status: 404, message: "Deployment not found" });
     });
   });
 

@@ -80,15 +80,21 @@ describe("Deployment projects", () => {
       const { team, otherProject, owner } = await setupCaller({ role: "owner" });
       const apiKey = await seedApiKey({ userId: owner.id, organizationId: team.id, projectId: otherProject.id });
 
-      const response = await app.request("/v1/deployments", {
-        method: "POST",
-        headers: { "x-api-key": apiKey, "content-type": "application/json" },
-        body: JSON.stringify({ data: { sdl: SDL } })
-      });
+      const response = await requestWithKey(apiKey, "/v1/deployments", { method: "POST", body: { data: { sdl: SDL } } });
       const { data } = (await response.json()) as { data: { dseq: string } };
 
       expect(response.status).toBe(201);
       expect(await deploymentRow(owner.id, data.dseq)).toMatchObject({ organizationId: team.id, projectId: otherProject.id });
+    });
+
+    it("answers 404 to a project-bound API key naming another project of its organization", async () => {
+      const { team, defaultProject, otherProject, owner } = await setupCaller({ role: "owner" });
+      const apiKey = await seedApiKey({ userId: owner.id, organizationId: team.id, projectId: otherProject.id });
+
+      const response = await requestWithKey(apiKey, "/v1/deployments", { method: "POST", body: { data: { sdl: SDL, projectId: defaultProject.id } } });
+
+      expect(response.status).toBe(404);
+      expect(await deploymentRowsOf(owner.id)).toEqual([]);
     });
 
     it("files a deployment naming no project into the project a header narrows the request to", async () => {
@@ -209,6 +215,34 @@ describe("Deployment projects", () => {
       expect(await deploymentRow(caller.id, deployment.dseq)).toMatchObject({ projectId: defaultProject.id });
     });
 
+    it("answers 404 to a project-bound API key moving a deployment out of a project beyond its reach", async () => {
+      const { team, defaultProject, otherProject, owner } = await setupCaller({ role: "owner" });
+      const apiKey = await seedApiKey({ userId: owner.id, organizationId: team.id, projectId: otherProject.id });
+      const deployment = await seedDeploymentSetting({ userId: owner.id, organizationId: team.id, projectId: defaultProject.id });
+
+      const response = await requestWithKey(apiKey, `/v1/deployments/${deployment.dseq}/project`, {
+        method: "PATCH",
+        body: { data: { projectId: otherProject.id } }
+      });
+
+      expect(response.status).toBe(404);
+      expect(await deploymentRow(owner.id, deployment.dseq)).toMatchObject({ projectId: defaultProject.id });
+    });
+
+    it("answers 404 to a project-bound API key moving a deployment into a project beyond its reach", async () => {
+      const { team, defaultProject, otherProject, owner } = await setupCaller({ role: "owner" });
+      const apiKey = await seedApiKey({ userId: owner.id, organizationId: team.id, projectId: otherProject.id });
+      const deployment = await seedDeploymentSetting({ userId: owner.id, organizationId: team.id, projectId: otherProject.id });
+
+      const response = await requestWithKey(apiKey, `/v1/deployments/${deployment.dseq}/project`, {
+        method: "PATCH",
+        body: { data: { projectId: defaultProject.id } }
+      });
+
+      expect(response.status).toBe(404);
+      expect(await deploymentRow(owner.id, deployment.dseq)).toMatchObject({ projectId: otherProject.id });
+    });
+
     it("answers 404 for a deleted target project", async () => {
       const { request, team, defaultProject, owner } = await setupCaller({ role: "owner" });
       const deployment = await seedDeploymentSetting({ userId: owner.id, organizationId: team.id, projectId: defaultProject.id });
@@ -283,6 +317,40 @@ describe("Deployment projects", () => {
       expect(response.status).toBe(404);
     });
 
+    it("answers 404 to a project-bound API key for a deployment of another project of its organization", async () => {
+      const { team, defaultProject, otherProject, owner } = await setupCaller({ role: "owner" });
+      const apiKey = await seedApiKey({ userId: owner.id, organizationId: team.id, projectId: otherProject.id });
+      const outside = await seedDeploymentSetting({ userId: owner.id, organizationId: team.id, projectId: defaultProject.id });
+      const inside = await seedDeploymentSetting({ userId: owner.id, organizationId: team.id, projectId: otherProject.id });
+
+      const outsideResponse = await requestWithKey(apiKey, `/v1/deployment-locations/${outside.dseq}`);
+      const insideResponse = await requestWithKey(apiKey, `/v1/deployment-locations/${inside.dseq}`);
+
+      expect(outsideResponse.status).toBe(404);
+      expect(insideResponse.status).toBe(200);
+    });
+
+    it("answers 404 to an API key for a deployment of another organization of its owner", async () => {
+      const { team, owner } = await setupCaller({ role: "owner" });
+      const { organization: other, project: otherDefault } = await seedOrganizationWithOwner();
+      await seedOrganizationMember({ organizationId: other.id, userId: owner.id, role: "admin" });
+      const apiKey = await seedApiKey({ userId: owner.id, organizationId: team.id });
+      const deployment = await seedDeploymentSetting({ userId: owner.id, organizationId: other.id, projectId: otherDefault.id });
+
+      const response = await requestWithKey(apiKey, `/v1/deployment-locations/${deployment.dseq}`);
+
+      expect(response.status).toBe(404);
+    });
+
+    it("answers 404 to a request a header narrows to another project", async () => {
+      const { request, team, defaultProject, otherProject, owner } = await setupCaller({ role: "owner" });
+      const deployment = await seedDeploymentSetting({ userId: owner.id, organizationId: team.id, projectId: defaultProject.id });
+
+      const response = await request(`/v1/deployment-locations/${deployment.dseq}`, { headers: { "x-project-id": otherProject.id } });
+
+      expect(response.status).toBe(404);
+    });
+
     it("answers like an unknown path while organizations are off for the caller", async () => {
       const { request, team, defaultProject, owner } = await setupCaller({ role: "owner", organizationsOn: false });
       const deployment = await seedDeploymentSetting({ userId: owner.id, organizationId: team.id, projectId: defaultProject.id });
@@ -292,6 +360,14 @@ describe("Deployment projects", () => {
       expect(response.status).toBe(404);
     });
   });
+
+  function requestWithKey(apiKey: string, requestPath: string, init: { method?: string; body?: unknown } = {}) {
+    return app.request(requestPath, {
+      method: init.method ?? "GET",
+      headers: { "x-api-key": apiKey, "content-type": "application/json" },
+      body: init.body === undefined ? undefined : JSON.stringify(init.body)
+    });
+  }
 
   async function deploymentRow(userId: string, dseq: string) {
     const settings = resolveTable("DeploymentSettings");
@@ -349,7 +425,7 @@ describe("Deployment projects", () => {
       .values({ userId, organizationId, address: createAkashAddress(), deploymentAllowance: "10000000", feeAllowance: "5000000", isTrialing: false });
   }
 
-  async function seedApiKey(input: { userId: string; organizationId: string; projectId: string }) {
+  async function seedApiKey(input: { userId: string; organizationId: string; projectId?: string }) {
     const apiKeyGenerator = container.resolve(ApiKeyGeneratorService);
     const apiKey = apiKeyGenerator.generateApiKey();
     await container.resolve(ApiKeyRepository).create({

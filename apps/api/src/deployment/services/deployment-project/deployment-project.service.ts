@@ -7,6 +7,7 @@ import { ExecutionContextService } from "@src/core/services/execution-context/ex
 import { TxService } from "@src/core/services/tx/tx.service";
 import {
   type DeploymentLocation,
+  type DeploymentReach,
   DeploymentSettingRepository,
   type DeploymentSettingsOutput
 } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
@@ -89,8 +90,13 @@ export class DeploymentProjectService {
     return { dseq, projectId };
   }
 
-  async findLocation(dseq: string): Promise<DeploymentLocation> {
-    const location = await this.deploymentSettingRepository.findLocation({ userId: this.authService.currentUser.id, dseq });
+  /** Only a signed-in session with no narrowing header looks across organizations; an API key or a narrowed request answers for its own reach alone. */
+  async findLocation(dseq: string, { acrossOrganizations }: { acrossOrganizations: boolean }): Promise<DeploymentLocation> {
+    const location = await this.deploymentSettingRepository.findLocation({
+      userId: this.authService.currentUser.id,
+      dseq,
+      within: acrossOrganizations ? undefined : this.#activeReach()
+    });
 
     if (!location) {
       throw createError(404, "Deployment not found");
@@ -122,6 +128,12 @@ export class DeploymentProjectService {
 
   #canFileInto(context: OrganizationContext, projectId: string): boolean {
     return this.authService.ability.can("create", subject("DeploymentSetting", { organizationId: context.organizationId, projectId }));
+  }
+
+  #activeReach(): DeploymentReach {
+    const { organizationId, projectScope } = this.#requireOrganizationContext();
+
+    return { organizationId, projectIds: projectScope.kind === "projects" ? projectScope.projectIds : undefined };
   }
 
   #organizationModeContext(): OrganizationContext | undefined {

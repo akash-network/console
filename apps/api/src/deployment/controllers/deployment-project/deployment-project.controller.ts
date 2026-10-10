@@ -18,7 +18,7 @@ export class DeploymentProjectController {
   }
 
   @Protected()
-  async findLocation(dseq: string): Promise<GetDeploymentLocationResponse> {
-    return { data: await this.deploymentProjectService.findLocation(dseq) };
+  async findLocation(dseq: string, reach: { acrossOrganizations: boolean }): Promise<GetDeploymentLocationResponse> {
+    return { data: await this.deploymentProjectService.findLocation(dseq, reach) };
   }
 }

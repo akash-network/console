@@ -52,6 +52,7 @@ import {
   FallbackDeploymentListResponseSchema
 } from "@src/deployment/http-schemas/deployment-rpc.schema";
 import { FallbackDeploymentReaderService } from "@src/deployment/services/fallback-deployment-reader/fallback-deployment-reader.service";
+import { PROJECT_ID_HEADER } from "@src/organization/services/organization-context/organization-context.resolver";
 
 export const deploymentsRouter = new OpenApiHonoHandler();
 
@@ -855,5 +856,6 @@ const getDeploymentLocationRoute = createRoute({
 });
 deploymentsRouter.openapi(getDeploymentLocationRoute, async function routeGetDeploymentLocation(c) {
   const { dseq } = c.req.valid("param");
-  return c.json(await container.resolve(DeploymentProjectController).findLocation(dseq), 200);
+  const acrossOrganizations = c.get("authMethod") === "bearer" && !c.req.header(PROJECT_ID_HEADER);
+  return c.json(await container.resolve(DeploymentProjectController).findLocation(dseq, { acrossOrganizations }), 200);
 });

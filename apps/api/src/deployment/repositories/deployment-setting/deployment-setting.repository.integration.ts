@@ -1944,6 +1944,40 @@ describe(DeploymentSettingRepository.name, () => {
       expect(await deploymentSettingRepository.findLocation({ userId: user.id, dseq: setting.dseq })).toBeUndefined();
     });
 
+    it("locates nothing outside the organization it is held within, even one the user owns", async () => {
+      const { deploymentSettingRepository, active } = await setupOrganizations();
+      const own = await seedOrganizationWithOwner();
+      await seedOrganizationMember({ organizationId: active.organization.id, userId: own.user.id, role: "admin" });
+      const setting = await seedDeploymentSetting({ userId: own.user.id, organizationId: own.organization.id, projectId: own.project.id });
+
+      const location = await deploymentSettingRepository.findLocation({
+        userId: own.user.id,
+        dseq: setting.dseq,
+        within: { organizationId: active.organization.id }
+      });
+
+      expect(location).toBeUndefined();
+    });
+
+    it("locates only deployments of the projects it is held within", async () => {
+      const { deploymentSettingRepository, active, otherProject } = await setupOrganizations();
+      const setting = await seedDeploymentSetting({ userId: active.user.id, organizationId: active.organization.id, projectId: otherProject.id });
+      const locate = (projectIds: string[]) =>
+        deploymentSettingRepository.findLocation({
+          userId: active.user.id,
+          dseq: setting.dseq,
+          within: { organizationId: active.organization.id, projectIds }
+        });
+
+      expect(await locate([active.project.id])).toBeUndefined();
+      expect(await locate([])).toBeUndefined();
+      expect(await locate([otherProject.id])).toEqual({
+        organizationId: active.organization.id,
+        organizationSlug: active.organization.slug,
+        projectId: otherProject.id
+      });
+    });
+
     it("prefers the user's own deployment when another organization of theirs holds one under the same dseq", async () => {
       const { deploymentSettingRepository, active, member } = await setupOrganizations();
       const own = await seedOrganizationWithOwner();
