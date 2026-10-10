@@ -16,6 +16,7 @@ import type {
 import type { Membership, OrganizationMemberRepository } from "@src/organization/repositories/organization-member/organization-member.repository";
 import type { ProjectRepository } from "@src/organization/repositories/project/project.repository";
 import type { ProjectMemberRepository } from "@src/organization/repositories/project-member/project-member.repository";
+import { ALREADY_MEMBER_ERROR_CODE } from "@src/organization/services/organization-invitation/organization-invitation.service";
 import type { OrganizationContext } from "@src/organization/types/organization-context";
 import type { UserOutput, UserRepository } from "@src/user/repositories";
 import {
@@ -146,6 +147,22 @@ describe(InvitationAcceptanceService.name, () => {
       await expect(service.acceptInvitation({ token: createInvitationToken() })).resolves.toMatchObject({ role: "viewer" });
       expect(unscopedRepositories.projectMembers.createManyUnlessExist).not.toHaveBeenCalled();
       expect(unscopedRepositories.invitations.updateById).toHaveBeenCalledWith(invitation.id, expect.objectContaining({ acceptedByUserId: invitee.id }));
+    });
+
+    it.each([
+      { case: "with another email", invitee: { email: "joe@example.com", emailVerified: true } },
+      { case: "whose matching email is not verified", invitee: { email: "jane@example.com", emailVerified: false } }
+    ])("refuses a member $case who confirmed, leaving the invitation pending", async ({ invitee }) => {
+      const invitation = createOrganizationInvitation({ email: "jane@example.com" });
+      const { service, unscopedRepositories, userRepository } = setup({ invitation, invitee, isAlreadyMember: true });
+
+      await expect(service.acceptInvitation({ token: createInvitationToken(), confirmEmailMismatch: true })).rejects.toMatchObject({
+        status: 409,
+        errorCode: ALREADY_MEMBER_ERROR_CODE,
+        message: "Already a member of the organization"
+      });
+      expect(unscopedRepositories.invitations.updateById).not.toHaveBeenCalled();
+      expect(userRepository.updateById).not.toHaveBeenCalled();
     });
 
     it.each([

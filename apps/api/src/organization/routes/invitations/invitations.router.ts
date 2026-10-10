@@ -58,7 +58,10 @@ const acceptInvitationRoute = createRoute({
     401: { description: "Unauthorized" },
     403: { description: "Requested with an API key instead of a signed-in session" },
     404: { description: "No invitation has this token" },
-    409: { description: "The invitation was sent to another email address and the caller did not confirm, or someone else already accepted it" },
+    409: {
+      description:
+        "The invitation was sent to an address the caller has not verified and they did not confirm, someone else already accepted it, or the caller already belongs to the organization and was not the verified invitee"
+    },
     410: { description: "The invitation expired or was revoked" }
   }
 });
