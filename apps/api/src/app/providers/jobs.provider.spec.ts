@@ -5,6 +5,7 @@ import { mock } from "vitest-mock-extended";
 import { APP_INITIALIZER, ON_APP_START } from "@src/core/providers/app-initializer";
 import { JobQueueService } from "@src/core/services/job-queue/job-queue.service";
 import { DeleteUnbackedDeploymentSetting } from "@src/deployment/services/delete-unbacked-deployment-setting/delete-unbacked-deployment-setting.handler";
+import { PurgeOrganizationInvitationEmailsJob } from "@src/organization/services/purge-organization-invitation-emails/purge-organization-invitation-emails.job";
 import { startJobQueues } from "./jobs.provider";
 
 describe("jobs.provider", () => {
@@ -21,6 +22,15 @@ describe("jobs.provider", () => {
 
     const [handlers] = jobQueue.registerHandlers.mock.calls[0];
     expect(handlers.map(handler => handler.accepts)).toContain(DeleteUnbackedDeploymentSetting);
+  });
+
+  it("creates a queue for the purge that recording invitation emails enqueues", async () => {
+    const { jobQueue } = setup();
+
+    await startJobQueues();
+
+    const [handlers] = jobQueue.registerHandlers.mock.calls[0];
+    expect(handlers.map(handler => handler.accepts)).toContain(PurgeOrganizationInvitationEmailsJob);
   });
 
   function setup() {

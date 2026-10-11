@@ -1,5 +1,5 @@
 import { faker } from "@faker-js/faker";
-import { addDays, differenceInSeconds } from "date-fns";
+import { addDays, addHours, differenceInSeconds } from "date-fns";
 import { container } from "tsyringe";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
@@ -15,9 +15,16 @@ import {
   type OrganizationInvitationOutput,
   OrganizationInvitationRepository
 } from "@src/organization/repositories/organization-invitation/organization-invitation.repository";
-import { INVITATION_EMAIL_LIMITS } from "@src/organization/services/invitation-email-limiter/invitation-email-limiter.service";
+import {
+  INVITATION_EMAIL_LIMITS,
+  INVITATION_EMAIL_RETENTION_HOURS
+} from "@src/organization/services/invitation-email-limiter/invitation-email-limiter.service";
 import { MAX_PENDING_INVITATIONS_PER_ORGANIZATION } from "@src/organization/services/organization-invitation/organization-invitation.service";
 import { OrganizationInvitationEmailJob } from "@src/organization/services/organization-invitation-email/organization-invitation-email.handler";
+import {
+  PurgeOrganizationInvitationEmailsJob,
+  purgeOrganizationInvitationEmailsKeyFor
+} from "@src/organization/services/purge-organization-invitation-emails/purge-organization-invitation-emails.job";
 import { app } from "@src/rest-app";
 import type { UserOutput } from "@src/user/repositories";
 
@@ -32,6 +39,7 @@ import { seedUser } from "@test/seeders/db/user-with-wallet.seeder";
 import { findJobRows } from "@test/services/job-queue-harness";
 
 const EMAIL_JOB = OrganizationInvitationEmailJob[JOB_NAME];
+const PURGE_JOB = PurgeOrganizationInvitationEmailsJob[JOB_NAME];
 
 const UNAVAILABLE_INVITATIONS = [
   { case: "a revoked invitation", seed: (organizationId: string) => seedOrganizationInvitation({ organizationId, status: "revoked" }) },
@@ -171,6 +179,25 @@ describe("Organization invitations", () => {
       expect(response.status).toBe(403);
       expect(await response.json()).toMatchObject({ code: "owner_role_restricted" });
       expect(await invitationRepository.count({ organizationId: organization.id })).toBe(0);
+    });
+
+    it("queues a single purge of the organization's invitation emails for when they leave retention", async () => {
+      const { organization, owner, request } = await setup({ callerRole: "owner" });
+      const invite = (email: string) =>
+        request("POST", "/v1/organization-invitations", {
+          asUser: owner,
+          organizationId: organization.id,
+          body: { data: { emails: [email], role: "member" } }
+        });
+      const before = new Date();
+
+      const responses = [await invite("jane@example.com"), await invite("joe@example.com")];
+
+      expect(responses.map(response => response.status)).toEqual([201, 201]);
+      const purges = await findJobRows(PURGE_JOB, { singletonKey: purgeOrganizationInvitationEmailsKeyFor(organization.id), state: "created" });
+      expect(purges).toEqual([expect.objectContaining({ data: expect.objectContaining({ organizationId: organization.id }) })]);
+      expect(new Date(purges[0].start_after).getTime()).toBeGreaterThanOrEqual(addHours(before, INVITATION_EMAIL_RETENTION_HOURS).getTime());
+      expect(new Date(purges[0].start_after).getTime()).toBeLessThanOrEqual(addHours(new Date(), INVITATION_EMAIL_RETENTION_HOURS).getTime());
     });
 
     it("returns the pending invitation of an address invited again without creating or emailing another", async () => {
@@ -366,6 +393,7 @@ describe("Organization invitations", () => {
       expect(await findJobRows(EMAIL_JOB, { data: { invitationId: invitation.id } })).toEqual([
         expect.objectContaining({ data: expect.objectContaining({ tokenHash: stored!.tokenHash }) })
       ]);
+      expect(await findJobRows(PURGE_JOB, { singletonKey: purgeOrganizationInvitationEmailsKeyFor(organization.id), state: "created" })).toHaveLength(1);
     });
 
     it.each<OrganizationRole>(["member", "billing", "viewer"])("refuses a caller with role %s", async role => {

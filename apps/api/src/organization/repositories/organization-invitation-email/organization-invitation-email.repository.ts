@@ -1,4 +1,4 @@
-import { and, asc, eq, gt } from "drizzle-orm";
+import { and, asc, eq, gt, lt } from "drizzle-orm";
 import { singleton } from "tsyringe";
 
 import { type ApiPgDatabase, type ApiPgTables, InjectPg, InjectPgTable } from "@src/core/providers";
@@ -43,6 +43,26 @@ export class OrganizationInvitationEmailRepository extends OrgScopedRepository<T
       .innerJoin(OrganizationInvitations, eq(OrganizationInvitations.id, this.table.invitationId))
       .where(this.unscoped("invitation-email-limits").whereAccessibleBy(and(sentBy(this.table, filter), gt(this.table.createdAt, since))))
       .orderBy(asc(this.table.createdAt));
+  }
+
+  async deleteSentBefore(organizationId: string, sentBefore: Date): Promise<number> {
+    const deleted = await this.cursor
+      .delete(this.table)
+      .where(this.whereAccessibleBy(and(eq(this.table.organizationId, organizationId), lt(this.table.createdAt, sentBefore))))
+      .returning({ id: this.table.id });
+
+    return deleted.length;
+  }
+
+  async findOldestSentAt(organizationId: string): Promise<Date | undefined> {
+    const [oldest] = await this.cursor
+      .select({ createdAt: this.table.createdAt })
+      .from(this.table)
+      .where(this.whereAccessibleBy(eq(this.table.organizationId, organizationId)))
+      .orderBy(asc(this.table.createdAt))
+      .limit(1);
+
+    return oldest?.createdAt;
   }
 }
 
