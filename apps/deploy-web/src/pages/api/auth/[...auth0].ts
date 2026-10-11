@@ -4,6 +4,7 @@ import { isAxiosError } from "axios";
 import { once } from "lodash";
 import type { NextApiRequest, NextApiResponse } from "next";
 
+import { expireActiveOrganizationCookie } from "@src/lib/active-organization/active-organization-cookie";
 import { setAccountCreatedCookie } from "@src/lib/analytics/account-created-cookie";
 import type { Session } from "@src/lib/auth0";
 import { CallbackHandlerError, MissingStateCookieError } from "@src/lib/auth0";
@@ -95,13 +96,18 @@ const authHandler = once((services: AppServices) =>
         res.status(500).send({ message: "An unexpected error occurred during authentication. Please try again later." });
       }
     },
-    logout: services.privateConfig.AUTH0_LOCAL_ENABLED
-      ? async function (req: NextApiRequest, res: NextApiResponse) {
-          clearSessionCookies(req, res);
-          res.writeHead(302, { Location: "/" });
-          res.end();
-        }
-      : handleLogout,
+    async logout(req: NextApiRequest, res: NextApiResponse) {
+      expireActiveOrganizationCookie(res);
+
+      if (!services.privateConfig.AUTH0_LOCAL_ENABLED) {
+        await handleLogout(req, res);
+        return;
+      }
+
+      clearSessionCookies(req, res);
+      res.writeHead(302, { Location: "/" });
+      res.end();
+    },
     async profile(req: NextApiRequest, res: NextApiResponse) {
       services.logger.info({ event: "AUTH_PROFILE_REQUEST", url: req.url });
       try {
