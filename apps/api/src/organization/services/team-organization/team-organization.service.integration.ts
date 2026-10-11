@@ -9,8 +9,9 @@ import { ManagedUserWalletService } from "@src/billing/services/managed-user-wal
 import { WalletInitializerService } from "@src/billing/services/wallet-initializer/wallet-initializer.service";
 import { type ApiPgDatabase, POSTGRES_DB, resolveTable } from "@src/core";
 import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
+import { TxService } from "@src/core/services/tx/tx.service";
 import { MAX_NUMBERED_SLUG_SUFFIX, toSlug } from "@src/organization/lib/slug/slug";
-import type { OrganizationOutput } from "@src/organization/repositories/organization/organization.repository";
+import { type OrganizationOutput, OrganizationRepository } from "@src/organization/repositories/organization/organization.repository";
 import type { OrganizationContext } from "@src/organization/types/organization-context";
 import type { UserOutput } from "@src/user/repositories";
 import {
@@ -134,6 +135,24 @@ describe(TeamOrganizationService.name, () => {
   });
 
   describe("rename", () => {
+    it("waits for a transaction that locks the organization and then the caller, instead of deadlocking with it", async () => {
+      const { service, user, runAs } = await setup();
+      const { organization: team } = await seedOrganizationWithOwner();
+      await seedOrganizationMember({ organizationId: team.id, userId: user.id, role: "owner" });
+      const organizationRepository = container.resolve(OrganizationRepository);
+      const txService = container.resolve(TxService);
+
+      const settlement = txService.transaction(async () => {
+        await organizationRepository.findOneByAndLock({ id: team.id }, { strength: "no key update" });
+        await delay(150);
+        await organizationRepository.lockUserForOrganizationChanges(user.id);
+      });
+      await delay(50);
+      const rename = runAs(user, () => service.rename(team.id, "Acme Labs"), createOrganizationContext({ organizationId: team.id, organizationType: "team" }));
+
+      await expect(Promise.all([settlement, rename])).resolves.toEqual([undefined, expect.objectContaining({ organization: expect.objectContaining({ name: "Acme Labs" }) })]);
+    });
+
     it("lets only one of a rename and a creation to the same name through", async () => {
       const { service, user, runAs, slowDownWalletProvisioning } = await setup();
       const { organization: team } = await seedOrganizationWithOwner();

@@ -184,15 +184,32 @@ describe(TeamOrganizationService.name, () => {
       expect(organizationRepository.updateBy).toHaveBeenCalledWith({ id: context.organizationId, deletedAt: null }, { name: "Acme Labs" }, { returning: true });
     });
 
-    it("locks the caller and checks the name against their other organizations in the transaction that renames", async () => {
+    it("locks the organization, then the caller, then checks the name in the transaction that renames", async () => {
       const context = createOrganizationContext({ organizationType: "team" });
       const { service, user, organizationRepository, organizationMemberRepository, calls } = setup({ context });
 
       await service.rename(context.organizationId, "Acme Labs");
 
+      expect(organizationRepository.findOneByAndLock).toHaveBeenCalledWith({ id: context.organizationId, deletedAt: null }, { strength: "no key update" });
       expect(organizationRepository.lockUserForOrganizationChanges).toHaveBeenCalledWith(user.id);
       expect(organizationMemberRepository.isMemberOfOrganizationNamed).toHaveBeenCalledWith(user.id, "Acme Labs", context.organizationId);
-      expect(calls).toEqual(["transaction:start", "lockUserForOrganizationChanges", "isMemberOfOrganizationNamed", "updateBy", "transaction:end"]);
+      expect(calls).toEqual([
+        "transaction:start",
+        "findOneByAndLock",
+        "lockUserForOrganizationChanges",
+        "isMemberOfOrganizationNamed",
+        "updateBy",
+        "transaction:end"
+      ]);
+    });
+
+    it("answers not found without locking the caller when the organization cannot be locked for update", async () => {
+      const context = createOrganizationContext({ organizationType: "team" });
+      const { service, organizationRepository } = setup({ context, lockable: false });
+
+      await expect(service.rename(context.organizationId, "Acme Labs")).rejects.toMatchObject({ status: 404, message: "Organization not found" });
+      expect(organizationRepository.lockUserForOrganizationChanges).not.toHaveBeenCalled();
+      expect(organizationRepository.updateBy).not.toHaveBeenCalled();
     });
 
     it("refuses a name the caller already uses for another organization", async () => {
@@ -263,6 +280,7 @@ describe(TeamOrganizationService.name, () => {
       createdTeamCount?: number;
       nameTaken?: boolean;
       renamed?: OrganizationOutput | null;
+      lockable?: boolean;
     } = {}
   ) {
     const calls: string[] = [];
@@ -288,6 +306,10 @@ describe(TeamOrganizationService.name, () => {
     organizationRepository.countTeamsCreatedBy.mockImplementation(async () => {
       calls.push("countTeamsCreatedBy");
       return input.createdTeamCount ?? 0;
+    });
+    organizationRepository.findOneByAndLock.mockImplementation(async () => {
+      calls.push("findOneByAndLock");
+      return input.lockable === false ? undefined : organization;
     });
     organizationRepository.createTeamWithFirstFreeSlug.mockImplementation(async () => {
       calls.push("createTeamWithFirstFreeSlug");

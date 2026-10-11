@@ -67,10 +67,16 @@ export class TeamOrganizationService {
     const { id: userId } = this.authService.currentUser;
 
     const organization = await this.txService.transaction(async () => {
+      const repository = this.organizationRepository.accessibleBy(this.authService.ability, "update");
+
+      if (!(await repository.findOneByAndLock({ id, deletedAt: null }, { strength: "no key update" }))) {
+        throw organizationNotFound();
+      }
+
       await this.organizationRepository.lockUserForOrganizationChanges(userId);
       await this.#assertNameFree(userId, name, id);
 
-      return await this.organizationRepository.accessibleBy(this.authService.ability, "update").updateBy({ id, deletedAt: null }, { name }, { returning: true });
+      return await repository.updateBy({ id, deletedAt: null }, { name }, { returning: true });
     });
 
     if (!organization) {
