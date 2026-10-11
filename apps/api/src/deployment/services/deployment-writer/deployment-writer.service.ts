@@ -330,14 +330,11 @@ export class DeploymentWriterService {
     this.sdlSecretsService.assertStorable(kept, "carried");
   }
 
-  /** Refused before the dseq is minted, so a source that cannot be found or whose token will not open spends no dseq and leaves nothing recorded; an organization's source opens under the member it was filed by. */
-  async #inheritedSecretsOf(input: { userId: string; inheritSecretsFrom?: string }, wallet: UserWalletOutput): Promise<SdlSecrets> {
+  /** Refused before the dseq is minted, so a source that cannot be found or whose token will not open spends no dseq and leaves nothing recorded. */
+  async #inheritedSecretsOf(input: { inheritSecretsFrom?: string }, wallet: UserWalletOutput): Promise<SdlSecrets> {
     if (!input.inheritSecretsFrom) return {};
 
-    const dseq = input.inheritSecretsFrom;
-    const userId = wallet.userId === null ? (await this.deploymentSettingRepository.findOneOfWallet(wallet, dseq))?.userId ?? input.userId : input.userId;
-
-    return await this.sdlSecretsInheritanceService.open({ userId, dseq });
+    return await this.sdlSecretsInheritanceService.open({ wallet, dseq: input.inheritSecretsFrom });
   }
 
   /** Carries none of the document and attaches no parse error as a cause, because a `js-yaml` message quotes the line it failed on and the error handler logs the whole chain. */

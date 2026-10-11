@@ -2,6 +2,8 @@ import { MsgCloseDeployment } from "@akashnetwork/chain-sdk/private-types/akash.
 import type { Registry } from "@cosmjs/proto-signing";
 import { and, eq } from "drizzle-orm";
 import nock from "nock";
+import fs from "node:fs";
+import path from "node:path";
 import { container } from "tsyringe";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -21,9 +23,12 @@ import { createAkashAddress } from "@test/seeders/akash-address.seeder";
 import { seedDeploymentSetting } from "@test/seeders/db/deployment-setting.seeder";
 import { seedOrganizationMember, seedOrganizationWithOwner, seedProject, seedProjectMember } from "@test/seeders/db/organization.seeder";
 import { createDeploymentGrantResponseSeed } from "@test/seeders/deployment-grant-response.seeder";
+import { createDeploymentInfoSeed } from "@test/seeders/deployment-info.seeder";
 import { createDeploymentListResponseSeed } from "@test/seeders/deployment-list-response.seeder";
 import { createFeeAllowanceResponse } from "@test/seeders/fee-allowance-response.seeder";
 import { WalletTestingService } from "@test/services/wallet-testing.service";
+
+const HELLO_WORLD_SDL = fs.readFileSync(path.resolve(__dirname, "../mocks/hello-world-sdl.yml"), "utf8");
 
 describe("Organization wallet", () => {
   const registry = container.resolve<Registry>(TYPE_REGISTRY);
@@ -152,6 +157,72 @@ describe("Organization wallet", () => {
 
       expect(response.status).toBe(200);
       expect(signedIndexes).toEqual([wallet.id]);
+    });
+  });
+
+  describe("reading deployments as an organization viewer", () => {
+    it("reads a deployment filed in a granted project and the list, and may not create one", async () => {
+      const { token, team, teamWallet } = await setupViewerWithDeployment();
+      const headers = { authorization: `Bearer ${token}`, "x-organization-id": team.id };
+
+      const one = await app.request("/v1/deployments/123", { headers });
+      const list = await app.request("/v1/deployments?skip=0&limit=10", { headers });
+      const create = await app.request("/v1/deployments", {
+        method: "POST",
+        body: JSON.stringify({ data: { sdl: "version: '2.0'" } }),
+        headers: { "Content-Type": "application/json", ...headers }
+      });
+
+      expect(one.status).toBe(200);
+      expect(await one.json()).toMatchObject({ data: { deployment: { id: { owner: teamWallet.address, dseq: "123" } } } });
+      expect(list.status).toBe(200);
+      expect(create.status).toBe(403);
+    });
+
+    it("answers not found for a deployment filed in a project the viewer was not granted", async () => {
+      const { token, team } = await setupViewerWithDeployment({ granted: false });
+
+      const response = await app.request("/v1/deployments/123", { headers: { authorization: `Bearer ${token}`, "x-organization-id": team.id } });
+
+      expect(response.status).toBe(404);
+    });
+
+    async function setupViewerWithDeployment(input: { granted?: boolean } = {}) {
+      const context = await setup({ role: "viewer" });
+      const project = await seedProject({ organizationId: context.team.id });
+      if (input.granted !== false) {
+        await seedProjectMember({ organizationId: context.team.id, projectId: project.id, userId: context.user.id, role: "viewer" });
+      }
+      await seedDeploymentSetting({ userId: context.team.createdByUserId!, organizationId: context.team.id, projectId: project.id, dseq: "123" });
+      const owner = context.teamWallet.address;
+      nock(container.resolve(CORE_CONFIG).REST_API_NODE_URL)
+        .persist()
+        .get(uri => uri.includes("/deployments/info") && uri.includes(owner))
+        .reply(200, createDeploymentInfoSeed({ owner, dseq: "123" }))
+        .get(uri => uri.includes("/deployments/list") && uri.includes(owner))
+        .reply(200, createDeploymentListResponseSeed({ owner }))
+        .get(uri => uri.includes("/leases/list") && uri.includes(owner))
+        .reply(200, { leases: [], pagination: { next_key: null, total: "0" } });
+
+      return context;
+    }
+  });
+
+  describe("POST /v1/deployments inheriting secrets", () => {
+    it("answers not found for a source filed in a project the member was not granted", async () => {
+      const { user, token, team } = await setup({ role: "member" });
+      const [granted, other] = await Promise.all([seedProject({ organizationId: team.id }), seedProject({ organizationId: team.id })]);
+      await seedProjectMember({ organizationId: team.id, projectId: granted.id, userId: user.id });
+      await seedDeploymentSetting({ userId: team.createdByUserId!, organizationId: team.id, projectId: other.id, dseq: "123", sealedSecrets: "sealed.token" });
+
+      const response = await app.request("/v1/deployments", {
+        method: "POST",
+        body: JSON.stringify({ data: { sdl: HELLO_WORLD_SDL, inheritSecretsFrom: "123" } }),
+        headers: { "Content-Type": "application/json", authorization: `Bearer ${token}`, "x-organization-id": team.id }
+      });
+
+      expect(response.status).toBe(404);
+      expect(await response.json()).toMatchObject({ message: "No deployment was found to inherit secrets from" });
     });
   });
 

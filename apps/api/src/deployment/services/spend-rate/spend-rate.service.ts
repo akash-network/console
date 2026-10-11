@@ -12,7 +12,7 @@ export class SpendRateService {
   ) {}
 
   async findByUserId(userId: string): Promise<DeploymentSpendRate[]> {
-    const { address } = await this.walletReaderService.getWalletByUserId(userId);
+    const { address } = await this.walletReaderService.getReadableWalletByUserId(userId);
     const livePrices = await this.leaseRepository.sumLivePricesPerDeployment(address);
 
     return livePrices.map(({ dseq, denom, price }) => ({ dseq, price: { denom, amount: price.toFixed(18) } }));

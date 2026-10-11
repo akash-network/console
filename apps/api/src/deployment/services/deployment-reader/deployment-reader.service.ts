@@ -20,6 +20,7 @@ import { inject, singleton } from "tsyringe";
 
 import { AuthService } from "@src/auth/services/auth.service";
 import type { WalletInitialized } from "@src/billing/repositories";
+import { ManagedSignerService } from "@src/billing/services/managed-signer/managed-signer.service";
 import { WalletReaderService } from "@src/billing/services/wallet-reader/wallet-reader.service";
 import { Memoize } from "@src/caching/helpers";
 import { type CreateLogger, LOGGER_FACTORY } from "@src/core";
@@ -84,6 +85,7 @@ export class DeploymentReaderService {
     private readonly authService: AuthService,
     private readonly leaseGpuService: LeaseGpuService,
     private readonly deploymentArchiveReaderService: DeploymentArchiveReaderService,
+    private readonly signerService: ManagedSignerService,
     @inject(LOGGER_FACTORY) createLogger: CreateLogger
   ) {
     this.logger = createLogger({ context: DeploymentReaderService.name });
@@ -91,6 +93,7 @@ export class DeploymentReaderService {
 
   public async findByUserIdAndDseq(userId: string, dseq: string): Promise<GetDeploymentResponse["data"]> {
     const wallet = await this.walletReaderService.getReadableWalletByUserId(userId);
+    assert(await this.signerService.isDeploymentInProjectScope(wallet, dseq, "read"), 404, "Deployment not found");
     const [deployment, recorded, leaseGpus] = await Promise.all([
       this.findByWalletAndDseq(wallet, dseq),
       this.findRecorded(wallet, dseq),

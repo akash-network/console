@@ -1023,39 +1023,22 @@ describe(DeploymentWriterService.name, () => {
         expect(sdlSecretsService.sealForStorage).toHaveBeenCalledWith({ userId: wallet.userId, dseq: "1748400000000", secrets: carried });
       });
 
-      it("looks the source up as the caller's own deployment", async () => {
-        const { service, sdlSecretsInheritanceService, deploymentSettingRepository } = setup({ inherited: { API_TOKEN: "a", DATABASE_URL: "b" } });
+      it("looks the source up through the caller's wallet", async () => {
+        const { service, sdlSecretsInheritanceService } = setup({ inherited: { API_TOKEN: "a", DATABASE_URL: "b" } });
 
         await service.create({ userId: "user-1", sdl: SDL_OF_A_REDEPLOY, inheritSecretsFrom: SOURCE_DSEQ });
 
-        expect(sdlSecretsInheritanceService.open).toHaveBeenCalledWith({ userId: "user-1", dseq: SOURCE_DSEQ });
-        expect(deploymentSettingRepository.findOneOfWallet).not.toHaveBeenCalled();
+        expect(sdlSecretsInheritanceService.open).toHaveBeenCalledWith({ wallet, dseq: SOURCE_DSEQ });
       });
 
-      it("opens an organization's source under the member who filed it", async () => {
-        const { service, sdlSecretsInheritanceService, deploymentSettingRepository, walletReaderService } = setup({
-          inherited: { API_TOKEN: "a", DATABASE_URL: "b" }
-        });
+      it("looks an organization's source up through the organization's wallet", async () => {
+        const { service, sdlSecretsInheritanceService, walletReaderService } = setup({ inherited: { API_TOKEN: "a", DATABASE_URL: "b" } });
         const organizationWallet = { ...wallet, userId: null, organizationId: "organization-1" };
         walletReaderService.getWalletByUserId.mockResolvedValue(organizationWallet);
-        deploymentSettingRepository.findOneOfWallet.mockResolvedValue(mock<DeploymentSettingsOutput>({ userId: "filer-1" }));
 
         await service.create({ userId: "user-1", sdl: SDL_OF_A_REDEPLOY, inheritSecretsFrom: SOURCE_DSEQ });
 
-        expect(deploymentSettingRepository.findOneOfWallet).toHaveBeenCalledWith(organizationWallet, SOURCE_DSEQ);
-        expect(sdlSecretsInheritanceService.open).toHaveBeenCalledWith({ userId: "filer-1", dseq: SOURCE_DSEQ });
-      });
-
-      it("opens an organization's source nobody filed under the caller", async () => {
-        const { service, sdlSecretsInheritanceService, deploymentSettingRepository, walletReaderService } = setup({
-          inherited: { API_TOKEN: "a", DATABASE_URL: "b" }
-        });
-        walletReaderService.getWalletByUserId.mockResolvedValue({ ...wallet, userId: null, organizationId: "organization-1" });
-        deploymentSettingRepository.findOneOfWallet.mockResolvedValue(undefined);
-
-        await service.create({ userId: "user-1", sdl: SDL_OF_A_REDEPLOY, inheritSecretsFrom: SOURCE_DSEQ });
-
-        expect(sdlSecretsInheritanceService.open).toHaveBeenCalledWith({ userId: "user-1", dseq: SOURCE_DSEQ });
+        expect(sdlSecretsInheritanceService.open).toHaveBeenCalledWith({ wallet: organizationWallet, dseq: SOURCE_DSEQ });
       });
 
       it("consults no source when the request names none", async () => {

@@ -6,6 +6,7 @@ import { mock } from "vitest-mock-extended";
 
 import type { AuthService } from "@src/auth/services/auth.service";
 import type { PersonalWallet } from "@src/billing/repositories";
+import type { ManagedSignerService } from "@src/billing/services/managed-signer/managed-signer.service";
 import type { WalletReaderService } from "@src/billing/services/wallet-reader/wallet-reader.service";
 import type { CreateLogger } from "@src/core/providers/logging.provider";
 import type { DeploymentRepository } from "@src/deployment/repositories/deployment/deployment.repository";
@@ -34,6 +35,16 @@ import { createInitializedUserWallet } from "@test/seeders/user-wallet.seeder";
 
 describe(DeploymentReaderService.name, () => {
   describe("findByUserIdAndDseq", () => {
+    it("answers not found before asking the chain anything when the caller's projects do not reach the deployment", async () => {
+      const { service, signerService, deploymentHttpService, scopedDeploymentSettingRepository, wallet } = setup({ inProjectScope: false });
+
+      await expect(service.findByUserIdAndDseq(wallet.userId, "12345")).rejects.toMatchObject({ status: 404, message: "Deployment not found" });
+
+      expect(signerService.isDeploymentInProjectScope).toHaveBeenCalledWith(wallet, "12345", "read");
+      expect(deploymentHttpService.findByOwnerAndDseq).not.toHaveBeenCalled();
+      expect(scopedDeploymentSettingRepository.findOneOfWallet).not.toHaveBeenCalled();
+    });
+
     it("returns what the console recorded alongside the deployment", async () => {
       const { service, wallet } = setup({ recorded: { sdl: "version: '2.0'", manifestVersion: "BAUG" } });
 
@@ -1113,6 +1124,7 @@ describe(DeploymentReaderService.name, () => {
   function setup(
     input: {
       wallet?: PersonalWallet;
+      inProjectScope?: boolean;
       fallbackDeploymentInfo?: ReturnType<typeof createDeploymentInfoSeed>;
       fallbackDeploymentList?: ReturnType<typeof createDeploymentListResponseSeed>;
       fallbackLeases?: ReturnType<typeof createLeaseApiResponse>[];
@@ -1218,6 +1230,7 @@ describe(DeploymentReaderService.name, () => {
         : vi.fn().mockResolvedValue(input.archived ?? { deployments: [], total: 0, hasMore: false })
     });
     const createLogger = vi.fn<CreateLogger>(() => mocks.logger);
+    const signerService = mock<ManagedSignerService>({ isDeploymentInProjectScope: vi.fn().mockResolvedValue(input.inProjectScope ?? true) });
 
     const service = new DeploymentReaderService(
       mocks.providerService,
@@ -1232,11 +1245,13 @@ describe(DeploymentReaderService.name, () => {
       authService,
       leaseGpuService,
       deploymentArchiveReaderService,
+      signerService,
       createLogger
     );
 
     return {
       service,
+      signerService,
       createLogger,
       ...mocks,
       wallet,

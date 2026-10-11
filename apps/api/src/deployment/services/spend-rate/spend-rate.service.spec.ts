@@ -47,7 +47,7 @@ describe(SpendRateService.name, () => {
 
       await service.findByUserId(wallet.userId);
 
-      expect(walletReaderService.getWalletByUserId).toHaveBeenCalledExactlyOnceWith(wallet.userId);
+      expect(walletReaderService.getReadableWalletByUserId).toHaveBeenCalledExactlyOnceWith(wallet.userId);
       expect(leaseRepository.sumLivePricesPerDeployment).toHaveBeenCalledExactlyOnceWith(wallet.address);
     });
 
@@ -61,7 +61,7 @@ describe(SpendRateService.name, () => {
 
     it("refuses a user without a wallet before reading any lease", async () => {
       const { service, wallet, walletReaderService, leaseRepository } = setup();
-      walletReaderService.getWalletByUserId.mockRejectedValue(createError(404, "UserWallet Not Found"));
+      walletReaderService.getReadableWalletByUserId.mockRejectedValue(createError(404, "UserWallet Not Found"));
 
       await expect(service.findByUserId(wallet.userId)).rejects.toMatchObject({ status: 404 });
       expect(leaseRepository.sumLivePricesPerDeployment).not.toHaveBeenCalled();
@@ -71,7 +71,7 @@ describe(SpendRateService.name, () => {
   function setup(input: { livePrices?: LivePricePerDeployment[] } = {}) {
     const wallet = createInitializedUserWallet();
     const walletReaderService = mock<WalletReaderService>();
-    walletReaderService.getWalletByUserId.mockResolvedValue(wallet);
+    walletReaderService.getReadableWalletByUserId.mockResolvedValue(wallet);
     const leaseRepository = mock<LeaseRepository>();
     leaseRepository.sumLivePricesPerDeployment.mockResolvedValue(input.livePrices ?? []);
 

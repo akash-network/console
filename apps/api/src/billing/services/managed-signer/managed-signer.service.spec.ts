@@ -1639,6 +1639,34 @@ describe(ManagedSignerService.name, () => {
     });
   });
 
+  describe("isDeploymentInProjectScope", () => {
+    const projectScoped = createOrganizationContext({ role: "viewer", projectScope: { kind: "projects", projectIds: ["project-a"] } });
+
+    it("reaches a deployment every row of which the caller may read", async () => {
+      const { service, deploymentSettingRepository, authService, wallet } = setupForTeam({
+        organizationContext: projectScoped,
+        filedIds: ["setting-1"],
+        reachableIds: ["setting-1"]
+      });
+
+      await expect(service.isDeploymentInProjectScope(wallet, "123", "read")).resolves.toBe(true);
+      expect(deploymentSettingRepository.accessibleBy).toHaveBeenCalledWith(authService.ability, "read");
+    });
+
+    it("does not reach a deployment nobody filed", async () => {
+      const { service, wallet } = setupForTeam({ organizationContext: projectScoped, filedIds: [], reachableIds: [] });
+
+      await expect(service.isDeploymentInProjectScope(wallet, "123", "read")).resolves.toBe(false);
+    });
+
+    it("reaches every deployment outside organization mode", async () => {
+      const { service, deploymentSettingRepository, wallet } = setupForTeam({ organizationContext: { ...projectScoped, mode: "legacy" } });
+
+      await expect(service.isDeploymentInProjectScope(wallet, "123", "read")).resolves.toBe(true);
+      expect(deploymentSettingRepository.findIdsOfWallet).not.toHaveBeenCalled();
+    });
+  });
+
   describe("filedUserIdOf", () => {
     const projectScoped = createOrganizationContext({ role: "member", projectScope: { kind: "projects", projectIds: ["project-a"] } });
 

@@ -360,20 +360,25 @@ export class ManagedSignerService {
 
   /** The organization's wallet signs for every project, so a caller limited to some projects may only act on a deployment every row of which is filed in them. */
   async assertDeploymentsInProjectScope(userWallet: UserWalletOutput, dseqs: readonly string[]): Promise<void> {
-    const organizationContext = this.executionContextService.hasContext() ? this.executionContextService.get("ORGANIZATION_CONTEXT") : undefined;
-
-    if (organizationContext?.mode !== "organization" || organizationContext.projectScope.kind === "all") return;
-
     for (const dseq of new Set(dseqs)) {
-      const [filed, reachable] = await Promise.all([
-        this.deploymentSettingRepository.findIdsOfWallet(userWallet, dseq),
-        this.deploymentSettingRepository.accessibleBy(this.authService.ability, "update").findIdsOfWallet(userWallet, dseq)
-      ]);
-
-      if (filed.length === 0 || reachable.length < filed.length) {
+      if (!(await this.isDeploymentInProjectScope(userWallet, dseq, "update"))) {
         throw createError(403, "This deployment is outside the projects you can manage", { errorCode: PROJECT_FORBIDDEN_ERROR_CODE });
       }
     }
+  }
+
+  /** Always true for a caller who reaches every project; otherwise every row the deployment is filed under must be reachable for the action. */
+  async isDeploymentInProjectScope(userWallet: UserWalletOutput, dseq: string, action: "read" | "update"): Promise<boolean> {
+    const organizationContext = this.executionContextService.hasContext() ? this.executionContextService.get("ORGANIZATION_CONTEXT") : undefined;
+
+    if (organizationContext?.mode !== "organization" || organizationContext.projectScope.kind === "all") return true;
+
+    const [filed, reachable] = await Promise.all([
+      this.deploymentSettingRepository.findIdsOfWallet(userWallet, dseq),
+      this.deploymentSettingRepository.accessibleBy(this.authService.ability, action).findIdsOfWallet(userWallet, dseq)
+    ]);
+
+    return filed.length > 0 && reachable.length === filed.length;
   }
 
   /**

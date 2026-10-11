@@ -51,6 +51,7 @@ export class WalletReaderService {
     return userWallet;
   }
 
+  @Trace()
   async getReadableWalletByUserId(userId: string): Promise<WalletInitialized> {
     const userWallet = await this.findReadableWalletByUserId(userId);
     assert(userWallet, 404, "UserWallet Not Found");

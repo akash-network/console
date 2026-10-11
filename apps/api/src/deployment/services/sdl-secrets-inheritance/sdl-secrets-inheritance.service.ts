@@ -3,7 +3,7 @@ import { inject, singleton } from "tsyringe";
 
 import { AuthService } from "@src/auth/services/auth.service";
 import { type CreateLogger, LOGGER_FACTORY } from "@src/core";
-import { DeploymentSettingRepository } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
+import { DeploymentSettingRepository, type DeploymentWallet } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
 import { SdlSecretsService } from "@src/deployment/services/sdl-secrets/sdl-secrets.service";
 import type { SdlSecrets } from "@src/deployment/services/sdl-secrets-unsealer/sdl-secrets-unsealer.service";
 import { SECRET_UNREADABLE_ERROR_CODE } from "@src/secret/config/secret-at-rest.config";
@@ -28,7 +28,7 @@ function isTokenUnreadable(error: unknown): boolean {
 }
 
 /**
- * Opens the token another deployment of the same user holds, so a redeploy can carry its values forward.
+ * Opens the token another deployment of the same owner holds, so a redeploy can carry its values forward.
  * Reads nothing but the token: the source's SDL is never consulted, and its `closed` state is deliberately
  * ignored, because secrets are kept when a deployment is closed and redeploying a reclaimed one is the case
  * this serves.
@@ -46,15 +46,17 @@ export class SdlSecretsInheritanceService {
     this.#loggerService = createLogger({ context: SdlSecretsInheritanceService.name });
   }
 
-  /** Read through the caller's own ability as well as their id, so another user's deployment is unreachable rather than merely refused. */
-  async open(key: { userId: string; dseq: string }): Promise<SdlSecrets> {
-    const setting = await this.deploymentSettingRepository.accessibleBy(this.authService.ability, "read").findOneBy(key);
+  /** The source is found through the wallet that owns it and must be writable under the caller's ability, so one the caller may not change is unreachable rather than merely refused. */
+  async open({ wallet, dseq }: { wallet: DeploymentWallet; dseq: string }): Promise<SdlSecrets> {
+    const setting = await this.deploymentSettingRepository.accessibleBy(this.authService.ability, "update").findOneOfWallet(wallet, dseq);
 
     if (!setting) {
-      this.#loggerService.warn({ event: "SDL_SECRETS_INHERIT_SOURCE_NOT_FOUND", ...key });
+      this.#loggerService.warn({ event: "SDL_SECRETS_INHERIT_SOURCE_NOT_FOUND", userId: wallet.userId, dseq });
 
       throw createError(404, SOURCE_NOT_FOUND_MESSAGE);
     }
+
+    const key = { userId: setting.userId, dseq };
 
     if (!setting.sealedSecrets) {
       this.#loggerService.info({ event: "SDL_SECRETS_INHERIT_SOURCE_HAS_NO_SECRETS", ...key });
