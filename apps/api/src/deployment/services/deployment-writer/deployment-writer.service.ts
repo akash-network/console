@@ -1,6 +1,7 @@
 import type { SDLInput, ValidationError } from "@akashnetwork/chain-sdk";
 import { manifestToSortedJSON } from "@akashnetwork/chain-sdk";
 import type { GroupSpec } from "@akashnetwork/chain-sdk/private-types/akash.v1beta4";
+import { DeploymentHttpService } from "@akashnetwork/http-sdk";
 import type { AnyAbility } from "@casl/ability";
 import { addMinutes } from "date-fns";
 import { HTTPException } from "hono/http-exception";
@@ -11,6 +12,7 @@ import { inject, singleton } from "tsyringe";
 import { ActivityService } from "@src/activity/services/activity/activity.service";
 import type { UserWalletOutput, WalletInitialized } from "@src/billing/repositories";
 import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
+import { ChainErrorService } from "@src/billing/services/chain-error/chain-error.service";
 import { ManagedSignerService } from "@src/billing/services/managed-signer/managed-signer.service";
 import { RpcMessageService } from "@src/billing/services/rpc-message-service/rpc-message.service";
 import { WalletReaderService } from "@src/billing/services/wallet-reader/wallet-reader.service";
@@ -48,10 +50,16 @@ import { SdlSecretsInheritanceService } from "@src/deployment/services/sdl-secre
 import type { SdlSecrets } from "@src/deployment/services/sdl-secrets-unsealer/sdl-secrets-unsealer.service";
 import { findGroupWithChangedResources, type OnChainGroupSpec } from "@src/deployment/utils/changed-group-resources/changed-group-resources";
 import { closedActivityOf, failedCloseActivityOf } from "@src/deployment/utils/close-activity/close-activity";
+import {
+  type CreateDeploymentMessage,
+  decodeCreateDeploymentMessage,
+  encodeCreateDeploymentMessage
+} from "@src/deployment/utils/create-deployment-message/create-deployment-message";
 import { deriveDeploymentName } from "@src/deployment/utils/deployment-name/deployment-name";
 import type { StorableSdl, StoredSdlPosition, StoredSdlRefusal } from "@src/deployment/utils/sdl-for-storage/sdl-for-storage";
 import { parseSdlForStorage, sdlForStorage } from "@src/deployment/utils/sdl-for-storage/sdl-for-storage";
 import { ProviderService } from "@src/provider/services/provider/provider.service";
+import { COSMOS_TX_CODE_OK } from "@src/utils/constants";
 import { denomToUdenom } from "@src/utils/math";
 import { TrialWorkloadProbeJobService } from "@src/workload-abuse/services/trial-workload-probe-job/trial-workload-probe-job.service";
 import { DeploymentConfigService } from "../deployment-config/deployment-config.service";
@@ -78,6 +86,18 @@ const DEFINITION_EXISTS_ERROR_CODE = "deployment_definition_exists";
 
 /** Lets a client offer the update route for a definition that does not describe what the deployment runs. */
 const DEFINITION_MISMATCH_ERROR_CODE = "deployment_definition_mismatch";
+
+/** Lets a client tell a create that can only be made again from one that may still finish. */
+const CREATE_EXPIRED_ERROR_CODE = "deployment_create_expired";
+
+/** All creating an accepted deployment on chain needs; a job payload stores it as it is, so it must never carry a secret value. */
+export type AcceptedDeploymentCreate = {
+  userId: string;
+  dseq: string;
+  message: string;
+};
+
+type CreateDeploymentTx = Awaited<ReturnType<ManagedSignerService["executeDerivedDecodedTxByUserId"]>>;
 
 /** What becomes of the values a submitted document carries in the clear. There is no longer a way to say "dropped": every writer can seal, so a value is never lost to be safe. */
 type StoredSdlValues =
@@ -136,13 +156,22 @@ export class DeploymentWriterService {
     private readonly sdlSecretsInheritanceService: SdlSecretsInheritanceService,
     private readonly probeJobService: TrialWorkloadProbeJobService,
     private readonly leaseGpuDetectionJobService: LeaseGpuDetectionJobService,
-    private readonly activityService: ActivityService
+    private readonly activityService: ActivityService,
+    private readonly deploymentHttpService: DeploymentHttpService,
+    private readonly chainErrorService: ChainErrorService
   ) {
     this.logger = createLogger({ context: DeploymentWriterService.name });
   }
 
-  /** The dseq is minted once everything that can refuse the submitted document has run, because the token written below names it and a client sealing beforehand cannot; a refusal that needs the resolved document — a sealed registry password below the schema's minimum, say — can only come after it, and spends a dseq nothing is written under. */
   public async create(input: CreateDeploymentRequest["data"] & { userId: string }): Promise<CreateDeploymentResponse["data"]> {
+    const { accepted, manifest } = await this.acceptCreate(input);
+    const signTx = await this.createOnChain(accepted);
+
+    return { dseq: accepted.dseq, manifest, signTx };
+  }
+
+  /** The dseq is minted once everything that can refuse the submitted document has run, because the token written below names it and a client sealing beforehand cannot; a refusal that needs the resolved document (a sealed registry password below the schema's minimum, say) can only come after it, and spends a dseq nothing is written under. */
+  public async acceptCreate(input: CreateDeploymentRequest["data"] & { userId: string }): Promise<{ accepted: AcceptedDeploymentCreate; manifest: string }> {
     /** SDL for storage ONLY, and the values taken out of it. Never stands in for the submitted document anywhere a hash is taken. */
     const { sdl, storedDocument, derived } = this.#storedSdlOf(input.sdl, storedValuesFor(input));
 
@@ -184,15 +213,88 @@ export class DeploymentWriterService {
       name: input.name ?? deriveDeploymentName(manifest.groups)
     });
 
-    const result = await this.signerService.executeDerivedDecodedTxByUserId(wallet.userId, [message]);
-
-    await this.retireCompensation({ userId: wallet.userId, dseq: dseq.toString() });
-
     return {
-      dseq: dseq.toString(),
-      manifest: unresolvedManifest,
-      signTx: result
+      accepted: { userId: wallet.userId, dseq, message: encodeCreateDeploymentMessage(message.value) },
+      manifest: unresolvedManifest
     };
+  }
+
+  /** A retry reads the chain before sending anything, because an attempt that never heard back may already have created the deployment. */
+  public async createOnChain(accepted: AcceptedDeploymentCreate, { retry = false }: { retry?: boolean } = {}): Promise<CreateDeploymentTx> {
+    const key = { userId: accepted.userId, dseq: accepted.dseq };
+    const message = decodeCreateDeploymentMessage(accepted.message);
+    const { manifestVersion } = await this.#findAcceptedDefinition(key);
+
+    if (retry && (await this.#isCreatedAsRecorded(message, manifestVersion))) {
+      return await this.#adoptCreated(key, message);
+    }
+
+    await this.#assertCompensationStillWaiting(key);
+
+    let tx: CreateDeploymentTx;
+
+    try {
+      tx = await this.signerService.executeDerivedDecodedTxByUserId(accepted.userId, [message]);
+    } catch (error) {
+      if (await this.#wasCreatedEarlier(error, message, manifestVersion)) return await this.#adoptCreated(key, message);
+      throw error;
+    }
+
+    await this.retireCompensation(key);
+
+    return tx;
+  }
+
+  /** The compensation deletes the record of a create that never reached the chain, which leaves this request nothing to create. */
+  async #findAcceptedDefinition(key: { userId: string; dseq: string }): Promise<{ manifestVersion: string | null }> {
+    const setting = await this.deploymentSettingRepository.findOneBy(key);
+
+    if (!setting) {
+      throw this.#rejectExpiredCreate(key);
+    }
+
+    return setting;
+  }
+
+  /** A broadcast the compensation could overtake, or one with no compensation left to undo it, would leave a deployment or a record that nothing accounts for. */
+  async #assertCompensationStillWaiting(key: { userId: string; dseq: string }): Promise<void> {
+    if (!(await this.compensationIsStillWaiting(unbackedDeploymentSettingKeyFor(key)))) {
+      throw this.#rejectExpiredCreate(key);
+    }
+  }
+
+  #rejectExpiredCreate(key: { userId: string; dseq: string }) {
+    this.logger.warn({ event: "DEPLOYMENT_CREATE_EXPIRED", ...key });
+
+    return createError(409, "This deployment request expired before it reached the chain. Create the deployment again.", {
+      errorCode: CREATE_EXPIRED_ERROR_CODE
+    });
+  }
+
+  /** Only a deployment at the version this request recorded is the one it created, so a dseq another create holds is never taken over. */
+  async #isCreatedAsRecorded({ value }: CreateDeploymentMessage, manifestVersion: string | null): Promise<boolean> {
+    const { owner, dseq } = value.id!;
+    const response = await this.deploymentHttpService.findByOwnerAndDseq(owner, dseq.toString());
+
+    return !("code" in response) && response.deployment.hash === manifestVersion;
+  }
+
+  /** The chain refuses a second create under the same owner and dseq, which is what a create an earlier attempt landed gets back when sent again. */
+  async #wasCreatedEarlier(error: unknown, message: CreateDeploymentMessage, manifestVersion: string | null): Promise<boolean> {
+    if (!this.chainErrorService.isDeploymentExistsError(error)) return false;
+
+    return await this.#isCreatedAsRecorded(message, manifestVersion).catch(() => false);
+  }
+
+  /** An earlier attempt created the deployment without hearing back, so there is no transaction of this attempt's own to report. */
+  async #adoptCreated(key: { userId: string; dseq: string }, message: CreateDeploymentMessage): Promise<CreateDeploymentTx> {
+    this.logger.info({ event: "DEPLOYMENT_CREATE_ADOPTED", ...key });
+
+    const wallet = await this.walletReaderService.getWalletByUserId(key.userId);
+    await this.signerService.followUpLandedTx(wallet, [message]);
+    await this.retireCompensation(key);
+
+    return { code: COSMOS_TX_CODE_OK, hash: "", transactionHash: "", rawLog: "" };
   }
 
   /** The record and its compensation must land in one transaction: a record written without one is unreachable by anything in the codebase. */

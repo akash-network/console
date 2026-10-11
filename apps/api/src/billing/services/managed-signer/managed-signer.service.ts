@@ -211,10 +211,7 @@ export class ManagedSignerService {
       await this.#publishLeaseGpuRead(userWallet, leasedDseq);
     }
 
-    await this.#recordCreatedDeployments(userWallet, messages);
-
-    await this.#refreshWalletLimits(userWallet);
-    await this.#ensureAutoReloadSchedule(userWallet.userId, messages);
+    await this.followUpLandedTx(userWallet, messages);
     await this.#scheduleCreditsLowCheckOnClose(userWallet, messages);
 
     const result = pick(tx, ["code", "hash", "transactionHash", "rawLog"]) as Pick<IndexedTx, "code" | "hash" | "rawLog">;
@@ -227,6 +224,13 @@ export class ManagedSignerService {
     }
 
     return result as Pick<IndexedTx, "code" | "hash" | "rawLog"> & { transactionHash: string };
+  }
+
+  /** Also run for a create a retry finds already landed, so every effect it sets off must stay safe to repeat. */
+  async followUpLandedTx(userWallet: UserWalletOutput, messages: EncodeObject[]): Promise<void> {
+    await this.#recordCreatedDeployments(userWallet, messages);
+    await this.#refreshWalletLimits(userWallet);
+    await this.#ensureAutoReloadSchedule(userWallet.userId, messages);
   }
 
   /** The transaction has already landed, so a failed refresh is logged rather than reported as a failure the caller might retry. */
