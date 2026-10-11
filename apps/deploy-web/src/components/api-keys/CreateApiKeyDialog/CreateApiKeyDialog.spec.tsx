@@ -1,6 +1,6 @@
 import type { ApiKeyResponse } from "@akashnetwork/http-sdk";
 import { differenceInCalendarDays } from "date-fns";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { NewApiKey } from "@src/queries/useApiKeysQuery";
@@ -9,6 +9,7 @@ import type { DEPENDENCIES } from "./CreateApiKeyDialog";
 import { CreateApiKeyDialog } from "./CreateApiKeyDialog";
 
 import { render, screen } from "@testing-library/react";
+import type { UserEvent } from "@testing-library/user-event";
 import userEvent from "@testing-library/user-event";
 import { buildApiKey } from "@tests/seeders";
 import { TestContainerProvider } from "@tests/unit/TestContainerProvider";
@@ -37,13 +38,83 @@ describe("CreateApiKeyDialog", () => {
     expect(differenceInCalendarDays(newApiKey.expiresAt, new Date())).toBe(30);
   });
 
-  it("offers expiries of at most one year", async () => {
+  it("offers preset expiries of at most one year and a custom date", async () => {
     const { user } = setup();
 
     await user.click(screen.getByRole("combobox", { name: /Expiration/ }));
 
     const options = await screen.findAllByRole("option");
-    expect(options.map(option => option.textContent)).toEqual(["30 days", "90 days", "1 year"]);
+    expect(options.map(option => option.textContent)).toEqual(["30 days", "90 days", "1 year", "Custom date"]);
+  });
+
+  it("shows the date picker only for a custom expiry", async () => {
+    const { user } = setup();
+
+    expect(screen.queryByLabelText("Expiration date")).not.toBeInTheDocument();
+
+    await pickCustomExpiry(user);
+
+    expect(screen.getByLabelText("Expiration date")).toBeInTheDocument();
+  });
+
+  it("creates a key that expires tomorrow when the custom date is left as is", async () => {
+    const { user, createApiKey } = setup({ now: new Date(2026, 9, 9, 12) });
+
+    await user.type(screen.getByLabelText("Name"), "One day");
+    await pickCustomExpiry(user);
+
+    expect(screen.getByLabelText("Expiration date")).toHaveTextContent("Oct 10, 2026");
+
+    await user.click(screen.getByRole("button", { name: "Create key" }));
+
+    const [newApiKey] = createApiKey.mock.lastCall as [NewApiKey];
+    expect(newApiKey.expiresAt).toEqual(new Date(2026, 9, 10, 12));
+  });
+
+  it("still creates a key one day out when the dialog stays open past midnight", async () => {
+    const { user, createApiKey } = setup({ now: new Date(2026, 9, 9, 23, 50) });
+
+    await user.type(screen.getByLabelText("Name"), "Overnight");
+    await pickCustomExpiry(user);
+    vi.setSystemTime(new Date(2026, 9, 10, 0, 5));
+    await user.click(screen.getByRole("button", { name: "Create key" }));
+
+    const [newApiKey] = createApiKey.mock.lastCall as [NewApiKey];
+    expect(newApiKey.expiresAt).toEqual(new Date(2026, 9, 11, 0, 5));
+  });
+
+  it("creates a key that expires on the custom date the user picks", async () => {
+    const { user, createApiKey } = setup({ now: new Date(2026, 9, 9, 12) });
+
+    await user.type(screen.getByLabelText("Name"), "One week");
+    await pickCustomExpiry(user);
+    await user.click(screen.getByLabelText("Expiration date"));
+    await user.click(await screen.findByRole("button", { name: /October 16th, 2026/ }));
+
+    expect(screen.queryByRole("grid")).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Expiration date")).toHaveTextContent("Oct 16, 2026");
+
+    await user.click(screen.getByRole("button", { name: "Create key" }));
+
+    const [newApiKey] = createApiKey.mock.lastCall as [NewApiKey];
+    expect(newApiKey.expiresAt).toEqual(new Date(2026, 9, 16, 12));
+  });
+
+  it("limits the custom date to between tomorrow and one year out", async () => {
+    const { user } = setup({ now: new Date(2026, 9, 9, 12) });
+
+    await pickCustomExpiry(user);
+    await user.click(screen.getByLabelText("Expiration date"));
+
+    expect(await screen.findByRole("button", { name: /October 9th, 2026/ })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /October 10th, 2026/ })).toBeEnabled();
+
+    for (let month = 0; month < 12; month++) {
+      await user.click(screen.getByRole("button", { name: "Go to the Next Month" }));
+    }
+
+    expect(screen.getByRole("button", { name: /October 9th, 2027/ })).toBeEnabled();
+    expect(screen.getByRole("button", { name: /October 10th, 2027/ })).toBeDisabled();
   });
 
   it("tracks the key creation", async () => {
@@ -206,7 +277,19 @@ describe("CreateApiKeyDialog", () => {
     });
   });
 
-  function setup(input: { createdApiKey?: ApiKeyResponse; isPending?: boolean } = {}) {
+  async function pickCustomExpiry(user: UserEvent) {
+    await user.click(screen.getByRole("combobox", { name: /Expiration/ }));
+    await user.click(await screen.findByRole("option", { name: "Custom date" }));
+  }
+
+  function setup(input: { createdApiKey?: ApiKeyResponse; isPending?: boolean; now?: Date } = {}) {
+    if (input.now) {
+      vi.useFakeTimers({ toFake: ["Date"] });
+      vi.setSystemTime(input.now);
+      onTestFinished(() => {
+        vi.useRealTimers();
+      });
+    }
     const user = userEvent.setup();
     const writeText = vi.spyOn(navigator.clipboard, "writeText").mockResolvedValue();
     writeText.mockClear();
