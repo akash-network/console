@@ -39,7 +39,7 @@ import {
   ReconcileDeploymentClose,
   reconcileDeploymentCloseOptionsFor
 } from "@src/deployment/services/reconcile-deployment-close/reconcile-deployment-close.job";
-import { SdlService } from "@src/deployment/services/sdl/sdl.service";
+import { type ResolvedSdl, SdlService } from "@src/deployment/services/sdl/sdl.service";
 import { SdlPatchService } from "@src/deployment/services/sdl-patch/sdl-patch.service";
 import { MAX_ECHOED_REFERENCE_LENGTH, SdlReferenceService } from "@src/deployment/services/sdl-reference/sdl-reference.service";
 import { SdlSecretsService, unreferencedNameError } from "@src/deployment/services/sdl-secrets/sdl-secrets.service";
@@ -110,6 +110,12 @@ function prunedOverlayOf(sets: { carried: SdlSecrets; supplied: SdlSecrets; deri
 
   return Object.fromEntries(Object.entries(overlaid).filter(([name]) => referenced.has(name)));
 }
+
+/** Names a saved patch and nothing more, so a job payload carrying it holds no secret and no resolved manifest. */
+type SavedPatch = { userId: string; dseq: string; manifestVersion: string };
+
+/** Built by the request that saved the patch, so applying it there opens the stored token once rather than twice. */
+type PreparedPatch = { wallet: WalletInitialized; dseq: string; resolved: ResolvedSdl; deployment: DeploymentResponse };
 
 @singleton()
 export class DeploymentWriterService {
@@ -547,6 +553,31 @@ export class DeploymentWriterService {
       return await this.#renameByUserIdAndDseq(userId, dseq, input.name, ability);
     }
 
+    const { saved, name, prepared } = await this.#savePatch(userId, dseq, input, ability);
+
+    if (await this.#findDefinitionSavedAs(saved, ability)) {
+      await this.#applyPrepared(prepared);
+    }
+
+    const updatedDeployment = await this.deploymentReaderService.findByWalletAndDseq(prepared.wallet, dseq);
+
+    return { ...updatedDeployment, name, manifestVersion: saved.manifestVersion };
+  }
+
+  /** Depends on no request state, because a background job runs it as the background user under the ability its handler declares. */
+  public async applySavedPatch(saved: SavedPatch, ability: AnyAbility): Promise<void> {
+    const definition = await this.#findDefinitionSavedAs(saved, ability);
+    if (!definition) return;
+
+    await this.#applyPrepared(await this.#prepareSavedDefinition(saved, definition));
+  }
+
+  async #savePatch(
+    userId: string,
+    dseq: string,
+    input: PatchDeploymentRequest["data"],
+    ability: AnyAbility
+  ): Promise<{ saved: SavedPatch; name: string | null; prepared: PreparedPatch }> {
     const [wallet, stored] = await Promise.all([
       this.walletReaderService.getWalletByUserId(userId),
       this.#findStoredDefinition({ userId, dseq }, ability, NOT_PATCHABLE_MESSAGE)
@@ -595,19 +626,46 @@ export class DeploymentWriterService {
       guarded: input.ifManifestVersion !== undefined
     });
 
-    await this.ensureDeploymentIsUpToDate(wallet, dseq, manifestVersion, deployment);
+    return {
+      saved: { userId, dseq, manifestVersion: recordedVersion },
+      name: recorded.name,
+      prepared: { wallet, dseq, resolved: { manifestVersion, manifest }, deployment }
+    };
+  }
+
+  /** Read from the row even right after the save, so a patch a newer one replaced is never applied on chain, however late it runs. */
+  async #findDefinitionSavedAs(saved: SavedPatch, ability: AnyAbility): Promise<{ sdl: string; sealedSecrets: string | null } | undefined> {
+    const definition = await this.#findStoredDefinition({ userId: saved.userId, dseq: saved.dseq }, ability, NOT_PATCHABLE_MESSAGE);
+
+    if (definition.manifestVersion === saved.manifestVersion) return definition;
+
+    this.logger.info({ event: "DEPLOYMENT_PATCH_REPLACED", userId: saved.userId, dseq: saved.dseq });
+
+    return undefined;
+  }
+
+  /** Resolved without trial limits, which refuse a patch when it is saved and never change the manifest it hashes. */
+  async #prepareSavedDefinition(saved: SavedPatch, definition: { sdl: string; sealedSecrets: string | null }): Promise<PreparedPatch> {
+    const wallet = await this.walletReaderService.getWalletByUserId(saved.userId);
+    const secrets = definition.sealedSecrets
+      ? await this.sdlSecretsService.openStored({ userId: saved.userId, dseq: saved.dseq, sealedSecrets: definition.sealedSecrets })
+      : {};
+    const resolved = await this.#resolveSdl(definition.sdl, { secrets });
+    const deployment = await this.deploymentReaderService.findByWalletAndDseqWithoutProviderStatus(wallet, saved.dseq);
+
+    return { wallet, dseq: saved.dseq, resolved, deployment };
+  }
+
+  async #applyPrepared({ wallet, dseq, resolved, deployment }: PreparedPatch): Promise<void> {
+    await this.ensureDeploymentIsUpToDate(wallet, dseq, resolved.manifestVersion, deployment);
     await this.sendManifestToProviders({
       auth: { walletId: wallet.id },
       dseq,
-      manifest: manifestToSortedJSON(manifest.groups),
+      manifest: manifestToSortedJSON(resolved.manifest.groups),
       leases: deployment.leases
     });
     await this.restartTrialWorkloadProbe(wallet, dseq);
     await this.restartLeaseGpuDetection(wallet, dseq);
-
-    const updatedDeployment = await this.deploymentReaderService.findByWalletAndDseq(wallet, dseq);
-
-    return { ...updatedDeployment, name: recorded.name, manifestVersion: recordedVersion };
   }
 
   /** Sends no deployment update and no manifest, so only a definition resolving to the version the deployment already runs is recorded. */
