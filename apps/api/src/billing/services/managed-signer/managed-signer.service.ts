@@ -8,6 +8,7 @@ import { IndexedTx } from "@cosmjs/stargate";
 import { context, trace } from "@opentelemetry/api";
 import assert from "http-assert";
 import createError, { BadRequest, isHttpError } from "http-errors";
+import countBy from "lodash/countBy";
 import pick from "lodash/pick";
 import { inject, singleton } from "tsyringe";
 
@@ -367,18 +368,24 @@ export class ManagedSignerService {
     }
   }
 
-  /** Always true for a caller who reaches every project; otherwise every row the deployment is filed under must be reachable for the action. */
   async isDeploymentInProjectScope(userWallet: UserWalletOutput, dseq: string, action: "read" | "update"): Promise<boolean> {
+    return (await this.filterDeploymentsInProjectScope(userWallet, [dseq], action)).length > 0;
+  }
+
+  /** Keeps every deployment for a caller who reaches every project; otherwise only those every row of which is reachable for the action, in two queries whatever the count. */
+  async filterDeploymentsInProjectScope(userWallet: UserWalletOutput, dseqs: readonly string[], action: "read" | "update"): Promise<string[]> {
     const organizationContext = this.executionContextService.hasContext() ? this.executionContextService.get("ORGANIZATION_CONTEXT") : undefined;
 
-    if (organizationContext?.mode !== "organization" || organizationContext.projectScope.kind === "all") return true;
+    if (organizationContext?.mode !== "organization" || organizationContext.projectScope.kind === "all") return [...dseqs];
 
     const [filed, reachable] = await Promise.all([
-      this.deploymentSettingRepository.findIdsOfWallet(userWallet, dseq),
-      this.deploymentSettingRepository.accessibleBy(this.authService.ability, action).findIdsOfWallet(userWallet, dseq)
+      this.deploymentSettingRepository.findFiledRowsOfWallet(userWallet, dseqs),
+      this.deploymentSettingRepository.accessibleBy(this.authService.ability, action).findFiledRowsOfWallet(userWallet, dseqs)
     ]);
+    const filedCounts = countBy(filed, row => row.dseq);
+    const reachableCounts = countBy(reachable, row => row.dseq);
 
-    return filed.length > 0 && reachable.length === filed.length;
+    return dseqs.filter(dseq => filedCounts[dseq] > 0 && reachableCounts[dseq] === filedCounts[dseq]);
   }
 
   /**

@@ -310,13 +310,13 @@ export class DeploymentSettingRepository extends OrgScopedRepository<Table, Depl
     return row && this.toOutput(row);
   }
 
-  async findIdsOfWallet(wallet: DeploymentWallet, dseq: string): Promise<string[]> {
-    const rows = await this.cursor
-      .select({ id: this.table.id })
-      .from(this.table)
-      .where(this.whereAccessibleBy(and(this.#filedFor(wallet), eq(this.table.dseq, dseq))));
+  async findFiledRowsOfWallet(wallet: DeploymentWallet, dseqs: readonly string[]): Promise<{ id: string; dseq: string }[]> {
+    if (dseqs.length === 0) return [];
 
-    return rows.map(row => row.id);
+    return await this.cursor
+      .select({ id: this.table.id, dseq: this.table.dseq })
+      .from(this.table)
+      .where(this.whereAccessibleBy(and(this.#filedFor(wallet), inArray(this.table.dseq, [...dseqs]))));
   }
 
   /** In organization mode a deployment keeps the row it was first filed under, so a key naming another member resolves to that row. */

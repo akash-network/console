@@ -51,7 +51,7 @@ export class SdlSecretsInheritanceService {
     const setting = await this.deploymentSettingRepository.accessibleBy(this.authService.ability, "update").findOneOfWallet(wallet, dseq);
 
     if (!setting) {
-      this.#loggerService.warn({ event: "SDL_SECRETS_INHERIT_SOURCE_NOT_FOUND", userId: wallet.userId, dseq });
+      this.#loggerService.warn({ event: "SDL_SECRETS_INHERIT_SOURCE_NOT_FOUND", userId: wallet.userId, organizationId: wallet.organizationId, dseq });
 
       throw createError(404, SOURCE_NOT_FOUND_MESSAGE);
     }

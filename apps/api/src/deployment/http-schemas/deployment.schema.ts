@@ -209,7 +209,7 @@ export const CreateDeploymentRequestSchema = z.object({
     }),
     inheritSecretsFrom: DseqSchema.optional().openapi({
       description:
-        "Dseq of one of your own deployments whose stored secrets this deployment starts from, for redeploying an SDL without re-entering its values. The source may be closed. A name also present in `sealedSecrets` takes precedence over the inherited one."
+        "Dseq of a deployment you can change, under the same owner as this one, whose stored secrets this deployment starts from, for redeploying an SDL without re-entering its values. The source may be closed. A name also present in `sealedSecrets` takes precedence over the inherited one."
     }),
     deposit: z.number().optional().openapi({
       deprecated: true,

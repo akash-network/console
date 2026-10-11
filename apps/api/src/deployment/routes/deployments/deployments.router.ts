@@ -162,7 +162,7 @@ const postRoute = createRoute({
       }
     },
     404: {
-      description: "No deployment of yours matches `inheritSecretsFrom`. Deliberately says nothing about whether that deployment exists",
+      description: "No deployment you can change matches `inheritSecretsFrom`. Deliberately says nothing about whether that deployment exists",
       content: {
         "application/json": {
           schema: ErrorResponseSchema

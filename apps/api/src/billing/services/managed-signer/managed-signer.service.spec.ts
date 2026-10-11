@@ -1566,7 +1566,7 @@ describe(ManagedSignerService.name, () => {
         errorCode: "project_forbidden"
       });
       expect(deploymentSettingRepository.accessibleBy).toHaveBeenCalledWith(authService.ability, "update");
-      expect(deploymentSettingRepository.findIdsOfWallet).toHaveBeenCalledWith(wallet, "123");
+      expect(deploymentSettingRepository.findFiledRowsOfWallet).toHaveBeenCalledWith(wallet, ["123"]);
       expect(txManagerService.signAndBroadcastWithDerivedWallet).not.toHaveBeenCalled();
     });
 
@@ -1609,8 +1609,8 @@ describe(ManagedSignerService.name, () => {
       await expect(service.executeDerivedDecodedTxByUserId("member-1", [leaseMessageFor(123), deposit])).rejects.toMatchObject({ status: 403 });
       await expect(service.executeDerivedDecodedTxByUserId("member-1", [deposit])).rejects.toMatchObject({ status: 403 });
 
-      expect(deploymentSettingRepository.findIdsOfWallet).toHaveBeenCalledWith(wallet, "123");
-      expect(deploymentSettingRepository.findIdsOfWallet).toHaveBeenCalledWith(wallet, "456");
+      expect(deploymentSettingRepository.findFiledRowsOfWallet).toHaveBeenCalledWith(wallet, ["123"]);
+      expect(deploymentSettingRepository.findFiledRowsOfWallet).toHaveBeenCalledWith(wallet, ["456"]);
     });
 
     it("leaves a new deployment to the record that files it", async () => {
@@ -1618,7 +1618,7 @@ describe(ManagedSignerService.name, () => {
 
       await service.executeDerivedDecodedTxByUserId("member-1", [createDeploymentMessageFor(123)]);
 
-      expect(deploymentSettingRepository.findIdsOfWallet).not.toHaveBeenCalled();
+      expect(deploymentSettingRepository.findFiledRowsOfWallet).not.toHaveBeenCalled();
       expect(txManagerService.signAndBroadcastWithDerivedWallet).toHaveBeenCalled();
     });
 
@@ -1653,6 +1653,32 @@ describe(ManagedSignerService.name, () => {
       expect(deploymentSettingRepository.accessibleBy).toHaveBeenCalledWith(authService.ability, "read");
     });
 
+    it("keeps only the deployments every row of which the caller reaches, whatever their count", async () => {
+      const { service, deploymentSettingRepository, wallet } = setupForTeam({ organizationContext: projectScoped });
+      deploymentSettingRepository.findFiledRowsOfWallet.mockResolvedValue([
+        { id: "a", dseq: "1" },
+        { id: "b", dseq: "2" },
+        { id: "c", dseq: "2" }
+      ]);
+      deploymentSettingRepository.accessibleBy.mockReturnValue(
+        mock<DeploymentSettingRepository>({
+          findFiledRowsOfWallet: vi.fn().mockResolvedValue([
+            { id: "a", dseq: "1" },
+            { id: "b", dseq: "2" }
+          ])
+        })
+      );
+
+      await expect(service.filterDeploymentsInProjectScope(wallet, ["1", "2", "3"], "read")).resolves.toEqual(["1"]);
+      expect(deploymentSettingRepository.findFiledRowsOfWallet).toHaveBeenCalledExactlyOnceWith(wallet, ["1", "2", "3"]);
+    });
+
+    it("keeps every deployment for a caller who reaches every project", async () => {
+      const { service, wallet } = setupForTeam({ organizationContext: createOrganizationContext({ projectScope: { kind: "all" } }) });
+
+      await expect(service.filterDeploymentsInProjectScope(wallet, ["1", "2"], "read")).resolves.toEqual(["1", "2"]);
+    });
+
     it("does not reach a deployment nobody filed", async () => {
       const { service, wallet } = setupForTeam({ organizationContext: projectScoped, filedIds: [], reachableIds: [] });
 
@@ -1663,7 +1689,7 @@ describe(ManagedSignerService.name, () => {
       const { service, deploymentSettingRepository, wallet } = setupForTeam({ organizationContext: { ...projectScoped, mode: "legacy" } });
 
       await expect(service.isDeploymentInProjectScope(wallet, "123", "read")).resolves.toBe(true);
-      expect(deploymentSettingRepository.findIdsOfWallet).not.toHaveBeenCalled();
+      expect(deploymentSettingRepository.findFiledRowsOfWallet).not.toHaveBeenCalled();
     });
   });
 
@@ -1675,7 +1701,7 @@ describe(ManagedSignerService.name, () => {
       const { service, deploymentSettingRepository } = setup({ organizationContext: projectScoped, filedIds: ["setting-1"], reachableIds: ["setting-1"] });
 
       await expect(service.filedUserIdOf(wallet, "user-1", "123")).resolves.toBe("user-1");
-      expect(deploymentSettingRepository.findIdsOfWallet).toHaveBeenCalledWith(wallet, "123");
+      expect(deploymentSettingRepository.findFiledRowsOfWallet).toHaveBeenCalledWith(wallet, ["123"]);
       expect(deploymentSettingRepository.findOneOfWallet).not.toHaveBeenCalled();
     });
 
@@ -1853,6 +1879,10 @@ describe(ManagedSignerService.name, () => {
     });
   }
 
+  function rowsOf(ids: string[] | undefined, dseqs: readonly string[]) {
+    return dseqs.flatMap(dseq => (ids ?? []).map(id => ({ id, dseq })));
+  }
+
   function setupForCreate(
     input: { deploymentLimit: number; walletDeploymentAllowance?: number } & Omit<NonNullable<Parameters<typeof setup>[0]>, "retrieveDeploymentLimit">
   ) {
@@ -1946,8 +1976,12 @@ describe(ManagedSignerService.name, () => {
       deploymentSettingRepository: mock<DeploymentSettingRepository>({
         markClosed: input?.markClosed ?? vi.fn(),
         findOneOfWallet: input?.findOneOfWallet ?? vi.fn(),
-        findIdsOfWallet: vi.fn().mockResolvedValue(input?.filedIds ?? []),
-        accessibleBy: vi.fn().mockReturnValue(mock<DeploymentSettingRepository>({ findIdsOfWallet: vi.fn().mockResolvedValue(input?.reachableIds ?? []) }))
+        findFiledRowsOfWallet: vi.fn(async (_wallet, dseqs: readonly string[]) => rowsOf(input?.filedIds, dseqs)),
+        accessibleBy: vi
+          .fn()
+          .mockReturnValue(
+            mock<DeploymentSettingRepository>({ findFiledRowsOfWallet: vi.fn(async (_wallet, dseqs: readonly string[]) => rowsOf(input?.reachableIds, dseqs)) })
+          )
       }),
       executionContextService: mock<ExecutionContextService>({
         hasContext: vi.fn().mockReturnValue(!!input?.organizationContext),

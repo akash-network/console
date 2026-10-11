@@ -71,6 +71,19 @@ describe(SdlSecretsInheritanceService.name, () => {
       await expect(service.open(REQUEST)).rejects.toMatchObject({ status: 404 });
     });
 
+    it("records which owner the source was looked up under", async () => {
+      const { service, logger } = setup({ setting: undefined });
+
+      await expect(service.open({ wallet: { userId: null, organizationId: "organization-1" }, dseq: SOURCE.dseq })).rejects.toMatchObject({ status: 404 });
+
+      expect(logger.warn).toHaveBeenCalledWith({
+        event: "SDL_SECRETS_INHERIT_SOURCE_NOT_FOUND",
+        userId: null,
+        organizationId: "organization-1",
+        dseq: SOURCE.dseq
+      });
+    });
+
     it("says nothing about whether the deployment exists", async () => {
       const { service } = setup({ setting: undefined });
 
