@@ -39,6 +39,29 @@ describe(activityEntriesOf.name, () => {
     expect(entry.detail).toBe("Try closing it again.");
   });
 
+  it.each([
+    { status: "pending" as const, title: "Updating “web-1234”", href: "/deployments/1234" },
+    { status: "succeeded" as const, title: "Updated “web-1234”", href: "/deployments/1234" }
+  ])("describes a $status update of its deployment", ({ status, title, href }) => {
+    const [entry] = entriesOf([buildActivity({ type: "deployment_update", status, meta: { dseq: "1234" } })]);
+
+    expect(entry).toMatchObject({ status, title, href });
+  });
+
+  it("describes a failed update with its reason, linking to the tab where the deployment can be updated again", () => {
+    const [entry] = entriesOf([
+      buildActivity({ type: "deployment_update", status: "failed", meta: { dseq: "1234", error: { code: "update_failed", message: "Deployment closed" } } })
+    ]);
+
+    expect(entry).toMatchObject({ status: "failed", title: "Couldn't update “web-1234”", detail: "Deployment closed", href: "/deployments/1234?tab=UPDATE" });
+  });
+
+  it("asks for another try when a failed update gives no reason", () => {
+    const [entry] = entriesOf([buildActivity({ type: "deployment_update", status: "failed", meta: { dseq: "1234" } })]);
+
+    expect(entry).toMatchObject({ detail: "Try updating it again." });
+  });
+
   it("links an activity about no particular deployment to the deployments list", () => {
     const [entry] = entriesOf([buildActivity({ status: "succeeded", meta: {} })]);
 

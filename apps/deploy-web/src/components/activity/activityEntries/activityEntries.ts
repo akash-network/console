@@ -16,6 +16,11 @@ export interface ActivityEntry {
 
 type LabelDeployment = (dseq: string | undefined) => string;
 
+const ENTRY_WORDING = {
+  deployment_close: { pending: "Closing", succeeded: "Closed", failed: "Couldn't close", retry: "Try closing it again.", failedTab: "SETTINGS" },
+  deployment_update: { pending: "Updating", succeeded: "Updated", failed: "Couldn't update", retry: "Try updating it again.", failedTab: "UPDATE" }
+} satisfies Record<Activity["type"], { pending: string; succeeded: string; failed: string; retry: string; failedTab: string }>;
+
 /** A bulk close reads as one entry, placed where its newest close is, so it never crowds out everything else. */
 export function activityEntriesOf(activities: Activity[], labelDeployment: LabelDeployment, limit: number): ActivityEntry[] {
   const entries: ActivityEntry[] = [];
@@ -39,14 +44,15 @@ export function activityEntriesOf(activities: Activity[], labelDeployment: Label
   return entries;
 }
 
-export function activityEntryOf({ id, status, meta, createdAt }: Activity, labelDeployment: LabelDeployment): ActivityEntry {
+export function activityEntryOf({ id, type, status, meta, createdAt }: Activity, labelDeployment: LabelDeployment): ActivityEntry {
+  const wording = ENTRY_WORDING[type];
   const deployment = labelDeployment(meta.dseq);
-  const href = meta.dseq ? UrlService.deploymentDetails(meta.dseq, status === "failed" ? "SETTINGS" : undefined) : UrlService.deploymentList();
+  const href = meta.dseq ? UrlService.deploymentDetails(meta.dseq, status === "failed" ? wording.failedTab : undefined) : UrlService.deploymentList();
 
-  if (status === "pending") return { id, status, title: `Closing ${deployment}`, href, createdAt };
-  if (status === "succeeded") return { id, status, title: `Closed ${deployment}`, href, createdAt };
+  if (status === "pending") return { id, status, title: `${wording.pending} ${deployment}`, href, createdAt };
+  if (status === "succeeded") return { id, status, title: `${wording.succeeded} ${deployment}`, href, createdAt };
 
-  return { id, status, title: `Couldn't close ${deployment}`, detail: meta.error?.message ?? "Try closing it again.", href, createdAt };
+  return { id, status, title: `${wording.failed} ${deployment}`, detail: meta.error?.message ?? wording.retry, href, createdAt };
 }
 
 function batchEntryOf(batchId: string, batch: Activity[], labelDeployment: LabelDeployment): ActivityEntry {
