@@ -182,7 +182,7 @@ export const operations = {
       queryParams: [],
       hasBody: false
     },
-    createLease: { path: "/v1/leases", method: "post", operationId: "createLease", pathParams: [], queryParams: [], hasBody: true },
+    createLease: { path: "/v1/leases", method: "post", operationId: "createLease", pathParams: [], queryParams: ["async"], hasBody: true },
     listApiKeys: { path: "/v1/api-keys", method: "get", operationId: "listApiKeys", pathParams: [], queryParams: [], hasBody: false },
     listBids: { path: "/v1/bids", method: "get", operationId: "listBids", pathParams: [], queryParams: ["dseq"], hasBody: false },
     listProviders: { path: "/v1/providers", method: "get", operationId: "listProviders", pathParams: [], queryParams: ["scope", "addresses"], hasBody: false },

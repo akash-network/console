@@ -13,9 +13,11 @@ import type { ManagedSignerService } from "@src/billing/services/managed-signer/
 import type { TxManagerService } from "@src/billing/services/tx-manager/tx-manager.service";
 import type { BlockRepository } from "@src/chain/repositories/block.repository";
 import type { BlockHttpService } from "@src/chain/services/block-http/block-http.service";
+import type { JobQueueService } from "@src/core";
 import type { CreateLogger } from "@src/core/providers/logging.provider";
 import { ErrorService } from "@src/core/services/error/error.service";
 import type { DeploymentRepository, StaleDeployment } from "@src/deployment/repositories/deployment/deployment.repository";
+import { createLeaseKeyFor } from "@src/deployment/services/create-lease/create-lease.job";
 import { StaleManagedDeploymentsCleanerService } from "./stale-managed-deployments-cleaner.service";
 
 import { createUserWallet } from "@test/seeders/user-wallet.seeder";
@@ -84,6 +86,54 @@ describe(StaleManagedDeploymentsCleanerService.name, () => {
 
       expect(managedSignerService.executeDerivedTx).toHaveBeenCalledTimes(3);
       expect(managedSignerService.executeDerivedTx.mock.calls.map(([, messages]) => messages.length)).toEqual([20, 20, 5]);
+    });
+
+    it("leaves alone a deployment whose lease is still queued, retrying or being created, and closes the rest", async () => {
+      const { service, managedSignerService, rpcMessageService, jobQueueService, wallet } = setup({
+        staleDeployments: ["1", "2"],
+        leasesUnderway: [{ owner: OWNER, dseq: "1" }]
+      });
+
+      await service.cleanUpForWallet(wallet, 0);
+
+      expect(jobQueueService.findPendingSingletonKeys).toHaveBeenCalledWith("CreateLease");
+      expect(rpcMessageService.getCloseDeploymentMsg).toHaveBeenCalledTimes(1);
+      expect(rpcMessageService.getCloseDeploymentMsg).toHaveBeenCalledWith(OWNER, "2");
+      expect(managedSignerService.executeDerivedTx).toHaveBeenCalledTimes(1);
+    });
+
+    it("broadcasts nothing when the only lease-less deployment is still getting its lease", async () => {
+      const { service, managedSignerService, wallet } = setup({ staleDeployments: ["1"], leasesUnderway: [{ owner: OWNER, dseq: "1" }] });
+
+      await service.cleanUpForWallet(wallet, 0);
+
+      expect(managedSignerService.executeDerivedTx).not.toHaveBeenCalled();
+    });
+
+    it("closes a deployment whose dseq another owner is getting a lease for", async () => {
+      const { service, managedSignerService, wallet } = setup({ staleDeployments: ["1"], leasesUnderway: [{ owner: "akash1other", dseq: "1" }] });
+
+      await service.cleanUpForWallet(wallet, 0);
+
+      expect(managedSignerService.executeDerivedTx).toHaveBeenCalledTimes(1);
+    });
+
+    it("reads no lease jobs when the wallet has no lease-less deployment", async () => {
+      const { service, jobQueueService, wallet } = setup({ staleDeployments: [] });
+
+      await service.cleanUpForWallet(wallet, 0);
+
+      expect(jobQueueService.findPendingSingletonKeys).not.toHaveBeenCalled();
+    });
+
+    it("closes nothing when the lease jobs cannot be read", async () => {
+      const readFailure = new Error("job table unavailable");
+      const { service, managedSignerService, jobQueueService, wallet } = setup({ staleDeployments: ["1"] });
+      jobQueueService.findPendingSingletonKeys.mockRejectedValue(readFailure);
+
+      await expect(service.cleanUpForWallet(wallet, 0)).rejects.toBe(readFailure);
+
+      expect(managedSignerService.executeDerivedTx).not.toHaveBeenCalled();
     });
   });
 
@@ -297,6 +347,32 @@ describe(StaleManagedDeploymentsCleanerService.name, () => {
       expect(logger.info).toHaveBeenCalledWith({ event: "DEPLOYMENT_CLEAN_UP_WOULD_CLOSE", owner: OWNER, dseqs: ["9"] });
     });
 
+    it("leaves out of the sweep, dry run included, a deployment whose lease is still being created", async () => {
+      const { service, managedSignerService, logger } = setup({
+        orphans: [
+          { owner: OWNER, dseq: "8" },
+          { owner: OWNER, dseq: "9" }
+        ],
+        leasesUnderway: [{ owner: OWNER, dseq: "9" }]
+      });
+
+      await service.cleanup({ concurrency: 1, dryRun: true });
+      await service.cleanup({ concurrency: 1, dryRun: false });
+
+      expect(logger.info).toHaveBeenCalledWith({ event: "DEPLOYMENT_CLEAN_UP_WOULD_CLOSE", owner: OWNER, dseqs: ["8"] });
+      expect(managedSignerService.executeDerivedTx).toHaveBeenCalledWith(expect.any(Number), [expect.objectContaining({ value: { dseq: "8" } })]);
+    });
+
+    it("closes nothing in a batch and fails the run when the lease jobs cannot be read", async () => {
+      const { service, managedSignerService, jobQueueService } = setup({ orphans: [{ owner: OWNER, dseq: "9" }] });
+      jobQueueService.findPendingSingletonKeys.mockRejectedValue(new Error("job table unavailable"));
+
+      const result = await service.cleanup({ concurrency: 1, dryRun: false });
+
+      expect(result.err).toBe(true);
+      expect(managedSignerService.executeDerivedTx).not.toHaveBeenCalled();
+    });
+
     it("carries on to the other owners and still succeeds when one of them fails", async () => {
       const failure = new Error("some unexpected failure");
       const executeDerivedTx = vi.fn().mockRejectedValueOnce(failure).mockResolvedValue(buildOkTx());
@@ -443,6 +519,7 @@ describe(StaleManagedDeploymentsCleanerService.name, () => {
     walletBatches?: number[];
     walletIdsByAddress?: Record<string, number>;
     executeDerivedTx?: ManagedSignerService["executeDerivedTx"];
+    leasesUnderway?: StaleDeployment[];
   }) {
     const wallet = createUserWallet({ id: 123, address: OWNER });
     const orphans = input?.orphans ?? (input?.staleDeployments ?? ["456"]).map(dseq => ({ owner: OWNER, dseq }));
@@ -474,6 +551,8 @@ describe(StaleManagedDeploymentsCleanerService.name, () => {
     const createErrorLogger = vi.fn<CreateLogger>(() => errorLogger);
     const errorService = new ErrorService(createErrorLogger);
     const chainErrorService = new ChainErrorService(mock<BalanceHttpService>(), mock<BillingConfigService>(), mock<TxManagerService>());
+    const jobQueueService = mock<JobQueueService>();
+    jobQueueService.findPendingSingletonKeys.mockResolvedValue(new Set((input?.leasesUnderway ?? []).map(createLeaseKeyFor)));
 
     const currentHeight = input?.currentHeight ?? 1_000_000;
     blockRepository.getLatestProcessedHeight.mockResolvedValue(currentHeight);
@@ -492,6 +571,7 @@ describe(StaleManagedDeploymentsCleanerService.name, () => {
       managedUserWalletService,
       errorService,
       chainErrorService,
+      jobQueueService,
       createLogger
     );
 
@@ -506,6 +586,7 @@ describe(StaleManagedDeploymentsCleanerService.name, () => {
       managedSignerService,
       managedUserWalletService,
       chainErrorService,
+      jobQueueService,
       logger,
       createLogger,
       errorLogger,

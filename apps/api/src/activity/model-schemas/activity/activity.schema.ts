@@ -3,7 +3,7 @@ import { index, jsonb, pgEnum, pgTable, timestamp, uuid } from "drizzle-orm/pg-c
 
 import { Users } from "@src/user/model-schemas";
 
-export const activityTypeEnum = pgEnum("activity_type", ["deployment_close"]);
+export const activityTypeEnum = pgEnum("activity_type", ["deployment_close", "lease_create"]);
 export const activityStatusEnum = pgEnum("activity_status", ["pending", "succeeded", "failed"]);
 
 export type ActivityType = (typeof activityTypeEnum.enumValues)[number];
@@ -11,6 +11,7 @@ export type ActivityStatus = (typeof activityStatusEnum.enumValues)[number];
 
 export type ActivityMeta = {
   dseq?: string;
+  providers?: string[];
   batchId?: string;
   txHash?: string;
   error?: { code: string; message: string };

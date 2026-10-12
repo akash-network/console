@@ -8,10 +8,12 @@ import type { AppInitializer } from "@src/core/providers/app-initializer";
 import { APP_INITIALIZER, ON_APP_START } from "@src/core/providers/app-initializer";
 import { JobQueueService } from "@src/core/services/job-queue/job-queue.service";
 import { CloseDeploymentHandler } from "@src/deployment/services/close-deployment/close-deployment.handler";
+import { CreateLeaseHandler } from "@src/deployment/services/create-lease/create-lease.handler";
 import { DeleteUnbackedDeploymentSettingHandler } from "@src/deployment/services/delete-unbacked-deployment-setting/delete-unbacked-deployment-setting.handler";
 import { DetectLeaseGpusHandler } from "@src/deployment/services/detect-lease-gpus/detect-lease-gpus.handler";
 import { ExpireConfigureDraftHandler } from "@src/deployment/services/expire-configure-draft/expire-configure-draft.handler";
 import { ReconcileDeploymentCloseHandler } from "@src/deployment/services/reconcile-deployment-close/reconcile-deployment-close.handler";
+import { ReconcileLeaseCreateHandler } from "@src/deployment/services/reconcile-lease-create/reconcile-lease-create.handler";
 import { ReconcileManagedTxHandler } from "@src/deployment/services/reconcile-managed-tx/reconcile-managed-tx.handler";
 import { RecordDeploymentSettingHandler } from "@src/deployment/services/record-deployment-setting/record-deployment-setting.handler";
 import { RecordLeaseGpuOffersHandler } from "@src/deployment/services/record-lease-gpu-offers/record-lease-gpu-offers.handler";
@@ -60,6 +62,8 @@ export async function startJobQueues(): Promise<void> {
     container.resolve(DeleteUnbackedDeploymentSettingHandler),
     container.resolve(CloseDeploymentHandler),
     container.resolve(ReconcileDeploymentCloseHandler),
+    container.resolve(CreateLeaseHandler),
+    container.resolve(ReconcileLeaseCreateHandler),
     container.resolve(RecordDeploymentSettingHandler),
     container.resolve(ReconcileManagedTxHandler),
     container.resolve(ProbeTrialDeploymentHandler),

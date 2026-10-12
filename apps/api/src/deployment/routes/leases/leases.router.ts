@@ -6,7 +6,7 @@ import { OpenApiHonoHandler } from "@src/core/services/open-api-hono-handler/ope
 import { SECURITY_BEARER_OR_API_KEY, SECURITY_NONE } from "@src/core/services/openapi-docs/openapi-security";
 import { LeaseController } from "@src/deployment/controllers/lease/lease.controller";
 import { CreateLeaseResponseSchema } from "@src/deployment/http-schemas/deployment.schema";
-import { CreateLeaseRequestSchema } from "@src/deployment/http-schemas/lease.schema";
+import { CreateLeaseAcceptedResponseSchema, CreateLeaseQuerySchema, CreateLeaseRequestSchema } from "@src/deployment/http-schemas/lease.schema";
 import { FallbackLeaseListQuerySchema, FallbackLeaseListResponseSchema } from "@src/deployment/http-schemas/lease-rpc.schema";
 
 export const leasesRouter = new OpenApiHonoHandler();
@@ -29,6 +29,7 @@ const createLeaseRoute = createRoute({
   tags: ["Leases"],
   security: SECURITY_BEARER_OR_API_KEY,
   request: {
+    query: CreateLeaseQuerySchema,
     body: {
       content: {
         "application/json": {
@@ -46,6 +47,14 @@ const createLeaseRoute = createRoute({
         }
       }
     },
+    202: {
+      description: "The leases passed every check and will be created, and the manifest sent, in the background",
+      content: {
+        "application/json": {
+          schema: CreateLeaseAcceptedResponseSchema
+        }
+      }
+    },
     502: {
       description:
         "A provider could not be reached. With code `provider_unreachable` no lease was created, so choose another bid. With code `manifest_not_delivered` the lease exists, as described above.",
@@ -58,9 +67,8 @@ const createLeaseRoute = createRoute({
   }
 });
 leasesRouter.openapi(createLeaseRoute, async function routeCreateLease(c) {
-  const input = c.req.valid("json");
-  const result = await container.resolve(LeaseController).createLeasesAndSendManifest(input);
-  return c.json(result, 200);
+  const result = await container.resolve(LeaseController).createLeasesAndSendManifest(c.req.valid("json"), c.req.valid("query"));
+  return "activityId" in result.data ? c.json({ data: result.data }, 202) : c.json({ data: result.data }, 200);
 });
 
 const fallbackListRoute = createRoute({

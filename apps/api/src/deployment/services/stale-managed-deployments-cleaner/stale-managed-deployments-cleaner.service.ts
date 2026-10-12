@@ -11,9 +11,10 @@ import { ChainErrorService } from "@src/billing/services/chain-error/chain-error
 import { ManagedSignerService } from "@src/billing/services/managed-signer/managed-signer.service";
 import { BlockRepository } from "@src/chain/repositories/block.repository";
 import { BlockHttpService } from "@src/chain/services/block-http/block-http.service";
-import { type CreateLogger, LOGGER_FACTORY } from "@src/core";
+import { type CreateLogger, JOB_NAME, JobQueueService, LOGGER_FACTORY } from "@src/core";
 import { ErrorService } from "@src/core/services/error/error.service";
 import { DeploymentRepository, type StaleDeployment, type StaleDeploymentsOutput } from "@src/deployment/repositories/deployment/deployment.repository";
+import { CreateLease, createLeaseKeyFor } from "@src/deployment/services/create-lease/create-lease.job";
 import { CleanUpStaleDeploymentsParams } from "@src/deployment/types/state-deployments";
 import { averageBlockTime, COSMOS_TX_CODE_OK } from "@src/utils/constants";
 
@@ -56,6 +57,7 @@ export class StaleManagedDeploymentsCleanerService {
     private readonly managedUserWalletService: ManagedUserWalletService,
     private readonly errorService: ErrorService,
     private readonly chainErrorService: ChainErrorService,
+    private readonly jobQueueService: JobQueueService,
     @inject(LOGGER_FACTORY) createLogger: CreateLogger
   ) {
     this.logger = createLogger({ context: StaleManagedDeploymentsCleanerService.name });
@@ -103,7 +105,7 @@ export class StaleManagedDeploymentsCleanerService {
   async cleanUpForWallet(wallet: UserWalletOutput, maxLiveBlocks: number = this.MAX_LIVE_BLOCKS) {
     const staleBeforeHeight = (await this.blockRepository.getLatestProcessedHeight()) - maxLiveBlocks;
     const managedWallet = { id: wallet.id, address: wallet.address! };
-    const deployments = await this.deploymentRepository.findStaleDeployments({ owners: [managedWallet.address], staleBeforeHeight });
+    const deployments = await this.#findAbandoned({ owners: [managedWallet.address], staleBeforeHeight });
 
     await this.#closeDeploymentsWithoutActiveLease(managedWallet, deployments);
   }
@@ -120,7 +122,7 @@ export class StaleManagedDeploymentsCleanerService {
         event: "DEPLOYMENT_CLEAN_UP_SCREEN_ERROR",
         context: StaleManagedDeploymentsCleanerService.name
       },
-      () => this.deploymentRepository.findStaleDeployments({ owners: wallets.map(wallet => wallet.address), staleBeforeHeight }),
+      () => this.#findAbandoned({ owners: wallets.map(wallet => wallet.address), staleBeforeHeight }),
       error => screenErrors.push(error)
     );
     const orphansByOwner = groupByOwner(deployments ?? []);
@@ -153,6 +155,16 @@ export class StaleManagedDeploymentsCleanerService {
     }
 
     return { owners: orphansByOwner.size, failedOwners, screenErrors };
+  }
+
+  /** A deployment whose lease is still queued, retrying or being created is on its way rather than abandoned, however long ago it was created. */
+  async #findAbandoned(query: { owners: string[]; staleBeforeHeight: number }): Promise<StaleDeployment[]> {
+    const deployments = await this.deploymentRepository.findStaleDeployments(query);
+    if (!deployments.length) return deployments;
+
+    const leasesUnderway = await this.jobQueueService.findPendingSingletonKeys(CreateLease[JOB_NAME]);
+
+    return deployments.filter(deployment => !leasesUnderway.has(createLeaseKeyFor(deployment)));
   }
 
   /** Undefined when the indexer cannot see enough of the chain for this sweep's cutoff to mean anything. */

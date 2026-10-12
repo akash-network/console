@@ -6,3 +6,7 @@ export type LeasePlacement = Pick<RpcLease["lease"]["id"], "dseq" | "gseq" | "os
 export function isLeaseOn(lease: LeasePlacement, placement: LeasePlacement): boolean {
   return lease.dseq === placement.dseq && lease.gseq === placement.gseq && lease.oseq === placement.oseq && lease.provider === placement.provider;
 }
+
+export function isSamePlacementSet(placements: LeasePlacement[], others: LeasePlacement[]): boolean {
+  return placements.length === others.length && placements.every(placement => others.some(other => isLeaseOn(other, placement)));
+}

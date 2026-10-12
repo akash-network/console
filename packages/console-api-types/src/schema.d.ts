@@ -10230,7 +10230,9 @@ export interface operations {
   };
   createLease: {
     parameters: {
-      query?: never;
+      query?: {
+        async?: "true" | "false";
+      };
       header?: never;
       path?: never;
       cookie?: never;
@@ -10396,6 +10398,23 @@ export interface operations {
                   }[];
                 };
               };
+            };
+          };
+        };
+      };
+      /** @description The leases passed every check and will be created, and the manifest sent, in the background */
+      202: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            data: {
+              /**
+               * Format: uuid
+               * @description The activity that reports how creating the leases ends.
+               */
+              activityId: string;
             };
           };
         };
@@ -11318,7 +11337,7 @@ export interface operations {
         limit?: number;
         cursor?: string;
         status?: "pending" | "succeeded" | "failed";
-        type?: "deployment_close";
+        type?: "deployment_close" | "lease_create";
       };
       header?: never;
       path?: never;
@@ -11342,7 +11361,7 @@ export interface operations {
                  * @description What the action was.
                  * @enum {string}
                  */
-                type: "deployment_close";
+                type: "deployment_close" | "lease_create";
                 /**
                  * @description `pending` while the action is still being confirmed, then `succeeded` or `failed`.
                  * @enum {string}
@@ -11351,6 +11370,8 @@ export interface operations {
                 meta: {
                   /** @description The deployment the action was about. */
                   dseq?: string;
+                  /** @description The providers a lease was created with, each named once. */
+                  providers?: string[];
                   /** @description The bulk close the action was part of, as its request named it. */
                   batchId?: string;
                   /** @description Reference of a pending action whose outcome is still being confirmed. */
@@ -11425,7 +11446,7 @@ export interface operations {
                * @description What the action was.
                * @enum {string}
                */
-              type: "deployment_close";
+              type: "deployment_close" | "lease_create";
               /**
                * @description `pending` while the action is still being confirmed, then `succeeded` or `failed`.
                * @enum {string}
@@ -11434,6 +11455,8 @@ export interface operations {
               meta: {
                 /** @description The deployment the action was about. */
                 dseq?: string;
+                /** @description The providers a lease was created with, each named once. */
+                providers?: string[];
                 /** @description The bulk close the action was part of, as its request named it. */
                 batchId?: string;
                 /** @description Reference of a pending action whose outcome is still being confirmed. */

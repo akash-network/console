@@ -1569,6 +1569,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
               "description": "What the action was.",
               "enum": [
                 "deployment_close",
+                "lease_create",
               ],
               "type": "string",
             },
@@ -1620,6 +1621,13 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                                     ],
                                     "type": "object",
                                   },
+                                  "providers": {
+                                    "description": "The providers a lease was created with, each named once.",
+                                    "items": {
+                                      "type": "string",
+                                    },
+                                    "type": "array",
+                                  },
                                   "txHash": {
                                     "description": "Reference of a pending action whose outcome is still being confirmed.",
                                     "type": "string",
@@ -1646,6 +1654,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                                 "description": "What the action was.",
                                 "enum": [
                                   "deployment_close",
+                                  "lease_create",
                                 ],
                                 "type": "string",
                               },
@@ -1891,6 +1900,13 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                               ],
                               "type": "object",
                             },
+                            "providers": {
+                              "description": "The providers a lease was created with, each named once.",
+                              "items": {
+                                "type": "string",
+                              },
+                              "type": "array",
+                            },
                             "txHash": {
                               "description": "Reference of a pending action whose outcome is still being confirmed.",
                               "type": "string",
@@ -1917,6 +1933,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                           "description": "What the action was.",
                           "enum": [
                             "deployment_close",
+                            "lease_create",
                           ],
                           "type": "string",
                         },
@@ -13139,6 +13156,21 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
       "post": {
         "description": "Creates the leases, then sends each provider its manifest. If a provider refuses the manifest once its lease exists, the error carries code \`manifest_not_delivered\` and the status the provider path produced. Send the same request again to retry the manifest, or close the deployment to stop paying for it.",
         "operationId": "createLease",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "async",
+            "required": false,
+            "schema": {
+              "description": "With \`true\`, the leases are created and the manifest sent in the background: the request answers 202 with an \`activityId\` to follow at \`GET /v1/activities/{id}\` once every check that could refuse it has passed. A second request for the same leases while they are still being created answers with the same activity, and one naming other bids answers 409. It answers 200 as without it when background leases are unavailable, when the leases span more than one deployment, or when the manifest can only come from the request.",
+              "enum": [
+                "true",
+                "false",
+              ],
+              "type": "string",
+            },
+          },
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -13712,6 +13744,34 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
               },
             },
             "description": "Leases created and manifest sent",
+          },
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "properties": {
+                        "activityId": {
+                          "description": "The activity that reports how creating the leases ends.",
+                          "format": "uuid",
+                          "type": "string",
+                        },
+                      },
+                      "required": [
+                        "activityId",
+                      ],
+                      "type": "object",
+                    },
+                  },
+                  "required": [
+                    "data",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "The leases passed every check and will be created, and the manifest sent, in the background",
           },
           "502": {
             "content": {
