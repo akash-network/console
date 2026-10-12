@@ -423,6 +423,41 @@ describe(ConfigureDeploymentForm.name, () => {
     expect(clear).not.toHaveBeenCalled();
   });
 
+  describe("while deploying", () => {
+    it("shows the deploy progress while the lease is created during the request", () => {
+      const { DeployProgressOverlay } = setup({ initialSdl: undefined, phase: "deploying" });
+
+      expect(DeployProgressOverlay).toHaveBeenCalled();
+    });
+
+    it("shows no deploy progress while the lease may finish in the background", () => {
+      const { DeployProgressOverlay } = setup({ initialSdl: undefined, phase: "deploying", isDeployingInBackground: true });
+
+      expect(DeployProgressOverlay).not.toHaveBeenCalled();
+    });
+
+    it("says the deployment was created once its lease is left to finish in the background", () => {
+      const { enqueueSnackbar } = setup({ initialSdl: undefined, phase: "deploying", isDeployingInBackground: true, deploySucceeded: true });
+
+      expect(enqueueSnackbar).toHaveBeenCalledTimes(1);
+      expect(enqueueSnackbar).toHaveBeenCalledWith(
+        expect.objectContaining({
+          props: { title: "Deployment created", subTitle: "It's spinning up. We'll let you know when it's ready.", iconVariant: "success" }
+        }),
+        { variant: "success" }
+      );
+    });
+
+    it.each([
+      { case: "the lease was created during the request", isDeployingInBackground: false, deploySucceeded: true },
+      { case: "the api has not answered yet", isDeployingInBackground: true, deploySucceeded: false }
+    ])("says nothing about a created deployment while $case", input => {
+      const { enqueueSnackbar } = setup({ initialSdl: undefined, phase: "deploying", ...input });
+
+      expect(enqueueSnackbar).not.toHaveBeenCalled();
+    });
+  });
+
   it("seeds the deployment name from initialName", () => {
     const { ConfigureDeploymentPanes } = setup({ initialSdl: undefined, initialName: "my-app" });
 
@@ -664,7 +699,7 @@ describe(ConfigureDeploymentForm.name, () => {
     await userEvent.click(screen.getByRole("button", { name: "confirm and deploy" }));
 
     const previewed = lastPanesProps(ConfigureDeploymentPanes).sdl;
-    expect(flow.actions.deploy).toHaveBeenCalledWith(previewed, { secrets: {}, unresolvedSecrets: [] });
+    expect(flow.actions.deploy).toHaveBeenCalledWith(previewed, { secrets: {}, unresolvedSecrets: [], inBackground: true });
   });
 
   it("hands a secret typed in the form to the deploy and leaves only its reference in the sdl", async () => {
@@ -676,7 +711,8 @@ describe(ConfigureDeploymentForm.name, () => {
 
     expect(flow.actions.deploy).toHaveBeenCalledWith(expect.stringContaining("API_KEY=ac-secret://API_KEY"), {
       secrets: { API_KEY: "hunter2" },
-      unresolvedSecrets: []
+      unresolvedSecrets: [],
+      inBackground: true
     });
   });
 
@@ -1010,6 +1046,7 @@ describe(ConfigureDeploymentForm.name, () => {
     persistedRuntimeLimitHours?: number;
     persistedPlacementRegions?: Record<string, string[]>;
     deploySucceeded?: boolean;
+    isDeployingInBackground?: boolean;
     flowError?: FlowError;
     noBidsReceived?: boolean;
     vm?: boolean;
@@ -1030,6 +1067,7 @@ describe(ConfigureDeploymentForm.name, () => {
     const enqueueSnackbar = vi.fn();
     const closeSnackbar = vi.fn();
     const Snackbar = vi.fn(() => null);
+    const DeployProgressOverlay = vi.fn(() => null);
     const AddCreditsSnackbarContent = vi.fn((_props: { message?: string; context?: string; onAction?: () => void }) => null);
     const save = vi.fn<(sdl: string, name?: string, runtimeLimitHours?: number, startingSdl?: string, placementRegions?: Record<string, string[]>) => void>();
     const clear = vi.fn<() => void>();
@@ -1076,6 +1114,7 @@ describe(ConfigureDeploymentForm.name, () => {
         bidStrategy: "select",
         selections: {},
         deploySucceeded: input.deploySucceeded ?? false,
+        isDeployingInBackground: input.isDeployingInBackground ?? false,
         noBidsReceived: input.noBidsReceived ?? false,
         pendingClose: input.pendingClose ?? null,
         actions: mock<DeploymentFlow["actions"]>({ requestQuotes })
@@ -1097,7 +1136,7 @@ describe(ConfigureDeploymentForm.name, () => {
       useServices: () => mock<ReturnType<typeof DEPENDENCIES.useServices>>({ analyticsService }),
       Snackbar: Snackbar as never,
       ReviewAndDeployModal: ReviewAndDeployModal as never,
-      DeployProgressOverlay: () => null,
+      DeployProgressOverlay,
       SdlImportExport: SdlImportExport as never,
       SdlImportChangesBanner,
       usePlacementsWithBids: () => new Set<string>(),
@@ -1133,7 +1172,8 @@ describe(ConfigureDeploymentForm.name, () => {
       clear,
       dropInheritance,
       requestQuotes,
-      analyticsService
+      analyticsService,
+      DeployProgressOverlay
     };
   }
 });

@@ -11,7 +11,7 @@ import { isLeaseLive } from "@src/utils/leaseUtils";
 
 export const DEPENDENCIES = { useFlag, useUser, useActivityFeedQuery };
 
-const MANIFEST_NOT_DELIVERED = "manifest_not_delivered";
+export const MANIFEST_NOT_DELIVERED = "manifest_not_delivered";
 
 const DEPLOY_FAILED_STATUS: DeploymentStatusView = { label: "Deploy failed", summaryLabel: "Deploy failed", tone: "warning" };
 

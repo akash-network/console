@@ -1,6 +1,6 @@
 import type { DeploymentFlowPhase } from "../useDeploymentFlow/useDeploymentFlow";
 
-export type DeployCtaState = "request-quotes" | "requesting" | "select-providers" | "deploy" | "retry" | "close-and-edit";
+export type DeployCtaState = "request-quotes" | "requesting" | "select-providers" | "deploy" | "deploying" | "retry" | "close-and-edit";
 
 export interface DeployCtaInput {
   phase: DeploymentFlowPhase;
@@ -15,6 +15,7 @@ export interface DeployCtaInput {
 
 export function deployCtaState(input: DeployCtaInput): DeployCtaState {
   if (input.phase === "configuring" || input.phase === "error") return "request-quotes";
+  if (input.phase === "deploying") return "deploying";
   if (input.noBidsReceived || (input.quotesExpired && !input.hasOpenBids)) return "close-and-edit";
   if (input.phase !== "quoting" || !input.allPlacementsHaveBids) return "requesting";
   if (!input.allPlacementsSelected) return "select-providers";

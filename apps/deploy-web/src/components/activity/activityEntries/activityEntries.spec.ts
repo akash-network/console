@@ -57,7 +57,7 @@ describe(activityEntriesOf.name, () => {
     expect(entry).toMatchObject({ status: "succeeded", title: "Deployed “web-1234”", href: "/deployments/1234" });
   });
 
-  it("describes a failed deployment with its reason, linking to the deployment", () => {
+  it("describes a failed deployment with its reason, linking back to choosing a provider for it", () => {
     const [entry] = entriesOf([
       buildActivity({
         type: "lease_create",
@@ -66,7 +66,20 @@ describe(activityEntriesOf.name, () => {
       })
     ]);
 
-    expect(entry).toMatchObject({ status: "failed", title: "Couldn't deploy “web-1234”", detail: "The lease was not created.", href: "/deployments/1234" });
+    expect(entry).toMatchObject({
+      status: "failed",
+      title: "Couldn't deploy “web-1234”",
+      detail: "The lease was not created.",
+      href: "/new-deployment/configure/1234"
+    });
+  });
+
+  it("links a deployment its provider never received to the deployment, since its lease exists", () => {
+    const [entry] = entriesOf([
+      buildActivity({ type: "lease_create", status: "failed", meta: { dseq: "1234", error: { code: "manifest_not_delivered", message: "Not sent." } } })
+    ]);
+
+    expect(entry.href).toBe("/deployments/1234");
   });
 
   it("asks to choose a provider again when a failed deployment gives no reason", () => {

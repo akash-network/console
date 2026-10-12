@@ -2,12 +2,15 @@ import { describe, expect, it, vi } from "vitest";
 import { mock, mockDeep } from "vitest-mock-extended";
 
 import type { AppDIContainer } from "@src/context/ServicesProvider/ServicesProvider";
+import type { HeldActivityEvent } from "@src/hooks/useHeldActivityEvents/useHeldActivityEvents";
 import { QueryKeys } from "@src/queries/queryKeys";
 import type { Activity } from "@src/queries/useLatestActivitiesQuery";
+import type { AnalyticsService } from "@src/services/analytics/analytics.service";
+import { UrlService } from "@src/utils/urlUtils";
 import type { DEPENDENCIES } from "./ActivityHost";
 import { ActivityHost } from "./ActivityHost";
 
-import { render } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { buildActivity } from "@tests/seeders/activity";
 import { buildUser } from "@tests/seeders/user";
 import { TestContainerProvider } from "@tests/unit/TestContainerProvider";
@@ -112,18 +115,80 @@ describe(ActivityHost.name, () => {
     });
   });
 
-  it("announces a deployment whose lease was created and manifest sent", () => {
+  it("announces nothing for a deploy that went through, whose services being ready is what gets announced, but refreshes its data", () => {
     const pending = buildActivity({ type: "lease_create", status: "pending", meta: { dseq: "1234" } });
-    const { enqueueSnackbar, receive } = setup({ activities: [pending], names: { "1234": "storefront" } });
+    const { enqueueSnackbar, queryClient, receive, api } = setup({ activities: [pending], names: { "1234": "storefront" } });
 
     receive([{ ...pending, status: "succeeded" }]);
 
-    expect(enqueueSnackbar).toHaveBeenCalledWith(
-      expect.objectContaining({
-        props: expect.objectContaining({ title: "“storefront” deployed", subTitle: "Its provider is starting it.", iconVariant: "success" })
-      }),
-      { variant: "success" }
-    );
+    expect(enqueueSnackbar).not.toHaveBeenCalled();
+    expect(invalidatedKeysOf(queryClient)).toEqual(expect.arrayContaining([api.v1.listDeployments.getKey(), QueryKeys.getLeasesKey(OWNER, "1234")]));
+  });
+
+  it("offers to choose a provider again from a deploy that failed, and dismisses the toast on the way", () => {
+    const pending = buildActivity({ type: "lease_create", status: "pending", meta: { dseq: "1234" } });
+    const { enqueueSnackbar, closeSnackbar, router, receive } = setup({ activities: [pending] });
+    enqueueSnackbar.mockReturnValue("toast-1");
+
+    receive([{ ...pending, status: "failed", meta: { dseq: "1234", error: { code: "lease_not_created", message: "The bid was closed." } } }]);
+    const [[toast]] = enqueueSnackbar.mock.calls;
+    render(toast);
+    fireEvent.click(screen.getByRole("button", { name: "Choose a provider" }));
+
+    expect(router.push).toHaveBeenCalledWith(UrlService.configureDeployment({ dseq: "1234" }));
+    expect(closeSnackbar).toHaveBeenCalledWith("toast-1");
+  });
+
+  it("offers to open the deployment from a deploy whose provider never received it, since its lease exists", () => {
+    const pending = buildActivity({ type: "lease_create", status: "pending", meta: { dseq: "1234" } });
+    const { enqueueSnackbar, router, receive } = setup({ activities: [pending] });
+
+    receive([{ ...pending, status: "failed", meta: { dseq: "1234", error: { code: "manifest_not_delivered", message: "The provider did not answer." } } }]);
+    render(enqueueSnackbar.mock.calls[0][0]);
+    fireEvent.click(screen.getByRole("button", { name: "View deployment" }));
+
+    expect(router.push).toHaveBeenCalledWith(UrlService.deploymentDetails("1234"));
+  });
+
+  it("announces a close with no action to follow", () => {
+    const pending = buildActivity({ status: "pending", meta: { dseq: "1234" } });
+    const { enqueueSnackbar, receive } = setup({ activities: [pending] });
+
+    receive([{ ...pending, status: "failed" }]);
+    render(enqueueSnackbar.mock.calls[0][0]);
+
+    expect(screen.queryByRole("button")).not.toBeInTheDocument();
+  });
+
+  describe("with analytics a page held for an action it sent to the background", () => {
+    it("tracks them once the action succeeds", () => {
+      const pending = buildActivity({ id: "activity-1", type: "lease_create", status: "pending", meta: { dseq: "1234" } });
+      const events = [
+        { event: "create_lease" as const, properties: { category: "deployments" as const, dseq: "1234" } },
+        { event: "send_manifest" as const, properties: { category: "deployments" as const, dseq: "1234" } }
+      ];
+      const { receive, analyticsService, takeHeldActivityEvents } = setup({ activities: [pending], heldEvents: { "activity-1": events } });
+
+      receive([{ ...pending, status: "succeeded" }]);
+
+      expect(takeHeldActivityEvents).toHaveBeenCalledWith("activity-1");
+      expect(analyticsService.track).toHaveBeenCalledTimes(2);
+      expect(analyticsService.track).toHaveBeenCalledWith("create_lease", { category: "deployments", dseq: "1234" });
+      expect(analyticsService.track).toHaveBeenCalledWith("send_manifest", { category: "deployments", dseq: "1234" });
+    });
+
+    it("drops them without tracking once the action fails", () => {
+      const pending = buildActivity({ id: "activity-1", type: "lease_create", status: "pending", meta: { dseq: "1234" } });
+      const { receive, analyticsService, takeHeldActivityEvents } = setup({
+        activities: [pending],
+        heldEvents: { "activity-1": [{ event: "create_lease", properties: { dseq: "1234" } }] }
+      });
+
+      receive([{ ...pending, status: "failed" }]);
+
+      expect(takeHeldActivityEvents).toHaveBeenCalledWith("activity-1");
+      expect(analyticsService.track).not.toHaveBeenCalled();
+    });
   });
 
   it("announces a deployment whose lease could not be created with the reason it failed", () => {
@@ -397,7 +462,16 @@ describe(ActivityHost.name, () => {
     return vi.mocked(queryClient.invalidateQueries).mock.calls.map(([filters]) => filters?.queryKey);
   }
 
-  function setup(input: { isEnabled?: boolean; isSignedIn?: boolean; activities?: Activity[]; address?: string; names?: Record<string, string> } = {}) {
+  function setup(
+    input: {
+      isEnabled?: boolean;
+      isSignedIn?: boolean;
+      activities?: Activity[];
+      address?: string;
+      names?: Record<string, string>;
+      heldEvents?: Record<string, HeldActivityEvent[]>;
+    } = {}
+  ) {
     const user = buildUser();
     let activities = input.activities;
     let isLoadingNames = false;
@@ -411,6 +485,10 @@ describe(ActivityHost.name, () => {
       Object.assign(mock<ReturnType<typeof DEPENDENCIES.useLatestActivitiesQuery>>(), { data: activities })) as typeof DEPENDENCIES.useLatestActivitiesQuery);
     const useFlag = vi.fn((() => input.isEnabled ?? true) as typeof DEPENDENCIES.useFlag);
     const enqueueSnackbar = vi.fn();
+    const closeSnackbar = vi.fn();
+    const takeHeldActivityEvents = vi.fn((activityId: string) => input.heldEvents?.[activityId] ?? []);
+    const analyticsService = mock<AnalyticsService>();
+    const router = mock<ReturnType<typeof DEPENDENCIES.useRouter>>();
     const queryClient = mock<ReturnType<typeof DEPENDENCIES.useQueryClient>>();
     const api = mockDeep<AppDIContainer["api"]>();
     api.v1.listDeployments.getKey.mockReturnValue(["listDeployments"]);
@@ -424,12 +502,14 @@ describe(ActivityHost.name, () => {
       useLatestActivitiesQuery,
       useDeploymentNames,
       useCloseBatchesBeingSent: () => closeBatchesBeingSent,
-      useSnackbar: () => ({ enqueueSnackbar, closeSnackbar: vi.fn() }),
-      useQueryClient: () => queryClient
+      useTakeHeldActivityEvents: () => takeHeldActivityEvents,
+      useSnackbar: () => ({ enqueueSnackbar, closeSnackbar }),
+      useQueryClient: () => queryClient,
+      useRouter: () => router
     };
 
     const host = () => (
-      <TestContainerProvider services={{ api: () => api }}>
+      <TestContainerProvider services={{ api: () => api, analyticsService: () => analyticsService }}>
         <ActivityHost dependencies={dependencies} />
       </TestContainerProvider>
     );
@@ -442,6 +522,19 @@ describe(ActivityHost.name, () => {
       rerender(host());
     };
 
-    return { useLatestActivitiesQuery, useDeploymentNames, useFlag, enqueueSnackbar, queryClient, api, user, receive };
+    return {
+      useLatestActivitiesQuery,
+      useDeploymentNames,
+      useFlag,
+      enqueueSnackbar,
+      closeSnackbar,
+      router,
+      queryClient,
+      api,
+      user,
+      receive,
+      analyticsService,
+      takeHeldActivityEvents
+    };
   }
 });

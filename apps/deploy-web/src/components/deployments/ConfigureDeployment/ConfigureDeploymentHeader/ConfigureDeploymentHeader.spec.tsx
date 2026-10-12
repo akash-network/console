@@ -42,6 +42,13 @@ describe(ConfigureDeploymentHeader.name, () => {
     expect(screen.queryByRole("button", { name: /request quotes/i })).not.toBeInTheDocument();
   });
 
+  it("shows a disabled Deploying CTA while deploying", () => {
+    setup({ phase: "deploying" });
+
+    expect(screen.getByRole("button", { name: "Deploying" })).toBeDisabled();
+    expect(screen.queryByRole("button", { name: /requesting/i })).not.toBeInTheDocument();
+  });
+
   it("shows Request quotes while configuring", () => {
     setup({ phase: "configuring" });
     expect(screen.getByRole("button", { name: /request quotes/i })).toBeInTheDocument();

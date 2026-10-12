@@ -3,14 +3,19 @@ import { Snackbar } from "@akashnetwork/ui/components";
 import type { QueryKey } from "@tanstack/react-query";
 import { useQueryClient } from "@tanstack/react-query";
 import upperFirst from "lodash/upperFirst";
+import { useRouter } from "next/navigation";
+import type { SnackbarKey } from "notistack";
 import { useSnackbar } from "notistack";
 
+import { type ActivityDestination, activityDestinationOf } from "@src/components/activity/activityDestinations/activityDestinations";
 import { deploymentLabelOf, listOf } from "@src/components/activity/activityLabels/activityLabels";
+import { ActivityToast } from "@src/components/activity/ActivityToast/ActivityToast";
 import { useServices } from "@src/context/ServicesProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { useCloseBatchesBeingSent } from "@src/hooks/useCloseBatches/useCloseBatches";
 import { useDeploymentNames } from "@src/hooks/useDeploymentNames/useDeploymentNames";
 import { useFlag } from "@src/hooks/useFlag";
+import { useTakeHeldActivityEvents } from "@src/hooks/useHeldActivityEvents/useHeldActivityEvents";
 import { useUser } from "@src/hooks/useUser";
 import { QueryKeys } from "@src/queries/queryKeys";
 import { type Activity, useLatestActivitiesQuery } from "@src/queries/useLatestActivitiesQuery";
@@ -22,17 +27,20 @@ export const DEPENDENCIES = {
   useLatestActivitiesQuery,
   useDeploymentNames,
   useCloseBatchesBeingSent,
+  useTakeHeldActivityEvents,
   useSnackbar,
-  useQueryClient
+  useQueryClient,
+  useRouter
 };
 
 type FinishedActivity = Activity & { status: Exclude<Activity["status"], "pending"> };
 
-type Announcement = { title: string; subTitle: string; variant: "success" | "warning" | "error" };
+type Announcement = { title: string; subTitle: string; variant: "success" | "warning" | "error"; destination?: ActivityDestination };
 
 type LabelDeployment = (dseq: string | undefined) => string;
 
-const ANNOUNCEMENTS: Record<Activity["type"], (activity: FinishedActivity, labelDeployment: LabelDeployment) => Announcement> = {
+/** Undefined for an outcome told elsewhere: a deploy that went through is announced once its services are ready. */
+const ANNOUNCEMENTS: Record<Activity["type"], (activity: FinishedActivity, labelDeployment: LabelDeployment) => Announcement | undefined> = {
   deployment_close: ({ status, meta }, labelDeployment) => {
     const deployment = labelDeployment(meta.dseq);
 
@@ -40,12 +48,15 @@ const ANNOUNCEMENTS: Record<Activity["type"], (activity: FinishedActivity, label
       ? { title: `${upperFirst(deployment)} closed`, subTitle: "It no longer runs or costs anything.", variant: "success" }
       : { title: `Couldn't close ${deployment}`, subTitle: meta.error?.message ?? "Try closing it again.", variant: "error" };
   },
-  lease_create: ({ status, meta }, labelDeployment) => {
-    const deployment = labelDeployment(meta.dseq);
+  lease_create: (activity, labelDeployment) => {
+    if (activity.status === "succeeded") return undefined;
 
-    return status === "succeeded"
-      ? { title: `${upperFirst(deployment)} deployed`, subTitle: "Its provider is starting it.", variant: "success" }
-      : { title: `Couldn't deploy ${deployment}`, subTitle: meta.error?.message ?? "Choose a provider again.", variant: "error" };
+    return {
+      title: `Couldn't deploy ${labelDeployment(activity.meta.dseq)}`,
+      subTitle: activity.meta.error?.message ?? "Choose a provider again.",
+      variant: "error",
+      destination: activityDestinationOf(activity)
+    };
   }
 };
 
@@ -75,12 +86,14 @@ export function ActivityHost({ dependencies: d = DEPENDENCIES }: { dependencies?
   const isEnabled = d.useFlag("notifications_activity_center");
   const { user } = d.useUser();
   const { address } = d.useWallet();
-  const { api } = useServices();
+  const { api, analyticsService } = useServices();
   const queryClient = d.useQueryClient();
-  const { enqueueSnackbar } = d.useSnackbar();
+  const { enqueueSnackbar, closeSnackbar } = d.useSnackbar();
+  const router = d.useRouter();
   const { data: activities } = d.useLatestActivitiesQuery({ enabled: isEnabled && !!user?.userId });
   const { getDeploymentName, isLoading: isLoadingDeploymentNames } = d.useDeploymentNames(activities?.map(activity => activity.meta.dseq) ?? []);
   const closeBatchesBeingSent = d.useCloseBatchesBeingSent();
+  const takeHeldActivityEvents = d.useTakeHeldActivityEvents();
   const lastSeenStatuses = useRef<Map<string, Activity["status"]>>();
   const batchesToSumUp = useRef(new Set<string>());
 
@@ -95,6 +108,7 @@ export function ActivityHost({ dependencies: d = DEPENDENCIES }: { dependencies?
         for (const queryKey of queryKeysChangedBy(activity)) {
           queryClient.invalidateQueries({ queryKey });
         }
+        trackHeldEvents(activity);
 
         if (activity.meta.batchId) batchesToSumUp.current.add(activity.meta.batchId);
         else announce(ANNOUNCEMENTS[activity.type](activity, labelDeployment));
@@ -112,8 +126,33 @@ export function ActivityHost({ dependencies: d = DEPENDENCIES }: { dependencies?
         if (first) announce(rest.length > 0 && announceBatch ? announceBatch(batch, labelDeployment) : ANNOUNCEMENTS[first.type](first, labelDeployment));
       }
 
-      function announce({ title, subTitle, variant }: Announcement) {
-        enqueueSnackbar(<Snackbar title={title} subTitle={subTitle} iconVariant={variant} />, { variant });
+      function announce(announcement: Announcement | undefined) {
+        if (!announcement) return;
+
+        const { title, subTitle, variant, destination } = announcement;
+        if (!destination) {
+          enqueueSnackbar(<Snackbar title={title} subTitle={subTitle} iconVariant={variant} />, { variant });
+          return;
+        }
+
+        const key = enqueueSnackbar(
+          <ActivityToast title={title} subTitle={subTitle} iconVariant={variant} actionLabel={destination.label} onAction={() => follow(destination, key)} />,
+          { variant }
+        );
+      }
+
+      function follow({ href }: ActivityDestination, key: SnackbarKey) {
+        router.push(href);
+        closeSnackbar(key);
+      }
+
+      function trackHeldEvents({ id, status }: FinishedActivity) {
+        const events = takeHeldActivityEvents(id);
+        if (status !== "succeeded") return;
+
+        for (const { event, properties } of events) {
+          analyticsService.track(event, properties);
+        }
       }
 
       function labelDeployment(dseq: string | undefined) {
@@ -132,7 +171,21 @@ export function ActivityHost({ dependencies: d = DEPENDENCIES }: { dependencies?
         ];
       }
     },
-    [activities, isLoadingDeploymentNames, getDeploymentName, closeBatchesBeingSent, address, api, enqueueSnackbar, queryClient, user?.id]
+    [
+      activities,
+      isLoadingDeploymentNames,
+      getDeploymentName,
+      closeBatchesBeingSent,
+      takeHeldActivityEvents,
+      address,
+      api,
+      analyticsService,
+      enqueueSnackbar,
+      closeSnackbar,
+      router,
+      queryClient,
+      user?.id
+    ]
   );
 
   return null;

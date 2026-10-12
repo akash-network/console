@@ -356,7 +356,8 @@ describe(useDeploymentFlow.name, () => {
         sealSdlSecrets: async () => "SEALED",
         servicesPatchBetween,
         useFlag: () => false,
-        useLatestActivitiesQuery: () => mock<ReturnType<typeof DEPENDENCIES.useLatestActivitiesQuery>>({ data: undefined })
+        useLatestActivitiesQuery: () => mock<ReturnType<typeof DEPENDENCIES.useLatestActivitiesQuery>>({ data: undefined }),
+        useHoldActivityEvents: () => vi.fn()
       };
       const { result, rerender } = renderDeploymentFlow({ sdlStrategy: "edit", bidStrategy: "select", dseq: "777", vm: false }, dependencies);
       act(() => vi.advanceTimersByTime(60_000));
@@ -466,7 +467,8 @@ describe(useDeploymentFlow.name, () => {
         sealSdlSecrets: async () => "SEALED",
         servicesPatchBetween,
         useFlag: () => false,
-        useLatestActivitiesQuery: () => mock<ReturnType<typeof DEPENDENCIES.useLatestActivitiesQuery>>({ data: undefined })
+        useLatestActivitiesQuery: () => mock<ReturnType<typeof DEPENDENCIES.useLatestActivitiesQuery>>({ data: undefined }),
+        useHoldActivityEvents: () => vi.fn()
       };
       const { result, rerender } = renderDeploymentFlow({ sdlStrategy: "edit", bidStrategy: "select", dseq: "777", vm: false }, dependencies);
       expect(result.current.phase).toBe("quoting");
@@ -1476,6 +1478,190 @@ describe(useDeploymentFlow.name, () => {
       expect(updateDeployment.mutate).not.toHaveBeenCalled();
       expect(createLease.mutate).toHaveBeenCalledWith({ leases: [{ dseq: "555", gseq: 1, oseq: 3, provider: "akash1a" }] }, expect.anything());
     });
+  });
+
+  describe("deploying in the background", () => {
+    const LEASE = { dseq: "555", gseq: 1, oseq: 3, provider: "akash1a" };
+
+    it("asks the api to finish the lease in the background while the activity center is on", async () => {
+      const createLease = mockMutation();
+      const { result, useFlag } = await renderQuotingFlow({ createLease, isActivityCenterOn: true });
+
+      act(() => result.current.actions.deploy("sdl", { inBackground: true }));
+
+      expect(useFlag).toHaveBeenCalledWith("notifications_activity_center");
+      expect(createLease.mutate).toHaveBeenCalledWith({ manifest: "M", leases: [LEASE], async: "true" }, expect.anything());
+      expect(result.current.phase).toBe("deploying");
+      expect(result.current.isDeployingInBackground).toBe(true);
+    });
+
+    it.each([
+      { case: "the activity center is off", isActivityCenterOn: false, inBackground: true },
+      { case: "the caller waits on the lease", isActivityCenterOn: true, inBackground: undefined }
+    ])("creates the lease during the request when $case", async ({ isActivityCenterOn, inBackground }) => {
+      const createLease = mockMutation();
+      const { result } = await renderQuotingFlow({ createLease, isActivityCenterOn });
+
+      act(() => result.current.actions.deploy("sdl", { inBackground }));
+
+      expect(createLease.mutate).toHaveBeenCalledWith({ manifest: "M", leases: [LEASE] }, expect.anything());
+      expect(result.current.isDeployingInBackground).toBe(false);
+    });
+
+    it("sends the user to the deployments list as soon as the api takes the lease on, without waiting to show the deployment", async () => {
+      vi.useFakeTimers();
+      try {
+        const { result, router } = await renderQuotingFlow({ createLease: acceptedLease(), isActivityCenterOn: true });
+
+        await act(async () => result.current.actions.deploy("sdl", { inBackground: true }));
+        act(() => vi.runAllTimers());
+
+        expect(router.replace).toHaveBeenLastCalledWith(UrlService.deploymentList());
+        expect(router.replace).not.toHaveBeenCalledWith(UrlService.deploymentDetails("555", "EVENTS", "events"));
+        expect(result.current.deploySucceeded).toBe(true);
+        expect(result.current.isDeployingInBackground).toBe(true);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("waits for the feed to show the lease underway before sending the user to the list, so the deployment reads as spinning up there", async () => {
+      let refreshFeed = () => {};
+      const { result, router, queryClient } = await renderQuotingFlow({ createLease: acceptedLease(), isActivityCenterOn: true });
+      queryClient.invalidateQueries.mockImplementation(async filters => {
+        if (filters?.queryKey?.[1] === "listActivities") await new Promise<void>(resolve => (refreshFeed = resolve));
+      });
+
+      await act(async () => result.current.actions.deploy("sdl", { inBackground: true }));
+
+      expect(result.current.deploySucceeded).toBe(true);
+      expect(router.replace).not.toHaveBeenCalledWith(UrlService.deploymentList());
+
+      await act(async () => refreshFeed());
+
+      expect(router.replace).toHaveBeenLastCalledWith(UrlService.deploymentList());
+    });
+
+    it("holds the deploy analytics for the lease's activity instead of tracking them when the api takes it on", async () => {
+      const resources = { gpuAmount: 1, cpuAmount: 4, memoryAmount: 2048, storageAmount: 4096 };
+      const { result, holdActivityEvents, analyticsService } = await renderQuotingFlow({
+        createLease: acceptedLease(),
+        isActivityCenterOn: true,
+        deploymentResourcesFromSdl: () => resources
+      });
+
+      await act(async () => result.current.actions.deploy("sdl", { inBackground: true }));
+
+      const leaseProperties = { category: "deployments", label: "Create lease", dseq: "555", ...resources };
+      expect(holdActivityEvents).toHaveBeenCalledWith("activity-1", [
+        { event: "create_lease", properties: leaseProperties },
+        { event: "create_gpu_deployment", properties: leaseProperties },
+        { event: "send_manifest", properties: { category: "deployments", label: "Send manifest after creating lease", dseq: "555" } }
+      ]);
+      expect(analyticsService.track).not.toHaveBeenCalledWith("create_lease", expect.anything());
+      expect(analyticsService.track).not.toHaveBeenCalledWith("send_manifest", expect.anything());
+    });
+
+    it("holds no gpu deploy event for a deployment without a GPU", async () => {
+      const { result, holdActivityEvents } = await renderQuotingFlow({ createLease: acceptedLease(), isActivityCenterOn: true });
+
+      await act(async () => result.current.actions.deploy("sdl", { inBackground: true }));
+
+      expect(holdActivityEvents).toHaveBeenCalledWith("activity-1", [
+        expect.objectContaining({ event: "create_lease" }),
+        expect.objectContaining({ event: "send_manifest" })
+      ]);
+    });
+
+    it("tells the onboarding gate to expect the lease and refreshes the feed and the list the user lands on", async () => {
+      const { result, queryClient } = await renderQuotingFlow({ createLease: acceptedLease(), isActivityCenterOn: true });
+
+      await act(async () => result.current.actions.deploy("sdl", { inBackground: true }));
+
+      expect(queryClient.setQueryData).toHaveBeenCalledWith(QueryKeys.getLeaseExistenceKey("akash1owner"), true);
+      expect(queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: ["v1", "listActivities"] });
+      expect(queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: ["v1", "listDeployments"] });
+      expect(queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: QueryKeys.getDeploymentListKey("akash1owner") });
+    });
+
+    it("leaves the wallet's caches alone while the wallet is not known yet", async () => {
+      const { result, queryClient, router } = await renderQuotingFlow({ createLease: acceptedLease(), isActivityCenterOn: true, settingsId: null });
+
+      await act(async () => result.current.actions.deploy("sdl", { inBackground: true }));
+
+      expect(queryClient.setQueryData).not.toHaveBeenCalled();
+      expect(queryClient.invalidateQueries).not.toHaveBeenCalledWith({ queryKey: expect.arrayContaining(["DEPLOYMENT_LIST"]) });
+      expect(router.replace).toHaveBeenLastCalledWith(UrlService.deploymentList());
+    });
+
+    it("finishes the deploy as it does without the activity center when the api creates the lease during the request after all", async () => {
+      vi.useFakeTimers();
+      try {
+        const createLease = mockMutation(vi.fn((_i, o) => o.onSuccess(deployedResult("akash1owner"))));
+        const { result, router, analyticsService, holdActivityEvents } = await renderQuotingFlow({ createLease, isActivityCenterOn: true });
+
+        act(() => result.current.actions.deploy("sdl", { inBackground: true }));
+
+        expect(result.current.deploySucceeded).toBe(true);
+        expect(result.current.isDeployingInBackground).toBe(false);
+        expect(analyticsService.track).toHaveBeenCalledWith("create_lease", expect.objectContaining({ dseq: "555" }));
+        expect(holdActivityEvents).not.toHaveBeenCalled();
+
+        act(() => vi.runAllTimers());
+        expect(router.replace).toHaveBeenLastCalledWith(UrlService.deploymentDetails("555", "EVENTS", "events"));
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("stays on the provider step with the api's reason when other bids of the deployment are already being leased", async () => {
+      const conflict = new ApiError(409, { message: "A lease is already being created for this deployment" }, "POST /v1/leases → 409");
+      const createLease = mockMutation(vi.fn((_i, o) => o.onError(conflict)));
+      const { result, router, holdActivityEvents } = await renderQuotingFlow({ createLease, isActivityCenterOn: true });
+
+      act(() => result.current.actions.deploy("sdl", { inBackground: true }));
+
+      expect(result.current.phase).toBe("quoting");
+      expect(result.current.deployError).toEqual({ message: "A lease is already being created for this deployment" });
+      expect(router.replace).not.toHaveBeenCalledWith(UrlService.deploymentList());
+      expect(holdActivityEvents).not.toHaveBeenCalled();
+    });
+
+    it("finishes the update before the lease, and sends the user away only once the api has taken the lease on", async () => {
+      const patch = deferredMutate();
+      const createLease = acceptedLease();
+      const { result, router } = await renderQuotingFlow({
+        createLease,
+        patchDeployment: mockMutation(patch.mutate),
+        isActivityCenterOn: true,
+        manifestFromSdl: () => "M2",
+        servicesPatchBetween: () => ({ web: { env: { FOO: "bar" } } })
+      });
+
+      act(() => result.current.actions.deploy("sdl-b", { inBackground: true }));
+      await waitFor(() => expect(patch.calls).toHaveLength(1));
+
+      expect(createLease.mutate).not.toHaveBeenCalled();
+      expect(router.replace).not.toHaveBeenCalledWith(UrlService.deploymentList());
+
+      await act(async () => patch.calls[0].options.onSuccess?.({}));
+
+      expect(createLease.mutate).toHaveBeenCalledWith({ manifest: "M2", leases: [LEASE], async: "true" }, expect.anything());
+      expect(router.replace).toHaveBeenLastCalledWith(UrlService.deploymentList());
+    });
+
+    function acceptedLease() {
+      return mockMutation(vi.fn((_i, o) => o.onSuccess({ data: { activityId: "activity-1" } })));
+    }
+
+    async function renderQuotingFlow(input: NonNullable<Parameters<typeof renderFlow>[0]>) {
+      const createDeployment = mockMutation(vi.fn((_i, o) => o.onSuccess({ data: { dseq: "555", manifest: "M" } })));
+      const flow = renderFlow({ createDeployment, ...input });
+      act(() => flow.result.current.actions.requestQuotes("sdl"));
+      await settleSeal();
+      act(() => flow.result.current.actions.selectProvider("placement-1", "akash1a/555/1/3"));
+      return flow;
+    }
   });
 
   describe("deploy funnel analytics", () => {
@@ -2523,7 +2709,8 @@ describe(useDeploymentFlow.name, () => {
       sealSdlSecrets,
       servicesPatchBetween,
       useFlag,
-      useLatestActivitiesQuery
+      useLatestActivitiesQuery,
+      useHoldActivityEvents: () => vi.fn()
     };
     return {
       services,
@@ -2555,11 +2742,14 @@ describe(useDeploymentFlow.name, () => {
     sealSdlSecrets?: typeof DEPENDENCIES.sealSdlSecrets;
     servicesPatchBetween?: typeof DEPENDENCIES.servicesPatchBetween;
     settingsId?: string | null;
+    isActivityCenterOn?: boolean;
   }) {
     const getSdlSecretsContext = mockSealContextMutation();
     const intent: DeploymentIntent = { sdlStrategy: "edit", bidStrategy: "select", dseq: undefined, vm: false, ...input?.intent };
     const router = mock<ReturnType<typeof DEPENDENCIES.useRouter>>({ replace: vi.fn(), push: vi.fn() });
     const queryClient = mock<ReturnType<typeof DEPENDENCIES.useQueryClient>>();
+    const holdActivityEvents = vi.fn<ReturnType<typeof DEPENDENCIES.useHoldActivityEvents>>();
+    const useFlag = vi.fn((_flag: string) => input?.isActivityCenterOn ?? false);
     const services = mockServices({
       createDeployment: input?.createDeployment,
       closeDeployment: input?.closeDeployment,
@@ -2579,14 +2769,17 @@ describe(useDeploymentFlow.name, () => {
       deploymentResourcesFromSdl: input?.deploymentResourcesFromSdl ?? (() => ({ gpuAmount: 0, cpuAmount: 0, memoryAmount: 0, storageAmount: 0 })),
       sealSdlSecrets,
       servicesPatchBetween: input?.servicesPatchBetween ?? servicesPatchBetween,
-      useFlag: () => false,
-      useLatestActivitiesQuery: () => mock<ReturnType<typeof DEPENDENCIES.useLatestActivitiesQuery>>({ data: undefined })
+      useFlag,
+      useLatestActivitiesQuery: () => mock<ReturnType<typeof DEPENDENCIES.useLatestActivitiesQuery>>({ data: undefined }),
+      useHoldActivityEvents: () => holdActivityEvents
     };
     const utils = renderDeploymentFlow(intent, dependencies, input?.settingsId);
     return {
       ...utils,
       router,
       queryClient,
+      holdActivityEvents,
+      useFlag,
       services,
       sealSdlSecrets,
       getSdlSecretsContext,
@@ -2607,7 +2800,8 @@ describe(useDeploymentFlow.name, () => {
       sealSdlSecrets: async () => "SEALED",
       servicesPatchBetween,
       useFlag: () => false,
-      useLatestActivitiesQuery: () => mock<ReturnType<typeof DEPENDENCIES.useLatestActivitiesQuery>>({ data: undefined })
+      useLatestActivitiesQuery: () => mock<ReturnType<typeof DEPENDENCIES.useLatestActivitiesQuery>>({ data: undefined }),
+      useHoldActivityEvents: () => vi.fn()
     };
     return {
       ...renderDeploymentFlow({ sdlStrategy: "edit", bidStrategy: "select", dseq: "777", vm: false }, dependencies),

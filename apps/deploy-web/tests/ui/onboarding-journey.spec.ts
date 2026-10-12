@@ -77,8 +77,8 @@ test.describe("Onboarding journey — new user's first deployment", () => {
     await test.step("selecting a provider creates the lease and lands on the deployment", async () => {
       await configure.selectFirstAvailableProvider();
       await expect(configure.reviewDialog()).toBeVisible({ timeout: 30_000 });
-      await configure.confirmAndDeploy();
-      await page.waitForURL(new RegExp(`/deployments/${dseq}(?:[/?]|$)`), { timeout: 180_000 });
+      await configure.confirmAndOpenDeployment(dseq!);
+      await page.waitForURL(new RegExp(`/deployments/${dseq}(?:[/?]|$)`), { timeout: 30_000 });
     });
 
     await test.step("having deployed once, revisiting onboarding sends the user into the console", async () => {
