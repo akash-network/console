@@ -123,7 +123,7 @@ describe(ActivityService.name, () => {
       });
     });
 
-    it("settles an activity still pending without the dedupe key another row already holds, so it never stays pending", async () => {
+    it("settles the activity without the dedupe key another row already holds, over the same statuses the caller allows", async () => {
       const { service, activityRepository, logger } = setup();
       activityRepository.updateByIdIfStatusIn.mockRejectedValueOnce(createUniqueViolation(ACTIVITIES_DEDUPE_KEY_INDEX));
 
@@ -131,7 +131,8 @@ describe(ActivityService.name, () => {
         from: ["pending", "failed"]
       });
 
-      expect(activityRepository.updateByIdIfStatusIn).toHaveBeenLastCalledWith("activity-1", ["pending"], {
+      expect(activityRepository.updateByIdIfStatusIn).toHaveBeenCalledTimes(2);
+      expect(activityRepository.updateByIdIfStatusIn).toHaveBeenLastCalledWith("activity-1", ["pending", "failed"], {
         status: "succeeded",
         meta: { dseq: "100" },
         dedupeKey: null

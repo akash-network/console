@@ -43,7 +43,7 @@ export class ActivityService {
     return await this.activityRepository.findOneBy({ userId, dedupeKey });
   }
 
-  /** Guarded on `pending` unless told otherwise, so a late or repeated settle never overwrites an outcome already recorded; when another row already holds the dedupe key, a pending row still settles without it, so it never stays pending. */
+  /** Guarded on `pending` unless told otherwise, so a late or repeated settle never overwrites an outcome already recorded; when another row already holds the dedupe key, the row still settles without it. */
   async settle(
     id: string,
     { status, meta, dedupeKey }: Pick<NewActivity, "status" | "meta" | "dedupeKey">,
@@ -54,7 +54,7 @@ export class ActivityService {
     } catch (error) {
       if (!isDedupeKeyTaken(error)) throw error;
       this.#logger.info({ event: "ACTIVITY_SETTLE_DEDUPED", activityId: id, status, dedupeKey });
-      await this.activityRepository.updateByIdIfStatusIn(id, ["pending"], { status, meta, dedupeKey: null });
+      await this.activityRepository.updateByIdIfStatusIn(id, from, { status, meta, dedupeKey: null });
     }
   }
 
