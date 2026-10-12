@@ -39,7 +39,34 @@ describe(activityEntriesOf.name, () => {
     expect(entry.detail).toBe("Try closing it again.");
   });
 
-  it("describes an alert that fired by its summary, linking to the deployment it is about", () => {
+  it("describes a deployment-closed alert by the deployment it names, linking to that deployment", () => {
+    const activity = buildActivity({
+      type: "deployment_closed_alert",
+      status: "info",
+      meta: { alertId: "4f1c2a8e-0b5d-4e6f-9a7b-1c2d3e4f5a6b", summary: "Deployment 1234 is now closed", dseq: "1234" }
+    });
+
+    expect(entriesOf([activity])).toEqual([
+      { id: activity.id, status: "info", title: "“web-1234” was closed", href: "/deployments/1234", createdAt: activity.createdAt }
+    ]);
+  });
+
+  it("starts a deployment alert with a capital letter when the deployment has no name", () => {
+    const activity = buildActivity({ type: "deployment_closed_alert", status: "info", meta: { summary: "Deployment 1234 is now closed", dseq: "1234" } });
+
+    const [entry] = activityEntriesOf([activity], dseq => `deployment ${dseq}`, 10);
+
+    expect(entry.title).toBe("Deployment 1234 was closed");
+  });
+
+  it("describes a deployment alert naming no deployment by its summary", () => {
+    const [entry] = entriesOf([buildActivity({ type: "deployment_closed_alert", status: "info", meta: { summary: "Your deployment is now closed" } })]);
+
+    expect(entry).toEqual(expect.objectContaining({ title: "Your deployment is now closed", href: "/deployments" }));
+    expect(entry).not.toHaveProperty("detail");
+  });
+
+  it("describes a reclaim alert by the deployment it names, linking to that deployment", () => {
     const activity = buildActivity({
       type: "deployment_reclaim_alert",
       status: "info",
@@ -47,7 +74,14 @@ describe(activityEntriesOf.name, () => {
     });
 
     expect(entriesOf([activity])).toEqual([
-      { id: activity.id, status: "info", title: "Deployment 1234 is being reclaimed by the provider", href: "/deployments/1234", createdAt: activity.createdAt }
+      {
+        id: activity.id,
+        status: "info",
+        title: "“web-1234” is being reclaimed by the provider",
+        detail: "Take action before the lease is closed.",
+        href: "/deployments/1234",
+        createdAt: activity.createdAt
+      }
     ]);
   });
 
