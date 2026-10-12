@@ -59,8 +59,32 @@ describe("createProxy", () => {
     expect(result.status).toBe(204);
   });
 
+  it("forwards the identity it minted for the caller in place of every identity header the client sent", async () => {
+    const { handler, context, fetchMock, userId, owner } = setupProxyTest({
+      method: "GET",
+      clientHeaders: {
+        "x-user-id": faker.string.uuid(),
+        "x-owner-address": createAkashAddress(),
+        "x-organization-id": faker.string.uuid(),
+        "x-organization-role": "owner",
+        "x-project-scope": "all",
+        "x-project-id": faker.string.uuid()
+      }
+    });
+
+    await handler(context);
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({
+        headers: { "x-custom": expect.any(String), "x-user-id": userId, "x-owner-address": owner }
+      })
+    );
+  });
+
   type SetupOptions = {
     method?: string;
+    clientHeaders?: Record<string, string>;
   };
 
   function setupProxyTest(options: SetupOptions = {}) {
@@ -97,7 +121,7 @@ describe("createProxy", () => {
         method,
         url: fullUrl,
         raw: {
-          headers: new Headers({ "x-custom": faker.internet.domainWord() })
+          headers: new Headers({ "x-custom": faker.internet.domainWord(), ...options.clientHeaders })
         },
         text: async () => JSON.stringify(body)
       },
