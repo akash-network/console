@@ -28,6 +28,14 @@ describe(ActivityFeedClient.name, () => {
     ]);
   });
 
+  it("posts to the same path when the console-api base url ends with slashes", async () => {
+    const { client, received } = await setup({ baseUrlSuffix: "//" });
+
+    await client.addAlert(createAlertActivity());
+
+    expect(received.map(request => request.url)).toEqual(["/internal/activities"]);
+  });
+
   it("fails with what console-api answered when it refuses the alert", async () => {
     const { client } = await setup({
       respond: response => {
@@ -77,6 +85,7 @@ describe(ActivityFeedClient.name, () => {
 
   async function setup(input: {
     baseUrl?: string;
+    baseUrlSuffix?: string;
     token?: string;
     timeoutMs?: number;
     respond?: (response: ServerResponse, request: IncomingMessage) => void;
@@ -109,7 +118,8 @@ describe(ActivityFeedClient.name, () => {
 
     const token = faker.string.alphanumeric(32);
     const config: Record<string, unknown> = {
-      "notifications.CONSOLE_API_BASE_URL": "baseUrl" in input ? input.baseUrl : `http://127.0.0.1:${(server.address() as AddressInfo).port}`,
+      "notifications.CONSOLE_API_BASE_URL":
+        "baseUrl" in input ? input.baseUrl : `http://127.0.0.1:${(server.address() as AddressInfo).port}${input.baseUrlSuffix ?? ""}`,
       "notifications.CONSOLE_API_INTERNAL_TOKEN": "token" in input ? input.token : token,
       "notifications.CONSOLE_API_TIMEOUT_MS": input.timeoutMs ?? 2000
     };

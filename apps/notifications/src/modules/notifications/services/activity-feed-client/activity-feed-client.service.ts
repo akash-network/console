@@ -30,7 +30,7 @@ export class ActivityFeedClient {
       throw new Error("CONSOLE_API_BASE_URL and CONSOLE_API_INTERNAL_TOKEN must both be set to write to the activity feed");
     }
 
-    const response = await fetch(`${baseUrl}/internal/activities`, {
+    const response = await fetch(`${baseUrl.replace(/\/+$/, "")}/internal/activities`, {
       method: "POST",
       headers: { "content-type": "application/json", [INTERNAL_TOKEN_HEADER]: token },
       body: JSON.stringify({ ...activity, status: "info" }),
