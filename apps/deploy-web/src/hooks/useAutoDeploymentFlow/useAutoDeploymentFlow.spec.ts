@@ -558,6 +558,7 @@ describe(useAutoDeploymentFlow.name, () => {
         selections,
         bids: phase === "quoting" ? bids : [],
         deploySucceeded,
+        isDeployedInBackground: false,
         noBidsReceived: false,
         deployError,
         error,

@@ -13,7 +13,7 @@ import { act, renderHook } from "@testing-library/react";
 const GENERATED_SDL = 'version: "2.0" # generated';
 
 describe(useRetryDeploy.name, () => {
-  it("re-fires the deploy with the sealed SDL generated from the current form values and the typed secret values", () => {
+  it("re-fires the deploy with the sealed SDL generated from the current form values and the typed secret values, letting it finish in the background", () => {
     const resolveSdlSecrets = vi.fn(() => ({ references: new Map(), values: { API_KEY: "hunter2" }, unresolved: [] }));
     const { deploy, retry, generateSdl } = setup({ resolveSdlSecrets });
 
@@ -21,7 +21,7 @@ describe(useRetryDeploy.name, () => {
 
     expect(resolveSdlSecrets).toHaveBeenCalledWith(expect.anything(), { sealSecrets: true });
 
-    expect(deploy).toHaveBeenCalledWith(GENERATED_SDL, { secrets: { API_KEY: "hunter2" }, unresolvedSecrets: [] });
+    expect(deploy).toHaveBeenCalledWith(GENERATED_SDL, { secrets: { API_KEY: "hunter2" }, unresolvedSecrets: [], inBackground: true });
     expect(generateSdl).toHaveBeenCalledWith(expect.anything(), { sealSecrets: true });
   });
 
@@ -33,7 +33,7 @@ describe(useRetryDeploy.name, () => {
 
     retry();
 
-    expect(deploy).toHaveBeenCalledWith(GENERATED_SDL, { secrets: {}, unresolvedSecrets: unresolved });
+    expect(deploy).toHaveBeenCalledWith(GENERATED_SDL, { secrets: {}, unresolvedSecrets: unresolved, inBackground: true });
   });
 
   function setup(input: { resolveSdlSecrets?: typeof DEPENDENCIES.resolveSdlSecrets }) {

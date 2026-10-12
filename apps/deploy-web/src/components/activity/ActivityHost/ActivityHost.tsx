@@ -1,5 +1,4 @@
 import { useEffect, useRef } from "react";
-import { Button, Snackbar } from "@akashnetwork/ui/components";
 import type { QueryKey } from "@tanstack/react-query";
 import { useQueryClient } from "@tanstack/react-query";
 import upperFirst from "lodash/upperFirst";
@@ -9,13 +8,14 @@ import { useSnackbar } from "notistack";
 
 import { type ActivityDestination, activityDestinationOf, SUMMARY_DESTINATION } from "@src/components/activity/activityDestinations/activityDestinations";
 import { deploymentLabelOf, listOf, systemCloseOf } from "@src/components/activity/activityLabels/activityLabels";
+import { ActivityToast } from "@src/components/activity/ActivityToast/ActivityToast";
 import { useServices } from "@src/context/ServicesProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { useCloseBatchesBeingSent } from "@src/hooks/useCloseBatches/useCloseBatches";
 import { useDeploymentNames } from "@src/hooks/useDeploymentNames/useDeploymentNames";
 import { useFlag } from "@src/hooks/useFlag";
 import { useHandledActivityOutcomes } from "@src/hooks/useHandledActivityOutcomes/useHandledActivityOutcomes";
-import { useTakeHeldCreateEvent } from "@src/hooks/useHeldCreateEvents/useHeldCreateEvents";
+import { useTakeHeldActivityEvents } from "@src/hooks/useHeldActivityEvents/useHeldActivityEvents";
 import { useUser } from "@src/hooks/useUser";
 import { QueryKeys } from "@src/queries/queryKeys";
 import { type Activity, useLatestActivitiesQuery } from "@src/queries/useLatestActivitiesQuery";
@@ -28,7 +28,7 @@ export const DEPENDENCIES = {
   useDeploymentNames,
   useCloseBatchesBeingSent,
   useHandledActivityOutcomes,
-  useTakeHeldCreateEvent,
+  useTakeHeldActivityEvents,
   useSnackbar,
   useQueryClient,
   useRouter
@@ -40,7 +40,8 @@ type Announcement = { title: string; subTitle: string; variant: "success" | "inf
 
 type LabelDeployment = (dseq: string | undefined) => string;
 
-const ANNOUNCEMENTS: Record<FinishedActivity["type"], (activity: FinishedActivity, labelDeployment: LabelDeployment) => Announcement> = {
+/** Undefined for an outcome told elsewhere: a deploy that went through is announced once its services are ready. */
+const ANNOUNCEMENTS: Record<FinishedActivity["type"], (activity: FinishedActivity, labelDeployment: LabelDeployment) => Announcement | undefined> = {
   deployment_close: ({ status, initiator, meta }, labelDeployment) => {
     const deployment = labelDeployment(meta.dseq);
 
@@ -68,11 +69,9 @@ const ANNOUNCEMENTS: Record<FinishedActivity["type"], (activity: FinishedActivit
       : { title: `Couldn't update ${deployment}`, subTitle: meta.error?.message ?? "Try updating it again.", variant: "error" };
   },
   lease_create: ({ status, meta }, labelDeployment) => {
-    const deployment = labelDeployment(meta.dseq);
+    if (status === "succeeded") return undefined;
 
-    return status === "succeeded"
-      ? { title: `${upperFirst(deployment)} deployed`, subTitle: "Its provider is starting it.", variant: "success" }
-      : { title: `Couldn't deploy ${deployment}`, subTitle: meta.error?.message ?? "Choose a provider again.", variant: "error" };
+    return { title: `Couldn't deploy ${labelDeployment(meta.dseq)}`, subTitle: meta.error?.message ?? "Choose a provider again.", variant: "error" };
   }
 };
 
@@ -109,7 +108,7 @@ export function ActivityHost({ dependencies: d = DEPENDENCIES }: { dependencies?
   const { getDeploymentName, isLoading: isLoadingDeploymentNames } = d.useDeploymentNames(activities?.map(activity => activity.meta.dseq) ?? []);
   const closeBatchesBeingSent = d.useCloseBatchesBeingSent();
   const { isOutcomeHandled, isFollowedOnItsPage, forgetHandledOutcome } = d.useHandledActivityOutcomes();
-  const takeHeldCreateEvent = d.useTakeHeldCreateEvent();
+  const takeHeldActivityEvents = d.useTakeHeldActivityEvents();
   const lastSeenStatuses = useRef<Map<string, Activity["status"]>>();
   const batchesToSumUp = useRef(new Set<string>());
 
@@ -125,7 +124,7 @@ export function ActivityHost({ dependencies: d = DEPENDENCIES }: { dependencies?
         for (const queryKey of queryKeysChangedBy(activity)) {
           queryClient.invalidateQueries({ queryKey });
         }
-        trackHeldCreateEvent(activity);
+        trackHeldEvents(activity);
 
         if (activity.meta.batchId) {
           batchesToSumUp.current.add(activity.meta.batchId);
@@ -154,7 +153,8 @@ export function ActivityHost({ dependencies: d = DEPENDENCIES }: { dependencies?
       }
 
       function announceActivity(activity: FinishedActivity) {
-        announce(ANNOUNCEMENTS[activity.type](activity, labelDeployment), activityDestinationOf(activity));
+        const announcement = ANNOUNCEMENTS[activity.type](activity, labelDeployment);
+        if (announcement) announce(announcement, activityDestinationOf(activity));
       }
 
       function announce({ title, subTitle, variant }: Announcement, destination: ActivityDestination) {
@@ -169,9 +169,13 @@ export function ActivityHost({ dependencies: d = DEPENDENCIES }: { dependencies?
         closeSnackbar(key);
       }
 
-      function trackHeldCreateEvent({ id, status }: FinishedActivity) {
-        const createdEvent = takeHeldCreateEvent(id);
-        if (createdEvent && status === "succeeded") analyticsService.track("create_deployment", createdEvent);
+      function trackHeldEvents({ id, status }: FinishedActivity) {
+        const heldEvents = takeHeldActivityEvents(id);
+        if (status !== "succeeded") return;
+
+        for (const { event, properties } of heldEvents) {
+          analyticsService.track(event, properties);
+        }
       }
 
       function labelDeployment(dseq: string | undefined) {
@@ -198,7 +202,7 @@ export function ActivityHost({ dependencies: d = DEPENDENCIES }: { dependencies?
       isOutcomeHandled,
       isFollowedOnItsPage,
       forgetHandledOutcome,
-      takeHeldCreateEvent,
+      takeHeldActivityEvents,
       address,
       api,
       analyticsService,
@@ -211,35 +215,6 @@ export function ActivityHost({ dependencies: d = DEPENDENCIES }: { dependencies?
   );
 
   return null;
-}
-
-function ActivityToast({
-  title,
-  subTitle,
-  iconVariant,
-  actionLabel,
-  onAction
-}: {
-  title: string;
-  subTitle: string;
-  iconVariant: Announcement["variant"];
-  actionLabel: string;
-  onAction: () => void;
-}) {
-  return (
-    <Snackbar
-      title={title}
-      iconVariant={iconVariant}
-      subTitle={
-        <>
-          <div>{subTitle}</div>
-          <Button className="mt-2 h-7 px-3 text-xs" onClick={onAction}>
-            {actionLabel}
-          </Button>
-        </>
-      }
-    />
-  );
 }
 
 /** An action never seen before counts too, so one that finished between two checks, or a close Console made, is still announced, unless the page that sent it already showed how it ended. */

@@ -4,9 +4,10 @@ import { describe, expect, it, vi } from "vitest";
 import { mock, mockDeep } from "vitest-mock-extended";
 
 import type { AppDIContainer } from "@src/context/ServicesProvider/ServicesProvider";
+import type { HeldActivityEvent } from "@src/hooks/useHeldActivityEvents/useHeldActivityEvents";
 import { QueryKeys } from "@src/queries/queryKeys";
 import type { Activity, ActivityOfAnyType } from "@src/queries/useLatestActivitiesQuery";
-import type { AnalyticsService, EventProperties } from "@src/services/analytics/analytics.service";
+import type { AnalyticsService } from "@src/services/analytics/analytics.service";
 import { createApiSdk } from "@src/services/api-sdk/createApiSdk";
 import { ActivityHost, DEPENDENCIES } from "./ActivityHost";
 
@@ -151,30 +152,55 @@ describe(ActivityHost.name, () => {
     expect(push).toHaveBeenCalledWith("/new-deployment/configure");
   });
 
-  describe("with the create_deployment event a page held for a background create", () => {
-    it("tracks it once the create succeeds", () => {
+  describe("with the analytics a page held for an action it sent to the background", () => {
+    it("tracks the create_deployment event once the create succeeds", () => {
       const pending = buildActivity({ id: "activity-1", type: "deployment_create", status: "pending", meta: { dseq: "1234" } });
       const createdEvent = { category: "deployments" as const, dseq: "1234", secretCount: 0 };
-      const { receive, analyticsService, takeHeldCreateEvent } = setup({ activities: [pending], heldCreateEvents: { "activity-1": createdEvent } });
+      const { receive, analyticsService, takeHeldActivityEvents } = setup({
+        activities: [pending],
+        heldEvents: { "activity-1": [{ event: "create_deployment", properties: createdEvent }] }
+      });
 
       receive([{ ...pending, status: "succeeded" }]);
 
-      expect(takeHeldCreateEvent).toHaveBeenCalledWith("activity-1");
+      expect(takeHeldActivityEvents).toHaveBeenCalledWith("activity-1");
       expect(analyticsService.track).toHaveBeenCalledTimes(1);
       expect(analyticsService.track).toHaveBeenCalledWith("create_deployment", createdEvent);
     });
 
-    it("drops it without tracking once the create fails", () => {
+    it("tracks each event of a deploy once the deploy succeeds", () => {
+      const pending = buildActivity({ id: "activity-1", type: "lease_create", status: "pending", meta: { dseq: "1234" } });
+      const { receive, analyticsService } = setup({
+        activities: [pending],
+        heldEvents: {
+          "activity-1": [
+            { event: "create_lease", properties: { category: "deployments", dseq: "1234" } },
+            { event: "send_manifest", properties: { category: "deployments", dseq: "1234" } }
+          ]
+        }
+      });
+
+      receive([{ ...pending, status: "succeeded" }]);
+
+      expect(analyticsService.track).toHaveBeenCalledTimes(2);
+      expect(analyticsService.track).toHaveBeenCalledWith("create_lease", { category: "deployments", dseq: "1234" });
+      expect(analyticsService.track).toHaveBeenCalledWith("send_manifest", { category: "deployments", dseq: "1234" });
+    });
+
+    it("drops them without tracking once the action fails", () => {
       const pending = buildActivity({ id: "activity-1", type: "deployment_create", status: "pending", meta: { dseq: "1234" } });
-      const { receive, analyticsService, takeHeldCreateEvent } = setup({ activities: [pending], heldCreateEvents: { "activity-1": { dseq: "1234" } } });
+      const { receive, analyticsService, takeHeldActivityEvents } = setup({
+        activities: [pending],
+        heldEvents: { "activity-1": [{ event: "create_deployment", properties: { dseq: "1234" } }] }
+      });
 
       receive([{ ...pending, status: "failed" }]);
 
-      expect(takeHeldCreateEvent).toHaveBeenCalledWith("activity-1");
+      expect(takeHeldActivityEvents).toHaveBeenCalledWith("activity-1");
       expect(analyticsService.track).not.toHaveBeenCalled();
     });
 
-    it("tracks nothing for a create no page here held an event for", () => {
+    it("tracks nothing for an action no page here held events for", () => {
       const pending = buildActivity({ id: "activity-1", type: "deployment_create", status: "pending", meta: { dseq: "1234" } });
       const { receive, analyticsService } = setup({ activities: [pending] });
 
@@ -263,18 +289,35 @@ describe(ActivityHost.name, () => {
     });
   });
 
-  it("announces a deployment whose lease was created and manifest sent", () => {
+  it("announces nothing for a deploy that went through, whose services being ready is what gets announced, but refreshes its data", () => {
     const pending = buildActivity({ type: "lease_create", status: "pending", meta: { dseq: "1234" } });
-    const { enqueueSnackbar, receive } = setup({ activities: [pending], names: { "1234": "storefront" } });
+    const { enqueueSnackbar, queryClient, receive, api } = setup({ activities: [pending], names: { "1234": "storefront" } });
 
     receive([{ ...pending, status: "succeeded" }]);
 
-    expect(enqueueSnackbar).toHaveBeenCalledWith(
-      expect.objectContaining({
-        props: expect.objectContaining({ title: "“storefront” deployed", subTitle: "Its provider is starting it.", iconVariant: "success" })
-      }),
-      { variant: "success" }
-    );
+    expect(enqueueSnackbar).not.toHaveBeenCalled();
+    expect(invalidatedKeysOf(queryClient)).toEqual(expect.arrayContaining([api.v1.listDeployments.getKey(), QueryKeys.getLeasesKey(OWNER, "1234")]));
+  });
+
+  it("leads a failed deploy back to choosing a provider for it from its toast, and dismisses the toast", async () => {
+    const pending = buildActivity({ type: "lease_create", status: "pending", meta: { dseq: "1234" } });
+    const { receive, followToastAction, push, closeSnackbar } = setup({ activities: [pending] });
+
+    receive([{ ...pending, status: "failed", meta: { dseq: "1234", error: { code: "lease_not_created", message: "The bid was closed." } } }]);
+    await followToastAction("Choose a provider");
+
+    expect(push).toHaveBeenCalledWith("/new-deployment/configure/1234");
+    expect(closeSnackbar).toHaveBeenCalledWith(TOAST_KEY);
+  });
+
+  it("opens the deployment from the toast of a deploy whose provider never received it, since its lease exists", async () => {
+    const pending = buildActivity({ type: "lease_create", status: "pending", meta: { dseq: "1234" } });
+    const { receive, followToastAction, push } = setup({ activities: [pending] });
+
+    receive([{ ...pending, status: "failed", meta: { dseq: "1234", error: { code: "manifest_not_delivered", message: "The provider did not answer." } } }]);
+    await followToastAction("View deployment");
+
+    expect(push).toHaveBeenCalledWith("/deployments/1234");
   });
 
   it("announces a deployment whose lease could not be created with the reason it failed", () => {
@@ -382,13 +425,13 @@ describe(ActivityHost.name, () => {
 
   it("announces a deploy it saw running in the background, and forgets the outcome its page marked", () => {
     const pending = buildActivity({ type: "lease_create", status: "pending", meta: { dseq: "1234" } });
-    const settled = { ...pending, status: "succeeded" as const };
+    const settled = { ...pending, status: "failed" as const };
     const { enqueueSnackbar, receive, forgetHandledOutcome } = setup({ activities: [pending], handled: [settled] });
 
     receive([settled]);
 
-    expect(enqueueSnackbar).toHaveBeenCalledWith(expect.objectContaining({ props: expect.objectContaining({ title: "Deployment 1234 deployed" }) }), {
-      variant: "success"
+    expect(enqueueSnackbar).toHaveBeenCalledWith(expect.objectContaining({ props: expect.objectContaining({ title: "Couldn't deploy deployment 1234" }) }), {
+      variant: "error"
     });
     expect(forgetHandledOutcome).toHaveBeenCalledWith(settled);
   });
@@ -421,13 +464,13 @@ describe(ActivityHost.name, () => {
   });
 
   it("announces a deploy that ended differently from what its page showed", () => {
-    const deployed = buildActivity({ type: "lease_create", status: "succeeded", meta: { dseq: "1234" } });
-    const { enqueueSnackbar, receive } = setup({ activities: [], handled: [{ ...deployed, status: "failed" }] });
+    const failed = buildActivity({ type: "lease_create", status: "failed", meta: { dseq: "1234" } });
+    const { enqueueSnackbar, receive } = setup({ activities: [], handled: [{ ...failed, status: "succeeded" }] });
 
-    receive([deployed]);
+    receive([failed]);
 
-    expect(enqueueSnackbar).toHaveBeenCalledWith(expect.objectContaining({ props: expect.objectContaining({ title: "Deployment 1234 deployed" }) }), {
-      variant: "success"
+    expect(enqueueSnackbar).toHaveBeenCalledWith(expect.objectContaining({ props: expect.objectContaining({ title: "Couldn't deploy deployment 1234" }) }), {
+      variant: "error"
     });
   });
 
@@ -774,7 +817,7 @@ describe(ActivityHost.name, () => {
         useDeploymentNames,
         useCloseBatchesBeingSent: () => new Set(),
         useHandledActivityOutcomes: () => ({ isOutcomeHandled: () => false, isFollowedOnItsPage: () => false, forgetHandledOutcome: vi.fn() }),
-        useTakeHeldCreateEvent: () => vi.fn(),
+        useTakeHeldActivityEvents: () => () => [],
         useSnackbar: () => ({ enqueueSnackbar, closeSnackbar: vi.fn() }),
         useQueryClient: () => queryClient,
         useRouter: () => mock<ReturnType<typeof DEPENDENCIES.useRouter>>()
@@ -807,7 +850,7 @@ describe(ActivityHost.name, () => {
       activities?: Activity[];
       address?: string;
       names?: Record<string, string>;
-      heldCreateEvents?: Record<string, EventProperties>;
+      heldEvents?: Record<string, HeldActivityEvent[]>;
       handled?: Activity[];
       followed?: string[];
     } = {}
@@ -831,7 +874,7 @@ describe(ActivityHost.name, () => {
     const enqueueSnackbar = vi.fn().mockReturnValue(TOAST_KEY);
     const closeSnackbar = vi.fn();
     const push = vi.fn();
-    const takeHeldCreateEvent = vi.fn((activityId: string) => input.heldCreateEvents?.[activityId]);
+    const takeHeldActivityEvents = vi.fn((activityId: string) => input.heldEvents?.[activityId] ?? []);
     const analyticsService = mock<AnalyticsService>();
     const queryClient = mock<ReturnType<typeof DEPENDENCIES.useQueryClient>>();
     const api = mockDeep<AppDIContainer["api"]>();
@@ -847,7 +890,7 @@ describe(ActivityHost.name, () => {
       useDeploymentNames,
       useCloseBatchesBeingSent: () => closeBatchesBeingSent,
       useHandledActivityOutcomes: () => ({ isOutcomeHandled, isFollowedOnItsPage, forgetHandledOutcome }),
-      useTakeHeldCreateEvent: () => takeHeldCreateEvent,
+      useTakeHeldActivityEvents: () => takeHeldActivityEvents,
       useSnackbar: () => ({ enqueueSnackbar, closeSnackbar }),
       useQueryClient: () => queryClient,
       useRouter: () => mock<ReturnType<typeof DEPENDENCIES.useRouter>>({ push })
@@ -886,7 +929,7 @@ describe(ActivityHost.name, () => {
       receive,
       followToastAction,
       analyticsService,
-      takeHeldCreateEvent
+      takeHeldActivityEvents
     };
   }
 });

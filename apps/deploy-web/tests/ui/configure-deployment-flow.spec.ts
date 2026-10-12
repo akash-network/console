@@ -63,9 +63,9 @@ test.describe("Configure deployment — request quotes flow", () => {
       await expect(configure.reviewDialog().getByText(/total deployment cost/i)).toBeVisible();
     });
 
-    await test.step("confirming creates the lease and redirects to the deployment created in this run", async () => {
-      await configure.confirmAndDeploy();
-      await page.waitForURL(new RegExp(`/deployments/${dseq}(?:[/?]|$)`), { timeout: 180_000 });
+    await test.step("confirming creates the lease and leads to the deployment created in this run", async () => {
+      await configure.confirmAndOpenDeployment(dseq!);
+      await page.waitForURL(new RegExp(`/deployments/${dseq}(?:[/?]|$)`), { timeout: 30_000 });
     });
   });
 });
