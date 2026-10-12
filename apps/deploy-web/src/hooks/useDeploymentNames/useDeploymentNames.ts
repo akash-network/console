@@ -50,8 +50,18 @@ function splitIntoLookups(dseqs: string[]): string[][] {
   return lookups;
 }
 
-function combineLookups(lookups: Array<{ data?: NamesLookup; isLoading: boolean }>) {
+type LookupResult = { data?: NamesLookup; isLoading: boolean };
+
+function combineLookups(lookups: LookupResult[]) {
   return { names: collectNames(lookups), isLoading: lookups.some(lookup => lookup.isLoading) };
+}
+
+/** useQueries reuses its last combined result on the render that first asks a new set of lookups, so each set gets a combine of its own or it reads as already answered. */
+function lookupsOf(lookupKey: string) {
+  return {
+    lookups: splitIntoLookups(lookupKey ? lookupKey.split(",") : []),
+    combine: (results: LookupResult[]) => combineLookups(results)
+  };
 }
 
 function collectNames(lookups: Array<{ data?: NamesLookup }>): Map<string, string | null> {
@@ -72,10 +82,10 @@ export function useDeploymentNames(dseqs: ReadonlyArray<Dseq>, dependencies = DE
   /** Read from the store rather than `useWallet`, so surfaces mounted outside the wallet provider resolve their records too. */
   const address = useAtomValue(settingsIdAtom);
   const lookupKey = normalizeDseqs(dseqs).join(",");
-  const lookups = useMemo(() => splitIntoLookups(lookupKey ? lookupKey.split(",") : []), [lookupKey]);
+  const { lookups, combine } = useMemo(() => lookupsOf(lookupKey), [lookupKey]);
   const { names: apiNames, isLoading } = useQueries({
     queries: lookups.map(dseq => api.v1.listDeploymentNames.queryOptions({ dseq }, { catchError: recoverWithNoNames })),
-    combine: combineLookups
+    combine
   });
 
   dependencies.useDeploymentNameBackfill([...apiNames].map(([dseq, name]) => ({ dseq, name })));

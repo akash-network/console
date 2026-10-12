@@ -200,6 +200,21 @@ describe(ActivityHost.name, () => {
     expect(invalidatedKeysOf(queryClient)).toEqual(expect.arrayContaining([api.v1.listDeployments.getKey(), api.v1.getDeployment.getKey({ dseq: "1234" })]));
   });
 
+  it("holds the announcement of a close Console made until the name of its deployment has loaded", () => {
+    const systemClose = buildActivity({ status: "succeeded", initiator: "system", meta: { dseq: "1234", reason: "provider_unreachable" } });
+    const { enqueueSnackbar, receive } = setup({ activities: [], names: { "1234": "storefront" } });
+
+    receive([systemClose], { isLoadingNames: true });
+    const announcedWhileLoading = enqueueSnackbar.mock.calls.length;
+    receive([systemClose]);
+
+    expect(announcedWhileLoading).toBe(0);
+    expect(enqueueSnackbar).toHaveBeenCalledTimes(1);
+    expect(enqueueSnackbar).toHaveBeenCalledWith(expect.objectContaining({ props: expect.objectContaining({ title: "Console closed “storefront”" }) }), {
+      variant: "info"
+    });
+  });
+
   it("announces a close Console made for a reason it has no words for as a plain close by Console", () => {
     const { enqueueSnackbar, receive } = setup({ activities: [] });
 
