@@ -6644,6 +6644,21 @@
             "ApiKeyAuth": []
           }
         ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "true",
+                "false"
+              ],
+              "description": "With `true`, the deployment is created in the background: once every check that could refuse it has passed, the request answers 202 with the new deployment's `dseq` and an `activityId` to follow at `GET /v1/activities/{id}`. It answers 201 as without it when background creates are unavailable."
+            },
+            "required": false,
+            "name": "async",
+            "in": "query"
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -6739,6 +6754,43 @@
                         "dseq",
                         "manifest",
                         "signTx"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "The create passed every check and will finish in the background",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "dseq": {
+                          "type": "string",
+                          "pattern": "^0*[1-9]\\d*$"
+                        },
+                        "manifest": {
+                          "type": "string"
+                        },
+                        "activityId": {
+                          "type": "string",
+                          "format": "uuid",
+                          "description": "The activity that reports how the create ends."
+                        }
+                      },
+                      "required": [
+                        "dseq",
+                        "manifest",
+                        "activityId"
                       ]
                     }
                   },
@@ -22481,7 +22533,8 @@
             "schema": {
               "type": "string",
               "enum": [
-                "deployment_close"
+                "deployment_close",
+                "deployment_create"
               ],
               "description": "What the action was."
             },
@@ -22513,7 +22566,8 @@
                               "type": {
                                 "type": "string",
                                 "enum": [
-                                  "deployment_close"
+                                  "deployment_close",
+                                  "deployment_create"
                                 ],
                                 "description": "What the action was."
                               },
@@ -22681,7 +22735,8 @@
                         "type": {
                           "type": "string",
                           "enum": [
-                            "deployment_close"
+                            "deployment_close",
+                            "deployment_create"
                           ],
                           "description": "What the action was."
                         },

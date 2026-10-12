@@ -1,5 +1,4 @@
-import { isHttpError } from "http-errors";
-
+import { activityErrorOf } from "@src/activity/lib/activity-error/activity-error";
 import type { NewActivity } from "@src/activity/model-schemas";
 import { isUnknownTxOutcome } from "@src/billing/services/external-signer-http-sdk/tx-outcome.error";
 
@@ -23,12 +22,5 @@ export function failedCloseActivityOf({ userId, dseq, batchId }: CloseKey, error
     return { userId, type: "deployment_close", status: "pending", meta: { dseq, batchId, txHash: error.txHash } };
   }
 
-  return { userId, type: "deployment_close", status: "failed", meta: { dseq, batchId, error: explanationOf(error) } };
-}
-
-function explanationOf(error: unknown) {
-  if (!isHttpError(error) || !error.expose) return UNEXPLAINED_CLOSE_ERROR;
-
-  const { errorCode, data } = error as { errorCode?: string; data?: { errorCode?: string } };
-  return { code: data?.errorCode ?? errorCode ?? UNEXPLAINED_CLOSE_ERROR.code, message: error.message };
+  return { userId, type: "deployment_close", status: "failed", meta: { dseq, batchId, error: activityErrorOf(error, UNEXPLAINED_CLOSE_ERROR) } };
 }

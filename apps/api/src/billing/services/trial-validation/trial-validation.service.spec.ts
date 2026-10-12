@@ -296,6 +296,15 @@ describe(TrialValidationService.name, () => {
       expect(userRepository.findById).not.toHaveBeenCalled();
     });
 
+    it("decides the gate for the wallet's own user, whoever runs the check", async () => {
+      const wallet = createUserWallet({ isTrialing: true });
+      const { service, featureFlagsService } = setupFairUse({ flagEnabled: false });
+
+      await service.validateFairUsePolicyAccepted([createDeploymentMessage()], wallet);
+
+      expect(featureFlagsService.isEnabled).toHaveBeenCalledWith("fair_use_policy_gate", { userId: wallet.userId });
+    });
+
     it("passes when the trial user has accepted the policy", async () => {
       const wallet = createUserWallet({ isTrialing: true });
       const { service, userRepository } = setupFairUse({ flagEnabled: true, user: createUser({ fairUsePolicyAcceptedAt: new Date() }) });

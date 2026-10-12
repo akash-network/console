@@ -1569,6 +1569,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
               "description": "What the action was.",
               "enum": [
                 "deployment_close",
+                "deployment_create",
               ],
               "type": "string",
             },
@@ -1646,6 +1647,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                                 "description": "What the action was.",
                                 "enum": [
                                   "deployment_close",
+                                  "deployment_create",
                                 ],
                                 "type": "string",
                               },
@@ -1917,6 +1919,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                           "description": "What the action was.",
                           "enum": [
                             "deployment_close",
+                            "deployment_create",
                           ],
                           "type": "string",
                         },
@@ -8458,6 +8461,21 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
       },
       "post": {
         "operationId": "createDeployment",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "async",
+            "required": false,
+            "schema": {
+              "description": "With \`true\`, the deployment is created in the background: once every check that could refuse it has passed, the request answers 202 with the new deployment's \`dseq\` and an \`activityId\` to follow at \`GET /v1/activities/{id}\`. It answers 201 as without it when background creates are unavailable.",
+              "enum": [
+                "true",
+                "false",
+              ],
+              "type": "string",
+            },
+          },
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -8562,6 +8580,43 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
               },
             },
             "description": "Create deployment successfully",
+          },
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "properties": {
+                        "activityId": {
+                          "description": "The activity that reports how the create ends.",
+                          "format": "uuid",
+                          "type": "string",
+                        },
+                        "dseq": {
+                          "pattern": "^0*[1-9]\\d*$",
+                          "type": "string",
+                        },
+                        "manifest": {
+                          "type": "string",
+                        },
+                      },
+                      "required": [
+                        "dseq",
+                        "manifest",
+                        "activityId",
+                      ],
+                      "type": "object",
+                    },
+                  },
+                  "required": [
+                    "data",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "The create passed every check and will finish in the background",
           },
           "400": {
             "content": {

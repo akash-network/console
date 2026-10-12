@@ -20,6 +20,7 @@ import { type CreateLogger, JOB_NAME, JobQueueService, LOGGER_FACTORY, TxService
 import { SDL_MAX_LENGTH } from "@src/deployment/config/sdl.config";
 import {
   assignsAnyServiceField,
+  CreateDeploymentAcceptedResponse,
   CreateDeploymentDefinitionRequest,
   CreateDeploymentDefinitionResponse,
   CreateDeploymentRequest,
@@ -31,16 +32,23 @@ import {
 } from "@src/deployment/http-schemas/deployment.schema";
 import { DeploymentSettingRepository } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
 import { CLOSE_DEPLOYMENT_RETRY_OPTIONS, CloseDeployment, closeDeploymentKeyFor } from "@src/deployment/services/close-deployment/close-deployment.job";
+import { CREATE_DEPLOYMENT_RETRY_OPTIONS, CreateDeployment, createDeploymentKeyFor } from "@src/deployment/services/create-deployment/create-deployment.job";
 import {
   DeleteUnbackedDeploymentSetting,
+  lastCreateAttemptOf,
   unbackedDeploymentSettingKeyFor,
   unbackedDeploymentSettingRetryOptions
 } from "@src/deployment/services/delete-unbacked-deployment-setting/delete-unbacked-deployment-setting.handler";
+import { DeploymentPresenceService } from "@src/deployment/services/deployment-presence/deployment-presence.service";
 import { LeaseGpuDetectionJobService } from "@src/deployment/services/lease-gpu-detection-job/lease-gpu-detection-job.service";
 import {
   ReconcileDeploymentClose,
   reconcileDeploymentCloseOptionsFor
 } from "@src/deployment/services/reconcile-deployment-close/reconcile-deployment-close.job";
+import {
+  ReconcileDeploymentCreate,
+  reconcileDeploymentCreateOptionsFor
+} from "@src/deployment/services/reconcile-deployment-create/reconcile-deployment-create.job";
 import { SdlService } from "@src/deployment/services/sdl/sdl.service";
 import { SdlPatchService } from "@src/deployment/services/sdl-patch/sdl-patch.service";
 import { MAX_ECHOED_REFERENCE_LENGTH, SdlReferenceService } from "@src/deployment/services/sdl-reference/sdl-reference.service";
@@ -50,6 +58,7 @@ import { SdlSecretsInheritanceService } from "@src/deployment/services/sdl-secre
 import type { SdlSecrets } from "@src/deployment/services/sdl-secrets-unsealer/sdl-secrets-unsealer.service";
 import { findGroupWithChangedResources, type OnChainGroupSpec } from "@src/deployment/utils/changed-group-resources/changed-group-resources";
 import { closedActivityOf, failedCloseActivityOf } from "@src/deployment/utils/close-activity/close-activity";
+import { createdActivityOf, creatingActivityOf, failedCreateActivityOf } from "@src/deployment/utils/create-activity/create-activity";
 import {
   type CreateDeploymentMessage,
   decodeCreateDeploymentMessage,
@@ -158,16 +167,72 @@ export class DeploymentWriterService {
     private readonly leaseGpuDetectionJobService: LeaseGpuDetectionJobService,
     private readonly activityService: ActivityService,
     private readonly deploymentHttpService: DeploymentHttpService,
-    private readonly chainErrorService: ChainErrorService
+    private readonly chainErrorService: ChainErrorService,
+    private readonly deploymentPresenceService: DeploymentPresenceService
   ) {
     this.logger = createLogger({ context: DeploymentWriterService.name });
   }
 
   public async create(input: CreateDeploymentRequest["data"] & { userId: string }): Promise<CreateDeploymentResponse["data"]> {
     const { accepted, manifest } = await this.acceptCreate(input);
-    const signTx = await this.createOnChain(accepted);
+    const signTx = await this.#createOnChainRecordingOutcome(accepted);
 
     return { dseq: accepted.dseq, manifest, signTx };
+  }
+
+  /** Refusals answer before anything is recorded; a create that passes them is queued in the same transaction as its pending activity and a later check on it, so the activity settles even if the create job is lost. */
+  public async createInBackground(input: CreateDeploymentRequest["data"] & { userId: string }): Promise<CreateDeploymentAcceptedResponse["data"]> {
+    const { accepted, manifest } = await this.acceptCreate(input);
+
+    const activityId = await this.txService.transaction(async () => {
+      const activityId = randomUUID();
+      const jobId = await this.jobQueueService.enqueue(new CreateDeployment({ ...accepted, activityId }), {
+        singletonKey: createDeploymentKeyFor(accepted),
+        ...CREATE_DEPLOYMENT_RETRY_OPTIONS
+      });
+      if (!jobId) throw createError(409, "This deployment is already being created");
+
+      await this.activityService.open({ id: activityId, ...creatingActivityOf(accepted) });
+      await this.jobQueueService.enqueue(
+        new ReconcileDeploymentCreate({ ...accepted, activityId, createJobId: jobId }),
+        reconcileDeploymentCreateOptionsFor(activityId, new Date())
+      );
+      return activityId;
+    });
+
+    return { dseq: accepted.dseq, manifest, activityId };
+  }
+
+  /** The outcome of a create that passed every refusal is recorded either way, so the feed holds the creates made from any client. */
+  async #createOnChainRecordingOutcome(accepted: AcceptedDeploymentCreate): Promise<CreateDeploymentTx> {
+    let tx: CreateDeploymentTx;
+
+    try {
+      tx = await this.createOnChain(accepted);
+    } catch (error) {
+      await this.#recordFailedCreate(accepted, error);
+      throw error;
+    }
+
+    await this.activityService.record(createdActivityOf(accepted));
+
+    return tx;
+  }
+
+  /** An undecided create opens its pending activity with a later check in one transaction, so it settles once its outcome is known; as with `record`, failing to write either is only logged. */
+  async #recordFailedCreate(accepted: AcceptedDeploymentCreate, error: unknown): Promise<void> {
+    const activity = failedCreateActivityOf(accepted, error);
+    if (activity.status !== "pending") return await this.activityService.record(activity);
+
+    try {
+      await this.txService.transaction(async () => {
+        const activityId = randomUUID();
+        await this.activityService.open({ id: activityId, ...activity });
+        await this.jobQueueService.enqueue(new ReconcileDeploymentCreate({ ...accepted, activityId }), reconcileDeploymentCreateOptionsFor(activityId, new Date()));
+      });
+    } catch (recordError) {
+      this.logger.error({ event: "UNDECIDED_CREATE_RECORD_FAILED", userId: accepted.userId, dseq: accepted.dseq, error: recordError });
+    }
   }
 
   /** The dseq is minted once everything that can refuse the submitted document has run, because the token written below names it and a client sealing beforehand cannot; a refusal that needs the resolved document (a sealed registry password below the schema's minimum, say) can only come after it, and spends a dseq nothing is written under. */
@@ -230,6 +295,7 @@ export class DeploymentWriterService {
     }
 
     await this.#assertCompensationStillWaiting(key);
+    await this.deploymentSettingRepository.recordCreateAttempt(key);
 
     let tx: CreateDeploymentTx;
 
@@ -243,6 +309,26 @@ export class DeploymentWriterService {
     await this.retireCompensation(key);
 
     return tx;
+  }
+
+  /** Answers only once the chain can, for a create nothing is still sending: a deployment at the recorded version is adopted, an absence is believed only past the last create sent, and anything between throws for a retry. */
+  public async reconcileCreate(accepted: AcceptedDeploymentCreate): Promise<boolean> {
+    const key = { userId: accepted.userId, dseq: accepted.dseq };
+    const message = decodeCreateDeploymentMessage(accepted.message);
+    const setting = await this.deploymentSettingRepository.findOneBy(key);
+
+    if (!setting) return false;
+
+    if (await this.#isCreatedAsRecorded(message, setting.manifestVersion)) {
+      await this.#adoptCreated(key, message);
+      return true;
+    }
+
+    if (await this.deploymentPresenceService.isOnChain({ owner: message.value.id!.owner, dseq: accepted.dseq, recordedAt: lastCreateAttemptOf(setting) })) {
+      throw new Error(`Deployment ${accepted.dseq} is on chain but could not be read at the version its create recorded`);
+    }
+
+    return false;
   }
 
   /** The compensation deletes the record of a create that never reached the chain, which leaves this request nothing to create. */

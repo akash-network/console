@@ -155,7 +155,7 @@ export const operations = {
       queryParams: ["dseq"],
       hasBody: false
     },
-    createDeployment: { path: "/v1/deployments", method: "post", operationId: "createDeployment", pathParams: [], queryParams: [], hasBody: true },
+    createDeployment: { path: "/v1/deployments", method: "post", operationId: "createDeployment", pathParams: [], queryParams: ["async"], hasBody: true },
     listDeployments: {
       path: "/v1/deployments",
       method: "get",

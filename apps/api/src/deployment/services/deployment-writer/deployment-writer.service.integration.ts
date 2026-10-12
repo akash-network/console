@@ -1,4 +1,4 @@
-import { minutesToMilliseconds, secondsToMilliseconds } from "date-fns";
+import { minutesToMilliseconds, secondsToMilliseconds, subMinutes, subSeconds } from "date-fns";
 import { eq, sql } from "drizzle-orm";
 import nock from "nock";
 import { container } from "tsyringe";
@@ -93,15 +93,13 @@ describe(DeploymentWriterService.name, () => {
   });
 
   it("writes the setting and its compensation in one transaction", async () => {
-    const { user, createDeployment, findCompensations, findCompensationTransactionId, findSettingTransactionId, broadcast } = await setup();
-    broadcast.mockRejectedValue(new Error("tx failed"));
+    const { user, acceptDeployment, findCompensationTransactionId, findSettingTransactionId } = await setup();
 
-    await expect(createDeployment()).rejects.toThrow("tx failed");
+    const { accepted } = await acceptDeployment();
 
-    const [{ data }] = await findCompensations(user.id);
     const [compensationTransactionId, settingTransactionId] = await Promise.all([
-      findCompensationTransactionId(user.id, data.dseq),
-      findSettingTransactionId(data.dseq)
+      findCompensationTransactionId(user.id, accepted.dseq),
+      findSettingTransactionId(accepted.dseq)
     ]);
     expect(compensationTransactionId).toBe(settingTransactionId);
   });
@@ -212,6 +210,19 @@ describe(DeploymentWriterService.name, () => {
       expect(await findJobRows(RecordDeploymentSetting[JOB_NAME], { singletonKey: `recordDeploymentSetting.${user.id}.${accepted.dseq}` })).toHaveLength(1);
     });
 
+    it("stamps the record as it sends, so the compensation proves an absence only from the last create sent", async () => {
+      const { acceptDeployment, createOnChain, backdateSetting, findSetting } = await setup();
+      const { accepted } = await acceptDeployment();
+      await backdateSetting(accepted.dseq, 30);
+      const sentAfter = new Date();
+
+      await createOnChain(accepted);
+
+      const { createdAt, updatedAt } = await findSetting(accepted.dseq);
+      expect(createdAt!.getTime()).toBeLessThan(subMinutes(sentAfter, 29).getTime());
+      expect(updatedAt!.getTime()).toBeGreaterThanOrEqual(subSeconds(sentAfter, 1).getTime());
+    });
+
     it("sends nothing once the compensation is due to judge the record, leaving the record for it", async () => {
       const { user, acceptDeployment, createOnChain, broadcast, findSetting } = await setup();
       const { accepted } = await acceptDeployment();
@@ -295,6 +306,12 @@ describe(DeploymentWriterService.name, () => {
       return setting;
     }
 
+    async function backdateSetting(dseq: string, minutes: number) {
+      await db.execute(
+        sql`update deployment_settings set created_at = now() - make_interval(mins => ${minutes}), updated_at = now() - make_interval(mins => ${minutes}) where dseq = ${dseq}`
+      );
+    }
+
     async function countSettings() {
       const rows = await db.select().from(deploymentSettingsTable).where(eq(deploymentSettingsTable.userId, user.id));
 
@@ -358,6 +375,7 @@ describe(DeploymentWriterService.name, () => {
       broadcast,
       findCompensation,
       findSetting,
+      backdateSetting,
       findSettingTransactionId,
       findCompensationTransactionId,
       makeCompensationDue,

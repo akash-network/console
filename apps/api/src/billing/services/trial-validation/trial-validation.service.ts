@@ -164,11 +164,12 @@ export class TrialValidationService {
     }
   }
 
+  /** The gate is decided for the wallet's own user, so a create sent from a background job is judged as its request was rather than as the job's user. */
   @Trace()
   async validateFairUsePolicyAccepted(messages: EncodeObject[], userWallet: UserWalletOutput) {
     if (!userWallet.isTrialing) return;
     if (!messages.some(message => message.typeUrl === `/${MsgCreateDeployment.$type}`)) return;
-    if (!this.featureFlagsService.isEnabled(FeatureFlags.FAIR_USE_POLICY_GATE)) return;
+    if (!this.featureFlagsService.isEnabled(FeatureFlags.FAIR_USE_POLICY_GATE, { userId: userWallet.userId })) return;
 
     const user = await this.userRepository.findById(userWallet.userId);
 

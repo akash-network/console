@@ -9708,7 +9708,9 @@ export interface operations {
   };
   createDeployment: {
     parameters: {
-      query?: never;
+      query?: {
+        async?: "true" | "false";
+      };
       header?: never;
       path?: never;
       cookie?: never;
@@ -9751,6 +9753,25 @@ export interface operations {
                 transactionHash: string;
                 rawLog: string;
               };
+            };
+          };
+        };
+      };
+      /** @description The create passed every check and will finish in the background */
+      202: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            data: {
+              dseq: string;
+              manifest: string;
+              /**
+               * Format: uuid
+               * @description The activity that reports how the create ends.
+               */
+              activityId: string;
             };
           };
         };
@@ -11318,7 +11339,7 @@ export interface operations {
         limit?: number;
         cursor?: string;
         status?: "pending" | "succeeded" | "failed";
-        type?: "deployment_close";
+        type?: "deployment_close" | "deployment_create";
       };
       header?: never;
       path?: never;
@@ -11342,7 +11363,7 @@ export interface operations {
                  * @description What the action was.
                  * @enum {string}
                  */
-                type: "deployment_close";
+                type: "deployment_close" | "deployment_create";
                 /**
                  * @description `pending` while the action is still being confirmed, then `succeeded` or `failed`.
                  * @enum {string}
@@ -11425,7 +11446,7 @@ export interface operations {
                * @description What the action was.
                * @enum {string}
                */
-              type: "deployment_close";
+              type: "deployment_close" | "deployment_create";
               /**
                * @description `pending` while the action is still being confirmed, then `succeeded` or `failed`.
                * @enum {string}

@@ -23,11 +23,12 @@ const RECORDED_AT = new Date("2026-01-01T00:00:00.000Z");
  * row can carry none at all. Both are shapes the handler has to survive, so the fixture states them as they
  * really are rather than as the type does — the one place this file needs to step outside it.
  */
-function settingRecordedAt(input: { id: string; dseq: string; recordedAt: Date | null }) {
+function settingRecordedAt(input: { id: string; dseq: string; recordedAt: Date | null; lastWrittenAt?: Date }) {
   return mock<DeploymentSettingsOutput>({
     id: input.id,
     dseq: input.dseq,
-    createdAt: input.recordedAt as unknown as DeploymentSettingsOutput["createdAt"]
+    createdAt: input.recordedAt as unknown as DeploymentSettingsOutput["createdAt"],
+    updatedAt: (input.lastWrittenAt ?? null) as unknown as DeploymentSettingsOutput["updatedAt"]
   });
 }
 
@@ -106,6 +107,15 @@ describe(DeleteUnbackedDeploymentSettingHandler.name, () => {
     expect(deploymentPresenceService.isOnChain).toHaveBeenCalledWith({ owner: OWNER, dseq: DSEQ, recordedAt: RECORDED_AT });
   });
 
+  it("judges the chain answer against the row's last write, which a create rewrites before every send however long after the record it comes", async () => {
+    const lastCreateSentAt = new Date("2026-01-01T00:45:00.000Z");
+    const { handler, payload, deploymentPresenceService } = setup({ isOnChain: true, lastWrittenAt: lastCreateSentAt });
+
+    await handler.handle(payload);
+
+    expect(deploymentPresenceService.isOnChain).toHaveBeenCalledWith({ owner: OWNER, dseq: DSEQ, recordedAt: lastCreateSentAt });
+  });
+
   it("keeps a setting whose stored creation time is missing, since no chain answer could be judged against it", async () => {
     const { handler, payload, deploymentSettingRepository, deploymentPresenceService } = setup({ isOnChain: false, recordedAt: null });
 
@@ -137,12 +147,19 @@ describe(DeleteUnbackedDeploymentSettingHandler.name, () => {
     expect(handler.requiresPermission()).toEqual([]);
   });
 
-  function setup(input: { isOnChain?: boolean; chainLookupRejectsWith?: unknown; settingExists?: boolean; storedDseq?: string; recordedAt?: Date | null }) {
+  function setup(input: {
+    isOnChain?: boolean;
+    chainLookupRejectsWith?: unknown;
+    settingExists?: boolean;
+    storedDseq?: string;
+    recordedAt?: Date | null;
+    lastWrittenAt?: Date;
+  }) {
     const deploymentSettingId = faker.string.uuid();
     const recordedAt = input.recordedAt === undefined ? RECORDED_AT : input.recordedAt;
     const deploymentSettingRepository = mock<DeploymentSettingRepository>();
     deploymentSettingRepository.findById.mockResolvedValue(
-      input.settingExists === false ? undefined : settingRecordedAt({ id: deploymentSettingId, dseq: input.storedDseq ?? DSEQ, recordedAt })
+      input.settingExists === false ? undefined : settingRecordedAt({ id: deploymentSettingId, dseq: input.storedDseq ?? DSEQ, recordedAt, lastWrittenAt: input.lastWrittenAt })
     );
 
     const deploymentPresenceService = mock<DeploymentPresenceService>();

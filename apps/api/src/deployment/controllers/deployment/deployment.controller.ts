@@ -6,7 +6,13 @@ import { z } from "zod";
 import { AuthService, Protected } from "@src/auth/services/auth.service";
 import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
 import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
-import type { CloseDeploymentAcceptedResponse, CloseDeploymentQuery, ListDeploymentsQuery } from "@src/deployment/http-schemas/deployment.schema";
+import type {
+  CloseDeploymentAcceptedResponse,
+  CloseDeploymentQuery,
+  CreateDeploymentAcceptedResponse,
+  CreateDeploymentQuery,
+  ListDeploymentsQuery
+} from "@src/deployment/http-schemas/deployment.schema";
 import {
   CloseDeploymentResponse,
   CreateDeploymentDefinitionRequest,
@@ -58,9 +64,17 @@ export class DeploymentController {
   }
 
   @Protected([{ action: "sign", subject: "UserWallet" }])
-  async create(input: CreateDeploymentRequest["data"]): Promise<CreateDeploymentResponse> {
-    const result = await this.deploymentWriterService.create({ ...input, userId: this.authService.currentUser.id });
-    return { data: result };
+  async create(
+    input: CreateDeploymentRequest["data"],
+    query: CreateDeploymentQuery = { async: false }
+  ): Promise<CreateDeploymentResponse | CreateDeploymentAcceptedResponse> {
+    const userId = this.authService.currentUser.id;
+
+    if (query.async && this.featureFlagsService.isEnabled(FeatureFlags.BACKGROUND_DEPLOYMENT_CREATE, { userId })) {
+      return { data: await this.deploymentWriterService.createInBackground({ ...input, userId }) };
+    }
+
+    return { data: await this.deploymentWriterService.create({ ...input, userId }) };
   }
 
   /** The flag is read here rather than in the worker, because inside a job every user evaluates as the background-job user. */

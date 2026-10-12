@@ -11,9 +11,11 @@ import {
   CloseDeploymentParamsSchema,
   CloseDeploymentQuerySchema,
   CloseDeploymentResponseSchema,
+  CreateDeploymentAcceptedResponseSchema,
   CreateDeploymentDefinitionParamsSchema,
   CreateDeploymentDefinitionRequestSchema,
   CreateDeploymentDefinitionResponseSchema,
+  CreateDeploymentQuerySchema,
   CreateDeploymentRequestSchema,
   CreateDeploymentResponseSchema,
   DepositDeploymentRequestSchema,
@@ -127,6 +129,7 @@ const postRoute = createRoute({
   /** The only route that can carry a seal, sized so the stated secret limits are reachable rather than shadowed by the default allowance. */
   bodyLimit: { maxSize: CREATE_DEPLOYMENT_BODY_LIMIT_BYTES },
   request: {
+    query: CreateDeploymentQuerySchema,
     body: {
       content: {
         "application/json": {
@@ -141,6 +144,14 @@ const postRoute = createRoute({
       content: {
         "application/json": {
           schema: CreateDeploymentResponseSchema
+        }
+      }
+    },
+    202: {
+      description: "The create passed every check and will finish in the background",
+      content: {
+        "application/json": {
+          schema: CreateDeploymentAcceptedResponseSchema
         }
       }
     },
@@ -190,8 +201,8 @@ const postRoute = createRoute({
 });
 deploymentsRouter.openapi(postRoute, async function routeCreateDeployment(c) {
   const { data } = c.req.valid("json");
-  const result = await container.resolve(DeploymentController).create(data);
-  return c.json(result, 201);
+  const result = await container.resolve(DeploymentController).create(data, c.req.valid("query"));
+  return "activityId" in result.data ? c.json({ data: result.data }, 202) : c.json({ data: result.data }, 201);
 });
 
 const deleteRoute = createRoute({
