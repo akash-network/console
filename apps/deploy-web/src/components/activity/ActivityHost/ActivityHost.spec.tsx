@@ -90,6 +90,38 @@ describe(ActivityHost.name, () => {
     );
   });
 
+  it("announces a create that finishes", () => {
+    const pending = buildActivity({ type: "deployment_create", status: "pending", meta: { dseq: "1234" } });
+    const { enqueueSnackbar, receive } = setup({ activities: [pending], names: { "1234": "storefront" } });
+
+    receive([{ ...pending, status: "succeeded" }]);
+
+    expect(enqueueSnackbar).toHaveBeenCalledWith(
+      expect.objectContaining({
+        props: expect.objectContaining({ title: "“storefront” created", subTitle: "Choose a provider to start it.", iconVariant: "success" })
+      }),
+      { variant: "success" }
+    );
+  });
+
+  it.each([
+    {
+      meta: { dseq: "1234", error: { code: "create_incomplete", message: "The deployment was not created. Try creating it again." } },
+      subTitle: "The deployment was not created. Try creating it again."
+    },
+    { meta: { dseq: "1234" }, subTitle: "Try creating it again." }
+  ])("announces a create that fails, saying $subTitle", ({ meta, subTitle }) => {
+    const pending = buildActivity({ type: "deployment_create", status: "pending", meta: { dseq: "1234" } });
+    const { enqueueSnackbar, receive } = setup({ activities: [pending] });
+
+    receive([{ ...pending, status: "failed", meta }]);
+
+    expect(enqueueSnackbar).toHaveBeenCalledWith(
+      expect.objectContaining({ props: expect.objectContaining({ title: "Couldn't create deployment 1234", subTitle, iconVariant: "error" }) }),
+      { variant: "error" }
+    );
+  });
+
   it("names the deployment a close finished for", () => {
     const pending = buildActivity({ status: "pending", meta: { dseq: "1234" } });
     const { enqueueSnackbar, receive } = setup({ activities: [pending], names: { "1234": "storefront" } });

@@ -39,6 +39,38 @@ describe(activityEntriesOf.name, () => {
     expect(entry.detail).toBe("Try closing it again.");
   });
 
+  it.each([
+    { status: "pending" as const, title: "Creating “web-1234”" },
+    { status: "succeeded" as const, title: "Created “web-1234”" }
+  ])("describes a $status create of its deployment, linking to it", ({ status, title }) => {
+    const [entry] = entriesOf([buildActivity({ type: "deployment_create", status, meta: { dseq: "1234" } })]);
+
+    expect(entry).toMatchObject({ status, title, href: "/deployments/1234" });
+  });
+
+  it("describes a failed create with its reason, linking to the deployment", () => {
+    const [entry] = entriesOf([
+      buildActivity({
+        type: "deployment_create",
+        status: "failed",
+        meta: { dseq: "1234", error: { code: "create_incomplete", message: "The deployment was not created. Try creating it again." } }
+      })
+    ]);
+
+    expect(entry).toMatchObject({
+      status: "failed",
+      title: "Couldn't create “web-1234”",
+      detail: "The deployment was not created. Try creating it again.",
+      href: "/deployments/1234"
+    });
+  });
+
+  it("asks for another try when a failed create gives no reason", () => {
+    const [entry] = entriesOf([buildActivity({ type: "deployment_create", status: "failed", meta: { dseq: "1234" } })]);
+
+    expect(entry).toMatchObject({ detail: "Try creating it again." });
+  });
+
   it("links an activity about no particular deployment to the deployments list", () => {
     const [entry] = entriesOf([buildActivity({ status: "succeeded", meta: {} })]);
 

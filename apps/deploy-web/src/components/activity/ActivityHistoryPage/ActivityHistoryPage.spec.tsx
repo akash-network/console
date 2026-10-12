@@ -87,6 +87,14 @@ describe(ActivityHistoryPage.name, () => {
     expect(screen.getByRole("combobox", { name: "Action" })).toHaveTextContent("Deployment closes");
   });
 
+  it("filters to new deployments", async () => {
+    const { useActivityHistoryQuery } = setup({});
+
+    await choose("Action", "New deployments");
+
+    expect(useActivityHistoryQuery).toHaveBeenLastCalledWith({ status: undefined, type: "deployment_create", cursor: undefined });
+  });
+
   it("goes back to every entry once a filter is cleared", async () => {
     const { useActivityHistoryQuery } = setup({});
     await choose("Status", "Succeeded");
