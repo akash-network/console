@@ -298,8 +298,12 @@ jobs:
         env:
           PACKAGE_PATH: "./apps/${{ inputs.app }}/package.json"
         run: |
-          has_tests=$(jq -r --arg script "$TEST_SCRIPT_NAME" 'if .scripts[$script] then "true" else "false" end' "$PACKAGE_PATH")
+          read -r has_tests requires_env_setup < <(jq -r --arg script "$TEST_SCRIPT_NAME" '[
+            (if .scripts[$script] then "true" else "false" end),
+            (if .scripts["test:ci-setup"] then "true" else "false" end)
+          ] | @tsv' "$PACKAGE_PATH")
           echo "has_tests=$has_tests" >> "$GITHUB_OUTPUT"
+          echo "requires_env_setup=$requires_env_setup" >> "$GITHUB_OUTPUT"
 
       - uses: ./.github/actions/setup-app-deps
         if: ${{ steps.tests_details.outputs.has_tests == 'true' }}
@@ -333,6 +337,14 @@ jobs:
           if [[ -n "$skip" ]]; then
             echo "Mutation testing skipped: $skip." >> "$GITHUB_STEP_SUMMARY"
           fi
+
+      # Some apps' unit specs query the app's test database, so the dry run fails without it.
+      - name: Start tests environment
+        if: ${{ steps.mutation_targets.outputs.mutate != '' && steps.tests_details.outputs.requires_env_setup == 'true' }}
+        timeout-minutes: 5
+        env:
+          POSTGRES_SKIP_IMPORT: "true"
+        run: npm run --workspace="apps/$APP_TO_VALIDATE" test:ci-setup
 
       # Each push of a pull request reuses the previous push's result for every mutant whose code and covering
       # tests did not change, so only the lines touched since then pay for a mutation run again.
