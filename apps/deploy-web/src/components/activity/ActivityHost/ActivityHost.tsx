@@ -3,14 +3,17 @@ import { Snackbar } from "@akashnetwork/ui/components";
 import type { QueryKey } from "@tanstack/react-query";
 import { useQueryClient } from "@tanstack/react-query";
 import upperFirst from "lodash/upperFirst";
+import Link from "next/link";
 import { useSnackbar } from "notistack";
 
+import { ACTIVITY_DESTINATIONS } from "@src/components/activity/activityEntries/activityEntries";
 import { deploymentLabelOf, listOf } from "@src/components/activity/activityLabels/activityLabels";
 import { useServices } from "@src/context/ServicesProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { useCloseBatchesBeingSent } from "@src/hooks/useCloseBatches/useCloseBatches";
 import { useDeploymentNames } from "@src/hooks/useDeploymentNames/useDeploymentNames";
 import { useFlag } from "@src/hooks/useFlag";
+import { useTakeHeldCreateEvent } from "@src/hooks/useHeldCreateEvents/useHeldCreateEvents";
 import { useUser } from "@src/hooks/useUser";
 import { QueryKeys } from "@src/queries/queryKeys";
 import { type Activity, useLatestActivitiesQuery } from "@src/queries/useLatestActivitiesQuery";
@@ -22,13 +25,14 @@ export const DEPENDENCIES = {
   useLatestActivitiesQuery,
   useDeploymentNames,
   useCloseBatchesBeingSent,
+  useTakeHeldCreateEvent,
   useSnackbar,
   useQueryClient
 };
 
 type FinishedActivity = Activity & { status: Exclude<Activity["status"], "pending"> };
 
-type Announcement = { title: string; subTitle: string; variant: "success" | "warning" | "error" };
+type Announcement = { title: string; subTitle: string; variant: "success" | "warning" | "error"; href?: string };
 
 type LabelDeployment = (dseq: string | undefined) => string;
 
@@ -44,7 +48,12 @@ const ANNOUNCEMENTS: Record<Activity["type"], (activity: FinishedActivity, label
     const deployment = labelDeployment(meta.dseq);
 
     return status === "succeeded"
-      ? { title: `${upperFirst(deployment)} created`, subTitle: "Choose a provider to start it.", variant: "success" }
+      ? {
+          title: `${upperFirst(deployment)} created`,
+          subTitle: "Choose a provider to start it.",
+          variant: "success",
+          href: meta.dseq && ACTIVITY_DESTINATIONS.deployment_create(meta.dseq, status)
+        }
       : { title: `Couldn't create ${deployment}`, subTitle: meta.error?.message ?? "Try creating it again.", variant: "error" };
   }
 };
@@ -74,12 +83,13 @@ export function ActivityHost({ dependencies: d = DEPENDENCIES }: { dependencies?
   const isEnabled = d.useFlag("notifications_activity_center");
   const { user } = d.useUser();
   const { address } = d.useWallet();
-  const { api } = useServices();
+  const { api, analyticsService } = useServices();
   const queryClient = d.useQueryClient();
   const { enqueueSnackbar } = d.useSnackbar();
   const { data: activities } = d.useLatestActivitiesQuery({ enabled: isEnabled && !!user?.userId });
   const { getDeploymentName, isLoading: isLoadingDeploymentNames } = d.useDeploymentNames(activities?.map(activity => activity.meta.dseq) ?? []);
   const closeBatchesBeingSent = d.useCloseBatchesBeingSent();
+  const takeHeldCreateEvent = d.useTakeHeldCreateEvent();
   const lastSeenStatuses = useRef<Map<string, Activity["status"]>>();
   const batchesToSumUp = useRef(new Set<string>());
 
@@ -94,6 +104,7 @@ export function ActivityHost({ dependencies: d = DEPENDENCIES }: { dependencies?
         for (const queryKey of queryKeysChangedBy(activity)) {
           queryClient.invalidateQueries({ queryKey });
         }
+        trackHeldCreateEvent(activity);
 
         if (activity.meta.batchId) batchesToSumUp.current.add(activity.meta.batchId);
         else announce(ANNOUNCEMENTS[activity.type](activity, labelDeployment));
@@ -111,8 +122,20 @@ export function ActivityHost({ dependencies: d = DEPENDENCIES }: { dependencies?
         if (first) announce(rest.length > 0 && announceBatch ? announceBatch(batch, labelDeployment) : ANNOUNCEMENTS[first.type](first, labelDeployment));
       }
 
-      function announce({ title, subTitle, variant }: Announcement) {
-        enqueueSnackbar(<Snackbar title={title} subTitle={subTitle} iconVariant={variant} />, { variant });
+      function announce({ title, subTitle, variant, href }: Announcement) {
+        const linkedSubTitle = href ? (
+          <Link href={href} className="font-medium underline underline-offset-2">
+            {subTitle}
+          </Link>
+        ) : (
+          subTitle
+        );
+        enqueueSnackbar(<Snackbar title={title} subTitle={linkedSubTitle} iconVariant={variant} />, { variant });
+      }
+
+      function trackHeldCreateEvent({ id, status }: FinishedActivity) {
+        const createdEvent = takeHeldCreateEvent(id);
+        if (createdEvent && status === "succeeded") analyticsService.track("create_deployment", createdEvent);
       }
 
       function labelDeployment(dseq: string | undefined) {
@@ -131,7 +154,19 @@ export function ActivityHost({ dependencies: d = DEPENDENCIES }: { dependencies?
         ];
       }
     },
-    [activities, isLoadingDeploymentNames, getDeploymentName, closeBatchesBeingSent, address, api, enqueueSnackbar, queryClient, user?.id]
+    [
+      activities,
+      isLoadingDeploymentNames,
+      getDeploymentName,
+      closeBatchesBeingSent,
+      takeHeldCreateEvent,
+      address,
+      api,
+      analyticsService,
+      enqueueSnackbar,
+      queryClient,
+      user?.id
+    ]
   );
 
   return null;

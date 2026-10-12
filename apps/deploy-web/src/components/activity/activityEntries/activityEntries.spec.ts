@@ -42,13 +42,13 @@ describe(activityEntriesOf.name, () => {
   it.each([
     { status: "pending" as const, title: "Creating “web-1234”" },
     { status: "succeeded" as const, title: "Created “web-1234”" }
-  ])("describes a $status create of its deployment, linking to it", ({ status, title }) => {
+  ])("describes a $status create of its deployment, linking to choosing a provider for it", ({ status, title }) => {
     const [entry] = entriesOf([buildActivity({ type: "deployment_create", status, meta: { dseq: "1234" } })]);
 
-    expect(entry).toMatchObject({ status, title, href: "/deployments/1234" });
+    expect(entry).toMatchObject({ status, title, href: "/new-deployment/configure/1234" });
   });
 
-  it("describes a failed create with its reason, linking to the deployment", () => {
+  it("describes a failed create with its reason, linking back to configuring a deployment to try again", () => {
     const [entry] = entriesOf([
       buildActivity({
         type: "deployment_create",
@@ -61,7 +61,7 @@ describe(activityEntriesOf.name, () => {
       status: "failed",
       title: "Couldn't create “web-1234”",
       detail: "The deployment was not created. Try creating it again.",
-      href: "/deployments/1234"
+      href: "/new-deployment/configure"
     });
   });
 

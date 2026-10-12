@@ -17,9 +17,15 @@ export interface ActivityEntry {
 type LabelDeployment = (dseq: string | undefined) => string;
 
 const ENTRY_WORDING = {
-  deployment_close: { pending: "Closing", succeeded: "Closed", failed: "Couldn't close", retry: "Try closing it again.", failedTab: "SETTINGS" },
-  deployment_create: { pending: "Creating", succeeded: "Created", failed: "Couldn't create", retry: "Try creating it again.", failedTab: undefined }
-} satisfies Record<Activity["type"], { pending: string; succeeded: string; failed: string; retry: string; failedTab?: string }>;
+  deployment_close: { pending: "Closing", succeeded: "Closed", failed: "Couldn't close", retry: "Try closing it again." },
+  deployment_create: { pending: "Creating", succeeded: "Created", failed: "Couldn't create", retry: "Try creating it again." }
+} satisfies Record<Activity["type"], { pending: string; succeeded: string; failed: string; retry: string }>;
+
+/** A create that failed left no deployment behind, so it leads back to configuring a new one. */
+export const ACTIVITY_DESTINATIONS = {
+  deployment_close: (dseq, status) => UrlService.deploymentDetails(dseq, status === "failed" ? "SETTINGS" : undefined),
+  deployment_create: (dseq, status) => (status === "failed" ? UrlService.configureDeployment() : UrlService.configureDeployment({ dseq }))
+} satisfies Record<Activity["type"], (dseq: string, status: Activity["status"]) => string>;
 
 /** A bulk close reads as one entry, placed where its newest close is, so it never crowds out everything else. */
 export function activityEntriesOf(activities: Activity[], labelDeployment: LabelDeployment, limit: number): ActivityEntry[] {
@@ -47,7 +53,7 @@ export function activityEntriesOf(activities: Activity[], labelDeployment: Label
 export function activityEntryOf({ id, type, status, meta, createdAt }: Activity, labelDeployment: LabelDeployment): ActivityEntry {
   const wording = ENTRY_WORDING[type];
   const deployment = labelDeployment(meta.dseq);
-  const href = meta.dseq ? UrlService.deploymentDetails(meta.dseq, status === "failed" ? wording.failedTab : undefined) : UrlService.deploymentList();
+  const href = meta.dseq ? ACTIVITY_DESTINATIONS[type](meta.dseq, status) : UrlService.deploymentList();
 
   if (status === "pending") return { id, status, title: `${wording.pending} ${deployment}`, href, createdAt };
   if (status === "succeeded") return { id, status, title: `${wording.succeeded} ${deployment}`, href, createdAt };

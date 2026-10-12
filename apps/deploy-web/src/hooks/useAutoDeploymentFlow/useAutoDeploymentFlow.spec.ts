@@ -549,6 +549,7 @@ describe(useAutoDeploymentFlow.name, () => {
         deployError,
         error,
         pendingClose: null,
+        isCreatingInBackground: false,
         actions: { ...actions, requestQuotes, selectProvider, deploy, retry, cancelAndEdit, closeAndFail }
       };
     }
