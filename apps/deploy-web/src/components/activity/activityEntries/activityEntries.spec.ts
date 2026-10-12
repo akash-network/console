@@ -51,8 +51,20 @@ describe(activityEntriesOf.name, () => {
     ]);
   });
 
+  it("links a wallet balance alert to billing, where the balance can be topped up", () => {
+    const activity = buildActivity({
+      type: "wallet_balance_alert",
+      status: "info",
+      meta: { alertId: "4f1c2a8e-0b5d-4e6f-9a7b-1c2d3e4f5a6b", summary: "Wallet balance is below 10 AKT" }
+    });
+
+    expect(entriesOf([activity])).toEqual([
+      { id: activity.id, status: "info", title: "Wallet balance is below 10 AKT", href: "/billing", createdAt: activity.createdAt }
+    ]);
+  });
+
   it("says one of the user's alerts fired when the alert carries no summary", () => {
-    const [entry] = entriesOf([buildActivity({ type: "wallet_balance_alert", status: "info", meta: {} })]);
+    const [entry] = entriesOf([buildActivity({ type: "deployment_closed_alert", status: "info", meta: {} })]);
 
     expect(entry).toMatchObject({ status: "info", title: "One of your alerts fired", href: "/deployments" });
   });
