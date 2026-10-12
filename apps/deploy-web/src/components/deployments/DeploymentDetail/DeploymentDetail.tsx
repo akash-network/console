@@ -25,6 +25,7 @@ import { DeploymentLeaseShell } from "../DeploymentLeaseShell";
 import { DeploymentLogs } from "../DeploymentLogs";
 import { ManifestUpdate } from "../ManifestUpdate/ManifestUpdate";
 import { ReclamationBanner } from "../ReclamationBanner/ReclamationBanner";
+import { DeploymentGettingStarted } from "./DeploymentGettingStarted/DeploymentGettingStarted";
 import { DeploymentPlacements } from "./DeploymentPlacements/DeploymentPlacements";
 import { DeploymentSettings } from "./DeploymentSettings/DeploymentSettings";
 import { DeploymentUpdate } from "./DeploymentUpdate/DeploymentUpdate";
@@ -46,6 +47,7 @@ export const DEPENDENCIES = {
   Layout,
   ReclamationBanner,
   DeploymentDetailHeader,
+  DeploymentGettingStarted,
   DeploymentPlacements,
   DeploymentLogs,
   DeploymentLeaseShell,
@@ -238,14 +240,17 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq, dependencies
                   (showsPlacementsSkeleton ? (
                     <Skeleton className="h-64 w-full rounded-xl" data-testid="deployment-placements-skeleton" />
                   ) : (
-                    <d.DeploymentPlacements
-                      leases={leases || []}
-                      providers={providers}
-                      deploymentManifest={deploymentManifest}
-                      dseq={dseq}
-                      isLoadingLeaseGpus={isLoadingLeaseGpus}
-                      onClosed={loadDeploymentDetail}
-                    />
+                    <>
+                      <d.DeploymentGettingStarted leases={leases || []} providers={providers} deploymentManifest={deploymentManifest} />
+                      <d.DeploymentPlacements
+                        leases={leases || []}
+                        providers={providers}
+                        deploymentManifest={deploymentManifest}
+                        dseq={dseq}
+                        isLoadingLeaseGpus={isLoadingLeaseGpus}
+                        onClosed={loadDeploymentDetail}
+                      />
+                    </>
                   ))}
 
                 {activeTab === "LOGS" && (isActive ? <d.DeploymentLogs leases={leases} selectedLogsMode="logs" /> : <TabInactiveState />)}

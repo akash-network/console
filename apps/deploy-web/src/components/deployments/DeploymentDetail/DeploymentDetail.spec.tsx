@@ -5,6 +5,8 @@ import { mock } from "vitest-mock-extended";
 import type { DeploymentDefinition } from "@src/hooks/useDeploymentDefinition/useDeploymentDefinition";
 import type { DeploymentDto, DetectedLeaseGpus, LeaseDto, LeaseGpusByLease, OfferedLeaseGpus } from "@src/types/deployment";
 import type { ApiProviderList } from "@src/types/provider";
+import type { DeploymentGettingStartedProps } from "./DeploymentGettingStarted/DeploymentGettingStarted";
+import type { DeploymentPlacementsProps } from "./DeploymentPlacements/DeploymentPlacements";
 import type { DeploymentUpdateProps } from "./DeploymentUpdate/DeploymentUpdate";
 import { DEPENDENCIES, DeploymentDetail } from "./DeploymentDetail";
 
@@ -117,11 +119,41 @@ describe("DeploymentDetail", () => {
     expect(screen.queryByTestId("deployment-detail-skeleton")).not.toBeInTheDocument();
   });
 
+  it("shows how to get started above the placements, from the providers and definition the page loaded", () => {
+    const { DeploymentGettingStarted } = setup({ definition: { sdl: "version: '2.0'\nservices: {}" } });
+    const props = DeploymentGettingStarted.mock.lastCall?.[0];
+
+    expect(isRenderedBefore(screen.getByText("getting-started"), screen.getByText("placements"))).toBe(true);
+    expect(props?.providers.map(provider => provider.owner)).toEqual(["akash1provider"]);
+    expect(props?.deploymentManifest).toBe("version: '2.0'\nservices: {}");
+  });
+
+  it("hands the getting started section and the placements the leases the page loaded", () => {
+    const { DeploymentGettingStarted, DeploymentPlacements } = setup();
+
+    expect(DeploymentGettingStarted.mock.lastCall?.[0].leases.map(lease => lease.id)).toEqual(["1"]);
+    expect(DeploymentPlacements.mock.lastCall?.[0].leases.map(lease => lease.id)).toEqual(["1"]);
+  });
+
+  it("hands the getting started section and the placements no leases when the lease list comes back empty", () => {
+    const { DeploymentGettingStarted, DeploymentPlacements } = setup({ leases: null });
+
+    expect(DeploymentGettingStarted.mock.lastCall?.[0].leases).toEqual([]);
+    expect(DeploymentPlacements.mock.lastCall?.[0].leases).toEqual([]);
+  });
+
+  it("keeps the getting started section off the other tabs", () => {
+    setup({ tab: "LOGS" });
+
+    expect(screen.queryByText("getting-started")).not.toBeInTheDocument();
+  });
+
   it("holds only the placements until the definition resolves, so they never render with no services", () => {
     setup({ definition: { sdl: undefined, source: "resolving" } });
 
     expect(screen.getByTestId("deployment-placements-skeleton")).toBeInTheDocument();
     expect(screen.queryByText("placements")).not.toBeInTheDocument();
+    expect(screen.queryByText("getting-started")).not.toBeInTheDocument();
     expect(screen.queryByTestId("deployment-detail-skeleton")).not.toBeInTheDocument();
     expect(screen.getByText("detail-header")).toBeInTheDocument();
     expect(screen.getByRole("tablist")).toBeInTheDocument();
@@ -473,7 +505,8 @@ describe("DeploymentDetail", () => {
 
     const DeploymentDetailHeader = vi.fn<(props: { leases?: LeaseDto[] | null; isLoadingLeaseGpus?: boolean }) => ReactElement>(() => <div>detail-header</div>);
     const ReclamationBanner = vi.fn(() => <div>reclamation-banner</div>);
-    const DeploymentPlacements = vi.fn<(props: { isLoadingLeaseGpus?: boolean }) => ReactElement>(() => <div>placements</div>);
+    const DeploymentPlacements = vi.fn<(props: DeploymentPlacementsProps) => ReactElement>(() => <div>placements</div>);
+    const DeploymentGettingStarted = vi.fn<(props: DeploymentGettingStartedProps) => ReactElement>(() => <div>getting-started</div>);
     const DeploymentLogs = vi.fn(() => <div>logs</div>);
     const DeploymentLeaseShell = vi.fn(() => <div>shell</div>);
     const ManifestUpdate = vi.fn(({ closeManifestEditor }: { closeManifestEditor: () => void; onRedeploy?: () => void }) => (
@@ -500,6 +533,7 @@ describe("DeploymentDetail", () => {
       DeploymentDetailHeader,
       ReclamationBanner,
       DeploymentPlacements,
+      DeploymentGettingStarted,
       DeploymentLogs,
       DeploymentLeaseShell,
       ManifestUpdate,
@@ -519,6 +553,7 @@ describe("DeploymentDetail", () => {
       refetchDeployment,
       DeploymentDetailHeader,
       DeploymentPlacements,
+      DeploymentGettingStarted,
       useProvidersByAddresses,
       refetchLeases,
       rerenderWithLeaseGpus(next: LeaseGpusByLease) {

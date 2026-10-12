@@ -140,7 +140,7 @@ const SshKeyUsage: FC<{ dependencies: typeof DEPENDENCIES }> = ({ dependencies: 
         Make sure to set the correct permissions on the private key file:
         <d.CodeSnippet code="chmod 600 ~/.ssh/id_rsa" />
       </li>
-      <li>Check out more instructions on the deployment page in the Lease tab.</li>
+      <li>Once the deployment is running, its Details tab shows the command to connect.</li>
     </ul>
     <p className="mt-2">Note: the above is valid for unix operating systems. Make sure your image has SSH configured.</p>
   </div>
