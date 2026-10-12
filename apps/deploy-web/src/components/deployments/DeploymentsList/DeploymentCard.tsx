@@ -5,11 +5,13 @@ import { Card, Checkbox } from "@akashnetwork/ui/components";
 import Link from "next/link";
 
 import { DeploymentProjectChip } from "@src/components/projects/DeploymentProjectChip/DeploymentProjectChip";
+import { useDeploymentStatus } from "@src/hooks/useDeploymentStatus/useDeploymentStatus";
 import type { ListedDeploymentDto } from "@src/types/deployment";
 import type { ApiProviderList } from "@src/types/provider";
 import { UrlService } from "@src/utils/urlUtils";
 import { resolveDeploymentGpus } from "../DeploymentDetail/DeploymentPlacements/placementModel";
 import { DeploymentStatusBadge } from "../DeploymentDetail/DeploymentStatusBadge";
+import { DeploymentRecoveryAction } from "../DeploymentRecoveryAction/DeploymentRecoveryAction";
 import { DeploymentActionsMenu } from "./DeploymentActionsMenu";
 import { DeploymentBadges } from "./DeploymentBadges";
 import { DeploymentEndpoints, DeploymentEndpointsPanel } from "./DeploymentEndpoints";
@@ -18,7 +20,9 @@ import { useDeploymentReachability } from "./useDeploymentReachability";
 
 export const DEPENDENCIES = {
   useDeploymentReachability,
+  useDeploymentStatus,
   DeploymentStatusBadge,
+  DeploymentRecoveryAction,
   DeploymentBadges,
   DeploymentEndpoints,
   DeploymentEndpointsPanel,
@@ -33,7 +37,6 @@ export interface DeploymentCardProps {
   isSelectable?: boolean;
   isSelected?: boolean;
   isClosing?: boolean;
-  isUpdating?: boolean;
   canManage?: boolean;
   onSelect?: (input: { id: string; isShiftPressed: boolean }) => void;
   onDeploymentClosed?: () => void;
@@ -46,13 +49,13 @@ export const DeploymentCard: FC<DeploymentCardProps> = ({
   isSelectable,
   isSelected,
   isClosing = false,
-  isUpdating = false,
   canManage = true,
   onSelect,
   onDeploymentClosed,
   dependencies: d = DEPENDENCIES
 }) => {
   const { leases, workload, endpoints, isLoadingEndpoints, unreachableReason } = d.useDeploymentReachability({ deployment, providers });
+  const status = d.useDeploymentStatus({ dseq: deployment.dseq, state: deployment.state, leases, workload });
   const [isShowingEndpoints, setIsShowingEndpoints] = useState(false);
   const toggleEndpoints = () => setIsShowingEndpoints(current => !current);
   /** Endpoints can drop below the count that draws the toggle while the panel is open, which would strand it with nothing left to close it. */
@@ -70,18 +73,23 @@ export const DeploymentCard: FC<DeploymentCardProps> = ({
           </div>
 
           <div className="flex shrink-0 flex-wrap items-center justify-end gap-1.5">
-            <d.DeploymentStatusBadge state={deployment.state} leases={leases} isSummarized isClosing={isClosing} isUpdating={isUpdating} workload={workload} />
+            <d.DeploymentStatusBadge status={status} leases={leases} isSummarized />
             <d.DeploymentBadges deployment={deployment} />
           </div>
         </div>
 
-        <d.DeploymentEndpoints
-          endpoints={endpoints}
-          isLoading={isLoadingEndpoints}
-          unreachableReason={unreachableReason}
-          isExpanded={isShowingEndpointPanel}
-          onToggleExpanded={toggleEndpoints}
-        />
+        {status.launch?.phase === "failed" && canManage ? (
+          <d.DeploymentRecoveryAction dseq={deployment.dseq} hasLease={status.launch.hasLease} leases={leases ?? []} isCompact />
+        ) : (
+          <d.DeploymentEndpoints
+            endpoints={endpoints}
+            isLoading={isLoadingEndpoints}
+            unreachableReason={unreachableReason}
+            isSpinningUp={status.isSpinningUp}
+            isExpanded={isShowingEndpointPanel}
+            onToggleExpanded={toggleEndpoints}
+          />
+        )}
 
         {isShowingEndpointPanel && <d.DeploymentEndpointsPanel endpoints={endpoints} />}
       </div>

@@ -1,6 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
+import type { ResolvedDeploymentStatus } from "@src/hooks/useDeploymentStatus/useDeploymentStatus";
+import type { Activity } from "@src/queries/useLatestActivitiesQuery";
 import type { LeaseDto, ListedDeploymentDto } from "@src/types/deployment";
 import type { WorkloadStatus } from "../DeploymentDetail/DeploymentPlacements/placementModel";
 import type { VisitEndpoint } from "../DeploymentDetail/DeploymentVisitControl/visitEndpoints";
@@ -8,6 +10,8 @@ import { DEPENDENCIES, DeploymentRow } from "./DeploymentRow";
 
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { buildActivity } from "@tests/seeders/activity";
+import { activityFeedOf } from "@tests/unit/activityFeed";
 import { MockComponents } from "@tests/unit/mocks";
 
 describe("DeploymentRow", () => {
@@ -44,10 +48,10 @@ describe("DeploymentRow", () => {
   });
 
   describe("reading the status the way the deployment page does", () => {
-    it("shows the deployment as starting while a service of a live lease has no ready replica", () => {
+    it("shows the deployment as spinning up while a service of a live lease has no ready replica", () => {
       setup({ deployment: { dseq: "100" }, leases: [mock<LeaseDto>({ state: "active" })], workload: "starting", isRenderingStatus: true });
 
-      expect(screen.getByText("Starting")).toBeInTheDocument();
+      expect(screen.getByText("Spinning up")).toBeInTheDocument();
       expect(screen.queryByText("Running")).not.toBeInTheDocument();
     });
 
@@ -69,6 +73,76 @@ describe("DeploymentRow", () => {
 
       expect(screen.getByText("Running")).toBeInTheDocument();
     });
+
+    it("shows a deployment whose lease is still being created as spinning up, as its card does", () => {
+      setup({
+        deployment: { dseq: "100" },
+        activities: [buildActivity({ type: "lease_create", status: "pending", meta: { dseq: "100" } })],
+        isRenderingStatus: true
+      });
+
+      expect(screen.getByText("Spinning up")).toBeInTheDocument();
+    });
+
+    it("shows a deployment whose update is applied in the background as updating, as its card does", () => {
+      setup({
+        deployment: { dseq: "100" },
+        leases: [mock<LeaseDto>({ state: "active" })],
+        activities: [buildActivity({ type: "deployment_update", status: "pending", meta: { dseq: "100" } })],
+        isRenderingStatus: true
+      });
+
+      expect(screen.getByText("Updating")).toBeInTheDocument();
+      expect(screen.queryByText("Running")).not.toBeInTheDocument();
+    });
+  });
+
+  it("resolves the status through the hook the card and the deployment page header share", () => {
+    const leases = [mock<LeaseDto>({ state: "active" })];
+    const status: ResolvedDeploymentStatus = { label: "Spinning up", summaryLabel: "Spinning up", tone: "loading", isSpinningUp: true };
+    const { DeploymentStatusBadge, useDeploymentStatus } = setup({ deployment: { dseq: "100" }, leases, workload: "starting", status });
+
+    expect(useDeploymentStatus).toHaveBeenCalledWith({ dseq: "100", state: "active", leases, workload: "starting" });
+    expect(DeploymentStatusBadge).toHaveBeenCalledWith({ status, leases, isSummarized: true }, expect.anything());
+  });
+
+  it("tells the endpoints view a deployment is spinning up", () => {
+    const { DeploymentEndpoints } = setup({ deployment: { dseq: "100" }, status: { isSpinningUp: true } });
+
+    expect(DeploymentEndpoints).toHaveBeenCalledWith(expect.objectContaining({ isSpinningUp: true }), expect.anything());
+  });
+
+  it("offers to choose a provider again in the endpoint cell once the lease failed", () => {
+    const leases = [mock<LeaseDto>({ state: "active" })];
+    const { DeploymentEndpoints, DeploymentRecoveryAction } = setup({
+      deployment: { dseq: "100" },
+      leases,
+      status: { launch: { phase: "failed", providers: [], hasLease: false } }
+    });
+
+    expect(DeploymentRecoveryAction).toHaveBeenCalledWith({ dseq: "100", hasLease: false, leases, isCompact: true }, expect.anything());
+    expect(DeploymentEndpoints).not.toHaveBeenCalled();
+  });
+
+  it("keeps the endpoints in the endpoint cell for someone who cannot manage the deployment", () => {
+    const { DeploymentEndpoints, DeploymentRecoveryAction } = setup({
+      deployment: { dseq: "100" },
+      canManage: false,
+      status: { launch: { phase: "failed", providers: [], hasLease: true } }
+    });
+
+    expect(DeploymentRecoveryAction).not.toHaveBeenCalled();
+    expect(DeploymentEndpoints).toHaveBeenCalled();
+  });
+
+  it("hands the recovery action no leases before the deployment's leases have loaded", () => {
+    const { DeploymentRecoveryAction } = setup({
+      deployment: { dseq: "100" },
+      leases: null,
+      status: { launch: { phase: "failed", providers: [], hasLease: true } }
+    });
+
+    expect(DeploymentRecoveryAction).toHaveBeenCalledWith(expect.objectContaining({ leases: [] }), expect.anything());
   });
 
   it("falls back to the dseq when the deployment has no local name", () => {
@@ -106,12 +180,6 @@ describe("DeploymentRow", () => {
   });
 
   describe("while the deployment's close runs in the background", () => {
-    it("shows the deployment as closing", () => {
-      const { DeploymentStatusBadge } = setup({ deployment: { dseq: "100" }, isClosing: true });
-
-      expect(DeploymentStatusBadge).toHaveBeenCalledWith(expect.objectContaining({ isClosing: true }), expect.anything());
-    });
-
     it("offers no selection, so it cannot join a bulk close", () => {
       setup({ deployment: { dseq: "100" }, isSelectable: true, isClosing: true });
 
@@ -123,18 +191,6 @@ describe("DeploymentRow", () => {
 
       expect(DeploymentActionsMenu).toHaveBeenCalledWith(expect.objectContaining({ isClosing: true }), expect.anything());
     });
-  });
-
-  it("shows the deployment as updating while its update is applied in the background", () => {
-    const { DeploymentStatusBadge } = setup({ deployment: { dseq: "100" }, isUpdating: true });
-
-    expect(DeploymentStatusBadge).toHaveBeenCalledWith(expect.objectContaining({ isUpdating: true }), expect.anything());
-  });
-
-  it("shows the deployment as it is while no update is being applied to it", () => {
-    const { DeploymentStatusBadge } = setup({ deployment: { dseq: "100" } });
-
-    expect(DeploymentStatusBadge).toHaveBeenCalledWith(expect.objectContaining({ isUpdating: false }), expect.anything());
   });
 
   it("keeps the endpoints out of the row until they are asked for", () => {
@@ -212,22 +268,30 @@ describe("DeploymentRow", () => {
     isSelectable?: boolean;
     isSelected?: boolean;
     isClosing?: boolean;
-    isUpdating?: boolean;
     endpoints?: VisitEndpoint[];
     canManage?: boolean;
-    leases?: LeaseDto[];
+    leases?: LeaseDto[] | null;
     workload?: WorkloadStatus;
     isRenderingStatus?: boolean;
+    activities?: Activity[];
+    status?: Partial<ResolvedDeploymentStatus>;
   }) {
     let endpoints = input.endpoints ?? [];
     const useDeploymentReachability = vi.fn<typeof DEPENDENCIES.useDeploymentReachability>(() => ({
-      leases: input.leases ?? [],
+      leases: input.leases === undefined ? [] : input.leases,
       isLoadingLeases: false,
       workload: input.workload,
       endpoints,
       isLoadingEndpoints: false,
       unreachableReason: null
     }));
+    const useDeploymentStatus = vi.fn<typeof DEPENDENCIES.useDeploymentStatus>(() => ({
+      label: "Running",
+      summaryLabel: "Running",
+      tone: "running",
+      ...input.status
+    }));
+    const DeploymentRecoveryAction = vi.fn(() => <div>recovery</div>);
 
     const DeploymentEndpoints = vi.fn<typeof DEPENDENCIES.DeploymentEndpoints>(({ onToggleExpanded }) => (
       <button type="button" onClick={onToggleExpanded}>
@@ -253,11 +317,14 @@ describe("DeploymentRow", () => {
             isSelectable={input.isSelectable}
             isSelected={input.isSelected}
             isClosing={input.isClosing}
-            isUpdating={input.isUpdating}
             canManage={input.canManage}
             onSelect={onSelect}
             dependencies={MockComponents(DEPENDENCIES, {
               useDeploymentReachability,
+              useDeploymentStatus: input.isRenderingStatus
+                ? params => DEPENDENCIES.useDeploymentStatus({ ...params, dependencies: activityFeedOf(input.activities ?? []) })
+                : useDeploymentStatus,
+              DeploymentRecoveryAction,
               DeploymentEndpoints,
               DeploymentEndpointsPanel,
               DeploymentBadges,
@@ -276,6 +343,8 @@ describe("DeploymentRow", () => {
       ...input,
       onSelect,
       useDeploymentReachability,
+      useDeploymentStatus,
+      DeploymentRecoveryAction,
       providers,
       deployment,
       DeploymentEndpoints,

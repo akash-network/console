@@ -62,13 +62,20 @@ describe("DeploymentEndpoints", () => {
   it("explains that the endpoint shows up once the deployment has started", () => {
     setup({ endpoints: [], unreachableReason: "starting" });
 
-    expect(screen.getByText("no endpoint yet · starting")).toBeInTheDocument();
+    expect(screen.getByText("no endpoint yet · spinning up")).toBeInTheDocument();
   });
 
   it("explains that status is not available with the caller's access", () => {
     setup({ endpoints: [], unreachableReason: "status-unavailable" });
 
     expect(screen.getByText("endpoints unavailable · status not available with your access")).toBeInTheDocument();
+  });
+
+  it("says a deployment spinning up has no endpoint yet, rather than that it is not running", () => {
+    setup({ endpoints: [], unreachableReason: "not-running", isSpinningUp: true });
+
+    expect(screen.getByText("no endpoint yet · spinning up")).toBeInTheDocument();
+    expect(screen.queryByText("no endpoint · not running")).not.toBeInTheDocument();
   });
 
   it("distinguishes an unreachable provider from a deployment without endpoints", () => {
@@ -99,10 +106,10 @@ describe("DeploymentEndpoints", () => {
   });
 
   it("says nothing at all when there are no endpoints and no reason to give", () => {
-    setup({ endpoints: [], unreachableReason: undefined });
+    const { container } = setup({ endpoints: [], unreachableReason: undefined });
 
     expect(screen.queryByRole("link")).not.toBeInTheDocument();
-    expect(screen.queryByText(/no public endpoint|not running|provider unreachable/)).not.toBeInTheDocument();
+    expect(container.textContent).toBe("");
   });
 
   it("shows a placeholder instead of a wrong reason while endpoints are still resolving", () => {
@@ -151,18 +158,25 @@ describe("DeploymentEndpoints", () => {
     return { serviceName: input.serviceName ?? "web", host, port, href: input.href ?? `http://${host}:${port}` };
   }
 
-  function setup(input: { endpoints: VisitEndpoint[]; isLoading?: boolean; unreachableReason?: UnreachableReason; isExpanded?: boolean }) {
+  function setup(input: {
+    endpoints: VisitEndpoint[];
+    isLoading?: boolean;
+    unreachableReason?: UnreachableReason;
+    isSpinningUp?: boolean;
+    isExpanded?: boolean;
+  }) {
     const onToggleExpanded = vi.fn();
-    render(
+    const { container } = render(
       <DeploymentEndpoints
         endpoints={input.endpoints}
         isLoading={input.isLoading ?? false}
         unreachableReason={input.unreachableReason ?? null}
+        isSpinningUp={input.isSpinningUp}
         isExpanded={input.isExpanded ?? false}
         onToggleExpanded={onToggleExpanded}
       />
     );
 
-    return { ...input, onToggleExpanded };
+    return { ...input, onToggleExpanded, container };
   }
 });

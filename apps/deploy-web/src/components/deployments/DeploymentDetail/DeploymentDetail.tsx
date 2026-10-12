@@ -13,6 +13,7 @@ import { useServices } from "@src/context/ServicesProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { useCanManageDeployment } from "@src/hooks/useCanManageDeployment/useCanManageDeployment";
 import { isUsableDeploymentDefinition, sdlToRedeploy, useDeploymentDefinition } from "@src/hooks/useDeploymentDefinition/useDeploymentDefinition";
+import { deploymentLaunchOf, useDeploymentActivity } from "@src/hooks/useDeploymentStatus/useDeploymentStatus";
 import { useLeaseGpus, withLeaseGpus } from "@src/hooks/useLeaseGpus/useLeaseGpus";
 import { useOpenDeploymentInItsOrganization } from "@src/hooks/useOpenDeploymentInItsOrganization/useOpenDeploymentInItsOrganization";
 import { useProjectsUi } from "@src/hooks/useProjectsUi/useProjectsUi";
@@ -30,6 +31,7 @@ import { DeploymentLogs } from "../DeploymentLogs";
 import { ManifestUpdate } from "../ManifestUpdate/ManifestUpdate";
 import { ReclamationBanner } from "../ReclamationBanner/ReclamationBanner";
 import { DeploymentGettingStarted } from "./DeploymentGettingStarted/DeploymentGettingStarted";
+import { DeploymentLaunchState } from "./DeploymentLaunchState/DeploymentLaunchState";
 import { DeploymentPlacements } from "./DeploymentPlacements/DeploymentPlacements";
 import { DeploymentSettings } from "./DeploymentSettings/DeploymentSettings";
 import { DeploymentUpdate } from "./DeploymentUpdate/DeploymentUpdate";
@@ -43,6 +45,7 @@ export const DEPENDENCIES = {
   useSearchParams,
   useRedeploy,
   useDeploymentDefinition,
+  useDeploymentActivity,
   useDeploymentDetail,
   useDeploymentLeaseList,
   useLeaseGpus,
@@ -56,6 +59,7 @@ export const DEPENDENCIES = {
   ReclamationBanner,
   DeploymentDetailHeader,
   DeploymentGettingStarted,
+  DeploymentLaunchState,
   DeploymentPlacements,
   DeploymentLogs,
   DeploymentLeaseShell,
@@ -125,6 +129,9 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq, dependencies
   const leaseProviderAddresses = useMemo(() => leases?.map(lease => lease.provider) ?? [], [leases]);
   const { data: providers, isFetching: isLoadingProviders } = d.useProvidersByAddresses(leaseProviderAddresses);
 
+  const { leaseCreation, isUpdating, isResolving: isResolvingActivity } = d.useDeploymentActivity(dseq);
+  const launch = deployment && deploymentLaunchOf({ state: deployment.state, leases, leaseCreation, isUpdating });
+
   const definition = d.useDeploymentDefinition(dseq, { acceptReferences: true });
   const deploymentManifest = definition.sdl || "";
   const isActive = deployment?.state === "active" && !!leases?.some(isLeaseLive);
@@ -142,12 +149,24 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq, dependencies
 
   useEffect(
     function redirectWhenInProgressWithoutLease() {
-      if (definition.source === "resolving" || !isAwaitingLease || !canManage) return;
+      if (definition.source === "resolving" || !isAwaitingLease || !canManage || isResolvingActivity || leaseCreation) return;
 
       const draftId = isUsableDeploymentDefinition(definition) ? d.createConfigureDraft(sdlToRedeploy(definition), { name: definition.name }) : undefined;
       router.replace(UrlService.configureDeployment({ dseq, draftId }));
     },
-    [isAwaitingLease, canManage, definition.source, definition.sdl, definition.restoredSdl, definition.name, dseq, router, d]
+    [
+      isAwaitingLease,
+      canManage,
+      definition.source,
+      definition.sdl,
+      definition.restoredSdl,
+      definition.name,
+      dseq,
+      isResolvingActivity,
+      leaseCreation,
+      router,
+      d
+    ]
   );
 
   const tabQuery = searchParams?.get("tab");
@@ -262,7 +281,10 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq, dependencies
 
             <div className="flex-1 bg-muted py-6">
               <div className={PAGE_BAND}>
+                {activeTab === "DETAILS" && launch && <d.DeploymentLaunchState dseq={dseq} launch={launch} leases={leases ?? []} canManage={canManage} className="mb-6" />}
+
                 {activeTab === "DETAILS" &&
+                  (!launch || isActive) &&
                   (showsPlacementsSkeleton || (isAwaitingLease && isLoadingManagement) ? (
                     <Skeleton className="h-64 w-full rounded-xl" data-testid="deployment-placements-skeleton" />
                   ) : isAwaitingLease && !canManage ? (

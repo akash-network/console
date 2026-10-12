@@ -393,14 +393,12 @@ describe("DeploymentsList", () => {
   it("hands the collection everything it needs to render and act on a page", () => {
     const deployments = [namedDeployment("100"), namedDeployment("101")];
     const closingDseqs = new Set(["101"]);
-    const updatingDseqs = new Set(["100"]);
     const { DeploymentsCollection, selectItem, refetchDeployments } = setup({
       hasPageResults: true,
       pageDeployments: deployments,
       viewMode: "list",
       selectedItemIds: ["100"],
-      closingDseqs,
-      updatingDseqs
+      closingDseqs
     });
 
     expect(DeploymentsCollection).toHaveBeenCalledWith(
@@ -410,7 +408,6 @@ describe("DeploymentsList", () => {
         isSelectable: true,
         selectedIds: ["100"],
         closingDseqs,
-        updatingDseqs,
         onSelect: selectItem,
         onDeploymentClosed: refetchDeployments
       }),
@@ -601,7 +598,6 @@ describe("DeploymentsList", () => {
       showPageSizeSelector: false,
       isInitialLoad: false,
       closingDseqs: new Set(),
-      updatingDseqs: new Set(),
       selectedItemIds: [],
       selectItem,
       clearSelection,
