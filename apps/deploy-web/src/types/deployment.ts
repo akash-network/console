@@ -1,9 +1,6 @@
-import type { DeploymentReclamation } from "@akashnetwork/chain-sdk/private-types/akash.v1";
-import type { GroupSpec } from "@akashnetwork/chain-sdk/private-types/akash.v1beta4";
 import type { paths } from "@akashnetwork/console-api-types";
-import type { Bid, DeploymentResource } from "@akashnetwork/http-sdk";
+import type { DeploymentResource } from "@akashnetwork/http-sdk";
 
-export type RpcBid = Bid;
 export type { DeploymentResource };
 export type { RpcLease } from "@akashnetwork/http-sdk";
 
@@ -322,60 +319,4 @@ export interface LeaseDto {
     startedAt?: string;
     window?: string;
   };
-}
-
-export interface BidDto {
-  id: string;
-  owner: string;
-  provider: string;
-  dseq: string;
-  gseq: number;
-  oseq: number;
-  price: {
-    denom: string;
-    amount: string;
-  };
-  state: string;
-  resourcesOffer: Array<{
-    resources: DeploymentResource_V3;
-    count: number;
-  }>;
-  // Reclamation window the provider offers for this bid (AEP-82), as a REST Duration string e.g. "86400s".
-  // Undefined on pre-v2.1 bids or when the provider offers no reclamation.
-  reclamationWindow?: string;
-}
-
-export interface RpcDepositParams {
-  param: {
-    subspace: string;
-    key: string;
-    // Array of { denom: string, amount: string }
-    value: string;
-  };
-}
-
-export interface RpcDeploymentParams {
-  params: {
-    min_deposits: DepositParams[];
-  };
-}
-
-export interface DepositParams {
-  denom: string;
-  amount: string;
-}
-
-export interface NewDeploymentData {
-  sdl: unknown;
-  manifest: unknown;
-  groups: GroupSpec[];
-  deploymentId: {
-    owner: string;
-    dseq: string;
-  };
-  orderId: unknown[];
-  leaseId: unknown[];
-  deposit: DepositParams;
-  hash: Uint8Array;
-  reclamation?: DeploymentReclamation;
 }

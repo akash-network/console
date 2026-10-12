@@ -6,11 +6,10 @@ import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { Props as ServicesProviderProps } from "@src/context/ServicesProvider";
-import type { FallbackableHttpClient } from "@src/services/createFallbackableHttpClient/createFallbackableHttpClient";
 import type { ErrorHandlerService } from "@src/services/error-handler/error-handler.service";
 import { CustomSnackbarProvider } from "../../../../packages/ui/context/CustomSnackbarProvider";
 import { setupQuery } from "../../tests/unit/query-client";
-import { useDepositParams, useSaveSettings } from "./useSaveSettings";
+import { useSaveSettings } from "./useSaveSettings";
 
 import { act, screen } from "@testing-library/react";
 
@@ -94,53 +93,5 @@ describe("Settings management", () => {
         )
       });
     }
-  });
-
-  describe(useDepositParams.name, () => {
-    it("should fetch deposit params from module endpoint", async () => {
-      const chainApiHttpClient = mock<FallbackableHttpClient>({
-        isFallbackEnabled: false
-      } as FallbackableHttpClient);
-      const minDeposits = [
-        { denom: "uakt", amount: "500000" },
-        { denom: "uact", amount: "500000" }
-      ];
-      chainApiHttpClient.get.mockResolvedValue({
-        data: {
-          params: {
-            min_deposits: minDeposits
-          }
-        }
-      });
-
-      const { result } = setupQuery(() => useDepositParams(), {
-        services: {
-          chainApiHttpClient: () => chainApiHttpClient
-        }
-      });
-
-      await vi.waitFor(() => {
-        expect(chainApiHttpClient.get).toHaveBeenCalledWith(expect.stringContaining("akash/deployment"));
-        expect(result.current.isSuccess).toBe(true);
-        expect(result.current.data).toEqual(minDeposits);
-      });
-    });
-
-    it("handles error when fetching deposit params", async () => {
-      const chainApiHttpClient = mock<FallbackableHttpClient>({
-        isFallbackEnabled: false
-      } as FallbackableHttpClient);
-      chainApiHttpClient.get.mockRejectedValue(new Error("Failed to fetch deposit params"));
-
-      const { result } = setupQuery(() => useDepositParams(), {
-        services: {
-          chainApiHttpClient: () => chainApiHttpClient
-        }
-      });
-
-      await vi.waitFor(() => {
-        expect(result.current.isError).toBe(true);
-      });
-    });
   });
 });

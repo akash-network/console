@@ -1,9 +1,8 @@
 import { useEffect, useMemo } from "react";
 import { useAtom } from "jotai";
 
-import { UACT_DENOM, UAKT_DENOM } from "@src/config/denom.config";
+import { UACT_DENOM } from "@src/config/denom.config";
 import { useWallet } from "@src/context/WalletProvider";
-import { useChainParam } from "@src/hooks/useChainParam/useChainParam";
 import { useBalances } from "@src/queries/useBalancesQuery";
 import { useBlock } from "@src/queries/useBlocksQuery";
 import { useSpendRateQuery } from "@src/queries/useSpendRateQuery";
@@ -13,7 +12,6 @@ import { udenomToDenom } from "@src/utils/mathHelpers";
 import { getLiveEscrowBalance, uaktToAKT } from "@src/utils/priceUtils";
 import type { PricingContext } from "./usePricing/usePricing";
 import { usePricing } from "./usePricing/usePricing";
-import { useUsdcDenom } from "./useDenom";
 
 export type WalletBalance = {
   totalUsd: number;
@@ -139,67 +137,3 @@ export function useLiveEscrow(
     [perBlockUsdByDseq, latestBlock]
   );
 }
-
-type DenomData = {
-  min: number;
-  max: number;
-  label: string;
-  balance: number;
-};
-
-export const useDenomData = (denom?: string) => {
-  const { isLoaded, price, aktToUSD } = usePricing();
-  const { balance: walletBalance } = useWalletBalance();
-  const usdcIbcDenom = useUsdcDenom();
-  const { minDeposit } = useChainParam();
-
-  const depositData = useMemo(() => {
-    if (isLoaded && walletBalance && minDeposit && (minDeposit.akt !== undefined || minDeposit.act !== undefined) && price) {
-      let depositData: DenomData | null = null;
-      switch (denom) {
-        case UAKT_DENOM:
-          depositData = {
-            min: minDeposit.akt,
-            label: "AKT",
-            balance: uaktToAKT(walletBalance.balanceUAKT, 6),
-            max: uaktToAKT(Math.max(walletBalance.balanceUAKT, 0), 6)
-          };
-          break;
-        case usdcIbcDenom:
-          depositData = {
-            min: minDeposit.usdc,
-            label: "USDC",
-            balance: udenomToDenom(walletBalance.balanceUUSDC, 6),
-            max: udenomToDenom(Math.max(walletBalance.balanceUUSDC, 0), 6)
-          };
-          break;
-        case UACT_DENOM:
-          depositData = {
-            min: minDeposit.act,
-            label: "ACT",
-            balance: udenomToDenom(walletBalance.balanceUACT, 6) || 0,
-            max: udenomToDenom(Math.max(walletBalance.balanceUACT, 0), 6) || 0
-          };
-          break;
-        default:
-          break;
-      }
-
-      if (depositData) {
-        depositData.label = "USD";
-
-        if (denom === UAKT_DENOM) {
-          depositData.balance = aktToUSD(depositData.balance) || 0;
-          depositData.min = aktToUSD(depositData.min) || 0;
-          depositData.max = aktToUSD(depositData.max) || 0;
-        }
-      }
-
-      return depositData;
-    }
-
-    return null;
-  }, [denom, isLoaded, price, walletBalance, usdcIbcDenom, minDeposit, aktToUSD]);
-
-  return depositData;
-};

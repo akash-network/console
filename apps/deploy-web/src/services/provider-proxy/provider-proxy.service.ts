@@ -1,15 +1,12 @@
-import { type Manifest, manifestToSortedJSON } from "@akashnetwork/chain-sdk/web";
 import type { HttpClient } from "@akashnetwork/http-sdk";
 import type { LoggerService } from "@akashnetwork/logging";
 import type { AxiosResponse } from "axios";
 import saveFileInBrowser from "file-saver";
 
 import { WebsocketSession } from "@src/lib/websocket/WebsocketSession";
-import type { ApiProviderList } from "@src/types/provider";
 import type { AttestationEvidence, AttestationQuote } from "@src/utils/confidentialCompute";
 import { generateAttestationNonce } from "@src/utils/confidentialCompute";
 import { toBase64 } from "@src/utils/encoding";
-import { wait } from "@src/utils/timer";
 import { formatK8sEvent, formatLogMessage } from "./logFormatters";
 import { type ReceivedShellMessage, RotatingShellSession } from "./RotatingShellSession";
 import { isTokenExpiredMessage, mergeSignals, RotationTracker } from "./ws-rotation";
@@ -22,8 +19,6 @@ export const WS_ERRORS = {
 };
 
 export class ProviderProxyService {
-  static readonly BEFORE_SEND_MANIFEST_DELAY = 5000;
-
   constructor(
     private readonly axios: HttpClient,
     private readonly logger: LoggerService,
@@ -70,53 +65,6 @@ export class ProviderProxyService {
       timeout: ProviderProxyService.ATTESTATION_QUOTE_TIMEOUT
     });
     return { nonce, quote: response.data };
-  }
-
-  async sendManifest(providerInfo: ApiProviderList | undefined | null, manifest: Manifest, options: SendManifestToProviderOptions) {
-    if (!providerInfo) return;
-    this.logger.info({ event: "START_SEND_MANIFEST", providerAddress: providerInfo.owner, dseq: options.dseq });
-
-    // Waiting for provider to have lease
-    await wait(ProviderProxyService.BEFORE_SEND_MANIFEST_DELAY);
-
-    const serializedManifest = manifestToSortedJSON(manifest);
-    const credentials: ProviderCredentials = { type: "jwt", value: await options.ensureToken() };
-    let response: AxiosResponse | undefined;
-
-    for (let i = 1; i <= 3 && !response; i++) {
-      this.logger.info({ event: "ATTEMPT_SEND_MANIFEST", attempt: i, providerAddress: providerInfo.owner, dseq: options.dseq });
-      try {
-        if (!response) {
-          response = await this.request(`/deployment/${options.dseq}/manifest`, {
-            method: "PUT",
-            credentials,
-            body: serializedManifest,
-            timeout: 60_000,
-            providerIdentity: providerInfo
-          });
-          this.logger.info({ event: "SEND_MANIFEST_SUCCESS", response, providerAddress: providerInfo.owner, dseq: options.dseq });
-        }
-      } catch (err) {
-        if (typeof err === "string" && err.indexOf("no lease for deployment") !== -1 && i < 3) {
-          this.logger.info({
-            event: "LEASE_NOT_FOUND",
-            error: err,
-            message: "Lease not found, retrying...",
-            providerAddress: providerInfo.owner,
-            dseq: options.dseq
-          });
-          await wait(ProviderProxyService.BEFORE_SEND_MANIFEST_DELAY + 1000);
-        } else {
-          this.logger.error({ event: "SEND_MANIFEST_ERROR", error: err, providerAddress: providerInfo.owner, dseq: options.dseq });
-          throw err;
-        }
-      }
-    }
-
-    // Waiting for provider to boot up workload
-    await wait(5000);
-
-    return response;
   }
 
   async downloadLogs(input: {
@@ -389,11 +337,6 @@ export interface ProviderProxyPayload {
 export interface ProviderIdentity {
   owner: string;
   hostUri: string;
-}
-
-export interface SendManifestToProviderOptions {
-  dseq: string;
-  ensureToken: () => Promise<string>;
 }
 
 export type ProviderCredentials = {

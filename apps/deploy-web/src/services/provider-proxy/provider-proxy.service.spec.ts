@@ -1,106 +1,17 @@
-import type { Manifest } from "@akashnetwork/chain-sdk/web";
-import { manifestToSortedJSON } from "@akashnetwork/chain-sdk/web";
 import type { HttpClient } from "@akashnetwork/http-sdk";
 import type { LoggerService } from "@akashnetwork/logging";
 import { afterEach, describe, expect, it, type Mock, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import { fromBase64 } from "@src/utils/encoding";
-import type { K8sEventMessage, LogEntryMessage, ProviderCredentials } from "./provider-proxy.service";
+import type { K8sEventMessage, LogEntryMessage } from "./provider-proxy.service";
 import { ProviderProxyService, WS_ERRORS } from "./provider-proxy.service";
 
-import { buildProvider } from "@tests/seeders";
 import { createWebsocketMock, dispatchWsEvent } from "@tests/unit/websocketMock";
 
 describe(ProviderProxyService.name, () => {
   afterEach(() => {
     vi.useRealTimers();
-  });
-
-  describe("sendManifest", () => {
-    it("does nothing if provider is undefined", () => {
-      const { service, httpClient } = setup();
-      service.sendManifest(undefined, [] as Manifest, { dseq: "1", ensureToken: () => Promise.resolve("noop") });
-      expect(httpClient.post).not.toHaveBeenCalled();
-    });
-
-    it("sends manifest to provider", async () => {
-      vi.useFakeTimers();
-
-      const response = {};
-      const httpClient = mock<HttpClient>({
-        post: vi.fn().mockResolvedValue(response)
-      } as unknown as HttpClient);
-      const { service } = setup({ httpClient });
-      const provider = buildProvider();
-
-      const dseq = "1";
-      const manifest: Manifest = [
-        {
-          name: "web",
-          services: [
-            {
-              name: "web",
-              image: "test",
-              command: ["test"],
-              args: [],
-              count: 1,
-              env: [],
-              expose: [],
-              credentials: undefined,
-              params: undefined,
-              interconnectGroup: "",
-              resources: {
-                id: 1,
-                cpu: {
-                  units: {
-                    val: BigInt(500)
-                  },
-                  attributes: []
-                },
-                memory: {
-                  quantity: {
-                    val: BigInt(536870912)
-                  },
-                  attributes: []
-                },
-                storage: [
-                  {
-                    name: "test",
-                    quantity: {
-                      val: BigInt(536870912)
-                    },
-                    attributes: []
-                  }
-                ],
-                gpu: undefined,
-                endpoints: []
-              }
-            }
-          ]
-        }
-      ];
-      const credentials: ProviderCredentials = { type: "jwt", value: "jwt-token" };
-      const promise = service.sendManifest(provider, manifest, { dseq, ensureToken: () => Promise.resolve(credentials.value as string) });
-
-      const [result] = await Promise.all([promise, vi.runAllTimersAsync()]);
-
-      expect(httpClient.post).toHaveBeenCalledWith(
-        "/",
-        {
-          method: "PUT",
-          url: `${provider.hostUri}/deployment/${dseq}/manifest`,
-          providerAddress: provider.owner,
-          auth: {
-            type: "jwt",
-            token: credentials.value
-          },
-          body: manifestToSortedJSON(manifest)
-        },
-        { timeout: expect.any(Number) }
-      );
-      expect(result).toBe(response);
-    });
   });
 
   describe("downloadLogs", () => {

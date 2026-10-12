@@ -9,7 +9,6 @@ import type { ContextType } from "@src/context/WalletProvider";
 import type { DeploymentDefinition } from "@src/hooks/useDeploymentDefinition/useDeploymentDefinition";
 import type { AnalyticsService } from "@src/services/analytics/analytics.service";
 import type { DeploymentStorageService } from "@src/services/deployment-storage/deployment-storage.service";
-import type { ProviderProxyService } from "@src/services/provider-proxy/provider-proxy.service";
 import { DEPENDENCIES, ManifestUpdate } from "./ManifestUpdate";
 
 import { act, render, screen, waitFor } from "@testing-library/react";
@@ -494,7 +493,6 @@ describe(ManifestUpdate.name, () => {
 
     expect(handles.mutate).toHaveBeenCalledWith({ dseq: "123", data: { sdl: "version: '2.0'" } }, expect.anything());
     expect(signAndBroadcastTx).not.toHaveBeenCalled();
-    expect(handles.providerProxy.sendManifest).not.toHaveBeenCalled();
   });
 
   it("submits to the console api even when the local manifest version already matches the chain", async () => {
@@ -1018,7 +1016,6 @@ describe(ManifestUpdate.name, () => {
     definition?: Partial<DeploymentDefinition>;
     dependencies?: Partial<typeof DEPENDENCIES>;
   }) {
-    const providerProxy = mock<ProviderProxyService>();
     const analyticsService = mock<AnalyticsService>();
     const logger = mock<LoggerService>();
     const deploymentLocalStorage = mock<DeploymentStorageService>();
@@ -1087,7 +1084,6 @@ describe(ManifestUpdate.name, () => {
       <TestContainerProvider
         services={{
           api: () => api,
-          providerProxy: () => providerProxy,
           analyticsService: () => analyticsService,
           deploymentLocalStorage: () => deploymentLocalStorage,
           logger: () => logger
@@ -1120,7 +1116,6 @@ describe(ManifestUpdate.name, () => {
         definition = next;
         rerender(componentWith(overrides));
       },
-      providerProxy,
       analyticsService,
       deploymentLocalStorage,
       logger,
