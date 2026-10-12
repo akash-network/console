@@ -19,6 +19,7 @@ import { useDeploymentDefinition } from "@src/hooks/useDeploymentDefinition/useD
 import { useDeploymentEscrowBalance } from "@src/hooks/useDeploymentEscrowBalance/useDeploymentEscrowBalance";
 import { useHasDeploymentStopped } from "@src/hooks/useHasDeploymentStopped";
 import { useTickingNow } from "@src/hooks/useTickingNow";
+import { useUpdatingDeployments } from "@src/hooks/useUpdatingDeployments/useUpdatingDeployments";
 import { useDeploymentSettingQuery } from "@src/queries/deploymentSettingsQuery";
 import { useLeaseStatuses } from "@src/queries/useLeaseQuery";
 import type { DeploymentDto, LeaseDto } from "@src/types/deployment";
@@ -43,6 +44,7 @@ import { RuntimeLimitMeter } from "./RuntimeLimitMeter";
 export const DEPENDENCIES = {
   useLocalNotes,
   useClosingDeployments,
+  useUpdatingDeployments,
   useDeploymentDefinition,
   useWallet,
   useDeploymentEscrowBalance,
@@ -88,6 +90,7 @@ export const DeploymentDetailHeader: FC<DeploymentDetailHeaderProps> = ({
   const teeTypes = d.useDeclaredTeeTypes(deployment);
   const interconnect = d.useDeclaredGpuInterconnect(deployment);
   const isClosing = d.useClosingDeployments().has(deployment.dseq);
+  const isUpdating = d.useUpdatingDeployments().has(deployment.dseq);
 
   const liveLeases = useMemo(() => leases?.filter(isLeaseLive) ?? [], [leases]);
   const liveLeaseItems = useMemo(
@@ -118,7 +121,7 @@ export const DeploymentDetailHeader: FC<DeploymentDetailHeaderProps> = ({
     <div className="flex flex-col gap-6 py-6 lg:flex-row lg:items-start lg:justify-between">
       <div className="space-y-3">
         <div className="flex flex-wrap items-center gap-2">
-          <DeploymentStatusBadge state={deployment.state} leases={leases} isClosing={isClosing} workload={workload} />
+          <DeploymentStatusBadge state={deployment.state} leases={leases} isClosing={isClosing} isUpdating={isUpdating} workload={workload} />
           <d.ConfidentialComputeBadge teeTypes={teeTypes} />
           <d.GpuInterconnectBadge interconnect={interconnect} />
         </div>

@@ -37,6 +37,7 @@ export interface DeploymentRowProps {
   isSelectable?: boolean;
   isSelected?: boolean;
   isClosing?: boolean;
+  isUpdating?: boolean;
   onSelect?: (input: { id: string; isShiftPressed: boolean }) => void;
   onDeploymentClosed?: () => void;
   dependencies?: typeof DEPENDENCIES;
@@ -48,6 +49,7 @@ export const DeploymentRow: FC<DeploymentRowProps> = ({
   isSelectable,
   isSelected,
   isClosing = false,
+  isUpdating = false,
   onSelect,
   onDeploymentClosed,
   dependencies: d = DEPENDENCIES
@@ -63,7 +65,7 @@ export const DeploymentRow: FC<DeploymentRowProps> = ({
       <TableRow className={cn(isShowingEndpointPanel && "border-b-0")}>
         <TableCell>
           <div className="flex flex-wrap items-center gap-1.5">
-            <d.DeploymentStatusBadge state={deployment.state} leases={leases} isSummarized isClosing={isClosing} />
+            <d.DeploymentStatusBadge state={deployment.state} leases={leases} isSummarized isClosing={isClosing} isUpdating={isUpdating} />
             <d.DeploymentBadges deployment={deployment} />
           </div>
         </TableCell>

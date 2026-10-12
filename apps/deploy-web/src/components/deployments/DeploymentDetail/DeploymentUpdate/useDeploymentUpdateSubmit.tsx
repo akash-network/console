@@ -7,6 +7,7 @@ import { useSnackbar } from "notistack";
 import { AddCreditsSnackbarContent } from "@src/components/billing-usage/AddCreditsSnackbarContent/AddCreditsSnackbarContent";
 import { useServices } from "@src/context/ServicesProvider";
 import { useWallet } from "@src/context/WalletProvider";
+import { useFlag } from "@src/hooks/useFlag";
 import { useBalances } from "@src/queries/useBalancesQuery";
 import type { SdlBuilderFormValuesType } from "@src/types";
 import { isEmptyServicesPatch } from "@src/utils/sdl/sdlServicesPatch";
@@ -31,6 +32,7 @@ export const DEPENDENCIES = {
   useBalances,
   useSnackbar,
   useQueryClient,
+  useFlag,
   // eslint-disable-next-line akash/dependencies-component-or-hook
   sealSdlSecrets
 };
@@ -81,6 +83,7 @@ export function useDeploymentUpdateSubmit(
   const { refetch: refetchBalances } = d.useBalances(address);
   const { enqueueSnackbar, closeSnackbar } = d.useSnackbar();
   const queryClient = d.useQueryClient();
+  const isUpdatingInBackground = d.useFlag("notifications_activity_center");
   const getSdlSecretsContext = api.v1.getSDLSecretsContext.useMutation();
   const patchDeployment = api.v1.patchDeployment.useMutation();
   const [isUpdating, setIsUpdating] = useState(false);
@@ -102,7 +105,11 @@ export function useDeploymentUpdateSubmit(
     try {
       const sealedSecrets = await seal(update.secrets);
       const services = isEmptyServicesPatch(update.services) ? {} : { services: update.services };
-      response = await patchDeployment.mutateAsync({ dseq, data: { ...services, sealedSecrets, ifManifestVersion: manifestVersion } });
+      response = await patchDeployment.mutateAsync({
+        dseq,
+        async: isUpdatingInBackground ? "true" : undefined,
+        data: { ...services, sealedSecrets, ifManifestVersion: manifestVersion }
+      });
     } catch (cause) {
       if (canResealOnce && isStaleSeal(cause)) {
         await sealAndPatch(update, false);
@@ -112,7 +119,22 @@ export function useDeploymentUpdateSubmit(
       return;
     }
 
-    completeUpdate(update.values, response.data.manifestVersion);
+    const { data } = response;
+    if ("activityId" in data) {
+      await followTheUpdateInTheBackground(update.values, data.manifestVersion);
+      return;
+    }
+
+    completeUpdate(update.values, data.manifestVersion);
+  }
+
+  /** Waits for the feed to list the pending update, so the tab goes straight from sending the update to showing it being applied. */
+  async function followTheUpdateInTheBackground(values: SdlBuilderFormValuesType, manifestVersion: string | undefined) {
+    await queryClient.invalidateQueries({ queryKey: api.v1.listActivities.getKey() });
+    setIsUpdating(false);
+    refetchDefinition();
+    analyticsService.track("update_deployment", { category: "deployments", label: "Update deployment" });
+    onUpdated({ values, manifestVersion });
   }
 
   function completeUpdate(values: SdlBuilderFormValuesType, manifestVersion: string | undefined) {
@@ -208,9 +230,9 @@ export function useDeploymentUpdateSubmit(
     );
   }
 
-  function submit(seed: SdlBuilderFormValuesType, current: DeploymentUpdateFormValues) {
+  function submit(seed: SdlBuilderFormValuesType, current: DeploymentUpdateFormValues, { isRetry = false }: { isRetry?: boolean } = {}) {
     const update = sealedUpdateOf(seed, current);
-    if (isEmptyServicesPatch(update.services) && Object.keys(update.secrets).length === 0) {
+    if (!isRetry && isEmptyServicesPatch(update.services) && Object.keys(update.secrets).length === 0) {
       enqueueSnackbar(<d.Snackbar title="Nothing to update" subTitle={NOTHING_TO_UPDATE_MESSAGE} iconVariant="info" />, { variant: "info" });
       return;
     }

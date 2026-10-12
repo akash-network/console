@@ -31,6 +31,7 @@ export interface DeploymentCardProps {
   isSelectable?: boolean;
   isSelected?: boolean;
   isClosing?: boolean;
+  isUpdating?: boolean;
   onSelect?: (input: { id: string; isShiftPressed: boolean }) => void;
   onDeploymentClosed?: () => void;
   dependencies?: typeof DEPENDENCIES;
@@ -42,6 +43,7 @@ export const DeploymentCard: FC<DeploymentCardProps> = ({
   isSelectable,
   isSelected,
   isClosing = false,
+  isUpdating = false,
   onSelect,
   onDeploymentClosed,
   dependencies: d = DEPENDENCIES
@@ -61,7 +63,7 @@ export const DeploymentCard: FC<DeploymentCardProps> = ({
           </Link>
 
           <div className="flex shrink-0 flex-wrap items-center justify-end gap-1.5">
-            <d.DeploymentStatusBadge state={deployment.state} leases={leases} isSummarized isClosing={isClosing} />
+            <d.DeploymentStatusBadge state={deployment.state} leases={leases} isSummarized isClosing={isClosing} isUpdating={isUpdating} />
             <d.DeploymentBadges deployment={deployment} />
           </div>
         </div>

@@ -76,6 +76,20 @@ describe("DeploymentsCollection", () => {
     expect(Item).toHaveBeenCalledWith(expect.objectContaining({ deployment: expect.objectContaining({ dseq: "101" }), isClosing: true }), expect.anything());
   });
 
+  it.each(["grid", "list"] as const)("marks the deployments whose update is applied in the background in the %s view", viewMode => {
+    const { DeploymentCard, DeploymentRow } = setup({ viewMode, dseqs: ["100", "101"], updatingDseqs: new Set(["101"]) });
+    const Item = viewMode === "grid" ? DeploymentCard : DeploymentRow;
+
+    expect(Item).toHaveBeenCalledWith(expect.objectContaining({ deployment: expect.objectContaining({ dseq: "100" }), isUpdating: false }), expect.anything());
+    expect(Item).toHaveBeenCalledWith(expect.objectContaining({ deployment: expect.objectContaining({ dseq: "101" }), isUpdating: true }), expect.anything());
+  });
+
+  it("treats a collection that names no updating deployments as none updating", () => {
+    const { DeploymentCard } = setup({ viewMode: "grid", dseqs: ["100"] });
+
+    expect(DeploymentCard).toHaveBeenCalledWith(expect.objectContaining({ isUpdating: false }), expect.anything());
+  });
+
   it("treats a collection that names no closing deployments as none closing", () => {
     const { DeploymentCard } = setup({ viewMode: "grid", dseqs: ["100"] });
 
@@ -96,6 +110,7 @@ describe("DeploymentsCollection", () => {
     selectedIds?: string[];
     isSelectable?: boolean;
     closingDseqs?: ReadonlySet<string>;
+    updatingDseqs?: ReadonlySet<string>;
     onDeploymentClosed?: () => void;
   }) {
     const DeploymentCard = vi.fn(() => <div>card</div>);
@@ -110,6 +125,7 @@ describe("DeploymentsCollection", () => {
         isSelectable={input.isSelectable ?? true}
         selectedIds={input.selectedIds}
         closingDseqs={input.closingDseqs}
+        updatingDseqs={input.updatingDseqs}
         onDeploymentClosed={input.onDeploymentClosed}
         dependencies={MockComponents(DEPENDENCIES, { DeploymentCard, DeploymentRow })}
       />
