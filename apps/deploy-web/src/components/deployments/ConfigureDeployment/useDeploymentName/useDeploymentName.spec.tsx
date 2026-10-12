@@ -68,6 +68,40 @@ describe(useDeploymentName.name, () => {
     expect(result.current.name).toBe("renamed");
   });
 
+  it("starts a new deployment with nothing to name it from on a generated adjective-noun name", () => {
+    const { result } = setup({ dseq: null });
+
+    expect(result.current.name).toMatch(/^[a-z]+-[a-z]+$/);
+    expect(result.current.typedName).toBe(result.current.name);
+  });
+
+  it("keeps a template's or draft's name over a generated one", () => {
+    const { result } = setup({ initialName: "my-app", dseq: null });
+
+    expect(result.current.name).toBe("my-app");
+  });
+
+  it("keeps a name the draft saved blank, so a cleared name is not refilled on resume", () => {
+    const { result } = setup({ initialName: "", dseq: null });
+
+    expect(result.current.name).toBe("");
+  });
+
+  it("never generates a name for a deployment that already exists", () => {
+    const { result } = setup({ dseq: "12345" });
+
+    expect(result.current.typedName).toBe("");
+  });
+
+  it("keeps the generated name across renders", () => {
+    const { result, rerender } = setup({ dseq: null });
+    const generatedName = result.current.name;
+
+    rerender({ initialName: undefined, dseq: null });
+
+    expect(result.current.name).toBe(generatedName);
+  });
+
   function setup(input: { initialName?: string; dseq?: string | null; apiName?: string }) {
     const useResolvedDeploymentName: typeof DEPENDENCIES.useResolvedDeploymentName = dseq => (dseq ? input.apiName : undefined);
 
