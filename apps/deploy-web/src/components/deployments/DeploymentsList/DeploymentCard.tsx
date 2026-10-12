@@ -4,11 +4,13 @@ import { useState } from "react";
 import { Card, Checkbox } from "@akashnetwork/ui/components";
 import Link from "next/link";
 
+import { useDeploymentStatus } from "@src/hooks/useDeploymentStatus/useDeploymentStatus";
 import type { ListedDeploymentDto } from "@src/types/deployment";
 import type { ApiProviderList } from "@src/types/provider";
 import { UrlService } from "@src/utils/urlUtils";
 import { resolveDeploymentGpus } from "../DeploymentDetail/DeploymentPlacements/placementModel";
 import { DeploymentStatusBadge } from "../DeploymentDetail/DeploymentStatusBadge";
+import { DeploymentRecoveryAction } from "../DeploymentRecoveryAction/DeploymentRecoveryAction";
 import { DeploymentActionsMenu } from "./DeploymentActionsMenu";
 import { DeploymentBadges } from "./DeploymentBadges";
 import { DeploymentEndpoints, DeploymentEndpointsPanel } from "./DeploymentEndpoints";
@@ -17,7 +19,9 @@ import { useDeploymentReachability } from "./useDeploymentReachability";
 
 export const DEPENDENCIES = {
   useDeploymentReachability,
+  useDeploymentStatus,
   DeploymentStatusBadge,
+  DeploymentRecoveryAction,
   DeploymentBadges,
   DeploymentEndpoints,
   DeploymentEndpointsPanel,
@@ -46,7 +50,8 @@ export const DeploymentCard: FC<DeploymentCardProps> = ({
   onDeploymentClosed,
   dependencies: d = DEPENDENCIES
 }) => {
-  const { leases, endpoints, isLoadingEndpoints, unreachableReason } = d.useDeploymentReachability({ deployment, providers });
+  const { leases, workload, endpoints, isLoadingEndpoints, unreachableReason } = d.useDeploymentReachability({ deployment, providers });
+  const status = d.useDeploymentStatus({ dseq: deployment.dseq, state: deployment.state, leases, workload });
   const [isShowingEndpoints, setIsShowingEndpoints] = useState(false);
   const toggleEndpoints = () => setIsShowingEndpoints(current => !current);
   /** Endpoints can drop below the count that draws the toggle while the panel is open, which would strand it with nothing left to close it. */
@@ -61,18 +66,23 @@ export const DeploymentCard: FC<DeploymentCardProps> = ({
           </Link>
 
           <div className="flex shrink-0 flex-wrap items-center justify-end gap-1.5">
-            <d.DeploymentStatusBadge state={deployment.state} leases={leases} isSummarized isClosing={isClosing} />
+            <d.DeploymentStatusBadge status={status} leases={leases} isSummarized />
             <d.DeploymentBadges deployment={deployment} />
           </div>
         </div>
 
-        <d.DeploymentEndpoints
-          endpoints={endpoints}
-          isLoading={isLoadingEndpoints}
-          unreachableReason={unreachableReason}
-          isExpanded={isShowingEndpointPanel}
-          onToggleExpanded={toggleEndpoints}
-        />
+        {status.launch?.phase === "failed" ? (
+          <d.DeploymentRecoveryAction dseq={deployment.dseq} hasLease={status.launch.hasLease} leases={leases ?? []} isCompact />
+        ) : (
+          <d.DeploymentEndpoints
+            endpoints={endpoints}
+            isLoading={isLoadingEndpoints}
+            unreachableReason={unreachableReason}
+            isSpinningUp={status.isSpinningUp}
+            isExpanded={isShowingEndpointPanel}
+            onToggleExpanded={toggleEndpoints}
+          />
+        )}
 
         {isShowingEndpointPanel && <d.DeploymentEndpointsPanel endpoints={endpoints} />}
       </div>

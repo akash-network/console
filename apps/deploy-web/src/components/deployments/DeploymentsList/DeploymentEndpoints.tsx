@@ -13,6 +13,8 @@ const UNREACHABLE_LABELS: Record<UnreachableReason, string> = {
   "no-public-endpoint": "private · no public endpoint"
 };
 
+const SPINNING_UP_LABEL = "no endpoint yet · spinning up";
+
 const EndpointParts: FC<{ endpoint: VisitEndpoint }> = ({ endpoint }) => (
   <>
     <span className="shrink-0 truncate uppercase text-muted-foreground">{endpoint.serviceName}</span>
@@ -25,19 +27,30 @@ export interface DeploymentEndpointsProps {
   endpoints: VisitEndpoint[];
   isLoading: boolean;
   unreachableReason: UnreachableReason | null;
+  isSpinningUp?: boolean;
   isExpanded?: boolean;
   onToggleExpanded?: () => void;
   className?: string;
 }
 
-export const DeploymentEndpoints: FC<DeploymentEndpointsProps> = ({ endpoints, isLoading, unreachableReason, isExpanded, onToggleExpanded, className }) => {
+export const DeploymentEndpoints: FC<DeploymentEndpointsProps> = ({
+  endpoints,
+  isLoading,
+  unreachableReason,
+  isSpinningUp,
+  isExpanded,
+  onToggleExpanded,
+  className
+}) => {
   if (isLoading) {
     return <Skeleton className={cn("h-5 w-40", className)} data-testid="deployment-endpoints-skeleton" />;
   }
 
   if (endpoints.length === 0) {
     return (
-      <p className={cn("truncate font-mono text-xs text-muted-foreground", className)}>{unreachableReason ? UNREACHABLE_LABELS[unreachableReason] : ""}</p>
+      <p className={cn("truncate font-mono text-xs text-muted-foreground", className)}>
+        {isSpinningUp ? SPINNING_UP_LABEL : unreachableReason ? UNREACHABLE_LABELS[unreachableReason] : ""}
+      </p>
     );
   }
 

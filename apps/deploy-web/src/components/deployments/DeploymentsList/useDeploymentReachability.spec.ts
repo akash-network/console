@@ -27,6 +27,26 @@ describe(useDeploymentReachability.name, () => {
     expect(result.current.leases).toBe(leases);
   });
 
+  it("summarizes what the providers of its live leases report while the activity center is on", () => {
+    const { result } = setup({
+      leases: [lease({ state: "active" })],
+      statuses: [{ services: { web: mock<LeaseServiceStatus>({ available: 0, uris: [] }) } }],
+      isActivityCenterOn: true
+    });
+
+    expect(result.current.workload).toBe("starting");
+  });
+
+  it("leaves what the providers report out while the activity center is off", () => {
+    const { result } = setup({
+      leases: [lease({ state: "active" })],
+      statuses: [{ services: { web: mock<LeaseServiceStatus>({ available: 0, uris: [] }) } }],
+      isActivityCenterOn: false
+    });
+
+    expect(result.current.workload).toBeUndefined();
+  });
+
   it("waits for an address before asking the chain for leases", () => {
     const { useDeploymentLeaseList } = setup({ leases: [], address: "" });
 
@@ -260,6 +280,7 @@ describe(useDeploymentReachability.name, () => {
     isLoadingLeases?: boolean;
     address?: string;
     providers?: ApiProviderList[] | undefined | "load";
+    isActivityCenterOn?: boolean;
   };
 
   function setup(input: Input) {
@@ -280,6 +301,7 @@ describe(useDeploymentReachability.name, () => {
       (current.statuses ?? []).map(status =>
         Object.assign(mock<ReturnType<typeof DEPENDENCIES.useLeaseStatuses>[number]>(), {
           data: status as LeaseStatusDto | null,
+          error: null,
           isPending: current.isStatusPending ?? false
         })
       )
@@ -292,7 +314,12 @@ describe(useDeploymentReachability.name, () => {
       useDeploymentReachability({
         deployment,
         providers: resolveProviders() as ApiProviderList[] | undefined,
-        dependencies: { useWallet, useDeploymentLeaseList, useLeaseStatuses }
+        dependencies: {
+          useFlag: flag => flag === "notifications_activity_center" && !!current.isActivityCenterOn,
+          useWallet,
+          useDeploymentLeaseList,
+          useLeaseStatuses
+        }
       })
     );
 

@@ -12,6 +12,7 @@ import { createConfigureDraft } from "@src/components/deployments/ConfigureDeplo
 import { useServices } from "@src/context/ServicesProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { isUsableDeploymentDefinition, sdlToRedeploy, useDeploymentDefinition } from "@src/hooks/useDeploymentDefinition/useDeploymentDefinition";
+import { deploymentLaunchOf, useDeploymentActivity } from "@src/hooks/useDeploymentStatus/useDeploymentStatus";
 import { useLeaseGpus, withLeaseGpus } from "@src/hooks/useLeaseGpus/useLeaseGpus";
 import { useRedeploy } from "@src/hooks/useRedeploy/useRedeploy";
 import { useDeploymentDetail } from "@src/queries/useDeploymentQuery";
@@ -25,6 +26,7 @@ import { DeploymentLeaseShell } from "../DeploymentLeaseShell";
 import { DeploymentLogs } from "../DeploymentLogs";
 import { ManifestUpdate } from "../ManifestUpdate/ManifestUpdate";
 import { ReclamationBanner } from "../ReclamationBanner/ReclamationBanner";
+import { DeploymentLaunchState } from "./DeploymentLaunchState/DeploymentLaunchState";
 import { DeploymentPlacements } from "./DeploymentPlacements/DeploymentPlacements";
 import { DeploymentSettings } from "./DeploymentSettings/DeploymentSettings";
 import { DeploymentUpdate } from "./DeploymentUpdate/DeploymentUpdate";
@@ -38,6 +40,7 @@ export const DEPENDENCIES = {
   useSearchParams,
   useRedeploy,
   useDeploymentDefinition,
+  useDeploymentActivity,
   useDeploymentDetail,
   useDeploymentLeaseList,
   useLeaseGpus,
@@ -46,6 +49,7 @@ export const DEPENDENCIES = {
   Layout,
   ReclamationBanner,
   DeploymentDetailHeader,
+  DeploymentLaunchState,
   DeploymentPlacements,
   DeploymentLogs,
   DeploymentLeaseShell,
@@ -106,6 +110,9 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq, dependencies
   const leaseProviderAddresses = useMemo(() => leases?.map(lease => lease.provider) ?? [], [leases]);
   const { data: providers, isFetching: isLoadingProviders } = d.useProvidersByAddresses(leaseProviderAddresses);
 
+  const { leaseCreation, isResolving: isResolvingActivity } = d.useDeploymentActivity(dseq);
+  const launch = deployment && deploymentLaunchOf({ state: deployment.state, leases, leaseCreation });
+
   const definition = d.useDeploymentDefinition(dseq, { acceptReferences: true });
   const deploymentManifest = definition.sdl || "";
   const isActive = deployment?.state === "active" && !!leases?.some(isLeaseLive);
@@ -122,14 +129,27 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq, dependencies
 
   useEffect(
     function redirectWhenInProgressWithoutLease() {
-      if (definition.source === "resolving") return;
+      if (definition.source === "resolving" || isResolvingActivity || leaseCreation) return;
 
       if (leases && deployment?.state === "active" && leases.length === 0 && !deployment.groups?.some(g => g.state === "paused")) {
         const draftId = isUsableDeploymentDefinition(definition) ? d.createConfigureDraft(sdlToRedeploy(definition), { name: definition.name }) : undefined;
         router.replace(UrlService.configureDeployment({ dseq, draftId }));
       }
     },
-    [deployment?.state, deployment?.groups, definition.source, definition.sdl, definition.restoredSdl, definition.name, dseq, leases, router, d]
+    [
+      deployment?.state,
+      deployment?.groups,
+      definition.source,
+      definition.sdl,
+      definition.restoredSdl,
+      definition.name,
+      dseq,
+      leases,
+      isResolvingActivity,
+      leaseCreation,
+      router,
+      d
+    ]
   );
 
   const tabQuery = searchParams?.get("tab");
@@ -234,7 +254,10 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq, dependencies
 
             <div className="flex-1 bg-muted py-6">
               <div className={PAGE_BAND}>
+                {activeTab === "DETAILS" && launch && <d.DeploymentLaunchState dseq={dseq} launch={launch} leases={leases ?? []} className="mb-6" />}
+
                 {activeTab === "DETAILS" &&
+                  (!launch || isActive) &&
                   (showsPlacementsSkeleton ? (
                     <Skeleton className="h-64 w-full rounded-xl" data-testid="deployment-placements-skeleton" />
                   ) : (

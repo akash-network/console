@@ -12,11 +12,11 @@ import { CostRate } from "@src/components/shared/CostRate";
 import { GpuInterconnectBadge } from "@src/components/shared/GpuInterconnectBadge";
 import { TrialDeploymentBadge } from "@src/components/shared/TrialDeploymentBadge";
 import { useWallet } from "@src/context/WalletProvider";
-import { useClosingDeployments } from "@src/hooks/useClosingDeployments/useClosingDeployments";
 import { useDeclaredGpuInterconnect } from "@src/hooks/useDeclaredGpuInterconnect";
 import { useDeclaredTeeTypes } from "@src/hooks/useDeclaredTeeTypes";
 import { useDeploymentDefinition } from "@src/hooks/useDeploymentDefinition/useDeploymentDefinition";
 import { useDeploymentEscrowBalance } from "@src/hooks/useDeploymentEscrowBalance/useDeploymentEscrowBalance";
+import { useDeploymentStatus } from "@src/hooks/useDeploymentStatus/useDeploymentStatus";
 import { useHasDeploymentStopped } from "@src/hooks/useHasDeploymentStopped";
 import { useTickingNow } from "@src/hooks/useTickingNow";
 import { useDeploymentSettingQuery } from "@src/queries/deploymentSettingsQuery";
@@ -42,7 +42,7 @@ import { RuntimeLimitMeter } from "./RuntimeLimitMeter";
 
 export const DEPENDENCIES = {
   useLocalNotes,
-  useClosingDeployments,
+  useDeploymentStatus,
   useDeploymentDefinition,
   useWallet,
   useDeploymentEscrowBalance,
@@ -87,7 +87,6 @@ export const DeploymentDetailHeader: FC<DeploymentDetailHeaderProps> = ({
   const { data: settings } = d.useDeploymentSettingQuery({ dseq: deployment.dseq, pollUntilRuntimeAnchored: true });
   const teeTypes = d.useDeclaredTeeTypes(deployment);
   const interconnect = d.useDeclaredGpuInterconnect(deployment);
-  const isClosing = d.useClosingDeployments().has(deployment.dseq);
 
   const liveLeases = useMemo(() => leases?.filter(isLeaseLive) ?? [], [leases]);
   const liveLeaseItems = useMemo(
@@ -95,6 +94,7 @@ export const DeploymentDetailHeader: FC<DeploymentDetailHeaderProps> = ({
     [liveLeases, providers]
   );
   const workload = summarizeWorkloadStatus(d.useLeaseStatuses(liveLeaseItems, { refetchInterval: 30_000 }));
+  const status = d.useDeploymentStatus({ dseq: deployment.dseq, state: deployment.state, leases, workload });
   const costPerBlockUDenom = liveLeases.reduce((sum, lease) => sum + parseFloat(lease.price.amount), 0);
   const liveGpuCount = liveLeases.reduce((sum, lease) => sum + (lease.gpuAmount ?? 0), 0);
 
@@ -118,7 +118,7 @@ export const DeploymentDetailHeader: FC<DeploymentDetailHeaderProps> = ({
     <div className="flex flex-col gap-6 py-6 lg:flex-row lg:items-start lg:justify-between">
       <div className="space-y-3">
         <div className="flex flex-wrap items-center gap-2">
-          <DeploymentStatusBadge state={deployment.state} leases={leases} isClosing={isClosing} workload={workload} />
+          <DeploymentStatusBadge status={status} leases={leases} />
           <d.ConfidentialComputeBadge teeTypes={teeTypes} />
           <d.GpuInterconnectBadge interconnect={interconnect} />
         </div>
