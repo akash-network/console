@@ -1,3 +1,4 @@
+import { DrizzleAbility } from "@akashnetwork/drizzle-ability";
 import type { AnyAbility } from "@casl/ability";
 import type { DBQueryConfig } from "drizzle-orm";
 import { and, eq, inArray, isNull, sql } from "drizzle-orm";
@@ -6,7 +7,6 @@ import type { SQL } from "drizzle-orm/sql/sql";
 import { PostgresError } from "postgres";
 
 import type { ApiPgDatabase, ApiPgTables, ApiTransaction, TxService } from "@src/core";
-import { DrizzleAbility } from "@src/lib/drizzle-ability/drizzle-ability";
 
 export type AbilityParams = [AnyAbility, Parameters<AnyAbility["can"]>[0]];
 
@@ -148,19 +148,13 @@ export abstract class BaseRepository<
   }
 
   async updateManyById(ids: Output["id"][], payload: Partial<Input>): Promise<void> {
-    await this.cursor
-      .update(this.table)
-      .set(this.toUpdateSet(payload))
-      .where(inArray(this.table.id, ids));
+    await this.cursor.update(this.table).set(this.toUpdateSet(payload)).where(inArray(this.table.id, ids));
   }
 
   async updateBy(query: Partial<Output>, payload: Partial<Input>, options?: MutationOptions): Promise<undefined | Output>;
   async updateBy(query: Partial<Output>, payload: Partial<Input>): Promise<void>;
   async updateBy(query: Partial<Output>, payload: Partial<Input>, options?: MutationOptions): Promise<void | Output> {
-    const cursor = this.cursor
-      .update(this.table)
-      .set(this.toUpdateSet(payload))
-      .where(this.queryToWhere(query));
+    const cursor = this.cursor.update(this.table).set(this.toUpdateSet(payload)).where(this.queryToWhere(query));
 
     if (options?.returning) {
       const [item] = await cursor.returning();

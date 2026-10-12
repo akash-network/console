@@ -1,0 +1,11 @@
+{
+  "compilerOptions": {
+    "baseUrl": ".",
+    "noImplicitAny": true,
+    "strict": true,
+    "lib": ["ES2022"]
+  },
+  "include": ["**/*.ts"],
+  "exclude": ["vitest.config.ts"],
+  "extends": "@akashnetwork/dev-config/tsconfig.base-node.json"
+}
