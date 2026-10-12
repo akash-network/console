@@ -112,6 +112,45 @@ describe(ActivityHost.name, () => {
     });
   });
 
+  it("announces a deployment whose lease was created and manifest sent", () => {
+    const pending = buildActivity({ type: "lease_create", status: "pending", meta: { dseq: "1234" } });
+    const { enqueueSnackbar, receive } = setup({ activities: [pending], names: { "1234": "storefront" } });
+
+    receive([{ ...pending, status: "succeeded" }]);
+
+    expect(enqueueSnackbar).toHaveBeenCalledWith(
+      expect.objectContaining({
+        props: expect.objectContaining({ title: "“storefront” deployed", subTitle: "Its provider is starting it.", iconVariant: "success" })
+      }),
+      { variant: "success" }
+    );
+  });
+
+  it("announces a deployment whose lease could not be created with the reason it failed", () => {
+    const pending = buildActivity({ type: "lease_create", status: "pending", meta: { dseq: "1234" } });
+    const { enqueueSnackbar, receive } = setup({ activities: [pending] });
+
+    receive([{ ...pending, status: "failed", meta: { dseq: "1234", error: { code: "lease_not_created", message: "The lease was not created." } } }]);
+
+    expect(enqueueSnackbar).toHaveBeenCalledWith(
+      expect.objectContaining({
+        props: expect.objectContaining({ title: "Couldn't deploy deployment 1234", subTitle: "The lease was not created.", iconVariant: "error" })
+      }),
+      { variant: "error" }
+    );
+  });
+
+  it("asks the user to choose a provider again when a failed deployment carries no reason", () => {
+    const pending = buildActivity({ type: "lease_create", status: "pending", meta: { dseq: "1234" } });
+    const { enqueueSnackbar, receive } = setup({ activities: [pending] });
+
+    receive([{ ...pending, status: "failed" }]);
+
+    expect(enqueueSnackbar).toHaveBeenCalledWith(expect.objectContaining({ props: expect.objectContaining({ subTitle: "Choose a provider again." }) }), {
+      variant: "error"
+    });
+  });
+
   it("looks up the names of the deployments its activities are about", () => {
     const { useDeploymentNames } = setup({ activities: [buildActivity({ meta: { dseq: "1234" } }), buildActivity({ meta: { dseq: "5678" } })] });
 

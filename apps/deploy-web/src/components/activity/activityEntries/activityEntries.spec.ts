@@ -45,6 +45,42 @@ describe(activityEntriesOf.name, () => {
     expect(entry.href).toBe("/deployments");
   });
 
+  it("describes a deployment still getting its lease as deploying, linking to it", () => {
+    const [entry] = entriesOf([buildActivity({ type: "lease_create", status: "pending", meta: { dseq: "1234" } })]);
+
+    expect(entry).toMatchObject({ status: "pending", title: "Deploying “web-1234”", href: "/deployments/1234" });
+  });
+
+  it("describes a deployment whose lease was created as deployed", () => {
+    const [entry] = entriesOf([buildActivity({ type: "lease_create", status: "succeeded", meta: { dseq: "1234" } })]);
+
+    expect(entry).toMatchObject({ status: "succeeded", title: "Deployed “web-1234”", href: "/deployments/1234" });
+  });
+
+  it("describes a failed deployment with its reason, linking to the deployment", () => {
+    const [entry] = entriesOf([
+      buildActivity({
+        type: "lease_create",
+        status: "failed",
+        meta: { dseq: "1234", error: { code: "lease_not_created", message: "The lease was not created." } }
+      })
+    ]);
+
+    expect(entry).toMatchObject({ status: "failed", title: "Couldn't deploy “web-1234”", detail: "The lease was not created.", href: "/deployments/1234" });
+  });
+
+  it("asks to choose a provider again when a failed deployment gives no reason", () => {
+    const [entry] = entriesOf([buildActivity({ type: "lease_create", status: "failed", meta: { dseq: "1234" } })]);
+
+    expect(entry.detail).toBe("Choose a provider again.");
+  });
+
+  it("links a deployment activity about no particular deployment to the deployments list", () => {
+    const [entry] = entriesOf([buildActivity({ type: "lease_create", status: "succeeded", meta: {} })]);
+
+    expect(entry.href).toBe("/deployments");
+  });
+
   it("groups a bulk close into one entry, closing while any of it still runs", () => {
     const newest = buildActivity({ status: "pending", meta: { dseq: "1", batchId: "batch-1" } });
     const batch = [newest, buildActivity({ status: "succeeded", meta: { dseq: "2", batchId: "batch-1" } })];

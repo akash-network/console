@@ -39,7 +39,11 @@ export function activityEntriesOf(activities: Activity[], labelDeployment: Label
   return entries;
 }
 
-export function activityEntryOf({ id, status, meta, createdAt }: Activity, labelDeployment: LabelDeployment): ActivityEntry {
+export function activityEntryOf(activity: Activity, labelDeployment: LabelDeployment): ActivityEntry {
+  return activity.type === "lease_create" ? leaseEntryOf(activity, labelDeployment) : closeEntryOf(activity, labelDeployment);
+}
+
+function closeEntryOf({ id, status, meta, createdAt }: Activity, labelDeployment: LabelDeployment): ActivityEntry {
   const deployment = labelDeployment(meta.dseq);
   const href = meta.dseq ? UrlService.deploymentDetails(meta.dseq, status === "failed" ? "SETTINGS" : undefined) : UrlService.deploymentList();
 
@@ -47,6 +51,16 @@ export function activityEntryOf({ id, status, meta, createdAt }: Activity, label
   if (status === "succeeded") return { id, status, title: `Closed ${deployment}`, href, createdAt };
 
   return { id, status, title: `Couldn't close ${deployment}`, detail: meta.error?.message ?? "Try closing it again.", href, createdAt };
+}
+
+function leaseEntryOf({ id, status, meta, createdAt }: Activity, labelDeployment: LabelDeployment): ActivityEntry {
+  const deployment = labelDeployment(meta.dseq);
+  const href = meta.dseq ? UrlService.deploymentDetails(meta.dseq) : UrlService.deploymentList();
+
+  if (status === "pending") return { id, status, title: `Deploying ${deployment}`, href, createdAt };
+  if (status === "succeeded") return { id, status, title: `Deployed ${deployment}`, href, createdAt };
+
+  return { id, status, title: `Couldn't deploy ${deployment}`, detail: meta.error?.message ?? "Choose a provider again.", href, createdAt };
 }
 
 function batchEntryOf(batchId: string, batch: Activity[], labelDeployment: LabelDeployment): ActivityEntry {
