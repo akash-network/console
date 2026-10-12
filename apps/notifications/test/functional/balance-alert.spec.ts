@@ -7,6 +7,7 @@ import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import nock from "nock";
 import { describe, expect, it, vi } from "vitest";
 
+import { eventKeyRegistry } from "@src/common/config/event-key-registry.config";
 import { BrokerService } from "@src/infrastructure/broker";
 import { DRIZZLE_PROVIDER_TOKEN } from "@src/infrastructure/db/config/db.config";
 import AlertEventsModule from "@src/interfaces/alert-events/alert-events.module";
@@ -18,6 +19,7 @@ import { NotificationChannel } from "@src/modules/notifications/model-schemas";
 import { mockAkashAddress } from "@test/seeders/akash-address.seeder";
 import { generateDeploymentBalanceAlert } from "@test/seeders/deployment-balance-alert.seeder";
 import { generateNotificationChannel } from "@test/seeders/notification-channel.seeder";
+import { generateWalletBalanceAlert } from "@test/seeders/wallet-balance-alert.seeder";
 
 describe("balance alerts", () => {
   it("does not evaluate DEPLOYMENT_BALANCE alerts on processBlock", async () => {
@@ -75,6 +77,69 @@ describe("balance alerts", () => {
 
       expect(deploymentInfoRequested).toBe(0);
       expect(brokerService.publish).not.toHaveBeenCalled();
+    } finally {
+      await module.close();
+    }
+  });
+
+  it("sends a WALLET_BALANCE alert's email as before, with one activity feed entry per block it fires at", async () => {
+    const { module, chainApi, db, schema } = await setup();
+    try {
+      const controller = module.get(ChainEventsHandler);
+      const brokerService = module.get(BrokerService);
+      const publish = vi.spyOn(brokerService, "publish").mockResolvedValue(undefined);
+      const owner = mockAkashAddress();
+      const [notificationChannel] = await db
+        .insert(schema.NotificationChannel)
+        .values([generateNotificationChannel({})])
+        .returning();
+      const alert = generateWalletBalanceAlert({
+        userId: notificationChannel.userId,
+        notificationChannelId: notificationChannel.id,
+        params: { owner, denom: "uakt" },
+        conditions: { field: "balance", value: 10_000_000, operator: "lt" },
+        summary:
+          '{{#if (eq alert.next.status "TRIGGERED")}}Wallet balance is below {{formatBalance alert.next.conditions.value data.denom 2}}{{else}}Wallet balance is back above {{formatBalance alert.next.conditions.value data.denom 2}}{{/if}}',
+        description: "Current balance is <strong>{{formatBalance data.amount data.denom 2}}</strong>.",
+        status: "OK",
+        minBlockHeight: 1000
+      });
+      await db.insert(schema.Alert).values([alert]);
+      let balance = 9_000_000;
+      chainApi
+        .get(`/cosmos/bank/v1beta1/balances/${owner}/by_denom`)
+        .query({ denom: "uakt" })
+        .reply(200, () => ({ balance: { amount: String(balance), denom: "uakt" } }));
+
+      await controller.processBlock({ height: 1000 });
+      await controller.processBlock({ height: 1000 });
+      balance = 11_000_000;
+      await controller.processBlock({ height: 1010 });
+
+      expect(publish.mock.calls).toEqual([
+        [
+          eventKeyRegistry.createNotification,
+          {
+            notificationChannelId: notificationChannel.id,
+            payload: {
+              summary: "Wallet balance is below 10 AKT",
+              description: "Current balance is <strong>9 AKT</strong>.",
+              feedEntry: { type: "wallet_balance_alert", alertId: alert.id, dedupeKey: `wallet_balance_alert.${alert.id}.1000` }
+            }
+          }
+        ],
+        [
+          eventKeyRegistry.createNotification,
+          {
+            notificationChannelId: notificationChannel.id,
+            payload: {
+              summary: "Wallet balance is back above 10 AKT",
+              description: "Current balance is <strong>11 AKT</strong>.",
+              feedEntry: { type: "wallet_balance_alert", alertId: alert.id, dedupeKey: `wallet_balance_alert.${alert.id}.1010` }
+            }
+          }
+        ]
+      ]);
     } finally {
       await module.close();
     }

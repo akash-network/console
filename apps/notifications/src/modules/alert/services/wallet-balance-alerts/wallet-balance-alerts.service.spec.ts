@@ -8,6 +8,7 @@ import type { AlertOutput, WalletBalanceAlertOutput } from "@src/modules/alert/r
 import { AlertRepository } from "@src/modules/alert/repositories/alert/alert.repository";
 import { AlertMessageService } from "@src/modules/alert/services/alert-message/alert-message.service";
 import { TemplateService } from "@src/modules/alert/services/template/template.service";
+import type { MessageCallback } from "@src/modules/alert/types/message-callback.type";
 import { ConditionsMatcherService } from "../conditions-matcher/conditions-matcher.service";
 import { WalletBalanceAlertsService } from "./wallet-balance-alerts.service";
 
@@ -62,7 +63,13 @@ describe(WalletBalanceAlertsService.name, () => {
           data: balance
         }
       });
-      expect(onMessage).toHaveBeenCalledWith(alertMessage);
+      expect(onMessage).toHaveBeenCalledWith({
+        notificationChannelId: alert.notificationChannelId,
+        payload: {
+          ...alertMessage.payload,
+          feedEntry: { type: "wallet_balance_alert", alertId: alert.id, dedupeKey: `wallet_balance_alert.${alert.id}.1000` }
+        }
+      });
       expect(alertRepository.updateById).toHaveBeenCalledWith(alert.id, {
         minBlockHeight: 1010,
         status: "TRIGGERED"
@@ -115,7 +122,13 @@ describe(WalletBalanceAlertsService.name, () => {
           data: balance
         }
       });
-      expect(onMessage).toHaveBeenCalledWith(alertMessage);
+      expect(onMessage).toHaveBeenCalledWith({
+        notificationChannelId: alert.notificationChannelId,
+        payload: {
+          ...alertMessage.payload,
+          feedEntry: { type: "wallet_balance_alert", alertId: alert.id, dedupeKey: `wallet_balance_alert.${alert.id}.1000` }
+        }
+      });
       expect(alertRepository.updateById).toHaveBeenCalledWith(alert.id, {
         minBlockHeight: 1010,
         status: "OK"
@@ -231,7 +244,57 @@ describe(WalletBalanceAlertsService.name, () => {
         error
       });
     });
+
+    it("gives a block evaluated twice the same feed entry, so the feed shows its firing once", async () => {
+      const { service, alertRepository, balanceHttpService, alertMessageService, onMessage } = await setup();
+      const alert = generateWalletBalanceAlert({ conditions: { field: "balance", value: 10_000_000, operator: "lt" }, status: "OK" });
+      alertRepository.paginateAll.mockImplementation(async options => {
+        await options.callback([alert] as AlertOutput[]);
+      });
+      alertRepository.updateById.mockImplementation(async (id, update) => ({ ...alert, ...update }) as AlertOutput);
+      balanceHttpService.getBalance.mockResolvedValue({ amount: 9_000_000, denom: "uakt" });
+      alertMessageService.getMessage.mockReturnValue(generateAlertMessage({}).payload);
+
+      await service.alertFor({ height: 2000 }, onMessage);
+      await service.alertFor({ height: 2000 }, onMessage);
+
+      expect(feedEntriesOf(onMessage)).toEqual([
+        { type: "wallet_balance_alert", alertId: alert.id, dedupeKey: `wallet_balance_alert.${alert.id}.2000` },
+        { type: "wallet_balance_alert", alertId: alert.id, dedupeKey: `wallet_balance_alert.${alert.id}.2000` }
+      ]);
+    });
+
+    it("gives every later firing of the alert its own feed entry, including a second drop below the threshold", async () => {
+      const { service, alertRepository, balanceHttpService, alertMessageService, onMessage } = await setup();
+      let storedAlert: WalletBalanceAlertOutput = generateWalletBalanceAlert({ conditions: { field: "balance", value: 10_000_000, operator: "lt" }, status: "OK" });
+      alertRepository.paginateAll.mockImplementation(async options => {
+        await options.callback([storedAlert] as AlertOutput[]);
+      });
+      alertRepository.updateById.mockImplementation(async (id, update) => {
+        storedAlert = { ...storedAlert, ...update } as WalletBalanceAlertOutput;
+        return storedAlert as AlertOutput;
+      });
+      balanceHttpService.getBalance
+        .mockResolvedValueOnce({ amount: 9_000_000, denom: "uakt" })
+        .mockResolvedValueOnce({ amount: 11_000_000, denom: "uakt" })
+        .mockResolvedValueOnce({ amount: 8_000_000, denom: "uakt" });
+      alertMessageService.getMessage.mockReturnValue(generateAlertMessage({}).payload);
+
+      await service.alertFor({ height: 3000 }, onMessage);
+      await service.alertFor({ height: 3010 }, onMessage);
+      await service.alertFor({ height: 3020 }, onMessage);
+
+      expect(feedEntriesOf(onMessage).map(feedEntry => feedEntry?.dedupeKey)).toEqual([
+        `wallet_balance_alert.${storedAlert.id}.3000`,
+        `wallet_balance_alert.${storedAlert.id}.3010`,
+        `wallet_balance_alert.${storedAlert.id}.3020`
+      ]);
+    });
   });
+
+  function feedEntriesOf(onMessage: Mock<MessageCallback>) {
+    return onMessage.mock.calls.map(([message]) => message.payload.feedEntry);
+  }
 
   async function setup(): Promise<{
     service: WalletBalanceAlertsService;
@@ -240,7 +303,7 @@ describe(WalletBalanceAlertsService.name, () => {
     conditionsMatcherService: ConditionsMatcherService;
     alertMessageService: MockProxy<AlertMessageService>;
     balanceHttpService: MockProxy<BalanceHttpService>;
-    onMessage: Mock;
+    onMessage: Mock<MessageCallback>;
   }> {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -253,7 +316,7 @@ describe(WalletBalanceAlertsService.name, () => {
         MockProvider(LoggerService)
       ]
     }).compile();
-    const onMessage = vi.fn();
+    const onMessage = vi.fn<MessageCallback>();
 
     return {
       service: module.get<WalletBalanceAlertsService>(WalletBalanceAlertsService),

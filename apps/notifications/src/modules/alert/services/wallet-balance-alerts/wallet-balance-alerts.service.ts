@@ -8,6 +8,7 @@ import { AlertMessageService } from "@src/modules/alert/services/alert-message/a
 import { alertNotifiedLog } from "@src/modules/alert/services/alert-notified-log";
 import { ConditionsMatcherService } from "@src/modules/alert/services/conditions-matcher/conditions-matcher.service";
 import type { MessageCallback } from "@src/modules/alert/types/message-callback.type";
+import type { AlertFeedEntry } from "@src/modules/notifications/dto/NotificationCommand.dto";
 
 type AlertCallback = (alert: WalletBalanceAlertOutput) => Promise<void> | void;
 
@@ -76,17 +77,20 @@ export class WalletBalanceAlertsService {
 
       if (alert.status !== updatedAlert?.status) {
         await onMessage({
-          payload: this.alertMessageService.getMessage({
-            summary: alert.summary,
-            description: alert.description,
-            vars: {
-              alert: {
-                prev: alert,
-                next: updatedAlert
-              },
-              data: balance
-            }
-          }),
+          payload: {
+            ...this.alertMessageService.getMessage({
+              summary: alert.summary,
+              description: alert.description,
+              vars: {
+                alert: {
+                  prev: alert,
+                  next: updatedAlert
+                },
+                data: balance
+              }
+            }),
+            feedEntry: feedEntryOf(alert, block)
+          },
           notificationChannelId: alert.notificationChannelId
         });
 
@@ -100,4 +104,9 @@ export class WalletBalanceAlertsService {
       });
     }
   }
+}
+
+/** An alert is evaluated at most once per block and only notifies when its status changes there, so its id and that block name one firing. */
+function feedEntryOf(alert: WalletBalanceAlertOutput, block: ChainBlockCreatedDto): AlertFeedEntry {
+  return { type: "wallet_balance_alert", alertId: alert.id, dedupeKey: `wallet_balance_alert.${alert.id}.${block.height}` };
 }
