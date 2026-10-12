@@ -5,6 +5,7 @@ import { mock } from "vitest-mock-extended";
 
 import { LOG_COLLECTOR_IMAGE } from "@src/config/log-collector.config";
 import type { DeploymentDefinition } from "@src/hooks/useDeploymentDefinition/useDeploymentDefinition";
+import type { Activity } from "@src/queries/useLatestActivitiesQuery";
 import type { SdlBuilderFormValuesType } from "@src/types";
 import type { DeploymentDto, DeploymentGroup, LeaseDto } from "@src/types/deployment";
 import type { ApiProviderList } from "@src/types/provider";
@@ -15,6 +16,7 @@ import type { DeploymentUpdateSubmitInput } from "./useDeploymentUpdateSubmit";
 
 import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { buildActivity } from "@tests/seeders/activity";
 
 const STORED_SDL = `
 version: "2.0"
@@ -284,7 +286,8 @@ describe(DeploymentUpdate.name, () => {
       await userEvent.click(updateButton());
 
       expect(submit).toHaveBeenCalledTimes(1);
-      const [seed, current] = submit.mock.calls[0] as [SdlBuilderFormValuesType, SdlBuilderFormValuesType];
+      const [seed, current, options] = submit.mock.calls[0] as [SdlBuilderFormValuesType, SdlBuilderFormValuesType, { isRetry: boolean }];
+      expect(options).toEqual({ isRetry: false });
       expect(serviceIn(seed, "web").image).toBe("ghcr.io/acme/storefront-web:2.8.1");
       expect(serviceIn(current, "web").image).toBe("ghcr.io/acme/storefront-web:2.9.0");
     });
@@ -495,6 +498,61 @@ describe(DeploymentUpdate.name, () => {
       showDefinition({ sdl: STORED_SDL.replace("storefront-web:2.8.1", "storefront-web:3.0.0") });
 
       expect(within(serviceSection("web")).getByLabelText("Image")).toHaveValue("ghcr.io/acme/storefront-web:2.8.1-mine");
+    });
+  });
+
+  describe("an update being applied in the background", () => {
+    it("holds the form and says the update is being applied, so the user can leave the tab", () => {
+      setup({ updatingDseqs: ["1234"] });
+
+      expect(screen.getByText("An update is being applied to this deployment. You'll get a notification when it's done.")).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Updating…" })).toBeDisabled();
+      expect(screen.getByRole("button", { name: "Discard changes" })).toBeDisabled();
+      expect(within(serviceSection("web")).getByLabelText("Image")).toBeDisabled();
+    });
+
+    it("leaves the form free while only another deployment is being updated", async () => {
+      setup({ updatingDseqs: ["999"] });
+
+      await userEvent.type(within(serviceSection("web")).getByLabelText("Image"), "-hotfix");
+
+      expect(updateButton()).toBeEnabled();
+      expect(screen.queryByText(/An update is being applied/)).not.toBeInTheDocument();
+    });
+  });
+
+  describe("an update that failed to apply", () => {
+    it("says why and lets the saved configuration be applied again without a change", async () => {
+      const { submit } = setup({
+        failedUpdate: { manifestVersion: RECORDED_VERSION, error: { code: "update_failed", message: "The provider did not respond." } }
+      });
+
+      expect(screen.getByRole("alert")).toHaveTextContent(
+        "The last update didn't go through, so the deployment isn't running this configuration yet. The provider did not respond."
+      );
+
+      await userEvent.click(updateButton());
+
+      expect(submit).toHaveBeenCalledWith(expect.anything(), expect.anything(), { isRetry: true });
+    });
+
+    it("asks for another try when the failure gave no reason", () => {
+      setup({ failedUpdate: { manifestVersion: RECORDED_VERSION } });
+
+      expect(screen.getByRole("alert")).toHaveTextContent("Try updating it again.");
+    });
+
+    it("offers nothing for a failed version the form no longer holds", () => {
+      setup({ failedUpdate: { manifestVersion: "b2xkZXI=" } });
+
+      expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+      expect(updateButton()).toBeDisabled();
+    });
+
+    it("offers nothing on a closed deployment", () => {
+      setup({ deploymentState: "closed", failedUpdate: { manifestVersion: RECORDED_VERSION } });
+
+      expect(screen.queryByRole("alert")).not.toBeInTheDocument();
     });
   });
 
@@ -1011,6 +1069,8 @@ describe(DeploymentUpdate.name, () => {
       secretsUnreadable?: boolean;
       leases?: LeaseDto[] | null;
       isLoadingLeaseGpus?: boolean;
+      updatingDseqs?: string[];
+      failedUpdate?: Activity["meta"];
     } = {}
   ) {
     const submit = vi.fn();
@@ -1019,6 +1079,9 @@ describe(DeploymentUpdate.name, () => {
       capturedSubmitInput = submitInput;
       return { submit, isUpdating: input.isUpdating ?? false, sdlRefusal: input.sdlRefusal ?? null, secretsUnreadable: input.secretsUnreadable ?? false };
     };
+    const useUpdatingDeployments: typeof DEPENDENCIES.useUpdatingDeployments = () => new Set(input.updatingDseqs ?? []);
+    const useFailedDeploymentUpdate: typeof DEPENDENCIES.useFailedDeploymentUpdate = dseq =>
+      input.failedUpdate && buildActivity({ type: "deployment_update", status: "failed", meta: { dseq, ...input.failedUpdate } });
     const onUpdated = vi.fn();
     const onRedeploy = vi.fn();
     const onRedeployWithNewSecrets = vi.fn();
@@ -1051,7 +1114,7 @@ describe(DeploymentUpdate.name, () => {
         onRedeploy={onRedeploy}
         onRedeployWithNewSecrets={onRedeployWithNewSecrets}
         fallback={<RawEditor />}
-        dependencies={{ ...DEPENDENCIES, useDeploymentUpdateSubmit, DefinitionImport }}
+        dependencies={{ ...DEPENDENCIES, useDeploymentUpdateSubmit, useUpdatingDeployments, useFailedDeploymentUpdate, DefinitionImport }}
       />
     );
     const { rerender } = render(tabFor(definitionOf({})), { wrapper: TooltipProvider });

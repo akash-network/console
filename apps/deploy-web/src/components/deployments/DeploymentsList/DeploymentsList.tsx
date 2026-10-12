@@ -128,6 +128,7 @@ export const DeploymentsList: React.FunctionComponent<Props> = ({ project, depen
           isSelectable={canChangeDeployments}
           selectedIds={model.selectedItemIds}
           closingDseqs={model.closingDseqs}
+          updatingDseqs={model.updatingDseqs}
           onSelect={model.selectItem}
           onDeploymentClosed={model.refetchDeployments}
         />

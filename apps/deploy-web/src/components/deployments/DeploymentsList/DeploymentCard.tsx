@@ -33,6 +33,7 @@ export interface DeploymentCardProps {
   isSelectable?: boolean;
   isSelected?: boolean;
   isClosing?: boolean;
+  isUpdating?: boolean;
   canManage?: boolean;
   onSelect?: (input: { id: string; isShiftPressed: boolean }) => void;
   onDeploymentClosed?: () => void;
@@ -45,6 +46,7 @@ export const DeploymentCard: FC<DeploymentCardProps> = ({
   isSelectable,
   isSelected,
   isClosing = false,
+  isUpdating = false,
   canManage = true,
   onSelect,
   onDeploymentClosed,
@@ -68,7 +70,7 @@ export const DeploymentCard: FC<DeploymentCardProps> = ({
           </div>
 
           <div className="flex shrink-0 flex-wrap items-center justify-end gap-1.5">
-            <d.DeploymentStatusBadge state={deployment.state} leases={leases} isSummarized isClosing={isClosing} workload={workload} />
+            <d.DeploymentStatusBadge state={deployment.state} leases={leases} isSummarized isClosing={isClosing} isUpdating={isUpdating} workload={workload} />
             <d.DeploymentBadges deployment={deployment} />
           </div>
         </div>

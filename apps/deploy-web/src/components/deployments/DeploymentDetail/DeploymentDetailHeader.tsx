@@ -22,6 +22,7 @@ import { useDeploymentEscrowBalance } from "@src/hooks/useDeploymentEscrowBalanc
 import { useHasDeploymentStopped } from "@src/hooks/useHasDeploymentStopped";
 import { isLeaseStatusWithheld, useProviderCredentials } from "@src/hooks/useProviderCredentials/useProviderCredentials";
 import { useTickingNow } from "@src/hooks/useTickingNow";
+import { useUpdatingDeployments } from "@src/hooks/useUpdatingDeployments/useUpdatingDeployments";
 import { useDeploymentSettingQuery } from "@src/queries/deploymentSettingsQuery";
 import { useLeaseStatuses } from "@src/queries/useLeaseQuery";
 import type { DeploymentDto, LeaseDto } from "@src/types/deployment";
@@ -46,6 +47,7 @@ import { RuntimeLimitMeter } from "./RuntimeLimitMeter";
 export const DEPENDENCIES = {
   useLocalNotes,
   useClosingDeployments,
+  useUpdatingDeployments,
   useDeploymentDefinition,
   useWallet,
   useDeploymentEscrowBalance,
@@ -94,6 +96,7 @@ export const DeploymentDetailHeader: FC<DeploymentDetailHeaderProps> = ({
   const teeTypes = d.useDeclaredTeeTypes(deployment);
   const interconnect = d.useDeclaredGpuInterconnect(deployment);
   const isClosing = d.useClosingDeployments().has(deployment.dseq);
+  const isUpdating = d.useUpdatingDeployments().has(deployment.dseq);
   const { canManage } = d.useCanManageDeployment(deployment.dseq);
 
   const liveLeases = useMemo(() => leases?.filter(isLeaseLive) ?? [], [leases]);
@@ -128,7 +131,7 @@ export const DeploymentDetailHeader: FC<DeploymentDetailHeaderProps> = ({
       <div className="space-y-3">
         <d.DeploymentProjectBreadcrumb dseq={deployment.dseq} />
         <div className="flex flex-wrap items-center gap-2">
-          <DeploymentStatusBadge state={deployment.state} leases={leases} isClosing={isClosing} workload={workload} />
+          <DeploymentStatusBadge state={deployment.state} leases={leases} isClosing={isClosing} isUpdating={isUpdating} workload={workload} />
           <d.ConfidentialComputeBadge teeTypes={teeTypes} />
           <d.GpuInterconnectBadge interconnect={interconnect} />
         </div>
