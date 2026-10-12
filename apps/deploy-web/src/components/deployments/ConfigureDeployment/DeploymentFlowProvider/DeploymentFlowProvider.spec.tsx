@@ -32,25 +32,37 @@ describe(DeploymentFlowProvider.name, () => {
   });
 
   it("warns before the page unloads while the deployment is being created", () => {
-    const { useWarnBeforeUnload } = setup({ flow: mock<DeploymentFlow>({ phase: "creating" }) });
+    const { useWarnBeforeUnload } = setup({ flow: mock<DeploymentFlow>({ phase: "creating", isCreatingInBackground: false }) });
 
     expect(useWarnBeforeUnload).toHaveBeenLastCalledWith(true);
   });
 
   it("lets the page unload unwarned once the deployment is quoting", () => {
-    const { useWarnBeforeUnload } = setup({ flow: mock<DeploymentFlow>({ phase: "quoting" }) });
+    const { useWarnBeforeUnload } = setup({ flow: mock<DeploymentFlow>({ phase: "quoting", isCreatingInBackground: false }) });
+
+    expect(useWarnBeforeUnload).toHaveBeenLastCalledWith(false);
+  });
+
+  it("lets the page unload unwarned once the api finishes the create in the background", () => {
+    const { useWarnBeforeUnload } = setup({ flow: mock<DeploymentFlow>({ phase: "creating", isCreatingInBackground: true }) });
 
     expect(useWarnBeforeUnload).toHaveBeenLastCalledWith(false);
   });
 
   it("tells its descendants while the deployment is being created", () => {
-    setup({ flow: mock<DeploymentFlow>({ phase: "creating" }) });
+    setup({ flow: mock<DeploymentFlow>({ phase: "creating", isCreatingInBackground: false }) });
 
     expect(screen.getByTestId("creating")).toHaveTextContent("true");
   });
 
   it("tells its descendants no deployment is being created once it is quoting", () => {
-    setup({ flow: mock<DeploymentFlow>({ phase: "quoting" }) });
+    setup({ flow: mock<DeploymentFlow>({ phase: "quoting", isCreatingInBackground: false }) });
+
+    expect(screen.getByTestId("creating")).toHaveTextContent("false");
+  });
+
+  it("frees its descendants to navigate away once the api finishes the create in the background", () => {
+    setup({ flow: mock<DeploymentFlow>({ phase: "creating", isCreatingInBackground: true }) });
 
     expect(screen.getByTestId("creating")).toHaveTextContent("false");
   });

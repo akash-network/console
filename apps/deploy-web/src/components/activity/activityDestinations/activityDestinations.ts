@@ -9,6 +9,9 @@ export interface ActivityDestination {
 
 const DEPLOYMENT_LIST: ActivityDestination = { href: UrlService.deploymentList(), label: "View deployments" };
 
+/** A create that failed left no deployment behind, so trying again means configuring a new one. */
+const NEW_DEPLOYMENT: ActivityDestination = { href: UrlService.configureDeployment(), label: "New deployment" };
+
 function alertDestinationOf({ meta: { dseq } }: Activity): ActivityDestination {
   return dseq ? { href: UrlService.deploymentDetails(dseq), label: "View deployment" } : DEPLOYMENT_LIST;
 }
@@ -26,7 +29,12 @@ const DESTINATIONS: Record<Activity["type"], (activity: Activity) => ActivityDes
 
     return { href: UrlService.deploymentDetails(dseq), label: "View deployment" };
   },
-  deployment_create: ({ meta: { dseq } }) => (dseq ? { href: UrlService.deploymentDetails(dseq), label: "View deployment" } : DEPLOYMENT_LIST),
+  deployment_create: ({ status, meta: { dseq } }) => {
+    if (!dseq) return DEPLOYMENT_LIST;
+    if (status === "failed") return NEW_DEPLOYMENT;
+
+    return { href: UrlService.configureDeployment({ dseq }), label: "Choose a provider" };
+  },
   deployment_update: ({ status, meta: { dseq } }) => {
     if (!dseq) return DEPLOYMENT_LIST;
     if (status === "failed") return { href: UrlService.deploymentDetails(dseq, "UPDATE"), label: "Open update" };

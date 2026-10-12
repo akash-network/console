@@ -40,10 +40,20 @@ describe("activityDestinations", () => {
       expect(activityDestinationOf(activity)).toEqual({ href: "/deployments", label: "View deployments" });
     });
 
-    it.each(["pending", "succeeded", "failed"] as const)("leads a %s create to its deployment", status => {
+    it.each(["pending", "succeeded"] as const)("leads a %s create to choosing a provider for its deployment", status => {
       const activity = buildActivity({ type: "deployment_create", status, meta: { dseq: "1234" } });
 
-      expect(activityDestinationOf(activity)).toEqual({ href: "/deployments/1234", label: "View deployment" });
+      expect(activityDestinationOf(activity)).toEqual({ href: "/new-deployment/configure/1234", label: "Choose a provider" });
+    });
+
+    it("leads a failed create back to configuring a new deployment, since it left none behind", () => {
+      const activity = buildActivity({
+        type: "deployment_create",
+        status: "failed",
+        meta: { dseq: "1234", error: { code: "create_incomplete", message: "The deployment was not created." } }
+      });
+
+      expect(activityDestinationOf(activity)).toEqual({ href: "/new-deployment/configure", label: "New deployment" });
     });
 
     it.each(["pending" as const, "succeeded" as const])("leads a %s update to its deployment", status => {
