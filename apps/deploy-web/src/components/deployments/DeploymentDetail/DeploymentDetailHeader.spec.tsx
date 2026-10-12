@@ -5,6 +5,8 @@ import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { DeploymentDefinition } from "@src/hooks/useDeploymentDefinition/useDeploymentDefinition";
+import { useDeploymentStatus } from "@src/hooks/useDeploymentStatus/useDeploymentStatus";
+import type { Activity } from "@src/queries/useLatestActivitiesQuery";
 import type { LeaseServiceStatus, LeaseStatusDto } from "@src/queries/useLeaseQuery";
 import type { DeploymentDto, DeploymentGroup, LeaseDto } from "@src/types/deployment";
 import type { ApiProviderList } from "@src/types/provider";
@@ -12,6 +14,8 @@ import { DEPENDENCIES, DeploymentDetailHeader } from "./DeploymentDetailHeader";
 
 import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { buildActivity } from "@tests/seeders/activity";
+import { activityFeedOf } from "@tests/unit/activityFeed";
 import { MockComponents } from "@tests/unit/mocks";
 
 describe(DeploymentDetailHeader.name, () => {
@@ -69,22 +73,29 @@ describe(DeploymentDetailHeader.name, () => {
   });
 
   it("shows the deployment as closing while its close runs in the background", () => {
-    setup({ closingDseqs: ["1786440078202"] });
+    setup({ activities: [buildActivity({ type: "deployment_close", status: "pending", meta: { dseq: "1786440078202" } })] });
 
     expect(screen.getByText("Closing")).toBeInTheDocument();
     expect(screen.queryByText("Running")).not.toBeInTheDocument();
   });
 
   it("keeps showing the deployment as running while only other deployments are closing", () => {
-    setup({ closingDseqs: ["42"] });
+    setup({ activities: [buildActivity({ type: "deployment_close", status: "pending", meta: { dseq: "42" } })] });
 
     expect(screen.getByText("Running")).toBeInTheDocument();
   });
 
-  it("shows the deployment as starting while a service of a live lease has no ready replica", () => {
+  it("shows the deployment as spinning up while its lease is still being created, as its card does", () => {
+    setup({ leases: [], activities: [buildActivity({ type: "lease_create", status: "pending", meta: { dseq: "1786440078202" } })] });
+
+    expect(screen.getByText("Spinning up")).toBeInTheDocument();
+    expect(screen.queryByText("Running")).not.toBeInTheDocument();
+  });
+
+  it("shows the deployment as spinning up while a service of a live lease has no ready replica", () => {
     setup({ availableReplicasByService: { web: 1, worker: 0 } });
 
-    expect(screen.getByText("Starting")).toBeInTheDocument();
+    expect(screen.getByText("Spinning up")).toBeInTheDocument();
     expect(screen.queryByText("Running")).not.toBeInTheDocument();
   });
 
@@ -93,6 +104,19 @@ describe(DeploymentDetailHeader.name, () => {
 
     expect(screen.getByText("Loading")).toBeInTheDocument();
     expect(screen.queryByText("Running")).not.toBeInTheDocument();
+  });
+
+  it("resolves its status through the hook the deployments list shares, from what the providers report", () => {
+    const useDeploymentStatus = vi.fn<typeof DEPENDENCIES.useDeploymentStatus>(() => ({
+      label: "Deploy failed",
+      summaryLabel: "Deploy failed",
+      tone: "warning"
+    }));
+    const leases = [mock<LeaseDto>({ id: "1", provider: "akash1provider", state: "active" })];
+    setup({ leases, availableReplicasByService: { web: 0 }, dependencies: { useDeploymentStatus } });
+
+    expect(useDeploymentStatus).toHaveBeenCalledWith({ dseq: "1786440078202", state: "active", leases, workload: "starting" });
+    expect(screen.getByText("Deploy failed")).toBeInTheDocument();
   });
 
   it("asks the provider of each live lease what is running on it", () => {
@@ -361,7 +385,7 @@ describe(DeploymentDetailHeader.name, () => {
     gpuAmount?: number;
     groups?: DeploymentGroup[];
     isLoadingLeaseGpus?: boolean;
-    closingDseqs?: string[];
+    activities?: Activity[];
     availableReplicasByService?: Record<string, number> | null;
     dependencies?: Partial<typeof DEPENDENCIES>;
   }) {
@@ -437,7 +461,7 @@ describe(DeploymentDetailHeader.name, () => {
       CostBreakdownTooltip,
       DeploymentVisitControl,
       useLeaseStatuses,
-      useClosingDeployments: () => new Set(input.closingDseqs ?? []),
+      useDeploymentStatus: params => useDeploymentStatus({ ...params, dependencies: activityFeedOf(input.activities ?? []) }),
       ...input.dependencies
     });
     const renderHeader = () => (

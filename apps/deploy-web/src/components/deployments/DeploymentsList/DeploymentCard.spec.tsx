@@ -1,13 +1,19 @@
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
+import type { ResolvedDeploymentStatus } from "@src/hooks/useDeploymentStatus/useDeploymentStatus";
+import { useDeploymentStatus } from "@src/hooks/useDeploymentStatus/useDeploymentStatus";
+import type { Activity } from "@src/queries/useLatestActivitiesQuery";
 import type { LeaseDto, ListedDeploymentDto } from "@src/types/deployment";
+import { DeploymentStatusBadge as RealDeploymentStatusBadge } from "../DeploymentDetail/DeploymentStatusBadge";
 import type { VisitEndpoint } from "../DeploymentDetail/DeploymentVisitControl/visitEndpoints";
 import { DEPENDENCIES, DeploymentCard } from "./DeploymentCard";
 import type { DeploymentReachability } from "./useDeploymentReachability";
 
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { buildActivity } from "@tests/seeders/activity";
+import { activityFeedOf } from "@tests/unit/activityFeed";
 import { MockComponents } from "@tests/unit/mocks";
 
 describe("DeploymentCard", () => {
@@ -23,11 +29,54 @@ describe("DeploymentCard", () => {
     expect(screen.getByRole("link", { name: "Deployment #100" })).toBeInTheDocument();
   });
 
-  it("resolves the status from the deployment state and its leases so the detail page cannot disagree", () => {
+  it("resolves the status through the hook the deployment page header shares, from the deployment, its leases and what its providers report", () => {
     const leases = [mock<LeaseDto>({ state: "active" })];
-    const { DeploymentStatusBadge } = setup({ deployment: { dseq: "100" }, leases });
+    const status: ResolvedDeploymentStatus = { label: "Spinning up", summaryLabel: "Spinning up", tone: "loading", isSpinningUp: true };
+    const { DeploymentStatusBadge, useDeploymentStatus } = setup({ deployment: { dseq: "100" }, leases, reachability: { workload: "starting" }, status });
 
-    expect(DeploymentStatusBadge).toHaveBeenCalledWith(expect.objectContaining({ state: "active", leases }), expect.anything());
+    expect(useDeploymentStatus).toHaveBeenCalledWith({ dseq: "100", state: "active", leases, workload: "starting" });
+    expect(DeploymentStatusBadge).toHaveBeenCalledWith({ status, leases, isSummarized: true }, expect.anything());
+  });
+
+  it("shows a deployment whose lease is still being created as spinning up, as its page header does", () => {
+    setup({
+      deployment: { dseq: "100" },
+      dependencies: {
+        DeploymentStatusBadge: RealDeploymentStatusBadge,
+        useDeploymentStatus: params => useDeploymentStatus({ ...params, dependencies: activityFeedOf([leaseCreation("pending")]) })
+      }
+    });
+
+    expect(screen.getByText("Spinning up")).toBeInTheDocument();
+    expect(screen.queryByText("Running")).not.toBeInTheDocument();
+  });
+
+  it("tells the endpoints view a deployment is spinning up, so it does not read as one without a provider", () => {
+    const { DeploymentEndpoints } = setup({ deployment: { dseq: "100" }, status: { isSpinningUp: true } });
+
+    expect(DeploymentEndpoints).toHaveBeenCalledWith(expect.objectContaining({ isSpinningUp: true }), expect.anything());
+  });
+
+  it("offers to choose a provider again in place of the endpoints once the lease failed", () => {
+    const leases = [mock<LeaseDto>({ state: "active" })];
+    const { DeploymentEndpoints, DeploymentRecoveryAction } = setup({
+      deployment: { dseq: "100" },
+      leases,
+      status: { label: "Deploy failed", launch: { phase: "failed", providers: [], hasLease: true } }
+    });
+
+    expect(DeploymentRecoveryAction).toHaveBeenCalledWith({ dseq: "100", hasLease: true, leases, isCompact: true }, expect.anything());
+    expect(DeploymentEndpoints).not.toHaveBeenCalled();
+  });
+
+  it("hands the recovery action no leases before the deployment's leases have loaded", () => {
+    const { DeploymentRecoveryAction } = setup({
+      deployment: { dseq: "100" },
+      reachability: { leases: undefined },
+      status: { launch: { phase: "failed", providers: [], hasLease: false } }
+    });
+
+    expect(DeploymentRecoveryAction).toHaveBeenCalledWith(expect.objectContaining({ hasLease: false, leases: [] }), expect.anything());
   });
 
   it("passes the resolved reachability to the endpoints view", () => {
@@ -127,12 +176,6 @@ describe("DeploymentCard", () => {
   });
 
   describe("while the deployment's close runs in the background", () => {
-    it("shows the deployment as closing", () => {
-      const { DeploymentStatusBadge } = setup({ deployment: { dseq: "100" }, isClosing: true });
-
-      expect(DeploymentStatusBadge).toHaveBeenCalledWith(expect.objectContaining({ isClosing: true }), expect.anything());
-    });
-
     it("offers no selection, so it cannot join a bulk close", () => {
       setup({ deployment: { dseq: "100" }, isSelectable: true, isClosing: true });
 
@@ -166,20 +209,30 @@ describe("DeploymentCard", () => {
     isSelectable?: boolean;
     isSelected?: boolean;
     isClosing?: boolean;
+    status?: Partial<ResolvedDeploymentStatus>;
     onDeploymentClosed?: () => void;
+    dependencies?: Partial<typeof DEPENDENCIES>;
   }) {
     const leases = input.leases ?? [];
     let endpoints = input.reachability?.endpoints ?? [];
     const useDeploymentReachability = vi.fn<typeof DEPENDENCIES.useDeploymentReachability>(() => ({
       leases,
       isLoadingLeases: false,
+      workload: undefined,
       isLoadingEndpoints: false,
       unreachableReason: null,
       ...input.reachability,
       endpoints
     }));
 
+    const useDeploymentStatus = vi.fn<typeof DEPENDENCIES.useDeploymentStatus>(() => ({
+      label: "Running",
+      summaryLabel: "Running",
+      tone: "running",
+      ...input.status
+    }));
     const DeploymentStatusBadge = vi.fn(() => <div>status</div>);
+    const DeploymentRecoveryAction = vi.fn(() => <div>recovery</div>);
     const DeploymentEndpoints = vi.fn<typeof DEPENDENCIES.DeploymentEndpoints>(({ onToggleExpanded }) => (
       <button type="button" onClick={onToggleExpanded}>
         toggle endpoints
@@ -204,12 +257,15 @@ describe("DeploymentCard", () => {
         onDeploymentClosed={input.onDeploymentClosed}
         dependencies={MockComponents(DEPENDENCIES, {
           useDeploymentReachability,
+          useDeploymentStatus,
           DeploymentStatusBadge,
+          DeploymentRecoveryAction,
           DeploymentEndpoints,
           DeploymentEndpointsPanel,
           DeploymentSpecSummary,
           DeploymentActionsMenu,
-          DeploymentBadges
+          DeploymentBadges,
+          ...input.dependencies
         })}
       />
     );
@@ -223,14 +279,20 @@ describe("DeploymentCard", () => {
         rerender(renderCard());
       },
       DeploymentStatusBadge,
+      DeploymentRecoveryAction,
       DeploymentEndpoints,
       DeploymentEndpointsPanel,
       DeploymentSpecSummary,
       DeploymentActionsMenu,
       DeploymentBadges,
       useDeploymentReachability,
+      useDeploymentStatus,
       providers,
       deployment
     };
   }
 });
+
+function leaseCreation(status: Activity["status"]) {
+  return buildActivity({ type: "lease_create", status, meta: { dseq: "100", providers: ["akash1provider"] } });
+}

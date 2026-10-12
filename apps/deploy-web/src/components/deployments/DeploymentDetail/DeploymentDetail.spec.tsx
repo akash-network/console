@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, onTestFinished, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { DeploymentDefinition } from "@src/hooks/useDeploymentDefinition/useDeploymentDefinition";
+import type { Activity } from "@src/queries/useLatestActivitiesQuery";
 import type { DeploymentDto, DetectedLeaseGpus, LeaseDto, LeaseGpusByLease, OfferedLeaseGpus } from "@src/types/deployment";
 import type { ApiProviderList } from "@src/types/provider";
 import type { DeploymentUpdateProps } from "./DeploymentUpdate/DeploymentUpdate";
@@ -10,6 +11,7 @@ import { DEPENDENCIES, DeploymentDetail } from "./DeploymentDetail";
 
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { buildActivity } from "@tests/seeders/activity";
 import { MockComponents } from "@tests/unit/mocks";
 
 const DETECTED_GPUS: DetectedLeaseGpus = {
@@ -186,6 +188,94 @@ describe("DeploymentDetail", () => {
     const { router } = setup({ leases: [], definition: { sdl: "version: '2.0' # not-self-contained", source: "absent" } });
 
     expect(router.replace).toHaveBeenCalledWith(expect.not.stringContaining("draftId"));
+  });
+
+  describe("while its lease is being created", () => {
+    it("shows that it is spinning up on the providers it chose, instead of sending the user to configure it", () => {
+      const { router, DeploymentLaunchState } = setup({ leases: [], leaseCreation: leaseCreation({ status: "pending", providers: ["akash1provider"] }) });
+
+      expect(router.replace).not.toHaveBeenCalled();
+      expect(DeploymentLaunchState).toHaveBeenCalledWith(
+        expect.objectContaining({ dseq: "1786440078202", launch: { phase: "awaiting-lease", providers: ["akash1provider"] }, className: "mb-6" }),
+        expect.anything()
+      );
+      expect(screen.queryByText("placements")).not.toBeInTheDocument();
+    });
+
+    it("reads which deployment's activity it follows", () => {
+      const { useDeploymentActivity } = setup({});
+
+      expect(useDeploymentActivity).toHaveBeenCalledWith("1786440078202");
+    });
+
+    it("keeps the waiting state to the Details tab", () => {
+      setup({ tab: "SETTINGS", leases: [], leaseCreation: leaseCreation({ status: "pending" }) });
+
+      expect(screen.queryByText("launch-state")).not.toBeInTheDocument();
+    });
+
+    it("moves on to the placements once the lease lands", () => {
+      const { DeploymentLaunchState, rerenderWith } = setup({ leases: [], leaseCreation: leaseCreation({ status: "pending" }) });
+      DeploymentLaunchState.mockClear();
+
+      rerenderWith({
+        leases: [mock<LeaseDto>({ id: "1", provider: "akash1provider", state: "active" })],
+        leaseCreation: leaseCreation({ status: "succeeded" })
+      });
+
+      expect(DeploymentLaunchState).not.toHaveBeenCalled();
+      expect(screen.getByText("placements")).toBeInTheDocument();
+    });
+
+    it("waits for the activity feed before sending a lease-less deployment to configure", () => {
+      const { router } = setup({ leases: [], isResolvingActivity: true });
+
+      expect(router.replace).not.toHaveBeenCalled();
+    });
+
+    it("sends a lease-less deployment to configure once the feed shows no lease being created", () => {
+      const { router, rerenderWith } = setup({ leases: [], isResolvingActivity: true });
+
+      rerenderWith({ isResolvingActivity: false });
+
+      expect(router.replace).toHaveBeenCalledWith(expect.stringContaining("configure"));
+    });
+  });
+
+  describe("once creating its lease failed", () => {
+    it("says so and offers a way back instead of sending the user to configure it", () => {
+      const { router, DeploymentLaunchState } = setup({
+        leases: [],
+        leaseCreation: leaseCreation({ status: "failed", error: { code: "lease_not_created", message: "The lease was not created." } })
+      });
+
+      expect(router.replace).not.toHaveBeenCalled();
+      expect(DeploymentLaunchState).toHaveBeenCalledWith(
+        expect.objectContaining({ launch: { phase: "failed", providers: [], hasLease: false, reason: "The lease was not created." } }),
+        expect.anything()
+      );
+      expect(screen.queryByText("placements")).not.toBeInTheDocument();
+    });
+
+    it("keeps the placement of a lease its provider never got the deployment for", () => {
+      const leases = [mock<LeaseDto>({ id: "1", provider: "akash1provider", state: "active" })];
+      const { DeploymentLaunchState } = setup({
+        leases,
+        leaseCreation: leaseCreation({ status: "failed", error: { code: "manifest_not_delivered", message: "Not sent." } })
+      });
+
+      expect(DeploymentLaunchState).toHaveBeenCalledWith(
+        expect.objectContaining({ leases, launch: expect.objectContaining({ hasLease: true }) }),
+        expect.anything()
+      );
+      expect(screen.getByText("placements")).toBeInTheDocument();
+    });
+
+    it("hands the failure no leases when the lease list came back empty-handed", () => {
+      const { DeploymentLaunchState } = setup({ leases: null, leaseCreation: leaseCreation({ status: "failed" }) });
+
+      expect(DeploymentLaunchState).toHaveBeenCalledWith(expect.objectContaining({ leases: [] }), expect.anything());
+    });
   });
 
   it("does not redirect a lease-less deployment until the definition resolves", () => {
@@ -428,6 +518,8 @@ describe("DeploymentDetail", () => {
     providers?: ApiProviderList[];
     leaseGpus?: LeaseGpusByLease;
     isLoadingLeaseGpus?: boolean;
+    leaseCreation?: Activity;
+    isResolvingActivity?: boolean;
   }) {
     const deployment = input && "deployment" in input ? input.deployment : mock<DeploymentDto>({ dseq: "1786440078202", state: "active", groups: [] });
     const leases = input && "leases" in input ? input.leases : [mock<LeaseDto>({ id: "1", provider: "akash1provider", state: input?.leaseState ?? "active" })];
@@ -485,6 +577,14 @@ describe("DeploymentDetail", () => {
     const DeploymentSettings = vi.fn(() => <div>settings</div>);
     const DeploymentUpdate = vi.fn((_props: DeploymentUpdateProps) => <div>structured-update</div>);
     const createConfigureDraft = vi.fn<typeof DEPENDENCIES.createConfigureDraft>(() => "handed-over");
+    let currentLeaseCreation = input?.leaseCreation;
+    let isResolvingActivity = input?.isResolvingActivity ?? false;
+    const useDeploymentActivity = vi.fn<typeof DEPENDENCIES.useDeploymentActivity>(() => ({
+      isClosing: false,
+      leaseCreation: currentLeaseCreation,
+      isResolving: isResolvingActivity
+    }));
+    const DeploymentLaunchState = vi.fn(() => <div>launch-state</div>);
 
     const dependencies = MockComponents(DEPENDENCIES, {
       useServices,
@@ -493,11 +593,13 @@ describe("DeploymentDetail", () => {
       useSearchParams,
       useRedeploy,
       useDeploymentDefinition,
+      useDeploymentActivity,
       useDeploymentDetail,
       useDeploymentLeaseList,
       useLeaseGpus,
       useProvidersByAddresses,
       DeploymentDetailHeader,
+      DeploymentLaunchState,
       ReclamationBanner,
       DeploymentPlacements,
       DeploymentLogs,
@@ -519,14 +621,24 @@ describe("DeploymentDetail", () => {
       refetchDeployment,
       DeploymentDetailHeader,
       DeploymentPlacements,
+      DeploymentLaunchState,
+      useDeploymentActivity,
       useProvidersByAddresses,
       refetchLeases,
       rerenderWithLeaseGpus(next: LeaseGpusByLease) {
         leaseGpus = next;
         rerender(<DeploymentDetail dseq="1786440078202" dependencies={dependencies} />);
       },
-      rerenderWith(next: { deployment?: DeploymentDto; leases?: LeaseDto[]; isLeasesLoaded?: boolean }) {
+      rerenderWith(next: {
+        deployment?: DeploymentDto;
+        leases?: LeaseDto[];
+        isLeasesLoaded?: boolean;
+        leaseCreation?: Activity;
+        isResolvingActivity?: boolean;
+      }) {
         currentDeployment = next.deployment ?? currentDeployment;
+        currentLeaseCreation = next.leaseCreation ?? currentLeaseCreation;
+        isResolvingActivity = next.isResolvingActivity ?? isResolvingActivity;
         if (next.leases) Object.assign(leaseList, { data: next.leases });
         if (next.isLeasesLoaded !== undefined) Object.assign(leaseList, { isSuccess: next.isLeasesLoaded });
         rerender(<DeploymentDetail dseq="1786440078202" dependencies={dependencies} />);
@@ -534,3 +646,7 @@ describe("DeploymentDetail", () => {
     };
   }
 });
+
+function leaseCreation(input: { status: Activity["status"]; providers?: string[]; error?: { code: string; message: string } }): Activity {
+  return buildActivity({ type: "lease_create", status: input.status, meta: { dseq: "1786440078202", providers: input.providers, error: input.error } });
+}

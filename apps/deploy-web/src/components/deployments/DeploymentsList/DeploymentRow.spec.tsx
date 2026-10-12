@@ -1,11 +1,17 @@
 import { describe, expect, it, vi } from "vitest";
+import { mock } from "vitest-mock-extended";
 
-import type { ListedDeploymentDto } from "@src/types/deployment";
+import type { ResolvedDeploymentStatus } from "@src/hooks/useDeploymentStatus/useDeploymentStatus";
+import { useDeploymentStatus } from "@src/hooks/useDeploymentStatus/useDeploymentStatus";
+import type { LeaseDto, ListedDeploymentDto } from "@src/types/deployment";
+import { DeploymentStatusBadge as RealDeploymentStatusBadge } from "../DeploymentDetail/DeploymentStatusBadge";
 import type { VisitEndpoint } from "../DeploymentDetail/DeploymentVisitControl/visitEndpoints";
 import { DEPENDENCIES, DeploymentRow } from "./DeploymentRow";
 
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { buildActivity } from "@tests/seeders/activity";
+import { activityFeedOf } from "@tests/unit/activityFeed";
 import { MockComponents } from "@tests/unit/mocks";
 
 describe("DeploymentRow", () => {
@@ -34,6 +40,59 @@ describe("DeploymentRow", () => {
     expect(useDeploymentReachability).toHaveBeenCalledWith({ deployment, providers });
   });
 
+  it("resolves the status through the hook the card and the deployment page header share", () => {
+    const leases = [mock<LeaseDto>({ state: "active" })];
+    const status: ResolvedDeploymentStatus = { label: "Spinning up", summaryLabel: "Spinning up", tone: "loading", isSpinningUp: true };
+    const { DeploymentStatusBadge, useDeploymentStatus } = setup({ deployment: { dseq: "100" }, leases, workload: "starting", status });
+
+    expect(useDeploymentStatus).toHaveBeenCalledWith({ dseq: "100", state: "active", leases, workload: "starting" });
+    expect(DeploymentStatusBadge).toHaveBeenCalledWith({ status, leases, isSummarized: true }, expect.anything());
+  });
+
+  it("shows a deployment whose lease is still being created as spinning up, as its card does", () => {
+    setup({
+      deployment: { dseq: "100" },
+      dependencies: {
+        DeploymentStatusBadge: RealDeploymentStatusBadge,
+        useDeploymentStatus: params =>
+          useDeploymentStatus({
+            ...params,
+            dependencies: activityFeedOf([buildActivity({ type: "lease_create", status: "pending", meta: { dseq: "100" } })])
+          })
+      }
+    });
+
+    expect(screen.getByText("Spinning up")).toBeInTheDocument();
+  });
+
+  it("tells the endpoints view a deployment is spinning up", () => {
+    const { DeploymentEndpoints } = setup({ deployment: { dseq: "100" }, status: { isSpinningUp: true } });
+
+    expect(DeploymentEndpoints).toHaveBeenCalledWith(expect.objectContaining({ isSpinningUp: true }), expect.anything());
+  });
+
+  it("offers to choose a provider again in the endpoint cell once the lease failed", () => {
+    const leases = [mock<LeaseDto>({ state: "active" })];
+    const { DeploymentEndpoints, DeploymentRecoveryAction } = setup({
+      deployment: { dseq: "100" },
+      leases,
+      status: { launch: { phase: "failed", providers: [], hasLease: false } }
+    });
+
+    expect(DeploymentRecoveryAction).toHaveBeenCalledWith({ dseq: "100", hasLease: false, leases, isCompact: true }, expect.anything());
+    expect(DeploymentEndpoints).not.toHaveBeenCalled();
+  });
+
+  it("hands the recovery action no leases before the deployment's leases have loaded", () => {
+    const { DeploymentRecoveryAction } = setup({
+      deployment: { dseq: "100" },
+      leases: null,
+      status: { launch: { phase: "failed", providers: [], hasLease: true } }
+    });
+
+    expect(DeploymentRecoveryAction).toHaveBeenCalledWith(expect.objectContaining({ leases: [] }), expect.anything());
+  });
+
   it("falls back to the dseq when the deployment has no local name", () => {
     setup({ deployment: { dseq: "100", name: "" } });
 
@@ -57,12 +116,6 @@ describe("DeploymentRow", () => {
   });
 
   describe("while the deployment's close runs in the background", () => {
-    it("shows the deployment as closing", () => {
-      const { DeploymentStatusBadge } = setup({ deployment: { dseq: "100" }, isClosing: true });
-
-      expect(DeploymentStatusBadge).toHaveBeenCalledWith(expect.objectContaining({ isClosing: true }), expect.anything());
-    });
-
     it("offers no selection, so it cannot join a bulk close", () => {
       setup({ deployment: { dseq: "100" }, isSelectable: true, isClosing: true });
 
@@ -152,15 +205,27 @@ describe("DeploymentRow", () => {
     isSelected?: boolean;
     isClosing?: boolean;
     endpoints?: VisitEndpoint[];
+    leases?: LeaseDto[] | null;
+    workload?: "starting";
+    status?: Partial<ResolvedDeploymentStatus>;
+    dependencies?: Partial<typeof DEPENDENCIES>;
   }) {
     let endpoints = input.endpoints ?? [];
     const useDeploymentReachability = vi.fn<typeof DEPENDENCIES.useDeploymentReachability>(() => ({
-      leases: [],
+      leases: input.leases === undefined ? [] : input.leases,
       isLoadingLeases: false,
+      workload: input.workload,
       endpoints,
       isLoadingEndpoints: false,
       unreachableReason: null
     }));
+    const useDeploymentStatus = vi.fn<typeof DEPENDENCIES.useDeploymentStatus>(() => ({
+      label: "Running",
+      summaryLabel: "Running",
+      tone: "running",
+      ...input.status
+    }));
+    const DeploymentRecoveryAction = vi.fn(() => <div>recovery</div>);
 
     const DeploymentEndpoints = vi.fn<typeof DEPENDENCIES.DeploymentEndpoints>(({ onToggleExpanded }) => (
       <button type="button" onClick={onToggleExpanded}>
@@ -188,11 +253,14 @@ describe("DeploymentRow", () => {
             onSelect={onSelect}
             dependencies={MockComponents(DEPENDENCIES, {
               useDeploymentReachability,
+              useDeploymentStatus,
+              DeploymentRecoveryAction,
               DeploymentEndpoints,
               DeploymentEndpointsPanel,
               DeploymentBadges,
               DeploymentStatusBadge,
-              DeploymentActionsMenu
+              DeploymentActionsMenu,
+              ...input.dependencies
             })}
           />
         </tbody>
@@ -205,6 +273,8 @@ describe("DeploymentRow", () => {
       ...input,
       onSelect,
       useDeploymentReachability,
+      useDeploymentStatus,
+      DeploymentRecoveryAction,
       providers,
       deployment,
       DeploymentEndpoints,

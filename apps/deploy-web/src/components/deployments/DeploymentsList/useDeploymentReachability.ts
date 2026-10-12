@@ -2,14 +2,18 @@
 import { useEffect, useMemo, useState } from "react";
 
 import { useWallet } from "@src/context/WalletProvider";
+import { useFlag } from "@src/hooks/useFlag";
 import { useDeploymentLeaseList, useLeaseStatuses } from "@src/queries/useLeaseQuery";
 import type { DeploymentDto, LeaseDto, ListedDeploymentDto } from "@src/types/deployment";
 import type { ApiProviderList } from "@src/types/provider";
 import { isLeaseLive } from "@src/utils/leaseUtils";
+import type { WorkloadStatus } from "../DeploymentDetail/DeploymentPlacements/placementModel";
+import { summarizeWorkloadStatus } from "../DeploymentDetail/DeploymentPlacements/placementModel";
 import type { VisitEndpoint } from "../DeploymentDetail/DeploymentVisitControl/visitEndpoints";
 import { collectVisitEndpoints } from "../DeploymentDetail/DeploymentVisitControl/visitEndpoints";
 
 export const DEPENDENCIES = {
+  useFlag,
   useWallet,
   useDeploymentLeaseList,
   useLeaseStatuses
@@ -20,6 +24,7 @@ export type UnreachableReason = "not-running" | "provider-unreachable" | "no-pub
 export interface DeploymentReachability {
   leases: LeaseDto[] | null | undefined;
   isLoadingLeases: boolean;
+  workload: WorkloadStatus | undefined;
   endpoints: VisitEndpoint[];
   isLoadingEndpoints: boolean;
   unreachableReason: UnreachableReason | null;
@@ -42,6 +47,7 @@ export function useDeploymentReachability(params: {
 }): DeploymentReachability {
   const { deployment, providers, dependencies: d = DEPENDENCIES } = params;
   const { address } = d.useWallet();
+  const isReadingWorkload = d.useFlag("notifications_activity_center");
   /** A list served by the console API answers with each deployment's leases, so only a chain-served one fetches its own. */
   const hasInlineLeases = deployment.leases !== undefined;
   const fetched = d.useDeploymentLeaseList(address, deployment, { enabled: !!address && !hasInlineLeases });
@@ -66,6 +72,7 @@ export function useDeploymentReachability(params: {
   return {
     leases,
     isLoadingLeases,
+    workload: isReadingWorkload ? summarizeWorkloadStatus(statuses) : undefined,
     endpoints,
     isLoadingEndpoints,
     unreachableReason: resolveUnreachableReason({ isLoadingEndpoints, endpoints, liveLeaseCount: liveLeaseItems.length, statuses })

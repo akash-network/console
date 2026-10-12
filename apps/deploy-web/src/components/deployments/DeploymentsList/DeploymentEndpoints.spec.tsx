@@ -59,6 +59,13 @@ describe("DeploymentEndpoints", () => {
     expect(screen.getByText("no endpoint · not running")).toBeInTheDocument();
   });
 
+  it("says a deployment spinning up has no endpoint yet, rather than that it is not running", () => {
+    setup({ endpoints: [], unreachableReason: "not-running", isSpinningUp: true });
+
+    expect(screen.getByText("no endpoint yet · spinning up")).toBeInTheDocument();
+    expect(screen.queryByText("no endpoint · not running")).not.toBeInTheDocument();
+  });
+
   it("distinguishes an unreachable provider from a deployment without endpoints", () => {
     setup({ endpoints: [], unreachableReason: "provider-unreachable" });
 
@@ -87,10 +94,10 @@ describe("DeploymentEndpoints", () => {
   });
 
   it("says nothing at all when there are no endpoints and no reason to give", () => {
-    setup({ endpoints: [], unreachableReason: undefined });
+    const { container } = setup({ endpoints: [], unreachableReason: undefined });
 
     expect(screen.queryByRole("link")).not.toBeInTheDocument();
-    expect(screen.queryByText(/no public endpoint|not running|provider unreachable/)).not.toBeInTheDocument();
+    expect(container.textContent).toBe("");
   });
 
   it("shows a placeholder instead of a wrong reason while endpoints are still resolving", () => {
@@ -139,18 +146,25 @@ describe("DeploymentEndpoints", () => {
     return { serviceName: input.serviceName ?? "web", host, port, href: input.href ?? `http://${host}:${port}` };
   }
 
-  function setup(input: { endpoints: VisitEndpoint[]; isLoading?: boolean; unreachableReason?: UnreachableReason; isExpanded?: boolean }) {
+  function setup(input: {
+    endpoints: VisitEndpoint[];
+    isLoading?: boolean;
+    unreachableReason?: UnreachableReason;
+    isSpinningUp?: boolean;
+    isExpanded?: boolean;
+  }) {
     const onToggleExpanded = vi.fn();
-    render(
+    const { container } = render(
       <DeploymentEndpoints
         endpoints={input.endpoints}
         isLoading={input.isLoading ?? false}
         unreachableReason={input.unreachableReason ?? null}
+        isSpinningUp={input.isSpinningUp}
         isExpanded={input.isExpanded ?? false}
         onToggleExpanded={onToggleExpanded}
       />
     );
 
-    return { ...input, onToggleExpanded };
+    return { ...input, onToggleExpanded, container };
   }
 });
