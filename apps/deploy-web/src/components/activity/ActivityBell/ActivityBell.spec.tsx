@@ -86,6 +86,17 @@ describe(ActivityBell.name, () => {
     expect(entry).toHaveAttribute("href", "/deployments/1?tab=SETTINGS");
   });
 
+  it("says why Console closed a deployment and links to it", async () => {
+    setup({ activities: [buildActivity({ status: "succeeded", initiator: "system", meta: { dseq: "1", reason: "trial_ended" } })] });
+
+    await open();
+
+    const [entry] = entryItems();
+    expect(entry).toHaveTextContent("Console closed deployment 1");
+    expect(entry).toHaveTextContent("It reached the time limit for trial deployments.");
+    expect(entry).toHaveAttribute("href", "/deployments/1");
+  });
+
   it("links a bulk close to the deployments list", async () => {
     setup({
       activities: [

@@ -185,6 +185,51 @@ describe(ActivityHost.name, () => {
     });
   });
 
+  it("announces a close Console made once it shows up in the feed, saying why, and refreshes the data it changed", () => {
+    const { enqueueSnackbar, queryClient, receive, api } = setup({ activities: [], names: { "1234": "storefront" } });
+
+    receive([buildActivity({ status: "succeeded", initiator: "system", meta: { dseq: "1234", reason: "runtime_limit_reached" } })]);
+
+    expect(enqueueSnackbar).toHaveBeenCalledTimes(1);
+    expect(enqueueSnackbar).toHaveBeenCalledWith(
+      expect.objectContaining({
+        props: expect.objectContaining({ title: "Console closed “storefront”", subTitle: "It reached its runtime limit.", iconVariant: "info" })
+      }),
+      { variant: "info" }
+    );
+    expect(invalidatedKeysOf(queryClient)).toEqual(expect.arrayContaining([api.v1.listDeployments.getKey(), api.v1.getDeployment.getKey({ dseq: "1234" })]));
+  });
+
+  it("announces a close Console made for a reason it has no words for as a plain close by Console", () => {
+    const { enqueueSnackbar, receive } = setup({ activities: [] });
+
+    receive([buildActivity({ status: "succeeded", initiator: "system", meta: { dseq: "1234" } })]);
+
+    expect(enqueueSnackbar).toHaveBeenCalledWith(
+      expect.objectContaining({
+        props: expect.objectContaining({ title: "Console closed deployment 1234", subTitle: "It no longer runs or costs anything." })
+      }),
+      { variant: "info" }
+    );
+  });
+
+  it("opens the deployment Console closed from its toast", async () => {
+    const { receive, followToastAction, push } = setup({ activities: [] });
+
+    receive([buildActivity({ status: "succeeded", initiator: "system", meta: { dseq: "1234", reason: "no_lease" } })]);
+    await followToastAction("View deployment");
+
+    expect(push).toHaveBeenCalledWith("/deployments/1234");
+  });
+
+  it("announces nothing for a close Console made that was already in the feed when it first heard of it", () => {
+    const { enqueueSnackbar } = setup({
+      activities: [buildActivity({ status: "succeeded", initiator: "system", meta: { dseq: "1234", reason: "trial_ended" } })]
+    });
+
+    expect(enqueueSnackbar).not.toHaveBeenCalled();
+  });
+
   it("announces nothing while an action is still pending", () => {
     const pending = buildActivity({ status: "pending" });
     const { enqueueSnackbar, receive } = setup({ activities: [] });

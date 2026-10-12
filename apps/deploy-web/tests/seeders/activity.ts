@@ -6,6 +6,7 @@ export const buildActivity = (overrides: Partial<Activity> = {}): Activity => ({
   id: faker.string.uuid(),
   type: "deployment_close",
   status: "pending",
+  initiator: "user",
   meta: { dseq: faker.string.numeric(7) },
   seenAt: null,
   createdAt: faker.date.recent().toISOString(),

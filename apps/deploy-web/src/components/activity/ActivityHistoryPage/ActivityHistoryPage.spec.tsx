@@ -46,6 +46,17 @@ describe(ActivityHistoryPage.name, () => {
     expect(within(entry).getByRole("link")).toHaveAttribute("href", "/deployments/1?tab=SETTINGS");
   });
 
+  it("says why Console closed a deployment and links to it", () => {
+    setup({
+      pages: { first: { activities: [buildActivity({ status: "succeeded", initiator: "system", meta: { dseq: "1", reason: "no_lease" } })] } }
+    });
+
+    const [entry] = entryItems();
+    expect(entry).toHaveTextContent("Console closed deployment 1");
+    expect(entry).toHaveTextContent("It never got a lease, so its deposit was returned.");
+    expect(within(entry).getByRole("link")).toHaveAttribute("href", "/deployments/1");
+  });
+
   it("shows how long ago each entry happened", () => {
     setup({ pages: { first: { activities: [buildActivity({ status: "succeeded", createdAt: new Date(Date.now() - 5 * 60_000).toISOString() })] } } });
 
