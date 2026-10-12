@@ -123,14 +123,19 @@ describe(ActivityService.name, () => {
       });
     });
 
-    it("leaves the activity as it was when another row already holds the dedupe key it would take", async () => {
+    it("settles an activity still pending without the dedupe key another row already holds, so it never stays pending", async () => {
       const { service, activityRepository, logger } = setup();
-      activityRepository.updateByIdIfStatusIn.mockRejectedValue(createUniqueViolation(ACTIVITIES_DEDUPE_KEY_INDEX));
+      activityRepository.updateByIdIfStatusIn.mockRejectedValueOnce(createUniqueViolation(ACTIVITIES_DEDUPE_KEY_INDEX));
 
-      await expect(
-        service.settle("activity-1", createNewActivity({ status: "succeeded", dedupeKey: "deployment_close.100" }), { from: ["pending", "failed"] })
-      ).resolves.toBeUndefined();
+      await service.settle("activity-1", createNewActivity({ status: "succeeded", meta: { dseq: "100" }, dedupeKey: "deployment_close.100" }), {
+        from: ["pending", "failed"]
+      });
 
+      expect(activityRepository.updateByIdIfStatusIn).toHaveBeenLastCalledWith("activity-1", ["pending"], {
+        status: "succeeded",
+        meta: { dseq: "100" },
+        dedupeKey: null
+      });
       expect(logger.info).toHaveBeenCalledWith({
         event: "ACTIVITY_SETTLE_DEDUPED",
         activityId: "activity-1",
@@ -224,7 +229,15 @@ describe(ActivityService.name, () => {
   });
 
   function createNewActivity(overrides: Partial<NewActivity> = {}): NewActivity {
-    return { userId: faker.string.uuid(), type: "deployment_close", status: "succeeded", initiator: "user", meta: { dseq: "1234" }, dedupeKey: null, ...overrides };
+    return {
+      userId: faker.string.uuid(),
+      type: "deployment_close",
+      status: "succeeded",
+      initiator: "user",
+      meta: { dseq: "1234" },
+      dedupeKey: null,
+      ...overrides
+    };
   }
 
   function setup() {

@@ -2,12 +2,7 @@ import { inject, singleton } from "tsyringe";
 
 import { decodeActivityCursor, encodeActivityCursor } from "@src/activity/lib/activity-cursor/activity-cursor";
 import type { ActivityStatus, ActivityType, NewActivity } from "@src/activity/model-schemas";
-import {
-  type ActivityOutput,
-  ActivityRepository,
-  type ActivitySelection,
-  isDedupeKeyTaken
-} from "@src/activity/repositories/activity/activity.repository";
+import { type ActivityOutput, ActivityRepository, type ActivitySelection, isDedupeKeyTaken } from "@src/activity/repositories/activity/activity.repository";
 import { AuthService } from "@src/auth/services/auth.service";
 import { type CreateLogger, LOGGER_FACTORY } from "@src/core";
 
@@ -48,7 +43,7 @@ export class ActivityService {
     return await this.activityRepository.findOneBy({ userId, dedupeKey });
   }
 
-  /** Guarded on `pending` unless told otherwise, so a late or repeated settle never overwrites an outcome already recorded, and left undone when another row already holds the dedupe key, since that row reports the same outcome. */
+  /** Guarded on `pending` unless told otherwise, so a late or repeated settle never overwrites an outcome already recorded; when another row already holds the dedupe key, a pending row still settles without it, so it never stays pending. */
   async settle(
     id: string,
     { status, meta, dedupeKey }: Pick<NewActivity, "status" | "meta" | "dedupeKey">,
@@ -59,6 +54,7 @@ export class ActivityService {
     } catch (error) {
       if (!isDedupeKeyTaken(error)) throw error;
       this.#logger.info({ event: "ACTIVITY_SETTLE_DEDUPED", activityId: id, status, dedupeKey });
+      await this.activityRepository.updateByIdIfStatusIn(id, ["pending"], { status, meta, dedupeKey: null });
     }
   }
 
