@@ -66,6 +66,52 @@ describe(ChainAlertService.name, () => {
       expect(onMessage).toHaveBeenCalledWith(alertMessage);
     });
 
+    it("adds a deployment's deployment-closed alert to the feed under the key of that deployment's close, leaving its email as it was", async () => {
+      const { service, alertRepository, conditionsMatcher, alertMessageService, onMessage } = await setup();
+      const event = { ...generateMock(EventClosedDeploymentDto.schema), dseq: "1001" };
+      const alert = generateGeneralAlert({ type: "CHAIN_EVENT", params: { dseq: "1001", type: "DEPLOYMENT_CLOSED" } });
+      alertRepository.paginateAll.mockImplementation(async options => {
+        options.callback([alert] as any);
+      });
+      alertRepository.updateById.mockImplementation(async (_, update) => ({ ...alert, ...update }) as AlertOutput);
+      conditionsMatcher.isMatching.mockReturnValue(true);
+      alertMessageService.getMessage.mockReturnValue({
+        summary: "Deployment 1001 is now closed",
+        description: "Please visit Console to manage your deployment."
+      });
+
+      await service.alertFor({ type: "CHAIN_EVENT", payload: event }, onMessage);
+
+      expect(alertMessageService.getMessage).toHaveBeenCalledWith(expect.objectContaining({ summary: alert.summary, description: alert.description }));
+      expect(onMessage).toHaveBeenCalledWith({
+        notificationChannelId: alert.notificationChannelId,
+        payload: {
+          summary: "Deployment 1001 is now closed",
+          description: "Please visit Console to manage your deployment.",
+          feedEntry: { type: "deployment_closed_alert", alertId: alert.id, dedupeKey: "deployment_close.1001", dseq: "1001" }
+        }
+      });
+    });
+
+    it("keeps a chain alert that is not a deployment's deployment-closed alert out of the feed", async () => {
+      const { service, alertRepository, conditionsMatcher, alertMessageService, onMessage } = await setup();
+      const alert = generateGeneralAlert({ type: "CHAIN_EVENT", params: { dseq: "1001", type: "DEPLOYMENT_BALANCE" } });
+      alertRepository.paginateAll.mockImplementation(async options => {
+        options.callback([alert] as any);
+      });
+      alertRepository.updateById.mockImplementation(async (_, update) => ({ ...alert, ...update }) as AlertOutput);
+      conditionsMatcher.isMatching.mockReturnValue(true);
+      alertMessageService.getMessage.mockReturnValue({ summary: "Deployment 1001 changed", description: "Something happened." });
+
+      await service.alertFor({ type: "CHAIN_EVENT", payload: generateMock(EventClosedDeploymentDto.schema) }, onMessage);
+
+      expect(onMessage).toHaveBeenCalledWith({
+        notificationChannelId: alert.notificationChannelId,
+        payload: { summary: "Deployment 1001 changed", description: "Something happened." }
+      });
+      expect(onMessage.mock.calls[0][0].payload).not.toHaveProperty("feedEntry");
+    });
+
     it("should not send notification when event conditions do not match", async () => {
       const { service, alertRepository, conditionsMatcher, alertMessageService, onMessage } = await setup();
 

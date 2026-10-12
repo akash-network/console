@@ -61,10 +61,42 @@ describe(ReclaimAlertService.name, () => {
           notificationChannelId: alert.notificationChannelId,
           payload: {
             summary: expect.stringContaining("12345"),
-            description: expect.any(String)
+            description: expect.any(String),
+            feedEntry: expect.any(Object)
           }
         })
       );
+    });
+
+    it("adds the notice to the feed once per claimed alert, linked to the deployment, leaving its email as it was", async () => {
+      const { service, alertRepository, onMessage } = await setup();
+      const alert = generateGeneralAlert({ type: "CHAIN_EVENT", enabled: true });
+      alertRepository.findDeploymentClosedAlertByOwnerAndDseq.mockResolvedValue(alert);
+      alertRepository.claimNotification.mockResolvedValue(alert);
+      const provider = mockAkashAddress();
+
+      await service.alertFor(generateReclaimEvent({ dseq: "12345", provider, deadline: 1749398400 }), onMessage);
+
+      const { summary, description, feedEntry } = onMessage.mock.calls[0][0].payload;
+      expect(summary).toBe("Deployment 12345 is being reclaimed by the provider");
+      expect(description).toContain(`The provider ${provider} has started reclaiming deployment 12345`);
+      expect(feedEntry).toEqual({ type: "deployment_reclaim_alert", alertId: alert.id, dedupeKey: `deployment_reclaim_alert.${alert.id}`, dseq: "12345" });
+    });
+
+    it("gives each claimed alert's notice its own feed entry", async () => {
+      const { service, alertRepository, onMessage } = await setup();
+      const first = generateGeneralAlert({ type: "CHAIN_EVENT", enabled: true });
+      const second = generateGeneralAlert({ type: "CHAIN_EVENT", enabled: true });
+      alertRepository.findDeploymentClosedAlertByOwnerAndDseq.mockResolvedValueOnce(first).mockResolvedValueOnce(second);
+      alertRepository.claimNotification.mockResolvedValueOnce(first).mockResolvedValueOnce(second);
+
+      await service.alertFor(generateReclaimEvent({ dseq: "12345" }), onMessage);
+      await service.alertFor(generateReclaimEvent({ dseq: "67890" }), onMessage);
+
+      const [firstEntry, secondEntry] = onMessage.mock.calls.map(([message]) => message.payload.feedEntry);
+      expect(firstEntry).toMatchObject({ alertId: first.id, dseq: "12345" });
+      expect(secondEntry).toMatchObject({ alertId: second.id, dseq: "67890" });
+      expect(firstEntry.dedupeKey).not.toBe(secondEntry.dedupeKey);
     });
 
     it("includes the provider, reason, deadline and deep link in the message", async () => {

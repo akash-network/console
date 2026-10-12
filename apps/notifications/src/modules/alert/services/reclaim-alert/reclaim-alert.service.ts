@@ -9,6 +9,7 @@ import { alertNotifiedLog } from "@src/modules/alert/services/alert-notified-log
 import { getLeaseClosedReasonText, toLeaseClosedReason } from "@src/modules/alert/services/reclaim-alert/lease-closed-reason";
 import { formatReclaimDeadline } from "@src/modules/alert/services/reclaim-alert/reclaim-deadline";
 import type { MessageCallback } from "@src/modules/alert/types/message-callback.type";
+import type { AlertFeedEntry } from "@src/modules/notifications/dto/NotificationCommand.dto";
 
 export interface ReclaimAlertEvent {
   owner: string;
@@ -50,7 +51,7 @@ export class ReclaimAlertService {
 
     await onMessage({
       notificationChannelId: claimedAlert.notificationChannelId,
-      payload: this.buildMessage(event)
+      payload: { ...this.buildMessage(event), feedEntry: feedEntryOf(claimedAlert.id, event.dseq) }
     });
 
     this.loggerService.info(alertNotifiedLog(claimedAlert, { reason: "RECLAIM_DEADLINE" }));
@@ -74,4 +75,9 @@ export class ReclaimAlertService {
     const baseUrl = this.configService.getOrThrow("alert.CONSOLE_WEB_URL");
     return `<a href="https://${baseUrl}/deployments/${dseq}">${baseUrl}</a>`;
   }
+}
+
+/** The claim on the alert lets one reclaim notice out per deployment-closed alert, so the alert's id names that notice. */
+function feedEntryOf(alertId: string, dseq: string): AlertFeedEntry {
+  return { type: "deployment_reclaim_alert", alertId, dedupeKey: `deployment_reclaim_alert.${alertId}`, dseq };
 }

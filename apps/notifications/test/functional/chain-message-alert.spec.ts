@@ -100,6 +100,52 @@ describe("chain message alerts", () => {
     }
   });
 
+  it("adds a deployment's deployment-closed alert to the feed under the key of that deployment's close, with the email it always sent", async () => {
+    const { module } = await setup();
+
+    try {
+      const controller = module.get(ChainEventsHandler);
+      const brokerService = module.get(BrokerService);
+      const db = module.get(DRIZZLE_PROVIDER_TOKEN);
+      const owner = mockAkashAddress();
+      const dseq = String(faker.number.int({ min: 1, max: 999999 }));
+      vi.spyOn(brokerService, "publish").mockResolvedValue(undefined);
+      const [notificationChannel] = await db
+        .insert(NotificationChannel)
+        .values([generateNotificationChannel({})])
+        .returning();
+      const closedAlert = generateGeneralAlert({
+        type: "CHAIN_EVENT",
+        notificationChannelId: notificationChannel.id,
+        params: { dseq, type: "DEPLOYMENT_CLOSED" },
+        conditions: {
+          operator: "and",
+          value: [
+            { field: "action", value: "deployment-closed", operator: "eq" },
+            { field: "owner", value: owner, operator: "eq" },
+            { field: "dseq", value: dseq, operator: "eq" }
+          ]
+        },
+        summary: "Deployment {{alert.next.params.dseq}} is now closed",
+        description: "Please visit Console to manage your deployment and re-deploy if needed."
+      });
+      await db.insert(schema.Alert).values([closedAlert]);
+
+      await controller.processDeploymentClosed({ ...generateMock(EventClosedDeploymentDto.schema), owner, dseq });
+
+      expect(brokerService.publish).toHaveBeenCalledWith(eventKeyRegistry.createNotification, {
+        notificationChannelId: notificationChannel.id,
+        payload: {
+          summary: `Deployment ${dseq} is now closed`,
+          description: "Please visit Console to manage your deployment and re-deploy if needed.",
+          feedEntry: { type: "deployment_closed_alert", alertId: closedAlert.id, dedupeKey: `deployment_close.${dseq}`, dseq }
+        }
+      });
+    } finally {
+      await module.close();
+    }
+  });
+
   async function setup() {
     const module = await Test.createTestingModule({
       imports: [AlertEventsModule]
