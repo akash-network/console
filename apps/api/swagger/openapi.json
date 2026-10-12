@@ -22469,9 +22469,10 @@
               "enum": [
                 "pending",
                 "succeeded",
-                "failed"
+                "failed",
+                "info"
               ],
-              "description": "`pending` while the action is still being confirmed, then `succeeded` or `failed`."
+              "description": "`pending` while the action is still being confirmed, then `succeeded` or `failed`. `info` for an alert that fired, which has no outcome."
             },
             "required": false,
             "name": "status",
@@ -22481,9 +22482,12 @@
             "schema": {
               "type": "string",
               "enum": [
-                "deployment_close"
+                "deployment_close",
+                "wallet_balance_alert",
+                "deployment_closed_alert",
+                "deployment_reclaim_alert"
               ],
-              "description": "What the action was."
+              "description": "What the action was, or which kind of alert fired: `wallet_balance_alert`, `deployment_closed_alert` or `deployment_reclaim_alert`."
             },
             "required": false,
             "name": "type",
@@ -22513,18 +22517,22 @@
                               "type": {
                                 "type": "string",
                                 "enum": [
-                                  "deployment_close"
+                                  "deployment_close",
+                                  "wallet_balance_alert",
+                                  "deployment_closed_alert",
+                                  "deployment_reclaim_alert"
                                 ],
-                                "description": "What the action was."
+                                "description": "What the action was, or which kind of alert fired: `wallet_balance_alert`, `deployment_closed_alert` or `deployment_reclaim_alert`."
                               },
                               "status": {
                                 "type": "string",
                                 "enum": [
                                   "pending",
                                   "succeeded",
-                                  "failed"
+                                  "failed",
+                                  "info"
                                 ],
-                                "description": "`pending` while the action is still being confirmed, then `succeeded` or `failed`."
+                                "description": "`pending` while the action is still being confirmed, then `succeeded` or `failed`. `info` for an alert that fired, which has no outcome."
                               },
                               "initiator": {
                                 "type": "string",
@@ -22532,14 +22540,14 @@
                                   "user",
                                   "system"
                                 ],
-                                "description": "Who started the action: `user` for the user's own request, `system` for a close Console made on the user's behalf."
+                                "description": "Who started the action: `user` for the user's own request, `system` for a close Console made on the user's behalf or an alert that fired."
                               },
                               "meta": {
                                 "type": "object",
                                 "properties": {
                                   "dseq": {
                                     "type": "string",
-                                    "description": "The deployment the action was about."
+                                    "description": "The deployment the action or the alert was about."
                                   },
                                   "batchId": {
                                     "type": "string",
@@ -22574,6 +22582,15 @@
                                       "no_lease"
                                     ],
                                     "description": "Why Console closed the deployment, on a close it made on the user's behalf: `runtime_limit_reached` (the runtime limit set for it ran out), `trial_ended` (the trial it ran on ended), `provider_unreachable` (its provider stopped responding) or `no_lease` (it had no lease, and closing it returned its deposit)."
+                                  },
+                                  "alertId": {
+                                    "type": "string",
+                                    "format": "uuid",
+                                    "description": "The alert that fired, on an alert."
+                                  },
+                                  "summary": {
+                                    "type": "string",
+                                    "description": "The alert's summary as the user wrote it, filled in for this firing, on an alert."
                                   }
                                 }
                               },
@@ -22700,18 +22717,22 @@
                         "type": {
                           "type": "string",
                           "enum": [
-                            "deployment_close"
+                            "deployment_close",
+                            "wallet_balance_alert",
+                            "deployment_closed_alert",
+                            "deployment_reclaim_alert"
                           ],
-                          "description": "What the action was."
+                          "description": "What the action was, or which kind of alert fired: `wallet_balance_alert`, `deployment_closed_alert` or `deployment_reclaim_alert`."
                         },
                         "status": {
                           "type": "string",
                           "enum": [
                             "pending",
                             "succeeded",
-                            "failed"
+                            "failed",
+                            "info"
                           ],
-                          "description": "`pending` while the action is still being confirmed, then `succeeded` or `failed`."
+                          "description": "`pending` while the action is still being confirmed, then `succeeded` or `failed`. `info` for an alert that fired, which has no outcome."
                         },
                         "initiator": {
                           "type": "string",
@@ -22719,14 +22740,14 @@
                             "user",
                             "system"
                           ],
-                          "description": "Who started the action: `user` for the user's own request, `system` for a close Console made on the user's behalf."
+                          "description": "Who started the action: `user` for the user's own request, `system` for a close Console made on the user's behalf or an alert that fired."
                         },
                         "meta": {
                           "type": "object",
                           "properties": {
                             "dseq": {
                               "type": "string",
-                              "description": "The deployment the action was about."
+                              "description": "The deployment the action or the alert was about."
                             },
                             "batchId": {
                               "type": "string",
@@ -22761,6 +22782,15 @@
                                 "no_lease"
                               ],
                               "description": "Why Console closed the deployment, on a close it made on the user's behalf: `runtime_limit_reached` (the runtime limit set for it ran out), `trial_ended` (the trial it ran on ended), `provider_unreachable` (its provider stopped responding) or `no_lease` (it had no lease, and closing it returned its deposit)."
+                            },
+                            "alertId": {
+                              "type": "string",
+                              "format": "uuid",
+                              "description": "The alert that fired, on an alert."
+                            },
+                            "summary": {
+                              "type": "string",
+                              "description": "The alert's summary as the user wrote it, filled in for this firing, on an alert."
                             }
                           }
                         },

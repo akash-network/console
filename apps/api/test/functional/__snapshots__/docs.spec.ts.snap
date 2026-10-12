@@ -1552,11 +1552,12 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
             "name": "status",
             "required": false,
             "schema": {
-              "description": "\`pending\` while the action is still being confirmed, then \`succeeded\` or \`failed\`.",
+              "description": "\`pending\` while the action is still being confirmed, then \`succeeded\` or \`failed\`. \`info\` for an alert that fired, which has no outcome.",
               "enum": [
                 "pending",
                 "succeeded",
                 "failed",
+                "info",
               ],
               "type": "string",
             },
@@ -1566,9 +1567,12 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
             "name": "type",
             "required": false,
             "schema": {
-              "description": "What the action was.",
+              "description": "What the action was, or which kind of alert fired: \`wallet_balance_alert\`, \`deployment_closed_alert\` or \`deployment_reclaim_alert\`.",
               "enum": [
                 "deployment_close",
+                "wallet_balance_alert",
+                "deployment_closed_alert",
+                "deployment_reclaim_alert",
               ],
               "type": "string",
             },
@@ -1595,7 +1599,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                                 "type": "string",
                               },
                               "initiator": {
-                                "description": "Who started the action: \`user\` for the user's own request, \`system\` for a close Console made on the user's behalf.",
+                                "description": "Who started the action: \`user\` for the user's own request, \`system\` for a close Console made on the user's behalf or an alert that fired.",
                                 "enum": [
                                   "user",
                                   "system",
@@ -1604,12 +1608,17 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                               },
                               "meta": {
                                 "properties": {
+                                  "alertId": {
+                                    "description": "The alert that fired, on an alert.",
+                                    "format": "uuid",
+                                    "type": "string",
+                                  },
                                   "batchId": {
                                     "description": "The bulk close the action was part of, as its request named it.",
                                     "type": "string",
                                   },
                                   "dseq": {
-                                    "description": "The deployment the action was about.",
+                                    "description": "The deployment the action or the alert was about.",
                                     "type": "string",
                                   },
                                   "error": {
@@ -1638,6 +1647,10 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                                     ],
                                     "type": "string",
                                   },
+                                  "summary": {
+                                    "description": "The alert's summary as the user wrote it, filled in for this firing, on an alert.",
+                                    "type": "string",
+                                  },
                                   "txHash": {
                                     "description": "Reference of a pending action whose outcome is still being confirmed.",
                                     "type": "string",
@@ -1652,18 +1665,22 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                                 "type": "string",
                               },
                               "status": {
-                                "description": "\`pending\` while the action is still being confirmed, then \`succeeded\` or \`failed\`.",
+                                "description": "\`pending\` while the action is still being confirmed, then \`succeeded\` or \`failed\`. \`info\` for an alert that fired, which has no outcome.",
                                 "enum": [
                                   "pending",
                                   "succeeded",
                                   "failed",
+                                  "info",
                                 ],
                                 "type": "string",
                               },
                               "type": {
-                                "description": "What the action was.",
+                                "description": "What the action was, or which kind of alert fired: \`wallet_balance_alert\`, \`deployment_closed_alert\` or \`deployment_reclaim_alert\`.",
                                 "enum": [
                                   "deployment_close",
+                                  "wallet_balance_alert",
+                                  "deployment_closed_alert",
+                                  "deployment_reclaim_alert",
                                 ],
                                 "type": "string",
                               },
@@ -1885,7 +1902,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                           "type": "string",
                         },
                         "initiator": {
-                          "description": "Who started the action: \`user\` for the user's own request, \`system\` for a close Console made on the user's behalf.",
+                          "description": "Who started the action: \`user\` for the user's own request, \`system\` for a close Console made on the user's behalf or an alert that fired.",
                           "enum": [
                             "user",
                             "system",
@@ -1894,12 +1911,17 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                         },
                         "meta": {
                           "properties": {
+                            "alertId": {
+                              "description": "The alert that fired, on an alert.",
+                              "format": "uuid",
+                              "type": "string",
+                            },
                             "batchId": {
                               "description": "The bulk close the action was part of, as its request named it.",
                               "type": "string",
                             },
                             "dseq": {
-                              "description": "The deployment the action was about.",
+                              "description": "The deployment the action or the alert was about.",
                               "type": "string",
                             },
                             "error": {
@@ -1928,6 +1950,10 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                               ],
                               "type": "string",
                             },
+                            "summary": {
+                              "description": "The alert's summary as the user wrote it, filled in for this firing, on an alert.",
+                              "type": "string",
+                            },
                             "txHash": {
                               "description": "Reference of a pending action whose outcome is still being confirmed.",
                               "type": "string",
@@ -1942,18 +1968,22 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                           "type": "string",
                         },
                         "status": {
-                          "description": "\`pending\` while the action is still being confirmed, then \`succeeded\` or \`failed\`.",
+                          "description": "\`pending\` while the action is still being confirmed, then \`succeeded\` or \`failed\`. \`info\` for an alert that fired, which has no outcome.",
                           "enum": [
                             "pending",
                             "succeeded",
                             "failed",
+                            "info",
                           ],
                           "type": "string",
                         },
                         "type": {
-                          "description": "What the action was.",
+                          "description": "What the action was, or which kind of alert fired: \`wallet_balance_alert\`, \`deployment_closed_alert\` or \`deployment_reclaim_alert\`.",
                           "enum": [
                             "deployment_close",
+                            "wallet_balance_alert",
+                            "deployment_closed_alert",
+                            "deployment_reclaim_alert",
                           ],
                           "type": "string",
                         },

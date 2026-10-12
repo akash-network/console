@@ -3,10 +3,10 @@ import { container } from "tsyringe";
 import { describe, expect, it } from "vitest";
 
 import { deploymentCloseDedupeKeyOf } from "@src/activity/lib/dedupe-key/dedupe-key";
-import type { ActivityInitiator, ActivityStatus } from "@src/activity/model-schemas";
+import type { ActivityInitiator, ActivityStatus, AlertActivityType } from "@src/activity/model-schemas";
 import { AbilityService } from "@src/auth/services/ability/ability.service";
 import { UserRepository } from "@src/user/repositories/user/user.repository";
-import { ActivityRepository, isDedupeKeyTaken } from "./activity.repository";
+import { ActivityRepository, isDedupeKeyTaken, isUnknownUser } from "./activity.repository";
 
 describe(ActivityRepository.name, () => {
   describe("findPage", () => {
@@ -179,6 +179,51 @@ describe(ActivityRepository.name, () => {
 
       expect(await repository.count({ userId: owner.id })).toBe(2);
     });
+
+    it("writes an alert once however often it is reported", async () => {
+      const { repository, createUser } = setup();
+      const owner = await createUser();
+      const alert = alertOf(owner.id, { type: "wallet_balance_alert", dedupeKey: `wallet_balance_alert.${faker.string.uuid()}.1200` });
+
+      const first = await repository.createUnlessDuplicate(alert);
+      const repeat = await repository.createUnlessDuplicate(alert);
+
+      expect(repeat).toBeUndefined();
+      expect(await repository.find({ userId: owner.id })).toEqual([first]);
+    });
+
+    it("keeps the close of a deployment as its only row when its deployment-closed alert reports the same key", async () => {
+      const { repository, createUser, seed } = setup();
+      const owner = await createUser();
+      const dedupeKey = deploymentCloseDedupeKeyOf("1001");
+      const close = await seed(owner.id, { meta: { dseq: "1001" }, dedupeKey });
+
+      const created = await repository.createUnlessDuplicate(alertOf(owner.id, { type: "deployment_closed_alert", dedupeKey, dseq: "1001" }));
+
+      expect(created).toBeUndefined();
+      expect(await repository.find({ userId: owner.id })).toEqual([close]);
+    });
+  });
+
+  describe("isUnknownUser", () => {
+    it("recognises a write refused because no user has the row's user id", async () => {
+      const { repository } = setup();
+
+      await expect(repository.createUnlessDuplicate(alertOf(faker.string.uuid(), { type: "wallet_balance_alert", dedupeKey: "unknown-user" }))).rejects.toSatisfy(
+        isUnknownUser
+      );
+    });
+
+    it("does not take a write refused for a taken dedupe key for one", async () => {
+      const { repository, createUser, seed } = setup();
+      const owner = await createUser();
+      const dedupeKey = deploymentCloseDedupeKeyOf("1001");
+      await seed(owner.id, { meta: { dseq: "1001" }, dedupeKey });
+
+      await expect(repository.create(alertOf(owner.id, { type: "deployment_closed_alert", dedupeKey }))).rejects.toSatisfy(
+        (error: unknown) => !isUnknownUser(error)
+      );
+    });
   });
 
   describe("updateByIdIfStatusIn", () => {
@@ -268,5 +313,16 @@ describe(ActivityRepository.name, () => {
     }
 
     return { repository, createUser, seed };
+  }
+
+  function alertOf(userId: string, { type, dedupeKey, dseq }: { type: AlertActivityType; dedupeKey: string; dseq?: string }) {
+    return {
+      userId,
+      type,
+      status: "info" as const,
+      initiator: "system" as const,
+      meta: { alertId: faker.string.uuid(), summary: "Something you asked to hear about happened", ...(dseq && { dseq }) },
+      dedupeKey
+    };
   }
 });

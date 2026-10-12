@@ -1,12 +1,21 @@
+import createError from "http-errors";
 import { inject, singleton } from "tsyringe";
 
 import { decodeActivityCursor, encodeActivityCursor } from "@src/activity/lib/activity-cursor/activity-cursor";
-import type { ActivityStatus, ActivityType, NewActivity } from "@src/activity/model-schemas";
-import { type ActivityOutput, ActivityRepository, type ActivitySelection, isDedupeKeyTaken } from "@src/activity/repositories/activity/activity.repository";
+import type { ActivityStatus, ActivityType, AlertActivityType, NewActivity } from "@src/activity/model-schemas";
+import {
+  type ActivityOutput,
+  ActivityRepository,
+  type ActivitySelection,
+  isDedupeKeyTaken,
+  isUnknownUser
+} from "@src/activity/repositories/activity/activity.repository";
 import { AuthService } from "@src/auth/services/auth.service";
 import { type CreateLogger, LOGGER_FACTORY } from "@src/core";
 
 export type ActivityPage = { activities: ActivityOutput[]; hasMore: boolean; nextCursor: string | null };
+
+export type NewAlertActivity = Pick<NewActivity, "userId" | "meta"> & { type: AlertActivityType; status: "info"; dedupeKey: string };
 
 @singleton()
 export class ActivityService {
@@ -27,6 +36,17 @@ export class ActivityService {
       if (!recorded) this.#logger.info({ event: "ACTIVITY_RECORD_DEDUPED", userId: activity.userId, type: activity.type, dedupeKey: activity.dedupeKey });
     } catch (error) {
       this.#logger.error({ event: "ACTIVITY_RECORD_FAILED", userId: activity.userId, type: activity.type, status: activity.status, error });
+    }
+  }
+
+  /** Never displaces a row already holding the dedupe key, so a repeated alert stays one entry and a close row keeps the key its deployment-closed alert reports. */
+  async addAlert(alert: NewAlertActivity): Promise<void> {
+    try {
+      const added = await this.activityRepository.createUnlessDuplicate({ ...alert, initiator: "system" });
+      if (!added) this.#logger.info({ event: "ACTIVITY_ALERT_DEDUPED", userId: alert.userId, type: alert.type, dedupeKey: alert.dedupeKey });
+    } catch (error) {
+      if (isUnknownUser(error)) throw createError(404, "User not found");
+      throw error;
     }
   }
 

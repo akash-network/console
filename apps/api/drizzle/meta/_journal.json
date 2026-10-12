@@ -526,6 +526,13 @@
       "when": 1791501098636,
       "tag": "0074_activities_initiator_dedupe_key",
       "breakpoints": true
+    },
+    {
+      "idx": 75,
+      "version": "7",
+      "when": 1791830062635,
+      "tag": "0075_activities_alerts",
+      "breakpoints": true
     }
   ]
 }

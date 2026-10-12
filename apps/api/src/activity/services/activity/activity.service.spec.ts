@@ -8,9 +8,10 @@ import type { ActivityRepository } from "@src/activity/repositories/activity/act
 import type { AuthService } from "@src/auth/services/auth.service";
 import type { CreateLogger } from "@src/core";
 import { encodeActivityCursor } from "../../lib/activity-cursor/activity-cursor";
-import { ActivityService } from "./activity.service";
+import { ActivityService, type NewAlertActivity } from "./activity.service";
 
 import { createActivity } from "@test/seeders/activity.seeder";
+import { createForeignKeyViolation } from "@test/seeders/foreign-key-violation.seeder";
 import { createUniqueViolation } from "@test/seeders/unique-violation.seeder";
 
 describe(ActivityService.name, () => {
@@ -57,6 +58,56 @@ describe(ActivityService.name, () => {
         status: "failed",
         error
       });
+    });
+  });
+
+  describe("addAlert", () => {
+    it("adds the alert as an info entry Console wrote, unless another row already holds its dedupe key", async () => {
+      const { service, activityRepository, logger } = setup();
+      const alert = createNewAlertActivity();
+      activityRepository.createUnlessDuplicate.mockResolvedValue(createActivity());
+
+      await service.addAlert(alert);
+
+      expect(activityRepository.createUnlessDuplicate).toHaveBeenCalledWith({
+        userId: alert.userId,
+        type: "wallet_balance_alert",
+        status: "info",
+        initiator: "system",
+        meta: alert.meta,
+        dedupeKey: alert.dedupeKey
+      });
+      expect(logger.info).not.toHaveBeenCalled();
+    });
+
+    it("says so when another row already holds the alert's dedupe key, and still succeeds", async () => {
+      const { service, activityRepository, logger } = setup();
+      const alert = createNewAlertActivity({ type: "deployment_closed_alert", dedupeKey: "deployment_close.1234" });
+      activityRepository.createUnlessDuplicate.mockResolvedValue(undefined);
+
+      await expect(service.addAlert(alert)).resolves.toBeUndefined();
+
+      expect(logger.info).toHaveBeenCalledWith({
+        event: "ACTIVITY_ALERT_DEDUPED",
+        userId: alert.userId,
+        type: "deployment_closed_alert",
+        dedupeKey: "deployment_close.1234"
+      });
+    });
+
+    it("answers 404 when no user has the alert's user id", async () => {
+      const { service, activityRepository } = setup();
+      activityRepository.createUnlessDuplicate.mockRejectedValue(createForeignKeyViolation("activities_user_id_userSetting_id_fk"));
+
+      await expect(service.addAlert(createNewAlertActivity())).rejects.toMatchObject({ status: 404, message: "User not found" });
+    });
+
+    it("lets any other failure reach the caller", async () => {
+      const { service, activityRepository } = setup();
+      const error = createUniqueViolation("activities_pkey");
+      activityRepository.createUnlessDuplicate.mockRejectedValue(error);
+
+      await expect(service.addAlert(createNewAlertActivity())).rejects.toBe(error);
     });
   });
 
@@ -238,6 +289,19 @@ describe(ActivityService.name, () => {
       initiator: "user",
       meta: { dseq: "1234" },
       dedupeKey: null,
+      ...overrides
+    };
+  }
+
+  function createNewAlertActivity(overrides: Partial<NewAlertActivity> = {}): NewAlertActivity {
+    const alertId = faker.string.uuid();
+
+    return {
+      userId: faker.string.uuid(),
+      type: "wallet_balance_alert",
+      status: "info",
+      meta: { alertId, summary: "Wallet balance is low" },
+      dedupeKey: `wallet_balance_alert.${alertId}.1200`,
       ...overrides
     };
   }

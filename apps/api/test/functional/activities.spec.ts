@@ -110,6 +110,37 @@ describe("Activities", () => {
       expect(data.unseenCount).toBe(1);
     });
 
+    it("shows an alert that fired for the caller as an unseen info entry with its summary", async () => {
+      const { user, token } = await setup();
+      const alertId = faker.string.uuid();
+      const alert = await activityRepository.create({
+        userId: user.id,
+        type: "deployment_reclaim_alert",
+        status: "info",
+        initiator: "system",
+        meta: { alertId, summary: "Deployment 1004 is being reclaimed by the provider", dseq: "1004" },
+        dedupeKey: `deployment_reclaim_alert.${alertId}`,
+        createdAt: new Date("2026-10-05T13:00:00.000Z")
+      });
+
+      const response = await request("/v1/activities?status=info&type=deployment_reclaim_alert", token);
+      const { data } = (await response.json()) as PageBody;
+
+      expect(data.activities).toEqual([
+        {
+          id: alert.id,
+          type: "deployment_reclaim_alert",
+          status: "info",
+          initiator: "system",
+          meta: { alertId, summary: "Deployment 1004 is being reclaimed by the provider", dseq: "1004" },
+          seenAt: null,
+          createdAt: "2026-10-05T13:00:00.000Z",
+          updatedAt: alert.updatedAt
+        }
+      ]);
+      expect(data.unseenCount).toBe(1);
+    });
+
     it("counts every unseen activity of the caller, whatever the page and filters", async () => {
       const { token, seed } = await setup();
       const stranger = await setup();

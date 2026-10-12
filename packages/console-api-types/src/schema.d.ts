@@ -11317,8 +11317,8 @@ export interface operations {
       query?: {
         limit?: number;
         cursor?: string;
-        status?: "pending" | "succeeded" | "failed";
-        type?: "deployment_close";
+        status?: "pending" | "succeeded" | "failed" | "info";
+        type?: "deployment_close" | "wallet_balance_alert" | "deployment_closed_alert" | "deployment_reclaim_alert";
       };
       header?: never;
       path?: never;
@@ -11339,22 +11339,22 @@ export interface operations {
                 /** Format: uuid */
                 id: string;
                 /**
-                 * @description What the action was.
+                 * @description What the action was, or which kind of alert fired: `wallet_balance_alert`, `deployment_closed_alert` or `deployment_reclaim_alert`.
                  * @enum {string}
                  */
-                type: "deployment_close";
+                type: "deployment_close" | "wallet_balance_alert" | "deployment_closed_alert" | "deployment_reclaim_alert";
                 /**
-                 * @description `pending` while the action is still being confirmed, then `succeeded` or `failed`.
+                 * @description `pending` while the action is still being confirmed, then `succeeded` or `failed`. `info` for an alert that fired, which has no outcome.
                  * @enum {string}
                  */
-                status: "pending" | "succeeded" | "failed";
+                status: "pending" | "succeeded" | "failed" | "info";
                 /**
-                 * @description Who started the action: `user` for the user's own request, `system` for a close Console made on the user's behalf.
+                 * @description Who started the action: `user` for the user's own request, `system` for a close Console made on the user's behalf or an alert that fired.
                  * @enum {string}
                  */
                 initiator: "user" | "system";
                 meta: {
-                  /** @description The deployment the action was about. */
+                  /** @description The deployment the action or the alert was about. */
                   dseq?: string;
                   /** @description The bulk close the action was part of, as its request named it. */
                   batchId?: string;
@@ -11370,6 +11370,13 @@ export interface operations {
                    * @enum {string}
                    */
                   reason?: "runtime_limit_reached" | "trial_ended" | "provider_unreachable" | "no_lease";
+                  /**
+                   * Format: uuid
+                   * @description The alert that fired, on an alert.
+                   */
+                  alertId?: string;
+                  /** @description The alert's summary as the user wrote it, filled in for this firing, on an alert. */
+                  summary?: string;
                 };
                 /**
                  * Format: date-time
@@ -11432,22 +11439,22 @@ export interface operations {
               /** Format: uuid */
               id: string;
               /**
-               * @description What the action was.
+               * @description What the action was, or which kind of alert fired: `wallet_balance_alert`, `deployment_closed_alert` or `deployment_reclaim_alert`.
                * @enum {string}
                */
-              type: "deployment_close";
+              type: "deployment_close" | "wallet_balance_alert" | "deployment_closed_alert" | "deployment_reclaim_alert";
               /**
-               * @description `pending` while the action is still being confirmed, then `succeeded` or `failed`.
+               * @description `pending` while the action is still being confirmed, then `succeeded` or `failed`. `info` for an alert that fired, which has no outcome.
                * @enum {string}
                */
-              status: "pending" | "succeeded" | "failed";
+              status: "pending" | "succeeded" | "failed" | "info";
               /**
-               * @description Who started the action: `user` for the user's own request, `system` for a close Console made on the user's behalf.
+               * @description Who started the action: `user` for the user's own request, `system` for a close Console made on the user's behalf or an alert that fired.
                * @enum {string}
                */
               initiator: "user" | "system";
               meta: {
-                /** @description The deployment the action was about. */
+                /** @description The deployment the action or the alert was about. */
                 dseq?: string;
                 /** @description The bulk close the action was part of, as its request named it. */
                 batchId?: string;
@@ -11463,6 +11470,13 @@ export interface operations {
                  * @enum {string}
                  */
                 reason?: "runtime_limit_reached" | "trial_ended" | "provider_unreachable" | "no_lease";
+                /**
+                 * Format: uuid
+                 * @description The alert that fired, on an alert.
+                 */
+                alertId?: string;
+                /** @description The alert's summary as the user wrote it, filled in for this firing, on an alert. */
+                summary?: string;
               };
               /**
                * Format: date-time
