@@ -147,9 +147,10 @@ describe(ActivityService.name, () => {
     it("lets any other failed write through", async () => {
       const { service, activityRepository } = setup();
       const error = createUniqueViolation("activities_pkey");
-      activityRepository.updateByIdIfStatusIn.mockRejectedValue(error);
+      activityRepository.updateByIdIfStatusIn.mockRejectedValueOnce(error);
 
       await expect(service.settle("activity-1", createNewActivity())).rejects.toBe(error);
+      expect(activityRepository.updateByIdIfStatusIn).toHaveBeenCalledTimes(1);
     });
   });
 
