@@ -43,6 +43,7 @@ export function activityEntryOf({ id, status, meta, createdAt }: Activity, label
   const deployment = labelDeployment(meta.dseq);
   const href = meta.dseq ? UrlService.deploymentDetails(meta.dseq, status === "failed" ? "SETTINGS" : undefined) : UrlService.deploymentList();
 
+  if (status === "info") return { id, status, title: meta.summary ?? "One of your alerts fired", href, createdAt };
   if (status === "pending") return { id, status, title: `Closing ${deployment}`, href, createdAt };
   if (status === "succeeded") return { id, status, title: `Closed ${deployment}`, href, createdAt };
 

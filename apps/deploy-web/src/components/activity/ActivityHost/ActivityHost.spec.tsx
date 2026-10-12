@@ -171,6 +171,21 @@ describe(ActivityHost.name, () => {
     expect(enqueueSnackbar).not.toHaveBeenCalled();
   });
 
+  it("announces nothing and refreshes nothing when an alert fires", () => {
+    const { enqueueSnackbar, queryClient, receive } = setup({ activities: [] });
+
+    receive([
+      buildActivity({
+        type: "deployment_closed_alert",
+        status: "info",
+        meta: { alertId: "4f1c2a8e-0b5d-4e6f-9a7b-1c2d3e4f5a6b", summary: "Deployment 1234 closed", dseq: "1234" }
+      })
+    ]);
+
+    expect(enqueueSnackbar).not.toHaveBeenCalled();
+    expect(queryClient.invalidateQueries).not.toHaveBeenCalled();
+  });
+
   it("announces a finished action only once", () => {
     const pending = buildActivity({ status: "pending" });
     const { enqueueSnackbar, receive } = setup({ activities: [pending] });

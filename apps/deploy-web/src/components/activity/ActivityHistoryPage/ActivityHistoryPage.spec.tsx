@@ -87,6 +87,29 @@ describe(ActivityHistoryPage.name, () => {
     expect(screen.getByRole("combobox", { name: "Action" })).toHaveTextContent("Deployment closes");
   });
 
+  it("lists an alert that fired by its summary and filters to one kind of alert", async () => {
+    const { useActivityHistoryQuery } = setup({
+      pages: {
+        first: {
+          activities: [
+            buildActivity({
+              type: "wallet_balance_alert",
+              status: "info",
+              meta: { alertId: "4f1c2a8e-0b5d-4e6f-9a7b-1c2d3e4f5a6b", summary: "Wallet balance is below 10 USD" }
+            })
+          ]
+        }
+      }
+    });
+
+    expect(entryItems()[0]).toHaveTextContent("Wallet balance is below 10 USD");
+
+    await choose("Status", "Alerts");
+    await choose("Action", "Wallet balance alerts");
+
+    expect(useActivityHistoryQuery).toHaveBeenLastCalledWith({ status: "info", type: "wallet_balance_alert", cursor: undefined });
+  });
+
   it("goes back to every entry once a filter is cleared", async () => {
     const { useActivityHistoryQuery } = setup({});
     await choose("Status", "Succeeded");

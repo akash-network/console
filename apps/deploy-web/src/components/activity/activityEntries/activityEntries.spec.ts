@@ -39,6 +39,24 @@ describe(activityEntriesOf.name, () => {
     expect(entry.detail).toBe("Try closing it again.");
   });
 
+  it("describes an alert that fired by its summary, linking to the deployment it is about", () => {
+    const activity = buildActivity({
+      type: "deployment_reclaim_alert",
+      status: "info",
+      meta: { alertId: "4f1c2a8e-0b5d-4e6f-9a7b-1c2d3e4f5a6b", summary: "Deployment 1234 is being reclaimed by the provider", dseq: "1234" }
+    });
+
+    expect(entriesOf([activity])).toEqual([
+      { id: activity.id, status: "info", title: "Deployment 1234 is being reclaimed by the provider", href: "/deployments/1234", createdAt: activity.createdAt }
+    ]);
+  });
+
+  it("says one of the user's alerts fired when the alert carries no summary", () => {
+    const [entry] = entriesOf([buildActivity({ type: "wallet_balance_alert", status: "info", meta: {} })]);
+
+    expect(entry).toMatchObject({ status: "info", title: "One of your alerts fired", href: "/deployments" });
+  });
+
   it("links an activity about no particular deployment to the deployments list", () => {
     const [entry] = entriesOf([buildActivity({ status: "succeeded", meta: {} })]);
 

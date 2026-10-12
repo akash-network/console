@@ -26,13 +26,13 @@ export const DEPENDENCIES = {
   useQueryClient
 };
 
-type FinishedActivity = Activity & { status: Exclude<Activity["status"], "pending"> };
+type FinishedActivity = Activity & { type: Exclude<Activity["type"], `${string}_alert`>; status: "succeeded" | "failed" };
 
 type Announcement = { title: string; subTitle: string; variant: "success" | "warning" | "error" };
 
 type LabelDeployment = (dseq: string | undefined) => string;
 
-const ANNOUNCEMENTS: Record<Activity["type"], (activity: FinishedActivity, labelDeployment: LabelDeployment) => Announcement> = {
+const ANNOUNCEMENTS: Record<FinishedActivity["type"], (activity: FinishedActivity, labelDeployment: LabelDeployment) => Announcement> = {
   deployment_close: ({ status, meta }, labelDeployment) => {
     const deployment = labelDeployment(meta.dseq);
 
@@ -42,7 +42,7 @@ const ANNOUNCEMENTS: Record<Activity["type"], (activity: FinishedActivity, label
   }
 };
 
-const BATCH_ANNOUNCEMENTS: Record<Activity["type"], (batch: FinishedActivity[], labelDeployment: LabelDeployment) => Announcement> = {
+const BATCH_ANNOUNCEMENTS: Record<FinishedActivity["type"], (batch: FinishedActivity[], labelDeployment: LabelDeployment) => Announcement> = {
   deployment_close: (batch, labelDeployment) => {
     const notClosed = batch.filter(activity => activity.status === "failed").map(activity => labelDeployment(activity.meta.dseq));
 
@@ -131,11 +131,16 @@ export function ActivityHost({ dependencies: d = DEPENDENCIES }: { dependencies?
 
 /** An action never seen before counts too, so one that started and finished between two checks is still announced. */
 function findFinishedSince(lastSeenStatuses: Map<string, Activity["status"]>, activities: Activity[]): FinishedActivity[] {
-  return activities.filter((activity): activity is FinishedActivity => activity.status !== "pending" && lastSeenStatuses.get(activity.id) !== activity.status);
+  return activities.filter((activity): activity is FinishedActivity => isFinished(activity) && lastSeenStatuses.get(activity.id) !== activity.status);
 }
 
 /** Undefined while any action of the batch is still pending. */
 function finishedBatchOf(activities: Activity[], batchId: string): FinishedActivity[] | undefined {
   const batch = activities.filter(activity => activity.meta.batchId === batchId);
-  return batch.every((activity): activity is FinishedActivity => activity.status !== "pending") ? batch : undefined;
+  return batch.every(isFinished) ? batch : undefined;
+}
+
+/** An alert arrives as `info` with nothing left to finish, so it is never announced and refreshes nothing. */
+function isFinished(activity: Activity): activity is FinishedActivity {
+  return activity.status === "succeeded" || activity.status === "failed";
 }
