@@ -4,13 +4,15 @@ import { Err, Ok, Result } from "ts-results";
 import { RichError } from "@src/lib/rich-error/rich-error";
 import { NotificationCommandDto } from "../../dto/NotificationCommand.dto";
 import { NotificationChannelRepository } from "../../repositories/notification-channel/notification-channel.repository";
+import { ActivityFeedService } from "../activity-feed/activity-feed.service";
 import { EmailSenderService } from "../email-sender/email-sender.service";
 
 @Injectable()
 export class NotificationRouterService {
   constructor(
     private readonly emailSenderService: EmailSenderService,
-    private notificationChannelRepository: NotificationChannelRepository
+    private notificationChannelRepository: NotificationChannelRepository,
+    private readonly activityFeedService: ActivityFeedService
   ) {}
 
   async send(notificationCommand: NotificationCommandDto): Promise<Result<void, RichError>> {
@@ -38,6 +40,16 @@ export class NotificationRouterService {
       return Err(new RichError("NotificationChannel type not implemented", "UNSUPPORTED_NOTIFICATION_CHANNEL_TYPE", { notificationChannel }));
     }
 
+    await this.#addToFeed(notificationChannel.userId, notificationCommand.payload);
+
     return Ok(undefined);
+  }
+
+  /** Runs once the email is out, so a slow or unavailable feed never holds the email back. */
+  async #addToFeed(userId: string, { summary, feedEntry }: NotificationCommandDto["payload"]): Promise<void> {
+    if (!feedEntry) return;
+
+    const { type, dedupeKey, alertId, dseq } = feedEntry;
+    await this.activityFeedService.addToFeed({ userId, type, dedupeKey, meta: { alertId, summary, dseq } });
   }
 }

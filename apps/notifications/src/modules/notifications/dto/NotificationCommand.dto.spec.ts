@@ -32,7 +32,26 @@ describe(NotificationCommandDto.name, () => {
     expect(result.success).toBe(false);
   });
 
-  function command(payload: { actions?: { label: string; url: string }[]; code?: string }) {
+  it("keeps the feed entry of an alert that also shows in the activity feed", () => {
+    const feedEntry = { type: "deployment_closed_alert", alertId: "alert-1", dedupeKey: "deployment_close.4242", dseq: "4242" };
+
+    const result = NotificationCommandDto.schema.parse(command({ feedEntry }));
+
+    expect(result.payload.feedEntry).toEqual(feedEntry);
+  });
+
+  it("drops a feed entry it cannot read but keeps the notification, so its email still goes out", () => {
+    const result = NotificationCommandDto.schema.parse(command({ code: "418902", feedEntry: { type: "provider_maintenance_alert", alertId: "alert-1" } }));
+
+    expect(result.payload).toEqual({
+      summary: "Your Akash credits are running low",
+      description: "Your remaining credits are <strong>$4.20</strong>.",
+      code: "418902",
+      feedEntry: undefined
+    });
+  });
+
+  function command(payload: { actions?: { label: string; url: string }[]; code?: string; feedEntry?: Record<string, string> }) {
     return {
       notificationChannelId: "channel-1",
       notificationId: "creditsRunningLow.user-1",
