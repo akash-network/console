@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import type { FC, ReactNode } from "react";
 import { useEffect, useState } from "react";
 import { FlagProvider as FlagProviderOriginal, useUnleashClient } from "@unleash/nextjs";
 
@@ -7,8 +7,31 @@ import { useServices } from "@src/context/ServicesProvider";
 import { useUser } from "@src/hooks/useUser";
 import type { FCWithChildren } from "@src/types/component";
 
+export const FLAG_CONTEXT_USER_SYNC_DEPENDENCIES = {
+  useUnleashClient
+};
+
+/** The flag client only reads its context when it is built, so a user who signs in later has to be pushed into it. */
+export const FlagContextUserSync: FC<{ userId: string | undefined; dependencies?: typeof FLAG_CONTEXT_USER_SYNC_DEPENDENCIES }> = ({
+  userId,
+  dependencies: d = FLAG_CONTEXT_USER_SYNC_DEPENDENCIES
+}) => {
+  const client = d.useUnleashClient();
+
+  useEffect(
+    function followSignedInUser() {
+      if (client.getContext().userId === userId) return;
+      client.updateContext({ userId });
+    },
+    [client, userId]
+  );
+
+  return null;
+};
+
 const COMPONENTS = {
   FlagProvider: FlagProviderOriginal,
+  FlagContextUserSync,
   useUser
 };
 
@@ -29,6 +52,7 @@ export const FlagProvider: FCWithChildren<Props> = ({ children, components: c = 
         fetch: isEnableAll ? () => new Response(JSON.stringify({ toggles: [] })) : undefined
       }}
     >
+      <c.FlagContextUserSync userId={user?.id} />
       {children}
     </c.FlagProvider>
   );
