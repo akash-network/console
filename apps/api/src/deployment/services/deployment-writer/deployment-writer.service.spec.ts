@@ -21,6 +21,7 @@ import { JOB_NAME } from "@src/core";
 import { SDL_MAX_LENGTH } from "@src/deployment/config/sdl.config";
 import type { DeploymentResponse } from "@src/deployment/http-schemas/deployment.schema";
 import type { DeploymentSettingRepository, DeploymentSettingsOutput } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
+import { APPLY_DEPLOYMENT_UPDATE_RETRY_OPTIONS, ApplyDeploymentUpdate } from "@src/deployment/services/apply-deployment-update/apply-deployment-update.job";
 import { CLOSE_DEPLOYMENT_RETRY_OPTIONS, CloseDeployment, closeDeploymentKeyFor } from "@src/deployment/services/close-deployment/close-deployment.job";
 import { DeleteUnbackedDeploymentSetting } from "@src/deployment/services/delete-unbacked-deployment-setting/delete-unbacked-deployment-setting.handler";
 import type { LeaseGpuDetectionJobService } from "@src/deployment/services/lease-gpu-detection-job/lease-gpu-detection-job.service";
@@ -28,6 +29,10 @@ import {
   ReconcileDeploymentClose,
   reconcileDeploymentCloseOptionsFor
 } from "@src/deployment/services/reconcile-deployment-close/reconcile-deployment-close.job";
+import {
+  ReconcileDeploymentUpdate,
+  reconcileDeploymentUpdateOptionsFor
+} from "@src/deployment/services/reconcile-deployment-update/reconcile-deployment-update.job";
 import type { GenerateResolvedManifestResult, SdlManifest, SdlService } from "@src/deployment/services/sdl/sdl.service";
 import { SdlPatchService } from "@src/deployment/services/sdl-patch/sdl-patch.service";
 import { SdlReferenceService } from "@src/deployment/services/sdl-reference/sdl-reference.service";
@@ -37,6 +42,7 @@ import type { SdlSecretsInheritanceService } from "@src/deployment/services/sdl-
 import type { SdlSecrets } from "@src/deployment/services/sdl-secrets-unsealer/sdl-secrets-unsealer.service";
 import type { OnChainGroupSpec } from "@src/deployment/utils/changed-group-resources/changed-group-resources";
 import { closedActivityOf, failedCloseActivityOf } from "@src/deployment/utils/close-activity/close-activity";
+import { failedUpdateActivityOf, updatedActivityOf } from "@src/deployment/utils/update-activity/update-activity";
 import type { ProviderService } from "@src/provider/services/provider/provider.service";
 import { SECRET_UNREADABLE_ERROR_MESSAGE } from "@src/secret/config/secret-at-rest.config";
 import type { TrialWorkloadProbeJobService } from "@src/workload-abuse/services/trial-workload-probe-job/trial-workload-probe-job.service";
@@ -2817,6 +2823,230 @@ describe(DeploymentWriterService.name, () => {
       });
     });
 
+    describe("the activity a patch records", () => {
+      const SAVED = { userId: "user-1", dseq: "1234", manifestVersion: Buffer.from(new Uint8Array([1, 2, 3])).toString("base64") };
+
+      it("records the update as succeeded once the manifest is pushed", async () => {
+        const { service, ability, activityService, providerService } = setup();
+
+        await service.patchByUserIdAndDseq("user-1", "1234", { services: { web: { image: "x" } } }, ability);
+
+        expect(activityService.record).toHaveBeenCalledTimes(1);
+        expect(activityService.record).toHaveBeenCalledWith(updatedActivityOf(SAVED));
+        expect(providerService.sendManifest.mock.invocationCallOrder[0]).toBeLessThan(activityService.record.mock.invocationCallOrder[0]);
+      });
+
+      it("records a patch a newer one replaced as succeeded, the newer version carrying its edits", async () => {
+        const { service, ability, activityService } = setup({ replacedBy: "TkVXRVI=" });
+
+        await service.patchByUserIdAndDseq("user-1", "1234", { services: { web: { image: "x" } } }, ability);
+
+        expect(activityService.record).toHaveBeenCalledWith(updatedActivityOf(SAVED));
+      });
+
+      it("records nothing when a refusal stops the patch before its write", async () => {
+        const { service, ability, activityService } = setup();
+
+        await expect(service.patchByUserIdAndDseq("user-1", "1234", { services: { api: { image: "x" } } }, ability)).rejects.toMatchObject({ status: 400 });
+
+        expect(activityService.record).not.toHaveBeenCalled();
+        expect(activityService.open).not.toHaveBeenCalled();
+      });
+
+      it("records nothing when the definition changed concurrently", async () => {
+        const { service, ability, activityService } = setup({ written: undefined });
+
+        await expect(
+          service.patchByUserIdAndDseq("user-1", "1234", { services: { web: { image: "x" } }, ifManifestVersion: "STALE" }, ability)
+        ).rejects.toMatchObject({
+          status: 409
+        });
+
+        expect(activityService.record).not.toHaveBeenCalled();
+      });
+
+      it("records nothing for a rename alone, which applies nothing", async () => {
+        const { service, ability, activityService } = setup();
+
+        await service.patchByUserIdAndDseq("user-1", "1234", { name: "renamed" }, ability);
+
+        expect(activityService.record).not.toHaveBeenCalled();
+      });
+
+      it("records an apply that failed with its reason and still answers with the failure", async () => {
+        const { service, ability, signerService, activityService } = setup({ chainHash: "SOMETHING_ELSE" });
+        const failure = createError(400, "Deployment closed");
+        signerService.executeDerivedDecodedTxByUserId.mockRejectedValue(failure);
+
+        await expect(service.patchByUserIdAndDseq("user-1", "1234", { services: { web: { image: "x" } } }, ability)).rejects.toBe(failure);
+
+        expect(activityService.record).toHaveBeenCalledTimes(1);
+        expect(activityService.record).toHaveBeenCalledWith(failedUpdateActivityOf(SAVED, failure));
+      });
+
+      it("opens an update left undecided as pending with a check on it in one transaction, and still answers with the failure", async () => {
+        const { service, ability, signerService, activityService, jobQueueService, transactionLog } = setup({ chainHash: "SOMETHING_ELSE" });
+        vi.useFakeTimers({ now: new Date("2026-01-01T00:00:00.000Z"), toFake: ["Date"] });
+        const undecided = new TxOutcomeUnknownError("ABCDEF");
+        signerService.executeDerivedDecodedTxByUserId.mockRejectedValue(undecided);
+
+        await expect(service.patchByUserIdAndDseq("user-1", "1234", { services: { web: { image: "x" } } }, ability)).rejects.toBe(undecided);
+
+        const [[opened]] = activityService.open.mock.calls;
+        expect(opened).toEqual({ id: expect.any(String), ...failedUpdateActivityOf(SAVED, undecided) });
+        expect(jobQueueService.enqueue).toHaveBeenCalledWith(
+          new ReconcileDeploymentUpdate({ ...SAVED, owner: "akash1owner", activityId: opened.id }),
+          reconcileDeploymentUpdateOptionsFor(opened.id, new Date("2026-01-01T00:00:00.000Z"))
+        );
+        expect(transactionLog).toEqual(["write", "begin", "activity", ReconcileDeploymentUpdate[JOB_NAME], "commit"]);
+        expect(activityService.record).not.toHaveBeenCalled();
+      });
+
+      it("still answers with the failure of an update left undecided when it cannot be recorded", async () => {
+        const { service, ability, signerService, activityService, logger } = setup({ chainHash: "SOMETHING_ELSE" });
+        const undecided = new TxOutcomeUnknownError("ABCDEF");
+        const recordFailure = new Error("connection reset");
+        signerService.executeDerivedDecodedTxByUserId.mockRejectedValue(undecided);
+        activityService.open.mockRejectedValue(recordFailure);
+
+        await expect(service.patchByUserIdAndDseq("user-1", "1234", { services: { web: { image: "x" } } }, ability)).rejects.toBe(undecided);
+
+        expect(logger.error).toHaveBeenCalledWith({ event: "UNDECIDED_UPDATE_RECORD_FAILED", userId: "user-1", dseq: "1234", error: recordFailure });
+      });
+    });
+
+    describe("patchInBackgroundByUserIdAndDseq", () => {
+      const SAVED_VERSION = Buffer.from(new Uint8Array([1, 2, 3])).toString("base64");
+
+      it("saves the patch together with its pending activity, its apply and a check on it", async () => {
+        const { service, ability, transactionLog } = setup();
+
+        await service.patchInBackgroundByUserIdAndDseq("user-1", "1234", { services: { web: { image: "x" } } }, ability);
+
+        expect(transactionLog).toEqual(["begin", "write", "activity", ApplyDeploymentUpdate[JOB_NAME], ReconcileDeploymentUpdate[JOB_NAME], "commit"]);
+      });
+
+      it("opens the activity as a pending update of the version it saved", async () => {
+        const { service, ability, activityService } = setup();
+
+        const accepted = await service.patchInBackgroundByUserIdAndDseq("user-1", "1234", { services: { web: { image: "x" } } }, ability);
+
+        expect(activityService.open).toHaveBeenCalledWith({
+          id: (accepted as { activityId: string }).activityId,
+          userId: "user-1",
+          type: "deployment_update",
+          status: "pending",
+          meta: { dseq: "1234", manifestVersion: SAVED_VERSION }
+        });
+      });
+
+      it("queues the apply of the version it saved on the deployment's own key, with retries", async () => {
+        const { service, ability, jobQueueService } = setup();
+
+        const accepted = await service.patchInBackgroundByUserIdAndDseq("user-1", "1234", { services: { web: { image: "x" } } }, ability);
+
+        expect(jobQueueService.enqueue).toHaveBeenCalledWith(
+          new ApplyDeploymentUpdate({
+            userId: "user-1",
+            dseq: "1234",
+            manifestVersion: SAVED_VERSION,
+            activityId: (accepted as { activityId: string }).activityId
+          }),
+          { singletonKey: "applyDeploymentUpdate.user-1.1234", ...APPLY_DEPLOYMENT_UPDATE_RETRY_OPTIONS }
+        );
+      });
+
+      it("queues a check on the update for the deployment's owner, naming the job that applies it", async () => {
+        const { service, ability, jobQueueService } = setup();
+        vi.useFakeTimers({ now: new Date("2026-01-01T00:00:00.000Z"), toFake: ["Date"] });
+
+        const accepted = await service.patchInBackgroundByUserIdAndDseq("user-1", "1234", { services: { web: { image: "x" } } }, ability);
+
+        const { activityId } = accepted as { activityId: string };
+        expect(jobQueueService.enqueue).toHaveBeenCalledWith(
+          new ReconcileDeploymentUpdate({
+            userId: "user-1",
+            owner: "akash1owner",
+            dseq: "1234",
+            manifestVersion: SAVED_VERSION,
+            activityId,
+            updateJobId: "apply-job-1"
+          }),
+          reconcileDeploymentUpdateOptionsFor(activityId, new Date("2026-01-01T00:00:00.000Z"))
+        );
+      });
+
+      it("answers with the activity to follow and the version to guard the next patch on", async () => {
+        const { service, ability, activityService } = setup();
+
+        const accepted = await service.patchInBackgroundByUserIdAndDseq("user-1", "1234", { services: { web: { image: "x" } } }, ability);
+
+        expect(accepted).toEqual({ activityId: activityService.open.mock.calls[0][0].id, manifestVersion: SAVED_VERSION });
+      });
+
+      it("applies nothing and records no outcome during the request", async () => {
+        const { service, ability, signerService, providerService, activityService, deploymentReaderService, probeJobService } = setup({
+          chainHash: "SOMETHING_ELSE",
+          isTrialing: true
+        });
+
+        await service.patchInBackgroundByUserIdAndDseq("user-1", "1234", { services: { web: { image: "x" } } }, ability);
+
+        expect(signerService.executeDerivedDecodedTxByUserId).not.toHaveBeenCalled();
+        expect(providerService.sendManifest).not.toHaveBeenCalled();
+        expect(probeJobService.restartForUpdatedDeployment).not.toHaveBeenCalled();
+        expect(deploymentReaderService.findByWalletAndDseq).not.toHaveBeenCalled();
+        expect(activityService.record).not.toHaveBeenCalled();
+      });
+
+      it("answers 409 and commits nothing when the definition changed concurrently", async () => {
+        const { service, ability, activityService, jobQueueService, transactionLog } = setup({ written: undefined });
+
+        await expect(
+          service.patchInBackgroundByUserIdAndDseq("user-1", "1234", { services: { web: { image: "x" } }, ifManifestVersion: "STALE" }, ability)
+        ).rejects.toMatchObject({ status: 409, errorCode: "deployment_definition_changed" });
+
+        expect(transactionLog).toEqual(["begin", "write"]);
+        expect(activityService.open).not.toHaveBeenCalled();
+        expect(jobQueueService.enqueue).not.toHaveBeenCalled();
+      });
+
+      it("opens no transaction when a refusal stops the patch before its write", async () => {
+        const { service, ability, txService, deploymentSettingRepository } = setup();
+
+        await expect(service.patchInBackgroundByUserIdAndDseq("user-1", "1234", { services: { api: { image: "x" } } }, ability)).rejects.toMatchObject({
+          status: 400
+        });
+
+        expect(txService.transaction).not.toHaveBeenCalled();
+        expect(deploymentSettingRepository.replaceDefinitionIfVersionMatches).not.toHaveBeenCalled();
+      });
+
+      it("renames during the request and queues nothing for a name alone", async () => {
+        const { service, ability, deploymentSettingRepository, txService, jobQueueService } = setup();
+
+        const renamed = await service.patchInBackgroundByUserIdAndDseq("user-1", "1234", { name: "renamed" }, ability);
+
+        expect(renamed).toMatchObject({ name: "renamed" });
+        expect(renamed).not.toHaveProperty("activityId");
+        expect(deploymentSettingRepository.upsertName).toHaveBeenCalledWith({ userId: "user-1", dseq: "1234", name: "renamed" });
+        expect(txService.transaction).not.toHaveBeenCalled();
+        expect(jobQueueService.enqueue).not.toHaveBeenCalled();
+      });
+
+      it("refuses to commit a patch the queue accepted no apply for, queueing no check either", async () => {
+        const { service, ability, jobQueueService, transactionLog } = setup();
+        jobQueueService.enqueue.mockResolvedValueOnce(null);
+
+        await expect(service.patchInBackgroundByUserIdAndDseq("user-1", "1234", { services: { web: { image: "x" } } }, ability)).rejects.toThrow(
+          "Refusing to save a patch of deployment 1234 without the job that applies it: the queue accepted no job"
+        );
+
+        expect(jobQueueService.enqueue).toHaveBeenCalledTimes(1);
+        expect(transactionLog).not.toContain("commit");
+      });
+    });
+
     function setup(input?: {
       sdl?: string;
       setting?: DeploymentSettingsOutput | undefined;
@@ -2850,7 +3080,9 @@ describe(DeploymentWriterService.name, () => {
       scoped.findOneBy.mockResolvedValue(
         hasSetting ? mock<DeploymentSettingsOutput>({ sdl: input?.sdl ?? STORED_SDL, sealedSecrets: storedToken, manifestVersion: storedVersion }) : undefined
       );
+      const transactionLog: string[] = [];
       scoped.replaceDefinitionIfVersionMatches.mockImplementation(async ({ name, sdl, sealedSecrets, manifestVersion }) => {
+        transactionLog.push("write");
         const id = "written" in (input ?? {}) ? input!.written : randomUUID();
         if (id === undefined) return undefined;
 
@@ -2899,6 +3131,22 @@ describe(DeploymentWriterService.name, () => {
       const probeJobService = mock<TrialWorkloadProbeJobService>();
       const leaseGpuDetectionJobService = mock<LeaseGpuDetectionJobService>();
       const ability = mock<AnyAbility>();
+      const txService = mock<TxService>();
+      txService.transaction.mockImplementation(async cb => {
+        transactionLog.push("begin");
+        const result = await cb();
+        transactionLog.push("commit");
+        return result;
+      });
+      const jobQueueService = mock<JobQueueService>();
+      jobQueueService.enqueue.mockImplementation(async job => {
+        transactionLog.push(job.name);
+        return job instanceof ApplyDeploymentUpdate ? "apply-job-1" : "reconcile-job-1";
+      });
+      const activityService = mock<ActivityService>();
+      activityService.open.mockImplementation(async () => {
+        transactionLog.push("activity");
+      });
       const service = new DeploymentWriterService(
         signerService,
         mock<RpcMessageService>(),
@@ -2911,8 +3159,8 @@ describe(DeploymentWriterService.name, () => {
         createLogger,
         mockConfigService<DeploymentConfigService>({}),
         deploymentSettingRepository,
-        mock<TxService>(),
-        mock<JobQueueService>(),
+        txService,
+        jobQueueService,
         sdlSecretsService,
         new SdlSecretsDerivationService(new SdlReferenceService()),
         new SdlPatchService(),
@@ -2920,7 +3168,7 @@ describe(DeploymentWriterService.name, () => {
         mock<SdlSecretsInheritanceService>(),
         probeJobService,
         leaseGpuDetectionJobService,
-        mock<ActivityService>()
+        activityService
       );
 
       function sealedFor() {
@@ -2941,6 +3189,10 @@ describe(DeploymentWriterService.name, () => {
         sdlReferenceService,
         probeJobService,
         leaseGpuDetectionJobService,
+        txService,
+        jobQueueService,
+        activityService,
+        transactionLog,
         sealedFor
       };
     }

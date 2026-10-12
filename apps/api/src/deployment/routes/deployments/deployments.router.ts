@@ -31,7 +31,9 @@ import {
   ListWithResourcesParamsSchema,
   ListWithResourcesQuerySchema,
   ListWithResourcesResponseSchema,
+  PatchDeploymentAcceptedResponseSchema,
   PatchDeploymentParamsSchema,
+  PatchDeploymentQuerySchema,
   PatchDeploymentRequestSchema,
   PatchDeploymentResponseSchema,
   UpdateDeploymentRequestSchema,
@@ -360,6 +362,7 @@ const patchRoute = createRoute({
   bodyLimit: { maxSize: CREATE_DEPLOYMENT_BODY_LIMIT_BYTES },
   request: {
     params: PatchDeploymentParamsSchema,
+    query: PatchDeploymentQuerySchema,
     body: {
       content: {
         "application/json": {
@@ -374,6 +377,14 @@ const patchRoute = createRoute({
       content: {
         "application/json": {
           schema: PatchDeploymentResponseSchema
+        }
+      }
+    },
+    202: {
+      description: "The patch passed every check and was saved, and will be applied in the background",
+      content: {
+        "application/json": {
+          schema: PatchDeploymentAcceptedResponseSchema
         }
       }
     },
@@ -444,8 +455,8 @@ const patchRoute = createRoute({
 deploymentsRouter.openapi(patchRoute, async function routePatchDeployment(c) {
   const { dseq } = c.req.valid("param");
   const { data } = c.req.valid("json");
-  const result = await container.resolve(DeploymentController).patch(dseq, data);
-  return c.json(result, 200);
+  const result = await container.resolve(DeploymentController).patch(dseq, data, c.req.valid("query"));
+  return "activityId" in result.data ? c.json({ data: result.data }, 202) : c.json({ data: result.data }, 200);
 });
 
 const createDefinitionRoute = createRoute({

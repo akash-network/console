@@ -1569,6 +1569,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
               "description": "What the action was.",
               "enum": [
                 "deployment_close",
+                "deployment_update",
               ],
               "type": "string",
             },
@@ -1620,6 +1621,10 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                                     ],
                                     "type": "object",
                                   },
+                                  "manifestVersion": {
+                                    "description": "The base64 manifest version an update saved.",
+                                    "type": "string",
+                                  },
                                   "txHash": {
                                     "description": "Reference of a pending action whose outcome is still being confirmed.",
                                     "type": "string",
@@ -1646,6 +1651,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                                 "description": "What the action was.",
                                 "enum": [
                                   "deployment_close",
+                                  "deployment_update",
                                 ],
                                 "type": "string",
                               },
@@ -1891,6 +1897,10 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                               ],
                               "type": "object",
                             },
+                            "manifestVersion": {
+                              "description": "The base64 manifest version an update saved.",
+                              "type": "string",
+                            },
                             "txHash": {
                               "description": "Reference of a pending action whose outcome is still being confirmed.",
                               "type": "string",
@@ -1917,6 +1927,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                           "description": "What the action was.",
                           "enum": [
                             "deployment_close",
+                            "deployment_update",
                           ],
                           "type": "string",
                         },
@@ -9434,6 +9445,19 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
               "type": "string",
             },
           },
+          {
+            "in": "query",
+            "name": "async",
+            "required": false,
+            "schema": {
+              "description": "With \`true\`, the patch is saved during the request and applied in the background: once it is saved, the request answers 202 with an \`activityId\` to follow at \`GET /v1/activities/{id}\` and the \`manifestVersion\` it saved. Every refusal and conflict still answers on the request and saves nothing. It answers 200 as without it for a rename alone, which has nothing to apply, and when background updates are unavailable.",
+              "enum": [
+                "true",
+                "false",
+              ],
+              "type": "string",
+            },
+          },
         ],
         "requestBody": {
           "content": {
@@ -10156,6 +10180,39 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
               },
             },
             "description": "Deployment patched successfully",
+          },
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "properties": {
+                        "activityId": {
+                          "description": "The activity that reports how applying the patch ends.",
+                          "format": "uuid",
+                          "type": "string",
+                        },
+                        "manifestVersion": {
+                          "description": "Base64 manifest version this patch saved. Pass it as \`ifManifestVersion\` to patch again while this one is still being applied. The patches of one deployment are applied one at a time, so the newest one saved lands last.",
+                          "type": "string",
+                        },
+                      },
+                      "required": [
+                        "activityId",
+                        "manifestVersion",
+                      ],
+                      "type": "object",
+                    },
+                  },
+                  "required": [
+                    "data",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "The patch passed every check and was saved, and will be applied in the background",
           },
           "400": {
             "content": {

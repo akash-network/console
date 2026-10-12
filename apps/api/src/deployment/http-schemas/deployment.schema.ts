@@ -449,6 +449,27 @@ export const PatchDeploymentResponseSchema = z.object({
   })
 });
 
+export const PatchDeploymentQuerySchema = z.object({
+  async: z
+    .enum(["true", "false"])
+    .optional()
+    .transform(value => value === "true")
+    .openapi({
+      description:
+        "With `true`, the patch is saved during the request and applied in the background: once it is saved, the request answers 202 with an `activityId` to follow at `GET /v1/activities/{id}` and the `manifestVersion` it saved. Every refusal and conflict still answers on the request and saves nothing. It answers 200 as without it for a rename alone, which has nothing to apply, and when background updates are unavailable."
+    })
+});
+
+export const PatchDeploymentAcceptedResponseSchema = z.object({
+  data: z.object({
+    activityId: z.string().uuid().openapi({ description: "The activity that reports how applying the patch ends." }),
+    manifestVersion: z.string().openapi({
+      description:
+        "Base64 manifest version this patch saved. Pass it as `ifManifestVersion` to patch again while this one is still being applied. The patches of one deployment are applied one at a time, so the newest one saved lands last."
+    })
+  })
+});
+
 export const CreateDeploymentDefinitionParamsSchema = z.object({
   dseq: DseqSchema.describe("Deployment sequence number")
 });
@@ -694,6 +715,8 @@ export type UpdateDeploymentRequest = z.infer<typeof UpdateDeploymentRequestSche
 export type PatchService = z.infer<typeof PatchServiceSchema>;
 export type PatchDeploymentRequest = z.infer<typeof PatchDeploymentRequestSchema>;
 export type PatchDeploymentResponse = z.infer<typeof PatchDeploymentResponseSchema>;
+export type PatchDeploymentQuery = z.infer<typeof PatchDeploymentQuerySchema>;
+export type PatchDeploymentAcceptedResponse = z.infer<typeof PatchDeploymentAcceptedResponseSchema>;
 export type CreateDeploymentDefinitionRequest = z.infer<typeof CreateDeploymentDefinitionRequestSchema>;
 export type CreateDeploymentDefinitionResponse = z.infer<typeof CreateDeploymentDefinitionResponseSchema>;
 export type UpdateDeploymentResponse = z.infer<typeof UpdateDeploymentResponseSchema>;

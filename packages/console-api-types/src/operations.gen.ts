@@ -146,7 +146,14 @@ export const operations = {
       hasBody: false
     },
     updateDeployment: { path: "/v1/deployments/{dseq}", method: "put", operationId: "updateDeployment", pathParams: ["dseq"], queryParams: [], hasBody: true },
-    patchDeployment: { path: "/v1/deployments/{dseq}", method: "patch", operationId: "patchDeployment", pathParams: ["dseq"], queryParams: [], hasBody: true },
+    patchDeployment: {
+      path: "/v1/deployments/{dseq}",
+      method: "patch",
+      operationId: "patchDeployment",
+      pathParams: ["dseq"],
+      queryParams: ["async"],
+      hasBody: true
+    },
     listDeploymentNames: {
       path: "/v1/deployment-names",
       method: "get",
