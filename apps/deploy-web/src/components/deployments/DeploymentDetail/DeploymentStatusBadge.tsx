@@ -47,12 +47,15 @@ export interface DeploymentStatusBadgeProps {
   leases?: LeaseDto[] | null;
   isSummarized?: boolean;
   isClosing?: boolean;
+  isUpdating?: boolean;
   workload?: WorkloadStatus;
   className?: string;
   dependencies?: typeof DEPENDENCIES;
 }
 
 const CLOSING_STATUS = { label: "Closing", summaryLabel: "Closing", tone: "loading" } as const;
+
+const UPDATING_STATUS = { label: "Updating", summaryLabel: "Updating", tone: "loading" } as const;
 
 const WORKLOAD_STATUSES: Partial<Record<WorkloadStatus, { label: string; tone: StatusTone }>> = {
   starting: { label: "Starting", tone: "pending" },
@@ -74,9 +77,11 @@ export function getDeploymentStatus(
   state: string,
   leases?: LeaseDto[] | null,
   isClosing = false,
-  workload?: WorkloadStatus
+  workload?: WorkloadStatus,
+  isUpdating = false
 ): { label: string; summaryLabel: string; tone: StatusTone } {
   if (isClosing && state === "active") return CLOSING_STATUS;
+  if (isUpdating && state === "active") return UPDATING_STATUS;
 
   const deploymentTone = STATUS_TONES[state] ?? "pending";
   const deadLease = leases?.length && !leases.some(isLeaseLive) ? selectLeaseToReportOn(leases) : undefined;
@@ -133,11 +138,12 @@ export const DeploymentStatusBadge: FC<DeploymentStatusBadgeProps> = ({
   leases,
   isSummarized,
   isClosing,
+  isUpdating,
   workload,
   className,
   dependencies: d = DEPENDENCIES
 }) => {
-  const { label, summaryLabel, tone } = getDeploymentStatus(state, leases, isClosing, workload);
+  const { label, summaryLabel, tone } = getDeploymentStatus(state, leases, isClosing, workload, isUpdating);
   const isShortened = !!isSummarized && summaryLabel !== label;
   const isBeingReclaimed = !isClosing && !!leases?.some(isReclaiming);
 

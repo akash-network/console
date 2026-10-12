@@ -9,6 +9,7 @@ import { useCloseDeploymentConfirm } from "@src/hooks/useCloseDeploymentConfirm"
 import { useCloseDeployments } from "@src/hooks/useCloseDeployments/useCloseDeployments";
 import { useClosingDeployments } from "@src/hooks/useClosingDeployments/useClosingDeployments";
 import { useListSelection } from "@src/hooks/useListSelection/useListSelection";
+import { useUpdatingDeployments } from "@src/hooks/useUpdatingDeployments/useUpdatingDeployments";
 import { useProvidersByAddresses } from "@src/queries/useProvidersQuery";
 import type { DeploymentsViewMode } from "@src/store/deploymentsViewStore";
 import { deploymentsViewModeAtom } from "@src/store/deploymentsViewStore";
@@ -23,6 +24,7 @@ export const DEPENDENCIES = {
   useListSelection,
   useDeploymentsListSource: useApiDeploymentsListSource,
   useClosingDeployments,
+  useUpdatingDeployments,
   useCloseDeployments
 };
 
@@ -101,6 +103,7 @@ export function useDeploymentsListModel(dependencies: typeof DEPENDENCIES = DEPE
     [pageDeployments, closingDseqs]
   );
   const { selectedItemIds, selectItem, clearSelection } = d.useListSelection<string>({ ids: selectableDseqs });
+  const updatingDseqs = d.useUpdatingDeployments();
 
   const changeSearch = useCallback((value: string) => {
     setSearch(value);
@@ -191,6 +194,7 @@ export function useDeploymentsListModel(dependencies: typeof DEPENDENCIES = DEPE
     showPageSizeSelector: (hasPageResults || hasAnyArchived) && (isPaginated || isArchivePaginated || pageSize !== DEFAULT_PAGE_SIZE),
     isInitialLoad,
     closingDseqs,
+    updatingDseqs,
     selectedItemIds,
     selectItem,
     clearSelection,
