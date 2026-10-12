@@ -2,6 +2,7 @@ import { useState } from "react";
 
 import { MAX_DEPLOYMENT_NAME_LENGTH } from "@src/config/deploy.config";
 import { useResolvedDeploymentName } from "@src/hooks/useResolvedDeploymentName/useResolvedDeploymentName";
+import { generateRandomDeploymentName } from "@src/utils/deploymentName/generateRandomDeploymentName";
 
 export const DEPENDENCIES = { useResolvedDeploymentName };
 
@@ -14,7 +15,7 @@ export interface DeploymentName {
 }
 
 interface UseDeploymentNameInput {
-  /** The name to start from — the resumed draft's name, or the template's, resolved by the caller. */
+  /** The name to start from (the resumed draft's or the template's, resolved by the caller); a new deployment without one starts on a generated name. */
   initialName?: string;
   /** The created deployment's sequence, from `useDeploymentFlow`; null until quotes are requested. */
   dseq: string | null;
@@ -22,7 +23,11 @@ interface UseDeploymentNameInput {
 
 /** Owns the configure session's deployment name: the api's own once the deployment exists, and the typed one before that. */
 export function useDeploymentName({ initialName, dseq }: UseDeploymentNameInput, dependencies = DEPENDENCIES): DeploymentName {
-  const [typedName, setTypedName] = useState(() => (initialName ?? "").slice(0, MAX_DEPLOYMENT_NAME_LENGTH));
+  const [typedName, setTypedName] = useState(() => {
+    const isNewDeployment = !dseq;
+    const startingName = initialName ?? (isNewDeployment ? generateRandomDeploymentName() : "");
+    return startingName.slice(0, MAX_DEPLOYMENT_NAME_LENGTH);
+  });
   const resolvedName = dependencies.useResolvedDeploymentName(dseq);
   return { name: typedName || resolvedName || "", typedName, setName: setTypedName };
 }
