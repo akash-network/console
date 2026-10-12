@@ -105,6 +105,8 @@ describe(CreateDeploymentHandler.name, () => {
   it.each([
     { kind: "an unexplained failure", error: new Error("signer unreachable") },
     { kind: "an internal error", error: createError(500, "connection to 10.0.0.4 refused") },
+    { kind: "a server error exposed to the caller", error: createError(500, "The signer is restarting", { expose: true }) },
+    { kind: "a client error not meant for the caller", error: createError(400, "Invalid nonce", { expose: false }) },
     { kind: "a create proven never included", error: new TxNotIncludedError("ABCDEF") },
     { kind: "an undecided outcome", error: new TxOutcomeUnknownError("ABCDEF") }
   ])("leaves $kind on a first attempt with retries to come for the next one to settle", async ({ error }) => {
