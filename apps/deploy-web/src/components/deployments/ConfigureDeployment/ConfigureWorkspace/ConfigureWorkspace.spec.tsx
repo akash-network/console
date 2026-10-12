@@ -298,6 +298,24 @@ describe(ConfigureWorkspace.name, () => {
     expect(leaveProps()).toMatchObject({ needsConfirmation: true, hasBids: false });
   });
 
+  it("asks before leaving while the create request is still out", () => {
+    const { leaveProps } = setup({ phase: "creating" });
+
+    expect(leaveProps()).toMatchObject({ needsConfirmation: true });
+  });
+
+  it("leaves without asking once the api finishes the create in the background", () => {
+    const { leaveProps } = setup({ phase: "creating", isCreatingInBackground: true });
+
+    expect(leaveProps()).toMatchObject({ needsConfirmation: false });
+  });
+
+  it("still asks before leaving a background create while a previous deployment is closing", () => {
+    const { leaveProps } = setup({ phase: "creating", isCreatingInBackground: true, pendingClose: { dseq: "41", failed: false } });
+
+    expect(leaveProps()).toMatchObject({ needsConfirmation: true });
+  });
+
   it("follows the bid window in a toast", () => {
     const { dependencies } = setup({ phase: "quoting", expired: true });
 
@@ -384,6 +402,7 @@ describe(ConfigureWorkspace.name, () => {
     sdlPreviewEnabled?: boolean;
     bidCount?: number;
     pendingClose?: DeploymentFlow["pendingClose"];
+    isCreatingInBackground?: boolean;
     selectedServiceId?: string;
     noBidsReceived?: boolean;
     apiGpuModels?: string[];
@@ -446,6 +465,7 @@ describe(ConfigureWorkspace.name, () => {
         phase,
         dseq: "42",
         pendingClose: input.pendingClose ?? null,
+        isCreatingInBackground: input.isCreatingInBackground ?? false,
         deployError: undefined,
         noBidsReceived: input.noBidsReceived ?? false,
         bids: Array.from({ length: input.bidCount ?? 0 }, () => mock<DeploymentFlow["bids"][number]>()),

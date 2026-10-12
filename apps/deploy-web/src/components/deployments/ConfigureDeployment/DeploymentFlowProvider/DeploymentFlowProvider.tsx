@@ -23,7 +23,7 @@ interface Props {
 
 const DeploymentCreatingContext = createContext(false);
 
-/** A create's response only reaches the page that sent it, so chrome that navigates away (the onboarding skip, Back) steps aside until it lands. */
+/** A create's response only reaches the page that sent it, so chrome that navigates away (the onboarding skip, Back) steps aside until it lands, unless the api finishes it in the background. */
 export function useIsDeploymentCreating(): boolean {
   return useContext(DeploymentCreatingContext);
 }
@@ -39,7 +39,7 @@ export function useIsDeploymentCreating(): boolean {
  */
 export const DeploymentFlowProvider: FC<Props> = ({ intent, children, dependencies: d = DEPENDENCIES }) => {
   const flow = d.useDeploymentFlow({ intent });
-  const isCreating = flow.phase === "creating";
+  const isCreating = flow.phase === "creating" && !flow.isCreatingInBackground;
   d.useWarnBeforeUnload(isCreating);
 
   return <DeploymentCreatingContext.Provider value={isCreating}>{children({ flow })}</DeploymentCreatingContext.Provider>;

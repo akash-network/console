@@ -4,10 +4,11 @@ import { mock, mockDeep } from "vitest-mock-extended";
 import type { AppDIContainer } from "@src/context/ServicesProvider/ServicesProvider";
 import { QueryKeys } from "@src/queries/queryKeys";
 import type { Activity } from "@src/queries/useLatestActivitiesQuery";
+import type { AnalyticsService, EventProperties } from "@src/services/analytics/analytics.service";
 import type { DEPENDENCIES } from "./ActivityHost";
 import { ActivityHost } from "./ActivityHost";
 
-import { render } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import { buildActivity } from "@tests/seeders/activity";
 import { buildUser } from "@tests/seeders/user";
 import { TestContainerProvider } from "@tests/unit/TestContainerProvider";
@@ -90,18 +91,61 @@ describe(ActivityHost.name, () => {
     );
   });
 
-  it("announces a create that finishes", () => {
+  it("announces a create that finishes, linking to choosing a provider for it", () => {
     const pending = buildActivity({ type: "deployment_create", status: "pending", meta: { dseq: "1234" } });
     const { enqueueSnackbar, receive } = setup({ activities: [pending], names: { "1234": "storefront" } });
 
     receive([{ ...pending, status: "succeeded" }]);
+    const [[snackbar, options]] = enqueueSnackbar.mock.calls;
+    render(snackbar.props.subTitle);
 
-    expect(enqueueSnackbar).toHaveBeenCalledWith(
-      expect.objectContaining({
-        props: expect.objectContaining({ title: "“storefront” created", subTitle: "Choose a provider to start it.", iconVariant: "success" })
-      }),
-      { variant: "success" }
-    );
+    expect(snackbar.props).toMatchObject({ title: "“storefront” created", iconVariant: "success" });
+    expect(options).toEqual({ variant: "success" });
+    expect(screen.getByRole("link", { name: "Choose a provider to start it." })).toHaveAttribute("href", "/new-deployment/configure/1234");
+  });
+
+  it("announces a finished create that names no deployment without a link", () => {
+    const pending = buildActivity({ type: "deployment_create", status: "pending", meta: {} });
+    const { enqueueSnackbar, receive } = setup({ activities: [pending] });
+
+    receive([{ ...pending, status: "succeeded" }]);
+
+    expect(enqueueSnackbar).toHaveBeenCalledWith(expect.objectContaining({ props: expect.objectContaining({ subTitle: "Choose a provider to start it." }) }), {
+      variant: "success"
+    });
+  });
+
+  describe("with the create_deployment event a page held for a background create", () => {
+    it("tracks it once the create succeeds", () => {
+      const pending = buildActivity({ id: "activity-1", type: "deployment_create", status: "pending", meta: { dseq: "1234" } });
+      const createdEvent = { category: "deployments" as const, dseq: "1234", secretCount: 0 };
+      const { receive, analyticsService, takeHeldCreateEvent } = setup({ activities: [pending], heldCreateEvents: { "activity-1": createdEvent } });
+
+      receive([{ ...pending, status: "succeeded" }]);
+
+      expect(takeHeldCreateEvent).toHaveBeenCalledWith("activity-1");
+      expect(analyticsService.track).toHaveBeenCalledTimes(1);
+      expect(analyticsService.track).toHaveBeenCalledWith("create_deployment", createdEvent);
+    });
+
+    it("drops it without tracking once the create fails", () => {
+      const pending = buildActivity({ id: "activity-1", type: "deployment_create", status: "pending", meta: { dseq: "1234" } });
+      const { receive, analyticsService, takeHeldCreateEvent } = setup({ activities: [pending], heldCreateEvents: { "activity-1": { dseq: "1234" } } });
+
+      receive([{ ...pending, status: "failed" }]);
+
+      expect(takeHeldCreateEvent).toHaveBeenCalledWith("activity-1");
+      expect(analyticsService.track).not.toHaveBeenCalled();
+    });
+
+    it("tracks nothing for a create no page here held an event for", () => {
+      const pending = buildActivity({ id: "activity-1", type: "deployment_create", status: "pending", meta: { dseq: "1234" } });
+      const { receive, analyticsService } = setup({ activities: [pending] });
+
+      receive([{ ...pending, status: "succeeded" }]);
+
+      expect(analyticsService.track).not.toHaveBeenCalled();
+    });
   });
 
   it.each([
@@ -390,7 +434,16 @@ describe(ActivityHost.name, () => {
     return vi.mocked(queryClient.invalidateQueries).mock.calls.map(([filters]) => filters?.queryKey);
   }
 
-  function setup(input: { isEnabled?: boolean; isSignedIn?: boolean; activities?: Activity[]; address?: string; names?: Record<string, string> } = {}) {
+  function setup(
+    input: {
+      isEnabled?: boolean;
+      isSignedIn?: boolean;
+      activities?: Activity[];
+      address?: string;
+      names?: Record<string, string>;
+      heldCreateEvents?: Record<string, EventProperties>;
+    } = {}
+  ) {
     const user = buildUser();
     let activities = input.activities;
     let isLoadingNames = false;
@@ -404,6 +457,8 @@ describe(ActivityHost.name, () => {
       Object.assign(mock<ReturnType<typeof DEPENDENCIES.useLatestActivitiesQuery>>(), { data: activities })) as typeof DEPENDENCIES.useLatestActivitiesQuery);
     const useFlag = vi.fn((() => input.isEnabled ?? true) as typeof DEPENDENCIES.useFlag);
     const enqueueSnackbar = vi.fn();
+    const takeHeldCreateEvent = vi.fn((activityId: string) => input.heldCreateEvents?.[activityId]);
+    const analyticsService = mock<AnalyticsService>();
     const queryClient = mock<ReturnType<typeof DEPENDENCIES.useQueryClient>>();
     const api = mockDeep<AppDIContainer["api"]>();
     api.v1.listDeployments.getKey.mockReturnValue(["listDeployments"]);
@@ -417,12 +472,13 @@ describe(ActivityHost.name, () => {
       useLatestActivitiesQuery,
       useDeploymentNames,
       useCloseBatchesBeingSent: () => closeBatchesBeingSent,
+      useTakeHeldCreateEvent: () => takeHeldCreateEvent,
       useSnackbar: () => ({ enqueueSnackbar, closeSnackbar: vi.fn() }),
       useQueryClient: () => queryClient
     };
 
     const host = () => (
-      <TestContainerProvider services={{ api: () => api }}>
+      <TestContainerProvider services={{ api: () => api, analyticsService: () => analyticsService }}>
         <ActivityHost dependencies={dependencies} />
       </TestContainerProvider>
     );
@@ -435,6 +491,6 @@ describe(ActivityHost.name, () => {
       rerender(host());
     };
 
-    return { useLatestActivitiesQuery, useDeploymentNames, useFlag, enqueueSnackbar, queryClient, api, user, receive };
+    return { useLatestActivitiesQuery, useDeploymentNames, useFlag, enqueueSnackbar, queryClient, api, user, receive, analyticsService, takeHeldCreateEvent };
   }
 });
