@@ -6,6 +6,7 @@ import { AlertMessageService } from "@src/modules/alert/services/alert-message/a
 import { alertNotifiedLog } from "@src/modules/alert/services/alert-notified-log";
 import { ConditionsMatcherService } from "@src/modules/alert/services/conditions-matcher/conditions-matcher.service";
 import type { MessageCallback } from "@src/modules/alert/types/message-callback.type";
+import type { AlertFeedEntry } from "@src/modules/notifications/dto/NotificationCommand.dto";
 
 type AlertCallback = (alert: GeneralAlertOutput) => Promise<void> | void;
 
@@ -56,18 +57,21 @@ export class ChainAlertService {
 
         const updatedAlert = await this.alertRepository.updateById(alert.id, update);
 
+        const message = this.alertMessageService.getMessage({
+          summary: alert.summary,
+          description: alert.description,
+          vars: {
+            alert: {
+              prev: alert,
+              next: updatedAlert
+            },
+            data: event
+          }
+        });
+        const feedEntry = feedEntryOf(alert);
+
         await onMessage({
-          payload: this.alertMessageService.getMessage({
-            summary: alert.summary,
-            description: alert.description,
-            vars: {
-              alert: {
-                prev: alert,
-                next: updatedAlert
-              },
-              data: event
-            }
-          }),
+          payload: feedEntry ? { ...message, feedEntry } : message,
           notificationChannelId: alert.notificationChannelId
         });
 
@@ -101,4 +105,12 @@ export class ChainAlertService {
       throw error;
     }
   }
+}
+
+/** Only a deployment's own deployment-closed alert reaches the feed, under the dedupe key console-api gives the close of that deployment, so the close and its alert show once. */
+function feedEntryOf(alert: GeneralAlertOutput): AlertFeedEntry | undefined {
+  if (alert.params?.type !== "DEPLOYMENT_CLOSED") return undefined;
+
+  const { dseq } = alert.params;
+  return { type: "deployment_closed_alert", alertId: alert.id, dedupeKey: `deployment_close.${dseq}`, dseq };
 }

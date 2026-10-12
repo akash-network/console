@@ -54,7 +54,8 @@ describe("lease reclaim alerts", () => {
           notificationChannelId: ownerChannel.id,
           payload: expect.objectContaining({
             summary: expect.stringContaining(dseq),
-            description: expect.stringContaining(provider)
+            description: expect.stringContaining(provider),
+            feedEntry: { type: "deployment_reclaim_alert", alertId: ownerClosedAlert.id, dedupeKey: `deployment_reclaim_alert.${ownerClosedAlert.id}`, dseq }
           })
         })
       );

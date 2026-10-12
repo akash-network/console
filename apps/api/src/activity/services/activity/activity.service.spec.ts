@@ -6,7 +6,7 @@ import { mock } from "vitest-mock-extended";
 import { ACTIVITIES_DEDUPE_KEY_INDEX, type NewActivity } from "@src/activity/model-schemas";
 import type { ActivityRepository } from "@src/activity/repositories/activity/activity.repository";
 import type { AuthService } from "@src/auth/services/auth.service";
-import type { CreateLogger } from "@src/core";
+import type { CreateLogger, TxService } from "@src/core";
 import { encodeActivityCursor } from "../../lib/activity-cursor/activity-cursor";
 import { ActivityService, type NewAlertActivity } from "./activity.service";
 
@@ -25,6 +25,46 @@ describe(ActivityService.name, () => {
 
       expect(activityRepository.createUnlessDuplicate).toHaveBeenCalledWith(activity);
       expect(logger.info).not.toHaveBeenCalled();
+    });
+
+    it("stores an activity without a dedupe key outside any transaction, leaving every alert in place", async () => {
+      const { service, activityRepository, txService } = setup();
+
+      await service.record(createNewActivity({ status: "failed", dedupeKey: null }));
+
+      expect(activityRepository.createUnlessDuplicate).toHaveBeenCalledTimes(1);
+      expect(activityRepository.deleteBy).not.toHaveBeenCalled();
+      expect(txService.transaction).not.toHaveBeenCalled();
+    });
+
+    it("replaces the deployment-closed alert holding the close's dedupe key with the close, in one transaction", async () => {
+      const { service, activityRepository, txService } = setup();
+      const activity = createNewActivity({ dedupeKey: "deployment_close.1234" });
+      const created = createActivity();
+      activityRepository.createUnlessDuplicate.mockResolvedValue(created);
+
+      await service.record(activity);
+
+      expect(txService.transaction).toHaveBeenCalledTimes(1);
+      expect(activityRepository.deleteBy).toHaveBeenCalledWith({
+        userId: activity.userId,
+        dedupeKey: "deployment_close.1234",
+        type: "deployment_closed_alert"
+      });
+      expect(activityRepository.createUnlessDuplicate).toHaveBeenCalledWith(activity);
+      expect(activityRepository.deleteBy.mock.invocationCallOrder[0]).toBeLessThan(activityRepository.createUnlessDuplicate.mock.invocationCallOrder[0]);
+    });
+
+    it("logs a failed replacement instead of failing the action that already happened", async () => {
+      const { service, activityRepository, logger } = setup();
+      const error = new Error("connection reset");
+      activityRepository.deleteBy.mockRejectedValue(error);
+      const activity = createNewActivity({ dedupeKey: "deployment_close.1234" });
+
+      await expect(service.record(activity)).resolves.toBeUndefined();
+
+      expect(activityRepository.createUnlessDuplicate).not.toHaveBeenCalled();
+      expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "ACTIVITY_RECORD_FAILED", error }));
     });
 
     it("says so when another row already reports the outcome, without failing the action", async () => {
@@ -150,16 +190,20 @@ describe(ActivityService.name, () => {
   });
 
   describe("settle", () => {
-    it("writes the outcome and its dedupe key only onto an activity that is still pending", async () => {
-      const { service, activityRepository } = setup();
+    it("writes the outcome and its dedupe key only onto an activity that is still pending, leaving every alert in place", async () => {
+      const { service, activityRepository, txService, logger } = setup();
 
       await service.settle("activity-1", createNewActivity({ status: "succeeded", meta: { dseq: "100" }, dedupeKey: "deployment_close.100" }));
 
+      expect(activityRepository.updateByIdIfStatusIn).toHaveBeenCalledTimes(1);
       expect(activityRepository.updateByIdIfStatusIn).toHaveBeenCalledWith("activity-1", ["pending"], {
         status: "succeeded",
         meta: { dseq: "100" },
         dedupeKey: "deployment_close.100"
       });
+      expect(activityRepository.deleteBy).not.toHaveBeenCalled();
+      expect(txService.transaction).not.toHaveBeenCalled();
+      expect(logger.info).not.toHaveBeenCalled();
     });
 
     it("writes the outcome over the statuses the caller allows instead", async () => {
@@ -174,15 +218,36 @@ describe(ActivityService.name, () => {
       });
     });
 
-    it("settles the activity without the dedupe key another row already holds, over the same statuses the caller allows", async () => {
-      const { service, activityRepository, logger } = setup();
+    it("takes the dedupe key from the deployment-closed alert holding it, deleting the alert in the transaction that settles the close", async () => {
+      const { service, activityRepository, txService, logger } = setup();
+      const activity = createNewActivity({ status: "succeeded", meta: { dseq: "100" }, dedupeKey: "deployment_close.100" });
       activityRepository.updateByIdIfStatusIn.mockRejectedValueOnce(createUniqueViolation(ACTIVITIES_DEDUPE_KEY_INDEX));
+
+      await service.settle("activity-1", activity, { from: ["pending", "failed"] });
+
+      expect(txService.transaction).toHaveBeenCalledTimes(1);
+      expect(activityRepository.deleteBy).toHaveBeenCalledWith({ userId: activity.userId, dedupeKey: "deployment_close.100", type: "deployment_closed_alert" });
+      expect(activityRepository.updateByIdIfStatusIn).toHaveBeenCalledTimes(2);
+      expect(activityRepository.updateByIdIfStatusIn).toHaveBeenLastCalledWith("activity-1", ["pending", "failed"], {
+        status: "succeeded",
+        meta: { dseq: "100" },
+        dedupeKey: "deployment_close.100"
+      });
+      expect(activityRepository.deleteBy.mock.invocationCallOrder[0]).toBeLessThan(activityRepository.updateByIdIfStatusIn.mock.invocationCallOrder[1]);
+      expect(logger.info).not.toHaveBeenCalled();
+    });
+
+    it("settles the activity without the dedupe key when another close holds it, over the same statuses the caller allows", async () => {
+      const { service, activityRepository, logger } = setup();
+      activityRepository.updateByIdIfStatusIn
+        .mockRejectedValueOnce(createUniqueViolation(ACTIVITIES_DEDUPE_KEY_INDEX))
+        .mockRejectedValueOnce(createUniqueViolation(ACTIVITIES_DEDUPE_KEY_INDEX));
 
       await service.settle("activity-1", createNewActivity({ status: "succeeded", meta: { dseq: "100" }, dedupeKey: "deployment_close.100" }), {
         from: ["pending", "failed"]
       });
 
-      expect(activityRepository.updateByIdIfStatusIn).toHaveBeenCalledTimes(2);
+      expect(activityRepository.updateByIdIfStatusIn).toHaveBeenCalledTimes(3);
       expect(activityRepository.updateByIdIfStatusIn).toHaveBeenLastCalledWith("activity-1", ["pending", "failed"], {
         status: "succeeded",
         meta: { dseq: "100" },
@@ -202,6 +267,16 @@ describe(ActivityService.name, () => {
       activityRepository.updateByIdIfStatusIn.mockRejectedValueOnce(error);
 
       await expect(service.settle("activity-1", createNewActivity())).rejects.toBe(error);
+      expect(activityRepository.updateByIdIfStatusIn).toHaveBeenCalledTimes(1);
+    });
+
+    it("lets any other failure to replace the alert through", async () => {
+      const { service, activityRepository } = setup();
+      const error = new Error("connection reset");
+      activityRepository.updateByIdIfStatusIn.mockRejectedValueOnce(createUniqueViolation(ACTIVITIES_DEDUPE_KEY_INDEX));
+      activityRepository.deleteBy.mockRejectedValue(error);
+
+      await expect(service.settle("activity-1", createNewActivity({ dedupeKey: "deployment_close.100" }))).rejects.toBe(error);
       expect(activityRepository.updateByIdIfStatusIn).toHaveBeenCalledTimes(1);
     });
   });
@@ -317,8 +392,11 @@ describe(ActivityService.name, () => {
     const logger = mock<ReturnType<CreateLogger>>();
     const createLogger = vi.fn<CreateLogger>(() => logger);
 
-    const service = new ActivityService(activityRepository, authService, createLogger);
+    const txService = mock<TxService>();
+    txService.transaction.mockImplementation(async callback => await callback());
 
-    return { service, activityRepository, readRepository, updateRepository, logger, createLogger, ability };
+    const service = new ActivityService(activityRepository, authService, txService, createLogger);
+
+    return { service, activityRepository, readRepository, updateRepository, txService, logger, createLogger, ability };
   }
 });

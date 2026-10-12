@@ -1,5 +1,6 @@
 import { listOf } from "@src/components/activity/activityLabels/activityLabels";
 import type { Activity } from "@src/queries/useLatestActivitiesQuery";
+import { capitalizeFirstLetter } from "@src/utils/stringUtils";
 import { UrlService } from "@src/utils/urlUtils";
 
 /** `partial` is a bulk close that closed some of its deployments and not others. */
@@ -15,6 +16,14 @@ export interface ActivityEntry {
 }
 
 type LabelDeployment = (dseq: string | undefined) => string;
+
+const DEPLOYMENT_ALERT_COPY: Partial<Record<Activity["type"], (deployment: string) => Pick<ActivityEntry, "title" | "detail">>> = {
+  deployment_closed_alert: deployment => ({ title: `${capitalizeFirstLetter(deployment)} was closed` }),
+  deployment_reclaim_alert: deployment => ({
+    title: `${capitalizeFirstLetter(deployment)} is being reclaimed by the provider`,
+    detail: "Take action before the lease is closed."
+  })
+};
 
 /** A bulk close reads as one entry, placed where its newest close is, so it never crowds out everything else. */
 export function activityEntriesOf(activities: Activity[], labelDeployment: LabelDeployment, limit: number): ActivityEntry[] {
@@ -39,9 +48,11 @@ export function activityEntriesOf(activities: Activity[], labelDeployment: Label
   return entries;
 }
 
-export function activityEntryOf({ id, status, meta, createdAt }: Activity, labelDeployment: LabelDeployment): ActivityEntry {
+export function activityEntryOf({ id, type, status, meta, createdAt }: Activity, labelDeployment: LabelDeployment): ActivityEntry {
   const deployment = labelDeployment(meta.dseq);
   const href = meta.dseq ? UrlService.deploymentDetails(meta.dseq, status === "failed" ? "SETTINGS" : undefined) : UrlService.deploymentList();
+  const deploymentAlertCopy = meta.dseq && DEPLOYMENT_ALERT_COPY[type]?.(deployment);
+  if (deploymentAlertCopy) return { id, status, ...deploymentAlertCopy, href, createdAt };
 
   if (status === "info") return { id, status, title: meta.summary ?? "One of your alerts fired", href, createdAt };
   if (status === "pending") return { id, status, title: `Closing ${deployment}`, href, createdAt };

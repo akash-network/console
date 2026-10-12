@@ -11,7 +11,7 @@ import {
   isUnknownUser
 } from "@src/activity/repositories/activity/activity.repository";
 import { AuthService } from "@src/auth/services/auth.service";
-import { type CreateLogger, LOGGER_FACTORY } from "@src/core";
+import { type CreateLogger, LOGGER_FACTORY, TxService } from "@src/core";
 
 export type ActivityPage = { activities: ActivityOutput[]; hasMore: boolean; nextCursor: string | null };
 
@@ -24,6 +24,7 @@ export class ActivityService {
   constructor(
     private readonly activityRepository: ActivityRepository,
     private readonly authService: AuthService,
+    private readonly txService: TxService,
     @inject(LOGGER_FACTORY) createLogger: CreateLogger
   ) {
     this.#logger = createLogger({ context: ActivityService.name });
@@ -32,7 +33,7 @@ export class ActivityService {
   /** The action has already happened by the time it is recorded, so a failed write is logged rather than failing the request that performed it. */
   async record(activity: NewActivity): Promise<void> {
     try {
-      const recorded = await this.activityRepository.createUnlessDuplicate(activity);
+      const recorded = await this.#replacingClosedAlert(activity, async () => await this.activityRepository.createUnlessDuplicate(activity));
       if (!recorded) this.#logger.info({ event: "ACTIVITY_RECORD_DEDUPED", userId: activity.userId, type: activity.type, dedupeKey: activity.dedupeKey });
     } catch (error) {
       this.#logger.error({ event: "ACTIVITY_RECORD_FAILED", userId: activity.userId, type: activity.type, status: activity.status, error });
@@ -63,19 +64,39 @@ export class ActivityService {
     return await this.activityRepository.findOneBy({ userId, dedupeKey });
   }
 
-  /** Guarded on `pending` unless told otherwise, so a late or repeated settle never overwrites an outcome already recorded; when another row already holds the dedupe key, the row still settles without it. */
+  /** Guarded on `pending` unless told otherwise, so a late or repeated settle never overwrites an outcome already recorded nor deletes an alert for nothing; another close holding the dedupe key leaves the row to settle without it. */
   async settle(
     id: string,
-    { status, meta, dedupeKey }: Pick<NewActivity, "status" | "meta" | "dedupeKey">,
+    { userId, status, meta, dedupeKey }: Pick<NewActivity, "userId" | "status" | "meta" | "dedupeKey">,
     { from = ["pending"] }: { from?: ActivityStatus[] } = {}
   ): Promise<void> {
+    const settleHolding = async (heldKey: string | null) => await this.activityRepository.updateByIdIfStatusIn(id, from, { status, meta, dedupeKey: heldKey });
+
+    if (!(await this.#isRefusedForTakenKey(() => settleHolding(dedupeKey)))) return;
+    if (!(await this.#isRefusedForTakenKey(() => this.#replacingClosedAlert({ userId, dedupeKey }, () => settleHolding(dedupeKey))))) return;
+
+    this.#logger.info({ event: "ACTIVITY_SETTLE_DEDUPED", activityId: id, status, dedupeKey });
+    await settleHolding(null);
+  }
+
+  async #isRefusedForTakenKey(write: () => Promise<void>): Promise<boolean> {
     try {
-      await this.activityRepository.updateByIdIfStatusIn(id, from, { status, meta, dedupeKey });
+      await write();
+      return false;
     } catch (error) {
-      if (!isDedupeKeyTaken(error)) throw error;
-      this.#logger.info({ event: "ACTIVITY_SETTLE_DEDUPED", activityId: id, status, dedupeKey });
-      await this.activityRepository.updateByIdIfStatusIn(id, from, { status, meta, dedupeKey: null });
+      if (isDedupeKeyTaken(error)) return true;
+      throw error;
     }
+  }
+
+  /** The close takes the dedupe key from a deployment-closed alert that reported it first, because only the close says who closed the deployment and why. */
+  async #replacingClosedAlert<T>({ userId, dedupeKey }: Pick<NewActivity, "userId" | "dedupeKey">, write: () => Promise<T>): Promise<T> {
+    if (!dedupeKey) return await write();
+
+    return await this.txService.transaction(async () => {
+      await this.activityRepository.deleteBy({ userId, dedupeKey, type: "deployment_closed_alert" });
+      return await write();
+    });
   }
 
   async list({ limit, cursor, status, type }: { limit: number; cursor?: string; status?: ActivityStatus; type?: ActivityType }): Promise<ActivityPage> {
