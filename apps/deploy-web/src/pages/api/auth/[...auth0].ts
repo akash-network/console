@@ -13,10 +13,12 @@ import { getIdentityProviderError } from "@src/lib/auth0/getIdentityProviderErro
 import { getStateMismatchReturnTo } from "@src/lib/auth0/getStateMismatchReturnTo/getStateMismatchReturnTo";
 import { isAccessTokenExpired } from "@src/lib/auth0/isAccessTokenExpired/isAccessTokenExpired";
 import { isInvalidSessionError } from "@src/lib/auth0/isInvalidSessionError/isInvalidSessionError";
+import { isSessionRejectedByApi } from "@src/lib/auth0/isSessionRejectedByApi/isSessionRejectedByApi";
 import { defineApiHandler } from "@src/lib/nextjs/defineApiHandler/defineApiHandler";
 import type { AppServices } from "@src/services/app-di-container/server-di-container.service";
 import { rewriteLocalRedirect } from "@src/services/auth/auth/rewrite-local-redirect";
 import type { SeverityLevel } from "@src/services/error-handler/error-handler.service";
+import type { UserSettings } from "@src/types/user";
 
 export default defineApiHandler({
   route: "/api/auth/[...auth0]",
@@ -118,10 +120,17 @@ const authHandler = once((services: AppServices) =>
           return;
         }
 
-        const userSettings = await services.sessionService.getLocalUserDetails(session).catch(error => {
+        let userSettings: UserSettings | undefined;
+        try {
+          userSettings = await services.sessionService.getLocalUserDetails(session);
+        } catch (error) {
+          if (isSessionRejectedByApi(error)) {
+            services.logger.warn({ event: "AUTH_PROFILE_SESSION_REJECTED_BY_API", url: req.url });
+            res.status(401).json({ error: "Not authenticated" });
+            return;
+          }
           services.errorHandler.reportError({ error, tags: { category: "auth0", event: "AUTH_GET_LOCAL_PROFILE_ERROR" } });
-          return undefined;
-        });
+        }
 
         res.json({ ...session.user, ...userSettings });
       } catch (error: unknown) {
