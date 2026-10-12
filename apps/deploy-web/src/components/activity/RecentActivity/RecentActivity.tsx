@@ -1,12 +1,11 @@
 "use client";
-import type { ReactNode } from "react";
 import { useId } from "react";
-import { Card, Spinner } from "@akashnetwork/ui/components";
-import { Bell, TriangleAlert } from "lucide-react";
+import { Card } from "@akashnetwork/ui/components";
 import Link from "next/link";
 
 import { activityEntriesOf, type ActivityEntry } from "@src/components/activity/activityEntries/activityEntries";
 import { ActivityEntryContent } from "@src/components/activity/ActivityEntryContent/ActivityEntryContent";
+import { ActivityFeedNotice, activityFeedStatusOf } from "@src/components/activity/ActivityFeedNotice/ActivityFeedNotice";
 import { deploymentLabelOf } from "@src/components/activity/activityLabels/activityLabels";
 import { useDeploymentNames } from "@src/hooks/useDeploymentNames/useDeploymentNames";
 import { useFlag } from "@src/hooks/useFlag";
@@ -50,29 +49,9 @@ export function RecentActivity({ dependencies: d = DEPENDENCIES }: { dependencie
 }
 
 function RecentActivityList({ entries, isLoaded, isError }: { entries: ActivityEntry[]; isLoaded: boolean; isError: boolean }) {
-  if (!isLoaded && isError) {
-    return (
-      <RecentActivityNotice icon={<TriangleAlert className="h-6 w-6 text-muted-foreground" />} title="Couldn't load your activity">
-        Try again in a moment.
-      </RecentActivityNotice>
-    );
-  }
+  const status = activityFeedStatusOf({ isLoaded, isError, entryCount: entries.length });
 
-  if (!isLoaded) {
-    return (
-      <div className="flex justify-center px-6 py-10" role="status" aria-label="Loading activity">
-        <Spinner size="small" />
-      </div>
-    );
-  }
-
-  if (entries.length === 0) {
-    return (
-      <RecentActivityNotice icon={<Bell className="h-6 w-6 text-muted-foreground" />} title="No activity yet">
-        When you close a deployment, you can follow how it goes here.
-      </RecentActivityNotice>
-    );
-  }
+  if (status !== "listed") return <ActivityFeedNotice status={status} />;
 
   return (
     <ul className="divide-y divide-border">
@@ -84,15 +63,5 @@ function RecentActivityList({ entries, isLoaded, isError }: { entries: ActivityE
         </li>
       ))}
     </ul>
-  );
-}
-
-function RecentActivityNotice({ icon, title, children }: { icon: ReactNode; title: string; children: ReactNode }) {
-  return (
-    <div className="flex flex-col items-center gap-1 px-6 py-10 text-center">
-      <span className="mb-2">{icon}</span>
-      <p className="text-sm font-medium">{title}</p>
-      <p className="text-xs text-muted-foreground">{children}</p>
-    </div>
   );
 }
