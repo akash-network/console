@@ -6,6 +6,10 @@ type ListActivitiesResponse = paths["/v1/activities"]["get"]["responses"][200]["
 
 export type Activity = ListActivitiesResponse["data"]["activities"][number];
 
+export type ActivityOfAnyType = Omit<Activity, "type"> & { type: string };
+
+const KNOWN_ACTIVITY_TYPES: Record<Activity["type"], true> = { deployment_close: true };
+
 export const PENDING_ACTIVITY_POLL_MS = 5_000;
 
 export const IDLE_ACTIVITY_POLL_MS = 30_000;
@@ -17,13 +21,27 @@ export function activityPollIntervalOf(response: ListActivitiesResponse | undefi
   return response?.data.activities.some(activity => activity.status === "pending") ? PENDING_ACTIVITY_POLL_MS : IDLE_ACTIVITY_POLL_MS;
 }
 
+/** The api and the web app deploy separately, so every reader of the feed skips the types this bundle has no wording for yet. */
+export function isKnownActivity(activity: ActivityOfAnyType): activity is Activity {
+  return Object.hasOwn(KNOWN_ACTIVITY_TYPES, activity.type);
+}
+
 export function useLatestActivitiesQuery(options: { enabled: boolean }) {
-  return useLatestActivitiesResponse(options, response => response.data.activities, { polls: true });
+  return useLatestActivitiesResponse(options, response => response.data.activities.filter(isKnownActivity), { polls: true });
 }
 
 /** Every observer polls on its own timer, so a reader of the feed the activity host already polls must not add one. */
 export function useActivityFeedQuery(options: { enabled: boolean }) {
-  return useLatestActivitiesResponse(options, response => ({ activities: response.data.activities, unseenCount: response.data.unseenCount }), { polls: false });
+  return useLatestActivitiesResponse(options, activityFeedOf, { polls: false });
+}
+
+/** `unseenCount` counts the skipped types too, so marking seen goes up to the newest activity of any type. */
+function activityFeedOf(response: ListActivitiesResponse) {
+  return {
+    activities: response.data.activities.filter(isKnownActivity),
+    unseenCount: response.data.unseenCount,
+    newestCreatedAt: response.data.activities[0]?.createdAt
+  };
 }
 
 /** React Query pauses interval refetches while the tab is hidden, so a background tab stops checking until it is shown again. */

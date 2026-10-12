@@ -2,7 +2,7 @@ import type { paths } from "@akashnetwork/console-api-types";
 import { keepPreviousData } from "@tanstack/react-query";
 
 import { useServices } from "@src/context/ServicesProvider";
-import { type Activity, PENDING_ACTIVITY_POLL_MS } from "./useLatestActivitiesQuery";
+import { type Activity, isKnownActivity, PENDING_ACTIVITY_POLL_MS } from "./useLatestActivitiesQuery";
 
 type ListActivitiesResponse = paths["/v1/activities"]["get"]["responses"][200]["content"]["application/json"];
 
@@ -23,7 +23,7 @@ export function useActivityHistoryQuery({ status, type, cursor }: ActivityHistor
     { limit: ACTIVITY_HISTORY_PAGE_SIZE, ...(status && { status }), ...(type && { type }), ...(cursor && { cursor }) },
     {
       placeholderData: keepPreviousData,
-      select: response => ({ activities: response.data.activities, nextCursor: response.data.pagination.nextCursor }),
+      select: response => ({ activities: response.data.activities.filter(isKnownActivity), nextCursor: response.data.pagination.nextCursor }),
       refetchInterval: query => historyPollIntervalOf(query.state.data)
     }
   );

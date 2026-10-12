@@ -2,9 +2,10 @@ import { createProxy } from "@akashnetwork/react-query-proxy";
 import { describe, expect, it, vi } from "vitest";
 
 import { ACTIVITY_HISTORY_PAGE_SIZE, historyPollIntervalOf, useActivityHistoryQuery } from "./useActivityHistoryQuery";
+import type { ActivityOfAnyType } from "./useLatestActivitiesQuery";
 import { PENDING_ACTIVITY_POLL_MS } from "./useLatestActivitiesQuery";
 
-import { buildActivity } from "@tests/seeders/activity";
+import { buildActivity, buildActivityOfUnknownType } from "@tests/seeders/activity";
 import { type RenderAppHookOptions, setupQuery } from "@tests/unit/query-client";
 
 type ApiService = ReturnType<NonNullable<NonNullable<RenderAppHookOptions["services"]>["api"]>>;
@@ -18,6 +19,15 @@ describe(useActivityHistoryQuery.name, () => {
       expect(result.current.data).toEqual({ activities, nextCursor: "cursor-2" });
     });
     expect(listActivities).toHaveBeenCalledWith({ limit: ACTIVITY_HISTORY_PAGE_SIZE });
+  });
+
+  it("skips the entries of a type it doesn't know yet", async () => {
+    const known = buildActivity({ status: "succeeded" });
+    const { result } = setup({ activities: [buildActivityOfUnknownType(), known], nextCursor: "cursor-2" });
+
+    await vi.waitFor(() => {
+      expect(result.current.data).toEqual({ activities: [known], nextCursor: "cursor-2" });
+    });
   });
 
   it("passes the filters and the cursor of the page it asks for", async () => {
@@ -49,15 +59,11 @@ describe(useActivityHistoryQuery.name, () => {
     });
   });
 
-  function responseOf(activities: ReturnType<typeof buildActivity>[], nextCursor: string | null) {
+  function responseOf<T extends ActivityOfAnyType>(activities: T[], nextCursor: string | null) {
     return { data: { activities, unseenCount: 0, pagination: { limit: ACTIVITY_HISTORY_PAGE_SIZE, hasMore: nextCursor !== null, nextCursor } } };
   }
 
-  function setup(input: {
-    activities: ReturnType<typeof buildActivity>[];
-    nextCursor?: string | null;
-    filters?: Parameters<typeof useActivityHistoryQuery>[0];
-  }) {
+  function setup(input: { activities: ActivityOfAnyType[]; nextCursor?: string | null; filters?: Parameters<typeof useActivityHistoryQuery>[0] }) {
     const listActivities = vi.fn().mockResolvedValue(responseOf(input.activities, input.nextCursor ?? null));
     const api = createProxy({ v1: { listActivities } }) as unknown as ApiService;
 
