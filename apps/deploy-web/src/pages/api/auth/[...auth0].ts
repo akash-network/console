@@ -13,6 +13,7 @@ import { getIdentityProviderError } from "@src/lib/auth0/getIdentityProviderErro
 import { getStateMismatchReturnTo } from "@src/lib/auth0/getStateMismatchReturnTo/getStateMismatchReturnTo";
 import { isAccessTokenExpired } from "@src/lib/auth0/isAccessTokenExpired/isAccessTokenExpired";
 import { isInvalidSessionError } from "@src/lib/auth0/isInvalidSessionError/isInvalidSessionError";
+import { loadSessionProfile } from "@src/lib/auth0/loadSessionProfile/loadSessionProfile";
 import { defineApiHandler } from "@src/lib/nextjs/defineApiHandler/defineApiHandler";
 import type { AppServices } from "@src/services/app-di-container/server-di-container.service";
 import { rewriteLocalRedirect } from "@src/services/auth/auth/rewrite-local-redirect";
@@ -118,12 +119,13 @@ const authHandler = once((services: AppServices) =>
           return;
         }
 
-        const userSettings = await services.sessionService.getLocalUserDetails(session).catch(error => {
-          services.errorHandler.reportError({ error, tags: { category: "auth0", event: "AUTH_GET_LOCAL_PROFILE_ERROR" } });
-          return undefined;
-        });
+        const profile = await loadSessionProfile(session, services);
+        if (profile.err) {
+          res.status(401).json({ error: "Not authenticated" });
+          return;
+        }
 
-        res.json({ ...session.user, ...userSettings });
+        res.json(profile.val);
       } catch (error: unknown) {
         if (isInvalidSessionError(error)) {
           services.logger.warn({ event: "AUTH_SESSION_INVALID", url: req.url });
