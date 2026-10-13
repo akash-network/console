@@ -19,12 +19,15 @@ const listOrganizationsRoute = createRoute({
   method: "get",
   path: "/v1/organizations",
   operationId: "listOrganizations",
-  summary: "List the organizations the caller belongs to, marking the one this request ran in",
+  summary: "List the organizations the caller belongs to, marking the one this request ran in; an API key lists only the organization it acts in",
   tags: ["Organizations"],
   security: SECURITY_BEARER_OR_API_KEY,
   featureFlag: FeatureFlags.ORGANIZATIONS,
   responses: {
-    200: { description: "The caller's organizations", content: { "application/json": { schema: ListOrganizationsResponseSchema } } },
+    200: {
+      description: "The caller's organizations, or only the API key's organization",
+      content: { "application/json": { schema: ListOrganizationsResponseSchema } }
+    },
     400: { description: "The organization header names another organization than the API key's" },
     401: { description: "Unauthorized" },
     403: { description: "The organization or project header names one the caller cannot reach" }

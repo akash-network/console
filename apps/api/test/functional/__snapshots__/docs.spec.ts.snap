@@ -2624,6 +2624,18 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                           "name": {
                             "type": "string",
                           },
+                          "organizationId": {
+                            "description": "The organization the key acts in. Null for a key created before organizations, which acts in its owner's personal organization.",
+                            "format": "uuid",
+                            "nullable": true,
+                            "type": "string",
+                          },
+                          "projectId": {
+                            "description": "The only project the key reaches, or null when it reaches every project its owner can.",
+                            "format": "uuid",
+                            "nullable": true,
+                            "type": "string",
+                          },
                           "updatedAt": {
                             "format": "date-time",
                             "type": "string",
@@ -2637,6 +2649,8 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                           "updatedAt",
                           "lastUsedAt",
                           "keyFormat",
+                          "organizationId",
+                          "projectId",
                         ],
                         "type": "object",
                       },
@@ -2679,6 +2693,11 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                         "type": "string",
                       },
                       "name": {
+                        "type": "string",
+                      },
+                      "projectId": {
+                        "description": "Limits the key to one project of the organization it is created in.",
+                        "format": "uuid",
                         "type": "string",
                       },
                     },
@@ -2731,6 +2750,18 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                         "name": {
                           "type": "string",
                         },
+                        "organizationId": {
+                          "description": "The organization the key acts in. Null for a key created before organizations, which acts in its owner's personal organization.",
+                          "format": "uuid",
+                          "nullable": true,
+                          "type": "string",
+                        },
+                        "projectId": {
+                          "description": "The only project the key reaches, or null when it reaches every project its owner can.",
+                          "format": "uuid",
+                          "nullable": true,
+                          "type": "string",
+                        },
                         "updatedAt": {
                           "format": "date-time",
                           "type": "string",
@@ -2744,6 +2775,8 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                         "updatedAt",
                         "lastUsedAt",
                         "keyFormat",
+                        "organizationId",
+                        "projectId",
                         "apiKey",
                       ],
                       "type": "object",
@@ -2866,6 +2899,18 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                         "name": {
                           "type": "string",
                         },
+                        "organizationId": {
+                          "description": "The organization the key acts in. Null for a key created before organizations, which acts in its owner's personal organization.",
+                          "format": "uuid",
+                          "nullable": true,
+                          "type": "string",
+                        },
+                        "projectId": {
+                          "description": "The only project the key reaches, or null when it reaches every project its owner can.",
+                          "format": "uuid",
+                          "nullable": true,
+                          "type": "string",
+                        },
                         "updatedAt": {
                           "format": "date-time",
                           "type": "string",
@@ -2879,6 +2924,8 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                         "updatedAt",
                         "lastUsedAt",
                         "keyFormat",
+                        "organizationId",
+                        "projectId",
                       ],
                       "type": "object",
                     },
@@ -2990,6 +3037,18 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                         "name": {
                           "type": "string",
                         },
+                        "organizationId": {
+                          "description": "The organization the key acts in. Null for a key created before organizations, which acts in its owner's personal organization.",
+                          "format": "uuid",
+                          "nullable": true,
+                          "type": "string",
+                        },
+                        "projectId": {
+                          "description": "The only project the key reaches, or null when it reaches every project its owner can.",
+                          "format": "uuid",
+                          "nullable": true,
+                          "type": "string",
+                        },
                         "updatedAt": {
                           "format": "date-time",
                           "type": "string",
@@ -3003,6 +3062,8 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                         "updatedAt",
                         "lastUsedAt",
                         "keyFormat",
+                        "organizationId",
+                        "projectId",
                       ],
                       "type": "object",
                     },
