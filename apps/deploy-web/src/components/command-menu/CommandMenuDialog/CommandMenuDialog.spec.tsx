@@ -19,7 +19,7 @@ describe(CommandMenuDialog.name, () => {
 
     expect(screen.getByRole("dialog", { name: "Command menu" })).toBeInTheDocument();
     expect(screen.getByRole("combobox")).toHaveFocus();
-    expect(screen.getByRole("combobox")).toHaveAttribute("placeholder", "Search or run a command — try “>” for actions");
+    expect(screen.getByRole("combobox")).toHaveAttribute("placeholder", "Search or run a command (try “>” for actions)");
     expect(selectedOption()).toHaveTextContent("New deployment");
     expect(screen.getByRole("combobox")).toHaveAttribute("aria-activedescendant", selectedOption().id);
     expect(screen.queryByText(/No results/)).not.toBeInTheDocument();

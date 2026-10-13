@@ -26,7 +26,7 @@ const SCOPE_TOGGLES: { prefix: ScopePrefix; label: string }[] = [
   { prefix: "/", label: "pages" }
 ];
 
-const PLACEHOLDER = "Search or run a command — try “>” for actions";
+const PLACEHOLDER = "Search or run a command (try “>” for actions)";
 
 export function CommandMenuDialog({ isOpen, onOpenChange, dependencies = DEPENDENCIES }: Props) {
   const hasRunItemRef = useRef(false);
