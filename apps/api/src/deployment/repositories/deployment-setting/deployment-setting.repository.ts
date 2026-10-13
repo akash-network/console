@@ -425,7 +425,8 @@ export class DeploymentSettingRepository extends OrgScopedRepository<Table, Depl
         createdAt: this.table.createdAt
       })
       .from(this.table)
-      .innerJoin(UserWallets, eq(this.table.userId, UserWallets.userId))
+      .leftJoin(TeamOrganizations, isFiledInTeam)
+      .innerJoin(UserWallets, eq(UserWallets.id, ownerWalletId))
       .where(
         this.whereAccessibleBy(
           and(eq(this.table.organizationId, organizationId), eq(this.table.projectId, projectId), eq(this.table.closed, false), isNotNull(UserWallets.address))

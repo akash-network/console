@@ -127,7 +127,7 @@ describe(DeploymentSettingRepository.name, () => {
   describe("findOpenInProject and markAsClosedInProject", () => {
     it("read and close only the open rows of the project inside the organization they name", async () => {
       const deploymentSettingRepository = container.resolve(DeploymentSettingRepository);
-      const [tenant, foreign] = await Promise.all([seedOrganizationWithOwner(), seedOrganizationWithOwner()]);
+      const [tenant, foreign] = await Promise.all([seedOrganizationWithOwner({ type: "personal" }), seedOrganizationWithOwner()]);
       const address = createAkashAddress();
       await container
         .resolve<ApiPgDatabase>(POSTGRES_DB)
@@ -2353,6 +2353,15 @@ describe(DeploymentSettingRepository.name, () => {
       expect(trialDeployments.map(deployment => deployment.dseq)).not.toContain(teamDeployment.dseq);
     });
 
+    it("reads a team project's open deployments under the organization's wallet address, not the member's", async () => {
+      const { deploymentSettingRepository, member, teamWallet, team, teamProject } = await setupTeamDeployment();
+      const inTeamProject = await seedDeploymentSetting({ userId: member.id, organizationId: team.id, projectId: teamProject.id });
+
+      const found = await deploymentSettingRepository.findOpenInProject({ organizationId: team.id, projectId: teamProject.id });
+
+      expect(found).toEqual([expect.objectContaining({ id: inTeamProject.id, address: teamWallet.address })]);
+    });
+
     it("resolves the wallet that owns each deployment", async () => {
       const { deploymentSettingRepository, member, teamWallet, personalWallet, teamDeployment } = await setupTeamDeployment();
       const ownDeployment = await seedDeploymentSetting({ userId: member.id });
@@ -2386,13 +2395,13 @@ describe(DeploymentSettingRepository.name, () => {
       const deploymentSettingRepository = container.resolve(DeploymentSettingRepository);
       const userWalletRepository = container.resolve(UserWalletRepository);
       const { user: member, wallet: personalWallet } = await seedUserWithWallet({ isTrialing: true, activatedAt: new Date() });
-      const { organization: team } = await seedOrganizationWithOwner();
+      const { organization: team, project: teamProject } = await seedOrganizationWithOwner();
       await seedOrganizationMember({ organizationId: team.id, userId: member.id });
       const { wallet } = await userWalletRepository.getOrCreateForOrganization({ organizationId: team.id, createdByUserId: member.id });
       const teamWallet = await userWalletRepository.updateById(wallet.id, { address: createAkashAddress(), activatedAt: new Date() }, { returning: true });
       const teamDeployment = await seedDeploymentSetting({ userId: member.id, organizationId: team.id });
 
-      return { deploymentSettingRepository, member, personalWallet, teamWallet, teamDeployment, team };
+      return { deploymentSettingRepository, member, personalWallet, teamWallet, teamDeployment, team, teamProject };
     }
   });
 
