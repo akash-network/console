@@ -20,7 +20,7 @@ export function useGlobalShortcuts(handlers: GlobalShortcutHandlers) {
       if (event.defaultPrevented || !isMenuToggleKey(event, isMac)) return;
 
       event.preventDefault();
-      handlersRef.current.onToggleMenu();
+      if (!event.repeat) handlersRef.current.onToggleMenu();
     };
 
     window.addEventListener("keydown", handleKeyDown);

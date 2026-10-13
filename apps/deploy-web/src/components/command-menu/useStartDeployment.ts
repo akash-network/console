@@ -17,7 +17,6 @@ const CONFIGURE_PATH = UrlService.configureDeployment({});
 
 export const DEPENDENCIES = { useRouter, usePathname, usePopup };
 
-/** Starts a deployment the way the matching new deployment card does, asking first when it would replace a configuration in progress. */
 export function useStartDeployment(dependencies: typeof DEPENDENCIES = DEPENDENCIES) {
   const router = dependencies.useRouter();
   const pathname = dependencies.usePathname();

@@ -72,7 +72,7 @@ describe(useCommandMenuItems.name, () => {
       run("actions", "Add funds");
 
       expect(runWhenEmailVerified).toHaveBeenCalledWith("Verify your email to add funds to your balance.", expect.any(Function));
-      expect(openAddCredits).toHaveBeenCalled();
+      expect(openAddCredits).toHaveBeenCalledWith({ context: "command_menu" });
     });
 
     it("leaves the add credits sheet closed until the email is verified", () => {
@@ -81,6 +81,12 @@ describe(useCommandMenuItems.name, () => {
       run("actions", "Add funds");
 
       expect(openAddCredits).not.toHaveBeenCalled();
+    });
+
+    it("keeps the user on the page only for the theme switch", () => {
+      const { sections } = setup({ active: [deployment({ dseq: "100" })] });
+
+      expect(sections.flatMap(section => section.items.filter(item => item.staysOnPage).map(item => item.id))).toEqual(["action-toggle-theme"]);
     });
 
     it("switches a dark theme to light", () => {
@@ -162,12 +168,12 @@ describe(useCommandMenuItems.name, () => {
     });
 
     it.each<{ input: string; request: Pick<DeploymentsListSourceInput, "search" | "pageSize"> }>([
-      { input: "", request: { search: "", pageSize: 5 } },
+      { input: "", request: { search: "", pageSize: 6 } },
       { input: "Web", request: { search: "web", pageSize: 6 } },
       { input: "@ web", request: { search: "web", pageSize: 50 } },
       { input: "@", request: { search: "", pageSize: 50 } },
-      { input: "> web", request: { search: "", pageSize: 5 } },
-      { input: "/ web", request: { search: "", pageSize: 5 } }
+      { input: "> web", request: { search: "", pageSize: 6 } },
+      { input: "/ web", request: { search: "", pageSize: 6 } }
     ])("asks for $request.pageSize deployments matching '$request.search' for '$input'", ({ input, request }) => {
       const { useApiDeploymentsListSource } = setup({ input });
 
@@ -208,7 +214,7 @@ describe(useCommandMenuItems.name, () => {
   });
 
   function deployment(input: Partial<ListedDeploymentDto> & { dseq: string }) {
-    return { name: `deployment-${input.dseq}`, state: "active", leases: [], ...input } as ListedDeploymentDto;
+    return mock<ListedDeploymentDto>({ name: `deployment-${input.dseq}`, state: "active", leases: [], ...input });
   }
 
   function listSource(active: ListedDeploymentDto[], closed: ListedDeploymentDto[]): DeploymentsListSource {
@@ -225,7 +231,7 @@ describe(useCommandMenuItems.name, () => {
   }
 
   function closedLease() {
-    return { state: "closed" } as LeaseDto;
+    return mock<LeaseDto>({ state: "closed", reason: undefined, reclamation: undefined, group: undefined });
   }
 
   function setup(input: {
@@ -236,6 +242,7 @@ describe(useCommandMenuItems.name, () => {
     resolvedTheme?: string;
     isEmailVerified?: boolean;
   }) {
+    document.cookie = "theme=; path=/; Max-Age=0";
     const push = vi.fn();
     const setTheme = vi.fn();
     const openAddCredits = vi.fn();
@@ -257,7 +264,10 @@ describe(useCommandMenuItems.name, () => {
     const { result } = renderHook(() => useCommandMenuItems({ parsed: parseQuery(input.input ?? input.query ?? "") }, dependencies));
     const sections = result.current;
     const itemsOf = (key: string): CommandItem[] => sections.find(section => section.key === key)?.items ?? [];
-    const run = (key: string, label: string) => (itemsOf(key).find(item => item.label === label) as CommandItem).run();
+    const run = (key: string, label: string) =>
+      itemsOf(key)
+        .find(item => item.label === label)
+        ?.run();
 
     return { sections, itemsOf, run, push, setTheme, openAddCredits, runWhenEmailVerified, startDeployment, useApiDeploymentsListSource };
   }

@@ -22,6 +22,16 @@ describe(useGlobalShortcuts.name, () => {
     expect(onToggleMenu).toHaveBeenCalledTimes(1);
   });
 
+  it("toggles once while the keys are held down", () => {
+    const { onToggleMenu } = setup({ platform: "MacIntel" });
+
+    fireEvent.keyDown(window, { key: "k", metaKey: true });
+    const isNotCancelled = fireEvent.keyDown(window, { key: "k", metaKey: true, repeat: true });
+
+    expect(onToggleMenu).toHaveBeenCalledTimes(1);
+    expect(isNotCancelled).toBe(false);
+  });
+
   it("ignores the other platform's modifier", () => {
     const { onToggleMenu } = setup({ platform: "Win32" });
 

@@ -22,7 +22,7 @@ describe(CommandMenuDialog.name, () => {
     expect(screen.getByRole("combobox")).toHaveAttribute("placeholder", "Search or run a command (try “>” for actions)");
     expect(selectedOption()).toHaveTextContent("New deployment");
     expect(screen.getByRole("combobox")).toHaveAttribute("aria-activedescendant", selectedOption().id);
-    expect(screen.queryByText(/No results/)).not.toBeInTheDocument();
+    expect(screen.getByRole("status")).toBeEmptyDOMElement();
   });
 
   it("leads action rows with their icon", () => {
@@ -40,6 +40,22 @@ describe(CommandMenuDialog.name, () => {
     setOpen(true);
 
     await userEvent.keyboard("{Escape}");
+    setOpen(false);
+
+    await waitFor(() => expect(screen.getByRole("button", { name: "Before" })).toHaveFocus());
+  });
+
+  it("returns the focus after running a row that keeps the user on the page", async () => {
+    const { setOpen } = setup({
+      isOpen: false,
+      sections: sectionsWith({
+        actions: [{ id: "action-toggle-theme", label: "Switch to dark theme", staysOnPage: true, action: "toggle_theme", run: vi.fn() }]
+      })
+    });
+    screen.getByRole("button", { name: "Before" }).focus();
+    setOpen(true);
+
+    await userEvent.keyboard("{Enter}");
     setOpen(false);
 
     await waitFor(() => expect(screen.getByRole("button", { name: "Before" })).toHaveFocus());
@@ -87,7 +103,7 @@ describe(CommandMenuDialog.name, () => {
     await userEvent.type(screen.getByRole("combobox"), "Zzz");
 
     expect(screen.queryAllByRole("option")).toHaveLength(0);
-    expect(screen.getByText("No results for “zzz”")).toBeInTheDocument();
+    expect(screen.getByRole("status")).toHaveTextContent("No results for “Zzz”");
     expect(screen.getByRole("combobox")).not.toHaveAttribute("aria-activedescendant");
   });
 
@@ -96,7 +112,7 @@ describe(CommandMenuDialog.name, () => {
 
     await userEvent.type(screen.getByRole("combobox"), "@");
 
-    expect(screen.getByText("No results")).toBeInTheDocument();
+    expect(screen.getByRole("status")).toHaveTextContent(/^No results$/);
   });
 
   it("moves the selection with the arrow keys and wraps at both ends", async () => {
@@ -186,7 +202,7 @@ describe(CommandMenuDialog.name, () => {
   it("closes from the esc button without running a row", async () => {
     const { runs, onOpenChange } = setup({});
 
-    await userEvent.click(screen.getByRole("button", { name: "Close" }));
+    await userEvent.click(screen.getByRole("button", { name: "Close (esc)" }));
 
     expect(onOpenChange).toHaveBeenCalledWith(false);
     expect(runs.newDeployment).not.toHaveBeenCalled();
@@ -219,6 +235,7 @@ describe(CommandMenuDialog.name, () => {
     rerenderWith(sectionsWith({ deployments: [deploymentItem({ id: "deployment-100", label: "billing-api", meta: "DSEQ 100" })] }));
 
     expect(selectedOption()).toHaveTextContent("billing-api");
+    expect(screen.getByRole("combobox")).toHaveAttribute("aria-activedescendant", selectedOption().id);
   });
 
   it("keeps a selection the user moved when late results arrive", async () => {

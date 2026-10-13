@@ -15,7 +15,6 @@ type Props = {
 const PANEL_CLASSES =
   "fixed inset-x-4 top-[12vh] z-[751] mx-auto flex max-h-[calc(100dvh-12vh-16px)] flex-col overflow-hidden rounded-[14px] border bg-popover text-popover-foreground shadow-[0_30px_70px_-20px_rgba(0,0,0,0.45)] outline-none duration-150 ease-[cubic-bezier(0.2,0.8,0.2,1)] data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-[0.985] data-[state=open]:slide-in-from-top-1.5";
 
-/** A dialog panel pinned near the top of the screen, as the command menu and the shortcuts sheet are. */
 export function CommandPanel({ isOpen, onOpenChange, className, onCloseAutoFocus, children }: Props) {
   const focusedBeforeOpenRef = useRef<Element | null>(null);
 

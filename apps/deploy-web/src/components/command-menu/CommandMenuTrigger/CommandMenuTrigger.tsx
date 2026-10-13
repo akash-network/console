@@ -26,6 +26,7 @@ export function CommandMenuTrigger({ onClick, dependencies = DEPENDENCIES }: Pro
       onClick={onClick}
       title={LABEL}
       aria-label={LABEL}
+      aria-haspopup="dialog"
       aria-keyshortcuts={shortcut?.ariaKeys}
       className="flex h-9 w-9 shrink-0 items-center justify-center gap-2 rounded-[10px] border bg-background text-muted-foreground transition-colors hover:bg-muted hover:text-foreground sm:w-auto sm:justify-start sm:pl-[11px] sm:pr-3"
     >

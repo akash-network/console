@@ -23,13 +23,15 @@ export interface CommandItem extends SearchableItem {
   icon?: LucideIcon;
   statusDotClassName?: string;
   isMonospace?: boolean;
+  staysOnPage?: boolean;
   action: CommandAction;
   run: () => void;
 }
 
 const DEPLOYMENTS_WITHOUT_QUERY = 5;
 
-const DEPLOYMENTS_MATCHING_QUERY = 6;
+/** Also used without a query, because a size change reaches the request before the search delayed by the list source does. */
+const DEPLOYMENTS_OUTSIDE_SCOPE = 6;
 
 const DEPLOYMENTS_IN_SCOPE = 50;
 
@@ -81,13 +83,14 @@ export function useCommandMenuItems({ parsed }: { parsed: ParsedQuery }, depende
       icon: Wallet,
       keywords: "billing balance top up credit",
       action: "add_funds",
-      run: () => runWhenEmailVerified(ADD_FUNDS_EMAIL_VERIFICATION_MESSAGE, () => openAddCredits())
+      run: () => runWhenEmailVerified(ADD_FUNDS_EMAIL_VERIFICATION_MESSAGE, () => openAddCredits({ context: "command_menu" }))
     },
     {
       id: "action-toggle-theme",
       label: `Switch to ${nextTheme} theme`,
       icon: nextTheme === "dark" ? Moon : Sun,
       keywords: "theme appearance mode dark light",
+      staysOnPage: true,
       action: "toggle_theme",
       run: () => {
         setTheme(nextTheme);
@@ -116,11 +119,10 @@ export function useCommandMenuItems({ parsed }: { parsed: ParsedQuery }, depende
   ];
 }
 
-/** Outside the deployments scope an empty search reuses the menu's first request instead of searching for a query no deployment row will show. */
+/** The actions and pages scopes reuse the menu's first request instead of searching for deployments no row will show. */
 function deploymentsRequestFor({ scope, query }: ParsedQuery) {
   if (scope === "deployments") return { search: query, pageSize: DEPLOYMENTS_IN_SCOPE };
-  if (scope || !query) return { search: "", pageSize: DEPLOYMENTS_WITHOUT_QUERY };
-  return { search: query, pageSize: DEPLOYMENTS_MATCHING_QUERY };
+  return { search: scope ? "" : query, pageSize: DEPLOYMENTS_OUTSIDE_SCOPE };
 }
 
 function listDeployments(source: DeploymentsListSource, { scope, query }: ParsedQuery) {

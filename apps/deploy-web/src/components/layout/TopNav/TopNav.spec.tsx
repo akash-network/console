@@ -71,8 +71,13 @@ describe(TopNav.name, () => {
     expect(screen.queryByRole("button", { name: "Search or run a command" })).not.toBeInTheDocument();
   });
 
-  it("leaves the command menu out when signed out and in minimal mode", () => {
+  it("leaves the command menu out when signed out", () => {
     setup({ isAuthenticated: false, isCommandMenuEnabled: true });
+
+    expect(screen.queryByRole("button", { name: "Search or run a command" })).not.toBeInTheDocument();
+  });
+
+  it("leaves the command menu out in minimal mode", () => {
     setup({ isAuthenticated: true, minimal: true, isCommandMenuEnabled: true });
 
     expect(screen.queryByRole("button", { name: "Search or run a command" })).not.toBeInTheDocument();

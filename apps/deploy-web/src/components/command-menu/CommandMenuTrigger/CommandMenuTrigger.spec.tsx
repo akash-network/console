@@ -12,6 +12,7 @@ describe(CommandMenuTrigger.name, () => {
     setup({ isMac: true });
 
     expect(screen.getByRole("button", { name: "Search or run a command" })).toHaveAttribute("title", "Search or run a command");
+    expect(screen.getByRole("button", { name: "Search or run a command" })).toHaveAttribute("aria-haspopup", "dialog");
   });
 
   it("shows the Mac shortcut on a Mac", () => {

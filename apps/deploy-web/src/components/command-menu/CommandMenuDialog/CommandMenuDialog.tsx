@@ -29,7 +29,7 @@ const SCOPE_TOGGLES: { prefix: ScopePrefix; label: string }[] = [
 const PLACEHOLDER = "Search or run a command (try “>” for actions)";
 
 export function CommandMenuDialog({ isOpen, onOpenChange, dependencies = DEPENDENCIES }: Props) {
-  const hasRunItemRef = useRef(false);
+  const skipsFocusReturnRef = useRef(false);
 
   return (
     <CommandPanel
@@ -37,15 +37,15 @@ export function CommandMenuDialog({ isOpen, onOpenChange, dependencies = DEPENDE
       onOpenChange={onOpenChange}
       className="max-w-[640px]"
       onCloseAutoFocus={event => {
-        if (hasRunItemRef.current) event.preventDefault();
-        hasRunItemRef.current = false;
+        if (skipsFocusReturnRef.current) event.preventDefault();
+        skipsFocusReturnRef.current = false;
       }}
     >
       <DialogTitle className="sr-only">Command menu</DialogTitle>
       <CommandMenuPanel
         onClose={() => onOpenChange(false)}
-        onRunItem={() => {
-          hasRunItemRef.current = true;
+        onRunItem={item => {
+          skipsFocusReturnRef.current = !item.staysOnPage;
           onOpenChange(false);
         }}
         dependencies={dependencies}
@@ -56,7 +56,7 @@ export function CommandMenuDialog({ isOpen, onOpenChange, dependencies = DEPENDE
 
 type PanelProps = {
   onClose: () => void;
-  onRunItem: () => void;
+  onRunItem: (item: CommandItem) => void;
   dependencies: typeof DEPENDENCIES;
 };
 
@@ -83,7 +83,7 @@ function CommandMenuPanel({ onClose, onRunItem, dependencies }: PanelProps) {
 
   const runItem = (item: CommandItem) => {
     analyticsService.track("command_menu_action_ran", { action: item.action, via: "menu" });
-    onRunItem();
+    onRunItem(item);
     item.run();
   };
 
@@ -113,7 +113,7 @@ function CommandMenuPanel({ onClose, onRunItem, dependencies }: PanelProps) {
         />
         <button
           type="button"
-          aria-label="Close"
+          aria-label="Close (esc)"
           onMouseDown={keepInputFocused}
           onClick={onClose}
           className="rounded-md border bg-background px-1.5 py-0.5 font-mono text-[11px] text-muted-foreground hover:text-foreground"
@@ -123,9 +123,6 @@ function CommandMenuPanel({ onClose, onRunItem, dependencies }: PanelProps) {
       </div>
 
       <CommandList className="max-h-[min(440px,58vh)] overscroll-contain px-2 pb-2 pt-0.5">
-        {rows.length === 0 && (
-          <p className="px-3 py-10 text-center text-sm text-muted-foreground">{parsed.query ? `No results for “${parsed.query}”` : "No results"}</p>
-        )}
         {sections.map(section => (
           <CommandGroup
             key={section.key}
@@ -138,6 +135,9 @@ function CommandMenuPanel({ onClose, onRunItem, dependencies }: PanelProps) {
           </CommandGroup>
         ))}
       </CommandList>
+      <p role="status" className="px-3 py-10 text-center text-sm text-muted-foreground empty:p-0">
+        {rows.length === 0 && describeNoResults(input)}
+      </p>
 
       <div className="flex shrink-0 items-center justify-between gap-3 border-t px-4 py-2 text-xs text-muted-foreground">
         <div className="flex items-center gap-3.5">
@@ -205,6 +205,12 @@ function FooterHint({ keys, children }: { keys: string; children: ReactNode }) {
       {children}
     </span>
   );
+}
+
+function describeNoResults(input: string) {
+  const typedQuery = applyScope(input, null).trim();
+
+  return typedQuery ? `No results for “${typedQuery}”` : "No results";
 }
 
 /** cmdk 1.0.0 reads the input's active descendant once, before any row exists, so it never reaches assistive tech. */
