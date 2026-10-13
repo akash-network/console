@@ -1,9 +1,13 @@
 import { faker } from "@faker-js/faker";
+import { sql } from "drizzle-orm";
 import { container } from "tsyringe";
 import { afterEach, describe, expect, it } from "vitest";
 
+import { type ApiPgDatabase, POSTGRES_DB, resolveTable } from "@src/core";
 import { UserRepository } from "@src/user/repositories";
 import { type StripeTransactionInput, StripeTransactionRepository } from "./stripe-transaction.repository";
+
+import { seedOrganizationWithOwner } from "@test/seeders/db/organization.seeder";
 
 describe(StripeTransactionRepository.name, () => {
   describe("findByChargeIds", () => {
@@ -334,6 +338,91 @@ describe(StripeTransactionRepository.name, () => {
       currency: "usd"
     };
   }
+
+  describe("findCouponClaimsOutside", () => {
+    it("finds a claim the person made for themselves when they redeem the same coupon for a team", async () => {
+      const { stripeTransactionRepository, createTestUser } = setup();
+      const { organization: team } = await seedOrganizationWithOwner();
+      const user = await createTestUser();
+      const claim = await stripeTransactionRepository.create({
+        userId: user.id,
+        type: "coupon_claim",
+        status: "succeeded",
+        amount: 1000,
+        stripeCouponId: "coupon_1"
+      });
+
+      expect(await stripeTransactionRepository.findCouponClaimsOutside({ userId: user.id, couponId: "coupon_1", owner: { organizationId: team.id } })).toEqual([
+        { id: claim.id, status: "succeeded", stripeInvoiceId: null, isStale: false }
+      ]);
+      expect(await stripeTransactionRepository.findCouponClaimsOutside({ userId: user.id, couponId: "coupon_1", owner: { userId: user.id } })).toEqual([]);
+    });
+
+    it("finds a claim the person made for a team when they redeem the same coupon for themselves or another team", async () => {
+      const { stripeTransactionRepository, createTestUser } = setup();
+      const [{ organization: team }, { organization: otherTeam }] = await Promise.all([seedOrganizationWithOwner(), seedOrganizationWithOwner()]);
+      const user = await createTestUser();
+      await stripeTransactionRepository.create({
+        userId: user.id,
+        organizationId: team.id,
+        type: "coupon_claim",
+        status: "pending",
+        amount: 1000,
+        stripeCouponId: "coupon_1"
+      });
+
+      expect(await stripeTransactionRepository.findCouponClaimsOutside({ userId: user.id, couponId: "coupon_1", owner: { userId: user.id } })).toHaveLength(1);
+      expect(
+        await stripeTransactionRepository.findCouponClaimsOutside({ userId: user.id, couponId: "coupon_1", owner: { organizationId: otherTeam.id } })
+      ).toHaveLength(1);
+      expect(await stripeTransactionRepository.findCouponClaimsOutside({ userId: user.id, couponId: "coupon_1", owner: { organizationId: team.id } })).toEqual(
+        []
+      );
+    });
+
+    it("drops a claim left pending for more than an hour without an invoice", async () => {
+      const { stripeTransactionRepository, createTestUser } = setup();
+      const { organization: team } = await seedOrganizationWithOwner();
+      const user = await createTestUser();
+      await insertStaleClaim({ userId: user.id, stripeInvoiceId: null });
+
+      expect(await stripeTransactionRepository.findCouponClaimsOutside({ userId: user.id, couponId: "coupon_1", owner: { organizationId: team.id } })).toEqual(
+        []
+      );
+    });
+
+    it("keeps a claim left pending for more than an hour with an invoice, marked stale", async () => {
+      const { stripeTransactionRepository, createTestUser } = setup();
+      const { organization: team } = await seedOrganizationWithOwner();
+      const user = await createTestUser();
+      const invoiceId = `in_${faker.string.alphanumeric(14)}`;
+      await insertStaleClaim({ userId: user.id, stripeInvoiceId: invoiceId });
+
+      expect(await stripeTransactionRepository.findCouponClaimsOutside({ userId: user.id, couponId: "coupon_1", owner: { organizationId: team.id } })).toEqual([
+        expect.objectContaining({ status: "pending", stripeInvoiceId: invoiceId, isStale: true })
+      ]);
+    });
+
+    it("ignores another coupon, another person and a claim that never went through", async () => {
+      const { stripeTransactionRepository, createTestUser } = setup();
+      const { organization: team } = await seedOrganizationWithOwner();
+      const [user, otherUser] = await Promise.all([createTestUser(), createTestUser()]);
+      await stripeTransactionRepository.create({ userId: user.id, type: "coupon_claim", status: "succeeded", amount: 1000, stripeCouponId: "coupon_2" });
+      await stripeTransactionRepository.create({ userId: otherUser.id, type: "coupon_claim", status: "succeeded", amount: 1000, stripeCouponId: "coupon_1" });
+      await stripeTransactionRepository.create({ userId: user.id, type: "coupon_claim", status: "failed", amount: 1000, stripeCouponId: "coupon_1" });
+
+      expect(await stripeTransactionRepository.findCouponClaimsOutside({ userId: user.id, couponId: "coupon_1", owner: { organizationId: team.id } })).toEqual(
+        []
+      );
+    });
+
+    async function insertStaleClaim(input: { userId: string; stripeInvoiceId: string | null }) {
+      await container
+        .resolve<ApiPgDatabase>(POSTGRES_DB)
+        .insert(resolveTable("StripeTransactions"))
+        .values({ ...input, type: "coupon_claim", status: "pending", amount: 1000, stripeCouponId: "coupon_1", createdAt: sql`now() - interval '2 hours'` });
+    }
+  });
 
   describe("hasPaidUserWithEmailDomain", () => {
     it.each([
