@@ -1,7 +1,8 @@
-import { and, count, desc, eq, exists, gte, inArray, lt, lte, notInArray, SQL, sql } from "drizzle-orm";
+import { and, count, desc, eq, exists, gt, gte, inArray, isNotNull, lt, lte, notInArray, or, SQL, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { singleton } from "tsyringe";
 
+import { type BillingOwner, ownedBy } from "@src/billing/lib/billing-owner/billing-owner";
 import { type ApiPgDatabase, type ApiPgTables, InjectPg, InjectPgTable } from "@src/core/providers";
 import { OrgScopedRepository } from "@src/core/repositories/org-scoped.repository";
 import { TxService } from "@src/core/services";
@@ -29,6 +30,17 @@ export const TRIAL_PRESERVING_TRANSACTION_TYPES: Set<StripeTransactionType> = ne
  * `canceled` intentionally stay updatable so a retried attempt can resume them.
  */
 export const SETTLED_TRANSACTION_STATUSES: Set<StripeTransactionStatus> = new Set(["succeeded", "refunded"]);
+
+/** A pending claim older than this is stale: without an invoice it stops holding the coupon, with one its invoice decides. */
+const PENDING_COUPON_CLAIM_HOLD = sql`interval '1 hour'`;
+
+/** A person's claim of a coupon under another payer, which holds the coupon unless it is stale and its invoice was never paid. */
+export interface CouponClaimHold {
+  id: string;
+  status: StripeTransactionStatus;
+  stripeInvoiceId: string | null;
+  isStale: boolean;
+}
 
 export interface FindTransactionsOptions {
   userId: string;
@@ -163,6 +175,46 @@ export class StripeTransactionRepository extends OrgScopedRepository<Table, Stri
     );
 
     return item ? this.toOutput(item) : undefined;
+  }
+
+  /** Holds until the ambient transaction ends, so one person's claims of one coupon are checked and recorded one at a time. */
+  async lockCouponClaims(userId: string, couponId: string): Promise<void> {
+    const tx = this.txManager.getPgTx();
+
+    if (!tx) {
+      throw new Error(`Coupon claims of user ${userId} can only be locked inside a transaction`);
+    }
+
+    await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${`${userId}:${couponId}`}))`);
+  }
+
+  /** Reads every organization, so a coupon a person claimed under one payer is seen when they redeem it under another. */
+  async findCouponClaimsOutside(input: { userId: string; couponId: string; owner: BillingOwner }): Promise<CouponClaimHold[]> {
+    return await this.cursor
+      .select({
+        id: this.table.id,
+        status: this.table.status,
+        stripeInvoiceId: this.table.stripeInvoiceId,
+        isStale: sql<boolean>`${this.table.createdAt} <= now() - ${PENDING_COUPON_CLAIM_HOLD}`
+      })
+      .from(this.table)
+      .where(
+        this.unscoped("per-person-billing-limits").whereAccessibleBy(
+          and(
+            eq(this.table.userId, input.userId),
+            eq(this.table.type, "coupon_claim"),
+            eq(this.table.stripeCouponId, input.couponId),
+            or(
+              inArray(this.table.status, [...SETTLED_TRANSACTION_STATUSES]),
+              and(
+                eq(this.table.status, "pending"),
+                or(isNotNull(this.table.stripeInvoiceId), gt(this.table.createdAt, sql`now() - ${PENDING_COUPON_CLAIM_HOLD}`))
+              )
+            ),
+            sql`not coalesce(${ownedBy(this.table, input.owner)}, false)`
+          )
+        )
+      );
   }
 
   /**

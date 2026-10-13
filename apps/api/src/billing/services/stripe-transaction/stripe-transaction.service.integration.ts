@@ -4,17 +4,22 @@ import Stripe from "stripe";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
+import type { AuthService } from "@src/auth/services/auth.service";
 import { FundDrainingDeploymentsCommand } from "@src/billing/commands/fund-draining-deployments.command";
 import type { StripeTransactionRepository } from "@src/billing/repositories";
 import type { FirstPurchaseBonusService } from "@src/billing/services/first-purchase-bonus/first-purchase-bonus.service";
+import { PayerService } from "@src/billing/services/payer/payer.service";
 import type { RefillService } from "@src/billing/services/refill/refill.service";
 import type { AnalyticsService } from "@src/core/services/analytics/analytics.service";
 import type { DomainEventsService } from "@src/core/services/domain-events/domain-events.service";
+import type { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
 import type { TimerService } from "@src/core/services/timer/timer.service";
+import type { OrganizationRepository } from "@src/organization/repositories/organization/organization.repository";
 import type { UserRepository } from "@src/user/repositories/user/user.repository";
 import { StripeTransactionService } from "./stripe-transaction.service";
 
 import { generateDatabaseStripeTransaction } from "@test/seeders/database-stripe-transaction.seeder";
+import { createOrganization } from "@test/seeders/organization.seeder";
 import { createTestUser } from "@test/seeders/user-test.seeder";
 
 /**
@@ -67,17 +72,21 @@ describe(StripeTransactionService.name, () => {
         receiptUrl: "https://receipt.url",
         stripePaymentIntentId: paymentIntentId
       });
-      expect(refillService.topUpWallet).toHaveBeenCalledWith(amount, mockUser.id, {
-        endTrial: undefined,
-        payment: {
-          currency: internalTransaction.currency,
-          cardBrand: "visa",
-          paymentMethodType: "card",
-          transactionId: internalTransaction.id,
-          source: "payment_intent",
-          isAutoRecharge: false
+      expect(refillService.topUpWallet).toHaveBeenCalledWith(
+        amount,
+        { userId: mockUser.id, organizationId: null },
+        {
+          endTrial: undefined,
+          payment: {
+            currency: internalTransaction.currency,
+            cardBrand: "visa",
+            paymentMethodType: "card",
+            transactionId: internalTransaction.id,
+            source: "payment_intent",
+            isAutoRecharge: false
+          }
         }
-      });
+      );
       expect(domainEventsService.publish).toHaveBeenCalledWith(expect.objectContaining({ name: FundDrainingDeploymentsCommand.name, data: toppedUpWallet }), {
         singletonKey: `${FundDrainingDeploymentsCommand.name}.${toppedUpWallet.walletId}`
       });
@@ -226,18 +235,22 @@ describe(StripeTransactionService.name, () => {
         internalTransaction.id,
         expect.objectContaining({ status: "succeeded", bonusAmount })
       );
-      expect(refillService.topUpWallet).toHaveBeenCalledWith(amount + bonusAmount, mockUser.id, {
-        endTrial: undefined,
-        payment: {
-          currency: internalTransaction.currency,
-          cardBrand: undefined,
-          paymentMethodType: undefined,
-          transactionId: internalTransaction.id,
-          source: "payment_intent",
-          isAutoRecharge: false,
-          bonusAmountCents: bonusAmount
+      expect(refillService.topUpWallet).toHaveBeenCalledWith(
+        amount + bonusAmount,
+        { userId: mockUser.id, organizationId: null },
+        {
+          endTrial: undefined,
+          payment: {
+            currency: internalTransaction.currency,
+            cardBrand: undefined,
+            paymentMethodType: undefined,
+            transactionId: internalTransaction.id,
+            source: "payment_intent",
+            isAutoRecharge: false,
+            bonusAmountCents: bonusAmount
+          }
         }
-      });
+      );
       expect(firstPurchaseBonusService.trackBonusGranted).toHaveBeenCalledWith(mockUser.id, amount, bonusAmount);
       expect(outcome.bonusGrant).toEqual({ userId: mockUser.id, bonusAmountCents: bonusAmount, paidAmountCents: amount });
     });
@@ -266,7 +279,7 @@ describe(StripeTransactionService.name, () => {
         internalTransaction.id,
         expect.not.objectContaining({ bonusAmount: expect.anything() })
       );
-      expect(refillService.topUpWallet).toHaveBeenCalledWith(amount, mockUser.id, expect.anything());
+      expect(refillService.topUpWallet).toHaveBeenCalledWith(amount, { userId: mockUser.id, organizationId: null }, expect.anything());
       expect(firstPurchaseBonusService.trackBonusGranted).not.toHaveBeenCalled();
       expect(outcome.bonusGrant).toBeUndefined();
     });
@@ -292,10 +305,14 @@ describe(StripeTransactionService.name, () => {
       );
 
       expect(outcome.autoRecharge).toEqual({ userId: mockUser.id, transactionId: internalTransaction.id, amountCents: amount });
-      expect(refillService.topUpWallet).toHaveBeenCalledWith(amount, mockUser.id, {
-        endTrial: undefined,
-        payment: expect.objectContaining({ transactionId: internalTransaction.id, isAutoRecharge: true })
-      });
+      expect(refillService.topUpWallet).toHaveBeenCalledWith(
+        amount,
+        { userId: mockUser.id, organizationId: null },
+        {
+          endTrial: undefined,
+          payment: expect.objectContaining({ transactionId: internalTransaction.id, isAutoRecharge: true })
+        }
+      );
     });
 
     it("does not return an auto recharge when the transaction was already settled", async () => {
@@ -512,17 +529,21 @@ describe(StripeTransactionService.name, () => {
         receiptUrl: "https://receipt.stripe.com/inv",
         stripePaymentIntentId: paymentIntentId
       });
-      expect(refillService.topUpWallet).toHaveBeenCalledWith(transactionAmount, mockUser.id, {
-        endTrial: undefined,
-        payment: {
-          currency: internalTransaction.currency,
-          cardBrand: "mastercard",
-          paymentMethodType: undefined,
-          transactionId: internalTransaction.id,
-          source: "coupon_claim",
-          isAutoRecharge: false
+      expect(refillService.topUpWallet).toHaveBeenCalledWith(
+        transactionAmount,
+        { userId: mockUser.id, organizationId: null },
+        {
+          endTrial: undefined,
+          payment: {
+            currency: internalTransaction.currency,
+            cardBrand: "mastercard",
+            paymentMethodType: undefined,
+            transactionId: internalTransaction.id,
+            source: "coupon_claim",
+            isAutoRecharge: false
+          }
         }
-      });
+      );
     });
 
     it("returns early when customer ID is missing", async () => {
@@ -593,17 +614,21 @@ describe(StripeTransactionService.name, () => {
         receiptUrl: undefined,
         stripePaymentIntentId: undefined
       });
-      expect(refillService.topUpWallet).toHaveBeenCalledWith(transactionAmount, mockUser.id, {
-        endTrial: undefined,
-        payment: {
-          currency: internalTransaction.currency,
-          cardBrand: undefined,
-          paymentMethodType: undefined,
-          transactionId: internalTransaction.id,
-          source: "coupon_claim",
-          isAutoRecharge: false
+      expect(refillService.topUpWallet).toHaveBeenCalledWith(
+        transactionAmount,
+        { userId: mockUser.id, organizationId: null },
+        {
+          endTrial: undefined,
+          payment: {
+            currency: internalTransaction.currency,
+            cardBrand: undefined,
+            paymentMethodType: undefined,
+            transactionId: internalTransaction.id,
+            source: "coupon_claim",
+            isAutoRecharge: false
+          }
         }
-      });
+      );
     });
 
     it("tops up the wallet with endTrial false for a matched manual_credit invoice transaction", async () => {
@@ -627,17 +652,21 @@ describe(StripeTransactionService.name, () => {
 
       expect(stripeTransactionRepository.findByInvoiceId).toHaveBeenCalledWith(invoiceId);
       expect(stripeTransactionRepository.updateById).toHaveBeenCalledWith(transaction.id, expect.objectContaining({ status: "succeeded" }));
-      expect(refillService.topUpWallet).toHaveBeenCalledWith(amount, mockUser.id, {
-        endTrial: false,
-        payment: {
-          currency: transaction.currency,
-          cardBrand: undefined,
-          paymentMethodType: undefined,
-          transactionId: transaction.id,
-          source: "manual_credit",
-          isAutoRecharge: false
+      expect(refillService.topUpWallet).toHaveBeenCalledWith(
+        amount,
+        { userId: mockUser.id, organizationId: null },
+        {
+          endTrial: false,
+          payment: {
+            currency: transaction.currency,
+            cardBrand: undefined,
+            paymentMethodType: undefined,
+            transactionId: transaction.id,
+            source: "manual_credit",
+            isAutoRecharge: false
+          }
         }
-      });
+      );
     });
 
     it("credits only once when invoice.paid and invoice.payment_succeeded both fire for the same manual_credit invoice", async () => {
@@ -664,17 +693,21 @@ describe(StripeTransactionService.name, () => {
 
       expect(refillService.topUpWallet).toHaveBeenCalledTimes(1);
       expect(domainEventsService.publish).toHaveBeenCalledTimes(1);
-      expect(refillService.topUpWallet).toHaveBeenCalledWith(amount, mockUser.id, {
-        endTrial: false,
-        payment: {
-          currency: pendingTransaction.currency,
-          cardBrand: undefined,
-          paymentMethodType: undefined,
-          transactionId: pendingTransaction.id,
-          source: "manual_credit",
-          isAutoRecharge: false
+      expect(refillService.topUpWallet).toHaveBeenCalledWith(
+        amount,
+        { userId: mockUser.id, organizationId: null },
+        {
+          endTrial: false,
+          payment: {
+            currency: pendingTransaction.currency,
+            cardBrand: undefined,
+            paymentMethodType: undefined,
+            transactionId: pendingTransaction.id,
+            source: "manual_credit",
+            isAutoRecharge: false
+          }
         }
-      });
+      );
       expect(stripeTransactionRepository.updateById).toHaveBeenCalledTimes(1);
       expect(stripeTransactionRepository.updateById).toHaveBeenCalledWith(pendingTransaction.id, expect.objectContaining({ status: "succeeded" }));
     });
@@ -861,6 +894,122 @@ describe(StripeTransactionService.name, () => {
     });
   });
 
+  describe("when a team organization paid", () => {
+    it("credits the team named on the transaction for the member who bought, resolving the team's customer first", async () => {
+      const { service, userRepository, organizationRepository, stripeTransactionRepository, refillService, stripe, domainEventsService, toppedUpWallet } =
+        setup();
+      const team = createOrganization({ type: "team", stripeCustomerId: "cus_team" });
+      const buyerId = faker.string.uuid();
+      const transaction = generateDatabaseStripeTransaction({
+        type: "payment_intent",
+        status: "created",
+        amount: 5000,
+        userId: buyerId,
+        organizationId: team.id
+      });
+      organizationRepository.findOneBy.mockResolvedValue(team);
+      organizationRepository.findById.mockResolvedValue(team);
+      stripeTransactionRepository.findById.mockResolvedValue(transaction);
+      stripeTransactionRepository.findOneByAndLock.mockResolvedValue(transaction);
+      vi.spyOn(stripe.charges, "retrieve").mockResolvedValue(mock<Stripe.Response<Stripe.Charge>>({ id: "ch_team" }));
+
+      const outcome = await service.settlePaymentIntent(
+        createPaymentIntentSucceededEvent({
+          id: "pi_team",
+          customer: "cus_team",
+          amount: 5000,
+          amount_received: 5000,
+          latest_charge: "ch_team",
+          metadata: { internal_transaction_id: transaction.id }
+        })
+      );
+
+      expect(organizationRepository.findOneBy).toHaveBeenCalledWith({ stripeCustomerId: "cus_team", type: "team" });
+      expect(userRepository.findOneBy).not.toHaveBeenCalled();
+      expect(refillService.topUpWallet).toHaveBeenCalledWith(5000, { userId: buyerId, organizationId: team.id, team }, expect.anything());
+      expect(domainEventsService.publish).toHaveBeenCalledWith(expect.any(FundDrainingDeploymentsCommand), expect.anything());
+      expect(outcome.creditsAdded).toMatchObject({ userId: buyerId, stripeCustomerId: "cus_team" });
+      expect(toppedUpWallet).toBeDefined();
+    });
+
+    it("debits the team named on the transaction for a refund, whoever the buyer belongs to now", async () => {
+      const { service, organizationRepository, stripeTransactionRepository, refillService } = setup();
+      const team = createOrganization({ type: "team", stripeCustomerId: "cus_team" });
+      const buyerId = faker.string.uuid();
+      const transaction = generateDatabaseStripeTransaction({ status: "succeeded", amount: 5000, amountRefunded: 0, userId: buyerId, organizationId: team.id });
+      organizationRepository.findOneBy.mockResolvedValue(team);
+      organizationRepository.findById.mockResolvedValue(team);
+      stripeTransactionRepository.findOneByAndLock.mockResolvedValue(transaction);
+
+      await service.refundCharge(createChargeRefundedEvent({ id: "ch_team", customer: "cus_team", amount_refunded: 5000, refunded: true }));
+
+      expect(refillService.reduceWalletBalance).toHaveBeenCalledWith(
+        5000,
+        { userId: buyerId, organizationId: team.id, team },
+        { currency: transaction.currency, transactionId: transaction.id }
+      );
+    });
+
+    it("keeps resolving a customer created before team organizations paid through its user", async () => {
+      const { service, userRepository, organizationRepository, stripeTransactionRepository, refillService } = setup();
+      const user = createTestUser();
+      const personalOrganization = createOrganization({ type: "personal", createdByUserId: user.id });
+      const transaction = generateDatabaseStripeTransaction({
+        status: "succeeded",
+        amountRefunded: 0,
+        userId: user.id,
+        organizationId: personalOrganization.id
+      });
+      organizationRepository.findOneBy.mockResolvedValue(undefined);
+      organizationRepository.findPersonalByUserId.mockResolvedValue(personalOrganization);
+      userRepository.findOneBy.mockResolvedValue(user);
+      stripeTransactionRepository.findOneByAndLock.mockResolvedValue(transaction);
+
+      await service.refundCharge(createChargeRefundedEvent({ id: "ch_1", customer: user.stripeCustomerId!, amount_refunded: 1000, refunded: false }));
+
+      expect(userRepository.findOneBy).toHaveBeenCalledWith({ stripeCustomerId: user.stripeCustomerId });
+      expect(refillService.reduceWalletBalance).toHaveBeenCalledWith(1000, { userId: user.id, organizationId: personalOrganization.id }, expect.anything());
+    });
+  });
+
+  describe("when the Stripe customer and the transaction name different payers", () => {
+    it("credits nobody for a team's charge recorded for another organization", async () => {
+      const { service, organizationRepository, stripeTransactionRepository, refillService, logger } = setup();
+      const team = createOrganization({ type: "team", stripeCustomerId: "cus_team" });
+      const otherTeam = createOrganization({ type: "team" });
+      const transaction = generateDatabaseStripeTransaction({ type: "payment_intent", status: "created", amount: 5000, organizationId: otherTeam.id });
+      organizationRepository.findOneBy.mockResolvedValue(team);
+      organizationRepository.findById.mockResolvedValue(otherTeam);
+      stripeTransactionRepository.findById.mockResolvedValue(transaction);
+
+      const outcome = await service.settlePaymentIntent(
+        createPaymentIntentSucceededEvent({ id: "pi_team", customer: "cus_team", amount: 5000, metadata: { internal_transaction_id: transaction.id } })
+      );
+
+      expect(outcome).toEqual({});
+      expect(refillService.topUpWallet).not.toHaveBeenCalled();
+      expect(stripeTransactionRepository.updateById).not.toHaveBeenCalled();
+      expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "PAYMENT_PAYER_MISMATCH", transactionId: transaction.id }));
+    });
+
+    it("debits no team wallet for a refund of a user's own customer", async () => {
+      const { service, userRepository, organizationRepository, stripeTransactionRepository, refillService, logger } = setup();
+      const user = createTestUser();
+      const team = createOrganization({ type: "team" });
+      const transaction = generateDatabaseStripeTransaction({ status: "succeeded", amountRefunded: 0, userId: user.id, organizationId: team.id });
+      organizationRepository.findOneBy.mockResolvedValue(undefined);
+      userRepository.findOneBy.mockResolvedValue(user);
+      organizationRepository.findById.mockResolvedValue(team);
+      stripeTransactionRepository.findOneByAndLock.mockResolvedValue(transaction);
+
+      await service.refundCharge(createChargeRefundedEvent({ id: "ch_1", customer: user.stripeCustomerId!, amount_refunded: 1000, refunded: false }));
+
+      expect(refillService.reduceWalletBalance).not.toHaveBeenCalled();
+      expect(stripeTransactionRepository.updateById).not.toHaveBeenCalled();
+      expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "PAYMENT_PAYER_MISMATCH", organizationId: team.id }));
+    });
+  });
+
   describe("refundCharge", () => {
     it("reduces wallet balance and updates transaction on full refund", async () => {
       const { service, userRepository, stripeTransactionRepository, refillService } = setup();
@@ -879,7 +1028,7 @@ describe(StripeTransactionService.name, () => {
       expect(userRepository.findOneBy).toHaveBeenCalledWith({ stripeCustomerId: mockUser.stripeCustomerId });
       expect(stripeTransactionRepository.findOneByAndLock).toHaveBeenCalledWith({ stripeChargeId: chargeId });
       expect(stripeTransactionRepository.updateById).toHaveBeenCalledWith(transactionId, { amountRefunded: 5000, status: "refunded" });
-      expect(refillService.reduceWalletBalance).toHaveBeenCalledWith(5000, mockUser.id, { currency: "usd", transactionId });
+      expect(refillService.reduceWalletBalance).toHaveBeenCalledWith(5000, { userId: mockUser.id, organizationId: null }, { currency: "usd", transactionId });
     });
 
     it("calculates refund delta correctly for partial refunds", async () => {
@@ -895,7 +1044,7 @@ describe(StripeTransactionService.name, () => {
 
       await service.refundCharge(createChargeRefundedEvent({ id: "ch_123", customer: mockUser.stripeCustomerId!, amount_refunded: 8000, refunded: false }));
 
-      expect(refillService.reduceWalletBalance).toHaveBeenCalledWith(5000, mockUser.id, { currency: "usd", transactionId });
+      expect(refillService.reduceWalletBalance).toHaveBeenCalledWith(5000, { userId: mockUser.id, organizationId: null }, { currency: "usd", transactionId });
       expect(stripeTransactionRepository.updateById).toHaveBeenCalledWith(transactionId, { amountRefunded: 8000 });
     });
 
@@ -971,7 +1120,7 @@ describe(StripeTransactionService.name, () => {
 
       await service.refundCharge(createChargeRefundedEvent({ id: "ch_123", customer: mockUser.stripeCustomerId!, amount_refunded: 10000, refunded: true }));
 
-      expect(refillService.reduceWalletBalance).toHaveBeenCalledWith(11000, mockUser.id, { currency: "usd", transactionId });
+      expect(refillService.reduceWalletBalance).toHaveBeenCalledWith(11000, { userId: mockUser.id, organizationId: null }, { currency: "usd", transactionId });
       expect(stripeTransactionRepository.updateById).toHaveBeenCalledWith(transactionId, { amountRefunded: 10000, status: "refunded" });
     });
 
@@ -987,7 +1136,7 @@ describe(StripeTransactionService.name, () => {
 
       await service.refundCharge(createChargeRefundedEvent({ id: "ch_123", customer: mockUser.stripeCustomerId!, amount_refunded: 10000, refunded: true }));
 
-      expect(refillService.reduceWalletBalance).toHaveBeenCalledWith(1000, mockUser.id, { currency: "usd", transactionId });
+      expect(refillService.reduceWalletBalance).toHaveBeenCalledWith(1000, { userId: mockUser.id, organizationId: null }, { currency: "usd", transactionId });
     });
 
     it("leaves the bonus untouched on partial refunds", async () => {
@@ -1002,7 +1151,7 @@ describe(StripeTransactionService.name, () => {
 
       await service.refundCharge(createChargeRefundedEvent({ id: "ch_123", customer: mockUser.stripeCustomerId!, amount_refunded: 4000, refunded: false }));
 
-      expect(refillService.reduceWalletBalance).toHaveBeenCalledWith(4000, mockUser.id, { currency: "usd", transactionId });
+      expect(refillService.reduceWalletBalance).toHaveBeenCalledWith(4000, { userId: mockUser.id, organizationId: null }, { currency: "usd", transactionId });
       expect(stripeTransactionRepository.updateById).toHaveBeenCalledWith(transactionId, { amountRefunded: 4000 });
     });
   });
@@ -1013,6 +1162,8 @@ describe(StripeTransactionService.name, () => {
     const firstPurchaseBonusService = mock<FirstPurchaseBonusService>();
     firstPurchaseBonusService.getEligibleBonusAmount.mockResolvedValue(0);
     const userRepository = mock<UserRepository>();
+    const organizationRepository = mock<OrganizationRepository>();
+    const payerService = new PayerService(mock<AuthService>(), mock<ExecutionContextService>(), organizationRepository, userRepository);
     const domainEventsService = mock<DomainEventsService>();
     const analyticsService = mock<AnalyticsService>();
     const logger = mock<LoggerService>();
@@ -1028,9 +1179,10 @@ describe(StripeTransactionService.name, () => {
       refillService,
       firstPurchaseBonusService,
       mock<TimerService>(),
-      userRepository,
+      payerService,
       domainEventsService,
       analyticsService,
+      organizationRepository,
       () => logger
     );
 
@@ -1041,6 +1193,7 @@ describe(StripeTransactionService.name, () => {
       refillService,
       firstPurchaseBonusService,
       userRepository,
+      organizationRepository,
       domainEventsService,
       analyticsService,
       logger,

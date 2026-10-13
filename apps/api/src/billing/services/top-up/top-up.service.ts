@@ -3,7 +3,7 @@ import { singleton } from "tsyringe";
 
 import type { ConfirmPaymentResponse } from "@src/billing/http-schemas/stripe.schema";
 import { UserWalletRepository } from "@src/billing/repositories";
-import type { PayingUser } from "@src/billing/services/paying-user/paying-user";
+import type { PayingPayer } from "@src/billing/services/payer/payer";
 import { PaymentMethodService } from "@src/billing/services/payment-method/payment-method.service";
 import { StripeTransactionService } from "@src/billing/services/stripe-transaction/stripe-transaction.service";
 import { TrialActivationJobService } from "@src/billing/services/trial-activation-job/trial-activation-job.service";
@@ -14,6 +14,9 @@ import { TrialValidationService } from "@src/billing/services/trial-validation/t
  * another flow's. The full key is `topup_<userId>_<clientAttemptKey>`.
  */
 export const TOP_UP_IDEMPOTENCY_KEY_PREFIX = "topup_";
+
+/** A team organization's top-up gets its own namespace, `org_topup_<organizationId>_<userId>_<clientAttemptKey>`, so no user key changes. */
+export const TEAM_TOP_UP_IDEMPOTENCY_KEY_PREFIX = "org_topup_";
 
 @singleton()
 export class TopUpService {
@@ -36,22 +39,27 @@ export class TopUpService {
    * legitimate re-attempt of the same charge.
    */
   async topUp(
-    currentUser: PayingUser,
+    payer: PayingPayer,
     params: { amount: number; paymentMethodId: string; idempotencyKey?: string; awaitResolved?: boolean }
   ): Promise<ConfirmPaymentResponse["data"]> {
-    const userWallet = await this.userWalletRepository.findOneByUserId(currentUser.id);
-    await this.trialActivationJobService.assertActivated({ userId: currentUser.id, activatedAt: userWallet?.activatedAt });
+    const userWallet = await this.userWalletRepository.findOneUsedBy(payer.user.id);
+
+    if (!payer.team) {
+      await this.trialActivationJobService.assertActivated({ userId: payer.user.id, activatedAt: userWallet?.activatedAt });
+    }
+
     this.trialValidationService.validateTopUpAmount(userWallet, params.amount);
 
-    assert(await this.paymentMethodService.hasPaymentMethod(params.paymentMethodId, currentUser), 403, "Payment method does not belong to the user");
+    assert(await this.paymentMethodService.hasPaymentMethod(params.paymentMethodId, payer), 403, "Payment method does not belong to the user");
 
     const result = await this.stripeTransactionService.createPaymentIntent({
-      userId: currentUser.id,
-      customer: currentUser.stripeCustomerId,
+      userId: payer.user.id,
+      organizationId: payer.organizationId,
+      customer: payer.stripeCustomerId,
       payment_method: params.paymentMethodId,
       amount: params.amount,
       confirm: true,
-      idempotencyKey: params.idempotencyKey ? `${TOP_UP_IDEMPOTENCY_KEY_PREFIX}${currentUser.id}_${params.idempotencyKey}` : undefined,
+      idempotencyKey: params.idempotencyKey && this.#idempotencyKeyOf(payer, params.idempotencyKey),
       onAmountMismatch: "reject"
     });
 
@@ -76,5 +84,13 @@ export class TopUpService {
     }
 
     return { success: true, transactionId: result.transactionId, transactionStatus: result.transactionStatus };
+  }
+
+  #idempotencyKeyOf(payer: PayingPayer, clientAttemptKey: string): string {
+    if (payer.team) {
+      return `${TEAM_TOP_UP_IDEMPOTENCY_KEY_PREFIX}${payer.team.id}_${payer.user.id}_${clientAttemptKey}`;
+    }
+
+    return `${TOP_UP_IDEMPOTENCY_KEY_PREFIX}${payer.user.id}_${clientAttemptKey}`;
   }
 }

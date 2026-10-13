@@ -180,7 +180,7 @@ export class WalletBalanceReloadCheckHandler implements JobHandler<WalletBalance
 
   async #getDefaultPaymentMethod(user: PayingUser): Promise<Result<PaymentMethod, ValidationError>> {
     const paymentMethod = await this.paymentMethodService.getDefaultPaymentMethod(
-      user,
+      { user, stripeCustomerId: user.stripeCustomerId },
       createMongoAbility([
         {
           action: "read",

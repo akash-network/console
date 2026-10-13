@@ -18,14 +18,15 @@ import {
   TRIAL_PRESERVING_TRANSACTION_TYPES
 } from "@src/billing/repositories";
 import { FirstPurchaseBonusService } from "@src/billing/services/first-purchase-bonus/first-purchase-bonus.service";
-import { RefillService, type ToppedUpWallet } from "@src/billing/services/refill/refill.service";
+import { PayerService, type StripeCustomerOwner } from "@src/billing/services/payer/payer.service";
+import { RefillService, type ToppedUpWallet, type WalletPayer } from "@src/billing/services/refill/refill.service";
 import { STRIPE_CURRENCY } from "@src/billing/services/stripe/stripe.service";
 import { IDEMPOTENCY_KEY_MISMATCH_ERROR_MESSAGE, PAYMENT_IN_PROGRESS_ERROR_MESSAGE } from "@src/billing/services/stripe-error/stripe-error.service";
 import { type CreateLogger, LOGGER_FACTORY, WithTransaction } from "@src/core";
 import { AnalyticsService } from "@src/core/services/analytics/analytics.service";
 import { DomainEventsService } from "@src/core/services/domain-events/domain-events.service";
 import { TimerService } from "@src/core/services/timer/timer.service";
-import { UserRepository } from "@src/user/repositories/user/user.repository";
+import { type OrganizationOutput, OrganizationRepository } from "@src/organization/repositories/organization/organization.repository";
 
 /**
  * A granted first-purchase bonus that the webhook dispatcher turns into a {@link FirstPurchaseBonusGranted}
@@ -86,6 +87,16 @@ export interface SettlementOutcome {
   creditsAdded?: CreditsAdded["data"];
 }
 
+/** A team organization's customer belongs to no one, so its member who bought is the one the transaction row records. */
+function actingUserIdOf(customerOwner: StripeCustomerOwner, transaction: StripeTransactionOutput): string {
+  return "user" in customerOwner ? customerOwner.user.id : transaction.userId;
+}
+
+/** The payer is read off the transaction row, never from who is acting now. */
+function payerOf(transaction: StripeTransactionOutput, actingUserId: string | undefined, team: OrganizationOutput | undefined): WalletPayer {
+  return { userId: actingUserId ?? transaction.userId, organizationId: transaction.organizationId, team };
+}
+
 /**
  * How a reused idempotency key should react when the requested amount differs from the amount
  * recorded on its transaction row. `reject` treats it as a definitive client error; `tolerate`
@@ -113,9 +124,10 @@ export class StripeTransactionService {
     private readonly refillService: RefillService,
     private readonly firstPurchaseBonusService: FirstPurchaseBonusService,
     private readonly timerService: TimerService,
-    private readonly userRepository: UserRepository,
+    private readonly payerService: PayerService,
     private readonly domainEventsService: DomainEventsService,
     private readonly analyticsService: AnalyticsService,
+    private readonly organizationRepository: OrganizationRepository,
     @inject(LOGGER_FACTORY) createLogger: CreateLogger
   ) {
     this.loggerService = createLogger({ context: StripeTransactionService.name });
@@ -123,6 +135,7 @@ export class StripeTransactionService {
 
   async createPaymentIntent(params: {
     userId: string;
+    organizationId?: string;
     customer: string;
     payment_method: string;
     amount: number;
@@ -137,6 +150,7 @@ export class StripeTransactionService {
     if (!params.idempotencyKey) {
       const transaction = await this.stripeTransactionRepository.create({
         userId: params.userId,
+        organizationId: params.organizationId,
         type: "payment_intent",
         status: "created",
         amount: amountInCents,
@@ -148,6 +162,7 @@ export class StripeTransactionService {
 
     const { transaction, isNew } = await this.stripeTransactionRepository.findOrCreateByIdempotencyKey({
       userId: params.userId,
+      organizationId: params.organizationId,
       type: "payment_intent",
       status: "created",
       amount: amountInCents,
@@ -488,6 +503,7 @@ export class StripeTransactionService {
     stripePaymentIntentId: string | undefined;
     paymentAmount: number;
     userId: string;
+    team?: OrganizationOutput;
     eventDescription: string;
     endTrial?: boolean;
     isAutoRecharge: boolean;
@@ -527,7 +543,7 @@ export class StripeTransactionService {
     });
 
     // Single combined top-up: two calls would double chain fees and race on retrieveDeploymentLimit.
-    const toppedUpWallet = await this.refillService.topUpWallet(params.paymentAmount + bonusAmount, params.userId, {
+    const toppedUpWallet = await this.refillService.topUpWallet(params.paymentAmount + bonusAmount, payerOf(transaction, params.userId, params.team), {
       endTrial: params.endTrial,
       payment: {
         currency: transaction.currency,
@@ -660,8 +676,8 @@ export class StripeTransactionService {
       return {};
     }
 
-    const user = await this.userRepository.findOneBy({ stripeCustomerId: params.customerId });
-    if (!user) {
+    const customerOwner = await this.payerService.findByStripeCustomerId(params.customerId);
+    if (!customerOwner) {
       this.loggerService.error({
         event: "USER_NOT_FOUND",
         customerId: params.customerId,
@@ -669,6 +685,13 @@ export class StripeTransactionService {
       });
       return {};
     }
+
+    const payingTeam = await this.#payingTeamOf(customerOwner, params.transaction);
+    if (!payingTeam) {
+      return {};
+    }
+
+    const userId = actingUserIdOf(customerOwner, params.transaction);
 
     let cardBrand: string | undefined;
     let cardLast4: string | undefined;
@@ -698,7 +721,8 @@ export class StripeTransactionService {
       receiptUrl,
       stripePaymentIntentId: params.stripePaymentIntentId,
       paymentAmount: params.paymentAmount,
-      userId: user.id,
+      userId,
+      team: payingTeam.team,
       eventDescription: params.eventDescription,
       endTrial: params.endTrial,
       isAutoRecharge: params.isAutoRecharge
@@ -711,11 +735,11 @@ export class StripeTransactionService {
     }
 
     return {
-      bonusGrant: bonusAmount > 0 ? { userId: user.id, bonusAmountCents: bonusAmount, paidAmountCents: params.paymentAmount } : undefined,
-      autoRecharge: settled && params.isAutoRecharge ? { userId: user.id, transactionId: params.transaction.id, amountCents: params.paymentAmount } : undefined,
+      bonusGrant: bonusAmount > 0 ? { userId, bonusAmountCents: bonusAmount, paidAmountCents: params.paymentAmount } : undefined,
+      autoRecharge: settled && params.isAutoRecharge ? { userId, transactionId: params.transaction.id, amountCents: params.paymentAmount } : undefined,
       creditsAdded: settled
         ? {
-            userId: user.id,
+            userId,
             transactionId: params.transaction.id,
             source: params.transaction.type,
             isAutoRecharge: params.isAutoRecharge,
@@ -808,8 +832,8 @@ export class StripeTransactionService {
       return;
     }
 
-    const user = await this.userRepository.findOneBy({ stripeCustomerId: customerId });
-    if (!user) {
+    const customerOwner = await this.payerService.findByStripeCustomerId(customerId);
+    if (!customerOwner) {
       this.loggerService.error({ event: "CHARGE_REFUNDED_USER_NOT_FOUND", customerId, chargeId: charge.id });
       return;
     }
@@ -818,12 +842,32 @@ export class StripeTransactionService {
       chargeId: charge.id,
       amountRefunded: charge.amount_refunded,
       fullyRefunded: charge.refunded,
-      userId: user.id
+      customerOwner
     });
   }
 
+  /** Money moves only when the Stripe customer and the transaction row name the same payer: one team, or no team at all. */
+  async #payingTeamOf(customerOwner: StripeCustomerOwner, transaction: StripeTransactionOutput): Promise<{ team?: OrganizationOutput } | undefined> {
+    const rowOrganization = transaction.organizationId ? await this.organizationRepository.findById(transaction.organizationId) : undefined;
+    const rowTeam = rowOrganization?.type === "team" ? rowOrganization : undefined;
+    const customerTeamId = "team" in customerOwner ? customerOwner.team.id : undefined;
+
+    if (rowTeam?.id !== customerTeamId) {
+      this.loggerService.error({
+        event: "PAYMENT_PAYER_MISMATCH",
+        transactionId: transaction.id,
+        organizationId: transaction.organizationId,
+        customerOrganizationId: customerTeamId
+      });
+      return undefined;
+    }
+
+    return { team: rowTeam };
+  }
+
+  /** Debits the wallet of the organization the transaction row names as payer, whoever refunds and wherever its buyer is now. */
   @WithTransaction()
-  async applyRefund(params: { chargeId: string; amountRefunded: number; fullyRefunded: boolean; userId: string }): Promise<void> {
+  async applyRefund(params: { chargeId: string; amountRefunded: number; fullyRefunded: boolean; customerOwner: StripeCustomerOwner }): Promise<void> {
     // Locked read: concurrent charge.refunded deliveries serialize here, so the loser
     // re-reads the committed amountRefunded/status and bails on the idempotency check
     // instead of double-debiting the wallet.
@@ -866,6 +910,11 @@ export class StripeTransactionService {
       return;
     }
 
+    const payingTeam = await this.#payingTeamOf(params.customerOwner, transaction);
+    if (!payingTeam) {
+      return;
+    }
+
     const isFullyRefunded = params.fullyRefunded;
 
     // Claw back the first-purchase bonus only on the first transition to fully-refunded
@@ -878,7 +927,9 @@ export class StripeTransactionService {
       ...(isFullyRefunded ? { status: "refunded" } : {})
     });
 
-    await this.refillService.reduceWalletBalance(refundedAmount + bonusClawback, params.userId, {
+    const payer = payerOf(transaction, "user" in params.customerOwner ? params.customerOwner.user.id : undefined, payingTeam.team);
+
+    await this.refillService.reduceWalletBalance(refundedAmount + bonusClawback, payer, {
       currency: transaction.currency,
       transactionId: transaction.id
     });
@@ -887,7 +938,7 @@ export class StripeTransactionService {
       this.loggerService.info({
         event: "FIRST_PURCHASE_BONUS_CLAWED_BACK",
         chargeId: params.chargeId,
-        userId: params.userId,
+        userId: payer.userId,
         transactionId: transaction.id,
         bonusAmountCents: bonusClawback
       });
@@ -896,7 +947,8 @@ export class StripeTransactionService {
     this.loggerService.info({
       event: "CHARGE_REFUNDED",
       chargeId: params.chargeId,
-      userId: params.userId,
+      userId: payer.userId,
+      organizationId: payer.organizationId,
       refundedAmount,
       totalRefunded: params.amountRefunded,
       previouslyRefunded: transaction.amountRefunded,
@@ -907,15 +959,17 @@ export class StripeTransactionService {
 
   async recordCouponClaim(params: {
     userId: string;
+    organizationId?: string;
     amount: number;
     currency: string;
     couponId: string;
     promotionCodeId?: string;
-    invoiceId: string;
+    invoiceId?: string;
     description: string;
   }): Promise<StripeTransactionOutput> {
     return this.stripeTransactionRepository.create({
       userId: params.userId,
+      organizationId: params.organizationId,
       type: "coupon_claim",
       status: "pending",
       amount: params.amount,
