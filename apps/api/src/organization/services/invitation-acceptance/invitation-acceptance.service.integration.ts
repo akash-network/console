@@ -14,6 +14,7 @@ import type { OrganizationRole } from "@src/organization/model-schemas/organizat
 import { OrganizationRepository } from "@src/organization/repositories/organization/organization.repository";
 import { OrganizationInvitationRepository } from "@src/organization/repositories/organization-invitation/organization-invitation.repository";
 import { OrganizationMemberRepository } from "@src/organization/repositories/organization-member/organization-member.repository";
+import { ALREADY_MEMBER_ERROR_CODE } from "@src/organization/services/organization-invitation/organization-invitation.service";
 import type { UserOutput } from "@src/user/repositories";
 import { UserRepository } from "@src/user/repositories";
 import { INVITATION_ALREADY_ACCEPTED_ERROR_CODE, INVITATION_REVOKED_ERROR_CODE, InvitationAcceptanceService } from "./invitation-acceptance.service";
@@ -89,15 +90,19 @@ describe(InvitationAcceptanceService.name, () => {
       expect(await grantsOf(invitee)).toHaveLength(1);
     });
 
-    it("keeps one membership when a user accepts two invitations of the same organization at once", async () => {
+    it("keeps one membership and the other invitation pending when a user accepts two invitations sent to other addresses at once", async () => {
       const { service, organization, invite, seedInvitee, runAs } = await setup();
       const invitee = await seedInvitee();
-      const invitations = await Promise.all([invite({ email: invitee.email!, role: "member" }), invite({ email: "joe@example.com", role: "member" })]);
+      const invitations = await Promise.all([invite({ email: "joe@example.com", role: "member" }), invite({ email: "jim@example.com", role: "member" })]);
 
-      await Promise.all(invitations.map(({ token }) => runAs(invitee, () => service.acceptInvitation({ token, confirmEmailMismatch: true }))));
+      const outcomes = await Promise.allSettled(
+        invitations.map(({ token }) => runAs(invitee, () => service.acceptInvitation({ token, confirmEmailMismatch: true })))
+      );
 
+      expect(outcomes.map(outcome => outcome.status).sort()).toEqual(["fulfilled", "rejected"]);
+      expect(outcomes.find(outcome => outcome.status === "rejected")).toMatchObject({ reason: { status: 409, errorCode: ALREADY_MEMBER_ERROR_CODE } });
       expect(await container.resolve(OrganizationMemberRepository).count({ organizationId: organization.id, userId: invitee.id })).toBe(1);
-      expect(await container.resolve(OrganizationInvitationRepository).count({ organizationId: organization.id, acceptedByUserId: invitee.id })).toBe(2);
+      expect(await container.resolve(OrganizationInvitationRepository).count({ organizationId: organization.id, acceptedByUserId: invitee.id })).toBe(1);
     });
 
     it("waits for an invitation write holding the organization row and sees its outcome", async () => {
