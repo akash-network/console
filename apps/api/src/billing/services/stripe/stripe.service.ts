@@ -1,3 +1,4 @@
+import createError from "http-errors";
 import orderBy from "lodash/orderBy";
 import Stripe from "stripe";
 import { inject, singleton } from "tsyringe";
@@ -48,7 +49,15 @@ export class StripeService {
   }
 
   constructWebhookEvent(payload: string | Buffer, signature: string): Stripe.Event {
-    return this.stripe.webhooks.constructEvent(payload, signature, this.billingConfig.get("STRIPE_WEBHOOK_SECRET"));
+    try {
+      return this.stripe.webhooks.constructEvent(payload, signature, this.billingConfig.get("STRIPE_WEBHOOK_SECRET"));
+    } catch (error) {
+      if (error instanceof Stripe.errors.StripeSignatureVerificationError) {
+        throw createError(400, "Stripe signature is invalid", { cause: error });
+      }
+
+      throw error;
+    }
   }
 
   async findPrices(): Promise<StripePrices[]> {

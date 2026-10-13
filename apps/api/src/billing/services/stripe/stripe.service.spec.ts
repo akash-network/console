@@ -136,6 +136,31 @@ describe(StripeService.name, () => {
       expect(stripe.webhooks.constructEvent).toHaveBeenCalledWith("raw-body", "sig-header", webhookSecret);
       expect(result).toBe(event);
     });
+
+    it("constructWebhookEvent answers 400 when the signature does not verify", () => {
+      const { service, stripe } = setup();
+      const verificationError = new Stripe.errors.StripeSignatureVerificationError({
+        type: "invalid_request_error",
+        message: "No signatures found matching the expected signature"
+      });
+      vi.spyOn(stripe.webhooks, "constructEvent").mockImplementation(() => {
+        throw verificationError;
+      });
+
+      expect(() => service.constructWebhookEvent("raw-body", "sig-header")).toThrow(
+        expect.objectContaining({ status: 400, message: "Stripe signature is invalid", cause: verificationError })
+      );
+    });
+
+    it("constructWebhookEvent rethrows errors other than a failed signature check", () => {
+      const { service, stripe } = setup();
+      const error = new Error("unexpected failure");
+      vi.spyOn(stripe.webhooks, "constructEvent").mockImplementation(() => {
+        throw error;
+      });
+
+      expect(() => service.constructWebhookEvent("raw-body", "sig-header")).toThrow(error);
+    });
   });
 });
 

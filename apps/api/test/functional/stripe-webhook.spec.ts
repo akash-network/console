@@ -85,6 +85,22 @@ describe("Stripe webhook", () => {
   });
 
   describe("POST /v1/stripe-webhook", () => {
+    it("answers 400 to a signature that does not verify", async () => {
+      const payload = generateInvoicePayload({ id: `in_${faker.string.alphanumeric(24)}`, customer: `cus_${faker.string.alphanumeric(14)}` });
+
+      const response = await app.request("/v1/stripe-webhook", {
+        method: "POST",
+        body: payload,
+        headers: new Headers({
+          "Content-Type": "text/plain",
+          "Stripe-Signature": stripe.webhooks.generateTestHeaderString({ payload, secret: `whsec_${faker.string.alphanumeric(32)}` })
+        })
+      });
+
+      expect(response.status).toBe(400);
+      expect(await response.json()).toMatchObject({ message: "Stripe signature is invalid" });
+    });
+
     describe("payment_intent.succeeded", () => {
       it("handles duplicate webhook deliveries idempotently", async () => {
         const paymentIntentId = `pi_${faker.string.alphanumeric(24)}`;
