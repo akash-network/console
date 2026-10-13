@@ -13,17 +13,18 @@ import { createAkashAddress } from "@test/seeders";
 
 describe(TxManagerService.name, () => {
   describe("signAndBroadcastWithFundingWallet", () => {
-    it("delegates to external signer", async () => {
+    it("delegates to external signer with the grantee it names", async () => {
       const messages: EncodeObject[] = [{ typeUrl: "/test.MsgTest", value: {} }];
+      const options = { granteeDerivationIndex: 7 };
       const txResult = mock<IndexedTx>({ code: 0, hash: "tx-hash", rawLog: "success" });
 
       const { service, externalSignerHttpSdkService } = setup({
         externalFundingResult: txResult
       });
 
-      const result = await service.signAndBroadcastWithFundingWallet(messages);
+      const result = await service.signAndBroadcastWithFundingWallet(messages, options);
 
-      expect(externalSignerHttpSdkService.signAndBroadcastWithFundingWallet).toHaveBeenCalledWith(messages);
+      expect(externalSignerHttpSdkService.signAndBroadcastWithFundingWallet).toHaveBeenCalledWith(messages, options);
       expect(result).toEqual(txResult);
     });
   });

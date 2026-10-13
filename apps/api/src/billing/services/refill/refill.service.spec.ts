@@ -32,6 +32,7 @@ describe(RefillService.name, () => {
       expect(walletInitializerService.ensureWallet).toHaveBeenCalledWith(userId);
       expect(managedUserWalletService.authorizeSpending).toHaveBeenCalledWith(managedSignerService, {
         address: existingWallet.address,
+        derivationIndex: existingWallet.id,
         limits: { deployment: 1005000, fees: 1000 }
       });
       expect(balancesService.retrieveDeploymentLimit).toHaveBeenCalledWith(existingWallet);
@@ -163,6 +164,7 @@ describe(RefillService.name, () => {
       expect(userWalletRepository.claimActivation).toHaveBeenCalledWith(wallet.id);
       expect(managedUserWalletService.authorizeSpending).toHaveBeenCalledWith(managedSignerService, {
         address: wallet.address,
+        derivationIndex: wallet.id,
         limits: { deployment: 1000000, fees: 1000 }
       });
       expect(balancesService.refreshUserWalletLimits).toHaveBeenCalledWith(activatedWallet, { endTrial: true });
@@ -240,6 +242,7 @@ describe(RefillService.name, () => {
       // 5000000 - (100 * 10000) = 5000000 - 1000000 = 4000000
       expect(managedUserWalletService.authorizeSpending).toHaveBeenCalledWith(managedSignerService, {
         address: existingWallet.address,
+        derivationIndex: existingWallet.id,
         limits: { deployment: 4000000, fees: 1000 }
       });
       expect(balancesService.refreshUserWalletLimits).toHaveBeenCalledWith(existingWallet);
@@ -279,6 +282,7 @@ describe(RefillService.name, () => {
       // Should set to 0, not negative
       expect(managedUserWalletService.authorizeSpending).toHaveBeenCalledWith(managedSignerService, {
         address: existingWallet.address,
+        derivationIndex: existingWallet.id,
         limits: { deployment: 0, fees: 1000 }
       });
       expect(analyticsService.track).toHaveBeenCalledWith(userId, "balance_refund", expect.objectContaining({ amount_cents: 100, amount_usd: 1 }));

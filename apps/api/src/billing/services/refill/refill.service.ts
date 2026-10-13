@@ -85,6 +85,7 @@ export class RefillService {
     const limits = { deployment: nextLimit, fees: this.config.FEE_ALLOWANCE_REFILL_AMOUNT };
     await this.managedUserWalletService.authorizeSpending(this.managedSignerService, {
       address: userWallet.address!,
+      derivationIndex: userWallet.id,
       limits
     });
 
@@ -130,6 +131,7 @@ export class RefillService {
 
     await this.managedUserWalletService.authorizeSpending(this.managedSignerService, {
       address: userWallet.address,
+      derivationIndex: userWallet.id,
       limits
     });
 
