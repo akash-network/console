@@ -69,7 +69,8 @@ export class UserWalletRepository extends OrgScopedRepository<ApiPgTables["UserW
   }
 
   async getOrCreate(input: { userId: Exclude<UserWalletInput["userId"], undefined | null> }): Promise<{ wallet: UserWalletOutput; isNew: boolean }> {
-    const foundWallet = await this.findOneByUserId(input.userId);
+    const repository = this.unscoped("wallet-provisioning");
+    const foundWallet = await repository.findOneByUserId(input.userId);
     if (foundWallet) return { wallet: foundWallet, isNew: false };
 
     const values = await this.attributeToOrganization(input);
@@ -90,7 +91,7 @@ export class UserWalletRepository extends OrgScopedRepository<ApiPgTables["UserW
     }
 
     // race condition, wallet was created by another call
-    const wallet = await this.findOneByUserId(input.userId);
+    const wallet = await repository.findOneByUserId(input.userId);
     return { wallet: this.requireWrittenRow(wallet), isNew: false };
   }
 
