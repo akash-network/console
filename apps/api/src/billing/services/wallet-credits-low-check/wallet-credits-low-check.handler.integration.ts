@@ -207,7 +207,11 @@ describe(WalletCreditsLowCheckHandler.name, () => {
       await startWorkers();
       await expectJobCompleted(WalletCreditsLowCheck[JOB_NAME], { singletonKey: checkKey });
 
-      expect(sentNotifications().map(({ userId }) => userId).sort()).toEqual([owner.id, billingMember.id].sort());
+      expect(
+        sentNotifications()
+          .map(({ userId }) => userId)
+          .sort()
+      ).toEqual([owner.id, billingMember.id].sort());
       const [row] = await db.select().from(userWalletsTable).where(eq(userWalletsTable.id, teamWallet.id));
       expect(row).toMatchObject({ creditsLowNotifiedAt: expect.any(Date) });
     });

@@ -166,7 +166,9 @@ describe(WalletCreditsExhaustedCheckHandler.name, () => {
     };
 
     const creditsWarningRecipientService = mock<CreditsWarningRecipientService>();
-    creditsWarningRecipientService.find.mockResolvedValue(input?.ineligibility ? Err(input.ineligibility) : Ok({ wallet, users: [user, ...(input?.otherContacts ?? [])] }));
+    creditsWarningRecipientService.find.mockResolvedValue(
+      input?.ineligibility ? Err(input.ineligibility) : Ok({ wallet, users: [user, ...(input?.otherContacts ?? [])] })
+    );
     const userWalletRepository = mock<UserWalletRepository>();
     userWalletRepository.updateById.mockResolvedValue(undefined);
     const notificationService = mock<NotificationService>({

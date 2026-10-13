@@ -427,7 +427,9 @@ describe(WalletCreditsLowCheckHandler.name, () => {
       await handler.handle({ walletId: teamWallet.id, version: 1 });
 
       expect(notificationService.createNotification).toHaveBeenCalledTimes(2);
-      expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "CREDITS_LOW_EMAIL_FAILED", walletId: teamWallet.id, recipientUserId: contacts[0].id, error }));
+      expect(logger.error).toHaveBeenCalledWith(
+        expect.objectContaining({ event: "CREDITS_LOW_EMAIL_FAILED", walletId: teamWallet.id, recipientUserId: contacts[0].id, error })
+      );
       expect(userWalletRepository.updateById).toHaveBeenCalledWith(teamWallet.id, expect.objectContaining({ creditsLowNotifiedAt: expect.any(Date) }));
     });
 
@@ -520,7 +522,11 @@ describe(WalletCreditsLowCheckHandler.name, () => {
     userWalletRepository.isCreditsLowConfirmed.mockResolvedValue(input?.isLowConfirmed ?? true);
 
     const handler = new WalletCreditsLowCheckHandler(
-      new CreditsWarningRecipientService(walletSettingRepository, userWalletRepository, new BillingContactsService(userRepository, organizationMemberRepository)),
+      new CreditsWarningRecipientService(
+        walletSettingRepository,
+        userWalletRepository,
+        new BillingContactsService(userRepository, organizationMemberRepository)
+      ),
       userWalletRepository,
       balancesService,
       drainingDeploymentService,

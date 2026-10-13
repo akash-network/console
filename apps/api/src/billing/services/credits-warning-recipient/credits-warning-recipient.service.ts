@@ -28,7 +28,8 @@ export class CreditsWarningRecipientService {
       return Err("auto_reload_enabled");
     }
 
-    const wallet = "userId" in target ? await this.userWalletRepository.findOneByUserId(target.userId) : await this.userWalletRepository.findById(target.walletId);
+    const wallet =
+      "userId" in target ? await this.userWalletRepository.findOneByUserId(target.userId) : await this.userWalletRepository.findById(target.walletId);
     if (!wallet || !isWalletInitialized(wallet)) {
       return Err("no_wallet");
     }

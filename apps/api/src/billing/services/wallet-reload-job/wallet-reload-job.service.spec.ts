@@ -479,7 +479,10 @@ describe(WalletReloadJobService.name, () => {
       await service.scheduleForWalletSetting(walletSetting, { withCleanup: true });
 
       expect(userWalletRepository.findOneBy).toHaveBeenCalledWith({ id: 42 });
-      expect(jobQueueService.cancelCreatedBy).toHaveBeenCalledWith({ name: WalletBalanceReloadCheck.name, singletonKey: `${WalletBalanceReloadCheck.name}.wallet.42` });
+      expect(jobQueueService.cancelCreatedBy).toHaveBeenCalledWith({
+        name: WalletBalanceReloadCheck.name,
+        singletonKey: `${WalletBalanceReloadCheck.name}.wallet.42`
+      });
       expect(jobQueueService.enqueue).toHaveBeenCalledWith(new WalletBalanceReloadCheck({ walletId: 42 }), {
         singletonKey: `${WalletBalanceReloadCheck.name}.wallet.42`
       });

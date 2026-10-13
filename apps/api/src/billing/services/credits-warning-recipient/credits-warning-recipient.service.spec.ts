@@ -111,7 +111,10 @@ describe(CreditsWarningRecipientService.name, () => {
 
     it("refuses a team none of whose billing contacts has an email", async () => {
       const { service, userWalletRepository } = setup({ teamContacts: [] });
-      userWalletRepository.findById.mockResolvedValue({ ...createUserWallet({ id: 42, organizationId: "org-1", isTrialing: false, abuseLockedAt: null }), userId: null });
+      userWalletRepository.findById.mockResolvedValue({
+        ...createUserWallet({ id: 42, organizationId: "org-1", isTrialing: false, abuseLockedAt: null }),
+        userId: null
+      });
 
       const result = await service.find({ walletId: 42 });
 

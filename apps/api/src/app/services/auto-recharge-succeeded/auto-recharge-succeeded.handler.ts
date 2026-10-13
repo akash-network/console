@@ -34,7 +34,9 @@ export class AutoRechargeSucceededHandler implements JobHandler<AutoRechargeSucc
   }
 
   async handle(payload: EventPayload<AutoRechargeSucceeded>): Promise<void> {
-    const wallet = payload.walletId ? await this.userWalletRepository.findById(payload.walletId) : await this.userWalletRepository.findOneByUserId(payload.userId);
+    const wallet = payload.walletId
+      ? await this.userWalletRepository.findById(payload.walletId)
+      : await this.userWalletRepository.findOneByUserId(payload.userId);
     if (!wallet?.address) {
       this.logger.warn({
         event: "AUTO_RECHARGE_SUCCESS_EMAIL_SKIPPED",

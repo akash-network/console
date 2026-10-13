@@ -272,7 +272,9 @@ describe(WalletSettingService.name, () => {
       payerService.getCurrentPayer.mockResolvedValue(teamPayer);
       walletSettingRepository.findOneByAndLock.mockResolvedValue(undefined);
       userWalletRepository.findOneUsedBy.mockResolvedValue(teamWallet);
-      walletSettingRepository.createUnlessExists.mockResolvedValue(generateWalletSetting({ userId: user.id, walletId: teamWallet.id, autoReloadEnabled: true }));
+      walletSettingRepository.createUnlessExists.mockResolvedValue(
+        generateWalletSetting({ userId: user.id, walletId: teamWallet.id, autoReloadEnabled: true })
+      );
 
       await service.upsertWalletSetting(user.id, { autoReloadEnabled: true });
 

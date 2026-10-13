@@ -340,7 +340,11 @@ describe("Organization billing", () => {
     it("names the member who made each of the team's transactions", async () => {
       const { owner, team, headersOf } = await setup();
       await seedTransaction({ userId: owner.id, organizationId: team.id, status: "succeeded" });
-      const query = new URLSearchParams({ startDate: isoSeconds(Date.now() - 86_400_000), endDate: isoSeconds(Date.now() + 86_400_000), timezone: "America/New_York" });
+      const query = new URLSearchParams({
+        startDate: isoSeconds(Date.now() - 86_400_000),
+        endDate: isoSeconds(Date.now() + 86_400_000),
+        timezone: "America/New_York"
+      });
 
       const response = await app.request(`/v1/stripe/transactions/export?${query}`, { headers: headersOf(owner) });
 

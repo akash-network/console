@@ -134,7 +134,12 @@ describe(WalletSettingService.name, () => {
 
       await service.upsertWalletSetting(user.id, { autoReloadEnabled: true, autoReloadMode: "threshold", autoReloadThreshold: 10, autoReloadAmount: 25 });
 
-      expect(analyticsService.track).toHaveBeenCalledWith(user.id, "auto_recharge_enabled", { mode: "threshold", threshold_usd: 10, amount_usd: 25, ...PERSONAL_ORGANIZATION_PROPERTIES });
+      expect(analyticsService.track).toHaveBeenCalledWith(user.id, "auto_recharge_enabled", {
+        mode: "threshold",
+        threshold_usd: 10,
+        amount_usd: 25,
+        ...PERSONAL_ORGANIZATION_PROPERTIES
+      });
     });
 
     it("reports Auto Recharge turned on when the first saved setting enables it", async () => {
@@ -294,7 +299,11 @@ describe(WalletSettingService.name, () => {
     const userWalletRepository = mock<UserWalletRepository>();
     userWalletRepository.findOneUsedBy.mockResolvedValue(userWallet);
     const payerService = mock<PayerService>();
-    payerService.getCurrentPayer.mockResolvedValue({ user: userWithStripe, organizationId: PERSONAL_ORGANIZATION_ID, stripeCustomerId: userWithStripe.stripeCustomerId });
+    payerService.getCurrentPayer.mockResolvedValue({
+      user: userWithStripe,
+      organizationId: PERSONAL_ORGANIZATION_ID,
+      stripeCustomerId: userWithStripe.stripeCustomerId
+    });
     const paymentMethod = { ...generatePaymentMethod(), validated: true };
     const paymentMethodService = mock<PaymentMethodService>({
       getDefaultPaymentMethod: vi.fn().mockResolvedValue(paymentMethod as PaymentMethod)

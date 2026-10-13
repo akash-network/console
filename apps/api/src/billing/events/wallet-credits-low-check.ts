@@ -7,7 +7,5 @@ export class WalletCreditsLowCheck implements Job {
   public readonly name = WalletCreditsLowCheck[JOB_NAME];
   public readonly version = 1;
 
-  constructor(
-    public readonly data: WalletBillingTarget
-  ) {}
+  constructor(public readonly data: WalletBillingTarget) {}
 }

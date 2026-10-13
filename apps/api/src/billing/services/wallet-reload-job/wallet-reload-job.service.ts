@@ -6,7 +6,12 @@ import { WalletCreditsExhaustedCheck } from "@src/billing/events/wallet-credits-
 import { WalletCreditsLowCheck } from "@src/billing/events/wallet-credits-low-check";
 import { isAutoReloadActive } from "@src/billing/lib/auto-reload/auto-reload";
 import { calculateChargeCooldownMinutes } from "@src/billing/lib/auto-reload/charge-cooldown";
-import { pickWalletBillingTarget, singletonKeyOf, type WalletBillingTarget, walletBillingTargetOf } from "@src/billing/lib/wallet-billing-target/wallet-billing-target";
+import {
+  pickWalletBillingTarget,
+  singletonKeyOf,
+  type WalletBillingTarget,
+  walletBillingTargetOf
+} from "@src/billing/lib/wallet-billing-target/wallet-billing-target";
 import { UserWalletRepository, WalletSettingOutput, WalletSettingRepository } from "@src/billing/repositories";
 import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import { EnqueueOptions, JobQueueService } from "@src/core";

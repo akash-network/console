@@ -137,7 +137,10 @@ describe(TransactionReportingService.name, () => {
 
     it("reports hasMore when the page does not reach the total count", async () => {
       const { service, stripeTransactionRepository } = setup();
-      stripeTransactionRepository.findByOwner.mockResolvedValue([withInitiator(generateDatabaseStripeTransaction()), withInitiator(generateDatabaseStripeTransaction())]);
+      stripeTransactionRepository.findByOwner.mockResolvedValue([
+        withInitiator(generateDatabaseStripeTransaction()),
+        withInitiator(generateDatabaseStripeTransaction())
+      ]);
       stripeTransactionRepository.countByOwner.mockResolvedValue(10);
 
       const result = await service.getCustomerTransactions(OWNER, { limit: 2, offset: 0 });
@@ -147,7 +150,10 @@ describe(TransactionReportingService.name, () => {
 
     it("reports no more results on the last page", async () => {
       const { service, stripeTransactionRepository } = setup();
-      stripeTransactionRepository.findByOwner.mockResolvedValue([withInitiator(generateDatabaseStripeTransaction()), withInitiator(generateDatabaseStripeTransaction())]);
+      stripeTransactionRepository.findByOwner.mockResolvedValue([
+        withInitiator(generateDatabaseStripeTransaction()),
+        withInitiator(generateDatabaseStripeTransaction())
+      ]);
       stripeTransactionRepository.countByOwner.mockResolvedValue(10);
 
       const result = await service.getCustomerTransactions(OWNER, { limit: 2, offset: 8 });

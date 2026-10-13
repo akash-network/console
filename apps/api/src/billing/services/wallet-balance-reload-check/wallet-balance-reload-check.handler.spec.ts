@@ -856,7 +856,10 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
 
       expect(walletSettingRepository.findInternalWithRelations).toHaveBeenCalledWith({ walletId: wallet.id });
       expect(organizationRepository.findById).toHaveBeenCalledWith(team.id);
-      expect(paymentMethodService.getDefaultPaymentMethod).toHaveBeenCalledWith(expect.objectContaining({ team, stripeCustomerId: "cus_team" }), expect.anything());
+      expect(paymentMethodService.getDefaultPaymentMethod).toHaveBeenCalledWith(
+        expect.objectContaining({ team, stripeCustomerId: "cus_team" }),
+        expect.anything()
+      );
       expect(stripeTransactionService.createPaymentIntent).toHaveBeenCalledWith(
         expect.objectContaining({ organizationId: team.id, customer: "cus_team", idempotencyKey: `${WalletBalanceReloadCheck.name}.${jobMeta.id}` })
       );
@@ -872,7 +875,9 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
 
       await expect(handler.handle(job, jobMeta)).rejects.toThrow();
 
-      expect(autoReloadPauseService.recordDecline).toHaveBeenCalledWith(expect.objectContaining({ payer: expect.objectContaining({ team }), target: { walletId: wallet.id } }));
+      expect(autoReloadPauseService.recordDecline).toHaveBeenCalledWith(
+        expect.objectContaining({ payer: expect.objectContaining({ team }), target: { walletId: wallet.id } })
+      );
     });
   });
 
