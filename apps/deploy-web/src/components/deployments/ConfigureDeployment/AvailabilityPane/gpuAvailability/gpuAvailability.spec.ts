@@ -123,10 +123,10 @@ describe(rankGpuAlternatives.name, () => {
   it("lists the models that fit, the most providers first, with their display names", () => {
     const models = rankGpuAlternatives([candidate("nvidia", "h100"), candidate("nvidia", "rtx4090"), candidate("nvidia", "a100")], counts([4, 9, 6]), CATALOG);
 
-    expect(models.map(({ key, label, providerCount }) => ({ key, label, providerCount }))).toEqual([
-      { key: "nvidia/rtx4090", label: "RTX 4090", providerCount: 9 },
-      { key: "nvidia/a100", label: "A100", providerCount: 6 },
-      { key: "nvidia/h100", label: "H100", providerCount: 4 }
+    expect(models.map(({ key, vendor, name, label, providerCount }) => ({ key, vendor, name, label, providerCount }))).toEqual([
+      { key: "nvidia/rtx4090", vendor: "nvidia", name: "rtx4090", label: "RTX 4090", providerCount: 9 },
+      { key: "nvidia/a100", vendor: "nvidia", name: "a100", label: "A100", providerCount: 6 },
+      { key: "nvidia/h100", vendor: "nvidia", name: "h100", label: "H100", providerCount: 4 }
     ]);
   });
 
@@ -181,8 +181,8 @@ describe(rankGpuAlternatives.name, () => {
 
 describe(listGpuAvailabilityRows.name, () => {
   const ALTERNATIVES = [
-    { key: "nvidia/a100", label: "A100", providerCount: 15, gpuCount: 40 },
-    { key: "nvidia/t4", label: "T4", providerCount: 10, gpuCount: null }
+    { key: "nvidia/a100", vendor: "nvidia", name: "a100", label: "A100", providerCount: 15, gpuCount: 40 },
+    { key: "nvidia/t4", vendor: "nvidia", name: "t4", label: "T4", providerCount: 10, gpuCount: null }
   ];
 
   it("lists the current request with its live counts first, then the alternatives and no gpu", () => {
@@ -200,6 +200,24 @@ describe(listGpuAvailabilityRows.name, () => {
       { key: "nvidia/a100", label: "A100", providerCount: 15, gpuCount: 40, isCurrent: false },
       { key: "nvidia/t4", label: "T4", providerCount: 10, gpuCount: null, isCurrent: false },
       { key: "no-gpu", label: "No GPU", providerCount: 30, gpuCount: null, isCurrent: false }
+    ]);
+  });
+
+  it("applies another model from its row and no gpu from the no gpu row, with nothing to apply for the current request", () => {
+    const rows = listGpuAvailabilityRows({
+      requestedLabel: "H100",
+      requestedCount: 16,
+      requestedGpuCount: 64,
+      alternatives: ALTERNATIVES,
+      noGpuCount: 30,
+      networkCount: 72
+    });
+
+    expect(rows.map(row => row.selection)).toEqual([
+      null,
+      { kind: "model", vendor: "nvidia", name: "a100" },
+      { kind: "model", vendor: "nvidia", name: "t4" },
+      { kind: "no-gpu" }
     ]);
   });
 

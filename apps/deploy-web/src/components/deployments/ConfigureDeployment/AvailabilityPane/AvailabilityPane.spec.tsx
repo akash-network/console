@@ -1,9 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
+import { mock } from "vitest-mock-extended";
 
 import type { ScreenedProvider } from "@src/queries/useScreenedProviders";
 import { defaultPlacement } from "@src/utils/sdl/data";
 import type { GpuAvailability } from "./useGpuAvailability/useGpuAvailability";
 import type { GpuQuantityAvailability } from "./useGpuQuantityAvailability/useGpuQuantityAvailability";
+import type { GpuSelectionActions } from "./useGpuSelection/useGpuSelection";
 import type { DEPENDENCIES } from "./AvailabilityPane";
 import { AvailabilityPane } from "./AvailabilityPane";
 
@@ -85,7 +87,7 @@ describe(AvailabilityPane.name, () => {
 
     const rows = gpuRows();
     expect(screen.getByRole("heading", { name: "GPU availability" })).toBeInTheDocument();
-    expect(rows.map(row => row.firstElementChild?.textContent)).toEqual(["No GPUCurrent", "RTX 4090", "H100"]);
+    expect(rows.map(labelOf)).toEqual(["No GPUCurrent", "RTX 4090", "H100"]);
     expect(rows.map(describeCounts)).toEqual(["5 providers", "36 free GPUs on 9 providers", "12 free GPUs on 4 providers"]);
     expect(rows.map(row => row.getAttribute("aria-current"))).toEqual(["true", null, null]);
   });
@@ -94,7 +96,7 @@ describe(AvailabilityPane.name, () => {
     setup({ eligibleCount: 3, gpusPerProvider: 2, networkCount: 20, gpuAvailability: { requestedLabel: "A100", requestsGpu: true, noGpuCount: 12 } });
 
     const rows = gpuRows();
-    expect(rows.map(row => row.firstElementChild?.textContent)).toEqual(["A100Current", "RTX 4090", "H100", "No GPU"]);
+    expect(rows.map(labelOf)).toEqual(["A100Current", "RTX 4090", "H100", "No GPU"]);
     expect(rows.map(describeCounts)).toEqual(["6 free GPUs on 3 providers", "36 free GPUs on 9 providers", "12 free GPUs on 4 providers", "12 providers"]);
   });
 
@@ -130,7 +132,7 @@ describe(AvailabilityPane.name, () => {
     expect(CustomTooltip).toHaveBeenCalledWith(
       expect.objectContaining({
         title:
-          "Each row shows how many providers could host this configuration if you switched to that model and kept everything else the same, and how many of those GPUs they have free for it. Each quantity tile does the same for that number of GPUs."
+          "Each row shows how many providers could host this configuration if you switched to that model and kept everything else the same, and how many of those GPUs they have free for it. Each quantity tile does the same for that number of GPUs. Pick a model or quantity to apply it."
       }),
       expect.anything()
     );
@@ -188,6 +190,58 @@ describe(AvailabilityPane.name, () => {
     setup({ eligibleCount: 5, networkCount: 20 });
 
     expect(gpuRows().map(row => row.querySelector<HTMLElement>("[style]")?.style.width)).toEqual(["25%", "45%", "20%"]);
+  });
+
+  it("switches to another model from its row", async () => {
+    const { gpuSelection, useGpuSelection } = setup({});
+
+    const rtx4090 = screen.getByRole("button", { name: /^RTX 4090/ });
+    await userEvent.click(rtx4090);
+
+    expect(rtx4090).toHaveAccessibleDescription("Switch to RTX 4090");
+    expect(gpuSelection.select).toHaveBeenCalledWith({ kind: "model", vendor: "nvidia", name: "rtx4090" });
+    expect(useGpuSelection).toHaveBeenCalledWith("p1");
+  });
+
+  it("removes the gpu from the no gpu row", async () => {
+    const { gpuSelection } = setup({ gpuAvailability: { requestedLabel: "A100", requestsGpu: true, noGpuCount: 12 } });
+
+    const noGpu = screen.getByRole("button", { name: /^No GPU/ });
+    await userEvent.click(noGpu);
+
+    expect(noGpu).toHaveAccessibleDescription("Remove the GPU");
+    expect(gpuSelection.select).toHaveBeenCalledWith({ kind: "no-gpu" });
+  });
+
+  it("offers no pick for the current request", () => {
+    setup({ gpuAvailability: { requestedLabel: "A100", requestsGpu: true, noGpuCount: 12 } });
+
+    expect(gpuRows().map(row => within(row).queryByRole("button") !== null)).toEqual([false, true, true, true]);
+  });
+
+  it("keeps a model the selection refuses read-only", () => {
+    setup({ canSelect: selection => !(selection.kind === "model" && selection.name === "h100") });
+
+    expect(screen.getByRole("button", { name: /^RTX 4090/ })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^H100/ })).not.toBeInTheDocument();
+    expect(gpuRows()[2]).toHaveTextContent("H100");
+  });
+
+  it("sets the gpu quantity from its tile and offers no pick for the current one", async () => {
+    const { gpuSelection } = setup({
+      gpuAvailability: { requestedLabel: "H100", requestsGpu: true },
+      gpuQuantities: [
+        { gpuCount: 1, providerCount: 9, isCurrent: true },
+        { gpuCount: 4, providerCount: 0, isCurrent: false }
+      ]
+    });
+
+    const fourGpus = screen.getByRole("button", { name: /^4× GPU/ });
+    await userEvent.click(fourGpus);
+
+    expect(fourGpus).toHaveAccessibleDescription("Set GPU quantity to 4×");
+    expect(gpuSelection.selectGpuCount).toHaveBeenCalledWith(4);
+    expect(screen.queryByRole("button", { name: /^1× GPU/ })).not.toBeInTheDocument();
   });
 
   it("chooses a provider once the deployment is ready", async () => {
@@ -249,7 +303,7 @@ describe(AvailabilityPane.name, () => {
   it("offers the compute request for what is missing before the provider choice", () => {
     setup({});
 
-    const [requestCompute, chooseProvider] = screen.getAllByRole("button");
+    const [requestCompute, chooseProvider] = screen.getAllByRole("button").slice(-2);
     expect(chooseProvider).toHaveAccessibleName("Choose a provider");
     expect(chooseProvider).toHaveAccessibleDescription("Compare live bids yourself");
     expect(requestCompute).toHaveAccessibleName("Request compute");
@@ -271,6 +325,7 @@ describe(AvailabilityPane.name, () => {
     hasPlacementWithoutProviders?: boolean;
     gpuAvailability?: Partial<GpuAvailability>;
     gpuQuantities?: GpuQuantityAvailability[];
+    canSelect?: GpuSelectionActions["canSelect"];
   }) {
     const onChooseProvider = vi.fn();
     const onRequestCompute = vi.fn();
@@ -286,8 +341,8 @@ describe(AvailabilityPane.name, () => {
         requestedLabel: "No GPU",
         requestsGpu: false,
         alternatives: [
-          { key: "nvidia/rtx4090", label: "RTX 4090", providerCount: 9, gpuCount: 36 },
-          { key: "nvidia/h100", label: "H100", providerCount: 4, gpuCount: 12 }
+          { key: "nvidia/rtx4090", vendor: "nvidia", name: "rtx4090", label: "RTX 4090", providerCount: 9, gpuCount: 36 },
+          { key: "nvidia/h100", vendor: "nvidia", name: "h100", label: "H100", providerCount: 4, gpuCount: 12 }
         ],
         noGpuCount: null,
         isChecking: false,
@@ -296,12 +351,15 @@ describe(AvailabilityPane.name, () => {
       })
     );
     const useGpuQuantityAvailability = vi.fn((): GpuQuantityAvailability[] => input.gpuQuantities ?? []);
+    const gpuSelection = mock<GpuSelectionActions>({ canSelect: input.canSelect ?? (() => true) });
+    const useGpuSelection = vi.fn(() => gpuSelection);
     const CustomTooltip = vi.fn(ComponentMock);
     const dependencies: typeof DEPENDENCIES = {
       useScreenedProviders,
       useNetworkProviderCount: () => ({ count: input.networkCount === undefined ? 20 : input.networkCount, isLoading: false }),
       useGpuAvailability,
       useGpuQuantityAvailability,
+      useGpuSelection,
       CustomTooltip: CustomTooltip as never,
       InvalidSpecReasons: () => <p>Settings to fix</p>
     };
@@ -320,12 +378,25 @@ describe(AvailabilityPane.name, () => {
       />
     );
 
-    return { onChooseProvider, onRequestCompute, useScreenedProviders, useGpuAvailability, useGpuQuantityAvailability, CustomTooltip };
+    return {
+      onChooseProvider,
+      onRequestCompute,
+      useScreenedProviders,
+      useGpuAvailability,
+      useGpuQuantityAvailability,
+      gpuSelection,
+      useGpuSelection,
+      CustomTooltip
+    };
   }
 });
 
 function gpuRows() {
   return within(screen.getByRole("list", { name: "If you switch model" })).getAllByRole("listitem");
+}
+
+function labelOf(row: HTMLElement) {
+  return row.firstElementChild?.firstElementChild?.textContent;
 }
 
 function describeCounts(row: HTMLElement) {
