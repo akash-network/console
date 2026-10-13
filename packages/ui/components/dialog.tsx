@@ -13,6 +13,9 @@ const DialogPortal = DialogPrimitive.Portal;
 
 const DialogClose = DialogPrimitive.Close;
 
+/** The unstyled Radix content, for dialogs that need their own positioning and animation. */
+const DialogPrimitiveContent = DialogPrimitive.Content;
+
 const DialogOverlay = React.forwardRef<React.ElementRef<typeof DialogPrimitive.Overlay>, React.ComponentPropsWithoutRef<typeof DialogPrimitive.Overlay>>(
   ({ className, ...props }, ref) => (
     <DialogPrimitive.Overlay
@@ -79,4 +82,16 @@ const DialogDescription = React.forwardRef<
 >(({ className, ...props }, ref) => <DialogPrimitive.Description ref={ref} className={cn("text-muted-foreground text-sm", className)} {...props} />);
 DialogDescription.displayName = DialogPrimitive.Description.displayName;
 
-export { Dialog, DialogPortal, DialogOverlay, DialogClose, DialogTrigger, DialogContent, DialogHeader, DialogFooter, DialogTitle, DialogDescription };
+export {
+  Dialog,
+  DialogPortal,
+  DialogOverlay,
+  DialogClose,
+  DialogTrigger,
+  DialogContent,
+  DialogPrimitiveContent,
+  DialogHeader,
+  DialogFooter,
+  DialogTitle,
+  DialogDescription
+};
