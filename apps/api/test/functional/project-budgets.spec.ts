@@ -97,7 +97,10 @@ describe("Project budgets", () => {
       const admin = await addMember("admin");
       const budget = await createBudget(actAs(owner), project.id);
 
-      const updated = await actAs(admin)(`/v1/project-budgets/${budget.id}`, { method: "PATCH", body: { data: { stopTopUps: true, alertThresholdPercent: 50 } } });
+      const updated = await actAs(admin)(`/v1/project-budgets/${budget.id}`, {
+        method: "PATCH",
+        body: { data: { stopTopUps: true, alertThresholdPercent: 50 } }
+      });
       const removed = await actAs(admin)(`/v1/project-budgets/${budget.id}`, { method: "DELETE" });
       const removedAgain = await actAs(admin)(`/v1/project-budgets/${budget.id}`, { method: "DELETE" });
 
@@ -165,7 +168,9 @@ describe("Project budgets", () => {
       const { project, owner, actAs } = await setupTeam();
 
       const responses = await Promise.all(
-        [0.5, 10.005].map(monthlyAmountUsd => actAs(owner)("/v1/project-budgets", { method: "POST", body: { data: { projectId: project.id, monthlyAmountUsd } } }))
+        [0.5, 10.005].map(monthlyAmountUsd =>
+          actAs(owner)("/v1/project-budgets", { method: "POST", body: { data: { projectId: project.id, monthlyAmountUsd } } })
+        )
       );
 
       expect(responses.map(({ status }) => status)).toEqual([400, 400]);
@@ -258,7 +263,9 @@ describe("Project budgets", () => {
     const otherProject = await seedProject({ organizationId: team.id });
     const tokens = new Map<string, string>();
 
-    vi.spyOn(container.resolve(UserAuthTokenService), "getValidUserId").mockImplementation(async header => tokens.get(header.replace(/^Bearer +/i, "")) ?? null);
+    vi.spyOn(container.resolve(UserAuthTokenService), "getValidUserId").mockImplementation(
+      async header => tokens.get(header.replace(/^Bearer +/i, "")) ?? null
+    );
     vi.spyOn(container.resolve(FeatureFlagsService), "isEnabled").mockImplementation(flag => {
       if (flag === FeatureFlags.ORGANIZATIONS_ENFORCE) return false;
       if (flag !== FeatureFlags.ORGANIZATIONS) return true;
@@ -361,7 +368,10 @@ describe("Project budgets", () => {
         method: "POST",
         headers: { "Content-Type": "application/json", authorization: `Bearer ${token}` },
         body: JSON.stringify({
-          data: { userId: user.id, messages: messages.map(message => ({ typeUrl: message.typeUrl, value: Buffer.from(registry.encode(message)).toString("base64") })) }
+          data: {
+            userId: user.id,
+            messages: messages.map(message => ({ typeUrl: message.typeUrl, value: Buffer.from(registry.encode(message)).toString("base64") }))
+          }
         })
       });
 
@@ -413,7 +423,10 @@ describe("Project budgets", () => {
       .get(/\/cosmos\/feegrant\/v1beta1\/allowance\/.*\/.*/)
       .reply(200, createFeeAllowanceResponse({ grantee: address, amount: "5000000" }))
       .get(/\/cosmos\/authz\/v1beta1\/grants\?.*/)
-      .reply(200, createDeploymentGrantResponseSeed({ grantee: address, amount: String(DEPOSIT_UDENOM * 10), grantType: "/akash.escrow.v1.DepositAuthorization" }))
+      .reply(
+        200,
+        createDeploymentGrantResponseSeed({ grantee: address, amount: String(DEPOSIT_UDENOM * 10), grantType: "/akash.escrow.v1.DepositAuthorization" })
+      )
       .get(/\/akash\/deployment\/.*\/deployments\/list\?.*/)
       .reply(200, createDeploymentListResponseSeed({ owner: address }))
       .get("/cosmos/base/tendermint/v1beta1/blocks/latest")

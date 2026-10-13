@@ -17,7 +17,12 @@ import { EnableDeploymentAlertCommand } from "@src/billing/commands/enable-deplo
 import { FundDeploymentCommand } from "@src/billing/commands/fund-deployment.command";
 import { ManagedDeploymentLeaseCreated } from "@src/billing/events/managed-deployment-lease-created";
 import { TrialDeploymentLeaseCreated } from "@src/billing/events/trial-deployment-lease-created";
-import { type CreateDeploymentMessage, isCreateDeploymentMessage, isSpendingMessage, parseCoinAmount } from "@src/billing/lib/spending-messages/spending-messages";
+import {
+  type CreateDeploymentMessage,
+  isCreateDeploymentMessage,
+  isSpendingMessage,
+  parseCoinAmount
+} from "@src/billing/lib/spending-messages/spending-messages";
 import { InjectTypeRegistry } from "@src/billing/providers/type-registry.provider";
 import { type UserWalletOutput, UserWalletRepository } from "@src/billing/repositories";
 import type { SignAndBroadcastFundingOptions } from "@src/billing/services/external-signer-http-sdk/external-signer-http-sdk.service";

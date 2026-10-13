@@ -140,18 +140,31 @@ describe(ProjectBudgetEnforcementService.name, () => {
 
       await service.enforce([createDeposit({ amountCents: 100 })], vi.fn());
 
-      expect(organizationMemberRepository.find.mock.calls).toEqual([[{ organizationId: ORGANIZATION_ID, role: "owner" }], [{ organizationId: ORGANIZATION_ID, role: "admin" }]]);
+      expect(organizationMemberRepository.find.mock.calls).toEqual([
+        [{ organizationId: ORGANIZATION_ID, role: "owner" }],
+        [{ organizationId: ORGANIZATION_ID, role: "admin" }]
+      ]);
       expect(projectBudgetRepository.updateById).toHaveBeenCalledWith(budget.id, { alertedForPeriod: period.key });
       expect(jobQueueService.enqueue.mock.calls.map(([job]) => job)).toEqual(
         ["owner-1", "admin-1"].map(
           userId =>
-            new ProjectBudgetAlert({ userId, organizationId: ORGANIZATION_ID, projectId: budget.projectId, period: period.key, committedCents: 800, refusedCents: 0 })
+            new ProjectBudgetAlert({
+              userId,
+              organizationId: ORGANIZATION_ID,
+              projectId: budget.projectId,
+              period: period.key,
+              committedCents: 800,
+              refusedCents: 0
+            })
         )
       );
     });
 
     it("leaves the threshold alert to the recording that follows when only asked to judge", async () => {
-      const { service, jobQueueService, projectBudgetRepository } = setup({ budgets: [createBudget({ monthlyAmountCents: 1000, alertThresholdPercent: 80 })], committedCents: 700 });
+      const { service, jobQueueService, projectBudgetRepository } = setup({
+        budgets: [createBudget({ monthlyAmountCents: 1000, alertThresholdPercent: 80 })],
+        committedCents: 700
+      });
 
       await service.enforce([createDeposit({ amountCents: 200 })]);
 
@@ -170,7 +183,10 @@ describe(ProjectBudgetEnforcementService.name, () => {
     });
 
     it("stays quiet below the threshold", async () => {
-      const { service, jobQueueService, projectBudgetRepository } = setup({ budgets: [createBudget({ monthlyAmountCents: 1000, alertThresholdPercent: 80 })], committedCents: 700 });
+      const { service, jobQueueService, projectBudgetRepository } = setup({
+        budgets: [createBudget({ monthlyAmountCents: 1000, alertThresholdPercent: 80 })],
+        committedCents: 700
+      });
 
       await service.enforce([createDeposit({ amountCents: 99 })], vi.fn());
 
@@ -182,10 +198,14 @@ describe(ProjectBudgetEnforcementService.name, () => {
       const budget = createBudget({ monthlyAmountCents: 1000, alertThresholdPercent: 80 });
       const { service, jobQueueService, projectBudgetRepository } = setup({ budgets: [budget], committedCents: 100 });
 
-      await expect(service.enforce([createDeposit({ kind: "deployment_create", amountCents: 5000 })], vi.fn())).rejects.toBeInstanceOf(ProjectBudgetExceededError);
+      await expect(service.enforce([createDeposit({ kind: "deployment_create", amountCents: 5000 })], vi.fn())).rejects.toBeInstanceOf(
+        ProjectBudgetExceededError
+      );
 
       expect(projectBudgetRepository.updateById).toHaveBeenCalledWith(budget.id, { alertedForPeriod: budgetPeriodOf(new Date()).key });
-      expect(jobQueueService.enqueue).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ committedCents: 100, refusedCents: 5000 }) }));
+      expect(jobQueueService.enqueue).toHaveBeenCalledWith(
+        expect.objectContaining({ data: expect.objectContaining({ committedCents: 100, refusedCents: 5000 }) })
+      );
     });
 
     it("alerts once per month", async () => {
@@ -201,7 +221,10 @@ describe(ProjectBudgetEnforcementService.name, () => {
     });
 
     it("alerts again in a new month", async () => {
-      const { service, jobQueueService } = setup({ budgets: [createBudget({ monthlyAmountCents: 1000, alertedForPeriod: "2000-01-01" })], committedCents: 900 });
+      const { service, jobQueueService } = setup({
+        budgets: [createBudget({ monthlyAmountCents: 1000, alertedForPeriod: "2000-01-01" })],
+        committedCents: 900
+      });
 
       await service.enforce([createDeposit({ amountCents: 1 })], vi.fn());
 
@@ -218,7 +241,14 @@ describe(ProjectBudgetEnforcementService.name, () => {
   });
 
   function createDeposit(overrides: Partial<BudgetedDeposit> = {}): BudgetedDeposit {
-    return { organizationId: ORGANIZATION_ID, projectId: "project-a", dseq: faker.string.numeric(8), kind: "deployment_create", amountCents: 100, ...overrides };
+    return {
+      organizationId: ORGANIZATION_ID,
+      projectId: "project-a",
+      dseq: faker.string.numeric(8),
+      kind: "deployment_create",
+      amountCents: 100,
+      ...overrides
+    };
   }
 
   function createBudget(overrides: Partial<ProjectBudgetOutput> = {}): ProjectBudgetOutput {
@@ -249,7 +279,14 @@ describe(ProjectBudgetEnforcementService.name, () => {
     const txService = mock<TxService>({ transaction: vi.fn(async cb => await cb()) as TxService["transaction"] });
     const logger = mock<ReturnType<CreateLogger>>();
 
-    const service = new ProjectBudgetEnforcementService(projectBudgetRepository, deploymentDepositRepository, organizationMemberRepository, jobQueueService, txService, () => logger);
+    const service = new ProjectBudgetEnforcementService(
+      projectBudgetRepository,
+      deploymentDepositRepository,
+      organizationMemberRepository,
+      jobQueueService,
+      txService,
+      () => logger
+    );
 
     return { service, projectBudgetRepository, deploymentDepositRepository, organizationMemberRepository, jobQueueService, txService, logger };
   }

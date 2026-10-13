@@ -665,7 +665,10 @@ describe("ability rules", () => {
 
     it("lets a project admin read the budget of the projects it administers and change none", () => {
       const [administered, otherProject] = [faker.string.uuid(), faker.string.uuid()];
-      const { ability, organizationId } = setup({ role: "member", projectScope: createProjectsScope([administered, otherProject], { adminProjectIds: [administered] }) });
+      const { ability, organizationId } = setup({
+        role: "member",
+        projectScope: createProjectsScope([administered, otherProject], { adminProjectIds: [administered] })
+      });
 
       expect(allowedActions(ability, subject("ProjectBudget", { organizationId, projectId: administered }))).toEqual(READ);
       expect(allowedActions(ability, subject("ProjectBudget", { organizationId, projectId: otherProject }))).toEqual(NONE);

@@ -18,10 +18,9 @@ export type ProjectBudgetAlertVars = {
 export function projectBudgetAlertNotification(user: UserOutput, vars: ProjectBudgetAlertVars): CreateNotificationInput {
   const formatter = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" });
   const percent = Math.floor((vars.committedUsd * 100) / vars.budgetUsd);
-  const refusal = vars.refusedUsd > 0 ? ` A deposit of <strong>${formatter.format(vars.refusedUsd)}</strong> was not signed because it would have gone past the budget.` : "";
-  const runningDeployments = vars.stopTopUps
-    ? "Top-ups of its running deployments stop at the budget too."
-    : "Its running deployments keep being topped up.";
+  const refusal =
+    vars.refusedUsd > 0 ? ` A deposit of <strong>${formatter.format(vars.refusedUsd)}</strong> was not signed because it would have gone past the budget.` : "";
+  const runningDeployments = vars.stopTopUps ? "Top-ups of its running deployments stop at the budget too." : "Its running deployments keep being topped up.";
 
   return {
     notificationId: `projectBudgetAlert.${vars.projectId}.${vars.period}.${user.id}`,

@@ -65,7 +65,16 @@ describe(ProjectBudgetEnforcementService.name, () => {
   }
 
   function createDeposit(organizationId: string, projectId: string, amountCents: number): BudgetedDeposit & { owner: string; amount: string; denom: string } {
-    return { organizationId, projectId, dseq: faker.string.numeric(10), kind: "deployment_create", amountCents, owner: "akash1owner", amount: String(amountCents * 10_000), denom: "uact" };
+    return {
+      organizationId,
+      projectId,
+      dseq: faker.string.numeric(10),
+      kind: "deployment_create",
+      amountCents,
+      owner: "akash1owner",
+      amount: String(amountCents * 10_000),
+      denom: "uact"
+    };
   }
 
   async function setup(input: { monthlyAmountCents: number }) {

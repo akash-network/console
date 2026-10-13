@@ -10,7 +10,11 @@ import type {
   ProjectBudgetResponseItem,
   UpdateProjectBudgetRequest
 } from "@src/organization/http-schemas/project-budget.schema";
-import { ProjectBudgetService, type ProjectBudgetSettings, type ProjectBudgetWithPeriod } from "@src/organization/services/project-budget/project-budget.service";
+import {
+  ProjectBudgetService,
+  type ProjectBudgetSettings,
+  type ProjectBudgetWithPeriod
+} from "@src/organization/services/project-budget/project-budget.service";
 
 @singleton()
 export class ProjectBudgetController {

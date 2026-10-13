@@ -66,7 +66,12 @@ describe(ProjectBudgetService.name, () => {
       const budget = await service.create({ projectId: project.id, monthlyAmountCents: 5000 });
 
       expect(projectRepository.findOneBy).toHaveBeenCalledWith({ id: project.id, deletedAt: null });
-      expect(projectBudgetRepository.create).toHaveBeenCalledWith({ projectId: project.id, monthlyAmountCents: 5000, organizationId, createdByUserId: user.id });
+      expect(projectBudgetRepository.create).toHaveBeenCalledWith({
+        projectId: project.id,
+        monthlyAmountCents: 5000,
+        organizationId,
+        createdByUserId: user.id
+      });
       expect(budget).toMatchObject({ projectId: project.id, monthlyAmountCents: 5000, periodCommittedCents: 0 });
     });
 
@@ -201,7 +206,8 @@ describe(ProjectBudgetService.name, () => {
   function setup(input: { role: OrganizationRole; projectScope?: ProjectScope; withoutContext?: boolean }) {
     const user = createUser();
     const context = createOrganizationContext({ role: input.role, projectScope: input.projectScope ?? createProjectsScope([]) });
-    const scopedContext = input.role === "owner" || input.role === "admin" ? { ...context, projectScope: input.projectScope ?? { kind: "all" as const } } : context;
+    const scopedContext =
+      input.role === "owner" || input.role === "admin" ? { ...context, projectScope: input.projectScope ?? { kind: "all" as const } } : context;
     const projectBudgetRepository = mock<ProjectBudgetRepository>({ find: vi.fn().mockResolvedValue([]), findOneBy: vi.fn().mockResolvedValue(undefined) });
     projectBudgetRepository.accessibleBy.mockReturnValue(projectBudgetRepository);
     const projectRepository = mock<ProjectRepository>({ findOneBy: vi.fn().mockResolvedValue(undefined) });

@@ -5,13 +5,23 @@ import { DEFAULT_ALERT_THRESHOLD_PERCENT } from "@src/organization/model-schemas
 export const MIN_MONTHLY_BUDGET_USD = 1;
 export const MAX_MONTHLY_BUDGET_USD = 10_000_000;
 
-const MonthlyAmountUsdSchema = z.number().min(MIN_MONTHLY_BUDGET_USD).max(MAX_MONTHLY_BUDGET_USD).multipleOf(0.01).openapi({
-  description: `Committed spend allowed per calendar month (UTC), in USD (${MIN_MONTHLY_BUDGET_USD} to ${MAX_MONTHLY_BUDGET_USD}, cents at most)`
-});
+const MonthlyAmountUsdSchema = z
+  .number()
+  .min(MIN_MONTHLY_BUDGET_USD)
+  .max(MAX_MONTHLY_BUDGET_USD)
+  .multipleOf(0.01)
+  .openapi({
+    description: `Committed spend allowed per calendar month (UTC), in USD (${MIN_MONTHLY_BUDGET_USD} to ${MAX_MONTHLY_BUDGET_USD}, cents at most)`
+  });
 
-const AlertThresholdPercentSchema = z.number().int().min(1).max(100).openapi({
-  description: `Share of the monthly amount at which owners and admins are notified, once per month. Defaults to ${DEFAULT_ALERT_THRESHOLD_PERCENT}`
-});
+const AlertThresholdPercentSchema = z
+  .number()
+  .int()
+  .min(1)
+  .max(100)
+  .openapi({
+    description: `Share of the monthly amount at which owners and admins are notified, once per month. Defaults to ${DEFAULT_ALERT_THRESHOLD_PERCENT}`
+  });
 
 const StopTopUpsSchema = z.boolean().openapi({
   description: "Whether top-ups of the project's running deployments, manual or automatic, also stop at the budget. Defaults to false"

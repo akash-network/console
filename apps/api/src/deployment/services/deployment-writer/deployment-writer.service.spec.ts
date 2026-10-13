@@ -282,7 +282,9 @@ describe(DeploymentWriterService.name, () => {
       await service.create({ userId: "user-1", sdl: SDL_WITH_SECRETS, deposit: 5 });
 
       expect(depositLedger.assertWithinBudgets).toHaveBeenCalledWith(wallet.id, [createMsg], { filingProjectId: "project-1" });
-      expect(depositLedger.assertWithinBudgets.mock.invocationCallOrder[0]).toBeLessThan(deploymentSettingRepository.upsertDefinition.mock.invocationCallOrder[0]);
+      expect(depositLedger.assertWithinBudgets.mock.invocationCallOrder[0]).toBeLessThan(
+        deploymentSettingRepository.upsertDefinition.mock.invocationCallOrder[0]
+      );
     });
 
     it("records nothing and signs nothing when the project's budget refuses the create", async () => {

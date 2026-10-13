@@ -1802,7 +1802,12 @@ describe(TopUpManagedDeploymentsService.name, () => {
 
     it("signs nothing more when the budget stops every deployment of the batch", async () => {
       const { service, managedSignerService, instrumentation, deployments } = setupDrainingOwner({ deploymentCount: 2 });
-      managedSignerService.executeDerivedTx.mockRejectedValueOnce(new ProjectBudgetExceededError(deployments.map(({ dseq }) => dseq), ["project-1"]));
+      managedSignerService.executeDerivedTx.mockRejectedValueOnce(
+        new ProjectBudgetExceededError(
+          deployments.map(({ dseq }) => dseq),
+          ["project-1"]
+        )
+      );
 
       await service.topUpDeployments({ dryRun: false });
 
