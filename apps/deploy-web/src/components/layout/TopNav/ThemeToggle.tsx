@@ -3,6 +3,8 @@ import { useEffect, useState } from "react";
 import { Button } from "@akashnetwork/ui/components";
 import { useTheme } from "next-themes";
 
+import { rememberThemeChoice } from "@src/utils/themeChoice/themeChoice";
+
 export const DEPENDENCIES = { useTheme };
 
 const THEME_OPTIONS = [
@@ -29,7 +31,7 @@ export function ThemeToggle({ dependencies: d = DEPENDENCIES }: Props = {}) {
 
   const onThemeClick = (nextTheme: string) => {
     setTheme(nextTheme);
-    document.cookie = `theme=${nextTheme}; path=/; Max-Age=31536000; SameSite=Lax`;
+    rememberThemeChoice(nextTheme);
   };
 
   return (

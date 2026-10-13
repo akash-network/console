@@ -140,7 +140,9 @@ export type AnalyticsEvent =
   | "review_deploy_dismissed"
   | "account_deletion_modal_opened"
   | "account_deletion_support_clicked"
-  | "account_deletion_forfeit_chosen";
+  | "account_deletion_forfeit_chosen"
+  | "command_menu_opened"
+  | "command_menu_action_ran";
 
 export type AnalyticsCategory = "user" | "billing" | "deployments" | "wallet" | "sdl_builder" | "transactions" | "profile" | "settings" | "onboarding";
 

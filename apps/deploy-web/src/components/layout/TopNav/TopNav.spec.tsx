@@ -58,6 +58,31 @@ describe(TopNav.name, () => {
     expect(screen.queryByRole("button", { name: "Activity" })).not.toBeInTheDocument();
   });
 
+  it("shows the command menu to a signed-in user when its flag is on", () => {
+    setup({ isAuthenticated: true, isCommandMenuEnabled: true });
+
+    expect(screen.getByRole("button", { name: "Search or run a command" })).toBeInTheDocument();
+  });
+
+  it("leaves the command menu out while its flag is off", () => {
+    const { useFlag } = setup({ isAuthenticated: true, isCommandMenuEnabled: false });
+
+    expect(useFlag).toHaveBeenCalledWith("ui_command_menu");
+    expect(screen.queryByRole("button", { name: "Search or run a command" })).not.toBeInTheDocument();
+  });
+
+  it("leaves the command menu out when signed out", () => {
+    setup({ isAuthenticated: false, isCommandMenuEnabled: true });
+
+    expect(screen.queryByRole("button", { name: "Search or run a command" })).not.toBeInTheDocument();
+  });
+
+  it("leaves the command menu out in minimal mode", () => {
+    setup({ isAuthenticated: true, minimal: true, isCommandMenuEnabled: true });
+
+    expect(screen.queryByRole("button", { name: "Search or run a command" })).not.toBeInTheDocument();
+  });
+
   it("hides nav links when signed out", () => {
     setup({ isAuthenticated: false });
 
@@ -104,8 +129,9 @@ describe(TopNav.name, () => {
     expect(screen.getByRole("menuitem", { name: "Alerts" })).toHaveAttribute("href", "/alerts");
   });
 
-  function setup(input: { isAuthenticated?: boolean; minimal?: boolean; pathname?: string }) {
+  function setup(input: { isAuthenticated?: boolean; minimal?: boolean; pathname?: string; isCommandMenuEnabled?: boolean }) {
     const accountMenu = vi.fn<typeof DEPENDENCIES.TopNavAccountMenu>(() => <></>);
+    const useFlag = vi.fn<typeof DEPENDENCIES.useFlag>(() => input.isCommandMenuEnabled ?? false);
 
     const dependencies = MockComponents(DEPENDENCIES, {
       useUser: () =>
@@ -114,12 +140,14 @@ describe(TopNav.name, () => {
         }),
       usePathname: () => input.pathname ?? "/",
       useCookieTheme: () => "light",
+      useFlag,
+      CommandMenu: () => <button type="button">Search or run a command</button>,
       TopNavAccountMenu: accountMenu,
       ActivityBell: () => <button type="button">Activity</button>
     });
 
     render(<TopNav dependencies={dependencies} minimal={input.minimal} />);
 
-    return { accountMenu };
+    return { accountMenu, useFlag };
   }
 });

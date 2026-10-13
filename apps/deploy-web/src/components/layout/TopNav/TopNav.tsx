@@ -18,7 +18,9 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 import { ActivityBell } from "@src/components/activity/ActivityBell/ActivityBell";
+import { CommandMenu } from "@src/components/command-menu/CommandMenu/CommandMenu";
 import { SkipOnboardingButton } from "@src/components/onboarding-picker/SkipOnboardingButton/SkipOnboardingButton";
+import { useFlag } from "@src/hooks/useFlag";
 import { isRouteActive, useSettingsNavLinks } from "@src/hooks/useSettingsNavLinks";
 import useCookieTheme from "@src/hooks/useTheme";
 import { useUser } from "@src/hooks/useUser";
@@ -29,7 +31,18 @@ import { TopBanner } from "../TopBanner";
 import { usePublishHeaderHeight } from "../usePublishHeaderHeight";
 import { TopNavAccountMenu } from "./TopNavAccountMenu";
 
-export const DEPENDENCIES = { useUser, usePathname, useCookieTheme, TopBanner, HackathonCouponNavEntry, ActivityBell, TopNavAccountMenu, SkipOnboardingButton };
+export const DEPENDENCIES = {
+  useUser,
+  usePathname,
+  useCookieTheme,
+  useFlag,
+  TopBanner,
+  HackathonCouponNavEntry,
+  CommandMenu,
+  ActivityBell,
+  TopNavAccountMenu,
+  SkipOnboardingButton
+};
 
 interface Props {
   dependencies?: typeof DEPENDENCIES;
@@ -62,6 +75,7 @@ export function TopNav({ dependencies: d = DEPENDENCIES, minimal = false }: Prop
   const settingsLinks = useSettingsNavLinks({ dependencies: { usePathname: d.usePathname } });
   const isSettingsActive = settingsLinks.some(link => link.isActive);
   const showNavLinks = isAuthenticated && !minimal;
+  const isCommandMenuEnabled = d.useFlag("ui_command_menu");
 
   return (
     <header ref={headerRef} className={cn("fixed left-0 right-0 top-0 z-50 border-b border-border bg-header", REMOVE_SCROLL_CLASS_NAMES.zeroRight)}>
@@ -109,7 +123,12 @@ export function TopNav({ dependencies: d = DEPENDENCIES, minimal = false }: Prop
 
           {minimal && <d.SkipOnboardingButton source="auto_deploy" />}
 
-          {showNavLinks && <d.ActivityBell />}
+          {showNavLinks && (
+            <div className="flex items-center gap-3">
+              {isCommandMenuEnabled && <d.CommandMenu />}
+              <d.ActivityBell />
+            </div>
+          )}
 
           <div className={cn({ "hidden md:block": showNavLinks })}>
             <d.TopNavAccountMenu minimal={minimal} />
