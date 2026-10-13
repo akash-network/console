@@ -282,7 +282,7 @@ describe("Projects", () => {
     it("refuses to delete a project whose deployment is still open on chain and closes the ones the chain reports closed", async () => {
       const { request, team, user } = await setupCaller({ role: "owner" });
       const project = await seedProject({ organizationId: team.id });
-      const address = await seedWallet(user.id);
+      const address = await seedTeamWallet(team.id);
       const openOnChain = await seedDeploymentSetting({ userId: user.id, organizationId: team.id, projectId: project.id });
       const closedOnChain = await seedDeploymentSetting({ userId: user.id, organizationId: team.id, projectId: project.id });
       await createDeployment({ owner: address, dseq: openOnChain.dseq });
@@ -300,7 +300,7 @@ describe("Projects", () => {
     it("deletes a project whose deployments the console still holds open once the chain reports them closed", async () => {
       const { request, team, user } = await setupCaller({ role: "owner" });
       const project = await seedProject({ organizationId: team.id });
-      const address = await seedWallet(user.id);
+      const address = await seedTeamWallet(team.id);
       const setting = await seedDeploymentSetting({ userId: user.id, organizationId: team.id, projectId: project.id });
       await createDeployment({ owner: address, dseq: setting.dseq, closedHeight: 5_000_000 });
 
@@ -314,7 +314,7 @@ describe("Projects", () => {
     it("refuses to delete a project holding an open deployment the chain has no record of", async () => {
       const { request, team, user } = await setupCaller({ role: "owner" });
       const project = await seedProject({ organizationId: team.id });
-      await seedWallet(user.id);
+      await seedTeamWallet(team.id);
       await seedDeploymentSetting({ userId: user.id, organizationId: team.id, projectId: project.id });
 
       const response = await request(`/v1/projects/${project.id}`, { method: "DELETE" });
@@ -391,19 +391,19 @@ describe("Projects", () => {
   }
 
   async function seedDeploymentClosedOnChain(input: { userId: string; organizationId: string; projectId: string; dseq?: string }) {
-    const address = await seedWallet(input.userId);
+    const address = await seedTeamWallet(input.organizationId);
     const setting = await seedDeploymentSetting(input);
     await createDeployment({ owner: address, dseq: setting.dseq, closedHeight: 5_000_000 });
 
     return setting;
   }
 
-  async function seedWallet(userId: string) {
+  async function seedTeamWallet(organizationId: string) {
     const address = createAkashAddress();
     await container
       .resolve<ApiPgDatabase>(POSTGRES_DB)
       .insert(resolveTable("UserWallets"))
-      .values({ userId, address, deploymentAllowance: "0", feeAllowance: "0", isTrialing: false });
+      .values({ userId: null, organizationId, address, deploymentAllowance: "0", feeAllowance: "0", isTrialing: false });
 
     return address;
   }
