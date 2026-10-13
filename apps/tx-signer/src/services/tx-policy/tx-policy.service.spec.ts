@@ -11,6 +11,7 @@ import { TxPolicyService } from "./tx-policy.service";
 
 const SIGNER_ADDRESS = "akash1signer";
 const OTHER_ADDRESS = "akash1attacker";
+const MANAGED_WALLET_ADDRESS = "akash1managed";
 /** Declares a length-delimited field of 127 bytes and then supplies none, so any protobuf decoder runs off the end of the buffer. */
 const UNDECODABLE_PAYLOAD = Uint8Array.from([0x0a, 0x7f]);
 
@@ -187,6 +188,49 @@ describe(TxPolicyService.name, () => {
     });
   });
 
+  describe("assertGrantedToManagedWallet", () => {
+    it("accepts a fee allowance granted to the named managed wallet", () => {
+      const { service } = setup();
+
+      expect(() => service.assertGrantedToManagedWallet([feeAllowance([], MANAGED_WALLET_ADDRESS)], MANAGED_WALLET_ADDRESS)).not.toThrow();
+    });
+
+    it("accepts a deposit authorization granted to the named managed wallet", () => {
+      const { service } = setup();
+
+      expect(() => service.assertGrantedToManagedWallet([depositAuthorization([], MANAGED_WALLET_ADDRESS)], MANAGED_WALLET_ADDRESS)).not.toThrow();
+    });
+
+    it("rejects a fee allowance granted to an address other than the named managed wallet", () => {
+      const { service, logger } = setup();
+
+      expect(() => service.assertGrantedToManagedWallet([feeAllowance([], OTHER_ADDRESS)], MANAGED_WALLET_ADDRESS)).toThrow(
+        `grants to ${OTHER_ADDRESS}, not to managed wallet ${MANAGED_WALLET_ADDRESS}`
+      );
+      expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "TX_GRANTEE_REJECTED", typeUrl: `/${MsgGrantAllowance.$type}` }));
+    });
+
+    it("rejects a deposit authorization granted to an address other than the named managed wallet", () => {
+      const { service } = setup();
+
+      expect(() => service.assertGrantedToManagedWallet([depositAuthorization([], OTHER_ADDRESS)], MANAGED_WALLET_ADDRESS)).toThrow(/not to managed wallet/);
+    });
+
+    it("rejects a grant when no managed wallet is named", () => {
+      const { service, logger } = setup();
+
+      expect(() => service.assertGrantedToManagedWallet([feeAllowance([], MANAGED_WALLET_ADDRESS)], undefined)).toThrow(/names no managed wallet to grant to/);
+      expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "TX_GRANTEE_REJECTED" }));
+    });
+
+    it("ignores a revoke, which gives nothing away, even when no managed wallet is named", () => {
+      const { service } = setup();
+      const message = encodeObject(`/${MsgRevoke.$type}`, MsgRevoke.fromPartial({ granter: SIGNER_ADDRESS, grantee: OTHER_ADDRESS }));
+
+      expect(() => service.assertGrantedToManagedWallet([message], undefined)).not.toThrow();
+    });
+  });
+
   describe("assertFeeGranter", () => {
     it("rejects a fee granter that is not the funding wallet", () => {
       const { service } = setup();
@@ -205,12 +249,12 @@ describe(TxPolicyService.name, () => {
     return { typeUrl, value };
   }
 
-  function feeAllowance(spendLimit: Coin[]): EncodeObject {
+  function feeAllowance(spendLimit: Coin[], grantee = OTHER_ADDRESS): EncodeObject {
     return encodeObject(
       `/${MsgGrantAllowance.$type}`,
       MsgGrantAllowance.fromPartial({
         granter: SIGNER_ADDRESS,
-        grantee: OTHER_ADDRESS,
+        grantee,
         allowance: {
           typeUrl: `/${BasicAllowance.$type}`,
           value: Uint8Array.from(BasicAllowance.encode(BasicAllowance.fromPartial({ spendLimit })).finish())
@@ -219,12 +263,12 @@ describe(TxPolicyService.name, () => {
     );
   }
 
-  function depositAuthorization(spendLimits: Coin[]): EncodeObject {
+  function depositAuthorization(spendLimits: Coin[], grantee = OTHER_ADDRESS): EncodeObject {
     return encodeObject(
       `/${MsgGrant.$type}`,
       MsgGrant.fromPartial({
         granter: SIGNER_ADDRESS,
-        grantee: OTHER_ADDRESS,
+        grantee,
         grant: {
           authorization: {
             typeUrl: `/${DepositAuthorization.$type}`,
@@ -239,8 +283,9 @@ describe(TxPolicyService.name, () => {
     const config = mock<AppConfigService>({
       get: (() => input.allowedDenoms ?? ["uakt", "uact"]) as AppConfigService["get"]
     });
-    const service = new TxPolicyService(mock<LoggerService>(), config);
+    const logger = mock<LoggerService>();
+    const service = new TxPolicyService(logger, config);
 
-    return { service, config };
+    return { service, config, logger };
   }
 });

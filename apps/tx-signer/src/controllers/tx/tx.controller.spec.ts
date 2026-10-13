@@ -29,6 +29,34 @@ describe(TxController.name, () => {
     expect(txPolicyService.assertWithinGrantLimits).toHaveBeenCalledWith([decodedMessage]);
   });
 
+  it("checks funding grants against the managed wallet at the named derivation index", async () => {
+    const { controller, txManagerService, txPolicyService, decodedMessage, derivedWalletAddress } = setup();
+
+    await controller.signWithFundingWallet({ data: { messages: [encodedMessage()], granteeDerivationIndex: 5 } });
+
+    expect(txManagerService.getDerivedWalletAddress).toHaveBeenCalledWith(5);
+    expect(txPolicyService.assertGrantedToManagedWallet).toHaveBeenCalledWith([decodedMessage], derivedWalletAddress);
+  });
+
+  it("checks funding grants against no managed wallet when none is named", async () => {
+    const { controller, txManagerService, txPolicyService, decodedMessage } = setup();
+
+    await controller.signWithFundingWallet({ data: { messages: [encodedMessage()] } });
+
+    expect(txManagerService.getDerivedWalletAddress).not.toHaveBeenCalled();
+    expect(txPolicyService.assertGrantedToManagedWallet).toHaveBeenCalledWith([decodedMessage], undefined);
+  });
+
+  it("does not broadcast a funding grant the policy refuses for its grantee", async () => {
+    const { controller, txManagerService, txPolicyService } = setup();
+    txPolicyService.assertGrantedToManagedWallet.mockImplementation(() => {
+      throw new Error("rejected grantee");
+    });
+
+    await expect(controller.signWithFundingWallet({ data: { messages: [encodedMessage()], granteeDerivationIndex: 5 } })).rejects.toThrow("rejected grantee");
+    expect(txManagerService.signAndBroadcastWithFundingWallet).not.toHaveBeenCalled();
+  });
+
   it("checks derived messages against the derived wallet and its fee granter", async () => {
     const { controller, txPolicyService, decodedMessage, derivedWalletAddress, fundingWalletAddress } = setup();
 
