@@ -1,5 +1,5 @@
 "use client";
-import type { MouseEvent, ReactNode } from "react";
+import type { MouseEvent, MutableRefObject, ReactNode } from "react";
 import { useEffect, useRef, useState } from "react";
 import { Command, CommandGroup, CommandInput, CommandItem as CommandRow, CommandList, DialogTitle } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
@@ -9,6 +9,7 @@ import { useServices } from "@src/context/ServicesProvider";
 import type { ScopePrefix } from "../commandMenuSearch";
 import { applyScope, cycleScope, parseQuery, rankSections } from "../commandMenuSearch";
 import { CommandPanel } from "../CommandPanel/CommandPanel";
+import { Keycaps } from "../Keycaps/Keycaps";
 import type { CommandItem } from "../useCommandMenuItems";
 import { useCommandMenuItems } from "../useCommandMenuItems";
 
@@ -17,6 +18,8 @@ export const DEPENDENCIES = { useCommandMenuItems };
 type Props = {
   isOpen: boolean;
   onOpenChange: (isOpen: boolean) => void;
+  onShowShortcuts: () => void;
+  returnFocusRef?: MutableRefObject<Element | null>;
   dependencies?: typeof DEPENDENCIES;
 };
 
@@ -28,7 +31,7 @@ const SCOPE_TOGGLES: { prefix: ScopePrefix; label: string }[] = [
 
 const PLACEHOLDER = "Search or run a command (try “>” for actions)";
 
-export function CommandMenuDialog({ isOpen, onOpenChange, dependencies = DEPENDENCIES }: Props) {
+export function CommandMenuDialog({ isOpen, onOpenChange, onShowShortcuts, returnFocusRef, dependencies = DEPENDENCIES }: Props) {
   const skipsFocusReturnRef = useRef(false);
 
   return (
@@ -36,6 +39,7 @@ export function CommandMenuDialog({ isOpen, onOpenChange, dependencies = DEPENDE
       isOpen={isOpen}
       onOpenChange={onOpenChange}
       className="max-w-[640px]"
+      returnFocusRef={returnFocusRef}
       onCloseAutoFocus={event => {
         if (skipsFocusReturnRef.current) event.preventDefault();
         skipsFocusReturnRef.current = false;
@@ -44,6 +48,7 @@ export function CommandMenuDialog({ isOpen, onOpenChange, dependencies = DEPENDE
       <DialogTitle className="sr-only">Command menu</DialogTitle>
       <CommandMenuPanel
         onClose={() => onOpenChange(false)}
+        onShowShortcuts={onShowShortcuts}
         onRunItem={item => {
           skipsFocusReturnRef.current = !item.staysOnPage;
           onOpenChange(false);
@@ -56,16 +61,17 @@ export function CommandMenuDialog({ isOpen, onOpenChange, dependencies = DEPENDE
 
 type PanelProps = {
   onClose: () => void;
+  onShowShortcuts: () => void;
   onRunItem: (item: CommandItem) => void;
   dependencies: typeof DEPENDENCIES;
 };
 
-function CommandMenuPanel({ onClose, onRunItem, dependencies }: PanelProps) {
+function CommandMenuPanel({ onClose, onShowShortcuts, onRunItem, dependencies }: PanelProps) {
   const { analyticsService } = useServices();
   const [input, setInput] = useState("");
   const [selection, setSelection] = useState({ value: "", isPinnedToFirst: true });
   const parsed = parseQuery(input);
-  const sections = rankSections(dependencies.useCommandMenuItems({ parsed }), parsed);
+  const sections = rankSections(dependencies.useCommandMenuItems({ parsed, onShowShortcuts }), parsed);
   const rows = sections.flatMap(section => section.items);
   const firstId = rows[0]?.id ?? "";
   const isMovedSelectionShown = !selection.isPinnedToFirst && rows.some(row => row.id === selection.value);
@@ -191,6 +197,7 @@ function CommandMenuRow({ item, onSelect }: { item: CommandItem; onSelect: () =>
         </span>
         {item.meta && <span className="truncate text-[12.5px] text-muted-foreground max-[600px]:hidden">{item.meta}</span>}
       </span>
+      {item.shortcut && <Keycaps {...item.shortcut} aria-hidden="true" />}
       <span className="flex w-[18px] shrink-0 justify-center">
         <CornerDownLeft className="invisible h-[15px] w-[15px] text-muted-foreground group-data-[selected=true]:visible" />
       </span>

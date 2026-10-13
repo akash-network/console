@@ -1,5 +1,5 @@
 "use client";
-import type { ComponentPropsWithoutRef, ReactNode } from "react";
+import type { ComponentPropsWithoutRef, MutableRefObject, ReactNode } from "react";
 import { useRef } from "react";
 import { Dialog, DialogOverlay, DialogPortal, DialogPrimitiveContent } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
@@ -8,6 +8,8 @@ type Props = {
   isOpen: boolean;
   onOpenChange: (isOpen: boolean) => void;
   className?: string;
+  /** Shared by panels that replace each other, since each one opens while the other still holds the focus. */
+  returnFocusRef?: MutableRefObject<Element | null>;
   onCloseAutoFocus?: ComponentPropsWithoutRef<typeof DialogPrimitiveContent>["onCloseAutoFocus"];
   children: ReactNode;
 };
@@ -15,7 +17,9 @@ type Props = {
 const PANEL_CLASSES =
   "fixed inset-x-4 top-[12vh] z-[751] mx-auto flex max-h-[calc(100dvh-12vh-16px)] flex-col overflow-hidden rounded-[14px] border bg-popover text-popover-foreground shadow-[0_30px_70px_-20px_rgba(0,0,0,0.45)] outline-none duration-150 ease-[cubic-bezier(0.2,0.8,0.2,1)] data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-[0.985] data-[state=open]:slide-in-from-top-1.5";
 
-export function CommandPanel({ isOpen, onOpenChange, className, onCloseAutoFocus, children }: Props) {
+const OPEN_DIALOGS = '[role="dialog"], [role="alertdialog"]';
+
+export function CommandPanel({ isOpen, onOpenChange, className, returnFocusRef, onCloseAutoFocus, children }: Props) {
   const focusedBeforeOpenRef = useRef<Element | null>(null);
 
   return (
@@ -31,7 +35,7 @@ export function CommandPanel({ isOpen, onOpenChange, className, onCloseAutoFocus
             onCloseAutoFocus?.(event);
             if (event.defaultPrevented) return;
             event.preventDefault();
-            returnFocusTo(focusedBeforeOpenRef.current);
+            if (!document.querySelector(OPEN_DIALOGS)) returnFocusTo(returnFocusRef?.current ?? focusedBeforeOpenRef.current);
           }}
           className={cn(PANEL_CLASSES, className)}
         >

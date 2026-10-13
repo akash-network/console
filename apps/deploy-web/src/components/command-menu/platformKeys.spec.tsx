@@ -1,6 +1,8 @@
+import React from "react";
+import { renderToString } from "react-dom/server";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 
-import { detectMac, isMenuToggleKey, useIsMac } from "./platformKeys";
+import { detectMac, isMenuToggleKey, isShortcutKey, useIsMac } from "./platformKeys";
 
 import { renderHook } from "@testing-library/react";
 
@@ -54,18 +56,51 @@ describe(isMenuToggleKey.name, () => {
   }
 });
 
+describe(isShortcutKey.name, () => {
+  it("matches a letter whether or not caps lock is on", () => {
+    expect(isShortcutKey({ key: "n", shiftKey: false }, ["N"])).toBe(true);
+    expect(isShortcutKey({ key: "N", shiftKey: false }, ["N"])).toBe(true);
+  });
+
+  it("tells a shifted letter apart from the plain one", () => {
+    expect(isShortcutKey({ key: "N", shiftKey: true }, ["N"])).toBe(false);
+    expect(isShortcutKey({ key: "C", shiftKey: true }, ["shift", "C"])).toBe(true);
+    expect(isShortcutKey({ key: "c", shiftKey: false }, ["shift", "C"])).toBe(false);
+  });
+
+  it("matches a symbol however it was typed", () => {
+    expect(isShortcutKey({ key: "?", shiftKey: true }, ["?"])).toBe(true);
+    expect(isShortcutKey({ key: "/", shiftKey: false }, ["?"])).toBe(false);
+  });
+
+  it("ignores other keys", () => {
+    expect(isShortcutKey({ key: "m", shiftKey: false }, ["N"])).toBe(false);
+  });
+});
+
 describe(useIsMac.name, () => {
-  it("knows nothing on the first render and detects the platform once mounted", () => {
+  it("detects a Mac on the first render in the browser", () => {
     const { renders } = setup({ platform: "MacIntel" });
 
-    expect(renders).toEqual([undefined, true]);
+    expect(renders[0]).toBe(true);
   });
 
-  it("detects another platform once mounted", () => {
+  it("detects another platform on the first render in the browser", () => {
     const { renders } = setup({ platform: "Win32" });
 
-    expect(renders.at(-1)).toBe(false);
+    expect(renders[0]).toBe(false);
   });
+
+  it("knows nothing while rendering on the server, so hydration matches the server HTML", () => {
+    setup({ platform: "MacIntel" });
+
+    expect(renderToString(<PlatformProbe />)).toBe("unknown");
+  });
+
+  function PlatformProbe() {
+    const isMac = useIsMac();
+    return <>{isMac === undefined ? "unknown" : String(isMac)}</>;
+  }
 
   function setup(input: { platform: string }) {
     const platform = vi.spyOn(navigator, "platform", "get").mockReturnValue(input.platform);

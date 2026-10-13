@@ -1,5 +1,5 @@
 import type { LucideIcon } from "lucide-react";
-import { Container, LayoutGrid, Moon, Plus, Sun, Terminal, Wallet } from "lucide-react";
+import { Keyboard, LayoutGrid, Moon, Sun, Wallet } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
 
@@ -12,8 +12,8 @@ import { useRunWhenEmailVerified } from "@src/hooks/useEmailVerificationRequired
 import type { ListedDeploymentDto } from "@src/types/deployment";
 import { rememberThemeChoice } from "@src/utils/themeChoice/themeChoice";
 import { UrlService } from "@src/utils/urlUtils";
-import type { CommandAction } from "./commandMenuCatalog";
-import { COMMAND_PAGES } from "./commandMenuCatalog";
+import type { CommandAction, Shortcut } from "./commandMenuCatalog";
+import { COMMAND_PAGES, DEPLOYMENT_START_COMMANDS, goToShortcut, SHOW_SHORTCUTS_SHORTCUT } from "./commandMenuCatalog";
 import type { CommandSection, ParsedQuery, SearchableItem } from "./commandMenuSearch";
 import { useStartDeployment } from "./useStartDeployment";
 
@@ -24,6 +24,7 @@ export interface CommandItem extends SearchableItem {
   statusDotClassName?: string;
   isMonospace?: boolean;
   staysOnPage?: boolean;
+  shortcut?: Shortcut;
   action: CommandAction;
   run: () => void;
 }
@@ -35,7 +36,10 @@ const DEPLOYMENTS_OUTSIDE_SCOPE = 6;
 
 const DEPLOYMENTS_IN_SCOPE = 50;
 
-export function useCommandMenuItems({ parsed }: { parsed: ParsedQuery }, dependencies: typeof DEPENDENCIES = DEPENDENCIES): CommandSection<CommandItem>[] {
+export function useCommandMenuItems(
+  { parsed, onShowShortcuts }: { parsed: ParsedQuery; onShowShortcuts: () => void },
+  dependencies: typeof DEPENDENCIES = DEPENDENCIES
+): CommandSection<CommandItem>[] {
   const router = dependencies.useRouter();
   const { resolvedTheme, setTheme } = dependencies.useTheme();
   const openAddCredits = dependencies.useAddCredits();
@@ -45,30 +49,15 @@ export function useCommandMenuItems({ parsed }: { parsed: ParsedQuery }, depende
   const nextTheme = resolvedTheme === "dark" ? "light" : "dark";
 
   const actions: CommandItem[] = [
-    {
-      id: "action-new-deployment",
-      label: "New deployment",
-      icon: Plus,
-      keywords: "create deploy launch",
-      action: "new_deployment",
-      run: () => startDeployment("new-deployment")
-    },
-    {
-      id: "action-new-container",
-      label: "New container",
-      icon: Container,
-      keywords: "docker image byo bring your own container deploy configure",
-      action: "new_container",
-      run: () => startDeployment("container")
-    },
-    {
-      id: "action-new-linux-machine",
-      label: "New Linux machine",
-      icon: Terminal,
-      keywords: "ssh ubuntu debian centos suse vm server linux deploy configure",
-      action: "new_linux_machine",
-      run: () => startDeployment("linux")
-    },
+    ...DEPLOYMENT_START_COMMANDS.map<CommandItem>(command => ({
+      id: `action-${command.action.replace(/_/g, "-")}`,
+      label: command.label,
+      icon: command.icon,
+      keywords: command.keywords,
+      shortcut: command.shortcut,
+      action: command.action,
+      run: () => startDeployment(command.kind)
+    })),
     {
       id: "action-deploy-from-template",
       label: "Deploy from a template",
@@ -96,6 +85,15 @@ export function useCommandMenuItems({ parsed }: { parsed: ParsedQuery }, depende
         setTheme(nextTheme);
         rememberThemeChoice(nextTheme);
       }
+    },
+    {
+      id: "action-keyboard-shortcuts",
+      label: "Keyboard shortcuts",
+      icon: Keyboard,
+      keywords: "help hotkeys keys",
+      shortcut: SHOW_SHORTCUTS_SHORTCUT,
+      action: "keyboard_shortcuts",
+      run: onShowShortcuts
     }
   ];
 
@@ -108,6 +106,7 @@ export function useCommandMenuItems({ parsed }: { parsed: ParsedQuery }, depende
     label: page.label,
     icon: page.icon,
     keywords: "go to page",
+    shortcut: goToShortcut(page),
     action: `go_to_${page.id}`,
     run: () => router.push(page.href)
   }));
