@@ -57,6 +57,37 @@ describe("Contact Points CRUD", () => {
     await app.close();
   });
 
+  it("answers 400 to a default channel request without the channel details", async () => {
+    const { app } = await setup();
+
+    const res = await request(app.getHttpServer()).post("/v1/notification-channels/default").set("x-user-id", faker.string.uuid()).send({});
+
+    expect(res.status).toBe(400);
+
+    await app.close();
+  });
+
+  it("creates the default notification channel only once", async () => {
+    const { app } = await setup();
+    const server = app.getHttpServer();
+    const userId = faker.string.uuid();
+    const input = { name: "Default", type: "email", config: { addresses: [faker.internet.email()] } };
+
+    const responses = [
+      await request(server).post("/v1/notification-channels/default").set("x-user-id", userId).send({ data: input }),
+      await request(server).post("/v1/notification-channels/default").set("x-user-id", userId).send({ data: input })
+    ];
+    const listRes = await request(server).get("/v1/notification-channels").set("x-user-id", userId);
+
+    expect(responses.map(res => res.status)).toEqual([204, 204]);
+    expect(listRes.body).toMatchObject({
+      data: [expect.objectContaining({ ...input, userId, isDefault: true })],
+      pagination: { total: 1 }
+    });
+
+    await app.close();
+  });
+
   async function shouldCreate(app: INestApplication): Promise<NotificationChannelMeta> {
     const input = generateMock(notificationChannelCreateInputSchema);
     const userId = faker.string.uuid();
