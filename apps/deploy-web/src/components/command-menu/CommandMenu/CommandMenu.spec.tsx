@@ -5,11 +5,13 @@ import { mock } from "vitest-mock-extended";
 
 import type { AnalyticsService } from "@src/services/analytics/analytics.service";
 import { COMMAND_PAGES, DEPLOYMENT_START_COMMANDS } from "../commandMenuCatalog";
+import { CommandMenuDialog } from "../CommandMenuDialog/CommandMenuDialog";
+import { ShortcutsSheet } from "../ShortcutsSheet/ShortcutsSheet";
 import type { GlobalShortcutHandlers } from "../useGlobalShortcuts";
 import type { DEPENDENCIES } from "./CommandMenu";
 import { CommandMenu } from "./CommandMenu";
 
-import { act, render, screen } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { TestContainerProvider } from "@tests/unit/TestContainerProvider";
 
@@ -115,7 +117,32 @@ describe(CommandMenu.name, () => {
     expect(screen.queryByRole("dialog", { name: "Keyboard shortcuts" })).not.toBeInTheDocument();
   });
 
-  function setup() {
+  it("returns the focus to the trigger once the shortcuts sheet opened from the menu closes", async () => {
+    setup({ hasRealPanels: true });
+    const trigger = screen.getByRole("button", { name: "Open command menu" });
+    await userEvent.click(trigger);
+
+    await userEvent.click(screen.getByRole("option", { name: "Keyboard shortcuts" }));
+    expect(screen.getByRole("dialog", { name: "Keyboard shortcuts" })).toBeInTheDocument();
+    await userEvent.keyboard("{Escape}");
+
+    await waitFor(() => expect(trigger).toHaveFocus());
+  });
+
+  it("returns the focus to where it was once the menu that replaced the shortcuts sheet closes", async () => {
+    const { press } = setup({ hasRealPanels: true });
+    const trigger = screen.getByRole("button", { name: "Open command menu" });
+    trigger.focus();
+
+    press(handlers => handlers.onShowShortcuts());
+    press(handlers => handlers.onToggleMenu());
+    await waitFor(() => expect(screen.getByRole("combobox")).toHaveFocus());
+    await userEvent.keyboard("{Escape}");
+
+    await waitFor(() => expect(trigger).toHaveFocus());
+  });
+
+  function setup(input: { hasRealPanels?: boolean } = {}) {
     const analyticsService = mock<AnalyticsService>();
     const push = vi.fn();
     const startDeployment = vi.fn(async () => undefined);
@@ -152,6 +179,23 @@ describe(CommandMenu.name, () => {
           )}
         </>
       ),
+      ...(input.hasRealPanels && {
+        CommandMenuDialog: props => (
+          <CommandMenuDialog
+            {...props}
+            dependencies={{
+              useCommandMenuItems: ({ onShowShortcuts }) => [
+                {
+                  key: "actions",
+                  label: "Actions",
+                  items: [{ id: "action-keyboard-shortcuts", label: "Keyboard shortcuts", action: "keyboard_shortcuts", run: onShowShortcuts }]
+                }
+              ]
+            }}
+          />
+        ),
+        ShortcutsSheet
+      }),
       useGlobalShortcuts: nextHandlers => {
         handlers = nextHandlers;
       },

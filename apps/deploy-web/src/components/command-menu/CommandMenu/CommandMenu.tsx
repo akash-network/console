@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { useServices } from "@src/context/ServicesProvider";
@@ -22,14 +22,21 @@ export function CommandMenu({ dependencies: d = DEPENDENCIES }: Props) {
   const startDeployment = d.useStartDeployment();
   const [isOpen, setIsOpen] = useState(false);
   const [isShortcutsOpen, setIsShortcutsOpen] = useState(false);
+  const returnFocusRef = useRef<Element | null>(null);
+
+  const rememberFocusBeforeFirstPanel = () => {
+    if (!isOpen && !isShortcutsOpen) returnFocusRef.current = document.activeElement;
+  };
 
   const openMenu = (via: "button" | "shortcut") => {
     analyticsService.track("command_menu_opened", { via });
+    rememberFocusBeforeFirstPanel();
     setIsShortcutsOpen(false);
     setIsOpen(true);
   };
 
   const showShortcuts = () => {
+    rememberFocusBeforeFirstPanel();
     setIsOpen(false);
     setIsShortcutsOpen(true);
   };
@@ -55,8 +62,8 @@ export function CommandMenu({ dependencies: d = DEPENDENCIES }: Props) {
   return (
     <>
       <d.CommandMenuTrigger onClick={() => openMenu("button")} />
-      <d.CommandMenuDialog isOpen={isOpen} onOpenChange={setIsOpen} onShowShortcuts={showShortcuts} />
-      <d.ShortcutsSheet isOpen={isShortcutsOpen} onOpenChange={setIsShortcutsOpen} />
+      <d.CommandMenuDialog isOpen={isOpen} onOpenChange={setIsOpen} onShowShortcuts={showShortcuts} returnFocusRef={returnFocusRef} />
+      <d.ShortcutsSheet isOpen={isShortcutsOpen} onOpenChange={setIsShortcutsOpen} returnFocusRef={returnFocusRef} />
     </>
   );
 }

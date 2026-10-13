@@ -1,4 +1,5 @@
 "use client";
+import type { MutableRefObject } from "react";
 import { useId } from "react";
 import { DialogClose, DialogTitle } from "@akashnetwork/ui/components";
 import { X } from "lucide-react";
@@ -11,6 +12,7 @@ import { Keycaps } from "../Keycaps/Keycaps";
 type Props = {
   isOpen: boolean;
   onOpenChange: (isOpen: boolean) => void;
+  returnFocusRef?: MutableRefObject<Element | null>;
 };
 
 type ShortcutGroupProps = {
@@ -48,9 +50,9 @@ const SHORTCUT_GROUPS: ShortcutGroupProps[] = [
   }
 ];
 
-export function ShortcutsSheet({ isOpen, onOpenChange }: Props) {
+export function ShortcutsSheet({ isOpen, onOpenChange, returnFocusRef }: Props) {
   return (
-    <CommandPanel isOpen={isOpen} onOpenChange={onOpenChange} className="max-w-[700px]">
+    <CommandPanel isOpen={isOpen} onOpenChange={onOpenChange} returnFocusRef={returnFocusRef} className="max-w-[700px]">
       <div className="flex h-[52px] shrink-0 items-center justify-between gap-3 border-b pl-5 pr-3">
         <DialogTitle className="text-[15px] font-semibold tracking-normal">Keyboard shortcuts</DialogTitle>
         <DialogClose
@@ -60,7 +62,7 @@ export function ShortcutsSheet({ isOpen, onOpenChange }: Props) {
           <X className="h-4 w-4" />
         </DialogClose>
       </div>
-      <div className="grid grid-cols-1 gap-x-8 gap-y-6 overflow-y-auto overscroll-contain p-5 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-x-8 gap-y-6 overflow-y-auto overscroll-contain p-5 min-[641px]:grid-cols-2">
         {SHORTCUT_GROUPS.map(group => (
           <ShortcutGroup key={group.title} {...group} />
         ))}

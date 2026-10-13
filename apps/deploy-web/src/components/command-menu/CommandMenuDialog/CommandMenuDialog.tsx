@@ -1,5 +1,5 @@
 "use client";
-import type { MouseEvent, ReactNode } from "react";
+import type { MouseEvent, MutableRefObject, ReactNode } from "react";
 import { useEffect, useRef, useState } from "react";
 import { Command, CommandGroup, CommandInput, CommandItem as CommandRow, CommandList, DialogTitle } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
@@ -19,6 +19,7 @@ type Props = {
   isOpen: boolean;
   onOpenChange: (isOpen: boolean) => void;
   onShowShortcuts: () => void;
+  returnFocusRef?: MutableRefObject<Element | null>;
   dependencies?: typeof DEPENDENCIES;
 };
 
@@ -30,7 +31,7 @@ const SCOPE_TOGGLES: { prefix: ScopePrefix; label: string }[] = [
 
 const PLACEHOLDER = "Search or run a command (try “>” for actions)";
 
-export function CommandMenuDialog({ isOpen, onOpenChange, onShowShortcuts, dependencies = DEPENDENCIES }: Props) {
+export function CommandMenuDialog({ isOpen, onOpenChange, onShowShortcuts, returnFocusRef, dependencies = DEPENDENCIES }: Props) {
   const skipsFocusReturnRef = useRef(false);
 
   return (
@@ -38,6 +39,7 @@ export function CommandMenuDialog({ isOpen, onOpenChange, onShowShortcuts, depen
       isOpen={isOpen}
       onOpenChange={onOpenChange}
       className="max-w-[640px]"
+      returnFocusRef={returnFocusRef}
       onCloseAutoFocus={event => {
         if (skipsFocusReturnRef.current) event.preventDefault();
         skipsFocusReturnRef.current = false;
