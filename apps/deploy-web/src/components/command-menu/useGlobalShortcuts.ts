@@ -57,6 +57,8 @@ export function useGlobalShortcuts(handlers: GlobalShortcutHandlers) {
         return;
       }
 
+      if (event.repeat) return;
+
       const isGoSequencePending = goPressedAt !== undefined && Date.now() - goPressedAt <= GO_SEQUENCE_WINDOW_MS;
       goPressedAt = undefined;
 
@@ -68,6 +70,7 @@ export function useGlobalShortcuts(handlers: GlobalShortcutHandlers) {
       }
 
       if (isShortcutKey(event, [GO_KEY])) {
+        event.preventDefault();
         goPressedAt = Date.now();
         return;
       }
@@ -85,7 +88,6 @@ export function useGlobalShortcuts(handlers: GlobalShortcutHandlers) {
 
 function isSingleKeyIgnored(event: KeyboardEvent) {
   return (
-    event.repeat ||
     event.isComposing ||
     event.metaKey ||
     event.ctrlKey ||

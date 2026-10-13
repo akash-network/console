@@ -69,12 +69,13 @@ describe(useGlobalShortcuts.name, () => {
       expect(isNotCancelled).toBe(false);
     });
 
-    it("opens the shortcuts sheet with ?", () => {
+    it("opens the shortcuts sheet with ? and stops the browser's handling", () => {
       const { handlers } = setup({});
 
-      fireEvent.keyDown(window, { key: "?", shiftKey: true });
+      const isNotCancelled = fireEvent.keyDown(window, { key: "?", shiftKey: true });
 
       expect(handlers.onShowShortcuts).toHaveBeenCalledTimes(1);
+      expect(isNotCancelled).toBe(false);
     });
 
     it("does nothing for keys without a shortcut", () => {
@@ -89,11 +90,23 @@ describe(useGlobalShortcuts.name, () => {
   });
 
   describe("go-to sequences", () => {
-    it("goes to a page with G then its letter", () => {
+    it("goes to a page with G then its letter and stops the browser's handling", () => {
       const { handlers, pressAt } = setup({});
 
-      pressAt(0, { key: "g" });
-      pressAt(1_000, { key: "t" });
+      const isGoNotCancelled = pressAt(50_000, { key: "g" });
+      const isNotCancelled = pressAt(51_000, { key: "t" });
+
+      expect(handlers.onGoTo).toHaveBeenCalledExactlyOnceWith(COMMAND_PAGES[1]);
+      expect(isGoNotCancelled).toBe(false);
+      expect(isNotCancelled).toBe(false);
+    });
+
+    it("keeps the sequence going while G is held down", () => {
+      const { handlers, pressAt } = setup({});
+
+      pressAt(50_000, { key: "g" });
+      pressAt(50_500, { key: "g", repeat: true });
+      pressAt(51_000, { key: "t" });
 
       expect(handlers.onGoTo).toHaveBeenCalledExactlyOnceWith(COMMAND_PAGES[1]);
     });
@@ -101,8 +114,8 @@ describe(useGlobalShortcuts.name, () => {
     it("lets the letter come up to 1.2 seconds after G", () => {
       const { handlers, pressAt } = setup({});
 
-      pressAt(0, { key: "g" });
-      pressAt(1_200, { key: "b" });
+      pressAt(50_000, { key: "g" });
+      pressAt(51_200, { key: "b" });
 
       expect(handlers.onGoTo).toHaveBeenCalledExactlyOnceWith(COMMAND_PAGES[3]);
     });
@@ -110,20 +123,21 @@ describe(useGlobalShortcuts.name, () => {
     it("forgets G after 1.2 seconds", () => {
       const { handlers, pressAt } = setup({});
 
-      pressAt(0, { key: "g" });
-      pressAt(1_201, { key: "t" });
+      pressAt(50_000, { key: "g" });
+      pressAt(51_201, { key: "t" });
 
       expect(handlers.onGoTo).not.toHaveBeenCalled();
     });
 
-    it("ends the sequence on the next key, mapped or not", () => {
+    it("ends the sequence on the next key, mapped or not, leaving an unmapped one to the browser", () => {
       const { handlers, pressAt } = setup({});
 
-      pressAt(0, { key: "g" });
-      pressAt(100, { key: "?", shiftKey: true });
-      pressAt(200, { key: "t" });
+      pressAt(50_000, { key: "g" });
+      const isNotCancelled = pressAt(50_100, { key: "?", shiftKey: true });
+      pressAt(50_200, { key: "t" });
 
       expectNothingRan(handlers);
+      expect(isNotCancelled).toBe(true);
     });
 
     it("does not go anywhere for a letter typed without G", () => {
@@ -138,9 +152,9 @@ describe(useGlobalShortcuts.name, () => {
       const { handlers, pressAt } = setup({});
       const field = appendToBody("input");
 
-      pressAt(0, { key: "g" });
-      pressAt(100, { key: "t" }, field);
-      pressAt(200, { key: "t" });
+      pressAt(50_000, { key: "g" });
+      pressAt(50_100, { key: "t" }, field);
+      pressAt(50_200, { key: "t" });
 
       expect(handlers.onGoTo).not.toHaveBeenCalled();
     });
@@ -281,7 +295,7 @@ describe(useGlobalShortcuts.name, () => {
 
     const pressAt = (time: number, event: KeyboardEventInit, target: Element | Window = window) => {
       now.mockReturnValue(time);
-      fireEvent.keyDown(target, event);
+      return fireEvent.keyDown(target, event);
     };
 
     return { handlers, rerender, unmount, pressAt };
