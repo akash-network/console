@@ -15,7 +15,7 @@ import type { DeploymentSettingRepository } from "@src/deployment/repositories/d
 import { BlockedGpuService } from "@src/deployment/services/blocked-gpu/blocked-gpu.service";
 import { SdlService } from "@src/deployment/services/sdl/sdl.service";
 import { SdlReferenceService } from "@src/deployment/services/sdl-reference/sdl-reference.service";
-import type { SdlSecretsService } from "@src/deployment/services/sdl-secrets/sdl-secrets.service";
+import { type SdlSecretsService, STORED_SECRETS_UNAVAILABLE_ERROR_CODE } from "@src/deployment/services/sdl-secrets/sdl-secrets.service";
 import type { UserOutput } from "@src/user/repositories";
 import { LeaseManifestService } from "./lease-manifest.service";
 
@@ -292,6 +292,14 @@ describe(LeaseManifestService.name, () => {
       sdlSecretsService.openStored.mockRejectedValue(unreadable);
 
       await expect(service.deriveFor({ dseq: DSEQ, userId: USER_ID })).rejects.toBe(unreadable);
+    });
+
+    it("tells the caller to update the deployment when its token was sealed for another member", async () => {
+      const unavailable = createError(409, "sealed for another member", { errorCode: STORED_SECRETS_UNAVAILABLE_ERROR_CODE });
+      const { service, sdlSecretsService } = setup({ definition: { sdl: sdlWith(["API_TOKEN=ac-secret://API_TOKEN"]), sealedSecrets: "adopted" } });
+      sdlSecretsService.openStored.mockRejectedValue(unavailable);
+
+      await expect(service.deriveFor({ dseq: DSEQ, userId: USER_ID })).rejects.toBe(unavailable);
     });
 
     it("logs a token it cannot open as the lease failure it is, not only as the cipher's", async () => {

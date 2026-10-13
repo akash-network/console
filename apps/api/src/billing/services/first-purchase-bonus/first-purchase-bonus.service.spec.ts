@@ -36,6 +36,18 @@ describe(FirstPurchaseBonusService.name, () => {
       expect(organizationRepository.findOneByAndLock).not.toHaveBeenCalled();
     });
 
+    it("grants nothing for a team's payment whose member has deleted their account, without locking anyone", async () => {
+      const { service, stripeTransactionRepository, userRepository, organizationRepository } = setup();
+      const transaction = generateDatabaseStripeTransaction({ type: "payment_intent", userId: null, organizationId: "org-1" });
+
+      const result = await service.getEligibleBonusAmount(transaction, 10000);
+
+      expect(result).toBe(0);
+      expect(userRepository.findOneByAndLock).not.toHaveBeenCalled();
+      expect(organizationRepository.findOneByAndLock).not.toHaveBeenCalled();
+      expect(stripeTransactionRepository.hasCompletedPaidTransaction).not.toHaveBeenCalled();
+    });
+
     it("grants 10% of a qualifying first purchase by a person who never received the bonus", async () => {
       const { service } = setup();
       const transaction = generateDatabaseStripeTransaction({ type: "payment_intent" });

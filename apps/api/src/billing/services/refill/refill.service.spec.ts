@@ -35,6 +35,32 @@ describe(RefillService.name, () => {
       expect(result).toEqual({ walletId: teamWallet.id, address: teamWallet.address });
     });
 
+    it("credits the team for a payment whose member has deleted their account, tracking no one", async () => {
+      const { service, userWalletRepository, managedUserWalletService, walletInitializerService, balancesService, analyticsService } = setup();
+      const team = createOrganization({ type: "team" });
+      const teamWallet = createInitializedUserWallet({ organizationId: team.id, abuseLockedAt: new Date() });
+      walletInitializerService.ensureTeamWallet.mockResolvedValue(teamWallet);
+      userWalletRepository.claimActivation.mockResolvedValue(undefined);
+      userWalletRepository.clearAbuseLock.mockResolvedValue(true);
+      balancesService.retrieveDeploymentLimit.mockResolvedValue(0);
+
+      const result = await service.topUpWallet(amountUsd, { userId: null, organizationId: team.id, team });
+
+      expect(walletInitializerService.ensureTeamWallet).toHaveBeenCalledWith(team, null);
+      expect(managedUserWalletService.authorizeSpending).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ address: teamWallet.address }));
+      expect(analyticsService.track).not.toHaveBeenCalled();
+      expect(result).toEqual({ walletId: teamWallet.id, address: teamWallet.address });
+    });
+
+    it("refuses to fund anything but a team for a payment no member made", async () => {
+      const { service, walletInitializerService, managedUserWalletService } = setup();
+
+      await expect(service.topUpWallet(amountUsd, { userId: null, organizationId: "org-personal" })).rejects.toMatchObject({ status: 500 });
+
+      expect(walletInitializerService.ensureWallet).not.toHaveBeenCalled();
+      expect(managedUserWalletService.authorizeSpending).not.toHaveBeenCalled();
+    });
+
     it.each([
       { case: "a personal organization paid", organizationId: "org-personal" },
       { case: "the transaction names no organization", organizationId: undefined }
@@ -280,6 +306,27 @@ describe(RefillService.name, () => {
         limits: { deployment: 4000000, fees: 1000 }
       });
       expect(analyticsService.track).toHaveBeenCalledWith(userId, "balance_refund", expect.objectContaining({ amount_cents: 100 }));
+    });
+
+    it("debits the team for a refund whose member has deleted their account, tracking no one", async () => {
+      const { service, userWalletRepository, managedUserWalletService, balancesService, analyticsService } = setup();
+      const team = createOrganization({ type: "team" });
+      userWalletRepository.findOneByOrganizationId.mockResolvedValue(createUserWallet({ organizationId: team.id, address: "akash1team..." }));
+      balancesService.retrieveDeploymentLimit.mockResolvedValue(5000000);
+
+      await service.reduceWalletBalance(100, { userId: null, organizationId: team.id, team });
+
+      expect(managedUserWalletService.authorizeSpending).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ address: "akash1team..." }));
+      expect(analyticsService.track).not.toHaveBeenCalled();
+    });
+
+    it("never looks for a user's own wallet to debit for a refund no member made", async () => {
+      const { service, userWalletRepository, managedUserWalletService } = setup();
+
+      await expect(service.reduceWalletBalance(100, { userId: null, organizationId: null })).rejects.toMatchObject({ status: 500 });
+
+      expect(userWalletRepository.findOneBy).not.toHaveBeenCalled();
+      expect(managedUserWalletService.authorizeSpending).not.toHaveBeenCalled();
     });
 
     it("reduces wallet balance by the specified amount", async () => {

@@ -7,6 +7,7 @@ import { type ApiPgDatabase, type ApiPgTables, InjectPg, InjectPgTable } from "@
 import { OrgScopedRepository } from "@src/core/repositories/org-scoped.repository";
 import { TxService } from "@src/core/services";
 import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
+import { writtenForTeamBy } from "@src/organization/lib/team-records/team-records";
 import { Users } from "@src/user/model-schemas";
 
 type Table = ApiPgTables["StripeTransactions"];
@@ -69,6 +70,13 @@ export class StripeTransactionRepository extends OrgScopedRepository<Table, Stri
 
   protected newInstance() {
     return new StripeTransactionRepository(this.pg, this.table, this.txManager, this.executionContextService) as this;
+  }
+
+  async detachFromTeams(userId: string): Promise<void> {
+    await this.cursor
+      .update(this.table)
+      .set({ userId: null })
+      .where(this.unscoped("account-deletion").whereAccessibleBy(writtenForTeamBy(this.table, userId)));
   }
 
   async findByOwner(options: FindTransactionsOptions): Promise<StripeTransactionWithInitiator[]> {

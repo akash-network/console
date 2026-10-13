@@ -42,8 +42,8 @@ export class CreditsAddedSlackAlertHandler implements JobHandler<CreditsAdded> {
       return;
     }
 
-    const user = await this.userRepository.findById(payload.userId);
-    const hasPaidBefore = await this.stripeTransactionRepository.hasCompletedPaidTransactionBefore(payload.transactionId);
+    const user = payload.userId ? await this.userRepository.findById(payload.userId) : undefined;
+    const hasPaidBefore = !!payload.userId && (await this.stripeTransactionRepository.hasCompletedPaidTransactionBefore(payload.transactionId));
     const message = buildCreditsAddedSlackMessage({
       event: payload,
       email: user?.email,

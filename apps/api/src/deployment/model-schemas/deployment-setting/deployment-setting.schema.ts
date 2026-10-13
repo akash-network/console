@@ -69,9 +69,8 @@ export const DeploymentSettings = pgTable(
       .primaryKey()
       .notNull()
       .default(sql`uuid_generate_v4()`),
-    userId: uuid("user_id")
-      .references(() => Users.id, { onDelete: "cascade" })
-      .notNull(),
+    /** Null for a team organization's row whose member has deleted their account. */
+    userId: uuid("user_id").references(() => Users.id, { onDelete: "cascade" }),
     organizationId: uuid("organization_id").references(() => Organizations.id),
     projectId: uuid("project_id"),
     dseq: varchar("dseq").notNull(),

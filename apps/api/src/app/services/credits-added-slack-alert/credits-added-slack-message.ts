@@ -32,8 +32,10 @@ function escapeSlackText(text: string): string {
   return text.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
 }
 
+export const DELETED_BUYER_LABEL = "Deleted account";
+
 function describeBuyer(event: EventPayload<CreditsAdded>, email: string | null | undefined): string {
-  const buyer = escapeSlackText(email || event.userId);
+  const buyer = escapeSlackText(email || event.userId || DELETED_BUYER_LABEL);
 
   if (event.bonusAmountCents > 0) {
     return `${buyer} · ${formatUsd(event.paidAmountCents)} paid + ${formatUsd(event.bonusAmountCents)} first-purchase bonus`;
@@ -72,15 +74,22 @@ function describeStripeLinks(stripeDashboardUrl: string, event: EventPayload<Cre
   return stripeLinks;
 }
 
-function describeLinks(event: EventPayload<CreditsAdded>, links: { amplitudeProjectUrl?: string; adminUrl?: string; stripeDashboardUrl?: string }): string[] {
-  const userLinks: string[] = [];
+function describeBuyerLinks(userId: string, links: { amplitudeProjectUrl?: string; adminUrl?: string }): string[] {
+  const buyerLinks: string[] = [];
 
   if (links.amplitudeProjectUrl) {
-    userLinks.push(slackLink(`${links.amplitudeProjectUrl}/search/user_id%3D${encodeURIComponent(event.userId)}`, "Amplitude sessions"));
+    buyerLinks.push(slackLink(`${links.amplitudeProjectUrl}/search/user_id%3D${encodeURIComponent(userId)}`, "Amplitude sessions"));
   }
   if (links.adminUrl) {
-    userLinks.push(slackLink(`${links.adminUrl}/users/${encodeURIComponent(event.userId)}`, "Admin"));
+    buyerLinks.push(slackLink(`${links.adminUrl}/users/${encodeURIComponent(userId)}`, "Admin"));
   }
+
+  return buyerLinks;
+}
+
+function describeLinks(event: EventPayload<CreditsAdded>, links: { amplitudeProjectUrl?: string; adminUrl?: string; stripeDashboardUrl?: string }): string[] {
+  const userLinks = event.userId ? describeBuyerLinks(event.userId, links) : [];
+
   if (links.stripeDashboardUrl) {
     userLinks.push(...describeStripeLinks(links.stripeDashboardUrl, event));
   }
@@ -98,7 +107,8 @@ export function buildCreditsAddedSlackMessage(input: {
 }): CreditsAddedSlackMessage {
   const { event } = input;
   const creditedCents = event.paidAmountCents + event.bonusAmountCents;
-  const headline = `${describeSource(event)} · *${formatUsd(creditedCents)}* credited · ${describeCustomer(event, input.hasPaidBefore)}`;
+  const credited = `${describeSource(event)} · *${formatUsd(creditedCents)}* credited`;
+  const headline = event.userId ? `${credited} · ${describeCustomer(event, input.hasPaidBefore)}` : credited;
   const messageLines = [headline, describeBuyer(event, input.email), ...describeLinks(event, input)];
 
   return { text: messageLines.join("\n") };

@@ -1,29 +1,44 @@
+import type { Registry } from "@cosmjs/proto-signing";
 import { faker } from "@faker-js/faker";
 import { createHash } from "crypto";
 import { addMinutes, subMinutes } from "date-fns";
+import { eq } from "drizzle-orm";
 import nock from "nock";
+import stripe from "stripe";
 import { container } from "tsyringe";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
 import { startJobQueues } from "@src/app/providers/jobs.provider";
 import { ApiKeyRepository } from "@src/auth/repositories/api-key/api-key.repository";
 import { ApiKeyGeneratorService } from "@src/auth/services/api-key/api-key-generator.service";
+import { AuthService } from "@src/auth/services/auth.service";
 import { UserAuthTokenService } from "@src/auth/services/user-auth-token/user-auth-token.service";
-import { CORE_CONFIG, JOB_NAME } from "@src/core";
+import { BILLING_CONFIG } from "@src/billing/providers";
+import { TYPE_REGISTRY } from "@src/billing/providers/type-registry.provider";
+import { type ApiPgDatabase, CORE_CONFIG, JOB_NAME, POSTGRES_DB, resolveTable } from "@src/core";
+import { DomainEventsService } from "@src/core/services/domain-events/domain-events.service";
+import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
+import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import { NOTIFICATIONS_CONFIG } from "@src/notifications/providers/notifications-config.provider";
 import { app } from "@src/rest-app";
 import { AccountDeletionTokenRepository } from "@src/user/repositories/account-deletion-token/account-deletion-token.repository";
 import { UserRepository } from "@src/user/repositories/user/user.repository";
 import { PurgeDeletedAccount } from "@src/user/services/purge-deleted-account/purge-deleted-account.handler";
 
-import { seedUserWithWallet } from "@test/seeders/db/user-with-wallet.seeder";
+import { createAkashAddress } from "@test/seeders/akash-address.seeder";
+import { seedOrganizationMember, seedOrganizationWithOwner } from "@test/seeders/db/organization.seeder";
+import { seedUser, seedUserWithWallet } from "@test/seeders/db/user-with-wallet.seeder";
+import { createDeploymentGrantResponseSeed } from "@test/seeders/deployment-grant-response.seeder";
 import { createDeploymentInfoSeed } from "@test/seeders/deployment-info.seeder";
+import { createFeeAllowanceResponse } from "@test/seeders/fee-allowance-response.seeder";
 import { findJobRows } from "@test/services/job-queue-harness";
 
 interface ErrorBody {
   code: string;
   data?: Record<string, unknown>;
 }
+
+const STRIPE_API = "https://api.stripe.com";
 
 describe("Account deletion", () => {
   const userRepository = container.resolve(UserRepository);
@@ -133,6 +148,161 @@ describe("Account deletion", () => {
       expect(((await response.json()) as ErrorBody).code).toBe("expired_deletion_token");
       expect(await userRepository.findById(user.id)).toBeDefined();
     });
+  });
+
+  describe("for a member of a team organization", () => {
+    it("keeps the team's history, refunds and late payments of what the deleted member paid", async () => {
+      const { team, owner, member, teamCustomerId, teamWallet, headersOf, seedTransaction } = await setupTeam();
+      const refunded = await seedTransaction({ userId: member.id, status: "succeeded", stripeChargeId: `ch_${faker.string.alphanumeric(14)}` });
+      const pending = await seedTransaction({ userId: member.id, status: "pending" });
+      const { linkToken } = await issueLinkFor(member.id);
+      answerActiveDeployments([]);
+
+      expect((await confirm(linkToken)).status).toBe(204);
+
+      const historyResponse = await app.request("/v1/stripe/transactions", { headers: headersOf(owner) });
+      expect(historyResponse.status).toBe(200);
+      const { data } = (await historyResponse.json()) as { data: { transactions: { id: string; initiatedBy: unknown }[] } };
+      expect(data.transactions).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ id: refunded.id, initiatedBy: null }),
+          expect.objectContaining({ id: pending.id, initiatedBy: null })
+        ])
+      );
+
+      const grantees = answerChainFor(teamWallet.address);
+      const refundResponse = await sendWebhook({
+        type: "charge.refunded",
+        data: { object: { id: refunded.stripeChargeId, customer: teamCustomerId, amount_refunded: refunded.amount, refunded: true } }
+      });
+      expect(refundResponse.status).toBe(200);
+      expect(await findTransaction(refunded.id)).toMatchObject({ status: "refunded", amountRefunded: refunded.amount, userId: null });
+
+      nock(STRIPE_API).get("/v1/charges/ch_late").reply(200, { id: "ch_late", object: "charge", payment_method_details: null });
+      const settlementResponse = await sendWebhook({
+        type: "payment_intent.succeeded",
+        data: {
+          object: {
+            id: `pi_${faker.string.alphanumeric(14)}`,
+            object: "payment_intent",
+            customer: teamCustomerId,
+            amount: pending.amount,
+            amount_received: pending.amount,
+            latest_charge: "ch_late",
+            payment_method_types: ["card"],
+            metadata: { internal_transaction_id: pending.id }
+          }
+        }
+      });
+      expect(settlementResponse.status).toBe(200);
+      expect(await findTransaction(pending.id)).toMatchObject({ status: "succeeded", organizationId: team.id, userId: null, bonusAmount: 0 });
+      expect(new Set(grantees)).toEqual(new Set([teamWallet.address]));
+    });
+
+    it("refuses the last owner of the team when the link is requested and again when it is used", async () => {
+      const { team, owner, headersOf } = await setupTeam();
+      interceptNotifications();
+      answerActiveDeployments([]);
+
+      const initiateResponse = await initiate(headersOf(owner), { forfeitAcknowledged: true });
+      const { linkToken } = await issueLinkFor(owner.id);
+      const confirmResponse = await confirm(linkToken);
+
+      expect(initiateResponse.status).toBe(409);
+      expect(await initiateResponse.json()).toMatchObject({ code: "last_owner", data: { organizations: [{ id: team.id, name: team.name }] } });
+      expect(confirmResponse.status).toBe(409);
+      expect(((await confirmResponse.json()) as ErrorBody).code).toBe("last_owner");
+      expect(await userRepository.findById(owner.id)).toBeDefined();
+    });
+
+    async function setupTeam() {
+      const db = container.resolve<ApiPgDatabase>(POSTGRES_DB);
+      const { user: owner, organization: team } = await seedOrganizationWithOwner({ user: { userId: faker.string.uuid() } });
+      const member = await seedUser({ userId: faker.string.uuid() });
+      await seedOrganizationMember({ organizationId: team.id, userId: member.id, role: "billing" });
+      const teamCustomerId = `cus_${faker.string.alphanumeric(14)}`;
+      await db.update(resolveTable("Organizations")).set({ stripeCustomerId: teamCustomerId }).where(eq(resolveTable("Organizations").id, team.id));
+      const [teamWallet] = await db
+        .insert(resolveTable("UserWallets"))
+        .values({ userId: null, organizationId: team.id, address: createAkashAddress(), isTrialing: false, activatedAt: new Date() })
+        .returning();
+
+      const tokens = new Map<string, string>();
+      const tokenOf = (user: { id: string; userId: string | null }) => {
+        const token = faker.string.alphanumeric(40);
+        tokens.set(token, user.userId!);
+        return token;
+      };
+      const ownerToken = tokenOf(owner);
+      vi.spyOn(userAuthTokenService, "getValidUserId").mockImplementation(async header => tokens.get(header.replace(/^Bearer +/i, "")) ?? null);
+      vi.spyOn(container.resolve(FeatureFlagsService), "isEnabled").mockImplementation((flag, context) => {
+        if (flag === FeatureFlags.ORGANIZATIONS_ENFORCE) return false;
+        if (flag !== FeatureFlags.ORGANIZATIONS) return true;
+
+        return (context?.userId ?? container.resolve(AuthService).safeCurrentUser?.id) === owner.id;
+      });
+
+      const headersOf = (user: { id: string }) => ({ authorization: `Bearer ${user.id === owner.id ? ownerToken : ""}`, "x-organization-id": team.id });
+      const seedTransaction = async (input: { userId: string; status: "pending" | "succeeded"; stripeChargeId?: string }) => {
+        const [transaction] = await db
+          .insert(resolveTable("StripeTransactions"))
+          .values({ type: "payment_intent", amount: 2000, currency: "usd", organizationId: team.id, ...input })
+          .returning();
+        return transaction;
+      };
+
+      return { team, owner, member, teamCustomerId, teamWallet: { ...teamWallet, address: teamWallet.address! }, headersOf, seedTransaction };
+    }
+
+    async function issueLinkFor(userId: string) {
+      const linkToken = faker.string.alphanumeric(43);
+      await tokenRepository.replaceForUser({ userId, tokenHash: sha256(linkToken), acknowledgedForfeitUsd: 0, expiresAt: addMinutes(new Date(), 15) });
+
+      return { linkToken };
+    }
+
+    async function findTransaction(id: string) {
+      const db = container.resolve<ApiPgDatabase>(POSTGRES_DB);
+      return await db.query.StripeTransactions.findFirst({ where: eq(resolveTable("StripeTransactions").id, id) });
+    }
+
+    async function sendWebhook(event: Record<string, unknown>) {
+      vi.spyOn(container.resolve(DomainEventsService), "publish").mockResolvedValue(null);
+      const payload = JSON.stringify({ id: `evt_${faker.string.alphanumeric(14)}`, ...event });
+
+      return await app.request("/v1/stripe-webhook", {
+        method: "POST",
+        body: payload,
+        headers: {
+          "Content-Type": "text/plain",
+          "Stripe-Signature": stripe.webhooks.generateTestHeaderString({ payload, secret: process.env.STRIPE_WEBHOOK_SECRET! })
+        }
+      });
+    }
+
+    function answerChainFor(address: string) {
+      const registry = container.resolve<Registry>(TYPE_REGISTRY);
+      const grantees: string[] = [];
+      nock(container.resolve(CORE_CONFIG).REST_API_NODE_URL)
+        .persist()
+        .get(uri => uri.includes("/cosmos/feegrant/v1beta1/allowance/") && uri.endsWith(address))
+        .reply(200, createFeeAllowanceResponse({ grantee: address, amount: "5000000" }))
+        .get(uri => uri.endsWith(`/cosmos/feegrant/v1beta1/allowances/${address}`))
+        .reply(200, { allowances: [createFeeAllowanceResponse({ grantee: address, amount: "5000000" })], pagination: { next_key: null, total: "1" } })
+        .get(uri => uri.includes("/cosmos/authz/v1beta1/grants") && uri.includes(address))
+        .reply(200, createDeploymentGrantResponseSeed({ grantee: address, amount: "50000000", grantType: "/akash.escrow.v1.DepositAuthorization" }));
+      nock(container.resolve(BILLING_CONFIG).TX_SIGNER_BASE_URL)
+        .persist()
+        .post("/v1/tx/funding", body => {
+          for (const message of body.data.messages) {
+            grantees.push(registry.decode({ typeUrl: message.typeUrl, value: Buffer.from(message.value, "base64") }).grantee);
+          }
+          return true;
+        })
+        .reply(200, { data: { code: 0, hash: "SOME_HASH", rawLog: "[]" } });
+
+      return grantees;
+    }
   });
 
   function sha256(value: string) {

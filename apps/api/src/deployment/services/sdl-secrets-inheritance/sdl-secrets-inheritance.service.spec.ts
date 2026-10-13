@@ -8,7 +8,7 @@ import type { AuthService } from "@src/auth/services/auth.service";
 import type { CreateLogger } from "@src/core/providers/logging.provider";
 import type { DeploymentSettingsOutput } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
 import type { DeploymentSettingRepository } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
-import type { SdlSecretsService } from "@src/deployment/services/sdl-secrets/sdl-secrets.service";
+import { type SdlSecretsService, STORED_SECRETS_UNAVAILABLE_ERROR_CODE } from "@src/deployment/services/sdl-secrets/sdl-secrets.service";
 import type { SdlSecrets } from "@src/deployment/services/sdl-secrets-unsealer/sdl-secrets-unsealer.service";
 import { SECRET_UNREADABLE_ERROR_CODE, SECRET_UNREADABLE_ERROR_MESSAGE } from "@src/secret/config/secret-at-rest.config";
 import { SdlSecretsInheritanceService } from "./sdl-secrets-inheritance.service";
@@ -84,6 +84,14 @@ describe(SdlSecretsInheritanceService.name, () => {
       });
     });
 
+    it("answers not found for a team's source whose filer has deleted their account, without opening it", async () => {
+      const { service, sdlSecretsService } = setup({ setting: mock<DeploymentSettingsOutput>({ sealedSecrets: TOKEN, userId: null }) });
+
+      await expect(service.open({ wallet: { userId: null, organizationId: "organization-1" }, dseq: SOURCE.dseq })).rejects.toMatchObject({ status: 404 });
+
+      expect(sdlSecretsService.openStored).not.toHaveBeenCalled();
+    });
+
     it("says nothing about whether the deployment exists", async () => {
       const { service } = setup({ setting: undefined });
 
@@ -119,6 +127,17 @@ describe(SdlSecretsInheritanceService.name, () => {
       await service.open(REQUEST);
 
       expect(logger.info).toHaveBeenCalledWith({ event: "SDL_SECRETS_INHERIT_SOURCE_HAS_NO_SECRETS", ...SOURCE });
+    });
+  });
+
+  describe("a token sealed for a member who no longer files the source", () => {
+    it("answers that the inherited secrets can no longer be decrypted", async () => {
+      const { service, logger } = setup({
+        openStoredError: createError(409, "sealed for another member", { errorCode: STORED_SECRETS_UNAVAILABLE_ERROR_CODE })
+      });
+
+      await expect(service.open(REQUEST)).rejects.toMatchObject({ status: 409, errorCode: "inherited_secrets_unreadable" });
+      expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "SDL_SECRETS_INHERIT_TOKEN_UNREADABLE" }));
     });
   });
 

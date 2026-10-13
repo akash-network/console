@@ -73,6 +73,16 @@ describe(AutoRechargeSucceededHandler.name, () => {
     expect(logger.warn).toHaveBeenCalledWith(expect.objectContaining({ event: "AUTO_RECHARGE_SUCCESS_EMAIL_SKIPPED", reason: "Wallet address not found" }));
   });
 
+  it("skips a recharge that names neither a wallet nor a member", async () => {
+    const { handler, notificationService, userWalletRepository, logger } = setup({ user: null });
+
+    await handler.handle({ ...payload, userId: null });
+
+    expect(userWalletRepository.findOneByUserId).not.toHaveBeenCalled();
+    expect(notificationService.createNotification).not.toHaveBeenCalled();
+    expect(logger.warn).toHaveBeenCalledWith(expect.objectContaining({ event: "AUTO_RECHARGE_SUCCESS_EMAIL_SKIPPED", reason: "Wallet address not found" }));
+  });
+
   it("creates the logger with the service context", () => {
     const { createLogger } = setup({ user: null });
 

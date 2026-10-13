@@ -1,4 +1,5 @@
 import { PromisePool } from "@supercharge/promise-pool";
+import assert from "http-assert";
 import { inject, singleton } from "tsyringe";
 
 import { organizationAnalyticsProperties } from "@src/billing/lib/organization-analytics/organization-analytics";
@@ -23,9 +24,9 @@ export interface PaymentAnalyticsContext {
   bonusAmountCents?: number;
 }
 
-/** Who a credit or a debit is for: the member who acted and the organization that paid. */
+/** Who a credit or a debit is for: the member who acted, if their account still exists, and the organization that paid. */
 export interface WalletPayer {
-  userId: string;
+  userId: string | null;
   organizationId?: string | null;
   /** Set only for a payment whose Stripe customer and transaction row both name this team; any other payment funds the user's own wallet. */
   team?: Pick<OrganizationOutput, "id" | "type">;
@@ -99,7 +100,7 @@ export class RefillService {
     await this.balancesService.refreshUserWalletLimits(userWallet, { endTrial: options.endTrial ?? true });
     await this.clearAbuseLockOnPayment(userWallet, userId);
 
-    this.analyticsService.track(userId, "balance_top_up", {
+    this.#trackFor(userId, "balance_top_up", {
       amount_cents: amountUsd,
       amount_usd: amountUsd / 100,
       currency: options.payment?.currency,
@@ -126,7 +127,7 @@ export class RefillService {
     const { userId } = payer;
     const userWallet = payer.team
       ? await this.userWalletRepository.findOneByOrganizationId(payer.team.id)
-      : await this.userWalletRepository.findOneBy({ userId });
+      : await this.userWalletRepository.findOneBy({ userId: this.#ownWalletUserIdOf(payer) });
 
     if (!userWallet || !userWallet.address) {
       this.logger.warn({ event: "WALLET_REDUCE_NO_WALLET", userId });
@@ -147,7 +148,7 @@ export class RefillService {
     });
 
     await this.balancesService.refreshUserWalletLimits(userWallet);
-    this.analyticsService.track(userId, "balance_refund", {
+    this.#trackFor(userId, "balance_refund", {
       amount_cents: amountUsd,
       amount_usd: amountUsd / 100,
       currency: payment?.currency,
@@ -158,12 +159,12 @@ export class RefillService {
   }
 
   /** A failed clear is logged instead of thrown: authorizeSpending has already raised the on-chain allowance, so rolling the settlement back would let a webhook retry credit the same charge twice. */
-  private async clearAbuseLockOnPayment(userWallet: UserWalletOutput, userId: string) {
+  private async clearAbuseLockOnPayment(userWallet: UserWalletOutput, userId: string | null) {
     try {
       if (!(await this.userWalletRepository.clearAbuseLock(userWallet.id))) return;
 
       this.logger.info({ event: "WALLET_ABUSE_LOCK_CLEARED", walletId: userWallet.id, userId });
-      this.analyticsService.track(userId, "account_restriction_lifted", { lifted_by: "payment" });
+      this.#trackFor(userId, "account_restriction_lifted", { lifted_by: "payment" });
     } catch (error) {
       this.logger.error({ event: "WALLET_ABUSE_LOCK_CLEAR_FAILED", walletId: userWallet.id, userId, error });
     }
@@ -184,12 +185,24 @@ export class RefillService {
   private async ensureActivatedWallet(payer: WalletPayer) {
     const userWallet = payer.team
       ? await this.walletInitializerService.ensureTeamWallet(payer.team, payer.userId)
-      : await this.walletInitializerService.ensureWallet(payer.userId);
+      : await this.walletInitializerService.ensureWallet(this.#ownWalletUserIdOf(payer));
 
     return (await this.userWalletRepository.claimActivation(userWallet.id)) ?? userWallet;
   }
 
   #organizationPropertiesOf(payer: WalletPayer) {
     return organizationAnalyticsProperties({ id: payer.organizationId, type: payer.team ? "team" : "personal" });
+  }
+
+  /** Analytics follow a person, so a payment whose member has deleted their account is left out of them. */
+  #trackFor(userId: string | null, eventName: Parameters<AnalyticsService["track"]>[1], eventProperties: Record<string, unknown>) {
+    if (userId) this.analyticsService.track(userId, eventName, eventProperties);
+  }
+
+  /** Only a member who still exists has a wallet of their own, so a payment no member made funds a team or nothing. */
+  #ownWalletUserIdOf(payer: WalletPayer): string {
+    assert(payer.userId, 500, "A payment no member made can only fund a team organization's wallet", { organizationId: payer.organizationId });
+
+    return payer.userId;
   }
 }

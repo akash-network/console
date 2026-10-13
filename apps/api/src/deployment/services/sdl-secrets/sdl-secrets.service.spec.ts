@@ -10,7 +10,7 @@ import { MAX_SDL_REFERENCE_NAME_LENGTH, SdlReferenceService } from "@src/deploym
 import type { SdlSecrets } from "@src/deployment/services/sdl-secrets-unsealer/sdl-secrets-unsealer.service";
 import type { SdlSecretsUnsealerService } from "@src/deployment/services/sdl-secrets-unsealer/sdl-secrets-unsealer.service";
 import type { SecretCipherService } from "@src/secret/services/secret-cipher/secret-cipher.service";
-import { SdlSecretsService } from "./sdl-secrets.service";
+import { SdlSecretsService, STORED_SECRETS_UNAVAILABLE_ERROR_CODE } from "./sdl-secrets.service";
 
 import { mockConfigService } from "@test/mocks/config-service.mock";
 
@@ -540,6 +540,34 @@ describe(SdlSecretsService.name, () => {
       secretCipherService.decrypt.mockRejectedValue(refusal);
 
       await expect(service.openStored({ userId: "user-1", dseq: "1420000", sealedSecrets: SEAL })).rejects.toBe(refusal);
+    });
+
+    describe("a token sealed for another member than the one the row is filed under", () => {
+      it("answers that the stored secrets can no longer be opened and that a full update stores them again", async () => {
+        const { service } = setup();
+
+        await expect(service.openStored({ userId: "user-2", dseq: "1420000", sealedSecrets: tokenWithHeader() })).rejects.toMatchObject({
+          status: 409,
+          errorCode: STORED_SECRETS_UNAVAILABLE_ERROR_CODE,
+          message: expect.stringContaining("Update the deployment with its full SDL")
+        });
+      });
+
+      it("spends no key-service call on it and logs who it was opened for", async () => {
+        const { service, secretCipherService, logger } = setup();
+
+        await expect(service.openStored({ userId: "user-2", dseq: "1420000", sealedSecrets: tokenWithHeader() })).rejects.toThrow();
+
+        expect(secretCipherService.decrypt).not.toHaveBeenCalled();
+        expect(logger.warn).toHaveBeenCalledWith({ event: "SDL_SECRETS_SEALED_FOR_ANOTHER_USER", userId: "user-2", dseq: "1420000" });
+      });
+
+      it("opens a token sealed for the member the row is filed under", async () => {
+        const { service, secretCipherService } = setup({ stored: { TOKEN: "one" } });
+
+        await expect(service.openStored({ userId: "user-1", dseq: "1420000", sealedSecrets: tokenWithHeader() })).resolves.toEqual({ TOKEN: "one" });
+        expect(secretCipherService.decrypt).toHaveBeenCalled();
+      });
     });
 
     describe("a token that will not decrypt", () => {

@@ -66,7 +66,7 @@ export class ExpiringDeploymentsNotifierService {
   }
 
   async #notifyExpiringDeployment(deployment: ExpiringRuntimeDeployment, dryRun: boolean): Promise<boolean> {
-    const user = await this.userRepository.findById(deployment.userId);
+    const user = deployment.userId ? await this.userRepository.findById(deployment.userId) : undefined;
 
     if (!user?.email) {
       this.logger.warn({

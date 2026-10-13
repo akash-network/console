@@ -1,6 +1,6 @@
 import { faker } from "@faker-js/faker";
 
-import type { PayingPayer } from "@src/billing/services/payer/payer";
+import type { MemberlessTeamPayer, PayingPayer } from "@src/billing/services/payer/payer";
 import type { OrganizationOutput } from "@src/organization/repositories/organization/organization.repository";
 import type { UserOutput } from "@src/user/repositories";
 import { createOrganization } from "./organization.seeder";
@@ -17,4 +17,10 @@ export function createTeamPayer(overrides: { user?: Partial<UserOutput>; team?: 
   const team = createOrganization({ type: "team", stripeCustomerId: `cus_${faker.string.alphanumeric(14)}`, ...overrides.team });
 
   return { user, organizationId: team.id, team, stripeCustomerId: team.stripeCustomerId! };
+}
+
+export function createMemberlessTeamPayer(overrides: { team?: Partial<OrganizationOutput> } = {}): MemberlessTeamPayer & { stripeCustomerId: string } {
+  const team = createOrganization({ type: "team", stripeCustomerId: `cus_${faker.string.alphanumeric(14)}`, ...overrides.team });
+
+  return { user: null, organizationId: team.id, team, stripeCustomerId: team.stripeCustomerId! };
 }

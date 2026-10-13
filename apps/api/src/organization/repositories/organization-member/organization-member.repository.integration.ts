@@ -2,11 +2,13 @@ import { faker } from "@faker-js/faker";
 import { container } from "tsyringe";
 import { describe, expect, it } from "vitest";
 
+import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
 import { TxService } from "@src/core/services/tx/tx.service";
 import { OrganizationMemberRepository } from "./organization-member.repository";
 
 import { seedOrganization, seedOrganizationMember, seedOrganizationWithOwner } from "@test/seeders/db/organization.seeder";
 import { seedUser } from "@test/seeders/db/user-with-wallet.seeder";
+import { createOrganizationContext } from "@test/seeders/organization-context.seeder";
 
 describe(OrganizationMemberRepository.name, () => {
   describe("createUnlessExists", () => {
@@ -53,6 +55,51 @@ describe(OrganizationMemberRepository.name, () => {
       const emails = await repository.findEmailsOfMembers(organization.id, ["jane.member@example.com", "joe@example.com", foreignMember.email!]);
 
       expect(emails).toEqual(["jane.member@example.com"]);
+    });
+  });
+
+  describe("lockTeamsOwnedOnlyBy", () => {
+    it("names the live teams the user is the only owner of, oldest first", async () => {
+      const { repository, txService, user, organization } = await setup();
+      await seedOrganizationMember({ organizationId: organization.id, userId: user.id, role: "owner" });
+      const newer = await seedOrganization({ createdAt: new Date(organization.createdAt.getTime() + 1000) });
+      await seedOrganizationMember({ organizationId: newer.id, userId: user.id, role: "owner" });
+      const { organization: coOwned } = await seedOrganizationWithOwner();
+      await seedOrganizationMember({ organizationId: coOwned.id, userId: user.id, role: "owner" });
+      const { organization: administered } = await seedOrganizationWithOwner();
+      await seedOrganizationMember({ organizationId: administered.id, userId: user.id, role: "admin" });
+      const personal = await seedOrganization({ type: "personal", createdByUserId: user.id });
+      await seedOrganizationMember({ organizationId: personal.id, userId: user.id, role: "owner" });
+      const deleted = await seedOrganization({ deletedAt: new Date() });
+      await seedOrganizationMember({ organizationId: deleted.id, userId: user.id, role: "owner" });
+
+      const teams = await txService.transaction(() => repository.lockTeamsOwnedOnlyBy(user.id));
+
+      expect(teams).toEqual([
+        { id: organization.id, name: organization.name },
+        { id: newer.id, name: newer.name }
+      ]);
+    });
+
+    it("names no team for a user who owns none", async () => {
+      const { repository, user, organization } = await setup();
+      await seedOrganizationMember({ organizationId: organization.id, userId: user.id, role: "billing" });
+
+      await expect(repository.lockTeamsOwnedOnlyBy(user.id)).resolves.toEqual([]);
+    });
+
+    it("reads every organization whichever one the request is acting in", async () => {
+      const { repository, user, organization } = await setup();
+      await seedOrganizationMember({ organizationId: organization.id, userId: user.id, role: "owner" });
+      const { organization: active } = await seedOrganizationWithOwner();
+      const executionContextService = container.resolve(ExecutionContextService);
+
+      const teams = await executionContextService.runWithContext(async () => {
+        executionContextService.set("ORGANIZATION_CONTEXT", createOrganizationContext({ organizationId: active.id }));
+        return await repository.lockTeamsOwnedOnlyBy(user.id);
+      });
+
+      expect(teams).toEqual([{ id: organization.id, name: organization.name }]);
     });
   });
 

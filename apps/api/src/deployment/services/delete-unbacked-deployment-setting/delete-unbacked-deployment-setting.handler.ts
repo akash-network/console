@@ -28,7 +28,7 @@ export class DeleteUnbackedDeploymentSetting implements Job {
  * Derives the compensation's key from the row's natural key, so the create that enqueued it can cancel it
  * after a successful broadcast without carrying a job id through the signing round trip.
  */
-export function unbackedDeploymentSettingKeyFor({ userId, dseq }: { userId: string; dseq: string }): string {
+export function unbackedDeploymentSettingKeyFor({ userId, dseq }: { userId: string | null; dseq: string }): string {
   return `deleteUnbackedDeploymentSetting.${userId}.${dseq}`;
 }
 

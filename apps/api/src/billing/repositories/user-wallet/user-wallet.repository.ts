@@ -107,7 +107,7 @@ export class UserWalletRepository extends OrgScopedRepository<ApiPgTables["UserW
   }
 
   /** A team organization's wallet belongs to no user and never trials; the organization's partial unique index decides who creates it. */
-  async getOrCreateForOrganization(input: { organizationId: string; createdByUserId: string }): Promise<{ wallet: UserWalletOutput; isNew: boolean }> {
+  async getOrCreateForOrganization(input: { organizationId: string; createdByUserId: string | null }): Promise<{ wallet: UserWalletOutput; isNew: boolean }> {
     const repository = this.unscoped("wallet-provisioning");
     const foundWallet = await repository.findOneByOrganizationId(input.organizationId);
     if (foundWallet) return { wallet: foundWallet, isNew: false };

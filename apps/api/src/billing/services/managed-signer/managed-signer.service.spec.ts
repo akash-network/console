@@ -1820,6 +1820,26 @@ describe(ManagedSignerService.name, () => {
       expect(deploymentSettingRepository.findOneOfWallet).toHaveBeenCalledWith(wallet, "123");
     });
 
+    it("passes a deployment whose filer has deleted their account to the acting member", async () => {
+      const { service, deploymentSettingRepository, wallet } = setupForTeam({
+        organizationContext: createOrganizationContext({ projectScope: { kind: "all" } }),
+        findOneOfWallet: vi.fn().mockResolvedValue(mock<DeploymentSettingsOutput>({ id: "setting-1", userId: null }))
+      });
+
+      await expect(service.filedUserIdOf(wallet, "member-1", "123")).resolves.toBe("member-1");
+      expect(deploymentSettingRepository.refileOrphanUnder).toHaveBeenCalledWith("setting-1", "member-1");
+    });
+
+    it("resolves to whoever took over such a deployment first when another member won the race", async () => {
+      const { service, deploymentSettingRepository, wallet } = setupForTeam({
+        organizationContext: createOrganizationContext({ projectScope: { kind: "all" } }),
+        findOneOfWallet: vi.fn().mockResolvedValue(mock<DeploymentSettingsOutput>({ id: "setting-1", userId: null }))
+      });
+      vi.mocked(deploymentSettingRepository.refileOrphanUnder).mockResolvedValue("member-9");
+
+      await expect(service.filedUserIdOf(wallet, "member-1", "123")).resolves.toBe("member-9");
+    });
+
     it("files a deployment nobody filed yet under the acting member", async () => {
       const { service, wallet } = setupForTeam({ organizationContext: createOrganizationContext({ projectScope: { kind: "all" } }) });
 
@@ -1883,6 +1903,29 @@ describe(ManagedSignerService.name, () => {
 
       expect(deploymentSettingRepository.findOneOfWallet).toHaveBeenCalledWith(wallet, "123");
       expect(deploymentSettingRepository.markClosed).toHaveBeenCalledWith({ userId: "member-2", dseq: "123", organizationId: wallet.organizationId });
+    });
+
+    it("marks a closed deployment whose filer has deleted their account under the member who closed it", async () => {
+      const { service, deploymentSettingRepository, wallet } = setupForTeam({
+        findOneOfWallet: vi.fn().mockResolvedValue(mock<DeploymentSettingsOutput>({ id: "setting-1", userId: null }))
+      });
+
+      await service.executeDerivedDecodedTxByUserId("member-1", [closeMessageFor(123)]);
+
+      expect(deploymentSettingRepository.refileOrphanUnder).toHaveBeenCalledWith("setting-1", "member-1");
+      expect(deploymentSettingRepository.markClosed).toHaveBeenCalledWith({ userId: "member-1", dseq: "123", organizationId: wallet.organizationId });
+    });
+
+    it.each([null, "member-2"])("marks the filed row closed as it stands when a job closes it (filer %s)", async filerId => {
+      const { service, deploymentSettingRepository, wallet } = setupForTeam({
+        findOneOfWallet: vi.fn().mockResolvedValue(mock<DeploymentSettingsOutput>({ id: "setting-1", userId: filerId }))
+      });
+
+      await service.executeDecodedTxByUserWallet(wallet, [closeMessageFor(123)]);
+
+      expect(deploymentSettingRepository.markAsClosed).toHaveBeenCalledWith(["setting-1"]);
+      expect(deploymentSettingRepository.refileOrphanUnder).not.toHaveBeenCalled();
+      expect(deploymentSettingRepository.markClosed).not.toHaveBeenCalled();
     });
 
     it("marks a closed deployment nobody filed under the acting member", async () => {
@@ -2102,6 +2145,8 @@ describe(ManagedSignerService.name, () => {
       trialActivationJobService: mock<TrialActivationJobService>(),
       deploymentSettingRepository: mock<DeploymentSettingRepository>({
         markClosed: input?.markClosed ?? vi.fn(),
+        markAsClosed: vi.fn(),
+        refileOrphanUnder: vi.fn().mockImplementation(async (_id: string, userId: string) => userId),
         findOneOfWallet: input?.findOneOfWallet ?? vi.fn(),
         findFiledRowsOfWallet: vi.fn(async (_wallet, dseqs: readonly string[]) => rowsOf(input?.filedIds, dseqs)),
         accessibleBy: vi

@@ -9,7 +9,8 @@ export class CreditsAdded implements DomainEvent {
 
   constructor(
     public readonly data: {
-      userId: UserOutput["id"];
+      /** Null for a team's payment whose member has deleted their account. */
+      userId: UserOutput["id"] | null;
       transactionId: string;
       source: StripeTransactionType;
       isAutoRecharge: boolean;

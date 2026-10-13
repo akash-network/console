@@ -1,5 +1,6 @@
 import { and, asc, desc, eq, gt, gte, ilike, inArray, isNotNull, isNull, lt, lte, or, type SQL, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
+import createError from "http-errors";
 import { singleton } from "tsyringe";
 
 import { UserWallets, WalletSetting } from "@src/billing/model-schemas";
@@ -14,6 +15,7 @@ import { mergeLeaseGpuOffers } from "@src/deployment/lib/lease-gpu-offers/lease-
 import { mergeLeaseGpuReadings } from "@src/deployment/lib/lease-gpu-readings/lease-gpu-readings";
 import { DeploymentSettings, type GpuProbeSource, type LeaseGpuOffer, type LeaseGpuReading } from "@src/deployment/model-schemas";
 import { NVIDIA_DRIVER_VERSION } from "@src/gpu/lib/cuda-version/cuda-version";
+import { writtenForTeamBy } from "@src/organization/lib/team-records/team-records";
 import { OrganizationMembers, type OrganizationRole, ProjectMembers, Projects } from "@src/organization/model-schemas";
 import { Organizations } from "@src/organization/model-schemas/organization/organization.schema";
 import { Users } from "@src/user/model-schemas";
@@ -25,6 +27,8 @@ export type DeploymentSettingsOutput = Omit<DeploymentSettingsDbOutput, "created
   createdAt: string;
   updatedAt: string;
 };
+
+type FilerId = DeploymentSettingsDbOutput["userId"];
 
 export type RecentNvidiaDriver = { driverVersion: string; lastSeenDate: string };
 
@@ -46,6 +50,11 @@ const OWNER_WALLET_ALIAS = "deployment_owner_wallet";
 const TeamOrganizations = alias(Organizations, "deployment_team_organization");
 const OwnerWallets = alias(UserWallets, OWNER_WALLET_ALIAS);
 const ownerWalletsTable = sql`${UserWallets} as ${sql.identifier(OWNER_WALLET_ALIAS)}`;
+export const UNFILED_DEPLOYMENT_ERROR_CODE = "deployment_record_unfiled";
+
+const WRITER_ROWS_ALIAS = "deployment_writer_rows";
+const WriterRows = alias(DeploymentSettings, WRITER_ROWS_ALIAS);
+const writerRowsTable = sql`${DeploymentSettings} as ${sql.identifier(WRITER_ROWS_ALIAS)}`;
 const isFiledInTeam = and(eq(TeamOrganizations.id, DeploymentSettings.organizationId), eq(TeamOrganizations.type, "team"));
 const ownerWalletId = sql`case when ${TeamOrganizations.id} is null
   then (
@@ -88,7 +97,7 @@ export type FundingClaim = {
 
 export type ExpiredRuntimeDeployment = {
   id: string;
-  userId: string;
+  userId: FilerId;
   dseq: string;
   runtimeEndsAt: Date;
 };
@@ -98,7 +107,7 @@ export type ExpiringRuntimeDeployment = {
   dseq: string;
   walletId: number;
   address: string;
-  userId: string;
+  userId: FilerId;
   runtimeLimitHours: number;
   runtimeEndsAt: Date;
   /** The deadline as stored, in text, so a claim can match it without losing the sub-millisecond digits a `Date` drops. */
@@ -107,7 +116,7 @@ export type ExpiringRuntimeDeployment = {
 
 export type OpenDeployment = {
   id: string;
-  userId: string;
+  userId: FilerId;
   dseq: string;
   address: string;
   createdAt: Date;
@@ -126,7 +135,7 @@ export type DeploymentStoredSecretsOfUser = DeploymentStoredSecrets & { dseq: st
 export type StoredLeaseGpus = { readings: LeaseGpuReading[]; offers: LeaseGpuOffer[] };
 
 export type LiveManagedDeployment = {
-  userId: string;
+  userId: FilerId;
   dseq: string;
   walletId: number;
   address: string;
@@ -144,7 +153,7 @@ export type LiveTrialDeployment = {
 
 export type AutoTopUpDeployment = {
   id: string;
-  userId: string;
+  userId: FilerId;
   walletId: number;
   /** Null for an organization's wallet, whose credit warnings are not tied to a user. */
   walletUserId: string | null;
@@ -206,6 +215,13 @@ export class DeploymentSettingRepository extends OrgScopedRepository<Table, Depl
    */
   override create(input: DeploymentSettingsInput): Promise<DeploymentSettingsOutput> {
     return super.create({ ...input, autoTopUpEnabled: input.autoTopUpEnabled ?? AUTO_TOP_UP_ENABLED_BY_DEFAULT });
+  }
+
+  async detachFromTeams(userId: string): Promise<void> {
+    await this.cursor
+      .update(this.table)
+      .set({ userId: null })
+      .where(this.unscoped("account-deletion").whereAccessibleBy(writtenForTeamBy(this.table, userId)));
   }
 
   /**
@@ -505,7 +521,7 @@ export class DeploymentSettingRepository extends OrgScopedRepository<Table, Depl
   }
 
   /** In organization mode a deployment keeps the row it was first filed under, so a key naming another member resolves to that row. */
-  async findFiledKey(key: { userId: string; dseq: string }): Promise<{ key: { userId: string; dseq: string }; isFiled: boolean }> {
+  async findFiledKey(key: { userId: string; dseq: string }): Promise<{ key: { userId: FilerId; dseq: string }; isFiled: boolean }> {
     if (!this.scopedOrganizationId) return { key, isFiled: false };
 
     const [filed] = await this.cursor
@@ -516,6 +532,48 @@ export class DeploymentSettingRepository extends OrgScopedRepository<Table, Depl
       .limit(1);
 
     return filed ? { key: { userId: filed.userId, dseq: key.dseq }, isFiled: true } : { key, isFiled: false };
+  }
+
+  /** Gives a team deployment whose filer deleted their account to the writer, and answers whose row to write to, since a concurrent writer may win or the writer may already hold a row of it. */
+  async refileOrphanUnder(id: DeploymentSettingsOutput["id"], userId: string): Promise<string> {
+    const [refiled] = await this.cursor
+      .update(this.table)
+      .set({ userId, updatedAt: sql`now()` })
+      .where(
+        this.whereAccessibleBy(
+          and(
+            eq(this.table.id, id),
+            isNull(this.table.userId),
+            sql`not exists (select 1 from ${writerRowsTable} where ${WriterRows.dseq} = ${this.table.dseq} and ${WriterRows.userId} = ${userId})`
+          )
+        )
+      )
+      .returning({ id: this.table.id });
+
+    if (refiled) return userId;
+
+    const [current] = await this.cursor
+      .select({ userId: this.table.userId, dseq: this.table.dseq, organizationId: this.table.organizationId })
+      .from(this.table)
+      .where(this.whereAccessibleBy(eq(this.table.id, id)));
+
+    if (current?.userId) return current.userId;
+
+    if (current && (await this.#holdsRowInOrganization(userId, current))) return userId;
+
+    throw createError(409, "This deployment's record cannot be taken over while you hold a record of the same deployment id in another organization", {
+      errorCode: UNFILED_DEPLOYMENT_ERROR_CODE
+    });
+  }
+
+  async #holdsRowInOrganization(userId: string, deployment: { dseq: string; organizationId: string | null }): Promise<boolean> {
+    const [own] = await this.cursor
+      .select({ id: this.table.id })
+      .from(this.table)
+      .where(this.whereAccessibleBy(and(eq(this.table.dseq, deployment.dseq), eq(this.table.userId, userId), sql`${this.table.organizationId} = ${deployment.organizationId}`)))
+      .limit(1);
+
+    return !!own;
   }
 
   async findOwnerWalletId(id: DeploymentSettingsOutput["id"]): Promise<number | undefined> {
@@ -646,7 +704,6 @@ export class DeploymentSettingRepository extends OrgScopedRepository<Table, Depl
           createdAt: this.table.createdAt
         })
         .from(this.table)
-        .innerJoin(Users, eq(this.table.userId, Users.id))
         .leftJoin(TeamOrganizations, isFiledInTeam)
         .innerJoin(UserWallets, eq(UserWallets.id, ownerWalletId))
         .where(this.whereAccessibleBy(and(eq(this.table.closed, false), isNotNull(UserWallets.address), ...(cursor ? [gt(this.table.id, cursor)] : []))))

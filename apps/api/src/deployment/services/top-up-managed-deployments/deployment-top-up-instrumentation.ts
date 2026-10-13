@@ -5,7 +5,7 @@ export type FundingMessageItem = { deployment: DrainingDeployment; input: Deposi
 
 export type OwnerInsufficientBalanceItem = { deployment: DrainingDeployment; desiredAmount: number };
 
-export type UnfundedOwner = { userId: string; isTrialing: boolean; autoReloadEnabled: boolean };
+export type UnfundedOwner = { userId: string | null; isTrialing: boolean; autoReloadEnabled: boolean };
 
 /** Lets the "could not fund" logs tell a paid account from a trial or Auto Recharge one without a database lookup. */
 export function describeUnfundedOwner(deployment: DrainingDeployment): UnfundedOwner {

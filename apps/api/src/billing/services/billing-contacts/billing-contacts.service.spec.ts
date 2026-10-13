@@ -28,6 +28,16 @@ describe(BillingContactsService.name, () => {
     });
   });
 
+  describe("findForPayer when no member acts for the team", () => {
+    it("names the team's owners and billing members", async () => {
+      const contacts = [createUser()];
+      const { service } = setup({ contacts });
+      const team = createOrganization({ type: "team" });
+
+      expect(await service.findForPayer({ user: null, team })).toEqual(contacts);
+    });
+  });
+
   describe("findForWallet", () => {
     it("names the user of a personal wallet", async () => {
       const user = createUser();

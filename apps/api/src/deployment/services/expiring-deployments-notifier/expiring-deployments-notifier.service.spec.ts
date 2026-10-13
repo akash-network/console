@@ -71,6 +71,18 @@ describe(ExpiringDeploymentsNotifierService.name, () => {
     expect(result.ok).toBe(true);
   });
 
+  it("skips a team deployment whose filer has deleted their account without claiming the deadline", async () => {
+    const expiring = { ...createExpiringRuntimeDeployment(), userId: null };
+    const { service, deploymentSettingRepository, userRepository, notificationService } = setup({ expiring });
+
+    const result = await service.notifyExpiringDeployments({ dryRun: false });
+
+    expect(userRepository.findById).not.toHaveBeenCalled();
+    expect(deploymentSettingRepository.claimRuntimeEndingNotification).not.toHaveBeenCalled();
+    expect(notificationService.createNotification).not.toHaveBeenCalled();
+    expect(result.ok).toBe(true);
+  });
+
   it("gives the claim back when the email fails, so the next sweep retries the same deadline", async () => {
     const expiring = createExpiringRuntimeDeployment();
     const { service, deploymentSettingRepository } = setup({
@@ -118,7 +130,9 @@ describe(ExpiringDeploymentsNotifierService.name, () => {
     expect(result.err).toBe(true);
   });
 
-  function createExpiringRuntimeDeployment(overrides: Partial<ExpiringRuntimeDeployment> = {}): ExpiringRuntimeDeployment {
+  function createExpiringRuntimeDeployment(
+    overrides: Partial<Omit<ExpiringRuntimeDeployment, "userId">> & { userId?: string } = {}
+  ): ExpiringRuntimeDeployment & { userId: string } {
     const runtimeEndsAt = overrides.runtimeEndsAt ?? faker.date.soon({ days: 1 });
 
     return {
@@ -148,10 +162,9 @@ describe(ExpiringDeploymentsNotifierService.name, () => {
   }) {
     const expiring = Array.isArray(input.expiring) ? input.expiring : [input.expiring];
     const users = Object.fromEntries(
-      expiring.map(deployment => [
-        deployment.userId,
-        createUser({ id: deployment.userId, email: input.userEmail === undefined ? faker.internet.email() : input.userEmail })
-      ])
+      expiring.flatMap(({ userId }) =>
+        userId ? [[userId, createUser({ id: userId, email: input.userEmail === undefined ? faker.internet.email() : input.userEmail })]] : []
+      )
     ) as Record<string, UserOutput>;
 
     const deploymentSettingRepository = mock<DeploymentSettingRepository>();

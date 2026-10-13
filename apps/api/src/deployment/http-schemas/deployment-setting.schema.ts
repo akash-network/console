@@ -6,7 +6,9 @@ import { MAX_RUNTIME_LIMIT_HOURS, MAX_RUNTIME_LIMIT_INCREMENT_HOURS } from "./ru
 
 const DeploymentSettingSchema = z.object({
   id: z.string().uuid(),
-  userId: z.string(),
+  userId: z.string().nullable().openapi({
+    description: "The member who filed the deployment, or null once a team organization's member who filed it has deleted their account"
+  }),
   dseq: DseqSchema,
   sdl: z.string().nullable(),
   autoTopUpEnabled: z.boolean(),

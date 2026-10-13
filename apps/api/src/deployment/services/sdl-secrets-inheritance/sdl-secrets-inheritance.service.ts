@@ -4,7 +4,7 @@ import { inject, singleton } from "tsyringe";
 import { AuthService } from "@src/auth/services/auth.service";
 import { type CreateLogger, LOGGER_FACTORY } from "@src/core";
 import { DeploymentSettingRepository, type DeploymentWallet } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
-import { SdlSecretsService } from "@src/deployment/services/sdl-secrets/sdl-secrets.service";
+import { SdlSecretsService, STORED_SECRETS_UNAVAILABLE_ERROR_CODE } from "@src/deployment/services/sdl-secrets/sdl-secrets.service";
 import type { SdlSecrets } from "@src/deployment/services/sdl-secrets-unsealer/sdl-secrets-unsealer.service";
 import { SECRET_UNREADABLE_ERROR_CODE } from "@src/secret/config/secret-at-rest.config";
 
@@ -17,14 +17,18 @@ const SOURCE_UNREADABLE_MESSAGE = "The secrets recorded for the deployment being
 /** Distinct from the stored-state codes a patch answers with, because this one names the deployment the request pointed at rather than the one it addresses. */
 const SOURCE_UNREADABLE_ERROR_CODE = "inherited_secrets_unreadable";
 
-/** The only answer that means the source's secrets are gone for good: a 503 says the key service is merely unreachable, and anything else never came from the cipher at all. */
+/** The answers that mean the source's secrets are gone for good, the cipher's 500 or a token bound to another member: a 503 says the key service is merely unreachable. */
 function isPermanentlyUnreadable(error: unknown): boolean {
-  return isHttpError(error) && error.status === 500;
+  return isHttpError(error) && (error.status === 500 || isSealedForAnotherMember(error));
+}
+
+function isSealedForAnotherMember(error: unknown): boolean {
+  return isHttpError(error) && error.errorCode === STORED_SECRETS_UNAVAILABLE_ERROR_CODE;
 }
 
 /** A permanent failure to decrypt is distinguished from one to read our own stored state, because only the first says the token itself is beyond this data key. */
 function isTokenUnreadable(error: unknown): boolean {
-  return isHttpError(error) && error.errorCode === SECRET_UNREADABLE_ERROR_CODE;
+  return isHttpError(error) && (error.errorCode === SECRET_UNREADABLE_ERROR_CODE || isSealedForAnotherMember(error));
 }
 
 /**
@@ -46,11 +50,11 @@ export class SdlSecretsInheritanceService {
     this.#loggerService = createLogger({ context: SdlSecretsInheritanceService.name });
   }
 
-  /** The source is found through the wallet that owns it and must be writable under the caller's ability, so one the caller may not change is unreachable rather than merely refused. */
+  /** The source is found through the wallet that owns it and must be writable under the caller's ability, so one the caller may not change, or whose filer's account is deleted, is unreachable rather than merely refused. */
   async open({ wallet, dseq }: { wallet: DeploymentWallet; dseq: string }): Promise<SdlSecrets> {
     const setting = await this.deploymentSettingRepository.accessibleBy(this.authService.ability, "update").findOneOfWallet(wallet, dseq);
 
-    if (!setting) {
+    if (!setting?.userId) {
       this.#loggerService.warn({ event: "SDL_SECRETS_INHERIT_SOURCE_NOT_FOUND", userId: wallet.userId, organizationId: wallet.organizationId, dseq });
 
       throw createError(404, SOURCE_NOT_FOUND_MESSAGE);

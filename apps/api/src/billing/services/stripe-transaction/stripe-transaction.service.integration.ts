@@ -16,7 +16,7 @@ import type { ExecutionContextService } from "@src/core/services/execution-conte
 import type { TimerService } from "@src/core/services/timer/timer.service";
 import type { OrganizationRepository } from "@src/organization/repositories/organization/organization.repository";
 import type { UserRepository } from "@src/user/repositories/user/user.repository";
-import { StripeTransactionService } from "./stripe-transaction.service";
+import { AUTO_RECHARGE_METADATA_KEY, StripeTransactionService } from "./stripe-transaction.service";
 
 import { generateDatabaseStripeTransaction } from "@test/seeders/database-stripe-transaction.seeder";
 import { createOrganization } from "@test/seeders/organization.seeder";
@@ -863,6 +863,18 @@ describe(StripeTransactionService.name, () => {
       });
     });
 
+    it("does not report a declined team top-up whose member has deleted their account", async () => {
+      const { service, stripeTransactionRepository, analyticsService } = setup();
+      const transaction = generateDatabaseStripeTransaction({ amount: 2500, userId: null, organizationId: faker.string.uuid() });
+      stripeTransactionRepository.findById.mockResolvedValue(transaction);
+
+      await service.failPaymentIntent(
+        createPaymentIntentFailedEvent({ id: "pi_123", amount: 2500, currency: "usd", metadata: { internal_transaction_id: transaction.id }, last_payment_error: createCardDecline() })
+      );
+
+      expect(analyticsService.track).not.toHaveBeenCalled();
+    });
+
     it("does not report an intent that no top-up created", async () => {
       const { service, stripeTransactionRepository, analyticsService, logger } = setup();
 
@@ -951,6 +963,78 @@ describe(StripeTransactionService.name, () => {
       expect(refillService.reduceWalletBalance).toHaveBeenCalledWith(
         5000,
         { userId: buyerId, organizationId: team.id, team },
+        { currency: transaction.currency, transactionId: transaction.id }
+      );
+    });
+
+    it("credits the team for a late charge of a member who has deleted their account, attributing it to no one", async () => {
+      const { service, organizationRepository, stripeTransactionRepository, refillService, firstPurchaseBonusService, analyticsService, stripe } = setup();
+      const team = createOrganization({ type: "team", stripeCustomerId: "cus_team" });
+      const transaction = generateDatabaseStripeTransaction({ type: "payment_intent", status: "pending", amount: 5000, userId: null, organizationId: team.id });
+      organizationRepository.findOneBy.mockResolvedValue(team);
+      organizationRepository.findById.mockResolvedValue(team);
+      stripeTransactionRepository.findById.mockResolvedValue(transaction);
+      stripeTransactionRepository.findOneByAndLock.mockResolvedValue(transaction);
+      firstPurchaseBonusService.getEligibleBonusAmount.mockResolvedValue(500);
+      vi.spyOn(stripe.charges, "retrieve").mockResolvedValue(mock<Stripe.Response<Stripe.Charge>>({ id: "ch_team" }));
+
+      const outcome = await service.settlePaymentIntent(
+        createPaymentIntentSucceededEvent({
+          id: "pi_team",
+          customer: "cus_team",
+          amount: 5000,
+          amount_received: 5000,
+          latest_charge: "ch_team",
+          metadata: { internal_transaction_id: transaction.id, [AUTO_RECHARGE_METADATA_KEY]: "true" }
+        })
+      );
+
+      expect(refillService.topUpWallet).toHaveBeenCalledWith(5500, { userId: null, organizationId: team.id, team }, expect.anything());
+      expect(firstPurchaseBonusService.trackBonusGranted).not.toHaveBeenCalled();
+      expect(analyticsService.track).not.toHaveBeenCalled();
+      expect(outcome.bonusGrant).toBeUndefined();
+      expect(outcome.autoRecharge).toMatchObject({ userId: null, transactionId: transaction.id });
+      expect(outcome.creditsAdded).toMatchObject({ userId: null, transactionId: transaction.id, stripeCustomerId: "cus_team" });
+    });
+
+    it("attributes a team's charge to the member the locked row names when that member's account is deleted in between", async () => {
+      const { service, organizationRepository, stripeTransactionRepository, refillService, stripe } = setup();
+      const team = createOrganization({ type: "team", stripeCustomerId: "cus_team" });
+      const readBeforeLock = generateDatabaseStripeTransaction({ type: "payment_intent", status: "pending", amount: 5000, userId: faker.string.uuid(), organizationId: team.id });
+      organizationRepository.findOneBy.mockResolvedValue(team);
+      organizationRepository.findById.mockResolvedValue(team);
+      stripeTransactionRepository.findById.mockResolvedValue(readBeforeLock);
+      stripeTransactionRepository.findOneByAndLock.mockResolvedValue({ ...readBeforeLock, userId: null });
+      vi.spyOn(stripe.charges, "retrieve").mockResolvedValue(mock<Stripe.Response<Stripe.Charge>>({ id: "ch_team" }));
+
+      const outcome = await service.settlePaymentIntent(
+        createPaymentIntentSucceededEvent({
+          id: "pi_team",
+          customer: "cus_team",
+          amount: 5000,
+          amount_received: 5000,
+          latest_charge: "ch_team",
+          metadata: { internal_transaction_id: readBeforeLock.id }
+        })
+      );
+
+      expect(refillService.topUpWallet).toHaveBeenCalledWith(5000, { userId: null, organizationId: team.id, team }, expect.anything());
+      expect(outcome.creditsAdded).toMatchObject({ userId: null });
+    });
+
+    it("debits the team for a refund of a member who has deleted their account", async () => {
+      const { service, organizationRepository, stripeTransactionRepository, refillService } = setup();
+      const team = createOrganization({ type: "team", stripeCustomerId: "cus_team" });
+      const transaction = generateDatabaseStripeTransaction({ status: "succeeded", amount: 5000, amountRefunded: 0, userId: null, organizationId: team.id });
+      organizationRepository.findOneBy.mockResolvedValue(team);
+      organizationRepository.findById.mockResolvedValue(team);
+      stripeTransactionRepository.findOneByAndLock.mockResolvedValue(transaction);
+
+      await service.refundCharge(createChargeRefundedEvent({ id: "ch_team", customer: "cus_team", amount_refunded: 5000, refunded: true }));
+
+      expect(refillService.reduceWalletBalance).toHaveBeenCalledWith(
+        5000,
+        { userId: null, organizationId: team.id, team },
         { currency: transaction.currency, transactionId: transaction.id }
       );
     });

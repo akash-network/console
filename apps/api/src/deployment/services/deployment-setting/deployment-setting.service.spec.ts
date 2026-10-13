@@ -17,6 +17,7 @@ import { DeploymentSettingService } from "./deployment-setting.service";
 import { mockConfigService } from "@test/mocks/config-service.mock";
 import { createLeaseGpuOffer } from "@test/seeders/lease-gpu-offer.seeder";
 import { createLeaseGpuReading } from "@test/seeders/lease-gpu-reading.seeder";
+import { createUser } from "@test/seeders/user.seeder";
 import { createOrganizationWallet, createUserWallet } from "@test/seeders/user-wallet.seeder";
 
 describe(DeploymentSettingService.name, () => {
@@ -92,6 +93,43 @@ describe(DeploymentSettingService.name, () => {
       expect(deploymentSettingRepository.accessibleBy).toHaveBeenCalledWith(expect.anything(), "update");
       expect(deploymentSettingRepository.findOneBy).toHaveBeenCalledWith(filedKey);
       expect(deploymentSettingRepository.applyRuntimeLimit).toHaveBeenCalledWith(expect.objectContaining(filedKey));
+      expect(deploymentSettingRepository.refileOrphanUnder).not.toHaveBeenCalled();
+    });
+
+    it("passes a filed row whose filer has deleted their account to the caller before writing to it", async () => {
+      const { service, deploymentSettingRepository, authService } = setup();
+      const caller = createUser();
+      authService.currentUser = caller;
+      const orphan = { ...createDeploymentSettingsOutput({ runtimeLimitHours: null }), userId: null };
+      deploymentSettingRepository.findFiledKey.mockResolvedValue({ key: { userId: null, dseq: orphan.dseq }, isFiled: true });
+      deploymentSettingRepository.accessibleBy.mockReturnValue(deploymentSettingRepository);
+      deploymentSettingRepository.findOneBy.mockResolvedValue(orphan);
+      deploymentSettingRepository.refileOrphanUnder.mockResolvedValue(caller.id);
+      deploymentSettingRepository.applyRuntimeLimit.mockResolvedValue(createDeploymentSettingsOutput({ userId: caller.id, dseq: orphan.dseq, runtimeLimitHours: 12 }));
+
+      await service.upsert({ userId: faker.string.uuid(), dseq: orphan.dseq }, { runtimeLimitHours: 12 });
+
+      expect(deploymentSettingRepository.refileOrphanUnder).toHaveBeenCalledWith(orphan.id, caller.id);
+      expect(deploymentSettingRepository.refileOrphanUnder.mock.invocationCallOrder[0]).toBeLessThan(
+        deploymentSettingRepository.applyRuntimeLimit.mock.invocationCallOrder[0]
+      );
+      expect(deploymentSettingRepository.applyRuntimeLimit).toHaveBeenCalledWith(expect.objectContaining({ userId: caller.id, dseq: orphan.dseq }));
+    });
+
+    it("writes to the row under whoever took it over first when another writer won the race", async () => {
+      const { service, deploymentSettingRepository, authService } = setup();
+      authService.currentUser = createUser();
+      const winnerId = faker.string.uuid();
+      const orphan = { ...createDeploymentSettingsOutput({ runtimeLimitHours: null }), userId: null };
+      deploymentSettingRepository.findFiledKey.mockResolvedValue({ key: { userId: null, dseq: orphan.dseq }, isFiled: true });
+      deploymentSettingRepository.accessibleBy.mockReturnValue(deploymentSettingRepository);
+      deploymentSettingRepository.findOneBy.mockResolvedValue(orphan);
+      deploymentSettingRepository.refileOrphanUnder.mockResolvedValue(winnerId);
+      deploymentSettingRepository.applyRuntimeLimit.mockResolvedValue(createDeploymentSettingsOutput({ userId: winnerId, dseq: orphan.dseq, runtimeLimitHours: 12 }));
+
+      await service.upsert({ userId: faker.string.uuid(), dseq: orphan.dseq }, { runtimeLimitHours: 12 });
+
+      expect(deploymentSettingRepository.applyRuntimeLimit).toHaveBeenCalledWith(expect.objectContaining({ userId: winnerId, dseq: orphan.dseq }));
     });
 
     it("answers 404 and files nothing when the caller cannot reach the filed row", async () => {
@@ -707,7 +745,9 @@ describe(DeploymentSettingService.name, () => {
     return new Error("Failed query: insert into deployment_settings", { cause: driverError });
   }
 
-  function createDeploymentSettingsOutput(overrides: Partial<DeploymentSettingsOutput> = {}): DeploymentSettingsOutput {
+  function createDeploymentSettingsOutput(
+    overrides: Partial<Omit<DeploymentSettingsOutput, "userId">> & { userId?: string } = {}
+  ): DeploymentSettingsOutput & { userId: string } {
     return {
       id: faker.string.uuid(),
       userId: faker.string.uuid(),

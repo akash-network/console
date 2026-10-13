@@ -7,6 +7,7 @@ import { TxService } from "@src/core/services";
 import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
 import { Organizations } from "@src/organization/model-schemas/organization/organization.schema";
 import type { OrganizationRole } from "@src/organization/model-schemas/organization-member/organization-member.schema";
+import type { OrganizationOutput } from "@src/organization/repositories/organization/organization.repository";
 import { Users } from "@src/user/model-schemas/user/user.schema";
 import type { UserOutput } from "@src/user/repositories";
 
@@ -108,6 +109,34 @@ export class OrganizationMemberRepository extends OrgScopedRepository<Table, Org
       .where(this.whereAccessibleBy(and(eq(this.table.organizationId, organizationId), inArray(sql`lower(${Users.email})`, emails))));
 
     return members.map(member => member.email);
+  }
+
+  /** Reads every organization, and row-locks the owners of each team the user owns until the ambient transaction ends, so concurrent role changes serialize on them. */
+  async lockTeamsOwnedOnlyBy(userId: OrganizationMemberOutput["userId"]): Promise<Pick<OrganizationOutput, "id" | "name">[]> {
+    const teamsOwnedByUser = this.cursor
+      .select({ organizationId: this.table.organizationId })
+      .from(this.table)
+      .where(and(eq(this.table.userId, userId), eq(this.table.role, "owner")));
+    const owners = await this.cursor
+      .select({ userId: this.table.userId, id: Organizations.id, name: Organizations.name })
+      .from(this.table)
+      .innerJoin(Organizations, eq(Organizations.id, this.table.organizationId))
+      .where(
+        this.unscoped("account-deletion").whereAccessibleBy(
+          and(
+            inArray(this.table.organizationId, teamsOwnedByUser),
+            eq(this.table.role, "owner"),
+            eq(Organizations.type, "team"),
+            isNull(Organizations.deletedAt)
+          )
+        )
+      )
+      .orderBy(asc(Organizations.createdAt), asc(Organizations.id))
+      .for("update", { of: this.table });
+
+    const ownersByTeam = Map.groupBy(owners, owner => owner.id);
+
+    return [...ownersByTeam.values()].filter(teamOwners => teamOwners.every(owner => owner.userId === userId)).map(([{ id, name }]) => ({ id, name }));
   }
 
   /** Who hears about a team's billing: its owners and billing members, read without an organization context since jobs send it. */

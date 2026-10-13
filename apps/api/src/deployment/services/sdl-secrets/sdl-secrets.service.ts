@@ -19,6 +19,11 @@ import { SECRET_UNREADABLE_ERROR_MESSAGE } from "@src/secret/config/secret-at-re
 import { SecretCipherService } from "@src/secret/services/secret-cipher/secret-cipher.service";
 import { DeploymentConfigService } from "../deployment-config/deployment-config.service";
 
+export const STORED_SECRETS_UNAVAILABLE_ERROR_CODE = "stored_secrets_unavailable";
+
+const STORED_SECRETS_UNAVAILABLE_MESSAGE =
+  "The secrets stored for this deployment were sealed for another member and can no longer be opened. Update the deployment with its full SDL and secret values to store them again.";
+
 /** The kind of SDL Reference a sealed payload answers. Other kinds resolve from elsewhere and are none of this service's business. */
 const SECRET_REFERENCE_KIND = "secret";
 
@@ -150,6 +155,7 @@ export class SdlSecretsService {
 
   /** Opens what `sealForStorage` wrote under the same binding, so a token moved to another deployment's row or another user's fails to open rather than resolving into it. */
   async openStored(input: { userId: string; dseq: string; sealedSecrets: string }): Promise<SdlSecrets> {
+    this.#assertSealedForFiler(input);
     const opened = await this.#decryptStored(input);
     const secrets = parseSdlSecrets(opened);
 
@@ -162,6 +168,17 @@ export class SdlSecretsService {
     this.#loggerService.info({ event: "SDL_SECRETS_STORED_OPENED", userId: input.userId, dseq: input.dseq, secretCount: Object.keys(secrets).length });
 
     return secrets;
+  }
+
+  /** A team deployment taken over from a member who deleted their account still holds a token bound to that member, whose data key went with the account. */
+  #assertSealedForFiler({ userId, dseq, sealedSecrets }: { userId: string; dseq: string; sealedSecrets: string }): void {
+    const sealedFor = claimsOf(sealedSecrets)?.sub;
+
+    if (sealedFor === undefined || sealedFor === userId) return;
+
+    this.#loggerService.warn({ event: "SDL_SECRETS_SEALED_FOR_ANOTHER_USER", userId, dseq });
+
+    throw createError(409, STORED_SECRETS_UNAVAILABLE_MESSAGE, { errorCode: STORED_SECRETS_UNAVAILABLE_ERROR_CODE });
   }
 
   /** Records only a permanent failure, and only the header's claims, which name the data key, the user and the deployment and carry none of the ciphertext. */

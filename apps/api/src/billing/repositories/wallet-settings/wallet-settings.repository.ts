@@ -7,6 +7,7 @@ import { type ApiPgDatabase, type ApiPgTables, InjectPg, InjectPgTable } from "@
 import { OrgScopedRepository } from "@src/core/repositories/org-scoped.repository";
 import { TxService } from "@src/core/services";
 import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
+import { writtenForTeamBy } from "@src/organization/lib/team-records/team-records";
 
 type Table = ApiPgTables["WalletSetting"];
 type DbWalletSettingInput = ApiPgTables["WalletSetting"]["$inferInsert"];
@@ -48,8 +49,15 @@ export class WalletSettingRepository extends OrgScopedRepository<Table, WalletSe
     return new WalletSettingRepository(this.pg, this.table, this.txManager, this.executionContextService) as this;
   }
 
+  async detachFromTeams(userId: string): Promise<void> {
+    await this.cursor
+      .update(this.table)
+      .set({ userId: null })
+      .where(this.unscoped("account-deletion").whereAccessibleBy(writtenForTeamBy(this.table, userId)));
+  }
+
   /** The setting of the user's own wallet, never one the user saved for a team's wallet. */
-  async findByUserId(userId: WalletSettingOutput["userId"]): Promise<WalletSettingOutput | undefined> {
+  async findByUserId(userId: string): Promise<WalletSettingOutput | undefined> {
     const [setting] = await this.cursor
       .select()
       .from(this.table)

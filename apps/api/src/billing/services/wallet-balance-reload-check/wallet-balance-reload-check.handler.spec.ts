@@ -879,6 +879,49 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
         expect.objectContaining({ payer: expect.objectContaining({ team }), target: { walletId: wallet.id } })
       );
     });
+
+    it("keeps charging the team once the member who saved its auto reload has deleted their account, for no member", async () => {
+      const team = createOrganization({ type: "team", stripeCustomerId: "cus_team" });
+      const wallet = createOrganizationWallet({ organizationId: team.id });
+      const { handler, stripeTransactionService, paymentMethodService, jobMeta } = setup({ balance: 10.0, wallet, team, settingMemberDeleted: true });
+
+      await handler.handle({ walletId: wallet.id, version: 1 }, jobMeta);
+
+      expect(paymentMethodService.getDefaultPaymentMethod).toHaveBeenCalledWith(expect.objectContaining({ user: null, team }), expect.anything());
+      expect(stripeTransactionService.createPaymentIntent).toHaveBeenCalledWith(expect.objectContaining({ userId: null, organizationId: team.id, customer: "cus_team" }));
+    });
+
+    it("records a decline of such a team with no member, and reports a failed recording without one", async () => {
+      const team = createOrganization({ type: "team", stripeCustomerId: "cus_team" });
+      const wallet = createOrganizationWallet({ organizationId: team.id });
+      const { handler, stripeTransactionService, autoReloadPauseService, instrumentationService, jobMeta } = setup({
+        balance: 10.0,
+        wallet,
+        team,
+        settingMemberDeleted: true
+      });
+      stripeTransactionService.createPaymentIntent.mockRejectedValue(declinedCardError("generic_decline"));
+      const recordingError = new Error("connection terminated");
+      autoReloadPauseService.recordDecline.mockRejectedValue(recordingError);
+
+      await expect(handler.handle({ walletId: wallet.id, version: 1 }, jobMeta)).rejects.toThrow();
+
+      expect(autoReloadPauseService.recordDecline).toHaveBeenCalledWith(expect.objectContaining({ payer: expect.objectContaining({ user: null, team }) }));
+      expect(instrumentationService.recordDeclineRecordingError).toHaveBeenCalledWith(undefined, recordingError);
+    });
+
+    it("skips a user's own wallet whose setting names no user", async () => {
+      const { handler, stripeTransactionService, instrumentationService, job, jobMeta } = setup({ balance: 10.0, settingMemberDeleted: true });
+
+      await handler.handle(job, jobMeta);
+
+      expect(instrumentationService.recordValidationError).toHaveBeenCalledWith(
+        "WALLET_SETTING_USER_NOT_FOUND",
+        { event: "WALLET_SETTING_USER_NOT_FOUND", message: "Wallet setting user not found. Skipping wallet balance reload check." },
+        { userId: job.userId }
+      );
+      expect(stripeTransactionService.createPaymentIntent).not.toHaveBeenCalled();
+    });
   });
 
   describe("when a charge goes through", () => {
@@ -961,6 +1004,7 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
     user?: ReturnType<typeof createUser>;
     team?: OrganizationOutput;
     wallet?: UserWalletOutput;
+    settingMemberDeleted?: boolean;
   }) {
     const user = input?.user ?? createUser();
     const userWithStripe =
@@ -984,12 +1028,13 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
     });
     const walletSettingWithWallet = {
       ...walletSetting,
+      userId: input?.settingMemberDeleted ? null : walletSetting.userId,
       wallet: {
         address: wallet.address!,
         userId: wallet.userId,
         organizationId: wallet.organizationId
       },
-      user: userWithStripe
+      user: input?.settingMemberDeleted ? null : userWithStripe
     };
     const job: JobPayload<WalletBalanceReloadCheck> & { userId: string } = {
       userId: user.id,

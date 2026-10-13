@@ -320,7 +320,7 @@ describe(WalletSettingService.name, () => {
     const walletReloadJobService = mock<WalletReloadJobService>({
       scheduleForWalletSetting: vi.fn().mockResolvedValue(jobId)
     });
-    walletReloadJobService.targetOf.mockImplementation(async setting => ({ userId: setting.userId }));
+    walletReloadJobService.targetOf.mockImplementation(async setting => (setting.userId ? { userId: setting.userId } : { walletId: setting.walletId }));
     const analyticsService = mock<AnalyticsService>();
     const txService = mock<TxService>();
     txService.transaction.mockImplementation(async cb => await cb());

@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { StripeTransactionOutput, StripeTransactionRepository, StripeTransactionWithInitiator } from "@src/billing/repositories";
-import { TransactionReportingService } from "./transaction-reporting.service";
+import { DELETED_INITIATOR_LABEL, TransactionReportingService } from "./transaction-reporting.service";
 
 import { generateDatabaseStripeTransaction } from "@test/seeders/database-stripe-transaction.seeder";
 import { createTestTransaction } from "@test/seeders/stripe-transaction-test.seeder";
@@ -210,6 +210,18 @@ describe(TransactionReportingService.name, () => {
 
       expect(fullCsv).toContain("Receipt URL,Initiated By");
       expect(fullCsv).toContain(",alice");
+    });
+
+    it("names a deleted account as the member of a team's transaction whose member is gone", async () => {
+      const { service } = setup();
+      const transaction = { ...createTestTransaction(), initiatedBy: null };
+      vi.spyOn(service, "getCustomerTransactions").mockResolvedValue({ transactions: [transaction], totalCount: 1, hasMore: false });
+
+      const fullCsv = await readCsv(service.exportTransactionsCsvStream({ organizationId: "org-1" }, CSV_RANGE));
+
+      const [, row] = fullCsv.trim().split("\n");
+      expect(row.startsWith(`${transaction.id},`)).toBe(true);
+      expect(row.endsWith(`,${DELETED_INITIATOR_LABEL}`)).toBe(true);
     });
 
     it("leaves the member column out of a user's own export", async () => {

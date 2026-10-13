@@ -10,7 +10,7 @@ export class CloseExpiredDeploymentCommand implements Job {
   constructor(
     public readonly data: {
       deploymentSettingId: string;
-      userId: string;
+      userId: string | null;
       dseq: string;
     }
   ) {}
