@@ -111,7 +111,9 @@ export function organizationRules(user: RuleUser, context: OrganizationContext, 
   const conditions = tenantConditionsOf(user, context);
   const rules = [...userKeyedRules(user), ...everyMemberRules(conditions), ...ROLE_RULES[context.role](conditions, context)];
 
-  return apiKey?.projectId ? [...withoutOrganizationLevelSubjects(rules), ...projectBoundKeyRules(conditions)] : rules;
+  return apiKey?.projectId
+    ? [...withoutOrganizationLevelSubjects(rules), ...projectBoundKeyRules(conditions)]
+    : [...rules, ...organizationWideRules(conditions)];
 }
 
 function withoutOrganizationLevelSubjects(rules: AbilityRule[]): AbilityRule[] {
@@ -120,6 +122,11 @@ function withoutOrganizationLevelSubjects(rules: AbilityRule[]): AbilityRule[] {
 
     return subjects.length ? [{ ...rule, subject: subjects }] : [];
   });
+}
+
+/** Activity outside any project, such as members joining, stays out of a project-bound key's reach like the members themselves. */
+function organizationWideRules({ organizationWide }: TenantConditions): AbilityRule[] {
+  return [{ action: "read", subject: "OrganizationActivity", conditions: organizationWide }];
 }
 
 function projectBoundKeyRules({ organization, projectsInScope }: TenantConditions): AbilityRule[] {
@@ -192,12 +199,11 @@ function projectAdministrationRules({ administeredProjects, othersGrantsOfAdmini
   ];
 }
 
-function everyMemberRules({ organization, inOrg, inScope, organizationWide, ownInOrg }: TenantConditions): AbilityRule[] {
+function everyMemberRules({ organization, inOrg, inScope, ownInOrg }: TenantConditions): AbilityRule[] {
   return [
     { action: "read", subject: "Organization", conditions: organization },
     { action: "read", subject: ["OrganizationMember", "UserWallet"], conditions: inOrg },
     { action: "read", subject: "OrganizationActivity", conditions: inScope },
-    { action: "read", subject: "OrganizationActivity", conditions: organizationWide },
     { action: "manage", subject: "ApiKey", conditions: ownInOrg }
   ];
 }

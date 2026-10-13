@@ -434,6 +434,14 @@ describe("ability rules", () => {
         });
       });
 
+      it.each(ROLES)("keeps a %s key to its project's activity, out of the organization's own", role => {
+        const projectId = faker.string.uuid();
+        const { ability, organizationId } = setup({ role, projectScope: createProjectsScope([projectId]), apiKeyProjectId: projectId });
+
+        expect(ability.can("read", subject("OrganizationActivity", { organizationId, projectId }))).toBe(true);
+        expect(ability.can("read", subject("OrganizationActivity", { organizationId, projectId: null }))).toBe(false);
+      });
+
       it("grants its reads of the organization and its project on those two subjects only", () => {
         const projectId = faker.string.uuid();
         const { ability, organizationId } = setup({ role: "owner", projectScope: createProjectsScope([projectId]), apiKeyProjectId: projectId });
