@@ -119,7 +119,7 @@ export class DeploymentListService {
         .handleError(async error => {
           throw error;
         })
-        .process(async ({ id, owner, dseq }) => ({ id, listed: await this.deploymentReaderService.findListedByOwnerAndDseq(owner, dseq) })),
+        .process(async ({ id, owner, dseq }) => ({ id, listed: await this.deploymentReaderService.findListedByOwnerAndDseq(owner, normalizeDseq(dseq)) })),
       this.leaseGpuService.findForDeploymentSettings(page.map(({ id }) => id))
     ]);
     const listedById = new Map(onChain.map(({ id, listed }) => [id, listed]));

@@ -177,6 +177,16 @@ describe(DeploymentListService.name, () => {
       expect(scopedSettingRepository.findReachablePage).toHaveBeenCalledWith(expect.objectContaining({ among: { ids: [padded.id] } }));
     });
 
+    it("reads a deployment from the chain by its dseq without leading zeros", async () => {
+      const row = reachable({ dseq: "0042" });
+      const { service, deploymentReaderService } = setup({ page: [row] });
+
+      const page = await service.list(query());
+
+      expect(deploymentReaderService.findListedByOwnerAndDseq).toHaveBeenCalledWith(row.owner, "42");
+      expect(page.deployments).toHaveLength(1);
+    });
+
     it("fails rather than guessing the state when the index cannot be reached", async () => {
       const { service, deploymentRepository, scopedSettingRepository } = setup({ unclosed: [unclosedRow()] });
       deploymentRepository.findClosureStates.mockRejectedValue(new ConnectionError(new Error("connection refused")));
