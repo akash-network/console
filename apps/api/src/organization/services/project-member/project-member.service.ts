@@ -5,10 +5,7 @@ import { singleton } from "tsyringe";
 import { AuthService } from "@src/auth/services/auth.service";
 import { TxService } from "@src/core/services/tx/tx.service";
 import type { ProjectRole } from "@src/organization/model-schemas/project-member/project-member.schema";
-import {
-  type OrganizationMemberOutput,
-  OrganizationMemberRepository
-} from "@src/organization/repositories/organization-member/organization-member.repository";
+import { type OrganizationMemberOutput, OrganizationMemberRepository } from "@src/organization/repositories/organization-member/organization-member.repository";
 import { type ProjectOutput, ProjectRepository } from "@src/organization/repositories/project/project.repository";
 import { ProjectMemberRepository, type ProjectMemberWithUser } from "@src/organization/repositories/project-member/project-member.repository";
 import { OrganizationActivityService } from "@src/organization/services/organization-activity/organization-activity.service";
