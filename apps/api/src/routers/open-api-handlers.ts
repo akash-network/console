@@ -45,6 +45,7 @@ import {
   organizationInvitationsRouter,
   organizationMembersRouter,
   organizationsRouter,
+  projectMembersRouter,
   projectsRouter
 } from "@src/organization";
 import { placementOptionsRouter } from "@src/placement-options";
@@ -145,5 +146,6 @@ export const openApiHonoHandlers: OpenApiHonoHandler[] = [
   organizationActivitiesRouter,
   organizationMembersRouter,
   organizationInvitationsRouter,
-  invitationsRouter
+  invitationsRouter,
+  projectMembersRouter
 ];

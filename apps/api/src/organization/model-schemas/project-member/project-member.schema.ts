@@ -1,12 +1,15 @@
 import { sql } from "drizzle-orm";
 import { foreignKey, index, pgEnum, pgTable, timestamp, unique, uuid } from "drizzle-orm/pg-core";
 
-import { OrganizationMembers } from "@src/organization/model-schemas/organization-member/organization-member.schema";
+import { OrganizationMembers, type OrganizationRole } from "@src/organization/model-schemas/organization-member/organization-member.schema";
 import { Projects } from "@src/organization/model-schemas/project/project.schema";
 
 export const projectRoleEnum = pgEnum("project_role", ["admin", "member", "viewer"]);
 
 export type ProjectRole = (typeof projectRoleEnum.enumValues)[number];
+
+/** Owners and admins reach every project and billing reaches none, so a grant they still hold has no effect. */
+export const GRANT_HOLDING_ORGANIZATION_ROLES: readonly OrganizationRole[] = ["member", "viewer"];
 
 export const ProjectMembers = pgTable(
   "project_members",

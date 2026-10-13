@@ -20,7 +20,7 @@ import type { UserOutput } from "@src/user/repositories";
 
 import { seedOrganizationMember, seedOrganizationWithOwner, seedProject } from "@test/seeders/db/organization.seeder";
 import { seedUser } from "@test/seeders/db/user-with-wallet.seeder";
-import { createOrganizationContext } from "@test/seeders/organization-context.seeder";
+import { createOrganizationContext, createProjectsScope } from "@test/seeders/organization-context.seeder";
 
 const SOURCE_ROOT = path.resolve(__dirname, "../..");
 
@@ -106,7 +106,7 @@ describe(OrgScopedRepository.name, () => {
       await seedOrganizationMember({ organizationId: active.organization.id, userId: member.id, role: "member" });
       const outOfScopeProject = await seedProject({ organizationId: active.organization.id });
       const setting = await seedDeploymentSetting(active, { userId: member.id });
-      const context = { role: "member" as const, projectScope: { kind: "projects" as const, projectIds: [active.project.id] } };
+      const context = { role: "member" as const, projectScope: createProjectsScope([active.project.id]) };
 
       await expect(
         runIn(active, ability => repository.accessibleBy(ability, "update").updateById(setting.id, { projectId: outOfScopeProject.id }), {

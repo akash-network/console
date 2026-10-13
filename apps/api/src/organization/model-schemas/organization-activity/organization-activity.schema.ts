@@ -4,6 +4,7 @@ import { foreignKey, index, jsonb, pgEnum, pgTable, timestamp, uuid } from "driz
 import { Organizations } from "@src/organization/model-schemas/organization/organization.schema";
 import type { OrganizationRole } from "@src/organization/model-schemas/organization-member/organization-member.schema";
 import { Projects } from "@src/organization/model-schemas/project/project.schema";
+import type { ProjectRole } from "@src/organization/model-schemas/project-member/project-member.schema";
 import { Users } from "@src/user/model-schemas/user/user.schema";
 
 export const organizationActivityTypeEnum = pgEnum("organization_activity_type", [
@@ -13,7 +14,9 @@ export const organizationActivityTypeEnum = pgEnum("organization_activity_type",
   "member_joined",
   "deployment_created",
   "deployment_closed",
-  "deployment_moved"
+  "deployment_moved",
+  "member_granted",
+  "member_revoked"
 ]);
 
 export type OrganizationActivityType = (typeof organizationActivityTypeEnum.enumValues)[number];
@@ -27,6 +30,8 @@ export type OrganizationActivityPayloads = {
   deployment_created: { dseq: string; name: string | null };
   deployment_closed: { dseq: string; name: string | null; reason: string | null };
   deployment_moved: { dseq: string; name: string | null; toProjectName: string };
+  member_granted: { userId: string; username: string | null; role: ProjectRole };
+  member_revoked: { userId: string; username: string | null };
 };
 
 export const OrganizationActivities = pgTable(
