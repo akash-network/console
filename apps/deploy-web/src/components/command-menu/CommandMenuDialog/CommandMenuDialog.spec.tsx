@@ -73,6 +73,23 @@ describe(CommandMenuDialog.name, () => {
     expect(screen.getByRole("button", { name: "Before" })).not.toHaveFocus();
   });
 
+  it("hands the shortcuts sheet opener to the menu items", () => {
+    const { useCommandMenuItems, onShowShortcuts } = setup({});
+
+    expect(useCommandMenuItems).toHaveBeenCalledWith(expect.objectContaining({ onShowShortcuts }));
+  });
+
+  it("shows a row's shortcut without adding it to the row's name", () => {
+    setup({
+      sections: sectionsWith({
+        actions: [{ id: "action-new-container", label: "New container", shortcut: { keys: ["shift", "C"] }, action: "new_container", run: vi.fn() }]
+      })
+    });
+
+    const row = screen.getByRole("option", { name: "New container" });
+    expect([...row.querySelectorAll("kbd")].map(kbd => kbd.textContent)).toEqual(["Shift", "C"]);
+  });
+
   it("groups rows under their section headings", () => {
     setup({});
 
@@ -307,12 +324,14 @@ describe(CommandMenuDialog.name, () => {
     const analyticsService = mock<AnalyticsService>();
     let sections = input.sections ?? sectionsWith({}, runs);
     let isOpen = input.isOpen ?? true;
-    const dependencies: typeof DEPENDENCIES = { useCommandMenuItems: () => sections };
+    const onShowShortcuts = vi.fn();
+    const useCommandMenuItems = vi.fn<typeof DEPENDENCIES.useCommandMenuItems>(() => sections);
+    const dependencies: typeof DEPENDENCIES = { useCommandMenuItems };
 
     const view = () => (
       <TestContainerProvider services={{ analyticsService: () => analyticsService }}>
         <button type="button">Before</button>
-        <CommandMenuDialog isOpen={isOpen} onOpenChange={onOpenChange} dependencies={dependencies} />
+        <CommandMenuDialog isOpen={isOpen} onOpenChange={onOpenChange} onShowShortcuts={onShowShortcuts} dependencies={dependencies} />
       </TestContainerProvider>
     );
     const { rerender } = render(view());
@@ -327,6 +346,6 @@ describe(CommandMenuDialog.name, () => {
       rerender(view());
     };
 
-    return { runs, onOpenChange, analyticsService, rerenderWith, setOpen };
+    return { runs, onOpenChange, onShowShortcuts, useCommandMenuItems, analyticsService, rerenderWith, setOpen };
   }
 });

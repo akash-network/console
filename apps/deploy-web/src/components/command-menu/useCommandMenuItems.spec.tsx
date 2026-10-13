@@ -42,8 +42,31 @@ describe(useCommandMenuItems.name, () => {
         },
         { id: "action-deploy-from-template", label: "Deploy from a template", keywords: "templates catalog", action: "deploy_from_template" },
         { id: "action-add-funds", label: "Add funds", keywords: "billing balance top up credit", action: "add_funds" },
-        { id: "action-toggle-theme", label: "Switch to dark theme", keywords: "theme appearance mode dark light", action: "toggle_theme" }
+        { id: "action-toggle-theme", label: "Switch to dark theme", keywords: "theme appearance mode dark light", action: "toggle_theme" },
+        { id: "action-keyboard-shortcuts", label: "Keyboard shortcuts", keywords: "help hotkeys keys", action: "keyboard_shortcuts" }
       ]);
+    });
+
+    it("shows the shortcut of each action that has one", () => {
+      const { itemsOf } = setup({});
+
+      expect(Object.fromEntries(itemsOf("actions").map(({ id, shortcut }) => [id, shortcut]))).toEqual({
+        "action-new-deployment": { keys: ["N"] },
+        "action-new-container": { keys: ["shift", "C"] },
+        "action-new-linux-machine": { keys: ["shift", "L"] },
+        "action-deploy-from-template": undefined,
+        "action-add-funds": undefined,
+        "action-toggle-theme": undefined,
+        "action-keyboard-shortcuts": { keys: ["?"] }
+      });
+    });
+
+    it("opens the keyboard shortcuts sheet", () => {
+      const { run, onShowShortcuts } = setup({});
+
+      run("actions", "Keyboard shortcuts");
+
+      expect(onShowShortcuts).toHaveBeenCalled();
     });
 
     it.each([
@@ -94,7 +117,7 @@ describe(useCommandMenuItems.name, () => {
 
       run("actions", "Switch to light theme");
 
-      expect(itemsOf("actions").at(-1)?.label).toBe("Switch to light theme");
+      expect(itemsOf("actions").find(item => item.id === "action-toggle-theme")?.label).toBe("Switch to light theme");
       expect(setTheme).toHaveBeenCalledWith("light");
       expect(document.cookie).toContain("theme=light");
     });
@@ -190,6 +213,14 @@ describe(useCommandMenuItems.name, () => {
   });
 
   describe("pages", () => {
+    it("reaches each page with G then its letter", () => {
+      const { itemsOf } = setup({});
+
+      expect(itemsOf("pages").map(({ shortcut }) => shortcut)).toEqual(
+        ["D", "T", "R", "B", "K", "U", "A"].map(letter => ({ keys: ["G", letter], isSequence: true }))
+      );
+    });
+
     it("lists the pages with a go-to keyword", () => {
       const { itemsOf } = setup({});
 
@@ -244,6 +275,7 @@ describe(useCommandMenuItems.name, () => {
   }) {
     document.cookie = "theme=; path=/; Max-Age=0";
     const push = vi.fn();
+    const onShowShortcuts = vi.fn();
     const setTheme = vi.fn();
     const openAddCredits = vi.fn();
     const startDeployment = vi.fn(async () => undefined);
@@ -261,7 +293,7 @@ describe(useCommandMenuItems.name, () => {
       useApiDeploymentsListSource
     };
 
-    const { result } = renderHook(() => useCommandMenuItems({ parsed: parseQuery(input.input ?? input.query ?? "") }, dependencies));
+    const { result } = renderHook(() => useCommandMenuItems({ parsed: parseQuery(input.input ?? input.query ?? ""), onShowShortcuts }, dependencies));
     const sections = result.current;
     const itemsOf = (key: string): CommandItem[] => sections.find(section => section.key === key)?.items ?? [];
     const run = (key: string, label: string) =>
@@ -269,6 +301,6 @@ describe(useCommandMenuItems.name, () => {
         .find(item => item.label === label)
         ?.run();
 
-    return { sections, itemsOf, run, push, setTheme, openAddCredits, runWhenEmailVerified, startDeployment, useApiDeploymentsListSource };
+    return { sections, itemsOf, run, push, onShowShortcuts, setTheme, openAddCredits, runWhenEmailVerified, startDeployment, useApiDeploymentsListSource };
   }
 });
