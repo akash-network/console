@@ -29,6 +29,17 @@ describe(OrganizationRepository.name, () => {
       expect(new Set(claims.map(claim => claim?.organization.id)).size).toBe(1);
     });
 
+    it("hands back the user's deleted personal organization instead of creating a second one", async () => {
+      const { repository, user, input } = await setup();
+      const first = await repository.createPersonalUnlessExists(input);
+      await repository.updateById(first!.organization.id, { deletedAt: new Date() });
+
+      const claim = await repository.createPersonalUnlessExists({ ...input, slug: `${input.slug}-again` });
+
+      expect(claim).toMatchObject({ isNew: false, organization: { id: first?.organization.id, deletedAt: expect.any(Date) } });
+      expect(await repository.count({ createdByUserId: user.id, type: "personal" })).toBe(1);
+    });
+
     it("hands back nothing when the slug belongs to another organization", async () => {
       const { repository, user, input } = await setup();
       await seedOrganization({ slug: input.slug });

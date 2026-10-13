@@ -32,6 +32,24 @@ describe(WalletReaderService.name, () => {
       expect(result).toEqual([expect.objectContaining({ id: organizationWallet.id, userId, address: organizationWallet.address })]);
     });
 
+    it("lists a team organization's wallet before its first payment, without a trial", async () => {
+      const userId = "test-user-id";
+      const unfundedWallet = createOrganizationWallet({ activatedAt: null });
+      const { service } = setup({ wallet: unfundedWallet });
+
+      const result = await service.getWallets({ userId });
+
+      expect(result).toEqual([expect.objectContaining({ id: unfundedWallet.id, userId, address: unfundedWallet.address, isTrialing: false })]);
+    });
+
+    it("excludes an organization's wallet whose address is not derived yet", async () => {
+      const { service } = setup({ wallet: createOrganizationWallet({ activatedAt: null, address: "" }) });
+
+      const result = await service.getWallets({ userId: "test-user-id" });
+
+      expect(result).toEqual([]);
+    });
+
     it("returns an empty list when the user has no wallet", async () => {
       const { service } = setup({ wallet: undefined });
 
