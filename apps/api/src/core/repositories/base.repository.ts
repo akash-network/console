@@ -1,16 +1,17 @@
 import { DrizzleAbility } from "@akashnetwork/drizzle-ability";
-import type { AnyAbility } from "@casl/ability";
+import { type AnyAbility, subject } from "@casl/ability";
 import type { DBQueryConfig } from "drizzle-orm";
 import { and, eq, inArray, isNull, sql } from "drizzle-orm";
 import type { PgTable, PgTableWithColumns } from "drizzle-orm/pg-core";
 import type { SQL } from "drizzle-orm/sql/sql";
 import { PostgresError } from "postgres";
 
+import { ShadowedAbility } from "@src/auth/services/ability/shadowed-ability";
 import type { ApiPgDatabase, ApiPgTables, ApiTransaction, TxService } from "@src/core";
 
 export type AbilityParams = [AnyAbility, Parameters<AnyAbility["can"]>[0]];
 
-interface MutationOptions {
+export interface MutationOptions {
   returning: true;
 }
 
@@ -28,6 +29,7 @@ export abstract class BaseRepository<
   Output extends BaseRecordOutput<string | number>
 > {
   protected ability?: DrizzleAbility<T>;
+  #abilityParams?: AbilityParams;
 
   get cursor() {
     return this.txManager.getPgTx() || this.pg;
@@ -47,7 +49,12 @@ export abstract class BaseRepository<
 
   protected withAbility(ability: AnyAbility, action: Parameters<AnyAbility["can"]>[0]) {
     this.ability = new DrizzleAbility(this.table, ability, action, this.entityName);
+    this.#abilityParams = [ability, action];
     return this;
+  }
+
+  protected get abilityParams(): AbilityParams | undefined {
+    return this.#abilityParams;
   }
 
   protected whereAccessibleBy(where: SQL | undefined) {
@@ -78,6 +85,7 @@ export abstract class BaseRepository<
       where: this.whereAccessibleBy(eq(this.table.id, id))
     });
     if (!item) return undefined;
+    this.compareWithShadow([item]);
     return this.toOutput(item);
   }
 
@@ -86,6 +94,7 @@ export abstract class BaseRepository<
       where: this.queryToWhere(query)
     });
     if (!item) return undefined;
+    this.compareWithShadow([item]);
     return this.toOutput(item);
   }
 
@@ -98,6 +107,7 @@ export abstract class BaseRepository<
       .limit(1)
       .for("update");
     if (!items || items.length === 0) return undefined;
+    this.compareWithShadow(items);
     return this.toOutput(items[0]);
   }
 
@@ -118,7 +128,13 @@ export abstract class BaseRepository<
       params.offset = options.offset;
     }
 
-    return this.toOutputList(await this.queryCursor.findMany(params));
+    const items = await this.queryCursor.findMany(params);
+
+    if (!params.columns) {
+      this.compareWithShadow(items);
+    }
+
+    return this.toOutputList(items);
   }
 
   async paginate({ query, ...options }: { select?: Array<keyof Output>; limit?: number; query?: Partial<Output> }, cb: (page: Output[]) => Promise<void>) {
@@ -131,7 +147,9 @@ export abstract class BaseRepository<
     params.limit = params.limit || 100;
 
     while (hasNextPage) {
-      const items = this.toOutputList(await this.queryCursor.findMany({ ...params, offset }));
+      const rows = await this.queryCursor.findMany({ ...params, offset });
+      this.compareWithShadow(rows);
+      const items = this.toOutputList(rows);
       offset += items.length;
       hasNextPage = items.length === params.limit;
 
@@ -148,23 +166,48 @@ export abstract class BaseRepository<
   }
 
   async updateManyById(ids: Output["id"][], payload: Partial<Input>): Promise<void> {
-    await this.cursor.update(this.table).set(this.toUpdateSet(payload)).where(inArray(this.table.id, ids));
+    await this.updateWhere(this.whereAccessibleBy(inArray(this.table.id, ids)), payload);
   }
 
   async updateBy(query: Partial<Output>, payload: Partial<Input>, options?: MutationOptions): Promise<undefined | Output>;
   async updateBy(query: Partial<Output>, payload: Partial<Input>): Promise<void>;
   async updateBy(query: Partial<Output>, payload: Partial<Input>, options?: MutationOptions): Promise<void | Output> {
-    const cursor = this.cursor.update(this.table).set(this.toUpdateSet(payload)).where(this.queryToWhere(query));
+    const [item] = await this.updateWhere(this.queryToWhere(query), payload, options);
 
-    if (options?.returning) {
-      const [item] = await cursor.returning();
-      if (!item) return undefined;
-      return this.toOutput(item);
+    if (!options?.returning || !item) return undefined;
+
+    return this.toOutput(item);
+  }
+
+  /** The where clause only vets rows as they were, so with an ability attached every row is checked again as written, in the same transaction. */
+  protected async updateWhere(where: SQL | undefined, payload: Partial<Input>, options?: MutationOptions): Promise<T["$inferSelect"][]> {
+    const set = this.toUpdateSet(payload);
+
+    if (!this.ability) {
+      const statement = this.cursor.update(this.table).set(set).where(where);
+
+      if (options?.returning) return await statement.returning();
+
+      await statement;
+
+      return [];
     }
 
-    await cursor;
+    return await this.writeChecked(cursor => cursor.update(this.table).set(set).where(where).returning());
+  }
 
-    return undefined;
+  /** With an ability attached, runs a write that returns whole rows in a transaction and rejects it when any written row falls outside the rules. */
+  protected async writeChecked(write: (cursor: ApiPgDatabase | ApiTransaction) => Promise<T["$inferSelect"][]>): Promise<T["$inferSelect"][]> {
+    const ability = this.ability;
+
+    if (!ability) return await write(this.cursor);
+
+    return await this.ensureTransaction(async tx => {
+      const rows = await write(tx);
+      rows.forEach(row => ability.throwUnlessCanExecute(row));
+
+      return rows;
+    });
   }
 
   async deleteById(id: Output["id"] | Output["id"][]): Promise<void> {
@@ -188,6 +231,7 @@ export abstract class BaseRepository<
     if (options?.returning) {
       const [item] = await cursor.returning();
       if (!item) return undefined;
+      this.compareWithShadow([item]);
       return this.toOutput(item);
     }
 
@@ -205,6 +249,17 @@ export abstract class BaseRepository<
       : undefined;
 
     return this.whereAccessibleBy(where);
+  }
+
+  /** Legacy filters pick the rows, so asking the shadowed ability about each one is what reports the rows organization rules would hide. */
+  protected compareWithShadow(rows: Array<Partial<T["$inferSelect"]>>) {
+    const [ability, action] = this.#abilityParams ?? [];
+
+    if (!(ability instanceof ShadowedAbility)) return;
+
+    for (const row of rows) {
+      ability.can(action, subject(this.entityName, { ...row }));
+    }
   }
 
   /** Drizzle builds the SET clause from schema property names, so a raw column key such as updated_at is dropped without an error. */
@@ -230,7 +285,7 @@ type TablesOnly<T> = {
 };
 
 type TableName<T extends PgTableWithColumns<any>> = T extends PgTableWithColumns<infer TableConfig> ? TableConfig["name"] : never;
-type TableNameInSchema<T extends PgTableWithColumns<any>> = {
+export type TableNameInSchema<T extends PgTableWithColumns<any>> = {
   [K in keyof TablesOnly<ApiPgTables> as TableName<ApiPgTables[K]>]: K;
 }[TableName<T>];
 

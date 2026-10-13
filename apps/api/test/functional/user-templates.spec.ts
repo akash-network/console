@@ -24,7 +24,7 @@ describe("User templates", () => {
       const response = await saveTemplate(token, template);
 
       expect(response.status).toBe(200);
-      expect(await userTemplateRepository.findById(await response.text())).toMatchObject({
+      expect(await userTemplateRepository.findById(await response.text(), user.userId!)).toMatchObject({
         userId: user.userId,
         title: template.title,
         cpu: 1000,

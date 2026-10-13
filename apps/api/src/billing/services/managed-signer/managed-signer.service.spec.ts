@@ -5,6 +5,7 @@ import type { LeaseHttpService } from "@akashnetwork/http-sdk";
 import type { MongoAbility } from "@casl/ability";
 import { createMongoAbility } from "@casl/ability";
 import type { EncodeObject, Registry } from "@cosmjs/proto-signing";
+import { faker } from "@faker-js/faker";
 import createError from "http-errors";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
@@ -578,7 +579,13 @@ describe(ManagedSignerService.name, () => {
     });
 
     it("records a deployment created by broadcasting its message, so the funding sweep can see it", async () => {
-      const wallet = createUserWallet({ userId: "user-123", feeAllowance: 100, deploymentAllowance: 100, isTrialing: false });
+      const wallet = createUserWallet({
+        userId: "user-123",
+        feeAllowance: 100,
+        deploymentAllowance: 100,
+        isTrialing: false,
+        organizationId: faker.string.uuid()
+      });
       const user = createUser({ userId: "user-123" });
       const deploymentMessage: EncodeObject = {
         typeUrl: MsgCreateDeployment.$type,
@@ -596,7 +603,7 @@ describe(ManagedSignerService.name, () => {
       await service.executeDerivedDecodedTxByUserId("user-123", [deploymentMessage]);
 
       const [event, options] = vi.mocked(domainEvents.publish).mock.calls.find(([published]) => published instanceof RecordDeploymentSetting)!;
-      expect(event.data).toEqual({ userId: wallet.userId, dseq: "123" });
+      expect(event.data).toEqual({ userId: wallet.userId, dseq: "123", organizationId: wallet.organizationId });
       expect(options).toEqual({ singletonKey: `recordDeploymentSetting.${wallet.userId}.123` });
     });
 
@@ -674,7 +681,7 @@ describe(ManagedSignerService.name, () => {
 
       await service.executeDerivedDecodedTxByUserId("user-123", [closeMessageFor(123)]);
 
-      expect(deploymentSettingRepository.markClosed).toHaveBeenCalledWith({ userId: "user-123", dseq: "123" });
+      expect(deploymentSettingRepository.markClosed).toHaveBeenCalledWith({ userId: "user-123", dseq: "123", organizationId: null });
     });
 
     it("records every deployment one transaction closes", async () => {
@@ -682,8 +689,8 @@ describe(ManagedSignerService.name, () => {
 
       await service.executeDerivedDecodedTxByUserId("user-123", [closeMessageFor(123), closeMessageFor(456)]);
 
-      expect(deploymentSettingRepository.markClosed).toHaveBeenCalledWith({ userId: "user-123", dseq: "123" });
-      expect(deploymentSettingRepository.markClosed).toHaveBeenCalledWith({ userId: "user-123", dseq: "456" });
+      expect(deploymentSettingRepository.markClosed).toHaveBeenCalledWith({ userId: "user-123", dseq: "123", organizationId: null });
+      expect(deploymentSettingRepository.markClosed).toHaveBeenCalledWith({ userId: "user-123", dseq: "456", organizationId: null });
     });
 
     it("records nothing closed when the close reverted on chain", async () => {
@@ -731,7 +738,7 @@ describe(ManagedSignerService.name, () => {
 
       await expect(service.executeDerivedDecodedTxByUserId("user-123", [createMessage, closeMessageFor(456)])).rejects.toThrow("queue unavailable");
 
-      expect(deploymentSettingRepository.markClosed).toHaveBeenCalledWith({ userId: "user-123", dseq: "456" });
+      expect(deploymentSettingRepository.markClosed).toHaveBeenCalledWith({ userId: "user-123", dseq: "456", organizationId: null });
     });
 
     it("does not publish FundDeploymentCommand when a trialing wallet creates a lease", async () => {

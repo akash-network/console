@@ -2,8 +2,9 @@ import { and, eq, isNotNull, isNull, lt, ne, or, sql } from "drizzle-orm";
 import { singleton } from "tsyringe";
 
 import { type ApiPgDatabase, type ApiPgTables, InjectPg, InjectPgTable } from "@src/core/providers";
-import { type AbilityParams, BaseRepository } from "@src/core/repositories/base.repository";
+import { OrgScopedRepository } from "@src/core/repositories/org-scoped.repository";
 import { TxService } from "@src/core/services";
+import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
 
 type Table = ApiPgTables["WalletSetting"];
 type DbWalletSettingInput = ApiPgTables["WalletSetting"]["$inferInsert"];
@@ -31,17 +32,18 @@ export type ChargeClaimAttempt = { won: true; claim: ChargeClaim } | { won: fals
 export type ChargeDeclineOutcome = { failureCount: number; pausedAt: Date | null };
 
 @singleton()
-export class WalletSettingRepository extends BaseRepository<Table, WalletSettingInput, WalletSettingOutput> {
+export class WalletSettingRepository extends OrgScopedRepository<Table, WalletSettingInput, WalletSettingOutput> {
   constructor(
     @InjectPg() protected readonly pg: ApiPgDatabase,
     @InjectPgTable("WalletSetting") protected readonly table: Table,
-    protected readonly txManager: TxService
+    protected readonly txManager: TxService,
+    protected readonly executionContextService: ExecutionContextService
   ) {
-    super(pg, table, txManager, "WalletSetting", "WalletSetting");
+    super(pg, table, txManager, executionContextService, "WalletSetting", "WalletSetting");
   }
 
-  accessibleBy(...abilityParams: AbilityParams) {
-    return new WalletSettingRepository(this.pg, this.table, this.txManager).withAbility(...abilityParams) as this;
+  protected newInstance() {
+    return new WalletSettingRepository(this.pg, this.table, this.txManager, this.executionContextService) as this;
   }
 
   async findByUserId(userId: WalletSettingOutput["userId"]): Promise<WalletSettingOutput | undefined> {
@@ -50,8 +52,9 @@ export class WalletSettingRepository extends BaseRepository<Table, WalletSetting
 
   /** Returns nothing when the wallet already has a setting, because a failed insert would abort the caller's transaction. */
   async createUnlessExists(input: DbWalletSettingInput): Promise<WalletSettingOutput | undefined> {
-    this.ability?.throwUnlessCanExecute(input);
-    const [created] = await this.cursor.insert(this.table).values(input).onConflictDoNothing({ target: this.table.walletId }).returning();
+    const values = await this.attributeToOrganization(input);
+    this.ability?.throwUnlessCanExecute(values);
+    const [created] = await this.cursor.insert(this.table).values(values).onConflictDoNothing({ target: this.table.walletId }).returning();
 
     return created && this.toOutput(created);
   }
@@ -70,6 +73,7 @@ export class WalletSettingRepository extends BaseRepository<Table, WalletSetting
     });
 
     if (!walletSetting) return undefined;
+    this.compareWithShadow([walletSetting]);
 
     return walletSetting;
   }
@@ -87,9 +91,11 @@ export class WalletSettingRepository extends BaseRepository<Table, WalletSetting
       .update(this.table)
       .set({ lastAutoChargeAt: sql`now()`, updatedAt: sql`now()` })
       .where(
-        and(
-          eq(this.table.id, id),
-          or(isNull(this.table.lastAutoChargeAt), lt(this.table.lastAutoChargeAt, sql`now() - (${cooldownMinutes} * interval '1 minute')`))
+        this.whereAccessibleBy(
+          and(
+            eq(this.table.id, id),
+            or(isNull(this.table.lastAutoChargeAt), lt(this.table.lastAutoChargeAt, sql`now() - (${cooldownMinutes} * interval '1 minute')`))
+          )
         )
       )
       .returning({ id: this.table.id, claimedAt: sql<string>`${this.table.lastAutoChargeAt}::text` });
@@ -103,7 +109,7 @@ export class WalletSettingRepository extends BaseRepository<Table, WalletSetting
         secondsUntilWindowReopen: sql<string>`greatest(extract(epoch from (${this.table.lastAutoChargeAt} + (${cooldownMinutes} * interval '1 minute') - now())), 0)`
       })
       .from(this.table)
-      .where(eq(this.table.id, id));
+      .where(this.whereAccessibleBy(eq(this.table.id, id)));
 
     return { won: false, secondsUntilWindowReopen: Number(blocking?.secondsUntilWindowReopen ?? 0) };
   }
@@ -118,7 +124,7 @@ export class WalletSettingRepository extends BaseRepository<Table, WalletSetting
     const [declined] = await this.cursor
       .update(this.table)
       .set({ autoReloadFailureCount: sql`${this.table.autoReloadFailureCount} + 1`, updatedAt: sql`now()` })
-      .where(and(eq(this.table.id, claim.id), eq(this.table.lastAutoChargeAt, sql`${claim.claimedAt}::timestamp`)))
+      .where(this.whereAccessibleBy(and(eq(this.table.id, claim.id), eq(this.table.lastAutoChargeAt, sql`${claim.claimedAt}::timestamp`))))
       .returning({ failureCount: this.table.autoReloadFailureCount });
 
     if (!declined) {
@@ -137,7 +143,7 @@ export class WalletSettingRepository extends BaseRepository<Table, WalletSetting
     const [paused] = await this.cursor
       .update(this.table)
       .set({ autoReloadPausedAt: sql`now()`, updatedAt: sql`now()` })
-      .where(and(eq(this.table.id, id), isNull(this.table.autoReloadPausedAt)))
+      .where(this.whereAccessibleBy(and(eq(this.table.id, id), isNull(this.table.autoReloadPausedAt))))
       .returning({ pausedAt: this.table.autoReloadPausedAt });
 
     return paused?.pausedAt ?? null;
@@ -148,7 +154,7 @@ export class WalletSettingRepository extends BaseRepository<Table, WalletSetting
     await this.cursor
       .update(this.table)
       .set({ autoReloadFailureCount: 0, autoReloadPausedAt: null, updatedAt: sql`now()` })
-      .where(and(eq(this.table.id, id), or(ne(this.table.autoReloadFailureCount, 0), isNotNull(this.table.autoReloadPausedAt))));
+      .where(this.whereAccessibleBy(and(eq(this.table.id, id), or(ne(this.table.autoReloadFailureCount, 0), isNotNull(this.table.autoReloadPausedAt)))));
   }
 
   /**
@@ -159,6 +165,6 @@ export class WalletSettingRepository extends BaseRepository<Table, WalletSetting
     await this.cursor
       .update(this.table)
       .set({ autoReloadFailureCount: 0, autoReloadPausedAt: null, lastAutoChargeAt: null, updatedAt: sql`now()` })
-      .where(eq(this.table.id, id));
+      .where(this.whereAccessibleBy(eq(this.table.id, id)));
   }
 }

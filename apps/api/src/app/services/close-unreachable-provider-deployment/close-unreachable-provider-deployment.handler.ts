@@ -107,9 +107,9 @@ export class CloseUnreachableProviderDeploymentHandler implements JobHandler<Clo
   }
 
   /** One transaction, so a deployment is never recorded as closed without the email explaining it queued alongside, and never told twice. */
-  async #recordAndNotify(deployment: DarkDeployment, wallet: { id: number; userId: string }): Promise<void> {
+  async #recordAndNotify(deployment: DarkDeployment, wallet: { id: number; userId: string; organizationId: string | null }): Promise<void> {
     await this.txService.transaction(async () => {
-      await this.deploymentSettingRepository.markClosed({ userId: wallet.userId, dseq: deployment.dseq });
+      await this.deploymentSettingRepository.markClosed({ userId: wallet.userId, dseq: deployment.dseq, organizationId: wallet.organizationId });
 
       await this.jobQueueService.enqueue(
         new NotificationJob({

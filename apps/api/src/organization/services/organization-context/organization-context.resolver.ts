@@ -7,6 +7,7 @@ import { z } from "zod";
 import type { ApiKeyOutput } from "@src/auth/repositories/api-key/api-key.repository";
 import { cacheRegistry, nominalEntrySizing } from "@src/caching/cache-registry";
 import { type CreateLogger, LOGGER_FACTORY } from "@src/core/providers/logging.provider";
+import { ORGANIZATION_FORBIDDEN_ERROR_CODE } from "@src/core/repositories/org-scoped.repository";
 import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
 import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import type { OrganizationRole } from "@src/organization/model-schemas/organization-member/organization-member.schema";
@@ -21,7 +22,6 @@ export const ORGANIZATION_ID_HEADER = "x-organization-id";
 export const PROJECT_ID_HEADER = "x-project-id";
 
 export const ORGANIZATION_MISMATCH_ERROR_CODE = "organization_mismatch";
-export const ORGANIZATION_FORBIDDEN_ERROR_CODE = "organization_forbidden";
 export const PROJECT_FORBIDDEN_ERROR_CODE = "project_forbidden";
 
 export const LAST_USED_ORGANIZATION_THROTTLE_MS = millisecondsInMinute;

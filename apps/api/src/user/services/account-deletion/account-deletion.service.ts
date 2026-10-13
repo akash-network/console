@@ -183,7 +183,7 @@ export class AccountDeletionService {
       const lockedUser = await this.userRepository.findOneByAndLock({ id: user.id });
       if (!lockedUser) return false;
 
-      const wallet = await this.userWalletRepository.findOneByUserId(user.id);
+      const wallet = await this.userWalletRepository.unscoped("account-deletion").findOneByUserId(user.id);
       const personalOrganization = await this.organizationRepository.findPersonalByUserId(user.id);
 
       if (lockedUser.userId) await this.userTemplateRepository.deleteAllOwnedBy(lockedUser.userId);

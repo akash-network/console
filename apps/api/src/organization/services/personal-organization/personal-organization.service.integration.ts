@@ -115,6 +115,22 @@ describe(PersonalOrganizationService.name, () => {
         .where(eq(resolveTable("DeploymentSettings").id, deployment.id));
       expect(kept).toMatchObject({ organizationId: other.id, projectId: otherProject.id });
     });
+
+    it("files a deployment already in the organization but in no project into its default project", async () => {
+      const { service, user, db } = await setup();
+      const organization = await service.ensureForUser(user);
+      const deployment = await seedDeploymentSetting({ userId: user.id, organizationId: organization.id });
+
+      const counts = await service.adoptUserRows(user, organization);
+
+      expect(counts.deploymentSettings).toBe(1);
+      const [filed] = await db
+        .select()
+        .from(resolveTable("DeploymentSettings"))
+        .where(eq(resolveTable("DeploymentSettings").id, deployment.id));
+      const defaultProject = await container.resolve(ProjectRepository).findDefaultByOrganizationId(organization.id);
+      expect(filed).toMatchObject({ organizationId: organization.id, projectId: defaultProject?.id });
+    });
   });
 
   async function setup() {

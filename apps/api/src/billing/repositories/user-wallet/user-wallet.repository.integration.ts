@@ -5,14 +5,29 @@ import { container } from "tsyringe";
 import { describe, expect, it } from "vitest";
 
 import { StripeTransactionRepository } from "@src/billing/repositories/stripe-transaction/stripe-transaction.repository";
+import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
 import { UserRepository } from "@src/user/repositories";
 import { UserWalletRepository } from "./user-wallet.repository";
 
 import { createAkashAddress } from "@test/seeders/akash-address.seeder";
+import { createOrganizationContext } from "@test/seeders/organization-context.seeder";
 
 const RECOVERY_WINDOWS = { confirmWindowMinutes: 30, resendCooldownHours: 168 };
 
 describe(UserWalletRepository.name, () => {
+  describe("getOrCreate", () => {
+    it("returns the user's wallet while the request runs in an organization the wallet is not filed in", async () => {
+      const { userWalletRepository, executionContextService, user, wallet } = await setup();
+
+      const result = await executionContextService.runWithContext(async () => {
+        executionContextService.set("ORGANIZATION_CONTEXT", createOrganizationContext({ mode: "organization" }));
+        return await userWalletRepository.getOrCreate({ userId: user.id });
+      });
+
+      expect(result).toEqual({ wallet: expect.objectContaining({ id: wallet.id }), isNew: false });
+    });
+  });
+
   describe("claimActivation", () => {
     it("claims activation exactly once across concurrent attempts", async () => {
       const { userWalletRepository, wallet } = await setup();
@@ -409,6 +424,6 @@ describe(UserWalletRepository.name, () => {
       { returning: true }
     );
 
-    return { userRepository, userWalletRepository, user, wallet };
+    return { userRepository, userWalletRepository, executionContextService: container.resolve(ExecutionContextService), user, wallet };
   }
 });

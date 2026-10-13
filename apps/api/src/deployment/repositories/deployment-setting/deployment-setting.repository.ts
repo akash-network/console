@@ -5,8 +5,9 @@ import { UserWallets, WalletSetting } from "@src/billing/model-schemas";
 import { assertBatchSize } from "@src/core/lib/batch-size/batch-size";
 import { containsPattern } from "@src/core/lib/like-pattern/like-pattern";
 import { type ApiPgDatabase, type ApiPgTables, InjectPg, InjectPgTable } from "@src/core/providers";
-import { type AbilityParams, BaseRepository } from "@src/core/repositories/base.repository";
-import { TxService } from "@src/core/services";
+import { OrgScopedRepository } from "@src/core/repositories/org-scoped.repository";
+import { type ApiTransaction, TxService } from "@src/core/services";
+import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
 import { mergeLeaseGpuOffers } from "@src/deployment/lib/lease-gpu-offers/lease-gpu-offers";
 import { mergeLeaseGpuReadings } from "@src/deployment/lib/lease-gpu-readings/lease-gpu-readings";
 import type { GpuProbeSource, LeaseGpuOffer, LeaseGpuReading } from "@src/deployment/model-schemas";
@@ -112,18 +113,36 @@ export type AutoTopUpDeployment = {
  */
 const AUTO_TOP_UP_ENABLED_BY_DEFAULT = true;
 
+/** Writers without a request context name the organization, and the project when they know it, so the row is filed where a request would have filed it. */
+export type DeploymentSettingOwner = {
+  userId: string;
+  dseq: string;
+  organizationId?: string | null;
+  projectId?: string | null;
+};
+
 @singleton()
-export class DeploymentSettingRepository extends BaseRepository<Table, DeploymentSettingsInput, DeploymentSettingsOutput> {
+export class DeploymentSettingRepository extends OrgScopedRepository<Table, DeploymentSettingsInput, DeploymentSettingsOutput> {
   constructor(
     @InjectPg() protected readonly pg: ApiPgDatabase,
     @InjectPgTable("DeploymentSettings") protected readonly table: Table,
-    protected readonly txManager: TxService
+    protected readonly txManager: TxService,
+    protected readonly executionContextService: ExecutionContextService
   ) {
-    super(pg, table, txManager, "DeploymentSetting", "DeploymentSettings");
+    super(pg, table, txManager, executionContextService, "DeploymentSetting", "DeploymentSettings");
   }
 
-  accessibleBy(...abilityParams: AbilityParams) {
-    return new DeploymentSettingRepository(this.pg, this.table, this.txManager).withAbility(...abilityParams) as this;
+  protected newInstance() {
+    return new DeploymentSettingRepository(this.pg, this.table, this.txManager, this.executionContextService) as this;
+  }
+
+  protected get filesIntoProjects() {
+    return true;
+  }
+
+  /** The columns both rule sets condition on, selected by partial reads so their rows can be shadow-compared. */
+  get #ruleColumns() {
+    return { userId: this.table.userId, organizationId: this.table.organizationId, projectId: this.table.projectId };
   }
 
   /**
@@ -150,9 +169,10 @@ export class DeploymentSettingRepository extends BaseRepository<Table, Deploymen
     }
 
     const rows = await this.cursor
-      .select({ dseq: this.table.dseq, name: this.table.name })
+      .select({ dseq: this.table.dseq, name: this.table.name, ...this.#ruleColumns })
       .from(this.table)
       .where(this.whereAccessibleBy(and(eq(this.table.userId, userId), inArray(this.table.dseq, dseqs))));
+    this.compareWithShadow(rows);
 
     return new Map(rows.map(row => [row.dseq, row.name]));
   }
@@ -170,23 +190,28 @@ export class DeploymentSettingRepository extends BaseRepository<Table, Deploymen
     const rows = await this.cursor
       .select({
         dseq: this.table.dseq,
-        name: this.table.name,
-        closed: this.table.closed,
-        runtimeLimitHours: this.table.runtimeLimitHours,
-        runtimeEndsAt: this.table.runtimeEndsAt
+        setting: {
+          name: this.table.name,
+          closed: this.table.closed,
+          runtimeLimitHours: this.table.runtimeLimitHours,
+          runtimeEndsAt: this.table.runtimeEndsAt
+        },
+        ...this.#ruleColumns
       })
       .from(this.table)
       .where(this.whereAccessibleBy(and(eq(this.table.userId, userId), inArray(this.table.dseq, dseqs))));
+    this.compareWithShadow(rows);
 
-    return new Map(rows.map(({ dseq, ...setting }) => [dseq, setting]));
+    return new Map(rows.map(({ dseq, setting }) => [dseq, setting]));
   }
 
   /** Under the same double scoping as {@link findNamesByDseqs}; the null-name condition is what lets the partial index on named rows serve it. */
   async findDseqsByNameContaining({ userId, text }: { userId: string; text: string }): Promise<string[]> {
     const rows = await this.cursor
-      .select({ dseq: this.table.dseq })
+      .select({ dseq: this.table.dseq, ...this.#ruleColumns })
       .from(this.table)
       .where(this.whereAccessibleBy(and(eq(this.table.userId, userId), isNotNull(this.table.name), ilike(this.table.name, containsPattern(text)))));
+    this.compareWithShadow(rows);
 
     return rows.map(row => row.dseq);
   }
@@ -198,13 +223,15 @@ export class DeploymentSettingRepository extends BaseRepository<Table, Deploymen
     }
 
     const rows = await this.cursor
-      .select({ dseq: this.table.dseq, detectedGpus: this.table.detectedGpus, offeredGpus: this.table.offeredGpus })
+      .select({ dseq: this.table.dseq, detectedGpus: this.table.detectedGpus, offeredGpus: this.table.offeredGpus, ...this.#ruleColumns })
       .from(this.table)
       .where(
         this.whereAccessibleBy(
           and(eq(this.table.userId, userId), inArray(this.table.dseq, dseqs), or(isNotNull(this.table.detectedGpus), isNotNull(this.table.offeredGpus)))
         )
       );
+
+    this.compareWithShadow(rows);
 
     return new Map(rows.map(row => [row.dseq, { readings: row.detectedGpus ?? [], offers: row.offeredGpus ?? [] }]));
   }
@@ -230,12 +257,14 @@ export class DeploymentSettingRepository extends BaseRepository<Table, Deploymen
       })
       .from(sql`${this.table}, jsonb_array_elements(${this.table.detectedGpus}) as reading`)
       .where(
-        and(
-          sql`${this.table.detectedGpus} @> ${JSON.stringify([{ provider, source: NVIDIA_PROBE_SOURCE }])}::jsonb`,
-          sql`reading->>'provider' = ${provider}`,
-          sql`reading->>'source' = ${NVIDIA_PROBE_SOURCE}`,
-          sql`reading->>'driverVersion' ~ ${NVIDIA_DRIVER_VERSION.source}`,
-          sql`(reading->>'detectedAt')::timestamptz >= ${since.toISOString()}::timestamptz`
+        this.unscoped("gpu-driver-statistics").whereAccessibleBy(
+          and(
+            sql`${this.table.detectedGpus} @> ${JSON.stringify([{ provider, source: NVIDIA_PROBE_SOURCE }])}::jsonb`,
+            sql`reading->>'provider' = ${provider}`,
+            sql`reading->>'source' = ${NVIDIA_PROBE_SOURCE}`,
+            sql`reading->>'driverVersion' ~ ${NVIDIA_DRIVER_VERSION.source}`,
+            sql`(reading->>'detectedAt')::timestamptz >= ${since.toISOString()}::timestamptz`
+          )
         )
       )
       .groupBy(sql`reading->>'driverVersion'`)
@@ -246,7 +275,7 @@ export class DeploymentSettingRepository extends BaseRepository<Table, Deploymen
 
   /** Merges under a row lock so a reading lands on what is stored now, and returns false when the deployment has no row to hold it. */
   async mergeGpuReadings({ userId, dseq, readings }: { userId: string; dseq: string; readings: LeaseGpuReading[] }): Promise<boolean> {
-    const ofDeployment = and(eq(this.table.userId, userId), eq(this.table.dseq, dseq));
+    const ofDeployment = this.whereAccessibleBy(and(eq(this.table.userId, userId), eq(this.table.dseq, dseq)));
 
     return await this.ensureTransaction(async tx => {
       const [row] = await tx.select({ detectedGpus: this.table.detectedGpus }).from(this.table).where(ofDeployment).for("update");
@@ -266,7 +295,7 @@ export class DeploymentSettingRepository extends BaseRepository<Table, Deploymen
 
   /** Merges under a row lock like {@link mergeGpuReadings}, and returns false when the deployment has no row to hold the offers. */
   async mergeGpuOffers({ userId, dseq, offers }: { userId: string; dseq: string; offers: LeaseGpuOffer[] }): Promise<boolean> {
-    const ofDeployment = and(eq(this.table.userId, userId), eq(this.table.dseq, dseq));
+    const ofDeployment = this.whereAccessibleBy(and(eq(this.table.userId, userId), eq(this.table.dseq, dseq)));
 
     return await this.ensureTransaction(async tx => {
       const [row] = await tx.select({ offeredGpus: this.table.offeredGpus }).from(this.table).where(ofDeployment).for("update");
@@ -321,7 +350,7 @@ export class DeploymentSettingRepository extends BaseRepository<Table, Deploymen
         .from(this.table)
         .innerJoin(Users, eq(this.table.userId, Users.id))
         .innerJoin(UserWallets, eq(Users.id, UserWallets.userId))
-        .where(and(eq(this.table.closed, false), isNotNull(UserWallets.address), ...(cursor ? [gt(this.table.id, cursor)] : [])))
+        .where(this.whereAccessibleBy(and(eq(this.table.closed, false), isNotNull(UserWallets.address), ...(cursor ? [gt(this.table.id, cursor)] : []))))
         .orderBy(asc(this.table.id))
         .limit(batchSize);
 
@@ -349,7 +378,7 @@ export class DeploymentSettingRepository extends BaseRepository<Table, Deploymen
       const batch = await this.pg
         .select({ id: this.table.id, sealedSecrets: this.table.sealedSecrets, updatedAt: this.table.updatedAt })
         .from(this.table)
-        .where(and(isNotNull(this.table.sealedSecrets), ...(cursor ? [gt(this.table.id, cursor)] : [])))
+        .where(this.whereAccessibleBy(and(isNotNull(this.table.sealedSecrets), ...(cursor ? [gt(this.table.id, cursor)] : []))))
         .orderBy(asc(this.table.id))
         .limit(batchSize);
 
@@ -377,7 +406,7 @@ export class DeploymentSettingRepository extends BaseRepository<Table, Deploymen
       const batch = await this.pg
         .select({ id: this.table.id, dseq: this.table.dseq, sealedSecrets: this.table.sealedSecrets, updatedAt: this.table.updatedAt })
         .from(this.table)
-        .where(and(eq(this.table.userId, userId), isNotNull(this.table.sealedSecrets), ...(cursor ? [gt(this.table.id, cursor)] : [])))
+        .where(this.whereAccessibleBy(and(eq(this.table.userId, userId), isNotNull(this.table.sealedSecrets), ...(cursor ? [gt(this.table.id, cursor)] : []))))
         .orderBy(asc(this.table.id))
         .limit(batchSize);
 
@@ -400,7 +429,7 @@ export class DeploymentSettingRepository extends BaseRepository<Table, Deploymen
     const [row] = await this.cursor
       .update(this.table)
       .set({ sealedSecrets: resealed, updatedAt: sql`now()` })
-      .where(and(eq(this.table.id, id), eq(this.table.sealedSecrets, sealedSecrets)))
+      .where(this.whereAccessibleBy(and(eq(this.table.id, id), eq(this.table.sealedSecrets, sealedSecrets))))
       .returning({ id: this.table.id });
 
     return row !== undefined;
@@ -433,7 +462,7 @@ export class DeploymentSettingRepository extends BaseRepository<Table, Deploymen
       .leftJoin(Users, eq(this.table.userId, Users.id))
       .innerJoin(UserWallets, eq(Users.id, UserWallets.userId))
       .leftJoin(WalletSetting, eq(UserWallets.id, WalletSetting.walletId))
-      .where(and(...clauses))
+      .where(this.whereAccessibleBy(and(...clauses)))
       .orderBy(desc(this.table.id));
 
     return deployments as AutoTopUpDeployment[];
@@ -452,12 +481,14 @@ export class DeploymentSettingRepository extends BaseRepository<Table, Deploymen
       .from(this.table)
       .innerJoin(UserWallets, eq(UserWallets.userId, this.table.userId))
       .where(
-        and(
-          eq(this.table.closed, false),
-          eq(UserWallets.isTrialing, true),
-          isNotNull(UserWallets.address),
-          isNull(UserWallets.abuseLockedAt),
-          gt(this.table.createdAt, sql`now() - make_interval(hours => ${sql.raw(String(hours))})`)
+        this.whereAccessibleBy(
+          and(
+            eq(this.table.closed, false),
+            eq(UserWallets.isTrialing, true),
+            isNotNull(UserWallets.address),
+            isNull(UserWallets.abuseLockedAt),
+            gt(this.table.createdAt, sql`now() - make_interval(hours => ${sql.raw(String(hours))})`)
+          )
         )
       )
       .orderBy(desc(this.table.createdAt));
@@ -481,11 +512,13 @@ export class DeploymentSettingRepository extends BaseRepository<Table, Deploymen
       .from(this.table)
       .innerJoin(UserWallets, eq(UserWallets.userId, this.table.userId))
       .where(
-        and(
-          eq(this.table.closed, false),
-          isNotNull(UserWallets.address),
-          isNull(UserWallets.abuseLockedAt),
-          gt(this.table.createdAt, sql`now() - make_interval(hours => ${sql.raw(String(hours))})`)
+        this.whereAccessibleBy(
+          and(
+            eq(this.table.closed, false),
+            isNotNull(UserWallets.address),
+            isNull(UserWallets.abuseLockedAt),
+            gt(this.table.createdAt, sql`now() - make_interval(hours => ${sql.raw(String(hours))})`)
+          )
         )
       )
       .orderBy(desc(this.table.createdAt));
@@ -511,7 +544,7 @@ export class DeploymentSettingRepository extends BaseRepository<Table, Deploymen
         runtimeEndsAt: this.table.runtimeEndsAt
       })
       .from(this.table)
-      .where(and(eq(this.table.closed, false), isNotNull(this.table.runtimeEndsAt), lt(this.table.runtimeEndsAt, sql`now()`)))
+      .where(this.whereAccessibleBy(and(eq(this.table.closed, false), isNotNull(this.table.runtimeEndsAt), lt(this.table.runtimeEndsAt, sql`now()`))))
       .orderBy(desc(this.table.id));
 
     return deployments as ExpiredRuntimeDeployment[];
@@ -545,14 +578,16 @@ export class DeploymentSettingRepository extends BaseRepository<Table, Deploymen
       .leftJoin(Users, eq(this.table.userId, Users.id))
       .innerJoin(UserWallets, eq(Users.id, UserWallets.userId))
       .where(
-        and(
-          eq(this.table.closed, false),
-          eq(UserWallets.isTrialing, false),
-          gte(this.table.runtimeLimitHours, minLimitHours),
-          isNotNull(this.table.runtimeEndsAt),
-          gt(this.table.runtimeEndsAt, sql`now()`),
-          lte(this.table.runtimeEndsAt, sql`now() + (${leadHours} * interval '1 hour')`),
-          sql`${this.table.runtimeEndingNotifiedFor} is distinct from ${this.table.runtimeEndsAt}`
+        this.whereAccessibleBy(
+          and(
+            eq(this.table.closed, false),
+            eq(UserWallets.isTrialing, false),
+            gte(this.table.runtimeLimitHours, minLimitHours),
+            isNotNull(this.table.runtimeEndsAt),
+            gt(this.table.runtimeEndsAt, sql`now()`),
+            lte(this.table.runtimeEndsAt, sql`now() + (${leadHours} * interval '1 hour')`),
+            sql`${this.table.runtimeEndingNotifiedFor} is distinct from ${this.table.runtimeEndsAt}`
+          )
         )
       )
       .orderBy(desc(this.table.id));
@@ -579,10 +614,12 @@ export class DeploymentSettingRepository extends BaseRepository<Table, Deploymen
       .update(this.table)
       .set({ runtimeEndingNotifiedFor: sql`${this.table.runtimeEndsAt}`, updatedAt: sql`now()` })
       .where(
-        and(
-          eq(this.table.id, id),
-          eq(this.table.runtimeEndsAt, sql`${runtimeEndsAtMarker}::timestamptz`),
-          sql`${this.table.runtimeEndingNotifiedFor} is distinct from ${this.table.runtimeEndsAt}`
+        this.whereAccessibleBy(
+          and(
+            eq(this.table.id, id),
+            eq(this.table.runtimeEndsAt, sql`${runtimeEndsAtMarker}::timestamptz`),
+            sql`${this.table.runtimeEndingNotifiedFor} is distinct from ${this.table.runtimeEndsAt}`
+          )
         )
       )
       .returning({ id: this.table.id });
@@ -600,10 +637,12 @@ export class DeploymentSettingRepository extends BaseRepository<Table, Deploymen
       .update(this.table)
       .set({ runtimeEndingNotifiedFor: null, updatedAt: sql`now()` })
       .where(
-        and(
-          eq(this.table.id, id),
-          eq(this.table.runtimeEndsAt, sql`${runtimeEndsAtMarker}::timestamptz`),
-          eq(this.table.runtimeEndingNotifiedFor, sql`${runtimeEndsAtMarker}::timestamptz`)
+        this.whereAccessibleBy(
+          and(
+            eq(this.table.id, id),
+            eq(this.table.runtimeEndsAt, sql`${runtimeEndsAtMarker}::timestamptz`),
+            eq(this.table.runtimeEndingNotifiedFor, sql`${runtimeEndsAtMarker}::timestamptz`)
+          )
         )
       );
   }
@@ -644,16 +683,28 @@ export class DeploymentSettingRepository extends BaseRepository<Table, Deploymen
     sealedSecrets?: string | null;
     name?: string;
   }): Promise<string> {
-    const [row] = await this.cursor
-      .insert(this.table)
-      .values({ userId, dseq, autoTopUpEnabled: AUTO_TOP_UP_ENABLED_BY_DEFAULT, sdl, manifestVersion, runtimeLimitHours, sealedSecrets, name })
-      .onConflictDoUpdate({
-        target: [this.table.dseq, this.table.userId],
-        set: { sdl, manifestVersion, runtimeLimitHours, sealedSecrets, name, updatedAt: sql`now()` }
-      })
-      .returning({ id: this.table.id });
+    const values = await this.attributeToOrganization({
+      userId,
+      dseq,
+      autoTopUpEnabled: AUTO_TOP_UP_ENABLED_BY_DEFAULT,
+      sdl,
+      manifestVersion,
+      runtimeLimitHours,
+      sealedSecrets,
+      name
+    });
+    const upsert = (cursor: ApiPgDatabase | ApiTransaction) =>
+      cursor
+        .insert(this.table)
+        .values(values)
+        .onConflictDoUpdate({
+          target: [this.table.dseq, this.table.userId],
+          set: { sdl, manifestVersion, runtimeLimitHours, sealedSecrets, name, updatedAt: sql`now()` },
+          setWhere: this.whereAccessibleBy(undefined)
+        });
+    const [row] = this.ability ? await this.writeChecked(cursor => upsert(cursor).returning()) : await upsert(this.cursor).returning({ id: this.table.id });
 
-    return row.id;
+    return this.requireWrittenRow(row).id;
   }
 
   /** The expected version is compared inside this statement's own WHERE, not by a prior read, so two patches racing over one document cannot both write. */
@@ -708,11 +759,20 @@ export class DeploymentSettingRepository extends BaseRepository<Table, Deploymen
     sealedSecrets: string | null;
     closed: boolean;
   }): Promise<string | undefined> {
-    this.ability?.throwUnlessCanExecute({ userId, dseq });
+    const values = await this.attributeToOrganization({
+      userId,
+      dseq,
+      autoTopUpEnabled: closed ? false : AUTO_TOP_UP_ENABLED_BY_DEFAULT,
+      closed,
+      sdl,
+      manifestVersion,
+      sealedSecrets
+    });
+    this.ability?.throwUnlessCanExecute(values);
 
     const [row] = await this.cursor
       .insert(this.table)
-      .values({ userId, dseq, autoTopUpEnabled: closed ? false : AUTO_TOP_UP_ENABLED_BY_DEFAULT, closed, sdl, manifestVersion, sealedSecrets })
+      .values(values)
       .onConflictDoUpdate({
         target: [this.table.dseq, this.table.userId],
         set: { sdl, manifestVersion, sealedSecrets, updatedAt: sql`now()` },
@@ -737,19 +797,25 @@ export class DeploymentSettingRepository extends BaseRepository<Table, Deploymen
    * a browser. Keyed on (dseq, userId) with the caller's own id, so it can only ever write the caller's own row.
    */
   async upsertName({ userId, dseq, name }: { userId: string; dseq: string; name: string }): Promise<string | null> {
-    const [row] = await this.cursor
-      .insert(this.table)
-      .values({ userId, dseq, autoTopUpEnabled: AUTO_TOP_UP_ENABLED_BY_DEFAULT, name })
-      .onConflictDoUpdate({ target: [this.table.dseq, this.table.userId], set: { name, updatedAt: sql`now()` } })
-      .returning({ name: this.table.name });
+    const values = await this.attributeToOrganization({ userId, dseq, autoTopUpEnabled: AUTO_TOP_UP_ENABLED_BY_DEFAULT, name });
+    const upsert = (cursor: ApiPgDatabase | ApiTransaction) =>
+      cursor
+        .insert(this.table)
+        .values(values)
+        .onConflictDoUpdate({
+          target: [this.table.dseq, this.table.userId],
+          set: { name, updatedAt: sql`now()` },
+          setWhere: this.whereAccessibleBy(undefined)
+        });
+    const [row] = this.ability ? await this.writeChecked(cursor => upsert(cursor).returning()) : await upsert(this.cursor).returning({ name: this.table.name });
 
-    return row.name;
+    return this.requireWrittenRow(row).name;
   }
 
-  async createDefaultIfMissing({ userId, dseq }: { userId: string; dseq: string }): Promise<boolean> {
+  async createDefaultIfMissing({ userId, dseq, organizationId, projectId }: DeploymentSettingOwner): Promise<boolean> {
     const rows = await this.cursor
       .insert(this.table)
-      .values({ userId, dseq, autoTopUpEnabled: AUTO_TOP_UP_ENABLED_BY_DEFAULT })
+      .values(await this.attributeToOrganization({ userId, dseq, organizationId, projectId, autoTopUpEnabled: AUTO_TOP_UP_ENABLED_BY_DEFAULT }))
       .onConflictDoNothing({ target: [this.table.dseq, this.table.userId] })
       .returning({ id: this.table.id });
 
@@ -811,7 +877,10 @@ export class DeploymentSettingRepository extends BaseRepository<Table, Deploymen
       )
       .returning();
 
-    return row ? this.toOutput(row) : undefined;
+    if (!row) return undefined;
+    this.compareWithShadow([row]);
+
+    return this.toOutput(row);
   }
 
   /**
@@ -826,7 +895,7 @@ export class DeploymentSettingRepository extends BaseRepository<Table, Deploymen
         runtimeEndsAt: sql`coalesce(${this.table.runtimeEndsAt}, now() + (${this.table.runtimeLimitHours} * interval '1 hour'))`,
         updatedAt: sql`now()`
       })
-      .where(and(eq(this.table.id, id), isNotNull(this.table.runtimeLimitHours)))
+      .where(this.whereAccessibleBy(and(eq(this.table.id, id), isNotNull(this.table.runtimeLimitHours))))
       .returning({ runtimeEndsAt: this.table.runtimeEndsAt });
 
     return row?.runtimeEndsAt ?? null;
@@ -859,9 +928,11 @@ export class DeploymentSettingRepository extends BaseRepository<Table, Deploymen
       .update(this.table)
       .set({ lastFundedAt: sql`now()`, updatedAt: sql`now()` })
       .where(
-        and(
-          inArray(this.table.id, orderedIds),
-          or(isNull(this.table.lastFundedAt), lt(this.table.lastFundedAt, sql`now() - (${cooldownMinutes} * interval '1 minute')`))
+        this.whereAccessibleBy(
+          and(
+            inArray(this.table.id, orderedIds),
+            or(isNull(this.table.lastFundedAt), lt(this.table.lastFundedAt, sql`now() - (${cooldownMinutes} * interval '1 minute')`))
+          )
         )
       )
       .returning({ id: this.table.id, claimedAt: sql<string>`${this.table.lastFundedAt}::text` });
@@ -882,23 +953,27 @@ export class DeploymentSettingRepository extends BaseRepository<Table, Deploymen
     await this.cursor
       .update(this.table)
       .set({ lastFundedAt: null, updatedAt: sql`now()` })
-      .where(or(...claims.map(claim => and(eq(this.table.id, claim.id), eq(this.table.lastFundedAt, sql`${claim.claimedAt}::timestamp`)))));
+      .where(
+        this.whereAccessibleBy(or(...claims.map(claim => and(eq(this.table.id, claim.id), eq(this.table.lastFundedAt, sql`${claim.claimedAt}::timestamp`)))))
+      );
   }
 
   /** Claimed before the email goes out, not stamped after, because the sweep runs many times an hour while an outage lasts days. */
   async claimProviderUnreachableNotification({ userId, dseq, downSinceMarker }: { userId: string; dseq: string; downSinceMarker: string }): Promise<boolean> {
     const [claimed] = await this.cursor
       .insert(this.table)
-      .values({
-        userId,
-        dseq,
-        autoTopUpEnabled: false,
-        providerUnreachableNotifiedFor: sql`${downSinceMarker}::timestamptz`
-      })
+      .values(
+        await this.attributeToOrganization({
+          userId,
+          dseq,
+          autoTopUpEnabled: false,
+          providerUnreachableNotifiedFor: sql`${downSinceMarker}::timestamptz`
+        })
+      )
       .onConflictDoUpdate({
         target: [this.table.dseq, this.table.userId],
         set: { providerUnreachableNotifiedFor: sql`${downSinceMarker}::timestamptz`, updatedAt: sql`now()` },
-        setWhere: sql`${this.table.providerUnreachableNotifiedFor} is distinct from ${downSinceMarker}::timestamptz`
+        setWhere: this.whereAccessibleBy(sql`${this.table.providerUnreachableNotifiedFor} is distinct from ${downSinceMarker}::timestamptz`)
       })
       .returning({ id: this.table.id });
 
@@ -911,7 +986,9 @@ export class DeploymentSettingRepository extends BaseRepository<Table, Deploymen
       .update(this.table)
       .set({ providerUnreachableNotifiedFor: null, updatedAt: sql`now()` })
       .where(
-        and(eq(this.table.userId, userId), eq(this.table.dseq, dseq), eq(this.table.providerUnreachableNotifiedFor, sql`${downSinceMarker}::timestamptz`))
+        this.whereAccessibleBy(
+          and(eq(this.table.userId, userId), eq(this.table.dseq, dseq), eq(this.table.providerUnreachableNotifiedFor, sql`${downSinceMarker}::timestamptz`))
+        )
       );
   }
 
@@ -921,13 +998,14 @@ export class DeploymentSettingRepository extends BaseRepository<Table, Deploymen
    * every later sweep would try to close it again. Such a row is written with funding off, since a
    * closed deployment has nothing to fund.
    */
-  async markClosed({ userId, dseq }: { userId: string; dseq: string }): Promise<void> {
+  async markClosed({ userId, dseq, organizationId }: DeploymentSettingOwner): Promise<void> {
     await this.cursor
       .insert(this.table)
-      .values({ userId, dseq, autoTopUpEnabled: false, closed: true })
+      .values(await this.attributeToOrganization({ userId, dseq, organizationId, autoTopUpEnabled: false, closed: true }))
       .onConflictDoUpdate({
         target: [this.table.dseq, this.table.userId],
-        set: { closed: true, updatedAt: sql`now()` }
+        set: { closed: true, updatedAt: sql`now()` },
+        setWhere: this.whereAccessibleBy(undefined)
       });
   }
 }

@@ -83,6 +83,16 @@ describe(PersonalOrganizationService.name, () => {
       expect(order).toEqual(["begin", "member", "project", "commit"]);
     });
 
+    it("provisions the membership and the default project whichever organization the request is active in", async () => {
+      const user = createUser();
+      const { service, organizationMemberRepository, projectRepository } = setup();
+
+      await service.ensureForUser(user);
+
+      expect(organizationMemberRepository.unscoped).toHaveBeenCalledWith("personal-organization-provisioning");
+      expect(projectRepository.unscoped).toHaveBeenCalledWith("personal-organization-provisioning");
+    });
+
     it("logs the creation of a new personal organization", async () => {
       const user = createUser();
       const { service, organization, logger } = setup();
@@ -138,11 +148,12 @@ describe(PersonalOrganizationService.name, () => {
     it("stamps the user's rows in every table with the organization and its default project", async () => {
       const user = createUser();
       const adopted = createAdoptedRowCounts({ userWallets: 1, deploymentSettings: 3 });
-      const { service, organization, project, organizationAdoptionRepository } = setup({ adopted });
+      const { service, organization, project, projectRepository, organizationAdoptionRepository } = setup({ adopted });
 
       const result = await service.adoptUserRows(user, organization);
 
       expect(result).toEqual(adopted);
+      expect(projectRepository.unscoped).toHaveBeenCalledWith("personal-organization-provisioning");
       const input = { userId: user.id, externalUserId: user.userId, organizationId: organization.id, projectId: project.id };
       expect(organizationAdoptionRepository.adoptRows.mock.calls).toEqual(ADOPTABLE_TABLES.map(table => [table, input]));
     });
@@ -224,6 +235,8 @@ describe(PersonalOrganizationService.name, () => {
       createDefaultUnlessExists: vi.fn().mockResolvedValue(undefined),
       findDefaultByOrganizationId: vi.fn().mockResolvedValue(project)
     });
+    organizationMemberRepository.unscoped.mockReturnValue(organizationMemberRepository);
+    projectRepository.unscoped.mockReturnValue(projectRepository);
     const organizationAdoptionRepository = mock<OrganizationAdoptionRepository>({ adoptRows: vi.fn(async (table: AdoptableTable) => adopted[table]) });
     const txService = mock<TxService>({ transaction: vi.fn(cb => cb()) });
     const logger = mock<ReturnType<CreateLogger>>();

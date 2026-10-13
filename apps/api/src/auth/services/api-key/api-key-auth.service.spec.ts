@@ -61,6 +61,7 @@ describe("ApiKeyAuthService", () => {
         const result = await service.getAndValidateApiKeyFromHeader(apiKey);
         expect(result).toBe(data);
         expect(apiKeyRepository.findBcryptKeysByKeyFormat).not.toHaveBeenCalled();
+        expect(apiKeyRepository.unscoped).toHaveBeenCalledWith("api-key-authentication");
       });
 
       it("should throw for expired key found by sha256", async () => {
@@ -158,6 +159,7 @@ describe("ApiKeyAuthService", () => {
 
     const apiKeyGenerator = new ApiKeyGeneratorService(config);
     const apiKeyRepository: MockProxy<ApiKeyRepository> = mock<ApiKeyRepository>();
+    apiKeyRepository.unscoped.mockReturnValue(apiKeyRepository);
     const service = new ApiKeyAuthService(apiKeyGenerator, apiKeyRepository, config);
 
     return { service, apiKeyGenerator, apiKeyRepository, config };
