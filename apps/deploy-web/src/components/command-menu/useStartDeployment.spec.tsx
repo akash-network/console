@@ -40,8 +40,8 @@ describe(useStartDeployment.name, () => {
     await act(() => start("new-deployment"));
 
     expect(confirm).toHaveBeenCalledWith({
-      title: "Discard your changes?",
-      message: "You'll leave this configuration and start a new deployment."
+      title: "Leave this configuration?",
+      message: "You'll start a new deployment, and your changes here won't carry over."
     });
   });
 

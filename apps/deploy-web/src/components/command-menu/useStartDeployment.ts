@@ -32,7 +32,10 @@ export function useStartDeployment(dependencies: typeof DEPENDENCIES = DEPENDENC
         return;
       }
 
-      const isConfirmed = await confirm({ title: "Discard your changes?", message: "You'll leave this configuration and start a new deployment." });
+      const isConfirmed = await confirm({
+        title: "Leave this configuration?",
+        message: "You'll start a new deployment, and your changes here won't carry over."
+      });
       if (!isConfirmed) return;
 
       if (url.startsWith(CONFIGURE_PATH)) {
