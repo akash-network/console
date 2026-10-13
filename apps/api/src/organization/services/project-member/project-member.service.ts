@@ -17,7 +17,7 @@ export const IMPLICIT_PROJECT_ACCESS_ERROR_CODE = "implicit_project_access";
 export const BILLING_ROLE_NOT_GRANTABLE_ERROR_CODE = "billing_role_not_grantable";
 export const ALREADY_GRANTED_ERROR_CODE = "already_granted";
 
-export interface ProjectGrant {
+export interface ProjectAccessGrant {
   projectId: string;
   userId: string;
   role: ProjectRole;
@@ -41,7 +41,7 @@ export class ProjectMemberService {
     return await this.projectMemberRepository.accessibleBy(this.authService.ability, "read").findOfLiveProjects({ projectId });
   }
 
-  async create({ projectId, userId, role }: ProjectGrant): Promise<ProjectMemberWithUser> {
+  async create({ projectId, userId, role }: ProjectAccessGrant): Promise<ProjectMemberWithUser> {
     const ability = this.authService.ability;
 
     return await this.txService.transaction(async () => {
@@ -70,7 +70,7 @@ export class ProjectMemberService {
     });
   }
 
-  async update(id: string, { role }: Pick<ProjectGrant, "role">): Promise<ProjectMemberWithUser> {
+  async update(id: string, { role }: Pick<ProjectAccessGrant, "role">): Promise<ProjectMemberWithUser> {
     const repository = this.projectMemberRepository.accessibleBy(this.authService.ability, "update");
     const [grant] = await repository.findOfLiveProjects({ id });
     assertGrantFound(grant);
