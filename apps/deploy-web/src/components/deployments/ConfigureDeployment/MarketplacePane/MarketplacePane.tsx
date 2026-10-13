@@ -8,6 +8,8 @@ import { usePlacementOffers } from "@src/queries/usePlacementOffers";
 import { useDeploymentCpuArch, useDeploymentGpuCount } from "../DeploymentResourceSummary/useDeploymentResourceSummary";
 import { InvalidSpecReasons } from "../InvalidSpecReasons/InvalidSpecReasons";
 import type { DeploymentFlowPhase } from "../useDeploymentFlow/useDeploymentFlow";
+import { BidCollecting } from "./BidCollecting/BidCollecting";
+import { useFirstBidBeat } from "./BidCollecting/useFirstBidBeat";
 import { MarketplaceProvidersTable } from "./MarketplaceProvidersTable/MarketplaceProvidersTable";
 import { useProviderSearch } from "./MarketplaceProvidersTable/useProviderSearch/useProviderSearch";
 import { ProviderSearchInput } from "./ProviderSearchInput/ProviderSearchInput";
@@ -17,6 +19,7 @@ export const DEPENDENCIES = {
   useProviderSearch,
   MarketplaceProvidersTable,
   ProviderSearchInput,
+  BidCollecting,
   useDeploymentGpuCount,
   useDeploymentCpuArch,
   useIsOnboarded,
@@ -33,7 +36,7 @@ interface Props {
   selectedPlacementId: string;
   selectedBidId?: string;
   onSelectProvider: (placementId: string, bidId: string) => void;
-  /** `expanded` is the full-width picker of the two panel layout: rows select their offer, the placement chips name the placement and the bid window toast reports the wait. */
+  /** `expanded` is the full-width picker of the two panel layout: rows select their offer, the placement chips name the placement and a globe stands in for the table until the first bid. */
   variant?: "pane" | "expanded";
   chips?: ReactNode;
   /** Replaces the waiting card, for a deployment whose wait for a first bid ran out. */
@@ -72,6 +75,8 @@ export const MarketplacePane: FC<Props> = ({
   const hasFailedWithoutData = isError && offers.length === 0;
   const isAwaitingFirstBid = offers.length > 0 && offers.every(offer => offer.offerState === "searching");
   const awaitingBids = isAwaitingFirstBid && !notice ? AWAITING_BIDS_COPY[phase] : undefined;
+  const isCollectingBids = isExpanded && !!awaitingBids;
+  const firstBidder = useFirstBidBeat({ isWaiting: isCollectingBids, placementId: selectedPlacementId, offers });
   const gpuCount = d.useDeploymentGpuCount(selectedPlacementId);
   const requestedCpuArch = d.useDeploymentCpuArch(selectedPlacementId);
   /** Provider names link out only once the user is onboarded: the route gate bounces a not-yet-onboarded user back into the funnel, so the link would dead-end. */
@@ -111,7 +116,7 @@ export const MarketplacePane: FC<Props> = ({
         <d.ProviderSearchInput value={query} onChange={setQuery} onClear={clear} />
       </header>
       {chips}
-      <div className="p-4 lg:flex-1 lg:overflow-y-auto">
+      <div className="flex flex-col p-4 lg:flex-1 lg:overflow-y-auto">
         {hasFailedWithoutData ? (
           <p role="alert" className="text-sm text-muted-foreground">
             Failed to load providers. Please try again.
@@ -121,8 +126,10 @@ export const MarketplacePane: FC<Props> = ({
             <p className="text-sm font-medium">No providers to show yet</p>
             <d.InvalidSpecReasons />
           </div>
+        ) : isCollectingBids || firstBidder ? (
+          <d.BidCollecting phase={phase} providers={offers} placementName={placementName} bidder={firstBidder} />
         ) : (
-          <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-4 duration-300 animate-in fade-in motion-reduce:animate-none">
             {notice}
             {awaitingBids && !isExpanded && (
               <div role="status" className="flex items-start gap-3 rounded-lg border border-zinc-300 bg-muted/40 p-4 dark:border-zinc-700">

@@ -12,13 +12,15 @@ export interface BidWindowInput {
   noBidsReceived: boolean;
 }
 
+/** Until a first bid lands the marketplace shows the wait itself, so the toast only speaks up once there are bids to pick from. */
 export function bidWindowState(input: BidWindowInput): BidWindowState {
   if ((input.phase !== "creating" && input.phase !== "quoting") || input.noBidsReceived) return { kind: "hidden" };
   if (input.isExpired) return { kind: "expired" };
   if (input.hasCollectedEveryPlacement || hasBidsForEveryPlacement(input)) return { kind: "collected" };
 
-  const hasAnyBid = input.placements.some(placement => input.placementsWithBids.has(placement.id));
-  const waitingOn = hasAnyBid ? input.placements.filter(placement => !input.placementsWithBids.has(placement.id)).map(placement => placement.name) : [];
+  if (!input.placements.some(placement => input.placementsWithBids.has(placement.id))) return { kind: "hidden" };
+
+  const waitingOn = input.placements.filter(placement => !input.placementsWithBids.has(placement.id)).map(placement => placement.name);
   return { kind: "collecting", waitingOn };
 }
 
