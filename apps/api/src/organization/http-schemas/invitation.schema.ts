@@ -33,7 +33,7 @@ export const AcceptInvitationRequestSchema = z.object({
     confirmEmailMismatch: z
       .boolean()
       .optional()
-      .openapi({ description: "Join even though the caller's email differs from the address the invitation was sent to." })
+      .openapi({ description: "Join even though the invitation was sent to an address that is not the caller's verified email." })
   })
 });
 
