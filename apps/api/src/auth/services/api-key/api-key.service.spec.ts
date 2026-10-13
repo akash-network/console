@@ -175,7 +175,7 @@ describe(ApiKeyService.name, () => {
   ) {
     const user = createUser();
     const ability = createMongoAbility();
-    const organizationContext = input.organizationContext === null ? undefined : (input.organizationContext ?? createOrganizationContext());
+    const organizationContext = input.organizationContext === null ? undefined : input.organizationContext ?? createOrganizationContext();
     const apiKeyRepository = mock<ApiKeyRepository>();
     apiKeyRepository.accessibleBy.mockReturnValue(apiKeyRepository);
     const projectRepository = mock<ProjectRepository>();

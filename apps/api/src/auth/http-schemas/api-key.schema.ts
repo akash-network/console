@@ -12,7 +12,9 @@ export const ApiKeyHiddenSchema = z.object({
     .string()
     .uuid()
     .nullable()
-    .openapi({ description: "The organization the key acts in. Null for a key created before organizations, which acts in its owner's personal organization." }),
+    .openapi({
+      description: "The organization the key acts in. Null for a key created before organizations, which acts in its owner's personal organization."
+    }),
   projectId: z.string().uuid().nullable().openapi({ description: "The only project the key reaches, or null when it reaches every project its owner can." })
 });
 

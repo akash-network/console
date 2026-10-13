@@ -125,10 +125,7 @@ describe("Organization API keys", () => {
 
     it("lists every key of the caller while organizations are off for the caller", async () => {
       const { user, personal, team, bearer } = await setup({ organizationsOn: false });
-      const keys = await Promise.all([
-        seedApiKey({ userId: user.id, organizationId: personal.id }),
-        seedApiKey({ userId: user.id, organizationId: team.id })
-      ]);
+      const keys = await Promise.all([seedApiKey({ userId: user.id, organizationId: personal.id }), seedApiKey({ userId: user.id, organizationId: team.id })]);
 
       const response = await listKeys({ authorization: bearer });
       const { data } = (await response.json()) as { data: { id: string }[] };
@@ -296,7 +293,10 @@ describe("Organization API keys", () => {
       const { apiKey } = await seedApiKey({ userId: user.id, organizationId: team.id });
 
       const asOwner = await getDeploymentSetting(setting, { "x-api-key": apiKey });
-      await db.update(resolveTable("OrganizationMembers")).set({ role: "member" }).where(eq(resolveTable("OrganizationMembers").id, membership.id));
+      await db
+        .update(resolveTable("OrganizationMembers"))
+        .set({ role: "member" })
+        .where(eq(resolveTable("OrganizationMembers").id, membership.id));
       const asMember = await getDeploymentSetting(setting, { "x-api-key": apiKey });
 
       expect(asOwner.status).toBe(200);
