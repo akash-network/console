@@ -8,8 +8,12 @@ describe(deployCtaState.name, () => {
     expect(deployCtaState(input({ phase, quotesExpired: true }))).toBe("request-quotes");
   });
 
-  it.each(["creating", "deploying"] as const)("shows the request in flight while %s", phase => {
-    expect(deployCtaState(input({ phase, allPlacementsHaveBids: true, allPlacementsSelected: true }))).toBe("requesting");
+  it("shows the request in flight while creating", () => {
+    expect(deployCtaState(input({ phase: "creating", allPlacementsHaveBids: true, allPlacementsSelected: true }))).toBe("requesting");
+  });
+
+  it("shows the deploy in flight while deploying, even once the quotes have run out", () => {
+    expect(deployCtaState(input({ phase: "deploying", quotesExpired: true, hasOpenBids: false, noBidsReceived: true }))).toBe("deploying");
   });
 
   it("keeps the request in flight while quoting until every placement has bids", () => {

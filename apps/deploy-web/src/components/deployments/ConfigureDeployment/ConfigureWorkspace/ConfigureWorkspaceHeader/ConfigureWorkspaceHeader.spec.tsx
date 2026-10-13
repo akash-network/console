@@ -24,6 +24,7 @@ describe(ConfigureWorkspaceHeader.name, () => {
 
   it.each<[DeployCtaState, string]>([
     ["requesting", "Requesting…"],
+    ["deploying", "Deploying…"],
     ["select-providers", "Select providers to deploy"]
   ])("shows a disabled %s action", (ctaState, name) => {
     setup({ ctaState });

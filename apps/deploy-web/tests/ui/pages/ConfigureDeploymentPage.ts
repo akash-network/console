@@ -177,4 +177,31 @@ export class ConfigureDeploymentPage {
       .getByRole("button", { name: /confirm and deploy/i })
       .click();
   }
+
+  /**
+   * Confirms the deploy and ends up on the deployment's page. The page goes there on its own when the lease is created
+   * during the request; when the lease finishes in the background it leaves the user on the deployments list, so this
+   * waits for the activity feed to report the deploy done before opening the deployment.
+   */
+  async confirmAndOpenDeployment(dseq: string) {
+    const deploymentPath = `/deployments/${dseq}`;
+    await this.confirmAndDeploy();
+    await this.page.waitForURL(url => url.pathname === deploymentPath || url.pathname === "/deployments", { timeout: 180_000 });
+    if (new URL(this.page.url()).pathname === deploymentPath) return;
+
+    await this.waitForDeployToFinish(dseq);
+    await this.page.goto(`${testEnvConfig.BASE_URL}${deploymentPath}`);
+  }
+
+  /** The list keeps polling the feed, which lists a finished deploy on every later answer, so a deploy that finished before the wait began is still seen. */
+  private waitForDeployToFinish(dseq: string) {
+    return this.page.waitForResponse(
+      async response => {
+        if (!/\/api\/proxy\/v1\/activities(\?|$)/.test(response.url())) return false;
+        const body: { data?: { activities?: Array<{ type: string; status: string; meta: { dseq?: string } }> } } | null = await response.json().catch(() => null);
+        return !!body?.data?.activities?.some(activity => activity.type === "lease_create" && activity.meta.dseq === dseq && activity.status !== "pending");
+      },
+      { timeout: 180_000 }
+    );
+  }
 }

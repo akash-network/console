@@ -207,6 +207,16 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, initialName, in
   );
 
   useEffect(
+    function announceDeployFinishingInBackground() {
+      if (!flow.deploySucceeded || !flow.isDeployingInBackground) return;
+      enqueueSnackbar(<d.Snackbar title="Deployment created" subTitle="It's spinning up. We'll let you know when it's ready." iconVariant="success" />, {
+        variant: "success"
+      });
+    },
+    [flow.deploySucceeded, flow.isDeployingInBackground, enqueueSnackbar, d]
+  );
+
+  useEffect(
     function toastFlowError() {
       if (flow.error && flow.error !== lastToastedFlowError.current) {
         if (flow.error.kind === "needs-funds") {
@@ -407,7 +417,7 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, initialName, in
                   </div>
                 </>
               )}
-              {flow.phase === "deploying" && (
+              {flow.phase === "deploying" && !flow.isDeployingInBackground && (
                 <d.DeployProgressOverlay
                   providerAddress={firstSelectedProviderAddress(flow.selections)}
                   activePhase={flow.deploySucceeded ? "success" : "preparing"}
@@ -428,7 +438,7 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, initialName, in
                 setReviewOpen(false);
                 const values = form.getValues();
                 const secrets = resolveSdlSecrets(values, { sealSecrets: true });
-                flow.actions.deploy(regenerateSdl(values, liveSdl), { secrets: secrets.values, unresolvedSecrets: secrets.unresolved });
+                flow.actions.deploy(regenerateSdl(values, liveSdl), { secrets: secrets.values, unresolvedSecrets: secrets.unresolved, inBackground: true });
               }}
             />
           </InheritedSecretsProvider>

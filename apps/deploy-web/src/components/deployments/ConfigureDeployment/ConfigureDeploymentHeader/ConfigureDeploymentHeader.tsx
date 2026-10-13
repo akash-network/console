@@ -131,6 +131,13 @@ function HeaderCta({ state, onRequestQuotes, onCloseAndEdit, onDeploy, onRetry }
           <span>Requesting…</span>
         </Button>
       );
+    case "deploying":
+      return (
+        <Button type="button" disabled aria-label="Deploying" className={cn(className, "gap-2")}>
+          <LoaderCircle className="h-4 w-4 animate-spin text-current" aria-hidden="true" />
+          <span>Deploying…</span>
+        </Button>
+      );
   }
 }
 

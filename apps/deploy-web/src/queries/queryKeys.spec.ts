@@ -46,4 +46,11 @@ describe("QueryKeys", () => {
       expect(QueryKeys.getExportTransactionsCsvKey({ startDate: null, endDate: null, timezone: "UTC" })).toEqual(["EXPORT_TRANSACTIONS_CSV", "UTC"]);
     });
   });
+
+  describe("lease status query keys", () => {
+    it("keys one lease's status under its deployment, so every lease status of a deployment can be refreshed at once", () => {
+      expect(QueryKeys.getDeploymentLeaseStatusesKey("1234")).toEqual(["LEASE_STATUS", "1234"]);
+      expect(QueryKeys.getLeaseStatusKey("1234", 1, 2)).toEqual(["LEASE_STATUS", "1234", 1, 2]);
+    });
+  });
 });

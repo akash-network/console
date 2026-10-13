@@ -71,6 +71,13 @@ function WorkspaceCtaButton({ state, onDeploy, onRetry, onCloseAndEdit }: Worksp
           Deploy
         </Button>
       );
+    case "deploying":
+      return (
+        <Button type="button" disabled className={className}>
+          <LoaderCircleIcon className="h-4 w-4 animate-spin" aria-hidden="true" />
+          Deploying…
+        </Button>
+      );
     case "retry":
       return (
         <Button type="button" onClick={onRetry} className={className}>

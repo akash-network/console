@@ -19,6 +19,7 @@ import type { NextSeoProps } from "next-seo/lib/types";
 import NProgress from "nprogress";
 
 import { ActivityHost } from "@src/components/activity/ActivityHost/ActivityHost";
+import { DeploymentReadyHost } from "@src/components/activity/DeploymentReadyHost/DeploymentReadyHost";
 import { AccountCreatedTracker } from "@src/components/analytics/AccountCreatedTracker/AccountCreatedTracker";
 import { AppBootstrap } from "@src/components/AppBootstrap/AppBootstrap";
 import { RequireAuth } from "@src/components/auth/RequireAuth/RequireAuth";
@@ -79,6 +80,7 @@ const App: React.FunctionComponent<Props> = props => {
                   <DeploymentCopyCleanup />
                   <CloseDeploymentConfirmHost />
                   <ActivityHost />
+                  <DeploymentReadyHost />
                   <NavigationGuardProvider>
                     <RequireOnboarding isPublic={isPublic}>
                       <WaitForFeatureFlags>

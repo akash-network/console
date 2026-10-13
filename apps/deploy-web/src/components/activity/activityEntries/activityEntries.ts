@@ -1,3 +1,4 @@
+import { activityDestinationOf } from "@src/components/activity/activityDestinations/activityDestinations";
 import { listOf } from "@src/components/activity/activityLabels/activityLabels";
 import type { Activity } from "@src/queries/useLatestActivitiesQuery";
 import { UrlService } from "@src/utils/urlUtils";
@@ -43,9 +44,10 @@ export function activityEntryOf(activity: Activity, labelDeployment: LabelDeploy
   return activity.type === "lease_create" ? leaseEntryOf(activity, labelDeployment) : closeEntryOf(activity, labelDeployment);
 }
 
-function closeEntryOf({ id, status, meta, createdAt }: Activity, labelDeployment: LabelDeployment): ActivityEntry {
+function closeEntryOf(activity: Activity, labelDeployment: LabelDeployment): ActivityEntry {
+  const { id, status, meta, createdAt } = activity;
   const deployment = labelDeployment(meta.dseq);
-  const href = meta.dseq ? UrlService.deploymentDetails(meta.dseq, status === "failed" ? "SETTINGS" : undefined) : UrlService.deploymentList();
+  const { href } = activityDestinationOf(activity);
 
   if (status === "pending") return { id, status, title: `Closing ${deployment}`, href, createdAt };
   if (status === "succeeded") return { id, status, title: `Closed ${deployment}`, href, createdAt };
@@ -53,9 +55,10 @@ function closeEntryOf({ id, status, meta, createdAt }: Activity, labelDeployment
   return { id, status, title: `Couldn't close ${deployment}`, detail: meta.error?.message ?? "Try closing it again.", href, createdAt };
 }
 
-function leaseEntryOf({ id, status, meta, createdAt }: Activity, labelDeployment: LabelDeployment): ActivityEntry {
+function leaseEntryOf(activity: Activity, labelDeployment: LabelDeployment): ActivityEntry {
+  const { id, status, meta, createdAt } = activity;
   const deployment = labelDeployment(meta.dseq);
-  const href = meta.dseq ? UrlService.deploymentDetails(meta.dseq) : UrlService.deploymentList();
+  const { href } = activityDestinationOf(activity);
 
   if (status === "pending") return { id, status, title: `Deploying ${deployment}`, href, createdAt };
   if (status === "succeeded") return { id, status, title: `Deployed ${deployment}`, href, createdAt };
