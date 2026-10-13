@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef } from "react";
 import { useReducedMotion } from "framer-motion";
 
 import type { BidGlobeScene, LocatedProvider } from "./bidGlobeScene";
-import { advanceBidGlobeScene, buildGlobeField, composeGlobeOverlay, createBidGlobeScene, viewAt } from "./bidGlobeScene";
+import { advanceBidGlobeScene, BID_SETTLED_SECONDS, buildGlobeField, composeGlobeOverlay, createBidGlobeScene, viewAt } from "./bidGlobeScene";
 import { locateViewer } from "./globeGeometry";
 import { createBidGlobePainter } from "./paintBidGlobe";
 import { useLandShape } from "./useLandShape";
@@ -59,7 +59,10 @@ export const BidCollectingGlobe: FC<Props> = ({ providers, bidderId, seed, depen
 
       const frame = {
         seconds: live.isStill ? STILL_FRAME_SECONDS : (now - startedAt) / 1000,
-        bid: live.bidderId === null || bidAt === null ? null : { providerId: live.bidderId, seconds: (now - bidAt) / 1000 },
+        bid:
+          live.bidderId === null || bidAt === null
+            ? null
+            : { providerId: live.bidderId, seconds: live.isStill ? BID_SETTLED_SECONDS : (now - bidAt) / 1000 },
         isStill: live.isStill
       };
       advanceBidGlobeScene(scene, frame);
@@ -68,7 +71,10 @@ export const BidCollectingGlobe: FC<Props> = ({ providers, bidderId, seed, depen
       paint({
         size: GLOBE_SIZE_PX,
         view: viewAt(scene.field, frame.seconds),
-        land: live.landShape && landShownAt !== null ? { shape: live.landShape, opacity: Math.min(1, (now - landShownAt) / LAND_FADE_IN_MS) } : null,
+        land:
+          live.landShape && landShownAt !== null
+            ? { shape: live.landShape, opacity: live.isStill ? 1 : Math.min(1, (now - landShownAt) / LAND_FADE_IN_MS) }
+            : null,
         shapes: composeGlobeOverlay(scene, frame, GLOBE_SIZE_PX)
       });
 

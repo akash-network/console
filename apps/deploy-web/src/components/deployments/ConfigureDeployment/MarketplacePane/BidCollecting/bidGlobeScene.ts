@@ -85,6 +85,8 @@ const REACHED_IN_STILL_FRAME = -Infinity;
 const BID_REPLY_DELAY_SECONDS = 0.04;
 const BID_REPLY_SECONDS = 0.55;
 const BID_ARRIVAL_RING_SECONDS = 0.6;
+/** Must stay past the last phase of the bid beat, so a still frame shows it settled. */
+export const BID_SETTLED_SECONDS = 2;
 
 const COLORS = {
   arc: "201,138,232",

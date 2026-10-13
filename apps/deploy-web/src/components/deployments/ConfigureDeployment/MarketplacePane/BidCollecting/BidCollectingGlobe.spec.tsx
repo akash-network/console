@@ -12,6 +12,7 @@ const NORTH: LocatedProvider = { id: "north", lat: 40, lng: 20 };
 const PIN_DIM = "#6b5c7d";
 const PIN_LIT = "#d9b6f7";
 const LAND = "rgba(150,150,178,0.32)";
+const BID_ANSWER_HEAD = "#d1fae5";
 
 describe(BidCollectingGlobe.name, () => {
   afterEach(() => {
@@ -119,6 +120,39 @@ describe(BidCollectingGlobe.name, () => {
     unmount();
     act(() => vi.advanceTimersByTime(250));
     expect(frames.requested).toHaveLength(2);
+  });
+
+  it("sends the bidder's answer travelling back while motion is on", () => {
+    const { fills, playTo, rerender } = setup({ providers: [NORTH] });
+    playTo(0.5);
+
+    rerender({ providers: [NORTH], bidderId: "north" });
+    playTo(0.85);
+
+    expect(fills().some(fill => fill.fillStyle === BID_ANSWER_HEAD)).toBe(true);
+  });
+
+  it("shows the bidder's answer already settled when motion is reduced", () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    const { fills, strokes, frameAt, rerender, clearDrawing } = setup({ providers: [NORTH], isStill: true });
+    frameAt(1);
+
+    rerender({ providers: [NORTH], bidderId: "north" });
+    clearDrawing();
+    act(() => vi.advanceTimersByTime(250));
+    frameAt(1.25);
+
+    expect(strokes().some(stroke => stroke.strokeStyle === "rgba(52,211,153,0.950)")).toBe(true);
+    expect(fills().filter(fill => fill.fillStyle === BID_ANSWER_HEAD)).toEqual([]);
+  });
+
+  it("shows the land at once when motion is reduced", () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    const { fills, frameAt } = setup({ isStill: true, landShape: { type: "Point", coordinates: [40, 47] } });
+
+    frameAt(1);
+
+    expect(fills().filter(fill => fill.fillStyle === LAND).map(fill => fill.globalAlpha)).toEqual([1]);
   });
 
   it("draws nothing when the browser has no 2D canvas", () => {
