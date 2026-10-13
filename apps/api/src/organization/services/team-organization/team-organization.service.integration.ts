@@ -58,8 +58,14 @@ describe(TeamOrganizationService.name, () => {
 
       await expect(runAs(user, () => service.create("Acme Corp"))).rejects.toThrow("derivation failed");
 
-      const organizations = await db.select().from(resolveTable("Organizations")).where(eq(resolveTable("Organizations").createdByUserId, user.id));
-      const wallets = await db.select().from(resolveTable("UserWallets")).where(eq(resolveTable("UserWallets").createdByUserId, user.id));
+      const organizations = await db
+        .select()
+        .from(resolveTable("Organizations"))
+        .where(eq(resolveTable("Organizations").createdByUserId, user.id));
+      const wallets = await db
+        .select()
+        .from(resolveTable("UserWallets"))
+        .where(eq(resolveTable("UserWallets").createdByUserId, user.id));
       expect(organizations.map(organization => organization.type)).toEqual(["personal"]);
       expect(wallets).toEqual([]);
     });
@@ -150,7 +156,10 @@ describe(TeamOrganizationService.name, () => {
       await delay(50);
       const rename = runAs(user, () => service.rename(team.id, "Acme Labs"), createOrganizationContext({ organizationId: team.id, organizationType: "team" }));
 
-      await expect(Promise.all([settlement, rename])).resolves.toEqual([undefined, expect.objectContaining({ organization: expect.objectContaining({ name: "Acme Labs" }) })]);
+      await expect(Promise.all([settlement, rename])).resolves.toEqual([
+        undefined,
+        expect.objectContaining({ organization: expect.objectContaining({ name: "Acme Labs" }) })
+      ]);
     });
 
     it("lets only one of a rename and a creation to the same name through", async () => {
@@ -161,7 +170,11 @@ describe(TeamOrganizationService.name, () => {
 
       const outcomes = await Promise.allSettled([
         runAs(user, () => service.create("Shared Name")),
-        runAs(user, () => service.rename(team.id, "SHARED NAME"), createOrganizationContext({ organizationId: team.id, organizationType: "team", role: "admin" }))
+        runAs(
+          user,
+          () => service.rename(team.id, "SHARED NAME"),
+          createOrganizationContext({ organizationId: team.id, organizationType: "team", role: "admin" })
+        )
       ]);
 
       expect(outcomes.map(outcome => outcome.status).sort()).toEqual(["fulfilled", "rejected"]);
@@ -177,7 +190,10 @@ describe(TeamOrganizationService.name, () => {
 
       await runAs(user, () => service.rename(team.id, "Acme Labs"), createOrganizationContext({ organizationId: team.id, organizationType: "team" }));
 
-      const [renamed] = await db.select().from(resolveTable("Organizations")).where(eq(resolveTable("Organizations").id, team.id));
+      const [renamed] = await db
+        .select()
+        .from(resolveTable("Organizations"))
+        .where(eq(resolveTable("Organizations").id, team.id));
       expect(renamed).toMatchObject({ name: "Acme Labs", slug: team.slug });
     });
   });
@@ -203,7 +219,10 @@ describe(TeamOrganizationService.name, () => {
     function runAs<R>(caller: UserOutput, act: () => Promise<R>, context?: OrganizationContext) {
       return executionContextService.runWithContext(async () => {
         executionContextService.set("CURRENT_USER", caller);
-        executionContextService.set("ORGANIZATION_CONTEXT", context ?? createOrganizationContext({ organizationId: personal.id, organizationType: "personal" }));
+        executionContextService.set(
+          "ORGANIZATION_CONTEXT",
+          context ?? createOrganizationContext({ organizationId: personal.id, organizationType: "personal" })
+        );
         executionContextService.set("ABILITY", abilityService.getAbilityFor("REGULAR_USER", caller));
 
         return await act();
@@ -219,16 +238,31 @@ describe(TeamOrganizationService.name, () => {
     }
 
     async function countTeamsCreatedBy(caller: UserOutput) {
-      const organizations = await db.select().from(resolveTable("Organizations")).where(eq(resolveTable("Organizations").createdByUserId, caller.id));
+      const organizations = await db
+        .select()
+        .from(resolveTable("Organizations"))
+        .where(eq(resolveTable("Organizations").createdByUserId, caller.id));
 
       return organizations.filter(organization => organization.type === "team").length;
     }
 
     async function readTeam(organizationId: string) {
-      const [organization] = await db.select().from(resolveTable("Organizations")).where(eq(resolveTable("Organizations").id, organizationId));
-      const members = await db.select().from(resolveTable("OrganizationMembers")).where(eq(resolveTable("OrganizationMembers").organizationId, organizationId));
-      const projects = await db.select().from(resolveTable("Projects")).where(eq(resolveTable("Projects").organizationId, organizationId));
-      const wallets = await db.select().from(resolveTable("UserWallets")).where(eq(resolveTable("UserWallets").organizationId, organizationId));
+      const [organization] = await db
+        .select()
+        .from(resolveTable("Organizations"))
+        .where(eq(resolveTable("Organizations").id, organizationId));
+      const members = await db
+        .select()
+        .from(resolveTable("OrganizationMembers"))
+        .where(eq(resolveTable("OrganizationMembers").organizationId, organizationId));
+      const projects = await db
+        .select()
+        .from(resolveTable("Projects"))
+        .where(eq(resolveTable("Projects").organizationId, organizationId));
+      const wallets = await db
+        .select()
+        .from(resolveTable("UserWallets"))
+        .where(eq(resolveTable("UserWallets").organizationId, organizationId));
 
       return { organization, members, projects, wallets };
     }

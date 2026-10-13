@@ -22,7 +22,8 @@ import {
   ORGANIZATION_NAME_TAKEN_ERROR_CODE,
   PERSONAL_ORGANIZATION_ERROR_CODE,
   TEAM_SLUG_PREFIX,
-  TeamOrganizationService } from "./team-organization.service";
+  TeamOrganizationService
+} from "./team-organization.service";
 
 import { createApiKey } from "@test/seeders/api-key.seeder";
 import { createOrganization, createOrganizationMember, createProject } from "@test/seeders/organization.seeder";
@@ -89,7 +90,11 @@ describe(TeamOrganizationService.name, () => {
     it("refuses a caller who reached the limit, without writing anything", async () => {
       const { service, user, organizationRepository, organizationMemberRepository, logger } = setup({ createdTeamCount: MAX_TEAM_ORGANIZATIONS_PER_USER });
 
-      await expect(service.create("Acme Corp")).rejects.toMatchObject({ status: 403, errorCode: ORGANIZATION_LIMIT_REACHED_ERROR_CODE, message: "You have reached the number of organizations you can create" });
+      await expect(service.create("Acme Corp")).rejects.toMatchObject({
+        status: 403,
+        errorCode: ORGANIZATION_LIMIT_REACHED_ERROR_CODE,
+        message: "You have reached the number of organizations you can create"
+      });
       expect(logger.info).toHaveBeenCalledWith({ event: "ORGANIZATION_LIMIT_REACHED", userId: user.id });
       expect(organizationMemberRepository.isMemberOfOrganizationNamed).not.toHaveBeenCalled();
       expect(organizationRepository.createTeamWithFirstFreeSlug).not.toHaveBeenCalled();
@@ -98,7 +103,11 @@ describe(TeamOrganizationService.name, () => {
     it("refuses a name the caller already uses for another organization, without writing anything", async () => {
       const { service, organizationRepository, logger } = setup({ nameTaken: true });
 
-      await expect(service.create("Acme Corp")).rejects.toMatchObject({ status: 409, errorCode: ORGANIZATION_NAME_TAKEN_ERROR_CODE, message: "You already belong to an organization with this name" });
+      await expect(service.create("Acme Corp")).rejects.toMatchObject({
+        status: 409,
+        errorCode: ORGANIZATION_NAME_TAKEN_ERROR_CODE,
+        message: "You already belong to an organization with this name"
+      });
       expect(organizationRepository.createTeamWithFirstFreeSlug).not.toHaveBeenCalled();
       expect(logger.info).not.toHaveBeenCalled();
     });
@@ -237,7 +246,11 @@ describe(TeamOrganizationService.name, () => {
       const context = createOrganizationContext({ organizationType: "personal" });
       const { service, txService } = setup({ context });
 
-      await expect(service.rename(context.organizationId, "Acme Labs")).rejects.toMatchObject({ status: 403, errorCode: PERSONAL_ORGANIZATION_ERROR_CODE, message: "A personal organization cannot be renamed" });
+      await expect(service.rename(context.organizationId, "Acme Labs")).rejects.toMatchObject({
+        status: 403,
+        errorCode: PERSONAL_ORGANIZATION_ERROR_CODE,
+        message: "A personal organization cannot be renamed"
+      });
       expect(txService.transaction).not.toHaveBeenCalled();
     });
 
@@ -296,7 +309,7 @@ describe(TeamOrganizationService.name, () => {
     const organizationRepository = mock<OrganizationRepository>({
       updateBy: vi.fn(async () => {
         calls.push("updateBy");
-        return input.renamed === null ? undefined : (input.renamed ?? organization);
+        return input.renamed === null ? undefined : input.renamed ?? organization;
       }) as OrganizationRepository["updateBy"]
     });
     organizationRepository.accessibleBy.mockReturnValue(organizationRepository);

@@ -53,7 +53,9 @@ describe("Organization creation and renaming", () => {
       expect(await readOrganizationRows(data.id)).toEqual({
         members: [expect.objectContaining({ userId: user.id, role: "owner" })],
         projects: [expect.objectContaining({ slug: "default", isDefault: true })],
-        wallets: [expect.objectContaining({ userId: null, createdByUserId: user.id, isTrialing: false, activatedAt: null, address: expect.stringMatching(/^akash1/) })]
+        wallets: [
+          expect.objectContaining({ userId: null, createdByUserId: user.id, isTrialing: false, activatedAt: null, address: expect.stringMatching(/^akash1/) })
+        ]
       });
     });
 
@@ -306,21 +308,36 @@ describe("Organization creation and renaming", () => {
   }
 
   async function readOrganizationTypesCreatedBy(userId: string) {
-    const organizations = await db.select().from(resolveTable("Organizations")).where(eq(resolveTable("Organizations").createdByUserId, userId));
+    const organizations = await db
+      .select()
+      .from(resolveTable("Organizations"))
+      .where(eq(resolveTable("Organizations").createdByUserId, userId));
 
     return organizations.map(organization => organization.type);
   }
 
   async function readOrganizationName(id: string) {
-    const [organization] = await db.select().from(resolveTable("Organizations")).where(eq(resolveTable("Organizations").id, id));
+    const [organization] = await db
+      .select()
+      .from(resolveTable("Organizations"))
+      .where(eq(resolveTable("Organizations").id, id));
 
     return organization.name;
   }
 
   async function readOrganizationRows(organizationId: string) {
-    const members = await db.select().from(resolveTable("OrganizationMembers")).where(eq(resolveTable("OrganizationMembers").organizationId, organizationId));
-    const projects = await db.select().from(resolveTable("Projects")).where(eq(resolveTable("Projects").organizationId, organizationId));
-    const wallets = await db.select().from(resolveTable("UserWallets")).where(eq(resolveTable("UserWallets").organizationId, organizationId));
+    const members = await db
+      .select()
+      .from(resolveTable("OrganizationMembers"))
+      .where(eq(resolveTable("OrganizationMembers").organizationId, organizationId));
+    const projects = await db
+      .select()
+      .from(resolveTable("Projects"))
+      .where(eq(resolveTable("Projects").organizationId, organizationId));
+    const wallets = await db
+      .select()
+      .from(resolveTable("UserWallets"))
+      .where(eq(resolveTable("UserWallets").organizationId, organizationId));
 
     return { members, projects, wallets };
   }
