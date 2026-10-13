@@ -24,7 +24,7 @@ describe(useGpuAvailability.name, () => {
 
     expect(result.current.requestedLabel).toBe("H100");
     expect(result.current.requestsGpu).toBe(true);
-    expect(result.current.alternatives).toEqual([{ key: "nvidia/a100", label: "A100", providerCount: 2, gpuCount: 8 }]);
+    expect(result.current.alternatives).toEqual([{ key: "nvidia/a100", vendor: "nvidia", name: "a100", label: "A100", providerCount: 2, gpuCount: 8 }]);
     expect(result.current.noOtherModelFits).toBe(false);
     expect(screenedRequests().map(modelOf)).toEqual(["a100", "t4", NO_GPU]);
     expect(screenedKeys()).toEqual(["nvidia/a100", "nvidia/t4", "no-gpu"]);

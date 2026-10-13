@@ -19,10 +19,14 @@ export interface GpuModelCandidate {
 
 export interface GpuAvailabilityModel {
   key: string;
+  vendor: string;
+  name: string;
   label: string;
   providerCount: number;
   gpuCount: number | null;
 }
+
+export type GpuSelection = { kind: "model"; vendor: string; name: string } | { kind: "no-gpu" };
 
 export interface GpuAvailabilityRow {
   key: string;
@@ -31,6 +35,8 @@ export interface GpuAvailabilityRow {
   gpuCount: number | null;
   isCurrent: boolean;
   share: number;
+  /** Null for the current request, which has nothing new to apply. */
+  selection: GpuSelection | null;
 }
 
 const MAX_TOP_GPU_MODELS = 5;
@@ -73,6 +79,8 @@ export function rankGpuAlternatives(
   return candidates
     .map((candidate, index) => ({
       key: candidate.key,
+      vendor: candidate.vendor,
+      name: candidate.name,
       label: gpuDisplayName(candidate.vendor, candidate.name, catalog),
       providerCount: counts[index]?.count ?? 0,
       gpuCount: counts[index]?.gpuCount ?? null
@@ -100,10 +108,19 @@ export function listGpuAvailabilityRows({
   noGpuCount,
   networkCount
 }: GpuAvailabilityRowsInput): GpuAvailabilityRow[] {
-  const noGpuRows = noGpuCount ? [{ key: "no-gpu", label: NO_GPU_LABEL, providerCount: noGpuCount, gpuCount: null, isCurrent: false }] : [];
-  const rows = [
-    { key: "current", label: requestedLabel, providerCount: requestedCount, gpuCount: requestedGpuCount, isCurrent: true },
-    ...alternatives.map(model => ({ ...model, isCurrent: false })),
+  const noGpuRows: Omit<GpuAvailabilityRow, "share">[] = noGpuCount
+    ? [{ key: "no-gpu", label: NO_GPU_LABEL, providerCount: noGpuCount, gpuCount: null, isCurrent: false, selection: { kind: "no-gpu" } }]
+    : [];
+  const rows: Omit<GpuAvailabilityRow, "share">[] = [
+    { key: "current", label: requestedLabel, providerCount: requestedCount, gpuCount: requestedGpuCount, isCurrent: true, selection: null },
+    ...alternatives.map(({ key, vendor, name, label, providerCount, gpuCount }) => ({
+      key,
+      label,
+      providerCount,
+      gpuCount,
+      isCurrent: false,
+      selection: { kind: "model" as const, vendor, name }
+    })),
     ...noGpuRows
   ];
   const scale = networkCount ?? Math.max(...rows.map(row => row.providerCount ?? 0));
