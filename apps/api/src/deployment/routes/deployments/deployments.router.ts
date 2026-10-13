@@ -828,6 +828,7 @@ const updateDeploymentProjectRoute = createRoute({
   },
   responses: {
     200: { description: "The project the deployment is now filed into", content: { "application/json": { schema: UpdateDeploymentProjectResponseSchema } } },
+    400: { description: "The dseq is malformed, or the body names no project or one that is not a uuid" },
     401: { description: "Unauthorized" },
     403: { description: "The caller's role in the active organization does not allow it" },
     404: { description: "No deployment or project with this id in the caller's reach" }
