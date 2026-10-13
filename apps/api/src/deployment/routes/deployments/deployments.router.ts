@@ -578,7 +578,7 @@ const listRoute = createRoute({
     },
     422: {
       description:
-        "The owner holds more `active` deployments than a search spans. Page through them without a `search` instead. A search of the archive (`state=closed`) is refused this way only while the console's index is unreachable",
+        "The owner holds more `active` deployments than a search spans. Page through them without a `search` instead. A search of the archive (`state=closed`) is refused this way only while the console's index is unreachable. In organization mode, a list that would have to check more open deployments than that cap is refused the same way; narrow it with `projectId`",
       content: {
         "application/json": {
           schema: ErrorResponseSchema

@@ -217,7 +217,7 @@ describe("Organization wallet", () => {
   });
 
   describe("reading deployments as a billing member", () => {
-    it("is refused both deployment reads", async () => {
+    it("is refused a deployment and lists none", async () => {
       const { token, team } = await setupFiledDeployments({ role: "billing" });
       const headers = { authorization: `Bearer ${token}`, "x-organization-id": team.id };
 
@@ -225,7 +225,8 @@ describe("Organization wallet", () => {
       const list = await app.request("/v1/deployments?skip=0&limit=10", { headers });
 
       expect(one.status).toBe(403);
-      expect(list.status).toBe(403);
+      expect(list.status).toBe(200);
+      expect(((await list.json()) as { data: { deployments: unknown[] } }).data.deployments).toEqual([]);
     });
   });
 
