@@ -3,11 +3,13 @@ import { addSeconds, subHours } from "date-fns";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
+import type { JobQueueService } from "@src/core";
 import type { OrganizationRepository } from "@src/organization/repositories/organization/organization.repository";
 import type {
   InvitationEmailSend,
   OrganizationInvitationEmailRepository
 } from "@src/organization/repositories/organization-invitation-email/organization-invitation-email.repository";
+import { PurgeOrganizationInvitationEmailsJob } from "@src/organization/services/purge-organization-invitation-emails/purge-organization-invitation-emails.job";
 import type { UserRepository } from "@src/user/repositories";
 import { INVITATION_EMAIL_LIMIT_ERROR_CODE, INVITATION_EMAIL_LIMITS, InvitationEmailLimiter } from "./invitation-email-limiter.service";
 
@@ -109,6 +111,30 @@ describe(InvitationEmailLimiter.name, () => {
         invitations.map(invitation => ({ organizationId: invitation.organizationId, invitationId: invitation.id, sentByUserId: senderId }))
       );
     });
+
+    it("queues one purge per organization for when the recorded sends leave retention", async () => {
+      const { limiter, senderId, emailRepository, jobQueueService } = setup({});
+      const [first, second] = [faker.string.uuid(), faker.string.uuid()];
+      const invitations = [first, second, first].map(organizationId => createOrganizationInvitation({ organizationId }));
+
+      await limiter.recordSends(invitations, senderId);
+
+      expect(jobQueueService.enqueue.mock.calls).toEqual(
+        [first, second].map(organizationId => [
+          new PurgeOrganizationInvitationEmailsJob({ organizationId }),
+          { singletonKey: `purgeOrganizationInvitationEmails.${organizationId}`, startAfter: "2026-10-10T13:00:00.000Z" }
+        ])
+      );
+      expect(emailRepository.recordSends.mock.invocationCallOrder[0]).toBeLessThan(jobQueueService.enqueue.mock.invocationCallOrder[0]);
+    });
+
+    it("queues no purge without an invitation", async () => {
+      const { limiter, senderId, jobQueueService } = setup({});
+
+      await limiter.recordSends([], senderId);
+
+      expect(jobQueueService.enqueue).not.toHaveBeenCalled();
+    });
   });
 
   function sends(count: number, options: { email?: string; firstOffsetSeconds?: number } = {}): InvitationEmailSend[] {
@@ -126,8 +152,9 @@ describe(InvitationEmailLimiter.name, () => {
     emailRepository.findSendsSince.mockImplementation(async filter => ("organizationId" in filter ? input.organizationSends ?? [] : input.senderSends ?? []));
     const organizationRepository = mock<OrganizationRepository>();
     const userRepository = mock<UserRepository>();
-    const limiter = new InvitationEmailLimiter(emailRepository, organizationRepository, userRepository);
+    const jobQueueService = mock<JobQueueService>();
+    const limiter = new InvitationEmailLimiter(emailRepository, organizationRepository, userRepository, jobQueueService);
 
-    return { limiter, organizationId, senderId, emailRepository, organizationRepository, userRepository };
+    return { limiter, organizationId, senderId, emailRepository, organizationRepository, userRepository, jobQueueService };
   }
 });

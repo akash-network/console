@@ -1,17 +1,26 @@
+import { addHours, subHours } from "date-fns";
 import createError from "http-errors";
 import { singleton } from "tsyringe";
 
+import { JobQueueService } from "@src/core";
 import { OrganizationRepository } from "@src/organization/repositories/organization/organization.repository";
 import type { OrganizationInvitationOutput } from "@src/organization/repositories/organization-invitation/organization-invitation.repository";
 import {
   type InvitationEmailSend,
   OrganizationInvitationEmailRepository
 } from "@src/organization/repositories/organization-invitation-email/organization-invitation-email.repository";
+import {
+  PurgeOrganizationInvitationEmailsJob,
+  purgeOrganizationInvitationEmailsOptionsFor
+} from "@src/organization/services/purge-organization-invitation-emails/purge-organization-invitation-emails.job";
 import { UserRepository } from "@src/user/repositories";
 
 export const INVITATION_EMAIL_LIMIT_ERROR_CODE = "invitation_email_limit_reached";
 
-const WINDOW_MS = 24 * 60 * 60 * 1000;
+export const INVITATION_EMAIL_LIMIT_WINDOW_HOURS = 24;
+
+/** Longer than the window, so a limit check still in flight counts every send of its window. */
+export const INVITATION_EMAIL_RETENTION_HOURS = INVITATION_EMAIL_LIMIT_WINDOW_HOURS + 1;
 
 /** Each limit must stay at or above the most addresses one request may name, or a full request could never fit. */
 export const INVITATION_EMAIL_LIMITS = {
@@ -25,7 +34,8 @@ export class InvitationEmailLimiter {
   constructor(
     private readonly emailRepository: OrganizationInvitationEmailRepository,
     private readonly organizationRepository: OrganizationRepository,
-    private readonly userRepository: UserRepository
+    private readonly userRepository: UserRepository,
+    private readonly jobQueueService: JobQueueService
   ) {}
 
   /** Call it inside the transaction that records the sends; it locks the organization row, then the sender row, so callers taking both keep that order. */
@@ -34,7 +44,7 @@ export class InvitationEmailLimiter {
 
     await this.organizationRepository.findOneByAndLock({ id: organizationId }, { strength: "no key update" });
     await this.userRepository.findOneByAndLock({ id: senderId }, { strength: "no key update" });
-    const windowStart = new Date(Date.now() - WINDOW_MS);
+    const windowStart = subHours(new Date(), INVITATION_EMAIL_LIMIT_WINDOW_HOURS);
     const organizationSends = await this.emailRepository.findSendsSince({ organizationId }, windowStart);
     const senderSends = await this.emailRepository.findSendsSince({ sentByUserId: senderId }, windowStart);
 
@@ -63,6 +73,15 @@ export class InvitationEmailLimiter {
     await this.emailRepository.recordSends(
       invitations.map(invitation => ({ organizationId: invitation.organizationId, invitationId: invitation.id, sentByUserId: senderId }))
     );
+
+    const purgeAt = addHours(new Date(), INVITATION_EMAIL_RETENTION_HOURS);
+
+    for (const organizationId of new Set(invitations.map(invitation => invitation.organizationId))) {
+      await this.jobQueueService.enqueue(
+        new PurgeOrganizationInvitationEmailsJob({ organizationId }),
+        purgeOrganizationInvitationEmailsOptionsFor(organizationId, purgeAt)
+      );
+    }
   }
 }
 
