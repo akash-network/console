@@ -15,6 +15,8 @@ import type { ProviderStreamFactory } from "../provider-stream-factory/provider-
 import type { TimerService } from "../timer/timer.service";
 import { StreamLifecycleManagerService } from "./stream-lifecycle-manager.service";
 
+const MIN_HEALTHY_LIFETIME_MS = 1000;
+
 describe(StreamLifecycleManagerService.name, () => {
   beforeEach(() => {
     vi.useFakeTimers().setTimerTickMode("nextTimerAsync");
@@ -159,6 +161,20 @@ describe(StreamLifecycleManagerService.name, () => {
       expect(registry.size).toBe(2);
       expect(registry.get("a")).toEqual(expect.objectContaining({ hostUri: "https://a:8443" }));
       expect(registry.get("b")).toEqual(expect.objectContaining({ hostUri: "https://b:8443" }));
+    });
+  });
+
+  describe("waitForPendingConnections", () => {
+    it("resolves once the first attempt fails without waiting for the retries", async () => {
+      const streamFactory = mock<ProviderStreamFactory>();
+      streamFactory.openStatusStream.mockImplementation(async () => throwingStream(new Error("connection lost")));
+      const { manager, logger } = setup({ streamFactory });
+
+      manager.start(createProvider());
+      await manager.waitForPendingConnections();
+
+      expect(streamFactory.openStatusStream).toHaveBeenCalledTimes(1);
+      expect(logger.error).not.toHaveBeenCalledWith(expect.objectContaining({ event: "STREAM_GAVE_UP" }));
     });
   });
 
@@ -329,6 +345,68 @@ describe(StreamLifecycleManagerService.name, () => {
 
       await vi.waitFor(() => expect(writer.updateInventory).toHaveBeenCalledTimes(1));
       expect(writer.bulkMarkOffline).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("when a stream closes after staying up for the minimum healthy lifetime", () => {
+    it("reconnects without marking the provider offline", async () => {
+      const streamFactory = mock<ProviderStreamFactory>();
+      streamFactory.openStatusStream
+        .mockResolvedValueOnce(msgsThenThrowAfter([createCluster()], MIN_HEALTHY_LIFETIME_MS, new Error("http/2 stream closed with error code CANCEL")))
+        .mockResolvedValueOnce(msgsThenHang([createCluster()]));
+      const { manager, writer, logger } = setup({ streamFactory });
+
+      manager.start(createProvider());
+
+      await vi.waitFor(() => expect(writer.updateInventory).toHaveBeenCalledTimes(2), { timeout: 5000 });
+      await delay(50);
+      expect(writer.bulkMarkOffline).not.toHaveBeenCalled();
+      expect(writer.markAsOnline).toHaveBeenCalledTimes(1);
+      expect(logger.info).toHaveBeenCalledWith(expect.objectContaining({ event: "STREAM_RECYCLED", owner: "akash1owner" }));
+      expect(logger.warn).not.toHaveBeenCalledWith(expect.objectContaining({ event: "STREAM_ATTEMPT_FAILED" }));
+    });
+
+    it("gives the reconnected stream a fresh retry budget", async () => {
+      const streamFactory = mock<ProviderStreamFactory>();
+      streamFactory.openStatusStream
+        .mockResolvedValueOnce(msgsThenThrowAfter([createCluster()], MIN_HEALTHY_LIFETIME_MS, new Error("http/2 stream closed with error code CANCEL")))
+        .mockImplementation(async () => throwingStream(new Error("connection lost")));
+      const { manager, writer, logger } = setup({ streamFactory });
+
+      manager.start(createProvider());
+
+      await vi.waitFor(() => expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "STREAM_GAVE_UP" })), { timeout: 5000 });
+      expect(streamFactory.openStatusStream).toHaveBeenCalledTimes(6);
+      expect(writer.bulkMarkOffline).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe("when a stream closes before the minimum healthy lifetime", () => {
+    it("marks the provider offline and backs off before reconnecting", async () => {
+      const streamFactory = mock<ProviderStreamFactory>();
+      streamFactory.openStatusStream
+        .mockResolvedValueOnce(msgsThenThrowAfter([createCluster()], MIN_HEALTHY_LIFETIME_MS - 1, new Error("dropped")))
+        .mockResolvedValueOnce(msgsThenHang([createCluster()]));
+      const { manager, writer, logger } = setup({ streamFactory });
+
+      manager.start(createProvider());
+
+      await vi.waitFor(() => expect(writer.updateInventory).toHaveBeenCalledTimes(2), { timeout: 5000 });
+      expect(writer.bulkMarkOffline).toHaveBeenCalledWith(["akash1owner"], expect.any(Date));
+      expect(logger.warn).toHaveBeenCalledWith(expect.objectContaining({ event: "STREAM_RECONNECTING", attempt: 1 }));
+      expect(logger.info).not.toHaveBeenCalledWith(expect.objectContaining({ event: "STREAM_RECYCLED" }));
+    });
+
+    it("treats a stream that completes without an error as a failed attempt", async () => {
+      const streamFactory = mock<ProviderStreamFactory>();
+      streamFactory.openStatusStream.mockResolvedValueOnce(msgsThenEnd([createCluster()])).mockResolvedValueOnce(msgsThenHang([createCluster()]));
+      const { manager, writer, logger } = setup({ streamFactory });
+
+      manager.start(createProvider());
+
+      await vi.waitFor(() => expect(streamFactory.openStatusStream).toHaveBeenCalledTimes(2), { timeout: 5000 });
+      expect(writer.bulkMarkOffline).toHaveBeenCalledWith(["akash1owner"], expect.any(Date));
+      expect(logger.warn).toHaveBeenCalledWith(expect.objectContaining({ event: "STREAM_ATTEMPT_FAILED", owner: "akash1owner" }));
     });
   });
 
@@ -672,6 +750,7 @@ describe(StreamLifecycleManagerService.name, () => {
       STREAM_RECONNECT_INITIAL_DELAY_MS: 10,
       STREAM_RECONNECT_MAX_DELAY_MS: 50,
       STREAM_FIRST_MESSAGE_TIMEOUT_MS: 80,
+      STREAM_MIN_HEALTHY_LIFETIME_MS: MIN_HEALTHY_LIFETIME_MS,
       STREAM_UPDATE_THROTTLE_MS: input?.throttleMs ?? 0,
       DEAD_PROVIDER_UPDATED_THRESHOLD_MS: 1000,
       OFFLINE_PROVIDER_RETRY_MAX_ATTEMPTS: 2
@@ -746,6 +825,16 @@ async function* throwingStream(error: Error): AsyncGenerator<ClusterState> {
 
 async function* msgsThenThrow(messages: ClusterState[], error: Error): AsyncGenerator<ClusterState> {
   for (const msg of messages) yield msg;
+  throw error;
+}
+
+async function* msgsThenEnd(messages: ClusterState[]): AsyncGenerator<ClusterState> {
+  yield* messages;
+}
+
+async function* msgsThenThrowAfter(messages: ClusterState[], lifetimeMs: number, error: Error): AsyncGenerator<ClusterState> {
+  for (const msg of messages) yield msg;
+  await new Promise(resolve => setTimeout(resolve, lifetimeMs));
   throw error;
 }
 
