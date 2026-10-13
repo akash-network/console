@@ -9,6 +9,7 @@ import { FundDrainingDeploymentsCommand } from "@src/billing/commands/fund-drain
 import type { CreditsAdded } from "@src/billing/events/credits-added";
 import { PaymentIntentResult } from "@src/billing/http-schemas/stripe.schema";
 import { CARD_DECLINED_ERROR_CODE } from "@src/billing/lib/card-decline/card-decline";
+import { organizationAnalyticsProperties } from "@src/billing/lib/organization-analytics/organization-analytics";
 import { STRIPE_CLIENT } from "@src/billing/providers/stripe-client.provider";
 import {
   SETTLED_TRANSACTION_STATUSES,
@@ -75,6 +76,7 @@ export interface AutoRechargeSuccess {
   userId: string;
   transactionId: string;
   amountCents: number;
+  walletId?: number;
 }
 
 /**
@@ -736,7 +738,10 @@ export class StripeTransactionService {
 
     return {
       bonusGrant: bonusAmount > 0 ? { userId, bonusAmountCents: bonusAmount, paidAmountCents: params.paymentAmount } : undefined,
-      autoRecharge: settled && params.isAutoRecharge ? { userId, transactionId: params.transaction.id, amountCents: params.paymentAmount } : undefined,
+      autoRecharge:
+        settled && params.isAutoRecharge
+          ? { userId, transactionId: params.transaction.id, amountCents: params.paymentAmount, walletId: toppedUpWallet?.walletId }
+          : undefined,
       creditsAdded: settled
         ? {
             userId,
@@ -777,7 +782,7 @@ export class StripeTransactionService {
     });
 
     if (topUp) {
-      this.#trackTopUpFailed(event, topUp);
+      await this.#trackTopUpFailed(event, topUp);
     }
   }
 
@@ -787,9 +792,10 @@ export class StripeTransactionService {
     return transactionId ? await this.stripeTransactionRepository.findById(transactionId) : undefined;
   }
 
-  #trackTopUpFailed(event: Stripe.PaymentIntentPaymentFailedEvent, transaction: StripeTransactionOutput): void {
+  async #trackTopUpFailed(event: Stripe.PaymentIntentPaymentFailedEvent, transaction: StripeTransactionOutput): Promise<void> {
     const paymentIntent = event.data.object;
     const paymentError = paymentIntent.last_payment_error;
+    const organization = transaction.organizationId ? await this.organizationRepository.findById(transaction.organizationId) : undefined;
 
     this.analyticsService.track(
       transaction.userId,
@@ -803,7 +809,8 @@ export class StripeTransactionService {
         payment_method_type: paymentError?.payment_method?.type,
         card_brand: paymentError?.payment_method?.card?.brand,
         transaction_id: transaction.id,
-        auto_recharge: paymentIntent.metadata[AUTO_RECHARGE_METADATA_KEY] === "true"
+        auto_recharge: paymentIntent.metadata[AUTO_RECHARGE_METADATA_KEY] === "true",
+        ...organizationAnalyticsProperties(organization)
       },
       { insertId: event.id }
     );

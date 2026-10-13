@@ -147,7 +147,16 @@ export const TransactionSchema = z.object({
   cardLast4: z.string().nullable().optional(),
   stripeInvoiceId: z.string().nullable().optional(),
   receiptUrl: z.string().nullable().optional(),
-  description: z.string().nullable().optional()
+  description: z.string().nullable().optional(),
+  /** The member who made the transaction, null when the initiating account no longer exists. */
+  initiatedBy: z
+    .object({
+      id: z.string(),
+      username: z.string().nullable(),
+      email: z.string().nullable()
+    })
+    .nullable()
+    .optional()
 });
 
 export const CustomerTransactionsResponseSchema = z.object({

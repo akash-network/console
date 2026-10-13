@@ -1,6 +1,7 @@
 import { PromisePool } from "@supercharge/promise-pool";
 import { inject, singleton } from "tsyringe";
 
+import { organizationAnalyticsProperties } from "@src/billing/lib/organization-analytics/organization-analytics";
 import { type BillingConfig, InjectBillingConfig } from "@src/billing/providers";
 import { type StripeTransactionType, type UserWalletOutput, UserWalletRepository } from "@src/billing/repositories";
 import { BalancesService } from "@src/billing/services/balances/balances.service";
@@ -107,7 +108,8 @@ export class RefillService {
       transaction_id: options.payment?.transactionId,
       source: options.payment?.source,
       auto_recharge: options.payment?.isAutoRecharge,
-      bonus_amount_cents: options.payment?.bonusAmountCents
+      bonus_amount_cents: options.payment?.bonusAmountCents,
+      ...this.#organizationPropertiesOf(payer)
     });
     this.logger.debug({ event: "WALLET_TOP_UP", userWallet, limits });
 
@@ -149,7 +151,8 @@ export class RefillService {
       amount_cents: amountUsd,
       amount_usd: amountUsd / 100,
       currency: payment?.currency,
-      transaction_id: payment?.transactionId
+      transaction_id: payment?.transactionId,
+      ...this.#organizationPropertiesOf(payer)
     });
     this.logger.info({ event: "WALLET_BALANCE_REDUCED", userId, amountUsd, previousLimit: currentLimit, nextLimit });
   }
@@ -184,5 +187,9 @@ export class RefillService {
       : await this.walletInitializerService.ensureWallet(payer.userId);
 
     return (await this.userWalletRepository.claimActivation(userWallet.id)) ?? userWallet;
+  }
+
+  #organizationPropertiesOf(payer: WalletPayer) {
+    return organizationAnalyticsProperties({ id: payer.organizationId, type: payer.team ? "team" : "personal" });
   }
 }

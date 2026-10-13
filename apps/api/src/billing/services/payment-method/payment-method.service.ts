@@ -374,8 +374,8 @@ export class PaymentMethodService {
       paymentMethodId: paymentMethod.id
     });
 
-    if (isNew && localPaymentMethod.isDefault && "userId" in holder.owner) {
-      await this.#resumeAutoReloadAfterDefaultChange(holder.owner.userId);
+    if (isNew && localPaymentMethod.isDefault) {
+      await this.#resumeAutoReloadAfterDefaultChange(holder.owner);
     }
 
     return { isNew, isDefault: localPaymentMethod.isDefault };
@@ -385,11 +385,11 @@ export class PaymentMethodService {
    * Runs inside the upsert transaction, so a thrown resume would roll back the payment method row
    * this webhook exists to record and leave Stripe retrying a delivery that already did its job.
    */
-  async #resumeAutoReloadAfterDefaultChange(userId: string): Promise<void> {
+  async #resumeAutoReloadAfterDefaultChange(owner: BillingOwner): Promise<void> {
     try {
-      await this.autoReloadPauseService.resume(userId);
+      await this.autoReloadPauseService.resume(owner);
     } catch (error) {
-      this.loggerService.error({ event: "AUTO_RELOAD_RESUME_AFTER_ATTACH_FAILED", userId, error });
+      this.loggerService.error({ event: "AUTO_RELOAD_RESUME_AFTER_ATTACH_FAILED", ...owner, error });
     }
   }
 

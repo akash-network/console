@@ -352,12 +352,21 @@ export class UserWalletRepository extends OrgScopedRepository<ApiPgTables["UserW
     return this.#comparedList(await this.cursor.query.UserWallets.findMany({ where: this.whereAccessibleBy(where) }));
   }
 
+  /** Users who paid for their own wallet; a team that paid counts in {@link payingTeamCount} instead, never once per member. */
   async payingUserCount() {
     const [{ count: payingUserCount }] = await this.cursor
       .select({ count: count() })
       .from(this.table)
       .where(this.unscoped("platform-statistics").whereAccessibleBy(and(eq(this.table.isTrialing, false), isNotNull(this.table.userId))));
     return payingUserCount;
+  }
+
+  async payingTeamCount() {
+    const [{ count: payingTeamCount }] = await this.cursor
+      .select({ count: count() })
+      .from(this.table)
+      .where(this.unscoped("platform-statistics").whereAccessibleBy(and(isNull(this.table.userId), isNotNull(this.table.activatedAt))));
+    return payingTeamCount;
   }
 
   #comparedList(rows: DbUserWalletOutput[]) {

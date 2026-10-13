@@ -1,6 +1,6 @@
+import type { WalletBillingTarget } from "@src/billing/lib/wallet-billing-target/wallet-billing-target";
 import type { Job } from "@src/core";
 import { JOB_NAME } from "@src/core";
-import type { UserOutput } from "@src/user/repositories";
 
 export class WalletBalanceReloadCheck implements Job {
   static readonly [JOB_NAME] = "WalletBalanceReloadCheck";
@@ -8,8 +8,7 @@ export class WalletBalanceReloadCheck implements Job {
   public readonly version = 1;
 
   constructor(
-    public readonly data: {
-      userId: UserOutput["id"];
+    public readonly data: WalletBillingTarget & {
       /**
        * Set only when the check is scheduled right after a deployment's lease starts. The
        * fixed-threshold handler skips its no-active-deployments guard for these, since the

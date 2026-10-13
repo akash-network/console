@@ -5,10 +5,12 @@ import type { AutoRechargeSucceeded } from "@src/billing/events/auto-recharge-su
 import type { UserWalletRepository } from "@src/billing/repositories";
 import type { BalancesService } from "@src/billing/services/balances/balances.service";
 import type { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
+import { BillingContactsService } from "@src/billing/services/billing-contacts/billing-contacts.service";
 import type { EventPayload } from "@src/core";
 import type { CreateLogger } from "@src/core/providers/logging.provider";
 import type { NotificationService } from "@src/notifications/services/notification/notification.service";
 import { autoRechargeSucceededNotification } from "@src/notifications/services/notification-templates/auto-recharge-succeeded-notification";
+import type { OrganizationMemberRepository } from "@src/organization/repositories/organization-member/organization-member.repository";
 import type { UserRepository } from "@src/user/repositories";
 import { AutoRechargeSucceededHandler } from "./auto-recharge-succeeded.handler";
 
@@ -83,6 +85,22 @@ describe(AutoRechargeSucceededHandler.name, () => {
     expect(handler.requiresPermission()).toEqual([]);
   });
 
+  it("emails every owner and billing member of a team's wallet, logging a failed send instead of failing", async () => {
+    const teamWallet = { ...createUserWallet({ organizationId: "org-team" }), userId: null };
+    const contacts = [createUser({ email: "owner@example.com" }), createUser({ email: "billing@example.com" })];
+    const { handler, notificationService, userWalletRepository, organizationMemberRepository, logger } = setup({ user: null });
+    const error = new Error("notifications unavailable");
+    userWalletRepository.findById.mockResolvedValue(teamWallet);
+    organizationMemberRepository.findBillingContacts.mockResolvedValue(contacts);
+    notificationService.createNotification.mockRejectedValueOnce(error).mockResolvedValueOnce(undefined);
+
+    await handler.handle({ userId: "member-1", transactionId: "tx-1", amountCents: 2500, walletId: teamWallet.id, version: 1 });
+
+    expect(organizationMemberRepository.findBillingContacts).toHaveBeenCalledWith("org-team");
+    expect(notificationService.createNotification).toHaveBeenCalledTimes(2);
+    expect(logger.error).toHaveBeenCalledWith({ event: "AUTO_RECHARGE_SUCCESS_EMAIL_FAILED", userId: "member-1", recipientUserId: contacts[0].id, error });
+  });
+
   function setup(input: {
     user: ReturnType<typeof createUser> | null;
     wallet?: ReturnType<typeof createUserWallet>;
@@ -105,6 +123,7 @@ describe(AutoRechargeSucceededHandler.name, () => {
       billingConfig: mock<BillingConfigService>({
         get: vi.fn().mockReturnValue(input.paymentLink ?? "https://console.akash.network/billing?openPayment=true")
       }),
+      organizationMemberRepository: mock<OrganizationMemberRepository>(),
       logger: mock<ReturnType<CreateLogger>>()
     };
 
@@ -112,7 +131,7 @@ describe(AutoRechargeSucceededHandler.name, () => {
 
     const handler = new AutoRechargeSucceededHandler(
       mocks.notificationService,
-      mocks.userRepository,
+      new BillingContactsService(mocks.userRepository, mocks.organizationMemberRepository),
       mocks.userWalletRepository,
       mocks.balancesService,
       mocks.billingConfig,

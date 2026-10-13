@@ -2,13 +2,28 @@ import type { LoggerService } from "@akashnetwork/logging";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
-import type { StripeTransactionRepository } from "@src/billing/repositories";
+import type { StripeTransactionOutput, StripeTransactionRepository, StripeTransactionWithInitiator } from "@src/billing/repositories";
 import { TransactionReportingService } from "./transaction-reporting.service";
 
 import { generateDatabaseStripeTransaction } from "@test/seeders/database-stripe-transaction.seeder";
 import { createTestTransaction } from "@test/seeders/stripe-transaction-test.seeder";
 
+const CSV_RANGE = { startDate: "2022-01-01T00:00:00Z", endDate: "2022-01-31T23:59:59Z", timezone: "UTC" };
+
+async function readCsv(stream: AsyncIterable<string>): Promise<string> {
+  const chunks: string[] = [];
+  for await (const chunk of stream) {
+    chunks.push(chunk);
+  }
+  return chunks.join("");
+}
+
+function withInitiator(row: StripeTransactionOutput): StripeTransactionWithInitiator {
+  return { ...row, initiatedBy: null };
+}
+
 const USER_ID = "user-123";
+const OWNER = { userId: USER_ID };
 
 describe(TransactionReportingService.name, () => {
   describe("getCustomerTransactions", () => {
@@ -17,13 +32,13 @@ describe(TransactionReportingService.name, () => {
       const payment = generateDatabaseStripeTransaction({ type: "payment_intent", amount: 5000, cardBrand: "visa", cardLast4: "4242" });
       const coupon = generateDatabaseStripeTransaction({ type: "coupon_claim", amount: 1000, stripeInvoiceId: "in_1" });
       const manual = generateDatabaseStripeTransaction({ type: "manual_credit", amount: 2000, stripeInvoiceId: "in_2" });
-      stripeTransactionRepository.findByUserId.mockResolvedValue([payment, coupon, manual]);
-      stripeTransactionRepository.countByUserId.mockResolvedValue(3);
+      stripeTransactionRepository.findByOwner.mockResolvedValue([withInitiator(payment), withInitiator(coupon), withInitiator(manual)]);
+      stripeTransactionRepository.countByOwner.mockResolvedValue(3);
 
-      const result = await service.getCustomerTransactions(USER_ID);
+      const result = await service.getCustomerTransactions(OWNER);
 
-      expect(stripeTransactionRepository.findByUserId).toHaveBeenCalledWith({
-        userId: USER_ID,
+      expect(stripeTransactionRepository.findByOwner).toHaveBeenCalledWith({
+        owner: OWNER,
         startDate: undefined,
         endDate: undefined,
         limit: 100,
@@ -51,10 +66,10 @@ describe(TransactionReportingService.name, () => {
         description: "Wallet top-up",
         createdAt: new Date("2024-01-02T03:04:05Z")
       });
-      stripeTransactionRepository.findByUserId.mockResolvedValue([row]);
-      stripeTransactionRepository.countByUserId.mockResolvedValue(1);
+      stripeTransactionRepository.findByOwner.mockResolvedValue([withInitiator(row)]);
+      stripeTransactionRepository.countByOwner.mockResolvedValue(1);
 
-      const result = await service.getCustomerTransactions(USER_ID);
+      const result = await service.getCustomerTransactions(OWNER);
 
       expect(result.transactions[0]).toEqual({
         id: "txn-1",
@@ -69,17 +84,30 @@ describe(TransactionReportingService.name, () => {
         cardLast4: "4242",
         stripeInvoiceId: null,
         receiptUrl: "https://receipt",
-        description: "Wallet top-up"
+        description: "Wallet top-up",
+        initiatedBy: null
       });
+    });
+
+    it("names the member who made each transaction", async () => {
+      const { service, stripeTransactionRepository } = setup();
+      const initiatedBy = { id: "user-456", username: "alice", email: "alice@example.com" };
+      stripeTransactionRepository.findByOwner.mockResolvedValue([{ ...generateDatabaseStripeTransaction(), initiatedBy }]);
+      stripeTransactionRepository.countByOwner.mockResolvedValue(1);
+
+      const result = await service.getCustomerTransactions({ organizationId: "org-1" });
+
+      expect(stripeTransactionRepository.findByOwner).toHaveBeenCalledWith(expect.objectContaining({ owner: { organizationId: "org-1" } }));
+      expect(result.transactions[0].initiatedBy).toEqual(initiatedBy);
     });
 
     it("surfaces refunded status and the refunded amount", async () => {
       const { service, stripeTransactionRepository } = setup();
       const refunded = generateDatabaseStripeTransaction({ type: "payment_intent", status: "refunded", amount: 5000, amountRefunded: 2000 });
-      stripeTransactionRepository.findByUserId.mockResolvedValue([refunded]);
-      stripeTransactionRepository.countByUserId.mockResolvedValue(1);
+      stripeTransactionRepository.findByOwner.mockResolvedValue([withInitiator(refunded)]);
+      stripeTransactionRepository.countByOwner.mockResolvedValue(1);
 
-      const result = await service.getCustomerTransactions(USER_ID);
+      const result = await service.getCustomerTransactions(OWNER);
 
       expect(result.transactions[0].status).toBe("refunded");
       expect(result.transactions[0].amountRefunded).toBe(2000);
@@ -87,21 +115,21 @@ describe(TransactionReportingService.name, () => {
 
     it("passes offset and date filters through to the repository and count", async () => {
       const { service, stripeTransactionRepository } = setup();
-      stripeTransactionRepository.findByUserId.mockResolvedValue([]);
-      stripeTransactionRepository.countByUserId.mockResolvedValue(0);
+      stripeTransactionRepository.findByOwner.mockResolvedValue([]);
+      stripeTransactionRepository.countByOwner.mockResolvedValue(0);
       const startDate = "2022-01-01T00:00:00.000Z";
       const endDate = "2022-12-31T23:59:59.000Z";
 
-      await service.getCustomerTransactions(USER_ID, { limit: 25, offset: 50, startDate, endDate });
+      await service.getCustomerTransactions(OWNER, { limit: 25, offset: 50, startDate, endDate });
 
-      expect(stripeTransactionRepository.findByUserId).toHaveBeenCalledWith({
-        userId: USER_ID,
+      expect(stripeTransactionRepository.findByOwner).toHaveBeenCalledWith({
+        owner: OWNER,
         startDate: new Date(startDate),
         endDate: new Date(endDate),
         limit: 25,
         offset: 50
       });
-      expect(stripeTransactionRepository.countByUserId).toHaveBeenCalledWith(USER_ID, {
+      expect(stripeTransactionRepository.countByOwner).toHaveBeenCalledWith(OWNER, {
         startDate: new Date(startDate),
         endDate: new Date(endDate)
       });
@@ -109,20 +137,20 @@ describe(TransactionReportingService.name, () => {
 
     it("reports hasMore when the page does not reach the total count", async () => {
       const { service, stripeTransactionRepository } = setup();
-      stripeTransactionRepository.findByUserId.mockResolvedValue([generateDatabaseStripeTransaction(), generateDatabaseStripeTransaction()]);
-      stripeTransactionRepository.countByUserId.mockResolvedValue(10);
+      stripeTransactionRepository.findByOwner.mockResolvedValue([withInitiator(generateDatabaseStripeTransaction()), withInitiator(generateDatabaseStripeTransaction())]);
+      stripeTransactionRepository.countByOwner.mockResolvedValue(10);
 
-      const result = await service.getCustomerTransactions(USER_ID, { limit: 2, offset: 0 });
+      const result = await service.getCustomerTransactions(OWNER, { limit: 2, offset: 0 });
 
       expect(result.hasMore).toBe(true);
     });
 
     it("reports no more results on the last page", async () => {
       const { service, stripeTransactionRepository } = setup();
-      stripeTransactionRepository.findByUserId.mockResolvedValue([generateDatabaseStripeTransaction(), generateDatabaseStripeTransaction()]);
-      stripeTransactionRepository.countByUserId.mockResolvedValue(10);
+      stripeTransactionRepository.findByOwner.mockResolvedValue([withInitiator(generateDatabaseStripeTransaction()), withInitiator(generateDatabaseStripeTransaction())]);
+      stripeTransactionRepository.countByOwner.mockResolvedValue(10);
 
-      const result = await service.getCustomerTransactions(USER_ID, { limit: 2, offset: 8 });
+      const result = await service.getCustomerTransactions(OWNER, { limit: 2, offset: 8 });
 
       expect(result.hasMore).toBe(false);
     });
@@ -142,7 +170,7 @@ describe(TransactionReportingService.name, () => {
         hasMore: false
       });
 
-      const csvStream = service.exportTransactionsCsvStream(USER_ID, {
+      const csvStream = service.exportTransactionsCsvStream(OWNER, {
         startDate: "2022-01-01T00:00:00Z",
         endDate: "2022-01-31T23:59:59Z",
         timezone: "America/New_York"
@@ -164,6 +192,34 @@ describe(TransactionReportingService.name, () => {
       expect(fullCsv).toContain("4242");
     });
 
+    it("adds the member who made each transaction to a team's export", async () => {
+      const { service } = setup();
+      vi.spyOn(service, "getCustomerTransactions").mockResolvedValue({
+        transactions: [{ ...createTestTransaction(), initiatedBy: { id: "user-456", username: "alice", email: "alice@example.com" } }],
+        totalCount: 1,
+        hasMore: false
+      });
+
+      const fullCsv = await readCsv(service.exportTransactionsCsvStream({ organizationId: "org-1" }, CSV_RANGE));
+
+      expect(fullCsv).toContain("Receipt URL,Initiated By");
+      expect(fullCsv).toContain(",alice");
+    });
+
+    it("leaves the member column out of a user's own export", async () => {
+      const { service } = setup();
+      vi.spyOn(service, "getCustomerTransactions").mockResolvedValue({
+        transactions: [{ ...createTestTransaction(), initiatedBy: { id: USER_ID, username: "bob", email: null } }],
+        totalCount: 1,
+        hasMore: false
+      });
+
+      const fullCsv = await readCsv(service.exportTransactionsCsvStream(OWNER, CSV_RANGE));
+
+      expect(fullCsv).not.toContain("Initiated By");
+      expect(fullCsv).not.toContain("bob");
+    });
+
     it("writes the recorded bonus next to the amount", async () => {
       const { service } = setup();
       const mockTransaction = createTestTransaction({ amount: 15000, bonusAmount: 1500 });
@@ -174,7 +230,7 @@ describe(TransactionReportingService.name, () => {
         hasMore: false
       });
 
-      const csvStream = service.exportTransactionsCsvStream(USER_ID, {
+      const csvStream = service.exportTransactionsCsvStream(OWNER, {
         startDate: "2022-01-01T00:00:00Z",
         endDate: "2022-01-31T23:59:59Z",
         timezone: "America/New_York"
@@ -198,7 +254,7 @@ describe(TransactionReportingService.name, () => {
         hasMore: false
       });
 
-      const csvStream = service.exportTransactionsCsvStream(USER_ID, {
+      const csvStream = service.exportTransactionsCsvStream(OWNER, {
         startDate: "2022-01-01T00:00:00Z",
         endDate: "2022-01-31T23:59:59Z",
         timezone: "America/New_York"
@@ -233,7 +289,7 @@ describe(TransactionReportingService.name, () => {
           hasMore: false
         });
 
-      const csvStream = service.exportTransactionsCsvStream(USER_ID, {
+      const csvStream = service.exportTransactionsCsvStream(OWNER, {
         startDate: "2022-01-01T00:00:00Z",
         endDate: "2022-01-31T23:59:59Z",
         timezone: "America/New_York"
@@ -247,13 +303,13 @@ describe(TransactionReportingService.name, () => {
       const fullCsv = chunks.join("");
 
       expect(service.getCustomerTransactions).toHaveBeenCalledTimes(2);
-      expect(service.getCustomerTransactions).toHaveBeenNthCalledWith(1, USER_ID, {
+      expect(service.getCustomerTransactions).toHaveBeenNthCalledWith(1, OWNER, {
         limit: 100,
         offset: 0,
         startDate: "2022-01-01T00:00:00Z",
         endDate: "2022-01-31T23:59:59Z"
       });
-      expect(service.getCustomerTransactions).toHaveBeenNthCalledWith(2, USER_ID, {
+      expect(service.getCustomerTransactions).toHaveBeenNthCalledWith(2, OWNER, {
         limit: 100,
         offset: 1,
         startDate: "2022-01-01T00:00:00Z",
@@ -275,7 +331,7 @@ describe(TransactionReportingService.name, () => {
         hasMore: false
       });
 
-      const csvStream = service.exportTransactionsCsvStream(USER_ID, {
+      const csvStream = service.exportTransactionsCsvStream(OWNER, {
         startDate: "2022-01-01T00:00:00Z",
         endDate: "2022-01-31T23:59:59Z",
         timezone: "America/New_York"
@@ -310,7 +366,7 @@ describe(TransactionReportingService.name, () => {
         hasMore: false
       });
 
-      const csvStream = service.exportTransactionsCsvStream(USER_ID, {
+      const csvStream = service.exportTransactionsCsvStream(OWNER, {
         startDate: "2022-01-01T00:00:00Z",
         endDate: "2022-01-31T23:59:59Z",
         timezone: "America/New_York"
@@ -340,7 +396,7 @@ describe(TransactionReportingService.name, () => {
         })
         .mockRejectedValueOnce(new Error("Stripe API error"));
 
-      const csvStream = service.exportTransactionsCsvStream(USER_ID, {
+      const csvStream = service.exportTransactionsCsvStream(OWNER, {
         startDate: "2022-01-01T00:00:00Z",
         endDate: "2022-01-31T23:59:59Z",
         timezone: "America/New_York"

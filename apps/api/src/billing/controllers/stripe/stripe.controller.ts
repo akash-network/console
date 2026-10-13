@@ -91,10 +91,8 @@ export class StripeController {
    * and on again to lift it.
    */
   async #resumeAutoReloadAfterDefaultChange(payer: Payer): Promise<void> {
-    if (payer.team) return;
-
     try {
-      await this.autoReloadPauseService.resume(payer.user.id);
+      await this.autoReloadPauseService.resume(billingOwnerOf(payer));
     } catch (error) {
       this.logger.error({ event: "AUTO_RELOAD_RESUME_AFTER_DEFAULT_CHANGE_FAILED", userId: payer.user.id, error });
     }
@@ -225,8 +223,6 @@ export class StripeController {
    * default card" state self-heals on the next default payment method read.
    */
   async #disableAutoReloadAfterDefaultRemoval(payer: Payer): Promise<void> {
-    if (payer.team) return;
-
     try {
       await this.walletSettingService.disableAutoReload(payer.user.id);
     } catch (error) {
@@ -241,17 +237,17 @@ export class StripeController {
     startDate?: string;
     endDate?: string;
   }): Promise<{ data: { transactions: Transaction[]; totalCount: number; hasMore: boolean } }> {
-    const { currentUser } = this.authService;
+    const payer = await this.payerService.getCurrentPayer();
 
-    const response = await this.transactionReporting.getCustomerTransactions(currentUser.id, options);
+    const response = await this.transactionReporting.getCustomerTransactions(billingOwnerOf(payer), options);
     return { data: response };
   }
 
   @Protected([{ action: "read", subject: "StripePayment" }])
   async exportTransactionsCsvStream(options: ZodInfer<typeof CustomerTransactionsCsvExportQuerySchema>): Promise<AsyncIterable<string>> {
-    const { currentUser } = this.authService;
+    const payer = await this.payerService.getCurrentPayer();
 
-    return this.transactionReporting.exportTransactionsCsvStream(currentUser.id, options);
+    return this.transactionReporting.exportTransactionsCsvStream(billingOwnerOf(payer), options);
   }
 
   @Protected([{ action: "create", subject: "StripePayment" }])

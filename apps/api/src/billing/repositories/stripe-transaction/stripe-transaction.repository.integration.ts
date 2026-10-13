@@ -193,7 +193,7 @@ describe(StripeTransactionRepository.name, () => {
     });
   });
 
-  describe("findByUserId", () => {
+  describe("findByOwner", () => {
     it("returns the user's transactions newest first", async () => {
       const { stripeTransactionRepository, createTestUser } = setup();
       const user = await createTestUser();
@@ -201,7 +201,7 @@ describe(StripeTransactionRepository.name, () => {
       await stripeTransactionRepository.create({ ...transactionInput(user.id), amount: 3000, createdAt: new Date("2024-03-01T00:00:00Z") });
       await stripeTransactionRepository.create({ ...transactionInput(user.id), amount: 2000, createdAt: new Date("2024-02-01T00:00:00Z") });
 
-      const result = await stripeTransactionRepository.findByUserId({ userId: user.id });
+      const result = await stripeTransactionRepository.findByOwner({ owner: { userId: user.id } });
 
       expect(result.map(transaction => transaction.amount)).toEqual([3000, 2000, 1000]);
     });
@@ -213,8 +213,8 @@ describe(StripeTransactionRepository.name, () => {
       await stripeTransactionRepository.create({ ...transactionInput(user.id), amount: 3000, createdAt: new Date("2024-03-01T00:00:00Z") });
       await stripeTransactionRepository.create({ ...transactionInput(user.id), amount: 2000, createdAt: new Date("2024-02-01T00:00:00Z") });
 
-      const firstPage = await stripeTransactionRepository.findByUserId({ userId: user.id, limit: 2, offset: 0 });
-      const secondPage = await stripeTransactionRepository.findByUserId({ userId: user.id, limit: 2, offset: 2 });
+      const firstPage = await stripeTransactionRepository.findByOwner({ owner: { userId: user.id }, limit: 2, offset: 0 });
+      const secondPage = await stripeTransactionRepository.findByOwner({ owner: { userId: user.id }, limit: 2, offset: 2 });
 
       expect(firstPage.map(transaction => transaction.amount)).toEqual([3000, 2000]);
       expect(secondPage.map(transaction => transaction.amount)).toEqual([1000]);
@@ -227,21 +227,36 @@ describe(StripeTransactionRepository.name, () => {
       await stripeTransactionRepository.create({ ...transactionInput(user.id), amount: 1000 });
       await stripeTransactionRepository.create({ ...transactionInput(otherUser.id), amount: 2000 });
 
-      const result = await stripeTransactionRepository.findByUserId({ userId: user.id });
+      const result = await stripeTransactionRepository.findByOwner({ owner: { userId: user.id } });
 
       expect(result).toHaveLength(1);
       expect(result[0].userId).toBe(user.id);
     });
+
+    it("reads a team's transactions with the member who made each, leaving them out of that member's own", async () => {
+      const { stripeTransactionRepository, createTestUser } = setup();
+      const { organization: team } = await seedOrganizationWithOwner();
+      const user = await createTestUser();
+      await stripeTransactionRepository.create({ ...transactionInput(user.id), amount: 1000 });
+      await stripeTransactionRepository.create({ ...transactionInput(user.id), organizationId: team.id, amount: 2000 });
+
+      const teamTransactions = await stripeTransactionRepository.findByOwner({ owner: { organizationId: team.id } });
+      const ownTransactions = await stripeTransactionRepository.findByOwner({ owner: { userId: user.id } });
+
+      expect(teamTransactions).toEqual([expect.objectContaining({ amount: 2000, initiatedBy: { id: user.id, username: user.username, email: user.email } })]);
+      expect(ownTransactions.map(transaction => transaction.amount)).toEqual([1000]);
+      expect(await stripeTransactionRepository.countByOwner({ organizationId: team.id })).toBe(1);
+    });
   });
 
-  describe("countByUserId", () => {
+  describe("countByOwner", () => {
     it("counts all of the user's transactions when no date range is given", async () => {
       const { stripeTransactionRepository, createTestUser } = setup();
       const user = await createTestUser();
       await stripeTransactionRepository.create({ ...transactionInput(user.id) });
       await stripeTransactionRepository.create({ ...transactionInput(user.id) });
 
-      expect(await stripeTransactionRepository.countByUserId(user.id)).toBe(2);
+      expect(await stripeTransactionRepository.countByOwner({ userId: user.id })).toBe(2);
     });
 
     it("counts transactions on and within the date-range boundaries, excluding those outside", async () => {
@@ -255,7 +270,7 @@ describe(StripeTransactionRepository.name, () => {
       await stripeTransactionRepository.create({ ...transactionInput(user.id), createdAt: new Date("2024-05-31T23:59:59Z") });
       await stripeTransactionRepository.create({ ...transactionInput(user.id), createdAt: new Date("2024-07-01T00:00:00Z") });
 
-      expect(await stripeTransactionRepository.countByUserId(user.id, { startDate, endDate })).toBe(3);
+      expect(await stripeTransactionRepository.countByOwner({ userId: user.id }, { startDate, endDate })).toBe(3);
     });
   });
 

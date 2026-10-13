@@ -4,7 +4,8 @@ import { Readable } from "stream";
 import { inject, singleton } from "tsyringe";
 
 import { Transaction } from "@src/billing/http-schemas/stripe.schema";
-import { StripeTransactionOutput, StripeTransactionRepository } from "@src/billing/repositories";
+import type { BillingOwner } from "@src/billing/lib/billing-owner/billing-owner";
+import { StripeTransactionRepository, type StripeTransactionWithInitiator } from "@src/billing/repositories";
 import { type CreateLogger, LOGGER_FACTORY } from "@src/core";
 import type { TransactionCsvRow } from "@src/types/transactions";
 
@@ -25,7 +26,7 @@ export class TransactionReportingService {
    * and refund state (`status: "refunded"`, `amountRefunded`) that a charge-only view cannot see.
    */
   async getCustomerTransactions(
-    userId: string,
+    owner: BillingOwner,
     options?: { limit?: number; offset?: number; startDate?: string; endDate?: string }
   ): Promise<{
     transactions: Transaction[];
@@ -38,8 +39,8 @@ export class TransactionReportingService {
     const offset = options?.offset ?? 0;
 
     const [rows, totalCount] = await Promise.all([
-      this.stripeTransactionRepository.findByUserId({ userId, startDate, endDate, limit, offset }),
-      this.stripeTransactionRepository.countByUserId(userId, { startDate, endDate })
+      this.stripeTransactionRepository.findByOwner({ owner, startDate, endDate, limit, offset }),
+      this.stripeTransactionRepository.countByOwner(owner, { startDate, endDate })
     ]);
 
     return {
@@ -49,7 +50,7 @@ export class TransactionReportingService {
     };
   }
 
-  private toTransactionDto(row: StripeTransactionOutput): Transaction {
+  private toTransactionDto(row: StripeTransactionWithInitiator): Transaction {
     return {
       id: row.id,
       type: row.type,
@@ -63,13 +64,14 @@ export class TransactionReportingService {
       cardLast4: row.cardLast4,
       stripeInvoiceId: row.stripeInvoiceId,
       receiptUrl: row.receiptUrl,
-      description: row.description
+      description: row.description,
+      initiatedBy: row.initiatedBy
     };
   }
 
-  async *exportTransactionsCsvStream(userId: string, options: { startDate: string; endDate: string; timezone: string }): AsyncIterable<string> {
+  async *exportTransactionsCsvStream(owner: BillingOwner, options: { startDate: string; endDate: string; timezone: string }): AsyncIterable<string> {
     const normalizedTimezone = this.normalizeTimeZone(options.timezone);
-    const transactionGenerator = this.createTransactionGenerator(userId, {
+    const transactionGenerator = this.createTransactionGenerator(owner, {
       ...options,
       timezone: normalizedTimezone
     });
@@ -90,7 +92,8 @@ export class TransactionReportingService {
         { key: "cardLast4", header: "Card Last 4" },
         { key: "description", header: "Description" },
         { key: "invoiceId", header: "Invoice ID" },
-        { key: "receiptUrl", header: "Receipt URL" }
+        { key: "receiptUrl", header: "Receipt URL" },
+        ...("organizationId" in owner ? [{ key: "initiatedBy", header: "Initiated By" }] : [])
       ]
     });
 
@@ -109,7 +112,7 @@ export class TransactionReportingService {
   }
 
   private async *createTransactionGenerator(
-    userId: string,
+    owner: BillingOwner,
     options: { startDate: string; endDate: string; timezone: string }
   ): AsyncGenerator<TransactionCsvRow, void, unknown> {
     let hasMore = true;
@@ -119,7 +122,7 @@ export class TransactionReportingService {
 
     while (hasMore) {
       try {
-        const batch = await this.getCustomerTransactions(userId, {
+        const batch = await this.getCustomerTransactions(owner, {
           limit: batchSize,
           offset,
           startDate: options.startDate,
@@ -135,7 +138,7 @@ export class TransactionReportingService {
         offset += batch.transactions.length;
         hasMore = batch.hasMore && batch.transactions.length > 0;
       } catch (error) {
-        this.loggerService.error({ event: "TRANSACTION_FETCH_ERROR", error, userId, offset });
+        this.loggerService.error({ event: "TRANSACTION_FETCH_ERROR", error, ...owner, offset });
         yield this.createEmptyCsvRow(this.sanitizeForCsv("Error retrieving some transactions. Please contact support."));
         hasMore = false;
       }
@@ -160,7 +163,8 @@ export class TransactionReportingService {
       cardLast4: "",
       description: "",
       invoiceId: "",
-      receiptUrl: ""
+      receiptUrl: "",
+      initiatedBy: ""
     };
   }
 
@@ -193,7 +197,8 @@ export class TransactionReportingService {
       cardLast4: transaction.cardLast4 || "",
       description: this.sanitizeForCsv(transaction.description || ""),
       invoiceId: transaction.stripeInvoiceId || "",
-      receiptUrl: transaction.receiptUrl || ""
+      receiptUrl: transaction.receiptUrl || "",
+      initiatedBy: this.sanitizeForCsv(transaction.initiatedBy?.username || transaction.initiatedBy?.email || "")
     };
   }
 

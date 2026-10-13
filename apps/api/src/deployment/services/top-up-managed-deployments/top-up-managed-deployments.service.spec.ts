@@ -493,7 +493,7 @@ describe(TopUpManagedDeploymentsService.name, () => {
 
       await service.topUpDeployments({ dryRun: false });
 
-      expect(walletReloadService.scheduleCreditsLowCheck).toHaveBeenCalledWith(owner.userId, { withCleanup: true });
+      expect(walletReloadService.scheduleCreditsLowCheck).toHaveBeenCalledWith({ userId: owner.userId }, { withCleanup: true });
     });
 
     it("does not enqueue for a covered owner that was never notified", async () => {
@@ -519,7 +519,7 @@ describe(TopUpManagedDeploymentsService.name, () => {
 
       expect(balancesService.retrieveDeploymentLimit).not.toHaveBeenCalled();
       expect(walletReloadService.scheduleCreditsLowCheck).toHaveBeenCalledTimes(1);
-      expect(walletReloadService.scheduleCreditsLowCheck).toHaveBeenCalledWith(notified.userId, { withCleanup: true });
+      expect(walletReloadService.scheduleCreditsLowCheck).toHaveBeenCalledWith({ userId: notified.userId }, { withCleanup: true });
     });
 
     it("falls back to enqueueing the check when the inline evaluation fails", async () => {
@@ -535,7 +535,7 @@ describe(TopUpManagedDeploymentsService.name, () => {
 
       expect(result.ok).toBe(true);
       expect(instrumentation.recordCreditsLowScheduleError).toHaveBeenCalledWith({ walletId: owner.walletId, error });
-      expect(walletReloadService.scheduleCreditsLowCheck).toHaveBeenCalledWith(owner.userId, { withCleanup: true });
+      expect(walletReloadService.scheduleCreditsLowCheck).toHaveBeenCalledWith({ userId: owner.userId }, { withCleanup: true });
       expect(instrumentation.finish).toHaveBeenCalledWith("success", CURRENT_BLOCK_HEIGHT);
     });
 
@@ -572,7 +572,7 @@ describe(TopUpManagedDeploymentsService.name, () => {
       await service.topUpDeployments({ dryRun: false });
 
       expect(managedSignerService.executeDerivedTx).toHaveBeenCalledTimes(1);
-      expect(walletReloadService.scheduleCreditsLowCheck).toHaveBeenCalledWith(deployment.userId, { withCleanup: true });
+      expect(walletReloadService.scheduleCreditsLowCheck).toHaveBeenCalledWith({ userId: deployment.userId }, { withCleanup: true });
       expect(drainingDeploymentService.calculateWeeklyCoverageCredits).not.toHaveBeenCalled();
       expect(balancesService.retrieveDeploymentLimit).not.toHaveBeenCalled();
     });
@@ -597,7 +597,7 @@ describe(TopUpManagedDeploymentsService.name, () => {
       const result = await service.topUpDeployments({ dryRun: false });
 
       expect(result.ok).toBe(false);
-      expect(walletReloadService.scheduleCreditsLowCheck).toHaveBeenCalledWith(deployment.userId, { withCleanup: true });
+      expect(walletReloadService.scheduleCreditsLowCheck).toHaveBeenCalledWith({ userId: deployment.userId }, { withCleanup: true });
     });
 
     it("should top up draining deployments for the same owner in the same tx", async () => {
@@ -1587,18 +1587,20 @@ describe(TopUpManagedDeploymentsService.name, () => {
   });
 
   describe("when funding leaves deployments unfunded for lack of credits", () => {
-    it("warns nobody about an organization's wallet, whose credit warnings are not tied to a user", async () => {
+    it("warns about a team's wallet by the wallet itself, since no user owns it", async () => {
       const { service, drainingDeploymentService, cachedBalanceService, walletReloadService } = setup();
       const deployments = createOwnerDeployments([3000, 900]).map(deployment => ({ ...deployment, walletUserId: null }));
+      const owner = createOwnerYield(deployments, { userId: null });
 
-      mockOwnerYields(drainingDeploymentService, createOwnerYield(deployments, { userId: null }));
+      mockOwnerYields(drainingDeploymentService, owner);
       drainingDeploymentService.calculateAmountToTargetRunway.mockReturnValue(1_000_000);
       cachedBalanceService.get.mockResolvedValue(mock<CachedBalance>({ spendable: 0 }));
 
       await service.topUpDeployments({ dryRun: false });
 
-      expect(walletReloadService.scheduleCreditsExhaustedCheck).not.toHaveBeenCalled();
-      expect(walletReloadService.scheduleCreditsLowCheck).not.toHaveBeenCalled();
+      expect(walletReloadService.scheduleCreditsExhaustedCheck).toHaveBeenCalledWith(expect.objectContaining({ walletId: deployments[1].walletId }));
+      expect(walletReloadService.scheduleCreditsExhaustedCheck).not.toHaveBeenCalledWith(expect.objectContaining({ userId: expect.anything() }));
+      expect(walletReloadService.scheduleCreditsLowCheck).toHaveBeenCalledWith({ walletId: owner.walletId }, { withCleanup: true });
     });
 
     it("warns the owner of a wallet with nothing spendable about the deployment that closes first", async () => {

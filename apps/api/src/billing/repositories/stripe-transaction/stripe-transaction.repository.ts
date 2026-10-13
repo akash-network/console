@@ -43,13 +43,18 @@ export interface CouponClaimHold {
 }
 
 export interface FindTransactionsOptions {
-  userId: string;
+  owner: BillingOwner;
   limit?: number;
   offset?: number;
   startDate?: Date;
   endDate?: Date;
   status?: StripeTransactionStatus;
 }
+
+/** The member who acted for each row, so an organization's history shows who bought what. */
+export type StripeTransactionWithInitiator = StripeTransactionOutput & {
+  initiatedBy: { id: string; username: string | null; email: string | null } | null;
+};
 
 @singleton()
 export class StripeTransactionRepository extends OrgScopedRepository<Table, StripeTransactionInput, StripeTransactionOutput> {
@@ -66,30 +71,25 @@ export class StripeTransactionRepository extends OrgScopedRepository<Table, Stri
     return new StripeTransactionRepository(this.pg, this.table, this.txManager, this.executionContextService) as this;
   }
 
-  async findByUserId(options: FindTransactionsOptions): Promise<StripeTransactionOutput[]> {
-    const conditions: SQL[] = [eq(this.table.userId, options.userId)];
+  async findByOwner(options: FindTransactionsOptions): Promise<StripeTransactionWithInitiator[]> {
+    const rows = await this.cursor
+      .select({ transaction: this.table, initiator: { id: Users.id, username: Users.username, email: Users.email } })
+      .from(this.table)
+      .leftJoin(Users, eq(Users.id, this.table.userId))
+      .where(this.whereAccessibleBy(this.#ownedWithin(options)))
+      .orderBy(desc(this.table.createdAt))
+      .limit(options.limit ?? 100)
+      .offset(options.offset ?? 0);
 
-    if (options.startDate) {
-      conditions.push(gte(this.table.createdAt, options.startDate));
-    }
+    return rows.map(({ transaction, initiator }) => ({ ...this.toOutput(transaction), initiatedBy: initiator }));
+  }
 
-    if (options.endDate) {
-      conditions.push(lte(this.table.createdAt, options.endDate));
-    }
-
-    if (options.status) {
-      conditions.push(eq(this.table.status, options.status));
-    }
-
-    const where = this.whereAccessibleBy(and(...conditions));
-
-    return this.toOutputList(
-      await this.cursor.query.StripeTransactions.findMany({
-        where,
-        limit: options.limit ?? 100,
-        offset: options.offset ?? 0,
-        orderBy: [desc(this.table.createdAt)]
-      })
+  #ownedWithin(options: Pick<FindTransactionsOptions, "owner" | "startDate" | "endDate" | "status">): SQL | undefined {
+    return and(
+      ownedBy(this.table, options.owner),
+      options.startDate && gte(this.table.createdAt, options.startDate),
+      options.endDate && lte(this.table.createdAt, options.endDate),
+      options.status && eq(this.table.status, options.status)
     );
   }
 
@@ -277,21 +277,11 @@ export class StripeTransactionRepository extends OrgScopedRepository<Table, Stri
     return !!match;
   }
 
-  async countByUserId(userId: string, options?: { startDate?: Date; endDate?: Date }): Promise<number> {
-    const conditions: SQL[] = [eq(this.table.userId, userId)];
-
-    if (options?.startDate) {
-      conditions.push(gte(this.table.createdAt, options.startDate));
-    }
-
-    if (options?.endDate) {
-      conditions.push(lte(this.table.createdAt, options.endDate));
-    }
-
+  async countByOwner(owner: BillingOwner, options?: { startDate?: Date; endDate?: Date }): Promise<number> {
     const [{ total }] = await this.cursor
       .select({ total: count() })
       .from(this.table)
-      .where(this.whereAccessibleBy(and(...conditions)));
+      .where(this.whereAccessibleBy(this.#ownedWithin({ owner, ...options })));
 
     return total;
   }

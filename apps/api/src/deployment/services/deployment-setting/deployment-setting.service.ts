@@ -6,6 +6,7 @@ import { singleton } from "tsyringe";
 
 import { AuthService } from "@src/auth/services/auth.service";
 import { FundDeploymentCommand } from "@src/billing/commands/fund-deployment.command";
+import { walletBillingTargetOf } from "@src/billing/lib/wallet-billing-target/wallet-billing-target";
 import { UserWalletRepository } from "@src/billing/repositories";
 import { WalletReloadJobService } from "@src/billing/services/wallet-reload-job/wallet-reload-job.service";
 import { isUniqueViolation } from "@src/core/repositories/base.repository";
@@ -83,7 +84,8 @@ export class DeploymentSettingService {
     const result = await this.withEstimatedTopUpAmount(setting);
 
     if (result.autoTopUpEnabled) {
-      await this.walletReloadJobService.scheduleImmediate({ userId: result.userId });
+      const ownerWallet = await this.#ownerWalletOf(result);
+      await this.walletReloadJobService.scheduleImmediate(ownerWallet ? walletBillingTargetOf(ownerWallet) : { userId: result.userId });
     }
 
     return result;

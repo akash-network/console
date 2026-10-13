@@ -666,6 +666,20 @@ describe(DeploymentSettingService.name, () => {
   });
 
   describe("create", () => {
+    it("schedules the immediate reload of a team's deployment by the team's wallet, whoever filed it", async () => {
+      const { service, deploymentSettingRepository, userWalletRepository, walletReloadJobService } = setup();
+      const input = { userId: faker.string.uuid(), dseq: faker.string.numeric(6) };
+      const teamWallet = createOrganizationWallet({ id: 42 });
+      deploymentSettingRepository.accessibleBy.mockReturnValue(deploymentSettingRepository);
+      deploymentSettingRepository.create.mockResolvedValue(createDeploymentSettingsOutput({ ...input, autoTopUpEnabled: true }));
+      deploymentSettingRepository.findOwnerWalletId.mockResolvedValue(teamWallet.id);
+      userWalletRepository.findById.mockResolvedValue(teamWallet);
+
+      await service.create(input);
+
+      expect(walletReloadJobService.scheduleImmediate).toHaveBeenCalledWith({ walletId: 42 });
+    });
+
     it("creates through the reconciling path and schedules an immediate wallet reload", async () => {
       const { service, deploymentSettingRepository, walletReloadJobService } = setup();
       const input = { userId: faker.string.uuid(), dseq: faker.string.numeric(6) };

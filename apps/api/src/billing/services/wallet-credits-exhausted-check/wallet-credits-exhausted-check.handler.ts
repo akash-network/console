@@ -1,6 +1,8 @@
 import { inject, singleton } from "tsyringe";
 
 import { WalletCreditsExhaustedCheck } from "@src/billing/events/wallet-credits-exhausted-check";
+import { notifyEach } from "@src/billing/lib/notify-each/notify-each";
+import { pickWalletBillingTarget, type WalletBillingTarget } from "@src/billing/lib/wallet-billing-target/wallet-billing-target";
 import { type UserWalletOutput, UserWalletRepository } from "@src/billing/repositories";
 import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import {
@@ -10,7 +12,6 @@ import {
 import { type CreateLogger, type JobHandler, type JobPayload, type JobPermissions, LOGGER_FACTORY } from "@src/core";
 import { NotificationService } from "@src/notifications/services/notification/notification.service";
 import { creditsExhaustedNotification } from "@src/notifications/services/notification-templates/credits-exhausted-notification";
-import type { UserOutput } from "@src/user/repositories";
 
 type SkipReason = CreditsWarningIneligibility | "credits_low_not_notified" | "already_notified";
 
@@ -42,41 +43,47 @@ export class WalletCreditsExhaustedCheckHandler implements JobHandler<WalletCred
   }
 
   async handle(payload: JobPayload<WalletCreditsExhaustedCheck>): Promise<void> {
-    const recipient = await this.creditsWarningRecipientService.find(payload.userId);
+    const target = pickWalletBillingTarget(payload);
+    const recipient = await this.creditsWarningRecipientService.find(target);
     if (recipient.err) {
-      this.#skip(recipient.val, payload.userId);
+      this.#skip(recipient.val, target);
       return;
     }
 
-    const { wallet, user } = recipient.val;
+    const { wallet, users } = recipient.val;
 
     if (!wallet.creditsLowNotifiedAt) {
-      this.#skip("credits_low_not_notified", payload.userId);
+      this.#skip("credits_low_not_notified", target);
       return;
     }
 
     if (wallet.creditsExhaustedNotifiedAt) {
-      this.#skip("already_notified", payload.userId);
+      this.#skip("already_notified", target);
       return;
     }
 
     const paymentLink = this.billingConfig.get("CONSOLE_WEB_PAYMENT_LINK");
 
-    await this.notificationService.createNotification(
-      creditsExhaustedNotification(user, {
-        firstClosingDseq: payload.firstClosingDseq,
-        unfundedDeploymentCount: payload.unfundedDeploymentCount,
-        firstClosureAt: payload.firstClosureAt,
-        paymentLink,
-        billingUrl: paymentLink.split("?")[0]
-      })
+    await notifyEach(
+      users,
+      user =>
+        this.notificationService.createNotification(
+          creditsExhaustedNotification(user, {
+            firstClosingDseq: payload.firstClosingDseq,
+            unfundedDeploymentCount: payload.unfundedDeploymentCount,
+            firstClosureAt: payload.firstClosureAt,
+            paymentLink,
+            billingUrl: paymentLink.split("?")[0]
+          })
+        ),
+      (user, error) => this.logger.error({ event: "CREDITS_EXHAUSTED_EMAIL_FAILED", ...target, recipientUserId: user.id, error })
     );
 
-    await this.#stampNotified(wallet, payload.userId);
+    await this.#stampNotified(wallet, target);
 
     this.logger.info({
       event: "CREDITS_EXHAUSTED_EMAIL_SENT",
-      userId: payload.userId,
+      ...target,
       firstClosingDseq: payload.firstClosingDseq,
       unfundedDeploymentCount: payload.unfundedDeploymentCount,
       firstClosureAt: payload.firstClosureAt
@@ -84,16 +91,16 @@ export class WalletCreditsExhaustedCheckHandler implements JobHandler<WalletCred
   }
 
   /** A failed stamp is logged instead of thrown, since a retry would resend the email the user already has. */
-  async #stampNotified(wallet: UserWalletOutput, userId: UserOutput["id"]): Promise<void> {
+  async #stampNotified(wallet: UserWalletOutput, target: WalletBillingTarget): Promise<void> {
     try {
       await this.userWalletRepository.updateById(wallet.id, { creditsExhaustedNotifiedAt: new Date() });
     } catch (error) {
-      this.logger.error({ event: "CREDITS_EXHAUSTED_NOTIFIED_STAMP_FAILED", userId, error });
+      this.logger.error({ event: "CREDITS_EXHAUSTED_NOTIFIED_STAMP_FAILED", ...target, error });
     }
   }
 
-  #skip(reason: SkipReason, userId: UserOutput["id"]): void {
-    const payload = { event: "CREDITS_EXHAUSTED_CHECK_SKIPPED", userId, reason };
+  #skip(reason: SkipReason, target: WalletBillingTarget): void {
+    const payload = { event: "CREDITS_EXHAUSTED_CHECK_SKIPPED", ...target, reason };
 
     if (UNEXPECTED_SKIP_REASONS.has(reason)) {
       this.logger.warn(payload);
