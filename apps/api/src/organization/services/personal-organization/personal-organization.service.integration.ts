@@ -70,7 +70,7 @@ describe(PersonalOrganizationService.name, () => {
 
       expect(counts).toEqual({ userWallets: 1, walletSettings: 1, paymentMethods: 1, stripeTransactions: 1, deploymentSettings: 1, apiKeys: 1, templates: 1 });
       expect(await readOrganizationIds(rows)).toEqual({
-        userWallets: { organizationId: organization.id },
+        userWallets: { organizationId: organization.id, createdByUserId: user.id },
         walletSettings: { organizationId: organization.id },
         paymentMethods: { organizationId: organization.id },
         stripeTransactions: { organizationId: organization.id },
@@ -79,7 +79,7 @@ describe(PersonalOrganizationService.name, () => {
         templates: { organizationId: organization.id, projectId: project?.id }
       });
       expect(await readOrganizationIds(strangerRows)).toEqual({
-        userWallets: { organizationId: null },
+        userWallets: { organizationId: null, createdByUserId: null },
         walletSettings: { organizationId: null },
         paymentMethods: { organizationId: null },
         stripeTransactions: { organizationId: null },
@@ -203,7 +203,7 @@ describe(PersonalOrganizationService.name, () => {
         .where(eq(resolveTable("Templates").id, rows.templates));
 
       return {
-        userWallets: { organizationId: userWallets.organizationId },
+        userWallets: { organizationId: userWallets.organizationId, createdByUserId: userWallets.createdByUserId },
         walletSettings: { organizationId: walletSettings.organizationId },
         paymentMethods: { organizationId: paymentMethods.organizationId },
         stripeTransactions: { organizationId: stripeTransactions.organizationId },

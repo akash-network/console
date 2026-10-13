@@ -20,21 +20,21 @@ export class CloseDeploymentHandler implements JobHandler<CloseDeployment> {
     private readonly activityService: ActivityService
   ) {}
 
-  requiresPermission({ userId }: JobPayload<CloseDeployment>): JobPermissions {
-    return [{ action: "sign", subject: "UserWallet", conditions: { userId } }];
+  requiresPermission({ userId, walletId }: JobPayload<CloseDeployment>): JobPermissions {
+    return [{ action: "sign", subject: "UserWallet", conditions: walletId === undefined ? { userId } : { id: walletId } }];
   }
 
   /** A close is safe to repeat, so every failure is retried and only the last attempt settles the activity as failed. */
-  async handle({ userId, dseq, activityId, batchId }: JobPayload<CloseDeployment>, job?: JobMeta): Promise<void> {
+  async handle({ userId, dseq, activityId, batchId, walletId }: JobPayload<CloseDeployment>, job?: JobMeta): Promise<void> {
     if (!(await this.activityService.isPending(activityId))) return;
 
-    await this.#close({ userId, dseq, activityId, batchId }, job);
+    await this.#close({ userId, dseq, activityId, batchId, walletId }, job);
     await this.activityService.settle(activityId, closedActivityOf({ userId, dseq, batchId }));
   }
 
-  async #close({ userId, dseq, activityId, batchId }: CloseDeployment["data"], job?: JobMeta): Promise<void> {
+  async #close({ userId, dseq, activityId, batchId, walletId }: CloseDeployment["data"], job?: JobMeta): Promise<void> {
     try {
-      const wallet = await this.walletReaderService.getWalletByUserId(userId);
+      const wallet = walletId === undefined ? await this.walletReaderService.getWalletByUserId(userId) : await this.walletReaderService.getWalletById(walletId);
       await this.deploymentWriterService.close(wallet, dseq);
     } catch (error) {
       if (isLastAttempt(job)) await this.activityService.settle(activityId, failedCloseActivityOf({ userId, dseq, batchId }, error));

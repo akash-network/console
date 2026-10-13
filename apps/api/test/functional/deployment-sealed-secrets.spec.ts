@@ -104,7 +104,8 @@ describe("Deployment sealed secrets", () => {
     vi.spyOn(blockHttpService, "getCurrentHeight").mockResolvedValue(faker.number.int({ min: 1000000, max: 10000000 }));
     vi.spyOn(userWalletRepository, "accessibleBy").mockReturnValue({
       findByUserId: async (id: string) => knownWallets[id],
-      findOneByUserId: async (id: string) => knownWallets[id][0]
+      findOneByUserId: async (id: string) => knownWallets[id][0],
+      findOneUsedBy: async (id: string) => knownWallets[id][0]
     } as unknown as UserWalletRepository);
     vi.spyOn(signerService, "executeDerivedDecodedTxByUserId").mockResolvedValue({
       code: 200,

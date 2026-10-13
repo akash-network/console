@@ -137,7 +137,7 @@ export class UnreachableProviderDeploymentsCloserService {
       return false;
     }
 
-    const setting = await this.deploymentSettingRepository.findOneBy({ userId: wallet.userId, dseq: deployment.dseq });
+    const setting = await this.deploymentSettingRepository.findOneOfWallet(wallet, deployment.dseq);
 
     if (setting?.closed) {
       this.logger.debug({

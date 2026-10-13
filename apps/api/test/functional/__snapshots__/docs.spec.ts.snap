@@ -8471,7 +8471,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                         "type": "number",
                       },
                       "inheritSecretsFrom": {
-                        "description": "Dseq of one of your own deployments whose stored secrets this deployment starts from, for redeploying an SDL without re-entering its values. The source may be closed. A name also present in \`sealedSecrets\` takes precedence over the inherited one.",
+                        "description": "Dseq of a deployment you can change, under the same owner as this one, whose stored secrets this deployment starts from, for redeploying an SDL without re-entering its values. The source may be closed. A name also present in \`sealedSecrets\` takes precedence over the inherited one.",
                         "pattern": "^0*[1-9]\\d*$",
                         "type": "string",
                       },
@@ -8651,7 +8651,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                 },
               },
             },
-            "description": "No deployment of yours matches \`inheritSecretsFrom\`. Deliberately says nothing about whether that deployment exists",
+            "description": "No deployment you can change matches \`inheritSecretsFrom\`. Deliberately says nothing about whether that deployment exists",
           },
           "409": {
             "content": {
@@ -19377,7 +19377,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                 },
               },
             },
-            "description": "Returns the summed price per block of the live leases of each of the user's deployments",
+            "description": "Returns the summed price per block of the live leases of each deployment of the wallet the request acts through, within the caller's projects",
           },
           "403": {
             "content": {
@@ -19407,7 +19407,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                 },
               },
             },
-            "description": "The user's wallet is not initialized yet",
+            "description": "The wallet is not initialized yet",
           },
           "404": {
             "content": {
@@ -19437,7 +19437,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                 },
               },
             },
-            "description": "The user has no wallet",
+            "description": "The request has no wallet to act through",
           },
         },
         "security": [

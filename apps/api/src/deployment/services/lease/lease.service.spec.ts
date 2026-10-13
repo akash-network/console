@@ -4,7 +4,7 @@ import createError from "http-errors";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
-import type { WalletInitialized } from "@src/billing/repositories";
+import type { PersonalWallet } from "@src/billing/repositories";
 import type { ManagedSignerService, RpcMessageService } from "@src/billing/services";
 import type { ChainErrorService } from "@src/billing/services/chain-error/chain-error.service";
 import type { WalletReaderService } from "@src/billing/services/wallet-reader/wallet-reader.service";
@@ -17,7 +17,7 @@ import { LeaseService } from "./lease.service";
 import { createAkashAddress } from "@test/seeders/akash-address.seeder";
 import { createBid } from "@test/seeders/bid.seeder";
 import { createLeaseApiResponse } from "@test/seeders/lease-api-response.seeder";
-import { createUserWallet } from "@test/seeders/user-wallet.seeder";
+import { createInitializedUserWallet } from "@test/seeders/user-wallet.seeder";
 
 const MANIFEST = '{"version":"v2","groups":[]}';
 const DERIVED_MANIFEST = '{"version":"v2","groups":[{"name":"derived"}]}';
@@ -89,6 +89,47 @@ describe(LeaseService.name, () => {
 
       expect(signerService.executeDerivedDecodedTxByUserId).not.toHaveBeenCalled();
       expect(providerService.sendManifest).not.toHaveBeenCalled();
+    });
+
+    it("checks each deployment against the caller's projects before reading its manifest, signing or sending anything", async () => {
+      const { service, signerService, providerService, leaseManifestService, leaseHttpService, wallet } = setup();
+      const lease = { dseq: "100", gseq: 1, oseq: 1, provider: createAkashAddress() };
+      signerService.filedUserIdOf.mockRejectedValue(createError(403, "outside", { errorCode: "project_forbidden" }));
+
+      await expect(service.createLeasesAndSendManifest({ leases: [lease], manifest: MANIFEST, userId: wallet.userId })).rejects.toMatchObject({
+        status: 403,
+        errorCode: "project_forbidden"
+      });
+
+      expect(signerService.filedUserIdOf).toHaveBeenCalledWith(wallet, wallet.userId, "100");
+      expect(leaseManifestService.deriveFor).not.toHaveBeenCalled();
+      expect(leaseHttpService.list).not.toHaveBeenCalled();
+      expect(signerService.executeDerivedDecodedTxByUserId).not.toHaveBeenCalled();
+      expect(providerService.sendManifest).not.toHaveBeenCalled();
+    });
+
+    it("also checks a deployment whose lease already exists, before its manifest is sent again", async () => {
+      const { service, signerService, providerService, leaseHttpService, wallet } = setup();
+      const lease = { dseq: "100", gseq: 1, oseq: 1, provider: createAkashAddress() };
+      leaseHttpService.list.mockResolvedValue({
+        leases: [createLeaseApiResponse({ owner: wallet.address, dseq: lease.dseq, state: "active" })],
+        pagination: { next_key: null, total: "1" }
+      });
+      signerService.filedUserIdOf.mockRejectedValue(createError(403, "outside"));
+
+      await expect(service.createLeasesAndSendManifest({ leases: [lease], manifest: MANIFEST, userId: wallet.userId })).rejects.toMatchObject({ status: 403 });
+
+      expect(providerService.sendManifest).not.toHaveBeenCalled();
+    });
+
+    it("sends the manifest the deployment's filed row holds", async () => {
+      const { service, signerService, leaseManifestService, wallet } = setup();
+      const lease = { dseq: "100", gseq: 1, oseq: 1, provider: createAkashAddress() };
+      signerService.filedUserIdOf.mockResolvedValue("filer-1");
+
+      await service.createLeasesAndSendManifest({ leases: [lease], manifest: MANIFEST, userId: wallet.userId });
+
+      expect(leaseManifestService.deriveFor).toHaveBeenCalledWith({ dseq: "100", userId: "filer-1" });
     });
 
     it("skips the check when the lease already exists, so a retry goes straight to the manifest", async () => {
@@ -435,10 +476,12 @@ describe(LeaseService.name, () => {
     return bid;
   }
 
-  function setup(input: { wallet?: WalletInitialized; derived?: string | null; bids?: (owner: string) => Bid[] } = {}) {
-    const wallet = input.wallet ?? (createUserWallet() as WalletInitialized);
+  function setup(input: { wallet?: PersonalWallet; derived?: string | null; bids?: (owner: string) => Bid[] } = {}) {
+    const wallet = input.wallet ?? createInitializedUserWallet();
 
     const signerService = mock<ManagedSignerService>();
+
+    signerService.filedUserIdOf.mockImplementation(async (_wallet, actingUserId) => actingUserId);
     const rpcMessageService = mock<RpcMessageService>();
     const providerService = mock<ProviderService>();
     const deploymentReaderService = mock<DeploymentReaderService>();

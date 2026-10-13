@@ -235,7 +235,7 @@ describe(TrialWorkloadProbeService.name, () => {
     );
     providerService.getLeaseStatus.mockResolvedValue(leaseStatus);
     const deploymentSettingRepository = mock<DeploymentSettingRepository>();
-    deploymentSettingRepository.findOneBy.mockResolvedValue(mock<DeploymentSettingsOutput>({ sdl: input.sdl ?? null }));
+    deploymentSettingRepository.findOneOfWallet.mockResolvedValue(mock<DeploymentSettingsOutput>({ sdl: input.sdl ?? null }));
     const shellProbeService = mock<ProviderShellProbeService>();
     shellProbeService.run.mockResolvedValue({ evidence: "", ...(input.shell ?? { status: "completed", output: "--loadavg\n0.10" }) });
     const logTailService = mock<ProviderLogTailService>();

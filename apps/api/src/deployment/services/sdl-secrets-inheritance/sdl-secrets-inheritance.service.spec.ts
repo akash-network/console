@@ -14,6 +14,7 @@ import { SECRET_UNREADABLE_ERROR_CODE, SECRET_UNREADABLE_ERROR_MESSAGE } from "@
 import { SdlSecretsInheritanceService } from "./sdl-secrets-inheritance.service";
 
 const SOURCE = { userId: "user-1", dseq: "1420000000001" };
+const REQUEST = { wallet: { userId: SOURCE.userId, organizationId: null }, dseq: SOURCE.dseq };
 const TOKEN = "stored.token.aaa.bbb.ccc";
 
 describe(SdlSecretsInheritanceService.name, () => {
@@ -21,57 +22,78 @@ describe(SdlSecretsInheritanceService.name, () => {
     const carried = { TOKEN: faker.string.alphanumeric(32) };
     const { service } = setup({ opened: carried });
 
-    await expect(service.open(SOURCE)).resolves.toEqual(carried);
+    await expect(service.open(REQUEST)).resolves.toEqual(carried);
   });
 
   it("opens the token the source row holds, under the source's own key", async () => {
     const { service, sdlSecretsService } = setup();
 
-    await service.open(SOURCE);
+    await service.open(REQUEST);
 
     expect(sdlSecretsService.openStored).toHaveBeenCalledWith({ ...SOURCE, sealedSecrets: TOKEN });
   });
 
-  it("reads the source through the caller's own ability as well as their id", async () => {
+  it("finds the source through the wallet that owns it, only where the caller may change it", async () => {
     const { service, deploymentSettingRepository, scoped, ability } = setup();
 
-    await service.open(SOURCE);
+    await service.open(REQUEST);
 
-    expect(deploymentSettingRepository.accessibleBy).toHaveBeenCalledWith(ability, "read");
-    expect(scoped.findOneBy).toHaveBeenCalledWith(SOURCE);
+    expect(deploymentSettingRepository.accessibleBy).toHaveBeenCalledWith(ability, "update");
+    expect(scoped.findOneOfWallet).toHaveBeenCalledWith(REQUEST.wallet, SOURCE.dseq);
+  });
+
+  it("opens an organization's source under the member it was filed by", async () => {
+    const { service, sdlSecretsService } = setup({ setting: mock<DeploymentSettingsOutput>({ sealedSecrets: TOKEN, userId: "filer-1" }) });
+
+    await service.open({ wallet: { userId: null, organizationId: "organization-1" }, dseq: SOURCE.dseq });
+
+    expect(sdlSecretsService.openStored).toHaveBeenCalledWith({ userId: "filer-1", dseq: SOURCE.dseq, sealedSecrets: TOKEN });
   });
 
   it("inherits from a closed deployment, because closing a deployment keeps its secrets", async () => {
     const carried = { TOKEN: faker.string.alphanumeric(32) };
     const { service } = setup({ setting: mock<DeploymentSettingsOutput>({ sealedSecrets: TOKEN, closed: true }), opened: carried });
 
-    await expect(service.open(SOURCE)).resolves.toEqual(carried);
+    await expect(service.open(REQUEST)).resolves.toEqual(carried);
   });
 
   it("inherits from a deployment the console recorded no sdl for, needing only its token", async () => {
     const carried = { TOKEN: faker.string.alphanumeric(32) };
     const { service } = setup({ setting: mock<DeploymentSettingsOutput>({ sealedSecrets: TOKEN, sdl: null }), opened: carried });
 
-    await expect(service.open(SOURCE)).resolves.toEqual(carried);
+    await expect(service.open(REQUEST)).resolves.toEqual(carried);
   });
 
   describe("a source the caller cannot reach", () => {
     it("answers not found", async () => {
       const { service } = setup({ setting: undefined });
 
-      await expect(service.open(SOURCE)).rejects.toMatchObject({ status: 404 });
+      await expect(service.open(REQUEST)).rejects.toMatchObject({ status: 404 });
+    });
+
+    it("records which owner the source was looked up under", async () => {
+      const { service, logger } = setup({ setting: undefined });
+
+      await expect(service.open({ wallet: { userId: null, organizationId: "organization-1" }, dseq: SOURCE.dseq })).rejects.toMatchObject({ status: 404 });
+
+      expect(logger.warn).toHaveBeenCalledWith({
+        event: "SDL_SECRETS_INHERIT_SOURCE_NOT_FOUND",
+        userId: null,
+        organizationId: "organization-1",
+        dseq: SOURCE.dseq
+      });
     });
 
     it("says nothing about whether the deployment exists", async () => {
       const { service } = setup({ setting: undefined });
 
-      await expect(service.open(SOURCE)).rejects.toMatchObject({ message: "No deployment was found to inherit secrets from" });
+      await expect(service.open(REQUEST)).rejects.toMatchObject({ message: "No deployment was found to inherit secrets from" });
     });
 
     it("spends no key-service call on it", async () => {
       const { service, sdlSecretsService } = setup({ setting: undefined });
 
-      await expect(service.open(SOURCE)).rejects.toThrow();
+      await expect(service.open(REQUEST)).rejects.toThrow();
       expect(sdlSecretsService.openStored).not.toHaveBeenCalled();
     });
   });
@@ -80,21 +102,21 @@ describe(SdlSecretsInheritanceService.name, () => {
     it("inherits nothing rather than refusing, so an unanswered reference is reported by name instead", async () => {
       const { service } = setup({ setting: mock<DeploymentSettingsOutput>({ sealedSecrets: null }) });
 
-      await expect(service.open(SOURCE)).resolves.toEqual({});
+      await expect(service.open(REQUEST)).resolves.toEqual({});
     });
 
     it("does not reach the key service", async () => {
       const { service, sdlSecretsService } = setup({ setting: mock<DeploymentSettingsOutput>({ sealedSecrets: null }) });
 
-      await service.open(SOURCE);
+      await service.open(REQUEST);
 
       expect(sdlSecretsService.openStored).not.toHaveBeenCalled();
     });
 
     it("records that it found nothing, so a silent no-op is distinguishable from a working inherit", async () => {
-      const { service, logger } = setup({ setting: mock<DeploymentSettingsOutput>({ sealedSecrets: null }) });
+      const { service, logger } = setup({ setting: mock<DeploymentSettingsOutput>({ sealedSecrets: null, userId: SOURCE.userId }) });
 
-      await service.open(SOURCE);
+      await service.open(REQUEST);
 
       expect(logger.info).toHaveBeenCalledWith({ event: "SDL_SECRETS_INHERIT_SOURCE_HAS_NO_SECRETS", ...SOURCE });
     });
@@ -104,19 +126,19 @@ describe(SdlSecretsInheritanceService.name, () => {
     it("answers conflict rather than the server error the cipher raised", async () => {
       const { service } = setup({ openStoredError: unreadableTokenError() });
 
-      await expect(service.open(SOURCE)).rejects.toMatchObject({ status: 409 });
+      await expect(service.open(REQUEST)).rejects.toMatchObject({ status: 409 });
     });
 
     it("carries a code that tells the failure apart from stored state of the deployment being created", async () => {
       const { service } = setup({ openStoredError: unreadableTokenError() });
 
-      await expect(service.open(SOURCE)).rejects.toMatchObject({ errorCode: "inherited_secrets_unreadable" });
+      await expect(service.open(REQUEST)).rejects.toMatchObject({ errorCode: "inherited_secrets_unreadable" });
     });
 
     it("explains that the secrets can no longer be decrypted", async () => {
       const { service } = setup({ openStoredError: unreadableTokenError() });
 
-      await expect(service.open(SOURCE)).rejects.toMatchObject({
+      await expect(service.open(REQUEST)).rejects.toMatchObject({
         message: "The secrets recorded for the deployment being inherited from can no longer be decrypted"
       });
     });
@@ -125,7 +147,7 @@ describe(SdlSecretsInheritanceService.name, () => {
       const cause = unreadableTokenError();
       const { service, logger } = setup({ openStoredError: cause });
 
-      await expect(service.open(SOURCE)).rejects.toThrow();
+      await expect(service.open(REQUEST)).rejects.toThrow();
       expect(logger.error).toHaveBeenCalledWith({ event: "SDL_SECRETS_INHERIT_TOKEN_UNREADABLE", ...SOURCE, error: cause });
     });
 
@@ -133,7 +155,7 @@ describe(SdlSecretsInheritanceService.name, () => {
       const cause = unreadableTokenError();
       const { service } = setup({ openStoredError: cause });
 
-      await expect(service.open(SOURCE)).rejects.toMatchObject({ cause });
+      await expect(service.open(REQUEST)).rejects.toMatchObject({ cause });
     });
   });
 
@@ -141,14 +163,14 @@ describe(SdlSecretsInheritanceService.name, () => {
     it("answers the same conflict, the caller's remedy being the same", async () => {
       const { service } = setup({ openStoredError: createError(500, SECRET_UNREADABLE_ERROR_MESSAGE) });
 
-      await expect(service.open(SOURCE)).rejects.toMatchObject({ status: 409, errorCode: "inherited_secrets_unreadable" });
+      await expect(service.open(REQUEST)).rejects.toMatchObject({ status: 409, errorCode: "inherited_secrets_unreadable" });
     });
 
     it("records it under its own event, so it can be told apart from a token beyond the data key", async () => {
       const cause = createError(500, SECRET_UNREADABLE_ERROR_MESSAGE);
       const { service, logger } = setup({ openStoredError: cause });
 
-      await expect(service.open(SOURCE)).rejects.toThrow();
+      await expect(service.open(REQUEST)).rejects.toThrow();
       expect(logger.error).toHaveBeenCalledWith({ event: "SDL_SECRETS_INHERIT_STATE_UNREADABLE", ...SOURCE, error: cause });
     });
   });
@@ -157,13 +179,13 @@ describe(SdlSecretsInheritanceService.name, () => {
     it("keeps the transient failure rather than reporting secrets that are gone", async () => {
       const { service } = setup({ openStoredError: createError(503, "Service temporarily unavailable") });
 
-      await expect(service.open(SOURCE)).rejects.toMatchObject({ status: 503 });
+      await expect(service.open(REQUEST)).rejects.toMatchObject({ status: 503 });
     });
 
     it("attaches no permanent code to it", async () => {
       const { service } = setup({ openStoredError: createError(503, "Service temporarily unavailable") });
 
-      await expect(service.open(SOURCE)).rejects.toSatisfy((error: { errorCode?: string }) => error.errorCode === undefined);
+      await expect(service.open(REQUEST)).rejects.toSatisfy((error: { errorCode?: string }) => error.errorCode === undefined);
     });
   });
 
@@ -172,13 +194,13 @@ describe(SdlSecretsInheritanceService.name, () => {
       const cause = new Error("connection terminated unexpectedly");
       const { service } = setup({ openStoredError: cause });
 
-      await expect(service.open(SOURCE)).rejects.toBe(cause);
+      await expect(service.open(REQUEST)).rejects.toBe(cause);
     });
 
     it("attaches no permanent code to it, so a pool blip is not read as undecryptable secrets", async () => {
       const { service } = setup({ openStoredError: new Error("connection terminated unexpectedly") });
 
-      await expect(service.open(SOURCE)).rejects.toSatisfy((error: { errorCode?: string; status?: number }) => !error.errorCode && !error.status);
+      await expect(service.open(REQUEST)).rejects.toSatisfy((error: { errorCode?: string; status?: number }) => !error.errorCode && !error.status);
     });
   });
 
@@ -186,7 +208,7 @@ describe(SdlSecretsInheritanceService.name, () => {
     const value = faker.string.alphanumeric(32);
     const { service, logger } = setup({ opened: { TOKEN: value } });
 
-    await service.open(SOURCE);
+    await service.open(REQUEST);
 
     expect(logger.info).toHaveBeenCalledWith({ event: "SDL_SECRETS_INHERITED", ...SOURCE, inheritedCount: 1 });
   });
@@ -195,7 +217,7 @@ describe(SdlSecretsInheritanceService.name, () => {
     const value = faker.string.alphanumeric(32);
     const { service, logger } = setup({ opened: { TOKEN: value } });
 
-    await service.open(SOURCE);
+    await service.open(REQUEST);
 
     expect(JSON.stringify(vi.mocked(logger.info).mock.calls)).not.toContain(value);
   });
@@ -205,10 +227,10 @@ describe(SdlSecretsInheritanceService.name, () => {
   }
 
   function setup(input?: { setting?: DeploymentSettingsOutput; opened?: SdlSecrets; openStoredError?: Error }) {
-    const setting = "setting" in (input ?? {}) ? input!.setting : mock<DeploymentSettingsOutput>({ sealedSecrets: TOKEN });
+    const setting = "setting" in (input ?? {}) ? input!.setting : mock<DeploymentSettingsOutput>({ sealedSecrets: TOKEN, userId: SOURCE.userId });
 
     const scoped = mock<DeploymentSettingRepository>();
-    scoped.findOneBy.mockResolvedValue(setting);
+    scoped.findOneOfWallet.mockResolvedValue(setting);
     const deploymentSettingRepository = mock<DeploymentSettingRepository>();
     deploymentSettingRepository.accessibleBy.mockReturnValue(scoped);
 

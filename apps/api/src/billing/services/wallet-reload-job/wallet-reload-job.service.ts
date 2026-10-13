@@ -174,7 +174,7 @@ export class WalletReloadJobService {
     }
 
     const wallet = await this.userWalletRepository.findOneBy({ id: input.walletId });
-    return wallet?.userId;
+    return wallet?.userId ?? undefined;
   }
 }
 

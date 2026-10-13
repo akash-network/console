@@ -15,49 +15,49 @@ import { createLeaseApiResponse } from "@test/seeders/lease-api-response.seeder"
 describe(DeploymentArchiveReaderService.name, () => {
   describe("list", () => {
     it("reads the page of closed deployments from the console's index in the order and at the offset asked for", async () => {
-      const { service, fallbackDeploymentReaderService, owner, userId } = setup();
+      const { service, fallbackDeploymentReaderService, owner, wallet } = setup();
 
-      await service.list({ owner, userId, skip: 25, limit: 10, reverse: true });
+      await service.list({ owner, wallet, skip: 25, limit: 10, reverse: true });
 
       expect(fallbackDeploymentReaderService.findClosedPage).toHaveBeenCalledWith({ owner, skip: 25, limit: 10, reverse: true, search: undefined });
     });
 
     it("returns the deployments of the page in the order the index gave them", async () => {
-      const { service, owner, userId } = setup({ dseqs: ["300", "200", "100"] });
+      const { service, owner, wallet } = setup({ dseqs: ["300", "200", "100"] });
 
-      const { deployments } = await service.list({ owner, userId, skip: 0, limit: 10, reverse: true });
+      const { deployments } = await service.list({ owner, wallet, skip: 0, limit: 10, reverse: true });
 
       expect(deployments.map(item => item.deployment.id.dseq)).toEqual(["300", "200", "100"]);
     });
 
     it("answers with the count of closed deployments the index gave alongside the page", async () => {
-      const { service, owner, userId } = setup({ dseqs: ["100"], total: 62 });
+      const { service, owner, wallet } = setup({ dseqs: ["100"], total: 62 });
 
-      const { total } = await service.list({ owner, userId, skip: 0, limit: 1, reverse: true });
+      const { total } = await service.list({ owner, wallet, skip: 0, limit: 1, reverse: true });
 
       expect(total).toBe(62);
     });
 
     it("reports another page while the count reaches past the pages read so far", async () => {
-      const { service, owner, userId } = setup({ dseqs: ["100"], total: 3 });
+      const { service, owner, wallet } = setup({ dseqs: ["100"], total: 3 });
 
-      const { hasMore } = await service.list({ owner, userId, skip: 1, limit: 1, reverse: true });
+      const { hasMore } = await service.list({ owner, wallet, skip: 1, limit: 1, reverse: true });
 
       expect(hasMore).toBe(true);
     });
 
     it("reports no further page once the pages read so far reach the count", async () => {
-      const { service, owner, userId } = setup({ dseqs: ["100"], total: 2 });
+      const { service, owner, wallet } = setup({ dseqs: ["100"], total: 2 });
 
-      const { hasMore } = await service.list({ owner, userId, skip: 1, limit: 1, reverse: true });
+      const { hasMore } = await service.list({ owner, wallet, skip: 1, limit: 1, reverse: true });
 
       expect(hasMore).toBe(false);
     });
 
     it("reads the leases of the whole page from the index in one read", async () => {
-      const { service, fallbackLeaseReaderService, owner, userId } = setup({ dseqs: ["100", "200"] });
+      const { service, fallbackLeaseReaderService, owner, wallet } = setup({ dseqs: ["100", "200"] });
 
-      await service.list({ owner, userId, skip: 0, limit: 10, reverse: true });
+      await service.list({ owner, wallet, skip: 0, limit: 10, reverse: true });
 
       expect(fallbackLeaseReaderService.findByDeployments).toHaveBeenCalledTimes(1);
       expect(fallbackLeaseReaderService.findByDeployments).toHaveBeenCalledWith({ owner, dseqs: ["100", "200"] });
@@ -66,9 +66,9 @@ describe(DeploymentArchiveReaderService.name, () => {
     it("gives each deployment the leases the index holds for it alone, and none to one it holds no lease for", async () => {
       const owner = createAkashAddress();
       const leases = [createLeaseApiResponse({ owner, dseq: "100", gseq: 1 }), createLeaseApiResponse({ owner, dseq: "100", gseq: 2 })];
-      const { service, userId } = setup({ owner, dseqs: ["100", "200"], leases });
+      const { service, wallet } = setup({ owner, dseqs: ["100", "200"], leases });
 
-      const { deployments } = await service.list({ owner, userId, skip: 0, limit: 10, reverse: true });
+      const { deployments } = await service.list({ owner, wallet, skip: 0, limit: 10, reverse: true });
 
       expect(deployments.map(item => item.leases.map(lease => lease.id.gseq))).toEqual([[1, 2], []]);
     });
@@ -78,53 +78,53 @@ describe(DeploymentArchiveReaderService.name, () => {
       const lease = createLeaseApiResponse({ owner, dseq: "100" });
       const offeredGpus = { gpus: [], recordedAt: "2026-09-21T09:00:00.000Z" };
       const leaseGpus = new Map([["100", new Map([[`${lease.lease.id.gseq}/${lease.lease.id.oseq}/${lease.lease.id.provider}`, { offeredGpus }]])]]);
-      const { service, leaseGpuService, userId } = setup({ owner, dseqs: ["100"], leases: [lease], leaseGpus });
+      const { service, leaseGpuService, wallet } = setup({ owner, dseqs: ["100"], leases: [lease], leaseGpus });
 
-      const { deployments } = await service.list({ owner, userId, skip: 0, limit: 10, reverse: true });
+      const { deployments } = await service.list({ owner, wallet, skip: 0, limit: 10, reverse: true });
 
-      expect(leaseGpuService.findForDeployments).toHaveBeenCalledWith({ userId, dseqs: ["100"] });
+      expect(leaseGpuService.findForDeployments).toHaveBeenCalledWith({ wallet, dseqs: ["100"] });
       expect(deployments[0].leases[0]).toMatchObject({ offeredGpus });
     });
 
     it("returns what the console holds about each listed deployment, read under the caller's own ability and user id", async () => {
-      const { service, deploymentSettingRepository, scopedDeploymentSettingRepository, authService, owner, userId } = setup({
+      const { service, deploymentSettingRepository, scopedDeploymentSettingRepository, authService, owner, wallet } = setup({
         dseqs: ["100", "200"],
         settings: { "100": { name: "web" } }
       });
 
-      const { deployments } = await service.list({ owner, userId, skip: 0, limit: 10, reverse: true });
+      const { deployments } = await service.list({ owner, wallet, skip: 0, limit: 10, reverse: true });
 
       expect(deploymentSettingRepository.accessibleBy).toHaveBeenCalledWith(authService.ability, "read");
-      expect(scopedDeploymentSettingRepository.findListedSettings).toHaveBeenCalledWith({ userId, dseqs: ["100", "200"] });
+      expect(scopedDeploymentSettingRepository.findListedSettings).toHaveBeenCalledWith({ wallet, dseqs: ["100", "200"] });
       expect(deployments.map(item => item.name)).toEqual(["web", null]);
       expect(deployments[0].settings).toMatchObject({ name: "web" });
       expect(deployments[1].settings).toBeNull();
     });
 
     it("reads no names to search by when the caller searches for nothing", async () => {
-      const { service, scopedDeploymentSettingRepository, owner, userId } = setup();
+      const { service, scopedDeploymentSettingRepository, owner, wallet } = setup();
 
-      await service.list({ owner, userId, skip: 0, limit: 10, reverse: true });
+      await service.list({ owner, wallet, skip: 0, limit: 10, reverse: true });
 
       expect(scopedDeploymentSettingRepository.findDseqsByNameContaining).not.toHaveBeenCalled();
     });
 
     it("looks the search up among the names of the caller's own deployments, under their ability, whatever case it was typed in", async () => {
-      const { service, deploymentSettingRepository, scopedDeploymentSettingRepository, authService, owner, userId } = setup();
+      const { service, deploymentSettingRepository, scopedDeploymentSettingRepository, authService, owner, wallet } = setup();
 
-      await service.list({ owner, userId, skip: 0, limit: 10, reverse: true, search: "WeB" });
+      await service.list({ owner, wallet, skip: 0, limit: 10, reverse: true, search: "WeB" });
 
       expect(deploymentSettingRepository.accessibleBy.mock.calls).toEqual([
         [authService.ability, "read"],
         [authService.ability, "read"]
       ]);
-      expect(scopedDeploymentSettingRepository.findDseqsByNameContaining).toHaveBeenCalledWith({ userId, text: "web" });
+      expect(scopedDeploymentSettingRepository.findDseqsByNameContaining).toHaveBeenCalledWith({ wallet, text: "web" });
     });
 
     it("asks the index for the closed deployments whose dseq contains the search or whose name matched it", async () => {
-      const { service, fallbackDeploymentReaderService, owner, userId } = setup({ namedDseqs: ["123", "456"] });
+      const { service, fallbackDeploymentReaderService, owner, wallet } = setup({ namedDseqs: ["123", "456"] });
 
-      await service.list({ owner, userId, skip: 0, limit: 10, reverse: false, search: "WeB" });
+      await service.list({ owner, wallet, skip: 0, limit: 10, reverse: false, search: "WeB" });
 
       expect(fallbackDeploymentReaderService.findClosedPage).toHaveBeenCalledWith({
         owner,
@@ -148,7 +148,7 @@ describe(DeploymentArchiveReaderService.name, () => {
     } = {}
   ) {
     const owner = input.owner ?? createAkashAddress();
-    const userId = "user-id";
+    const wallet = { userId: "user-id", organizationId: null };
     const dseqs = input.dseqs ?? [];
     const fallbackDeploymentReaderService = mock<FallbackDeploymentReaderService>({
       findClosedPage: vi.fn().mockResolvedValue({
@@ -189,7 +189,7 @@ describe(DeploymentArchiveReaderService.name, () => {
     return {
       service,
       owner,
-      userId,
+      wallet,
       fallbackDeploymentReaderService,
       fallbackLeaseReaderService,
       deploymentSettingRepository,

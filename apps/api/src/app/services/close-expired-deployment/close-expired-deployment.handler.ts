@@ -79,7 +79,8 @@ export class CloseExpiredDeploymentHandler implements JobHandler<CloseExpiredDep
       return;
     }
 
-    const wallet = await this.userWalletRepository.findOneByUserId(userId);
+    const walletId = await this.deploymentSettingRepository.findOwnerWalletId(setting.id);
+    const wallet = walletId === undefined ? undefined : await this.userWalletRepository.findById(walletId);
 
     if (!wallet?.address) {
       this.logger.warn({ event: "EXPIRED_DEPLOYMENT_WALLET_NOT_INITIALIZED", deploymentSettingId, dseq, userId });

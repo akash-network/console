@@ -31,7 +31,7 @@ export type WeeklyBurnSource = Pick<DrainingDeployment, "blockRate"> & Partial<P
 export type AutoTopUpOwnerDeployments = {
   address: string;
   walletId: number;
-  userId: string;
+  userId: string | null;
   autoReloadEnabled: boolean;
   isTrialing: boolean;
   creditsLowNotifiedAt: Date | null;
@@ -78,7 +78,7 @@ export class DrainingDeploymentService {
       yield {
         address,
         walletId,
-        userId: deploymentSettings[0].userId,
+        userId: deploymentSettings[0].walletUserId,
         autoReloadEnabled: deploymentSettings[0].isWalletAutoTopUpEnabled,
         isTrialing: deploymentSettings[0].walletIsTrialing,
         creditsLowNotifiedAt: deploymentSettings[0].walletCreditsLowNotifiedAt,
@@ -262,22 +262,9 @@ export class DrainingDeploymentService {
     return currentHeight + averageBlockCountInAnHour * hoursUntilRuntimeEnds;
   }
 
-  /**
-   * Estimates what a single automatic funding event costs for a specific deployment and user.
-   * Looks up the user's wallet and lease, then reports the steady-state per-event amount.
-   *
-   * @param dseq - Deployment sequence number
-   * @param userId - User ID to look up wallet for
-   * @returns Estimated top-up amount in credits, or 0 if user wallet or deployment not found
-   */
-  async calculateTopUpAmountForDseqAndUserId(dseq: string, userId: string): Promise<number> {
-    const userWallet = await this.userWalletRepository.findOneByUserId(userId);
-
-    if (!userWallet) {
-      return 0;
-    }
-
-    const deploymentSetting = await this.leaseRepository.findOneByDseqAndOwner(dseq, userWallet.address!);
+  /** What a single automatic funding event costs for one deployment of an owner, or 0 when the owner holds no such deployment. */
+  async calculateTopUpAmountForDseqAndOwner(dseq: string, owner: string): Promise<number> {
+    const deploymentSetting = await this.leaseRepository.findOneByDseqAndOwner(dseq, owner);
 
     if (!deploymentSetting) {
       return 0;
@@ -424,7 +411,7 @@ export class DrainingDeploymentService {
 
   /** CASL scopes only the wallet lookup; the coverage query below is unscoped, which the already-proven-owned address makes safe. */
   async calculateWeeklyDeploymentCost(userId: string, ability: AnyAbility): Promise<number> {
-    const userWallet = await this.userWalletRepository.accessibleBy(ability, "read").findOneByUserId(userId);
+    const userWallet = await this.userWalletRepository.accessibleBy(ability, "read").findOneUsedBy(userId);
 
     if (!userWallet?.address) {
       return 0;

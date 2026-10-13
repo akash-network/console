@@ -13,7 +13,9 @@ import { DeploymentConfigService } from "@src/deployment/services/deployment-con
 import { DeploymentWriterService } from "@src/deployment/services/deployment-writer/deployment-writer.service";
 import { CloseExpiredDeploymentHandler } from "./close-expired-deployment.handler";
 
+import { createAkashAddress } from "@test/seeders/akash-address.seeder";
 import { seedDeploymentSetting } from "@test/seeders/db/deployment-setting.seeder";
+import { seedOrganizationMember, seedOrganizationWithOwner } from "@test/seeders/db/organization.seeder";
 import { seedUserWithWallet } from "@test/seeders/db/user-with-wallet.seeder";
 import { expectJobCompleted, findJobRows, useJobWorkers } from "@test/services/job-queue-harness";
 
@@ -33,6 +35,15 @@ describe(CloseExpiredDeploymentHandler.name, () => {
     await closeExpired();
 
     expect(close).toHaveBeenCalledWith(expect.objectContaining({ address: expect.any(String) }), dseq);
+    expect((await findSetting()).closed).toBe(true);
+  });
+
+  it("closes a team deployment a member created with the organization's wallet", async () => {
+    const { dseq, closeExpired, close, findSetting, teamWallet } = await setup({ inTeam: true });
+
+    await closeExpired();
+
+    expect(close).toHaveBeenCalledWith(expect.objectContaining({ id: teamWallet!.id, address: teamWallet!.address }), dseq);
     expect((await findSetting()).closed).toBe(true);
   });
 
@@ -93,15 +104,17 @@ describe(CloseExpiredDeploymentHandler.name, () => {
     expect(await findPendingCloseJob()).toBeDefined();
   });
 
-  async function setup(input: { runtimeEndsAt?: Date | null; closed?: boolean; address?: string | null; dryRun?: "true" | "false" } = {}) {
+  async function setup(input: { runtimeEndsAt?: Date | null; closed?: boolean; address?: string | null; dryRun?: "true" | "false"; inTeam?: boolean } = {}) {
     const { enqueue, startWorkers } = await jobWorkers();
     const db = container.resolve<ApiPgDatabase>(POSTGRES_DB);
     const deploymentSettingsTable = resolveTable("DeploymentSettings");
 
     const { user } = await seedUserWithWallet({ ...(input.address === null ? { address: null } : {}) });
+    const teamWallet = input.inTeam ? await seedTeamWalletFor(user.id) : undefined;
     const runtimeEndsAt = input.runtimeEndsAt === undefined ? new Date(Date.now() - 60_000) : input.runtimeEndsAt;
     const setting = await seedDeploymentSetting({
       userId: user.id,
+      organizationId: teamWallet?.organizationId,
       runtimeLimitHours: 1,
       runtimeEndsAt,
       closed: input.closed ?? false
@@ -117,6 +130,7 @@ describe(CloseExpiredDeploymentHandler.name, () => {
 
     return {
       dseq: setting.dseq,
+      teamWallet,
       runtimeEndsAt: runtimeEndsAt as Date,
       close,
       findSetting: async () => {
@@ -135,5 +149,17 @@ describe(CloseExpiredDeploymentHandler.name, () => {
         await expectJobCompleted(CloseExpiredDeploymentCommand[JOB_NAME], { singletonKey, state: "completed" });
       }
     };
+  }
+
+  async function seedTeamWalletFor(memberId: string) {
+    const { organization } = await seedOrganizationWithOwner();
+    await seedOrganizationMember({ organizationId: organization.id, userId: memberId });
+    const [wallet] = await container
+      .resolve<ApiPgDatabase>(POSTGRES_DB)
+      .insert(resolveTable("UserWallets"))
+      .values({ userId: null, organizationId: organization.id, address: createAkashAddress(), isTrialing: false })
+      .returning();
+
+    return wallet;
   }
 });

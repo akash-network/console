@@ -225,7 +225,7 @@ describe(UnreachableProviderDeploymentsNotifierService.name, () => {
     );
 
     const deploymentSettingRepository = mock<DeploymentSettingRepository>();
-    deploymentSettingRepository.findOneBy.mockResolvedValue(input.setting);
+    deploymentSettingRepository.findOneOfWallet.mockResolvedValue(input.setting);
     deploymentSettingRepository.claimProviderUnreachableNotification.mockResolvedValue(input.claimed ?? true);
 
     const userRepository = mock<UserRepository>();

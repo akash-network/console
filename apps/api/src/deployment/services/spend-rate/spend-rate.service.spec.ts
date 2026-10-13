@@ -2,6 +2,7 @@ import createError from "http-errors";
 import { describe, expect, it } from "vitest";
 import { mock } from "vitest-mock-extended";
 
+import type { ManagedSignerService } from "@src/billing/services/managed-signer/managed-signer.service";
 import type { WalletReaderService } from "@src/billing/services/wallet-reader/wallet-reader.service";
 import type { LeaseRepository, LivePricePerDeployment } from "@src/deployment/repositories/lease/lease.repository";
 import { SpendRateService } from "./spend-rate.service";
@@ -47,7 +48,7 @@ describe(SpendRateService.name, () => {
 
       await service.findByUserId(wallet.userId);
 
-      expect(walletReaderService.getWalletByUserId).toHaveBeenCalledExactlyOnceWith(wallet.userId);
+      expect(walletReaderService.getReadableWalletByUserId).toHaveBeenCalledExactlyOnceWith(wallet.userId);
       expect(leaseRepository.sumLivePricesPerDeployment).toHaveBeenCalledExactlyOnceWith(wallet.address);
     });
 
@@ -59,24 +60,41 @@ describe(SpendRateService.name, () => {
       expect(spendRate).toEqual([]);
     });
 
+    it("leaves out deployments outside the caller's projects", async () => {
+      const { service, wallet, signerService } = setup({
+        livePrices: [
+          { dseq: "1", denom: "uact", price: 1 },
+          { dseq: "2", denom: "uact", price: 2 }
+        ],
+        visibleDseqs: ["2"]
+      });
+
+      const rates = await service.findByUserId(wallet.userId);
+
+      expect(signerService.filterDeploymentsInProjectScope).toHaveBeenCalledWith(wallet, ["1", "2"], "read");
+      expect(rates.map(({ dseq }) => dseq)).toEqual(["2"]);
+    });
+
     it("refuses a user without a wallet before reading any lease", async () => {
       const { service, wallet, walletReaderService, leaseRepository } = setup();
-      walletReaderService.getWalletByUserId.mockRejectedValue(createError(404, "UserWallet Not Found"));
+      walletReaderService.getReadableWalletByUserId.mockRejectedValue(createError(404, "UserWallet Not Found"));
 
       await expect(service.findByUserId(wallet.userId)).rejects.toMatchObject({ status: 404 });
       expect(leaseRepository.sumLivePricesPerDeployment).not.toHaveBeenCalled();
     });
   });
 
-  function setup(input: { livePrices?: LivePricePerDeployment[] } = {}) {
+  function setup(input: { livePrices?: LivePricePerDeployment[]; visibleDseqs?: string[] } = {}) {
     const wallet = createInitializedUserWallet();
     const walletReaderService = mock<WalletReaderService>();
-    walletReaderService.getWalletByUserId.mockResolvedValue(wallet);
+    walletReaderService.getReadableWalletByUserId.mockResolvedValue(wallet);
     const leaseRepository = mock<LeaseRepository>();
     leaseRepository.sumLivePricesPerDeployment.mockResolvedValue(input.livePrices ?? []);
+    const signerService = mock<ManagedSignerService>();
+    signerService.filterDeploymentsInProjectScope.mockImplementation(async (_wallet, dseqs) => input.visibleDseqs ?? [...dseqs]);
 
-    const service = new SpendRateService(walletReaderService, leaseRepository);
+    const service = new SpendRateService(walletReaderService, leaseRepository, signerService);
 
-    return { service, wallet, walletReaderService, leaseRepository };
+    return { service, wallet, walletReaderService, leaseRepository, signerService };
   }
 });

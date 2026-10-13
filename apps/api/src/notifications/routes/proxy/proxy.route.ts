@@ -31,7 +31,7 @@ export const createProxy =
     const userId = authService.currentUser.id;
     headers[NOTIFICATIONS_IDENTITY_HEADERS.userId] = userId;
 
-    const userWallet = await userWalletRepository.findOneByUserId(userId);
+    const userWallet = await userWalletRepository.findOneUsedBy(userId);
 
     assert(userWallet, 403, "User does not have a managed wallet");
 

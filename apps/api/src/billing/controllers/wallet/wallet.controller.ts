@@ -43,7 +43,7 @@ export class WalletController {
 
     if (!currentAddress) {
       const { currentUser, ability } = this.authService;
-      const userWallet = await this.userWalletRepository.accessibleBy(ability, "read").findOneByUserId(currentUser.id);
+      const userWallet = await this.userWalletRepository.accessibleBy(ability, "read").findOneUsedBy(currentUser.id);
       assert(userWallet?.address, 404, "UserWallet Not Found");
       currentAddress = userWallet.address;
     }

@@ -7,6 +7,7 @@ import { container } from "tsyringe";
 import { describe, expect, it } from "vitest";
 
 import { AbilityService } from "@src/auth/services/ability/ability.service";
+import { UserWalletRepository } from "@src/billing/repositories";
 import type { ApiPgDatabase } from "@src/core";
 import { POSTGRES_DB, resolveTable } from "@src/core";
 import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
@@ -20,6 +21,7 @@ import { DeploymentSettingRepository } from "./deployment-setting.repository";
 import { createAkashAddress } from "@test/seeders/akash-address.seeder";
 import { seedDeploymentSetting } from "@test/seeders/db/deployment-setting.seeder";
 import { seedOrganizationMember, seedOrganizationWithOwner, seedProject } from "@test/seeders/db/organization.seeder";
+import { seedUser, seedUserWithWallet } from "@test/seeders/db/user-with-wallet.seeder";
 import { createLeaseGpuOffer } from "@test/seeders/lease-gpu-offer.seeder";
 import { createLeaseGpuReading } from "@test/seeders/lease-gpu-reading.seeder";
 import { createOrganizationContext } from "@test/seeders/organization-context.seeder";
@@ -125,7 +127,7 @@ describe(DeploymentSettingRepository.name, () => {
   describe("findOpenInProject and markAsClosedInProject", () => {
     it("read and close only the open rows of the project inside the organization they name", async () => {
       const deploymentSettingRepository = container.resolve(DeploymentSettingRepository);
-      const [tenant, foreign] = await Promise.all([seedOrganizationWithOwner(), seedOrganizationWithOwner()]);
+      const [tenant, foreign] = await Promise.all([seedOrganizationWithOwner({ type: "personal" }), seedOrganizationWithOwner()]);
       const address = createAkashAddress();
       await container
         .resolve<ApiPgDatabase>(POSTGRES_DB)
@@ -730,7 +732,9 @@ describe(DeploymentSettingRepository.name, () => {
       const limited = await createLimitedSetting(5);
       await deploymentSettingRepository.upsertName({ userId: user.id, dseq: limited.dseq, name: "web" });
 
-      const settings = await deploymentSettingRepository.accessibleBy(abilityFor(user), "read").findListedSettings({ userId: user.id, dseqs: [limited.dseq] });
+      const settings = await deploymentSettingRepository
+        .accessibleBy(abilityFor(user), "read")
+        .findListedSettings({ wallet: { userId: user.id, organizationId: null }, dseqs: [limited.dseq] });
 
       expect(settings.get(limited.dseq)).toEqual({
         name: "web",
@@ -744,7 +748,9 @@ describe(DeploymentSettingRepository.name, () => {
       const { deploymentSettingRepository, user, abilityFor } = await setup();
       const unrecorded = newDseq();
 
-      const settings = await deploymentSettingRepository.accessibleBy(abilityFor(user), "read").findListedSettings({ userId: user.id, dseqs: [unrecorded] });
+      const settings = await deploymentSettingRepository
+        .accessibleBy(abilityFor(user), "read")
+        .findListedSettings({ wallet: { userId: user.id, organizationId: null }, dseqs: [unrecorded] });
 
       expect(settings.has(unrecorded)).toBe(false);
     });
@@ -755,7 +761,9 @@ describe(DeploymentSettingRepository.name, () => {
       await deploymentSettingRepository.upsertDefinition({ userId: user.id, dseq, sdl: SDL, manifestVersion: "BAUG", name: "web" });
       await deploymentSettingRepository.upsertDefinition({ userId: trialUser.id, dseq, sdl: SDL, manifestVersion: "BAUG", name: "someone else's" });
 
-      const settings = await deploymentSettingRepository.accessibleBy(abilityFor(user), "read").findListedSettings({ userId: user.id, dseqs: [dseq] });
+      const settings = await deploymentSettingRepository
+        .accessibleBy(abilityFor(user), "read")
+        .findListedSettings({ wallet: { userId: user.id, organizationId: null }, dseqs: [dseq] });
 
       expect(settings.get(dseq)?.name).toBe("web");
     });
@@ -765,7 +773,9 @@ describe(DeploymentSettingRepository.name, () => {
       const dseq = newDseq();
       await deploymentSettingRepository.upsertDefinition({ userId: user.id, dseq, sdl: SDL, manifestVersion: "BAUG", name: "web" });
 
-      const settings = await deploymentSettingRepository.accessibleBy(abilityFor(trialUser), "read").findListedSettings({ userId: user.id, dseqs: [dseq] });
+      const settings = await deploymentSettingRepository
+        .accessibleBy(abilityFor(trialUser), "read")
+        .findListedSettings({ wallet: { userId: user.id, organizationId: null }, dseqs: [dseq] });
 
       expect(settings.size).toBe(0);
     });
@@ -773,7 +783,9 @@ describe(DeploymentSettingRepository.name, () => {
     it("issues no query at all for a page with no deployments on it", async () => {
       const { deploymentSettingRepository, user, abilityFor } = await setup();
 
-      const settings = await deploymentSettingRepository.accessibleBy(abilityFor(user), "read").findListedSettings({ userId: user.id, dseqs: [] });
+      const settings = await deploymentSettingRepository
+        .accessibleBy(abilityFor(user), "read")
+        .findListedSettings({ wallet: { userId: user.id, organizationId: null }, dseqs: [] });
 
       expect(settings.size).toBe(0);
     });
@@ -787,7 +799,9 @@ describe(DeploymentSettingRepository.name, () => {
       await deploymentSettingRepository.upsertDefinition({ userId: user.id, dseq: named, sdl: SDL, manifestVersion: "BAUG", name: "web" });
       await deploymentSettingRepository.upsertDefinition({ userId: user.id, dseq: alsoNamed, sdl: SDL, manifestVersion: "BAUG", name: "db+web" });
 
-      const names = await deploymentSettingRepository.accessibleBy(abilityFor(user), "read").findNamesByDseqs({ userId: user.id, dseqs: [named, alsoNamed] });
+      const names = await deploymentSettingRepository
+        .accessibleBy(abilityFor(user), "read")
+        .findNamesByDseqs({ wallet: { userId: user.id, organizationId: null }, dseqs: [named, alsoNamed] });
 
       expect(names.get(named)).toBe("web");
       expect(names.get(alsoNamed)).toBe("db+web");
@@ -798,7 +812,9 @@ describe(DeploymentSettingRepository.name, () => {
       const dseq = newDseq();
       await deploymentSettingRepository.upsertDefinition({ userId: user.id, dseq, sdl: SDL, manifestVersion: "BAUG" });
 
-      const names = await deploymentSettingRepository.accessibleBy(abilityFor(user), "read").findNamesByDseqs({ userId: user.id, dseqs: [dseq] });
+      const names = await deploymentSettingRepository
+        .accessibleBy(abilityFor(user), "read")
+        .findNamesByDseqs({ wallet: { userId: user.id, organizationId: null }, dseqs: [dseq] });
 
       expect(names.get(dseq)).toBeNull();
     });
@@ -807,7 +823,9 @@ describe(DeploymentSettingRepository.name, () => {
       const { deploymentSettingRepository, user, abilityFor } = await setup();
       const unrecorded = newDseq();
 
-      const names = await deploymentSettingRepository.accessibleBy(abilityFor(user), "read").findNamesByDseqs({ userId: user.id, dseqs: [unrecorded] });
+      const names = await deploymentSettingRepository
+        .accessibleBy(abilityFor(user), "read")
+        .findNamesByDseqs({ wallet: { userId: user.id, organizationId: null }, dseqs: [unrecorded] });
 
       expect(names.has(unrecorded)).toBe(false);
     });
@@ -818,7 +836,9 @@ describe(DeploymentSettingRepository.name, () => {
       await deploymentSettingRepository.upsertDefinition({ userId: user.id, dseq, sdl: SDL, manifestVersion: "BAUG", name: "web" });
       await deploymentSettingRepository.upsertDefinition({ userId: trialUser.id, dseq, sdl: SDL, manifestVersion: "BAUG", name: "someone else's" });
 
-      const names = await deploymentSettingRepository.accessibleBy(abilityFor(user), "read").findNamesByDseqs({ userId: user.id, dseqs: [dseq] });
+      const names = await deploymentSettingRepository
+        .accessibleBy(abilityFor(user), "read")
+        .findNamesByDseqs({ wallet: { userId: user.id, organizationId: null }, dseqs: [dseq] });
 
       expect(names.get(dseq)).toBe("web");
     });
@@ -828,7 +848,9 @@ describe(DeploymentSettingRepository.name, () => {
       const dseq = newDseq();
       await deploymentSettingRepository.upsertDefinition({ userId: user.id, dseq, sdl: SDL, manifestVersion: "BAUG", name: "web" });
 
-      const names = await deploymentSettingRepository.accessibleBy(abilityFor(trialUser), "read").findNamesByDseqs({ userId: user.id, dseqs: [dseq] });
+      const names = await deploymentSettingRepository
+        .accessibleBy(abilityFor(trialUser), "read")
+        .findNamesByDseqs({ wallet: { userId: user.id, organizationId: null }, dseqs: [dseq] });
 
       expect(names.size).toBe(0);
     });
@@ -836,7 +858,9 @@ describe(DeploymentSettingRepository.name, () => {
     it("issues no query at all for a page with no deployments on it", async () => {
       const { deploymentSettingRepository, user, abilityFor } = await setup();
 
-      const names = await deploymentSettingRepository.accessibleBy(abilityFor(user), "read").findNamesByDseqs({ userId: user.id, dseqs: [] });
+      const names = await deploymentSettingRepository
+        .accessibleBy(abilityFor(user), "read")
+        .findNamesByDseqs({ wallet: { userId: user.id, organizationId: null }, dseqs: [] });
 
       expect(names.size).toBe(0);
     });
@@ -850,7 +874,9 @@ describe(DeploymentSettingRepository.name, () => {
       await deploymentSettingRepository.upsertName({ userId: user.id, dseq: otherWeb, name: "webhooks" });
       await deploymentSettingRepository.upsertName({ userId: user.id, dseq: database, name: "database" });
 
-      const dseqs = await deploymentSettingRepository.accessibleBy(abilityFor(user), "read").findDseqsByNameContaining({ userId: user.id, text: "web" });
+      const dseqs = await deploymentSettingRepository
+        .accessibleBy(abilityFor(user), "read")
+        .findDseqsByNameContaining({ wallet: { userId: user.id, organizationId: null }, text: "web" });
 
       expect(dseqs.sort()).toEqual([web, otherWeb].sort());
     });
@@ -861,7 +887,9 @@ describe(DeploymentSettingRepository.name, () => {
       await deploymentSettingRepository.upsertName({ userId: user.id, dseq: discounted, name: "50%_off" });
       await deploymentSettingRepository.upsertName({ userId: user.id, dseq: plain, name: "500 off" });
 
-      const dseqs = await deploymentSettingRepository.accessibleBy(abilityFor(user), "read").findDseqsByNameContaining({ userId: user.id, text: "0%_" });
+      const dseqs = await deploymentSettingRepository
+        .accessibleBy(abilityFor(user), "read")
+        .findDseqsByNameContaining({ wallet: { userId: user.id, organizationId: null }, text: "0%_" });
 
       expect(dseqs).toEqual([discounted]);
     });
@@ -871,7 +899,9 @@ describe(DeploymentSettingRepository.name, () => {
       const unnamed = newDseq();
       await deploymentSettingRepository.upsertDefinition({ userId: user.id, dseq: unnamed, sdl: SDL, manifestVersion: "BAUG" });
 
-      const dseqs = await deploymentSettingRepository.accessibleBy(abilityFor(user), "read").findDseqsByNameContaining({ userId: user.id, text: "" });
+      const dseqs = await deploymentSettingRepository
+        .accessibleBy(abilityFor(user), "read")
+        .findDseqsByNameContaining({ wallet: { userId: user.id, organizationId: null }, text: "" });
 
       expect(dseqs).not.toContain(unnamed);
     });
@@ -881,7 +911,9 @@ describe(DeploymentSettingRepository.name, () => {
       const theirs = newDseq();
       await deploymentSettingRepository.upsertName({ userId: trialUser.id, dseq: theirs, name: "web" });
 
-      const dseqs = await deploymentSettingRepository.accessibleBy(abilityFor(user), "read").findDseqsByNameContaining({ userId: user.id, text: "web" });
+      const dseqs = await deploymentSettingRepository
+        .accessibleBy(abilityFor(user), "read")
+        .findDseqsByNameContaining({ wallet: { userId: user.id, organizationId: null }, text: "web" });
 
       expect(dseqs).toEqual([]);
     });
@@ -890,7 +922,9 @@ describe(DeploymentSettingRepository.name, () => {
       const { deploymentSettingRepository, user, trialUser, abilityFor } = await setup();
       await deploymentSettingRepository.upsertName({ userId: user.id, dseq: newDseq(), name: "web" });
 
-      const dseqs = await deploymentSettingRepository.accessibleBy(abilityFor(trialUser), "read").findDseqsByNameContaining({ userId: user.id, text: "web" });
+      const dseqs = await deploymentSettingRepository
+        .accessibleBy(abilityFor(trialUser), "read")
+        .findDseqsByNameContaining({ wallet: { userId: user.id, organizationId: null }, text: "web" });
 
       expect(dseqs).toEqual([]);
     });
@@ -906,7 +940,9 @@ describe(DeploymentSettingRepository.name, () => {
       await seedDeploymentSetting({ userId: user.id, dseq: read, detectedGpus: [reading] });
       await seedDeploymentSetting({ userId: user.id, dseq: offered, offeredGpus: [offer] });
 
-      const stored = await deploymentSettingRepository.accessibleBy(abilityFor(user), "read").findLeaseGpus({ userId: user.id, dseqs: [read, offered] });
+      const stored = await deploymentSettingRepository
+        .accessibleBy(abilityFor(user), "read")
+        .findLeaseGpus({ wallet: { userId: user.id, organizationId: null }, dseqs: [read, offered] });
 
       expect(stored).toEqual(
         new Map([
@@ -921,7 +957,9 @@ describe(DeploymentSettingRepository.name, () => {
       const unrecorded = newDseq();
       await seedDeploymentSetting({ userId: user.id, dseq: unrecorded });
 
-      const stored = await deploymentSettingRepository.accessibleBy(abilityFor(user), "read").findLeaseGpus({ userId: user.id, dseqs: [unrecorded] });
+      const stored = await deploymentSettingRepository
+        .accessibleBy(abilityFor(user), "read")
+        .findLeaseGpus({ wallet: { userId: user.id, organizationId: null }, dseqs: [unrecorded] });
 
       expect(stored.has(unrecorded)).toBe(false);
     });
@@ -933,7 +971,9 @@ describe(DeploymentSettingRepository.name, () => {
       await seedDeploymentSetting({ userId: user.id, dseq, detectedGpus: [reading] });
       await seedDeploymentSetting({ userId: trialUser.id, dseq, offeredGpus: [createLeaseGpuOffer()] });
 
-      const stored = await deploymentSettingRepository.accessibleBy(abilityFor(user), "read").findLeaseGpus({ userId: user.id, dseqs: [dseq] });
+      const stored = await deploymentSettingRepository
+        .accessibleBy(abilityFor(user), "read")
+        .findLeaseGpus({ wallet: { userId: user.id, organizationId: null }, dseqs: [dseq] });
 
       expect(stored.get(dseq)).toEqual({ readings: [reading], offers: [] });
     });
@@ -943,7 +983,9 @@ describe(DeploymentSettingRepository.name, () => {
       const dseq = newDseq();
       await seedDeploymentSetting({ userId: user.id, dseq, detectedGpus: [createLeaseGpuReading()], offeredGpus: [createLeaseGpuOffer()] });
 
-      const stored = await deploymentSettingRepository.accessibleBy(abilityFor(trialUser), "read").findLeaseGpus({ userId: user.id, dseqs: [dseq] });
+      const stored = await deploymentSettingRepository
+        .accessibleBy(abilityFor(trialUser), "read")
+        .findLeaseGpus({ wallet: { userId: user.id, organizationId: null }, dseqs: [dseq] });
 
       expect(stored.size).toBe(0);
     });
@@ -951,7 +993,9 @@ describe(DeploymentSettingRepository.name, () => {
     it("issues no query at all for a page with no deployments on it", async () => {
       const { deploymentSettingRepository, user, abilityFor } = await setup();
 
-      const stored = await deploymentSettingRepository.accessibleBy(abilityFor(user), "read").findLeaseGpus({ userId: user.id, dseqs: [] });
+      const stored = await deploymentSettingRepository
+        .accessibleBy(abilityFor(user), "read")
+        .findLeaseGpus({ wallet: { userId: user.id, organizationId: null }, dseqs: [] });
 
       expect(stored.size).toBe(0);
     });
@@ -1109,7 +1153,9 @@ describe(DeploymentSettingRepository.name, () => {
       const reading = createLeaseGpuReading();
       await seedDeploymentSetting({ userId: user.id, dseq });
 
-      await expect(deploymentSettingRepository.mergeGpuReadings({ userId: user.id, dseq, readings: [reading] })).resolves.toBe(true);
+      await expect(
+        deploymentSettingRepository.mergeGpuReadings({ wallet: { userId: user.id, organizationId: null }, dseq, readings: [reading] })
+      ).resolves.toBe(true);
 
       await expect(readGpuReadings(user.id, dseq)).resolves.toEqual([reading]);
     });
@@ -1122,7 +1168,7 @@ describe(DeploymentSettingRepository.name, () => {
       const rereadWeb = createLeaseGpuReading({ provider: "akash1provider", service: "web", driverVersion: "565.57.01" });
       await seedDeploymentSetting({ userId: user.id, dseq, detectedGpus: [web, worker] });
 
-      await deploymentSettingRepository.mergeGpuReadings({ userId: user.id, dseq, readings: [rereadWeb] });
+      await deploymentSettingRepository.mergeGpuReadings({ wallet: { userId: user.id, organizationId: null }, dseq, readings: [rereadWeb] });
 
       await expect(readGpuReadings(user.id, dseq)).resolves.toEqual([worker, rereadWeb]);
     });
@@ -1132,7 +1178,7 @@ describe(DeploymentSettingRepository.name, () => {
       const dseq = newDseq();
       await deploymentSettingRepository.upsertDefinition({ userId: user.id, dseq, sdl: SDL, manifestVersion: "BAUG" });
 
-      await deploymentSettingRepository.mergeGpuReadings({ userId: user.id, dseq, readings: [createLeaseGpuReading()] });
+      await deploymentSettingRepository.mergeGpuReadings({ wallet: { userId: user.id, organizationId: null }, dseq, readings: [createLeaseGpuReading()] });
 
       await expect(readDefinition(dseq)).resolves.toEqual({ sdl: SDL, manifestVersion: "BAUG", sealedSecrets: null });
     });
@@ -1143,7 +1189,7 @@ describe(DeploymentSettingRepository.name, () => {
       await seedDeploymentSetting({ userId: user.id, dseq });
       await seedDeploymentSetting({ userId: trialUser.id, dseq });
 
-      await deploymentSettingRepository.mergeGpuReadings({ userId: user.id, dseq, readings: [createLeaseGpuReading()] });
+      await deploymentSettingRepository.mergeGpuReadings({ wallet: { userId: user.id, organizationId: null }, dseq, readings: [createLeaseGpuReading()] });
 
       await expect(readGpuReadings(trialUser.id, dseq)).resolves.toBeNull();
     });
@@ -1152,7 +1198,9 @@ describe(DeploymentSettingRepository.name, () => {
       const { deploymentSettingRepository, user, db, deploymentSettingsTable } = await setup();
       const dseq = newDseq();
 
-      await expect(deploymentSettingRepository.mergeGpuReadings({ userId: user.id, dseq, readings: [createLeaseGpuReading()] })).resolves.toBe(false);
+      await expect(
+        deploymentSettingRepository.mergeGpuReadings({ wallet: { userId: user.id, organizationId: null }, dseq, readings: [createLeaseGpuReading()] })
+      ).resolves.toBe(false);
 
       const rows = await db
         .select({ id: deploymentSettingsTable.id })
@@ -1169,8 +1217,8 @@ describe(DeploymentSettingRepository.name, () => {
       await seedDeploymentSetting({ userId: user.id, dseq });
 
       await Promise.all([
-        deploymentSettingRepository.mergeGpuReadings({ userId: user.id, dseq, readings: [web] }),
-        deploymentSettingRepository.mergeGpuReadings({ userId: user.id, dseq, readings: [worker] })
+        deploymentSettingRepository.mergeGpuReadings({ wallet: { userId: user.id, organizationId: null }, dseq, readings: [web] }),
+        deploymentSettingRepository.mergeGpuReadings({ wallet: { userId: user.id, organizationId: null }, dseq, readings: [worker] })
       ]);
 
       const stored = await readGpuReadings(user.id, dseq);
@@ -1185,7 +1233,9 @@ describe(DeploymentSettingRepository.name, () => {
       const offer = createLeaseGpuOffer();
       await seedDeploymentSetting({ userId: user.id, dseq });
 
-      await expect(deploymentSettingRepository.mergeGpuOffers({ userId: user.id, dseq, offers: [offer] })).resolves.toBe(true);
+      await expect(deploymentSettingRepository.mergeGpuOffers({ wallet: { userId: user.id, organizationId: null }, dseq, offers: [offer] })).resolves.toBe(
+        true
+      );
 
       await expect(readGpuOffers(user.id, dseq)).resolves.toEqual([offer]);
     });
@@ -1198,7 +1248,7 @@ describe(DeploymentSettingRepository.name, () => {
       const firstAgain = createLeaseGpuOffer({ provider: "akash1provider", gseq: 1, recordedAt: "2026-09-26T10:00:00.000Z" });
       await seedDeploymentSetting({ userId: user.id, dseq, offeredGpus: [first, second] });
 
-      await deploymentSettingRepository.mergeGpuOffers({ userId: user.id, dseq, offers: [firstAgain] });
+      await deploymentSettingRepository.mergeGpuOffers({ wallet: { userId: user.id, organizationId: null }, dseq, offers: [firstAgain] });
 
       await expect(readGpuOffers(user.id, dseq)).resolves.toEqual([second, firstAgain]);
     });
@@ -1209,7 +1259,7 @@ describe(DeploymentSettingRepository.name, () => {
       const reading = createLeaseGpuReading();
       await seedDeploymentSetting({ userId: user.id, dseq, detectedGpus: [reading] });
 
-      await deploymentSettingRepository.mergeGpuOffers({ userId: user.id, dseq, offers: [createLeaseGpuOffer()] });
+      await deploymentSettingRepository.mergeGpuOffers({ wallet: { userId: user.id, organizationId: null }, dseq, offers: [createLeaseGpuOffer()] });
 
       await expect(readGpuReadings(user.id, dseq)).resolves.toEqual([reading]);
     });
@@ -1217,7 +1267,9 @@ describe(DeploymentSettingRepository.name, () => {
     it("reports a deployment the console holds no row for, rather than creating one", async () => {
       const { deploymentSettingRepository, user } = await setup();
 
-      await expect(deploymentSettingRepository.mergeGpuOffers({ userId: user.id, dseq: newDseq(), offers: [createLeaseGpuOffer()] })).resolves.toBe(false);
+      await expect(
+        deploymentSettingRepository.mergeGpuOffers({ wallet: { userId: user.id, organizationId: null }, dseq: newDseq(), offers: [createLeaseGpuOffer()] })
+      ).resolves.toBe(false);
     });
 
     it("keeps both the offers and the readings when the two writers land on the row at once", async () => {
@@ -1228,8 +1280,8 @@ describe(DeploymentSettingRepository.name, () => {
       await seedDeploymentSetting({ userId: user.id, dseq });
 
       await Promise.all([
-        deploymentSettingRepository.mergeGpuOffers({ userId: user.id, dseq, offers: [offer] }),
-        deploymentSettingRepository.mergeGpuReadings({ userId: user.id, dseq, readings: [reading] })
+        deploymentSettingRepository.mergeGpuOffers({ wallet: { userId: user.id, organizationId: null }, dseq, offers: [offer] }),
+        deploymentSettingRepository.mergeGpuReadings({ wallet: { userId: user.id, organizationId: null }, dseq, readings: [reading] })
       ]);
 
       await expect(readGpuOffers(user.id, dseq)).resolves.toEqual([offer]);
@@ -2198,6 +2250,158 @@ describe(DeploymentSettingRepository.name, () => {
       }
 
       return { deploymentSettingRepository, seedSecretsOwner, backdateUpdatedAt };
+    }
+  });
+
+  describe("when a deployment is filed in a team organization", () => {
+    it("funds the team deployment from the organization's wallet, never from the member's own", async () => {
+      const { deploymentSettingRepository, teamWallet, personalWallet, teamDeployment } = await setupTeamDeployment();
+
+      const fromTeam = await deploymentSettingRepository.findAutoTopUpDeploymentsByOwner(teamWallet.address!);
+      const fromMember = await deploymentSettingRepository.findAutoTopUpDeploymentsByOwner(personalWallet.address!);
+
+      expect(fromTeam).toEqual([
+        expect.objectContaining({ id: teamDeployment.id, walletId: teamWallet.id, address: teamWallet.address, walletIsTrialing: false })
+      ]);
+      expect(fromMember.map(deployment => deployment.id)).not.toContain(teamDeployment.id);
+    });
+
+    it("keeps funding the member's own deployments from the member's wallet", async () => {
+      const { deploymentSettingRepository, member, personalWallet } = await setupTeamDeployment();
+      const ownDeployment = await seedDeploymentSetting({ userId: member.id });
+
+      const fromMember = await deploymentSettingRepository.findAutoTopUpDeploymentsByOwner(personalWallet.address!);
+
+      expect(fromMember).toEqual([expect.objectContaining({ id: ownDeployment.id, walletId: personalWallet.id })]);
+    });
+
+    it("drops a team deployment whose organization has no wallet rather than charging the member", async () => {
+      const { deploymentSettingRepository, member, personalWallet } = await setupTeamDeployment();
+      const { organization: walletlessTeam } = await seedOrganizationWithOwner();
+      const stranded = await seedDeploymentSetting({ userId: member.id, organizationId: walletlessTeam.id });
+
+      const fromMember = await deploymentSettingRepository.findAutoTopUpDeploymentsByOwner(personalWallet.address!);
+
+      expect(fromMember.map(deployment => deployment.id)).not.toContain(stranded.id);
+      await expect(deploymentSettingRepository.findOwnerWalletId(stranded.id)).resolves.toBeUndefined();
+    });
+
+    it("never maps a deployment to a wallet filed in another organization than the deployment", async () => {
+      const { deploymentSettingRepository, member, personalWallet } = await setupTeamDeployment();
+      const { organization: otherPersonal } = await seedOrganizationWithOwner({ type: "personal" });
+      await container
+        .resolve(UserWalletRepository)
+        .unscoped("wallet-provisioning")
+        .updateById(personalWallet.id, { organizationId: (await seedOrganizationWithOwner({ type: "personal" })).organization.id });
+      const misfiled = await seedDeploymentSetting({ userId: member.id, organizationId: otherPersonal.id });
+
+      await expect(deploymentSettingRepository.findOwnerWalletId(misfiled.id)).resolves.toBeUndefined();
+    });
+
+    it("lists names, settings and gpus of a team deployment through the organization's wallet, whoever filed it", async () => {
+      const { deploymentSettingRepository, teamWallet, teamDeployment } = await setupTeamDeployment();
+      const reading = createLeaseGpuReading();
+      await deploymentSettingRepository.mergeGpuReadings({ wallet: teamWallet, dseq: teamDeployment.dseq, readings: [reading] });
+      await deploymentSettingRepository.upsertName({ userId: teamDeployment.userId, dseq: teamDeployment.dseq, name: "team-web" });
+      const dseqs = [teamDeployment.dseq];
+
+      expect(await deploymentSettingRepository.findNamesByDseqs({ wallet: teamWallet, dseqs })).toEqual(new Map([[teamDeployment.dseq, "team-web"]]));
+      expect((await deploymentSettingRepository.findListedSettings({ wallet: teamWallet, dseqs })).get(teamDeployment.dseq)).toMatchObject({
+        name: "team-web"
+      });
+      expect((await deploymentSettingRepository.findLeaseGpus({ wallet: teamWallet, dseqs })).get(teamDeployment.dseq)).toMatchObject({ readings: [reading] });
+      await expect(deploymentSettingRepository.findDseqsByNameContaining({ wallet: teamWallet, text: "team" })).resolves.toEqual([teamDeployment.dseq]);
+    });
+
+    it("answers with the row a team deployment was first filed under when two members filed it", async () => {
+      const { deploymentSettingRepository, teamWallet, teamDeployment, team } = await setupTeamDeployment();
+      const laterMember = await seedUser();
+      await seedDeploymentSetting({ userId: laterMember.id, organizationId: team.id, dseq: teamDeployment.dseq, name: "later" });
+      await deploymentSettingRepository.upsertName({ userId: teamDeployment.userId, dseq: teamDeployment.dseq, name: "first" });
+      const dseqs = [teamDeployment.dseq];
+
+      await expect(deploymentSettingRepository.findOneOfWallet(teamWallet, teamDeployment.dseq)).resolves.toMatchObject({ id: teamDeployment.id });
+      expect(await deploymentSettingRepository.findNamesByDseqs({ wallet: teamWallet, dseqs })).toEqual(new Map([[teamDeployment.dseq, "first"]]));
+      expect((await deploymentSettingRepository.findListedSettings({ wallet: teamWallet, dseqs })).get(teamDeployment.dseq)).toMatchObject({ name: "first" });
+    });
+
+    it("resolves another member's key to the row a team deployment was first filed under", async () => {
+      const { deploymentSettingRepository, member, teamDeployment, team } = await setupTeamDeployment();
+      const otherMember = await seedUser();
+      const executionContextService = container.resolve(ExecutionContextService);
+
+      const filed = await executionContextService.runWithContext(async () => {
+        executionContextService.set("ORGANIZATION_CONTEXT", createOrganizationContext({ organizationId: team.id }));
+        return await deploymentSettingRepository.findFiledKey({ userId: otherMember.id, dseq: teamDeployment.dseq });
+      });
+
+      expect(filed).toEqual({ key: { userId: member.id, dseq: teamDeployment.dseq }, isFiled: true });
+    });
+
+    it("keeps the key it is given outside organization mode", async () => {
+      const { deploymentSettingRepository, teamDeployment } = await setupTeamDeployment();
+      const key = { userId: (await seedUser()).id, dseq: teamDeployment.dseq };
+
+      await expect(deploymentSettingRepository.findFiledKey(key)).resolves.toEqual({ key, isFiled: false });
+    });
+
+    it("leaves a trialing member's team deployment out of the trial deployments", async () => {
+      const { deploymentSettingRepository, teamDeployment } = await setupTeamDeployment();
+
+      const trialDeployments = await deploymentSettingRepository.findLiveTrialDeployments({ maxAgeHours: 1 });
+
+      expect(trialDeployments.map(deployment => deployment.dseq)).not.toContain(teamDeployment.dseq);
+    });
+
+    it("reads a team project's open deployments under the organization's wallet address, not the member's", async () => {
+      const { deploymentSettingRepository, member, teamWallet, team, teamProject } = await setupTeamDeployment();
+      const inTeamProject = await seedDeploymentSetting({ userId: member.id, organizationId: team.id, projectId: teamProject.id });
+
+      const found = await deploymentSettingRepository.findOpenInProject({ organizationId: team.id, projectId: teamProject.id });
+
+      expect(found).toEqual([expect.objectContaining({ id: inTeamProject.id, address: teamWallet.address })]);
+    });
+
+    it("resolves the wallet that owns each deployment", async () => {
+      const { deploymentSettingRepository, member, teamWallet, personalWallet, teamDeployment } = await setupTeamDeployment();
+      const ownDeployment = await seedDeploymentSetting({ userId: member.id });
+
+      await expect(deploymentSettingRepository.findOwnerWalletId(teamDeployment.id)).resolves.toBe(teamWallet.id);
+      await expect(deploymentSettingRepository.findOwnerWalletId(ownDeployment.id)).resolves.toBe(personalWallet.id);
+    });
+
+    it("finds a team deployment's settings through the organization's wallet", async () => {
+      const { deploymentSettingRepository, teamWallet, teamDeployment } = await setupTeamDeployment();
+
+      await expect(deploymentSettingRepository.findOneOfWallet(teamWallet, teamDeployment.dseq)).resolves.toMatchObject({ id: teamDeployment.id });
+    });
+
+    it("finds nothing for a wallet left without user or organization", async () => {
+      const { deploymentSettingRepository, teamDeployment } = await setupTeamDeployment();
+      await seedDeploymentSetting({ userId: (await seedUser()).id, dseq: teamDeployment.dseq });
+
+      await expect(deploymentSettingRepository.findOneOfWallet({ userId: null, organizationId: null }, teamDeployment.dseq)).resolves.toBeUndefined();
+    });
+
+    it("merges gpu readings into the team deployment found through the organization's wallet", async () => {
+      const { deploymentSettingRepository, teamWallet, teamDeployment } = await setupTeamDeployment();
+      const reading = createLeaseGpuReading();
+
+      await expect(deploymentSettingRepository.mergeGpuReadings({ wallet: teamWallet, dseq: teamDeployment.dseq, readings: [reading] })).resolves.toBe(true);
+      await expect(deploymentSettingRepository.findOneOfWallet(teamWallet, teamDeployment.dseq)).resolves.toMatchObject({ detectedGpus: [reading] });
+    });
+
+    async function setupTeamDeployment() {
+      const deploymentSettingRepository = container.resolve(DeploymentSettingRepository);
+      const userWalletRepository = container.resolve(UserWalletRepository);
+      const { user: member, wallet: personalWallet } = await seedUserWithWallet({ isTrialing: true, activatedAt: new Date() });
+      const { organization: team, project: teamProject } = await seedOrganizationWithOwner();
+      await seedOrganizationMember({ organizationId: team.id, userId: member.id });
+      const { wallet } = await userWalletRepository.getOrCreateForOrganization({ organizationId: team.id, createdByUserId: member.id });
+      const teamWallet = await userWalletRepository.updateById(wallet.id, { address: createAkashAddress(), activatedAt: new Date() }, { returning: true });
+      const teamDeployment = await seedDeploymentSetting({ userId: member.id, organizationId: team.id });
+
+      return { deploymentSettingRepository, member, personalWallet, teamWallet, teamDeployment, team, teamProject };
     }
   });
 

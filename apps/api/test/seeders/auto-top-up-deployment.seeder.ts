@@ -4,10 +4,13 @@ import type { AutoTopUpDeployment } from "@src/deployment/repositories/deploymen
 import { createAkashAddress } from "./akash-address.seeder";
 
 export function createAutoTopUpDeployment(overrides: Partial<AutoTopUpDeployment> = {}): AutoTopUpDeployment {
+  const userId = overrides.userId ?? faker.string.uuid();
+
   return {
     id: faker.string.uuid(),
-    userId: faker.string.uuid(),
+    userId,
     walletId: faker.number.int(),
+    walletUserId: userId,
     dseq: faker.string.numeric({ length: 8, allowLeadingZeros: false }),
     address: createAkashAddress(),
     isWalletAutoTopUpEnabled: false,

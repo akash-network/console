@@ -1,6 +1,6 @@
 import { inject, singleton } from "tsyringe";
 
-import { isWalletInitialized, UserWalletRepository } from "@src/billing/repositories";
+import { isPersonalWallet, isWalletInitialized, UserWalletRepository } from "@src/billing/repositories";
 import { type CreateLogger, JOB_NAME, type JobHandler, type JobPayload, type JobPermissions, JobQueueService, LOGGER_FACTORY } from "@src/core";
 import { type BehaviouralAgreement, findBehaviouralAgreement } from "@src/workload-abuse/lib/behavioural-signals/agreement";
 import { withoutFileContents } from "@src/workload-abuse/lib/evidence-scanner/evidence-scanner";
@@ -64,7 +64,7 @@ export class ProbeTrialDeploymentHandler implements JobHandler<ProbeTrialDeploym
 
     const wallet = await this.userWalletRepository.findById(walletId);
 
-    if (!wallet || !isWalletInitialized(wallet)) {
+    if (!wallet || !isWalletInitialized(wallet) || !isPersonalWallet(wallet)) {
       this.logger.warn({ event: "TRIAL_WORKLOAD_PROBE_SKIPPED", reason: "WALLET_NOT_FOUND", ...context });
       return;
     }
