@@ -214,15 +214,51 @@ describe(MarketplacePane.name, () => {
       expect(screen.queryByText("• dcloud")).not.toBeInTheDocument();
     });
 
-    it.each(["creating", "quoting"] as const)(
-      "leaves the wait for a first bid to the bid window toast while the %s deployment still dims the providers",
-      phase => {
-        const { MarketplaceProvidersTable } = setup({ variant: "expanded", phase, offers: [buildOffer({ offerState: "searching" })] });
+    it.each(["creating", "quoting"] as const)("shows the bid collection in place of the table while the %s deployment waits for a first bid", phase => {
+      const offers = [buildOffer({ offerState: "searching" })];
 
-        expect(screen.queryByRole("status")).not.toBeInTheDocument();
-        expect(MarketplaceProvidersTable).toHaveBeenCalledWith(expect.objectContaining({ isBusy: true }), expect.anything());
-      }
-    );
+      const { BidCollecting, MarketplaceProvidersTable } = setup({ variant: "expanded", phase, offers, placementName: "dcloud" });
+
+      expect(BidCollecting).toHaveBeenCalledWith({ phase, providers: offers, placementName: "dcloud", bidder: null }, expect.anything());
+      expect(MarketplaceProvidersTable).not.toHaveBeenCalled();
+      expect(screen.queryByText("Waiting for bids")).not.toBeInTheDocument();
+    });
+
+    it("names the first bidder for a beat before the table takes over", () => {
+      vi.useFakeTimers();
+      const bidder = buildOffer({ offerState: "submitted" });
+      const { BidCollecting, MarketplaceProvidersTable, rerender } = setup({ variant: "expanded", phase: "quoting", offers: [buildOffer({ offerState: "searching" })] });
+
+      rerender({ offers: [buildOffer({ offerState: "unavailable" }), bidder] });
+
+      expect(BidCollecting).toHaveBeenLastCalledWith(expect.objectContaining({ bidder }), expect.anything());
+      expect(MarketplaceProvidersTable).not.toHaveBeenCalled();
+
+      act(() => vi.advanceTimersByTime(900));
+
+      expect(MarketplaceProvidersTable).toHaveBeenCalled();
+      vi.useRealTimers();
+    });
+
+    it("shows the table straight away for a placement that already has bids", () => {
+      const { BidCollecting, MarketplaceProvidersTable } = setup({ variant: "expanded", phase: "quoting", offers: [buildOffer({ offerState: "submitted" })] });
+
+      expect(BidCollecting).not.toHaveBeenCalled();
+      expect(MarketplaceProvidersTable).toHaveBeenCalled();
+    });
+
+    it("shows the table with the notice once the wait for a first bid ran out", () => {
+      const { BidCollecting, MarketplaceProvidersTable } = setup({
+        variant: "expanded",
+        phase: "quoting",
+        offers: [buildOffer({ offerState: "searching" })],
+        notice: <p>Nobody bid</p>
+      });
+
+      expect(screen.getByText("Nobody bid")).toBeInTheDocument();
+      expect(BidCollecting).not.toHaveBeenCalled();
+      expect(MarketplaceProvidersTable).toHaveBeenCalled();
+    });
 
     it("lets rows select their offer", () => {
       const { MarketplaceProvidersTable } = setup({ variant: "expanded" });
@@ -290,8 +326,9 @@ describe(MarketplacePane.name, () => {
     } = {}
   ) {
     const clear = vi.fn();
+    let currentOffers = input.offers ?? [];
     const usePlacementOffers = vi.fn(() => ({
-      offers: input.offers ?? [],
+      offers: currentOffers,
       isLoading: input.isLoading ?? false,
       isError: input.isError ?? false,
       isInvalid: input.isInvalid ?? false
@@ -303,6 +340,7 @@ describe(MarketplacePane.name, () => {
       filteredProviders: input.filteredProviders ?? offers,
       isSearchActive: input.isSearchActive ?? false
     }));
+    const BidCollecting = vi.fn(() => <p>collecting bids</p>);
     const MarketplaceProvidersTable = vi.fn(({ selectedBidId, onSelect }: Parameters<typeof DEPENDENCIES.MarketplaceProvidersTable>[0]) => (
       <button type="button" onClick={() => onSelect?.("NEW")}>
         {selectedBidId ? "selected" : "select"}
@@ -315,6 +353,7 @@ describe(MarketplacePane.name, () => {
       useProviderSearch: useProviderSearch as never,
       MarketplaceProvidersTable: MarketplaceProvidersTable as never,
       ProviderSearchInput,
+      BidCollecting,
       useDeploymentGpuCount,
       useDeploymentCpuArch,
       useIsOnboarded: () => input.isOnboarded ?? true,
@@ -323,7 +362,7 @@ describe(MarketplacePane.name, () => {
     };
     const user = userEvent.setup();
     const onSelectProvider = input.onSelectProvider ?? vi.fn();
-    const pane = (overrides: { selectedPlacementId?: string }) => (
+    const pane = (overrides: { selectedPlacementId?: string; offers?: PlacementOffer[] }) => (
       <MarketplacePane
         sdl={input.sdl ?? ""}
         placementName={input.placementName ?? "dcloud"}
@@ -345,11 +384,15 @@ describe(MarketplacePane.name, () => {
       usePlacementOffers,
       useProviderSearch,
       MarketplaceProvidersTable,
+      BidCollecting,
       useDeploymentGpuCount,
       useDeploymentCpuArch,
       user,
       clear,
-      rerender: (overrides: { selectedPlacementId?: string }) => rendered.rerender(pane(overrides))
+      rerender: (overrides: { selectedPlacementId?: string; offers?: PlacementOffer[] }) => {
+        currentOffers = overrides.offers ?? currentOffers;
+        rendered.rerender(pane(overrides));
+      }
     };
   }
 });

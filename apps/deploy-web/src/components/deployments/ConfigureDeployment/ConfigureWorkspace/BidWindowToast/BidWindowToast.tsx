@@ -77,8 +77,7 @@ export const BidWindowToast: FC<Props> = ({ phase, dseq, sdl, placements, expiry
 function copyOf(state: Exclude<BidWindowState, { kind: "hidden" }>): { title: string; subtitle: string } {
   if (state.kind === "expired") return { title: "Bids expired", subtitle: "Close and edit to request new ones." };
   if (state.kind === "collected") return { title: "Bids collected", subtitle: BID_WINDOW_HINT };
-  if (state.waitingOn.length > 0) return { title: "Collecting bids…", subtitle: `Waiting on ${state.waitingOn.join(", ")}.` };
-  return { title: "Collecting bids…", subtitle: BID_WINDOW_HINT };
+  return { title: "Collecting bids…", subtitle: `Waiting on ${state.waitingOn.join(", ")}.` };
 }
 
 function StateIcon({ kind }: { kind: Exclude<BidWindowState["kind"], "hidden"> }) {

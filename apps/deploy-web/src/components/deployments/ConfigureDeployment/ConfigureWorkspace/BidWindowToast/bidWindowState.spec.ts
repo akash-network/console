@@ -13,12 +13,8 @@ describe(bidWindowState.name, () => {
     expect(bidWindowState(input({ phase, isExpired: true }))).toEqual({ kind: "hidden" });
   });
 
-  it("collects bids while the deployment is being created", () => {
-    expect(bidWindowState(input({ phase: "creating" }))).toEqual({ kind: "collecting", waitingOn: [] });
-  });
-
-  it("collects bids until the first one arrives without naming a placement", () => {
-    expect(bidWindowState(input({}))).toEqual({ kind: "collecting", waitingOn: [] });
+  it.each(["creating", "quoting"] as const)("leaves the wait for a first bid to the marketplace while %s", phase => {
+    expect(bidWindowState(input({ phase }))).toEqual({ kind: "hidden" });
   });
 
   it("names the placements still waiting once others have bids", () => {

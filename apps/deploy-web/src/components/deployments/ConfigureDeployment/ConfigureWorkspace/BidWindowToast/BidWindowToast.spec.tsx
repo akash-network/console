@@ -17,10 +17,10 @@ describe(BidWindowToast.name, () => {
     expect(screen.queryByRole("status")).not.toBeInTheDocument();
   });
 
-  it("collects bids while the deployment is created", () => {
-    setup({ phase: "creating" });
+  it.each(["creating", "quoting"] as const)("leaves the wait for a first bid to the marketplace while %s", phase => {
+    setup({ phase });
 
-    expect(screen.getByRole("status")).toHaveTextContent("Collecting bids…Bids stay open for about 5 minutes, so pick your providers before they expire.");
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
   });
 
   it("names the placements still waiting for a bid", () => {
@@ -50,7 +50,7 @@ describe(BidWindowToast.name, () => {
   });
 
   it.each<[string, Parameters<typeof setup>[0], string]>([
-    ["spins while bids are collected", { phase: "creating" }, "animate-spin"],
+    ["spins while bids are collected", { placementsWithBids: ["p1"] }, "animate-spin"],
     ["checks off the bids once collected", { placementsWithBids: ["p1", "p2"] }, "text-green-600"],
     ["alerts once the bids expired", { placementsWithBids: ["p1", "p2"], expiry: { secondsLeft: 0, isExpired: true } }, "text-destructive"]
   ])("%s", (_, input, iconClass) => {
