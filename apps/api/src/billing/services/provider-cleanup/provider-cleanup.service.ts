@@ -68,6 +68,7 @@ export class ProviderCleanupService {
 
         await this.managedUserWalletService.authorizeSpending(this.managedSignerService, {
           address: wallet.address!,
+          derivationIndex: wallet.id,
           limits: {
             fees: this.config.FEE_ALLOWANCE_REFILL_AMOUNT
           }

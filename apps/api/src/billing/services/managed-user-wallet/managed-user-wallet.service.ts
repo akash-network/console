@@ -12,6 +12,7 @@ import { inject, singleton } from "tsyringe";
 import { getTrialEndsAt, getTrialStartedAt } from "@src/billing/lib/trial-window/trial-window";
 import { type BillingConfig, InjectBillingConfig } from "@src/billing/providers";
 import type { UserWalletOutput } from "@src/billing/repositories";
+import type { SignAndBroadcastFundingOptions } from "@src/billing/services/external-signer-http-sdk/external-signer-http-sdk.service";
 import { TxManagerService } from "@src/billing/services/tx-manager/tx-manager.service";
 import { type CreateLogger, LOGGER_FACTORY } from "@src/core/providers/logging.provider";
 import type { ManagedSignerService } from "../managed-signer/managed-signer.service";
@@ -19,6 +20,7 @@ import { RpcMessageService, SpendingAuthorizationMsgOptions } from "../rpc-messa
 
 interface SpendingAuthorizationOptions {
   address: string;
+  derivationIndex: number;
   limits:
     | {
         deployment: number;
@@ -61,6 +63,7 @@ export class ManagedUserWalletService {
     };
     await this.authorizeSpending(signer, {
       address,
+      derivationIndex: addressIndex,
       limits: limits,
       expiration: add(new Date(), { days: this.config.TRIAL_ALLOWANCE_EXPIRATION_DAYS })
     });
@@ -83,18 +86,27 @@ export class ManagedUserWalletService {
       grantee: options.address,
       expiration: options.expiration
     };
+    const fundingTxOptions = { granteeDerivationIndex: options.derivationIndex };
 
     await Promise.all([
       "deployment" in options.limits &&
-        this.authorizeDeploymentSpending(signer, {
+        this.authorizeDeploymentSpending(
+          signer,
+          {
+            ...msgOptions,
+            denom: this.config.DEPLOYMENT_GRANT_DENOM,
+            limit: options.limits.deployment
+          },
+          fundingTxOptions
+        ),
+      this.authorizeFeeSpending(
+        signer,
+        {
           ...msgOptions,
-          denom: this.config.DEPLOYMENT_GRANT_DENOM,
-          limit: options.limits.deployment
-        }),
-      this.authorizeFeeSpending(signer, {
-        ...msgOptions,
-        limit: options.limits.fees
-      })
+          limit: options.limits.fees
+        },
+        fundingTxOptions
+      )
     ]);
 
     this.logger.debug({ event: "SPENDING_AUTHORIZED", address: options.address });
@@ -109,7 +121,7 @@ export class ManagedUserWalletService {
    * @param userWallet - The user wallet to refill fees for
    */
   @Trace()
-  async refillWalletFees(signer: ManagedSignerService, wallet: Pick<UserWalletOutput, "address" | "isTrialing" | "createdAt" | "activatedAt">) {
+  async refillWalletFees(signer: ManagedSignerService, wallet: Pick<UserWalletOutput, "id" | "address" | "isTrialing" | "createdAt" | "activatedAt">) {
     assert(wallet.address, 402, "Wallet is not initialized");
 
     const trialWindowStart = subDays(new Date(), this.config.TRIAL_ALLOWANCE_EXPIRATION_DAYS);
@@ -119,6 +131,7 @@ export class ManagedUserWalletService {
 
     await this.authorizeSpending(signer, {
       address: wallet.address,
+      derivationIndex: wallet.id,
       limits: {
         fees
       },
@@ -126,7 +139,11 @@ export class ManagedUserWalletService {
     });
   }
 
-  private async authorizeFeeSpending(signer: ManagedSignerService, options: Omit<SpendingAuthorizationMsgOptions, "denom">) {
+  private async authorizeFeeSpending(
+    signer: ManagedSignerService,
+    options: Omit<SpendingAuthorizationMsgOptions, "denom">,
+    fundingTxOptions: SignAndBroadcastFundingOptions
+  ) {
     return withSpan("ManagedUserWalletService.authorizeFeeSpending", async () => {
       const messages: EncodeObject[] = [];
       const hasValidFeeAllowance = await this.authzHttpService.hasFeeAllowance(options.granter, options.grantee);
@@ -137,17 +154,21 @@ export class ManagedUserWalletService {
 
       messages.push(this.rpcMessageService.getFeesAllowanceGrantMsg(options));
 
-      const result = await signer.executeFundingTx(messages);
+      const result = await signer.executeFundingTx(messages, fundingTxOptions);
 
       if (hasValidFeeAllowance) {
-        await this.ensureFeeAllowanceLanded(signer, options);
+        await this.ensureFeeAllowanceLanded(signer, options, fundingTxOptions);
       }
 
       return result;
     });
   }
 
-  private async ensureFeeAllowanceLanded(signer: ManagedSignerService, options: Omit<SpendingAuthorizationMsgOptions, "denom">) {
+  private async ensureFeeAllowanceLanded(
+    signer: ManagedSignerService,
+    options: Omit<SpendingAuthorizationMsgOptions, "denom">,
+    fundingTxOptions: SignAndBroadcastFundingOptions
+  ) {
     if (await this.authzHttpService.hasFeeAllowance(options.granter, options.grantee)) {
       return;
     }
@@ -158,7 +179,7 @@ export class ManagedUserWalletService {
         grantee: options.grantee
       });
 
-      await signer.executeFundingTx([this.rpcMessageService.getFeesAllowanceGrantMsg(options)]);
+      await signer.executeFundingTx([this.rpcMessageService.getFeesAllowanceGrantMsg(options)], fundingTxOptions);
 
       return await this.authzHttpService.hasFeeAllowance(options.granter, options.grantee);
     });
@@ -173,14 +194,18 @@ export class ManagedUserWalletService {
     }
   }
 
-  private async authorizeDeploymentSpending(signer: ManagedSignerService, options: SpendingAuthorizationMsgOptions) {
+  private async authorizeDeploymentSpending(
+    signer: ManagedSignerService,
+    options: SpendingAuthorizationMsgOptions,
+    fundingTxOptions: SignAndBroadcastFundingOptions
+  ) {
     return withSpan("ManagedUserWalletService.authorizeDeploymentSpending", async () => {
       if (options.limit <= 0) {
         return await this.revokeDeploymentSpending(signer, options);
       }
 
       const deploymentAllowanceMsg = this.rpcMessageService.getDepositDeploymentGrantMsg(options);
-      return await signer.executeFundingTx([deploymentAllowanceMsg]);
+      return await signer.executeFundingTx([deploymentAllowanceMsg], fundingTxOptions);
     });
   }
 

@@ -4,7 +4,10 @@ import { container, inject, type InjectionToken, instancePerContainerCachingFact
 import type { SignAndBroadcastOptions } from "@src/billing/lib/batch-signing-client/batch-signing-client.service";
 import { Wallet } from "@src/billing/lib/wallet/wallet";
 import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
-import { ExternalSignerHttpSdkService } from "@src/billing/services/external-signer-http-sdk/external-signer-http-sdk.service";
+import {
+  ExternalSignerHttpSdkService,
+  type SignAndBroadcastFundingOptions
+} from "@src/billing/services/external-signer-http-sdk/external-signer-http-sdk.service";
 import { type CreateLogger, LOGGER_FACTORY } from "@src/core";
 
 export type WalletFactory = (walletIndex?: number) => Wallet;
@@ -70,8 +73,8 @@ export class TxManagerService {
     return resources;
   }
 
-  async signAndBroadcastWithFundingWallet(messages: readonly EncodeObject[]) {
-    return await this.externalSignerHttpSdkService.signAndBroadcastWithFundingWallet(messages);
+  async signAndBroadcastWithFundingWallet(messages: readonly EncodeObject[], options?: SignAndBroadcastFundingOptions) {
+    return await this.externalSignerHttpSdkService.signAndBroadcastWithFundingWallet(messages, options);
   }
 
   async getFundingWalletAddress() {

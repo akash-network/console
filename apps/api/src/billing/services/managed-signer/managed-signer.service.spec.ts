@@ -1384,17 +1384,18 @@ describe(ManagedSignerService.name, () => {
   });
 
   describe("executeFundingTx", () => {
-    it("signs and broadcasts with funding wallet", async () => {
+    it("signs and broadcasts with funding wallet for the grantee it names", async () => {
       const messages: EncodeObject[] = [{ typeUrl: MsgCreateDeployment.$type, value: MsgCreateDeployment.fromPartial({}) }];
       const txResult = { code: 0, hash: "tx-hash", rawLog: "success" };
+      const options = { granteeDerivationIndex: 7 };
 
       const { service, txManagerService } = setup({
         signAndBroadcastWithFundingWallet: vi.fn().mockResolvedValue(txResult)
       });
 
-      const result = await service.executeFundingTx(messages);
+      const result = await service.executeFundingTx(messages, options);
 
-      expect(txManagerService.signAndBroadcastWithFundingWallet).toHaveBeenCalledWith(messages);
+      expect(txManagerService.signAndBroadcastWithFundingWallet).toHaveBeenCalledWith(messages, options);
       expect(result).toEqual(txResult);
     });
 

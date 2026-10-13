@@ -29,7 +29,11 @@ describe(ProviderCleanupService.name, () => {
 
     await service.cleanup({ provider: PROVIDER, concurrency: 1, dryRun: false });
 
-    expect(managedUserWalletService.authorizeSpending).toHaveBeenCalledWith(managedSignerService, { address: wallet.address, limits: { fees: 1000 } });
+    expect(managedUserWalletService.authorizeSpending).toHaveBeenCalledWith(managedSignerService, {
+      address: wallet.address,
+      derivationIndex: wallet.id,
+      limits: { fees: 1000 }
+    });
     expect(managedSignerService.executeDerivedTx).toHaveBeenCalledTimes(2);
     expect(managedSignerService.executeDerivedTx).toHaveBeenLastCalledWith(wallet.id, [CLOSE_MSG]);
     expect(errorLogger.error).not.toHaveBeenCalled();

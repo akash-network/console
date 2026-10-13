@@ -361,11 +361,16 @@ describe(StaleManagedDeploymentsCleanerService.name, () => {
 
     it("refills fees and retries when the master wallet no longer pays the wallet's fees", async () => {
       const executeDerivedTx = vi.fn().mockRejectedValueOnce(new Error(FEE_GRANT_REFUSED)).mockResolvedValueOnce(buildOkTx());
-      const { service, managedUserWalletService, logger } = setup({ executeDerivedTx });
+      const { service, managedUserWalletService, managedSignerService, logger, wallet } = setup({ executeDerivedTx });
 
       await service.cleanup({ concurrency: 1, dryRun: false });
 
       expect(managedUserWalletService.authorizeSpending).toHaveBeenCalledTimes(1);
+      expect(managedUserWalletService.authorizeSpending).toHaveBeenCalledWith(managedSignerService, {
+        address: wallet.address,
+        derivationIndex: wallet.id,
+        limits: { fees: 1000 }
+      });
       expect(executeDerivedTx).toHaveBeenCalledTimes(2);
       expect(logger.error).not.toHaveBeenCalled();
     });

@@ -532,11 +532,11 @@ export class TopUpManagedDeploymentsService {
       return { status: "deposited" };
     }
 
-    const { address, walletIsTrialing: isTrialing, walletCreatedAt: createdAt, walletActivatedAt: activatedAt } = ownerInputs[0].deployment;
+    const { walletId: id, address, walletIsTrialing: isTrialing, walletCreatedAt: createdAt, walletActivatedAt: activatedAt } = ownerInputs[0].deployment;
     let feeAllowance: number;
 
     try {
-      feeAllowance = await this.managedSignerService.ensureFeeGrants({ address, isTrialing, createdAt, activatedAt });
+      feeAllowance = await this.managedSignerService.ensureFeeGrants({ id, address, isTrialing, createdAt, activatedAt });
     } catch (error: unknown) {
       await this.#recordOwnerFundingFailure({ owner, items: ownerInputs, error, instrumentation });
       return { status: "failed" };

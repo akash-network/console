@@ -15,9 +15,14 @@ type SignAndBroadcastRequestMessage = {
   value: string;
 };
 
+export type SignAndBroadcastFundingOptions = {
+  granteeDerivationIndex: number;
+};
+
 type SignAndBroadcastFundingRequest = {
   data: {
     messages: SignAndBroadcastRequestMessage[];
+    granteeDerivationIndex?: number;
   };
 };
 
@@ -51,10 +56,11 @@ export class ExternalSignerHttpSdkService {
     this.logger = createLogger({ context: ExternalSignerHttpSdkService.name });
   }
 
-  async signAndBroadcastWithFundingWallet(messages: readonly EncodeObject[]) {
+  async signAndBroadcastWithFundingWallet(messages: readonly EncodeObject[], options?: SignAndBroadcastFundingOptions) {
     const response = await this.post<SignAndBroadcastResponse>("/v1/tx/funding", {
       data: {
-        messages: this.encodeMessages(messages)
+        messages: this.encodeMessages(messages),
+        granteeDerivationIndex: options?.granteeDerivationIndex
       }
     } satisfies SignAndBroadcastFundingRequest);
     return response.data;

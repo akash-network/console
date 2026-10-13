@@ -846,6 +846,7 @@ describe(TopUpManagedDeploymentsService.name, () => {
       await service.topUpDeployments({ dryRun: false });
 
       expect(managedSignerService.ensureFeeGrants).toHaveBeenCalledWith({
+        id: deployment.walletId,
         address: deployment.address,
         isTrialing: deployment.walletIsTrialing,
         createdAt: deployment.walletCreatedAt,

@@ -24,6 +24,37 @@ describe(ExternalSignerHttpSdkService.name, () => {
     expect(result).toEqual({ code: 0, hash: "ABC123", rawLog: "" });
   });
 
+  it("names the grantee's derivation index on a funding transaction", async () => {
+    const { service } = setup();
+    let requestBody: unknown;
+    nock(BASE_URL)
+      .post("/v1/tx/funding", body => {
+        requestBody = body;
+        return true;
+      })
+      .reply(200, { data: { code: 0, hash: "ABC123", rawLog: "" } });
+
+    const result = await service.signAndBroadcastWithFundingWallet(messages(), { granteeDerivationIndex: 7 });
+
+    expect(result).toEqual({ code: 0, hash: "ABC123", rawLog: "" });
+    expect(requestBody).toEqual({ data: { messages: [{ typeUrl: messages()[0].typeUrl, value: "AQ==" }], granteeDerivationIndex: 7 } });
+  });
+
+  it("sends a funding transaction without a grantee when none is named", async () => {
+    const { service } = setup();
+    let requestBody: unknown;
+    nock(BASE_URL)
+      .post("/v1/tx/funding", body => {
+        requestBody = body;
+        return true;
+      })
+      .reply(200, { data: { code: 0, hash: "ABC123", rawLog: "" } });
+
+    await service.signAndBroadcastWithFundingWallet(messages());
+
+    expect(requestBody).toEqual({ data: { messages: [{ typeUrl: messages()[0].typeUrl, value: "AQ==" }] } });
+  });
+
   it("raises a not-included outcome with its hash when the signer proves the transaction expired", async () => {
     const { service } = setup();
     nock(BASE_URL)

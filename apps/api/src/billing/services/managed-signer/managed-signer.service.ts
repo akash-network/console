@@ -18,6 +18,7 @@ import { ManagedDeploymentLeaseCreated } from "@src/billing/events/managed-deplo
 import { TrialDeploymentLeaseCreated } from "@src/billing/events/trial-deployment-lease-created";
 import { InjectTypeRegistry } from "@src/billing/providers/type-registry.provider";
 import { type UserWalletOutput, UserWalletRepository } from "@src/billing/repositories";
+import type { SignAndBroadcastFundingOptions } from "@src/billing/services/external-signer-http-sdk/external-signer-http-sdk.service";
 import { ManagedUserWalletService } from "@src/billing/services/managed-user-wallet/managed-user-wallet.service";
 import { TrialActivationJobService } from "@src/billing/services/trial-activation-job/trial-activation-job.service";
 import { TxManagerService } from "@src/billing/services/tx-manager/tx-manager.service";
@@ -99,9 +100,9 @@ export class ManagedSignerService {
   }
 
   @Trace()
-  async executeFundingTx(messages: readonly EncodeObject[]) {
+  async executeFundingTx(messages: readonly EncodeObject[], options?: SignAndBroadcastFundingOptions) {
     try {
-      return await this.txManagerService.signAndBroadcastWithFundingWallet(messages);
+      return await this.txManagerService.signAndBroadcastWithFundingWallet(messages, options);
     } catch (error: any) {
       throw await this.chainErrorService.toAppError(error, messages);
     }
@@ -472,7 +473,7 @@ export class ManagedSignerService {
     }
   }
 
-  async ensureFeeGrants(wallet: Pick<UserWalletOutput, "address" | "isTrialing" | "createdAt" | "activatedAt">): Promise<number> {
+  async ensureFeeGrants(wallet: Pick<UserWalletOutput, "id" | "address" | "isTrialing" | "createdAt" | "activatedAt">): Promise<number> {
     return withSpan("ManagedSignerService.ensureFeeGrants", async () => {
       let feeAllowance = await this.balancesService.retrieveAndCalcFeeLimit(wallet);
       const needsRefill = feeAllowance < this.billingConfigService.get("FEE_ALLOWANCE_REFILL_THRESHOLD");

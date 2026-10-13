@@ -16,20 +16,57 @@ import { ManagedUserWalletService } from "./managed-user-wallet.service";
 import { createAkashAddress } from "@test/seeders/akash-address.seeder";
 
 describe(ManagedUserWalletService.name, () => {
+  describe("createAndAuthorizeTrialSpending", () => {
+    it("grants both trial allowances to the wallet at the given derivation index", async () => {
+      const { service, signer, txManagerService, rpcMessageService } = setup();
+      const addressIndex = faker.number.int({ min: 1 });
+      const address = createAkashAddress();
+      const feeGrantMsg = { typeUrl: "/fee-grant", value: {} } as unknown as EncodeObject;
+      const depositGrantMsg = { typeUrl: "/deposit-grant", value: {} } as unknown as EncodeObject;
+      txManagerService.getDerivedWalletAddress.mockResolvedValue(address);
+      rpcMessageService.getFeesAllowanceGrantMsg.mockReturnValue(feeGrantMsg);
+      rpcMessageService.getDepositDeploymentGrantMsg.mockReturnValue(depositGrantMsg);
+
+      const result = await service.createAndAuthorizeTrialSpending(signer, { addressIndex });
+
+      expect(txManagerService.getDerivedWalletAddress).toHaveBeenCalledWith(addressIndex);
+      expect(result.address).toBe(address);
+      expect(signer.executeFundingTx).toHaveBeenCalledWith([feeGrantMsg], { granteeDerivationIndex: addressIndex });
+      expect(signer.executeFundingTx).toHaveBeenCalledWith([depositGrantMsg], { granteeDerivationIndex: addressIndex });
+    });
+  });
+
   describe("refillWalletFees", () => {
     it("throws 402 when wallet address is missing", async () => {
       const { service, signer } = setup();
 
       await expect(
-        service.refillWalletFees(signer, { address: null, isTrialing: false, createdAt: faker.date.past(), activatedAt: null })
+        service.refillWalletFees(signer, {
+          id: faker.number.int({ min: 1 }),
+          address: null,
+          isTrialing: false,
+          createdAt: faker.date.past(),
+          activatedAt: null
+        })
       ).rejects.toMatchObject({
         status: 402
       });
     });
 
+    it("grants the fee allowance to the wallet's derivation index", async () => {
+      const { service, signer, rpcMessageService } = setup();
+      const wallet = { id: faker.number.int({ min: 1 }), address: createAkashAddress(), isTrialing: false, createdAt: faker.date.past(), activatedAt: null };
+      const grantMsg = { typeUrl: "/fee-grant", value: {} } as unknown as EncodeObject;
+      rpcMessageService.getFeesAllowanceGrantMsg.mockReturnValue(grantMsg);
+
+      await service.refillWalletFees(signer, wallet);
+
+      expect(signer.executeFundingTx).toHaveBeenCalledWith([grantMsg], { granteeDerivationIndex: wallet.id });
+    });
+
     it("authorizes fee spending without expiration for non-trialing wallet", async () => {
       const { service, signer, config, rpcMessageService } = setup();
-      const wallet = { address: createAkashAddress(), isTrialing: false, createdAt: faker.date.past(), activatedAt: null };
+      const wallet = { id: faker.number.int({ min: 1 }), address: createAkashAddress(), isTrialing: false, createdAt: faker.date.past(), activatedAt: null };
 
       await service.refillWalletFees(signer, wallet);
 
@@ -45,7 +82,7 @@ describe(ManagedUserWalletService.name, () => {
     it("authorizes fee spending with expiration for trialing wallet in trial window", async () => {
       const { service, signer, config, rpcMessageService } = setup();
       const createdAt = subDays(new Date(), 1);
-      const wallet = { address: createAkashAddress(), isTrialing: true, createdAt, activatedAt: null };
+      const wallet = { id: faker.number.int({ min: 1 }), address: createAkashAddress(), isTrialing: true, createdAt, activatedAt: null };
 
       await service.refillWalletFees(signer, wallet);
 
@@ -60,7 +97,7 @@ describe(ManagedUserWalletService.name, () => {
     it("authorizes fee spending without expiration for trialing wallet outside trial window", async () => {
       const { service, signer, config, rpcMessageService } = setup();
       const createdAt = subDays(new Date(), config.TRIAL_ALLOWANCE_EXPIRATION_DAYS + 1);
-      const wallet = { address: createAkashAddress(), isTrialing: true, createdAt, activatedAt: null };
+      const wallet = { id: faker.number.int({ min: 1 }), address: createAkashAddress(), isTrialing: true, createdAt, activatedAt: null };
 
       await service.refillWalletFees(signer, wallet);
 
@@ -75,7 +112,7 @@ describe(ManagedUserWalletService.name, () => {
       const { service, signer, config, rpcMessageService } = setup();
       const createdAt = subDays(new Date(), config.TRIAL_ALLOWANCE_EXPIRATION_DAYS + 30);
       const activatedAt = subDays(new Date(), 1);
-      const wallet = { address: createAkashAddress(), isTrialing: true, createdAt, activatedAt };
+      const wallet = { id: faker.number.int({ min: 1 }), address: createAkashAddress(), isTrialing: true, createdAt, activatedAt };
 
       await service.refillWalletFees(signer, wallet);
 
@@ -90,7 +127,7 @@ describe(ManagedUserWalletService.name, () => {
   describe("fee grant silent-drop recovery", () => {
     it("verifies the grant landed after a batched revoke+grant tx", async () => {
       const { service, signer, rpcMessageService, authzHttpService, logger } = setup();
-      const wallet = { address: createAkashAddress(), isTrialing: false, createdAt: faker.date.past(), activatedAt: null };
+      const wallet = { id: faker.number.int({ min: 1 }), address: createAkashAddress(), isTrialing: false, createdAt: faker.date.past(), activatedAt: null };
 
       authzHttpService.hasFeeAllowance.mockResolvedValueOnce(true).mockResolvedValueOnce(true);
 
@@ -105,7 +142,7 @@ describe(ManagedUserWalletService.name, () => {
 
     it("re-issues the grant when the post-tx check reports it missing", async () => {
       const { service, signer, rpcMessageService, authzHttpService, logger } = setup();
-      const wallet = { address: createAkashAddress(), isTrialing: false, createdAt: faker.date.past(), activatedAt: null };
+      const wallet = { id: faker.number.int({ min: 1 }), address: createAkashAddress(), isTrialing: false, createdAt: faker.date.past(), activatedAt: null };
       const grantMsg = { typeUrl: "/fee-grant", value: {} } as unknown as EncodeObject;
 
       rpcMessageService.getFeesAllowanceGrantMsg.mockReturnValue(grantMsg);
@@ -118,7 +155,7 @@ describe(ManagedUserWalletService.name, () => {
 
       expect(authzHttpService.hasFeeAllowance).toHaveBeenCalledTimes(3);
       expect(signer.executeFundingTx).toHaveBeenCalledTimes(2);
-      expect(signer.executeFundingTx).toHaveBeenNthCalledWith(2, [grantMsg]);
+      expect(signer.executeFundingTx).toHaveBeenNthCalledWith(2, [grantMsg], { granteeDerivationIndex: wallet.id });
       expect(logger.warn).toHaveBeenCalledWith(expect.objectContaining({ event: "FEE_GRANT_SILENTLY_DROPPED" }));
       expect(logger.warn).toHaveBeenCalledTimes(1);
       expect(logger.error).not.toHaveBeenCalledWith(expect.objectContaining({ event: "FEE_GRANT_REISSUE_FAILED" }));
@@ -126,7 +163,7 @@ describe(ManagedUserWalletService.name, () => {
 
     it("throws BadGateway after the retry policy is exhausted", async () => {
       const { service, signer, authzHttpService, logger } = setup();
-      const wallet = { address: createAkashAddress(), isTrialing: false, createdAt: faker.date.past(), activatedAt: null };
+      const wallet = { id: faker.number.int({ min: 1 }), address: createAkashAddress(), isTrialing: false, createdAt: faker.date.past(), activatedAt: null };
 
       authzHttpService.hasFeeAllowance.mockResolvedValueOnce(true).mockResolvedValue(false);
 
@@ -140,7 +177,7 @@ describe(ManagedUserWalletService.name, () => {
 
     it("skips post-tx verification when no prior allowance existed", async () => {
       const { service, signer, rpcMessageService, authzHttpService, logger } = setup();
-      const wallet = { address: createAkashAddress(), isTrialing: false, createdAt: faker.date.past(), activatedAt: null };
+      const wallet = { id: faker.number.int({ min: 1 }), address: createAkashAddress(), isTrialing: false, createdAt: faker.date.past(), activatedAt: null };
 
       authzHttpService.hasFeeAllowance.mockResolvedValue(false);
 
@@ -155,18 +192,19 @@ describe(ManagedUserWalletService.name, () => {
   });
 
   describe("deployment spending authorization", () => {
-    it("grants the deposit authorization at the requested limit", async () => {
+    it("grants the deposit authorization at the requested limit to the wallet at the given derivation index", async () => {
       const { service, signer, config, rpcMessageService, authzHttpService } = setup();
       const address = createAkashAddress();
+      const derivationIndex = faker.number.int({ min: 1 });
       const grantMsg = { typeUrl: "/deposit-grant", value: {} } as unknown as EncodeObject;
       rpcMessageService.getDepositDeploymentGrantMsg.mockReturnValue(grantMsg);
 
-      await service.authorizeSpending(signer, { address, limits: { deployment: 110_000_000, fees: config.FEE_ALLOWANCE_REFILL_AMOUNT } });
+      await service.authorizeSpending(signer, { address, derivationIndex, limits: { deployment: 110_000_000, fees: config.FEE_ALLOWANCE_REFILL_AMOUNT } });
 
       expect(rpcMessageService.getDepositDeploymentGrantMsg).toHaveBeenCalledWith(
         expect.objectContaining({ grantee: address, denom: config.DEPLOYMENT_GRANT_DENOM, limit: 110_000_000 })
       );
-      expect(signer.executeFundingTx).toHaveBeenCalledWith([grantMsg]);
+      expect(signer.executeFundingTx).toHaveBeenCalledWith([grantMsg], { granteeDerivationIndex: derivationIndex });
       expect(authzHttpService.getValidDepositDeploymentGrantsForGranterAndGrantee).not.toHaveBeenCalled();
     });
 
@@ -178,7 +216,11 @@ describe(ManagedUserWalletService.name, () => {
       rpcMessageService.getRevokeDepositDeploymentGrantMsg.mockReturnValue(revokeMsg);
       authzHttpService.getValidDepositDeploymentGrantsForGranterAndGrantee.mockResolvedValue(mock<ExactDepositDeploymentGrant>());
 
-      await service.authorizeSpending(signer, { address, limits: { deployment: 0, fees: config.FEE_ALLOWANCE_REFILL_AMOUNT } });
+      await service.authorizeSpending(signer, {
+        address,
+        derivationIndex: faker.number.int({ min: 1 }),
+        limits: { deployment: 0, fees: config.FEE_ALLOWANCE_REFILL_AMOUNT }
+      });
 
       expect(rpcMessageService.getDepositDeploymentGrantMsg).not.toHaveBeenCalled();
       expect(rpcMessageService.getRevokeDepositDeploymentGrantMsg).toHaveBeenCalledWith(expect.objectContaining({ granter, grantee: address }));
@@ -189,7 +231,11 @@ describe(ManagedUserWalletService.name, () => {
       const { service, signer, config, rpcMessageService, authzHttpService, logger } = setup();
       authzHttpService.getValidDepositDeploymentGrantsForGranterAndGrantee.mockResolvedValue(undefined);
 
-      await service.authorizeSpending(signer, { address: createAkashAddress(), limits: { deployment: 0, fees: config.FEE_ALLOWANCE_REFILL_AMOUNT } });
+      await service.authorizeSpending(signer, {
+        address: createAkashAddress(),
+        derivationIndex: faker.number.int({ min: 1 }),
+        limits: { deployment: 0, fees: config.FEE_ALLOWANCE_REFILL_AMOUNT }
+      });
 
       expect(rpcMessageService.getRevokeDepositDeploymentGrantMsg).not.toHaveBeenCalled();
       expect(signer.executeFundingTx).toHaveBeenCalledTimes(1);
@@ -201,7 +247,11 @@ describe(ManagedUserWalletService.name, () => {
       const { service, signer, config, rpcMessageService, authzHttpService } = setup();
       authzHttpService.getValidDepositDeploymentGrantsForGranterAndGrantee.mockResolvedValue(mock<ExactDepositDeploymentGrant>());
 
-      await service.authorizeSpending(signer, { address: createAkashAddress(), limits: { deployment: 0, fees: config.FEE_ALLOWANCE_REFILL_AMOUNT } });
+      await service.authorizeSpending(signer, {
+        address: createAkashAddress(),
+        derivationIndex: faker.number.int({ min: 1 }),
+        limits: { deployment: 0, fees: config.FEE_ALLOWANCE_REFILL_AMOUNT }
+      });
 
       expect(rpcMessageService.getFeesAllowanceGrantMsg).toHaveBeenCalledWith(expect.objectContaining({ limit: config.FEE_ALLOWANCE_REFILL_AMOUNT }));
     });
