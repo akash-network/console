@@ -68,7 +68,7 @@ export const TemplateGallery: FC<{ dependencies?: typeof DEPENDENCIES }> = ({ de
           </nav>
 
           <div className="min-w-0 flex-1 md:overflow-y-auto">
-            <div className="flex flex-col gap-6 px-4 pb-8 pt-5 sm:px-6">
+            <div className="container flex flex-col gap-6 px-4 pb-8 pt-5 sm:px-6">
               <div className="flex flex-wrap items-center gap-2">
                 <Input
                   value={search}
