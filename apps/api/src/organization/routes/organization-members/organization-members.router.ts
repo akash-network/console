@@ -105,7 +105,7 @@ const transferOrganizationOwnershipRoute = createRoute({
   responses: {
     200: { description: "The member who received ownership", content: { "application/json": { schema: OrganizationMemberResponseSchema } } },
     ...memberWriteErrorResponses,
-    400: { description: "The member is the caller, or the organization header names another organization than the API key's" }
+    400: { description: "The request is invalid, the member is the caller, or the organization header names another organization than the API key's" }
   }
 });
 
