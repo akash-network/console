@@ -41,6 +41,8 @@ import type { ProviderService } from "@src/provider/services/provider/provider.s
 import { SECRET_UNREADABLE_ERROR_MESSAGE } from "@src/secret/config/secret-at-rest.config";
 import type { TrialWorkloadProbeJobService } from "@src/workload-abuse/services/trial-workload-probe-job/trial-workload-probe-job.service";
 import type { DeploymentConfigService } from "../deployment-config/deployment-config.service";
+import type { DeploymentOrganizationActivityService } from "../deployment-organization-activity/deployment-organization-activity.service";
+import type { DeploymentProjectService } from "../deployment-project/deployment-project.service";
 import type { DeploymentReaderService } from "../deployment-reader/deployment-reader.service";
 import type { StaleManagedDeploymentsCleanerService } from "../stale-managed-deployments-cleaner/stale-managed-deployments-cleaner.service";
 import { DeploymentWriterService } from "./deployment-writer.service";
@@ -59,6 +61,7 @@ const RETRY_LIMIT = 47;
 const RETRY_DELAY_MAX_IN_MIN = 30;
 const RETRY_DELAY_IN_SEC = 30;
 const COMPENSATION_JOB_ID = faker.string.uuid();
+const PROJECT_ID = faker.string.uuid();
 const SEAL = `${faker.string.alphanumeric(16)}.${faker.string.alphanumeric(16)}`;
 const SEALED_TOKEN = `${faker.string.alphanumeric(16)}.${faker.string.alphanumeric(16)}`;
 
@@ -866,6 +869,78 @@ describe(DeploymentWriterService.name, () => {
       );
     });
 
+    it("resolves the project the request names", async () => {
+      const { service, deploymentProjectService } = setup();
+
+      await service.create({ userId: "user-1", sdl: SDL_WITH_SECRETS, projectId: PROJECT_ID });
+
+      expect(deploymentProjectService.resolveFilingProject).toHaveBeenCalledWith(PROJECT_ID);
+    });
+
+    it("files the definition into the resolved project, held for the transaction that records it", async () => {
+      const { service, deploymentProjectService, deploymentSettingRepository, txService } = setup({ filingProjectId: PROJECT_ID });
+
+      await service.create({ userId: "user-1", sdl: SDL_WITH_SECRETS });
+
+      expect(deploymentProjectService.holdFilingProject).toHaveBeenCalledWith(PROJECT_ID);
+      expect(deploymentSettingRepository.upsertDefinition).toHaveBeenCalledWith(expect.objectContaining({ projectId: PROJECT_ID }));
+      expect(txService.transaction.mock.invocationCallOrder[0]).toBeLessThan(deploymentProjectService.holdFilingProject.mock.invocationCallOrder[0]);
+      expect(deploymentProjectService.holdFilingProject.mock.invocationCallOrder[0]).toBeLessThan(
+        deploymentSettingRepository.upsertDefinition.mock.invocationCallOrder[0]
+      );
+    });
+
+    it("holds no project when none was resolved", async () => {
+      const { service, deploymentProjectService, deploymentSettingRepository } = setup();
+
+      await service.create({ userId: "user-1", sdl: SDL_WITH_SECRETS });
+
+      expect(deploymentProjectService.holdFilingProject).not.toHaveBeenCalled();
+      expect(deploymentSettingRepository.upsertDefinition).toHaveBeenCalledWith(expect.objectContaining({ projectId: undefined }));
+    });
+
+    it("records nothing, seals nothing and broadcasts nothing when the project cannot be filed into", async () => {
+      const { service, deploymentProjectService, deploymentSettingRepository, sdlSecretsService, signerService } = setup();
+      deploymentProjectService.resolveFilingProject.mockRejectedValue(createError(404, "Project not found"));
+
+      await expect(service.create({ userId: "user-1", sdl: SDL_WITH_SECRETS, projectId: PROJECT_ID })).rejects.toMatchObject({ status: 404 });
+
+      expect(sdlSecretsService.sealForStorage).not.toHaveBeenCalled();
+      expect(deploymentSettingRepository.upsertDefinition).not.toHaveBeenCalled();
+      expect(signerService.executeDerivedDecodedTxByUserId).not.toHaveBeenCalled();
+    });
+
+    it("broadcasts nothing when the project was deleted before the definition could be filed into it", async () => {
+      const { service, deploymentProjectService, deploymentSettingRepository, signerService } = setup({ filingProjectId: PROJECT_ID });
+      deploymentProjectService.holdFilingProject.mockRejectedValue(createError(404, "Project not found"));
+
+      await expect(service.create({ userId: "user-1", sdl: SDL_WITH_SECRETS })).rejects.toMatchObject({ status: 404 });
+
+      expect(deploymentSettingRepository.upsertDefinition).not.toHaveBeenCalled();
+      expect(signerService.executeDerivedDecodedTxByUserId).not.toHaveBeenCalled();
+    });
+
+    it("files the created deployment in the organization feed once it is broadcast", async () => {
+      const { service, signerService, deploymentOrganizationActivityService } = setup();
+      vi.spyOn(Date, "now").mockReturnValue(1748400000000);
+
+      await service.create({ userId: "user-1", sdl: SDL_WITH_SECRETS });
+
+      expect(deploymentOrganizationActivityService.recordCreated).toHaveBeenCalledWith({ wallet, dseq: "1748400000000" }, "user-1");
+      expect(signerService.executeDerivedDecodedTxByUserId.mock.invocationCallOrder[0]).toBeLessThan(
+        deploymentOrganizationActivityService.recordCreated.mock.invocationCallOrder[0]
+      );
+    });
+
+    it("files nothing in the organization feed when the create tx fails to broadcast", async () => {
+      const { service, signerService, deploymentOrganizationActivityService } = setup();
+      signerService.executeDerivedDecodedTxByUserId.mockRejectedValue(new Error("tx failed"));
+
+      await expect(service.create({ userId: "user-1", sdl: SDL_WITH_SECRETS })).rejects.toThrow("tx failed");
+
+      expect(deploymentOrganizationActivityService.recordCreated).not.toHaveBeenCalled();
+    });
+
     it("keeps the recorded definition when the create tx fails to broadcast", async () => {
       const { service, signerService, deploymentSettingRepository } = setup();
       signerService.executeDerivedDecodedTxByUserId.mockRejectedValue(new Error("tx failed"));
@@ -1178,7 +1253,7 @@ describe(DeploymentWriterService.name, () => {
 
       expect(rpcMessageService.getCloseDeploymentMsg).toHaveBeenCalledWith(wallet.address, "100");
       expect(signerService.assertCanBroadcast).toHaveBeenCalledWith("user-1", [closeMsg]);
-      expect(signerService.executeDecodedTxByUserWallet).toHaveBeenCalledWith(wallet, [closeMsg]);
+      expect(signerService.executeDecodedTxByUserWallet).toHaveBeenCalledWith(wallet, [closeMsg], { actingUserId: "user-1" });
       expect(signerService.assertCanBroadcast.mock.invocationCallOrder[0]).toBeLessThan(signerService.executeDecodedTxByUserWallet.mock.invocationCallOrder[0]);
       expect(activityService.record).toHaveBeenCalledWith(closedActivityOf({ userId: "user-1", dseq: "100" }));
     });
@@ -1484,7 +1559,7 @@ describe(DeploymentWriterService.name, () => {
     it("asks no provider for a lease status when deciding whether to close", async () => {
       const { service, deploymentReaderService } = setup();
 
-      await service.close(wallet, "100");
+      await service.close(wallet, "100", { actingUserId: "user-1" });
 
       expect(deploymentReaderService.findByWalletAndDseqWithoutProviderStatus).toHaveBeenCalledWith(wallet, "100");
       expect(deploymentReaderService.findByWalletAndDseq).not.toHaveBeenCalled();
@@ -1494,7 +1569,7 @@ describe(DeploymentWriterService.name, () => {
       const { service, signerService, deploymentReaderService } = setup();
       signerService.executeDecodedTxByUserWallet.mockRejectedValue(new Error("close boom"));
 
-      await expect(service.close(wallet, "100")).rejects.toThrow("close boom");
+      await expect(service.close(wallet, "100", { actingUserId: "user-1" })).rejects.toThrow("close boom");
 
       expect(deploymentReaderService.findByWalletAndDseqWithoutProviderStatus).toHaveBeenCalledTimes(2);
       expect(deploymentReaderService.findByWalletAndDseq).not.toHaveBeenCalled();
@@ -1505,10 +1580,20 @@ describe(DeploymentWriterService.name, () => {
       const closeMsg = { typeUrl: "/close", value: MsgCloseDeployment.fromPartial({}) };
       rpcMessageService.getCloseDeploymentMsg.mockReturnValue(closeMsg);
 
-      await expect(service.close(wallet, "100")).resolves.toBe(true);
+      await expect(service.close(wallet, "100", { actingUserId: "user-1" })).resolves.toBe(true);
 
       expect(rpcMessageService.getCloseDeploymentMsg).toHaveBeenCalledWith(wallet.address, "100");
-      expect(signerService.executeDecodedTxByUserWallet).toHaveBeenCalledWith(wallet, [closeMsg]);
+      expect(signerService.executeDecodedTxByUserWallet).toHaveBeenCalledWith(wallet, [closeMsg], { actingUserId: "user-1" });
+    });
+
+    it("hands the signer the reason the console closes a deployment on its own", async () => {
+      const { service, signerService, rpcMessageService } = setup();
+      const closeMsg = { typeUrl: "/close", value: MsgCloseDeployment.fromPartial({}) };
+      rpcMessageService.getCloseDeploymentMsg.mockReturnValue(closeMsg);
+
+      await service.close(wallet, "100", { reason: "runtime_limit_reached" });
+
+      expect(signerService.executeDecodedTxByUserWallet).toHaveBeenCalledWith(wallet, [closeMsg], { consoleClose: { reason: "runtime_limit_reached" } });
     });
 
     it("does not broadcast a close tx when the deployment is already closed", async () => {
@@ -1518,7 +1603,7 @@ describe(DeploymentWriterService.name, () => {
         deployment: { ...deploymentData.deployment, state: "closed" }
       });
 
-      await expect(service.close(wallet, "100")).resolves.toBe(false);
+      await expect(service.close(wallet, "100", { actingUserId: "user-1" })).resolves.toBe(false);
 
       expect(rpcMessageService.getCloseDeploymentMsg).not.toHaveBeenCalled();
       expect(signerService.executeDecodedTxByUserWallet).not.toHaveBeenCalled();
@@ -1531,7 +1616,7 @@ describe(DeploymentWriterService.name, () => {
         .mockResolvedValueOnce(deploymentData)
         .mockResolvedValueOnce({ ...deploymentData, deployment: { ...deploymentData.deployment, state: "closed" } });
 
-      await expect(service.close(wallet, "100")).resolves.toBe(false);
+      await expect(service.close(wallet, "100", { actingUserId: "user-1" })).resolves.toBe(false);
     });
 
     it("re-throws the original close error when a re-read shows the deployment is still open", async () => {
@@ -1540,7 +1625,7 @@ describe(DeploymentWriterService.name, () => {
       signerService.executeDecodedTxByUserWallet.mockRejectedValue(closeError);
       deploymentReaderService.findByWalletAndDseqWithoutProviderStatus.mockResolvedValue(deploymentData);
 
-      await expect(service.close(wallet, "100")).rejects.toBe(closeError);
+      await expect(service.close(wallet, "100", { actingUserId: "user-1" })).rejects.toBe(closeError);
     });
 
     it("re-throws the original close error when the post-failure re-read also fails", async () => {
@@ -1551,7 +1636,7 @@ describe(DeploymentWriterService.name, () => {
         .mockResolvedValueOnce(deploymentData)
         .mockRejectedValueOnce(new Error("indexer unavailable"));
 
-      await expect(service.close(wallet, "100")).rejects.toBe(closeError);
+      await expect(service.close(wallet, "100", { actingUserId: "user-1" })).rejects.toBe(closeError);
     });
   });
 
@@ -2909,7 +2994,9 @@ describe(DeploymentWriterService.name, () => {
         mock<SdlSecretsInheritanceService>(),
         probeJobService,
         leaseGpuDetectionJobService,
-        mock<ActivityService>()
+        mock<ActivityService>(),
+        mock<DeploymentProjectService>(),
+        mock<DeploymentOrganizationActivityService>()
       );
 
       function sealedFor() {
@@ -3197,6 +3284,7 @@ describe(DeploymentWriterService.name, () => {
     onChainState?: string;
     onChainHash?: string;
     definitionRecordedConcurrently?: boolean;
+    filingProjectId?: string;
   }) {
     const signerService = mock<ManagedSignerService>();
     signerService.filedUserIdOf.mockImplementation(async (_wallet, actingUserId) => actingUserId);
@@ -3260,6 +3348,9 @@ describe(DeploymentWriterService.name, () => {
     const probeJobService = mock<TrialWorkloadProbeJobService>();
     const leaseGpuDetectionJobService = mock<LeaseGpuDetectionJobService>();
     const activityService = mock<ActivityService>();
+    const deploymentProjectService = mock<DeploymentProjectService>();
+    deploymentProjectService.resolveFilingProject.mockResolvedValue(input?.filingProjectId);
+    const deploymentOrganizationActivityService = mock<DeploymentOrganizationActivityService>();
     sdlService.parse.mockReturnValue({ ok: true, value: parsedSdlValue } as any);
     sdlService.generateManifest.mockResolvedValue({ ok: true, value: manifestValue } as any);
     sdlService.generateManifestVersion.mockResolvedValue(new Uint8Array([4, 5, 6]));
@@ -3306,7 +3397,9 @@ describe(DeploymentWriterService.name, () => {
       sdlSecretsInheritanceService,
       probeJobService,
       leaseGpuDetectionJobService,
-      activityService
+      activityService,
+      deploymentProjectService,
+      deploymentOrganizationActivityService
     );
 
     function storedSecrets() {
@@ -3335,6 +3428,8 @@ describe(DeploymentWriterService.name, () => {
       probeJobService,
       leaseGpuDetectionJobService,
       activityService,
+      deploymentProjectService,
+      deploymentOrganizationActivityService,
       ability: mock<AnyAbility>(),
       storedSecrets
     };

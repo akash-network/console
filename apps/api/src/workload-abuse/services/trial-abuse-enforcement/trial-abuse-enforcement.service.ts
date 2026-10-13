@@ -177,7 +177,7 @@ export class TrialAbuseEnforcementService {
 
     for (const dseq of dseqs) {
       try {
-        await this.deploymentWriterService.close(wallet, dseq);
+        await this.deploymentWriterService.close(wallet, dseq, { reason: null });
         closed.push(dseq);
       } catch (error) {
         if (error instanceof Error && this.chainErrorService.isUnsettleableDeploymentError(error)) {

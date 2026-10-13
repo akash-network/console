@@ -34,7 +34,7 @@ describe(CloseExpiredDeploymentHandler.name, () => {
 
     await closeExpired();
 
-    expect(close).toHaveBeenCalledWith(expect.objectContaining({ address: expect.any(String) }), dseq);
+    expect(close).toHaveBeenCalledWith(expect.objectContaining({ address: expect.any(String) }), dseq, { reason: "runtime_limit_reached" });
     expect((await findSetting()).closed).toBe(true);
   });
 
@@ -43,7 +43,9 @@ describe(CloseExpiredDeploymentHandler.name, () => {
 
     await closeExpired();
 
-    expect(close).toHaveBeenCalledWith(expect.objectContaining({ id: teamWallet!.id, address: teamWallet!.address }), dseq);
+    expect(close).toHaveBeenCalledWith(expect.objectContaining({ id: teamWallet!.id, address: teamWallet!.address }), dseq, {
+      reason: "runtime_limit_reached"
+    });
     expect((await findSetting()).closed).toBe(true);
   });
 

@@ -39,7 +39,7 @@ describe(CloseDeploymentHandler.name, () => {
 
     expect(walletReaderService.getWalletById).toHaveBeenCalledWith(7);
     expect(walletReaderService.getWalletByUserId).not.toHaveBeenCalled();
-    expect(deploymentWriterService.close).toHaveBeenCalledWith(wallet, "100");
+    expect(deploymentWriterService.close).toHaveBeenCalledWith(wallet, "100", { actingUserId: "user-1" });
   });
 
   it("closes the deployment and records the close as succeeded", async () => {
@@ -49,7 +49,7 @@ describe(CloseDeploymentHandler.name, () => {
 
     expect(walletReaderService.getWalletByUserId).toHaveBeenCalledWith("user-1");
     expect(walletReaderService.getWalletById).not.toHaveBeenCalled();
-    expect(deploymentWriterService.close).toHaveBeenCalledWith(wallet, "100");
+    expect(deploymentWriterService.close).toHaveBeenCalledWith(wallet, "100", { actingUserId: "user-1" });
     expect(activityService.settle).toHaveBeenCalledWith("activity-1", closedActivityOf(KEY));
   });
 

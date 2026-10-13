@@ -34,6 +34,11 @@ import {
   unbackedDeploymentSettingKeyFor,
   unbackedDeploymentSettingRetryOptions
 } from "@src/deployment/services/delete-unbacked-deployment-setting/delete-unbacked-deployment-setting.handler";
+import {
+  type ConsoleClose,
+  DeploymentOrganizationActivityService
+} from "@src/deployment/services/deployment-organization-activity/deployment-organization-activity.service";
+import { DeploymentProjectService } from "@src/deployment/services/deployment-project/deployment-project.service";
 import { LeaseGpuDetectionJobService } from "@src/deployment/services/lease-gpu-detection-job/lease-gpu-detection-job.service";
 import {
   ReconcileDeploymentClose,
@@ -80,6 +85,9 @@ const DEFINITION_EXISTS_ERROR_CODE = "deployment_definition_exists";
 const DEFINITION_MISMATCH_ERROR_CODE = "deployment_definition_mismatch";
 
 /** What becomes of the values a submitted document carries in the clear. There is no longer a way to say "dropped": every writer can seal, so a value is never lost to be safe. */
+/** Who a close is made for: the console on its own, with its reason, or the member acting through the wallet. */
+export type CloseRequest = ConsoleClose | { actingUserId: string };
+
 type StoredSdlValues =
   /** Every one of them is sealed and referenced, because nothing in the request said which are secret. */
   | "every-value-sealed"
@@ -141,7 +149,9 @@ export class DeploymentWriterService {
     private readonly sdlSecretsInheritanceService: SdlSecretsInheritanceService,
     private readonly probeJobService: TrialWorkloadProbeJobService,
     private readonly leaseGpuDetectionJobService: LeaseGpuDetectionJobService,
-    private readonly activityService: ActivityService
+    private readonly activityService: ActivityService,
+    private readonly deploymentProjectService: DeploymentProjectService,
+    private readonly deploymentOrganizationActivityService: DeploymentOrganizationActivityService
   ) {
     this.logger = createLogger({ context: DeploymentWriterService.name });
   }
@@ -151,6 +161,7 @@ export class DeploymentWriterService {
     /** SDL for storage ONLY, and the values taken out of it. Never stands in for the submitted document anywhere a hash is taken. */
     const { sdl, storedDocument, derived } = this.#storedSdlOf(input.sdl, storedValuesFor(input));
 
+    const projectId = await this.deploymentProjectService.resolveFilingProject(input.projectId);
     const wallet = await this.walletReaderService.getWalletByUserId(input.userId);
     const depositInDollars = this.deploymentConfig.get("DEPLOYMENT_DEFAULT_DEPOSIT");
     const inherited = await this.#inheritedSecretsOf(input, wallet);
@@ -186,12 +197,14 @@ export class DeploymentWriterService {
       manifestVersion,
       sealedSecrets,
       runtimeLimitHours: input.runtimeLimitHours,
-      name: input.name ?? deriveDeploymentName(manifest.groups)
+      name: input.name ?? deriveDeploymentName(manifest.groups),
+      projectId
     });
 
     const result = await this.signerService.executeDerivedDecodedTxByUserId(input.userId, [message]);
 
     await this.retireCompensation({ userId: input.userId, dseq: dseq.toString() });
+    await this.deploymentOrganizationActivityService.recordCreated({ wallet, dseq }, input.userId);
 
     return {
       dseq: dseq.toString(),
@@ -210,12 +223,15 @@ export class DeploymentWriterService {
     sealedSecrets: string | null;
     runtimeLimitHours?: number;
     name?: string;
+    projectId?: string;
   }): Promise<void> {
     const { owner, ...definition } = input;
 
     const singletonKey = unbackedDeploymentSettingKeyFor(input);
 
     await this.txService.transaction(async () => {
+      if (input.projectId) await this.deploymentProjectService.holdFilingProject(input.projectId);
+
       const deploymentSettingId = await this.recordDefinition(definition);
 
       const compensationId = await this.jobQueueService.enqueue(new DeleteUnbackedDeploymentSetting({ deploymentSettingId, owner, dseq: input.dseq }), {
@@ -264,6 +280,7 @@ export class DeploymentWriterService {
     sealedSecrets: string | null;
     runtimeLimitHours?: number;
     name?: string;
+    projectId?: string;
   }): Promise<string> {
     const { manifestVersion, ...rest } = input;
     const { sdl, sealedSecrets, ...loggable } = rest;
@@ -379,7 +396,7 @@ export class DeploymentWriterService {
     const backgroundClose = await this.jobQueueService.findPendingJobData(CloseDeployment, closeDeploymentKeyFor({ userId, dseq }));
 
     try {
-      const closed = await this.#closeOpen(wallet, deployment);
+      const closed = await this.#closeOpen(wallet, deployment, { actingUserId: userId });
       if (closed) await this.#recordClosed({ userId, dseq, batchId }, backgroundClose);
       return closed;
     } catch (error) {
@@ -460,21 +477,25 @@ export class DeploymentWriterService {
    * treat a now-closed deployment as success, otherwise surface the original error. Returns false when the
    * deployment was already closed, so a caller can tell a close it performed from one that had already happened.
    */
-  public async close(wallet: WalletInitialized, dseq: string): Promise<boolean> {
+  public async close(wallet: WalletInitialized, dseq: string, request: CloseRequest): Promise<boolean> {
     const deployment = await this.deploymentReaderService.findByWalletAndDseqWithoutProviderStatus(wallet, dseq);
     if (deployment.deployment.state === "closed") return false;
-    return await this.#closeOpen(wallet, deployment);
+    return await this.#closeOpen(wallet, deployment, request);
   }
 
   #closeMessageFor(wallet: WalletInitialized, deployment: DeploymentResponse) {
     return this.rpcMessageService.getCloseDeploymentMsg(wallet.address, deployment.deployment.id.dseq);
   }
 
-  async #closeOpen(wallet: WalletInitialized, deployment: DeploymentResponse): Promise<boolean> {
+  async #closeOpen(wallet: WalletInitialized, deployment: DeploymentResponse, request: CloseRequest): Promise<boolean> {
     const dseq = deployment.deployment.id.dseq;
     const message = this.#closeMessageFor(wallet, deployment);
     try {
-      await this.signerService.executeDecodedTxByUserWallet(wallet, [message]);
+      await this.signerService.executeDecodedTxByUserWallet(
+        wallet,
+        [message],
+        "reason" in request ? { consoleClose: request } : { actingUserId: request.actingUserId }
+      );
     } catch (error) {
       const latest = await this.deploymentReaderService.findByWalletAndDseqWithoutProviderStatus(wallet, dseq).catch(() => deployment);
       if (latest.deployment.state === "closed") return false;

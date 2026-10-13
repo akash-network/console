@@ -37,7 +37,7 @@ describe(CloseUnreachableProviderDeploymentHandler.name, () => {
 
     await handler.handle(aPayload());
 
-    expect(deploymentWriterService.close).toHaveBeenCalledWith(expect.objectContaining({ address: OWNER }), DSEQ);
+    expect(deploymentWriterService.close).toHaveBeenCalledWith(expect.objectContaining({ address: OWNER }), DSEQ, { reason: "provider_unreachable" });
     expect(deploymentSettingRepository.markClosed).toHaveBeenCalledWith({ userId: USER_ID, dseq: DSEQ, organizationId: ORGANIZATION_ID });
   });
 
@@ -83,7 +83,9 @@ describe(CloseUnreachableProviderDeploymentHandler.name, () => {
 
     await handler.handle(aPayload());
 
-    expect(deploymentWriterService.close).toHaveBeenCalledWith(expect.objectContaining({ id: WALLET_ID, userId: null }), DSEQ);
+    expect(deploymentWriterService.close).toHaveBeenCalledWith(expect.objectContaining({ id: WALLET_ID, userId: null }), DSEQ, {
+      reason: "provider_unreachable"
+    });
     expect(deploymentSettingRepository.markClosed).toHaveBeenCalledWith({ userId: "member-2", dseq: DSEQ, organizationId: ORGANIZATION_ID });
     expect(jobQueueService.enqueue).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ userId: "member-2" }) }), expect.anything());
   });

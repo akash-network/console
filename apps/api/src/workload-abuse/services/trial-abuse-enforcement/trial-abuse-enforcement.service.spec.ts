@@ -96,7 +96,7 @@ describe(TrialAbuseEnforcementService.name, () => {
 
     await expect(service.enforce({ wallet, detectionId: DETECTION_ID })).rejects.toThrow(/11 cannot be closed/);
 
-    expect(deploymentWriterService.close).toHaveBeenCalledWith(wallet, "22");
+    expect(deploymentWriterService.close).toHaveBeenCalledWith(wallet, "22", { reason: null });
     expect(userWalletRepository.lockForAbuse).not.toHaveBeenCalled();
     expect(detectionRepository.updateById).toHaveBeenLastCalledWith(DETECTION_ID, {
       action: "enforcement_failed",

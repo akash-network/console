@@ -14,6 +14,7 @@ import { mergeLeaseGpuOffers } from "@src/deployment/lib/lease-gpu-offers/lease-
 import { mergeLeaseGpuReadings } from "@src/deployment/lib/lease-gpu-readings/lease-gpu-readings";
 import { DeploymentSettings, type GpuProbeSource, type LeaseGpuOffer, type LeaseGpuReading } from "@src/deployment/model-schemas";
 import { NVIDIA_DRIVER_VERSION } from "@src/gpu/lib/cuda-version/cuda-version";
+import { OrganizationMembers, type OrganizationRole, ProjectMembers } from "@src/organization/model-schemas";
 import { Organizations } from "@src/organization/model-schemas/organization/organization.schema";
 import { Users } from "@src/user/model-schemas";
 
@@ -26,6 +27,15 @@ export type DeploymentSettingsOutput = Omit<DeploymentSettingsDbOutput, "created
 };
 
 export type RecentNvidiaDriver = { driverVersion: string; lastSeenDate: string };
+
+export type DeploymentLocation = { organizationId: string; organizationSlug: string; projectId: string | null };
+
+/** One organization and, when the request is narrowed, the projects of it a location lookup may answer for. */
+export type DeploymentReach = { organizationId: string; projectIds?: readonly string[] };
+
+const ROLES_REACHING_EVERY_PROJECT: OrganizationRole[] = ["owner", "admin"];
+
+const ROLES_REACHING_GRANTED_PROJECTS: OrganizationRole[] = ["member", "viewer"];
 
 const NVIDIA_PROBE_SOURCE = "nvidia-smi" satisfies GpuProbeSource;
 
@@ -240,6 +250,35 @@ export class DeploymentSettingRepository extends OrgScopedRepository<Table, Depl
     return rows.map(row => row.dseq);
   }
 
+  /** Reads across every organization the user belongs to unless held `within` one, which no active organization covers, preferring the user's own deployment when two share the dseq. */
+  async findLocation({ userId, dseq, within }: { userId: string; dseq: string; within?: DeploymentReach }): Promise<DeploymentLocation | undefined> {
+    if (within?.projectIds?.length === 0) return undefined;
+
+    const [location] = await this.cursor
+      .select({ organizationId: Organizations.id, organizationSlug: Organizations.slug, projectId: this.table.projectId })
+      .from(this.table)
+      .innerJoin(Organizations, and(eq(Organizations.id, this.table.organizationId), isNull(Organizations.deletedAt)))
+      .innerJoin(OrganizationMembers, and(eq(OrganizationMembers.organizationId, Organizations.id), eq(OrganizationMembers.userId, userId)))
+      .leftJoin(ProjectMembers, and(eq(ProjectMembers.projectId, this.table.projectId), eq(ProjectMembers.userId, userId)))
+      .where(
+        this.unscoped("deployment-location").whereAccessibleBy(
+          and(
+            eq(this.table.dseq, dseq),
+            within && eq(this.table.organizationId, within.organizationId),
+            within?.projectIds && inArray(this.table.projectId, [...within.projectIds]),
+            or(
+              inArray(OrganizationMembers.role, ROLES_REACHING_EVERY_PROJECT),
+              and(inArray(OrganizationMembers.role, ROLES_REACHING_GRANTED_PROJECTS), isNotNull(ProjectMembers.id))
+            )
+          )
+        )
+      )
+      .orderBy(desc(eq(this.table.userId, userId)), desc(this.table.createdAt))
+      .limit(1);
+
+    return location;
+  }
+
   /** Keyed by dseq and absent for a deployment with neither recorded, under the same double scoping as {@link findNamesByDseqs}. */
   async findLeaseGpus({ wallet, dseqs }: { wallet: DeploymentWallet; dseqs: string[] }): Promise<Map<string, StoredLeaseGpus>> {
     if (dseqs.length === 0) {
@@ -308,6 +347,19 @@ export class DeploymentSettingRepository extends OrgScopedRepository<Table, Depl
       .limit(1);
 
     return row && this.toOutput(row);
+  }
+
+  /** Like {@link findOneOfWallet}, except a personal wallet never answers with a row its user filed in a team, so a dseq shared across tenants stays out of a team's records. */
+  async findOneOwnedByWallet(wallet: DeploymentWallet, dseq: string): Promise<DeploymentSettingsOutput | undefined> {
+    const [row] = await this.cursor
+      .select({ setting: this.table })
+      .from(this.table)
+      .leftJoin(TeamOrganizations, isFiledInTeam)
+      .where(this.whereAccessibleBy(and(this.#filedFor(wallet), eq(this.table.dseq, dseq), wallet.userId ? isNull(TeamOrganizations.id) : undefined)))
+      .orderBy(asc(this.table.createdAt), asc(this.table.id))
+      .limit(1);
+
+    return row && this.toOutput(row.setting);
   }
 
   async findFiledRowsOfWallet(wallet: DeploymentWallet, dseqs: readonly string[]): Promise<{ id: string; dseq: string }[]> {
@@ -792,7 +844,8 @@ export class DeploymentSettingRepository extends OrgScopedRepository<Table, Depl
     manifestVersion,
     runtimeLimitHours,
     sealedSecrets,
-    name
+    name,
+    projectId
   }: {
     userId: string;
     dseq: string;
@@ -801,6 +854,7 @@ export class DeploymentSettingRepository extends OrgScopedRepository<Table, Depl
     runtimeLimitHours?: number;
     sealedSecrets?: string | null;
     name?: string;
+    projectId?: string;
   }): Promise<string> {
     const values = await this.attributeToOrganization({
       userId,
@@ -810,7 +864,8 @@ export class DeploymentSettingRepository extends OrgScopedRepository<Table, Depl
       manifestVersion,
       runtimeLimitHours,
       sealedSecrets,
-      name
+      name,
+      projectId
     });
     const upsert = (cursor: ApiPgDatabase | ApiTransaction) =>
       cursor
@@ -1117,6 +1172,7 @@ export class DeploymentSettingRepository extends OrgScopedRepository<Table, Depl
    * every later sweep would try to close it again. Such a row is written with funding off, since a
    * closed deployment has nothing to fund.
    */
+  /** Leaves open a row the user filed in another organization than the close names, since a dseq can be shared across tenants. */
   async markClosed({ userId, dseq, organizationId }: DeploymentSettingOwner): Promise<void> {
     await this.cursor
       .insert(this.table)
@@ -1124,7 +1180,9 @@ export class DeploymentSettingRepository extends OrgScopedRepository<Table, Depl
       .onConflictDoUpdate({
         target: [this.table.dseq, this.table.userId],
         set: { closed: true, updatedAt: sql`now()` },
-        setWhere: this.whereAccessibleBy(undefined)
+        setWhere: this.whereAccessibleBy(
+          organizationId ? or(isNull(this.table.organizationId), eq(this.table.organizationId, organizationId)) : undefined
+        )
       });
   }
 }

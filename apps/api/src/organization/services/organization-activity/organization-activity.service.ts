@@ -35,6 +35,11 @@ export class OrganizationActivityService {
     await this.organizationActivityRepository.create(activity);
   }
 
+  /** Filed into the deployment's own organization, which a job runs outside of and a request may not be active in. */
+  async recordForDeployment<T extends "deployment_created" | "deployment_closed">(activity: OrganizationActivityRecord<T>): Promise<void> {
+    await this.organizationActivityRepository.unscoped("deployment-activity").create(activity);
+  }
+
   async list({ limit, cursor, projectId }: { limit: number; cursor?: string; projectId?: string }): Promise<OrganizationActivityPage> {
     const after = cursor ? decodeActivityCursor(cursor) : undefined;
     const rows = await this.organizationActivityRepository.accessibleBy(this.authService.ability, "read").findPage({ limit: limit + 1, after, projectId });

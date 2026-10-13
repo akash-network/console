@@ -20,7 +20,7 @@ import { DeploymentSettingRepository } from "./deployment-setting.repository";
 
 import { createAkashAddress } from "@test/seeders/akash-address.seeder";
 import { seedDeploymentSetting } from "@test/seeders/db/deployment-setting.seeder";
-import { seedOrganizationMember, seedOrganizationWithOwner, seedProject } from "@test/seeders/db/organization.seeder";
+import { seedOrganizationMember, seedOrganizationWithOwner, seedProject, seedProjectMember } from "@test/seeders/db/organization.seeder";
 import { seedUser, seedUserWithWallet } from "@test/seeders/db/user-with-wallet.seeder";
 import { createLeaseGpuOffer } from "@test/seeders/lease-gpu-offer.seeder";
 import { createLeaseGpuReading } from "@test/seeders/lease-gpu-reading.seeder";
@@ -515,6 +515,29 @@ describe(DeploymentSettingRepository.name, () => {
 
       const updated = await deploymentSettingRepository.findOneBy({ userId: user.id, dseq: setting.dseq });
       expect(updated).toMatchObject({ closed: true, autoTopUpEnabled: true });
+    });
+
+    it("closes a row filed in the organization the close names", async () => {
+      const deploymentSettingRepository = container.resolve(DeploymentSettingRepository);
+      const { user, organization: team } = await seedOrganizationWithOwner();
+      const teamSetting = await seedDeploymentSetting({ userId: user.id, organizationId: team.id });
+
+      await deploymentSettingRepository.markClosed({ userId: user.id, dseq: teamSetting.dseq, organizationId: team.id });
+
+      expect(await deploymentSettingRepository.findOneBy({ id: teamSetting.id })).toMatchObject({ closed: true });
+    });
+
+    it("leaves a row filed in another organization open when the close names one", async () => {
+      const deploymentSettingRepository = container.resolve(DeploymentSettingRepository);
+      const [{ user, organization: team }, { organization: personal }] = await Promise.all([
+        seedOrganizationWithOwner(),
+        seedOrganizationWithOwner({ type: "personal" })
+      ]);
+      const teamSetting = await seedDeploymentSetting({ userId: user.id, organizationId: team.id });
+
+      await deploymentSettingRepository.markClosed({ userId: user.id, dseq: teamSetting.dseq, organizationId: personal.id });
+
+      expect(await deploymentSettingRepository.findOneBy({ id: teamSetting.id })).toMatchObject({ closed: false });
     });
   });
 
@@ -1929,6 +1952,120 @@ describe(DeploymentSettingRepository.name, () => {
     });
   });
 
+  describe("findLocation", () => {
+    it("locates a deployment of an organization the user owns, with the project it is filed into", async () => {
+      const { deploymentSettingRepository } = await setupOrganizations();
+      const { user, organization } = await seedOrganizationWithOwner();
+      const project = await seedProject({ organizationId: organization.id });
+      const setting = await seedDeploymentSetting({ userId: user.id, organizationId: organization.id, projectId: project.id });
+
+      expect(await deploymentSettingRepository.findLocation({ userId: user.id, dseq: setting.dseq })).toEqual({
+        organizationId: organization.id,
+        organizationSlug: organization.slug,
+        projectId: project.id
+      });
+    });
+
+    it("locates another member's deployment for an admin", async () => {
+      const { deploymentSettingRepository, active, member } = await setupOrganizations();
+      const admin = await container.resolve(UserRepository).create({ userId: faker.string.uuid() });
+      await seedOrganizationMember({ organizationId: active.organization.id, userId: admin.id, role: "admin" });
+      const setting = await seedDeploymentSetting({ userId: member.id, organizationId: active.organization.id, projectId: active.project.id });
+
+      expect(await deploymentSettingRepository.findLocation({ userId: admin.id, dseq: setting.dseq })).toMatchObject({
+        organizationId: active.organization.id
+      });
+    });
+
+    it("locates a deployment of a project a member was granted", async () => {
+      const { deploymentSettingRepository, active, member, otherProject } = await setupOrganizations();
+      await seedProjectMember({ organizationId: active.organization.id, projectId: otherProject.id, userId: member.id });
+      const setting = await seedDeploymentSetting({ userId: active.user.id, organizationId: active.organization.id, projectId: otherProject.id });
+
+      expect(await deploymentSettingRepository.findLocation({ userId: member.id, dseq: setting.dseq })).toMatchObject({
+        projectId: otherProject.id
+      });
+    });
+
+    it.each(["member", "viewer"] as const)("locates nothing in a project a %s was not granted", async role => {
+      const { deploymentSettingRepository, active, otherProject } = await setupOrganizations();
+      const caller = await container.resolve(UserRepository).create({ userId: faker.string.uuid() });
+      await seedOrganizationMember({ organizationId: active.organization.id, userId: caller.id, role });
+      const setting = await seedDeploymentSetting({ userId: active.user.id, organizationId: active.organization.id, projectId: otherProject.id });
+
+      expect(await deploymentSettingRepository.findLocation({ userId: caller.id, dseq: setting.dseq })).toBeUndefined();
+    });
+
+    it("locates nothing for a billing member", async () => {
+      const { deploymentSettingRepository, active } = await setupOrganizations();
+      const caller = await container.resolve(UserRepository).create({ userId: faker.string.uuid() });
+      await seedOrganizationMember({ organizationId: active.organization.id, userId: caller.id, role: "billing" });
+      const setting = await seedDeploymentSetting({ userId: active.user.id, organizationId: active.organization.id, projectId: active.project.id });
+
+      expect(await deploymentSettingRepository.findLocation({ userId: caller.id, dseq: setting.dseq })).toBeUndefined();
+    });
+
+    it("locates nothing in an organization the user does not belong to, even a deployment the user created", async () => {
+      const { deploymentSettingRepository, active, foreignSetting } = await setupOrganizations();
+
+      expect(await deploymentSettingRepository.findLocation({ userId: active.user.id, dseq: foreignSetting.dseq })).toBeUndefined();
+    });
+
+    it("locates nothing in a deleted organization", async () => {
+      const { deploymentSettingRepository } = await setupOrganizations();
+      const { user, organization, project } = await seedOrganizationWithOwner({ deletedAt: new Date() });
+      const setting = await seedDeploymentSetting({ userId: user.id, organizationId: organization.id, projectId: project.id });
+
+      expect(await deploymentSettingRepository.findLocation({ userId: user.id, dseq: setting.dseq })).toBeUndefined();
+    });
+
+    it("locates nothing outside the organization it is held within, even one the user owns", async () => {
+      const { deploymentSettingRepository, active } = await setupOrganizations();
+      const own = await seedOrganizationWithOwner();
+      await seedOrganizationMember({ organizationId: active.organization.id, userId: own.user.id, role: "admin" });
+      const setting = await seedDeploymentSetting({ userId: own.user.id, organizationId: own.organization.id, projectId: own.project.id });
+
+      const location = await deploymentSettingRepository.findLocation({
+        userId: own.user.id,
+        dseq: setting.dseq,
+        within: { organizationId: active.organization.id }
+      });
+
+      expect(location).toBeUndefined();
+    });
+
+    it("locates only deployments of the projects it is held within", async () => {
+      const { deploymentSettingRepository, active, otherProject } = await setupOrganizations();
+      const setting = await seedDeploymentSetting({ userId: active.user.id, organizationId: active.organization.id, projectId: otherProject.id });
+      const locate = (projectIds: string[]) =>
+        deploymentSettingRepository.findLocation({
+          userId: active.user.id,
+          dseq: setting.dseq,
+          within: { organizationId: active.organization.id, projectIds }
+        });
+
+      expect(await locate([active.project.id])).toBeUndefined();
+      expect(await locate([])).toBeUndefined();
+      expect(await locate([otherProject.id])).toEqual({
+        organizationId: active.organization.id,
+        organizationSlug: active.organization.slug,
+        projectId: otherProject.id
+      });
+    });
+
+    it("prefers the user's own deployment when another organization of theirs holds one under the same dseq", async () => {
+      const { deploymentSettingRepository, active, member } = await setupOrganizations();
+      const own = await seedOrganizationWithOwner();
+      await seedOrganizationMember({ organizationId: active.organization.id, userId: own.user.id, role: "admin" });
+      const setting = await seedDeploymentSetting({ userId: own.user.id, organizationId: own.organization.id, projectId: own.project.id });
+      await seedDeploymentSetting({ userId: member.id, dseq: setting.dseq, organizationId: active.organization.id, projectId: active.project.id });
+
+      expect(await deploymentSettingRepository.findLocation({ userId: own.user.id, dseq: setting.dseq })).toMatchObject({
+        organizationId: own.organization.id
+      });
+    });
+  });
+
   describe("in organization mode", () => {
     it("refuses to overwrite the definition another organization holds under the same dseq and user", async () => {
       const { deploymentSettingRepository, runInOrganization, active, foreignSetting } = await setupOrganizations();
@@ -2360,6 +2497,20 @@ describe(DeploymentSettingRepository.name, () => {
       const found = await deploymentSettingRepository.findOpenInProject({ organizationId: team.id, projectId: teamProject.id });
 
       expect(found).toEqual([expect.objectContaining({ id: inTeamProject.id, address: teamWallet.address })]);
+    });
+
+    it("never answers a member's personal wallet with the row they filed for the team", async () => {
+      const { deploymentSettingRepository, personalWallet, teamWallet, teamDeployment } = await setupTeamDeployment();
+
+      await expect(deploymentSettingRepository.findOneOwnedByWallet(personalWallet, teamDeployment.dseq)).resolves.toBeUndefined();
+      await expect(deploymentSettingRepository.findOneOwnedByWallet(teamWallet, teamDeployment.dseq)).resolves.toMatchObject({ id: teamDeployment.id });
+    });
+
+    it("answers a member's personal wallet with their own deployment's row", async () => {
+      const { deploymentSettingRepository, member, personalWallet } = await setupTeamDeployment();
+      const ownDeployment = await seedDeploymentSetting({ userId: member.id });
+
+      await expect(deploymentSettingRepository.findOneOwnedByWallet(personalWallet, ownDeployment.dseq)).resolves.toMatchObject({ id: ownDeployment.id });
     });
 
     it("resolves the wallet that owns each deployment", async () => {
