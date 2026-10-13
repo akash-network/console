@@ -6,14 +6,16 @@ import nock from "nock";
 import fs from "node:fs";
 import path from "node:path";
 import { container } from "tsyringe";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
+import { startJobQueues } from "@src/app/providers/jobs.provider";
 import { ApiKeyRepository } from "@src/auth/repositories/api-key/api-key.repository";
 import { ApiKeyGeneratorService } from "@src/auth/services/api-key/api-key-generator.service";
 import { AuthService } from "@src/auth/services/auth.service";
 import { BILLING_CONFIG } from "@src/billing/providers";
 import { TYPE_REGISTRY } from "@src/billing/providers/type-registry.provider";
 import { BlockHttpService } from "@src/chain/services/block-http/block-http.service";
+import { DenomExchangeService } from "@src/chain/services/denom-exchange/denom-exchange.service";
 import type { ApiPgDatabase } from "@src/core";
 import { CORE_CONFIG, POSTGRES_DB, resolveTable } from "@src/core";
 import { DomainEventsService } from "@src/core/services/domain-events/domain-events.service";
@@ -24,6 +26,7 @@ import { app } from "@src/rest-app";
 import { certVersion, deploymentVersion } from "@src/utils/constants";
 
 import { createAkashAddress } from "@test/seeders/akash-address.seeder";
+import { findDeploymentDepositsOf } from "@test/seeders/db/deployment-deposit.seeder";
 import { seedProject } from "@test/seeders/db/organization.seeder";
 import { createDeploymentGrantResponseSeed } from "@test/seeders/deployment-grant-response.seeder";
 import { createDeploymentListResponseSeed } from "@test/seeders/deployment-list-response.seeder";
@@ -36,6 +39,10 @@ const DEPLOYMENT_DEPOSIT_UDENOM = 5_000_000;
 describe("Tx Sign", () => {
   const registry = container.resolve<Registry>(TYPE_REGISTRY);
   const walletService = new WalletTestingService(app);
+
+  beforeAll(async () => {
+    await startJobQueues();
+  }, 20_000);
 
   afterEach(() => {
     vi.restoreAllMocks();
@@ -76,6 +83,65 @@ describe("Tx Sign", () => {
       expect(res.status).toBe(200);
       const records = publish.mock.calls.map(([event]) => event).filter(event => event instanceof RecordDeploymentSetting);
       expect(records.map(({ data }) => data)).toEqual([expect.objectContaining({ userId: user.id, organizationId: organization.id, projectId: project.id })]);
+    });
+
+    it("records the deposit of a deployment it creates in the deployment's project, confirmed once the transaction lands", async () => {
+      const { user, wallet } = await setup({ deploymentAllowance: DEPLOYMENT_DEPOSIT_UDENOM });
+      const { organization } = await personalMembershipOf(user.id);
+      const project = await seedProject({ organizationId: organization.id });
+      const apiKey = await seedApiKey({ userId: user.id, organizationId: organization.id, projectId: project.id });
+      enableOrganizationsFor(user.id);
+      priceAktAt(2);
+
+      const res = await app.request("/v1/tx", {
+        method: "POST",
+        body: await createMessageForDeployment(user.id, wallet.address),
+        headers: { "Content-Type": "application/json", "x-api-key": apiKey }
+      });
+
+      expect(res.status).toBe(200);
+      expect(await findDeploymentDepositsOf(organization.id)).toEqual([
+        expect.objectContaining({
+          kind: "deployment_create",
+          owner: wallet.address,
+          projectId: project.id,
+          amount: String(DEPLOYMENT_DEPOSIT_UDENOM),
+          denom: "uakt",
+          amountCents: 1000,
+          status: "confirmed",
+          txHash: "SOME_HASH",
+          actorUserId: user.id
+        })
+      ]);
+    });
+
+    it("keeps a deposit pending under its hash while the signer cannot tell whether it landed", async () => {
+      const { user, token, wallet } = await setup({ deploymentAllowance: DEPLOYMENT_DEPOSIT_UDENOM, signerOutcome: { status: 504, outcome: "unknown" } });
+      const { organization } = await personalMembershipOf(user.id);
+      priceAktAt(2);
+
+      const res = await app.request("/v1/tx", {
+        method: "POST",
+        body: await createMessageForDeployment(user.id, wallet.address),
+        headers: { "Content-Type": "application/json", authorization: `Bearer ${token}` }
+      });
+
+      expect(res.status).toBe(504);
+      expect(await findDeploymentDepositsOf(organization.id)).toEqual([expect.objectContaining({ status: "pending", txHash: "SOME_HASH" })]);
+    });
+
+    it("voids the deposit of a transaction the chain refused", async () => {
+      const { user, token, wallet } = await setup({ deploymentAllowance: DEPLOYMENT_DEPOSIT_UDENOM, blockchainError: "out of gas" });
+      const { organization } = await personalMembershipOf(user.id);
+
+      const res = await app.request("/v1/tx", {
+        method: "POST",
+        body: await createMessageForDeployment(user.id, wallet.address, "uact"),
+        headers: { "Content-Type": "application/json", authorization: `Bearer ${token}` }
+      });
+
+      expect(res.status).not.toBe(200);
+      expect(await findDeploymentDepositsOf(organization.id)).toEqual([expect.objectContaining({ status: "void" })]);
     });
 
     it("responds with 402 Payment Required when the deployment allowance cannot cover the deposit", async () => {
@@ -263,6 +329,17 @@ describe("Tx Sign", () => {
     return apiKey;
   }
 
+  function priceAktAt(price: number) {
+    vi.spyOn(container.resolve(DenomExchangeService), "getExchangeRateToUSD").mockResolvedValue({
+      price,
+      volume: 0,
+      marketCap: 0,
+      marketCapRank: 0,
+      priceChange24h: 0,
+      priceChangePercentage24: 0
+    });
+  }
+
   function enableOrganizationsFor(userId: string) {
     vi.spyOn(container.resolve(FeatureFlagsService), "isEnabled").mockImplementation((flag, context) => {
       if (flag === FeatureFlags.ORGANIZATIONS_ENFORCE) return false;
@@ -298,7 +375,7 @@ describe("Tx Sign", () => {
   }
 
   const yml = fs.readFileSync(path.resolve(__dirname, "../mocks/hello-world-sdl.yml"), "utf8");
-  async function createMessageForDeployment(userId: string, address: string) {
+  async function createMessageForDeployment(userId: string, address: string, denom = container.resolve(BILLING_CONFIG).DEPLOYMENT_GRANT_DENOM) {
     const { cert, publicKey } = await certificateManager.generatePEM(address);
     const manifest = generateManifest(yaml.template(yml));
     if (!manifest.ok) throw new Error("Failed to generate manifest");
@@ -323,7 +400,7 @@ describe("Tx Sign", () => {
           groups: manifest.value.groupSpecs,
           hash: await generateManifestVersion(manifest.value.groups),
           deposit: {
-            amount: { denom: container.resolve(BILLING_CONFIG).DEPLOYMENT_GRANT_DENOM, amount: DEPLOYMENT_DEPOSIT_UDENOM.toString() },
+            amount: { denom, amount: DEPLOYMENT_DEPOSIT_UDENOM.toString() },
             sources: [Source.grant]
           }
         }

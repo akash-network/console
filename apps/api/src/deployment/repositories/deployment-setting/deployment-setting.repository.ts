@@ -1,6 +1,7 @@
 import { and, asc, desc, eq, gt, gte, ilike, inArray, isNotNull, isNull, lt, lte, or, type SQL, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import createError from "http-errors";
+import chunk from "lodash/chunk";
 import { singleton } from "tsyringe";
 
 import { UserWallets, WalletSetting } from "@src/billing/model-schemas";
@@ -42,6 +43,8 @@ const ROLES_REACHING_EVERY_PROJECT: OrganizationRole[] = ["owner", "admin"];
 const ROLES_REACHING_GRANTED_PROJECTS: OrganizationRole[] = ["member", "viewer"];
 
 const NVIDIA_PROBE_SOURCE = "nvidia-smi" satisfies GpuProbeSource;
+
+const DSEQ_LOOKUP_BATCH_SIZE = 1000;
 
 /** The wallet a deployment's settings row is looked up for: a team wallet files its deployments under its organization, any other wallet under its user. */
 export type DeploymentWallet = Pick<UserWalletOutput, "userId" | "organizationId">;
@@ -681,6 +684,25 @@ export class DeploymentSettingRepository extends OrgScopedRepository<Table, Depl
       );
 
     return deployments as OpenDeployment[];
+  }
+
+  /** Two rows of one organization rarely share a dseq; when they do, the older row decides, so every reader attributes the deployment alike. */
+  async findProjectIdsInOrganizationByDseqs(organizationId: string, dseqs: readonly string[]): Promise<Map<string, string | null>> {
+    const projectIds = new Map<string, string | null>();
+
+    for (const batch of chunk([...new Set(dseqs)], DSEQ_LOOKUP_BATCH_SIZE)) {
+      const rows = await this.cursor
+        .select({ dseq: this.table.dseq, projectId: this.table.projectId })
+        .from(this.table)
+        .where(this.whereInOrganization(and(eq(this.table.organizationId, organizationId), inArray(this.table.dseq, batch))))
+        .orderBy(asc(this.table.createdAt), asc(this.table.id));
+
+      for (const { dseq, projectId } of rows) {
+        if (!projectIds.has(dseq)) projectIds.set(dseq, projectId);
+      }
+    }
+
+    return projectIds;
   }
 
   async markAsClosedInProject({ organizationId, projectId }: { organizationId: string; projectId: string }, ids: string[]): Promise<void> {

@@ -168,6 +168,53 @@ describe(DeploymentSettingRepository.name, () => {
     }
   });
 
+  describe("findProjectIdsInOrganizationByDseqs", () => {
+    it("maps the organization's dseqs to the project their rows are filed in, the older row deciding a shared dseq", async () => {
+      const deploymentSettingRepository = container.resolve(DeploymentSettingRepository);
+      const [tenant, foreign] = await Promise.all([seedOrganizationWithOwner(), seedOrganizationWithOwner()]);
+      const colleague = await seedUser();
+      const otherProject = await seedProject({ organizationId: tenant.organization.id });
+      const filed = await seedDeploymentSetting({ userId: tenant.user.id, organizationId: tenant.organization.id, projectId: tenant.project.id });
+      const unfiled = await seedDeploymentSetting({ userId: tenant.user.id, organizationId: tenant.organization.id, projectId: null });
+      const shared = await seedDeploymentSetting({
+        userId: tenant.user.id,
+        organizationId: tenant.organization.id,
+        projectId: otherProject.id,
+        createdAt: new Date("2026-01-01T00:00:00.000Z")
+      });
+      await seedDeploymentSetting({
+        userId: colleague.id,
+        organizationId: tenant.organization.id,
+        projectId: tenant.project.id,
+        dseq: shared.dseq,
+        createdAt: new Date("2026-02-01T00:00:00.000Z")
+      });
+      const foreignSetting = await seedDeploymentSetting({ userId: foreign.user.id, organizationId: foreign.organization.id, projectId: foreign.project.id });
+
+      const projectIds = await deploymentSettingRepository.findProjectIdsInOrganizationByDseqs(tenant.organization.id, [
+        filed.dseq,
+        unfiled.dseq,
+        shared.dseq,
+        filed.dseq,
+        foreignSetting.dseq
+      ]);
+
+      expect(projectIds).toEqual(
+        new Map([
+          [filed.dseq, tenant.project.id],
+          [unfiled.dseq, null],
+          [shared.dseq, otherProject.id]
+        ])
+      );
+    });
+
+    it("reads nothing for no dseqs", async () => {
+      const { organization } = await seedOrganizationWithOwner();
+
+      expect(await container.resolve(DeploymentSettingRepository).findProjectIdsInOrganizationByDseqs(organization.id, [])).toEqual(new Map());
+    });
+  });
+
   describe("releaseFundingClaim", () => {
     it("makes a claimed deployment immediately claimable again", async () => {
       const { deploymentSettingRepository, settingId } = await setup();

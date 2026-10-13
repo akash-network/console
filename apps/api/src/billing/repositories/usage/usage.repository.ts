@@ -6,7 +6,7 @@ import { UserWalletRepository } from "@src/billing/repositories/user-wallet/user
 import { TxManagerService } from "@src/billing/services/tx-manager/tx-manager.service";
 import { CHAIN_DB } from "@src/chain/providers/sequelize.provider";
 
-const WALLET_MIGRATION_DATE = new Date("2025-11-24");
+export const WALLET_MIGRATION_DATE = new Date("2025-11-24");
 
 export interface BillingUsageRawResult {
   date: string;

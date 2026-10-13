@@ -22,6 +22,7 @@ import { PurgeDeletedAccount, PurgeDeletedAccountHandler } from "@src/user/servi
 import { AccountDeletionService } from "./account-deletion.service";
 
 import { createAkashAddress } from "@test/seeders/akash-address.seeder";
+import { findDeploymentDeposit, seedDeploymentDeposit } from "@test/seeders/db/deployment-deposit.seeder";
 import { seedDeploymentSetting } from "@test/seeders/db/deployment-setting.seeder";
 import { seedOrganizationMember, seedOrganizationWithOwner } from "@test/seeders/db/organization.seeder";
 import { seedUserWithWallet } from "@test/seeders/db/user-with-wallet.seeder";
@@ -207,6 +208,20 @@ describe(AccountDeletionService.name, () => {
       deploymentSettings: [expect.objectContaining({ userId: account.user.id })]
     });
     expect(await findJobRows(PurgeDeletedAccount[JOB_NAME], { data: { userId: account.user.id } })).toHaveLength(0);
+  });
+
+  it("erases the deposit records of the personal organization and keeps the ones the account made in a team, without naming it", async () => {
+    const { service, account, token, answerActiveDeployments } = await setup();
+    const { organization: team } = await seedOrganizationWithOwner();
+    await seedOrganizationMember({ organizationId: team.id, userId: account.user.id, role: "member" });
+    const personalDeposit = await seedDeploymentDeposit({ organizationId: account.organization.id, actorUserId: account.user.id });
+    const teamDeposit = await seedDeploymentDeposit({ organizationId: team.id, actorUserId: account.user.id });
+    answerActiveDeployments([]);
+
+    await service.confirm({ token });
+
+    expect(await findDeploymentDeposit(personalDeposit.id)).toBeUndefined();
+    expect(await findDeploymentDeposit(teamDeposit.id)).toMatchObject({ organizationId: team.id, actorUserId: null, amountCents: teamDeposit.amountCents });
   });
 
   it("leaves the account untouched while it still has an active deployment", async () => {

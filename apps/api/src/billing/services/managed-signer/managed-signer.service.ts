@@ -40,6 +40,7 @@ import { COSMOS_TX_CODE_OK } from "@src/utils/constants";
 import { BalancesService } from "../balances/balances.service";
 import { BillingConfigService } from "../billing-config/billing-config.service";
 import { ChainErrorService } from "../chain-error/chain-error.service";
+import { DeploymentDepositLedgerService, type DepositRecordingOptions } from "../deployment-deposit-ledger/deployment-deposit-ledger.service";
 import { DeploymentDepositRefusalCache, isInsufficient } from "../deployment-deposit-refusal-cache/deployment-deposit-refusal-cache.service";
 import { TrialValidationService } from "../trial-validation/trial-validation.service";
 
@@ -98,21 +99,30 @@ export class ManagedSignerService {
     private readonly executionContextService: ExecutionContextService,
     private readonly deploymentOrganizationActivityService: DeploymentOrganizationActivityService,
     private readonly deploymentProjectService: DeploymentProjectService,
+    private readonly depositLedger: DeploymentDepositLedgerService,
     @inject(LOGGER_FACTORY) createLogger: CreateLogger
   ) {
     this.logger = createLogger({ context: ManagedSignerService.name });
   }
 
   @Trace()
-  async executeDerivedTx(walletIndex: number, messages: readonly EncodeObject[]) {
+  async executeDerivedTx(walletIndex: number, messages: readonly EncodeObject[], options?: DepositRecordingOptions) {
+    const deposits = await this.depositLedger.recordPending(walletIndex, messages, options);
+    let tx: Awaited<ReturnType<TxManagerService["signAndBroadcastWithDerivedWallet"]>>;
+
     try {
       const granter = await this.txManagerService.getFundingWalletAddress();
-      return await this.txManagerService.signAndBroadcastWithDerivedWallet(walletIndex, messages, {
+      tx = await this.txManagerService.signAndBroadcastWithDerivedWallet(walletIndex, messages, {
         fee: { granter }
       });
     } catch (error: any) {
+      await this.depositLedger.recordFailed(deposits, error);
       throw await this.chainErrorService.toAppError(error, messages);
     }
+
+    await this.depositLedger.recordLanded(deposits, tx);
+
+    return tx;
   }
 
   @Trace()
@@ -184,7 +194,7 @@ export class ManagedSignerService {
     let tx: Awaited<ReturnType<ManagedSignerService["executeDerivedTx"]>>;
 
     try {
-      tx = await this.executeDerivedTx(userWallet.id, messages);
+      tx = await this.executeDerivedTx(userWallet.id, messages, { filingProjectId });
 
       if (tx.code !== COSMOS_TX_CODE_OK) {
         this.logger.error({ event: "TX_LANDED_WITH_NON_ZERO_CODE", txHash: tx.hash, code: tx.code, rawLog: tx.rawLog });

@@ -41,7 +41,9 @@ const ORGANIZATION_SUBJECTS = [
   "StripePayment",
   ...PROJECT_RESOURCES,
   "ApiKey",
-  "OrganizationActivity"
+  "OrganizationActivity",
+  "ProjectSpend",
+  "OrganizationSpend"
 ];
 
 const ROLE_TABLE: Record<OrganizationRole, Record<string, string[]>> = {
@@ -60,7 +62,9 @@ const ROLE_TABLE: Record<OrganizationRole, Record<string, string[]>> = {
     Template: MANAGE,
     Alert: MANAGE,
     NotificationChannel: MANAGE,
-    ApiKey: MANAGE
+    ApiKey: MANAGE,
+    ProjectSpend: READ,
+    OrganizationSpend: READ
   },
   admin: {
     Organization: ["read", "update"],
@@ -77,7 +81,9 @@ const ROLE_TABLE: Record<OrganizationRole, Record<string, string[]>> = {
     Template: MANAGE,
     Alert: MANAGE,
     NotificationChannel: MANAGE,
-    ApiKey: MANAGE
+    ApiKey: MANAGE,
+    ProjectSpend: READ,
+    OrganizationSpend: READ
   },
   member: {
     Organization: READ,
@@ -94,7 +100,9 @@ const ROLE_TABLE: Record<OrganizationRole, Record<string, string[]>> = {
     Template: MANAGE,
     Alert: MANAGE,
     NotificationChannel: MANAGE,
-    ApiKey: MANAGE
+    ApiKey: MANAGE,
+    ProjectSpend: READ,
+    OrganizationSpend: NONE
   },
   billing: {
     Organization: READ,
@@ -111,7 +119,9 @@ const ROLE_TABLE: Record<OrganizationRole, Record<string, string[]>> = {
     Template: NONE,
     Alert: NONE,
     NotificationChannel: NONE,
-    ApiKey: MANAGE
+    ApiKey: MANAGE,
+    ProjectSpend: READ,
+    OrganizationSpend: READ
   },
   viewer: {
     Organization: READ,
@@ -128,7 +138,9 @@ const ROLE_TABLE: Record<OrganizationRole, Record<string, string[]>> = {
     Template: READ,
     Alert: READ,
     NotificationChannel: READ,
-    ApiKey: MANAGE
+    ApiKey: MANAGE,
+    ProjectSpend: READ,
+    OrganizationSpend: NONE
   }
 };
 
@@ -299,6 +311,29 @@ describe("ability rules", () => {
         NotificationChannel: NONE
       });
       expect([inside.OrganizationActivity, outside.OrganizationActivity]).toEqual([READ, NONE]);
+    });
+
+    it.each(["owner", "admin"] as const)("keeps the %s role of a narrowed request to its projects' spend, without the organization's", role => {
+      const narrowedProjectId = faker.string.uuid();
+      const { ability, organizationId } = setup({ role, projectScope: createProjectsScope([narrowedProjectId]) });
+
+      expect(ability.can("read", subject("ProjectSpend", { organizationId, projectId: narrowedProjectId }))).toBe(true);
+      expect(ability.can("read", subject("ProjectSpend", { organizationId, projectId: faker.string.uuid() }))).toBe(false);
+      expect(ability.can("read", subject("OrganizationSpend", { organizationId }))).toBe(false);
+    });
+
+    it.each(["member", "viewer"] as const)("keeps the %s role to the spend of the projects it was granted", role => {
+      const { ability, organizationId, grantedProjectId } = setup({ role });
+
+      expect(ability.can("read", subject("ProjectSpend", { organizationId, projectId: grantedProjectId }))).toBe(true);
+      expect(ability.can("read", subject("ProjectSpend", { organizationId, projectId: faker.string.uuid() }))).toBe(false);
+    });
+
+    it("lets the billing role read the spend of every project and of the whole organization", () => {
+      const { ability, organizationId } = setup({ role: "billing" });
+
+      expect(ability.can("read", subject("ProjectSpend", { organizationId, projectId: faker.string.uuid() }))).toBe(true);
+      expect(ability.can("read", subject("OrganizationSpend", { organizationId }))).toBe(true);
     });
 
     it.each(ROLES)("applies the organization rules of the %s role to the Organization subject only", role => {

@@ -45,16 +45,18 @@ export const ORGANIZATION_LEVEL_SUBJECTS: readonly string[] = [
 const ROLES_BELOW_OWNER = organizationRoleEnum.enumValues.filter(role => role !== "owner");
 
 const ROLE_RULES: Record<OrganizationRole, (conditions: TenantConditions, context: OrganizationContext) => AbilityRule[]> = {
-  owner: ({ organization, inOrg, inScope, writableInScope, grantsOfAdministeredProjects }, { organizationType }) => [
+  owner: ({ organization, inOrg, inScope, writableInScope, grantsOfAdministeredProjects }, { organizationType, projectScope }) => [
     { action: organizationType === "team" ? ["update", "delete"] : "update", subject: "Organization", conditions: organization },
+    ...organizationSpendRules(inOrg, projectScope),
     { action: "manage", subject: ["OrganizationMember", "OrganizationInvitation", "Project"], conditions: inOrg },
     { action: "manage", subject: "ProjectMember", conditions: grantsOfAdministeredProjects },
     { action: "sign", subject: "UserWallet", conditions: inOrg },
     { action: "manage", subject: ["WalletSetting", "PaymentMethod", "StripePayment"], conditions: inOrg },
     ...projectResourceRules({ inScope, writableInScope })
   ],
-  admin: ({ organization, inOrg, belowOwnerInOrg, inScope, writableInScope, grantsOfAdministeredProjects }) => [
+  admin: ({ organization, inOrg, belowOwnerInOrg, inScope, writableInScope, grantsOfAdministeredProjects }, { projectScope }) => [
     { action: "update", subject: "Organization", conditions: organization },
+    ...organizationSpendRules(inOrg, projectScope),
     { action: "read", subject: "OrganizationInvitation", conditions: inOrg },
     { action: "manage", subject: ["OrganizationMember", "OrganizationInvitation"], conditions: belowOwnerInOrg },
     { action: "manage", subject: "Project", conditions: inOrg },
@@ -73,6 +75,7 @@ const ROLE_RULES: Record<OrganizationRole, (conditions: TenantConditions, contex
   ],
   billing: ({ inOrg }) => [
     { action: "read", subject: "Project", conditions: inOrg },
+    { action: "read", subject: ["ProjectSpend", "OrganizationSpend"], conditions: inOrg },
     { action: "manage", subject: ["WalletSetting", "PaymentMethod", "StripePayment"], conditions: inOrg }
   ],
   viewer: ({ inOrg, inScope, projectsInScope }) => [
@@ -204,6 +207,12 @@ function everyMemberRules({ organization, inOrg, inScope, ownInOrg }: TenantCond
     { action: "read", subject: "Organization", conditions: organization },
     { action: "read", subject: ["OrganizationMember", "UserWallet"], conditions: inOrg },
     { action: "read", subject: "OrganizationActivity", conditions: inScope },
+    { action: "read", subject: "ProjectSpend", conditions: inScope },
     { action: "manage", subject: "ApiKey", conditions: ownInOrg }
   ];
+}
+
+/** Organization-wide totals would show spend beyond the projects a narrowed request is limited to. */
+function organizationSpendRules(inOrg: MongoQuery, projectScope: ProjectScope): AbilityRule[] {
+  return projectScope.kind === "all" ? [{ action: "read", subject: "OrganizationSpend", conditions: inOrg }] : [];
 }

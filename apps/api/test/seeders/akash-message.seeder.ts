@@ -19,6 +19,7 @@ export const createAkashMessage = async (input: Partial<CreationAttributes<Akash
         "0a2c616b61736831306d6c34647a356e706779687a78337871306d796c3434647a79636d6b6779746d6339726865122c616b617368316778676c75336e79303835766e7765617270336b6636747668716167616479617779303567711a0d0a0475616b7412053130303030",
         "hex"
       ),
-    relatedDeploymentId: input.relatedDeploymentId || faker.string.uuid()
+    relatedDeploymentId: input.relatedDeploymentId || faker.string.uuid(),
+    amount: input.amount
   });
 };
