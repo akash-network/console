@@ -774,7 +774,7 @@ const getSpendRateRoute = createRoute({
   security: SECURITY_BEARER_OR_API_KEY,
   responses: {
     200: {
-      description: "Returns the summed price per block of the live leases of each of the user's deployments",
+      description: "Returns the summed price per block of the live leases of each deployment of the wallet the request acts through, within the caller's projects",
       content: {
         "application/json": {
           schema: GetSpendRateResponseSchema
@@ -782,7 +782,7 @@ const getSpendRateRoute = createRoute({
       }
     },
     403: {
-      description: "The user's wallet is not initialized yet",
+      description: "The wallet is not initialized yet",
       content: {
         "application/json": {
           schema: ErrorResponseSchema
@@ -790,7 +790,7 @@ const getSpendRateRoute = createRoute({
       }
     },
     404: {
-      description: "The user has no wallet",
+      description: "The request has no wallet to act through",
       content: {
         "application/json": {
           schema: ErrorResponseSchema
