@@ -44,13 +44,27 @@ export class NotificationService {
     });
   }
 
+  /** For callers that retry on their own: one attempt, plus one more right after opening a missing default channel. */
+  async createNotificationOnce(input: CreateNotificationInput): Promise<void> {
+    const { user, ...notification } = input;
+    const send = () => this.notificationsInternalApi.v1.createNotification(notification, { headers: { "x-user-id": user.id } });
+
+    try {
+      await send().catch(async error => {
+        if (extractApiErrorCode(error) !== "NOTIFICATION_CHANNEL_NOT_FOUND" || !user.email) throw error;
+
+        await this.notificationsApi.v1.createDefaultNotificationChannel(defaultChannelInput(user.email), { headers: { "x-user-id": user.id } });
+        await send();
+      });
+    } catch (error) {
+      throw new Error("Failed to create notification", { cause: error });
+    }
+  }
+
   async createDefaultChannel(user: UserInput): Promise<void> {
     await this.#retryPolicy.execute(async () => {
       try {
-        await this.notificationsApi.v1.createDefaultNotificationChannel(
-          { data: { name: "Default", type: "email", config: { addresses: [user.email!] } } },
-          { headers: { "x-user-id": user.id } }
-        );
+        await this.notificationsApi.v1.createDefaultNotificationChannel(defaultChannelInput(user.email!), { headers: { "x-user-id": user.id } });
       } catch (error) {
         throw new Error("Failed to create default notification channel", { cause: error });
       }
@@ -119,6 +133,10 @@ export class NotificationService {
       )
     );
   }
+}
+
+function defaultChannelInput(email: string) {
+  return { data: { name: "Default", type: "email" as const, config: { addresses: [email] } } };
 }
 
 interface UserInput {

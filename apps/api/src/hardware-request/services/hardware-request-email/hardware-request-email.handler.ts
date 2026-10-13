@@ -1,9 +1,9 @@
 import { inject, singleton } from "tsyringe";
 
 import { type CreateLogger, type Job, JOB_NAME, type JobHandler, type JobPayload, type JobPermissions, LOGGER_FACTORY } from "@src/core";
-import { supportMailboxUserId } from "@src/hardware-request/lib/support-mailbox-user-id/support-mailbox-user-id";
 import { HARDWARE_REQUEST_CONFIG, type HardwareRequestConfig } from "@src/hardware-request/providers/config.provider";
 import { HardwareRequestRepository } from "@src/hardware-request/repositories/hardware-request/hardware-request.repository";
+import { emailRecipientUserId } from "@src/notifications/lib/email-recipient-user-id/email-recipient-user-id";
 import { NotificationService } from "@src/notifications/services/notification/notification.service";
 import { UserRepository } from "@src/user/repositories";
 import { hardwareRequestEmailNotification } from "./hardware-request-email-notification";
@@ -51,7 +51,7 @@ export class HardwareRequestEmailHandler implements JobHandler<HardwareRequestEm
       hardwareRequestEmailNotification({
         hardwareRequest,
         requester,
-        mailbox: { id: supportMailboxUserId(mailboxEmail), email: mailboxEmail }
+        mailbox: { id: emailRecipientUserId(mailboxEmail), email: mailboxEmail }
       })
     );
   }
