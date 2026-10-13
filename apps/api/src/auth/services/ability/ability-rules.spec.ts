@@ -477,6 +477,24 @@ describe("ability rules", () => {
         expect(ability.can("read", subject("OrganizationActivity", { organizationId, projectId: null }))).toBe(false);
       });
 
+      it.each(ROLES)("keeps a %s key to its project's spend, out of other projects' and the organization's", role => {
+        const projectId = faker.string.uuid();
+        const { ability, organizationId } = setup({ role, projectScope: createProjectsScope([projectId]), apiKeyProjectId: projectId });
+
+        expect(ability.can("read", subject("ProjectSpend", { organizationId, projectId }))).toBe(true);
+        expect(ability.can("read", subject("ProjectSpend", { organizationId, projectId: faker.string.uuid() }))).toBe(false);
+        expect(ability.can("read", subject("OrganizationSpend", { organizationId }))).toBe(false);
+      });
+
+      it("keeps a billing key, which reaches no project, out of every project's spend and the organization's", () => {
+        const projectId = faker.string.uuid();
+        const { ability, organizationId } = setup({ role: "billing", apiKeyProjectId: projectId });
+
+        expect(ability.can("read", subject("ProjectSpend", { organizationId, projectId }))).toBe(false);
+        expect(ability.can("read", subject("ProjectSpend", { organizationId, projectId: faker.string.uuid() }))).toBe(false);
+        expect(ability.can("read", subject("OrganizationSpend", { organizationId }))).toBe(false);
+      });
+
       it("grants its reads of the organization and its project on those two subjects only", () => {
         const projectId = faker.string.uuid();
         const { ability, organizationId } = setup({ role: "owner", projectScope: createProjectsScope([projectId]), apiKeyProjectId: projectId });

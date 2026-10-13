@@ -75,7 +75,6 @@ const ROLE_RULES: Record<OrganizationRole, (conditions: TenantConditions, contex
   ],
   billing: ({ inOrg }) => [
     { action: "read", subject: "Project", conditions: inOrg },
-    { action: "read", subject: ["ProjectSpend", "OrganizationSpend"], conditions: inOrg },
     { action: "manage", subject: ["WalletSetting", "PaymentMethod", "StripePayment"], conditions: inOrg }
   ],
   viewer: ({ inOrg, inScope, projectsInScope }) => [
@@ -84,6 +83,11 @@ const ROLE_RULES: Record<OrganizationRole, (conditions: TenantConditions, contex
     { action: "read", subject: "WalletSetting", conditions: inOrg },
     { action: "read", subject: PROJECT_RESOURCES, conditions: inScope }
   ]
+};
+
+/** Reads across every project, which a project-bound key does not inherit from its owner's role. */
+const ORGANIZATION_WIDE_ROLE_RULES: Partial<Record<OrganizationRole, (conditions: TenantConditions) => AbilityRule[]>> = {
+  billing: ({ inOrg }) => [{ action: "read", subject: ["ProjectSpend", "OrganizationSpend"], conditions: inOrg }]
 };
 
 export const SUPER_USER_RULES: AbilityRule[] = [{ action: "manage", subject: "all" }];
@@ -116,7 +120,7 @@ export function organizationRules(user: RuleUser, context: OrganizationContext, 
 
   return apiKey?.projectId
     ? [...withoutOrganizationLevelSubjects(rules), ...projectBoundKeyRules(conditions)]
-    : [...rules, ...organizationWideRules(conditions)];
+    : [...rules, ...organizationWideRules(conditions, context)];
 }
 
 function withoutOrganizationLevelSubjects(rules: AbilityRule[]): AbilityRule[] {
@@ -128,8 +132,11 @@ function withoutOrganizationLevelSubjects(rules: AbilityRule[]): AbilityRule[] {
 }
 
 /** Activity outside any project, such as members joining, stays out of a project-bound key's reach like the members themselves. */
-function organizationWideRules({ organizationWide }: TenantConditions): AbilityRule[] {
-  return [{ action: "read", subject: "OrganizationActivity", conditions: organizationWide }];
+function organizationWideRules(conditions: TenantConditions, { role }: OrganizationContext): AbilityRule[] {
+  return [
+    { action: "read", subject: "OrganizationActivity", conditions: conditions.organizationWide },
+    ...(ORGANIZATION_WIDE_ROLE_RULES[role]?.(conditions) ?? [])
+  ];
 }
 
 function projectBoundKeyRules({ organization, projectsInScope }: TenantConditions): AbilityRule[] {
