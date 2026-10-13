@@ -16,7 +16,7 @@ export class OrganizationController {
   }
 }
 
-function toOrganizationResponse({ role, isActive, organization }: CallerMembership): OrganizationResponse {
+export function toOrganizationResponse({ role, isActive, organization }: CallerMembership): OrganizationResponse {
   const { id, name, slug, type, createdAt } = organization;
 
   return { id, name, slug, type, role, isActive, createdAt: createdAt.toISOString() };

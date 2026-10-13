@@ -1,10 +1,11 @@
-import { and, asc, count, eq, inArray, type SQL } from "drizzle-orm";
+import { and, asc, count, eq, inArray, isNull, type SQL } from "drizzle-orm";
 import { singleton } from "tsyringe";
 
 import { type ApiPgDatabase, type ApiPgTables, InjectPg, InjectPgTable } from "@src/core/providers";
 import { OrgScopedRepository } from "@src/core/repositories/org-scoped.repository";
 import { TxService } from "@src/core/services";
 import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
+import { Organizations } from "@src/organization/model-schemas/organization/organization.schema";
 import { Users } from "@src/user/model-schemas/user/user.schema";
 
 type Table = ApiPgTables["OrganizationInvitations"];
@@ -16,6 +17,11 @@ export type OrganizationInvitationWithInviter = Pick<
   "id" | "organizationId" | "email" | "role" | "projectGrants" | "createdAt" | "expiresAt"
 > & {
   invitedBy: { id: string; username: string | null } | null;
+};
+
+export type OrganizationInvitationPreview = Pick<OrganizationInvitationOutput, "role" | "email" | "status" | "expiresAt"> & {
+  organizationName: string;
+  inviterName: string | null;
 };
 
 type NewInvitation = Pick<OrganizationInvitationInput, "organizationId" | "email" | "role" | "projectGrants" | "tokenHash" | "expiresAt" | "invitedByUserId">;
@@ -84,6 +90,25 @@ export class OrganizationInvitationRepository extends OrgScopedRepository<Table,
       ...invitation,
       invitedBy: inviterId ? { id: inviterId, username: inviterUsername } : null
     }));
+  }
+
+  async findPreviewByTokenHash(tokenHash: OrganizationInvitationOutput["tokenHash"]): Promise<OrganizationInvitationPreview | undefined> {
+    const [preview] = await this.cursor
+      .select({
+        organizationName: Organizations.name,
+        inviterName: Users.username,
+        role: this.table.role,
+        email: this.table.email,
+        status: this.table.status,
+        expiresAt: this.table.expiresAt
+      })
+      .from(this.table)
+      .innerJoin(Organizations, and(eq(Organizations.id, this.table.organizationId), isNull(Organizations.deletedAt)))
+      .leftJoin(Users, eq(Users.id, this.table.invitedByUserId))
+      .where(this.whereAccessibleBy(eq(this.table.tokenHash, tokenHash)))
+      .limit(1);
+
+    return preview;
   }
 
   /** Swaps the token only while the invitation still carries the expected one, so a token issued in between is never overwritten. */

@@ -114,6 +114,39 @@ describe(OrganizationInvitationRepository.name, () => {
     });
   });
 
+  describe("findPreviewByTokenHash", () => {
+    it("previews the invitation with the token, its organization and its inviter", async () => {
+      const { repository, organization, inviter } = await setup();
+      const invitation = await seedOrganizationInvitation({ organizationId: organization.id, invitedByUserId: inviter.id, role: "admin", status: "accepted" });
+      await seedOrganizationInvitation({ organizationId: organization.id });
+
+      expect(await repository.findPreviewByTokenHash(invitation.tokenHash)).toEqual({
+        organizationName: organization.name,
+        inviterName: inviter.username,
+        role: "admin",
+        email: invitation.email,
+        status: "accepted",
+        expiresAt: invitation.expiresAt
+      });
+    });
+
+    it("previews an invitation whose inviter is gone without an inviter name", async () => {
+      const { repository, organization } = await setup();
+      const invitation = await seedOrganizationInvitation({ organizationId: organization.id, invitedByUserId: null });
+
+      expect(await repository.findPreviewByTokenHash(invitation.tokenHash)).toMatchObject({ organizationName: organization.name, inviterName: null });
+    });
+
+    it("finds nothing for an unknown token or an invitation of a deleted organization", async () => {
+      const { repository } = await setup();
+      const deleted = await seedOrganization({ deletedAt: new Date() });
+      const invitation = await seedOrganizationInvitation({ organizationId: deleted.id });
+
+      expect(await repository.findPreviewByTokenHash(hashInvitationToken("unknown"))).toBeUndefined();
+      expect(await repository.findPreviewByTokenHash(invitation.tokenHash)).toBeUndefined();
+    });
+  });
+
   describe("replaceTokenHash", () => {
     it("replaces the token of a pending invitation that still carries the expected one", async () => {
       const { repository, organization } = await setup();
@@ -149,7 +182,7 @@ describe(OrganizationInvitationRepository.name, () => {
 
   async function setup() {
     const repository = container.resolve(OrganizationInvitationRepository);
-    const inviter = await seedUser({ userId: faker.string.uuid() });
+    const inviter = await seedUser({ userId: faker.string.uuid(), username: `inviter-${faker.string.alphanumeric(12)}` });
     const organization = await seedOrganization({ createdByUserId: inviter.id });
 
     function newInvitation(overrides: { email: string; organizationId?: string }) {
