@@ -126,7 +126,10 @@ describe(useDeploymentReachability.name, () => {
     });
 
     it("reports a live lease whose status carries no endpoint as private", () => {
-      const { result } = setup({ leases: [lease({ state: "active" })], statuses: [{ services: { worker: mock<LeaseServiceStatus>({ uris: [], available: 1 }) } }] });
+      const { result } = setup({
+        leases: [lease({ state: "active" })],
+        statuses: [{ services: { worker: mock<LeaseServiceStatus>({ uris: [], available: 1 }) } }]
+      });
 
       expect(result.current.unreachableReason).toBe("no-public-endpoint");
     });
