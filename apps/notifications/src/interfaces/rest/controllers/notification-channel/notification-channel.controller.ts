@@ -1,20 +1,6 @@
-import {
-  BadRequestException,
-  Body,
-  Controller,
-  Delete,
-  Get,
-  HttpCode,
-  NotFoundException,
-  Param,
-  ParseUUIDPipe,
-  Patch,
-  Post,
-  Query,
-  UsePipes
-} from "@nestjs/common";
+import { BadRequestException, Body, Controller, Delete, Get, HttpCode, NotFoundException, Param, ParseUUIDPipe, Patch, Post, Query } from "@nestjs/common";
 import { ApiNoContentResponse, ApiQuery } from "@nestjs/swagger";
-import { createZodDto, ZodValidationPipe } from "nestjs-zod";
+import { createZodDto } from "nestjs-zod";
 import { Err, Ok, Result } from "ts-results";
 import { z } from "zod";
 
@@ -95,7 +81,7 @@ export class NotificationChannelController {
 
   @Post("default")
   @HttpCode(204)
-  @UsePipes(ZodValidationPipe)
+  @ValidateHttp({})
   @ApiNoContentResponse({ description: "Creates the default notification channel only if it doesn't exist." })
   async createDefaultNotificationChannel(@Body() { data }: NotificationChannelCreateDefaultInput): Promise<Result<void, unknown>> {
     await this.notificationChannelRepository.accessibleBy(this.authService.ability, "create").createDefaultChannel({
