@@ -59,7 +59,13 @@ describe("Organization trial", () => {
       ]);
       expect(inTeam[0].id).not.toBe(wallet.id);
       expect(inPersonal).toEqual([
-        expect.objectContaining({ id: wallet.id, address: wallet.address, isTrialing: true, trialEndsAt: expect.any(String), trialDurationDays: expect.any(Number) })
+        expect.objectContaining({
+          id: wallet.id,
+          address: wallet.address,
+          isTrialing: true,
+          trialEndsAt: expect.any(String),
+          trialDurationDays: expect.any(Number)
+        })
       ]);
       expect(backInTeam).toEqual(inTeam);
     });
@@ -136,7 +142,10 @@ describe("Organization trial", () => {
   }
 
   async function signTx(userId: string, owner: string, headers: Record<string, string>) {
-    const message = { typeUrl: `/${MsgCreateDeployment.$type}`, value: MsgCreateDeployment.fromPartial({ id: { owner, dseq: faker.number.int({ min: 1, max: 1e9 }) } }) };
+    const message = {
+      typeUrl: `/${MsgCreateDeployment.$type}`,
+      value: MsgCreateDeployment.fromPartial({ id: { owner, dseq: faker.number.int({ min: 1, max: 1e9 }) } })
+    };
 
     return await app.request("/v1/tx", {
       method: "POST",

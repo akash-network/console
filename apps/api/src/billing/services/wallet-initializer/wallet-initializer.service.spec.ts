@@ -180,7 +180,10 @@ describe(WalletInitializerService.name, () => {
         updateWalletById
       });
 
-      await expect(di.resolve(WalletInitializerService).initializeAndGrantTrialLimits(userId)).rejects.toMatchObject({ status: 404, message: "UserWallet Not Found" });
+      await expect(di.resolve(WalletInitializerService).initializeAndGrantTrialLimits(userId)).rejects.toMatchObject({
+        status: 404,
+        message: "UserWallet Not Found"
+      });
       expect(di.resolve(ManagedUserWalletService).createAndAuthorizeTrialSpending).not.toHaveBeenCalled();
       expect(updateWalletById).not.toHaveBeenCalled();
       expect(di.resolve(DomainEventsService).publish).not.toHaveBeenCalled();
