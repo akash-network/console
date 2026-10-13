@@ -3,6 +3,7 @@ import { AsyncLocalStorage } from "node:async_hooks";
 import { inject, singleton } from "tsyringe";
 
 import { type CreateLogger, LOGGER_FACTORY } from "@src/core/providers/logging.provider";
+import type { OrganizationContext } from "@src/organization/types/organization-context";
 import type { UserOutput } from "@src/user/repositories";
 import type { AppContext } from "../../types/app-context";
 
@@ -15,6 +16,7 @@ export interface HeldDataKey {
 interface ExecutionStorage {
   CURRENT_USER: UserOutput;
   ABILITY: MongoAbility;
+  ORGANIZATION_CONTEXT: OrganizationContext;
   HTTP_CONTEXT: AppContext;
   HELD_DATA_KEYS: Map<string, Promise<HeldDataKey | undefined>>;
   DATA_KEY_UNWRAP_COUNTS: Map<string, number>;
