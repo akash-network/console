@@ -333,7 +333,11 @@ describe(AccountDeletionService.name, () => {
     }
 
     async function ownTeam() {
-      const { user: owner, organization, project } = await seedOrganizationWithOwner({ user: { userId: faker.string.uuid() }, createdByUserId: account.user.id });
+      const {
+        user: owner,
+        organization,
+        project
+      } = await seedOrganizationWithOwner({ user: { userId: faker.string.uuid() }, createdByUserId: account.user.id });
       await db.delete(resolveTable("OrganizationMembers")).where(eq(resolveTable("OrganizationMembers").userId, owner.id));
       await seedOrganizationMember({ organizationId: organization.id, userId: account.user.id, role: "owner" });
 
@@ -354,7 +358,10 @@ describe(AccountDeletionService.name, () => {
       const organizationId = team.organization.id;
 
       async function seedRowsWrittenBy(userId: string, { withWalletSetting }: { withWalletSetting: boolean }) {
-        const [transaction] = await db.insert(resolveTable("StripeTransactions")).values({ userId, organizationId, type: "payment_intent", amount: 2500 }).returning();
+        const [transaction] = await db
+          .insert(resolveTable("StripeTransactions"))
+          .values({ userId, organizationId, type: "payment_intent", amount: 2500 })
+          .returning();
         const [paymentMethod] = await db
           .insert(resolveTable("PaymentMethods"))
           .values({ userId, organizationId, fingerprint: faker.string.alphanumeric(16), paymentMethodId: `pm_${faker.string.alphanumeric(14)}` })
@@ -387,7 +394,10 @@ describe(AccountDeletionService.name, () => {
     }
 
     async function seedUnfiledRowsOf(userId: string) {
-      const [transaction] = await db.insert(resolveTable("StripeTransactions")).values({ userId, organizationId: null, type: "payment_intent", amount: 2500 }).returning();
+      const [transaction] = await db
+        .insert(resolveTable("StripeTransactions"))
+        .values({ userId, organizationId: null, type: "payment_intent", amount: 2500 })
+        .returning();
       const [paymentMethod] = await db
         .insert(resolveTable("PaymentMethods"))
         .values({ userId, organizationId: null, fingerprint: faker.string.alphanumeric(16), paymentMethodId: `pm_${faker.string.alphanumeric(14)}` })

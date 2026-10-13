@@ -105,7 +105,9 @@ describe(DeploymentSettingService.name, () => {
       deploymentSettingRepository.accessibleBy.mockReturnValue(deploymentSettingRepository);
       deploymentSettingRepository.findOneBy.mockResolvedValue(orphan);
       deploymentSettingRepository.refileOrphanUnder.mockResolvedValue(caller.id);
-      deploymentSettingRepository.applyRuntimeLimit.mockResolvedValue(createDeploymentSettingsOutput({ userId: caller.id, dseq: orphan.dseq, runtimeLimitHours: 12 }));
+      deploymentSettingRepository.applyRuntimeLimit.mockResolvedValue(
+        createDeploymentSettingsOutput({ userId: caller.id, dseq: orphan.dseq, runtimeLimitHours: 12 })
+      );
 
       await service.upsert({ userId: faker.string.uuid(), dseq: orphan.dseq }, { runtimeLimitHours: 12 });
 
@@ -125,7 +127,9 @@ describe(DeploymentSettingService.name, () => {
       deploymentSettingRepository.accessibleBy.mockReturnValue(deploymentSettingRepository);
       deploymentSettingRepository.findOneBy.mockResolvedValue(orphan);
       deploymentSettingRepository.refileOrphanUnder.mockResolvedValue(winnerId);
-      deploymentSettingRepository.applyRuntimeLimit.mockResolvedValue(createDeploymentSettingsOutput({ userId: winnerId, dseq: orphan.dseq, runtimeLimitHours: 12 }));
+      deploymentSettingRepository.applyRuntimeLimit.mockResolvedValue(
+        createDeploymentSettingsOutput({ userId: winnerId, dseq: orphan.dseq, runtimeLimitHours: 12 })
+      );
 
       await service.upsert({ userId: faker.string.uuid(), dseq: orphan.dseq }, { runtimeLimitHours: 12 });
 

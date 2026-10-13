@@ -570,7 +570,11 @@ export class DeploymentSettingRepository extends OrgScopedRepository<Table, Depl
     const [own] = await this.cursor
       .select({ id: this.table.id })
       .from(this.table)
-      .where(this.whereAccessibleBy(and(eq(this.table.dseq, deployment.dseq), eq(this.table.userId, userId), sql`${this.table.organizationId} = ${deployment.organizationId}`)))
+      .where(
+        this.whereAccessibleBy(
+          and(eq(this.table.dseq, deployment.dseq), eq(this.table.userId, userId), sql`${this.table.organizationId} = ${deployment.organizationId}`)
+        )
+      )
       .limit(1);
 
     return !!own;

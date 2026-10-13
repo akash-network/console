@@ -321,7 +321,7 @@ describe(AutoReloadPauseService.name, () => {
     const walletReloadJobService = mock<WalletReloadJobService>();
     walletReloadJobService.targetOf.mockImplementation(async setting => (setting.userId ? { userId: setting.userId } : { walletId: setting.walletId }));
     const billingContactsService = mock<BillingContactsService>();
-    billingContactsService.findForPayer.mockImplementation(async payer => (isTeamPayer(payer) ? (input?.teamContacts ?? []) : [payer.user]));
+    billingContactsService.findForPayer.mockImplementation(async payer => (isTeamPayer(payer) ? input?.teamContacts ?? [] : [payer.user]));
     const notificationService = mock<NotificationService>();
     const billingConfig = mockConfigService<BillingConfigService>({
       AUTO_RELOAD_CHARGE_COOLDOWN_IN_MIN: input?.cooldownMinutes ?? 60,

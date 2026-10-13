@@ -221,7 +221,10 @@ describe("Account deletion", () => {
       const member = await seedUser({ userId: faker.string.uuid() });
       await seedOrganizationMember({ organizationId: team.id, userId: member.id, role: "billing" });
       const teamCustomerId = `cus_${faker.string.alphanumeric(14)}`;
-      await db.update(resolveTable("Organizations")).set({ stripeCustomerId: teamCustomerId }).where(eq(resolveTable("Organizations").id, team.id));
+      await db
+        .update(resolveTable("Organizations"))
+        .set({ stripeCustomerId: teamCustomerId })
+        .where(eq(resolveTable("Organizations").id, team.id));
       const [teamWallet] = await db
         .insert(resolveTable("UserWallets"))
         .values({ userId: null, organizationId: team.id, address: createAkashAddress(), isTrialing: false, activatedAt: new Date() })

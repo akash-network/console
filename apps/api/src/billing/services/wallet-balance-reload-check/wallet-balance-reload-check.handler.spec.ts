@@ -888,7 +888,9 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
       await handler.handle({ walletId: wallet.id, version: 1 }, jobMeta);
 
       expect(paymentMethodService.getDefaultPaymentMethod).toHaveBeenCalledWith(expect.objectContaining({ user: null, team }), expect.anything());
-      expect(stripeTransactionService.createPaymentIntent).toHaveBeenCalledWith(expect.objectContaining({ userId: null, organizationId: team.id, customer: "cus_team" }));
+      expect(stripeTransactionService.createPaymentIntent).toHaveBeenCalledWith(
+        expect.objectContaining({ userId: null, organizationId: team.id, customer: "cus_team" })
+      );
     });
 
     it("records a decline of such a team with no member, and reports a failed recording without one", async () => {

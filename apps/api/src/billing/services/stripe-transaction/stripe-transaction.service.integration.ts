@@ -869,7 +869,13 @@ describe(StripeTransactionService.name, () => {
       stripeTransactionRepository.findById.mockResolvedValue(transaction);
 
       await service.failPaymentIntent(
-        createPaymentIntentFailedEvent({ id: "pi_123", amount: 2500, currency: "usd", metadata: { internal_transaction_id: transaction.id }, last_payment_error: createCardDecline() })
+        createPaymentIntentFailedEvent({
+          id: "pi_123",
+          amount: 2500,
+          currency: "usd",
+          metadata: { internal_transaction_id: transaction.id },
+          last_payment_error: createCardDecline()
+        })
       );
 
       expect(analyticsService.track).not.toHaveBeenCalled();
@@ -1000,7 +1006,13 @@ describe(StripeTransactionService.name, () => {
     it("attributes a team's charge to the member the locked row names when that member's account is deleted in between", async () => {
       const { service, organizationRepository, stripeTransactionRepository, refillService, stripe } = setup();
       const team = createOrganization({ type: "team", stripeCustomerId: "cus_team" });
-      const readBeforeLock = generateDatabaseStripeTransaction({ type: "payment_intent", status: "pending", amount: 5000, userId: faker.string.uuid(), organizationId: team.id });
+      const readBeforeLock = generateDatabaseStripeTransaction({
+        type: "payment_intent",
+        status: "pending",
+        amount: 5000,
+        userId: faker.string.uuid(),
+        organizationId: team.id
+      });
       organizationRepository.findOneBy.mockResolvedValue(team);
       organizationRepository.findById.mockResolvedValue(team);
       stripeTransactionRepository.findById.mockResolvedValue(readBeforeLock);
