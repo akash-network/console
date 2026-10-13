@@ -1,5 +1,5 @@
 import { AkashBlock } from "@akashnetwork/database/dbSchemas/akash";
-import { addSeconds, differenceInSeconds } from "date-fns";
+import { addSeconds, differenceInSeconds, isValid } from "date-fns";
 import assert from "http-assert";
 import { singleton } from "tsyringe";
 
@@ -25,9 +25,11 @@ export class BlockPredictionService {
 
     const averageBlockTime = await this.calculateAverageBlockTime(latestBlock, blockWindow);
     const heightDiff = height - latestBlock.height;
+    const predictedDate = addSeconds(latestBlock.datetime, heightDiff * averageBlockTime);
+    assert(isValid(predictedDate), 400, "Height is too far in the future");
 
     return {
-      predictedDate: addSeconds(latestBlock.datetime, heightDiff * averageBlockTime).toISOString(),
+      predictedDate: predictedDate.toISOString(),
       height,
       blockWindow
     };

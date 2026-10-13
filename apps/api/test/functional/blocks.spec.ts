@@ -228,6 +228,14 @@ describe("Blocks", () => {
       expect(response.status).toBe(400);
     });
 
+    it("responds 400 for a height too far in the future to predict a date", async () => {
+      await setup();
+
+      const response = await app.request("/v1/predicted-block-date/99999999999999999999999");
+
+      expect(response.status).toBe(400);
+    });
+
     it("responds 400 for an invalid block window", async () => {
       await setup();
 
