@@ -5,7 +5,11 @@ import { faker } from "@faker-js/faker";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
-import type { DeploymentDepositInput, DeploymentDepositOutput, DeploymentDepositRepository } from "@src/billing/repositories/deployment-deposit/deployment-deposit.repository";
+import type {
+  DeploymentDepositInput,
+  DeploymentDepositOutput,
+  DeploymentDepositRepository
+} from "@src/billing/repositories/deployment-deposit/deployment-deposit.repository";
 import type { UserWalletRepository } from "@src/billing/repositories/user-wallet/user-wallet.repository";
 import { TxNotIncludedError, TxOutcomeUnknownError } from "@src/billing/services/external-signer-http-sdk/tx-outcome.error";
 import { ReconcileDeploymentDeposit } from "@src/billing/services/reconcile-deployment-deposit/reconcile-deployment-deposit.handler";
@@ -265,7 +269,10 @@ describe(DeploymentDepositLedgerService.name, () => {
     it("leaves out a deposit in a denom it cannot price and records the rest", async () => {
       const { service, deploymentDepositRepository, logger } = setup();
 
-      await service.recordLanded({ recorded: [], awaitingPrice: [createUnpriced({ dseq: "1" }), createUnpriced({ dseq: "2", denom: "ibc/unknown" })] }, { code: 0, hash: "ABC" });
+      await service.recordLanded(
+        { recorded: [], awaitingPrice: [createUnpriced({ dseq: "1" }), createUnpriced({ dseq: "2", denom: "ibc/unknown" })] },
+        { code: 0, hash: "ABC" }
+      );
 
       expect(deploymentDepositRepository.createMany).toHaveBeenCalledWith([expect.objectContaining({ dseq: "1", amountCents: 100 })]);
       expect(logger.warn).toHaveBeenCalledWith({ event: "DEPLOYMENT_DEPOSIT_UNPRICED", dseqs: ["2"] });
@@ -405,7 +412,7 @@ describe(DeploymentDepositLedgerService.name, () => {
     const organizationContext =
       input.organizationContext === null
         ? undefined
-        : (input.organizationContext ?? mock<OrganizationContext>({ organizationId: wallet.organizationId!, mode: "organization" }));
+        : input.organizationContext ?? mock<OrganizationContext>({ organizationId: wallet.organizationId!, mode: "organization" });
     const userWalletRepository = mock<UserWalletRepository>({ findById: vi.fn().mockResolvedValue(wallet) });
     const deploymentDepositRepository = mock<DeploymentDepositRepository>({
       createMany: vi.fn(async (rows: DeploymentDepositInput[]) => rows.map(row => ({ ...row }) as DeploymentDepositOutput))

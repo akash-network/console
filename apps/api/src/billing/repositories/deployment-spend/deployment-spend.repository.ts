@@ -113,9 +113,12 @@ export class DeploymentSpendRepository {
   }
 
   async findLatestBlockTime(): Promise<Date | undefined> {
-    const [row] = await this.#chainDb.query<{ datetime: Date }>(`/* deployment-deposit:latest-block */ SELECT datetime FROM block ORDER BY height DESC LIMIT 1`, {
-      type: QueryTypes.SELECT
-    });
+    const [row] = await this.#chainDb.query<{ datetime: Date }>(
+      `/* deployment-deposit:latest-block */ SELECT datetime FROM block ORDER BY height DESC LIMIT 1`,
+      {
+        type: QueryTypes.SELECT
+      }
+    );
 
     return row ? new Date(row.datetime) : undefined;
   }

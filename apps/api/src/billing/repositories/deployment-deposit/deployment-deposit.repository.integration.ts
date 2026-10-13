@@ -14,7 +14,16 @@ describe(DeploymentDepositRepository.name, () => {
       const { repository, organization, project } = await setup();
 
       const [created] = await repository.createMany([
-        { organizationId: organization.id, projectId: project.id, owner: "akash1owner", dseq: "42", kind: "deployment_create", amount: "5000000", denom: "uact", amountCents: 500 }
+        {
+          organizationId: organization.id,
+          projectId: project.id,
+          owner: "akash1owner",
+          dseq: "42",
+          kind: "deployment_create",
+          amount: "5000000",
+          denom: "uact",
+          amountCents: 500
+        }
       ]);
 
       expect(await findDeploymentDeposit(created.id)).toMatchObject({ status: "pending", projectId: project.id, amountCents: 500, txHash: null });
@@ -120,7 +129,12 @@ describe(DeploymentDepositRepository.name, () => {
       await seedDeploymentDeposit({ organizationId: organization.id, projectId: project.id, amountCents: 999, status: "void", createdAt: inWindow });
       await seedDeploymentDeposit({ organizationId: organization.id, amountCents: 30, createdAt: inWindow });
       await seedDeploymentDeposit({ organizationId: organization.id, projectId: project.id, amountCents: 7, createdAt: new Date("2026-10-01T00:00:00.000Z") });
-      await seedDeploymentDeposit({ organizationId: organization.id, projectId: project.id, amountCents: 999, createdAt: new Date("2026-11-01T00:00:00.000Z") });
+      await seedDeploymentDeposit({
+        organizationId: organization.id,
+        projectId: project.id,
+        amountCents: 999,
+        createdAt: new Date("2026-11-01T00:00:00.000Z")
+      });
       await seedDeploymentDeposit({ organizationId: other.id, amountCents: 999, createdAt: inWindow });
 
       const committed = await repository.sumCommittedByProject(organization.id, {

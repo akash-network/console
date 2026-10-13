@@ -11,7 +11,17 @@ import type { OrganizationRole } from "@src/organization/model-schemas/organizat
 import { app, initDb } from "@src/rest-app";
 import type { UserOutput } from "@src/user/repositories";
 
-import { createAkashAddress, createAkashBlock, createAkashMessage, createDay, createDeployment, createDeploymentGroup, createLease, createProvider, createTransaction } from "@test/seeders";
+import {
+  createAkashAddress,
+  createAkashBlock,
+  createAkashMessage,
+  createDay,
+  createDeployment,
+  createDeploymentGroup,
+  createLease,
+  createProvider,
+  createTransaction
+} from "@test/seeders";
 import { seedDeploymentDeposit } from "@test/seeders/db/deployment-deposit.seeder";
 import { seedDeploymentSetting } from "@test/seeders/db/deployment-setting.seeder";
 import { seedOrganizationMember, seedOrganizationWithOwner, seedProject, seedProjectMember } from "@test/seeders/db/organization.seeder";
@@ -53,7 +63,15 @@ describe("Project spend", () => {
           endDate: "2026-09-03",
           isEstimated: true,
           projects: [
-            { projectId: defaultProject.id, name: defaultProject.name, isDefault: true, isDeleted: false, committedUsd: 6, consumedUsd: 19.98, estimatedConsumedUsd: 14.98 },
+            {
+              projectId: defaultProject.id,
+              name: defaultProject.name,
+              isDefault: true,
+              isDeleted: false,
+              committedUsd: 6,
+              consumedUsd: 19.98,
+              estimatedConsumedUsd: 14.98
+            },
             { projectId: staging.id, name: staging.name, isDefault: false, isDeleted: false, committedUsd: 7, consumedUsd: 14.99, estimatedConsumedUsd: 0 }
           ],
           unassigned: { committedUsd: 1, consumedUsd: 5, estimatedConsumedUsd: 0 },
@@ -88,7 +106,9 @@ describe("Project spend", () => {
           startDate: "2026-09-01",
           endDate: "2026-09-03",
           isEstimated: false,
-          projects: [{ projectId: staging.id, name: staging.name, isDefault: false, isDeleted: false, committedUsd: 7, consumedUsd: 14.99, estimatedConsumedUsd: 0 }],
+          projects: [
+            { projectId: staging.id, name: staging.name, isDefault: false, isDeleted: false, committedUsd: 7, consumedUsd: 14.99, estimatedConsumedUsd: 0 }
+          ],
           unassigned: null,
           total: null
         }
@@ -166,7 +186,13 @@ describe("Project spend", () => {
       await initDb();
 
       for (const day of DAYS) {
-        const { id } = await createDay({ date: day.date, firstBlockHeight: day.firstBlockHeight, lastBlockHeight: day.lastBlockHeightYet, lastBlockHeightYet: day.lastBlockHeightYet, aktPrice: 2 });
+        const { id } = await createDay({
+          date: day.date,
+          firstBlockHeight: day.firstBlockHeight,
+          lastBlockHeight: day.lastBlockHeightYet,
+          lastBlockHeightYet: day.lastBlockHeightYet,
+          aktPrice: 2
+        });
         await createAkashBlock({ height: day.firstBlockHeight, datetime: new Date(`${day.date}T00:00:00.000Z`), dayId: id });
       }
 
@@ -237,7 +263,13 @@ describe("Project spend", () => {
       deposit: 1_000_000,
       lease: { createdHeight: 3000, closedHeight: 3500 }
     });
-    await seedChainDeployment({ owner: createAkashAddress(), dseq: faker.string.numeric(12), createdHeight: 1000, deposit: 9_000_000, lease: { createdHeight: 1000 } });
+    await seedChainDeployment({
+      owner: createAkashAddress(),
+      dseq: faker.string.numeric(12),
+      createdHeight: 1000,
+      deposit: 9_000_000,
+      lease: { createdHeight: 1000 }
+    });
 
     await seedDeploymentSetting({ userId: input.ownerId, organizationId: input.organizationId, projectId: input.stagingId, dseq: stagingDseq });
     await seedDeploymentSetting({ userId: input.ownerId, organizationId: input.organizationId, projectId: input.defaultProjectId, dseq: defaultDseq });

@@ -118,9 +118,7 @@ describe(ReconcileDeploymentDepositHandler.name, () => {
       await indexTip(secondsAfter(recordedAt, 3_600));
       letChainReadsOverlap();
 
-      await Promise.all(
-        [first, second].map(({ id }) => handler.handle({ depositIds: [id], version: 1 }, { id: faker.string.uuid(), ...LAST_ATTEMPT }))
-      );
+      await Promise.all([first, second].map(({ id }) => handler.handle({ depositIds: [id], version: 1 }, { id: faker.string.uuid(), ...LAST_ATTEMPT })));
 
       const statuses = [(await findDeploymentDeposit(first.id)).status, (await findDeploymentDeposit(second.id)).status];
       expect(statuses.sort()).toEqual(["confirmed", "void"]);
@@ -131,7 +129,15 @@ describe(ReconcileDeploymentDepositHandler.name, () => {
       const unhashed = await seedPending({ organizationId: organization.id, owner, kind: "top_up", amountCents: 50, createdAt: recordedAt });
       const deployment = await indexCreate({ owner, dseq: unhashed.dseq, at: secondsAfter(recordedAt, -86_400) });
       const txHash = await indexTopUp({ deploymentId: deployment.id, amount: unhashed.amount, at: secondsAfter(recordedAt, 5) });
-      const hashed = await seedPending({ organizationId: organization.id, owner, kind: "top_up", amountCents: 50, dseq: unhashed.dseq, txHash, createdAt: recordedAt });
+      const hashed = await seedPending({
+        organizationId: organization.id,
+        owner,
+        kind: "top_up",
+        amountCents: 50,
+        dseq: unhashed.dseq,
+        txHash,
+        createdAt: recordedAt
+      });
       await indexTip(secondsAfter(recordedAt, 3_600));
 
       await handler.handle({ depositIds: [unhashed.id], version: 1 }, { id: faker.string.uuid(), ...LAST_ATTEMPT });

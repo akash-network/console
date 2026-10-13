@@ -70,7 +70,11 @@ describe(ProjectSpendService.name, () => {
       const defaultProject = createProject({ organizationId, isDefault: true, createdAt: new Date("2026-03-01") });
       const deletedWithSpend = createProject({ organizationId, deletedAt: new Date(), createdAt: new Date("2025-01-01") });
       const deletedWithout = createProject({ organizationId, deletedAt: new Date() });
-      const { service, deploymentDepositRepository } = setup({ role: "admin", organizationId, projects: [newer, deletedWithSpend, older, deletedWithout, defaultProject] });
+      const { service, deploymentDepositRepository } = setup({
+        role: "admin",
+        organizationId,
+        projects: [newer, deletedWithSpend, older, deletedWithout, defaultProject]
+      });
       deploymentDepositRepository.sumCommittedByProject.mockResolvedValue([{ projectId: deletedWithSpend.id, amountCents: 50 }]);
 
       const report = await service.report(RANGE);
@@ -81,7 +85,9 @@ describe(ProjectSpendService.name, () => {
     it("orders projects created at the same moment by id", async () => {
       const organizationId = faker.string.uuid();
       const createdAt = new Date("2026-01-01");
-      const [first, second] = [createProject({ organizationId, createdAt }), createProject({ organizationId, createdAt })].sort((a, b) => a.id.localeCompare(b.id));
+      const [first, second] = [createProject({ organizationId, createdAt }), createProject({ organizationId, createdAt })].sort((a, b) =>
+        a.id.localeCompare(b.id)
+      );
       const { service } = setup({ role: "owner", organizationId, projects: [second, first] });
 
       const report = await service.report(RANGE);
@@ -242,7 +248,11 @@ describe(ProjectSpendService.name, () => {
       viewer: createProjectsScope(grantedProjectIds),
       billing: createProjectsScope([])
     };
-    const context: OrganizationContext = createOrganizationContext({ organizationId, role: input.role, projectScope: input.projectScope ?? defaultScopes[input.role] });
+    const context: OrganizationContext = createOrganizationContext({
+      organizationId,
+      role: input.role,
+      projectScope: input.projectScope ?? defaultScopes[input.role]
+    });
     const ability = createMongoAbility(organizationRules(createUser(), context));
     const wallet = input.wallet ?? createUserWallet({ organizationId, createdAt: new Date("2026-01-01") });
 

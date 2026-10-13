@@ -1506,7 +1506,9 @@ describe(ManagedSignerService.name, () => {
 
       expect(result).toBe(tx);
       expect(depositLedger.recordPending).toHaveBeenCalledWith(7, messages, { filingProjectId: "project-1" });
-      expect(depositLedger.recordPending.mock.invocationCallOrder[0]).toBeLessThan(txManagerService.signAndBroadcastWithDerivedWallet.mock.invocationCallOrder[0]);
+      expect(depositLedger.recordPending.mock.invocationCallOrder[0]).toBeLessThan(
+        txManagerService.signAndBroadcastWithDerivedWallet.mock.invocationCallOrder[0]
+      );
       expect(depositLedger.recordLanded).toHaveBeenCalledWith(deposits, tx);
       expect(depositLedger.recordFailed).not.toHaveBeenCalled();
     });

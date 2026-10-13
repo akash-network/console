@@ -20,7 +20,8 @@ const listProjectSpendRoute = createRoute({
   request: { query: ListProjectSpendQuerySchema },
   responses: {
     200: {
-      description: "Spend of the projects the caller can see, with the organization's total and unassigned remainder when the caller can see the whole organization",
+      description:
+        "Spend of the projects the caller can see, with the organization's total and unassigned remainder when the caller can see the whole organization",
       content: { "application/json": { schema: ListProjectSpendResponseSchema } }
     },
     400: { description: "Dates must be YYYY-MM-DD, startDate must not be after endDate and the range cannot exceed 366 days" },
