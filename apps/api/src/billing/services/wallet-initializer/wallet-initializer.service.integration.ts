@@ -1,5 +1,5 @@
 import { faker } from "@faker-js/faker";
-import { count, eq, inArray, max, min, type SQL } from "drizzle-orm";
+import { and, count, eq, inArray, isNull, max, min, type SQL } from "drizzle-orm";
 import { container } from "tsyringe";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -134,6 +134,34 @@ describe(WalletInitializerService.name, () => {
       ]);
     });
 
+    it("holds a payment that activates the wallet while the grant is in flight until the grant is saved", async () => {
+      const events: string[] = [];
+      let paymentClaim: Promise<unknown[]> | undefined;
+      const { service, publish, seedTrialCandidate } = setup({
+        duringGrant: async (db, walletId) => {
+          const wallets = resolveTable("UserWallets");
+          paymentClaim = db
+            .update(wallets)
+            .set({ activatedAt: new Date() })
+            .where(and(eq(wallets.id, walletId), isNull(wallets.activatedAt)))
+            .returning()
+            .then(claimed => {
+              events.push("payment claimed");
+              return claimed;
+            });
+          await new Promise(resolve => setTimeout(resolve, 100));
+          events.push("grant landed");
+        }
+      });
+      const { user } = await seedTrialCandidate();
+
+      await service.initializeAndGrantTrialLimits(user.id);
+
+      expect(await paymentClaim).toEqual([]);
+      expect(events).toEqual(["grant landed", "payment claimed"]);
+      expect(publish).toHaveBeenCalledWith(new TrialStarted({ userId: user.id }));
+    });
+
     it("grants no new trial to a user who used theirs before organizations existed, after they create a team", async () => {
       const { service, findWallets, grantTrial, publish } = setup();
       const usedAt = new Date("2025-01-15T00:00:00.000Z");
@@ -196,7 +224,7 @@ describe(WalletInitializerService.name, () => {
     return team;
   }
 
-  function setup(input: { grantDelayMs?: number } = {}) {
+  function setup(input: { grantDelayMs?: number; duringGrant?: (db: ApiPgDatabase, walletId: number) => Promise<unknown> } = {}) {
     const db = container.resolve<ApiPgDatabase>(POSTGRES_DB);
     const wallets = resolveTable("UserWallets");
     const service = container.resolve(WalletInitializerService);
@@ -204,6 +232,7 @@ describe(WalletInitializerService.name, () => {
       .spyOn(container.resolve(ManagedUserWalletService), "createAndAuthorizeTrialSpending")
       .mockImplementation(async (_signer, { addressIndex }) => {
         await new Promise(resolve => setTimeout(resolve, input.grantDelayMs ?? 0));
+        await input.duringGrant?.(db, addressIndex);
         return { address: `granted-${addressIndex}`, limits: { deployment: TRIAL_DEPLOYMENT_LIMIT, fees: TRIAL_FEE_LIMIT } };
       });
     const publish = vi.spyOn(container.resolve(DomainEventsService), "publish").mockResolvedValue(null);
