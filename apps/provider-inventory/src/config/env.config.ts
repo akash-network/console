@@ -35,6 +35,7 @@ export const envSchema = z.object({
     .nonnegative()
     .default(5 * ONE_MINUTE),
   STREAM_FIRST_MESSAGE_TIMEOUT_MS: z.number({ coerce: true }).nonnegative().default(10_000),
+  STREAM_MIN_HEALTHY_LIFETIME_MS: z.number({ coerce: true }).nonnegative().default(ONE_MINUTE),
   STREAM_UPDATE_THROTTLE_MS: z.number({ coerce: true }).nonnegative().default(1000),
   REST_API_NODE_URL: z.string().url(),
   DEAD_PROVIDER_UPDATED_THRESHOLD_MS: z

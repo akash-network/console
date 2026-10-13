@@ -161,25 +161,28 @@ export class StreamLifecycleManagerService {
     const activeStream = this.#activeStreams.get(provider.owner);
     const offlineProviderMaxAttempts = this.#config.OFFLINE_PROVIDER_RETRY_MAX_ATTEMPTS - 1;
     try {
-      await this.#retryPolicy.execute(async ctx => {
-        if (signal.aborted) return;
-        const isStillOffline = provider.offlineSince && ctx.attempt > offlineProviderMaxAttempts && !wasProviderOnline;
-        if (isStillOffline) {
-          throw new OfflineProviderError();
-        }
-        if (ctx.attempt > 0) {
-          this.#logger.warn({
-            event: "STREAM_RECONNECTING",
-            owner: provider.owner,
-            attempt: ctx.attempt
-          });
-        }
-        try {
-          await this.#runAttempt(provider, signal, onConnected);
-        } finally {
-          settleFirstAttempt();
-        }
-      }, signal);
+      let outcome: AttemptOutcome;
+      do {
+        outcome = await this.#retryPolicy.execute(async ctx => {
+          if (signal.aborted) return "stopped";
+          const isStillOffline = provider.offlineSince && ctx.attempt > offlineProviderMaxAttempts && !wasProviderOnline;
+          if (isStillOffline) {
+            throw new OfflineProviderError();
+          }
+          if (ctx.attempt > 0) {
+            this.#logger.warn({
+              event: "STREAM_RECONNECTING",
+              owner: provider.owner,
+              attempt: ctx.attempt
+            });
+          }
+          try {
+            return await this.#runAttempt(provider, signal, onConnected);
+          } finally {
+            settleFirstAttempt();
+          }
+        }, signal);
+      } while (outcome === "recycled");
     } catch (error) {
       if (!signal.aborted) {
         this.#logger.error({ event: "STREAM_GAVE_UP", owner: provider.owner, error });
@@ -198,8 +201,8 @@ export class StreamLifecycleManagerService {
     }
   }
 
-  async #runAttempt(provider: ChainProviderWithOfflineSince, outerSignal: AbortSignal, onConnected: () => void): Promise<void> {
-    if (outerSignal.aborted) return;
+  async #runAttempt(provider: ChainProviderWithOfflineSince, outerSignal: AbortSignal, onConnected: () => void): Promise<AttemptOutcome> {
+    if (outerSignal.aborted) return "stopped";
 
     this.#lastInventoryPerProvider.delete(provider.owner);
 
@@ -217,8 +220,10 @@ export class StreamLifecycleManagerService {
       }, this.#config.STREAM_FIRST_MESSAGE_TIMEOUT_MS)
       .unref();
     const releasePermit = once(() => this.#startStreamSemaphore.release());
+    let healthyFrom = Number.POSITIVE_INFINITY;
     const onFirstMessage = once(() => {
       clearTimeout(firstMessageTimeoutId);
+      healthyFrom = Date.now() + this.#config.STREAM_MIN_HEALTHY_LIFETIME_MS;
       onConnected();
     });
 
@@ -229,17 +234,20 @@ export class StreamLifecycleManagerService {
       const throttled = throttleLatest(stream, this.#config.STREAM_UPDATE_THROTTLE_MS, { signal: attemptController.signal });
       for await (const message of throttled) {
         this.#logger.debug({ event: "STREAM_MESSAGE_RECEIVED", owner: provider.owner });
-        if (attemptController.signal.aborted) return;
+        if (attemptController.signal.aborted) return "stopped";
         onFirstMessage();
         await this.#updateProviderInventory(provider, message);
       }
 
-      if (outerSignal.aborted) return;
-      await this.#tryMarkOffline(provider.owner);
+      if (outerSignal.aborted) return "stopped";
 
       throw new Error("provider inventory stream ended");
     } catch (error) {
-      if (outerSignal.aborted) return;
+      if (outerSignal.aborted) return "stopped";
+      if (Date.now() >= healthyFrom) {
+        this.#logger.info({ event: "STREAM_RECYCLED", owner: provider.owner, error });
+        return "recycled";
+      }
       this.#logger.warn({ event: "STREAM_ATTEMPT_FAILED", owner: provider.owner, error });
       await this.#tryMarkOffline(provider.owner);
       throw error;
@@ -361,6 +369,8 @@ export class StreamLifecycleManagerService {
     this.shutdown();
   }
 }
+
+type AttemptOutcome = "recycled" | "stopped";
 
 class OfflineProviderError extends Error {
   name = "OfflineProviderError";
