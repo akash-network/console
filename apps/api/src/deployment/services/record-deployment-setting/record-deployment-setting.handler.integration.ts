@@ -8,6 +8,7 @@ import { UserRepository } from "@src/user/repositories";
 import { RecordDeploymentSetting, RecordDeploymentSettingHandler, recordDeploymentSettingKeyFor } from "./record-deployment-setting.handler";
 
 import { createDseq, seedDeploymentSetting } from "@test/seeders/db/deployment-setting.seeder";
+import { seedOrganizationWithOwner, seedProject } from "@test/seeders/db/organization.seeder";
 import { expectJobCompleted, useJobWorkers } from "@test/services/job-queue-harness";
 
 const jobWorkers = useJobWorkers(() => [container.resolve(RecordDeploymentSettingHandler)]);
@@ -40,6 +41,42 @@ describe(RecordDeploymentSettingHandler.name, () => {
     expect(settings[0]).toMatchObject({ autoTopUpEnabled: false, runtimeLimitHours: 12 });
   });
 
+  it("files the deployment into the live project of its organization the payload names", async () => {
+    const { jobKey, enqueueRecord, startWorkers, findSettings } = await setup();
+    const { organization } = await seedOrganizationWithOwner();
+    const project = await seedProject({ organizationId: organization.id });
+
+    await enqueueRecord({ organizationId: organization.id, projectId: project.id });
+    await startWorkers();
+    await expectJobCompleted(RecordDeploymentSetting[JOB_NAME], { singletonKey: jobKey });
+
+    expect(await findSettings()).toEqual([expect.objectContaining({ organizationId: organization.id, projectId: project.id })]);
+  });
+
+  it("files the deployment into its organization's default project when the named project was deleted", async () => {
+    const { jobKey, enqueueRecord, startWorkers, findSettings } = await setup();
+    const { organization, project: defaultProject } = await seedOrganizationWithOwner();
+    const deleted = await seedProject({ organizationId: organization.id, deletedAt: new Date() });
+
+    await enqueueRecord({ organizationId: organization.id, projectId: deleted.id });
+    await startWorkers();
+    await expectJobCompleted(RecordDeploymentSetting[JOB_NAME], { singletonKey: jobKey });
+
+    expect(await findSettings()).toEqual([expect.objectContaining({ organizationId: organization.id, projectId: defaultProject.id })]);
+  });
+
+  it("files the deployment into its organization's default project when the named project belongs to another organization", async () => {
+    const { jobKey, enqueueRecord, startWorkers, findSettings } = await setup();
+    const { organization, project: defaultProject } = await seedOrganizationWithOwner();
+    const { project: foreign } = await seedOrganizationWithOwner();
+
+    await enqueueRecord({ organizationId: organization.id, projectId: foreign.id });
+    await startWorkers();
+    await expectJobCompleted(RecordDeploymentSetting[JOB_NAME], { singletonKey: jobKey });
+
+    expect(await findSettings()).toEqual([expect.objectContaining({ organizationId: organization.id, projectId: defaultProject.id })]);
+  });
+
   it("refuses a second record for the same deployment while the first is still queued", async () => {
     const { enqueueRecord } = await setup();
 
@@ -64,8 +101,8 @@ describe(RecordDeploymentSettingHandler.name, () => {
       jobKey: recordDeploymentSettingKeyFor({ userId: user.id, dseq }),
       seedExistingSetting: (overrides: { autoTopUpEnabled?: boolean; runtimeLimitHours?: number }) =>
         seedDeploymentSetting({ userId: user.id, dseq, ...overrides }),
-      enqueueRecord: () =>
-        enqueue(new RecordDeploymentSetting({ userId: user.id, dseq }), { singletonKey: recordDeploymentSettingKeyFor({ userId: user.id, dseq }) }),
+      enqueueRecord: (filing: { organizationId?: string; projectId?: string } = {}) =>
+        enqueue(new RecordDeploymentSetting({ userId: user.id, dseq, ...filing }), { singletonKey: recordDeploymentSettingKeyFor({ userId: user.id, dseq }) }),
       startWorkers,
       findSettings: () => db.select().from(deploymentSettingsTable).where(eq(deploymentSettingsTable.userId, user.id))
     };

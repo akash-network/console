@@ -28,6 +28,11 @@ import { type CreateLogger, LOGGER_FACTORY } from "@src/core";
 import { DomainEventsService } from "@src/core/services/domain-events/domain-events.service";
 import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
 import { DeploymentSettingRepository } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
+import {
+  type ConsoleClose,
+  DeploymentOrganizationActivityService
+} from "@src/deployment/services/deployment-organization-activity/deployment-organization-activity.service";
+import { DeploymentProjectService } from "@src/deployment/services/deployment-project/deployment-project.service";
 import { RecordDeploymentSetting, recordDeploymentSettingKeyFor } from "@src/deployment/services/record-deployment-setting/record-deployment-setting.handler";
 import { PROJECT_FORBIDDEN_ERROR_CODE } from "@src/organization/services/organization-context/organization-context.resolver";
 import { UserRepository } from "@src/user/repositories";
@@ -44,6 +49,7 @@ type ExecuteTxOptions = {
   suppliedByCaller?: boolean;
   /** Who the transaction is signed for, recorded against what it creates when the wallet belongs to an organization rather than a user. */
   actingUserId?: string;
+  consoleClose?: ConsoleClose;
 };
 
 const SPENDING_TXS = [MsgCreateDeployment, MsgAccountDeposit];
@@ -90,6 +96,8 @@ export class ManagedSignerService {
     private readonly deploymentSettingRepository: DeploymentSettingRepository,
     private readonly depositRefusalCache: DeploymentDepositRefusalCache,
     private readonly executionContextService: ExecutionContextService,
+    private readonly deploymentOrganizationActivityService: DeploymentOrganizationActivityService,
+    private readonly deploymentProjectService: DeploymentProjectService,
     @inject(LOGGER_FACTORY) createLogger: CreateLogger
   ) {
     this.logger = createLogger({ context: ManagedSignerService.name });
@@ -166,6 +174,7 @@ export class ManagedSignerService {
     }
 
     await this.#assertBroadcastable(userWallet, messages);
+    const filingProjectId = options?.suppliedByCaller ? await this.#filingProjectOf(messages) : undefined;
 
     const actingUserId = userWallet.userId ?? options?.actingUserId;
     const createLeaseMessage: { typeUrl: string; value: MsgCreateLease } | undefined = messages.find(message => message.typeUrl.endsWith(".MsgCreateLease"));
@@ -186,7 +195,7 @@ export class ManagedSignerService {
       throw options?.suppliedByCaller ? this.chainErrorService.exposeSignerRefusal(error) : error;
     }
 
-    await this.#recordClosedDeployments(userWallet, messages, actingUserId);
+    await this.#recordClosedDeployments(userWallet, messages, actingUserId, options?.consoleClose);
 
     if (hasCreateTrialLeaseMessage) {
       await this.domainEvents.publish(
@@ -227,7 +236,7 @@ export class ManagedSignerService {
       await this.#publishLeaseGpuRead(userWallet, leasedDseq);
     }
 
-    await this.#recordCreatedDeployments(userWallet, messages, actingUserId);
+    await this.#recordCreatedDeployments(userWallet, messages, actingUserId, filingProjectId);
 
     await this.#refreshWalletLimits(userWallet);
     await this.#ensureAutoReloadSchedule(userWallet, messages);
@@ -266,31 +275,57 @@ export class ManagedSignerService {
   }
 
   /** A create broadcast here never passes through the deployment API that would record it, so the record is written from the landed transaction. */
-  async #recordCreatedDeployments(userWallet: UserWalletOutput, messages: EncodeObject[], actingUserId: string | undefined) {
+  async #recordCreatedDeployments(userWallet: UserWalletOutput, messages: EncodeObject[], actingUserId: string | undefined, projectId: string | undefined) {
     if (!actingUserId) return;
 
     for (const dseq of this.#findDeploymentDseqs(messages, ".MsgCreateDeployment")) {
       const key = { userId: actingUserId, dseq: dseq.toString() };
-      await this.domainEvents.publish(new RecordDeploymentSetting({ ...key, organizationId: userWallet.organizationId }), {
+      await this.domainEvents.publish(new RecordDeploymentSetting({ ...key, organizationId: userWallet.organizationId, projectId }), {
         singletonKey: recordDeploymentSettingKeyFor(key)
       });
     }
   }
 
-  /** No close path writes this record, and it runs before the other post-broadcast work so a rejected publish cannot drop an accepted close. */
-  async #recordClosedDeployments(userWallet: UserWalletOutput, messages: EncodeObject[], actingUserId: string | undefined) {
-    for (const dseq of this.#findDeploymentDseqs(messages, ".MsgCloseDeployment")) {
-      try {
-        const filedByUserId =
-          userWallet.userId ?? (await this.deploymentSettingRepository.findOneOfWallet(userWallet, dseq.toString()))?.userId ?? actingUserId;
+  /** A create the caller signs directly is refused before signing when it could not be filed into a project the caller reaches. */
+  async #filingProjectOf(messages: EncodeObject[]): Promise<string | undefined> {
+    if (!this.#getCreateDeploymentMessages(messages).length) return undefined;
 
-        if (filedByUserId) {
-          await this.deploymentSettingRepository.markClosed({ userId: filedByUserId, dseq: dseq.toString(), organizationId: userWallet.organizationId });
-        }
-      } catch (error) {
-        this.logger.error({ event: "CLOSED_DEPLOYMENT_RECORD_FAILED", userId: userWallet.userId, walletId: userWallet.id, dseq: dseq.toString(), error });
+    return await this.deploymentProjectService.resolveFilingProject();
+  }
+
+  /** No close path writes this record, and it runs before the other post-broadcast work so a rejected publish cannot drop an accepted close. */
+  async #recordClosedDeployments(
+    userWallet: UserWalletOutput,
+    messages: EncodeObject[],
+    actingUserId: string | undefined,
+    consoleClose?: ConsoleClose
+  ) {
+    const closer = consoleClose ? { actorUserId: null, reason: consoleClose.reason } : { actorUserId: actingUserId ?? null, reason: null };
+
+    for (const dseq of this.#findDeploymentDseqs(messages, ".MsgCloseDeployment")) {
+      const filedByUserId = await this.#markClosed(userWallet, dseq.toString(), actingUserId);
+
+      if (filedByUserId) {
+        await this.deploymentOrganizationActivityService.recordClosed({ userId: filedByUserId, dseq: dseq.toString() }, closer);
       }
     }
+  }
+
+  /** Answers the user the closed deployment is filed under, logging rather than raising a failure to mark it closed. */
+  async #markClosed(userWallet: UserWalletOutput, dseq: string, actingUserId: string | undefined): Promise<string | undefined> {
+    let filedByUserId = userWallet.userId ?? actingUserId;
+
+    try {
+      filedByUserId = userWallet.userId ?? (await this.deploymentSettingRepository.findOneOfWallet(userWallet, dseq))?.userId ?? actingUserId;
+
+      if (filedByUserId) {
+        await this.deploymentSettingRepository.markClosed({ userId: filedByUserId, dseq, organizationId: userWallet.organizationId });
+      }
+    } catch (error) {
+      this.logger.error({ event: "CLOSED_DEPLOYMENT_RECORD_FAILED", userId: userWallet.userId, walletId: userWallet.id, dseq, error });
+    }
+
+    return filedByUserId;
   }
 
   /** Both deployment messages carry the id in the same shape, so one of the two types describes either. */

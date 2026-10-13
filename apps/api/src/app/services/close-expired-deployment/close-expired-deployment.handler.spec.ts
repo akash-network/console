@@ -31,7 +31,7 @@ describe(CloseExpiredDeploymentHandler.name, () => {
 
     await handler.handle(createPayload(setting));
 
-    expect(deploymentWriterService.close).toHaveBeenCalledWith(expect.objectContaining({ address }), setting.dseq);
+    expect(deploymentWriterService.close).toHaveBeenCalledWith(expect.objectContaining({ address }), setting.dseq, { reason: "runtime_limit_reached" });
     expect(deploymentSettingRepository.updateById).toHaveBeenCalledWith(setting.id, { closed: true });
   });
 
@@ -97,7 +97,9 @@ describe(CloseExpiredDeploymentHandler.name, () => {
 
     expect(deploymentSettingRepository.findOwnerWalletId).toHaveBeenCalledWith(setting.id);
     expect(userWalletRepository.findById).toHaveBeenCalledWith(wallet.id);
-    expect(deploymentWriterService.close).toHaveBeenCalledWith(expect.objectContaining({ id: wallet.id, address: wallet.address }), setting.dseq);
+    expect(deploymentWriterService.close).toHaveBeenCalledWith(expect.objectContaining({ id: wallet.id, address: wallet.address }), setting.dseq, {
+      reason: "runtime_limit_reached"
+    });
   });
 
   it("retries later without closing when no wallet owns the deployment", async () => {

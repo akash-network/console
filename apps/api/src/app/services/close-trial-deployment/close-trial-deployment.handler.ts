@@ -126,7 +126,7 @@ export class CloseTrialDeploymentHandler implements JobHandler<CloseTrialDeploym
     }
 
     try {
-      await this.deploymentWriterService.close({ ...wallet, address }, payload.dseq);
+      await this.deploymentWriterService.close({ ...wallet, address }, payload.dseq, { reason: "trial_ended" });
     } catch (error) {
       if (error instanceof Error && this.chainErrorService.isUnsettleableDeploymentError(error)) {
         this.logger.error({
