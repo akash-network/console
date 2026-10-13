@@ -55,7 +55,7 @@ export function ShortcutsSheet({ isOpen, onOpenChange }: Props) {
         <DialogTitle className="text-[15px] font-semibold tracking-normal">Keyboard shortcuts</DialogTitle>
         <DialogClose
           aria-label="Close"
-          className="flex h-[30px] w-[30px] items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
+          className="flex h-[30px] w-[30px] items-center justify-center rounded-md text-muted-foreground outline-none hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
         >
           <X className="h-4 w-4" />
         </DialogClose>
