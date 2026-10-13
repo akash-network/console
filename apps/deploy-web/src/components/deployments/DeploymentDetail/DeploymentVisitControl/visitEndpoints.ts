@@ -1,4 +1,5 @@
 import type { LeaseStatusDto } from "@src/queries/useLeaseQuery";
+import { isServiceRunning } from "../DeploymentPlacements/placementModel";
 
 export interface VisitEndpoint {
   serviceName: string;
@@ -12,9 +13,14 @@ export function collectVisitEndpoints(status: LeaseStatusDto | null | undefined)
 
   const endpoints: VisitEndpoint[] = [];
   const seen = new Set<string>();
+  const runningServiceNames = new Set(
+    Object.entries(status.services)
+      .filter(([, service]) => isServiceRunning(service))
+      .map(([serviceName]) => serviceName)
+  );
 
   function add(serviceName: string, host: string, port: number, href: string) {
-    if (!host || seen.has(href)) return;
+    if (!host || seen.has(href) || !runningServiceNames.has(serviceName)) return;
     seen.add(href);
     endpoints.push({ serviceName, host, port, href });
   }

@@ -19,6 +19,14 @@ describe(DeploymentVisitControl.name, () => {
     expect(screen.queryByTestId("visit-control-skeleton")).not.toBeInTheDocument();
   });
 
+  it("hides the visit control while the service has no available replica yet", () => {
+    setup({ endpointsByLease: { "1": { web: ["app.akash.app"] } }, startingServices: ["web"] });
+
+    expect(screen.queryByRole("link", { name: "Visit" })).not.toBeInTheDocument();
+    expect(screen.queryByText("app.akash.app")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("visit-control-skeleton")).not.toBeInTheDocument();
+  });
+
   it("shows a skeleton while lease statuses have not settled", () => {
     setup({ endpointsByLease: {}, pendingLeases: ["1"] });
 
@@ -124,6 +132,7 @@ describe(DeploymentVisitControl.name, () => {
     providers?: ApiProviderList[];
     endpointsByLease: Record<string, Record<string, string[]>>;
     pendingLeases?: string[];
+    startingServices?: string[];
   }) {
     const leases = input.leases ?? [buildLease("1", "akash1provider")];
     const providers = input.providers ?? [mock<ApiProviderList>({ owner: "akash1provider" })];
@@ -141,6 +150,7 @@ describe(DeploymentVisitControl.name, () => {
           Object.entries(services).map(([name, uris]) => {
             const service = mock<LeaseServiceStatus>();
             service.uris = uris;
+            service.available = input.startingServices?.includes(name) ? 0 : 1;
             return [name, service];
           })
         );

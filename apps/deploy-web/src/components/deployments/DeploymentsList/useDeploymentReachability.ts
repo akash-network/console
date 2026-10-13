@@ -2,10 +2,12 @@
 import { useEffect, useMemo, useState } from "react";
 
 import { useWallet } from "@src/context/WalletProvider";
+import type { LeaseStatusDto } from "@src/queries/useLeaseQuery";
 import { useDeploymentLeaseList, useLeaseStatuses } from "@src/queries/useLeaseQuery";
 import type { DeploymentDto, LeaseDto, ListedDeploymentDto } from "@src/types/deployment";
 import type { ApiProviderList } from "@src/types/provider";
 import { isLeaseLive } from "@src/utils/leaseUtils";
+import { isServiceRunning } from "../DeploymentDetail/DeploymentPlacements/placementModel";
 import type { VisitEndpoint } from "../DeploymentDetail/DeploymentVisitControl/visitEndpoints";
 import { collectVisitEndpoints } from "../DeploymentDetail/DeploymentVisitControl/visitEndpoints";
 
@@ -15,7 +17,7 @@ export const DEPENDENCIES = {
   useLeaseStatuses
 };
 
-export type UnreachableReason = "not-running" | "provider-unreachable" | "no-public-endpoint";
+export type UnreachableReason = "not-running" | "starting" | "provider-unreachable" | "no-public-endpoint";
 
 export interface DeploymentReachability {
   leases: LeaseDto[] | null | undefined;
@@ -33,7 +35,7 @@ const ENDPOINT_WAIT_MS = 15_000;
 
 /**
  * Everything a deployment card needs to answer "where do I reach this": its leases, the endpoints its live
- * leases expose, and — when there are none — which of the three reasons applies.
+ * leases expose, and — when there are none — which reason applies.
  */
 export function useDeploymentReachability(params: {
   deployment: Pick<DeploymentDto, "dseq" | "groups" | "state"> & Pick<ListedDeploymentDto, "leases">;
@@ -76,11 +78,16 @@ function resolveUnreachableReason(input: {
   isLoadingEndpoints: boolean;
   endpoints: VisitEndpoint[];
   liveLeaseCount: number;
-  statuses: { data?: unknown; isPending: boolean }[];
+  statuses: { data?: Pick<LeaseStatusDto, "services"> | null; isPending: boolean }[];
 }): UnreachableReason | null {
   if (input.isLoadingEndpoints || input.endpoints.length > 0) return null;
   if (input.liveLeaseCount === 0) return "not-running";
-  return input.statuses.every(status => !status.data) ? "provider-unreachable" : "no-public-endpoint";
+  if (input.statuses.every(status => !status.data)) return "provider-unreachable";
+  return input.statuses.some(status => hasStartingService(status.data)) ? "starting" : "no-public-endpoint";
+}
+
+function hasStartingService(status: Pick<LeaseStatusDto, "services"> | null | undefined): boolean {
+  return Object.values(status?.services ?? {}).some(service => !isServiceRunning(service));
 }
 
 /** Restarts on `restartOn` so leases the chain is slow to hand over can't eat the wait before a status request goes out. */

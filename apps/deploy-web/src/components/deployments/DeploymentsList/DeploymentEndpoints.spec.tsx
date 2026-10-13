@@ -59,6 +59,12 @@ describe("DeploymentEndpoints", () => {
     expect(screen.getByText("no endpoint · not running")).toBeInTheDocument();
   });
 
+  it("explains that the endpoint shows up once the deployment has started", () => {
+    setup({ endpoints: [], unreachableReason: "starting" });
+
+    expect(screen.getByText("no endpoint yet · starting")).toBeInTheDocument();
+  });
+
   it("distinguishes an unreachable provider from a deployment without endpoints", () => {
     setup({ endpoints: [], unreachableReason: "provider-unreachable" });
 

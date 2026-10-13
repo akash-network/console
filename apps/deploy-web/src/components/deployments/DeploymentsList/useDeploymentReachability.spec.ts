@@ -13,7 +13,7 @@ describe(useDeploymentReachability.name, () => {
   it("collects the endpoints exposed by every live lease", () => {
     const { result } = setup({
       leases: [lease({ state: "active" })],
-      statuses: [{ services: { web: mock<LeaseServiceStatus>({ uris: ["acmecorp.com:443"] }) } }]
+      statuses: [{ services: { web: mock<LeaseServiceStatus>({ uris: ["acmecorp.com:443"], available: 1 }) } }]
     });
 
     expect(result.current.endpoints).toEqual([{ serviceName: "web", host: "acmecorp.com", port: 443, href: "http://acmecorp.com:443" }]);
@@ -126,9 +126,38 @@ describe(useDeploymentReachability.name, () => {
     });
 
     it("reports a live lease whose status carries no endpoint as private", () => {
-      const { result } = setup({ leases: [lease({ state: "active" })], statuses: [{ services: { worker: mock<LeaseServiceStatus>({ uris: [] }) } }] });
+      const { result } = setup({
+        leases: [lease({ state: "active" })],
+        statuses: [{ services: { worker: mock<LeaseServiceStatus>({ uris: [], available: 1 }) } }]
+      });
 
       expect(result.current.unreachableReason).toBe("no-public-endpoint");
+    });
+
+    it("reports a live lease whose service has no available replica yet as starting rather than private", () => {
+      const { result } = setup({
+        leases: [lease({ state: "active" })],
+        statuses: [
+          {
+            services: {
+              worker: mock<LeaseServiceStatus>({ uris: [], available: 1 }),
+              web: mock<LeaseServiceStatus>({ uris: ["app.example.com"], available: 0 })
+            }
+          }
+        ]
+      });
+
+      expect(result.current.endpoints).toEqual([]);
+      expect(result.current.unreachableReason).toBe("starting");
+    });
+
+    it("reports a starting service even when another provider did not answer", () => {
+      const { result } = setup({
+        leases: [lease({ state: "active" }), lease({ state: "active", gseq: 2 })],
+        statuses: [null, { services: { web: mock<LeaseServiceStatus>({ uris: ["app.example.com"], available: 0 }) } }]
+      });
+
+      expect(result.current.unreachableReason).toBe("starting");
     });
 
     it("reports an unreachable provider only when no live lease returned a status at all", () => {
@@ -140,7 +169,7 @@ describe(useDeploymentReachability.name, () => {
     it("prefers the private reading when at least one provider did answer", () => {
       const { result } = setup({
         leases: [lease({ state: "active" }), lease({ state: "active", gseq: 2 })],
-        statuses: [null, { services: { worker: mock<LeaseServiceStatus>({ uris: [] }) } }]
+        statuses: [null, { services: { worker: mock<LeaseServiceStatus>({ uris: [], available: 1 }) } }]
       });
 
       expect(result.current.unreachableReason).toBe("no-public-endpoint");
@@ -156,7 +185,7 @@ describe(useDeploymentReachability.name, () => {
     it("gives no reason while endpoints exist", () => {
       const { result } = setup({
         leases: [lease({ state: "active" })],
-        statuses: [{ services: { web: mock<LeaseServiceStatus>({ uris: ["up.example.com"] }) } }]
+        statuses: [{ services: { web: mock<LeaseServiceStatus>({ uris: ["up.example.com"], available: 1 }) } }]
       });
 
       expect(result.current.unreachableReason).toBeNull();
@@ -165,7 +194,7 @@ describe(useDeploymentReachability.name, () => {
     it("counts a lease in its reclamation grace period as live, since it is still serving", () => {
       const { result } = setup({
         leases: [lease({ state: "reclaiming" })],
-        statuses: [{ services: { web: mock<LeaseServiceStatus>({ uris: ["still-up.example.com"] }) } }]
+        statuses: [{ services: { web: mock<LeaseServiceStatus>({ uris: ["still-up.example.com"], available: 1 }) } }]
       });
 
       expect(result.current.endpoints).toHaveLength(1);

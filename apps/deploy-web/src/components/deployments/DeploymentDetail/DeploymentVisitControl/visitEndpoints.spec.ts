@@ -77,6 +77,19 @@ describe("collectVisitEndpoints", () => {
     expect(result).toEqual([{ serviceName: "web", host: "provider.akash", port: 31234, href: "http://provider.akash:31234" }]);
   });
 
+  it("leaves out every endpoint of a service that has no available replica yet", () => {
+    const result = collectVisitEndpoints(
+      buildStatus({
+        services: { web: ["app.akash.app"], api: ["api.akash.app"] },
+        startingServices: ["web"],
+        forwardedPorts: { web: [mock<ForwardedPort>({ host: "provider.akash", externalPort: 31234 })] },
+        ips: { web: [mock<ServiceIp>({ IP: "1.2.3.4", ExternalPort: 443, Protocol: "TCP" })] }
+      })
+    );
+
+    expect(result).toEqual([{ serviceName: "api", host: "api.akash.app", port: 80, href: "http://api.akash.app" }]);
+  });
+
   it("collects every service on the lease", () => {
     const result = collectVisitEndpoints(
       buildStatus({
@@ -100,6 +113,7 @@ describe("endpointLabel", () => {
 
 function buildStatus(input: {
   services: Record<string, string[]>;
+  startingServices?: string[];
   forwardedPorts?: Record<string, ForwardedPort[]>;
   ips?: Record<string, ServiceIp[]>;
 }): LeaseStatusDto {
@@ -108,6 +122,7 @@ function buildStatus(input: {
       Object.entries(input.services).map(([name, uris]) => {
         const service = mock<LeaseServiceStatus>();
         service.uris = uris;
+        service.available = input.startingServices?.includes(name) ? 0 : 1;
         return [name, service];
       })
     ),
