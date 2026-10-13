@@ -465,7 +465,7 @@ describe("Project members", () => {
   });
 
   describe("when the request is limited to one project", () => {
-    it("answers 404 to an owner's project-bound API key for the grants of another project", async () => {
+    it("answers 403 to an owner's project-bound API key for the grants of another project", async () => {
       const { team, project, defaultProject, owner, addMember } = await setup();
       const apiKey = await seedApiKey({ userId: owner.id, organizationId: team.id, projectId: defaultProject.id });
       const grantee = await addMember("member");
@@ -479,7 +479,7 @@ describe("Project members", () => {
         requestWithKey(apiKey, `/v1/project-members/${grant.id}`, { method: "DELETE" })
       ]);
 
-      expect(responses.map(({ status }) => status)).toEqual([404, 404, 404, 404]);
+      expect(responses.map(({ status }) => status)).toEqual([403, 403, 403, 403]);
       expect(await grantsOf(outsider.id)).toEqual([]);
       expect(await grantRow(grant.id)).toMatchObject({ role: "viewer" });
     });
