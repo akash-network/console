@@ -76,6 +76,8 @@ export const MENU_TOGGLE_SHORTCUT: Shortcut = { keys: ["mod", "K"] };
 
 export const SHOW_SHORTCUTS_SHORTCUT: Shortcut = { keys: ["?"] };
 
+export const GO_KEY = "G";
+
 export function goToShortcut(page: CommandPage): Shortcut {
-  return { keys: ["G", page.goKey], isSequence: true };
+  return { keys: [GO_KEY, page.goKey], isSequence: true };
 }
