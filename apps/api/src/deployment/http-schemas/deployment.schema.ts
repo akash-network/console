@@ -506,7 +506,8 @@ export const ListDeploymentsQuerySchema = z.object({
       description: `Deployments per page, at most ${deploymentListMaxLimit}. Omitting it pages from the start rather than returning every deployment, so page on while \`hasMore\` is true.`
     }),
   projectId: z.string().uuid().optional().openapi({
-    description: "Lists only the deployments filed in this project. A project the caller cannot reach lists nothing, like one that does not exist. Ignored outside organization mode."
+    description:
+      "Lists only the deployments filed in this project. A project the caller cannot reach lists nothing, like one that does not exist. Ignored outside organization mode."
   })
 });
 

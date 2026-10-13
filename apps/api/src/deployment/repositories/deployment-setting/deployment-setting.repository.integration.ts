@@ -2166,16 +2166,14 @@ describe(DeploymentSettingRepository.name, () => {
       await softDelete(otherProject.id);
       const page = (projectId?: string) =>
         runAs(active.user, { role: "owner" }, ability =>
-          deploymentSettingRepository
-            .accessibleBy(ability, "read")
-            .findReachablePage({
-              organizationId: active.organization.id,
-              projectId,
-              among: { flaggedClosedOrIds: [inDeleted.id] },
-              reverse: false,
-              skip: 0,
-              limit: 10
-            })
+          deploymentSettingRepository.accessibleBy(ability, "read").findReachablePage({
+            organizationId: active.organization.id,
+            projectId,
+            among: { flaggedClosedOrIds: [inDeleted.id] },
+            reverse: false,
+            skip: 0,
+            limit: 10
+          })
         );
 
       expect(await page()).toEqual({ deployments: [], total: 0 });
@@ -2190,12 +2188,10 @@ describe(DeploymentSettingRepository.name, () => {
       const unfiled = await seedDeploymentSetting({ userId: active.user.id, organizationId: active.organization.id });
 
       const projectIds = await runAs(active.user, { role: "owner", organizationType: "personal" }, ability =>
-        deploymentSettingRepository
-          .accessibleBy(ability, "read")
-          .findProjectIdsByDseqs({
-            wallet: { userId: active.user.id, organizationId: active.organization.id },
-            dseqs: [filed.dseq, unfiled.dseq, foreignSetting.dseq]
-          })
+        deploymentSettingRepository.accessibleBy(ability, "read").findProjectIdsByDseqs({
+          wallet: { userId: active.user.id, organizationId: active.organization.id },
+          dseqs: [filed.dseq, unfiled.dseq, foreignSetting.dseq]
+        })
       );
 
       expect(projectIds).toEqual(

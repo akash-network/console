@@ -202,7 +202,10 @@ describe("Deployment list by project", () => {
       const inOther = await deploy({ projectId: otherProject.id });
 
       const narrowed = await list(requestPath => request(requestPath, { "x-project-id": otherProject.id }), "/v1/deployments");
-      const narrowedElsewhere = await list(requestPath => request(requestPath, { "x-project-id": otherProject.id }), `/v1/deployments?projectId=${defaultProject.id}`);
+      const narrowedElsewhere = await list(
+        requestPath => request(requestPath, { "x-project-id": otherProject.id }),
+        `/v1/deployments?projectId=${defaultProject.id}`
+      );
 
       expect(dseqsOf(narrowed.body)).toEqual([inOther.dseq]);
       expect(narrowedElsewhere.body.data).toEqual(EMPTY_PAGE);
