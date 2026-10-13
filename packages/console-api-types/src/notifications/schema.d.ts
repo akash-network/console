@@ -1341,7 +1341,9 @@ export interface operations {
   createDefaultNotificationChannel: {
     parameters: {
       query?: never;
-      header?: never;
+      header?: {
+        Authorization?: string;
+      };
       path?: never;
       cookie?: never;
     };
@@ -1357,6 +1359,42 @@ export interface operations {
           [name: string]: unknown;
         };
         content?: never;
+      };
+      /** @description Validation error responded when some request parameters are invalid */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ValidationErrorResponse"];
+        };
+      };
+      /** @description Unauthorized error responded when the user is not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["UnauthorizedErrorResponse"];
+        };
+      };
+      /** @description Forbidden error responded when the user is not authorized */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ForbiddenErrorResponse"];
+        };
+      };
+      /** @description Internal server error, should probably be reported */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["InternalServerErrorResponse"];
+        };
       };
     };
   };

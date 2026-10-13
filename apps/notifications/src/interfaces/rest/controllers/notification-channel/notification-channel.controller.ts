@@ -81,6 +81,7 @@ export class NotificationChannelController {
 
   @Post("default")
   @HttpCode(204)
+  @ValidateHttp({})
   @ApiNoContentResponse({ description: "Creates the default notification channel only if it doesn't exist." })
   async createDefaultNotificationChannel(@Body() { data }: NotificationChannelCreateDefaultInput): Promise<Result<void, unknown>> {
     await this.notificationChannelRepository.accessibleBy(this.authService.ability, "create").createDefaultChannel({
