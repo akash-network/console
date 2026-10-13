@@ -8,6 +8,7 @@ import { UserWalletRepository } from "@src/billing/repositories";
 import { UserRepository } from "./user.repository";
 
 import { createAkashAddress } from "@test/seeders/akash-address.seeder";
+import { seedOrganization } from "@test/seeders/db/organization.seeder";
 
 describe(UserRepository.name, () => {
   describe("markAsActive", () => {
@@ -140,6 +141,32 @@ describe(UserRepository.name, () => {
       const matches = await userRepository.findTrialUsersByFingerprint(fingerprint, currentUser.id);
 
       expect(matches).toEqual([{ id: activatedTrialUser.id }]);
+    });
+
+    it("matches users by their own trial wallet only, whatever team organizations they created", async () => {
+      const { userRepository, createTestUser } = setup();
+      const userWalletRepository = container.resolve(UserWalletRepository);
+      const fingerprint = faker.string.alphanumeric(24);
+      const createActivatedTeamWallet = async (createdByUserId: string) => {
+        const team = await seedOrganization({ createdByUserId, type: "team" });
+        const { wallet } = await userWalletRepository.getOrCreateForOrganization({ organizationId: team.id, createdByUserId });
+        await userWalletRepository.claimActivation(wallet.id);
+      };
+
+      const trialUser = await createTestUser({ lastFingerprint: fingerprint });
+      const trialWallet = await userWalletRepository.create({ userId: trialUser.id, address: createAkashAddress() });
+      await userWalletRepository.claimActivation(trialWallet.id);
+      await createActivatedTeamWallet(trialUser.id);
+      await createActivatedTeamWallet(trialUser.id);
+
+      const teamOnlyUser = await createTestUser({ lastFingerprint: fingerprint });
+      await createActivatedTeamWallet(teamOnlyUser.id);
+
+      const currentUser = await createTestUser({ lastFingerprint: fingerprint });
+
+      const matches = await userRepository.findTrialUsersByFingerprint(fingerprint, currentUser.id);
+
+      expect(matches).toEqual([{ id: trialUser.id }]);
     });
   });
 

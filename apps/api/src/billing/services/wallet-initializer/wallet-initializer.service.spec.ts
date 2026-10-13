@@ -10,6 +10,7 @@ import { TrialStarted } from "@src/billing/events/trial-started";
 import { TYPE_REGISTRY } from "@src/billing/providers/type-registry.provider";
 import { DomainEventsService } from "@src/core/services/domain-events/domain-events.service";
 import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
+import { TxService } from "@src/core/services/tx/tx.service";
 import { ProviderJwtTokenService } from "@src/provider/services/provider-jwt-token/provider-jwt-token.service";
 import type { UserOutput } from "@src/user/repositories";
 import { UserRepository } from "@src/user/repositories";
@@ -149,6 +150,64 @@ describe(WalletInitializerService.name, () => {
       expect(di.resolve(DomainEventsService).publish).toHaveBeenCalledWith(new TrialStarted({ userId }));
     });
 
+    it("locks the user's wallet outside the active organization's scope before granting the trial", async () => {
+      const userId = "test-user-id";
+      const wallet = createUserWallet({ userId, activatedAt: null });
+      const findWalletAndLock = vi.fn().mockResolvedValue(wallet);
+      const updateWalletById = vi.fn().mockImplementation(async (id, patch) => ({ ...wallet, ...patch }));
+
+      const di = setup({ userId, getOrCreateWallet: vi.fn().mockResolvedValue({ wallet, isNew: false }), findWalletAndLock, updateWalletById });
+      const managedUserWalletService = di.resolve(ManagedUserWalletService) as MockProxy<ManagedUserWalletService>;
+      managedUserWalletService.createAndAuthorizeTrialSpending.mockResolvedValue(createChainWallet());
+
+      await di.resolve(WalletInitializerService).initializeAndGrantTrialLimits(userId);
+
+      expect(di.resolve(UserWalletRepository).unscoped).toHaveBeenCalledWith("wallet-provisioning");
+      expect(findWalletAndLock).toHaveBeenCalledWith({ id: wallet.id }, { strength: "no key update" });
+      expect(findWalletAndLock.mock.invocationCallOrder[0]).toBeLessThan(managedUserWalletService.createAndAuthorizeTrialSpending.mock.invocationCallOrder[0]);
+      expect(di.resolve(TxService).transaction).toHaveBeenCalledTimes(1);
+    });
+
+    it("answers 404 and grants nothing when the wallet is gone by the time it is locked", async () => {
+      const userId = "test-user-id";
+      const wallet = createUserWallet({ userId, activatedAt: null });
+      const updateWalletById = vi.fn();
+
+      const di = setup({
+        userId,
+        getOrCreateWallet: vi.fn().mockResolvedValue({ wallet, isNew: false }),
+        findWalletAndLock: vi.fn().mockResolvedValue(undefined),
+        updateWalletById
+      });
+
+      await expect(di.resolve(WalletInitializerService).initializeAndGrantTrialLimits(userId)).rejects.toMatchObject({ status: 404, message: "UserWallet Not Found" });
+      expect(di.resolve(ManagedUserWalletService).createAndAuthorizeTrialSpending).not.toHaveBeenCalled();
+      expect(updateWalletById).not.toHaveBeenCalled();
+      expect(di.resolve(DomainEventsService).publish).not.toHaveBeenCalled();
+    });
+
+    it("grants nothing and announces nothing when an activation running alongside activated the wallet first", async () => {
+      const userId = "test-user-id";
+      const wallet = createUserWallet({ userId, activatedAt: null });
+      const activatedWallet = { ...wallet, activatedAt: new Date(), deploymentAllowance: 5_000_000, isTrialing: true };
+      const updateWalletById = vi.fn();
+
+      const di = setup({
+        userId,
+        getOrCreateWallet: vi.fn().mockResolvedValue({ wallet, isNew: false }),
+        findWalletAndLock: vi.fn().mockResolvedValue(activatedWallet),
+        updateWalletById
+      });
+
+      const result = await di.resolve(WalletInitializerService).initializeAndGrantTrialLimits(userId);
+
+      expect(result).toMatchObject({ id: wallet.id, address: wallet.address, creditAmount: activatedWallet.creditAmount, isTrialing: true });
+      expect(di.resolve(ManagedUserWalletService).createAndAuthorizeTrialSpending).not.toHaveBeenCalled();
+      expect(updateWalletById).not.toHaveBeenCalled();
+      expect(di.resolve(DomainEventsService).publish).not.toHaveBeenCalled();
+      expect(di.resolve(TrialActivationInstrumentationService).recordActivated).not.toHaveBeenCalled();
+    });
+
     it("records activation instrumentation on successful activation", async () => {
       const userId = "test-user-id";
       const wallet = createUserWallet({ userId, activatedAt: null });
@@ -265,10 +324,15 @@ describe(WalletInitializerService.name, () => {
     });
   });
 
+  function lockEnsuredWallet(getOrCreateWallet: UserWalletRepository["getOrCreate"] | undefined): UserWalletRepository["findOneByAndLock"] {
+    return vi.fn(async () => (await vi.mocked(getOrCreateWallet)?.mock.results.at(-1)?.value)?.wallet);
+  }
+
   function setup(input?: {
     getOrCreateWallet?: UserWalletRepository["getOrCreate"];
     getOrCreateOrganizationWallet?: UserWalletRepository["getOrCreateForOrganization"];
     updateWalletById?: UserWalletRepository["updateById"];
+    findWalletAndLock?: UserWalletRepository["findOneByAndLock"];
     deleteWalletById?: UserWalletRepository["deleteById"];
     userId?: string;
     user?: UserOutput;
@@ -285,13 +349,12 @@ describe(WalletInitializerService.name, () => {
         getOrCreate: input?.getOrCreateWallet,
         getOrCreateForOrganization: input?.getOrCreateOrganizationWallet,
         updateById: input?.updateWalletById,
+        findOneByAndLock: input?.findWalletAndLock ?? lockEnsuredWallet(input?.getOrCreateWallet),
         deleteById: input?.deleteWalletById ?? vi.fn(),
         accessibleBy() {
           return this as unknown as UserWalletRepository;
         },
-        unscoped() {
-          return this as unknown as UserWalletRepository;
-        },
+        unscoped: vi.fn().mockReturnThis(),
         toPublic: (value, trialWindow) => ({
           ...value,
           isTrialing: !!value.isTrialing,
@@ -308,6 +371,7 @@ describe(WalletInitializerService.name, () => {
       })
     );
     di.registerInstance(DomainEventsService, mock<DomainEventsService>());
+    di.registerInstance(TxService, mock<TxService>({ transaction: vi.fn(cb => cb()) }));
     di.registerInstance(
       ProviderJwtTokenService,
       mock<ProviderJwtTokenService>({

@@ -1,18 +1,25 @@
+import { faker } from "@faker-js/faker";
 import { count, eq, inArray, max, min, type SQL } from "drizzle-orm";
 import { container } from "tsyringe";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { TrialStarted } from "@src/billing/events/trial-started";
 import { ManagedUserWalletService } from "@src/billing/services/managed-user-wallet/managed-user-wallet.service";
 import { type ApiPgDatabase, POSTGRES_DB, resolveTable } from "@src/core";
+import { DomainEventsService } from "@src/core/services/domain-events/domain-events.service";
 import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
 import { PersonalOrganizationService } from "@src/organization/services/personal-organization/personal-organization.service";
 import { UserRepository } from "@src/user/repositories";
 import { WalletInitializerService } from "./wallet-initializer.service";
 
 import { createAkashAddress } from "@test/seeders/akash-address.seeder";
-import { seedOrganizationWithOwner } from "@test/seeders/db/organization.seeder";
+import { seedOrganization, seedOrganizationMember, seedOrganizationWithOwner } from "@test/seeders/db/organization.seeder";
 import { seedUser, seedUserWithWallet } from "@test/seeders/db/user-with-wallet.seeder";
 import { createOrganizationContext } from "@test/seeders/organization-context.seeder";
+
+const TRIAL_DEPLOYMENT_LIMIT = 7_000_000;
+const TRIAL_FEE_LIMIT = 3_000_000;
+const STORED_TRIAL_DEPLOYMENT_LIMIT = "7000000.00";
 
 describe(WalletInitializerService.name, () => {
   afterEach(() => {
@@ -85,6 +92,80 @@ describe(WalletInitializerService.name, () => {
     });
   });
 
+  describe("initializeAndGrantTrialLimits", () => {
+    it("activates the user's own wallet and leaves the team organization they created without a trial, even while that team is active", async () => {
+      const { service, executionContextService, findWallets, grantTrial, seedTrialCandidate } = setup();
+      const { user, personalOrganization, wallet } = await seedTrialCandidate();
+      const team = await seedTeamCreatedBy(user.id);
+      const teamWallet = await service.ensureTeamWallet(team, user.id);
+
+      await executionContextService.runWithContext(async () => {
+        executionContextService.set("ORGANIZATION_CONTEXT", createOrganizationContext({ organizationId: team.id, organizationType: "team" }));
+        return await service.initializeAndGrantTrialLimits(user.id);
+      });
+
+      expect(grantTrial).toHaveBeenCalledTimes(1);
+      expect(grantTrial).toHaveBeenCalledWith(expect.anything(), { addressIndex: wallet.id });
+      expect(await findWallets(eq(resolveTable("UserWallets").id, wallet.id))).toEqual([
+        expect.objectContaining({
+          organizationId: personalOrganization.id,
+          isTrialing: true,
+          activatedAt: expect.any(Date),
+          deploymentAllowance: STORED_TRIAL_DEPLOYMENT_LIMIT
+        })
+      ]);
+      expect(await findWallets(eq(resolveTable("UserWallets").id, teamWallet.id))).toEqual([
+        expect.objectContaining({ isTrialing: false, activatedAt: null, deploymentAllowance: "0.00", feeAllowance: "0.00" })
+      ]);
+    });
+
+    it("grants one trial and announces it once when two activations of the same user run at once", async () => {
+      const { service, findWallets, grantTrial, publish, seedTrialCandidate } = setup({ grantDelayMs: 200 });
+      const { user, wallet } = await seedTrialCandidate();
+
+      const activations = await Promise.all([service.initializeAndGrantTrialLimits(user.id), service.initializeAndGrantTrialLimits(user.id)]);
+
+      expect(grantTrial).toHaveBeenCalledTimes(1);
+      expect(publish).toHaveBeenCalledTimes(1);
+      expect(publish).toHaveBeenCalledWith(new TrialStarted({ userId: user.id }));
+      expect(activations.map(activation => activation.id)).toEqual([wallet.id, wallet.id]);
+      expect(await findWallets(eq(resolveTable("UserWallets").id, wallet.id))).toEqual([
+        expect.objectContaining({ activatedAt: expect.any(Date), deploymentAllowance: STORED_TRIAL_DEPLOYMENT_LIMIT })
+      ]);
+    });
+
+    it("grants no new trial to a user who used theirs before organizations existed, after they create a team", async () => {
+      const { service, findWallets, grantTrial, publish } = setup();
+      const usedAt = new Date("2025-01-15T00:00:00.000Z");
+      const { user, wallet } = await seedUserWithWallet({
+        user: { emailVerified: true },
+        isTrialing: false,
+        activatedAt: usedAt,
+        deploymentAllowance: "12.50",
+        feeAllowance: "3.00"
+      });
+      const personalOrganization = await container.resolve(PersonalOrganizationService).ensureForUser(user);
+      await container.resolve(PersonalOrganizationService).adoptUserRows(user, personalOrganization);
+      const team = await seedTeamCreatedBy(user.id);
+      await service.ensureTeamWallet(team, user.id);
+
+      await service.initializeAndGrantTrialLimits(user.id);
+
+      expect(grantTrial).not.toHaveBeenCalled();
+      expect(publish).not.toHaveBeenCalled();
+      expect(await findWallets(eq(resolveTable("UserWallets").userId, user.id))).toEqual([
+        expect.objectContaining({
+          id: wallet.id,
+          organizationId: personalOrganization.id,
+          isTrialing: false,
+          activatedAt: usedAt,
+          deploymentAllowance: "12.50",
+          feeAllowance: "3.00"
+        })
+      ]);
+    });
+  });
+
   it("never renumbers, re-keys or drops an existing wallet while wallets move to organizations", async () => {
     const { service, findWallets, walletIdRange } = setup();
     const accounts = await Promise.all([1, 2, 3].map(() => seedUserWithWallet()));
@@ -108,17 +189,41 @@ describe(WalletInitializerService.name, () => {
     expect(teamWallet.id).toBeGreaterThan(rangeBefore.max!);
   });
 
-  function setup() {
+  async function seedTeamCreatedBy(userId: string) {
+    const team = await seedOrganization({ createdByUserId: userId, type: "team" });
+    await seedOrganizationMember({ organizationId: team.id, userId, role: "owner" });
+
+    return team;
+  }
+
+  function setup(input: { grantDelayMs?: number } = {}) {
     const db = container.resolve<ApiPgDatabase>(POSTGRES_DB);
     const wallets = resolveTable("UserWallets");
+    const service = container.resolve(WalletInitializerService);
+    const grantTrial = vi
+      .spyOn(container.resolve(ManagedUserWalletService), "createAndAuthorizeTrialSpending")
+      .mockImplementation(async (_signer, { addressIndex }) => {
+        await new Promise(resolve => setTimeout(resolve, input.grantDelayMs ?? 0));
+        return { address: `granted-${addressIndex}`, limits: { deployment: TRIAL_DEPLOYMENT_LIMIT, fees: TRIAL_FEE_LIMIT } };
+      });
+    const publish = vi.spyOn(container.resolve(DomainEventsService), "publish").mockResolvedValue(null);
 
     return {
-      service: container.resolve(WalletInitializerService),
+      service,
+      grantTrial,
+      publish,
       executionContextService: container.resolve(ExecutionContextService),
       findWallets: async (where: SQL | undefined) => await db.select().from(wallets).where(where).orderBy(wallets.id),
       walletIdRange: async () => {
         const [range] = await db.select({ min: min(wallets.id), max: max(wallets.id), count: count() }).from(wallets);
         return range;
+      },
+      seedTrialCandidate: async () => {
+        const user = await seedUser({ email: faker.internet.email().toLowerCase(), emailVerified: true });
+        const personalOrganization = await container.resolve(PersonalOrganizationService).ensureForUser(user);
+        const wallet = await service.ensureWallet(user.id);
+
+        return { user, personalOrganization, wallet };
       }
     };
   }

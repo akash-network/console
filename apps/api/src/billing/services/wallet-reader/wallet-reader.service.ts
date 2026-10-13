@@ -4,6 +4,7 @@ import { Lifecycle, scoped } from "tsyringe";
 
 import { AuthService } from "@src/auth/services/auth.service";
 import {
+  isPersonalWallet,
   isWalletInitialized,
   type UserWalletOutput,
   type UserWalletPublicOutput,
@@ -24,11 +25,11 @@ export class WalletReaderService {
     private readonly trialValidationService: TrialValidationService
   ) {}
 
-  /** An organization's wallet is listed under the user who asked for it, since it belongs to no user. */
+  /** An organization's wallet is listed under the user who asked for it, since it belongs to no user, and from its creation, since it is ready to fund without a trial. */
   async getWallets(query: GetWalletOptions): Promise<UserWalletPublicOutput[]> {
     const wallet = await this.userWalletRepository.accessibleBy(this.authService.ability, "read").findOneUsedBy(query.userId);
 
-    if (!wallet?.activatedAt || !isWalletInitialized(wallet)) return [];
+    if (!wallet || !isWalletInitialized(wallet) || (isPersonalWallet(wallet) && !wallet.activatedAt)) return [];
 
     return [this.userWalletRepository.toPublic({ ...wallet, userId: wallet.userId ?? query.userId }, this.trialValidationService.getTrialWindow(wallet))];
   }

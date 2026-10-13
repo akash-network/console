@@ -381,6 +381,18 @@ describe(UserWalletRepository.name, () => {
       expect(lockable).toEqual([]);
     });
 
+    it("considers users' own wallets only, never the wallet of a team organization created by someone on the domain", async () => {
+      const { domain, createWalletOnDomain, userWalletRepository } = await setupDomain();
+      const target = await createWalletOnDomain({});
+      const { user: teamCreator, organization: team } = await seedOrganizationWithOwner({ user: { email: `${faker.string.alphanumeric(10)}@${domain}` } });
+      await userWalletRepository.getOrCreateForOrganization({ organizationId: team.id, createdByUserId: teamCreator.id });
+      const trigger = await createWalletOnDomain({});
+
+      const lockable = await userWalletRepository.findLockableTrialWalletsByEmailDomain(domain, { excludeWalletId: trigger.id, limit: 10 });
+
+      expect(lockable).toEqual([{ walletId: target.id, userId: target.userId }]);
+    });
+
     it("excludes a wallet whose owner has ever paid", async () => {
       const { domain, createWalletOnDomain, userWalletRepository, stripeTransactionRepository } = await setupDomain();
       const paid = await createWalletOnDomain({});

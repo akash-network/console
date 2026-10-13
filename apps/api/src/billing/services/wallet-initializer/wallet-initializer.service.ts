@@ -16,6 +16,7 @@ import { TrialValidationService } from "@src/billing/services/trial-validation/t
 import { DomainEventsService } from "@src/core/services/domain-events/domain-events.service";
 import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
 import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
+import { TxService } from "@src/core/services/tx/tx.service";
 import type { OrganizationOutput } from "@src/organization/repositories/organization/organization.repository";
 import { UserOutput, UserRepository } from "@src/user/repositories";
 import { BlockedEmailDomainService } from "@src/workload-abuse/services/blocked-email-domain/blocked-email-domain.service";
@@ -36,7 +37,8 @@ export class WalletInitializerService {
     private readonly userRepository: UserRepository,
     private readonly trialActivationInstrumentation: TrialActivationInstrumentationService,
     private readonly trialValidationService: TrialValidationService,
-    private readonly blockedEmailDomainService: BlockedEmailDomainService
+    private readonly blockedEmailDomainService: BlockedEmailDomainService,
+    private readonly txService: TxService
   ) {}
 
   async #assertNoDuplicateFingerprint(user: UserOutput): Promise<void> {
@@ -53,17 +55,7 @@ export class WalletInitializerService {
     assert(!blocked, 400, TRIAL_BLOCKED_DOMAIN_MESSAGE);
   }
 
-  /**
-   * Provisions the trial: grants on-chain deployment/fee allowances and marks the wallet activated. Runs from a
-   * background job (no request context), so it resolves the user itself and enforces the trial preconditions —
-   * email verified and no duplicate fingerprint — that used to live in the removed start-trial endpoint.
-   *
-   * `activatedAt` is set only after the grants land, so it doubles as the spend gate's "ready" signal: a deploy
-   * arriving mid-provisioning sees no `activatedAt` and gets a retriable 409 rather than a bare 402 off empty
-   * allowances. Concurrency is handled upstream — the ActivateTrial queue is `policy: singleton`, so at most one
-   * job per user is ever active — and the grants are idempotent (revoke-then-regrant / authz overwrite), so a
-   * crashed job just re-runs on retry and re-converges to the same limits. No claim or rollback needed.
-   */
+  /** Grants the trial to the user's own wallet whatever organization is active, and sets `activatedAt` only once the grants land since the spend gate reads it as ready. */
   async initializeAndGrantTrialLimits(userId: string): Promise<UserWalletPublicOutput> {
     const user = await this.userRepository.findById(userId);
     assert(user, 404, "User Not Found");
@@ -75,8 +67,26 @@ export class WalletInitializerService {
 
     await this.#assertEmailDomainNotBlocked(user);
 
+    const activation = await this.txService.transaction(async () => await this.#grantTrialLimitsOnce(userWallet));
+    const activatedWallet = this.#toPublic({ ...activation.wallet, userId, address: userWallet.address });
+    if (!activation.isNew) return activatedWallet;
+
+    await this.domainEvents.publish(new TrialStarted({ userId }));
+    this.trialActivationInstrumentation.recordActivated(userId, Date.now() - new Date(activation.wallet.createdAt).getTime());
+
+    return activatedWallet;
+  }
+
+  /** Holds the wallet row until the grant is saved, so an activation running alongside for the same user finds it activated and grants nothing. */
+  async #grantTrialLimitsOnce(userWallet: WalletInitialized): Promise<{ wallet: UserWalletOutput; isNew: boolean }> {
+    const wallets = this.userWalletRepository.unscoped("wallet-provisioning");
+    const lockedWallet = await wallets.findOneByAndLock({ id: userWallet.id }, { strength: "no key update" });
+
+    assert(lockedWallet, 404, "UserWallet Not Found");
+    if (lockedWallet.activatedAt) return { wallet: lockedWallet, isNew: false };
+
     const chainWallet = await this.walletManager.createAndAuthorizeTrialSpending(this.managedSignerService, { addressIndex: userWallet.id });
-    const activatedWallet = await this.userWalletRepository.updateById(
+    const activatedWallet = await wallets.updateById(
       userWallet.id,
       {
         deploymentAllowance: chainWallet.limits.deployment,
@@ -86,10 +96,7 @@ export class WalletInitializerService {
       { returning: true }
     );
 
-    await this.domainEvents.publish(new TrialStarted({ userId }));
-    this.trialActivationInstrumentation.recordActivated(userId, Date.now() - new Date(activatedWallet.createdAt).getTime());
-
-    return this.#toPublic({ ...activatedWallet, userId, address: userWallet.address });
+    return { wallet: activatedWallet, isNew: true };
   }
 
   #toPublic(wallet: WalletInitialized & { userId: string }): UserWalletPublicOutput {

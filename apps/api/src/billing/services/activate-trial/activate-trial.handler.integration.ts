@@ -11,9 +11,11 @@ import { ManagedUserWalletService } from "@src/billing/services/managed-user-wal
 import type { ApiPgDatabase } from "@src/core";
 import { JOB_NAME, POSTGRES_DB, resolveTable } from "@src/core";
 import { DOMAIN_EVENT_NAME } from "@src/core/services/domain-events/domain-events.service";
+import { PersonalOrganizationService } from "@src/organization/services/personal-organization/personal-organization.service";
 import { ActivateTrialHandler } from "./activate-trial.handler";
 
 import { createAkashAddress } from "@test/seeders/akash-address.seeder";
+import { seedOrganization, seedOrganizationMember } from "@test/seeders/db/organization.seeder";
 import { seedUser } from "@test/seeders/db/user-with-wallet.seeder";
 import { expectJobCompleted, findJobRows, useJobWorkers } from "@test/services/job-queue-harness";
 
@@ -61,6 +63,16 @@ describe(ActivateTrialHandler.name, () => {
     expect(await findTrialStartedEvents()).toHaveLength(1);
   });
 
+  it("activates the user's own wallet and never the team organization they created before the job ran", async () => {
+    const { activateTrial, findWallet, seedCreatedTeamWallet } = await setup();
+    const teamWallet = await seedCreatedTeamWallet();
+
+    await activateTrial();
+
+    expect(await findWallet()).toMatchObject({ isTrialing: true, activatedAt: expect.any(Date), deploymentAllowance: STORED_DEPLOYMENT_LIMIT });
+    expect(await findWallet(teamWallet.id)).toMatchObject({ isTrialing: false, activatedAt: null, deploymentAllowance: "0.00", feeAllowance: "0.00" });
+  });
+
   it("activates nothing for a user whose email is not verified", async () => {
     const { dispatchActivateTrial, awaitActivationRetrying, findWallet, findTrialStartedEvents } = await setup({ emailVerified: false });
 
@@ -91,10 +103,24 @@ describe(ActivateTrialHandler.name, () => {
 
     return {
       userId: user.id,
-      findWallet: async () => {
-        const [row] = await db.select().from(userWalletsTable).where(eq(userWalletsTable.userId, user.id));
+      findWallet: async (walletId?: number) => {
+        const [row] = await db
+          .select()
+          .from(userWalletsTable)
+          .where(walletId === undefined ? eq(userWalletsTable.userId, user.id) : eq(userWalletsTable.id, walletId));
 
         return row;
+      },
+      seedCreatedTeamWallet: async () => {
+        await container.resolve(PersonalOrganizationService).ensureForUser(user);
+        const team = await seedOrganization({ createdByUserId: user.id, type: "team" });
+        await seedOrganizationMember({ organizationId: team.id, userId: user.id, role: "owner" });
+        const [teamWallet] = await db
+          .insert(userWalletsTable)
+          .values({ userId: null, organizationId: team.id, createdByUserId: user.id, address: createAkashAddress(), isTrialing: false })
+          .returning();
+
+        return teamWallet;
       },
       findTrialStartedEvents: () => findJobRows<{ userId: string }>(TrialStarted[DOMAIN_EVENT_NAME], { data: { userId: user.id } }),
       dispatchActivateTrial: async () => {
