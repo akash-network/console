@@ -47,7 +47,7 @@ export const PlacementServiceRow: FC<PlacementServiceRowProps> = ({
   const open = isControlled ? openProp : uncontrolledOpen;
   const status = getServiceStatus(service, leaseState, isReclaimed);
   const closed = status.tone === "closed";
-  const uriLinks = closed ? [] : toUriLinks(uris);
+  const uriLinks = status.tone === "running" ? toUriLinks(uris) : [];
   const portChips = toPortChips({ forwardedPorts, ips, closed });
   const replicaLabel = closed ? undefined : formatReplicaCount(service);
   const hasDetails = !!(detail?.resources || detail?.image || uriLinks.length > 0 || portChips.length > 0);

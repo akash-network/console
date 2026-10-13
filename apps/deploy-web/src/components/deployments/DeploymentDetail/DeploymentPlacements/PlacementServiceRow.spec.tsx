@@ -46,6 +46,7 @@ describe(PlacementServiceRow.name, () => {
 
   it("shows the service URL below Image when expanded", async () => {
     setup({
+      service: mock<LeaseServiceStatus>({ available: 1 }),
       uris: ["shop.example.com"],
       detail: { image: "nginx:1.25" }
     });
@@ -55,6 +56,21 @@ describe(PlacementServiceRow.name, () => {
     expect(screen.getByText("Image")).toBeInTheDocument();
     expect(screen.getByText("URL")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /shop\.example\.com/ })).toHaveAttribute("href", "http://shop.example.com");
+  });
+
+  it("holds back the service URL until a replica is available", async () => {
+    setup({
+      service: mock<LeaseServiceStatus>({ available: 0 }),
+      uris: ["shop.example.com"],
+      detail: { image: "nginx:1.25" }
+    });
+
+    await expandService();
+
+    expect(screen.getByText("Starting")).toBeInTheDocument();
+    expect(screen.getByText("Image")).toBeInTheDocument();
+    expect(screen.queryByText("URL")).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /shop\.example\.com/ })).not.toBeInTheDocument();
   });
 
   it("shows the replica count in the collapsed header", () => {
@@ -88,6 +104,7 @@ describe(PlacementServiceRow.name, () => {
 
   it("keeps the row expanded when a URL link is clicked", async () => {
     setup({
+      service: mock<LeaseServiceStatus>({ available: 1 }),
       uris: ["app.example.com"],
       forwardedPorts: [{ host: "provider.io", externalPort: 30000, port: 80, available: 1 }]
     });

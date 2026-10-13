@@ -251,7 +251,7 @@ export function getServiceStatus(
   return { label: "Starting", tone: "pending" };
 }
 
-function isServiceRunning(service: Pick<LeaseServiceStatus, "available">): boolean {
+export function isServiceRunning(service: Pick<LeaseServiceStatus, "available">): boolean {
   return service.available > 0;
 }
 
