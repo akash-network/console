@@ -72,7 +72,14 @@ describe(FirstPurchaseBonusService.name, () => {
     const txService = container.resolve(TxService);
 
     const pendingPurchase = (userId: string, organizationId: string) =>
-      stripeTransactionRepository.create({ userId, organizationId, type: "payment_intent", status: "pending", amount: QUALIFYING_AMOUNT_CENTS, currency: "usd" });
+      stripeTransactionRepository.create({
+        userId,
+        organizationId,
+        type: "payment_intent",
+        status: "pending",
+        amount: QUALIFYING_AMOUNT_CENTS,
+        currency: "usd"
+      });
 
     const settleConcurrently = async (purchases: StripeTransactionOutput[]) => {
       await Promise.all(
@@ -90,7 +97,8 @@ describe(FirstPurchaseBonusService.name, () => {
       return settled.map(purchase => purchase!.bonusAmount);
     };
 
-    const eligibleBonusAmount = (purchase: StripeTransactionOutput) => txService.transaction(() => service.getEligibleBonusAmount(purchase, QUALIFYING_AMOUNT_CENTS));
+    const eligibleBonusAmount = (purchase: StripeTransactionOutput) =>
+      txService.transaction(() => service.getEligibleBonusAmount(purchase, QUALIFYING_AMOUNT_CENTS));
 
     return { stripeTransactionRepository, pendingPurchase, settleConcurrently, eligibleBonusAmount };
   }

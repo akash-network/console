@@ -166,7 +166,9 @@ describe("First-purchase bonus", () => {
     const customerByOwnerId = new Map<string, string>();
 
     vi.spyOn(container.resolve(DomainEventsService), "publish").mockResolvedValue(null);
-    vi.spyOn(container.resolve(UserAuthTokenService), "getValidUserId").mockImplementation(async received => tokens.get(received.replace(/^Bearer +/i, "")) ?? null);
+    vi.spyOn(container.resolve(UserAuthTokenService), "getValidUserId").mockImplementation(
+      async received => tokens.get(received.replace(/^Bearer +/i, "")) ?? null
+    );
     vi.spyOn(container.resolve(FeatureFlagsService), "isEnabled").mockImplementation((flag, context) => {
       if (flag === FeatureFlags.ORGANIZATIONS_ENFORCE) return false;
       if (flag !== FeatureFlags.ORGANIZATIONS) return true;
@@ -202,7 +204,10 @@ describe("First-purchase bonus", () => {
       const { organization } = await seedOrganizationWithOwner({ user: { userId: faker.string.uuid() } });
       await seedOrganizationMember({ organizationId: organization.id, userId: owner.id, role: "owner" });
       const stripeCustomerId = `cus_${faker.string.alphanumeric(14)}`;
-      await db.update(resolveTable("Organizations")).set({ stripeCustomerId }).where(eq(resolveTable("Organizations").id, organization.id));
+      await db
+        .update(resolveTable("Organizations"))
+        .set({ stripeCustomerId })
+        .where(eq(resolveTable("Organizations").id, organization.id));
       await db
         .insert(resolveTable("UserWallets"))
         .values({ userId: null, organizationId: organization.id, address: createAkashAddress(), isTrialing: false, activatedAt: new Date() });
@@ -238,7 +243,11 @@ describe("First-purchase bonus", () => {
         );
       nock(container.resolve(BILLING_CONFIG).TX_SIGNER_BASE_URL)
         .persist()
-        .post("/v1/tx/funding", body => body.data.messages.every((message: { typeUrl: string; value: string }) => !!registry.decode({ typeUrl: message.typeUrl, value: Buffer.from(message.value, "base64") })))
+        .post("/v1/tx/funding", body =>
+          body.data.messages.every(
+            (message: { typeUrl: string; value: string }) => !!registry.decode({ typeUrl: message.typeUrl, value: Buffer.from(message.value, "base64") })
+          )
+        )
         .reply(200, { data: { code: 0, hash: "SOME_HASH", rawLog: "[]" } });
     };
 
@@ -294,10 +303,14 @@ describe("First-purchase bonus", () => {
       return await findTransaction(data.transactionId);
     };
 
-    const buyInTeam = async (buyer: UserOutput, team: { id: string }) => await buy(buyer, { customerId: customerByOwnerId.get(team.id)!, organizationId: team.id });
+    const buyInTeam = async (buyer: UserOutput, team: { id: string }) =>
+      await buy(buyer, { customerId: customerByOwnerId.get(team.id)!, organizationId: team.id });
 
     const buyAsUser = async (buyer: UserOutput) => {
-      await db.insert(resolveTable("UserWallets")).values({ userId: buyer.id, address: createAkashAddress(), isTrialing: false, activatedAt: new Date() }).onConflictDoNothing();
+      await db
+        .insert(resolveTable("UserWallets"))
+        .values({ userId: buyer.id, address: createAkashAddress(), isTrialing: false, activatedAt: new Date() })
+        .onConflictDoNothing();
 
       return await buy(buyer, { customerId: customerByOwnerId.get(buyer.id)! });
     };
