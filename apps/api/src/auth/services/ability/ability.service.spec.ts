@@ -12,7 +12,7 @@ import { AbilityService } from "./ability.service";
 import { legacyRules, organizationRules } from "./ability-rules";
 import { ShadowedAbility } from "./shadowed-ability";
 
-import { createOrganizationContext } from "@test/seeders/organization-context.seeder";
+import { createOrganizationContext, createProjectsScope } from "@test/seeders/organization-context.seeder";
 import { createUser } from "@test/seeders/user.seeder";
 
 describe(AbilityService.name, () => {
@@ -57,7 +57,7 @@ describe(AbilityService.name, () => {
     });
 
     it("uses only the organization rules in organization mode", () => {
-      const organizationContext = createOrganizationContext({ mode: "organization", role: "member", projectScope: { kind: "projects", projectIds: [] } });
+      const organizationContext = createOrganizationContext({ mode: "organization", role: "member", projectScope: createProjectsScope([]) });
       const { service, user, logger } = setup({ organizationContext });
 
       const ability = service.getAbilityFor("REGULAR_USER", user);
@@ -86,7 +86,7 @@ describe(AbilityService.name, () => {
     });
 
     it("compares legacy mode checks against the organization rules of the request", () => {
-      const organizationContext = createOrganizationContext({ mode: "legacy", role: "viewer", projectScope: { kind: "projects", projectIds: [] } });
+      const organizationContext = createOrganizationContext({ mode: "legacy", role: "viewer", projectScope: createProjectsScope([]) });
       const { service, user, logger } = setup({ organizationContext });
 
       const ability = service.getAbilityFor("REGULAR_USER", user);

@@ -9,6 +9,7 @@ import type {
 } from "@src/organization/repositories/organization-invitation/organization-invitation.repository";
 import type { OrganizationMemberOutput, OrganizationMemberWithUser } from "@src/organization/repositories/organization-member/organization-member.repository";
 import type { ProjectOutput } from "@src/organization/repositories/project/project.repository";
+import type { ProjectMemberWithUser } from "@src/organization/repositories/project-member/project-member.repository";
 
 export function createOrganizationSlug() {
   return `org-${faker.string.alphanumeric(12).toLowerCase()}`;
@@ -63,6 +64,20 @@ export function createProject({
   updatedAt = faker.date.recent()
 }: Partial<ProjectOutput> = {}): ProjectOutput {
   return { id, organizationId, name, slug, description, isDefault, createdByUserId, deletedAt, createdAt, updatedAt };
+}
+
+export function createProjectMemberWithUser({
+  id = faker.string.uuid(),
+  organizationId = faker.string.uuid(),
+  projectId = faker.string.uuid(),
+  userId = faker.string.uuid(),
+  role = "member",
+  username = faker.internet.userName(),
+  email = faker.internet.email(),
+  createdAt = faker.date.recent(),
+  updatedAt = faker.date.recent()
+}: Partial<ProjectMemberWithUser> = {}): ProjectMemberWithUser {
+  return { id, organizationId, projectId, userId, role, username, email, createdAt, updatedAt };
 }
 
 export function createOrganizationActivity({

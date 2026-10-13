@@ -3,4 +3,5 @@ export { organizationActivitiesRouter } from "./routes/organization-activities/o
 export { organizationInvitationsRouter } from "./routes/organization-invitations/organization-invitations.router";
 export { organizationMembersRouter } from "./routes/organization-members/organization-members.router";
 export { organizationsRouter } from "./routes/organizations/organizations.router";
+export { projectMembersRouter } from "./routes/project-members/project-members.router";
 export { projectsRouter } from "./routes/projects/projects.router";

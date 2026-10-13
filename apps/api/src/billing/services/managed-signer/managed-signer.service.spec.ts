@@ -39,7 +39,7 @@ import type { TxManagerService } from "../tx-manager/tx-manager.service";
 import { ManagedSignerService } from "./managed-signer.service";
 
 import { mockConfigService } from "@test/mocks/config-service.mock";
-import { createOrganizationContext } from "@test/seeders/organization-context.seeder";
+import { createOrganizationContext, createProjectsScope } from "@test/seeders/organization-context.seeder";
 import { createUser } from "@test/seeders/user.seeder";
 import { createOrganizationWallet, createUserWallet } from "@test/seeders/user-wallet.seeder";
 
@@ -1649,7 +1649,7 @@ describe(ManagedSignerService.name, () => {
   });
 
   describe("when the caller is limited to some projects", () => {
-    const projectScoped = createOrganizationContext({ role: "member", projectScope: { kind: "projects", projectIds: ["project-a"] } });
+    const projectScoped = createOrganizationContext({ role: "member", projectScope: createProjectsScope(["project-a"]) });
 
     it("refuses to act on a deployment filed outside the caller's projects, before anything is signed", async () => {
       const { service, txManagerService, deploymentSettingRepository, authService, wallet } = setupForTeam({
@@ -1737,7 +1737,7 @@ describe(ManagedSignerService.name, () => {
   });
 
   describe("isDeploymentInProjectScope", () => {
-    const projectScoped = createOrganizationContext({ role: "viewer", projectScope: { kind: "projects", projectIds: ["project-a"] } });
+    const projectScoped = createOrganizationContext({ role: "viewer", projectScope: createProjectsScope(["project-a"], { writableProjectIds: [] }) });
 
     it("reaches a deployment every row of which the caller may read", async () => {
       const { service, deploymentSettingRepository, authService, wallet } = setupForTeam({
@@ -1791,7 +1791,7 @@ describe(ManagedSignerService.name, () => {
   });
 
   describe("filedUserIdOf", () => {
-    const projectScoped = createOrganizationContext({ role: "member", projectScope: { kind: "projects", projectIds: ["project-a"] } });
+    const projectScoped = createOrganizationContext({ role: "member", projectScope: createProjectsScope(["project-a"]) });
 
     it("files a personal wallet's deployment under the acting user once the caller's projects reach it", async () => {
       const wallet = createUserWallet({ userId: "user-1" });

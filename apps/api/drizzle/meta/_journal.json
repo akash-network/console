@@ -547,6 +547,13 @@
       "when": 1791923056776,
       "tag": "0077_wallet_belongs_to_organization",
       "breakpoints": true
+    },
+    {
+      "idx": 78,
+      "version": "7",
+      "when": 1791924394799,
+      "tag": "0078_project_member_activities",
+      "breakpoints": true
     }
   ]
 }

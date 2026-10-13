@@ -1,6 +1,6 @@
 import { faker } from "@faker-js/faker";
 
-import type { OrganizationContext } from "@src/organization/types/organization-context";
+import type { OrganizationContext, ProjectScope } from "@src/organization/types/organization-context";
 
 export function createOrganizationContext({
   organizationId = faker.string.uuid(),
@@ -10,4 +10,11 @@ export function createOrganizationContext({
   mode = "organization"
 }: Partial<OrganizationContext> = {}): OrganizationContext {
   return { organizationId, organizationType, role, projectScope, mode };
+}
+
+export function createProjectsScope(
+  projectIds: readonly string[],
+  levels: { writableProjectIds?: readonly string[]; adminProjectIds?: readonly string[] } = {}
+): ProjectScope {
+  return { kind: "projects", projectIds, writableProjectIds: levels.writableProjectIds ?? projectIds, adminProjectIds: levels.adminProjectIds ?? [] };
 }
