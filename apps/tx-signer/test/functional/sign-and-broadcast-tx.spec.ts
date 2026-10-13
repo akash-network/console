@@ -64,7 +64,7 @@ describe(TxController.name, () => {
 
     const res = await app.request("/v1/tx/funding", {
       method: "POST",
-      body: JSON.stringify({ data: { messages: await buildFundingMessages() } }),
+      body: JSON.stringify({ data: { messages: await buildFundingMessages(), granteeDerivationIndex: DERIVATION_INDEX } }),
       headers: authorizedHeaders()
     });
 
@@ -197,10 +197,30 @@ describe(TxController.name, () => {
     expect(res.status).toBe(403);
   });
 
+  it("rejects a funding tx granting to an address other than the managed wallet it names", async () => {
+    const res = await app.request("/v1/tx/funding", {
+      method: "POST",
+      body: JSON.stringify({ data: { messages: await buildFundingMessages({ grantee: createAkashAddress() }), granteeDerivationIndex: DERIVATION_INDEX } }),
+      headers: authorizedHeaders()
+    });
+
+    expect(res.status).toBe(403);
+  });
+
+  it("rejects a funding tx granting without naming the managed wallet it grants to", async () => {
+    const res = await app.request("/v1/tx/funding", {
+      method: "POST",
+      body: JSON.stringify({ data: { messages: await buildFundingMessages() } }),
+      headers: authorizedHeaders()
+    });
+
+    expect(res.status).toBe(403);
+  });
+
   it("rejects a funding tx whose grant declares no spend limit", async () => {
     const res = await app.request("/v1/tx/funding", {
       method: "POST",
-      body: JSON.stringify({ data: { messages: await buildFundingMessages({ spendLimit: [] }) } }),
+      body: JSON.stringify({ data: { messages: await buildFundingMessages({ spendLimit: [] }), granteeDerivationIndex: DERIVATION_INDEX } }),
       headers: authorizedHeaders()
     });
 
@@ -210,7 +230,9 @@ describe(TxController.name, () => {
   it("rejects a funding tx granting a denom that is not grantable", async () => {
     const res = await app.request("/v1/tx/funding", {
       method: "POST",
-      body: JSON.stringify({ data: { messages: await buildFundingMessages({ spendLimit: [{ denom: "ibc/SOMETHING", amount: "1" }] }) } }),
+      body: JSON.stringify({
+        data: { messages: await buildFundingMessages({ spendLimit: [{ denom: "ibc/SOMETHING", amount: "1" }] }), granteeDerivationIndex: DERIVATION_INDEX }
+      }),
       headers: authorizedHeaders()
     });
 
@@ -254,7 +276,7 @@ describe(TxController.name, () => {
     });
   }
 
-  async function buildFundingMessages(input: { granter?: string; spendLimit?: Coin[] } = {}) {
+  async function buildFundingMessages(input: { granter?: string; grantee?: string; spendLimit?: Coin[] } = {}) {
     const txManagerService = container.resolve(TxManagerService);
     const spendLimit = input.spendLimit ?? [{ denom: "uakt", amount: "1000" }];
 
@@ -262,7 +284,7 @@ describe(TxController.name, () => {
       typeUrl: `/${MsgGrantAllowance.$type}`,
       value: MsgGrantAllowance.fromPartial({
         granter: input.granter ?? (await txManagerService.getFundingWalletAddress()),
-        grantee: await txManagerService.getDerivedWalletAddress(DERIVATION_INDEX),
+        grantee: input.grantee ?? (await txManagerService.getDerivedWalletAddress(DERIVATION_INDEX)),
         allowance: {
           typeUrl: `/${BasicAllowance.$type}`,
           value: Uint8Array.from(BasicAllowance.encode(BasicAllowance.fromPartial({ spendLimit })).finish())

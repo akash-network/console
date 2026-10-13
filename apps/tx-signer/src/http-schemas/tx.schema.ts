@@ -11,7 +11,8 @@ export const SignAndBroadcastFundingRequestInputSchema = z.object({
           value: z.string()
         })
       )
-      .min(1)
+      .min(1),
+    granteeDerivationIndex: z.number().int().nonnegative().optional()
   })
 });
 

@@ -83,10 +83,29 @@ export class TxPolicyService {
     }
   }
 
+  /** The funding wallet only ever grants to managed wallets, so a grant must go to the derived wallet the caller names by index. */
+  assertGrantedToManagedWallet(messages: readonly EncodeObject[], managedWalletAddress: string | undefined): void {
+    for (const message of messages) {
+      if (message.typeUrl === "/cosmos.feegrant.v1beta1.MsgGrantAllowance" || message.typeUrl === "/cosmos.authz.v1beta1.MsgGrant") {
+        this.assertGrantee(message.typeUrl, (message.value as MsgGrantAllowance | MsgGrant).grantee, managedWalletAddress);
+      }
+    }
+  }
+
   /** Fees on a derived tx are only ever payable by the funding wallet, so a caller-supplied granter must match it. */
   assertFeeGranter(granterAddress: string | undefined, fundingWalletAddress: string): void {
     if (granterAddress !== undefined && granterAddress !== fundingWalletAddress) {
       this.reject("TX_FEE_GRANTER_REJECTED", "/cosmos.authz.v1beta1.MsgGrant", `fees may only be granted by the funding wallet, not ${granterAddress}`);
+    }
+  }
+
+  private assertGrantee(typeUrl: string, grantee: string, managedWalletAddress: string | undefined): void {
+    if (managedWalletAddress === undefined) {
+      this.reject("TX_GRANTEE_REJECTED", typeUrl, "names no managed wallet to grant to");
+    }
+
+    if (grantee !== managedWalletAddress) {
+      this.reject("TX_GRANTEE_REJECTED", typeUrl, `grants to ${grantee}, not to managed wallet ${managedWalletAddress}`);
     }
   }
 

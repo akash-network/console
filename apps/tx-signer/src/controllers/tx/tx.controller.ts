@@ -16,10 +16,15 @@ export class TxController {
     @inject(TxPolicyService) private readonly txPolicyService: TxPolicyService
   ) {}
 
-  async signWithFundingWallet({ data: { messages } }: SignAndBroadcastFundingRequestInput): Promise<SignAndBroadcastResponseOutput> {
+  async signWithFundingWallet({ data: { messages, granteeDerivationIndex } }: SignAndBroadcastFundingRequestInput): Promise<SignAndBroadcastResponseOutput> {
     const decoded = this.decodeMessages(messages);
-    this.txPolicyService.assertActingOnBehalfOf(decoded, await this.txManagerService.getFundingWalletAddress());
+    const [fundingWalletAddress, granteeAddress] = await Promise.all([
+      this.txManagerService.getFundingWalletAddress(),
+      granteeDerivationIndex === undefined ? undefined : this.txManagerService.getDerivedWalletAddress(granteeDerivationIndex)
+    ]);
+    this.txPolicyService.assertActingOnBehalfOf(decoded, fundingWalletAddress);
     this.txPolicyService.assertWithinGrantLimits(decoded);
+    this.txPolicyService.assertGrantedToManagedWallet(decoded, granteeAddress);
     const tx = await this.txManagerService.signAndBroadcastWithFundingWallet(decoded);
     return {
       data: {
