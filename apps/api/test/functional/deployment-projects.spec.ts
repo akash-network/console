@@ -460,11 +460,15 @@ describe("Deployment projects", () => {
     return signer;
   }
 
-  async function seedWallet(userId: string, organizationId: string) {
+  async function seedWallets(input: { userId: string; organizationId: string }) {
+    const funding = { deploymentAllowance: "10000000", feeAllowance: "5000000", isTrialing: false };
     await container
       .resolve<ApiPgDatabase>(POSTGRES_DB)
       .insert(resolveTable("UserWallets"))
-      .values({ userId, organizationId, address: createAkashAddress(), deploymentAllowance: "10000000", feeAllowance: "5000000", isTrialing: false });
+      .values([
+        { userId: null, organizationId: input.organizationId, createdByUserId: input.userId, address: createAkashAddress(), ...funding },
+        { userId: input.userId, address: createAkashAddress(), ...funding }
+      ]);
   }
 
   async function seedApiKey(input: { userId: string; organizationId: string; projectId?: string }) {
@@ -494,7 +498,7 @@ describe("Deployment projects", () => {
     for (const grant of input.grants ?? []) {
       await seedProjectMember({ organizationId: team.id, projectId: grant === "default" ? defaultProject.id : otherProject.id, userId: caller.id });
     }
-    await seedWallet(caller.id, team.id);
+    await seedWallets({ userId: caller.id, organizationId: team.id });
     const authorization = signIn(caller.userId!);
     enableOrganizationsFor(input.organizationsOn === false ? [] : [caller.id]);
     const signer = stubSigner();

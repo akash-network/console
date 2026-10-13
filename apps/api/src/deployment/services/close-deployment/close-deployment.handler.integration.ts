@@ -27,7 +27,7 @@ describe(CloseDeploymentHandler.name, () => {
     await closeInBackground();
 
     await expectJobCompleted(CloseDeployment[JOB_NAME], { singletonKey: closeDeploymentKeyFor({ userId: wallet.userId, dseq }) });
-    expect(close).toHaveBeenCalledWith(expect.objectContaining({ id: wallet.id, address: wallet.address }), dseq);
+    expect(close).toHaveBeenCalledWith(expect.objectContaining({ id: wallet.id, address: wallet.address }), dseq, { actingUserId: wallet.userId });
     expect(await findActivity()).toMatchObject({ status: "succeeded", meta: { dseq } });
   });
 

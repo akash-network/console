@@ -9,42 +9,43 @@ import { DeploymentOrganizationActivityService } from "./deployment-organization
 
 describe(DeploymentOrganizationActivityService.name, () => {
   describe("recordCreated", () => {
-    it("files the creation into the deployment's organization and project, credited to its owner", async () => {
+    it("files the creation into the deployment's organization and project, credited to the member who created it", async () => {
       const { service, organizationActivityService, deployment, key } = setup();
+      const actorUserId = faker.string.uuid();
 
-      await service.recordCreated(key);
+      await service.recordCreated(key, actorUserId);
 
       expect(organizationActivityService.recordForDeployment).toHaveBeenCalledWith({
         organizationId: deployment.organizationId,
         projectId: deployment.projectId,
         type: "deployment_created",
-        actorUserId: key.userId,
+        actorUserId,
         payload: { dseq: key.dseq, name: deployment.name }
       });
     });
 
-    it("reads the deployment by its owner and dseq, whatever organization the caller runs in", async () => {
+    it("reads the deployment through the wallet that owns it, whatever organization the caller runs in", async () => {
       const { service, deploymentSettingRepository, unscopedRepository, key } = setup();
 
-      await service.recordCreated(key);
+      await service.recordCreated(key, faker.string.uuid());
 
       expect(deploymentSettingRepository.unscoped).toHaveBeenCalledWith("deployment-activity");
-      expect(unscopedRepository.findOneBy).toHaveBeenCalledWith(key);
+      expect(unscopedRepository.findOneOwnedByWallet).toHaveBeenCalledWith(key.wallet, key.dseq);
     });
 
     it("files nothing for a deployment the console holds no row for", async () => {
       const { service, organizationActivityService, logger, key } = setup({ deployment: null });
 
-      await service.recordCreated(key);
+      await service.recordCreated(key, faker.string.uuid());
 
       expect(organizationActivityService.recordForDeployment).not.toHaveBeenCalled();
       expect(logger.error).not.toHaveBeenCalled();
     });
 
     it("files nothing for a deployment not yet filed into an organization", async () => {
-      const { service, organizationActivityService, key } = setup({ organizationId: null });
+      const { service, organizationActivityService, key } = setup({ filedIn: null });
 
-      await service.recordCreated(key);
+      await service.recordCreated(key, faker.string.uuid());
 
       expect(organizationActivityService.recordForDeployment).not.toHaveBeenCalled();
     });
@@ -54,9 +55,16 @@ describe(DeploymentOrganizationActivityService.name, () => {
       const error = new Error("database unavailable");
       organizationActivityService.recordForDeployment.mockRejectedValue(error);
 
-      await expect(service.recordCreated(key)).resolves.toBeUndefined();
+      await expect(service.recordCreated(key, faker.string.uuid())).resolves.toBeUndefined();
 
-      expect(logger.error).toHaveBeenCalledWith({ event: "DEPLOYMENT_ORGANIZATION_ACTIVITY_RECORD_FAILED", ...key, type: "deployment_created", error });
+      expect(logger.error).toHaveBeenCalledWith({
+        event: "DEPLOYMENT_ORGANIZATION_ACTIVITY_RECORD_FAILED",
+        walletUserId: key.wallet.userId,
+        organizationId: key.wallet.organizationId,
+        dseq: key.dseq,
+        type: "deployment_created",
+        error
+      });
     });
   });
 
@@ -75,27 +83,15 @@ describe(DeploymentOrganizationActivityService.name, () => {
       });
     });
 
-    it("finds a deployment named by its wallet through the wallet that owns it", async () => {
-      const { service, unscopedRepository, organizationActivityService, deployment, key } = setup();
-      const wallet = { userId: null, organizationId: faker.string.uuid() };
-      unscopedRepository.findOneOfWallet.mockResolvedValue(deployment);
-
-      await service.recordClosed({ wallet, dseq: key.dseq }, { actorUserId: null, reason: null });
-
-      expect(unscopedRepository.findOneOfWallet).toHaveBeenCalledWith(wallet, key.dseq);
-      expect(unscopedRepository.findOneBy).not.toHaveBeenCalled();
-      expect(organizationActivityService.recordForDeployment).toHaveBeenCalledWith(expect.objectContaining({ organizationId: deployment.organizationId }));
-    });
-
     it("logs a failure to read the deployment rather than raising it", async () => {
       const { service, unscopedRepository, organizationActivityService, logger, key } = setup();
       const error = new Error("database unavailable");
-      unscopedRepository.findOneBy.mockRejectedValue(error);
+      unscopedRepository.findOneOwnedByWallet.mockRejectedValue(error);
 
-      await expect(service.recordClosed(key, { actorUserId: key.userId, reason: null })).resolves.toBeUndefined();
+      await expect(service.recordClosed(key, { actorUserId: faker.string.uuid(), reason: null })).resolves.toBeUndefined();
 
       expect(organizationActivityService.recordForDeployment).not.toHaveBeenCalled();
-      expect(logger.error).toHaveBeenCalledWith({ event: "DEPLOYMENT_ORGANIZATION_ACTIVITY_RECORD_FAILED", ...key, type: "deployment_closed", error });
+      expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "DEPLOYMENT_ORGANIZATION_ACTIVITY_RECORD_FAILED", type: "deployment_closed", error }));
     });
   });
 
@@ -105,16 +101,18 @@ describe(DeploymentOrganizationActivityService.name, () => {
     expect(createLogger).toHaveBeenCalledWith({ context: DeploymentOrganizationActivityService.name });
   });
 
-  function setup(input?: { deployment?: null; organizationId?: null }) {
-    const key = { userId: faker.string.uuid(), dseq: faker.string.numeric(8) };
+  function setup(input?: { deployment?: null; filedIn?: null }) {
+    const wallet = { userId: null, organizationId: faker.string.uuid() };
+    const key = { wallet, dseq: faker.string.numeric(8) };
     const deployment = mock<DeploymentSettingsOutput>({
-      ...key,
-      organizationId: input?.organizationId === null ? null : faker.string.uuid(),
+      userId: faker.string.uuid(),
+      dseq: key.dseq,
+      organizationId: input?.filedIn === null ? null : wallet.organizationId,
       projectId: faker.string.uuid(),
       name: faker.word.noun()
     });
     const unscopedRepository = mock<DeploymentSettingRepository>();
-    unscopedRepository.findOneBy.mockResolvedValue(input?.deployment === null ? undefined : deployment);
+    unscopedRepository.findOneOwnedByWallet.mockResolvedValue(input?.deployment === null ? undefined : deployment);
     const deploymentSettingRepository = mock<DeploymentSettingRepository>();
     deploymentSettingRepository.unscoped.mockReturnValue(unscopedRepository);
     const organizationActivityService = mock<OrganizationActivityService>();

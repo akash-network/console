@@ -85,6 +85,9 @@ const DEFINITION_EXISTS_ERROR_CODE = "deployment_definition_exists";
 const DEFINITION_MISMATCH_ERROR_CODE = "deployment_definition_mismatch";
 
 /** What becomes of the values a submitted document carries in the clear. There is no longer a way to say "dropped": every writer can seal, so a value is never lost to be safe. */
+/** Who a close is made for: the console on its own, with its reason, or the member acting through the wallet. */
+export type CloseRequest = ConsoleClose | { actingUserId: string };
+
 type StoredSdlValues =
   /** Every one of them is sealed and referenced, because nothing in the request said which are secret. */
   | "every-value-sealed"
@@ -201,7 +204,7 @@ export class DeploymentWriterService {
     const result = await this.signerService.executeDerivedDecodedTxByUserId(input.userId, [message]);
 
     await this.retireCompensation({ userId: input.userId, dseq: dseq.toString() });
-    await this.deploymentOrganizationActivityService.recordCreated({ userId: input.userId, dseq });
+    await this.deploymentOrganizationActivityService.recordCreated({ wallet, dseq }, input.userId);
 
     return {
       dseq: dseq.toString(),
@@ -393,7 +396,7 @@ export class DeploymentWriterService {
     const backgroundClose = await this.jobQueueService.findPendingJobData(CloseDeployment, closeDeploymentKeyFor({ userId, dseq }));
 
     try {
-      const closed = await this.#closeOpen(wallet, deployment);
+      const closed = await this.#closeOpen(wallet, deployment, { actingUserId: userId });
       if (closed) await this.#recordClosed({ userId, dseq, batchId }, backgroundClose);
       return closed;
     } catch (error) {
@@ -474,21 +477,25 @@ export class DeploymentWriterService {
    * treat a now-closed deployment as success, otherwise surface the original error. Returns false when the
    * deployment was already closed, so a caller can tell a close it performed from one that had already happened.
    */
-  public async close(wallet: WalletInitialized, dseq: string, consoleClose?: ConsoleClose): Promise<boolean> {
+  public async close(wallet: WalletInitialized, dseq: string, request: CloseRequest): Promise<boolean> {
     const deployment = await this.deploymentReaderService.findByWalletAndDseqWithoutProviderStatus(wallet, dseq);
     if (deployment.deployment.state === "closed") return false;
-    return await this.#closeOpen(wallet, deployment, consoleClose);
+    return await this.#closeOpen(wallet, deployment, request);
   }
 
   #closeMessageFor(wallet: WalletInitialized, deployment: DeploymentResponse) {
     return this.rpcMessageService.getCloseDeploymentMsg(wallet.address, deployment.deployment.id.dseq);
   }
 
-  async #closeOpen(wallet: WalletInitialized, deployment: DeploymentResponse, consoleClose?: ConsoleClose): Promise<boolean> {
+  async #closeOpen(wallet: WalletInitialized, deployment: DeploymentResponse, request: CloseRequest): Promise<boolean> {
     const dseq = deployment.deployment.id.dseq;
     const message = this.#closeMessageFor(wallet, deployment);
     try {
-      await this.signerService.executeDecodedTxByUserWallet(wallet, [message], { consoleClose });
+      await this.signerService.executeDecodedTxByUserWallet(
+        wallet,
+        [message],
+        "reason" in request ? { consoleClose: request } : { actingUserId: request.actingUserId }
+      );
     } catch (error) {
       const latest = await this.deploymentReaderService.findByWalletAndDseqWithoutProviderStatus(wallet, dseq).catch(() => deployment);
       if (latest.deployment.state === "closed") return false;

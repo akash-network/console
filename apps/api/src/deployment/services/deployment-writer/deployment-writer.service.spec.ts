@@ -926,7 +926,7 @@ describe(DeploymentWriterService.name, () => {
 
       await service.create({ userId: "user-1", sdl: SDL_WITH_SECRETS });
 
-      expect(deploymentOrganizationActivityService.recordCreated).toHaveBeenCalledWith({ userId: wallet.userId, dseq: "1748400000000" });
+      expect(deploymentOrganizationActivityService.recordCreated).toHaveBeenCalledWith({ wallet, dseq: "1748400000000" }, "user-1");
       expect(signerService.executeDerivedDecodedTxByUserId.mock.invocationCallOrder[0]).toBeLessThan(
         deploymentOrganizationActivityService.recordCreated.mock.invocationCallOrder[0]
       );
@@ -1253,7 +1253,7 @@ describe(DeploymentWriterService.name, () => {
 
       expect(rpcMessageService.getCloseDeploymentMsg).toHaveBeenCalledWith(wallet.address, "100");
       expect(signerService.assertCanBroadcast).toHaveBeenCalledWith("user-1", [closeMsg]);
-      expect(signerService.executeDecodedTxByUserWallet).toHaveBeenCalledWith(wallet, [closeMsg], { consoleClose: undefined });
+      expect(signerService.executeDecodedTxByUserWallet).toHaveBeenCalledWith(wallet, [closeMsg], { actingUserId: "user-1" });
       expect(signerService.assertCanBroadcast.mock.invocationCallOrder[0]).toBeLessThan(signerService.executeDecodedTxByUserWallet.mock.invocationCallOrder[0]);
       expect(activityService.record).toHaveBeenCalledWith(closedActivityOf({ userId: "user-1", dseq: "100" }));
     });
@@ -1559,7 +1559,7 @@ describe(DeploymentWriterService.name, () => {
     it("asks no provider for a lease status when deciding whether to close", async () => {
       const { service, deploymentReaderService } = setup();
 
-      await service.close(wallet, "100");
+      await service.close(wallet, "100", { actingUserId: "user-1" });
 
       expect(deploymentReaderService.findByWalletAndDseqWithoutProviderStatus).toHaveBeenCalledWith(wallet, "100");
       expect(deploymentReaderService.findByWalletAndDseq).not.toHaveBeenCalled();
@@ -1569,7 +1569,7 @@ describe(DeploymentWriterService.name, () => {
       const { service, signerService, deploymentReaderService } = setup();
       signerService.executeDecodedTxByUserWallet.mockRejectedValue(new Error("close boom"));
 
-      await expect(service.close(wallet, "100")).rejects.toThrow("close boom");
+      await expect(service.close(wallet, "100", { actingUserId: "user-1" })).rejects.toThrow("close boom");
 
       expect(deploymentReaderService.findByWalletAndDseqWithoutProviderStatus).toHaveBeenCalledTimes(2);
       expect(deploymentReaderService.findByWalletAndDseq).not.toHaveBeenCalled();
@@ -1580,10 +1580,10 @@ describe(DeploymentWriterService.name, () => {
       const closeMsg = { typeUrl: "/close", value: MsgCloseDeployment.fromPartial({}) };
       rpcMessageService.getCloseDeploymentMsg.mockReturnValue(closeMsg);
 
-      await expect(service.close(wallet, "100")).resolves.toBe(true);
+      await expect(service.close(wallet, "100", { actingUserId: "user-1" })).resolves.toBe(true);
 
       expect(rpcMessageService.getCloseDeploymentMsg).toHaveBeenCalledWith(wallet.address, "100");
-      expect(signerService.executeDecodedTxByUserWallet).toHaveBeenCalledWith(wallet, [closeMsg], { consoleClose: undefined });
+      expect(signerService.executeDecodedTxByUserWallet).toHaveBeenCalledWith(wallet, [closeMsg], { actingUserId: "user-1" });
     });
 
     it("hands the signer the reason the console closes a deployment on its own", async () => {
@@ -1603,7 +1603,7 @@ describe(DeploymentWriterService.name, () => {
         deployment: { ...deploymentData.deployment, state: "closed" }
       });
 
-      await expect(service.close(wallet, "100")).resolves.toBe(false);
+      await expect(service.close(wallet, "100", { actingUserId: "user-1" })).resolves.toBe(false);
 
       expect(rpcMessageService.getCloseDeploymentMsg).not.toHaveBeenCalled();
       expect(signerService.executeDecodedTxByUserWallet).not.toHaveBeenCalled();
@@ -1616,7 +1616,7 @@ describe(DeploymentWriterService.name, () => {
         .mockResolvedValueOnce(deploymentData)
         .mockResolvedValueOnce({ ...deploymentData, deployment: { ...deploymentData.deployment, state: "closed" } });
 
-      await expect(service.close(wallet, "100")).resolves.toBe(false);
+      await expect(service.close(wallet, "100", { actingUserId: "user-1" })).resolves.toBe(false);
     });
 
     it("re-throws the original close error when a re-read shows the deployment is still open", async () => {
@@ -1625,7 +1625,7 @@ describe(DeploymentWriterService.name, () => {
       signerService.executeDecodedTxByUserWallet.mockRejectedValue(closeError);
       deploymentReaderService.findByWalletAndDseqWithoutProviderStatus.mockResolvedValue(deploymentData);
 
-      await expect(service.close(wallet, "100")).rejects.toBe(closeError);
+      await expect(service.close(wallet, "100", { actingUserId: "user-1" })).rejects.toBe(closeError);
     });
 
     it("re-throws the original close error when the post-failure re-read also fails", async () => {
@@ -1636,7 +1636,7 @@ describe(DeploymentWriterService.name, () => {
         .mockResolvedValueOnce(deploymentData)
         .mockRejectedValueOnce(new Error("indexer unavailable"));
 
-      await expect(service.close(wallet, "100")).rejects.toBe(closeError);
+      await expect(service.close(wallet, "100", { actingUserId: "user-1" })).rejects.toBe(closeError);
     });
   });
 

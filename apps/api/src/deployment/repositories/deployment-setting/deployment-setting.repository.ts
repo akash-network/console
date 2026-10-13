@@ -349,6 +349,19 @@ export class DeploymentSettingRepository extends OrgScopedRepository<Table, Depl
     return row && this.toOutput(row);
   }
 
+  /** Like {@link findOneOfWallet}, except a personal wallet never answers with a row its user filed in a team, so a dseq shared across tenants stays out of a team's records. */
+  async findOneOwnedByWallet(wallet: DeploymentWallet, dseq: string): Promise<DeploymentSettingsOutput | undefined> {
+    const [row] = await this.cursor
+      .select({ setting: this.table })
+      .from(this.table)
+      .leftJoin(TeamOrganizations, isFiledInTeam)
+      .where(this.whereAccessibleBy(and(this.#filedFor(wallet), eq(this.table.dseq, dseq), wallet.userId ? isNull(TeamOrganizations.id) : undefined)))
+      .orderBy(asc(this.table.createdAt), asc(this.table.id))
+      .limit(1);
+
+    return row && this.toOutput(row.setting);
+  }
+
   async findFiledRowsOfWallet(wallet: DeploymentWallet, dseqs: readonly string[]): Promise<{ id: string; dseq: string }[]> {
     if (dseqs.length === 0) return [];
 
@@ -1159,6 +1172,7 @@ export class DeploymentSettingRepository extends OrgScopedRepository<Table, Depl
    * every later sweep would try to close it again. Such a row is written with funding off, since a
    * closed deployment has nothing to fund.
    */
+  /** Leaves open a row the user filed in another organization than the close names, since a dseq can be shared across tenants. */
   async markClosed({ userId, dseq, organizationId }: DeploymentSettingOwner): Promise<void> {
     await this.cursor
       .insert(this.table)
@@ -1166,7 +1180,9 @@ export class DeploymentSettingRepository extends OrgScopedRepository<Table, Depl
       .onConflictDoUpdate({
         target: [this.table.dseq, this.table.userId],
         set: { closed: true, updatedAt: sql`now()` },
-        setWhere: this.whereAccessibleBy(undefined)
+        setWhere: this.whereAccessibleBy(
+          organizationId ? or(isNull(this.table.organizationId), eq(this.table.organizationId, organizationId)) : undefined
+        )
       });
   }
 }

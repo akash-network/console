@@ -294,29 +294,19 @@ export class ManagedSignerService {
   }
 
   /** No close path writes this record, and it runs before the other post-broadcast work so a rejected publish cannot drop an accepted close. */
-  async #recordClosedDeployments(
-    userWallet: UserWalletOutput,
-    messages: EncodeObject[],
-    actingUserId: string | undefined,
-    consoleClose?: ConsoleClose
-  ) {
+  async #recordClosedDeployments(userWallet: UserWalletOutput, messages: EncodeObject[], actingUserId: string | undefined, consoleClose?: ConsoleClose) {
     const closer = consoleClose ? { actorUserId: null, reason: consoleClose.reason } : { actorUserId: actingUserId ?? null, reason: null };
 
     for (const dseq of this.#findDeploymentDseqs(messages, ".MsgCloseDeployment")) {
-      const filedByUserId = await this.#markClosed(userWallet, dseq.toString(), actingUserId);
-
-      if (filedByUserId) {
-        await this.deploymentOrganizationActivityService.recordClosed({ userId: filedByUserId, dseq: dseq.toString() }, closer);
-      }
+      await this.#markClosed(userWallet, dseq.toString(), actingUserId);
+      await this.deploymentOrganizationActivityService.recordClosed({ wallet: userWallet, dseq: dseq.toString() }, closer);
     }
   }
 
-  /** Answers the user the closed deployment is filed under, logging rather than raising a failure to mark it closed. */
-  async #markClosed(userWallet: UserWalletOutput, dseq: string, actingUserId: string | undefined): Promise<string | undefined> {
-    let filedByUserId = userWallet.userId ?? actingUserId;
-
+  /** Logs rather than raises a failure to mark the deployment closed, since the close already landed on chain. */
+  async #markClosed(userWallet: UserWalletOutput, dseq: string, actingUserId: string | undefined): Promise<void> {
     try {
-      filedByUserId = userWallet.userId ?? (await this.deploymentSettingRepository.findOneOfWallet(userWallet, dseq))?.userId ?? actingUserId;
+      const filedByUserId = userWallet.userId ?? (await this.deploymentSettingRepository.findOneOfWallet(userWallet, dseq))?.userId ?? actingUserId;
 
       if (filedByUserId) {
         await this.deploymentSettingRepository.markClosed({ userId: filedByUserId, dseq, organizationId: userWallet.organizationId });
@@ -324,8 +314,6 @@ export class ManagedSignerService {
     } catch (error) {
       this.logger.error({ event: "CLOSED_DEPLOYMENT_RECORD_FAILED", userId: userWallet.userId, walletId: userWallet.id, dseq, error });
     }
-
-    return filedByUserId;
   }
 
   /** Both deployment messages carry the id in the same shape, so one of the two types describes either. */

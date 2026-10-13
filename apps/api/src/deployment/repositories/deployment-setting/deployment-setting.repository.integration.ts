@@ -516,6 +516,29 @@ describe(DeploymentSettingRepository.name, () => {
       const updated = await deploymentSettingRepository.findOneBy({ userId: user.id, dseq: setting.dseq });
       expect(updated).toMatchObject({ closed: true, autoTopUpEnabled: true });
     });
+
+    it("closes a row filed in the organization the close names", async () => {
+      const deploymentSettingRepository = container.resolve(DeploymentSettingRepository);
+      const { user, organization: team } = await seedOrganizationWithOwner();
+      const teamSetting = await seedDeploymentSetting({ userId: user.id, organizationId: team.id });
+
+      await deploymentSettingRepository.markClosed({ userId: user.id, dseq: teamSetting.dseq, organizationId: team.id });
+
+      expect(await deploymentSettingRepository.findOneBy({ id: teamSetting.id })).toMatchObject({ closed: true });
+    });
+
+    it("leaves a row filed in another organization open when the close names one", async () => {
+      const deploymentSettingRepository = container.resolve(DeploymentSettingRepository);
+      const [{ user, organization: team }, { organization: personal }] = await Promise.all([
+        seedOrganizationWithOwner(),
+        seedOrganizationWithOwner({ type: "personal" })
+      ]);
+      const teamSetting = await seedDeploymentSetting({ userId: user.id, organizationId: team.id });
+
+      await deploymentSettingRepository.markClosed({ userId: user.id, dseq: teamSetting.dseq, organizationId: personal.id });
+
+      expect(await deploymentSettingRepository.findOneBy({ id: teamSetting.id })).toMatchObject({ closed: false });
+    });
   });
 
   describe("upsertDefinition", () => {
@@ -2474,6 +2497,20 @@ describe(DeploymentSettingRepository.name, () => {
       const found = await deploymentSettingRepository.findOpenInProject({ organizationId: team.id, projectId: teamProject.id });
 
       expect(found).toEqual([expect.objectContaining({ id: inTeamProject.id, address: teamWallet.address })]);
+    });
+
+    it("never answers a member's personal wallet with the row they filed for the team", async () => {
+      const { deploymentSettingRepository, personalWallet, teamWallet, teamDeployment } = await setupTeamDeployment();
+
+      await expect(deploymentSettingRepository.findOneOwnedByWallet(personalWallet, teamDeployment.dseq)).resolves.toBeUndefined();
+      await expect(deploymentSettingRepository.findOneOwnedByWallet(teamWallet, teamDeployment.dseq)).resolves.toMatchObject({ id: teamDeployment.id });
+    });
+
+    it("answers a member's personal wallet with their own deployment's row", async () => {
+      const { deploymentSettingRepository, member, personalWallet } = await setupTeamDeployment();
+      const ownDeployment = await seedDeploymentSetting({ userId: member.id });
+
+      await expect(deploymentSettingRepository.findOneOwnedByWallet(personalWallet, ownDeployment.dseq)).resolves.toMatchObject({ id: ownDeployment.id });
     });
 
     it("resolves the wallet that owns each deployment", async () => {

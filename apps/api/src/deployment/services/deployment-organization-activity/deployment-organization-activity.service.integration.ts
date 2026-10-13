@@ -12,10 +12,10 @@ import { seedOrganizationWithOwner, seedProject } from "@test/seeders/db/organiz
 import { createOrganizationContext } from "@test/seeders/organization-context.seeder";
 
 describe(DeploymentOrganizationActivityService.name, () => {
-  it("files a close made outside any request into the deployment's organization and project", async () => {
-    const { service, user, organization, project, setting, activitiesOf } = await setup();
+  it("files a sweep's close of a team deployment, named by the team wallet, into the team's feed and project", async () => {
+    const { service, organization, project, setting, teamWallet, activitiesOf } = await setup();
 
-    await service.recordClosed({ userId: user.id, dseq: setting.dseq }, { actorUserId: null, reason: "runtime_limit_reached" });
+    await service.recordClosed({ wallet: teamWallet, dseq: setting.dseq }, { actorUserId: null, reason: "runtime_limit_reached" });
 
     expect(await activitiesOf(organization.id)).toEqual([
       expect.objectContaining({
@@ -27,25 +27,33 @@ describe(DeploymentOrganizationActivityService.name, () => {
     ]);
   });
 
-  it("files a sweep's close of a team deployment, named by the team wallet, into the team's feed", async () => {
-    const { service, organization, project, setting, activitiesOf } = await setup();
-    const teamWallet = { userId: null, organizationId: organization.id };
+  it("files a close of a personal deployment into the member's personal feed", async () => {
+    const { service, activitiesOf } = await setup();
+    const { user, organization: personal, project } = await seedOrganizationWithOwner({ type: "personal" });
+    const setting = await seedDeploymentSetting({ userId: user.id, organizationId: personal.id, projectId: project.id, name: "own" });
 
-    await service.recordClosed({ wallet: teamWallet, dseq: setting.dseq }, { actorUserId: null, reason: null });
+    await service.recordClosed({ wallet: { userId: user.id, organizationId: personal.id }, dseq: setting.dseq }, { actorUserId: user.id, reason: null });
 
-    expect(await activitiesOf(organization.id)).toEqual([
-      expect.objectContaining({ projectId: project.id, type: "deployment_closed", payload: { dseq: setting.dseq, name: setting.name, reason: null } })
-    ]);
+    expect(await activitiesOf(personal.id)).toEqual([expect.objectContaining({ type: "deployment_closed", actorUserId: user.id })]);
+  });
+
+  it("files nothing in a team's feed when the member's personal wallet closes a deployment sharing the dseq of one they filed for the team", async () => {
+    const { service, user, organization, setting, activitiesOf } = await setup();
+    const personalWallet = { userId: user.id, organizationId: (await seedOrganizationWithOwner({ type: "personal" })).organization.id };
+
+    await service.recordClosed({ wallet: personalWallet, dseq: setting.dseq }, { actorUserId: user.id, reason: null });
+
+    expect(await activitiesOf(organization.id)).toEqual([]);
   });
 
   it("files a creation into the deployment's organization even when the request runs in another one", async () => {
-    const { service, user, organization, project, setting, activitiesOf } = await setup();
+    const { service, user, organization, project, setting, teamWallet, activitiesOf } = await setup();
     const { organization: other } = await seedOrganizationWithOwner();
     const executionContextService = container.resolve(ExecutionContextService);
 
     await executionContextService.runWithContext(async () => {
       executionContextService.set("ORGANIZATION_CONTEXT", createOrganizationContext({ organizationId: other.id }));
-      await service.recordCreated({ userId: user.id, dseq: setting.dseq });
+      await service.recordCreated({ wallet: teamWallet, dseq: setting.dseq }, user.id);
     });
 
     expect(await activitiesOf(other.id)).toEqual([]);
@@ -59,11 +67,12 @@ describe(DeploymentOrganizationActivityService.name, () => {
     const { user, organization } = await seedOrganizationWithOwner();
     const project = await seedProject({ organizationId: organization.id });
     const setting = await seedDeploymentSetting({ userId: user.id, organizationId: organization.id, projectId: project.id, name: "web" });
+    const teamWallet = { userId: null, organizationId: organization.id };
     const activities = resolveTable("OrganizationActivities");
 
     const activitiesOf = async (organizationId: string) =>
       await container.resolve<ApiPgDatabase>(POSTGRES_DB).select().from(activities).where(eq(activities.organizationId, organizationId));
 
-    return { service, user, organization, project, setting, activitiesOf };
+    return { service, user, organization, project, setting, teamWallet, activitiesOf };
   }
 });

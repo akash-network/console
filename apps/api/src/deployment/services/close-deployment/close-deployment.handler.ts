@@ -35,7 +35,7 @@ export class CloseDeploymentHandler implements JobHandler<CloseDeployment> {
   async #close({ userId, dseq, activityId, batchId, walletId }: CloseDeployment["data"], job?: JobMeta): Promise<void> {
     try {
       const wallet = walletId === undefined ? await this.walletReaderService.getWalletByUserId(userId) : await this.walletReaderService.getWalletById(walletId);
-      await this.deploymentWriterService.close(wallet, dseq);
+      await this.deploymentWriterService.close(wallet, dseq, { actingUserId: userId });
     } catch (error) {
       if (isLastAttempt(job)) await this.activityService.settle(activityId, failedCloseActivityOf({ userId, dseq, batchId }, error));
       throw error;

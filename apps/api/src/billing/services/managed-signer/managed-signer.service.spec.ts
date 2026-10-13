@@ -750,11 +750,11 @@ describe(ManagedSignerService.name, () => {
 
       expect(deploymentOrganizationActivityService.recordClosed).toHaveBeenCalledTimes(2);
       expect(deploymentOrganizationActivityService.recordClosed).toHaveBeenCalledWith(
-        { userId: "user-123", dseq: "123" },
+        { wallet: expect.objectContaining({ userId: "user-123" }), dseq: "123" },
         { actorUserId: "user-123", reason: null }
       );
       expect(deploymentOrganizationActivityService.recordClosed).toHaveBeenCalledWith(
-        { userId: "user-123", dseq: "456" },
+        { wallet: expect.objectContaining({ userId: "user-123" }), dseq: "456" },
         { actorUserId: "user-123", reason: null }
       );
     });
@@ -766,7 +766,7 @@ describe(ManagedSignerService.name, () => {
       await service.executeDecodedTxByUserWallet(wallet, [closeMessageFor(123)], { consoleClose: { reason: "runtime_limit_reached" } });
 
       expect(deploymentOrganizationActivityService.recordClosed).toHaveBeenCalledWith(
-        { userId: "user-123", dseq: "123" },
+        { wallet, dseq: "123" },
         { actorUserId: null, reason: "runtime_limit_reached" }
       );
     });
@@ -779,9 +779,17 @@ describe(ManagedSignerService.name, () => {
       await service.executeDerivedDecodedTxByUserId("user-123", [closeMessageFor(123)]);
 
       expect(deploymentOrganizationActivityService.recordClosed).toHaveBeenCalledWith(
-        { userId: "user-123", dseq: "123" },
+        { wallet: expect.objectContaining({ userId: "user-123" }), dseq: "123" },
         { actorUserId: "user-123", reason: null }
       );
+    });
+
+    it("credits a team wallet's close to the member acting for it", async () => {
+      const { service, deploymentOrganizationActivityService, wallet } = setupForTeam();
+
+      await service.executeDecodedTxByUserWallet(wallet, [closeMessageFor(123)], { actingUserId: "member-1" });
+
+      expect(deploymentOrganizationActivityService.recordClosed).toHaveBeenCalledWith({ wallet, dseq: "123" }, { actorUserId: "member-1", reason: null });
     });
 
     it("records nothing closed when the close reverted on chain", async () => {
