@@ -268,7 +268,7 @@ const ApiKeySecretStep: FC<ApiKeySecretStepProps> = ({ name, secret, onCopy, onD
 
     <DialogV2Body className="flex flex-col gap-4">
       <div className="flex items-center gap-2.5 rounded-lg border bg-muted px-3.5 py-3">
-        <code aria-label="API key secret" className="min-w-0 flex-1 break-all font-mono text-[12.5px] leading-[18px] text-foreground">
+        <code aria-label="API key secret" className="amp-mask min-w-0 flex-1 break-all font-mono text-[12.5px] leading-[18px] text-foreground">
           {secret}
         </code>
         <Button

@@ -223,6 +223,12 @@ describe("CreateApiKeyDialog", () => {
       expect(screen.queryByLabelText("Name")).not.toBeInTheDocument();
     });
 
+    it("masks the secret in session replays", () => {
+      setup({ createdApiKey: { ...buildApiKey(), apiKey: "ac.sk.mainnet.secret" } });
+
+      expect(screen.getByLabelText("API key secret")).toHaveClass("amp-mask");
+    });
+
     it("copies the secret from the footer", async () => {
       const { user, enqueueSnackbar, writeText } = setup({ createdApiKey: { ...buildApiKey(), apiKey: "ac.sk.mainnet.secret" } });
 
