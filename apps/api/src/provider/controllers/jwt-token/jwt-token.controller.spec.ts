@@ -16,7 +16,7 @@ import type { CreateJwtTokenRequest } from "../../http-schemas/jwt-token.schema"
 import type { ProviderJwtTokenService } from "../../services/provider-jwt-token/provider-jwt-token.service";
 import { JwtTokenController } from "./jwt-token.controller";
 
-import { createOrganizationContext } from "@test/seeders/organization-context.seeder";
+import { createOrganizationContext, createProjectsScope } from "@test/seeders/organization-context.seeder";
 
 describe(JwtTokenController.name, () => {
   describe("createJwtToken", () => {
@@ -43,7 +43,7 @@ describe(JwtTokenController.name, () => {
     });
 
     describe("when the caller is limited to some projects", () => {
-      const projectScoped = createOrganizationContext({ role: "member", projectScope: { kind: "projects", projectIds: ["project-a"] } });
+      const projectScoped = createOrganizationContext({ role: "member", projectScope: createProjectsScope(["project-a"]) });
 
       it("grants a token for deployments listed one by one once they are checked against the caller's projects", async () => {
         const user = createUser();

@@ -155,6 +155,19 @@ describe("Organization wallet", () => {
       expect(signedIndexes).toEqual([teamWallet.id]);
     });
 
+    it("refuses a member whose grant on the deployment's project only lets them view it", async () => {
+      const { user, token, team, teamWallet, signedIndexes } = await setup({ role: "member" });
+      const granted = await seedProject({ organizationId: team.id });
+      await seedProjectMember({ organizationId: team.id, projectId: granted.id, userId: user.id, role: "viewer" });
+      await seedDeploymentSetting({ userId: team.createdByUserId!, organizationId: team.id, projectId: granted.id, dseq: "123" });
+
+      const response = await signTx(user.id, teamWallet.address, { authorization: `Bearer ${token}`, "x-organization-id": team.id });
+
+      expect(response.status).toBe(403);
+      expect(await response.json()).toMatchObject({ code: "project_forbidden" });
+      expect(signedIndexes).toEqual([]);
+    });
+
     it("signs with the member's own derivation index while organizations are off for them", async () => {
       const { user, token, team, wallet, signedIndexes } = await setup({ organizationsOn: false });
 
