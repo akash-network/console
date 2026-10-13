@@ -1,0 +1,153 @@
+import type { LucideIcon } from "lucide-react";
+import { Container, LayoutGrid, Moon, Plus, Sun, Terminal, Wallet } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useTheme } from "next-themes";
+
+import { DEPLOYMENT_STATUS_DOT_CLASSES, getDeploymentStatus } from "@src/components/deployments/DeploymentDetail/DeploymentStatusBadge";
+import type { DeploymentsListSource } from "@src/components/deployments/DeploymentsList/useApiDeploymentsListSource";
+import { useApiDeploymentsListSource } from "@src/components/deployments/DeploymentsList/useApiDeploymentsListSource";
+import { useAddCredits } from "@src/hooks/useAddCredits";
+import { ADD_FUNDS_EMAIL_VERIFICATION_MESSAGE } from "@src/hooks/useAddFundsVerifiedLoginRequiredEventHandler";
+import { useRunWhenEmailVerified } from "@src/hooks/useEmailVerificationRequiredEventHandler";
+import type { ListedDeploymentDto } from "@src/types/deployment";
+import { rememberThemeChoice } from "@src/utils/themeChoice/themeChoice";
+import { UrlService } from "@src/utils/urlUtils";
+import type { CommandAction } from "./commandMenuCatalog";
+import { COMMAND_PAGES } from "./commandMenuCatalog";
+import type { CommandSection, ParsedQuery, SearchableItem } from "./commandMenuSearch";
+import { useStartDeployment } from "./useStartDeployment";
+
+export const DEPENDENCIES = { useRouter, useTheme, useAddCredits, useRunWhenEmailVerified, useStartDeployment, useApiDeploymentsListSource };
+
+export interface CommandItem extends SearchableItem {
+  icon?: LucideIcon;
+  statusDotClassName?: string;
+  isMonospace?: boolean;
+  action: CommandAction;
+  run: () => void;
+}
+
+const DEPLOYMENTS_WITHOUT_QUERY = 5;
+
+const DEPLOYMENTS_MATCHING_QUERY = 6;
+
+const DEPLOYMENTS_IN_SCOPE = 50;
+
+export function useCommandMenuItems({ parsed }: { parsed: ParsedQuery }, dependencies: typeof DEPENDENCIES = DEPENDENCIES): CommandSection<CommandItem>[] {
+  const router = dependencies.useRouter();
+  const { resolvedTheme, setTheme } = dependencies.useTheme();
+  const openAddCredits = dependencies.useAddCredits();
+  const runWhenEmailVerified = dependencies.useRunWhenEmailVerified();
+  const startDeployment = dependencies.useStartDeployment();
+  const deploymentsSource = dependencies.useApiDeploymentsListSource({ ...deploymentsRequestFor(parsed), pageIndex: 0, archivePageIndex: 0 });
+  const nextTheme = resolvedTheme === "dark" ? "light" : "dark";
+
+  const actions: CommandItem[] = [
+    {
+      id: "action-new-deployment",
+      label: "New deployment",
+      icon: Plus,
+      keywords: "create deploy launch",
+      action: "new_deployment",
+      run: () => startDeployment("new-deployment")
+    },
+    {
+      id: "action-new-container",
+      label: "New container",
+      icon: Container,
+      keywords: "docker image byo bring your own container deploy configure",
+      action: "new_container",
+      run: () => startDeployment("container")
+    },
+    {
+      id: "action-new-linux-machine",
+      label: "New Linux machine",
+      icon: Terminal,
+      keywords: "ssh ubuntu debian centos suse vm server linux deploy configure",
+      action: "new_linux_machine",
+      run: () => startDeployment("linux")
+    },
+    {
+      id: "action-deploy-from-template",
+      label: "Deploy from a template",
+      icon: LayoutGrid,
+      keywords: "templates catalog",
+      action: "deploy_from_template",
+      run: () => router.push(UrlService.templates())
+    },
+    {
+      id: "action-add-funds",
+      label: "Add funds",
+      icon: Wallet,
+      keywords: "billing balance top up credit",
+      action: "add_funds",
+      run: () => runWhenEmailVerified(ADD_FUNDS_EMAIL_VERIFICATION_MESSAGE, () => openAddCredits())
+    },
+    {
+      id: "action-toggle-theme",
+      label: `Switch to ${nextTheme} theme`,
+      icon: nextTheme === "dark" ? Moon : Sun,
+      keywords: "theme appearance mode dark light",
+      action: "toggle_theme",
+      run: () => {
+        setTheme(nextTheme);
+        rememberThemeChoice(nextTheme);
+      }
+    }
+  ];
+
+  const deployments = listDeployments(deploymentsSource, parsed).map(listing =>
+    toDeploymentItem(listing, () => router.push(UrlService.deploymentDetails(listing.deployment.dseq)))
+  );
+
+  const pages = COMMAND_PAGES.map<CommandItem>(page => ({
+    id: `page-${page.id}`,
+    label: page.label,
+    icon: page.icon,
+    keywords: "go to page",
+    action: `go_to_${page.id}`,
+    run: () => router.push(page.href)
+  }));
+
+  return [
+    { key: "actions", label: "Actions", items: actions },
+    { key: "deployments", label: "Deployments", items: deployments, emptyQueryLimit: DEPLOYMENTS_WITHOUT_QUERY },
+    { key: "pages", label: "Pages", items: pages }
+  ];
+}
+
+/** Outside the deployments scope an empty search reuses the menu's first request instead of searching for a query no deployment row will show. */
+function deploymentsRequestFor({ scope, query }: ParsedQuery) {
+  if (scope === "deployments") return { search: query, pageSize: DEPLOYMENTS_IN_SCOPE };
+  if (scope || !query) return { search: "", pageSize: DEPLOYMENTS_WITHOUT_QUERY };
+  return { search: query, pageSize: DEPLOYMENTS_MATCHING_QUERY };
+}
+
+function listDeployments(source: DeploymentsListSource, { scope, query }: ParsedQuery) {
+  const isClosedShown = !!query || scope === "deployments";
+  const listed = isClosedShown ? [...source.active.deployments, ...source.archive.deployments] : source.active.deployments;
+
+  return listed
+    .map(deployment => ({ deployment, status: getDeploymentStatus(deployment.state, deployment.leases) }))
+    .sort((a, b) => listingRank(a) - listingRank(b) || Number(b.deployment.dseq) - Number(a.deployment.dseq));
+}
+
+function listingRank({ deployment, status }: { deployment: ListedDeploymentDto; status: ReturnType<typeof getDeploymentStatus> }) {
+  if (status.tone === "running") return 0;
+  return deployment.state === "active" ? 1 : 2;
+}
+
+function toDeploymentItem({ deployment, status }: ReturnType<typeof listDeployments>[number], open: () => void): CommandItem {
+  const dseqLabel = `DSEQ ${deployment.dseq}`;
+
+  return {
+    id: `deployment-${deployment.dseq}`,
+    label: deployment.name || `Deployment #${deployment.dseq}`,
+    keywords: deployment.dseq,
+    meta: status.tone === "running" ? dseqLabel : `${dseqLabel} · ${status.label}`,
+    isMonospace: true,
+    statusDotClassName: DEPLOYMENT_STATUS_DOT_CLASSES[status.tone],
+    action: "open_deployment",
+    run: open
+  };
+}

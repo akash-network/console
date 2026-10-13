@@ -34,7 +34,7 @@ const BADGE_TONE_CLASS: Record<StatusTone, string> = {
   closed: "bg-muted text-muted-foreground"
 };
 
-const DOT_TONE_CLASS: Record<StatusTone, string> = {
+export const DEPLOYMENT_STATUS_DOT_CLASSES: Record<StatusTone, string> = {
   running: "bg-emerald-500",
   pending: "bg-amber-500",
   loading: "bg-muted-foreground",
@@ -120,8 +120,10 @@ export const StatusBadge: FC<StatusBadgeProps> = ({ label, tone, className }) =>
       <span className="h-3 w-3 shrink-0 animate-spin rounded-full border-2 border-current border-t-transparent" aria-hidden="true" />
     ) : (
       <span className="relative flex h-2 w-2">
-        {tone === "running" && <span className={cn("absolute inline-flex h-full w-full animate-ping rounded-full opacity-75", DOT_TONE_CLASS[tone])} />}
-        <span className={cn("relative inline-flex h-2 w-2 rounded-full", DOT_TONE_CLASS[tone])} />
+        {tone === "running" && (
+          <span className={cn("absolute inline-flex h-full w-full animate-ping rounded-full opacity-75", DEPLOYMENT_STATUS_DOT_CLASSES[tone])} />
+        )}
+        <span className={cn("relative inline-flex h-2 w-2 rounded-full", DEPLOYMENT_STATUS_DOT_CLASSES[tone])} />
       </span>
     )}
     {label}
