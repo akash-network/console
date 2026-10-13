@@ -75,7 +75,8 @@ describe(InitialDeploymentFundingInstrumentationService.name, () => {
       ["deployment_closed", "info"],
       ["insufficient_balance", "warn"],
       ["no_fee_allowance", "warn"],
-      ["wallet_not_found", "error"]
+      ["wallet_not_found", "error"],
+      ["project_budget_reached", "info"]
     ] as Array<[FundingSkipReason, "info" | "warn" | "error"]>)("increments skips for %s and logs it at %s level", (reason, level) => {
       const { service, skips } = setup();
       const logContext = { dseq: "123", address: "akash1owner" };

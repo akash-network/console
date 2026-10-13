@@ -11,6 +11,7 @@ import { inject, singleton } from "tsyringe";
 import { ActivityService } from "@src/activity/services/activity/activity.service";
 import type { UserWalletOutput, WalletInitialized } from "@src/billing/repositories";
 import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
+import { DeploymentDepositLedgerService } from "@src/billing/services/deployment-deposit-ledger/deployment-deposit-ledger.service";
 import { ManagedSignerService } from "@src/billing/services/managed-signer/managed-signer.service";
 import { RpcMessageService } from "@src/billing/services/rpc-message-service/rpc-message.service";
 import { WalletReaderService } from "@src/billing/services/wallet-reader/wallet-reader.service";
@@ -151,7 +152,8 @@ export class DeploymentWriterService {
     private readonly leaseGpuDetectionJobService: LeaseGpuDetectionJobService,
     private readonly activityService: ActivityService,
     private readonly deploymentProjectService: DeploymentProjectService,
-    private readonly deploymentOrganizationActivityService: DeploymentOrganizationActivityService
+    private readonly deploymentOrganizationActivityService: DeploymentOrganizationActivityService,
+    private readonly depositLedger: DeploymentDepositLedgerService
   ) {
     this.logger = createLogger({ context: DeploymentWriterService.name });
   }
@@ -186,6 +188,7 @@ export class DeploymentWriterService {
     }
 
     await this.signerService.assertCanBroadcast(input.userId, [message]);
+    await this.depositLedger.assertWithinBudgets(wallet.id, [message], { filingProjectId: projectId });
 
     const sealedSecrets = await this.sdlSecretsService.sealForStorage({ userId: input.userId, dseq, secrets: stored });
 

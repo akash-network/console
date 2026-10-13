@@ -400,6 +400,15 @@ export class TopUpManagedDeploymentsInstrumentationService implements Deployment
     });
   }
 
+  recordProjectBudgetReached({ owner, deployments }: { owner: string; deployments: DrainingDeployment[] }): void {
+    this.logger.info({
+      event: "TOP_UP_PROJECT_BUDGET_REACHED",
+      owner,
+      dseqs: deployments.map(({ dseq }) => dseq),
+      dryRun: this.options?.dryRun
+    });
+  }
+
   recordRuntimeLimitReached(details: { dseq: string; address: string; runtimeEndsAt: Date }) {
     this.logger.info({
       event: "TOP_UP_RUNTIME_LIMIT_REACHED",

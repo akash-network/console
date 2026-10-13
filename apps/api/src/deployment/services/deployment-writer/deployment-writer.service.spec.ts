@@ -12,6 +12,7 @@ import { mock, type MockProxy } from "vitest-mock-extended";
 import type { ActivityService } from "@src/activity/services/activity/activity.service";
 import type { WalletInitialized } from "@src/billing/repositories";
 import type { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
+import type { DeploymentDepositLedgerService } from "@src/billing/services/deployment-deposit-ledger/deployment-deposit-ledger.service";
 import { TxOutcomeUnknownError } from "@src/billing/services/external-signer-http-sdk/tx-outcome.error";
 import type { ManagedSignerService } from "@src/billing/services/managed-signer/managed-signer.service";
 import type { RpcMessageService } from "@src/billing/services/rpc-message-service/rpc-message.service";
@@ -271,6 +272,27 @@ describe(DeploymentWriterService.name, () => {
       expect(signerService.assertCanBroadcast.mock.invocationCallOrder[0]).toBeLessThan(
         deploymentSettingRepository.upsertDefinition.mock.invocationCallOrder[0]
       );
+    });
+
+    it("checks the deposit against the budget of the project it files the deployment in before recording anything", async () => {
+      const { service, rpcMessageService, depositLedger, deploymentSettingRepository } = setup({ filingProjectId: "project-1" });
+      const createMsg = { typeUrl: "/create", value: MsgCreateDeployment.fromPartial({}) };
+      rpcMessageService.getCreateDeploymentMsg.mockReturnValue(createMsg);
+
+      await service.create({ userId: "user-1", sdl: SDL_WITH_SECRETS, deposit: 5 });
+
+      expect(depositLedger.assertWithinBudgets).toHaveBeenCalledWith(wallet.id, [createMsg], { filingProjectId: "project-1" });
+      expect(depositLedger.assertWithinBudgets.mock.invocationCallOrder[0]).toBeLessThan(deploymentSettingRepository.upsertDefinition.mock.invocationCallOrder[0]);
+    });
+
+    it("records nothing and signs nothing when the project's budget refuses the create", async () => {
+      const { service, depositLedger, deploymentSettingRepository, signerService } = setup();
+      depositLedger.assertWithinBudgets.mockRejectedValue(createError(403, "past the budget", { errorCode: "project_budget_exceeded" }));
+
+      await expect(service.create({ userId: "user-1", sdl: SDL_WITH_SECRETS, deposit: 5 })).rejects.toMatchObject({ status: 403 });
+
+      expect(deploymentSettingRepository.upsertDefinition).not.toHaveBeenCalled();
+      expect(signerService.executeDerivedDecodedTxByUserId).not.toHaveBeenCalled();
     });
 
     it("records nothing and seals nothing when the signer refuses the create", async () => {
@@ -2996,7 +3018,8 @@ describe(DeploymentWriterService.name, () => {
         leaseGpuDetectionJobService,
         mock<ActivityService>(),
         mock<DeploymentProjectService>(),
-        mock<DeploymentOrganizationActivityService>()
+        mock<DeploymentOrganizationActivityService>(),
+        mock<DeploymentDepositLedgerService>()
       );
 
       function sealedFor() {
@@ -3351,6 +3374,7 @@ describe(DeploymentWriterService.name, () => {
     const deploymentProjectService = mock<DeploymentProjectService>();
     deploymentProjectService.resolveFilingProject.mockResolvedValue(input?.filingProjectId);
     const deploymentOrganizationActivityService = mock<DeploymentOrganizationActivityService>();
+    const depositLedger = mock<DeploymentDepositLedgerService>();
     sdlService.parse.mockReturnValue({ ok: true, value: parsedSdlValue } as any);
     sdlService.generateManifest.mockResolvedValue({ ok: true, value: manifestValue } as any);
     sdlService.generateManifestVersion.mockResolvedValue(new Uint8Array([4, 5, 6]));
@@ -3399,7 +3423,8 @@ describe(DeploymentWriterService.name, () => {
       leaseGpuDetectionJobService,
       activityService,
       deploymentProjectService,
-      deploymentOrganizationActivityService
+      deploymentOrganizationActivityService,
+      depositLedger
     );
 
     function storedSecrets() {
@@ -3430,6 +3455,7 @@ describe(DeploymentWriterService.name, () => {
       activityService,
       deploymentProjectService,
       deploymentOrganizationActivityService,
+      depositLedger,
       ability: mock<AnyAbility>(),
       storedSecrets
     };

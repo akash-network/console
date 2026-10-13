@@ -11,7 +11,15 @@ import { PaymentMethods, StripeTransactions, UserWallets, WalletSetting } from "
 import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
 import type { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import { DeploymentSettings } from "@src/deployment/model-schemas";
-import { OrganizationActivities, OrganizationInvitations, OrganizationMembers, Organizations, ProjectMembers, Projects } from "@src/organization/model-schemas";
+import {
+  OrganizationActivities,
+  OrganizationInvitations,
+  OrganizationMembers,
+  Organizations,
+  ProjectBudgets,
+  ProjectMembers,
+  Projects
+} from "@src/organization/model-schemas";
 import type { OrganizationType } from "@src/organization/model-schemas/organization/organization.schema";
 import type { OrganizationRole } from "@src/organization/model-schemas/organization-member/organization-member.schema";
 import type { ProjectRole } from "@src/organization/model-schemas/project-member/project-member.schema";
@@ -43,7 +51,8 @@ const ORGANIZATION_SUBJECTS = [
   "ApiKey",
   "OrganizationActivity",
   "ProjectSpend",
-  "OrganizationSpend"
+  "OrganizationSpend",
+  "ProjectBudget"
 ];
 
 const ROLE_TABLE: Record<OrganizationRole, Record<string, string[]>> = {
@@ -64,7 +73,8 @@ const ROLE_TABLE: Record<OrganizationRole, Record<string, string[]>> = {
     NotificationChannel: MANAGE,
     ApiKey: MANAGE,
     ProjectSpend: READ,
-    OrganizationSpend: READ
+    OrganizationSpend: READ,
+    ProjectBudget: MANAGE
   },
   admin: {
     Organization: ["read", "update"],
@@ -83,7 +93,8 @@ const ROLE_TABLE: Record<OrganizationRole, Record<string, string[]>> = {
     NotificationChannel: MANAGE,
     ApiKey: MANAGE,
     ProjectSpend: READ,
-    OrganizationSpend: READ
+    OrganizationSpend: READ,
+    ProjectBudget: MANAGE
   },
   member: {
     Organization: READ,
@@ -102,7 +113,8 @@ const ROLE_TABLE: Record<OrganizationRole, Record<string, string[]>> = {
     NotificationChannel: MANAGE,
     ApiKey: MANAGE,
     ProjectSpend: READ,
-    OrganizationSpend: NONE
+    OrganizationSpend: NONE,
+    ProjectBudget: NONE
   },
   billing: {
     Organization: READ,
@@ -121,7 +133,8 @@ const ROLE_TABLE: Record<OrganizationRole, Record<string, string[]>> = {
     NotificationChannel: NONE,
     ApiKey: MANAGE,
     ProjectSpend: READ,
-    OrganizationSpend: READ
+    OrganizationSpend: READ,
+    ProjectBudget: READ
   },
   viewer: {
     Organization: READ,
@@ -140,7 +153,8 @@ const ROLE_TABLE: Record<OrganizationRole, Record<string, string[]>> = {
     NotificationChannel: READ,
     ApiKey: MANAGE,
     ProjectSpend: READ,
-    OrganizationSpend: NONE
+    OrganizationSpend: NONE,
+    ProjectBudget: NONE
   }
 };
 
@@ -159,7 +173,8 @@ const SUBJECT_TABLES: Record<string, PgTableWithColumns<any>> = {
   DeploymentSetting: DeploymentSettings,
   Template: Templates,
   ApiKey: ApiKeys,
-  OrganizationActivity: OrganizationActivities
+  OrganizationActivity: OrganizationActivities,
+  ProjectBudget: ProjectBudgets
 };
 
 describe("ability rules", () => {
@@ -495,6 +510,14 @@ describe("ability rules", () => {
         expect(ability.can("read", subject("OrganizationSpend", { organizationId }))).toBe(false);
       });
 
+      it("keeps a billing key, which reaches no project, out of every project's budget", () => {
+        const projectId = faker.string.uuid();
+        const { ability, organizationId } = setup({ role: "billing", apiKeyProjectId: projectId });
+
+        expect(allowedActions(ability, subject("ProjectBudget", { organizationId, projectId }))).toEqual(NONE);
+        expect(allowedActions(ability, subject("ProjectBudget", { organizationId, projectId: faker.string.uuid() }))).toEqual(NONE);
+      });
+
       it("grants its reads of the organization and its project on those two subjects only", () => {
         const projectId = faker.string.uuid();
         const { ability, organizationId } = setup({ role: "owner", projectScope: createProjectsScope([projectId]), apiKeyProjectId: projectId });
@@ -630,6 +653,22 @@ describe("ability rules", () => {
       const granted = actionsBySubject(ability, { organizationId, projectId: viewed, userId: faker.string.uuid() });
 
       expect(pick(granted, Object.keys(READ_ONLY_IN_PROJECT))).toEqual(READ_ONLY_IN_PROJECT);
+    });
+
+    it.each(["owner", "admin"] as const)("keeps the %s role of a narrowed request to the budgets of its projects", role => {
+      const narrowedProjectId = faker.string.uuid();
+      const { ability, organizationId } = setup({ role, projectScope: createProjectsScope([narrowedProjectId]) });
+
+      expect(allowedActions(ability, subject("ProjectBudget", { organizationId, projectId: narrowedProjectId }))).toEqual(MANAGE);
+      expect(allowedActions(ability, subject("ProjectBudget", { organizationId, projectId: faker.string.uuid() }))).toEqual(NONE);
+    });
+
+    it("lets a project admin read the budget of the projects it administers and change none", () => {
+      const [administered, otherProject] = [faker.string.uuid(), faker.string.uuid()];
+      const { ability, organizationId } = setup({ role: "member", projectScope: createProjectsScope([administered, otherProject], { adminProjectIds: [administered] }) });
+
+      expect(allowedActions(ability, subject("ProjectBudget", { organizationId, projectId: administered }))).toEqual(READ);
+      expect(allowedActions(ability, subject("ProjectBudget", { organizationId, projectId: otherProject }))).toEqual(NONE);
     });
 
     it("gives an organization member administering no project no way to manage grants or rename projects", () => {

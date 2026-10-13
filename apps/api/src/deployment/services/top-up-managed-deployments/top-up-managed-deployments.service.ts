@@ -20,6 +20,7 @@ import { DeploymentSettingRepository, type FundingClaim } from "@src/deployment/
 import { AutoTopUpOwnerDeployments, DrainingDeployment } from "@src/deployment/services/draining-deployment/draining-deployment.service";
 import { DrainingDeploymentService } from "@src/deployment/services/draining-deployment/draining-deployment.service";
 import { ReconcileManagedTxJobService } from "@src/deployment/services/reconcile-managed-tx/reconcile-managed-tx-job.service";
+import { isProjectBudgetExceeded } from "@src/organization/services/project-budget-enforcement/project-budget-enforcement.service";
 import { COSMOS_TX_CODE_OK } from "@src/utils/constants";
 import { CachedBalance, CachedBalanceService, InsufficientBalanceError } from "../cached-balance/cached-balance.service";
 import { DeploymentConfigService } from "../deployment-config/deployment-config.service";
@@ -571,6 +572,14 @@ export class TopUpManagedDeploymentsService {
         return { status: "undecided", txHash: failure.txHash };
       }
 
+      const refusedByBudget = refusedByProjectBudget(failure, remaining);
+
+      if (refusedByBudget.length) {
+        instrumentation.recordProjectBudgetReached({ owner, deployments: refusedByBudget.map(({ deployment }) => deployment) });
+        remaining = remaining.filter(item => !refusedByBudget.includes(item));
+        continue;
+      }
+
       const closedIndex = this.chainErrorService.getClosedDeploymentMessageIndex(failure, remaining.length);
 
       if (closedIndex === undefined) {
@@ -675,4 +684,11 @@ export class TopUpManagedDeploymentsService {
       return;
     }
   }
+}
+
+/** A project whose budget stops top-ups refuses the deposits into its deployments before anything is signed, so the rest of the batch can go on. */
+function refusedByProjectBudget(failure: unknown, items: CollectedMessage[]): CollectedMessage[] {
+  if (!isProjectBudgetExceeded(failure)) return [];
+
+  return items.filter(({ input }) => failure.dseqs.includes(String(input.dseq)));
 }

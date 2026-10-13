@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
 import { DeploymentDepositRepository } from "./deployment-deposit.repository";
 
+import { createAkashAddress } from "@test/seeders/akash-address.seeder";
 import { findDeploymentDeposit, seedDeploymentDeposit } from "@test/seeders/db/deployment-deposit.seeder";
 import { seedOrganizationWithOwner, seedProject } from "@test/seeders/db/organization.seeder";
 import { createOrganizationContext } from "@test/seeders/organization-context.seeder";
@@ -100,6 +101,28 @@ describe(DeploymentDepositRepository.name, () => {
       expect(await findDeploymentDeposit(pending.id)).toMatchObject({ status: "confirmed" });
       expect(await findDeploymentDeposit(alreadySettled.id)).toMatchObject({ status: "void" });
       expect(await findDeploymentDeposit(otherHash.id)).toMatchObject({ status: "pending" });
+    });
+  });
+
+  describe("findCreateProjectIds", () => {
+    it("returns the project of each deployment's earliest live create of the owner", async () => {
+      const { repository, organization, project } = await setup();
+      const owner = createAkashAddress();
+      const otherProject = await seedProject({ organizationId: organization.id });
+      const seedCreate = (input: Partial<Parameters<typeof seedDeploymentDeposit>[0]>) =>
+        seedDeploymentDeposit({ organizationId: organization.id, owner, kind: "deployment_create", status: "pending", ...input });
+      await seedCreate({ dseq: "101", projectId: project.id, createdAt: new Date("2026-10-01T00:00:00Z") });
+      await seedCreate({ dseq: "101", projectId: otherProject.id, status: "confirmed", createdAt: new Date("2026-10-02T00:00:00Z") });
+      await seedCreate({ dseq: "102", projectId: project.id, status: "void" });
+      await seedCreate({ dseq: "103", projectId: null });
+      await seedCreate({ dseq: "104", projectId: project.id, owner: createAkashAddress() });
+      await seedCreate({ dseq: "105", projectId: project.id, kind: "top_up" });
+      await seedCreate({ dseq: "106", projectId: project.id });
+
+      const projectIds = await repository.findCreateProjectIds(organization.id, owner, ["101", "102", "103", "104", "105"]);
+
+      expect(projectIds).toEqual(new Map([["101", project.id]]));
+      expect(await repository.findCreateProjectIds(organization.id, owner, [])).toEqual(new Map());
     });
   });
 
