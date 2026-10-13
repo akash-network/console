@@ -1,7 +1,11 @@
 import { injectable } from "tsyringe";
 
-import { StripeTransactionRepository } from "@src/billing/repositories";
-import { BONUS_PERCENT, MAX_BONUS_CENTS, MIN_QUALIFYING_AMOUNT_CENTS } from "@src/billing/services/first-purchase-bonus/first-purchase-bonus.service";
+import {
+  BONUS_PERCENT,
+  FirstPurchaseBonusService,
+  MAX_BONUS_CENTS,
+  MIN_QUALIFYING_AMOUNT_CENTS
+} from "@src/billing/services/first-purchase-bonus/first-purchase-bonus.service";
 import type { Resolver } from "@src/core/providers/resolvers.provider";
 import { DATA_RESOLVER } from "@src/core/providers/resolvers.provider";
 import type { UserOutput } from "@src/user/repositories";
@@ -21,10 +25,10 @@ export interface FirstPurchaseBonusOffer {
 export class FirstPurchaseBonusOfferService implements Resolver {
   readonly key = "firstPurchaseBonus";
 
-  constructor(private readonly stripeTransactionRepository: StripeTransactionRepository) {}
+  constructor(private readonly firstPurchaseBonusService: FirstPurchaseBonusService) {}
 
   async resolve(user: UserOutput): Promise<FirstPurchaseBonusOffer | null> {
-    if (await this.stripeTransactionRepository.hasCompletedPaidTransaction(user.id)) return null;
+    if (!(await this.firstPurchaseBonusService.isEligible({ userId: user.id }, user.id))) return null;
 
     return {
       bonusPercent: BONUS_PERCENT,

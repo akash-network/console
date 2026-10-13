@@ -5,6 +5,7 @@ export * from "@src/billing/routes/stripe-prices/stripe-prices.router";
 export * from "@src/billing/routes/stripe-coupons/stripe-coupons.router";
 export * from "@src/billing/routes/stripe-customers/stripe-customers.router";
 export * from "@src/billing/routes/stripe-transactions/stripe-transactions.router";
+export * from "@src/billing/routes/first-purchase-bonus/first-purchase-bonus.router";
 export * from "@src/billing/routes/stripe-payment-methods/stripe-payment-methods.router";
 export * from "@src/billing/routes/get-balances/get-balances.router";
 export * from "@src/billing/routes/usage/usage.router";

@@ -4,10 +4,13 @@ import { container } from "tsyringe";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { type ApiPgDatabase, POSTGRES_DB, resolveTable } from "@src/core";
-import { UserRepository } from "@src/user/repositories";
+import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
+import type { OrganizationContext } from "@src/organization/types/organization-context";
+import { type UserOutput, UserRepository } from "@src/user/repositories";
 import { type StripeTransactionInput, StripeTransactionRepository } from "./stripe-transaction.repository";
 
 import { seedOrganizationWithOwner } from "@test/seeders/db/organization.seeder";
+import { createOrganizationContext } from "@test/seeders/organization-context.seeder";
 
 describe(StripeTransactionRepository.name, () => {
   describe("findByChargeIds", () => {
@@ -438,6 +441,106 @@ describe(StripeTransactionRepository.name, () => {
         .values({ ...input, type: "coupon_claim", status: "pending", amount: 1000, stripeCouponId: "coupon_1", createdAt: sql`now() - interval '2 hours'` });
     }
   });
+
+  describe("hasCompletedPaidTransaction", () => {
+    it.each([
+      { status: "succeeded" as const, expected: true },
+      { status: "refunded" as const, expected: true },
+      { status: "created" as const, expected: false },
+      { status: "failed" as const, expected: false }
+    ])("answers $expected for a team's payment_intent in $status", async ({ status, expected }) => {
+      const { stripeTransactionRepository, createTestUser } = setup();
+      const { organization: team } = await seedOrganizationWithOwner();
+      const user = await createTestUser();
+      await stripeTransactionRepository.create({ ...transactionInput(user.id), organizationId: team.id, status });
+
+      await expect(stripeTransactionRepository.hasCompletedPaidTransaction({ organizationId: team.id })).resolves.toBe(expected);
+    });
+
+    it("never counts a coupon claim", async () => {
+      const { stripeTransactionRepository, createTestUser } = setup();
+      const user = await createTestUser();
+      await stripeTransactionRepository.create({ ...transactionInput(user.id), type: "coupon_claim" });
+
+      await expect(stripeTransactionRepository.hasCompletedPaidTransaction({ userId: user.id })).resolves.toBe(false);
+    });
+
+    it("keeps a member's purchase for a team apart from the member's own account and from other teams", async () => {
+      const { stripeTransactionRepository, createTestUser } = setup();
+      const [{ organization: team }, { organization: otherTeam }] = await Promise.all([seedOrganizationWithOwner(), seedOrganizationWithOwner()]);
+      const user = await createTestUser();
+      await stripeTransactionRepository.create({ ...transactionInput(user.id), organizationId: team.id });
+
+      await expect(stripeTransactionRepository.hasCompletedPaidTransaction({ organizationId: team.id })).resolves.toBe(true);
+      await expect(stripeTransactionRepository.hasCompletedPaidTransaction({ organizationId: otherTeam.id })).resolves.toBe(false);
+      await expect(stripeTransactionRepository.hasCompletedPaidTransaction({ userId: user.id })).resolves.toBe(false);
+    });
+
+    it("counts the user's own purchases, whether or not they are filed under an organization", async () => {
+      const { stripeTransactionRepository, createTestUser } = setup();
+      const [filedUser, unfiledUser] = await Promise.all([createTestUser(), createTestUser()]);
+      const { organization: personal } = await seedOrganizationWithOwner({ type: "personal" });
+      await stripeTransactionRepository.create({ ...transactionInput(filedUser.id), organizationId: personal.id });
+      await stripeTransactionRepository.create(transactionInput(unfiledUser.id));
+
+      await expect(stripeTransactionRepository.hasCompletedPaidTransaction({ userId: filedUser.id })).resolves.toBe(true);
+      await expect(stripeTransactionRepository.hasCompletedPaidTransaction({ userId: unfiledUser.id })).resolves.toBe(true);
+    });
+
+    it("counts a purchase not yet filed into any organization while the person's organization is active", async () => {
+      const { stripeTransactionRepository, createTestUser } = setup();
+      const user = await createTestUser();
+      const { organization: personal } = await seedOrganizationWithOwner({ type: "personal" });
+      await stripeTransactionRepository.create(transactionInput(user.id));
+
+      const hasPaid = await inOrganization({ user, organizationId: personal.id }, () =>
+        stripeTransactionRepository.hasCompletedPaidTransaction({ userId: user.id })
+      );
+
+      expect(hasPaid).toBe(true);
+    });
+  });
+
+  describe("hasReceivedFirstPurchaseBonus", () => {
+    it.each(["succeeded" as const, "refunded" as const])("counts a bonus the person received on a purchase now %s", async status => {
+      const { stripeTransactionRepository, createTestUser } = setup();
+      const user = await createTestUser();
+      await stripeTransactionRepository.create({ ...transactionInput(user.id), status, bonusAmount: 1000 });
+
+      await expect(stripeTransactionRepository.hasReceivedFirstPurchaseBonus(user.id)).resolves.toBe(true);
+    });
+
+    it("ignores purchases that carried no bonus and bonuses of other people", async () => {
+      const { stripeTransactionRepository, createTestUser } = setup();
+      const [user, otherUser] = await Promise.all([createTestUser(), createTestUser()]);
+      await stripeTransactionRepository.create({ ...transactionInput(user.id), bonusAmount: 0 });
+      await stripeTransactionRepository.create({ ...transactionInput(otherUser.id), bonusAmount: 1000 });
+
+      await expect(stripeTransactionRepository.hasReceivedFirstPurchaseBonus(user.id)).resolves.toBe(false);
+    });
+
+    it("sees a bonus the person received for a team while another organization is active", async () => {
+      const { stripeTransactionRepository, createTestUser } = setup();
+      const [{ organization: team }, { organization: otherTeam }] = await Promise.all([seedOrganizationWithOwner(), seedOrganizationWithOwner()]);
+      const user = await createTestUser();
+      await stripeTransactionRepository.create({ ...transactionInput(user.id), organizationId: team.id, bonusAmount: 1000 });
+
+      const hasBonus = await inOrganization({ user, organizationId: otherTeam.id }, () => stripeTransactionRepository.hasReceivedFirstPurchaseBonus(user.id));
+
+      expect(hasBonus).toBe(true);
+    });
+  });
+
+  async function inOrganization<R>(context: Partial<OrganizationContext> & { user: UserOutput }, run: () => Promise<R>): Promise<R> {
+    const executionContextService = container.resolve(ExecutionContextService);
+    const { user, ...organizationContext } = context;
+
+    return await executionContextService.runWithContext(async () => {
+      executionContextService.set("CURRENT_USER", user);
+      executionContextService.set("ORGANIZATION_CONTEXT", createOrganizationContext(organizationContext));
+      return await run();
+    });
+  }
 
   describe("hasPaidUserWithEmailDomain", () => {
     it.each([

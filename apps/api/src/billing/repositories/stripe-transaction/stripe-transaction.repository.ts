@@ -217,17 +217,28 @@ export class StripeTransactionRepository extends OrgScopedRepository<Table, Stri
       );
   }
 
-  /**
-   * Whether the user has ever completed a paid purchase (`payment_intent` transaction that
-   * succeeded, including ones refunded afterwards). Coupon claims never count.
-   */
-  async hasCompletedPaidTransaction(userId: string): Promise<boolean> {
-    const item = await this.cursor.query.StripeTransactions.findFirst({
-      where: this.whereAccessibleBy(
-        and(eq(this.table.userId, userId), eq(this.table.type, "payment_intent"), inArray(this.table.status, ["succeeded", "refunded"]))
-      ),
-      columns: { id: true }
-    });
+  /** Whether the owner ever completed a paid purchase, refunded or not, coupon claims aside; reads every organization, as settlement does. */
+  async hasCompletedPaidTransaction(owner: BillingOwner): Promise<boolean> {
+    const [item] = await this.cursor
+      .select({ id: this.table.id })
+      .from(this.table)
+      .where(
+        this.unscoped("per-person-billing-limits").whereAccessibleBy(
+          and(ownedBy(this.table, owner), eq(this.table.type, "payment_intent"), inArray(this.table.status, ["succeeded", "refunded"]))
+        )
+      )
+      .limit(1);
+
+    return !!item;
+  }
+
+  /** Reads every organization and every status, so a bonus counts against the person who received it wherever they paid, refunded or not. */
+  async hasReceivedFirstPurchaseBonus(userId: string): Promise<boolean> {
+    const [item] = await this.cursor
+      .select({ id: this.table.id })
+      .from(this.table)
+      .where(this.unscoped("per-person-billing-limits").whereAccessibleBy(and(eq(this.table.userId, userId), gt(this.table.bonusAmount, 0))))
+      .limit(1);
 
     return !!item;
   }
