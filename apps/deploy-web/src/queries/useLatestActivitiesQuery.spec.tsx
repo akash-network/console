@@ -1,16 +1,18 @@
 import { createProxy } from "@akashnetwork/react-query-proxy";
 import { describe, expect, it, vi } from "vitest";
 
+import type { ActivityOfAnyType } from "./useLatestActivitiesQuery";
 import {
   activityPollIntervalOf,
   IDLE_ACTIVITY_POLL_MS,
+  isKnownActivity,
   PENDING_ACTIVITY_POLL_MS,
   useActivityFeedQuery,
   useLatestActivitiesQuery
 } from "./useLatestActivitiesQuery";
 
 import { act } from "@testing-library/react";
-import { buildActivity } from "@tests/seeders/activity";
+import { buildActivity, buildActivityOfUnknownType } from "@tests/seeders/activity";
 import { type RenderAppHookOptions, setupQuery } from "@tests/unit/query-client";
 
 type ApiService = ReturnType<NonNullable<NonNullable<RenderAppHookOptions["services"]>["api"]>>;
@@ -24,6 +26,15 @@ describe(useLatestActivitiesQuery.name, () => {
       expect(result.current.data).toEqual(activities);
     });
     expect(listActivities).toHaveBeenCalledWith({ limit: 100 });
+  });
+
+  it("skips the activities of a type it doesn't know yet", async () => {
+    const known = buildActivity({ status: "succeeded" });
+    const { result } = setup({ activities: [buildActivityOfUnknownType(), known], enabled: true });
+
+    await vi.waitFor(() => {
+      expect(result.current.data).toEqual([known]);
+    });
   });
 
   it("asks for nothing while disabled", async () => {
@@ -52,15 +63,33 @@ describe(useLatestActivitiesQuery.name, () => {
   });
 
   describe(useActivityFeedQuery.name, () => {
-    it("returns the activities and how many the user has not seen, from one request", async () => {
+    it("returns the activities, how many the user has not seen and when the newest was created, from one request", async () => {
       const activities = [buildActivity()];
       const { result, listActivities } = setupFeed({ response: responseOf(activities, 7) });
 
       await vi.waitFor(() => {
-        expect(result.current.data).toEqual({ activities, unseenCount: 7 });
+        expect(result.current.data).toEqual({ activities, unseenCount: 7, newestCreatedAt: activities[0].createdAt });
       });
       expect(listActivities).toHaveBeenCalledTimes(1);
       expect(listActivities).toHaveBeenCalledWith({ limit: 100 });
+    });
+
+    it("skips the activities of a type it doesn't know yet, yet dates the feed by its newest activity of any type", async () => {
+      const unknown = buildActivityOfUnknownType();
+      const known = buildActivity();
+      const { result } = setupFeed({ response: responseOf([unknown, known], 2) });
+
+      await vi.waitFor(() => {
+        expect(result.current.data).toEqual({ activities: [known], unseenCount: 2, newestCreatedAt: unknown.createdAt });
+      });
+    });
+
+    it("dates an empty feed by nothing", async () => {
+      const { result } = setupFeed({ response: responseOf([]) });
+
+      await vi.waitFor(() => {
+        expect(result.current.data).toEqual({ activities: [], unseenCount: 0, newestCreatedAt: undefined });
+      });
     });
 
     it("never checks again on its own, leaving the polling to the activity host", async () => {
@@ -89,6 +118,20 @@ describe(useLatestActivitiesQuery.name, () => {
     }
   });
 
+  describe(isKnownActivity.name, () => {
+    it("knows a deployment close", () => {
+      expect(isKnownActivity(buildActivity({ type: "deployment_close" }))).toBe(true);
+    });
+
+    it("doesn't know a type the api added after this bundle was built", () => {
+      expect(isKnownActivity(buildActivityOfUnknownType())).toBe(false);
+    });
+
+    it("doesn't mistake a type named like a property every object has for a known one", () => {
+      expect(isKnownActivity(buildActivityOfUnknownType({ type: "toString" }))).toBe(false);
+    });
+  });
+
   describe(activityPollIntervalOf.name, () => {
     it("polls often while an activity is still pending", () => {
       expect(activityPollIntervalOf(responseOf([buildActivity({ status: "succeeded" }), buildActivity({ status: "pending" })]))).toBe(PENDING_ACTIVITY_POLL_MS);
@@ -107,11 +150,11 @@ describe(useLatestActivitiesQuery.name, () => {
     });
   });
 
-  function responseOf(activities: ReturnType<typeof buildActivity>[], unseenCount = 0) {
+  function responseOf<T extends ActivityOfAnyType>(activities: T[], unseenCount = 0) {
     return { data: { activities, unseenCount, pagination: { limit: 50, hasMore: false, nextCursor: null } } };
   }
 
-  function setup(input: { activities: ReturnType<typeof buildActivity>[]; enabled: boolean }) {
+  function setup(input: { activities: ActivityOfAnyType[]; enabled: boolean }) {
     const listActivities = vi.fn().mockResolvedValue(responseOf(input.activities));
     const api = createProxy({ v1: { listActivities } }) as unknown as ApiService;
 

@@ -52,10 +52,10 @@ export function ActivityBell({ dependencies: d = DEPENDENCIES }: { dependencies?
 
   /** Marks up to the newest entry rather than up to now, so an action that lands while the list is open still counts as unseen. */
   function markListedSeen(isOpen: boolean) {
-    const newest = activities[0];
-    if (!isOpen || unseenCount === 0 || !newest) return;
+    const upTo = feed?.newestCreatedAt;
+    if (!isOpen || unseenCount === 0 || !upTo) return;
 
-    markSeen.mutate({ data: { upTo: newest.createdAt } });
+    markSeen.mutate({ data: { upTo } });
   }
 
   return (

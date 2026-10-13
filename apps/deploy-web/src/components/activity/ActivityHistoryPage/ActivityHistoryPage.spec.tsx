@@ -1,13 +1,16 @@
+import { createProxy } from "@akashnetwork/react-query-proxy";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
-import type { Activity } from "@src/queries/useLatestActivitiesQuery";
-import type { DEPENDENCIES } from "./ActivityHistoryPage";
-import { ActivityHistoryPage } from "./ActivityHistoryPage";
+import type { Activity, ActivityOfAnyType } from "@src/queries/useLatestActivitiesQuery";
+import { createApiSdk } from "@src/services/api-sdk/createApiSdk";
+import { ActivityHistoryPage, DEPENDENCIES } from "./ActivityHistoryPage";
 
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { buildActivity } from "@tests/seeders/activity";
+import { buildActivity, buildActivityOfUnknownType } from "@tests/seeders/activity";
+import { jsonResponse } from "@tests/unit/jsonResponse";
+import { TestContainerProvider } from "@tests/unit/TestContainerProvider";
 
 describe(ActivityHistoryPage.name, () => {
   it("lists the user's activity newest first, each linking to the deployment it is about", () => {
@@ -219,6 +222,35 @@ describe(ActivityHistoryPage.name, () => {
     await userEvent.click(screen.getByRole("button", { name: "Try again" }));
 
     expect(refetch).toHaveBeenCalled();
+  });
+
+  describe("with a page carrying a type it doesn't know yet", () => {
+    it("lists only the entries it knows", async () => {
+      setupFeed({
+        activities: [buildActivityOfUnknownType({ status: "failed", meta: { dseq: "9999" } }), buildActivity({ status: "failed", meta: { dseq: "1234" } })]
+      });
+
+      await waitFor(() => expect(entryItems()).toHaveLength(1));
+      expect(entryItems()[0]).toHaveTextContent("Couldn't close deployment 1234");
+      expect(within(entryItems()[0]).getByRole("link")).toHaveAttribute("href", "/deployments/1234?tab=SETTINGS");
+    });
+
+    function setupFeed(input: { activities: ActivityOfAnyType[] }) {
+      const page = { data: { activities: input.activities, unseenCount: 0, pagination: { limit: 20, hasMore: false, nextCursor: null } } };
+      const fetch = vi.fn(async () => jsonResponse(page));
+
+      const dependencies: typeof DEPENDENCIES = {
+        Layout: ({ children }) => <>{children}</>,
+        useActivityHistoryQuery: DEPENDENCIES.useActivityHistoryQuery,
+        useDeploymentNames: () => mock<ReturnType<typeof DEPENDENCIES.useDeploymentNames>>({ getDeploymentName: () => null, isLoading: false })
+      };
+
+      render(
+        <TestContainerProvider services={{ api: () => createProxy(createApiSdk({ baseUrl: "", fetch })) }}>
+          <ActivityHistoryPage dependencies={dependencies} />
+        </TestContainerProvider>
+      );
+    }
   });
 
   function entryItems() {

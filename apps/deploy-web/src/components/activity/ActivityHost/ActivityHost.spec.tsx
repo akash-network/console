@@ -1,16 +1,19 @@
+import { createProxy } from "@akashnetwork/react-query-proxy";
+import { QueryClient } from "@tanstack/react-query";
 import { describe, expect, it, vi } from "vitest";
 import { mock, mockDeep } from "vitest-mock-extended";
 
 import type { AppDIContainer } from "@src/context/ServicesProvider/ServicesProvider";
 import { QueryKeys } from "@src/queries/queryKeys";
-import type { Activity } from "@src/queries/useLatestActivitiesQuery";
-import type { DEPENDENCIES } from "./ActivityHost";
-import { ActivityHost } from "./ActivityHost";
+import type { Activity, ActivityOfAnyType } from "@src/queries/useLatestActivitiesQuery";
+import { createApiSdk } from "@src/services/api-sdk/createApiSdk";
+import { ActivityHost, DEPENDENCIES } from "./ActivityHost";
 
-import { render, screen } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { buildActivity } from "@tests/seeders/activity";
+import { buildActivity, buildActivityOfUnknownType } from "@tests/seeders/activity";
 import { buildUser } from "@tests/seeders/user";
+import { jsonResponse } from "@tests/unit/jsonResponse";
 import { TestContainerProvider } from "@tests/unit/TestContainerProvider";
 
 describe(ActivityHost.name, () => {
@@ -394,6 +397,74 @@ describe(ActivityHost.name, () => {
         variant: "success"
       });
     });
+  });
+
+  describe("with a feed carrying a type it doesn't know yet", () => {
+    it("announces and refreshes only the actions it knows when they finish together", async () => {
+      const unknown = buildActivityOfUnknownType({ status: "pending", meta: { dseq: "9999" } });
+      const known = buildActivity({ status: "pending", meta: { dseq: "1234" } });
+      const { enqueueSnackbar, queryClient, receive } = await setupFeed({ activities: [unknown, known] });
+
+      await receive([
+        { ...unknown, status: "succeeded" },
+        { ...known, status: "succeeded" }
+      ]);
+
+      await waitFor(() => expect(enqueueSnackbar).toHaveBeenCalledTimes(1));
+      expect(enqueueSnackbar).toHaveBeenCalledWith(expect.objectContaining({ props: expect.objectContaining({ title: "Deployment 1234 closed" }) }), {
+        variant: "success"
+      });
+      expect(invalidatedKeysOf(queryClient)).toContainEqual(QueryKeys.getDeploymentDetailKey(OWNER, "1234"));
+      expect(invalidatedKeysOf(queryClient)).not.toContainEqual(QueryKeys.getDeploymentDetailKey(OWNER, "9999"));
+    });
+
+    it("looks up the names of the deployments only for the actions it knows", async () => {
+      const { useDeploymentNames } = await setupFeed({
+        activities: [buildActivityOfUnknownType({ meta: { dseq: "9999" } }), buildActivity({ meta: { dseq: "1234" } })]
+      });
+
+      expect(useDeploymentNames).toHaveBeenLastCalledWith(["1234"]);
+    });
+
+    async function setupFeed(input: { activities: ActivityOfAnyType[] }) {
+      let activities = input.activities;
+      const fetch = vi.fn(async () => jsonResponse({ data: { activities, unseenCount: 0, pagination: { limit: 100, hasMore: false, nextCursor: null } } }));
+      const feedClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+      const queryClient = mock<ReturnType<typeof DEPENDENCIES.useQueryClient>>();
+      const enqueueSnackbar = vi.fn().mockReturnValue(TOAST_KEY);
+      const useLatestActivitiesQuery = vi.fn(DEPENDENCIES.useLatestActivitiesQuery);
+      const useDeploymentNames = vi.fn((() =>
+        mock<ReturnType<typeof DEPENDENCIES.useDeploymentNames>>({
+          getDeploymentName: () => null,
+          isLoading: false
+        })) as typeof DEPENDENCIES.useDeploymentNames);
+
+      const dependencies: typeof DEPENDENCIES = {
+        useFlag: () => true,
+        useUser: () => mock<ReturnType<typeof DEPENDENCIES.useUser>>({ user: buildUser() }),
+        useWallet: () => mock<ReturnType<typeof DEPENDENCIES.useWallet>>({ address: OWNER }),
+        useLatestActivitiesQuery,
+        useDeploymentNames,
+        useCloseBatchesBeingSent: () => new Set(),
+        useSnackbar: () => ({ enqueueSnackbar, closeSnackbar: vi.fn() }),
+        useQueryClient: () => queryClient,
+        useRouter: () => mock<ReturnType<typeof DEPENDENCIES.useRouter>>()
+      };
+
+      render(
+        <TestContainerProvider services={{ queryClient: () => feedClient, api: () => createProxy(createApiSdk({ baseUrl: "", fetch })) }}>
+          <ActivityHost dependencies={dependencies} />
+        </TestContainerProvider>
+      );
+      await waitFor(() => expect(useLatestActivitiesQuery).toHaveLastReturnedWith(expect.objectContaining({ isSuccess: true })));
+
+      const receive = async (next: ActivityOfAnyType[]) => {
+        activities = next;
+        await act(() => feedClient.refetchQueries());
+      };
+
+      return { enqueueSnackbar, queryClient, useDeploymentNames, receive };
+    }
   });
 
   function invalidatedKeysOf(queryClient: ReturnType<typeof DEPENDENCIES.useQueryClient>) {
