@@ -32,7 +32,8 @@
         "log-collector",
         "bid",
         "onboarding",
-        "managed-wallet"
+        "managed-wallet",
+        "organization"
       ]
     ]
   }

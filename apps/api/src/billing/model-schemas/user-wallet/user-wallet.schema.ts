@@ -1,30 +1,41 @@
-import { boolean, numeric, pgTable, serial, timestamp, uuid, varchar } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
+import { boolean, numeric, pgTable, serial, timestamp, uniqueIndex, uuid, varchar } from "drizzle-orm/pg-core";
 
 // eslint-disable-next-line import-x/no-cycle
+import { Organizations } from "@src/organization/model-schemas/organization/organization.schema";
 import { Users } from "@src/user/model-schemas/user/user.schema";
 
-export const UserWallets = pgTable("user_wallets", {
-  id: serial("id").primaryKey(),
-  userId: uuid("user_id")
-    .references(() => Users.id, { onDelete: "cascade" })
-    .unique()
-    .notNull(),
-  address: varchar("address").unique(),
-  deploymentAllowance: allowance("deployment_allowance"),
-  feeAllowance: allowance("fee_allowance"),
-  isTrialing: boolean("trial").default(true),
-  activatedAt: timestamp("activated_at", { withTimezone: true }),
-  creditsLowNotifiedAt: timestamp("credits_low_notified_at", { withTimezone: true }),
-  creditsSufficientSince: timestamp("credits_sufficient_since", { withTimezone: true }),
-  creditsLowSince: timestamp("credits_low_since", { withTimezone: true }),
-  /** Only meaningful while `credits_low_notified_at` is set: every new credits-low email clears it, so each low episode warns of closure once. */
-  creditsExhaustedNotifiedAt: timestamp("credits_exhausted_notified_at", { withTimezone: true }),
-  /** Set when a wallet is wiped for workload abuse; a locked wallet is skipped by fee refills and probes but may still convert by paying. */
-  abuseLockedAt: timestamp("abuse_locked_at", { withTimezone: true }),
-  abuseLockedReason: varchar("abuse_locked_reason", { length: 64 }),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull()
-});
+export const UserWallets = pgTable(
+  "user_wallets",
+  {
+    id: serial("id").primaryKey(),
+    userId: uuid("user_id")
+      .references(() => Users.id, { onDelete: "cascade" })
+      .unique()
+      .notNull(),
+    organizationId: uuid("organization_id").references(() => Organizations.id),
+    address: varchar("address").unique(),
+    deploymentAllowance: allowance("deployment_allowance"),
+    feeAllowance: allowance("fee_allowance"),
+    isTrialing: boolean("trial").default(true),
+    activatedAt: timestamp("activated_at", { withTimezone: true }),
+    creditsLowNotifiedAt: timestamp("credits_low_notified_at", { withTimezone: true }),
+    creditsSufficientSince: timestamp("credits_sufficient_since", { withTimezone: true }),
+    creditsLowSince: timestamp("credits_low_since", { withTimezone: true }),
+    /** Only meaningful while `credits_low_notified_at` is set: every new credits-low email clears it, so each low episode warns of closure once. */
+    creditsExhaustedNotifiedAt: timestamp("credits_exhausted_notified_at", { withTimezone: true }),
+    /** Set when a wallet is wiped for workload abuse; a locked wallet is skipped by fee refills and probes but may still convert by paying. */
+    abuseLockedAt: timestamp("abuse_locked_at", { withTimezone: true }),
+    abuseLockedReason: varchar("abuse_locked_reason", { length: 64 }),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull()
+  },
+  table => ({
+    organizationIdUnique: uniqueIndex("user_wallets_organization_id_unique")
+      .on(table.organizationId)
+      .where(sql`${table.organizationId} IS NOT NULL`)
+  })
+);
 
 function allowance(name: string) {
   return numeric(name, {

@@ -1,6 +1,8 @@
 import { sql } from "drizzle-orm";
-import { boolean, index, integer, jsonb, pgEnum, pgTable, text, timestamp, unique, uuid, varchar } from "drizzle-orm/pg-core";
+import { boolean, foreignKey, index, integer, jsonb, pgEnum, pgTable, text, timestamp, unique, uuid, varchar } from "drizzle-orm/pg-core";
 
+import { Organizations } from "@src/organization/model-schemas/organization/organization.schema";
+import { Projects } from "@src/organization/model-schemas/project/project.schema";
 import { Users } from "@src/user/model-schemas";
 
 /** What a card reported about itself, before any catalog lookup: the model is resolved on read so a grown alias table needs no backfill. */
@@ -70,6 +72,8 @@ export const DeploymentSettings = pgTable(
     userId: uuid("user_id")
       .references(() => Users.id, { onDelete: "cascade" })
       .notNull(),
+    organizationId: uuid("organization_id").references(() => Organizations.id),
+    projectId: uuid("project_id"),
     dseq: varchar("dseq").notNull(),
     autoTopUpEnabled: boolean("auto_top_up_enabled").notNull(),
     closed: boolean("closed").notNull().default(false),
@@ -107,6 +111,16 @@ export const DeploymentSettings = pgTable(
     /** Backs a search of one user's deployments by name, so it reads that user's named rows and not the table. */
     userIdNamedIdx: index("deployment_settings_user_id_named_idx")
       .on(table.userId)
-      .where(sql`${table.name} IS NOT NULL`)
+      .where(sql`${table.name} IS NOT NULL`),
+    /** Backs filing a user's rows into their personal organization on every login, so it reads only the rows still waiting for one. */
+    userIdUnadoptedIdx: index("deployment_settings_user_id_unadopted_idx")
+      .on(table.userId)
+      .where(sql`${table.organizationId} IS NULL`),
+    organizationIdProjectIdIdx: index("deployment_settings_organization_id_project_id_idx").on(table.organizationId, table.projectId),
+    projectFk: foreignKey({
+      name: "deployment_settings_organization_id_project_id_fk",
+      columns: [table.organizationId, table.projectId],
+      foreignColumns: [Projects.organizationId, Projects.id]
+    })
   })
 );

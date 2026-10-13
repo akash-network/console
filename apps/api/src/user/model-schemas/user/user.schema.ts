@@ -1,8 +1,10 @@
 import { relations, sql } from "drizzle-orm";
-import { boolean, pgTable, text, timestamp, uuid, varchar } from "drizzle-orm/pg-core";
+import { type AnyPgColumn, boolean, pgTable, text, timestamp, uuid, varchar } from "drizzle-orm/pg-core";
 
 // eslint-disable-next-line import-x/no-cycle
 import { UserWallets } from "@src/billing/model-schemas/user-wallet/user-wallet.schema";
+// eslint-disable-next-line import-x/no-cycle
+import { Organizations } from "@src/organization/model-schemas/organization/organization.schema";
 // eslint-disable-next-line import-x/no-cycle
 import { Templates } from "@src/user/model-schemas/template/template.schema";
 
@@ -30,6 +32,7 @@ export const Users = pgTable("userSetting", {
   onboardingSkippedAt: timestamp("onboardingSkippedAt"),
   fairUsePolicyAcceptedAt: timestamp("fair_use_policy_accepted_at", { withTimezone: true }),
   productUpdatesUnsubscribedAt: timestamp("product_updates_unsubscribed_at", { withTimezone: true }),
+  lastUsedOrganizationId: uuid("last_used_organization_id").references((): AnyPgColumn => Organizations.id, { onDelete: "set null" }),
   createdAt: timestamp("created_at").defaultNow()
 });
 
