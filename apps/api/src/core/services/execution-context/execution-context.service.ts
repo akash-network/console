@@ -2,6 +2,7 @@ import type { MongoAbility } from "@casl/ability";
 import { AsyncLocalStorage } from "node:async_hooks";
 import { inject, singleton } from "tsyringe";
 
+import type { ApiKeyOutput } from "@src/auth/repositories/api-key/api-key.repository";
 import { type CreateLogger, LOGGER_FACTORY } from "@src/core/providers/logging.provider";
 import type { OrganizationContext } from "@src/organization/types/organization-context";
 import type { UserOutput } from "@src/user/repositories";
@@ -15,6 +16,7 @@ export interface HeldDataKey {
 
 interface ExecutionStorage {
   CURRENT_USER: UserOutput;
+  CURRENT_API_KEY: ApiKeyOutput;
   ABILITY: MongoAbility;
   ORGANIZATION_CONTEXT: OrganizationContext;
   HTTP_CONTEXT: AppContext;

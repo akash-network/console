@@ -17,7 +17,10 @@ export class OrganizationService {
   async listCallerMemberships(): Promise<CallerMembership[]> {
     const memberships = await this.organizationMemberRepository.findActiveMemberships(this.authService.currentUser.id);
     const activeOrganizationId = this.executionContextService.get("ORGANIZATION_CONTEXT")?.organizationId;
+    const reachableMemberships = this.executionContextService.get("CURRENT_API_KEY")
+      ? memberships.filter(membership => membership.organization.id === activeOrganizationId)
+      : memberships;
 
-    return memberships.map(membership => ({ ...membership, isActive: membership.organization.id === activeOrganizationId }));
+    return reachableMemberships.map(membership => ({ ...membership, isActive: membership.organization.id === activeOrganizationId }));
   }
 }
