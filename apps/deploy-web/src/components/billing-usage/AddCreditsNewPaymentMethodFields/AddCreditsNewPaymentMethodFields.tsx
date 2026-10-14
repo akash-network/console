@@ -2,7 +2,7 @@
 
 import React, { forwardRef, useImperativeHandle, useMemo, useState } from "react";
 import { ErrorBoundary } from "react-error-boundary";
-import { Alert, AlertDescription, Field, FieldLabel, Input, Spinner } from "@akashnetwork/ui/components";
+import { Alert, AlertDescription, Spinner } from "@akashnetwork/ui/components";
 import { AddressElement, Elements, PaymentElement, useElements, useStripe } from "@stripe/react-stripe-js";
 import { ShieldCheck } from "lucide-react";
 import { useTheme } from "next-themes";
@@ -16,11 +16,11 @@ import { useServices } from "@src/context/ServicesProvider/ServicesProvider";
  */
 export interface PaymentMethodSourceHandle {
   /**
-   * Confirms the Stripe SetupIntent and returns the new payment method id
-   * (with optional organization label), or null if confirmation failed —
-   * in which case the source has already surfaced the error inline.
+   * Confirms the Stripe SetupIntent and returns the new payment method id,
+   * or null if confirmation failed — in which case the source has already
+   * surfaced the error inline.
    */
-  addPaymentMethod(): Promise<{ paymentMethodId: string; organization?: string } | null>;
+  addPaymentMethod(): Promise<{ paymentMethodId: string } | null>;
 }
 
 export const DEPENDENCIES = {
@@ -89,7 +89,6 @@ const StripePaymentMethodFields = forwardRef<PaymentMethodSourceHandle, StripePa
 ) {
   const stripe = d.useStripe();
   const elements = d.useElements();
-  const [organization, setOrganization] = useState("");
   const [error, setError] = useState<string | null>(null);
 
   useImperativeHandle(
@@ -97,8 +96,8 @@ const StripePaymentMethodFields = forwardRef<PaymentMethodSourceHandle, StripePa
     () => ({
       /**
        * Confirms the SetupIntent with Stripe and returns the resulting payment
-       * method id plus the typed organization. On failure the error is rendered
-       * inline and null is returned so the orchestrator can short-circuit.
+       * method id. On failure the error is rendered inline and null is returned
+       * so the orchestrator can short-circuit.
        */
       async addPaymentMethod() {
         if (!stripe || !elements) {
@@ -119,10 +118,10 @@ const StripePaymentMethodFields = forwardRef<PaymentMethodSourceHandle, StripePa
           return null;
         }
 
-        return { paymentMethodId, organization: organization || undefined };
+        return { paymentMethodId };
       }
     }),
-    [stripe, elements, organization]
+    [stripe, elements]
   );
 
   return (
@@ -136,20 +135,6 @@ const StripePaymentMethodFields = forwardRef<PaymentMethodSourceHandle, StripePa
         <h3 className="text-left text-sm font-medium text-muted-foreground">CHOOSE A PAYMENT METHOD</h3>
         <d.PaymentElement options={{ layout: "tabs" }} onChange={event => onPaymentTypeChange?.(event.value.type)} />
       </div>
-
-      <Field className="gap-1">
-        <FieldLabel htmlFor="organization" className="font-medium">
-          Organization (optional)
-        </FieldLabel>
-        <Input
-          id="organization"
-          aria-label="organization"
-          inputClassName="h-9"
-          value={organization}
-          onChange={e => setOrganization(e.target.value)}
-          className="shadow-sm"
-        />
-      </Field>
 
       <Alert variant="default" className="bg-muted p-3">
         <ShieldCheck className="h-4 w-4 text-muted-foreground" />

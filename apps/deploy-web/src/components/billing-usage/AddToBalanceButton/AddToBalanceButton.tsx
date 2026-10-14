@@ -60,7 +60,7 @@ export const AddToBalanceButton: React.FunctionComponent<{ dependencies?: typeof
         onOpenChange={setShowAddCredits}
         initialTab="purchase"
         description="Buy credits or redeem a coupon to top up your balance."
-        onDone={(amount, _organization, bonusAmount) => {
+        onDone={(amount, bonusAmount) => {
           setShowPaymentSuccess({ amount: String(amount), bonusAmount: String(bonusAmount ?? 0), show: true });
           setShowAddCredits(false);
         }}

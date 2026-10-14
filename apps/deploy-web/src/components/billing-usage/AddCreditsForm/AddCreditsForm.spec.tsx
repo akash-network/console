@@ -116,7 +116,7 @@ describe(AddCreditsForm.name, () => {
     const confirmPayment = vi.fn().mockResolvedValue({ success: true });
     const pollForPayment = vi.fn();
     const onDone = vi.fn();
-    const addPaymentMethod = vi.fn().mockResolvedValue({ paymentMethodId: "pm_1", organization: "Acme" });
+    const addPaymentMethod = vi.fn().mockResolvedValue({ paymentMethodId: "pm_1" });
     const { Mock: AddCreditsNewPaymentMethodFields } = makePaymentMethodFieldsMock(addPaymentMethod);
 
     setup({
@@ -143,7 +143,7 @@ describe(AddCreditsForm.name, () => {
   it("calls onDone after polling stops and the user is no longer trialing", async () => {
     const confirmPayment = vi.fn().mockResolvedValue({ success: true });
     const onDone = vi.fn();
-    const addPaymentMethod = vi.fn().mockResolvedValue({ paymentMethodId: "pm_1", organization: "Acme" });
+    const addPaymentMethod = vi.fn().mockResolvedValue({ paymentMethodId: "pm_1" });
     const { Mock: AddCreditsNewPaymentMethodFields } = makePaymentMethodFieldsMock(addPaymentMethod);
 
     const { rerender } = setup({
@@ -167,13 +167,13 @@ describe(AddCreditsForm.name, () => {
 
     rerender({ status: "success", clientSecret: "seti_secret", confirmPayment, onDone, isTrialing: false, isPolling: false });
 
-    await waitFor(() => expect(onDone).toHaveBeenCalledWith(100, "Acme", 0));
+    await waitFor(() => expect(onDone).toHaveBeenCalledWith(100, 0));
   });
 
   it("passes the granted first-purchase bonus to onDone", async () => {
     const confirmPayment = vi.fn().mockResolvedValue({ success: true });
     const onDone = vi.fn();
-    const addPaymentMethod = vi.fn().mockResolvedValue({ paymentMethodId: "pm_1", organization: "Acme" });
+    const addPaymentMethod = vi.fn().mockResolvedValue({ paymentMethodId: "pm_1" });
     const getCustomerTransactions = vi.fn().mockResolvedValue({ transactions: [{ status: "succeeded", amount: 10000, bonusAmount: 1000 }] });
     const { Mock: AddCreditsNewPaymentMethodFields } = makePaymentMethodFieldsMock(addPaymentMethod);
 
@@ -197,14 +197,14 @@ describe(AddCreditsForm.name, () => {
     rerender({ status: "success", clientSecret: "seti_secret", confirmPayment, onDone, getCustomerTransactions, isTrialing: true, isPolling: true });
     rerender({ status: "success", clientSecret: "seti_secret", confirmPayment, onDone, getCustomerTransactions, isTrialing: false, isPolling: false });
 
-    await waitFor(() => expect(onDone).toHaveBeenCalledWith(100, "Acme", 10));
+    await waitFor(() => expect(onDone).toHaveBeenCalledWith(100, 10));
     expect(getCustomerTransactions).toHaveBeenCalledWith({ limit: 1 });
   });
 
   it("reports a zero bonus when the latest transaction does not match the charge", async () => {
     const confirmPayment = vi.fn().mockResolvedValue({ success: true });
     const onDone = vi.fn();
-    const addPaymentMethod = vi.fn().mockResolvedValue({ paymentMethodId: "pm_1", organization: "Acme" });
+    const addPaymentMethod = vi.fn().mockResolvedValue({ paymentMethodId: "pm_1" });
     const getCustomerTransactions = vi.fn().mockResolvedValue({ transactions: [{ status: "succeeded", amount: 5000, bonusAmount: 1000 }] });
     const { Mock: AddCreditsNewPaymentMethodFields } = makePaymentMethodFieldsMock(addPaymentMethod);
 
@@ -228,13 +228,13 @@ describe(AddCreditsForm.name, () => {
     rerender({ status: "success", clientSecret: "seti_secret", confirmPayment, onDone, getCustomerTransactions, isTrialing: true, isPolling: true });
     rerender({ status: "success", clientSecret: "seti_secret", confirmPayment, onDone, getCustomerTransactions, isTrialing: false, isPolling: false });
 
-    await waitFor(() => expect(onDone).toHaveBeenCalledWith(100, "Acme", 0));
+    await waitFor(() => expect(onDone).toHaveBeenCalledWith(100, 0));
   });
 
   it("completes with a zero bonus when the transaction lookup fails", async () => {
     const confirmPayment = vi.fn().mockResolvedValue({ success: true });
     const onDone = vi.fn();
-    const addPaymentMethod = vi.fn().mockResolvedValue({ paymentMethodId: "pm_1", organization: "Acme" });
+    const addPaymentMethod = vi.fn().mockResolvedValue({ paymentMethodId: "pm_1" });
     const getCustomerTransactions = vi.fn().mockRejectedValue(new Error("boom"));
     const { Mock: AddCreditsNewPaymentMethodFields } = makePaymentMethodFieldsMock(addPaymentMethod);
 
@@ -258,13 +258,13 @@ describe(AddCreditsForm.name, () => {
     rerender({ status: "success", clientSecret: "seti_secret", confirmPayment, onDone, getCustomerTransactions, isTrialing: true, isPolling: true });
     rerender({ status: "success", clientSecret: "seti_secret", confirmPayment, onDone, getCustomerTransactions, isTrialing: false, isPolling: false });
 
-    await waitFor(() => expect(onDone).toHaveBeenCalledWith(100, "Acme", 0));
+    await waitFor(() => expect(onDone).toHaveBeenCalledWith(100, 0));
   });
 
   it("shows an error when polling confirms payment but the trial does not flip", async () => {
     const confirmPayment = vi.fn().mockResolvedValue({ success: true });
     const onDone = vi.fn();
-    const addPaymentMethod = vi.fn().mockResolvedValue({ paymentMethodId: "pm_1", organization: "Acme" });
+    const addPaymentMethod = vi.fn().mockResolvedValue({ paymentMethodId: "pm_1" });
     const { Mock: AddCreditsNewPaymentMethodFields } = makePaymentMethodFieldsMock(addPaymentMethod);
 
     const { rerender } = setup({
@@ -1343,7 +1343,7 @@ describe(AddCreditsForm.name, () => {
     pollForPayment?: ReturnType<typeof DEPENDENCIES.usePaymentPolling>["pollForPayment"];
     start3DSecure?: ReturnType<typeof DEPENDENCIES.use3DSecure>["start3DSecure"];
     handleStripeError?: typeof DEPENDENCIES.handleStripeError;
-    onDone?: (amount: number, organization?: string) => void;
+    onDone?: (amount: number, bonusAmount?: number) => void;
     onProcessingChange?: (isProcessing: boolean) => void;
     context?: string;
     isTrialing?: boolean;

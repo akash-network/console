@@ -62,7 +62,7 @@ describe(AddToBalanceButton.name, () => {
       defaultPaymentMethod: { id: "pm_123" }
     });
 
-    act(() => MockAddCreditsSheet.mock.calls.at(-1)![0].onDone(100, undefined, 10));
+    act(() => MockAddCreditsSheet.mock.calls.at(-1)![0].onDone(100, 10));
 
     expect(dependencies.PaymentSuccessAnimation).toHaveBeenCalledWith(
       expect.objectContaining({ show: true, amount: "100", bonusAmount: "10" }),

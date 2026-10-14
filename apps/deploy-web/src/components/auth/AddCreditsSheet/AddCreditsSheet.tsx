@@ -22,7 +22,7 @@ const DEFAULT_DESCRIPTION =
 interface AddCreditsSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onDone: (amount: number, organization?: string, bonusAmount?: number) => void;
+  onDone: (amount: number, bonusAmount?: number) => void;
   onRedeemed?: () => void;
   initialTab?: AddCreditsTab;
   description?: React.ReactNode;
@@ -67,9 +67,9 @@ export function AddCreditsSheet({
     onOpenChange(next);
   };
 
-  const completePurchase = (amount: number, organization?: string, bonusAmount?: number) => {
+  const completePurchase = (amount: number, bonusAmount?: number) => {
     completedRef.current = true;
-    onDone(amount, organization, bonusAmount);
+    onDone(amount, bonusAmount);
   };
 
   const completeRedemption = () => {

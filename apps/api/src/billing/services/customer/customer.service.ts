@@ -103,14 +103,4 @@ export class CustomerService {
       throw error;
     }
   }
-
-  async updateCustomerOrganization(customerId: string, organization: string): Promise<void> {
-    const customer = await this.stripe.customers.retrieve(customerId);
-
-    assert(!("deleted" in customer), 404, "Customer is deleted");
-
-    await this.stripe.customers.update(customerId, {
-      business_name: organization
-    });
-  }
 }

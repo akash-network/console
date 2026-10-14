@@ -424,15 +424,6 @@ describe(StripeController.name, () => {
       expect(paymentMethodService.markPaymentMethodAsDefault).toHaveBeenCalledWith("pm_1", team, authService.ability);
       expect(autoReloadPauseService.resume).toHaveBeenCalledWith({ organizationId: team.team!.id });
     });
-
-    it("names the team's customer when updating its business name", async () => {
-      const team = createTeamPayer();
-      const { controller, customerService } = setup({ payer: team });
-
-      await controller.updateCustomerOrganization({ organization: "Acme Inc" });
-
-      expect(customerService.updateCustomerOrganization).toHaveBeenCalledWith(team.stripeCustomerId, "Acme Inc");
-    });
   });
 
   function setup(input: { payer?: PayingPayer } = {}) {

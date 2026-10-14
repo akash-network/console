@@ -38,7 +38,7 @@ export function AddCreditsHost({ dependencies: d = DEPENDENCIES }: { dependencie
         initialTab={request?.initialTab ?? "purchase"}
         description={request?.description ?? DEFAULT_DESCRIPTION}
         context={request?.context}
-        onDone={(amount, _organization, bonusAmount) => {
+        onDone={(amount, bonusAmount) => {
           setCompletedPurchase({ amount: String(amount), bonusAmount: String(bonusAmount ?? 0) });
           closeSheet();
         }}

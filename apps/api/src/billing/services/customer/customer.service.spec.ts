@@ -219,25 +219,6 @@ describe(CustomerService.name, () => {
     });
   });
 
-  describe("updateCustomerOrganization", () => {
-    it("sets the customer business name", async () => {
-      const { service, stripe } = setup();
-      vi.spyOn(stripe.customers, "retrieve").mockResolvedValue(mock<Stripe.Response<Stripe.Customer>>({ id: "cus_1" }));
-      const update = vi.spyOn(stripe.customers, "update").mockResolvedValue(mock<Stripe.Response<Stripe.Customer>>({ id: "cus_1" }));
-
-      await service.updateCustomerOrganization("cus_1", "Acme Inc");
-
-      expect(update).toHaveBeenCalledWith("cus_1", { business_name: "Acme Inc" });
-    });
-
-    it("rejects when the customer is deleted", async () => {
-      const { service, stripe } = setup();
-      vi.spyOn(stripe.customers, "retrieve").mockResolvedValue(mock<Stripe.Response<Stripe.DeletedCustomer>>({ id: "cus_1", deleted: true }));
-
-      await expect(service.updateCustomerOrganization("cus_1", "Acme Inc")).rejects.toMatchObject({ status: 404 });
-    });
-  });
-
   function setup() {
     const userRepository = mock<UserRepository>();
     const stripe = new Stripe(`sk_test_${faker.string.alphanumeric(32)}`, { apiVersion: "2025-10-29.clover", httpClient: Stripe.createFetchHttpClient() });

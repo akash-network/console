@@ -239,26 +239,6 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  "/v1/stripe/customers/organization": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    /**
-     * Update customer organization
-     * @description Updates the organization/business name for the current user's Stripe customer account
-     */
-    put: operations["updateStripeCustomerOrganization"];
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
   "/v1/stripe/payment-methods/setup": {
     parameters: {
       query?: never;
@@ -8250,30 +8230,6 @@ export interface operations {
             };
           };
         };
-      };
-    };
-  };
-  updateStripeCustomerOrganization: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody?: {
-      content: {
-        "application/json": {
-          organization: string;
-        };
-      };
-    };
-    responses: {
-      /** @description Organization updated successfully */
-      204: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
       };
     };
   };
