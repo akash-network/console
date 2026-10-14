@@ -96,6 +96,8 @@ export const operations = {
       queryParams: ["timezone", "startDate", "endDate"],
       hasBody: false
     },
+    getBillingDetails: { path: "/v1/billing-details", method: "get", operationId: "getBillingDetails", pathParams: [], queryParams: [], hasBody: false },
+    updateBillingDetails: { path: "/v1/billing-details", method: "put", operationId: "updateBillingDetails", pathParams: [], queryParams: [], hasBody: true },
     acceptFairUsePolicy: {
       path: "/v1/user/acceptFairUsePolicy",
       method: "post",

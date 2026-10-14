@@ -4603,6 +4603,361 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
         ],
       },
     },
+    "/v1/billing-details": {
+      "get": {
+        "description": "Returns the legal name, billing address and tax ID printed on the invoices of the active account or organization",
+        "operationId": "getBillingDetails",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "properties": {
+                        "address": {
+                          "nullable": true,
+                          "properties": {
+                            "city": {
+                              "nullable": true,
+                              "type": "string",
+                            },
+                            "country": {
+                              "nullable": true,
+                              "type": "string",
+                            },
+                            "line1": {
+                              "nullable": true,
+                              "type": "string",
+                            },
+                            "line2": {
+                              "nullable": true,
+                              "type": "string",
+                            },
+                            "postalCode": {
+                              "nullable": true,
+                              "type": "string",
+                            },
+                            "state": {
+                              "nullable": true,
+                              "type": "string",
+                            },
+                          },
+                          "required": [
+                            "line1",
+                            "line2",
+                            "city",
+                            "state",
+                            "postalCode",
+                            "country",
+                          ],
+                          "type": "object",
+                        },
+                        "legalName": {
+                          "nullable": true,
+                          "type": "string",
+                        },
+                        "taxId": {
+                          "nullable": true,
+                          "properties": {
+                            "type": {
+                              "type": "string",
+                            },
+                            "value": {
+                              "type": "string",
+                            },
+                            "verificationStatus": {
+                              "description": "Whether the tax authority confirmed the number, or null for a type Stripe does not verify",
+                              "enum": [
+                                "pending",
+                                "verified",
+                                "unverified",
+                                "unavailable",
+                              ],
+                              "nullable": true,
+                              "type": "string",
+                            },
+                          },
+                          "required": [
+                            "type",
+                            "value",
+                            "verificationStatus",
+                          ],
+                          "type": "object",
+                        },
+                      },
+                      "required": [
+                        "legalName",
+                        "address",
+                        "taxId",
+                      ],
+                      "type": "object",
+                    },
+                  },
+                  "required": [
+                    "data",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "The billing details, empty until they are first set",
+          },
+          "401": {
+            "description": "Unauthorized",
+          },
+          "403": {
+            "description": "The caller cannot read the billing of this organization",
+          },
+        },
+        "security": [
+          {
+            "BearerAuth": [],
+          },
+          {
+            "ApiKeyAuth": [],
+          },
+        ],
+        "summary": "Get billing details",
+        "tags": [
+          "Payment",
+        ],
+      },
+      "put": {
+        "description": "Replaces the legal name, billing address and tax ID printed on the invoices of the active account or organization",
+        "operationId": "updateBillingDetails",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "data": {
+                    "properties": {
+                      "address": {
+                        "properties": {
+                          "city": {
+                            "maxLength": 200,
+                            "nullable": true,
+                            "type": "string",
+                          },
+                          "country": {
+                            "description": "Two-letter ISO 3166-1 country code",
+                            "pattern": "^[A-Z]{2}$",
+                            "type": "string",
+                          },
+                          "line1": {
+                            "maxLength": 200,
+                            "minLength": 1,
+                            "type": "string",
+                          },
+                          "line2": {
+                            "maxLength": 200,
+                            "nullable": true,
+                            "type": "string",
+                          },
+                          "postalCode": {
+                            "maxLength": 20,
+                            "nullable": true,
+                            "type": "string",
+                          },
+                          "state": {
+                            "maxLength": 200,
+                            "nullable": true,
+                            "type": "string",
+                          },
+                        },
+                        "required": [
+                          "line1",
+                          "line2",
+                          "city",
+                          "state",
+                          "postalCode",
+                          "country",
+                        ],
+                        "type": "object",
+                      },
+                      "legalName": {
+                        "description": "The name printed on invoices",
+                        "maxLength": 256,
+                        "minLength": 1,
+                        "type": "string",
+                      },
+                      "taxId": {
+                        "description": "Replaces every tax ID on file, or removes them all when null",
+                        "nullable": true,
+                        "properties": {
+                          "type": {
+                            "description": "Stripe tax ID type, such as eu_vat for an EU VAT number",
+                            "enum": [
+                              "eu_vat",
+                              "gb_vat",
+                              "ch_vat",
+                              "no_vat",
+                              "us_ein",
+                              "ca_bn",
+                              "au_abn",
+                              "nz_gst",
+                              "in_gst",
+                              "sg_gst",
+                              "jp_cn",
+                              "kr_brn",
+                              "br_cnpj",
+                              "mx_rfc",
+                              "ae_trn",
+                              "za_vat",
+                            ],
+                            "type": "string",
+                          },
+                          "value": {
+                            "maxLength": 64,
+                            "minLength": 1,
+                            "type": "string",
+                          },
+                        },
+                        "required": [
+                          "type",
+                          "value",
+                        ],
+                        "type": "object",
+                      },
+                    },
+                    "required": [
+                      "legalName",
+                      "address",
+                      "taxId",
+                    ],
+                    "type": "object",
+                  },
+                },
+                "required": [
+                  "data",
+                ],
+                "type": "object",
+              },
+            },
+          },
+          "required": true,
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "properties": {
+                        "address": {
+                          "nullable": true,
+                          "properties": {
+                            "city": {
+                              "nullable": true,
+                              "type": "string",
+                            },
+                            "country": {
+                              "nullable": true,
+                              "type": "string",
+                            },
+                            "line1": {
+                              "nullable": true,
+                              "type": "string",
+                            },
+                            "line2": {
+                              "nullable": true,
+                              "type": "string",
+                            },
+                            "postalCode": {
+                              "nullable": true,
+                              "type": "string",
+                            },
+                            "state": {
+                              "nullable": true,
+                              "type": "string",
+                            },
+                          },
+                          "required": [
+                            "line1",
+                            "line2",
+                            "city",
+                            "state",
+                            "postalCode",
+                            "country",
+                          ],
+                          "type": "object",
+                        },
+                        "legalName": {
+                          "nullable": true,
+                          "type": "string",
+                        },
+                        "taxId": {
+                          "nullable": true,
+                          "properties": {
+                            "type": {
+                              "type": "string",
+                            },
+                            "value": {
+                              "type": "string",
+                            },
+                            "verificationStatus": {
+                              "description": "Whether the tax authority confirmed the number, or null for a type Stripe does not verify",
+                              "enum": [
+                                "pending",
+                                "verified",
+                                "unverified",
+                                "unavailable",
+                              ],
+                              "nullable": true,
+                              "type": "string",
+                            },
+                          },
+                          "required": [
+                            "type",
+                            "value",
+                            "verificationStatus",
+                          ],
+                          "type": "object",
+                        },
+                      },
+                      "required": [
+                        "legalName",
+                        "address",
+                        "taxId",
+                      ],
+                      "type": "object",
+                    },
+                  },
+                  "required": [
+                    "data",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "The saved billing details",
+          },
+          "400": {
+            "description": "A field is missing or malformed, or the tax ID is not valid for its type",
+          },
+          "401": {
+            "description": "Unauthorized",
+          },
+          "403": {
+            "description": "The caller cannot manage the billing of this organization",
+          },
+        },
+        "security": [
+          {
+            "BearerAuth": [],
+          },
+          {
+            "ApiKeyAuth": [],
+          },
+        ],
+        "summary": "Set billing details",
+        "tags": [
+          "Payment",
+        ],
+      },
+    },
     "/v1/blockchain-status": {
       "get": {
         "responses": {

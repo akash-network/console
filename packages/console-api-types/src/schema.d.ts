@@ -414,6 +414,30 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/v1/billing-details": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get billing details
+     * @description Returns the legal name, billing address and tax ID printed on the invoices of the active account or organization
+     */
+    get: operations["getBillingDetails"];
+    /**
+     * Set billing details
+     * @description Replaces the legal name, billing address and tax ID printed on the invoices of the active account or organization
+     */
+    put: operations["updateBillingDetails"];
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/v1/usage/history": {
     parameters: {
       query?: never;
@@ -8624,6 +8648,166 @@ export interface operations {
         content: {
           "text/csv": string;
         };
+      };
+    };
+  };
+  getBillingDetails: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description The billing details, empty until they are first set */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            data: {
+              legalName: string | null;
+              address: {
+                line1: string | null;
+                line2: string | null;
+                city: string | null;
+                state: string | null;
+                postalCode: string | null;
+                country: string | null;
+              } | null;
+              taxId: {
+                type: string;
+                value: string;
+                /**
+                 * @description Whether the tax authority confirmed the number, or null for a type Stripe does not verify
+                 * @enum {string|null}
+                 */
+                verificationStatus: "pending" | "verified" | "unverified" | "unavailable" | null;
+              } | null;
+            };
+          };
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description The caller cannot read the billing of this organization */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  updateBillingDetails: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": {
+          data: {
+            /** @description The name printed on invoices */
+            legalName: string;
+            address: {
+              line1: string;
+              line2: string | null;
+              city: string | null;
+              state: string | null;
+              postalCode: string | null;
+              /** @description Two-letter ISO 3166-1 country code */
+              country: string;
+            };
+            /** @description Replaces every tax ID on file, or removes them all when null */
+            taxId: {
+              /**
+               * @description Stripe tax ID type, such as eu_vat for an EU VAT number
+               * @enum {string}
+               */
+              type:
+                | "eu_vat"
+                | "gb_vat"
+                | "ch_vat"
+                | "no_vat"
+                | "us_ein"
+                | "ca_bn"
+                | "au_abn"
+                | "nz_gst"
+                | "in_gst"
+                | "sg_gst"
+                | "jp_cn"
+                | "kr_brn"
+                | "br_cnpj"
+                | "mx_rfc"
+                | "ae_trn"
+                | "za_vat";
+              value: string;
+            } | null;
+          };
+        };
+      };
+    };
+    responses: {
+      /** @description The saved billing details */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            data: {
+              legalName: string | null;
+              address: {
+                line1: string | null;
+                line2: string | null;
+                city: string | null;
+                state: string | null;
+                postalCode: string | null;
+                country: string | null;
+              } | null;
+              taxId: {
+                type: string;
+                value: string;
+                /**
+                 * @description Whether the tax authority confirmed the number, or null for a type Stripe does not verify
+                 * @enum {string|null}
+                 */
+                verificationStatus: "pending" | "verified" | "unverified" | "unavailable" | null;
+              } | null;
+            };
+          };
+        };
+      };
+      /** @description A field is missing or malformed, or the tax ID is not valid for its type */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description The caller cannot manage the billing of this organization */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
       };
     };
   };
