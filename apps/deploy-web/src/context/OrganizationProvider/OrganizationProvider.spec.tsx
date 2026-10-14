@@ -48,12 +48,12 @@ describe(OrganizationProvider.name, () => {
     expect(result.current.activeOrganization).toBeUndefined();
   });
 
-  it("keeps the projects experience off until the projects pages ship", () => {
+  it("turns the projects experience on for a team organization only", () => {
     const { result: personal } = setup({});
     const { result: team } = setup({ activeId: "org-2" });
 
     expect(personal.current.projectsEnabled).toBe(false);
-    expect(team.current.projectsEnabled).toBe(false);
+    expect(team.current.projectsEnabled).toBe(true);
   });
 
   it("is loading while the feature flags have not answered, since the organizations flag may still turn on", () => {
@@ -204,12 +204,12 @@ describe(OrganizationProvider.name, () => {
       expect(router.replace).toHaveBeenCalledWith("/billing?openPayment=true");
     });
 
-    it("goes to the deployments of a team organization from an organization-bound page while the projects pages are off", async () => {
+    it("goes to the projects of a team organization from an organization-bound page", async () => {
       const { result, router } = setup({ asPath: "/deployments/123" });
 
       await act(async () => result.current.switchOrganization("org-2"));
 
-      expect(router.replace).toHaveBeenCalledWith("/deployments");
+      expect(router.replace).toHaveBeenCalledWith("/projects");
     });
 
     it("goes to the deployments of the personal organization from an organization-bound page", async () => {
@@ -225,7 +225,7 @@ describe(OrganizationProvider.name, () => {
 
       await act(async () => result.current.switchOrganization("org-3"));
 
-      expect(router.replace).toHaveBeenCalledWith("/deployments");
+      expect(router.replace).toHaveBeenCalledWith("/projects");
     });
 
     it("switches into an organization the user just created and lands where the caller asks", async () => {

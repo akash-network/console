@@ -85,8 +85,9 @@ export const UrlService = {
   members: () => "/members",
   invitations: () => "/invitations",
   projects: () => "/projects",
+  project: (projectId: string) => `/projects/${projectId}`,
 
-  newDeployment: () => "/new-deployment",
+  newDeployment: ({ projectId }: { projectId?: string } = {}) => `/new-deployment${appendSearchParams({ projectId })}`,
 
   configureDeployment: (params: ConfigureDeploymentParams = {}) => {
     const { dseq, templateId, userTemplateId, sdlStrategy, bidStrategy, draftId, vm } = params;

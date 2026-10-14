@@ -1,0 +1,53 @@
+.split {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: 28px;
+  align-items: start;
+}
+
+@media (max-width: 860px) {
+  .split {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.content {
+  min-width: 0;
+  container-type: inline-size;
+}
+
+.primaryPill {
+  transition:
+    transform 160ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    box-shadow 160ms ease;
+}
+
+.primaryPill:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 22px -6px color-mix(in oklab, hsl(var(--foreground)) 50%, transparent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .primaryPill {
+    transition: none;
+  }
+}
+
+.folderGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  row-gap: 4px;
+  column-gap: 20px;
+}
+
+@media (max-width: 640px) {
+  .folderGrid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@container (max-width: 580px) {
+  .folderGrid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

@@ -12,7 +12,13 @@ export const canViewBillingAndUsage = (role: OrganizationRole): boolean => role 
 
 export const hasMembersPage = (type: OrganizationType): boolean => type === "team";
 
-/** Off until the projects pages ship, so switching into a team organization lands on its deployments before then. */
-export const isProjectsUiEnabled = (_organization: OrganizationOutput): boolean => false;
+/** A personal organization files everything into its default project, so only a team works in projects. */
+export const isProjectsUiEnabled = (organization: OrganizationOutput): boolean => organization.type === "team";
 
 export const canManageMembers = (role: OrganizationRole): boolean => role === "owner" || role === "admin";
+
+/** Creating, renaming and deleting projects is for owners and admins; the api refuses everyone else. */
+export const canManageProjects = (role: OrganizationRole): boolean => role === "owner" || role === "admin";
+
+/** Viewers and billing members read deployments but cannot start, close or change them. */
+export const canChangeDeployments = (role: OrganizationRole): boolean => role !== "viewer" && role !== "billing";

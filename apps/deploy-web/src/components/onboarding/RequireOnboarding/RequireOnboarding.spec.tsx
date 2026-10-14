@@ -48,6 +48,12 @@ describe(RequireOnboarding.name, () => {
     expect(replace).not.toHaveBeenCalled();
   });
 
+  it("lets a not-onboarded user reach the projects page", () => {
+    const { replace } = setup({ address: "akash1", hasWallet: true, leases: 0, path: "/projects" });
+    expect(screen.getByText("child")).toBeInTheDocument();
+    expect(replace).not.toHaveBeenCalled();
+  });
+
   it("lets a not-onboarded user render the onboarding picker", () => {
     setup({ address: "akash1", hasWallet: true, leases: 0, path: "/onboarding" });
     expect(screen.getByText("child")).toBeInTheDocument();
