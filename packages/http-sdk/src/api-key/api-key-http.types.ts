@@ -8,6 +8,8 @@ export const ApiKeyResponseSchema = z.object({
   updatedAt: z.string().datetime(),
   lastUsedAt: z.string().datetime().nullable(),
   keyFormat: z.string(),
+  organizationId: z.string().uuid().nullish(),
+  projectId: z.string().uuid().nullish(),
   apiKey: z.string().optional()
 });
 
@@ -20,7 +22,8 @@ export const CreateApiKeySchema = z.object({
     .refine(date => date > new Date(), {
       message: "Expiration date must be in the future"
     })
-    .optional()
+    .optional(),
+  projectId: z.string().uuid().optional()
 });
 
 export const ListApiKeysSchema = z.array(ApiKeyResponseSchema);

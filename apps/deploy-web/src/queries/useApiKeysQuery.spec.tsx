@@ -136,6 +136,33 @@ describe("useApiKeysQuery", () => {
       expect(cachedData).toEqual([newApiKey]);
     });
 
+    it("creates the API key limited to the project it names", async () => {
+      const projectId = "8c1f4f8e-2f7a-4a59-9f4e-7c3f3d1b6a21";
+      const expiresAt = new Date("2027-10-02T12:00:00.000Z");
+      const apiKeyService = mock<ApiKeyHttpService>({
+        createApiKey: vi.fn().mockResolvedValue({ ...buildApiKey({ projectId }), apiKey: "ac.sk.test.secret" })
+      });
+
+      const { result } = setupQuery(
+        () =>
+          useCreateApiKey({
+            ...USE_API_KEYS_DEPENDENCIES,
+            useUser: () => mock<ReturnType<typeof USE_API_KEYS_DEPENDENCIES.useUser>>({ user: mockUser, isLoading: false })
+          }),
+        { services: { apiKey: () => apiKeyService, queryClient: () => new QueryClient() } }
+      );
+
+      act(() => {
+        result.current.mutate({ name: "Deploy bot", expiresAt, projectId });
+      });
+
+      await vi.waitFor(() => {
+        expect(result.current.isSuccess).toBe(true);
+      });
+
+      expect(apiKeyService.createApiKey).toHaveBeenCalledWith({ data: { name: "Deploy bot", expiresAt, projectId } });
+    });
+
     it("appends the created API key to the keys already cached", async () => {
       const existingKey = buildApiKey({ id: "existing-key" });
       const newApiKey = buildApiKey({ id: "new-key" });
