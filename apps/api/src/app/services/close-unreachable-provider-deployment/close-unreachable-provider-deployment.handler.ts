@@ -10,6 +10,7 @@ import type { DarkDeployment } from "@src/deployment/lib/dark-deployment/dark-de
 import { DeploymentSettingRepository } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
 import { DeploymentConfigService } from "@src/deployment/services/deployment-config/deployment-config.service";
 import { DeploymentWriterService } from "@src/deployment/services/deployment-writer/deployment-writer.service";
+import { SystemCloseActivityService } from "@src/deployment/services/system-close-activity/system-close-activity.service";
 import {
   type CloseUnreachableProviderDeploymentTarget,
   UnreachableProviderDeploymentsCloserService
@@ -40,6 +41,7 @@ export class CloseUnreachableProviderDeploymentHandler implements JobHandler<Clo
     private readonly jobQueueService: JobQueueService,
     private readonly txService: TxService,
     private readonly config: DeploymentConfigService,
+    private readonly systemCloseActivityService: SystemCloseActivityService,
     @inject(LOGGER_FACTORY) createLogger: CreateLogger
   ) {
     this.logger = createLogger({ context: CloseUnreachableProviderDeploymentHandler.name });
@@ -73,10 +75,11 @@ export class CloseUnreachableProviderDeploymentHandler implements JobHandler<Clo
       return;
     }
 
+    const initializedWallet = { ...wallet, address: wallet.address };
     let closedByUs: boolean;
 
     try {
-      closedByUs = await this.deploymentWriterService.close({ ...wallet, address: wallet.address }, dseq, { reason: "provider_unreachable" });
+      closedByUs = await this.deploymentWriterService.close(initializedWallet, dseq, { reason: "provider_unreachable" });
     } catch (error) {
       if (error instanceof Error && this.chainErrorService.isUnsettleableDeploymentError(error)) {
         this.logger.warn({
@@ -89,6 +92,10 @@ export class CloseUnreachableProviderDeploymentHandler implements JobHandler<Clo
         return;
       }
       throw error;
+    }
+
+    if (closedByUs) {
+      await this.systemCloseActivityService.record({ wallet: initializedWallet, dseq, reason: "provider_unreachable" });
     }
 
     const filingUserId = wallet.userId ?? setting?.userId;
@@ -112,7 +119,7 @@ export class CloseUnreachableProviderDeploymentHandler implements JobHandler<Clo
     });
   }
 
-  /** One transaction, so a deployment is never recorded as closed without the email explaining it queued alongside, and never told twice. */
+  /** One transaction, so a deployment is never recorded as closed without the email explaining it queued alongside, and never told twice; the feed entry stays out of it, because a failed feed write must neither roll back nor retry a close that happened. */
   async #recordAndNotify(deployment: DarkDeployment, wallet: { id: number; userId: string; organizationId: string | null }): Promise<void> {
     await this.txService.transaction(async () => {
       await this.deploymentSettingRepository.markClosed({ userId: wallet.userId, dseq: deployment.dseq, organizationId: wallet.organizationId });

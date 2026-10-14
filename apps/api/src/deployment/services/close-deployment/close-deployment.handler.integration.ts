@@ -5,12 +5,16 @@ import createError from "http-errors";
 import { container } from "tsyringe";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { deploymentCloseDedupeKeyOf } from "@src/activity/lib/dedupe-key/dedupe-key";
 import { ActivityRepository } from "@src/activity/repositories/activity/activity.repository";
-import { type EnqueueOptions, JOB_NAME } from "@src/core";
+import { type ApiPgDatabase, type EnqueueOptions, JOB_NAME, POSTGRES_DB, resolveTable } from "@src/core";
 import { DeploymentWriterService } from "@src/deployment/services/deployment-writer/deployment-writer.service";
+import { pendingCloseActivityOf } from "@src/deployment/utils/close-activity/close-activity";
 import { CloseDeploymentHandler } from "./close-deployment.handler";
 import { CLOSE_DEPLOYMENT_RETRY_OPTIONS, CloseDeployment, closeDeploymentKeyFor } from "./close-deployment.job";
 
+import { createAkashAddress } from "@test/seeders/akash-address.seeder";
+import { seedOrganizationMember, seedOrganizationWithOwner } from "@test/seeders/db/organization.seeder";
 import { seedUserWithWallet } from "@test/seeders/db/user-with-wallet.seeder";
 import { expectJobCompleted, findJobRows, useJobWorkers } from "@test/services/job-queue-harness";
 
@@ -29,6 +33,16 @@ describe(CloseDeploymentHandler.name, () => {
     await expectJobCompleted(CloseDeployment[JOB_NAME], { singletonKey: closeDeploymentKeyFor({ userId: wallet.userId, dseq }) });
     expect(close).toHaveBeenCalledWith(expect.objectContaining({ id: wallet.id, address: wallet.address }), dseq, { actingUserId: wallet.userId });
     expect(await findActivity()).toMatchObject({ status: "succeeded", meta: { dseq } });
+  });
+
+  it("settles the close of a team deployment under the organization wallet's key the request opened it with", async () => {
+    const { owner, dseq, close, closeInBackground, findActivity, awaitCompleted } = await setup({ inTeam: true });
+
+    await closeInBackground();
+
+    await awaitCompleted();
+    expect(close).toHaveBeenCalledWith(expect.objectContaining({ userId: null, address: owner }), dseq, { actingUserId: expect.any(String) });
+    expect(await findActivity()).toMatchObject({ status: "succeeded", dedupeKey: deploymentCloseDedupeKeyOf({ owner, dseq }) });
   });
 
   it("keeps the bulk close the close was part of in the activity it settles", async () => {
@@ -60,26 +74,25 @@ describe(CloseDeploymentHandler.name, () => {
     expect(await findActivity()).toMatchObject({ status: "pending" });
   });
 
-  async function setup(input: { batchId?: string } = {}) {
+  async function setup(input: { batchId?: string; inTeam?: boolean } = {}) {
     const { enqueue, startWorkers } = await jobWorkers();
     const activityRepository = container.resolve(ActivityRepository);
     const { wallet } = await seedUserWithWallet();
+    const teamWallet = input.inTeam ? await seedTeamWalletFor(wallet.userId) : undefined;
+    const owner = (teamWallet ?? wallet).address as string;
     const dseq = faker.string.numeric(7);
-    const activity = await activityRepository.create({
-      userId: wallet.userId,
-      type: "deployment_close",
-      status: "pending",
-      meta: { dseq, batchId: input.batchId }
-    });
+    const activity = await activityRepository.create(pendingCloseActivityOf({ userId: wallet.userId, owner, dseq, batchId: input.batchId }));
     const close = vi.spyOn(container.resolve(DeploymentWriterService), "close").mockResolvedValue(true);
     const singletonKey = closeDeploymentKeyFor({ userId: wallet.userId, dseq });
 
     return {
       wallet,
+      owner,
       dseq,
       close,
+      awaitCompleted: () => expectJobCompleted(CloseDeployment[JOB_NAME], { singletonKey }),
       closeInBackground: async (retryOverrides: EnqueueOptions = {}) => {
-        await enqueue(new CloseDeployment({ userId: wallet.userId, dseq, activityId: activity.id, batchId: input.batchId }), {
+        await enqueue(new CloseDeployment({ userId: wallet.userId, dseq, activityId: activity.id, batchId: input.batchId, walletId: teamWallet?.id }), {
           singletonKey,
           ...CLOSE_DEPLOYMENT_RETRY_OPTIONS,
           ...retryOverrides
@@ -96,5 +109,17 @@ describe(CloseDeploymentHandler.name, () => {
           { timeout: 15_000, interval: 100 }
         )
     };
+  }
+
+  async function seedTeamWalletFor(memberId: string) {
+    const { organization } = await seedOrganizationWithOwner();
+    await seedOrganizationMember({ organizationId: organization.id, userId: memberId });
+    const [wallet] = await container
+      .resolve<ApiPgDatabase>(POSTGRES_DB)
+      .insert(resolveTable("UserWallets"))
+      .values({ userId: null, organizationId: organization.id, address: createAkashAddress(), isTrialing: false })
+      .returning();
+
+    return wallet;
   }
 });

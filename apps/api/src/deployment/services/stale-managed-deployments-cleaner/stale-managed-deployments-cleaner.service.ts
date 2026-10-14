@@ -15,6 +15,7 @@ import { type CreateLogger, LOGGER_FACTORY } from "@src/core";
 import { ErrorService } from "@src/core/services/error/error.service";
 import { DeploymentRepository, type StaleDeployment, type StaleDeploymentsOutput } from "@src/deployment/repositories/deployment/deployment.repository";
 import { DeploymentOrganizationActivityService } from "@src/deployment/services/deployment-organization-activity/deployment-organization-activity.service";
+import { SystemCloseActivityService } from "@src/deployment/services/system-close-activity/system-close-activity.service";
 import { CleanUpStaleDeploymentsParams } from "@src/deployment/types/state-deployments";
 import { averageBlockTime, COSMOS_TX_CODE_OK } from "@src/utils/constants";
 
@@ -58,6 +59,7 @@ export class StaleManagedDeploymentsCleanerService {
     private readonly errorService: ErrorService,
     private readonly chainErrorService: ChainErrorService,
     private readonly deploymentOrganizationActivityService: DeploymentOrganizationActivityService,
+    private readonly systemCloseActivityService: SystemCloseActivityService,
     @inject(LOGGER_FACTORY) createLogger: CreateLogger
   ) {
     this.logger = createLogger({ context: StaleManagedDeploymentsCleanerService.name });
@@ -259,9 +261,11 @@ export class StaleManagedDeploymentsCleanerService {
     }
   }
 
+  /** Only what the landed tx closed, never a deployment dropped for being closed already, because whoever closed that one reports it. */
   async #recordClosed(wallet: ManagedWalletRef, deployments: StaleDeploymentsOutput[]): Promise<void> {
     for (const { dseq } of deployments) {
       await this.deploymentOrganizationActivityService.recordClosed({ wallet, dseq }, { actorUserId: null, reason: null });
+      await this.systemCloseActivityService.record({ wallet, dseq, reason: "no_lease" });
     }
   }
 

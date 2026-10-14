@@ -22846,6 +22846,14 @@
                                 ],
                                 "description": "`pending` while the action is still being confirmed, then `succeeded` or `failed`."
                               },
+                              "initiator": {
+                                "type": "string",
+                                "enum": [
+                                  "user",
+                                  "system"
+                                ],
+                                "description": "Who started the action: `user` for the user's own request, `system` for a close Console made on the user's behalf."
+                              },
                               "meta": {
                                 "type": "object",
                                 "properties": {
@@ -22876,6 +22884,16 @@
                                       "message"
                                     ],
                                     "description": "Why a failed action did not go through."
+                                  },
+                                  "reason": {
+                                    "type": "string",
+                                    "enum": [
+                                      "runtime_limit_reached",
+                                      "trial_ended",
+                                      "provider_unreachable",
+                                      "no_lease"
+                                    ],
+                                    "description": "Why Console closed the deployment, on a close it made on the user's behalf: `runtime_limit_reached` (the runtime limit set for it ran out), `trial_ended` (the trial it ran on ended), `provider_unreachable` (its provider stopped responding) or `no_lease` (it had no lease, and closing it returned its deposit)."
                                   }
                                 }
                               },
@@ -22898,6 +22916,7 @@
                               "id",
                               "type",
                               "status",
+                              "initiator",
                               "meta",
                               "seenAt",
                               "createdAt",
@@ -23014,6 +23033,14 @@
                           ],
                           "description": "`pending` while the action is still being confirmed, then `succeeded` or `failed`."
                         },
+                        "initiator": {
+                          "type": "string",
+                          "enum": [
+                            "user",
+                            "system"
+                          ],
+                          "description": "Who started the action: `user` for the user's own request, `system` for a close Console made on the user's behalf."
+                        },
                         "meta": {
                           "type": "object",
                           "properties": {
@@ -23044,6 +23071,16 @@
                                 "message"
                               ],
                               "description": "Why a failed action did not go through."
+                            },
+                            "reason": {
+                              "type": "string",
+                              "enum": [
+                                "runtime_limit_reached",
+                                "trial_ended",
+                                "provider_unreachable",
+                                "no_lease"
+                              ],
+                              "description": "Why Console closed the deployment, on a close it made on the user's behalf: `runtime_limit_reached` (the runtime limit set for it ran out), `trial_ended` (the trial it ran on ended), `provider_unreachable` (its provider stopped responding) or `no_lease` (it had no lease, and closing it returned its deposit)."
                             }
                           }
                         },
@@ -23066,6 +23103,7 @@
                         "id",
                         "type",
                         "status",
+                        "initiator",
                         "meta",
                         "seenAt",
                         "createdAt",

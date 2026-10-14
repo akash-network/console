@@ -10,6 +10,7 @@ import type { DarkDeployment } from "@src/deployment/lib/dark-deployment/dark-de
 import type { DeploymentSettingRepository, DeploymentSettingsOutput } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
 import type { DeploymentConfigService } from "@src/deployment/services/deployment-config/deployment-config.service";
 import type { DeploymentWriterService } from "@src/deployment/services/deployment-writer/deployment-writer.service";
+import type { SystemCloseActivityService } from "@src/deployment/services/system-close-activity/system-close-activity.service";
 import type { UnreachableProviderDeploymentsCloserService } from "@src/deployment/services/unreachable-provider-deployments-closer/unreachable-provider-deployments-closer.service";
 import { CloseUnreachableProviderDeploymentHandler } from "./close-unreachable-provider-deployment.handler";
 
@@ -39,6 +40,39 @@ describe(CloseUnreachableProviderDeploymentHandler.name, () => {
 
     expect(deploymentWriterService.close).toHaveBeenCalledWith(expect.objectContaining({ address: OWNER }), DSEQ, { reason: "provider_unreachable" });
     expect(deploymentSettingRepository.markClosed).toHaveBeenCalledWith({ userId: USER_ID, dseq: DSEQ, organizationId: ORGANIZATION_ID });
+  });
+
+  it("records the close in the owner's feed as Console's, because the provider stopped responding", async () => {
+    const { handler, systemCloseActivityService } = setup();
+
+    await handler.handle(aPayload());
+
+    expect(systemCloseActivityService.record).toHaveBeenCalledWith({
+      wallet: expect.objectContaining({ id: WALLET_ID, userId: USER_ID, organizationId: ORGANIZATION_ID, address: OWNER }),
+      dseq: DSEQ,
+      reason: "provider_unreachable"
+    });
+  });
+
+  it("records a team deployment's close with the organization's wallet, so it reaches the member behind the deployment", async () => {
+    const { handler, systemCloseActivityService } = setup({ teamWallet: true, setting: mock<DeploymentSettingsOutput>({ closed: false, userId: "member-2" }) });
+
+    await handler.handle(aPayload());
+
+    expect(systemCloseActivityService.record).toHaveBeenCalledWith({
+      wallet: expect.objectContaining({ id: WALLET_ID, userId: null, organizationId: ORGANIZATION_ID, address: OWNER }),
+      dseq: DSEQ,
+      reason: "provider_unreachable"
+    });
+  });
+
+  it("keeps the feed entry of a close it made when the transaction that marks it closed fails, so the retry neither loses nor repeats it", async () => {
+    const { handler, systemCloseActivityService, txService } = setup();
+    txService.transaction.mockRejectedValue(new Error("deadlock detected"));
+
+    await expect(handler.handle(aPayload())).rejects.toThrow("deadlock detected");
+
+    expect(systemCloseActivityService.record).toHaveBeenCalledTimes(1);
   });
 
   it("tells the owner which host went dark and for how long", async () => {
@@ -120,7 +154,7 @@ describe(CloseUnreachableProviderDeploymentHandler.name, () => {
   });
 
   it("tries again later when the chain will not settle the escrow yet", async () => {
-    const { handler, closeJobService, deploymentSettingRepository, jobQueueService } = setup({
+    const { handler, closeJobService, deploymentSettingRepository, jobQueueService, systemCloseActivityService } = setup({
       closeError: new Error("escrow not settled"),
       isUnsettleable: true
     });
@@ -130,6 +164,7 @@ describe(CloseUnreachableProviderDeploymentHandler.name, () => {
     expect(closeJobService.schedule).toHaveBeenCalledWith({ owner: OWNER, dseq: DSEQ }, { startAfter: expect.any(Date) });
     expect(deploymentSettingRepository.markClosed).not.toHaveBeenCalled();
     expect(jobQueueService.enqueue).not.toHaveBeenCalled();
+    expect(systemCloseActivityService.record).not.toHaveBeenCalled();
   });
 
   it("throws any other close failure so the queue retries it", async () => {
@@ -146,6 +181,14 @@ describe(CloseUnreachableProviderDeploymentHandler.name, () => {
 
     expect(deploymentSettingRepository.markClosed).toHaveBeenCalledWith({ userId: USER_ID, dseq: DSEQ, organizationId: ORGANIZATION_ID });
     expect(jobQueueService.enqueue).toHaveBeenCalledTimes(1);
+  });
+
+  it("adds nothing to the feed for a close that had already landed on chain, since only the close that went through records itself", async () => {
+    const { handler, systemCloseActivityService } = setup({ alreadyClosedOnChain: true });
+
+    await handler.handle(aPayload());
+
+    expect(systemCloseActivityService.record).not.toHaveBeenCalled();
   });
 
   it("queues the email in the same transaction as the record, so neither can land without the other", async () => {
@@ -219,6 +262,7 @@ describe(CloseUnreachableProviderDeploymentHandler.name, () => {
     txService.transaction.mockImplementation(async callback => await callback());
 
     const config = mockConfigService<DeploymentConfigService>({ DEPLOY_WEB_BASE_URL });
+    const systemCloseActivityService = mock<SystemCloseActivityService>();
     const logger = mock<ReturnType<CreateLogger>>();
     const createLogger = vi.fn<CreateLogger>(() => logger);
 
@@ -231,6 +275,7 @@ describe(CloseUnreachableProviderDeploymentHandler.name, () => {
       jobQueueService,
       txService,
       config,
+      systemCloseActivityService,
       createLogger
     );
 
@@ -243,6 +288,7 @@ describe(CloseUnreachableProviderDeploymentHandler.name, () => {
       chainErrorService,
       jobQueueService,
       txService,
+      systemCloseActivityService,
       logger
     };
   }

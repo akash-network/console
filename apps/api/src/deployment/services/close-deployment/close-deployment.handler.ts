@@ -1,10 +1,11 @@
 import { singleton } from "tsyringe";
 
 import { ActivityService } from "@src/activity/services/activity/activity.service";
+import type { WalletInitialized } from "@src/billing/repositories";
 import { WalletReaderService } from "@src/billing/services/wallet-reader/wallet-reader.service";
 import type { JobHandler, JobMeta, JobPayload, JobPermissions } from "@src/core";
 import { DeploymentWriterService } from "@src/deployment/services/deployment-writer/deployment-writer.service";
-import { closedActivityOf, failedCloseActivityOf } from "@src/deployment/utils/close-activity/close-activity";
+import { closedActivityOf, type CloseKey, failedCloseActivityOf } from "@src/deployment/utils/close-activity/close-activity";
 import { CloseDeployment } from "./close-deployment.job";
 
 @singleton()
@@ -24,20 +25,22 @@ export class CloseDeploymentHandler implements JobHandler<CloseDeployment> {
     return [{ action: "sign", subject: "UserWallet", conditions: walletId === undefined ? { userId } : { id: walletId } }];
   }
 
-  /** A close is safe to repeat, so every failure is retried and only the last attempt settles the activity as failed. */
+  /** A close is safe to repeat, so every failure is retried and only the last attempt settles the activity as failed; a wallet that cannot be read leaves it to the reconcile check, since the wallet's address names the entry. */
   async handle({ userId, dseq, activityId, batchId, walletId }: JobPayload<CloseDeployment>, job?: JobMeta): Promise<void> {
     if (!(await this.activityService.isPending(activityId))) return;
 
-    await this.#close({ userId, dseq, activityId, batchId, walletId }, job);
-    await this.activityService.settle(activityId, closedActivityOf({ userId, dseq, batchId }));
+    const wallet = walletId === undefined ? await this.walletReaderService.getWalletByUserId(userId) : await this.walletReaderService.getWalletById(walletId);
+    const close = { userId, owner: wallet.address, dseq, batchId };
+
+    await this.#close(wallet, close, activityId, job);
+    await this.activityService.settle(activityId, closedActivityOf(close));
   }
 
-  async #close({ userId, dseq, activityId, batchId, walletId }: CloseDeployment["data"], job?: JobMeta): Promise<void> {
+  async #close(wallet: WalletInitialized, close: CloseKey, activityId: string, job?: JobMeta): Promise<void> {
     try {
-      const wallet = walletId === undefined ? await this.walletReaderService.getWalletByUserId(userId) : await this.walletReaderService.getWalletById(walletId);
-      await this.deploymentWriterService.close(wallet, dseq, { actingUserId: userId });
+      await this.deploymentWriterService.close(wallet, close.dseq, { actingUserId: close.userId });
     } catch (error) {
-      if (isLastAttempt(job)) await this.activityService.settle(activityId, failedCloseActivityOf({ userId, dseq, batchId }, error));
+      if (isLastAttempt(job)) await this.activityService.settle(activityId, failedCloseActivityOf(close, error));
       throw error;
     }
   }

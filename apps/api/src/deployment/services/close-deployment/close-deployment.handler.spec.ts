@@ -12,7 +12,7 @@ import { CloseDeploymentHandler } from "./close-deployment.handler";
 
 describe(CloseDeploymentHandler.name, () => {
   const PAYLOAD = { userId: "user-1", dseq: "100", activityId: "activity-1", version: 1 as const };
-  const KEY = { userId: "user-1", dseq: "100" };
+  const KEY = { userId: "user-1", owner: "akash1owner", dseq: "100" };
 
   it("keeps one close per deployment across queued, retrying and running jobs", () => {
     const { handler } = setup();
@@ -40,6 +40,27 @@ describe(CloseDeploymentHandler.name, () => {
     expect(walletReaderService.getWalletById).toHaveBeenCalledWith(7);
     expect(walletReaderService.getWalletByUserId).not.toHaveBeenCalled();
     expect(deploymentWriterService.close).toHaveBeenCalledWith(wallet, "100", { actingUserId: "user-1" });
+  });
+
+  it("settles a team deployment's close in the acting member's feed under the organization wallet's key, as the request opened it", async () => {
+    const { handler, walletReaderService, activityService, wallet } = setup();
+    walletReaderService.getWalletById.mockResolvedValue({ ...wallet, userId: null, address: "akash1team" });
+
+    await handler.handle({ ...PAYLOAD, walletId: 7 }, { id: "job-1", retryCount: 0, retryLimit: 8 });
+
+    expect(activityService.settle).toHaveBeenCalledWith("activity-1", closedActivityOf({ userId: "user-1", owner: "akash1team", dseq: "100" }));
+    expect(activityService.settle).toHaveBeenCalledWith("activity-1", expect.objectContaining({ dedupeKey: "deployment_close.akash1team.100" }));
+  });
+
+  it("leaves the activity to the reconcile check when the wallet to close with cannot be read on the last attempt", async () => {
+    const { handler, walletReaderService, deploymentWriterService, activityService } = setup();
+    const failure = createError(404, "UserWallet Not Found");
+    walletReaderService.getWalletByUserId.mockRejectedValue(failure);
+
+    await expect(handler.handle(PAYLOAD, { id: "job-1", retryCount: 8, retryLimit: 8 })).rejects.toBe(failure);
+
+    expect(deploymentWriterService.close).not.toHaveBeenCalled();
+    expect(activityService.settle).not.toHaveBeenCalled();
   });
 
   it("closes the deployment and records the close as succeeded", async () => {
@@ -128,7 +149,10 @@ describe(CloseDeploymentHandler.name, () => {
 
     await expect(handler.handle(PAYLOAD, { id: "job-1", retryCount: 8, retryLimit: 8 })).rejects.toBe(undecided);
 
-    expect(activityService.settle).toHaveBeenCalledWith("activity-1", expect.objectContaining({ status: "pending", meta: { dseq: "100", txHash: "ABCDEF" } }));
+    expect(activityService.settle).toHaveBeenCalledWith(
+      "activity-1",
+      expect.objectContaining({ status: "pending", meta: { dseq: "100", txHash: "ABCDEF" }, dedupeKey: "deployment_close.akash1owner.100" })
+    );
   });
 
   function setup(input?: { pending?: boolean }) {
