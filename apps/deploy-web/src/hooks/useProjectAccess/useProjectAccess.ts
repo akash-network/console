@@ -21,7 +21,7 @@ export interface ProjectAccess {
   canDeployAnywhere: boolean;
   /** The caller reaches projects only through grants and holds none. */
   hasNoProjects: boolean;
-  /** The caller's projects could not be read, so every check answers no until `retry` reads them. */
+  /** The caller's projects or grants could not be read, so the checks they decide answer no until `retry` reads them. */
   isError: boolean;
   retry: () => void;
 }
@@ -87,8 +87,8 @@ export function useProjectAccess(dependencies: typeof DEPENDENCIES = DEPENDENCIE
       canManageAccess: projectId => projectRoleOf(projectId) === "admin",
       canDeployAnywhere: projectIds.some(canManageDeployments),
       hasNoProjects: projectsQuery.data?.length === 0,
-      isError: false,
-      retry: NOTHING_TO_RETRY
+      isError: readsGrants && grants.isError,
+      retry: grants.retry
     };
   }, [
     isOrganizationsEnabled,

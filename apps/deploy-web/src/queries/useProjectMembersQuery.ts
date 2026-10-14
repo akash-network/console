@@ -3,7 +3,7 @@ import type { QueryClient, UseQueryResult } from "@tanstack/react-query";
 import { useQueries, useQueryClient } from "@tanstack/react-query";
 
 import { useServices } from "@src/context/ServicesProvider";
-import { SKIP_REPORTING_REFUSED_INPUT } from "@src/services/query-error-policy/query-error-policy";
+import { isClientError, SKIP_REPORTING_REFUSED_INPUT } from "@src/services/query-error-policy/query-error-policy";
 import type { ProjectMember, ProjectRole } from "@src/types/project";
 import { ORGANIZATION_ACTIVITIES_QUERY_KEY } from "./useOrganizationActivitiesQuery";
 
@@ -17,6 +17,9 @@ type ProjectMembersResponse = { data: ProjectMember[] };
 
 export interface ProjectRolesOfUser {
   isLoading: boolean;
+  /** A grant list failed to load, so the user's role in that project stays unknown until `retry` reads it again. */
+  isError: boolean;
+  retry: () => void;
   rolesByProjectId: ReadonlyMap<string, ProjectRole>;
 }
 
@@ -31,15 +34,21 @@ export function useProjectMembersQuery(projectId: string, { enabled = true }: { 
 export function useProjectRolesOfUser(projectIds: string[], userId: string | undefined, { enabled }: { enabled: boolean }): ProjectRolesOfUser {
   const { api } = useServices();
   const combineRoles = useCallback(
-    (results: UseQueryResult<ProjectMembersResponse>[]): ProjectRolesOfUser => ({
-      isLoading: results.some(result => result.isLoading),
-      rolesByProjectId: new Map(
-        results.flatMap((result, index) => {
-          const grant = result.data?.data.find(member => member.userId === userId);
-          return grant ? [[projectIds[index], grant.role] as const] : [];
-        })
-      )
-    }),
+    (results: UseQueryResult<ProjectMembersResponse>[]): ProjectRolesOfUser => {
+      const unreadResults = results.filter(isUnreadGrantList);
+
+      return {
+        isLoading: results.some(result => result.isLoading),
+        isError: unreadResults.length > 0,
+        retry: () => unreadResults.forEach(result => void result.refetch()),
+        rolesByProjectId: new Map(
+          results.flatMap((result, index) => {
+            const grant = isRefusedGrantList(result) ? undefined : result.data?.data.find(member => member.userId === userId);
+            return grant ? [[projectIds[index], grant.role] as const] : [];
+          })
+        )
+      };
+    },
     [projectIds, userId]
   );
 
@@ -52,6 +61,15 @@ export function useProjectRolesOfUser(projectIds: string[], userId: string | und
     })),
     combine: combineRoles
   });
+}
+
+/** A refused grant list means the project is gone or no longer granted, which answers "no role" even over a role read earlier. */
+function isRefusedGrantList(result: UseQueryResult<ProjectMembersResponse>) {
+  return result.isError && isClientError(result.error);
+}
+
+function isUnreadGrantList(result: UseQueryResult<ProjectMembersResponse>) {
+  return !result.data && result.isError && !isRefusedGrantList(result);
 }
 
 export function useCreateProjectMemberMutation() {

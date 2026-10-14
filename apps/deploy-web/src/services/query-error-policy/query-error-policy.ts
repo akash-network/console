@@ -37,7 +37,7 @@ export function isProviderTokenRejection(error: unknown): boolean {
   return Array.isArray(issues) && issues.some(issue => Array.isArray(issue?.path) && issue.path.join(".") === "auth.token");
 }
 
-function isClientError(error: unknown): boolean {
+export function isClientError(error: unknown): boolean {
   if (error instanceof ApiError) return isClientErrorStatus(error.status);
 
   return isHttpError(error) && !!error.response && isClientErrorStatus(error.response.status);
