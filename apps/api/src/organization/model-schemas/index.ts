@@ -5,3 +5,4 @@ export * from "./organization-invitation-email/organization-invitation-email.sch
 export * from "./project/project.schema";
 export * from "./project-member/project-member.schema";
 export * from "./organization-activity/organization-activity.schema";
+export * from "./project-budget/project-budget.schema";

@@ -138,6 +138,19 @@ describe(TopUpManagedDeploymentsInstrumentationService.name, () => {
     });
   });
 
+  describe("recordProjectBudgetReached", () => {
+    it("logs the deployments a project budget stopped without counting them as errors", () => {
+      const { service, logger, summarizer } = setup();
+      service.start(100, { dryRun: true });
+      const deployment = createDrainingDeployment();
+
+      service.recordProjectBudgetReached({ owner: deployment.address, deployments: [deployment] });
+
+      expect(summarizer.get("deploymentTopUpErrorCount")).toBe(0);
+      expect(logger.info).toHaveBeenCalledWith({ event: "TOP_UP_PROJECT_BUDGET_REACHED", owner: deployment.address, dseqs: [deployment.dseq], dryRun: true });
+    });
+  });
+
   describe("recordClosedDeploymentRetryLimit", () => {
     it("warns without counting the deployments it left unfunded as errors", () => {
       const { service, logger, summarizer } = setup();

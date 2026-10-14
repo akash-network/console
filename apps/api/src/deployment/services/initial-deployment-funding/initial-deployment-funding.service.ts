@@ -21,6 +21,7 @@ import { DeploymentConfigService } from "@src/deployment/services/deployment-con
 import { DrainingDeploymentService } from "@src/deployment/services/draining-deployment/draining-deployment.service";
 import { InitialDeploymentFundingInstrumentationService } from "@src/deployment/services/initial-deployment-funding/initial-deployment-funding-instrumentation.service";
 import { ReconcileManagedTxJobService } from "@src/deployment/services/reconcile-managed-tx/reconcile-managed-tx-job.service";
+import { isProjectBudgetExceeded } from "@src/organization/services/project-budget-enforcement/project-budget-enforcement.service";
 import { averageBlockCountInAnHour, COSMOS_TX_CODE_OK } from "@src/utils/constants";
 
 export interface FundOnLeaseStartedInput {
@@ -248,6 +249,11 @@ export class InitialDeploymentFundingService {
       if (isUnknownTxOutcome(error)) {
         this.instrumentation.recordUndecidedTxOutcome({ dseq, address, txHash: error.txHash, amount });
         return { status: "undecided", txHash: error.txHash };
+      }
+
+      if (isProjectBudgetExceeded(error)) {
+        this.instrumentation.recordSkipped("project_budget_reached", { dseq, address, amount });
+        return { status: "skipped" };
       }
 
       throw error;

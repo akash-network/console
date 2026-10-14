@@ -13,6 +13,7 @@ import { AuthService } from "@src/auth/services/auth.service";
 import { UserAuthTokenService } from "@src/auth/services/user-auth-token/user-auth-token.service";
 import { ManagedSignerService } from "@src/billing/services";
 import { BalancesService } from "@src/billing/services/balances/balances.service";
+import { DenomExchangeService } from "@src/chain/services/denom-exchange/denom-exchange.service";
 import type { ApiPgDatabase } from "@src/core";
 import { POSTGRES_DB, resolveTable } from "@src/core";
 import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
@@ -492,6 +493,14 @@ describe("Deployment projects", () => {
     const signer = container.resolve(ManagedSignerService);
     vi.spyOn(signer, "assertCanBroadcast").mockResolvedValue(undefined);
     vi.spyOn(signer, "executeDerivedDecodedTxByUserId").mockResolvedValue({ code: 0, hash: "tx-hash", transactionHash: "tx-hash", rawLog: "" });
+    vi.spyOn(container.resolve(DenomExchangeService), "getExchangeRateToUSD").mockResolvedValue({
+      price: 2,
+      volume: 0,
+      marketCap: 0,
+      marketCapRank: 0,
+      priceChange24h: 0,
+      priceChangePercentage24: 0
+    });
 
     return signer;
   }

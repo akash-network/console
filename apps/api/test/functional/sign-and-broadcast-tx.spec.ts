@@ -72,6 +72,7 @@ describe("Tx Sign", () => {
       const project = await seedProject({ organizationId: organization.id });
       const apiKey = await seedApiKey({ userId: user.id, organizationId: organization.id, projectId: project.id });
       enableOrganizationsFor(user.id);
+      priceAktAt(2);
       const publish = vi.spyOn(container.resolve(DomainEventsService), "publish");
 
       const res = await app.request("/v1/tx", {

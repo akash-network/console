@@ -1,4 +1,4 @@
-import { and, eq, gte, inArray, isNotNull, lt, min, ne, or, sql } from "drizzle-orm";
+import { and, asc, eq, gte, inArray, isNotNull, lt, min, ne, or, sql } from "drizzle-orm";
 import { singleton } from "tsyringe";
 
 import type { DeploymentDepositStatus } from "@src/billing/model-schemas/deployment-deposit/deployment-deposit.schema";
@@ -134,6 +134,35 @@ export class DeploymentDepositRepository extends OrgScopedRepository<Table, Depl
     return or(eq(this.table.status, "confirmed"), and(eq(this.table.status, "pending"), isNotNull(this.table.txHash)));
   }
 
+  /** A create's project is known before its deployment's record is written, so a top-up right after it can be filed there too. */
+  async findCreateProjectIds(organizationId: string, owner: string, dseqs: string[]): Promise<Map<string, string>> {
+    const projectIds = new Map<string, string>();
+
+    if (!dseqs.length) return projectIds;
+
+    const rows = await this.cursor
+      .select({ dseq: this.table.dseq, projectId: this.table.projectId })
+      .from(this.table)
+      .where(
+        this.whereInOrganization(
+          and(
+            eq(this.table.organizationId, organizationId),
+            eq(this.table.kind, "deployment_create"),
+            eq(this.table.owner, owner),
+            inArray(this.table.dseq, dseqs),
+            ne(this.table.status, "void")
+          )
+        )
+      )
+      .orderBy(asc(this.table.createdAt));
+
+    for (const { dseq, projectId } of rows) {
+      if (projectId && !projectIds.has(dseq)) projectIds.set(dseq, projectId);
+    }
+
+    return projectIds;
+  }
+
   /** History before this point predates the ledger, so a report reads it from the chain index instead. */
   async findFirstRecordedAt(organizationId: string): Promise<Date | undefined> {
     const [row] = await this.cursor
@@ -142,6 +171,25 @@ export class DeploymentDepositRepository extends OrgScopedRepository<Table, Depl
       .where(this.whereInOrganization(eq(this.table.organizationId, organizationId)));
 
     return row?.firstRecordedAt ?? undefined;
+  }
+
+  async sumCommittedInProject(organizationId: string, projectId: string, { from, to }: SpendWindow): Promise<number> {
+    const [row] = await this.cursor
+      .select({ amountCents: sql<string | null>`sum(${this.table.amountCents})` })
+      .from(this.table)
+      .where(
+        this.whereInOrganization(
+          and(
+            eq(this.table.organizationId, organizationId),
+            eq(this.table.projectId, projectId),
+            ne(this.table.status, "void"),
+            gte(this.table.createdAt, from),
+            lt(this.table.createdAt, to)
+          )
+        )
+      );
+
+    return Number(row?.amountCents ?? 0);
   }
 
   async sumCommittedByProject(organizationId: string, { from, to }: SpendWindow): Promise<CommittedSpend[]> {

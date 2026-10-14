@@ -17,6 +17,7 @@ import type { DeploymentCloseJobService } from "@src/deployment/services/deploym
 import type { DeploymentConfigService } from "@src/deployment/services/deployment-config/deployment-config.service";
 import type { DrainingDeploymentService } from "@src/deployment/services/draining-deployment/draining-deployment.service";
 import type { ReconcileManagedTxJobService } from "@src/deployment/services/reconcile-managed-tx/reconcile-managed-tx-job.service";
+import { ProjectBudgetExceededError } from "@src/organization/services/project-budget-enforcement/project-budget-enforcement.service";
 import { InitialDeploymentFundingService } from "./initial-deployment-funding.service";
 import type { InitialDeploymentFundingInstrumentationService } from "./initial-deployment-funding-instrumentation.service";
 
@@ -595,6 +596,19 @@ describe(InitialDeploymentFundingService.name, () => {
 
       expect(deploymentSettingRepository.releaseFundingClaim).not.toHaveBeenCalled();
       expect(instrumentation.recordUndecidedTxOutcome).toHaveBeenCalledWith(expect.objectContaining({ dseq: "123", txHash: "tx-hash" }));
+    });
+
+    it("skips the deposit and releases the claim when the project's budget stops its top-ups", async () => {
+      const { service, drainingDeploymentService, deploymentSettingRepository, managedSignerService, instrumentation } = setup();
+      drainingDeploymentService.findLeases.mockResolvedValue([createDrainingDeployment()]);
+      drainingDeploymentService.calculateAmountToTargetRunway.mockReturnValue(500000);
+      deploymentSettingRepository.findOneOfWallet.mockResolvedValue(createDeploymentSetting());
+      managedSignerService.executeDerivedTx.mockRejectedValue(new ProjectBudgetExceededError(["123"], ["project-1"]));
+
+      await service.fundOnLeaseStarted({ walletId: 1, address: "akash1owner", dseq: "123" });
+
+      expect(instrumentation.recordSkipped).toHaveBeenCalledWith("project_budget_reached", expect.objectContaining({ dseq: "123", address: "akash1owner" }));
+      expect(deploymentSettingRepository.releaseFundingClaim).toHaveBeenCalledExactlyOnceWith([{ id: "setting-1", claimedAt: CLAIMED_AT }]);
     });
 
     it("schedules a chain reconciliation for an undecided deposit", async () => {

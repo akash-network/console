@@ -20,6 +20,7 @@ import { HardwareRequestEmailHandler } from "@src/hardware-request/services/hard
 import { HardwareRequestSlackAlertHandler } from "@src/hardware-request/services/hardware-request-slack-alert/hardware-request-slack-alert.handler";
 import { NotificationHandler } from "@src/notifications/services/notification-handler/notification.handler";
 import { OrganizationInvitationEmailHandler } from "@src/organization/services/organization-invitation-email/organization-invitation-email.handler";
+import { ProjectBudgetAlertHandler } from "@src/organization/services/project-budget-alert/project-budget-alert.handler";
 import { PurgeOrganizationInvitationEmailsHandler } from "@src/organization/services/purge-organization-invitation-emails/purge-organization-invitation-emails.handler";
 import { PurgeDeletedAccountHandler } from "@src/user/services/purge-deleted-account/purge-deleted-account.handler";
 import { BlockEmailDomainOfWalletHandler } from "@src/workload-abuse/services/block-email-domain-of-wallet/block-email-domain-of-wallet.handler";
@@ -66,6 +67,7 @@ export async function startJobQueues(): Promise<void> {
     container.resolve(RecordDeploymentSettingHandler),
     container.resolve(ReconcileManagedTxHandler),
     container.resolve(ReconcileDeploymentDepositHandler),
+    container.resolve(ProjectBudgetAlertHandler),
     container.resolve(ProbeTrialDeploymentHandler),
     container.resolve(DetectLeaseGpusHandler),
     container.resolve(RecordLeaseGpuOffersHandler),

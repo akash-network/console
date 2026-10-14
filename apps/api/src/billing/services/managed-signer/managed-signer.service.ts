@@ -17,6 +17,12 @@ import { EnableDeploymentAlertCommand } from "@src/billing/commands/enable-deplo
 import { FundDeploymentCommand } from "@src/billing/commands/fund-deployment.command";
 import { ManagedDeploymentLeaseCreated } from "@src/billing/events/managed-deployment-lease-created";
 import { TrialDeploymentLeaseCreated } from "@src/billing/events/trial-deployment-lease-created";
+import {
+  type CreateDeploymentMessage,
+  isCreateDeploymentMessage,
+  isSpendingMessage,
+  parseCoinAmount
+} from "@src/billing/lib/spending-messages/spending-messages";
 import { InjectTypeRegistry } from "@src/billing/providers/type-registry.provider";
 import { type UserWalletOutput, UserWalletRepository } from "@src/billing/repositories";
 import type { SignAndBroadcastFundingOptions } from "@src/billing/services/external-signer-http-sdk/external-signer-http-sdk.service";
@@ -52,8 +58,6 @@ type ExecuteTxOptions = {
   actingUserId?: string;
   consoleClose?: ConsoleClose;
 };
-
-const SPENDING_TXS = [MsgCreateDeployment, MsgAccountDeposit];
 
 const INSUFFICIENT_DEPOSIT_BALANCE_MESSAGE = "Not enough balance to cover the deployment deposit. Add credits or turn on auto recharge to continue.";
 const INSUFFICIENT_DEPOSIT_BALANCE_RELOADING_MESSAGE =
@@ -368,7 +372,7 @@ export class ManagedSignerService {
   }
 
   #hasSpendingTx(messages: EncodeObject[]): boolean {
-    return messages.some(message => SPENDING_TXS.some(msg => message.typeUrl.endsWith(msg.$type)));
+    return messages.some(isSpendingMessage);
   }
 
   async #assertBroadcastable(userWallet: UserWalletOutput, messages: EncodeObject[]): Promise<void> {
@@ -546,8 +550,8 @@ export class ManagedSignerService {
     }
   }
 
-  #getCreateDeploymentMessages(messages: EncodeObject[]): { typeUrl: string; value: MsgCreateDeployment }[] {
-    return messages.filter((message): message is { typeUrl: string; value: MsgCreateDeployment } => message.typeUrl.endsWith(".MsgCreateDeployment"));
+  #getCreateDeploymentMessages(messages: EncodeObject[]): CreateDeploymentMessage[] {
+    return messages.filter(isCreateDeploymentMessage);
   }
 
   /**
@@ -556,7 +560,7 @@ export class ManagedSignerService {
    * refuses the request here instead of several seconds later in chain simulation, where the shortfall surfaces
    * as an opaque 402.
    *
-   * Only positive deposits count. `/v1/tx` takes a caller-supplied batch and the request schema does not
+   * Only amounts the chain reads as whole numbers count. `/v1/tx` takes a caller-supplied batch and the request schema does not
    * constrain the deposit's sign, so summing raw values would let a negative deposit offset a positive one and
    * understate what the chain is about to charge against the grant. The chain rejects the negative message and
    * fails the whole tx anyway; this keeps the sum a true lower bound instead of a bypass of the check.
@@ -571,7 +575,7 @@ export class ManagedSignerService {
         return total;
       }
 
-      return total + Math.max(0, Number(deposit.amount));
+      return total + Number(parseCoinAmount(deposit.amount) ?? 0n);
     }, 0);
   }
 

@@ -89,7 +89,7 @@ describe(ManagedSignerService.name, () => {
       });
       const user = createUser({ userId: "user-123" });
       const deploymentMessage: EncodeObject = {
-        typeUrl: MsgCreateDeployment.$type,
+        typeUrl: `/${MsgCreateDeployment.$type}`,
         value: MsgCreateDeployment.fromPartial({})
       };
 
@@ -594,7 +594,7 @@ describe(ManagedSignerService.name, () => {
       });
       const user = createUser({ userId: "user-123" });
       const deploymentMessage: EncodeObject = {
-        typeUrl: MsgCreateDeployment.$type,
+        typeUrl: `/${MsgCreateDeployment.$type}`,
         value: MsgCreateDeployment.fromPartial({ id: { owner: "akash1test", dseq: 123 } })
       };
 
@@ -672,7 +672,7 @@ describe(ManagedSignerService.name, () => {
       const wallet = createUserWallet({ userId: "user-123", feeAllowance: 100, deploymentAllowance: 100, isTrialing: true });
       const user = createUser({ userId: "user-123" });
       const deploymentMessage: EncodeObject = {
-        typeUrl: MsgCreateDeployment.$type,
+        typeUrl: `/${MsgCreateDeployment.$type}`,
         value: MsgCreateDeployment.fromPartial({ id: { owner: "akash1test", dseq: 123 } })
       };
 
@@ -693,7 +693,7 @@ describe(ManagedSignerService.name, () => {
       const wallet = createUserWallet({ userId: "user-123", feeAllowance: 100, deploymentAllowance: 100, isTrialing: false });
       const user = createUser({ userId: "user-123" });
       const messages: EncodeObject[] = [
-        { typeUrl: MsgCreateDeployment.$type, value: MsgCreateDeployment.fromPartial({ id: { owner: "akash1test", dseq: 123 } }) },
+        { typeUrl: `/${MsgCreateDeployment.$type}`, value: MsgCreateDeployment.fromPartial({ id: { owner: "akash1test", dseq: 123 } }) },
         {
           typeUrl: MsgCreateLease.$type,
           value: MsgCreateLease.fromPartial({ bidId: { dseq: 123, owner: "akash1test", gseq: 1, oseq: 1, provider: "akash1test" } })
@@ -817,7 +817,7 @@ describe(ManagedSignerService.name, () => {
     it("records nothing closed for a transaction that closes no deployment", async () => {
       const { service, deploymentSettingRepository } = setupForClose();
       const createMessage: EncodeObject = {
-        typeUrl: MsgCreateDeployment.$type,
+        typeUrl: `/${MsgCreateDeployment.$type}`,
         value: MsgCreateDeployment.fromPartial({ id: { owner: "akash1test", dseq: 123 } })
       };
 
@@ -843,7 +843,7 @@ describe(ManagedSignerService.name, () => {
         publish: vi.fn().mockRejectedValue(new Error("queue unavailable"))
       });
       const createMessage: EncodeObject = {
-        typeUrl: MsgCreateDeployment.$type,
+        typeUrl: `/${MsgCreateDeployment.$type}`,
         value: MsgCreateDeployment.fromPartial({ id: { owner: "akash1test", dseq: 123 } })
       };
 
@@ -899,7 +899,7 @@ describe(ManagedSignerService.name, () => {
       });
       const user = createUser({ userId: "user-123" });
       const deploymentMessage: EncodeObject = {
-        typeUrl: MsgCreateDeployment.$type,
+        typeUrl: `/${MsgCreateDeployment.$type}`,
         value: MsgCreateDeployment.fromPartial({})
       };
 
@@ -1234,7 +1234,7 @@ describe(ManagedSignerService.name, () => {
       });
       const user = createUser({ userId: "user-123" });
       const deploymentMessage = {
-        typeUrl: MsgCreateDeployment.$type,
+        typeUrl: `/${MsgCreateDeployment.$type}`,
         value: Buffer.from(JSON.stringify({ id: { dseq: "123", owner: wallet.address } })).toString("base64")
       };
 
@@ -1262,7 +1262,7 @@ describe(ManagedSignerService.name, () => {
       });
       const user = createUser({ userId: "user-123" });
       const depositMessage = {
-        typeUrl: MsgAccountDeposit.$type,
+        typeUrl: `/${MsgAccountDeposit.$type}`,
         value: Buffer.from(JSON.stringify({ owner: wallet.address, amount: "1000" })).toString("base64")
       };
 
@@ -1338,7 +1338,7 @@ describe(ManagedSignerService.name, () => {
       const wallet = createUserWallet({ userId: "user-123", feeAllowance: 100, deploymentAllowance: 100 });
       const user = createUser({ userId: "user-123" });
       const deploymentMessage = {
-        typeUrl: MsgCreateDeployment.$type,
+        typeUrl: `/${MsgCreateDeployment.$type}`,
         value: Buffer.from(JSON.stringify({ id: { dseq: "123", owner: wallet.address } })).toString("base64")
       };
 
@@ -1405,7 +1405,7 @@ describe(ManagedSignerService.name, () => {
       const wallet = createUserWallet({ userId: "user-123", activatedAt: null });
       const user = createUser({ userId: "user-123" });
       const deploymentMessage = {
-        typeUrl: MsgCreateDeployment.$type,
+        typeUrl: `/${MsgCreateDeployment.$type}`,
         value: Buffer.from(JSON.stringify({ id: { dseq: "123", owner: wallet.address } })).toString("base64")
       };
 
@@ -1431,7 +1431,7 @@ describe(ManagedSignerService.name, () => {
       );
       const exposedRefusal = createError(403, signerRefusal.message);
       const depositMessage = {
-        typeUrl: MsgAccountDeposit.$type,
+        typeUrl: `/${MsgAccountDeposit.$type}`,
         value: Buffer.from(JSON.stringify({ signer: wallet.address })).toString("base64")
       };
 
@@ -1532,7 +1532,7 @@ describe(ManagedSignerService.name, () => {
 
   describe("executeFundingTx", () => {
     it("signs and broadcasts with funding wallet for the grantee it names", async () => {
-      const messages: EncodeObject[] = [{ typeUrl: MsgCreateDeployment.$type, value: MsgCreateDeployment.fromPartial({}) }];
+      const messages: EncodeObject[] = [{ typeUrl: `/${MsgCreateDeployment.$type}`, value: MsgCreateDeployment.fromPartial({}) }];
       const txResult = { code: 0, hash: "tx-hash", rawLog: "success" };
       const options = { granteeDerivationIndex: 7 };
 
@@ -1547,7 +1547,7 @@ describe(ManagedSignerService.name, () => {
     });
 
     it("throws app error when chain call fails", async () => {
-      const messages: EncodeObject[] = [{ typeUrl: MsgCreateDeployment.$type, value: MsgCreateDeployment.fromPartial({}) }];
+      const messages: EncodeObject[] = [{ typeUrl: `/${MsgCreateDeployment.$type}`, value: MsgCreateDeployment.fromPartial({}) }];
       const chainError = new Error("Chain funding error");
 
       const { service, chainErrorService } = setup({
@@ -1585,7 +1585,7 @@ describe(ManagedSignerService.name, () => {
 
   function createDeploymentMessage(depositAmount: number, denom = "uakt"): EncodeObject {
     return {
-      typeUrl: MsgCreateDeployment.$type,
+      typeUrl: `/${MsgCreateDeployment.$type}`,
       value: MsgCreateDeployment.fromPartial({ deposit: { amount: { denom, amount: depositAmount.toString() } } })
     };
   }
@@ -2036,7 +2036,7 @@ describe(ManagedSignerService.name, () => {
 
   function createDeploymentMessageFor(dseq: number): EncodeObject {
     return {
-      typeUrl: MsgCreateDeployment.$type,
+      typeUrl: `/${MsgCreateDeployment.$type}`,
       value: MsgCreateDeployment.fromPartial({ id: { owner: "akash1test", dseq } })
     };
   }
@@ -2072,7 +2072,7 @@ describe(ManagedSignerService.name, () => {
 
   function createMessageFor(dseq: number): EncodeObject {
     return {
-      typeUrl: MsgCreateDeployment.$type,
+      typeUrl: `/${MsgCreateDeployment.$type}`,
       value: MsgCreateDeployment.fromPartial({ id: { owner: "akash1test", dseq } })
     };
   }

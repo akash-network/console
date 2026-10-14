@@ -26,6 +26,7 @@ export interface DeploymentTopUpInstrumentation {
   recordDeploymentPreparation(ownerAddress: string, predictedClosedHeight: number): void;
   recordInvalidDepositAmount(details: { desiredAmount: number; dseq: string; address: string; blockRate: number }): void;
   recordRuntimeLimitReached(details: { dseq: string; address: string; runtimeEndsAt: Date }): void;
+  recordProjectBudgetReached(details: { owner: string; deployments: DrainingDeployment[] }): void;
   recordDepositBelowUsefulRunway(details: { deployment: DrainingDeployment; desiredAmount: number; affordableAmount: number; runwayMinutes: number }): void;
   recordHeadroomConceded(details: {
     dseq: string;

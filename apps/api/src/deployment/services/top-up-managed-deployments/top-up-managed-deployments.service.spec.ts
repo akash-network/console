@@ -25,6 +25,7 @@ import type {
   DrainingDeploymentService
 } from "@src/deployment/services/draining-deployment/draining-deployment.service";
 import type { ReconcileManagedTxJobService } from "@src/deployment/services/reconcile-managed-tx/reconcile-managed-tx-job.service";
+import { ProjectBudgetExceededError } from "@src/organization/services/project-budget-enforcement/project-budget-enforcement.service";
 import { mockConfigService } from "../../../../test/mocks/config-service.mock";
 import { CachedBalance, type CachedBalanceService, InsufficientBalanceError } from "../cached-balance/cached-balance.service";
 import type { FundDrainingDeploymentsInstrumentationService } from "./fund-draining-deployments-instrumentation.service";
@@ -1783,6 +1784,51 @@ describe(TopUpManagedDeploymentsService.name, () => {
     }
   });
 
+  describe("when a project budget stops the top-ups of some deployments", () => {
+    it("skips those deployments and funds the rest of the batch in the same pass", async () => {
+      const { service, managedSignerService, instrumentation, owner, walletId, deployments } = setupDrainingOwner({ deploymentCount: 3 });
+      managedSignerService.executeDerivedTx.mockRejectedValueOnce(new ProjectBudgetExceededError([deployments[1].dseq], ["project-1"]));
+
+      await expect(service.topUpDeployments({ dryRun: false })).resolves.toEqual(expect.objectContaining({ ok: true }));
+
+      expect(managedSignerService.executeDerivedTx).toHaveBeenLastCalledWith(walletId, [
+        expect.objectContaining({ value: expect.objectContaining({ id: { scope: Scope.deployment, xid: `${owner}/${deployments[0].dseq}` } }) }),
+        expect.objectContaining({ value: expect.objectContaining({ id: { scope: Scope.deployment, xid: `${owner}/${deployments[2].dseq}` } }) })
+      ]);
+      expect(instrumentation.recordProjectBudgetReached).toHaveBeenCalledWith({ owner, deployments: [expect.objectContaining({ id: deployments[1].id })] });
+      expect(instrumentation.recordChainTxError).not.toHaveBeenCalled();
+      expect(instrumentation.recordDeposit.mock.calls[0][0].items).toHaveLength(2);
+    });
+
+    it("signs nothing more when the budget stops every deployment of the batch", async () => {
+      const { service, managedSignerService, instrumentation, deployments } = setupDrainingOwner({ deploymentCount: 2 });
+      managedSignerService.executeDerivedTx.mockRejectedValueOnce(
+        new ProjectBudgetExceededError(
+          deployments.map(({ dseq }) => dseq),
+          ["project-1"]
+        )
+      );
+
+      await service.topUpDeployments({ dryRun: false });
+
+      expect(managedSignerService.executeDerivedTx).toHaveBeenCalledTimes(1);
+      expect(instrumentation.recordDeposit).not.toHaveBeenCalled();
+      expect(instrumentation.recordChainTxError).not.toHaveBeenCalled();
+    });
+
+    it("treats a budget refusal naming none of the batch's deployments as a failed funding", async () => {
+      const { service, managedSignerService, chainErrorService, instrumentation } = setupDrainingOwner({ deploymentCount: 2 });
+      chainErrorService.getClosedDeploymentMessageIndex.mockReturnValue(undefined);
+      managedSignerService.executeDerivedTx.mockRejectedValueOnce(new ProjectBudgetExceededError(["unrelated"], ["project-1"]));
+
+      await service.topUpDeployments({ dryRun: false });
+
+      expect(managedSignerService.executeDerivedTx).toHaveBeenCalledTimes(1);
+      expect(instrumentation.recordProjectBudgetReached).not.toHaveBeenCalled();
+      expect(instrumentation.recordChainTxError).toHaveBeenCalled();
+    });
+  });
+
   describe("when the chain reports a deployment closed", () => {
     it("marks the closed deployment, drops it, and funds the rest of the batch in the same pass", async () => {
       const { service, chainErrorService, managedSignerService, deploymentSettingRepository, instrumentation, owner, walletId, deployments } =
@@ -1979,20 +2025,20 @@ describe(TopUpManagedDeploymentsService.name, () => {
       expect(fundDrainingInstrumentation.recordDeploymentClosedOnChain).toHaveBeenCalledWith(expect.objectContaining({ owner, messageIndex: 0 }));
       expect(instrumentation.recordDeploymentClosedOnChain).not.toHaveBeenCalled();
     });
-
-    function setupDrainingOwner(input: { deploymentCount: number }) {
-      const context = setup();
-      const owner = createAkashAddress();
-      const walletId = faker.number.int({ min: 1000000, max: 9999999 });
-      const deployments = createDrainingDeployments(owner, walletId, input.deploymentCount);
-
-      mockOwnerYields(context.drainingDeploymentService, createOwnerYield(deployments));
-      context.drainingDeploymentService.calculateAmountToTargetRunway.mockReturnValue(1000000);
-      context.cachedBalanceService.get.mockResolvedValue(createMockCachedBalance(() => 1000000));
-
-      return { ...context, owner, walletId, deployments };
-    }
   });
+
+  function setupDrainingOwner(input: { deploymentCount: number }) {
+    const context = setup();
+    const owner = createAkashAddress();
+    const walletId = faker.number.int({ min: 1000000, max: 9999999 });
+    const deployments = createDrainingDeployments(owner, walletId, input.deploymentCount);
+
+    mockOwnerYields(context.drainingDeploymentService, createOwnerYield(deployments));
+    context.drainingDeploymentService.calculateAmountToTargetRunway.mockReturnValue(1000000);
+    context.cachedBalanceService.get.mockResolvedValue(createMockCachedBalance(() => 1000000));
+
+    return { ...context, owner, walletId, deployments };
+  }
 
   function createDeploymentClosedError(messageIndex: number) {
     const error: Error & { originalError?: Error } = new Error("Deployment closed");

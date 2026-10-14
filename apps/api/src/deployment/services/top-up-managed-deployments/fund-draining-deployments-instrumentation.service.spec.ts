@@ -81,6 +81,20 @@ describe(FundDrainingDeploymentsInstrumentationService.name, () => {
     });
   });
 
+  describe("recordProjectBudgetReached", () => {
+    it("counts each deployment a project budget stopped as skipped and logs their dseqs", () => {
+      const { service, skips } = setup();
+      const deployments = [mock<DrainingDeployment>({ dseq: "11" }), mock<DrainingDeployment>({ dseq: "12" })];
+
+      service.recordProjectBudgetReached({ owner: "akash1owner", deployments });
+
+      expect(skips.add).toHaveBeenCalledWith(2, { reason: "project_budget_reached" });
+      expect(mockLogger.info).toHaveBeenCalledWith(
+        expect.objectContaining({ event: "FUND_DRAINING_PROJECT_BUDGET_REACHED", owner: "akash1owner", dseqs: ["11", "12"] })
+      );
+    });
+  });
+
   describe("recordInvalidDepositAmount", () => {
     it("increments skips with a non_positive_amount reason and warns", () => {
       const { service, skips } = setup();

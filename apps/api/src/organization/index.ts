@@ -3,6 +3,7 @@ export { organizationActivitiesRouter } from "./routes/organization-activities/o
 export { organizationInvitationsRouter } from "./routes/organization-invitations/organization-invitations.router";
 export { organizationMembersRouter } from "./routes/organization-members/organization-members.router";
 export { organizationsRouter } from "./routes/organizations/organizations.router";
+export { projectBudgetsRouter } from "./routes/project-budgets/project-budgets.router";
 export { projectMembersRouter } from "./routes/project-members/project-members.router";
 export { projectSpendRouter } from "./routes/project-spend/project-spend.router";
 export { projectsRouter } from "./routes/projects/projects.router";

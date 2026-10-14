@@ -49,6 +49,7 @@ const ROLE_RULES: Record<OrganizationRole, (conditions: TenantConditions, contex
     { action: organizationType === "team" ? ["update", "delete"] : "update", subject: "Organization", conditions: organization },
     ...organizationSpendRules(inOrg, projectScope),
     { action: "manage", subject: ["OrganizationMember", "OrganizationInvitation", "Project"], conditions: inOrg },
+    { action: "manage", subject: "ProjectBudget", conditions: inScope },
     { action: "manage", subject: "ProjectMember", conditions: grantsOfAdministeredProjects },
     { action: "sign", subject: "UserWallet", conditions: inOrg },
     { action: "manage", subject: ["WalletSetting", "PaymentMethod", "StripePayment"], conditions: inOrg },
@@ -60,6 +61,7 @@ const ROLE_RULES: Record<OrganizationRole, (conditions: TenantConditions, contex
     { action: "read", subject: "OrganizationInvitation", conditions: inOrg },
     { action: "manage", subject: ["OrganizationMember", "OrganizationInvitation"], conditions: belowOwnerInOrg },
     { action: "manage", subject: "Project", conditions: inOrg },
+    { action: "manage", subject: "ProjectBudget", conditions: inScope },
     { action: "manage", subject: "ProjectMember", conditions: grantsOfAdministeredProjects },
     { action: "sign", subject: "UserWallet", conditions: inOrg },
     { action: "read", subject: ["WalletSetting", "PaymentMethod", "StripePayment"], conditions: inOrg },
@@ -87,7 +89,7 @@ const ROLE_RULES: Record<OrganizationRole, (conditions: TenantConditions, contex
 
 /** Reads across every project, which a project-bound key does not inherit from its owner's role. */
 const ORGANIZATION_WIDE_ROLE_RULES: Partial<Record<OrganizationRole, (conditions: TenantConditions) => AbilityRule[]>> = {
-  billing: ({ inOrg }) => [{ action: "read", subject: ["ProjectSpend", "OrganizationSpend"], conditions: inOrg }]
+  billing: ({ inOrg }) => [{ action: "read", subject: ["ProjectSpend", "OrganizationSpend", "ProjectBudget"], conditions: inOrg }]
 };
 
 export const SUPER_USER_RULES: AbilityRule[] = [{ action: "manage", subject: "all" }];
@@ -200,11 +202,17 @@ function projectResourceRules({ inScope, writableInScope }: Pick<TenantCondition
   ];
 }
 
-function projectAdministrationRules({ administeredProjects, othersGrantsOfAdministeredProjects, administersAnyProject }: TenantConditions): AbilityRule[] {
+function projectAdministrationRules({
+  administeredProjects,
+  grantsOfAdministeredProjects,
+  othersGrantsOfAdministeredProjects,
+  administersAnyProject
+}: TenantConditions): AbilityRule[] {
   if (!administersAnyProject) return [];
 
   return [
     { action: "update", subject: "Project", conditions: administeredProjects },
+    { action: "read", subject: "ProjectBudget", conditions: grantsOfAdministeredProjects },
     { action: "manage", subject: "ProjectMember", conditions: othersGrantsOfAdministeredProjects }
   ];
 }
