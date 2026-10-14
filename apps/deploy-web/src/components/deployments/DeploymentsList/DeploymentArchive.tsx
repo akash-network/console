@@ -16,7 +16,7 @@ import { ChevronRight, RefreshCw } from "lucide-react";
 import type { DeploymentsViewMode } from "@src/store/deploymentsViewStore";
 import type { ListedDeploymentDto } from "@src/types/deployment";
 import type { ApiProviderList } from "@src/types/provider";
-import { DeploymentsCollection } from "./DeploymentsCollection";
+import { DeploymentsCollection, type DeploymentsCollectionProps } from "./DeploymentsCollection";
 
 export const DEPENDENCIES = { DeploymentsCollection };
 
@@ -35,6 +35,7 @@ export interface DeploymentArchiveProps {
   isPaginated: boolean;
   onPreviousPage: () => void;
   onNextPage: () => void;
+  maxColumns?: DeploymentsCollectionProps["maxColumns"];
   dependencies?: typeof DEPENDENCIES;
 }
 
@@ -52,6 +53,7 @@ export const DeploymentArchive: FC<DeploymentArchiveProps> = ({
   isPaginated,
   onPreviousPage,
   onNextPage,
+  maxColumns,
   dependencies: d = DEPENDENCIES
 }) => {
   if (isError) {
@@ -79,7 +81,7 @@ export const DeploymentArchive: FC<DeploymentArchiveProps> = ({
         {totalCount === null ? "Archive" : `Archive // ${totalCount} closed`}
       </CollapsibleTrigger>
       <CollapsibleContent className="pt-4">
-        <d.DeploymentsCollection deployments={deployments} providers={providers} viewMode={viewMode} />
+        <d.DeploymentsCollection deployments={deployments} providers={providers} viewMode={viewMode} maxColumns={maxColumns} />
         {isPaginated && (
           <div className="flex justify-end px-2 pt-4">
             <Pagination>

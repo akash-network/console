@@ -52,6 +52,12 @@ describe("DeploymentArchive", () => {
     expect(screen.getByRole("link", { name: "Go to next page" })).toHaveAttribute("aria-disabled", "true");
   });
 
+  it("hands its collection the column limit of the page around it", () => {
+    const { DeploymentsCollection } = setup({ count: 2, maxColumns: 2 });
+
+    expect(DeploymentsCollection).toHaveBeenCalledWith(expect.objectContaining({ maxColumns: 2 }), expect.anything());
+  });
+
   it("hides the archived deployments once collapsed", async () => {
     setup({ count: 2 });
 
@@ -157,6 +163,7 @@ describe("DeploymentArchive", () => {
     pageIndex?: number;
     isPaginated?: boolean;
     hasNextPage?: boolean;
+    maxColumns?: 2 | 3;
   }) {
     const deployments = Array.from(
       { length: input.count },
@@ -182,6 +189,7 @@ describe("DeploymentArchive", () => {
         isPaginated={input.isPaginated ?? false}
         onPreviousPage={onPreviousPage}
         onNextPage={onNextPage}
+        maxColumns={input.maxColumns}
         dependencies={MockComponents(DEPENDENCIES, { DeploymentsCollection })}
       />
     );
