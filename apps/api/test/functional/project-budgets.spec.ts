@@ -21,6 +21,7 @@ import type { ApiPgDatabase } from "@src/core";
 import { CORE_CONFIG, JOB_NAME, POSTGRES_DB, resolveTable } from "@src/core";
 import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
 import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
+import type { ListProjectBudgetsResponse, ProjectBudgetResponse } from "@src/organization/http-schemas/project-budget.schema";
 import type { OrganizationRole } from "@src/organization/model-schemas/organization-member/organization-member.schema";
 import { ProjectBudgetAlert } from "@src/organization/services/project-budget-alert/project-budget-alert.handler";
 import { app } from "@src/rest-app";
@@ -119,7 +120,7 @@ describe("Project budgets", () => {
       const update = await actAs(billing)(`/v1/project-budgets/${budget.id}`, { method: "PATCH", body: { data: { stopTopUps: true } } });
       const create = await actAs(billing)("/v1/project-budgets", { method: "POST", body: { data: { projectId: project.id, monthlyAmountUsd: 1 } } });
 
-      expect((await list.json()).data.map(({ id }: { id: string }) => id)).toEqual([budget.id]);
+      expect(((await list.json()) as ListProjectBudgetsResponse).data.map(({ id }) => id)).toEqual([budget.id]);
       expect(update.status).toBe(403);
       expect(create.status).toBe(403);
     });
@@ -137,7 +138,7 @@ describe("Project budgets", () => {
       const adminUpdate = await actAs(projectAdmin)(`/v1/project-budgets/${budget.id}`, { method: "PATCH", body: { data: { monthlyAmountUsd: 5000 } } });
       const memberList = await actAs(projectMember)("/v1/project-budgets");
 
-      expect((await adminList.json()).data.map(({ id }: { id: string }) => id)).toEqual([budget.id]);
+      expect(((await adminList.json()) as ListProjectBudgetsResponse).data.map(({ id }) => id)).toEqual([budget.id]);
       expect(adminUpdate.status).toBe(403);
       expect(await memberList.json()).toEqual({ data: [] });
     });
@@ -159,7 +160,7 @@ describe("Project budgets", () => {
       const updateOther = await request(`/v1/project-budgets/${otherBudget.id}`, { method: "PATCH", body: { data: { monthlyAmountUsd: 5000 } } });
       const updateOwn = await request(`/v1/project-budgets/${budget.id}`, { method: "PATCH", body: { data: { monthlyAmountUsd: 5000 } } });
 
-      expect((await list.json()).data.map(({ id }: { id: string }) => id)).toEqual([budget.id]);
+      expect(((await list.json()) as ListProjectBudgetsResponse).data.map(({ id }) => id)).toEqual([budget.id]);
       expect(updateOther.status).toBe(404);
       expect(updateOwn.status).toBe(200);
     });
@@ -250,7 +251,7 @@ describe("Project budgets", () => {
   async function createBudget(request: ReturnType<Awaited<ReturnType<typeof setupTeam>>["actAs"]>, projectId: string): Promise<{ id: string }> {
     const response = await request("/v1/project-budgets", { method: "POST", body: { data: { projectId, monthlyAmountUsd: 100 } } });
 
-    return (await response.json()).data;
+    return ((await response.json()) as ProjectBudgetResponse).data;
   }
 
   function createSignedUpUserInput() {
