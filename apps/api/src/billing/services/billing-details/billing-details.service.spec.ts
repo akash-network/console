@@ -5,7 +5,7 @@ import { mock } from "vitest-mock-extended";
 
 import type { BillingDetailsInput } from "@src/billing/http-schemas/billing-details.schema";
 import type { CustomerService } from "@src/billing/services/customer/customer.service";
-import { BillingDetailsService, INVALID_TAX_ID_MESSAGE } from "./billing-details.service";
+import { BillingDetailsService, INVALID_TAX_ID_ERROR_CODE, INVALID_TAX_ID_MESSAGE } from "./billing-details.service";
 
 import { createUserPayer } from "@test/seeders/payer.seeder";
 import { createStripeAddress, createStripeCustomer, createStripeTaxId } from "@test/seeders/stripe-customer.seeder";
@@ -236,7 +236,8 @@ describe(BillingDetailsService.name, () => {
 
       await expect(service.updateBillingDetails(payer, createInput({ taxId: { type: "eu_vat", value: "DE1" } }))).rejects.toMatchObject({
         status: 400,
-        message: INVALID_TAX_ID_MESSAGE
+        message: INVALID_TAX_ID_MESSAGE,
+        errorCode: INVALID_TAX_ID_ERROR_CODE
       });
       expect(deleteTaxId).not.toHaveBeenCalled();
       expect(update).not.toHaveBeenCalled();
@@ -253,28 +254,24 @@ describe(BillingDetailsService.name, () => {
   });
 
   function stubTaxIds(stripe: Stripe, taxIds: Stripe.TaxId[]) {
-    return vi
-      .spyOn(stripe.customers, "listTaxIds")
-      .mockReturnValue(
-        Promise.resolve({
-          object: "list",
-          data: taxIds,
-          has_more: false,
-          url: "",
-          lastResponse: { headers: {}, requestId: "req_1", statusCode: 200 }
-        }) as Stripe.ApiListPromise<Stripe.TaxId>
-      );
+    return vi.spyOn(stripe.customers, "listTaxIds").mockReturnValue(
+      Promise.resolve({
+        object: "list",
+        data: taxIds,
+        has_more: false,
+        url: "",
+        lastResponse: { headers: {}, requestId: "req_1", statusCode: 200 }
+      }) as Stripe.ApiListPromise<Stripe.TaxId>
+    );
   }
 
   function stubDeleteTaxId(stripe: Stripe) {
-    return vi
-      .spyOn(stripe.customers, "deleteTaxId")
-      .mockImplementation(async (_customerId, id) => ({
-        id,
-        object: "tax_id",
-        deleted: true,
-        lastResponse: { headers: {}, requestId: "req_1", statusCode: 200 }
-      }));
+    return vi.spyOn(stripe.customers, "deleteTaxId").mockImplementation(async (_customerId, id) => ({
+      id,
+      object: "tax_id",
+      deleted: true,
+      lastResponse: { headers: {}, requestId: "req_1", statusCode: 200 }
+    }));
   }
 
   function createInput(overrides: Partial<BillingDetailsInput> = {}): BillingDetailsInput {

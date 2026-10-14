@@ -15,6 +15,8 @@ const MAX_STRIPE_PAGE_SIZE = 100;
 
 export const INVALID_TAX_ID_MESSAGE = "This tax ID is not valid for the selected type";
 
+export const INVALID_TAX_ID_ERROR_CODE = "invalid_tax_id";
+
 @singleton()
 export class BillingDetailsService {
   constructor(
@@ -62,7 +64,7 @@ export class BillingDetailsService {
       return await this.stripe.customers.createTaxId(customerId, { type: input.type, value: input.value });
     } catch (error) {
       if (error instanceof Stripe.errors.StripeInvalidRequestError && error.code === "tax_id_invalid") {
-        throw createError(400, INVALID_TAX_ID_MESSAGE);
+        throw createError(400, INVALID_TAX_ID_MESSAGE, { errorCode: INVALID_TAX_ID_ERROR_CODE });
       }
 
       throw error;

@@ -136,7 +136,7 @@ describe("Billing details", () => {
       const response = await putBillingDetails(headersOf(team.owner), { ...VALID_INPUT, taxId: { type: "eu_vat", value: "DE1" } });
 
       expect(response.status).toBe(400);
-      expect(await response.json()).toMatchObject({ message: "This tax ID is not valid for the selected type" });
+      expect(await response.json()).toMatchObject({ message: "This tax ID is not valid for the selected type", code: "invalid_tax_id" });
       expect(customerUpdate.isDone()).toBe(false);
     });
 
