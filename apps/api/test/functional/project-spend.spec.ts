@@ -7,6 +7,7 @@ import type { ApiPgDatabase } from "@src/core";
 import { POSTGRES_DB, resolveTable } from "@src/core";
 import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
 import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
+import type { ListProjectSpendResponse } from "@src/organization/http-schemas/project-spend.schema";
 import type { OrganizationRole } from "@src/organization/model-schemas/organization-member/organization-member.schema";
 import { app, initDb } from "@src/rest-app";
 import type { UserOutput } from "@src/user/repositories";
@@ -86,7 +87,7 @@ describe("Project spend", () => {
       const billing = await addMember("billing");
 
       const response = await actAs(billing)(`/v1/project-spend?${RANGE}`);
-      const { data } = await response.json();
+      const { data } = (await response.json()) as ListProjectSpendResponse;
 
       expect(response.status).toBe(200);
       expect(data.projects.map(({ projectId }: { projectId: string }) => projectId)).toEqual([defaultProject.id, staging.id]);
@@ -121,7 +122,7 @@ describe("Project spend", () => {
       await seedProjectMember({ organizationId: team.id, projectId: defaultProject.id, userId: viewer.id, role: "viewer" });
 
       const response = await actAs(viewer)(`/v1/project-spend?${RANGE}`);
-      const { data } = await response.json();
+      const { data } = (await response.json()) as ListProjectSpendResponse;
 
       expect(response.status).toBe(200);
       expect(data.projects).toEqual([expect.objectContaining({ projectId: defaultProject.id, committedUsd: 6, consumedUsd: 19.98 })]);
@@ -143,7 +144,7 @@ describe("Project spend", () => {
       const { owner, staging, actAs } = await setup();
 
       const response = await actAs(owner)(`/v1/project-spend?${RANGE}`, { headers: { "x-project-id": staging.id } });
-      const { data } = await response.json();
+      const { data } = (await response.json()) as ListProjectSpendResponse;
 
       expect(data.projects.map(({ projectId }: { projectId: string }) => projectId)).toEqual([staging.id]);
       expect(data.unassigned).toBeNull();
@@ -154,7 +155,7 @@ describe("Project spend", () => {
       const { owner, actAs } = await setup();
 
       const response = await actAs(owner)("/v1/project-spend?startDate=2026-06-01&endDate=2026-06-30");
-      const { data } = await response.json();
+      const { data } = (await response.json()) as ListProjectSpendResponse;
 
       expect(data.total).toEqual(NOTHING_SPENT);
       expect(data.isEstimated).toBe(false);
