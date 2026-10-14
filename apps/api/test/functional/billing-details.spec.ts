@@ -25,6 +25,17 @@ describe("Billing details", () => {
     nock.cleanAll();
   });
 
+  it.each([
+    { method: "GET", body: undefined },
+    { method: "PUT", body: JSON.stringify({ data: {} }) }
+  ])("answers $method with 404 while invoices are turned off", async ({ method, body }) => {
+    const { owner, headersOf } = await setup({ invoicesEnabled: false });
+
+    const response = await app.request("/v1/billing-details", { method, body, headers: { "Content-Type": "application/json", ...headersOf(owner) } });
+
+    expect(response.status).toBe(404);
+  });
+
   describe("GET /v1/billing-details", () => {
     it("returns empty details without calling Stripe for an account that has not set up payments", async () => {
       const { owner, headersOf } = await setup();
@@ -90,13 +101,15 @@ describe("Billing details", () => {
             body["address[city]"] === "Berlin" &&
             body["address[state]"] === "" &&
             body["address[postal_code]"] === "10115" &&
-            body["address[country]"] === "DE"
+            body["address[country]"] === "DE" &&
+            body["expand[0]"] === "tax_ids"
         )
         .reply(200, {
           id: customerId,
           object: "customer",
           name: "Acme GmbH",
-          address: { line1: "Hauptstr. 1", line2: null, city: "Berlin", state: null, postal_code: "10115", country: "DE" }
+          address: { line1: "Hauptstr. 1", line2: null, city: "Berlin", state: null, postal_code: "10115", country: "DE" },
+          tax_ids: { object: "list", data: [taxIdOf(customerId, { id: "txi_new", value: "DE123456789", status: "pending" })], has_more: false }
         });
 
       const response = await putBillingDetails(headersOf(billingMember), VALID_INPUT);
@@ -188,7 +201,7 @@ describe("Billing details", () => {
     return stripeCustomerId;
   }
 
-  async function setup() {
+  async function setup(input: { invoicesEnabled?: boolean } = {}) {
     const { user: owner, organization } = await seedOrganizationWithOwner({ user: { userId: faker.string.uuid() } });
     const tokens = new Map<string, string>();
     const tokenByUserId = new Map<string, string>();
@@ -205,6 +218,7 @@ describe("Billing details", () => {
     );
     vi.spyOn(container.resolve(FeatureFlagsService), "isEnabled").mockImplementation((flag, context) => {
       if (flag === FeatureFlags.ORGANIZATIONS_ENFORCE) return false;
+      if (flag === FeatureFlags.INVOICES) return input.invoicesEnabled ?? true;
       if (flag !== FeatureFlags.ORGANIZATIONS) return true;
 
       return tokenByUserId.has(context?.userId ?? container.resolve(AuthService).safeCurrentUser?.id ?? "");

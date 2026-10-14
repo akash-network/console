@@ -47,7 +47,9 @@ const TaxIdInputSchema = z.object({
 const BillingDetailsInputSchema = z.object({
   legalName: z.string().trim().min(1).max(MAX_LEGAL_NAME_LENGTH).openapi({ description: "The name printed on invoices" }),
   address: BillingAddressInputSchema,
-  taxId: TaxIdInputSchema.nullable().openapi({ description: "Replaces every tax ID on file, or removes them all when null" })
+  taxId: TaxIdInputSchema.nullable()
+    .optional()
+    .openapi({ description: "Replaces every tax ID on file, removes them all when null, and leaves them untouched when omitted" })
 });
 
 const BillingAddressOutputSchema = z.object({

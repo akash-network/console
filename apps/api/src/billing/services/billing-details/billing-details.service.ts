@@ -40,14 +40,22 @@ export class BillingDetailsService {
 
   async updateBillingDetails(payer: Payer, input: BillingDetailsInput): Promise<BillingDetailsOutput> {
     const customerId = await this.customerService.getStripeCustomerId(payer);
-    const taxId = await this.#replaceTaxIds(customerId, input.taxId);
-    const customer = await this.stripe.customers.update(customerId, { name: input.legalName, address: toStripeAddress(input.address) });
 
-    return toBillingDetails(customer, taxId);
+    if (input.taxId !== undefined) {
+      await this.#replaceTaxIds(customerId, input.taxId);
+    }
+
+    const customer = await this.stripe.customers.update(customerId, {
+      name: input.legalName,
+      address: toStripeAddress(input.address),
+      expand: ["tax_ids"]
+    });
+
+    return toBillingDetails(customer, customer.tax_ids?.data[0]);
   }
 
   /** Creates the new tax ID before deleting the old ones, so a value Stripe rejects leaves the previous tax ID on file. */
-  async #replaceTaxIds(customerId: string, input: TaxIdInput | null): Promise<Stripe.TaxId | undefined> {
+  async #replaceTaxIds(customerId: string, input: TaxIdInput | null): Promise<void> {
     const { data: existing } = await this.stripe.customers.listTaxIds(customerId, { limit: MAX_STRIPE_PAGE_SIZE });
     const current = input
       ? existing.find(taxId => taxId.type === input.type && taxId.value === input.value) ?? (await this.#createTaxId(customerId, input))
@@ -55,8 +63,6 @@ export class BillingDetailsService {
     const replaced = existing.filter(taxId => taxId.id !== current?.id);
 
     await Promise.all(replaced.map(taxId => this.stripe.customers.deleteTaxId(customerId, taxId.id)));
-
-    return current;
   }
 
   async #createTaxId(customerId: string, input: TaxIdInput): Promise<Stripe.TaxId> {

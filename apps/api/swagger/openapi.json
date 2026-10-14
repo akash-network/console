@@ -1873,6 +1873,9 @@
           },
           "403": {
             "description": "The caller cannot read the billing of this organization"
+          },
+          "404": {
+            "description": "Invoices are not enabled for the caller"
           }
         }
       },
@@ -1986,13 +1989,12 @@
                           "type",
                           "value"
                         ],
-                        "description": "Replaces every tax ID on file, or removes them all when null"
+                        "description": "Replaces every tax ID on file, removes them all when null, and leaves them untouched when omitted"
                       }
                     },
                     "required": [
                       "legalName",
-                      "address",
-                      "taxId"
+                      "address"
                     ]
                   }
                 },
@@ -2107,6 +2109,9 @@
           },
           "403": {
             "description": "The caller cannot manage the billing of this organization"
+          },
+          "404": {
+            "description": "Invoices are not enabled for the caller"
           }
         }
       }

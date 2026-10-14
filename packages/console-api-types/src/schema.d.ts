@@ -8704,6 +8704,13 @@ export interface operations {
         };
         content?: never;
       };
+      /** @description Invoices are not enabled for the caller */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
     };
   };
   updateBillingDetails: {
@@ -8728,8 +8735,8 @@ export interface operations {
               /** @description Two-letter ISO 3166-1 country code */
               country: string;
             };
-            /** @description Replaces every tax ID on file, or removes them all when null */
-            taxId: {
+            /** @description Replaces every tax ID on file, removes them all when null, and leaves them untouched when omitted */
+            taxId?: {
               /**
                * @description Stripe tax ID type, such as eu_vat for an EU VAT number
                * @enum {string}
@@ -8804,6 +8811,13 @@ export interface operations {
       };
       /** @description The caller cannot manage the billing of this organization */
       403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Invoices are not enabled for the caller */
+      404: {
         headers: {
           [name: string]: unknown;
         };

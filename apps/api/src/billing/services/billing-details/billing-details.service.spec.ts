@@ -95,7 +95,6 @@ describe(BillingDetailsService.name, () => {
     it("saves the legal name and address on the payer's customer, sending cleared fields as empty strings", async () => {
       const { service, stripe, customerService, payer, customerId } = setup();
       const update = vi.spyOn(stripe.customers, "update").mockResolvedValue(createStripeCustomer({ id: customerId }));
-      stubTaxIds(stripe, []);
 
       await service.updateBillingDetails(
         payer,
@@ -105,14 +104,14 @@ describe(BillingDetailsService.name, () => {
       expect(customerService.getStripeCustomerId).toHaveBeenCalledWith(payer);
       expect(update).toHaveBeenCalledWith(customerId, {
         name: "Acme GmbH",
-        address: { line1: "Hauptstr. 1", line2: "", city: "", state: "", postal_code: "", country: "DE" }
+        address: { line1: "Hauptstr. 1", line2: "", city: "", state: "", postal_code: "", country: "DE" },
+        expand: ["tax_ids"]
       });
     });
 
     it("sends every address field it was given", async () => {
       const { service, stripe, payer, customerId } = setup();
       const update = vi.spyOn(stripe.customers, "update").mockResolvedValue(createStripeCustomer({ id: customerId }));
-      stubTaxIds(stripe, []);
 
       await service.updateBillingDetails(
         payer,
@@ -121,19 +120,37 @@ describe(BillingDetailsService.name, () => {
 
       expect(update).toHaveBeenCalledWith(customerId, {
         name: expect.any(String),
-        address: { line1: "1 Main St", line2: "Suite 2", city: "Springfield", state: "IL", postal_code: "62701", country: "US" }
+        address: { line1: "1 Main St", line2: "Suite 2", city: "Springfield", state: "IL", postal_code: "62701", country: "US" },
+        expand: ["tax_ids"]
       });
+    });
+
+    it("leaves the tax IDs on file untouched when no tax ID is sent", async () => {
+      const { service, stripe, payer, customerId } = setup();
+      const update = vi.spyOn(stripe.customers, "update").mockResolvedValue(createStripeCustomer({ id: customerId }));
+      const listTaxIds = stubTaxIds(stripe, [createStripeTaxId({ type: "de_stn" })]);
+      const createTaxId = vi.spyOn(stripe.customers, "createTaxId");
+      const deleteTaxId = stubDeleteTaxId(stripe);
+
+      await service.updateBillingDetails(payer, createInput());
+
+      expect(update).toHaveBeenCalled();
+      expect(listTaxIds).not.toHaveBeenCalled();
+      expect(createTaxId).not.toHaveBeenCalled();
+      expect(deleteTaxId).not.toHaveBeenCalled();
     });
 
     it("returns the saved details with the tax ID now on file", async () => {
       const { service, stripe, payer, customerId } = setup();
       const address = createStripeAddress();
-      vi.spyOn(stripe.customers, "update").mockResolvedValue(createStripeCustomer({ id: customerId, name: "Acme GmbH", address }));
       const created = createStripeTaxId({
         type: "gb_vat",
         value: "GB123456789",
         verification: { status: "verified", verified_address: null, verified_name: null }
       });
+      vi.spyOn(stripe.customers, "update").mockResolvedValue(
+        createStripeCustomer({ id: customerId, name: "Acme GmbH", address, tax_ids: createTaxIdList([created]) })
+      );
       stubTaxIds(stripe, []);
       vi.spyOn(stripe.customers, "createTaxId").mockResolvedValue(created);
 
@@ -174,22 +191,17 @@ describe(BillingDetailsService.name, () => {
     it("keeps a tax ID that is already on file instead of adding it again", async () => {
       const { service, stripe, payer, customerId } = setup();
       vi.spyOn(stripe.customers, "update").mockResolvedValue(createStripeCustomer({ id: customerId }));
-      const kept = createStripeTaxId({
-        type: "eu_vat",
-        value: "DE123456789",
-        verification: { status: "verified", verified_address: null, verified_name: null }
-      });
+      const kept = createStripeTaxId({ type: "eu_vat", value: "DE123456789" });
       const other = createStripeTaxId({ type: "gb_vat", value: "GB123456789" });
       stubTaxIds(stripe, [other, kept]);
       const createTaxId = vi.spyOn(stripe.customers, "createTaxId");
       const deleteTaxId = stubDeleteTaxId(stripe);
 
-      const result = await service.updateBillingDetails(payer, createInput({ taxId: { type: "eu_vat", value: "DE123456789" } }));
+      await service.updateBillingDetails(payer, createInput({ taxId: { type: "eu_vat", value: "DE123456789" } }));
 
       expect(createTaxId).not.toHaveBeenCalled();
       expect(deleteTaxId).toHaveBeenCalledTimes(1);
       expect(deleteTaxId).toHaveBeenCalledWith(customerId, other.id);
-      expect(result.taxId).toEqual({ type: "eu_vat", value: "DE123456789", verificationStatus: "verified" });
     });
 
     it.each([
@@ -209,7 +221,7 @@ describe(BillingDetailsService.name, () => {
       expect(deleteTaxId).toHaveBeenCalledWith(customerId, previous.id);
     });
 
-    it("removes every tax ID on file when none is given", async () => {
+    it("removes every tax ID on file when the tax ID is cleared", async () => {
       const { service, stripe, payer, customerId } = setup();
       vi.spyOn(stripe.customers, "update").mockResolvedValue(createStripeCustomer({ id: customerId }));
       const previous = [createStripeTaxId(), createStripeTaxId()];
@@ -265,6 +277,10 @@ describe(BillingDetailsService.name, () => {
     );
   }
 
+  function createTaxIdList(taxIds: Stripe.TaxId[]): Stripe.ApiList<Stripe.TaxId> {
+    return { object: "list", data: taxIds, has_more: false, url: "" };
+  }
+
   function stubDeleteTaxId(stripe: Stripe) {
     return vi.spyOn(stripe.customers, "deleteTaxId").mockImplementation(async (_customerId, id) => ({
       id,
@@ -285,7 +301,6 @@ describe(BillingDetailsService.name, () => {
         postalCode: faker.location.zipCode(),
         country: "DE"
       },
-      taxId: null,
       ...overrides
     };
   }
