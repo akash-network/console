@@ -15,10 +15,11 @@ import { EnableDeploymentAlertCommand } from "@src/billing/commands/enable-deplo
 import { FundDeploymentCommand } from "@src/billing/commands/fund-deployment.command";
 import { ManagedDeploymentLeaseCreated } from "@src/billing/events/managed-deployment-lease-created";
 import { TrialDeploymentLeaseCreated } from "@src/billing/events/trial-deployment-lease-created";
-import type { UserWalletRepository, WalletInitialized } from "@src/billing/repositories";
+import type { DeploymentDepositOutput, UserWalletRepository, WalletInitialized } from "@src/billing/repositories";
 import type { BalancesService } from "@src/billing/services/balances/balances.service";
 import type { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import type { ChainErrorService } from "@src/billing/services/chain-error/chain-error.service";
+import type { DeploymentDepositLedgerService } from "@src/billing/services/deployment-deposit-ledger/deployment-deposit-ledger.service";
 import { DeploymentDepositRefusalCache } from "@src/billing/services/deployment-deposit-refusal-cache/deployment-deposit-refusal-cache.service";
 import type { ManagedUserWalletService } from "@src/billing/services/managed-user-wallet/managed-user-wallet.service";
 import type { TrialActivationJobService } from "@src/billing/services/trial-activation-job/trial-activation-job.service";
@@ -634,6 +635,16 @@ describe(ManagedSignerService.name, () => {
 
         expect(txManagerService.signAndBroadcastWithDerivedWallet).not.toHaveBeenCalled();
         expect(domainEvents.publish).not.toHaveBeenCalled();
+      });
+
+      it("records its deposit for the project the request resolves to", async () => {
+        const projectId = faker.string.uuid();
+        const { service, depositLedger, wallet } = setupForFiling({ resolveFilingProject: vi.fn().mockResolvedValue(projectId) });
+        const messages = [createMessageFor(123)];
+
+        await service.executeDecodedTxByUserWallet(wallet, messages, { suppliedByCaller: true });
+
+        expect(depositLedger.recordPending).toHaveBeenCalledWith(wallet.id, messages, { filingProjectId: projectId });
       });
 
       it("resolves no project for a supplied transaction that creates no deployment", async () => {
@@ -1483,6 +1494,42 @@ describe(ManagedSignerService.name, () => {
     });
   });
 
+  describe("executeDerivedTx", () => {
+    it("records the deposits pending before signing and settles them with the landed transaction", async () => {
+      const deposits = { recorded: [mock<DeploymentDepositOutput>({ id: faker.string.uuid() })], awaitingPrice: [] };
+      const tx = { code: 0, hash: "TX-HASH", rawLog: "[]" };
+      const { service, depositLedger, txManagerService } = setup({ signAndBroadcastWithDerivedWallet: vi.fn().mockResolvedValue(tx) });
+      depositLedger.recordPending.mockResolvedValue(deposits);
+      const messages = [createMessageFor(123)];
+
+      const result = await service.executeDerivedTx(7, messages, { filingProjectId: "project-1" });
+
+      expect(result).toBe(tx);
+      expect(depositLedger.recordPending).toHaveBeenCalledWith(7, messages, { filingProjectId: "project-1" });
+      expect(depositLedger.recordPending.mock.invocationCallOrder[0]).toBeLessThan(
+        txManagerService.signAndBroadcastWithDerivedWallet.mock.invocationCallOrder[0]
+      );
+      expect(depositLedger.recordLanded).toHaveBeenCalledWith(deposits, tx);
+      expect(depositLedger.recordFailed).not.toHaveBeenCalled();
+    });
+
+    it("hands the signer's own error to the ledger before mapping it for the caller", async () => {
+      const deposits = { recorded: [mock<DeploymentDepositOutput>({ id: faker.string.uuid() })], awaitingPrice: [] };
+      const signerError = new Error("signer timed out");
+      const appError = createError(504, "still processing");
+      const { service, depositLedger } = setup({
+        signAndBroadcastWithDerivedWallet: vi.fn().mockRejectedValue(signerError),
+        transformChainError: vi.fn().mockResolvedValue(appError)
+      });
+      depositLedger.recordPending.mockResolvedValue(deposits);
+
+      await expect(service.executeDerivedTx(7, [createMessageFor(123)])).rejects.toBe(appError);
+
+      expect(depositLedger.recordFailed).toHaveBeenCalledWith(deposits, signerError);
+      expect(depositLedger.recordLanded).not.toHaveBeenCalled();
+    });
+  });
+
   describe("executeFundingTx", () => {
     it("signs and broadcasts with funding wallet for the grantee it names", async () => {
       const messages: EncodeObject[] = [{ typeUrl: MsgCreateDeployment.$type, value: MsgCreateDeployment.fromPartial({}) }];
@@ -2162,6 +2209,9 @@ describe(ManagedSignerService.name, () => {
       deploymentProjectService: mock<DeploymentProjectService>({
         resolveFilingProject: input?.resolveFilingProject ?? vi.fn()
       }),
+      depositLedger: mock<DeploymentDepositLedgerService>({
+        recordPending: vi.fn().mockResolvedValue({ recorded: [], awaitingPrice: [] })
+      }),
       deploymentOrganizationActivityService: mock<DeploymentOrganizationActivityService>({
         recordClosed: vi.fn()
       }),
@@ -2198,6 +2248,7 @@ describe(ManagedSignerService.name, () => {
       mocks.executionContextService,
       mocks.deploymentOrganizationActivityService,
       mocks.deploymentProjectService,
+      mocks.depositLedger,
       createLogger
     );
 

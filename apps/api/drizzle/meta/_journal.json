@@ -568,6 +568,13 @@
       "when": 1791929756165,
       "tag": "0080_keep_team_records_without_member",
       "breakpoints": true
+    },
+    {
+      "idx": 81,
+      "version": "7",
+      "when": 1791929951978,
+      "tag": "0081_deployment_deposits",
+      "breakpoints": true
     }
   ]
 }
