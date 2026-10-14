@@ -6,7 +6,7 @@ import { mock } from "vitest-mock-extended";
 
 import { WalletBalanceReloadCheck } from "@src/billing/events/wallet-balance-reload-check";
 import { usdToCents } from "@src/billing/lib/currency/currency";
-import type { WalletSettingRepository } from "@src/billing/repositories";
+import type { UserWalletOutput, WalletSettingRepository } from "@src/billing/repositories";
 import type { AutoReloadPauseService } from "@src/billing/services/auto-reload-pause/auto-reload-pause.service";
 import type { BalancesService } from "@src/billing/services/balances/balances.service";
 import type { PaymentMethodService } from "@src/billing/services/payment-method/payment-method.service";
@@ -16,14 +16,16 @@ import type { JobMeta } from "@src/core";
 import type { DeploymentRepository } from "@src/deployment/repositories/deployment/deployment.repository";
 import type { DeploymentConfigService } from "@src/deployment/services/deployment-config/deployment-config.service";
 import type { DrainingDeploymentService } from "@src/deployment/services/draining-deployment/draining-deployment.service";
+import type { OrganizationOutput, OrganizationRepository } from "@src/organization/repositories/organization/organization.repository";
 import type { JobPayload } from "../../../core";
 import { WalletBalanceReloadCheckHandler } from "./wallet-balance-reload-check.handler";
 import type { WalletBalanceReloadCheckInstrumentationService } from "./wallet-balance-reload-check-instrumentation.service";
 
 import { mockConfigService } from "@test/mocks/config-service.mock";
+import { createOrganization } from "@test/seeders/organization.seeder";
 import { generateMergedPaymentMethod as generatePaymentMethod } from "@test/seeders/payment-method.seeder";
 import { createUser } from "@test/seeders/user.seeder";
-import { createUserWallet } from "@test/seeders/user-wallet.seeder";
+import { createOrganizationWallet, createUserWallet } from "@test/seeders/user-wallet.seeder";
 import { generateWalletSetting } from "@test/seeders/wallet-setting.seeder";
 
 describe(WalletBalanceReloadCheckHandler.name, () => {
@@ -363,9 +365,9 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
           event: "WALLET_SETTING_NOT_FOUND",
           message: "Wallet setting not found. Skipping wallet balance reload check."
         },
-        job.userId
+        { userId: job.userId }
       );
-      expect(walletSettingRepository.findInternalByUserIdWithRelations).toHaveBeenCalledWith(job.userId);
+      expect(walletSettingRepository.findInternalWithRelations).toHaveBeenCalledWith({ userId: job.userId });
     });
 
     it("logs validation error when auto reload is disabled", async () => {
@@ -375,14 +377,14 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
 
       await handler.handle(job, jobMeta);
 
-      expect(walletSettingRepository.findInternalByUserIdWithRelations).toHaveBeenCalledWith(job.userId);
+      expect(walletSettingRepository.findInternalWithRelations).toHaveBeenCalledWith({ userId: job.userId });
       expect(instrumentationService.recordValidationError).toHaveBeenCalledWith(
         "AUTO_RELOAD_DISABLED",
         {
           event: "AUTO_RELOAD_DISABLED",
           message: "Auto reload disabled. Skipping wallet balance reload check."
         },
-        job.userId
+        { userId: job.userId }
       );
     });
 
@@ -393,14 +395,14 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
 
       await handler.handle(job, jobMeta);
 
-      expect(walletSettingRepository.findInternalByUserIdWithRelations).toHaveBeenCalledWith(job.userId);
+      expect(walletSettingRepository.findInternalWithRelations).toHaveBeenCalledWith({ userId: job.userId });
       expect(instrumentationService.recordValidationError).toHaveBeenCalledWith(
         "WALLET_NOT_INITIALIZED",
         {
           event: "WALLET_NOT_INITIALIZED",
           message: "Wallet not initialized. Skipping wallet balance reload check."
         },
-        job.userId
+        { userId: job.userId }
       );
     });
 
@@ -413,14 +415,14 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
 
       await handler.handle(job, jobMeta);
 
-      expect(walletSettingRepository.findInternalByUserIdWithRelations).toHaveBeenCalledWith(job.userId);
+      expect(walletSettingRepository.findInternalWithRelations).toHaveBeenCalledWith({ userId: job.userId });
       expect(instrumentationService.recordValidationError).toHaveBeenCalledWith(
         "USER_STRIPE_CUSTOMER_ID_NOT_SET",
         {
           event: "USER_STRIPE_CUSTOMER_ID_NOT_SET",
           message: "User stripe customer ID not set. Skipping wallet balance reload check."
         },
-        job.userId
+        { userId: job.userId }
       );
     });
 
@@ -440,7 +442,7 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
           event: "DEFAULT_PAYMENT_METHOD_NOT_FOUND",
           message: "Default payment method not found"
         },
-        job.userId
+        { userId: job.userId }
       );
     });
   });
@@ -741,7 +743,8 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
 
       expect(autoReloadPauseService.recordDecline).toHaveBeenCalledWith({
         claim,
-        user: expect.objectContaining({ id: job.userId }),
+        payer: expect.objectContaining({ user: expect.objectContaining({ id: job.userId }) }),
+        target: { userId: job.userId },
         decline: { declineCode: "generic_decline", isTerminal: false }
       });
     });
@@ -817,7 +820,7 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
           event: "AUTO_RELOAD_PAUSED",
           message: "Auto reload paused after repeated card declines. Skipping wallet balance reload check."
         },
-        job.userId
+        { userId: job.userId }
       );
     });
 
@@ -834,7 +837,47 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
 
       await handler.handle(job, jobMeta);
 
-      expect(instrumentationService.recordJobExecution).toHaveBeenCalledWith(expect.any(Number), true, job.userId);
+      expect(instrumentationService.recordJobExecution).toHaveBeenCalledWith(expect.any(Number), true, { userId: job.userId });
+    });
+  });
+
+  describe("for a team's wallet", () => {
+    it("charges the team's customer for the team, keyed by the wallet the job names", async () => {
+      const team = createOrganization({ type: "team", stripeCustomerId: "cus_team" });
+      const wallet = createOrganizationWallet({ organizationId: team.id });
+      const { handler, walletSettingRepository, stripeTransactionService, paymentMethodService, organizationRepository, jobMeta } = setup({
+        balance: 10.0,
+        wallet,
+        team
+      });
+      const job: JobPayload<WalletBalanceReloadCheck> = { walletId: wallet.id, version: 1 };
+
+      await handler.handle(job, jobMeta);
+
+      expect(walletSettingRepository.findInternalWithRelations).toHaveBeenCalledWith({ walletId: wallet.id });
+      expect(organizationRepository.findById).toHaveBeenCalledWith(team.id);
+      expect(paymentMethodService.getDefaultPaymentMethod).toHaveBeenCalledWith(
+        expect.objectContaining({ team, stripeCustomerId: "cus_team" }),
+        expect.anything()
+      );
+      expect(stripeTransactionService.createPaymentIntent).toHaveBeenCalledWith(
+        expect.objectContaining({ organizationId: team.id, customer: "cus_team", idempotencyKey: `${WalletBalanceReloadCheck.name}.${jobMeta.id}` })
+      );
+    });
+
+    it("hands a declined team charge to the pause rules with the team as payer and its wallet as target", async () => {
+      const team = createOrganization({ type: "team", stripeCustomerId: "cus_team" });
+      const wallet = createOrganizationWallet({ organizationId: team.id });
+      const { handler, stripeTransactionService, autoReloadPauseService, jobMeta } = setup({ balance: 10.0, wallet, team });
+      stripeTransactionService.createPaymentIntent.mockRejectedValue(declinedCardError("generic_decline"));
+
+      const job: JobPayload<WalletBalanceReloadCheck> = { walletId: wallet.id, version: 1 };
+
+      await expect(handler.handle(job, jobMeta)).rejects.toThrow();
+
+      expect(autoReloadPauseService.recordDecline).toHaveBeenCalledWith(
+        expect.objectContaining({ payer: expect.objectContaining({ team }), target: { walletId: wallet.id } })
+      );
     });
   });
 
@@ -864,7 +907,8 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
 
       expect(autoReloadPauseService.recordDecline).toHaveBeenCalledWith({
         claim,
-        user: expect.objectContaining({ id: job.userId }),
+        payer: expect.objectContaining({ user: expect.objectContaining({ id: job.userId }) }),
+        target: { userId: job.userId },
         decline: { declineCode: "authentication_required", isTerminal: true }
       });
     });
@@ -915,7 +959,8 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
     autoReloadFailureCount?: number;
     autoReloadPausedAt?: Date;
     user?: ReturnType<typeof createUser>;
-    wallet?: ReturnType<typeof createUserWallet>;
+    team?: OrganizationOutput;
+    wallet?: UserWalletOutput;
   }) {
     const user = input?.user ?? createUser();
     const userWithStripe =
@@ -940,11 +985,13 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
     const walletSettingWithWallet = {
       ...walletSetting,
       wallet: {
-        address: wallet.address!
+        address: wallet.address!,
+        userId: wallet.userId,
+        organizationId: wallet.organizationId
       },
       user: userWithStripe
     };
-    const job: JobPayload<WalletBalanceReloadCheck> = {
+    const job: JobPayload<WalletBalanceReloadCheck> & { userId: string } = {
       userId: user.id,
       version: 1,
       ...(input?.triggeredByDeployment && { triggeredByDeployment: true })
@@ -962,6 +1009,8 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
     );
     const autoReloadPauseService = mock<AutoReloadPauseService>();
     autoReloadPauseService.calculateChargeCooldownMinutes.mockReturnValue(input?.chargeCooldownMinutes ?? 60);
+    const organizationRepository = mock<OrganizationRepository>();
+    organizationRepository.findById.mockResolvedValue(input?.team);
     const deploymentConfig = mockConfigService<DeploymentConfigService>({ AUTO_TOP_UP_INITIAL_RUNWAY_IN_H: input?.autoTopUpInitialRunwayInHours ?? 4 });
     const balancesService = mock<BalancesService>({
       ensure2floatingDigits: vi.fn().mockImplementation((amount: number) => amount)
@@ -993,9 +1042,9 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
     const jobId = input?.jobId ?? faker.string.uuid();
 
     if (input?.walletSettingNotFound) {
-      walletSettingRepository.findInternalByUserIdWithRelations.mockResolvedValue(undefined);
+      walletSettingRepository.findInternalWithRelations.mockResolvedValue(undefined);
     } else {
-      walletSettingRepository.findInternalByUserIdWithRelations.mockResolvedValue(walletSettingWithWallet);
+      walletSettingRepository.findInternalWithRelations.mockResolvedValue(walletSettingWithWallet);
     }
 
     if (!input?.walletSettingNotFound && userWithStripe.stripeCustomerId) {
@@ -1017,7 +1066,8 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
       deploymentRepository,
       instrumentationService,
       autoReloadPauseService,
-      deploymentConfig
+      deploymentConfig,
+      organizationRepository
     );
 
     return {
@@ -1032,6 +1082,7 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
       stripeTransactionService,
       instrumentationService,
       autoReloadPauseService,
+      organizationRepository,
       claim,
       walletSetting,
       walletSettingWithWallet,

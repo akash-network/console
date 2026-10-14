@@ -10,6 +10,7 @@ import type { GetBalancesResponseOutput } from "@src/billing/http-schemas/balanc
 import type { PaymentIntentResult } from "@src/billing/http-schemas/stripe.schema";
 import { AUTHENTICATION_REQUIRED_DECLINE_CODE, CARD_DECLINED_ERROR_CODE, type CardDecline, toCardDecline } from "@src/billing/lib/card-decline/card-decline";
 import { centsToUsd } from "@src/billing/lib/currency/currency";
+import { pickWalletBillingTarget, type WalletBillingTarget } from "@src/billing/lib/wallet-billing-target/wallet-billing-target";
 import { type ChargeClaim, UserWalletOutput, WalletSettingOutput, WalletSettingRepository } from "@src/billing/repositories";
 import { AutoReloadPauseService } from "@src/billing/services/auto-reload-pause/auto-reload-pause.service";
 import { BalancesService } from "@src/billing/services/balances/balances.service";
@@ -21,7 +22,9 @@ import type { Require } from "@src/core/types/require.type";
 import { DeploymentRepository } from "@src/deployment/repositories/deployment/deployment.repository";
 import { DeploymentConfigService } from "@src/deployment/services/deployment-config/deployment-config.service";
 import { DrainingDeploymentService } from "@src/deployment/services/draining-deployment/draining-deployment.service";
-import { isPayingUser, PayingUser } from "../paying-user/paying-user";
+import { OrganizationRepository } from "@src/organization/repositories/organization/organization.repository";
+import type { UserOutput } from "@src/user/repositories";
+import { isPayingPayer, type PayingPayer } from "../payer/payer";
 import { WalletBalanceReloadCheckInstrumentationService } from "./wallet-balance-reload-check-instrumentation.service";
 
 type ValidationError = {
@@ -32,13 +35,14 @@ type ValidationError = {
 type InitializedWallet = Require<Pick<UserWalletOutput, "address">, "address">;
 type ActionableWalletSetting = Pick<
   WalletSettingOutput,
-  "id" | "userId" | "autoReloadMode" | "autoReloadThreshold" | "autoReloadAmount" | "autoReloadFailureCount"
+  "id" | "userId" | "walletId" | "autoReloadMode" | "autoReloadThreshold" | "autoReloadAmount" | "autoReloadFailureCount"
 >;
 
 type Resources = {
   walletSetting: ActionableWalletSetting;
   wallet: InitializedWallet;
-  user: PayingUser;
+  payer: PayingPayer;
+  target: WalletBillingTarget;
 };
 type AllResources = Resources & { balance: GetBalancesResponseOutput["data"]["total"]; paymentMethod: PaymentMethod };
 type ReloadContext = AllResources & { job: JobMeta; triggeredByDeployment: boolean };
@@ -77,7 +81,8 @@ export class WalletBalanceReloadCheckHandler implements JobHandler<WalletBalance
     private readonly deploymentRepository: DeploymentRepository,
     private readonly instrumentationService: WalletBalanceReloadCheckInstrumentationService,
     private readonly autoReloadPauseService: AutoReloadPauseService,
-    private readonly deploymentConfig: DeploymentConfigService
+    private readonly deploymentConfig: DeploymentConfigService,
+    private readonly organizationRepository: OrganizationRepository
   ) {}
 
   requiresPermission(): JobPermissions {
@@ -96,26 +101,26 @@ export class WalletBalanceReloadCheckHandler implements JobHandler<WalletBalance
         await this.#scheduleNextCheck(resourcesResult.val, reloadOutcome?.nextCheckAt);
         success = true;
       } else {
-        this.instrumentationService.recordValidationError(resourcesResult.val.event, resourcesResult.val, payload.userId);
+        this.instrumentationService.recordValidationError(resourcesResult.val.event, resourcesResult.val, pickWalletBillingTarget(payload));
         success = true;
         return;
       }
     } finally {
       const durationMs = Date.now() - startTime;
-      this.instrumentationService.recordJobExecution(durationMs, success, payload.userId);
+      this.instrumentationService.recordJobExecution(durationMs, success, pickWalletBillingTarget(payload));
     }
   }
 
   async #collectResources(job: JobPayload<WalletBalanceReloadCheck>): Promise<Result<AllResources, ValidationError>> {
-    const walletResult = await this.#getValidWalletResources(job.userId);
+    const walletResult = await this.#getValidWalletResources(pickWalletBillingTarget(job));
 
     if (!walletResult.ok) {
       return walletResult;
     }
 
-    const { wallet, user } = walletResult.val;
+    const { wallet, payer } = walletResult.val;
 
-    const paymentMethod = await this.#getDefaultPaymentMethod(user);
+    const paymentMethod = await this.#getDefaultPaymentMethod(payer);
 
     if (!paymentMethod.ok) {
       return paymentMethod;
@@ -126,8 +131,8 @@ export class WalletBalanceReloadCheckHandler implements JobHandler<WalletBalance
     return Ok({ ...walletResult.val, paymentMethod: paymentMethod.val, balance });
   }
 
-  async #getValidWalletResources(userId: JobPayload<WalletBalanceReloadCheck>["userId"]): Promise<Result<Resources, ValidationError>> {
-    const walletSettingWithWallet = await this.walletSettingRepository.findInternalByUserIdWithRelations(userId);
+  async #getValidWalletResources(target: WalletBillingTarget): Promise<Result<Resources, ValidationError>> {
+    const walletSettingWithWallet = await this.walletSettingRepository.findInternalWithRelations(target);
 
     if (!walletSettingWithWallet) {
       return Err({
@@ -161,7 +166,9 @@ export class WalletBalanceReloadCheckHandler implements JobHandler<WalletBalance
       });
     }
 
-    if (!isPayingUser(user)) {
+    const payer = await this.#payerOf(user, wallet);
+
+    if (!isPayingPayer(payer)) {
       return Err({
         event: "USER_STRIPE_CUSTOMER_ID_NOT_SET",
         message: "User stripe customer ID not set. Skipping wallet balance reload check."
@@ -174,13 +181,25 @@ export class WalletBalanceReloadCheckHandler implements JobHandler<WalletBalance
         userId: user.id
       },
       wallet: { ...wallet, address },
-      user
+      payer,
+      target
     });
   }
 
-  async #getDefaultPaymentMethod(user: PayingUser): Promise<Result<PaymentMethod, ValidationError>> {
+  /** A team's wallet is charged to the team's own customer, for the member who saved its auto reload. */
+  async #payerOf(user: UserOutput, wallet: Pick<UserWalletOutput, "userId" | "organizationId">) {
+    const team = !wallet.userId && wallet.organizationId ? await this.organizationRepository.findById(wallet.organizationId) : undefined;
+
+    if (team?.type === "team") {
+      return { user, organizationId: team.id, team, stripeCustomerId: team.stripeCustomerId };
+    }
+
+    return { user, organizationId: wallet.organizationId ?? undefined, stripeCustomerId: user.stripeCustomerId };
+  }
+
+  async #getDefaultPaymentMethod(payer: PayingPayer): Promise<Result<PaymentMethod, ValidationError>> {
     const paymentMethod = await this.paymentMethodService.getDefaultPaymentMethod(
-      { user, stripeCustomerId: user.stripeCustomerId },
+      payer,
       createMongoAbility([
         {
           action: "read",
@@ -330,8 +349,9 @@ export class WalletBalanceReloadCheckHandler implements JobHandler<WalletBalance
 
     try {
       const result = await this.stripeTransactionService.createPaymentIntent({
-        userId: resources.user.id,
-        customer: resources.user.stripeCustomerId,
+        userId: resources.payer.user.id,
+        organizationId: resources.payer.organizationId,
+        customer: resources.payer.stripeCustomerId,
         payment_method: resources.paymentMethod.id,
         amount,
         confirm: true,
@@ -395,9 +415,9 @@ export class WalletBalanceReloadCheckHandler implements JobHandler<WalletBalance
    */
   async #recordDecline(claim: ChargeClaim, resources: ReloadContext, decline: CardDecline): Promise<void> {
     try {
-      await this.autoReloadPauseService.recordDecline({ claim, user: resources.user, decline });
+      await this.autoReloadPauseService.recordDecline({ claim, payer: resources.payer, target: resources.target, decline });
     } catch (error) {
-      this.instrumentationService.recordDeclineRecordingError(resources.user.id, error);
+      this.instrumentationService.recordDeclineRecordingError(resources.payer.user.id, error);
     }
   }
 

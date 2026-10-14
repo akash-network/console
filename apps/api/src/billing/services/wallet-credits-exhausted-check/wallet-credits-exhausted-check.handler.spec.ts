@@ -62,6 +62,19 @@ describe(WalletCreditsExhaustedCheckHandler.name, () => {
     expect(logger.error).toHaveBeenCalledWith({ event: "CREDITS_EXHAUSTED_NOTIFIED_STAMP_FAILED", userId: job.userId, error });
   });
 
+  it("warns every contact even when one send fails, logs it and stamps the wallet", async () => {
+    const otherContact = createUser({ email: "billing@example.com" });
+    const { handler, job, user, wallet, notificationService, userWalletRepository, logger } = setup({ otherContacts: [otherContact] });
+    const error = new Error("notifications unavailable");
+    notificationService.createNotification.mockRejectedValueOnce(error).mockResolvedValueOnce(undefined);
+
+    await handler.handle(job);
+
+    expect(notificationService.createNotification).toHaveBeenCalledTimes(2);
+    expect(logger.error).toHaveBeenCalledWith({ event: "CREDITS_EXHAUSTED_EMAIL_FAILED", userId: job.userId, recipientUserId: user.id, error });
+    expect(userWalletRepository.updateById).toHaveBeenCalledWith(wallet.id, { creditsExhaustedNotifiedAt: expect.any(Date) });
+  });
+
   it("stamps nothing when the warning cannot be sent, so the next funding pass tries again", async () => {
     const { handler, job, notificationService, userWalletRepository } = setup();
     notificationService.createNotification.mockRejectedValue(new Error("notifications unavailable"));
@@ -135,6 +148,7 @@ describe(WalletCreditsExhaustedCheckHandler.name, () => {
     creditsLowNotifiedAt?: Date | null;
     creditsExhaustedNotifiedAt?: Date | null;
     paymentLink?: string;
+    otherContacts?: ReturnType<typeof createUser>[];
   }) {
     const user = createUser({ email: "user@example.com" });
     const wallet = createInitializedUserWallet({
@@ -152,7 +166,9 @@ describe(WalletCreditsExhaustedCheckHandler.name, () => {
     };
 
     const creditsWarningRecipientService = mock<CreditsWarningRecipientService>();
-    creditsWarningRecipientService.find.mockResolvedValue(input?.ineligibility ? Err(input.ineligibility) : Ok({ wallet, user }));
+    creditsWarningRecipientService.find.mockResolvedValue(
+      input?.ineligibility ? Err(input.ineligibility) : Ok({ wallet, users: [user, ...(input?.otherContacts ?? [])] })
+    );
     const userWalletRepository = mock<UserWalletRepository>();
     userWalletRepository.updateById.mockResolvedValue(undefined);
     const notificationService = mock<NotificationService>({

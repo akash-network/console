@@ -1,6 +1,8 @@
 import { and, eq, isNotNull, isNull, lt, ne, or, sql } from "drizzle-orm";
 import { singleton } from "tsyringe";
 
+import { ownedBy } from "@src/billing/lib/billing-owner/billing-owner";
+import type { WalletBillingTarget } from "@src/billing/lib/wallet-billing-target/wallet-billing-target";
 import { type ApiPgDatabase, type ApiPgTables, InjectPg, InjectPgTable } from "@src/core/providers";
 import { OrgScopedRepository } from "@src/core/repositories/org-scoped.repository";
 import { TxService } from "@src/core/services";
@@ -46,8 +48,21 @@ export class WalletSettingRepository extends OrgScopedRepository<Table, WalletSe
     return new WalletSettingRepository(this.pg, this.table, this.txManager, this.executionContextService) as this;
   }
 
+  /** The setting of the user's own wallet, never one the user saved for a team's wallet. */
   async findByUserId(userId: WalletSettingOutput["userId"]): Promise<WalletSettingOutput | undefined> {
-    return this.findOneBy({ userId });
+    const [setting] = await this.cursor
+      .select()
+      .from(this.table)
+      .where(this.whereAccessibleBy(ownedBy(this.table, { userId })))
+      .limit(1);
+    if (!setting) return undefined;
+    this.compareWithShadow([setting]);
+
+    return this.toOutput(setting);
+  }
+
+  async findByTarget(target: WalletBillingTarget): Promise<WalletSettingOutput | undefined> {
+    return "userId" in target ? await this.findByUserId(target.userId) : await this.findOneBy({ walletId: target.walletId });
   }
 
   /** Returns nothing when the wallet already has a setting, because a failed insert would abort the caller's transaction. */
@@ -59,13 +74,18 @@ export class WalletSettingRepository extends OrgScopedRepository<Table, WalletSe
     return created && this.toOutput(created);
   }
 
-  async findInternalByUserIdWithRelations(userId: WalletSettingOutput["userId"]) {
+  async findInternalWithRelations(target: WalletBillingTarget) {
+    const setting = await this.findByTarget(target);
+    if (!setting) return undefined;
+
     const walletSetting = await this.cursor.query.WalletSetting.findFirst({
-      where: this.whereAccessibleBy(eq(this.table.userId, userId)),
+      where: this.whereAccessibleBy(eq(this.table.id, setting.id)),
       with: {
         wallet: {
           columns: {
-            address: true
+            address: true,
+            userId: true,
+            organizationId: true
           }
         },
         user: true

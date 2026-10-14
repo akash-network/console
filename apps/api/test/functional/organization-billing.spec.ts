@@ -25,6 +25,18 @@ import { createFeeAllowanceResponse } from "@test/seeders/fee-allowance-response
 
 const STRIPE_API = "https://api.stripe.com";
 
+async function readStreamedText(response: Response): Promise<string> {
+  const chunks: string[] = [];
+  for await (const chunk of response.body as unknown as AsyncIterable<string | Uint8Array>) {
+    chunks.push(typeof chunk === "string" ? chunk : new TextDecoder().decode(chunk));
+  }
+  return chunks.join("");
+}
+
+function isoSeconds(epochMs: number) {
+  return new Date(epochMs).toISOString().replace(/\.\d{3}Z$/, "Z");
+}
+
 describe("Organization billing", () => {
   const db = container.resolve<ApiPgDatabase>(POSTGRES_DB);
   const registry = container.resolve<Registry>(TYPE_REGISTRY);
@@ -284,6 +296,98 @@ describe("Organization billing", () => {
       expect(new Set(grantees)).toEqual(new Set([wallet.address]));
     });
   });
+
+  describe("GET /v1/stripe/transactions", () => {
+    it("lists the team's transactions with the member who made each, leaving out that member's own", async () => {
+      const { owner, team, headersOf, memberWith } = await setup();
+      const billingMember = await memberWith("billing");
+      const teamTransaction = await seedTransaction({ userId: owner.id, organizationId: team.id, status: "succeeded" });
+      await seedTransaction({ userId: billingMember.id, organizationId: null, status: "succeeded" });
+
+      const response = await app.request("/v1/stripe/transactions", { headers: headersOf(billingMember) });
+
+      expect(response.status).toBe(200);
+      const { data } = (await response.json()) as { data: { transactions: { id: string; initiatedBy: unknown }[]; totalCount: number } };
+      expect(data.totalCount).toBe(1);
+      expect(data.transactions).toEqual([
+        expect.objectContaining({ id: teamTransaction.id, initiatedBy: { id: owner.id, username: owner.username, email: owner.email } })
+      ]);
+    });
+
+    it("keeps listing the user's own transactions while organizations are off for them", async () => {
+      const { owner, team, headersOf } = await setup({ organizationsOn: false });
+      const ownTransaction = await seedTransaction({ userId: owner.id, organizationId: null, status: "succeeded" });
+      await seedTransaction({ userId: owner.id, organizationId: team.id, status: "succeeded" });
+
+      const response = await app.request("/v1/stripe/transactions", { headers: headersOf(owner) });
+
+      expect(response.status).toBe(200);
+      const { data } = (await response.json()) as { data: { transactions: { id: string }[] } };
+      expect(data.transactions.map(({ id }) => id)).toEqual([ownTransaction.id]);
+    });
+
+    it("refuses a member, who may not read the team's billing", async () => {
+      const { headersOf, memberWith } = await setup();
+      const member = await memberWith("member");
+
+      const response = await app.request("/v1/stripe/transactions", { headers: headersOf(member) });
+
+      expect(response.status).toBe(403);
+    });
+  });
+
+  describe("GET /v1/stripe/transactions/export", () => {
+    it("names the member who made each of the team's transactions", async () => {
+      const { owner, team, headersOf } = await setup();
+      await seedTransaction({ userId: owner.id, organizationId: team.id, status: "succeeded" });
+      const query = new URLSearchParams({
+        startDate: isoSeconds(Date.now() - 86_400_000),
+        endDate: isoSeconds(Date.now() + 86_400_000),
+        timezone: "America/New_York"
+      });
+
+      const response = await app.request(`/v1/stripe/transactions/export?${query}`, { headers: headersOf(owner) });
+
+      expect(response.status).toBe(200);
+      const csv = await readStreamedText(response);
+      expect(csv).toContain("Initiated By");
+      expect(csv).toContain(owner.username ?? owner.email ?? "");
+    });
+  });
+
+  describe("POST /v1/wallet-settings", () => {
+    it("saves auto reload for the team's wallet when its billing member sets it up", async () => {
+      const { team, headersOf, memberWith } = await setup();
+      const billingMember = await memberWith("billing");
+      const teamWallet = await seedTeamWallet(team.id);
+
+      const response = await saveWalletSettings(headersOf(billingMember));
+
+      expect(response.status).toBe(200);
+      const settings = resolveTable("WalletSetting");
+      expect(await db.query.WalletSetting.findMany({ where: eq(settings.walletId, teamWallet.id) })).toEqual([
+        expect.objectContaining({ organizationId: team.id, userId: billingMember.id })
+      ]);
+    });
+
+    it("refuses a member, who may only read the team's auto reload", async () => {
+      const { team, headersOf, memberWith } = await setup();
+      const member = await memberWith("member");
+      await seedTeamWallet(team.id);
+
+      const response = await saveWalletSettings(headersOf(member));
+
+      expect(response.status).toBe(403);
+    });
+  });
+
+  async function saveWalletSettings(headers: Record<string, string>) {
+    return await app.request("/v1/wallet-settings", {
+      method: "POST",
+      body: JSON.stringify({ data: { autoReloadEnabled: false } }),
+      headers: { "Content-Type": "application/json", ...headers }
+    });
+  }
 
   async function confirmPayment(headers: Record<string, string>, data: { userId: string; paymentMethodId: string; amount: number; idempotencyKey?: string }) {
     return await app.request("/v1/stripe/transactions/confirm", {

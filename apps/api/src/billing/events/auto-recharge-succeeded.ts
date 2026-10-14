@@ -11,6 +11,8 @@ export class AutoRechargeSucceeded implements DomainEvent {
       userId: UserOutput["id"];
       transactionId: string;
       amountCents: number;
+      /** The wallet credited; events published before teams paid lack it and name the user's own wallet. */
+      walletId?: number;
     }
   ) {}
 }

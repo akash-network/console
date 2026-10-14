@@ -8,8 +8,11 @@ import { ExecutionContextService } from "@src/core/services/execution-context/ex
 import { Organizations } from "@src/organization/model-schemas/organization/organization.schema";
 import type { OrganizationRole } from "@src/organization/model-schemas/organization-member/organization-member.schema";
 import { Users } from "@src/user/model-schemas/user/user.schema";
+import type { UserOutput } from "@src/user/repositories";
 
 type Table = ApiPgTables["OrganizationMembers"];
+
+const BILLING_CONTACT_ROLES: OrganizationRole[] = ["owner", "billing"];
 export type OrganizationMemberInput = Table["$inferInsert"];
 export type OrganizationMemberOutput = Table["$inferSelect"];
 
@@ -105,6 +108,18 @@ export class OrganizationMemberRepository extends OrgScopedRepository<Table, Org
       .where(this.whereAccessibleBy(and(eq(this.table.organizationId, organizationId), inArray(sql`lower(${Users.email})`, emails))));
 
     return members.map(member => member.email);
+  }
+
+  /** Who hears about a team's billing: its owners and billing members, read without an organization context since jobs send it. */
+  async findBillingContacts(organizationId: OrganizationMemberOutput["organizationId"]): Promise<UserOutput[]> {
+    const contacts = await this.cursor
+      .select({ user: Users })
+      .from(this.table)
+      .innerJoin(Users, eq(Users.id, this.table.userId))
+      .where(this.whereAccessibleBy(and(eq(this.table.organizationId, organizationId), inArray(this.table.role, BILLING_CONTACT_ROLES))))
+      .orderBy(asc(this.table.createdAt));
+
+    return contacts.map(({ user }) => user);
   }
 
   async findActiveMembership(userId: OrganizationMemberOutput["userId"], lookup: OrganizationLookup): Promise<Membership | undefined> {

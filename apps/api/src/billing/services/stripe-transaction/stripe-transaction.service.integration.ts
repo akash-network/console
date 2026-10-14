@@ -285,7 +285,7 @@ describe(StripeTransactionService.name, () => {
     });
 
     it("returns the auto recharge and reports the top-up as automatic when the payment intent carries the auto_recharge marker", async () => {
-      const { service, userRepository, stripeTransactionRepository, refillService } = setup();
+      const { service, userRepository, stripeTransactionRepository, refillService, toppedUpWallet } = setup();
       const mockUser = createTestUser();
       const amount = 5000;
       const internalTransaction = generateDatabaseStripeTransaction({ id: "tx-auto", type: "payment_intent", status: "created", amount });
@@ -304,7 +304,12 @@ describe(StripeTransactionService.name, () => {
         })
       );
 
-      expect(outcome.autoRecharge).toEqual({ userId: mockUser.id, transactionId: internalTransaction.id, amountCents: amount });
+      expect(outcome.autoRecharge).toEqual({
+        userId: mockUser.id,
+        transactionId: internalTransaction.id,
+        amountCents: amount,
+        walletId: toppedUpWallet.walletId
+      });
       expect(refillService.topUpWallet).toHaveBeenCalledWith(
         amount,
         { userId: mockUser.id, organizationId: null },

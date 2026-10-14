@@ -13,7 +13,9 @@ import type { ApiPgDatabase } from "@src/core";
 import { JOB_NAME, POSTGRES_DB, resolveTable } from "@src/core";
 import { DrainingDeploymentService } from "@src/deployment/services/draining-deployment/draining-deployment.service";
 
-import { seedUserWithWallet } from "@test/seeders/db/user-with-wallet.seeder";
+import { createAkashAddress } from "@test/seeders/akash-address.seeder";
+import { seedOrganizationMember, seedOrganizationWithOwner } from "@test/seeders/db/organization.seeder";
+import { seedUser, seedUserWithWallet } from "@test/seeders/db/user-with-wallet.seeder";
 import { seedWalletSetting } from "@test/seeders/db/wallet-setting.seeder";
 import { expectJobCompleted, useJobWorkers } from "@test/services/job-queue-harness";
 import { interceptNotifications } from "@test/services/notifications-intercept";
@@ -170,6 +172,49 @@ describe(WalletCreditsLowCheckHandler.name, () => {
     await checkCredits();
 
     expect(sentNotifications()).toHaveLength(0);
+  });
+
+  describe("for a team's wallet", () => {
+    it("emails the team's owners and billing members, not its other members, and latches the team's wallet", async () => {
+      const { enqueue, startWorkers } = await jobWorkers();
+      const db = container.resolve<ApiPgDatabase>(POSTGRES_DB);
+      const userWalletsTable = resolveTable("UserWallets");
+      const { organization: team, user: owner } = await seedOrganizationWithOwner({ user: { email: "owner@example.com" } });
+      const [billingMember, plainMember] = await Promise.all([seedUser({ email: "billing@example.com" }), seedUser({ email: "member@example.com" })]);
+      await seedOrganizationMember({ organizationId: team.id, userId: billingMember.id, role: "billing" });
+      await seedOrganizationMember({ organizationId: team.id, userId: plainMember.id, role: "member" });
+      const [teamWallet] = await db
+        .insert(userWalletsTable)
+        .values({
+          userId: null,
+          organizationId: team.id,
+          address: createAkashAddress(),
+          isTrialing: false,
+          activatedAt: new Date(),
+          creditsLowSince: subMinutes(new Date(), PAST_THE_CONFIRM_WINDOW_IN_MIN)
+        })
+        .returning();
+      vi.spyOn(container.resolve(BalancesService), "getDeploymentBalanceInFiat").mockResolvedValue(1);
+      vi.spyOn(container.resolve(DrainingDeploymentService), "calculateWeeklyCoverageForAddress").mockResolvedValue({
+        weeklyCostUsd: 20,
+        cumulativeDailyCostsUsd: [1, 5, 10, 15, 20, 25, 30],
+        hasAutoTopUpSettings: true
+      });
+      const sentNotifications = interceptNotifications();
+      const checkKey = `${WalletCreditsLowCheck.name}.wallet.${teamWallet.id}`;
+
+      await enqueue(new WalletCreditsLowCheck({ walletId: teamWallet.id }), { singletonKey: checkKey });
+      await startWorkers();
+      await expectJobCompleted(WalletCreditsLowCheck[JOB_NAME], { singletonKey: checkKey });
+
+      expect(
+        sentNotifications()
+          .map(({ userId }) => userId)
+          .sort()
+      ).toEqual([owner.id, billingMember.id].sort());
+      const [row] = await db.select().from(userWalletsTable).where(eq(userWalletsTable.id, teamWallet.id));
+      expect(row).toMatchObject({ creditsLowNotifiedAt: expect.any(Date) });
+    });
   });
 
   async function setup(input: {

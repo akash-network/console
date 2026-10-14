@@ -196,7 +196,7 @@ describe(PaymentMethodService.name, () => {
 
       await service.syncAttached({ holder: paymentMethodHolderOf(user), paymentMethod });
 
-      expect(autoReloadPauseService.resume).toHaveBeenCalledWith("user_1");
+      expect(autoReloadPauseService.resume).toHaveBeenCalledWith({ userId: "user_1" });
     });
 
     it("keeps the upserted method when resuming auto top-up fails", async () => {
@@ -334,7 +334,7 @@ describe(PaymentMethodService.name, () => {
       expect(paymentMethodRepository.deleteByFingerprint).toHaveBeenCalledWith("fp_1", "pm_1", { organizationId: team!.id });
     });
 
-    it("records a card synced for the team under the team, without resuming the member's own auto reload", async () => {
+    it("records a card synced for the team under the team and resumes the team's auto reload", async () => {
       const { service, paymentMethodRepository, autoReloadPauseService } = setup();
       const payer = createTeamPayer();
       const local = { ...generateDatabasePaymentMethod({ paymentMethodId: "pm_1" }), isDefault: true };
@@ -349,7 +349,7 @@ describe(PaymentMethodService.name, () => {
         fingerprint: "fp_1",
         paymentMethodId: "pm_1"
       });
-      expect(autoReloadPauseService.resume).not.toHaveBeenCalled();
+      expect(autoReloadPauseService.resume).toHaveBeenCalledWith({ organizationId: payer.team!.id });
     });
   });
 

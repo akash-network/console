@@ -5,18 +5,22 @@ import { mock } from "vitest-mock-extended";
 
 import type { AuthService } from "@src/auth/services/auth.service";
 import type { UserWalletRepository, WalletSettingRepository } from "@src/billing/repositories";
+import type { PayerService } from "@src/billing/services/payer/payer.service";
 import type { PaymentMethod, PaymentMethodService } from "@src/billing/services/payment-method/payment-method.service";
 import type { WalletReloadJobService } from "@src/billing/services/wallet-reload-job/wallet-reload-job.service";
 import type { TxService } from "@src/core";
 import type { CreateLogger } from "@src/core/providers/logging.provider";
 import type { AnalyticsService } from "@src/core/services/analytics/analytics.service";
-import type { UserRepository } from "@src/user/repositories";
 import { WalletSettingService } from "./wallet-settings.service";
 
+import { createOrganization } from "@test/seeders/organization.seeder";
 import { generatePaymentMethod } from "@test/seeders/payment-method.seeder";
 import { createUser } from "@test/seeders/user.seeder";
 import { createUserWallet } from "@test/seeders/user-wallet.seeder";
 import { generateWalletSetting } from "@test/seeders/wallet-setting.seeder";
+
+const PERSONAL_ORGANIZATION_ID = "org-personal";
+const PERSONAL_ORGANIZATION_PROPERTIES = { organization_id: PERSONAL_ORGANIZATION_ID, organization_type: "personal" };
 
 describe(WalletSettingService.name, () => {
   describe("upsertWalletSetting", () => {
@@ -41,7 +45,7 @@ describe(WalletSettingService.name, () => {
         }),
         { withCleanup: true }
       );
-      expect(walletReloadJobService.cancelCreditsLowCheckByUserId).toHaveBeenCalledWith(user.id);
+      expect(walletReloadJobService.cancelCreditsLowCheck).toHaveBeenCalledWith({ userId: user.id });
       expect(userWalletRepository.updateById).toHaveBeenCalledWith(enabledSetting.walletId, {
         creditsLowNotifiedAt: null,
         creditsSufficientSince: null,
@@ -83,7 +87,7 @@ describe(WalletSettingService.name, () => {
 
       await service.upsertWalletSetting(user.id, { autoReloadEnabled: true });
 
-      expect(walletReloadJobService.cancelCreditsLowCheckByUserId).toHaveBeenCalledWith(user.id);
+      expect(walletReloadJobService.cancelCreditsLowCheck).toHaveBeenCalledWith({ userId: user.id });
       expect(userWalletRepository.updateById).toHaveBeenCalledWith(pausedSetting.walletId, {
         creditsLowNotifiedAt: null,
         creditsSufficientSince: null,
@@ -113,7 +117,7 @@ describe(WalletSettingService.name, () => {
 
       await service.upsertWalletSetting(user.id, { autoReloadEnabled: false });
 
-      expect(walletReloadJobService.scheduleCreditsLowCheck).toHaveBeenCalledWith(user.id, { withCleanup: true });
+      expect(walletReloadJobService.scheduleCreditsLowCheck).toHaveBeenCalledWith({ userId: user.id }, { withCleanup: true });
       expect(walletReloadJobService.scheduleForWalletSetting).not.toHaveBeenCalled();
     });
 
@@ -130,7 +134,12 @@ describe(WalletSettingService.name, () => {
 
       await service.upsertWalletSetting(user.id, { autoReloadEnabled: true, autoReloadMode: "threshold", autoReloadThreshold: 10, autoReloadAmount: 25 });
 
-      expect(analyticsService.track).toHaveBeenCalledWith(user.id, "auto_recharge_enabled", { mode: "threshold", threshold_usd: 10, amount_usd: 25 });
+      expect(analyticsService.track).toHaveBeenCalledWith(user.id, "auto_recharge_enabled", {
+        mode: "threshold",
+        threshold_usd: 10,
+        amount_usd: 25,
+        ...PERSONAL_ORGANIZATION_PROPERTIES
+      });
     });
 
     it("reports Auto Recharge turned on when the first saved setting enables it", async () => {
@@ -140,7 +149,7 @@ describe(WalletSettingService.name, () => {
 
       await service.upsertWalletSetting(user.id, { autoReloadEnabled: true, autoReloadMode: "prediction" });
 
-      expect(analyticsService.track).toHaveBeenCalledWith(user.id, "auto_recharge_enabled", { mode: "prediction" });
+      expect(analyticsService.track).toHaveBeenCalledWith(user.id, "auto_recharge_enabled", { mode: "prediction", ...PERSONAL_ORGANIZATION_PROPERTIES });
     });
 
     it("reports Auto Recharge turned on in prediction mode without the threshold rule it ignores", async () => {
@@ -150,7 +159,7 @@ describe(WalletSettingService.name, () => {
 
       await service.upsertWalletSetting(user.id, { autoReloadEnabled: true, autoReloadMode: "prediction" });
 
-      expect(analyticsService.track).toHaveBeenCalledWith(user.id, "auto_recharge_enabled", { mode: "prediction" });
+      expect(analyticsService.track).toHaveBeenCalledWith(user.id, "auto_recharge_enabled", { mode: "prediction", ...PERSONAL_ORGANIZATION_PROPERTIES });
     });
 
     it("reports Auto Recharge turned off by the user", async () => {
@@ -160,7 +169,7 @@ describe(WalletSettingService.name, () => {
 
       await service.upsertWalletSetting(user.id, { autoReloadEnabled: false });
 
-      expect(analyticsService.track).toHaveBeenCalledWith(user.id, "auto_recharge_disabled", { disabled_by: "user" });
+      expect(analyticsService.track).toHaveBeenCalledWith(user.id, "auto_recharge_disabled", { disabled_by: "user", ...PERSONAL_ORGANIZATION_PROPERTIES });
     });
 
     it("reports nothing when saved settings keep Auto Recharge on", async () => {
@@ -208,14 +217,14 @@ describe(WalletSettingService.name, () => {
       await expect(service.upsertWalletSetting(user.id, { autoReloadEnabled: false })).rejects.toThrow("Failed to create a wallet setting");
     });
 
-    it("locks the setting row the current user can read", async () => {
-      const { user, walletSetting, walletSettingRepository, service } = setup();
+    it("locks the setting row of the wallet the current user acts through", async () => {
+      const { user, userWallet, walletSetting, walletSettingRepository, service } = setup();
       walletSettingRepository.updateById.mockResolvedValue(walletSetting as never);
 
       await service.upsertWalletSetting(user.id, { autoReloadAmount: 100 });
 
       expect(walletSettingRepository.accessibleBy).toHaveBeenCalledWith(expect.anything(), "read");
-      expect(walletSettingRepository.findOneByAndLock).toHaveBeenCalledWith({ userId: user.id });
+      expect(walletSettingRepository.findOneByAndLock).toHaveBeenCalledWith({ walletId: userWallet.id });
     });
 
     it("checks the default payment method before opening the transaction", async () => {
@@ -226,6 +235,18 @@ describe(WalletSettingService.name, () => {
       await service.upsertWalletSetting(user.id, { autoReloadEnabled: true });
 
       expect(paymentMethodService.getDefaultPaymentMethod.mock.invocationCallOrder[0]).toBeLessThan(txService.transaction.mock.invocationCallOrder[0]);
+    });
+
+    it("tells a team without a Stripe customer that the organization's payments are not set up", async () => {
+      const { user, payerService, txService, service } = setup();
+      const team = createOrganization({ type: "team", stripeCustomerId: null });
+      payerService.getCurrentPayer.mockResolvedValue({ user, organizationId: team.id, team, stripeCustomerId: null });
+
+      await expect(service.upsertWalletSetting(user.id, { autoReloadEnabled: true })).rejects.toMatchObject({
+        status: 404,
+        message: "Organization payments are not set up."
+      });
+      expect(txService.transaction).not.toHaveBeenCalled();
     });
 
     it("opens no transaction when enabling without a default payment method", async () => {
@@ -241,19 +262,21 @@ describe(WalletSettingService.name, () => {
   describe("disableAutoReload", () => {
     it("reports Auto Recharge turned off by Console when the default payment method is removed", async () => {
       const { user, walletSetting, walletSettingRepository, analyticsService, service } = setup();
-      walletSettingRepository.findByUserId.mockResolvedValue({ ...walletSetting, autoReloadEnabled: true });
+      walletSettingRepository.findOneBy.mockResolvedValue({ ...walletSetting, autoReloadEnabled: true });
 
       await service.disableAutoReload(user.id);
 
       expect(analyticsService.track).toHaveBeenCalledWith(user.id, "auto_recharge_disabled", {
         disabled_by: "console",
-        reason: "default_payment_method_removed"
+        reason: "default_payment_method_removed",
+        organization_id: PERSONAL_ORGANIZATION_ID,
+        organization_type: "personal"
       });
     });
 
     it("reports nothing when Auto Recharge was already off", async () => {
       const { user, walletSetting, walletSettingRepository, analyticsService, service } = setup();
-      walletSettingRepository.findByUserId.mockResolvedValue({ ...walletSetting, autoReloadEnabled: false });
+      walletSettingRepository.findOneBy.mockResolvedValue({ ...walletSetting, autoReloadEnabled: false });
 
       await service.disableAutoReload(user.id);
 
@@ -275,8 +298,12 @@ describe(WalletSettingService.name, () => {
     walletSettingRepository.accessibleBy.mockReturnValue(walletSettingRepository);
     const userWalletRepository = mock<UserWalletRepository>();
     userWalletRepository.findOneUsedBy.mockResolvedValue(userWallet);
-    const userRepository = mock<UserRepository>();
-    userRepository.findById.mockResolvedValue(userWithStripe);
+    const payerService = mock<PayerService>();
+    payerService.getCurrentPayer.mockResolvedValue({
+      user: userWithStripe,
+      organizationId: PERSONAL_ORGANIZATION_ID,
+      stripeCustomerId: userWithStripe.stripeCustomerId
+    });
     const paymentMethod = { ...generatePaymentMethod(), validated: true };
     const paymentMethodService = mock<PaymentMethodService>({
       getDefaultPaymentMethod: vi.fn().mockResolvedValue(paymentMethod as PaymentMethod)
@@ -293,6 +320,7 @@ describe(WalletSettingService.name, () => {
     const walletReloadJobService = mock<WalletReloadJobService>({
       scheduleForWalletSetting: vi.fn().mockResolvedValue(jobId)
     });
+    walletReloadJobService.targetOf.mockImplementation(async setting => ({ userId: setting.userId }));
     const analyticsService = mock<AnalyticsService>();
     const txService = mock<TxService>();
     txService.transaction.mockImplementation(async cb => await cb());
@@ -301,7 +329,7 @@ describe(WalletSettingService.name, () => {
     const service = new WalletSettingService(
       walletSettingRepository,
       userWalletRepository,
-      userRepository,
+      payerService,
       paymentMethodService,
       authService,
       walletReloadJobService,
@@ -320,6 +348,7 @@ describe(WalletSettingService.name, () => {
       walletReloadJobService,
       analyticsService,
       txService,
+      payerService,
       jobId,
       service,
       createLogger

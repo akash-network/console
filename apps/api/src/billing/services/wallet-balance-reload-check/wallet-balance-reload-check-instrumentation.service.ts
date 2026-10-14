@@ -2,6 +2,7 @@ import { createOtelLogger } from "@akashnetwork/logging/otel";
 import type { Counter, Histogram, Meter } from "@opentelemetry/api";
 import { singleton } from "tsyringe";
 
+import type { WalletBillingTarget } from "@src/billing/lib/wallet-billing-target/wallet-billing-target";
 import type { WalletSettingOutput } from "@src/billing/repositories";
 import { MetricsService } from "@src/core";
 
@@ -76,7 +77,7 @@ export class WalletBalanceReloadCheckInstrumentationService {
     });
   }
 
-  recordJobExecution(durationMs: number, success: boolean, userId: string): void {
+  recordJobExecution(durationMs: number, success: boolean, target: WalletBillingTarget): void {
     this.jobExecutions.add(1, {
       status: success ? "success" : "failure"
     });
@@ -87,7 +88,7 @@ export class WalletBalanceReloadCheckInstrumentationService {
       event: "WALLET_BALANCE_RELOAD_CHECK_JOB_COMPLETED",
       durationMs,
       status: success ? "success" : "failure",
-      userId
+      ...target
     });
   }
 
@@ -159,13 +160,13 @@ export class WalletBalanceReloadCheckInstrumentationService {
     });
   }
 
-  recordValidationError(errorType: string, error: { event: string; message: string }, userId: string): void {
+  recordValidationError(errorType: string, error: { event: string; message: string }, target: WalletBillingTarget): void {
     this.validationErrors.add(1, {
       error_type: errorType
     });
     this.logger.error({
       ...error,
-      userId: userId
+      ...target
     });
   }
 

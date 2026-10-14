@@ -6,6 +6,12 @@ import { WalletCreditsExhaustedCheck } from "@src/billing/events/wallet-credits-
 import { WalletCreditsLowCheck } from "@src/billing/events/wallet-credits-low-check";
 import { isAutoReloadActive } from "@src/billing/lib/auto-reload/auto-reload";
 import { calculateChargeCooldownMinutes } from "@src/billing/lib/auto-reload/charge-cooldown";
+import {
+  pickWalletBillingTarget,
+  singletonKeyOf,
+  type WalletBillingTarget,
+  walletBillingTargetOf
+} from "@src/billing/lib/wallet-billing-target/wallet-billing-target";
 import { UserWalletRepository, WalletSettingOutput, WalletSettingRepository } from "@src/billing/repositories";
 import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import { EnqueueOptions, JobQueueService } from "@src/core";
@@ -74,29 +80,38 @@ export class WalletReloadJobService {
       return;
     }
 
-    const userId = await this.#resolveUserId(input, walletSetting);
-    if (!userId) {
+    const wallet = await this.userWalletRepository.findOneBy({ id: input.walletId });
+    if (!wallet) {
       return;
     }
 
-    await this.scheduleCreditsLowCheck(userId, { withCleanup: true });
+    await this.scheduleCreditsLowCheck(walletBillingTargetOf(wallet), { withCleanup: true });
+  }
+
+  /** A setting saved for a team's wallet keeps the member who saved it, so whose wallet it is comes from the wallet. */
+  async targetOf(walletSetting: Pick<WalletSettingOutput, "walletId" | "userId">): Promise<WalletBillingTarget> {
+    const wallet = await this.userWalletRepository.findOneBy({ id: walletSetting.walletId });
+
+    return wallet && !wallet.userId ? { walletId: wallet.id } : { userId: walletSetting.userId };
   }
 
   async scheduleForWalletSetting(
-    walletSetting: Pick<WalletSettingOutput, "id" | "userId">,
+    walletSetting: Pick<WalletSettingOutput, "id" | "walletId" | "userId">,
     options?: Pick<EnqueueOptions, "startAfter"> & { withCleanup?: boolean; triggeredByDeployment?: boolean }
   ): Promise<string> {
+    const target = await this.targetOf(walletSetting);
+
     if (options?.withCleanup) {
-      await this.cancelCreatedByUserId(walletSetting.userId);
+      await this.cancelReloadCheck(target);
     }
 
     const createdJobId = await this.jobQueueService.enqueue(
       new WalletBalanceReloadCheck({
-        userId: walletSetting.userId,
+        ...target,
         ...(options?.triggeredByDeployment && { triggeredByDeployment: true })
       }),
       {
-        singletonKey: `${WalletBalanceReloadCheck.name}.${walletSetting.userId}`,
+        singletonKey: singletonKeyOf(WalletBalanceReloadCheck.name, target),
         ...(options?.startAfter && { startAfter: options.startAfter })
       }
     );
@@ -104,7 +119,7 @@ export class WalletReloadJobService {
     if (!createdJobId) {
       this.logger.error({
         event: "JOB_CREATION_FAILED",
-        userId: walletSetting.userId
+        ...target
       });
       throw new Error("Failed to schedule wallet balance reload check");
     }
@@ -112,25 +127,25 @@ export class WalletReloadJobService {
     return createdJobId;
   }
 
-  async cancelCreatedByUserId(userId: string): Promise<void> {
-    await this.jobQueueService.cancelCreatedBy({ name: WalletBalanceReloadCheck.name, singletonKey: `${WalletBalanceReloadCheck.name}.${userId}` });
+  async cancelReloadCheck(target: WalletBillingTarget): Promise<void> {
+    await this.jobQueueService.cancelCreatedBy({ name: WalletBalanceReloadCheck.name, singletonKey: singletonKeyOf(WalletBalanceReloadCheck.name, target) });
   }
 
   /** Best-effort: a failed schedule is logged rather than thrown, because the hourly funding sweep re-evaluates every eligible account anyway. */
-  async scheduleCreditsLowCheck(userId: string, options?: { withCleanup?: boolean }): Promise<string | null> {
+  async scheduleCreditsLowCheck(target: WalletBillingTarget, options?: { withCleanup?: boolean }): Promise<string | null> {
     try {
       if (options?.withCleanup) {
-        await this.cancelCreditsLowCheckByUserId(userId);
+        await this.cancelCreditsLowCheck(target);
       }
 
-      const createdJobId = await this.jobQueueService.enqueue(new WalletCreditsLowCheck({ userId }), {
-        singletonKey: `${WalletCreditsLowCheck.name}.${userId}`
+      const createdJobId = await this.jobQueueService.enqueue(new WalletCreditsLowCheck(target), {
+        singletonKey: singletonKeyOf(WalletCreditsLowCheck.name, target)
       });
 
       if (!createdJobId) {
         this.logger.info({
           event: "CREDITS_LOW_CHECK_ALREADY_QUEUED",
-          userId
+          ...target
         });
       }
 
@@ -138,7 +153,7 @@ export class WalletReloadJobService {
     } catch (error) {
       this.logger.error({
         event: "CREDITS_LOW_CHECK_SCHEDULE_FAILED",
-        userId,
+        ...target,
         error
       });
       return null;
@@ -149,33 +164,20 @@ export class WalletReloadJobService {
   async scheduleCreditsExhaustedCheck(data: WalletCreditsExhaustedCheck["data"]): Promise<void> {
     try {
       await this.jobQueueService.enqueue(new WalletCreditsExhaustedCheck(data), {
-        singletonKey: `${WalletCreditsExhaustedCheck.name}.${data.userId}`
+        singletonKey: singletonKeyOf(WalletCreditsExhaustedCheck.name, data)
       });
     } catch (error) {
       this.logger.error({
         event: "CREDITS_EXHAUSTED_CHECK_SCHEDULE_FAILED",
-        userId: data.userId,
+        ...pickWalletBillingTarget(data),
         error
       });
     }
   }
 
-  async cancelCreditsLowCheckByUserId(userId: string): Promise<void> {
-    await this.jobQueueService.cancelCreatedBy({ name: WalletCreditsLowCheck.name, singletonKey: `${WalletCreditsLowCheck.name}.${userId}` });
-  }
-
-  async #resolveUserId(input: WalletReloadImmediateInput, walletSetting?: WalletSettingOutput): Promise<string | undefined> {
-    if (walletSetting?.userId) {
-      return walletSetting.userId;
-    }
-
-    if ("userId" in input) {
-      return input.userId;
-    }
-
-    const wallet = await this.userWalletRepository.findOneBy({ id: input.walletId });
-    return wallet?.userId ?? undefined;
+  async cancelCreditsLowCheck(target: WalletBillingTarget): Promise<void> {
+    await this.jobQueueService.cancelCreatedBy({ name: WalletCreditsLowCheck.name, singletonKey: singletonKeyOf(WalletCreditsLowCheck.name, target) });
   }
 }
 
-export type WalletReloadImmediateInput = { userId: string } | { walletId: number };
+export type WalletReloadImmediateInput = WalletBillingTarget;

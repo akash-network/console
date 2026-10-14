@@ -318,7 +318,7 @@ describe(StripeController.name, () => {
 
       await controller.markAsDefault({ data: { id: "pm_1" } });
 
-      expect(autoReloadPauseService.resume).toHaveBeenCalledWith(user.id);
+      expect(autoReloadPauseService.resume).toHaveBeenCalledWith({ userId: user.id });
     });
 
     it("keeps the new default card when resuming auto top-up fails", async () => {
@@ -402,7 +402,7 @@ describe(StripeController.name, () => {
       expect(couponRedemptionService.redeemCoupon).toHaveBeenCalledWith(team, "coupon_1");
     });
 
-    it("removes the team's default card without touching the member's own auto reload", async () => {
+    it("turns off the team's auto reload when its default card is removed", async () => {
       const team = createTeamPayer();
       const { controller, stripe, paymentMethodService, walletSettingService } = setup({ payer: team });
       stripe.retrievePaymentMethod.mockResolvedValue(mock<Stripe.Response<Stripe.PaymentMethod>>({ customer: team.stripeCustomerId }));
@@ -412,17 +412,17 @@ describe(StripeController.name, () => {
 
       expect(paymentMethodService.isDefaultPaymentMethod).toHaveBeenCalledWith("pm_1", { organizationId: team.team!.id });
       expect(stripe.detachPaymentMethod).toHaveBeenCalledWith("pm_1");
-      expect(walletSettingService.disableAutoReload).not.toHaveBeenCalled();
+      expect(walletSettingService.disableAutoReload).toHaveBeenCalledWith(team.user.id);
     });
 
-    it("marks the team's default card without resuming the member's own auto reload", async () => {
+    it("marks the team's default card and resumes the team's auto reload", async () => {
       const team = createTeamPayer();
       const { controller, paymentMethodService, autoReloadPauseService, authService } = setup({ payer: team });
 
       await controller.markAsDefault({ data: { id: "pm_1" } });
 
       expect(paymentMethodService.markPaymentMethodAsDefault).toHaveBeenCalledWith("pm_1", team, authService.ability);
-      expect(autoReloadPauseService.resume).not.toHaveBeenCalled();
+      expect(autoReloadPauseService.resume).toHaveBeenCalledWith({ organizationId: team.team!.id });
     });
 
     it("names the team's customer when updating its business name", async () => {

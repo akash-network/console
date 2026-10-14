@@ -25,12 +25,13 @@ const route = createRoute({
 export default new OpenAPIHono().openapi(route, async c => {
   const financialStatsService = container.resolve(FinancialStatsService);
 
-  const [masterBalanceUsdc, providerRevenues, communityPoolUsdc, akashPubProviderBalances, payingUserCount] = await Promise.all([
+  const [masterBalanceUsdc, providerRevenues, communityPoolUsdc, akashPubProviderBalances, payingUserCount, payingTeamCount] = await Promise.all([
     financialStatsService.getMasterWalletBalanceUsdc(),
     financialStatsService.getProviderRevenues(),
     financialStatsService.getCommunityPoolUsdc(),
     financialStatsService.getAkashPubProviderBalances(),
-    financialStatsService.getPayingUserCount()
+    financialStatsService.getPayingUserCount(),
+    financialStatsService.getPayingTeamCount()
   ]);
 
   const readyToRecycle = akashPubProviderBalances.map(x => x.balanceUsdc).reduce((a, b) => a + b, 0);
@@ -41,6 +42,7 @@ export default new OpenAPIHono().openapi(route, async c => {
     communityPoolUsdc: communityPoolUsdc / 1_000_000,
     readyToRecycle,
     payingUserCount,
+    payingTeamCount,
     akashPubProviderBalances,
     providerRevenues: providerRevenues
   });

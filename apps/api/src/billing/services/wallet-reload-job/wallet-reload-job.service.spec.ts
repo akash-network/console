@@ -325,10 +325,11 @@ describe(WalletReloadJobService.name, () => {
     });
 
     it("enqueues a credits-low check when autoReloadEnabled is false", async () => {
-      const { service, walletSettingRepository, jobQueueService } = setup();
+      const { service, walletSettingRepository, userWalletRepository, jobQueueService } = setup();
       const walletId = faker.number.int({ min: 1, max: 1000000 });
       const walletSetting = generateWalletSetting({ walletId, autoReloadEnabled: false });
       walletSettingRepository.findOneBy.mockResolvedValue(walletSetting);
+      userWalletRepository.findOneBy.mockResolvedValue(createUserWallet({ id: walletId, userId: walletSetting.userId }));
       jobQueueService.enqueue.mockResolvedValue(faker.string.uuid());
 
       await service.scheduleCreditsLowCheckIfAutoReloadOff({ walletId });
@@ -338,10 +339,11 @@ describe(WalletReloadJobService.name, () => {
     });
 
     it("enqueues a credits-low check when the wallet is paused after repeated declines", async () => {
-      const { service, walletSettingRepository, jobQueueService } = setup();
+      const { service, walletSettingRepository, userWalletRepository, jobQueueService } = setup();
       const walletId = faker.number.int({ min: 1, max: 1000000 });
       const walletSetting = generateWalletSetting({ walletId, autoReloadEnabled: true, autoReloadPausedAt: new Date() });
       walletSettingRepository.findOneBy.mockResolvedValue(walletSetting);
+      userWalletRepository.findOneBy.mockResolvedValue(createUserWallet({ id: walletId, userId: walletSetting.userId }));
       jobQueueService.enqueue.mockResolvedValue(faker.string.uuid());
 
       await service.scheduleCreditsLowCheckIfAutoReloadOff({ walletId });
@@ -381,7 +383,7 @@ describe(WalletReloadJobService.name, () => {
       const userId = faker.string.uuid();
       jobQueueService.enqueue.mockResolvedValue(null);
 
-      await expect(service.scheduleCreditsLowCheck(userId)).resolves.toBeNull();
+      await expect(service.scheduleCreditsLowCheck({ userId })).resolves.toBeNull();
 
       expect(logger.error).not.toHaveBeenCalled();
       expect(logger.info).toHaveBeenCalledWith({
@@ -396,7 +398,7 @@ describe(WalletReloadJobService.name, () => {
       const error = new Error("Queue cache is not initialized");
       jobQueueService.enqueue.mockRejectedValue(error);
 
-      await expect(service.scheduleCreditsLowCheck(userId)).resolves.toBeNull();
+      await expect(service.scheduleCreditsLowCheck({ userId })).resolves.toBeNull();
 
       expect(logger.error).toHaveBeenCalledWith({
         event: "CREDITS_LOW_CHECK_SCHEDULE_FAILED",
@@ -411,7 +413,7 @@ describe(WalletReloadJobService.name, () => {
       const error = new Error("Database not opened. Call open() before executing SQL.");
       jobQueueService.cancelCreatedBy.mockRejectedValue(error);
 
-      await expect(service.scheduleCreditsLowCheck(userId, { withCleanup: true })).resolves.toBeNull();
+      await expect(service.scheduleCreditsLowCheck({ userId }, { withCleanup: true })).resolves.toBeNull();
 
       expect(jobQueueService.enqueue).not.toHaveBeenCalled();
       expect(logger.error).toHaveBeenCalledWith({
@@ -453,17 +455,59 @@ describe(WalletReloadJobService.name, () => {
     });
   });
 
-  describe("cancelCreatedByUserId", () => {
+  describe("cancelReloadCheck", () => {
     it("cancels created jobs for user with correct parameters", async () => {
       const { service, jobQueueService } = setup();
       const userId = faker.string.uuid();
 
-      await service.cancelCreatedByUserId(userId);
+      await service.cancelReloadCheck({ userId });
 
       expect(jobQueueService.cancelCreatedBy).toHaveBeenCalledWith({
         name: WalletBalanceReloadCheck.name,
         singletonKey: `${WalletBalanceReloadCheck.name}.${userId}`
       });
+    });
+  });
+
+  describe("for a team's wallet", () => {
+    it("keys the reload check by the wallet, whoever saved the setting", async () => {
+      const { service, jobQueueService, userWalletRepository } = setup();
+      const walletSetting = generateWalletSetting({ autoReloadEnabled: true, walletId: 42 });
+      userWalletRepository.findOneBy.mockResolvedValue({ ...createUserWallet({ id: 42, organizationId: "org-1" }), userId: null });
+      jobQueueService.enqueue.mockResolvedValue(faker.string.uuid());
+
+      await service.scheduleForWalletSetting(walletSetting, { withCleanup: true });
+
+      expect(userWalletRepository.findOneBy).toHaveBeenCalledWith({ id: 42 });
+      expect(jobQueueService.cancelCreatedBy).toHaveBeenCalledWith({
+        name: WalletBalanceReloadCheck.name,
+        singletonKey: `${WalletBalanceReloadCheck.name}.wallet.42`
+      });
+      expect(jobQueueService.enqueue).toHaveBeenCalledWith(new WalletBalanceReloadCheck({ walletId: 42 }), {
+        singletonKey: `${WalletBalanceReloadCheck.name}.wallet.42`
+      });
+    });
+
+    it("checks the team wallet's credits when its auto reload is off", async () => {
+      const { service, jobQueueService, walletSettingRepository, userWalletRepository } = setup();
+      walletSettingRepository.findOneBy.mockResolvedValue(undefined);
+      userWalletRepository.findOneBy.mockResolvedValue({ ...createUserWallet({ id: 42, organizationId: "org-1" }), userId: null });
+      jobQueueService.enqueue.mockResolvedValue(faker.string.uuid());
+
+      await service.scheduleCreditsLowCheckIfAutoReloadOff({ walletId: 42 });
+
+      expect(jobQueueService.enqueue).toHaveBeenCalledWith(new WalletCreditsLowCheck({ walletId: 42 }), {
+        singletonKey: `${WalletCreditsLowCheck.name}.wallet.42`
+      });
+    });
+
+    it("keys the closure warning check by the wallet", async () => {
+      const { service, jobQueueService } = setup();
+      const data = { walletId: 42, firstClosingDseq: "1234567", unfundedDeploymentCount: 1, firstClosureAt: "2026-10-05T12:00:00.000Z" };
+
+      await service.scheduleCreditsExhaustedCheck(data);
+
+      expect(jobQueueService.enqueue).toHaveBeenCalledWith(new WalletCreditsExhaustedCheck(data), { singletonKey: "WalletCreditsExhaustedCheck.wallet.42" });
     });
   });
 

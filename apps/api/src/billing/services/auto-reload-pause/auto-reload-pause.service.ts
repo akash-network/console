@@ -1,9 +1,13 @@
 import { inject, singleton } from "tsyringe";
 
 import { calculateChargeCooldownMinutes } from "@src/billing/lib/auto-reload/charge-cooldown";
+import type { BillingOwner } from "@src/billing/lib/billing-owner/billing-owner";
 import { AUTHENTICATION_REQUIRED_DECLINE_CODE, type CardDecline } from "@src/billing/lib/card-decline/card-decline";
+import type { WalletBillingTarget } from "@src/billing/lib/wallet-billing-target/wallet-billing-target";
 import { type ChargeClaim, UserWalletRepository, type WalletSettingOutput, WalletSettingRepository } from "@src/billing/repositories";
 import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
+import { BillingContactsService } from "@src/billing/services/billing-contacts/billing-contacts.service";
+import type { Payer } from "@src/billing/services/payer/payer";
 import { WalletReloadJobService } from "@src/billing/services/wallet-reload-job/wallet-reload-job.service";
 import { type CreateLogger, LOGGER_FACTORY } from "@src/core/providers/logging.provider";
 import { type CreateNotificationInput, NotificationService } from "@src/notifications/services/notification/notification.service";
@@ -33,6 +37,7 @@ export class AutoReloadPauseService {
     private readonly walletReloadJobService: WalletReloadJobService,
     private readonly notificationService: NotificationService,
     private readonly billingConfig: BillingConfigService,
+    private readonly billingContactsService: BillingContactsService,
     @inject(LOGGER_FACTORY) createLogger: CreateLogger
   ) {
     this.logger = createLogger({ context: AutoReloadPauseService.name });
@@ -48,8 +53,9 @@ export class AutoReloadPauseService {
     );
   }
 
-  async recordDecline(input: { claim: ChargeClaim; user: UserOutput; decline: CardDecline }): Promise<void> {
-    const { claim, user, decline } = input;
+  async recordDecline(input: { claim: ChargeClaim; payer: Payer; target: WalletBillingTarget; decline: CardDecline }): Promise<void> {
+    const { claim, payer, target, decline } = input;
+    const { user } = payer;
     const { failureCount, pausedAt } = await this.walletSettingRepository.recordChargeDecline(claim, {
       maxConsecutiveDeclines: this.billingConfig.get("AUTO_RELOAD_MAX_CONSECUTIVE_DECLINES"),
       isTerminal: decline.isTerminal
@@ -59,7 +65,9 @@ export class AutoReloadPauseService {
       this.logger.info({ event: "AUTO_RELOAD_CHARGE_DECLINED", userId: user.id, failureCount, declineCode: decline.declineCode });
 
       if (failureCount === FIRST_DECLINE) {
-        await this.#notifyUser(autoTopUpChargeFailedNotification(user, { chargeAttemptedAt: claim.claimedAt, billingUrl: this.#billingUrl() }));
+        await this.#notifyBillingContacts(payer, contact =>
+          autoTopUpChargeFailedNotification(contact, { chargeAttemptedAt: claim.claimedAt, billingUrl: this.#billingUrl() })
+        );
       }
 
       return;
@@ -67,9 +75,9 @@ export class AutoReloadPauseService {
 
     this.logger.warn({ event: "AUTO_RELOAD_PAUSED", userId: user.id, failureCount, declineCode: decline.declineCode });
 
-    await this.#notifyUser(this.#pausedNotification(user, pausedAt, decline));
-    await this.#cancelPendingReloadCheck(user.id);
-    await this.walletReloadJobService.scheduleCreditsLowCheck(user.id, { withCleanup: true });
+    await this.#notifyBillingContacts(payer, contact => this.#pausedNotification(contact, pausedAt, decline));
+    await this.#cancelPendingReloadCheck(target);
+    await this.walletReloadJobService.scheduleCreditsLowCheck(target, { withCleanup: true });
   }
 
   #pausedNotification(user: UserOutput, pausedAt: Date, decline: CardDecline): CreateNotificationInput {
@@ -78,6 +86,12 @@ export class AutoReloadPauseService {
     }
 
     return autoTopUpPausedNotification(user, { pausedAt, billingUrl: this.#billingUrl() });
+  }
+
+  async #notifyBillingContacts(payer: Payer, notificationFor: (contact: UserOutput) => CreateNotificationInput): Promise<void> {
+    for (const contact of await this.billingContactsService.findForPayer(payer)) {
+      await this.#notifyUser(notificationFor(contact));
+    }
   }
 
   /**
@@ -96,23 +110,23 @@ export class AutoReloadPauseService {
    * A check left queued skips on the pause it finds, so a failed cancel must not stop the
    * credits-low check that follows it from being scheduled.
    */
-  async #cancelPendingReloadCheck(userId: UserOutput["id"]): Promise<void> {
+  async #cancelPendingReloadCheck(target: WalletBillingTarget): Promise<void> {
     try {
-      await this.walletReloadJobService.cancelCreatedByUserId(userId);
+      await this.walletReloadJobService.cancelReloadCheck(target);
     } catch (error) {
-      this.logger.error({ event: "AUTO_RELOAD_PAUSE_CANCEL_FAILED", userId, error });
+      this.logger.error({ event: "AUTO_RELOAD_PAUSE_CANCEL_FAILED", ...target, error });
     }
   }
 
-  async resume(userId: UserOutput["id"]): Promise<void> {
-    const setting = await this.walletSettingRepository.findByUserId(userId);
+  async resume(owner: BillingOwner): Promise<void> {
+    const setting = await this.#findSettingOf(owner);
 
     if (!setting?.autoReloadPausedAt) {
       return;
     }
 
     await this.walletSettingRepository.clearChargeState(setting.id);
-    this.logger.info({ event: "AUTO_RELOAD_RESUMED", userId, pausedAt: setting.autoReloadPausedAt });
+    this.logger.info({ event: "AUTO_RELOAD_RESUMED", ...owner, pausedAt: setting.autoReloadPausedAt });
 
     if (setting.autoReloadEnabled) {
       await this.#reactivate(setting);
@@ -123,9 +137,19 @@ export class AutoReloadPauseService {
    * Mirrors the fresh-enable transition: while paused the wallet was eligible for the credits-low
    * email, and leaving that latch stamped would suppress the email the next time it pauses.
    */
+  async #findSettingOf(owner: BillingOwner): Promise<WalletSettingOutput | undefined> {
+    if ("userId" in owner) {
+      return await this.walletSettingRepository.findByUserId(owner.userId);
+    }
+
+    const wallet = await this.userWalletRepository.findOneByOrganizationId(owner.organizationId);
+
+    return wallet && (await this.walletSettingRepository.findOneBy({ walletId: wallet.id }));
+  }
+
   async #reactivate(setting: WalletSettingOutput): Promise<void> {
     await this.walletReloadJobService.scheduleForWalletSetting(setting, { withCleanup: true });
-    await this.walletReloadJobService.cancelCreditsLowCheckByUserId(setting.userId);
+    await this.walletReloadJobService.cancelCreditsLowCheck(await this.walletReloadJobService.targetOf(setting));
     await this.userWalletRepository.updateById(setting.walletId, { creditsLowNotifiedAt: null, creditsSufficientSince: null, creditsLowSince: null });
   }
 

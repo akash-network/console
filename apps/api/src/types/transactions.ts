@@ -32,4 +32,5 @@ export type TransactionCsvRow = {
   description: string;
   invoiceId: string;
   receiptUrl: string;
+  initiatedBy: string;
 };

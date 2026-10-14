@@ -25,6 +25,10 @@ export class FinancialStatsService {
     return this.userWalletRepository.payingUserCount();
   }
 
+  async getPayingTeamCount() {
+    return this.userWalletRepository.payingTeamCount();
+  }
+
   async getMasterWalletBalanceUsdc() {
     return this.getWalletBalances(await this.txManagerService.getFundingWalletAddress(), USDC_IBC_DENOMS.mainnetId);
   }

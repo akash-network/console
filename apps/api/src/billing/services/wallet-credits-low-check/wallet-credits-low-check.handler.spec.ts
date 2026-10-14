@@ -5,12 +5,14 @@ import type { WalletCreditsLowCheck } from "@src/billing/events/wallet-credits-l
 import type { UserWalletRepository, WalletSettingRepository } from "@src/billing/repositories";
 import type { BalancesService } from "@src/billing/services/balances/balances.service";
 import type { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
+import { BillingContactsService } from "@src/billing/services/billing-contacts/billing-contacts.service";
 import { CreditsWarningRecipientService } from "@src/billing/services/credits-warning-recipient/credits-warning-recipient.service";
 import type { JobPayload } from "@src/core";
 import type { CreateLogger } from "@src/core/providers/logging.provider";
 import type { DrainingDeploymentService } from "@src/deployment/services/draining-deployment/draining-deployment.service";
 import type { NotificationService } from "@src/notifications/services/notification/notification.service";
 import { creditsRunningLowNotification } from "@src/notifications/services/notification-templates/credits-running-low-notification";
+import type { OrganizationMemberRepository } from "@src/organization/repositories/organization-member/organization-member.repository";
 import type { UserRepository } from "@src/user/repositories";
 import { WalletCreditsLowCheckHandler } from "./wallet-credits-low-check.handler";
 
@@ -412,6 +414,38 @@ describe(WalletCreditsLowCheckHandler.name, () => {
     expect(handler.requiresPermission()).toEqual([]);
   });
 
+  describe("for a team's wallet", () => {
+    it("emails every owner and billing member, logging a failed send and still stamping the wallet", async () => {
+      const { handler, userWalletRepository, organizationMemberRepository, notificationService, logger, wallet } = setup({ isLowConfirmed: true });
+      const teamWallet = { ...wallet, userId: null, organizationId: "org-team", creditsLowSince: new Date() };
+      const contacts = [createUser({ email: "owner@example.com" }), createUser({ email: "billing@example.com" })];
+      const error = new Error("notifications unavailable");
+      userWalletRepository.findById.mockResolvedValue(teamWallet);
+      organizationMemberRepository.findBillingContacts.mockResolvedValue(contacts);
+      notificationService.createNotification.mockRejectedValueOnce(error).mockResolvedValueOnce(undefined);
+
+      await handler.handle({ walletId: teamWallet.id, version: 1 });
+
+      expect(notificationService.createNotification).toHaveBeenCalledTimes(2);
+      expect(logger.error).toHaveBeenCalledWith(
+        expect.objectContaining({ event: "CREDITS_LOW_EMAIL_FAILED", walletId: teamWallet.id, recipientUserId: contacts[0].id, error })
+      );
+      expect(userWalletRepository.updateById).toHaveBeenCalledWith(teamWallet.id, expect.objectContaining({ creditsLowNotifiedAt: expect.any(Date) }));
+    });
+
+    it("stamps nothing when no contact could be reached, so the next check emails them", async () => {
+      const { handler, userWalletRepository, organizationMemberRepository, notificationService, wallet } = setup({ isLowConfirmed: true });
+      const teamWallet = { ...wallet, userId: null, organizationId: "org-team", creditsLowSince: new Date() };
+      userWalletRepository.findById.mockResolvedValue(teamWallet);
+      organizationMemberRepository.findBillingContacts.mockResolvedValue([createUser({ email: "owner@example.com" })]);
+      notificationService.createNotification.mockRejectedValue(new Error("notifications unavailable"));
+
+      await expect(handler.handle({ walletId: teamWallet.id, version: 1 })).rejects.toThrow("notifications unavailable");
+
+      expect(userWalletRepository.updateById).not.toHaveBeenCalledWith(teamWallet.id, expect.objectContaining({ creditsLowNotifiedAt: expect.any(Date) }));
+    });
+  });
+
   function setup(input?: {
     autoReloadEnabled?: boolean;
     autoReloadPausedAt?: Date;
@@ -458,6 +492,7 @@ describe(WalletCreditsLowCheckHandler.name, () => {
     const walletSettingRepository = mock<WalletSettingRepository>();
     const userWalletRepository = mock<UserWalletRepository>();
     const userRepository = mock<UserRepository>();
+    const organizationMemberRepository = mock<OrganizationMemberRepository>();
     const balancesService = mock<BalancesService>();
     const drainingDeploymentService = mock<DrainingDeploymentService>();
     const notificationService = mock<NotificationService>({
@@ -472,7 +507,7 @@ describe(WalletCreditsLowCheckHandler.name, () => {
     const logger = mock<ReturnType<CreateLogger>>();
     const createLogger = vi.fn<CreateLogger>(() => logger);
 
-    walletSettingRepository.findByUserId.mockResolvedValue(input?.walletSettingNotFound ? undefined : walletSetting);
+    walletSettingRepository.findByTarget.mockResolvedValue(input?.walletSettingNotFound ? undefined : walletSetting);
 
     userWalletRepository.findOneByUserId.mockResolvedValue(wallet);
     userRepository.findById.mockResolvedValue(user);
@@ -487,7 +522,11 @@ describe(WalletCreditsLowCheckHandler.name, () => {
     userWalletRepository.isCreditsLowConfirmed.mockResolvedValue(input?.isLowConfirmed ?? true);
 
     const handler = new WalletCreditsLowCheckHandler(
-      new CreditsWarningRecipientService(walletSettingRepository, userWalletRepository, userRepository),
+      new CreditsWarningRecipientService(
+        walletSettingRepository,
+        userWalletRepository,
+        new BillingContactsService(userRepository, organizationMemberRepository)
+      ),
       userWalletRepository,
       balancesService,
       drainingDeploymentService,
@@ -501,6 +540,7 @@ describe(WalletCreditsLowCheckHandler.name, () => {
       walletSettingRepository,
       userWalletRepository,
       userRepository,
+      organizationMemberRepository,
       balancesService,
       drainingDeploymentService,
       notificationService,
