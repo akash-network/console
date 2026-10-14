@@ -13,6 +13,8 @@ import { DeploymentConfigService } from "@src/deployment/services/deployment-con
 import { NotificationService } from "@src/notifications/services/notification/notification.service";
 import { accountDeletionConfirmationNotification } from "@src/notifications/services/notification-templates/account-deletion-confirmation-notification";
 import { OrganizationRepository } from "@src/organization/repositories/organization/organization.repository";
+import { OrganizationMemberRepository } from "@src/organization/repositories/organization-member/organization-member.repository";
+import { LAST_OWNER_ERROR_CODE } from "@src/organization/services/organization-member/organization-member.service";
 import { AccountDeletionTokenRepository } from "@src/user/repositories/account-deletion-token/account-deletion-token.repository";
 import { type UserOutput, UserRepository } from "@src/user/repositories/user/user.repository";
 import { UserTemplateRepository } from "@src/user/repositories/user-template/user-template.repository";
@@ -21,12 +23,13 @@ import {
   AccountDeletionEligibilityService
 } from "@src/user/services/account-deletion-eligibility/account-deletion-eligibility.service";
 import { PURGE_DELETED_ACCOUNT_RETRY_OPTIONS, PurgeDeletedAccount } from "@src/user/services/purge-deleted-account/purge-deleted-account.handler";
+import { TeamRecordRetentionService } from "@src/user/services/team-record-retention/team-record-retention.service";
 import { WorkloadProbeEvidenceRepository } from "@src/workload-abuse/repositories/workload-probe-evidence/workload-probe-evidence.repository";
 
 export const DELETION_LINK_TTL_MINUTES = 15;
 export const DELETION_LINK_RESEND_COOLDOWN_SECONDS = 60;
 
-type BlockReason = "active_deployments" | "balance_without_forfeit";
+type BlockReason = "active_deployments" | "balance_without_forfeit" | "last_owner";
 
 function hashToken(token: string): string {
   return createHash("sha256").update(token).digest("hex");
@@ -44,6 +47,8 @@ export class AccountDeletionService {
     private readonly userTemplateRepository: UserTemplateRepository,
     private readonly workloadProbeEvidenceRepository: WorkloadProbeEvidenceRepository,
     private readonly organizationRepository: OrganizationRepository,
+    private readonly organizationMemberRepository: OrganizationMemberRepository,
+    private readonly teamRecordRetentionService: TeamRecordRetentionService,
     private readonly notificationService: NotificationService,
     private readonly jobQueueService: JobQueueService,
     private readonly txService: TxService,
@@ -64,6 +69,7 @@ export class AccountDeletionService {
 
     const eligibility = await this.eligibilityService.assess(user.id);
     this.assertNoActiveDeployments(user.id, eligibility);
+    await this.assertNoTeamLosesItsLastOwner(user.id);
 
     if (eligibility.forfeitableBalanceUsd > 0 && !input.forfeitAcknowledged) {
       this.reportBlocked(user.id, "balance_without_forfeit");
@@ -156,6 +162,18 @@ export class AccountDeletionService {
     });
   }
 
+  /** Inside the erasing transaction the owner locks it takes hold until the account is gone, so no co-owner can step down in between. */
+  private async assertNoTeamLosesItsLastOwner(userId: string): Promise<void> {
+    const organizations = await this.organizationMemberRepository.lockTeamsOwnedOnlyBy(userId);
+    if (organizations.length === 0) return;
+
+    this.reportBlocked(userId, "last_owner");
+    throw createError(409, "Transfer ownership of every team organization you are the last owner of before deleting your account.", {
+      errorCode: LAST_OWNER_ERROR_CODE,
+      data: { organizations }
+    });
+  }
+
   private reportBlocked(userId: string, reason: BlockReason): void {
     this.logger.info({ event: "ACCOUNT_DELETION_BLOCKED", userId, reason });
     this.analyticsService.track(userId, "account_deletion_blocked", { reason });
@@ -183,12 +201,15 @@ export class AccountDeletionService {
       const lockedUser = await this.userRepository.findOneByAndLock({ id: user.id });
       if (!lockedUser) return false;
 
+      await this.assertNoTeamLosesItsLastOwner(user.id);
+
       const userWallets = this.userWalletRepository.unscoped("account-deletion");
       const wallet = await userWallets.findOneByUserId(user.id);
       const personalOrganization = await this.organizationRepository.findPersonalByUserId(user.id);
 
       if (lockedUser.userId) await this.userTemplateRepository.deleteAllOwnedBy(lockedUser.userId);
       if (wallet) await this.workloadProbeEvidenceRepository.deleteByWalletId(wallet.id);
+      await this.teamRecordRetentionService.releaseFromTeams(user.id);
       await this.userRepository.deleteById(user.id);
       if (wallet) await userWallets.detachFromOrganization(wallet.id);
       if (personalOrganization) await this.organizationRepository.deleteById(personalOrganization.id);

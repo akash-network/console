@@ -10,7 +10,7 @@ import { extractFingerprint } from "@src/billing/lib/payment-method/extract-fing
 import { STRIPE_CLIENT } from "@src/billing/providers/stripe-client.provider";
 import { type PaymentMethodOutput, PaymentMethodRepository } from "@src/billing/repositories";
 import { AutoReloadPauseService } from "@src/billing/services/auto-reload-pause/auto-reload-pause.service";
-import { billingOwnerOf, type Payer, type PayingPayer } from "@src/billing/services/payer/payer";
+import { billingOwnerOf, type ChargedPayer, type Payer, type PayingPayer } from "@src/billing/services/payer/payer";
 import { billingOwnerOfCustomer, PayerService } from "@src/billing/services/payer/payer.service";
 import { type CreateLogger, LOGGER_FACTORY, WithTransaction } from "@src/core";
 
@@ -197,7 +197,7 @@ export class PaymentMethodService {
     return repairedIds.length > 0;
   }
 
-  async getDefaultPaymentMethod(payer: PayingPayer, ability: AnyAbility): Promise<PaymentMethod | undefined> {
+  async getDefaultPaymentMethod(payer: ChargedPayer & { stripeCustomerId: string }, ability: AnyAbility): Promise<PaymentMethod | undefined> {
     const local = await this.paymentMethodRepository.accessibleBy(ability, "read").findDefaultByOwner(billingOwnerOf(payer));
 
     if (!local) {
@@ -209,7 +209,7 @@ export class PaymentMethodService {
     if (!remote) {
       this.loggerService.warn({
         event: "DEFAULT_PAYMENT_METHOD_NOT_ATTACHED",
-        userId: payer.user.id,
+        userId: payer.user?.id,
         paymentMethodId: local.paymentMethodId
       });
       return;

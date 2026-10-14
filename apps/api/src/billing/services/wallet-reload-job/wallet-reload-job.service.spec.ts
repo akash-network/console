@@ -488,6 +488,19 @@ describe(WalletReloadJobService.name, () => {
       });
     });
 
+    it("keys the reload check by the wallet of a setting whose member has deleted their account", async () => {
+      const { service, jobQueueService, userWalletRepository } = setup();
+      const walletSetting = { ...generateWalletSetting({ autoReloadEnabled: true, walletId: 42 }), userId: null };
+      userWalletRepository.findOneBy.mockResolvedValue(undefined);
+      jobQueueService.enqueue.mockResolvedValue(faker.string.uuid());
+
+      await service.scheduleForWalletSetting(walletSetting);
+
+      expect(jobQueueService.enqueue).toHaveBeenCalledWith(new WalletBalanceReloadCheck({ walletId: 42 }), {
+        singletonKey: `${WalletBalanceReloadCheck.name}.wallet.42`
+      });
+    });
+
     it("checks the team wallet's credits when its auto reload is off", async () => {
       const { service, jobQueueService, walletSettingRepository, userWalletRepository } = setup();
       walletSettingRepository.findOneBy.mockResolvedValue(undefined);

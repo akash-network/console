@@ -23,9 +23,8 @@ export const StripeTransactions = pgTable(
       .primaryKey()
       .notNull()
       .default(sql`uuid_generate_v4()`),
-    userId: uuid("user_id")
-      .references(() => Users.id, { onDelete: "cascade" })
-      .notNull(),
+    /** Null for a team organization's row whose member has deleted their account. */
+    userId: uuid("user_id").references(() => Users.id, { onDelete: "cascade" }),
     /** The organization that paid; `user_id` stays the member who acted. */
     organizationId: uuid("organization_id").references(() => Organizations.id),
     type: stripeTransactionTypeEnum("type").notNull(),

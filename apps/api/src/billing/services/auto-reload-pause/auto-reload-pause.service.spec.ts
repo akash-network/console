@@ -4,13 +4,14 @@ import { mock } from "vitest-mock-extended";
 import type { UserWalletRepository, WalletSettingRepository } from "@src/billing/repositories";
 import type { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import type { BillingContactsService } from "@src/billing/services/billing-contacts/billing-contacts.service";
+import { isTeamPayer } from "@src/billing/services/payer/payer";
 import type { WalletReloadJobService } from "@src/billing/services/wallet-reload-job/wallet-reload-job.service";
 import type { NotificationService } from "@src/notifications/services/notification/notification.service";
 import type { UserOutput } from "@src/user/repositories";
 import { AutoReloadPauseService } from "./auto-reload-pause.service";
 
 import { mockConfigService } from "@test/mocks/config-service.mock";
-import { createTeamPayer } from "@test/seeders/payer.seeder";
+import { createMemberlessTeamPayer, createTeamPayer } from "@test/seeders/payer.seeder";
 import { createUser } from "@test/seeders/user.seeder";
 import { createUserWallet } from "@test/seeders/user-wallet.seeder";
 import { generateWalletSetting } from "@test/seeders/wallet-setting.seeder";
@@ -267,6 +268,19 @@ describe(AutoReloadPauseService.name, () => {
       expect(walletReloadJobService.scheduleCreditsLowCheck).toHaveBeenCalledWith(target, { withCleanup: true });
     });
 
+    it("emails the team's contacts about a decline that no member acts for any more", async () => {
+      const contacts = [createUser()];
+      const { service, walletSettingRepository, notificationService, claim } = setup({ teamContacts: contacts });
+      walletSettingRepository.recordChargeDecline.mockResolvedValueOnce({ failureCount: 1, pausedAt: null });
+      walletSettingRepository.recordChargeDecline.mockResolvedValueOnce({ failureCount: 4, pausedAt: new Date("2026-09-01T12:00:00Z") });
+
+      await service.recordDecline({ claim, payer: createMemberlessTeamPayer(), target: { walletId: 42 }, decline: { isTerminal: false } });
+      await service.recordDecline({ claim, payer: createMemberlessTeamPayer(), target: { walletId: 42 }, decline: { isTerminal: false } });
+
+      expect(notificationService.createNotification).toHaveBeenCalledTimes(2);
+      expect(notificationService.createNotification).toHaveBeenCalledWith(expect.objectContaining({ user: { id: contacts[0].id, email: contacts[0].email } }));
+    });
+
     it("resumes the auto reload of the team's wallet", async () => {
       const setting = generateWalletSetting({ autoReloadEnabled: true, autoReloadPausedAt: new Date(), walletId: 42 });
       const { service, walletSettingRepository, userWalletRepository, walletReloadJobService } = setup();
@@ -305,9 +319,9 @@ describe(AutoReloadPauseService.name, () => {
     walletSettingRepository.findByUserId.mockResolvedValue(input?.setting);
     const userWalletRepository = mock<UserWalletRepository>();
     const walletReloadJobService = mock<WalletReloadJobService>();
-    walletReloadJobService.targetOf.mockImplementation(async setting => ({ userId: setting.userId }));
+    walletReloadJobService.targetOf.mockImplementation(async setting => (setting.userId ? { userId: setting.userId } : { walletId: setting.walletId }));
     const billingContactsService = mock<BillingContactsService>();
-    billingContactsService.findForPayer.mockImplementation(async payer => (payer.team ? input?.teamContacts ?? [] : [payer.user]));
+    billingContactsService.findForPayer.mockImplementation(async payer => (isTeamPayer(payer) ? input?.teamContacts ?? [] : [payer.user]));
     const notificationService = mock<NotificationService>();
     const billingConfig = mockConfigService<BillingConfigService>({
       AUTO_RELOAD_CHARGE_COOLDOWN_IN_MIN: input?.cooldownMinutes ?? 60,

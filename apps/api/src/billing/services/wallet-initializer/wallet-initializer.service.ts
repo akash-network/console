@@ -116,7 +116,7 @@ export class WalletInitializerService {
   }
 
   /** Idempotent like {@link ensureWallet}: a team organization's wallet starts without a trial, ready to fund as soon as the organization exists. */
-  async ensureTeamWallet(organization: Pick<OrganizationOutput, "id" | "type">, createdByUserId: string): Promise<WalletInitialized> {
+  async ensureTeamWallet(organization: Pick<OrganizationOutput, "id" | "type">, createdByUserId: string | null): Promise<WalletInitialized> {
     if (organization.type !== "team") {
       throw new Error(`Organization ${organization.id} is not a team organization; a personal organization uses its owner's wallet`);
     }

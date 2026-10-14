@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { CreditsAdded } from "@src/billing/events/credits-added";
 import type { EventPayload } from "@src/core";
-import { buildCreditsAddedSlackMessage } from "./credits-added-slack-message";
+import { buildCreditsAddedSlackMessage, DELETED_BUYER_LABEL } from "./credits-added-slack-message";
 
 const USER_ID = "11111111-2222-4333-8444-555555555555";
 const AMPLITUDE_PROJECT_URL = "https://app.amplitude.com/analytics/example-org/project/100001";
@@ -61,6 +61,16 @@ describe(buildCreditsAddedSlackMessage.name, () => {
     const message = setup({ email });
 
     expect(lines(message)[1]).toBe(USER_ID);
+  });
+
+  it("names a deleted account as the buyer of a team's credit whose member is gone, calling it no customer and linking to no person", () => {
+    const message = setup({ event: { userId: null, stripeCustomerId: "cus_team" }, email: null });
+
+    expect(lines(message)).toEqual([
+      ":credit_card: *Card purchase* · *$25.00* credited",
+      DELETED_BUYER_LABEL,
+      `<${STRIPE_DASHBOARD_URL}/customers/cus_team|Stripe customer>`
+    ]);
   });
 
   it("escapes the characters Slack reads as markup in the email", () => {

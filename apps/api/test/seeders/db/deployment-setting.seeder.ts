@@ -10,7 +10,7 @@ export function createDseq() {
   return faker.number.int({ min: 100000, max: 999999 }).toString();
 }
 
-export async function seedDeploymentSetting(overrides: Partial<DeploymentSettingInsert> & Pick<DeploymentSettingInsert, "userId">) {
+export async function seedDeploymentSetting(overrides: Partial<DeploymentSettingInsert> & { userId: string }) {
   const db = container.resolve<ApiPgDatabase>(POSTGRES_DB);
   const [setting] = await db
     .insert(resolveTable("DeploymentSettings"))
@@ -21,5 +21,5 @@ export async function seedDeploymentSetting(overrides: Partial<DeploymentSetting
     })
     .returning();
 
-  return setting;
+  return { ...setting, userId: overrides.userId };
 }

@@ -73,7 +73,7 @@ function declineCodeOf(paymentIntent: Stripe.PaymentIntent): { declineCode?: str
  * delivery, so retries and replays never notify twice.
  */
 export interface AutoRechargeSuccess {
-  userId: string;
+  userId: string | null;
   transactionId: string;
   amountCents: number;
   walletId?: number;
@@ -89,13 +89,8 @@ export interface SettlementOutcome {
   creditsAdded?: CreditsAdded["data"];
 }
 
-/** A team organization's customer belongs to no one, so its member who bought is the one the transaction row records. */
-function actingUserIdOf(customerOwner: StripeCustomerOwner, transaction: StripeTransactionOutput): string {
-  return "user" in customerOwner ? customerOwner.user.id : transaction.userId;
-}
-
 /** The payer is read off the transaction row, never from who is acting now. */
-function payerOf(transaction: StripeTransactionOutput, actingUserId: string | undefined, team: OrganizationOutput | undefined): WalletPayer {
+function payerOf(transaction: StripeTransactionOutput, actingUserId: string | null | undefined, team: OrganizationOutput | undefined): WalletPayer {
   return { userId: actingUserId ?? transaction.userId, organizationId: transaction.organizationId, team };
 }
 
@@ -136,7 +131,7 @@ export class StripeTransactionService {
   }
 
   async createPaymentIntent(params: {
-    userId: string;
+    userId: string | null;
     organizationId?: string;
     customer: string;
     payment_method: string;
@@ -504,12 +499,13 @@ export class StripeTransactionService {
     receiptUrl: string | undefined;
     stripePaymentIntentId: string | undefined;
     paymentAmount: number;
-    userId: string;
+    /** The user whose own Stripe customer paid; a team's customer belongs to no one, so its buyer is the member the locked row names. */
+    customerUserId: string | undefined;
     team?: OrganizationOutput;
     eventDescription: string;
     endTrial?: boolean;
     isAutoRecharge: boolean;
-  }): Promise<{ settled: boolean; bonusAmount: number; toppedUpWallet?: ToppedUpWallet }> {
+  }): Promise<{ settled: boolean; bonusAmount: number; toppedUpWallet?: ToppedUpWallet; actingUserId: string | null }> {
     const transaction = await this.stripeTransactionRepository.findOneByAndLock({ id: params.transactionId });
 
     if (!transaction) {
@@ -518,7 +514,7 @@ export class StripeTransactionService {
         transactionId: params.transactionId,
         description: params.eventDescription
       });
-      return { settled: false, bonusAmount: 0 };
+      return { settled: false, bonusAmount: 0, actingUserId: null };
     }
 
     if (SETTLED_TRANSACTION_STATUSES.has(transaction.status)) {
@@ -528,8 +524,10 @@ export class StripeTransactionService {
         status: transaction.status,
         description: params.eventDescription
       });
-      return { settled: false, bonusAmount: 0 };
+      return { settled: false, bonusAmount: 0, actingUserId: null };
     }
+
+    const actingUserId = params.customerUserId ?? transaction.userId;
 
     const bonusAmount = await this.firstPurchaseBonusService.getEligibleBonusAmount(transaction, params.paymentAmount);
 
@@ -545,7 +543,7 @@ export class StripeTransactionService {
     });
 
     // Single combined top-up: two calls would double chain fees and race on retrieveDeploymentLimit.
-    const toppedUpWallet = await this.refillService.topUpWallet(params.paymentAmount + bonusAmount, payerOf(transaction, params.userId, params.team), {
+    const toppedUpWallet = await this.refillService.topUpWallet(params.paymentAmount + bonusAmount, payerOf(transaction, actingUserId, params.team), {
       endTrial: params.endTrial,
       payment: {
         currency: transaction.currency,
@@ -558,18 +556,18 @@ export class StripeTransactionService {
       }
     });
 
-    if (bonusAmount > 0) {
-      this.firstPurchaseBonusService.trackBonusGranted(params.userId, params.paymentAmount, bonusAmount);
+    if (bonusAmount > 0 && actingUserId) {
+      this.firstPurchaseBonusService.trackBonusGranted(actingUserId, params.paymentAmount, bonusAmount);
       this.loggerService.info({
         event: "FIRST_PURCHASE_BONUS_GRANTED",
         transactionId: params.transactionId,
-        userId: params.userId,
+        userId: actingUserId,
         paidAmountCents: params.paymentAmount,
         bonusAmountCents: bonusAmount
       });
     }
 
-    return { settled: true, bonusAmount, toppedUpWallet };
+    return { settled: true, bonusAmount, toppedUpWallet, actingUserId };
   }
 
   async settlePaymentIntent(event: Stripe.PaymentIntentSucceededEvent): Promise<SettlementOutcome> {
@@ -693,8 +691,6 @@ export class StripeTransactionService {
       return {};
     }
 
-    const userId = actingUserIdOf(customerOwner, params.transaction);
-
     let cardBrand: string | undefined;
     let cardLast4: string | undefined;
     let receiptUrl: string | undefined;
@@ -714,7 +710,12 @@ export class StripeTransactionService {
       }
     }
 
-    const { settled, bonusAmount, toppedUpWallet } = await this.settleSucceededTransaction({
+    const {
+      settled,
+      bonusAmount,
+      toppedUpWallet,
+      actingUserId: userId
+    } = await this.settleSucceededTransaction({
       transactionId: params.transaction.id,
       chargeId: params.chargeId,
       paymentMethodType: params.paymentMethodType,
@@ -723,7 +724,7 @@ export class StripeTransactionService {
       receiptUrl,
       stripePaymentIntentId: params.stripePaymentIntentId,
       paymentAmount: params.paymentAmount,
-      userId,
+      customerUserId: "user" in customerOwner ? customerOwner.user.id : undefined,
       team: payingTeam.team,
       eventDescription: params.eventDescription,
       endTrial: params.endTrial,
@@ -737,7 +738,7 @@ export class StripeTransactionService {
     }
 
     return {
-      bonusGrant: bonusAmount > 0 ? { userId, bonusAmountCents: bonusAmount, paidAmountCents: params.paymentAmount } : undefined,
+      bonusGrant: bonusAmount > 0 && userId ? { userId, bonusAmountCents: bonusAmount, paidAmountCents: params.paymentAmount } : undefined,
       autoRecharge:
         settled && params.isAutoRecharge
           ? { userId, transactionId: params.transaction.id, amountCents: params.paymentAmount, walletId: toppedUpWallet?.walletId }
@@ -793,6 +794,8 @@ export class StripeTransactionService {
   }
 
   async #trackTopUpFailed(event: Stripe.PaymentIntentPaymentFailedEvent, transaction: StripeTransactionOutput): Promise<void> {
+    if (!transaction.userId) return;
+
     const paymentIntent = event.data.object;
     const paymentError = paymentIntent.last_payment_error;
     const organization = transaction.organizationId ? await this.organizationRepository.findById(transaction.organizationId) : undefined;

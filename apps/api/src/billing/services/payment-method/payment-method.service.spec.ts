@@ -11,7 +11,7 @@ import type { PayerService } from "@src/billing/services/payer/payer.service";
 import { PaymentMethodService } from "./payment-method.service";
 
 import { generateDatabasePaymentMethod } from "@test/seeders/database-payment-method.seeder";
-import { createTeamPayer, createUserPayer } from "@test/seeders/payer.seeder";
+import { createMemberlessTeamPayer, createTeamPayer, createUserPayer } from "@test/seeders/payer.seeder";
 import { generatePaymentMethod } from "@test/seeders/payment-method.seeder";
 import { TEST_CONSTANTS } from "@test/seeders/stripe-test-data.seeder";
 import { createUser } from "@test/seeders/user.seeder";
@@ -217,6 +217,19 @@ describe(PaymentMethodService.name, () => {
       expect(result).toBeUndefined();
       expect(paymentMethodRepository.deleteByFingerprint).not.toHaveBeenCalled();
       expect(logger.warn).toHaveBeenCalledWith({ event: "DEFAULT_PAYMENT_METHOD_NOT_ATTACHED", userId: "user_1", paymentMethodId: "pm_1" });
+    });
+
+    it("warns about a detached default card of a team that no member acts for any more", async () => {
+      const { service, stripe, paymentMethodRepository, logger } = setup();
+      const payer = createMemberlessTeamPayer();
+      paymentMethodRepository.findDefaultByOwner.mockResolvedValue(generateDatabasePaymentMethod({ paymentMethodId: "pm_1", isDefault: true }));
+      vi.spyOn(stripe.paymentMethods, "retrieve").mockResolvedValue(asResponse(generatePaymentMethod({ id: "pm_1", customer: null })));
+
+      const result = await service.getDefaultPaymentMethod(payer, ability);
+
+      expect(result).toBeUndefined();
+      expect(paymentMethodRepository.findDefaultByOwner).toHaveBeenCalledWith({ organizationId: payer.team.id });
+      expect(logger.warn).toHaveBeenCalledWith({ event: "DEFAULT_PAYMENT_METHOD_NOT_ATTACHED", userId: undefined, paymentMethodId: "pm_1" });
     });
 
     it("returns undefined and warns when the method is detached", async () => {

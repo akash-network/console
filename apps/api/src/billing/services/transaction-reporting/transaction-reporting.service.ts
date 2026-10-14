@@ -9,6 +9,9 @@ import { StripeTransactionRepository, type StripeTransactionWithInitiator } from
 import { type CreateLogger, LOGGER_FACTORY } from "@src/core";
 import type { TransactionCsvRow } from "@src/types/transactions";
 
+/** A team's transaction whose member has deleted their account names no one. */
+export const DELETED_INITIATOR_LABEL = "Deleted account";
+
 @singleton()
 export class TransactionReportingService {
   private readonly loggerService: LoggerService;
@@ -198,7 +201,9 @@ export class TransactionReportingService {
       description: this.sanitizeForCsv(transaction.description || ""),
       invoiceId: transaction.stripeInvoiceId || "",
       receiptUrl: transaction.receiptUrl || "",
-      initiatedBy: this.sanitizeForCsv(transaction.initiatedBy?.username || transaction.initiatedBy?.email || "")
+      initiatedBy: transaction.initiatedBy
+        ? this.sanitizeForCsv(transaction.initiatedBy.username || transaction.initiatedBy.email || "")
+        : DELETED_INITIATOR_LABEL
     };
   }
 

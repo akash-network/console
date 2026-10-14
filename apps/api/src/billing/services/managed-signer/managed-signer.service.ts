@@ -27,7 +27,7 @@ import { type WalletReloadImmediateInput, WalletReloadJobService } from "@src/bi
 import { type CreateLogger, LOGGER_FACTORY } from "@src/core";
 import { DomainEventsService } from "@src/core/services/domain-events/domain-events.service";
 import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
-import { DeploymentSettingRepository } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
+import { DeploymentSettingRepository, type DeploymentSettingsOutput } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
 import {
   type ConsoleClose,
   DeploymentOrganizationActivityService
@@ -306,13 +306,27 @@ export class ManagedSignerService {
   /** Logs rather than raises a failure to mark the deployment closed, since the close already landed on chain. */
   async #markClosed(userWallet: UserWalletOutput, dseq: string, actingUserId: string | undefined): Promise<void> {
     try {
-      const filedByUserId = userWallet.userId ?? (await this.deploymentSettingRepository.findOneOfWallet(userWallet, dseq))?.userId ?? actingUserId;
-
-      if (filedByUserId) {
-        await this.deploymentSettingRepository.markClosed({ userId: filedByUserId, dseq, organizationId: userWallet.organizationId });
-      }
+      await this.#recordClosedDeployment(userWallet, dseq, actingUserId);
     } catch (error) {
       this.logger.error({ event: "CLOSED_DEPLOYMENT_RECORD_FAILED", userId: userWallet.userId, walletId: userWallet.id, dseq, error });
+    }
+  }
+
+  /** A job closing an organization's deployment acts for no member, so it closes the row the deployment was filed under as it stands. */
+  async #recordClosedDeployment(userWallet: UserWalletOutput, dseq: string, actingUserId: string | undefined): Promise<void> {
+    const { organizationId } = userWallet;
+
+    if (userWallet.userId !== null) {
+      await this.deploymentSettingRepository.markClosed({ userId: userWallet.userId, dseq, organizationId });
+      return;
+    }
+
+    const filed = await this.deploymentSettingRepository.findOneOfWallet(userWallet, dseq);
+
+    if (actingUserId) {
+      await this.deploymentSettingRepository.markClosed({ userId: await this.#filerOf(filed, actingUserId), dseq, organizationId });
+    } else if (filed) {
+      await this.deploymentSettingRepository.markAsClosed([filed.id]);
     }
   }
 
@@ -379,7 +393,14 @@ export class ManagedSignerService {
 
     if (userWallet.userId !== null) return actingUserId;
 
-    return (await this.deploymentSettingRepository.findOneOfWallet(userWallet, dseq))?.userId ?? actingUserId;
+    return await this.#filerOf(await this.deploymentSettingRepository.findOneOfWallet(userWallet, dseq), actingUserId);
+  }
+
+  /** A row whose filer has deleted their account passes to the member acting on it, so the writes keyed by its filer keep reaching it. */
+  async #filerOf(filed: Pick<DeploymentSettingsOutput, "id" | "userId"> | undefined, actingUserId: string): Promise<string> {
+    if (!filed) return actingUserId;
+
+    return filed.userId ?? (await this.deploymentSettingRepository.refileOrphanUnder(filed.id, actingUserId));
   }
 
   /** The organization's wallet signs for every project, so a caller limited to some projects may only act on a deployment every row of which is filed in them. */

@@ -3,6 +3,7 @@ import { faker } from "@faker-js/faker";
 import { hoursToMilliseconds } from "date-fns";
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { randomBytes } from "node:crypto";
+import { setTimeout as delay } from "node:timers/promises";
 import { container } from "tsyringe";
 import { describe, expect, it } from "vitest";
 
@@ -17,7 +18,7 @@ import { MAX_RUNTIME_LIMIT_INCREMENT_HOURS } from "@src/deployment/http-schemas/
 import type { OrganizationContext } from "@src/organization/types/organization-context";
 import type { UserOutput } from "@src/user/repositories";
 import { UserRepository } from "@src/user/repositories";
-import { DeploymentSettingRepository } from "./deployment-setting.repository";
+import { DeploymentSettingRepository, UNFILED_DEPLOYMENT_ERROR_CODE } from "./deployment-setting.repository";
 
 import { createAkashAddress } from "@test/seeders/akash-address.seeder";
 import { seedDeploymentSetting } from "@test/seeders/db/deployment-setting.seeder";
@@ -2853,6 +2854,94 @@ describe(DeploymentSettingRepository.name, () => {
 
       await expect(deploymentSettingRepository.mergeGpuReadings({ wallet: teamWallet, dseq: teamDeployment.dseq, readings: [reading] })).resolves.toBe(true);
       await expect(deploymentSettingRepository.findOneOfWallet(teamWallet, teamDeployment.dseq)).resolves.toMatchObject({ detectedGpus: [reading] });
+    });
+
+    it("names no member on the team deployments of a member whose account is being deleted, and leaves their own", async () => {
+      const { deploymentSettingRepository, member, teamDeployment } = await setupTeamDeployment();
+      const ownDeployment = await seedDeploymentSetting({ userId: member.id });
+
+      await deploymentSettingRepository.detachFromTeams(member.id);
+
+      await expect(deploymentSettingRepository.findById(teamDeployment.id)).resolves.toMatchObject({ userId: null });
+      await expect(deploymentSettingRepository.findById(ownDeployment.id)).resolves.toMatchObject({ userId: member.id });
+    });
+
+    it("passes a deployment whose filer has deleted their account to the member writing to it", async () => {
+      const { deploymentSettingRepository, member, team, teamDeployment } = await setupTeamDeployment();
+      const writer = await seedUser();
+      await seedOrganizationMember({ organizationId: team.id, userId: writer.id });
+      await deploymentSettingRepository.detachFromTeams(member.id);
+
+      await expect(deploymentSettingRepository.refileOrphanUnder(teamDeployment.id, writer.id)).resolves.toBe(writer.id);
+
+      await expect(deploymentSettingRepository.findById(teamDeployment.id)).resolves.toMatchObject({ userId: writer.id });
+    });
+
+    it("files two concurrent writers' work under whichever of them took the deployment first", async () => {
+      const { deploymentSettingRepository, member, teamDeployment } = await setupTeamDeployment();
+      const [first, second] = [await seedUser(), await seedUser()];
+      await deploymentSettingRepository.detachFromTeams(member.id);
+
+      const firstHoldsRow = Promise.withResolvers<void>();
+
+      const filers = await Promise.all([
+        container.resolve(TxService).transaction(async () => {
+          const filer = await deploymentSettingRepository.refileOrphanUnder(teamDeployment.id, first.id);
+          firstHoldsRow.resolve();
+          await delay(200);
+          return filer;
+        }),
+        firstHoldsRow.promise.then(() => deploymentSettingRepository.refileOrphanUnder(teamDeployment.id, second.id))
+      ]);
+
+      expect(filers).toEqual([first.id, first.id]);
+      await expect(deploymentSettingRepository.findById(teamDeployment.id)).resolves.toMatchObject({ userId: first.id });
+    });
+
+    it("leaves a deployment that still has its filer with that filer", async () => {
+      const { deploymentSettingRepository, member, teamDeployment } = await setupTeamDeployment();
+
+      await expect(deploymentSettingRepository.refileOrphanUnder(teamDeployment.id, (await seedUser()).id)).resolves.toBe(member.id);
+
+      await expect(deploymentSettingRepository.findById(teamDeployment.id)).resolves.toMatchObject({ userId: member.id });
+    });
+
+    it("sends a writer who already holds a row of the deployment in the same organization to that row", async () => {
+      const { deploymentSettingRepository, member, team, teamDeployment } = await setupTeamDeployment();
+      const writer = await seedUser();
+      await seedDeploymentSetting({ userId: writer.id, organizationId: team.id, dseq: teamDeployment.dseq });
+      await deploymentSettingRepository.detachFromTeams(member.id);
+
+      await expect(deploymentSettingRepository.refileOrphanUnder(teamDeployment.id, writer.id)).resolves.toBe(writer.id);
+
+      await expect(deploymentSettingRepository.findById(teamDeployment.id)).resolves.toMatchObject({ userId: null });
+    });
+
+    it("refuses to file a deployment under a writer whose row of the same deployment id is in another organization", async () => {
+      const { deploymentSettingRepository, member, teamDeployment } = await setupTeamDeployment();
+      const writer = await seedUser();
+      const { organization: otherOrganization } = await seedOrganizationWithOwner();
+      await seedDeploymentSetting({ userId: writer.id, organizationId: otherOrganization.id, dseq: teamDeployment.dseq });
+      await deploymentSettingRepository.detachFromTeams(member.id);
+
+      await expect(deploymentSettingRepository.refileOrphanUnder(teamDeployment.id, writer.id)).rejects.toMatchObject({
+        status: 409,
+        errorCode: UNFILED_DEPLOYMENT_ERROR_CODE
+      });
+
+      await expect(deploymentSettingRepository.findById(teamDeployment.id)).resolves.toMatchObject({ userId: null });
+    });
+
+    it("keeps reconciling a team deployment whose filer has deleted their account", async () => {
+      const { deploymentSettingRepository, member, teamWallet, teamDeployment } = await setupTeamDeployment();
+      await deploymentSettingRepository.detachFromTeams(member.id);
+      const open = [];
+
+      for await (const batch of deploymentSettingRepository.findOpenDeploymentsIteratively({ batchSize: 1000 })) {
+        open.push(...batch.filter(deployment => deployment.address === teamWallet.address));
+      }
+
+      expect(open).toEqual([expect.objectContaining({ id: teamDeployment.id, userId: null, dseq: teamDeployment.dseq })]);
     });
 
     async function setupTeamDeployment() {

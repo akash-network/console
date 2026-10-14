@@ -1,7 +1,7 @@
 import { singleton } from "tsyringe";
 
 import type { UserWalletOutput } from "@src/billing/repositories";
-import type { Payer } from "@src/billing/services/payer/payer";
+import { isTeamPayer, type MemberlessTeamPayer, type Payer } from "@src/billing/services/payer/payer";
 import { OrganizationMemberRepository } from "@src/organization/repositories/organization-member/organization-member.repository";
 import { type UserOutput, UserRepository } from "@src/user/repositories";
 
@@ -12,8 +12,8 @@ export class BillingContactsService {
     private readonly organizationMemberRepository: OrganizationMemberRepository
   ) {}
 
-  async findForPayer(payer: Pick<Payer, "user" | "team">): Promise<UserOutput[]> {
-    return payer.team ? await this.organizationMemberRepository.findBillingContacts(payer.team.id) : [payer.user];
+  async findForPayer(payer: Pick<Payer, "user" | "team"> | Pick<MemberlessTeamPayer, "user" | "team">): Promise<UserOutput[]> {
+    return isTeamPayer(payer) ? await this.organizationMemberRepository.findBillingContacts(payer.team.id) : [payer.user];
   }
 
   /** A personal wallet's user hears about its billing; a team wallet's owners and billing members do. */

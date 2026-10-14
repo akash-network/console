@@ -149,7 +149,7 @@ export class WalletBalanceReloadCheckInstrumentationService {
     });
   }
 
-  recordDeclineRecordingError(userId: string, error: unknown): void {
+  recordDeclineRecordingError(userId: string | undefined, error: unknown): void {
     this.declineRecordingErrors.add(1, {
       error_type: error instanceof Error ? error.constructor.name : "Unknown"
     });

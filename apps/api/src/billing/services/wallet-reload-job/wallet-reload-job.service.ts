@@ -88,11 +88,11 @@ export class WalletReloadJobService {
     await this.scheduleCreditsLowCheck(walletBillingTargetOf(wallet), { withCleanup: true });
   }
 
-  /** A setting saved for a team's wallet keeps the member who saved it, so whose wallet it is comes from the wallet. */
+  /** A setting saved for a team's wallet keeps the member who saved it, or nobody once that member's account is deleted, so whose wallet it is comes from the wallet. */
   async targetOf(walletSetting: Pick<WalletSettingOutput, "walletId" | "userId">): Promise<WalletBillingTarget> {
     const wallet = await this.userWalletRepository.findOneBy({ id: walletSetting.walletId });
 
-    return wallet && !wallet.userId ? { walletId: wallet.id } : { userId: walletSetting.userId };
+    return (wallet && !wallet.userId) || !walletSetting.userId ? { walletId: walletSetting.walletId } : { userId: walletSetting.userId };
   }
 
   async scheduleForWalletSetting(

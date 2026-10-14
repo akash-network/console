@@ -10,6 +10,7 @@ import { StripeTransactionRepository } from "@src/billing/repositories";
 import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import { DOMAIN_EVENT_NAME } from "@src/core/services/domain-events/domain-events.service";
 import { CreditsAddedSlackAlertHandler } from "./credits-added-slack-alert.handler";
+import { DELETED_BUYER_LABEL } from "./credits-added-slack-message";
 
 import { seedUser } from "@test/seeders/db/user-with-wallet.seeder";
 import { expectJobCompleted, findJobRows, useJobWorkers } from "@test/services/job-queue-harness";
@@ -71,6 +72,15 @@ describe(CreditsAddedSlackAlertHandler.name, () => {
 
     expect(slackPosts).toHaveLength(1);
     expect(slackPosts[0].text.split("\n")[1]).toBe(MISSING_USER_ID);
+  });
+
+  it("names a deleted account as the buyer of a team's credit whose member is gone", async () => {
+    const { creditsAdded, slackPosts } = await setup({ email: "buyer@example.com" });
+
+    await creditsAdded({ userId: null, transactionId: faker.string.uuid() });
+
+    expect(slackPosts).toHaveLength(1);
+    expect(slackPosts[0].text.split("\n").slice(0, 2)).toEqual([":credit_card: *Card purchase* · *$25.00* credited", DELETED_BUYER_LABEL]);
   });
 
   it("posts nothing when no Slack webhook is configured", async () => {

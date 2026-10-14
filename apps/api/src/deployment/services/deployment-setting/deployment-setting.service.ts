@@ -80,12 +80,13 @@ export class DeploymentSettingService {
    */
   async create(input: FindDeploymentSettingParams & DeploymentSettingChange): Promise<DeploymentSettingWithEstimatedTopUpAmount> {
     const { userId, dseq, ...change } = input;
-    const setting = await this.#writeReconcilingConcurrentCreate(await this.#filedKeyReachableBy({ userId, dseq }), change);
+    const key = await this.#filedKeyReachableBy({ userId, dseq });
+    const setting = await this.#writeReconcilingConcurrentCreate(key, change);
     const result = await this.withEstimatedTopUpAmount(setting);
 
     if (result.autoTopUpEnabled) {
       const ownerWallet = await this.#ownerWalletOf(result);
-      await this.walletReloadJobService.scheduleImmediate(ownerWallet ? walletBillingTargetOf(ownerWallet) : { userId: result.userId });
+      await this.walletReloadJobService.scheduleImmediate(ownerWallet ? walletBillingTargetOf(ownerWallet) : { userId: key.userId });
     }
 
     return result;
@@ -106,16 +107,19 @@ export class DeploymentSettingService {
     }
   }
 
-  /** An organization's deployment keeps the row it was first filed under, and a caller who cannot reach that row may not file a second one. */
+  /** An organization's deployment keeps the row it was first filed under, which passes to the caller once its filer's account is deleted, and a caller who cannot reach that row may not file a second one. */
   async #filedKeyReachableBy(params: FindDeploymentSettingParams): Promise<FindDeploymentSettingParams> {
     const { key, isFiled } = await this.deploymentSettingRepository.findFiledKey(params);
 
-    if (isFiled) {
-      const reachable = await this.deploymentSettingRepository.accessibleBy(this.authService.ability, "update").findOneBy(key);
-      assert(reachable, 404, "Deployment setting not found");
-    }
+    if (!isFiled) return params;
 
-    return key;
+    const repository = this.deploymentSettingRepository.accessibleBy(this.authService.ability, "update");
+    const reachable = await repository.findOneBy(key);
+    assert(reachable, 404, "Deployment setting not found");
+
+    if (reachable.userId) return { userId: reachable.userId, dseq: params.dseq };
+
+    return { userId: await repository.refileOrphanUnder(reachable.id, this.authService.currentUser.id), dseq: params.dseq };
   }
 
   /** A row created here would default to open and auto-funded, which the top-up sweep would then pick up for a deployment that is already closed. */

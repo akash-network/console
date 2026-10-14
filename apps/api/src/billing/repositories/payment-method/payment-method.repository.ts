@@ -8,6 +8,7 @@ import { isUniqueViolation } from "@src/core/repositories/base.repository";
 import { OrgScopedRepository } from "@src/core/repositories/org-scoped.repository";
 import { type ApiTransaction, TxService } from "@src/core/services";
 import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
+import { writtenForTeamBy } from "@src/organization/lib/team-records/team-records";
 
 type Table = ApiPgTables["PaymentMethods"];
 export type PaymentMethodInput = ApiPgTables["PaymentMethods"]["$inferInsert"];
@@ -26,6 +27,13 @@ export class PaymentMethodRepository extends OrgScopedRepository<Table, PaymentM
 
   protected newInstance() {
     return new PaymentMethodRepository(this.pg, this.table, this.txManager, this.executionContextService) as this;
+  }
+
+  async detachFromTeams(userId: string): Promise<void> {
+    await this.cursor
+      .update(this.table)
+      .set({ userId: null })
+      .where(this.unscoped("account-deletion").whereAccessibleBy(writtenForTeamBy(this.table, userId)));
   }
 
   async findByOwner(owner: BillingOwner): Promise<PaymentMethodOutput[]> {

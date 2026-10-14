@@ -2,7 +2,7 @@ import { faker } from "@faker-js/faker";
 
 import type { WalletSettingOutput } from "@src/billing/repositories";
 
-export const generateWalletSetting = (overrides: Partial<WalletSettingOutput>) => {
+export const generateWalletSetting = (overrides: Partial<Omit<WalletSettingOutput, "userId">> & { userId?: string }) => {
   return {
     id: faker.string.uuid(),
     userId: faker.string.uuid(),

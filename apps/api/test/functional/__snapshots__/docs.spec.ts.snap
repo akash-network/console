@@ -6499,6 +6499,8 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                           "type": "string",
                         },
                         "userId": {
+                          "description": "The member who filed the deployment, or null once a team organization's member who filed it has deleted their account",
+                          "nullable": true,
                           "type": "string",
                         },
                       },
@@ -6615,6 +6617,8 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                           "type": "string",
                         },
                         "userId": {
+                          "description": "The member who filed the deployment, or null once a team organization's member who filed it has deleted their account",
+                          "nullable": true,
                           "type": "string",
                         },
                       },
@@ -6790,6 +6794,8 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                           "type": "string",
                         },
                         "userId": {
+                          "description": "The member who filed the deployment, or null once a team organization's member who filed it has deleted their account",
+                          "nullable": true,
                           "type": "string",
                         },
                       },
@@ -21891,6 +21897,8 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                           "type": "string",
                         },
                         "userId": {
+                          "description": "The member who filed the deployment, or null once a team organization's member who filed it has deleted their account",
+                          "nullable": true,
                           "type": "string",
                         },
                       },
@@ -22008,6 +22016,8 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                           "type": "string",
                         },
                         "userId": {
+                          "description": "The member who filed the deployment, or null once a team organization's member who filed it has deleted their account",
+                          "nullable": true,
                           "type": "string",
                         },
                       },
@@ -22184,6 +22194,8 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                           "type": "string",
                         },
                         "userId": {
+                          "description": "The member who filed the deployment, or null once a team organization's member who filed it has deleted their account",
+                          "nullable": true,
                           "type": "string",
                         },
                       },

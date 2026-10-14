@@ -4,7 +4,7 @@ import { ApiHttpService } from "../api-http/api-http.service";
 
 export interface DeploymentSettingOutput {
   id: number;
-  userId: string;
+  userId: string | null;
   dseq: string;
   autoTopUpEnabled: boolean;
   estimatedTopUpAmount: number;

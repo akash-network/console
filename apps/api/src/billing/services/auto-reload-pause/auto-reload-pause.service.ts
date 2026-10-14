@@ -7,7 +7,7 @@ import type { WalletBillingTarget } from "@src/billing/lib/wallet-billing-target
 import { type ChargeClaim, UserWalletRepository, type WalletSettingOutput, WalletSettingRepository } from "@src/billing/repositories";
 import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import { BillingContactsService } from "@src/billing/services/billing-contacts/billing-contacts.service";
-import type { Payer } from "@src/billing/services/payer/payer";
+import type { ChargedPayer } from "@src/billing/services/payer/payer";
 import { WalletReloadJobService } from "@src/billing/services/wallet-reload-job/wallet-reload-job.service";
 import { type CreateLogger, LOGGER_FACTORY } from "@src/core/providers/logging.provider";
 import { type CreateNotificationInput, NotificationService } from "@src/notifications/services/notification/notification.service";
@@ -53,16 +53,16 @@ export class AutoReloadPauseService {
     );
   }
 
-  async recordDecline(input: { claim: ChargeClaim; payer: Payer; target: WalletBillingTarget; decline: CardDecline }): Promise<void> {
+  async recordDecline(input: { claim: ChargeClaim; payer: ChargedPayer; target: WalletBillingTarget; decline: CardDecline }): Promise<void> {
     const { claim, payer, target, decline } = input;
-    const { user } = payer;
+    const userId = payer.user?.id;
     const { failureCount, pausedAt } = await this.walletSettingRepository.recordChargeDecline(claim, {
       maxConsecutiveDeclines: this.billingConfig.get("AUTO_RELOAD_MAX_CONSECUTIVE_DECLINES"),
       isTerminal: decline.isTerminal
     });
 
     if (!pausedAt) {
-      this.logger.info({ event: "AUTO_RELOAD_CHARGE_DECLINED", userId: user.id, failureCount, declineCode: decline.declineCode });
+      this.logger.info({ event: "AUTO_RELOAD_CHARGE_DECLINED", userId, failureCount, declineCode: decline.declineCode });
 
       if (failureCount === FIRST_DECLINE) {
         await this.#notifyBillingContacts(payer, contact =>
@@ -73,7 +73,7 @@ export class AutoReloadPauseService {
       return;
     }
 
-    this.logger.warn({ event: "AUTO_RELOAD_PAUSED", userId: user.id, failureCount, declineCode: decline.declineCode });
+    this.logger.warn({ event: "AUTO_RELOAD_PAUSED", userId, failureCount, declineCode: decline.declineCode });
 
     await this.#notifyBillingContacts(payer, contact => this.#pausedNotification(contact, pausedAt, decline));
     await this.#cancelPendingReloadCheck(target);
@@ -88,7 +88,7 @@ export class AutoReloadPauseService {
     return autoTopUpPausedNotification(user, { pausedAt, billingUrl: this.#billingUrl() });
   }
 
-  async #notifyBillingContacts(payer: Payer, notificationFor: (contact: UserOutput) => CreateNotificationInput): Promise<void> {
+  async #notifyBillingContacts(payer: ChargedPayer, notificationFor: (contact: UserOutput) => CreateNotificationInput): Promise<void> {
     for (const contact of await this.billingContactsService.findForPayer(payer)) {
       await this.#notifyUser(notificationFor(contact));
     }

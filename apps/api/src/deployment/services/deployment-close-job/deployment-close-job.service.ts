@@ -7,7 +7,7 @@ import { DeploymentSettingRepository } from "@src/deployment/repositories/deploy
 
 export type CloseExpiredDeploymentTarget = {
   deploymentSettingId: string;
-  userId: string;
+  userId: string | null;
   dseq: string;
 };
 

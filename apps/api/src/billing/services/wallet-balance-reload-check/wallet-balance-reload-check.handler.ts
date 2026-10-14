@@ -24,7 +24,7 @@ import { DeploymentConfigService } from "@src/deployment/services/deployment-con
 import { DrainingDeploymentService } from "@src/deployment/services/draining-deployment/draining-deployment.service";
 import { OrganizationRepository } from "@src/organization/repositories/organization/organization.repository";
 import type { UserOutput } from "@src/user/repositories";
-import { isPayingPayer, type PayingPayer } from "../payer/payer";
+import { type ChargedPayer, isPayingPayer } from "../payer/payer";
 import { WalletBalanceReloadCheckInstrumentationService } from "./wallet-balance-reload-check-instrumentation.service";
 
 type ValidationError = {
@@ -38,10 +38,12 @@ type ActionableWalletSetting = Pick<
   "id" | "userId" | "walletId" | "autoReloadMode" | "autoReloadThreshold" | "autoReloadAmount" | "autoReloadFailureCount"
 >;
 
+type PayingChargedPayer = ChargedPayer & { stripeCustomerId: string };
+
 type Resources = {
   walletSetting: ActionableWalletSetting;
   wallet: InitializedWallet;
-  payer: PayingPayer;
+  payer: PayingChargedPayer;
   target: WalletBillingTarget;
 };
 type AllResources = Resources & { balance: GetBalancesResponseOutput["data"]["total"]; paymentMethod: PaymentMethod };
@@ -168,6 +170,13 @@ export class WalletBalanceReloadCheckHandler implements JobHandler<WalletBalance
 
     const payer = await this.#payerOf(user, wallet);
 
+    if (!payer) {
+      return Err({
+        event: "WALLET_SETTING_USER_NOT_FOUND",
+        message: "Wallet setting user not found. Skipping wallet balance reload check."
+      });
+    }
+
     if (!isPayingPayer(payer)) {
       return Err({
         event: "USER_STRIPE_CUSTOMER_ID_NOT_SET",
@@ -176,28 +185,25 @@ export class WalletBalanceReloadCheckHandler implements JobHandler<WalletBalance
     }
 
     return Ok({
-      walletSetting: {
-        ...walletSetting,
-        userId: user.id
-      },
+      walletSetting,
       wallet: { ...wallet, address },
       payer,
       target
     });
   }
 
-  /** A team's wallet is charged to the team's own customer, for the member who saved its auto reload. */
-  async #payerOf(user: UserOutput, wallet: Pick<UserWalletOutput, "userId" | "organizationId">) {
+  /** A team's wallet is charged to the team's own customer, for the member who saved its auto reload as long as that member's account exists. */
+  async #payerOf(user: UserOutput | null, wallet: Pick<UserWalletOutput, "userId" | "organizationId">): Promise<ChargedPayer | undefined> {
     const team = !wallet.userId && wallet.organizationId ? await this.organizationRepository.findById(wallet.organizationId) : undefined;
 
     if (team?.type === "team") {
       return { user, organizationId: team.id, team, stripeCustomerId: team.stripeCustomerId };
     }
 
-    return { user, organizationId: wallet.organizationId ?? undefined, stripeCustomerId: user.stripeCustomerId };
+    return user ? { user, organizationId: wallet.organizationId ?? undefined, stripeCustomerId: user.stripeCustomerId } : undefined;
   }
 
-  async #getDefaultPaymentMethod(payer: PayingPayer): Promise<Result<PaymentMethod, ValidationError>> {
+  async #getDefaultPaymentMethod(payer: PayingChargedPayer): Promise<Result<PaymentMethod, ValidationError>> {
     const paymentMethod = await this.paymentMethodService.getDefaultPaymentMethod(
       payer,
       createMongoAbility([
@@ -349,7 +355,7 @@ export class WalletBalanceReloadCheckHandler implements JobHandler<WalletBalance
 
     try {
       const result = await this.stripeTransactionService.createPaymentIntent({
-        userId: resources.payer.user.id,
+        userId: resources.payer.user?.id ?? null,
         organizationId: resources.payer.organizationId,
         customer: resources.payer.stripeCustomerId,
         payment_method: resources.paymentMethod.id,
@@ -417,7 +423,7 @@ export class WalletBalanceReloadCheckHandler implements JobHandler<WalletBalance
     try {
       await this.autoReloadPauseService.recordDecline({ claim, payer: resources.payer, target: resources.target, decline });
     } catch (error) {
-      this.instrumentationService.recordDeclineRecordingError(resources.payer.user.id, error);
+      this.instrumentationService.recordDeclineRecordingError(resources.payer.user?.id, error);
     }
   }
 

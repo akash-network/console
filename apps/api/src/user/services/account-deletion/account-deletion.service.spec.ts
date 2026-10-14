@@ -12,6 +12,7 @@ import type { FeatureFlagsService } from "@src/core/services/feature-flags/featu
 import type { DeploymentConfigService } from "@src/deployment/services/deployment-config/deployment-config.service";
 import type { CreateNotificationInput, NotificationService } from "@src/notifications/services/notification/notification.service";
 import type { OrganizationRepository } from "@src/organization/repositories/organization/organization.repository";
+import type { OrganizationMemberRepository } from "@src/organization/repositories/organization-member/organization-member.repository";
 import type {
   AccountDeletionTokenOutput,
   AccountDeletionTokenRepository
@@ -23,6 +24,7 @@ import type {
   AccountDeletionEligibilityService
 } from "@src/user/services/account-deletion-eligibility/account-deletion-eligibility.service";
 import { PURGE_DELETED_ACCOUNT_RETRY_OPTIONS, PurgeDeletedAccount } from "@src/user/services/purge-deleted-account/purge-deleted-account.handler";
+import type { TeamRecordRetentionService } from "@src/user/services/team-record-retention/team-record-retention.service";
 import type { WorkloadProbeEvidenceRepository } from "@src/workload-abuse/repositories/workload-probe-evidence/workload-probe-evidence.repository";
 import { AccountDeletionService, DELETION_LINK_TTL_MINUTES } from "./account-deletion.service";
 
@@ -128,6 +130,25 @@ describe(AccountDeletionService.name, () => {
       expect(logger.info).toHaveBeenCalledWith({ event: "ACCOUNT_DELETION_BLOCKED", userId: user.id, reason: "active_deployments" });
     });
 
+    it("refuses the last owner of a team organization and names the team", async () => {
+      const team = { id: faker.string.uuid(), name: "Acme" };
+      const { service, user, tokenRepository, notificationService, analyticsService, logger, organizationMemberRepository } = setup({
+        teamsOwnedOnlyByUser: [team]
+      });
+
+      await expect(service.initiate(user, { forfeitAcknowledged: true })).rejects.toMatchObject({
+        status: 409,
+        errorCode: "last_owner",
+        data: { organizations: [team] }
+      });
+
+      expect(organizationMemberRepository.lockTeamsOwnedOnlyBy).toHaveBeenCalledWith(user.id);
+      expect(tokenRepository.replaceForUser).not.toHaveBeenCalled();
+      expect(notificationService.createNotification).not.toHaveBeenCalled();
+      expect(analyticsService.track).toHaveBeenCalledWith(user.id, "account_deletion_blocked", { reason: "last_owner" });
+      expect(logger.info).toHaveBeenCalledWith({ event: "ACCOUNT_DELETION_BLOCKED", userId: user.id, reason: "last_owner" });
+    });
+
     it("refuses an account with credits until the forfeit is acknowledged", async () => {
       const { service, user, tokenRepository, analyticsService } = setup({ eligibility: { ...CLEAN_ACCOUNT, forfeitableBalanceUsd: 12.5 } });
 
@@ -231,6 +252,47 @@ describe(AccountDeletionService.name, () => {
         new PurgeDeletedAccount({ userId: user.id, auth0UserId: user.userId, stripeCustomerId: user.stripeCustomerId }),
         PURGE_DELETED_ACCOUNT_RETRY_OPTIONS
       );
+    });
+
+    it("keeps the records the member wrote for team organizations before the user row cascades", async () => {
+      const { service, user, userRepository, teamRecordRetentionService } = setup({ storedToken: {} });
+
+      await service.confirm({ token: "link-token" });
+
+      expect(teamRecordRetentionService.releaseFromTeams).toHaveBeenCalledWith(user.id);
+      expect(teamRecordRetentionService.releaseFromTeams.mock.invocationCallOrder[0]).toBeLessThan(userRepository.deleteById.mock.invocationCallOrder[0]);
+    });
+
+    it("checks the team owners once the user row is locked, inside the erasing transaction", async () => {
+      const { service, user, userRepository, organizationMemberRepository, txService } = setup({ storedToken: {} });
+      txService.transaction.mockImplementation(async callback => {
+        expect(organizationMemberRepository.lockTeamsOwnedOnlyBy).not.toHaveBeenCalled();
+        return await callback();
+      });
+
+      await service.confirm({ token: "link-token" });
+
+      expect(organizationMemberRepository.lockTeamsOwnedOnlyBy).toHaveBeenCalledWith(user.id);
+      expect(userRepository.findOneByAndLock.mock.invocationCallOrder[0]).toBeLessThan(
+        organizationMemberRepository.lockTeamsOwnedOnlyBy.mock.invocationCallOrder[0]
+      );
+    });
+
+    it("erases nothing while the account is the last owner of a team organization", async () => {
+      const team = { id: faker.string.uuid(), name: "Acme" };
+      const { service, user, userRepository, userTemplateRepository, teamRecordRetentionService, jobQueueService, analyticsService } = setup({
+        storedToken: {},
+        teamsOwnedOnlyByUser: [team]
+      });
+
+      await expect(service.confirm({ token: "link-token" })).rejects.toMatchObject({ status: 409, errorCode: "last_owner", data: { organizations: [team] } });
+
+      expect(userTemplateRepository.deleteAllOwnedBy).not.toHaveBeenCalled();
+      expect(teamRecordRetentionService.releaseFromTeams).not.toHaveBeenCalled();
+      expect(userRepository.deleteById).not.toHaveBeenCalled();
+      expect(jobQueueService.enqueue).not.toHaveBeenCalled();
+      expect(analyticsService.track).toHaveBeenCalledWith(user.id, "account_deletion_blocked", { reason: "last_owner" });
+      expect(analyticsService.track).not.toHaveBeenCalledWith(user.id, "account_deletion_confirmed", expect.anything());
     });
 
     it("looks the link up by the hash of its token", async () => {
@@ -419,6 +481,7 @@ describe(AccountDeletionService.name, () => {
       lockedUserGone?: boolean;
       emailFails?: Error;
       hasPersonalOrganization?: boolean;
+      teamsOwnedOnlyByUser?: { id: string; name: string }[];
     } = {}
   ) {
     const user = createUser(input.user);
@@ -455,6 +518,9 @@ describe(AccountDeletionService.name, () => {
     const workloadProbeEvidenceRepository = mock<WorkloadProbeEvidenceRepository>();
     const organizationRepository = mock<OrganizationRepository>();
     organizationRepository.findPersonalByUserId.mockResolvedValue(input.hasPersonalOrganization === false ? undefined : personalOrganization);
+    const organizationMemberRepository = mock<OrganizationMemberRepository>();
+    organizationMemberRepository.lockTeamsOwnedOnlyBy.mockResolvedValue(input.teamsOwnedOnlyByUser ?? []);
+    const teamRecordRetentionService = mock<TeamRecordRetentionService>();
 
     const notificationService = mock<NotificationService>();
     if (input.emailFails) notificationService.createNotification.mockRejectedValue(input.emailFails);
@@ -479,6 +545,8 @@ describe(AccountDeletionService.name, () => {
       userTemplateRepository,
       workloadProbeEvidenceRepository,
       organizationRepository,
+      organizationMemberRepository,
+      teamRecordRetentionService,
       notificationService,
       jobQueueService,
       txService,
@@ -499,6 +567,8 @@ describe(AccountDeletionService.name, () => {
       userTemplateRepository,
       workloadProbeEvidenceRepository,
       organizationRepository,
+      organizationMemberRepository,
+      teamRecordRetentionService,
       notificationService,
       jobQueueService,
       txService,
