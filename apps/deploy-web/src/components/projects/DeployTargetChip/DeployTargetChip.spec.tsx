@@ -46,6 +46,12 @@ describe(DeployTargetChip.name, () => {
     });
   });
 
+  it("hands the picker a failed read of the projects and the way to retry it", () => {
+    const { ChooseProjectModal, retry } = setup({ isMissing: true, isUnreadable: true });
+
+    expect(ChooseProjectModal.mock.lastCall?.[0]).toMatchObject({ isUnreadable: true, onRetry: retry });
+  });
+
   it("abandons the new deployment for the projects page when the first choice is cancelled", async () => {
     const { push } = setup({ isMissing: true });
 
@@ -82,8 +88,9 @@ describe(DeployTargetChip.name, () => {
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
-  function setup(input: { isRequired?: boolean; isLoading?: boolean; isMissing?: boolean; project?: Project }) {
+  function setup(input: { isRequired?: boolean; isLoading?: boolean; isMissing?: boolean; isUnreadable?: boolean; project?: Project }) {
     const push = vi.fn();
+    const retry = vi.fn();
     const onChoose = vi.fn();
     const ChooseProjectModal = vi.fn<typeof DEPENDENCIES.ChooseProjectModal>(({ onChosen, onCancel }) => (
       <div role="dialog">
@@ -105,7 +112,9 @@ describe(DeployTargetChip.name, () => {
       project: input.project,
       projects: [storefront],
       chooseProject: vi.fn(),
-      forgetProject: vi.fn()
+      forgetProject: vi.fn(),
+      isUnreadable: input.isUnreadable ?? false,
+      retry
     };
     const dependencies: typeof DEPENDENCIES = {
       useRouter: () => mock<ReturnType<typeof DEPENDENCIES.useRouter>>({ push }),
@@ -114,7 +123,7 @@ describe(DeployTargetChip.name, () => {
 
     render(<DeployTargetChip target={target} onChoose={onChoose} dependencies={dependencies} />);
 
-    return { push, onChoose, ChooseProjectModal };
+    return { push, onChoose, ChooseProjectModal, retry };
   }
 });
 

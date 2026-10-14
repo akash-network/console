@@ -56,6 +56,29 @@ describe(ChooseProjectModal.name, () => {
     expect(screen.queryByText("You don't have access to any project yet. Ask an owner or admin.")).not.toBeInTheDocument();
   });
 
+  it("offers to read the projects again instead of claiming there are none when they could not be read", async () => {
+    const { onRetry } = setup({ canCreateProject: false, projects: [], isUnreadable: true });
+
+    expect(screen.getByText("Couldn't load your projects.")).toBeInTheDocument();
+    expect(screen.queryByText("You don't have access to any project yet. Ask an owner or admin.")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Continue" })).toBeDisabled();
+
+    await userEvent.click(screen.getByRole("button", { name: "Retry" }));
+
+    expect(onRetry).toHaveBeenCalledTimes(1);
+  });
+
+  it("offers no new project while the projects could not be read, and preselects none once they are", () => {
+    const { readProjects } = setup({ projects: [], isUnreadable: true });
+
+    expect(screen.queryByRole("radio", { name: "Create a new project" })).not.toBeInTheDocument();
+
+    readProjects([project("storefront")]);
+
+    expect(screen.queryByText("Couldn't load your projects.")).not.toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: "Create a new project" })).not.toBeChecked();
+  });
+
   it("says why it asks again", () => {
     setup({ notice: "Choose another one." });
 
@@ -160,8 +183,10 @@ describe(ChooseProjectModal.name, () => {
     isPending?: boolean;
     canCreateProject?: boolean;
     notice?: string;
+    isUnreadable?: boolean;
   }) {
     const onChosen = vi.fn();
+    const onRetry = vi.fn();
     const onCancel = vi.fn();
     const enqueueSnackbar = vi.fn();
     const createProject = vi.fn(async ({ data }: { data: { name: string } }) => {
@@ -174,20 +199,24 @@ describe(ChooseProjectModal.name, () => {
       useSnackbar: () => mock<ReturnType<typeof DEPENDENCIES.useSnackbar>>({ enqueueSnackbar })
     };
 
-    render(
+    const modal = (projects: Project[], isUnreadable: boolean | undefined) => (
       <ChooseProjectModal
         organizationName="Acme Corp"
-        projects={input.projects ?? [project("storefront"), project("marketing")]}
+        projects={projects}
         initialProjectId={input.initialProjectId}
         canCreateProject={input.canCreateProject ?? true}
         notice={input.notice}
+        isUnreadable={isUnreadable}
+        onRetry={onRetry}
         onChosen={onChosen}
         onCancel={onCancel}
         dependencies={dependencies}
       />
     );
+    const { rerender } = render(modal(input.projects ?? [project("storefront"), project("marketing")], input.isUnreadable));
+    const readProjects = (projects: Project[]) => rerender(modal(projects, false));
 
-    return { onChosen, onCancel, enqueueSnackbar, createProject };
+    return { onChosen, onCancel, onRetry, enqueueSnackbar, createProject, readProjects };
   }
 
   function project(name: string, overrides: Partial<Project> = {}): Project {
