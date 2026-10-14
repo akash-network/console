@@ -2,25 +2,23 @@ import { describe, expect, it, vi } from "vitest";
 
 import { type DEPENDENCIES, FundingBanner } from "./FundingBanner";
 
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 
 describe(FundingBanner.name, () => {
-  it("opens the Add Credits sheet on click and closes it once the purchase completes", () => {
-    const { getSheetProps } = setup();
-    expect(getSheetProps().open).toBe(false);
+  it("opens the app-wide Add Credits sheet on the purchase tab on click", () => {
+    const { openAddCredits } = setup();
 
     fireEvent.click(screen.getByRole("button"));
-    expect(getSheetProps().open).toBe(true);
 
-    act(() => getSheetProps().onDone(50));
-    expect(getSheetProps().open).toBe(false);
+    expect(openAddCredits).toHaveBeenCalledWith({ initialTab: "purchase", description: expect.stringContaining("You're on the free plan") });
   });
 
   function setup() {
-    const AddCreditsSheet = vi.fn<typeof DEPENDENCIES.AddCreditsSheet>(() => <></>);
+    const openAddCredits = vi.fn();
+    const useAddCredits: typeof DEPENDENCIES.useAddCredits = () => openAddCredits;
 
-    render(<FundingBanner dependencies={{ AddCreditsSheet }} />);
+    render(<FundingBanner dependencies={{ useAddCredits }} />);
 
-    return { getSheetProps: () => AddCreditsSheet.mock.calls.at(-1)![0] };
+    return { openAddCredits };
   }
 });
