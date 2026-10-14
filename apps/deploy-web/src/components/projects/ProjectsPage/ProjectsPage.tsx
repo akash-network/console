@@ -139,7 +139,7 @@ function ProjectsPageContent({ dependencies: d }: Required<Props>) {
         </div>
 
         <div className="md:min-h-0 md:flex-1 md:overflow-y-auto">
-          <div className="mx-auto w-full max-w-[1228px] px-6 pb-10 pt-[22px]">
+          <div className="container p-4 pb-8 sm:p-6">
             <div className={styles.split}>
               <div className={styles.content}>
                 <section aria-label="All projects">
