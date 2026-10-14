@@ -188,6 +188,44 @@ describe(DeploymentDepositLedgerService.name, () => {
       expect(logger.debug).toHaveBeenCalledWith({ event: "DEPLOYMENT_DEPOSIT_RECORD_SKIPPED", walletId: wallet.id, reason: "wallet_without_organization" });
     });
 
+    it("schedules a check against the chain index for the rows it records, in the same transaction, in case the signer never settles them", async () => {
+      const { service, wallet, deploymentDepositRepository, jobQueueService, txService } = setup();
+      const recorded = createDeposit();
+      deploymentDepositRepository.createMany.mockResolvedValue([recorded]);
+      const before = Date.now();
+
+      await service.recordPending(wallet.id, [createMessage({ owner: wallet.address!, dseq: "101", amount: "5000000", denom: "uact" })]);
+
+      expect(jobQueueService.enqueue).toHaveBeenCalledWith(new ReconcileDeploymentDeposit({ depositIds: [recorded.id] }), {
+        singletonKey: `ReconcileDeploymentDeposit.unsettled.${recorded.id}`,
+        startAfter: expect.any(String)
+      });
+      expect(deploymentDepositRepository.createMany.mock.invocationCallOrder[0]).toBeGreaterThan(txService.transaction.mock.invocationCallOrder[0]);
+      expect(jobQueueService.enqueue.mock.invocationCallOrder[0]).toBeGreaterThan(deploymentDepositRepository.createMany.mock.invocationCallOrder[0]);
+      const { startAfter } = jobQueueService.enqueue.mock.calls[0][1]!;
+      expect(Date.parse(startAfter as string) - before).toBeGreaterThanOrEqual(5 * 60_000);
+      expect(Date.parse(startAfter as string) - before).toBeLessThan(6 * 60_000);
+    });
+
+    it("schedules no check when it records no row", async () => {
+      const { service, wallet, jobQueueService } = setup();
+
+      await service.recordPending(wallet.id, [createMessage({ owner: wallet.address!, dseq: "101", denom: "uakt" })]);
+
+      expect(jobQueueService.enqueue).not.toHaveBeenCalled();
+    });
+
+    it("logs and returns nothing instead of failing the signer when the check cannot be scheduled", async () => {
+      const { service, wallet, jobQueueService, logger } = setup();
+      const error = new Error("queue unavailable");
+      jobQueueService.enqueue.mockRejectedValue(error);
+
+      const pending = await service.recordPending(wallet.id, [createMessage({ owner: wallet.address!, dseq: "101", amount: "5000000", denom: "uact" })]);
+
+      expect(pending).toEqual({ recorded: [], awaitingPrice: [] });
+      expect(logger.error).toHaveBeenCalledWith({ event: "DEPLOYMENT_DEPOSIT_RECORD_FAILED", walletId: wallet.id, error });
+    });
+
     it("logs and returns nothing instead of failing the signer when the record cannot be written", async () => {
       const { service, wallet, deploymentDepositRepository, logger } = setup();
       const error = new Error("database unavailable");

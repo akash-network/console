@@ -88,11 +88,12 @@ export class ReconcileDeploymentDepositHandler implements JobHandler<ReconcileDe
     this.logger.info({ event: "DEPLOYMENT_DEPOSIT_RECONCILED", txHash, status, settledCount, isSeen: !!tx });
   }
 
-  /** Rows are matched one at a time, so the chain deposit one row claims is no longer there for the next. */
+  /** Rows are matched one at a time, so the chain deposit one row claims is no longer there for the next; a row holding a hash is left to its check by that hash. */
   async #reconcileByIndex({ depositIds, indexLagRetries = 0 }: IndexCheck, isLastAttempt: boolean): Promise<void> {
     const unseen: DeploymentDepositOutput[] = [];
 
     for (const deposit of await this.deploymentDepositRepository.findPendingByIds(depositIds)) {
+      if (deposit.txHash) continue;
       if (!(await this.#claimLanding(deposit))) unseen.push(deposit);
     }
 

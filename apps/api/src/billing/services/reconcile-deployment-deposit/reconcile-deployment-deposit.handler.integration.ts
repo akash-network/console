@@ -197,6 +197,17 @@ describe(ReconcileDeploymentDepositHandler.name, () => {
       expect(await findDeploymentDeposit(topUp.id)).toMatchObject({ status: "void" });
     });
 
+    it("leaves a pending row that holds a hash to its check by that hash, even on the last attempt", async () => {
+      const { organization, owner, recordedAt, handler } = await setupIndex();
+      const txHash = faker.string.hexadecimal({ length: 64, prefix: "" }).toUpperCase();
+      const topUp = await seedPending({ organizationId: organization.id, owner, kind: "top_up", createdAt: recordedAt, txHash });
+      await indexTip(secondsAfter(recordedAt, 600));
+
+      await handler.handle({ depositIds: [topUp.id], version: 1 }, { id: faker.string.uuid(), ...LAST_ATTEMPT });
+
+      expect(await findDeploymentDeposit(topUp.id)).toMatchObject({ status: "pending", txHash });
+    });
+
     it("voids the deposits when the wait for the index cannot be queued", async () => {
       const { organization, owner, recordedAt, handler } = await setupIndex();
       const topUp = await seedPending({ organizationId: organization.id, owner, kind: "top_up", createdAt: recordedAt });

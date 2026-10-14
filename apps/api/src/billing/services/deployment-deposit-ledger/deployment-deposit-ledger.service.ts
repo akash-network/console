@@ -78,10 +78,13 @@ export class DeploymentDepositLedgerService {
       const unpriced = await this.#unpricedRowsOf(walletId, deposits, options, signingStartedAt);
       const exact = unpriced.filter(({ denom }) => USD_PEGGED_DENOMS.includes(denom));
 
-      return {
-        recorded: await this.deploymentDepositRepository.createMany(exact.map(row => ({ ...row, amountCents: dollarPeggedCents(row.amount) }))),
-        awaitingPrice: unpriced.filter(row => !exact.includes(row))
-      };
+      const recorded = await this.txService.transaction(async () => {
+        const rows = await this.deploymentDepositRepository.createMany(exact.map(row => ({ ...row, amountCents: dollarPeggedCents(row.amount) })));
+        await this.#checkUnlessSettled(rows);
+        return rows;
+      });
+
+      return { recorded, awaitingPrice: unpriced.filter(row => !exact.includes(row)) };
     } catch (error) {
       this.logger.error({ event: "DEPLOYMENT_DEPOSIT_RECORD_FAILED", walletId, error });
       return NO_PENDING_DEPOSITS;
@@ -202,6 +205,16 @@ export class DeploymentDepositLedgerService {
     } catch (error) {
       this.logger.error({ event: "DEPLOYMENT_DEPOSIT_SETTLE_FAILED", status, txHash, error });
     }
+  }
+
+  /** Settles the rows against the chain index if the signer never does, as when the process stops mid-signing; rows the signer settled are skipped. */
+  async #checkUnlessSettled(deposits: DeploymentDepositOutput[]): Promise<void> {
+    if (!deposits.length) return;
+
+    await this.jobQueueService.enqueue(new ReconcileDeploymentDeposit({ depositIds: deposits.map(({ id }) => id) }), {
+      singletonKey: `${ReconcileDeploymentDeposit[JOB_NAME]}.unsettled.${deposits[0].id}`,
+      startAfter: new Date(Date.now() + RECONCILE_DELAY_IN_MIN * millisecondsInMinute).toISOString()
+    });
   }
 
   /** A row the signer gave no hash for is matched against the chain index instead, so no undecided row stays pending past its check. */
