@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { EmailChipsInput, parseEmailList } from "./EmailChipsInput";
 
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 describe(EmailChipsInput.name, () => {
@@ -31,6 +31,16 @@ describe(EmailChipsInput.name, () => {
 
     expect(onChange).toHaveBeenLastCalledWith(["bob@acme.com"]);
     expect(onSubmit).not.toHaveBeenCalled();
+  });
+
+  it("keeps the draft when Enter confirms an input method composition", async () => {
+    const { user, input, onChange } = setup({ emails: ["bob@acme.com"] });
+
+    await user.type(input, "carol");
+    fireEvent.keyDown(input, { key: "Enter", isComposing: true });
+
+    expect(onChange).not.toHaveBeenCalled();
+    expect(input).toHaveValue("carol");
   });
 
   it("turns pasted addresses into chips", async () => {

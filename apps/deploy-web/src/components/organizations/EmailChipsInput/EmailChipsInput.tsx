@@ -49,6 +49,10 @@ export function EmailChipsInput({ id, emails, onChange, getError = () => null, p
   };
 
   const handleKey = (event: KeyboardEvent<HTMLInputElement>) => {
+    if (event.nativeEvent.isComposing) {
+      return;
+    }
+
     if (event.key === "Enter" && draft.trim()) {
       event.preventDefault();
       commit(draft);
