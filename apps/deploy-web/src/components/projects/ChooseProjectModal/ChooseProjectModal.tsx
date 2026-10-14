@@ -13,6 +13,7 @@ import {
   LoadingButton,
   Snackbar
 } from "@akashnetwork/ui/components";
+import { RefreshCw } from "lucide-react";
 import { useSnackbar } from "notistack";
 
 import { isProjectNameTakenError, useCreateProjectMutation } from "@src/queries/useProjectsQuery";
@@ -31,6 +32,9 @@ interface Props {
   canCreateProject: boolean;
   /** Why the picker asks, when it asks again after the api refused the project chosen before. */
   notice?: string;
+  /** The projects could not be read, so the picker offers `onRetry` instead of claiming there are none. */
+  isUnreadable?: boolean;
+  onRetry?: () => void;
   onChosen: (project: Project) => void;
   onCancel: () => void;
   dependencies?: typeof DEPENDENCIES;
@@ -43,6 +47,8 @@ export function ChooseProjectModal({
   initialProjectId,
   canCreateProject,
   notice,
+  isUnreadable = false,
+  onRetry,
   onChosen,
   onCancel,
   dependencies: d = DEPENDENCIES
@@ -50,7 +56,9 @@ export function ChooseProjectModal({
   const formId = useId();
   const { enqueueSnackbar } = d.useSnackbar();
   const { mutateAsync: createProject, isPending } = d.useCreateProjectMutation();
-  const [choice, setChoice] = useState<string | null>(initialProjectId ?? (projects.length === 0 && canCreateProject ? NEW_PROJECT_CHOICE : null));
+  const [choice, setChoice] = useState<string | null>(
+    initialProjectId ?? (projects.length === 0 && canCreateProject && !isUnreadable ? NEW_PROJECT_CHOICE : null)
+  );
   const [newProjectName, setNewProjectName] = useState("");
   const [refusedSlugs, setRefusedSlugs] = useState<string[]>([]);
 
@@ -100,7 +108,15 @@ export function ChooseProjectModal({
                 {notice}
               </p>
             )}
-            {projects.length === 0 && !canCreateProject ? (
+            {isUnreadable ? (
+              <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-border px-4 py-6 text-center">
+                <p className="text-[13px] text-muted-foreground">Couldn&apos;t load your projects.</p>
+                <Button type="button" variant="outline" size="sm" onClick={onRetry}>
+                  <RefreshCw className="mr-2 h-4 w-4" />
+                  Retry
+                </Button>
+              </div>
+            ) : projects.length === 0 && !canCreateProject ? (
               <p className="rounded-xl border border-dashed border-border px-4 py-6 text-center text-[13px] text-muted-foreground">
                 You don&apos;t have access to any project yet. Ask an owner or admin.
               </p>

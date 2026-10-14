@@ -94,6 +94,46 @@ describe(useDeployTarget.name, () => {
     expect(store.get(deployTargetProjectIdAtom)).toBeNull();
   });
 
+  it("says the projects could not be read, and reads them again on retry", () => {
+    const { result, refetchProjects, retryAccess } = setup({ isProjectsError: true });
+
+    expect(result.current).toMatchObject({ isUnreadable: true, isMissing: true, projects: [] });
+
+    act(() => result.current.retry?.());
+
+    expect(refetchProjects).toHaveBeenCalledTimes(1);
+    expect(retryAccess).not.toHaveBeenCalled();
+  });
+
+  it("says the caller's access could not be read, and reads it again on retry", () => {
+    const { result, refetchProjects, retryAccess } = setup({ isAccessError: true });
+
+    expect(result.current.isUnreadable).toBe(true);
+
+    act(() => result.current.retry?.());
+
+    expect(retryAccess).toHaveBeenCalledTimes(1);
+    expect(refetchProjects).not.toHaveBeenCalled();
+  });
+
+  it("keeps the projects it read when a later read of them fails", () => {
+    const { result } = setup({ isProjectsError: true, hasReadProjects: true });
+
+    expect(result.current.isUnreadable).toBe(false);
+    expect(result.current.projects.map(project => project.id)).toEqual(["storefront", "marketing"]);
+  });
+
+  it("reads as readable once the projects and the caller's access are in", () => {
+    const { result } = setup({});
+
+    expect(result.current.isUnreadable).toBe(false);
+  });
+
+  it("reports no failed read while projects are off or still loading", () => {
+    expect(setup({ isEnabled: false, isProjectsError: true, isAccessError: true }).result.current.isUnreadable).toBe(false);
+    expect(setup({ isLoadingAccess: true, isAccessError: true }).result.current.isUnreadable).toBe(false);
+  });
+
   it("names the organization the deployment goes to", () => {
     const { result } = setup({});
 
@@ -109,13 +149,25 @@ describe(useDeployTarget.name, () => {
     chosenProjectId?: string;
     viewedProjectId?: string;
     isLoadingAccess?: boolean;
+    isProjectsError?: boolean;
+    hasReadProjects?: boolean;
+    isAccessError?: boolean;
   }) {
+    const refetchProjects = vi.fn();
+    const retryAccess = vi.fn();
     const projects = [mock<Project>({ id: "storefront", name: "storefront" }), mock<Project>({ id: "marketing", name: "marketing" })];
     const isEnabled = input.isEnabled ?? true;
     const useProjectsQuery = vi.fn<typeof DEPENDENCIES.useProjectsQuery>(() =>
       input.isLoading
-        ? mock<ReturnType<typeof DEPENDENCIES.useProjectsQuery>>({ data: undefined, isLoading: true })
-        : mock<ReturnType<typeof DEPENDENCIES.useProjectsQuery>>({ data: projects, isLoading: false })
+        ? mock<ReturnType<typeof DEPENDENCIES.useProjectsQuery>>({ data: undefined, isLoading: true, isError: false, refetch: refetchProjects })
+        : input.isProjectsError
+          ? mock<ReturnType<typeof DEPENDENCIES.useProjectsQuery>>({
+              data: input.hasReadProjects ? projects : undefined,
+              isLoading: false,
+              isError: true,
+              refetch: refetchProjects
+            })
+          : mock<ReturnType<typeof DEPENDENCIES.useProjectsQuery>>({ data: projects, isLoading: false, isError: false, refetch: refetchProjects })
     );
     const dependencies: typeof DEPENDENCIES = {
       useProjectsUi: () => ({ isEnabled, canManageProjects: true, canChangeDeployments: true, organizationName: "Acme Corp" }),
@@ -123,6 +175,8 @@ describe(useDeployTarget.name, () => {
       useProjectAccess: () =>
         mock<ReturnType<typeof DEPENDENCIES.useProjectAccess>>({
           isLoading: input.isLoadingAccess ?? false,
+          isError: input.isAccessError ?? false,
+          retry: retryAccess,
           canManageDeployments: projectId => projectId !== input.viewedProjectId
         })
     };
@@ -133,6 +187,6 @@ describe(useDeployTarget.name, () => {
       wrapper: ({ children }: PropsWithChildren) => <Provider store={store}>{children}</Provider>
     });
 
-    return { ...hook, store, useProjectsQuery };
+    return { ...hook, store, useProjectsQuery, refetchProjects, retryAccess };
   }
 });

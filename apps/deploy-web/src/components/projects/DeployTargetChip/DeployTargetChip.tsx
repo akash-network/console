@@ -65,6 +65,8 @@ export function DeployTargetChip({ target, onChoose, dependencies: d = DEPENDENC
           initialProjectId={target.project?.id}
           canCreateProject={target.canCreateProject}
           notice={target.notice}
+          isUnreadable={target.isUnreadable}
+          onRetry={target.retry}
           onChosen={choose}
           onCancel={cancel}
         />

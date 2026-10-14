@@ -21,6 +21,39 @@ describe(DeployTargetGate.name, () => {
     expect(store.get(deployTargetProjectIdAtom)).toBeNull();
   });
 
+  it("offers the picker a retry instead of an empty list when the projects could not be read", () => {
+    const { flowTarget, ChooseProjectModal, refetchProjects, retryAccess } = setup({ isProjectsError: true, filedDseq: "100", filedProjectId: "storefront" });
+
+    expect(flowTarget().isUnreadable).toBe(true);
+    expect(ChooseProjectModal.mock.lastCall?.[0]).toMatchObject({ isUnreadable: true, projects: [] });
+
+    act(() => ChooseProjectModal.mock.lastCall?.[0].onRetry?.());
+
+    expect(refetchProjects).toHaveBeenCalledTimes(1);
+    expect(retryAccess).not.toHaveBeenCalled();
+  });
+
+  it("keeps the projects it read when a later read of them fails", () => {
+    const { flowTarget, ChooseProjectModal } = setup({ isProjectsError: true, hasReadProjects: true, handedOverProjectId: "storefront" });
+
+    expect(flowTarget()).toMatchObject({ isUnreadable: false, project: { id: "storefront" } });
+    expect(ChooseProjectModal).not.toHaveBeenCalled();
+  });
+
+  it("retries the caller's access when that is what could not be read", () => {
+    const { ChooseProjectModal, refetchProjects, retryAccess } = setup({ isAccessError: true });
+
+    act(() => ChooseProjectModal.mock.lastCall?.[0].onRetry?.());
+
+    expect(retryAccess).toHaveBeenCalledTimes(1);
+    expect(refetchProjects).not.toHaveBeenCalled();
+  });
+
+  it("reports no failed read once the projects are in, or while projects are off", () => {
+    expect(setup({ handedOverProjectId: "storefront" }).flowTarget().isUnreadable).toBe(false);
+    expect(setup({ isRequired: false, isProjectsError: true, isAccessError: true }).flowTarget().isUnreadable).toBe(false);
+  });
+
   it("lets the flow through without a project while projects are off", () => {
     const { flowTarget } = setup({ isRequired: false, handedOverProjectId: "storefront" });
 
@@ -207,7 +240,12 @@ describe(DeployTargetGate.name, () => {
     isOrganizationLoading?: boolean;
     viewedProjectId?: string;
     isLoadingAccess?: boolean;
+    isProjectsError?: boolean;
+    hasReadProjects?: boolean;
+    isAccessError?: boolean;
   }) {
+    const refetchProjects = vi.fn();
+    const retryAccess = vi.fn();
     const organization = { isLoading: input.isOrganizationLoading ?? false };
     const push = vi.fn();
     const projects = [project("storefront"), project("marketing")];
@@ -243,12 +281,21 @@ describe(DeployTargetGate.name, () => {
       }),
       useProjectsQuery: () =>
         input.isLoading
-          ? mock<ReturnType<typeof DEPENDENCIES.useProjectsQuery>>({ data: undefined, isLoading: true })
-          : mock<ReturnType<typeof DEPENDENCIES.useProjectsQuery>>({ data: projects, isLoading: false }),
+          ? mock<ReturnType<typeof DEPENDENCIES.useProjectsQuery>>({ data: undefined, isLoading: true, isError: false, refetch: refetchProjects })
+          : input.isProjectsError
+            ? mock<ReturnType<typeof DEPENDENCIES.useProjectsQuery>>({
+                data: input.hasReadProjects ? projects : undefined,
+                isLoading: false,
+                isError: true,
+                refetch: refetchProjects
+              })
+            : mock<ReturnType<typeof DEPENDENCIES.useProjectsQuery>>({ data: projects, isLoading: false, isError: false, refetch: refetchProjects }),
       useDeploymentLocationQuery,
       useProjectAccess: () =>
         mock<ReturnType<typeof DEPENDENCIES.useProjectAccess>>({
           isLoading: input.isLoadingAccess ?? false,
+          isError: input.isAccessError ?? false,
+          retry: retryAccess,
           canManageDeployments: projectId => projectId !== input.viewedProjectId
         }),
       useRouter: () => mock<ReturnType<typeof DEPENDENCIES.useRouter>>({ push }),
@@ -276,6 +323,8 @@ describe(DeployTargetGate.name, () => {
       store,
       ChooseProjectModal,
       useDeploymentLocationQuery,
+      refetchProjects,
+      retryAccess,
       flowTarget: () => target as ReturnType<typeof useConfigureDeployTarget>,
       settleOrganization: () => {
         organization.isLoading = false;

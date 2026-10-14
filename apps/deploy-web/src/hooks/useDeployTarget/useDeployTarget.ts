@@ -27,6 +27,9 @@ export interface DeployTarget {
   notice?: string;
   /** The deployment already exists and stays in the project it was filed in. */
   isFiled?: boolean;
+  /** The projects could not be read, so the picker offers `retry` instead of claiming there are none. */
+  isUnreadable?: boolean;
+  retry?: () => void;
 }
 
 /** The project the new deployment page hands to Configure: the one it was opened for, else none, so the picker asks. */
@@ -44,7 +47,9 @@ export function useDeployTarget(
   const targetProjectId = requestedProjectId || chosenProjectId;
   const project = isRequired ? projects.find(candidate => candidate.id === targetProjectId) : undefined;
   const isLoading = isRequired && (projectsQuery.isLoading || access.isLoading);
+  const isUnreadable = isRequired && !isLoading && ((!projectsQuery.data && projectsQuery.isError) || access.isError);
   const forgetProject = useCallback(() => setChosenProjectId(null), [setChosenProjectId]);
+  const retry = () => (access.isError ? access.retry() : void projectsQuery.refetch());
 
   useEffect(
     function handOverTheProjectThePageWasOpenedFor() {
@@ -62,6 +67,8 @@ export function useDeployTarget(
     project,
     projects,
     chooseProject: setChosenProjectId,
-    forgetProject
+    forgetProject,
+    isUnreadable,
+    retry
   };
 }

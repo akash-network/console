@@ -81,6 +81,10 @@ export function DeployTargetGate({ filedDseq, fallback, children, dependencies: 
   const project = isRequired ? projects.find(candidate => candidate.id === (filedProjectId ?? projectId)) : undefined;
   const isLoading = isRequired && (projectsQuery.isLoading || access.isLoading || (isFiled && filedLocationQuery.isLoading));
   const isMissing = isRequired && !isLoading && !project;
+  const isUnreadable = isRequired && !isLoading && ((!projectsQuery.data && projectsQuery.isError) || access.isError);
+  const refetchProjects = projectsQuery.refetch;
+  const { isError: isAccessUnreadable, retry: retryAccess } = access;
+  const retry = useCallback(() => (isAccessUnreadable ? retryAccess() : void refetchProjects()), [isAccessUnreadable, retryAccess, refetchProjects]);
 
   const chooseProject = useCallback((chosenProjectId: string) => {
     setProjectId(chosenProjectId);
@@ -105,9 +109,25 @@ export function DeployTargetGate({ filedDseq, fallback, children, dependencies: 
       chooseProject,
       forgetProject,
       notice,
-      isFiled
+      isFiled,
+      isUnreadable,
+      retry
     }),
-    [isRequired, isLoading, isMissing, organizationName, canManageProjects, project, projects, chooseProject, forgetProject, notice, isFiled]
+    [
+      isRequired,
+      isLoading,
+      isMissing,
+      organizationName,
+      canManageProjects,
+      project,
+      projects,
+      chooseProject,
+      forgetProject,
+      notice,
+      isFiled,
+      isUnreadable,
+      retry
+    ]
   );
 
   const isWaitingForAProject = !isFiled && !hasLetTheFlowThrough && (isOrganizationLoading || isLoading || isMissing);
@@ -137,6 +157,8 @@ export function DeployTargetGate({ filedDseq, fallback, children, dependencies: 
           projects={projects}
           canCreateProject={canManageProjects}
           notice={notice}
+          isUnreadable={isUnreadable}
+          onRetry={retry}
           onChosen={(chosen: Project) => chooseProject(chosen.id)}
           onCancel={leavePicker}
         />
