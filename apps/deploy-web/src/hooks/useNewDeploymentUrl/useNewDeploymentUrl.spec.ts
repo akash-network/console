@@ -15,6 +15,11 @@ describe(useNewDeploymentUrl.name, () => {
     expect(make()).toBe("/new-deployment");
   });
 
+  it("carries the project a deployment was started from to the picker", () => {
+    const make = build();
+    expect(make({ projectId: "project-1" })).toBe("/new-deployment?projectId=project-1");
+  });
+
   function build() {
     return renderHook(() => useNewDeploymentUrl(DEPENDENCIES)).result.current;
   }

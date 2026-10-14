@@ -36,3 +36,16 @@ export const PROJECT_NOT_EMPTY_ERROR_CODE = "project_not_empty";
 export const MAX_PROJECT_SLUG_LENGTH = 40;
 
 export const MAX_PROJECT_DESCRIPTION_LENGTH = 140;
+
+export type ProjectMember = operationDefs["listProjectMembers"]["responses"][200]["content"]["application/json"]["data"][number];
+
+export type ProjectRole = ProjectMember["role"];
+
+/** Where a deployment is filed; `projectId` is null for one the console has not filed into a project yet. */
+export type DeploymentLocation = operationDefs["getDeploymentLocation"]["responses"][200]["content"]["application/json"]["data"];
+
+/** The `code` of the 400 `createDeployment` answers when the caller may write to no default project and named none. */
+export const PROJECT_REQUIRED_ERROR_CODE = "project_required";
+
+/** The message of the 404 the api answers for a project that was deleted or that the caller can no longer reach. */
+export const PROJECT_NOT_FOUND_MESSAGE = "Project not found";

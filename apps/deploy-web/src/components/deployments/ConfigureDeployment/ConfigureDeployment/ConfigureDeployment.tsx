@@ -8,6 +8,7 @@ import { NextSeo } from "next-seo";
 import { useSnackbar } from "notistack";
 
 import Layout from "@src/components/layout/Layout";
+import { DeployTargetGate } from "@src/components/projects/DeployTargetGate/DeployTargetGate";
 import { usePublicTemplate, useTemplate } from "@src/queries/useTemplateQuery";
 import sdlStore from "@src/store/sdlStore";
 import type { TemplateCreation } from "@src/types";
@@ -28,6 +29,7 @@ export const DEPENDENCIES = {
   ConfigureDeploymentForm,
   DeploymentFlowProvider,
   ResumeDeploymentGuard,
+  DeployTargetGate,
   usePublicTemplate,
   useUserTemplate: useTemplate,
   useConfigureDraft,
@@ -135,27 +137,29 @@ export const ConfigureDeployment: FC<Props> = ({ dependencies: d = DEPENDENCIES 
   if (draft.isLoading) return loadingScreen;
 
   return (
-    <d.ResumeDeploymentGuard intent={resolvedIntent} canResume={isAutoDeploy && !!initialSdl}>
-      {resume => {
-        if (isTemplateLoading) return loadingScreen;
+    <d.DeployTargetGate filedDseq={intent.dseq} fallback={loadingScreen}>
+      <d.ResumeDeploymentGuard intent={resolvedIntent} canResume={isAutoDeploy && !!initialSdl}>
+        {resume => {
+          if (isTemplateLoading) return loadingScreen;
 
-        return (
-          <d.DeploymentFlowProvider key={draft.draftId} intent={resolvedIntent}>
-            {({ flow }) =>
-              isAutoDeploy && initialSdl ? (
-                <d.AutoDeployFlow templateName={templateName} sdl={initialSdl} resume={resume} flow={flow} />
-              ) : (
-                <d.ConfigureDeploymentForm
-                  initialSdl={initialSdl ?? resume.recordedDefinition?.sdl}
-                  initialName={initialName ?? resume.recordedDefinition?.name}
-                  intent={resolvedIntent}
-                  flow={flow}
-                />
-              )
-            }
-          </d.DeploymentFlowProvider>
-        );
-      }}
-    </d.ResumeDeploymentGuard>
+          return (
+            <d.DeploymentFlowProvider key={draft.draftId} intent={resolvedIntent}>
+              {({ flow }) =>
+                isAutoDeploy && initialSdl ? (
+                  <d.AutoDeployFlow templateName={templateName} sdl={initialSdl} resume={resume} flow={flow} />
+                ) : (
+                  <d.ConfigureDeploymentForm
+                    initialSdl={initialSdl ?? resume.recordedDefinition?.sdl}
+                    initialName={initialName ?? resume.recordedDefinition?.name}
+                    intent={resolvedIntent}
+                    flow={flow}
+                  />
+                )
+              }
+            </d.DeploymentFlowProvider>
+          );
+        }}
+      </d.ResumeDeploymentGuard>
+    </d.DeployTargetGate>
   );
 };

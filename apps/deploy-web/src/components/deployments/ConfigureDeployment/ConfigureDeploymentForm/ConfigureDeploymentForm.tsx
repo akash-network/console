@@ -9,6 +9,7 @@ import { useSnackbar } from "notistack";
 
 import { AddCreditsSnackbarContent } from "@src/components/billing-usage/AddCreditsSnackbarContent/AddCreditsSnackbarContent";
 import Layout from "@src/components/layout/Layout";
+import { ConfigureDeployTargetChip } from "@src/components/projects/ConfigureDeployTargetChip/ConfigureDeployTargetChip";
 import { useServices } from "@src/context/ServicesProvider";
 import { useFlag } from "@src/hooks/useFlag";
 import { usePlacementsWithBids } from "@src/queries/usePlacementsWithBids";
@@ -50,6 +51,7 @@ export const DEPENDENCIES = {
   NextSeo,
   ConfigureDeploymentBackButton,
   ConfigureDeploymentHeader,
+  ConfigureDeployTargetChip,
   ConfigureDeploymentPanes,
   ConfigureWorkspace,
   ReviewAndDeployModal,
@@ -349,6 +351,7 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, initialName, in
           <InheritedSecretsProvider value={inheritedSecrets}>
             <div className="relative flex min-h-0 flex-1 flex-col">
               {importChanges.length > 0 && <d.SdlImportChangesBanner changes={importChanges} onDismiss={() => setImportChanges([])} />}
+              <d.ConfigureDeployTargetChip />
               {isTwoPanel ? (
                 <d.ConfigureWorkspace
                   intent={intent}

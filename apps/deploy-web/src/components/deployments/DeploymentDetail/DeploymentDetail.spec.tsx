@@ -4,6 +4,7 @@ import { mock } from "vitest-mock-extended";
 
 import type { DeploymentDefinition } from "@src/hooks/useDeploymentDefinition/useDeploymentDefinition";
 import type { DeploymentDto, DetectedLeaseGpus, LeaseDto, LeaseGpusByLease, OfferedLeaseGpus } from "@src/types/deployment";
+import type { DeploymentLocation } from "@src/types/project";
 import type { ApiProviderList } from "@src/types/provider";
 import type { DeploymentGettingStartedProps } from "./DeploymentGettingStarted/DeploymentGettingStarted";
 import type { DeploymentPlacementsProps } from "./DeploymentPlacements/DeploymentPlacements";
@@ -38,6 +39,20 @@ describe("DeploymentDetail", () => {
     expect(screen.getByRole("tab", { name: "Settings" })).toBeInTheDocument();
     expect(screen.queryByRole("tab", { name: "Billing & Notifications" })).not.toBeInTheDocument();
     expect(screen.getByText("placements")).toBeInTheDocument();
+  });
+
+  it("offers a member who only reads deployments no update or shell tab", () => {
+    setup({ canChangeDeployments: false });
+
+    expect(screen.getByRole("tab", { name: "Logs" })).toBeInTheDocument();
+    expect(screen.queryByRole("tab", { name: "Update" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("tab", { name: "Shell" })).not.toBeInTheDocument();
+  });
+
+  it("looks for the deployment in the user's other organizations only once it is missing here, keeping the query", () => {
+    const { useOpenDeploymentInItsOrganization } = setup({ error: new Error("Deployment not found"), tab: "LOGS" });
+
+    expect(useOpenDeploymentInItsOrganization).toHaveBeenLastCalledWith({ dseq: "1786440078202", isMissingHere: true, query: "tab=LOGS" });
   });
 
   it("renders the reclamation banner between the detail header and the tabs", () => {
@@ -183,6 +198,27 @@ describe("DeploymentDetail", () => {
 
     expect(redeploy).toHaveBeenCalledWith({ sdl: "version: '2.0'", name: "My Storefront", sourceDseq: expect.any(String) });
     expect(analyticsService.track).toHaveBeenCalledWith("redeploy_btn_clk", "Amplitude");
+  });
+
+  it("redeploys into the project the deployment is filed in", () => {
+    const { redeploy, DeploymentUpdate, useDeploymentLocationQuery } = setup({
+      tab: "UPDATE",
+      definition: { sdl: "version: '2.0'", source: "api" },
+      filedProjectId: "storefront"
+    });
+
+    DeploymentUpdate.mock.calls[0][0].onRedeploy?.();
+    DeploymentUpdate.mock.calls[0][0].onRedeployWithNewSecrets?.();
+
+    expect(useDeploymentLocationQuery).toHaveBeenCalledWith("1786440078202", { enabled: true });
+    expect(redeploy).toHaveBeenNthCalledWith(1, expect.objectContaining({ projectId: "storefront" }));
+    expect(redeploy).toHaveBeenNthCalledWith(2, expect.objectContaining({ projectId: "storefront" }));
+  });
+
+  it("reads where the deployment is filed only while projects are shown", () => {
+    const { useDeploymentLocationQuery } = setup({ isProjectsUiEnabled: false });
+
+    expect(useDeploymentLocationQuery).toHaveBeenCalledWith("1786440078202", { enabled: false });
   });
 
   it("withholds redeploy from the Update tab when neither source holds a definition", () => {
@@ -457,6 +493,9 @@ describe("DeploymentDetail", () => {
     tab?: string;
     leaseState?: string;
     definition?: Partial<DeploymentDefinition>;
+    canChangeDeployments?: boolean;
+    isProjectsUiEnabled?: boolean;
+    filedProjectId?: string;
     providers?: ApiProviderList[];
     leaseGpus?: LeaseGpusByLease;
     isLoadingLeaseGpus?: boolean;
@@ -518,6 +557,12 @@ describe("DeploymentDetail", () => {
     const DeploymentSettings = vi.fn(() => <div>settings</div>);
     const DeploymentUpdate = vi.fn((_props: DeploymentUpdateProps) => <div>structured-update</div>);
     const createConfigureDraft = vi.fn<typeof DEPENDENCIES.createConfigureDraft>(() => "handed-over");
+    const useOpenDeploymentInItsOrganization = vi.fn<typeof DEPENDENCIES.useOpenDeploymentInItsOrganization>();
+    const useDeploymentLocationQuery = vi.fn<typeof DEPENDENCIES.useDeploymentLocationQuery>(() =>
+      mock<ReturnType<typeof DEPENDENCIES.useDeploymentLocationQuery>>({
+        data: input?.filedProjectId ? mock<DeploymentLocation>({ projectId: input.filedProjectId }) : null
+      })
+    );
 
     const dependencies = MockComponents(DEPENDENCIES, {
       useServices,
@@ -539,7 +584,14 @@ describe("DeploymentDetail", () => {
       ManifestUpdate,
       DeploymentSettings,
       DeploymentUpdate,
-      createConfigureDraft
+      createConfigureDraft,
+      useProjectsUi: () =>
+        mock<ReturnType<typeof DEPENDENCIES.useProjectsUi>>({
+          canChangeDeployments: input?.canChangeDeployments ?? true,
+          isEnabled: input?.isProjectsUiEnabled ?? true
+        }),
+      useDeploymentLocationQuery,
+      useOpenDeploymentInItsOrganization
     });
     const { rerender } = render(<DeploymentDetail dseq="1786440078202" dependencies={dependencies} />);
 
@@ -548,6 +600,8 @@ describe("DeploymentDetail", () => {
       analyticsService,
       redeploy,
       createConfigureDraft,
+      useOpenDeploymentInItsOrganization,
+      useDeploymentLocationQuery,
       ManifestUpdate,
       DeploymentUpdate,
       refetchDeployment,

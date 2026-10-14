@@ -1,6 +1,8 @@
+import { useSetAtom } from "jotai";
 import { useRouter } from "next/navigation";
 
 import { createConfigureDraft } from "@src/components/deployments/ConfigureDeployment/useConfigureDraft/useConfigureDraft";
+import { deployTargetProjectIdAtom } from "@src/store/deployTargetStore";
 import { secretReferenceNamesIn } from "@src/utils/sdl/sdlSecrets";
 import { UrlService } from "@src/utils/urlUtils";
 
@@ -14,14 +16,18 @@ export interface RedeployInput {
   name?: string;
   /** The deployment being redeployed; named on the draft when its SDL references secrets, so the new deployment can inherit their stored values. */
   sourceDseq?: string;
+  /** The project the previous deployment is filed in, which the new one goes to; without one the project picker asks. */
+  projectId?: string | null;
 }
 
 /** Opens the configure flow on a draft minted from the previous SDL, or blank without one; redeploy always starts a fresh deployment, so the original dseq is dropped. */
 export function useRedeploy(dependencies = DEPENDENCIES) {
   const d = dependencies;
   const router = d.useRouter();
+  const handOverProject = useSetAtom(deployTargetProjectIdAtom);
 
-  return function redeploy({ sdl, name, sourceDseq }: RedeployInput) {
+  return function redeploy({ sdl, name, sourceDseq, projectId }: RedeployInput) {
+    handOverProject(projectId ?? null);
     if (sdl) {
       const inheritsSecrets = !!sourceDseq && secretReferenceNamesIn(sdl).size > 0;
       const draftId = d.createConfigureDraft(sdl, { name, ...(inheritsSecrets ? { inheritSecretsFrom: sourceDseq } : {}) });

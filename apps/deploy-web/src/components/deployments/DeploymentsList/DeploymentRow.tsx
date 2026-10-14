@@ -5,6 +5,7 @@ import { Checkbox, TableCell, TableRow } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
 import Link from "next/link";
 
+import { DeploymentProjectChip } from "@src/components/projects/DeploymentProjectChip/DeploymentProjectChip";
 import type { ListedDeploymentDto } from "@src/types/deployment";
 import type { ApiProviderList } from "@src/types/provider";
 import { UrlService } from "@src/utils/urlUtils";
@@ -23,7 +24,8 @@ export const DEPENDENCIES = {
   DeploymentEndpoints,
   DeploymentEndpointsPanel,
   DeploymentSpecSummary,
-  DeploymentActionsMenu
+  DeploymentActionsMenu,
+  DeploymentProjectChip
 };
 
 /** TableCell zeroes its right padding for any cell holding a checkbox, which would pin these controls to the table's edge. */
@@ -71,6 +73,7 @@ export const DeploymentRow: FC<DeploymentRowProps> = ({
           <Link href={UrlService.deploymentDetails(deployment.dseq)} className="block truncate font-semibold hover:underline">
             {deployment.name || `Deployment #${deployment.dseq}`}
           </Link>
+          <d.DeploymentProjectChip projectId={deployment.projectId} />
         </TableCell>
         <TableCell>
           <d.DeploymentEndpoints

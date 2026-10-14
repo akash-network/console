@@ -40,6 +40,16 @@ describe(RecentActivityFeed.name, () => {
     expect(screen.getByText("?")).toBeInTheDocument();
   });
 
+  it("names no project on a project's own page", () => {
+    setup({
+      activities: [activity({ projectId: "p1", type: "project_created", payload: { projectName: "storefront" } })],
+      projects: [{ id: "p1", name: "storefront" }],
+      showsProjects: false
+    });
+
+    expect(screen.queryByRole("link", { name: "storefront" })).not.toBeInTheDocument();
+  });
+
   it("says the activity could not be loaded and offers to retry", async () => {
     const { onRetry } = setup({ activities: [], isError: true });
 
@@ -97,6 +107,7 @@ describe(RecentActivityFeed.name, () => {
     hasMore?: boolean;
     isError?: boolean;
     canRetry?: boolean;
+    showsProjects?: boolean;
   }) {
     const onShowMore = vi.fn();
     const onRetry = vi.fn();
@@ -108,6 +119,7 @@ describe(RecentActivityFeed.name, () => {
         onShowMore={onShowMore}
         isError={input.isError}
         onRetry={input.canRetry === false ? undefined : onRetry}
+        showsProjects={input.showsProjects}
       />
     );
     return { ...view, onShowMore, onRetry };

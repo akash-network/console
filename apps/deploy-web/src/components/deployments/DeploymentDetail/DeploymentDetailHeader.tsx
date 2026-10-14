@@ -6,6 +6,7 @@ import { cn } from "@akashnetwork/ui/utils";
 import { Info, Pencil } from "lucide-react";
 
 import { useLocalNotes } from "@src/components/LocalNoteManager";
+import { DeploymentProjectBreadcrumb } from "@src/components/projects/DeploymentProjectBreadcrumb/DeploymentProjectBreadcrumb";
 import { ConfidentialComputeBadge } from "@src/components/shared/ConfidentialComputeBadge";
 import { CostBreakdownTooltip } from "@src/components/shared/CostBreakdownTooltip";
 import { CostRate } from "@src/components/shared/CostRate";
@@ -56,7 +57,8 @@ export const DEPENDENCIES = {
   CustomTooltip,
   ConfidentialComputeBadge,
   GpuInterconnectBadge,
-  TrialDeploymentBadge
+  TrialDeploymentBadge,
+  DeploymentProjectBreadcrumb
 };
 
 /**
@@ -117,6 +119,7 @@ export const DeploymentDetailHeader: FC<DeploymentDetailHeaderProps> = ({
   return (
     <div className="flex flex-col gap-6 py-6 lg:flex-row lg:items-start lg:justify-between">
       <div className="space-y-3">
+        <d.DeploymentProjectBreadcrumb dseq={deployment.dseq} />
         <div className="flex flex-wrap items-center gap-2">
           <DeploymentStatusBadge state={deployment.state} leases={leases} isClosing={isClosing} workload={workload} />
           <d.ConfidentialComputeBadge teeTypes={teeTypes} />

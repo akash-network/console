@@ -26,6 +26,18 @@ describe(useDeploymentsListModel.name, () => {
     expect(useDeploymentsListSource).toHaveBeenCalledWith({ search: "", pageIndex: 0, pageSize: DEFAULT_PAGE_SIZE, archivePageIndex: 0 });
   });
 
+  it("asks the source for one project's deployments when scoped to a project", () => {
+    const { useDeploymentsListSource } = setup({ projectId: "project-1", active: [deployment("100")] });
+
+    expect(useDeploymentsListSource).toHaveBeenCalledWith({
+      search: "",
+      pageIndex: 0,
+      pageSize: DEFAULT_PAGE_SIZE,
+      archivePageIndex: 0,
+      projectId: "project-1"
+    });
+  });
+
   it("shows the rows the source answered with", () => {
     const { result } = setup({ active: [deployment("100")] });
 
@@ -809,6 +821,7 @@ describe(useDeploymentsListModel.name, () => {
   }
 
   type Input = {
+    projectId?: string;
     active?: ListedDeploymentDto[];
     activeByPage?: Record<number, ListedDeploymentDto[]>;
     archived?: ListedDeploymentDto[];
@@ -885,7 +898,7 @@ describe(useDeploymentsListModel.name, () => {
     };
 
     const store = createStore();
-    const hook = renderHook(() => useDeploymentsListModel(dependencies), {
+    const hook = renderHook(() => useDeploymentsListModel({ projectId: input.projectId }, dependencies), {
       wrapper: ({ children }) => (
         <TestContainerProvider services={{ analyticsService: () => analyticsService }}>
           <Provider store={store}>{children}</Provider>

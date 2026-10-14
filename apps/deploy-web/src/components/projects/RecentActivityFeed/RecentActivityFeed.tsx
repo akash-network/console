@@ -23,10 +23,12 @@ interface Props {
   onShowMore: () => void;
   isError?: boolean;
   onRetry?: () => void;
+  /** Off on a project's own page, where every item is of that project. */
+  showsProjects?: boolean;
 }
 
 /** What happened lately in the organization, newest first, with the member or system behind each event. */
-export function RecentActivityFeed({ activities, projects, hasMore, onShowMore, isError = false, onRetry }: Props) {
+export function RecentActivityFeed({ activities, projects, hasMore, onShowMore, isError = false, onRetry, showsProjects = true }: Props) {
   const projectNameById = new Map(projects.map(project => [project.id, project.name]));
 
   return (
@@ -48,7 +50,11 @@ export function RecentActivityFeed({ activities, projects, hasMore, onShowMore, 
         ) : (
           <ol className="divide-y divide-border">
             {activities.map(activity => (
-              <ActivityItem key={activity.id} activity={activity} projectName={activity.projectId ? projectNameById.get(activity.projectId) : undefined} />
+              <ActivityItem
+                key={activity.id}
+                activity={activity}
+                projectName={showsProjects && activity.projectId ? projectNameById.get(activity.projectId) : undefined}
+              />
             ))}
           </ol>
         )}

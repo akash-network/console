@@ -1,9 +1,11 @@
 import type { PropsWithChildren } from "react";
+import type { ReadonlyURLSearchParams } from "next/navigation";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { TemplateOutputSummaryWithCategory } from "@src/queries/useTemplateQuery";
 import type { AnalyticsService } from "@src/services/analytics/analytics.service";
+import type { Project } from "@src/types/project";
 import { UrlService } from "@src/utils/urlUtils";
 import { DEPENDENCIES, NewDeploymentPage } from "./NewDeploymentPage";
 
@@ -13,6 +15,33 @@ import { MockComponents } from "@tests/unit/mocks";
 import { TestContainerProvider } from "@tests/unit/TestContainerProvider";
 
 describe("NewDeploymentPage", () => {
+  it("targets the project the page was opened for", () => {
+    const { useDeployTarget } = setup({ requestedProjectId: "project-1" });
+
+    expect(useDeployTarget).toHaveBeenCalledWith({ requestedProjectId: "project-1" });
+  });
+
+  it("leads back to the project a deployment is started in", () => {
+    setup({ targetProject: mock<Project>({ id: "project-1", name: "storefront" }) });
+
+    expect(screen.getByRole("link", { name: "Back to storefront" })).toHaveAttribute("href", UrlService.project("project-1"));
+  });
+
+  it("leads back to the deployments without a project to return to", () => {
+    setup({});
+
+    expect(screen.getByRole("link", { name: "Back to deployments" })).toHaveAttribute("href", UrlService.deploymentList());
+  });
+
+  it("remembers a changed project and keeps it in the address", async () => {
+    const { chooseProject, replace } = setup({});
+
+    await userEvent.click(screen.getByRole("button", { name: "choose project-2" }));
+
+    expect(chooseProject).toHaveBeenCalledWith("project-2");
+    expect(replace).toHaveBeenCalledWith(UrlService.newDeployment({ projectId: "project-2" }));
+  });
+
   it("renders the picker inside the retired-builder redirect", () => {
     const { LegacyBuilderRedirect } = setup({});
 
@@ -127,10 +156,27 @@ describe("NewDeploymentPage", () => {
     return { id, name: id, summary: "", deploy: "", logoUrl: null, category: "General", tags };
   }
 
-  function setup(input: { templates?: TemplateOutputSummaryWithCategory[]; isLoadingTemplates?: boolean }) {
+  function setup(input: {
+    templates?: TemplateOutputSummaryWithCategory[];
+    isLoadingTemplates?: boolean;
+    requestedProjectId?: string;
+    targetProject?: Project;
+  }) {
     const push = vi.fn();
+    const replace = vi.fn();
+    const chooseProject = vi.fn();
+    const searchParams = mock<ReadonlyURLSearchParams>();
+    searchParams.get.mockImplementation(key => (key === "projectId" ? input.requestedProjectId ?? null : null));
+    const useDeployTarget = vi.fn<typeof DEPENDENCIES.useDeployTarget>(() =>
+      mock<ReturnType<typeof DEPENDENCIES.useDeployTarget>>({ project: input.targetProject, chooseProject })
+    );
+    const DeployTargetChip = vi.fn<typeof DEPENDENCIES.DeployTargetChip>(({ onChoose }) => (
+      <button type="button" onClick={() => onChoose("project-2")}>
+        choose project-2
+      </button>
+    ));
     const analyticsService = mock<AnalyticsService>();
-    const router = mock<ReturnType<typeof DEPENDENCIES.useRouter>>({ push });
+    const router = mock<ReturnType<typeof DEPENDENCIES.useRouter>>({ push, replace });
     const templatesResult = { isLoading: input.isLoadingTemplates ?? false, categories: [], templates: input.templates ?? [] };
     const Layout = vi.fn(({ children }: PropsWithChildren) => <div>{children}</div>);
     const LegacyBuilderRedirect = vi.fn(({ children }: PropsWithChildren) => <>{children}</>);
@@ -141,6 +187,9 @@ describe("NewDeploymentPage", () => {
     const dependencies = MockComponents(DEPENDENCIES, {
       useRouter: () => router,
       useTemplates: () => templatesResult,
+      useSearchParams: () => searchParams,
+      useDeployTarget,
+      DeployTargetChip,
       Layout: Layout as never,
       LegacyBuilderRedirect,
       AgentModePanel,
@@ -158,6 +207,9 @@ describe("NewDeploymentPage", () => {
 
     return {
       push,
+      replace,
+      chooseProject,
+      useDeployTarget,
       analyticsService,
       Layout,
       LegacyBuilderRedirect,

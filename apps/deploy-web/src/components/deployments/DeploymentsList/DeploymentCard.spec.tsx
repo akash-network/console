@@ -11,6 +11,13 @@ import userEvent from "@testing-library/user-event";
 import { MockComponents } from "@tests/unit/mocks";
 
 describe("DeploymentCard", () => {
+  it("names the project the deployment is filed under", () => {
+    const { DeploymentProjectChip } = setup({ deployment: { dseq: "100", projectId: "project-1" } });
+
+    expect(DeploymentProjectChip.mock.lastCall?.[0]).toEqual({ projectId: "project-1" });
+    expect(screen.getByText("project chip")).toBeInTheDocument();
+  });
+
   it("leads with the deployment name linked to its detail page", () => {
     setup({ deployment: { dseq: "100", name: "acme-storefront" } });
 
@@ -188,6 +195,7 @@ describe("DeploymentCard", () => {
     const DeploymentEndpointsPanel = vi.fn<typeof DEPENDENCIES.DeploymentEndpointsPanel>(() => <div>endpoints panel</div>);
     const DeploymentSpecSummary = vi.fn(() => <div>specs</div>);
     const DeploymentActionsMenu = vi.fn(() => <div>actions</div>);
+    const DeploymentProjectChip = vi.fn<typeof DEPENDENCIES.DeploymentProjectChip>(() => <span>project chip</span>);
     const DeploymentBadges = vi.fn<typeof DEPENDENCIES.DeploymentBadges>(() => <div>badges</div>);
     const providers: never[] = [];
     const onSelect = vi.fn();
@@ -209,6 +217,7 @@ describe("DeploymentCard", () => {
           DeploymentEndpointsPanel,
           DeploymentSpecSummary,
           DeploymentActionsMenu,
+          DeploymentProjectChip,
           DeploymentBadges
         })}
       />
@@ -227,6 +236,7 @@ describe("DeploymentCard", () => {
       DeploymentEndpointsPanel,
       DeploymentSpecSummary,
       DeploymentActionsMenu,
+      DeploymentProjectChip,
       DeploymentBadges,
       useDeploymentReachability,
       providers,

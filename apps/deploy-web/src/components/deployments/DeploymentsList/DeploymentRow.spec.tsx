@@ -9,6 +9,13 @@ import userEvent from "@testing-library/user-event";
 import { MockComponents } from "@tests/unit/mocks";
 
 describe("DeploymentRow", () => {
+  it("names the project the deployment is filed under", () => {
+    const { DeploymentProjectChip } = setup({ deployment: { dseq: "100", projectId: "project-1" } });
+
+    expect(DeploymentProjectChip.mock.lastCall?.[0]).toEqual({ projectId: "project-1" });
+    expect(screen.getByText("project chip")).toBeInTheDocument();
+  });
+
   it("links the deployment name to its detail page", () => {
     setup({ deployment: { dseq: "100", name: "acme-storefront" } });
 
@@ -171,6 +178,7 @@ describe("DeploymentRow", () => {
     const DeploymentBadges = vi.fn<typeof DEPENDENCIES.DeploymentBadges>(() => <div>badges</div>);
     const DeploymentStatusBadge = vi.fn(() => <div>status</div>);
     const DeploymentActionsMenu = vi.fn(() => <div>actions</div>);
+    const DeploymentProjectChip = vi.fn<typeof DEPENDENCIES.DeploymentProjectChip>(() => <span>project chip</span>);
 
     const providers: never[] = [];
     const onSelect = vi.fn();
@@ -192,7 +200,8 @@ describe("DeploymentRow", () => {
               DeploymentEndpointsPanel,
               DeploymentBadges,
               DeploymentStatusBadge,
-              DeploymentActionsMenu
+              DeploymentActionsMenu,
+              DeploymentProjectChip
             })}
           />
         </tbody>
@@ -212,6 +221,7 @@ describe("DeploymentRow", () => {
       DeploymentBadges,
       DeploymentStatusBadge,
       DeploymentActionsMenu,
+      DeploymentProjectChip,
       rerenderWith(next: VisitEndpoint[]) {
         endpoints = next;
         rerender(renderRow());

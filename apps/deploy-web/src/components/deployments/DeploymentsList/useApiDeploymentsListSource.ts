@@ -15,6 +15,8 @@ export interface DeploymentsListSourceInput {
   pageIndex: number;
   pageSize: number;
   archivePageIndex: number;
+  /** Narrows both slices to one project's deployments. */
+  projectId?: string;
 }
 
 export interface DeploymentsListSlice {
@@ -56,7 +58,7 @@ const EMPTY_PAGE: DeploymentsListPage = { deployments: [], total: 0, hasNextPage
 
 /** One request per slice, answering with the rows, their leases and what the console records about them. */
 export function useApiDeploymentsListSource(
-  { search, pageIndex, pageSize, archivePageIndex }: DeploymentsListSourceInput,
+  { search, pageIndex, pageSize, archivePageIndex, projectId }: DeploymentsListSourceInput,
   dependencies: typeof DEPENDENCIES = DEPENDENCIES
 ): DeploymentsListSource {
   const d = dependencies;
@@ -66,9 +68,12 @@ export function useApiDeploymentsListSource(
 
   const pacedSearch = usePacedValue(search.trim(), SEARCH_PACING);
 
-  const active = d.useDeploymentsListQuery({ state: "active", search: pacedSearch, skip: pageIndex * pageSize, limit: pageSize }, { enabled: hasWallet });
+  const active = d.useDeploymentsListQuery(
+    { state: "active", search: pacedSearch, skip: pageIndex * pageSize, limit: pageSize, projectId },
+    { enabled: hasWallet }
+  );
   const archive = d.useDeploymentsListQuery(
-    { state: "closed", search: pacedSearch, skip: archivePageIndex * pageSize, limit: pageSize },
+    { state: "closed", search: pacedSearch, skip: archivePageIndex * pageSize, limit: pageSize, projectId },
     { enabled: hasWallet }
   );
 

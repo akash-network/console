@@ -1,5 +1,5 @@
 "use client";
-import type { ChangeEvent, MouseEvent } from "react";
+import type { ChangeEvent, MouseEvent, ReactNode } from "react";
 import {
   Button,
   buttonVariants,
@@ -18,9 +18,11 @@ import { ChevronRight, LayoutGrid, List, RefreshCw, Search, X } from "lucide-rea
 import Link from "next/link";
 import { NextSeo } from "next-seo";
 
+import { ProjectScopeProvider } from "@src/components/projects/ProjectScope/ProjectScope";
 import { LinkTo } from "@src/components/shared/LinkTo";
 import { useBlockchainStatus } from "@src/context/BlockchainStatusProvider";
 import { useNewDeploymentUrl } from "@src/hooks/useNewDeploymentUrl/useNewDeploymentUrl";
+import { useProjectsUi } from "@src/hooks/useProjectsUi/useProjectsUi";
 import Layout from "../../layout/Layout";
 import { DeploymentArchive } from "./DeploymentArchive";
 import { DeploymentsCollection } from "./DeploymentsCollection";
@@ -37,17 +39,29 @@ export const DEPENDENCIES = {
   Layout,
   DeploymentsEmptyState,
   DeploymentsCollection,
-  DeploymentArchive
+  DeploymentArchive,
+  useProjectsUi,
+  NextSeo
 };
 
+/** Narrows the list to one project, with the project page's own title and side column. */
+export interface DeploymentsListProject {
+  id: string;
+  name: string;
+  title: ReactNode;
+  aside: ReactNode;
+}
+
 interface Props {
+  project?: DeploymentsListProject;
   dependencies?: typeof DEPENDENCIES;
 }
 
-export const DeploymentsList: React.FunctionComponent<Props> = ({ dependencies: d = DEPENDENCIES }) => {
-  const model = d.useDeploymentsListModel();
+export const DeploymentsList: React.FunctionComponent<Props> = ({ project, dependencies: d = DEPENDENCIES }) => {
+  const model = d.useDeploymentsListModel({ projectId: project?.id });
   const { isBlockchainDown } = d.useBlockchainStatus();
   const newDeploymentUrl = d.useNewDeploymentUrl();
+  const { canChangeDeployments } = d.useProjectsUi();
 
   const changeSearch = (event: ChangeEvent<HTMLInputElement>) => model.changeSearch(event.target.value);
 
@@ -60,16 +74,92 @@ export const DeploymentsList: React.FunctionComponent<Props> = ({ dependencies: 
     model.startNewDeployment();
   };
 
+  const content = (
+    <>
+      {model.showErrorState && (
+        <div className="flex flex-col items-center justify-center gap-4 py-8">
+          <p className="text-muted-foreground">Couldn&apos;t load deployments.</p>
+          <Button variant="outline" size="sm" onClick={model.refetchDeployments}>
+            <RefreshCw className="mr-2 h-4 w-4" />
+            Retry
+          </Button>
+        </div>
+      )}
+
+      {model.hasSettledWithoutActiveDeployments && (
+        <d.DeploymentsEmptyState
+          onDeployClick={model.startNewDeployment}
+          canDeploy={canChangeDeployments}
+          projectId={project?.id}
+          hasDeployments={model.hasAnyArchived}
+          showTemplatesButton={!model.hasAnyArchived}
+        />
+      )}
+
+      {(model.hasPageResults || model.isInitialLoad) && (
+        <d.DeploymentsCollection
+          deployments={model.pageDeployments}
+          providers={model.providers}
+          viewMode={model.viewMode}
+          isLoading={model.isInitialLoad}
+          isSelectable={canChangeDeployments}
+          selectedIds={model.selectedItemIds}
+          closingDseqs={model.closingDseqs}
+          onSelect={model.selectItem}
+          onDeploymentClosed={model.refetchDeployments}
+        />
+      )}
+
+      {model.showNoSearchResults && <p className="py-6">No deployment found.</p>}
+
+      {model.showSearchTooBroad && <p className="py-6">Too many deployments to search through. Clear the search to page through them instead.</p>}
+
+      {model.showPageSizeSelector && (
+        <div className="flex flex-col items-center justify-between px-2 py-8 md:flex-row md:space-x-4">
+          <PaginationSizeSelector pageSize={model.pageSize} setPageSize={model.changePageSize} />
+          {model.isPaginated && (
+            <Pagination>
+              <PaginationContent>
+                <PaginationItem>
+                  <PaginationPrevious onClick={model.goToPreviousPage} disabled={model.pageIndex === 0} />
+                </PaginationItem>
+                <PaginationItem>
+                  <PaginationNext onClick={model.goToNextPage} disabled={!model.hasNextPage} />
+                </PaginationItem>
+              </PaginationContent>
+            </Pagination>
+          )}
+        </div>
+      )}
+
+      <d.DeploymentArchive
+        deployments={model.archivePageDeployments}
+        totalCount={model.archiveTotal}
+        providers={model.providers}
+        viewMode={model.viewMode}
+        isError={model.showArchiveError}
+        isSearchTooBroad={model.showArchiveSearchTooBroad}
+        isRetrying={model.isRetryingArchive}
+        onRetry={model.refetchDeployments}
+        pageIndex={model.archivePageIndex}
+        hasNextPage={model.hasNextArchivePage}
+        isPaginated={model.isArchivePaginated}
+        onPreviousPage={model.goToPreviousArchivePage}
+        onNextPage={model.goToNextArchivePage}
+      />
+    </>
+  );
+
   return (
     <d.Layout background="dots" isLoading={model.isLoadingDeployments || model.isLoadingProviders} disableContainer>
-      <NextSeo title="Deployments" />
+      <d.NextSeo title={project?.name ?? "Deployments"} />
 
       <div className="flex flex-col md:h-page-viewport">
         {model.hasWallet && (
           <div className="flex min-h-[60px] shrink-0 items-center border-b border-border bg-background py-2">
             <div className="container flex flex-wrap items-center gap-3 px-4 sm:px-6">
               <div className="mr-auto flex items-center gap-6">
-                <h1 className="whitespace-nowrap text-xl font-bold leading-7 tracking-[-0.02em]">Deployments</h1>
+                {project?.title ?? <h1 className="whitespace-nowrap text-xl font-bold leading-7 tracking-[-0.02em]">Deployments</h1>}
 
                 {model.selectedItemIds.length > 0 && (
                   <>
@@ -114,9 +204,9 @@ export const DeploymentsList: React.FunctionComponent<Props> = ({ dependencies: 
                 </>
               )}
 
-              {model.showNewDeploymentLink && (
+              {model.showNewDeploymentLink && canChangeDeployments && (
                 <Link
-                  href={newDeploymentUrl()}
+                  href={newDeploymentUrl({ projectId: project?.id })}
                   className={cn("space-x-2", buttonVariants({ variant: "default" }), isBlockchainDown && "pointer-events-none opacity-50")}
                   aria-disabled={isBlockchainDown}
                   onClick={startNewDeploymentUnlessChainIsDown}
@@ -131,75 +221,16 @@ export const DeploymentsList: React.FunctionComponent<Props> = ({ dependencies: 
 
         <div className="md:min-h-0 md:flex-1 md:overflow-y-auto">
           <div className="container p-6 pb-8">
-            {model.showErrorState && (
-              <div className="flex flex-col items-center justify-center gap-4 py-8">
-                <p className="text-muted-foreground">Couldn&apos;t load deployments.</p>
-                <Button variant="outline" size="sm" onClick={model.refetchDeployments}>
-                  <RefreshCw className="mr-2 h-4 w-4" />
-                  Retry
-                </Button>
-              </div>
+            {project ? (
+              <ProjectScopeProvider value={project.id}>
+                <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
+                  <div className="min-w-0">{content}</div>
+                  <aside className="min-w-0 space-y-6">{project.aside}</aside>
+                </div>
+              </ProjectScopeProvider>
+            ) : (
+              content
             )}
-
-            {model.hasSettledWithoutActiveDeployments && (
-              <d.DeploymentsEmptyState
-                onDeployClick={model.startNewDeployment}
-                hasDeployments={model.hasAnyArchived}
-                showTemplatesButton={!model.hasAnyArchived}
-              />
-            )}
-
-            {(model.hasPageResults || model.isInitialLoad) && (
-              <d.DeploymentsCollection
-                deployments={model.pageDeployments}
-                providers={model.providers}
-                viewMode={model.viewMode}
-                isLoading={model.isInitialLoad}
-                isSelectable
-                selectedIds={model.selectedItemIds}
-                closingDseqs={model.closingDseqs}
-                onSelect={model.selectItem}
-                onDeploymentClosed={model.refetchDeployments}
-              />
-            )}
-
-            {model.showNoSearchResults && <p className="py-6">No deployment found.</p>}
-
-            {model.showSearchTooBroad && <p className="py-6">Too many deployments to search through. Clear the search to page through them instead.</p>}
-
-            {model.showPageSizeSelector && (
-              <div className="flex flex-col items-center justify-between px-2 py-8 md:flex-row md:space-x-4">
-                <PaginationSizeSelector pageSize={model.pageSize} setPageSize={model.changePageSize} />
-                {model.isPaginated && (
-                  <Pagination>
-                    <PaginationContent>
-                      <PaginationItem>
-                        <PaginationPrevious onClick={model.goToPreviousPage} disabled={model.pageIndex === 0} />
-                      </PaginationItem>
-                      <PaginationItem>
-                        <PaginationNext onClick={model.goToNextPage} disabled={!model.hasNextPage} />
-                      </PaginationItem>
-                    </PaginationContent>
-                  </Pagination>
-                )}
-              </div>
-            )}
-
-            <d.DeploymentArchive
-              deployments={model.archivePageDeployments}
-              totalCount={model.archiveTotal}
-              providers={model.providers}
-              viewMode={model.viewMode}
-              isError={model.showArchiveError}
-              isSearchTooBroad={model.showArchiveSearchTooBroad}
-              isRetrying={model.isRetryingArchive}
-              onRetry={model.refetchDeployments}
-              pageIndex={model.archivePageIndex}
-              hasNextPage={model.hasNextArchivePage}
-              isPaginated={model.isArchivePaginated}
-              onPreviousPage={model.goToPreviousArchivePage}
-              onNextPage={model.goToNextArchivePage}
-            />
           </div>
         </div>
       </div>

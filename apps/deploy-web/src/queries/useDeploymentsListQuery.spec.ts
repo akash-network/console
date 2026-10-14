@@ -95,6 +95,31 @@ describe(useDeploymentsListQuery.name, () => {
     await waitFor(() => expect(result.current.isError).toBe(true));
   });
 
+  it("narrows the list to one project once it is given one", async () => {
+    const { result, listDeployments } = setup({ projectId: "project-1" });
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+
+    expect(listDeployments).toHaveBeenCalledWith(expect.objectContaining({ projectId: "project-1" }));
+  });
+
+  it("leaves the project out of the request when it is given none", async () => {
+    const { result, listDeployments } = setup({});
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+
+    expect(listDeployments).toHaveBeenCalledWith(expect.not.objectContaining({ projectId: expect.anything() }));
+  });
+
+  it("carries the project filed under in each row", async () => {
+    const { result } = setup({ items: [{ ...item("100"), projectId: "project-1" } as ListDeploymentsItem, item("200")] });
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+
+    expect(result.current.data?.deployments[0].projectId).toBe("project-1");
+    expect(result.current.data?.deployments[1]).not.toHaveProperty("projectId");
+  });
+
   it("asks for nothing while it is disabled", async () => {
     const { result, listDeployments } = setup({ enabled: false });
 
@@ -159,6 +184,7 @@ describe(useDeploymentsListQuery.name, () => {
       total?: number;
       hasMore?: boolean;
       rejectWith?: unknown;
+      projectId?: string;
     } = {}
   ) {
     const listDeployments = vi.fn(async () =>
@@ -176,7 +202,7 @@ describe(useDeploymentsListQuery.name, () => {
     const hook = setupQuery(
       () =>
         useDeploymentsListQuery(
-          { state: input.state ?? "active", search: input.search ?? "", skip: input.skip ?? 0, limit: input.limit ?? 10 },
+          { state: input.state ?? "active", search: input.search ?? "", skip: input.skip ?? 0, limit: input.limit ?? 10, projectId: input.projectId },
           { enabled: input.enabled ?? true }
         ),
       { services: { api: () => api } }
