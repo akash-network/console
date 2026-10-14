@@ -216,6 +216,28 @@ describe(useDeploymentFlow.name, () => {
     await waitFor(() => expect(result.current.error).toEqual({ kind: "top-up-pending", message }));
   });
 
+  it("marks a create refused by the project's monthly budget with the project the api named", async () => {
+    const message = "This would take the project past its monthly budget, so it was not signed. An owner or admin can raise the budget.";
+    const refusal = new ApiError(403, { message, code: "project_budget_exceeded", data: { projectIds: ["storefront"] } }, "POST /v1/deployments → 403");
+    const createMutate = vi.fn((_args, { onError }) => onError(refusal));
+    const { result, forgetProject } = setup({ createMutate, deployTargetProjectId: "project-1" });
+
+    act(() => result.current.actions.requestQuotes("sdl-content"));
+
+    await waitFor(() => expect(result.current.error).toEqual({ kind: "budget-exceeded", message, projectId: "storefront" }));
+    expect(result.current.phase).toBe("error");
+    expect(forgetProject).not.toHaveBeenCalled();
+  });
+
+  it("falls back to the chosen project when a budget refusal names none", async () => {
+    const createMutate = vi.fn((_args, { onError }) => onError(new ApiError(403, { message: "over", code: "project_budget_exceeded" }, "forbidden")));
+    const { result } = setup({ createMutate, deployTargetProjectId: "project-1" });
+
+    act(() => result.current.actions.requestQuotes("sdl-content"));
+
+    await waitFor(() => expect(result.current.error).toEqual({ kind: "budget-exceeded", message: "over", projectId: "project-1" }));
+  });
+
   it("treats a trial gpu refusal the same way, since adding funds is what unlocks it too", async () => {
     const message = "GPU interconnect not available on free trial: Add funds to unlock GPU interconnect";
     const createMutate = vi.fn((_args, { onError }) => onError(new ApiError(402, { message, code: "payment_required" }, "POST /v1/deployments → 402")));

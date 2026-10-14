@@ -310,9 +310,9 @@ type ProjectedPhase = DeployPhaseId | "success" | "error";
 function failureOf(flow: DeploymentFlow): DeployFailure {
   if (flow.deployError) return { message: flow.deployError.message };
 
-  const { message, kind, shortfall } = flow.error ?? {};
-  const reason = kind === "needs-funds" || kind === "top-up-pending" ? kind : undefined;
-  return { message, reason, shortfall };
+  const { message, kind, shortfall, projectId } = flow.error ?? {};
+  const reason = kind === "needs-funds" || kind === "top-up-pending" || kind === "budget-exceeded" ? kind : undefined;
+  return { message, reason, shortfall, projectId };
 }
 
 /** Projects the manual flow's phase onto the three-step auto progress UI (create → match → prepare) plus success/error. */

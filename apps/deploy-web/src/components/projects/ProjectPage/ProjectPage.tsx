@@ -15,6 +15,7 @@ import { useProjectsQuery } from "@src/queries/useProjectsQuery";
 import type { Project } from "@src/types/project";
 import { UrlService } from "@src/utils/urlUtils";
 import { NewProjectModal } from "../NewProjectModal/NewProjectModal";
+import { ProjectBudgetPanel } from "../ProjectBudgetPanel/ProjectBudgetPanel";
 import { ProjectMembersPreview } from "../ProjectMembersPreview/ProjectMembersPreview";
 import { ProjectSwitcher } from "../ProjectSwitcher/ProjectSwitcher";
 import { RecentActivityFeed } from "../RecentActivityFeed/RecentActivityFeed";
@@ -29,6 +30,7 @@ export const DEPENDENCIES = {
   NotFoundPage,
   DeploymentsList,
   ProjectSwitcher,
+  ProjectBudgetPanel,
   ProjectMembersPreview,
   RecentActivityFeed,
   NewProjectModal
@@ -103,6 +105,7 @@ function ProjectPageContent({ projectId, dependencies: d }: Required<Props>) {
           ),
           aside: (
             <>
+              <d.ProjectBudgetPanel projectId={project.id} projectName={project.name} />
               {seesMembers && <d.ProjectMembersPreview project={{ id: project.id, name: project.name }} organizationName={organizationName} />}
               <d.RecentActivityFeed
                 activities={activityFeed.activities}

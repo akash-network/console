@@ -1,6 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
+import type { OrganizationRole } from "@src/types/organization";
+import { UrlService } from "@src/utils/urlUtils";
 import type { ResumeResolution } from "../ResumeDeploymentGuard/ResumeDeploymentGuard";
 import type { DeploymentFlow } from "../useDeploymentFlow/useDeploymentFlow";
 import type { DEPENDENCIES } from "./AutoDeployFlow";
@@ -50,6 +52,38 @@ describe(AutoDeployFlow.name, () => {
     setup({ autopilot: { matchedProviderAddress: "akash1provider" }, dependencies: { PhasedDeployProgressScene } });
 
     expect(PhasedDeployProgressScene).toHaveBeenCalledWith(expect.objectContaining({ focusedProviderAddress: "akash1provider" }), expect.anything());
+  });
+
+  it("takes an owner to the project whose budget refused the deployment", () => {
+    const { push, sceneProps } = setup({ autopilot: { state: { kind: "error", reason: "budget-exceeded", projectId: "storefront" } } });
+
+    sceneProps().onViewProject?.();
+
+    expect(push).toHaveBeenCalledWith(UrlService.project("storefront"));
+  });
+
+  it("offers no way to the project to those who cannot change its budget", () => {
+    const { sceneProps } = setup({
+      organizationRole: "member",
+      autopilot: { state: { kind: "error", reason: "budget-exceeded", projectId: "storefront" } }
+    });
+
+    expect(sceneProps().onViewProject).toBeUndefined();
+  });
+
+  it("offers no way to the project while the organization does not work in projects", () => {
+    const { sceneProps } = setup({
+      projectsEnabled: false,
+      autopilot: { state: { kind: "error", reason: "budget-exceeded", projectId: "storefront" } }
+    });
+
+    expect(sceneProps().onViewProject).toBeUndefined();
+  });
+
+  it("offers no way to a project for a budget refusal that names none, or for any other failure", () => {
+    expect(setup({ autopilot: { state: { kind: "error", reason: "budget-exceeded" } } }).sceneProps().onViewProject).toBeUndefined();
+    expect(setup({ autopilot: { state: { kind: "error", reason: "needs-funds", projectId: "storefront" } } }).sceneProps().onViewProject).toBeUndefined();
+    expect(setup({ autopilot: { state: { kind: "matching" } } }).sceneProps().onViewProject).toBeUndefined();
   });
 
   it("asks the flow to try again when the scene requests it", () => {
@@ -128,6 +162,8 @@ describe(AutoDeployFlow.name, () => {
       contactSupportUrl?: string;
       autopilot?: Partial<FlowResult>;
       useAutoDeploymentFlow?: typeof DEPENDENCIES.useAutoDeploymentFlow;
+      organizationRole?: OrganizationRole;
+      projectsEnabled?: boolean;
       dependencies?: Partial<typeof DEPENDENCIES>;
     } = {}
   ) {
@@ -136,6 +172,21 @@ describe(AutoDeployFlow.name, () => {
     const analyticsService = mock<ReturnType<typeof DEPENDENCIES.useServices>["analyticsService"]>();
     const openAddCredits = vi.fn();
     const useAddCredits: typeof DEPENDENCIES.useAddCredits = () => openAddCredits;
+    const push = vi.fn();
+    const useRouter: typeof DEPENDENCIES.useRouter = () => mock<ReturnType<typeof DEPENDENCIES.useRouter>>({ push });
+    const useActiveOrganization: typeof DEPENDENCIES.useActiveOrganization = () =>
+      mock<ReturnType<typeof DEPENDENCIES.useActiveOrganization>>({
+        projectsEnabled: input.projectsEnabled ?? true,
+        activeOrganization: {
+          id: "org-1",
+          name: "Acme Corp",
+          slug: "acme-corp",
+          type: "team",
+          role: input.organizationRole ?? "owner",
+          isActive: true,
+          createdAt: ""
+        }
+      });
     const useServices: typeof DEPENDENCIES.useServices = () =>
       mock<ReturnType<typeof DEPENDENCIES.useServices>>({
         publicConfig: { NEXT_PUBLIC_CONTACT_SUPPORT_URL: input.contactSupportUrl ?? CONTACT_SUPPORT_URL },
@@ -154,11 +205,13 @@ describe(AutoDeployFlow.name, () => {
           useAutoDeploymentFlow,
           useServices,
           useAddCredits,
+          useActiveOrganization,
+          useRouter,
           ...input.dependencies
         }}
       />
     );
 
-    return { analyticsService, openAddCredits, sceneProps: () => (PhasedDeployProgressScene as ReturnType<typeof vi.fn>).mock.calls[0][0] as SceneProps };
+    return { push, analyticsService, openAddCredits, sceneProps: () => (PhasedDeployProgressScene as ReturnType<typeof vi.fn>).mock.calls[0][0] as SceneProps };
   }
 });

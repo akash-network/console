@@ -15,6 +15,7 @@ import { settingsIdAtom } from "@src/store/settingsStore";
 import { PROJECT_NOT_FOUND_MESSAGE, PROJECT_REQUIRED_ERROR_CODE } from "@src/types/project";
 import { formatBidId, parseBidId } from "@src/utils/bids/bidId";
 import { ManifestYaml } from "@src/utils/deploymentData/helpers";
+import { readProjectBudgetRefusal } from "@src/utils/projectBudgetRefusal";
 import { importSimpleSdl } from "@src/utils/sdl/sdlImport";
 import type { SdlSecretValues, UnresolvedSdlSecret } from "@src/utils/sdl/sdlSecrets";
 import { unresolvedSecretMessage } from "@src/utils/sdl/sdlSecrets";
@@ -35,9 +36,9 @@ export type DeploymentFlowPhase = "configuring" | "creating" | "quoting" | "depl
 export type PendingClose = { dseq: string; failed: boolean; message?: string };
 
 /** Which toast the form shows. A close failure reads differently from a failed quote request, and a refusal the user can pay their way out of needs an Add Funds action rather than an apology. */
-export type FlowErrorKind = "create" | "close" | "no-providers" | "needs-funds" | "top-up-pending" | "no-match" | "inherited-unreadable";
+export type FlowErrorKind = "create" | "close" | "no-providers" | "needs-funds" | "top-up-pending" | "no-match" | "inherited-unreadable" | "budget-exceeded";
 
-export type FlowError = { message?: string; kind?: FlowErrorKind; shortfall?: DepositShortfall };
+export type FlowError = { message?: string; kind?: FlowErrorKind; shortfall?: DepositShortfall; projectId?: string };
 
 /** The live bids the flow polls while quoting (react-query-backed). Element shape derived from the shared `listBids` query. */
 export type DeploymentBids = NonNullable<ReturnType<typeof useListBids>["data"]>["data"];
@@ -527,7 +528,7 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
 
       function onCreateFailed(cause: unknown) {
         if (!isCurrentAttempt()) return;
-        setError(describeCreateFailure(cause));
+        setError(describeCreateFailure(cause, deployTargetProjectId));
         setPhase("error");
       }
 
@@ -889,10 +890,12 @@ function isPaymentRequired(cause: unknown): boolean {
   return isApiError(cause) && cause.status === HTTP_PAYMENT_REQUIRED;
 }
 
-function describeCreateFailure(cause: unknown): FlowError {
+function describeCreateFailure(cause: unknown, deployTargetProjectId: string | undefined): FlowError {
   if (extractApiErrorCode(cause) === WALLET_PROVISIONING_ERROR_CODE) return { message: WALLET_PROVISIONING_TIMEOUT_MESSAGE, kind: "create" };
 
   const message = extractApiErrorMessage(cause) ?? undefined;
+  const budgetRefusal = readProjectBudgetRefusal(cause);
+  if (budgetRefusal) return { message, kind: "budget-exceeded", projectId: budgetRefusal.projectId ?? deployTargetProjectId };
   if (isBalanceTopUpPending(cause)) return { message, kind: "top-up-pending" };
   if (isPaymentRequired(cause)) return { message, kind: "needs-funds", shortfall: extractDepositShortfall(cause) };
   return { message, kind: "create" };

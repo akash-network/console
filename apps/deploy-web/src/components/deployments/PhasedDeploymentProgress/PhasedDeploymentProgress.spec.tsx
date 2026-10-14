@@ -96,6 +96,38 @@ describe(PhasedDeploymentProgress.name, () => {
     });
   });
 
+  describe("when the project is at its monthly budget", () => {
+    it("explains the refusal in its own words, whatever the api said", () => {
+      setup({ state: { kind: "error", reason: "budget-exceeded", message: "It was not signed." } });
+
+      expect(screen.getByText("This project is at its monthly budget")).toBeInTheDocument();
+      expect(
+        screen.getByText("Starting this deployment would take the project past its monthly budget. An owner or admin can raise the budget.")
+      ).toBeInTheDocument();
+      expect(screen.queryByText("It was not signed.")).not.toBeInTheDocument();
+    });
+
+    it("takes those who can change the budget to the project, keeping Try again", () => {
+      const onViewProject = vi.fn();
+      const onTryAgain = vi.fn();
+      setup({ state: { kind: "error", reason: "budget-exceeded" }, onViewProject, onTryAgain, onContactSupport: vi.fn() });
+
+      fireEvent.click(screen.getByRole("button", { name: "View project" }));
+      fireEvent.click(screen.getByRole("button", { name: "Try again" }));
+
+      expect(onViewProject).toHaveBeenCalledTimes(1);
+      expect(onTryAgain).toHaveBeenCalledTimes(1);
+      expect(screen.queryByRole("button", { name: "Contact support" })).not.toBeInTheDocument();
+    });
+
+    it("offers the usual way out to those who cannot change the budget", () => {
+      setup({ state: { kind: "error", reason: "budget-exceeded" } });
+
+      expect(screen.queryByRole("button", { name: "View project" })).not.toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Contact support" })).toBeInTheDocument();
+    });
+  });
+
   describe("when a top up is already on its way", () => {
     it("asks the user to wait for the top up", () => {
       setup({ state: { kind: "error", reason: "top-up-pending" } });
@@ -193,6 +225,7 @@ describe(PhasedDeploymentProgress.name, () => {
         onTryAgain={input?.onTryAgain}
         onContactSupport={input?.onContactSupport}
         onAddFunds={input?.onAddFunds}
+        onViewProject={input?.onViewProject}
       />
     );
   }

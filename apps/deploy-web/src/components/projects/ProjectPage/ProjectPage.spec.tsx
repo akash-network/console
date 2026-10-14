@@ -49,17 +49,19 @@ describe(ProjectPage.name, () => {
     expect(screen.getByRole("textbox", { name: "search" })).toHaveValue("");
   });
 
-  it("shows the project's activity and members in the side column of a team organization", () => {
-    const { useOrganizationActivitiesQuery, ProjectMembersPreview, RecentActivityFeed } = setup({});
+  it("shows the project's spend, activity and members in the side column of a team organization", () => {
+    const { useOrganizationActivitiesQuery, ProjectBudgetPanel, ProjectMembersPreview, RecentActivityFeed } = setup({});
 
     expect(useOrganizationActivitiesQuery).toHaveBeenCalledWith({ projectId: "storefront" });
+    expect(ProjectBudgetPanel.mock.lastCall?.[0]).toMatchObject({ projectId: "storefront", projectName: "storefront" });
     expect(ProjectMembersPreview.mock.lastCall?.[0]).toMatchObject({ project: { id: "storefront", name: "storefront" }, organizationName: "Acme Corp" });
     expect(RecentActivityFeed.mock.lastCall?.[0]).toMatchObject({ hasMore: true });
   });
 
-  it("leaves members out for a billing member, who cannot read them", () => {
-    const { ProjectMembersPreview } = setup({ role: "billing" });
+  it("leaves members out for a billing member, who cannot read them, but shows the spend", () => {
+    const { ProjectBudgetPanel, ProjectMembersPreview } = setup({ role: "billing" });
 
+    expect(ProjectBudgetPanel).toHaveBeenCalled();
     expect(ProjectMembersPreview).not.toHaveBeenCalled();
   });
 
@@ -165,6 +167,7 @@ describe(ProjectPage.name, () => {
         </button>
       </>
     ));
+    const ProjectBudgetPanel = vi.fn<typeof DEPENDENCIES.ProjectBudgetPanel>(() => <></>);
     const ProjectMembersPreview = vi.fn<typeof DEPENDENCIES.ProjectMembersPreview>(() => <></>);
     const RecentActivityFeed = vi.fn<typeof DEPENDENCIES.RecentActivityFeed>(() => <></>);
     const dependencies = MockComponents(DEPENDENCIES, {
@@ -195,6 +198,7 @@ describe(ProjectPage.name, () => {
       NotFoundPage: () => <div>not found</div>,
       DeploymentsList,
       ProjectSwitcher,
+      ProjectBudgetPanel,
       ProjectMembersPreview,
       RecentActivityFeed,
       NewProjectModal
@@ -212,6 +216,7 @@ describe(ProjectPage.name, () => {
       DeploymentsList,
       ProjectSwitcher,
       NewProjectModal,
+      ProjectBudgetPanel,
       ProjectMembersPreview,
       RecentActivityFeed,
       useOrganizationActivitiesQuery

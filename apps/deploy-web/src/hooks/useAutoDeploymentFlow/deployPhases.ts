@@ -5,7 +5,12 @@ export type DeployPhaseId = "creating" | "matching" | "preparing";
 export type DeployPhaseStatus = "pending" | "active" | "completed";
 export type DeployPhase = { id: DeployPhaseId; label: string; status: DeployPhaseStatus };
 
-export type DeployFailure = { message?: string; reason?: "needs-funds" | "top-up-pending"; shortfall?: DepositShortfall };
+export type DeployFailure = {
+  message?: string;
+  reason?: "needs-funds" | "top-up-pending" | "budget-exceeded";
+  shortfall?: DepositShortfall;
+  projectId?: string;
+};
 
 /** The progress state the shared deploy scene renders from: an in-flight/succeeded phase, or a terminal error. */
 export type DeployProgressState = { kind: DeployPhaseId | "success" } | ({ kind: "error" } & DeployFailure);
