@@ -43,6 +43,13 @@
       "when": 1762440232870,
       "tag": "0005_left_magus",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1791598461667,
+      "tag": "0006_scope_alerts_and_channels_to_organizations",
+      "breakpoints": true
     }
   ]
 }

@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Headers, Param, Post } from "@nestjs/common";
+import { Body, Controller, Get, Headers, NotFoundException, Param, Post } from "@nestjs/common";
 import { ApiHeader } from "@nestjs/swagger";
 import { createZodDto } from "nestjs-zod";
 import { Ok, Result } from "ts-results";
@@ -7,6 +7,7 @@ import { z } from "zod";
 import { ValidateHttp } from "@src/interfaces/rest/decorators/http-validate/http-validate.decorator";
 import { AuthService } from "@src/interfaces/rest/services/auth/auth.service";
 import { DeploymentAlertService } from "@src/modules/alert/services/deployment-alert/deployment-alert.service";
+import { NotificationChannelRepository } from "@src/modules/notifications/repositories/notification-channel/notification-channel.repository";
 
 const deploymentBalanceAlertInput = z.object({
   notificationChannelId: z.string().uuid(),
@@ -61,6 +62,7 @@ export class DeploymentAlertsResponse extends createZodDto(deploymentAlertsRespo
 export class DeploymentAlertController {
   constructor(
     private readonly deploymentAlertService: DeploymentAlertService,
+    private readonly notificationChannelRepository: NotificationChannelRepository,
     private readonly authService: AuthService
   ) {}
 
@@ -78,6 +80,8 @@ export class DeploymentAlertController {
     @Body() { data }: DeploymentAlertCreateInput,
     @Headers("x-owner-address") owner?: string
   ): Promise<Result<DeploymentAlertsResponse, unknown>> {
+    await this.assertAttachableNotificationChannels(data);
+
     const result = await this.deploymentAlertService.upsert(
       {
         ...data,
@@ -102,5 +106,22 @@ export class DeploymentAlertController {
     return Ok({
       data: await this.deploymentAlertService.get(dseq, this.authService.ability)
     });
+  }
+
+  private async assertAttachableNotificationChannels({ alerts }: DeploymentAlertCreateInput["data"]): Promise<void> {
+    const notificationChannelRepository = this.notificationChannelRepository.accessibleBy(this.authService.ability, "read");
+    const channelIds = new Set(
+      [alerts.deploymentBalance?.notificationChannelId, alerts.deploymentClosed?.notificationChannelId].filter(id => id !== undefined)
+    );
+
+    for (const channelId of channelIds) {
+      if (!(await notificationChannelRepository.findAttachableById(channelId, this.#attachTarget))) {
+        throw new NotFoundException("Notification channel not found");
+      }
+    }
+  }
+
+  get #attachTarget() {
+    return { organizationId: this.authService.organizationId, acceptsUnattributed: this.authService.reachesUnattributedRows };
   }
 }

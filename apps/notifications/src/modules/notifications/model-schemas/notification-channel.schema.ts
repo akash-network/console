@@ -14,6 +14,7 @@ export const NotificationChannel = pgTable(
       .default(sql`uuid_generate_v4()`),
     name: varchar("name").notNull(),
     userId: uuid("user_id").notNull(),
+    organizationId: uuid("organization_id"),
     type: NotificationChannelType("type").notNull(),
     config: jsonb("config").notNull(),
     deletedAt: timestamp("deleted_at"),
@@ -23,8 +24,15 @@ export const NotificationChannel = pgTable(
   },
   table => [
     index("idx_notification_channels_user_id").on(table.userId),
+    index("idx_notification_channels_organization_id").on(table.organizationId),
     uniqueIndex("idx_notification_channels_user_id_is_default")
       .on(table.userId, table.isDefault)
+      .where(sql`is_default = true and deleted_at is null`),
+    uniqueIndex("idx_notification_channels_unattributed_user_id_is_default")
+      .on(table.userId, table.isDefault)
+      .where(sql`is_default = true and deleted_at is null and organization_id is null`),
+    uniqueIndex("idx_notification_channels_organization_id_is_default")
+      .on(table.organizationId, table.isDefault)
       .where(sql`is_default = true and deleted_at is null`)
   ]
 );

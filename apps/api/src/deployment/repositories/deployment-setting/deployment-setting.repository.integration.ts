@@ -22,7 +22,7 @@ import { DeploymentSettingRepository, UNFILED_DEPLOYMENT_ERROR_CODE } from "./de
 
 import { createAkashAddress } from "@test/seeders/akash-address.seeder";
 import { seedDeploymentSetting } from "@test/seeders/db/deployment-setting.seeder";
-import { seedOrganizationMember, seedOrganizationWithOwner, seedProject, seedProjectMember } from "@test/seeders/db/organization.seeder";
+import { seedOrganization, seedOrganizationMember, seedOrganizationWithOwner, seedProject, seedProjectMember } from "@test/seeders/db/organization.seeder";
 import { seedUser, seedUserWithWallet } from "@test/seeders/db/user-with-wallet.seeder";
 import { createLeaseGpuOffer } from "@test/seeders/lease-gpu-offer.seeder";
 import { createLeaseGpuReading } from "@test/seeders/lease-gpu-reading.seeder";
@@ -862,6 +862,64 @@ describe(DeploymentSettingRepository.name, () => {
 
       expect(settings.size).toBe(0);
     });
+  });
+
+  describe("findTenancy", () => {
+    it("reads the team and the project of a team wallet's deployment filed by another member", async () => {
+      const { deploymentSettingRepository, organization, project, address } = await setupWalletOfTeam();
+      const { user: filer } = await seedOrganizationWithOwner();
+      const dseq = newDseq();
+      await seedDeploymentSetting({ userId: filer.id, dseq, organizationId: organization.id, projectId: project.id });
+
+      const tenancy = await deploymentSettingRepository.findTenancy({ walletAddress: address, dseq });
+
+      expect(tenancy).toEqual({ organizationId: organization.id, organizationType: "team", projectId: project.id });
+    });
+
+    it("takes the project of the oldest row when two rows of the organization share the dseq", async () => {
+      const { deploymentSettingRepository, organization, project, address, owner } = await setupWalletOfTeam();
+      const laterProject = await seedProject({ organizationId: organization.id });
+      const laterFiler = await seedUser();
+      const dseq = newDseq();
+      await seedDeploymentSetting({
+        userId: laterFiler.id,
+        dseq,
+        organizationId: organization.id,
+        projectId: laterProject.id,
+        createdAt: new Date("2026-02-01")
+      });
+      await seedDeploymentSetting({ userId: owner.id, dseq, organizationId: organization.id, projectId: project.id, createdAt: new Date("2026-01-01") });
+
+      const tenancy = await deploymentSettingRepository.findTenancy({ walletAddress: address, dseq });
+
+      expect(tenancy?.projectId).toBe(project.id);
+    });
+
+    it("reads the wallet's organization with no project when only another organization holds the dseq", async () => {
+      const { deploymentSettingRepository, organization, address, owner } = await setupWalletOfTeam();
+      const dseq = newDseq();
+      await seedDeploymentSetting({ userId: owner.id, dseq, organizationId: (await seedOrganization()).id });
+
+      const tenancy = await deploymentSettingRepository.findTenancy({ walletAddress: address, dseq });
+
+      expect(tenancy).toEqual({ organizationId: organization.id, organizationType: "team", projectId: null });
+    });
+
+    it("is absent for a wallet in no organization", async () => {
+      const { deploymentSettingRepository, user, wallet } = await setup();
+      const dseq = newDseq();
+      await seedDeploymentSetting({ userId: user.id, dseq, organizationId: (await seedOrganization()).id });
+
+      expect(await deploymentSettingRepository.findTenancy({ walletAddress: wallet.address, dseq })).toBeUndefined();
+    });
+
+    async function setupWalletOfTeam() {
+      const deploymentSettingRepository = container.resolve(DeploymentSettingRepository);
+      const { user: owner, organization, project } = await seedOrganizationWithOwner();
+      const { address } = await seedUserWithWallet({ organizationId: organization.id });
+
+      return { deploymentSettingRepository, owner, organization, project, address };
+    }
   });
 
   describe("findNamesByDseqs", () => {

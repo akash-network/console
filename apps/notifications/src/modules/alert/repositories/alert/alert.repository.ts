@@ -3,13 +3,14 @@ import { AnyAbility } from "@casl/ability";
 import { permittedFieldsOf } from "@casl/ability/extra";
 import { InjectDrizzle } from "@knaadh/nestjs-drizzle-pg";
 import { ForbiddenException, Injectable } from "@nestjs/common";
-import { and, count, eq, gt, lte, ne, or, sql } from "drizzle-orm";
+import { and, count, eq, gt, inArray, lte, ne, or, sql } from "drizzle-orm";
 import { NodePgDatabase } from "drizzle-orm/node-postgres";
 import type { SQL } from "drizzle-orm/sql/sql";
 import difference from "lodash/difference";
 
 import { DRIZZLE_PROVIDER_TOKEN } from "@src/infrastructure/db/config/db.config";
 import { NotificationChannel } from "@src/modules/notifications/model-schemas";
+import { inOrganizationOrUnattributed, userChannelsWithin } from "@src/modules/notifications/repositories/notification-channel/notification-channel.repository";
 import * as schema from "../../model-schemas";
 import type { DeploymentBalanceJsonFields, GeneralJsonFields, WalletBalanceJsonFields } from "./alert-json-fields.schema";
 import * as jsonFieldsSchemas from "./alert-json-fields.schema";
@@ -231,8 +232,19 @@ export class AlertRepository {
     });
   }
 
-  async deleteAllByUserId(userId: string, tx: NodePgDatabase<typeof schema> = this.db): Promise<number> {
-    const deleted = await tx.delete(schema.Alert).where(eq(schema.Alert.userId, userId)).returning({ id: schema.Alert.id });
+  /** Leaves the user's team alerts to their organizations, and takes every alert that notifies a channel the purge removes. */
+  async deletePersonalByUserId(userId: string, personalOrganizationId: string | null, tx: NodePgDatabase<typeof schema> = this.db): Promise<number> {
+    const { Alert } = schema;
+    const removedChannels = tx.select({ id: NotificationChannel.id }).from(NotificationChannel).where(userChannelsWithin(userId, personalOrganizationId));
+    const deleted = await tx
+      .delete(Alert)
+      .where(
+        or(
+          and(eq(Alert.userId, userId), inOrganizationOrUnattributed(Alert.organizationId, personalOrganizationId)),
+          inArray(Alert.notificationChannelId, removedChannels)
+        )
+      )
+      .returning({ id: Alert.id });
 
     return deleted.length;
   }
