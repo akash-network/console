@@ -4,18 +4,19 @@ import { container } from "tsyringe";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { ApiPgDatabase } from "@src/core";
-import { POSTGRES_DB, resolveTable } from "@src/core";
+import { JOB_NAME, POSTGRES_DB, resolveTable } from "@src/core";
 import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import { ProjectBudgetAlertHandler } from "@src/organization/services/project-budget-alert/project-budget-alert.handler";
+import { ReconcileDeploymentDeposit, ReconcileDeploymentDepositHandler } from "../reconcile-deployment-deposit/reconcile-deployment-deposit.handler";
 import { DeploymentDepositLedgerService } from "./deployment-deposit-ledger.service";
 
 import { findDeploymentDepositsOf, seedDeploymentDeposit } from "@test/seeders/db/deployment-deposit.seeder";
 import { seedDeploymentSetting } from "@test/seeders/db/deployment-setting.seeder";
 import { seedOrganizationWithOwner } from "@test/seeders/db/organization.seeder";
 import { seedUserWithWallet } from "@test/seeders/db/user-with-wallet.seeder";
-import { useJobWorkers } from "@test/services/job-queue-harness";
+import { findJobRows, useJobWorkers } from "@test/services/job-queue-harness";
 
-const jobQueue = useJobWorkers(() => [container.resolve(ProjectBudgetAlertHandler)]);
+const jobQueue = useJobWorkers(() => [container.resolve(ProjectBudgetAlertHandler), container.resolve(ReconcileDeploymentDepositHandler)]);
 
 describe(DeploymentDepositLedgerService.name, () => {
   afterEach(() => {
@@ -33,11 +34,14 @@ describe(DeploymentDepositLedgerService.name, () => {
   it("records a job's top-up from a team organization's wallet past its project's budget when the budget lets top-ups through", async () => {
     const { ledger, wallet, topUp, organization, dseq } = await setup({ stopTopUps: false });
 
-    await ledger.recordPending(wallet.id, [topUp]);
+    const { recorded } = await ledger.recordPending(wallet.id, [topUp]);
 
     expect(await findDeploymentDepositsOf(organization.id)).toContainEqual(
       expect.objectContaining({ kind: "top_up", dseq, status: "pending", amountCents: 10 })
     );
+    expect(
+      await findJobRows(ReconcileDeploymentDeposit[JOB_NAME], { singletonKey: `${ReconcileDeploymentDeposit[JOB_NAME]}.unsettled.${recorded[0].id}` })
+    ).toEqual([expect.objectContaining({ data: expect.objectContaining({ depositIds: recorded.map(({ id }) => id) }) })]);
   });
 
   async function setup(input: { stopTopUps: boolean }) {
