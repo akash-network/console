@@ -402,6 +402,39 @@ export const operations = {
       queryParams: [],
       hasBody: false
     },
+    listProjectSpend: {
+      path: "/v1/project-spend",
+      method: "get",
+      operationId: "listProjectSpend",
+      pathParams: [],
+      queryParams: ["startDate", "endDate"],
+      hasBody: false
+    },
+    listProjectBudgets: {
+      path: "/v1/project-budgets",
+      method: "get",
+      operationId: "listProjectBudgets",
+      pathParams: [],
+      queryParams: ["projectId"],
+      hasBody: false
+    },
+    createProjectBudget: { path: "/v1/project-budgets", method: "post", operationId: "createProjectBudget", pathParams: [], queryParams: [], hasBody: true },
+    updateProjectBudget: {
+      path: "/v1/project-budgets/{id}",
+      method: "patch",
+      operationId: "updateProjectBudget",
+      pathParams: ["id"],
+      queryParams: [],
+      hasBody: true
+    },
+    deleteProjectBudget: {
+      path: "/v1/project-budgets/{id}",
+      method: "delete",
+      operationId: "deleteProjectBudget",
+      pathParams: ["id"],
+      queryParams: [],
+      hasBody: false
+    },
     createAlert: { path: "/v1/alerts", method: "post", operationId: "createAlert", pathParams: [], queryParams: [], hasBody: true },
     listAlerts: {
       path: "/v1/alerts",

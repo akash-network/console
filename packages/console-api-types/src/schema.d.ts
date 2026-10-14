@@ -7100,6 +7100,59 @@ export interface paths {
     patch: operations["updateProjectMember"];
     trace?: never;
   };
+  "/v1/project-spend": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Report the active organization's spend per project over a date range */
+    get: operations["listProjectSpend"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/project-budgets": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List the project budgets of the active organization the caller can read */
+    get: operations["listProjectBudgets"];
+    put?: never;
+    /** Set a monthly budget for a project of the active organization */
+    post: operations["createProjectBudget"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/project-budgets/{id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    /** Remove a project's monthly budget */
+    delete: operations["deleteProjectBudget"];
+    options?: never;
+    head?: never;
+    /** Change a project's monthly budget */
+    patch: operations["updateProjectBudget"];
+    trace?: never;
+  };
   "/v1/alerts": {
     parameters: {
       query?: never;
@@ -14051,6 +14104,344 @@ export interface operations {
         content?: never;
       };
       /** @description No grant with this id the caller can manage */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  listProjectSpend: {
+    parameters: {
+      query?: {
+        startDate?: string;
+        endDate?: string;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Spend of the projects the caller can see, with the organization's total and unassigned remainder when the caller can see the whole organization */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            data: {
+              startDate: string;
+              endDate: string;
+              /** @description Whether any figure includes an estimate */
+              isEstimated: boolean;
+              projects: {
+                /** @description Deposits signed for the deployments in the range, including ones not yet confirmed on chain */
+                committedUsd: number;
+                /** @description What the deployments' leases cost over the range, including `estimatedConsumedUsd` */
+                consumedUsd: number;
+                /** @description Part of `consumedUsd` accrued since the chain last settled the deployment, an estimate until it does */
+                estimatedConsumedUsd: number;
+                /** Format: uuid */
+                projectId: string;
+                name: string;
+                isDefault: boolean;
+                isDeleted: boolean;
+              }[];
+              /** @description Spend of the organization's deployments filed in no project. Null for a caller limited to some projects */
+              unassigned: {
+                /** @description Deposits signed for the deployments in the range, including ones not yet confirmed on chain */
+                committedUsd: number;
+                /** @description What the deployments' leases cost over the range, including `estimatedConsumedUsd` */
+                consumedUsd: number;
+                /** @description Part of `consumedUsd` accrued since the chain last settled the deployment, an estimate until it does */
+                estimatedConsumedUsd: number;
+              } | null;
+              /** @description The organization's whole spend, the projects plus `unassigned`. Null for a caller limited to some projects */
+              total: {
+                /** @description Deposits signed for the deployments in the range, including ones not yet confirmed on chain */
+                committedUsd: number;
+                /** @description What the deployments' leases cost over the range, including `estimatedConsumedUsd` */
+                consumedUsd: number;
+                /** @description Part of `consumedUsd` accrued since the chain last settled the deployment, an estimate until it does */
+                estimatedConsumedUsd: number;
+              } | null;
+            };
+          };
+        };
+      };
+      /** @description Dates must be YYYY-MM-DD, startDate must not be after endDate and the range cannot exceed 366 days */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  listProjectBudgets: {
+    parameters: {
+      query?: {
+        projectId?: string;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description The budgets with this month's committed spend */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            data: {
+              /** Format: uuid */
+              id: string;
+              /** Format: uuid */
+              projectId: string;
+              monthlyAmountUsd: number;
+              alertThresholdPercent: number;
+              stopTopUps: boolean;
+              currentPeriod: {
+                /** @description First day of the current calendar month (UTC) */
+                startDate: string;
+                /** @description Last day of the current calendar month (UTC) */
+                endDate: string;
+                /** @description Deposits recorded for the project this month, the figure new deposits are judged against */
+                committedUsd: number;
+              };
+              createdAt: string;
+              updatedAt: string;
+            }[];
+          };
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  createProjectBudget: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": {
+          data: {
+            /** Format: uuid */
+            projectId: string;
+            /** @description Committed spend allowed per calendar month (UTC), in USD (1 to 10000000, cents at most) */
+            monthlyAmountUsd: number;
+            /** @description Share of the monthly amount at which owners and admins are notified, once per month. Defaults to 80 */
+            alertThresholdPercent?: number;
+            /** @description Whether top-ups of the project's running deployments, manual or automatic, also stop at the budget. Defaults to false */
+            stopTopUps?: boolean;
+          };
+        };
+      };
+    };
+    responses: {
+      /** @description The created budget */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            data: {
+              /** Format: uuid */
+              id: string;
+              /** Format: uuid */
+              projectId: string;
+              monthlyAmountUsd: number;
+              alertThresholdPercent: number;
+              stopTopUps: boolean;
+              currentPeriod: {
+                /** @description First day of the current calendar month (UTC) */
+                startDate: string;
+                /** @description Last day of the current calendar month (UTC) */
+                endDate: string;
+                /** @description Deposits recorded for the project this month, the figure new deposits are judged against */
+                committedUsd: number;
+              };
+              createdAt: string;
+              updatedAt: string;
+            };
+          };
+        };
+      };
+      /** @description The budget settings are not valid */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Only owners and admins can change project budgets */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description No project with this id in the caller's reach */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description The project already has a budget (`project_budget_exists`) */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  deleteProjectBudget: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description The budget is removed */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Only owners and admins can change project budgets */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description No budget with this id in the caller's reach */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  updateProjectBudget: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": {
+          data: {
+            /** @description Committed spend allowed per calendar month (UTC), in USD (1 to 10000000, cents at most) */
+            monthlyAmountUsd?: number;
+            /** @description Share of the monthly amount at which owners and admins are notified, once per month. Defaults to 80 */
+            alertThresholdPercent?: number;
+            /** @description Whether top-ups of the project's running deployments, manual or automatic, also stop at the budget. Defaults to false */
+            stopTopUps?: boolean;
+          };
+        };
+      };
+    };
+    responses: {
+      /** @description The updated budget */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            data: {
+              /** Format: uuid */
+              id: string;
+              /** Format: uuid */
+              projectId: string;
+              monthlyAmountUsd: number;
+              alertThresholdPercent: number;
+              stopTopUps: boolean;
+              currentPeriod: {
+                /** @description First day of the current calendar month (UTC) */
+                startDate: string;
+                /** @description Last day of the current calendar month (UTC) */
+                endDate: string;
+                /** @description Deposits recorded for the project this month, the figure new deposits are judged against */
+                committedUsd: number;
+              };
+              createdAt: string;
+              updatedAt: string;
+            };
+          };
+        };
+      };
+      /** @description The budget settings are not valid */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Only owners and admins can change project budgets */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description No budget with this id in the caller's reach */
       404: {
         headers: {
           [name: string]: unknown;

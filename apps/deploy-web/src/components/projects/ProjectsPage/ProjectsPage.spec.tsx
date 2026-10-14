@@ -226,6 +226,32 @@ describe(ProjectsPage.name, () => {
     expect(within(feed).getByRole("link", { name: "storefront" })).toHaveAttribute("href", "/projects/storefront");
   });
 
+  it("reports spend by project below the folders of a team organization", () => {
+    setup({ projects: [project({ name: "storefront" })] });
+
+    expect(screen.getByText("spend report")).toBeInTheDocument();
+  });
+
+  it("reports spend once the projects are read, even when only the untouched default project exists", () => {
+    setup({ projects: [project({ name: "default", isDefault: true })] });
+
+    expect(screen.getByRole("heading", { name: "Create your first project" })).toBeInTheDocument();
+    expect(screen.getByText("spend report")).toBeInTheDocument();
+  });
+
+  it("reports no spend while the projects cannot be read", () => {
+    setup({ projects: [], isError: true });
+
+    expect(screen.queryByText("spend report")).not.toBeInTheDocument();
+  });
+
+  it("reports no spend to a member who can reach no project", () => {
+    setup({ role: "member", projects: [] });
+
+    expect(screen.getByText("You don't have access to any project yet. Ask an owner or admin.")).toBeInTheDocument();
+    expect(screen.queryByText("spend report")).not.toBeInTheDocument();
+  });
+
   it("offers to retry when the projects cannot be loaded", async () => {
     const { refetch } = setup({ projects: [], isError: true });
 
@@ -303,6 +329,7 @@ describe(ProjectsPage.name, () => {
       NotFoundPage: () => <div>not found</div>,
       ProjectFolder,
       ProjectFolderMenu: ({ project }) => <button type="button">menu of {project.name}</button>,
+      ProjectSpendReport: () => <div>spend report</div>,
       RecentActivityFeed,
       NewProjectModal: props => (
         <NewProjectModal

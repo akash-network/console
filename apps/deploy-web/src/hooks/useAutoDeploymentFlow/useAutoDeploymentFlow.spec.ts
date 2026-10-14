@@ -79,6 +79,15 @@ describe(useAutoDeploymentFlow.name, () => {
     await vi.waitFor(() => expect(result.current.state).toEqual({ kind: "error", message: "A top up is on the way", reason: "top-up-pending" }));
   });
 
+  it("marks a refusal by the project's budget with the project it names", async () => {
+    const { result, flow } = setup();
+
+    await vi.waitFor(() => expect(flow.actions.requestQuotes).toHaveBeenCalled());
+    act(() => flow.setFlowError({ kind: "budget-exceeded", message: "Over budget", projectId: "storefront" }));
+
+    await vi.waitFor(() => expect(result.current.state).toEqual({ kind: "error", message: "Over budget", reason: "budget-exceeded", projectId: "storefront" }));
+  });
+
   it("stays in matching while no open bid is returned", async () => {
     const { result, flow } = setup({ bids: [] });
 

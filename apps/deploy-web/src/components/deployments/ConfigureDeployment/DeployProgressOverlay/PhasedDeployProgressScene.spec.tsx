@@ -20,6 +20,7 @@ describe(PhasedDeployProgressScene.name, () => {
     const onContactSupport = vi.fn();
     const onChooseProvider = vi.fn();
     const onAddFunds = vi.fn();
+    const onViewProject = vi.fn();
     setup({
       templateName: "my-app",
       state: { kind: "preparing" },
@@ -28,6 +29,7 @@ describe(PhasedDeployProgressScene.name, () => {
       onContactSupport,
       onChooseProvider,
       onAddFunds,
+      onViewProject,
       dependencies: { PhasedDeploymentProgress }
     });
 
@@ -40,7 +42,8 @@ describe(PhasedDeployProgressScene.name, () => {
         onTryAgain,
         onContactSupport,
         onChooseProvider,
-        onAddFunds
+        onAddFunds,
+        onViewProject
       }),
       expect.anything()
     );
@@ -70,6 +73,7 @@ describe(PhasedDeployProgressScene.name, () => {
       onContactSupport?: () => void;
       onChooseProvider?: () => void;
       onAddFunds?: () => void;
+      onViewProject?: () => void;
       dependencies?: Partial<typeof DEPENDENCIES>;
     } = {}
   ) {
@@ -85,6 +89,7 @@ describe(PhasedDeployProgressScene.name, () => {
         onContactSupport={input.onContactSupport}
         onChooseProvider={input.onChooseProvider}
         onAddFunds={input.onAddFunds}
+        onViewProject={input.onViewProject}
         dependencies={{ PhasedDeploymentProgress: vi.fn(ComponentMock), ProviderGlobe: vi.fn(ComponentMock), ...input.dependencies }}
       />
     );

@@ -10,6 +10,7 @@ import { useSnackbar } from "notistack";
 import { AddCreditsSnackbarContent } from "@src/components/billing-usage/AddCreditsSnackbarContent/AddCreditsSnackbarContent";
 import Layout from "@src/components/layout/Layout";
 import { ConfigureDeployTargetChip } from "@src/components/projects/ConfigureDeployTargetChip/ConfigureDeployTargetChip";
+import { ProjectBudgetRefusal } from "@src/components/projects/ProjectBudgetRefusal/ProjectBudgetRefusal";
 import { useServices } from "@src/context/ServicesProvider";
 import { useFlag } from "@src/hooks/useFlag";
 import { usePlacementsWithBids } from "@src/queries/usePlacementsWithBids";
@@ -47,6 +48,7 @@ import { useSyncLogCollectors } from "../useSyncLogCollectors/useSyncLogCollecto
 
 export const DEPENDENCIES = {
   AddCreditsSnackbarContent,
+  ProjectBudgetRefusal,
   Layout,
   NextSeo,
   ConfigureDeploymentBackButton,
@@ -217,6 +219,15 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, initialName, in
             <d.Snackbar
               title="Add funds to continue"
               subTitle={<d.AddCreditsSnackbarContent message={message} context="configure_quotes_needs_funds" onAction={() => closeSnackbar(key)} />}
+              iconVariant="warning"
+            />,
+            { variant: "warning", autoHideDuration: NEEDS_FUNDS_TOAST_DURATION_MS }
+          );
+        } else if (flow.error.kind === "budget-exceeded") {
+          const key = enqueueSnackbar(
+            <d.Snackbar
+              title="Project budget reached"
+              subTitle={<d.ProjectBudgetRefusal projectId={flow.error.projectId} onNavigate={() => closeSnackbar(key)} />}
               iconVariant="warning"
             />,
             { variant: "warning", autoHideDuration: NEEDS_FUNDS_TOAST_DURATION_MS }

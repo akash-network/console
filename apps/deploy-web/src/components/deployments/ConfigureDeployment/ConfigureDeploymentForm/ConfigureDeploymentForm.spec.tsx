@@ -592,6 +592,21 @@ describe(ConfigureDeploymentForm.name, () => {
     expect(toast.props.subTitle).toBe("A top up from your saved payment method is on the way. Try again in a moment.");
   });
 
+  it("explains a create refused by the project's budget and dismisses the toast once the project is opened", () => {
+    const { enqueueSnackbar, closeSnackbar } = setup({
+      initialSdl: undefined,
+      flowError: { message: "over budget", kind: "budget-exceeded", projectId: "storefront" }
+    });
+
+    expect(enqueueSnackbar).toHaveBeenCalledWith(expect.anything(), { variant: "warning", autoHideDuration: 10000 });
+    const toast = enqueueSnackbar.mock.calls[0][0] as { props: { title: string; subTitle: { props: { projectId?: string; onNavigate: () => void } } } };
+    expect(toast.props.title).toBe("Project budget reached");
+    expect(toast.props.subTitle.props.projectId).toBe("storefront");
+
+    toast.props.subTitle.props.onNavigate();
+    expect(closeSnackbar).toHaveBeenCalled();
+  });
+
   it("dismisses the add funds toast once the add credits sheet is open", () => {
     const { enqueueSnackbar, closeSnackbar } = setup({ initialSdl: undefined, flowError: { message: "Not enough balance", kind: "needs-funds" } });
 
@@ -1085,6 +1100,7 @@ describe(ConfigureDeploymentForm.name, () => {
     const analyticsService = mock<AnalyticsService>();
     const dependencies: typeof DEPENDENCIES = {
       AddCreditsSnackbarContent: AddCreditsSnackbarContent as never,
+      ProjectBudgetRefusal: vi.fn(() => <></>),
       Layout: vi.fn(({ children }) => <div data-testid="layout-mock">{children}</div>) as never,
       NextSeo: vi.fn(() => null) as never,
       ConfigureDeploymentBackButton: vi.fn(() => <div data-testid="back-button-mock" />),

@@ -1,10 +1,15 @@
 "use client";
 import type { FC } from "react";
+import { useRouter } from "next/navigation";
 
 import Layout from "@src/components/layout/Layout";
+import { budgetAccessFor } from "@src/components/projects/projectSpend";
+import { useActiveOrganization } from "@src/context/OrganizationProvider/OrganizationProvider";
 import { useServices } from "@src/context/ServicesProvider";
 import { useAddCredits } from "@src/hooks/useAddCredits";
+import type { DeployProgressState } from "@src/hooks/useAutoDeploymentFlow/deployPhases";
 import { useAutoDeploymentFlow } from "@src/hooks/useAutoDeploymentFlow/useAutoDeploymentFlow";
+import { UrlService } from "@src/utils/urlUtils";
 import { PhasedDeployProgressScene } from "../DeployProgressOverlay/PhasedDeployProgressScene";
 import type { ResumeResolution } from "../ResumeDeploymentGuard/ResumeDeploymentGuard";
 import type { DeploymentFlow } from "../useDeploymentFlow/useDeploymentFlow";
@@ -14,7 +19,9 @@ export const DEPENDENCIES = {
   PhasedDeployProgressScene,
   useAutoDeploymentFlow,
   useServices,
-  useAddCredits
+  useAddCredits,
+  useActiveOrganization,
+  useRouter
 };
 
 type Props = {
@@ -45,11 +52,15 @@ type Props = {
 export const AutoDeployFlow: FC<Props> = ({ templateName, sdl, resume, flow, dependencies: d = DEPENDENCIES }) => {
   const { publicConfig, analyticsService } = d.useServices();
   const openAddCredits = d.useAddCredits();
+  const { activeOrganization, projectsEnabled } = d.useActiveOrganization();
+  const router = d.useRouter();
   const { state, progressPercent, phases, matchedProviderAddress, tryAgain, stopAutopilot } = d.useAutoDeploymentFlow({
     sdl,
     resumeLeases: resume.activeLeases,
     flow
   });
+  const refusingProjectId = budgetRefusingProjectIdOf(state);
+  const canOpenProjectBudget = projectsEnabled && budgetAccessFor(activeOrganization?.role, undefined).canManage;
 
   return (
     <d.Layout background="white" disableContainer containerClassName="flex min-h-page-viewport flex-col lg:h-page-viewport">
@@ -63,6 +74,7 @@ export const AutoDeployFlow: FC<Props> = ({ templateName, sdl, resume, flow, dep
         onAddFunds={() => {
           openAddCredits({ initialTab: "purchase", description: `Add credits to your balance to deploy ${templateName}.`, context: "auto_deploy_needs_funds" });
         }}
+        onViewProject={refusingProjectId && canOpenProjectBudget ? () => router.push(UrlService.project(refusingProjectId)) : undefined}
         onContactSupport={() => {
           window.open(publicConfig.NEXT_PUBLIC_CONTACT_SUPPORT_URL, "_blank", "noopener,noreferrer");
         }}
@@ -77,3 +89,7 @@ export const AutoDeployFlow: FC<Props> = ({ templateName, sdl, resume, flow, dep
     </d.Layout>
   );
 };
+
+function budgetRefusingProjectIdOf(state: DeployProgressState): string | undefined {
+  return state.kind === "error" && state.reason === "budget-exceeded" ? state.projectId : undefined;
+}

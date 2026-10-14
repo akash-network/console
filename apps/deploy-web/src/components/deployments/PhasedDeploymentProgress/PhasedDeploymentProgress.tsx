@@ -18,6 +18,8 @@ const CREATE_FAILED_FALLBACK_MESSAGE =
 
 const NEEDS_FUNDS_FALLBACK_MESSAGE = "Your balance doesn't cover this deployment yet. Add funds, then try again.";
 
+const BUDGET_EXCEEDED_MESSAGE = "Starting this deployment would take the project past its monthly budget. An owner or admin can raise the budget.";
+
 type DeploymentPhase = {
   id: "creating" | "matching" | "preparing";
   label: string;
@@ -35,6 +37,7 @@ type DeployProgressOverlayProps = {
   onTryAgain?: () => void;
   onContactSupport?: () => void;
   onAddFunds?: () => void;
+  onViewProject?: () => void;
 };
 
 export function PhasedDeploymentProgress({
@@ -45,10 +48,20 @@ export function PhasedDeploymentProgress({
   onChooseProvider,
   onTryAgain,
   onContactSupport,
-  onAddFunds
+  onAddFunds,
+  onViewProject
 }: DeployProgressOverlayProps) {
   if (state.kind === "error") {
-    return <DeployErrorPanel templateName={templateName} failure={state} onTryAgain={onTryAgain} onContactSupport={onContactSupport} onAddFunds={onAddFunds} />;
+    return (
+      <DeployErrorPanel
+        templateName={templateName}
+        failure={state}
+        onTryAgain={onTryAgain}
+        onContactSupport={onContactSupport}
+        onAddFunds={onAddFunds}
+        onViewProject={onViewProject}
+      />
+    );
   }
 
   const canChooseProvider = state.kind === "matching" || state.kind === "creating";
@@ -68,9 +81,10 @@ type DeployErrorPanelProps = {
   onTryAgain?: () => void;
   onContactSupport?: () => void;
   onAddFunds?: () => void;
+  onViewProject?: () => void;
 };
 
-function DeployErrorPanel({ templateName, failure, onTryAgain, onContactSupport, onAddFunds }: DeployErrorPanelProps) {
+function DeployErrorPanel({ templateName, failure, onTryAgain, onContactSupport, onAddFunds, onViewProject }: DeployErrorPanelProps) {
   const { title, description } = errorCopyOf(templateName, failure);
 
   return (
@@ -85,6 +99,13 @@ function DeployErrorPanel({ templateName, failure, onTryAgain, onContactSupport,
           {failure.reason === "needs-funds" ? (
             <>
               <Button onClick={onAddFunds}>Add funds</Button>
+              <Button variant="outline" onClick={onTryAgain}>
+                Try again
+              </Button>
+            </>
+          ) : failure.reason === "budget-exceeded" && onViewProject ? (
+            <>
+              <Button onClick={onViewProject}>View project</Button>
               <Button variant="outline" onClick={onTryAgain}>
                 Try again
               </Button>
@@ -112,6 +133,9 @@ function errorCopyOf(templateName: string, { reason, message, shortfall }: Deplo
   }
   if (reason === "top-up-pending") {
     return { title: "Your balance is being topped up", description: TOP_UP_PENDING_MESSAGE };
+  }
+  if (reason === "budget-exceeded") {
+    return { title: "This project is at its monthly budget", description: BUDGET_EXCEEDED_MESSAGE };
   }
   return { title: `We couldn't deploy ${templateName}`, description: message ?? CREATE_FAILED_FALLBACK_MESSAGE };
 }

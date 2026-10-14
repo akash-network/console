@@ -25,6 +25,7 @@ import { UrlService } from "@src/utils/urlUtils";
 import { NewProjectModal } from "../NewProjectModal/NewProjectModal";
 import { ProjectFolder } from "../ProjectFolder/ProjectFolder";
 import { ProjectFolderMenu } from "../ProjectFolderMenu/ProjectFolderMenu";
+import { ProjectSpendReport } from "../ProjectSpendReport/ProjectSpendReport";
 import { isProjectListed, sortProjectsNewestFirst } from "../projectSummary";
 import { RecentActivityFeed } from "../RecentActivityFeed/RecentActivityFeed";
 import { SectionLabel } from "../SectionLabel/SectionLabel";
@@ -44,6 +45,7 @@ export const DEPENDENCIES = {
   NotFoundPage,
   ProjectFolder,
   ProjectFolderMenu,
+  ProjectSpendReport,
   RecentActivityFeed,
   NewProjectModal
 };
@@ -139,42 +141,46 @@ function ProjectsPageContent({ dependencies: d }: Required<Props>) {
         <div className="md:min-h-0 md:flex-1 md:overflow-y-auto">
           <div className="mx-auto w-full max-w-[1228px] px-6 pb-10 pt-[22px]">
             <div className={styles.split}>
-              <section className={styles.content} aria-label="All projects">
-                <SectionLabel
-                  rightSlot={
-                    hasProjects && <span className="whitespace-nowrap text-xs text-muted-foreground">{pluralize(listedProjects.length, "project")}</span>
-                  }
-                >
-                  All projects
-                </SectionLabel>
+              <div className={styles.content}>
+                <section aria-label="All projects">
+                  <SectionLabel
+                    rightSlot={
+                      hasProjects && <span className="whitespace-nowrap text-xs text-muted-foreground">{pluralize(listedProjects.length, "project")}</span>
+                    }
+                  >
+                    All projects
+                  </SectionLabel>
 
-                {projectsQuery.isError ? (
-                  <div className="flex flex-col items-center justify-center gap-4 py-8">
-                    <p className="text-muted-foreground">Couldn&apos;t load projects.</p>
-                    <Button variant="outline" size="sm" onClick={() => projectsQuery.refetch()}>
-                      <RefreshCw className="mr-2 h-4 w-4" />
-                      Retry
-                    </Button>
-                  </div>
-                ) : hasProjects ? (
-                  <div className={styles.folderGrid}>
-                    {listedProjects.map(project => (
-                      <SummarizedProjectFolder
-                        key={project.id}
-                        dependencies={d}
-                        project={project}
-                        onOpen={() => openProject(project)}
-                        onSelectDeployment={openDeployment}
-                        onNewDeployment={canDeploy && access.canManageDeployments(project.id) ? () => startDeploymentIn(project) : undefined}
-                        menu={canManage && <d.ProjectFolderMenu project={project} takenNames={projectNames} />}
-                      />
-                    ))}
-                  </div>
-                ) : (
-                  projectsQuery.data &&
-                  !isReadingDefaultProject && <EmptyProjects organizationName={organizationName} onNewProject={canManage ? openNewProject : undefined} />
-                )}
-              </section>
+                  {projectsQuery.isError ? (
+                    <div className="flex flex-col items-center justify-center gap-4 py-8">
+                      <p className="text-muted-foreground">Couldn&apos;t load projects.</p>
+                      <Button variant="outline" size="sm" onClick={() => projectsQuery.refetch()}>
+                        <RefreshCw className="mr-2 h-4 w-4" />
+                        Retry
+                      </Button>
+                    </div>
+                  ) : hasProjects ? (
+                    <div className={styles.folderGrid}>
+                      {listedProjects.map(project => (
+                        <SummarizedProjectFolder
+                          key={project.id}
+                          dependencies={d}
+                          project={project}
+                          onOpen={() => openProject(project)}
+                          onSelectDeployment={openDeployment}
+                          onNewDeployment={canDeploy && access.canManageDeployments(project.id) ? () => startDeploymentIn(project) : undefined}
+                          menu={canManage && <d.ProjectFolderMenu project={project} takenNames={projectNames} />}
+                        />
+                      ))}
+                    </div>
+                  ) : (
+                    projectsQuery.data &&
+                    !isReadingDefaultProject && <EmptyProjects organizationName={organizationName} onNewProject={canManage ? openNewProject : undefined} />
+                  )}
+                </section>
+
+                {!!projectsQuery.data?.length && <d.ProjectSpendReport />}
+              </div>
 
               <aside className="min-w-0">
                 <d.RecentActivityFeed
