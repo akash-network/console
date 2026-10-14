@@ -2,13 +2,14 @@
 import type { FC } from "react";
 import { Card, Skeleton, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@akashnetwork/ui/components";
 
+import { useProjectAccess } from "@src/hooks/useProjectAccess/useProjectAccess";
 import type { DeploymentsViewMode } from "@src/store/deploymentsViewStore";
 import type { ListedDeploymentDto } from "@src/types/deployment";
 import type { ApiProviderList } from "@src/types/provider";
 import { DeploymentCard } from "./DeploymentCard";
 import { DeploymentRow } from "./DeploymentRow";
 
-export const DEPENDENCIES = { DeploymentCard, DeploymentRow };
+export const DEPENDENCIES = { useProjectAccess, DeploymentCard, DeploymentRow };
 
 const LOADING_PLACEHOLDERS = ["first", "second", "third"];
 
@@ -49,15 +50,21 @@ export const DeploymentsCollection: FC<DeploymentsCollectionProps> = ({
   onDeploymentClosed,
   dependencies: d = DEPENDENCIES
 }) => {
-  const itemProps = (deployment: ListedDeploymentDto) => ({
-    deployment,
-    providers,
-    isSelectable,
-    isSelected: selectedIds?.includes(deployment.dseq) ?? false,
-    isClosing: closingDseqs?.has(deployment.dseq) ?? false,
-    onSelect,
-    onDeploymentClosed
-  });
+  const { canManageDeployments } = d.useProjectAccess();
+  const itemProps = (deployment: ListedDeploymentDto) => {
+    const canManage = canManageDeployments(deployment.projectId);
+
+    return {
+      deployment,
+      providers,
+      isSelectable: isSelectable && canManage,
+      canManage,
+      isSelected: selectedIds?.includes(deployment.dseq) ?? false,
+      isClosing: closingDseqs?.has(deployment.dseq) ?? false,
+      onSelect,
+      onDeploymentClosed
+    };
+  };
 
   if (viewMode === "grid") {
     return (

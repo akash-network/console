@@ -130,7 +130,19 @@ describe("DeploymentCard", () => {
     const onDeploymentClosed = vi.fn();
     const { DeploymentActionsMenu, deployment } = setup({ deployment: { dseq: "100" }, onDeploymentClosed });
 
-    expect(DeploymentActionsMenu).toHaveBeenCalledWith({ deployment, onDeploymentClosed, isClosing: false }, expect.anything());
+    expect(DeploymentActionsMenu).toHaveBeenCalledWith({ deployment, onDeploymentClosed, isClosing: false, canManage: true }, expect.anything());
+  });
+
+  it("tells the actions menu whether the caller may manage the deployment", () => {
+    const { DeploymentActionsMenu } = setup({ deployment: { dseq: "100" }, canManage: false });
+
+    expect(DeploymentActionsMenu).toHaveBeenCalledWith(expect.objectContaining({ canManage: false }), expect.anything());
+  });
+
+  it("lets the actions menu act when nothing says otherwise", () => {
+    const { DeploymentActionsMenu } = setup({ deployment: { dseq: "100" } });
+
+    expect(DeploymentActionsMenu).toHaveBeenCalledWith(expect.objectContaining({ canManage: true }), expect.anything());
   });
 
   describe("while the deployment's close runs in the background", () => {
@@ -174,6 +186,7 @@ describe("DeploymentCard", () => {
     isSelected?: boolean;
     isClosing?: boolean;
     onDeploymentClosed?: () => void;
+    canManage?: boolean;
   }) {
     const leases = input.leases ?? [];
     let endpoints = input.reachability?.endpoints ?? [];
@@ -208,6 +221,7 @@ describe("DeploymentCard", () => {
         isSelectable={input.isSelectable}
         isSelected={input.isSelected}
         isClosing={input.isClosing}
+        canManage={input.canManage}
         onSelect={onSelect}
         onDeploymentClosed={input.onDeploymentClosed}
         dependencies={MockComponents(DEPENDENCIES, {

@@ -5,6 +5,7 @@ import { cn } from "@akashnetwork/ui/utils";
 import { TriangleAlert } from "lucide-react";
 import Link from "next/link";
 
+import { useCanManageDeployment } from "@src/hooks/useCanManageDeployment/useCanManageDeployment";
 import { isUsableDeploymentDefinition, sdlToRedeploy, useDeploymentDefinition } from "@src/hooks/useDeploymentDefinition/useDeploymentDefinition";
 import { useNewDeploymentUrl } from "@src/hooks/useNewDeploymentUrl/useNewDeploymentUrl";
 import { useRedeploy } from "@src/hooks/useRedeploy/useRedeploy";
@@ -12,7 +13,7 @@ import type { LeaseDto } from "@src/types/deployment";
 import { getLeaseCloseReasonLabel, getNearestReclamationDeadline, isReclaiming } from "@src/utils/reclamationUtils";
 import { useCountdown } from "./useCountdown";
 
-export const DEPENDENCIES = { useDeploymentDefinition, useNewDeploymentUrl, useRedeploy };
+export const DEPENDENCIES = { useDeploymentDefinition, useNewDeploymentUrl, useRedeploy, useCanManageDeployment };
 
 type Props = {
   leases: LeaseDto[] | undefined | null;
@@ -30,6 +31,8 @@ export const ReclamationBanner: React.FunctionComponent<Props> = ({ leases, dseq
   const definition = dependencies.useDeploymentDefinition(dseq, { acceptReferences: true });
   const newDeploymentUrl = dependencies.useNewDeploymentUrl();
   const redeploy = dependencies.useRedeploy();
+  const { canManage, isLoading: isLoadingManagement } = dependencies.useCanManageDeployment(dseq);
+  const isReadOnly = !canManage && !isLoadingManagement;
   const canRedeploy = definition.source === "resolving" || isUsableDeploymentDefinition(definition);
   const reclaimingLeases = useMemo(() => (leases ?? []).filter(isReclaiming), [leases]);
 
@@ -52,22 +55,28 @@ export const ReclamationBanner: React.FunctionComponent<Props> = ({ leases, dseq
           </span>
         </p>
         <p className="mt-1 text-xs text-muted-foreground">Reason: {reasonLabel}</p>
-        <p className="mt-2">Reclamation can&apos;t be cancelled. Redeploy to another provider before the deadline to avoid downtime.</p>
-        {canRedeploy ? (
-          <Button
-            variant="default"
-            size="sm"
-            className="mt-3"
-            disabled={definition.source === "resolving"}
-            onClick={() => redeploy({ sdl: sdlToRedeploy(definition), name: definition.name, sourceDseq: dseq })}
-          >
-            Redeploy
-          </Button>
-        ) : (
-          <Link href={newDeploymentUrl()} className={cn(buttonVariants({ variant: "default", size: "sm" }), "mt-3")}>
-            Start a new deployment
-          </Link>
-        )}
+        <p className="mt-2">
+          Reclamation can&apos;t be cancelled.{" "}
+          {isReadOnly
+            ? "Ask someone who can deploy into this project to redeploy it before the deadline to avoid downtime."
+            : "Redeploy to another provider before the deadline to avoid downtime."}
+        </p>
+        {canManage &&
+          (canRedeploy ? (
+            <Button
+              variant="default"
+              size="sm"
+              className="mt-3"
+              disabled={definition.source === "resolving"}
+              onClick={() => redeploy({ sdl: sdlToRedeploy(definition), name: definition.name, sourceDseq: dseq })}
+            >
+              Redeploy
+            </Button>
+          ) : (
+            <Link href={newDeploymentUrl()} className={cn(buttonVariants({ variant: "default", size: "sm" }), "mt-3")}>
+              Start a new deployment
+            </Link>
+          ))}
       </AlertDescription>
     </Alert>
   );

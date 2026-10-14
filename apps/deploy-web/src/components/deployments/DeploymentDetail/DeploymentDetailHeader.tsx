@@ -13,6 +13,7 @@ import { CostRate } from "@src/components/shared/CostRate";
 import { GpuInterconnectBadge } from "@src/components/shared/GpuInterconnectBadge";
 import { TrialDeploymentBadge } from "@src/components/shared/TrialDeploymentBadge";
 import { useWallet } from "@src/context/WalletProvider";
+import { useCanManageDeployment } from "@src/hooks/useCanManageDeployment/useCanManageDeployment";
 import { useClosingDeployments } from "@src/hooks/useClosingDeployments/useClosingDeployments";
 import { useDeclaredGpuInterconnect } from "@src/hooks/useDeclaredGpuInterconnect";
 import { useDeclaredTeeTypes } from "@src/hooks/useDeclaredTeeTypes";
@@ -51,6 +52,7 @@ export const DEPENDENCIES = {
   useDeclaredTeeTypes,
   useDeclaredGpuInterconnect,
   useLeaseStatuses,
+  useCanManageDeployment,
   CostRate,
   CostBreakdownTooltip,
   DeploymentVisitControl,
@@ -90,6 +92,7 @@ export const DeploymentDetailHeader: FC<DeploymentDetailHeaderProps> = ({
   const teeTypes = d.useDeclaredTeeTypes(deployment);
   const interconnect = d.useDeclaredGpuInterconnect(deployment);
   const isClosing = d.useClosingDeployments().has(deployment.dseq);
+  const { canManage } = d.useCanManageDeployment(deployment.dseq);
 
   const liveLeases = useMemo(() => leases?.filter(isLeaseLive) ?? [], [leases]);
   const liveLeaseItems = useMemo(
@@ -127,15 +130,17 @@ export const DeploymentDetailHeader: FC<DeploymentDetailHeaderProps> = ({
         </div>
         <div className="group flex items-center gap-2">
           <h1 className="text-3xl font-bold tracking-tight">{name}</h1>
-          <Button
-            aria-label="Edit deployment name"
-            variant="ghost"
-            size="icon"
-            className={cn("h-8 w-8", HOVER_REVEALED)}
-            onClick={() => changeDeploymentName(deployment.dseq)}
-          >
-            <Pencil className="h-4 w-4" />
-          </Button>
+          {canManage && (
+            <Button
+              aria-label="Edit deployment name"
+              variant="ghost"
+              size="icon"
+              className={cn("h-8 w-8", HOVER_REVEALED)}
+              onClick={() => changeDeploymentName(deployment.dseq)}
+            >
+              <Pencil className="h-4 w-4" />
+            </Button>
+          )}
         </div>
         <d.DeploymentVisitControl leases={leases ?? []} providers={providers} />
       </div>

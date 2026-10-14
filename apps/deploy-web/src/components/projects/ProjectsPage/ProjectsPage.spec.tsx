@@ -147,6 +147,21 @@ describe(ProjectsPage.name, () => {
     expect(push.mock.calls).toEqual([["/projects/storefront"], ["/deployments/3140"], ["/new-deployment?projectId=marketing"]]);
   });
 
+  it("offers no new deployment from the folder of a project the caller only views", () => {
+    setup({ projects: [project({ name: "storefront" }), project({ name: "marketing" })], viewedProjectIds: ["marketing"] });
+
+    expect(within(screen.getByRole("link", { name: /^Open storefront/ })).getByText("New deployment")).toBeInTheDocument();
+    expect(within(screen.getByRole("link", { name: /^Open marketing/ })).queryByText("New deployment")).not.toBeInTheDocument();
+    expect(screen.getAllByRole("link", { name: /New deployment/ })).toHaveLength(1);
+  });
+
+  it("offers no new deployment at all to a caller who only views every project", () => {
+    setup({ projects: [project({ name: "storefront" })], viewedProjectIds: ["storefront"] });
+
+    expect(screen.queryByRole("link", { name: /New deployment/ })).not.toBeInTheDocument();
+    expect(screen.queryByText("New deployment")).not.toBeInTheDocument();
+  });
+
   it("reads a folder's deployments only once it scrolls into view", () => {
     const { useProjectDeploymentSummaryQuery } = setup({
       projects: [project({ name: "storefront", deployments: [running("3140")] })],
@@ -232,6 +247,7 @@ describe(ProjectsPage.name, () => {
     projectsEnabled?: boolean;
     isOrganizationLoading?: boolean;
     isActivityError?: boolean;
+    viewedProjectIds?: string[];
   }) {
     const retryActivity = vi.fn();
     const push = vi.fn();
@@ -274,6 +290,13 @@ describe(ProjectsPage.name, () => {
         retry: retryActivity
       }),
       useNewDeploymentUrl: () => () => "/new-deployment",
+      useProjectAccess: () => {
+        const canManageDeployments = (projectId: string | null | undefined) => !input.viewedProjectIds?.includes(projectId ?? "");
+        return mock<ReturnType<typeof DEPENDENCIES.useProjectAccess>>({
+          canManageDeployments,
+          canDeployAnywhere: input.projects.some(({ project }) => canManageDeployments(project.id))
+        });
+      },
       useProjectDeploymentSummaryQuery,
       useHasBeenVisible: () => [vi.fn(), input.isScrolledIntoView ?? true],
       Layout,

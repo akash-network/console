@@ -2,7 +2,7 @@
 import type { FC } from "react";
 
 import { SettingsSection } from "@src/components/layout/SettingsSection/SettingsSection";
-import { useProjectsUi } from "@src/hooks/useProjectsUi/useProjectsUi";
+import { useCanManageDeployment } from "@src/hooks/useCanManageDeployment/useCanManageDeployment";
 import { useUser } from "@src/hooks/useUser";
 import { useDeploymentSettingQuery } from "@src/queries/deploymentSettingsQuery";
 import type { DeploymentDto, LeaseDto } from "@src/types/deployment";
@@ -16,7 +16,7 @@ export const DEPENDENCIES = {
   DeploymentBillingSection,
   DeploymentNotificationsSection,
   DeploymentDangerZone,
-  useProjectsUi
+  useCanManageDeployment
 };
 
 export interface DeploymentSettingsProps {
@@ -30,13 +30,13 @@ export const DeploymentSettings: FC<DeploymentSettingsProps> = ({ deployment, le
   const { user } = d.useUser();
   const isAlertsEnabled = !!user?.userId;
   const isActive = deployment.state === "active";
-  const { canChangeDeployments } = d.useProjectsUi();
+  const { canManage } = d.useCanManageDeployment(deployment.dseq);
   const { data: settings } = d.useDeploymentSettingQuery({ dseq: deployment.dseq });
   const showsBillingSection = !!settings?.runtimeLimitHours;
 
   return (
     <div className="space-y-7">
-      {showsBillingSection && canChangeDeployments && (
+      {showsBillingSection && canManage && (
         <SettingsSection title="Billing">
           <d.DeploymentBillingSection deployment={deployment} leases={leases} onFundsChanged={onDeploymentChange} />
         </SettingsSection>
@@ -46,7 +46,7 @@ export const DeploymentSettings: FC<DeploymentSettingsProps> = ({ deployment, le
         <d.DeploymentNotificationsSection deployment={deployment} isEnabled={isAlertsEnabled} />
       </SettingsSection>
 
-      {isActive && canChangeDeployments && (
+      {isActive && canManage && (
         <SettingsSection title="Danger zone" destructive>
           <d.DeploymentDangerZone deployment={deployment} onClosed={onDeploymentChange} />
         </SettingsSection>

@@ -122,6 +122,14 @@ describe(DeploymentDetailHeader.name, () => {
     expect(changeDeploymentName).toHaveBeenCalledWith("1786440078202");
   });
 
+  it("offers no rename on a deployment the caller only views", () => {
+    const useCanManageDeployment = vi.fn(() => ({ canManage: false, isLoading: false, isError: false, retry: vi.fn() }));
+    setup({ dependencies: { useCanManageDeployment } });
+
+    expect(screen.queryByRole("button", { name: "Edit deployment name" })).not.toBeInTheDocument();
+    expect(useCanManageDeployment).toHaveBeenCalledWith("1786440078202");
+  });
+
   it("shows the limit alone, with no meter, before the countdown is anchored to a lease", () => {
     setup({ runtimeLimitHours: 12 });
 
@@ -446,6 +454,7 @@ describe(DeploymentDetailHeader.name, () => {
       DeploymentVisitControl,
       useLeaseStatuses,
       useClosingDeployments: () => new Set(input.closingDseqs ?? []),
+      useCanManageDeployment: () => ({ canManage: true, isLoading: false, isError: false, retry: vi.fn() }),
       ...input.dependencies
     });
     const renderHeader = () => (

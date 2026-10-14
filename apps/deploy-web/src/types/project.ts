@@ -49,3 +49,10 @@ export const PROJECT_REQUIRED_ERROR_CODE = "project_required";
 
 /** The message of the 404 the api answers for a project that was deleted or that the caller can no longer reach. */
 export const PROJECT_NOT_FOUND_MESSAGE = "Project not found";
+
+export const PROJECT_ACCESS_ERROR_CODES = {
+  forbidden: "forbidden",
+  implicitProjectAccess: "implicit_project_access",
+  billingRoleNotGrantable: "billing_role_not_grantable",
+  alreadyGranted: "already_granted"
+} as const;

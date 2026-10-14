@@ -47,6 +47,26 @@ describe(useDeployTarget.name, () => {
     expect(result.current.isMissing).toBe(false);
   });
 
+  it("waits for the caller's access before asking", () => {
+    const { result } = setup({ isLoadingAccess: true });
+
+    expect(result.current.isLoading).toBe(true);
+    expect(result.current.isMissing).toBe(false);
+  });
+
+  it("offers only the projects the caller may deploy into", () => {
+    const { result } = setup({ viewedProjectId: "marketing" });
+
+    expect(result.current.projects.map(project => project.id)).toEqual(["storefront"]);
+  });
+
+  it("asks for another project when the page names one the caller only views", () => {
+    const { result } = setup({ requestedProjectId: "marketing", viewedProjectId: "marketing" });
+
+    expect(result.current.project).toBeUndefined();
+    expect(result.current.isMissing).toBe(true);
+  });
+
   it("chooses a project for the next create", () => {
     const { result, store } = setup({});
 
@@ -82,7 +102,14 @@ describe(useDeployTarget.name, () => {
     expect(result.current.projects.map(project => project.id)).toEqual(["storefront", "marketing"]);
   });
 
-  function setup(input: { isEnabled?: boolean; isLoading?: boolean; requestedProjectId?: string; chosenProjectId?: string }) {
+  function setup(input: {
+    isEnabled?: boolean;
+    isLoading?: boolean;
+    requestedProjectId?: string;
+    chosenProjectId?: string;
+    viewedProjectId?: string;
+    isLoadingAccess?: boolean;
+  }) {
     const projects = [mock<Project>({ id: "storefront", name: "storefront" }), mock<Project>({ id: "marketing", name: "marketing" })];
     const isEnabled = input.isEnabled ?? true;
     const useProjectsQuery = vi.fn<typeof DEPENDENCIES.useProjectsQuery>(() =>
@@ -92,7 +119,12 @@ describe(useDeployTarget.name, () => {
     );
     const dependencies: typeof DEPENDENCIES = {
       useProjectsUi: () => ({ isEnabled, canManageProjects: true, canChangeDeployments: true, organizationName: "Acme Corp" }),
-      useProjectsQuery
+      useProjectsQuery,
+      useProjectAccess: () =>
+        mock<ReturnType<typeof DEPENDENCIES.useProjectAccess>>({
+          isLoading: input.isLoadingAccess ?? false,
+          canManageDeployments: projectId => projectId !== input.viewedProjectId
+        })
     };
     const store = createStore();
     if (input.chosenProjectId) store.set(deployTargetProjectIdAtom, input.chosenProjectId);

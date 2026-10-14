@@ -33,6 +33,7 @@ export interface DeploymentCardProps {
   isSelectable?: boolean;
   isSelected?: boolean;
   isClosing?: boolean;
+  canManage?: boolean;
   onSelect?: (input: { id: string; isShiftPressed: boolean }) => void;
   onDeploymentClosed?: () => void;
   dependencies?: typeof DEPENDENCIES;
@@ -44,6 +45,7 @@ export const DeploymentCard: FC<DeploymentCardProps> = ({
   isSelectable,
   isSelected,
   isClosing = false,
+  canManage = true,
   onSelect,
   onDeploymentClosed,
   dependencies: d = DEPENDENCIES
@@ -95,7 +97,7 @@ export const DeploymentCard: FC<DeploymentCardProps> = ({
               onClick={event => onSelect?.({ id: deployment.dseq, isShiftPressed: event.shiftKey })}
             />
           )}
-          <d.DeploymentActionsMenu deployment={deployment} onDeploymentClosed={onDeploymentClosed} isClosing={isClosing} />
+          <d.DeploymentActionsMenu deployment={deployment} onDeploymentClosed={onDeploymentClosed} isClosing={isClosing} canManage={canManage} />
         </div>
       </div>
     </Card>

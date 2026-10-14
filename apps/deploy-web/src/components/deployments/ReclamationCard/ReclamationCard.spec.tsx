@@ -25,6 +25,30 @@ describe("ReclamationCard", () => {
     expect(screen.queryByRole("button", { name: /resume/i })).not.toBeInTheDocument();
   });
 
+  it("offers neither close nor redeploy to a caller who only views the deployment's project", () => {
+    const { useCanManageDeployment } = setup({ canManage: false });
+
+    expect(screen.getByText("Closed by provider (workloads unstable)")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Close & refund" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Redeploy" })).not.toBeInTheDocument();
+    expect(useCanManageDeployment).toHaveBeenCalledWith("123");
+    expect(screen.getByText(/Ask someone who can deploy into this project to redeploy or close it./)).toBeInTheDocument();
+    expect(screen.queryByText(/Redeploy to get back online, or close it to recover any unused funds./)).not.toBeInTheDocument();
+  });
+
+  it("tells a caller who manages the deployment to redeploy or close it", () => {
+    setup({});
+
+    expect(screen.getByText(/Redeploy to get back online, or close it to recover any unused funds./)).toBeInTheDocument();
+    expect(screen.queryByText(/Ask someone who can deploy into this project to redeploy or close it./)).not.toBeInTheDocument();
+  });
+
+  it("keeps telling the caller to redeploy or close while their access is still being read", () => {
+    setup({ canManage: false, isLoadingManagement: true });
+
+    expect(screen.getByText(/Redeploy to get back online, or close it to recover any unused funds./)).toBeInTheDocument();
+  });
+
   it("redeploys with the resolved sdl and name when Redeploy is clicked", async () => {
     const { redeploy } = setup({ definition: { sdl: "version: 2.0", name: "my-app" } });
 
@@ -140,6 +164,8 @@ describe("ReclamationCard", () => {
       closeNeverAnswers?: boolean;
       closingDseqs?: string[];
       onClosed?: () => void;
+      canManage?: boolean;
+      isLoadingManagement?: boolean;
     } = {}
   ) {
     const closeDeployment = input.closeNeverAnswers
@@ -158,6 +184,12 @@ describe("ReclamationCard", () => {
     const useDeploymentDefinition: typeof DEPENDENCIES.useDeploymentDefinition = () => definition;
     const useRedeploy: typeof DEPENDENCIES.useRedeploy = () => redeploy;
     const useNewDeploymentUrl: typeof DEPENDENCIES.useNewDeploymentUrl = () => () => "/new-deployment";
+    const useCanManageDeployment = vi.fn((_dseq: string) => ({
+      canManage: input.canManage ?? true,
+      isLoading: input.isLoadingManagement ?? false,
+      isError: false,
+      retry: vi.fn()
+    }));
 
     const lease = mock<LeaseDto>({
       id: "1",
@@ -182,11 +214,12 @@ describe("ReclamationCard", () => {
           useManagedDeploymentConfirm,
           useDeploymentDefinition,
           useRedeploy,
-          useNewDeploymentUrl
+          useNewDeploymentUrl,
+          useCanManageDeployment
         })}
       />
     );
 
-    return { closeDeployment, confirm, redeploy };
+    return { closeDeployment, confirm, redeploy, useCanManageDeployment };
   }
 });

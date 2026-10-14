@@ -28,10 +28,18 @@ export interface DeploymentActionsMenuProps {
   deployment: Pick<DeploymentDto, "dseq" | "state"> & Partial<Pick<ListedDeploymentDto, "name" | "projectId">>;
   onDeploymentClosed?: () => void;
   isClosing?: boolean;
+  /** Off for a deployment of a project the caller only views, which leaves no action to offer. */
+  canManage?: boolean;
   dependencies?: typeof DEPENDENCIES;
 }
 
-export const DeploymentActionsMenu: FC<DeploymentActionsMenuProps> = ({ deployment, onDeploymentClosed, isClosing, dependencies: d = DEPENDENCIES }) => {
+export const DeploymentActionsMenu: FC<DeploymentActionsMenuProps> = ({
+  deployment,
+  onDeploymentClosed,
+  isClosing,
+  canManage = true,
+  dependencies: d = DEPENDENCIES
+}) => {
   const [isOpen, setIsOpen] = useState(false);
   const [isMovingToProject, setIsMovingToProject] = useState(false);
   const { canManageProjects, canChangeDeployments } = d.useProjectsUi();
@@ -58,6 +66,8 @@ export const DeploymentActionsMenu: FC<DeploymentActionsMenuProps> = ({ deployme
     if (outcome === "closed") onDeploymentClosed?.();
     analyticsService.track("close_deployment", { category: "deployments", label: "Close deployment from list", reason: closeReason.closeReason });
   };
+
+  if (!canManage) return null;
 
   return (
     <>

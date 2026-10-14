@@ -310,6 +310,16 @@ describe(useDeploymentsListModel.name, () => {
       expect(result.current.selectedItemIds).toEqual(["100"]);
     });
 
+    it("keeps a deployment of a project the caller only views out of the selection, even across a range", () => {
+      const viewOnly = mock<ListedDeploymentDto>({ dseq: "101", state: "active", leases: [], projectId: "project-viewed" });
+      const { result } = setup({ active: [deployment("100"), viewOnly, deployment("102")], readOnlyProjectId: "project-viewed" });
+
+      act(() => result.current.selectItem({ id: "100", isShiftPressed: false }));
+      act(() => result.current.selectItem({ id: "102", isShiftPressed: true }));
+
+      expect(result.current.selectedItemIds).toEqual(["100", "102"]);
+    });
+
     it("drops a selected deployment from the selection once its close starts", () => {
       const { result, rerenderWith } = setup({ active: [deployment("100"), deployment("101")] });
       act(() => result.current.selectItem({ id: "100", isShiftPressed: false }));
@@ -841,6 +851,7 @@ describe(useDeploymentsListModel.name, () => {
     isArchiveSearchTooBroad?: boolean;
     providers?: ApiProviderList[];
     closingDseqs?: string[];
+    readOnlyProjectId?: string;
   };
 
   function setup(input: Input) {
@@ -892,6 +903,8 @@ describe(useDeploymentsListModel.name, () => {
       useProvidersByAddresses,
       useCloseDeploymentConfirm,
       useListSelection: DEPENDENCIES.useListSelection,
+      useProjectAccess: () =>
+        mock<ReturnType<typeof DEPENDENCIES.useProjectAccess>>({ canManageDeployments: projectId => projectId !== current.readOnlyProjectId }),
       useDeploymentsListSource,
       useClosingDeployments: () => new Set(current.closingDseqs ?? []),
       useCloseDeployments: () => closeDeployments

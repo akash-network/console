@@ -28,18 +28,36 @@ describe(DeployTargetGate.name, () => {
     expect(flowTarget().project).toBeUndefined();
   });
 
-  it("lets a deployment that already exists through without a project", () => {
-    setup({ filedDseq: "100" });
+  it("lets a deployment that already exists through while its project is read, without asking for one yet", () => {
+    const { flowTarget, ChooseProjectModal } = setup({ filedDseq: "100", filedLocation: "loading" });
 
     expect(screen.getByText("flow")).toBeInTheDocument();
-    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(flowTarget().isLoading).toBe(true);
+    expect(ChooseProjectModal).not.toHaveBeenCalled();
   });
 
   it("keeps a deployment re-created in place of an existing one in the existing one's project, over a handed over one", () => {
-    const { flowTarget, useDeploymentLocationQuery } = setup({ filedDseq: "100", filedProjectId: "marketing", handedOverProjectId: "storefront" });
+    const { flowTarget, useDeploymentLocationQuery, ChooseProjectModal } = setup({
+      filedDseq: "100",
+      filedProjectId: "marketing",
+      handedOverProjectId: "storefront"
+    });
 
     expect(useDeploymentLocationQuery).toHaveBeenCalledWith("100", { enabled: true });
     expect(flowTarget().project?.id).toBe("marketing");
+    expect(ChooseProjectModal).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    { case: "is filed nowhere the caller reaches", filedProjectId: undefined, filedLocation: undefined },
+    { case: "cannot be read", filedProjectId: undefined, filedLocation: "failed" as const },
+    { case: "is one the caller only views", filedProjectId: "marketing", filedLocation: undefined }
+  ])("asks over a deployment that already exists for a project when its own $case", ({ filedProjectId, filedLocation }) => {
+    const { flowTarget, ChooseProjectModal } = setup({ filedDseq: "100", filedProjectId, filedLocation, viewedProjectId: "marketing" });
+
+    expect(screen.getByText("flow")).toBeInTheDocument();
+    expect(flowTarget().project).toBeUndefined();
+    expect(ChooseProjectModal.mock.lastCall?.[0].projects.map(candidate => candidate.id)).toEqual(["storefront"]);
   });
 
   it("asks for a project over a deployment that already exists once its project is refused", async () => {
@@ -158,14 +176,37 @@ describe(DeployTargetGate.name, () => {
     expect(flowTarget()).toMatchObject({ isRequired: true, isMissing: false, canCreateProject: true, project: { id: "marketing" } });
   });
 
+  it("offers the picker only the projects the caller may deploy into", () => {
+    const { ChooseProjectModal } = setup({ viewedProjectId: "marketing" });
+
+    expect(ChooseProjectModal.mock.lastCall?.[0].projects.map(candidate => candidate.id)).toEqual(["storefront"]);
+  });
+
+  it("asks again for a project handed over that the caller only views", () => {
+    const { ChooseProjectModal } = setup({ handedOverProjectId: "marketing", viewedProjectId: "marketing" });
+
+    expect(screen.queryByText("flow")).not.toBeInTheDocument();
+    expect(ChooseProjectModal).toHaveBeenCalled();
+  });
+
+  it("holds the flow back while the caller's access is read", () => {
+    const { ChooseProjectModal } = setup({ isLoadingAccess: true });
+
+    expect(screen.getByText("waiting")).toBeInTheDocument();
+    expect(ChooseProjectModal).not.toHaveBeenCalled();
+  });
+
   function setup(input: {
     handedOverProjectId?: string;
     filedDseq?: string;
     filedProjectId?: string;
+    filedLocation?: "loading" | "failed";
     isRequired?: boolean;
     isLoading?: boolean;
     canManageProjects?: boolean;
     isOrganizationLoading?: boolean;
+    viewedProjectId?: string;
+    isLoadingAccess?: boolean;
   }) {
     const organization = { isLoading: input.isOrganizationLoading ?? false };
     const push = vi.fn();
@@ -183,9 +224,15 @@ describe(DeployTargetGate.name, () => {
       </div>
     ));
     const useDeploymentLocationQuery = vi.fn<typeof DEPENDENCIES.useDeploymentLocationQuery>(() =>
-      mock<ReturnType<typeof DEPENDENCIES.useDeploymentLocationQuery>>({
-        data: input.filedProjectId ? mock<DeploymentLocation>({ projectId: input.filedProjectId }) : null
-      })
+      input.filedLocation === "loading"
+        ? mock<ReturnType<typeof DEPENDENCIES.useDeploymentLocationQuery>>({ data: undefined, isLoading: true, isError: false })
+        : input.filedLocation === "failed"
+          ? mock<ReturnType<typeof DEPENDENCIES.useDeploymentLocationQuery>>({ data: undefined, isLoading: false, isError: true })
+          : mock<ReturnType<typeof DEPENDENCIES.useDeploymentLocationQuery>>({
+              data: input.filedProjectId ? mock<DeploymentLocation>({ projectId: input.filedProjectId }) : null,
+              isLoading: false,
+              isError: false
+            })
     );
     const dependencies: typeof DEPENDENCIES = {
       useProjectsUi: () => ({
@@ -199,6 +246,11 @@ describe(DeployTargetGate.name, () => {
           ? mock<ReturnType<typeof DEPENDENCIES.useProjectsQuery>>({ data: undefined, isLoading: true })
           : mock<ReturnType<typeof DEPENDENCIES.useProjectsQuery>>({ data: projects, isLoading: false }),
       useDeploymentLocationQuery,
+      useProjectAccess: () =>
+        mock<ReturnType<typeof DEPENDENCIES.useProjectAccess>>({
+          isLoading: input.isLoadingAccess ?? false,
+          canManageDeployments: projectId => projectId !== input.viewedProjectId
+        }),
       useRouter: () => mock<ReturnType<typeof DEPENDENCIES.useRouter>>({ push }),
       useActiveOrganization: () => mock<ReturnType<typeof DEPENDENCIES.useActiveOrganization>>({ isLoading: organization.isLoading }),
       ChooseProjectModal

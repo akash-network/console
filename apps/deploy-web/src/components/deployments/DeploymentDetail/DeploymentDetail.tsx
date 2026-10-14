@@ -1,9 +1,9 @@
 "use client";
 import type { FC } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { buttonVariants, Skeleton, Tabs, TabsList, TabsTrigger } from "@akashnetwork/ui/components";
+import { Button, buttonVariants, Skeleton, Tabs, TabsList, TabsTrigger } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, RefreshCw } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { NextSeo } from "next-seo";
@@ -11,6 +11,7 @@ import { NextSeo } from "next-seo";
 import { createConfigureDraft } from "@src/components/deployments/ConfigureDeployment/useConfigureDraft/useConfigureDraft";
 import { useServices } from "@src/context/ServicesProvider";
 import { useWallet } from "@src/context/WalletProvider";
+import { useCanManageDeployment } from "@src/hooks/useCanManageDeployment/useCanManageDeployment";
 import { isUsableDeploymentDefinition, sdlToRedeploy, useDeploymentDefinition } from "@src/hooks/useDeploymentDefinition/useDeploymentDefinition";
 import { useLeaseGpus, withLeaseGpus } from "@src/hooks/useLeaseGpus/useLeaseGpus";
 import { useOpenDeploymentInItsOrganization } from "@src/hooks/useOpenDeploymentInItsOrganization/useOpenDeploymentInItsOrganization";
@@ -47,6 +48,7 @@ export const DEPENDENCIES = {
   useLeaseGpus,
   useProvidersByAddresses,
   useOpenDeploymentInItsOrganization,
+  useCanManageDeployment,
   useProjectsUi,
   useDeploymentLocationQuery,
   NextSeo,
@@ -70,10 +72,10 @@ const TAB_STRIP_FRAME = "border-t shadow-[inset_0_-1px_0_hsl(var(--border))]";
 const TAB_STRIP = cn(PAGE_BAND, "flex h-auto justify-start gap-6 overflow-x-auto rounded-none border-0 bg-transparent py-0 scrollbar-none sm:gap-8");
 
 const TABS = ["DETAILS", "UPDATE", "LOGS", "EVENTS", "SHELL", "SETTINGS"] as const;
-
-/** Updating a deployment and opening a shell in it change it, so a member who only reads deployments does not get those tabs. */
-const READ_ONLY_TABS = TABS.filter(tab => tab !== "UPDATE" && tab !== "SHELL");
 type Tab = (typeof TABS)[number];
+
+/** Updating a deployment and opening a shell in it change it, so a caller who only reads this deployment does not get those tabs. */
+const READ_ONLY_TABS: readonly Tab[] = TABS.filter(tab => tab !== "UPDATE" && tab !== "SHELL");
 
 const TAB_LABELS: Record<Tab, string> = {
   DETAILS: "Details",
@@ -96,14 +98,16 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq, dependencies
   const { address } = d.useWallet();
   const redeploy = d.useRedeploy();
 
-  const [activeTab, setActiveTab] = useState<Tab>("DETAILS");
+  const [selectedTab, setSelectedTab] = useState<Tab>("DETAILS");
+  const { canManage, isLoading: isLoadingManagement, isError: isManagementUnreadable, retry: retryManagement } = d.useCanManageDeployment(dseq);
+  const tabs = canManage ? TABS : READ_ONLY_TABS;
+  const activeTab = tabs.includes(selectedTab) ? selectedTab : "DETAILS";
   const [editedManifest, setEditedManifest] = useState<string | null>(null);
   const tabStripRef = useRef<HTMLDivElement>(null);
 
   const { data: deployment, isFetching: isLoadingDeployment, refetch: getDeploymentDetail, error: deploymentError } = d.useDeploymentDetail(address, dseq);
   d.useOpenDeploymentInItsOrganization({ dseq, isMissingHere: !!deploymentError, query: searchParams?.toString() ?? "" });
-  const { canChangeDeployments, isEnabled: isProjectsUiEnabled } = d.useProjectsUi();
-  const tabs = canChangeDeployments ? TABS : READ_ONLY_TABS;
+  const { isEnabled: isProjectsUiEnabled } = d.useProjectsUi();
   const { data: location } = d.useDeploymentLocationQuery(dseq, { enabled: isProjectsUiEnabled });
   const {
     data: chainLeases,
@@ -124,6 +128,7 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq, dependencies
   const definition = d.useDeploymentDefinition(dseq, { acceptReferences: true });
   const deploymentManifest = definition.sdl || "";
   const isActive = deployment?.state === "active" && !!leases?.some(isLeaseLive);
+  const isAwaitingLease = !!leases && deployment?.state === "active" && leases.length === 0 && !deployment.groups?.some(g => g.state === "paused");
   const isDeploymentNotFound = !!deploymentError && (deploymentError as any).response?.data?.message?.includes("Deployment not found") && !isLoadingDeployment;
   const showsPageSkeleton = !isDeploymentNotFound && !deploymentError && !isLeasesError && (!deployment || !isLeasesLoaded);
   /** The placement cards read their services off the definition, so rendering them before it lands shows "0 services" and then corrects itself. */
@@ -137,22 +142,20 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq, dependencies
 
   useEffect(
     function redirectWhenInProgressWithoutLease() {
-      if (definition.source === "resolving") return;
+      if (definition.source === "resolving" || !isAwaitingLease || !canManage) return;
 
-      if (leases && deployment?.state === "active" && leases.length === 0 && !deployment.groups?.some(g => g.state === "paused")) {
-        const draftId = isUsableDeploymentDefinition(definition) ? d.createConfigureDraft(sdlToRedeploy(definition), { name: definition.name }) : undefined;
-        router.replace(UrlService.configureDeployment({ dseq, draftId }));
-      }
+      const draftId = isUsableDeploymentDefinition(definition) ? d.createConfigureDraft(sdlToRedeploy(definition), { name: definition.name }) : undefined;
+      router.replace(UrlService.configureDeployment({ dseq, draftId }));
     },
-    [deployment?.state, deployment?.groups, definition.source, definition.sdl, definition.restoredSdl, definition.name, dseq, leases, router, d]
+    [isAwaitingLease, canManage, definition.source, definition.sdl, definition.restoredSdl, definition.name, dseq, router, d]
   );
 
   const tabQuery = searchParams?.get("tab");
   useEffect(() => {
-    if (tabQuery && (tabs as readonly string[]).includes(tabQuery)) {
-      setActiveTab(tabQuery as Tab);
+    if (tabQuery && (TABS as readonly string[]).includes(tabQuery)) {
+      setSelectedTab(tabQuery as Tab);
     }
-  }, [tabQuery, tabs]);
+  }, [tabQuery]);
 
   useEffect(
     function revealActiveTab() {
@@ -194,7 +197,7 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq, dependencies
   );
 
   function changeTab(tab: Tab) {
-    setActiveTab(tab);
+    setSelectedTab(tab);
     const url = new URL(window.location.href);
     url.searchParams.set("tab", tab);
     window.history.replaceState(window.history.state, "", `${url.pathname}${url.search}`);
@@ -230,6 +233,16 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq, dependencies
             <d.DeploymentDetailHeader deployment={deployment} leases={leases} providers={providers} isLoadingLeaseGpus={isLoadingLeaseGpus} />
 
             <d.ReclamationBanner leases={leases} dseq={dseq} className="mb-6" />
+
+            {isManagementUnreadable && (
+              <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border px-4 py-3">
+                <p className="text-sm text-muted-foreground">Couldn&apos;t check whether you can manage this deployment, so its actions are hidden.</p>
+                <Button variant="outline" size="sm" onClick={retryManagement}>
+                  <RefreshCw className="mr-2 h-4 w-4" />
+                  Retry
+                </Button>
+              </div>
+            )}
           </div>
 
           <Tabs value={activeTab} onValueChange={value => changeTab(value as Tab)} className="flex flex-1 flex-col">
@@ -250,8 +263,10 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq, dependencies
             <div className="flex-1 bg-muted py-6">
               <div className={PAGE_BAND}>
                 {activeTab === "DETAILS" &&
-                  (showsPlacementsSkeleton ? (
+                  (showsPlacementsSkeleton || (isAwaitingLease && isLoadingManagement) ? (
                     <Skeleton className="h-64 w-full rounded-xl" data-testid="deployment-placements-skeleton" />
+                  ) : isAwaitingLease && !canManage ? (
+                    <TabInactiveState label="This deployment is waiting for bids. Only someone who can deploy into its project can accept one." />
                   ) : (
                     <>
                       <d.DeploymentGettingStarted leases={leases || []} providers={providers} deploymentManifest={deploymentManifest} />

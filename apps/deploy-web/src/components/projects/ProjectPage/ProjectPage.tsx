@@ -103,7 +103,7 @@ function ProjectPageContent({ projectId, dependencies: d }: Required<Props>) {
           ),
           aside: (
             <>
-              {seesMembers && <d.ProjectMembersPreview projectId={project.id} />}
+              {seesMembers && <d.ProjectMembersPreview project={{ id: project.id, name: project.name }} organizationName={organizationName} />}
               <d.RecentActivityFeed
                 activities={activityFeed.activities}
                 projects={projects}

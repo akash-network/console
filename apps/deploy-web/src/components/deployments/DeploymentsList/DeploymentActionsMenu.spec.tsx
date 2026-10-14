@@ -38,6 +38,12 @@ describe("DeploymentActionsMenu", () => {
     expect(screen.queryByRole("button", { name: "close move dialog" })).not.toBeInTheDocument();
   });
 
+  it("offers no actions on a deployment of a project the caller only views", () => {
+    setup({ projectId: "project-viewed", canManage: false });
+
+    expect(screen.queryByRole("button", { name: "Actions for deployment 100" })).not.toBeInTheDocument();
+  });
+
   it("offers no move to a member who may not move deployments", async () => {
     setup({ projectId: "project-1", canManageProjects: false });
 
@@ -235,6 +241,7 @@ describe("DeploymentActionsMenu", () => {
     projectId?: string;
     canManageProjects?: boolean;
     canChangeDeployments?: boolean;
+    canManage?: boolean;
   }) {
     const changeDeploymentName = vi.fn();
     const closeDeployment = vi.fn(async () => input.outcome ?? ("closing" as const));
@@ -268,6 +275,7 @@ describe("DeploymentActionsMenu", () => {
           deployment={{ dseq: "100", state: input.state ?? "active", name: "acme", projectId: input.projectId }}
           onDeploymentClosed={"onDeploymentClosed" in input ? input.onDeploymentClosed : onDeploymentClosed}
           isClosing={input.isClosing}
+          canManage={input.canManage}
           dependencies={MockComponents(DEPENDENCIES, {
             useLocalNotes,
             useDeploymentDefinition,

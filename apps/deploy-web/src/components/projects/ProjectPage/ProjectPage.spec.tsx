@@ -53,7 +53,7 @@ describe(ProjectPage.name, () => {
     const { useOrganizationActivitiesQuery, ProjectMembersPreview, RecentActivityFeed } = setup({});
 
     expect(useOrganizationActivitiesQuery).toHaveBeenCalledWith({ projectId: "storefront" });
-    expect(ProjectMembersPreview.mock.lastCall?.[0]).toMatchObject({ projectId: "storefront" });
+    expect(ProjectMembersPreview.mock.lastCall?.[0]).toMatchObject({ project: { id: "storefront", name: "storefront" }, organizationName: "Acme Corp" });
     expect(RecentActivityFeed.mock.lastCall?.[0]).toMatchObject({ hasMore: true });
   });
 

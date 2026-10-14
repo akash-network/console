@@ -9,6 +9,7 @@ import { useCloseDeploymentConfirm } from "@src/hooks/useCloseDeploymentConfirm"
 import { useCloseDeployments } from "@src/hooks/useCloseDeployments/useCloseDeployments";
 import { useClosingDeployments } from "@src/hooks/useClosingDeployments/useClosingDeployments";
 import { useListSelection } from "@src/hooks/useListSelection/useListSelection";
+import { useProjectAccess } from "@src/hooks/useProjectAccess/useProjectAccess";
 import { useProvidersByAddresses } from "@src/queries/useProvidersQuery";
 import type { DeploymentsViewMode } from "@src/store/deploymentsViewStore";
 import { deploymentsViewModeAtom } from "@src/store/deploymentsViewStore";
@@ -21,6 +22,7 @@ export const DEPENDENCIES = {
   useProvidersByAddresses,
   useCloseDeploymentConfirm,
   useListSelection,
+  useProjectAccess,
   useDeploymentsListSource: useApiDeploymentsListSource,
   useClosingDeployments,
   useCloseDeployments
@@ -107,9 +109,11 @@ export function useDeploymentsListModel({ projectId }: { projectId?: string } = 
   );
 
   const closingDseqs = d.useClosingDeployments();
+  const { canManageDeployments } = d.useProjectAccess();
   const selectableDseqs = useMemo(
-    () => pageDeployments.map(deployment => deployment.dseq).filter(dseq => !closingDseqs.has(dseq)),
-    [pageDeployments, closingDseqs]
+    () =>
+      pageDeployments.filter(deployment => !closingDseqs.has(deployment.dseq) && canManageDeployments(deployment.projectId)).map(deployment => deployment.dseq),
+    [pageDeployments, closingDseqs, canManageDeployments]
   );
   const { selectedItemIds, selectItem, clearSelection } = d.useListSelection<string>({ ids: selectableDseqs });
 

@@ -63,6 +63,18 @@ describe("DeploymentRow", () => {
     expect(screen.getByRole("checkbox", { name: "Select deployment acme" })).toBeChecked();
   });
 
+  it("tells the actions menu whether the caller may manage the deployment", () => {
+    const { DeploymentActionsMenu } = setup({ deployment: { dseq: "100" }, canManage: false });
+
+    expect(DeploymentActionsMenu).toHaveBeenCalledWith(expect.objectContaining({ canManage: false }), expect.anything());
+  });
+
+  it("lets the actions menu act when nothing says otherwise", () => {
+    const { DeploymentActionsMenu } = setup({ deployment: { dseq: "100" } });
+
+    expect(DeploymentActionsMenu).toHaveBeenCalledWith(expect.objectContaining({ canManage: true }), expect.anything());
+  });
+
   describe("while the deployment's close runs in the background", () => {
     it("shows the deployment as closing", () => {
       const { DeploymentStatusBadge } = setup({ deployment: { dseq: "100" }, isClosing: true });
@@ -159,6 +171,7 @@ describe("DeploymentRow", () => {
     isSelected?: boolean;
     isClosing?: boolean;
     endpoints?: VisitEndpoint[];
+    canManage?: boolean;
   }) {
     let endpoints = input.endpoints ?? [];
     const useDeploymentReachability = vi.fn<typeof DEPENDENCIES.useDeploymentReachability>(() => ({
@@ -193,6 +206,7 @@ describe("DeploymentRow", () => {
             isSelectable={input.isSelectable}
             isSelected={input.isSelected}
             isClosing={input.isClosing}
+            canManage={input.canManage}
             onSelect={onSelect}
             dependencies={MockComponents(DEPENDENCIES, {
               useDeploymentReachability,

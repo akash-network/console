@@ -41,8 +41,8 @@ describe("DeploymentDetail", () => {
     expect(screen.getByText("placements")).toBeInTheDocument();
   });
 
-  it("offers a member who only reads deployments no update or shell tab", () => {
-    setup({ canChangeDeployments: false });
+  it("offers a caller who only reads this deployment no update or shell tab", () => {
+    setup({ canManage: false });
 
     expect(screen.getByRole("tab", { name: "Logs" })).toBeInTheDocument();
     expect(screen.queryByRole("tab", { name: "Update" })).not.toBeInTheDocument();
@@ -300,6 +300,61 @@ describe("DeploymentDetail", () => {
     expect(screen.getAllByRole("tab").map(tab => tab.textContent)).toEqual(["Details", "Update", "Logs", "Events", "Shell", "Settings"]);
   });
 
+  describe("when the caller only views the deployment's project", () => {
+    it("leaves out the tabs that update the deployment or open a shell in it", () => {
+      const { useCanManageDeployment } = setup({ canManage: false });
+
+      expect(screen.getAllByRole("tab").map(tab => tab.textContent)).toEqual(["Details", "Logs", "Events", "Settings"]);
+      expect(useCanManageDeployment).toHaveBeenCalledWith("1786440078202");
+    });
+
+    it("offers to check the caller's access again when it could not be read", async () => {
+      const { retryManagement } = setup({ canManage: false, isManagementUnreadable: true });
+
+      expect(screen.getByText("Couldn't check whether you can manage this deployment, so its actions are hidden.")).toBeInTheDocument();
+
+      await userEvent.click(screen.getByRole("button", { name: "Retry" }));
+
+      expect(retryManagement).toHaveBeenCalledTimes(1);
+    });
+
+    it("says nothing about checking access once it was read", () => {
+      setup({ canManage: false });
+
+      expect(screen.queryByText("Couldn't check whether you can manage this deployment, so its actions are hidden.")).not.toBeInTheDocument();
+    });
+
+    it("stays on a deployment that still waits for bids instead of sending the caller to accept one", () => {
+      const { router } = setup({ leases: [], canManage: false });
+
+      expect(router.replace).not.toHaveBeenCalled();
+      expect(screen.getByText("This deployment is waiting for bids. Only someone who can deploy into its project can accept one.")).toBeInTheDocument();
+      expect(screen.queryByText("placements")).not.toBeInTheDocument();
+    });
+
+    it("waits for the caller's access before deciding where a deployment that waits for bids goes", () => {
+      const { router } = setup({ leases: [], canManage: false, isLoadingManagement: true });
+
+      expect(router.replace).not.toHaveBeenCalled();
+      expect(screen.getByTestId("deployment-placements-skeleton")).toBeInTheDocument();
+      expect(screen.queryByText(/waiting for bids/)).not.toBeInTheDocument();
+    });
+
+    it("shows the placements of a deployment that holds a lease", () => {
+      setup({ canManage: false });
+
+      expect(screen.getByText("placements")).toBeInTheDocument();
+    });
+
+    it.each(["UPDATE", "SHELL"])("falls back to Details when the url asks for the %s tab", tab => {
+      setup({ tab, canManage: false });
+
+      expect(screen.getByText("placements")).toBeInTheDocument();
+      expect(screen.queryByText("structured-update")).not.toBeInTheDocument();
+      expect(screen.queryByText("shell")).not.toBeInTheDocument();
+    });
+  });
+
   describe("when the tabs overflow their strip", () => {
     it("scrolls the strip to center a tab picked past its right edge", async () => {
       setup();
@@ -493,12 +548,14 @@ describe("DeploymentDetail", () => {
     tab?: string;
     leaseState?: string;
     definition?: Partial<DeploymentDefinition>;
-    canChangeDeployments?: boolean;
     isProjectsUiEnabled?: boolean;
     filedProjectId?: string;
     providers?: ApiProviderList[];
     leaseGpus?: LeaseGpusByLease;
     isLoadingLeaseGpus?: boolean;
+    canManage?: boolean;
+    isLoadingManagement?: boolean;
+    isManagementUnreadable?: boolean;
   }) {
     const deployment = input && "deployment" in input ? input.deployment : mock<DeploymentDto>({ dseq: "1786440078202", state: "active", groups: [] });
     const leases = input && "leases" in input ? input.leases : [mock<LeaseDto>({ id: "1", provider: "akash1provider", state: input?.leaseState ?? "active" })];
@@ -563,6 +620,13 @@ describe("DeploymentDetail", () => {
         data: input?.filedProjectId ? mock<DeploymentLocation>({ projectId: input.filedProjectId }) : null
       })
     );
+    const retryManagement = vi.fn();
+    const useCanManageDeployment = vi.fn((_dseq: string) => ({
+      canManage: input?.canManage ?? true,
+      isLoading: input?.isLoadingManagement ?? false,
+      isError: input?.isManagementUnreadable ?? false,
+      retry: retryManagement
+    }));
 
     const dependencies = MockComponents(DEPENDENCIES, {
       useServices,
@@ -575,6 +639,7 @@ describe("DeploymentDetail", () => {
       useDeploymentLeaseList,
       useLeaseGpus,
       useProvidersByAddresses,
+      useCanManageDeployment,
       DeploymentDetailHeader,
       ReclamationBanner,
       DeploymentPlacements,
@@ -585,11 +650,7 @@ describe("DeploymentDetail", () => {
       DeploymentSettings,
       DeploymentUpdate,
       createConfigureDraft,
-      useProjectsUi: () =>
-        mock<ReturnType<typeof DEPENDENCIES.useProjectsUi>>({
-          canChangeDeployments: input?.canChangeDeployments ?? true,
-          isEnabled: input?.isProjectsUiEnabled ?? true
-        }),
+      useProjectsUi: () => mock<ReturnType<typeof DEPENDENCIES.useProjectsUi>>({ isEnabled: input?.isProjectsUiEnabled ?? true }),
       useDeploymentLocationQuery,
       useOpenDeploymentInItsOrganization
     });
@@ -609,6 +670,8 @@ describe("DeploymentDetail", () => {
       DeploymentPlacements,
       DeploymentGettingStarted,
       useProvidersByAddresses,
+      useCanManageDeployment,
+      retryManagement,
       refetchLeases,
       rerenderWithLeaseGpus(next: LeaseGpusByLease) {
         leaseGpus = next;
