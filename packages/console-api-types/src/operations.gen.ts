@@ -88,6 +88,14 @@ export const operations = {
       queryParams: ["timezone", "startDate", "endDate"],
       hasBody: false
     },
+    getFirstPurchaseBonus: {
+      path: "/v1/stripe/first-purchase-bonus",
+      method: "get",
+      operationId: "getFirstPurchaseBonus",
+      pathParams: [],
+      queryParams: [],
+      hasBody: false
+    },
     getBillingDetails: { path: "/v1/billing-details", method: "get", operationId: "getBillingDetails", pathParams: [], queryParams: [], hasBody: false },
     updateBillingDetails: { path: "/v1/billing-details", method: "put", operationId: "updateBillingDetails", pathParams: [], queryParams: [], hasBody: true },
     acceptFairUsePolicy: {

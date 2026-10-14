@@ -1,10 +1,13 @@
 import type { ReactNode } from "react";
 import { TooltipProvider } from "@akashnetwork/ui/components";
+import type { AxiosResponse } from "axios";
+import { AxiosError } from "axios";
 import yaml from "js-yaml";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { DeploymentDefinition } from "@src/hooks/useDeploymentDefinition/useDeploymentDefinition";
+import type { ProviderTokenMode, UseProviderCredentialsResult } from "@src/hooks/useProviderCredentials/useProviderCredentials";
 import type { LeaseServiceStatus, LeaseStatusDto } from "@src/queries/useLeaseQuery";
 import type { DeploymentDto, DeploymentGroup, LeaseDto } from "@src/types/deployment";
 import type { ApiProviderList } from "@src/types/provider";
@@ -101,6 +104,21 @@ describe(DeploymentDetailHeader.name, () => {
 
     expect(screen.getByText("Loading")).toBeInTheDocument();
     expect(screen.queryByText("Running")).not.toBeInTheDocument();
+  });
+
+  it("falls back to the chain state rather than loading forever when status is not available with view-only access", () => {
+    setup({ availableReplicasByService: null, tokenMode: "view-only" });
+
+    expect(screen.getByText("Running")).toBeInTheDocument();
+    expect(screen.queryByText("Loading")).not.toBeInTheDocument();
+  });
+
+  it("falls back to the chain state when the status token was refused", () => {
+    const refusal = new AxiosError("Forbidden", "403", undefined, undefined, mock<AxiosResponse>({ status: 403 }));
+    setup({ availableReplicasByService: null, tokenMode: "per-deployment", statusError: refusal });
+
+    expect(screen.getByText("Running")).toBeInTheDocument();
+    expect(screen.queryByText("Loading")).not.toBeInTheDocument();
   });
 
   it("asks the provider of each live lease what is running on it", () => {
@@ -379,6 +397,8 @@ describe(DeploymentDetailHeader.name, () => {
     isLoadingLeaseGpus?: boolean;
     closingDseqs?: string[];
     availableReplicasByService?: Record<string, number> | null;
+    tokenMode?: ProviderTokenMode;
+    statusError?: unknown;
     dependencies?: Partial<typeof DEPENDENCIES>;
   }) {
     const changeDeploymentName = vi.fn();
@@ -420,7 +440,7 @@ describe(DeploymentDetailHeader.name, () => {
                 )
               })
             : undefined,
-          error: null
+          error: input.statusError ?? null
         })
       )
     );
@@ -453,6 +473,7 @@ describe(DeploymentDetailHeader.name, () => {
       CostBreakdownTooltip,
       DeploymentVisitControl,
       useLeaseStatuses,
+      useProviderCredentials: () => mock<UseProviderCredentialsResult>({ tokenMode: input.tokenMode ?? "shared" }),
       useClosingDeployments: () => new Set(input.closingDseqs ?? []),
       useCanManageDeployment: () => ({ canManage: true, isLoading: false, isError: false, retry: vi.fn() }),
       ...input.dependencies

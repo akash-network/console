@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
+import type { UseProviderCredentialsResult } from "@src/hooks/useProviderCredentials/useProviderCredentials";
 import type { useProviderJwt } from "@src/hooks/useProviderJwt/useProviderJwt";
 import type { ProviderProxyService } from "@src/services/provider-proxy/provider-proxy.service";
 import type { AttestationQuote } from "@src/utils/confidentialCompute";
@@ -32,6 +33,20 @@ describe(useAttestationQuoteMutation.name, () => {
     expect(generateScopedProviderToken).toHaveBeenCalledWith({ provider: "akash1provider", scope: ["attestation"] });
   });
 
+  it("authorizes a caller limited to some projects with an attestation token for this deployment", async () => {
+    const { result, providerProxy, generateScopedProviderToken, ensureToken } = setup({
+      quote: { report: "cpu-report", tee_platform: "snp" },
+      tokenMode: "per-deployment"
+    });
+
+    result.current.mutate();
+
+    await vi.waitFor(() => expect(result.current.isSuccess).toBe(true));
+    await expect(providerProxy.fetchAttestationQuote.mock.calls[0][0].ensureToken()).resolves.toBe("deployment-jwt");
+    expect(ensureToken).toHaveBeenCalledWith({ access: { provider: "akash1provider", dseqs: ["123"], scope: ["attestation"] } });
+    expect(generateScopedProviderToken).not.toHaveBeenCalled();
+  });
+
   it("surfaces the error when the provider call fails", async () => {
     const { result } = setup({ rejection: new Error("provider unreachable") });
 
@@ -41,23 +56,25 @@ describe(useAttestationQuoteMutation.name, () => {
     expect(result.current.error?.message).toBe("provider unreachable");
   });
 
-  function setup(input: { quote?: AttestationQuote; nonce?: string; rejection?: Error }) {
+  function setup(input: { quote?: AttestationQuote; nonce?: string; rejection?: Error; tokenMode?: UseProviderCredentialsResult["tokenMode"] }) {
     const evidence = input.quote ? { nonce: input.nonce ?? "nonce-base64", quote: input.quote } : undefined;
     const providerProxy = mock<ProviderProxyService>({
       fetchAttestationQuote: vi.fn(input.rejection ? () => Promise.reject(input.rejection) : () => Promise.resolve(evidence!))
     });
     const generateScopedProviderToken = vi.fn().mockResolvedValue("attestation-jwt");
     const useProviderJwtMock: typeof useProviderJwt = () => mock<ReturnType<typeof useProviderJwt>>({ generateScopedProviderToken });
+    const ensureToken = vi.fn().mockResolvedValue("deployment-jwt");
+    const useProviderCredentials = () => mock<UseProviderCredentialsResult>({ tokenMode: input.tokenMode ?? "shared", ensureToken });
 
     const { result } = setupQuery(
       () =>
         useAttestationQuoteMutation(
           { provider: { owner: "akash1provider", hostUri: "https://provider.test" }, dseq: "123", gseq: 1, oseq: 2 },
-          { ...DEPENDENCIES, useProviderJwt: useProviderJwtMock }
+          { ...DEPENDENCIES, useProviderJwt: useProviderJwtMock, useProviderCredentials }
         ),
       { services: { providerProxy: () => providerProxy } }
     );
 
-    return { result, providerProxy, generateScopedProviderToken, evidence };
+    return { result, providerProxy, generateScopedProviderToken, ensureToken, evidence };
   }
 });

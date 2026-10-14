@@ -2,6 +2,9 @@ import { atom } from "jotai";
 
 type InFlightTokenRequest = { address: string; promise: Promise<string> } | null;
 
+/** Held in memory only, because for half an hour the token opens a shell on any of the user's leases. */
+const issuedToken = atom<{ userId: string; address: string; token: string } | null>(null);
+
 const inFlightTokenRequest = atom<InFlightTokenRequest>(null);
 
 const claimInFlightTokenRequest = atom(null, (get, set, payload: { address: string; createPromise: () => Promise<string> }): Promise<string> => {
@@ -29,6 +32,7 @@ const clearInFlightTokenRequestForOtherAddress = atom(null, (get, set, address: 
 });
 
 export default {
+  issuedToken,
   inFlightTokenRequest,
   claimInFlightTokenRequest,
   releaseInFlightTokenRequest,

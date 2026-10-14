@@ -65,6 +65,12 @@ describe("DeploymentEndpoints", () => {
     expect(screen.getByText("no endpoint yet · starting")).toBeInTheDocument();
   });
 
+  it("explains that status is not available with the caller's access", () => {
+    setup({ endpoints: [], unreachableReason: "status-unavailable" });
+
+    expect(screen.getByText("endpoints unavailable · status not available with your access")).toBeInTheDocument();
+  });
+
   it("distinguishes an unreachable provider from a deployment without endpoints", () => {
     setup({ endpoints: [], unreachableReason: "provider-unreachable" });
 

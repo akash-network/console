@@ -17,6 +17,25 @@ describe(DeploymentLeaseShell.name, () => {
     expect(useProvidersByAddresses).toHaveBeenCalledWith(["akash1provider"]);
   });
 
+  it("opens the shell with a token for this deployment on this provider", async () => {
+    const { connectToShell, providerCredentials } = await setup();
+    providerCredentials.ensureToken.mockResolvedValue("shell-token");
+
+    const token = await connectToShell.mock.calls[0][0].ensureToken();
+
+    expect(token).toBe("shell-token");
+    expect(providerCredentials.ensureToken).toHaveBeenCalledWith({ access: { provider: "akash1provider", dseqs: ["123"], scope: ["shell"] } });
+  });
+
+  it("tells the fallback how tokens are issued and what to say to view-only access", async () => {
+    const { ProviderAuthFallback } = await setup({ tokenMode: "view-only" });
+
+    expect(ProviderAuthFallback.mock.lastCall?.[0]).toMatchObject({
+      tokenMode: "view-only",
+      viewOnlyMessage: "The shell isn't available for view-only access."
+    });
+  });
+
   it("hides the lease selector when there is a single lease", async () => {
     const { LeaseSelect } = await setup();
 
@@ -141,12 +160,17 @@ describe(DeploymentLeaseShell.name, () => {
     };
   }
 
-  async function setup(input?: { terminalOutput?: string; leaseCount?: number; canCopy?: boolean }) {
+  async function setup(input?: {
+    terminalOutput?: string;
+    leaseCount?: number;
+    canCopy?: boolean;
+    tokenMode?: ReturnType<typeof DEPENDENCIES.useProviderCredentials>["tokenMode"];
+  }) {
     const leases = Array.from({ length: input?.leaseCount ?? 1 }, (_, index) =>
       mock<LeaseDto>({ id: `lease-${index + 1}`, provider: "akash1provider", dseq: "123", gseq: 1, oseq: index + 1 })
     );
     const connections: ReturnType<typeof createShellConnection>[] = [];
-    const connectToShell = vi.fn((_: { signal?: AbortSignal }) => {
+    const connectToShell = vi.fn((_: { signal?: AbortSignal; ensureToken: () => Promise<string> }) => {
       const connection = createShellConnection();
       connections.push(connection);
       return connection;
@@ -158,7 +182,8 @@ describe(DeploymentLeaseShell.name, () => {
     });
     const notificator = mock<ReturnType<typeof DEPENDENCIES.useNotificator>>();
     const providerCredentials = mock<ReturnType<typeof DEPENDENCIES.useProviderCredentials>>({
-      details: { type: "jwt", value: "token", isExpired: false, usable: true, error: null }
+      details: { type: "jwt", value: "token", isExpired: false, usable: true, error: null },
+      tokenMode: input?.tokenMode ?? "shared"
     });
     const providers = mock<ReturnType<typeof DEPENDENCIES.useProvidersByAddresses>>({
       data: [{ owner: "akash1provider", hostUri: "https://provider.example.com" }] as ReturnType<typeof DEPENDENCIES.useProvidersByAddresses>["data"]
@@ -183,6 +208,7 @@ describe(DeploymentLeaseShell.name, () => {
     const copyTextToClipboard = vi.fn<typeof DEPENDENCIES.copyTextToClipboard>().mockResolvedValue(input?.canCopy ?? true);
     const useProvidersByAddresses = vi.fn(() => providers);
     const LeaseSelect = vi.fn(() => null);
+    const ProviderAuthFallback = vi.fn((_: { tokenMode: string; viewOnlyMessage: string }) => null);
 
     const dependencies = {
       useServices: () => services,
@@ -196,12 +222,22 @@ describe(DeploymentLeaseShell.name, () => {
       LeaseSelect,
       ServiceSelect: vi.fn(() => null),
       ShellDownloadModal: vi.fn(() => null),
-      ProviderAuthFallback: vi.fn(() => null)
+      ProviderAuthFallback
     } as unknown as typeof DEPENDENCIES;
 
     render(<DeploymentLeaseShell leases={leases} dependencies={dependencies} />);
     await act(() => Promise.resolve());
 
-    return { connections, connectToShell, terminal, copyTextToClipboard, notificator, useProvidersByAddresses, LeaseSelect };
+    return {
+      connections,
+      connectToShell,
+      terminal,
+      copyTextToClipboard,
+      notificator,
+      useProvidersByAddresses,
+      LeaseSelect,
+      providerCredentials,
+      ProviderAuthFallback
+    };
   }
 });

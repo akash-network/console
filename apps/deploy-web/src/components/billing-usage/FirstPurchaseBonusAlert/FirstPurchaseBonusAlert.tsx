@@ -5,7 +5,8 @@ import { FormattedNumber } from "react-intl";
 import { Alert, Progress } from "@akashnetwork/ui/components";
 import { GiftIcon } from "lucide-react";
 
-import { usePaymentTransactionsQuery } from "@src/queries";
+import { useFlag } from "@src/hooks/useFlag";
+import { useFirstPurchaseBonusQuery, usePaymentTransactionsQuery } from "@src/queries";
 
 /** Keep in sync with FirstPurchaseBonusService (apps/api). Amounts in dollars. */
 const MIN_QUALIFYING_AMOUNT = 100;
@@ -15,12 +16,30 @@ export const MAX_BONUS = 100;
 const AMOUNT_FOR_MAX_BONUS = (MAX_BONUS * 100) / BONUS_PERCENT;
 
 export const DEPENDENCIES = {
-  usePaymentTransactionsQuery
+  useFlag,
+  usePaymentTransactionsQuery,
+  useFirstPurchaseBonusQuery
 };
 
 interface FirstPurchaseBonusAlertProps {
   amount: number;
   dependencies?: typeof DEPENDENCIES;
+}
+
+export function FirstPurchaseBonusAlert({ amount, dependencies: d = DEPENDENCIES }: FirstPurchaseBonusAlertProps) {
+  return d.useFlag("organizations") ? (
+    <EligibleFirstPurchaseBonusAlert amount={amount} dependencies={d} />
+  ) : (
+    <FirstChargeBonusAlert amount={amount} dependencies={d} />
+  );
+}
+
+function EligibleFirstPurchaseBonusAlert({ amount, dependencies: d }: Required<FirstPurchaseBonusAlertProps>) {
+  const { data, isSuccess } = d.useFirstPurchaseBonusQuery();
+
+  if (!isSuccess || !data.eligible) return null;
+
+  return <FirstPurchaseBonusOffer amount={amount} />;
 }
 
 /**
@@ -29,7 +48,7 @@ interface FirstPurchaseBonusAlertProps {
  * Stripe charge — refunded charges keep the "succeeded" status and correctly count
  * as consumed). Coupon claims create no charge, so coupon users still see the offer.
  */
-export function FirstPurchaseBonusAlert({ amount, dependencies: d = DEPENDENCIES }: FirstPurchaseBonusAlertProps) {
+function FirstChargeBonusAlert({ amount, dependencies: d }: Required<FirstPurchaseBonusAlertProps>) {
   const { data, isSuccess } = d.usePaymentTransactionsQuery();
 
   const hasPaidBefore = !!data?.transactions?.some(transaction => transaction.status === "succeeded");
@@ -38,6 +57,10 @@ export function FirstPurchaseBonusAlert({ amount, dependencies: d = DEPENDENCIES
   // empty and hasPaidBefore false, which would wrongly show the offer to users with unknown history.
   if (!isSuccess || hasPaidBefore) return null;
 
+  return <FirstPurchaseBonusOffer amount={amount} />;
+}
+
+function FirstPurchaseBonusOffer({ amount }: { amount: number }) {
   const bonus = Math.min(Math.floor(amount * BONUS_PERCENT) / 100, MAX_BONUS);
   const qualifies = amount >= MIN_QUALIFYING_AMOUNT;
   const missingAmount = MIN_QUALIFYING_AMOUNT - amount;

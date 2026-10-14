@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useState } from "react";
 
 import { useWallet } from "@src/context/WalletProvider";
+import { isLeaseStatusWithheld, useProviderCredentials } from "@src/hooks/useProviderCredentials/useProviderCredentials";
 import type { LeaseStatusDto } from "@src/queries/useLeaseQuery";
 import { useDeploymentLeaseList, useLeaseStatuses } from "@src/queries/useLeaseQuery";
 import type { DeploymentDto, LeaseDto, ListedDeploymentDto } from "@src/types/deployment";
@@ -14,10 +15,11 @@ import { collectVisitEndpoints } from "../DeploymentDetail/DeploymentVisitContro
 export const DEPENDENCIES = {
   useWallet,
   useDeploymentLeaseList,
-  useLeaseStatuses
+  useLeaseStatuses,
+  useProviderCredentials
 };
 
-export type UnreachableReason = "not-running" | "starting" | "provider-unreachable" | "no-public-endpoint";
+export type UnreachableReason = "not-running" | "starting" | "provider-unreachable" | "no-public-endpoint" | "status-unavailable";
 
 export interface DeploymentReachability {
   leases: LeaseDto[] | null | undefined;
@@ -61,16 +63,18 @@ export function useDeploymentReachability(params: {
 
   const statuses = d.useLeaseStatuses(liveLeaseItems, { refetchInterval: 30_000 });
   const endpoints = useMemo(() => statuses.flatMap(status => collectVisitEndpoints(status.data)), [statuses]);
+  const { tokenMode } = d.useProviderCredentials();
+  const isStatusWithheld = isLeaseStatusWithheld(tokenMode, statuses);
 
   const hasWaitExpired = useHasWaitExpired(ENDPOINT_WAIT_MS, liveLeaseItems.length);
-  const isLoadingEndpoints = isLoadingLeases || (!hasWaitExpired && endpoints.length === 0 && statuses.some(status => status.isPending));
+  const isLoadingEndpoints = isLoadingLeases || (!isStatusWithheld && !hasWaitExpired && endpoints.length === 0 && statuses.some(status => status.isPending));
 
   return {
     leases,
     isLoadingLeases,
     endpoints,
     isLoadingEndpoints,
-    unreachableReason: resolveUnreachableReason({ isLoadingEndpoints, endpoints, liveLeaseCount: liveLeaseItems.length, statuses })
+    unreachableReason: resolveUnreachableReason({ isLoadingEndpoints, endpoints, liveLeaseCount: liveLeaseItems.length, statuses, isStatusWithheld })
   };
 }
 
@@ -79,9 +83,11 @@ function resolveUnreachableReason(input: {
   endpoints: VisitEndpoint[];
   liveLeaseCount: number;
   statuses: { data?: Pick<LeaseStatusDto, "services"> | null; isPending: boolean }[];
+  isStatusWithheld: boolean;
 }): UnreachableReason | null {
   if (input.isLoadingEndpoints || input.endpoints.length > 0) return null;
   if (input.liveLeaseCount === 0) return "not-running";
+  if (input.isStatusWithheld) return "status-unavailable";
   if (input.statuses.every(status => !status.data)) return "provider-unreachable";
   return input.statuses.some(status => hasStartingService(status.data)) ? "starting" : "no-public-endpoint";
 }

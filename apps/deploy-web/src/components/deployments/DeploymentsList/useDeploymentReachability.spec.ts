@@ -1,6 +1,9 @@
+import type { AxiosResponse } from "axios";
+import { AxiosError } from "axios";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
+import type { ProviderTokenMode, UseProviderCredentialsResult } from "@src/hooks/useProviderCredentials/useProviderCredentials";
 import type { LeaseServiceStatus, LeaseStatusDto } from "@src/queries/useLeaseQuery";
 import type { DeploymentDto, LeaseDto } from "@src/types/deployment";
 import type { ApiProviderList } from "@src/types/provider";
@@ -175,6 +178,26 @@ describe(useDeploymentReachability.name, () => {
       expect(result.current.unreachableReason).toBe("no-public-endpoint");
     });
 
+    it("says right away that status is not available with view-only access instead of waiting on polls that never run", () => {
+      const { result } = setup({ leases: [lease({ state: "active" })], statuses: [null], isStatusPending: true, tokenMode: "view-only" });
+
+      expect(result.current.isLoadingEndpoints).toBe(false);
+      expect(result.current.unreachableReason).toBe("status-unavailable");
+    });
+
+    it("reports a refused status token as status not available rather than the provider being unreachable", () => {
+      const refusal = new AxiosError("Forbidden", "403", undefined, undefined, mock<AxiosResponse>({ status: 403 }));
+      const { result } = setup({ leases: [lease({ state: "active" })], statuses: [null], statusError: refusal, tokenMode: "per-deployment" });
+
+      expect(result.current.unreachableReason).toBe("status-unavailable");
+    });
+
+    it("still reports a view-only deployment without a live lease as not running", () => {
+      const { result } = setup({ leases: [lease({ state: "closed" })], tokenMode: "view-only" });
+
+      expect(result.current.unreachableReason).toBe("not-running");
+    });
+
     it("gives no reason at all while a lease status is still pending", () => {
       const { result } = setup({ leases: [lease({ state: "active" })], statuses: [null], isStatusPending: true });
 
@@ -289,6 +312,8 @@ describe(useDeploymentReachability.name, () => {
     isLoadingLeases?: boolean;
     address?: string;
     providers?: ApiProviderList[] | undefined | "load";
+    tokenMode?: ProviderTokenMode;
+    statusError?: unknown;
   };
 
   function setup(input: Input) {
@@ -309,7 +334,8 @@ describe(useDeploymentReachability.name, () => {
       (current.statuses ?? []).map(status =>
         Object.assign(mock<ReturnType<typeof DEPENDENCIES.useLeaseStatuses>[number]>(), {
           data: status as LeaseStatusDto | null,
-          isPending: current.isStatusPending ?? false
+          isPending: current.isStatusPending ?? false,
+          error: current.statusError ?? null
         })
       )
     );
@@ -321,7 +347,12 @@ describe(useDeploymentReachability.name, () => {
       useDeploymentReachability({
         deployment,
         providers: resolveProviders() as ApiProviderList[] | undefined,
-        dependencies: { useWallet, useDeploymentLeaseList, useLeaseStatuses }
+        dependencies: {
+          useWallet,
+          useDeploymentLeaseList,
+          useLeaseStatuses,
+          useProviderCredentials: () => mock<UseProviderCredentialsResult>({ tokenMode: current.tokenMode ?? "shared" })
+        }
       })
     );
 

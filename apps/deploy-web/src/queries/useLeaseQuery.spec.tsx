@@ -630,7 +630,9 @@ describe("useLeaseQuery", () => {
         request: vi.fn().mockRejectedValueOnce(expiredTokenRejection()).mockResolvedValueOnce({ data: mockLeaseStatus })
       });
       const ensureToken = vi.fn().mockResolvedValueOnce("expired-token").mockResolvedValueOnce("refreshed-token");
+      const provider = buildProvider();
       const { result } = setupLeaseStatus({
+        provider,
         lease: mockLease,
         ensureToken,
         services: {
@@ -643,12 +645,34 @@ describe("useLeaseQuery", () => {
       });
 
       expect(result.current.data).toEqual(mockLeaseStatus);
-      expect(ensureToken).toHaveBeenNthCalledWith(2, { force: true });
+      expect(ensureToken).toHaveBeenNthCalledWith(2, { force: true, access: { provider: provider.owner, dseqs: [mockLease.dseq], scope: ["status"] } });
       expect(providerProxy.request).toHaveBeenCalledTimes(2);
       expect(providerProxy.request).toHaveBeenLastCalledWith(
         expect.stringContaining(`/lease/${mockLease.dseq}/${mockLease.gseq}/${mockLease.oseq}/status`),
         expect.objectContaining({ credentials: { type: "jwt", value: "refreshed-token" } })
       );
+    });
+
+    it("asks for a token to read the status of this deployment on this provider", async () => {
+      const providerProxy = mock<ProviderProxyService>({
+        request: vi.fn().mockResolvedValue({ data: mockLeaseStatus })
+      });
+      const ensureToken = vi.fn().mockResolvedValue("jwt-token");
+      const provider = buildProvider();
+      const { result } = setupLeaseStatus({
+        provider,
+        lease: mockLease,
+        ensureToken,
+        services: {
+          providerProxy: () => providerProxy
+        }
+      });
+
+      await vi.waitFor(() => {
+        expect(result.current.isSuccess).toBe(true);
+      });
+
+      expect(ensureToken).toHaveBeenCalledWith({ access: { provider: provider.owner, dseqs: [mockLease.dseq], scope: ["status"] } });
     });
 
     it("gives up when the proxy rejects the refreshed token too", async () => {
@@ -810,6 +834,7 @@ describe("useLeaseQuery", () => {
         ...USE_LEASE_STATUS_DEPENDENCIES,
         useProviderCredentials: () => ({
           details: { type: "jwt", value: "jwt-token", isExpired: false, usable: true, error: null },
+          tokenMode: "shared",
           ensureToken: vi.fn().mockResolvedValue("jwt-token")
         })
       };
@@ -852,6 +877,7 @@ describe("useLeaseQuery", () => {
         ...USE_LEASE_STATUS_DEPENDENCIES,
         useProviderCredentials: () => ({
           details: { type: "jwt", value: "jwt-token", isExpired: false, usable: true, error: null },
+          tokenMode: "shared",
           ensureToken: vi.fn().mockResolvedValue("jwt-token")
         })
       };
@@ -877,6 +903,44 @@ describe("useLeaseQuery", () => {
       expect(result.current[1].data?.services.api?.uris).toEqual(["api.example"]);
     });
 
+    it("useLeaseStatuses asks for one status token per provider covering its live deployments", async () => {
+      const provider = buildProvider();
+      const otherProvider = buildProvider();
+      const ensureToken = vi.fn().mockResolvedValue("jwt-token");
+      const providerProxy = mock<ProviderProxyService>({ request: vi.fn().mockResolvedValue({ data: mockLeaseStatus }) });
+      const dependencies: typeof USE_LEASE_STATUS_DEPENDENCIES = {
+        ...USE_LEASE_STATUS_DEPENDENCIES,
+        useProviderCredentials: () => ({
+          details: { type: "jwt", value: null, isExpired: false, usable: true, error: null },
+          tokenMode: "per-deployment",
+          ensureToken
+        })
+      };
+
+      const { result } = setupQuery(
+        () =>
+          useLeaseStatuses(
+            [
+              { lease: { ...mockLease, id: "lease-a", dseq: "123", gseq: 1 }, provider },
+              { lease: { ...mockLease, id: "lease-b", dseq: "123", gseq: 2 }, provider },
+              { lease: { ...mockLease, id: "lease-c", dseq: "456" }, provider },
+              { lease: { ...mockLease, id: "lease-d", dseq: "789", state: "closed" }, provider },
+              { lease: { ...mockLease, id: "lease-e", dseq: "321" }, provider: otherProvider }
+            ],
+            { dependencies }
+          ),
+        { services: { providerProxy: () => providerProxy } }
+      );
+
+      await vi.waitFor(() => {
+        expect(result.current.filter(status => status.isSuccess)).toHaveLength(5);
+      });
+
+      expect(ensureToken).toHaveBeenCalledWith({ access: { provider: provider.owner, dseqs: ["123", "456"], scope: ["status"] } });
+      expect(ensureToken).toHaveBeenCalledWith({ access: { provider: otherProvider.owner, dseqs: ["321"], scope: ["status"] } });
+      expect(ensureToken).toHaveBeenCalledTimes(4);
+    });
+
     it.each([502, 503])("useLeaseStatuses fails a %s from the provider proxy on the first attempt", async status => {
       const provider = buildProvider();
       const providerProxy = mock<ProviderProxyService>({
@@ -886,6 +950,7 @@ describe("useLeaseQuery", () => {
         ...USE_LEASE_STATUS_DEPENDENCIES,
         useProviderCredentials: () => ({
           details: { type: "jwt", value: "jwt-token", isExpired: false, usable: true, error: null },
+          tokenMode: "shared",
           ensureToken: vi.fn().mockResolvedValue("jwt-token")
         })
       };
@@ -958,6 +1023,7 @@ describe("useLeaseQuery", () => {
             usable: true,
             error: null
           },
+          tokenMode: "shared",
           ensureToken: input?.ensureToken ?? vi.fn().mockResolvedValue("jwt-token")
         })
       };
