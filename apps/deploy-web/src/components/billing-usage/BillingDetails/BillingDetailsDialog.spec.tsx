@@ -7,6 +7,7 @@ import type { DEPENDENCIES } from "./BillingDetailsDialog";
 import { BillingDetailsDialog, INVALID_DETAILS_MESSAGE, INVALID_TAX_ID_MESSAGE } from "./BillingDetailsDialog";
 
 import { render, screen, waitFor } from "@testing-library/react";
+import type { UserEvent } from "@testing-library/user-event";
 import userEvent from "@testing-library/user-event";
 
 describe("BillingDetailsDialog", () => {
@@ -47,16 +48,16 @@ describe("BillingDetailsDialog", () => {
   it("saves trimmed details, sends blank optional fields as null and closes", async () => {
     const { user, updateBillingDetails, enqueueSnackbar, onClose } = setup({ billingDetails: undefined });
 
-    await user.type(screen.getByLabelText("Legal name"), "  Acme GmbH  ");
+    await fillIn(user, "Legal name", "  Acme GmbH  ");
     await user.click(screen.getByRole("combobox", { name: "Country" }));
     await user.click(screen.getByRole("option", { name: "Germany" }));
-    await user.type(screen.getByLabelText("Address"), " Hauptstr. 1 ");
+    await fillIn(user, "Address", " Hauptstr. 1 ");
     await user.type(screen.getByLabelText("Address line 2 (optional)"), "   ");
-    await user.type(screen.getByLabelText("Postal code"), "10115");
+    await fillIn(user, "Postal code", "10115");
     await user.click(screen.getByRole("combobox", { name: "Tax ID type" }));
     await user.click(screen.getByRole("option", { name: "EU VAT number" }));
     expect(screen.getByLabelText("Tax ID")).toHaveAttribute("placeholder", "DE123456789");
-    await user.type(screen.getByLabelText("Tax ID"), " DE123456789 ");
+    await fillIn(user, "Tax ID", " DE123456789 ");
     await user.click(screen.getByRole("button", { name: "Save" }));
 
     expect(updateBillingDetails).toHaveBeenCalledWith({
@@ -96,7 +97,7 @@ describe("BillingDetailsDialog", () => {
     const { user, updateBillingDetails } = setup({ billingDetails: SAVED });
 
     await user.clear(screen.getByLabelText("Tax ID"));
-    await user.type(screen.getByLabelText("Tax ID"), "DE999999999");
+    await fillIn(user, "Tax ID", "DE999999999");
     await user.click(screen.getByRole("button", { name: "Save" }));
 
     expect(updateBillingDetails).toHaveBeenCalledWith({ data: expect.objectContaining({ taxId: { type: "eu_vat", value: "DE999999999" } }) });
@@ -146,7 +147,7 @@ describe("BillingDetailsDialog", () => {
     expect(screen.getByLabelText("Tax ID")).toBeEnabled();
     expect(screen.queryByText(/Contact support to change it/)).not.toBeInTheDocument();
 
-    await user.type(screen.getByLabelText("Tax ID"), "DE123456789");
+    await fillIn(user, "Tax ID", "DE123456789");
     await user.click(screen.getByRole("button", { name: "Save" }));
 
     expect(updateBillingDetails).toHaveBeenCalledWith({ data: expect.objectContaining({ taxId: { type: "eu_vat", value: "DE123456789" } }) });
@@ -157,7 +158,7 @@ describe("BillingDetailsDialog", () => {
 
     await user.click(screen.getByRole("combobox", { name: "Tax ID type" }));
     await user.click(screen.getByRole("option", { name: "EU VAT number" }));
-    await user.type(screen.getByLabelText("Tax ID"), "DE123456789");
+    await fillIn(user, "Tax ID", "DE123456789");
     await user.click(screen.getByRole("combobox", { name: "Tax ID type" }));
     await user.click(screen.getByRole("option", { name: "DE_STN" }));
 
@@ -286,6 +287,11 @@ describe("BillingDetailsDialog", () => {
     expect(screen.getByRole("button", { name: /Save/ })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Cancel" })).toBeDisabled();
   });
+
+  async function fillIn(user: UserEvent, label: string, text: string) {
+    await user.click(screen.getByLabelText(label));
+    await user.paste(text);
+  }
 
   function setup(input: { billingDetails: BillingDetails | undefined; isPending?: boolean }) {
     const updateBillingDetails = vi
