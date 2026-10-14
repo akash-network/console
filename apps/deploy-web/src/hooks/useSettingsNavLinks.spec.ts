@@ -51,22 +51,23 @@ describe(useSettingsNavLinks.name, () => {
       expect(links.map(link => link.title)).toEqual(["Billing", "API Keys", "Usage", "Alerts"]);
     });
 
-    it("leaves Members out of a team organization while the members page is off", () => {
+    it("adds Members first for a team organization", () => {
       const links = setup({ isOrganizationsEnabled: true, organization: { type: "team", role: "owner" }, pathname: "/members" });
 
-      expect(links.map(link => link.title)).toEqual(["Billing", "API Keys", "Usage", "Alerts"]);
+      expect(links.map(link => link.title)).toEqual(["Members", "Billing", "API Keys", "Usage", "Alerts"]);
+      expect(links[0]).toMatchObject({ url: "/members", isActive: true });
     });
 
     it.each(["member", "viewer"] as const)("hides Billing and Usage from a %s", role => {
       const links = setup({ isOrganizationsEnabled: true, organization: { type: "team", role } });
 
-      expect(links.map(link => link.title)).toEqual(["API Keys", "Alerts"]);
+      expect(links.map(link => link.title)).toEqual(["Members", "API Keys", "Alerts"]);
     });
 
     it.each(["admin", "billing"] as const)("keeps Billing and Usage for an %s", role => {
       const links = setup({ isOrganizationsEnabled: true, organization: { type: "team", role } });
 
-      expect(links.map(link => link.title)).toEqual(["Billing", "API Keys", "Usage", "Alerts"]);
+      expect(links.map(link => link.title)).toEqual(["Members", "Billing", "API Keys", "Usage", "Alerts"]);
     });
 
     it("keeps every item until the active organization is known", () => {

@@ -2,11 +2,11 @@ import { ApiError } from "@akashnetwork/openapi-sdk";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
+import { INVALID_EMAIL_MESSAGE } from "@src/components/organizations/emailAddress";
 import type { OrganizationOutput } from "@src/types/organization";
 import type { DEPENDENCIES } from "./CreateOrganizationDialog";
 import {
   CreateOrganizationDialog,
-  INVALID_EMAIL_MESSAGE,
   INVALID_ORGANIZATION_NAME_MESSAGE,
   ORGANIZATION_LIMIT_REACHED_MESSAGE,
   ORGANIZATION_NAME_TAKEN_MESSAGE,
@@ -143,13 +143,13 @@ describe("CreateOrganizationDialog", () => {
     expect(screen.getByRole("button", { name: "Create organization" })).toBeDisabled();
   });
 
-  it("switches into the new organization, landing where the switch rule sends it", async () => {
+  it("switches into the new organization and lands on its members page", async () => {
     const { user, switchOrganization, onClose, enqueueSnackbar } = setup({});
 
     await user.type(screen.getByLabelText("Organization name"), "Harborline");
     await user.click(screen.getByRole("button", { name: "Create organization" }));
 
-    await waitFor(() => expect(switchOrganization).toHaveBeenCalledExactlyOnceWith("org-9"));
+    await waitFor(() => expect(switchOrganization).toHaveBeenCalledExactlyOnceWith("org-9", { destination: "/members" }));
     expect(onClose).toHaveBeenCalledOnce();
     expect(enqueueSnackbar).toHaveBeenCalledWith(expect.objectContaining({ props: expect.objectContaining({ title: "Created Harborline" }) }), {
       variant: "success"

@@ -83,6 +83,7 @@ export const UrlService = {
 
   // Organizations
   members: () => "/members",
+  invitations: () => "/invitations",
   projects: () => "/projects",
 
   newDeployment: () => "/new-deployment",

@@ -4,6 +4,8 @@
 
 import { inboundFiltersIntegration, init as initSentry, thirdPartyErrorFilterIntegration } from "@sentry/nextjs";
 
+import { redactBreadcrumbTokens, redactEventTokens } from "@src/lib/sentry/redactLinkTokens/redactLinkTokens";
+
 initSentry({
   dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
   environment: process.env.NEXT_PUBLIC_SENTRY_ENVIRONMENT,
@@ -17,6 +19,9 @@ initSentry({
   // propagate sentry-trace and baggage headers to internal API only
   // everything else will be done with custom interceptor
   tracePropagationTargets: [/^\/api\/(?!collect)/, /^\/_next\//],
+  beforeBreadcrumb: redactBreadcrumbTokens,
+  beforeSend: redactEventTokens,
+  beforeSendTransaction: redactEventTokens,
   integrations: [
     // Filter out errors originating from browser extensions
     // Note: uses inboundFiltersIntegration (not eventFiltersIntegration) to override defaultIntegrations
