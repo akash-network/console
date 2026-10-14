@@ -40,7 +40,9 @@ export class AlertController {
     return Ok({
       data: await this.alertRepository.accessibleBy(this.authService.ability, "create").create({
         ...data,
-        userId: this.authService.userId
+        userId: this.authService.userId,
+        organizationId: this.authService.organizationId,
+        projectId: this.authService.projectId
       })
     });
   }
@@ -126,7 +128,9 @@ export class AlertController {
   }
 
   private async assertOwnsNotificationChannel(notificationChannelId: string): Promise<void> {
-    const channel = await this.notificationChannelRepository.accessibleBy(this.authService.ability, "read").findById(notificationChannelId);
+    const channel = await this.notificationChannelRepository
+      .accessibleBy(this.authService.ability, "read")
+      .findAttachableById(notificationChannelId, this.#attachTarget);
 
     if (!channel) {
       throw new NotFoundException("Notification channel not found");
@@ -135,5 +139,9 @@ export class AlertController {
 
   private toResponse(alert: AlertOutput | undefined): Result<AlertOutputResponse, NotFoundException> {
     return alert ? Ok({ data: alert }) : Err(new NotFoundException("Alert not found"));
+  }
+
+  get #attachTarget() {
+    return { organizationId: this.authService.organizationId, acceptsUnattributed: this.authService.reachesUnattributedRows };
   }
 }

@@ -1,3 +1,4 @@
+import { BadRequestException } from "@nestjs/common";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
@@ -19,6 +20,32 @@ describe("InternalAccountController", () => {
       channelsDeleted: 2
     });
     expect(loggerService.error).not.toHaveBeenCalled();
+  });
+
+  it("purges within the personal organization the api names", async () => {
+    const userId = "00000000-0000-0000-0000-000000000003";
+    const personalOrganizationId = "00000000-0000-0000-0000-0000000000aa";
+    const { controller, accountPurgeService } = setup({});
+
+    await controller.purge(userId, personalOrganizationId);
+
+    expect(accountPurgeService.purge).toHaveBeenCalledWith(userId, personalOrganizationId);
+  });
+
+  it("purges only unattributed rows when no personal organization is named", async () => {
+    const userId = "00000000-0000-0000-0000-000000000004";
+    const { controller, accountPurgeService } = setup({});
+
+    await controller.purge(userId);
+
+    expect(accountPurgeService.purge).toHaveBeenCalledWith(userId, null);
+  });
+
+  it("refuses a personal organization that is not a uuid", async () => {
+    const { controller, accountPurgeService } = setup({});
+
+    await expect(controller.purge("00000000-0000-0000-0000-000000000005", "acme")).rejects.toThrow(BadRequestException);
+    expect(accountPurgeService.purge).not.toHaveBeenCalled();
   });
 
   it("logs ACCOUNT_PURGE_FAILED and rethrows when the service throws", async () => {
@@ -44,6 +71,6 @@ describe("InternalAccountController", () => {
     });
     const loggerService = mock<LoggerService>();
     const controller = new InternalAccountController(accountPurgeService, loggerService);
-    return { controller, loggerService };
+    return { controller, loggerService, accountPurgeService };
   }
 });

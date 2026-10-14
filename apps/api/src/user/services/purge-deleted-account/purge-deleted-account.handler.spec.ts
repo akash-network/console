@@ -15,7 +15,7 @@ describe(PurgeDeletedAccountHandler.name, () => {
 
     await handler.handle(payload);
 
-    expect(notificationService.purgeUserData).toHaveBeenCalledWith(payload.userId);
+    expect(notificationService.purgeUserData).toHaveBeenCalledWith(payload.userId, payload.personalOrganizationId);
     expect(auth0Service.deleteUser).toHaveBeenCalledWith(payload.auth0UserId);
     expect(customerService.deleteCustomer).toHaveBeenCalledWith(payload.stripeCustomerId);
     expect(logger.info).toHaveBeenCalledWith({ event: "ACCOUNT_DELETION_CLEANUP_COMPLETED", userId: payload.userId });
@@ -26,9 +26,18 @@ describe(PurgeDeletedAccountHandler.name, () => {
 
     await handler.handle(payload);
 
-    expect(notificationService.purgeUserData).toHaveBeenCalledWith(payload.userId);
+    expect(notificationService.purgeUserData).toHaveBeenCalledWith(payload.userId, payload.personalOrganizationId);
     expect(auth0Service.deleteUser).not.toHaveBeenCalled();
     expect(customerService.deleteCustomer).not.toHaveBeenCalled();
+  });
+
+  it("purges only the unattributed notification data of a job enqueued without a personal organization", async () => {
+    const { handler, payload, notificationService } = setup();
+    const { personalOrganizationId, ...legacyPayload } = payload;
+
+    await handler.handle(legacyPayload);
+
+    expect(notificationService.purgeUserData).toHaveBeenCalledWith(payload.userId, null);
   });
 
   it("still runs the other steps when one fails, then fails the job so the queue retries", async () => {
@@ -109,6 +118,7 @@ describe(PurgeDeletedAccountHandler.name, () => {
       userId: faker.string.uuid(),
       auth0UserId: input.auth0UserId === undefined ? `auth0|${faker.string.alphanumeric(24)}` : input.auth0UserId,
       stripeCustomerId: input.stripeCustomerId === undefined ? `cus_${faker.string.alphanumeric(14)}` : input.stripeCustomerId,
+      personalOrganizationId: faker.string.uuid(),
       version: 1 as const
     };
 

@@ -233,11 +233,20 @@ describe(AccountDeletionService.name, () => {
   describe("confirm", () => {
     it("deletes the account the link was sent for and queues the cleanup outside the database", async () => {
       const wallet = createUserWallet();
-      const { service, user, userRepository, userWalletRepository, userTemplateRepository, workloadProbeEvidenceRepository, jobQueueService, txService } =
-        setup({
-          wallet,
-          storedToken: {}
-        });
+      const {
+        service,
+        user,
+        userRepository,
+        userWalletRepository,
+        userTemplateRepository,
+        workloadProbeEvidenceRepository,
+        jobQueueService,
+        txService,
+        personalOrganization
+      } = setup({
+        wallet,
+        storedToken: {}
+      });
 
       await service.confirm({ token: "link-token" });
 
@@ -249,7 +258,12 @@ describe(AccountDeletionService.name, () => {
       expect(userRepository.deleteById).toHaveBeenCalledWith(user.id);
       expect(userWalletRepository.detachFromOrganization).toHaveBeenCalledWith(wallet.id);
       expect(jobQueueService.enqueue).toHaveBeenCalledWith(
-        new PurgeDeletedAccount({ userId: user.id, auth0UserId: user.userId, stripeCustomerId: user.stripeCustomerId }),
+        new PurgeDeletedAccount({
+          userId: user.id,
+          auth0UserId: user.userId,
+          stripeCustomerId: user.stripeCustomerId,
+          personalOrganizationId: personalOrganization.id
+        }),
         PURGE_DELETED_ACCOUNT_RETRY_OPTIONS
       );
     });
@@ -313,13 +327,18 @@ describe(AccountDeletionService.name, () => {
     });
 
     it("skips the template cleanup for a user without an Auth0 id", async () => {
-      const { service, user, userTemplateRepository, jobQueueService } = setup({ storedToken: {}, user: { userId: null } });
+      const { service, user, userTemplateRepository, jobQueueService, personalOrganization } = setup({ storedToken: {}, user: { userId: null } });
 
       await service.confirm({ token: "link-token" });
 
       expect(userTemplateRepository.deleteAllOwnedBy).not.toHaveBeenCalled();
       expect(jobQueueService.enqueue).toHaveBeenCalledWith(
-        new PurgeDeletedAccount({ userId: user.id, auth0UserId: null, stripeCustomerId: user.stripeCustomerId }),
+        new PurgeDeletedAccount({
+          userId: user.id,
+          auth0UserId: null,
+          stripeCustomerId: user.stripeCustomerId,
+          personalOrganizationId: personalOrganization.id
+        }),
         PURGE_DELETED_ACCOUNT_RETRY_OPTIONS
       );
     });
@@ -344,12 +363,16 @@ describe(AccountDeletionService.name, () => {
     });
 
     it("skips the organization cleanup for a user without a personal organization", async () => {
-      const { service, organizationRepository, userRepository } = setup({ storedToken: {}, hasPersonalOrganization: false });
+      const { service, user, organizationRepository, userRepository, jobQueueService } = setup({ storedToken: {}, hasPersonalOrganization: false });
 
       await service.confirm({ token: "link-token" });
 
       expect(organizationRepository.deleteById).not.toHaveBeenCalled();
       expect(userRepository.deleteById).toHaveBeenCalled();
+      expect(jobQueueService.enqueue).toHaveBeenCalledWith(
+        new PurgeDeletedAccount({ userId: user.id, auth0UserId: user.userId, stripeCustomerId: user.stripeCustomerId, personalOrganizationId: null }),
+        PURGE_DELETED_ACCOUNT_RETRY_OPTIONS
+      );
     });
 
     it("does nothing when a concurrent confirmation already deleted the user", async () => {

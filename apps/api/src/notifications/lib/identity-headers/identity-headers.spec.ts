@@ -1,7 +1,10 @@
 import { faker } from "@faker-js/faker";
 import { describe, expect, it } from "vitest";
 
-import { NOTIFICATIONS_IDENTITY_HEADERS, stripIdentityHeaders } from "./identity-headers";
+import type { OrganizationContext } from "@src/organization/types/organization-context";
+import { NOTIFICATIONS_IDENTITY_HEADERS, organizationIdentityHeaders, stripIdentityHeaders } from "./identity-headers";
+
+import { createProjectsScope } from "@test/seeders/organization-context.seeder";
 
 describe(stripIdentityHeaders.name, () => {
   it("drops every header on the identity list and keeps the others", () => {
@@ -20,7 +23,38 @@ describe(stripIdentityHeaders.name, () => {
 
   it("reserves the user, organization and project headers", () => {
     expect(Object.values(NOTIFICATIONS_IDENTITY_HEADERS)).toEqual(
-      expect.arrayContaining(["x-user-id", "x-owner-address", "x-organization-id", "x-organization-role", "x-project-scope", "x-project-id"])
+      expect.arrayContaining([
+        "x-user-id",
+        "x-owner-address",
+        "x-organization-id",
+        "x-organization-type",
+        "x-organization-role",
+        "x-project-scope",
+        "x-project-id"
+      ])
     );
   });
+});
+
+describe(organizationIdentityHeaders.name, () => {
+  it("names only the organization while legacy rules apply", () => {
+    const context = createOrganizationContext({ mode: "legacy" });
+
+    expect(organizationIdentityHeaders(context)).toEqual({ "x-organization-id": context.organizationId, "x-organization-type": context.organizationType });
+  });
+
+  it("names the organization, role and project scope while organization rules apply", () => {
+    const context = createOrganizationContext({ mode: "organization", role: "viewer", projectScope: createProjectsScope([faker.string.uuid()]) });
+
+    expect(organizationIdentityHeaders(context)).toEqual({
+      "x-organization-id": context.organizationId,
+      "x-organization-type": context.organizationType,
+      "x-organization-role": "viewer",
+      "x-project-scope": JSON.stringify(context.projectScope)
+    });
+  });
+
+  function createOrganizationContext(overrides: Partial<OrganizationContext>): OrganizationContext {
+    return { organizationId: faker.string.uuid(), organizationType: "team", role: "owner", projectScope: { kind: "all" }, mode: "organization", ...overrides };
+  }
 });

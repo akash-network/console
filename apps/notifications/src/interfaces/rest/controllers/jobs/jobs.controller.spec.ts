@@ -15,9 +15,9 @@ import { MockProvider } from "@test/mocks/provider.mock";
 describe(JobsController.name, () => {
   describe("createNotification", () => {
     it("returns 400 if notificationChannelId is not specified and no default notification channel exists", async () => {
-      const findDefaultByUserId = vi.fn(async () => undefined);
+      const findDefault = vi.fn(async () => undefined);
       const module = await setup({
-        findDefaultByUserId
+        findDefault
       });
 
       const result = await module.get(JobsController).createNotification({
@@ -28,7 +28,7 @@ describe(JobsController.name, () => {
         }
       });
 
-      expect(findDefaultByUserId).toHaveBeenCalledWith(module.get(AuthService).userId);
+      expect(findDefault).toHaveBeenCalledWith(module.get(AuthService).defaultChannelOwner);
       expect(result.mapErr(err => err.getStatus()).val).toEqual(400);
     });
 
@@ -52,10 +52,10 @@ describe(JobsController.name, () => {
     });
 
     it("creates a notification job if notificationChannelId is specified and notification channel exists", async () => {
-      const channel = generateMock(notificationChannelOutputSchema);
-      const findDefaultByUserId = vi.fn(async () => channel);
+      const channel = { ...generateMock(notificationChannelOutputSchema), organizationId: null };
+      const findDefault = vi.fn(async () => channel);
       const module = await setup({
-        findDefaultByUserId
+        findDefault
       });
 
       const result = await module.get(JobsController).createNotification({
@@ -66,7 +66,7 @@ describe(JobsController.name, () => {
         }
       });
 
-      expect(findDefaultByUserId).toHaveBeenCalledWith(module.get(AuthService).userId);
+      expect(findDefault).toHaveBeenCalledWith(module.get(AuthService).defaultChannelOwner);
       expect(result.ok).toBe(true);
       expect(module.get(BrokerService).publish).toHaveBeenCalledWith(
         eventKeyRegistry.createNotification,
@@ -85,7 +85,7 @@ describe(JobsController.name, () => {
     });
 
     it("creates a notification job if notificationChannelId is not specified and default notification channel exists", async () => {
-      const channel = generateMock(notificationChannelOutputSchema);
+      const channel = { ...generateMock(notificationChannelOutputSchema), organizationId: null };
       const findById = vi.fn(async () => channel);
       const module = await setup({
         findById
@@ -119,10 +119,10 @@ describe(JobsController.name, () => {
     });
 
     it("publishes a notification job which startsAfter specified time and expires in 24 hours", async () => {
-      const channel = generateMock(notificationChannelOutputSchema);
-      const findDefaultByUserId = vi.fn(async () => channel);
+      const channel = { ...generateMock(notificationChannelOutputSchema), organizationId: null };
+      const findDefault = vi.fn(async () => channel);
       const module = await setup({
-        findDefaultByUserId
+        findDefault
       });
 
       const startAfter = new Date(Date.now() + hoursToMilliseconds(1));
@@ -153,23 +153,21 @@ describe(JobsController.name, () => {
     });
   });
 
-  async function setup(input?: {
-    findDefaultByUserId?: NotificationChannelRepository["findDefaultByUserId"];
-    findById?: NotificationChannelRepository["findById"];
-  }) {
+  async function setup(input?: { findDefault?: NotificationChannelRepository["findDefault"]; findById?: NotificationChannelRepository["findById"] }) {
     const module = await Test.createTestingModule({
       controllers: [JobsController],
       providers: [
         // keep new lines
         MockProvider(BrokerService),
         MockProvider(AuthService, {
-          userId: "defaultUserId"
+          userId: "defaultUserId",
+          defaultChannelOwner: { kind: "user", userId: "defaultUserId", organizationId: null }
         }),
         MockProvider(NotificationChannelRepository, {
           accessibleBy() {
             return this;
           },
-          findDefaultByUserId: input?.findDefaultByUserId,
+          findDefault: input?.findDefault,
           findById: input?.findById
         })
       ]

@@ -13,7 +13,10 @@ import { HttpExceptionFilter } from "@src/interfaces/rest/filters/http-exception
 import { HttpResultInterceptor } from "@src/interfaces/rest/interceptors/http-result/http-result.interceptor";
 import { AuthService } from "@src/interfaces/rest/services/auth/auth.service";
 import { AlertRepository } from "@src/modules/alert/repositories/alert/alert.repository";
-import { NotificationChannelRepository } from "@src/modules/notifications/repositories/notification-channel/notification-channel.repository";
+import {
+  type DefaultChannelOwner,
+  NotificationChannelRepository
+} from "@src/modules/notifications/repositories/notification-channel/notification-channel.repository";
 import {
   NotificationChannelController,
   notificationChannelCreateInputSchema,
@@ -26,9 +29,9 @@ import { MockProvider } from "@test/mocks/provider.mock";
 describe(NotificationChannelController.name, () => {
   describe("createNotificationChannel", () => {
     it("should call notificationChannelRepository.create() and return the created notification channel", async () => {
-      const { controller, notificationChannelRepository, userId } = await setup();
+      const { controller, notificationChannelRepository, userId, organizationId } = await setup();
       const input = generateMock(notificationChannelCreateInputSchema);
-      const output = generateMock(notificationChannelOutputSchema);
+      const output = { ...generateMock(notificationChannelOutputSchema), organizationId: null };
 
       notificationChannelRepository.create.mockResolvedValue(output);
 
@@ -36,7 +39,8 @@ describe(NotificationChannelController.name, () => {
 
       expect(notificationChannelRepository.create).toHaveBeenCalledWith({
         ...input,
-        userId
+        userId,
+        organizationId
       });
       expect(result).toEqual(Ok({ data: output }));
     });
@@ -47,7 +51,7 @@ describe(NotificationChannelController.name, () => {
       const { controller, notificationChannelRepository } = await setup();
       const id = faker.string.uuid();
       const input = generateMock(notificationChannelPatchInputSchema);
-      const output = generateMock(notificationChannelOutputSchema);
+      const output = { ...generateMock(notificationChannelOutputSchema), organizationId: null };
 
       notificationChannelRepository.updateById.mockResolvedValue(output);
 
@@ -118,7 +122,7 @@ describe(NotificationChannelController.name, () => {
     it("should call notificationChannelRepository.findById() and return the notification channel", async () => {
       const { controller, notificationChannelRepository } = await setup();
       const id = faker.string.uuid();
-      const output = generateMock(notificationChannelOutputSchema);
+      const output = { ...generateMock(notificationChannelOutputSchema), organizationId: null };
 
       notificationChannelRepository.findById.mockResolvedValue(output);
 
@@ -168,7 +172,7 @@ describe(NotificationChannelController.name, () => {
     it("should call notificationChannelRepository.deleteSafelyById() and return the deleted notification channel", async () => {
       const { controller, notificationChannelRepository, alertRepository } = await setup();
       const id = faker.string.uuid();
-      const output = generateMock(notificationChannelOutputSchema);
+      const output = { ...generateMock(notificationChannelOutputSchema), organizationId: null };
 
       alertRepository.countActiveByNotificationChannelId.mockResolvedValue(0);
       notificationChannelRepository.deleteSafelyById.mockResolvedValue(output);
@@ -234,16 +238,13 @@ describe(NotificationChannelController.name, () => {
   });
 
   describe("createDefaultNotificationChannel", () => {
-    it("should call notificationChannelRepository.createDefaultChannel()", async () => {
-      const { controller, notificationChannelRepository, userId } = await setup();
-      const input = generateMock(notificationChannelCreateInputSchema);
+    it("creates the default channel of the request's owner, stamped with its organization", async () => {
+      const { controller, notificationChannelRepository, userId, organizationId, defaultChannelOwner } = await setup();
+      const { isDefault, ...input } = generateMock(notificationChannelCreateInputSchema);
 
       await controller.createDefaultNotificationChannel({ data: input });
 
-      expect(notificationChannelRepository.createDefaultChannel).toHaveBeenCalledWith({
-        ...input,
-        userId
-      });
+      expect(notificationChannelRepository.createDefaultChannel).toHaveBeenCalledWith({ ...input, userId, organizationId }, defaultChannelOwner);
     });
   });
 
@@ -253,15 +254,21 @@ describe(NotificationChannelController.name, () => {
     notificationChannelRepository: MockProxy<NotificationChannelRepository>;
     alertRepository: MockProxy<AlertRepository>;
     userId: string;
+    organizationId: string;
+    defaultChannelOwner: DefaultChannelOwner;
   }> {
     const userId = faker.string.uuid();
+    const organizationId = faker.string.uuid();
+    const defaultChannelOwner: DefaultChannelOwner = { kind: "user", userId, organizationId };
     const module: TestingModule = await Test.createTestingModule({
       controllers: [NotificationChannelController],
       providers: [
         {
           provide: AuthService,
           useValue: {
-            userId
+            userId,
+            organizationId,
+            defaultChannelOwner
           }
         },
         MockProvider(NotificationChannelRepository),
@@ -285,7 +292,9 @@ describe(NotificationChannelController.name, () => {
       app,
       notificationChannelRepository,
       alertRepository: module.get<MockProxy<AlertRepository>>(AlertRepository),
-      userId
+      userId,
+      organizationId,
+      defaultChannelOwner
     };
   }
 });

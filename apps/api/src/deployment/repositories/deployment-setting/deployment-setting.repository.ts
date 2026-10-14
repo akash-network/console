@@ -18,7 +18,7 @@ import { DeploymentSettings, type GpuProbeSource, type LeaseGpuOffer, type Lease
 import { NVIDIA_DRIVER_VERSION } from "@src/gpu/lib/cuda-version/cuda-version";
 import { writtenForTeamBy } from "@src/organization/lib/team-records/team-records";
 import { OrganizationMembers, type OrganizationRole, ProjectMembers, Projects } from "@src/organization/model-schemas";
-import { Organizations } from "@src/organization/model-schemas/organization/organization.schema";
+import { Organizations, type OrganizationType } from "@src/organization/model-schemas/organization/organization.schema";
 import { Users } from "@src/user/model-schemas";
 
 type Table = ApiPgTables["DeploymentSettings"];
@@ -31,6 +31,7 @@ export type DeploymentSettingsOutput = Omit<DeploymentSettingsDbOutput, "created
 
 type FilerId = DeploymentSettingsDbOutput["userId"];
 
+export type DeploymentTenancy = Pick<DeploymentSettingsDbOutput, "projectId"> & { organizationId: string; organizationType: OrganizationType };
 export type RecentNvidiaDriver = { driverVersion: string; lastSeenDate: string };
 
 export type DeploymentLocation = { organizationId: string; organizationSlug: string; projectId: string | null };
@@ -277,6 +278,20 @@ export class DeploymentSettingRepository extends OrgScopedRepository<Table, Depl
     this.compareWithShadow(rows);
 
     return new Map(rows.map(({ dseq, setting }) => [dseq, setting]));
+  }
+
+  /** Where the deployment a wallet holds under this dseq is filed: the wallet's organization and the project of the oldest row there, absent for a wallet in no organization. */
+  async findTenancy({ walletAddress, dseq }: { walletAddress: string; dseq: string }): Promise<DeploymentTenancy | undefined> {
+    const [tenancy] = await this.cursor
+      .select({ organizationId: Organizations.id, organizationType: Organizations.type, projectId: this.table.projectId })
+      .from(UserWallets)
+      .innerJoin(Organizations, eq(Organizations.id, UserWallets.organizationId))
+      .leftJoin(this.table, and(eq(this.table.organizationId, Organizations.id), eq(this.table.dseq, dseq)))
+      .where(eq(UserWallets.address, walletAddress))
+      .orderBy(asc(this.table.createdAt), asc(this.table.id))
+      .limit(1);
+
+    return tenancy;
   }
 
   /** Keyed by dseq and absent for a dseq with no row, under the same double scoping as {@link findNamesByDseqs}; a deleted project reads as none. */
