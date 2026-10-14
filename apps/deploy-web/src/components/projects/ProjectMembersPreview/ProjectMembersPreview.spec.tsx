@@ -6,6 +6,7 @@ import type { DEPENDENCIES } from "./ProjectMembersPreview";
 import { MAX_PREVIEWED_MEMBERS, ProjectMembersPreview } from "./ProjectMembersPreview";
 
 import { render, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 
 describe(ProjectMembersPreview.name, () => {
   it("lists the members granted the project with their project role", () => {
@@ -66,7 +67,32 @@ describe(ProjectMembersPreview.name, () => {
     expect(screen.queryByRole("status")).not.toBeInTheDocument();
   });
 
-  function setup(input: { members: ProjectMember[]; isLoading?: boolean; isError?: boolean }) {
+  it("lets someone who manages the project's access open the access dialog, and close it again", async () => {
+    const { canManageAccess, ProjectAccessDialog } = setup({ members: [], canManageAccess: true });
+
+    expect(canManageAccess).toHaveBeenCalledWith("project-1");
+    expect(ProjectAccessDialog).not.toHaveBeenCalled();
+
+    await userEvent.click(screen.getByRole("button", { name: "Manage access" }));
+
+    expect(ProjectAccessDialog.mock.lastCall?.[0]).toMatchObject({
+      project: { id: "project-1", name: "storefront" },
+      organizationName: "Acme Corp",
+      viewerUserId: "user-me"
+    });
+
+    await userEvent.click(screen.getByRole("button", { name: "close access dialog" }));
+
+    expect(screen.queryByRole("button", { name: "close access dialog" })).not.toBeInTheDocument();
+  });
+
+  it("offers no access management to anyone else", () => {
+    setup({ members: [], canManageAccess: false });
+
+    expect(screen.queryByRole("button", { name: "Manage access" })).not.toBeInTheDocument();
+  });
+
+  function setup(input: { members: ProjectMember[]; isLoading?: boolean; isError?: boolean; canManageAccess?: boolean }) {
     const useProjectMembersQuery = vi.fn<typeof DEPENDENCIES.useProjectMembersQuery>(() =>
       input.isLoading
         ? mock<ReturnType<typeof DEPENDENCIES.useProjectMembersQuery>>({ data: undefined, isLoading: true, isError: false })
@@ -74,10 +100,27 @@ describe(ProjectMembersPreview.name, () => {
           ? mock<ReturnType<typeof DEPENDENCIES.useProjectMembersQuery>>({ data: undefined, isLoading: false, isError: true })
           : mock<ReturnType<typeof DEPENDENCIES.useProjectMembersQuery>>({ data: input.members, isLoading: false, isError: false })
     );
+    const canManageAccess = vi.fn(() => input.canManageAccess ?? false);
+    const ProjectAccessDialog = vi.fn<typeof DEPENDENCIES.ProjectAccessDialog>(({ onClose }) => (
+      <button type="button" onClick={onClose}>
+        close access dialog
+      </button>
+    ));
 
-    render(<ProjectMembersPreview projectId="project-1" dependencies={{ useProjectMembersQuery }} />);
+    render(
+      <ProjectMembersPreview
+        project={{ id: "project-1", name: "storefront" }}
+        organizationName="Acme Corp"
+        dependencies={{
+          useProjectMembersQuery,
+          useProjectAccess: () => mock<ReturnType<typeof DEPENDENCIES.useProjectAccess>>({ canManageAccess }),
+          useUser: () => mock<ReturnType<typeof DEPENDENCIES.useUser>>({ user: { id: "user-me" } }),
+          ProjectAccessDialog
+        }}
+      />
+    );
 
-    return { useProjectMembersQuery };
+    return { useProjectMembersQuery, canManageAccess, ProjectAccessDialog };
   }
 
   function member(id: string, username: string | null, role: ProjectRole): ProjectMember {

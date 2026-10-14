@@ -19,9 +19,11 @@ import Link from "next/link";
 import { NextSeo } from "next-seo";
 
 import { ProjectScopeProvider } from "@src/components/projects/ProjectScope/ProjectScope";
+import { ViewOnlyNotice } from "@src/components/projects/ViewOnlyNotice/ViewOnlyNotice";
 import { LinkTo } from "@src/components/shared/LinkTo";
 import { useBlockchainStatus } from "@src/context/BlockchainStatusProvider";
 import { useNewDeploymentUrl } from "@src/hooks/useNewDeploymentUrl/useNewDeploymentUrl";
+import { useProjectAccess } from "@src/hooks/useProjectAccess/useProjectAccess";
 import { useProjectsUi } from "@src/hooks/useProjectsUi/useProjectsUi";
 import Layout from "../../layout/Layout";
 import { DeploymentArchive } from "./DeploymentArchive";
@@ -36,8 +38,10 @@ export const DEPENDENCIES = {
   useDeploymentsListModel,
   useBlockchainStatus,
   useNewDeploymentUrl,
+  useProjectAccess,
   Layout,
   DeploymentsEmptyState,
+  ViewOnlyNotice,
   DeploymentsCollection,
   DeploymentArchive,
   useProjectsUi,
@@ -62,6 +66,8 @@ export const DeploymentsList: React.FunctionComponent<Props> = ({ project, depen
   const { isBlockchainDown } = d.useBlockchainStatus();
   const newDeploymentUrl = d.useNewDeploymentUrl();
   const { canChangeDeployments } = d.useProjectsUi();
+  const access = d.useProjectAccess();
+  const canDeploy = canChangeDeployments && (project ? access.canManageDeployments(project.id) : access.canDeployAnywhere);
 
   const changeSearch = (event: ChangeEvent<HTMLInputElement>) => model.changeSearch(event.target.value);
 
@@ -86,15 +92,26 @@ export const DeploymentsList: React.FunctionComponent<Props> = ({ project, depen
         </div>
       )}
 
-      {model.hasSettledWithoutActiveDeployments && (
-        <d.DeploymentsEmptyState
-          onDeployClick={model.startNewDeployment}
-          canDeploy={canChangeDeployments}
-          projectId={project?.id}
-          hasDeployments={model.hasAnyArchived}
-          showTemplatesButton={!model.hasAnyArchived}
-        />
-      )}
+      {model.hasSettledWithoutActiveDeployments &&
+        !access.isLoading &&
+        (access.isError ? (
+          <div className="flex flex-col items-center justify-center gap-4 py-8">
+            <p className="text-muted-foreground">Couldn&apos;t check what you can do in these projects.</p>
+            <Button variant="outline" size="sm" onClick={access.retry}>
+              <RefreshCw className="mr-2 h-4 w-4" />
+              Retry
+            </Button>
+          </div>
+        ) : canDeploy ? (
+          <d.DeploymentsEmptyState
+            onDeployClick={model.startNewDeployment}
+            projectId={project?.id}
+            hasDeployments={model.hasAnyArchived}
+            showTemplatesButton={!model.hasAnyArchived}
+          />
+        ) : (
+          <d.ViewOnlyNotice reason={access.hasNoProjects ? "no_projects" : "view_only"} />
+        ))}
 
       {(model.hasPageResults || model.isInitialLoad) && (
         <d.DeploymentsCollection
@@ -204,7 +221,7 @@ export const DeploymentsList: React.FunctionComponent<Props> = ({ project, depen
                 </>
               )}
 
-              {model.showNewDeploymentLink && canChangeDeployments && (
+              {model.showNewDeploymentLink && canDeploy && (
                 <Link
                   href={newDeploymentUrl({ projectId: project?.id })}
                   className={cn("space-x-2", buttonVariants({ variant: "default" }), isBlockchainDown && "pointer-events-none opacity-50")}

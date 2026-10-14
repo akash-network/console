@@ -5,6 +5,7 @@ import { cn } from "@akashnetwork/ui/utils";
 import { TriangleAlert } from "lucide-react";
 import Link from "next/link";
 
+import { useCanManageDeployment } from "@src/hooks/useCanManageDeployment/useCanManageDeployment";
 import { useCloseDeployment } from "@src/hooks/useCloseDeployment/useCloseDeployment";
 import { useClosingDeployments } from "@src/hooks/useClosingDeployments/useClosingDeployments";
 import { isUsableDeploymentDefinition, sdlToRedeploy, useDeploymentDefinition } from "@src/hooks/useDeploymentDefinition/useDeploymentDefinition";
@@ -20,7 +21,8 @@ export const DEPENDENCIES = {
   useManagedDeploymentConfirm,
   useDeploymentDefinition,
   useNewDeploymentUrl,
-  useRedeploy
+  useRedeploy,
+  useCanManageDeployment
 };
 
 type Props = {
@@ -36,13 +38,23 @@ type Props = {
  * deployment) + Redeploy. The live, still-running case is handled by ReclamationBanner.
  */
 export const ReclamationCard: React.FunctionComponent<Props> = ({ lease, dseq, onClosed, dependencies = DEPENDENCIES }) => {
-  const { useCloseDeployment, useClosingDeployments, useManagedDeploymentConfirm, useDeploymentDefinition, useNewDeploymentUrl, useRedeploy } = dependencies;
+  const {
+    useCloseDeployment,
+    useClosingDeployments,
+    useManagedDeploymentConfirm,
+    useDeploymentDefinition,
+    useNewDeploymentUrl,
+    useRedeploy,
+    useCanManageDeployment
+  } = dependencies;
   const closeDeployment = useCloseDeployment();
   const isClosingInBackground = useClosingDeployments().has(dseq);
   const { closeDeploymentConfirm } = useManagedDeploymentConfirm();
   const newDeploymentUrl = useNewDeploymentUrl();
   const redeploy = useRedeploy();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const { canManage, isLoading: isLoadingManagement } = useCanManageDeployment(dseq);
+  const isReadOnly = !canManage && !isLoadingManagement;
 
   const reasonLabel = getLeaseCloseReasonLabel(lease.reclamation?.reason ?? lease.reason);
   const definition = useDeploymentDefinition(dseq, { acceptReferences: true });
@@ -66,28 +78,33 @@ export const ReclamationCard: React.FunctionComponent<Props> = ({ lease, dseq, o
       <AlertTitle>{reasonLabel}</AlertTitle>
       <AlertDescription>
         <p>
-          This deployment was stopped by the provider, so it&apos;s no longer running. Redeploy to get back online, or close it to recover any unused funds.
+          This deployment was stopped by the provider, so it&apos;s no longer running.{" "}
+          {isReadOnly
+            ? "Ask someone who can deploy into this project to redeploy or close it."
+            : "Redeploy to get back online, or close it to recover any unused funds."}
         </p>
-        <div className="mt-3 flex flex-wrap items-center gap-2">
-          <Button variant="default" size="sm" onClick={confirmAndClose} disabled={isSubmitting || isClosingInBackground}>
-            {isSubmitting ? <Spinner size="small" /> : isClosingInBackground ? "Closing…" : "Close & refund"}
-          </Button>
-          {canRedeploy ? (
-            <Button
-              variant="outline"
-              size="sm"
-              className="text-foreground"
-              disabled={definition.source === "resolving"}
-              onClick={() => redeploy({ sdl: sdlToRedeploy(definition), name: definition.name, sourceDseq: dseq })}
-            >
-              Redeploy
+        {canManage && (
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <Button variant="default" size="sm" onClick={confirmAndClose} disabled={isSubmitting || isClosingInBackground}>
+              {isSubmitting ? <Spinner size="small" /> : isClosingInBackground ? "Closing…" : "Close & refund"}
             </Button>
-          ) : (
-            <Link href={newDeploymentUrl()} className={cn(buttonVariants({ variant: "outline", size: "sm" }), "text-foreground")}>
-              Start a new deployment
-            </Link>
-          )}
-        </div>
+            {canRedeploy ? (
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-foreground"
+                disabled={definition.source === "resolving"}
+                onClick={() => redeploy({ sdl: sdlToRedeploy(definition), name: definition.name, sourceDseq: dseq })}
+              >
+                Redeploy
+              </Button>
+            ) : (
+              <Link href={newDeploymentUrl()} className={cn(buttonVariants({ variant: "outline", size: "sm" }), "text-foreground")}>
+                Start a new deployment
+              </Link>
+            )}
+          </div>
+        )}
       </AlertDescription>
     </Alert>
   );

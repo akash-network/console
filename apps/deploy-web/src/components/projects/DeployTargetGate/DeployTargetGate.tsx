@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 
 import { useActiveOrganization } from "@src/context/OrganizationProvider/OrganizationProvider";
 import type { DeployTarget } from "@src/hooks/useDeployTarget/useDeployTarget";
+import { useProjectAccess } from "@src/hooks/useProjectAccess/useProjectAccess";
 import { useProjectsUi } from "@src/hooks/useProjectsUi/useProjectsUi";
 import { useDeploymentLocationQuery } from "@src/queries/useDeploymentProjectQueries";
 import { useProjectsQuery } from "@src/queries/useProjectsQuery";
@@ -14,7 +15,15 @@ import type { Project } from "@src/types/project";
 import { UrlService } from "@src/utils/urlUtils";
 import { ChooseProjectModal } from "../ChooseProjectModal/ChooseProjectModal";
 
-export const DEPENDENCIES = { useProjectsUi, useActiveOrganization, useProjectsQuery, useDeploymentLocationQuery, useRouter, ChooseProjectModal };
+export const DEPENDENCIES = {
+  useProjectsUi,
+  useActiveOrganization,
+  useProjectsQuery,
+  useProjectAccess,
+  useDeploymentLocationQuery,
+  useRouter,
+  ChooseProjectModal
+};
 
 const NO_TARGET: DeployTarget = {
   isRequired: false,
@@ -36,7 +45,7 @@ export function useConfigureDeployTarget(): DeployTarget {
 }
 
 interface Props {
-  /** A deployment that already exists: the flow runs without waiting for a choice, and a deployment re-created in its place keeps its project. */
+  /** A deployment that already exists: the flow runs without waiting, a deployment re-created in its place keeps its project, and the picker opens over the flow when that project can't be used. */
   filedDseq?: string;
   /** Shown in place of the flow until a project is chosen. */
   fallback: ReactNode;
@@ -50,8 +59,9 @@ export function DeployTargetGate({ filedDseq, fallback, children, dependencies: 
   const { isEnabled: isRequired, organizationName, canManageProjects } = d.useProjectsUi();
   const { isLoading: isOrganizationLoading } = d.useActiveOrganization();
   const projectsQuery = d.useProjectsQuery({ enabled: isRequired });
+  const access = d.useProjectAccess();
   const isFiled = !!filedDseq;
-  const { data: filedLocation } = d.useDeploymentLocationQuery(filedDseq ?? "", { enabled: isRequired && isFiled });
+  const filedLocationQuery = d.useDeploymentLocationQuery(filedDseq ?? "", { enabled: isRequired && isFiled });
   const [handedOverProjectId, setHandedOverProjectId] = useAtom(deployTargetProjectIdAtom);
   const [projectId, setProjectId] = useState(handedOverProjectId);
   const [isFiledProjectForgotten, setIsFiledProjectForgotten] = useState(false);
@@ -66,10 +76,10 @@ export function DeployTargetGate({ filedDseq, fallback, children, dependencies: 
     [setHandedOverProjectId]
   );
 
-  const projects = useMemo(() => projectsQuery.data ?? [], [projectsQuery.data]);
-  const filedProjectId = isFiledProjectForgotten ? undefined : filedLocation?.projectId;
+  const projects = useMemo(() => (projectsQuery.data ?? []).filter(project => access.canManageDeployments(project.id)), [projectsQuery.data, access]);
+  const filedProjectId = isFiledProjectForgotten ? undefined : filedLocationQuery.data?.projectId;
   const project = isRequired ? projects.find(candidate => candidate.id === (filedProjectId ?? projectId)) : undefined;
-  const isLoading = isRequired && projectsQuery.isLoading;
+  const isLoading = isRequired && (projectsQuery.isLoading || access.isLoading || (isFiled && filedLocationQuery.isLoading));
   const isMissing = isRequired && !isLoading && !project;
 
   const chooseProject = useCallback((chosenProjectId: string) => {
@@ -101,7 +111,7 @@ export function DeployTargetGate({ filedDseq, fallback, children, dependencies: 
   );
 
   const isWaitingForAProject = !isFiled && !hasLetTheFlowThrough && (isOrganizationLoading || isLoading || isMissing);
-  const isPicking = (!isFiled || isFiledProjectForgotten) && !isOrganizationLoading && isMissing && !isPickerDismissed;
+  const isPicking = !isOrganizationLoading && isMissing && !isPickerDismissed;
 
   useEffect(
     function latchOnceTheFlowRuns() {

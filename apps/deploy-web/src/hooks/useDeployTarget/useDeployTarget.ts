@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useMemo } from "react";
 import { useAtom } from "jotai";
 
+import { useProjectAccess } from "@src/hooks/useProjectAccess/useProjectAccess";
 import { useProjectsUi } from "@src/hooks/useProjectsUi/useProjectsUi";
 import { useProjectsQuery } from "@src/queries/useProjectsQuery";
 import { deployTargetProjectIdAtom } from "@src/store/deployTargetStore";
 import type { Project } from "@src/types/project";
 
-export const DEPENDENCIES = { useProjectsUi, useProjectsQuery };
+export const DEPENDENCIES = { useProjectsUi, useProjectsQuery, useProjectAccess };
 
 export interface DeployTarget {
   /** Whether a new deployment must name its project; otherwise the api files it into the default project. */
@@ -36,12 +37,13 @@ export function useDeployTarget(
   const d = dependencies;
   const { isEnabled: isRequired, organizationName, canManageProjects } = d.useProjectsUi();
   const projectsQuery = d.useProjectsQuery({ enabled: isRequired });
+  const access = d.useProjectAccess();
   const [chosenProjectId, setChosenProjectId] = useAtom(deployTargetProjectIdAtom);
 
-  const projects = useMemo(() => projectsQuery.data ?? [], [projectsQuery.data]);
+  const projects = useMemo(() => (projectsQuery.data ?? []).filter(project => access.canManageDeployments(project.id)), [projectsQuery.data, access]);
   const targetProjectId = requestedProjectId || chosenProjectId;
   const project = isRequired ? projects.find(candidate => candidate.id === targetProjectId) : undefined;
-  const isLoading = isRequired && projectsQuery.isLoading;
+  const isLoading = isRequired && (projectsQuery.isLoading || access.isLoading);
   const forgetProject = useCallback(() => setChosenProjectId(null), [setChosenProjectId]);
 
   useEffect(

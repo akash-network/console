@@ -15,6 +15,7 @@ import { useActiveOrganization } from "@src/context/OrganizationProvider/Organiz
 import { useFlag } from "@src/hooks/useFlag";
 import { useHasBeenVisible } from "@src/hooks/useHasBeenVisible/useHasBeenVisible";
 import { useNewDeploymentUrl } from "@src/hooks/useNewDeploymentUrl/useNewDeploymentUrl";
+import { useProjectAccess } from "@src/hooks/useProjectAccess/useProjectAccess";
 import { useOrganizationActivitiesQuery } from "@src/queries/useOrganizationActivitiesQuery";
 import { useProjectDeploymentSummaryQuery } from "@src/queries/useProjectDeploymentSummaryQuery";
 import { useProjectsQuery } from "@src/queries/useProjectsQuery";
@@ -38,6 +39,7 @@ export const DEPENDENCIES = {
   useHasBeenVisible,
   useOrganizationActivitiesQuery,
   useNewDeploymentUrl,
+  useProjectAccess,
   Layout,
   NotFoundPage,
   ProjectFolder,
@@ -67,6 +69,7 @@ function ProjectsPageContent({ dependencies: d }: Required<Props>) {
   const projectsQuery = d.useProjectsQuery();
   const activityFeed = d.useOrganizationActivitiesQuery();
   const newDeploymentUrl = d.useNewDeploymentUrl();
+  const access = d.useProjectAccess();
   const [isCreatingProject, setIsCreatingProject] = useState(false);
 
   const loadedProjects = projectsQuery.data;
@@ -116,7 +119,7 @@ function ProjectsPageContent({ dependencies: d }: Required<Props>) {
                 </Button>
               )}
 
-              {hasProjects && canDeploy && (
+              {hasProjects && canDeploy && access.canDeployAnywhere && (
                 <Link
                   href={newDeploymentUrl()}
                   className={cn(
@@ -162,7 +165,7 @@ function ProjectsPageContent({ dependencies: d }: Required<Props>) {
                         project={project}
                         onOpen={() => openProject(project)}
                         onSelectDeployment={openDeployment}
-                        onNewDeployment={canDeploy ? () => startDeploymentIn(project) : undefined}
+                        onNewDeployment={canDeploy && access.canManageDeployments(project.id) ? () => startDeploymentIn(project) : undefined}
                         menu={canManage && <d.ProjectFolderMenu project={project} takenNames={projectNames} />}
                       />
                     ))}

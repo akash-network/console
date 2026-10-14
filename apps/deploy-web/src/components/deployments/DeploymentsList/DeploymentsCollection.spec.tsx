@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { mock } from "vitest-mock-extended";
 
 import type { DeploymentsViewMode } from "@src/store/deploymentsViewStore";
 import type { ListedDeploymentDto } from "@src/types/deployment";
@@ -58,6 +59,19 @@ describe("DeploymentsCollection", () => {
     expect(DeploymentCard).toHaveBeenCalledWith(expect.objectContaining({ isSelected: false }), expect.anything());
   });
 
+  it("offers no selection on a deployment of a project the caller only views", () => {
+    const { DeploymentRow } = setup({ viewMode: "list", dseqs: ["100", "101"], viewedProjectId: "project-of-101" });
+
+    expect(DeploymentRow).toHaveBeenCalledWith(
+      expect.objectContaining({ deployment: expect.objectContaining({ dseq: "100" }), isSelectable: true, canManage: true }),
+      expect.anything()
+    );
+    expect(DeploymentRow).toHaveBeenCalledWith(
+      expect.objectContaining({ deployment: expect.objectContaining({ dseq: "101" }), isSelectable: false, canManage: false }),
+      expect.anything()
+    );
+  });
+
   it("keeps the same columns whether or not the collection is selectable", () => {
     setup({ viewMode: "list", dseqs: ["100"], isSelectable: true });
     expect(screen.getAllByRole("columnheader")).toHaveLength(5);
@@ -97,13 +111,16 @@ describe("DeploymentsCollection", () => {
     isSelectable?: boolean;
     closingDseqs?: ReadonlySet<string>;
     onDeploymentClosed?: () => void;
+    viewedProjectId?: string;
   }) {
     const DeploymentCard = vi.fn(() => <div>card</div>);
     const DeploymentRow = vi.fn(() => <tr />);
+    const useProjectAccess: typeof DEPENDENCIES.useProjectAccess = () =>
+      mock<ReturnType<typeof DEPENDENCIES.useProjectAccess>>({ canManageDeployments: projectId => projectId !== input.viewedProjectId });
 
     render(
       <DeploymentsCollection
-        deployments={input.dseqs.map(dseq => ({ dseq, state: "active" }) as ListedDeploymentDto)}
+        deployments={input.dseqs.map(dseq => ({ dseq, state: "active", projectId: `project-of-${dseq}` }) as ListedDeploymentDto)}
         providers={[]}
         viewMode={input.viewMode}
         isLoading={input.isLoading}
@@ -111,7 +128,7 @@ describe("DeploymentsCollection", () => {
         selectedIds={input.selectedIds}
         closingDseqs={input.closingDseqs}
         onDeploymentClosed={input.onDeploymentClosed}
-        dependencies={MockComponents(DEPENDENCIES, { DeploymentCard, DeploymentRow })}
+        dependencies={MockComponents(DEPENDENCIES, { useProjectAccess, DeploymentCard, DeploymentRow })}
       />
     );
 

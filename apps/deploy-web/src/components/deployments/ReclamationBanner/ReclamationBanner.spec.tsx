@@ -109,23 +109,53 @@ describe("ReclamationBanner", () => {
     expect(screen.queryByRole("button", { name: "Redeploy" })).not.toBeInTheDocument();
   });
 
-  function setup(input: { leases: LeaseDto[] | null; definition?: Partial<DeploymentDefinition> }) {
+  it("offers no redeploy to a caller who only views the deployment's project", () => {
+    const { useCanManageDeployment } = setup({ leases: [createLease({ state: "reclaiming" })], canManage: false });
+
+    expect(screen.getByText("This deployment is being reclaimed")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Redeploy" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Start a new deployment" })).not.toBeInTheDocument();
+    expect(useCanManageDeployment).toHaveBeenCalledWith("123");
+    expect(screen.getByText(/Ask someone who can deploy into this project to redeploy it before the deadline to avoid downtime./)).toBeInTheDocument();
+    expect(screen.queryByText(/Redeploy to another provider before the deadline to avoid downtime./)).not.toBeInTheDocument();
+  });
+
+  it("tells a caller who manages the deployment to redeploy it before the deadline", () => {
+    setup({ leases: [createLease({ state: "reclaiming" })] });
+
+    expect(screen.getByText(/Redeploy to another provider before the deadline to avoid downtime./)).toBeInTheDocument();
+    expect(screen.queryByText(/Ask someone who can deploy into this project to redeploy it before the deadline to avoid downtime./)).not.toBeInTheDocument();
+  });
+
+  it("keeps telling the caller to redeploy while their access is still being read", () => {
+    setup({ leases: [createLease({ state: "reclaiming" })], canManage: false, isLoadingManagement: true });
+
+    expect(screen.getByText(/Redeploy to another provider before the deadline to avoid downtime./)).toBeInTheDocument();
+  });
+
+  function setup(input: { leases: LeaseDto[] | null; definition?: Partial<DeploymentDefinition>; canManage?: boolean; isLoadingManagement?: boolean }) {
     const definition: DeploymentDefinition = { sdl: "version: 2.0", name: "my-app", source: "local", ...input.definition };
     const redeploy = vi.fn();
 
     const useDeploymentDefinition: typeof DEPENDENCIES.useDeploymentDefinition = () => definition;
     const useNewDeploymentUrl: typeof DEPENDENCIES.useNewDeploymentUrl = () => () => "/new-deployment";
     const useRedeploy: typeof DEPENDENCIES.useRedeploy = () => redeploy;
+    const useCanManageDeployment = vi.fn((_dseq: string) => ({
+      canManage: input.canManage ?? true,
+      isLoading: input.isLoadingManagement ?? false,
+      isError: false,
+      retry: vi.fn()
+    }));
 
     const utils = render(
       <ReclamationBanner
         leases={input.leases}
         dseq="123"
-        dependencies={MockComponents(DEPENDENCIES, { useDeploymentDefinition, useNewDeploymentUrl, useRedeploy })}
+        dependencies={MockComponents(DEPENDENCIES, { useDeploymentDefinition, useNewDeploymentUrl, useRedeploy, useCanManageDeployment })}
       />
     );
 
-    return { ...utils, redeploy };
+    return { ...utils, redeploy, useCanManageDeployment };
   }
 
   function createLease(overrides: { state?: string; reclamation?: LeaseDto["reclamation"] } = {}): LeaseDto {

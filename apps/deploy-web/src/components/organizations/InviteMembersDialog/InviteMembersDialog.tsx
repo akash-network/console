@@ -25,9 +25,13 @@ import { getMembershipErrorMessage } from "@src/components/organizations/members
 import { ORGANIZATION_ROLE_LABELS } from "@src/components/organizations/organizationAccess";
 import type { AssignableRole } from "@src/components/organizations/organizationRoles";
 import { ASSIGNABLE_ROLE_DESCRIPTIONS, ASSIGNABLE_ROLES } from "@src/components/organizations/organizationRoles";
+import type { ProjectGrant } from "@src/components/organizations/ProjectGrantsField/ProjectGrantsField";
+import { ProjectGrantsField } from "@src/components/organizations/ProjectGrantsField/ProjectGrantsField";
+import { holdsProjectGrants } from "@src/components/projects/projectAccess";
 import { useCreateOrganizationInvitationsMutation } from "@src/queries/useOrganizationQueries";
+import { useProjectsQuery } from "@src/queries/useProjectsQuery";
 
-export const DEPENDENCIES = { useCreateOrganizationInvitationsMutation, useSnackbar };
+export const DEPENDENCIES = { useCreateOrganizationInvitationsMutation, useProjectsQuery, useSnackbar, ProjectGrantsField };
 
 export const ALREADY_MEMBER_MESSAGE = "Already a member";
 
@@ -48,6 +52,9 @@ export const InviteMembersDialog: FC<Props> = ({ organizationName, memberEmails,
   const { mutate: createInvitations, isPending } = d.useCreateOrganizationInvitationsMutation();
   const [emails, setEmails] = useState<string[]>([]);
   const [role, setRole] = useState<AssignableRole>("member");
+  const [projectGrants, setProjectGrants] = useState<ProjectGrant[]>([]);
+  const { data: projects = [] } = d.useProjectsQuery();
+  const carriesProjectGrants = holdsProjectGrants(role);
   const formId = useId();
   const emailsId = `${formId}-emails`;
   const hintId = `${formId}-hint`;
@@ -68,7 +75,7 @@ export const InviteMembersDialog: FC<Props> = ({ organizationName, memberEmails,
     if (!canSubmit) return;
 
     createInvitations(
-      { data: { emails, role } },
+      { data: { emails, role, ...(carriesProjectGrants && projectGrants.length > 0 ? { projectGrants } : {}) } },
       {
         onSuccess: () => {
           const title = emails.length === 1 ? `Invite sent to ${emails[0]}` : `${emails.length} invites sent`;
@@ -124,6 +131,8 @@ export const InviteMembersDialog: FC<Props> = ({ organizationName, memberEmails,
                 ))}
               </RadioGroup>
             </div>
+
+            {carriesProjectGrants && projects.length > 0 && <d.ProjectGrantsField projects={projects} grants={projectGrants} onChange={setProjectGrants} />}
           </form>
         </DialogV2Body>
 

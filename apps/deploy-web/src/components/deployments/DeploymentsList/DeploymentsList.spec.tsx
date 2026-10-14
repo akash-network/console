@@ -40,17 +40,90 @@ describe("DeploymentsList", () => {
       expect(newDeploymentUrl).toHaveBeenCalledWith({ projectId: "project-1" });
       expect(DeploymentsEmptyState.mock.lastCall?.[0]).toMatchObject({ projectId: "project-1" });
     });
+
+    it("asks whether the caller may deploy into this project", () => {
+      const { canManageDeployments } = setup({}, { project });
+
+      expect(canManageDeployments).toHaveBeenCalledWith("project-1");
+    });
+
+    it("offers no new deployment in a project the caller only views", () => {
+      setup({}, { project, access: { canManageDeployments: () => false } });
+
+      expect(screen.queryByRole("link", { name: /New deployment/ })).not.toBeInTheDocument();
+    });
+
+    it("explains view-only access instead of a deploy prompt in an empty project the caller only views", () => {
+      const { DeploymentsEmptyState } = setup({ hasSettledWithoutActiveDeployments: true }, { project, access: { canManageDeployments: () => false } });
+
+      expect(screen.getByText("view only")).toBeInTheDocument();
+      expect(DeploymentsEmptyState).not.toHaveBeenCalled();
+    });
+
+    it("deploys into the project even when the caller may deploy nowhere else", () => {
+      setup({}, { project, access: { canDeployAnywhere: false } });
+
+      expect(screen.getByRole("link", { name: /New deployment/ })).toBeInTheDocument();
+    });
+  });
+
+  describe("when no project is in scope", () => {
+    it("offers no new deployment to a caller who may deploy into no project", () => {
+      setup({}, { access: { canDeployAnywhere: false } });
+
+      expect(screen.queryByRole("link", { name: /New deployment/ })).not.toBeInTheDocument();
+    });
+
+    it("explains view-only access instead of a deploy prompt to a caller who may deploy into no project", () => {
+      const { DeploymentsEmptyState, ViewOnlyNotice } = setup({ hasSettledWithoutActiveDeployments: true }, { access: { canDeployAnywhere: false } });
+
+      expect(ViewOnlyNotice).toHaveBeenCalled();
+      expect(DeploymentsEmptyState).not.toHaveBeenCalled();
+    });
+
+    it("tells a caller who was given no project that they have none, instead of a deploy prompt", () => {
+      const { ViewOnlyNotice } = setup({ hasSettledWithoutActiveDeployments: true }, { access: { canDeployAnywhere: false, hasNoProjects: true } });
+
+      expect(ViewOnlyNotice.mock.lastCall?.[0]).toEqual({ reason: "no_projects" });
+    });
+
+    it("shows neither prompt while the caller's access is still being read", () => {
+      const { DeploymentsEmptyState, ViewOnlyNotice } = setup(
+        { hasSettledWithoutActiveDeployments: true },
+        { access: { isLoading: true, canDeployAnywhere: false } }
+      );
+
+      expect(DeploymentsEmptyState).not.toHaveBeenCalled();
+      expect(ViewOnlyNotice).not.toHaveBeenCalled();
+    });
+
+    it("offers to read the caller's access again instead of calling it view-only when it could not be read", async () => {
+      const retry = vi.fn();
+      const { DeploymentsEmptyState, ViewOnlyNotice } = setup(
+        { hasSettledWithoutActiveDeployments: true },
+        { access: { isError: true, retry, canDeployAnywhere: false } }
+      );
+
+      expect(screen.getByText("Couldn't check what you can do in these projects.")).toBeInTheDocument();
+      expect(DeploymentsEmptyState).not.toHaveBeenCalled();
+      expect(ViewOnlyNotice).not.toHaveBeenCalled();
+
+      await userEvent.click(screen.getByRole("button", { name: "Retry" }));
+
+      expect(retry).toHaveBeenCalledTimes(1);
+    });
   });
 
   it("offers a member who only reads deployments neither a new deployment nor a selection to close", () => {
-    const { DeploymentsCollection, DeploymentsEmptyState } = setup(
+    const { DeploymentsCollection, DeploymentsEmptyState, ViewOnlyNotice } = setup(
       { hasPageResults: true, hasSettledWithoutActiveDeployments: true },
       { canChangeDeployments: false }
     );
 
     expect(screen.queryByRole("link", { name: /New deployment/ })).not.toBeInTheDocument();
     expect(DeploymentsCollection.mock.lastCall?.[0]).toMatchObject({ isSelectable: false });
-    expect(DeploymentsEmptyState.mock.lastCall?.[0]).toMatchObject({ canDeploy: false });
+    expect(DeploymentsEmptyState).not.toHaveBeenCalled();
+    expect(ViewOnlyNotice.mock.lastCall?.[0]).toEqual({ reason: "view_only" });
   });
 
   it("lets everyone else start and close deployments", () => {
@@ -397,7 +470,12 @@ describe("DeploymentsList", () => {
 
   function setup(
     modelOverrides: Partial<Model>,
-    options: { isBlockchainDown?: boolean; project?: DeploymentsListProject; canChangeDeployments?: boolean } = {}
+    options: {
+      isBlockchainDown?: boolean;
+      project?: DeploymentsListProject;
+      canChangeDeployments?: boolean;
+      access?: Partial<ReturnType<typeof DEPENDENCIES.useProjectAccess>>;
+    } = {}
   ) {
     const changeSearch = vi.fn();
     const changeViewMode = vi.fn();
@@ -469,6 +547,17 @@ describe("DeploymentsList", () => {
     const NextSeo = vi.fn<typeof DEPENDENCIES.NextSeo>(() => <></>);
     const useProjectsUi: typeof DEPENDENCIES.useProjectsUi = () =>
       mock<ReturnType<typeof DEPENDENCIES.useProjectsUi>>({ canChangeDeployments: options.canChangeDeployments ?? true });
+    const canManageDeployments = vi.fn(() => true);
+    const useProjectAccess: typeof DEPENDENCIES.useProjectAccess = () =>
+      mock<ReturnType<typeof DEPENDENCIES.useProjectAccess>>({
+        isLoading: false,
+        canManageDeployments,
+        canDeployAnywhere: true,
+        hasNoProjects: false,
+        isError: false,
+        ...options.access
+      });
+    const ViewOnlyNotice = vi.fn((_props: { reason: string }) => <div>view only</div>);
 
     const Layout = vi.fn(({ children }: { children?: React.ReactNode; isLoading?: boolean }) => <div>{children}</div>);
     const DeploymentsEmptyState = vi.fn((_props: DeploymentsEmptyStateProps) => <div>empty state</div>);
@@ -482,8 +571,10 @@ describe("DeploymentsList", () => {
           useDeploymentsListModel,
           useBlockchainStatus,
           useNewDeploymentUrl,
+          useProjectAccess,
           Layout,
           DeploymentsEmptyState,
+          ViewOnlyNotice,
           DeploymentsCollection,
           DeploymentArchive,
           NextSeo,
@@ -493,6 +584,8 @@ describe("DeploymentsList", () => {
     );
 
     return {
+      canManageDeployments,
+      ViewOnlyNotice,
       changeSearch,
       changeViewMode,
       refetchDeployments,

@@ -39,6 +39,7 @@ export interface DeploymentRowProps {
   isSelectable?: boolean;
   isSelected?: boolean;
   isClosing?: boolean;
+  canManage?: boolean;
   onSelect?: (input: { id: string; isShiftPressed: boolean }) => void;
   onDeploymentClosed?: () => void;
   dependencies?: typeof DEPENDENCIES;
@@ -50,6 +51,7 @@ export const DeploymentRow: FC<DeploymentRowProps> = ({
   isSelectable,
   isSelected,
   isClosing = false,
+  canManage = true,
   onSelect,
   onDeploymentClosed,
   dependencies: d = DEPENDENCIES
@@ -98,7 +100,7 @@ export const DeploymentRow: FC<DeploymentRowProps> = ({
                 onClick={event => onSelect?.({ id: deployment.dseq, isShiftPressed: event.shiftKey })}
               />
             )}
-            <d.DeploymentActionsMenu deployment={deployment} onDeploymentClosed={onDeploymentClosed} isClosing={isClosing} />
+            <d.DeploymentActionsMenu deployment={deployment} onDeploymentClosed={onDeploymentClosed} isClosing={isClosing} canManage={canManage} />
           </div>
         </TableCell>
       </TableRow>

@@ -16,9 +16,10 @@ describe(DeploymentSettings.name, () => {
     expect(screen.getByRole("heading", { name: "Danger zone" })).toBeInTheDocument();
   });
 
-  it("offers a member who only reads deployments neither funding nor closing", () => {
-    setup({ isSignedIn: true, runtimeLimitHours: 4, canChangeDeployments: false });
+  it("offers a caller who only reads this deployment neither funding nor closing", () => {
+    const { useCanManageDeployment } = setup({ isSignedIn: true, runtimeLimitHours: 4, canManage: false });
 
+    expect(useCanManageDeployment).toHaveBeenCalledWith("1786440078202");
     expect(screen.queryByText("billing-section")).not.toBeInTheDocument();
     expect(screen.queryByText("danger-zone")).not.toBeInTheDocument();
     expect(screen.getByText("notifications:true")).toBeInTheDocument();
@@ -58,15 +59,8 @@ describe(DeploymentSettings.name, () => {
     expect(screen.queryByText("Billing")).not.toBeInTheDocument();
   });
 
-  function setup(input: {
-    state?: string;
-    isSignedIn?: boolean;
-    runtimeLimitHours?: number | null;
-    isLoadingSettings?: boolean;
-    canChangeDeployments?: boolean;
-  }) {
-    const useProjectsUi: typeof DEPENDENCIES.useProjectsUi = () =>
-      mock<ReturnType<typeof DEPENDENCIES.useProjectsUi>>({ canChangeDeployments: input.canChangeDeployments ?? true });
+  function setup(input: { state?: string; isSignedIn?: boolean; runtimeLimitHours?: number | null; isLoadingSettings?: boolean; canManage?: boolean }) {
+    const useCanManageDeployment = vi.fn((_dseq: string) => ({ canManage: input.canManage ?? true, isLoading: false, isError: false, retry: vi.fn() }));
     const useUser: typeof DEPENDENCIES.useUser = () =>
       mock<ReturnType<typeof DEPENDENCIES.useUser>>({
         user: input.isSignedIn ? mock<NonNullable<ReturnType<typeof DEPENDENCIES.useUser>["user"]>>({ userId: "u1" }) : undefined
@@ -93,9 +87,11 @@ describe(DeploymentSettings.name, () => {
           DeploymentBillingSection,
           DeploymentNotificationsSection,
           DeploymentDangerZone,
-          useProjectsUi
+          useCanManageDeployment
         })}
       />
     );
+
+    return { useCanManageDeployment };
   }
 });
