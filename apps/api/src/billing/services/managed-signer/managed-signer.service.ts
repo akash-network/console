@@ -391,12 +391,14 @@ export class ManagedSignerService {
 
   /** Every message of a caller's transaction names the accounts it acts for, which must all be the wallet the server chose to sign with. */
   #assertSignedByWallet(userWallet: UserWalletOutput, messages: EncodeObject[]) {
-    const isSignedByWallet = messages.every(message => {
-      const accounts = accountsActedForBy(message);
-      return accounts !== undefined && accounts.length > 0 && accounts.every(account => account === userWallet.address);
-    });
+    const refused = messages.filter(message => !isSignedBy(userWallet, message));
 
-    if (!isSignedByWallet) {
+    if (refused.length) {
+      this.logger.warn({
+        event: "MESSAGE_SIGNER_MISMATCH_REFUSED",
+        walletAddress: userWallet.address,
+        messages: refused.map(message => ({ typeUrl: message.typeUrl, accounts: accountsActedForBy(message) }))
+      });
       throw createError(403, "Every message must be signed by the wallet of the active organization", { errorCode: MESSAGE_SIGNER_MISMATCH_ERROR_CODE });
     }
   }
@@ -675,6 +677,11 @@ function typeOf({ typeUrl }: EncodeObject): string {
 
 function accountsActedForBy(message: EncodeObject): unknown[] | undefined {
   return ACCOUNTS_ACTED_FOR[typeOf(message)]?.(message.value);
+}
+
+function isSignedBy({ address }: UserWalletOutput, message: EncodeObject): boolean {
+  const accounts = accountsActedForBy(message);
+  return accounts !== undefined && accounts.length > 0 && accounts.every(account => account === address);
 }
 
 function ownerOfDeploymentEscrow(value: MessageValue): string | undefined {

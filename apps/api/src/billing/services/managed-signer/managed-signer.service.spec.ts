@@ -1642,6 +1642,33 @@ describe(ManagedSignerService.name, () => {
       expect(txManagerService.signAndBroadcastWithDerivedWallet).not.toHaveBeenCalled();
     });
 
+    it("logs only the refused messages, each with the accounts it acts for", async () => {
+      const wallet = createOrganizationWallet({ feeAllowance: 100, deploymentAllowance: 100, activatedAt: new Date() });
+      const decode = vi
+        .fn()
+        .mockReturnValueOnce({ id: { owner: wallet.address, dseq: 1 } })
+        .mockReturnValueOnce({ signer: "", id: { scope: Scope.deployment, xid: `${wallet.address}/2` } });
+      const { service, logger } = setupForTeam({ wallet, decode });
+
+      await expect(
+        service.executeDerivedEncodedTxByUserId("member-1", [encodedMessage(MsgCloseDeployment.$type), encodedMessage(MsgAccountDeposit.$type)])
+      ).rejects.toMatchObject({ status: 403 });
+      expect(logger.warn).toHaveBeenCalledWith({
+        event: "MESSAGE_SIGNER_MISMATCH_REFUSED",
+        walletAddress: wallet.address,
+        messages: [{ typeUrl: `/${MsgAccountDeposit.$type}`, accounts: ["", wallet.address] }]
+      });
+    });
+
+    it("logs no signer refusal for messages the wallet signs", async () => {
+      const wallet = createOrganizationWallet({ feeAllowance: 100, deploymentAllowance: 100, activatedAt: new Date() });
+      const { service, logger } = setupForTeam({ wallet, decode: vi.fn().mockReturnValue({ id: { owner: wallet.address, dseq: 1 } }) });
+
+      await service.executeDerivedEncodedTxByUserId("member-1", [encodedMessage(MsgCloseDeployment.$type)]);
+
+      expect(logger.warn).not.toHaveBeenCalledWith(expect.objectContaining({ event: "MESSAGE_SIGNER_MISMATCH_REFUSED" }));
+    });
+
     it("refuses a message type it does not know, whatever account it names", async () => {
       const wallet = createOrganizationWallet({ activatedAt: new Date() });
       const { service, txManagerService } = setupForTeam({ wallet, decode: vi.fn().mockReturnValue({ owner: wallet.address, fromAddress: wallet.address }) });
