@@ -3,7 +3,7 @@ import { mock } from "vitest-mock-extended";
 
 import { DEPENDENCIES, TopNav } from "./TopNav";
 
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MockComponents } from "@tests/unit/mocks";
 
@@ -129,9 +129,82 @@ describe(TopNav.name, () => {
     expect(screen.getByRole("menuitem", { name: "Alerts" })).toHaveAttribute("href", "/alerts");
   });
 
-  function setup(input: { isAuthenticated?: boolean; minimal?: boolean; pathname?: string; isCommandMenuEnabled?: boolean }) {
+  describe("organizations", () => {
+    it("leaves the switcher and the create entry out while organizations are off", () => {
+      const { accountMenu, organizationSwitcher } = setup({ isAuthenticated: true, isOrganizationsEnabled: false });
+
+      expect(organizationSwitcher).not.toHaveBeenCalled();
+      expect(accountMenu.mock.calls[0][0]).toEqual(expect.objectContaining({ onCreateOrganization: undefined }));
+    });
+
+    it("adds the switcher to the header for a signed-in user when organizations are on", () => {
+      const { organizationSwitcher } = setup({ isAuthenticated: true, isOrganizationsEnabled: true });
+
+      expect(organizationSwitcher).toHaveBeenCalled();
+      expect(organizationSwitcher.mock.calls[0][0]).not.toHaveProperty("layout");
+    });
+
+    it("keeps the switcher in the reduced onboarding header, on phones too", () => {
+      const { organizationSwitcher } = setup({ isAuthenticated: true, isOrganizationsEnabled: true, minimal: true });
+
+      expect(organizationSwitcher).toHaveBeenCalledOnce();
+      expect(screen.getByRole("button", { name: "Switch organization" }).closest(".hidden")).toBeNull();
+    });
+
+    it("keeps the header switcher visible at every width, next to the copy in the mobile menu", () => {
+      const { organizationSwitcher } = setup({ isAuthenticated: true, isOrganizationsEnabled: true });
+
+      expect(screen.getByRole("button", { name: "Switch organization" }).closest(".hidden")).toBeNull();
+      expect(organizationSwitcher.mock.calls[0][0]).not.toHaveProperty("layout");
+    });
+
+    it("leaves the switcher out for a signed-out visitor", () => {
+      const { organizationSwitcher } = setup({ isAuthenticated: false, isOrganizationsEnabled: true });
+
+      expect(organizationSwitcher).not.toHaveBeenCalled();
+    });
+
+    it("puts the switcher at the top of the mobile menu", async () => {
+      const { organizationSwitcher } = setup({ isAuthenticated: true, isOrganizationsEnabled: true });
+
+      await userEvent.click(screen.getByRole("button", { name: "Open navigation menu" }));
+
+      const mobileMenu = await screen.findByRole("dialog");
+      expect(within(mobileMenu).getByRole("button", { name: "Switch organization" })).toBeInTheDocument();
+      expect(organizationSwitcher.mock.calls.some(call => call[0].layout === "sheet")).toBe(true);
+    });
+
+    it("opens the create organization dialog from the account menu and closes it again", async () => {
+      const { accountMenu } = setup({ isAuthenticated: true, isOrganizationsEnabled: true });
+
+      act(() => accountMenu.mock.calls[0][0]?.onCreateOrganization?.());
+
+      expect(screen.getByRole("dialog", { name: "Create organization dialog" })).toBeInTheDocument();
+      await userEvent.click(screen.getByRole("button", { name: "Close dialog" }));
+      expect(screen.queryByRole("dialog", { name: "Create organization dialog" })).not.toBeInTheDocument();
+    });
+
+    it("opens the create organization dialog from the switcher", () => {
+      const { organizationSwitcher } = setup({ isAuthenticated: true, isOrganizationsEnabled: true });
+
+      act(() => organizationSwitcher.mock.calls[0][0].onCreateOrganization?.());
+
+      expect(screen.getByRole("dialog", { name: "Create organization dialog" })).toBeInTheDocument();
+    });
+  });
+
+  function setup(input: { isAuthenticated?: boolean; minimal?: boolean; pathname?: string; isCommandMenuEnabled?: boolean; isOrganizationsEnabled?: boolean }) {
     const accountMenu = vi.fn<typeof DEPENDENCIES.TopNavAccountMenu>(() => <></>);
-    const useFlag = vi.fn<typeof DEPENDENCIES.useFlag>(() => input.isCommandMenuEnabled ?? false);
+    const enabledFlags = { ui_command_menu: input.isCommandMenuEnabled ?? false, organizations: input.isOrganizationsEnabled ?? false };
+    const useFlag = vi.fn<typeof DEPENDENCIES.useFlag>(flag => enabledFlags[flag as keyof typeof enabledFlags] ?? false);
+    const organizationSwitcher = vi.fn<typeof DEPENDENCIES.OrganizationSwitcher>(() => <button type="button">Switch organization</button>);
+    const createOrganizationDialog = vi.fn<typeof DEPENDENCIES.CreateOrganizationDialog>(({ onClose }) => (
+      <div role="dialog" aria-label="Create organization dialog">
+        <button type="button" onClick={onClose}>
+          Close dialog
+        </button>
+      </div>
+    ));
 
     const dependencies = MockComponents(DEPENDENCIES, {
       useUser: () =>
@@ -142,12 +215,15 @@ describe(TopNav.name, () => {
       useCookieTheme: () => "light",
       useFlag,
       CommandMenu: () => <button type="button">Search or run a command</button>,
+      useActiveOrganization: () => mock<ReturnType<typeof DEPENDENCIES.useActiveOrganization>>({ organizations: [], activeOrganization: undefined }),
       TopNavAccountMenu: accountMenu,
-      ActivityBell: () => <button type="button">Activity</button>
+      ActivityBell: () => <button type="button">Activity</button>,
+      OrganizationSwitcher: organizationSwitcher,
+      CreateOrganizationDialog: createOrganizationDialog
     });
 
     render(<TopNav dependencies={dependencies} minimal={input.minimal} />);
 
-    return { accountMenu, useFlag };
+    return { accountMenu, useFlag, organizationSwitcher };
   }
 });

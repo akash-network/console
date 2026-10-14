@@ -2783,6 +2783,40 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/v1/deployments/{dseq}/project": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    /** Move a deployment to another project of the active organization */
+    patch: operations["updateDeploymentProject"];
+    trace?: never;
+  };
+  "/v1/deployment-locations/{dseq}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Find the organization and project a deployment is filed into, among the caller's organizations */
+    get: operations["getDeploymentLocation"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/v1/sdl-secrets-context": {
     parameters: {
       query?: never;
@@ -2947,6 +2981,11 @@ export interface paths {
               name: string;
               /** Format: date-time */
               expiresAt?: string;
+              /**
+               * Format: uuid
+               * @description Limits the key to one project of the organization it is created in.
+               */
+              projectId?: string;
             };
           };
         };
@@ -2972,6 +3011,16 @@ export interface paths {
                 /** Format: date-time */
                 lastUsedAt: string | null;
                 keyFormat: string;
+                /**
+                 * Format: uuid
+                 * @description The organization the key acts in. Null for a key created before organizations, which acts in its owner's personal organization.
+                 */
+                organizationId: string | null;
+                /**
+                 * Format: uuid
+                 * @description The only project the key reaches, or null when it reaches every project its owner can.
+                 */
+                projectId: string | null;
                 apiKey: string;
               };
             };
@@ -3024,6 +3073,16 @@ export interface paths {
                 /** Format: date-time */
                 lastUsedAt: string | null;
                 keyFormat: string;
+                /**
+                 * Format: uuid
+                 * @description The organization the key acts in. Null for a key created before organizations, which acts in its owner's personal organization.
+                 */
+                organizationId: string | null;
+                /**
+                 * Format: uuid
+                 * @description The only project the key reaches, or null when it reaches every project its owner can.
+                 */
+                projectId: string | null;
               };
             };
           };
@@ -3117,6 +3176,16 @@ export interface paths {
                 /** Format: date-time */
                 lastUsedAt: string | null;
                 keyFormat: string;
+                /**
+                 * Format: uuid
+                 * @description The organization the key acts in. Null for a key created before organizations, which acts in its owner's personal organization.
+                 */
+                organizationId: string | null;
+                /**
+                 * Format: uuid
+                 * @description The only project the key reaches, or null when it reaches every project its owner can.
+                 */
+                projectId: string | null;
               };
             };
           };
@@ -6731,6 +6800,302 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/v1/organizations": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List the organizations the caller belongs to, marking the one this request ran in */
+    get: operations["listOrganizations"];
+    put?: never;
+    /** Create a team organization owned by the caller, with its default project and a wallet ready to fund */
+    post: operations["createOrganization"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/organizations/{id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    /** Rename the active organization */
+    patch: operations["updateOrganization"];
+    trace?: never;
+  };
+  "/v1/organization-members": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List the members of the active organization */
+    get: operations["listOrganizationMembers"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/organization-members/{id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    /** Remove a member from the active organization */
+    delete: operations["deleteOrganizationMember"];
+    options?: never;
+    head?: never;
+    /** Change the role of a member of the active organization */
+    patch: operations["updateOrganizationMember"];
+    trace?: never;
+  };
+  "/v1/organization-members/{id}/ownership-transfer": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Make a member an owner of the active organization and step the calling owner down to admin */
+    post: operations["transferOrganizationOwnership"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/organization-invitations": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List the pending invitations of the active organization */
+    get: operations["listOrganizationInvitations"];
+    put?: never;
+    /** Invite people to the active organization by email */
+    post: operations["createOrganizationInvitations"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/organization-invitations/{id}/resend": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Email a pending invitation again with a new link and a new expiry */
+    post: operations["resendOrganizationInvitation"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/organization-invitations/{id}/link": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Issue a new link for a pending invitation, which stops every earlier link from working */
+    post: operations["createOrganizationInvitationLink"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/organization-invitations/{id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    /** Revoke a pending invitation of the active organization */
+    delete: operations["deleteOrganizationInvitation"];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/invitations/preview": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Preview an organization invitation from the token of its link */
+    post: operations["previewInvitation"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/invitations/accept": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Join the organization of an invitation with the role and project access it grants */
+    post: operations["acceptInvitation"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/projects": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List the projects of the active organization the caller can reach */
+    get: operations["listProjects"];
+    put?: never;
+    /** Create a project in the active organization */
+    post: operations["createProject"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/projects/{id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Get a project of the active organization */
+    get: operations["getProject"];
+    put?: never;
+    post?: never;
+    /** Delete a project that holds no open deployment */
+    delete: operations["deleteProject"];
+    options?: never;
+    head?: never;
+    /** Rename a project or change its description */
+    patch: operations["updateProject"];
+    trace?: never;
+  };
+  "/v1/organization-activities": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List what happened in the active organization, newest first, within the caller's projects */
+    get: operations["listOrganizationActivities"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/projects/{id}/members": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List who was granted access to a project */
+    get: operations["listProjectMembers"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/project-members": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Grant a member or viewer of the active organization a role on a project */
+    post: operations["createProjectMember"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/project-members/{id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    /** Revoke a grant, effective from the member's next request */
+    delete: operations["deleteProjectMember"];
+    options?: never;
+    head?: never;
+    /** Change the project role a grant gives */
+    patch: operations["updateProjectMember"];
+    trace?: never;
+  };
   "/v1/alerts": {
     parameters: {
       query?: never;
@@ -9453,6 +9818,7 @@ export interface operations {
         search?: string;
         skip?: number | null;
         limit?: number;
+        projectId?: string;
       };
       header?: never;
       path?: never;
@@ -9663,6 +10029,11 @@ export interface operations {
                   /** @description The console's own bookkeeping, which can trail `deployment.state`. Trust `deployment.state` when the two disagree. */
                   closed: boolean;
                 } | null;
+                /**
+                 * Format: uuid
+                 * @description Project the deployment is filed in, or null for one the console has not filed. Present only for requests in organization mode.
+                 */
+                projectId?: string | null;
               }[];
               pagination: {
                 /** @description Deployments the owner holds in this state, counted from the console's own index. The archive (`closed`) is listed from that same index, so its count always agrees with its pages; `active` deployments are listed live, so their count can briefly lag behind the list. Null when the index cannot answer, which leaves the count unknown rather than understated; page on `hasMore` regardless. */
@@ -9690,7 +10061,7 @@ export interface operations {
           };
         };
       };
-      /** @description The owner holds more `active` deployments than a search spans. Page through them without a `search` instead. A search of the archive (`state=closed`) is refused this way only while the console's index is unreachable */
+      /** @description The owner holds more `active` deployments than a search spans. Page through them without a `search` instead. A search of the archive (`state=closed`) is refused this way only while the console's index is unreachable. In organization mode, a list that would have to check more open deployments than that cap is refused the same way; narrow it with `projectId` */
       422: {
         headers: {
           [name: string]: unknown;
@@ -9731,6 +10102,11 @@ export interface operations {
             deposit?: number;
             /** @description Optional runtime limit in hours (1 to 48), counted from lease start. Automatic funding keeps the deployment running until the limit, then the deployment is closed automatically and unused funds are returned. Extend a limit with PATCH /v2/deployment-settings/{dseq}. Omit for always-on funding. */
             runtimeLimitHours?: number;
+            /**
+             * Format: uuid
+             * @description Project to file the deployment in.
+             */
+            projectId?: string;
           };
         };
       };
@@ -9755,7 +10131,7 @@ export interface operations {
           };
         };
       };
-      /** @description The SDL leaves a secret reference with no value from either `sealedSecrets` or the deployment named by `inheritSecretsFrom`, supplies a name no service references, would carry more secrets than one deployment may hold, or carries a `sealedSecrets` value that is malformed, tampered with, expired or not a flat object of string values */
+      /** @description The SDL leaves a secret reference with no value from either `sealedSecrets` or the deployment named by `inheritSecretsFrom`, supplies a name no service references, would carry more secrets than one deployment may hold, or carries a `sealedSecrets` value that is malformed, tampered with, expired or not a flat object of string values. With `code` `project_required`, a project is needed */
       400: {
         headers: {
           [name: string]: unknown;
@@ -9783,7 +10159,7 @@ export interface operations {
           };
         };
       };
-      /** @description No deployment of yours matches `inheritSecretsFrom`. Deliberately says nothing about whether that deployment exists */
+      /** @description No deployment of yours matches `inheritSecretsFrom`. Deliberately says nothing about whether that deployment exists. Also returned for an unknown `projectId` */
       404: {
         headers: {
           [name: string]: unknown;
@@ -10180,6 +10556,110 @@ export interface operations {
       };
     };
   };
+  updateDeploymentProject: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Deployment sequence number */
+        dseq: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": {
+          data: {
+            /** Format: uuid */
+            projectId: string;
+          };
+        };
+      };
+    };
+    responses: {
+      /** @description The project the deployment is now filed into */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            data: {
+              dseq: string;
+              /** Format: uuid */
+              projectId: string;
+            };
+          };
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description The caller's role in the active organization does not allow it */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description No deployment or project with this id in the caller's reach */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  getDeploymentLocation: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Deployment sequence number */
+        dseq: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Where the deployment is filed */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            data: {
+              /** Format: uuid */
+              organizationId: string;
+              organizationSlug: string;
+              /** Format: uuid */
+              projectId: string | null;
+            };
+          };
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description No deployment with this dseq in the caller's reach */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
   getSDLSecretsContext: {
     parameters: {
       query?: never;
@@ -10448,6 +10928,16 @@ export interface operations {
               /** Format: date-time */
               lastUsedAt: string | null;
               keyFormat: string;
+              /**
+               * Format: uuid
+               * @description The organization the key acts in. Null for a key created before organizations, which acts in its owner's personal organization.
+               */
+              organizationId: string | null;
+              /**
+               * Format: uuid
+               * @description The only project the key reaches, or null when it reaches every project its owner can.
+               */
+              projectId: string | null;
             }[];
           };
         };
@@ -11825,6 +12315,1589 @@ export interface operations {
       };
       /** @description Unauthorized */
       401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  listOrganizations: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description The caller's organizations */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            data: {
+              /** Format: uuid */
+              id: string;
+              name: string;
+              slug: string;
+              /** @enum {string} */
+              type: "personal" | "team";
+              /**
+               * @description The caller's role in the organization.
+               * @enum {string}
+               */
+              role: "owner" | "admin" | "member" | "billing" | "viewer";
+              /** @description Whether this request ran in this organization. */
+              isActive: boolean;
+              /** Format: date-time */
+              createdAt: string;
+            }[];
+          };
+        };
+      };
+      /** @description The organization header names another organization than the API key's */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description The organization or project header names one the caller cannot reach */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  createOrganization: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": {
+          data: {
+            /** @description Unique, ignoring case, among the organizations the caller belongs to. */
+            name: string;
+          };
+        };
+      };
+    };
+    responses: {
+      /** @description The created organization */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            data: {
+              /** Format: uuid */
+              id: string;
+              name: string;
+              slug: string;
+              /** @enum {string} */
+              type: "personal" | "team";
+              /**
+               * @description The caller's role in the organization.
+               * @enum {string}
+               */
+              role: "owner" | "admin" | "member" | "billing" | "viewer";
+              /** @description Whether this request ran in this organization. */
+              isActive: boolean;
+              /** Format: date-time */
+              createdAt: string;
+            };
+          };
+        };
+      };
+      /** @description The name is empty, too long or holds a control character */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description The caller cannot create more organizations, or the request was not made from a signed-in session */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description The caller already belongs to an organization with this name */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  updateOrganization: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": {
+          data: {
+            /** @description Unique, ignoring case, among the organizations the caller belongs to. */
+            name: string;
+          };
+        };
+      };
+    };
+    responses: {
+      /** @description The renamed organization */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            data: {
+              /** Format: uuid */
+              id: string;
+              name: string;
+              slug: string;
+              /** @enum {string} */
+              type: "personal" | "team";
+              /**
+               * @description The caller's role in the organization.
+               * @enum {string}
+               */
+              role: "owner" | "admin" | "member" | "billing" | "viewer";
+              /** @description Whether this request ran in this organization. */
+              isActive: boolean;
+              /** Format: date-time */
+              createdAt: string;
+            };
+          };
+        };
+      };
+      /** @description The name is empty, too long or holds a control character */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description The caller cannot rename the organization, or it is a personal one */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description The organization is not the active one */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description The caller already belongs to another organization with this name */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  listOrganizationMembers: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description The organization's members */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            data: {
+              /** Format: uuid */
+              id: string;
+              /** Format: uuid */
+              userId: string;
+              username: string | null;
+              email: string | null;
+              /** @enum {string} */
+              role: "owner" | "admin" | "member" | "billing" | "viewer";
+              /** Format: date-time */
+              createdAt: string;
+            }[];
+          };
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description The caller cannot see the organization's members */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  deleteOrganizationMember: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description The member was removed */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description The caller cannot change this member, or the active organization is a personal one */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description No such member in the active organization */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description The organization would be left without an owner */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  updateOrganizationMember: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": {
+          data: {
+            /** @enum {string} */
+            role: "owner" | "admin" | "member" | "billing" | "viewer";
+          };
+        };
+      };
+    };
+    responses: {
+      /** @description The updated member */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            data: {
+              /** Format: uuid */
+              id: string;
+              /** Format: uuid */
+              userId: string;
+              username: string | null;
+              email: string | null;
+              /** @enum {string} */
+              role: "owner" | "admin" | "member" | "billing" | "viewer";
+              /** Format: date-time */
+              createdAt: string;
+            };
+          };
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description The caller cannot change this member, or the active organization is a personal one */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description No such member in the active organization */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description The organization would be left without an owner */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  transferOrganizationOwnership: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description The member who received ownership */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            data: {
+              /** Format: uuid */
+              id: string;
+              /** Format: uuid */
+              userId: string;
+              username: string | null;
+              email: string | null;
+              /** @enum {string} */
+              role: "owner" | "admin" | "member" | "billing" | "viewer";
+              /** Format: date-time */
+              createdAt: string;
+            };
+          };
+        };
+      };
+      /** @description The member is the caller */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description The caller cannot change this member, or the active organization is a personal one */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description No such member in the active organization */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description The organization would be left without an owner */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  listOrganizationInvitations: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description The pending invitations */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            data: {
+              /** Format: uuid */
+              id: string;
+              email: string;
+              /** @enum {string} */
+              role: "owner" | "admin" | "member" | "billing" | "viewer";
+              projectGrants: {
+                /** Format: uuid */
+                projectId: string;
+                /** @enum {string} */
+                role: "admin" | "member" | "viewer";
+              }[];
+              invitedBy: {
+                /** Format: uuid */
+                id: string;
+                username: string | null;
+              } | null;
+              /** Format: date-time */
+              createdAt: string;
+              /** Format: date-time */
+              expiresAt: string;
+            }[];
+          };
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description The caller cannot see the organization's invitations */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  createOrganizationInvitations: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": {
+          data: {
+            emails: string[];
+            /** @enum {string} */
+            role: "owner" | "admin" | "member" | "billing" | "viewer";
+            projectGrants?: {
+              /** Format: uuid */
+              projectId: string;
+              /** @enum {string} */
+              role: "admin" | "member" | "viewer";
+            }[];
+          };
+        };
+      };
+    };
+    responses: {
+      /** @description One pending invitation per address, an address that was already invited keeping its existing one */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            data: {
+              /** Format: uuid */
+              id: string;
+              email: string;
+              /** @enum {string} */
+              role: "owner" | "admin" | "member" | "billing" | "viewer";
+              projectGrants: {
+                /** Format: uuid */
+                projectId: string;
+                /** @enum {string} */
+                role: "admin" | "member" | "viewer";
+              }[];
+              invitedBy: {
+                /** Format: uuid */
+                id: string;
+                username: string | null;
+              } | null;
+              /** Format: date-time */
+              createdAt: string;
+              /** Format: date-time */
+              expiresAt: string;
+            }[];
+          };
+        };
+      };
+      /** @description A project grant names a project outside the active organization */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description The caller cannot invite with this role, the active organization is a personal one, or it has too many pending invitations */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description An address belongs to a member of the organization */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Too many invitation emails were sent recently */
+      429: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  resendOrganizationInvitation: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description The renewed invitation */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            data: {
+              /** Format: uuid */
+              id: string;
+              email: string;
+              /** @enum {string} */
+              role: "owner" | "admin" | "member" | "billing" | "viewer";
+              projectGrants: {
+                /** Format: uuid */
+                projectId: string;
+                /** @enum {string} */
+                role: "admin" | "member" | "viewer";
+              }[];
+              invitedBy: {
+                /** Format: uuid */
+                id: string;
+                username: string | null;
+              } | null;
+              /** Format: date-time */
+              createdAt: string;
+              /** Format: date-time */
+              expiresAt: string;
+            };
+          };
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description The caller cannot manage this invitation, or the active organization is a personal one */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description No such pending invitation in the active organization */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Too many invitation emails were sent recently */
+      429: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  createOrganizationInvitationLink: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description The invitation link */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            data: {
+              /** Format: uri */
+              url: string;
+            };
+          };
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description The caller cannot manage this invitation, or the active organization is a personal one */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description No such pending invitation in the active organization */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  deleteOrganizationInvitation: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description The invitation was revoked */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description The caller cannot manage this invitation, or the active organization is a personal one */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description No such pending invitation in the active organization */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  previewInvitation: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": {
+          data: {
+            /** @description The token from the invitation link. */
+            token: string;
+          };
+        };
+      };
+    };
+    responses: {
+      /** @description Who sent the invitation, to which organization and in which state */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            data: {
+              organizationName: string;
+              inviterName: string | null;
+              /** @enum {string} */
+              role: "owner" | "admin" | "member" | "billing" | "viewer";
+              /** @description The address the invitation was sent to. */
+              email: string;
+              /** @enum {string} */
+              status: "pending" | "accepted" | "revoked" | "expired";
+              /** Format: date-time */
+              expiresAt: string;
+            };
+          };
+        };
+      };
+      /** @description The token is not an invitation token */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description No invitation has this token */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  acceptInvitation: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": {
+          data: {
+            /** @description The token from the invitation link. */
+            token: string;
+            /** @description Join even though the caller's email differs from the address the invitation was sent to. */
+            confirmEmailMismatch?: boolean;
+          };
+        };
+      };
+    };
+    responses: {
+      /** @description The organization the caller now belongs to */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            data: {
+              /** Format: uuid */
+              id: string;
+              name: string;
+              slug: string;
+              /** @enum {string} */
+              type: "personal" | "team";
+              /**
+               * @description The caller's role in the organization.
+               * @enum {string}
+               */
+              role: "owner" | "admin" | "member" | "billing" | "viewer";
+              /** @description Whether this request ran in this organization. */
+              isActive: boolean;
+              /** Format: date-time */
+              createdAt: string;
+            };
+          };
+        };
+      };
+      /** @description The token is not an invitation token */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Requested with an API key instead of a signed-in session */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description No invitation has this token */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description The invitation was sent to an address the caller has not verified and they did not confirm, someone else already accepted it, or the caller already belongs to the organization and was not the verified invitee */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description The invitation expired or was revoked */
+      410: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  listProjects: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description The projects, default first */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            data: {
+              /** Format: uuid */
+              id: string;
+              name: string;
+              /** @description Set from the name when the project is created and kept through renames. */
+              slug: string;
+              description: string | null;
+              isDefault: boolean;
+              /** Format: date-time */
+              createdAt: string;
+              createdBy: {
+                /** Format: uuid */
+                id: string;
+                username: string | null;
+              } | null;
+            }[];
+          };
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  createProject: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": {
+          data: {
+            /**
+             * @description Unique within the organization, whatever its case.
+             * @example checkout-api
+             */
+            name: string;
+            description?: string;
+          };
+        };
+      };
+    };
+    responses: {
+      /** @description The created project */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            data: {
+              /** Format: uuid */
+              id: string;
+              name: string;
+              /** @description Set from the name when the project is created and kept through renames. */
+              slug: string;
+              description: string | null;
+              isDefault: boolean;
+              /** Format: date-time */
+              createdAt: string;
+              createdBy: {
+                /** Format: uuid */
+                id: string;
+                username: string | null;
+              } | null;
+            };
+          };
+        };
+      };
+      /** @description The name or description is not valid */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description The caller's role in the active organization does not allow it */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Another project of the organization has this name (`project_name_taken`) */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  getProject: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description The project */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            data: {
+              /** Format: uuid */
+              id: string;
+              name: string;
+              /** @description Set from the name when the project is created and kept through renames. */
+              slug: string;
+              description: string | null;
+              isDefault: boolean;
+              /** Format: date-time */
+              createdAt: string;
+              createdBy: {
+                /** Format: uuid */
+                id: string;
+                username: string | null;
+              } | null;
+            };
+          };
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description No project with this id in the caller's reach */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  deleteProject: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description The project is deleted */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description The caller's role in the active organization does not allow it */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description No project with this id in the caller's reach */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description The project is the organization's default (`project_is_default`) or still holds open deployments (`project_not_empty`) */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  updateProject: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": {
+          data: {
+            /**
+             * @description Unique within the organization, whatever its case.
+             * @example checkout-api
+             */
+            name?: string;
+            description?: string | null;
+          };
+        };
+      };
+    };
+    responses: {
+      /** @description The updated project */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            data: {
+              /** Format: uuid */
+              id: string;
+              name: string;
+              /** @description Set from the name when the project is created and kept through renames. */
+              slug: string;
+              description: string | null;
+              isDefault: boolean;
+              /** Format: date-time */
+              createdAt: string;
+              createdBy: {
+                /** Format: uuid */
+                id: string;
+                username: string | null;
+              } | null;
+            };
+          };
+        };
+      };
+      /** @description The name or description is not valid */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description The caller's role in the active organization does not allow it */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description No project with this id in the caller's reach */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Another project of the organization has this name (`project_name_taken`) */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  listOrganizationActivities: {
+    parameters: {
+      query?: {
+        projectId?: string;
+        limit?: number;
+        cursor?: string;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description A page of activities */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            /** @description Newest first. */
+            data: {
+              /** Format: uuid */
+              id: string;
+              /**
+               * Format: uuid
+               * @description The project the activity happened in, null for one about the whole organization.
+               */
+              projectId: string | null;
+              /** @description Who did it, null for the system or a since deleted user. */
+              actor: {
+                /** Format: uuid */
+                id: string;
+                username: string | null;
+              } | null;
+              /** @enum {string} */
+              type:
+                | "organization_created"
+                | "project_created"
+                | "member_invited"
+                | "member_joined"
+                | "deployment_created"
+                | "deployment_closed"
+                | "deployment_moved"
+                | "member_granted"
+                | "member_revoked";
+              /** @description The names and values the client renders the activity text with, per type. */
+              payload: {
+                [key: string]: unknown;
+              };
+              /** Format: date-time */
+              createdAt: string;
+            }[];
+            /** @description Pass it as `cursor` to read the next page. Null on the last page. */
+            nextCursor: string | null;
+          };
+        };
+      };
+      /** @description The query or cursor is not valid */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  listProjectMembers: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description The project's grants */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            /** @description Explicit grants only, oldest first. Owners and admins reach every project without one. */
+            data: {
+              /**
+               * Format: uuid
+               * @description The grant id, used to change or revoke it.
+               */
+              id: string;
+              /** Format: uuid */
+              projectId: string;
+              /** Format: uuid */
+              userId: string;
+              username: string | null;
+              email: string | null;
+              /**
+               * @description `viewer` reads the project; `member` also deploys into it and changes its deployments, templates and alerts; `admin` also renames it and manages the other grants on it. An organization viewer only reads, whatever the project role.
+               * @enum {string}
+               */
+              role: "admin" | "member" | "viewer";
+              /** Format: date-time */
+              createdAt: string;
+            }[];
+          };
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description The caller's role in the active organization does not allow it */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description No project with this id in the caller's reach */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  createProjectMember: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": {
+          data: {
+            /** Format: uuid */
+            projectId: string;
+            /**
+             * Format: uuid
+             * @description A member or viewer of the active organization other than the caller.
+             */
+            userId: string;
+            /**
+             * @description `viewer` reads the project; `member` also deploys into it and changes its deployments, templates and alerts; `admin` also renames it and manages the other grants on it. An organization viewer only reads, whatever the project role.
+             * @enum {string}
+             */
+            role: "admin" | "member" | "viewer";
+          };
+        };
+      };
+    };
+    responses: {
+      /** @description The created grant */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            data: {
+              /**
+               * Format: uuid
+               * @description The grant id, used to change or revoke it.
+               */
+              id: string;
+              /** Format: uuid */
+              projectId: string;
+              /** Format: uuid */
+              userId: string;
+              username: string | null;
+              email: string | null;
+              /**
+               * @description `viewer` reads the project; `member` also deploys into it and changes its deployments, templates and alerts; `admin` also renames it and manages the other grants on it. An organization viewer only reads, whatever the project role.
+               * @enum {string}
+               */
+              role: "admin" | "member" | "viewer";
+              /** Format: date-time */
+              createdAt: string;
+            };
+          };
+        };
+      };
+      /** @description The body is not valid */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description The caller cannot manage access to projects of the active organization */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description No such project within the caller's reach, or no such member in the active organization */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description The user already has access to the project (`already_granted`), reaches every project as an owner or admin (`implicit_project_access`) or is a billing member (`billing_role_not_grantable`) */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  deleteProjectMember: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description The grant is revoked */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description The caller cannot manage access to projects of the active organization */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description No grant with this id the caller can manage */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  updateProjectMember: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": {
+          data: {
+            /**
+             * @description `viewer` reads the project; `member` also deploys into it and changes its deployments, templates and alerts; `admin` also renames it and manages the other grants on it. An organization viewer only reads, whatever the project role.
+             * @enum {string}
+             */
+            role: "admin" | "member" | "viewer";
+          };
+        };
+      };
+    };
+    responses: {
+      /** @description The updated grant */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            data: {
+              /**
+               * Format: uuid
+               * @description The grant id, used to change or revoke it.
+               */
+              id: string;
+              /** Format: uuid */
+              projectId: string;
+              /** Format: uuid */
+              userId: string;
+              username: string | null;
+              email: string | null;
+              /**
+               * @description `viewer` reads the project; `member` also deploys into it and changes its deployments, templates and alerts; `admin` also renames it and manages the other grants on it. An organization viewer only reads, whatever the project role.
+               * @enum {string}
+               */
+              role: "admin" | "member" | "viewer";
+              /** Format: date-time */
+              createdAt: string;
+            };
+          };
+        };
+      };
+      /** @description The body is not valid */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description The caller cannot manage access to projects of the active organization */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description No grant with this id the caller can manage */
+      404: {
         headers: {
           [name: string]: unknown;
         };

@@ -36,6 +36,7 @@ import { BlockchainStatusProvider } from "@src/context/BlockchainStatusProvider"
 import { BootLoadingProvider } from "@src/context/BootLoadingProvider/BootLoadingProvider";
 import { ColorModeProvider } from "@src/context/CustomThemeContext";
 import { FlagProvider, WaitForFeatureFlags } from "@src/context/FlagProvider/FlagProvider";
+import { OrganizationProvider } from "@src/context/OrganizationProvider/OrganizationProvider";
 import { PaymentPollingProvider } from "@src/context/PaymentPollingProvider";
 import { ServicesProvider } from "@src/context/ServicesProvider";
 import { RootContainerProvider, useRootContainer } from "@src/context/ServicesProvider/RootContainerProvider";
@@ -73,23 +74,25 @@ const App: React.FunctionComponent<Props> = props => {
           <AccountDeletedNotice />
           <RequireAuth isPublic={isPublic}>
             <FlagProvider>
-              <WalletProvider>
-                <PaymentPollingProvider>
-                  <AddCreditsHost />
-                  <DeploymentCopyCleanup />
-                  <CloseDeploymentConfirmHost />
-                  <ActivityHost />
-                  <NavigationGuardProvider>
-                    <RequireOnboarding isPublic={isPublic}>
-                      <WaitForFeatureFlags>
-                        <RequireFairUsePolicy isPublic={isPublic}>
-                          <Component {...pageProps} />
-                        </RequireFairUsePolicy>
-                      </WaitForFeatureFlags>
-                    </RequireOnboarding>
-                  </NavigationGuardProvider>
-                </PaymentPollingProvider>
-              </WalletProvider>
+              <OrganizationProvider>
+                <WalletProvider>
+                  <PaymentPollingProvider>
+                    <AddCreditsHost />
+                    <DeploymentCopyCleanup />
+                    <CloseDeploymentConfirmHost />
+                    <ActivityHost />
+                    <NavigationGuardProvider>
+                      <RequireOnboarding isPublic={isPublic}>
+                        <WaitForFeatureFlags>
+                          <RequireFairUsePolicy isPublic={isPublic}>
+                            <Component {...pageProps} />
+                          </RequireFairUsePolicy>
+                        </WaitForFeatureFlags>
+                      </RequireOnboarding>
+                    </NavigationGuardProvider>
+                  </PaymentPollingProvider>
+                </WalletProvider>
+              </OrganizationProvider>
             </FlagProvider>
           </RequireAuth>
         </UserProviders>

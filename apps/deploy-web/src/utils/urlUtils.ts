@@ -81,6 +81,10 @@ export const UrlService = {
   providerDetail: (owner: string) => `/providers/${owner}${appendSearchParams({ network: networkStore.selectedNetworkId })}`,
   alerts: () => "/alerts",
 
+  // Organizations
+  members: () => "/members",
+  projects: () => "/projects",
+
   newDeployment: () => "/new-deployment",
 
   configureDeployment: (params: ConfigureDeploymentParams = {}) => {

@@ -5,6 +5,7 @@ import { useEffect } from "react";
 import { useRouter } from "next/router";
 
 import { BootLoading } from "@src/context/BootLoadingProvider/BootLoadingProvider";
+import { useActiveOrganization } from "@src/context/OrganizationProvider/OrganizationProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { useReturnTo } from "@src/hooks/useReturnTo/useReturnTo";
 import { useUser } from "@src/hooks/useUser";
@@ -14,12 +15,13 @@ const ONBOARDING_ROUTE = "/onboarding";
 
 type GateDecision = "loading" | "render" | "toOnboarding" | "toReturn";
 
-/** A not-yet-onboarded user may stay on these routes (they deploy their first app, and fund it, here). */
-const ONBOARDING_ALLOWED_PREFIXES = ["/new-deployment/configure", "/billing"];
+/** A not-yet-onboarded user may stay on these routes (they deploy their first app, fund it, or join and run an organization here). */
+const ONBOARDING_ALLOWED_PREFIXES = ["/new-deployment/configure", "/billing", "/invitations", "/members", "/projects"];
 
 export const DEPENDENCIES = {
   useUser,
   useWallet,
+  useActiveOrganization,
   useLeaseExistenceQuery,
   useReturnTo,
   useRouter
@@ -53,6 +55,7 @@ function LeaseBasedGate({
   const router = d.useRouter();
   const { user, isLoading: isUserLoading } = d.useUser();
   const { address, hasWallet } = d.useWallet();
+  const { activeOrganization, isLoading: isOrganizationLoading, isError: organizationsErrored } = d.useActiveOrganization();
   const { returnTo } = d.useReturnTo({ defaultReturnTo: "/" });
 
   const hasWalletAddress = hasWallet && !!address;
@@ -61,11 +64,12 @@ function LeaseBasedGate({
   const leasesErrored = hasWalletAddress && leaseExistenceQuery.isError;
   const isOnboarded = hasWalletAddress && !!leaseExistenceQuery.data;
   const hasSkippedOnboarding = !!user?.onboardingSkippedAt;
+  const isInTeamOrganization = activeOrganization?.type === "team";
 
   const path = router.asPath.split("?")[0];
   const isOnOnboarding = path === ONBOARDING_ROUTE;
   const isAllowed = ONBOARDING_ALLOWED_PREFIXES.some(prefix => path.startsWith(prefix)) || isDeploymentDetail(path);
-  const identityKnown = !isUserLoading;
+  const identityKnown = !isUserLoading && !isOrganizationLoading;
   const leasesSettled = !isLeasesLoading;
 
   const decision = decideLeaseGate({
@@ -73,9 +77,11 @@ function LeaseBasedGate({
     identityKnown,
     leasesSettled,
     leasesErrored,
+    organizationsErrored,
     isAuthenticated: !!user?.userId,
     isOnboarded,
     hasSkippedOnboarding,
+    isInTeamOrganization,
     isOnOnboarding,
     isAllowed
   });
@@ -111,16 +117,19 @@ function LeaseBasedGate({
  *
  * A user who has explicitly skipped onboarding (`hasSkippedOnboarding`) is treated exactly like an onboarded one, and
  * this is known as soon as identity is (before the leases query), so a skipper never waits on leases and is never
- * sent back into the funnel.
+ * sent back into the funnel. A team organization never trials, so working in one counts as onboarded too, and memberships
+ * that fail to load leave that unknowable, so the gate fails open as it does for leases.
  */
 function decideLeaseGate(input: {
   isPublic: boolean;
   identityKnown: boolean;
   leasesSettled: boolean;
   leasesErrored: boolean;
+  organizationsErrored: boolean;
   isAuthenticated: boolean;
   isOnboarded: boolean;
   hasSkippedOnboarding: boolean;
+  isInTeamOrganization: boolean;
   isOnOnboarding: boolean;
   isAllowed: boolean;
 }): GateDecision {
@@ -128,9 +137,9 @@ function decideLeaseGate(input: {
   if (input.isAllowed) return "render";
   if (!input.identityKnown) return "loading";
   if (!input.isAuthenticated) return "render";
-  if (input.isOnboarded || input.hasSkippedOnboarding) return input.isOnOnboarding ? "toReturn" : "render";
+  if (input.isOnboarded || input.hasSkippedOnboarding || input.isInTeamOrganization) return input.isOnOnboarding ? "toReturn" : "render";
   if (input.isOnOnboarding) return "render";
   if (!input.leasesSettled) return "loading";
-  if (input.leasesErrored) return "render";
+  if (input.leasesErrored || input.organizationsErrored) return "render";
   return "toOnboarding";
 }
