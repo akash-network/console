@@ -7,6 +7,14 @@ export class AppNav {
     return this.page.getByRole("button", { name: /account menu/i });
   }
 
+  /** Shown only to a team organization while organizations are on. */
+  async openProjects() {
+    await this.page
+      .getByRole("link", { name: /^projects$/i })
+      .first()
+      .click();
+  }
+
   async openDeployments() {
     await this.page
       .getByRole("link", { name: /^deployments$/i })

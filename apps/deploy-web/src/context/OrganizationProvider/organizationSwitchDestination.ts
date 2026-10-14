@@ -3,16 +3,17 @@ import type { OrganizationOutput } from "@src/types/organization";
 import { isRouteActive } from "@src/utils/isRouteActive";
 import { UrlService } from "@src/utils/urlUtils";
 
-const ORGANIZATION_NEUTRAL_PREFIXES = ["/projects", "/templates", "/providers", "/user/api-keys", "/alerts", "/user/settings", "/profile"];
+const ORGANIZATION_NEUTRAL_PREFIXES = ["/templates", "/providers", "/user/api-keys", "/alerts", "/user/settings", "/profile"];
 
-/** Pages that read the same for every organization keep the user where they are; every other page goes to the organization's landing page. */
+/** Pages that read the same for every organization stay put; every other page, a project's included, goes to the landing page. */
 export function resolveOrganizationSwitchDestination(currentUrl: string, target: OrganizationOutput | undefined): string {
   if (!target) return UrlService.deploymentList();
 
   const pathname = currentUrl.split(/[?#]/)[0];
-  if (isRouteActive(pathname, ...stayPutPrefixesFor(target))) return currentUrl;
+  const landingPage = isProjectsUiEnabled(target) ? UrlService.projects() : UrlService.deploymentList();
+  if (pathname === landingPage || isRouteActive(pathname, ...stayPutPrefixesFor(target))) return currentUrl;
 
-  return isProjectsUiEnabled(target) ? UrlService.projects() : UrlService.deploymentList();
+  return landingPage;
 }
 
 function stayPutPrefixesFor(target: OrganizationOutput): string[] {

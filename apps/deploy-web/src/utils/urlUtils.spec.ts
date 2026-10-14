@@ -22,6 +22,28 @@ describe(UrlService.billing.name, () => {
   });
 });
 
+describe(UrlService.projects.name, () => {
+  it("returns the projects list", () => {
+    expect(UrlService.projects()).toBe("/projects");
+  });
+});
+
+describe(UrlService.project.name, () => {
+  it("returns the project page", () => {
+    expect(UrlService.project("project-1")).toBe("/projects/project-1");
+  });
+});
+
+describe(UrlService.newDeployment.name, () => {
+  it("returns the picker by default", () => {
+    expect(UrlService.newDeployment()).toBe("/new-deployment");
+  });
+
+  it("carries the project a deployment starts in", () => {
+    expect(UrlService.newDeployment({ projectId: "project-1" })).toBe("/new-deployment?projectId=project-1");
+  });
+});
+
 describe(UrlService.configureDeployment.name, () => {
   it("builds the base configure path with strategy params", () => {
     expect(UrlService.configureDeployment({ templateId: "abc", sdlStrategy: "default", bidStrategy: "auto" })).toBe(

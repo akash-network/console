@@ -118,6 +118,27 @@ describe(TopNav.name, () => {
     expect(screen.getByRole("link", { name: "Providers" })).not.toHaveAttribute("aria-current");
   });
 
+  it("leads with Projects once organizations are on and the organization uses projects", () => {
+    setup({ isAuthenticated: true, isOrganizationsEnabled: true, projectsEnabled: true, pathname: "/projects/p1" });
+
+    const links = screen.getByRole("navigation", { name: "Primary" }).querySelectorAll("a");
+    expect(links[0]).toHaveTextContent("Projects");
+    expect(links[0]).toHaveAttribute("href", "/projects");
+    expect(links[0]).toHaveAttribute("aria-current", "page");
+  });
+
+  it("leaves Projects out while organizations are off", () => {
+    setup({ isAuthenticated: true, isOrganizationsEnabled: false, projectsEnabled: true });
+
+    expect(screen.queryByRole("link", { name: "Projects" })).not.toBeInTheDocument();
+  });
+
+  it("leaves Projects out for an organization that does not use projects", () => {
+    setup({ isAuthenticated: true, isOrganizationsEnabled: true, projectsEnabled: false });
+
+    expect(screen.queryByRole("link", { name: "Projects" })).not.toBeInTheDocument();
+  });
+
   it("shows all settings items", async () => {
     setup({ isAuthenticated: true });
 
@@ -193,7 +214,14 @@ describe(TopNav.name, () => {
     });
   });
 
-  function setup(input: { isAuthenticated?: boolean; minimal?: boolean; pathname?: string; isCommandMenuEnabled?: boolean; isOrganizationsEnabled?: boolean }) {
+  function setup(input: {
+    isAuthenticated?: boolean;
+    minimal?: boolean;
+    pathname?: string;
+    isCommandMenuEnabled?: boolean;
+    isOrganizationsEnabled?: boolean;
+    projectsEnabled?: boolean;
+  }) {
     const accountMenu = vi.fn<typeof DEPENDENCIES.TopNavAccountMenu>(() => <></>);
     const enabledFlags = { ui_command_menu: input.isCommandMenuEnabled ?? false, organizations: input.isOrganizationsEnabled ?? false };
     const useFlag = vi.fn<typeof DEPENDENCIES.useFlag>(flag => enabledFlags[flag as keyof typeof enabledFlags] ?? false);
@@ -215,7 +243,12 @@ describe(TopNav.name, () => {
       useCookieTheme: () => "light",
       useFlag,
       CommandMenu: () => <button type="button">Search or run a command</button>,
-      useActiveOrganization: () => mock<ReturnType<typeof DEPENDENCIES.useActiveOrganization>>({ organizations: [], activeOrganization: undefined }),
+      useActiveOrganization: () =>
+        mock<ReturnType<typeof DEPENDENCIES.useActiveOrganization>>({
+          organizations: [],
+          activeOrganization: undefined,
+          projectsEnabled: input.projectsEnabled ?? false
+        }),
       TopNavAccountMenu: accountMenu,
       ActivityBell: () => <button type="button">Activity</button>,
       OrganizationSwitcher: organizationSwitcher,

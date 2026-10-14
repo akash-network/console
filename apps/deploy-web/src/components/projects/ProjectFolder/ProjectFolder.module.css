@@ -1,0 +1,302 @@
+.folder {
+  --pf-f: 92px;
+  --pf-back: color-mix(in oklab, hsl(var(--foreground)) 9%, hsl(var(--card)));
+  --pf-sheet: hsl(var(--card));
+  --pf-sheet-line: hsl(var(--border));
+  --pf-front: color-mix(in oklab, hsl(var(--foreground)) 2.5%, hsl(var(--card)));
+  --pf-front-line: color-mix(in oklab, hsl(var(--foreground)) 11%, transparent);
+  position: relative;
+  height: 226px;
+  cursor: pointer;
+  outline: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+:global(.dark) .folder {
+  --pf-back: color-mix(in oklab, hsl(var(--foreground)) 13%, hsl(var(--card)));
+  --pf-sheet: color-mix(in oklab, hsl(var(--foreground)) 17%, hsl(var(--card)));
+  --pf-sheet-line: color-mix(in oklab, hsl(var(--foreground)) 16%, transparent);
+  --pf-front: color-mix(in oklab, hsl(var(--foreground)) 7%, hsl(var(--card)));
+  --pf-front-line: color-mix(in oklab, hsl(var(--foreground)) 13%, transparent);
+}
+
+.inner {
+  position: absolute;
+  inset: 0;
+  transition: transform 460ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.folder:hover .inner,
+.folder:focus-visible .inner {
+  transform: translateY(-2px);
+}
+
+.tab {
+  position: absolute;
+  left: 0;
+  top: 40px;
+  width: 36%;
+  height: 26px;
+  border-radius: 10px 10px 0 0;
+  background: var(--pf-back);
+}
+
+.tab::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: -13px;
+  width: 26px;
+  border-radius: 0 9px 0 0;
+  background: var(--pf-back);
+  transform: skewX(30deg);
+  transform-origin: 0 100%;
+}
+
+.back {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 58px;
+  bottom: 0;
+  border-radius: 0 12px 14px 14px;
+  background: var(--pf-back);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+  transition: box-shadow 460ms ease;
+}
+
+.folder:hover .back,
+.folder:focus-visible .back {
+  box-shadow: 0 18px 32px -20px rgba(0, 0, 0, 0.4);
+}
+
+.sheets {
+  position: absolute;
+  left: 14px;
+  right: 14px;
+  top: 0;
+  bottom: 0;
+}
+
+.sheet {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(var(--pf-f) - 12px - var(--j) * 8px);
+  height: 118px;
+  box-sizing: border-box;
+  border-radius: 8px;
+  background: var(--pf-sheet);
+  border: 1px solid var(--pf-sheet-line);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  transform: translateX(var(--x, 0px)) rotate(var(--r, 0deg));
+  transition:
+    transform 480ms cubic-bezier(0.2, 0.8, 0.2, 1) calc(var(--j) * 45ms),
+    box-shadow 200ms ease,
+    opacity 220ms ease;
+}
+
+.sheet[data-flag]::before {
+  content: "";
+  position: absolute;
+  top: -7px;
+  right: 18px;
+  width: 24px;
+  height: 8px;
+  border-radius: 3px 3px 0 0;
+  background: var(--tone);
+  transition: opacity 160ms ease;
+}
+
+.folder:hover .sheet[data-flag]::before,
+.folder:focus-visible .sheet[data-flag]::before {
+  opacity: 0;
+}
+
+.folder:hover .sheet,
+.folder:focus-visible .sheet {
+  transform: translate(0, calc(-24px - var(--j) * 16px)) rotate(0deg);
+}
+
+.folder:hover .sheet:hover {
+  transform: translate(0, calc(-29px - var(--j) * 16px)) rotate(0deg);
+  box-shadow: 0 8px 16px -8px rgba(0, 0, 0, 0.3);
+  transition-delay: 0ms;
+}
+
+.bulk {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 118px;
+  box-sizing: border-box;
+  border-radius: 8px;
+  background: var(--pf-sheet);
+  border: 1px solid var(--pf-sheet-line);
+  top: calc(var(--pf-f) - 28px - (var(--k) + 1) * 5px);
+  transform: translateX(calc(var(--k) * 2px - 2px)) rotate(calc(0.7deg - var(--k) * 0.6deg));
+  transition: transform 480ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.folder:hover .bulk,
+.folder:focus-visible .bulk {
+  transform: translateY(-3px);
+}
+
+.sheetHead {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  height: 24px;
+  padding: 0 10px;
+  font-family: var(--font-geist-mono);
+  font-size: 11.5px;
+  color: hsl(var(--foreground));
+  opacity: 0;
+  transition: opacity 160ms ease;
+}
+
+.folder:hover .sheetHead,
+.folder:focus-visible .sheetHead {
+  opacity: 1;
+  transition-delay: 140ms;
+}
+
+.dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 9999px;
+  flex-shrink: 0;
+  background: var(--tone);
+}
+
+.sheetName {
+  flex: 1;
+  min-width: 0;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sheet:hover .sheetName {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.sheetStatus {
+  flex-shrink: 0;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--tone);
+}
+
+.sheetMore {
+  color: hsl(var(--muted-foreground));
+}
+
+.ghost {
+  background: transparent;
+  border: 1px dashed color-mix(in oklab, hsl(var(--foreground)) 30%, transparent);
+  box-shadow: none;
+  opacity: 0;
+}
+
+.folder:hover .ghost,
+.folder:focus-visible .ghost {
+  opacity: 1;
+}
+
+.ghost .sheetHead {
+  font-family: var(--font-geist-sans);
+  font-size: 12px;
+  font-weight: 500;
+  color: hsl(var(--muted-foreground));
+}
+
+.ghost:hover .sheetHead {
+  color: hsl(var(--foreground));
+}
+
+.front {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: var(--pf-f);
+  bottom: 0;
+  box-sizing: border-box;
+  padding: 14px 18px 13px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  border-radius: 10px 10px 14px 14px;
+  background: var(--pf-front);
+  border: 1px solid var(--pf-front-line);
+  box-shadow:
+    0 -6px 12px -10px rgba(0, 0, 0, 0.25),
+    0 1px 2px rgba(0, 0, 0, 0.05);
+  transform-origin: 50% 100%;
+  transition:
+    transform 480ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    box-shadow 300ms ease,
+    border-color 160ms ease;
+}
+
+.folder:hover .front,
+.folder:focus-visible .front {
+  transform: perspective(900px) rotateX(-16deg);
+  box-shadow:
+    0 -10px 18px -12px rgba(0, 0, 0, 0.3),
+    0 12px 24px -14px rgba(0, 0, 0, 0.3);
+}
+
+.folder:focus-visible .front {
+  border-color: color-mix(in oklab, #2563eb 60%, transparent);
+}
+
+.name {
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: hsl(var(--foreground));
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.description {
+  margin: 0;
+  min-height: 38px;
+  font-size: 13px;
+  line-height: 19px;
+  color: hsl(var(--muted-foreground));
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-wrap: pretty;
+}
+
+.descriptionEmpty {
+  opacity: 0.7;
+}
+
+.meta {
+  margin-top: auto;
+  font-size: 12px;
+  color: hsl(var(--muted-foreground));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .inner,
+  .back,
+  .sheet,
+  .sheet[data-flag]::before,
+  .bulk,
+  .front,
+  .sheetHead,
+  .ghost {
+    transition: none !important;
+  }
+}
