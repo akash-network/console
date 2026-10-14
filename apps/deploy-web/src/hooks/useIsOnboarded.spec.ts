@@ -3,6 +3,7 @@ import { mock } from "vitest-mock-extended";
 
 import type { DEPENDENCIES } from "@src/hooks/useIsOnboarded";
 import { useIsOnboarded } from "@src/hooks/useIsOnboarded";
+import type { OrganizationOutput } from "@src/types/organization";
 
 import { renderHook } from "@testing-library/react";
 
@@ -37,7 +38,25 @@ describe(useIsOnboarded.name, () => {
     expect(result.current).toBe(true);
   });
 
-  function setup(input?: { hasWallet?: boolean; address?: string; hasLease?: boolean; onboardingSkippedAt?: string | null }) {
+  it("returns true in a team organization even without a lease", () => {
+    const { result } = setup({ hasWallet: true, address: "akash1team", hasLease: false, organizationType: "team" });
+
+    expect(result.current).toBe(true);
+  });
+
+  it("returns false in a personal organization without a lease", () => {
+    const { result } = setup({ hasWallet: true, address: "akash1abc", hasLease: false, organizationType: "personal" });
+
+    expect(result.current).toBe(false);
+  });
+
+  function setup(input?: {
+    hasWallet?: boolean;
+    address?: string;
+    hasLease?: boolean;
+    onboardingSkippedAt?: string | null;
+    organizationType?: "personal" | "team";
+  }) {
     const useWallet: typeof DEPENDENCIES.useWallet = () =>
       mock<ReturnType<typeof DEPENDENCIES.useWallet>>({
         address: input?.address ?? "akash1abc",
@@ -50,6 +69,11 @@ describe(useIsOnboarded.name, () => {
     const useLeaseExistenceQuery: typeof DEPENDENCIES.useLeaseExistenceQuery = () =>
       mock<ReturnType<typeof DEPENDENCIES.useLeaseExistenceQuery>>({ data: input?.hasLease ?? false });
 
-    return renderHook(() => useIsOnboarded({ useWallet, useUser, useLeaseExistenceQuery }));
+    const useActiveOrganization: typeof DEPENDENCIES.useActiveOrganization = () =>
+      mock<ReturnType<typeof DEPENDENCIES.useActiveOrganization>>({
+        activeOrganization: input?.organizationType ? mock<OrganizationOutput>({ type: input.organizationType }) : undefined
+      });
+
+    return renderHook(() => useIsOnboarded({ useWallet, useUser, useLeaseExistenceQuery, useActiveOrganization }));
   }
 });

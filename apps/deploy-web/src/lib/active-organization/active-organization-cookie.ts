@@ -25,8 +25,12 @@ export function serializeActiveOrganizationCookie(organizationId: string, locati
   return location.protocol === "https:" ? `${cookie}; Secure` : cookie;
 }
 
+export function serializeActiveOrganizationCookieRemoval(): string {
+  return `${ACTIVE_ORGANIZATION_COOKIE_NAME}=; Path=/; Max-Age=0; SameSite=Lax`;
+}
+
 export function expireActiveOrganizationCookie(res: NextApiResponse): void {
   const existing = res.getHeader("Set-Cookie");
   const existingCookies = Array.isArray(existing) ? existing.map(String) : existing ? [String(existing)] : [];
-  res.setHeader("Set-Cookie", [...existingCookies, `${ACTIVE_ORGANIZATION_COOKIE_NAME}=; Path=/; Max-Age=0; SameSite=Lax`]);
+  res.setHeader("Set-Cookie", [...existingCookies, serializeActiveOrganizationCookieRemoval()]);
 }

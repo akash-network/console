@@ -3,8 +3,9 @@ import type { ReactNode } from "react";
 
 import { AkashConsoleLogo } from "@src/components/icons/AkashConsoleLogo";
 import { AccountMenu } from "@src/components/layout/AccountMenu";
+import { OrganizationSwitcher } from "@src/components/organizations/OrganizationSwitcher/OrganizationSwitcher";
 
-export const DEPENDENCIES = { AccountMenu };
+export const DEPENDENCIES = { AccountMenu, OrganizationSwitcher };
 
 type Props = {
   children?: ReactNode;
@@ -19,6 +20,7 @@ export function OnboardingHeader({ children, dependencies: d = DEPENDENCIES }: P
         <AkashConsoleLogo />
         <div className="flex items-center gap-2">
           {children}
+          <d.OrganizationSwitcher />
           <d.AccountMenu minimal />
         </div>
       </div>

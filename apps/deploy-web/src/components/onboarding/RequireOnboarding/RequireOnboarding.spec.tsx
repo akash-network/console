@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
+import type { OrganizationOutput } from "@src/types/organization";
 import type { CustomUserProfile } from "@src/types/user";
 import { DEPENDENCIES, RequireOnboarding } from "./RequireOnboarding";
 
@@ -122,7 +123,62 @@ describe(RequireOnboarding.name, () => {
     expect(replace).not.toHaveBeenCalled();
   });
 
+  describe("in an organization", () => {
+    it("renders a team organization on an app route although its wallet holds no lease", () => {
+      const { replace } = setup({ address: "akash1team", hasWallet: true, leases: 0, path: "/deployments", organizationType: "team" });
+      expect(screen.getByText("child")).toBeInTheDocument();
+      expect(replace).not.toHaveBeenCalled();
+    });
+
+    it("sends a team organization away from the trial onboarding to returnTo", () => {
+      const { replace } = setup({ address: "akash1team", hasWallet: true, leases: 0, path: "/onboarding", returnTo: "/members", organizationType: "team" });
+      expect(replace).toHaveBeenCalledWith("/members");
+    });
+
+    it("still sends a personal organization without a lease to /onboarding", () => {
+      const { replace } = setup({ address: "akash1", hasWallet: true, leases: 0, path: "/deployments", organizationType: "personal" });
+      expect(replace).toHaveBeenCalledWith("/onboarding");
+    });
+
+    it("waits for the memberships before deciding where to send the user", () => {
+      const { replace, rerender } = setup({ address: "akash1team", hasWallet: true, leases: 0, path: "/deployments", isOrganizationLoading: true });
+      expect(replace).not.toHaveBeenCalled();
+      expect(screen.queryByText("child")).not.toBeInTheDocument();
+
+      rerender({ isOrganizationLoading: false, organizationType: "team" });
+      expect(screen.getByText("child")).toBeInTheDocument();
+      expect(replace).not.toHaveBeenCalled();
+    });
+
+    it("keeps loading before the feature flags answer, while the organization is still unknown", () => {
+      const { replace } = setup({ address: "akash1team", hasWallet: true, leases: 0, path: "/deployments", isOrganizationLoading: true });
+      expect(replace).not.toHaveBeenCalledWith("/onboarding");
+      expect(screen.queryByText("child")).not.toBeInTheDocument();
+    });
+
+    it("renders in place when the memberships cannot be loaded instead of ejecting the user to onboarding", () => {
+      const { replace } = setup({ address: "akash1team", hasWallet: true, leases: 0, path: "/deployments", isOrganizationLookupFailed: true });
+      expect(screen.getByText("child")).toBeInTheDocument();
+      expect(replace).not.toHaveBeenCalled();
+    });
+
+    it("still waits for leases when the memberships cannot be loaded", () => {
+      const { replace } = setup({ address: "akash1", hasWallet: true, leasesLoading: true, path: "/deployments", isOrganizationLookupFailed: true });
+      expect(screen.queryByText("child")).not.toBeInTheDocument();
+      expect(replace).not.toHaveBeenCalled();
+    });
+
+    it.each(["/invitations", "/members", "/projects/1234"])("lets a not-onboarded user reach %s", path => {
+      const { replace } = setup({ address: "akash1", hasWallet: true, leases: 0, path, organizationType: "personal" });
+      expect(screen.getByText("child")).toBeInTheDocument();
+      expect(replace).not.toHaveBeenCalled();
+    });
+  });
+
   function setup(input: {
+    organizationType?: OrganizationOutput["type"];
+    isOrganizationLoading?: boolean;
+    isOrganizationLookupFailed?: boolean;
     path: string;
     isPublic?: boolean;
     loggedOut?: boolean;
@@ -165,7 +221,14 @@ describe(RequireOnboarding.name, () => {
           isError: (props.leasesError ?? false) as never
         })) as typeof DEPENDENCIES.useLeaseExistenceQuery,
       useReturnTo: (() => mock<ReturnType<typeof DEPENDENCIES.useReturnTo>>({ returnTo: props.returnTo ?? "/" })) as typeof DEPENDENCIES.useReturnTo,
-      useRouter: (() => mock<ReturnType<typeof DEPENDENCIES.useRouter>>({ asPath: props.path, pathname: props.path, replace })) as typeof DEPENDENCIES.useRouter
+      useRouter: (() =>
+        mock<ReturnType<typeof DEPENDENCIES.useRouter>>({ asPath: props.path, pathname: props.path, replace })) as typeof DEPENDENCIES.useRouter,
+      useActiveOrganization: () =>
+        mock<ReturnType<typeof DEPENDENCIES.useActiveOrganization>>({
+          activeOrganization: props.organizationType ? mock<OrganizationOutput>({ type: props.organizationType }) : undefined,
+          isLoading: props.isOrganizationLoading ?? false,
+          isError: props.isOrganizationLookupFailed ?? false
+        })
     });
 
     const renderGate = (props: typeof input) => (

@@ -70,6 +70,24 @@ describe(TopNavAccountMenu.name, () => {
     expect(authService.logout).toHaveBeenCalledTimes(1);
   });
 
+  it("offers to create an organization when the entry is enabled", async () => {
+    const { onCreateOrganization } = setup({ username: "alice", onCreateOrganization: vi.fn() });
+
+    await userEvent.click(screen.getByRole("button", { name: /account menu/i }));
+    await userEvent.click(await screen.findByText("Create organization"));
+
+    expect(onCreateOrganization).toHaveBeenCalledOnce();
+  });
+
+  it("leaves Create organization out when the entry is not enabled", async () => {
+    setup({ username: "alice" });
+
+    await userEvent.click(screen.getByRole("button", { name: /account menu/i }));
+
+    await screen.findByText("Profile");
+    expect(screen.queryByText("Create organization")).not.toBeInTheDocument();
+  });
+
   it("shows sign up and sign in when signed out", async () => {
     setup({});
 
@@ -129,9 +147,24 @@ describe(TopNavAccountMenu.name, () => {
       expect(authService.logout).toHaveBeenCalledTimes(1);
       expect(onNavigate).toHaveBeenCalledTimes(1);
     });
+
+    it("opens the create organization flow and closes the sheet", async () => {
+      const { onCreateOrganization, onNavigate } = setup({ username: "alice", variant: "inline", onCreateOrganization: vi.fn() });
+
+      await userEvent.click(screen.getByText("Create organization"));
+
+      expect(onCreateOrganization).toHaveBeenCalledOnce();
+      expect(onNavigate).toHaveBeenCalledOnce();
+    });
+
+    it("leaves Create organization out when the entry is not enabled", () => {
+      setup({ username: "alice", variant: "inline" });
+
+      expect(screen.queryByText("Create organization")).not.toBeInTheDocument();
+    });
   });
 
-  function setup(input: { isLoading?: boolean; username?: string; minimal?: boolean; variant?: "dropdown" | "inline" }) {
+  function setup(input: { isLoading?: boolean; username?: string; minimal?: boolean; variant?: "dropdown" | "inline"; onCreateOrganization?: () => void }) {
     const push = vi.fn();
     const onNavigate = vi.fn();
     const authService = mock<AuthService>();
@@ -148,10 +181,16 @@ describe(TopNavAccountMenu.name, () => {
 
     const { container } = render(
       <TestContainerProvider services={{ authService: () => authService }}>
-        <TopNavAccountMenu dependencies={dependencies} minimal={input.minimal} variant={input.variant} onNavigate={onNavigate} />
+        <TopNavAccountMenu
+          dependencies={dependencies}
+          minimal={input.minimal}
+          variant={input.variant}
+          onNavigate={onNavigate}
+          onCreateOrganization={input.onCreateOrganization}
+        />
       </TestContainerProvider>
     );
 
-    return { authService, push, windowOpen, onNavigate, container };
+    return { authService, push, windowOpen, onNavigate, onCreateOrganization: input.onCreateOrganization, container };
   }
 });

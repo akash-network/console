@@ -19,11 +19,19 @@ describe(OnboardingHeader.name, () => {
     expect(screen.getByText("Hackathon? click here")).toBeInTheDocument();
   });
 
+  it("lets a member of an organization switch into it without offering to create one", () => {
+    const { OrganizationSwitcher } = setup({});
+
+    expect(screen.getByRole("button", { name: "Switch organization" })).toBeInTheDocument();
+    expect(OrganizationSwitcher.mock.calls.at(-1)![0]).toEqual({});
+  });
+
   function setup(input: { children?: ReactNode }) {
     const AccountMenu = vi.fn<typeof DEPENDENCIES.AccountMenu>(() => <div data-testid="account-menu" />);
+    const OrganizationSwitcher = vi.fn<typeof DEPENDENCIES.OrganizationSwitcher>(() => <button type="button">Switch organization</button>);
 
-    render(<OnboardingHeader dependencies={{ AccountMenu }}>{input.children}</OnboardingHeader>);
+    render(<OnboardingHeader dependencies={{ AccountMenu, OrganizationSwitcher }}>{input.children}</OnboardingHeader>);
 
-    return { AccountMenu };
+    return { AccountMenu, OrganizationSwitcher };
   }
 });

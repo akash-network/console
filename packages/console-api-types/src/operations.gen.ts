@@ -161,7 +161,7 @@ export const operations = {
       method: "get",
       operationId: "listDeployments",
       pathParams: [],
-      queryParams: ["state", "reverse", "search", "skip", "limit"],
+      queryParams: ["state", "reverse", "search", "skip", "limit", "projectId"],
       hasBody: false
     },
     depositDeployment: { path: "/v1/deposit-deployment", method: "post", operationId: "depositDeployment", pathParams: [], queryParams: [], hasBody: true },
@@ -174,6 +174,22 @@ export const operations = {
       hasBody: true
     },
     getSpendRate: { path: "/v1/spend-rate", method: "get", operationId: "getSpendRate", pathParams: [], queryParams: [], hasBody: false },
+    updateDeploymentProject: {
+      path: "/v1/deployments/{dseq}/project",
+      method: "patch",
+      operationId: "updateDeploymentProject",
+      pathParams: ["dseq"],
+      queryParams: [],
+      hasBody: true
+    },
+    getDeploymentLocation: {
+      path: "/v1/deployment-locations/{dseq}",
+      method: "get",
+      operationId: "getDeploymentLocation",
+      pathParams: ["dseq"],
+      queryParams: [],
+      hasBody: false
+    },
     getSDLSecretsContext: {
       path: "/v1/sdl-secrets-context",
       method: "get",
@@ -267,6 +283,128 @@ export const operations = {
       method: "delete",
       operationId: "deleteConfigureDraft",
       pathParams: ["draftId"],
+      queryParams: [],
+      hasBody: false
+    },
+    listOrganizations: { path: "/v1/organizations", method: "get", operationId: "listOrganizations", pathParams: [], queryParams: [], hasBody: false },
+    createOrganization: { path: "/v1/organizations", method: "post", operationId: "createOrganization", pathParams: [], queryParams: [], hasBody: true },
+    updateOrganization: {
+      path: "/v1/organizations/{id}",
+      method: "patch",
+      operationId: "updateOrganization",
+      pathParams: ["id"],
+      queryParams: [],
+      hasBody: true
+    },
+    listOrganizationMembers: {
+      path: "/v1/organization-members",
+      method: "get",
+      operationId: "listOrganizationMembers",
+      pathParams: [],
+      queryParams: [],
+      hasBody: false
+    },
+    updateOrganizationMember: {
+      path: "/v1/organization-members/{id}",
+      method: "patch",
+      operationId: "updateOrganizationMember",
+      pathParams: ["id"],
+      queryParams: [],
+      hasBody: true
+    },
+    deleteOrganizationMember: {
+      path: "/v1/organization-members/{id}",
+      method: "delete",
+      operationId: "deleteOrganizationMember",
+      pathParams: ["id"],
+      queryParams: [],
+      hasBody: false
+    },
+    transferOrganizationOwnership: {
+      path: "/v1/organization-members/{id}/ownership-transfer",
+      method: "post",
+      operationId: "transferOrganizationOwnership",
+      pathParams: ["id"],
+      queryParams: [],
+      hasBody: false
+    },
+    listOrganizationInvitations: {
+      path: "/v1/organization-invitations",
+      method: "get",
+      operationId: "listOrganizationInvitations",
+      pathParams: [],
+      queryParams: [],
+      hasBody: false
+    },
+    createOrganizationInvitations: {
+      path: "/v1/organization-invitations",
+      method: "post",
+      operationId: "createOrganizationInvitations",
+      pathParams: [],
+      queryParams: [],
+      hasBody: true
+    },
+    resendOrganizationInvitation: {
+      path: "/v1/organization-invitations/{id}/resend",
+      method: "post",
+      operationId: "resendOrganizationInvitation",
+      pathParams: ["id"],
+      queryParams: [],
+      hasBody: false
+    },
+    createOrganizationInvitationLink: {
+      path: "/v1/organization-invitations/{id}/link",
+      method: "post",
+      operationId: "createOrganizationInvitationLink",
+      pathParams: ["id"],
+      queryParams: [],
+      hasBody: false
+    },
+    deleteOrganizationInvitation: {
+      path: "/v1/organization-invitations/{id}",
+      method: "delete",
+      operationId: "deleteOrganizationInvitation",
+      pathParams: ["id"],
+      queryParams: [],
+      hasBody: false
+    },
+    previewInvitation: { path: "/v1/invitations/preview", method: "post", operationId: "previewInvitation", pathParams: [], queryParams: [], hasBody: true },
+    acceptInvitation: { path: "/v1/invitations/accept", method: "post", operationId: "acceptInvitation", pathParams: [], queryParams: [], hasBody: true },
+    listProjects: { path: "/v1/projects", method: "get", operationId: "listProjects", pathParams: [], queryParams: [], hasBody: false },
+    createProject: { path: "/v1/projects", method: "post", operationId: "createProject", pathParams: [], queryParams: [], hasBody: true },
+    getProject: { path: "/v1/projects/{id}", method: "get", operationId: "getProject", pathParams: ["id"], queryParams: [], hasBody: false },
+    updateProject: { path: "/v1/projects/{id}", method: "patch", operationId: "updateProject", pathParams: ["id"], queryParams: [], hasBody: true },
+    deleteProject: { path: "/v1/projects/{id}", method: "delete", operationId: "deleteProject", pathParams: ["id"], queryParams: [], hasBody: false },
+    listOrganizationActivities: {
+      path: "/v1/organization-activities",
+      method: "get",
+      operationId: "listOrganizationActivities",
+      pathParams: [],
+      queryParams: ["projectId", "limit", "cursor"],
+      hasBody: false
+    },
+    listProjectMembers: {
+      path: "/v1/projects/{id}/members",
+      method: "get",
+      operationId: "listProjectMembers",
+      pathParams: ["id"],
+      queryParams: [],
+      hasBody: false
+    },
+    createProjectMember: { path: "/v1/project-members", method: "post", operationId: "createProjectMember", pathParams: [], queryParams: [], hasBody: true },
+    updateProjectMember: {
+      path: "/v1/project-members/{id}",
+      method: "patch",
+      operationId: "updateProjectMember",
+      pathParams: ["id"],
+      queryParams: [],
+      hasBody: true
+    },
+    deleteProjectMember: {
+      path: "/v1/project-members/{id}",
+      method: "delete",
+      operationId: "deleteProjectMember",
+      pathParams: ["id"],
       queryParams: [],
       hasBody: false
     },

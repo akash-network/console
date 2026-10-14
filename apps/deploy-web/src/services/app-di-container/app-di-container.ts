@@ -20,6 +20,7 @@ import { browserEnvConfig } from "@src/config/browser-env.config";
 import { UrlReturnToStack } from "@src/hooks/useReturnTo/UrlReturnToStack";
 import { AnalyticsService } from "@src/services/analytics/analytics.service";
 import { retryOnServerError, shouldReportError } from "@src/services/query-error-policy/query-error-policy";
+import { StaleOrganizationRecovery } from "@src/services/stale-organization-recovery/stale-organization-recovery";
 import networkStore from "@src/store/networkStore";
 import { registry } from "@src/utils/customRegistry";
 import { UrlService } from "@src/utils/urlUtils";
@@ -57,6 +58,7 @@ export const createAppRootContainer = (config: ServicesConfig) => {
       };
     },
     sessionExpiryNotifier: () => new SessionExpiryNotifier(),
+    staleOrganizationRecovery: () => new StaleOrganizationRecovery(),
     stripe: () =>
       new HttpStripeService(
         container.applyAxiosInterceptors(createHttpClient(apiConfig), {
@@ -153,8 +155,8 @@ export const createAppRootContainer = (config: ServicesConfig) => {
       });
       return new ManagedWalletHttpService(httpClient);
     },
-    queryClient: () =>
-      new QueryClient({
+    queryClient: () => {
+      const queryClient = new QueryClient({
         defaultOptions: {
           queries: {
             retry: retryOnServerError
@@ -162,17 +164,21 @@ export const createAppRootContainer = (config: ServicesConfig) => {
         },
         queryCache: new QueryCache({
           onError: (error, query) => {
+            if (container.staleOrganizationRecovery.recover(error, queryClient)) return;
             if (!shouldReportError(error, query.meta)) return;
             container.errorHandler.reportError({ error });
           }
         }),
         mutationCache: new MutationCache({
           onError: (error, _variables, _context, mutation) => {
+            if (container.staleOrganizationRecovery.recover(error, queryClient)) return;
             if (!shouldReportError(error, mutation.meta)) return;
             container.errorHandler.reportError({ error });
           }
         })
-      }),
+      });
+      return queryClient;
+    },
     errorHandler: () => new ErrorHandlerService(container.logger),
     logger: () =>
       new LoggerService({

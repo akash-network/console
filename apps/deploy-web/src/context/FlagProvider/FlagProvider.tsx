@@ -65,13 +65,8 @@ export const WAIT_FOR_FEATURE_FLAGS_DEPENDENCIES = {
   useUnleashClient
 };
 
-export function WaitForFeatureFlags({
-  children,
-  dependencies: d = WAIT_FOR_FEATURE_FLAGS_DEPENDENCIES
-}: {
-  children: ReactNode;
-  dependencies?: typeof WAIT_FOR_FEATURE_FLAGS_DEPENDENCIES;
-}) {
+/** Whether Unleash has answered, failed, or run out of time, after which flag values stop changing under the caller. */
+export function useFeatureFlagsReady(d: typeof WAIT_FOR_FEATURE_FLAGS_DEPENDENCIES = WAIT_FOR_FEATURE_FLAGS_DEPENDENCIES): boolean {
   const client = d.useUnleashClient();
   const [isReady, setIsReady] = useState(false);
 
@@ -96,6 +91,18 @@ export function WaitForFeatureFlags({
 
     return stopWaiting;
   }, [client]);
+
+  return isReady;
+}
+
+export function WaitForFeatureFlags({
+  children,
+  dependencies: d = WAIT_FOR_FEATURE_FLAGS_DEPENDENCIES
+}: {
+  children: ReactNode;
+  dependencies?: typeof WAIT_FOR_FEATURE_FLAGS_DEPENDENCIES;
+}) {
+  const isReady = useFeatureFlagsReady(d);
 
   if (!isReady) {
     return <BootLoading />;

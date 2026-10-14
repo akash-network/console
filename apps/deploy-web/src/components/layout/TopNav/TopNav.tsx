@@ -20,10 +20,14 @@ import { usePathname } from "next/navigation";
 import { ActivityBell } from "@src/components/activity/ActivityBell/ActivityBell";
 import { CommandMenu } from "@src/components/command-menu/CommandMenu/CommandMenu";
 import { SkipOnboardingButton } from "@src/components/onboarding-picker/SkipOnboardingButton/SkipOnboardingButton";
+import { CreateOrganizationDialog } from "@src/components/organizations/CreateOrganizationDialog/CreateOrganizationDialog";
+import { OrganizationSwitcher } from "@src/components/organizations/OrganizationSwitcher/OrganizationSwitcher";
+import { useActiveOrganization } from "@src/context/OrganizationProvider/OrganizationProvider";
 import { useFlag } from "@src/hooks/useFlag";
-import { isRouteActive, useSettingsNavLinks } from "@src/hooks/useSettingsNavLinks";
+import { useSettingsNavLinks } from "@src/hooks/useSettingsNavLinks";
 import useCookieTheme from "@src/hooks/useTheme";
 import { useUser } from "@src/hooks/useUser";
+import { isRouteActive } from "@src/utils/isRouteActive";
 import { UrlService } from "@src/utils/urlUtils";
 import { AkashLogo } from "../AkashLogo";
 import { HackathonCouponNavEntry } from "../HackathonCouponNavEntry/HackathonCouponNavEntry";
@@ -36,12 +40,15 @@ export const DEPENDENCIES = {
   usePathname,
   useCookieTheme,
   useFlag,
+  useActiveOrganization,
   TopBanner,
   HackathonCouponNavEntry,
   CommandMenu,
   ActivityBell,
   TopNavAccountMenu,
-  SkipOnboardingButton
+  SkipOnboardingButton,
+  OrganizationSwitcher,
+  CreateOrganizationDialog
 };
 
 interface Props {
@@ -65,6 +72,9 @@ export function TopNav({ dependencies: d = DEPENDENCIES, minimal = false }: Prop
   const isAuthenticated = !!user?.userId;
   const pathname = d.usePathname();
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
+  const isOrganizationsEnabled = d.useFlag("organizations");
+  const [isCreateOrganizationOpen, setIsCreateOrganizationOpen] = useState(false);
+  const openCreateOrganization = isOrganizationsEnabled ? () => setIsCreateOrganizationOpen(true) : undefined;
 
   const navLinks: TopNavLink[] = [
     { title: "Deployments", url: UrlService.deploymentList(), isActive: isRouteActive(pathname, "/deployments", "/new-deployment"), icon: Cloud },
@@ -72,10 +82,13 @@ export function TopNav({ dependencies: d = DEPENDENCIES, minimal = false }: Prop
     { title: "Templates", url: UrlService.templates(), isActive: isRouteActive(pathname, "/templates"), icon: Files }
   ];
 
-  const settingsLinks = useSettingsNavLinks({ dependencies: { usePathname: d.usePathname } });
+  const settingsLinks = useSettingsNavLinks({
+    dependencies: { usePathname: d.usePathname, useFlag: d.useFlag, useActiveOrganization: d.useActiveOrganization }
+  });
   const isSettingsActive = settingsLinks.some(link => link.isActive);
   const showNavLinks = isAuthenticated && !minimal;
   const isCommandMenuEnabled = d.useFlag("ui_command_menu");
+  const showOrganizationSwitcher = isAuthenticated && !!openCreateOrganization;
 
   return (
     <header ref={headerRef} className={cn("fixed left-0 right-0 top-0 z-50 border-b border-border bg-header", REMOVE_SCROLL_CLASS_NAMES.zeroRight)}>
@@ -123,6 +136,8 @@ export function TopNav({ dependencies: d = DEPENDENCIES, minimal = false }: Prop
 
           {minimal && <d.SkipOnboardingButton source="auto_deploy" />}
 
+          {showOrganizationSwitcher && <d.OrganizationSwitcher onCreateOrganization={openCreateOrganization} />}
+
           {showNavLinks && (
             <div className="flex items-center gap-3">
               {isCommandMenuEnabled && <d.CommandMenu />}
@@ -131,7 +146,7 @@ export function TopNav({ dependencies: d = DEPENDENCIES, minimal = false }: Prop
           )}
 
           <div className={cn({ "hidden md:block": showNavLinks })}>
-            <d.TopNavAccountMenu minimal={minimal} />
+            <d.TopNavAccountMenu minimal={minimal} onCreateOrganization={openCreateOrganization} />
           </div>
 
           {showNavLinks && (
@@ -149,6 +164,11 @@ export function TopNav({ dependencies: d = DEPENDENCIES, minimal = false }: Prop
                     </Link>
                   </SheetTitle>
                 </div>
+                {showOrganizationSwitcher && (
+                  <div className="border-b border-border p-3 empty:hidden">
+                    <d.OrganizationSwitcher layout="sheet" onCreateOrganization={openCreateOrganization} onNavigate={() => setIsMobileNavOpen(false)} />
+                  </div>
+                )}
                 <nav aria-label="Primary mobile" className="flex flex-col gap-1 p-3">
                   {navLinks.map(link => (
                     <Link
@@ -181,13 +201,15 @@ export function TopNav({ dependencies: d = DEPENDENCIES, minimal = false }: Prop
 
                   <Separator className="my-2" />
 
-                  <d.TopNavAccountMenu variant="inline" onNavigate={() => setIsMobileNavOpen(false)} />
+                  <d.TopNavAccountMenu variant="inline" onNavigate={() => setIsMobileNavOpen(false)} onCreateOrganization={openCreateOrganization} />
                 </nav>
               </SheetContent>
             </Sheet>
           )}
         </div>
       </div>
+
+      {isCreateOrganizationOpen && <d.CreateOrganizationDialog onClose={() => setIsCreateOrganizationOpen(false)} />}
     </header>
   );
 }

@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
+import { mock } from "vitest-mock-extended";
 
+import type { OrganizationOutput } from "@src/types/organization";
 import type { DEPENDENCIES } from "./useSettingsNavLinks";
 import { useSettingsNavLinks } from "./useSettingsNavLinks";
 
@@ -42,9 +44,52 @@ describe(useSettingsNavLinks.name, () => {
     expect(links.find(link => link.title === "Alerts")?.isActive).toBe(true);
   });
 
-  function setup(input: { pathname?: string }) {
+  describe("when organizations are enabled", () => {
+    it("keeps the personal organization's items as they were", () => {
+      const links = setup({ isOrganizationsEnabled: true, organization: { type: "personal", role: "owner" } });
+
+      expect(links.map(link => link.title)).toEqual(["Billing", "API Keys", "Usage", "Alerts"]);
+    });
+
+    it("leaves Members out of a team organization while the members page is off", () => {
+      const links = setup({ isOrganizationsEnabled: true, organization: { type: "team", role: "owner" }, pathname: "/members" });
+
+      expect(links.map(link => link.title)).toEqual(["Billing", "API Keys", "Usage", "Alerts"]);
+    });
+
+    it.each(["member", "viewer"] as const)("hides Billing and Usage from a %s", role => {
+      const links = setup({ isOrganizationsEnabled: true, organization: { type: "team", role } });
+
+      expect(links.map(link => link.title)).toEqual(["API Keys", "Alerts"]);
+    });
+
+    it.each(["admin", "billing"] as const)("keeps Billing and Usage for an %s", role => {
+      const links = setup({ isOrganizationsEnabled: true, organization: { type: "team", role } });
+
+      expect(links.map(link => link.title)).toEqual(["Billing", "API Keys", "Usage", "Alerts"]);
+    });
+
+    it("keeps every item until the active organization is known", () => {
+      const links = setup({ isOrganizationsEnabled: true });
+
+      expect(links.map(link => link.title)).toEqual(["Billing", "API Keys", "Usage", "Alerts"]);
+    });
+  });
+
+  it("ignores the active organization while organizations are disabled", () => {
+    const links = setup({ isOrganizationsEnabled: false, organization: { type: "team", role: "member" } });
+
+    expect(links.map(link => link.title)).toEqual(["Billing", "API Keys", "Usage", "Alerts"]);
+  });
+
+  function setup(input: { pathname?: string; isOrganizationsEnabled?: boolean; organization?: Pick<OrganizationOutput, "type" | "role"> }) {
     const dependencies: typeof DEPENDENCIES = {
-      usePathname: () => input.pathname ?? "/"
+      usePathname: () => input.pathname ?? "/",
+      useFlag: () => input.isOrganizationsEnabled ?? false,
+      useActiveOrganization: () =>
+        mock<ReturnType<typeof DEPENDENCIES.useActiveOrganization>>({
+          activeOrganization: input.organization ? mock<OrganizationOutput>({ id: "org-1", ...input.organization }) : undefined
+        })
     };
 
     return renderHook(() => useSettingsNavLinks({ dependencies })).result.current;

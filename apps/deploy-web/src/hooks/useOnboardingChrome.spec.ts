@@ -3,6 +3,7 @@ import { mock } from "vitest-mock-extended";
 
 import type { DEPENDENCIES } from "@src/hooks/useOnboardingChrome";
 import { useOnboardingChrome } from "@src/hooks/useOnboardingChrome";
+import type { OrganizationOutput } from "@src/types/organization";
 import type { CustomUserProfile } from "@src/types/user";
 
 import { renderHook } from "@testing-library/react";
@@ -80,7 +81,24 @@ describe(useOnboardingChrome.name, () => {
     expect(result.current).toEqual({ isStripped: false });
   });
 
+  it("keeps the full chrome in a team organization, which never goes through onboarding", () => {
+    const { dependencies } = setup({ pathname: "/new-deployment/configure", leaseCount: 0, organizationType: "team" });
+
+    const { result } = renderHook(() => useOnboardingChrome(dependencies));
+
+    expect(result.current).toEqual({ isStripped: false });
+  });
+
+  it("strips the chrome in a personal organization without a lease", () => {
+    const { dependencies } = setup({ pathname: "/new-deployment/configure", leaseCount: 0, organizationType: "personal" });
+
+    const { result } = renderHook(() => useOnboardingChrome(dependencies));
+
+    expect(result.current).toEqual({ isStripped: true });
+  });
+
   function setup(input: {
+    organizationType?: "personal" | "team";
     pathname: string;
     leaseCount?: number;
     isLeasesLoading?: boolean;
@@ -105,6 +123,11 @@ describe(useOnboardingChrome.name, () => {
         user: mock<CustomUserProfile>({ onboardingSkippedAt: input.onboardingSkippedAt ?? null })
       });
 
-    return { dependencies: { useWallet, usePathname, useLeaseExistenceQuery, useUser } };
+    const useActiveOrganization: typeof DEPENDENCIES.useActiveOrganization = () =>
+      mock<ReturnType<typeof DEPENDENCIES.useActiveOrganization>>({
+        activeOrganization: input.organizationType ? mock<OrganizationOutput>({ type: input.organizationType }) : undefined
+      });
+
+    return { dependencies: { useWallet, usePathname, useLeaseExistenceQuery, useUser, useActiveOrganization } };
   }
 });

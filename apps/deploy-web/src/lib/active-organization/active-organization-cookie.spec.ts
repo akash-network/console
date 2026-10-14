@@ -2,7 +2,12 @@ import type { NextApiResponse } from "next";
 import { describe, expect, it } from "vitest";
 import { mock } from "vitest-mock-extended";
 
-import { expireActiveOrganizationCookie, readActiveOrganizationCookie, serializeActiveOrganizationCookie } from "./active-organization-cookie";
+import {
+  expireActiveOrganizationCookie,
+  readActiveOrganizationCookie,
+  serializeActiveOrganizationCookie,
+  serializeActiveOrganizationCookieRemoval
+} from "./active-organization-cookie";
 
 describe(readActiveOrganizationCookie.name, () => {
   it("returns the console_org cookie value from a cookie header", () => {
@@ -88,11 +93,7 @@ describe(expireActiveOrganizationCookie.name, () => {
 
     expireActiveOrganizationCookie(res);
 
-    expect(res.setHeader).toHaveBeenCalledWith("Set-Cookie", [
-      "appSession=; Path=/",
-      "appSession.0=; Path=/",
-      "console_org=; Path=/; Max-Age=0; SameSite=Lax"
-    ]);
+    expect(res.setHeader).toHaveBeenCalledWith("Set-Cookie", ["appSession=; Path=/", "appSession.0=; Path=/", "console_org=; Path=/; Max-Age=0; SameSite=Lax"]);
   });
 
   function setup(input: { existing?: string | string[] }) {
@@ -101,4 +102,14 @@ describe(expireActiveOrganizationCookie.name, () => {
 
     return { res };
   }
+});
+
+describe(serializeActiveOrganizationCookieRemoval.name, () => {
+  it("expires the cookie on the same path and site policy it was written with", () => {
+    expect(serializeActiveOrganizationCookieRemoval()).toBe("console_org=; Path=/; Max-Age=0; SameSite=Lax");
+  });
+
+  it("leaves nothing for readActiveOrganizationCookie to read", () => {
+    expect(readActiveOrganizationCookie(serializeActiveOrganizationCookieRemoval())).toBeUndefined();
+  });
 });

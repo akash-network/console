@@ -11,7 +11,7 @@ import {
   Spinner
 } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
-import { Book, FileText, LogOut, Send, ShieldCheck, SunMoon, User } from "lucide-react";
+import { Book, FileText, LogOut, Plus, Send, ShieldCheck, SunMoon, User } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 import { useServices } from "@src/context/ServicesProvider";
@@ -29,6 +29,8 @@ interface Props {
   variant?: "dropdown" | "inline";
   /** Called after an inline item is selected so the surrounding sheet can close. */
   onNavigate?: () => void;
+  /** Adds the "Create organization" entry; absent while organizations are not enabled for the user. */
+  onCreateOrganization?: () => void;
 }
 
 type AccountAction = {
@@ -40,7 +42,7 @@ type AccountAction = {
 
 const DOCS_URL = "https://akash.network/docs";
 
-export function TopNavAccountMenu({ dependencies: d = DEPENDENCIES, minimal = false, variant = "dropdown", onNavigate }: Props = {}) {
+export function TopNavAccountMenu({ dependencies: d = DEPENDENCIES, minimal = false, variant = "dropdown", onNavigate, onCreateOrganization }: Props = {}) {
   const { user, isLoading } = d.useCustomUser();
   const username = user?.username;
   const router = d.useRouter();
@@ -69,6 +71,13 @@ export function TopNavAccountMenu({ dependencies: d = DEPENDENCIES, minimal = fa
           <profileLink.icon className="h-5 w-5 shrink-0" />
           {profileLink.title}
         </button>
+
+        {onCreateOrganization && (
+          <button type="button" className={inlineItemClasses()} onClick={handle({ title: "Create organization", icon: Plus, onClick: onCreateOrganization })}>
+            <Plus className="h-5 w-5 shrink-0" />
+            Create organization
+          </button>
+        )}
 
         <div className="flex items-center justify-between gap-2 rounded-md py-2 pl-3 pr-1 text-sm text-muted-foreground">
           <span className="flex items-center gap-3">
@@ -125,6 +134,11 @@ export function TopNavAccountMenu({ dependencies: d = DEPENDENCIES, minimal = fa
                 <CustomDropdownLinkItem onClick={profileLink.onClick} icon={<profileLink.icon />}>
                   {profileLink.title}
                 </CustomDropdownLinkItem>
+                {onCreateOrganization && (
+                  <CustomDropdownLinkItem onClick={onCreateOrganization} icon={<Plus className="h-4 w-4" />}>
+                    Create organization
+                  </CustomDropdownLinkItem>
+                )}
                 <div className="relative flex items-center justify-between gap-3 py-1 pl-8 pr-2 text-sm">
                   <span className="absolute left-2 flex h-4 w-4 items-center justify-center">
                     <SunMoon className="h-4 w-4" />

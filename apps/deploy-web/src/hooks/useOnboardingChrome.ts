@@ -1,10 +1,11 @@
 import { usePathname } from "next/navigation";
 
+import { useActiveOrganization } from "@src/context/OrganizationProvider/OrganizationProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { useUser } from "@src/hooks/useUser";
 import { useLeaseExistenceQuery } from "@src/queries/useLeaseQuery";
 
-export const DEPENDENCIES = { useWallet, usePathname, useLeaseExistenceQuery, useUser };
+export const DEPENDENCIES = { useWallet, usePathname, useLeaseExistenceQuery, useUser, useActiveOrganization };
 
 /**
  * Routes that get the stripped onboarding chrome. Matched with `startsWith`, so this
@@ -29,11 +30,13 @@ export type OnboardingChromeState = {
 export const useOnboardingChrome = (d: typeof DEPENDENCIES = DEPENDENCIES): OnboardingChromeState => {
   const { address, hasWallet } = d.useWallet();
   const { user } = d.useUser();
+  const { activeOrganization } = d.useActiveOrganization();
   const pathname = d.usePathname();
 
   const isRelevant = !!pathname && ONBOARDING_CHROME_PATHS.some(path => pathname.startsWith(path));
   const hasWalletAddress = hasWallet && !!address;
   const hasSkippedOnboarding = !!user?.onboardingSkippedAt;
+  const isInTeamOrganization = activeOrganization?.type === "team";
 
   const leaseExistenceQuery = d.useLeaseExistenceQuery(address, { enabled: isRelevant && hasWalletAddress });
   const isOnboarded = hasWalletAddress && !!leaseExistenceQuery.data;
@@ -43,7 +46,7 @@ export const useOnboardingChrome = (d: typeof DEPENDENCIES = DEPENDENCIES): Onbo
   // decision unresolvable, so fail open to the full chrome rather than trap a possibly-onboarded user in the
   // stripped funnel. Mirrors the gate's fail-open on a transient chain-API blip. A user who has skipped onboarding
   // is treated as onboarded, so their chrome is never stripped when they return to the configure route.
-  if (!isRelevant || leasesErrored || hasSkippedOnboarding) {
+  if (!isRelevant || leasesErrored || hasSkippedOnboarding || isInTeamOrganization) {
     return { isStripped: false };
   }
 
