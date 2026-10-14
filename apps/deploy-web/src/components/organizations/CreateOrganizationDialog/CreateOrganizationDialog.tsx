@@ -24,6 +24,8 @@ import { useActiveOrganization } from "@src/context/OrganizationProvider/Organiz
 import { useUser } from "@src/hooks/useUser";
 import { useCreateOrganizationInvitationsMutation, useCreateOrganizationMutation } from "@src/queries/useOrganizationQueries";
 import { ORGANIZATION_LIMIT_REACHED_ERROR_CODE, ORGANIZATION_NAME_TAKEN_ERROR_CODE } from "@src/types/organization";
+import { UrlService } from "@src/utils/urlUtils";
+import { INVALID_EMAIL_MESSAGE, isEmailAddress } from "../emailAddress";
 import { EmailChipsInput } from "../EmailChipsInput/EmailChipsInput";
 
 export const DEPENDENCIES = { useActiveOrganization, useUser, useCreateOrganizationMutation, useCreateOrganizationInvitationsMutation, useSnackbar };
@@ -34,8 +36,6 @@ export const ORGANIZATION_LIMIT_REACHED_MESSAGE = "You can't create more organiz
 
 export const INVALID_ORGANIZATION_NAME_MESSAGE = "This name can't be used. Try another one.";
 
-export const INVALID_EMAIL_MESSAGE = "Not a valid email address";
-
 export const OWN_EMAIL_MESSAGE = "That's your address";
 
 export const MAX_ORGANIZATION_NAME_LENGTH = 64;
@@ -43,8 +43,6 @@ export const MAX_ORGANIZATION_NAME_LENGTH = 64;
 const INVITE_HINT = "They join as Members. You can change roles later.";
 
 const OWNER_NOTE = "You'll be the organization's owner. Its billing is separate from your personal account.";
-
-const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const BAD_REQUEST_STATUS = 400;
 
@@ -74,7 +72,7 @@ export const CreateOrganizationDialog: FC<Props> = ({ onClose, dependencies: d =
   const isNameTaken = organizations.some(organization => organization.name.trim().toLowerCase() === trimmedName.toLowerCase());
   const nameError = isNameTaken ? ORGANIZATION_NAME_TAKEN_MESSAGE : refusal.name;
   const ownEmail = user?.email?.toLowerCase();
-  const getEmailError = (email: string) => (!EMAIL_PATTERN.test(email) ? INVALID_EMAIL_MESSAGE : email === ownEmail ? OWN_EMAIL_MESSAGE : null);
+  const getEmailError = (email: string) => (!isEmailAddress(email) ? INVALID_EMAIL_MESSAGE : email === ownEmail ? OWN_EMAIL_MESSAGE : null);
   const firstBadEmail = emails.find(email => getEmailError(email));
   const canSubmit = trimmedName.length > 0 && !nameError && !firstBadEmail && !isPending;
 
@@ -124,7 +122,7 @@ export const CreateOrganizationDialog: FC<Props> = ({ onClose, dependencies: d =
     if (!created) return;
 
     enqueueSnackbar(<Snackbar title={`Created ${created.name}`} iconVariant="success" />, { variant: "success" });
-    const hasSwitched = switchOrganization(created.id);
+    const hasSwitched = switchOrganization(created.id, { destination: UrlService.members() });
     onClose();
 
     if (!emails.length) return;

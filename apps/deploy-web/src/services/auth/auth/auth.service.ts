@@ -1,5 +1,7 @@
 import type { HttpClient } from "@akashnetwork/http-sdk";
 
+import { forgetInvitationToken } from "@src/lib/organization-invitation/invitation-token-storage";
+
 export class AuthService {
   constructor(
     private readonly urlService: AuthUrlService,
@@ -57,6 +59,7 @@ export class AuthService {
   }
 
   logout() {
+    forgetInvitationToken();
     this.location.assign(this.urlService.logout());
   }
 }

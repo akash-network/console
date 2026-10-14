@@ -10,8 +10,9 @@ export const ORGANIZATION_ROLE_LABELS: Record<OrganizationRole, string> = {
 
 export const canViewBillingAndUsage = (role: OrganizationRole): boolean => role !== "member" && role !== "viewer";
 
-/** Off until the members page ships, so no link leads to it before then. */
-export const hasMembersPage = (_type: OrganizationType): boolean => false;
+export const hasMembersPage = (type: OrganizationType): boolean => type === "team";
 
 /** Off until the projects pages ship, so switching into a team organization lands on its deployments before then. */
 export const isProjectsUiEnabled = (_organization: OrganizationOutput): boolean => false;
+
+export const canManageMembers = (role: OrganizationRole): boolean => role === "owner" || role === "admin";

@@ -37,10 +37,10 @@ describe(resolveOrganizationSwitchDestination.name, () => {
     expect(resolveOrganizationSwitchDestination("/deployments/123", personal)).toBe("/deployments");
   });
 
-  it("does not keep the user on Members while the members page is off", () => {
+  it("keeps Members only for a team organization", () => {
     const { team, personal } = setup();
 
-    expect(resolveOrganizationSwitchDestination("/members", team)).toBe("/deployments");
+    expect(resolveOrganizationSwitchDestination("/members", team)).toBe("/members");
     expect(resolveOrganizationSwitchDestination("/members", personal)).toBe("/deployments");
   });
 

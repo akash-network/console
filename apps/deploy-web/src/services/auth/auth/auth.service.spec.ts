@@ -2,6 +2,7 @@ import type { HttpClient } from "@akashnetwork/http-sdk";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
+import { INVITATION_TOKEN_STORAGE_KEY } from "@src/lib/organization-invitation/invitation-token-storage";
 import type { AuthUrlService } from "./auth.service";
 import { AuthService } from "./auth.service";
 
@@ -62,6 +63,19 @@ describe(AuthService.name, () => {
       service.logout();
 
       expect(location.assign).toHaveBeenCalledWith(mockLogoutUrl);
+    });
+
+    it("forgets a pending invitation token before leaving", () => {
+      const { service, location } = setup();
+      window.sessionStorage.setItem(INVITATION_TOKEN_STORAGE_KEY, "token-1");
+      let tokenAtRedirect: string | null = "unread";
+      location.assign.mockImplementation(() => {
+        tokenAtRedirect = window.sessionStorage.getItem(INVITATION_TOKEN_STORAGE_KEY);
+      });
+
+      service.logout();
+
+      expect(tokenAtRedirect).toBeNull();
     });
   });
 
