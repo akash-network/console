@@ -43,7 +43,7 @@ export function useProjectRolesOfUser(projectIds: string[], userId: string | und
         retry: () => unreadResults.forEach(result => void result.refetch()),
         rolesByProjectId: new Map(
           results.flatMap((result, index) => {
-            const grant = result.data?.data.find(member => member.userId === userId);
+            const grant = isRefusedGrantList(result) ? undefined : result.data?.data.find(member => member.userId === userId);
             return grant ? [[projectIds[index], grant.role] as const] : [];
           })
         )
@@ -63,9 +63,13 @@ export function useProjectRolesOfUser(projectIds: string[], userId: string | und
   });
 }
 
-/** A refused grant list means the project is gone or no longer granted, which answers "no role" rather than failing the read. */
+/** A refused grant list means the project is gone or no longer granted, which answers "no role" even over a role read earlier. */
+function isRefusedGrantList(result: UseQueryResult<ProjectMembersResponse>) {
+  return result.isError && isClientError(result.error);
+}
+
 function isUnreadGrantList(result: UseQueryResult<ProjectMembersResponse>) {
-  return !result.data && result.isError && !isClientError(result.error);
+  return !result.data && result.isError && !isRefusedGrantList(result);
 }
 
 export function useCreateProjectMemberMutation() {

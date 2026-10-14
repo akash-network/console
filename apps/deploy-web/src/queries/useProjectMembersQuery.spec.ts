@@ -100,6 +100,20 @@ describe(useProjectMembersQuery.name, () => {
       expect(Object.fromEntries(result.current.rolesByProjectId)).toEqual({ p1: "viewer", p2: "member" });
       expect(listProjectMembers.mock.calls.map(([params]) => params.id)).toEqual(["p1", "p2", "p2"]);
     });
+
+    it("drops a role it read once the API refuses that list, but keeps one whose later read failed", async () => {
+      const { result, queryClient, failingProjectIds, refusingProjectIds } = setup(() => useProjectRolesOfUser(["p1", "p2"], "u1", { enabled: true }), {
+        grantsByProject: { p1: [grant("p1", "u1", "member")], p2: [grant("p2", "u1", "admin")] }
+      });
+      await waitFor(() => expect(result.current.rolesByProjectId.size).toBe(2));
+
+      failingProjectIds.add("p1");
+      refusingProjectIds.add("p2");
+      await act(() => queryClient.refetchQueries());
+
+      await waitFor(() => expect(Object.fromEntries(result.current.rolesByProjectId)).toEqual({ p1: "member" }));
+      expect(result.current.isError).toBe(false);
+    });
   });
 
   describe("granting, changing and revoking access", () => {
@@ -151,9 +165,10 @@ describe(useProjectMembersQuery.name, () => {
   function setup<T>(hook: () => T, input: { grantsByProject?: Record<string, ProjectMember[]>; failingProjectIds?: string[]; refuseWrites?: boolean } = {}) {
     const grantsByProject = input.grantsByProject ?? { p1: [{ ...grant("p1", "u1", "viewer"), username: "lena" }] };
     const failingProjectIds = new Set(input.failingProjectIds);
+    const refusingProjectIds = new Set<string>();
     const listProjectMembers = vi.fn(async ({ id }: { id: string }) => {
       if (failingProjectIds.has(id)) throw new ApiError(500, undefined, "GET /v1/projects/{id}/members → 500");
-      if (!grantsByProject[id]) throw new ApiError(404, undefined, "GET /v1/projects/{id}/members → 404");
+      if (refusingProjectIds.has(id) || !grantsByProject[id]) throw new ApiError(404, undefined, "GET /v1/projects/{id}/members → 404");
       return { data: grantsByProject[id] };
     });
     const write = () => vi.fn(async (_params: unknown) => (input.refuseWrites ? Promise.reject(new Error("refused")) : { data: grant("p1", "u2", "viewer") }));
@@ -170,9 +185,11 @@ describe(useProjectMembersQuery.name, () => {
     return {
       ...rendered,
       renderAgain,
+      queryClient,
       invalidateQueries,
       listProjectMembers,
       failingProjectIds,
+      refusingProjectIds,
       createProjectMember,
       updateProjectMember,
       deleteProjectMember
