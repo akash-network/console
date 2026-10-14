@@ -3,6 +3,7 @@
   "src/auth/controllers/auth/auth.controller.spec.ts",
   "src/auth/services/api-key/api-key-generator.service.spec.ts",
   "src/auth/services/auth.interceptor.spec.ts",
+  "src/billing/controllers/first-purchase-bonus/first-purchase-bonus.controller.spec.ts",
   "src/billing/controllers/stripe/stripe.controller.spec.ts",
   "src/billing/controllers/wallet-settings/wallet-settings.controller.spec.ts",
   "src/billing/controllers/wallet/wallet.controller.spec.ts",

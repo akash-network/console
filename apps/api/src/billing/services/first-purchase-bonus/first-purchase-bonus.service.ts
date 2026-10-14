@@ -1,8 +1,10 @@
 import assert from "http-assert";
 import { singleton } from "tsyringe";
 
+import type { BillingOwner } from "@src/billing/lib/billing-owner/billing-owner";
 import { type StripeTransactionOutput, StripeTransactionRepository } from "@src/billing/repositories";
 import { AnalyticsService } from "@src/core/services/analytics/analytics.service";
+import { OrganizationRepository } from "@src/organization/repositories/organization/organization.repository";
 import { UserRepository } from "@src/user/repositories";
 
 /** Smallest purchase that qualifies for the first-purchase bonus, in cents. */
@@ -17,31 +19,37 @@ export class FirstPurchaseBonusService {
   constructor(
     private readonly stripeTransactionRepository: StripeTransactionRepository,
     private readonly analyticsService: AnalyticsService,
-    private readonly userRepository: UserRepository
+    private readonly userRepository: UserRepository,
+    private readonly organizationRepository: OrganizationRepository
   ) {}
 
-  /**
-   * Bonus (in cents) the given transaction earns, or 0 when it doesn't qualify.
-   *
-   * Must run inside the webhook's transaction scope BEFORE the row's status flips to
-   * "succeeded", so the current payment is not counted as its own prior purchase.
-   * Coupon claims neither earn the bonus nor consume eligibility.
-   *
-   * The user-row lock serializes concurrent first-ever payment intents: the loser
-   * waits for the winner's commit, then sees its succeeded transaction and grants 0,
-   * so a user can never be granted the bonus twice.
-   */
+  /** Locking the paying organization, then the person, serializes concurrent settlements that share either. */
   async getEligibleBonusAmount(transaction: StripeTransactionOutput, paidAmountCents: number): Promise<number> {
     if (transaction.type !== "payment_intent") return 0;
 
     const bonusCents = this.calculateBonusCents(paidAmountCents);
     if (bonusCents === 0) return 0;
 
-    const user = await this.userRepository.findOneByAndLock({ id: transaction.userId });
-    assert(user, 500, "Failed to lock user for first-purchase bonus eligibility", { userId: transaction.userId });
+    const payingAccount = await this.#lockPayingAccount(transaction);
+    const person = await this.userRepository.findOneByAndLock({ id: transaction.userId }, { strength: "no key update" });
+    assert(person, 500, "Failed to lock user for first-purchase bonus eligibility", { userId: transaction.userId });
 
-    const hasPaidBefore = await this.stripeTransactionRepository.hasCompletedPaidTransaction(transaction.userId);
-    return hasPaidBefore ? 0 : bonusCents;
+    return (await this.isEligible(payingAccount, transaction.userId)) ? bonusCents : 0;
+  }
+
+  /** The first purchase of a paying account earns the bonus, unless the person paying already received one under any account. */
+  async isEligible(payingAccount: BillingOwner, userId: string): Promise<boolean> {
+    if (await this.stripeTransactionRepository.hasCompletedPaidTransaction(payingAccount)) return false;
+
+    return !(await this.stripeTransactionRepository.hasReceivedFirstPurchaseBonus(userId));
+  }
+
+  async #lockPayingAccount(transaction: StripeTransactionOutput): Promise<BillingOwner> {
+    const organization = transaction.organizationId
+      ? await this.organizationRepository.findOneByAndLock({ id: transaction.organizationId }, { strength: "no key update" })
+      : undefined;
+
+    return organization?.type === "team" ? { organizationId: organization.id } : { userId: transaction.userId };
   }
 
   /** `amount_received` can be non-round; flooring keeps the grant conservative. */

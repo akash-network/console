@@ -159,6 +159,14 @@ export const TransactionSchema = z.object({
     .optional()
 });
 
+export const FirstPurchaseBonusResponseSchema = z.object({
+  data: z.object({
+    eligible: z.boolean()
+  })
+});
+
+export type FirstPurchaseBonusResponse = z.infer<typeof FirstPurchaseBonusResponseSchema>;
+
 export const CustomerTransactionsResponseSchema = z.object({
   data: z.object({
     transactions: z.array(TransactionSchema),
