@@ -1,3 +1,4 @@
+import type { SearchableSelectOption } from "@src/components/shared/SearchableSelect/SearchableSelect";
 import type { TaxIdType } from "@src/types/billingDetails";
 
 export const TAX_ID_TYPE_OPTIONS: Record<TaxIdType, { label: string; example: string }> = {
@@ -42,4 +43,6 @@ export function getCountryName(code: string): string {
   return regionNames.of(code) ?? code;
 }
 
-export const COUNTRY_OPTIONS = COUNTRY_CODES.map(code => ({ code, name: getCountryName(code) })).sort((a, b) => a.name.localeCompare(b.name));
+export const COUNTRY_OPTIONS: SearchableSelectOption[] = COUNTRY_CODES.map(code => ({ code, name: getCountryName(code) }))
+  .sort((a, b) => a.name.localeCompare(b.name))
+  .map(({ code, name }) => ({ value: code, label: name, keywords: [name] }));

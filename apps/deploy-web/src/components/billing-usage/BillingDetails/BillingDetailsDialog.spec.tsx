@@ -49,8 +49,7 @@ describe("BillingDetailsDialog", () => {
     const { user, updateBillingDetails, enqueueSnackbar, onClose } = setup({ billingDetails: undefined });
 
     await fillIn(user, "Legal name", "  Acme GmbH  ");
-    await user.click(screen.getByRole("combobox", { name: "Country" }));
-    await user.click(screen.getByRole("option", { name: "Germany" }));
+    await pickCountry(user, "Germany");
     await fillIn(user, "Address", " Hauptstr. 1 ");
     await user.type(screen.getByLabelText("Address line 2 (optional)"), "   ");
     await fillIn(user, "Postal code", "10115");
@@ -226,8 +225,7 @@ describe("BillingDetailsDialog", () => {
     const { user } = setup({ billingDetails: { ...SAVED, address: { ...SAVED.address!, country: null } } });
 
     expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
-    await user.click(screen.getByRole("combobox", { name: "Country" }));
-    await user.click(screen.getByRole("option", { name: "France" }));
+    await pickCountry(user, "France");
 
     expect(screen.getByRole("button", { name: "Save" })).toBeEnabled();
   });
@@ -287,6 +285,13 @@ describe("BillingDetailsDialog", () => {
     expect(screen.getByRole("button", { name: /Save/ })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Cancel" })).toBeDisabled();
   });
+
+  async function pickCountry(user: UserEvent, name: string) {
+    await user.click(screen.getByRole("combobox", { name: "Country" }));
+    await user.click(await screen.findByRole("combobox", { name: "Search countries" }));
+    await user.paste(name);
+    await user.click(screen.getByRole("option", { name }));
+  }
 
   async function fillIn(user: UserEvent, label: string, text: string) {
     await user.click(screen.getByLabelText(label));

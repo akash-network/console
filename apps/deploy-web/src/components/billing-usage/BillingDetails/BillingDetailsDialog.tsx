@@ -23,10 +23,11 @@ import {
 } from "@akashnetwork/ui/components";
 import { useSnackbar } from "notistack";
 
+import { SearchableSelect } from "@src/components/shared/SearchableSelect/SearchableSelect";
 import { useUpdateBillingDetailsMutation } from "@src/queries/useBillingDetailsQueries";
 import type { BillingDetails, BillingDetailsInput } from "@src/types/billingDetails";
 import { INVALID_TAX_ID_ERROR_CODE } from "@src/types/billingDetails";
-import { COUNTRY_OPTIONS, describeTaxIdType, isSelectableTaxIdType, TAX_ID_TYPE_OPTIONS } from "./billingDetailsOptions";
+import { COUNTRY_OPTIONS, describeTaxIdType, getCountryName, isSelectableTaxIdType, TAX_ID_TYPE_OPTIONS } from "./billingDetailsOptions";
 
 export const DEPENDENCIES = { useUpdateBillingDetailsMutation, useSnackbar };
 
@@ -150,19 +151,18 @@ export const BillingDetailsDialog: FC<Props> = ({ billingDetails, onClose, depen
             />
 
             <div className="flex flex-col gap-2">
-              <Label htmlFor={`${formId}-country`}>Country</Label>
-              <Select value={country} onValueChange={setCountry}>
-                <SelectTrigger id={`${formId}-country`} aria-label="Country">
-                  <SelectValue placeholder="Select a country" />
-                </SelectTrigger>
-                <SelectContent className="max-h-72">
-                  {COUNTRY_OPTIONS.map(option => (
-                    <SelectItem key={option.code} value={option.code}>
-                      {option.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Label>Country</Label>
+              <SearchableSelect
+                value={country}
+                onChange={setCountry}
+                options={COUNTRY_OPTIONS}
+                renderValue={getCountryName}
+                ariaLabel="Country"
+                searchLabel="Search countries"
+                searchPlaceholder="Search countries"
+                notFoundMessage="No country matches your search."
+                placeholder="Select a country"
+              />
             </div>
 
             <Input
