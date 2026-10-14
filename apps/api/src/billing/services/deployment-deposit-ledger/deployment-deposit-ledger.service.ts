@@ -78,11 +78,7 @@ export class DeploymentDepositLedgerService {
       const unpriced = await this.#unpricedRowsOf(walletId, deposits, options, signingStartedAt);
       const exact = unpriced.filter(({ denom }) => USD_PEGGED_DENOMS.includes(denom));
 
-      const recorded = await this.txService.transaction(async () => {
-        const rows = await this.deploymentDepositRepository.createMany(exact.map(row => ({ ...row, amountCents: dollarPeggedCents(row.amount) })));
-        await this.#checkUnlessSettled(rows);
-        return rows;
-      });
+      const recorded = await this.txService.transaction(() => this.#writePending(exact.map(row => ({ ...row, amountCents: dollarPeggedCents(row.amount) }))));
 
       return { recorded, awaitingPrice: unpriced.filter(row => !exact.includes(row)) };
     } catch (error) {
@@ -109,10 +105,10 @@ export class DeploymentDepositLedgerService {
 
     const undecided = [...recorded, ...(await this.#recordPriced(awaitingPrice, { status: "pending" }))];
 
-    if (!undecided.length) return;
+    if (!undecided.length || !error.txHash) return;
 
     try {
-      await this.#awaitReconciliation(undecided, error.txHash);
+      await this.#checkByHash(undecided, error.txHash);
     } catch (reconcileError) {
       this.logger.error({ event: "DEPLOYMENT_DEPOSIT_RECONCILE_SCHEDULE_FAILED", txHash: error.txHash, error: reconcileError });
     }
@@ -145,7 +141,9 @@ export class DeploymentDepositLedgerService {
         this.logger.warn({ event: "DEPLOYMENT_DEPOSIT_UNPRICED", dseqs: priced.filter(row => row.amountCents === undefined).map(({ dseq }) => dseq) });
       }
 
-      return await this.deploymentDepositRepository.createMany(pricedRows);
+      return outcome.status === "pending"
+        ? await this.txService.transaction(() => this.#writePending(pricedRows))
+        : await this.deploymentDepositRepository.createMany(pricedRows);
     } catch (error) {
       this.logger.error({ event: "DEPLOYMENT_DEPOSIT_RECORD_FAILED", txHash: outcome.txHash, error });
       return [];
@@ -207,7 +205,14 @@ export class DeploymentDepositLedgerService {
     }
   }
 
-  /** Settles the rows against the chain index if the signer never does, as when the process stops mid-signing; rows the signer settled are skipped. */
+  async #writePending(rows: DeploymentDepositInput[]): Promise<DeploymentDepositOutput[]> {
+    const written = await this.deploymentDepositRepository.createMany(rows);
+    await this.#checkUnlessSettled(written);
+
+    return written;
+  }
+
+  /** Every pending row is written with this check, which settles it against the chain index unless the signer or a check by its hash settles it first. */
   async #checkUnlessSettled(deposits: DeploymentDepositOutput[]): Promise<void> {
     if (!deposits.length) return;
 
@@ -217,16 +222,15 @@ export class DeploymentDepositLedgerService {
     });
   }
 
-  /** A row the signer gave no hash for is matched against the chain index instead, so no undecided row stays pending past its check. */
-  async #awaitReconciliation(deposits: DeploymentDepositOutput[], txHash: string | undefined): Promise<void> {
+  /** The rows' own checks skip a row holding a hash, so the hash and this check land together or not at all. */
+  async #checkByHash(deposits: DeploymentDepositOutput[], txHash: string): Promise<void> {
     const depositIds = deposits.map(({ id }) => id);
-    const job = txHash ? new ReconcileDeploymentDeposit({ txHash }) : new ReconcileDeploymentDeposit({ depositIds });
 
     await this.txService.transaction(async () => {
-      if (txHash) await this.deploymentDepositRepository.attachTxHash(depositIds, txHash);
+      await this.deploymentDepositRepository.attachTxHash(depositIds, txHash);
 
-      await this.jobQueueService.enqueue(job, {
-        singletonKey: `${ReconcileDeploymentDeposit[JOB_NAME]}.${txHash ?? depositIds[0]}`,
+      await this.jobQueueService.enqueue(new ReconcileDeploymentDeposit({ txHash }), {
+        singletonKey: `${ReconcileDeploymentDeposit[JOB_NAME]}.${txHash}`,
         startAfter: new Date(Date.now() + RECONCILE_DELAY_IN_MIN * millisecondsInMinute).toISOString()
       });
     });

@@ -239,8 +239,8 @@ describe(DeploymentDepositLedgerService.name, () => {
   });
 
   describe("recordLanded", () => {
-    it("confirms the pending rows and records the akt deposits priced at the current rate", async () => {
-      const { service, deploymentDepositRepository, denomExchangeService } = setup();
+    it("confirms the pending rows and records the akt deposits priced at the current rate, with no check to schedule", async () => {
+      const { service, deploymentDepositRepository, denomExchangeService, jobQueueService } = setup();
       denomExchangeService.getExchangeRateToUSD.mockResolvedValue(rateOf(2.5));
       const recorded = [createDeposit(), createDeposit()];
       const awaiting = createUnpriced({ amount: "3000000" });
@@ -252,6 +252,7 @@ describe(DeploymentDepositLedgerService.name, () => {
         { status: "confirmed", txHash: "ABC" }
       );
       expect(deploymentDepositRepository.createMany).toHaveBeenCalledWith([{ ...awaiting, status: "confirmed", txHash: "ABC", amountCents: 750 }]);
+      expect(jobQueueService.enqueue).not.toHaveBeenCalled();
     });
 
     it("dates an akt deposit priced after the broadcast by when signing started", async () => {
@@ -341,7 +342,7 @@ describe(DeploymentDepositLedgerService.name, () => {
       expect(jobQueueService.enqueue).not.toHaveBeenCalled();
     });
 
-    it("keeps an undecided transaction's rows pending under its hash and schedules its check in the same transaction", async () => {
+    it("writes an undecided transaction's akt rows with their own check, then keeps every row pending under its hash with a check by that hash", async () => {
       const { service, deploymentDepositRepository, jobQueueService, txService } = setup();
       const recorded = [createDeposit()];
       const lateRow = createDeposit();
@@ -351,29 +352,28 @@ describe(DeploymentDepositLedgerService.name, () => {
       await service.recordFailed({ recorded, awaitingPrice: [createUnpriced()] }, new TxOutcomeUnknownError("ABC"));
 
       expect(deploymentDepositRepository.createMany).toHaveBeenCalledWith([expect.objectContaining({ status: "pending", amountCents: 100 })]);
+      expect(jobQueueService.enqueue.mock.calls).toEqual([
+        [
+          new ReconcileDeploymentDeposit({ depositIds: [lateRow.id] }),
+          { singletonKey: `ReconcileDeploymentDeposit.unsettled.${lateRow.id}`, startAfter: expect.any(String) }
+        ],
+        [new ReconcileDeploymentDeposit({ txHash: "ABC" }), { singletonKey: "ReconcileDeploymentDeposit.ABC", startAfter: expect.any(String) }]
+      ]);
       expect(deploymentDepositRepository.attachTxHash).toHaveBeenCalledWith([recorded[0].id, lateRow.id], "ABC");
-      expect(jobQueueService.enqueue).toHaveBeenCalledWith(new ReconcileDeploymentDeposit({ txHash: "ABC" }), {
-        singletonKey: "ReconcileDeploymentDeposit.ABC",
-        startAfter: expect.any(String)
-      });
-      expect(txService.transaction).toHaveBeenCalledTimes(1);
-      expect(deploymentDepositRepository.attachTxHash.mock.invocationCallOrder[0]).toBeGreaterThan(txService.transaction.mock.invocationCallOrder[0]);
-      const { startAfter } = jobQueueService.enqueue.mock.calls[0][1]!;
+      expect(txService.transaction).toHaveBeenCalledTimes(2);
+      expect(deploymentDepositRepository.attachTxHash.mock.invocationCallOrder[0]).toBeGreaterThan(txService.transaction.mock.invocationCallOrder[1]);
+      const { startAfter } = jobQueueService.enqueue.mock.calls[1][1]!;
       expect(Date.parse(startAfter as string) - before).toBeGreaterThanOrEqual(5 * 60_000);
       expect(Date.parse(startAfter as string) - before).toBeLessThan(6 * 60_000);
     });
 
-    it("schedules a check against the chain index for undecided rows the signer gave no hash for", async () => {
+    it("leaves undecided rows the signer gave no hash for to the checks written with them", async () => {
       const { service, deploymentDepositRepository, jobQueueService } = setup();
-      const recorded = [createDeposit(), createDeposit()];
 
-      await service.recordFailed({ recorded, awaitingPrice: [] }, new TxOutcomeUnknownError());
+      await service.recordFailed({ recorded: [createDeposit(), createDeposit()], awaitingPrice: [] }, new TxOutcomeUnknownError());
 
       expect(deploymentDepositRepository.attachTxHash).not.toHaveBeenCalled();
-      expect(jobQueueService.enqueue).toHaveBeenCalledWith(new ReconcileDeploymentDeposit({ depositIds: recorded.map(({ id }) => id) }), {
-        singletonKey: `ReconcileDeploymentDeposit.${recorded[0].id}`,
-        startAfter: expect.any(String)
-      });
+      expect(jobQueueService.enqueue).not.toHaveBeenCalled();
     });
 
     it("logs a failed check schedule instead of replacing the signer's error", async () => {
