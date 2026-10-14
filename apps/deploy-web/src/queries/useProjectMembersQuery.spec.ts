@@ -1,3 +1,4 @@
+import { ApiError } from "@akashnetwork/openapi-sdk";
 import { createProxy } from "@akashnetwork/react-query-proxy";
 import { QueryClient } from "@tanstack/react-query";
 import type { MockInstance } from "vitest";
@@ -60,7 +61,7 @@ describe(useProjectMembersQuery.name, () => {
     it("reads nothing while it is disabled", () => {
       const { result, listProjectMembers } = setup(() => useProjectRolesOfUser(["p1"], "u1", { enabled: false }));
 
-      expect(result.current).toEqual({ isLoading: false, rolesByProjectId: new Map() });
+      expect(result.current).toMatchObject({ isLoading: false, isError: false, rolesByProjectId: new Map() });
       expect(listProjectMembers).not.toHaveBeenCalled();
     });
 
@@ -70,14 +71,34 @@ describe(useProjectMembersQuery.name, () => {
       expect(listProjectMembers).not.toHaveBeenCalled();
     });
 
-    it("finds no role in a project whose grants could not be read", async () => {
+    it("finds no role, and no failed read, in a project the API refuses to list", async () => {
       const { result } = setup(() => useProjectRolesOfUser(["p1", "gone"], "u1", { enabled: true }), {
         grantsByProject: { p1: [grant("p1", "u1", "member")] }
       });
 
       await waitFor(() => expect(result.current.isLoading).toBe(false));
 
+      expect(result.current.isError).toBe(false);
       expect(Object.fromEntries(result.current.rolesByProjectId)).toEqual({ p1: "member" });
+    });
+
+    it("reports a grant list that failed to load and reads only that one again on retry", async () => {
+      const { result, listProjectMembers, failingProjectIds } = setup(() => useProjectRolesOfUser(["p1", "p2"], "u1", { enabled: true }), {
+        grantsByProject: { p1: [grant("p1", "u1", "viewer")], p2: [grant("p2", "u1", "member")] },
+        failingProjectIds: ["p2"]
+      });
+
+      await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+      expect(result.current.isError).toBe(true);
+      expect(Object.fromEntries(result.current.rolesByProjectId)).toEqual({ p1: "viewer" });
+
+      failingProjectIds.clear();
+      act(() => result.current.retry());
+
+      await waitFor(() => expect(result.current.isError).toBe(false));
+      expect(Object.fromEntries(result.current.rolesByProjectId)).toEqual({ p1: "viewer", p2: "member" });
+      expect(listProjectMembers.mock.calls.map(([params]) => params.id)).toEqual(["p1", "p2", "p2"]);
     });
   });
 
@@ -127,10 +148,12 @@ describe(useProjectMembersQuery.name, () => {
     return { id: `${projectId}-${userId}`, projectId, userId, username: userId, email: null, role, createdAt: "2026-01-01T00:00:00.000Z" };
   }
 
-  function setup<T>(hook: () => T, input: { grantsByProject?: Record<string, ProjectMember[]>; refuseWrites?: boolean } = {}) {
+  function setup<T>(hook: () => T, input: { grantsByProject?: Record<string, ProjectMember[]>; failingProjectIds?: string[]; refuseWrites?: boolean } = {}) {
     const grantsByProject = input.grantsByProject ?? { p1: [{ ...grant("p1", "u1", "viewer"), username: "lena" }] };
+    const failingProjectIds = new Set(input.failingProjectIds);
     const listProjectMembers = vi.fn(async ({ id }: { id: string }) => {
-      if (!grantsByProject[id]) throw new Error("Project not found");
+      if (failingProjectIds.has(id)) throw new ApiError(500, undefined, "GET /v1/projects/{id}/members → 500");
+      if (!grantsByProject[id]) throw new ApiError(404, undefined, "GET /v1/projects/{id}/members → 404");
       return { data: grantsByProject[id] };
     });
     const write = () => vi.fn(async (_params: unknown) => (input.refuseWrites ? Promise.reject(new Error("refused")) : { data: grant("p1", "u2", "viewer") }));
@@ -144,6 +167,15 @@ describe(useProjectMembersQuery.name, () => {
 
     const renderAgain = () => setupQuery(hook, { services: { api: () => api, queryClient: () => queryClient } });
 
-    return { ...rendered, renderAgain, invalidateQueries, listProjectMembers, createProjectMember, updateProjectMember, deleteProjectMember };
+    return {
+      ...rendered,
+      renderAgain,
+      invalidateQueries,
+      listProjectMembers,
+      failingProjectIds,
+      createProjectMember,
+      updateProjectMember,
+      deleteProjectMember
+    };
   }
 });

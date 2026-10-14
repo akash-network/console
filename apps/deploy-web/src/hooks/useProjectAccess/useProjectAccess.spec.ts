@@ -132,6 +132,24 @@ describe(useProjectAccess.name, () => {
     expect(result.current.canManageDeployments("storefront")).toBe(true);
   });
 
+  it("says an organization member's grants could not be read, keeps the ones it read, and reads them again on retry", () => {
+    const { result, retryGrants } = setup({ role: "member", isGrantsError: true, grants: { storefront: "member" } });
+
+    expect(result.current).toMatchObject({ isLoading: false, isError: true });
+    expect(result.current.canManageDeployments("storefront")).toBe(true);
+    expect(result.current.canManageDeployments("marketing")).toBe(false);
+
+    act(() => result.current.retry());
+
+    expect(retryGrants).toHaveBeenCalledTimes(1);
+  });
+
+  it("ignores failed grant reads for a role that never reads grants", () => {
+    const { result } = setup({ role: "viewer", isGrantsError: true });
+
+    expect(result.current.isError).toBe(false);
+  });
+
   it.each([
     { case: "an owner", role: "owner" as const },
     { case: "an organization member", role: "member" as const },
@@ -177,6 +195,7 @@ describe(useProjectAccess.name, () => {
     isLoadingProjects?: boolean;
     isLoadingGrants?: boolean;
     isProjectsError?: boolean;
+    isGrantsError?: boolean;
     grants?: Record<string, ProjectRole>;
     projects?: Project[] | null;
   }) {
@@ -192,8 +211,11 @@ describe(useProjectAccess.name, () => {
             refetch: refetchProjects
           })
     );
+    const retryGrants = vi.fn();
     const useProjectRolesOfUser = vi.fn<typeof DEPENDENCIES.useProjectRolesOfUser>(() => ({
       isLoading: input.isLoadingGrants ?? false,
+      isError: input.isGrantsError ?? false,
+      retry: retryGrants,
       rolesByProjectId: new Map(Object.entries(input.grants ?? {}))
     }));
     const dependencies: typeof DEPENDENCIES = {
@@ -211,6 +233,6 @@ describe(useProjectAccess.name, () => {
 
     const hook = renderHook(() => useProjectAccess(dependencies));
 
-    return { ...hook, useProjectsQuery, useProjectRolesOfUser, refetchProjects };
+    return { ...hook, useProjectsQuery, useProjectRolesOfUser, refetchProjects, retryGrants };
   }
 });
