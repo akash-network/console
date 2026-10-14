@@ -5,6 +5,8 @@ import { afterAll, afterEach, describe, expect, it, vi } from "vitest";
 import type { ActivityStatus } from "@src/activity/model-schemas";
 import { ActivityRepository } from "@src/activity/repositories/activity/activity.repository";
 import { UserAuthTokenService } from "@src/auth/services/user-auth-token/user-auth-token.service";
+import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
+import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import { systemClosedActivityOf } from "@src/deployment/utils/close-activity/close-activity";
 import { app } from "@src/rest-app";
 import { UserRepository } from "@src/user/repositories/user/user.repository";
@@ -117,6 +119,7 @@ describe("Activities", () => {
       const { user, token } = await setup();
       const { organization: team } = await seedOrganizationWithOwner();
       await seedOrganizationMember({ organizationId: team.id, userId: user.id });
+      vi.spyOn(container.resolve(FeatureFlagsService), "isEnabled").mockImplementation(flag => flag !== FeatureFlags.ORGANIZATIONS_ENFORCE);
       const teamClose = await activityRepository.create(
         systemClosedActivityOf({ userId: user.id, owner: createAkashAddress(), dseq: "1004", reason: "runtime_limit_reached" })
       );
