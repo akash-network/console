@@ -12,4 +12,5 @@ export type FeatureFlag =
   | "ui_configure_two_panel"
   | "account_deletion"
   | "notifications_activity_center"
-  | "ui_command_menu";
+  | "ui_command_menu"
+  | "organizations";
