@@ -1,15 +1,19 @@
 import { useCallback, useMemo } from "react";
+import type { JwtTokenAccessScope } from "@akashnetwork/chain-sdk/web";
 import { JwtTokenManager } from "@akashnetwork/chain-sdk/web";
-import { atom, useAtom } from "jotai";
+import { useAtom } from "jotai";
 
 import { useServices } from "@src/context/ServicesProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { useUser } from "@src/hooks/useUser";
-
-/** Held in memory only, because for half an hour the token opens a shell on any of the user's leases. */
-const ISSUED_TOKEN_ATOM = atom<{ userId: string; token: string } | null>(null);
+import providerCredentialsStore from "@src/store/providerCredentialsStore";
 
 export const REFRESH_SKEW_SECONDS = 60;
+
+export const TOKEN_TTL_SECONDS = 30 * 60;
+
+/** Providers authorize a deployment grant by dseq and scope alone, yet the token schema requires a non-empty service list. */
+const EVERY_SERVICE = ["*"];
 
 export const DEPENDENCIES = {
   useWallet,
@@ -19,11 +23,11 @@ export const DEPENDENCIES = {
 
 export function useProviderJwt({ dependencies: d = DEPENDENCIES }: { dependencies?: typeof DEPENDENCIES } = {}): UseProviderJwtResult {
   const { consoleApiHttpClient } = d.useServices();
-  const { hasWallet } = d.useWallet();
+  const { hasWallet, address } = d.useWallet();
   const { user } = d.useUser();
   const userId = user?.id;
-  const [issuedToken, setIssuedToken] = useAtom(ISSUED_TOKEN_ATOM);
-  const accessToken = issuedToken && issuedToken.userId === userId ? issuedToken.token : null;
+  const [issuedToken, setIssuedToken] = useAtom(providerCredentialsStore.issuedToken);
+  const accessToken = issuedToken && issuedToken.userId === userId && issuedToken.address === address ? issuedToken.token : null;
 
   const jwtTokenManager = useMemo(
     () =>
@@ -40,16 +44,11 @@ export function useProviderJwt({ dependencies: d = DEPENDENCIES }: { dependencie
   }, [accessToken, jwtTokenManager]);
 
   const generateToken = useCallback(async (): Promise<string> => {
-    if (!hasWallet) {
-      throw new Error("Cannot generate JWT: user has no wallet");
-    }
-    if (!userId) {
-      throw new Error("Cannot generate JWT: user is not authenticated");
-    }
+    assertCanIssueToken(hasWallet, userId);
 
     const response = await consoleApiHttpClient.post<{ data: { token: string } }>("/v1/create-jwt-token", {
       data: {
-        ttl: 30 * 60,
+        ttl: TOKEN_TTL_SECONDS,
         leases: {
           access: "scoped",
           scope: ["status", "shell", "events", "logs", "send-manifest", "get-manifest"]
@@ -58,25 +57,39 @@ export function useProviderJwt({ dependencies: d = DEPENDENCIES }: { dependencie
     });
     const token = response.data.data.token;
 
-    setIssuedToken({ userId, token });
+    setIssuedToken({ userId, address, token });
     return token;
-  }, [hasWallet, userId, consoleApiHttpClient, setIssuedToken]);
+  }, [hasWallet, userId, address, consoleApiHttpClient, setIssuedToken]);
 
   const generateScopedProviderToken = useCallback(
     async ({ provider, scope }: { provider: string; scope: readonly string[] }): Promise<string> => {
-      if (!hasWallet) {
-        throw new Error("Cannot generate JWT: user has no wallet");
-      }
-      if (!userId) {
-        throw new Error("Cannot generate JWT: user is not authenticated");
-      }
+      assertCanIssueToken(hasWallet, userId);
 
       const response = await consoleApiHttpClient.post<{ data: { token: string } }>("/v1/create-jwt-token", {
         data: {
-          ttl: 30 * 60,
+          ttl: TOKEN_TTL_SECONDS,
           leases: {
             access: "granular",
             permissions: [{ provider, access: "scoped", scope }]
+          }
+        }
+      });
+
+      return response.data.data.token;
+    },
+    [hasWallet, userId, consoleApiHttpClient]
+  );
+
+  const generateDeploymentToken = useCallback(
+    async ({ provider, dseqs, scope }: DeploymentTokenRequest): Promise<string> => {
+      assertCanIssueToken(hasWallet, userId);
+
+      const response = await consoleApiHttpClient.post<{ data: { token: string } }>("/v1/create-jwt-token", {
+        data: {
+          ttl: TOKEN_TTL_SECONDS,
+          leases: {
+            access: "granular",
+            permissions: [{ provider, access: "granular", deployments: dseqs.map(dseq => ({ dseq: Number(dseq), scope, services: EVERY_SERVICE })) }]
           }
         }
       });
@@ -93,11 +106,27 @@ export function useProviderJwt({ dependencies: d = DEPENDENCIES }: { dependencie
       },
       accessToken,
       generateToken,
-      generateScopedProviderToken
+      generateScopedProviderToken,
+      generateDeploymentToken
     }),
-    [accessToken, generateToken, generateScopedProviderToken]
+    [accessToken, generateToken, generateScopedProviderToken, generateDeploymentToken]
   );
 }
+
+function assertCanIssueToken(hasWallet: boolean, userId: string | undefined): asserts userId is string {
+  if (!hasWallet) {
+    throw new Error("Cannot generate JWT: user has no wallet");
+  }
+  if (!userId) {
+    throw new Error("Cannot generate JWT: user is not authenticated");
+  }
+}
+
+export type DeploymentTokenRequest = {
+  provider: string;
+  dseqs: readonly string[];
+  scope: readonly JwtTokenAccessScope[];
+};
 
 export interface UseProviderJwtResult {
   isTokenExpired: boolean;
@@ -105,4 +134,5 @@ export interface UseProviderJwtResult {
   generateToken: () => Promise<string>;
   /** A single-provider token for one call, such as an attestation quote, which never replaces the shared token. */
   generateScopedProviderToken: (params: { provider: string; scope: readonly string[] }) => Promise<string>;
+  generateDeploymentToken: (params: DeploymentTokenRequest) => Promise<string>;
 }

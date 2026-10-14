@@ -20,6 +20,7 @@ import { useDeclaredTeeTypes } from "@src/hooks/useDeclaredTeeTypes";
 import { useDeploymentDefinition } from "@src/hooks/useDeploymentDefinition/useDeploymentDefinition";
 import { useDeploymentEscrowBalance } from "@src/hooks/useDeploymentEscrowBalance/useDeploymentEscrowBalance";
 import { useHasDeploymentStopped } from "@src/hooks/useHasDeploymentStopped";
+import { isLeaseStatusWithheld, useProviderCredentials } from "@src/hooks/useProviderCredentials/useProviderCredentials";
 import { useTickingNow } from "@src/hooks/useTickingNow";
 import { useDeploymentSettingQuery } from "@src/queries/deploymentSettingsQuery";
 import { useLeaseStatuses } from "@src/queries/useLeaseQuery";
@@ -53,6 +54,7 @@ export const DEPENDENCIES = {
   useDeclaredGpuInterconnect,
   useLeaseStatuses,
   useCanManageDeployment,
+  useProviderCredentials,
   CostRate,
   CostBreakdownTooltip,
   DeploymentVisitControl,
@@ -99,7 +101,9 @@ export const DeploymentDetailHeader: FC<DeploymentDetailHeaderProps> = ({
     () => liveLeases.map(lease => ({ lease, provider: providers.find(provider => provider.owner === lease.provider) })),
     [liveLeases, providers]
   );
-  const workload = summarizeWorkloadStatus(d.useLeaseStatuses(liveLeaseItems, { refetchInterval: 30_000 }));
+  const statuses = d.useLeaseStatuses(liveLeaseItems, { refetchInterval: 30_000 });
+  const { tokenMode } = d.useProviderCredentials();
+  const workload = isLeaseStatusWithheld(tokenMode, statuses) ? undefined : summarizeWorkloadStatus(statuses);
   const costPerBlockUDenom = liveLeases.reduce((sum, lease) => sum + parseFloat(lease.price.amount), 0);
   const liveGpuCount = liveLeases.reduce((sum, lease) => sum + (lease.gpuAmount ?? 0), 0);
 

@@ -5,9 +5,11 @@ import { QueryClient } from "@tanstack/react-query";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
+import { SKIP_REPORTING_REFUSED_INPUT } from "@src/services/query-error-policy/query-error-policy";
 import { QueryKeys } from "./queryKeys";
 import {
   useDefaultPaymentMethodQuery,
+  useFirstPurchaseBonusQuery,
   usePaymentMethodsQuery,
   usePaymentMutations,
   usePaymentTransactionsQuery,
@@ -117,6 +119,33 @@ describe("usePaymentQueries", () => {
       expect(result.current.isSuccess).toBe(true);
       expect(result.current.data?.transactions).toEqual(transactions);
     });
+  });
+
+  it("fetches whether the first-purchase bonus applies", async () => {
+    const getFirstPurchaseBonus = vi.fn().mockResolvedValue({ data: { eligible: true } });
+    const api = createProxy({ v1: { getFirstPurchaseBonus } }) as unknown as ApiService;
+    const { result } = setupQuery(() => useFirstPurchaseBonusQuery(), {
+      services: { api: () => api }
+    });
+
+    await vi.waitFor(() => {
+      expect(result.current.isSuccess).toBe(true);
+    });
+    expect(result.current.data).toEqual({ eligible: true });
+  });
+
+  it("does not report the api refusing to say whether the first-purchase bonus applies", async () => {
+    const getFirstPurchaseBonus = vi.fn().mockRejectedValue(new ApiError(403, undefined, "GET /v1/stripe/first-purchase-bonus → 403"));
+    const api = createProxy({ v1: { getFirstPurchaseBonus } }) as unknown as ApiService;
+    const { result, queryClient } = setupQueryWithClient(() => useFirstPurchaseBonusQuery(), {
+      services: { api: () => api }
+    });
+
+    await vi.waitFor(() => {
+      expect(result.current.isError).toBe(true);
+    });
+    const [query] = queryClient.getQueryCache().getAll();
+    expect(query.meta).toEqual(SKIP_REPORTING_REFUSED_INPUT);
   });
 
   it("creates setup intent", async () => {

@@ -4,7 +4,7 @@ import { Button, Snackbar } from "@akashnetwork/ui/components";
 import { useSnackbar } from "notistack";
 
 import { useServices } from "@src/context/ServicesProvider";
-import { useProviderCredentials } from "@src/hooks/useProviderCredentials/useProviderCredentials";
+import { LEASE_LOGS_SCOPE, LEASE_SHELL_SCOPE, useProviderCredentials } from "@src/hooks/useProviderCredentials/useProviderCredentials";
 import type { DownloadMessagesResult } from "@src/services/provider-proxy/provider-proxy.service";
 import type { ApiProviderList } from "@src/types/provider";
 
@@ -61,7 +61,7 @@ export const useProviderApiActions = (): ProviderApiActions => {
         const result = await providerProxy.downloadLogs({
           providerBaseUrl: provider.hostUri,
           providerAddress: provider.owner,
-          ensureToken: providerCredentials.ensureToken,
+          ensureToken: () => providerCredentials.ensureToken({ access: { provider: provider.owner, dseqs: [dseq], scope: LEASE_LOGS_SCOPE } }),
           dseq,
           gseq,
           oseq,
@@ -90,7 +90,7 @@ export const useProviderApiActions = (): ProviderApiActions => {
         const result = await providerProxy.downloadFileFromShell({
           providerBaseUrl: provider.hostUri,
           providerAddress: provider.owner,
-          ensureToken: providerCredentials.ensureToken,
+          ensureToken: () => providerCredentials.ensureToken({ access: { provider: provider.owner, dseqs: [dseq], scope: LEASE_SHELL_SCOPE } }),
           dseq,
           gseq,
           oseq,

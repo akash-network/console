@@ -1,10 +1,35 @@
 import { Alert, AlertDescription, AlertTitle, Skeleton } from "@akashnetwork/ui/components";
-import { CircleAlert } from "lucide-react";
+import { CircleAlert, Info } from "lucide-react";
 
-export function ProviderAuthFallback({ hasAccess, error }: { hasAccess: boolean; error: Error | null }) {
+import type { ProviderTokenMode } from "@src/hooks/useProviderCredentials/useProviderCredentials";
+
+export const ORGANIZATION_UNAVAILABLE_MESSAGE = "Couldn't load your organization. Reload to retry.";
+
+export function ProviderAuthFallback({
+  hasAccess,
+  error,
+  tokenMode,
+  viewOnlyMessage
+}: {
+  hasAccess: boolean;
+  error: Error | null;
+  tokenMode: ProviderTokenMode;
+  viewOnlyMessage: string;
+}) {
+  if (tokenMode === "view-only") return <ProviderAccessUnavailableAlert message={viewOnlyMessage} />;
+  if (tokenMode === "organization-unavailable") return <ProviderAccessUnavailableAlert message={ORGANIZATION_UNAVAILABLE_MESSAGE} />;
   if (error) return <ProviderAuthErrorAlert />;
   if (!hasAccess) return <ProviderAuthSkeleton />;
   return null;
+}
+
+function ProviderAccessUnavailableAlert({ message }: { message: string }) {
+  return (
+    <Alert className="mt-4 p-4">
+      <Info className="h-4 w-4" />
+      <AlertDescription className="text-sm">{message}</AlertDescription>
+    </Alert>
+  );
 }
 
 function ProviderAuthErrorAlert() {

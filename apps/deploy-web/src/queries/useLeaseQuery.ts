@@ -2,10 +2,13 @@ import { isHttpError, type LeaseListParams } from "@akashnetwork/http-sdk";
 import type { UseQueryOptions } from "@tanstack/react-query";
 import { useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { AxiosInstance } from "axios";
+import groupBy from "lodash/groupBy";
 import mapValues from "lodash/mapValues";
+import uniq from "lodash/uniq";
 
 import { useServices } from "@src/context/ServicesProvider";
-import { useProviderCredentials } from "@src/hooks/useProviderCredentials/useProviderCredentials";
+import type { UseProviderCredentialsResult } from "@src/hooks/useProviderCredentials/useProviderCredentials";
+import { LEASE_STATUS_SCOPE, useProviderCredentials } from "@src/hooks/useProviderCredentials/useProviderCredentials";
 import { useScopedFetchProviderUrl } from "@src/hooks/useScopedFetchProviderUrl";
 import {
   isProviderTokenRejection,
@@ -165,6 +168,7 @@ export function useLeaseStatuses(
   const { dependencies: d = USE_LEASE_STATUS_DEPENDENCIES, select: callerSelect, ...options } = params;
   const providerCredentials = d.useProviderCredentials();
   const { providerProxy } = useServices();
+  const dseqsByProvider = liveDseqsByProvider(items);
 
   return useQueries({
     queries: items.map(({ lease, provider }) => ({
@@ -174,6 +178,7 @@ export function useLeaseStatuses(
         return fetchLeaseStatus({
           lease,
           provider,
+          dseqs: dseqsByProvider[provider.owner],
           ensureToken: providerCredentials.ensureToken,
           request: (url, requestOptions) => providerProxy.request(url, { ...requestOptions, providerIdentity: provider })
         });
@@ -188,6 +193,16 @@ export function useLeaseStatuses(
       }
     }))
   });
+}
+
+/** One status token per provider covers its deployments here, so one refused deployment refuses status for every one grouped with it. */
+function liveDseqsByProvider(items: { lease: LeaseDto; provider?: ApiProviderList | null }[]): Record<string, string[]> {
+  const liveItems = items.filter(({ lease, provider }) => !!provider && isLeaseLive(lease));
+
+  return mapValues(
+    groupBy(liveItems, ({ provider }) => provider?.owner),
+    group => uniq(group.map(({ lease }) => lease.dseq))
+  );
 }
 
 function leaseStatusQueryKey(lease?: LeaseDto | null) {
@@ -218,12 +233,15 @@ type LeaseStatusRequest = (
 async function fetchLeaseStatus(input: {
   lease?: LeaseDto | null;
   provider?: ApiProviderList | null;
-  ensureToken: (options?: { force?: boolean }) => Promise<string>;
+  dseqs?: readonly string[];
+  ensureToken: UseProviderCredentialsResult["ensureToken"];
   request: LeaseStatusRequest;
 }): Promise<LeaseStatusDto | null> {
-  const { lease, provider, ensureToken, request } = input;
+  const { lease, provider, request } = input;
   if (!lease || !provider || !isLeaseLive(lease)) return null;
 
+  const access = { provider: provider.owner, dseqs: input.dseqs ?? [lease.dseq], scope: LEASE_STATUS_SCOPE };
+  const ensureToken = (options?: { force?: boolean }) => input.ensureToken({ ...options, access });
   const response = await requestLeaseStatus(`/lease/${lease.dseq}/${lease.gseq}/${lease.oseq}/status`, { ensureToken, request }).catch(error => {
     if (isLeaseStatusUnavailable(error)) {
       return { data: null };

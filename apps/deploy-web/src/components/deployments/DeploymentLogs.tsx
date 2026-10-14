@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button, Checkbox, CheckboxWithLabel, DropdownMenu, DropdownMenuContent, DropdownMenuTrigger, Spinner } from "@akashnetwork/ui/components";
 import type { Monaco } from "@monaco-editor/react";
 import { useTheme as useMuiTheme } from "@mui/material/styles";
@@ -18,7 +18,7 @@ import type { LOGS_MODE } from "@src/hooks/useLogStream/useLogStream";
 import { useLogStream } from "@src/hooks/useLogStream/useLogStream";
 import { useProviderAccess } from "@src/hooks/useProviderAccess/useProviderAccess";
 import { useProviderApiActions } from "@src/hooks/useProviderApiActions";
-import { useProviderCredentials } from "@src/hooks/useProviderCredentials/useProviderCredentials";
+import { LEASE_LOGS_SCOPE, useProviderCredentials } from "@src/hooks/useProviderCredentials/useProviderCredentials";
 import { useLeaseStatus } from "@src/queries/useLeaseQuery";
 import { useProvidersByAddresses } from "@src/queries/useProvidersQuery";
 import type { LeaseDto } from "@src/types/deployment";
@@ -60,6 +60,11 @@ export const DeploymentLogs: React.FunctionComponent<Props> = ({ leases, selecte
     lease: selectedLease
   });
   const services = useMemo(() => (leaseStatus ? Object.keys(leaseStatus.services) : []), [leaseStatus]);
+  const { ensureToken } = providerCredentials;
+  const ensureLogsToken = useCallback(
+    () => ensureToken({ access: providerAddress && dseq ? { provider: providerAddress, dseqs: [dseq], scope: LEASE_LOGS_SCOPE } : undefined }),
+    [ensureToken, providerAddress, dseq]
+  );
   const muiTheme = useMuiTheme();
   const smallScreen = useMediaQuery(muiTheme.breakpoints.down("md"));
 
@@ -68,7 +73,7 @@ export const DeploymentLogs: React.FunctionComponent<Props> = ({ leases, selecte
     enabled: hasLogsAccess,
     providerBaseUrl: providerHostUri,
     providerAddress,
-    ensureToken: providerCredentials.ensureToken,
+    ensureToken: ensureLogsToken,
     dseq,
     gseq,
     oseq,
@@ -160,7 +165,12 @@ export const DeploymentLogs: React.FunctionComponent<Props> = ({ leases, selecte
 
   return (
     <div>
-      <ProviderAuthFallback hasAccess={hasLogsAccess} error={providerCredentials.details.error} />
+      <ProviderAuthFallback
+        hasAccess={hasLogsAccess}
+        error={providerCredentials.details.error}
+        tokenMode={providerCredentials.tokenMode}
+        viewOnlyMessage="Logs aren't available for view-only access yet."
+      />
 
       {hasLogsAccess && (
         <>

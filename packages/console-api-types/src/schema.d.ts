@@ -394,6 +394,23 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/v1/stripe/first-purchase-bonus": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Whether the caller's next qualifying purchase for the active organization earns the first-purchase bonus */
+    get: operations["getFirstPurchaseBonus"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/v1/billing-details": {
     parameters: {
       query?: never;
@@ -8656,6 +8673,30 @@ export interface operations {
         };
         content: {
           "text/csv": string;
+        };
+      };
+    };
+  };
+  getFirstPurchaseBonus: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description First-purchase bonus eligibility */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            data: {
+              eligible: boolean;
+            };
+          };
         };
       };
     };

@@ -11,7 +11,8 @@ const UNREACHABLE_LABELS: Record<UnreachableReason, string> = {
   "not-running": "no endpoint · not running",
   starting: "no endpoint yet · starting",
   "provider-unreachable": "endpoints unavailable · provider unreachable",
-  "no-public-endpoint": "private · no public endpoint"
+  "no-public-endpoint": "private · no public endpoint",
+  "status-unavailable": "endpoints unavailable · status not available with your access"
 };
 
 const EndpointParts: FC<{ endpoint: VisitEndpoint }> = ({ endpoint }) => (

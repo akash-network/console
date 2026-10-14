@@ -71,6 +71,29 @@ describe(useProviderJwt.name, () => {
     expect(result.current.first.accessToken).toBeNull();
   });
 
+  it("does not hand the token issued for one wallet to the next wallet", async () => {
+    const addressRef = { current: "akash1previous" };
+    const { result, rerender } = setup({ issuedToken: genFakeToken(), addressRef });
+    await act(() => result.current.first.generateToken());
+
+    addressRef.current = "akash1next";
+    rerender();
+
+    expect(result.current.first.accessToken).toBeNull();
+  });
+
+  it("does not hand a token still in flight when the wallet changed to the next wallet", async () => {
+    const addressRef = { current: "akash1previous" };
+    const { result, rerender } = setup({ issuedToken: genFakeToken(), addressRef });
+    const pending = result.current.first.generateToken();
+
+    addressRef.current = "akash1next";
+    rerender();
+    await act(() => pending);
+
+    expect(result.current.first.accessToken).toBeNull();
+  });
+
   it("holds a token generated after the user changed for the new user", async () => {
     const userRef = { current: "user-1" };
     const { result, rerender } = setup({ issuedToken: genFakeToken(), userRef });
@@ -133,6 +156,54 @@ describe(useProviderJwt.name, () => {
     expect(consoleApiHttpClient.post).not.toHaveBeenCalled();
   });
 
+  it("generates a token for the named deployments of one provider without replacing the shared one", async () => {
+    const token = genFakeToken();
+    const { result, consoleApiHttpClient } = setup({ issuedToken: token });
+
+    const returned = await act(() =>
+      result.current.first.generateDeploymentToken({ provider: "akash1provider", dseqs: ["123", "456"], scope: ["logs", "events"] })
+    );
+
+    expect(returned).toBe(token);
+    expect(consoleApiHttpClient.post).toHaveBeenCalledWith("/v1/create-jwt-token", {
+      data: {
+        ttl: 1800,
+        leases: {
+          access: "granular",
+          permissions: [
+            {
+              provider: "akash1provider",
+              access: "granular",
+              deployments: [
+                { dseq: 123, scope: ["logs", "events"], services: ["*"] },
+                { dseq: 456, scope: ["logs", "events"], services: ["*"] }
+              ]
+            }
+          ]
+        }
+      }
+    });
+    expect(result.current.first.accessToken).toBeNull();
+  });
+
+  it("throws when generating a deployment token while wallet is disconnected", async () => {
+    const { result, consoleApiHttpClient } = setup({ wallet: { hasWallet: false } });
+
+    await expect(result.current.first.generateDeploymentToken({ provider: "akash1provider", dseqs: ["123"], scope: ["status"] })).rejects.toThrow(
+      /user has no wallet/i
+    );
+    expect(consoleApiHttpClient.post).not.toHaveBeenCalled();
+  });
+
+  it("throws when generating a deployment token without an authenticated user", async () => {
+    const { result, consoleApiHttpClient } = setup({ user: null });
+
+    await expect(result.current.first.generateDeploymentToken({ provider: "akash1provider", dseqs: ["123"], scope: ["status"] })).rejects.toThrow(
+      /user is not authenticated/i
+    );
+    expect(consoleApiHttpClient.post).not.toHaveBeenCalled();
+  });
+
   it("detects expired token correctly", async () => {
     const { result } = setup({ issuedToken: genFakeToken({ exp: Math.floor(Date.now() / 1000) - 100 }) });
 
@@ -165,14 +236,20 @@ describe(useProviderJwt.name, () => {
     expect(result.current.first.isTokenExpired).toBe(false);
   });
 
-  function setup(input?: { wallet?: Partial<WalletContext>; user?: null; userRef?: { current: string }; issuedToken?: string }) {
+  function setup(input?: {
+    wallet?: Partial<WalletContext>;
+    user?: null;
+    userRef?: { current: string };
+    addressRef?: { current: string };
+    issuedToken?: string;
+  }) {
     const store = createStore();
     const consoleApiHttpClient = mock<HttpClient>({
       post: vi.fn().mockResolvedValue({ data: { data: { token: input?.issuedToken ?? genFakeToken() } } })
     } as unknown as HttpClient);
     const dependencies: typeof DEPENDENCIES = {
       ...DEPENDENCIES,
-      useWallet: () => buildWallet({ hasWallet: true, ...input?.wallet }),
+      useWallet: () => buildWallet({ hasWallet: true, address: input?.addressRef?.current ?? "akash1wallet", ...input?.wallet }),
       useUser: () =>
         mock<ReturnType<typeof useUser>>({
           user: input?.user === null ? undefined : ({ id: input?.userRef?.current ?? "user-1" } as CustomUserProfile)

@@ -8,7 +8,7 @@ import { ViewPanel } from "@src/components/shared/ViewPanel";
 import { useServices } from "@src/context/ServicesProvider";
 import { useNotificator } from "@src/hooks/useNotificator";
 import { useProviderAccess } from "@src/hooks/useProviderAccess/useProviderAccess";
-import { useProviderCredentials } from "@src/hooks/useProviderCredentials/useProviderCredentials";
+import { LEASE_SHELL_SCOPE, useProviderCredentials } from "@src/hooks/useProviderCredentials/useProviderCredentials";
 import { XTerm } from "@src/lib/XTerm";
 import type { XTermRefType } from "@src/lib/XTerm/XTerm";
 import { useLeaseStatus } from "@src/queries/useLeaseQuery";
@@ -103,10 +103,11 @@ export const DeploymentLeaseShell: React.FunctionComponent<Props> = ({ leases, d
     if (!providerHostUri || !providerAddress || !hasShellAccess || !dseq || gseq === undefined || oseq === undefined || !selectedService) return null;
 
     const abortController = new AbortController();
+    const access = { provider: providerAddress, dseqs: [dseq], scope: LEASE_SHELL_SCOPE };
     const conn = providerProxy.connectToShell({
       providerBaseUrl: providerHostUri,
       providerAddress,
-      ensureToken: providerCredentials.ensureToken,
+      ensureToken: () => providerCredentials.ensureToken({ access }),
       dseq,
       gseq,
       oseq,
@@ -279,7 +280,12 @@ export const DeploymentLeaseShell: React.FunctionComponent<Props> = ({ leases, d
         <d.ShellDownloadModal onCloseClick={onCloseDownloadClick} selectedLease={selectedLease} providerInfo={providerInfo} selectedService={selectedService} />
       )}
 
-      <d.ProviderAuthFallback hasAccess={hasShellAccess} error={providerCredentials.details.error} />
+      <d.ProviderAuthFallback
+        hasAccess={hasShellAccess}
+        error={providerCredentials.details.error}
+        tokenMode={providerCredentials.tokenMode}
+        viewOnlyMessage="The shell isn't available for view-only access."
+      />
 
       {hasShellAccess && (
         <>

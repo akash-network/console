@@ -66,19 +66,63 @@ describe(FirstPurchaseBonusAlert.name, () => {
     expect(container).not.toHaveTextContent("more to unlock");
   });
 
-  function setup(input?: { amount?: number; isSuccess?: boolean; transactions?: BillingTransaction[] }) {
+  it("judges the offer by the purchase history without asking for eligibility while organizations are off", () => {
+    const { useFirstPurchaseBonusQuery } = setup({ amount: 0 });
+
+    expect(screen.getByText("First-purchase bonus")).toBeInTheDocument();
+    expect(useFirstPurchaseBonusQuery).not.toHaveBeenCalled();
+  });
+
+  describe("when organizations are on", () => {
+    it("shows the offer when the caller is eligible", () => {
+      const { usePaymentTransactionsQuery } = setup({
+        amount: 100,
+        isOrganizationsEnabled: true,
+        bonus: { isSuccess: true, eligible: true },
+        transactions: [mock<BillingTransaction>({ status: "succeeded" })]
+      });
+
+      expect(screen.getByText("$110.00 in credits")).toBeInTheDocument();
+      expect(usePaymentTransactionsQuery).not.toHaveBeenCalled();
+    });
+
+    it("renders nothing when the caller is not eligible", () => {
+      const { container } = setup({ amount: 100, isOrganizationsEnabled: true, bonus: { isSuccess: true, eligible: false } });
+
+      expect(container).toBeEmptyDOMElement();
+    });
+
+    it("renders nothing until eligibility is known, including when the request is refused", () => {
+      const { container } = setup({ amount: 100, isOrganizationsEnabled: true, bonus: { isSuccess: false } });
+
+      expect(container).toBeEmptyDOMElement();
+    });
+  });
+
+  function setup(input?: {
+    amount?: number;
+    isSuccess?: boolean;
+    transactions?: BillingTransaction[];
+    isOrganizationsEnabled?: boolean;
+    bonus?: { isSuccess: boolean; eligible?: boolean };
+  }) {
     // UseQueryResult is a discriminated union that neither mock<T>() nor a partial literal can satisfy
     const usePaymentTransactionsQuery = vi.fn(() => ({
       data: { transactions: input?.transactions ?? [] },
       isSuccess: input?.isSuccess ?? true
     })) as unknown as typeof DEPENDENCIES.usePaymentTransactionsQuery;
+    const useFirstPurchaseBonusQuery = vi.fn(() => ({
+      data: input?.bonus?.isSuccess ? { eligible: input.bonus.eligible } : undefined,
+      isSuccess: input?.bonus?.isSuccess ?? false
+    })) as unknown as typeof DEPENDENCIES.useFirstPurchaseBonusQuery;
+    const useFlag: typeof DEPENDENCIES.useFlag = flag => flag === "organizations" && !!input?.isOrganizationsEnabled;
 
     const result = render(
       <IntlProvider locale="en-US" defaultLocale="en-US">
-        <FirstPurchaseBonusAlert amount={input?.amount ?? 0} dependencies={{ usePaymentTransactionsQuery }} />
+        <FirstPurchaseBonusAlert amount={input?.amount ?? 0} dependencies={{ useFlag, usePaymentTransactionsQuery, useFirstPurchaseBonusQuery }} />
       </IntlProvider>
     );
 
-    return { ...result, usePaymentTransactionsQuery };
+    return { ...result, usePaymentTransactionsQuery, useFirstPurchaseBonusQuery };
   }
 });
