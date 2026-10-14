@@ -8,7 +8,8 @@ export const FeatureFlags = {
   ACCOUNT_DELETION: "account_deletion",
   BACKGROUND_DEPLOYMENT_CLOSE: "background_deployment_close",
   ORGANIZATIONS: "organizations",
-  ORGANIZATIONS_ENFORCE: "organizations_enforce"
+  ORGANIZATIONS_ENFORCE: "organizations_enforce",
+  INVOICES: "invoices"
 } as const;
 
 export type FeatureFlagValue = (typeof FeatureFlags)[keyof typeof FeatureFlags];

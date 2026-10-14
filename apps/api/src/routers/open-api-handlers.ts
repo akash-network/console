@@ -5,6 +5,7 @@ import { verifyEmailRouter } from "@src/auth/routes/verify-email/verify-email.ro
 import { bidsRouter } from "@src/bid/routes/bids/bids.router";
 import { bidScreeningRouter } from "@src/bid-screening";
 import {
+  billingDetailsRouter,
   firstPurchaseBonusRouter,
   getBalancesRouter,
   getWalletListRouter,
@@ -87,6 +88,7 @@ export const openApiHonoHandlers: OpenApiHonoHandler[] = [
   stripeCouponsRouter,
   stripePaymentMethodsRouter,
   stripeTransactionsRouter,
+  billingDetailsRouter,
   firstPurchaseBonusRouter,
   usageRouter,
   registerUserRouter,
