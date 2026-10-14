@@ -16,6 +16,14 @@ describe(DeploymentSettings.name, () => {
     expect(screen.getByRole("heading", { name: "Danger zone" })).toBeInTheDocument();
   });
 
+  it("offers a member who only reads deployments neither funding nor closing", () => {
+    setup({ isSignedIn: true, runtimeLimitHours: 4, canChangeDeployments: false });
+
+    expect(screen.queryByText("billing-section")).not.toBeInTheDocument();
+    expect(screen.queryByText("danger-zone")).not.toBeInTheDocument();
+    expect(screen.getByText("notifications:true")).toBeInTheDocument();
+  });
+
   it("hides the danger zone when the deployment is closed", () => {
     setup({ state: "closed", isSignedIn: true });
 
@@ -50,7 +58,15 @@ describe(DeploymentSettings.name, () => {
     expect(screen.queryByText("Billing")).not.toBeInTheDocument();
   });
 
-  function setup(input: { state?: string; isSignedIn?: boolean; runtimeLimitHours?: number | null; isLoadingSettings?: boolean }) {
+  function setup(input: {
+    state?: string;
+    isSignedIn?: boolean;
+    runtimeLimitHours?: number | null;
+    isLoadingSettings?: boolean;
+    canChangeDeployments?: boolean;
+  }) {
+    const useProjectsUi: typeof DEPENDENCIES.useProjectsUi = () =>
+      mock<ReturnType<typeof DEPENDENCIES.useProjectsUi>>({ canChangeDeployments: input.canChangeDeployments ?? true });
     const useUser: typeof DEPENDENCIES.useUser = () =>
       mock<ReturnType<typeof DEPENDENCIES.useUser>>({
         user: input.isSignedIn ? mock<NonNullable<ReturnType<typeof DEPENDENCIES.useUser>["user"]>>({ userId: "u1" }) : undefined
@@ -76,7 +92,8 @@ describe(DeploymentSettings.name, () => {
           useDeploymentSettingQuery,
           DeploymentBillingSection,
           DeploymentNotificationsSection,
-          DeploymentDangerZone
+          DeploymentDangerZone,
+          useProjectsUi
         })}
       />
     );

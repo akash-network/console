@@ -30,7 +30,7 @@ export const DEPENDENCIES = {
 export const DEFAULT_PAGE_SIZE = MIN_PAGE_SIZE;
 
 /** Owns what the page does with a list of deployments, never where that list comes from. */
-export function useDeploymentsListModel(dependencies: typeof DEPENDENCIES = DEPENDENCIES) {
+export function useDeploymentsListModel({ projectId }: { projectId?: string } = {}, dependencies: typeof DEPENDENCIES = DEPENDENCIES) {
   const d = dependencies;
   const { analyticsService } = useServices();
   const { address, hasWallet } = d.useWallet();
@@ -44,7 +44,18 @@ export function useDeploymentsListModel(dependencies: typeof DEPENDENCIES = DEPE
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
   const [search, setSearch] = useState("");
 
-  const { appliedSearch, active, archive, refetch: refetchDeployments } = d.useDeploymentsListSource({ search, pageIndex, pageSize, archivePageIndex });
+  const {
+    appliedSearch,
+    active,
+    archive,
+    refetch: refetchDeployments
+  } = d.useDeploymentsListSource({
+    search,
+    pageIndex,
+    pageSize,
+    archivePageIndex,
+    projectId
+  });
 
   /** Reads the search the rows were fetched with rather than the box, so a paced source cannot report a search its rows have yet to reflect. */
   const isSearching = appliedSearch.length > 0;

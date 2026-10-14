@@ -17,6 +17,18 @@ import { render, screen } from "@testing-library/react";
 const SECRET_REFERENCE_SDL = 'version: "2.0"\nservices:\n  web:\n    image: nginx\n    env:\n      - "API_KEY=ac-secret://API_KEY"\n';
 
 describe(ConfigureDeployment.name, () => {
+  it("holds a new deployment behind the project gate", () => {
+    const { DeployTargetGate } = setup({ templateId: "tpl-1" });
+
+    expect(DeployTargetGate.mock.lastCall?.[0].filedDseq).toBeUndefined();
+  });
+
+  it("names a deployment that already exists to the project gate", () => {
+    const { DeployTargetGate } = setup({ templateId: "tpl-1", dseq: "123" });
+
+    expect(DeployTargetGate.mock.lastCall?.[0]).toMatchObject({ filedDseq: "123" });
+  });
+
   it("shows a loading state while the template is being fetched", () => {
     const { ConfigureDeploymentForm } = setup({ templateId: "tpl-1", template: { isLoading: true } });
 
@@ -364,6 +376,7 @@ describe(ConfigureDeployment.name, () => {
     deploySdl?: TemplateCreation | null;
     vm?: boolean;
     resume?: ResumeResolution;
+    dseq?: string;
   }) {
     const ConfigureDeploymentForm = vi.fn(() => <div data-testid="form-mock" />);
     const AutoDeployFlow = vi.fn(() => <div data-testid="auto-mock" />);
@@ -393,6 +406,7 @@ describe(ConfigureDeployment.name, () => {
     if (input.vm) query.vm = "true";
     const params = new URLSearchParams(query);
 
+    const DeployTargetGate = vi.fn<typeof DEPENDENCIES.DeployTargetGate>(({ children }) => <>{children}</>);
     const ResumeDeploymentGuard = vi.fn(({ children }) => <>{children(input.resume ?? { activeLeases: [] })}</>);
     const dependencies: typeof DEPENDENCIES = {
       Layout: vi.fn(({ children }) => <div data-testid="layout-mock">{children}</div>) as never,
@@ -401,11 +415,12 @@ describe(ConfigureDeployment.name, () => {
       ConfigureDeploymentForm: ConfigureDeploymentForm as never,
       DeploymentFlowProvider: DeploymentFlowProvider as never,
       ResumeDeploymentGuard: ResumeDeploymentGuard as never,
+      DeployTargetGate,
       usePublicTemplate: usePublicTemplate as never,
       useUserTemplate: useUserTemplate as never,
       useConfigureDraft: useConfigureDraft as never,
       useSearchParams: () => params as unknown as ReadonlyURLSearchParams,
-      useParams: (() => ({})) as never,
+      useParams: (() => (input.dseq ? { dseq: [input.dseq] } : {})) as never,
       useSnackbar: () => mock<ReturnType<typeof DEPENDENCIES.useSnackbar>>({ enqueueSnackbar }),
       Snackbar: vi.fn(() => null) as never
     };
@@ -432,6 +447,7 @@ describe(ConfigureDeployment.name, () => {
       useUserTemplate,
       useConfigureDraft,
       ResumeDeploymentGuard,
+      DeployTargetGate,
       enqueueSnackbar,
       rerenderWithTemplate
     };

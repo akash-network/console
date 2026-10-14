@@ -3,6 +3,8 @@ import { mock } from "vitest-mock-extended";
 
 import type { ListedDeploymentDto } from "@src/types/deployment";
 import type { DeploymentsCollectionProps } from "./DeploymentsCollection";
+import type { DeploymentsEmptyStateProps } from "./DeploymentsEmptyState";
+import type { DeploymentsListProject } from "./DeploymentsList";
 import { DEPENDENCIES, DeploymentsList, MAX_SEARCH_LENGTH } from "./DeploymentsList";
 import type { useDeploymentsListModel } from "./useDeploymentsListModel";
 
@@ -13,6 +15,59 @@ import { MockComponents } from "@tests/unit/mocks";
 type Model = ReturnType<typeof useDeploymentsListModel>;
 
 describe("DeploymentsList", () => {
+  describe("when scoped to a project", () => {
+    const project: DeploymentsListProject = { id: "project-1", name: "storefront", title: <h1>storefront switcher</h1>, aside: <p>project activity</p> };
+
+    it("lists only the project's deployments under the project's title", () => {
+      const { useDeploymentsListModel, NextSeo } = setup({}, { project });
+
+      expect(useDeploymentsListModel).toHaveBeenCalledWith({ projectId: "project-1" });
+      expect(screen.getByRole("heading", { name: "storefront switcher" })).toBeInTheDocument();
+      expect(screen.queryByRole("heading", { name: "Deployments" })).not.toBeInTheDocument();
+      expect(NextSeo.mock.lastCall?.[0]).toEqual({ title: "storefront" });
+    });
+
+    it("shows the project's side column next to its deployments", () => {
+      setup({ hasPageResults: true }, { project });
+
+      expect(screen.getByText("project activity")).toBeInTheDocument();
+      expect(screen.getByText("collection")).toBeInTheDocument();
+    });
+
+    it("starts new deployments in the project", () => {
+      const { newDeploymentUrl, DeploymentsEmptyState } = setup({ hasSettledWithoutActiveDeployments: true }, { project });
+
+      expect(newDeploymentUrl).toHaveBeenCalledWith({ projectId: "project-1" });
+      expect(DeploymentsEmptyState.mock.lastCall?.[0]).toMatchObject({ projectId: "project-1" });
+    });
+  });
+
+  it("offers a member who only reads deployments neither a new deployment nor a selection to close", () => {
+    const { DeploymentsCollection, DeploymentsEmptyState } = setup(
+      { hasPageResults: true, hasSettledWithoutActiveDeployments: true },
+      { canChangeDeployments: false }
+    );
+
+    expect(screen.queryByRole("link", { name: /New deployment/ })).not.toBeInTheDocument();
+    expect(DeploymentsCollection.mock.lastCall?.[0]).toMatchObject({ isSelectable: false });
+    expect(DeploymentsEmptyState.mock.lastCall?.[0]).toMatchObject({ canDeploy: false });
+  });
+
+  it("lets everyone else start and close deployments", () => {
+    const { DeploymentsCollection } = setup({ hasPageResults: true });
+
+    expect(screen.getByRole("link", { name: /New deployment/ })).toBeInTheDocument();
+    expect(DeploymentsCollection.mock.lastCall?.[0]).toMatchObject({ isSelectable: true });
+  });
+
+  it("lists every deployment under the page title when no project is in scope", () => {
+    const { useDeploymentsListModel, NextSeo, newDeploymentUrl } = setup({});
+
+    expect(useDeploymentsListModel).toHaveBeenCalledWith({ projectId: undefined });
+    expect(NextSeo.mock.lastCall?.[0]).toEqual({ title: "Deployments" });
+    expect(newDeploymentUrl).toHaveBeenCalledWith({ projectId: undefined });
+  });
+
   it("hides the whole header until a wallet exists", () => {
     setup({ hasWallet: false, hasAnyDeployment: true });
 
@@ -340,7 +395,10 @@ describe("DeploymentsList", () => {
     expect(screen.queryByText(/Too many deployments to search through/)).not.toBeInTheDocument();
   });
 
-  function setup(modelOverrides: Partial<Model>, options: { isBlockchainDown?: boolean } = {}) {
+  function setup(
+    modelOverrides: Partial<Model>,
+    options: { isBlockchainDown?: boolean; project?: DeploymentsListProject; canChangeDeployments?: boolean } = {}
+  ) {
     const changeSearch = vi.fn();
     const changeViewMode = vi.fn();
     const refetchDeployments = vi.fn();
@@ -403,18 +461,23 @@ describe("DeploymentsList", () => {
       ...modelOverrides
     };
 
-    const useDeploymentsListModel: typeof DEPENDENCIES.useDeploymentsListModel = () => model;
+    const useDeploymentsListModel = vi.fn<typeof DEPENDENCIES.useDeploymentsListModel>(() => model);
     const useBlockchainStatus: typeof DEPENDENCIES.useBlockchainStatus = () =>
       mock<ReturnType<typeof DEPENDENCIES.useBlockchainStatus>>({ isBlockchainDown: options.isBlockchainDown ?? false });
-    const useNewDeploymentUrl: typeof DEPENDENCIES.useNewDeploymentUrl = () => () => "/new-deployment";
+    const newDeploymentUrl = vi.fn(() => "/new-deployment");
+    const useNewDeploymentUrl: typeof DEPENDENCIES.useNewDeploymentUrl = () => newDeploymentUrl;
+    const NextSeo = vi.fn<typeof DEPENDENCIES.NextSeo>(() => <></>);
+    const useProjectsUi: typeof DEPENDENCIES.useProjectsUi = () =>
+      mock<ReturnType<typeof DEPENDENCIES.useProjectsUi>>({ canChangeDeployments: options.canChangeDeployments ?? true });
 
     const Layout = vi.fn(({ children }: { children?: React.ReactNode; isLoading?: boolean }) => <div>{children}</div>);
-    const DeploymentsEmptyState = vi.fn(() => <div>empty state</div>);
+    const DeploymentsEmptyState = vi.fn((_props: DeploymentsEmptyStateProps) => <div>empty state</div>);
     const DeploymentsCollection = vi.fn((_props: DeploymentsCollectionProps) => <div>collection</div>);
     const DeploymentArchive = vi.fn(() => <div>archive</div>);
 
     render(
       <DeploymentsList
+        project={options.project}
         dependencies={MockComponents(DEPENDENCIES, {
           useDeploymentsListModel,
           useBlockchainStatus,
@@ -422,7 +485,9 @@ describe("DeploymentsList", () => {
           Layout,
           DeploymentsEmptyState,
           DeploymentsCollection,
-          DeploymentArchive
+          DeploymentArchive,
+          NextSeo,
+          useProjectsUi
         })}
       />
     );
@@ -441,7 +506,10 @@ describe("DeploymentsList", () => {
       Layout,
       DeploymentsEmptyState,
       DeploymentsCollection,
-      DeploymentArchive
+      DeploymentArchive,
+      NextSeo,
+      useDeploymentsListModel,
+      newDeploymentUrl
     };
   }
 });

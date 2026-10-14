@@ -1,6 +1,10 @@
+import type { PropsWithChildren } from "react";
+import { createElement } from "react";
+import { createStore, Provider } from "jotai";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
+import { deployTargetProjectIdAtom } from "@src/store/deployTargetStore";
 import { UrlService } from "@src/utils/urlUtils";
 import { type DEPENDENCIES, useRedeploy } from "./useRedeploy";
 
@@ -43,7 +47,31 @@ describe(useRedeploy.name, () => {
     expect(push).toHaveBeenCalledWith("/new-deployment/configure");
   });
 
-  function setup(input: { draftId?: string } = {}) {
+  it("files the new deployment into the project of the one it redeploys", () => {
+    const { redeploy, store } = setup();
+
+    redeploy({ sdl: "version: '2.0'", projectId: "project-b" });
+
+    expect(store.get(deployTargetProjectIdAtom)).toBe("project-b");
+  });
+
+  it("never files a redeploy of a deployment in B into a project remembered from earlier", () => {
+    const { redeploy, store } = setup({ rememberedProjectId: "project-a" });
+
+    redeploy({ sdl: "version: '2.0'", projectId: "project-b" });
+
+    expect(store.get(deployTargetProjectIdAtom)).toBe("project-b");
+  });
+
+  it("leaves the project to the picker when the source deployment's project is unknown", () => {
+    const { redeploy, store } = setup({ rememberedProjectId: "project-a" });
+
+    redeploy({ sdl: "version: '2.0'" });
+
+    expect(store.get(deployTargetProjectIdAtom)).toBeNull();
+  });
+
+  function setup(input: { draftId?: string; rememberedProjectId?: string } = {}) {
     const push = vi.fn();
     const router = mock<ReturnType<typeof DEPENDENCIES.useRouter>>({ push });
     const createConfigureDraft = vi.fn<typeof DEPENDENCIES.createConfigureDraft>(() => input.draftId ?? "draft-id");
@@ -52,7 +80,11 @@ describe(useRedeploy.name, () => {
       UrlService,
       createConfigureDraft
     };
-    const redeploy = renderHook(() => useRedeploy(dependencies)).result.current;
-    return { redeploy, push, createConfigureDraft };
+    const store = createStore();
+    if (input.rememberedProjectId) store.set(deployTargetProjectIdAtom, input.rememberedProjectId);
+    const redeploy = renderHook(() => useRedeploy(dependencies), {
+      wrapper: ({ children }: PropsWithChildren) => createElement(Provider, { store }, children)
+    }).result.current;
+    return { redeploy, push, createConfigureDraft, store };
   }
 });

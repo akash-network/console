@@ -15,6 +15,10 @@ export interface DeploymentsEmptyStateProps {
   onDeployClick: () => void;
   hasDeployments?: boolean;
   showTemplatesButton?: boolean;
+  /** Off for a member who only reads deployments, who gets no button to start one. */
+  canDeploy?: boolean;
+  /** The project a deployment started here is created in. */
+  projectId?: string;
   dependencies?: typeof DEPENDENCIES;
 }
 
@@ -22,6 +26,8 @@ export const DeploymentsEmptyState: FC<DeploymentsEmptyStateProps> = ({
   onDeployClick,
   hasDeployments = false,
   showTemplatesButton = true,
+  canDeploy = true,
+  projectId,
   dependencies: d = DEPENDENCIES
 }) => {
   const { urlService } = useServices();
@@ -45,17 +51,19 @@ export const DeploymentsEmptyState: FC<DeploymentsEmptyStateProps> = ({
 
       <h3 className="mt-3 text-2xl font-bold tracking-tight">{hasDeployments ? "Deploy your next workload" : "Deploy your first workload"}</h3>
 
-      <Button className="mt-6" asChild>
-        <Link
-          href={newDeploymentUrl()}
-          className={cn(isBlockchainDown && "pointer-events-none opacity-50")}
-          aria-disabled={isBlockchainDown}
-          onClick={startNewDeploymentUnlessChainIsDown}
-        >
-          <Plus className="mr-2 h-4 w-4" />
-          New deployment
-        </Link>
-      </Button>
+      {canDeploy && (
+        <Button className="mt-6" asChild>
+          <Link
+            href={newDeploymentUrl({ projectId })}
+            className={cn(isBlockchainDown && "pointer-events-none opacity-50")}
+            aria-disabled={isBlockchainDown}
+            onClick={startNewDeploymentUnlessChainIsDown}
+          >
+            <Plus className="mr-2 h-4 w-4" />
+            New deployment
+          </Link>
+        </Button>
+      )}
 
       {showTemplatesButton && (
         <Link href={urlService.templates()} className="mt-4 text-sm text-muted-foreground underline-offset-4 hover:underline">

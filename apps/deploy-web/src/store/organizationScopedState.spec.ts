@@ -8,6 +8,7 @@ import type { AddCreditsRequest } from "./addCreditsStore";
 import { addCreditsRequestAtom } from "./addCreditsStore";
 import type { CloseDeploymentRequest } from "./closeDeploymentStore";
 import { closeDeploymentRequestAtom } from "./closeDeploymentStore";
+import { deployTargetProjectIdAtom } from "./deployTargetStore";
 import { resetOrganizationScopedState } from "./organizationScopedState";
 import sdlStore from "./sdlStore";
 import { settingsIdAtom } from "./settingsStore";
@@ -39,6 +40,7 @@ describe(resetOrganizationScopedState.name, () => {
     expect(store.get(sdlStore.deploySdl)).toBeNull();
     expect(store.get(addCreditsRequestAtom)).toBeNull();
     expect(store.get(closeDeploymentRequestAtom)).toBeNull();
+    expect(store.get(deployTargetProjectIdAtom)).toBeNull();
   });
 
   it("keeps the user's interface preferences", () => {
@@ -57,6 +59,7 @@ describe(resetOrganizationScopedState.name, () => {
     store.set(sdlStore.deploySdl, mock<TemplateCreation>({ name: "draft" }));
     store.set(addCreditsRequestAtom, mock<AddCreditsRequest>({ context: "test" }));
     store.set(closeDeploymentRequestAtom, mock<CloseDeploymentRequest>());
+    store.set(deployTargetProjectIdAtom, "project-of-the-previous-organization");
 
     return { store };
   }

@@ -15,6 +15,14 @@ import userEvent from "@testing-library/user-event";
 import { MockComponents } from "@tests/unit/mocks";
 
 describe(DeploymentDetailHeader.name, () => {
+  it("leads back to the project the deployment is filed under", () => {
+    const DeploymentProjectBreadcrumb = vi.fn<typeof DEPENDENCIES.DeploymentProjectBreadcrumb>(() => <nav>breadcrumb</nav>);
+    setup({ dependencies: { DeploymentProjectBreadcrumb } });
+
+    expect(DeploymentProjectBreadcrumb.mock.lastCall?.[0]).toEqual({ dseq: "1786440078202" });
+    expect(screen.getByText("breadcrumb")).toBeInTheDocument();
+  });
+
   it("counts the services of every placement, not just the one whose status is loaded", () => {
     setup({
       definitionSdl: yaml.dump({

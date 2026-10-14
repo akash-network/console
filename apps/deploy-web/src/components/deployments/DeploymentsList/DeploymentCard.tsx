@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Card, Checkbox } from "@akashnetwork/ui/components";
 import Link from "next/link";
 
+import { DeploymentProjectChip } from "@src/components/projects/DeploymentProjectChip/DeploymentProjectChip";
 import type { ListedDeploymentDto } from "@src/types/deployment";
 import type { ApiProviderList } from "@src/types/provider";
 import { UrlService } from "@src/utils/urlUtils";
@@ -22,7 +23,8 @@ export const DEPENDENCIES = {
   DeploymentEndpoints,
   DeploymentEndpointsPanel,
   DeploymentSpecSummary,
-  DeploymentActionsMenu
+  DeploymentActionsMenu,
+  DeploymentProjectChip
 };
 
 export interface DeploymentCardProps {
@@ -56,9 +58,12 @@ export const DeploymentCard: FC<DeploymentCardProps> = ({
     <Card className="flex flex-col overflow-hidden transition-[box-shadow,border-color] duration-200 hover:border-zinc-400 hover:shadow-md dark:hover:border-zinc-600">
       <div className="flex flex-1 flex-col gap-3 p-5">
         <div className="flex items-start justify-between gap-3">
-          <Link href={UrlService.deploymentDetails(deployment.dseq)} className="min-w-0 truncate font-semibold hover:underline">
-            {deployment.name || `Deployment #${deployment.dseq}`}
-          </Link>
+          <div className="flex min-w-0 flex-col">
+            <Link href={UrlService.deploymentDetails(deployment.dseq)} className="min-w-0 truncate font-semibold hover:underline">
+              {deployment.name || `Deployment #${deployment.dseq}`}
+            </Link>
+            <d.DeploymentProjectChip projectId={deployment.projectId} />
+          </div>
 
           <div className="flex shrink-0 flex-wrap items-center justify-end gap-1.5">
             <d.DeploymentStatusBadge state={deployment.state} leases={leases} isSummarized isClosing={isClosing} />

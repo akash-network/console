@@ -3,6 +3,7 @@ import { RESET } from "jotai/utils";
 
 import { addCreditsRequestAtom } from "./addCreditsStore";
 import { closeDeploymentRequestAtom } from "./closeDeploymentStore";
+import { deployTargetProjectIdAtom } from "./deployTargetStore";
 import sdlStore from "./sdlStore";
 import { settingsIdAtom } from "./settingsStore";
 import walletStore from "./walletStore";
@@ -16,4 +17,5 @@ export function resetOrganizationScopedState(store: Store): void {
   store.set(sdlStore.deploySdl, null);
   store.set(addCreditsRequestAtom, null);
   store.set(closeDeploymentRequestAtom, null);
+  store.set(deployTargetProjectIdAtom, null);
 }

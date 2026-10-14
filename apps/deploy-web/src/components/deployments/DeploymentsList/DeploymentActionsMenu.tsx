@@ -2,26 +2,30 @@
 import type { FC } from "react";
 import { useState } from "react";
 import { Button, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@akashnetwork/ui/components";
-import { Ellipsis, SquarePen, SquareX, Upload } from "lucide-react";
+import { Ellipsis, FolderInput, SquarePen, SquareX, Upload } from "lucide-react";
 
 import { useLocalNotes } from "@src/components/LocalNoteManager";
+import { MoveDeploymentDialog } from "@src/components/projects/MoveDeploymentDialog/MoveDeploymentDialog";
 import { useServices } from "@src/context/ServicesProvider";
 import { useCloseDeployment } from "@src/hooks/useCloseDeployment/useCloseDeployment";
 import { useCloseDeploymentConfirm } from "@src/hooks/useCloseDeploymentConfirm";
 import { isUsableDeploymentDefinition, sdlToRedeploy, useDeploymentDefinition } from "@src/hooks/useDeploymentDefinition/useDeploymentDefinition";
+import { useProjectsUi } from "@src/hooks/useProjectsUi/useProjectsUi";
 import { useRedeploy } from "@src/hooks/useRedeploy/useRedeploy";
-import type { DeploymentDto } from "@src/types/deployment";
+import type { DeploymentDto, ListedDeploymentDto } from "@src/types/deployment";
 
 export const DEPENDENCIES = {
   useLocalNotes,
   useDeploymentDefinition,
   useCloseDeploymentConfirm,
   useRedeploy,
-  useCloseDeployment
+  useCloseDeployment,
+  useProjectsUi,
+  MoveDeploymentDialog
 };
 
 export interface DeploymentActionsMenuProps {
-  deployment: Pick<DeploymentDto, "dseq" | "state">;
+  deployment: Pick<DeploymentDto, "dseq" | "state"> & Partial<Pick<ListedDeploymentDto, "name" | "projectId">>;
   onDeploymentClosed?: () => void;
   isClosing?: boolean;
   dependencies?: typeof DEPENDENCIES;
@@ -29,6 +33,8 @@ export interface DeploymentActionsMenuProps {
 
 export const DeploymentActionsMenu: FC<DeploymentActionsMenuProps> = ({ deployment, onDeploymentClosed, isClosing, dependencies: d = DEPENDENCIES }) => {
   const [isOpen, setIsOpen] = useState(false);
+  const [isMovingToProject, setIsMovingToProject] = useState(false);
+  const { canManageProjects, canChangeDeployments } = d.useProjectsUi();
   const { analyticsService } = useServices();
   const { changeDeploymentName } = d.useLocalNotes();
   const { confirmCloseDeployment, recordCloseReason } = d.useCloseDeploymentConfirm();
@@ -54,33 +60,48 @@ export const DeploymentActionsMenu: FC<DeploymentActionsMenuProps> = ({ deployme
   };
 
   return (
-    <DropdownMenu modal={false} open={isOpen} onOpenChange={setIsOpen}>
-      <DropdownMenuTrigger asChild>
-        <Button aria-label={`Actions for deployment ${deployment.dseq}`} size="icon" variant="ghost" className="rounded-full">
-          <Ellipsis className="h-4 w-4" />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" onClick={event => event.stopPropagation()}>
-        <DropdownMenuItem onSelect={() => changeDeploymentName(deployment.dseq)}>
-          <SquarePen className="mr-2 h-4 w-4" />
-          Edit name
-        </DropdownMenuItem>
-        {canRedeploy && (
-          <DropdownMenuItem
-            disabled={isResolvingDefinition}
-            onSelect={() => redeploy({ sdl: sdlToRedeploy(definition), name: definition.name, sourceDseq: deployment.dseq })}
-          >
-            <Upload className="mr-2 h-4 w-4" />
-            Redeploy
+    <>
+      <DropdownMenu modal={false} open={isOpen} onOpenChange={setIsOpen}>
+        <DropdownMenuTrigger asChild>
+          <Button aria-label={`Actions for deployment ${deployment.dseq}`} size="icon" variant="ghost" className="rounded-full">
+            <Ellipsis className="h-4 w-4" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" onClick={event => event.stopPropagation()}>
+          <DropdownMenuItem onSelect={() => changeDeploymentName(deployment.dseq)}>
+            <SquarePen className="mr-2 h-4 w-4" />
+            Edit name
           </DropdownMenuItem>
-        )}
-        {deployment.state === "active" && (
-          <DropdownMenuItem onSelect={confirmAndClose} disabled={isClosing}>
-            <SquareX className="mr-2 h-4 w-4" />
-            {isClosing ? "Closing…" : "Close"}
-          </DropdownMenuItem>
-        )}
-      </DropdownMenuContent>
-    </DropdownMenu>
+          {canRedeploy && canChangeDeployments && (
+            <DropdownMenuItem
+              disabled={isResolvingDefinition}
+              onSelect={() => redeploy({ sdl: sdlToRedeploy(definition), name: definition.name, sourceDseq: deployment.dseq, projectId: deployment.projectId })}
+            >
+              <Upload className="mr-2 h-4 w-4" />
+              Redeploy
+            </DropdownMenuItem>
+          )}
+          {canManageProjects && deployment.projectId && (
+            <DropdownMenuItem onSelect={() => setIsMovingToProject(true)}>
+              <FolderInput className="mr-2 h-4 w-4" />
+              Move to project
+            </DropdownMenuItem>
+          )}
+          {deployment.state === "active" && canChangeDeployments && (
+            <DropdownMenuItem onSelect={confirmAndClose} disabled={isClosing}>
+              <SquareX className="mr-2 h-4 w-4" />
+              {isClosing ? "Closing…" : "Close"}
+            </DropdownMenuItem>
+          )}
+        </DropdownMenuContent>
+      </DropdownMenu>
+
+      {isMovingToProject && deployment.projectId && (
+        <d.MoveDeploymentDialog
+          deployment={{ dseq: deployment.dseq, name: deployment.name, projectId: deployment.projectId }}
+          onClose={() => setIsMovingToProject(false)}
+        />
+      )}
+    </>
   );
 };

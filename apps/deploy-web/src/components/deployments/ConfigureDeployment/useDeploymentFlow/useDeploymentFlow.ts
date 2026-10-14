@@ -4,6 +4,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useAtomValue } from "jotai";
 import { useRouter } from "next/router";
 
+import { useConfigureDeployTarget } from "@src/components/projects/DeployTargetGate/DeployTargetGate";
 import { useServices } from "@src/context/ServicesProvider";
 import { useFlag } from "@src/hooks/useFlag";
 import { QueryKeys } from "@src/queries/queryKeys";
@@ -11,6 +12,7 @@ import { useLatestActivitiesQuery } from "@src/queries/useLatestActivitiesQuery"
 import { BID_POLL_INTERVAL, useListBids } from "@src/queries/useListBids";
 import { SKIP_REPORTING_REFUSED_INPUT } from "@src/services/query-error-policy/query-error-policy";
 import { settingsIdAtom } from "@src/store/settingsStore";
+import { PROJECT_NOT_FOUND_MESSAGE, PROJECT_REQUIRED_ERROR_CODE } from "@src/types/project";
 import { formatBidId, parseBidId } from "@src/utils/bids/bidId";
 import { ManifestYaml } from "@src/utils/deploymentData/helpers";
 import { importSimpleSdl } from "@src/utils/sdl/sdlImport";
@@ -116,6 +118,8 @@ const DEFAULT_DEPOSIT = 0.5;
 
 const HTTP_PAYMENT_REQUIRED = 402;
 
+const HTTP_NOT_FOUND = 404;
+
 /** A seal made to a key version the console no longer holds; a fresh context and a new seal is the remedy. */
 const HTTP_CONFLICT = 409;
 
@@ -159,6 +163,7 @@ export const DEPENDENCIES = {
   useQueryClient,
   useFlag,
   useLatestActivitiesQuery,
+  useConfigureDeployTarget,
   // eslint-disable-next-line akash/dependencies-component-or-hook
   manifestFromSdl,
   // eslint-disable-next-line akash/dependencies-component-or-hook
@@ -183,6 +188,9 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
   /** Read by hook-level mutation callbacks, which still run once the page is gone and its own callbacks no longer do. */
   const discardedRef = useRef(false);
   const isClosingInBackground = dependencies.useFlag("notifications_activity_center");
+  const deployTarget = dependencies.useConfigureDeployTarget();
+  const deployTargetProjectId = deployTarget.project?.id;
+  const forgetProject = deployTarget.forgetProject;
   const createDeployment = api.v1.createDeployment.useMutation({
     ...walletProvisioningRetry,
     meta: SKIP_REPORTING_REFUSED_CREATE,
@@ -528,7 +536,7 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
       function submitCreate(sealed: { sealedSecrets?: string }, canResealOnce: boolean) {
         createInFlightRef.current = true;
         createDeployment.mutate(
-          { data: { sdl, ...namePayload(options.name), ...sealed, ...inheritance, deposit: DEFAULT_DEPOSIT } },
+          { data: { sdl, ...namePayload(options.name), ...projectPayload(deployTargetProjectId), ...sealed, ...inheritance, deposit: DEFAULT_DEPOSIT } },
           {
             onSuccess: onCreated,
             onError: function retryOrFail(cause: unknown) {
@@ -546,6 +554,8 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
                 void sealAndSubmit(false);
                 return;
               }
+              const projectRefusal = describeProjectRefusal(cause);
+              if (projectRefusal) forgetProject(projectRefusal);
               onCreateFailed(cause);
             }
           }
@@ -587,7 +597,7 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
 
       create();
     },
-    [createDeployment, sealSecrets, dseq, strandedDseq, backgroundClose, router, analyticsService, startClose]
+    [createDeployment, sealSecrets, dseq, strandedDseq, backgroundClose, router, analyticsService, startClose, deployTargetProjectId, forgetProject]
   );
 
   /**
@@ -857,6 +867,21 @@ function acceptedActivityIdOf(data: object): string | undefined {
 function namePayload(name: string | undefined): { name?: string } {
   const trimmed = name?.trim();
   return trimmed ? { name: trimmed } : {};
+}
+
+/** Why the api refused the project the deployment was sent to, which dropping the choice turns into a fresh pick. */
+function describeProjectRefusal(cause: unknown): string | undefined {
+  if (!isApiError(cause)) return undefined;
+  if (extractApiErrorCode(cause) === PROJECT_REQUIRED_ERROR_CODE) return "Choose the project this deployment goes to.";
+  if (cause.status === HTTP_NOT_FOUND && extractApiErrorMessage(cause) === PROJECT_NOT_FOUND_MESSAGE) {
+    return "The project you picked was deleted or you lost access to it. Choose another one.";
+  }
+  return undefined;
+}
+
+/** Without a project the api files the deployment into the organization's default project. */
+function projectPayload(projectId: string | undefined): { projectId?: string } {
+  return projectId ? { projectId } : {};
 }
 
 /** Matched on status because an exhausted fee allowance and a trial-blocked GPU still report the generic `payment_required`, and adding funds clears them too. */

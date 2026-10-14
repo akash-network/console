@@ -5,7 +5,6 @@ import type { DeploymentCloseReasonInput } from "@src/components/deployments/Clo
 import type { CloseOutcome } from "@src/hooks/useCloseDeployment/useCloseDeployment";
 import type { DeploymentDefinition } from "@src/hooks/useDeploymentDefinition/useDeploymentDefinition";
 import type { AnalyticsService } from "@src/services/analytics/analytics.service";
-import type { DeploymentDto } from "@src/types/deployment";
 import { DEPENDENCIES, DeploymentActionsMenu } from "./DeploymentActionsMenu";
 
 import { render, screen } from "@testing-library/react";
@@ -26,6 +25,35 @@ describe("DeploymentActionsMenu", () => {
     expect(useDeploymentDefinition).toHaveBeenLastCalledWith("100", { acceptReferences: true });
   });
 
+  it("moves the deployment to another project for a member who may", async () => {
+    const { MoveDeploymentDialog } = setup({ projectId: "project-1", canManageProjects: true });
+
+    await openMenu();
+    await userEvent.click(screen.getByRole("menuitem", { name: /Move to project/ }));
+
+    expect(MoveDeploymentDialog.mock.lastCall?.[0]).toMatchObject({ deployment: { dseq: "100", name: "acme", projectId: "project-1" } });
+
+    await userEvent.click(screen.getByRole("button", { name: "close move dialog" }));
+
+    expect(screen.queryByRole("button", { name: "close move dialog" })).not.toBeInTheDocument();
+  });
+
+  it("offers no move to a member who may not move deployments", async () => {
+    setup({ projectId: "project-1", canManageProjects: false });
+
+    await openMenu();
+
+    expect(screen.queryByRole("menuitem", { name: /Move to project/ })).not.toBeInTheDocument();
+  });
+
+  it("offers no move for a deployment filed under no project yet", async () => {
+    setup({ canManageProjects: true });
+
+    await openMenu();
+
+    expect(screen.queryByRole("menuitem", { name: /Move to project/ })).not.toBeInTheDocument();
+  });
+
   it("renames the deployment through the local note manager", async () => {
     const { changeDeploymentName } = setup({});
 
@@ -35,13 +63,32 @@ describe("DeploymentActionsMenu", () => {
     expect(changeDeploymentName).toHaveBeenCalledWith("100");
   });
 
+  it("redeploys into the project the deployment is filed in", async () => {
+    const { redeploy } = setup({ projectId: "project-b", definition: { sdl: "version: '2.0'", name: "acme", source: "api" } });
+
+    await openMenu();
+    await userEvent.click(screen.getByRole("menuitem", { name: /Redeploy/ }));
+
+    expect(redeploy).toHaveBeenCalledWith(expect.objectContaining({ projectId: "project-b" }));
+  });
+
+  it("offers a member who only reads deployments neither redeploy nor close", async () => {
+    setup({ canChangeDeployments: false, definition: { sdl: "version: '2.0'", name: "acme", source: "api" } });
+
+    await openMenu();
+
+    expect(screen.getByRole("menuitem", { name: /Edit name/ })).toBeInTheDocument();
+    expect(screen.queryByRole("menuitem", { name: /Redeploy/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("menuitem", { name: /Close/ })).not.toBeInTheDocument();
+  });
+
   it("redeploys from the resolved definition", async () => {
     const { redeploy } = setup({ definition: { sdl: "version: '2.0'", name: "acme", source: "api" } });
 
     await openMenu();
     await userEvent.click(screen.getByRole("menuitem", { name: /Redeploy/ }));
 
-    expect(redeploy).toHaveBeenCalledWith({ sdl: "version: '2.0'", name: "acme", sourceDseq: expect.any(String) });
+    expect(redeploy).toHaveBeenCalledWith({ sdl: "version: '2.0'", name: "acme", sourceDseq: expect.any(String), projectId: undefined });
   });
 
   it("redeploys the values this browser gave back when it holds the running copy", async () => {
@@ -185,6 +232,9 @@ describe("DeploymentActionsMenu", () => {
     outcome?: CloseOutcome;
     onDeploymentClosed?: undefined;
     isClosing?: boolean;
+    projectId?: string;
+    canManageProjects?: boolean;
+    canChangeDeployments?: boolean;
   }) {
     const changeDeploymentName = vi.fn();
     const closeDeployment = vi.fn(async () => input.outcome ?? ("closing" as const));
@@ -201,14 +251,32 @@ describe("DeploymentActionsMenu", () => {
     const useCloseDeploymentConfirm: typeof DEPENDENCIES.useCloseDeploymentConfirm = () => ({ confirmCloseDeployment, recordCloseReason });
     const useRedeploy: typeof DEPENDENCIES.useRedeploy = () => redeploy;
     const useCloseDeployment: typeof DEPENDENCIES.useCloseDeployment = () => closeDeployment;
+    const useProjectsUi: typeof DEPENDENCIES.useProjectsUi = () =>
+      mock<ReturnType<typeof DEPENDENCIES.useProjectsUi>>({
+        canManageProjects: input.canManageProjects ?? false,
+        canChangeDeployments: input.canChangeDeployments ?? true
+      });
+    const MoveDeploymentDialog = vi.fn<typeof DEPENDENCIES.MoveDeploymentDialog>(({ onClose }) => (
+      <button type="button" onClick={onClose}>
+        close move dialog
+      </button>
+    ));
 
     render(
       <TestContainerProvider services={{ analyticsService: () => analyticsService }}>
         <DeploymentActionsMenu
-          deployment={mock<DeploymentDto>({ dseq: "100", state: input.state ?? "active" })}
+          deployment={{ dseq: "100", state: input.state ?? "active", name: "acme", projectId: input.projectId }}
           onDeploymentClosed={"onDeploymentClosed" in input ? input.onDeploymentClosed : onDeploymentClosed}
           isClosing={input.isClosing}
-          dependencies={MockComponents(DEPENDENCIES, { useLocalNotes, useDeploymentDefinition, useCloseDeploymentConfirm, useRedeploy, useCloseDeployment })}
+          dependencies={MockComponents(DEPENDENCIES, {
+            useLocalNotes,
+            useDeploymentDefinition,
+            useCloseDeploymentConfirm,
+            useRedeploy,
+            useCloseDeployment,
+            useProjectsUi,
+            MoveDeploymentDialog
+          })}
         />
       </TestContainerProvider>
     );
@@ -221,7 +289,8 @@ describe("DeploymentActionsMenu", () => {
       useDeploymentDefinition,
       confirmCloseDeployment,
       recordCloseReason,
-      analyticsService
+      analyticsService,
+      MoveDeploymentDialog
     };
   }
 });

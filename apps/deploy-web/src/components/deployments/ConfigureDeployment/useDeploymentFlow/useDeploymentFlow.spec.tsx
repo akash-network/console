@@ -8,6 +8,7 @@ import { QueryKeys } from "@src/queries/queryKeys";
 import type { Activity } from "@src/queries/useLatestActivitiesQuery";
 import { shouldReportError } from "@src/services/query-error-policy/query-error-policy";
 import { settingsIdAtom } from "@src/store/settingsStore";
+import type { Project } from "@src/types/project";
 import { servicesPatchBetween } from "@src/utils/sdl/sdlServicesPatch";
 import { UrlService } from "@src/utils/urlUtils";
 import type { DeploymentIntent } from "./deploymentIntent";
@@ -53,6 +54,78 @@ describe(useDeploymentFlow.name, () => {
     expect(result.current.dseq).toBe("999");
     expect(createMutate).toHaveBeenCalledWith({ data: { sdl: "sdl-content", sealedSecrets: "SEALED", deposit: expect.any(Number) } }, expect.any(Object));
     expect(replace).toHaveBeenCalledWith("/new-deployment/configure/999?bid-strategy=select", undefined, { shallow: true });
+  });
+
+  it("files the deployment into the project chosen for it", async () => {
+    const createMutate = vi.fn((_args, { onSuccess }) => onSuccess({ data: { dseq: "999", manifest: "m" } }));
+    const { result } = setup({ createMutate, deployTargetProjectId: "project-1" });
+
+    act(() => result.current.actions.requestQuotes("sdl-content"));
+
+    await settleSeal();
+
+    await waitFor(() => expect(createMutate).toHaveBeenCalled());
+    expect(createMutate).toHaveBeenCalledWith({ data: expect.objectContaining({ sdl: "sdl-content", projectId: "project-1" }) }, expect.any(Object));
+  });
+
+  it("asks for a project again when the api requires one", async () => {
+    const createMutate = vi.fn((_args, { onError }) => onError(new ApiError(400, { message: "Choose a project", code: "project_required" }, "bad request")));
+    const { result, forgetProject } = setup({ createMutate, deployTargetProjectId: "project-1" });
+
+    act(() => result.current.actions.requestQuotes("sdl-content"));
+
+    await settleSeal();
+
+    await waitFor(() => expect(result.current.phase).toBe("error"));
+    expect(forgetProject).toHaveBeenCalledWith("Choose the project this deployment goes to.");
+  });
+
+  it("asks for another project when the chosen one was deleted or became unreachable", async () => {
+    const createMutate = vi.fn((_args, { onError }) => onError(new ApiError(404, { message: "Project not found" }, "not found")));
+    const { result, forgetProject } = setup({ createMutate, deployTargetProjectId: "project-1" });
+
+    act(() => result.current.actions.requestQuotes("sdl-content"));
+
+    await settleSeal();
+
+    await waitFor(() => expect(result.current.phase).toBe("error"));
+    expect(forgetProject).toHaveBeenCalledWith("The project you picked was deleted or you lost access to it. Choose another one.");
+  });
+
+  it("keeps the chosen project through another not found", async () => {
+    const createMutate = vi.fn((_args, { onError }) => onError(new ApiError(404, { message: "Wallet not found" }, "not found")));
+    const { result, forgetProject } = setup({ createMutate, deployTargetProjectId: "project-1" });
+
+    act(() => result.current.actions.requestQuotes("sdl-content"));
+
+    await settleSeal();
+
+    await waitFor(() => expect(result.current.phase).toBe("error"));
+    expect(forgetProject).not.toHaveBeenCalled();
+  });
+
+  it("keeps the chosen project through any other refusal", async () => {
+    const createMutate = vi.fn((_args, { onError }) => onError(new ApiError(400, { message: "Invalid SDL", code: "validation_error" }, "bad request")));
+    const { result, forgetProject } = setup({ createMutate, deployTargetProjectId: "project-1" });
+
+    act(() => result.current.actions.requestQuotes("sdl-content"));
+
+    await settleSeal();
+
+    await waitFor(() => expect(result.current.phase).toBe("error"));
+    expect(forgetProject).not.toHaveBeenCalled();
+  });
+
+  it("leaves the project out when none is chosen, so the api files the deployment into the default project", async () => {
+    const createMutate = vi.fn((_args, { onSuccess }) => onSuccess({ data: { dseq: "999", manifest: "m" } }));
+    const { result } = setup({ createMutate });
+
+    act(() => result.current.actions.requestQuotes("sdl-content"));
+
+    await settleSeal();
+
+    await waitFor(() => expect(createMutate).toHaveBeenCalled());
+    expect(createMutate.mock.calls[0][0].data).not.toHaveProperty("projectId");
   });
 
   it("carries the typed name into the create request, so the api records the name the user chose", async () => {
@@ -356,7 +429,8 @@ describe(useDeploymentFlow.name, () => {
         sealSdlSecrets: async () => "SEALED",
         servicesPatchBetween,
         useFlag: () => false,
-        useLatestActivitiesQuery: () => mock<ReturnType<typeof DEPENDENCIES.useLatestActivitiesQuery>>({ data: undefined })
+        useLatestActivitiesQuery: () => mock<ReturnType<typeof DEPENDENCIES.useLatestActivitiesQuery>>({ data: undefined }),
+        useConfigureDeployTarget: () => mock<ReturnType<typeof DEPENDENCIES.useConfigureDeployTarget>>({ project: undefined })
       };
       const { result, rerender } = renderDeploymentFlow({ sdlStrategy: "edit", bidStrategy: "select", dseq: "777", vm: false }, dependencies);
       act(() => vi.advanceTimersByTime(60_000));
@@ -466,7 +540,8 @@ describe(useDeploymentFlow.name, () => {
         sealSdlSecrets: async () => "SEALED",
         servicesPatchBetween,
         useFlag: () => false,
-        useLatestActivitiesQuery: () => mock<ReturnType<typeof DEPENDENCIES.useLatestActivitiesQuery>>({ data: undefined })
+        useLatestActivitiesQuery: () => mock<ReturnType<typeof DEPENDENCIES.useLatestActivitiesQuery>>({ data: undefined }),
+        useConfigureDeployTarget: () => mock<ReturnType<typeof DEPENDENCIES.useConfigureDeployTarget>>({ project: undefined })
       };
       const { result, rerender } = renderDeploymentFlow({ sdlStrategy: "edit", bidStrategy: "select", dseq: "777", vm: false }, dependencies);
       expect(result.current.phase).toBe("quoting");
@@ -2499,7 +2574,9 @@ describe(useDeploymentFlow.name, () => {
     sealSdlSecrets?: typeof DEPENDENCIES.sealSdlSecrets;
     sealContextMutateAsync?: ReturnType<typeof vi.fn>;
     isClosingInBackground?: boolean;
+    deployTargetProjectId?: string;
   }) {
+    const forgetProject = vi.fn();
     const intent = { vm: false, ...(input.intent ?? { sdlStrategy: "edit" as const, bidStrategy: "select" as const, dseq: undefined }) };
     const feed: { activities?: Activity[] } = {};
     const useFlag = vi.fn((_flag: string) => input.isClosingInBackground ?? false);
@@ -2523,7 +2600,12 @@ describe(useDeploymentFlow.name, () => {
       sealSdlSecrets,
       servicesPatchBetween,
       useFlag,
-      useLatestActivitiesQuery
+      useLatestActivitiesQuery,
+      useConfigureDeployTarget: () =>
+        mock<ReturnType<typeof DEPENDENCIES.useConfigureDeployTarget>>({
+          project: input.deployTargetProjectId ? mock<Project>({ id: input.deployTargetProjectId }) : undefined,
+          forgetProject
+        })
     };
     return {
       services,
@@ -2537,7 +2619,8 @@ describe(useDeploymentFlow.name, () => {
       closeDeployment,
       getDeployment,
       getSdlSecretsContext,
-      sealSdlSecrets
+      sealSdlSecrets,
+      forgetProject
     };
   }
 
@@ -2580,7 +2663,8 @@ describe(useDeploymentFlow.name, () => {
       sealSdlSecrets,
       servicesPatchBetween: input?.servicesPatchBetween ?? servicesPatchBetween,
       useFlag: () => false,
-      useLatestActivitiesQuery: () => mock<ReturnType<typeof DEPENDENCIES.useLatestActivitiesQuery>>({ data: undefined })
+      useLatestActivitiesQuery: () => mock<ReturnType<typeof DEPENDENCIES.useLatestActivitiesQuery>>({ data: undefined }),
+      useConfigureDeployTarget: () => mock<ReturnType<typeof DEPENDENCIES.useConfigureDeployTarget>>({ project: undefined })
     };
     const utils = renderDeploymentFlow(intent, dependencies, input?.settingsId);
     return {
@@ -2607,7 +2691,8 @@ describe(useDeploymentFlow.name, () => {
       sealSdlSecrets: async () => "SEALED",
       servicesPatchBetween,
       useFlag: () => false,
-      useLatestActivitiesQuery: () => mock<ReturnType<typeof DEPENDENCIES.useLatestActivitiesQuery>>({ data: undefined })
+      useLatestActivitiesQuery: () => mock<ReturnType<typeof DEPENDENCIES.useLatestActivitiesQuery>>({ data: undefined }),
+      useConfigureDeployTarget: () => mock<ReturnType<typeof DEPENDENCIES.useConfigureDeployTarget>>({ project: undefined })
     };
     return {
       ...renderDeploymentFlow({ sdlStrategy: "edit", bidStrategy: "select", dseq: "777", vm: false }, dependencies),

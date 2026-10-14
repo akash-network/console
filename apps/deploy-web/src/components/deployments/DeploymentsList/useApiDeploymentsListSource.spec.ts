@@ -24,6 +24,13 @@ describe(useApiDeploymentsListSource.name, () => {
     expect(useDeploymentsListQuery).toHaveBeenCalledWith({ state: "closed", search: "", skip: 10, limit: 10 }, expect.anything());
   });
 
+  it("narrows both slices to the project it is scoped to", () => {
+    const { useDeploymentsListQuery } = setup({ projectId: "project-1" });
+
+    expect(useDeploymentsListQuery).toHaveBeenCalledWith(expect.objectContaining({ state: "active", projectId: "project-1" }), expect.anything());
+    expect(useDeploymentsListQuery).toHaveBeenCalledWith(expect.objectContaining({ state: "closed", projectId: "project-1" }), expect.anything());
+  });
+
   it("hands each slice its rows, its count and whether another page follows", () => {
     const { result } = setup({
       active: page({ deployments: [listed("100")], total: 4, hasNextPage: true }),
@@ -172,6 +179,7 @@ describe(useApiDeploymentsListSource.name, () => {
     pageIndex?: number;
     pageSize?: number;
     archivePageIndex?: number;
+    projectId?: string;
     hasWallet?: boolean;
     active?: DeploymentsListPage;
     archive?: DeploymentsListPage;
@@ -221,7 +229,8 @@ describe(useApiDeploymentsListSource.name, () => {
             search: current.search ?? "",
             pageIndex: current.pageIndex ?? 0,
             pageSize: current.pageSize ?? 10,
-            archivePageIndex: current.archivePageIndex ?? 0
+            archivePageIndex: current.archivePageIndex ?? 0,
+            projectId: current.projectId
           },
           dependencies
         ),

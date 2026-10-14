@@ -64,9 +64,22 @@ describe(DeploymentsEmptyState.name, () => {
     expect(isNavigating).toBe(false);
   });
 
-  function setup(input: { hasDeployments?: boolean; showTemplatesButton?: boolean; isBlockchainDown?: boolean }) {
+  it("offers no new deployment to a member who cannot start one", () => {
+    setup({ canDeploy: false });
+
+    expect(screen.queryByRole("link", { name: /New deployment/ })).not.toBeInTheDocument();
+  });
+
+  it("starts the new deployment in the project it is shown for", () => {
+    const { newDeploymentUrl } = setup({ projectId: "project-1" });
+
+    expect(newDeploymentUrl).toHaveBeenCalledWith({ projectId: "project-1" });
+  });
+
+  function setup(input: { hasDeployments?: boolean; showTemplatesButton?: boolean; isBlockchainDown?: boolean; projectId?: string; canDeploy?: boolean }) {
     const onDeployClick = vi.fn();
-    const useNewDeploymentUrl: typeof DEPENDENCIES.useNewDeploymentUrl = () => () => "/new-deployment";
+    const newDeploymentUrl = vi.fn(() => "/new-deployment");
+    const useNewDeploymentUrl: typeof DEPENDENCIES.useNewDeploymentUrl = () => newDeploymentUrl;
     const useBlockchainStatus: typeof DEPENDENCIES.useBlockchainStatus = () =>
       mock<ReturnType<typeof DEPENDENCIES.useBlockchainStatus>>({ isBlockchainDown: input.isBlockchainDown ?? false });
 
@@ -76,11 +89,13 @@ describe(DeploymentsEmptyState.name, () => {
           onDeployClick={onDeployClick}
           hasDeployments={input.hasDeployments}
           showTemplatesButton={input.showTemplatesButton}
+          projectId={input.projectId}
+          canDeploy={input.canDeploy}
           dependencies={{ useNewDeploymentUrl, useBlockchainStatus }}
         />
       </TestContainerProvider>
     );
 
-    return { ...input, onDeployClick };
+    return { ...input, onDeployClick, newDeploymentUrl };
   }
 });

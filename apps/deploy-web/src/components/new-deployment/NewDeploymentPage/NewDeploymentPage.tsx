@@ -4,13 +4,15 @@ import { useId } from "react";
 import { Skeleton } from "@akashnetwork/ui/components";
 import { ArrowLeft, ArrowRight, Container, Terminal } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 import Layout from "@src/components/layout/Layout";
+import { DeployTargetChip } from "@src/components/projects/DeployTargetChip/DeployTargetChip";
 import { CustomNextSeo } from "@src/components/shared/CustomNextSeo";
 import { TemplateCard } from "@src/components/templates/TemplateCard/TemplateCard";
 import { isPopularTemplate, selectPopularTemplates } from "@src/components/templates/templateGalleryModel";
 import { useServices } from "@src/context/ServicesProvider";
+import { useDeployTarget } from "@src/hooks/useDeployTarget/useDeployTarget";
 import { useTemplates } from "@src/queries/useTemplateQuery";
 import { helloWorldTemplate } from "@src/utils/templates";
 import { domainName, UrlService } from "@src/utils/urlUtils";
@@ -29,6 +31,8 @@ const SECTION_LINK_CLASSES =
 
 export const DEPENDENCIES = {
   useRouter,
+  useSearchParams,
+  useDeployTarget,
   useTemplates,
   Layout,
   CustomNextSeo,
@@ -37,7 +41,8 @@ export const DEPENDENCIES = {
   ImportSdlButton,
   StartFromScratchCard,
   TemplateCard,
-  Skeleton
+  Skeleton,
+  DeployTargetChip
 };
 
 type Props = { dependencies?: typeof DEPENDENCIES };
@@ -48,6 +53,13 @@ export const NewDeploymentPage: FC<Props> = ({ dependencies: d = DEPENDENCIES })
   const router = d.useRouter();
   const { isLoading: isLoadingTemplates, templates } = d.useTemplates();
   const popularTemplates = selectPopularTemplates(templates, POPULAR_TEMPLATE_COUNT);
+  const deployTarget = d.useDeployTarget({ requestedProjectId: d.useSearchParams()?.get("projectId") });
+  const targetProject = deployTarget.project;
+
+  const chooseDeployTarget = (projectId: string) => {
+    deployTarget.chooseProject(projectId);
+    router.replace(UrlService.newDeployment({ projectId }));
+  };
 
   const startFromOwnContainer = () => {
     analyticsService.track("run_custom_container_btn_clk", "Amplitude");
@@ -66,11 +78,11 @@ export const NewDeploymentPage: FC<Props> = ({ dependencies: d = DEPENDENCIES })
 
         <div className="container px-4 pb-16 pt-6 sm:px-6 sm:pt-8">
           <Link
-            href={UrlService.deploymentList()}
+            href={targetProject ? UrlService.project(targetProject.id) : UrlService.deploymentList()}
             className="mb-2.5 inline-flex items-center gap-1.5 py-1 text-[13px] text-muted-foreground transition-colors hover:text-foreground"
           >
             <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />
-            Back to deployments
+            Back to {targetProject?.name ?? "deployments"}
           </Link>
 
           <header className="flex flex-wrap items-end justify-between gap-x-6 gap-y-4 pb-6">
@@ -79,6 +91,7 @@ export const NewDeploymentPage: FC<Props> = ({ dependencies: d = DEPENDENCIES })
               <p className="mt-1 text-[13px] leading-5 text-muted-foreground">
                 Start from scratch or pick a template. Everything is editable in the next step.
               </p>
+              <d.DeployTargetChip target={deployTarget} onChoose={chooseDeployTarget} />
             </div>
             <d.ImportSdlButton />
           </header>

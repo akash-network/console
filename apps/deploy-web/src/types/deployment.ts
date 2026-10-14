@@ -288,6 +288,8 @@ export interface ListedDeploymentDto extends DeploymentDto {
   /** Inline where the list came from the console API. The chain-backed list leaves each row to fetch its own. */
   leases?: LeaseDto[];
   settings?: ListedDeploymentSettings;
+  /** The project the deployment is filed under, absent until the api files deployments into projects. */
+  projectId?: string;
 }
 
 export type DeploymentStatus = "active" | "closed";

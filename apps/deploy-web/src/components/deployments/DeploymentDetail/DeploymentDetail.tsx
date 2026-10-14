@@ -13,7 +13,10 @@ import { useServices } from "@src/context/ServicesProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { isUsableDeploymentDefinition, sdlToRedeploy, useDeploymentDefinition } from "@src/hooks/useDeploymentDefinition/useDeploymentDefinition";
 import { useLeaseGpus, withLeaseGpus } from "@src/hooks/useLeaseGpus/useLeaseGpus";
+import { useOpenDeploymentInItsOrganization } from "@src/hooks/useOpenDeploymentInItsOrganization/useOpenDeploymentInItsOrganization";
+import { useProjectsUi } from "@src/hooks/useProjectsUi/useProjectsUi";
 import { useRedeploy } from "@src/hooks/useRedeploy/useRedeploy";
+import { useDeploymentLocationQuery } from "@src/queries/useDeploymentProjectQueries";
 import { useDeploymentDetail } from "@src/queries/useDeploymentQuery";
 import { useDeploymentLeaseList } from "@src/queries/useLeaseQuery";
 import { useProvidersByAddresses } from "@src/queries/useProvidersQuery";
@@ -43,6 +46,9 @@ export const DEPENDENCIES = {
   useDeploymentLeaseList,
   useLeaseGpus,
   useProvidersByAddresses,
+  useOpenDeploymentInItsOrganization,
+  useProjectsUi,
+  useDeploymentLocationQuery,
   NextSeo,
   Layout,
   ReclamationBanner,
@@ -64,6 +70,9 @@ const TAB_STRIP_FRAME = "border-t shadow-[inset_0_-1px_0_hsl(var(--border))]";
 const TAB_STRIP = cn(PAGE_BAND, "flex h-auto justify-start gap-6 overflow-x-auto rounded-none border-0 bg-transparent py-0 scrollbar-none sm:gap-8");
 
 const TABS = ["DETAILS", "UPDATE", "LOGS", "EVENTS", "SHELL", "SETTINGS"] as const;
+
+/** Updating a deployment and opening a shell in it change it, so a member who only reads deployments does not get those tabs. */
+const READ_ONLY_TABS = TABS.filter(tab => tab !== "UPDATE" && tab !== "SHELL");
 type Tab = (typeof TABS)[number];
 
 const TAB_LABELS: Record<Tab, string> = {
@@ -92,6 +101,10 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq, dependencies
   const tabStripRef = useRef<HTMLDivElement>(null);
 
   const { data: deployment, isFetching: isLoadingDeployment, refetch: getDeploymentDetail, error: deploymentError } = d.useDeploymentDetail(address, dseq);
+  d.useOpenDeploymentInItsOrganization({ dseq, isMissingHere: !!deploymentError, query: searchParams?.toString() ?? "" });
+  const { canChangeDeployments, isEnabled: isProjectsUiEnabled } = d.useProjectsUi();
+  const tabs = canChangeDeployments ? TABS : READ_ONLY_TABS;
+  const { data: location } = d.useDeploymentLocationQuery(dseq, { enabled: isProjectsUiEnabled });
   const {
     data: chainLeases,
     isLoading: isLoadingLeases,
@@ -136,10 +149,10 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq, dependencies
 
   const tabQuery = searchParams?.get("tab");
   useEffect(() => {
-    if (tabQuery && (TABS as readonly string[]).includes(tabQuery)) {
+    if (tabQuery && (tabs as readonly string[]).includes(tabQuery)) {
       setActiveTab(tabQuery as Tab);
     }
-  }, [tabQuery]);
+  }, [tabQuery, tabs]);
 
   useEffect(
     function revealActiveTab() {
@@ -158,12 +171,12 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq, dependencies
   }
 
   function redeployFromResolvedDefinition() {
-    redeploy({ sdl: sdlToRedeploy(definition), name: definition.name, sourceDseq: dseq });
+    redeploy({ sdl: sdlToRedeploy(definition), name: definition.name, sourceDseq: dseq, projectId: location?.projectId });
     analyticsService.track("redeploy_btn_clk", "Amplitude");
   }
 
   function redeployWithNewSecrets() {
-    redeploy({ sdl: sdlToRedeploy(definition), name: definition.name });
+    redeploy({ sdl: sdlToRedeploy(definition), name: definition.name, projectId: location?.projectId });
     analyticsService.track("redeploy_btn_clk", "Amplitude");
   }
 
@@ -222,7 +235,7 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq, dependencies
           <Tabs value={activeTab} onValueChange={value => changeTab(value as Tab)} className="flex flex-1 flex-col">
             <div className={TAB_STRIP_FRAME}>
               <TabsList ref={tabStripRef} className={TAB_STRIP}>
-                {TABS.map(tab => (
+                {tabs.map(tab => (
                   <TabsTrigger
                     key={tab}
                     value={tab}

@@ -27,12 +27,22 @@ const SEARCH_REFUSED_STATUS = 422;
 const SEARCH_TOO_BROAD = Symbol("search too broad");
 
 /** The api resolves the wallet from the caller, so a page of the signed-in user's deployments needs no address. */
-export function useDeploymentsListQuery(params: { state: DeploymentStatus; search: string; skip: number; limit: number }, options?: { enabled?: boolean }) {
+export function useDeploymentsListQuery(
+  params: { state: DeploymentStatus; search: string; skip: number; limit: number; projectId?: string },
+  options?: { enabled?: boolean }
+) {
   const { api } = useServices();
   const search = params.search.trim();
 
   return api.v1.listDeployments.useQuery(
-    { state: params.state, reverse: "true", skip: params.skip, limit: params.limit, ...(search ? { search } : {}) },
+    {
+      state: params.state,
+      reverse: "true",
+      skip: params.skip,
+      limit: params.limit,
+      ...(search ? { search } : {}),
+      ...(params.projectId ? { projectId: params.projectId } : {})
+    },
     {
       enabled: options?.enabled ?? true,
       placeholderData: keepPreviousData,
