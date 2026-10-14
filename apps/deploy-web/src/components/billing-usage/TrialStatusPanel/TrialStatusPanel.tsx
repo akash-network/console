@@ -1,16 +1,16 @@
 "use client";
-import React, { useState } from "react";
+import React from "react";
 import { Button, Card, Progress, Skeleton } from "@akashnetwork/ui/components";
 import { Clock, Cpu, Lock, Timer } from "lucide-react";
 
-import { AddCreditsSheet } from "@src/components/auth/AddCreditsSheet/AddCreditsSheet";
 import { BONUS_PERCENT, MAX_BONUS } from "@src/components/billing-usage/FirstPurchaseBonusAlert/FirstPurchaseBonusAlert";
 import { SettingsSection } from "@src/components/layout/SettingsSection/SettingsSection";
+import { useAddCredits } from "@src/hooks/useAddCredits";
 import { useTrialStatus } from "./useTrialStatus";
 
 export const DEPENDENCIES = {
   useTrialStatus,
-  AddCreditsSheet,
+  useAddCredits,
   Button,
   Card,
   Progress,
@@ -25,7 +25,7 @@ const UNLOCK_SHEET_DESCRIPTION = "Purchase credits to unlock GPUs, unlimited run
 
 export const TrialStatusPanel: React.FunctionComponent<{ dependencies?: typeof DEPENDENCIES }> = ({ dependencies: d = DEPENDENCIES }) => {
   const trial = d.useTrialStatus();
-  const [isAddCreditsOpen, setIsAddCreditsOpen] = useState(false);
+  const openAddCredits = d.useAddCredits();
 
   if (!trial.isTrialing) return null;
 
@@ -80,28 +80,15 @@ export const TrialStatusPanel: React.FunctionComponent<{ dependencies?: typeof D
           <p className="min-w-0 flex-1 basis-64 text-[13px] text-muted-foreground">
             {`Purchase credits to lift every limit above. Your first purchase earns ${BONUS_PERCENT}% in bonus credits, up to $${MAX_BONUS} free.`}
           </p>
-          <d.Button size="sm" onClick={openAddCredits}>
+          <d.Button size="sm" onClick={openPurchaseSheet}>
             Purchase credits
           </d.Button>
         </div>
       </d.Card>
-
-      <d.AddCreditsSheet
-        open={isAddCreditsOpen}
-        onOpenChange={setIsAddCreditsOpen}
-        initialTab="purchase"
-        description={UNLOCK_SHEET_DESCRIPTION}
-        context="billing_trial_panel"
-        onDone={closeAddCredits}
-      />
     </SettingsSection>
   );
 
-  function openAddCredits() {
-    setIsAddCreditsOpen(true);
-  }
-
-  function closeAddCredits() {
-    setIsAddCreditsOpen(false);
+  function openPurchaseSheet() {
+    openAddCredits({ initialTab: "purchase", description: UNLOCK_SHEET_DESCRIPTION, context: "billing_trial_panel" });
   }
 };

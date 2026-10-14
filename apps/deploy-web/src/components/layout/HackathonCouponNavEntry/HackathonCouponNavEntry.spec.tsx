@@ -1,12 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
-import { DEPENDENCIES, HackathonCouponNavEntry } from "./HackathonCouponNavEntry";
+import type { DEPENDENCIES } from "./HackathonCouponNavEntry";
+import { HackathonCouponNavEntry } from "./HackathonCouponNavEntry";
 
 import { fireEvent, render, screen } from "@testing-library/react";
-import { ComponentMock, MockComponents } from "@tests/unit/mocks";
-
-type SheetProps = Parameters<typeof DEPENDENCIES.AddCreditsSheet>[0];
 
 describe(HackathonCouponNavEntry.name, () => {
   it("renders nothing when the hackathons flag is off", () => {
@@ -27,14 +25,12 @@ describe(HackathonCouponNavEntry.name, () => {
     expect(screen.getByRole("button", { name: /Hackathon\? click here/i })).toBeInTheDocument();
   });
 
-  it("opens the add-credits sheet on the coupon tab when the trigger is clicked", () => {
-    const { AddCreditsSheet } = setup({ isHackathonsEnabled: true, isTrialing: true });
+  it("opens the app-wide add-credits sheet on the coupon tab when the trigger is clicked", () => {
+    const { openAddCredits } = setup({ isHackathonsEnabled: true, isTrialing: true });
 
     fireEvent.click(screen.getByRole("button", { name: /Hackathon\? click here/i }));
 
-    const sheetProps = AddCreditsSheet.mock.calls.at(-1)![0] as SheetProps;
-    expect(sheetProps.open).toBe(true);
-    expect(sheetProps.initialTab).toBe("coupon");
+    expect(openAddCredits).toHaveBeenCalledWith({ initialTab: "coupon" });
   });
 
   function setup(
@@ -44,15 +40,16 @@ describe(HackathonCouponNavEntry.name, () => {
       dependencies?: Partial<typeof DEPENDENCIES>;
     } = {}
   ) {
-    const AddCreditsSheet = vi.fn(ComponentMock);
+    const openAddCredits = vi.fn();
+    const useAddCredits: typeof DEPENDENCIES.useAddCredits = () => openAddCredits;
     const useFlag: typeof DEPENDENCIES.useFlag = () => input.isHackathonsEnabled ?? false;
     const useWallet: typeof DEPENDENCIES.useWallet = () =>
       mock<ReturnType<typeof DEPENDENCIES.useWallet>>({
         isTrialing: input.isTrialing ?? true
       });
 
-    render(<HackathonCouponNavEntry dependencies={MockComponents(DEPENDENCIES, { useFlag, useWallet, AddCreditsSheet, ...input.dependencies })} />);
+    render(<HackathonCouponNavEntry dependencies={{ useFlag, useWallet, useAddCredits, ...input.dependencies }} />);
 
-    return { AddCreditsSheet };
+    return { openAddCredits };
   }
 });

@@ -31,6 +31,7 @@ interface AddCreditsSheetProps {
   dependencies?: typeof DEPENDENCIES;
 }
 
+/** Host it only where it stays mounted until a purchase settles: a host that hides once the trial ends must open the app-wide sheet through `useAddCredits` instead. */
 export function AddCreditsSheet({
   open,
   onOpenChange,

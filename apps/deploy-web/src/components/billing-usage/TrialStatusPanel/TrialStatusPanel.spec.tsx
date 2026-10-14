@@ -80,13 +80,16 @@ describe("TrialStatusPanel", () => {
     ).toBeInTheDocument();
   });
 
-  it("opens the add credits sheet from the purchase button", async () => {
-    const AddCreditsSheet = vi.fn(() => <></>);
-    setup({ dependencies: { AddCreditsSheet } });
+  it("opens the app-wide add credits sheet on the purchase tab from the purchase button", async () => {
+    const { openAddCredits } = setup();
 
     await userEvent.click(screen.getByRole("button", { name: "Purchase credits" }));
 
-    expect(AddCreditsSheet).toHaveBeenLastCalledWith(expect.objectContaining({ open: true, initialTab: "purchase" }), expect.anything());
+    expect(openAddCredits).toHaveBeenCalledWith({
+      initialTab: "purchase",
+      description: "Purchase credits to unlock GPUs, unlimited runtime, and the full Console.",
+      context: "billing_trial_panel"
+    });
   });
 
   function setup(input: { trial?: Partial<TrialStatus>; dependencies?: Partial<typeof DEPENDENCIES> } = {}) {
@@ -100,8 +103,10 @@ describe("TrialStatusPanel", () => {
         deploymentDurationHours: 24,
         ...input.trial
       });
+    const openAddCredits = vi.fn();
+    const useAddCredits: typeof DEPENDENCIES.useAddCredits = () => openAddCredits;
 
-    return render(
+    render(
       <TrialStatusPanel
         dependencies={{
           ...MockComponents(DEPENDENCIES, input.dependencies),
@@ -109,9 +114,12 @@ describe("TrialStatusPanel", () => {
           Button: DEPENDENCIES.Button,
           Progress: DEPENDENCIES.Progress,
           useTrialStatus,
+          useAddCredits,
           ...input.dependencies
         }}
       />
     );
+
+    return { openAddCredits };
   }
 });
