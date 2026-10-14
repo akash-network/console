@@ -52,6 +52,10 @@ describe(ManagedDeploymentLeaseCreatedHandler.name, () => {
     expect(setup().handler.requiresPermission()).toEqual([]);
   });
 
+  it("declares the exclusive policy, so a lease followed up twice schedules its gpu reads once", () => {
+    expect(setup().handler.policy).toBe("exclusive");
+  });
+
   function setup() {
     const gpuDetectionJobService = mock<LeaseGpuDetectionJobService>();
     const gpuOfferJobService = mock<LeaseGpuOfferJobService>();

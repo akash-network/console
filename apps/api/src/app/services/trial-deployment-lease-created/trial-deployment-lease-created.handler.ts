@@ -2,9 +2,9 @@ import { addHours } from "date-fns";
 import { inject, singleton } from "tsyringe";
 
 import { TrialDeploymentLeaseCreated } from "@src/billing/events/trial-deployment-lease-created";
-import { UserWalletRepository } from "@src/billing/repositories";
+import { type UserWalletOutput, UserWalletRepository } from "@src/billing/repositories";
 import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
-import { type CreateLogger, DOMAIN_EVENT_NAME, EventPayload, JobHandler, type JobPermissions, JobQueueService, LOGGER_FACTORY } from "@src/core";
+import { type CreateLogger, DOMAIN_EVENT_NAME, EventPayload, JobHandler, type JobPermissions, JobQueueService, LOGGER_FACTORY, TxService } from "@src/core";
 import { RESOLVED_MARKER } from "@src/notifications/services/notification-data-resolver/notification-data-resolver.service";
 import { NotificationJob } from "@src/notifications/services/notification-handler/notification.handler";
 import { TrialWorkloadProbeJobService } from "@src/workload-abuse/services/trial-workload-probe-job/trial-workload-probe-job.service";
@@ -23,7 +23,8 @@ export class TrialDeploymentLeaseCreatedHandler implements JobHandler<TrialDeplo
     @inject(LOGGER_FACTORY) createLogger: CreateLogger,
     private readonly jobQueueService: JobQueueService,
     private readonly billingConfig: BillingConfigService,
-    private readonly probeJobService: TrialWorkloadProbeJobService
+    private readonly probeJobService: TrialWorkloadProbeJobService,
+    private readonly txService: TxService
   ) {
     this.logger = createLogger({ context: TrialDeploymentLeaseCreatedHandler.name });
   }
@@ -68,53 +69,73 @@ export class TrialDeploymentLeaseCreatedHandler implements JobHandler<TrialDeplo
     }
 
     const deploymentCreatedAt = new Date(payload.createdAt);
-    const trialDeploymentLifetime = this.billingConfig.get("TRIAL_DEPLOYMENT_CLEANUP_HOURS");
-    await this.jobQueueService.enqueue(
-      new NotificationJob({
-        template: "beforeCloseTrialDeployment",
-        userId: wallet.userId!,
-        conditions: { trial: true },
-        vars: {
-          deploymentClosedAt: addHours(deploymentCreatedAt, trialDeploymentLifetime).toISOString(),
-          dseq: payload.dseq,
-          owner: wallet.address!,
-          paymentLink: this.billingConfig.get("CONSOLE_WEB_PAYMENT_LINK"),
-          firstPurchaseBonus: RESOLVED_MARKER
-        }
-      }),
-      {
-        startAfter: addHours(deploymentCreatedAt, trialDeploymentLifetime - 1).toISOString(),
-        singletonKey: `notification.beforeCloseTrialDeployment.${payload.dseq}.${wallet.id}`
-      }
-    );
-    await this.jobQueueService.enqueue(
-      new CloseTrialDeployment({
-        walletId: wallet.id,
-        dseq: payload.dseq
-      }),
-      {
-        singletonKey: `closeTrialDeployment.${payload.dseq}.${wallet.id}`,
-        startAfter: addHours(deploymentCreatedAt, trialDeploymentLifetime).toISOString()
-      }
-    );
+    await this.#scheduleCloseWithNotifications(wallet, payload, deploymentCreatedAt);
     await this.#scheduleWorkloadProbe({ walletId: wallet.id, dseq: payload.dseq, leaseCreatedAt: deploymentCreatedAt });
+  }
 
-    if (payload.isFirstLease) {
+  /** The close goes first and commits with the emails, so a lease announced again finds its close already queued under the exclusive key and sends nothing twice. */
+  async #scheduleCloseWithNotifications(wallet: UserWalletOutput, payload: EventPayload<TrialDeploymentLeaseCreated>, deploymentCreatedAt: Date): Promise<void> {
+    const trialDeploymentLifetime = this.billingConfig.get("TRIAL_DEPLOYMENT_CLEANUP_HOURS");
+
+    await this.txService.transaction(async () => {
+      const closeJobId = await this.jobQueueService.enqueue(
+        new CloseTrialDeployment({
+          walletId: wallet.id,
+          dseq: payload.dseq
+        }),
+        {
+          singletonKey: `closeTrialDeployment.${payload.dseq}.${wallet.id}`,
+          startAfter: addHours(deploymentCreatedAt, trialDeploymentLifetime).toISOString()
+        }
+      );
+
+      if (!closeJobId) {
+        this.logger.debug({
+          event: "SKIP_TRIAL_DEPLOYMENT_CLOSING_TRIAL",
+          reason: "Trial deployment close is already scheduled",
+          domainEvent: TrialDeploymentLeaseCreated[DOMAIN_EVENT_NAME],
+          dseq: payload.dseq,
+          walletId: wallet.id
+        });
+        return;
+      }
+
       await this.jobQueueService.enqueue(
         new NotificationJob({
-          template: "trialFirstDeploymentLeaseCreated",
+          template: "beforeCloseTrialDeployment",
           userId: wallet.userId!,
           conditions: { trial: true },
           vars: {
+            deploymentClosedAt: addHours(deploymentCreatedAt, trialDeploymentLifetime).toISOString(),
             dseq: payload.dseq,
-            owner: wallet.address!
+            owner: wallet.address!,
+            paymentLink: this.billingConfig.get("CONSOLE_WEB_PAYMENT_LINK"),
+            firstPurchaseBonus: RESOLVED_MARKER
           }
         }),
         {
-          singletonKey: `notification.trialFirstDeploymentLeaseCreated.${wallet.id}`
+          startAfter: addHours(deploymentCreatedAt, trialDeploymentLifetime - 1).toISOString(),
+          singletonKey: `notification.beforeCloseTrialDeployment.${payload.dseq}.${wallet.id}`
         }
       );
-    }
+
+      if (payload.isFirstLease) {
+        await this.jobQueueService.enqueue(
+          new NotificationJob({
+            template: "trialFirstDeploymentLeaseCreated",
+            userId: wallet.userId!,
+            conditions: { trial: true },
+            vars: {
+              dseq: payload.dseq,
+              owner: wallet.address!
+            }
+          }),
+          {
+            singletonKey: `notification.trialFirstDeploymentLeaseCreated.${wallet.id}`
+          }
+        );
+      }
+    });
   }
 
   /** The probe is a backstopped extra, so failing to schedule it must not fail or retry the close and notification work queued above. */

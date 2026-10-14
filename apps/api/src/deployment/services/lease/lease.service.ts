@@ -12,6 +12,7 @@ import { type CreateLogger, LOGGER_FACTORY } from "@src/core";
 import { type DeploymentResponse } from "@src/deployment/http-schemas/deployment.schema";
 import { type CreateLeaseRequest } from "@src/deployment/http-schemas/lease.schema";
 import { LeaseManifestService } from "@src/deployment/services/lease-manifest/lease-manifest.service";
+import { isLeaseOn } from "@src/deployment/utils/lease-placement/lease-placement";
 import { ProviderService } from "@src/provider/services/provider/provider.service";
 import { DeploymentReaderService } from "../deployment-reader/deployment-reader.service";
 
@@ -41,24 +42,7 @@ export class LeaseService {
     const dseq = leases[0].dseq;
     const manifests = await this.#manifestsByDseq(leases, { wallet, userId }, manifest);
 
-    // Leases for all groups are created in one tx, so one existing lease means all exist:
-    // skip creation when already on-chain to keep retries idempotent.
-    if (!(await this.#hasActiveLease(wallet.address!, dseq))) {
-      await this.#refuseLeasesOnClosedBids(wallet.address!, leases);
-      await this.#assertProvidersReachable(leases);
-
-      const leaseMessages = leases.map(lease =>
-        this.rpcMessageService.getCreateLeaseMsg({
-          owner: wallet.address!,
-          dseq: lease.dseq,
-          gseq: lease.gseq,
-          oseq: lease.oseq,
-          provider: lease.provider
-        })
-      );
-
-      await this.signerService.executeDerivedDecodedTxByUserId(userId, leaseMessages);
-    }
+    await this.#createOrAdoptLeases(wallet, leases, userId);
 
     const deployment = await this.deploymentReaderService.findByWalletAndDseqWithoutProviderStatus(wallet, dseq);
 
@@ -67,6 +51,47 @@ export class LeaseService {
     }
 
     return deployment;
+  }
+
+  /** Reads the leases again after a failure, as a close does, because the read that let this attempt through may come from a node behind an earlier attempt that landed. */
+  async #createOrAdoptLeases(wallet: WalletInitialized, leases: CreateLeaseRequest["leases"], actingUserId: string): Promise<void> {
+    if (await this.#leasesExist(wallet.address, leases)) {
+      return await this.signerService.followUpLandedLeases(wallet, leases, actingUserId);
+    }
+
+    try {
+      await this.#refuseLeasesOnClosedBids(wallet.address, leases);
+      await this.#assertProvidersReachable(leases);
+      await this.signerService.executeDecodedTxByUserWallet(
+        wallet,
+        leases.map(({ dseq, gseq, oseq, provider }) => this.rpcMessageService.getCreateLeaseMsg({ owner: wallet.address, dseq, gseq, oseq, provider })),
+        { actingUserId }
+      );
+    } catch (error) {
+      if (!(await this.#leasesFoundOnReread(wallet.address, leases))) throw error;
+
+      this.#logger.info({ event: "LEASE_FOUND_AFTER_CREATE_FAILED", dseq: leases[0].dseq, error });
+      await this.signerService.followUpLandedLeases(wallet, leases, actingUserId);
+    }
+  }
+
+  /** A read that fails is no sign the lease landed, so the failure that led here stays the answer. */
+  async #leasesFoundOnReread(owner: string, leases: CreateLeaseRequest["leases"]): Promise<boolean> {
+    try {
+      return await this.#leasesExist(owner, leases);
+    } catch (error) {
+      this.#logger.warn({ event: "LEASE_REREAD_FAILED", dseq: leases[0].dseq, error });
+      return false;
+    }
+  }
+
+  /** Matches each lease on its own placement and provider, since another live lease on the deployment says nothing about the one requested. */
+  async #leasesExist(owner: string, leases: CreateLeaseRequest["leases"]): Promise<boolean> {
+    const dseqs = [...new Set(leases.map(lease => lease.dseq))];
+    const listed = await Promise.all(dseqs.map(dseq => this.leaseHttpService.list({ owner, dseq })));
+    const live = listed.flatMap(response => response.leases).filter(({ lease }) => lease.state !== "closed");
+
+    return leases.every(placement => live.some(({ lease }) => isLeaseOn(lease.id, placement)));
   }
 
   /** Refuses only what the chain would, so a bid it does not report is left for the chain to judge. */
@@ -143,10 +168,5 @@ export class LeaseService {
     }
 
     return manifests;
-  }
-
-  async #hasActiveLease(owner: string, dseq: string): Promise<boolean> {
-    const { leases } = await this.leaseHttpService.list({ owner, dseq });
-    return leases.some(({ lease }) => lease.state !== "closed");
   }
 }

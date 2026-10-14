@@ -40,6 +40,7 @@ import type { TxManagerService } from "../tx-manager/tx-manager.service";
 import { ManagedSignerService } from "./managed-signer.service";
 
 import { mockConfigService } from "@test/mocks/config-service.mock";
+import { createLeaseApiResponse } from "@test/seeders/lease-api-response.seeder";
 import { createOrganizationContext, createProjectsScope } from "@test/seeders/organization-context.seeder";
 import { createUser } from "@test/seeders/user.seeder";
 import { createOrganizationWallet, createUserWallet } from "@test/seeders/user-wallet.seeder";
@@ -477,7 +478,7 @@ describe(ManagedSignerService.name, () => {
       await service.executeDerivedDecodedTxByUserId("user-123", [deploymentMessage]);
 
       expect(domainEvents.publish).toHaveBeenCalledWith(expect.any(TrialDeploymentLeaseCreated));
-      expect(domainEvents.publish).toHaveBeenCalledWith(expect.any(EnableDeploymentAlertCommand));
+      expect(domainEvents.publish).toHaveBeenCalledWith(expect.any(EnableDeploymentAlertCommand), expect.anything());
       const publishCalls = vi.mocked(domainEvents.publish).mock.calls;
       const trialEvent = publishCalls.find(([e]) => e instanceof TrialDeploymentLeaseCreated)?.[0] as TrialDeploymentLeaseCreated;
       expect(trialEvent.data).toEqual({
@@ -562,6 +563,45 @@ describe(ManagedSignerService.name, () => {
       const [event, options] = gpuCall as [ManagedDeploymentLeaseCreated, { singletonKey: string }];
       expect(event.data).toEqual({ walletId: wallet.id, dseq: "123", createdAt: expect.any(String) });
       expect(options).toEqual({ singletonKey: `ManagedDeploymentLeaseCreated.123.${wallet.id}` });
+    });
+
+    it("enables the deployment's alert under a singleton key when a lease lands", async () => {
+      const wallet = createUserWallet({ userId: "user-123", feeAllowance: 100, deploymentAllowance: 100, isTrialing: false });
+      const { service, domainEvents } = setup({
+        findOneUsedBy: vi.fn().mockResolvedValue(wallet),
+        signAndBroadcastWithDerivedWallet: vi.fn().mockResolvedValue({ code: 0, hash: "tx-hash", rawLog: "success" }),
+        publish: vi.fn().mockResolvedValue(undefined)
+      });
+
+      await service.executeDerivedDecodedTxByUserId("user-123", [leaseMessageFor(123)]);
+
+      const [event, options] = vi.mocked(domainEvents.publish).mock.calls.find(([published]) => published instanceof EnableDeploymentAlertCommand)!;
+      expect(event.data).toEqual({ userId: wallet.userId, walletAddress: wallet.address, dseq: "123" });
+      expect(options).toEqual({ singletonKey: `EnableDeploymentAlertCommand.123.${wallet.id}` });
+    });
+
+    it("reads no lease history for a wallet that is not trialing", async () => {
+      const wallet = createUserWallet({ userId: "user-123", feeAllowance: 100, deploymentAllowance: 100, isTrialing: false });
+      const { service, leaseHttpService } = setup({
+        findOneUsedBy: vi.fn().mockResolvedValue(wallet),
+        signAndBroadcastWithDerivedWallet: vi.fn().mockResolvedValue({ code: 0, hash: "tx-hash", rawLog: "success" })
+      });
+
+      await service.executeDerivedDecodedTxByUserId("user-123", [leaseMessageFor(123)]);
+
+      expect(leaseHttpService.hasLeases).not.toHaveBeenCalled();
+    });
+
+    it("reads no lease history for a trial transaction that creates no lease", async () => {
+      const wallet = createUserWallet({ userId: "user-123", feeAllowance: 100, deploymentAllowance: 100, isTrialing: true });
+      const { service, leaseHttpService } = setup({
+        findOneUsedBy: vi.fn().mockResolvedValue(wallet),
+        signAndBroadcastWithDerivedWallet: vi.fn().mockResolvedValue({ code: 0, hash: "tx-hash", rawLog: "success" })
+      });
+
+      await service.executeDerivedDecodedTxByUserId("user-123", [closeMessageFor(123)]);
+
+      expect(leaseHttpService.hasLeases).not.toHaveBeenCalled();
     });
 
     it("funds and records a landed lease even when its gpu read cannot be published", async () => {
@@ -713,7 +753,7 @@ describe(ManagedSignerService.name, () => {
       await expect(service.executeDerivedDecodedTxByUserId("user-123", messages)).rejects.toThrow("queue unavailable");
 
       expect(domainEvents.publish).toHaveBeenCalledWith(expect.any(FundDeploymentCommand), expect.anything());
-      expect(domainEvents.publish).toHaveBeenCalledWith(expect.any(EnableDeploymentAlertCommand));
+      expect(domainEvents.publish).toHaveBeenCalledWith(expect.any(EnableDeploymentAlertCommand), expect.anything());
     });
 
     it("records nothing for a transaction that creates no deployment", async () => {
@@ -1171,6 +1211,146 @@ describe(ManagedSignerService.name, () => {
 
       expect(anonymousValidateService.validateDeploymentResources).toHaveBeenCalledWith(messages, wallet);
     });
+  });
+
+  describe("followUpLandedLeases", () => {
+    it("queues a landed lease's alert, funding and gpu read under their singleton keys and refreshes the wallet's limits", async () => {
+      const wallet = createUserWallet({ isTrialing: false });
+      const lease = { dseq: "123", gseq: 1, oseq: 1, provider: createAkashAddress() };
+      const { service, domainEvents, balancesService } = setup({ publish: vi.fn().mockResolvedValue("job-id") });
+
+      await service.followUpLandedLeases(wallet, [lease], wallet.userId);
+
+      expect(vi.mocked(domainEvents.publish).mock.calls).toEqual([
+        [
+          expect.objectContaining({ name: "EnableDeploymentAlertCommand", data: { userId: wallet.userId, walletAddress: wallet.address, dseq: "123" } }),
+          { singletonKey: `EnableDeploymentAlertCommand.123.${wallet.id}` }
+        ],
+        [
+          expect.objectContaining({ name: "FundDeploymentCommand", data: { walletId: wallet.id, address: wallet.address, dseq: "123" } }),
+          { singletonKey: `FundDeploymentCommand.123.${wallet.id}` }
+        ],
+        [
+          expect.objectContaining({ name: "ManagedDeploymentLeaseCreated", data: { walletId: wallet.id, dseq: "123", createdAt: expect.any(String) } }),
+          { singletonKey: `ManagedDeploymentLeaseCreated.123.${wallet.id}` }
+        ]
+      ]);
+      expect(balancesService.refreshUserWalletLimits).toHaveBeenCalledWith(wallet);
+    });
+
+    it("follows up a team wallet's landed lease on that wallet, enabling the alert for the member who asked", async () => {
+      const wallet = createOrganizationWallet();
+      const lease = { dseq: "123", gseq: 1, oseq: 1, provider: createAkashAddress() };
+      const { service, domainEvents, balancesService, leaseHttpService } = setup({ publish: vi.fn().mockResolvedValue("job-id") });
+
+      await service.followUpLandedLeases(wallet, [lease], "member-1");
+
+      expect(vi.mocked(domainEvents.publish).mock.calls).toEqual([
+        [
+          expect.objectContaining({ name: "EnableDeploymentAlertCommand", data: { userId: "member-1", walletAddress: wallet.address, dseq: "123" } }),
+          { singletonKey: `EnableDeploymentAlertCommand.123.${wallet.id}` }
+        ],
+        [
+          expect.objectContaining({ name: "FundDeploymentCommand", data: { walletId: wallet.id, address: wallet.address, dseq: "123" } }),
+          { singletonKey: `FundDeploymentCommand.123.${wallet.id}` }
+        ],
+        [
+          expect.objectContaining({ name: "ManagedDeploymentLeaseCreated", data: { walletId: wallet.id, dseq: "123", createdAt: expect.any(String) } }),
+          { singletonKey: `ManagedDeploymentLeaseCreated.123.${wallet.id}` }
+        ]
+      ]);
+      expect(leaseHttpService.list).not.toHaveBeenCalled();
+      expect(balancesService.refreshUserWalletLimits).toHaveBeenCalledWith(wallet);
+    });
+
+    it("gives a team wallet's landed lease the same follow-up its broadcast would have", async () => {
+      const broadcast = setupForTeam({ publish: vi.fn().mockResolvedValue("job-id") });
+      const landed = setup({ publish: vi.fn().mockResolvedValue("job-id") });
+
+      await broadcast.service.executeDerivedDecodedTxByUserId("member-1", [leaseMessageFor(123)]);
+      await landed.service.followUpLandedLeases(broadcast.wallet, [{ dseq: "123", gseq: 1, oseq: 1, provider: "akash1test" }], "member-1");
+
+      expect(followUpOf(broadcast.domainEvents)).toHaveLength(3);
+      expect(followUpOf(landed.domainEvents)).toEqual(followUpOf(broadcast.domainEvents));
+    });
+
+    it("gives a landed lease the same follow-up its broadcast would have", async () => {
+      const wallet = createUserWallet({ userId: "user-123", feeAllowance: 100, deploymentAllowance: 100, isTrialing: false });
+      const broadcast = setup({
+        findOneUsedBy: vi.fn().mockResolvedValue(wallet),
+        signAndBroadcastWithDerivedWallet: vi.fn().mockResolvedValue({ code: 0, hash: "tx-hash", rawLog: "success" }),
+        publish: vi.fn().mockResolvedValue("job-id")
+      });
+      const landed = setup({ publish: vi.fn().mockResolvedValue("job-id") });
+
+      await broadcast.service.executeDerivedDecodedTxByUserId("user-123", [leaseMessageFor(123)]);
+      await landed.service.followUpLandedLeases(wallet, [{ dseq: "123", gseq: 1, oseq: 1, provider: "akash1test" }], "user-123");
+
+      expect(followUpOf(broadcast.domainEvents)).toHaveLength(3);
+      expect(followUpOf(landed.domainEvents)).toEqual(followUpOf(broadcast.domainEvents));
+    });
+
+    it("announces a trial wallet's lease as its first when the wallet holds no lease besides the ones that landed", async () => {
+      const wallet = createUserWallet({ isTrialing: true });
+      const leases = [
+        { dseq: "123", gseq: 1, oseq: 1, provider: createAkashAddress() },
+        { dseq: "123", gseq: 2, oseq: 1, provider: createAkashAddress() }
+      ];
+      const { service, domainEvents, leaseHttpService } = setup({ listLeases: listing(leases.map(lease => leaseOn(wallet, lease))) });
+
+      await service.followUpLandedLeases(wallet, leases, wallet.userId);
+
+      expect(leaseHttpService.list).toHaveBeenCalledWith({ owner: wallet.address, pagination: { limit: 3 } });
+      expect(trialAnnouncementOf(domainEvents)).toEqual({ walletId: wallet.id, dseq: "123", createdAt: expect.any(String), isFirstLease: true });
+      expect(domainEvents.publish).not.toHaveBeenCalledWith(expect.any(FundDeploymentCommand), expect.anything());
+    });
+
+    it("announces a trial wallet's lease as not its first when the wallet holds another lease", async () => {
+      const wallet = createUserWallet({ isTrialing: true });
+      const lease = { dseq: "123", gseq: 1, oseq: 1, provider: createAkashAddress() };
+      const earlier = { dseq: "99", gseq: 1, oseq: 1, provider: createAkashAddress() };
+      const { service, domainEvents } = setup({ listLeases: listing([leaseOn(wallet, earlier), leaseOn(wallet, lease)]) });
+
+      await service.followUpLandedLeases(wallet, [lease], wallet.userId);
+
+      expect(trialAnnouncementOf(domainEvents)).toMatchObject({ isFirstLease: false });
+    });
+
+    it("announces a trial wallet's lease as not its first when the wallet holds more leases than one page shows", async () => {
+      const wallet = createUserWallet({ isTrialing: true });
+      const lease = { dseq: "123", gseq: 1, oseq: 1, provider: createAkashAddress() };
+      const { service, domainEvents } = setup({ listLeases: listing([leaseOn(wallet, lease)], "next-page") });
+
+      await service.followUpLandedLeases(wallet, [lease], wallet.userId);
+
+      expect(trialAnnouncementOf(domainEvents)).toMatchObject({ isFirstLease: false });
+    });
+
+    it("reads no lease history for a wallet that is not trialing", async () => {
+      const wallet = createUserWallet({ isTrialing: false });
+      const { service, domainEvents, leaseHttpService } = setup();
+
+      await service.followUpLandedLeases(wallet, [{ dseq: "123", gseq: 1, oseq: 1, provider: createAkashAddress() }], wallet.userId);
+
+      expect(leaseHttpService.list).not.toHaveBeenCalled();
+      expect(domainEvents.publish).not.toHaveBeenCalledWith(expect.any(TrialDeploymentLeaseCreated));
+    });
+
+    function leaseOn(wallet: { address: string | null }, lease: { dseq: string; gseq: number; oseq: number; provider: string }) {
+      return createLeaseApiResponse({ owner: wallet.address!, ...lease, state: "active" });
+    }
+
+    function listing(leases: ReturnType<typeof createLeaseApiResponse>[], nextKey: string | null = null): LeaseHttpService["list"] {
+      return vi.fn(async () => ({ leases, pagination: { next_key: nextKey, total: String(leases.length) } }));
+    }
+
+    function trialAnnouncementOf(domainEvents: { publish: DomainEventsService["publish"] }) {
+      return vi.mocked(domainEvents.publish).mock.calls.find(([event]) => event instanceof TrialDeploymentLeaseCreated)?.[0].data;
+    }
+
+    function followUpOf(domainEvents: { publish: DomainEventsService["publish"] }) {
+      return vi.mocked(domainEvents.publish).mock.calls.map(([event, options]) => [event.name, { ...event.data, createdAt: undefined }, options]);
+    }
   });
 
   describe("assertCanBroadcast", () => {
@@ -2158,6 +2338,7 @@ describe(ManagedSignerService.name, () => {
     transformChainError?: ChainErrorService["toAppError"];
     exposeSignerRefusal?: ChainErrorService["exposeSignerRefusal"];
     hasLeases?: LeaseHttpService["hasLeases"];
+    listLeases?: LeaseHttpService["list"];
     scheduleImmediate?: WalletReloadJobService["scheduleImmediate"];
     markClosed?: DeploymentSettingRepository["markClosed"];
     findOneOfWallet?: DeploymentSettingRepository["findOneOfWallet"];
@@ -2201,7 +2382,8 @@ describe(ManagedSignerService.name, () => {
         publish: input?.publish ?? vi.fn()
       }),
       leaseHttpService: mock<LeaseHttpService>({
-        hasLeases: input?.hasLeases ?? vi.fn(async () => false)
+        hasLeases: input?.hasLeases ?? vi.fn(async () => false),
+        list: input?.listLeases ?? vi.fn()
       }),
       walletReloadJobService: mock<WalletReloadJobService>({
         scheduleImmediate: input?.scheduleImmediate ?? vi.fn().mockResolvedValue(false)

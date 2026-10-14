@@ -40,6 +40,7 @@ import {
 } from "@src/deployment/services/deployment-organization-activity/deployment-organization-activity.service";
 import { DeploymentProjectService } from "@src/deployment/services/deployment-project/deployment-project.service";
 import { RecordDeploymentSetting, recordDeploymentSettingKeyFor } from "@src/deployment/services/record-deployment-setting/record-deployment-setting.handler";
+import { isLeaseOn, type LeasePlacement } from "@src/deployment/utils/lease-placement/lease-placement";
 import { PROJECT_FORBIDDEN_ERROR_CODE } from "@src/organization/services/organization-context/organization-context.resolver";
 import { UserRepository } from "@src/user/repositories";
 import { COSMOS_TX_CODE_OK } from "@src/utils/constants";
@@ -192,8 +193,7 @@ export class ManagedSignerService {
 
     const actingUserId = userWallet.userId ?? options?.actingUserId;
     const createLeaseMessage: { typeUrl: string; value: MsgCreateLease } | undefined = messages.find(message => message.typeUrl.endsWith(".MsgCreateLease"));
-    const hasCreateTrialLeaseMessage = userWallet.isTrialing && !!createLeaseMessage;
-    const hasLeases = hasCreateTrialLeaseMessage ? await this.leaseHttpService.hasLeases(userWallet.address!) : null;
+    const isFirstLease = !!userWallet.isTrialing && !!createLeaseMessage && !(await this.leaseHttpService.hasLeases(userWallet.address!));
 
     let tx: Awaited<ReturnType<ManagedSignerService["executeDerivedTx"]>>;
 
@@ -211,43 +211,8 @@ export class ManagedSignerService {
 
     await this.#recordClosedDeployments(userWallet, messages, actingUserId, options?.consoleClose);
 
-    if (hasCreateTrialLeaseMessage) {
-      await this.domainEvents.publish(
-        new TrialDeploymentLeaseCreated({
-          walletId: userWallet.id,
-          dseq: createLeaseMessage.value.bidId!.dseq.toString(),
-          createdAt: new Date().toISOString(),
-          isFirstLease: !hasLeases
-        })
-      );
-    }
-
     if (createLeaseMessage) {
-      const leasedDseq = createLeaseMessage.value.bidId!.dseq.toString();
-
-      if (actingUserId) {
-        await this.domainEvents.publish(
-          new EnableDeploymentAlertCommand({
-            userId: actingUserId,
-            walletAddress: userWallet.address!,
-            dseq: leasedDseq
-          })
-        );
-      }
-
-      if (!userWallet.isTrialing) {
-        const dseq = createLeaseMessage.value.bidId!.dseq.toString();
-        await this.domainEvents.publish(
-          new FundDeploymentCommand({
-            walletId: userWallet.id,
-            address: userWallet.address!,
-            dseq
-          }),
-          { singletonKey: `${FundDeploymentCommand.name}.${dseq}.${userWallet.id}` }
-        );
-      }
-
-      await this.#publishLeaseGpuRead(userWallet, leasedDseq);
+      await this.#followUpLease(userWallet, { dseq: createLeaseMessage.value.bidId!.dseq.toString(), isFirstLease, actingUserId });
     }
 
     await this.#recordCreatedDeployments(userWallet, messages, actingUserId, filingProjectId);
@@ -266,6 +231,46 @@ export class ManagedSignerService {
     }
 
     return result as Pick<IndexedTx, "code" | "hash" | "rawLog"> & { transactionHash: string };
+  }
+
+  /** For leases an earlier attempt landed without its answer arriving, which therefore missed the follow-up a landed broadcast gives them. */
+  @Trace()
+  async followUpLandedLeases(userWallet: UserWalletOutput, leases: LeasePlacement[], actingUserId: string): Promise<void> {
+    const isFirstLease = !!userWallet.isTrialing && (await this.#holdsNoLeaseBut(userWallet.address!, leases));
+
+    await this.#followUpLease(userWallet, { dseq: leases[0].dseq, isFirstLease, actingUserId });
+    await this.#refreshWalletLimits(userWallet);
+  }
+
+  /** The leases exist by now, so a first lease is one the owner holds nothing besides, not one it held nothing before. */
+  async #holdsNoLeaseBut(owner: string, leases: LeasePlacement[]): Promise<boolean> {
+    const { leases: held, pagination } = await this.leaseHttpService.list({ owner, pagination: { limit: leases.length + 1 } });
+
+    return !pagination.next_key && held.every(({ lease }) => leases.some(placement => isLeaseOn(lease.id, placement)));
+  }
+
+  /** Runs again whenever a retry finds its lease already landed, so whatever it starts must take effect once however often it runs. */
+  async #followUpLease(
+    userWallet: UserWalletOutput,
+    { dseq, isFirstLease, actingUserId }: { dseq: string; isFirstLease: boolean; actingUserId: string | undefined }
+  ): Promise<void> {
+    if (userWallet.isTrialing) {
+      await this.domainEvents.publish(new TrialDeploymentLeaseCreated({ walletId: userWallet.id, dseq, createdAt: new Date().toISOString(), isFirstLease }));
+    }
+
+    if (actingUserId) {
+      await this.domainEvents.publish(new EnableDeploymentAlertCommand({ userId: actingUserId, walletAddress: userWallet.address!, dseq }), {
+        singletonKey: `${EnableDeploymentAlertCommand.name}.${dseq}.${userWallet.id}`
+      });
+    }
+
+    if (!userWallet.isTrialing) {
+      await this.domainEvents.publish(new FundDeploymentCommand({ walletId: userWallet.id, address: userWallet.address!, dseq }), {
+        singletonKey: `${FundDeploymentCommand.name}.${dseq}.${userWallet.id}`
+      });
+    }
+
+    await this.#publishLeaseGpuRead(userWallet, dseq);
   }
 
   /** The transaction has already landed, so a failed refresh is logged rather than reported as a failure the caller might retry. */

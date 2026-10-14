@@ -1,5 +1,6 @@
 import { faker } from "@faker-js/faker";
 import { and, eq } from "drizzle-orm";
+import nock from "nock";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { container } from "tsyringe";
@@ -11,27 +12,35 @@ import { ApiKeyRepository } from "@src/auth/repositories/api-key/api-key.reposit
 import { ApiKeyGeneratorService } from "@src/auth/services/api-key/api-key-generator.service";
 import { AuthService } from "@src/auth/services/auth.service";
 import { UserAuthTokenService } from "@src/auth/services/user-auth-token/user-auth-token.service";
+import { EnableDeploymentAlertCommand } from "@src/billing/commands/enable-deployment-alert.command";
+import { FundDeploymentCommand } from "@src/billing/commands/fund-deployment.command";
 import { ManagedSignerService } from "@src/billing/services";
 import { BalancesService } from "@src/billing/services/balances/balances.service";
 import { DenomExchangeService } from "@src/chain/services/denom-exchange/denom-exchange.service";
 import type { ApiPgDatabase } from "@src/core";
-import { POSTGRES_DB, resolveTable } from "@src/core";
+import { CORE_CONFIG, JOB_NAME, POSTGRES_DB, resolveTable } from "@src/core";
 import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
 import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import type { DeploymentResponse } from "@src/deployment/http-schemas/deployment.schema";
 import { DeploymentReaderService } from "@src/deployment/services/deployment-reader/deployment-reader.service";
 import type { OrganizationRole } from "@src/organization/model-schemas/organization-member/organization-member.schema";
+import { ProviderService } from "@src/provider/services/provider/provider.service";
 import { app } from "@src/rest-app";
+import { marketVersion } from "@src/utils/constants";
 
 import { registerFakeSdlSecretsKms, warmSealingKeyAsBootWould } from "@test/mocks/sdl-secrets-kms.mock";
 import { createAkashAddress } from "@test/seeders/akash-address.seeder";
+import { createBid } from "@test/seeders/bid.seeder";
 import { seedDeploymentSetting } from "@test/seeders/db/deployment-setting.seeder";
 import { seedOrganizationMember, seedOrganizationWithOwner, seedProject, seedProjectMember } from "@test/seeders/db/organization.seeder";
 import { seedUser } from "@test/seeders/db/user-with-wallet.seeder";
+import { createLeaseApiResponse } from "@test/seeders/lease-api-response.seeder";
+import { findJobRows } from "@test/services/job-queue-harness";
 
 registerFakeSdlSecretsKms();
 
 const SDL = fs.readFileSync(path.resolve(__dirname, "../mocks/hello-world-sdl.yml"), "utf8");
+const CLIENT_MANIFEST = '{"client":"supplied"}';
 
 describe("Deployment projects", () => {
   beforeAll(async () => {
@@ -41,6 +50,7 @@ describe("Deployment projects", () => {
 
   afterEach(() => {
     vi.restoreAllMocks();
+    nock.cleanAll();
   });
 
   afterAll(async () => {
@@ -250,6 +260,86 @@ describe("Deployment projects", () => {
         expect.objectContaining({ type: "deployment_closed", actorUserId: caller.id, payload: { dseq: deployment.dseq, name: "api", reason: null } })
       ]);
     });
+  });
+
+  describe("POST /v1/leases", () => {
+    it("completes a lease an earlier attempt landed on the team wallet, queueing its funding and alert once for the member who asked", async () => {
+      const { request, caller, signer, teamWallet, dseq, provider } = await setupLandedTeamLease();
+      const broadcast = vi.spyOn(signer, "executeDecodedTxByUserWallet");
+
+      const first = await postLease(request, { dseq, provider });
+      const second = await postLease(request, { dseq, provider });
+
+      expect([first.status, second.status]).toEqual([200, 200]);
+      expect(broadcast).not.toHaveBeenCalled();
+      expect(vi.mocked(container.resolve(ProviderService).sendManifest)).toHaveBeenCalledTimes(2);
+      expect(await followUpJobsOf(dseq, teamWallet.id)).toEqual({
+        funding: [expect.objectContaining({ data: expect.objectContaining({ walletId: teamWallet.id, address: teamWallet.address, dseq }) })],
+        alert: [expect.objectContaining({ data: expect.objectContaining({ userId: caller.id, walletAddress: teamWallet.address, dseq }) })]
+      });
+    });
+
+    it("completes a team wallet's lease a lagging node hid instead of refusing its bid as no longer open", async () => {
+      const { request, caller, signer, teamWallet, dseq, provider } = await setupLandedTeamLease({ hiddenOnce: true });
+      const broadcast = vi.spyOn(signer, "executeDecodedTxByUserWallet");
+
+      const response = await postLease(request, { dseq, provider });
+
+      expect(response.status).toBe(200);
+      expect(broadcast).not.toHaveBeenCalled();
+      expect(await followUpJobsOf(dseq, teamWallet.id)).toEqual({
+        funding: [expect.objectContaining({ data: expect.objectContaining({ walletId: teamWallet.id, address: teamWallet.address, dseq }) })],
+        alert: [expect.objectContaining({ data: expect.objectContaining({ userId: caller.id, walletAddress: teamWallet.address, dseq }) })]
+      });
+    });
+
+    async function setupLandedTeamLease(input: { hiddenOnce?: boolean } = {}) {
+      const caller = await setupCaller({ role: "member", grants: ["other"] });
+      const { dseq } = await seedDeploymentSetting({ userId: caller.caller.id, organizationId: caller.team.id, projectId: caller.otherProject.id });
+      const provider = createAkashAddress();
+      const owner = caller.teamWallet.address;
+      const restApiUrl = container.resolve(CORE_CONFIG).REST_API_NODE_URL;
+      const leasesPath = `/akash/market/${marketVersion}/leases/list?filters.owner=${owner}&filters.dseq=${dseq}`;
+      const leasedBid = createBid({ owner, dseq, gseq: 1, oseq: 1, provider });
+      leasedBid.bid.state = "active";
+
+      if (input.hiddenOnce) {
+        nock(restApiUrl)
+          .get(leasesPath)
+          .reply(200, { leases: [], pagination: { next_key: null, total: "0" } });
+      }
+      nock(restApiUrl)
+        .persist()
+        .get(leasesPath)
+        .reply(200, {
+          leases: [createLeaseApiResponse({ owner, dseq, gseq: 1, oseq: 1, provider, state: "active" })],
+          pagination: { next_key: null, total: "1" }
+        })
+        .get(`/akash/market/${marketVersion}/bids/list`)
+        .query(query => query["filters.owner"] === owner && query["filters.dseq"] === dseq)
+        .reply(200, { bids: [leasedBid], pagination: { next_key: null, total: "1" } });
+      vi.spyOn(container.resolve(DeploymentReaderService), "findByWalletAndDseqWithoutProviderStatus").mockResolvedValue(
+        mock<DeploymentResponse>({ deployment: { state: "active", id: { dseq } } })
+      );
+      vi.spyOn(container.resolve(ProviderService), "toProviderAuth").mockResolvedValue({ type: "jwt", token: "jwt-token" });
+      vi.spyOn(container.resolve(ProviderService), "sendManifest").mockResolvedValue(true);
+      vi.spyOn(container.resolve(BalancesService), "refreshUserWalletLimits").mockResolvedValue(undefined);
+
+      return { ...caller, dseq, provider };
+    }
+
+    function postLease(request: Awaited<ReturnType<typeof setupCaller>>["request"], { dseq, provider }: { dseq: string; provider: string }) {
+      return request("/v1/leases", { method: "POST", body: { manifest: CLIENT_MANIFEST, leases: [{ dseq, gseq: 1, oseq: 1, provider }] } });
+    }
+
+    async function followUpJobsOf(dseq: string, walletId: number) {
+      const [funding, alert] = await Promise.all([
+        findJobRows(FundDeploymentCommand[JOB_NAME], { singletonKey: `FundDeploymentCommand.${dseq}.${walletId}` }),
+        findJobRows(EnableDeploymentAlertCommand[JOB_NAME], { singletonKey: `EnableDeploymentAlertCommand.${dseq}.${walletId}` })
+      ]);
+
+      return { funding, alert };
+    }
   });
 
   describe("PATCH /v1/deployments/{dseq}/project", () => {
@@ -507,13 +597,16 @@ describe("Deployment projects", () => {
 
   async function seedWallets(input: { userId: string; organizationId: string }) {
     const funding = { deploymentAllowance: "10000000", feeAllowance: "5000000", isTrialing: false };
-    await container
+    const [teamWallet] = await container
       .resolve<ApiPgDatabase>(POSTGRES_DB)
       .insert(resolveTable("UserWallets"))
       .values([
         { userId: null, organizationId: input.organizationId, createdByUserId: input.userId, address: createAkashAddress(), ...funding },
         { userId: input.userId, address: createAkashAddress(), ...funding }
-      ]);
+      ])
+      .returning();
+
+    return { ...teamWallet, address: teamWallet.address as string };
   }
 
   async function seedApiKey(input: { userId: string; organizationId: string; projectId?: string }) {
@@ -543,7 +636,7 @@ describe("Deployment projects", () => {
     for (const grant of input.grants ?? []) {
       await seedProjectMember({ organizationId: team.id, projectId: grant === "default" ? defaultProject.id : otherProject.id, userId: caller.id });
     }
-    await seedWallets({ userId: caller.id, organizationId: team.id });
+    const teamWallet = await seedWallets({ userId: caller.id, organizationId: team.id });
     const authorization = signIn(caller.userId!);
     enableOrganizationsFor(input.organizationsOn === false ? [] : [caller.id]);
     const signer = stubSigner();
@@ -560,6 +653,6 @@ describe("Deployment projects", () => {
         body: init.body === undefined ? undefined : JSON.stringify(init.body)
       });
 
-    return { request, team, defaultProject, otherProject, owner, caller, signer };
+    return { request, team, defaultProject, otherProject, owner, caller, signer, teamWallet };
   }
 });

@@ -9,6 +9,9 @@ import { LeaseGpuOfferJobService } from "@src/deployment/services/lease-gpu-offe
 export class ManagedDeploymentLeaseCreatedHandler implements JobHandler<ManagedDeploymentLeaseCreated> {
   public readonly accepts = ManagedDeploymentLeaseCreated;
 
+  /** Gives the per-deployment key its meaning, so a lease followed up twice schedules its gpu reads once; a `standard` queue ignores the key. */
+  public readonly policy = "exclusive";
+
   public readonly concurrency = 2;
 
   private readonly logger: ReturnType<CreateLogger>;
