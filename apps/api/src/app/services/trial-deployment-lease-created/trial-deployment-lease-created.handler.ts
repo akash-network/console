@@ -74,7 +74,11 @@ export class TrialDeploymentLeaseCreatedHandler implements JobHandler<TrialDeplo
   }
 
   /** The close goes first and commits with the emails, so a lease announced again finds its close already queued under the exclusive key and sends nothing twice. */
-  async #scheduleCloseWithNotifications(wallet: UserWalletOutput, payload: EventPayload<TrialDeploymentLeaseCreated>, deploymentCreatedAt: Date): Promise<void> {
+  async #scheduleCloseWithNotifications(
+    wallet: UserWalletOutput,
+    payload: EventPayload<TrialDeploymentLeaseCreated>,
+    deploymentCreatedAt: Date
+  ): Promise<void> {
     const trialDeploymentLifetime = this.billingConfig.get("TRIAL_DEPLOYMENT_CLEANUP_HOURS");
 
     await this.txService.transaction(async () => {

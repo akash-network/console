@@ -15,7 +15,14 @@ const STILL_OPEN_ERROR = { code: "close_incomplete", message: "The deployment is
 
 /** A failed close gives up the dedupe key, so the next close of the deployment can open its own row while at most one pending or succeeded row stands for it. */
 function userCloseActivityOf({ userId, owner, dseq }: CloseKey, status: ActivityStatus, meta: ActivityMeta): NewActivity {
-  return { userId, type: "deployment_close", status, initiator: "user", meta, dedupeKey: status === "failed" ? null : deploymentCloseDedupeKeyOf({ owner, dseq }) };
+  return {
+    userId,
+    type: "deployment_close",
+    status,
+    initiator: "user",
+    meta,
+    dedupeKey: status === "failed" ? null : deploymentCloseDedupeKeyOf({ owner, dseq })
+  };
 }
 
 export function pendingCloseActivityOf(key: CloseKey): NewActivity {
@@ -27,7 +34,14 @@ export function closedActivityOf(key: CloseKey): NewActivity {
 }
 
 export function systemClosedActivityOf({ userId, owner, dseq, reason }: SystemCloseKey): NewActivity {
-  return { userId, type: "deployment_close", status: "succeeded", initiator: "system", meta: { dseq, reason }, dedupeKey: deploymentCloseDedupeKeyOf({ owner, dseq }) };
+  return {
+    userId,
+    type: "deployment_close",
+    status: "succeeded",
+    initiator: "system",
+    meta: { dseq, reason },
+    dedupeKey: deploymentCloseDedupeKeyOf({ owner, dseq })
+  };
 }
 
 export function stillOpenActivityOf(key: CloseKey): NewActivity {

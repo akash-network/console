@@ -358,8 +358,16 @@ describe(StaleManagedDeploymentsCleanerService.name, () => {
 
       await service.cleanup({ concurrency: 1, dryRun: false });
 
-      expect(systemCloseActivityService.record).toHaveBeenCalledWith({ wallet: expect.objectContaining({ id: 11, address: "akash1a" }), dseq: "1", reason: "no_lease" });
-      expect(systemCloseActivityService.record).toHaveBeenCalledWith({ wallet: expect.objectContaining({ id: 22, address: "akash1b" }), dseq: "2", reason: "no_lease" });
+      expect(systemCloseActivityService.record).toHaveBeenCalledWith({
+        wallet: expect.objectContaining({ id: 11, address: "akash1a" }),
+        dseq: "1",
+        reason: "no_lease"
+      });
+      expect(systemCloseActivityService.record).toHaveBeenCalledWith({
+        wallet: expect.objectContaining({ id: 22, address: "akash1b" }),
+        dseq: "2",
+        reason: "no_lease"
+      });
     });
 
     it("broadcasts nothing for a batch that holds no orphan", async () => {
@@ -550,7 +558,14 @@ describe(StaleManagedDeploymentsCleanerService.name, () => {
             organizationId: null
           }))
         )
-      : [Object.entries(walletIdsByAddress).map(([address, id]) => ({ id, address, userId: id === wallet.id ? wallet.userId : `user-${id}`, organizationId: null }))];
+      : [
+          Object.entries(walletIdsByAddress).map(([address, id]) => ({
+            id,
+            address,
+            userId: id === wallet.id ? wallet.userId : `user-${id}`,
+            organizationId: null
+          }))
+        ];
 
     const userWalletRepository = mock<UserWalletRepository>({
       findManagedIteratively: vi.fn(async function* () {
