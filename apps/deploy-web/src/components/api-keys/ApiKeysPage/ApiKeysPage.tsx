@@ -11,8 +11,12 @@ import { CreateApiKeyDialog } from "@src/components/api-keys/CreateApiKeyDialog/
 import { RevokeApiKeyDialog } from "@src/components/api-keys/RevokeApiKeyDialog/RevokeApiKeyDialog";
 import Layout from "@src/components/layout/Layout";
 import { SettingsLayout } from "@src/components/layout/SettingsLayout/SettingsLayout";
+import { useActiveOrganization } from "@src/context/OrganizationProvider/OrganizationProvider";
 import { useServices } from "@src/context/ServicesProvider";
+import { useFlag } from "@src/hooks/useFlag";
+import { useProjectsUi } from "@src/hooks/useProjectsUi/useProjectsUi";
 import { useDeleteApiKey, useUserApiKeys } from "@src/queries/useApiKeysQuery";
+import { useProjectsQuery } from "@src/queries/useProjectsQuery";
 
 export const API_REFERENCE_URL = "https://akash.network/docs/api-documentation/console-api/getting-started/";
 
@@ -26,7 +30,11 @@ export const DEPENDENCIES = {
   RevokeApiKeyDialog,
   useUserApiKeys,
   useDeleteApiKey,
-  useSnackbar
+  useSnackbar,
+  useFlag,
+  useActiveOrganization,
+  useProjectsUi,
+  useProjectsQuery
 };
 
 interface Props {
@@ -38,7 +46,16 @@ export function ApiKeysPage({ dependencies: d = DEPENDENCIES }: Props = {}) {
   const { enqueueSnackbar } = d.useSnackbar();
   const [isCreatingKey, setIsCreatingKey] = useState(false);
   const [apiKeyToRevoke, setApiKeyToRevoke] = useState<ApiKeyResponse | null>(null);
-  const { data: apiKeys, isLoading, isError } = d.useUserApiKeys();
+  const isOrganizationsEnabled = d.useFlag("organizations");
+  const { isEnabled: isProjectsUiEnabled } = d.useProjectsUi();
+  const { activeOrganization } = d.useActiveOrganization();
+  const { data: apiKeys, isLoading: isLoadingApiKeys, isError } = d.useUserApiKeys();
+  const hasProjectBoundKey = !!apiKeys?.some(apiKey => apiKey.projectId);
+  const showsProjects = isProjectsUiEnabled || (isOrganizationsEnabled && hasProjectBoundKey);
+  const { data: projects, isLoading: isLoadingProjects } = d.useProjectsQuery({ enabled: showsProjects });
+  const isLoading = isLoadingApiKeys || isLoadingProjects;
+  const listedProjects = showsProjects ? projects : undefined;
+  const projectChoices = isProjectsUiEnabled && activeOrganization?.role !== "billing" ? projects : undefined;
   const { mutate: deleteApiKey, isPending: isRevoking } = d.useDeleteApiKey(apiKeyToRevoke?.id ?? "", () => {
     enqueueSnackbar(<Snackbar title={`“${apiKeyToRevoke?.name}” revoked`} iconVariant="success" />, { variant: "success" });
     setApiKeyToRevoke(null);
@@ -78,11 +95,11 @@ export function ApiKeysPage({ dependencies: d = DEPENDENCIES }: Props = {}) {
           </div>
         }
       >
-        <d.ApiKeyList apiKeys={apiKeys} isLoading={isLoading} isError={isError} onRevoke={setApiKeyToRevoke} />
+        <d.ApiKeyList apiKeys={apiKeys} isLoading={isLoading} isError={isError} onRevoke={setApiKeyToRevoke} projects={listedProjects} />
         <d.ApiKeyUsageGuide />
       </d.SettingsLayout>
 
-      {isCreatingKey && <d.CreateApiKeyDialog onClose={() => setIsCreatingKey(false)} />}
+      {isCreatingKey && <d.CreateApiKeyDialog projects={projectChoices} onClose={() => setIsCreatingKey(false)} />}
       {apiKeyToRevoke && (
         <d.RevokeApiKeyDialog apiKey={apiKeyToRevoke} isRevoking={isRevoking} onConfirm={revokeApiKey} onCancel={() => setApiKeyToRevoke(null)} />
       )}

@@ -1,7 +1,8 @@
 "use client";
 import type { FC } from "react";
 import { useId, useState } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
+import { isHttpError } from "@akashnetwork/http-sdk";
 import {
   Button,
   Calendar,
@@ -18,6 +19,7 @@ import {
   FormInput,
   FormItem,
   FormLabel,
+  FormMessage,
   LoadingButton,
   Popover,
   PopoverContent,
@@ -31,8 +33,9 @@ import {
 } from "@akashnetwork/ui/components";
 import { copyTextToClipboard } from "@akashnetwork/ui/utils";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
-import { CalendarIcon, CopyIcon, KeyRoundIcon, TriangleAlertIcon } from "lucide-react";
+import { CalendarIcon, CopyIcon, FolderIcon, KeyRoundIcon, TriangleAlertIcon } from "lucide-react";
 import { useSnackbar } from "notistack";
 import { z } from "zod";
 
@@ -45,8 +48,11 @@ import {
   getCustomApiKeyExpiryDate,
   getCustomApiKeyExpiryDayRange
 } from "@src/components/api-keys/apiKeyExpiry/apiKeyExpiry";
+import { ALL_PROJECTS_LABEL } from "@src/components/api-keys/ApiKeyList/ApiKeyList";
 import { useServices } from "@src/context/ServicesProvider";
 import { useCreateApiKey } from "@src/queries/useApiKeysQuery";
+import { PROJECTS_QUERY_KEY } from "@src/queries/useProjectsQuery";
+import type { ProjectOutput } from "@src/types/project";
 
 export const DEPENDENCIES = {
   useCreateApiKey,
@@ -55,7 +61,13 @@ export const DEPENDENCIES = {
 
 export const MAX_API_KEY_NAME_LENGTH = 40;
 
+export const PROJECT_NOT_FOUND_MESSAGE = "This project is no longer available. Choose another one.";
+
 const CUSTOM_LIFETIME = "custom";
+
+const ALL_PROJECTS = "all";
+
+const NOT_FOUND_STATUS = 404;
 
 const newApiKeySchema = z.object({
   name: z
@@ -64,23 +76,26 @@ const newApiKeySchema = z.object({
     .min(1, { message: "Name is required." })
     .max(MAX_API_KEY_NAME_LENGTH, { message: `Name must be ${MAX_API_KEY_NAME_LENGTH} characters or fewer.` }),
   lifetime: z.custom<ApiKeyLifetimeDays | typeof CUSTOM_LIFETIME>(),
-  customExpiryDay: z.date()
+  customExpiryDay: z.date(),
+  projectId: z.string()
 });
 
 type NewApiKeyValues = z.infer<typeof newApiKeySchema>;
 
 type Props = {
   onClose: () => void;
+  projects?: ProjectOutput[];
   dependencies?: typeof DEPENDENCIES;
 };
 
-export const CreateApiKeyDialog: FC<Props> = ({ onClose, dependencies: d = DEPENDENCIES }) => {
+export const CreateApiKeyDialog: FC<Props> = ({ onClose, projects, dependencies: d = DEPENDENCIES }) => {
   const { analyticsService } = useServices();
   const { enqueueSnackbar } = d.useSnackbar();
   const { mutate: createApiKey, data: createdApiKey, isPending } = d.useCreateApiKey();
+  const queryClient = useQueryClient();
   const isDismissible = !isPending && !createdApiKey?.apiKey;
 
-  const createKey = ({ name, lifetime, customExpiryDay }: NewApiKeyValues) => {
+  const createKey = ({ name, lifetime, customExpiryDay, projectId }: NewApiKeyValues, refuseProject: () => void) => {
     analyticsService.track("create_api_key", {
       category: "settings",
       label: "Create API key"
@@ -88,15 +103,19 @@ export const CreateApiKeyDialog: FC<Props> = ({ onClose, dependencies: d = DEPEN
 
     const now = new Date();
     const expiresAt = lifetime === CUSTOM_LIFETIME ? getCustomApiKeyExpiryDate(customExpiryDay, now) : getApiKeyExpiryDate(lifetime, now);
+    const isProjectChosen = projectId !== ALL_PROJECTS;
 
-    createApiKey(
-      { name, expiresAt },
-      {
-        onError: () => {
-          enqueueSnackbar(<Snackbar title="Couldn't create the API key" subTitle="Try again in a moment." iconVariant="error" />, { variant: "error" });
+    createApiKey(isProjectChosen ? { name, expiresAt, projectId } : { name, expiresAt }, {
+      onError: error => {
+        if (isProjectChosen && isHttpError(error) && error.response?.status === NOT_FOUND_STATUS) {
+          queryClient.invalidateQueries({ queryKey: PROJECTS_QUERY_KEY });
+          refuseProject();
+          return;
         }
+
+        enqueueSnackbar(<Snackbar title="Couldn't create the API key" subTitle="Try again in a moment." iconVariant="error" />, { variant: "error" });
       }
-    );
+    });
   };
 
   const copySecret = async (secret: string) => {
@@ -115,7 +134,7 @@ export const CreateApiKeyDialog: FC<Props> = ({ onClose, dependencies: d = DEPEN
         {createdApiKey?.apiKey ? (
           <ApiKeySecretStep name={createdApiKey.name} secret={createdApiKey.apiKey} onCopy={copySecret} onDone={onClose} />
         ) : (
-          <NewApiKeyStep isCreating={isPending} onCreate={createKey} onCancel={onClose} />
+          <NewApiKeyStep isCreating={isPending} projects={projects} onCreate={createKey} onCancel={onClose} />
         )}
       </DialogV2Content>
     </DialogV2>
@@ -124,21 +143,27 @@ export const CreateApiKeyDialog: FC<Props> = ({ onClose, dependencies: d = DEPEN
 
 type NewApiKeyStepProps = {
   isCreating: boolean;
-  onCreate: (values: NewApiKeyValues) => void;
+  projects: ProjectOutput[] | undefined;
+  onCreate: (values: NewApiKeyValues, refuseProject: () => void) => void;
   onCancel: () => void;
 };
 
-const NewApiKeyStep: FC<NewApiKeyStepProps> = ({ isCreating, onCreate, onCancel }) => {
+const NewApiKeyStep: FC<NewApiKeyStepProps> = ({ isCreating, projects, onCreate, onCancel }) => {
   const formId = useId();
   const form = useForm<NewApiKeyValues>({
     defaultValues: {
       name: "",
       lifetime: DEFAULT_API_KEY_LIFETIME_DAYS,
-      customExpiryDay: getCustomApiKeyExpiryDayRange(new Date()).earliest
+      customExpiryDay: getCustomApiKeyExpiryDayRange(new Date()).earliest,
+      projectId: ALL_PROJECTS
     },
     resolver: zodResolver(newApiKeySchema)
   });
   const isCustomLifetime = form.watch("lifetime") === CUSTOM_LIFETIME;
+  const createKey = (values: NewApiKeyValues) =>
+    onCreate(values, () => form.setError("projectId", { message: PROJECT_NOT_FOUND_MESSAGE }, { shouldFocus: true }));
+  const chosenProjectId = useWatch({ control: form.control, name: "projectId" });
+  const chosenProject = projects?.find(project => project.id === chosenProjectId);
 
   return (
     <>
@@ -149,12 +174,43 @@ const NewApiKeyStep: FC<NewApiKeyStepProps> = ({ isCreating, onCreate, onCancel 
 
       <DialogV2Body>
         <Form {...form}>
-          <form id={formId} className="flex flex-col gap-4" onSubmit={form.handleSubmit(onCreate)}>
+          <form id={formId} className="flex flex-col gap-4" onSubmit={form.handleSubmit(createKey)}>
             <FormField
               control={form.control}
               name="name"
               render={({ field }) => <FormInput {...field} type="text" label="Name" placeholder="CI/CD pipeline" autoFocus />}
             />
+
+            {!!projects?.length && (
+              <FormField
+                control={form.control}
+                name="projectId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Project</FormLabel>
+                    <Select value={field.value} onValueChange={field.onChange}>
+                      <FormControl>
+                        <SelectTrigger ref={field.ref}>
+                          <div className="flex min-w-0 items-center gap-2">
+                            <FolderIcon className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
+                            <SelectValue />
+                          </div>
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value={ALL_PROJECTS}>{ALL_PROJECTS_LABEL}</SelectItem>
+                        {projects.map(project => (
+                          <SelectItem key={project.id} value={project.id}>
+                            {project.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
 
             <FormField
               control={form.control}
@@ -199,10 +255,16 @@ const NewApiKeyStep: FC<NewApiKeyStepProps> = ({ isCreating, onCreate, onCancel 
 
             <div className="flex items-start gap-2 rounded-lg border border-warning/30 bg-warning/5 px-3 py-2.5 text-[12.5px] leading-[18px] text-muted-foreground">
               <TriangleAlertIcon className="mt-0.5 h-3.5 w-3.5 shrink-0 text-warning" aria-hidden />
-              <span>
-                This key has <span className="font-semibold text-foreground">full access</span> to your Console account, including deployments, leases and
-                billing. Treat it like a password.
-              </span>
+              {chosenProject ? (
+                <span>
+                  This key only works on the <span className="font-semibold text-foreground">{chosenProject.name}</span> project. Treat it like a password.
+                </span>
+              ) : (
+                <span>
+                  This key has <span className="font-semibold text-foreground">full access</span> to your Console account, including deployments, leases and
+                  billing. Treat it like a password.
+                </span>
+              )}
             </div>
           </form>
         </Form>

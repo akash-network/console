@@ -4,11 +4,16 @@ import type { ApiKeyResponse } from "@akashnetwork/http-sdk";
 import { Button, Card, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, Skeleton } from "@akashnetwork/ui/components";
 import { format, formatDistanceStrict } from "date-fns";
 import type { LucideIcon } from "lucide-react";
-import { KeyRoundIcon, MoreHorizontalIcon, ShieldAlertIcon, Trash2Icon, TriangleAlertIcon } from "lucide-react";
+import { FolderIcon, KeyRoundIcon, MoreHorizontalIcon, ShieldAlertIcon, Trash2Icon, TriangleAlertIcon } from "lucide-react";
 
 import type { ApiKeyExpiryStatus } from "@src/components/api-keys/apiKeyExpiry/apiKeyExpiry";
 import { API_KEY_DATE_FORMAT, getApiKeyExpiryStatus } from "@src/components/api-keys/apiKeyExpiry/apiKeyExpiry";
 import { SettingsSection } from "@src/components/layout/SettingsSection/SettingsSection";
+import type { ProjectOutput } from "@src/types/project";
+
+export const ALL_PROJECTS_LABEL = "All projects";
+
+export const UNKNOWN_PROJECT_LABEL = "Unknown project";
 
 const EXPIRY_BADGE_LABELS: Partial<Record<ApiKeyExpiryStatus, string>> = {
   expiringSoon: "Expiring soon",
@@ -20,12 +25,15 @@ type Props = {
   isLoading: boolean;
   isError: boolean;
   onRevoke: (apiKey: ApiKeyResponse) => void;
+  /** Shows which project each key reaches; left out, the list has no project column. */
+  projects?: ProjectOutput[];
 };
 
-export const ApiKeyList: FC<Props> = ({ apiKeys, isLoading, isError, onRevoke }) => {
+export const ApiKeyList: FC<Props> = ({ apiKeys, isLoading, isError, onRevoke, projects }) => {
   const now = new Date();
   const newestFirst = [...(apiKeys ?? [])].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   const activeCount = newestFirst.filter(apiKey => getApiKeyExpiryStatus(apiKey.expiresAt, now) !== "expired").length;
+  const describeProject = projects && createProjectDescriber(projects);
 
   return (
     <SettingsSection
@@ -33,13 +41,15 @@ export const ApiKeyList: FC<Props> = ({ apiKeys, isLoading, isError, onRevoke })
       aside={apiKeys && <span className="text-xs text-muted-foreground">{activeCount === 1 ? "1 active key" : `${activeCount} active keys`}</span>}
     >
       <Card className="overflow-hidden rounded-xl shadow-none">
-        <ApiKeyListContent apiKeys={newestFirst} isLoading={isLoading} isError={isError} now={now} onRevoke={onRevoke} />
+        <ApiKeyListContent apiKeys={newestFirst} isLoading={isLoading} isError={isError} now={now} onRevoke={onRevoke} describeProject={describeProject} />
       </Card>
       <p className="mt-2.5 flex items-start gap-2 px-0.5 text-xs leading-[17px] text-muted-foreground">
         <ShieldAlertIcon className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
         <span>
-          API keys grant full access to your Console account, so treat them like passwords. Keep them in environment variables, never in source code. To rotate
-          a key, create a new one and revoke the old one.
+          {projects
+            ? "A key without a project has full access to your Console account, and a key for a project only works on that project. Treat keys like passwords."
+            : "API keys grant full access to your Console account, so treat them like passwords."}{" "}
+          Keep them in environment variables, never in source code. To rotate a key, create a new one and revoke the old one.
         </span>
       </p>
     </SettingsSection>
@@ -52,16 +62,17 @@ type ApiKeyListContentProps = {
   isError: boolean;
   now: Date;
   onRevoke: (apiKey: ApiKeyResponse) => void;
+  describeProject?: ProjectDescriber;
 };
 
-const ApiKeyListContent: FC<ApiKeyListContentProps> = ({ apiKeys, isLoading, isError, now, onRevoke }) => {
+const ApiKeyListContent: FC<ApiKeyListContentProps> = ({ apiKeys, isLoading, isError, now, onRevoke, describeProject }) => {
   if (isLoading) return <ApiKeyListSkeleton />;
 
   if (apiKeys.length > 0) {
     return (
       <ul aria-label="API keys" className="divide-y">
         {apiKeys.map(apiKey => (
-          <ApiKeyRow key={apiKey.id} apiKey={apiKey} now={now} onRevoke={onRevoke} />
+          <ApiKeyRow key={apiKey.id} apiKey={apiKey} now={now} onRevoke={onRevoke} projectLabel={describeProject?.(apiKey)} />
         ))}
       </ul>
     );
@@ -107,9 +118,10 @@ type ApiKeyRowProps = {
   apiKey: ApiKeyResponse;
   now: Date;
   onRevoke: (apiKey: ApiKeyResponse) => void;
+  projectLabel?: string;
 };
 
-const ApiKeyRow: FC<ApiKeyRowProps> = ({ apiKey, now, onRevoke }) => {
+const ApiKeyRow: FC<ApiKeyRowProps> = ({ apiKey, now, onRevoke, projectLabel }) => {
   const expiryStatus = getApiKeyExpiryStatus(apiKey.expiresAt, now);
   const badgeLabel = EXPIRY_BADGE_LABELS[expiryStatus];
 
@@ -142,6 +154,15 @@ const ApiKeyRow: FC<ApiKeyRowProps> = ({ apiKey, now, onRevoke }) => {
         <span className="whitespace-nowrap font-mono text-[11px] text-muted-foreground sm:ml-auto">
           {apiKey.lastUsedAt ? `Last used ${formatDistanceStrict(new Date(apiKey.lastUsedAt), now, { addSuffix: true })}` : "Never used"}
         </span>
+        {projectLabel && (
+          <span className="flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground sm:w-36 sm:shrink-0">
+            <FolderIcon className="h-3.5 w-3.5 shrink-0" aria-hidden />
+            <span className="sr-only">Project:</span>
+            <span className="truncate" title={projectLabel}>
+              {projectLabel}
+            </span>
+          </span>
+        )}
       </div>
       <DropdownMenu modal={false}>
         <DropdownMenuTrigger asChild>
@@ -159,6 +180,14 @@ const ApiKeyRow: FC<ApiKeyRowProps> = ({ apiKey, now, onRevoke }) => {
     </li>
   );
 };
+
+type ProjectDescriber = (apiKey: ApiKeyResponse) => string;
+
+function createProjectDescriber(projects: ProjectOutput[]): ProjectDescriber {
+  const projectNames = new Map(projects.map(project => [project.id, project.name]));
+
+  return ({ projectId }) => (projectId ? projectNames.get(projectId) ?? UNKNOWN_PROJECT_LABEL : ALL_PROJECTS_LABEL);
+}
 
 function describeExpiry(expiresAt: string | null, status: ApiKeyExpiryStatus) {
   if (!expiresAt) return "No expiration";

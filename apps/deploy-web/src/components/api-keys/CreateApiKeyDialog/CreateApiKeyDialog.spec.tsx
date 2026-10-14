@@ -1,17 +1,23 @@
 import type { ApiKeyResponse } from "@akashnetwork/http-sdk";
+import { QueryClient } from "@tanstack/react-query";
+import type { AxiosResponse } from "axios";
+import { AxiosError } from "axios";
 import { differenceInCalendarDays } from "date-fns";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
+import { ALL_PROJECTS_LABEL } from "@src/components/api-keys/ApiKeyList/ApiKeyList";
 import type { NewApiKey } from "@src/queries/useApiKeysQuery";
+import { PROJECTS_QUERY_KEY } from "@src/queries/useProjectsQuery";
 import type { AnalyticsService } from "@src/services/analytics/analytics.service";
+import type { ProjectOutput } from "@src/types/project";
 import type { DEPENDENCIES } from "./CreateApiKeyDialog";
-import { CreateApiKeyDialog } from "./CreateApiKeyDialog";
+import { CreateApiKeyDialog, PROJECT_NOT_FOUND_MESSAGE } from "./CreateApiKeyDialog";
 
 import { render, screen } from "@testing-library/react";
 import type { UserEvent } from "@testing-library/user-event";
 import userEvent from "@testing-library/user-event";
-import { buildApiKey } from "@tests/seeders";
+import { buildApiKey, buildProject } from "@tests/seeders";
 import { TestContainerProvider } from "@tests/unit/TestContainerProvider";
 
 describe("CreateApiKeyDialog", () => {
@@ -213,6 +219,170 @@ describe("CreateApiKeyDialog", () => {
     expect(onClose).toHaveBeenCalledOnce();
   });
 
+  it("offers no project choice when no projects are given", () => {
+    setup();
+
+    expect(screen.queryByRole("combobox", { name: /Project/ })).not.toBeInTheDocument();
+  });
+
+  it("offers no project choice when the organization has no project the user can reach", () => {
+    setup({ projects: [] });
+
+    expect(screen.queryByRole("combobox", { name: /Project/ })).not.toBeInTheDocument();
+  });
+
+  describe("when projects are given", () => {
+    it("offers every project after all projects, the default", async () => {
+      const { user } = setup({ projects: [buildProject({ name: "default" }), buildProject({ name: "storefront" })] });
+
+      expect(screen.getByRole("combobox", { name: /Project/ })).toHaveTextContent(ALL_PROJECTS_LABEL);
+      await user.click(screen.getByRole("combobox", { name: /Project/ }));
+
+      const options = await screen.findAllByRole("option");
+      expect(options.map(option => option.textContent)).toEqual([ALL_PROJECTS_LABEL, "default", "storefront"]);
+    });
+
+    it("creates a key for all projects without naming a project", async () => {
+      const { user, createApiKey } = setup({ projects: [buildProject({ name: "storefront" })] });
+
+      await user.type(screen.getByLabelText("Name"), "Local dev");
+      await user.click(screen.getByRole("button", { name: "Create key" }));
+
+      const [newApiKey] = createApiKey.mock.lastCall as [NewApiKey];
+      expect(newApiKey).not.toHaveProperty("projectId");
+    });
+
+    it("creates a key limited to the project the user picks", async () => {
+      const storefront = buildProject({ name: "storefront" });
+      const { user, createApiKey } = setup({ projects: [buildProject({ name: "default" }), storefront] });
+
+      await user.type(screen.getByLabelText("Name"), "Deploy bot");
+      await pickProject(user, "storefront");
+      await user.click(screen.getByRole("button", { name: "Create key" }));
+
+      const [newApiKey] = createApiKey.mock.lastCall as [NewApiKey];
+      expect(newApiKey).toEqual(expect.objectContaining({ name: "Deploy bot", projectId: storefront.id }));
+    });
+
+    it("asks for another project when the picked one is gone", async () => {
+      const { user, createApiKey, enqueueSnackbar } = setup({ projects: [buildProject({ name: "storefront" })] });
+      createApiKey.mockImplementation((newApiKey, options) => options?.onError?.(buildHttpError(404), newApiKey, undefined));
+
+      await user.type(screen.getByLabelText("Name"), "Deploy bot");
+      await pickProject(user, "storefront");
+      await user.click(screen.getByRole("button", { name: "Create key" }));
+
+      expect(await screen.findByText(PROJECT_NOT_FOUND_MESSAGE)).toBeInTheDocument();
+      expect(screen.getByRole("combobox", { name: /Project/ })).toHaveFocus();
+      expect(enqueueSnackbar).not.toHaveBeenCalled();
+    });
+
+    it("reloads the projects when the picked one is gone", async () => {
+      const { user, createApiKey, queryClient } = setup({ projects: [buildProject({ name: "storefront" })] });
+      queryClient.setQueryData(PROJECTS_QUERY_KEY, { data: [] });
+      createApiKey.mockImplementation((newApiKey, options) => options?.onError?.(buildHttpError(404), newApiKey, undefined));
+
+      await user.type(screen.getByLabelText("Name"), "Deploy bot");
+      await pickProject(user, "storefront");
+      await user.click(screen.getByRole("button", { name: "Create key" }));
+
+      expect(queryClient.getQueryState(PROJECTS_QUERY_KEY)?.isInvalidated).toBe(true);
+    });
+
+    it("keeps the projects when another error stops a key for a project", async () => {
+      const { user, createApiKey, queryClient } = setup({ projects: [buildProject({ name: "storefront" })] });
+      queryClient.setQueryData(PROJECTS_QUERY_KEY, { data: [] });
+      createApiKey.mockImplementation((newApiKey, options) => options?.onError?.(buildHttpError(500), newApiKey, undefined));
+
+      await user.type(screen.getByLabelText("Name"), "Deploy bot");
+      await pickProject(user, "storefront");
+      await user.click(screen.getByRole("button", { name: "Create key" }));
+
+      expect(queryClient.getQueryState(PROJECTS_QUERY_KEY)?.isInvalidated).toBe(false);
+    });
+
+    it("says a key for a project only works on that project", async () => {
+      const { user } = setup({ projects: [buildProject({ name: "storefront" })] });
+
+      await pickProject(user, "storefront");
+
+      expect(screen.getByText(/This key only works on the/)).toHaveTextContent("This key only works on the storefront project. Treat it like a password.");
+      expect(screen.queryByText(/to your Console account, including deployments, leases and billing/)).not.toBeInTheDocument();
+    });
+
+    it("warns about full access again when all projects is picked back", async () => {
+      const { user } = setup({ projects: [buildProject({ name: "storefront" })] });
+
+      await pickProject(user, "storefront");
+      await pickProject(user, ALL_PROJECTS_LABEL);
+
+      expect(screen.getByText(/to your Console account, including deployments, leases and billing/)).toBeInTheDocument();
+      expect(screen.queryByText(/This key only works on the/)).not.toBeInTheDocument();
+    });
+
+    it("clears the project error once another project is picked", async () => {
+      const { user, createApiKey } = setup({ projects: [buildProject({ name: "storefront" }), buildProject({ name: "checkout" })] });
+      createApiKey.mockImplementation((newApiKey, options) => options?.onError?.(buildHttpError(404), newApiKey, undefined));
+
+      await user.type(screen.getByLabelText("Name"), "Deploy bot");
+      await pickProject(user, "storefront");
+      await user.click(screen.getByRole("button", { name: "Create key" }));
+      await screen.findByText(PROJECT_NOT_FOUND_MESSAGE);
+      await pickProject(user, "checkout");
+
+      await vi.waitFor(() => expect(screen.queryByText(PROJECT_NOT_FOUND_MESSAGE)).not.toBeInTheDocument());
+    });
+
+    it("tells the user the key can't be created when a key for all projects is not found", async () => {
+      const { user, createApiKey, enqueueSnackbar } = setup({ projects: [buildProject({ name: "storefront" })] });
+      createApiKey.mockImplementation((newApiKey, options) => options?.onError?.(buildHttpError(404), newApiKey, undefined));
+
+      await user.type(screen.getByLabelText("Name"), "Local dev");
+      await user.click(screen.getByRole("button", { name: "Create key" }));
+
+      expect(enqueueSnackbar).toHaveBeenCalledWith(expect.objectContaining({ props: expect.objectContaining({ title: "Couldn't create the API key" }) }), {
+        variant: "error"
+      });
+      expect(screen.queryByText(PROJECT_NOT_FOUND_MESSAGE)).not.toBeInTheDocument();
+    });
+
+    it("tells the user the key can't be created when a key for a project fails otherwise", async () => {
+      const { user, createApiKey, enqueueSnackbar } = setup({ projects: [buildProject({ name: "storefront" })] });
+      createApiKey.mockImplementation((newApiKey, options) => options?.onError?.(buildHttpError(500), newApiKey, undefined));
+
+      await user.type(screen.getByLabelText("Name"), "Deploy bot");
+      await pickProject(user, "storefront");
+      await user.click(screen.getByRole("button", { name: "Create key" }));
+
+      expect(enqueueSnackbar).toHaveBeenCalledWith(expect.objectContaining({ props: expect.objectContaining({ title: "Couldn't create the API key" }) }), {
+        variant: "error"
+      });
+      expect(screen.queryByText(PROJECT_NOT_FOUND_MESSAGE)).not.toBeInTheDocument();
+    });
+
+    it("tells the user the key can't be created when a key for a project fails without a response", async () => {
+      const { user, createApiKey, enqueueSnackbar } = setup({ projects: [buildProject({ name: "storefront" })] });
+      createApiKey.mockImplementation((newApiKey, options) => options?.onError?.(new AxiosError("Network Error", "ERR_NETWORK"), newApiKey, undefined));
+
+      await user.type(screen.getByLabelText("Name"), "Deploy bot");
+      await pickProject(user, "storefront");
+      await user.click(screen.getByRole("button", { name: "Create key" }));
+
+      expect(enqueueSnackbar).toHaveBeenCalledWith(expect.objectContaining({ props: expect.objectContaining({ title: "Couldn't create the API key" }) }), {
+        variant: "error"
+      });
+    });
+
+    async function pickProject(user: ReturnType<typeof userEvent.setup>, name: string) {
+      await user.click(screen.getByRole("combobox", { name: /Project/ }));
+      await user.click(await screen.findByRole("option", { name }));
+    }
+
+    function buildHttpError(status: number) {
+      return new AxiosError("Request failed", String(status), undefined, undefined, mock<AxiosResponse>({ status }));
+    }
+  });
+
   describe("when the key is created", () => {
     it("shows the secret once with a warning that it won't be shown again", () => {
       setup({ createdApiKey: { ...buildApiKey({ name: "CI/CD pipeline" }), apiKey: "ac.sk.mainnet.secret" } });
@@ -288,7 +458,7 @@ describe("CreateApiKeyDialog", () => {
     await user.click(await screen.findByRole("option", { name: "Custom date" }));
   }
 
-  function setup(input: { createdApiKey?: ApiKeyResponse; isPending?: boolean; now?: Date } = {}) {
+  function setup(input: { createdApiKey?: ApiKeyResponse; isPending?: boolean; now?: Date; projects?: ProjectOutput[] } = {}) {
     if (input.now) {
       vi.useFakeTimers({ toFake: ["Date"] });
       vi.setSystemTime(input.now);
@@ -303,6 +473,7 @@ describe("CreateApiKeyDialog", () => {
     const createApiKey = vi.fn<ReturnType<typeof DEPENDENCIES.useCreateApiKey>["mutate"]>();
     const enqueueSnackbar = vi.fn();
     const analyticsService = mock<AnalyticsService>();
+    const queryClient = new QueryClient();
 
     const useCreateApiKey: typeof DEPENDENCIES.useCreateApiKey = () =>
       Object.assign(mock<ReturnType<typeof DEPENDENCIES.useCreateApiKey>>(), {
@@ -313,11 +484,11 @@ describe("CreateApiKeyDialog", () => {
     const useSnackbar: typeof DEPENDENCIES.useSnackbar = () => Object.assign(mock<ReturnType<typeof DEPENDENCIES.useSnackbar>>(), { enqueueSnackbar });
 
     render(
-      <TestContainerProvider services={{ analyticsService: () => analyticsService }}>
-        <CreateApiKeyDialog onClose={onClose} dependencies={{ useCreateApiKey, useSnackbar }} />
+      <TestContainerProvider services={{ analyticsService: () => analyticsService, queryClient: () => queryClient }}>
+        <CreateApiKeyDialog onClose={onClose} projects={input.projects} dependencies={{ useCreateApiKey, useSnackbar }} />
       </TestContainerProvider>
     );
 
-    return { user, onClose, createApiKey, enqueueSnackbar, analyticsService, writeText };
+    return { user, onClose, createApiKey, enqueueSnackbar, analyticsService, writeText, queryClient };
   }
 });

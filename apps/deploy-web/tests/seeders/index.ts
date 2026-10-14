@@ -10,6 +10,7 @@ export * from "./managedWallet";
 export * from "./manifest";
 export * from "./notificationChannel";
 export * from "./payment";
+export * from "./project";
 export * from "./provider";
 export * from "./screenedProvider";
 export * from "./usage";

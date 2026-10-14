@@ -1,12 +1,14 @@
 import type { ApiKeyResponse } from "@akashnetwork/http-sdk";
+import { faker } from "@faker-js/faker";
 import { addDays, subHours } from "date-fns";
 import { describe, expect, it, vi } from "vitest";
 
-import { ApiKeyList } from "./ApiKeyList";
+import type { ProjectOutput } from "@src/types/project";
+import { ALL_PROJECTS_LABEL, ApiKeyList, UNKNOWN_PROJECT_LABEL } from "./ApiKeyList";
 
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { buildApiKey } from "@tests/seeders";
+import { buildApiKey, buildProject } from "@tests/seeders";
 
 describe(ApiKeyList.name, () => {
   it("shows each key's name, masked value, expiry, creation date and last use", () => {
@@ -131,9 +133,61 @@ describe(ApiKeyList.name, () => {
     expect(screen.getByText(/API keys grant full access to your Console account/)).toBeInTheDocument();
   });
 
-  function setup(input: { apiKeys: ApiKeyResponse[] | undefined; isLoading?: boolean; isError?: boolean }) {
+  it("shows no project column when no projects are given", () => {
+    setup({ apiKeys: [buildApiKey({ name: "Monitoring", projectId: null })] });
+
+    expect(screen.queryByText(ALL_PROJECTS_LABEL)).not.toBeInTheDocument();
+    expect(screen.getByRole("listitem")).not.toHaveTextContent("Project:");
+  });
+
+  describe("when projects are given", () => {
+    it("reminds that only a key without a project grants full account access", () => {
+      setup({ apiKeys: [], projects: [buildProject({ name: "storefront" })] });
+
+      expect(
+        screen.getByText(/A key without a project has full access to your Console account, and a key for a project only works on that project/)
+      ).toBeInTheDocument();
+      expect(screen.queryByText(/API keys grant full access to your Console account/)).not.toBeInTheDocument();
+    });
+
+    it("names the project a key is limited to", () => {
+      const storefront = buildProject({ name: "storefront" });
+      setup({ apiKeys: [buildApiKey({ name: "Deploy bot", projectId: storefront.id })], projects: [buildProject({ name: "default" }), storefront] });
+
+      const row = screen.getByRole("listitem");
+      expect(within(row).getByTitle("storefront")).toBeInTheDocument();
+      expect(row).toHaveTextContent("Project:storefront");
+      expect(within(row).queryByText(ALL_PROJECTS_LABEL)).not.toBeInTheDocument();
+    });
+
+    it("says a key without a project reaches all projects", () => {
+      setup({ apiKeys: [buildApiKey({ projectId: null })], projects: [buildProject({ name: "storefront" })] });
+
+      const row = screen.getByRole("listitem");
+      expect(within(row).getByText(ALL_PROJECTS_LABEL)).toBeInTheDocument();
+      expect(row).toHaveTextContent(`Project:${ALL_PROJECTS_LABEL}`);
+    });
+
+    it("says a key made before projects reaches all projects", () => {
+      setup({ apiKeys: [buildApiKey({ projectId: undefined })], projects: [] });
+
+      expect(within(screen.getByRole("listitem")).getByText(ALL_PROJECTS_LABEL)).toBeInTheDocument();
+    });
+
+    it("marks a key limited to a project the user can't see", () => {
+      setup({ apiKeys: [buildApiKey({ projectId: faker.string.uuid() })], projects: [buildProject({ name: "storefront" })] });
+
+      const row = screen.getByRole("listitem");
+      expect(within(row).getByText(UNKNOWN_PROJECT_LABEL)).toBeInTheDocument();
+      expect(within(row).queryByText("storefront")).not.toBeInTheDocument();
+    });
+  });
+
+  function setup(input: { apiKeys: ApiKeyResponse[] | undefined; isLoading?: boolean; isError?: boolean; projects?: ProjectOutput[] }) {
     const onRevoke = vi.fn();
-    render(<ApiKeyList apiKeys={input.apiKeys} isLoading={input.isLoading ?? false} isError={input.isError ?? false} onRevoke={onRevoke} />);
+    render(
+      <ApiKeyList apiKeys={input.apiKeys} isLoading={input.isLoading ?? false} isError={input.isError ?? false} onRevoke={onRevoke} projects={input.projects} />
+    );
     return { onRevoke };
   }
 });
