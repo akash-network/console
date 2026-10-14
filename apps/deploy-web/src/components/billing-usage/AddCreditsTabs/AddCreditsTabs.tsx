@@ -20,7 +20,7 @@ export const DEPENDENCIES = {
 interface AddCreditsTabsProps {
   initialTab?: AddCreditsTab;
   context?: string;
-  onDone: (amount: number, organization?: string, bonusAmount?: number) => void;
+  onDone: (amount: number, bonusAmount?: number) => void;
   onRedeemed?: () => void;
   onProcessingChange?: (isProcessing: boolean) => void;
   dependencies?: typeof DEPENDENCIES;

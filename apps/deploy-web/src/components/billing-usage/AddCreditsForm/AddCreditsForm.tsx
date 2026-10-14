@@ -65,7 +65,7 @@ export const DEPENDENCIES = {
 };
 
 interface AddCreditsFormProps {
-  onDone: (amount: number, organization?: string, bonusAmount?: number) => void;
+  onDone: (amount: number, bonusAmount?: number) => void;
   onProcessingChange?: (isProcessing: boolean) => void;
   context?: string;
   dependencies?: typeof DEPENDENCIES;
@@ -89,7 +89,6 @@ interface PaymentFailureDetails {
 
 interface PendingCharge {
   paymentMethodId: string;
-  organization?: string;
   amount: number;
   wasTrialing: boolean;
   status: "pending" | "charging";
@@ -137,7 +136,7 @@ export function AddCreditsForm({ onDone, onProcessingChange, context, dependenci
 
   const paymentMethodRef = useRef<PaymentMethodSourceHandle>(null);
   /** Payment method already confirmed against the current SetupIntent; reused on retry because a SetupIntent can only be confirmed once. */
-  const confirmedNewCardRef = useRef<{ paymentMethodId: string; organization?: string } | null>(null);
+  const confirmedNewCardRef = useRef<{ paymentMethodId: string } | null>(null);
   /** Last payment-method type reported to analytics, so the payment element's frequent change events don't re-fire the same type. */
   const lastPaymentTypeRef = useRef<string | null>(null);
   const wasPollingRef = useRef<boolean>(false);
@@ -196,7 +195,6 @@ export function AddCreditsForm({ onDone, onProcessingChange, context, dependenci
     analyticsService.track("add_credits_payment_submitted", { category: "billing", ...analytics });
 
     let paymentMethodId = selectedMethodId;
-    let organization: string | undefined;
 
     if (isNewCard) {
       let paymentMethod = confirmedNewCardRef.current;
@@ -210,7 +208,6 @@ export function AddCreditsForm({ onDone, onProcessingChange, context, dependenci
         confirmedNewCardRef.current = paymentMethod;
       }
       paymentMethodId = paymentMethod.paymentMethodId;
-      organization = paymentMethod.organization;
     }
 
     if (!paymentMethodId) {
@@ -220,7 +217,6 @@ export function AddCreditsForm({ onDone, onProcessingChange, context, dependenci
 
     setCharge({
       paymentMethodId,
-      organization,
       amount,
       wasTrialing: isTrialing,
       status: "pending",
@@ -355,7 +351,7 @@ export function AddCreditsForm({ onDone, onProcessingChange, context, dependenci
       setIsProcessing(false);
       analyticsService.track("add_credits_purchased", { category: "billing", ...charge.analytics });
 
-      const { amount, organization } = charge;
+      const { amount } = charge;
       void (async function completeWithGrantedBonus() {
         // Polling settles only after the webhook topped up the wallet, so the granted
         // first-purchase bonus is already recorded on the latest transaction.
@@ -369,7 +365,7 @@ export function AddCreditsForm({ onDone, onProcessingChange, context, dependenci
         } catch {
           // Bonus display is best-effort; completion must proceed without it.
         }
-        onDone(amount, organization, bonusAmount);
+        onDone(amount, bonusAmount);
       })();
     },
     [isPolling, lastOutcome, isTrialing, charge, releaseChargeKeepingAttempt, finalizeFailure, trackPaymentFailed, attempt, onDone, stripe, analyticsService]

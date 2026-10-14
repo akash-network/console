@@ -77,7 +77,7 @@ describe(AddCreditsTabs.name, () => {
   function setup(input: {
     initialTab?: "purchase" | "coupon";
     context?: string;
-    onDone?: (amount: number, organization?: string) => void;
+    onDone?: (amount: number, bonusAmount?: number) => void;
     onRedeemed?: () => void;
     onProcessingChange?: (isProcessing: boolean) => void;
     dependencies?: Partial<typeof DEPENDENCIES>;

@@ -39,9 +39,9 @@ describe(AddCreditsSheet.name, () => {
     const { dependencies } = setup({ open: true, onDone });
     const tabsProps = dependencies.AddCreditsTabs.mock.calls.at(-1)![0] as Parameters<typeof DEPENDENCIES.AddCreditsTabs>[0];
 
-    act(() => tabsProps.onDone(100, "Acme", 5));
+    act(() => tabsProps.onDone(100, 5));
 
-    expect(onDone).toHaveBeenCalledWith(100, "Acme", 5);
+    expect(onDone).toHaveBeenCalledWith(100, 5);
   });
 
   it("forwards a redemption to onRedeemed", () => {
@@ -64,7 +64,7 @@ describe(AddCreditsSheet.name, () => {
     const { analyticsService, dependencies } = setup({ open: true });
     const tabsProps = dependencies.AddCreditsTabs.mock.calls.at(-1)![0] as Parameters<typeof DEPENDENCIES.AddCreditsTabs>[0];
 
-    act(() => tabsProps.onDone(250, "Acme", 10));
+    act(() => tabsProps.onDone(250, 10));
 
     expect(analyticsService.track).not.toHaveBeenCalledWith("add_credits_purchased", expect.anything());
   });
@@ -135,7 +135,7 @@ describe(AddCreditsSheet.name, () => {
   function setup(input: {
     open: boolean;
     onOpenChange?: (open: boolean) => void;
-    onDone?: (amount: number, organization?: string) => void;
+    onDone?: (amount: number, bonusAmount?: number) => void;
     onRedeemed?: () => void;
     initialTab?: "purchase" | "coupon";
     description?: React.ReactNode;

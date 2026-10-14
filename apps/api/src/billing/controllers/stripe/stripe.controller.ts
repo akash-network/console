@@ -6,12 +6,7 @@ import type { infer as ZodInfer } from "zod";
 
 import { AuthService, Protected } from "@src/auth/services/auth.service";
 import type { StripePricesOutputResponse } from "@src/billing";
-import type {
-  PaymentMethodMarkAsDefaultInput,
-  PaymentMethodResponse,
-  PaymentMethodsResponse,
-  UpdateCustomerOrganizationRequest
-} from "@src/billing/http-schemas/stripe.schema";
+import type { PaymentMethodMarkAsDefaultInput, PaymentMethodResponse, PaymentMethodsResponse } from "@src/billing/http-schemas/stripe.schema";
 import {
   ApplyCouponRequest,
   ConfirmPaymentRequest,
@@ -274,14 +269,5 @@ export class StripeController {
 
       throw error;
     }
-  }
-
-  @Protected([{ action: "create", subject: "StripePayment" }])
-  async updateCustomerOrganization(input: UpdateCustomerOrganizationRequest): Promise<void> {
-    const { stripeCustomerId } = await this.payerService.getCurrentPayer();
-
-    assert(stripeCustomerId, 400, "Payment method is not configured for this user");
-
-    await this.customerService.updateCustomerOrganization(stripeCustomerId, input.organization);
   }
 }

@@ -16,14 +16,6 @@ export const operations = {
     },
     listStripePrices: { path: "/v1/stripe/prices", method: "get", operationId: "listStripePrices", pathParams: [], queryParams: [], hasBody: false },
     applyStripeCoupon: { path: "/v1/stripe/coupons/apply", method: "post", operationId: "applyStripeCoupon", pathParams: [], queryParams: [], hasBody: true },
-    updateStripeCustomerOrganization: {
-      path: "/v1/stripe/customers/organization",
-      method: "put",
-      operationId: "updateStripeCustomerOrganization",
-      pathParams: [],
-      queryParams: [],
-      hasBody: true
-    },
     createSetupIntent: {
       path: "/v1/stripe/payment-methods/setup",
       method: "post",

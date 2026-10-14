@@ -29,7 +29,6 @@ describe(AddCreditsNewPaymentMethodFields.name, () => {
     expect(screen.getByTestId("stripe-elements")).toBeInTheDocument();
     expect(screen.getByTestId("address-element")).toBeInTheDocument();
     expect(screen.getByTestId("payment-element")).toBeInTheDocument();
-    expect(screen.getByLabelText("organization")).toBeInTheDocument();
   });
 
   it("shows the unavailable message when Stripe cannot be loaded", () => {
@@ -44,7 +43,7 @@ describe(AddCreditsNewPaymentMethodFields.name, () => {
     expect(screen.getByText(/Payment processing is not available at this time/i)).toBeInTheDocument();
   });
 
-  it("addPaymentMethod returns the Stripe payment method id and the typed organization", async () => {
+  it("addPaymentMethod returns the Stripe payment method id", async () => {
     const confirmSetup = vi.fn().mockResolvedValue({ setupIntent: { payment_method: "pm_123" } });
     const { ref } = setup({
       isLoading: false,
@@ -52,25 +51,26 @@ describe(AddCreditsNewPaymentMethodFields.name, () => {
       dependencies: { useStripe: () => ({ confirmSetup }) as unknown as ReturnType<typeof DEPENDENCIES.useStripe> }
     });
 
-    fireEvent.change(screen.getByLabelText("organization"), { target: { value: "Acme" } });
-
     const result = await act(async () => ref.current!.addPaymentMethod());
 
     expect(confirmSetup).toHaveBeenCalledWith({ elements: expect.anything(), redirect: "if_required" });
-    expect(result).toEqual({ paymentMethodId: "pm_123", organization: "Acme" });
+    expect(result).toEqual({ paymentMethodId: "pm_123" });
   });
 
-  it("omits organization when the field is left blank", async () => {
-    const confirmSetup = vi.fn().mockResolvedValue({ setupIntent: { payment_method: "pm_blank" } });
-    const { ref } = setup({
+  it("confirms with Stripe once it finishes loading after the first render", async () => {
+    const confirmSetup = vi.fn().mockResolvedValue({ setupIntent: { payment_method: "pm_late" } });
+    let loadedStripe: ReturnType<typeof DEPENDENCIES.useStripe> = null;
+    const { ref, rerender } = setup({
       isLoading: false,
       clientSecret: "seti_secret",
-      dependencies: { useStripe: () => ({ confirmSetup }) as unknown as ReturnType<typeof DEPENDENCIES.useStripe> }
+      dependencies: { useStripe: () => loadedStripe }
     });
 
+    loadedStripe = { confirmSetup } as unknown as ReturnType<typeof DEPENDENCIES.useStripe>;
+    rerender();
     const result = await act(async () => ref.current!.addPaymentMethod());
 
-    expect(result).toEqual({ paymentMethodId: "pm_blank", organization: undefined });
+    expect(result).toEqual({ paymentMethodId: "pm_late" });
   });
 
   it("renders the confirmSetup error inline and returns null", async () => {
@@ -140,7 +140,7 @@ describe(AddCreditsNewPaymentMethodFields.name, () => {
 
     const ref = React.createRef<PaymentMethodSourceHandle>();
 
-    render(
+    const renderFields = () => (
       <AddCreditsNewPaymentMethodFields
         ref={ref}
         clientSecret={input.clientSecret}
@@ -158,7 +158,8 @@ describe(AddCreditsNewPaymentMethodFields.name, () => {
         }}
       />
     );
+    const view = render(renderFields());
 
-    return { ref };
+    return { ref, rerender: () => view.rerender(renderFields()) };
   }
 });

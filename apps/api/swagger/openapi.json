@@ -786,46 +786,6 @@
         }
       }
     },
-    "/v1/stripe/customers/organization": {
-      "put": {
-        "operationId": "updateStripeCustomerOrganization",
-        "summary": "Update customer organization",
-        "description": "Updates the organization/business name for the current user's Stripe customer account",
-        "tags": [
-          "Payment"
-        ],
-        "security": [
-          {
-            "BearerAuth": []
-          },
-          {
-            "ApiKeyAuth": []
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "organization": {
-                    "type": "string"
-                  }
-                },
-                "required": [
-                  "organization"
-                ]
-              }
-            }
-          }
-        },
-        "responses": {
-          "204": {
-            "description": "Organization updated successfully"
-          }
-        }
-      }
-    },
     "/v1/stripe/payment-methods/setup": {
       "post": {
         "operationId": "createSetupIntent",

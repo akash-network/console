@@ -149,7 +149,7 @@ describe(OnboardingPickerPage.name, () => {
     setup({ isTrialing: true, push, dependencies: { DeploymentTemplatePickerCard, AddCreditsSheet } });
 
     act(() => getCard(DeploymentTemplatePickerCard, "LLM Chatbot").onDeploy!());
-    act(() => (AddCreditsSheet.mock.calls.at(-1)![0] as SheetProps).onDone(100, "Acme"));
+    act(() => (AddCreditsSheet.mock.calls.at(-1)![0] as SheetProps).onDone(100));
 
     expect(push).toHaveBeenCalledWith(UrlService.configureDeployment({ templateId: LLM_ID, sdlStrategy: "default", bidStrategy: "auto" }));
   });
@@ -302,7 +302,7 @@ describe(OnboardingPickerPage.name, () => {
     const { analyticsService } = setup({ isTrialing: true, dependencies: { DeploymentTemplatePickerCard, AddCreditsSheet } });
 
     act(() => getCard(DeploymentTemplatePickerCard, "LLM Chatbot").onDeploy!());
-    act(() => (AddCreditsSheet.mock.calls.at(-1)![0] as SheetProps).onDone(100, "Acme"));
+    act(() => (AddCreditsSheet.mock.calls.at(-1)![0] as SheetProps).onDone(100));
 
     const deployClicks = analyticsService.track.mock.calls.filter(call => call[0] === "onboarding_deploy_click");
     expect(deployClicks).toHaveLength(1);

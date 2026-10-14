@@ -73,7 +73,7 @@ describe("AddCreditsHost", () => {
       <div data-testid="add-credits-sheet" data-open={open} data-tab={initialTab} data-context={context}>
         {description}
         <button onClick={() => onOpenChange(false)}>close</button>
-        <button onClick={() => onDone(100, undefined, 10)}>done</button>
+        <button onClick={() => onDone(100, 10)}>done</button>
         <button onClick={() => onRedeemed?.()}>redeemed</button>
       </div>
     );

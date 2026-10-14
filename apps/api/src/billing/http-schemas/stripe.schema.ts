@@ -249,10 +249,6 @@ export const ValidatePaymentMethodResponseSchema = z.object({
   success: z.boolean()
 });
 
-export const UpdateCustomerOrganizationRequestSchema = z.object({
-  organization: z.string()
-});
-
 export const RemovePaymentMethodParamsSchema = z.object({
   paymentMethodId: z.string().openapi({
     param: {
@@ -275,4 +271,3 @@ export type ConfirmPaymentResponse = z.infer<typeof ConfirmPaymentResponseSchema
 export type ApplyCouponRequest = z.infer<typeof ApplyCouponRequestSchema>;
 export type Coupon = z.infer<typeof CouponSchema>;
 export type Transaction = z.infer<typeof TransactionSchema>;
-export type UpdateCustomerOrganizationRequest = z.infer<typeof UpdateCustomerOrganizationRequestSchema>;
