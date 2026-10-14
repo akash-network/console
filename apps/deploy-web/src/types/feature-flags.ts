@@ -13,4 +13,5 @@ export type FeatureFlag =
   | "account_deletion"
   | "notifications_activity_center"
   | "ui_command_menu"
-  | "organizations";
+  | "organizations"
+  | "invoices";

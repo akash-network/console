@@ -10,6 +10,9 @@ export const ORGANIZATION_ROLE_LABELS: Record<OrganizationRole, string> = {
 
 export const canViewBillingAndUsage = (role: OrganizationRole): boolean => role !== "member" && role !== "viewer";
 
+/** Admins read the billing of an organization but only owners and billing members change it; the api refuses everyone else. */
+export const canManageBilling = (role: OrganizationRole): boolean => role === "owner" || role === "billing";
+
 export const hasMembersPage = (type: OrganizationType): boolean => type === "team";
 
 /** A personal organization files everything into its default project, so only a team works in projects. */

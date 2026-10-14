@@ -6,6 +6,7 @@ import { AddToBalanceButton } from "@src/components/billing-usage/AddToBalanceBu
 import { AutoRechargeRow } from "@src/components/billing-usage/AutoRechargeRow/AutoRechargeRow";
 import { BillingActionsProvider } from "@src/components/billing-usage/BillingActionsProvider/BillingActionsProvider";
 import { BillingContainer } from "@src/components/billing-usage/BillingContainer/BillingContainer";
+import { BillingDetailsView } from "@src/components/billing-usage/BillingDetails/BillingDetailsView";
 import { BillingView } from "@src/components/billing-usage/BillingView/BillingView";
 import { PaymentMethodsContainer } from "@src/components/billing-usage/PaymentMethodsContainer/PaymentMethodsContainer";
 import { PaymentMethodsView } from "@src/components/billing-usage/PaymentMethodsView/PaymentMethodsView";
@@ -32,10 +33,14 @@ export const BillingPage: FC = () => {
           <BillingActionsProvider>
             <AccountBalanceOverview footerAction={<AutoRechargeRow />} />
             <PaymentMethodsContainer>{props => <PaymentMethodsView {...props} />}</PaymentMethodsContainer>
+            <BillingDetailsView />
             <BillingContainer>{props => <BillingView {...props} />}</BillingContainer>
           </BillingActionsProvider>
         ) : (
-          <BillingContainer>{props => <BillingView {...props} />}</BillingContainer>
+          <>
+            <BillingDetailsView />
+            <BillingContainer>{props => <BillingView {...props} />}</BillingContainer>
+          </>
         )}
       </SettingsLayout>
     </Layout>
