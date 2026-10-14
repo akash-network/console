@@ -11,7 +11,7 @@ import { useFlag } from "@src/hooks/useFlag";
 import { useBillingDetailsQuery } from "@src/queries/useBillingDetailsQueries";
 import type { BillingDetails } from "@src/types/billingDetails";
 import { BillingDetailsDialog } from "./BillingDetailsDialog";
-import { getCountryName, TAX_ID_TYPE_OPTIONS } from "./billingDetailsOptions";
+import { describeTaxIdType, getCountryName } from "./billingDetailsOptions";
 
 export const DEPENDENCIES = { useBillingDetailsQuery, useFlag, useActiveOrganization, BillingDetailsDialog };
 
@@ -29,6 +29,12 @@ type Props = {
 };
 
 export const BillingDetailsView: FC<Props> = ({ dependencies: d = DEPENDENCIES }) => {
+  const isInvoicesEnabled = d.useFlag("invoices");
+
+  return isInvoicesEnabled ? <BillingDetailsCard dependencies={d} /> : null;
+};
+
+const BillingDetailsCard: FC<Required<Props>> = ({ dependencies: d }) => {
   const { data: billingDetails, isLoading, isError } = d.useBillingDetailsQuery();
   const isOrganizationsEnabled = d.useFlag("organizations");
   const { activeOrganization } = d.useActiveOrganization();
@@ -103,8 +109,4 @@ function formatAddress(address: BillingDetails["address"]): string {
   const countryName = address.country ? getCountryName(address.country) : null;
 
   return [address.line1, address.line2, cityLine, address.state, countryName].filter(Boolean).join("\n");
-}
-
-function describeTaxIdType(type: string): string {
-  return type in TAX_ID_TYPE_OPTIONS ? TAX_ID_TYPE_OPTIONS[type as keyof typeof TAX_ID_TYPE_OPTIONS].label : type.toUpperCase();
 }

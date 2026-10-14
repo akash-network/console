@@ -111,34 +111,44 @@ describe("BillingDetailsView", () => {
     expect(screen.getByRole("button", { name: "Edit details" })).toBeInTheDocument();
   });
 
+  it("renders nothing and loads nothing while invoices are off", () => {
+    const { useBillingDetailsQuery } = setup({ billingDetails: SAVED, isInvoicesEnabled: false });
+
+    expect(screen.queryByText("Billing details")).not.toBeInTheDocument();
+    expect(useBillingDetailsQuery).not.toHaveBeenCalled();
+  });
+
   function setup(input: {
     billingDetails: BillingDetails | undefined;
     isLoading?: boolean;
     isError?: boolean;
     role?: OrganizationRole | null;
     isOrganizationsEnabled?: boolean;
+    isInvoicesEnabled?: boolean;
   }) {
     const activeOrganization: OrganizationOutput | undefined =
       input.role === null
         ? undefined
         : { id: "org-2", name: "Acme", slug: "acme", type: "team", role: input.role ?? "owner", isActive: true, createdAt: "2026-01-01T00:00:00Z" };
     const BillingDetailsDialog = vi.fn<typeof DEPENDENCIES.BillingDetailsDialog>(() => <div>Billing details dialog</div>);
+    const useBillingDetailsQuery = vi.fn(() =>
+      Object.assign(mock<ReturnType<typeof DEPENDENCIES.useBillingDetailsQuery>>(), {
+        data: input.billingDetails,
+        isLoading: input.isLoading ?? false,
+        isError: input.isError ?? false
+      })
+    );
 
     const dependencies: typeof DEPENDENCIES = {
-      useBillingDetailsQuery: () =>
-        mock<ReturnType<typeof DEPENDENCIES.useBillingDetailsQuery>>({
-          data: input.billingDetails,
-          isLoading: input.isLoading ?? false,
-          isError: input.isError ?? false
-        }),
-      useFlag: () => input.isOrganizationsEnabled ?? true,
+      useBillingDetailsQuery,
+      useFlag: flag => (flag === "invoices" ? input.isInvoicesEnabled ?? true : input.isOrganizationsEnabled ?? true),
       useActiveOrganization: () => mock<ReturnType<typeof DEPENDENCIES.useActiveOrganization>>({ activeOrganization }),
       BillingDetailsDialog
     };
 
     render(<BillingDetailsView dependencies={dependencies} />);
 
-    return { user: userEvent.setup(), BillingDetailsDialog };
+    return { user: userEvent.setup(), BillingDetailsDialog, useBillingDetailsQuery };
   }
 });
 

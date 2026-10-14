@@ -70,18 +70,127 @@ describe("BillingDetailsDialog", () => {
     expect(enqueueSnackbar).toHaveBeenCalledWith(expect.anything(), { variant: "success" });
   });
 
-  it("sends every address field it was given", async () => {
+  it("sends every address field it was given and leaves out a tax ID that did not change", async () => {
     const { user, updateBillingDetails } = setup({ billingDetails: SAVED });
 
+    await user.type(screen.getByLabelText("Tax ID"), " ");
     await user.click(screen.getByRole("button", { name: "Save" }));
 
     expect(updateBillingDetails).toHaveBeenCalledWith({
       data: {
         legalName: "Acme GmbH",
-        address: { line1: "Hauptstr. 1", line2: "Hinterhaus", city: "Berlin", state: "BE", postalCode: "10115", country: "DE" },
-        taxId: { type: "eu_vat", value: "DE123456789" }
+        address: { line1: "Hauptstr. 1", line2: "Hinterhaus", city: "Berlin", state: "BE", postalCode: "10115", country: "DE" }
       }
     });
+  });
+
+  it("leaves out the tax ID when there was none and none was added", async () => {
+    const { user, updateBillingDetails } = setup({ billingDetails: { ...SAVED, taxId: null } });
+
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(updateBillingDetails.mock.lastCall?.[0].data).not.toHaveProperty("taxId");
+  });
+
+  it("sends the tax ID when its value changed", async () => {
+    const { user, updateBillingDetails } = setup({ billingDetails: SAVED });
+
+    await user.clear(screen.getByLabelText("Tax ID"));
+    await user.type(screen.getByLabelText("Tax ID"), "DE999999999");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(updateBillingDetails).toHaveBeenCalledWith({ data: expect.objectContaining({ taxId: { type: "eu_vat", value: "DE999999999" } }) });
+  });
+
+  it("sends the tax ID when only its type changed", async () => {
+    const { user, updateBillingDetails } = setup({ billingDetails: SAVED });
+
+    await user.click(screen.getByRole("combobox", { name: "Tax ID type" }));
+    await user.click(screen.getByRole("option", { name: "UK VAT number" }));
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(screen.getByLabelText("Tax ID")).toHaveValue("DE123456789");
+    expect(updateBillingDetails).toHaveBeenCalledWith({ data: expect.objectContaining({ taxId: { type: "gb_vat", value: "DE123456789" } }) });
+  });
+
+  it("shows a tax ID type the form does not offer as read-only and leaves it out when saving", async () => {
+    const { user, updateBillingDetails } = setup({ billingDetails: SUPPORT_ADDED_TAX_ID });
+
+    expect(screen.getByRole("combobox", { name: "Tax ID type" })).toHaveTextContent("DE_STN");
+    expect(screen.getByLabelText("Tax ID")).toHaveValue("12/345/67890");
+    expect(screen.getByLabelText("Tax ID")).toBeDisabled();
+    expect(screen.getByLabelText("Tax ID")).toHaveAccessibleDescription(/Contact support to change it/);
+
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(updateBillingDetails.mock.lastCall?.[0].data).not.toHaveProperty("taxId");
+  });
+
+  it("removes a tax ID the form does not offer when no tax ID type is chosen", async () => {
+    const { user, updateBillingDetails } = setup({ billingDetails: SUPPORT_ADDED_TAX_ID });
+
+    await user.click(screen.getByRole("combobox", { name: "Tax ID type" }));
+    await user.click(screen.getByRole("option", { name: "No tax ID" }));
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(updateBillingDetails).toHaveBeenCalledWith({ data: expect.objectContaining({ taxId: null }) });
+  });
+
+  it("replaces a tax ID the form does not offer with one of a type it does offer", async () => {
+    const { user, updateBillingDetails } = setup({ billingDetails: SUPPORT_ADDED_TAX_ID });
+
+    await user.click(screen.getByRole("combobox", { name: "Tax ID type" }));
+    await user.click(screen.getByRole("option", { name: "EU VAT number" }));
+
+    expect(screen.getByLabelText("Tax ID")).toHaveValue("");
+    expect(screen.getByLabelText("Tax ID")).toBeEnabled();
+    expect(screen.queryByText(/Contact support to change it/)).not.toBeInTheDocument();
+
+    await user.type(screen.getByLabelText("Tax ID"), "DE123456789");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(updateBillingDetails).toHaveBeenCalledWith({ data: expect.objectContaining({ taxId: { type: "eu_vat", value: "DE123456789" } }) });
+  });
+
+  it("restores a tax ID the form does not offer when its type is picked again", async () => {
+    const { user, updateBillingDetails } = setup({ billingDetails: SUPPORT_ADDED_TAX_ID });
+
+    await user.click(screen.getByRole("combobox", { name: "Tax ID type" }));
+    await user.click(screen.getByRole("option", { name: "EU VAT number" }));
+    await user.type(screen.getByLabelText("Tax ID"), "DE123456789");
+    await user.click(screen.getByRole("combobox", { name: "Tax ID type" }));
+    await user.click(screen.getByRole("option", { name: "DE_STN" }));
+
+    expect(screen.getByLabelText("Tax ID")).toHaveValue("12/345/67890");
+    expect(screen.getByLabelText("Tax ID")).toBeDisabled();
+
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(updateBillingDetails.mock.lastCall?.[0].data).not.toHaveProperty("taxId");
+  });
+
+  it("keeps the value when switching between tax ID types the form offers", async () => {
+    const { user } = setup({ billingDetails: SAVED });
+
+    await user.click(screen.getByRole("combobox", { name: "Tax ID type" }));
+    await user.click(screen.getByRole("option", { name: "Swiss VAT number" }));
+
+    expect(screen.getByLabelText("Tax ID")).toHaveValue("DE123456789");
+    expect(screen.getByLabelText("Tax ID")).toHaveAttribute("placeholder", "CHE-123.456.789 MWST");
+  });
+
+  it.each([
+    { field: "Legal name", maxLength: "256" },
+    { field: "Address", maxLength: "200" },
+    { field: "Address line 2 (optional)", maxLength: "200" },
+    { field: "City", maxLength: "200" },
+    { field: "State or region", maxLength: "200" },
+    { field: "Postal code", maxLength: "20" },
+    { field: "Tax ID", maxLength: "64" }
+  ])("caps the $field at the $maxLength characters the api accepts", ({ field, maxLength }) => {
+    setup({ billingDetails: SAVED });
+
+    expect(screen.getByLabelText(field)).toHaveAttribute("maxlength", maxLength);
   });
 
   it("removes the tax ID when no tax ID type is chosen", async () => {
@@ -126,10 +235,13 @@ describe("BillingDetailsDialog", () => {
     const { user, updateBillingDetails, onClose } = setup({ billingDetails: SAVED });
     updateBillingDetails.mockRejectedValue(new ApiError(400, { code: "invalid_tax_id", message: "This tax ID is not valid for the selected type" }, "PUT"));
 
+    await user.clear(screen.getByLabelText("Tax ID"));
+    await user.type(screen.getByLabelText("Tax ID"), "DE1");
     await user.click(screen.getByRole("button", { name: "Save" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent(INVALID_TAX_ID_MESSAGE);
     expect(screen.getByLabelText("Tax ID")).toHaveAttribute("aria-invalid", "true");
+    expect(screen.getByLabelText("Tax ID")).toHaveAccessibleDescription(INVALID_TAX_ID_MESSAGE);
     expect(onClose).not.toHaveBeenCalled();
 
     await user.type(screen.getByLabelText("Tax ID"), "0");
@@ -199,3 +311,5 @@ const SAVED: BillingDetails = {
   address: { line1: "Hauptstr. 1", line2: "Hinterhaus", city: "Berlin", state: "BE", postalCode: "10115", country: "DE" },
   taxId: { type: "eu_vat", value: "DE123456789", verificationStatus: "verified" }
 };
+
+const SUPPORT_ADDED_TAX_ID: BillingDetails = { ...SAVED, taxId: { type: "de_stn", value: "12/345/67890", verificationStatus: null } };

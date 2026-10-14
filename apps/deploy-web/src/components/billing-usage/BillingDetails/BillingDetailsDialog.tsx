@@ -24,9 +24,9 @@ import {
 import { useSnackbar } from "notistack";
 
 import { useUpdateBillingDetailsMutation } from "@src/queries/useBillingDetailsQueries";
-import type { BillingDetails, BillingDetailsInput, TaxIdType } from "@src/types/billingDetails";
+import type { BillingDetails, BillingDetailsInput } from "@src/types/billingDetails";
 import { INVALID_TAX_ID_ERROR_CODE } from "@src/types/billingDetails";
-import { COUNTRY_OPTIONS, TAX_ID_TYPE_OPTIONS } from "./billingDetailsOptions";
+import { COUNTRY_OPTIONS, describeTaxIdType, isSelectableTaxIdType, TAX_ID_TYPE_OPTIONS } from "./billingDetailsOptions";
 
 export const DEPENDENCIES = { useUpdateBillingDetailsMutation, useSnackbar };
 
@@ -38,7 +38,8 @@ const NO_TAX_ID = "none";
 
 const BAD_REQUEST_STATUS = 400;
 
-type TaxIdChoice = TaxIdType | typeof NO_TAX_ID;
+/** Mirrors the limits of the billing details API, which refuses longer values. */
+const MAX_LENGTH = { legalName: 256, addressLine: 200, postalCode: 20, taxIdValue: 64 } as const;
 
 type Refusal = { taxId?: string; form?: string };
 
@@ -58,12 +59,17 @@ export const BillingDetailsDialog: FC<Props> = ({ billingDetails, onClose, depen
   const [state, setState] = useState(billingDetails?.address?.state ?? "");
   const [postalCode, setPostalCode] = useState(billingDetails?.address?.postalCode ?? "");
   const [country, setCountry] = useState(billingDetails?.address?.country ?? "");
-  const [taxIdType, setTaxIdType] = useState<TaxIdChoice>(toTaxIdChoice(billingDetails?.taxId?.type));
-  const [taxIdValue, setTaxIdValue] = useState(billingDetails?.taxId?.value ?? "");
+  const savedTaxId = billingDetails?.taxId ?? null;
+  const [taxIdType, setTaxIdType] = useState(savedTaxId?.type ?? NO_TAX_ID);
+  const [taxIdValue, setTaxIdValue] = useState(savedTaxId?.value ?? "");
   const [refusal, setRefusal] = useState<Refusal>({});
   const formId = useId();
   const taxIdErrorId = `${formId}-tax-id-error`;
+  const taxIdHintId = `${formId}-tax-id-hint`;
 
+  const unselectableSavedTaxIdType = savedTaxId && !isSelectableTaxIdType(savedTaxId.type) ? savedTaxId.type : null;
+  const isTaxIdLocked = taxIdType === unselectableSavedTaxIdType;
+  const isTaxIdChanged = taxIdType !== (savedTaxId?.type ?? NO_TAX_ID) || taxIdValue.trim() !== (savedTaxId?.value ?? "");
   const hasTaxId = taxIdType !== NO_TAX_ID;
   const canSubmit = !!legalName.trim() && !!line1.trim() && !!country && (!hasTaxId || !!taxIdValue.trim()) && !isPending;
 
@@ -71,6 +77,16 @@ export const BillingDetailsDialog: FC<Props> = ({ billingDetails, onClose, depen
     change();
     setRefusal({});
   };
+
+  const selectTaxIdType = (type: string) =>
+    editTaxId(() => {
+      setTaxIdType(type);
+      if (type === unselectableSavedTaxIdType) {
+        setTaxIdValue(savedTaxId?.value ?? "");
+      } else if (isTaxIdLocked) {
+        setTaxIdValue("");
+      }
+    });
 
   const toInput = (): BillingDetailsInput => ({
     legalName: legalName.trim(),
@@ -82,7 +98,7 @@ export const BillingDetailsDialog: FC<Props> = ({ billingDetails, onClose, depen
       postalCode: postalCode.trim() || null,
       country
     },
-    taxId: hasTaxId ? { type: taxIdType, value: taxIdValue.trim() } : null
+    ...(isTaxIdChanged && { taxId: isSelectableTaxIdType(taxIdType) ? { type: taxIdType, value: taxIdValue.trim() } : null })
   });
 
   const reportRefusal = (error: unknown) => {
@@ -128,6 +144,7 @@ export const BillingDetailsDialog: FC<Props> = ({ billingDetails, onClose, depen
               placeholder="Acme Corp"
               autoComplete="organization"
               autoFocus
+              maxLength={MAX_LENGTH.legalName}
               value={legalName}
               onChange={event => setLegalName(event.target.value)}
             />
@@ -153,6 +170,7 @@ export const BillingDetailsDialog: FC<Props> = ({ billingDetails, onClose, depen
               label="Address"
               placeholder="Street and number"
               autoComplete="address-line1"
+              maxLength={MAX_LENGTH.addressLine}
               value={line1}
               onChange={event => setLine1(event.target.value)}
             />
@@ -161,16 +179,25 @@ export const BillingDetailsDialog: FC<Props> = ({ billingDetails, onClose, depen
               label="Address line 2 (optional)"
               placeholder="Suite, floor, building"
               autoComplete="address-line2"
+              maxLength={MAX_LENGTH.addressLine}
               value={line2}
               onChange={event => setLine2(event.target.value)}
             />
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-              <Input id={`${formId}-city`} label="City" autoComplete="address-level2" value={city} onChange={event => setCity(event.target.value)} />
+              <Input
+                id={`${formId}-city`}
+                label="City"
+                autoComplete="address-level2"
+                maxLength={MAX_LENGTH.addressLine}
+                value={city}
+                onChange={event => setCity(event.target.value)}
+              />
               <Input
                 id={`${formId}-state`}
                 label="State or region"
                 autoComplete="address-level1"
+                maxLength={MAX_LENGTH.addressLine}
                 value={state}
                 onChange={event => setState(event.target.value)}
               />
@@ -178,6 +205,7 @@ export const BillingDetailsDialog: FC<Props> = ({ billingDetails, onClose, depen
                 id={`${formId}-postal-code`}
                 label="Postal code"
                 autoComplete="postal-code"
+                maxLength={MAX_LENGTH.postalCode}
                 value={postalCode}
                 onChange={event => setPostalCode(event.target.value)}
               />
@@ -186,12 +214,13 @@ export const BillingDetailsDialog: FC<Props> = ({ billingDetails, onClose, depen
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="flex flex-col gap-2">
                 <Label htmlFor={`${formId}-tax-id-type`}>Tax ID type</Label>
-                <Select value={taxIdType} onValueChange={value => editTaxId(() => setTaxIdType(value as TaxIdChoice))}>
+                <Select value={taxIdType} onValueChange={selectTaxIdType}>
                   <SelectTrigger id={`${formId}-tax-id-type`} aria-label="Tax ID type">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value={NO_TAX_ID}>No tax ID</SelectItem>
+                    {unselectableSavedTaxIdType && <SelectItem value={unselectableSavedTaxIdType}>{describeTaxIdType(unselectableSavedTaxIdType)}</SelectItem>}
                     {Object.entries(TAX_ID_TYPE_OPTIONS).map(([type, option]) => (
                       <SelectItem key={type} value={type}>
                         {option.label}
@@ -205,13 +234,20 @@ export const BillingDetailsDialog: FC<Props> = ({ billingDetails, onClose, depen
                   <Input
                     id={`${formId}-tax-id-value`}
                     label="Tax ID"
-                    placeholder={TAX_ID_TYPE_OPTIONS[taxIdType].example}
+                    placeholder={isSelectableTaxIdType(taxIdType) ? TAX_ID_TYPE_OPTIONS[taxIdType].example : undefined}
+                    maxLength={MAX_LENGTH.taxIdValue}
+                    disabled={isTaxIdLocked}
                     value={taxIdValue}
                     error={!!refusal.taxId}
                     aria-invalid={!!refusal.taxId}
-                    aria-describedby={refusal.taxId ? taxIdErrorId : undefined}
+                    aria-describedby={refusal.taxId ? taxIdErrorId : isTaxIdLocked ? taxIdHintId : undefined}
                     onChange={event => editTaxId(() => setTaxIdValue(event.target.value))}
                   />
+                  {isTaxIdLocked && (
+                    <p id={taxIdHintId} className="text-xs text-muted-foreground">
+                      Support added this tax ID. Contact support to change it, or pick another type to replace it.
+                    </p>
+                  )}
                   {refusal.taxId && (
                     <p id={taxIdErrorId} role="alert" className="text-xs text-destructive">
                       {refusal.taxId}
@@ -241,7 +277,3 @@ export const BillingDetailsDialog: FC<Props> = ({ billingDetails, onClose, depen
     </DialogV2>
   );
 };
-
-function toTaxIdChoice(type: string | undefined): TaxIdChoice {
-  return type && type in TAX_ID_TYPE_OPTIONS ? (type as TaxIdType) : NO_TAX_ID;
-}
