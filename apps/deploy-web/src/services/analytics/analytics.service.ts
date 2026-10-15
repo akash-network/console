@@ -99,6 +99,7 @@ export type AnalyticsEvent =
   | "add_funds_coupon_btn_clk"
   | "add_funds_coupon_claim_amount_btn_clk"
   | "redeploy_btn_clk"
+  | "redeploy_last_configuration_btn_clk"
   | "edit_name_btn_clk"
   | "create_deployment_btn_clk"
   | "log_collector_enabled"
