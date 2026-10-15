@@ -47,6 +47,39 @@
           "Internal/Account"
         ]
       }
+    },
+    "/internal/v1/organizations/{organizationId}/departed-members": {
+      "post": {
+        "operationId": "releaseDepartedMember",
+        "parameters": [
+          {
+            "name": "organizationId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DepartedMemberInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Stops the organization's notification channels from emailing a member who left it"
+          }
+        },
+        "tags": [
+          "Internal/Organization"
+        ]
+      }
     }
   },
   "info": {
@@ -113,6 +146,36 @@
         "required": [
           "notificationId",
           "payload"
+        ]
+      },
+      "DepartedMemberInput": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "object",
+            "properties": {
+              "addressSha256": {
+                "description": "SHA-256 hex digest of the departed member's lower-cased email address",
+                "type": "string",
+                "pattern": "^[0-9a-f]{64}$"
+              },
+              "fallbackAddresses": {
+                "description": "Where a channel goes once the departed member's address was its only one; without any, such a channel is deleted",
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "format": "email"
+                }
+              }
+            },
+            "required": [
+              "addressSha256",
+              "fallbackAddresses"
+            ]
+          }
+        },
+        "required": [
+          "data"
         ]
       }
     }

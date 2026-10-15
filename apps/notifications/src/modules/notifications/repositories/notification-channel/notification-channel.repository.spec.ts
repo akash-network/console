@@ -3,12 +3,20 @@ import { faker } from "@faker-js/faker";
 import { ConfigModule } from "@nestjs/config";
 import type { TestingModule } from "@nestjs/testing";
 import { Test } from "@nestjs/testing";
+import { eq } from "drizzle-orm";
+import type { NodePgDatabase } from "drizzle-orm/node-postgres";
+import { createHash } from "node:crypto";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 
 import { DRIZZLE_PROVIDER_TOKEN } from "@src/infrastructure/db/config/db.config";
 import { register } from "@src/infrastructure/db/db.module";
 import * as schema from "@src/modules/notifications/model-schemas";
-import { type DefaultChannelOwner, type NotificationChannelInput, NotificationChannelRepository } from "./notification-channel.repository";
+import {
+  type DefaultChannelOwner,
+  notificationChannelConfigSchema,
+  type NotificationChannelInput,
+  NotificationChannelRepository
+} from "./notification-channel.repository";
 
 import { generateNotificationChannel } from "@test/seeders/notification-channel.seeder";
 import { TestDatabaseService } from "@test/services/test-database.service";
@@ -230,8 +238,98 @@ describe(NotificationChannelRepository.name, () => {
     });
   });
 
-  function channelInput(input: { userId?: string; organizationId?: string }): NotificationChannelInput {
-    const { isDefault, ...channel } = generateNotificationChannel({ ...input, organizationId: input.organizationId ?? null });
+  describe("releaseAddressInOrganization", () => {
+    it("takes the address off every live channel of the organization, whatever its case, and keeps the other addresses", async () => {
+      const { module, repository } = await setup();
+      const organizationId = faker.string.uuid();
+      const departed = faker.internet.email().toLowerCase();
+      const teammate = faker.internet.email();
+      const shared = await repository.create(channelInput({ organizationId, addresses: [teammate, departed.toUpperCase()] }));
+      const untouched = await repository.create(channelInput({ organizationId, addresses: [teammate] }));
+
+      const released = await repository.releaseAddressInOrganization({ organizationId, addressSha256: sha256Of(departed), fallbackAddresses: [] });
+
+      expect(released).toBe(1);
+      expect((await repository.findById(shared.id))?.config.addresses).toEqual([teammate]);
+      expect(await addressesOf(module, untouched.id)).toEqual([teammate]);
+    });
+
+    it("hands a channel the address was alone on to the fallback addresses", async () => {
+      const { repository } = await setup();
+      const organizationId = faker.string.uuid();
+      const departed = faker.internet.email().toLowerCase();
+      const owners = [faker.internet.email(), faker.internet.email()];
+      const channel = await repository.create(channelInput({ organizationId, addresses: [departed] }));
+
+      const released = await repository.releaseAddressInOrganization({ organizationId, addressSha256: sha256Of(departed), fallbackAddresses: owners });
+
+      expect(released).toBe(1);
+      expect((await repository.findById(channel.id))?.config.addresses).toEqual(owners);
+    });
+
+    it("leaves the departed address out of the fallback addresses it hands a channel to", async () => {
+      const { repository } = await setup();
+      const organizationId = faker.string.uuid();
+      const departed = faker.internet.email().toLowerCase();
+      const owner = faker.internet.email();
+      const channel = await repository.create(channelInput({ organizationId, addresses: [departed] }));
+
+      await repository.releaseAddressInOrganization({ organizationId, addressSha256: sha256Of(departed), fallbackAddresses: [departed.toUpperCase(), owner] });
+
+      expect((await repository.findById(channel.id))?.config.addresses).toEqual([owner]);
+    });
+
+    it("deletes a channel the address was alone on when no fallback address remains", async () => {
+      const { repository } = await setup();
+      const organizationId = faker.string.uuid();
+      const departed = faker.internet.email().toLowerCase();
+      const channel = await repository.create(channelInput({ organizationId, addresses: [departed] }));
+
+      const released = await repository.releaseAddressInOrganization({ organizationId, addressSha256: sha256Of(departed), fallbackAddresses: [departed] });
+
+      expect(released).toBe(1);
+      expect(await repository.findById(channel.id)).toBeUndefined();
+    });
+
+    it("leaves the channels of other organizations and the deleted ones as they were", async () => {
+      const { module, repository } = await setup();
+      const organizationId = faker.string.uuid();
+      const departed = faker.internet.email().toLowerCase();
+      const otherOrganization = await repository.create(channelInput({ organizationId: faker.string.uuid(), addresses: [departed] }));
+      const unattributed = await repository.create(channelInput({ addresses: [departed] }));
+      const deleted = await repository.create(channelInput({ organizationId, addresses: [departed] }));
+      await repository.deleteSafelyById(deleted.id);
+
+      const released = await repository.releaseAddressInOrganization({ organizationId, addressSha256: sha256Of(departed), fallbackAddresses: [] });
+
+      expect(released).toBe(0);
+      expect(await addressesOf(module, otherOrganization.id)).toEqual([departed]);
+      expect(await addressesOf(module, unattributed.id)).toEqual([departed]);
+      expect(await addressesOf(module, deleted.id)).toEqual([departed]);
+    });
+
+    function sha256Of(address: string) {
+      return createHash("sha256").update(address).digest("hex");
+    }
+
+    async function addressesOf(module: TestingModule, id: string) {
+      const [channel] = await module
+        .get<NodePgDatabase<typeof schema>>(DRIZZLE_PROVIDER_TOKEN)
+        .select({ config: schema.NotificationChannel.config })
+        .from(schema.NotificationChannel)
+        .where(eq(schema.NotificationChannel.id, id));
+
+      return notificationChannelConfigSchema.parse(channel.config).addresses;
+    }
+  });
+
+  function channelInput(input: { userId?: string; organizationId?: string; addresses?: string[] }): NotificationChannelInput {
+    const { addresses, ...overrides } = input;
+    const { isDefault, ...channel } = generateNotificationChannel({
+      ...overrides,
+      organizationId: overrides.organizationId ?? null,
+      ...(addresses && { config: { addresses } })
+    });
     return channel;
   }
 

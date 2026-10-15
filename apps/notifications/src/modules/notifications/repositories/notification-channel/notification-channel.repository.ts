@@ -6,7 +6,7 @@ import { and, count, eq, isNull, or, sql } from "drizzle-orm";
 import { NodePgDatabase } from "drizzle-orm/node-postgres";
 import type { AnyPgColumn } from "drizzle-orm/pg-core";
 import type { SQL } from "drizzle-orm/sql/sql";
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { z } from "zod";
 
 import { DRIZZLE_PROVIDER_TOKEN } from "@src/infrastructure/db/config/db.config";
@@ -35,6 +35,16 @@ export function inOrganizationOrUnattributed(column: AnyPgColumn, organizationId
 
 export function userChannelsWithin(userId: string, organizationId: string | null): SQL | undefined {
   return and(eq(schema.NotificationChannel.userId, userId), inOrganizationOrUnattributed(schema.NotificationChannel.organizationId, organizationId));
+}
+
+function sha256OfAddress(address: string): string {
+  return createHash("sha256").update(address.toLowerCase()).digest("hex");
+}
+
+export interface ReleaseAddressInput {
+  organizationId: string;
+  addressSha256: string;
+  fallbackAddresses: string[];
 }
 
 /** Who a default channel belongs to: the organization when its rules apply, otherwise the user within their personal organization. */
@@ -211,6 +221,36 @@ export class NotificationChannelRepository {
       .returning();
 
     return notificationChannel && this.toOutput(notificationChannel);
+  }
+
+  /** Deletes a channel left with no address rather than keeping it empty, since Novu still emails the channel's creator as its subscriber. */
+  async releaseAddressInOrganization({ organizationId, addressSha256, fallbackAddresses }: ReleaseAddressInput): Promise<number> {
+    return await this.db.transaction(async tx => {
+      const channels = await tx
+        .select({ id: schema.NotificationChannel.id, config: schema.NotificationChannel.config })
+        .from(schema.NotificationChannel)
+        .where(this.nonDeleted(eq(schema.NotificationChannel.organizationId, organizationId)))
+        .for("update");
+      const isStillHere = (address: string) => sha256OfAddress(address) !== addressSha256;
+      const remainingFallbackAddresses = fallbackAddresses.filter(isStillHere);
+      const releasedChannels = channels.flatMap(channel => {
+        const { addresses } = notificationChannelConfigSchema.parse(channel.config);
+        const keptAddresses = addresses.filter(isStillHere);
+
+        return keptAddresses.length === addresses.length
+          ? []
+          : [{ id: channel.id, addresses: keptAddresses.length ? keptAddresses : remainingFallbackAddresses }];
+      });
+
+      for (const { id, addresses } of releasedChannels) {
+        await tx
+          .update(schema.NotificationChannel)
+          .set({ config: { addresses }, ...(addresses.length === 0 && { deletedAt: sql`NOW()` }) })
+          .where(eq(schema.NotificationChannel.id, id));
+      }
+
+      return releasedChannels.length;
+    });
   }
 
   /** Leaves the channels the user created for team organizations to those organizations. */
