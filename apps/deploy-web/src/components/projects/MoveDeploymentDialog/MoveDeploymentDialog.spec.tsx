@@ -8,9 +8,10 @@ import { MoveDeploymentDialog } from "./MoveDeploymentDialog";
 
 import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { buildProject } from "@tests/seeders/project";
 
 describe(MoveDeploymentDialog.name, () => {
-  it("offers every other project, most recently active first", () => {
+  it("offers every other project in the order the api ranks them", () => {
     setup({});
 
     expect(screen.getByRole("dialog", { name: "Move to project" })).toBeInTheDocument();
@@ -112,7 +113,7 @@ describe(MoveDeploymentDialog.name, () => {
       if (input.moveError) throw input.moveError;
       return {};
     });
-    const projects = [project("storefront", "2026-01-01T12:00:00.000Z"), project("marketing", "2026-03-01T12:00:00.000Z")];
+    const projects = [project("marketing", "2026-01-01T12:00:00.000Z"), project("storefront", "2026-03-01T12:00:00.000Z")];
     const dependencies: typeof DEPENDENCIES = {
       useProjectsQuery: () => mock<ReturnType<typeof DEPENDENCIES.useProjectsQuery>>({ data: projects, refetch: refetchProjects }),
       useUpdateDeploymentProjectMutation: () =>
@@ -135,6 +136,6 @@ describe(MoveDeploymentDialog.name, () => {
   }
 
   function project(name: string, createdAt: string): Project {
-    return { id: name, name, slug: name, description: null, isDefault: false, createdAt, createdBy: null };
+    return buildProject({ id: name, name, createdAt, createdBy: null });
   }
 });

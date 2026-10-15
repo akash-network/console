@@ -1,5 +1,4 @@
 "use client";
-import type { ComponentProps } from "react";
 import { useMemo, useState } from "react";
 import { Button, buttonVariants } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
@@ -9,15 +8,12 @@ import { useRouter } from "next/navigation";
 import { NextSeo } from "next-seo";
 
 import Layout from "@src/components/layout/Layout";
-import { canChangeDeployments, canManageProjects } from "@src/components/organizations/organizationAccess";
+import { canManageProjects } from "@src/components/organizations/organizationAccess";
 import { NotFoundPage } from "@src/components/shared/NotFoundPage/NotFoundPage";
 import { useActiveOrganization } from "@src/context/OrganizationProvider/OrganizationProvider";
 import { useFlag } from "@src/hooks/useFlag";
-import { useHasBeenVisible } from "@src/hooks/useHasBeenVisible/useHasBeenVisible";
 import { useNewDeploymentUrl } from "@src/hooks/useNewDeploymentUrl/useNewDeploymentUrl";
-import { useProjectAccess } from "@src/hooks/useProjectAccess/useProjectAccess";
 import { useOrganizationActivitiesQuery } from "@src/queries/useOrganizationActivitiesQuery";
-import { useProjectDeploymentSummaryQuery } from "@src/queries/useProjectDeploymentSummaryQuery";
 import { useProjectsQuery } from "@src/queries/useProjectsQuery";
 import type { Project, ProjectDeploymentPreview } from "@src/types/project";
 import { pluralize } from "@src/utils/stringUtils";
@@ -26,7 +22,7 @@ import { NewProjectModal } from "../NewProjectModal/NewProjectModal";
 import { ProjectFolder } from "../ProjectFolder/ProjectFolder";
 import { ProjectFolderMenu } from "../ProjectFolderMenu/ProjectFolderMenu";
 import { ProjectSpendReport } from "../ProjectSpendReport/ProjectSpendReport";
-import { isProjectListed, sortProjectsNewestFirst } from "../projectSummary";
+import { isProjectListed } from "../projectSummary";
 import { RecentActivityFeed } from "../RecentActivityFeed/RecentActivityFeed";
 import { SectionLabel } from "../SectionLabel/SectionLabel";
 import styles from "./ProjectsPage.module.css";
@@ -36,11 +32,8 @@ export const DEPENDENCIES = {
   useRouter,
   useActiveOrganization,
   useProjectsQuery,
-  useProjectDeploymentSummaryQuery,
-  useHasBeenVisible,
   useOrganizationActivitiesQuery,
   useNewDeploymentUrl,
-  useProjectAccess,
   Layout,
   NotFoundPage,
   ProjectFolder,
@@ -54,7 +47,7 @@ interface Props {
   dependencies?: typeof DEPENDENCIES;
 }
 
-/** A team organization's landing page: its projects as folders, newest first, next to what happened lately. */
+/** A team organization's landing page: its projects as folders, most recently active first, next to what happened lately. */
 export function ProjectsPage({ dependencies: d = DEPENDENCIES }: Props) {
   const isOrganizationsEnabled = d.useFlag("organizations");
   const { isLoading, projectsEnabled } = d.useActiveOrganization();
@@ -71,31 +64,14 @@ function ProjectsPageContent({ dependencies: d }: Required<Props>) {
   const projectsQuery = d.useProjectsQuery();
   const activityFeed = d.useOrganizationActivitiesQuery();
   const newDeploymentUrl = d.useNewDeploymentUrl();
-  const access = d.useProjectAccess();
   const [isCreatingProject, setIsCreatingProject] = useState(false);
 
-  const loadedProjects = projectsQuery.data;
-  const defaultProject = loadedProjects?.find(project => project.isDefault);
-  const {
-    data: defaultProjectSummary,
-    isLoading: isReadingDefaultProject,
-    isError: isDefaultProjectUnread
-  } = d.useProjectDeploymentSummaryQuery(defaultProject?.id ?? "", {
-    enabled: !!defaultProject
-  });
-  const projects = useMemo(
-    () => (loadedProjects ?? []).map(project => (project.isDefault ? { ...project, deploymentSummary: defaultProjectSummary } : project)),
-    [loadedProjects, defaultProjectSummary]
-  );
+  const projects = useMemo(() => projectsQuery.data ?? [], [projectsQuery.data]);
   const canManage = !!activeOrganization && canManageProjects(activeOrganization.role);
-  const hidesEmptyDefaultProject = canManage && !isDefaultProjectUnread;
-  const listedProjects = useMemo(
-    () => sortProjectsNewestFirst(hidesEmptyDefaultProject ? projects.filter(isProjectListed) : projects),
-    [hidesEmptyDefaultProject, projects]
-  );
+  const listedProjects = useMemo(() => (canManage ? projects.filter(isProjectListed) : projects), [canManage, projects]);
   const organizationName = activeOrganization?.name ?? "";
   const hasProjects = listedProjects.length > 0;
-  const canDeploy = !!activeOrganization && canChangeDeployments(activeOrganization.role);
+  const canDeployAnywhere = projects.some(project => project.access.canDeploy);
   const projectNames = projects.map(project => project.name.toLowerCase());
 
   const openProject = (project: Project) => router.push(UrlService.project(project.id));
@@ -105,7 +81,7 @@ function ProjectsPageContent({ dependencies: d }: Required<Props>) {
   const closeNewProject = () => setIsCreatingProject(false);
 
   return (
-    <d.Layout background="dots" isLoading={projectsQuery.isLoading || isReadingDefaultProject} disableContainer>
+    <d.Layout background="dots" isLoading={projectsQuery.isLoading} disableContainer>
       <NextSeo title="Projects" />
 
       <div className="flex flex-col md:h-page-viewport">
@@ -121,7 +97,7 @@ function ProjectsPageContent({ dependencies: d }: Required<Props>) {
                 </Button>
               )}
 
-              {hasProjects && canDeploy && access.canDeployAnywhere && (
+              {hasProjects && canDeployAnywhere && (
                 <Link
                   href={newDeploymentUrl()}
                   className={cn(
@@ -162,20 +138,18 @@ function ProjectsPageContent({ dependencies: d }: Required<Props>) {
                   ) : hasProjects ? (
                     <div className={styles.folderGrid}>
                       {listedProjects.map(project => (
-                        <SummarizedProjectFolder
+                        <d.ProjectFolder
                           key={project.id}
-                          dependencies={d}
                           project={project}
                           onOpen={() => openProject(project)}
                           onSelectDeployment={openDeployment}
-                          onNewDeployment={canDeploy && access.canManageDeployments(project.id) ? () => startDeploymentIn(project) : undefined}
+                          onNewDeployment={project.access.canDeploy ? () => startDeploymentIn(project) : undefined}
                           menu={canManage && <d.ProjectFolderMenu project={project} takenNames={projectNames} />}
                         />
                       ))}
                     </div>
                   ) : (
-                    projectsQuery.data &&
-                    !isReadingDefaultProject && <EmptyProjects organizationName={organizationName} onNewProject={canManage ? openNewProject : undefined} />
+                    projectsQuery.data && <EmptyProjects organizationName={organizationName} onNewProject={canManage ? openNewProject : undefined} />
                   )}
                 </section>
 
@@ -223,22 +197,6 @@ function EmptyProjects({ organizationName, onNewProject }: { organizationName: s
           <p className="text-[13.5px] text-muted-foreground">You don&apos;t have access to any project yet. Ask an owner or admin.</p>
         </>
       )}
-    </div>
-  );
-}
-
-/** Reads a folder's deployments only once it scrolls into view; the default project's are read up front, since they decide whether it shows. */
-function SummarizedProjectFolder({
-  project,
-  dependencies: d,
-  ...handlers
-}: Omit<ComponentProps<typeof ProjectFolder>, "project"> & { project: Project; dependencies: typeof DEPENDENCIES }) {
-  const [ref, hasBeenVisible] = d.useHasBeenVisible<HTMLDivElement>();
-  const { data: deploymentSummary } = d.useProjectDeploymentSummaryQuery(project.id, { enabled: hasBeenVisible && !project.isDefault });
-
-  return (
-    <div ref={ref}>
-      <d.ProjectFolder project={project.isDefault ? project : { ...project, deploymentSummary }} {...handlers} />
     </div>
   );
 }

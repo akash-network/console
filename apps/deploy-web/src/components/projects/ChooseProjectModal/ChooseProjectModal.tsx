@@ -17,7 +17,7 @@ import { RefreshCw } from "lucide-react";
 import { useSnackbar } from "notistack";
 
 import { isProjectNameTakenError, useCreateProjectMutation } from "@src/queries/useProjectsQuery";
-import type { Project } from "@src/types/project";
+import type { Project, ProjectRecord } from "@src/types/project";
 import { describeProjectCreationFailure } from "../projectCreationFailure";
 import { toProjectSlug } from "../ProjectNameField/ProjectNameField";
 import { NEW_PROJECT_CHOICE, ProjectPicker } from "../ProjectPicker/ProjectPicker";
@@ -36,7 +36,7 @@ interface Props {
   /** The projects could not be read, so the picker offers `onRetry` instead of claiming there are none. */
   isUnreadable?: boolean;
   onRetry?: () => void;
-  onChosen: (project: Project) => void;
+  onChosen: (project: ProjectRecord) => void;
   onCancel: () => void;
   dependencies?: typeof DEPENDENCIES;
 }

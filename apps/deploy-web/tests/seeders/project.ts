@@ -4,6 +4,7 @@ import type { ProjectOutput } from "@src/types/project";
 
 export const buildProject = (overrides: Partial<ProjectOutput> = {}): ProjectOutput => {
   const name = overrides.name ?? faker.word.noun();
+  const createdAt = overrides.createdAt ?? faker.date.past().toISOString();
 
   return {
     id: faker.string.uuid(),
@@ -11,8 +12,11 @@ export const buildProject = (overrides: Partial<ProjectOutput> = {}): ProjectOut
     slug: name.toLowerCase(),
     description: null,
     isDefault: false,
-    createdAt: faker.date.past().toISOString(),
+    createdAt,
     createdBy: { id: faker.string.uuid(), username: faker.internet.username() },
+    lastActivityAt: createdAt,
+    deployments: { activeCount: 0, preview: [] },
+    access: { canDeploy: true, canManage: true },
     ...overrides
   };
 };

@@ -6,6 +6,7 @@ import { ProjectFolder } from "./ProjectFolder";
 
 import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { buildProject } from "@tests/seeders/project";
 
 describe(ProjectFolder.name, () => {
   it("claims no count while the project's deployments are unknown", () => {
@@ -65,18 +66,25 @@ describe(ProjectFolder.name, () => {
   });
 
   it("files up to three sheets, problems first", () => {
-    const { sheetNames } = setup({ deployments: [deployment("web", "running"), deployment("cache", "reclaiming"), deployment("db", "running")] });
+    const { sheetNames } = setup({ deployments: [deployment("web", "running"), deployment("cache", "degraded"), deployment("db", "running")] });
 
     expect(sheetNames()).toEqual(["cache", "web", "db"]);
   });
 
   it("flags a problem sheet with its status while a healthy sheet shows none", () => {
-    setup({ deployments: [deployment("web", "running"), deployment("cache", "reclaiming")] });
+    setup({ deployments: [deployment("web", "running"), deployment("cache", "degraded"), deployment("api", "pending")] });
 
-    expect(screen.getByText("Reclaiming")).toBeInTheDocument();
+    expect(screen.getByText("Degraded")).toBeInTheDocument();
+    expect(screen.getByText("Spinning up")).toBeInTheDocument();
     expect(screen.getByText("cache").closest("[data-flag]")).not.toBeNull();
     expect(screen.getByText("web").closest("[data-flag]")).toBeNull();
     expect(screen.queryByText("Running")).not.toBeInTheDocument();
+  });
+
+  it("names a sheet after its dseq when the deployment has no name", () => {
+    const { sheetNames } = setup({ deployments: [{ dseq: "4242", name: null, status: "running" }] });
+
+    expect(sheetNames()).toEqual(["Deployment #4242"]);
   });
 
   it("folds a bigger project into two sheets, a count and bulk edges", () => {
@@ -164,16 +172,12 @@ describe(ProjectFolder.name, () => {
     menu?: ReactNode;
   }) {
     const deployments = input.deployments ?? [];
-    const project: Project = {
-      id: "p-storefront",
+    const project: Project = buildProject({
       name: "storefront",
-      slug: "storefront",
       description: input.description ?? null,
-      isDefault: false,
       createdAt: "2025-10-28T12:00:00.000Z",
-      createdBy: null,
-      deploymentSummary: input.isSummaryUnknown ? undefined : { activeCount: input.activeCount ?? deployments.length, preview: deployments }
-    };
+      deployments: input.isSummaryUnknown ? null : { activeCount: input.activeCount ?? deployments.length, preview: deployments }
+    });
     const onOpen = vi.fn();
     const onSelectDeployment = vi.fn();
     const onNewDeployment = vi.fn();

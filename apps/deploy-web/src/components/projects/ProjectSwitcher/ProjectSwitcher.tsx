@@ -14,7 +14,6 @@ import Link from "next/link";
 import type { Project } from "@src/types/project";
 import { UrlService } from "@src/utils/urlUtils";
 import { ProjectGlyph } from "../ProjectGlyph/ProjectGlyph";
-import { sortProjectsNewestFirst } from "../projectSummary";
 
 interface Props {
   organizationName: string;
@@ -26,8 +25,6 @@ interface Props {
 
 /** The project page title, which opens a menu to jump to another project of the organization, back to all of them, or to a new one. */
 export function ProjectSwitcher({ organizationName, projects, currentProject, onNewProject }: Props) {
-  const listedProjects = sortProjectsNewestFirst(projects);
-
   return (
     <DropdownMenu modal={false}>
       <h1>
@@ -45,14 +42,12 @@ export function ProjectSwitcher({ organizationName, projects, currentProject, on
         </DropdownMenuLabel>
 
         <div className="max-h-72 overflow-y-auto">
-          {listedProjects.map(project => (
+          {projects.map(project => (
             <DropdownMenuItem key={project.id} asChild className="group gap-2.5 rounded-[7px]">
               <Link href={UrlService.project(project.id)} aria-current={project.id === currentProject.id ? "page" : undefined}>
                 <ProjectGlyph name={project.name} size={20} />
                 <span className="min-w-0 flex-1 truncate">{project.name}</span>
-                {project.deploymentSummary?.activeCount !== undefined && (
-                  <span className="whitespace-nowrap text-xs text-muted-foreground">{project.deploymentSummary.activeCount} active</span>
-                )}
+                {project.deployments && <span className="whitespace-nowrap text-xs text-muted-foreground">{project.deployments.activeCount} active</span>}
                 <Check className="h-4 w-4 shrink-0 opacity-0 group-aria-[current=page]:opacity-100" aria-hidden="true" />
               </Link>
             </DropdownMenuItem>

@@ -11,10 +11,8 @@ import styles from "./ProjectFolder.module.css";
 
 export const DEPLOYMENT_STATUS_TONES: Record<ProjectDeploymentStatus, { label: string; color: string }> = {
   running: { label: "Running", color: "#0E9F6E" },
-  spinning: { label: "Spinning up", color: "#2563EB" },
-  degraded: { label: "Degraded", color: "#DC2626" },
-  reclaiming: { label: "Reclaiming", color: "#D97706" },
-  closed: { label: "Closed", color: "hsl(var(--muted-foreground))" }
+  pending: { label: "Spinning up", color: "#2563EB" },
+  degraded: { label: "Degraded", color: "#DC2626" }
 };
 
 /** Rest tilt and shift of a filed sheet, indexed by its distance from the front of the folder. */
@@ -36,8 +34,8 @@ interface Props {
 
 /** A project drawn as a folder with its active deployments filed inside; hovering or focusing it tips the folder open. */
 export function ProjectFolder({ project, onOpen, onSelectDeployment, onNewDeployment, menu }: Props) {
-  const activeCount = project.deploymentSummary?.activeCount;
-  const { sheets, bulkEdges } = selectFolderSheets(project.deploymentSummary);
+  const activeCount = project.deployments?.activeCount;
+  const { sheets, bulkEdges } = selectFolderSheets(project.deployments);
 
   const openOnEnterOrSpace = (event: KeyboardEvent<HTMLDivElement>) => {
     if (event.target !== event.currentTarget) return;
@@ -102,7 +100,7 @@ export function ProjectFolder({ project, onOpen, onSelectDeployment, onNewDeploy
               >
                 <span className={styles.sheetHead}>
                   <span className={styles.dot} />
-                  <span className={styles.sheetName}>{sheet.deployment.name}</span>
+                  <span className={styles.sheetName}>{sheet.deployment.name || `Deployment #${sheet.deployment.dseq}`}</span>
                   {hasProblem && <span className={styles.sheetStatus}>{tone.label}</span>}
                 </span>
               </span>
@@ -129,7 +127,7 @@ export function ProjectFolder({ project, onOpen, onSelectDeployment, onNewDeploy
   );
 }
 
-/** An unknown count (not read yet, or the read failed) says nothing rather than claiming the project is empty. */
+/** An unknown count (hidden from the caller, or too many to count) says nothing rather than claiming the project is empty. */
 function describeActiveCount(activeCount: number | undefined): string {
   if (activeCount === undefined) return "";
   return activeCount > 0 ? `${activeCount} active · ` : "Empty · ";

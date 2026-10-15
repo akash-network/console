@@ -6,6 +6,7 @@ import { ProjectSwitcher } from "./ProjectSwitcher";
 
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { buildProject } from "@tests/seeders/project";
 
 describe(ProjectSwitcher.name, () => {
   it("titles the page with the current project", () => {
@@ -14,7 +15,7 @@ describe(ProjectSwitcher.name, () => {
     expect(screen.getByRole("heading", { level: 1, name: "storefront" })).toBeInTheDocument();
   });
 
-  it("lists the organization's projects, most recently active first, marking the current one", async () => {
+  it("lists the organization's projects in the order the api ranks them, marking the current one", async () => {
     setup({});
 
     await userEvent.click(screen.getByRole("button", { name: "storefront" }));
@@ -72,8 +73,8 @@ describe(ProjectSwitcher.name, () => {
   function setup(input: { currentProjectName?: string; withDefaultProject?: boolean; canCreateProject?: boolean }) {
     const onNewProject = vi.fn();
     const projects = [
-      project("storefront", { createdAt: "2026-01-01T12:00:00.000Z" }),
-      project("marketing", { createdAt: "2026-03-01T12:00:00.000Z", deploymentSummary: { activeCount: 2, preview: [] } }),
+      project("marketing", { createdAt: "2026-01-01T12:00:00.000Z", deployments: { activeCount: 2, preview: [] } }),
+      project("storefront", { createdAt: "2026-03-01T12:00:00.000Z" }),
       ...(input.withDefaultProject ? [project("default", { isDefault: true })] : [])
     ];
     const currentProject = projects.find(candidate => candidate.name === (input.currentProjectName ?? "storefront")) as Project;
@@ -91,6 +92,6 @@ describe(ProjectSwitcher.name, () => {
   }
 
   function project(name: string, overrides: Partial<Project> = {}): Project {
-    return { id: name, name, slug: name, description: null, isDefault: false, createdAt: "2025-01-01T12:00:00.000Z", createdBy: null, ...overrides };
+    return buildProject({ id: name, name, createdAt: "2025-01-01T12:00:00.000Z", deployments: null, ...overrides });
   }
 });

@@ -13644,6 +13644,31 @@ export interface operations {
                 id: string;
                 username: string | null;
               } | null;
+              /**
+               * Format: date-time
+               * @description The later of the project's creation and its newest activity the caller may read, such as a deployment created, closed or moved in.
+               */
+              lastActivityAt: string;
+              /** @description Null when the caller may not read the project's deployments, or when too many are open to count. */
+              deployments: {
+                activeCount: number;
+                /** @description The newest few active deployments, newest first. */
+                preview: {
+                  dseq: string;
+                  name: string | null;
+                  /**
+                   * @description `running` holds an open lease, `pending` holds no lease yet, `degraded` lost every lease it had while staying open.
+                   * @enum {string}
+                   */
+                  status: "pending" | "running" | "degraded";
+                }[];
+              } | null;
+              access: {
+                /** @description Whether the caller may deploy into the project and change its deployments. */
+                canDeploy: boolean;
+                /** @description Whether the caller may rename the project and decide who else reaches it. */
+                canManage: boolean;
+              };
             }[];
           };
         };

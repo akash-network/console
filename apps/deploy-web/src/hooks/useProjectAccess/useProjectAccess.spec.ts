@@ -2,22 +2,22 @@ import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { OrganizationRole } from "@src/types/organization";
-import type { Project, ProjectRole } from "@src/types/project";
+import type { Project } from "@src/types/project";
 import type { DEPENDENCIES } from "./useProjectAccess";
 import { useProjectAccess } from "./useProjectAccess";
 
 import { act, renderHook } from "@testing-library/react";
+import { buildProject } from "@tests/seeders/project";
 
 describe(useProjectAccess.name, () => {
   it("allows everything and reads nothing while organizations are off", () => {
-    const { result, useProjectsQuery, useProjectRolesOfUser } = setup({ isOrganizationsEnabled: false, role: "viewer", projects: [] });
+    const { result, useProjectsQuery } = setup({ isOrganizationsEnabled: false, role: "viewer", projects: [] });
 
     expect(result.current.isLoading).toBe(false);
     expect(result.current.hasNoProjects).toBe(false);
     expect(result.current.canManageDeployments("storefront")).toBe(true);
     expect(result.current.canDeployAnywhere).toBe(true);
     expect(useProjectsQuery).toHaveBeenCalledWith({ enabled: false });
-    expect(useProjectRolesOfUser).toHaveBeenCalledWith(expect.any(Array), "user-1", { enabled: false });
   });
 
   it("allows everything in an organization that does not use projects", () => {
@@ -37,8 +37,8 @@ describe(useProjectAccess.name, () => {
     expect(result.current.canDeployAnywhere).toBe(false);
   });
 
-  it.each(["owner", "admin"] as const)("lets an %s manage every project without reading any grant", role => {
-    const { result, useProjectsQuery, useProjectRolesOfUser } = setup({ role });
+  it.each(["owner", "admin"] as const)("lets an %s manage every project without reading the projects", role => {
+    const { result, useProjectsQuery } = setup({ role });
 
     expect(result.current.isLoading).toBe(false);
     expect(result.current.canManageDeployments("storefront")).toBe(true);
@@ -46,27 +46,19 @@ describe(useProjectAccess.name, () => {
     expect(result.current.canManageAccess("storefront")).toBe(true);
     expect(result.current.canDeployAnywhere).toBe(true);
     expect(useProjectsQuery).toHaveBeenCalledWith({ enabled: false });
-    expect(useProjectRolesOfUser).toHaveBeenCalledWith(expect.any(Array), "user-1", { enabled: false });
   });
 
-  it.each(["viewer", "billing"] as const)("lets an organization %s only look, whatever they were granted", role => {
-    const { result, useProjectsQuery, useProjectRolesOfUser } = setup({ role, grants: { storefront: "admin" } });
+  it.each(["member", "viewer", "billing"] as const)("reads what an organization %s may do from the project list", role => {
+    const { useProjectsQuery } = setup({ role });
 
-    expect(result.current.canManageDeployments("storefront")).toBe(false);
-    expect(result.current.canManageAccess("storefront")).toBe(false);
-    expect(result.current.canDeployAnywhere).toBe(false);
     expect(useProjectsQuery).toHaveBeenCalledWith({ enabled: true });
-    expect(useProjectRolesOfUser).toHaveBeenCalledWith(["storefront", "marketing"], "user-1", { enabled: false });
   });
 
-  it("reads an organization member's grant in every project they reach", () => {
-    const { useProjectRolesOfUser } = setup({ role: "member", grants: { storefront: "member" } });
-
-    expect(useProjectRolesOfUser).toHaveBeenCalledWith(["storefront", "marketing"], "user-1", { enabled: true });
-  });
-
-  it("lets an organization member manage deployments only where their grant is member or admin", () => {
-    const { result } = setup({ role: "member", grants: { storefront: "member", marketing: "viewer", internal: "admin" } });
+  it("lets the caller manage deployments only where the list says it may deploy", () => {
+    const { result } = setup({
+      role: "member",
+      projects: [project("storefront", { canDeploy: true }), project("internal", { canDeploy: true, canManage: true }), project("marketing", {})]
+    });
 
     expect(result.current.canManageDeployments("storefront")).toBe(true);
     expect(result.current.canManageDeployments("internal")).toBe(true);
@@ -76,23 +68,28 @@ describe(useProjectAccess.name, () => {
     expect(result.current.canManageDeployments(undefined)).toBe(false);
   });
 
-  it("lets an organization member manage access only to projects they administer", () => {
-    const { result } = setup({ role: "member", grants: { storefront: "member", internal: "admin" } });
+  it("lets the caller manage access only to the projects the list says it manages", () => {
+    const { result } = setup({
+      role: "member",
+      projects: [project("storefront", { canDeploy: true }), project("internal", { canDeploy: true, canManage: true })]
+    });
 
     expect(result.current.canManageAccess("internal")).toBe(true);
     expect(result.current.canManageAccess("storefront")).toBe(false);
+    expect(result.current.canManageAccess("ungranted")).toBe(false);
   });
 
-  it("knows when an organization member may deploy into at least one project", () => {
-    const { result } = setup({ role: "member", grants: { marketing: "member" } });
+  it("knows when the caller may deploy into at least one project", () => {
+    const { result } = setup({ role: "member", projects: [project("storefront", {}), project("marketing", { canDeploy: true })] });
 
     expect(result.current.canDeployAnywhere).toBe(true);
   });
 
-  it("knows when an organization member may only look at every project", () => {
-    const { result } = setup({ role: "member", grants: { storefront: "viewer", marketing: "viewer" } });
+  it("knows when the caller may only look at every project", () => {
+    const { result } = setup({ role: "viewer", projects: [project("storefront", {}), project("marketing", {})] });
 
     expect(result.current.canDeployAnywhere).toBe(false);
+    expect(result.current.canManageDeployments("storefront")).toBe(false);
   });
 
   it("knows when a caller who reaches projects only through grants holds none", () => {
@@ -115,7 +112,7 @@ describe(useProjectAccess.name, () => {
   });
 
   it("says the projects could not be read, denies everything until then, and reads them again on retry", () => {
-    const { result, refetchProjects } = setup({ role: "member", projects: null, isProjectsError: true, grants: { storefront: "admin" } });
+    const { result, refetchProjects } = setup({ role: "member", projects: null, isProjectsError: true });
 
     expect(result.current).toMatchObject({ isLoading: false, isError: true, canDeployAnywhere: false });
     expect(result.current.canManageDeployments("storefront")).toBe(false);
@@ -126,28 +123,10 @@ describe(useProjectAccess.name, () => {
   });
 
   it("keeps the projects it read when a later read of them fails", () => {
-    const { result } = setup({ role: "member", isProjectsError: true, grants: { storefront: "member" } });
+    const { result } = setup({ role: "member", isProjectsError: true, projects: [project("storefront", { canDeploy: true })] });
 
     expect(result.current.isError).toBe(false);
     expect(result.current.canManageDeployments("storefront")).toBe(true);
-  });
-
-  it("says an organization member's grants could not be read, keeps the ones it read, and reads them again on retry", () => {
-    const { result, retryGrants } = setup({ role: "member", isGrantsError: true, grants: { storefront: "member" } });
-
-    expect(result.current).toMatchObject({ isLoading: false, isError: true });
-    expect(result.current.canManageDeployments("storefront")).toBe(true);
-    expect(result.current.canManageDeployments("marketing")).toBe(false);
-
-    act(() => result.current.retry());
-
-    expect(retryGrants).toHaveBeenCalledTimes(1);
-  });
-
-  it("ignores failed grant reads for a role that never reads grants", () => {
-    const { result } = setup({ role: "viewer", isGrantsError: true });
-
-    expect(result.current.isError).toBe(false);
   });
 
   it.each([
@@ -174,18 +153,9 @@ describe(useProjectAccess.name, () => {
     expect(result.current.canDeployAnywhere).toBe(false);
   });
 
-  it("decides nothing while an organization member's grants are loading", () => {
-    const { result } = setup({ role: "member", isLoadingGrants: true, grants: { storefront: "admin" } });
-
-    expect(result.current.isLoading).toBe(true);
-    expect(result.current.canManageDeployments("storefront")).toBe(false);
-  });
-
-  it("does not wait for grants it never reads", () => {
-    const { result } = setup({ role: "viewer", isLoadingGrants: true });
-
-    expect(result.current.isLoading).toBe(false);
-  });
+  function project(id: string, access: Partial<Project["access"]>): Project {
+    return buildProject({ id, access: { canDeploy: false, canManage: false, ...access } });
+  }
 
   function setup(input: {
     role: OrganizationRole;
@@ -193,13 +163,10 @@ describe(useProjectAccess.name, () => {
     projectsEnabled?: boolean;
     isLoadingOrganization?: boolean;
     isLoadingProjects?: boolean;
-    isLoadingGrants?: boolean;
     isProjectsError?: boolean;
-    isGrantsError?: boolean;
-    grants?: Record<string, ProjectRole>;
     projects?: Project[] | null;
   }) {
-    const projects = input.projects === null ? undefined : input.projects ?? [mock<Project>({ id: "storefront" }), mock<Project>({ id: "marketing" })];
+    const projects = input.projects === null ? undefined : input.projects ?? [project("storefront", {}), project("marketing", {})];
     const refetchProjects = vi.fn();
     const useProjectsQuery = vi.fn<typeof DEPENDENCIES.useProjectsQuery>(() =>
       input.isLoadingProjects
@@ -211,13 +178,6 @@ describe(useProjectAccess.name, () => {
             refetch: refetchProjects
           })
     );
-    const retryGrants = vi.fn();
-    const useProjectRolesOfUser = vi.fn<typeof DEPENDENCIES.useProjectRolesOfUser>(() => ({
-      isLoading: input.isLoadingGrants ?? false,
-      isError: input.isGrantsError ?? false,
-      retry: retryGrants,
-      rolesByProjectId: new Map(Object.entries(input.grants ?? {}))
-    }));
     const dependencies: typeof DEPENDENCIES = {
       useFlag: flag => flag === "organizations" && (input.isOrganizationsEnabled ?? true),
       useActiveOrganization: () =>
@@ -226,13 +186,11 @@ describe(useProjectAccess.name, () => {
           isLoading: input.isLoadingOrganization ?? false,
           projectsEnabled: input.projectsEnabled ?? true
         }),
-      useUser: () => mock<ReturnType<typeof DEPENDENCIES.useUser>>({ user: { id: "user-1" } }),
-      useProjectsQuery,
-      useProjectRolesOfUser
+      useProjectsQuery
     };
 
     const hook = renderHook(() => useProjectAccess(dependencies));
 
-    return { ...hook, useProjectsQuery, useProjectRolesOfUser, refetchProjects, retryGrants };
+    return { ...hook, useProjectsQuery, refetchProjects };
   }
 });

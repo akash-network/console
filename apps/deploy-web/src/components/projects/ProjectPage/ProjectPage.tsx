@@ -12,7 +12,7 @@ import { useActiveOrganization } from "@src/context/OrganizationProvider/Organiz
 import { useFlag } from "@src/hooks/useFlag";
 import { useOrganizationActivitiesQuery } from "@src/queries/useOrganizationActivitiesQuery";
 import { useProjectsQuery } from "@src/queries/useProjectsQuery";
-import type { Project } from "@src/types/project";
+import type { ProjectRecord } from "@src/types/project";
 import { UrlService } from "@src/utils/urlUtils";
 import { NewProjectModal } from "../NewProjectModal/NewProjectModal";
 import { ProjectBudgetPanel } from "../ProjectBudgetPanel/ProjectBudgetPanel";
@@ -83,7 +83,7 @@ function ProjectPageContent({ projectId, dependencies: d }: Required<Props>) {
   }
   if (!project) return <d.NotFoundPage />;
 
-  const openCreatedProject = (createdProject: Project) => {
+  const openCreatedProject = (createdProject: ProjectRecord) => {
     setIsCreatingProject(false);
     router.push(UrlService.project(createdProject.id));
   };

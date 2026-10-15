@@ -15,6 +15,7 @@ import {
 } from "./useProjectsQuery";
 
 import { act, waitFor } from "@testing-library/react";
+import { buildProject } from "@tests/seeders/project";
 import { type RenderAppHookOptions, setupQuery } from "@tests/unit/query-client";
 
 type ApiService = ReturnType<NonNullable<NonNullable<RenderAppHookOptions["services"]>["api"]>>;
@@ -112,5 +113,5 @@ describe(isProjectNameTakenError.name, () => {
 });
 
 function project(name: string): Project {
-  return { id: name, name, slug: name, description: null, isDefault: name === "default", createdAt: "2026-01-01T00:00:00.000Z", createdBy: null };
+  return buildProject({ id: name, name, isDefault: name === "default", createdAt: "2026-01-01T00:00:00.000Z", createdBy: null });
 }

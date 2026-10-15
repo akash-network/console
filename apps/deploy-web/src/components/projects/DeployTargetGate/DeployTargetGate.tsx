@@ -11,7 +11,7 @@ import { useProjectsUi } from "@src/hooks/useProjectsUi/useProjectsUi";
 import { useDeploymentLocationQuery } from "@src/queries/useDeploymentProjectQueries";
 import { useProjectsQuery } from "@src/queries/useProjectsQuery";
 import { deployTargetProjectIdAtom } from "@src/store/deployTargetStore";
-import type { Project } from "@src/types/project";
+import type { ProjectRecord } from "@src/types/project";
 import { UrlService } from "@src/utils/urlUtils";
 import { ChooseProjectModal } from "../ChooseProjectModal/ChooseProjectModal";
 
@@ -159,7 +159,7 @@ export function DeployTargetGate({ filedDseq, fallback, children, dependencies: 
           notice={notice}
           isUnreadable={isUnreadable}
           onRetry={retry}
-          onChosen={(chosen: Project) => chooseProject(chosen.id)}
+          onChosen={(chosen: ProjectRecord) => chooseProject(chosen.id)}
           onCancel={leavePicker}
         />
       )}

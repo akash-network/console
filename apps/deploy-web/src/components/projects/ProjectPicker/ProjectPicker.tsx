@@ -32,9 +32,7 @@ export function ProjectPicker({ projects, value, onChange, newProject, unavailab
           <RadioGroupItem value={project.id} aria-label={project.name} disabled={project.id === unavailableProjectId} />
           <ProjectGlyph name={project.name} size={26} />
           <span className="min-w-0 flex-1 truncate text-sm font-semibold">{project.name}</span>
-          {project.deploymentSummary?.activeCount !== undefined && (
-            <span className="whitespace-nowrap text-[12.5px] text-muted-foreground">{project.deploymentSummary.activeCount} active</span>
-          )}
+          {project.deployments && <span className="whitespace-nowrap text-[12.5px] text-muted-foreground">{project.deployments.activeCount} active</span>}
         </label>
       ))}
 
