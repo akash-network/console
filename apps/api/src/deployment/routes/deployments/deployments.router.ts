@@ -760,7 +760,8 @@ const getWeeklyDeploymentCostRoute = createRoute({
   security: SECURITY_BEARER_OR_API_KEY,
   responses: {
     200: {
-      description: "Returns weekly cost for all deployments with auto top-up enabled",
+      description:
+        "Returns the weekly cost of the deployments with auto top-up enabled, limited to the caller's projects unless the caller may read the organization's whole spend",
       content: {
         "application/json": {
           schema: GetWeeklyDeploymentCostResponseSchema
@@ -784,7 +785,8 @@ const getSpendRateRoute = createRoute({
   security: SECURITY_BEARER_OR_API_KEY,
   responses: {
     200: {
-      description: "Returns the summed price per block of the live leases of each deployment of the wallet the request acts through, within the caller's projects",
+      description:
+        "Returns the summed price per block of the live leases of each deployment of the wallet the request acts through, limited to the caller's projects unless the caller may read the organization's whole spend",
       content: {
         "application/json": {
           schema: GetSpendRateResponseSchema

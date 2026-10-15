@@ -19503,7 +19503,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                 },
               },
             },
-            "description": "Returns the summed price per block of the live leases of each deployment of the wallet the request acts through, within the caller's projects",
+            "description": "Returns the summed price per block of the live leases of each deployment of the wallet the request acts through, limited to the caller's projects unless the caller may read the organization's whole spend",
           },
           "403": {
             "content": {
@@ -21818,7 +21818,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                     "data": {
                       "properties": {
                         "weeklyCost": {
-                          "description": "Total weekly cost in USD for all deployments with auto top-up enabled",
+                          "description": "Total weekly cost in USD of the deployments with auto top-up enabled whose spend the caller may read",
                           "type": "number",
                         },
                       },
@@ -21835,7 +21835,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                 },
               },
             },
-            "description": "Returns weekly cost for all deployments with auto top-up enabled",
+            "description": "Returns the weekly cost of the deployments with auto top-up enabled, limited to the caller's projects unless the caller may read the organization's whole spend",
           },
         },
         "security": [

@@ -1,4 +1,3 @@
-import { AnyAbility } from "@casl/ability";
 import { millisecondsInHour, minutesInHour } from "date-fns/constants";
 import keyBy from "lodash/keyBy";
 import { inject, singleton } from "tsyringe";
@@ -27,6 +26,8 @@ export type WeeklyCoverage = {
 };
 
 export type WeeklyBurnSource = Pick<DrainingDeployment, "blockRate"> & Partial<Pick<AutoTopUpDeployment, "runtimeLimitHours" | "runtimeEndsAt">>;
+
+export type DseqFilter = (dseqs: string[]) => Promise<string[]>;
 
 export type AutoTopUpOwnerDeployments = {
   address: string;
@@ -409,19 +410,6 @@ export class DrainingDeploymentService {
     });
   }
 
-  /** CASL scopes only the wallet lookup; the coverage query below is unscoped, which the already-proven-owned address makes safe. */
-  async calculateWeeklyDeploymentCost(userId: string, ability: AnyAbility): Promise<number> {
-    const userWallet = await this.userWalletRepository.accessibleBy(ability, "read").findOneUsedBy(userId);
-
-    if (!userWallet?.address) {
-      return 0;
-    }
-
-    const { weeklyCostUsd } = await this.calculateWeeklyCoverageForAddress(userWallet.address);
-
-    return weeklyCostUsd;
-  }
-
   /**
    * Weekly auto-top-up coverage for an address, in USD.
    * Caps each runtime-limited deployment at remaining hours (or the unanchored
@@ -429,11 +417,12 @@ export class DrainingDeploymentService {
    * `cumulativeDailyCostsUsd[d - 1]` is what the first `d` days of that coverage cost, so a
    * balance can be translated into covered days without assuming the capped weekly total
    * is a uniform seven-day burn rate.
-   * Not CASL-scoped — the credits-low job calls this with the wallet address.
+   * Not CASL-scoped: the credits-low job calls this with the wallet address, and a caller
+   * limited to some of the address's deployments narrows it with `keepDseqs`.
    * Bills a deployment whose escrow has run dry too, since it keeps running on auto top-up.
    */
-  async calculateWeeklyCoverageForAddress(address: string): Promise<WeeklyCoverage> {
-    const deploymentSettings = await this.#findAutoTopUpDeploymentSettings(address);
+  async calculateWeeklyCoverageForAddress(address: string, keepDseqs?: DseqFilter): Promise<WeeklyCoverage> {
+    const deploymentSettings = await this.#keepSettings(await this.#findAutoTopUpDeploymentSettings(address), keepDseqs);
     if (deploymentSettings.length === 0) {
       this.loggerService.info({ event: "WEEKLY_COVERAGE_CALCULATED", address, settingCount: 0, leaseRateCount: 0, leaseRateTotal: 0, weeklyCredits: 0 });
       return { weeklyCostUsd: 0, cumulativeDailyCostsUsd: [], hasAutoTopUpSettings: false };
@@ -537,6 +526,16 @@ export class DrainingDeploymentService {
     }
 
     return this.deploymentSettingRepository.findAutoTopUpDeploymentsByOwner(address);
+  }
+
+  async #keepSettings(deploymentSettings: AutoTopUpDeployment[], keepDseqs: DseqFilter | undefined): Promise<AutoTopUpDeployment[]> {
+    if (!keepDseqs) {
+      return deploymentSettings;
+    }
+
+    const kept = new Set(await keepDseqs(deploymentSettings.map(({ dseq }) => dseq)));
+
+    return deploymentSettings.filter(({ dseq }) => kept.has(dseq));
   }
 
   /**

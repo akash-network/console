@@ -670,7 +670,7 @@ export const GetDeploymentByOwnerDseqResponseSchema = z.object({
 
 export const GetWeeklyDeploymentCostResponseSchema = z.object({
   data: z.object({
-    weeklyCost: z.number().describe("Total weekly cost in USD for all deployments with auto top-up enabled")
+    weeklyCost: z.number().describe("Total weekly cost in USD of the deployments with auto top-up enabled whose spend the caller may read")
   })
 });
 
