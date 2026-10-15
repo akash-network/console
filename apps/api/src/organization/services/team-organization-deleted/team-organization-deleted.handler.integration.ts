@@ -9,7 +9,7 @@ import { TeamOrganizationDeleted, TeamOrganizationDeletedHandler } from "./team-
 
 import { seedOrganization, seedOrganizationMember } from "@test/seeders/db/organization.seeder";
 import { seedUser } from "@test/seeders/db/user-with-wallet.seeder";
-import { expectJobCompleted, findJobRows, useJobWorkers } from "@test/services/job-queue-harness";
+import { expectJobCompleted, findJobRows, makeJobDue, useJobWorkers } from "@test/services/job-queue-harness";
 
 const STRIPE_API = "https://api.stripe.com";
 const NOTIFICATION_PATH = "/internal/v1/jobs/notification";
@@ -87,23 +87,30 @@ describe(TeamOrganizationDeletedHandler.name, () => {
     expect(notifications).toEqual([]);
   });
 
-  it("retries a failed card removal, while the members are already told", async () => {
+  it("retries a failed card removal before telling anyone, then tells each member once", async () => {
     const { team, owner, customerId, answerNotifications, startCleanup } = await setup();
+    const stripe = { isUp: false };
     nock(STRIPE_API)
       .persist()
       .get("/v1/payment_methods")
       .query({ customer: customerId, limit: "100" })
-      .reply(500, { error: { type: "api_error" } });
+      .reply(() => (stripe.isUp ? [200, { object: "list", data: [], has_more: false }] : [500, { error: { type: "api_error" } }]));
     const notifications = answerNotifications();
+    const selector = { data: { organizationId: team.id } };
 
     await startCleanup({ organizationId: team.id, deletedByUserId: owner.id });
     await vi.waitFor(
       async () => {
-        const [row] = await findJobRows(CLEANUP_JOB, { data: { organizationId: team.id } });
+        const [row] = await findJobRows(CLEANUP_JOB, selector);
         expect(row.state).toBe("retry");
       },
       { timeout: 20_000, interval: 250 }
     );
+    expect(notifications).toEqual([]);
+
+    stripe.isUp = true;
+    await makeJobDue(CLEANUP_JOB, selector);
+    await expectJobCompleted(CLEANUP_JOB, selector);
 
     expect(notifications).toHaveLength(2);
   });

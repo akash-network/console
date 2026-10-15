@@ -2,7 +2,6 @@ import escapeHtml from "lodash/escape";
 
 import type { CreateNotificationInput } from "../notification/notification.service";
 
-/** `notificationId` is deterministic per member, so a retried job still sends each of them one email. */
 export function teamOrganizationDeletedNotification(
   user: { id: string; email: string | null },
   vars: { organizationId: string; organizationName: string; deletedByName: string | null | undefined }

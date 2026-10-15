@@ -46,7 +46,7 @@ export class TeamOrganizationDeletedHandler implements JobHandler<TeamOrganizati
     return [];
   }
 
-  /** Both steps are idempotent, so a retry after a partial failure safely repeats the one that already succeeded. */
+  /** Emails go out only once the cards are gone, so a retry after a Stripe failure never emails a member twice. */
   async handle({ organizationId, deletedByUserId }: JobPayload<TeamOrganizationDeleted>): Promise<void> {
     const organization = await this.organizationRepository.findById(organizationId);
 
@@ -55,25 +55,20 @@ export class TeamOrganizationDeletedHandler implements JobHandler<TeamOrganizati
       return;
     }
 
-    const failedSteps: CleanupStep[] = [];
-    const runStep = async (step: CleanupStep, cleanUp: () => Promise<void>) => {
-      try {
-        await cleanUp();
-      } catch (error) {
-        failedSteps.push(step);
-        this.#logger.error({ event: "TEAM_ORGANIZATION_DELETION_CLEANUP_FAILED", organizationId, step, error });
-      }
-    };
-
     const { stripeCustomerId } = organization;
-    if (stripeCustomerId) await runStep("stripe", () => this.customerService.detachPaymentMethods(stripeCustomerId));
-    await runStep("notifications", () => this.#notifyMembers(organization, deletedByUserId));
-
-    if (failedSteps.length > 0) {
-      throw new Error(`Team organization cleanup failed at: ${failedSteps.join(", ")}`);
-    }
+    if (stripeCustomerId) await this.#runStep(organizationId, "stripe", () => this.customerService.detachPaymentMethods(stripeCustomerId));
+    await this.#runStep(organizationId, "notifications", () => this.#notifyMembers(organization, deletedByUserId));
 
     this.#logger.info({ event: "TEAM_ORGANIZATION_DELETION_CLEANUP_COMPLETED", organizationId });
+  }
+
+  async #runStep(organizationId: string, step: CleanupStep, cleanUp: () => Promise<void>): Promise<void> {
+    try {
+      await cleanUp();
+    } catch (error) {
+      this.#logger.error({ event: "TEAM_ORGANIZATION_DELETION_CLEANUP_FAILED", organizationId, step, error });
+      throw error;
+    }
   }
 
   /** Billing contacts are members too, so every member with an email hears it once, the owner who deleted the team included. */
