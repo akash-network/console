@@ -37,6 +37,34 @@ describe("DeploymentCard", () => {
     expect(DeploymentStatusBadge).toHaveBeenCalledWith(expect.objectContaining({ state: "active", leases }), expect.anything());
   });
 
+  describe("reading the status the way the deployment page does", () => {
+    it("shows the deployment as starting while a service of a live lease has no ready replica", () => {
+      setup({ deployment: { dseq: "100" }, leases: [mock<LeaseDto>({ state: "active" })], reachability: { workload: "starting" }, isRenderingStatus: true });
+
+      expect(screen.getByText("Starting")).toBeInTheDocument();
+      expect(screen.queryByText("Running")).not.toBeInTheDocument();
+    });
+
+    it("shows the deployment as running once every service has a ready replica", () => {
+      setup({ deployment: { dseq: "100" }, leases: [mock<LeaseDto>({ state: "active" })], reachability: { workload: "running" }, isRenderingStatus: true });
+
+      expect(screen.getByText("Running")).toBeInTheDocument();
+    });
+
+    it("warns when a provider stops answering", () => {
+      setup({ deployment: { dseq: "100" }, leases: [mock<LeaseDto>({ state: "active" })], reachability: { workload: "unreachable" }, isRenderingStatus: true });
+
+      expect(screen.getByText("Provider not responding")).toBeInTheDocument();
+      expect(screen.queryByText("Running")).not.toBeInTheDocument();
+    });
+
+    it("falls back to the chain state when the lease status is withheld from this token", () => {
+      setup({ deployment: { dseq: "100" }, leases: [mock<LeaseDto>({ state: "active" })], reachability: { workload: undefined }, isRenderingStatus: true });
+
+      expect(screen.getByText("Running")).toBeInTheDocument();
+    });
+  });
+
   it("passes the resolved reachability to the endpoints view", () => {
     const { DeploymentEndpoints } = setup({
       deployment: { dseq: "100" },
@@ -187,12 +215,14 @@ describe("DeploymentCard", () => {
     isClosing?: boolean;
     onDeploymentClosed?: () => void;
     canManage?: boolean;
+    isRenderingStatus?: boolean;
   }) {
     const leases = input.leases ?? [];
     let endpoints = input.reachability?.endpoints ?? [];
     const useDeploymentReachability = vi.fn<typeof DEPENDENCIES.useDeploymentReachability>(() => ({
       leases,
       isLoadingLeases: false,
+      workload: undefined,
       isLoadingEndpoints: false,
       unreachableReason: null,
       ...input.reachability,
@@ -226,7 +256,7 @@ describe("DeploymentCard", () => {
         onDeploymentClosed={input.onDeploymentClosed}
         dependencies={MockComponents(DEPENDENCIES, {
           useDeploymentReachability,
-          DeploymentStatusBadge,
+          DeploymentStatusBadge: input.isRenderingStatus ? DEPENDENCIES.DeploymentStatusBadge : DeploymentStatusBadge,
           DeploymentEndpoints,
           DeploymentEndpointsPanel,
           DeploymentSpecSummary,

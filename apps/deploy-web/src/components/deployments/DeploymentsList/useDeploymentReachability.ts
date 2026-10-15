@@ -8,7 +8,8 @@ import { useDeploymentLeaseList, useLeaseStatuses } from "@src/queries/useLeaseQ
 import type { DeploymentDto, LeaseDto, ListedDeploymentDto } from "@src/types/deployment";
 import type { ApiProviderList } from "@src/types/provider";
 import { isLeaseLive } from "@src/utils/leaseUtils";
-import { isServiceRunning } from "../DeploymentDetail/DeploymentPlacements/placementModel";
+import type { WorkloadStatus } from "../DeploymentDetail/DeploymentPlacements/placementModel";
+import { isServiceRunning, summarizeWorkloadStatusUnlessWithheld } from "../DeploymentDetail/DeploymentPlacements/placementModel";
 import type { VisitEndpoint } from "../DeploymentDetail/DeploymentVisitControl/visitEndpoints";
 import { collectVisitEndpoints } from "../DeploymentDetail/DeploymentVisitControl/visitEndpoints";
 
@@ -24,6 +25,7 @@ export type UnreachableReason = "not-running" | "starting" | "provider-unreachab
 export interface DeploymentReachability {
   leases: LeaseDto[] | null | undefined;
   isLoadingLeases: boolean;
+  workload: WorkloadStatus | undefined;
   endpoints: VisitEndpoint[];
   isLoadingEndpoints: boolean;
   unreachableReason: UnreachableReason | null;
@@ -72,6 +74,7 @@ export function useDeploymentReachability(params: {
   return {
     leases,
     isLoadingLeases,
+    workload: summarizeWorkloadStatusUnlessWithheld(statuses, isStatusWithheld),
     endpoints,
     isLoadingEndpoints,
     unreachableReason: resolveUnreachableReason({ isLoadingEndpoints, endpoints, liveLeaseCount: liveLeaseItems.length, statuses, isStatusWithheld })

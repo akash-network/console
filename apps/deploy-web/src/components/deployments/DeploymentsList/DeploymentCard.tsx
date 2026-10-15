@@ -50,7 +50,7 @@ export const DeploymentCard: FC<DeploymentCardProps> = ({
   onDeploymentClosed,
   dependencies: d = DEPENDENCIES
 }) => {
-  const { leases, endpoints, isLoadingEndpoints, unreachableReason } = d.useDeploymentReachability({ deployment, providers });
+  const { leases, workload, endpoints, isLoadingEndpoints, unreachableReason } = d.useDeploymentReachability({ deployment, providers });
   const [isShowingEndpoints, setIsShowingEndpoints] = useState(false);
   const toggleEndpoints = () => setIsShowingEndpoints(current => !current);
   /** Endpoints can drop below the count that draws the toggle while the panel is open, which would strand it with nothing left to close it. */
@@ -68,7 +68,7 @@ export const DeploymentCard: FC<DeploymentCardProps> = ({
           </div>
 
           <div className="flex shrink-0 flex-wrap items-center justify-end gap-1.5">
-            <d.DeploymentStatusBadge state={deployment.state} leases={leases} isSummarized isClosing={isClosing} />
+            <d.DeploymentStatusBadge state={deployment.state} leases={leases} isSummarized isClosing={isClosing} workload={workload} />
             <d.DeploymentBadges deployment={deployment} />
           </div>
         </div>
