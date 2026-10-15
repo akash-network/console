@@ -46,8 +46,17 @@ export const OrganizationParamsSchema = z.object({
   id: z.string().uuid()
 });
 
+export const DeleteOrganizationQuerySchema = z.object({
+  acknowledgedForfeitUsd: z.coerce.number().min(0).optional().default(0).openapi({
+    type: "number",
+    description: "The credits, in USD, the owner was shown and agreed to forfeit; deleting is refused while the organization holds more.",
+    example: 12.5
+  })
+});
+
 export type OrganizationResponse = z.infer<typeof OrganizationSchema>;
 export type ListOrganizationsResponse = z.infer<typeof ListOrganizationsResponseSchema>;
 export type SingleOrganizationResponse = z.infer<typeof OrganizationResponseSchema>;
 export type CreateOrganizationRequest = z.infer<typeof CreateOrganizationRequestSchema>;
 export type UpdateOrganizationRequest = z.infer<typeof UpdateOrganizationRequestSchema>;
+export type DeleteOrganizationQuery = z.output<typeof DeleteOrganizationQuerySchema>;

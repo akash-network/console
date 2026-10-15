@@ -7,6 +7,7 @@ import { SECURITY_BEARER, SECURITY_BEARER_OR_API_KEY } from "@src/core/services/
 import { OrganizationController } from "@src/organization/controllers/organization/organization.controller";
 import {
   CreateOrganizationRequestSchema,
+  DeleteOrganizationQuerySchema,
   ListOrganizationsResponseSchema,
   OrganizationParamsSchema,
   OrganizationResponseSchema,
@@ -94,4 +95,37 @@ organizationsRouter.openapi(updateOrganizationRoute, async function routeUpdateO
   const { data } = c.req.valid("json");
 
   return c.json(await container.resolve(OrganizationController).update(id, data), 200);
+});
+
+const deleteOrganizationRoute = createRoute({
+  method: "delete",
+  path: "/v1/organizations/{id}",
+  operationId: "deleteOrganization",
+  summary: "Delete the active team organization, forfeiting its remaining credits, once none of its deployments is running",
+  tags: ["Organizations"],
+  security: SECURITY_BEARER,
+  featureFlag: FeatureFlags.ORGANIZATIONS,
+  request: {
+    params: OrganizationParamsSchema,
+    query: DeleteOrganizationQuerySchema
+  },
+  responses: {
+    204: { description: "The organization was deleted" },
+    400: { description: "The organization holds more credits than the owner acknowledged forfeiting (`forfeit_acknowledgement_required`)" },
+    401: { description: "Unauthorized" },
+    403: {
+      description:
+        "The caller is not an owner, the organization is a personal one (`personal_organization`), or the request was not made from a signed-in session (`session_required`)"
+    },
+    404: { description: "The organization is not the active one" },
+    409: { description: "Deployments of the organization are still running or being created (`active_deployments`)" }
+  }
+});
+
+organizationsRouter.openapi(deleteOrganizationRoute, async function routeDeleteOrganization(c) {
+  const { id } = c.req.valid("param");
+
+  await container.resolve(OrganizationController).delete(id, c.req.valid("query"), { authMethod: c.get("authMethod") });
+
+  return c.body(null, 204);
 });

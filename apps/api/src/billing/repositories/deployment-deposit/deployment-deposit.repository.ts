@@ -80,6 +80,17 @@ export class DeploymentDepositRepository extends OrgScopedRepository<Table, Depl
     return this.toOutputList(rows);
   }
 
+  /** The deployments an organization's wallet is still signing deposits into, which the chain may not show yet. */
+  async findPendingDseqsOf(organizationId: string): Promise<string[]> {
+    const rows = await this.cursor
+      .selectDistinct({ dseq: this.table.dseq })
+      .from(this.table)
+      .where(this.whereInOrganization(and(eq(this.table.organizationId, organizationId), eq(this.table.status, "pending"))))
+      .orderBy(asc(this.table.dseq));
+
+    return rows.map(({ dseq }) => dseq);
+  }
+
   /** Held until the transaction ends, so two checks of the same deployment claim its chain deposits one after the other. */
   async lockDeployment({ owner, dseq }: Pick<DeploymentDepositOutput, "owner" | "dseq">): Promise<void> {
     await this.cursor.execute(sql`select pg_advisory_xact_lock(${DEPLOYMENT_CLAIM_LOCK_NAMESPACE}, hashtext(${owner} || '/' || ${dseq}))`);
