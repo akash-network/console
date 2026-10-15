@@ -2119,6 +2119,46 @@ describe(ManagedSignerService.name, () => {
     });
   });
 
+  describe("assertDeploymentsInProjectScope", () => {
+    const viewerScoped = createOrganizationContext({ role: "viewer", projectScope: createProjectsScope(["project-a"], { writableProjectIds: [] }) });
+
+    it("lets a caller read a deployment every row of which lies in the projects they may read", async () => {
+      const { service, deploymentSettingRepository, authService, wallet } = setupForTeam({
+        organizationContext: viewerScoped,
+        filedIds: ["setting-1"],
+        reachableIds: ["setting-1"]
+      });
+
+      await expect(service.assertDeploymentsInProjectScope(wallet, ["123"], "read")).resolves.toBeUndefined();
+      expect(deploymentSettingRepository.accessibleBy).toHaveBeenCalledWith(authService.ability, "read");
+    });
+
+    it("refuses to let a caller read a deployment outside the projects they may read", async () => {
+      const { service, wallet } = setupForTeam({ organizationContext: viewerScoped, filedIds: ["setting-1"], reachableIds: [] });
+
+      await expect(service.assertDeploymentsInProjectScope(wallet, ["123"], "read")).rejects.toMatchObject({
+        status: 403,
+        errorCode: "project_forbidden",
+        message: "This deployment is outside the projects you can view"
+      });
+    });
+
+    it("checks what the caller may manage unless told otherwise", async () => {
+      const { service, deploymentSettingRepository, authService, wallet } = setupForTeam({
+        organizationContext: viewerScoped,
+        filedIds: ["setting-1"],
+        reachableIds: []
+      });
+
+      await expect(service.assertDeploymentsInProjectScope(wallet, ["123"])).rejects.toMatchObject({
+        status: 403,
+        errorCode: "project_forbidden",
+        message: "This deployment is outside the projects you can manage"
+      });
+      expect(deploymentSettingRepository.accessibleBy).toHaveBeenCalledWith(authService.ability, "update");
+    });
+  });
+
   describe("filedUserIdOf", () => {
     const projectScoped = createOrganizationContext({ role: "member", projectScope: createProjectsScope(["project-a"]) });
 

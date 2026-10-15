@@ -72,6 +72,10 @@ const MESSAGE_SIGNER_MISMATCH_ERROR_CODE = "message_signer_mismatch";
 const UNFUNDED_WALLET_MESSAGE = "This wallet has not been funded yet. Add credits to continue.";
 const INSUFFICIENT_BALANCE_ERROR_CODE = "insufficient_balance";
 const BALANCE_TOP_UP_PENDING_ERROR_CODE = "balance_top_up_pending";
+const OUTSIDE_PROJECT_SCOPE_MESSAGES = {
+  read: "This deployment is outside the projects you can view",
+  update: "This deployment is outside the projects you can manage"
+};
 
 type DepositRefusal = {
   reloadScheduled: boolean;
@@ -435,10 +439,10 @@ export class ManagedSignerService {
   }
 
   /** The organization's wallet signs for every project, so a caller limited to some projects may only act on a deployment every row of which is filed in them. */
-  async assertDeploymentsInProjectScope(userWallet: UserWalletOutput, dseqs: readonly string[]): Promise<void> {
+  async assertDeploymentsInProjectScope(userWallet: UserWalletOutput, dseqs: readonly string[], action: "read" | "update" = "update"): Promise<void> {
     for (const dseq of new Set(dseqs)) {
-      if (!(await this.isDeploymentInProjectScope(userWallet, dseq, "update"))) {
-        throw createError(403, "This deployment is outside the projects you can manage", { errorCode: PROJECT_FORBIDDEN_ERROR_CODE });
+      if (!(await this.isDeploymentInProjectScope(userWallet, dseq, action))) {
+        throw createError(403, OUTSIDE_PROJECT_SCOPE_MESSAGES[action], { errorCode: PROJECT_FORBIDDEN_ERROR_CODE });
       }
     }
   }
