@@ -1,3 +1,5 @@
+import { MsgCloseDeployment } from "@akashnetwork/chain-sdk/private-types/akash.v1beta4";
+import type { Registry } from "@cosmjs/proto-signing";
 import { faker } from "@faker-js/faker";
 import { eq, sql } from "drizzle-orm";
 import fs from "fs";
@@ -12,6 +14,7 @@ import { ApiKeyRepository } from "@src/auth/repositories/api-key/api-key.reposit
 import { ApiKeyGeneratorService } from "@src/auth/services/api-key/api-key-generator.service";
 import { UserAuthTokenService } from "@src/auth/services/user-auth-token/user-auth-token.service";
 import { BILLING_CONFIG } from "@src/billing/providers";
+import { TYPE_REGISTRY } from "@src/billing/providers/type-registry.provider";
 import { DenomExchangeService } from "@src/chain/services/denom-exchange/denom-exchange.service";
 import { type ApiPgDatabase, CORE_CONFIG, POSTGRES_DB, resolveTable } from "@src/core";
 import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
@@ -80,6 +83,15 @@ const remove = (path: string): TeamRequest => ({ method: "DELETE", path });
 const SDL = fs.readFileSync(path.resolve(__dirname, "../mocks/hello-world-sdl.yml"), "utf8");
 
 const templateOf = (team: TeamIds) => ({ id: team.templateId, sdl: SDL, title: "Taken", cpu: 100, ram: 100, storage: 100, isPublic: false });
+
+const closeMessageOf = (team: TeamIds) => {
+  const message = {
+    typeUrl: `/${MsgCloseDeployment.$type}`,
+    value: MsgCloseDeployment.fromPartial({ id: { owner: team.walletAddress, dseq: Number(team.grantedDseq) } })
+  };
+
+  return { typeUrl: message.typeUrl, value: Buffer.from(container.resolve<Registry>(TYPE_REGISTRY).encode(message)).toString("base64") };
+};
 
 const ROUTES_NAMING_ANOTHER_TEAM: RouteNamingAnotherTeam[] = [
   {
@@ -227,6 +239,18 @@ const ROUTES_NAMING_ANOTHER_TEAM: RouteNamingAnotherTeam[] = [
     ownerStatus: 201,
     request: team => post("/v1/deployments", { sdl: SDL, projectId: team.otherProjectId })
   },
+  {
+    route: "POST /v1/deployments inheriting the secrets of a deployment of the team",
+    status: 404,
+    ownerStatus: 201,
+    request: team => post("/v1/deployments", { sdl: SDL, inheritSecretsFrom: team.grantedDseq })
+  },
+  {
+    route: "POST /v1/tx signing as the team's owner to close its deployment",
+    status: 404,
+    ownerStatus: 200,
+    request: team => post("/v1/tx", { userId: team.ownerUserId, messages: [closeMessageOf(team)] })
+  },
   { route: "PATCH /v1/deployments/{dseq}", status: 404, ownerStatus: 200, request: team => patch(`/v1/deployments/${team.grantedDseq}`, { name: "Taken" }) },
   { route: "PUT /v1/deployments/{dseq}", status: 404, ownerStatus: 422, request: team => put(`/v1/deployments/${team.grantedDseq}`, { sdl: SDL }) },
   {
@@ -280,7 +304,19 @@ const ROUTES_NAMING_ANOTHER_TEAM: RouteNamingAnotherTeam[] = [
     ownerStatus: 204,
     request: team => postUnwrapped("/v1/user/saveTemplateDesc", { id: team.templateId, description: "Taken" })
   },
-  { route: "DELETE /v1/user/deleteTemplate/{id}", status: 204, ownerStatus: 204, request: team => remove(`/v1/user/deleteTemplate/${team.templateId}`) }
+  { route: "DELETE /v1/user/deleteTemplate/{id}", status: 204, ownerStatus: 204, request: team => remove(`/v1/user/deleteTemplate/${team.templateId}`) },
+  {
+    route: "POST /v1/user/addFavoriteTemplate/{templateId}",
+    status: 204,
+    ownerStatus: 204,
+    request: team => post(`/v1/user/addFavoriteTemplate/${team.templateId}`)
+  },
+  {
+    route: "DELETE /v1/user/removeFavoriteTemplate/{templateId}",
+    status: 204,
+    ownerStatus: 204,
+    request: team => remove(`/v1/user/removeFavoriteTemplate/${team.templateId}`)
+  }
 ];
 
 const READS_OF_THE_OWN_TEAM: Array<{ route: string; request: (team: TeamIds) => TeamRequest }> = [
@@ -288,6 +324,7 @@ const READS_OF_THE_OWN_TEAM: Array<{ route: string; request: (team: TeamIds) => 
   { route: "GET /v1/organization-members", request: () => get("/v1/organization-members") },
   { route: "GET /v1/organization-invitations", request: () => get("/v1/organization-invitations") },
   { route: "GET /v1/projects", request: () => get("/v1/projects") },
+  { route: "GET /v1/deployments?projectId", request: team => get(`/v1/deployments?projectId=${team.grantedProjectId}`) },
   { route: "GET /v1/project-budgets?projectId", request: team => get(`/v1/project-budgets?projectId=${team.grantedProjectId}`) },
   { route: "GET /v1/organization-activities?projectId", request: team => get(`/v1/organization-activities?projectId=${team.grantedProjectId}`) },
   { route: "GET /v1/project-spend", request: () => get("/v1/project-spend") },
