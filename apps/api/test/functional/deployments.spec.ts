@@ -134,6 +134,9 @@ describe("Deployments API", () => {
       findOneUsedBy: async (id: string) => {
         return Promise.resolve(knownWallets[id][0]);
       },
+      findById: async (id: number) => {
+        return Promise.resolve(allWallets.find(wallet => wallet.id === id));
+      },
       findFirst: async () => {
         return Promise.resolve(knownWallets[currentUser.id][0]);
       }
@@ -1314,7 +1317,7 @@ describe("Deployments API", () => {
 
       expect(response.status).toBe(402);
       expect(await container.resolve(DeploymentSettingRepository).findOneBy({ userId: user.id })).toBeUndefined();
-      expect(signerService.executeDerivedDecodedTxByUserId).not.toHaveBeenCalled();
+      expect(signerService.executeDecodedTxByUserWallet).not.toHaveBeenCalled();
     });
 
     it("returns 401 for an unauthenticated request", async () => {
@@ -1405,7 +1408,7 @@ describe("Deployments API", () => {
         message: 'Invalid SDL: memory or storage size "1073741824" must be a number with a unit, such as 512Mi or 1Gi'
       });
       expect(await container.resolve(DeploymentSettingRepository).findOneBy({ userId: user.id })).toBeUndefined();
-      expect(signerService.executeDerivedDecodedTxByUserId).not.toHaveBeenCalled();
+      expect(signerService.executeDecodedTxByUserWallet).not.toHaveBeenCalled();
     });
 
     it("returns 400 rather than failing, recording and broadcasting nothing, when the SDL deploys a service it does not declare", async () => {
@@ -1420,7 +1423,7 @@ describe("Deployments API", () => {
       expect(response.status).toBe(400);
       expect(await response.json()).toMatchObject({ code: "bad_request", message: expect.stringMatching(/^Invalid SDL: \S/) });
       expect(await container.resolve(DeploymentSettingRepository).findOneBy({ userId: user.id })).toBeUndefined();
-      expect(signerService.executeDerivedDecodedTxByUserId).not.toHaveBeenCalled();
+      expect(signerService.executeDecodedTxByUserWallet).not.toHaveBeenCalled();
     });
 
     it("creates a deployment without a deposit", async () => {
@@ -1593,7 +1596,7 @@ describe("Deployments API", () => {
       await postOversizedDeployment(userApiKeySecret);
 
       expect(await container.resolve(DeploymentSettingRepository).findOneBy({ userId: user.id })).toBeUndefined();
-      expect(signerService.executeDerivedDecodedTxByUserId).not.toHaveBeenCalled();
+      expect(signerService.executeDecodedTxByUserWallet).not.toHaveBeenCalled();
     });
 
     it("returns 400 naming the offending value for an unrecognized ac- kind", async () => {
@@ -1632,7 +1635,7 @@ describe("Deployments API", () => {
       await postDeploymentWithEnv(userApiKeySecret, "TOKEN=ac-var://TOKEN");
 
       expect(await container.resolve(DeploymentSettingRepository).findOneBy({ userId: user.id })).toBeUndefined();
-      expect(signerService.executeDerivedDecodedTxByUserId).not.toHaveBeenCalled();
+      expect(signerService.executeDecodedTxByUserWallet).not.toHaveBeenCalled();
     });
 
     it("resolves a kind registered after boot that it would otherwise reject", async () => {

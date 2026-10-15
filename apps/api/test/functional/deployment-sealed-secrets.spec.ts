@@ -105,9 +105,10 @@ describe("Deployment sealed secrets", () => {
     vi.spyOn(userWalletRepository, "accessibleBy").mockReturnValue({
       findByUserId: async (id: string) => knownWallets[id],
       findOneByUserId: async (id: string) => knownWallets[id][0],
-      findOneUsedBy: async (id: string) => knownWallets[id][0]
+      findOneUsedBy: async (id: string) => knownWallets[id][0],
+      findById: async (id: number) => Object.values(knownWallets).flat().find(wallet => wallet.id === id)
     } as unknown as UserWalletRepository);
-    vi.spyOn(signerService, "executeDerivedDecodedTxByUserId").mockResolvedValue({
+    vi.spyOn(signerService, "executeDecodedTxByUserWallet").mockResolvedValue({
       code: 200,
       transactionHash: "fake-transaction-hash",
       hash: "fake-transaction-hash",
@@ -161,7 +162,7 @@ describe("Deployment sealed secrets", () => {
     expect(response.status).toBe(400);
     expect(await response.text()).toContain("ac-secret://REG_PASS");
     expect(await deploymentSettingRepository.findOneBy({ userId: user.id })).toBeUndefined();
-    expect(signerService.executeDerivedDecodedTxByUserId).not.toHaveBeenCalled();
+    expect(signerService.executeDecodedTxByUserWallet).not.toHaveBeenCalled();
   });
 
   it("refuses a reserved value in a registry credential rather than shipping it to a provider", async () => {
@@ -173,7 +174,7 @@ describe("Deployment sealed secrets", () => {
     expect(response.status).toBe(400);
     expect(await response.text()).toContain("reserved");
     expect(await deploymentSettingRepository.findOneBy({ userId: user.id })).toBeUndefined();
-    expect(signerService.executeDerivedDecodedTxByUserId).not.toHaveBeenCalled();
+    expect(signerService.executeDecodedTxByUserWallet).not.toHaveBeenCalled();
   });
 
   it("stores the credential values in its token and a credentials block that references them", async () => {
@@ -251,7 +252,7 @@ describe("Deployment sealed secrets", () => {
     expect(body).toContain("at least 6 characters");
     expect(body).not.toContain(tooShort);
     expect(await deploymentSettingRepository.findOneBy({ userId: user.id })).toBeUndefined();
-    expect(signerService.executeDerivedDecodedTxByUserId).not.toHaveBeenCalled();
+    expect(signerService.executeDecodedTxByUserWallet).not.toHaveBeenCalled();
   });
 
   it("resolves one supplied value into every service that references it", async () => {
@@ -415,7 +416,7 @@ describe("Deployment sealed secrets", () => {
     expect(response.status).toBe(503);
     expect(body).not.toContain(token);
     expect(await deploymentSettingRepository.findOneBy({ userId: user.id })).toBeUndefined();
-    expect(signerService.executeDerivedDecodedTxByUserId).not.toHaveBeenCalled();
+    expect(signerService.executeDecodedTxByUserWallet).not.toHaveBeenCalled();
   });
 
   it("stores a token bound to its owner and the deployment it was supplied for", async () => {
@@ -468,7 +469,7 @@ describe("Deployment sealed secrets", () => {
     expect(response.status).toBe(400);
     expect(await response.text()).toContain("ac-secret://OTHER");
     expect(await deploymentSettingRepository.findOneBy({ userId: user.id })).toBeUndefined();
-    expect(signerService.executeDerivedDecodedTxByUserId).not.toHaveBeenCalled();
+    expect(signerService.executeDecodedTxByUserWallet).not.toHaveBeenCalled();
   });
 
   it("names a supplied value no service references and records nothing", async () => {
@@ -479,7 +480,7 @@ describe("Deployment sealed secrets", () => {
     expect(response.status).toBe(400);
     expect(await response.text()).toContain("TYPOED");
     expect(await deploymentSettingRepository.findOneBy({ userId: user.id })).toBeUndefined();
-    expect(signerService.executeDerivedDecodedTxByUserId).not.toHaveBeenCalled();
+    expect(signerService.executeDecodedTxByUserWallet).not.toHaveBeenCalled();
   });
 
   it("says nothing about a supplied value in the mistake it reports", async () => {
@@ -501,7 +502,7 @@ describe("Deployment sealed secrets", () => {
     expect(response.status).toBe(400);
     expect(await response.text()).toContain(`At most ${MAX_COUNT} secrets`);
     expect(await deploymentSettingRepository.findOneBy({ userId: user.id })).toBeUndefined();
-    expect(signerService.executeDerivedDecodedTxByUserId).not.toHaveBeenCalled();
+    expect(signerService.executeDecodedTxByUserWallet).not.toHaveBeenCalled();
   });
 
   it("refuses a value above the size a secret may be, before anything is recorded", async () => {
@@ -512,7 +513,7 @@ describe("Deployment sealed secrets", () => {
     expect(response.status).toBe(400);
     expect(await response.text()).toContain(`maximum value size of ${MAX_VALUE_BYTES} bytes`);
     expect(await deploymentSettingRepository.findOneBy({ userId: user.id })).toBeUndefined();
-    expect(signerService.executeDerivedDecodedTxByUserId).not.toHaveBeenCalled();
+    expect(signerService.executeDecodedTxByUserWallet).not.toHaveBeenCalled();
   });
 
   it("carries a seal at the stated limits rather than refusing it on body size", async () => {
@@ -564,7 +565,7 @@ describe("Deployment sealed secrets", () => {
 
     expect(response.status).toBe(400);
     expect(await deploymentSettingRepository.findOneBy({ userId: user.id })).toBeUndefined();
-    expect(signerService.executeDerivedDecodedTxByUserId).not.toHaveBeenCalled();
+    expect(signerService.executeDecodedTxByUserWallet).not.toHaveBeenCalled();
   });
 
   it("does not spend the seal's allowance on the sdl", async () => {
@@ -644,7 +645,7 @@ describe("Deployment sealed secrets", () => {
   it("leaves a record a failed broadcast could not back, and lets the same create be retried", async () => {
     const { apiKey, user } = await persistedUser();
     const sdl = sdlWith({ web: ["API_TOKEN=ac-secret://API_TOKEN"] });
-    vi.mocked(signerService.executeDerivedDecodedTxByUserId).mockRejectedValueOnce(new Error("broadcast failed"));
+    vi.mocked(signerService.executeDecodedTxByUserWallet).mockRejectedValueOnce(new Error("broadcast failed"));
 
     const abandoned = await postDeployment(apiKey, sdl, { API_TOKEN: randomUUID() });
     const orphan = await deploymentSettingRepository.findOneBy({ userId: user.id });
@@ -660,7 +661,7 @@ describe("Deployment sealed secrets", () => {
     const sdl = sdlWith({ web: ["API_TOKEN=ac-secret://API_TOKEN"] });
     const dseq = Date.now();
     vi.spyOn(Date, "now").mockReturnValue(dseq);
-    vi.mocked(signerService.executeDerivedDecodedTxByUserId).mockRejectedValueOnce(new Error("broadcast failed"));
+    vi.mocked(signerService.executeDecodedTxByUserWallet).mockRejectedValueOnce(new Error("broadcast failed"));
     const abandonedSecrets = { API_TOKEN: randomUUID() };
     const retriedSecrets = { API_TOKEN: randomUUID() };
 
@@ -773,7 +774,7 @@ describe("Deployment sealed secrets", () => {
 
       expect(response.status).toBe(404);
       expect(await deploymentSettingRepository.count({ userId: other.user.id })).toBe(0);
-      expect(signerService.executeDerivedDecodedTxByUserId).toHaveBeenCalledTimes(1);
+      expect(signerService.executeDecodedTxByUserWallet).toHaveBeenCalledTimes(1);
     });
 
     it("says nothing about the source of another user in the refusal it returns", async () => {
@@ -804,7 +805,7 @@ describe("Deployment sealed secrets", () => {
       expect(response.status).toBe(400);
       expect(await response.text()).toContain("MISSING");
       expect(await deploymentSettingRepository.count({ userId: user.id })).toBe(1);
-      expect(signerService.executeDerivedDecodedTxByUserId).toHaveBeenCalledTimes(1);
+      expect(signerService.executeDecodedTxByUserWallet).toHaveBeenCalledTimes(1);
     });
 
     it("refuses a redeploy that would chain more values into one token than a deployment may hold", async () => {
@@ -825,7 +826,7 @@ describe("Deployment sealed secrets", () => {
       expect(response.status).toBe(400);
       expect(await response.text()).toContain(`At most ${MAX_COUNT} secrets may be carried by one deployment, counting those inherited from another`);
       expect(await deploymentSettingRepository.count({ userId: user.id })).toBe(1);
-      expect(signerService.executeDerivedDecodedTxByUserId).toHaveBeenCalledTimes(1);
+      expect(signerService.executeDecodedTxByUserWallet).toHaveBeenCalledTimes(1);
     });
 
     it("inherits one name from a source holding far more than a deployment may carry", async () => {
@@ -856,7 +857,7 @@ describe("Deployment sealed secrets", () => {
 
       expect(response.status).toBe(409);
       expect(await deploymentSettingRepository.count({ userId: user.id })).toBe(1);
-      expect(signerService.executeDerivedDecodedTxByUserId).toHaveBeenCalledTimes(1);
+      expect(signerService.executeDecodedTxByUserWallet).toHaveBeenCalledTimes(1);
     });
 
     it("tells a client the conflict is about the secrets it inherits rather than its own stored state", async () => {
@@ -903,7 +904,7 @@ describe("Deployment sealed secrets", () => {
   }
 
   function broadcastHash(call = 0): Uint8Array {
-    const [, messages] = vi.mocked(signerService.executeDerivedDecodedTxByUserId).mock.calls[call];
+    const [, messages] = vi.mocked(signerService.executeDecodedTxByUserWallet).mock.calls[call];
 
     return (messages[0] as unknown as { value: { hash: Uint8Array } }).value.hash;
   }

@@ -16,6 +16,8 @@ import { EnableDeploymentAlertCommand } from "@src/billing/commands/enable-deplo
 import { FundDeploymentCommand } from "@src/billing/commands/fund-deployment.command";
 import { ManagedSignerService } from "@src/billing/services";
 import { BalancesService } from "@src/billing/services/balances/balances.service";
+import { TxManagerService } from "@src/billing/services/tx-manager/tx-manager.service";
+import { WalletReloadJobService } from "@src/billing/services/wallet-reload-job/wallet-reload-job.service";
 import { DenomExchangeService } from "@src/chain/services/denom-exchange/denom-exchange.service";
 import type { ApiPgDatabase } from "@src/core";
 import { CORE_CONFIG, JOB_NAME, POSTGRES_DB, resolveTable } from "@src/core";
@@ -31,6 +33,7 @@ import { marketVersion } from "@src/utils/constants";
 import { registerFakeSdlSecretsKms, warmSealingKeyAsBootWould } from "@test/mocks/sdl-secrets-kms.mock";
 import { createAkashAddress } from "@test/seeders/akash-address.seeder";
 import { createBid } from "@test/seeders/bid.seeder";
+import { findDeploymentDepositsOf } from "@test/seeders/db/deployment-deposit.seeder";
 import { seedDeploymentSetting } from "@test/seeders/db/deployment-setting.seeder";
 import { seedOrganizationMember, seedOrganizationWithOwner, seedProject, seedProjectMember } from "@test/seeders/db/organization.seeder";
 import { seedUser } from "@test/seeders/db/user-with-wallet.seeder";
@@ -69,6 +72,27 @@ describe("Deployment projects", () => {
       expect(await activitiesOfProject(otherProject.id)).toEqual([
         expect.objectContaining({ type: "deployment_created", actorUserId: caller.id, payload: { dseq: data.dseq, name: "web" } })
       ]);
+    });
+
+    it("creates a team's deployment on chain with the team wallet, its deposit counted in the project it names for the member who asked", async () => {
+      const { request, team, otherProject, caller, teamWallet, signedIndexes, reloadTargets } = await setupCaller({ role: "member", grants: ["other"] });
+
+      const response = await request("/v1/deployments", { method: "POST", body: { data: { sdl: SDL, projectId: otherProject.id } } });
+      const { data } = (await response.json()) as { data: { dseq: string } };
+
+      expect(response.status).toBe(201);
+      expect(signedIndexes).toEqual([teamWallet.id]);
+      expect(await findDeploymentDepositsOf(team.id)).toEqual([
+        expect.objectContaining({
+          kind: "deployment_create",
+          owner: teamWallet.address,
+          dseq: data.dseq,
+          projectId: otherProject.id,
+          actorUserId: caller.id,
+          status: "confirmed"
+        })
+      ]);
+      expect(reloadTargets).toEqual([{ walletId: teamWallet.id }]);
     });
 
     it("files a deployment naming no project into the default project", async () => {
@@ -140,7 +164,7 @@ describe("Deployment projects", () => {
       expect(response.status).toBe(400);
       expect(await response.json()).toMatchObject({ code: "project_required" });
       expect(await deploymentRowsOf(caller.id)).toEqual([]);
-      expect(signer.executeDerivedDecodedTxByUserId).not.toHaveBeenCalled();
+      expect(signer.executeDecodedTxByUserWallet).not.toHaveBeenCalled();
     });
 
     it("asks a member granted several projects but not the default one to choose, recording and broadcasting nothing", async () => {
@@ -153,7 +177,7 @@ describe("Deployment projects", () => {
       expect(response.status).toBe(400);
       expect(await response.json()).toMatchObject({ code: "project_required" });
       expect(await deploymentRowsOf(caller.id)).toEqual([]);
-      expect(signer.executeDerivedDecodedTxByUserId).not.toHaveBeenCalled();
+      expect(signer.executeDecodedTxByUserWallet).not.toHaveBeenCalled();
     });
 
     it("answers 404 to a member deploying into a project where they hold the viewer project role, recording and broadcasting nothing", async () => {
@@ -164,7 +188,7 @@ describe("Deployment projects", () => {
 
       expect(response.status).toBe(404);
       expect(await deploymentRowsOf(caller.id)).toEqual([]);
-      expect(signer.executeDerivedDecodedTxByUserId).not.toHaveBeenCalled();
+      expect(signer.executeDecodedTxByUserWallet).not.toHaveBeenCalled();
     });
 
     it("files a member's deployment naming no project into the one project they may write to", async () => {
@@ -186,7 +210,7 @@ describe("Deployment projects", () => {
 
       expect(response.status).toBe(404);
       expect(await deploymentRowsOf(caller.id)).toEqual([]);
-      expect(signer.executeDerivedDecodedTxByUserId).not.toHaveBeenCalled();
+      expect(signer.executeDecodedTxByUserWallet).not.toHaveBeenCalled();
     });
 
     it("answers 404 for a deleted project", async () => {
@@ -625,8 +649,24 @@ describe("Deployment projects", () => {
 
   function stubSigner() {
     const signer = container.resolve(ManagedSignerService);
+    const txManagerService = container.resolve(TxManagerService);
+    const balancesService = container.resolve(BalancesService);
+    const signedIndexes: number[] = [];
+    const reloadTargets: unknown[] = [];
     vi.spyOn(signer, "assertCanBroadcast").mockResolvedValue(undefined);
-    vi.spyOn(signer, "executeDerivedDecodedTxByUserId").mockResolvedValue({ code: 0, hash: "tx-hash", transactionHash: "tx-hash", rawLog: "" });
+    vi.spyOn(signer, "ensureFeeGrants").mockResolvedValue(5_000_000);
+    vi.spyOn(signer, "executeDecodedTxByUserWallet");
+    vi.spyOn(txManagerService, "getFundingWalletAddress").mockResolvedValue(createAkashAddress());
+    vi.spyOn(txManagerService, "signAndBroadcastWithDerivedWallet").mockImplementation(async derivationIndex => {
+      signedIndexes.push(derivationIndex);
+      return { code: 0, hash: "TX-HASH", rawLog: "[]" };
+    });
+    vi.spyOn(balancesService, "retrieveDeploymentLimit").mockResolvedValue(10_000_000);
+    vi.spyOn(balancesService, "refreshUserWalletLimits").mockResolvedValue(undefined);
+    vi.spyOn(container.resolve(WalletReloadJobService), "scheduleImmediate").mockImplementation(async target => {
+      reloadTargets.push(target);
+      return false;
+    });
     vi.spyOn(container.resolve(DenomExchangeService), "getExchangeRateToUSD").mockResolvedValue({
       price: 2,
       volume: 0,
@@ -636,11 +676,11 @@ describe("Deployment projects", () => {
       priceChangePercentage24: 0
     });
 
-    return signer;
+    return { signer, signedIndexes, reloadTargets };
   }
 
   async function seedWallets(input: { userId: string; organizationId: string }) {
-    const funding = { deploymentAllowance: "10000000", feeAllowance: "5000000", isTrialing: false };
+    const funding = { deploymentAllowance: "10000000", feeAllowance: "5000000", isTrialing: false, activatedAt: new Date() };
     const [teamWallet] = await container
       .resolve<ApiPgDatabase>(POSTGRES_DB)
       .insert(resolveTable("UserWallets"))
@@ -683,7 +723,7 @@ describe("Deployment projects", () => {
     const teamWallet = await seedWallets({ userId: caller.id, organizationId: team.id });
     const authorization = signIn(caller.userId!);
     enableOrganizationsFor(input.organizationsOn === false ? [] : [caller.id]);
-    const signer = stubSigner();
+    const { signer, signedIndexes, reloadTargets } = stubSigner();
 
     const request = (requestPath: string, init: { method?: string; body?: unknown; organizationHeader?: boolean; headers?: Record<string, string> } = {}) =>
       app.request(requestPath, {
@@ -697,6 +737,6 @@ describe("Deployment projects", () => {
         body: init.body === undefined ? undefined : JSON.stringify(init.body)
       });
 
-    return { request, team, defaultProject, otherProject, owner, caller, signer, teamWallet };
+    return { request, team, defaultProject, otherProject, owner, caller, signer, teamWallet, signedIndexes, reloadTargets };
   }
 });

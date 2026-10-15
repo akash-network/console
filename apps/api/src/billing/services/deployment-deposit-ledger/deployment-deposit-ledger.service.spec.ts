@@ -78,6 +78,14 @@ describe(DeploymentDepositLedgerService.name, () => {
       expect(recorded).toEqual({ recorded: [row], awaitingPrice: [] });
     });
 
+    it("records the signed-in member as the actor of a request, whoever the signer names", async () => {
+      const { service, wallet, projectBudgetEnforcementService, currentUser } = setup();
+
+      await service.recordPending(wallet.id, [createMessage({ owner: wallet.address!, dseq: "104" })], { actorUserId: faker.string.uuid() });
+
+      expect(projectBudgetEnforcementService.enforce).toHaveBeenCalledWith([expect.objectContaining({ actorUserId: currentUser.id })], expect.any(Function));
+    });
+
     it("judges a create in the project its caller signs it for, ahead of the project a record names", async () => {
       const { service, wallet, deploymentSettingRepository, projectRepository, projectBudgetEnforcementService } = setup();
       const filingProjectId = faker.string.uuid();
@@ -612,6 +620,15 @@ describe(DeploymentDepositLedgerService.name, () => {
         await service.recordPending(wallet.id, [depositMessage({ owner: wallet.address!, dseq: "34" })]);
 
         expect(projectBudgetEnforcementService.enforce).toHaveBeenCalledWith([expect.objectContaining({ actorUserId: null })], expect.any(Function));
+      });
+
+      it("records the member it signs for as the actor", async () => {
+        const { service, wallet, projectBudgetEnforcementService } = setup({ mode: "job", enabledFlags: [FeatureFlags.ORGANIZATIONS_ENFORCE] });
+        const actorUserId = faker.string.uuid();
+
+        await service.recordPending(wallet.id, [createMessage({ owner: wallet.address!, dseq: "38" })], { actorUserId });
+
+        expect(projectBudgetEnforcementService.enforce).toHaveBeenCalledWith([expect.objectContaining({ actorUserId })], expect.any(Function));
       });
 
       it("holds the deposits to the flags of the wallet's owner outside any execution context", async () => {
