@@ -101,6 +101,25 @@ describe(AddCreditsNewPaymentMethodFields.name, () => {
     expect(await screen.findByText(/couldn't save your card/i)).toBeInTheDocument();
   });
 
+  it("keeps the fields mounted and releases a rejected Stripe confirmation for retry", async () => {
+    const confirmSetup = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("network failure"))
+      .mockResolvedValue({ setupIntent: { payment_method: "pm_retry" } });
+    const { ref } = setup({
+      isLoading: false,
+      clientSecret: "seti_secret",
+      dependencies: { useStripe: () => mock<NonNullable<ReturnType<typeof DEPENDENCIES.useStripe>>>({ confirmSetup }) }
+    });
+    const fields = screen.getByTestId("payment-element");
+
+    expect(await act(async () => ref.current!.addPaymentMethod())).toBeNull();
+    expect(screen.getByRole("alert", { name: /payment error/i })).toHaveTextContent(/couldn't save your payment method/i);
+    expect(screen.getByTestId("payment-element")).toBe(fields);
+    expect(await act(async () => ref.current!.addPaymentMethod())).toEqual({ paymentMethodId: "pm_retry" });
+    expect(screen.queryByRole("alert", { name: /payment error/i })).not.toBeInTheDocument();
+  });
+
   it("reports the selected payment method type from the payment element", () => {
     const onPaymentTypeChange = vi.fn();
     const PaymentElement = ((props: { onChange?: (event: { value: { type: string } }) => void }) => (

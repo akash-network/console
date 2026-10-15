@@ -5,6 +5,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import {
   Alert,
   AlertDescription,
+  Button,
   Label,
   LoadingButton,
   Select,
@@ -19,6 +20,7 @@ import type { AddCreditsAmountValue } from "@src/components/billing-usage/AddCre
 import { AddCreditsAmountFields } from "@src/components/billing-usage/AddCreditsAmountFields/AddCreditsAmountFields";
 import type { PaymentMethodSourceHandle } from "@src/components/billing-usage/AddCreditsNewPaymentMethodFields/AddCreditsNewPaymentMethodFields";
 import { AddCreditsNewPaymentMethodFields } from "@src/components/billing-usage/AddCreditsNewPaymentMethodFields/AddCreditsNewPaymentMethodFields";
+import { AddCreditsWalletButton, type WalletPaymentSource } from "@src/components/billing-usage/AddCreditsWalletButton/AddCreditsWalletButton";
 import { FirstPurchaseBonusAlert } from "@src/components/billing-usage/FirstPurchaseBonusAlert/FirstPurchaseBonusAlert";
 import { getPaymentMethodDisplay } from "@src/components/shared/PaymentMethodCard/PaymentMethodCard";
 import { ThreeDSecurePopup } from "@src/components/shared/PaymentMethodForm/ThreeDSecurePopup";
@@ -38,6 +40,7 @@ const NEW_CARD = "new";
 export const DEPENDENCIES = {
   AddCreditsAmountFields,
   AddCreditsNewPaymentMethodFields,
+  AddCreditsWalletButton,
   FirstPurchaseBonusAlert,
   ThreeDSecurePopup,
   Label,
@@ -133,6 +136,9 @@ export function AddCreditsForm({ onDone, onProcessingChange, context, dependenci
   const [error, setError] = useState<string | null>(null);
   const [errorAction, setErrorAction] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isWalletOpen, setIsWalletOpen] = useState(false);
+  const [walletMethod, setWalletMethod] = useState<{ paymentMethodId: string; type: string } | null>(null);
+  const submittingRef = useRef(false);
 
   const paymentMethodRef = useRef<PaymentMethodSourceHandle>(null);
   /** Payment method already confirmed against the current SetupIntent; reused on retry because a SetupIntent can only be confirmed once. */
@@ -146,12 +152,30 @@ export function AddCreditsForm({ onDone, onProcessingChange, context, dependenci
   const amount = useMemo(() => Number(amountInput.predefinedAmount || amountInput.customAmount) || 0, [amountInput.predefinedAmount, amountInput.customAmount]);
   const amountError = amount > 0 && amount < topUpMinAmountUsd ? `Minimum amount is $${topUpMinAmountUsd}` : undefined;
   const isSetupLoading = setupIntentStatus === "pending" || setupIntentStatus === "idle";
-  const isNewCard = selectedMethodId === NEW_CARD || (!isLoadingMethods && !paymentMethods?.length);
+  const isNewCard = selectedMethodId === NEW_CARD || (selectedMethodId === undefined && !isLoadingMethods && !paymentMethods?.length);
+  const isBusy = isProcessing || isWalletOpen;
+  const pendingWallet = user?.id ? attempt.getWalletAttempt({ userId: user.id, amount }) : null;
+  const pendingWalletId = pendingWallet?.paymentMethodId;
+  const pendingWalletType = pendingWallet?.type;
+
+  useEffect(
+    function restorePendingWallet() {
+      if (!pendingWalletId || !pendingWalletType) return;
+      setWalletMethod({ paymentMethodId: pendingWalletId, type: pendingWalletType });
+      setSelectedMethodId(pendingWalletId);
+    },
+    [pendingWalletId, pendingWalletType]
+  );
 
   useEffect(
     function selectDefaultMethodOnce() {
-      if (selectedMethodId !== undefined || isLoadingMethods || !paymentMethods?.length) return;
-      setSelectedMethodId(paymentMethods.find(method => method.isDefault)?.id ?? paymentMethods[0].id);
+      if (selectedMethodId !== undefined || isLoadingMethods) return;
+      setSelectedMethodId(
+        paymentMethods?.find(method => method.type === "link")?.id ??
+          paymentMethods?.find(method => method.isDefault)?.id ??
+          paymentMethods?.[0]?.id ??
+          NEW_CARD
+      );
     },
     [selectedMethodId, isLoadingMethods, paymentMethods]
   );
@@ -177,37 +201,51 @@ export function AddCreditsForm({ onDone, onProcessingChange, context, dependenci
       return { amount, type: lastPaymentTypeRef.current ?? "card", isSavedMethod: false, context };
     }
     const savedMethod = paymentMethods?.find(method => method.id === selectedMethodId);
-    return { amount, type: toPaymentMethodType(savedMethod?.type ?? "unknown"), isSavedMethod: true, context };
+    const type = walletMethod && walletMethod.paymentMethodId === selectedMethodId ? walletMethod.type : toPaymentMethodType(savedMethod?.type ?? "unknown");
+    return { amount, type, isSavedMethod: true, context };
   };
 
-  const submit: FormEventHandler<HTMLFormElement> = async e => {
-    e.preventDefault();
-
-    if (!user?.id || amount < topUpMinAmountUsd) {
+  const purchase = async (wallet?: WalletPaymentSource) => {
+    if (!user?.id || amount < topUpMinAmountUsd || isProcessing || submittingRef.current || (wallet && attempt.getWalletAttempt({ userId: user.id, amount }))) {
       return;
     }
 
+    submittingRef.current = true;
     setError(null);
     setErrorAction(null);
     setIsProcessing(true);
 
-    const analytics = describeSelectedPayment();
+    const analytics: PaymentAnalytics = wallet ? { amount, type: wallet.type, isSavedMethod: false, context } : describeSelectedPayment();
+    if (wallet) analyticsService.track("add_credits_payment_method_selected", { category: "billing", type: wallet.type });
     analyticsService.track("add_credits_payment_submitted", { category: "billing", ...analytics });
 
     let paymentMethodId = selectedMethodId;
 
-    if (isNewCard) {
-      let paymentMethod = confirmedNewCardRef.current;
-      if (!paymentMethod) {
-        paymentMethod = (await paymentMethodRef.current?.addPaymentMethod()) ?? null;
+    try {
+      if (wallet || isNewCard) {
+        let paymentMethod = wallet ? null : confirmedNewCardRef.current;
+        if (!paymentMethod) {
+          paymentMethod = (await (wallet ?? paymentMethodRef.current)?.addPaymentMethod()) ?? null;
+          if (paymentMethod && !wallet) confirmedNewCardRef.current = paymentMethod;
+        }
         if (!paymentMethod) {
           trackPaymentFailed(analytics, "payment_method_setup");
           setIsProcessing(false);
           return;
         }
-        confirmedNewCardRef.current = paymentMethod;
+        paymentMethodId = paymentMethod.paymentMethodId;
+        if (wallet) {
+          setWalletMethod({ ...paymentMethod, type: wallet.type });
+          setSelectedMethodId(paymentMethodId);
+        }
       }
-      paymentMethodId = paymentMethod.paymentMethodId;
+    } catch {
+      trackPaymentFailed(analytics, "payment_method_setup");
+      setError("Couldn't prepare your payment. Please check your connection and try again.");
+      setIsProcessing(false);
+      return;
+    } finally {
+      submittingRef.current = false;
     }
 
     if (!paymentMethodId) {
@@ -220,15 +258,26 @@ export function AddCreditsForm({ onDone, onProcessingChange, context, dependenci
       amount,
       wasTrialing: isTrialing,
       status: "pending",
-      idempotencyKey: attempt.resolve({ userId: user.id, amount, paymentMethodId }),
+      idempotencyKey: attempt.resolve({
+        userId: user.id,
+        amount,
+        paymentMethodId,
+        walletType: wallet?.type ?? (walletMethod?.paymentMethodId === paymentMethodId ? walletMethod.type : undefined)
+      }),
       analytics
     });
+  };
+
+  const submit: FormEventHandler<HTMLFormElement> = async e => {
+    e.preventDefault();
+    if (!isWalletOpen) await purchase();
   };
 
   /** An exhausted poll leaves the charge outcome unknown: it may still settle, so the attempt key and confirmed card survive for a replay-safe retry while the in-flight form state is released. */
   const releaseChargeKeepingAttempt = useCallback(() => {
     setCharge(null);
     setIsProcessing(false);
+    setError("Your payment is still processing. There is no need to pay again. Your balance will update once it completes.");
   }, []);
 
   const finalizeFailure = useCallback(
@@ -260,7 +309,8 @@ export function AddCreditsForm({ onDone, onProcessingChange, context, dependenci
       trackPaymentFailed(threeDSecureAnalyticsRef.current, "three_d_secure");
       finalizeFailure(message);
     },
-    showSuccessMessage: false
+    showSuccessMessage: false,
+    showErrorMessage: false
   });
 
   /** A replayed attempt the webhook already credited settles polling against the pre-charge baseline: the balance rose before polling started, so the default start-of-poll snapshot would never register an increase and the flow would time out. */
@@ -348,7 +398,6 @@ export function AddCreditsForm({ onDone, onProcessingChange, context, dependenci
       confirmedNewCardRef.current = null;
       attempt.clear();
       setCharge(null);
-      setIsProcessing(false);
       analyticsService.track("add_credits_purchased", { category: "billing", ...charge.analytics });
 
       const { amount } = charge;
@@ -366,6 +415,7 @@ export function AddCreditsForm({ onDone, onProcessingChange, context, dependenci
           // Bonus display is best-effort; completion must proceed without it.
         }
         onDone(amount, bonusAmount);
+        setIsProcessing(false);
       })();
     },
     [isPolling, lastOutcome, isTrialing, charge, releaseChargeKeepingAttempt, finalizeFailure, trackPaymentFailed, attempt, onDone, stripe, analyticsService]
@@ -373,9 +423,9 @@ export function AddCreditsForm({ onDone, onProcessingChange, context, dependenci
 
   useEffect(
     function reportProcessing() {
-      onProcessingChange?.(isProcessing);
+      onProcessingChange?.(isBusy);
     },
-    [isProcessing, onProcessingChange]
+    [isBusy, onProcessingChange]
   );
 
   const changeSelectedMethod = useCallback(
@@ -422,69 +472,110 @@ export function AddCreditsForm({ onDone, onProcessingChange, context, dependenci
       <d.FirstPurchaseBonusAlert amount={amount} />
 
       <form className="space-y-6" onSubmit={submit}>
-        <d.AddCreditsAmountFields
-          value={amountInput}
-          onChange={setAmountInput}
-          minAmount={topUpMinAmountUsd}
-          error={amountError}
-          onAmountCommit={trackAmountSelected}
-        />
-
-        {isMethodsError && (
-          <Alert variant="destructive">
-            <AlertDescription>We couldn&apos;t load your saved payment methods. You can still pay with a new card.</AlertDescription>
-          </Alert>
-        )}
-
-        {isLoadingMethods ? (
-          <d.Skeleton className="h-10 w-full" />
-        ) : (
-          !!paymentMethods?.length && (
-            <div className="space-y-2">
-              <d.Label htmlFor="add-credits-payment-method">Payment method</d.Label>
-              <d.Select value={selectedMethodId ?? ""} onValueChange={changeSelectedMethod}>
-                <d.SelectTrigger id="add-credits-payment-method">
-                  <d.SelectValue placeholder="Select a payment method" />
-                </d.SelectTrigger>
-                <d.SelectContent>
-                  {paymentMethods.map(method => (
-                    <d.SelectItem key={method.id} value={method.id}>
-                      {d.getPaymentMethodDisplay(method).label}
-                    </d.SelectItem>
-                  ))}
-                  <d.SelectItem value={NEW_CARD}>Add new payment method</d.SelectItem>
-                </d.SelectContent>
-              </d.Select>
-            </div>
-          )
-        )}
-
-        {isNewCard && (
-          <d.AddCreditsNewPaymentMethodFields
-            ref={paymentMethodRef}
-            clientSecret={setupIntent?.clientSecret}
-            isLoading={isSetupLoading}
-            onPaymentTypeChange={trackPaymentTypeSelected}
+        <fieldset disabled={isBusy} className="space-y-6">
+          <d.AddCreditsAmountFields
+            value={amountInput}
+            onChange={setAmountInput}
+            minAmount={topUpMinAmountUsd}
+            error={amountError}
+            onAmountCommit={trackAmountSelected}
           />
-        )}
 
-        {error && (
-          <Alert variant="destructive">
-            <AlertDescription>
-              <span className="block font-medium">{error}</span>
-              {errorAction && <span className="mt-1 block text-sm">{errorAction}</span>}
-            </AlertDescription>
-          </Alert>
-        )}
+          <d.AddCreditsWalletButton
+            amount={amount}
+            disabled={isBusy || amount < topUpMinAmountUsd || isLoadingMethods || !!pendingWallet}
+            onSubmit={purchase}
+            onOpenChange={setIsWalletOpen}
+          />
 
-        <LoadingButton
-          type="submit"
-          className="w-full"
-          loading={isProcessing}
-          disabled={amount < topUpMinAmountUsd || isLoadingMethods || (isNewCard && isSetupLoading)}
-        >
-          Purchase Credits
-        </LoadingButton>
+          {pendingWallet && !isBusy && (
+            <p className="text-sm text-muted-foreground">
+              Your wallet payment is awaiting confirmation. Retry the saved wallet below to check it without starting another charge.
+            </p>
+          )}
+
+          {isMethodsError && (
+            <Alert variant="destructive">
+              <AlertDescription>We couldn&apos;t load your saved payment methods. You can still pay with a new card.</AlertDescription>
+            </Alert>
+          )}
+
+          {isLoadingMethods ? (
+            <d.Skeleton className="h-10 w-full" />
+          ) : (
+            (!!paymentMethods?.length || !!walletMethod) && (
+              <div className="space-y-2">
+                <d.Label htmlFor="add-credits-payment-method">Payment method</d.Label>
+                <d.Select value={selectedMethodId ?? ""} onValueChange={changeSelectedMethod} disabled={isBusy}>
+                  <d.SelectTrigger id="add-credits-payment-method">
+                    <d.SelectValue placeholder="Select a payment method" />
+                  </d.SelectTrigger>
+                  <d.SelectContent>
+                    {paymentMethods?.map(method => (
+                      <d.SelectItem key={method.id} value={method.id}>
+                        {d.getPaymentMethodDisplay(method).label}
+                      </d.SelectItem>
+                    ))}
+                    {walletMethod && !paymentMethods?.some(method => method.id === walletMethod.paymentMethodId) && (
+                      <d.SelectItem value={walletMethod.paymentMethodId}>
+                        {walletMethod.type === "apple_pay" ? "Apple Pay" : walletMethod.type === "google_pay" ? "Google Pay" : "Wallet"}
+                      </d.SelectItem>
+                    )}
+                    <d.SelectItem value={NEW_CARD}>Add new payment method</d.SelectItem>
+                  </d.SelectContent>
+                </d.Select>
+              </div>
+            )
+          )}
+
+          {isNewCard && setupIntentStatus === "error" && (
+            <Alert variant="destructive">
+              <AlertDescription>We couldn&apos;t load the payment form. Please try again.</AlertDescription>
+              <Button type="button" variant="outline" onClick={() => createSetupIntent()} className="mt-2">
+                Retry
+              </Button>
+            </Alert>
+          )}
+
+          {isNewCard && (
+            <d.AddCreditsNewPaymentMethodFields
+              ref={paymentMethodRef}
+              clientSecret={setupIntent?.clientSecret}
+              isLoading={isSetupLoading}
+              disabled={isBusy || !!confirmedNewCardRef.current}
+              onPaymentTypeChange={trackPaymentTypeSelected}
+            />
+          )}
+
+          {isNewCard && confirmedNewCardRef.current && !isBusy && (
+            <div className="space-y-2">
+              <p className="text-sm text-muted-foreground">
+                Your payment method is saved for this purchase. You can retry with it or use a different payment method.
+              </p>
+              <Button type="button" variant="outline" onClick={() => changeSelectedMethod(NEW_CARD)}>
+                Use a different payment method
+              </Button>
+            </div>
+          )}
+
+          {error && (
+            <Alert variant="destructive">
+              <AlertDescription>
+                <span className="block font-medium">{error}</span>
+                {errorAction && <span className="mt-1 block text-sm">{errorAction}</span>}
+              </AlertDescription>
+            </Alert>
+          )}
+
+          <LoadingButton
+            type="submit"
+            className="w-full"
+            loading={isProcessing}
+            disabled={isBusy || amount < topUpMinAmountUsd || isLoadingMethods || (isNewCard && (isSetupLoading || setupIntentStatus === "error"))}
+          >
+            Purchase Credits
+          </LoadingButton>
+        </fieldset>
       </form>
 
       {threeDSecure.threeDSData?.clientSecret && (

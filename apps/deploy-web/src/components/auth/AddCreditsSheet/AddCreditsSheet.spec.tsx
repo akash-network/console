@@ -5,7 +5,7 @@ import { mock } from "vitest-mock-extended";
 import type { AnalyticsService } from "@src/services/analytics/analytics.service";
 import { AddCreditsSheet, DEPENDENCIES } from "./AddCreditsSheet";
 
-import { act, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { MockComponents } from "@tests/unit/mocks";
 
 describe(AddCreditsSheet.name, () => {
@@ -34,13 +34,24 @@ describe(AddCreditsSheet.name, () => {
     expect(dependencies.AddCreditsTabs).not.toHaveBeenCalled();
   });
 
-  it("forwards a completed purchase to onDone", () => {
+  it("does not subscribe to the balance before a purchase succeeds", () => {
+    const useWalletBalance = vi.fn<typeof DEPENDENCIES.useWalletBalance>();
+    setup({ open: false, dependencies: { useWalletBalance } });
+
+    expect(useWalletBalance).not.toHaveBeenCalled();
+  });
+
+  it("keeps a completed purchase visible until the user dismisses it", () => {
     const onDone = vi.fn();
     const { dependencies } = setup({ open: true, onDone });
     const tabsProps = dependencies.AddCreditsTabs.mock.calls.at(-1)![0] as Parameters<typeof DEPENDENCIES.AddCreditsTabs>[0];
 
     act(() => tabsProps.onDone(100, 5));
 
+    expect(onDone).not.toHaveBeenCalled();
+    expect(screen.getByRole("status")).toHaveTextContent(/credits added/i);
+    expect(screen.getByRole("status")).toHaveTextContent("$125.00");
+    fireEvent.click(screen.getByRole("button", { name: "Done" }));
     expect(onDone).toHaveBeenCalledWith(100, 5);
   });
 
@@ -87,6 +98,30 @@ describe(AddCreditsSheet.name, () => {
     act(() => dependencies.Sheet.mock.calls.at(-1)![0].onOpenChange?.(false));
 
     expect(analyticsService.track).not.toHaveBeenCalledWith("add_credits_cancelled", expect.anything());
+  });
+
+  it("forwards the purchase only once when the success screen is dismissed repeatedly", () => {
+    const onDone = vi.fn();
+    const { dependencies } = setup({ open: true, onDone });
+    const tabsProps = dependencies.AddCreditsTabs.mock.calls.at(-1)![0] as Parameters<typeof DEPENDENCIES.AddCreditsTabs>[0];
+
+    act(() => tabsProps.onDone(100, 10));
+    act(() => dependencies.Sheet.mock.calls.at(-1)![0].onOpenChange?.(false));
+    act(() => dependencies.Sheet.mock.calls.at(-1)![0].onOpenChange?.(false));
+
+    expect(onDone).toHaveBeenCalledExactlyOnceWith(100, 10);
+  });
+
+  it("starts a fresh form when reopened after a successful purchase", () => {
+    const { dependencies, rerender } = setup({ open: true });
+    const tabsProps = dependencies.AddCreditsTabs.mock.calls.at(-1)![0] as Parameters<typeof DEPENDENCIES.AddCreditsTabs>[0];
+    act(() => tabsProps.onDone(100));
+
+    rerender(false);
+    rerender(true);
+
+    expect(screen.queryByText("Payment successful")).not.toBeInTheDocument();
+    expect(screen.getByText(/^Add credits/)).toBeInTheDocument();
   });
 
   it("threads the initial tab to the tabs", () => {
@@ -144,11 +179,16 @@ describe(AddCreditsSheet.name, () => {
   }) {
     const analyticsService = mock<AnalyticsService>();
     const useServices = (() => mock<ReturnType<typeof DEPENDENCIES.useServices>>({ analyticsService })) as typeof DEPENDENCIES.useServices;
-    const dependencies = MockComponents(DEPENDENCIES, { useServices, ...input.dependencies });
+    const useWalletBalance: typeof DEPENDENCIES.useWalletBalance = () =>
+      mock<ReturnType<typeof DEPENDENCIES.useWalletBalance>>({
+        isLoading: false,
+        balance: mock<NonNullable<ReturnType<typeof DEPENDENCIES.useWalletBalance>["balance"]>>({ totalUsd: 125 })
+      });
+    const dependencies = MockComponents(DEPENDENCIES, { useServices, useWalletBalance, ...input.dependencies });
 
-    render(
+    const renderSheet = (open: boolean) => (
       <AddCreditsSheet
-        open={input.open}
+        open={open}
         onOpenChange={input.onOpenChange ?? vi.fn()}
         onDone={input.onDone ?? vi.fn()}
         onRedeemed={input.onRedeemed}
@@ -158,7 +198,8 @@ describe(AddCreditsSheet.name, () => {
         dependencies={dependencies}
       />
     );
+    const view = render(renderSheet(input.open));
 
-    return { dependencies, analyticsService };
+    return { dependencies, analyticsService, rerender: (open: boolean) => view.rerender(renderSheet(open)) };
   }
 });
