@@ -11,11 +11,13 @@ export type { EmailVerificationStrategy } from "./email-verification.strategy";
  * end-to-end without depending on a third-party inbox service and its quotas.
  */
 export function createEmailVerificationStrategy(): EmailVerificationStrategy {
-  return new InboxCodeVerificationStrategy(
-    new WorkerInboxClient({
-      apiUrl: testEnvConfig.E2E_INBOX_API_URL,
-      apiToken: testEnvConfig.E2E_INBOX_API_TOKEN,
-      emailDomain: testEnvConfig.E2E_INBOX_EMAIL_DOMAIN
-    })
-  );
+  return new InboxCodeVerificationStrategy(createInboxClient());
+}
+
+export function createInboxClient(): WorkerInboxClient {
+  return new WorkerInboxClient({
+    apiUrl: testEnvConfig.E2E_INBOX_API_URL,
+    apiToken: testEnvConfig.E2E_INBOX_API_TOKEN,
+    emailDomain: testEnvConfig.E2E_INBOX_EMAIL_DOMAIN
+  });
 }

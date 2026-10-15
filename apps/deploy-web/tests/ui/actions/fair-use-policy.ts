@@ -7,12 +7,15 @@ function locatePrompt(page: Page): Locator {
   return page.getByRole("region", { name: /fair use policy/i }).or(page.getByRole("dialog", { name: /fair use policy/i }));
 }
 
-/** Races the prompt against the onboarding heading, because the heading is what a new user sees instead when the gate is off. */
-export async function acceptFairUsePolicyIfPrompted(page: Page): Promise<void> {
+/**
+ * Races the prompt against what the page shows once no prompt is coming: the onboarding heading a new user lands on,
+ * unless the caller names another landmark.
+ */
+export async function acceptFairUsePolicyIfPrompted(page: Page, options: { settledBy?: Locator } = {}): Promise<void> {
   const prompt = locatePrompt(page);
-  const onboardingHeading = page.getByRole("heading", { name: /deploy your first app/i });
+  const settledBy = options.settledBy ?? page.getByRole("heading", { name: /deploy your first app/i });
 
-  await Promise.race([waitForVisible(prompt), waitForVisible(onboardingHeading)]);
+  await Promise.race([waitForVisible(prompt), waitForVisible(settledBy)]);
 
   if (!(await prompt.isVisible())) return;
 
